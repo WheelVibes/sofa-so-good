@@ -151,10 +151,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [x] PARITY-BATCHRENDER: SH3D batch-render all saved views — Saved-views "Render all views" flies the
   camera to each saved view (`applyView`) and downloads a hi-fi PNG per view via `captureCanvasPng`
   (`ui/renderAllViews.ts`, `batchRender` pro flag).
-- [~] PARITY-LIGHTINGTEMPLATE-TEXT: **material callouts shipped** — a per-room Finishes schedule sheet
-  (floor + wall material names) in the drawing set (`floorplan/finishSchedule.ts`). Remaining: free
-  text callouts on sheets + drawing-set layer toggles.
-
 ### Pending — high value (M)
 - [~] PARITY-AR: AR "view in your room" **shipped** — iOS AR Quick Look (USDZ) + GLB fallback
   (`ui/viewInAr.ts`, `viewInAr` flag). Remaining: Android Scene Viewer (needs an https-hosted model).

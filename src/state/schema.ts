@@ -341,6 +341,33 @@ const RawSerializedStateZ = z.object({
   locationPromptDismissed: z.boolean().optional().default(false),
   // Free-text project note that travels with the design (optional, back-compat).
   note: z.string().optional(),
+  // Optional free-text callouts on drawing-set sheets (PARITY-LIGHTINGTEMPLATE-TEXT).
+  // Optional + additive — no schema-version bump; absent → [] on load.
+  drawingCallouts: z
+    .array(
+      z.object({
+        id: z.string(),
+        sheet: z.enum([
+          'cover',
+          'floor-plan',
+          'elevations',
+          'lighting',
+          'dimensions',
+          'section',
+          'electrical',
+          'plumbing',
+          'finishes',
+          'demolition',
+          'ffe',
+        ]),
+        text: z.string(),
+        x: z.number().min(0).max(1),
+        y: z.number().min(0).max(1),
+        leaderX: z.number().min(0).max(1).optional(),
+        leaderY: z.number().min(0).max(1).optional(),
+      }),
+    )
+    .optional(),
   // Optional tour stops (C261, P-720 tail) — optional + additive, no version bump.
   // Images are NOT shared — receivers capture live from the current design.
   // Absent → [] on load (backward-compatible with older saves / links).
@@ -469,6 +496,7 @@ export function serialize(state: RootState): SerializedState {
     lightsMode: state.lightsMode,
     ...(state.annotations.length ? { annotations: state.annotations } : {}),
     ...(state.comments.length ? { comments: state.comments } : {}),
+    ...(state.drawingCallouts.length ? { drawingCallouts: state.drawingCallouts } : {}),
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg,
     location: state.location,
@@ -533,6 +561,7 @@ export function applySerialized(
     lightsMode: state.lightsMode ?? 'auto',
     annotations: state.annotations ?? [],
     comments: state.comments ?? [],
+    drawingCallouts: state.drawingCallouts ?? [],
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,

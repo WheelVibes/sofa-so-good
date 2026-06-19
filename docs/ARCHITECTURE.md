@@ -514,6 +514,16 @@ same change that reshapes a system.
   `promptText`; `ui/CommentsPanel.tsx` `.aux` list with resolve/edit/focus; persists in the
   save schema (optional `comments[]`) so pins travel with `.sofa.json` + `#/design/` links;
   `comments` flag, pro),
+  **Drawing-set callouts** (PARITY-LIGHTINGTEMPLATE-TEXT: `drawingCalloutsSlice`
+  `{id,sheet,text,x,y,leaderX?,leaderY?}` — sheet-relative normalised [0,1] coords; undoable
+  CRUD via `addDrawingCallout`/`updateDrawingCalloutText`/`moveDrawingCallout`/`deleteDrawingCallout`
+  (each calls `pushHistory`); `promptText` 4-step add chain (text → sheet number → x%/y% position →
+  optional leader tip); `ui/DrawingCalloutsPanel.tsx` `.aux` list with edit/delete icon buttons;
+  `buildCalloutsSvg()` in `ui/drawingSet.ts` injects an absolutely-positioned SVG overlay per sheet
+  (viewBox 100×100, dashed leader line + white bg rect + multi-line `<tspan>` text) when callouts are
+  present; `openDrawingSet.ts` forwards `drawingCallouts` as 10th arg; persists in the save schema
+  (optional `drawingCallouts[]`) so callouts travel with `.sofa.json` + `#/design/` links;
+  `drawingCallouts` flag, pro),
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
   even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
   snap-to-wall (`layout/faceWall.ts`) / arrange-as-run (`layout/arrangeRun.ts`, butt a kitchen

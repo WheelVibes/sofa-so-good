@@ -24,6 +24,11 @@ import {
 import { COMMENTS_INITIAL, type CommentsSlice, createCommentsSlice } from './slices/commentsSlice'
 import { createDoorsSlice, DOORS_INITIAL, type DoorsSlice } from './slices/doorsSlice'
 import {
+  createDrawingCalloutsSlice,
+  DRAWING_CALLOUTS_INITIAL,
+  type DrawingCalloutsSlice,
+} from './slices/drawingCalloutsSlice'
+import {
   createFeatureFlagsSlice,
   FEATURE_FLAGS_INITIAL,
   type FeatureFlagsSlice,
@@ -109,6 +114,7 @@ export interface RootState
     LocationSlice,
     MeasurementsSlice,
     CommentsSlice,
+    DrawingCalloutsSlice,
     DoorsSlice,
     ItemsSlice,
     SelectionSlice,
@@ -146,6 +152,7 @@ const INITIAL = {
   ...LOCATION_INITIAL,
   ...MEASUREMENTS_INITIAL,
   ...COMMENTS_INITIAL,
+  ...DRAWING_CALLOUTS_INITIAL,
   ...DOORS_INITIAL,
   ...ITEMS_INITIAL,
   ...SELECTION_INITIAL,
@@ -180,6 +187,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createLocationSlice(set, get, api),
   ...createMeasurementsSlice(set, get, api),
   ...createCommentsSlice(set, get, api),
+  ...createDrawingCalloutsSlice(set, get, api),
   ...createDoorsSlice(set, get, api),
   ...createItemsSlice(set, get, api),
   ...createSelectionSlice(set, get, api),
