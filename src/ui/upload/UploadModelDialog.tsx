@@ -99,6 +99,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   // When the user tries to leave mid-scan/import, confirm before discarding.
   const [confirmClose, setConfirmClose] = useState(false)
   const folderInput = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   // A scan, detection, or import is running — leaving now would abandon it.
   const inProgress = busy || scanCount !== null || detecting
@@ -125,11 +126,44 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
       if (e.key === 'Escape') {
         e.preventDefault()
         requestClose()
+        return
+      }
+      // Trap Tab within the dialog so keyboard users can't reach the inert page
+      // behind it (UX-003).
+      if (e.key === 'Tab') {
+        const panel = panelRef.current
+        if (!panel) return
+        const f = panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        )
+        if (f.length === 0) {
+          e.preventDefault()
+          panel.focus()
+          return
+        }
+        const first = f[0]
+        const last = f[f.length - 1]
+        const active = document.activeElement
+        if (e.shiftKey && (active === first || active === panel)) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault()
+          first.focus()
+        }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, confirmClose, inProgress])
+
+  // Move focus into the dialog on open + restore it on close (a11y, UX-003).
+  useEffect(() => {
+    if (!open) return
+    const prev = document.activeElement as HTMLElement | null
+    panelRef.current?.focus()
+    return () => prev?.focus?.()
+  }, [open])
 
   if (!open) return null
 
@@ -254,9 +288,18 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
 
   const dialog = (
     <div className="modal-overlay">
-      <div className="relative flex max-h-[85vh] w-[560px] max-w-[90vw] flex-col rounded-lg bg-[var(--surface-solid)] text-sm shadow-2xl">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upload-model-title"
+        tabIndex={-1}
+        className="relative flex max-h-[85vh] w-[560px] max-w-[90vw] flex-col rounded-lg bg-[var(--surface-solid)] text-sm shadow-2xl"
+      >
         <header className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3">
-          <h2 className="text-base font-semibold text-[var(--text)]">Upload models</h2>
+          <h2 id="upload-model-title" className="text-base font-semibold text-[var(--text)]">
+            Upload models
+          </h2>
           <button
             onClick={requestClose}
             aria-label="Close"

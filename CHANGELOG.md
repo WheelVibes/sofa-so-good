@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## a11y: UploadModelDialog dialog role + focus management (UX-003) (v0.2.0.28)
+
+The model-upload dialog (a 560px custom flex panel with drag-drop zones, scan progress, and per-group
+options) had `useModalGuard` + Escape but no `role="dialog"`/`aria-modal`, no focus trap, no focus
+restore — keyboard users could Tab behind it and AT didn't announce a dialog. Rather than restructure
+the complex layout onto the shared Modal, applied the same a11y wiring in place: the panel is now a
+`role="dialog"` + `aria-modal` + `aria-labelledby` (the title), focus moves into it on open and restores
+on close, and the existing key handler now also traps Tab/Shift+Tab within the panel. Layout unchanged.
+This clears the last UX a11y item. (`border-blue-500` literal was already tokenised in v0.2.0.25.)
+
 ## a11y: UploadMaterialDialog → shared Modal (UX-009) (v0.2.0.27)
 
 The material-upload dialog was a hand-rolled `.modal-overlay > .panel` that didn't even call

@@ -67,7 +67,7 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 | 28 | **PC2-PLAN-ANGLE-SNAP** | Snap wall-draw + furniture-rotate to 15/30/45/90° with Shift/Alt override | MED QOL | S/M | `ui/floorplan/FloorPlanEditor.tsx`, `ui/floorplan/editor/snapToWalls.ts` (+test) | `cg-floorplaneditor` |
 | ~~29~~ | ~~**UX-002**~~ | ✅ DONE (v0.2.0.16) — 44px `::after` hit area on every docked-sheet `.panel-head .icon-btn` | MED a11y/touch | S | `styles/responsive.css` | `cg-css` |
 | 30 | **UX-006** | No global `prefers-reduced-motion` handling for sheet/fade animations | LOW/MED a11y | S | `styles/responsive.css` (global media block) | `cg-css` |
-| 31 | **UX-003** | `UploadModelDialog` not on shared `Modal` (no focus trap/role + `border-blue-500` literal) | MED a11y *(dev-only path)* | M | `ui/upload/UploadModelDialog.tsx` | `cg-uploaddlg` |
+| ~~31~~ | ~~**UX-003**~~ | ✅ DONE (v0.2.0.28) — dialog role + aria-modal + labelledby + focus into/restore + Tab-trap added in place (kept the custom 560px layout); blue literal tokenised in v0.2.0.25 | MED a11y *(dev-only path)* | M | `ui/upload/UploadModelDialog.tsx` | `cg-uploaddlg` |
 | ~~32~~ | ~~**UX-004**~~ | ✅ DONE (v0.2.0.22) — on shared `Modal` (dialog/focus trap/restore) + dial is a keyboard `role=slider` (arrows/Home) | MED a11y | M | `ui/toolbar/CompassModal.tsx` | `cg-compass` |
 | ~~33~~ | ~~**UX-008**~~ | ✅ DONE (v0.2.0.24) — import-errors detail dialog now uses shared `Modal` (dialog role/focus trap/restore) | LOW a11y | S | `ui/notifications/NotificationContainer.tsx` | `cg-notif` |
 | ~~34~~ | ~~**UX-009**~~ | ✅ DONE (v0.2.0.27) — now on shared `Modal` (dialog role/focus trap/restore + modal guard) | LOW a11y *(dev-only)* | S | `ui/upload/UploadMaterialDialog.tsx` | `cg-uploadmatdlg` |
