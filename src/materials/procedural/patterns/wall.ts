@@ -1,6 +1,11 @@
 /** Wall-finish procedural patterns (plaster, batten, fluted panelling). */
 import { blank, type Fields, setPx, shade } from '../fieldKit'
 import { clamp01, makeFbm } from '../noise'
+import { DEFAULT_PLASTER_SURFACE_PARAMS, makeRollerNap } from '../plasterSurface'
+
+/** Base matte roughness of painted plaster (kept in sync with the singleton flat
+ *  value in `cache.ts` so Path A and Path B read the same matte baseline). */
+const PLASTER_BASE_ROUGHNESS = 0.92
 
 export function plasterFields(base: [number, number, number], seed: number, S: number): Fields {
   const f = blank(S)
@@ -9,6 +14,10 @@ export function plasterFields(base: [number, number, number], seed: number, S: n
   f.normalStrength = 1.1
   const peel = makeFbm(seed + 17, 3, 48)
   const broad = makeFbm(seed + 23, 3, 5)
+  // MAT-003 — roller-nap roughness drift: a whisper of broad coverage + fine nap
+  // stipple so the matte wall isn't a single flat specular value. Centred on 0
+  // (mean-preserving) and small, so the wall stays clearly MATTE — never gloss.
+  const nap = makeRollerNap(seed, DEFAULT_PLASTER_SURFACE_PARAMS.nap)
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const u = x / S
@@ -17,7 +26,7 @@ export function plasterFields(base: [number, number, number], seed: number, S: n
       const br = broad(u, v)
       const factor = 0.985 + (br - 0.5) * 0.022 + (pk - 0.5) * 0.012
       const [r, g, b] = shade(base, clamp01(factor))
-      setPx(f, y * S + x, r, g, b, pk * 0.5, 0.92)
+      setPx(f, y * S + x, r, g, b, pk * 0.5, clamp01(PLASTER_BASE_ROUGHNESS + nap(u, v)))
     }
   }
   return f

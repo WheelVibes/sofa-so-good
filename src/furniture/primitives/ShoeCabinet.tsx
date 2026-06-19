@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /** Slim entryway shoe cabinet — a near-universal fixture by the front door
@@ -65,28 +66,34 @@ export function ShoeCabinet({ props }: { props: ParamProps }) {
           })}
         </>
       ) : (
-        <mesh castShadow receiveShadow position={[0, plinthH + bodyH / 2, 0]} material={wood}>
-          <boxGeometry args={[width, bodyH, depth]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, plinthH + bodyH / 2, 0]}
+          material={wood}
+          args={[width, bodyH, depth]}
+        />
       )}
       {/* Top surface lip (slightly proud, for keys / a tray) */}
-      <mesh
+      <BeveledBox
         castShadow
         receiveShadow
         position={[0, plinthH + bodyH + topThk / 2, 0]}
         material={wood}
-      >
-        <boxGeometry args={[width + 0.02, topThk, depth + 0.02]} />
-      </mesh>
+        args={[width + 0.02, topThk, depth + 0.02]}
+      />
       {/* Flip fronts (closed style only) with a slim shadow-gap handle reveal */}
       {!open &&
         Array.from({ length: tiers }, (_, i) => {
           const y = plinthH + gap + fh / 2 + i * (fh + gap)
           return (
             <group key={i}>
-              <mesh castShadow position={[0, y, depth / 2 + 0.004]} material={wood}>
-                <boxGeometry args={[width - 0.03, fh - 0.006, 0.02]} />
-              </mesh>
+              <BeveledBox
+                castShadow
+                position={[0, y, depth / 2 + 0.004]}
+                material={wood}
+                args={[width - 0.03, fh - 0.006, 0.02]}
+              />
               {/* recessed finger pull at the top of each front */}
               <mesh position={[0, y + fh / 2 - 0.018, depth / 2 + 0.006]}>
                 <boxGeometry args={[width * 0.5, 0.012, 0.012]} />

@@ -80,9 +80,12 @@ same change that reshapes a system.
   `BUILTIN_BY_CATEGORY`),
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
-  `PrimitiveKind`), `GltfModel.tsx`/`gltfRender.ts` (all GLB items), `defaults/`,
+  `PrimitiveKind`), `GltfModel.tsx`/`gltfRender.ts` (all GLB items), `defaults/` (per-room layout
+  files assembled by `defaultLayout.ts`; each room file owns its own decor props so the styled flat
+  is self-contained; all set-dressing props carry `noClip: true` so they pass collision checks),
   `lightEmitters.ts` (fixture registry + `resolveEmitterSpec`; any item with `props.lightOn`
-  emits via the `OVERRIDE_EMITTER` fallback — `itemAsLight` flag). Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
+  emits via the `OVERRIDE_EMITTER` fallback — `itemAsLight` flag; `props.iesProfile` swaps the
+  omni point light for an IES `SpotLight` — see `src/lighting/ies/`). Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
   `textureBudget.ts`, `finishTargets.ts`, `mirrorPlane.ts`); `convert/` (any-format→GLB:
   `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`); `optimize/` (`optimizeGlb.ts`
   pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`;
@@ -100,6 +103,9 @@ same change that reshapes a system.
   `scene/FinishDropSurface.tsx` + `scene/finishDropTarget.ts`, commit = `state/finishDropApply.ts`), `convert/`
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR/KTX2/DDS, `reencode.ts`→WebP; 16MB cap; `decodeGpuTexture.ts` handles KTX2+DDS via pure-JS or GPU readback).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
+  baked grounding decals (`ContactShadow.tsx` under-furniture blob RZ1; `CornerAO.tsx`
+  `WallFloorAO` wall/floor corner strip RD-403, sizing/gating in `cornerAoMath.ts`, mounted
+  in `apartment/walls/WallSegment.tsx`, tier-gated via the `cornerAo` QualitySettings flag),
   `quality.ts`+`QualityController`, `ScreenshotController`, `PanoramaController`
   (+`panorama/equirect.ts` — six 90° screen-path renders → CPU equirect; viewer/export in
   `ui/PanoramaModal.tsx`, `panorama` flag), cameras, selection,
@@ -118,13 +124,28 @@ same change that reshapes a system.
   `ContextLossGuard.tsx` recovers WebGL context loss.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
-  CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice`).
+  CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice` /
+  `favouritesSlice` — both persist to localStorage, both per-device convenience state).
+  Favourites (star/heart button on each card, Favourites tab) are gated by the
+  `catalogFavourites` feature flag (tier: simple, default on). Browsable **remote CC0
+  *models*** (Poly Haven `RemoteCard`s) are gated by the **`remoteFurniture`** flag (tier:
+  **pro**, default on — CORS-direct CC0, prod-safe; mirror of `remoteMaterials`): the flag is
+  passed into `useUnifiedCatalog(includeRemote)`, so in Simple mode (where `resolveFlags` forces
+  pro flags off) the grid shows only the curated builtin/uploaded loop and no un-downloaded remote
+  entries surface; remote-model browsing is a Pro/advanced surface. The drawer only bootstraps the
+  remote provider index when `remoteFurniture || remoteMaterials` is on (no fetch otherwise).
+  Gating affects the browse/add path only — a placed/resolved remote def still merges into
+  `useCatalog` (`buildMergedCatalog`) and renders regardless of the flag.
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,
-  Straighten), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel, NavCluster,
+  Straighten, **linear array** (`furniture/arrayPlacement.ts` — pure, unit-tested),
+  **radial/polar array** (`furniture/radialArray.ts` — pure, unit-tested, Pro-only via
+  `radialArray` flag)), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel, NavCluster,
   CommandPalette, ContextMenu, Onboarding, HelpModal, Modal, `upload/`/`floorplan/`/
-  `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`.
+  `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`. Empty panels/lists render the shared
+  **`EmptyState`** (`EmptyState.tsx`: icon + title + optional description + optional CTA on
+  the `.empty-mini` token vocabulary) for consistent, friendly empty-state messaging.
 - `src/styles/` — design CSS (after Tailwind via `index.css`): `tokens.css` (10 OKLCH
   palettes) + `components`/`parts`/`features`/`flows`/`screens`/`responsive`/`app`.
   Components use the class vocabulary (`.panel`/`.btn`/`.toolbar`/…), never hardcoded colour.
@@ -206,6 +227,10 @@ same change that reshapes a system.
   **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`; on a
   **custom plan/template** it instead seeds a per-room kit + runs the plan arranger via pure
   `furniture/furnishPlan.ts` `furnishPlanItems`, so any template furnishes in one click).
+  After arranging, `furniture/layout/decorStyling.ts` `applyDecorStylingForPlan` adds a
+  styling pass: up to 2 `noClip` decor props per host surface (sofa→cushions, coffee
+  table→bowl/magazines, bed→cushions, nightstand→plant/candle, desk→plant/books,
+  sideboard/console→frames/sculpture). Skip via `withDecor=false`.
 - **Quality tiers** (`quality.ts`): **render** `RenderTier` = Performance/Medium/High/
   Maximum. **Performance is the default for everyone** (flat: no shadows/IBL/post, DPR 1);
   Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+HueSat+Vignette+SMAA); Maximum=+cinematic
@@ -215,8 +240,12 @@ same change that reshapes a system.
   (low/medium/high=Original LOD), follows render (`null`=Auto) but pinnable + FPS-immune.
   **Tone-mapping look** (`look.ts` `ToneMappingMode` Filmic/AgX/Neutral → three constant via
   `toneMappingThree.ts`; `Lighting` sets `gl.toneMapping`+exposure per-frame): user-selectable
-  view transform, all tiers, persisted in qualityPrefs. Filmic = default (historical ACES). A user
-  **exposure** multiplier (`clampExposure`, Graphics slider) rides on top of the auto-exposure.
+  view transform, all tiers, persisted in qualityPrefs. **Context-aware default (RD-404,
+  `toneContext.ts`):** the stored setting is `ToneMappingSetting` = the 3 operators + `'auto'`
+  (the default); `resolveToneMapping(setting, ctx)` picks Neutral while the FinishPicker is open
+  (`selectedRoomId != null` — accurate product colour), AgX for a photo context, else filmic — and
+  an explicit pick always overrides context. A user **exposure** multiplier (`clampExposure`,
+  Graphics slider) rides on top of the auto-exposure.
 - **GLB models + LOD** (`furniture/gltf/`): bundled CC0 + user + IKEA via one loader.
   `optimize:glb` writes `-low`/`-medium` (≤512/1024px WebP + ~50/75% tris, Draco);
   `lod.ts` picks per asset tier (HEAD-probe for `-low.glb` siblings; a **variant registry**
@@ -230,6 +259,12 @@ same change that reshapes a system.
   patterns cap at 512²); `effectivePatternSize(pattern)` clamps to `min(BASE_SIZE, cap)` so
   smooth patterns stay at 256 even on Medium+ tiers — saving GPU memory with no visible loss.
   `QualityController` sets `BASE_SIZE` to 256 on Performance, 512 on Medium+.
+  **Texture anisotropy (RD-401)**: `materials/anisotropy.ts` is the single source of truth —
+  every CanvasTexture creation (+ per-repeat `.clone()`) routes through `applyAnisotropy(tex)`,
+  which stamps a cached cap (default 8) and tracks the texture. `scene/AnisotropyController`
+  (mounted in both Canvases) calls `setMaxAnisotropy(gl.capabilities.getMaxAnisotropy())` on
+  first render → clamps to `max(1, deviceMax)` (commonly 16) and re-applies to all already-built
+  textures so module-load singletons + worker hot-swap maps sharpen at grazing angles.
   **C271 worker**: `buildMaterial` immediately generates a sync texture (no first-paint delay),
   then `runProceduralWorker.ts` fires a single shared `Worker`
   (`procedural.worker.ts`) that re-renders via `OffscreenCanvas` and returns three
@@ -237,6 +272,33 @@ same change that reshapes a system.
   `notifyProceduralSwap()` → `RenderPump` renders one settle frame. Graceful degradation:
   if `OffscreenCanvas`/`Worker` absent or worker errors, the sync textures stay permanently.
   `furnitureMaterials.ts` = tintable wood/stone/fabric/concrete/rattan + `getSolidMaterial`.
+  The fabric weave/seam/wrinkle normal (RZ6) is built by the pure
+  `procedural/upholsterySeams.ts` `buildUpholsteryHeight()` generator (woven micro-texture +
+  soft wrinkle + a faint panel-seam channel & topstitch; deterministic, unit-tested), baked once
+  into a shared 256² normal singleton behind the `pbrSurfaces` flag (off → the legacy clean weave).
+  The glossy-ceramic painters (`procedural/patterns/tile.ts` tile/hexagon/subway) get their glaze
+  micro-detail from the pure `procedural/tileSurface.ts` (MAT-002): a fine face-only orange-peel
+  micro-normal (`makeGlazePeel`) + an explicit glaze↔grout roughness contrast (`glazeRoughness`)
+  that rides each painter's own grout grid so it aligns with the visible joints; Path-A, all-tier,
+  no flag, tasteful defaults. Stone/marble (MAT-001) get their micro-detail from the pure
+  `procedural/stoneSurface.ts`: a vein normal-relief (`veinHeight`) driven by the caller's OWN vein
+  mask (so the relief aligns with the visible albedo veins) + a broad polished roughness drift
+  (`makeRoughDrift`). Wired into Path A (`patterns/stone.ts:marbleFields`, all-tier, no flag) and
+  Path B (`getMarbleMaps`/`getStoneMaterial` — the shared marble singleton gains a roughness-drift
+  map gated behind `pbrSurfaces`; off → legacy uniform polish). Painted plaster/concrete (MAT-003)
+  gets its micro-detail from the pure `procedural/plasterSurface.ts`: a signed, mean-preserving
+  roller-nap roughness drift (`makeRollerNap` — broad coverage + fine nap stipple) so the matte
+  wall isn't a single flat value yet stays matte. Path A (`patterns/wall.ts:plasterFields`, the
+  `0.92` roughness now drifts; all-tier, no flag) and Path B (`generators.ts:getPlasterNormal`
+  builds the shared normal AND, behind `pbrSurfaces`, a tint-independent roughness-drift multiplier
+  map via `getPlasterRoughness()`, wired into the plaster branch of `cache.ts`; off → legacy flat
+  `0.92` scalar). Brushed/satin metal (MAT-004) comes from the pure `procedural/metalBrush.ts`
+  (`buildBrushedMetalFields` — directional U-running brush hairlines, row-variance ≫ column-variance)
+  via `getMetalMaterial(color, finish, repeat)`: under `pbrSurfaces` a `MeshPhysicalMaterial` with the
+  shared brush normal + roughness-streak maps + three.js `anisotropy` (finish presets
+  `stainless`/`satin`/`black-steel`); off → a plain `MeshStandardMaterial` (legacy flat steel). The 8
+  steel-bodied appliance primitives wire to it via `furniture/primitives/shared.tsx:applianceBody`
+  (MAT-004b).
 - **Material realism** (`materials/materialRealism.ts`, pure): `sheenLayer`(velvet/satin/leather)
   + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
   `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real
@@ -269,16 +331,22 @@ same change that reshapes a system.
   selected time). **Lights** (`lightsMode` off/on/auto) is an independent fixture toggle — not
   tied to the sun (lights can be on in daytime). Fixtures emit capped night point lights; shades
   glow via `fixtureGlow`.
-- **Parametric furniture generator** (`furniture/parametric/`, PF1): dimension-driven
-  bookshelf/wardrobe/sideboard. Pure tested core — `spec.ts` (`clampSpec` envelopes, never
-  throws), `buildParts.ts` `buildParametric(spec)` → box parts (floor-anchored/centred/+Z;
-  auto centre divider >1.2 m bays, ≤0.6 m door leaves, rail; bounds = footprint),
-  `price.ts` board-area estimate → def-level `price` (wins in `itemPrice`). `buildObject.ts`
-  maps parts → meshes (furnitureMaterials) shared by the dialog preview AND
-  `saveParametric.ts` (exportGlb → `persistUserGlb`, hash-dedupe → new `UserGltfDef` per
-  spec; price+footprint persist via IDB meta + schema). UI `ui/parametric/ParametricDialog`
+- **Parametric furniture generator** (`furniture/parametric/`, PF2): dimension-driven
+  bookshelf / wardrobe / sideboard / desk / **kitchen-cabinet run**. Pure tested core —
+  `spec.ts` (`ParametricType` union, `clampSpec` envelopes, `defaultSpec`, never throws),
+  `buildParts.ts` `buildParametric(spec)` → box `ParametricPart[]` (floor-anchored/centred/+Z;
+  type-dispatch to specialist builders). Per-type builders: storage carcass (auto centre
+  divider >1.2 m bays, ≤0.6 m door leaves, hanging rail, stacked drawers), desk (four-leg or
+  pedestal with drawer stack), **kitchen-run** (recessed toe-kick 0.1 m, carcass shell,
+  per-bay door/drawer/open fronts, continuous worktop slab 0.04 m thick with 0.02 m front
+  overhang, optional wall uppers 0.35 m deep × 0.72 m tall with 0.18 m gap).
+  `price.ts` board-area + worktop-premium estimate → def-level `price`. `buildObject.ts`
+  maps parts → meshes (furnitureMaterials) shared by dialog preview AND
+  `saveParametric.ts` (exportGlb → `persistUserGlb`, hash-dedupe → `UserGltfDef`;
+  price+footprint via IDB meta + schema). UI `ui/parametric/ParametricDialog`
   (type tabs + DimField sliders + live preview; Add to room arms placement); entries:
-  catalog-foot **Custom size**, ⌘K, mobile Design menu — `parametricFurniture` flag (pro).
+  catalog-foot **Custom size**, ⌘K, mobile Design menu — `parametricFurniture` flag (simple),
+  `kitchenCabinets` flag (simple) gates the Kitchen run tab specifically.
 - **Parametric cabinet engine** (`furniture/cabinet/`): mm-customisable modular cabinets.
   `cabinetModel.ts` = pure tested `buildCabinet(spec)` → flat `CabinetPart[]` (toe-kick/
   carcass/countertop/cornice + slab·shaker·drawers·glass·open fronts; structurally sound).
@@ -369,6 +437,15 @@ same change that reshapes a system.
   toggled by `luxOverlayOn` from the Drawings panel's Lighting tab — rides the `drawings` flag.
   LP6: `luxExcludedIds` filters fixtures before grid build; `luxPlaying` rAF auto-advances `manualHour`
   at 1 hr/s; Drawings panel Lighting tab gains inline time slider + play button + per-fixture checkboxes.
+- **IES photometric profiles** (`src/lighting/ies/`, pure + render-agnostic — PC-IES-LIGHT, Coohom
+  parity): `parseIes.ts` parses an IESNA LM-63 ASCII `.ies` file (header keywords, TILT line incl.
+  inline `TILT=INCLUDE`, the 10 photometric params, vertical/horizontal angle arrays, candela grid ×
+  multiplier; throws `IesParseError` on malformed input); `iesProfile.ts` derives peak/beam(50%)/
+  field(10%) angles; `spotMapping.ts` maps a profile → Three `SpotLight` (`angle`=field half clamped
+  6–80°, `penumbra` from beam:field ratio, `intensity` from base × focus); `sampleProfiles.ts` bundles
+  two self-authored CC0 downlight profiles; `iesStore.ts` caches bundled + uploaded (`custom:<key>`)
+  profiles. A lit item with `props.iesProfile` renders a downward `SpotLight` in `FurnitureLights.tsx`;
+  picked via `ui/inspector/IesProfilePicker.tsx`. Gated by the `iesLights` (pro) flag.
 - **Design score** (`analysis/designScore.ts` pure → weighted 0–100 + A–F grade over 5 categories:
   clearance/furnishing/circulation/daylight/lighting, each with actionable issues). Reuses the
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
@@ -402,8 +479,12 @@ same change that reshapes a system.
   (`apartment/walls/`): exterior walls between camera and interior fade out.
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,
   `selection/RotateGizmo.tsx`+`rotateGizmoMath.ts`): grid 10/25/50cm/1m; align
-  (`AlignmentGuides`), flush-to-wall (`wallSnap.ts`, off when grid-snap on), gap HUD
-  (`clearanceGap.ts`); touch rotate ring (single 15°, multi rigid centroid, Shift=free,
+  (`AlignmentGuides`), equal-spacing smart guides (`collision/equalSpacing.ts`
+  `detectEqualSpacingAxis` — matching distance badges + ticks when the dragged item
+  forms equal gaps with neighbours/walls, snaps to the even-gap centre; pure +
+  unit-tested, rendered in `AlignmentGuides`), flush-to-wall (`wallSnap.ts`, off
+  when grid-snap on), live per-side distance-to-wall HUD (`DragHud` ← `clearanceGap.ts` `wallGapsPerSide`,
+  left/right/back/front gaps, amber under `walkwayMin`); touch rotate ring (single 15°, multi rigid centroid, Shift=free,
   green/red validity, complements **R** 90°).
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): 2D editor of store `floorPlan`
   — walls, rectangular/L-shape (`extension`)/free-`polygon` rooms (Polygon + Auto-room),
@@ -420,6 +501,12 @@ same change that reshapes a system.
   **on touch the Wall tool is tap-to-place + chaining** (tap start, tap end, continues from the last end;
   `wallTapHadAnchor` ref distinguishes placing the start vs the end), with snapped start-dot/end-ring markers
   drawn on the draft (desktop keeps drag-to-draw).
+  **Numeric wall entry** (`wallNumericEntry` flag, pro, default on): while a desktop wall draft is active
+  a floating overlay (`ui/floorplan/editor/WallNumericEntry.tsx`) appears near the cursor endpoint with
+  Length and Angle ° text fields; typing drives a live preview; Enter commits at the exact values; Tab
+  moves between fields; Escape cancels; dragging updates unowned fields live. Pure geometry helpers in
+  `floorplan/wallNumericEntry.ts` (`endpointFromLengthAngle`, `segmentLengthAngle`, `parseLengthInput`,
+  `parseAngleInput`, `validateLength`, `validateAngle`) parse metric (m/cm) and imperial (ft/in) input.
   **Wall + door/window inspectors mirror the furniture inspector** (`PlanInspector`): a custom **Name**
   (pure defaults in `floorplan/planElementName.ts`; `PlanWall.name`/`PlanOpening.name`, custom wins; room
   creation auto-names boundary walls `<room> wall ##` **and the doors/windows on them**
@@ -441,7 +528,9 @@ same change that reshapes a system.
   **Polyline markup** (Polyline tool → `plan.polylines`, open/closed + dashed + end-arrow; pure
   `floorplan/polyline.ts`; `planPolyline` flag, pro — PARITY-POLYLINE). **Draggable room-name labels**
   (`room.labelOffset`; `roomLabelPosition` = centroid + offset, shared by editor + report/drawing set —
-  PARITY-ROOMLABEL). Live furniture as `canPlace`-checked footprints (active storey
+  PARITY-ROOMLABEL). Each room's label shows name + live floor **area** (`planRoomArea`) + wall
+  **perimeter** (`planRoomPerimeter` — shared with the report) on the full-detail tier, unit-aware
+  (`roomLabelDetail` thins it as the room shrinks). Live furniture as `canPlace`-checked footprints (active storey
   only). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
   "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
   furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an
@@ -514,6 +603,27 @@ same change that reshapes a system.
   `promptText`; `ui/CommentsPanel.tsx` `.aux` list with resolve/edit/focus; persists in the
   save schema (optional `comments[]`) so pins travel with `.sofa.json` + `#/design/` links;
   `comments` flag, pro),
+  **Drawing-set callouts** (PARITY-LIGHTINGTEMPLATE-TEXT: `drawingCalloutsSlice`
+  `{id,sheet,text,x,y,leaderX?,leaderY?}` — sheet-relative normalised [0,1] coords; undoable
+  CRUD via `addDrawingCallout`/`updateDrawingCalloutText`/`moveDrawingCallout`/`deleteDrawingCallout`
+  (each calls `pushHistory`); `promptText` 4-step add chain (text → sheet number → x%/y% position →
+  optional leader tip); `ui/DrawingCalloutsPanel.tsx` `.aux` list with edit/delete icon buttons;
+  `buildCalloutsSvg()` in `ui/drawingSet.ts` injects an absolutely-positioned SVG overlay per sheet
+  (viewBox 100×100, dashed leader line + white bg rect + multi-line `<tspan>` text) when callouts are
+  present; `openDrawingSet.ts` forwards `drawingCallouts` as 10th arg; persists in the save schema
+  (optional `drawingCallouts[]`) so callouts travel with `.sofa.json` + `#/design/` links;
+  `drawingCallouts` flag, pro),
+  **Quote templates** (PARITY-QUOTE-XLSX tail: `quoteTemplateSlice` + `export/quoteTemplate.ts`):
+  `QuoteTemplate` interface holds company name, contact line, header/footer notes, currency label,
+  markup/discount/GST percents, and four section-visibility booleans (FF&E / Flooring / Wall Finishes /
+  Carpentry); `DEFAULT_QUOTE_TEMPLATE` is the zero-customisation baseline; `applyTemplate(boq, t)` filters
+  sections and appends Markup/Discount/GST rows, recomputing the grand total; `isNonDefaultTemplate` +
+  `mergeTemplate` support compact serialisation (omitted when default, partial fields filled on load);
+  `quoteTemplateSlice` exposes `setQuoteTemplate`/`resetQuoteTemplate` (both push undo); `quoteTemplate`
+  is part of `HistorySnapshot` so template edits are fully undoable; `boqToHtml`/`boqToCsv`/`boqRows`/
+  `boqToXlsx` all accept an optional template and produce identical output when omitted; `openBoq.ts`
+  and `downloadBoqXlsx.ts` read `quoteTemplate` from the store and apply it; `ui/QuoteTemplateModal.tsx`
+  modal with CSS-token-only styling; `quoteTemplate` flag, pro),
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
   even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
   snap-to-wall (`layout/faceWall.ts`) / arrange-as-run (`layout/arrangeRun.ts`, butt a kitchen
@@ -641,3 +751,8 @@ same change that reshapes a system.
   (+ optional `.glb.json` sidecar) into `public/assets/furniture/`, `npm run index-assets`
   → regenerates `generatedCatalog.ts` + `CREDITS`. Must be floor-anchored + centred (no
   runtime fit). License CC0 default, may be CC-BY (sidecar → inspector `SourceLine`).
+  **Cache lifecycle (PERF-001/008)**: `GltfModel` caches parsed GPU scenes (drei `useGLTF`)
+  plus module-level `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`; removal paths (`freeResource` in
+  `userAssetsSlice`, `markPackUninstalled` in `installedPacksSlice`) call
+  `evictGltfAsset(url)` to clear + dispose those (base + all tier-variant urls) so GPU
+  memory is reclaimed instead of leaking toward WebGL context loss.

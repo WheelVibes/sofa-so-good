@@ -151,3 +151,126 @@ describe('procedural detail: grout aging + roughness micro-detail (RZ4)', () => 
     expect(mortarLum.size).toBeGreaterThan(4)
   })
 })
+
+// MAT-002: glazed ceramic micro-detail — orange-peel glaze micro-normal on the
+// face + a roughness contrast between the glossy glaze and the matte grout,
+// aligned with the painter's existing grout grid.
+describe('procedural detail: tile glaze micro-normal + glaze↔grout roughness (MAT-002)', () => {
+  const S = 128
+
+  // `tileFields` lays a 2×2 grid: grout joints fall on the cell edges (x/y near
+  // 0, S/2, S). A face column sits mid-cell (x ≈ S/4). Sample the central rough
+  // value (R channel of the greyscale roughness map) down a whole column so the
+  // grid band — not per-texel noise — dominates the mean.
+  const colRoughMean = (rough: Uint8ClampedArray, x: number) => {
+    let sum = 0
+    for (let y = 0; y < S; y++) sum += rough[(y * S + x) * 4]
+    return sum / S
+  }
+
+  it('grout column reads markedly rougher than a glaze-face column (and the band aligns with the grid)', () => {
+    const { roughness } = generateProceduralRaw('mat002', 'tile', '#cfd2d4', S)
+    const groutCol = colRoughMean(roughness, Math.round(S / 2)) // on the centre seam
+    const faceCol = colRoughMean(roughness, Math.round(S / 4)) // mid-tile glaze
+    // Grout (matte cement) must read clearly rougher than the glossy glaze, and
+    // the rougher band lands exactly on the grid edge → normal/roughness align.
+    expect(groutCol).toBeGreaterThan(faceCol + 40)
+  })
+
+  it('the glaze face carries a non-flat micro-normal (orange-peel perturbs the normal map)', () => {
+    const { normal } = generateProceduralRaw('mat002n', 'tile', '#d8d8d8', S)
+    // Collect normal R values away from the grout seams (mid-tile faces) — the
+    // glaze peel should make the face normal vary rather than sit dead-flat.
+    const faceNormR = new Set<number>()
+    for (let y = 0; y < S; y++) {
+      for (const x of [Math.round(S / 4), Math.round((3 * S) / 4)]) {
+        faceNormR.add(normal[(y * S + x) * 4])
+      }
+    }
+    expect(faceNormR.size, 'glaze face normal reads flat').toBeGreaterThan(4)
+  })
+
+  it('hexagon + subway ceramic also carry the glaze↔grout roughness contrast', () => {
+    for (const p of ['hexagon', 'subway'] as const) {
+      const { roughness } = generateProceduralRaw('mat002', p, '#cfd2d4', S)
+      const vals = new Set<number>()
+      let min = 255
+      let max = 0
+      for (let i = 0; i < roughness.length; i += 4) {
+        const r = roughness[i]
+        vals.add(r)
+        if (r < min) min = r
+        if (r > max) max = r
+      }
+      // A wide glaze(low)→grout(high) roughness spread, not a near-flat sheen.
+      expect(max - min, `${p} lacks glaze↔grout contrast`).toBeGreaterThan(80)
+    }
+  })
+
+  it('stays deterministic with the glaze micro-detail added', () => {
+    const a = generateProceduralRaw('det', 'tile', '#cfd2d4', 96)
+    const b = generateProceduralRaw('det', 'tile', '#cfd2d4', 96)
+    expect(Array.from(a.normal)).toEqual(Array.from(b.normal))
+    expect(Array.from(a.roughness)).toEqual(Array.from(b.roughness))
+  })
+})
+
+// MAT-001: stone/marble micro-detail — the veins must perturb the NORMAL (a
+// polished vein catches grazing light, not just an albedo line) and the polish
+// must drift (broad glossier/honed patches) so the slab isn't a flat mirror.
+describe('procedural detail: marble vein normal-relief + polished roughness drift (MAT-001)', () => {
+  it('the normal map is non-flat along the veins (relief follows the vein mask)', () => {
+    const { normal } = generateProceduralRaw('mat001', 'marble', '#e9e7e2', 96)
+    // A flat face bakes to a single normal value; the vein relief makes the R
+    // channel vary across the slab. (Veins were albedo-only before MAT-001 —
+    // this guards the height term feeding the normal baker.)
+    const normR = new Set<number>()
+    for (let i = 0; i < normal.length; i += 4) normR.add(normal[i])
+    expect(normR.size, 'marble normal reads flat (no vein relief)').toBeGreaterThan(4)
+  })
+
+  it('the roughness carries the polished drift on top of the micro break-up (wide spread)', () => {
+    const { roughness } = generateProceduralRaw('mat001r', 'marble', '#d8d8d8', 96)
+    const vals = new Set<number>()
+    for (let i = 0; i < roughness.length; i += 4) vals.add(roughness[i])
+    // The broad low-freq drift + the existing micro-rough give a non-uniform
+    // polish — markedly more than a single flat sheen.
+    expect(vals.size, 'marble polish reads dead-uniform').toBeGreaterThan(8)
+  })
+
+  it('stays deterministic with the vein relief + roughness drift added', () => {
+    const a = generateProceduralRaw('mat001det', 'marble', '#e9e7e2', 96)
+    const b = generateProceduralRaw('mat001det', 'marble', '#e9e7e2', 96)
+    expect(Array.from(a.normal)).toEqual(Array.from(b.normal))
+    expect(Array.from(a.roughness)).toEqual(Array.from(b.roughness))
+  })
+})
+
+// MAT-003: painted-plaster roller-nap roughness drift — a roller leaves a faint
+// stipple/orange-peel; the plaster roughness must drift (broad coverage + fine
+// nap) so the wall isn't a single flat matte value, while STAYING clearly matte.
+describe('procedural detail: plaster roller-nap roughness drift (MAT-003)', () => {
+  it('the roughness carries a roller-nap drift (not a single flat matte value)', () => {
+    const { roughness } = generateProceduralRaw('mat003', 'plaster', '#e8e6e1', 96)
+    const vals = new Set<number>()
+    for (let i = 0; i < roughness.length; i += 4) vals.add(roughness[i])
+    // Before MAT-003 the plaster roughness was a constant 0.92 → exactly one
+    // value. The nap drift makes it non-uniform (a real painted surface).
+    expect(vals.size, 'plaster roughness reads dead-flat (no nap)').toBeGreaterThan(8)
+  })
+
+  it('stays clearly MATTE — every roughness texel sits in the high/matte range', () => {
+    const { roughness } = generateProceduralRaw('mat003m', 'plaster', '#cfcdc8', 96)
+    let min = 255
+    for (let i = 0; i < roughness.length; i += 4) if (roughness[i] < min) min = roughness[i]
+    // 0.85 roughness ≈ 217/255; the nap drift is a whisper so the wall never
+    // approaches a glossy/semi-gloss sheen — it stays matte everywhere.
+    expect(min, 'plaster drifted into a non-matte sheen').toBeGreaterThan(0.85 * 255)
+  })
+
+  it('stays deterministic with the roller-nap drift added', () => {
+    const a = generateProceduralRaw('mat003det', 'plaster', '#e8e6e1', 96)
+    const b = generateProceduralRaw('mat003det', 'plaster', '#e8e6e1', 96)
+    expect(Array.from(a.roughness)).toEqual(Array.from(b.roughness))
+  })
+})

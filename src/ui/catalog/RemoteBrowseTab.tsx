@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { useRemoteEntries } from '../../catalog/remote/hooks'
 import type { ProviderId, RemoteKind } from '../../catalog/remote/types'
 import { useStore } from '../../state/store'
+import { EmptyState } from '../EmptyState'
+import { Icon } from '../toolbar/icons'
 import { CachePane } from './CachePane'
 import { RemoteCard } from './RemoteCard'
 import { ResolutionPicker } from './ResolutionPicker'
@@ -190,13 +192,24 @@ export function RemoteBrowseTab({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {filtered.length === 0 ? (
-          <p className="py-6 text-center text-xs text-[var(--text-3)]">
-            {phStatus === 'loading' || acgStatus === 'loading'
-              ? 'Loading catalog…'
-              : totalLoaded === 0
-                ? 'Index empty — check connectivity.'
-                : 'No matching items. Try a different keyword.'}
-          </p>
+          phStatus === 'loading' || acgStatus === 'loading' ? (
+            <p className="py-6 text-center text-xs text-[var(--text-3)]">Loading catalog…</p>
+          ) : totalLoaded === 0 ? (
+            <EmptyState
+              icon={Icon.Cube}
+              title="Index empty"
+              description="No items loaded yet — check your connection and try refreshing."
+            />
+          ) : (
+            <EmptyState
+              icon={Icon.Search}
+              title="No matching items"
+              description={
+                q.trim() ? `Nothing matches “${q.trim()}”. Try a different keyword.` : undefined
+              }
+              cta={q.trim() ? { label: 'Clear search', onClick: () => setQ('') } : undefined}
+            />
+          )
         ) : (
           <>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">

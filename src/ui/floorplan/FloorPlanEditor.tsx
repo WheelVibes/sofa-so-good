@@ -33,6 +33,7 @@ import {
   DEFAULT_PLAN_WALL_COLOR,
   planBounds,
   planRoomArea,
+  planRoomPerimeter,
   planTotalArea,
   pointInRoom,
   wallLength,
@@ -91,6 +92,7 @@ import {
 } from './editor/planLabelDisplay'
 import { snapToWalls } from './editor/snapToWalls'
 import { WallDimension } from './editor/WallDimension'
+import { WallNumericEntry } from './editor/WallNumericEntry'
 import { exportPlanPng } from './exportPlanPng'
 import { LevelTabs } from './LevelTabs'
 import { PlanInspector } from './PlanInspector'
@@ -184,6 +186,10 @@ export function FloorPlanEditor() {
   const isMultiLevel = allLevels.length > 1
   const otherLevels = allLevels.filter((l) => l.id !== levelId)
   const [draft, setDraft] = useState<{ x0: number; z0: number; x: number; z: number } | null>(null)
+  // Numeric-entry preview: when the user types in the WallNumericEntry overlay,
+  // this overrides the drag endpoint for the live preview. Cleared on each new
+  // pointer-down (drag starts fresh) or commit/cancel.
+  const [numericPreviewEnd, setNumericPreviewEnd] = useState<[number, number] | null>(null)
   // Active room drag (select tool): grab offset from the room origin.
   const [moving, setMoving] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Active furniture drag (select tool): grab offset from the item position.
@@ -240,6 +246,7 @@ export function FloorPlanEditor() {
   // closes the loop, Escape cancels (PARITY-POLYLINE).
   const [polylineDraft, setPolylineDraft] = useState<[number, number][]>([])
   const fPolyline = useFeature('planPolyline')
+  const fWallNumericEntry = useFeature('wallNumericEntry')
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   // Persisted to IDB (blob + calibration) so it survives editor close + reload.
   const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
@@ -705,6 +712,9 @@ export function FloorPlanEditor() {
         // A toolbar dropdown (Plan / View) owns Escape to close itself — don't
         // also exit the editor in the same keypress.
         if (document.querySelector('.plan-menu-panel')) return
+        // The numeric-entry overlay owns Escape when an input is focused —
+        // let its own handler cancel the draft (don't also exit the editor).
+        if (isEditableTarget(e)) return
         if (polylineDraft.length > 0) {
           setPolylineDraft([])
           return
@@ -714,6 +724,7 @@ export function FloorPlanEditor() {
           return
         }
         setDraft(null)
+        setNumericPreviewEnd(null)
         exitPlanEditorToScene()
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         // Don't hijack Backspace/Delete while editing a field (e.g. the room
@@ -890,8 +901,10 @@ export function FloorPlanEditor() {
       // this sets the end (onUp commits + chains from it). A press-drag in one
       // gesture still works (the end follows the finger before release).
       wallTapHadAnchor.current = draft !== null
+      setNumericPreviewEnd(null)
       setDraft(draft ? { ...draft, x: wx, z: wz } : { x0: wx, z0: wz, x: wx, z: wz })
     } else if (tool === 'wall' || tool === 'room' || tool === 'scale' || tool === 'dimension') {
+      setNumericPreviewEnd(null)
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
     } else if (tool === 'autoroom') {
       // Make a room from the active storey's wall loop enclosing the click.
@@ -1297,17 +1310,21 @@ export function FloorPlanEditor() {
       return
     }
     if (tool === 'wall') {
-      if (Math.hypot(draft.x - draft.x0, draft.z - draft.z0) > 0.2) {
+      // Use the numeric-entry preview endpoint if the user typed one.
+      const wallEndX = numericPreviewEnd ? numericPreviewEnd[0] : draft.x
+      const wallEndZ = numericPreviewEnd ? numericPreviewEnd[1] : draft.z
+      if (Math.hypot(wallEndX - draft.x0, wallEndZ - draft.z0) > 0.2) {
         const id = st.addWall(
           {
             start: [draft.x0, draft.z0],
-            end: [draft.x, draft.z],
+            end: [wallEndX, wallEndZ],
             thickness: wallType,
           },
           levelId,
         )
         st.setPlanSelection({ type: 'wall', id })
       }
+      setNumericPreviewEnd(null)
     } else if (tool === 'room') {
       const x = Math.min(draft.x0, draft.x)
       const z = Math.min(draft.z0, draft.z)
@@ -1584,7 +1601,7 @@ export function FloorPlanEditor() {
         >
           {GRID_SIZES.map((g) => (
             <option key={g} value={g}>
-              {g < 1 ? `${+(g * 100).toFixed(1)} cm` : `${g} m`}
+              {formatLength(g, units)}
             </option>
           ))}
         </select>
@@ -2164,7 +2181,7 @@ export function FloorPlanEditor() {
                     )
                     const nameLines = wrapLabel(r.name, maxChars)
                     const lineH = fontPx + 1
-                    const totalLines = nameLines.length + (detail === 'full' ? 1 : 0)
+                    const totalLines = nameLines.length + (detail === 'full' ? 2 : 0)
                     // Vertically centre the multi-line block on the label anchor.
                     const yTop = pz - ((totalLines - 1) * lineH) / 2
                     return (
@@ -2195,9 +2212,14 @@ export function FloorPlanEditor() {
                           </tspan>
                         ))}
                         {detail === 'full' && (
-                          <tspan x={px} dy={lineH + 2} fill="var(--text-3)">
-                            {formatArea(planRoomArea(r), units)}
-                          </tspan>
+                          <>
+                            <tspan x={px} dy={lineH + 2} fill="var(--text-3)">
+                              {formatArea(planRoomArea(r), units)}
+                            </tspan>
+                            <tspan x={px} dy={lineH} fill="var(--text-3)">
+                              {`P ${formatLength(planRoomPerimeter(r), units)}`}
+                            </tspan>
+                          </>
                         )}
                       </text>
                     )
@@ -3030,31 +3052,39 @@ export function FloorPlanEditor() {
             )}
 
             {/* Draft (in-progress draw) */}
-            {draft && tool === 'wall' && (
-              <>
-                <line
-                  x1={toPx(draft.x0)}
-                  y1={toPx(draft.z0)}
-                  x2={toPx(draft.x)}
-                  y2={toPx(draft.z)}
-                  stroke="var(--accent)"
-                  strokeWidth={4}
-                  strokeLinecap="round"
-                />
-                {/* Snap markers at the exact (grid/wall-snapped) endpoints, so the
-                    point you're placing is visible even under a fingertip. The
-                    filled dot is the start/anchor; the ring is the live end. */}
-                <circle cx={toPx(draft.x0)} cy={toPx(draft.z0)} r={5} fill="var(--accent)" />
-                <circle
-                  cx={toPx(draft.x)}
-                  cy={toPx(draft.z)}
-                  r={5}
-                  fill="var(--surface-solid)"
-                  stroke="var(--accent)"
-                  strokeWidth={2}
-                />
-              </>
-            )}
+            {draft &&
+              tool === 'wall' &&
+              (() => {
+                // When the user is typing in the numeric overlay, preview uses
+                // that endpoint; otherwise the live drag position.
+                const effX = numericPreviewEnd ? numericPreviewEnd[0] : draft.x
+                const effZ = numericPreviewEnd ? numericPreviewEnd[1] : draft.z
+                return (
+                  <>
+                    <line
+                      x1={toPx(draft.x0)}
+                      y1={toPx(draft.z0)}
+                      x2={toPx(effX)}
+                      y2={toPx(effZ)}
+                      stroke="var(--accent)"
+                      strokeWidth={4}
+                      strokeLinecap="round"
+                    />
+                    {/* Snap markers at the exact (grid/wall-snapped) endpoints, so the
+                      point you're placing is visible even under a fingertip. The
+                      filled dot is the start/anchor; the ring is the live end. */}
+                    <circle cx={toPx(draft.x0)} cy={toPx(draft.z0)} r={5} fill="var(--accent)" />
+                    <circle
+                      cx={toPx(effX)}
+                      cy={toPx(effZ)}
+                      r={5}
+                      fill="var(--surface-solid)"
+                      stroke="var(--accent)"
+                      strokeWidth={2}
+                    />
+                  </>
+                )
+              })()}
             {draft && tool === 'room' && (
               <rect
                 x={toPx(Math.min(draft.x0, draft.x))}
@@ -3117,8 +3147,10 @@ export function FloorPlanEditor() {
               </g>
             )}
             {/* Live dimension readout while drawing — follows the cursor with a
-                readable halo so you always know the current length/size. */}
-            {draft && (
+                readable halo so you always know the current length/size.
+                When numeric-entry is active, the overlay shows the numbers; this
+                SVG readout is suppressed to avoid duplication. */}
+            {draft && !(tool === 'wall' && fWallNumericEntry && !isMobile) && (
               <text
                 x={toPx(draft.x) + 10}
                 y={toPx(draft.z) - 10}
@@ -3135,6 +3167,52 @@ export function FloorPlanEditor() {
             )}
           </svg>
         </div>
+
+        {/* Numeric wall-entry overlay — desktop only, Wall tool, while a draft is active.
+            Gated by the wallNumericEntry pro feature flag. The overlay is positioned at
+            a fixed screen offset from the draft end (world → screen via SVG rect). */}
+        {fWallNumericEntry &&
+          !isMobile &&
+          tool === 'wall' &&
+          draft &&
+          (() => {
+            // Convert the draft end-point to screen px using the SVG's current rect.
+            const effX = numericPreviewEnd ? numericPreviewEnd[0] : draft.x
+            const effZ = numericPreviewEnd ? numericPreviewEnd[1] : draft.z
+            const svgEl = svgRef.current
+            const svgRect = svgEl?.getBoundingClientRect()
+            // SVG internal coords → screen: scale by (svgRect.width / W).
+            const scaleX = svgRect ? svgRect.width / W : 1
+            const scaleY = svgRect ? svgRect.height / H : 1
+            const screenX = svgRect ? svgRect.left + toPx(effX) * scaleX : toPx(effX)
+            const screenY = svgRect ? svgRect.top + toPx(effZ) * scaleY : toPx(effZ)
+            return (
+              <WallNumericEntry
+                start={[draft.x0, draft.z0]}
+                end={[effX, effZ]}
+                units={units}
+                endScreenPx={[screenX, screenY]}
+                onPreview={(pt) => setNumericPreviewEnd(pt)}
+                onCommit={(pt) => {
+                  const st = useStore.getState()
+                  if (Math.hypot(pt[0] - draft.x0, pt[1] - draft.z0) > 0.2) {
+                    const id = st.addWall(
+                      { start: [draft.x0, draft.z0], end: pt, thickness: wallType },
+                      levelId,
+                    )
+                    st.setPlanSelection({ type: 'wall', id })
+                    // Chain: next segment starts from the committed endpoint.
+                    setNumericPreviewEnd(null)
+                    setDraft({ x0: pt[0], z0: pt[1], x: pt[0], z: pt[1] })
+                  }
+                }}
+                onEscape={() => {
+                  setNumericPreviewEnd(null)
+                  setDraft(null)
+                }}
+              />
+            )
+          })()}
 
         {/* Inspector — edits hit the active storey's elements */}
         <PlanInspector levelId={levelId} />

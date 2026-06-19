@@ -69,4 +69,29 @@ export const mainBedroom: LayoutEntry[] = [
     rotation: 0,
     props: { mountHeight: 1.45 },
   },
+  // ── Set-dressing decor props ─────────────────────────────────────────────
+  // Small desk plant on the nightstand surface (h=0.52 m).
+  {
+    id: 'default-main-decor-plant',
+    defId: 'desk-plant',
+    position: [2.05, 0.75],
+    rotation: 0,
+    props: { surfaceHeight: 0.52, type: 'succulent', potColor: '#c49a72', leafColor: '#4a8a54' },
+  },
+  // Throw cushion propped against the headboard on the bed (seat h ≈ 0.46 m).
+  {
+    id: 'default-main-decor-cushion',
+    defId: 'throw-cushion',
+    position: [0.7, 0.88],
+    rotation: 0,
+    props: { surfaceHeight: 0.46, color: '#b09090', accentColor: '#7a6060', shape: 'rect' },
+  },
+  // Throw blanket folded at the foot of the bed.
+  {
+    id: 'default-main-decor-blanket',
+    defId: 'throw-blanket',
+    position: [1.05, 2.0],
+    rotation: 0,
+    props: { surfaceHeight: 0.46, color: '#c8b49a', pattern: 'herringbone' },
+  },
 ]

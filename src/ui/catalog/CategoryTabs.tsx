@@ -14,6 +14,8 @@ interface CategoryTabsProps {
   favCount: number
   /** Number of recently-placed assets — shown on the clock chip. */
   recentCount: number
+  /** Whether the catalogFavourites feature flag is on; hides the star chip when off. */
+  favEnabled?: boolean
 }
 
 const LABELS: Record<FurnitureCategory, string> = {
@@ -40,19 +42,22 @@ export function CategoryTabs({
   counts,
   favCount,
   recentCount,
+  favEnabled = true,
 }: CategoryTabsProps) {
   return (
     <nav className="cat-rail">
-      <button
-        type="button"
-        onClick={() => onSelect('favourites')}
-        className={`chip${active === 'favourites' ? ' on' : ''}`}
-        aria-label={`Favourites (${favCount})`}
-        title="Favourites"
-      >
-        <Icon.Star className="icn" width={14} height={14} />
-        {favCount > 0 ? <span className="chip-count">{favCount}</span> : null}
-      </button>
+      {favEnabled ? (
+        <button
+          type="button"
+          onClick={() => onSelect('favourites')}
+          className={`chip${active === 'favourites' ? ' on' : ''}`}
+          aria-label={`Favourites (${favCount})`}
+          title="Favourites"
+        >
+          <Icon.Star className="icn" width={14} height={14} />
+          {favCount > 0 ? <span className="chip-count">{favCount}</span> : null}
+        </button>
+      ) : null}
       {recentCount > 0 ? (
         <button
           type="button"

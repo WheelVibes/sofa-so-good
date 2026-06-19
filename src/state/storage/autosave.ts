@@ -12,9 +12,13 @@ const DEBOUNCE_MS = 500
  *  IMPORTANT: every field that `serialize()` (schema.ts) writes must be
  *  watched here, or a change to an unwatched-but-persisted field is lost on
  *  reload unless some *other* watched field also happens to change. Keep this
- *  list in lock-step with `serialize()`. (`finishes.wallAccents` is covered by
- *  the `finishes` object reference; `floorPlan` is reference-stable because the
- *  floor-plan slice replaces the object on every edit.) */
+ *  list in lock-step with `serialize()` — the guard test in
+ *  `autosave.test.ts` fails if `serialize()` gains a field that isn't watched.
+ *  (`finishes.wallAccents` is covered by the `finishes` object reference;
+ *  `floorPlan` is reference-stable because the floor-plan slice replaces the
+ *  object on every edit. Slices for `comments`/`drawingCallouts`/`panoTourStops`/
+ *  `quoteTemplate` likewise replace their array/object on each mutation, so a
+ *  reference compare suffices.) */
 type Persistent = {
   items: unknown
   floorPlan: unknown
@@ -26,12 +30,41 @@ type Persistent = {
   manualHour: unknown
   lightsMode: unknown
   annotations: unknown
+  comments: unknown
+  drawingCallouts: unknown
   cameraMode: unknown
   orientationDeg: unknown
   location: unknown
   locationPromptDismissed: unknown
   designNote: unknown
+  panoTourStops: unknown
+  quoteTemplate: unknown
 }
+
+/** The exact set of root-state keys this watch-list tracks. Exposed so a guard
+ *  test can assert it stays a superset of every field `serialize()` persists
+ *  (the lock-step invariant). */
+export const PERSISTENT_WATCH_KEYS = [
+  'items',
+  'floorPlan',
+  'doors',
+  'finishes',
+  'userFurniture',
+  'userMaterials',
+  'timeMode',
+  'manualHour',
+  'lightsMode',
+  'annotations',
+  'comments',
+  'drawingCallouts',
+  'cameraMode',
+  'orientationDeg',
+  'location',
+  'locationPromptDismissed',
+  'designNote',
+  'panoTourStops',
+  'quoteTemplate',
+] as const satisfies readonly (keyof Persistent)[]
 
 function pickPersistent(): Persistent {
   const s = useStore.getState()
@@ -46,11 +79,15 @@ function pickPersistent(): Persistent {
     manualHour: s.manualHour,
     lightsMode: s.lightsMode,
     annotations: s.annotations,
+    comments: s.comments,
+    drawingCallouts: s.drawingCallouts,
     cameraMode: s.cameraMode,
     orientationDeg: s.orientationDeg,
     location: s.location,
     locationPromptDismissed: s.locationPromptDismissed,
     designNote: s.designNote,
+    panoTourStops: s.panoTourStops,
+    quoteTemplate: s.quoteTemplate,
   }
 }
 
@@ -66,11 +103,15 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
     a.manualHour === b.manualHour &&
     a.lightsMode === b.lightsMode &&
     a.annotations === b.annotations &&
+    a.comments === b.comments &&
+    a.drawingCallouts === b.drawingCallouts &&
     a.cameraMode === b.cameraMode &&
     a.orientationDeg === b.orientationDeg &&
     a.location === b.location &&
     a.locationPromptDismissed === b.locationPromptDismissed &&
-    a.designNote === b.designNote
+    a.designNote === b.designNote &&
+    a.panoTourStops === b.panoTourStops &&
+    a.quoteTemplate === b.quoteTemplate
   )
 }
 

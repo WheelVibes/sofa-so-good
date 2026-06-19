@@ -139,6 +139,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  remoteFurniture: {
+    label: 'Online models',
+    description: 'CC0 3D-model browser (Poly Haven)',
+    // CORS-direct CC0 (Poly Haven) → prod-safe, no proxy / licence risk.
+    default: true,
+    // External fetched-model browsing is an advanced surface (parity with
+    // remoteMaterials / packs) → hidden in Simple mode, where the catalog keeps
+    // only the curated builtin furnish loop.
+    tier: 'pro',
+  },
   modelUpload: {
     label: 'Model upload',
     description: 'Import GLB / OBJ / … models',
@@ -527,6 +537,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Persisted catalog favourites / star list (PC-CATALOG-FAVOURITES). A QOL
+  // convenience matching Coohom/Planner5D — users star items for quick reuse
+  // across sessions. Pure client-side (localStorage) → prod-safe. Part of the
+  // core furnish loop (casual users benefit most) → simple tier.
+  catalogFavourites: {
+    label: 'Catalog favourites',
+    description: 'Star catalog items to save them in a persistent Favourites tab',
+    default: true,
+    tier: 'simple',
+  },
   // Soft contact-shadow blobs that ground every piece of furniture against the
   // floor (RZ1). One shared radial-gradient texture + a transparent plane per
   // item — cheap fill-rate overdraw, no shadow map — so it reads even on the
@@ -537,6 +557,71 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Soft grounding shadow blobs under furniture (all quality tiers)',
     default: true,
     tier: 'simple',
+  },
+  // Cheap baked wall/floor corner ambient-occlusion strips (RD-403). A shared
+  // gradient texture + one transparent floor quad along each interior wall base —
+  // pure fill-rate overdraw, no shadow map / SSAO — so corners read grounded on
+  // the flat Performance tier (and Medium) where no post-processing AO exists.
+  // The per-tier quality setting suppresses it on High+ (the post stack's SSAO
+  // already darkens corners) to avoid double-darkening. Pure code, no external
+  // assets → prod-safe. A core realism cue everyone sees → simple tier.
+  cornerAo: {
+    label: 'Corner shading',
+    description: 'Soft baked ambient-occlusion darkening where walls meet the floor',
+    default: true,
+    tier: 'simple',
+  },
+  // Free-text callouts on drawing-set sheets (PARITY-LIGHTINGTEMPLATE-TEXT).
+  // A designer adds a note ("Contractor to verify", "GL = 0.00") that renders
+  // as crisp SVG text on the target sheet when the drawing set is exported.
+  // Pure code, no external assets → prod-safe. An authoring/professional tool →
+  // pro tier (hidden in Simple mode automatically).
+  drawingCallouts: {
+    label: 'Drawing-set callouts',
+    description: 'Free-text annotations on construction drawing-set sheets',
+    default: true,
+    tier: 'pro',
+  },
+  // User-editable quote template (PARITY-QUOTE-XLSX tail): company branding,
+  // header/footer notes, GST/markup/discount, section visibility. Pure code,
+  // no external assets → prod-safe. A professional export-customisation tool →
+  // pro tier (hidden in Simple mode automatically).
+  quoteTemplate: {
+    label: 'Quote template',
+    description: 'Customise the quote with company branding, notes, GST & markup',
+    default: true,
+    tier: 'pro',
+  },
+  // Live numeric length + angle entry while drawing walls (PC-WALL-NUMERIC).
+  // Matches Sweet Home 3D / Arcadium 3D behaviour: type an exact length (and
+  // optional angle) while dragging, press Enter to commit. Pure code, no
+  // external assets → prod-safe. An authoring/pro tool in the 2D plan editor
+  // → pro tier (hidden in Simple mode automatically).
+  wallNumericEntry: {
+    label: 'Numeric wall entry',
+    description: 'Type an exact length + angle while drawing a wall (Enter to commit)',
+    default: true,
+    tier: 'pro',
+  },
+  // Radial/polar array: place N copies evenly around a circle (e.g. dining chairs
+  // around a round table), each optionally rotated to face the centre. Pure code,
+  // no external assets → prod-safe. An advanced placement/layout tool → pro tier.
+  radialArray: {
+    label: 'Radial array',
+    description: 'Place N copies evenly around a circle (e.g. chairs around a round table)',
+    default: true,
+    tier: 'pro',
+  },
+  // IES photometric light profiles (PC-IES-LIGHT, Coohom parity): drive a real
+  // luminaire beam shape (cone/penumbra/intensity from an LM-63 .ies candela
+  // distribution) on a light fixture. Pure client-side code (parse + map), no
+  // network/GPU dependency → prod-safe. An advanced lighting-design tool → pro
+  // tier (hidden in Simple mode automatically).
+  iesLights: {
+    label: 'IES light profiles',
+    description: 'Apply real luminaire photometric beam shapes (.ies) to light fixtures',
+    default: true,
+    tier: 'pro',
   },
 }
 

@@ -54,11 +54,17 @@ time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push
   render-burst late; scene-graph light intensity provably updates instantly — see playbook).
 
 ## Content & catalog
-- [ ] C-PLANTS/DECOR + F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza)
-  so designs look styled; ensure category coverage is exhaustive.
+- [~] C-PLANTS/DECOR + F9 [PROD] Set-dressing pack shipped (C276) + auto-styling of move-in default flat
+  shipped (C277) + auto-arrange styling pass shipped (C278, `decorStyling.ts`). Remaining: curated
+  CC0 bundles from Poly Haven/Poly Pizza (networked assets, still needed for photoreal surfaces).
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 
 ## Productivity / QOL
+- [x] PC-EMPTY-STATES: shared `EmptyState` component (`src/ui/EmptyState.tsx`, icon + title +
+  optional description + optional CTA on the `.empty-mini` token vocabulary) applied across every
+  empty panel/list (comments, history, versions, budget + saved items, layers, catalog grid +
+  favourites/recent/no-results, remote browse, swap, daylight, accessibility) for consistent,
+  friendly copy in light/dark/all themes + mobile bottom-sheets.
 - [~] IXT-SUITES (user rule, 2026-06-12): build interaction-test scenarios (simple → complex per
   feature, incl. cross-feature journeys like onboarding→tour→location) for every EXISTING feature
   using the C267 harness; work down the `FEATURE_FLAGS` list in priority order.
@@ -139,8 +145,7 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PHOTO-PBR + PHOTO-KTX2: real 2K CC0 PBR maps (Poly Haven/ambientCG) over procedural fallback;
   un-stub `lib/ktx2encode.ts` with `ktx2-encoder` (basis WASM now exists — stale assumption) to ship
   KTX2 in prod (ETC1S albedo / UASTC normal+ORM).
-- [ ] PHOTO-DETAIL: set-dressing prop pack (books/cushions/plants — biggest perceived-realism lever)
-  + edge bevels (RoundedBox) on hard primitives.
+- [ ] PHOTO-DETAIL: set-dressing prop pack (books/cushions/plants — biggest perceived-realism lever); edge-bevel rollout is complete (see RZ3/PHOTO-BEVELS).
 - [ ] PHOTO-EMISSIVE tail: real-GPU pass to tune the bloom look on High/Max for the boosted fixtures
   (intensities now clear the 1.05 threshold; the flat-tier self-lit read is verified, the bloom amount
   needs a GPU eye). Base wiring shipped — see CHANGELOG.
@@ -151,10 +156,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [x] PARITY-BATCHRENDER: SH3D batch-render all saved views — Saved-views "Render all views" flies the
   camera to each saved view (`applyView`) and downloads a hi-fi PNG per view via `captureCanvasPng`
   (`ui/renderAllViews.ts`, `batchRender` pro flag).
-- [~] PARITY-LIGHTINGTEMPLATE-TEXT: **material callouts shipped** — a per-room Finishes schedule sheet
-  (floor + wall material names) in the drawing set (`floorplan/finishSchedule.ts`). Remaining: free
-  text callouts on sheets + drawing-set layer toggles.
-
 ### Pending — high value (M)
 - [~] PARITY-AR: AR "view in your room" **shipped** — iOS AR Quick Look (USDZ) + GLB fallback
   (`ui/viewInAr.ts`, `viewInAr` flag). Remaining: Android Scene Viewer (needs an https-hosted model).
@@ -165,7 +166,7 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [x] PARITY-BASEBOARD: SH3D per-wall baseboard params **shipped** — `PlanWall.baseboard`
   (height/colour/hidden) drives the PlanShell skirting; Plan-inspector wall section + `wallBaseboard`
   pro flag. (Custom plans only; default HDB layout uses the fixed `Skirting.tsx`.)
-- [~] PARITY-QUOTE-XLSX: quote XLSX/CSV **shipped** (PARITY-QUOTEXLSX). Remaining: user-editable templates.
+- [x] PARITY-QUOTE-XLSX: quote XLSX/CSV + user-editable quote templates **shipped** (v0.1.0.7). `QuoteTemplate` model, `quoteTemplateSlice`, `QuoteTemplateModal`, `applyTemplate`, BOQ export threaded. Feature flag `quoteTemplate` (pro), undo-tracked, persisted in save schema.
 
 ### Pending — marquee (L)
 - [x] PARITY-VIDEO: video flythrough export **shipped** — saved-views cinematic tour → .webm
@@ -208,15 +209,15 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   (`apartment/Window.tsx`) AND custom-plan windows (`PlanShell` `FadeWindow`: daylight day/night tint +
   sky-catch emissive). Tail: room-editor glass (`PlanRoomShell`, separate lightweight canvas) + wire
   `getGlassMaterial`/`glassConfig` transmission on High+ (real-GPU verify).
-- [~] RZ3/PHOTO-BEVELS: beveled edges via shared `BeveledBox` helper — tables/desk +
-  freestanding case goods done (CoffeeTable/DiningTable/ConsoleTable/Desk/Sideboard/Dresser/TVConsole/
-  Nightstand) + Bookshelf/Wardrobe carcasses + parametric kitchen CabinetModule (base/wall/tall:
-  carcass/doors/drawers/countertop). Remaining: ShoeCabinet/WallCabinet/CabinetCorner + appliances;
-  edge light-catch real-GPU-pending.
+- [~] RZ3/PHOTO-BEVELS: edge-bevel rollout complete for all appropriate box-built case goods and structural
+  panels (KitchenCounter, KitchenIsland, ShoeCabinet, WallCabinet, Vanity, ChangingTable, WallShelf, Bench,
+  Bed, ToddlerBed, BunkBed, Staircase treads/landings — plus prior case goods). Remaining: edge light-catch
+  real-GPU verify pass.
 - [~] RZ5: painted-trim realism — baseboard + crown molding now bevel their edges in BOTH the fixed
   apartment (`WallSegment`) and custom plans (`PlanShell` skirting + crown), so trim catches a highlight
   (light-catch real-GPU-pending). Remaining: skirting-floor seam AO + painted-trim wear.
-- [ ] RZ6: upholstery seam stitching + seeded fabric-wrinkle variation on sofas/chairs.
+- [x] RZ6: upholstery seam stitching + soft fabric wrinkle now ship on the fabric material
+  (`procedural/upholsterySeams.ts`, behind `pbrSurfaces`) so sofas/chairs read as woven cloth.
 - [ ] RZ7: PCF/penumbra shadow softening on Medium+ tiers.
 
 ### Code quality

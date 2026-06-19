@@ -4,6 +4,7 @@ import { isMultiLevel, planLevels } from '../../../floorplan/levels'
 import { detectVrSupport } from '../../../scene/xr/vrSupport'
 import { enterVr, getXrStore } from '../../../scene/xr/xrStore'
 import { useStore } from '../../../state/store'
+import { formatLength } from '../../../utils/measurement'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 import { SavedViewsSection } from './SavedViewsSection'
@@ -25,6 +26,7 @@ export function ViewMenu() {
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
   const setViewLevel = useStore((s) => s.setViewLevel)
+  const units = useStore((s) => s.units)
   const savedViews = useFeature('savedViews')
   const fVr = useFeature('vrWalkthrough')
   const [vrSupported, setVrSupported] = useState(false)
@@ -102,7 +104,7 @@ export function ViewMenu() {
                 !isOrbit
                   ? 'Walk this storey'
                   : l.elevation > 0
-                    ? `Storey at ${l.elevation.toFixed(1)} m`
+                    ? `Storey at ${formatLength(l.elevation, units)}`
                     : 'Street level'
               }
               active={viewLevelId === l.id}

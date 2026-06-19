@@ -114,11 +114,16 @@ export async function openBoq(): Promise<void> {
   }
   let buildBoq: typeof import('../export/boq').buildBoq
   let boqToHtml: typeof import('../export/boq').boqToHtml
+  let applyTemplate: typeof import('../export/quoteTemplate').applyTemplate
   let input: BoqInput
   try {
-    const boqMod = await import('../export/boq')
+    const [boqMod, { applyTemplate: _applyTemplate }] = await Promise.all([
+      import('../export/boq'),
+      import('../export/quoteTemplate'),
+    ])
     buildBoq = boqMod.buildBoq
     boqToHtml = boqMod.boqToHtml
+    applyTemplate = _applyTemplate
     input = await assembleBoqInput()
   } catch {
     win.close()
@@ -130,16 +135,25 @@ export async function openBoq(): Promise<void> {
     return
   }
   const plan = s.floorPlan
+  const template = s.quoteTemplate
 
-  const boq = buildBoq(input)
+  const rawBoq = buildBoq(input)
+  const boq = applyTemplate(rawBoq, template)
   const name = plan.name.replace(
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
   )
   win.document.write(
     `<!doctype html><html><head><meta charset="utf-8"><title>${name} — Quote</title>` +
-      '<style>body{font:14px/1.5 system-ui,sans-serif;max-width:800px;margin:24px auto;padding:0 16px;color:#1f2937}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:8px 0 20px}td,th{padding:4px 8px;border-bottom:1px solid #eee;text-align:left}td:last-child,th:last-child{text-align:right}h2{font-size:15px;margin-top:20px}</style>' +
-      `</head><body><h1>${name} — Bill of Quantities</h1>${boqToHtml(boq)}` +
+      '<style>body{font:14px/1.5 system-ui,sans-serif;max-width:800px;margin:24px auto;padding:0 16px;color:#1f2937}' +
+      'h1{font-size:20px}.boq-company{font-size:16px;font-weight:600;margin-bottom:2px}' +
+      '.boq-contact{font-size:13px;color:#6b7280;margin-bottom:8px}' +
+      '.boq-header-note{font-size:13px;background:#f9fafb;border-left:3px solid #e5e7eb;padding:8px 12px;margin:12px 0}' +
+      '.boq-footer-note{font-size:11px;color:#6b7280;margin-top:16px;border-top:1px solid #eee;padding-top:8px}' +
+      'table{width:100%;border-collapse:collapse;margin:8px 0 20px}' +
+      'td,th{padding:4px 8px;border-bottom:1px solid #eee;text-align:left}' +
+      'td:last-child,th:last-child{text-align:right}h2{font-size:15px;margin-top:20px}</style>' +
+      `</head><body>${boqToHtml(boq, template)}` +
       '<p style="color:#9ca3af;font-size:11px">Indicative budgetary quote — supply &amp; install estimate; excludes hacking/disposal, M&amp;E and contractor margin. Confirm with your contractor.</p></body></html>',
   )
   win.document.close()

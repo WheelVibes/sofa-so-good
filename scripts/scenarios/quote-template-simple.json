@@ -1,0 +1,37 @@
+{
+  "name": "quote-template",
+  "steps": [
+    { "name": "load", "wait": 2000 },
+    { "name": "screenshot-simple-initial", "screenshot": true },
+    {
+      "name": "pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    { "name": "wait-flags", "wait": 500 },
+    {
+      "name": "check-flags",
+      "eval": "const s=window.__store.getState(); console.log('uiMode:', s.uiMode, 'quoteTemplate:', s.flags?.quoteTemplate)"
+    },
+    {
+      "name": "open-modal",
+      "eval": "window.__store.getState().setQuoteTemplateOpen(true)"
+    },
+    { "name": "wait-modal", "wait": 800 },
+    { "name": "screenshot-modal-open", "screenshot": true },
+    {
+      "name": "fill-company",
+      "eval": "window.__store.getState().setQuoteTemplate({ ...window.__store.getState().quoteTemplate, companyName: 'Sofa So Good Pte Ltd', contactLine: 'design@sofasogood.sg | +65 9876 5432', headerNote: 'Valid for 30 days from issue date', gstPercent: 9, markupPercent: 15 })"
+    },
+    { "name": "wait-fill", "wait": 500 },
+    { "name": "screenshot-modal-filled", "screenshot": true },
+    {
+      "name": "verify-undo-stack",
+      "eval": "const s=window.__store.getState(); console.log('undo stack length:', s.past.length, 'quoteTemplate in last snapshot:', s.past.length > 0 ? s.past[s.past.length-1].quoteTemplate?.companyName : 'n/a')"
+    },
+    {
+      "name": "close-modal",
+      "eval": "window.__store.getState().setQuoteTemplateOpen(false)"
+    },
+    { "name": "screenshot-closed", "screenshot": true }
+  ]
+}

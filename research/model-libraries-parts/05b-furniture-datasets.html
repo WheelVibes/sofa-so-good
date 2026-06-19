@@ -1,0 +1,97 @@
+<!-- segment: academic-datasets (object/furniture asset datasets — complements the scanned-scene set in 07) -->
+
+<div class="asset-source" data-quality="high" data-segment="academic-datasets">
+  <h3>3D-FUTURE (Alibaba Homestyler)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://tianchi.aliyun.com/specials/promotion/alibaba-3d-future">tianchi.aliyun.com/.../alibaba-3d-future</a> · toolbox github.com/3D-FRONT-FUTURE</td></tr>
+    <tr><th>License</th><td>3D-FUTURE Terms of Use (research-oriented; email + signed ToU). Commercial use NOT granted by the ToU — FLAG as research/dev-only.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td><strong>9,992 unique industrial CAD furniture meshes</strong> with high-res designer textures + attributes (category/style/theme). OBJ + texture maps. Furniture-specific — the most directly relevant dataset.</td></tr>
+    <tr><th>Programmatic access</th><td>Request via email (3dfront@list.alibaba-inc.com) + attach signed ToU → 3 download links (3D-FRONT house / 3D-FUTURE furniture / textures). Not open, but bulk once approved.</td></tr>
+    <tr><th>Render quality</th><td>high — professional designer textures on real industrial furniture CAD.</td></tr>
+    <tr><th>Notes</th><td>Pairs with 3D-FRONT scenes. Best-fit furniture dataset; license blocks shipping (R&amp;D/eval only).</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="academic-datasets">
+  <h3>ABO — Amazon Berkeley Objects</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://amazon-berkeley-objects.s3.amazonaws.com/index.html">amazon-berkeley-objects.s3.amazonaws.com</a> · <a href="https://registry.opendata.aws/amazon-berkeley-objects/">AWS Open Data</a></td></tr>
+    <tr><th>License</th><td><strong>CC BY-NC 4.0</strong> — non-commercial only. FLAG (research/eval, not shippable).</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>147,702 product listings + metadata; <strong>7,953 high-quality 3D models as glTF 2.0 (.glb)</strong> (real Amazon furniture/home products) + 398k catalog images, 360° spins. CSV/JSON metadata.</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Open S3 bucket bulk download</strong>, no form. glTF/GLB is web-ready (Three.js-native).</td></tr>
+    <tr><th>Render quality</th><td>high — real product CAD, glTF 2.0.</td></tr>
+    <tr><th>Notes</th><td>Excellent format fit (GLB) + open download, but NC license blocks commercial shipping.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="academic-datasets">
+  <h3>Google Scanned Objects ✅ (commercial-safe)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://research.google/blog/scanned-objects-by-google-research-a-dataset-of-3d-scanned-common-household-items/">research.google — Scanned Objects</a> (on Gazebo/Fuel)</td></tr>
+    <tr><th>License</th><td><strong>CC-BY 4.0</strong> — commercial use OK with attribution. One of the few clean-commercial scanned sets.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>1,030 scanned common household items (~13GB): OBJ + texture PNG (collision meshes too; GLB/SDF via Gazebo). Some furniture/decor/houseware.</td></tr>
+    <tr><th>Programmatic access</th><td>Open bulk download (Gazebo Fuel API / mirrors), no form.</td></tr>
+    <tr><th>Render quality</th><td>high — clean professional scans with textures.</td></tr>
+    <tr><th>Notes</th><td>Commercial-safe + good quality; limited furniture count but usable. Strong pick.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="academic-datasets">
+  <h3>OmniObject3D</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://omniobject3d.github.io/">omniobject3d.github.io</a></td></tr>
+    <tr><th>License</th><td>Research/non-commercial (CC BY-NC style) — FLAG; verify before any commercial use.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>~6,000 real-scanned objects across 190 categories with textured meshes, point clouds, multi-view + video. Includes household/decor.</td></tr>
+    <tr><th>Programmatic access</th><td>Download via project page / HuggingFace; large but accessible.</td></tr>
+    <tr><th>Render quality</th><td>high — high-fidelity real scans.</td></tr>
+    <tr><th>Notes</th><td>Modern (2023) high-quality scan set; research license.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="academic-datasets">
+  <h3>Objaverse 1.0 / Objaverse-XL (Allen AI)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://objaverse.allenai.org/">objaverse.allenai.org</a> · <a href="https://huggingface.co/datasets/allenai/objaverse-xl">HF: allenai/objaverse-xl</a></td></tr>
+    <tr><th>License</th><td>Collection under <strong>ODC-By v1.0</strong>; <strong>each object carries its own Creative Commons license in the metadata</strong> — must filter per-object (CC0/CC-BY usable; CC-NC/SA restricted) for commercial use.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Objaverse 1.0 = ~800K 3D objects; <strong>Objaverse-XL = 10M+</strong>. GLB/GLTF + others (sourced from Sketchfab, GitHub, Thingiverse, etc.). Huge furniture/prop coverage.</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Python API + HuggingFace</strong> — fully scriptable bulk download with per-object metadata (license, tags) for filtering. The most accessible large-scale set.</td></tr>
+    <tr><th>Render quality</th><td>medium — extremely variable (community-sourced): low-poly → high; filter by quality/license.</td></tr>
+    <tr><th>Notes</th><td>Best scale + programmatic access; commercial use requires per-object CC filtering (metadata makes this feasible).</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="academic-datasets">
+  <h3>3D-FRONT (furnished rooms)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://tianchi.aliyun.com/dataset/65347">tianchi.aliyun.com/dataset/65347</a> · arxiv 2011.09127</td></tr>
+    <tr><th>License</th><td>Alibaba terms; reported CC BY-NC 4.0 — non-commercial. FLAG.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>~18,797 professionally-designed furnished ROOMS/houses with layouts + semantics, furnished using 3D-FUTURE meshes. JSON scene layouts (assets come from 3D-FUTURE).</td></tr>
+    <tr><th>Programmatic access</th><td>Email/request (same channel as 3D-FUTURE); BlenderProc loader exists.</td></tr>
+    <tr><th>Render quality</th><td>medium — value is in LAYOUTS/scene composition, not new assets.</td></tr>
+    <tr><th>Notes</th><td>Goldmine for realistic room LAYOUT priors (auto-arrange/training), not separable furniture. Non-commercial.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="academic-datasets">
+  <h3>ShapeNet (Core / Sem)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://shapenet.org/">shapenet.org</a> · <a href="https://huggingface.co/datasets/ShapeNet/ShapeNetCore">HF mirror</a></td></tr>
+    <tr><th>License</th><td>ShapeNet Terms — <strong>non-commercial research/education only</strong> (registration + admin approval). FLAG.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>ShapeNetCore ~51K models / 55 categories (incl. chair/sofa/table/bed/cabinet — strong furniture); ShapeNetSem ~12K richly annotated. OBJ + materials (often untextured/simple).</td></tr>
+    <tr><th>Programmatic access</th><td>Registered download (HF mirror for approved users). Bulk once approved.</td></tr>
+    <tr><th>Render quality</th><td>low→medium — CAD geometry, many untextured/low-fidelity; great for shape, weak for photoreal.</td></tr>
+    <tr><th>Notes</th><td>The classic furniture shape benchmark; non-commercial; needs texturing for realism.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="academic-datasets">
+  <h3>Pix3D</h3>
+  <table>
+    <tr><th>URL</th><td><a href="http://pix3d.csail.mit.edu/">pix3d.csail.mit.edu</a></td></tr>
+    <tr><th>License</th><td>Research/non-commercial (per-source; includes IKEA-derived models) — FLAG.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>~395 furniture models (chairs, sofas, tables, wardrobes, beds, desks, bookcases) with pixel-aligned real photos + masks + poses. OBJ.</td></tr>
+    <tr><th>Programmatic access</th><td>Open download from the project page.</td></tr>
+    <tr><th>Render quality</th><td>low — small set, CAD-grade, image-alignment focus.</td></tr>
+    <tr><th>Notes</th><td>Best for image↔3D alignment / single-image reconstruction, not an asset library.</td></tr>
+  </table>
+</div>

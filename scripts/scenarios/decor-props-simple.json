@@ -1,0 +1,20 @@
+{
+  "name": "decor-props-simple",
+  "description": "C276/SET-DRESSING: verify 9 new decor props render without errors (BookStack, ThrowCushion, ThrowBlanket, CandleCluster, FruitBowl, MagazineStack, SmallSculpture, DeskPlant, PhotoFrameCluster).",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "place-props",
+      "eval": "window.__store.getState().setItems([ { id: 'dp-book', defId: 'book-stack', position: [8.0, 2.0], rotation: 0, props: { surfaceHeight: 0.0 } }, { id: 'dp-cushion', defId: 'throw-cushion', position: [8.8, 2.0], rotation: 0, props: { surfaceHeight: 0.0 } }, { id: 'dp-blanket', defId: 'throw-blanket', position: [9.6, 2.0], rotation: 0, props: { surfaceHeight: 0.0 } }, { id: 'dp-candle', defId: 'candle-cluster', position: [8.0, 3.0], rotation: 0, props: { surfaceHeight: 0.0, flame: 'yes' } }, { id: 'dp-bowl', defId: 'fruit-bowl', position: [8.8, 3.0], rotation: 0, props: { surfaceHeight: 0.0, contents: 'fruit' } }, { id: 'dp-mag', defId: 'magazine-stack', position: [9.6, 3.0], rotation: 0, props: { surfaceHeight: 0.0 } }, { id: 'dp-sculpt', defId: 'small-sculpture', position: [8.0, 4.0], rotation: 0, props: { surfaceHeight: 0.0, style: 'sphere' } }, { id: 'dp-plant', defId: 'desk-plant', position: [8.8, 4.0], rotation: 0, props: { surfaceHeight: 0.0, type: 'succulent' } }, { id: 'dp-frames', defId: 'photo-frame-cluster', position: [9.6, 4.0], rotation: 0, props: { surfaceHeight: 0.0 } } ])"
+    },
+    {
+      "name": "camera-3q",
+      "eval": "(()=>{const t=window.__three,cam=t?.camera,c=t?.controls;if(!cam){return;}cam.position.set(11.5,1.2,0.8);if(c){c.target.set(8.8,0.05,3.0);c.update();}cam.lookAt(8.8,0.05,3.0);})()"
+    },
+    { "name": "settle", "wait": 2500 },
+    { "name": "shot", "screenshot": "decor-props-simple" }
+  ]
+}

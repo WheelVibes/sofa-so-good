@@ -7,7 +7,9 @@ import type { FurnitureDef } from '../furniture/types'
 import { useStore } from '../state/store'
 import { formatDimsShort, type UnitSystem } from '../utils/measurement'
 import { CategoryIcon } from './catalog/CategoryIcon'
+import { EmptyState } from './EmptyState'
 import { Modal } from './Modal'
+import { Icon } from './toolbar/icons'
 
 /** Footprint-fit verdict comparing an alternative to the piece it replaces. */
 function fitBadge(
@@ -91,9 +93,11 @@ export function SwapModal() {
       </div>
 
       {alternatives.length === 0 ? (
-        <p className="empty-mini">
-          <span>No other {def.category} pieces in the catalog to replace with.</span>
-        </p>
+        <EmptyState
+          icon={Icon.Catalog}
+          title="No alternatives"
+          description={`There are no other ${def.category} pieces in the catalog to swap with.`}
+        />
       ) : (
         <div className="swap-grid">
           {alternatives.map((alt) => {

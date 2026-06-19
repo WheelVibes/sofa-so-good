@@ -21,4 +21,12 @@ describe('SourceLine', () => {
     const link = screen.getByRole('link')
     expect(link).toHaveAttribute('href', 'https://polyhaven.com/x')
   })
+
+  it('renders inert text (no link) for a javascript: sourceUrl (SEC-001)', () => {
+    render(
+      <SourceLine attribution="Evil" license="CC0" sourceUrl="javascript:alert(document.domain)" />,
+    )
+    expect(screen.queryByRole('link')).toBeNull()
+    expect(screen.getByText(/Evil/)).toBeInTheDocument()
+  })
 })

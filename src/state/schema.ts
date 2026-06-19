@@ -11,10 +11,21 @@
 import { z } from 'zod'
 import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
+import {
+  DEFAULT_QUOTE_TEMPLATE,
+  isNonDefaultTemplate,
+  mergeTemplate,
+} from '../export/quoteTemplate'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { allPlanRooms } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
+import { safeUrl } from '../utils/safeUrl'
 import type { RootState } from './store'
+
+/** Zod transform: neutralize an unsafe-scheme URL (javascript:/data:/…) into
+ *  `undefined` at the import trust boundary so it never enters state.
+ *  Back-compatible — only the URL field is dropped, the record is preserved. */
+const sanitizedUrl = (schema: z.ZodOptional<z.ZodString>) => schema.transform((u) => safeUrl(u))
 
 const FurnitureItemZ = z.object({
   id: z.string(),
@@ -96,29 +107,55 @@ const IkeaVariantZ = z.object({
   ),
 }) // runtimeUrl intentionally omitted — rebuilt from assetId at hydration
 
-const IkeaGltfDefZ = z.object({
-  id: z.string(),
-  name: z.string(),
-  category: z.string(),
-  kind: z.literal('gltf'),
-  source: z.literal('ikea'),
-  groupKey: z.string(),
-  activeVariant: z.string(),
-  variants: z.array(IkeaVariantZ),
-  defaultFootprint: z.object({ w: z.number(), d: z.number(), h: z.number() }),
-  verticalSpan: z.object({ base: z.number(), top: z.number() }).optional(),
-  mounted: z.boolean().optional(),
-  noClip: z.boolean().optional(),
-  frontClearance: z.number().optional(),
-  productInfo: z.record(z.string(), z.unknown()).optional(),
-  compatibility: z
-    .object({ acceptsCategories: z.array(z.string()), size: z.string().optional() })
-    .optional(),
-  uploadedAt: z.string(),
-  license: z.literal('IKEA'),
-  attribution: z.string(),
-  sourceUrl: z.string().optional(),
-})
+const IkeaGltfDefZ = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    category: z.string(),
+    kind: z.literal('gltf'),
+    source: z.literal('ikea'),
+    groupKey: z.string(),
+    activeVariant: z.string(),
+    variants: z.array(IkeaVariantZ),
+    defaultFootprint: z.object({ w: z.number(), d: z.number(), h: z.number() }),
+    verticalSpan: z.object({ base: z.number(), top: z.number() }).optional(),
+    mounted: z.boolean().optional(),
+    noClip: z.boolean().optional(),
+    frontClearance: z.number().optional(),
+    productInfo: z.record(z.string(), z.unknown()).optional(),
+    compatibility: z
+      .object({ acceptsCategories: z.array(z.string()), size: z.string().optional() })
+      .optional(),
+    uploadedAt: z.string(),
+    license: z.literal('IKEA'),
+    attribution: z.string(),
+    // Neutralize a javascript:/data: source URL on import (rendered in SourceLine).
+    sourceUrl: sanitizedUrl(z.string().optional()),
+  })
+  // The free-form productInfo bag (z.unknown()) carries scraped URLs rendered
+  // as a `<img src>` (mainImageUrl) and document `href`s — sanitize them too.
+  .transform((d) => {
+    if (d.productInfo) d.productInfo = sanitizeProductInfoUrls(d.productInfo)
+    return d
+  })
+
+/** Drop unsafe-scheme URLs inside the open-ended IKEA `productInfo` bag —
+ *  `mainImageUrl` (rendered as `<img src>`) and `documents[].url` (rendered as
+ *  anchors). Mutates a shallow copy; unknown shapes pass through untouched. */
+function sanitizeProductInfoUrls(info: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...info }
+  if (typeof out.mainImageUrl === 'string') {
+    out.mainImageUrl = safeUrl(out.mainImageUrl) // undefined → field dropped on render
+  }
+  if (Array.isArray(out.documents)) {
+    out.documents = out.documents.map((doc) =>
+      doc && typeof doc === 'object' && typeof (doc as { url?: unknown }).url === 'string'
+        ? { ...doc, url: safeUrl((doc as { url: string }).url) }
+        : doc,
+    )
+  }
+  return out
+}
 
 const UserMaterialDefZ = z.object({
   id: z.string(),
@@ -280,6 +317,25 @@ const FloorPlanZ = z.object({
     .optional(),
 })
 
+/** Serialised quote template — all fields optional for backward compatibility.
+ *  Missing fields are filled in from `DEFAULT_QUOTE_TEMPLATE` on load. */
+const QuoteTemplateZ = z
+  .object({
+    companyName: z.string().optional(),
+    contactLine: z.string().optional(),
+    headerNote: z.string().optional(),
+    footerNote: z.string().optional(),
+    currencyLabel: z.string().optional(),
+    gstPercent: z.number().optional(),
+    markupPercent: z.number().optional(),
+    discountPercent: z.number().optional(),
+    showFfe: z.boolean().optional(),
+    showFloor: z.boolean().optional(),
+    showWall: z.boolean().optional(),
+    showCarpentry: z.boolean().optional(),
+  })
+  .optional()
+
 const RawSerializedStateZ = z.object({
   version: z.literal(2),
   apartmentId: z.literal('serangoon-north-vista-4r'),
@@ -341,6 +397,33 @@ const RawSerializedStateZ = z.object({
   locationPromptDismissed: z.boolean().optional().default(false),
   // Free-text project note that travels with the design (optional, back-compat).
   note: z.string().optional(),
+  // Optional free-text callouts on drawing-set sheets (PARITY-LIGHTINGTEMPLATE-TEXT).
+  // Optional + additive — no schema-version bump; absent → [] on load.
+  drawingCallouts: z
+    .array(
+      z.object({
+        id: z.string(),
+        sheet: z.enum([
+          'cover',
+          'floor-plan',
+          'elevations',
+          'lighting',
+          'dimensions',
+          'section',
+          'electrical',
+          'plumbing',
+          'finishes',
+          'demolition',
+          'ffe',
+        ]),
+        text: z.string(),
+        x: z.number().min(0).max(1),
+        y: z.number().min(0).max(1),
+        leaderX: z.number().min(0).max(1).optional(),
+        leaderY: z.number().min(0).max(1).optional(),
+      }),
+    )
+    .optional(),
   // Optional tour stops (C261, P-720 tail) — optional + additive, no version bump.
   // Images are NOT shared — receivers capture live from the current design.
   // Absent → [] on load (backward-compatible with older saves / links).
@@ -354,6 +437,9 @@ const RawSerializedStateZ = z.object({
       }),
     )
     .optional(),
+  // Optional user-editable quote template (PARITY-QUOTE-XLSX tail).
+  // Optional + additive — no schema-version bump; absent → DEFAULT_QUOTE_TEMPLATE on load.
+  quoteTemplate: QuoteTemplateZ,
   savedAt: z.string(),
 })
 
@@ -469,6 +555,7 @@ export function serialize(state: RootState): SerializedState {
     lightsMode: state.lightsMode,
     ...(state.annotations.length ? { annotations: state.annotations } : {}),
     ...(state.comments.length ? { comments: state.comments } : {}),
+    ...(state.drawingCallouts.length ? { drawingCallouts: state.drawingCallouts } : {}),
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg,
     location: state.location,
@@ -477,6 +564,8 @@ export function serialize(state: RootState): SerializedState {
     // Persist tour stops so shared designs arrive with stops in place.
     // Images are NOT embedded — receivers capture live, same as C252 model.
     ...(state.panoTourStops.length ? { panoTourStops: state.panoTourStops } : {}),
+    // Persist the quote template only when the user has changed it (saves space).
+    ...(isNonDefaultTemplate(state.quoteTemplate) ? { quoteTemplate: state.quoteTemplate } : {}),
     savedAt: new Date().toISOString(),
   }
 }
@@ -533,6 +622,7 @@ export function applySerialized(
     lightsMode: state.lightsMode ?? 'auto',
     annotations: state.annotations ?? [],
     comments: state.comments ?? [],
+    drawingCallouts: state.drawingCallouts ?? [],
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,
@@ -540,5 +630,9 @@ export function applySerialized(
     designNote: state.note ?? '',
     // Restore tour stops from the shared design (absent in older saves → []).
     panoTourStops: state.panoTourStops ?? [],
+    // Restore the quote template (absent in older saves → DEFAULT_QUOTE_TEMPLATE).
+    quoteTemplate: state.quoteTemplate
+      ? mergeTemplate(state.quoteTemplate)
+      : DEFAULT_QUOTE_TEMPLATE,
   }
 }

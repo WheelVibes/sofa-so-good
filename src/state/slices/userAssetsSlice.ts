@@ -1,3 +1,4 @@
+import { evictGltfAsset } from '../../furniture/GltfModel'
 import { LOD_TIERS, lodAssetId, unregisterLodVariants } from '../../furniture/gltf/lod'
 import type { IkeaGltfDef, UserGltfDef } from '../../furniture/types'
 import type { TexturedMaterialDef } from '../../materials/types'
@@ -50,11 +51,18 @@ function defResources(def: UserGltfDef | IkeaGltfDef): { url?: string; assetId?:
   return [{ url: def.runtimeUrl, assetId: def.assetId }]
 }
 
-/** Free one no-longer-referenced asset resource: revoke its blob URL (plus any
+/** Free one no-longer-referenced asset resource: evict its parsed GPU
+ *  geometry/textures from the drei GLTF cache + module-level footprint/
+ *  support-plane caches (PERF-001/008), revoke its blob URL (plus any
  *  registered LOD-variant blob URLs) and delete its IDB record (plus the
- *  derived `<id>:lod-*` tier siblings — harmless no-ops where none exist). */
+ *  derived `<id>:lod-*` tier siblings — harmless no-ops where none exist).
+ *  The GLTF eviction runs FIRST, while the LOD-variant registry is still
+ *  populated (it enumerates the asset's tier urls), and after the caller's
+ *  `set(...)` has dropped the def + its placed items so the cloned meshes
+ *  that share these geometries have already unmounted. */
 function freeResource(r: { url?: string; assetId?: string }): void {
   if (r.url) {
+    evictGltfAsset(r.url)
     for (const lodUrl of unregisterLodVariants(r.url)) URL.revokeObjectURL(lodUrl)
     URL.revokeObjectURL(r.url)
   }

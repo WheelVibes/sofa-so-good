@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /**
@@ -36,17 +37,23 @@ export function KitchenIsland({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Base cabinet */}
-      <mesh castShadow receiveShadow position={[0, cabinetH / 2, cabCz]} material={cabMat}>
-        <boxGeometry args={[length, cabinetH, cabDepth]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, cabinetH / 2, cabCz]}
+        material={cabMat}
+        args={[length, cabinetH, cabDepth]}
+      />
       {/* Cabinet door fronts on the −Z face */}
       {Array.from({ length: cabs }, (_, i) => {
         const x = -length / 2 + gap + cabW / 2 + i * (cabW + gap)
         return (
           <group key={i}>
-            <mesh position={[x, cabinetH / 2, cabCz - cabDepth / 2 - 0.003]} material={cabMat}>
-              <boxGeometry args={[cabW, cabinetH - 0.06, 0.02]} />
-            </mesh>
+            <BeveledBox
+              position={[x, cabinetH / 2, cabCz - cabDepth / 2 - 0.003]}
+              material={cabMat}
+              args={[cabW, cabinetH - 0.06, 0.02]}
+            />
             <mesh position={[x, cabinetH - 0.14, cabCz - cabDepth / 2 - 0.02]}>
               <boxGeometry args={[Math.min(cabW * 0.4, 0.16), 0.016, 0.016]} />
               <meshStandardMaterial {...handle} />
@@ -55,9 +62,13 @@ export function KitchenIsland({ props }: { props: ParamProps }) {
         )
       })}
       {/* Worktop (overhangs +Z) */}
-      <mesh castShadow receiveShadow position={[0, cabinetH + topT / 2, 0]} material={stone}>
-        <boxGeometry args={[length + 0.04, topT, depth]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, cabinetH + topT / 2, 0]}
+        material={stone}
+        args={[length + 0.04, topT, depth]}
+      />
 
       {/* Inset sink or hob */}
       {top === 'sink' && (

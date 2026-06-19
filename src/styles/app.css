@@ -104,6 +104,53 @@
   margin-right: 2px;
 }
 
+/* Per-side wall-gap readout shown while dragging an item. Wraps on narrow
+   viewports so the chips never overflow the screen on mobile/touch drags. */
+.hud-pill.drag-gaps {
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(92vw, 420px);
+}
+.drag-gaps-label {
+  color: var(--text-3);
+  font-weight: 600;
+}
+.drag-gap {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.drag-gap.warn {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Equal-spacing smart-guide distance badge (drawn in the 3D scene via drei Html
+   while dragging). Reads over furniture; the magenta border ties it to the
+   alignment-guide lines. Surface/text use theme tokens so it stays legible in
+   light + dark across all themes. */
+.spacing-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-solid);
+  border: 1px solid var(--guide, #ff3df0);
+  color: var(--guide, #ff3df0);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: var(--shadow-panel);
+  pointer-events: none;
+}
+
 /* Walk-mode controls banner (auto-fading, themed). */
 .walk-hud {
   display: inline-flex;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_QUOTE_TEMPLATE } from '../export/quoteTemplate'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import type { HistorySnapshot } from '../state/slices/historySlice'
 import { buildHistoryTimeline, describeHistoryStep } from './historyTimeline'
@@ -14,6 +15,8 @@ function snap(over: Partial<HistorySnapshot> = {}): HistorySnapshot {
     finishes: {} as never,
     floorPlan: {} as never,
     comments: [],
+    drawingCallouts: [],
+    quoteTemplate: DEFAULT_QUOTE_TEMPLATE,
     ...over,
   }
 }

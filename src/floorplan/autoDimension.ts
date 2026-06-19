@@ -9,6 +9,7 @@
  * renderer (`./autoDimensionSvg`) turns it into a palette-injected string.
  */
 
+import { formatLength, type UnitSystem } from '../utils/measurement'
 import {
   type FloorPlan,
   type PlanRoom,
@@ -45,9 +46,11 @@ export interface DimensionSet {
 /** Distance the overall dimension lines sit outside the plan bounds (metres). */
 export const DIMENSION_OFFSET = 0.6
 
-/** Format a metre length as a fixed 2-decimal label, e.g. `3.40 m`. */
+/** Format a metre length as a fixed 2-decimal label, e.g. `3.40 m`.
+ *  @deprecated Prefer `formatLength(value, units)` from `utils/measurement` for
+ *  unit-aware output. This alias forwards to metric for backward compatibility. */
 export function formatMetres(value: number): string {
-  return `${value.toFixed(2)} m`
+  return formatLength(value, 'metric')
 }
 
 const EPS = 1e-6
@@ -100,7 +103,7 @@ function isExternal(w: PlanWall): boolean {
  * (offset outside the plan, perpendicular to the wall), plus an interior
  * width×depth pair per room. Robust to missing/zero-length input.
  */
-export function buildDimensions(plan: FloorPlan): DimensionSet {
+export function buildDimensions(plan: FloorPlan, units: UnitSystem = 'metric'): DimensionSet {
   const overall: Dimension[] = []
   const rooms: Dimension[] = []
   if (!plan || typeof plan !== 'object') return { overall, rooms }
@@ -126,20 +129,20 @@ export function buildDimensions(plan: FloorPlan): DimensionSet {
       x2: w.end[0] + ox,
       y2: w.end[1] + oz,
       value: len,
-      label: formatMetres(len),
+      label: formatLength(len, units),
       side,
     })
   }
 
   for (const r of roomList) {
-    rooms.push(...roomDimensions(r))
+    rooms.push(...roomDimensions(r, units))
   }
 
   return { overall, rooms }
 }
 
 /** Interior width (top edge) + depth (left edge) lines for one room. */
-function roomDimensions(r: PlanRoom): Dimension[] {
+function roomDimensions(r: PlanRoom, units: UnitSystem = 'metric'): Dimension[] {
   const out: Dimension[] = []
   if (!r || typeof r !== 'object') return out
   const origin = Array.isArray(r.origin) ? r.origin : null
@@ -155,7 +158,7 @@ function roomDimensions(r: PlanRoom): Dimension[] {
       x2: ox + width,
       y2: oz,
       value: width,
-      label: formatMetres(width),
+      label: formatLength(width, units),
       side: 'interior',
     })
   }
@@ -166,7 +169,7 @@ function roomDimensions(r: PlanRoom): Dimension[] {
       x2: ox,
       y2: oz + depth,
       value: depth,
-      label: formatMetres(depth),
+      label: formatLength(depth, units),
       side: 'interior',
     })
   }

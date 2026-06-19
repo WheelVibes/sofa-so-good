@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { getSolidMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 import {
   buildStaircase,
@@ -57,6 +58,23 @@ export function Staircase({ props }: { props: ParamProps }) {
             : p.kind === 'riser'
               ? riserMat
               : metalMat
+        // Bevel treads and landings — the visible horizontal surfaces where a
+        // subtle chamfer catches light naturally. Risers and railing posts stay
+        // as sharp boxes (thin structural members; bevel would be imperceptible
+        // or clip into adjacent parts).
+        if (p.kind === 'tread' || p.kind === 'landing') {
+          return (
+            <BeveledBox
+              key={i}
+              castShadow
+              receiveShadow
+              position={p.position}
+              rotation={[0, p.rot ?? 0, 0]}
+              material={mat}
+              args={p.size}
+            />
+          )
+        }
         return (
           <mesh
             key={i}

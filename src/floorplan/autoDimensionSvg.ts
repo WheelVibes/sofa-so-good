@@ -9,6 +9,7 @@
  * Self-contained: imports only `./autoDimension` and `./types`.
  */
 
+import type { UnitSystem } from '../utils/measurement'
 import { buildDimensions, type Dimension } from './autoDimension'
 import { type FloorPlan, planBounds } from './types'
 
@@ -23,6 +24,8 @@ export interface DimensionSvgOpts {
   palette: DimensionSvgPalette
   /** Target SVG width in pixels (height derives from plan aspect). Default 800. */
   widthPx?: number
+  /** Display unit system for dimension labels. Default 'metric'. */
+  units?: UnitSystem
 }
 
 /** Padding (metres) around the plan bounds so offset dimension lines fit. */
@@ -52,7 +55,7 @@ function n(v: number): string {
 export function dimensionSvg(plan: FloorPlan, opts: DimensionSvgOpts): string {
   const { palette } = opts
   const widthPx = opts.widthPx && opts.widthPx > 0 ? opts.widthPx : 800
-  const dims = buildDimensions(plan)
+  const dims = buildDimensions(plan, opts.units ?? 'metric')
 
   const [maxX, maxZ] = planBounds(
     plan && typeof plan === 'object'

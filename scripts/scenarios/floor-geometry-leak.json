@@ -1,0 +1,32 @@
+{
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "three-ready", "waitFor": { "store": "!!window.__three && !!window.__three.gl" }, "timeout": 30000 },
+    {
+      "name": "scene-rendered",
+      "waitFor": { "store": "window.__three.gl.info.memory.geometries > 5" },
+      "timeout": 30000
+    },
+    { "name": "settle", "wait": 1500 },
+    { "name": "default-flat", "screenshot": "01-default-flat.png" },
+    {
+      "name": "geom-baseline",
+      "eval": "window.__roomIds = window.__store.getState().floorPlan.rooms.map(r => r.id); window.__geomBaseline = window.__three.gl.info.memory.geometries; console.log('GEOMPROBE baseline=' + window.__geomBaseline + ' rooms=' + window.__roomIds.length)"
+    },
+    {
+      "name": "toggle-floor-finishes-30x",
+      "eval": "(async () => { const s = window.__store.getState(); const ids = window.__roomIds; for (let i = 0; i < 30; i++) { const mat = i % 2 === 0 ? 'floor-wood-walnut' : 'floor-wood-oak'; for (const r of ids) s.setFloorFinish(r, mat); await new Promise(res => setTimeout(res, 6)); } })()"
+    },
+    { "name": "settle-toggle", "wait": 2000 },
+    {
+      "name": "geom-after-toggle",
+      "eval": "window.__geomAfter = window.__three.gl.info.memory.geometries; console.log('GEOMPROBE after=' + window.__geomAfter + ' delta=' + (window.__geomAfter - window.__geomBaseline) + ' (BUG-002: must be ~0 — floor geometry is memoised + disposed, not leaked per render)')"
+    },
+    { "name": "after-toggles", "screenshot": "02-after-30-finish-toggles.png" }
+  ]
+}

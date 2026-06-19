@@ -1,8 +1,10 @@
+import type { QuoteTemplate } from '../../export/quoteTemplate'
 import type { FloorPlan } from '../../floorplan/types'
 import type { FurnitureItem } from '../../furniture/types'
 import type { RootState } from '../store'
 import type { DesignComment } from './commentsSlice'
 import type { DoorState } from './doorsSlice'
+import type { DrawingCallout } from './drawingCalloutsSlice'
 import type { FinishesSlice } from './finishesSlice'
 import type { SliceCreator } from './types'
 
@@ -27,6 +29,10 @@ export interface HistorySnapshot {
   floorPlan: FloorPlan
   /** Pinned design comments (F24) — add/edit/resolve/delete are undoable. */
   comments: DesignComment[]
+  /** Drawing-set sheet callouts — add/edit/delete are undoable. */
+  drawingCallouts: DrawingCallout[]
+  /** Quote template settings — branding/tax/section changes are undoable. */
+  quoteTemplate: QuoteTemplate
 }
 
 export interface HistorySlice {
@@ -49,6 +55,13 @@ export interface HistorySlice {
    *  history panel can restore any past or future step in one move. No-op for an
    *  out-of-range index or the current index. */
   jumpHistory: (targetIndex: number) => void
+  /** Keep an in-progress coalesce window alive WITHOUT pushing a new snapshot:
+   *  bump `_lastPushAt` only while `key` already owns the window. Used by streams
+   *  whose per-frame mutations don't themselves touch the coalesce clock (e.g. a
+   *  press-and-hold nudge calls `moveItem`, not `pushHistoryCoalesced`), so a long
+   *  hold followed by a quick re-tap stays one undo step. No-op for a different
+   *  key, so it can never extend or hijack another action's window. */
+  refreshCoalesce: (key: string) => void
   clearHistory: () => void
 }
 
@@ -59,6 +72,8 @@ function snapshot(s: RootState): HistorySnapshot {
     finishes: s.finishes,
     floorPlan: s.floorPlan,
     comments: s.comments,
+    drawingCallouts: s.drawingCallouts,
+    quoteTemplate: s.quoteTemplate,
   }
 }
 
@@ -120,6 +135,10 @@ export const createHistorySlice: SliceCreator<HistorySlice, RootState> = (set, g
       _lastPushKey: key,
       _lastPushAt: now,
     }))
+  },
+  refreshCoalesce: (key) => {
+    const s = get()
+    if (s._lastPushKey === key) set({ _lastPushAt: Date.now() })
   },
   undo: () =>
     set((s) => {

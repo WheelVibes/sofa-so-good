@@ -136,6 +136,7 @@ export async function openDrawingSet(): Promise<void> {
       plumbing,
       s.finishes,
       s.drawingLayers,
+      s.drawingCallouts.length ? s.drawingCallouts : undefined,
     )
   } catch {
     win.close()

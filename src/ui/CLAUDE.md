@@ -13,11 +13,31 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
 - **Polished + pixel-perfect.** Use the standard spacing scale for margins/padding (no
   ad-hoc one-off gaps); align to existing components so layouts stay cohesive with the
   theme. Verify any new surface in light + dark across all 5 themes before shipping.
+- **Empty states use the shared `EmptyState`** (`src/ui/EmptyState.tsx`): icon (from the
+  `Icon` set) + title + optional one-line description + optional CTA, on the `.empty-mini`
+  token vocabulary. Any panel/list that can be empty must render it (don't hand-roll inline
+  "No … yet" text). Keep copy concise + friendly; use distinct copy for search-no-results
+  vs truly-empty; only wire a CTA to a real existing handler.
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
   gate on `canEditScene`; leaving the editor clears the selection.
+- **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models* (Poly Haven
+  `RemoteCard`s in the catalog grid) ride the **`remoteFurniture`** flag (pro, default on);
+  browsable remote *materials* (FinishPicker Browse tab) ride **`remoteMaterials`** (pro). Pass the
+  flag into `useUnifiedCatalog(includeRemote)` (via `useFeature('remoteFurniture')`) — never merge
+  remote entries ungated. Only bootstrap the provider index when at least one of the two is on
+  (`bootstrapRemoteCatalog()` fetches both kinds), so Simple mode (both forced off) hits no network.
+  Gating is **browse/add only**: a placed/resolved remote def still merges into `useCatalog`
+  (`buildMergedCatalog`) and renders with the flag off — don't gate the render/merge path.
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never
   hardcode a key label. Tooltips + menus render through `Popover` (portal) so the
   scrollable toolbar can't clip them.
+- **Untrusted URLs → `safeUrl` (`src/utils/safeUrl.ts`).** Any URL that originates from
+  imported / user-supplied / scraped data (def `sourceUrl`, IKEA `productInfo` image/document
+  URLs, retailer-offer links, …) MUST pass through `safeUrl()`/`safeHref()` before it reaches an
+  `href`/`src` — render the link only when it returns a value, else fall back to inert text (a
+  `javascript:`/`data:` URL would otherwise execute on click, SEC-001). It allows only
+  `http:`/`https:`/`mailto:` + relative/protocol-relative URLs. The schema also neutralizes these
+  fields on import, but the render sink is the defense-in-depth backstop.
 - Modals portal to `document.body`; reuse the shared `Modal` primitive. While any modal is
   open, global hotkeys are suppressed via `controls/modalGuard.ts` — `Modal` registers
   automatically; any modal-style overlay that does **not** build on `Modal` (custom

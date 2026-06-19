@@ -1,4 +1,6 @@
 import { mountHeightPresetsInRange } from '../../furniture/mountHeightPresets'
+import { useStore } from '../../state/store'
+import { formatLength } from '../../utils/measurement'
 
 /**
  * One-tap standard mount-height chips shown under a mounted item's `mountHeight`
@@ -20,6 +22,7 @@ export function MountHeightPresets({
   max: number
   onPick: (height: number) => void
 }) {
+  const units = useStore((s) => s.units)
   const presets = mountHeightPresetsInRange(defId, min, max)
   if (presets.length === 0) return null
   return (
@@ -32,7 +35,7 @@ export function MountHeightPresets({
             type="button"
             // Within a few mm counts as "on" — float slider values won't be exact.
             className={`chip${Math.abs(value - p.height) < 0.005 ? ' on' : ''}`}
-            title={`Set mount height to ${p.height.toFixed(2)} m`}
+            title={`Set mount height to ${formatLength(p.height, units)}`}
             onClick={() => onPick(p.height)}
           >
             {p.label}

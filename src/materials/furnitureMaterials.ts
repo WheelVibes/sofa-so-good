@@ -17,9 +17,13 @@ import {
 } from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
 import type { RenderTier } from '../scene/quality'
+import { applyAnisotropy } from './anisotropy'
 import { getBuiltMaterial } from './cache'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
+import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/metalBrush'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
+import { DEFAULT_STONE_SURFACE_PARAMS, makeRoughDrift } from './procedural/stoneSurface'
+import { buildUpholsteryHeight, DEFAULT_SEAM_PARAMS } from './procedural/upholsterySeams'
 
 /** A furniture finish that points at a catalog/DLC material is encoded as
  *  `mat:<materialId>`. The material itself is built (from its procedural
@@ -49,44 +53,40 @@ function canvasFrom(data: Uint8ClampedArray): CanvasTexture {
   ctx.putImageData(img, 0, 0)
   const t = new CanvasTexture(c)
   t.wrapS = t.wrapT = RepeatWrapping
-  t.anisotropy = 4
+  applyAnisotropy(t)
   return t
 }
 
 let fabricNormal: Texture | null = null
 function getFabricNormal(): Texture {
   if (fabricNormal) return fabricNormal
+  // PR6: a perfectly regular sin-grid reads synthetic. RZ6: on top of the warped
+  // weave + slubs, add a soft fabric wrinkle (broad gathered creases) and faint
+  // seam stitching (panel-edge channels + topstitch) so upholstery reads as real
+  // sewn cloth, not a flat plastic shell. The richer height field lives in the
+  // dedicated `upholsterySeams` generator (pure + unit-tested). Off → legacy
+  // clean grid (still a normal map, so even Performance never reads dead-flat).
+  const richWeave = isFeatureEnabled('pbrSurfaces')
+  if (richWeave) {
+    const height = buildUpholsteryHeight(N, 0x4242, DEFAULT_SEAM_PARAMS)
+    // Gentler bump than the legacy weave: the richer field already carries the
+    // seam + wrinkle relief, so a softer strength keeps light upholstery from
+    // reading as a loud waffle.
+    fabricNormal = canvasFrom(heightToNormalRGBA(height, N, 2.0))
+    return fabricNormal
+  }
   const fine = makeFbm(4242, 4, 120)
   const height = new Float32Array(N * N)
-  // PR6: a perfectly regular sin-grid reads synthetic. Warp the thread phase
-  // with low-freq noise + add occasional slubs (thicker threads) and surface
-  // fuzz so the weave looks like real cloth. Off → the legacy clean grid.
-  const richWeave = isFeatureEnabled('pbrSurfaces')
-  const warp = richWeave ? makeFbm(0x6d2f, 3, 6) : null
-  const slub = richWeave ? makeFbm(0x1f88, 3, 22) : null
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
       const u = x / N
       const v = y / N
-      if (warp && slub) {
-        // Per-thread phase jitter (a few % of a thread) so rows/cols meander.
-        const jx = (warp(u, v) - 0.5) * 1.6
-        const jy = (warp(v + 3.1, u + 1.7) - 0.5) * 1.6
-        const warpThread = 0.5 + 0.5 * Math.sin(x * 0.9 + jx)
-        const weftThread = 0.5 + 0.5 * Math.sin(y * 0.9 + jy)
-        // Over/under interlace + a slub bump where a thread thickens.
-        const weave = warpThread * weftThread
-        const sl = slub(u * 1.2, v * 1.2)
-        const slubBump = sl > 0.74 ? (sl - 0.74) * 1.3 : 0
-        height[y * N + x] = weave * 0.55 + slubBump * 0.3 + fine(u, v) * 0.15
-      } else {
-        // Soft over/under weave: a fine grid modulated by noise.
-        const weave = 0.5 + 0.5 * Math.sin(x * 0.9) * Math.sin(y * 0.9)
-        height[y * N + x] = weave * 0.6 + fine(u, v) * 0.4
-      }
+      // Soft over/under weave: a fine grid modulated by noise.
+      const weave = 0.5 + 0.5 * Math.sin(x * 0.9) * Math.sin(y * 0.9)
+      height[y * N + x] = weave * 0.6 + fine(u, v) * 0.4
     }
   }
-  fabricNormal = canvasFrom(heightToNormalRGBA(height, N, richWeave ? 2.6 : 2.2))
+  fabricNormal = canvasFrom(heightToNormalRGBA(height, N, 2.2))
   return fabricNormal
 }
 
@@ -171,17 +171,26 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
 // ---- Stone / marble -------------------------------------------------------
 // Turbulent veins on a pale ground. Like wood, the albedo is near-white
 // luminance so the material colour tints it (white marble, green, etc.).
-let marbleMaps: { albedo: Texture; normal: Texture } | null = null
-function getMarbleMaps(): { albedo: Texture; normal: Texture } {
+let marbleMaps: { albedo: Texture; normal: Texture; rough: Texture | null } | null = null
+function getMarbleMaps(): { albedo: Texture; normal: Texture; rough: Texture | null } {
   if (marbleMaps) return marbleMaps
   const baseN = makeFbm(0x5a17, 5, 4)
   const veinWarp = makeFbm(0x7d31, 4, 6)
   const grime = makeFbm(0x1133, 4, 20)
   // PR6: broad low-freq tonal clouding so a slab isn't a uniform white field
   // between veins (real stone has soft light/dark drifts). Tint-preserving.
-  const cloudN = isFeatureEnabled('pbrSurfaces') ? makeFbm(0x2f6b, 4, 2.2) : null
+  const pbr = isFeatureEnabled('pbrSurfaces')
+  const cloudN = pbr ? makeFbm(0x2f6b, 4, 2.2) : null
+  // MAT-001 — polished roughness drift: a broad low-freq variation so the slab
+  // isn't a dead-uniform mirror (glossier/honed patches). Gated behind
+  // `pbrSurfaces` exactly like the cloud clouding above; off → no rough map (the
+  // legacy uniform `roughness` scalar). The drift only ever makes patches a
+  // touch GLOSSIER than the base (encoded as a 0..1 roughness multiplier ≤ 1),
+  // so it never regresses the polished baseline to matte.
+  const drift = pbr ? makeRoughDrift(0x5a17, DEFAULT_STONE_SURFACE_PARAMS.roughDrift) : null
   const albedo = new Uint8ClampedArray(N * N * 4)
   const height = new Float32Array(N * N)
+  const roughData = drift ? new Uint8ClampedArray(N * N * 4) : null
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
       const u = x / N
@@ -202,13 +211,26 @@ function getMarbleMaps(): { albedo: Texture; normal: Texture } {
       const c = Math.round(lum * 255)
       albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = c
       albedo[i * 4 + 3] = 255
+      // Vein normal-relief: the height follows BOTH visible vein networks, so the
+      // baked normal catches light exactly where the albedo veins are (MAT-001
+      // alignment; the existing relief — left as-is to avoid double-stacking).
       height[i] = vein * 0.4 + vein2 * 0.2
+      if (roughData && drift) {
+        // Roughness multiplier (the material `roughness` scalar multiplies this
+        // map's value). `drift` is signed (±~0.05); clamp the multiplier at 1 so
+        // the drift only ever makes patches a touch glossier than the polished
+        // base — never matter. Linear roughness map (no sRGB tag).
+        const rc = Math.round(clamp01(1 + drift(u, v)) * 255)
+        roughData[i * 4] = roughData[i * 4 + 1] = roughData[i * 4 + 2] = rc
+        roughData[i * 4 + 3] = 255
+      }
     }
   }
   const a = canvasFrom(albedo)
   a.colorSpace = SRGBColorSpace
   const n = canvasFrom(heightToNormalRGBA(height, N, 1.6))
-  marbleMaps = { albedo: a, normal: n }
+  const rough = roughData ? canvasFrom(roughData) : null
+  marbleMaps = { albedo: a, normal: n, rough }
   return marbleMaps
 }
 
@@ -228,11 +250,17 @@ export function getStoneMaterial(color: string, repeat = 1, rough = 0.12): MeshS
   const hit = cache.get(key)
   if (hit) return hit
   const maps = getMarbleMaps()
-  const map = maps.albedo.clone()
-  const normal = maps.normal.clone()
+  const map = applyAnisotropy(maps.albedo.clone())
+  const normal = applyAnisotropy(maps.normal.clone())
   map.repeat.set(repeat, repeat)
   normal.repeat.set(repeat, repeat)
   map.needsUpdate = normal.needsUpdate = true
+  // MAT-001 — polished roughness drift map (present only under `pbrSurfaces`).
+  const roughnessMap = maps.rough ? applyAnisotropy(maps.rough.clone()) : null
+  if (roughnessMap) {
+    roughnessMap.repeat.set(repeat, repeat)
+    roughnessMap.needsUpdate = true
+  }
   const [r, g, b] = hexToRgb(color)
   const m = new MeshPhysicalMaterial({
     color: `rgb(${r},${g},${b})`,
@@ -240,6 +268,7 @@ export function getStoneMaterial(color: string, repeat = 1, rough = 0.12): MeshS
     metalness: 0.04,
     map,
     normalMap: normal,
+    roughnessMap,
     envMapIntensity: GLOSSY_ENV_INTENSITY,
   })
   m.normalScale.set(0.3, 0.3)
@@ -295,8 +324,8 @@ export function getConcreteMaterial(color: string, repeat = 1, rough = 0.85): Me
   const hit = cache.get(key)
   if (hit) return hit
   const maps = getConcreteMaps()
-  const map = maps.albedo.clone()
-  const normal = maps.normal.clone()
+  const map = applyAnisotropy(maps.albedo.clone())
+  const normal = applyAnisotropy(maps.normal.clone())
   map.repeat.set(repeat, repeat)
   normal.repeat.set(repeat, repeat)
   map.needsUpdate = normal.needsUpdate = true
@@ -540,6 +569,7 @@ export function getGradientFabricMaterial(a: string, b: string): MeshStandardMat
   ctx.fillRect(0, 0, 64, 64)
   const tex = new CanvasTexture(c)
   tex.colorSpace = SRGBColorSpace
+  applyAnisotropy(tex)
   const m = new MeshPhysicalMaterial({
     map: tex,
     roughness: 0.95,
@@ -575,6 +605,7 @@ export function getGradientMaterial(a: string, b: string): MeshStandardMaterial 
   ctx.fillRect(0, 0, 64, 64)
   const tex = new CanvasTexture(c)
   tex.colorSpace = SRGBColorSpace
+  applyAnisotropy(tex)
   const m = new MeshStandardMaterial({ map: tex, roughness: 0.85, metalness: 0 })
   cache.set(key, m)
   return m
@@ -624,6 +655,7 @@ export function getPrintMaterial(a: string, b: string, kind: string): MeshStanda
   }
   const tex = new CanvasTexture(c)
   tex.colorSpace = SRGBColorSpace
+  applyAnisotropy(tex)
   const m = new MeshStandardMaterial({ map: tex, roughness: 0.82, metalness: 0 })
   cache.set(key, m)
   return m
@@ -755,17 +787,17 @@ function getFurnitureMatWithRepeat(
   if (hit) return hit
   const m = base.clone()
   if (m.map) {
-    m.map = m.map.clone()
+    m.map = applyAnisotropy(m.map.clone())
     m.map.needsUpdate = true
     m.map.repeat.set(repeat, repeat)
   }
   if (m.normalMap) {
-    m.normalMap = m.normalMap.clone()
+    m.normalMap = applyAnisotropy(m.normalMap.clone())
     m.normalMap.needsUpdate = true
     m.normalMap.repeat.set(repeat, repeat)
   }
   if (m.roughnessMap) {
-    m.roughnessMap = m.roughnessMap.clone()
+    m.roughnessMap = applyAnisotropy(m.roughnessMap.clone())
     m.roughnessMap.needsUpdate = true
     m.roughnessMap.repeat.set(repeat, repeat)
   }
@@ -825,10 +857,11 @@ export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshSta
   const hit = cache.get(key)
   if (hit) return hit
   const maps = getWoodMaps()
-  // Clone so per-repeat tiling doesn't clobber the shared source.
-  const map = maps.albedo.clone()
-  const normal = maps.normal.clone()
-  const roughMap = maps.rough.clone()
+  // Clone so per-repeat tiling doesn't clobber the shared source. Re-stamp the
+  // anisotropy cap so the clone tracks a later device-max update too (RD-401).
+  const map = applyAnisotropy(maps.albedo.clone())
+  const normal = applyAnisotropy(maps.normal.clone())
+  const roughMap = applyAnisotropy(maps.rough.clone())
   map.repeat.set(repeat, repeat)
   normal.repeat.set(repeat, repeat)
   roughMap.repeat.set(repeat, repeat)
@@ -884,7 +917,7 @@ export function getRattanMaterial(color: string, repeat = 3): MeshStandardMateri
   const key = `rattan:${color}:${repeat}`
   const hit = cache.get(key)
   if (hit) return hit
-  const normal = getRattanNormal().clone()
+  const normal = applyAnisotropy(getRattanNormal().clone())
   normal.repeat.set(repeat, repeat)
   normal.needsUpdate = true
   const [r, g, b] = hexToRgb(color)
@@ -973,4 +1006,142 @@ export function applianceFinish(finish: string): { roughness: number; metalness:
     default: // 'matte' (painted matte) and any unknown finish
       return { roughness: 0.55, metalness: 0.1 }
   }
+}
+
+// ---- Brushed / satin metal (MAT-004) -------------------------------------
+//
+// Appliance bodies (`applianceFinish('steel')`) were flat grey plastic — a
+// scalar metalness/roughness with no directional brushing. `getMetalMaterial`
+// upgrades the steel body to a real brushed-stainless / satin / black-steel
+// look: a shared procedural brush normal + roughness-streak map (directional
+// hairlines running along U, from the pure `metalBrush.ts` field) plus three.js
+// `anisotropy` for the swept highlight. Tasteful, not chrome-mirror.
+//
+// Gated behind `pbrSurfaces` exactly like the other material micro-normals: when
+// off, `getMetalMaterial` returns a plain `MeshStandardMaterial` carrying just
+// the finish's metalness/roughness (the legacy `applianceFinish` look) so the
+// flat Performance tier never pays for the brush maps and reads sensible.
+
+/** The three metal finishes a steel body can take. `stainless` is the bright
+ *  brushed appliance default; `satin` is a softer, slightly rougher sheen;
+ *  `black-steel` is the dark matte-stainless trend finish (its dark body comes
+ *  from the caller's tint — the maps are tint-independent greyscale). */
+export type MetalFinish = 'stainless' | 'satin' | 'black-steel'
+
+/** Base metalness/roughness + brush intensity per finish. The brush maps tune
+ *  the directional grain; `anisotropy` is the swept-highlight strength. */
+function metalFinishPreset(finish: MetalFinish): {
+  roughness: number
+  metalness: number
+  streak: number
+  anisotropy: number
+} {
+  switch (finish) {
+    case 'satin':
+      // Softer satin: a touch rougher, a gentler sweep than bright stainless.
+      return { roughness: 0.42, metalness: 0.85, streak: 0.4, anisotropy: 0.4 }
+    case 'black-steel':
+      // Dark matte stainless: matter, slightly stronger grain (reads on the dark
+      // body), subtler highlight so it doesn't sparkle.
+      return { roughness: 0.5, metalness: 0.82, streak: 0.55, anisotropy: 0.35 }
+    default: // 'stainless' — bright brushed appliance steel.
+      return {
+        roughness: 0.3,
+        metalness: 0.9,
+        streak: DEFAULT_BRUSH_PARAMS.streak,
+        anisotropy: DEFAULT_BRUSH_PARAMS.anisotropy,
+      }
+  }
+}
+
+/** Shared brushed-metal maps (one 256² normal + roughness-streak singleton,
+ *  built once and cloned per material). Present only under `pbrSurfaces` — the
+ *  flat tier gets no maps (a plain metalness/roughness). The roughness map is a
+ *  multiplier ≥ 1 (clamped) so the brush only ever scatters a touch MORE than
+ *  the base — never glossier (no specular regression). */
+let brushedMetalMaps: { normal: Texture; rough: Texture } | null = null
+function getBrushedMetalMaps(streak: number): { normal: Texture; rough: Texture } {
+  // One canonical brush (default streak) shared by every steel body — caching by
+  // the singleton keeps all appliances on one GPU texture pair. The `streak`
+  // arg only gates the build amplitude for the canonical map; per-finish streak
+  // differences ride the material's `normalScale`/`anisotropy` so we never bake
+  // a separate map per finish (instanced/shared, per the edge-case brief).
+  if (brushedMetalMaps) return brushedMetalMaps
+  const { height, rough } = buildBrushedMetalFields(N, 0x5712, {
+    streak,
+    anisotropy: DEFAULT_BRUSH_PARAMS.anisotropy,
+  })
+  const normal = canvasFrom(heightToNormalRGBA(height, N, 1.0))
+  // Roughness map: the signed streak delta (±~0.06) encoded as a multiplier on
+  // the material's base `roughness`. Centre on 1 so the mean roughness is
+  // unchanged; the abraded grain scatters a touch more/less along the hairlines.
+  const roughData = new Uint8ClampedArray(N * N * 4)
+  for (let i = 0; i < N * N; i++) {
+    const rc = Math.round(clamp01(1 + rough[i]) * 255)
+    roughData[i * 4] = roughData[i * 4 + 1] = roughData[i * 4 + 2] = rc
+    roughData[i * 4 + 3] = 255
+  }
+  // Normal + roughness stay LINEAR (the CanvasTexture default — no sRGB tag).
+  brushedMetalMaps = { normal, rough: canvasFrom(roughData) }
+  return brushedMetalMaps
+}
+
+/**
+ * Brushed / satin / black-steel metal tinted to `color`, for appliance bodies
+ * and metal furniture parts. `finish` picks the metalness/roughness + brush
+ * intensity preset; `repeat` tiles the brush to the part size.
+ *
+ * Under `pbrSurfaces` it is a `MeshPhysicalMaterial` with the shared brush
+ * normal + roughness-streak maps and three.js `anisotropy` (swept highlight,
+ * `anisotropyRotation = 0` so the sweep runs along the U brush direction). With
+ * the flag off it is a plain `MeshStandardMaterial` carrying just the finish's
+ * metalness/roughness (the legacy flat steel look — no maps, no extra cost).
+ *
+ * Cached per `(finish, color, repeat)` so every steel body shares one GPU
+ * material (don't rebuild per appliance).
+ */
+export function getMetalMaterial(
+  color: string,
+  finish: MetalFinish = 'stainless',
+  repeat = 1,
+): MeshStandardMaterial {
+  const r = Math.round(repeat * 100) / 100
+  const key = `metal:${finish}:${color}:${r}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  const preset = metalFinishPreset(finish)
+  const pbr = isFeatureEnabled('pbrSurfaces')
+  if (!pbr) {
+    // Flat tier: legacy look — metalness/roughness only, no brush maps.
+    const m = new MeshStandardMaterial({
+      color,
+      roughness: preset.roughness,
+      metalness: preset.metalness,
+      envMapIntensity: GLOSSY_ENV_INTENSITY,
+    })
+    cache.set(key, m)
+    return m
+  }
+  const maps = getBrushedMetalMaps(preset.streak)
+  const normal = applyAnisotropy(maps.normal.clone())
+  const roughnessMap = applyAnisotropy(maps.rough.clone())
+  normal.repeat.set(r, r)
+  roughnessMap.repeat.set(r, r)
+  normal.needsUpdate = roughnessMap.needsUpdate = true
+  const m = new MeshPhysicalMaterial({
+    color,
+    roughness: preset.roughness,
+    metalness: preset.metalness,
+    normalMap: normal,
+    roughnessMap,
+    envMapIntensity: GLOSSY_ENV_INTENSITY,
+  })
+  // Subtle brush relief — a satin grain, not a scratched groove.
+  m.normalScale.set(0.2, 0.2)
+  // Swept anisotropic highlight along the U brush direction. `anisotropyRotation`
+  // stays 0 so every face's sweep is consistent with the baked hairlines.
+  m.anisotropy = preset.anisotropy
+  m.anisotropyRotation = 0
+  cache.set(key, m)
+  return m
 }

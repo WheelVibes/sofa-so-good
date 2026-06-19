@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /** Run of kitchen upper/wall cabinets: a long body split into N doors with
@@ -25,18 +26,25 @@ export function WallCabinet({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Carcass */}
-      <mesh castShadow receiveShadow position={[0, cy, 0]} material={cabMat}>
-        <boxGeometry args={[length, h, d]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, cy, 0]}
+        material={cabMat}
+        args={[length, h, d]}
+      />
       {/* Doors + handles (slab or shaker, matching the base counter) */}
       {Array.from({ length: doors }, (_, i) => {
         const x = -length / 2 + gap + doorW / 2 + i * (doorW + gap)
         const handleSide = i % 2 === 0 ? 1 : -1
         return (
           <group key={i}>
-            <mesh castShadow position={[x, cy, d / 2 - 0.005]} material={cabMat}>
-              <boxGeometry args={[doorW, doorH, 0.016]} />
-            </mesh>
+            <BeveledBox
+              castShadow
+              position={[x, cy, d / 2 - 0.005]}
+              material={cabMat}
+              args={[doorW, doorH, 0.016]}
+            />
             {frontStyle === 'shaker' &&
               [
                 [0, doorH / 2 - 0.05, doorW - 0.08, 0.05],

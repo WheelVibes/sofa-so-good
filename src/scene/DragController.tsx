@@ -1,7 +1,14 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plane, Raycaster, Vector2, Vector3 } from 'three'
-import { nearestWallGap } from '../collision/clearanceGap'
+import { nearestWallGap, wallGapsPerSide } from '../collision/clearanceGap'
+import {
+  detectEqualSpacingAxis,
+  type EqualSpacing,
+  relevantWallFaces,
+  type Span,
+  type WallFaceInput,
+} from '../collision/equalSpacing'
 import { canPlace, itemFootprint } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
 import { wallSnapOffset } from '../collision/wallSnap'
@@ -16,6 +23,57 @@ import { snapToGrid } from './snap'
 
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0)
 const ALIGN_TH = 0.1 // alignment snap threshold (m)
+const SPACING_TH = 0.08 // equal-spacing match tolerance (m)
+const SPACING_BAND = 1.2 // only pair items within this band on the other axis (m)
+
+/** Collision walls → axis-aligned face descriptors for equal-spacing detection. */
+function wallFaces(walls: import('../collision/walls').CollisionWall[]): WallFaceInput[] {
+  const faces: WallFaceInput[] = []
+  for (const w of walls) {
+    const t = w.thickness / 2
+    if (Math.abs(w.ax - w.bx) < 0.02) {
+      faces.push({
+        orient: 'v',
+        face: w.ax, // inner face approximated at the wall centreline ± thickness handled by caller spacing
+        spanMin: Math.min(w.az, w.bz),
+        spanMax: Math.max(w.az, w.bz),
+      })
+      // Two faces (both sides) so a piece spaced off either side is caught.
+      faces.push({
+        orient: 'v',
+        face: w.ax + t,
+        spanMin: Math.min(w.az, w.bz),
+        spanMax: Math.max(w.az, w.bz),
+      })
+      faces.push({
+        orient: 'v',
+        face: w.ax - t,
+        spanMin: Math.min(w.az, w.bz),
+        spanMax: Math.max(w.az, w.bz),
+      })
+    } else if (Math.abs(w.az - w.bz) < 0.02) {
+      faces.push({
+        orient: 'h',
+        face: w.az,
+        spanMin: Math.min(w.ax, w.bx),
+        spanMax: Math.max(w.ax, w.bx),
+      })
+      faces.push({
+        orient: 'h',
+        face: w.az + t,
+        spanMin: Math.min(w.ax, w.bx),
+        spanMax: Math.max(w.ax, w.bx),
+      })
+      faces.push({
+        orient: 'h',
+        face: w.az - t,
+        spanMin: Math.min(w.ax, w.bx),
+        spanMax: Math.max(w.ax, w.bx),
+      })
+    }
+  }
+  return faces
+}
 
 /** Axis-aligned half-extents [hx, hz] of an item's footprint at its rotation. */
 function halfExtents(
@@ -158,6 +216,7 @@ export function DragController() {
       // to nearby items (line up rows / butt pieces together), surfacing guide
       // lines. Edge + adjacency candidates make pieces sit flush.
       const guides: Array<{ axis: 'x' | 'z'; value: number }> = []
+      const spacings: EqualSpacing[] = []
       if (group.length <= 1) {
         const dragItem = itemsById.get(id)
         const dragDef = dragItem ? catalogRef.current[dragItem.defId] : undefined
@@ -201,9 +260,54 @@ export function DragController() {
             if (ws.dx) next = [next[0] + ws.dx, next[1]]
             if (ws.dz) next = [next[0], next[1] + ws.dz]
           }
+
+          // Equal-spacing smart guides: detect when the dragged item forms a gap
+          // equal to gaps among nearby items (or to a wall), per axis. Restrict
+          // neighbours to the same row/column (within SPACING_BAND on the other
+          // axis) so we only pair items the user is visually aligning — this also
+          // bounds the cost in busy scenes. The wall faces feed the same band.
+          const wallsForSpacing = placementWalls(state) ?? buildCollisionWalls(state.doors)
+          const faces = wallFaces(wallsForSpacing)
+          const dragBox = {
+            x0: next[0] - dh[0],
+            z0: next[1] - dh[1],
+            x1: next[0] + dh[0],
+            z1: next[1] + dh[1],
+          }
+          const wf = relevantWallFaces(faces, dragBox)
+          const xOthers: Span[] = others
+            .filter((o) => Math.abs(o.c[1] - next[1]) <= dh[1] + o.h[1] + SPACING_BAND)
+            .map((o) => ({ lo: o.c[0] - o.h[0], hi: o.c[0] + o.h[0] }))
+          const zOthers: Span[] = others
+            .filter((o) => Math.abs(o.c[0] - next[0]) <= dh[0] + o.h[0] + SPACING_BAND)
+            .map((o) => ({ lo: o.c[1] - o.h[1], hi: o.c[1] + o.h[1] }))
+          // Snap to the equal-gap centre when grid-snap is off and the axis wasn't
+          // already claimed by a stronger edge/centre alignment snap. Then re-detect
+          // at the final position so the rendered badges read the post-snap gaps.
+          if (!state.snapEnabled && !sx) {
+            const s = detectEqualSpacingAxis('x', next[0], dh[0], xOthers, wf.x, {
+              tol: SPACING_TH,
+            })
+            if (s?.snapCenter != null) next = [s.snapCenter, next[1]]
+          }
+          if (!state.snapEnabled && !sz) {
+            const s = detectEqualSpacingAxis('z', next[1], dh[1], zOthers, wf.z, {
+              tol: SPACING_TH,
+            })
+            if (s?.snapCenter != null) next = [next[0], s.snapCenter]
+          }
+          const esx = detectEqualSpacingAxis('x', next[0], dh[0], xOthers, wf.x, {
+            tol: SPACING_TH,
+          })
+          const esz = detectEqualSpacingAxis('z', next[1], dh[1], zOthers, wf.z, {
+            tol: SPACING_TH,
+          })
+          if (esx) spacings.push(esx)
+          if (esz) spacings.push(esz)
         }
       }
       state.setDragGuides(guides)
+      state.setDragSpacings(spacings)
 
       // Snug-stacking candidate (single-item drag only): if the dragged item's
       // centre lands over a compatible base item's footprint, flag that base
@@ -288,6 +392,7 @@ export function DragController() {
           }
           const walls = planWalls ?? buildCollisionWalls(after.doors)
           state.setDragClearance(nearestWallGap(box, walls))
+          state.setDragWallGaps(wallGapsPerSide(box, walls))
         }
       }
     }

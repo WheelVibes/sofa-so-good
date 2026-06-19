@@ -16,6 +16,7 @@ import { findItemOverlaps } from '../collision/placement'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
 import { arrangeAllRoomsForPlan, roomKindFromName } from '../layout/autoArrange'
+import { applyDecorStylingForPlan } from './layout/decorStyling'
 import type { LayoutPreset } from './layoutPresets'
 import type { FurnitureDef, FurnitureItem, ParamProps } from './types'
 import { defaultParamProps } from './types'
@@ -187,12 +188,20 @@ function dropOverlaps(items: FurnitureItem[], defs: Record<string, FurnitureDef>
  * plan's walls + openings, restyled by the preset's palette. Returns a clean,
  * collision-valid item list ready to drop into the store. Existing `items` are
  * ignored — this is a fresh furnish (the caller decides whether to replace).
+ *
+ * A decor styling pass is applied after arranging: tasteful set-dressing props
+ * (cushions, bowls, candles, plants, …) are placed ON appropriate host surfaces
+ * (sofas, coffee tables, beds, desks, etc.) at the correct surface height. All
+ * decor props are `noClip` so they don't interfere with floor collision.
+ *
+ * @param withDecor  When false, skip the styling pass (default: true).
  */
 export function furnishPlanItems(
   plan: FloorPlan,
   preset: LayoutPreset,
   defs: Record<string, FurnitureDef>,
   doors: Record<string, { open: boolean }>,
+  withDecor = true,
 ): FurnitureItem[] {
   const seeded: FurnitureItem[] = []
   for (const room of plan.rooms) {
@@ -201,5 +210,9 @@ export function furnishPlanItems(
   }
   if (seeded.length === 0) return []
   const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors)
-  return dropOverlaps(arranged, defs)
+  const furniture = dropOverlaps(arranged, defs)
+  if (!withDecor) return furniture
+  // Styling pass: add set-dressing props on host surfaces.
+  const decor = applyDecorStylingForPlan(plan, furniture, defs)
+  return [...furniture, ...decor]
 }

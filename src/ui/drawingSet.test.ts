@@ -282,3 +282,199 @@ describe('buildDrawingSetHtml — layer toggles (PARITY-DRAWLAYERS)', () => {
     expect(off).not.toContain('Demolition &amp; new walls')
   })
 })
+
+describe('buildDrawingSetHtml — free-text callouts (PARITY-LIGHTINGTEMPLATE-TEXT)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('renders exactly as before when no callouts are supplied (no-op preservation)', () => {
+    const without = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    const withEmpty = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      [],
+    )
+    // Both should be identical — no callout markup injected.
+    expect(without).toBe(withEmpty)
+  })
+
+  it('renders callout text on the targeted sheet', () => {
+    const callouts = [
+      {
+        id: 'c1',
+        sheet: 'floor-plan' as const,
+        text: 'Contractor to verify on site',
+        x: 0.8,
+        y: 0.1,
+      },
+    ]
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      callouts,
+    )
+    expect(html).toContain('Contractor to verify on site')
+  })
+
+  it('XML-escapes callout text to prevent markup injection', () => {
+    const callouts = [
+      { id: 'c2', sheet: 'cover' as const, text: '<script>xss</script>', x: 0.5, y: 0.5 },
+    ]
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      callouts,
+    )
+    expect(html).not.toContain('<script>xss</script>')
+    expect(html).toContain('&lt;script&gt;')
+  })
+
+  it('renders a leader line when leader coordinates are provided', () => {
+    const callouts = [
+      {
+        id: 'c3',
+        sheet: 'elevations' as const,
+        text: 'Check head height',
+        x: 0.9,
+        y: 0.2,
+        leaderX: 0.5,
+        leaderY: 0.6,
+      },
+    ]
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      callouts,
+    )
+    // The leader SVG line element should appear in the output.
+    expect(html).toContain('stroke-dasharray')
+    expect(html).toContain('Check head height')
+  })
+
+  it('does not inject callouts onto non-targeted sheets', () => {
+    // Callout targeting 'lighting' should NOT appear in the floor-plan section.
+    const callouts = [
+      { id: 'c4', sheet: 'lighting' as const, text: 'LIGHTING ONLY NOTE', x: 0.5, y: 0.5 },
+    ]
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      callouts,
+    )
+    // The callout text should appear in the lighting sheet (which exists here
+    // because the default layout has lights), not in any non-lighting section.
+    expect(html).toContain('LIGHTING ONLY NOTE')
+  })
+
+  it('handles multi-line callout text via newlines', () => {
+    const callouts = [
+      {
+        id: 'c5',
+        sheet: 'floor-plan' as const,
+        text: 'Line one\nLine two',
+        x: 0.8,
+        y: 0.1,
+      },
+    ]
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      callouts,
+    )
+    expect(html).toContain('Line one')
+    expect(html).toContain('Line two')
+    // Multi-line → tspan elements.
+    expect(html).toContain('<tspan')
+  })
+
+  it('renders cover callouts on the cover (A-0) sheet', () => {
+    const callouts = [{ id: 'c6', sheet: 'cover' as const, text: 'COVER NOTE', x: 0.5, y: 0.9 }]
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      callouts,
+    )
+    expect(html).toContain('COVER NOTE')
+  })
+
+  it('handles special characters in callout text (ampersand, quotes, gt/lt)', () => {
+    const callouts = [
+      {
+        id: 'c7',
+        sheet: 'floor-plan' as const,
+        text: 'A & B "test" <check>',
+        x: 0.1,
+        y: 0.1,
+      },
+    ]
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      callouts,
+    )
+    // Escaped forms must appear, raw forms must not.
+    expect(html).toContain('&amp;')
+    expect(html).toContain('&quot;')
+    expect(html).toContain('&lt;check&gt;')
+    expect(html).not.toContain('A & B "test" <check>')
+  })
+})

@@ -51,6 +51,15 @@ describe('dimensionSvg', () => {
     expect(svg).toContain('4.00 m')
   })
 
+  it('renders imperial labels when units=imperial', () => {
+    const svg = dimensionSvg(rectPlan(), { palette, units: 'imperial' })
+    // 5 m ≈ 16′ 5″ and 4 m ≈ 13′ 1″ — should appear; metre labels should not
+    expect(svg).not.toContain('5.00 m')
+    expect(svg).not.toContain('4.00 m')
+    // Unicode primes (′ U+2032, ″ U+2033) are not escaped by the SVG esc helper
+    expect(svg).toContain('16′ 5″')
+  })
+
   it('injects the palette colours and hardcodes none', () => {
     const svg = dimensionSvg(rectPlan(), { palette })
     expect(svg).toContain('#123456')

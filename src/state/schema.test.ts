@@ -834,4 +834,61 @@ describe('multi-level plans (F13 / ML1)', () => {
     expect(patch.items?.[0]?.levelId).toBe('lvl-2')
     expect((patch.finishes?.floor as Record<string, string>)['up-bed']).toBe('floor-carpet-grey')
   })
+
+  it('neutralizes javascript:/data: URLs on an imported IKEA def (SEC-001)', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().resetToDefault()
+    const base = serialize(useStore.getState())
+    const malicious = {
+      ...base,
+      userFurniture: [
+        {
+          id: 'ikea-evil',
+          name: 'Evil Sofa',
+          category: 'seating',
+          kind: 'gltf' as const,
+          source: 'ikea' as const,
+          groupKey: 'evil',
+          activeVariant: 'a',
+          variants: [
+            {
+              finish: 'a',
+              label: 'A',
+              articleNumber: '000',
+              url: 'https://ikea.com/p/evil',
+              assetId: null,
+              glbMaterials: [],
+            },
+          ],
+          defaultFootprint: { w: 2, d: 1, h: 1 },
+          uploadedAt: '2026-01-01T00:00:00.000Z',
+          license: 'IKEA' as const,
+          attribution: 'IKEA',
+          // The XSS payloads:
+          sourceUrl: 'javascript:alert(document.domain)',
+          productInfo: {
+            mainImageUrl: 'data:text/html,<script>alert(1)</script>',
+            documents: [
+              { name: 'Manual', url: 'javascript:alert(2)' },
+              { name: 'Real', url: 'https://ikea.com/doc.pdf' },
+            ],
+          },
+        },
+      ],
+    }
+    const parsed = SerializedStateZ.safeParse(malicious)
+    // Import must NOT throw — just neutralize the bad URLs.
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    const def = parsed.data.userFurniture[0] as Record<string, unknown>
+    expect(def.sourceUrl).toBeUndefined()
+    const info = def.productInfo as Record<string, unknown>
+    expect(info.mainImageUrl).toBeUndefined()
+    const docs = info.documents as { name: string; url?: string }[]
+    expect(docs[0].url).toBeUndefined() // javascript: dropped
+    expect(docs[1].url).toBe('https://ikea.com/doc.pdf') // legit kept
+    // Legit IKEA def fields survive untouched.
+    expect(def.id).toBe('ikea-evil')
+    expect((def.variants as { url: string }[])[0].url).toBe('https://ikea.com/p/evil')
+  })
 })

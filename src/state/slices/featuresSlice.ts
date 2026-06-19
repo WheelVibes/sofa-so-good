@@ -94,14 +94,13 @@ export interface FeaturesSlice {
   loginOpen: boolean
   /** Feature-flags panel (dev/admin) visibility. */
   flagsPanelOpen: boolean
+  /** Quote template settings dialog visibility. */
+  quoteTemplateOpen: boolean
   /** Shopping panel tab. */
   shopTab: 'list' | 'saved'
   /** Optional shopping budget target (SGD); drives the over/under indicator in
    *  the Budget panel. Persisted per-device. `null` = no target set. */
   budgetTarget: number | null
-  /** Saved-to-collection catalog def ids (the heart on catalog cards). */
-  collections: string[]
-
   setCmdkOpen: (open: boolean) => void
   toggleCmdk: () => void
   setLeftMode: (mode: 'catalog' | 'layers') => void
@@ -143,9 +142,9 @@ export interface FeaturesSlice {
   setParametricOpen: (open: boolean) => void
   setLoginOpen: (open: boolean) => void
   setFlagsPanelOpen: (open: boolean) => void
+  setQuoteTemplateOpen: (open: boolean) => void
   setShopTab: (tab: 'list' | 'saved') => void
   setBudgetTarget: (target: number | null) => void
-  toggleCollection: (defId: string) => void
 }
 
 export const FEATURES_INITIAL = {
@@ -179,9 +178,9 @@ export const FEATURES_INITIAL = {
   parametricOpen: false,
   loginOpen: false,
   flagsPanelOpen: false,
+  quoteTemplateOpen: false,
   shopTab: 'list' as 'list' | 'saved',
   budgetTarget: null as number | null,
-  collections: [] as string[],
 }
 
 export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set) => ({
@@ -238,13 +237,8 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setParametricOpen: (parametricOpen) => set({ parametricOpen }),
   setLoginOpen: (loginOpen) => set({ loginOpen }),
   setFlagsPanelOpen: (flagsPanelOpen) => set({ flagsPanelOpen }),
+  setQuoteTemplateOpen: (quoteTemplateOpen) => set({ quoteTemplateOpen }),
   setShopTab: (shopTab) => set({ shopTab }),
   setBudgetTarget: (budgetTarget) =>
     set({ budgetTarget: budgetTarget != null && budgetTarget > 0 ? budgetTarget : null }),
-  toggleCollection: (defId) =>
-    set((s) => ({
-      collections: s.collections.includes(defId)
-        ? s.collections.filter((d) => d !== defId)
-        : [...s.collections, defId],
-    })),
 })

@@ -185,6 +185,14 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   sheets** checklist under it to pick exactly which sheets go in — e.g. a clean
   client copy with no electrical/plumbing/demolition, or a full builder copy (the
   floor plan is always included).
+- **Sheet callouts** (Pro) — **Tools → Sheet callouts** opens the callout panel.
+  Add free-text annotations that appear on a specific sheet when the drawing set
+  is exported: type your note (e.g. "GL = 0.00", "Contractor to verify on site"),
+  pick the target sheet, enter the position as X%, Y% from the top-left of the
+  drawing area, and optionally specify a leader-line tip to point the note at a
+  specific detail. Callouts render as a crisp text box with an optional dashed
+  leader line; they travel with `.sofa.json` exports and design links, and are
+  fully undoable.
 
 ## 360° panorama (Pro)
 

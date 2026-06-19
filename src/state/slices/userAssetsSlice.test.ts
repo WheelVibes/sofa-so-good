@@ -7,6 +7,7 @@ vi.mock('../storage/IdbAssetStore', () => ({
 }))
 ;(URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = vi.fn()
 
+import { getCachedGltfFootprint, seedGltfFootprint } from '../../furniture/GltfModel'
 import type { FurnitureItem, IkeaGltfDef } from '../../furniture/types'
 import { useStore } from '../store'
 
@@ -46,6 +47,30 @@ beforeEach(() => {
   useStore.getState().__resetForTest()
   idbDelete.mockClear()
   ;(URL.revokeObjectURL as ReturnType<typeof vi.fn>).mockClear()
+})
+
+describe('removeUserFurniture — GLTF + module cache eviction (PERF-001/008)', () => {
+  it('prunes the footprint cache for the removed def url (clears parsed GPU caches)', () => {
+    const def = ikeaDef()
+    // The IKEA fixture's single variant runtimeUrl.
+    seedGltfFootprint('blob:old', { w: 1, d: 2, h: 1, anchorOffset: [0, 0, 0] })
+    expect(getCachedGltfFootprint('blob:old')).not.toBeNull()
+    useStore.getState().addUserFurniture(def)
+    useStore.getState().setItems([placed('p1', 'ikea-malm')])
+
+    useStore.getState().removeUserFurniture('ikea-malm')
+
+    // Module-level footprint cache entry for the removed asset is gone.
+    expect(getCachedGltfFootprint('blob:old')).toBeNull()
+    // ...and its blob url was revoked / IDB record deleted (existing behaviour).
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:old')
+    expect(idbDelete).toHaveBeenCalledWith('asset-old')
+  })
+
+  it('is a no-op for a def that was never loaded (no cached footprint)', () => {
+    useStore.getState().addUserFurniture(ikeaDef())
+    expect(() => useStore.getState().removeUserFurniture('ikea-malm')).not.toThrow()
+  })
 })
 
 describe('replaceUserFurniture', () => {

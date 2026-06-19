@@ -1,0 +1,305 @@
+<!-- segment: ai-gen-aggregators -->
+
+<!-- ================= GROUP 1: AI TEXT/IMAGE -> 3D GENERATION ================= -->
+
+<div class="asset-source" data-quality="high" data-segment="ai-gen-aggregators">
+  <h3>Meshy AI</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.meshy.ai/">https://www.meshy.ai/</a> (API docs: <a href="https://docs.meshy.ai/">docs.meshy.ai</a>)</td></tr>
+    <tr><th>License</th><td>Paid plans: you own all generated assets, full commercial rights to distribute/sell, no attribution. Free plan: assets are CC BY 4.0 (commercial use requires crediting Meshy). This matters for an app that ships generated assets to end users.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Text-to-3D + Image-to-3D furniture/props with PBR textures (auto PBR maps), optional auto-rigging. Export FBX, OBJ, GLB, USDZ, STL, BLEND, 3MF — GLB direct-usable in three.js.</td></tr>
+    <tr><th>Programmatic access</th><td>Full REST API (async task create + poll). Credit-based: ~20 credits per generation; free tier ~100 credits/month; paid Pro/Studio tiers. Also exposed via third-party gateways (fal.ai). Cloud-only, not self-hostable.</td></tr>
+    <tr><th>Render quality</th><td>high — among the best commercial text/image-to-3D for clean topology + 4K PBR; furniture-quality meshes suitable for real-time scenes, though not photoreal-CAD ultra.</td></tr>
+    <tr><th>Notes</th><td>Mature market leader, strong furniture/prop suitability. Closed-source, paid for clean commercial rights. Best turnkey on-demand generator for this app.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="ai-gen-aggregators">
+  <h3>Tripo3D (Tripo AI / TripoSR / TripoSG)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.tripo3d.ai/api">https://www.tripo3d.ai/api</a> (devs: <a href="https://developers.tripo3d.ai/">developers.tripo3d.ai</a>)</td></tr>
+    <tr><th>License</th><td>Hosted-API generations carry commercial rights on paid plans. Open weights split: TripoSR released MIT (commercial OK, co-released with Stability AI); newer TripoSG/TripoSF released under their own VAST open-source terms — verify per-model before commercial bundling.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Text-to-3D, Image-to-3D, plus rigging, animation and format conversion. Game-engine/web/AR/3D-print exports incl. GLB/OBJ/FBX with PBR; polycount control and mesh conversion.</td></tr>
+    <tr><th>Programmatic access</th><td>Full REST API (credit/subscription pricing), official MCP server integrations. TripoSR is self-hostable (MIT, runs even without GPU, sub-second single-image reconstruction). Hybrid open + hosted.</td></tr>
+    <tr><th>Render quality</th><td>high — hosted Tripo produces detailed textured meshes competitive with Meshy; self-hosted TripoSR is medium (fast but lower fidelity than the paid pipeline).</td></tr>
+    <tr><th>Notes</th><td>Strong all-rounder; the self-hostable TripoSR path is attractive for dev-only/no-cost generation. Furniture suitable.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="ultra" data-segment="ai-gen-aggregators">
+  <h3>Rodin / Hyper3D (Deemos)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://hyper3d.ai/">https://hyper3d.ai/</a> (API guide: <a href="https://hyper3d.ai/blog/rodin-api-3d-generation">rodin-api-3d-generation</a>)</td></tr>
+    <tr><th>License</th><td>All tiers (incl. Free) grant full commercial rights to generated assets — usable in commercial games/films/products/client work with no extra licensing fees, across all output formats. Among the most generous commercial terms.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Image-to-3D + Text-to-3D, high-poly quad meshes, 4K PBR textures, ChatAvatar. Formats OBJ, FBX, GLB today; STL + USDZ planned.</td></tr>
+    <tr><th>Programmatic access</th><td>REST API (full access on Business tier ~$60 first month then $120/mo for 208 credits; Enterprise for custom deploy/fine-tune/volume). Also on fal.ai. Cloud-only, closed model.</td></tr>
+    <tr><th>Render quality</th><td>ultra — Rodin v2 produces production-ready high-poly quad topology + 4K PBR, arguably the highest-fidelity commercial generator; excellent for hero furniture pieces.</td></tr>
+    <tr><th>Notes</th><td>Top quality + best license clarity, but priciest credits. Great when fidelity matters more than cost.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="ai-gen-aggregators">
+  <h3>Luma AI — Genie 3D</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://lumalabs.ai/genie">https://lumalabs.ai/genie</a> (Genie via Luma API)</td></tr>
+    <tr><th>License</th><td>Generated assets usable commercially on paid/Pro tier per Luma terms; confirm current ToS as Genie is bundled into Luma's broader Dream Machine product. Not as explicitly permissive as Rodin/Meshy-paid.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Text-to-3D meshes (props/objects) with textures; OBJ/GLB-style mesh export. (Luma also does NeRF/Gaussian capture, out of scope here.)</td></tr>
+    <tr><th>Programmatic access</th><td>genie-3d callable via Luma API SDK / REST (Pro tier). Credit/subscription. Cloud-only, closed. Available through aggregators (AIMLAPI).</td></tr>
+    <tr><th>Render quality</th><td>high — good textured props; slightly behind Rodin/Meshy on topology cleanliness for furniture.</td></tr>
+    <tr><th>Notes</th><td>Active (not discontinued). Genie is now a feature within Luma's lineup rather than a standalone product.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>Sloyd.ai</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.sloyd.ai/">https://www.sloyd.ai/</a></td></tr>
+    <tr><th>License</th><td>Generated assets are royalty-free for commercial use under Sloyd's subscription terms (game-ready, no per-asset fees on paid plans).</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Procedural-generation-assisted (AI-guided) parametric assets — hard-surface props, furniture, architectural elements. GLB/FBX/OBJ with clean low-poly topology + adjustable params (real-time editable). PBR support.</td></tr>
+    <tr><th>Programmatic access</th><td>REST API + real-time SDK for generating assets live inside games/apps. Subscription pricing. Cloud, closed. Strong for controllable, parametric output vs. black-box diffusion.</td></tr>
+    <tr><th>Render quality</th><td>medium — clean, controllable, game-ready geometry but stylized/parametric rather than photoreal; ideal for predictable furniture primitives, less so for hero photoreal.</td></tr>
+    <tr><th>Notes</th><td>Best fit when you want parameter-controlled, instantly-editable furniture rather than one-shot diffusion guesses. Good complement to this app's procedural primitives.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="ai-gen-aggregators">
+  <h3>CSM — Common Sense Machines</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.csm.ai/">https://www.csm.ai/</a> (API: <a href="https://docs.csm.ai/">docs.csm.ai</a>)</td></tr>
+    <tr><th>License</th><td>Free "Tinkerer" tier outputs are watermarked/limited; Pro (~$20/mo) removes watermark and grants commercial usage rights + private ownership. Enterprise for API/volume.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Image-to-3D, Text-to-3D, sketch-to-3D, and 3D scene/world generation; textured meshes exportable as GLB/OBJ/FBX with PBR.</td></tr>
+    <tr><th>Programmatic access</th><td>REST API with session-based Image-to-3D endpoints (create session, poll). Credit subscriptions; API access on higher/enterprise tiers. Cloud, closed.</td></tr>
+    <tr><th>Render quality</th><td>high — strong retopology + "common sense" structural understanding; good for furniture and full small scenes.</td></tr>
+    <tr><th>Notes</th><td>Differentiator is scene/world generation, not just single objects — relevant for whole-room generation experiments.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="ai-gen-aggregators">
+  <h3>Kaedim</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.kaedim3d.com/">https://www.kaedim3d.com/</a></td></tr>
+    <tr><th>License</th><td>Commercial rights to generated/produced assets included with paid plans (it is a production/outsourcing pipeline, human-in-the-loop). No permanent free tier.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>2D-image/concept-to-3D game-ready meshes with textures; standard engine formats (FBX/OBJ/GLB). Human QA pass yields cleaner topology than pure diffusion.</td></tr>
+    <tr><th>Programmatic access</th><td>API + SDK: submit generation requests, receive results via webhooks. Subscription, credit-based (~from $150/mo; e.g. Prototype 20 credits/$22, Indie tiers). Cloud, closed.</td></tr>
+    <tr><th>Render quality</th><td>high — human-in-the-loop cleanup gives production-grade topology, but slower turnaround (not instant) and pricey.</td></tr>
+    <tr><th>Notes</th><td>Aimed at studios; overkill/expensive for casual on-demand generation but highest reliability for shippable assets.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>Stability AI — Stable Fast 3D / SPAR3D / SV3D / TripoSR</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://huggingface.co/stabilityai/stable-fast-3d">huggingface.co/stabilityai/stable-fast-3d</a>, <a href="https://huggingface.co/stabilityai/stable-point-aware-3d">stable-point-aware-3d</a></td></tr>
+    <tr><th>License</th><td>Stability Community License: FREE for commercial use if your org/individual annual revenue is &lt; US$1,000,000; above that you must buy an Enterprise license. Weights open on Hugging Face. (TripoSR, co-released, is plain MIT.)</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Single-image-to-3D: textured, UV-unwrapped GLB mesh in &lt;1s (SF3D); SPAR3D adds real-time point-cloud editing; SV3D produces multi-view/video for reconstruction.</td></tr>
+    <tr><th>Programmatic access</th><td>Self-hostable open weights (run locally on GPU) — the key advantage; also via Stability Platform API and aggregators (AIMLAPI). Free for sub-$1M revenue makes it ideal for an indie/dev-only path.</td></tr>
+    <tr><th>Render quality</th><td>medium — fast and convenient with decent UV+texture, but lower fidelity than Rodin/Meshy paid pipelines; good for quick filler props.</td></tr>
+    <tr><th>Notes</th><td>Strong self-host story for a CORS-free/dev-only sidecar. Revenue threshold is the licensing gotcha to track.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="ai-gen-aggregators">
+  <h3>Hunyuan3D (Tencent) — 2.0 / 2.1</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://github.com/Tencent-Hunyuan/Hunyuan3D-2">github.com/Tencent-Hunyuan/Hunyuan3D-2</a>, <a href="https://github.com/tencent-hunyuan/hunyuan3d-2.1">Hunyuan3D-2.1</a>, <a href="https://huggingface.co/tencent/Hunyuan3D-2">HF</a></td></tr>
+    <tr><th>License</th><td>Tencent Hunyuan community license — permissive for most uses but with regional/usage restrictions and an MAU cap (free below large-scale thresholds); review the license before commercial bundling. 2.1 marketed as "production-ready."</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Text-to-3D + Image-to-3D, two-stage pipeline: bare high-quality mesh then PBR texture synthesis. Exports GLB/OBJ with production-ready PBR materials.</td></tr>
+    <tr><th>Programmatic access</th><td>Fully open-source weights + code, self-hostable (GPU); ComfyUI nodes available; 3M+ HF downloads. No official hosted SaaS API needed — you run it. Free to self-host.</td></tr>
+    <tr><th>Render quality</th><td>high — among the best open models for textured 3D-DiT meshes with real PBR; 2.1 narrows the gap to commercial tools, good for furniture.</td></tr>
+    <tr><th>Notes</th><td>Top open-source option when self-hosting is acceptable; license restrictions (vs. MIT) are the main caveat. HunyuanWorld variant generates explorable 3D worlds.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="ai-gen-aggregators">
+  <h3>Microsoft TRELLIS / TRELLIS.2</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://github.com/microsoft/TRELLIS">github.com/microsoft/TRELLIS</a> (NVIDIA NIM: <a href="https://build.nvidia.com/microsoft/trellis/modelcard">build.nvidia.com/microsoft/trellis</a>)</td></tr>
+    <tr><th>License</th><td>MIT License (models + majority of code) — fully free for personal, commercial and research use, no attribution or revenue cap. Among the cleanest licenses of any capable generator.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Image-to-3D producing assets with physical PBR materials. Exports GLB, OBJ, PLY, plus Radiance Fields and 3D Gaussians. TRELLIS.2 (4B params) targets production-ready assets in seconds.</td></tr>
+    <tr><th>Programmatic access</th><td>Self-hostable open weights (GPU); also offered as a hosted endpoint via NVIDIA NIM API. Free to self-host (MIT). Strong for a no-recurring-cost generation backend.</td></tr>
+    <tr><th>Render quality</th><td>high — structured-latent approach gives clean geometry + PBR; TRELLIS.2 pushes toward ultra. Excellent furniture suitability.</td></tr>
+    <tr><th>Notes</th><td>Best license/quality combo in open source (MIT + PBR + GLB). Top pick for a self-hosted dev-only on-demand pipeline.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>OpenAI Shap-E &amp; Point-E</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://github.com/openai/shap-e">github.com/openai/shap-e</a>, <a href="https://github.com/openai/point-e">github.com/openai/point-e</a></td></tr>
+    <tr><th>License</th><td>MIT License — code + weights freely usable for personal/commercial use, modify/integrate without restriction. Generated assets unrestricted.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Shap-E: text/image-to-3D, generates implicit functions rendered to meshes (OBJ/PLY) + textures. Point-E: text-to-3D point clouds (optionally meshed). Lower-res, vertex-coloured rather than full PBR.</td></tr>
+    <tr><th>Programmatic access</th><td>Fully open-source, self-hostable (runs on modest GPU; Point-E even on consumer hardware). No hosted API. Free.</td></tr>
+    <tr><th>Render quality</th><td>low — pioneering but now dated; blobby geometry, low texture fidelity. Not furniture-shippable; useful as a research/baseline or ultra-cheap rough-prop generator.</td></tr>
+    <tr><th>Notes</th><td>Historical/foundational; superseded by TRELLIS/Hunyuan/TripoSR for quality. Include for completeness and permissive MIT terms.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="ai-gen-aggregators">
+  <h3>DreamGaussian</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://github.com/dreamgaussian/dreamgaussian">github.com/dreamgaussian/dreamgaussian</a></td></tr>
+    <tr><th>License</th><td>MIT License (code). Generated outputs unrestricted; underlying SDS uses third-party diffusion models whose own licenses apply to inputs.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Generative Gaussian Splatting for fast image/text-to-3D; exports textured meshes (OBJ) after splat-to-mesh conversion. ICLR 2024 Oral.</td></tr>
+    <tr><th>Programmatic access</th><td>Open-source, self-hostable (GPU). No hosted API. Free. Optimization-per-asset (minutes), not instant feed-forward.</td></tr>
+    <tr><th>Render quality</th><td>low — fast for its era but coarse meshes/textures vs. modern LRMs; better as research/Gaussian-splat pipeline than production furniture.</td></tr>
+    <tr><th>Notes</th><td>Notable for the Gaussian-splatting approach; largely superseded by feed-forward models for clean meshes.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>InstantMesh (TencentARC)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://github.com/TencentARC/InstantMesh">github.com/TencentARC/InstantMesh</a></td></tr>
+    <tr><th>License</th><td>Permissive (Apache-2.0 / MIT components) allowing broad commercial use; verify the specific multi-view diffusion checkpoint license used.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Single-image-to-3D feed-forward (LRM/Instant3D architecture); textured mesh (OBJ/GLB) in ~10s.</td></tr>
+    <tr><th>Programmatic access</th><td>Open-source, self-hostable (GPU); HF Spaces + ComfyUI nodes exist. No official hosted API. Free.</td></tr>
+    <tr><th>Render quality</th><td>medium — solid single-image reconstruction, decent topology/texture; below TRELLIS/Hunyuan but fast and free.</td></tr>
+    <tr><th>Notes</th><td>Good self-hosted middle ground for image-to-3D of existing furniture photos.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>Masterpiece X (Masterpiece Studio)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.masterpiecex.com/">https://www.masterpiecex.com/</a> (API: <a href="https://developers.masterpiecex.com/">developers.masterpiecex.com</a>)</td></tr>
+    <tr><th>License</th><td>Commercial use of generated assets under paid subscription (~$10.99/mo) per their terms; confirm current ToS.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Text- and image-to-3D producing fully-textured models with automatic rigging. Exports GLB, FBX, USDZ (+ thumbnail).</td></tr>
+    <tr><th>Programmatic access</th><td>REST API ("Generate" endpoints). Subscription/credits. Cloud, closed.</td></tr>
+    <tr><th>Render quality</th><td>medium — usable textured/rigged assets, more stylized than photoreal; auto-rigging is a differentiator.</td></tr>
+    <tr><th>Notes</th><td>Rigging makes it relevant for animated/characterful props; furniture quality is mid-tier.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>3DFY.ai</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://3dfy.ai/">https://3dfy.ai/</a></td></tr>
+    <tr><th>License</th><td>Commercial use on paid plans (~$20/mo) per terms; geared to producing large catalogs of game/AR-ready assets.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Text-to-3D and single-image-to-3D; textured meshes for game/AR (GLB/OBJ/FBX with PBR). Also offers "3DFY Megapacks" / API for bulk category generation.</td></tr>
+    <tr><th>Programmatic access</th><td>API for prompt/image-driven and bulk generation (enterprise-oriented); subscription. Cloud, closed.</td></tr>
+    <tr><th>Render quality</th><td>medium — consistent catalog-style assets; reliable but not hero-photoreal.</td></tr>
+    <tr><th>Notes</th><td>Pitched at populating large asset libraries — relevant if generating many furniture variants at once.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>Alpha3D</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.alpha3d.io/">https://www.alpha3d.io/</a> (API: <a href="https://www.alpha3d.io/api-platform">api-platform</a>)</td></tr>
+    <tr><th>License</th><td>Commercial use of generated assets under paid/API plans; designed for e-commerce/AR product catalogs.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Text-to-3D and 2D-image-to-3D, "game-ready in one workflow." Exports GLB, FBX, OBJ, STL with textures.</td></tr>
+    <tr><th>Programmatic access</th><td>API platform for automated/batch generation. Subscription/credits. Cloud, closed.</td></tr>
+    <tr><th>Render quality</th><td>medium — e-commerce-grade product/furniture assets; decent but not ultra.</td></tr>
+    <tr><th>Notes</th><td>E-commerce/AR focus aligns well with furnishing real product look-alikes.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>Spline AI</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://spline.design/ai-generate">https://spline.design/ai-generate</a> (docs: <a href="https://docs.spline.design/spline-ai/ai-3d-generation">spline-ai</a>)</td></tr>
+    <tr><th>License</th><td>Generated content usable per Spline subscription terms (~$9/mo tier); primarily a design-tool ecosystem rather than a raw-asset license play — review ToS for redistribution.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Text-to-3D and image-to-3D mesh objects inside the Spline web editor; export to GLB/USDZ and React/Three runtime. Stylized/low-poly bias.</td></tr>
+    <tr><th>Programmatic access</th><td>Primarily in-editor; Spline has a runtime/viewer and limited programmatic export rather than a full open generation REST API. Cloud, closed.</td></tr>
+    <tr><th>Render quality</th><td>medium — clean stylized geometry tuned for web/design, not photoreal furniture.</td></tr>
+    <tr><th>Notes</th><td>Best as a design surface; weaker as a headless asset-generation API for an external app.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="ai-gen-aggregators">
+  <h3>Adobe Substance 3D (Sampler / Viewer / Modeler — Firefly Text-to-3D &amp; Text-to-Texture)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.adobe.com/products/substance3d.html">https://www.adobe.com/products/substance3d.html</a></td></tr>
+    <tr><th>License</th><td>Firefly-powered generations are commercially usable under Adobe's Firefly/Creative Cloud terms (Adobe positions Firefly outputs as commercially safe). Subscription required.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Substance 3D Viewer Text-to-3D (mesh generation) and Sampler "Text to Texture" (generate photoreal/stylized PBR materials from prompts). Exports standard 3D + Substance/PBR material formats; meshes to GLB/OBJ/USD.</td></tr>
+    <tr><th>Programmatic access</th><td>Desktop apps + Firefly; Adobe exposes Firefly APIs (3D/texture features rolling out) but the 3D pipeline is mainly app-based, not a turnkey headless mesh API yet. Cloud + desktop, closed.</td></tr>
+    <tr><th>Render quality</th><td>high — texture/material generation is industry-leading (the strongest part); mesh generation is newer/less mature than dedicated generators.</td></tr>
+    <tr><th>Notes</th><td>Most valuable here for PBR material/texture generation rather than mesh generation; commercial-safety of Firefly is a plus.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>Backflip AI</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.backflip.ai/">https://www.backflip.ai/</a></td></tr>
+    <tr><th>License</th><td>Generated meshes/CAD usable per subscription terms; aimed at hardware/3D-print, so outputs are intended to be manufacturable/owned by the user.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>"Idea to Mesh" text/image/sketch-to-3D meshes, plus scan-to-CAD (parametric, SOLIDWORKS-native parts). Mesh exports (STL/OBJ/GLB) and native CAD; emphasis on 3D-printable geometry, not PBR-textured props.</td></tr>
+    <tr><th>Programmatic access</th><td>Web app + SOLIDWORKS plug-in; API access emerging (developer/enterprise). Cloud, closed.</td></tr>
+    <tr><th>Render quality</th><td>medium — geometry-accurate (high spatial resolution) but oriented to engineering/print rather than textured interior props.</td></tr>
+    <tr><th>Notes</th><td>Less relevant for textured furniture; strong if exact, printable/parametric geometry is the goal.</td></tr>
+  </table>
+</div>
+
+<!-- ================= GROUP 2: 3D MODEL SEARCH ENGINES / AGGREGATORS + CATCH-ALL ================= -->
+
+<div class="asset-source" data-quality="high" data-segment="ai-gen-aggregators">
+  <h3>Sketchfab — Data API v3 + Download API</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://sketchfab.com/developers/download-api">sketchfab.com/developers/download-api</a>, <a href="https://sketchfab.com/developers/data-api/v3">Data API v3</a></td></tr>
+    <tr><th>License</th><td>Per-model: 1M+ free models under Creative Commons (CC0, CC-BY, CC-BY-SA, etc.) — most allow commercial use; CC-BY requires crediting author + Sketchfab. Plus paid Store models (now via Fab). Must surface attribution.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Aggregator of community + studio models (furniture, props, full rooms). Download API serves glTF/GLB, original source files, and USDZ; many with PBR textures.</td></tr>
+    <tr><th>Programmatic access</th><td>Full REST API: Data API v3 for search (title/tag/category/face-count/license filters); Download API returns time-limited download URLs. OAuth — end users must authenticate with a Sketchfab account to download. Free tier + rate limits. Migrating under Epic's Fab.</td></tr>
+    <tr><th>Render quality</th><td>high — quality varies by author, but the catalog includes many high/ultra PBR assets; license + face-count filters let you target good ones.</td></tr>
+    <tr><th>Notes</th><td>The single largest searchable CC 3D index. Auth requirement + Fab migration are the integration caveats.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>Poly Pizza — API v1.1</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://poly.pizza/">https://poly.pizza/</a> (API: <a href="https://poly.pizza/docs/api/v1.1">poly.pizza/docs/api/v1.1</a>)</td></tr>
+    <tr><th>License</th><td>Per-model CC0 or CC-BY (incl. rescued Google Poly catalog + Quaternius/Kenney-style packs). CC-BY models require attribution (title + creator, links provided); CC0 free of obligations.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Thousands of low-poly models (furniture, props, scene kits) ready for AR/VR/Unity/Unreal/Godot/three.js. GLB downloads; no login required to download.</td></tr>
+    <tr><th>Programmatic access</th><td>Free REST API (API key) with search + per-model + featured endpoints; returns GLB URLs + license/attribution metadata. CORS-friendly for direct web fetch. Low/no cost.</td></tr>
+    <tr><th>Render quality</th><td>medium — deliberately low-poly/stylized; clean and lightweight (great for performance default) but not photoreal.</td></tr>
+    <tr><th>Notes</th><td>Excellent prod-safe, CORS-friendly source for lightweight furniture/props; pairs with this app's flat/Performance renderer.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="ai-gen-aggregators">
+  <h3>Thangs</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://thangs.com/">https://thangs.com/</a></td></tr>
+    <tr><th>License</th><td>Per-model, set by uploaders — mix of free/CC and paid/commercial; "GitHub for 3D" with version control. Must check each model's license before commercial use; no blanket grant.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Large community index (heavy on 3D-print STL but also OBJ/GLB/FBX, furniture + parts). Unique geometric/AI similarity search: upload a model to find geometrically similar or mating parts.</td></tr>
+    <tr><th>Programmatic access</th><td>Web platform with search; public/partner API and integrations exist but documentation is limited/partner-gated (no open self-serve REST like Sketchfab). Free to browse.</td></tr>
+    <tr><th>Render quality</th><td>high — many detailed models, though print-oriented meshes often lack PBR textures (geometry-strong, texture-light).</td></tr>
+    <tr><th>Notes</th><td>Standout = geometric similarity search + versioning. Texture/PBR coverage weaker than Sketchfab for interior rendering.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>CGTrader — Developer API</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.cgtrader.com/developers">https://www.cgtrader.com/developers</a></td></tr>
+    <tr><th>License</th><td>Per-model marketplace licenses (Royalty-Free / Editorial / Custom). Commercial use allowed under the purchased license; reselling the raw downloaded file is prohibited. Mostly paid; some free models.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Large marketplace incl. extensive realistic furniture/interior models. Formats vary widely (FBX/OBJ/GLTF/GLB/3DS/MAX/BLEND) often with PBR textures.</td></tr>
+    <tr><th>Programmatic access</th><td>Partner API to search structured catalog data, manage portfolios, and integrate buying — access granted to approved partners (request via support), not open self-serve. Paid models.</td></tr>
+    <tr><th>Render quality</th><td>medium — wide range; many high-quality paid PBR furniture assets, but quality and format consistency vary by seller.</td></tr>
+    <tr><th>Notes</th><td>Best for realistic, purchasable furniture; integration is partner-gated and assets are paid (premium-marketplace overlap — listed here for its search API).</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="ai-gen-aggregators">
+  <h3>Yobi3D (defunct) &amp; Google Poly (defunct) — historical note</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.makeuseof.com/best-google-poly-alternatives/">Google Poly alternatives</a>; Yobi3D: <a href="https://alternativeto.net/software/yobi3d/">alternativeto.net/software/yobi3d</a></td></tr>
+    <tr><th>License</th><td>N/A — both shut down. Google Poly was CC-BY (the catalog largely survives via Poly Pizza / Icosa Gallery archives). Yobi3D was a search index only.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Google Poly: GLB/OBJ low-poly AR/VR models (now rescued into Poly Pizza). Yobi3D: a 3D model search engine (rotatable previews) aggregating other sites' OBJ/STL.</td></tr>
+    <tr><th>Programmatic access</th><td>None — both APIs are dead (Poly API discontinued 2021, site closed 2022; Yobi3D offline). Recommended replacements: Sketchfab Data API, Poly Pizza API, Thangs.</td></tr>
+    <tr><th>Render quality</th><td>low — recorded only as a defunct-source note; do not integrate. Use the surviving archive at Poly Pizza / Icosa Gallery instead.</td></tr>
+    <tr><th>Notes</th><td>Included per brief to explicitly flag Google Poly as defunct and point at its rescued archive (Poly Pizza, Icosa Gallery / Open Brush foundation).</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="ai-gen-aggregators">
+  <h3>Fab (Epic Games — Sketchfab + Quixel + Unreal Marketplace merger)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.fab.com/">https://www.fab.com/</a> (API overview: <a href="https://support.fab.com/s/article/API-Overview">support.fab.com</a>)</td></tr>
+    <tr><th>License</th><td>Per-asset: Standard/Professional licenses + free CC0/CC-BY items (absorbed Sketchfab free library). Many free monthly assets; commercial use per chosen license tier.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Unified Epic marketplace: 3D models (furniture/props/environments), Megascans surfaces, materials. glTF/GLB/FBX/USD with PBR. Successor/host to Sketchfab's store + Data API path.</td></tr>
+    <tr><th>Programmatic access</th><td>Emerging Fab API (overview published); inherits Sketchfab Data/Download API capabilities during migration. Account/OAuth required. Mostly paid + free tier.</td></tr>
+    <tr><th>Render quality</th><td>medium — broad spread; includes ultra Megascans-grade assets but also lighter community models. Tier/filter to target quality.</td></tr>
+    <tr><th>Notes</th><td>Strategically important: this is where Sketchfab's catalog + API are consolidating, plus Quixel Megascans. Track for the long-term aggregator integration path.</td></tr>
+  </table>
+</div>

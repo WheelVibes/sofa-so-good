@@ -1,6 +1,5 @@
-import { applianceFinish } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
-import { readStr } from './shared'
+import { ApplianceBodyMaterial, applianceBody, applianceBodyMeshProps, readStr } from './shared'
 
 /** Freestanding cooker: oven body + cooktop with four burners and front
  *  control knobs. Faces +Z. */
@@ -11,7 +10,7 @@ export function Stove({ props }: { props: ParamProps }) {
   const d = 0.6
   const cabinetH = 0.85
   const topT = 0.04
-  const body = { color, ...applianceFinish(finish) }
+  const body = applianceBody(color, finish)
 
   const burners: [number, number][] = [
     [-0.14, -0.12],
@@ -23,9 +22,14 @@ export function Stove({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Oven body */}
-      <mesh castShadow receiveShadow position={[0, cabinetH / 2, 0]}>
+      <mesh
+        {...applianceBodyMeshProps(body)}
+        castShadow
+        receiveShadow
+        position={[0, cabinetH / 2, 0]}
+      >
         <boxGeometry args={[w, cabinetH, d]} />
-        <meshStandardMaterial {...body} />
+        <ApplianceBodyMaterial finish={body} />
       </mesh>
       {/* Oven door window */}
       <mesh position={[0, cabinetH * 0.45, d / 2 + 0.002]}>

@@ -9,6 +9,7 @@
  */
 import { strToU8, zipSync } from 'fflate'
 import type { Boq } from './boq'
+import type { QuoteTemplate } from './quoteTemplate'
 
 const xmlEsc = (s: string): string =>
   s.replace(
@@ -41,13 +42,34 @@ function rowXml(rowNumber: number, cells: Cell[]): string {
   return `<row r="${rowNumber}">${c}</row>`
 }
 
-/** The BOQ as a grid of rows (header + lines + per-section subtotals + grand
- *  total) — mirrors `boqToCsv` so the two exports stay in lock-step. Exported
- *  for the unit test. */
-export function boqRows(boq: Boq): Cell[][] {
-  const rows: Cell[][] = [
-    ['Section', 'Description', 'Qty', 'Unit', 'Length (ft)', 'Rate (SGD)', 'Amount (SGD)'],
-  ]
+/**
+ * The BOQ as a grid of rows (header + lines + per-section subtotals + grand
+ * total) — mirrors `boqToCsv` so the two exports stay in lock-step. Exported
+ * for the unit test.
+ *
+ * When a `template` is provided: company/contact/headerNote rows are prepended;
+ * footerNote is appended; currency label is used in column headings.
+ * Omitting the template (or passing the default) reproduces the original output.
+ */
+export function boqRows(boq: Boq, template?: QuoteTemplate): Cell[][] {
+  const currencyLabel = template?.currencyLabel || 'SGD'
+  const rows: Cell[][] = []
+
+  // Optional header rows.
+  if (template?.companyName) rows.push([template.companyName])
+  if (template?.contactLine) rows.push([template.contactLine])
+  if (template?.headerNote) rows.push([template.headerNote])
+  if (rows.length > 0) rows.push(['']) // blank separator
+
+  rows.push([
+    'Section',
+    'Description',
+    'Qty',
+    'Unit',
+    'Length (ft)',
+    `Rate (${currencyLabel})`,
+    `Amount (${currencyLabel})`,
+  ])
   for (const section of boq.sections) {
     for (const line of section.lines) {
       rows.push([
@@ -63,12 +85,19 @@ export function boqRows(boq: Boq): Cell[][] {
     rows.push([section.title, 'Subtotal', '', '', '', '', section.subtotal])
   }
   rows.push(['', 'Grand Total', '', '', '', '', boq.total])
+
+  // Optional footer note.
+  if (template?.footerNote) {
+    rows.push([''])
+    rows.push([template.footerNote])
+  }
+
   return rows
 }
 
 /** Build the `.xlsx` file bytes for a bill of quantities. */
-export function boqToXlsx(boq: Boq): Uint8Array {
-  const sheetData = boqRows(boq)
+export function boqToXlsx(boq: Boq, template?: QuoteTemplate): Uint8Array {
+  const sheetData = boqRows(boq, template)
     .map((r, i) => rowXml(i + 1, r))
     .join('')
   const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${sheetData}</sheetData></worksheet>`

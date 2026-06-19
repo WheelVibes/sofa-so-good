@@ -19,4 +19,5 @@ export function closeAllAuxPanels(s: StoreState): void {
   s.setVersionsOpen(false)
   s.setHistoryOpen(false)
   s.setCommentsOpen(false)
+  s.setDrawingCalloutsOpen(false)
 }

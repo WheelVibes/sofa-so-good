@@ -16,12 +16,66 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   — set the same collision flags; run `npm run optimize:glb` for `-low`/`-medium` LOD variants
   (uploads generate theirs in-browser via `optimize/lodVariants.ts`, routed by the `gltf/lod.ts`
   variant registry).
+- **GLTF cache eviction on removal (PERF-001/008).** When a GLB asset is removed/replaced/
+  uninstalled, call `evictGltfAsset(url)` (`GltfModel.tsx`) so its parsed GPU geometry/textures
+  leave the drei `useGLTF` cache and are disposed, and its `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`
+  entries are pruned — otherwise GPU memory ratchets toward context loss over a session. It evicts
+  the base url **and** every tier-variant url (`lodUrlsForBase` in `gltf/lod.ts`); GPU disposal is
+  deferred one frame so the asset's instances unmount first. It is wired into `freeResource`
+  (`state/slices/userAssetsSlice.ts`) and `markPackUninstalled` (`installedPacksSlice.ts`). **Only
+  evict an asset no live item still references** (pack uninstall guards on placed `items`; user/IKEA
+  removal drops the def + its items together). Any NEW asset removal/replace path must call it too.
 - **Pure geometry stays render-agnostic + unit-tested** (e.g. `cabinet/cabinetModel.ts`
   `buildCabinet`, `parametric/buildParts.ts` `buildParametric`); the primitive/renderer only
   maps parts → meshes/materials. The parametric generator (`parametric/`) saves through the
   GLB-designer path (`exportGlb` → `persistUserGlb`) so its output is a regular user def —
   don't invent a parallel persistence channel for generated geometry.
+- **Parametric types** (`parametric/spec.ts` `ParametricType`): `bookshelf` / `wardrobe` /
+  `sideboard` / `desk` / `kitchen-run`. Adding a new type: extend the union + `PARAMETRIC_TYPES`
+  + `PARAMETRIC_TYPE_LABEL` + `PARAMETRIC_LIMITS` + `DEFAULT_SPECS` + `clampSpec` handling;
+  add a `build<Type>` function in `buildParts.ts`; add a controls branch in
+  `ui/parametric/ParametricControls.tsx`; add a feature flag if the type needs its own gate;
+  add unit tests in `parametric/__tests__/<type>.test.ts`; add a scenario ladder
+  (`scripts/scenarios/parametric-<type>-simple.json` + journey). Kitchen-run specifics:
+  `kitchenCabinets` flag (tier: `simple`), `TYPE_CATEGORY` maps to `'kitchen'`.
+- **Array helpers** — pure geometry, render-agnostic, unit-tested, no store imports:
+  - `arrayPlacement.ts` — linear/grid array:
+    - `arrayOffsets(src, count, spacing, axis)` — N evenly-spaced positions along the item's
+      local `'right'` (+X), `'left'` (−X), `'forward'` (+Z), or `'back'` (−Z), honoring
+      Y-rotation. Count capped at `ARRAY_MAX_COUNT` (200).
+    - `gridArrayPlacements(src, opts)` — 2D `cols × rows` grid of positions with independent
+      `colSpacing`/`rowSpacing` and `colAxis`/`rowAxis` (defaults: right/forward). Source cell
+      (0,0) excluded from output. Spacing clamped to ≥ 0.001 m; total capped at `ARRAY_MAX_COUNT`.
+    - Both functions return only positions; the UI in `InspectorPanel.tsx` does collision-checking,
+      batches commits via `setItems`/`pushHistory`, and surfaces a dropped-count toast.
+  - `radialArray.ts` — radial/polar array: N positions around a circle with optional
+    `faceCenter` yaw. Facing convention: `atan2(-cos angle, -sin angle)` so the item's
+    Three.js local +Z points toward the center. Gated by the `radialArray` Pro flag (and
+    `proMode`) in `InspectorPanel.tsx`; committed via `setItems` in a single undo step.
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).
 - Match the surrounding primitive style: real-world metres, real three `Material` instances.
+- **Appliance bodies (MAT-004b)**: the 8 steel-bodied appliance primitives
+  (`Refrigerator`/`Oven`/`Stove`/`RangeHood`/`Dishwasher`/`Microwave`/`WashingMachine`/`WineCooler`)
+  render their carcass through `primitives/shared.tsx:applianceBody(color, finish)`. Steel → the
+  shared brushed-metal material (`materials/furnitureMaterials.ts:getMetalMaterial`, one cached
+  instance reused across every body part + appliance) set on the body `<mesh material={…}>` via
+  `applianceBodyMeshProps(body)`; non-steel ('matte'/'gloss') keeps the legacy `applianceFinish`
+  props on `<ApplianceBodyMaterial finish={body} />`. A body mesh is always
+  `<mesh {...applianceBodyMeshProps(body)} …><geometry/><ApplianceBodyMaterial finish={body}/></mesh>`.
+  Don't put the steel material on the door glass / control panels / handles — those keep their own
+  finishes. (`shared.tsx`, not `.ts`, because it exports the JSX `ApplianceBodyMaterial` component.)
+- **Auto-arrange decor styling** (`layout/decorStyling.ts`): `applyDecorStyling(arranged, defs, seed?)`
+  places `noClip` decor props per host surface (sofa→cushions/blanket, coffee-table→bowl/magazines/
+  candles, bed→cushions, nightstand→plant/candle, desk→plant/books, sideboard→frames/sculpture).
+  **Per-surface budget (RD408-001)** scales with the host's footprint area + a per-type ceiling
+  (`budget = clamp(round(area / AREA_PER_PROP), 1, HOST_MAX[type])`); a per-room `ROOM_DECOR_CAP`
+  bounds total density (trimmed tail-first in `applyDecorStylingForPlan`). **Props are spread across
+  the host's real footprint (RD408-002)** — rotation-aware (offsets rotated by the host yaw), inset
+  from edges + clamped so nothing spills off, with a small seeded position jitter. **Each prop gets a
+  small seeded yaw jitter around the host facing (RD408-003)** (soft goods tilt more than frames).
+  `applyDecorStylingForPlan` wraps it per-room. Both stay pure + seedable + deterministic →
+  unit-testable. Wired into `furnishPlanItems` (`withDecor=true` by default); skip with
+  `withDecor=false`. No feature flag — enriches the existing auto-furnish surface. Decor ids are
+  `decor-<hostId>-<propId>-<slot>`. (Hero/wall passes + weighted variety are future RD-408 tasks.)

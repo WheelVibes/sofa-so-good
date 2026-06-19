@@ -7,7 +7,9 @@ import { buildShoppingGroups, type Line } from '../furniture/shoppingGroups'
 import { spendByRoom } from '../furniture/spendByRoom'
 import type { FurnitureCategory } from '../furniture/types'
 import { useStore } from '../state/store'
+import { safeUrl } from '../utils/safeUrl'
 import { CategoryIcon } from './catalog/CategoryIcon'
+import { EmptyState } from './EmptyState'
 import { buildShoppingCsv } from './shoppingCsv'
 import { Icon } from './toolbar/icons'
 
@@ -41,8 +43,8 @@ export function BudgetPanel() {
   const catalog = useCatalog()
   const shopTab = useStore((s) => s.shopTab)
   const setShopTab = useStore((s) => s.setShopTab)
-  const collections = useStore((s) => s.collections)
-  const toggleCollection = useStore((s) => s.toggleCollection)
+  const collections = useStore((s) => s.favouriteDefIds)
+  const toggleCollection = useStore((s) => s.toggleFavourite)
   const budgetTarget = useStore((s) => s.budgetTarget)
   const setBudgetTarget = useStore((s) => s.setBudgetTarget)
   const plan = useStore((s) => s.floorPlan)
@@ -113,13 +115,11 @@ export function BudgetPanel() {
       {shopTab === 'saved' ? (
         <div className="panel-body">
           {saved.length === 0 ? (
-            <p className="empty-mini">
-              <span className="em-ic">
-                <Icon.Heart width={20} height={20} />
-              </span>
-              <b>No saved items</b>
-              <span>Tap the heart on any catalog card to save it here.</span>
-            </p>
+            <EmptyState
+              icon={Icon.Heart}
+              title="No saved items"
+              description="Tap the heart on any catalog card to save it here for later."
+            />
           ) : (
             <div className="coll-grid">
               {saved.map((d) => (
@@ -315,9 +315,11 @@ export function BudgetPanel() {
           )}
           <div className="bud-list" style={{ marginTop: 'var(--s-2)' }}>
             {groups.length === 0 ? (
-              <p className="empty-mini">
-                <span>No furniture placed yet.</span>
-              </p>
+              <EmptyState
+                icon={Icon.Budget}
+                title="No furniture placed yet"
+                description="Add items from the catalog and a running cost estimate will build up here."
+              />
             ) : (
               groups.map((g) => (
                 <div key={g.cat} style={{ marginBottom: 'var(--s-4)' }}>
@@ -356,13 +358,14 @@ export function BudgetPanel() {
                               fontSize: 'var(--t-2xs)',
                             }}
                           >
-                            {offers.map((o) =>
-                              o.url ? (
+                            {offers.map((o) => {
+                              const href = safeUrl(o.url)
+                              return href ? (
                                 <a
                                   key={o.retailer}
-                                  href={o.url}
+                                  href={href}
                                   target="_blank"
-                                  rel="noreferrer"
+                                  rel="noopener noreferrer"
                                   title={`${o.title} · ${o.retailerLabel ?? o.retailer}`}
                                   style={{ color: 'var(--accent)', whiteSpace: 'nowrap' }}
                                 >
@@ -376,8 +379,8 @@ export function BudgetPanel() {
                                 >
                                   {o.retailerLabel ?? o.retailer} {fmt(o.price)}
                                 </span>
-                              ),
-                            )}
+                              )
+                            })}
                           </div>
                         )}
                       </div>

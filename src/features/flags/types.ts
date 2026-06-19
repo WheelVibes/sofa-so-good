@@ -27,6 +27,7 @@ export type FeatureFlag =
   | 'backdrops'
   | 'packs'
   | 'remoteMaterials'
+  | 'remoteFurniture'
   | 'modelUpload'
   | 'aiPhotoreal'
   | 'aiWalls'
@@ -80,6 +81,13 @@ export type FeatureFlag =
   | 'floorTexture'
   | 'planCompass'
   | 'contactShadows'
+  | 'cornerAo'
+  | 'drawingCallouts'
+  | 'quoteTemplate'
+  | 'catalogFavourites'
+  | 'wallNumericEntry'
+  | 'radialArray'
+  | 'iesLights'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

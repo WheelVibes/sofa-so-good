@@ -60,6 +60,7 @@ import { DaylightPanel } from './ui/DaylightPanel'
 import { DesignScorePanel } from './ui/DesignScorePanel'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
+import { DrawingCalloutsPanel } from './ui/DrawingCalloutsPanel'
 import { EmptyRoomHint } from './ui/EmptyRoomHint'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
@@ -73,6 +74,7 @@ import { NotificationContainer } from './ui/notifications/NotificationContainer'
 import { Onboarding } from './ui/Onboarding'
 import { PresentationMode } from './ui/PresentationMode'
 import { PromptModal } from './ui/PromptModal'
+import { QuoteTemplateModal } from './ui/QuoteTemplateModal'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
 import { SwapModal } from './ui/SwapModal'
 import { TapeModeToggle } from './ui/TapeModeToggle'
@@ -734,6 +736,11 @@ export default function App() {
       }
       if (!ok) return
       for (const c of candidates) state.moveItem(c.item.id, c.next)
+      // Keep the 'nudge' coalesce window alive while actively moving so a long
+      // press-and-hold followed by a quick re-tap stays in the SAME undo step
+      // (moveItem itself never touches the coalesce clock). A genuine pause (no
+      // movement for > the window) lets the next keydown open a fresh step.
+      state.refreshCoalesce('nudge')
     }
 
     const onDown = (e: KeyboardEvent) => {
@@ -746,10 +753,18 @@ export default function App() {
       if (!Object.hasOwn(dirs, e.code)) return
       if (!canEditScene(useStore.getState())) return
       e.preventDefault()
-      // First key in a nudge session: snapshot the pre-nudge transform so
-      // the entire press-and-hold collapses into a single undo step.
-      if (held.size === 0 && useStore.getState().selectedItemId) {
-        useStore.getState().pushHistory()
+      // First key in a nudge session: snapshot the pre-nudge transform so the
+      // whole press-and-hold collapses into a single undo step. Coalesced under a
+      // stable 'nudge' key so a *burst* of separate taps (each its own
+      // keydown→keyup) within the coalesce window also collapses into one undo
+      // step, while a deliberate pause (window elapsed) starts a fresh step. Any
+      // other action in between pushes a different key (or resets it), breaking
+      // the chain — so a nudge never merges with an array/rotate/drag/etc. Guard
+      // on the multi-selection (`selectedItemIds`), not just the single primary
+      // id, so a marquee/group nudge is undoable too.
+      const st = useStore.getState()
+      if (held.size === 0 && st.selectedItemIds.length > 0) {
+        st.pushHistoryCoalesced('nudge')
       }
       held.add(e.code)
       if (!rafId) rafId = requestAnimationFrame(tick)
@@ -815,6 +830,7 @@ export default function App() {
         <DaylightPanel />
         <DesignScorePanel />
         <CommentsPanel />
+        <DrawingCalloutsPanel />
         <AccessibilityPanel />
         <PresentationMode />
         {/* Lazy + flag-gated: chunk loads only when the panel is opened (PERF5). */}
@@ -873,6 +889,7 @@ export default function App() {
             <ParametricDialog />
           </Suspense>
         ) : null}
+        <QuoteTemplateModal />
         <LoginScreen />
         <FlagsPanel />
         <Onboarding />

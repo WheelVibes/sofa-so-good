@@ -31,6 +31,7 @@ async function persistChannel(
   matAssetId: string,
   role: 'albedo' | 'normal' | 'roughness' | 'ao',
   file: File,
+  identity: MaterialUploadOptions,
 ): Promise<{ assetId: string; url: string }> {
   // Exotic formats (TGA/TIFF/EXR/HDR) decode + PNG/JPEG re-encode to WebP;
   // WebP passes through. The dimension/size ceiling is checked post-normalize.
@@ -46,7 +47,19 @@ async function persistChannel(
     name: `${role}.${v.mime.split('/')[1]}`,
     uploadedAt: new Date().toISOString(),
     blob,
-    meta: { matId: matAssetId, role },
+    // Persist the material identity/appearance on EVERY channel record so the
+    // def round-trips through hydrateAssets even if hydration only reads the
+    // albedo channel's meta (BUG-003). `name`/`category`/`swatch`/`uvScale`
+    // fully define a user material's identity + appearance.
+    meta: {
+      matId: matAssetId,
+      role,
+      name: identity.name,
+      category: identity.category,
+      swatch: identity.swatch,
+      uvScaleX: identity.uvScale[0],
+      uvScaleY: identity.uvScale[1],
+    },
   })
   return { assetId, url: URL.createObjectURL(blob) }
 }
@@ -65,12 +78,14 @@ export async function persistUserMaterial(
   const persisted: Partial<
     Record<'albedo' | 'normal' | 'roughness' | 'ao', { assetId: string; url: string }>
   > = {}
+  const identity: MaterialUploadOptions = { ...opts, name: opts.name.trim() }
   try {
-    persisted.albedo = await persistChannel(matId, 'albedo', files.albedo)
-    if (files.normal) persisted.normal = await persistChannel(matId, 'normal', files.normal)
+    persisted.albedo = await persistChannel(matId, 'albedo', files.albedo, identity)
+    if (files.normal)
+      persisted.normal = await persistChannel(matId, 'normal', files.normal, identity)
     if (files.roughness)
-      persisted.roughness = await persistChannel(matId, 'roughness', files.roughness)
-    if (files.ao) persisted.ao = await persistChannel(matId, 'ao', files.ao)
+      persisted.roughness = await persistChannel(matId, 'roughness', files.roughness, identity)
+    if (files.ao) persisted.ao = await persistChannel(matId, 'ao', files.ao, identity)
   } catch (e) {
     // Roll back any successful writes so a half-uploaded material doesn't
     // leak into IDB.

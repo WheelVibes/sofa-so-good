@@ -9,9 +9,9 @@ import { useEffect } from 'react'
  * mount site.
  */
 export function DevCameraExpose() {
-  const { camera, gl, controls } = useThree()
+  const { camera, gl, controls, scene } = useThree()
   useEffect(() => {
-    ;(window as unknown as { __three?: unknown }).__three = { camera, gl, controls }
-  }, [camera, gl, controls])
+    ;(window as unknown as { __three?: unknown }).__three = { camera, gl, controls, scene }
+  }, [camera, gl, controls, scene])
   return null
 }

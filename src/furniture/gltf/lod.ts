@@ -92,6 +92,22 @@ export function registerLodVariants(base: string, urls: Partial<Record<LodTier, 
   }
 }
 
+/** All URLs an asset can be loaded under, for a given base URL: the base
+ *  itself, its suffix-derived `-low`/`-medium` siblings (builtin/HTTP GLBs),
+ *  and any registered blob variants (uploaded models). Pure read — does NOT
+ *  mutate the registry, so it is safe to call before `unregisterLodVariants`.
+ *  Used to evict every drei `useGLTF` cache entry an asset may occupy. */
+export function lodUrlsForBase(base: string): string[] {
+  const urls = new Set<string>([base])
+  for (const tier of LOD_TIERS) {
+    const derived = lodUrl(base, tier)
+    if (derived !== base) urls.add(derived)
+    const registered = variantUrls.get(variantKey(base, tier))
+    if (registered) urls.add(registered)
+  }
+  return [...urls]
+}
+
 /** Remove a base URL's registered variants (e.g. the def was deleted),
  *  returning the variant URLs so the caller can revoke the blob URLs. */
 export function unregisterLodVariants(base: string): string[] {

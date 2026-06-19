@@ -96,6 +96,8 @@ export function MultiSelectPanel() {
 
   // Footprint-aware even-gap distribution: spaces the edge-to-edge gaps equally
   // (not just the centres), so a row of differently-sized pieces reads tidy.
+  // When items are too large to fit without overlap, gaps are clamped to 0
+  // (flush/touching) and a non-blocking hint is shown.
   const distribute = (axis: 0 | 1) => {
     const s = useStore.getState()
     const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
@@ -107,13 +109,19 @@ export function MultiSelectPanel() {
         { id: it.id, center: it.position[axis], half: obbAxisHalf(obb.hx, obb.hz, obb.rot, axis) },
       ]
     })
-    const next = distributeEvenGaps(boxes)
-    if (next.size === 0) return
+    const { positions, clamped } = distributeEvenGaps(boxes)
+    if (positions.size === 0) return
     s.pushHistory()
     for (const it of sel) {
-      const v = next.get(it.id)
+      const v = positions.get(it.id)
       if (v === undefined || v === it.position[axis]) continue
       tryMove(it.id, axis === 0 ? [v, it.position[1]] : [it.position[0], v])
+    }
+    if (clamped) {
+      s.notify.start({
+        title: 'Items touch — selection is too wide to fit with gaps',
+        kind: 'info',
+      })
     }
   }
 

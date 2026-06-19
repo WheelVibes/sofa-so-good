@@ -135,11 +135,17 @@ quality (PT tuning, OIDN, SSR/SSGI/PCSS/POM) needs a real-GPU session** — Swif
 converge or present these faithfully (documented under the F1 tail). For those, verify wiring +
 determinism + no-crash headless, ship behind flags, and mark the pixel pass **pending real-GPU**.
 
-## Tone-mapping note (already shipped, keep)
-We already expose ACES(Filmic)/AgX/**Neutral**. **Khronos PBR Neutral** is the fidelity-correct
-default for a material/finish previewer (no hue shift, accurate base colours); AgX/ACES are the
-photographic-mood options. Keep Neutral selectable; consider it the default for the finish-preview
-context and AgX for "photo" presets.
+## Tone-mapping note (context-aware default shipped — RD-404)
+We expose ACES(Filmic)/AgX/**Neutral**, plus an **Auto** setting (now the default). The selection
+rule lives in `src/scene/toneContext.ts` (pure, unit-tested): an explicit user pick always wins;
+`'auto'` resolves to **Khronos PBR Neutral while the FinishPicker is open** (`selectedRoomId != null`
+— no hue shift, accurate base colours for product decisions), to **AgX** for a photo/render context,
+and to **filmic** otherwise (no regression from the historical look). `Lighting.tsx` calls
+`resolveToneMapping(st.toneMapping, { finishPreview, photoMode })` each frame and feeds the resolved
+operator to both `gl.toneMapping` and `toneExposureBias` so brightness stays steady across a context
+switch. One-tap render presets still set an *explicit* operator (so they read as a deliberate user
+choice), and the HQ path tracer keeps its own ACES blit. **Possible follow-up (deferred):** a light
+colour-temperature / exposure dial — see the dossier; left out of RD-404 to avoid scope creep.
 
 ## Key CC0 sources
 - **HDRI**: Poly Haven (indoor: `studio_small_08`, `hotel_room`; urban/skyline: `urban_street_01`,

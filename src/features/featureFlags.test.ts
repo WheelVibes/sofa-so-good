@@ -173,6 +173,17 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').planPolyline).toBe(true)
   })
 
+  it('wallNumericEntry (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    // Numeric wall-length/angle entry is an authoring/pro tool in the 2D plan editor.
+    expect(resolveFlags(false, {}, false, 'simple').wallNumericEntry).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').wallNumericEntry).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').wallNumericEntry).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').wallNumericEntry).toBe(true)
+    // The flag is in the registry with the correct tier.
+    expect(FEATURE_FLAGS.wallNumericEntry.tier).toBe('pro')
+    expect(FEATURE_FLAGS.wallNumericEntry.default).toBe(true)
+  })
+
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
     const simple = resolveFlags(true, { drawings: true }, false, 'simple')
     expect(simple.drawings).toBe(false)
@@ -180,6 +191,38 @@ describe('Simple/Pro tiering', () => {
 
   it('defaults to Pro when no mode is passed (non-store callers see everything)', () => {
     expect(resolveFlags(true, {}).drawings).toBe(true)
+  })
+})
+
+describe('iesLights flag (PC-IES-LIGHT)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode', () => {
+    expect(resolveFlags(false, {}, false, 'simple').iesLights).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').iesLights).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').iesLights).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').iesLights).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.iesLights.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.iesLights.default).toBe(true)
+    expect(FEATURE_FLAGS.iesLights.tier).toBe('pro')
+  })
+})
+
+describe('remoteFurniture flag (AI-INTEG-001a)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
+    // Browsable CC0 3D models (Poly Haven) are an advanced/external surface →
+    // hidden in Simple where the catalog keeps only the curated builtin loop.
+    expect(resolveFlags(false, {}, false, 'simple').remoteFurniture).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').remoteFurniture).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').remoteFurniture).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').remoteFurniture).toBe(true)
+  })
+  it('ships in prod (CORS-direct CC0, no devOnly gate) and mirrors remoteMaterials', () => {
+    expect(FEATURE_FLAGS.remoteFurniture.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.remoteFurniture.default).toBe(true)
+    expect(FEATURE_FLAGS.remoteFurniture.tier).toBe('pro')
+    // Tiered consistently with the material browser it parallels.
+    expect(FEATURE_FLAGS.remoteFurniture.tier).toBe(FEATURE_FLAGS.remoteMaterials.tier)
   })
 })
 
@@ -245,6 +288,13 @@ describe('contactShadows flag (RZ1)', () => {
   })
 })
 
+describe('cornerAo flag (RD-403)', () => {
+  it('is simple-tier: baked corner AO stays on in both Simple and Pro by default', () => {
+    expect(resolveFlags(false, {}, false, 'simple').cornerAo).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').cornerAo).toBe(true)
+  })
+})
+
 describe('hqRender flag (F1)', () => {
   it('is simple-tier: present in both Simple and Pro by default', () => {
     expect(resolveFlags(false, {}, false, 'simple').hqRender).toBe(true)
@@ -284,6 +334,18 @@ describe('vrWalkthrough flag (F21)', () => {
   it('is pro-tier: hidden in Simple, present in Pro', () => {
     expect(resolveFlags(false, {}, false, 'simple').vrWalkthrough).toBe(false)
     expect(resolveFlags(false, {}, false, 'pro').vrWalkthrough).toBe(true)
+  })
+})
+
+describe('radialArray flag (PC-ARRAY-RADIAL)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode', () => {
+    expect(resolveFlags(false, {}, false, 'simple').radialArray).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').radialArray).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.radialArray.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.radialArray.default).toBe(true)
+    expect(FEATURE_FLAGS.radialArray.tier).toBe('pro')
   })
 })
 

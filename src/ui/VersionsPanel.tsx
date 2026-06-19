@@ -14,6 +14,7 @@ import { LocalStorageAdapter } from '../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../state/storage/slotThumbs'
 import { useStore } from '../state/store'
+import { EmptyState } from './EmptyState'
 import { Icon } from './toolbar/icons'
 import {
   diffVersionFinishes,
@@ -230,6 +231,14 @@ export function VersionsPanel() {
               <div className="stats">{itemCount} items</div>
             </div>
           </div>
+
+          {rows.length === 0 ? (
+            <EmptyState
+              icon={Icon.Versions}
+              title="No saved versions yet"
+              description="Save the current layout as a named version above — you can restore or compare it any time."
+            />
+          ) : null}
 
           {rows.map((r) => (
             <div className="ver-card" key={r.slot}>

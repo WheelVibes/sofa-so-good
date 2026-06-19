@@ -55,6 +55,8 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   parametric: 'parametricFurniture',
   'replace-similar': 'replaceSimilar',
   'ai-furnish': 'aiLayout',
+  'drawing-callouts': 'drawingCallouts',
+  'quote-template': 'quoteTemplate',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -202,6 +204,16 @@ export function CommandPalette() {
         },
       },
       {
+        id: 'drawing-callouts',
+        group: 'Tools & panels',
+        label: 'Sheet callouts — drawing-set annotations',
+        icon: 'Pin',
+        run: () => {
+          closeAllAuxPanels(s())
+          s().setDrawingCalloutsOpen(true)
+        },
+      },
+      {
         id: 'versions',
         group: 'Tools & panels',
         label: 'Versions — save / restore',
@@ -344,6 +356,13 @@ export function CommandPalette() {
         label: 'Shopping list (buy-list export)',
         icon: 'Budget',
         run: () => openShoppingList(),
+      },
+      {
+        id: 'quote-template',
+        group: 'Tools & panels',
+        label: 'Quote template — branding, notes & tax',
+        icon: 'Budget',
+        run: () => s().setQuoteTemplateOpen(true),
       },
       {
         id: 'furniture-csv',

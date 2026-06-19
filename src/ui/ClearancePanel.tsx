@@ -9,6 +9,7 @@ import type { FurnitureDef, FurnitureType } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { findNarrowGaps, type NarrowGap } from '../layout/walkway'
 import { useStore } from '../state/store'
+import { formatLength } from '../utils/measurement'
 import { Icon } from './toolbar/icons'
 
 /** Clearance & fit checks: surfaces HDB door-swing blocking (`blockedDoorItems`),
@@ -22,6 +23,7 @@ export function ClearancePanel() {
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
   const doors = useStore((s) => s.doors)
+  const units = useStore((s) => s.units)
   // Catalog inputs (not the merged catalog) so the O(catalog) merge + the
   // door-swing / overlap / wall-clip scans run only while the panel is open —
   // this component stays mounted, so otherwise every furniture drag would pay
@@ -227,7 +229,7 @@ export function ClearancePanel() {
                 <div className="ci-head">
                   <span className="badge warn">{g.severity === 'tight' ? 'Tight' : 'Narrow'}</span>
                   <span className="ci-title">
-                    {name(g.a)} ↔ {gapPartner(g.b)} · {(g.gap * 100).toFixed(0)} cm
+                    {name(g.a)} ↔ {gapPartner(g.b)} · {formatLength(g.gap, units)}
                   </span>
                 </div>
                 <div className="ci-detail">

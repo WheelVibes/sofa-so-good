@@ -24,6 +24,16 @@ import {
 import { COMMENTS_INITIAL, type CommentsSlice, createCommentsSlice } from './slices/commentsSlice'
 import { createDoorsSlice, DOORS_INITIAL, type DoorsSlice } from './slices/doorsSlice'
 import {
+  createDrawingCalloutsSlice,
+  DRAWING_CALLOUTS_INITIAL,
+  type DrawingCalloutsSlice,
+} from './slices/drawingCalloutsSlice'
+import {
+  createFavouritesSlice,
+  FAVOURITES_INITIAL,
+  type FavouritesSlice,
+} from './slices/favouritesSlice'
+import {
   createFeatureFlagsSlice,
   FEATURE_FLAGS_INITIAL,
   type FeatureFlagsSlice,
@@ -67,6 +77,11 @@ import {
 } from './slices/placementSlice'
 import { createProjectSlice, PROJECT_INITIAL, type ProjectSlice } from './slices/projectSlice'
 import { createPromptSlice, PROMPT_INITIAL, type PromptSlice } from './slices/promptSlice'
+import {
+  createQuoteTemplateSlice,
+  QUOTE_TEMPLATE_INITIAL,
+  type QuoteTemplateSlice,
+} from './slices/quoteTemplateSlice'
 import { createRecentSlice, RECENT_INITIAL, type RecentSlice } from './slices/recentSlice'
 import {
   createRemoteCatalogSlice,
@@ -109,6 +124,7 @@ export interface RootState
     LocationSlice,
     MeasurementsSlice,
     CommentsSlice,
+    DrawingCalloutsSlice,
     DoorsSlice,
     ItemsSlice,
     SelectionSlice,
@@ -131,10 +147,12 @@ export interface RootState
     UserSetsSlice,
     UserStylesSlice,
     RecentSlice,
+    FavouritesSlice,
     CameraViewsSlice,
     PanoTourSlice,
     PromptSlice,
     ProjectSlice,
+    QuoteTemplateSlice,
     FeatureFlagsSlice,
     AuthSlice {
   __resetForTest: () => void
@@ -146,6 +164,7 @@ const INITIAL = {
   ...LOCATION_INITIAL,
   ...MEASUREMENTS_INITIAL,
   ...COMMENTS_INITIAL,
+  ...DRAWING_CALLOUTS_INITIAL,
   ...DOORS_INITIAL,
   ...ITEMS_INITIAL,
   ...SELECTION_INITIAL,
@@ -166,10 +185,12 @@ const INITIAL = {
   ...AUTH_INITIAL,
   ...USER_STYLES_INITIAL,
   ...RECENT_INITIAL,
+  ...FAVOURITES_INITIAL,
   ...CAMERA_VIEWS_INITIAL,
   ...PANO_TOUR_INITIAL,
   ...PROMPT_INITIAL,
   ...PROJECT_INITIAL,
+  ...QUOTE_TEMPLATE_INITIAL,
   ...STYLE_CLIPBOARD_INITIAL,
   ...USER_SETS_INITIAL,
 }
@@ -180,6 +201,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createLocationSlice(set, get, api),
   ...createMeasurementsSlice(set, get, api),
   ...createCommentsSlice(set, get, api),
+  ...createDrawingCalloutsSlice(set, get, api),
   ...createDoorsSlice(set, get, api),
   ...createItemsSlice(set, get, api),
   ...createSelectionSlice(set, get, api),
@@ -202,10 +224,12 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createFeatureFlagsSlice(set, get, api),
   ...createAuthSlice(set, get, api),
   ...createRecentSlice(set, get, api),
+  ...createFavouritesSlice(set, get, api),
   ...createCameraViewsSlice(set, get, api),
   ...createPanoTourSlice(set, get, api),
   ...createPromptSlice(set, get, api),
   ...createProjectSlice(set, get, api),
+  ...createQuoteTemplateSlice(set, get, api),
   ...createStyleClipboardSlice(set, get, api),
   ...createUserSetsSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),

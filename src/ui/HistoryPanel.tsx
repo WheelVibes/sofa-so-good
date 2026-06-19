@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
+import { EmptyState } from './EmptyState'
 import { buildHistoryTimeline } from './historyTimeline'
 import { Icon } from './toolbar/icons'
 
@@ -22,6 +23,8 @@ export function HistoryPanel() {
   const finishes = useStore((s) => s.finishes)
   const floorPlan = useStore((s) => s.floorPlan)
   const comments = useStore((s) => s.comments)
+  const drawingCallouts = useStore((s) => s.drawingCallouts)
+  const quoteTemplate = useStore((s) => s.quoteTemplate)
 
   // Built only while the panel is open: this component stays mounted, so without
   // the `open` guard the timeline + catalog merge would run on *every* furniture
@@ -31,11 +34,22 @@ export function HistoryPanel() {
     const catalog = buildMergedCatalog(useStore.getState())
     return buildHistoryTimeline(
       past,
-      { items, doors, finishes, floorPlan, comments },
+      { items, doors, finishes, floorPlan, comments, drawingCallouts, quoteTemplate },
       future,
       catalog,
     )
-  }, [open, past, future, items, doors, finishes, floorPlan, comments])
+  }, [
+    open,
+    past,
+    future,
+    items,
+    doors,
+    finishes,
+    floorPlan,
+    comments,
+    drawingCallouts,
+    quoteTemplate,
+  ])
 
   if (!open) return null
 
@@ -87,55 +101,63 @@ export function HistoryPanel() {
           </button>
         </div>
 
-        {/* Newest first so the most recent edit is on top. */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {[...entries].reverse().map((e) => (
-            <button
-              key={e.index}
-              type="button"
-              onClick={() => jump(e.index)}
-              title={e.isCurrent ? 'Current state' : 'Jump to this step'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-                textAlign: 'left',
-                padding: '7px 9px',
-                borderRadius: 'var(--r-2, 8px)',
-                border: '1px solid',
-                borderColor: e.isCurrent ? 'var(--accent)' : 'transparent',
-                background: e.isCurrent ? 'var(--accent-soft, var(--surface-2))' : 'transparent',
-                color: e.isCurrent ? 'var(--text)' : 'var(--text-2)',
-                cursor: 'pointer',
-                font: 'inherit',
-                fontSize: 'var(--t-sm)',
-              }}
-            >
-              <span
-                aria-hidden
+        {stepCount === 0 ? (
+          <EmptyState
+            icon={Icon.Versions}
+            title="No edits yet"
+            description="Move, add or finish something — every change lands here so you can scrub back through your design's history."
+          />
+        ) : (
+          /* Newest first so the most recent edit is on top. */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {[...entries].reverse().map((e) => (
+              <button
+                key={e.index}
+                type="button"
+                onClick={() => jump(e.index)}
+                title={e.isCurrent ? 'Current state' : 'Jump to this step'}
                 style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 999,
-                  flex: '0 0 auto',
-                  background: e.isCurrent ? 'var(--accent)' : 'var(--border-2)',
-                }}
-              />
-              <span
-                style={{
-                  flex: 1,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '7px 9px',
+                  borderRadius: 'var(--r-2, 8px)',
+                  border: '1px solid',
+                  borderColor: e.isCurrent ? 'var(--accent)' : 'transparent',
+                  background: e.isCurrent ? 'var(--accent-soft, var(--surface-2))' : 'transparent',
+                  color: e.isCurrent ? 'var(--text)' : 'var(--text-2)',
+                  cursor: 'pointer',
+                  font: 'inherit',
+                  fontSize: 'var(--t-sm)',
                 }}
               >
-                {e.label}
-              </span>
-              {e.isCurrent ? <span className="badge ok">Now</span> : null}
-            </button>
-          ))}
-        </div>
+                <span
+                  aria-hidden
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 999,
+                    flex: '0 0 auto',
+                    background: e.isCurrent ? 'var(--accent)' : 'var(--border-2)',
+                  }}
+                />
+                <span
+                  style={{
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {e.label}
+                </span>
+                {e.isCurrent ? <span className="badge ok">Now</span> : null}
+              </button>
+            ))}
+          </div>
+        )}
 
         {stepCount > 0 ? (
           <button

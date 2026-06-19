@@ -1,0 +1,147 @@
+<!-- segment: scrapable-retailers (per-product 3D/AR models, IKEA-style sitemap crawl; IKEA EXCLUDED — already implemented) -->
+<!-- LICENSE NOTE: every entry here is proprietary/brand-owned. Models are NOT free to redistribute;
+     treat as DEV-ONLY reference (same dev-gating the existing IKEA scrape uses), not prod-bundleable. -->
+
+<div class="asset-source" data-quality="high" data-segment="scrapable-retailers">
+  <h3>Wayfair (+ AllModern, Joss &amp; Main, Birch Lane, Perigold)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.wayfair.com">wayfair.com</a> · 3D API <a href="https://www.aboutwayfair.com/tech-innovation/wayfairs-3d-model-api">aboutwayfair.com/.../wayfairs-3d-model-api</a></td></tr>
+    <tr><th>License</th><td>Proprietary (Wayfair-owned). The 3D API grants access for visualization; redistribution/bundling restricted — dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Furniture/home product models. <strong>glTF/GLB</strong> (Wayfair stopped generating OBJ; glTF is the forward format). Library of 6M+ products (subset modeled).</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Official REST 3D Model API</strong> — demo endpoint <code>https://api.wayfair.com/v1/3dapi/models_demo</code> works from a browser with no registration (~200 models on registration). The cleanest retailer access of all (a real API, not just scraping). For the broader catalog, product pages + sitemap crawl also expose AR models.</td></tr>
+    <tr><th>Render quality</th><td>high — production-grade realtime 3D assets (Wayfair runs a large in-house modeling pipeline).</td></tr>
+    <tr><th>Notes</th><td>The single best-documented retailer source. CONFIRMED API. Dev-only (proprietary).</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="scrapable-retailers">
+  <h3>Castlery (SG/US/AU)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.castlery.com/sg">castlery.com/sg</a> · web AR <a href="https://www.castlery.com/sg/web-ar">castlery.com/sg/web-ar</a></td></tr>
+    <tr><th>License</th><td>Proprietary (Castlery-owned). Dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Sofas, dining, bed frames — true-to-scale models with fabric/leather/wood textures. Web AR ⇒ <strong>GLB + USDZ</strong> (model-viewer / Quick Look). ~250 AR-enabled products.</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable: web-AR product pages embed a <code>&lt;model-viewer&gt;</code> (GLB <code>src</code> + USDZ <code>ios-src</code>); discover products via the SG/US/AU sitemaps, fetch page, extract the model URLs. CONFIRMED web-AR feature; extraction method standard model-viewer (not byte-verified here).</td></tr>
+    <tr><th>Render quality</th><td>high — marketed as true-to-scale with material detail; web-optimized.</td></tr>
+    <tr><th>Notes</th><td>Singapore-relevant (this app targets SG HDB/condo). Dev-only.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="scrapable-retailers">
+  <h3>Crate &amp; Barrel (+ CB2)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.crateandbarrel.com/special-features/ar-outdoor-furniture/1">crateandbarrel.com "View in My Room"</a></td></tr>
+    <tr><th>License</th><td>Proprietary. Dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Furniture, lighting, outdoor, decor. Uses <strong>glTF</strong> for in-app/web AR (GLB; USDZ for iOS Quick Look). 5,000+ AR items.</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable via sitemap → product page model-viewer / AR asset URLs (glTF). CONFIRMED glTF AR; extraction standard.</td></tr>
+    <tr><th>Render quality</th><td>high — large curated AR catalog.</td></tr>
+    <tr><th>Notes</th><td>CB2 (same parent) has comparable AR. Dev-only.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="scrapable-retailers">
+  <h3>Retailers powered by 3D Cloud™ by Marxent (Macy's, Ashley HomeStore, Lowe's, La-Z-Boy, Joybird, Jerome's, Bob's Discount, American Furniture Warehouse, John Lewis (UK), Kingfisher/B&amp;Q, Herman Miller)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://3dcloud.com/solutions/furniture/">3dcloud.com</a> (platform) · client pages e.g. macys.com, ashleyfurniture.com, lowes.com</td></tr>
+    <tr><th>License</th><td>Proprietary per-retailer/3D-Cloud. Dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Furniture product models served for WebAR/360 spins/room planners. <strong>GLB + USDZ</strong> (Scene Viewer + Quick Look), assets on the 3D Cloud CDN.</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable per-retailer: crawl each brand's sitemap, fetch product pages, extract the model-viewer / Scene-Viewer / Quick-Look asset URLs (often pointing at the shared 3D Cloud CDN). One extraction pattern unlocks many brands. CONFIRMED platform + client list; per-brand extraction varies.</td></tr>
+    <tr><th>Render quality</th><td>medium→high — enterprise web-AR-optimized models (consistent house pipeline).</td></tr>
+    <tr><th>Notes</th><td>Highest-leverage cluster: one platform behind a dozen major retailers. Dev-only.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="scrapable-retailers">
+  <h3>Target (See It In Your Space — Project 62 / Threshold / Pillowfort)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.target.com/c/see-it-in-your-space/-/N-9ciy7">target.com/c/see-it-in-your-space</a></td></tr>
+    <tr><th>License</th><td>Proprietary (Target-owned). Dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Home furnishings (hundreds of products across Project 62/Threshold/Pillowfort). Mobile-web AR ⇒ <strong>GLB (Scene Viewer) + USDZ (Quick Look)</strong>.</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable: the "See It In Your Space" category lists AR products; product pages expose the AR asset URLs. CONFIRMED feature; extraction standard AR-tag.</td></tr>
+    <tr><th>Render quality</th><td>medium — web-AR-optimized.</td></tr>
+    <tr><th>Notes</th><td>Dev-only.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="scrapable-retailers">
+  <h3>Amazon ("View in Your Room" / AR View)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.amazon.com">amazon.com</a> (AR View on eligible home/furniture listings)</td></tr>
+    <tr><th>License</th><td>Proprietary (seller/Amazon-owned). Dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Furniture/home listings flagged "View in Your Room". <strong>USDZ (iOS Quick Look) + GLB (Android Scene Viewer)</strong>.</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable but harder — heavy anti-bot; AR asset URLs are embedded per-listing (model-viewer/Quick Look) and discoverable from the listing page, but Amazon aggressively rate-limits/blocks crawlers. CONFIRMED feature; extraction non-trivial.</td></tr>
+    <tr><th>Render quality</th><td>medium — varies by seller; web-AR-optimized.</td></tr>
+    <tr><th>Notes</th><td>Huge catalog but anti-bot + per-seller quality variance. Dev-only.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="scrapable-retailers">
+  <h3>Houzz (View in My Room 3D)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.houzz.com">houzz.com</a> (Shop — View in My Room 3D)</td></tr>
+    <tr><th>License</th><td>Proprietary (Houzz/marketplace sellers). Dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Marketplace furniture/decor. Web + app AR ⇒ <strong>GLB + USDZ</strong>. One of the earliest (2017) web AR shops.</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable via product sitemap → page AR asset URLs; marketplace so coverage/quality varies per seller. CONFIRMED feature.</td></tr>
+    <tr><th>Render quality</th><td>medium — marketplace, mixed.</td></tr>
+    <tr><th>Notes</th><td>Dev-only.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="scrapable-retailers">
+  <h3>Article</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.article.com">article.com</a></td></tr>
+    <tr><th>License</th><td>Proprietary (Article-owned). Dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Mid-century/modern furniture. Web AR / 3D viewer ⇒ <strong>GLB + USDZ</strong> (listed among top furniture sites with 3D/AR product visualization).</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable via sitemap → product page model-viewer src; UNVERIFIED at byte level (feature reported by 3D-commerce roundups, not confirmed on a sampled page here).</td></tr>
+    <tr><th>Render quality</th><td>medium→high — clean web-optimized models.</td></tr>
+    <tr><th>Notes</th><td>Confirm model-viewer presence on a live PDP before building a crawler. Dev-only.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="scrapable-retailers">
+  <h3>Williams-Sonoma group (West Elm, Pottery Barn, PBteen)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.westelm.com">westelm.com</a>, potterybarn.com</td></tr>
+    <tr><th>License</th><td>Proprietary (WSI-owned). Dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Furniture/home; AR "View in Room" on select products ⇒ <strong>GLB + USDZ</strong>.</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable via sitemap → PDP AR asset URLs; UNVERIFIED extraction specifics on a sampled page; AR availability is per-product (not whole catalog).</td></tr>
+    <tr><th>Render quality</th><td>medium→high.</td></tr>
+    <tr><th>Notes</th><td>Dev-only; partial AR coverage.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="scrapable-retailers">
+  <h3>HipVan (SG)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.hipvan.com/">hipvan.com</a></td></tr>
+    <tr><th>License</th><td>Proprietary (HipVan-owned). Dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Singapore furniture/decor. AR/3D on some products (UNVERIFIED extent) ⇒ likely GLB/USDZ where present.</td></tr>
+    <tr><th>Programmatic access</th><td>Sitemap-crawlable catalog; 3D/AR presence per-product NOT confirmed here — inspect a live PDP for a model-viewer before assuming coverage.</td></tr>
+    <tr><th>Render quality</th><td>medium (where 3D exists).</td></tr>
+    <tr><th>Notes</th><td>SG-relevant; verify 3D availability. Dev-only.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="scrapable-retailers">
+  <h3>Home Depot / Lowe's (home &amp; fixtures AR)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.homedepot.com">homedepot.com</a>, lowes.com (Lowe's via 3D Cloud)</td></tr>
+    <tr><th>License</th><td>Proprietary. Dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Furniture, fixtures, appliances, decor with AR view ⇒ <strong>GLB + USDZ</strong>.</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable via sitemap → PDP AR asset URLs; Lowe's overlaps the 3D Cloud cluster above. CONFIRMED AR usage broadly; per-page extraction varies; strong anti-bot.</td></tr>
+    <tr><th>Render quality</th><td>medium — web-AR-optimized; good for fixtures/appliances.</td></tr>
+    <tr><th>Notes</th><td>Useful for fixtures/appliances beyond furniture. Dev-only.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="scrapable-retailers">
+  <h3>Brand sites on Threekit / Emersya / Levar / Cylindo (Burrow, Floyd, Industry West, BoConcept, etc.)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.threekit.com">threekit.com</a>, emersya.com, cylindo.com (3D-commerce vendors)</td></tr>
+    <tr><th>License</th><td>Proprietary per-brand. Dev-only reference.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Configurable furniture with realtime 3D + AR ⇒ <strong>GLB + USDZ</strong> served from the vendor CDN (Threekit/Emersya/Cylindo).</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable: brand PDPs embed the vendor's 3D viewer; the GLB/USDZ asset URLs resolve to the vendor CDN and are extractable from the page's network calls/JSON. One extraction pattern per vendor unlocks all brands on that vendor. UNVERIFIED per-brand specifics.</td></tr>
+    <tr><th>Render quality</th><td>medium→high — configurator-grade, often high-quality.</td></tr>
+    <tr><th>Notes</th><td>Targeting the 3D-commerce VENDORS (not each brand) is the efficient crawl strategy. Dev-only.</td></tr>
+  </table>
+</div>

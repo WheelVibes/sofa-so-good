@@ -1,0 +1,16 @@
+{
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "boot", "waitFor": { "store": "!!state.setItems" }, "timeout": 20000 },
+    { "name": "perf-tier", "eval": "window.__store.getState().setQualityTier('performance')" },
+    { "name": "midday", "eval": "window.__store.getState().setManualHour(13)" },
+    { "name": "settle", "wait": 800 },
+    {
+      "name": "place",
+      "eval": "window.__store.getState().setItems([{id:'fr',defId:'refrigerator',position:[9.2,3.2],rotation:0,props:{}},{id:'st',defId:'stove',position:[10.6,3.2],rotation:0,props:{}},{id:'mw',defId:'microwave',position:[11.7,3.2],rotation:0,props:{surfaceHeight:0.0}}])"
+    },
+    { "name": "focus", "eval": "window.__store.getState().focusOn([10.3,3.2])" },
+    { "name": "settle2", "wait": 1400 },
+    { "name": "flat-shot", "screenshot": "flat-tier" }
+  ]
+}

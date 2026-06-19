@@ -2,6 +2,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { lazyWithRetry } from '../app/lazyWithRetry'
+import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
@@ -81,9 +82,18 @@ export function CatalogDrawer() {
   const fPacks = useFeature('packs')
   const fUpload = useFeature('modelUpload')
   const fParametric = useFeature('parametricFurniture')
+  const fFavourites = useFeature('catalogFavourites')
+  // Browsable CC0 3D models (Poly Haven) are an advanced, external surface — gated
+  // behind `remoteFurniture` (pro tier), so they hide in Simple mode and the grid
+  // shows only the curated builtin loop. Drives both the grid merge and the index
+  // bootstrap (don't fetch the model index when off).
+  const fRemoteFurniture = useFeature('remoteFurniture')
+  // Materials browse (FinishPicker) shares the same provider index, so the drawer
+  // still bootstraps it when only the material browser is enabled.
+  const fRemoteMaterials = useFeature('remoteMaterials')
   // Price displays/filters are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
-  const unified = useUnifiedCatalog()
+  const unified = useUnifiedCatalog(fRemoteFurniture)
   const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
   const [mode, setMode] = useState<Mode>('catalog')
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -96,8 +106,12 @@ export function CatalogDrawer() {
   const [searchFocused, setSearchFocused] = useState(false)
 
   useEffect(() => {
-    if (open && phStatus === 'idle') void bootstrapRemote()
-  }, [open, phStatus, bootstrapRemote])
+    // Don't fetch the remote model/material index when both browse surfaces are
+    // off (e.g. Simple mode forces `remoteFurniture` off; with materials also off
+    // there is nothing to populate, so skip the network entirely).
+    if (open && phStatus === 'idle' && (fRemoteFurniture || fRemoteMaterials))
+      void bootstrapRemote()
+  }, [open, phStatus, bootstrapRemote, fRemoteFurniture, fRemoteMaterials])
 
   // Persist the browse category + sort (best-effort) so the drawer reopens where
   // the user left off.
@@ -129,14 +143,16 @@ export function CatalogDrawer() {
     ? // Searching uses synonym-aware fuzzy ranking (so "couch" finds a "Sofa",
       // even for pack/uploaded items without keywords) — sort is browse-only.
       fuzzySearchSmart(q, unified.all, gridItemText)
-    : active === 'favourites'
+    : active === 'favourites' && fFavourites
       ? unified.favourites
       : active === 'recent'
         ? unified.recent
-        : sortCards(
-            unified.byCategory[active] ?? [],
-            !priceOn && sortBy === 'price' ? 'default' : sortBy,
-          )
+        : active === 'favourites'
+          ? [] // favourites tab active but flag off: show nothing (edge-case guard)
+          : sortCards(
+              unified.byCategory[active] ?? [],
+              !priceOn && sortBy === 'price' ? 'default' : sortBy,
+            )
   // Optional max-price filter — browse-only (its control lives in the browse
   // sort row), so a stale cap can never silently filter search results.
   const allCards = q ? baseCards : filterByMaxPrice(baseCards, maxPrice)
@@ -321,6 +337,7 @@ export function CatalogDrawer() {
               counts={unified.counts}
               favCount={unified.favourites.length}
               recentCount={unified.recent.length}
+              favEnabled={fFavourites}
             />
           )}
           {!q &&
@@ -393,19 +410,50 @@ export function CatalogDrawer() {
           ) : null}
           <div className="card-grid" onKeyDown={onGridKeyDown}>
             {cards.length === 0 ? (
-              <p className="empty-mini" style={{ gridColumn: '1 / -1' }}>
-                <span>
-                  {q
-                    ? `No matches for “${query.trim()}”.`
-                    : active === 'favourites'
-                      ? 'No favourites yet — tap the heart on any card to save it here.'
-                      : active === 'recent'
-                        ? 'Nothing placed yet — items you add will appear here for quick reuse.'
-                        : maxPrice.trim() && baseCards.length > 0
-                          ? `Nothing under $${maxPrice.trim()} here — raise the Max $ filter.`
-                          : 'No items in this category yet.'}
-                </span>
-              </p>
+              q ? (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Search}
+                  title="No matches found"
+                  description={`Nothing in the catalog matches “${query.trim()}”.`}
+                  cta={{ label: 'Clear search', onClick: () => onSearch('') }}
+                />
+              ) : active === 'favourites' ? (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Heart}
+                  title="No favourites yet"
+                  description="Tap the heart on any card to save it here for quick access."
+                />
+              ) : active === 'recent' ? (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Time}
+                  title="Nothing placed yet"
+                  description="Items you add appear here for quick reuse."
+                />
+              ) : maxPrice.trim() && baseCards.length > 0 ? (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Budget}
+                  title="Nothing in budget"
+                  description={`No items here under $${maxPrice.trim()}. Raise the Max $ filter to see more.`}
+                  cta={{
+                    label: 'Clear max price',
+                    onClick: () => {
+                      setMaxPrice('')
+                      setPage(0)
+                    },
+                  }}
+                />
+              ) : (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Catalog}
+                  title="No items here yet"
+                  description="This category is empty — try another tab."
+                />
+              )
             ) : (
               cards.map(renderCard)
             )}

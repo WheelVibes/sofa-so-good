@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /** Floating wall shelf — a single plank on two L-brackets, wall-mounted.
@@ -20,9 +21,13 @@ export function WallShelf({ props }: { props: ParamProps }) {
   const bracketColor = '#2b2b2b'
 
   const plank = (y: number) => (
-    <mesh castShadow receiveShadow position={[0, y, depth / 2]} material={wood}>
-      <boxGeometry args={[width, plankT, depth]} />
-    </mesh>
+    <BeveledBox
+      castShadow
+      receiveShadow
+      position={[0, y, depth / 2]}
+      material={wood}
+      args={[width, plankT, depth]}
+    />
   )
 
   return (
@@ -33,9 +38,13 @@ export function WallShelf({ props }: { props: ParamProps }) {
           {plank(0.16)}
           {plank(-0.16)}
           {[-bx, bx].map((x, i) => (
-            <mesh key={i} castShadow position={[x, 0, depth * 0.55]} material={wood}>
-              <boxGeometry args={[0.025, 0.32, depth * 0.85]} />
-            </mesh>
+            <BeveledBox
+              key={i}
+              castShadow
+              position={[x, 0, depth * 0.55]}
+              material={wood}
+              args={[0.025, 0.32, depth * 0.85]}
+            />
           ))}
         </>
       ) : (
