@@ -2,6 +2,8 @@
  * Pure builder for the shopping-list CSV export (procurement / spreadsheet).
  * Kept separate from `BudgetPanel` so the formatting + escaping is unit-testable.
  */
+import { csvSafeField } from '../utils/csv'
+
 export interface CsvLine {
   category: string
   item: string
@@ -12,10 +14,9 @@ export interface CsvLine {
   total: number
 }
 
-/** RFC-4180 field escaping: quote fields containing comma, quote or newline. */
-function esc(s: string): string {
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-}
+/** Sanitise a user-controlled TEXT field: RFC-4180 quoting + neutralise leading
+ *  formula characters (CSV-injection defense). */
+const esc = csvSafeField
 
 /**
  * Build a CSV (CRLF line endings, Excel-friendly) from shopping-list rows plus a

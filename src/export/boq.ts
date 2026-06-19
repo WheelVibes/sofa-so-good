@@ -16,6 +16,7 @@
  */
 
 import type { FloorPlan } from '../floorplan/types'
+import { csvNumberField, csvSafeField } from '../utils/csv'
 import { escapeTemplateText, type QuoteTemplate, templateCurrencyFormatter } from './quoteTemplate'
 
 /** Metres → feet conversion (carpentry quotes often list both). */
@@ -180,13 +181,6 @@ export function buildBoq(input: BoqInput): Boq {
   return { planName: input.plan?.name ?? 'Untitled Plan', sections, total }
 }
 
-/** Quote a CSV field per RFC 4180: wrap in quotes + double internal quotes when needed. */
-function csvField(value: string | number): string {
-  const s = String(value)
-  if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`
-  return s
-}
-
 /**
  * Render the BOQ as a CSV string: a header row, then one row per line (with a
  * Section column), section subtotal rows, and a final grand-total row.
@@ -199,10 +193,10 @@ export function boqToCsv(boq: Boq, template?: QuoteTemplate): string {
   const rows: string[] = []
   const currencyLabel = template?.currencyLabel || 'SGD'
 
-  // Optional header rows (company branding + notes).
-  if (template?.companyName) rows.push([csvField(template.companyName)].join(','))
-  if (template?.contactLine) rows.push([csvField(template.contactLine)].join(','))
-  if (template?.headerNote) rows.push([csvField(template.headerNote)].join(','))
+  // Optional header rows (company branding + notes) — user-controlled text.
+  if (template?.companyName) rows.push([csvSafeField(template.companyName)].join(','))
+  if (template?.contactLine) rows.push([csvSafeField(template.contactLine)].join(','))
+  if (template?.headerNote) rows.push([csvSafeField(template.headerNote)].join(','))
   if ((template?.companyName || template?.contactLine || template?.headerNote) && rows.length > 0) {
     rows.push('') // blank separator
   }
@@ -217,41 +211,41 @@ export function boqToCsv(boq: Boq, template?: QuoteTemplate): string {
       `Rate (${currencyLabel})`,
       `Amount (${currencyLabel})`,
     ]
-      .map(csvField)
+      .map(csvSafeField)
       .join(','),
   )
   for (const section of boq.sections) {
     for (const line of section.lines) {
       rows.push(
         [
-          csvField(section.title),
-          csvField(line.description),
-          csvField(line.qty),
-          csvField(line.unit),
-          csvField(line.lengthFt ?? ''),
-          csvField(line.rate),
-          csvField(line.amount),
+          csvSafeField(section.title),
+          csvSafeField(line.description),
+          csvNumberField(line.qty),
+          csvSafeField(line.unit),
+          line.lengthFt == null ? '' : csvNumberField(line.lengthFt),
+          csvNumberField(line.rate),
+          csvNumberField(line.amount),
         ].join(','),
       )
     }
     rows.push(
       [
-        csvField(section.title),
-        csvField('Subtotal'),
+        csvSafeField(section.title),
+        csvSafeField('Subtotal'),
         '',
         '',
         '',
         '',
-        csvField(section.subtotal),
+        csvNumberField(section.subtotal),
       ].join(','),
     )
   }
-  rows.push(['', csvField('Grand Total'), '', '', '', '', csvField(boq.total)].join(','))
+  rows.push(['', csvSafeField('Grand Total'), '', '', '', '', csvNumberField(boq.total)].join(','))
 
-  // Optional footer note.
+  // Optional footer note — user-controlled text.
   if (template?.footerNote) {
     rows.push('')
-    rows.push([csvField(template.footerNote)].join(','))
+    rows.push([csvSafeField(template.footerNote)].join(','))
   }
 
   return rows.join('\r\n')

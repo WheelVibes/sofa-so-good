@@ -122,6 +122,40 @@ describe('boqToCsv', () => {
     const csv = boqToCsv(boq)
     expect(csv).toContain('"Shelf 12"" deep"')
   })
+
+  it('neutralises CSV formula injection in user text (SEC-002)', () => {
+    const boq = buildBoq({
+      plan,
+      furniture: [{ name: '=HYPERLINK("http://evil")', qty: 1, unitPrice: 100 }],
+    })
+    const csv = boqToCsv(boq)
+    // The dangerous name is prefixed with a single quote, then RFC-4180 quoted
+    // (because it contains a comma and quotes).
+    expect(csv).toContain('"\'=HYPERLINK(""http://evil"")"')
+    expect(csv).not.toMatch(/(^|,)=HYPERLINK/)
+  })
+
+  it('neutralises formula injection in quote-template branding (SEC-002)', () => {
+    const boq = buildBoq({ plan, furniture: [{ name: 'Sofa', qty: 1, unitPrice: 10 }] })
+    const csv = boqToCsv(boq, {
+      companyName: '=cmd|"/c calc"!A1',
+      footerNote: '@evil()',
+    } as never)
+    expect(csv).toContain("'=cmd")
+    expect(csv).toContain("'@evil()")
+  })
+
+  it('keeps numeric columns numeric (no quote prefix) (SEC-002)', () => {
+    const boq = buildBoq({
+      plan,
+      furniture: [{ name: 'Sofa', qty: 2, unitPrice: 1500 }],
+    })
+    const csv = boqToCsv(boq)
+    const dataRow = csv.split('\r\n').find((r) => r.includes('Sofa'))
+    expect(dataRow).toBeDefined()
+    // Qty=2, Rate=1500, Amount=3000 are emitted as bare numbers, not text-prefixed.
+    expect(dataRow).toContain(',Sofa,2,no.,,1500,3000')
+  })
 })
 
 describe('boqToHtml', () => {

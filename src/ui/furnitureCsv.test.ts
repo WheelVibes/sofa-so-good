@@ -66,6 +66,20 @@ describe('buildFurnitureCsv', () => {
     expect(csv).toContain('Living,KIVIK (grey),IKEA,193.846.45,')
   })
 
+  it('neutralises CSV formula injection in user text (SEC-002)', () => {
+    const csv = buildFurnitureCsv([
+      row({ name: '=HYPERLINK("http://evil")', source: '@evil', room: '-cmd' }),
+    ])
+    const dataRow = csv.split('\r\n')[1]
+    // Each dangerous text field is prefixed with a single quote (item also RFC-4180 quoted).
+    expect(dataRow).toContain("'-cmd")
+    expect(dataRow).toContain('"\'=HYPERLINK(""http://evil"")"')
+    expect(dataRow).toContain("'@evil")
+    expect(csv).not.toMatch(/(^|,)=HYPERLINK/)
+    // Numeric columns remain bare numbers.
+    expect(dataRow).toContain(',2100,900,850,1,1200,1200')
+  })
+
   it('handles an empty design — header plus a zero total', () => {
     const csv = buildFurnitureCsv([])
     const rows = csv.split('\r\n')
