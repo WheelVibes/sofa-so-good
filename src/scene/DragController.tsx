@@ -222,6 +222,10 @@ export function DragController() {
         const dragDef = dragItem ? catalogRef.current[dragItem.defId] : undefined
         if (dragDef && dragItem) {
           const dh = halfExtents(dragItem, dragDef)
+          // Walls are immutable for the duration of a pointer drag, and the snap +
+          // equal-spacing passes need the same set — resolve it ONCE per move
+          // instead of building it twice (PERF-003).
+          const dragWalls = placementWalls(state) ?? buildCollisionWalls(state.doors)
           const others = state.items
             .filter((i) => i.id !== id && catalogRef.current[i.defId])
             .map((i) => ({ c: i.position, h: halfExtents(i, catalogRef.current[i.defId]) }))
@@ -246,17 +250,15 @@ export function DragController() {
           // Flush-to-wall snap (corner-capable). Skipped when grid-snap is on —
           // that's a deliberate precise mode the user shouldn't have overridden.
           if (!state.snapEnabled) {
-            // Bound the snap to the same walls placement validates against, but
-            // never let it be empty (the default flat needs its door-aware walls
-            // to snap to, where placementWalls returns undefined).
-            const wallsForSnap = placementWalls(state) ?? buildCollisionWalls(state.doors)
+            // Bound the snap to the same walls placement validates against (resolved
+            // once above as `dragWalls`).
             const box = {
               x0: next[0] - dh[0],
               z0: next[1] - dh[1],
               x1: next[0] + dh[0],
               z1: next[1] + dh[1],
             }
-            const ws = wallSnapOffset(box, wallsForSnap)
+            const ws = wallSnapOffset(box, dragWalls)
             if (ws.dx) next = [next[0] + ws.dx, next[1]]
             if (ws.dz) next = [next[0], next[1] + ws.dz]
           }
@@ -266,8 +268,7 @@ export function DragController() {
           // neighbours to the same row/column (within SPACING_BAND on the other
           // axis) so we only pair items the user is visually aligning — this also
           // bounds the cost in busy scenes. The wall faces feed the same band.
-          const wallsForSpacing = placementWalls(state) ?? buildCollisionWalls(state.doors)
-          const faces = wallFaces(wallsForSpacing)
+          const faces = wallFaces(dragWalls)
           const dragBox = {
             x0: next[0] - dh[0],
             z0: next[1] - dh[1],

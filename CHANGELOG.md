@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Perf: de-duplicate the per-move wall build in the drag path (PERF-003, partial) (v0.2.0.15)
+
+`DragController.onMove` built the placement-wall set twice per pointermove — once for the
+flush-to-wall snap and again for the equal-spacing pass (identical
+`placementWalls(state) ?? buildCollisionWalls(state.doors)`). Walls are immutable for the duration
+of a drag, so it now resolves once (`dragWalls`) and feeds both passes — removing a full wall-build
+per move on the hottest interactive path, with no behavioural change (the snap + spacing inputs are
+byte-identical). The broadphase neighbour-restriction half of PERF-003 (bounding `others`/`canPlace`
+to the dragged item's grid cell) is deferred — it changes the candidate set, so it needs a perf
+harness + snap/validity-equivalence tests before shipping (tracked in `TODO.md`). Verified the
+equal-spacing guides still render the same gaps via the `equal-spacing-guides` scenario.
+
 ## Fix: resumable-scraper edge cases (REV-002/003/004/005) (v0.2.0.14)
 
 Hardens the dev-only Python scraper harness (`research/scrapers/`):
