@@ -28,7 +28,9 @@ Common flags (from `common_argparser`): `--out --limit --rps --retries --timeout
 
 ## ⚠️ Legal / Terms of Service
 
-Per-source license + access notes live in `../MODEL_LIBRARIES.html`.
+Per-source license + access notes live in `../MODEL_LIBRARIES.html`. Sources that are
+auth-gated / credit-metered / ToS-prohibited for automation (and therefore have **no**
+scraper) are listed with their reason in [`NOT_SCRAPABLE.md`](./NOT_SCRAPABLE.md).
 
 - **CC0 / CC-BY API sources** (Poly Haven, ambientCG, Poly Pizza, Quaternius, Google
   Scanned Objects, …) are fine to use within their terms — honour CC-BY attribution.
