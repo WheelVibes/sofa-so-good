@@ -10,7 +10,7 @@ import {
 } from '@react-three/postprocessing'
 import { type ReactElement, useMemo } from 'react'
 import { Vector2 } from 'three'
-import { AO } from './look'
+import { AO, BLOOM } from './look'
 
 interface EffectsProps {
   /** Render SSAO at full resolution (sharper, deeper) instead of half-res. */
@@ -23,7 +23,10 @@ interface EffectsProps {
  * Tier-aware post-processing stack.
  *   - N8AO: SSAO, tuned via look.AO so corners/recesses ground deeply. Full-res
  *     + high-quality on the top (`aoFullRes`) tier, half-res elsewhere.
- *   - Bloom: gentle glow on emissive fixtures at night (thresholded).
+ *   - Bloom: gentle glow on genuinely emissive night fixtures only. Thresholded
+ *     HIGH (`BLOOM.luminanceThreshold`) so broad sunlit daytime surfaces stay
+ *     under the line — a lower threshold smeared a milky veil across the whole
+ *     frame at High/Maximum.
  *   - HueSaturation: a touch of saturation so finishes read rich, not muddy.
  *   - ChromaticAberration (cinematic only): a sub-pixel RGB split at the frame
  *     edges — the lens signature that makes a still read "photographed".
@@ -51,9 +54,9 @@ export default function EffectsImpl({ aoFullRes = false, cinematic = false }: Ef
     <Bloom
       key="bloom"
       mipmapBlur
-      luminanceThreshold={1.05}
-      luminanceSmoothing={0.15}
-      intensity={0.6}
+      luminanceThreshold={BLOOM.luminanceThreshold}
+      luminanceSmoothing={BLOOM.luminanceSmoothing}
+      intensity={BLOOM.intensity}
     />,
     <HueSaturation key="hue" saturation={0.06} hue={0} />,
   ]

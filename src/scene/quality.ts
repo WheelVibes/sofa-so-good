@@ -56,8 +56,13 @@ export interface QualitySettings {
    *  rounded boxes). Scales segment counts so higher tiers render smoother
    *  legs/shades/vases while performance keeps polys down. 1 = baseline. */
   geometryDetail: number
-  /** Accumulate soft, noise-free shadows while the camera is parked
-   *  (drei AccumulativeShadows). Off on performance; forced on during capture. */
+  /** Retired (RD-410). Previously mounted a drei `AccumulativeShadows` ground
+   *  plane while the camera was parked. For a full apartment (which has its own
+   *  floor + real PCF sun shadows + contact shadows) that 19 m catcher rendered
+   *  the building's silhouette as a large dark rectangle on the ground, bigger
+   *  than the footprint — the reported artifact. Kept in the type (so the flag
+   *  map + settle-tail signature stay stable) but `false` on every tier; the
+   *  controller no longer renders the plane. */
   showcase: boolean
   /** Render SSAO at full resolution instead of half-res — sharper, deeper
    *  contact darkening at a higher fill cost. Top tier only (needs `postprocessing`). */
@@ -105,7 +110,7 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     // baked corner strips still help (RD-403).
     cornerAo: true,
     geometryDetail: 1,
-    showcase: true,
+    showcase: false, // RD-410: accumulator retired (oversized dark-rectangle artifact)
     aoFullRes: false,
     cinematic: false,
     envResolution: 96,
@@ -122,7 +127,7 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     // skip the baked strips to avoid double-darkening the junctions (RD-403).
     cornerAo: false,
     geometryDetail: 1.4,
-    showcase: true,
+    showcase: false, // RD-410: accumulator retired (oversized dark-rectangle artifact)
     aoFullRes: false,
     cinematic: false,
     envResolution: 192,
@@ -138,7 +143,7 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     // Full post stack with full-res SSAO — baked corner strips off (RD-403).
     cornerAo: false,
     geometryDetail: 1.8,
-    showcase: true,
+    showcase: false, // RD-410: accumulator retired (oversized dark-rectangle artifact)
     aoFullRes: true,
     cinematic: true,
     envResolution: 256,

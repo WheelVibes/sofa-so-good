@@ -19,9 +19,10 @@ import { isItemInRoom, type RoomContainment } from './roomFilter'
 export function FurnitureLayer({ room }: { room?: RoomContainment } = {}) {
   const items = useStore(useShallow((s) => s.items))
   const catalog = useCatalog()
-  // Suppress per-item contact-shadow blobs while the showcase
-  // AccumulativeShadows ground plane is converging, so contacts don't
-  // double-darken.
+  // Legacy guard from the retired showcase accumulator (RD-410): it suppressed
+  // contact blobs while that ground plane converged. The flag is now pinned
+  // `false`, so contacts always show; kept as a harmless no-op rather than
+  // rewiring every reader.
   const accumulating = useStore((s) => s.showcaseAccumulating)
   // Grounding blobs are gated by the `contactShadows` feature flag (RZ1) on top
   // of the per-tier quality setting, so they can be turned off independently.

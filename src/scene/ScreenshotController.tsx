@@ -27,7 +27,6 @@ export function ScreenshotController() {
       }
       try {
         store.setQualityTier('high')
-        store.setQualityOverride('showcase', true)
         store.setQualityOverride('postprocessing', true)
         gl.render(scene, camera)
         return gl.domElement.toDataURL('image/png')

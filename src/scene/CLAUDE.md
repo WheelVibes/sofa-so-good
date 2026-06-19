@@ -21,6 +21,22 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **Tier-gate GPU cost.** Read `RenderTier`; **Performance is the default for everyone**
   (flat: no shadows/IBL/post, DPR 1). Heavy effects (real mirrors, post stack) are
   High/Maximum only (`mirrorReflectorConfig(tier)` is the pattern).
+- **Bloom only blooms genuine HDR emitters, never broad daytime surfaces** (RD-409). The
+  Bloom `luminanceThreshold` (`look.BLOOM.luminanceThreshold`, 1.35) sits **above** sunlit
+  white walls/ceilings under the day IBL + ~1.2 graded exposure and **below** the night
+  light-fixture emissive peaks (`lighting/fixtureGlow.ts` — shade ~1.6 / strip ~1.8 / bulb
+  ~2.05). A lower threshold (the old 1.05) smeared a milky white veil across the whole
+  High/Maximum frame in daylight. The two live in lock-step: the `fixtureGlow` test asserts
+  `BLOOM_LUMINANCE_THRESHOLD === look.BLOOM.luminanceThreshold` and that every emitter peak
+  clears it with margin — **raise/lower one and you must move the other**, or daytime blooms
+  again or fixtures stop glowing.
+- **No `AccumulativeShadows` ground catcher** (RD-410, retired). It assumed one hero object
+  over an empty floor; for a whole apartment (own floor + real PCF sun shadows + contact
+  shadows + corner AO) its 19 m catcher plane caught the building silhouette and drew a large
+  dark rectangle on the ground, bigger than the footprint. `ShowcaseController` renders
+  nothing and pins `showcaseAccumulating=false`; the `showcase` quality flag is `false` on
+  every tier. Grounding comes from the cues above — don't reintroduce a scene-wide
+  shadow-catcher plane.
 - **Cheap baked AO on the flat tier.** With no SSAO on Performance/Medium, grounding is
   faked with shared-texture alpha decals: `ContactShadow.tsx` (under-furniture blob, RZ1)
   and `CornerAO.tsx` `WallFloorAO` (wall/floor corner strip, RD-403). Both use ONE shared

@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix milky Maximum render + dark ground rectangle (RD-409/RD-410) (v0.2.0.1)
+
+Two reported high-tier render bugs, root-caused at runtime via the scene graph + before/after
+screenshots.
+
+**RD-409 — washed-out / milky Maximum (and High) in daylight.** The post-stack Bloom
+(`scene/EffectsImpl.tsx`) used `luminanceThreshold={1.05}` — low enough that broad sunlit
+surfaces (white walls/ceilings under the day IBL probe at ~1.2 graded exposure) cleared it and
+bloomed, smearing a milky white veil across the whole frame (confirmed: disabling the post
+stack removed the veil; isolating bloom reproduced it). Raised the threshold to **1.35**
+(above daytime diffuse, below the night fixtures), softened the knee (`luminanceSmoothing`
+0.15→0.25) and trimmed `intensity` 0.6→0.45. Centralised as `look.BLOOM` (pure, unit-tested).
+The light-fixture emissive peaks (`scene/lighting/fixtureGlow.ts`) were lifted in lock-step so
+genuine emitters still bloom with margin (shade peak 1.33→~1.60, strip 1.66→~1.80, bulb
+1.85→~2.05); a new test pins `BLOOM_LUMINANCE_THRESHOLD === look.BLOOM.luminanceThreshold` so
+they can't drift apart. Verified: Maximum daytime is now crisp + saturated, Performance/Medium
+unchanged, and a night scene still glows on the fixtures.
+
+**RD-410 — large dark rectangle on the ground.** Runtime scene-graph traversal found a single
+19.1 × 19.1 m `ShaderMaterial` plane at y≈0.01 (drei `SoftShadowMaterial`) — the
+`AccumulativeShadows` ground catcher in `scene/ShowcaseController.tsx`
+(`scale = max(W,D)*1.5 = 19.125`), which mounts at Medium+ when the camera parks. That
+component assumes a single hero object floating over an empty floor; for a full apartment
+(which has its own floor + real-time PCF sun shadows + contact-shadow blobs + corner AO) it
+caught the building's own silhouette and rendered it as a dark rectangle larger than the
+footprint. The capture paths (screenshot/panorama) only render one synchronous frame, which
+never converges the accumulation, so it added the unconverged plane for no benefit. Retired
+the accumulator: `showcase: false` on every quality preset, `ShowcaseController` renders
+nothing (and pins `showcaseAccumulating=false`), the capture-path `showcase` overrides + the
+Graphics "Showcase stills" toggle removed, and the now-dead `scene/showcase.ts` state machine
+deleted. Legitimate grounding (contact shadows + corner AO + real sun shadows) is untouched.
+Verified: no large ground plane remains in the scene graph and the rectangle is gone.
+
 ## Brushed/satin metal material + wired appliances (MAT-004/004b) (v0.1.0.48)
 
 Appliance bodies (and any steel-bodied primitive) rendered as flat grey plastic — `applianceFinish('steel')`
