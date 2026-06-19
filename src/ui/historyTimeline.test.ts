@@ -14,6 +14,7 @@ function snap(over: Partial<HistorySnapshot> = {}): HistorySnapshot {
     finishes: {} as never,
     floorPlan: {} as never,
     comments: [],
+    drawingCallouts: [],
     ...over,
   }
 }

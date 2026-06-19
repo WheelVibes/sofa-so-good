@@ -37,6 +37,7 @@ import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { estimateRoomLux } from '../lighting2d/roomLux'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
+import type { CalloutSheet, DrawingCallout } from '../state/slices/drawingCalloutsSlice'
 import { formatArea, formatLength, type UnitSystem } from '../utils/measurement'
 import { type DrawingLayerVisibility, drawingLayerOn as layerOn } from './drawingLayers'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
@@ -69,14 +70,95 @@ interface Sheet {
   name: string
   /** Inner HTML for the sheet's drawing area. */
   body: string
+  /** Which callout group targets this sheet (used to inject callout SVG). */
+  calloutGroup?: CalloutSheet
 }
 
 /** Small storey note rendered above a sheet's drawing (print inks). */
 const storeyNote = (text: string) =>
   `<div style="color:#b45309;font-weight:600;font-size:12px">${esc(text)}</div>`
 
+/**
+ * Build an SVG overlay `<div>` that renders the callouts targeting a specific
+ * sheet group.  The overlay is absolutely positioned over the `.draw` area at
+ * 100 × 100 user-units (normalised) so `x`/`y` [0,1] map directly to percent.
+ * The element is transparent to pointer events and sits above the drawing SVG
+ * but below the title block (z-index set explicitly).
+ *
+ * Text is word-wrapped by the browser (the print renderer has `word-break:
+ * break-word`).  Special characters are XML-escaped.  An optional leader line
+ * is drawn from the callout anchor to the `leaderX`/`leaderY` tip as a thin
+ * dashed black line inside the same SVG.
+ *
+ * Returns an empty string when there are no matching callouts (zero footprint).
+ */
+function buildCalloutsSvg(callouts: DrawingCallout[], sheet: CalloutSheet): string {
+  if (!callouts.length) return ''
+  const matching = callouts.filter((c) => c.sheet === sheet)
+  if (!matching.length) return ''
+
+  // The SVG viewBox is 100×100 so normalised coords [0,1] × 100 = percentages.
+  const VB = 100
+
+  const elements: string[] = []
+
+  for (const c of matching) {
+    const ax = c.x * VB
+    const ay = c.y * VB
+
+    // Leader line (dashed thin, drawn first so text renders on top).
+    if (c.leaderX !== undefined && c.leaderY !== undefined) {
+      const lx = c.leaderX * VB
+      const ly = c.leaderY * VB
+      elements.push(
+        `<line x1="${ax.toFixed(2)}" y1="${ay.toFixed(2)}" x2="${lx.toFixed(2)}" y2="${ly.toFixed(2)}" ` +
+          `stroke="#374151" stroke-width="0.4" stroke-dasharray="1.2 0.8" opacity="0.8"/>`,
+      )
+      // Small circle at the leader tip.
+      elements.push(
+        `<circle cx="${lx.toFixed(2)}" cy="${ly.toFixed(2)}" r="0.5" fill="#374151" opacity="0.8"/>`,
+      )
+    }
+
+    // Background rect for legibility (white, slight opacity).
+    const lines = c.text.split('\n')
+    const lineCount = lines.length
+    // Approximate char width in VB units at font-size 2.8.
+    const maxLen = Math.max(...lines.map((l) => l.length))
+    const rectW = Math.min(Math.max(maxLen * 1.45 + 2, 8), 45)
+    const rectH = lineCount * 3.4 + 1.2
+    elements.push(
+      `<rect x="${(ax - 0.5).toFixed(2)}" y="${(ay - 2.8).toFixed(2)}" ` +
+        `width="${rectW.toFixed(2)}" height="${rectH.toFixed(2)}" ` +
+        `fill="white" fill-opacity="0.88" rx="0.6" ry="0.6"/>`,
+    )
+
+    // Text lines (multi-line via tspan).
+    const tspans = lines
+      .map(
+        (line, i) =>
+          `<tspan x="${ax.toFixed(2)}" dy="${i === 0 ? '0' : '3.4'}">${esc(line)}</tspan>`,
+      )
+      .join('')
+    elements.push(
+      `<text x="${ax.toFixed(2)}" y="${ay.toFixed(2)}" ` +
+        `font-family="-apple-system,Segoe UI,Roboto,sans-serif" ` +
+        `font-size="2.8" fill="#111827" font-weight="500">${tspans}</text>`,
+    )
+  }
+
+  return (
+    `<div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">` +
+    `<svg viewBox="0 0 ${VB} ${VB}" width="100%" height="100%" ` +
+    `xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">` +
+    elements.join('') +
+    `</svg></div>`
+  )
+}
+
 /** Build the full drawing-set HTML document. `layers` hides individual sheet
- *  groups (default: all included). */
+ *  groups (default: all included). `callouts` are free-text annotations that
+ *  render onto their target sheet as crisp SVG text (optional, default: none). */
 export function buildDrawingSetHtml(
   plan: FloorPlan,
   items: FurnitureItem[],
@@ -87,6 +169,7 @@ export function buildDrawingSetHtml(
   plumbingPoints?: PlumbingPoint[],
   finishes?: RoomFinishMaps,
   layers?: DrawingLayerVisibility,
+  callouts?: DrawingCallout[],
 ): string {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -119,7 +202,11 @@ export function buildDrawingSetHtml(
       units,
       footprintsOf(itemsOnLevel(items, level.id)),
     )
-    sheets.push({ name: cap('Floor plan', level), body: `<div class="draw">${planSvg}</div>` })
+    sheets.push({
+      name: cap('Floor plan', level),
+      body: `<div class="draw">${planSvg}</div>`,
+      calloutGroup: 'floor-plan',
+    })
   }
 
   // One elevation per wall that carries furniture or openings.
@@ -131,6 +218,7 @@ export function buildDrawingSetHtml(
       sheets.push({
         name: elevationCaption(e, i, units),
         body: `<div class="draw">${elevationSvg(e, { palette: ELEV_PRINT, units })}</div>`,
+        calloutGroup: 'elevations',
       })
     })
   }
@@ -160,6 +248,7 @@ export function buildDrawingSetHtml(
         name: cap('Lighting plan', level),
         body: `<div class="draw">${svg}</div>
         ${i === lit.length - 1 ? lightSched : ''}`,
+        calloutGroup: 'lighting',
       })
     })
   }
@@ -174,6 +263,7 @@ export function buildDrawingSetHtml(
           palette: { ink: '#374151', faint: '#cbd5e1' },
           widthPx: 900,
         })}</div>`,
+        calloutGroup: 'dimensions',
       })
     }
   }
@@ -199,6 +289,7 @@ export function buildDrawingSetHtml(
         },
         widthPx: 900,
       })}</div>`,
+      calloutGroup: 'section',
     })
   }
 
@@ -221,6 +312,7 @@ export function buildDrawingSetHtml(
           widthPx: 900,
         })}</div>
         ${i === wired.length - 1 ? elecSched : ''}`,
+        calloutGroup: 'electrical',
       })
     })
   }
@@ -243,6 +335,7 @@ export function buildDrawingSetHtml(
           widthPx: 900,
         })}</div>
         ${i === plumbed.length - 1 ? plumbSched : ''}`,
+        calloutGroup: 'plumbing',
       })
     })
   }
@@ -258,7 +351,7 @@ export function buildDrawingSetHtml(
           (r) => `<tr><td>${esc(r.room)}</td><td>${esc(r.floor)}</td><td>${esc(r.wall)}</td></tr>`,
         )
         .join('')}</table>`
-      sheets.push({ name: 'Finishes schedule', body: table })
+      sheets.push({ name: 'Finishes schedule', body: table, calloutGroup: 'finishes' })
     }
   }
 
@@ -282,6 +375,7 @@ export function buildDrawingSetHtml(
             palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
             widthPx: 900,
           })}</div>`,
+          calloutGroup: 'demolition',
         })
       }
     } else {
@@ -293,6 +387,7 @@ export function buildDrawingSetHtml(
             palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
             widthPx: 900,
           })}</div>`,
+          calloutGroup: 'demolition',
         })
       }
     }
@@ -310,6 +405,7 @@ export function buildDrawingSetHtml(
             `<tr><td>${esc(r.room)}</td><td>${esc(r.name)}</td><td>${esc(r.source)}</td><td>${esc(r.sku || '—')}</td><td>${dim(r.w)} × ${dim(r.d)} × ${dim(r.h)}</td><td class="n">${r.qty}</td></tr>`,
         )
         .join('')}</table>`,
+      calloutGroup: 'ffe',
     })
   }
 
@@ -335,6 +431,7 @@ export function buildDrawingSetHtml(
   const cover: Sheet = {
     num: 'A-0',
     name: 'Cover',
+    calloutGroup: 'cover',
     body: `<div class="cover">
       <h1>${esc(plan.name)}</h1>
       <div class="cover-sub">Interior design drawing set · ${date}</div>
@@ -345,14 +442,26 @@ export function buildDrawingSetHtml(
     </div>`,
   }
   const ordered = [cover, ...sheets]
+  // Normalise callout array (empty when none provided).
+  const activeCallouts = callouts ?? []
 
   const sheetHtml = ordered
-    .map(
-      (s) =>
-        `<section class="sheet"><div class="sheet-area">${s.body}</div>
-        <div class="title-block"><span class="tb-proj">${esc(plan.name)}</span><span class="tb-name">${esc(s.name)}</span><span class="tb-meta">${esc(date)} · ${s.num}</span></div>
-      </section>`,
-    )
+    .map((s) => {
+      // Inject callout SVG overlay into the sheet-area for the matching group.
+      // The overlay is absolutely-positioned over the `.draw` area; the wrapper
+      // needs `position:relative` (added per-sheet below via inline style).
+      const calloutsHtml =
+        s.calloutGroup && activeCallouts.length
+          ? buildCalloutsSvg(activeCallouts, s.calloutGroup)
+          : ''
+      const sheetAreaStyle = calloutsHtml ? ' style="position:relative"' : ''
+      return (
+        `<section class="sheet"><div class="sheet-area"${sheetAreaStyle}>${s.body}${calloutsHtml}</div>` +
+        `\n        <div class="title-block"><span class="tb-proj">${esc(plan.name)}</span>` +
+        `<span class="tb-name">${esc(s.name)}</span>` +
+        `<span class="tb-meta">${esc(date)} · ${s.num}</span></div>\n      </section>`
+      )
+    })
     .join('')
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(plan.name)} — Drawing set</title>

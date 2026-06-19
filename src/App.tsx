@@ -60,6 +60,7 @@ import { DaylightPanel } from './ui/DaylightPanel'
 import { DesignScorePanel } from './ui/DesignScorePanel'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
+import { DrawingCalloutsPanel } from './ui/DrawingCalloutsPanel'
 import { EmptyRoomHint } from './ui/EmptyRoomHint'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
@@ -815,6 +816,7 @@ export default function App() {
         <DaylightPanel />
         <DesignScorePanel />
         <CommentsPanel />
+        <DrawingCalloutsPanel />
         <AccessibilityPanel />
         <PresentationMode />
         {/* Lazy + flag-gated: chunk loads only when the panel is opened (PERF5). */}

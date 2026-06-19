@@ -538,6 +538,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Free-text callouts on drawing-set sheets (PARITY-LIGHTINGTEMPLATE-TEXT).
+  // A designer adds a note ("Contractor to verify", "GL = 0.00") that renders
+  // as crisp SVG text on the target sheet when the drawing set is exported.
+  // Pure code, no external assets → prod-safe. An authoring/professional tool →
+  // pro tier (hidden in Simple mode automatically).
+  drawingCallouts: {
+    label: 'Drawing-set callouts',
+    description: 'Free-text annotations on construction drawing-set sheets',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

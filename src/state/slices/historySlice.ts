@@ -3,6 +3,7 @@ import type { FurnitureItem } from '../../furniture/types'
 import type { RootState } from '../store'
 import type { DesignComment } from './commentsSlice'
 import type { DoorState } from './doorsSlice'
+import type { DrawingCallout } from './drawingCalloutsSlice'
 import type { FinishesSlice } from './finishesSlice'
 import type { SliceCreator } from './types'
 
@@ -27,6 +28,8 @@ export interface HistorySnapshot {
   floorPlan: FloorPlan
   /** Pinned design comments (F24) — add/edit/resolve/delete are undoable. */
   comments: DesignComment[]
+  /** Drawing-set sheet callouts — add/edit/delete are undoable. */
+  drawingCallouts: DrawingCallout[]
 }
 
 export interface HistorySlice {
@@ -59,6 +62,7 @@ function snapshot(s: RootState): HistorySnapshot {
     finishes: s.finishes,
     floorPlan: s.floorPlan,
     comments: s.comments,
+    drawingCallouts: s.drawingCallouts,
   }
 }
 

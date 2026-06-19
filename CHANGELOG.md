@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Drawing-set sheet callouts (PARITY-LIGHTINGTEMPLATE-TEXT) (v0.1.0.5)
+
+Free-text annotations that appear on specific construction drawing-set sheets when
+exported via Tools → Drawing set (the second half of PARITY-LIGHTINGTEMPLATE-TEXT;
+the finishes-schedule half shipped earlier).
+
+- **Data model** (`state/slices/drawingCalloutsSlice.ts`): `DrawingCallout` record
+  `{id, sheet: CalloutSheet, text, x, y, leaderX?, leaderY?}` with sheet-relative
+  normalised [0,1] coords so callouts survive plan rescaling and different sheet sizes.
+  `CalloutSheet` covers all 11 drawing-set sheet groups (cover, floor-plan, elevations,
+  lighting, dimensions, section, electrical, plumbing, finishes, demolition, ffe).
+  All four CRUD actions (`addDrawingCallout`, `updateDrawingCalloutText`,
+  `moveDrawingCallout`, `deleteDrawingCallout`) call `pushHistory()` making them fully
+  undoable. Rejects blank text and out-of-range positions.
+- **Authoring UI** (`ui/DrawingCalloutsPanel.tsx`): `.aux` panel docked like Comments/History.
+  "Add callout" opens a 4-step `promptText` chain (text → sheet number picker → x%/y%
+  position → optional leader-line tip); each existing callout shows its sheet, position,
+  and leader indicator with edit (text) and delete icon buttons. Mutual-exclusion wired via
+  `closeAllAuxPanels`; accessible from ⌘K ("Sheet callouts") and Tools menu.
+- **SVG rendering** (`ui/drawingSet.ts`): `buildCalloutsSvg()` injects an absolutely-positioned
+  SVG overlay per sheet when callouts are present — dashed leader line + circle tip, white
+  background rect (rounded, 88 % opacity), multi-line text via `<tspan dy>` elements. ViewBox
+  100×100 so normalised coords map directly to percentages. XML-escaped via the existing
+  `esc()` helper; hidden-layer callouts are omitted. Sheets carry a `calloutGroup` tag so
+  matching is data-driven with no string fragility.
+- **Persistence** (`state/schema.ts`): optional `drawingCallouts[]` in the save schema
+  (Zod-validated on load, omitted when empty) so callouts travel with `.sofa.json` and
+  `#/design/` links. Included in `HistorySnapshot` for full undo/redo coverage.
+- **Feature flag**: `drawingCallouts` — `tier: 'pro'`, `default: true`; hidden in Simple
+  mode automatically via `resolveFlags`.
+- **Tests**: 17 slice unit tests + 7 `buildDrawingSetHtml` integration tests (no-callouts
+  baseline, text render, XML escaping, leader line, sheet targeting, multi-line) + 3
+  feature-flag tests (registry, hidden in Simple, visible in Pro).
+
 ## Set-dressing decor prop pack — 9 new styling props (v0.1.0.4)
 
 Added a curated pack of 9 procedural decor primitives under `src/furniture/primitives/` to

@@ -29,6 +29,8 @@ export function ToolsMenu() {
   const commentsOpen = useStore((s) => s.commentsOpen)
   const commentMode = useStore((s) => s.commentMode)
   const commentCount = useStore((s) => s.comments.length)
+  const drawingCalloutsOpen = useStore((s) => s.drawingCalloutsOpen)
+  const drawingCalloutCount = useStore((s) => s.drawingCallouts.length)
   const setShareOpen = useStore((s) => s.setShareOpen)
   const versionsOpen = useStore((s) => s.versionsOpen)
   const historyOpen = useStore((s) => s.historyOpen)
@@ -104,6 +106,12 @@ export function ToolsMenu() {
     useStore.getState().toggleTapeMode()
   }
 
+  const toggleDrawingCallouts = () => {
+    const wasOpen = useStore.getState().drawingCalloutsOpen
+    closeAux()
+    useStore.getState().setDrawingCalloutsOpen(!wasOpen)
+  }
+
   const anyActive =
     budgetOpen ||
     clearancePanelOpen ||
@@ -118,7 +126,8 @@ export function ToolsMenu() {
     historyOpen ||
     tapeMode ||
     commentsOpen ||
-    commentMode
+    commentMode ||
+    drawingCalloutsOpen
 
   const startWalkthrough = () => {
     const s = useStore.getState()
@@ -154,6 +163,7 @@ export function ToolsMenu() {
   const fBoq = useFeature('boq')
   const fSceneExport = useFeature('sceneExport3d')
   const fViewInAr = useFeature('viewInAr')
+  const fDrawingCallouts = useFeature('drawingCallouts')
 
   return (
     <ToolbarMenu icon="Tools" label="Tools" active={Boolean(anyActive)}>
@@ -362,6 +372,17 @@ export function ToolsMenu() {
           />
           <DrawingLayersPicker />
         </>
+      )}
+      {fDrawingCallouts && (
+        <MenuItem
+          icon="Pin"
+          label={
+            drawingCalloutCount > 0 ? `Sheet callouts · ${drawingCalloutCount}` : 'Sheet callouts'
+          }
+          sub="Free-text notes on drawing-set sheets"
+          active={drawingCalloutsOpen}
+          onClick={toggleDrawingCallouts}
+        />
       )}
     </ToolbarMenu>
   )

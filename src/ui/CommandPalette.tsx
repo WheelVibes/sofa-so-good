@@ -55,6 +55,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   parametric: 'parametricFurniture',
   'replace-similar': 'replaceSimilar',
   'ai-furnish': 'aiLayout',
+  'drawing-callouts': 'drawingCallouts',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -199,6 +200,16 @@ export function CommandPalette() {
         run: () => {
           closeAllAuxPanels(s())
           s().setCommentsOpen(true)
+        },
+      },
+      {
+        id: 'drawing-callouts',
+        group: 'Tools & panels',
+        label: 'Sheet callouts — drawing-set annotations',
+        icon: 'Pin',
+        run: () => {
+          closeAllAuxPanels(s())
+          s().setDrawingCalloutsOpen(true)
         },
       },
       {
