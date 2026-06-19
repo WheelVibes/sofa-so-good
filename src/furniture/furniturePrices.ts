@@ -137,6 +137,15 @@ export const ITEM_PRICE: Record<string, number> = {
   piano: 3500,
   'feature-wall': 350,
   staircase: 2800,
+  'book-stack': 25,
+  'throw-cushion': 45,
+  'throw-blanket': 55,
+  'candle-cluster': 35,
+  'fruit-bowl': 40,
+  'magazine-stack': 20,
+  'small-sculpture': 65,
+  'desk-plant': 30,
+  'photo-frame-cluster': 50,
 }
 
 /** Estimated price (SGD) for one item. For an IKEA def the per-INSTANCE variant

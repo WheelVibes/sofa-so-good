@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Set-dressing decor prop pack — 9 new styling props (v0.1.0.4)
+
+Added a curated pack of 9 procedural decor primitives under `src/furniture/primitives/` to
+fill the set-dressing gap (PHOTO-DETAIL). Each is a modular `.tsx` file registered in
+`primitives/index.ts`, `PrimitiveKind`, `defs/decor.ts`, and `furniturePrices.ts`.
+All use `noClip: true` for tabletop/shelf placement without collision rejection.
+
+New props:
+- **BookStack** (`book-stack`) — 4 horizontal stacked books + 2 leaning uprights on one end;
+  beveled spines with page-edge detail. S$25.
+- **ThrowCushion** (`throw-cushion`) — plump RoundedBox fabric pillow with woven flange border;
+  square and rect shapes. S$45.
+- **ThrowBlanket** (`throw-blanket`) — two-fold fabric drape with a draped corner for realism;
+  plain/stripe/herringbone weave. S$55.
+- **CandleCluster** (`candle-cluster`) — 3 pillar candles of different heights on a mirrored
+  plate, with optional flame glow (emissive). S$35.
+- **FruitBowl** (`fruit-bowl`) — wide ceramic/stoneware bowl with 5 coloured fruit spheres or
+  empty; glazed/matte/stoneware finishes. S$40.
+- **MagazineStack** (`magazine-stack`) — 5 thin magazines fanned at slight offsets with page-edge
+  detail; large format distinct from BookStack. S$20.
+- **SmallSculpture** (`small-sculpture`) — 3 abstract styles: twisted stacked prisms, minimal arch,
+  and polished orb on ring stand; all on dark plinth. S$65.
+- **DeskPlant** (`desk-plant`) — petite succulent rosette or trailing-stems plant in small ceramic
+  pot; distinct from floor-scale PottedPlant. S$30.
+- **PhotoFrameCluster** (`photo-frame-cluster`) — 3 tabletop frames (portrait, landscape, square)
+  with mat + art fill and leaning support foot. S$50.
+
 ## Edge-bevel rollout: remaining box-built case goods and structural panels (v0.1.0.3)
 
 Extended the `BeveledBox` chamfer (7 mm auto-clamped radius) to all remaining hard-edged,

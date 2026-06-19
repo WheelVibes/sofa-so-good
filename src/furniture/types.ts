@@ -151,6 +151,15 @@ export type PrimitiveKind =
   | 'OutdoorTable'
   | 'OutdoorParasol'
   | 'OutdoorLounger'
+  | 'BookStack'
+  | 'ThrowCushion'
+  | 'ThrowBlanket'
+  | 'CandleCluster'
+  | 'FruitBowl'
+  | 'MagazineStack'
+  | 'SmallSculpture'
+  | 'DeskPlant'
+  | 'PhotoFrameCluster'
 
 export type ParamField =
   | {
