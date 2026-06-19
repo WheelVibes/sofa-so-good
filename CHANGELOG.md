@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: make item rename undoable (BUG-008) (v0.2.0.3)
+
+`renameItem` (`src/state/slices/itemsSlice.ts`) mutated the item label without a
+`pushHistory()`, so renaming a piece could not be undone. It now snapshots history
+before applying the change, with a no-op guard that skips the push (and the mutation)
+when the trimmed label is unchanged — so undo reverts a rename in one step and a
+redundant rename doesn't pollute the undo stack. Adds undo + no-op unit tests.
+
 ## Seed remote/CC0 GLB footprint from glTF accessor bounds (AI-INTEG-001b) (v0.2.0.2)
 
 Remote (Poly Haven) furniture defs shipped `defaultFootprint:{w:1,d:1,h:1}` from

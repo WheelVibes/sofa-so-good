@@ -55,6 +55,25 @@ describe('renameItem', () => {
     s.renameItem(id, '   ')
     expect(useStore.getState().items.find((i) => i.id === id)?.label).toBeUndefined()
   })
+
+  it('is undoable — one history entry per rename (BUG-008)', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    const before = useStore.getState().past.length
+    useStore.getState().renameItem(id, 'Reading chair')
+    expect(useStore.getState().past.length).toBe(before + 1)
+    useStore.getState().undo()
+    expect(useStore.getState().items.find((i) => i.id === id)?.label).toBeUndefined()
+  })
+
+  it('does not push history when the label is unchanged (no-op rename)', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    useStore.getState().renameItem(id, 'Chair')
+    const after = useStore.getState().past.length
+    useStore.getState().renameItem(id, '  Chair  ') // trims to same value
+    expect(useStore.getState().past.length).toBe(after)
+  })
 })
 
 describe('setAllLocked', () => {
