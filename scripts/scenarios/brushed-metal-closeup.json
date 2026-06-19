@@ -1,0 +1,20 @@
+{
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "boot", "waitFor": { "store": "!!state.setItems" }, "timeout": 20000 },
+    { "name": "high-tier", "eval": "window.__store.getState().setQualityTier('high')" },
+    { "name": "midday", "eval": "window.__store.getState().setManualHour(13)" },
+    { "name": "settle-tier", "wait": 900 },
+    {
+      "name": "place-fridge",
+      "eval": "window.__store.getState().setItems([{id:'fr',defId:'refrigerator',position:[10.3,3.2],rotation:0,props:{}}])"
+    },
+    { "name": "focus", "eval": "window.__store.getState().focusOn([10.3,3.2])" },
+    { "name": "settle-focus", "wait": 1400 },
+    { "name": "zoom-1", "wheel": { "deltaY": -1500, "x": 200, "y": 120 } },
+    { "name": "settle-z1", "wait": 900 },
+    { "name": "zoom-2", "wheel": { "deltaY": -1500, "x": 200, "y": 120 } },
+    { "name": "settle-z2", "wait": 1000 },
+    { "name": "closeup", "screenshot": "fridge-closeup" }
+  ]
+}

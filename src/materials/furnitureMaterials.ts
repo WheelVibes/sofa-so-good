@@ -20,6 +20,7 @@ import type { RenderTier } from '../scene/quality'
 import { applyAnisotropy } from './anisotropy'
 import { getBuiltMaterial } from './cache'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
+import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/metalBrush'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
 import { DEFAULT_STONE_SURFACE_PARAMS, makeRoughDrift } from './procedural/stoneSurface'
 import { buildUpholsteryHeight, DEFAULT_SEAM_PARAMS } from './procedural/upholsterySeams'
@@ -1005,4 +1006,142 @@ export function applianceFinish(finish: string): { roughness: number; metalness:
     default: // 'matte' (painted matte) and any unknown finish
       return { roughness: 0.55, metalness: 0.1 }
   }
+}
+
+// ---- Brushed / satin metal (MAT-004) -------------------------------------
+//
+// Appliance bodies (`applianceFinish('steel')`) were flat grey plastic — a
+// scalar metalness/roughness with no directional brushing. `getMetalMaterial`
+// upgrades the steel body to a real brushed-stainless / satin / black-steel
+// look: a shared procedural brush normal + roughness-streak map (directional
+// hairlines running along U, from the pure `metalBrush.ts` field) plus three.js
+// `anisotropy` for the swept highlight. Tasteful, not chrome-mirror.
+//
+// Gated behind `pbrSurfaces` exactly like the other material micro-normals: when
+// off, `getMetalMaterial` returns a plain `MeshStandardMaterial` carrying just
+// the finish's metalness/roughness (the legacy `applianceFinish` look) so the
+// flat Performance tier never pays for the brush maps and reads sensible.
+
+/** The three metal finishes a steel body can take. `stainless` is the bright
+ *  brushed appliance default; `satin` is a softer, slightly rougher sheen;
+ *  `black-steel` is the dark matte-stainless trend finish (its dark body comes
+ *  from the caller's tint — the maps are tint-independent greyscale). */
+export type MetalFinish = 'stainless' | 'satin' | 'black-steel'
+
+/** Base metalness/roughness + brush intensity per finish. The brush maps tune
+ *  the directional grain; `anisotropy` is the swept-highlight strength. */
+function metalFinishPreset(finish: MetalFinish): {
+  roughness: number
+  metalness: number
+  streak: number
+  anisotropy: number
+} {
+  switch (finish) {
+    case 'satin':
+      // Softer satin: a touch rougher, a gentler sweep than bright stainless.
+      return { roughness: 0.42, metalness: 0.85, streak: 0.4, anisotropy: 0.4 }
+    case 'black-steel':
+      // Dark matte stainless: matter, slightly stronger grain (reads on the dark
+      // body), subtler highlight so it doesn't sparkle.
+      return { roughness: 0.5, metalness: 0.82, streak: 0.55, anisotropy: 0.35 }
+    default: // 'stainless' — bright brushed appliance steel.
+      return {
+        roughness: 0.3,
+        metalness: 0.9,
+        streak: DEFAULT_BRUSH_PARAMS.streak,
+        anisotropy: DEFAULT_BRUSH_PARAMS.anisotropy,
+      }
+  }
+}
+
+/** Shared brushed-metal maps (one 256² normal + roughness-streak singleton,
+ *  built once and cloned per material). Present only under `pbrSurfaces` — the
+ *  flat tier gets no maps (a plain metalness/roughness). The roughness map is a
+ *  multiplier ≥ 1 (clamped) so the brush only ever scatters a touch MORE than
+ *  the base — never glossier (no specular regression). */
+let brushedMetalMaps: { normal: Texture; rough: Texture } | null = null
+function getBrushedMetalMaps(streak: number): { normal: Texture; rough: Texture } {
+  // One canonical brush (default streak) shared by every steel body — caching by
+  // the singleton keeps all appliances on one GPU texture pair. The `streak`
+  // arg only gates the build amplitude for the canonical map; per-finish streak
+  // differences ride the material's `normalScale`/`anisotropy` so we never bake
+  // a separate map per finish (instanced/shared, per the edge-case brief).
+  if (brushedMetalMaps) return brushedMetalMaps
+  const { height, rough } = buildBrushedMetalFields(N, 0x5712, {
+    streak,
+    anisotropy: DEFAULT_BRUSH_PARAMS.anisotropy,
+  })
+  const normal = canvasFrom(heightToNormalRGBA(height, N, 1.0))
+  // Roughness map: the signed streak delta (±~0.06) encoded as a multiplier on
+  // the material's base `roughness`. Centre on 1 so the mean roughness is
+  // unchanged; the abraded grain scatters a touch more/less along the hairlines.
+  const roughData = new Uint8ClampedArray(N * N * 4)
+  for (let i = 0; i < N * N; i++) {
+    const rc = Math.round(clamp01(1 + rough[i]) * 255)
+    roughData[i * 4] = roughData[i * 4 + 1] = roughData[i * 4 + 2] = rc
+    roughData[i * 4 + 3] = 255
+  }
+  // Normal + roughness stay LINEAR (the CanvasTexture default — no sRGB tag).
+  brushedMetalMaps = { normal, rough: canvasFrom(roughData) }
+  return brushedMetalMaps
+}
+
+/**
+ * Brushed / satin / black-steel metal tinted to `color`, for appliance bodies
+ * and metal furniture parts. `finish` picks the metalness/roughness + brush
+ * intensity preset; `repeat` tiles the brush to the part size.
+ *
+ * Under `pbrSurfaces` it is a `MeshPhysicalMaterial` with the shared brush
+ * normal + roughness-streak maps and three.js `anisotropy` (swept highlight,
+ * `anisotropyRotation = 0` so the sweep runs along the U brush direction). With
+ * the flag off it is a plain `MeshStandardMaterial` carrying just the finish's
+ * metalness/roughness (the legacy flat steel look — no maps, no extra cost).
+ *
+ * Cached per `(finish, color, repeat)` so every steel body shares one GPU
+ * material (don't rebuild per appliance).
+ */
+export function getMetalMaterial(
+  color: string,
+  finish: MetalFinish = 'stainless',
+  repeat = 1,
+): MeshStandardMaterial {
+  const r = Math.round(repeat * 100) / 100
+  const key = `metal:${finish}:${color}:${r}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  const preset = metalFinishPreset(finish)
+  const pbr = isFeatureEnabled('pbrSurfaces')
+  if (!pbr) {
+    // Flat tier: legacy look — metalness/roughness only, no brush maps.
+    const m = new MeshStandardMaterial({
+      color,
+      roughness: preset.roughness,
+      metalness: preset.metalness,
+      envMapIntensity: GLOSSY_ENV_INTENSITY,
+    })
+    cache.set(key, m)
+    return m
+  }
+  const maps = getBrushedMetalMaps(preset.streak)
+  const normal = applyAnisotropy(maps.normal.clone())
+  const roughnessMap = applyAnisotropy(maps.rough.clone())
+  normal.repeat.set(r, r)
+  roughnessMap.repeat.set(r, r)
+  normal.needsUpdate = roughnessMap.needsUpdate = true
+  const m = new MeshPhysicalMaterial({
+    color,
+    roughness: preset.roughness,
+    metalness: preset.metalness,
+    normalMap: normal,
+    roughnessMap,
+    envMapIntensity: GLOSSY_ENV_INTENSITY,
+  })
+  // Subtle brush relief — a satin grain, not a scratched groove.
+  m.normalScale.set(0.2, 0.2)
+  // Swept anisotropic highlight along the U brush direction. `anisotropyRotation`
+  // stays 0 so every face's sweep is consistent with the baked hairlines.
+  m.anisotropy = preset.anisotropy
+  m.anisotropyRotation = 0
+  cache.set(key, m)
+  return m
 }

@@ -1,6 +1,5 @@
-import { applianceFinish } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
-import { readStr } from './shared'
+import { ApplianceBodyMaterial, applianceBody, applianceBodyMeshProps, readStr } from './shared'
 
 /** Front-load washing machine: body + recessed circular door + control
  *  panel. Faces +Z. */
@@ -10,13 +9,13 @@ export function WashingMachine({ props }: { props: ParamProps }) {
   const w = 0.6
   const d = 0.6
   const h = 0.85
-  const body = { color, ...applianceFinish(finish) }
+  const body = applianceBody(color, finish)
 
   return (
     <group>
-      <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
+      <mesh {...applianceBodyMeshProps(body)} castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial {...body} />
+        <ApplianceBodyMaterial finish={body} />
       </mesh>
       {/* Door ring */}
       <mesh position={[0, h * 0.45, d / 2 + 0.003]} rotation={[Math.PI / 2, 0, 0]}>

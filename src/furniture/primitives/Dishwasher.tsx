@@ -1,6 +1,5 @@
-import { applianceFinish } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
-import { readStr } from './shared'
+import { ApplianceBodyMaterial, applianceBody, applianceBodyMeshProps, readStr } from './shared'
 
 /**
  * Built-in / freestanding dishwasher: a base-cabinet-sized body with a proud
@@ -15,20 +14,20 @@ export function Dishwasher({ props }: { props: ParamProps }) {
   const w = 0.6
   const d = 0.6
   const h = 0.82
-  const body = { color, ...applianceFinish(finish) }
+  const body = applianceBody(color, finish)
   const trim = { color: '#9a9ea3', roughness: 0.3, metalness: 0.7 } as const
 
   return (
     <group>
       {/* Body */}
-      <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
+      <mesh {...applianceBodyMeshProps(body)} castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial {...body} />
+        <ApplianceBodyMaterial finish={body} />
       </mesh>
       {/* Front door, slightly proud + inset border for a panel look */}
-      <mesh castShadow position={[0, h * 0.46, d / 2 + 0.008]}>
+      <mesh {...applianceBodyMeshProps(body)} castShadow position={[0, h * 0.46, d / 2 + 0.008]}>
         <boxGeometry args={[w - 0.03, h * 0.82, 0.016]} />
-        <meshStandardMaterial {...body} />
+        <ApplianceBodyMaterial finish={body} />
       </mesh>
       {/* Recessed handle bar near the top of the door */}
       <mesh castShadow position={[0, h * 0.82, d / 2 + 0.02]}>

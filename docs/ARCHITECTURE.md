@@ -292,7 +292,13 @@ same change that reshapes a system.
   `0.92` roughness now drifts; all-tier, no flag) and Path B (`generators.ts:getPlasterNormal`
   builds the shared normal AND, behind `pbrSurfaces`, a tint-independent roughness-drift multiplier
   map via `getPlasterRoughness()`, wired into the plaster branch of `cache.ts`; off → legacy flat
-  `0.92` scalar).
+  `0.92` scalar). Brushed/satin metal (MAT-004) comes from the pure `procedural/metalBrush.ts`
+  (`buildBrushedMetalFields` — directional U-running brush hairlines, row-variance ≫ column-variance)
+  via `getMetalMaterial(color, finish, repeat)`: under `pbrSurfaces` a `MeshPhysicalMaterial` with the
+  shared brush normal + roughness-streak maps + three.js `anisotropy` (finish presets
+  `stainless`/`satin`/`black-steel`); off → a plain `MeshStandardMaterial` (legacy flat steel). The 8
+  steel-bodied appliance primitives wire to it via `furniture/primitives/shared.tsx:applianceBody`
+  (MAT-004b).
 - **Material realism** (`materials/materialRealism.ts`, pure): `sheenLayer`(velvet/satin/leather)
   + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
   `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real

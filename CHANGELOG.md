@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Brushed/satin metal material + wired appliances (MAT-004/004b) (v0.1.0.48)
+
+Appliance bodies (and any steel-bodied primitive) rendered as flat grey plastic — `applianceFinish('steel')`
+was a scalar metalness/roughness with no directional brushing, so a fridge read like a painted box.
+
+**MAT-004 — brushed-metal material.** New pure, deterministic, worker-safe helper
+`src/materials/procedural/metalBrush.ts` (`buildBrushedMetalFields(size, seed, BrushParams)`)
+bakes the one cue brushed steel always carries: **directional brush hairlines** running along U —
+a fine value-noise lattice sampled WIDE across U and NARROW along V (with a slow drift warp so the
+grain wavers, not ruled lines), returning a height field (→ baked normal) + a signed roughness
+streak delta. Row-variance ≫ column-variance is the brush signature (unit-tested). New
+`getMetalMaterial(color, finish, repeat)` in `furnitureMaterials.ts` returns, **under
+`pbrSurfaces`**, a `MeshPhysicalMaterial` with the shared brush normal + roughness-streak maps
+(one 256² singleton, cloned per material) and three.js `anisotropy` (the swept highlight,
+`anisotropyRotation = 0` so the sweep follows the U hairlines); finishes `stainless` / `satin` /
+`black-steel` pick the metalness/roughness + brush/anisotropy preset (tint from the caller). With
+the flag **off** it returns a plain `MeshStandardMaterial` carrying just the finish's
+metalness/roughness — the legacy flat steel look, no maps, no cost on the flat tier. Tasteful, not
+chrome-mirror; cached per `(finish, color, repeat)`. Albedo/tint sRGB, normal/roughness linear.
+
+**MAT-004b — wired appliances.** The 8 steel-bodied appliance primitives
+(`Refrigerator`/`Oven`/`Stove`/`RangeHood`/`Dishwasher`/`Microwave`/`WashingMachine`/`WineCooler`)
+route their body through the new `applianceBody(color, finish)` helper (`primitives/shared.tsx`):
+steel → the shared brushed-metal material set on the body mesh's `material=` prop (one cached
+instance reused across every body part + appliance); non-steel ('matte'/'gloss') keeps the legacy
+`applianceFinish` props spread. Glass doors, control panels, handles, knobs are untouched.
+
+Tier-gated via the existing `pbrSurfaces` flag (no new user flag — same gate as the other material
+micro-normals). Tests: `metalBrush.test.ts` (directionality / determinism / range / streak:0
+collapse), `metalMaterial.test.ts` (physical+anisotropy+maps on / plain off / cache identity /
+black-steel vs stainless, BOTH flag states), `applianceBody.test.tsx` (steel→shared material,
+non-steel→props, flat-tier fallback, all 8 primitives smoke-render). Scenarios
+`scripts/scenarios/brushed-metal-appliances.json` + `brushed-metal-closeup.json`.
+
 ## Richer auto-decor — density budget + position spread + rotation jitter (RD408-001/002/003) (v0.1.0.47)
 
 Auto-furnished (Smart Start / preset) rooms read sparse + obviously machine-placed: the

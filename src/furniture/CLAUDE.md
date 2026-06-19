@@ -56,6 +56,16 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).
 - Match the surrounding primitive style: real-world metres, real three `Material` instances.
+- **Appliance bodies (MAT-004b)**: the 8 steel-bodied appliance primitives
+  (`Refrigerator`/`Oven`/`Stove`/`RangeHood`/`Dishwasher`/`Microwave`/`WashingMachine`/`WineCooler`)
+  render their carcass through `primitives/shared.tsx:applianceBody(color, finish)`. Steel → the
+  shared brushed-metal material (`materials/furnitureMaterials.ts:getMetalMaterial`, one cached
+  instance reused across every body part + appliance) set on the body `<mesh material={…}>` via
+  `applianceBodyMeshProps(body)`; non-steel ('matte'/'gloss') keeps the legacy `applianceFinish`
+  props on `<ApplianceBodyMaterial finish={body} />`. A body mesh is always
+  `<mesh {...applianceBodyMeshProps(body)} …><geometry/><ApplianceBodyMaterial finish={body}/></mesh>`.
+  Don't put the steel material on the door glass / control panels / handles — those keep their own
+  finishes. (`shared.tsx`, not `.ts`, because it exports the JSX `ApplianceBodyMaterial` component.)
 - **Auto-arrange decor styling** (`layout/decorStyling.ts`): `applyDecorStyling(arranged, defs, seed?)`
   places `noClip` decor props per host surface (sofa→cushions/blanket, coffee-table→bowl/magazines/
   candles, bed→cushions, nightstand→plant/candle, desk→plant/books, sideboard→frames/sculpture).

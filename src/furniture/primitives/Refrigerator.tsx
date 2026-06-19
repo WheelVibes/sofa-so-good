@@ -1,6 +1,11 @@
-import { applianceFinish } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
-import { readNum, readStr } from './shared'
+import {
+  ApplianceBodyMaterial,
+  applianceBody,
+  applianceBodyMeshProps,
+  readNum,
+  readStr,
+} from './shared'
 
 /** Two-door (fridge + freezer) upright refrigerator with recessed handles. */
 export function Refrigerator({ props }: { props: ParamProps }) {
@@ -11,14 +16,19 @@ export function Refrigerator({ props }: { props: ParamProps }) {
   const finish = readStr(props, 'finish', 'steel')
 
   const split = height * 0.66 // freezer drawer below
-  const body = { color, ...applianceFinish(finish) }
+  const body = applianceBody(color, finish)
   const handleMat = { color: '#9aa0a6', roughness: 0.3, metalness: 0.7 }
 
   return (
     <group>
-      <mesh castShadow receiveShadow position={[0, height / 2, 0]}>
+      <mesh
+        {...applianceBodyMeshProps(body)}
+        castShadow
+        receiveShadow
+        position={[0, height / 2, 0]}
+      >
         <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial {...body} />
+        <ApplianceBodyMaterial finish={body} />
       </mesh>
       {/* Door seam */}
       <mesh position={[0, split, depth / 2 + 0.001]}>

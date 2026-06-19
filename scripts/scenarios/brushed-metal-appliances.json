@@ -1,0 +1,26 @@
+{
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "boot", "waitFor": { "store": "!!state.setItems" }, "timeout": 20000 },
+    { "name": "high-tier", "eval": "window.__store.getState().setQualityTier('high')" },
+    { "name": "midday", "eval": "window.__store.getState().setManualHour(13)" },
+    { "name": "settle-tier", "wait": 900 },
+    {
+      "name": "place-appliances",
+      "eval": "window.__store.getState().setItems([{id:'fr',defId:'refrigerator',position:[8.6,3.2],rotation:0,props:{}},{id:'ov',defId:'built-in-oven',position:[9.7,3.2],rotation:0,props:{mountHeight:0}},{id:'mw',defId:'microwave',position:[10.7,3.2],rotation:0,props:{surfaceHeight:0.0}},{id:'st',defId:'stove',position:[11.7,3.2],rotation:0,props:{}},{id:'bs',defId:'bar-stool',position:[12.7,3.2],rotation:0,props:{}}])"
+    },
+    { "name": "focus", "eval": "window.__store.getState().focusOn([10.3,3.2])" },
+    { "name": "settle-place", "wait": 1500 },
+    { "name": "medium-shot", "screenshot": "medium" },
+    {
+      "name": "single-fridge",
+      "eval": "window.__store.getState().setItems([{id:'fr',defId:'refrigerator',position:[10.3,3.2],rotation:0,props:{}}]); window.__store.getState().focusOn([10.3,3.2])"
+    },
+    { "name": "settle-focus", "wait": 1200 },
+    { "name": "zoom-in", "wheel": { "deltaY": -1400, "x": 200, "y": 120 } },
+    { "name": "settle-zoom", "wait": 1000 },
+    { "name": "zoom-in-2", "wheel": { "deltaY": -1400, "x": 200, "y": 120 } },
+    { "name": "settle-zoom-2", "wait": 1000 },
+    { "name": "close-shot", "screenshot": "close" }
+  ]
+}

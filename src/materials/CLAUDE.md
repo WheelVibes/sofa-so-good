@@ -65,6 +65,21 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   base scalar (like the shared normal), so every wall colour reuses one 256² map. Keep it
   **subtle** (`DEFAULT_PLASTER_SURFACE_PARAMS`; `nap` 0..1, `0` disables). Albedo sRGB,
   normal/roughness linear. batten/fluted are untouched.
+- **Brushed/satin metal (MAT-004)**: steel appliance bodies used to be flat grey plastic. The pure
+  `procedural/metalBrush.ts` `buildBrushedMetalFields(size, seed, BrushParams)` bakes **directional
+  brush hairlines** running along U — a value-noise lattice sampled WIDE across U / NARROW along V
+  (plus a slow drift warp so the grain wavers, not ruled lines), returning a height field (→ baked
+  normal) and a signed roughness streak delta. Row-variance ≫ column-variance is the brush
+  signature (unit-tested). `furnitureMaterials.ts:getMetalMaterial(color, finish, repeat)` builds it:
+  **under `pbrSurfaces`** a `MeshPhysicalMaterial` with the shared brush normal + roughness-streak
+  maps (one 256² singleton via `getBrushedMetalMaps`, cloned per material) + three.js `anisotropy`
+  (swept highlight, `anisotropyRotation = 0` so the sweep follows the U hairlines); finishes
+  `stainless`/`satin`/`black-steel` pick the metalness/roughness + brush/anisotropy preset (tint from
+  the caller). Flag **off** → a plain `MeshStandardMaterial` (legacy flat steel, no maps). Tasteful,
+  not chrome-mirror; cached per `(finish, color, repeat)`. The roughness map is a multiplier centred
+  on 1 (mean-preserving). Keep it **subtle** (`DEFAULT_BRUSH_PARAMS`; `streak: 0` collapses to plain
+  metal). Albedo/tint sRGB, normal/roughness linear. The 8 appliance primitives wire to it via
+  `furniture/primitives/shared.tsx:applianceBody` (steel body → shared material; non-steel unchanged).
 - **Uploaded-material persistence (`upload/persist.ts`)**: each channel blob is one IDB record;
   the material's full identity/appearance (`name`, `category`, `swatch`, `uvScaleX`/`uvScaleY`
   — `uvScale` is stored as two scalars since IDB `meta` values can't be arrays) is stamped on

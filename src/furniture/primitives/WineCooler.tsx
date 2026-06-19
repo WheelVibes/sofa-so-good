@@ -1,6 +1,11 @@
-import { applianceFinish } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
-import { readNum, readStr } from './shared'
+import {
+  ApplianceBodyMaterial,
+  applianceBody,
+  applianceBodyMeshProps,
+  readNum,
+  readStr,
+} from './shared'
 
 /**
  * Wine / beverage cooler: a slim under-counter (or freestanding) appliance with a
@@ -14,16 +19,16 @@ export function WineCooler({ props }: { props: ParamProps }) {
   const finish = readStr(props, 'finish', 'steel')
   const d = 0.58
   const h = 0.82
-  const body = { color, ...applianceFinish(finish) }
+  const body = applianceBody(color, finish)
   const steel = { color: '#9a9ea3', roughness: 0.3, metalness: 0.75 } as const
   const shelves = Math.max(3, Math.round(h / 0.13))
 
   return (
     <group>
       {/* Carcass */}
-      <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
+      <mesh {...applianceBodyMeshProps(body)} castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial {...body} />
+        <ApplianceBodyMaterial finish={body} />
       </mesh>
       {/* Interior back panel with a faint cool LED glow */}
       <mesh position={[0, h / 2, -d / 2 + 0.03]}>
