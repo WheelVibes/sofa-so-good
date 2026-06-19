@@ -7,6 +7,10 @@ import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { boxEdges, useDisposeGeometry } from '../geometryUtil'
 
+/** Stable empty result so the selector returns the SAME reference when nothing is
+ *  selected (useShallow no-op) and skips the per-change items scan (PERF-007). */
+const NO_ITEMS: FurnitureItem[] = []
+
 const OUTLINE_COLOR_DEFAULT = '#3b82f6'
 const OUTLINE_COLOR_VALID = '#22c55e'
 const OUTLINE_COLOR_INVALID = '#ef4444'
@@ -108,10 +112,15 @@ function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
 export function SelectionOutline() {
   const ids = useStore(useShallow((s) => s.selectedItemIds))
   // Skip hidden items — no outline floating over a piece that isn't rendered.
+  // Short-circuit when nothing is selected (the common case) so a store change
+  // doesn't scan all items; otherwise filter via Sets (O(n), not O(n·m)) — PERF-007.
   const items = useStore(
-    useShallow((s) =>
-      s.items.filter((i) => s.selectedItemIds.includes(i.id) && !s.hiddenItemIds.includes(i.id)),
-    ),
+    useShallow((s) => {
+      if (s.selectedItemIds.length === 0) return NO_ITEMS
+      const sel = new Set(s.selectedItemIds)
+      const hidden = new Set(s.hiddenItemIds)
+      return s.items.filter((i) => sel.has(i.id) && !hidden.has(i.id))
+    }),
   )
   const draggingItemId = useStore((s) => s.draggingItemId)
   const dragGroupIds = useStore(useShallow((s) => s.dragGroupOriginals.map((g) => g.id)))

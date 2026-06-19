@@ -86,8 +86,9 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 | 47 | **BUG-012** | Possible swallowed `TransactionInactiveError` in pano cache write | LOW (rare, swallowed) | S | `ui/panorama/panoImageIdb.ts` | `cg-panoidb` |
 
 **Do NOT preemptively fix (audit verdict):** PERF-006 (`moveItem`/`rotateItem` array rebuild —
-acceptable at design scale, explicitly "don't fix preemptively"), PERF-007 (`SelectionOutline`
-selector — minor). Listed in the perf doc as monitor-only.
+acceptable at design scale, explicitly "don't fix preemptively"). Listed in the perf doc as
+monitor-only. *(PERF-007 `SelectionOutline` selector — DONE v0.2.0.29: empty-selection short-circuit +
+Set lookups.)*
 
 ### Blocked — DO NOT dispatch headless (need a real GPU or backend)
 

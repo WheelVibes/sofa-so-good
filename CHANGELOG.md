@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Perf: short-circuit the SelectionOutline selector when nothing is selected (PERF-007) (v0.2.0.29)
+
+`SelectionOutline`'s selector ran `s.items.filter(i => selectedItemIds.includes(i.id) && !hiddenItemIds
+.includes(i.id))` on *every* store change (incl. each drag setter) — an O(n·m) scan even with no
+selection. It now returns a stable empty array immediately when nothing is selected (the common case,
+so an idle scene's store churn does no scan), and otherwise filters via `Set` lookups (O(n)). Same
+result; existing selection tests stay green.
+
 ## a11y: UploadModelDialog dialog role + focus management (UX-003) (v0.2.0.28)
 
 The model-upload dialog (a 560px custom flex panel with drag-drop zones, scan progress, and per-group
