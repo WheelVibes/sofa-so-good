@@ -46,3 +46,7 @@ docs/developer/.vitepress/dist
 
 # Claude Code harness (agent worktrees, local settings) — transient, never commit
 .claude/
+
+# Python bytecode cache (dev-only scraper scripts in research/scrapers)
+__pycache__/
+*.pyc
