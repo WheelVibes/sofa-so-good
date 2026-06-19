@@ -1,6 +1,7 @@
 import { RoundedBox } from '@react-three/drei'
 import { getFabricMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 interface BedProps {
@@ -47,18 +48,29 @@ export function Bed({ props }: BedProps) {
       {baseStyle === 'platform' ? (
         <>
           {/* Wide low platform extending past the mattress as a ledge */}
-          <mesh castShadow receiveShadow position={[0, frameH * 0.4, 0]} material={frameMat}>
-            <boxGeometry args={[width + 0.2, frameH * 0.8, length + 0.2]} />
-          </mesh>
+          <BeveledBox
+            castShadow
+            receiveShadow
+            position={[0, frameH * 0.4, 0]}
+            material={frameMat}
+            args={[width + 0.2, frameH * 0.8, length + 0.2]}
+          />
           {/* Inset riser the mattress rests on, keeping mattress height */}
-          <mesh castShadow position={[0, frameH * 0.85, 0]} material={frameMat}>
-            <boxGeometry args={[width, frameH * 0.3, length]} />
-          </mesh>
+          <BeveledBox
+            castShadow
+            position={[0, frameH * 0.85, 0]}
+            material={frameMat}
+            args={[width, frameH * 0.3, length]}
+          />
         </>
       ) : (
-        <mesh castShadow receiveShadow position={[0, frameH / 2, 0]} material={frameMat}>
-          <boxGeometry args={[width, frameH, length]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, frameH / 2, 0]}
+          material={frameMat}
+          args={[width, frameH, length]}
+        />
       )}
       {/* Storage drawers along the +X long side (foot half) */}
       {baseStyle === 'storage' &&
@@ -159,13 +171,12 @@ export function Bed({ props }: BedProps) {
           })()}
         </group>
       ) : (
-        <mesh
+        <BeveledBox
           castShadow
           position={[0, headboardH / 2, -length / 2 + headboardThickness / 2]}
           material={frameMat}
-        >
-          <boxGeometry args={[width + 0.04, headboardH, headboardThickness]} />
-        </mesh>
+          args={[width + 0.04, headboardH, headboardThickness]}
+        />
       )}
     </group>
   )

@@ -5,6 +5,7 @@ import {
   getWoodMaterial,
 } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /**
@@ -32,12 +33,20 @@ export function Bench({ props }: { props: ParamProps }) {
     const lid = getUpholsteryMaterial(material, color, sheen)
     return (
       <group>
-        <mesh castShadow receiveShadow position={[0, plinthH / 2, 0.01]} material={box}>
-          <boxGeometry args={[width - 0.06, plinthH, depth - 0.06]} />
-        </mesh>
-        <mesh castShadow receiveShadow position={[0, plinthH + boxH / 2, 0]} material={box}>
-          <boxGeometry args={[width, boxH, depth]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, plinthH / 2, 0.01]}
+          material={box}
+          args={[width - 0.06, plinthH, depth - 0.06]}
+        />
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, plinthH + boxH / 2, 0]}
+          material={box}
+          args={[width, boxH, depth]}
+        />
         <RoundedBox
           args={[width + 0.02, 0.06, depth + 0.02]}
           radius={0.02}
@@ -90,9 +99,13 @@ export function Bench({ props }: { props: ParamProps }) {
       )}
       {xs.map((x) =>
         zs.map((z) => (
-          <mesh key={`${x}.${z}`} castShadow position={[x, legH / 2, z]} material={legMat}>
-            <boxGeometry args={[legT, legH, legT]} />
-          </mesh>
+          <BeveledBox
+            key={`${x}.${z}`}
+            castShadow
+            position={[x, legH / 2, z]}
+            material={legMat}
+            args={[legT, legH, legT]}
+          />
         )),
       )}
     </group>

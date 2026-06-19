@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /** Single-over-single bunk bed: four posts, two mattress platforms, an end
@@ -35,9 +36,13 @@ export function BunkBed({ props }: { props: ParamProps }) {
     return (
       <group>
         {/* Slat base */}
-        <mesh castShadow receiveShadow position={[0, y, 0]} material={frame}>
-          <boxGeometry args={[W - postR, 0.05, L - postR]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, y, 0]}
+          material={frame}
+          args={[W - postR, 0.05, L - postR]}
+        />
         {/* Mattress */}
         <mesh castShadow receiveShadow position={[0, y + 0.03 + mattT / 2, 0]}>
           <boxGeometry args={[W - 0.1, mattT, L - 0.1]} />
@@ -63,22 +68,24 @@ export function BunkBed({ props }: { props: ParamProps }) {
       {/* Side rails at both levels (long sides) */}
       {[lowerY, upperY].map((y) =>
         [-1, 1].map((sx) => (
-          <mesh
+          <BeveledBox
             key={`${y}.${sx}`}
             castShadow
             position={[sx * (W / 2 - postR), y, 0]}
             material={frame}
-          >
-            <boxGeometry args={[0.04, 0.08, L - postR]} />
-          </mesh>
+            args={[0.04, 0.08, L - postR]}
+          />
         )),
       )}
       <Platform y={lowerY} color={lowerBed} />
       <Platform y={upperY} color={upperBed} />
       {/* Upper-bunk guardrail on the +X side, spanning the head half */}
-      <mesh castShadow position={[W / 2 - postR, upperY + 0.28, -L / 4]} material={frame}>
-        <boxGeometry args={[0.04, 0.04, L / 2]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        position={[W / 2 - postR, upperY + 0.28, -L / 4]}
+        material={frame}
+        args={[0.04, 0.04, L / 2]}
+      />
       {[-L / 2 + 0.1, 0].map((z, i) => (
         <mesh
           key={`gr${i}`}

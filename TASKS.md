@@ -139,8 +139,7 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PHOTO-PBR + PHOTO-KTX2: real 2K CC0 PBR maps (Poly Haven/ambientCG) over procedural fallback;
   un-stub `lib/ktx2encode.ts` with `ktx2-encoder` (basis WASM now exists — stale assumption) to ship
   KTX2 in prod (ETC1S albedo / UASTC normal+ORM).
-- [ ] PHOTO-DETAIL: set-dressing prop pack (books/cushions/plants — biggest perceived-realism lever)
-  + edge bevels (RoundedBox) on hard primitives.
+- [ ] PHOTO-DETAIL: set-dressing prop pack (books/cushions/plants — biggest perceived-realism lever); edge-bevel rollout is complete (see RZ3/PHOTO-BEVELS).
 - [ ] PHOTO-EMISSIVE tail: real-GPU pass to tune the bloom look on High/Max for the boosted fixtures
   (intensities now clear the 1.05 threshold; the flat-tier self-lit read is verified, the bloom amount
   needs a GPU eye). Base wiring shipped — see CHANGELOG.
@@ -208,11 +207,10 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   (`apartment/Window.tsx`) AND custom-plan windows (`PlanShell` `FadeWindow`: daylight day/night tint +
   sky-catch emissive). Tail: room-editor glass (`PlanRoomShell`, separate lightweight canvas) + wire
   `getGlassMaterial`/`glassConfig` transmission on High+ (real-GPU verify).
-- [~] RZ3/PHOTO-BEVELS: beveled edges via shared `BeveledBox` helper — tables/desk +
-  freestanding case goods done (CoffeeTable/DiningTable/ConsoleTable/Desk/Sideboard/Dresser/TVConsole/
-  Nightstand) + Bookshelf/Wardrobe carcasses + parametric kitchen CabinetModule (base/wall/tall:
-  carcass/doors/drawers/countertop). Remaining: ShoeCabinet/WallCabinet/CabinetCorner + appliances;
-  edge light-catch real-GPU-pending.
+- [~] RZ3/PHOTO-BEVELS: edge-bevel rollout complete for all appropriate box-built case goods and structural
+  panels (KitchenCounter, KitchenIsland, ShoeCabinet, WallCabinet, Vanity, ChangingTable, WallShelf, Bench,
+  Bed, ToddlerBed, BunkBed, Staircase treads/landings — plus prior case goods). Remaining: edge light-catch
+  real-GPU verify pass.
 - [~] RZ5: painted-trim realism — baseboard + crown molding now bevel their edges in BOTH the fixed
   apartment (`WallSegment`) and custom plans (`PlanShell` skirting + crown), so trim catches a highlight
   (light-catch real-GPU-pending). Remaining: skirting-floor seam AO + painted-trim wear.

@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 import { buildVanity, VANITY_TABLE_H, type VanityLayoutKind } from './vanityLayout'
@@ -45,16 +46,24 @@ export function Vanity({ props }: { props: ParamProps }) {
     <group>
       {/* Base: tabletop + supports (legs/pedestals) + aprons, from vanityLayout */}
       {[base.top, ...base.supports, ...base.aprons].map((p) => (
-        <mesh key={p.key} castShadow receiveShadow position={[p.x, p.y, p.z]} material={wood}>
-          <boxGeometry args={[p.w, p.h, p.d]} />
-        </mesh>
+        <BeveledBox
+          key={p.key}
+          castShadow
+          receiveShadow
+          position={[p.x, p.y, p.z]}
+          material={wood}
+          args={[p.w, p.h, p.d]}
+        />
       ))}
       {/* Drawer fronts + a knob each */}
       {base.drawerFronts.map((p) => (
         <group key={p.key}>
-          <mesh castShadow position={[p.x, p.y, p.z]} material={wood}>
-            <boxGeometry args={[p.w, p.h, p.d]} />
-          </mesh>
+          <BeveledBox
+            castShadow
+            position={[p.x, p.y, p.z]}
+            material={wood}
+            args={[p.w, p.h, p.d]}
+          />
           <mesh position={[p.x, p.y, p.z + p.d / 2 + 0.01]}>
             <sphereGeometry args={[0.014, 10, 8]} />
             <meshStandardMaterial color="#b08d57" roughness={0.4} metalness={0.7} />
@@ -73,16 +82,16 @@ export function Vanity({ props }: { props: ParamProps }) {
             <meshStandardMaterial {...glass} />
           </mesh>
           {/* support post — bridges the table top up to the mirror centre */}
-          <mesh position={[0, -(mY - tableH) / 2, 0]} material={wood}>
-            <boxGeometry args={[0.03, mY - tableH, 0.03]} />
-          </mesh>
+          <BeveledBox
+            position={[0, -(mY - tableH) / 2, 0]}
+            material={wood}
+            args={[0.03, mY - tableH, 0.03]}
+          />
         </group>
       ) : mirror === 'rect' ? (
         // Frame rests directly on the tabletop (no floating gap).
         <group position={[0, tableH + mH / 2, -depth / 2 + 0.05]}>
-          <mesh castShadow material={wood}>
-            <boxGeometry args={[mW, mH, 0.04]} />
-          </mesh>
+          <BeveledBox castShadow material={wood} args={[mW, mH, 0.04]} />
           <mesh position={[0, 0, 0.025]}>
             <planeGeometry args={[mW - 0.06, mH - 0.06]} />
             <meshStandardMaterial {...glass} />

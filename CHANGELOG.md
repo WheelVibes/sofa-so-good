@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Edge-bevel rollout: remaining box-built case goods and structural panels (v0.1.0.3)
+
+Extended the `BeveledBox` chamfer (7 mm auto-clamped radius) to all remaining hard-edged,
+box-built furniture primitives where a subtle bevel is physically realistic:
+**KitchenCounter** (carcass, worktop slabs, drawer/door fronts),
+**KitchenIsland** (base cabinet, door fronts, worktop),
+**ShoeCabinet** (carcass, flip fronts, top lip),
+**WallCabinet** (carcass, door fronts),
+**Vanity** (tabletop, pedestal supports, aprons, drawer fronts, rect mirror frame, round mirror post),
+**ChangingTable** (carcass, drawer fronts),
+**WallShelf** (planks, two-tier end panels),
+**Bench** (storage box and plinth, slim wood legs),
+**Bed** (frame for standard/platform styles, non-upholstered headboard/footboard panels),
+**ToddlerBed** (headboard, footboard, slatted base),
+**BunkBed** (slat platforms, side rails, upper guardrail bar),
+**Staircase** (tread and landing parts only — risers and railing posts left sharp).
+Skipped: appliances (Refrigerator/Oven/Stove/Microwave/WashingMachine/Dishwasher/RangeHood — intentionally
+crisp industrial edges), BarCart (cylindrical posts, thin glass shelves), Ottoman (already RoundedBox),
+Bench upholstered/slat tops (already RoundedBox), CubeShelf/ToyStorage (use InstancedBoxes which has no
+BeveledBox path), Crib (thin slats/posts — bevel would clip), upholstered/fabric forms, mirrors, screens.
+
 ## Floor-plan editor: binding edits, stray-element flags, skeleton view + touch fixes
 
 A batch of floor-plan-editor fixes so plan edits are real, the apartment can be

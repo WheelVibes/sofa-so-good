@@ -1,5 +1,6 @@
 import { getFabricMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readStr } from './shared'
 
 /**
@@ -34,9 +35,13 @@ export function ToddlerBed({ props }: { props: ParamProps }) {
       {leg(-legX, legZ)}
       {leg(legX, legZ)}
       {/* Low slatted base */}
-      <mesh castShadow receiveShadow position={[0, frameY + 0.025, 0]} material={frameMat}>
-        <boxGeometry args={[w, 0.05, len]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, frameY + 0.025, 0]}
+        material={frameMat}
+        args={[w, 0.05, len]}
+      />
       {/* Mattress + bedding */}
       <mesh castShadow receiveShadow position={[0, mattressY, 0.03]}>
         <boxGeometry args={[w - 0.08, 0.14, len - 0.12]} />
@@ -48,12 +53,20 @@ export function ToddlerBed({ props }: { props: ParamProps }) {
         <primitive object={beddingMat} attach="material" />
       </mesh>
       {/* Headboard (tall) + footboard (low) */}
-      <mesh castShadow receiveShadow position={[0, 0.42, -len / 2 + 0.025]} material={frameMat}>
-        <boxGeometry args={[w, 0.52, 0.05]} />
-      </mesh>
-      <mesh castShadow receiveShadow position={[0, 0.28, len / 2 - 0.025]} material={frameMat}>
-        <boxGeometry args={[w, 0.24, 0.05]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, 0.42, -len / 2 + 0.025]}
+        material={frameMat}
+        args={[w, 0.52, 0.05]}
+      />
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, 0.28, len / 2 - 0.025]}
+        material={frameMat}
+        args={[w, 0.24, 0.05]}
+      />
       {/* Safety side rails over the head-half of each side */}
       {[-1, 1].map((s) => (
         <mesh

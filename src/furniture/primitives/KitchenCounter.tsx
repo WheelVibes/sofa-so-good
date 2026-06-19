@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 interface KitchenCounterProps {
@@ -48,9 +49,11 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
             const y = 0.03 + dh / 2 + r * (dh + 0.02)
             return (
               <group key={r}>
-                <mesh position={[x, y, depth / 2 - 0.005]} material={cabMat}>
-                  <boxGeometry args={[cabW, dh, 0.016]} />
-                </mesh>
+                <BeveledBox
+                  position={[x, y, depth / 2 - 0.005]}
+                  material={cabMat}
+                  args={[cabW, dh, 0.016]}
+                />
                 <mesh position={[x, y, depth / 2 + 0.01]}>
                   <boxGeometry args={[cabW * 0.4, 0.016, 0.018]} />
                   <meshStandardMaterial {...handleMat} />
@@ -63,9 +66,11 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
     }
     return (
       <group key={i}>
-        <mesh position={[x, cabinetH / 2, depth / 2 - 0.005]} material={cabMat}>
-          <boxGeometry args={[cabW, frontH, 0.016]} />
-        </mesh>
+        <BeveledBox
+          position={[x, cabinetH / 2, depth / 2 - 0.005]}
+          material={cabMat}
+          args={[cabW, frontH, 0.016]}
+        />
         {/* Shaker rails: a recessed panel framed by four thin proud borders */}
         {frontStyle === 'shaker' &&
           [
@@ -95,9 +100,13 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
   return (
     <group>
       {/* Base cabinet */}
-      <mesh castShadow receiveShadow position={[0, cabinetH / 2, 0]} material={cabMat}>
-        <boxGeometry args={[length, cabinetH, depth]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, cabinetH / 2, 0]}
+        material={cabMat}
+        args={[length, cabinetH, depth]}
+      />
       {/* Cabinet fronts (slab / shaker / drawers) */}
       {Array.from({ length: cabs }, (_, i) => {
         const x = -length / 2 + cabGap + cabW / 2 + i * (cabW + cabGap)
@@ -118,16 +127,16 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
           <meshStandardMaterial color={worktopColor} roughness={0.22} metalness={0.15} />
         )
         const topMesh = (key: string, x: number, z: number, w: number, d: number) => (
-          <mesh
+          <BeveledBox
             key={key}
             castShadow
             receiveShadow
             position={[x, topY, z]}
             material={worktopMat ?? undefined}
+            args={[w, topThickness, d]}
           >
-            <boxGeometry args={[w, topThickness, d]} />
             {worktopMat ? null : topMat}
-          </mesh>
+          </BeveledBox>
         )
 
         // Worktop: a single slab, or a frame around the sink cutout.
@@ -135,10 +144,15 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
         const rightW = length / 2 - (sx + ow / 2)
         const railD = (depth - od) / 2
         const worktop = !hasSink ? (
-          <mesh castShadow receiveShadow position={[0, topY, 0]} material={worktopMat ?? undefined}>
-            <boxGeometry args={[length, topThickness, depth]} />
+          <BeveledBox
+            castShadow
+            receiveShadow
+            position={[0, topY, 0]}
+            material={worktopMat ?? undefined}
+            args={[length, topThickness, depth]}
+          >
             {worktopMat ? null : topMat}
-          </mesh>
+          </BeveledBox>
         ) : (
           <group>
             {leftW > 0.002 && topMesh('l', -length / 2 + leftW / 2, 0, leftW, depth)}

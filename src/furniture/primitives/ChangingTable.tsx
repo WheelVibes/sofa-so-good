@@ -1,5 +1,6 @@
 import { getSurfaceMaterial, getUpholsteryMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /**
@@ -26,15 +27,21 @@ export function ChangingTable({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Carcass */}
-      <mesh castShadow receiveShadow position={[0, bodyH / 2, 0]} material={wood}>
-        <boxGeometry args={[width, bodyH, depth]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, bodyH / 2, 0]}
+        material={wood}
+        args={[width, bodyH, depth]}
+      />
       {base === 'drawers'
         ? [0, 1, 2].map((r) => (
             <group key={r}>
-              <mesh position={[0, 0.18 + r * 0.24, depth / 2 + 0.003]} material={wood}>
-                <boxGeometry args={[width - 0.06, 0.2, 0.02]} />
-              </mesh>
+              <BeveledBox
+                position={[0, 0.18 + r * 0.24, depth / 2 + 0.003]}
+                material={wood}
+                args={[width - 0.06, 0.2, 0.02]}
+              />
               <mesh position={[0, 0.18 + r * 0.24, depth / 2 + 0.02]}>
                 <boxGeometry args={[0.16, 0.016, 0.016]} />
                 <meshStandardMaterial {...metal} />
