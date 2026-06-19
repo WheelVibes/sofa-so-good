@@ -3,6 +3,7 @@ import { BackSide, MeshStandardMaterial } from 'three'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import type { CeilingConfig } from '../../floorplan/types'
 import { worldUvPlaneGeometry, worldUvShapeGeometry } from '../../materials/worldUv'
+import { useDisposeGeometry } from '../../scene/geometryUtil'
 import { RoomCeiling } from '../ceiling/RoomCeiling'
 
 /**
@@ -35,6 +36,10 @@ export function PlanRoomCeiling({ origin, width, depth, height, polygon, ceiling
     () => (isPoly ? worldUvShapeGeometry(polygon!) : worldUvPlaneGeometry(width, depth)),
     [isPoly, polygon, width, depth],
   )
+  // Geometry passed via `geometry=` isn't R3F-owned: dispose on change/unmount.
+  // (No-op when the designed-ceiling path below replaces the flat plane — the
+  // memo's geometry simply goes unused and is freed on the next change/unmount.)
+  useDisposeGeometry(geometry)
   // A designed ceiling (tray/coffered/dropped) replaces the flat plane.
   if (ceiling && ceiling.style !== 'flat' && isFeatureEnabled('ceilingDesign')) {
     const poly: [number, number][] = isPoly
