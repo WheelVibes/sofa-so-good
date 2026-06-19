@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Perf: lazy-load the Pro/analysis panels out of the boot bundle (PERF-004) (v0.2.0.12)
+
+The eight Pro/analysis panels — Budget, Clearance, Daylight, DesignScore, Comments,
+DrawingCallouts, Accessibility, Flags — were statically imported into `App.tsx`, so every first
+paint (including the Simple-tier casual user who never opens them) downloaded + parsed them and
+their pure cores (`designScore`/`accessibility`/`renovationCost`/`lighting2d`/SVG builders). They
+now load through the existing `lazyComponents.tsx` `lazyWithRetry` pattern: each mounts behind a
+`Suspense` boundary gated on its open flag (so the chunk leaves the entry bundle), and is added to
+`preloadOnIdle.ts` so it's idle-warmed + offline-ready + instant-open like every other on-demand
+chunk. `npm run build` confirms each panel + its analysis core split into its own async chunk.
+Verified the Budget panel opens + renders correctly from its lazy chunk.
+
 ## Fix: two IDB cache hazards — meta race + transaction reuse (BUG-011/012) (v0.2.0.11)
 
 - **BUG-011** — the remote-asset cache did `getMeta → mutate → setMeta` with awaits in between and

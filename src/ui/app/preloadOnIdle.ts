@@ -1,5 +1,13 @@
 import {
+  AccessibilityPanel,
+  BudgetPanel,
+  ClearancePanel,
+  CommentsPanel,
+  DaylightPanel,
+  DesignScorePanel,
+  DrawingCalloutsPanel,
   ElevationPanel,
+  FlagsPanel,
   FloorPlanEditor,
   GlbDesignerDialog,
   HistoryPanel,
@@ -48,6 +56,16 @@ const PRELOAD_ORDER: Preloadable[] = [
   HqRenderModal,
   RenderCompareModal,
   ProductTour,
+  // Pro/analysis panels (PERF-004): out of the boot bundle, idle-warmed so they
+  // open instantly + are offline-ready, like every other on-demand chunk.
+  BudgetPanel,
+  ClearancePanel,
+  DaylightPanel,
+  DesignScorePanel,
+  CommentsPanel,
+  DrawingCalloutsPanel,
+  AccessibilityPanel,
+  FlagsPanel,
 ]
 
 type IdleWindow = typeof globalThis & {
