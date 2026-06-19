@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Realism: auto-decor prop colour variety (RD-408) (v0.2.0.20)
+
+Repeated soft goods and books from the auto-styling pass were identical clones — multiple cushions on
+a sofa shared one fabric colour, books one spine colour. The clearest "auto-placed" tell.
+`applyDecorStyling` now draws a seeded colour from a curated per-prop `VARIETY` palette
+(throw-cushion/throw-blanket `color`, book-stack `spineColor`), offset by slot + a seeded start so
+adjacent same-type props differ and hosts vary. Stays pure/seedable/deterministic. Unit test asserts a
+3-seat sofa's cushions get ≥2 distinct colours (and the same seed reproduces them); verified the
+default flat's sofa now shows a terracotta + a blue-grey cushion instead of clones.
+
 ## Realism: PHOTO-BEVELS on appliance bodies — RD-407 complete (v0.2.0.19)
 
 Completes the bevel migration: all 8 appliance primitives (Refrigerator/WashingMachine/Dishwasher/

@@ -75,6 +75,27 @@ describe('applyDecorStyling', () => {
     expect(sofaDecor.length).toBeLessThanOrEqual(4)
   })
 
+  it('varies the colour of repeated soft-good props so they are not clones (RD-408)', () => {
+    // A 3-seat sofa gets multiple cushions; their fabric colour must vary.
+    const sofa = {
+      id: 'host-sofa',
+      defId: 'sofa-3seat' as const,
+      position: [2, 2] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const decor = applyDecorStyling([sofa], BUILTIN_CATALOG)
+    const cushions = decor.filter((d) => d.defId === 'throw-cushion')
+    expect(cushions.length).toBeGreaterThanOrEqual(2)
+    const colours = new Set(cushions.map((c) => c.props.color))
+    expect(colours.size).toBeGreaterThanOrEqual(2) // not identical clones
+    // Deterministic with the same seed.
+    const again = applyDecorStyling([sofa], BUILTIN_CATALOG)
+    expect(again.filter((d) => d.defId === 'throw-cushion').map((c) => c.props.color)).toEqual(
+      cushions.map((c) => c.props.color),
+    )
+  })
+
   it('respects the per-host-type ceiling even for huge hosts (RD408-001)', () => {
     // Per-type ceilings cap density regardless of how large a surface is.
     const sofa = {

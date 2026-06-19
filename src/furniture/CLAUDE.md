@@ -87,4 +87,7 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `applyDecorStylingForPlan` wraps it per-room. Both stay pure + seedable + deterministic →
   unit-testable. Wired into `furnishPlanItems` (`withDecor=true` by default); skip with
   `withDecor=false`. No feature flag — enriches the existing auto-furnish surface. Decor ids are
-  `decor-<hostId>-<propId>-<slot>`. (Hero/wall passes + weighted variety are future RD-408 tasks.)
+  `decor-<hostId>-<propId>-<slot>`. **Prop colour variety (RD-408):** repeated soft goods
+  (cushion/blanket `color`) + book stacks (`spineColor`) draw a seeded colour from a curated
+  `VARIETY` palette (offset by slot) so they aren't identical clones. (Hero/wall passes are still
+  future RD-408 tasks.)

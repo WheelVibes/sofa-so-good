@@ -28,6 +28,10 @@
  * Rotation (RD408-003): each prop gets a small seeded yaw jitter around the
  * host's facing so nothing is dead-square / obviously auto-placed.
  *
+ * Variety (RD-408): repeated soft goods (cushions/blankets) and book stacks draw
+ * a seeded colour from a curated palette (offset by slot) so a sofa's cushions or
+ * a shelf's books aren't identical clones — the clearest auto-placed tell.
+ *
  * Pure + deterministic (no store, no GPU) → unit-testable. Seedable via the
  * optional `seed` parameter so results are stable in tests.
  */
@@ -89,6 +93,25 @@ const HOST_MAX: Record<string, number> = {
   bookshelf: 3,
   'cube-shelf': 3,
   dresser: 2,
+}
+
+/** Curated, tasteful colour palettes for repeated soft-good / book props, so
+ *  multiple cushions on a sofa or books on a shelf vary instead of reading as
+ *  identical clones — the clearest "auto-placed" tell (RD-408 prop variety).
+ *  Keyed by prop id → the colour param to vary + its palette. */
+const VARIETY: Record<string, { key: string; palette: readonly string[] }> = {
+  'throw-cushion': {
+    key: 'color',
+    palette: ['#b08068', '#7a8a7c', '#9c6b5a', '#5f6b78', '#c2a878', '#86736a', '#6b8a86'],
+  },
+  'throw-blanket': {
+    key: 'color',
+    palette: ['#c4b49a', '#9aa6a0', '#b89a86', '#8a9aa6', '#cabfa6'],
+  },
+  'book-stack': {
+    key: 'spineColor',
+    palette: ['#7a4028', '#3b5a6b', '#5a6b3b', '#7d3b3b', '#b08a3e', '#3b6f6b', '#6b4a7d'],
+  },
 }
 
 // ── Host-surface definitions ─────────────────────────────────────────────────
@@ -317,6 +340,14 @@ export function applyDecorStyling(
 
       const baseProps: ParamProps = propDef.kind === 'parametric' ? defaultParamProps(propDef) : {}
       const props: ParamProps = { ...baseProps, surfaceHeight: topHeight }
+      // Seeded colour variety for repeated soft goods / books (RD-408): offset by
+      // the slot so adjacent same-type props differ, plus a seeded start so hosts
+      // aren't all identical.
+      const variety = VARIETY[propId]
+      if (variety) {
+        const pal = variety.palette
+        props[variety.key] = pal[(slot + Math.floor(rand() * pal.length)) % pal.length]
+      }
 
       const id = `decor-${host.id}-${propId}-${slot}`
       if (usedIds.has(id)) continue
