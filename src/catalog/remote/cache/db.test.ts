@@ -60,4 +60,17 @@ describe('cache/db', () => {
     expect(meta.totalBytes).toBeGreaterThan(0)
     expect(meta.entries.find((e) => e.key === 'polyhaven:a:2k')).toBeDefined()
   })
+
+  it('serializes concurrent cross-key puts without clobbering byte totals (BUG-011)', async () => {
+    const a: AssetBundle = { kind: 'material', channels: { albedo: blob('aaaa') } }
+    const b: AssetBundle = { kind: 'material', channels: { albedo: blob('bbbbbbbb') } }
+    // Resolve two different assets concurrently — the meta lock must keep both
+    // entries and a totalBytes equal to the sum of the two bundles.
+    await Promise.all([putAsset('polyhaven:a:2k', a), putAsset('polyhaven:b:2k', b)])
+    const meta = await getMeta()
+    expect(meta.entries).toHaveLength(2)
+    const sum = meta.entries.reduce((n, e) => n + e.bytes, 0)
+    expect(meta.totalBytes).toBe(sum)
+    expect(meta.totalBytes).toBeGreaterThan(0)
+  })
 })

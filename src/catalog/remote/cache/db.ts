@@ -102,6 +102,51 @@ async function setMeta(m: CacheMeta): Promise<void> {
   await set(META_KEY, m, metaStore)
 }
 
+// All meta mutations are read-modify-write cycles against the single META_KEY
+// record with awaits in between. The per-key `inFlight` dedup in
+// `resolveRemoteAsset` stops the *same*-key race, but two *different* assets
+// resolving concurrently (rapid clicks on two cards) could interleave
+// getMeta→setMeta and clobber each other's byte accounting. We serialize every
+// cycle through one in-module promise chain so they run strictly one-at-a-time
+// (BUG-011).
+let metaLock: Promise<unknown> = Promise.resolve()
+
+/** Run a meta read-modify-write atomically wrt other meta mutations: loads the
+ *  latest meta, lets `fn` mutate it (returning a value), then persists it. */
+function withMetaLock<T>(fn: (meta: CacheMeta) => T | Promise<T>): Promise<T> {
+  const run = metaLock.then(async () => {
+    const meta = await getMeta()
+    const result = await fn(meta)
+    await setMeta(meta)
+    return result
+  })
+  // Keep the chain alive even if a cycle rejects, so one failure can't wedge it.
+  metaLock = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
+}
+
+/** Non-locking core: record/update an asset's byte accounting in `meta`. */
+function applyPutMeta(meta: CacheMeta, key: string, bytes: number): void {
+  const idx = meta.entries.findIndex((e) => e.key === key)
+  if (idx >= 0) meta.totalBytes -= meta.entries[idx].bytes
+  meta.totalBytes += bytes
+  const entry = { key, bytes, lastAccessedAt: Date.now() }
+  if (idx >= 0) meta.entries[idx] = entry
+  else meta.entries.push(entry)
+}
+
+/** Non-locking core: drop an asset from `meta`; returns true if it was present. */
+function applyRemoveMeta(meta: CacheMeta, key: string): boolean {
+  const idx = meta.entries.findIndex((e) => e.key === key)
+  if (idx < 0) return false
+  meta.totalBytes -= meta.entries[idx].bytes
+  meta.entries.splice(idx, 1)
+  return true
+}
+
 function bundleBytes(b: AssetBundle): number {
   if (b.kind === 'material') {
     return Object.values(b.channels).reduce((a, c) => a + c.size, 0)
@@ -114,38 +159,41 @@ function bundleBytes(b: AssetBundle): number {
 
 export async function putAsset(key: string, bundle: AssetBundle): Promise<void> {
   await set(key, await serializeBundle(bundle), assetsStore)
-  const meta = await getMeta()
   const bytes = bundleBytes(bundle)
-  const idx = meta.entries.findIndex((e) => e.key === key)
-  if (idx >= 0) meta.totalBytes -= meta.entries[idx].bytes
-  meta.totalBytes += bytes
-  const entry = { key, bytes, lastAccessedAt: Date.now() }
-  if (idx >= 0) meta.entries[idx] = entry
-  else meta.entries.push(entry)
-  await setMeta(meta)
+  await withMetaLock((meta) => applyPutMeta(meta, key, bytes))
 }
 
 export async function getAsset(key: string): Promise<AssetBundle | undefined> {
   const raw = await get(key, assetsStore)
   if (!raw) return undefined
-  const meta = await getMeta()
-  const e = meta.entries.find((x) => x.key === key)
-  if (e) {
-    e.lastAccessedAt = Date.now()
-    await setMeta(meta)
-  }
+  await withMetaLock((meta) => {
+    const e = meta.entries.find((x) => x.key === key)
+    if (e) e.lastAccessedAt = Date.now()
+  })
   return deserializeBundle(raw)
 }
 
 export async function deleteAsset(key: string): Promise<void> {
-  const meta = await getMeta()
-  const idx = meta.entries.findIndex((e) => e.key === key)
-  if (idx >= 0) {
-    meta.totalBytes -= meta.entries[idx].bytes
-    meta.entries.splice(idx, 1)
-    await setMeta(meta)
-  }
+  await withMetaLock((meta) => applyRemoveMeta(meta, key))
   await del(key, assetsStore)
+}
+
+/** Evict least-recently-used assets until the total is ≤ `capBytes`. The meta
+ *  accounting + selection happen in one locked cycle (so it can't race a
+ *  concurrent put), then the chosen blobs are removed from the asset store. */
+export async function evictAssetsUntilUnder(capBytes: number): Promise<void> {
+  const toDelete = await withMetaLock((meta) => {
+    if (meta.totalBytes <= capBytes) return [] as string[]
+    const sorted = [...meta.entries].sort((a, b) => a.lastAccessedAt - b.lastAccessedAt)
+    const deleted: string[] = []
+    for (const e of sorted) {
+      if (meta.totalBytes <= capBytes) break
+      applyRemoveMeta(meta, e.key)
+      deleted.push(e.key)
+    }
+    return deleted
+  })
+  for (const key of toDelete) await del(key, assetsStore)
 }
 
 export async function listAssetKeys(): Promise<string[]> {

@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: two IDB cache hazards — meta race + transaction reuse (BUG-011/012) (v0.2.0.11)
+
+- **BUG-011** — the remote-asset cache did `getMeta → mutate → setMeta` with awaits in between and
+  no locking, so two *different* assets resolving concurrently (rapid clicks on two cards) could
+  interleave and clobber each other's byte accounting (`remoteCacheBytes`/LRU drift). All meta
+  read-modify-write cycles (`putAsset`/`getAsset`/`deleteAsset`/eviction) now run through one
+  in-module promise chain (`withMetaLock`), and `evictUntilUnder` delegates to a new atomic
+  `evictAssetsUntilUnder` that selects + accounts evictions in a single locked cycle. Adds a
+  concurrent-put test asserting `totalBytes` equals the sum of both bundles.
+- **BUG-012** — `putPanoCached` (and `evictPanoStop`) reused one IDB store handle across an `await`
+  (put→getAll→delete), risking `TransactionInactiveError` once IDB auto-commits the transaction. Each
+  now opens a fresh transaction per phase and issues the deletes without awaiting between them. Adds
+  an over-cap eviction test that exercises the path without throwing.
+
 ## Fix: sloped walls honour per-wall + plan-wide thickness (BUG-009) (v0.2.0.10)
 
 `slopedWallTriangles` derived its prism thickness from a hardcoded 0.2 m external / 0.1 m internal,
