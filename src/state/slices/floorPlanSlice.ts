@@ -388,6 +388,10 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     }))
   },
   newFloorPlan: (name = 'New apartment') => {
+    // Snapshot first so starting a blank plan is undoable — consistent with
+    // resetFloorPlan / loadSavedPlan; otherwise the prior plan is lost with no
+    // way back (BUG-013).
+    get().pushHistory()
     const fresh = blankPlan(name)
     set((s) => ({
       floorPlan: fresh,

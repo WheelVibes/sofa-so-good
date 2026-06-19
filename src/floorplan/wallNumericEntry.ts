@@ -87,6 +87,9 @@ export function parseLengthInput(raw: string): number | null {
 export function parseAngleInput(raw: string): number | null {
   const s = raw.trim()
   if (!s) return null
+  // Anchored so trailing garbage is rejected (NaN) rather than silently parsed,
+  // e.g. "90xyz"/"45 deg!"/"90o" — matching parseLengthInput's strictness (BUG-010).
+  if (!/^-?\d+(\.\d+)?$/.test(s)) return NaN
   const n = parseFloat(s)
   if (Number.isNaN(n)) return NaN
   // Normalise to [0, 360)

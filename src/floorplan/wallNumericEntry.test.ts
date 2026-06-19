@@ -140,6 +140,13 @@ describe('parseAngleInput', () => {
   it('returns NaN for invalid strings', () => {
     expect(parseAngleInput('abc')).toBeNaN()
   })
+
+  it('rejects trailing garbage instead of silently parsing it (BUG-010)', () => {
+    expect(parseAngleInput('90xyz')).toBeNaN()
+    expect(parseAngleInput('45 deg!')).toBeNaN()
+    expect(parseAngleInput('90o')).toBeNaN()
+    expect(parseAngleInput('3.5abc')).toBeNaN()
+  })
 })
 
 describe('validateLength', () => {

@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: strict angle parse + make "New apartment" undoable (BUG-010/013) (v0.2.0.8)
+
+- **BUG-010** — `parseAngleInput` ran `parseFloat` on the raw string, so trailing garbage
+  ("90xyz", "45 deg!", "90o", "3.5abc") silently parsed to a number instead of erroring. It now
+  anchors an exact numeric regex (`^-?\d+(\.\d+)?$`) before parsing — matching `parseLengthInput`'s
+  strictness — returning `NaN` for any unrecognised input so `validateAngle` can flag it.
+- **BUG-013** — `newFloorPlan` replaced the whole plan without snapshotting history, so "New
+  apartment" was not undoable and silently discarded the prior design. It now calls `pushHistory()`
+  before swapping in the blank plan, so a single undo fully restores the prior plan.
+- Tests: trailing-garbage rejection cases in `wallNumericEntry.test.ts`; an undo-restores-prior-plan
+  case in `floorPlanSlice.history.test.ts`.
+
 ## Fix: catch failed remote-asset downloads in RemoteCard (BUG-005) (v0.2.0.7)
 
 `resolveRemoteAsset` sets the card status to `'error'` (showing "Retry") and rethrows for its
