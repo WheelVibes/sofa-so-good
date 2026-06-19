@@ -255,7 +255,7 @@ serialize**; different groups run in parallel.
 
 | ID | One-line | Effort | Files touched | Conflict group | Depends on |
 |----|----------|--------|---------------|----------------|------------|
-| **MAT-001** | Stone/marble: vein normal-relief + polished roughness drift (Path A + Path B) | M | `procedural/patterns/stone.ts`, `furnitureMaterials.ts` (getMarbleMaps), `generators.test.ts` | **G-stone** (`stone.ts`) + **G-furnmat** (`furnitureMaterials.ts`) + **G-gentest** (`generators.test.ts`) | RD-401 landed |
+| **MAT-001** ✅ | Stone/marble: vein normal-relief + polished roughness drift (Path A + Path B) | M | `procedural/patterns/stone.ts`, **`procedural/stoneSurface.ts` (new)** + its test, `furnitureMaterials.ts` (getMarbleMaps/getStoneMaterial), `generators.test.ts`, `stoneRoughDrift.test.ts` (new) | **G-stone** (`stone.ts`) + **G-furnmat** (`furnitureMaterials.ts`) + **G-gentest** (`generators.test.ts`) | RD-401 landed |
 | **MAT-002** ✅ | Tile/ceramic: glaze orange-peel micro-normal + glaze↔grout roughness contrast | S | `procedural/patterns/tile.ts`, **`procedural/tileSurface.ts` (new)** + its test, `generators.test.ts` | **G-tile** (`tile.ts`) + **G-gentest** | RD-401 landed |
 | **MAT-003** | Plaster: roller-nap roughness drift in `plasterFields` (+ doc the singleton-flat split) | S | `procedural/patterns/wall.ts`, `generators.test.ts` | **G-wall** (`wall.ts`) + **G-gentest** | RD-401 landed |
 | **MAT-004** | Brushed-metal: `metalBrush.ts` field helper + `getMetalMaterial` (physical+anisotropy), flag-gated | M | `procedural/metalBrush.ts` (new), `procedural/metalBrush.test.ts` (new), `furnitureMaterials.ts` (getMetalMaterial + brush singleton) | **G-furnmat** (`furnitureMaterials.ts`) | RD-401 landed |

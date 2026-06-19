@@ -272,7 +272,12 @@ same change that reshapes a system.
   micro-detail from the pure `procedural/tileSurface.ts` (MAT-002): a fine face-only orange-peel
   micro-normal (`makeGlazePeel`) + an explicit glaze↔grout roughness contrast (`glazeRoughness`)
   that rides each painter's own grout grid so it aligns with the visible joints; Path-A, all-tier,
-  no flag, tasteful defaults.
+  no flag, tasteful defaults. Stone/marble (MAT-001) get their micro-detail from the pure
+  `procedural/stoneSurface.ts`: a vein normal-relief (`veinHeight`) driven by the caller's OWN vein
+  mask (so the relief aligns with the visible albedo veins) + a broad polished roughness drift
+  (`makeRoughDrift`). Wired into Path A (`patterns/stone.ts:marbleFields`, all-tier, no flag) and
+  Path B (`getMarbleMaps`/`getStoneMaterial` — the shared marble singleton gains a roughness-drift
+  map gated behind `pbrSurfaces`; off → legacy uniform polish).
 - **Material realism** (`materials/materialRealism.ts`, pure): `sheenLayer`(velvet/satin/leather)
   + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
   `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real

@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Stone/marble micro-detail — vein normal-relief + polished roughness drift (MAT-001)
+
+Polished stone/marble read as a flat specular plane. New pure, deterministic, worker-safe helper
+`src/materials/procedural/stoneSurface.ts` adds the two cues real polished slabs carry, mirroring
+the tile/upholstery pattern (`tileSurface.ts` / `upholsterySeams.ts`): a **vein normal-relief**
+(`veinHeight(veinMask, veinRelief)` — a shallow, tunable height lift driven by the SAME vein mask
+the painter already uses for the albedo, so the baked normal catches grazing light exactly where
+the visible veins are) and a **polished roughness drift** (`makeRoughDrift(seed, roughDrift)` — a
+broad, low-freq, signed roughness delta so the polish is non-uniform glossier/honed patches rather
+than a dead-uniform mirror). Wired into both material paths:
+- **Path A** (`procedural/patterns/stone.ts:marbleFields`): the inline `veinMask * 0.4` height is
+  now routed through `veinHeight` (same value, but tunable + documented — no double-relief), and
+  the broad polished drift is added to the existing micro-roughness break-up. Rides the existing
+  procedural maps on all tiers (cheap, no new flag — like the RZ4 micro-detail).
+- **Path B** (`furnitureMaterials.ts:getMarbleMaps`/`getStoneMaterial`): the shared marble
+  singleton gains a **roughness drift map**, gated behind `pbrSurfaces` (the realism flag, same
+  gate as the existing PR6 tonal cloud); when off, the legacy uniform polish (no rough map) is
+  unchanged. The drift map is a multiplier clamped ≤ 1 so it only ever makes patches a touch
+  glossier than the polished base — never matter (no regression). The vein normal-relief on the
+  singleton already followed both visible vein networks and is left as-is.
+
+Tasteful by default (`DEFAULT_STONE_SURFACE_PARAMS = { veinRelief: 1, roughDrift: 1 }`;
+`veinRelief: 0` drops the relief, `roughDrift: 0` collapses the drift). Albedo stays sRGB;
+normal/roughness linear. No geometry, so nothing to z-fight. Unit-tested: `stoneSurface.test.ts`
+(vein-relief proportionality/intensity, drift determinism/bounds/±sign, clean `0` disable),
+`generators.test.ts` (marble normal non-flat along veins, roughness spread, determinism),
+`stoneRoughDrift.test.ts` (rough-map present under `pbrSurfaces`, absent when off — both modes).
+
 ## Tile/ceramic glaze micro-detail — orange-peel micro-normal + glaze↔grout roughness contrast (MAT-002) (v0.1.0.42)
 
 Glazed tile/ceramic surfaces read flat. New pure, deterministic, worker-safe helper

@@ -1,6 +1,7 @@
 /** Stone / mineral procedural patterns (concrete, marble, terrazzo). */
 import { blank, type Fields, setPx, shade } from '../fieldKit'
 import { clamp01, makeFbm, mulberry32 } from '../noise'
+import { DEFAULT_STONE_SURFACE_PARAMS, makeRoughDrift, veinHeight } from '../stoneSurface'
 
 export function concreteFields(base: [number, number, number], seed: number, S: number): Fields {
   const f = blank(S)
@@ -45,6 +46,11 @@ export function marbleFields(base: [number, number, number], seed: number, S: nu
   // Polished marble still has faint smudge/wipe variation in its sheen — a fine
   // roughness break-up so it doesn't read as a dead-uniform mirror (RZ4).
   const microRough = makeFbm(seed + 53, 3, 70)
+  // MAT-001 — broad low-frequency polished/honed drift so the slab isn't a
+  // single flat specular plane (uneven polish patches). Distinct seed offset
+  // (+89) so it doesn't correlate with the vein / fine / micro-rough fields.
+  const { veinRelief, roughDrift } = DEFAULT_STONE_SURFACE_PARAMS
+  const drift = makeRoughDrift(seed, roughDrift)
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const u = x / S
@@ -57,8 +63,14 @@ export function marbleFields(base: [number, number, number], seed: number, S: nu
       // Veins darken slightly with a cool tint.
       const factor = clamp01(baseFac - veinMask * 0.28)
       const [r, g, b] = shade(base, factor)
-      const rough = clamp01(0.22 + veinMask * 0.1 + (microRough(u, v) - 0.5) * 0.07)
-      setPx(f, y * S + x, r, g, b, veinMask * 0.4, rough)
+      // MAT-001 — micro + broad polished drift. The drift is centred on 0 so the
+      // mean sheen is preserved; it just adds glossier/mattter patches.
+      const rough = clamp01(0.22 + veinMask * 0.1 + (microRough(u, v) - 0.5) * 0.07 + drift(u, v))
+      // MAT-001 — vein normal-relief routed through the shared helper so the
+      // relief amplitude is tunable and ALIGNS with the visible albedo vein
+      // (same `veinMask`). Replaces the previous inline `veinMask * 0.4` — no
+      // double-relief.
+      setPx(f, y * S + x, r, g, b, veinHeight(veinMask, veinRelief), rough)
     }
   }
   return f

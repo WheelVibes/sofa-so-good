@@ -214,3 +214,34 @@ describe('procedural detail: tile glaze micro-normal + glaze↔grout roughness (
     expect(Array.from(a.roughness)).toEqual(Array.from(b.roughness))
   })
 })
+
+// MAT-001: stone/marble micro-detail — the veins must perturb the NORMAL (a
+// polished vein catches grazing light, not just an albedo line) and the polish
+// must drift (broad glossier/honed patches) so the slab isn't a flat mirror.
+describe('procedural detail: marble vein normal-relief + polished roughness drift (MAT-001)', () => {
+  it('the normal map is non-flat along the veins (relief follows the vein mask)', () => {
+    const { normal } = generateProceduralRaw('mat001', 'marble', '#e9e7e2', 96)
+    // A flat face bakes to a single normal value; the vein relief makes the R
+    // channel vary across the slab. (Veins were albedo-only before MAT-001 —
+    // this guards the height term feeding the normal baker.)
+    const normR = new Set<number>()
+    for (let i = 0; i < normal.length; i += 4) normR.add(normal[i])
+    expect(normR.size, 'marble normal reads flat (no vein relief)').toBeGreaterThan(4)
+  })
+
+  it('the roughness carries the polished drift on top of the micro break-up (wide spread)', () => {
+    const { roughness } = generateProceduralRaw('mat001r', 'marble', '#d8d8d8', 96)
+    const vals = new Set<number>()
+    for (let i = 0; i < roughness.length; i += 4) vals.add(roughness[i])
+    // The broad low-freq drift + the existing micro-rough give a non-uniform
+    // polish — markedly more than a single flat sheen.
+    expect(vals.size, 'marble polish reads dead-uniform').toBeGreaterThan(8)
+  })
+
+  it('stays deterministic with the vein relief + roughness drift added', () => {
+    const a = generateProceduralRaw('mat001det', 'marble', '#e9e7e2', 96)
+    const b = generateProceduralRaw('mat001det', 'marble', '#e9e7e2', 96)
+    expect(Array.from(a.normal)).toEqual(Array.from(b.normal))
+    expect(Array.from(a.roughness)).toEqual(Array.from(b.roughness))
+  })
+})
