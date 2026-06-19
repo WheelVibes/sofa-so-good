@@ -245,3 +245,32 @@ describe('procedural detail: marble vein normal-relief + polished roughness drif
     expect(Array.from(a.roughness)).toEqual(Array.from(b.roughness))
   })
 })
+
+// MAT-003: painted-plaster roller-nap roughness drift — a roller leaves a faint
+// stipple/orange-peel; the plaster roughness must drift (broad coverage + fine
+// nap) so the wall isn't a single flat matte value, while STAYING clearly matte.
+describe('procedural detail: plaster roller-nap roughness drift (MAT-003)', () => {
+  it('the roughness carries a roller-nap drift (not a single flat matte value)', () => {
+    const { roughness } = generateProceduralRaw('mat003', 'plaster', '#e8e6e1', 96)
+    const vals = new Set<number>()
+    for (let i = 0; i < roughness.length; i += 4) vals.add(roughness[i])
+    // Before MAT-003 the plaster roughness was a constant 0.92 → exactly one
+    // value. The nap drift makes it non-uniform (a real painted surface).
+    expect(vals.size, 'plaster roughness reads dead-flat (no nap)').toBeGreaterThan(8)
+  })
+
+  it('stays clearly MATTE — every roughness texel sits in the high/matte range', () => {
+    const { roughness } = generateProceduralRaw('mat003m', 'plaster', '#cfcdc8', 96)
+    let min = 255
+    for (let i = 0; i < roughness.length; i += 4) if (roughness[i] < min) min = roughness[i]
+    // 0.85 roughness ≈ 217/255; the nap drift is a whisper so the wall never
+    // approaches a glossy/semi-gloss sheen — it stays matte everywhere.
+    expect(min, 'plaster drifted into a non-matte sheen').toBeGreaterThan(0.85 * 255)
+  })
+
+  it('stays deterministic with the roller-nap drift added', () => {
+    const a = generateProceduralRaw('mat003det', 'plaster', '#e8e6e1', 96)
+    const b = generateProceduralRaw('mat003det', 'plaster', '#e8e6e1', 96)
+    expect(Array.from(a.roughness)).toEqual(Array.from(b.roughness))
+  })
+})

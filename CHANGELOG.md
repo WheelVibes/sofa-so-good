@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Plaster/concrete roller-nap roughness micro-detail (MAT-003)
+
+Painted plaster / microcement walls rendered as a dead-flat matte colour — a single roughness
+value with no surface life. New pure, deterministic, worker-safe helper
+`src/materials/procedural/plasterSurface.ts` adds the one cue roller-applied paint always carries,
+mirroring the stone/tile/upholstery pattern: a **roller-nap roughness drift**
+(`makeRollerNap(seed, nap)` — a broad coverage drift, as the nap loads/unloads, plus a fine
+nap-fibre stipple; signed, mean-preserving, ±~0.035 of the roughness). So the matte wall stops
+reading as one flat specular value while staying clearly **matte** (never gloss — overdoing it
+looks like stucco). Wired into both material paths:
+- **Path A** (`procedural/patterns/wall.ts:plasterFields`): the previously-constant `0.92`
+  roughness now drifts by the nap field (`clamp01(0.92 + nap)`). No flag, all tiers — the
+  roller-nap rides every direct procedural plaster generation (and the normal it bakes is
+  unchanged). The existing gentle orange-peel field still supplies the whisper of normal relief.
+- **Path B** (`procedural/generators.ts:getPlasterNormal`/`getPlasterRoughness` → wired in
+  `cache.ts`): the shared plaster singleton now also bakes a **roughness-drift map** from the SAME
+  tile, **gated behind `pbrSurfaces`** (off → the legacy flat `roughness = 0.92` scalar, exact
+  no-op). It's a tint-independent multiplier over the base scalar (like the shared normal), so
+  every tinted wall colour reuses one 256² map for free — no per-colour generation. (The plan
+  noted Path B "has no roughness map" — it does now, the same clean shared-singleton route MAT-001
+  took for marble.)
+
+Tasteful + bounded by default (`DEFAULT_PLASTER_SURFACE_PARAMS`; `nap` is a 0..1 intensity, `0`
+cleanly drops the drift back to flat matte). Albedo stays sRGB, normal/roughness linear. Batten /
+fluted / concrete-floor / terrazzo painters untouched. Unit-tested
+(`procedural/plasterSurface.test.ts` + a MAT-003 block in `generators.test.ts`): drift present,
+deterministic, seed-varying, intensity-linear, bounded by the tasteful amplitude, and — the whole
+point — every drifted texel stays in the matte range. Visually verified at the maximum tier
+(grazing morning light): walls read as real matte painted plaster, no stucco bumps, no tiling, no
+z-fighting, no gloss creep; Performance tier stays flat per the tier rule.
+
 ## Stone/marble micro-detail (MAT-001) + CreditsModal safeUrl (REV-001) (v0.1.0.44)
 
 Polished stone/marble read as a flat specular plane. New pure, deterministic, worker-safe helper
