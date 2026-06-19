@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PC-WALL-NUMERIC: live numeric length + angle entry while drawing a wall (v0.1.0.14)
+
+Shows a small floating numeric-entry overlay (Length + Angle °) near the cursor while a
+wall draft is active (start placed, user positioning the end). Matches Sweet Home 3D /
+Arcadium 3D precision-drawing behaviour.
+
+- **Overlay**: appears on pointer-down+move in Wall tool (desktop, Pro tier). Two text
+  fields — Length (metric "m"/"cm" or imperial `3' 6"`) and Angle ° (0 = right, 90 = down).
+  Positioned fixed near the cursor endpoint, clamped inside the viewport.
+- **Keyboard**: Enter commits the wall at the typed length/angle; Tab moves Length → Angle;
+  Escape cancels (clears the draft). No interaction with other global hotkeys (the
+  `isEditableTarget` guard prevents double-handling).
+- **Drag sync**: dragging updates the unowned fields live; typing an owned field drives
+  the preview endpoint live (preview wall line updates as you type).
+- **Chain drawing**: committing via Enter chains the next segment from the new endpoint
+  (same as drag-commit), so walls can be drawn back-to-back without re-clicking.
+- **Feature flag**: `wallNumericEntry` (tier: `pro`, default: `true`). Hidden in Simple
+  mode; present in Pro. Unit-tested in both modes.
+- **Pure helpers** in `src/floorplan/wallNumericEntry.ts`: `endpointFromLengthAngle`,
+  `segmentLengthAngle`, `parseLengthInput`, `parseAngleInput`, `validateLength`,
+  `validateAngle`. 30 unit tests; zero React/three imports.
+- **Dim readout suppressed** during numeric entry (no duplication of length on canvas).
+- Visual verification confirmed: overlay themed (CSS tokens, light mode), metric and
+  imperial inputs working, committed wall visible on canvas.
+- `tsc` + Biome zero errors; 356 test files / 2795 tests all pass (full suite).
+
 ## Catalog: persisted favourites / star list (PC-CATALOG-FAVOURITES) (v0.1.0.13)
 
 Star any catalog card (heart button) to save it in a dedicated **Favourites** tab that

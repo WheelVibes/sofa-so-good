@@ -83,6 +83,7 @@ export type FeatureFlag =
   | 'drawingCallouts'
   | 'quoteTemplate'
   | 'catalogFavourites'
+  | 'wallNumericEntry'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

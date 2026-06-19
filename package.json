@@ -1,7 +1,7 @@
 {
   "name": "sofa-so-good",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.0.14",
   "type": "module",
   "scripts": {
     "prepare": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git config core.hooksPath .githooks || true",

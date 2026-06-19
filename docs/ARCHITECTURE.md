@@ -435,6 +435,12 @@ same change that reshapes a system.
   **on touch the Wall tool is tap-to-place + chaining** (tap start, tap end, continues from the last end;
   `wallTapHadAnchor` ref distinguishes placing the start vs the end), with snapped start-dot/end-ring markers
   drawn on the draft (desktop keeps drag-to-draw).
+  **Numeric wall entry** (`wallNumericEntry` flag, pro, default on): while a desktop wall draft is active
+  a floating overlay (`ui/floorplan/editor/WallNumericEntry.tsx`) appears near the cursor endpoint with
+  Length and Angle ° text fields; typing drives a live preview; Enter commits at the exact values; Tab
+  moves between fields; Escape cancels; dragging updates unowned fields live. Pure geometry helpers in
+  `floorplan/wallNumericEntry.ts` (`endpointFromLengthAngle`, `segmentLengthAngle`, `parseLengthInput`,
+  `parseAngleInput`, `validateLength`, `validateAngle`) parse metric (m/cm) and imperial (ft/in) input.
   **Wall + door/window inspectors mirror the furniture inspector** (`PlanInspector`): a custom **Name**
   (pure defaults in `floorplan/planElementName.ts`; `PlanWall.name`/`PlanOpening.name`, custom wins; room
   creation auto-names boundary walls `<room> wall ##` **and the doors/windows on them**

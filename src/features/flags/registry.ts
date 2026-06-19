@@ -569,6 +569,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Live numeric length + angle entry while drawing walls (PC-WALL-NUMERIC).
+  // Matches Sweet Home 3D / Arcadium 3D behaviour: type an exact length (and
+  // optional angle) while dragging, press Enter to commit. Pure code, no
+  // external assets → prod-safe. An authoring/pro tool in the 2D plan editor
+  // → pro tier (hidden in Simple mode automatically).
+  wallNumericEntry: {
+    label: 'Numeric wall entry',
+    description: 'Type an exact length + angle while drawing a wall (Enter to commit)',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

@@ -173,6 +173,17 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').planPolyline).toBe(true)
   })
 
+  it('wallNumericEntry (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    // Numeric wall-length/angle entry is an authoring/pro tool in the 2D plan editor.
+    expect(resolveFlags(false, {}, false, 'simple').wallNumericEntry).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').wallNumericEntry).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').wallNumericEntry).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').wallNumericEntry).toBe(true)
+    // The flag is in the registry with the correct tier.
+    expect(FEATURE_FLAGS.wallNumericEntry.tier).toBe('pro')
+    expect(FEATURE_FLAGS.wallNumericEntry.default).toBe(true)
+  })
+
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
     const simple = resolveFlags(true, { drawings: true }, false, 'simple')
     expect(simple.drawings).toBe(false)

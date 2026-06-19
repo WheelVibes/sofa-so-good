@@ -32,6 +32,14 @@ between the 2D plan and the 3D scene at any time.
   point lands. Endpoints snap to the grid, to nearby wall corners, and onto the
   side of an existing wall (a clean T‑junction); dragging clearly past a wall
   stays free, so you can still extend beyond it.
+
+  **Precise length and angle** *(Pro, desktop)*: while you are dragging a wall a
+  small **numeric entry panel** floats near the cursor. It shows the current
+  length and angle live. Type an exact length (metric: `3.5` or `3.5m` or `350cm`;
+  imperial: `3' 6"` or `3ft 6in`) and/or an angle in degrees (0 = right, 90 =
+  down), then press **Enter** to commit the wall at precisely those values.
+  **Tab** moves from Length to Angle; **Escape** cancels the draft. The panel
+  disappears once the wall is committed and the next segment starts automatically.
 - **Rooms** — drag a rectangle; its area is computed and added to the total.
 - **Doors / windows** — click on a wall to drop one. Select a door to set which
   way it opens: **Hinge** (which jamb it pivots on) and **Swing** (which side of
