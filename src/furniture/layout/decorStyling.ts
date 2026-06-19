@@ -99,10 +99,21 @@ const HOST_MAX: Record<string, number> = {
  *  multiple cushions on a sofa or books on a shelf vary instead of reading as
  *  identical clones — the clearest "auto-placed" tell (RD-408 prop variety).
  *  Keyed by prop id → the colour param to vary + its palette. */
-const VARIETY: Record<string, { key: string; palette: readonly string[] }> = {
+interface PropVariety {
+  /** Colour param to vary + its palette. */
+  key: string
+  palette: readonly string[]
+  /** Optional enum params to vary, each as a weighted option list (repeat a value
+   *  to bias toward it — e.g. mostly 'square', occasionally 'rect'). */
+  enums?: Record<string, readonly string[]>
+}
+const VARIETY: Record<string, PropVariety> = {
   'throw-cushion': {
     key: 'color',
     palette: ['#b08068', '#7a8a7c', '#9c6b5a', '#5f6b78', '#c2a878', '#86736a', '#6b8a86'],
+    // Mostly square + plain, with the occasional rectangular / striped cushion so
+    // a sofa's scatter reads as a real mix, not stamped clones.
+    enums: { shape: ['square', 'square', 'rect'], pattern: ['plain', 'plain', 'stripe'] },
   },
   'throw-blanket': {
     key: 'color',
@@ -347,6 +358,11 @@ export function applyDecorStyling(
       if (variety) {
         const pal = variety.palette
         props[variety.key] = pal[(slot + Math.floor(rand() * pal.length)) % pal.length]
+        if (variety.enums) {
+          for (const [k, opts] of Object.entries(variety.enums)) {
+            props[k] = opts[Math.floor(rand() * opts.length)]
+          }
+        }
       }
 
       const id = `decor-${host.id}-${propId}-${slot}`

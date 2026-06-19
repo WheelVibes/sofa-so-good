@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Realism: auto-decor cushion shape/fabric variety (RD-408 follow-up) (v0.2.0.21)
+
+Extends the decor `VARIETY` system to also vary enum params, not just colour: auto-placed
+throw-cushions now draw a seeded `shape` (mostly square, occasionally rectangular) and `pattern`
+(mostly plain, occasionally striped) from weighted option lists, using the `ThrowCushion` primitive's
+existing params — so a sofa's scatter reads as a real mix rather than stamped clones. Unit test asserts
+cushions carry valid shape/pattern values; verified the default sofa still renders cleanly.
+
 ## Realism: auto-decor prop colour variety (RD-408) (v0.2.0.20)
 
 Repeated soft goods and books from the auto-styling pass were identical clones — multiple cushions on

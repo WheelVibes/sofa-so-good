@@ -89,6 +89,11 @@ describe('applyDecorStyling', () => {
     expect(cushions.length).toBeGreaterThanOrEqual(2)
     const colours = new Set(cushions.map((c) => c.props.color))
     expect(colours.size).toBeGreaterThanOrEqual(2) // not identical clones
+    // Shape/pattern are varied from valid option sets (silhouette/fabric mix).
+    for (const c of cushions) {
+      expect(['square', 'rect']).toContain(c.props.shape)
+      expect(['plain', 'stripe']).toContain(c.props.pattern)
+    }
     // Deterministic with the same seed.
     const again = applyDecorStyling([sofa], BUILTIN_CATALOG)
     expect(again.filter((d) => d.defId === 'throw-cushion').map((c) => c.props.color)).toEqual(
