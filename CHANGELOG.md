@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## a11y: global prefers-reduced-motion handling (UX-006) (v0.2.0.5)
+
+Only `.walk-hud` (and the loading overlay) honoured the OS "reduce motion" setting;
+bottom-sheets, fades, popovers and toasts still animated. Added a global
+`@media (prefers-reduced-motion: reduce)` reset in `app.css` that drops transition +
+animation durations to 0.01ms app-wide (0.01ms — not 0 — so `transitionend`/`animationend`
+keep firing for JS that waits on them), caps animation iterations, and disables smooth
+scroll. CSS-only; the 3D render loop and JS camera tweens are unaffected, and users
+without the setting see no change.
+
 ## Perf: defer + memoise catalog search ranking (PERF-005) (v0.2.0.4)
 
 Typing in the catalog search re-ran the synonym-aware fuzzy ranking over the WHOLE

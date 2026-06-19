@@ -192,8 +192,19 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .walk-hud {
-    transition: none;
+  /* Honour the OS "reduce motion" setting app-wide (UX-006): near-instant
+     transitions + animations across every surface (bottom-sheets, fades,
+     popovers, toasts, …). 0.01ms (not 0) keeps `transitionend`/`animationend`
+     firing so JS that waits on those still runs; single iteration stops loops;
+     smooth-scroll off. CSS only — the 3D render loop / JS camera tweens are
+     unaffected. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
