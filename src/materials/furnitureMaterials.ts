@@ -21,6 +21,7 @@ import { applyAnisotropy } from './anisotropy'
 import { getBuiltMaterial } from './cache'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
+import { DEFAULT_STONE_SURFACE_PARAMS, makeRoughDrift } from './procedural/stoneSurface'
 import { buildUpholsteryHeight, DEFAULT_SEAM_PARAMS } from './procedural/upholsterySeams'
 
 /** A furniture finish that points at a catalog/DLC material is encoded as
@@ -169,17 +170,26 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
 // ---- Stone / marble -------------------------------------------------------
 // Turbulent veins on a pale ground. Like wood, the albedo is near-white
 // luminance so the material colour tints it (white marble, green, etc.).
-let marbleMaps: { albedo: Texture; normal: Texture } | null = null
-function getMarbleMaps(): { albedo: Texture; normal: Texture } {
+let marbleMaps: { albedo: Texture; normal: Texture; rough: Texture | null } | null = null
+function getMarbleMaps(): { albedo: Texture; normal: Texture; rough: Texture | null } {
   if (marbleMaps) return marbleMaps
   const baseN = makeFbm(0x5a17, 5, 4)
   const veinWarp = makeFbm(0x7d31, 4, 6)
   const grime = makeFbm(0x1133, 4, 20)
   // PR6: broad low-freq tonal clouding so a slab isn't a uniform white field
   // between veins (real stone has soft light/dark drifts). Tint-preserving.
-  const cloudN = isFeatureEnabled('pbrSurfaces') ? makeFbm(0x2f6b, 4, 2.2) : null
+  const pbr = isFeatureEnabled('pbrSurfaces')
+  const cloudN = pbr ? makeFbm(0x2f6b, 4, 2.2) : null
+  // MAT-001 — polished roughness drift: a broad low-freq variation so the slab
+  // isn't a dead-uniform mirror (glossier/honed patches). Gated behind
+  // `pbrSurfaces` exactly like the cloud clouding above; off → no rough map (the
+  // legacy uniform `roughness` scalar). The drift only ever makes patches a
+  // touch GLOSSIER than the base (encoded as a 0..1 roughness multiplier ≤ 1),
+  // so it never regresses the polished baseline to matte.
+  const drift = pbr ? makeRoughDrift(0x5a17, DEFAULT_STONE_SURFACE_PARAMS.roughDrift) : null
   const albedo = new Uint8ClampedArray(N * N * 4)
   const height = new Float32Array(N * N)
+  const roughData = drift ? new Uint8ClampedArray(N * N * 4) : null
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
       const u = x / N
@@ -200,13 +210,26 @@ function getMarbleMaps(): { albedo: Texture; normal: Texture } {
       const c = Math.round(lum * 255)
       albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = c
       albedo[i * 4 + 3] = 255
+      // Vein normal-relief: the height follows BOTH visible vein networks, so the
+      // baked normal catches light exactly where the albedo veins are (MAT-001
+      // alignment; the existing relief — left as-is to avoid double-stacking).
       height[i] = vein * 0.4 + vein2 * 0.2
+      if (roughData && drift) {
+        // Roughness multiplier (the material `roughness` scalar multiplies this
+        // map's value). `drift` is signed (±~0.05); clamp the multiplier at 1 so
+        // the drift only ever makes patches a touch glossier than the polished
+        // base — never matter. Linear roughness map (no sRGB tag).
+        const rc = Math.round(clamp01(1 + drift(u, v)) * 255)
+        roughData[i * 4] = roughData[i * 4 + 1] = roughData[i * 4 + 2] = rc
+        roughData[i * 4 + 3] = 255
+      }
     }
   }
   const a = canvasFrom(albedo)
   a.colorSpace = SRGBColorSpace
   const n = canvasFrom(heightToNormalRGBA(height, N, 1.6))
-  marbleMaps = { albedo: a, normal: n }
+  const rough = roughData ? canvasFrom(roughData) : null
+  marbleMaps = { albedo: a, normal: n, rough }
   return marbleMaps
 }
 
@@ -231,6 +254,12 @@ export function getStoneMaterial(color: string, repeat = 1, rough = 0.12): MeshS
   map.repeat.set(repeat, repeat)
   normal.repeat.set(repeat, repeat)
   map.needsUpdate = normal.needsUpdate = true
+  // MAT-001 — polished roughness drift map (present only under `pbrSurfaces`).
+  const roughnessMap = maps.rough ? applyAnisotropy(maps.rough.clone()) : null
+  if (roughnessMap) {
+    roughnessMap.repeat.set(repeat, repeat)
+    roughnessMap.needsUpdate = true
+  }
   const [r, g, b] = hexToRgb(color)
   const m = new MeshPhysicalMaterial({
     color: `rgb(${r},${g},${b})`,
@@ -238,6 +267,7 @@ export function getStoneMaterial(color: string, repeat = 1, rough = 0.12): MeshS
     metalness: 0.04,
     map,
     normalMap: normal,
+    roughnessMap,
     envMapIntensity: GLOSSY_ENV_INTENSITY,
   })
   m.normalScale.set(0.3, 0.3)

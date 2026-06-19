@@ -41,6 +41,18 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   hex / subway). Keep it **subtle** (`DEFAULT_TILE_SURFACE_PARAMS`; `glaze`/`grout` are 0..1, `0`
   disables that channel). Path-A micro-detail (no flag, all tiers — like RZ4 grout aging); albedo
   sRGB, normal/roughness linear. checker/brick are not ceramic — untouched.
+- **Stone/marble micro-detail (MAT-001)**: the pure `procedural/stoneSurface.ts` adds the two
+  cues polished stone needs. `veinHeight(veinMask, veinRelief)` turns the painter's OWN vein mask
+  into a shallow tunable height lift, so the baked normal relief **aligns with the visible albedo
+  veins** for free (any marble colour / vein pattern); `makeRoughDrift(seed, roughDrift)` is a
+  broad low-freq signed roughness delta (polished/honed patches) so the slab isn't a dead-uniform
+  mirror. Wired into **Path A** (`procedural/patterns/stone.ts:marbleFields` — vein height routed
+  through the helper, no flag, all tiers like RZ4) and **Path B** (`furnitureMaterials.ts:
+  getMarbleMaps`/`getStoneMaterial` — the shared marble singleton gains a roughness-drift map
+  **gated behind `pbrSurfaces`**, same gate as the PR6 cloud; off → legacy uniform polish, no rough
+  map). The Path-B drift map is a multiplier clamped ≤ 1 → only glossier, never matter (no
+  regression). Keep it **subtle** (`DEFAULT_STONE_SURFACE_PARAMS`; `veinRelief`/`roughDrift` 0..1,
+  `0` disables). Albedo sRGB, normal/roughness linear. concrete/terrazzo are untouched.
 - **Uploaded-material persistence (`upload/persist.ts`)**: each channel blob is one IDB record;
   the material's full identity/appearance (`name`, `category`, `swatch`, `uvScaleX`/`uvScaleY`
   — `uvScale` is stored as two scalars since IDB `meta` values can't be arrays) is stamped on

@@ -1,0 +1,25 @@
+{
+  "name": "mat001-marble",
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1'); s.setManualHour?.(12) })()"
+    },
+    {
+      "name": "enter-kitchen-marble",
+      "eval": "(() => { const s = window.__store.getState(); s.setFloorFinish('kitchen','floor-tile-marble'); s.enterRoomEditor?.('kitchen') })()"
+    },
+    { "name": "settle", "wait": 2800 },
+    { "name": "shot-room", "screenshot": "marble-room" },
+    { "name": "tilt-grazing", "drag": { "from": [800, 520], "to": [800, 300] } },
+    { "name": "settle2", "wait": 800 },
+    { "name": "zoom-in", "wheel": { "x": 800, "y": 450, "dy": -500 } },
+    { "name": "settle3", "wait": 900 },
+    { "name": "shot-grazing", "screenshot": "marble-grazing" },
+    { "name": "wheel-closer", "wheel": { "x": 800, "y": 450, "dy": -450 } },
+    { "name": "settle4", "wait": 900 },
+    { "name": "shot-close", "screenshot": "marble-close" }
+  ]
+}
