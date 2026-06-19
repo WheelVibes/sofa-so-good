@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Realism: dress more host surfaces in auto-decor (RD-408) (v0.2.0.26)
+
+Under-dressed rooms are the #1 "fake" tell. The decor-styling pass now also dresses three common
+surfaces it previously skipped: **tv-console** (frames / sculpture / plant / books), **ottoman** and
+**bench** (a folded throw / stray cushion) — added to `HOST_PROPS`/`HOST_MAX`/fallback maps with their
+real top-surface heights. (`vanity` is intentionally skipped — its footprint height includes the
+mirror, so decor would float.) Unit test asserts each new host gets ≥1 prop sitting at its real top
+(no floating). Uses the existing, already-verified prop primitives + placement pipeline.
+
 ## tokens: add `--ok` success token; drop hardcoded colour literals (UX-005) (v0.2.0.25)
 
 Adds a theme-tracking `--ok` success token (paired with `--danger`) to all 10 theme blocks in

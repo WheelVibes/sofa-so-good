@@ -14,6 +14,8 @@
  *   desk                        → desk-plant, book-stack
  *   console-table / sideboard   → book-stack, small-sculpture, photo-frame-cluster
  *   bookshelf / cube-shelf      → book-stack, small-sculpture, desk-plant
+ *   tv-console                  → photo-frame-cluster, small-sculpture, desk-plant, book-stack
+ *   ottoman / bench             → throw-blanket, throw-cushion
  *
  * Density (RD408-001): each host gets a per-surface budget derived from its
  * footprint AREA and a conservative per-type ceiling, so a long sideboard or a
@@ -93,6 +95,9 @@ const HOST_MAX: Record<string, number> = {
   bookshelf: 3,
   'cube-shelf': 3,
   dresser: 2,
+  'tv-console': 3,
+  ottoman: 1,
+  bench: 2,
 }
 
 /** Curated, tasteful colour palettes for repeated soft-good / book props, so
@@ -155,6 +160,11 @@ const HOST_PROPS: Record<string, readonly string[]> = {
   bookshelf: ['book-stack', 'small-sculpture', 'desk-plant'],
   'cube-shelf': ['book-stack', 'small-sculpture'],
   dresser: ['photo-frame-cluster', 'desk-plant'],
+  // Media unit top — frames, a sculpture, a plant, books.
+  'tv-console': ['photo-frame-cluster', 'small-sculpture', 'desk-plant', 'book-stack'],
+  // Soft seating — a folded throw / a stray cushion.
+  ottoman: ['throw-blanket', 'throw-cushion'],
+  bench: ['throw-cushion', 'throw-blanket'],
 }
 
 /** Surface-top height in metres for common hosts (derived from defaultFootprint.h).
@@ -179,6 +189,9 @@ const FALLBACK_TOP: Record<string, number> = {
   bookshelf: 1.4,
   'cube-shelf': 0.84,
   dresser: 0.82,
+  'tv-console': 0.45,
+  ottoman: 0.42,
+  bench: 0.45,
 }
 
 /** Fallback host footprint (w × d, metres) when the catalog def is unavailable. */
@@ -202,6 +215,9 @@ const FALLBACK_FOOTPRINT: Record<string, { w: number; d: number }> = {
   bookshelf: { w: 0.8, d: 0.3 },
   'cube-shelf': { w: 0.8, d: 0.35 },
   dresser: { w: 1.0, d: 0.45 },
+  'tv-console': { w: 1.8, d: 0.4 },
+  ottoman: { w: 0.6, d: 0.6 },
+  bench: { w: 1.2, d: 0.4 },
 }
 
 // ── Seeded PRNG (mulberry32) ──────────────────────────────────────────────────

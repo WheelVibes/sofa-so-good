@@ -101,6 +101,23 @@ describe('applyDecorStyling', () => {
     )
   })
 
+  it('dresses the newly-added host surfaces (RD-408): tv-console, ottoman, bench', () => {
+    for (const defId of ['tv-console', 'ottoman', 'bench'] as const) {
+      const host = {
+        id: `host-${defId}`,
+        defId,
+        position: [3, 3] as [number, number],
+        rotation: 0,
+        props: {},
+      }
+      const decor = applyDecorStyling([host], BUILTIN_CATALOG)
+      expect(decor.length).toBeGreaterThanOrEqual(1)
+      // Decor sits at the host's real top surface, not floating.
+      const top = BUILTIN_CATALOG[defId].defaultFootprint.h
+      for (const d of decor) expect(d.elevation).toBeCloseTo(top, 5)
+    }
+  })
+
   it('respects the per-host-type ceiling even for huge hosts (RD408-001)', () => {
     // Per-type ceilings cap density regardless of how large a surface is.
     const sofa = {
