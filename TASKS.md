@@ -54,9 +54,9 @@ time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push
   render-burst late; scene-graph light intensity provably updates instantly — see playbook).
 
 ## Content & catalog
-- [~] C-PLANTS/DECOR + F9 [PROD] Set-dressing pack shipped (C276): BookStack, ThrowCushion, ThrowBlanket,
-  CandleCluster, FruitBowl, MagazineStack, SmallSculpture, DeskPlant, PhotoFrameCluster. Remaining:
-  curated CC0 bundles from Poly Haven/Poly Pizza (networked assets, still needed for photoreal surfaces).
+- [~] C-PLANTS/DECOR + F9 [PROD] Set-dressing pack shipped (C276) + auto-styling of move-in default flat
+  shipped (C277). Remaining: auto-arrange styling pass (scatter decor onto generated surfaces); curated
+  CC0 bundles from Poly Haven/Poly Pizza (networked assets, still needed for photoreal surfaces).
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 
 ## Productivity / QOL

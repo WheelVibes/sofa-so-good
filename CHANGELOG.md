@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Auto-style rooms with set-dressing decor props (v0.1.0.6)
+
+Dresses the move-in default 4-room HDB flat with the 9 procedural decor props
+shipped in C276 so rooms look believably styled on first load.
+
+- **Living/Dining**: fruit bowl + magazine stack on the coffee table (surfaceHeight 0.42 m);
+  2 × throw cushion + throw blanket on the sofa (surfaceHeight 0.46 m); candle cluster
+  centrepiece on the dining table (surfaceHeight 0.74 m); small sculpture on the TV console
+  (surfaceHeight 0.45 m).
+- **Main bedroom**: desk plant on the nightstand (surfaceHeight 0.52 m); throw cushion +
+  throw blanket on the bed (surfaceHeight 0.46 m).
+- **Bedroom 2 (study)**: book stack + desk plant on the desk (surfaceHeight 0.74 m); photo
+  frame cluster on the wall shelf (surfaceHeight 1.60 m).
+- **Bedroom 3**: photo frame cluster on the nightstand (surfaceHeight 0.52 m); small sculpture
+  on top of the bookshelf (surfaceHeight 1.60 m).
+- All decor items carry `noClip: true` — they pass `canPlace` unconditionally and do not
+  trigger collision failures. `defaultLayout.test.ts` passes with all items.
+- Auto-arrange styling pass deferred (see TASKS.md); default-flat placement covers the primary
+  styled-home value.
+
 ## Drawing-set sheet callouts (PARITY-LIGHTINGTEMPLATE-TEXT) (v0.1.0.5)
 
 Free-text annotations that appear on specific construction drawing-set sheets when

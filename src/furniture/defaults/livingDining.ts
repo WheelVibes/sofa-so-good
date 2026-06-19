@@ -155,4 +155,61 @@ export const livingDining: LayoutEntry[] = [
     rotation: -Math.PI / 2,
     props: { size: '65', mount: 'wall', mountHeight: 1.3, screen: 'on' },
   },
+  // ── Set-dressing decor props ────────────────────────────────────────────
+  // Fruit bowl centred on the coffee table top (h=0.42 m).
+  {
+    id: 'default-ld-decor-fruitbowl',
+    defId: 'fruit-bowl',
+    position: [10.78, 2.35],
+    rotation: 0,
+    props: { surfaceHeight: 0.42 },
+  },
+  // Magazine stack on one end of the coffee table.
+  {
+    id: 'default-ld-decor-magazines',
+    defId: 'magazine-stack',
+    position: [11.22, 2.68],
+    rotation: 0.3,
+    props: { surfaceHeight: 0.42 },
+  },
+  // Throw cushion at left end of the sofa (seat h ≈ 0.46 m; cushions on back).
+  {
+    id: 'default-ld-decor-cushion1',
+    defId: 'throw-cushion',
+    position: [9.62, 2.0],
+    rotation: Math.PI / 2,
+    props: { surfaceHeight: 0.46, color: '#9b7a68', accentColor: '#6a5040' },
+  },
+  // Throw cushion at right end of the sofa.
+  {
+    id: 'default-ld-decor-cushion2',
+    defId: 'throw-cushion',
+    position: [9.62, 3.1],
+    rotation: Math.PI / 2,
+    props: { surfaceHeight: 0.46, color: '#7a9090', accentColor: '#556868' },
+  },
+  // Throw blanket draped over the sofa arm.
+  {
+    id: 'default-ld-decor-blanket',
+    defId: 'throw-blanket',
+    position: [9.63, 2.1],
+    rotation: Math.PI / 2,
+    props: { surfaceHeight: 0.46, color: '#c8b89a', pattern: 'herringbone' },
+  },
+  // Candle cluster on the dining table as a centrepiece (h=0.74 m).
+  {
+    id: 'default-ld-decor-candles',
+    defId: 'candle-cluster',
+    position: [10.55, 5.2],
+    rotation: 0,
+    props: { surfaceHeight: 0.74, flame: 'yes' },
+  },
+  // Small sculpture on top of the TV console (h=0.45 m), left side.
+  {
+    id: 'default-ld-decor-sculpture',
+    defId: 'small-sculpture',
+    position: [12.08, 1.85],
+    rotation: -Math.PI / 2,
+    props: { surfaceHeight: 0.45, style: 'arch', color: '#c0a87a' },
+  },
 ]

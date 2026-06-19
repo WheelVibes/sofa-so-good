@@ -60,4 +60,21 @@ export const bedroom3: LayoutEntry[] = [
     props: { style: 'flush' },
   },
   { id: 'default-b3-fan', defId: 'standing-fan', position: [8.5, 3.15], rotation: -0.6, props: {} },
+  // ── Set-dressing decor props ─────────────────────────────────────────────
+  // Photo frames on the nightstand (h=0.52 m) — personal touch.
+  {
+    id: 'default-b3-decor-frames',
+    defId: 'photo-frame-cluster',
+    position: [8.1, 0.7],
+    rotation: 0,
+    props: { surfaceHeight: 0.52, frameColor: '#3c2c24', finish: 'wood' },
+  },
+  // Small sculpture on top of the bookshelf (h=1.6 m) — accent piece.
+  {
+    id: 'default-b3-decor-sculpture',
+    defId: 'small-sculpture',
+    position: [8.78, 0.95],
+    rotation: -Math.PI / 2,
+    props: { surfaceHeight: 1.6, style: 'sphere', color: '#c8b08a', finish: 'gloss' },
+  },
 ]

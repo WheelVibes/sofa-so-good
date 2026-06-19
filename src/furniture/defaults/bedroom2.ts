@@ -54,4 +54,29 @@ export const bedroom2: LayoutEntry[] = [
     rotation: Math.PI,
     props: { width: 1.0, depth: 0.2, mountHeight: 1.45 },
   },
+  // ── Set-dressing decor props ─────────────────────────────────────────────
+  // Book stack on the desk surface (h=0.74 m) — study room vibe.
+  {
+    id: 'default-b2-decor-books',
+    defId: 'book-stack',
+    position: [4.95, 3.12],
+    rotation: 0.1,
+    props: { surfaceHeight: 0.74, spineColor: '#7a4028', accentColor: '#3b5a6b' },
+  },
+  // Small desk plant on the other side of the desk.
+  {
+    id: 'default-b2-decor-plant',
+    defId: 'desk-plant',
+    position: [4.18, 3.12],
+    rotation: 0,
+    props: { surfaceHeight: 0.74, type: 'trailing', potColor: '#b89070', leafColor: '#5a9a4a' },
+  },
+  // Photo frames on the wall shelf (mountHeight=1.45, shelf surface at ≈1.60 m).
+  {
+    id: 'default-b2-decor-frames',
+    defId: 'photo-frame-cluster',
+    position: [4.55, 3.48],
+    rotation: Math.PI,
+    props: { surfaceHeight: 1.6, frameColor: '#2c2420', finish: 'wood' },
+  },
 ]

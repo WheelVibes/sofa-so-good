@@ -80,7 +80,9 @@ same change that reshapes a system.
   `BUILTIN_BY_CATEGORY`),
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
-  `PrimitiveKind`), `GltfModel.tsx`/`gltfRender.ts` (all GLB items), `defaults/`,
+  `PrimitiveKind`), `GltfModel.tsx`/`gltfRender.ts` (all GLB items), `defaults/` (per-room layout
+  files assembled by `defaultLayout.ts`; each room file owns its own decor props so the styled flat
+  is self-contained; all set-dressing props carry `noClip: true` so they pass collision checks),
   `lightEmitters.ts` (fixture registry + `resolveEmitterSpec`; any item with `props.lightOn`
   emits via the `OVERRIDE_EMITTER` fallback — `itemAsLight` flag). Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
   `textureBudget.ts`, `finishTargets.ts`, `mirrorPlane.ts`); `convert/` (any-format→GLB:
