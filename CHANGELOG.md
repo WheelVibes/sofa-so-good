@@ -5,7 +5,7 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## Stone/marble micro-detail — vein normal-relief + polished roughness drift (MAT-001)
+## Stone/marble micro-detail (MAT-001) + CreditsModal safeUrl (REV-001) (v0.1.0.44)
 
 Polished stone/marble read as a flat specular plane. New pure, deterministic, worker-safe helper
 `src/materials/procedural/stoneSurface.ts` adds the two cues real polished slabs carry, mirroring
