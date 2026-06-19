@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix two resource leaks: wall-face geometry + thumbnail blob URLs (BUG-006/007) (v0.2.0.6)
+
+- **BUG-006** — `WallSegment` FacePlane memoised `worldUvPlaneGeometry` but never disposed it,
+  so editing ceiling height / wall thickness (which changes `segLen`/`segHeight`) or switching
+  starter plans orphaned every wall-face plane geometry. Added `useDisposeGeometry(geometry)`
+  (the same pattern RoomFloor/PlanRoomFloor already use). (`RoomFloor` was already covered by BUG-002.)
+- **BUG-007** — `useThumbnail` (`catalog/remote/hooks.ts`) created a blob URL per CC0 thumbnail and
+  never revoked it, leaking one URL per thumbnail viewed (drawer close / virtualised scroll). The
+  URL is now tracked in a ref and revoked on **unmount only** — not in the main effect's cleanup,
+  which re-runs on `url` change and would revoke the URL still being rendered. Adds a unit test
+  asserting revoke-on-unmount + no-create-while-hidden.
+
 ## a11y: global prefers-reduced-motion handling (UX-006) (v0.2.0.5)
 
 Only `.walk-hud` (and the loading overlay) honoured the OS "reduce motion" setting;

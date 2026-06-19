@@ -49,6 +49,10 @@ export function useRemoteEntries(kind: RemoteKind): RemoteEntry[] {
 export function useThumbnail(entry: RemoteEntry, visible: boolean): string | undefined {
   const [url, setUrl] = useState<string | undefined>(undefined)
   const cancelled = useRef(false)
+  // The created object URL is tracked here and revoked ONLY on unmount — not in
+  // the main effect's cleanup, which re-runs whenever `url` changes and would
+  // otherwise revoke the URL we just set + are still rendering (BUG-007).
+  const objectUrl = useRef<string | null>(null)
   useEffect(() => {
     cancelled.current = false
     if (!visible || url) return
@@ -59,7 +63,11 @@ export function useThumbnail(entry: RemoteEntry, visible: boolean): string | und
         blob = await limiter.schedule(() => PROVIDERS[entry.provider].fetchThumbnail(entry))
         await putThumb(key, blob)
       }
-      if (!cancelled.current) setUrl(URL.createObjectURL(blob))
+      if (!cancelled.current) {
+        const u = URL.createObjectURL(blob)
+        objectUrl.current = u
+        setUrl(u)
+      }
     })().catch(() => {
       // swallow; card stays placeholder
     })
@@ -67,6 +75,16 @@ export function useThumbnail(entry: RemoteEntry, visible: boolean): string | und
       cancelled.current = true
     }
   }, [entry.provider, entry.slug, visible, url, entry])
+  // Free the blob URL when the card unmounts (drawer close / virtualised scroll).
+  useEffect(
+    () => () => {
+      if (objectUrl.current) {
+        URL.revokeObjectURL(objectUrl.current)
+        objectUrl.current = null
+      }
+    },
+    [],
+  )
   return url
 }
 

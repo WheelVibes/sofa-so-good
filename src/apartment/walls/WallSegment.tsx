@@ -19,6 +19,7 @@ import {
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { WallFloorAO } from '../../scene/CornerAO'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
+import { useDisposeGeometry } from '../../scene/geometryUtil'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { useQuality } from '../../scene/useQuality'
 import { canEditScene } from '../../state/editing'
@@ -92,6 +93,10 @@ function FacePlane({
   const z = sign * (thickness / 2 + FACE_OFFSET)
   const yRot = sign === 1 ? 0 : Math.PI
   const geometry = useMemo(() => worldUvPlaneGeometry(segLen, segHeight), [segLen, segHeight])
+  // Geometry passed via `geometry=` isn't R3F-owned: dispose the superseded one
+  // when segLen/segHeight change (ceiling-height / wall-thickness edits) or on
+  // unmount, else every wall-face plane leaks across the session (BUG-006).
+  useDisposeGeometry(geometry)
   // Clone so this wall's face can fade for camera-reveal independently of the
   // shared, cached finish material (which other walls also use). Textures are
   // shared by reference, so disposing the clone frees only its own GPU program.
