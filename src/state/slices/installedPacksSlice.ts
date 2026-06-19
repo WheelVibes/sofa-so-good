@@ -1,4 +1,5 @@
 import type { InstalledPack } from '../../catalog/packs/types'
+import { evictGltfAsset } from '../../furniture/GltfModel'
 import type { PackGltfDef } from '../../furniture/types'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
@@ -36,6 +37,19 @@ export const createInstalledPacksSlice: SliceCreator<InstalledPacksSlice, RootSt
     set((s) => {
       const next = { ...s.installedPacks }
       delete next[packId]
+      const removed = s.packFurniture.filter((d) => d.packId === packId)
+      // Evict each removed pack def's parsed GPU geometry/textures + module
+      // caches (PERF-001/008) AND revoke its blob URLs — but only when no
+      // placed item still references the def (a pack item can be left in the
+      // scene as an orphan after uninstall; clearing a still-mounted asset
+      // would break it). Disposal inside evictGltfAsset is deferred a frame.
+      const referenced = new Set(s.items.map((it) => it.defId))
+      for (const d of removed) {
+        if (referenced.has(d.id) || !d.runtimeUrl) continue
+        evictGltfAsset(d.runtimeUrl)
+        URL.revokeObjectURL(d.runtimeUrl)
+        if (d.thumbUrl) URL.revokeObjectURL(d.thumbUrl)
+      }
       return {
         installedPacks: next,
         packFurniture: s.packFurniture.filter((d) => d.packId !== packId),

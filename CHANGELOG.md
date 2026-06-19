@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Evict GLTF + footprint caches on asset removal (PERF-001/008) (v0.1.0.29)
+
+Fixed a GPU-memory leak that ratcheted toward WebGL context loss over a long
+session: the drei `useGLTF` loader cache was **never** evicted, so a removed/
+replaced/uninstalled GLB's parsed geometry + textures stayed resident on the GPU
+for the rest of the session, and the module-level footprint/support-plane caches
+in `GltfModel.tsx` grew unbounded.
+
+- **`evictGltfAsset(url)`** (`src/furniture/GltfModel.tsx`): clears the drei
+  `useGLTF` cache for the asset's base url **and every tier-variant url** it can be
+  loaded under (`-low`/`-medium` siblings + registered upload blob variants, via the
+  new `lodUrlsForBase` in `gltf/lod.ts`), disposes the original GLTF scene's
+  geometries/materials/textures so the renderer actually frees the GPU memory (drei's
+  `clear` only drops the cache entry — it does not dispose), and prunes the
+  `FOOTPRINT_CACHE` / `SUPPORT_PLANE_CACHE` / `SUPPORT_PLANE_AUTH` entries for that
+  base key. GPU disposal is deferred one frame (`requestAnimationFrame`) so it runs
+  **after** React commits the unmount of the asset's placed instances — disposing a
+  geometry a still-mounted clone references would break the render. Loaded scenes are
+  tracked per base url at load time so disposal can reach them.
+- **Wired into every removal/replace path**: `freeResource` in
+  `src/state/slices/userAssetsSlice.ts` (so `removeUserFurniture` +
+  `replaceUserFurniture` + `addManyUserFurniture`'s replaced-def cleanup all evict),
+  and `markPackUninstalled` in `src/state/slices/installedPacksSlice.ts` for CC0/remote
+  pack uninstall (which now also revokes the pack defs' `runtimeUrl`/`thumbUrl` blob
+  URLs — a second small leak). The user/IKEA path runs eviction *before* it
+  unregisters the LOD variants, while the registry still lists the tier urls to clear.
+- **Over-eviction guard**: pack uninstall leaves placed items as orphans, so a pack
+  def still referenced by a placed item is **not** evicted (its GPU resources + blob
+  URLs are preserved). User/IKEA removal drops the def *and* all its placed items in
+  the same `set`, and per-def URLs are never shared across defs, so its eviction is
+  always safe. No-op for an asset that was never loaded.
+- **Tests**: `GltfModel.test.ts` (spies `useGLTF.clear`: base + suffix + registered
+  variant urls cleared, tier-url normalises to base, module caches pruned, other assets
+  untouched, never-loaded no-op); `installedPacksSlice.test.ts` (uninstall evicts +
+  revokes, skips a still-referenced orphan, only touches the uninstalled pack);
+  `userAssetsSlice.test.ts` (removal prunes the footprint cache + revokes/deletes).
+- **Verified** in-app via `renderer.info.memory`: placing two user GLBs then removing
+  one drops `geometries` (e.g. 1199→605) while the still-placed asset stays in the
+  scene and renders intact; no "geometry already disposed" GL errors.
+
 ## Autosave all persisted fields (BUG-001) (v0.1.0.27)
 
 Fixed silent data loss: the autosave watch-list omitted four fields that

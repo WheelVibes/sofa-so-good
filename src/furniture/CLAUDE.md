@@ -16,6 +16,15 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   — set the same collision flags; run `npm run optimize:glb` for `-low`/`-medium` LOD variants
   (uploads generate theirs in-browser via `optimize/lodVariants.ts`, routed by the `gltf/lod.ts`
   variant registry).
+- **GLTF cache eviction on removal (PERF-001/008).** When a GLB asset is removed/replaced/
+  uninstalled, call `evictGltfAsset(url)` (`GltfModel.tsx`) so its parsed GPU geometry/textures
+  leave the drei `useGLTF` cache and are disposed, and its `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`
+  entries are pruned — otherwise GPU memory ratchets toward context loss over a session. It evicts
+  the base url **and** every tier-variant url (`lodUrlsForBase` in `gltf/lod.ts`); GPU disposal is
+  deferred one frame so the asset's instances unmount first. It is wired into `freeResource`
+  (`state/slices/userAssetsSlice.ts`) and `markPackUninstalled` (`installedPacksSlice.ts`). **Only
+  evict an asset no live item still references** (pack uninstall guards on placed `items`; user/IKEA
+  removal drops the def + its items together). Any NEW asset removal/replace path must call it too.
 - **Pure geometry stays render-agnostic + unit-tested** (e.g. `cabinet/cabinetModel.ts`
   `buildCabinet`, `parametric/buildParts.ts` `buildParametric`); the primitive/renderer only
   maps parts → meshes/materials. The parametric generator (`parametric/`) saves through the

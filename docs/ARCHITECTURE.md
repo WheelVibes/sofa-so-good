@@ -717,3 +717,8 @@ same change that reshapes a system.
   (+ optional `.glb.json` sidecar) into `public/assets/furniture/`, `npm run index-assets`
   → regenerates `generatedCatalog.ts` + `CREDITS`. Must be floor-anchored + centred (no
   runtime fit). License CC0 default, may be CC-BY (sidecar → inspector `SourceLine`).
+  **Cache lifecycle (PERF-001/008)**: `GltfModel` caches parsed GPU scenes (drei `useGLTF`)
+  plus module-level `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`; removal paths (`freeResource` in
+  `userAssetsSlice`, `markPackUninstalled` in `installedPacksSlice`) call
+  `evictGltfAsset(url)` to clear + dispose those (base + all tier-variant urls) so GPU
+  memory is reclaimed instead of leaking toward WebGL context loss.

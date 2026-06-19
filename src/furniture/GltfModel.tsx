@@ -1,12 +1,12 @@
 import { MeshReflectorMaterial, useGLTF } from '@react-three/drei'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Material, Object3D } from 'three'
+import type { BufferGeometry, Material, Object3D, Texture } from 'three'
 import { Box3, Color, type Mesh, type MeshStandardMaterial, Triangle, Vector3 } from 'three'
 import { SkeletonUtils } from 'three-stdlib'
 import { effectiveAssetTier } from '../scene/quality'
 import { useStore } from '../state/store'
 import { meshMatchesTarget } from './gltf/finishTargets'
-import { baseUrl, prewarmLod, resolveLodUrlSync } from './gltf/lod'
+import { baseUrl, lodUrlsForBase, prewarmLod, resolveLodUrlSync } from './gltf/lod'
 import { detectMirrorPlane, hideMirrorMesh, type MirrorPlane } from './gltf/mirrorPlane'
 import { applyTextureBudget } from './gltf/textureBudget'
 import { detectSupportPlaneY, type HorizontalBand } from './ikea/supportPlane'
@@ -73,6 +73,102 @@ export function seedGltfFootprint(
   })
 }
 
+/** Original (unclone) GLTF scenes returned by `useGLTF`, keyed by base url.
+ *  drei's `useGLTF.clear(url)` drops the loader/suspense CACHE entry but does
+ *  NOT dispose the GPU geometry/textures it parsed — those only free when
+ *  three's renderer sees `.dispose()` on the original geometries/materials/
+ *  textures. We hold a reference per base url so {@link evictGltfAsset} can
+ *  dispose them on removal. A url maps to a set because tier variants
+ *  (low/medium/original) of one asset all collapse to the same base key. */
+const LOADED_SCENES = new Map<string, Set<Object3D>>()
+
+/** Record an original GLTF scene under its base url so it can be disposed on
+ *  eviction. Called from render once the asset is loaded. */
+function trackLoadedScene(url: string, scene: Object3D): void {
+  const key = baseUrl(url)
+  let set = LOADED_SCENES.get(key)
+  if (!set) {
+    set = new Set()
+    LOADED_SCENES.set(key, set)
+  }
+  set.add(scene)
+}
+
+/** Dispose every geometry / material / texture reachable from a scene so the
+ *  WebGL renderer frees the GPU resources. Safe to call once the cloned,
+ *  still-mounted instances (which share these refs) have unmounted. */
+function disposeSceneResources(scene: Object3D): void {
+  const seenGeo = new Set<BufferGeometry>()
+  const seenMat = new Set<Material>()
+  const disposeMaterial = (mat: Material): void => {
+    if (seenMat.has(mat)) return
+    seenMat.add(mat)
+    for (const value of Object.values(mat as unknown as Record<string, unknown>)) {
+      const tex = value as Texture | null
+      if (tex && (tex as { isTexture?: boolean }).isTexture) tex.dispose()
+    }
+    mat.dispose()
+  }
+  scene.traverse((obj) => {
+    const mesh = obj as Mesh
+    if (mesh.geometry && !seenGeo.has(mesh.geometry)) {
+      seenGeo.add(mesh.geometry)
+      mesh.geometry.dispose()
+    }
+    if (mesh.material) {
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      for (const m of mats) disposeMaterial(m)
+    }
+  })
+}
+
+/** Schedule work after React has had a chance to commit the unmount of the
+ *  removed asset's instances. The store `set(...)` that drops the def + its
+ *  placed items only *schedules* a re-render; the meshes (which share the
+ *  original geometry we are about to dispose) unmount during React's commit
+ *  phase, AFTER the current synchronous tick. `requestAnimationFrame` runs
+ *  after that commit; `setTimeout` is the non-DOM (test/SSR) fallback. */
+function afterUnmount(fn: () => void): void {
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => fn())
+  else setTimeout(fn, 0)
+}
+
+/** Evict a removed/replaced asset from every GPU + module-level cache it
+ *  occupies, keyed by its base url:
+ *   - drei `useGLTF.clear(url)` for the base AND each tier variant url
+ *     (low/medium siblings + registered upload blob variants), so the parsed
+ *     scene leaves the loader/suspense cache and can be GC'd.
+ *   - dispose the original geometries/materials/textures so the renderer
+ *     actually releases GPU memory (clear alone does not).
+ *   - prune the footprint + support-plane caches for the base key.
+ *
+ *  Cache clear + module-cache prune run synchronously (safe — they touch no
+ *  live GPU object). GPU disposal is deferred to after React commits the
+ *  unmount of the asset's placed instances (the caller's `set(...)` dropped
+ *  the def + items but the meshes that share these geometries unmount on the
+ *  next commit) — disposing earlier would break a still-mounted clone.
+ *  Idempotent: a url that was never loaded is a harmless no-op. */
+export function evictGltfAsset(url: string): void {
+  const key = baseUrl(url)
+  // Clear every cache entry the asset may occupy (compute urls BEFORE the
+  // caller unregisters the upload variants in freeResource()).
+  for (const u of lodUrlsForBase(key)) useGLTF.clear(u)
+  FOOTPRINT_CACHE.delete(key)
+  SUPPORT_PLANE_CACHE.delete(key)
+  SUPPORT_PLANE_AUTH.delete(key)
+  const scenes = LOADED_SCENES.get(key)
+  if (!scenes) return
+  LOADED_SCENES.delete(key)
+  afterUnmount(() => {
+    for (const scene of scenes) disposeSceneResources(scene)
+  })
+}
+
+/** Test-only: reset the loaded-scene registry between cases. */
+export function __resetLoadedScenesForTest(): void {
+  LOADED_SCENES.clear()
+}
+
 interface GltfModelProps {
   url: string
   /** Uniform scale, or a per-axis [x, y, z] tuple (non-uniform resize). */
@@ -109,6 +205,12 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides, reflective }:
   const resolvedUrl = resolveLodUrlSync(url, qualityTier)
   const servingOriginal = resolvedUrl === url
   const gltf = useGLTF(resolvedUrl)
+  // Record the original scene under its base url so a later removal can
+  // dispose its GPU geometry/textures (drei's useGLTF.clear only drops the
+  // loader cache entry). Keyed by base so all tier variants share one bucket.
+  useEffect(() => {
+    trackLoadedScene(url, gltf.scene as unknown as Object3D)
+  }, [url, gltf.scene])
   const cloned = useMemo(() => SkeletonUtils.clone(gltf.scene as unknown as Object3D), [gltf.scene])
   const tintRef = useRef<string | undefined>(undefined)
   // Materials this component cloned (per recolour effect). The originals come
