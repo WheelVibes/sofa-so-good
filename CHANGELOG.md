@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Realism: finish PHOTO-BEVELS on case-good carcasses (RD-407) (v0.2.0.18)
+
+Hard 90° edges are the clearest "primitive box" tell. The bevel migration (`BeveledBox` /
+`safeBevelRadius`, auto-clamped ≤7 mm) was complete for tables/desks + Bookshelf + CabinetModule's
+exterior, but **CabinetCorner was 100% sharp** and **Wardrobe** still had sharp interior panels. Now:
+- **CabinetCorner** — carcasses, L-countertop slabs, doors, and toe-kicks render through `BeveledBox`
+  (metal handles stay sharp — hardware reads better crisp).
+- **Wardrobe** — interior shelves, drawer fronts, and the two-bay divider now bevel too (doors/sides/
+  top/bottom already did).
+Footprints are visually unchanged (chamfer ≤7 mm). Verified a corner cabinet + wardrobe close-up on
+High: edges catch a soft highlight, no z-fighting or geometry breakage. (Appliance bodies share the
+brushed-metal `applianceBody` path and are tracked separately for a later pass.)
+
 ## Realism: cheap window/glass fresnel + sky reflection on every tier (RD-405) (v0.2.0.17)
 
 Real refractive transmission is High/Maximum only; on Performance/Medium the cheap glass path

@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /**
@@ -38,30 +39,50 @@ export function CabinetCorner({ props }: { props: ParamProps }) {
       {/* Toe-kicks (recessed 0.05 from the inner faces) */}
       {toe > 0 && (
         <>
-          <mesh position={[0, toe / 2, aZ - 0.025]} material={bodyMat}>
-            <boxGeometry args={[S - 0.01, toe, d - 0.05]} />
-          </mesh>
-          <mesh position={[bX - 0.025, toe / 2, bZ]} material={bodyMat}>
-            <boxGeometry args={[d - 0.05, toe, bLen - 0.01]} />
-          </mesh>
+          <BeveledBox
+            position={[0, toe / 2, aZ - 0.025]}
+            material={bodyMat}
+            args={[S - 0.01, toe, d - 0.05]}
+          />
+          <BeveledBox
+            position={[bX - 0.025, toe / 2, bZ]}
+            material={bodyMat}
+            args={[d - 0.05, toe, bLen - 0.01]}
+          />
         </>
       )}
       {/* Carcasses */}
-      <mesh castShadow receiveShadow position={[0, cy, aZ]} material={bodyMat}>
-        <boxGeometry args={[S, carcassH, d]} />
-      </mesh>
-      <mesh castShadow receiveShadow position={[bX, cy, bZ]} material={bodyMat}>
-        <boxGeometry args={[d, carcassH, bLen]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, cy, aZ]}
+        material={bodyMat}
+        args={[S, carcassH, d]}
+      />
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[bX, cy, bZ]}
+        material={bodyMat}
+        args={[d, carcassH, bLen]}
+      />
       {/* L countertop (two slabs) */}
-      <mesh castShadow receiveShadow position={[0, cTop + ctT / 2, aZ]}>
-        <boxGeometry args={[S + 0.02, ctT, d + 0.02]} />
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, cTop + ctT / 2, aZ]}
+        args={[S + 0.02, ctT, d + 0.02]}
+      >
         <meshStandardMaterial color={worktopColor} roughness={0.22} metalness={0.15} />
-      </mesh>
-      <mesh castShadow receiveShadow position={[bX, cTop + ctT / 2, bZ]}>
-        <boxGeometry args={[d + 0.02, ctT, bLen + 0.02]} />
+      </BeveledBox>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[bX, cTop + ctT / 2, bZ]}
+        args={[d + 0.02, ctT, bLen + 0.02]}
+      >
         <meshStandardMaterial color={worktopColor} roughness={0.22} metalness={0.15} />
-      </mesh>
+      </BeveledBox>
       {/* Door on run A's inner (+Z) face, over the part not covered by run B */}
       {(() => {
         const doorW = S - d - 0.04
@@ -69,9 +90,12 @@ export function CabinetCorner({ props }: { props: ParamProps }) {
         const frontZ = aZ + d / 2 + FRONT_T / 2
         return (
           <group>
-            <mesh castShadow position={[doorX, cy, frontZ]} material={bodyMat}>
-              <boxGeometry args={[doorW, carcassH - 0.04, FRONT_T]} />
-            </mesh>
+            <BeveledBox
+              castShadow
+              position={[doorX, cy, frontZ]}
+              material={bodyMat}
+              args={[doorW, carcassH - 0.04, FRONT_T]}
+            />
             <mesh castShadow position={[doorX - doorW / 2 + 0.04, cy, frontZ + 0.015]}>
               <boxGeometry args={[0.018, 0.16, 0.02]} />
               <meshStandardMaterial {...handleMat} />
@@ -85,9 +109,12 @@ export function CabinetCorner({ props }: { props: ParamProps }) {
         const frontX = bX + d / 2 + FRONT_T / 2
         return (
           <group>
-            <mesh castShadow position={[frontX, cy, bZ]} material={bodyMat}>
-              <boxGeometry args={[FRONT_T, carcassH - 0.04, doorL]} />
-            </mesh>
+            <BeveledBox
+              castShadow
+              position={[frontX, cy, bZ]}
+              material={bodyMat}
+              args={[FRONT_T, carcassH - 0.04, doorL]}
+            />
             <mesh castShadow position={[frontX + 0.015, cy, bZ - doorL / 2 + 0.04]}>
               <boxGeometry args={[0.02, 0.16, 0.018]} />
               <meshStandardMaterial {...handleMat} />
