@@ -15,6 +15,7 @@ import {
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
+import { useDisposeGeometry } from '../../scene/geometryUtil'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { canEditScene } from '../../state/editing'
 import { confirmAndEnterRoom } from '../../state/enterRoomConfirm'
@@ -42,6 +43,8 @@ interface FloorMeshProps {
 function FloorMesh({ roomId, origin, width, depth, material }: FloorMeshProps) {
   const selectRoom = useStore((s) => s.selectRoom)
   const geometry = useMemo(() => worldUvPlaneGeometry(width, depth), [width, depth])
+  // Geometry passed via `geometry=` isn't R3F-owned: dispose on resize/unmount.
+  useDisposeGeometry(geometry)
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       const state = useStore.getState()

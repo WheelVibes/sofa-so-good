@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: memoise + dispose plan-room floor/ceiling geometry — stop GPU leak (BUG-002)
+
+The custom-plan room floor leaked a fresh `PlaneGeometry` on **every** render: the
+rectangular path in `apartment/floor/PlanRoomFloor.tsx` called `worldUvPlaneGeometry`
+inline with no `useMemo` and no disposal. R3F does **not** own a geometry passed via the
+`geometry=` prop, so every re-render (and every plan edit) leaked a GPU buffer, ratcheting
+toward WebGL context loss in a long editing session.
+
+- **Rectangular floor** (`PlanRoomFloor.tsx`): extracted a dedicated `RectFloor` component
+  whose geometry is `useMemo`-keyed on `width/depth/texScale/texAngle` and freed via the
+  established `useDisposeGeometry` hook (`scene/geometryUtil.ts`) on change/unmount. Added a
+  zero/negative-size guard (renders nothing instead of building a degenerate buffer).
+- **Same anti-pattern fixed in the sibling floor components in that dir:** `PolygonFloor`
+  (same file — already memoised, now also disposed), `RoomFloor.tsx` (the default-flat per-room
+  floor), and `PlanRoomCeiling.tsx` (mirrors the floor footprint) all now call
+  `useDisposeGeometry` on their memoised geometry.
+- **Test** (`apartment/floor/PlanRoomFloor.test.tsx`): asserts the geometry is built once and
+  reused across re-renders with stable props, disposed when dimensions/polygon change and on
+  unmount, the degenerate-size guard builds nothing, and the polygon path behaves the same.
+- **Visual verification**: default 4-room HDB renders correctly after 330 forced floor
+  re-renders (finish toggles across all 11 rooms); `renderer.info.memory.geometries` held at
+  **1197 → 1197 (delta 0)** — zero net geometry growth, confirming the leak is gone. Regression
+  scenario added at `scripts/scenarios/floor-geometry-leak.json`.
+
 ## Evict GLTF + footprint caches on asset removal (PERF-001/008) (v0.1.0.29)
 
 Fixed a GPU-memory leak that ratcheted toward WebGL context loss over a long

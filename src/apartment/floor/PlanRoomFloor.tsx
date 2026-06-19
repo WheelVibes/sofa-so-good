@@ -19,6 +19,7 @@ import {
   worldUvShapeGeometry,
 } from '../../materials/worldUv'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
+import { useDisposeGeometry } from '../../scene/geometryUtil'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { confirmAndEnterRoom } from '../../state/enterRoomConfirm'
 import { useStore } from '../../state/store'
@@ -102,7 +103,52 @@ function FloorMesh({
       />
     )
   }
-  const geometry = worldUvPlaneGeometry(width, depth, texTransform)
+  return (
+    <RectFloor
+      origin={origin}
+      width={width}
+      depth={depth}
+      material={material}
+      handlers={handlers}
+      userData={userData}
+      texTransform={texTransform}
+    />
+  )
+}
+
+/** Rectangular-room floor plane. Geometry is memoised on its dimensions/UV
+ *  transform and disposed when those change or the mesh unmounts — a `new`
+ *  geometry passed via the `geometry=` prop is NOT owned by R3F, so rebuilding
+ *  it every render (as the old inline path did) leaks GPU buffers toward context
+ *  loss on long edit sessions. Mirrors {@link PolygonFloor}. */
+function RectFloor({
+  origin,
+  width,
+  depth,
+  material,
+  handlers,
+  userData,
+  texTransform,
+}: {
+  origin: [number, number]
+  width: number
+  depth: number
+  material: MeshStandardMaterial
+  handlers?: Record<string, unknown>
+  userData?: Record<string, unknown>
+  texTransform?: UvTransform
+}) {
+  const texScale = texTransform?.scale
+  const texAngle = texTransform?.angle
+  // Guard degenerate sizes: a zero/negative plane would build an empty/NaN
+  // geometry. Returning null keeps the render valid and skips the leak entirely.
+  const valid = width > 0 && depth > 0
+  const geometry = useMemo(
+    () => (valid ? worldUvPlaneGeometry(width, depth, { scale: texScale, angle: texAngle }) : null),
+    [valid, width, depth, texScale, texAngle],
+  )
+  useDisposeGeometry(geometry)
+  if (!geometry) return null
   return (
     <mesh
       position={[origin[0] + width / 2, 0.006, origin[1] + depth / 2]}
@@ -137,6 +183,8 @@ function PolygonFloor({
     () => worldUvShapeGeometry(polygon, { scale: texScale, angle: texAngle }),
     [polygon, texScale, texAngle],
   )
+  // Geometry passed via `geometry=` isn't R3F-owned: dispose on change/unmount.
+  useDisposeGeometry(geometry)
   return (
     <mesh
       position={[0, 0.006, 0]}
