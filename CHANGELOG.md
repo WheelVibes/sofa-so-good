@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Realism: PHOTO-BEVELS on appliance bodies — RD-407 complete (v0.2.0.19)
+
+Completes the bevel migration: all 8 appliance primitives (Refrigerator/WashingMachine/Dishwasher/
+Oven/Microwave/WineCooler/Stove/RangeHood) now render their steel/painted bodies (and the proud door
+panels on the dishwasher/oven, the stove cooktop, the range-hood canopy+duct) through `BeveledBox`
+with a slightly rounder appliance-appropriate chamfer (~10–12 mm, auto-clamped) — real white goods
+have radiused edges, so the hard 90° box read is gone. Glass doors, handles, controls, burners stay
+sharp. Verified fridge/dishwasher/oven render as brushed-steel bodies with light-catching edges, no
+artifacts. Also fixes `applianceBody.test.tsx`'s `featureFlags` mock to use `importOriginal` (the new
+`BeveledBox → useDetail → store` transitive import needs `resolveFlags` preserved).
+
 ## Realism: finish PHOTO-BEVELS on case-good carcasses (RD-407) (v0.2.0.18)
 
 Hard 90° edges are the clearest "primitive box" tell. The bevel migration (`BeveledBox` /

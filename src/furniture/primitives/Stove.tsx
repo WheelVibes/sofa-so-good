@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { ApplianceBodyMaterial, applianceBody, applianceBodyMeshProps, readStr } from './shared'
 
 /** Freestanding cooker: oven body + cooktop with four burners and front
@@ -22,15 +23,16 @@ export function Stove({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Oven body */}
-      <mesh
+      <BeveledBox
         {...applianceBodyMeshProps(body)}
         castShadow
         receiveShadow
         position={[0, cabinetH / 2, 0]}
+        args={[w, cabinetH, d]}
+        bevel={0.012}
       >
-        <boxGeometry args={[w, cabinetH, d]} />
         <ApplianceBodyMaterial finish={body} />
-      </mesh>
+      </BeveledBox>
       {/* Oven door window */}
       <mesh position={[0, cabinetH * 0.45, d / 2 + 0.002]}>
         <boxGeometry args={[w * 0.7, cabinetH * 0.4, 0.01]} />
@@ -42,10 +44,14 @@ export function Stove({ props }: { props: ParamProps }) {
         <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
       </mesh>
       {/* Cooktop */}
-      <mesh castShadow position={[0, cabinetH + topT / 2, 0]}>
-        <boxGeometry args={[w, topT, d]} />
+      <BeveledBox
+        castShadow
+        position={[0, cabinetH + topT / 2, 0]}
+        args={[w, topT, d]}
+        bevel={0.008}
+      >
         <meshStandardMaterial color="#2b2d30" roughness={0.3} metalness={0.4} />
-      </mesh>
+      </BeveledBox>
       {/* Burners */}
       {burners.map(([x, z], i) => (
         <mesh key={i} position={[x, cabinetH + topT + 0.005, z]} rotation={[Math.PI / 2, 0, 0]}>

@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { ApplianceBodyMaterial, applianceBody, applianceBodyMeshProps, readStr } from './shared'
 
 /** Front-load washing machine: body + recessed circular door + control
@@ -13,10 +14,16 @@ export function WashingMachine({ props }: { props: ParamProps }) {
 
   return (
     <group>
-      <mesh {...applianceBodyMeshProps(body)} castShadow receiveShadow position={[0, h / 2, 0]}>
-        <boxGeometry args={[w, h, d]} />
+      <BeveledBox
+        {...applianceBodyMeshProps(body)}
+        castShadow
+        receiveShadow
+        position={[0, h / 2, 0]}
+        args={[w, h, d]}
+        bevel={0.012}
+      >
         <ApplianceBodyMaterial finish={body} />
-      </mesh>
+      </BeveledBox>
       {/* Door ring */}
       <mesh position={[0, h * 0.45, d / 2 + 0.003]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.17, 0.025, 12, 28]} />

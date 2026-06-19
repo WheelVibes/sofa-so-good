@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import {
   ApplianceBodyMaterial,
   applianceBody,
@@ -26,10 +27,16 @@ export function WineCooler({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Carcass */}
-      <mesh {...applianceBodyMeshProps(body)} castShadow receiveShadow position={[0, h / 2, 0]}>
-        <boxGeometry args={[w, h, d]} />
+      <BeveledBox
+        {...applianceBodyMeshProps(body)}
+        castShadow
+        receiveShadow
+        position={[0, h / 2, 0]}
+        args={[w, h, d]}
+        bevel={0.012}
+      >
         <ApplianceBodyMaterial finish={body} />
-      </mesh>
+      </BeveledBox>
       {/* Interior back panel with a faint cool LED glow */}
       <mesh position={[0, h / 2, -d / 2 + 0.03]}>
         <boxGeometry args={[w - 0.06, h - 0.1, 0.005]} />

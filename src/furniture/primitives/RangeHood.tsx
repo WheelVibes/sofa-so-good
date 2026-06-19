@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import {
   ApplianceBodyMaterial,
   applianceBody,
@@ -23,15 +24,16 @@ export function RangeHood({ props }: { props: ParamProps }) {
   return (
     <group position={[0, mountH, 0]}>
       {/* Canopy (wider at the bottom lip) */}
-      <mesh
+      <BeveledBox
         {...applianceBodyMeshProps(metal)}
         castShadow
         receiveShadow
         position={[0, canopyH / 2, 0]}
+        args={[width, canopyH, depth]}
+        bevel={0.01}
       >
-        <boxGeometry args={[width, canopyH, depth]} />
         <ApplianceBodyMaterial finish={metal} />
-      </mesh>
+      </BeveledBox>
       {/* Lower glass/grease lip */}
       <mesh position={[0, 0.002, depth / 2 - 0.06]}>
         <boxGeometry args={[width - 0.04, 0.02, 0.16]} />
@@ -47,14 +49,15 @@ export function RangeHood({ props }: { props: ParamProps }) {
         <ApplianceBodyMaterial finish={metal} />
       </mesh>
       {/* Duct cover against the wall */}
-      <mesh
+      <BeveledBox
         {...applianceBodyMeshProps(metal)}
         castShadow
         position={[0, canopyH + 0.45, -depth / 2 + 0.1]}
+        args={[0.26, 0.5, 0.16]}
+        bevel={0.01}
       >
-        <boxGeometry args={[0.26, 0.5, 0.16]} />
         <ApplianceBodyMaterial finish={metal} />
-      </mesh>
+      </BeveledBox>
     </group>
   )
 }

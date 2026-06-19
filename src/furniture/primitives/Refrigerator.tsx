@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import {
   ApplianceBodyMaterial,
   applianceBody,
@@ -6,6 +7,10 @@ import {
   readNum,
   readStr,
 } from './shared'
+
+/** Appliance bodies read better with a slightly rounder edge than furniture
+ *  (real white goods have ~1 cm radii) — still auto-clamped by `safeBevelRadius`. */
+const APPLIANCE_BEVEL = 0.012
 
 /** Two-door (fridge + freezer) upright refrigerator with recessed handles. */
 export function Refrigerator({ props }: { props: ParamProps }) {
@@ -21,15 +26,16 @@ export function Refrigerator({ props }: { props: ParamProps }) {
 
   return (
     <group>
-      <mesh
+      <BeveledBox
         {...applianceBodyMeshProps(body)}
         castShadow
         receiveShadow
         position={[0, height / 2, 0]}
+        args={[width, height, depth]}
+        bevel={APPLIANCE_BEVEL}
       >
-        <boxGeometry args={[width, height, depth]} />
         <ApplianceBodyMaterial finish={body} />
-      </mesh>
+      </BeveledBox>
       {/* Door seam */}
       <mesh position={[0, split, depth / 2 + 0.001]}>
         <boxGeometry args={[width, 0.01, 0.005]} />

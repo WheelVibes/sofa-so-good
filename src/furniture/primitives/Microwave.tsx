@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import {
   ApplianceBodyMaterial,
   applianceBody,
@@ -21,10 +22,16 @@ export function Microwave({ props }: { props: ParamProps }) {
   return (
     <group position={[0, surfaceH, 0]}>
       {/* Body */}
-      <mesh {...applianceBodyMeshProps(body)} castShadow receiveShadow position={[0, h / 2, 0]}>
-        <boxGeometry args={[w, h, d]} />
+      <BeveledBox
+        {...applianceBodyMeshProps(body)}
+        castShadow
+        receiveShadow
+        position={[0, h / 2, 0]}
+        args={[w, h, d]}
+        bevel={0.01}
+      >
         <ApplianceBodyMaterial finish={body} />
-      </mesh>
+      </BeveledBox>
       {/* Glazed door window */}
       <mesh position={[-0.06, h / 2, d / 2 + 0.002]}>
         <boxGeometry args={[w * 0.55, h * 0.7, 0.01]} />
