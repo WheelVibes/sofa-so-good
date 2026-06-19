@@ -139,6 +139,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  remoteFurniture: {
+    label: 'Online models',
+    description: 'CC0 3D-model browser (Poly Haven)',
+    // CORS-direct CC0 (Poly Haven) → prod-safe, no proxy / licence risk.
+    default: true,
+    // External fetched-model browsing is an advanced surface (parity with
+    // remoteMaterials / packs) → hidden in Simple mode, where the catalog keeps
+    // only the curated builtin furnish loop.
+    tier: 'pro',
+  },
   modelUpload: {
     label: 'Model upload',
     description: 'Import GLB / OBJ / … models',

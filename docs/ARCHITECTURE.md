@@ -127,7 +127,15 @@ same change that reshapes a system.
   CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice` /
   `favouritesSlice` — both persist to localStorage, both per-device convenience state).
   Favourites (star/heart button on each card, Favourites tab) are gated by the
-  `catalogFavourites` feature flag (tier: simple, default on).
+  `catalogFavourites` feature flag (tier: simple, default on). Browsable **remote CC0
+  *models*** (Poly Haven `RemoteCard`s) are gated by the **`remoteFurniture`** flag (tier:
+  **pro**, default on — CORS-direct CC0, prod-safe; mirror of `remoteMaterials`): the flag is
+  passed into `useUnifiedCatalog(includeRemote)`, so in Simple mode (where `resolveFlags` forces
+  pro flags off) the grid shows only the curated builtin/uploaded loop and no un-downloaded remote
+  entries surface; remote-model browsing is a Pro/advanced surface. The drawer only bootstraps the
+  remote provider index when `remoteFurniture || remoteMaterials` is on (no fetch otherwise).
+  Gating affects the browse/add path only — a placed/resolved remote def still merges into
+  `useCatalog` (`buildMergedCatalog`) and renders regardless of the flag.
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,

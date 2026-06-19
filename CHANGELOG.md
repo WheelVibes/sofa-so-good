@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Gate remote CC0 furniture behind a `remoteFurniture` flag (pro tier) (AI-INTEG-001a) (v0.1.0.43)
+
+Poly Haven (and any remote-provider) **3D models** were already surfacing in the catalog grid in
+production with **no feature flag and no Simple/Pro tiering** — a rules violation (CLAUDE.md
+requires every user-facing feature behind a `FEATURE_FLAGS` entry, and Simple mode must stay the
+minimal core loop). Bring that path into compliance, mirroring the existing `remoteMaterials`
+flag that gates the CC0 *material* browser.
+
+- **New `remoteFurniture` flag** (`features/flags/registry.ts` + `types.ts`): `tier: 'pro'`,
+  `default: true` (CORS-direct CC0 → prod-safe, no proxy / licence risk). Parity with
+  `remoteMaterials`. Because it is `pro`, `resolveFlags` forces it **off in Simple mode**, so the
+  existing `useFeature` gates hide remote models there automatically.
+- **Browse gate:** `useUnifiedCatalog(includeRemote)` now takes the flag (`CatalogDrawer` passes
+  `useFeature('remoteFurniture')`); when off, the un-downloaded remote-entry merge is skipped, so
+  the grid shows only the curated builtin furnish loop and remote CC0 models do not surface
+  (desktop + mobile share the same hook, so both are covered).
+- **Bootstrap gate:** the drawer only kicks off `bootstrapRemoteCatalog()` when
+  `remoteFurniture || remoteMaterials` is on — so with both off (e.g. Simple mode), the remote
+  provider index is **never fetched** (no network).
+- **Placed items unaffected:** the scene render path (`buildMergedCatalog` → `useCatalog`) merges
+  resolved remote defs unconditionally, so a design saved with a remote model still renders when
+  the flag is off — gating affects the **browse/add** path only, not already-placed items.
+- **Tests (both modes + no-fetch):** `featureFlags.test.ts` asserts `remoteFurniture` is hidden in
+  Simple / present in Pro (both build kinds) and mirrors `remoteMaterials`;
+  `ui/catalog/remoteFurnitureGating.test.tsx` asserts the grid shows the remote card with
+  `includeRemote=true`, hides it with `false`, and that a resolved (placed) def still merges +
+  renders with browsing off; `ui/catalog/remoteFurnitureBootstrap.test.tsx` renders `CatalogDrawer`
+  and asserts the provider `fetchIndex` is NOT called in Simple mode but IS in Pro. Scenario rung
+  `scripts/scenarios/remote-furniture-gating.json`. Visual verification confirmed seating count
+  11 (Pro, CC0 card + badge present) → 10 (Simple, no CC0 card/badge); the Packs tab + Design
+  button are also correctly hidden in Simple.
+
 ## Tile/ceramic glaze micro-detail — orange-peel micro-normal + glaze↔grout roughness contrast (MAT-002) (v0.1.0.42)
 
 Glazed tile/ceramic surfaces read flat. New pure, deterministic, worker-safe helper

@@ -25,6 +25,10 @@ export function gridItemId(it: GridItem): string {
 
 const FURNITURE_CATEGORY_SET = new Set<string>(FURNITURE_CATEGORIES)
 
+/** Stable empty array so a flag-off render keeps a referentially-stable input to
+ *  the memo (avoids re-running the merge on every render when remote is gated). */
+const EMPTY_REMOTE: RemoteEntry[] = []
+
 export interface UnifiedCatalog {
   /** Per-category cards: local defs first, then un-downloaded CC0 entries. */
   byCategory: Record<FurnitureCategory, GridItem[]>
@@ -44,10 +48,17 @@ export interface UnifiedCatalog {
  * grid model, grouped by category. A remote entry is hidden once it has been
  * downloaded (its resolved local def represents it instead) so nothing appears
  * twice. Also resolves the favourites list from the persisted `favouriteDefIds`.
+ *
+ * `includeRemote` (from the `remoteFurniture` feature flag) gates the browsable
+ * CC0 *model* cards: when false (e.g. Simple mode, where `remoteFurniture` is a
+ * `pro`-tier flag) the grid shows only the curated local catalog and no
+ * un-downloaded remote entries surface. Already-resolved remote models stay as
+ * local defs regardless — gating affects the browse/add path, not placed items.
  */
-export function useUnifiedCatalog(): UnifiedCatalog {
+export function useUnifiedCatalog(includeRemote = true): UnifiedCatalog {
   const localByCategory = useCatalogByCategory()
-  const remoteEntries = useRemoteEntries('furniture')
+  const remoteEntriesAll = useRemoteEntries('furniture')
+  const remoteEntries = includeRemote ? remoteEntriesAll : EMPTY_REMOTE
   const resolvedKeys = useStore(useShallow((s) => Object.keys(s.resolvedRemoteFurniture)))
   const collections = useStore(useShallow((s) => s.favouriteDefIds))
   const recentDefIds = useStore(useShallow((s) => s.recentDefIds))

@@ -83,9 +83,17 @@ export function CatalogDrawer() {
   const fUpload = useFeature('modelUpload')
   const fParametric = useFeature('parametricFurniture')
   const fFavourites = useFeature('catalogFavourites')
+  // Browsable CC0 3D models (Poly Haven) are an advanced, external surface — gated
+  // behind `remoteFurniture` (pro tier), so they hide in Simple mode and the grid
+  // shows only the curated builtin loop. Drives both the grid merge and the index
+  // bootstrap (don't fetch the model index when off).
+  const fRemoteFurniture = useFeature('remoteFurniture')
+  // Materials browse (FinishPicker) shares the same provider index, so the drawer
+  // still bootstraps it when only the material browser is enabled.
+  const fRemoteMaterials = useFeature('remoteMaterials')
   // Price displays/filters are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
-  const unified = useUnifiedCatalog()
+  const unified = useUnifiedCatalog(fRemoteFurniture)
   const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
   const [mode, setMode] = useState<Mode>('catalog')
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -98,8 +106,12 @@ export function CatalogDrawer() {
   const [searchFocused, setSearchFocused] = useState(false)
 
   useEffect(() => {
-    if (open && phStatus === 'idle') void bootstrapRemote()
-  }, [open, phStatus, bootstrapRemote])
+    // Don't fetch the remote model/material index when both browse surfaces are
+    // off (e.g. Simple mode forces `remoteFurniture` off; with materials also off
+    // there is nothing to populate, so skip the network entirely).
+    if (open && phStatus === 'idle' && (fRemoteFurniture || fRemoteMaterials))
+      void bootstrapRemote()
+  }, [open, phStatus, bootstrapRemote, fRemoteFurniture, fRemoteMaterials])
 
   // Persist the browse category + sort (best-effort) so the drawer reopens where
   // the user left off.

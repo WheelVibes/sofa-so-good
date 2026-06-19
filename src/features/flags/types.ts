@@ -27,6 +27,7 @@ export type FeatureFlag =
   | 'backdrops'
   | 'packs'
   | 'remoteMaterials'
+  | 'remoteFurniture'
   | 'modelUpload'
   | 'aiPhotoreal'
   | 'aiWalls'

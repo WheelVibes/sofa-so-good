@@ -208,6 +208,24 @@ describe('iesLights flag (PC-IES-LIGHT)', () => {
   })
 })
 
+describe('remoteFurniture flag (AI-INTEG-001a)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
+    // Browsable CC0 3D models (Poly Haven) are an advanced/external surface →
+    // hidden in Simple where the catalog keeps only the curated builtin loop.
+    expect(resolveFlags(false, {}, false, 'simple').remoteFurniture).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').remoteFurniture).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').remoteFurniture).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').remoteFurniture).toBe(true)
+  })
+  it('ships in prod (CORS-direct CC0, no devOnly gate) and mirrors remoteMaterials', () => {
+    expect(FEATURE_FLAGS.remoteFurniture.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.remoteFurniture.default).toBe(true)
+    expect(FEATURE_FLAGS.remoteFurniture.tier).toBe('pro')
+    // Tiered consistently with the material browser it parallels.
+    expect(FEATURE_FLAGS.remoteFurniture.tier).toBe(FEATURE_FLAGS.remoteMaterials.tier)
+  })
+})
+
 describe('parseFlagOverrides (URL ?ff=)', () => {
   it('parses on/off pairs for known flags, ignoring junk', () => {
     expect(parseFlagOverrides('report:off,walkthrough:on')).toEqual({
