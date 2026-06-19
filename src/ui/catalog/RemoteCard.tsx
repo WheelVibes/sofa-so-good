@@ -52,7 +52,17 @@ export function RemoteCard({ entry, onResolved }: Props) {
 
   const onClick = async () => {
     if (status === 'fetching') return
-    if (status !== 'ready') await resolve(entry, resolution)
+    if (status !== 'ready') {
+      try {
+        await resolve(entry, resolution)
+      } catch {
+        // The slice already sets status to 'error' (the card shows "Retry"), so
+        // swallow here — otherwise the rejected resolve surfaces as an unhandled
+        // promise rejection (console error / dev overlay) and onResolved would
+        // wrongly fire (BUG-005).
+        return
+      }
+    }
     onResolved(key)
   }
 

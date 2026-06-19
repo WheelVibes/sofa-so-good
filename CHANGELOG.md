@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: catch failed remote-asset downloads in RemoteCard (BUG-005) (v0.2.0.7)
+
+`resolveRemoteAsset` sets the card status to `'error'` (showing "Retry") and rethrows for its
+in-flight integration consumers, but `RemoteCard.onClick` awaited it with no try/catch and the
+call site discarded the promise (`void onClick()`) — so clicking a CC0 card while offline or on a
+404 produced an unhandled promise rejection (console error / dev overlay), and `onResolved` could
+wrongly fire. The await is now wrapped in try/catch that returns early on failure (the visual error
+state is already handled by the slice). Adds a unit test asserting no `onResolved` on a rejected
+download.
+
 ## Fix two resource leaks: wall-face geometry + thumbnail blob URLs (BUG-006/007) (v0.2.0.6)
 
 - **BUG-006** — `WallSegment` FacePlane memoised `worldUvPlaneGeometry` but never disposed it,
