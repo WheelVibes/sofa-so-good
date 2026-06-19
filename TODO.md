@@ -63,7 +63,7 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 | ~~24~~ | ~~**RD-407**~~ | ✅ DONE (v0.2.0.18 case goods + v0.2.0.19 appliances) — Bookshelf/CabinetModule/CabinetCorner/Wardrobe + all 8 appliance bodies beveled (glass/handles/controls stay sharp) | MED photoreal | M | primitives | `cg-primitives` |
 | 25 | **PC2-SURFACE-DROP** | Auto-snap surface decor (lamp/vase/monitor) onto table/shelf top on drop | MED QOL | M | `scene/DragController.tsx`, `collision/placement.ts`, placement slice | `cg-dragctl` |
 | 26 | **PC2-FURN-GROUP** | First-class furniture grouping (group move/rotate/dup/delete + ⌘K cmd, pro flag) | MED QOL | M | placement slice, `layout/selectionActions.ts`, `features/featureFlags.ts` | `cg-selactions` |
-| 27 | **PC2-MULTI-DUP-PASTE** | Copy/paste + duplicate-in-place for multi-selection, one coalesced undo | MED QOL | S | `layout/selectionActions.ts`, keymap/⌘K | `cg-selactions` |
+| ~~27~~ | ~~**PC2-MULTI-DUP-PASTE**~~ | ✅ DONE (v0.2.0.30) — clipboard holds the whole selection; ⌘C/⌘V paste a group via planDuplicates (one undo). Duplicate ⌘D already did multi. | MED QOL | S | `state/slices/clipboardSlice.ts`, `App.tsx` | `cg-selactions` |
 | 28 | **PC2-PLAN-ANGLE-SNAP** | Snap wall-draw + furniture-rotate to 15/30/45/90° with Shift/Alt override | MED QOL | S/M | `ui/floorplan/FloorPlanEditor.tsx`, `ui/floorplan/editor/snapToWalls.ts` (+test) | `cg-floorplaneditor` |
 | ~~29~~ | ~~**UX-002**~~ | ✅ DONE (v0.2.0.16) — 44px `::after` hit area on every docked-sheet `.panel-head .icon-btn` | MED a11y/touch | S | `styles/responsive.css` | `cg-css` |
 | 30 | **UX-006** | No global `prefers-reduced-motion` handling for sheet/fade animations | LOW/MED a11y | S | `styles/responsive.css` (global media block) | `cg-css` |

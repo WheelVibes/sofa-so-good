@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## QOL: copy/paste a multi-selection as a group (PC2-MULTI-DUP-PASTE) (v0.2.0.30)
+
+⌘C/⌘V previously copied only the primary selected item (duplicate ⌘D already handled multi). The
+clipboard now holds the **whole selection** (one entry per item, each with its position), so ⌘C on a
+multi-select then ⌘V pastes them all back as a group preserving the arrangement — reusing the proven
+`planDuplicates` (shared-offset, collision-skipping) in one undo step, with the pasted copies selected.
+`clipboard` is now `ClipboardEntry[] | null`; single copy is a one-element array (behaviour unchanged).
+Adds a clipboard-slice test (array storage + deep copy + null/empty normalisation); verified end-to-end
+in the room editor (2 selected → ⌘C → ⌘V → +2 copies, selected). Editing-gated like all copy/paste.
+
 ## Perf: short-circuit the SelectionOutline selector when nothing is selected (PERF-007) (v0.2.0.29)
 
 `SelectionOutline`'s selector ran `s.items.filter(i => selectedItemIds.includes(i.id) && !hiddenItemIds

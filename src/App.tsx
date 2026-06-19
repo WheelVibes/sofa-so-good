@@ -357,8 +357,42 @@ export default function App() {
 
   const pasteClipboard = useCallback(() => {
     const state = useStore.getState()
-    const entry = state.clipboard
-    if (!entry) return
+    const entries = state.clipboard
+    if (!entries || entries.length === 0) return
+
+    // Multi-item paste: rebuild the copied selection as pseudo-sources at their
+    // copy-time positions and reuse `planDuplicates` (shared-offset, arrangement-
+    // preserving, collision-skipping) — one undo step (PC2-MULTI-DUP-PASTE).
+    if (entries.length > 1) {
+      const mkId = (n: number) =>
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `paste-${Date.now()}-${n}`
+      const sources = entries
+        .filter((e) => catalog[e.defId])
+        .map((e, i) => ({
+          id: `paste-src-${i}`,
+          defId: e.defId,
+          position: [e.sourcePosition[0], e.sourcePosition[1]] as [number, number],
+          rotation: e.rotation,
+          flipX: e.flipX,
+          flipZ: e.flipZ,
+          label: e.label,
+          props: { ...e.props },
+        }))
+      const copies = planDuplicates(
+        sources,
+        { others: state.items, defs: catalog, doors: state.doors },
+        mkId,
+      )
+      if (copies.length === 0) return
+      state.pushHistory()
+      state.setItems([...state.items, ...copies])
+      state.setSelectedItemIds(copies.map((c) => c.id))
+      return
+    }
+
+    const entry = entries[0]
     const def = catalog[entry.defId]
     if (!def) return
 
@@ -427,15 +461,17 @@ export default function App() {
     const single = st.items.find((i) => i.id === st.selectedItemId)
     if (ids.length <= 1) {
       if (!single) return
-      st.setClipboard({
-        defId: single.defId,
-        rotation: single.rotation,
-        props: single.props,
-        flipX: single.flipX,
-        flipZ: single.flipZ,
-        label: single.label,
-        sourcePosition: single.position,
-      })
+      st.setClipboard([
+        {
+          defId: single.defId,
+          rotation: single.rotation,
+          props: single.props,
+          flipX: single.flipX,
+          flipZ: single.flipZ,
+          label: single.label,
+          sourcePosition: single.position,
+        },
+      ])
       pasteClipboard()
       return
     }
@@ -537,22 +573,26 @@ export default function App() {
           if (!lockedIds.has(id)) useStore.getState().deleteItem(id)
         }
       }
-      if (mod && code === KEYBINDINGS.copySelected && state.selectedItemId) {
+      if (mod && code === KEYBINDINGS.copySelected && state.selectedItemIds.length > 0) {
         e.preventDefault()
-        const item = state.items.find((i) => i.id === state.selectedItemId)
-        if (item) {
-          state.setClipboard({
-            defId: item.defId,
-            rotation: item.rotation,
-            props: item.props,
-            flipX: item.flipX,
-            flipZ: item.flipZ,
-            label: item.label,
-            sourcePosition: item.position,
-          })
+        // Copy the WHOLE selection (each item with its position) so a multi-select
+        // pastes back as a group preserving its arrangement (PC2-MULTI-DUP-PASTE).
+        const sel = state.items.filter((i) => state.selectedItemIds.includes(i.id))
+        if (sel.length > 0) {
+          state.setClipboard(
+            sel.map((item) => ({
+              defId: item.defId,
+              rotation: item.rotation,
+              props: item.props,
+              flipX: item.flipX,
+              flipZ: item.flipZ,
+              label: item.label,
+              sourcePosition: item.position,
+            })),
+          )
         }
       }
-      if (mod && code === KEYBINDINGS.pasteClipboard && state.clipboard) {
+      if (mod && code === KEYBINDINGS.pasteClipboard && state.clipboard?.length) {
         e.preventDefault()
         pasteClipboard()
       }
