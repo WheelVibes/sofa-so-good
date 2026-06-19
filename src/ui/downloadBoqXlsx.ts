@@ -7,13 +7,16 @@ import { useStore } from '../state/store'
  *  programmatic download needs no user-activation window. */
 export async function downloadBoqXlsx(): Promise<void> {
   const s = useStore.getState()
-  const [{ buildBoq }, { boqToXlsx }, { assembleBoqInput }] = await Promise.all([
+  const [{ buildBoq }, { boqToXlsx }, { assembleBoqInput }, { applyTemplate }] = await Promise.all([
     import('../export/boq'),
     import('../export/boqXlsx'),
     import('./openBoq'),
+    import('../export/quoteTemplate'),
   ])
-  const boq = buildBoq(await assembleBoqInput())
-  const bytes = boqToXlsx(boq)
+  const template = s.quoteTemplate
+  const rawBoq = buildBoq(await assembleBoqInput())
+  const boq = applyTemplate(rawBoq, template)
+  const bytes = boqToXlsx(boq, template)
   const blob = new Blob([bytes as BlobPart], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   })

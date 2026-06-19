@@ -549,6 +549,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // User-editable quote template (PARITY-QUOTE-XLSX tail): company branding,
+  // header/footer notes, GST/markup/discount, section visibility. Pure code,
+  // no external assets → prod-safe. A professional export-customisation tool →
+  // pro tier (hidden in Simple mode automatically).
+  quoteTemplate: {
+    label: 'Quote template',
+    description: 'Customise the quote with company branding, notes, GST & markup',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

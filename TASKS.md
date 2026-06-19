@@ -161,7 +161,7 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [x] PARITY-BASEBOARD: SH3D per-wall baseboard params **shipped** — `PlanWall.baseboard`
   (height/colour/hidden) drives the PlanShell skirting; Plan-inspector wall section + `wallBaseboard`
   pro flag. (Custom plans only; default HDB layout uses the fixed `Skirting.tsx`.)
-- [~] PARITY-QUOTE-XLSX: quote XLSX/CSV **shipped** (PARITY-QUOTEXLSX). Remaining: user-editable templates.
+- [x] PARITY-QUOTE-XLSX: quote XLSX/CSV + user-editable quote templates **shipped** (v0.1.0.7). `QuoteTemplate` model, `quoteTemplateSlice`, `QuoteTemplateModal`, `applyTemplate`, BOQ export threaded. Feature flag `quoteTemplate` (pro), undo-tracked, persisted in save schema.
 
 ### Pending — marquee (L)
 - [x] PARITY-VIDEO: video flythrough export **shipped** — saved-views cinematic tour → .webm

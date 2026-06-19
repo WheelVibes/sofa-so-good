@@ -11,6 +11,11 @@
 import { z } from 'zod'
 import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
+import {
+  DEFAULT_QUOTE_TEMPLATE,
+  isNonDefaultTemplate,
+  mergeTemplate,
+} from '../export/quoteTemplate'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { allPlanRooms } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
@@ -280,6 +285,25 @@ const FloorPlanZ = z.object({
     .optional(),
 })
 
+/** Serialised quote template — all fields optional for backward compatibility.
+ *  Missing fields are filled in from `DEFAULT_QUOTE_TEMPLATE` on load. */
+const QuoteTemplateZ = z
+  .object({
+    companyName: z.string().optional(),
+    contactLine: z.string().optional(),
+    headerNote: z.string().optional(),
+    footerNote: z.string().optional(),
+    currencyLabel: z.string().optional(),
+    gstPercent: z.number().optional(),
+    markupPercent: z.number().optional(),
+    discountPercent: z.number().optional(),
+    showFfe: z.boolean().optional(),
+    showFloor: z.boolean().optional(),
+    showWall: z.boolean().optional(),
+    showCarpentry: z.boolean().optional(),
+  })
+  .optional()
+
 const RawSerializedStateZ = z.object({
   version: z.literal(2),
   apartmentId: z.literal('serangoon-north-vista-4r'),
@@ -381,6 +405,9 @@ const RawSerializedStateZ = z.object({
       }),
     )
     .optional(),
+  // Optional user-editable quote template (PARITY-QUOTE-XLSX tail).
+  // Optional + additive — no schema-version bump; absent → DEFAULT_QUOTE_TEMPLATE on load.
+  quoteTemplate: QuoteTemplateZ,
   savedAt: z.string(),
 })
 
@@ -505,6 +532,8 @@ export function serialize(state: RootState): SerializedState {
     // Persist tour stops so shared designs arrive with stops in place.
     // Images are NOT embedded — receivers capture live, same as C252 model.
     ...(state.panoTourStops.length ? { panoTourStops: state.panoTourStops } : {}),
+    // Persist the quote template only when the user has changed it (saves space).
+    ...(isNonDefaultTemplate(state.quoteTemplate) ? { quoteTemplate: state.quoteTemplate } : {}),
     savedAt: new Date().toISOString(),
   }
 }
@@ -569,5 +598,9 @@ export function applySerialized(
     designNote: state.note ?? '',
     // Restore tour stops from the shared design (absent in older saves → []).
     panoTourStops: state.panoTourStops ?? [],
+    // Restore the quote template (absent in older saves → DEFAULT_QUOTE_TEMPLATE).
+    quoteTemplate: state.quoteTemplate
+      ? mergeTemplate(state.quoteTemplate)
+      : DEFAULT_QUOTE_TEMPLATE,
   }
 }

@@ -9,9 +9,14 @@
  *
  * Money is in SGD. Carpentry is priced per linear metre (the SG carpentry unit);
  * a linear-feet column is derived for the client's convenience (1 m = 3.28084 ft).
+ *
+ * Both `boqToHtml` and `boqToCsv` accept an optional `QuoteTemplate` that adds
+ * company branding, notes, and adjusts currency headings. Omitting the template
+ * (or passing `DEFAULT_QUOTE_TEMPLATE`) reproduces the original output exactly.
  */
 
 import type { FloorPlan } from '../floorplan/types'
+import { escapeTemplateText, type QuoteTemplate, templateCurrencyFormatter } from './quoteTemplate'
 
 /** Metres → feet conversion (carpentry quotes often list both). */
 export const M_TO_FT = 3.28084
@@ -185,11 +190,33 @@ function csvField(value: string | number): string {
 /**
  * Render the BOQ as a CSV string: a header row, then one row per line (with a
  * Section column), section subtotal rows, and a final grand-total row.
+ *
+ * When a `template` is provided: company/contact/headerNote are prepended as
+ * rows; footerNote is appended; currency label is used in column headings.
+ * Omitting the template (or passing the default) reproduces the original output.
  */
-export function boqToCsv(boq: Boq): string {
+export function boqToCsv(boq: Boq, template?: QuoteTemplate): string {
   const rows: string[] = []
+  const currencyLabel = template?.currencyLabel || 'SGD'
+
+  // Optional header rows (company branding + notes).
+  if (template?.companyName) rows.push([csvField(template.companyName)].join(','))
+  if (template?.contactLine) rows.push([csvField(template.contactLine)].join(','))
+  if (template?.headerNote) rows.push([csvField(template.headerNote)].join(','))
+  if ((template?.companyName || template?.contactLine || template?.headerNote) && rows.length > 0) {
+    rows.push('') // blank separator
+  }
+
   rows.push(
-    ['Section', 'Description', 'Qty', 'Unit', 'Length (ft)', 'Rate (SGD)', 'Amount (SGD)']
+    [
+      'Section',
+      'Description',
+      'Qty',
+      'Unit',
+      'Length (ft)',
+      `Rate (${currencyLabel})`,
+      `Amount (${currencyLabel})`,
+    ]
       .map(csvField)
       .join(','),
   )
@@ -220,6 +247,13 @@ export function boqToCsv(boq: Boq): string {
     )
   }
   rows.push(['', csvField('Grand Total'), '', '', '', '', csvField(boq.total)].join(','))
+
+  // Optional footer note.
+  if (template?.footerNote) {
+    rows.push('')
+    rows.push([csvField(template.footerNote)].join(','))
+  }
+
   return rows.join('\r\n')
 }
 
@@ -236,11 +270,33 @@ function escapeHtml(value: string | number): string {
 /**
  * Render the BOQ as a self-contained, fully-escaped HTML fragment: one table per
  * section with a subtotal row, then a grand-total row. No external CSS required.
+ *
+ * When a `template` is provided: company/contact names are rendered before the
+ * heading; header/footer notes are added; the currency formatter uses the
+ * template's currencyLabel. Omitting the template reproduces the original output.
  */
-export function boqToHtml(boq: Boq): string {
+export function boqToHtml(boq: Boq, template?: QuoteTemplate): string {
+  const fmt = template ? templateCurrencyFormatter(template) : sgd
+  const esc = (v: string | number) => (template ? escapeTemplateText(v) : escapeHtml(v))
+
   const parts: string[] = []
   parts.push('<section class="boq">')
+
+  // Optional company branding block.
+  if (template?.companyName) {
+    parts.push(`<div class="boq-company">${esc(template.companyName)}</div>`)
+  }
+  if (template?.contactLine) {
+    parts.push(`<div class="boq-contact">${esc(template.contactLine)}</div>`)
+  }
+
   parts.push(`<h1>Bill of Quantities — ${escapeHtml(boq.planName)}</h1>`)
+
+  // Optional header note.
+  if (template?.headerNote) {
+    parts.push(`<p class="boq-header-note">${esc(template.headerNote)}</p>`)
+  }
+
   if (boq.sections.length === 0) {
     parts.push('<p class="boq-empty">No items.</p>')
   }
@@ -258,18 +314,24 @@ export function boqToHtml(boq: Boq): string {
           `<td>${escapeHtml(line.qty)}</td>` +
           `<td>${escapeHtml(line.unit)}</td>` +
           `<td>${line.lengthFt == null ? '' : escapeHtml(line.lengthFt)}</td>` +
-          `<td>${escapeHtml(sgd(line.rate))}</td>` +
-          `<td>${escapeHtml(sgd(line.amount))}</td>` +
+          `<td>${escapeHtml(fmt(line.rate))}</td>` +
+          `<td>${escapeHtml(fmt(line.amount))}</td>` +
           '</tr>',
       )
     }
     parts.push('</tbody>')
     parts.push(
-      `<tfoot><tr><th colspan="5">Subtotal</th><td>${escapeHtml(sgd(section.subtotal))}</td></tr></tfoot>`,
+      `<tfoot><tr><th colspan="5">Subtotal</th><td>${escapeHtml(fmt(section.subtotal))}</td></tr></tfoot>`,
     )
     parts.push('</table>')
   }
-  parts.push(`<p class="boq-total"><strong>Grand Total:</strong> ${escapeHtml(sgd(boq.total))}</p>`)
+  parts.push(`<p class="boq-total"><strong>Grand Total:</strong> ${escapeHtml(fmt(boq.total))}</p>`)
+
+  // Optional footer/terms note.
+  if (template?.footerNote) {
+    parts.push(`<p class="boq-footer-note">${esc(template.footerNote)}</p>`)
+  }
+
   parts.push('</section>')
   return parts.join('\n')
 }

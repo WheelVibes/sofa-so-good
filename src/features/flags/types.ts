@@ -81,6 +81,7 @@ export type FeatureFlag =
   | 'planCompass'
   | 'contactShadows'
   | 'drawingCallouts'
+  | 'quoteTemplate'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

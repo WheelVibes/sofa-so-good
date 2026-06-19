@@ -526,6 +526,17 @@ same change that reshapes a system.
   present; `openDrawingSet.ts` forwards `drawingCallouts` as 10th arg; persists in the save schema
   (optional `drawingCallouts[]`) so callouts travel with `.sofa.json` + `#/design/` links;
   `drawingCallouts` flag, pro),
+  **Quote templates** (PARITY-QUOTE-XLSX tail: `quoteTemplateSlice` + `export/quoteTemplate.ts`):
+  `QuoteTemplate` interface holds company name, contact line, header/footer notes, currency label,
+  markup/discount/GST percents, and four section-visibility booleans (FF&E / Flooring / Wall Finishes /
+  Carpentry); `DEFAULT_QUOTE_TEMPLATE` is the zero-customisation baseline; `applyTemplate(boq, t)` filters
+  sections and appends Markup/Discount/GST rows, recomputing the grand total; `isNonDefaultTemplate` +
+  `mergeTemplate` support compact serialisation (omitted when default, partial fields filled on load);
+  `quoteTemplateSlice` exposes `setQuoteTemplate`/`resetQuoteTemplate` (both push undo); `quoteTemplate`
+  is part of `HistorySnapshot` so template edits are fully undoable; `boqToHtml`/`boqToCsv`/`boqRows`/
+  `boqToXlsx` all accept an optional template and produce identical output when omitted; `openBoq.ts`
+  and `downloadBoqXlsx.ts` read `quoteTemplate` from the store and apply it; `ui/QuoteTemplateModal.tsx`
+  modal with CSS-token-only styling; `quoteTemplate` flag, pro),
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
   even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
   snap-to-wall (`layout/faceWall.ts`) / arrange-as-run (`layout/arrangeRun.ts`, butt a kitchen

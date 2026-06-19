@@ -1,3 +1,4 @@
+import type { QuoteTemplate } from '../../export/quoteTemplate'
 import type { FloorPlan } from '../../floorplan/types'
 import type { FurnitureItem } from '../../furniture/types'
 import type { RootState } from '../store'
@@ -30,6 +31,8 @@ export interface HistorySnapshot {
   comments: DesignComment[]
   /** Drawing-set sheet callouts — add/edit/delete are undoable. */
   drawingCallouts: DrawingCallout[]
+  /** Quote template settings — branding/tax/section changes are undoable. */
+  quoteTemplate: QuoteTemplate
 }
 
 export interface HistorySlice {
@@ -63,6 +66,7 @@ function snapshot(s: RootState): HistorySnapshot {
     floorPlan: s.floorPlan,
     comments: s.comments,
     drawingCallouts: s.drawingCallouts,
+    quoteTemplate: s.quoteTemplate,
   }
 }
 

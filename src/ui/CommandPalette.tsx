@@ -56,6 +56,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'replace-similar': 'replaceSimilar',
   'ai-furnish': 'aiLayout',
   'drawing-callouts': 'drawingCallouts',
+  'quote-template': 'quoteTemplate',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -355,6 +356,13 @@ export function CommandPalette() {
         label: 'Shopping list (buy-list export)',
         icon: 'Budget',
         run: () => openShoppingList(),
+      },
+      {
+        id: 'quote-template',
+        group: 'Tools & panels',
+        label: 'Quote template — branding, notes & tax',
+        icon: 'Budget',
+        run: () => s().setQuoteTemplateOpen(true),
       },
       {
         id: 'furniture-csv',

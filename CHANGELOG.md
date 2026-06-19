@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## User-editable quote templates (v0.1.0.7)
+
+Introduces a `QuoteTemplate` settings model and authoring UI so designers can brand
+BOQ exports with company details and control tax/markup/section layout.
+
+- **`src/export/quoteTemplate.ts`** — pure `QuoteTemplate` interface + `DEFAULT_QUOTE_TEMPLATE`;
+  `applyTemplate(boq, template)` filters sections by visibility flags and appends Markup /
+  Discount / GST rows, recomputing the grand total; `templateCurrencyFormatter` + `escapeTemplateText`.
+- **`src/state/slices/quoteTemplateSlice.ts`** — Zustand slice with `quoteTemplate`,
+  `setQuoteTemplate` (+ undo push), `resetQuoteTemplate` (+ undo push).
+- **`src/ui/QuoteTemplateModal.tsx`** — authoring panel: company name, contact line, header/footer
+  notes, currency label, markup/discount/GST percents, section-visibility toggles. Gated by
+  `quoteTemplate` feature flag (tier: `pro`).
+- **`src/export/boq.ts`** — `boqToHtml` and `boqToCsv` now accept an optional `QuoteTemplate`;
+  branding rows + currency label applied when provided; no change for existing callers.
+- **`src/export/boqXlsx.ts`** — `boqRows` and `boqToXlsx` same optional-template pattern.
+- **`src/state/schema.ts`** — `QuoteTemplateZ` Zod schema; serialised only when non-default.
+- **`src/state/slices/historySlice.ts`** — `quoteTemplate` added to `HistorySnapshot` so
+  template changes are part of the undo stack.
+- Feature flag `quoteTemplate` (tier: `pro`, default `true`) wired into `FEATURE_FLAGS`,
+  `COMMAND_FLAGS` (⌘K "Quote template"), and the Tools menu (nested under BOQ Export).
+- `openBoq.ts` and `downloadBoqXlsx.ts` pull `quoteTemplate` from the store and apply it.
+- 37 new unit tests covering all helpers, slice, Simple/Pro gating.
+
 ## Auto-style rooms with set-dressing decor props (v0.1.0.6)
 
 Dresses the move-in default 4-room HDB flat with the 9 procedural decor props

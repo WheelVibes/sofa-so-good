@@ -72,6 +72,11 @@ import {
 } from './slices/placementSlice'
 import { createProjectSlice, PROJECT_INITIAL, type ProjectSlice } from './slices/projectSlice'
 import { createPromptSlice, PROMPT_INITIAL, type PromptSlice } from './slices/promptSlice'
+import {
+  createQuoteTemplateSlice,
+  QUOTE_TEMPLATE_INITIAL,
+  type QuoteTemplateSlice,
+} from './slices/quoteTemplateSlice'
 import { createRecentSlice, RECENT_INITIAL, type RecentSlice } from './slices/recentSlice'
 import {
   createRemoteCatalogSlice,
@@ -141,6 +146,7 @@ export interface RootState
     PanoTourSlice,
     PromptSlice,
     ProjectSlice,
+    QuoteTemplateSlice,
     FeatureFlagsSlice,
     AuthSlice {
   __resetForTest: () => void
@@ -177,6 +183,7 @@ const INITIAL = {
   ...PANO_TOUR_INITIAL,
   ...PROMPT_INITIAL,
   ...PROJECT_INITIAL,
+  ...QUOTE_TEMPLATE_INITIAL,
   ...STYLE_CLIPBOARD_INITIAL,
   ...USER_SETS_INITIAL,
 }
@@ -214,6 +221,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createPanoTourSlice(set, get, api),
   ...createPromptSlice(set, get, api),
   ...createProjectSlice(set, get, api),
+  ...createQuoteTemplateSlice(set, get, api),
   ...createStyleClipboardSlice(set, get, api),
   ...createUserSetsSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),

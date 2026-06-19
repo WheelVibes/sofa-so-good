@@ -74,6 +74,7 @@ import { NotificationContainer } from './ui/notifications/NotificationContainer'
 import { Onboarding } from './ui/Onboarding'
 import { PresentationMode } from './ui/PresentationMode'
 import { PromptModal } from './ui/PromptModal'
+import { QuoteTemplateModal } from './ui/QuoteTemplateModal'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
 import { SwapModal } from './ui/SwapModal'
 import { TapeModeToggle } from './ui/TapeModeToggle'
@@ -875,6 +876,7 @@ export default function App() {
             <ParametricDialog />
           </Suspense>
         ) : null}
+        <QuoteTemplateModal />
         <LoginScreen />
         <FlagsPanel />
         <Onboarding />

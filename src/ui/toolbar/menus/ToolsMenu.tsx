@@ -161,6 +161,7 @@ export function ToolsMenu() {
   const fMoodboard = useFeature('moodboard')
   const fDxf = useFeature('dxfExport')
   const fBoq = useFeature('boq')
+  const fQuoteTemplate = useFeature('quoteTemplate')
   const fSceneExport = useFeature('sceneExport3d')
   const fViewInAr = useFeature('viewInAr')
   const fDrawingCallouts = useFeature('drawingCallouts')
@@ -308,6 +309,14 @@ export function ToolsMenu() {
             sub="Download the bill of quantities as a spreadsheet"
             onClick={() => void downloadBoqXlsx()}
           />
+          {fQuoteTemplate && (
+            <MenuItem
+              icon="Budget"
+              label="Quote template"
+              sub="Company branding, notes, GST & markup"
+              onClick={() => useStore.getState().setQuoteTemplateOpen(true)}
+            />
+          )}
         </>
       )}
       {fDxf && (
