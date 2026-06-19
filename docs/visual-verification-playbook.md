@@ -687,3 +687,17 @@ showing the new label is end-to-end proof. (That's how the room-editor room
 switcher was verified: selecting `kitchen` re-rendered the kitchen scene.)
 
 In **scenario mode**: `{"select": {"selector": ".toolbar-room-select", "value": "kitchen"}}`.
+
+### Probing the live scene graph (lights/meshes) — `window.__three.scene`
+`DevCameraExpose` (dev-only) exposes `window.__three = { camera, gl, controls, scene }`.
+For lighting-only changes the demand-frameloop may not surface in pixels (see the lag note
+in "Known headless limitations"), **assert via the scene graph instead of pixels**: traverse
+`window.__three.scene` and read `o.isSpotLight`/`o.isPointLight` + `o.angle`/`o.penumbra`/
+`o.intensity`. This is how the IES photometric feature (PC-IES-LIGHT) was verified — applying
+a narrow `.ies` profile to the ceiling lights produced `SpotLight`s at a 32° cone (penumbra
+0.40, intensity ~8.4), a wide profile gave ~76° cones, and non-IES emitters stayed
+`PointLight`s — proving the photometric beam differs from a default cone. Framing a *downward
+floor beam* in orbit headless is unreliable (OrbitControls snaps back a manual `lookAt`, and
+the dollhouse angle hides the floor), so the scene-graph probe is the reliable proof here.
+Give the rebuild a nudge (`setManualHour(h + 0.01)`) after `updateItemProps` so the
+nearest-light recompute fires before you probe.

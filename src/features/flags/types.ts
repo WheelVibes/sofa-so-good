@@ -85,6 +85,7 @@ export type FeatureFlag =
   | 'catalogFavourites'
   | 'wallNumericEntry'
   | 'radialArray'
+  | 'iesLights'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

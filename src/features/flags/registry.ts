@@ -589,6 +589,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // IES photometric light profiles (PC-IES-LIGHT, Coohom parity): drive a real
+  // luminaire beam shape (cone/penumbra/intensity from an LM-63 .ies candela
+  // distribution) on a light fixture. Pure client-side code (parse + map), no
+  // network/GPU dependency → prod-safe. An advanced lighting-design tool → pro
+  // tier (hidden in Simple mode automatically).
+  iesLights: {
+    label: 'IES light profiles',
+    description: 'Apply real luminaire photometric beam shapes (.ies) to light fixtures',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

@@ -5,6 +5,41 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IES photometric light profiles for spotlights (PC-IES-LIGHT) (v0.1.0.23)
+
+Coohom-parity advanced lighting: drive a light fixture with a real luminaire beam
+shape parsed from an IESNA LM-63 `.ies` photometric file, instead of a uniform
+omni glow.
+
+- **New pure, render-agnostic lighting module** (`src/lighting/ies/`):
+  - `parseIes.ts` — LM-63 (1986/1991/1995/2002) ASCII parser: optional `IESNA`
+    magic line, `[KEYWORD]` headers, the `TILT=` line (incl. an inline
+    `TILT=INCLUDE` block, read + skipped), the 10 photometric params + ballast/
+    units line (robust to arbitrary whitespace/newline wrapping of the free-form
+    number stream), vertical + horizontal angle arrays, and the candela grid with
+    the candela multiplier applied. Handles photometry type C/B/A (C correct,
+    others tolerated). Malformed/empty input throws a clear `IesParseError`.
+  - `iesProfile.ts` — derives peak candela, beam angle (to 50 % of peak) and field
+    angle (to 10 % of peak) from the principal vertical plane, interpolating
+    between samples; degrades gracefully on a degenerate distribution.
+  - `spotMapping.ts` — maps a profile to Three `SpotLight` params: `angle` =
+    field half-angle (clamped 6°–80°), `penumbra` from the beam-vs-field ratio,
+    `intensity` scaled from the fixture's base intensity by beam focus.
+  - `sampleProfiles.ts` — two **self-authored, public-domain** bundled `.ies`
+    profiles (narrow accent + wide general downlight) as LM-63 string literals,
+    parsed lazily + cached → works out of the box, no network fetch.
+  - `iesStore.ts` — session resolver/cache for bundled + uploaded profiles
+    (`custom:<key>`); never throws on resolve (bad source → null → default cone).
+- **Rendering** (`src/scene/lighting/FurnitureLights.tsx`): a lit item that
+  references an IES profile (`props.iesProfile`) renders a downward-pointing
+  `SpotLight` (target on the floor under the bulb) using the mapped cone/penumbra/
+  intensity; otherwise the existing omni point light. Parsed + mapped once, cached.
+- **Inspector UI** (`src/ui/inspector/IesProfilePicker.tsx`): in the Light section
+  of an emitter, a "Photometry (IES)" picker — None / a bundled profile / upload
+  your own `.ies` — gated by the `iesLights` feature.
+- **Feature flag** `iesLights` (`tier: 'pro'`, `default: true`, prod-safe pure
+  code): hidden in Simple mode, present in Pro. Unit-tested in both modes.
+
 ## Consistent, friendly empty states across panels (PC-EMPTY-STATES) (v0.1.0.22)
 
 Every panel/list that can be empty now shows the same polished icon + title +

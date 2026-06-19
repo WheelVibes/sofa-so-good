@@ -21,6 +21,7 @@ import { formatDimsShort, formatLength } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
 import { Icon } from '../toolbar/icons'
 import { GltfBody } from './GltfBody'
+import { IesProfilePicker } from './IesProfilePicker'
 import { IkeaBody } from './IkeaBody'
 import { InspectorSection } from './InspectorSection'
 import { MultiSelectPanel } from './MultiSelectPanel'
@@ -952,6 +953,12 @@ export function InspectorPanel() {
                           />
                           <span className="w-8 text-right font-mono">{intensity.toFixed(0)}</span>
                         </label>
+                        <IesProfilePicker
+                          itemId={item.id}
+                          value={
+                            typeof item.props.iesProfile === 'string' ? item.props.iesProfile : ''
+                          }
+                        />
                       </div>
                     )
                   })()

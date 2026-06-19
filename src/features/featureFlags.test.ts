@@ -194,6 +194,20 @@ describe('Simple/Pro tiering', () => {
   })
 })
 
+describe('iesLights flag (PC-IES-LIGHT)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode', () => {
+    expect(resolveFlags(false, {}, false, 'simple').iesLights).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').iesLights).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').iesLights).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').iesLights).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.iesLights.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.iesLights.default).toBe(true)
+    expect(FEATURE_FLAGS.iesLights.tier).toBe('pro')
+  })
+})
+
 describe('parseFlagOverrides (URL ?ff=)', () => {
   it('parses on/off pairs for known flags, ignoring junk', () => {
     expect(parseFlagOverrides('report:off,walkthrough:on')).toEqual({
