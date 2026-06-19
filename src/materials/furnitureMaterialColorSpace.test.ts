@@ -39,4 +39,19 @@ describe('furniture material colour-management (PHOTO-COLORSPACE)', () => {
       if (m.roughnessMap) expect(m.roughnessMap.colorSpace).toBe(NoColorSpace)
     }
   })
+
+  it('keeps the fabric weave/seam/wrinkle normal map linear (RZ6)', async () => {
+    const { getFabricMaterial } = await import('./furnitureMaterials')
+    // A plain-pattern fabric carries no albedo map — the colour tints directly,
+    // and the weave + seams + wrinkle ride a data (normal) map, which must stay
+    // linear. (A patterned fabric's tone-on-tone albedo is covered separately.)
+    const plain = getFabricMaterial('#8aa1a8')
+    expect(plain.normalMap).not.toBeNull()
+    expect(plain.normalMap?.colorSpace).toBe(NoColorSpace)
+    expect(plain.map).toBeNull()
+    // Patterned fabric adds a tone-on-tone albedo map → sRGB; normal stays linear.
+    const patterned = getFabricMaterial('#8aa1a8', 0.95, 'herringbone')
+    expect(patterned.map?.colorSpace).toBe(SRGBColorSpace)
+    expect(patterned.normalMap?.colorSpace).toBe(NoColorSpace)
+  })
 })

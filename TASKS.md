@@ -216,7 +216,8 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [~] RZ5: painted-trim realism — baseboard + crown molding now bevel their edges in BOTH the fixed
   apartment (`WallSegment`) and custom plans (`PlanShell` skirting + crown), so trim catches a highlight
   (light-catch real-GPU-pending). Remaining: skirting-floor seam AO + painted-trim wear.
-- [ ] RZ6: upholstery seam stitching + seeded fabric-wrinkle variation on sofas/chairs.
+- [x] RZ6: upholstery seam stitching + soft fabric wrinkle now ship on the fabric material
+  (`procedural/upholsterySeams.ts`, behind `pbrSurfaces`) so sofas/chairs read as woven cloth.
 - [ ] RZ7: PCF/penumbra shadow softening on Medium+ tiers.
 
 ### Code quality
