@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../store'
 import { HISTORY_LIMIT, HISTORY_TRIM_HEADROOM } from './historySlice'
@@ -59,6 +59,107 @@ describe('history slice', () => {
     s().updateItemProps(id, { scale: 1.3 })
     // Three rapid same-prop edits → exactly one new history entry.
     expect(s().past.length).toBe(baseDepth + 1)
+  })
+
+  // PC-NUDGE-UNDO: a burst of same-key coalesced pushes (e.g. repeated arrow-key
+  // nudge taps) must collapse into ONE undo step, a deliberate pause must start a
+  // new one, distinct keys must never merge, and `refreshCoalesce` must keep a
+  // live window open without snapshotting.
+  describe('coalesce window (nudge bursts)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('a burst of same-key pushes within the window is one undo step', () => {
+      s().clearHistory()
+      const base = s().items
+      useStore.setState({ items: [...base, base[0]!] }) // any mutation
+      s().pushHistoryCoalesced('nudge')
+      // Simulate 5 rapid taps, each well inside the 500ms window.
+      for (let i = 0; i < 5; i++) {
+        vi.advanceTimersByTime(50)
+        s().pushHistoryCoalesced('nudge')
+      }
+      expect(s().past.length).toBe(1)
+    })
+
+    it('a single tap is one undo step', () => {
+      s().clearHistory()
+      s().pushHistoryCoalesced('nudge')
+      expect(s().past.length).toBe(1)
+    })
+
+    it('a deliberate pause past the window starts a new undo step', () => {
+      s().clearHistory()
+      s().pushHistoryCoalesced('nudge')
+      vi.advanceTimersByTime(600) // > COALESCE_MS
+      s().pushHistoryCoalesced('nudge')
+      expect(s().past.length).toBe(2)
+    })
+
+    it('distinct action keys never coalesce into one step', () => {
+      s().clearHistory()
+      s().pushHistoryCoalesced('nudge')
+      vi.advanceTimersByTime(10)
+      s().pushHistoryCoalesced('elev:x') // different action, same instant
+      expect(s().past.length).toBe(2)
+    })
+
+    it('an interleaved plain push breaks the coalesce chain', () => {
+      s().clearHistory()
+      s().pushHistoryCoalesced('nudge')
+      s().pushHistory() // e.g. a rotate / array commit — resets _lastPushKey
+      vi.advanceTimersByTime(10)
+      s().pushHistoryCoalesced('nudge') // can't merge into the pre-push entry
+      expect(s().past.length).toBe(3)
+    })
+
+    it('refreshCoalesce keeps the window alive without adding a snapshot', () => {
+      s().clearHistory()
+      s().pushHistoryCoalesced('nudge')
+      expect(s().past.length).toBe(1)
+      // A long hold: time passes but refreshCoalesce keeps bumping the clock.
+      for (let i = 0; i < 6; i++) {
+        vi.advanceTimersByTime(100)
+        s().refreshCoalesce('nudge')
+      }
+      expect(s().past.length).toBe(1) // no new snapshot from refresh
+      // A quick re-tap after the long hold still coalesces (window kept alive).
+      vi.advanceTimersByTime(100)
+      s().pushHistoryCoalesced('nudge')
+      expect(s().past.length).toBe(1)
+    })
+
+    it('refreshCoalesce is a no-op for a different key (no hijack)', () => {
+      s().clearHistory()
+      s().pushHistoryCoalesced('nudge')
+      const at = s()._lastPushAt
+      vi.advanceTimersByTime(100)
+      s().refreshCoalesce('elev:x') // different key
+      expect(s()._lastPushAt).toBe(at) // unchanged
+    })
+
+    it('one undo after a coalesced burst reverts the whole burst', () => {
+      s().clearHistory()
+      const id = s().addItem({ defId: 'bed-double', position: [0, 0], rotation: 0, props: {} })
+      const baseDepth = s().past.length
+      const start = s().items.find((i) => i.id === id)!.position
+      // Burst of nudges sharing one coalesced entry, each a real move.
+      s().pushHistoryCoalesced('nudge')
+      s().moveItem(id, [0.1, 0])
+      vi.advanceTimersByTime(40)
+      s().pushHistoryCoalesced('nudge')
+      s().moveItem(id, [0.2, 0])
+      vi.advanceTimersByTime(40)
+      s().pushHistoryCoalesced('nudge')
+      s().moveItem(id, [0.3, 0])
+      expect(s().past.length).toBe(baseDepth + 1) // burst = one entry
+      s().undo()
+      expect(s().items.find((i) => i.id === id)!.position).toEqual(start)
+    })
   })
 
   it('undo is a no-op on an empty past stack', () => {

@@ -55,6 +55,13 @@ export interface HistorySlice {
    *  history panel can restore any past or future step in one move. No-op for an
    *  out-of-range index or the current index. */
   jumpHistory: (targetIndex: number) => void
+  /** Keep an in-progress coalesce window alive WITHOUT pushing a new snapshot:
+   *  bump `_lastPushAt` only while `key` already owns the window. Used by streams
+   *  whose per-frame mutations don't themselves touch the coalesce clock (e.g. a
+   *  press-and-hold nudge calls `moveItem`, not `pushHistoryCoalesced`), so a long
+   *  hold followed by a quick re-tap stays one undo step. No-op for a different
+   *  key, so it can never extend or hijack another action's window. */
+  refreshCoalesce: (key: string) => void
   clearHistory: () => void
 }
 
@@ -128,6 +135,10 @@ export const createHistorySlice: SliceCreator<HistorySlice, RootState> = (set, g
       _lastPushKey: key,
       _lastPushAt: now,
     }))
+  },
+  refreshCoalesce: (key) => {
+    const s = get()
+    if (s._lastPushKey === key) set({ _lastPushAt: Date.now() })
   },
   undo: () =>
     set((s) => {
