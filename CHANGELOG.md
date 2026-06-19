@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Parametric kitchen-cabinet run — geometry, controls, flag, tests, scenario ladder (v0.1.0.8)
+
+The parametric furniture generator (`src/furniture/parametric/`) now supports the
+`kitchen-run` type via `buildKitchenRun` in `buildParts.ts`. This completes the PF
+subsystem (bookshelf / wardrobe / sideboard / desk / kitchen-run). Geometry: recessed
+toe-kick plinth, carcass + per-bay dividers (1–6), per-bay door/drawer/open fronts with
+handles, continuous worktop slab (0.04 m, front/side overhang, fronts proud → no
+z-fighting), optional upper cabinets. Spec limits + `kitchenCabinets` flag (tier
+`simple`, default `true`) gate the Kitchen-run tab; `KitchenControls` adds the sliders,
+bay-count, uppers toggle, per-bay style pickers + finishes (responsive desktop + mobile).
+Adds 29 `kitchen-run.test.ts` unit tests plus `parametric-kitchen-simple.json` /
+`parametric-kitchen-journey.json` scenarios; refreshes `ARCHITECTURE.md`,
+`src/furniture/CLAUDE.md`, and removes the stale `TODO.md` reference.
+
 ## User-editable quote templates (v0.1.0.7)
 
 Introduces a `QuoteTemplate` settings model and authoring UI so designers can brand

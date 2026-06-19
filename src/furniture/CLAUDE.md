@@ -21,6 +21,14 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   maps parts → meshes/materials. The parametric generator (`parametric/`) saves through the
   GLB-designer path (`exportGlb` → `persistUserGlb`) so its output is a regular user def —
   don't invent a parallel persistence channel for generated geometry.
+- **Parametric types** (`parametric/spec.ts` `ParametricType`): `bookshelf` / `wardrobe` /
+  `sideboard` / `desk` / `kitchen-run`. Adding a new type: extend the union + `PARAMETRIC_TYPES`
+  + `PARAMETRIC_TYPE_LABEL` + `PARAMETRIC_LIMITS` + `DEFAULT_SPECS` + `clampSpec` handling;
+  add a `build<Type>` function in `buildParts.ts`; add a controls branch in
+  `ui/parametric/ParametricControls.tsx`; add a feature flag if the type needs its own gate;
+  add unit tests in `parametric/__tests__/<type>.test.ts`; add a scenario ladder
+  (`scripts/scenarios/parametric-<type>-simple.json` + journey). Kitchen-run specifics:
+  `kitchenCabinets` flag (tier: `simple`), `TYPE_CATEGORY` maps to `'kitchen'`.
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).
