@@ -13,6 +13,11 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
 - **Polished + pixel-perfect.** Use the standard spacing scale for margins/padding (no
   ad-hoc one-off gaps); align to existing components so layouts stay cohesive with the
   theme. Verify any new surface in light + dark across all 5 themes before shipping.
+- **Empty states use the shared `EmptyState`** (`src/ui/EmptyState.tsx`): icon (from the
+  `Icon` set) + title + optional one-line description + optional CTA, on the `.empty-mini`
+  token vocabulary. Any panel/list that can be empty must render it (don't hand-roll inline
+  "No … yet" text). Keep copy concise + friendly; use distinct copy for search-no-results
+  vs truly-empty; only wire a CTA to a real existing handler.
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
   gate on `canEditScene`; leaving the editor clears the selection.
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never

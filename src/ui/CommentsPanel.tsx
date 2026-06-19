@@ -1,6 +1,7 @@
 import { useShallow } from 'zustand/react/shallow'
 import { GROUND_LEVEL_ID, isMultiLevel, levelById } from '../floorplan/levels'
 import { useStore } from '../state/store'
+import { EmptyState } from './EmptyState'
 import { Icon } from './toolbar/icons'
 
 /**
@@ -79,10 +80,19 @@ export function CommentsPanel() {
           {commentMode ? 'Tap the floor to pin… (click to cancel)' : '+ Add comment'}
         </button>
         {comments.length === 0 ? (
-          <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
-            No comments yet. Add one, then tap a spot on the floor — pins travel with saves and
-            share links.
-          </div>
+          <EmptyState
+            icon={Icon.Pin}
+            title="No comments yet"
+            description="Add a comment, then tap a spot on the floor — pins travel with saves and share links."
+            cta={
+              commentMode
+                ? undefined
+                : {
+                    label: '+ Add comment',
+                    onClick: () => useStore.getState().toggleCommentMode(),
+                  }
+            }
+          />
         ) : (
           <div className="clr-list">
             {comments.map((c, i) => (

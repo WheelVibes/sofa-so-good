@@ -124,7 +124,9 @@ same change that reshapes a system.
   (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,
   Straighten), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel, NavCluster,
   CommandPalette, ContextMenu, Onboarding, HelpModal, Modal, `upload/`/`floorplan/`/
-  `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`.
+  `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`. Empty panels/lists render the shared
+  **`EmptyState`** (`EmptyState.tsx`: icon + title + optional description + optional CTA on
+  the `.empty-mini` token vocabulary) for consistent, friendly empty-state messaging.
 - `src/styles/` — design CSS (after Tailwind via `index.css`): `tokens.css` (10 OKLCH
   palettes) + `components`/`parts`/`features`/`flows`/`screens`/`responsive`/`app`.
   Components use the class vocabulary (`.panel`/`.btn`/`.toolbar`/…), never hardcoded colour.
