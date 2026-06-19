@@ -1,0 +1,325 @@
+<!-- segment: free-cc0-models -->
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>Poly Pizza</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://poly.pizza/">https://poly.pizza/</a></td></tr>
+    <tr><th>License</th><td>Mostly CC0 and CC-BY (per-asset; license shown on each model page). Successor to the discontinued Google Poly low-poly archive.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Low-poly props, furniture, decor, characters, food, vehicles. Download as <strong>GLB</strong> (also GLTF). Direct web-ready models, no login to download.</td></tr>
+    <tr><th>Programmatic access</th><td><strong>API (REST)</strong> — documented at <a href="https://poly.pizza/docs/api/v1.1">poly.pizza/docs/api/v1.1</a>. Requires a free API key (free for hobby, pay-as-you-go for commercial). List/search endpoints return a <code>Download</code> field with a direct CDN GLB URL (e.g. <code>https://static.poly.pizza/&lt;uid&gt;.glb</code>) — trivially scriptable for batch fetch. Predictable static CDN URLs.</td></tr>
+    <tr><th>Render quality</th><td>medium — clean game-ready low-poly with flat/vertex colours; tidy topology, but stylized rather than PBR-photoreal. Many untextured (low) up to lightly textured (medium).</td></tr>
+    <tr><th>Notes</th><td>Strong furniture/interior coverage (chairs, tables, sofas, lamps, kitchen). GLB is ideal for Three.js/@react-three/fiber. CC-BY items need attribution; CC0 items don't. CC-BY-eligible for prod (CORS-friendly CDN). Catalog: thousands of models.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>Quaternius</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://quaternius.com/">https://quaternius.com/</a></td></tr>
+    <tr><th>License</th><td><strong>CC0</strong> (public domain) for all packs — commercial use, no attribution required (donations encouraged).</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Themed low-poly packs incl. furniture/interior (Modular houses, kitchen, household props), nature, characters (rigged/animated), vehicles. Formats: <strong>GLTF/GLB, FBX, OBJ, BLEND</strong>.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual / bulk per-pack ZIP download from the site (also mirrored via itch.io and Patreon). No public REST API; packs are downloadable as predictable ZIP bundles per collection — scriptable if you enumerate pack URLs, but no official index API.</td></tr>
+    <tr><th>Render quality</th><td>medium — consistent, well-made low-poly game art; mostly flat/gradient materials, no PBR detail. Excellent for stylized scenes, not photoreal.</td></tr>
+    <tr><th>Notes</th><td>Very consistent art style across packs — good for a cohesive stylized interior set. CC0 = safe to bundle in prod with no attribution. Thousands of assets across dozens of packs.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>Kenney (kenney.nl)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://kenney.nl/assets">https://kenney.nl/assets</a></td></tr>
+    <tr><th>License</th><td><strong>CC0</strong> — all assets public domain, commercial use, no attribution required.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>40k+ CC0 game assets. 3D packs incl. "Furniture Kit", "Kitchen Kit", "City Kit", "House" / interior props, modular building blocks. Formats: <strong>GLB/GLTF, FBX, OBJ</strong> (and Blender source); packs as ZIP.</td></tr>
+    <tr><th>Programmatic access</th><td>Bulk download — per-pack ZIPs with stable URLs on kenney.nl (and an itch.io mirror). No REST API, but ZIP URLs are predictable and the whole catalog can be bulk-fetched ("Kenney Game Assets" all-in-one bundle). Project already references Kenney zip handling as dev-gated.</td></tr>
+    <tr><th>Render quality</th><td>medium — clean, uniform low-poly modular kits with simple flat materials; not PBR/photoreal but highly composable.</td></tr>
+    <tr><th>Notes</th><td>The "Furniture Kit" and "Kitchen Kit" are directly interior-relevant and modular (snap-together). CC0 means prod-safe. Per CLAUDE.md the Kenney zip pipeline is treated as a dev-only sidecar in this repo.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="ultra" data-segment="free-cc0-models">
+  <h3>Sketchfab (CC0 / downloadable filter)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://sketchfab.com/3d-models?features=downloadable&amp;licenses=322a749bcfa841b29dff1e8a1bb74b0b">https://sketchfab.com/3d-models?features=downloadable</a> (CC0 filter)</td></tr>
+    <tr><th>License</th><td>Mixed per-asset: CC0, CC-BY, CC-BY-SA, CC-BY-NC, etc. Filterable by license. 800k+ free downloadable models; over 1M total.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Everything incl. abundant furniture/interior/decor and scanned objects. Download formats: <strong>glTF, GLB, USDZ</strong> (plus original source where uploader provides).</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Download API (REST)</strong>: <code>GET https://api.sketchfab.com/v3/models/{UID}/download</code> returns temporary signed URLs (gltf/glb/usdz). Requires OAuth/API-token auth; search via <code>/v3/search?type=models&amp;downloadable=true&amp;licenses=cc0</code>. Fully scriptable for batch with auth. Rate-limited; download links expire.</td></tr>
+    <tr><th>Render quality</th><td>ultra (mixed) — ranges from low hobby uploads to ultra photoscanned/film-grade. Quality is per-asset; curate by license + face count + texture.</td></tr>
+    <tr><th>Notes</th><td>Largest single source for furniture/decor variety; also hosts Smithsonian + many museum CC0 scans. Watch licenses (NC excludes commercial). Attribution required for CC-BY/-SA. Auth requirement complicates anonymous client-side use; better to pre-download server-side.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="free-cc0-models">
+  <h3>Poly Haven (3D Models)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://polyhaven.com/models">https://polyhaven.com/models</a></td></tr>
+    <tr><th>License</th><td><strong>CC0</strong> — all models, textures, HDRIs public domain, commercial use, no attribution.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Curated production-PBR props/furniture/decor (also full textures + HDRIs). Models in <strong>GLTF/GLB, FBX, BLEND</strong>; multiple resolutions of textures.</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Public REST API</strong> at <code>api.polyhaven.com</code> (e.g. <code>/assets?type=models</code>, <code>/files/{id}</code> returns direct CDN download URLs per format/resolution). Fully scriptable, no auth, CORS-friendly. Bulk-downloadable.</td></tr>
+    <tr><th>Render quality</th><td>high — real production PBR (albedo/normal/rough/metal), photogrammetry-based; smaller catalog but consistently high quality.</td></tr>
+    <tr><th>Notes</th><td>Catalog is modest in count (hundreds of models) but every asset is top-tier and CC0 — ideal for prod-bundled photoreal hero props. Furniture/decor selection is limited vs textures/HDRIs but high value.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>BlenderKit (free tier)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.blenderkit.com/">https://www.blenderkit.com/</a></td></tr>
+    <tr><th>License</th><td>Mixed: many free assets are <strong>CC0</strong> or Royalty-Free (RF); per-asset license shown. 10k+ free models (63k+ total free assets incl. materials/HDRIs).</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Strong furniture/interior catalog (kitchen sets, sofas, faucets, appliances, storage). Native <strong>BLEND</strong>; can export GLB/GLTF/FBX/OBJ via Blender. Web search/browse without login.</td></tr>
+    <tr><th>Programmatic access</th><td>Primary access is the <strong>Blender add-on</strong> (open-source on GitHub: BlenderKit/BlenderKit) which calls a private REST backend with an API key. Scriptable through the add-on's API client, but not a clean public download API; practically you fetch into Blender then export. Not direct GLB-by-URL for web.</td></tr>
+    <tr><th>Render quality</th><td>medium-to-high — many archviz-grade PBR furniture models; quality varies by contributor. Treat as medium baseline with high outliers.</td></tr>
+    <tr><th>Notes</th><td>Best fit when a Blender-export pipeline exists (convert BLEND→GLB). License is per-asset — must filter for CC0/RF + check commercial terms before bundling. Large, interior-focused catalog.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="ultra" data-segment="free-cc0-models">
+  <h3>Smithsonian Open Access 3D</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://3d.si.edu/cc0">https://3d.si.edu/cc0</a></td></tr>
+    <tr><th>License</th><td><strong>CC0</strong> — 2,000+ 3D models released public domain (part of the 2.8M-item Open Access release).</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Scanned cultural-heritage objects, sculptures, artifacts, specimens (decor/objet-d'art rather than functional furniture). Formats: <strong>glTF, GLB, OBJ</strong> (150k decimated + full-res), plus Voyager scenes.</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Open Access API</strong> + GitHub metadata repo (Smithsonian/OpenAccess) for bulk; models also mirrored on Sketchfab (@Smithsonian). API/metadata is fully scriptable; GLB/OBJ downloadable per object. Bulk metadata via GitHub.</td></tr>
+    <tr><th>Render quality</th><td>ultra — photogrammetry/laser scans, film-grade detail and textures. High poly (use decimated 150k variant for web).</td></tr>
+    <tr><th>Notes</th><td>Decor/accent pieces (busts, vases, artifacts) more than chairs/sofas — great for shelf props and accent objects. CC0 = prod-safe, no attribution. Decimate for web perf.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="ultra" data-segment="free-cc0-models">
+  <h3>Threedscans.com (Three D Scans)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://threedscans.com/">https://threedscans.com/</a></td></tr>
+    <tr><th>License</th><td><strong>Public domain / no copyright claimed</strong> (CC0-equivalent) — by Oliver Laric; free to use without restriction.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>High-resolution scans of museum sculptures, busts, statues, animal skulls. Decor/sculptural objects, not functional furniture. Formats: <strong>STL, OBJ</strong> (high-poly).</td></tr>
+    <tr><th>Programmatic access</th><td>Manual download per object via the gallery (direct file links per scan page). No API; predictable per-model download links make light scripting possible but no index/search API.</td></tr>
+    <tr><th>Render quality</th><td>ultra — clean high-resolution scanned geometry (often untextured white meshes, so visually "ultra geometry / no PBR colour"). Heavy poly counts; decimate for real-time.</td></tr>
+    <tr><th>Notes</th><td>Best for statuary/sculpture accent decor. Mostly geometry-only (no colour textures) so needs a material applied. Small curated catalog (low hundreds).</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="free-cc0-models">
+  <h3>OpenGameArt.org</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://opengameart.org/art-search-advanced?field_art_type_tid%5B%5D=10">https://opengameart.org/ (3D Art)</a></td></tr>
+    <tr><th>License</th><td>Mixed per-asset: <strong>CC0, CC-BY, CC-BY-SA, GPL, OGA-BY</strong> — filterable; large CC0/public-domain subset.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Community game assets incl. furniture/props/decor (often low-poly). Formats vary by upload: <strong>OBJ, FBX, BLEND, GLTF/GLB</strong> (inconsistent).</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable — site has filterable search by license/type and a content listing; downloads are direct file links per submission. No formal REST API but predictable submission/file URLs make scripted scraping feasible. Bulk via scraping.</td></tr>
+    <tr><th>Render quality</th><td>low — predominantly hobbyist low-poly/retro/stylized; quality and format consistency vary widely.</td></tr>
+    <tr><th>Notes</th><td>Useful for cheap filler props; must check each item's license (some GPL/SA are awkward for bundling). Attribution required for CC-BY/-SA. Large but uneven catalog.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="free-cc0-models">
+  <h3>The Base Mesh</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://thebasemesh.com/">https://thebasemesh.com/</a></td></tr>
+    <tr><th>License</th><td><strong>CC0</strong> — all base meshes public domain.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>900+ clean, properly-topologized base meshes incl. furniture, props, household objects, anatomy. Formats: <strong>OBJ, FBX, BLEND, USD</strong>; community glTF conversions exist.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual web download per model; site exposes a browsable HTML asset palette. No public API, but per-asset direct file links → scriptable if enumerated. Bulk via scraping.</td></tr>
+    <tr><th>Render quality</th><td>high (geometry) — excellent clean quad topology, but <em>untextured</em> base meshes (no PBR materials). High as modeling bases; needs materials for render.</td></tr>
+    <tr><th>Notes</th><td>Great clean furniture/prop geometry to which you apply CC0 DLC materials (matches this repo's "apply mat:&lt;id&gt; over procedural" rule). CC0 = prod-safe. Modest catalog (~900).</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>Blend Swap</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.blendswap.com/">https://www.blendswap.com/</a></td></tr>
+    <tr><th>License</th><td>Mixed per-asset Creative Commons: <strong>CC0, CC-BY, CC-BY-SA, CC-BY-NC, CC-BY-ND</strong> — filterable by license.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Community Blender scenes/models incl. furniture and full interiors. Native <strong>BLEND</strong> (export GLB/FBX/OBJ via Blender).</td></tr>
+    <tr><th>Programmatic access</th><td>Manual — requires a free account to download; per-blend download pages. No official public API; scraping is gated by login. Practically manual/bulk-by-account.</td></tr>
+    <tr><th>Render quality</th><td>medium (mixed) — hobbyist to semi-pro Blender scenes; many decent PBR interiors, quality varies.</td></tr>
+    <tr><th>Notes</th><td>Filter strictly for CC0/CC-BY before commercial bundling (NC/ND items unusable). BLEND-only → needs Blender export pipeline. Login wall hampers automation.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="free-cc0-models">
+  <h3>3DModelsCC0 (now on itch.io)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://3dmodelscc0.itch.io/">https://3dmodelscc0.itch.io/</a></td></tr>
+    <tr><th>License</th><td><strong>CC0</strong> — all models public domain.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Realistic, clean, Blender-optimized models incl. <strong>furniture</strong>, tools, electronics, industrial props. Formats: BLEND + commonly <strong>FBX/OBJ/GLTF</strong> in the bundles.</td></tr>
+    <tr><th>Programmatic access</th><td>Original 3dmodelscc0.com is shut down; models consolidated into free bundles on itch.io. Download = itch.io bundle ZIPs (manual or via itch.io API/butler). Bulk by pack.</td></tr>
+    <tr><th>Render quality</th><td>high — clean realistic PBR-ready models optimized for Blender; small but quality catalog.</td></tr>
+    <tr><th>Notes</th><td>Directly furniture-relevant and realistic (better than typical low-poly). CC0 = prod-safe. Limited catalog (bundled remnants). Hosted under itch.io.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>itch.io (3D / furniture game assets, free)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://itch.io/game-assets/free/tag-3d/tag-furniture">https://itch.io/game-assets/free/tag-3d/tag-furniture</a></td></tr>
+    <tr><th>License</th><td>Per-creator (mixed): many CC0/CC-BY, some custom "free for any use", some restricted — license stated on each asset page.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Free furniture/interior asset packs (low-poly rooms, kitchen kits, PS1-style furniture, hand-painted household props). Formats: <strong>FBX, GLB, OBJ, BLEND</strong> (per pack).</td></tr>
+    <tr><th>Programmatic access</th><td>itch.io has a documented <strong>HTTP/Server API</strong> + <strong>butler</strong> CLI for download automation, and predictable per-asset pages. Free packs download as ZIPs (some "pay what you want", $0 allowed). Scriptable via butler/API for owned/free items.</td></tr>
+    <tr><th>Render quality</th><td>medium (mixed) — mostly stylized/low-poly game furniture; some hand-painted medium-quality packs, occasional PBR.</td></tr>
+    <tr><th>Notes</th><td>Good for cohesive themed furniture packs. Must verify each pack's license individually before bundling. Large aggregate but fragmented across many creators.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>CGTrader (free section)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.cgtrader.com/free-3d-models">https://www.cgtrader.com/free-3d-models</a></td></tr>
+    <tr><th>License</th><td>Mixed: "Royalty Free" CGTrader license and "Editorial" per item; some explicitly free-for-commercial, some restricted. ~150k+ free models. NOT CC0 by default — read per-item.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Huge variety incl. lots of <strong>furniture/interior/decor</strong>. Formats: <strong>OBJ, FBX, 3DS, MAX, C4D, BLEND</strong>, GLTF on many.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual — free account/login required to download; per-model download pages. No open public download API; scraping is login-gated and against ToS. Practically manual/per-item.</td></tr>
+    <tr><th>Render quality</th><td>medium (mixed) — from rough freebies to good game-ready PBR furniture; quality varies hugely.</td></tr>
+    <tr><th>Notes</th><td>Big furniture catalog but licensing is per-item royalty-free (not public domain) — must verify commercial + redistribution terms before bundling; many forbid redistribution. Login wall limits automation.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>TurboSquid (free section)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.turbosquid.com/Search/3D-Models/free">https://www.turbosquid.com/Search/3D-Models/free</a></td></tr>
+    <tr><th>License</th><td>TurboSquid royalty-free <strong>standard license</strong> (NOT CC0; no redistribution as standalone assets). ~30k+ free models. Per-item terms.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Wide catalog incl. furniture/interior/decor. Formats: <strong>FBX, OBJ, MAX, MA/MB, BLEND, 3DS</strong>; GLTF on some.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual — login/account required; per-model download pages. No open download API for general catalog; scraping login-gated and against ToS. Practically manual.</td></tr>
+    <tr><th>Render quality</th><td>medium-to-high (mixed) — many professional game/viz-ready furniture models, some high PBR; quality varies.</td></tr>
+    <tr><th>Notes</th><td>Quality furniture available but the royalty-free license forbids redistributing the raw model — fine to use inside an app's rendered output, risky to ship the GLB itself. Verify per item. Owns Free3D + Shutterstock 3D.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="free-cc0-models">
+  <h3>Free3D</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://free3d.com/">https://free3d.com/</a></td></tr>
+    <tr><th>License</th><td>Per-item "Personal Use" or "Royalty Free" license (mixed); many free models are NON-commercial / personal-use only. Owned by TurboSquid. Read each item.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Furniture/interior/decor + general. Formats: <strong>OBJ, FBX, 3DS, MAX, BLEND, C4D</strong>; some GLTF.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual — account/login to download; per-model pages. No public API; scraping login-gated. Manual/per-item.</td></tr>
+    <tr><th>Render quality</th><td>low (mixed) — large share of older, untextured or rough freebies; some decent models, but overall lower/older.</td></tr>
+    <tr><th>Notes</th><td>Cheap filler but licensing skews personal-use (commercial bundling often disallowed) — verify carefully. Lower average quality than CGTrader/TurboSquid premium-free.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>3DExport (free section)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://3dexport.com/free-3d-models">https://3dexport.com/free-3d-models</a></td></tr>
+    <tr><th>License</th><td>3DExport royalty-free license (per item; NOT CC0); ~5,000+ free models organized by theme. Read per item for commercial/redistribution.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>General incl. furniture/interior/decor. Formats: <strong>OBJ, FBX, 3DS, MAX, BLEND, C4D, STL</strong>; some GLTF.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual — login/account to download; per-model pages. No documented open download API; scraping login-gated. Manual/per-item.</td></tr>
+    <tr><th>Render quality</th><td>medium (mixed) — comparable to CGTrader freebies; furniture quality varies.</td></tr>
+    <tr><th>Notes</th><td>Smaller free pool; royalty-free not public-domain so verify redistribution before bundling. Established marketplace (since 2004).</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>Archive3D</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://archive3d.net/">https://archive3d.net/</a></td></tr>
+    <tr><th>License</th><td>Free for download; license terms vague/unspecified per item (treat as "free, unclear" — risky for commercial/redistribution). NOT explicitly CC0.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Large free catalog heavily weighted to <strong>furniture and interior</strong> objects. Primarily <strong>3DS / .max</strong> (3ds Max-oriented), some OBJ.</td></tr>
+    <tr><th>Programmatic access</th><td>Scrapable — predictable category/object pages with direct ZIP download links, mostly no login. No formal API but easy to script-scrape by category. Bulk via scraping.</td></tr>
+    <tr><th>Render quality</th><td>medium (mixed) — decent older interior/furniture models, often 3ds Max materials; needs conversion + remapping for GLTF/web.</td></tr>
+    <tr><th>Notes</th><td>Strong on furniture quantity, but 3DS/MAX-centric (conversion overhead) and license ambiguity makes commercial bundling legally risky — use with caution / verify provenance.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>SketchUp 3D Warehouse</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://3dwarehouse.sketchup.com/">https://3dwarehouse.sketchup.com/</a></td></tr>
+    <tr><th>License</th><td>Trimble 3D Warehouse General Model License (per-item; user-uploaded). NOT CC0 — terms restrict redistribution/resale; check per model. Some manufacturer (verified) models have their own terms.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Huge furniture/lighting/decor/appliance catalog incl. real manufacturer models (Herman Miller, Kohler, Bosch, etc.). Formats: <strong>SKP, Collada/DAE</strong>; GLB/glTF via newer download options on some, else convert.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual — sign-in (Trimble ID) required to download; in-app or web. No open public download API; scraping login-gated & against ToS. Manual/per-item.</td></tr>
+    <tr><th>Render quality</th><td>medium (mixed) — from rough user uploads to accurate manufacturer CAD; many have simple SketchUp materials, conversion to PBR needed.</td></tr>
+    <tr><th>Notes</th><td>Best for accurate real-product furniture/fixtures, but the General Model License forbids redistributing the model standalone — risky to ship GLBs. SKP/DAE → GLB conversion required. Login + ToS limit automation.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>Polycam (free 3D models / scans)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://poly.cam/explore">https://poly.cam/explore</a></td></tr>
+    <tr><th>License</th><td>Per-capture (mixed): creators choose terms; many free, some CC-style; license shown per model. NOT uniformly CC0.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Community photogrammetry/LiDAR scans incl. furniture, objects, environments, decor. Download formats: <strong>OBJ, FBX, GLTF/GLB, USDZ</strong>, and more.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual web download per capture (free Polycam account often required). No open public bulk API for the explore catalog; per-model export links. Practically manual/per-item.</td></tr>
+    <tr><th>Render quality</th><td>medium (mixed) — real scanned PBR with photo textures (can look high), but scan artifacts (holes, noisy geometry, baked lighting) common; needs cleanup.</td></tr>
+    <tr><th>Notes</th><td>Real-object furniture scans are interior-relevant and photoreal-ish, but raw scans need retopo/cleanup for production. Verify each capture's license before commercial use.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>Thingiverse (printable furniture/decor)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.thingiverse.com/tag:furniture">https://www.thingiverse.com/tag:furniture</a></td></tr>
+    <tr><th>License</th><td>Per-item Creative Commons (CC0, CC-BY, CC-BY-SA, CC-BY-NC, CC-BY-ND, GPL) — license stated on each "thing".</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>3D-printable furniture/decor/props (miniature + functional). Formats: primarily <strong>STL</strong> (also OBJ/3MF) — meshes, no PBR materials.</td></tr>
+    <tr><th>Programmatic access</th><td><strong>REST API</strong> exists (Thingiverse API, app-token auth) for search/download of files; also direct per-thing file ZIPs. Scriptable with a token. Bulk via API.</td></tr>
+    <tr><th>Render quality</th><td>medium (geometry) — solid printable meshes but <strong>untextured</strong> (no materials/UVs); STL has no normals/UV by design. Needs material + often retopo for real-time.</td></tr>
+    <tr><th>Notes</th><td>Furniture/decor present but oriented to printing (watertight solid meshes, sometimes miniature scale). Must filter by CC license; STL → GLTF conversion + materials required. Large catalog.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>Printables (printable furniture/decor)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.printables.com/model">https://www.printables.com/model</a></td></tr>
+    <tr><th>License</th><td>Per-item Creative Commons (CC0, CC-BY, CC-BY-SA, CC-BY-NC, CC-BY-ND) chosen by author. Run by Prusa.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>3D-printable decor, furniture, organizers, household objects. Formats: <strong>STL, 3MF, OBJ</strong> (plus step/source sometimes). Meshes, no PBR.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual / account-gated download; site has a GraphQL backend (used by the web app) and per-model file lists → scrapable with effort, but no officially documented public download API. Bulk via scraping/account.</td></tr>
+    <tr><th>Render quality</th><td>medium (geometry) — clean printable meshes, untextured; same conversion caveats as Thingiverse.</td></tr>
+    <tr><th>Notes</th><td>Higher-quality/cleaner than Thingiverse on average; still print-oriented (solid watertight meshes). Filter CC license; convert STL/3MF→GLTF + apply materials. Large modern catalog.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="free-cc0-models">
+  <h3>Clara.io (free models)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://clara.io/library">https://clara.io/library</a></td></tr>
+    <tr><th>License</th><td>Per-item (mixed) — many marked free/CC; license shown per model. Browser-based 3D editor with a public model library.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>General library incl. furniture/props/decor. Export formats: <strong>Three.js (JSON), GLTF, FBX, OBJ, STL, Blend, Babylon.js, Collada</strong>.</td></tr>
+    <tr><th>Programmatic access</th><td>Has a documented <strong>REST API</strong> (Clara.io API for scenes/exports) and web export. Account required. Scriptable via API for owned/accessible models. Aging platform (limited maintenance).</td></tr>
+    <tr><th>Render quality</th><td>low (mixed) — older, mostly basic/untextured library models; some usable furniture but dated.</td></tr>
+    <tr><th>Notes</th><td>Notable for native Three.js/GLTF export (web-friendly), but the library is small/dated and license is per-item — verify before bundling. Primarily a modeling tool, secondarily a model source.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="free-cc0-models">
+  <h3>Chaos Cosmos (free asset library)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.chaos.com/cosmos">https://www.chaos.com/cosmos</a></td></tr>
+    <tr><th>License</th><td><strong>Proprietary-free, EULA-locked</strong> — 30,000+ models/materials/HDRIs free to use only within Chaos products (V-Ray, Corona, Enscape, Vantage) under the product EULA. NOT redistributable; cannot extract/ship the GLBs.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Production archviz furniture/decor/lighting/vegetation. Proprietary <strong>.vrmesh / Cosmos package</strong> formats consumed inside the host app — no open GLB/GLTF export.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual via the in-app Cosmos Browser only; assets are DRM-style tied to the Chaos account/product. <strong>No</strong> open API, no standalone download, not scrapable for reuse. Effectively closed to a Three.js pipeline.</td></tr>
+    <tr><th>Render quality</th><td>high — professional archviz PBR furniture and props.</td></tr>
+    <tr><th>Notes</th><td>Listed for completeness: high quality but <strong>not usable</strong> for Sofa So Good — locked to Chaos rendering apps, no redistribution, no web-consumable formats. Exclude from the pipeline.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="free-cc0-models">
+  <h3>PixelSquid (Shutterstock) — note: 2D, not true 3D</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.pixelsquid.com/">https://www.pixelsquid.com/</a></td></tr>
+    <tr><th>License</th><td>Royalty-free (Shutterstock); free tier limited. NOT CC0. Per-account terms.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>245k+ pre-rendered "spinnable" objects incl. furniture/decor — but delivered as <strong>transparent PNG / layered PSD</strong>, NOT 3D meshes. No GLB/OBJ/FBX export.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual download (PNG/PSD); Photoshop plugin. No 3D-mesh download, no model API relevant to a 3D engine.</td></tr>
+    <tr><th>Render quality</th><td>low (for 3D purposes) — high-quality 2D renders but useless as actual 3D geometry for a Three.js scene.</td></tr>
+    <tr><th>Notes</th><td>Listed because it appears on "free 3D" lists, but it is a 2D pre-rendered library — <strong>not a usable 3D-model source</strong> for Sofa So Good. Could only serve as 2D thumbnails/reference. Exclude from the model pipeline.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="free-cc0-models">
+  <h3>ambientCG (3D models section)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://ambientcg.com/list?type=3DModel">https://ambientcg.com/list?type=3DModel</a></td></tr>
+    <tr><th>License</th><td><strong>CC0</strong> — all assets public domain (primarily known for textures/HDRIs; a small 3D-model section exists).</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Mainly PBR materials/HDRIs; limited scanned/decimated <strong>3D models</strong> (props, decor, surfaces-on-geometry). Models in <strong>GLB/GLTF, OBJ, FBX, USD, BLEND</strong> with PBR maps.</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Public JSON API</strong> (<code>ambientcg.com/api/v2/full_json</code>) + downloadCSV/sitemap with direct ZIP URLs; CORS-friendly CDN. Fully scriptable, no auth. Bulk download well-supported (community downloaders exist).</td></tr>
+    <tr><th>Render quality</th><td>medium-to-high — real PBR; the few 3D models are scan-derived with good textures, but the catalog is texture-dominant with few actual furniture meshes.</td></tr>
+    <tr><th>Notes</th><td>Already a known CC0 source in this repo's material stack (ambientCG materials). 3D-model count is small and not furniture-focused — more valuable as the PBR-material companion to geometry from other sources. CC0 = prod-safe, attribution optional.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="free-cc0-models">
+  <h3>Game Assets Garden</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.gameassetsgarden.com/">https://www.gameassetsgarden.com/</a></td></tr>
+    <tr><th>License</th><td>Royalty-free / per-item (aggregator of free game assets incl. CC0 sources). Verify per asset.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Curated free/royalty-free game assets incl. some 3D props/furniture. Formats vary by source: <strong>GLB/GLTF, FBX, OBJ</strong>.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual — browsable catalog linking to downloads; no public API. Small site; per-asset manual download. Scrapable in principle but limited content.</td></tr>
+    <tr><th>Render quality</th><td>low (mixed) — mostly low-poly/stylized game assets aggregated from elsewhere.</td></tr>
+    <tr><th>Notes</th><td>Minor aggregator; overlaps heavily with Kenney/Quaternius/OpenGameArt. Useful as a discovery index more than a primary source. Verify each asset's origin license.</td></tr>
+  </table>
+</div>

@@ -1,0 +1,473 @@
+<!-- segment: materials-hdri + marketplaces + scanned-datasets (from verified agent reports) -->
+
+<!-- ===== PBR MATERIALS / TEXTURES ===== -->
+<div class="asset-source" data-quality="ultra" data-segment="materials">
+  <h3>Poliigon</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.poliigon.com/">https://www.poliigon.com/</a> (free: /free)</td></tr>
+    <tr><th>License</th><td>Proprietary royalty-free EULA (NOT CC0); free + paid assets usable commercially once downloaded, but redistribution of raw files prohibited; no attribution.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>PBR materials/textures, 3D models, HDRIs. JPG/PNG maps + 16-bit TIFF displacement + EXR. 1K–8K.</td></tr>
+    <tr><th>Programmatic access</th><td>Internal auth-gated REST API powers the Blender add-on; no public/anonymous API; CDN+token URLs. Not anon-CORS. Manual/authenticated only.</td></tr>
+    <tr><th>Render quality</th><td>ultra — up to 8K, high scan fidelity, 16-bit displacement.</td></tr>
+    <tr><th>Notes</th><td>5000+ textures (100+ free). EULA blocks redistribution — dev/reference, not bundleable.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="materials">
+  <h3>ambientCG</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://ambientcg.com/">https://ambientcg.com/</a> · API <a href="https://docs.ambientcg.com/api/v2/">docs.ambientcg.com/api/v2</a></td></tr>
+    <tr><th>License</th><td><strong>CC0 1.0</strong> — public domain, no attribution, commercial OK, redistribution + modification allowed.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>PBR materials/textures, HDRIs (Day/Morning/Night Sky, Indoor), some 3D, decals. PNG/JPG map sets + EXR HDRI + ZIP. 1K–16K.</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Public REST API</strong> (full_json + downloads_csv); each file has predictable <code>rawLink</code> direct URL; no key/account → trivially scriptable. CORS on raw CDN untested → may need proxy (this app already proxies ambientCG via Vite in dev).</td></tr>
+    <tr><th>Render quality</th><td>high→ultra — 8K–16K, arch/product-viz focused.</td></tr>
+    <tr><th>Notes</th><td>2000+ assets. Already partially integrated in this app (dev-gated pending prod CORS proxy). Best CC0 material API.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="materials">
+  <h3>cgbookcase</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.cgbookcase.com/textures">https://www.cgbookcase.com/textures</a></td></tr>
+    <tr><th>License</th><td><strong>CC0 1.0</strong> — cleanest of the texture sites; commercial OK, no attribution, redistribution allowed.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Seamless PBR materials (full map set: albedo/normal/height/roughness/AO/metal). PNG/JPG, per-texture ZIP. Up to 4K.</td></tr>
+    <tr><th>Programmatic access</th><td>Predictable slug URLs <code>/textures/&lt;slug&gt;</code>; no REST API; per-texture ZIP button. Cloudflare-fronted (403 to scripts) → needs server-side proxy/scrape, not direct browser fetch.</td></tr>
+    <tr><th>Render quality</th><td>high — clean, full PBR, up to 4K.</td></tr>
+    <tr><th>Notes</th><td>~566 sets. CC0 makes it prod-eligible via proxy/pre-bundle.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="materials">
+  <h3>Textures.com (ex-CGTextures)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.textures.com/">https://www.textures.com/</a></td></tr>
+    <tr><th>License</th><td>Proprietary royalty-free; restrictive ToS — no redistribution as-is, must be incorporated into a work. Credit-metered.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Photo textures, PBR materials, 3D models, decals/overlays, HDRIs (broadest type range). PNG/JPG; sizes up to ~16K on premium scans.</td></tr>
+    <tr><th>Programmatic access</th><td>Credit-based, auth-gated; no public bulk API; ToS forbids scraping. Not CORS/in-app suitable.</td></tr>
+    <tr><th>Render quality</th><td>high→ultra (premium scans) but many raw photos lower fidelity.</td></tr>
+    <tr><th>Notes</th><td>Tens of thousands of assets; one of the oldest/biggest. License blocks bundling.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="materials">
+  <h3>ShareTextures</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.sharetextures.com/">https://www.sharetextures.com/</a></td></tr>
+    <tr><th>License</th><td>Custom "CC0" BUT ToS explicitly bans automated downloads, hotlinking, and embedding direct downloads in third-party apps — conflicts with in-app fetch.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>PBR materials + some 3D models. TIFF/PNG, up to 4K.</td></tr>
+    <tr><th>Programmatic access</th><td>Prohibited by ToS (no automation/embedding); Cloudflare 403. Avoid on legal + technical grounds.</td></tr>
+    <tr><th>Render quality</th><td>high — 4K, full maps.</td></tr>
+    <tr><th>Notes</th><td>600+ sets. ToS makes it unsuitable despite CC0 label.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="materials">
+  <h3>3DTextures.me</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://3dtextures.me/">https://3dtextures.me/</a></td></tr>
+    <tr><th>License</th><td><strong>CC0</strong> — commercial OK, no attribution.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Seamless PBR materials (photoreal + stylized). PNG (ZIP); Patreon adds .sbsar. Free = 1K, Patreon = 4K.</td></tr>
+    <tr><th>Programmatic access</th><td>WordPress date-slug URLs + sitemap/RSS scrapable; ZIPs on own domain; no API; Cloudflare 403 → server-side scrape/proxy.</td></tr>
+    <tr><th>Render quality</th><td>medium (free 1K) / high (4K Patreon).</td></tr>
+    <tr><th>Notes</th><td>1000+ materials, CC0 → prod-eligible via proxy.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="materials">
+  <h3>FreePBR.com</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://freepbr.com/">https://freepbr.com/</a></td></tr>
+    <tr><th>License</th><td>Freemium proprietary (NOT CC0); free non-commercial; commercial needs one-time ~$16 (also unlocks bulk).</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>PBR materials (full map set). PNG (ZIP). 2K standard.</td></tr>
+    <tr><th>Programmatic access</th><td>Predictable slugs; VIP bulk download; no API; Cloudflare 403.</td></tr>
+    <tr><th>Render quality</th><td>medium — capped at 2K.</td></tr>
+    <tr><th>Notes</th><td>600+ materials; commercial fee required.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="materials">
+  <h3>Architextures (ARTX)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://architextures.org/">https://architextures.org/</a></td></tr>
+    <tr><th>License</th><td>Freemium proprietary; free for personal/educational; commercial + PBR export require Pro subscription.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Procedural seamless architectural textures + CAD hatches; PBR maps (Pro). Rasterized map exports.</td></tr>
+    <tr><th>Programmatic access</th><td>Web generator app; PBR/high-res behind Pro login; no API; Cloudflare 403. Manual.</td></tr>
+    <tr><th>Render quality</th><td>medium→high — procedural/clean for archviz, not photoscanned.</td></tr>
+    <tr><th>Notes</th><td>Parametric (unlimited variants); commercial license-gated.</td></tr>
+  </table>
+</div>
+
+<!-- ===== HDRI / ENVIRONMENT / BACKGROUNDS ===== -->
+<div class="asset-source" data-quality="ultra" data-segment="hdri">
+  <h3>Poly Haven (HDRIs)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://polyhaven.com/hdris">https://polyhaven.com/hdris</a> · API api.polyhaven.com</td></tr>
+    <tr><th>License</th><td><strong>CC0</strong> — no attribution, full commercial. (Greg Zaal's HDRI Haven lineage.)</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Outdoor + indoor HDRIs (also models + textures site-wide). HDR/EXR + tonemapped JPG. 1K–16K.</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Public REST API</strong> (predictable JSON + direct CDN URLs), no signup → fully scriptable. Most app-friendly HDRI source. (App already bootstraps Poly Haven in prod.)</td></tr>
+    <tr><th>Render quality</th><td>ultra — 16K, unclipped full dynamic range.</td></tr>
+    <tr><th>Notes</th><td>700+ HDRIs. Top pick for IBL + window sky.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="ultra" data-segment="hdri">
+  <h3>CGEES (successor to iHDRI)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://cgees.com/">https://cgees.com/</a></td></tr>
+    <tr><th>License</th><td><strong>CC0</strong> — full commercial, no attribution, no signup. (NOTE: original ihdri.com domain was hijacked — do NOT use it; CGEES is the legit successor.)</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>HDRI environment maps. .HDR (sRGB-tagged). 1K up to 24K.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual web download; no API yet; static-ish links, scrapable.</td></tr>
+    <tr><th>Render quality</th><td>ultra — 24K hand-crafted.</td></tr>
+    <tr><th>Notes</th><td>~25+ and growing (rebuilt 2025). CC0 → bundleable.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="ultra" data-segment="hdri">
+  <h3>NoEmotion HDRs</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://noemotionhdrs.net/">https://noemotionhdrs.net/</a></td></tr>
+    <tr><th>License</th><td>Free incl. commercial, BUT attribution + <strong>NoDerivatives</strong> — may not redistribute modified/re-encoded versions (blocks an app that re-encodes maps).</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Spherical HDR env maps (exterior + interior, by time of day). HDR. 15K.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual static site; 200GB/day cap (bulk discouraged); no API; not CORS.</td></tr>
+    <tr><th>Render quality</th><td>ultra — 15K, professional captures.</td></tr>
+    <tr><th>Notes</th><td>150 HDRs. ND clause is the blocker.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="hdri">
+  <h3>HDRMaps</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://hdrmaps.com/freebies/free-hdris/">https://hdrmaps.com/freebies/free-hdris/</a></td></tr>
+    <tr><th>License</th><td>Free tier <strong>CC BY 4.0</strong> (commercial w/ attribution); full-res/backplates paid/Patreon.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>HDRI (outdoor+indoor) + skies/backplates. EXR. 1K up to 10K (free).</td></tr>
+    <tr><th>Programmatic access</th><td>Manual WordPress download (form/free-account); Blender add-on; no REST API; not CORS.</td></tr>
+    <tr><th>Render quality</th><td>high.</td></tr>
+    <tr><th>Notes</th><td>400–500+ free; attribution required.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="hdri">
+  <h3>Maxime Roz (MR HDRI)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.maxroz.com/hdri">https://www.maxroz.com/hdri</a></td></tr>
+    <tr><th>License</th><td>Free pack licensed for commercial use (verify attribution on Gumroad); paid Full Pack lifetime.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td><strong>Interior</strong> HDRIs (rare niche — studio/architectural), equirect EXR, sun + no-sun variants, calibrated. Free 3K/7K.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual (Gumroad + site); no API; not CORS.</td></tr>
+    <tr><th>Render quality</th><td>high — curated, calibrated interiors.</td></tr>
+    <tr><th>Notes</th><td>Free pack = 6 interior HDRIs; valuable for indoor HDB/condo lighting.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="hdri">
+  <h3>sIBL Archive (HDRLabs)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="http://www.hdrlabs.com/sibl/archive.html">hdrlabs.com/sibl/archive.html</a></td></tr>
+    <tr><th>License</th><td>MIXED per-contributor; a large subset is CC BY-NC-SA 3.0 (non-commercial free; commercial = paid). Not uniformly free-for-commercial.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Smart IBL sets (HDR env + tonemapped JPG + reflection + .ibl). HDR. ~5K–30K by author.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual static archive; per-set ZIPs; no API; not CORS.</td></tr>
+    <tr><th>Render quality</th><td>high (some dated).</td></tr>
+    <tr><th>Notes</th><td>Legacy resource; check per-set license.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="hdri">
+  <h3>openfootage.net</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.openfootage.net/hdri-panorama/">openfootage.net/hdri-panorama</a></td></tr>
+    <tr><th>License</th><td>MIXED tiered; low-res free CC; high-res free = CC BY-NC-ND (non-commercial, no-derivatives); commercial = purchase.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>360° HDRI panoramas. HDR/EXR + JPG, ZIP. Up to 20K.</td></tr>
+    <tr><th>Programmatic access</th><td>Manual WordPress per-post; scrapable individually; no API; not CORS.</td></tr>
+    <tr><th>Render quality</th><td>high (some ultra at 20K).</td></tr>
+    <tr><th>Notes</th><td>Free high-res NC-ND blocks commercial re-encode.</td></tr>
+  </table>
+</div>
+
+<!-- ===== PREMIUM / COMMERCIAL MODEL MARKETPLACES ===== -->
+<div class="asset-source" data-quality="ultra" data-segment="premium-marketplaces">
+  <h3>Evermotion (Archmodels / Archinteriors)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://evermotion.org/shop">https://evermotion.org/shop</a></td></tr>
+    <tr><th>License</th><td>Paid per-volume or "Evermotion Pass" sub; royalty-free for the license holder; redistribution prohibited. Small free category.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Furniture, props, vegetation, full interior scenes. .max (V-Ray/Corona), .c4d, .fbx, .obj, .blend; newer +.usd/.uasset.</td></tr>
+    <tr><th>Programmatic access</th><td>No public API; login+paywall+manual ZIP; anti-bot 403; EULA bars redistribution → not scrapable.</td></tr>
+    <tr><th>Render quality</th><td>ultra — the archviz furniture benchmark.</td></tr>
+    <tr><th>Notes</th><td>15,000+ models; now also in Chaos Cosmos. glTF rare (fbx/obj interchange).</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="ultra" data-segment="premium-marketplaces">
+  <h3>Design Connected</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.designconnected.com">https://www.designconnected.com</a></td></tr>
+    <tr><th>License</th><td>Subscription tiers + on-demand; royalty-free commercial EULA; student/edu models non-commercial; redistribution prohibited.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Curated designer-brand furniture + accessories. .max (V-Ray/Corona), .fbx, .obj, .3ds, .c4d.</td></tr>
+    <tr><th>Programmatic access</th><td>No public API; login+sub+manual; 403 anti-bot. Not scrapable.</td></tr>
+    <tr><th>Render quality</th><td>ultra — most curated, designer-accurate.</td></tr>
+    <tr><th>Notes</th><td>Quality-over-quantity; strong real-brand accuracy.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="ultra" data-segment="premium-marketplaces">
+  <h3>CGAxis</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://cgaxis.com/">https://cgaxis.com/</a></td></tr>
+    <tr><th>License</th><td>Royalty-free commercial; All-Access sub from $16/mo (keep-forever) + per-collection + free tier (100+ assets). Non-transferable; no redistribution.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>3D models + PBR materials + HDRI (strong interior/archviz). 3ds Max+V-Ray, C4D, Blender, UE, Unity + FBX/OBJ. (No confirmed glTF.)</td></tr>
+    <tr><th>Programmatic access</th><td>No public API; sub/login; unlimited download is a sub benefit not an API; 403 anti-bot.</td></tr>
+    <tr><th>Render quality</th><td>ultra — human-made photoreal archviz.</td></tr>
+    <tr><th>Notes</th><td>12,000+ models; best interior fit of the studio stores.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="ultra" data-segment="premium-marketplaces">
+  <h3>Chaos Cosmos</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.chaos.com/cosmos">https://www.chaos.com/cosmos</a></td></tr>
+    <tr><th>License</th><td>Bundled-with-renderer EULA (free w/ Chaos license); may NOT distribute any asset standalone — only inside a rendered "Cosmos Result".</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Curated models/materials/HDRI; hi-poly + low-poly variants. Proprietary Cosmos packages (in-host-app only).</td></tr>
+    <tr><th>Programmatic access</th><td>Delivered ONLY via the Cosmos Browser inside V-Ray/Corona/Vantage/Enscape; no API; closed; not scrapable.</td></tr>
+    <tr><th>Render quality</th><td>ultra — first-party V-Ray/Corona tuned.</td></tr>
+    <tr><th>Notes</th><td>30,000+ assets (incl. Evermotion + Globe Plants, Aug 2025). Closed ecosystem.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="ultra" data-segment="premium-marketplaces">
+  <h3>Quixel Megascans (via Fab)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.fab.com">https://www.fab.com</a> (Quixel content)</td></tr>
+    <tr><th>License</th><td>Free-for-all ended 31 Dec 2024; now mostly PAID under Fab Standard/Pro license (royalty-free, perpetual, no raw redistribution); free 1,500-asset starter pack remains.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Photogrammetry props, 3D plants, surfaces/materials, decals. fbx, obj, gltf/glb, usd(z), UE-native + PBR maps (varies per listing).</td></tr>
+    <tr><th>Programmatic access</th><td>No public API yet (roadmap); Fab My-Library manual or Unreal/Bridge plugin; auth-gated. Scraping not sanctioned.</td></tr>
+    <tr><th>Render quality</th><td>ultra — industry-standard scanned PBR.</td></tr>
+    <tr><th>Notes</th><td>Best for surfaces/vegetation/scanned props more than designer furniture. Epic-owned.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="premium-marketplaces">
+  <h3>Hum3D</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://hum3d.com/">https://hum3d.com/</a></td></tr>
+    <tr><th>License</th><td>Paid perpetual per-asset (up to ~$450); buyer bears third-party trademark risk; no redistribution.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Mostly vehicles; also furniture/interior, electronics. .max/.c4d/.blend/.fbx/.obj/.3ds/.lwo/.mb/.usd(c)/.dae/.stl.</td></tr>
+    <tr><th>Programmatic access</th><td>No API; login+checkout+manual; 403/connection-refused anti-bot. Not scrapable.</td></tr>
+    <tr><th>Render quality</th><td>high→ultra (studio-verified; strongest for vehicles).</td></tr>
+    <tr><th>Notes</th><td>Parts separated for re-texturing; expensive.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="premium-marketplaces">
+  <h3>3DSky / 3DDD / Pro3DSky</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://3dsky.org">https://3dsky.org</a></td></tr>
+    <tr><th>License</th><td>Marketplace; free tier (3 dl/day) + ~$7/model paid; commercial license; one account/person, no resale/sharing.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Interior furniture/decor/scenes. .max (V-Ray/Corona); many +.fbx/.obj.</td></tr>
+    <tr><th>Programmatic access</th><td>No official API; login+paywall; bot-blocked (403); ToS bans automation. Unauthorized mirror/scraper sites are piracy.</td></tr>
+    <tr><th>Render quality</th><td>high→ultra (variable, multi-author).</td></tr>
+    <tr><th>Notes</th><td>1,000,000+ models; strong Eastern-European interior style.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="premium-marketplaces">
+  <h3>Dimensiva</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://dimensiva.com">https://dimensiva.com</a></td></tr>
+    <tr><th>License</th><td>Free high-end models + PRO/PRO+ sub; commercial use without attribution; no redistribution.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Designer furniture, lighting, accessories. .max(+V-Ray), .obj, .3ds, .fbx, .c4d.</td></tr>
+    <tr><th>Programmatic access</th><td>No API; free files are direct per-file downloads (easier) but no bulk/sanctioned mechanism; 403. Treat as manual.</td></tr>
+    <tr><th>Render quality</th><td>high→ultra (curated designer freebies).</td></tr>
+    <tr><th>Notes</th><td>Known for quality freebies; smaller catalog.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="premium-marketplaces">
+  <h3>TurboSquid (Shutterstock)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.turbosquid.com/">https://www.turbosquid.com/</a></td></tr>
+    <tr><th>License</th><td>Unified royalty-free 3D Model License (commercial, no resale of the model); separate Editorial license for IP-bearing models; free tier exists.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>3D models + texture maps. .max/.ma/.mb/.c4d/.blend/.fbx/.obj/.3ds; StemCell adds glTF, USD/USDZ, Unreal, Unity.</td></tr>
+    <tr><th>Programmatic access</th><td>Only a seller/publishing API confirmed; buyer catalog API via Shutterstock unconfirmed; <strong>ToS explicitly prohibits scraping/crawling/aggregation</strong>. Manual/paid.</td></tr>
+    <tr><th>Render quality</th><td>high→ultra (CheckMate/StemCell certified items).</td></tr>
+    <tr><th>Notes</th><td>~1.5M models; StemCell glTF/USDZ is the web-friendly path.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="premium-marketplaces">
+  <h3>CGTrader</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.cgtrader.com/">https://www.cgtrader.com/</a></td></tr>
+    <tr><th>License</th><td>Royalty-free (default, no resale); Editorial (non-commercial); per-product exclusive option; ~150k free models.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>3D models incl. 3D-print. MAX/OBJ/FBX/3DS/STL/C4D/BLEND/MA/MB/<strong>GLTF/GLB</strong> (~308k GLB, ~70k glTF).</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Official OAuth REST API</strong> (api.cgtrader.com) for partners (bulk-capable); key by application. ToS §19.2 bans mass scraping of free models + ML-training use. Sanctioned path = the API.</td></tr>
+    <tr><th>Render quality</th><td>medium→high (broad marketplace).</td></tr>
+    <tr><th>Notes</th><td>~2M models; native GLB + real API = strong for a web pipeline.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="premium-marketplaces">
+  <h3>Sketchfab / Fab (Epic Games)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://sketchfab.com/">sketchfab.com</a> (free CC) · <a href="https://www.fab.com/">fab.com</a> (store)</td></tr>
+    <tr><th>License</th><td>~1M+ free Creative Commons models (CC0/CC-BY/…); Store moved to Fab (Oct 2024) under Fab Standard/Pro licenses; only CC-BY + Standard models migrated.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>3D models (one of the largest glTF repos). <strong>glTF, GLB, USDZ</strong> + original source format.</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Best official automation here</strong>: Data API v3 (OAuth) + Download API (free/CC + licensed). Fab public download API planned 2025. glTF-native → ideal for Three.js.</td></tr>
+    <tr><th>Render quality</th><td>medium→high (real-time/web optimized; curated reach high).</td></tr>
+    <tr><th>Notes</th><td>Respect CC-BY attribution + API guidelines/rate limits.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="premium-marketplaces">
+  <h3>3DExport</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://3dexport.com/">https://3dexport.com/</a></td></tr>
+    <tr><th>License</th><td>Marketplace; royalty-free non-exclusive per-asset; free + paid; seller retains copyright.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>3D models, textures, plugins, STL print files. Seller-dependent: max/obj/fbx/c4d/3ds/blend/STL.</td></tr>
+    <tr><th>Programmatic access</th><td>No public API; login/purchase; bot-protected (403). Not cleanly scrapable.</td></tr>
+    <tr><th>Render quality</th><td>medium (variable, ~600k models).</td></tr>
+    <tr><th>Notes</th><td>General-purpose; quality inconsistent; marketplace IP risk.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="premium-marketplaces">
+  <h3>3D Warehouse (Trimble / SketchUp)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://3dwarehouse.sketchup.com/">3dwarehouse.sketchup.com</a></td></tr>
+    <tr><th>License</th><td>Free but per-model GMLA restricts commercial use/redistribution unless you're the creator; Trimble-ID login required.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Furniture, fixtures, BIM components (many real brands). Download .SKP + always <strong>COLLADA .DAE</strong> (→ glTF/OBJ convertible). No direct glTF/IFC/Revit.</td></tr>
+    <tr><th>Programmatic access</th><td>No official 3DW API (Trimble Connect API is separate); JS-rendered + login-gated; automation against ToS; unofficial extensions exist (unsupported).</td></tr>
+    <tr><th>Render quality</th><td>variable low→high; brand/BIM content strong (avg medium).</td></tr>
+    <tr><th>Notes</th><td>Millions of models; strong manufacturer catalogs; license per-model — select carefully, not bulk-harvest.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="premium-marketplaces">
+  <h3>PixelSquid (Shutterstock)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://www.pixelsquid.com/">https://www.pixelsquid.com/</a></td></tr>
+    <tr><th>License</th><td>Royalty-free (no clearinghouse resale); free watermarked tier + subscription.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td><strong>NOT true 3D geometry</strong> — pre-rendered 2D: 225 angles per object as transparent PNG / layered PSD (spinnable sprite).</td></tr>
+    <tr><th>Programmatic access</th><td>Photoshop/CC plugin + web app; no public bulk API; login for un-watermarked.</td></tr>
+    <tr><th>Render quality</th><td>high (images only — pre-rendered, studio-lit).</td></tr>
+    <tr><th>Notes</th><td>Unusable as Three.js mesh source (no geometry); for 2D compositing only.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="premium-marketplaces">
+  <h3>Archive3D</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://archive3d.org/">archive3d.org</a> / archive3d.net</td></tr>
+    <tr><th>License</th><td>Free download but Terms restrict to <strong>personal, non-commercial</strong> use; commercial "may require additional permissions"; uncertain provenance → legally unsafe for bundling.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Furniture, objects, interiors. .3ds, .obj, .gsm (ArchiCAD).</td></tr>
+    <tr><th>Programmatic access</th><td>No API; older static HTML, historically scrapable (public scraper exists) — but conflicts with personal-use terms.</td></tr>
+    <tr><th>Render quality</th><td>low→low-medium — older, low-poly, legacy materials.</td></tr>
+    <tr><th>Notes</th><td>~100k models claimed; reference only, not redistribution.</td></tr>
+  </table>
+</div>
+
+<!-- ===== ACADEMIC / SCANNED DATASETS (object & scene) ===== -->
+<div class="asset-source" data-quality="ultra" data-segment="academic-datasets">
+  <h3>ScanNet++</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://kaldir.vc.in.tum.de/scannetpp/">kaldir.vc.in.tum.de/scannetpp</a></td></tr>
+    <tr><th>License</th><td>Custom Terms of Use — <strong>research / NON-COMMERCIAL only</strong>. Internal R&amp;D/benchmark only, never ship.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Sub-mm laser-scan high-res meshes (PLY) + 33MP DSLR + iPhone RGB-D + dense semantics. 1,006 scenes (~1.5TB).</td></tr>
+    <tr><th>Programmatic access</th><td>Account + application → personalized token + scripts. Not open.</td></tr>
+    <tr><th>Render quality</th><td>ultra — highest-fidelity real indoor scans in this list.</td></tr>
+    <tr><th>Notes</th><td>Whole-room scans, not separable furniture; license blocks shipping.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="high" data-segment="academic-datasets">
+  <h3>Replica (Meta)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://github.com/facebookresearch/Replica-Dataset">github.com/facebookresearch/Replica-Dataset</a></td></tr>
+    <tr><th>License</th><td>Research/Education ONLY (Meta custom) — <strong>non-commercial</strong>.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Dense textured meshes (PLY) + HDR PTEX + semantic instances + glass/mirror params. 18 scenes.</td></tr>
+    <tr><th>Programmatic access</th><td>Direct bulk download script (no form).</td></tr>
+    <tr><th>Render quality</th><td>high — photoreal HDR-textured meshes (only 18 scenes).</td></tr>
+    <tr><th>Notes</th><td>Whole-scene, not furniture pieces; non-commercial blocker.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="academic-datasets">
+  <h3>Matterport3D</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://niessner.github.io/Matterport/">niessner.github.io/Matterport</a></td></tr>
+    <tr><th>License</th><td>Matterport Academic EULA — <strong>non-commercial</strong>.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Textured building meshes + RGB-D + floorplans + region/object semantics. 90 buildings.</td></tr>
+    <tr><th>Programmatic access</th><td>Academic request (sign ToU + email) → script. Not open.</td></tr>
+    <tr><th>Render quality</th><td>medium→high (2017-era reconstruction artifacts).</td></tr>
+    <tr><th>Notes</th><td>Real residential interiors; whole-house; non-commercial.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="academic-datasets">
+  <h3>HM3D (Habitat-Matterport 3D)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://aihabitat.org/datasets/hm3d/">aihabitat.org/datasets/hm3d</a></td></tr>
+    <tr><th>License</th><td>Matterport Academic EULA — <strong>non-commercial</strong>.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Textured meshes in <strong>GLB</strong> (+PLY/OBJ for Habitat); 1,000 building scans; HM3DSem adds 142k object-instance labels.</td></tr>
+    <tr><th>Programmatic access</th><td>Academic request form. Not open bulk.</td></tr>
+    <tr><th>Render quality</th><td>medium→high (sim-optimized).</td></tr>
+    <tr><th>Notes</th><td>GLB convenient; license blocks commercial use.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="academic-datasets">
+  <h3>ScanNet</h3>
+  <table>
+    <tr><th>URL</th><td><a href="http://www.scan-net.org/">scan-net.org</a></td></tr>
+    <tr><th>License</th><td>Custom ToU; research/non-commercial in practice (institutional-email agreement).</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>RGB-D video + reconstructed textured meshes (PLY) + instance semantics + CAD-aligned annotations. 1,513 scans / ~707 spaces.</td></tr>
+    <tr><th>Programmatic access</th><td>Email-agreement request → download script.</td></tr>
+    <tr><th>Render quality</th><td>medium — consumer RGB-D, noisy meshes.</td></tr>
+    <tr><th>Notes</th><td>Non-commercial.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="academic-datasets">
+  <h3>Redwood 3DScan ✅ (commercial-safe)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="http://redwood-data.org/3dscan/">redwood-data.org/3dscan</a> · loader github.com/isl-org/redwood-3dscan</td></tr>
+    <tr><th>License</th><td><strong>PUBLIC DOMAIN</strong> — any use incl. commercial, attribution requested. Only fully commercial-safe dataset of the scanned set.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>10,000+ single-object scans: RGB-D (JPG + 16-bit PNG depth) + reconstructed mesh (PLY). Includes furniture-class objects.</td></tr>
+    <tr><th>Programmatic access</th><td><strong>Python loader for direct bulk download</strong>, fully open, no form.</td></tr>
+    <tr><th>Render quality</th><td>low→medium — raw scans, noisy/incomplete, often untextured; needs cleanup.</td></tr>
+    <tr><th>Notes</th><td>Best commercial-usable candidate of the scan datasets (quality is the trade-off).</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="medium" data-segment="academic-datasets">
+  <h3>Toys4K ⚠️ (per-asset license)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://rehg.org/publication/dataset2/">rehg.org/publication/dataset2</a></td></tr>
+    <tr><th>License</th><td>MIXED per-asset (sourced CC + royalty-free from BlendSwap/Sketchfab/Poly/TurboSquid) — must vet each object before commercial use.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Clean artist-made textured models: BLEND (textured) + OBJ (geometry) + point clouds. 4,179 instances / 105 categories.</td></tr>
+    <tr><th>Programmatic access</th><td>Google Form → ZIPs.</td></tr>
+    <tr><th>Render quality</th><td>medium→high — clean man-made models, but "toys" aesthetic, not realistic furniture.</td></tr>
+    <tr><th>Notes</th><td>Per-asset license patchwork = vet before shipping.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="academic-datasets">
+  <h3>CO3D (Common Objects in 3D, Meta)</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://ai.meta.com/datasets/co3d-dataset/">ai.meta.com/datasets/co3d-dataset</a></td></tr>
+    <tr><th>License</th><td>CC BY-NC 4.0 — <strong>non-commercial</strong>.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td>Multi-view images + depth + masks + per-sequence point clouds (PLY); no meshes. 50 categories (incl. chair/couch), ~19k videos.</td></tr>
+    <tr><th>Programmatic access</th><td>Python download script (open); HF subsets.</td></tr>
+    <tr><th>Render quality</th><td>low→medium — point clouds + phone video, not ready meshes.</td></tr>
+    <tr><th>Notes</th><td>NC + point-cloud-only = not usable for the app.</td></tr>
+  </table>
+</div>
+
+<div class="asset-source" data-quality="low" data-segment="academic-datasets">
+  <h3>Scan2CAD</h3>
+  <table>
+    <tr><th>URL</th><td><a href="https://github.com/skanti/Scan2CAD">github.com/skanti/Scan2CAD</a></td></tr>
+    <tr><th>License</th><td>Custom + Google-Form gated; derives from ScanNet + ShapeNet (both non-commercial) → transitively non-commercial.</td></tr>
+    <tr><th>Asset types &amp; formats</th><td><strong>Annotations only</strong> (JSON) — alignment transforms + keypoints between ScanNet scans and ShapeNet CAD. Not a mesh library.</td></tr>
+    <tr><th>Programmatic access</th><td>Google Form → small ZIP.</td></tr>
+    <tr><th>Render quality</th><td>n/a (metadata).</td></tr>
+    <tr><th>Notes</th><td>Useful only with the two non-commercial datasets it references.</td></tr>
+  </table>
+</div>
