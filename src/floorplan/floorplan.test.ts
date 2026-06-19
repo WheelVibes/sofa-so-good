@@ -60,6 +60,7 @@ describe('floor plan model', () => {
 
   it('computes room and total areas (incl. L-shape extensions)', () => {
     expect(planRoomArea({ id: 'a', name: 'A', origin: [0, 0], width: 3, depth: 4 })).toBe(12)
+    // Non-overlapping extension (juts off the east edge): union area == rect sum.
     expect(
       planRoomArea({
         id: 'b',
@@ -70,6 +71,66 @@ describe('floor plan model', () => {
         extension: { offset: [3, 0], width: 2, depth: 2 },
       }),
     ).toBe(16)
+  })
+
+  it('planRoomArea is the rectilinear UNION area, never the double-counted sum (BUG-004)', () => {
+    // L-shape whose extension OVERLAPS the main rect: a naive main+ext sum
+    // would inflate the area. Main 4×6 (24) + ext 4×4 (16) overlapping in a
+    // 4×4 (16) corner → union = 24 + 16 − 16 = 24 (NOT 40). The audit's case.
+    const overlapping = {
+      id: 'L',
+      name: 'L',
+      origin: [0, 0] as [number, number],
+      width: 4,
+      depth: 6,
+      extension: { offset: [0, 0] as [number, number], width: 4, depth: 4 },
+    }
+    expect(planRoomArea(overlapping)).toBeCloseTo(24, 5)
+    // The audit's exact 40→36 case: main 5×4 (20) + ext 5×4 (20) sharing a
+    // 1×4 (4) overlap → union 36, the naive sum 40.
+    const audit = {
+      id: 'L2',
+      name: 'L2',
+      origin: [0, 0] as [number, number],
+      width: 5,
+      depth: 4,
+      extension: { offset: [4, 0] as [number, number], width: 5, depth: 4 },
+    }
+    expect(planRoomArea(audit)).toBeCloseTo(36, 5)
+
+    // INVARIANT (the whole point of the fix): for EVERY room kind the area is
+    // exactly the shoelace of the same union polygon used for render/perimeter.
+    const cases: Parameters<typeof planRoomArea>[0][] = [
+      { id: 'rect', name: 'rect', origin: [0, 0], width: 3, depth: 4 },
+      {
+        id: 'ext-clear',
+        name: 'ext-clear',
+        origin: [0, 0],
+        width: 3,
+        depth: 4,
+        extension: { offset: [3, 0] as [number, number], width: 2, depth: 2 },
+      },
+      overlapping,
+      audit,
+      {
+        id: 'poly',
+        name: 'poly',
+        origin: [0, 0],
+        width: 4,
+        depth: 4,
+        polygon: [
+          [0, 0],
+          [4, 0],
+          [4, 2],
+          [2, 2],
+          [2, 4],
+          [0, 4],
+        ] as [number, number][],
+      },
+    ]
+    for (const room of cases) {
+      expect(planRoomArea(room)).toBeCloseTo(polygonArea(roomPolygon(room)), 9)
+    }
   })
 
   it('computes room perimeter (rectangle, L-shape extension, explicit polygon)', () => {

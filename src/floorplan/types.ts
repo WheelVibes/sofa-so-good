@@ -371,13 +371,16 @@ export function roomPolygon(r: PlanRoom): PlanVec2[] {
   ])
 }
 
-/** Interior floor area of a room (m²): shoelace over an explicit polygon, else
- *  the rectangle (+ L-shape extension) sum. */
+/** Interior floor area of a room (m²): shoelace over the room's rectilinear
+ *  union outline (`roomPolygon`) — the SAME polygon used for the floor render
+ *  and `planRoomPerimeter`, so area, perimeter, and geometry are mutually
+ *  consistent. Invariant: `planRoomArea(r) === polygonArea(roomPolygon(r))`.
+ *  This matters for L-shapes whose extension OVERLAPS the main rect: a naive
+ *  `main + ext` sum would double-count the overlap and inflate the area (BUG-004);
+ *  the union polygon counts it once. Simple rects and non-overlapping extensions
+ *  are unchanged (their union area equals the rect / rect-sum). */
 export function planRoomArea(r: PlanRoom): number {
-  if (r.polygon && r.polygon.length >= 3) return polygonArea(r.polygon)
-  const main = r.width * r.depth
-  const ext = r.extension ? r.extension.width * r.extension.depth : 0
-  return main + ext
+  return polygonArea(roomPolygon(r))
 }
 
 /** Interior wall perimeter of a room (m): the closed-loop edge length of its

@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: room area = rectilinear union polygon (BUG-004) (v0.1.0.34)
+
+`planRoomArea` summed `main + extension` rectangles, double-counting the overlap
+for L-shaped rooms whose extension overlaps the main rect (e.g. reporting 40 m²
+where the true union is 36 m²) — disagreeing with the rendered floor polygon and
+`planRoomPerimeter`, and propagating the inflated figure into the finishes
+schedule, design score, daylight check, BOQ, and on-plan area labels. Now computes
+`polygonArea(roomPolygon(r))` — the SAME rectilinear union outline used for the
+floor render and perimeter — establishing the invariant
+`planRoomArea(r) === polygonArea(roomPolygon(r))` for all room kinds (simple rect,
+overlapping/non-overlapping L-extension, explicit polygon). Adds invariant unit
+tests; full suite green (2957).
+
 ## Fix: persist uploaded-material name/category/uvScale/swatch (BUG-003, v0.1.0.31)
 
 Uploaded materials lost their identity/appearance on reload. `persistUserMaterial`
