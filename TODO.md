@@ -70,7 +70,7 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 | 31 | **UX-003** | `UploadModelDialog` not on shared `Modal` (no focus trap/role + `border-blue-500` literal) | MED a11y *(dev-only path)* | M | `ui/upload/UploadModelDialog.tsx` | `cg-uploaddlg` |
 | ~~32~~ | ~~**UX-004**~~ | ✅ DONE (v0.2.0.22) — on shared `Modal` (dialog/focus trap/restore) + dial is a keyboard `role=slider` (arrows/Home) | MED a11y | M | `ui/toolbar/CompassModal.tsx` | `cg-compass` |
 | ~~33~~ | ~~**UX-008**~~ | ✅ DONE (v0.2.0.24) — import-errors detail dialog now uses shared `Modal` (dialog role/focus trap/restore) | LOW a11y | S | `ui/notifications/NotificationContainer.tsx` | `cg-notif` |
-| 34 | **UX-009** | `UploadMaterialDialog` custom overlay lacks dialog role/focus mgmt | LOW a11y *(dev-only)* | S | `ui/upload/UploadMaterialDialog.tsx` | `cg-uploadmatdlg` |
+| ~~34~~ | ~~**UX-009**~~ | ✅ DONE (v0.2.0.27) — now on shared `Modal` (dialog role/focus trap/restore + modal guard) | LOW a11y *(dev-only)* | S | `ui/upload/UploadMaterialDialog.tsx` | `cg-uploadmatdlg` |
 | ~~35~~ | ~~**UX-007**~~ | ✅ DONE (v0.2.0.23) — tooltips open on keyboard focus (pointer-guarded), hide on blur | LOW a11y | S | `ui/toolbar/Tooltip.tsx` | `cg-tooltip` |
 | ~~36~~ | ~~**UX-005**~~ | ✅ DONE (v0.2.0.25) — added `--ok` token to all 10 theme blocks; replaced green/blue literals in RemoteBrowseTab/IkeaBody/GltfBody/UploadModelDialog (none remain under src/ui) | LOW a11y *(dev-only)* | S | `styles/tokens.css` + dev paths | `cg-colorleak` |
 | 37 | **RD-411** | SSAA (2× render → downsample) on the snapshot/export path | MED polish (exports) | S | `scene/ScreenshotController.tsx`, `scene/captureCanvas.ts` | `cg-capture` |

@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import type { MaterialCategory } from '../../materials/types'
 import { type MaterialUploadFiles, persistUserMaterial } from '../../materials/upload/persist'
+import { Modal } from '../Modal'
 
 interface UploadMaterialDialogProps {
   open: boolean
@@ -66,6 +66,13 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
     setBusy(false)
   }
 
+  // Closing (X / Escape / backdrop / Cancel) clears the form so a fresh open
+  // doesn't show stale picks (the instance state persists while open=false).
+  const close = () => {
+    reset()
+    onClose()
+  }
+
   const submit = async () => {
     if (!albedo) {
       setError('Albedo is required.')
@@ -93,10 +100,29 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
     onClose()
   }
 
-  return createPortal(
-    <div className="modal-overlay">
-      <div className="panel" style={{ width: 448, padding: 'var(--s-6)' }}>
-        <h2 className="mb-3 text-base font-semibold text-[var(--text)]">Upload material</h2>
+  return (
+    <Modal
+      open={open}
+      onClose={close}
+      title="Upload material"
+      width={448}
+      footer={
+        <footer className="flex justify-end gap-2 px-[var(--s-4)] py-[var(--s-3)]">
+          <button onClick={close} className="btn" disabled={busy} type="button">
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={busy || !albedo || !name.trim()}
+            className="rounded btn btn-accent disabled:opacity-40"
+            type="button"
+          >
+            {busy ? 'Saving…' : 'Save'}
+          </button>
+        </footer>
+      }
+    >
+      <div>
         <p className="mb-4 text-xs text-[var(--text-3)]">
           Drop in PBR texture maps (PNG / JPG / WebP / BMP / TGA / TIFF / EXR / HDR / KTX2 / DDS,
           max 4096² and 16 MB each). Exotic formats are decoded and re-encoded to WebP in your
@@ -168,27 +194,7 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
             {error}
           </p>
         ) : null}
-        <footer className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={() => {
-              reset()
-              onClose()
-            }}
-            className="btn"
-            disabled={busy}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={submit}
-            disabled={busy || !albedo || !name.trim()}
-            className="rounded btn btn-accent disabled:opacity-40"
-          >
-            {busy ? 'Saving…' : 'Save'}
-          </button>
-        </footer>
       </div>
-    </div>,
-    document.body,
+    </Modal>
   )
 }

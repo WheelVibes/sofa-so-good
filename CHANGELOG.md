@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## a11y: UploadMaterialDialog → shared Modal (UX-009) (v0.2.0.27)
+
+The material-upload dialog was a hand-rolled `.modal-overlay > .panel` that didn't even call
+`useModalGuard` (global hotkeys fired behind it), with no `role="dialog"`/`aria-modal`, focus trap, or
+focus restore. It now renders through the shared `Modal` (all of those for free), keeping the channel
+slots / name / category / tile-size / swatch form and the Cancel/Save footer. Close (X / Escape /
+backdrop / Cancel) routes through one `close()` that resets the form. Dev-only path; no behaviour change
+beyond the a11y wiring.
+
 ## Realism: dress more host surfaces in auto-decor (RD-408) (v0.2.0.26)
 
 Under-dressed rooms are the #1 "fake" tell. The decor-styling pass now also dresses three common
