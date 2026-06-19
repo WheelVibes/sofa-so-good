@@ -14,6 +14,12 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **Tier-gate GPU cost.** Read `RenderTier`; **Performance is the default for everyone**
   (flat: no shadows/IBL/post, DPR 1). Heavy effects (real mirrors, post stack) are
   High/Maximum only (`mirrorReflectorConfig(tier)` is the pattern).
+- **Tone mapping is context-aware** (`toneContext.ts`, pure + unit-tested). The stored user
+  setting is `ToneMappingSetting` (`auto` | filmic | agx | neutral); `Lighting` resolves the
+  concrete operator each frame via `resolveToneMapping(setting, ctx)` — never read `st.toneMapping`
+  raw for the renderer. An explicit pick wins; `'auto'` picks Neutral while previewing finishes,
+  AgX for a photo context, else filmic. Keep `look.ts` pure (no three) — the three constant comes
+  from `toneMappingThree.ts`.
 - **Materials**: pass a real three `Material` to `material=`, never a props object.
 - **Mount expensive controllers once**; collapse repeat geometry via `InstancedBoxes`.
   `ContextLossGuard` must stay mounted in **both** Canvases (main + room editor).

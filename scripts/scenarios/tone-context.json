@@ -1,0 +1,27 @@
+{
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "waitFor": { "storeExists": true }, "name": "boot" },
+    { "store": { "action": "setManualHour", "args": [13] }, "name": "daylight" },
+    { "waitFor": { "store": "state.toneMapping === 'auto'" }, "name": "auto-default" },
+    { "store": { "action": "setManualHour", "args": [13.01] }, "name": "nudge-1" },
+    { "wait": 600 },
+    { "screenshot": "a-auto-default-filmic" },
+    { "store": { "action": "selectRoom", "args": ["living"] }, "name": "open-finish-preview" },
+    { "wait": 300 },
+    { "store": { "action": "setManualHour", "args": [13.02] }, "name": "nudge-2" },
+    { "wait": 600 },
+    { "screenshot": "b-finish-preview-neutral" },
+    { "store": { "action": "selectRoom", "args": [null] }, "name": "close-finish-preview" },
+    { "wait": 300 },
+    { "store": { "action": "setManualHour", "args": [13.03] }, "name": "nudge-3" },
+    { "wait": 600 },
+    { "screenshot": "c-back-to-filmic" },
+    { "store": { "action": "setToneMapping", "args": ["agx"] }, "name": "explicit-agx" },
+    { "store": { "action": "selectRoom", "args": ["living"] }, "name": "reopen-finish-preview" },
+    { "wait": 300 },
+    { "store": { "action": "setManualHour", "args": [13.04] }, "name": "nudge-4" },
+    { "wait": 600 },
+    { "screenshot": "d-override-agx-wins-in-preview" }
+  ]
+}

@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Context-aware tone-mapping default (RD-404)
+
+The tone-mapper now picks the right view transform for what you're doing, while
+still honouring an explicit choice. New **Auto** setting (the default) in the
+Graphics panel's Look segment:
+
+- **New pure, unit-tested rule** (`src/scene/toneContext.ts`): `ToneMappingSetting`
+  = the three operators + `'auto'`; `resolveToneMapping(setting, context)` returns
+  the concrete operator. `'auto'` → **Neutral** while previewing finishes (truest
+  product colour), **AgX** for a photo/render context, **filmic** otherwise (no
+  regression). An explicit user pick (filmic/agx/neutral) always wins — context only
+  drives the `'auto'` default; finish-preview takes priority over photo mode.
+- **Thin renderer wiring** (`scene/lighting/Lighting.tsx`): resolves the operator each
+  frame from `st.toneMapping` + `{ finishPreview: selectedRoomId != null }`, feeding
+  the resolved mode to both `gl.toneMapping` and `toneExposureBias` so brightness holds
+  steady across the switch (no flash). The HQ path tracer keeps its own ACES blit.
+- **Store + prefs**: `uiSlice.toneMapping` is now `ToneMappingSetting` defaulting to
+  `'auto'`; `qualityPrefs` round-trips it (a legacy explicit operator is preserved as a
+  user pick). No new feature flag — this is a default-behaviour improvement to existing
+  rendering, on every tier.
+- **Graphics panel**: Look segment gains an **Auto** option (first) with a hint line.
+- Tests: `src/scene/toneContext.test.ts` (auto→Neutral on finish preview, auto→AgX on
+  photo, override wins, default case, `isAuto`). Visual verification confirmed Neutral
+  (flatter, accurate) vs filmic in the live scene, restore on preview exit, and override.
+- Deferred (noted, not scope-crept): the colour-temperature / exposure dial from the dossier.
+
 ## IES photometric light profiles for spotlights (PC-IES-LIGHT) (v0.1.0.23)
 
 Coohom-parity advanced lighting: drive a light fixture with a real luminaire beam

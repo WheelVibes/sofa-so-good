@@ -1,11 +1,7 @@
-import {
-  clampExposure,
-  DEFAULT_EXPOSURE,
-  DEFAULT_TONE_MAPPING,
-  type ToneMappingMode,
-} from '../../scene/look'
+import { clampExposure, DEFAULT_EXPOSURE } from '../../scene/look'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { RENDER_TIERS } from '../../scene/quality'
+import { DEFAULT_TONE_MAPPING_SETTING, type ToneMappingSetting } from '../../scene/toneContext'
 import type { DrawingLayer, DrawingLayerVisibility } from '../../ui/drawingLayers'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
@@ -45,7 +41,7 @@ export interface UiSlice {
   assetTier: AssetTier | null
   /** Tone-mapping "look" (view transform) applied by the renderer — a per-device
    *  graphics preference, persisted via qualityPrefs. */
-  toneMapping: ToneMappingMode
+  toneMapping: ToneMappingSetting
   /** User exposure (brightness) multiplier on top of auto-exposure. Per-device,
    *  persisted via qualityPrefs. 1 = neutral. */
   exposure: number
@@ -169,7 +165,7 @@ export interface UiSlice {
   /** Set the GLB asset detail tier (`null` = Auto / follow the render tier). */
   setAssetTier: (t: AssetTier | null) => void
   /** Set the tone-mapping look. */
-  setToneMapping: (m: ToneMappingMode) => void
+  setToneMapping: (m: ToneMappingSetting) => void
   /** Set the user exposure multiplier (clamped to the supported range). */
   setExposure: (e: number) => void
   setLightsMode: (m: LightsMode) => void
@@ -232,7 +228,7 @@ export const UI_INITIAL: Pick<
   qualityUserSet: false,
   qualityOverrides: {},
   assetTier: null,
-  toneMapping: DEFAULT_TONE_MAPPING,
+  toneMapping: DEFAULT_TONE_MAPPING_SETTING,
   exposure: DEFAULT_EXPOSURE,
   lightsMode: 'auto',
   showCeilingFixtures: false,

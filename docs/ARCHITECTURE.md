@@ -229,8 +229,12 @@ same change that reshapes a system.
   (low/medium/high=Original LOD), follows render (`null`=Auto) but pinnable + FPS-immune.
   **Tone-mapping look** (`look.ts` `ToneMappingMode` Filmic/AgX/Neutral → three constant via
   `toneMappingThree.ts`; `Lighting` sets `gl.toneMapping`+exposure per-frame): user-selectable
-  view transform, all tiers, persisted in qualityPrefs. Filmic = default (historical ACES). A user
-  **exposure** multiplier (`clampExposure`, Graphics slider) rides on top of the auto-exposure.
+  view transform, all tiers, persisted in qualityPrefs. **Context-aware default (RD-404,
+  `toneContext.ts`):** the stored setting is `ToneMappingSetting` = the 3 operators + `'auto'`
+  (the default); `resolveToneMapping(setting, ctx)` picks Neutral while the FinishPicker is open
+  (`selectedRoomId != null` — accurate product colour), AgX for a photo context, else filmic — and
+  an explicit pick always overrides context. A user **exposure** multiplier (`clampExposure`,
+  Graphics slider) rides on top of the auto-exposure.
 - **GLB models + LOD** (`furniture/gltf/`): bundled CC0 + user + IKEA via one loader.
   `optimize:glb` writes `-low`/`-medium` (≤512/1024px WebP + ~50/75% tris, Draco);
   `lod.ts` picks per asset tier (HEAD-probe for `-low.glb` siblings; a **variant registry**

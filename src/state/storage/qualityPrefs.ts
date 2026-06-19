@@ -4,13 +4,12 @@
  * layout save format — quality is a per-device preference, not part of a
  * saved design.
  */
+import { clampExposure, DEFAULT_EXPOSURE } from '../../scene/look'
 import {
-  clampExposure,
-  DEFAULT_EXPOSURE,
-  DEFAULT_TONE_MAPPING,
-  TONE_MAPPING_MODES,
-  type ToneMappingMode,
-} from '../../scene/look'
+  DEFAULT_TONE_MAPPING_SETTING,
+  TONE_MAPPING_SETTINGS,
+  type ToneMappingSetting,
+} from '../../scene/toneContext'
 import { useStore } from '../store'
 
 const KEY = 'sofa.graphics.v1'
@@ -31,12 +30,14 @@ export function loadQualityPrefs(): void {
     // Migrate the old flat tier name. Other names map 1:1 onto the new
     // RenderTier union (medium/high unchanged; maximum is new).
     const tier = p.tier === 'low' ? 'performance' : (p.tier ?? 'performance')
-    // Only accept a known tone-mapping mode (back-compat: absent → default).
-    const toneMapping: ToneMappingMode = TONE_MAPPING_MODES.includes(
-      p.toneMapping as ToneMappingMode,
+    // Only accept a known tone-mapping setting (back-compat: absent → default
+    // 'auto'; a legacy 'filmic'/'agx'/'neutral' is a valid setting and is kept
+    // as an explicit user pick).
+    const toneMapping: ToneMappingSetting = TONE_MAPPING_SETTINGS.includes(
+      p.toneMapping as ToneMappingSetting,
     )
-      ? (p.toneMapping as ToneMappingMode)
-      : DEFAULT_TONE_MAPPING
+      ? (p.toneMapping as ToneMappingSetting)
+      : DEFAULT_TONE_MAPPING_SETTING
     useStore.setState({
       qualityTier: tier,
       qualityOverrides: (p.overrides as never) ?? {},
