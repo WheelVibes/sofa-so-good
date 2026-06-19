@@ -71,7 +71,7 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 | ~~32~~ | ~~**UX-004**~~ | ✅ DONE (v0.2.0.22) — on shared `Modal` (dialog/focus trap/restore) + dial is a keyboard `role=slider` (arrows/Home) | MED a11y | M | `ui/toolbar/CompassModal.tsx` | `cg-compass` |
 | 33 | **UX-008** | `NotificationDetailsModal` not on shared `Modal` | LOW a11y | S | `ui/notifications/NotificationContainer.tsx` | `cg-notif` |
 | 34 | **UX-009** | `UploadMaterialDialog` custom overlay lacks dialog role/focus mgmt | LOW a11y *(dev-only)* | S | `ui/upload/UploadMaterialDialog.tsx` | `cg-uploadmatdlg` |
-| 35 | **UX-007** | Toolbar tooltips are hover-only (no `:focus`) → keyboard users get no hint | LOW a11y | S | `ui/toolbar/Tooltip.tsx` | `cg-tooltip` |
+| ~~35~~ | ~~**UX-007**~~ | ✅ DONE (v0.2.0.23) — tooltips open on keyboard focus (pointer-guarded), hide on blur | LOW a11y | S | `ui/toolbar/Tooltip.tsx` | `cg-tooltip` |
 | 36 | **UX-005** | Hardcoded `text-green-600`/`border-blue-500` status colours (theme/contrast leak) | LOW a11y *(dev-only)* | S | `ui/catalog/RemoteBrowseTab.tsx`, `ui/inspector/IkeaBody.tsx` | `cg-colorleak` |
 | 37 | **RD-411** | SSAA (2× render → downsample) on the snapshot/export path | MED polish (exports) | S | `scene/ScreenshotController.tsx`, `scene/captureCanvas.ts` | `cg-capture` |
 | 38 | **PC2-SSAA-EXPORT** | Supersample snapshot/PNG export (duplicate of RD-411 — **merge with RD-411**, do not dispatch separately) | MED polish | S | same as RD-411 | `cg-capture` |

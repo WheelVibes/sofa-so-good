@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## a11y: toolbar tooltips reveal on keyboard focus (UX-007) (v0.2.0.23)
+
+Toolbar tooltips opened on `onPointerEnter` only, so a keyboard user tabbing to an icon button never
+saw the label + shortcut hint (the accessible name was present, but no on-screen chip). `Tooltip` now
+also opens on `onFocus` (immediately, no hover delay) and hides on `onBlur`, guarded by a `pointerFocus`
+ref so the focus a *click* leaves on a button doesn't pop the tooltip — only keyboard focus does. Adds
+RTL tests for the focus-shows / click-suppresses / blur-hides paths.
+
 ## a11y: CompassModal → shared Modal + keyboard-operable dial (UX-004) (v0.2.0.22)
 
 The "Sun direction" dial was a hand-rolled `.modal-overlay` with no `role="dialog"`, no focus
