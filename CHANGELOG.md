@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## a11y: import-errors detail dialog → shared Modal (UX-008) (v0.2.0.24)
+
+`NotificationDetailsModal` (the "N items could not be imported" dialog) was a hand-rolled
+`.modal-overlay > .panel` with no `role="dialog"`/`aria-modal`, no focus trap, no focus restore. It now
+renders through the shared `Modal` (all of those for free), keeping the same title/list/Close-footer
+content. Adds an RTL test that opens the dialog from a failed-import toast and asserts the `dialog` role
++ the failed-item list render. Drops the now-unused `createPortal` import.
+
 ## a11y: toolbar tooltips reveal on keyboard focus (UX-007) (v0.2.0.23)
 
 Toolbar tooltips opened on `onPointerEnter` only, so a keyboard user tabbing to an icon button never

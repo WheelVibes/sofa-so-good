@@ -118,6 +118,27 @@ describe('NotificationContainer', () => {
     expect(politeRegion()?.textContent).not.toContain('Installing')
   })
 
+  it('opens the import-errors detail dialog as a shared Modal (UX-008)', () => {
+    render(<NotificationContainer />)
+    act(() => {
+      const id = useStore.getState().notify.start({ title: 'Import finished', kind: 'progress' })
+      useStore
+        .getState()
+        .notify.error(id, 'Some items failed', [{ name: 'chair.glb', reason: 'bad file' }])
+    })
+    // Click the toast message to open the details dialog.
+    const host = document.querySelector('.toast-host') as HTMLElement
+    const msgBtn = within(host).getByRole('button', { name: /Import finished/i })
+    act(() => {
+      msgBtn.click()
+    })
+    // Now a real dialog (shared Modal) — role + focusable, not a bare overlay.
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toBeInTheDocument()
+    expect(within(dialog).getByText(/could not be imported/i)).toBeInTheDocument()
+    expect(within(dialog).getByText('chair.glb')).toBeInTheDocument()
+  })
+
   it('re-announces when a progress toast resolves to success', () => {
     render(<NotificationContainer />)
     let id = ''

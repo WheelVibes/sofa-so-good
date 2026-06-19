@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import type { Notification, NotificationDetail } from '../../state/slices/notificationsSlice'
 import { useStore } from '../../state/store'
+import { Modal } from '../Modal'
 import { Icon, type IconName } from '../toolbar/icons'
 
 const KIND_ICON: Record<Notification['kind'], IconName> = {
@@ -213,53 +213,15 @@ function NotificationDetailsModal({
   details: NotificationDetail[]
   onClose: () => void
 }) {
-  return createPortal(
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="panel"
-        style={{ width: 'min(480px, calc(100vw - 24px))', maxHeight: '80vh' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="panel-head">
-          <div className="panel-title">{title}</div>
-          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
-            <Icon.Close width={16} height={16} />
-          </button>
-        </div>
-        <hr className="hr" />
-        <div className="panel-body">
-          <p
-            className="panel-sub"
-            style={{ textTransform: 'none', letterSpacing: 0, margin: '0 0 var(--s-3)' }}
-          >
-            {details.length} item{details.length === 1 ? '' : 's'} could not be imported:
-          </p>
-          <ul
-            style={{
-              listStyle: 'none',
-              margin: 0,
-              padding: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 6,
-            }}
-          >
-            {details.map((d, i) => (
-              <li
-                key={i}
-                style={{
-                  borderRadius: 'var(--r-2)',
-                  background: 'var(--danger-soft)',
-                  padding: '6px 8px',
-                  fontSize: 'var(--t-xs)',
-                }}
-              >
-                <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{d.name}</span>
-                <span style={{ color: 'var(--danger)' }}> — {d.reason}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+  // Shared Modal: dialog role + aria-modal + focus trap/restore + Escape for free
+  // (UX-008) instead of the hand-rolled overlay.
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={title}
+      width={480}
+      footer={
         <div
           style={{
             display: 'flex',
@@ -272,8 +234,39 @@ function NotificationDetailsModal({
             Close
           </button>
         </div>
-      </div>
-    </div>,
-    document.body,
+      }
+    >
+      <p
+        className="panel-sub"
+        style={{ textTransform: 'none', letterSpacing: 0, margin: '0 0 var(--s-3)' }}
+      >
+        {details.length} item{details.length === 1 ? '' : 's'} could not be imported:
+      </p>
+      <ul
+        style={{
+          listStyle: 'none',
+          margin: 0,
+          padding: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+        }}
+      >
+        {details.map((d, i) => (
+          <li
+            key={i}
+            style={{
+              borderRadius: 'var(--r-2)',
+              background: 'var(--danger-soft)',
+              padding: '6px 8px',
+              fontSize: 'var(--t-xs)',
+            }}
+          >
+            <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{d.name}</span>
+            <span style={{ color: 'var(--danger)' }}> — {d.reason}</span>
+          </li>
+        ))}
+      </ul>
+    </Modal>
   )
 }
