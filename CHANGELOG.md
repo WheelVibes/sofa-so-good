@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## 2D plan: room perimeter on the live area label
+
+The 2D editor already drew each room's name + floor area centred inside it, live
+and unit-aware (`formatArea(planRoomArea(r), units)` at `roomLabelPosition`, with
+`roomLabelDetail` thinning the figure out as the room shrinks). Added the room's
+wall **perimeter** as a third line on the full-detail label (prefixed `P`), so a
+layout reads its area *and* its run of wall at a glance — matching Coohom / Sweet
+Home 3D's on-plan room readouts.
+
+- New pure, unit-tested `planRoomPerimeter(r)` in `floorplan/types.ts` (outline
+  edge sum via `roomPolygon`, so it's correct for rectangles, L-shape extensions,
+  and explicit polygons). The report's private `roomPerimeter` (polygon/rect only,
+  no L-shape) was replaced with this shared helper, so plan labels and the
+  printable report now agree on a single perimeter figure.
+- Honours the metric/imperial toggle (`formatLength`) and updates live; the
+  perimeter rides under the existing full-detail tier (no new flag — room
+  name/area labels are a core, always-on editor display).
+
 ## Floor-plan editor: binding edits, stray-element flags, skeleton view + touch fixes
 
 A batch of floor-plan-editor fixes so plan edits are real, the apartment can be

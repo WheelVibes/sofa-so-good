@@ -33,6 +33,7 @@ import {
   DEFAULT_PLAN_WALL_COLOR,
   planBounds,
   planRoomArea,
+  planRoomPerimeter,
   planTotalArea,
   pointInRoom,
   wallLength,
@@ -2164,7 +2165,7 @@ export function FloorPlanEditor() {
                     )
                     const nameLines = wrapLabel(r.name, maxChars)
                     const lineH = fontPx + 1
-                    const totalLines = nameLines.length + (detail === 'full' ? 1 : 0)
+                    const totalLines = nameLines.length + (detail === 'full' ? 2 : 0)
                     // Vertically centre the multi-line block on the label anchor.
                     const yTop = pz - ((totalLines - 1) * lineH) / 2
                     return (
@@ -2195,9 +2196,14 @@ export function FloorPlanEditor() {
                           </tspan>
                         ))}
                         {detail === 'full' && (
-                          <tspan x={px} dy={lineH + 2} fill="var(--text-3)">
-                            {formatArea(planRoomArea(r), units)}
-                          </tspan>
+                          <>
+                            <tspan x={px} dy={lineH + 2} fill="var(--text-3)">
+                              {formatArea(planRoomArea(r), units)}
+                            </tspan>
+                            <tspan x={px} dy={lineH} fill="var(--text-3)">
+                              {`P ${formatLength(planRoomPerimeter(r), units)}`}
+                            </tspan>
+                          </>
                         )}
                       </text>
                     )

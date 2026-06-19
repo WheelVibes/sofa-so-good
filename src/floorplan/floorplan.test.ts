@@ -6,6 +6,7 @@ import { PLAN_TEMPLATES, templateCategoryTree } from './templates'
 import {
   type PlanRoom,
   planRoomArea,
+  planRoomPerimeter,
   planTotalArea,
   pointInPolygon,
   pointInRoom,
@@ -69,6 +70,43 @@ describe('floor plan model', () => {
         extension: { offset: [3, 0], width: 2, depth: 2 },
       }),
     ).toBe(16)
+  })
+
+  it('computes room perimeter (rectangle, L-shape extension, explicit polygon)', () => {
+    // Plain 3×4 rectangle → 2·(3+4) = 14.
+    expect(
+      planRoomPerimeter({ id: 'a', name: 'A', origin: [0, 0], width: 3, depth: 4 }),
+    ).toBeCloseTo(14, 5)
+    // L-shape: 4×4 main + 2×2 extension off the east edge → outline perimeter.
+    // Outline: 4×4 with a 2×2 jut → 4+2+2+2+2(back) ... = 4+4+2+2+2+2 = 20.
+    expect(
+      planRoomPerimeter({
+        id: 'b',
+        name: 'B',
+        origin: [0, 0],
+        width: 4,
+        depth: 4,
+        extension: { offset: [4, 0], width: 2, depth: 2 },
+      }),
+    ).toBeCloseTo(20, 5)
+    // Explicit L-polygon (4×4 minus a 2×2 corner notch) → all edges sum to 16.
+    expect(
+      planRoomPerimeter({
+        id: 'c',
+        name: 'C',
+        origin: [0, 0],
+        width: 4,
+        depth: 4,
+        polygon: [
+          [0, 0],
+          [4, 0],
+          [4, 2],
+          [2, 2],
+          [2, 4],
+          [0, 4],
+        ],
+      }),
+    ).toBeCloseTo(16, 5)
   })
 
   it("default plan's total area matches the fixed flat's interior area", () => {

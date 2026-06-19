@@ -32,7 +32,10 @@ between the 2D plan and the 3D scene at any time.
   point lands. Endpoints snap to the grid, to nearby wall corners, and onto the
   side of an existing wall (a clean T‑junction); dragging clearly past a wall
   stays free, so you can still extend beyond it.
-- **Rooms** — drag a rectangle; its area is computed and added to the total.
+- **Rooms** — drag a rectangle; its area is computed and added to the total. Each
+  room shows its name, floor **area**, and wall **perimeter** (prefixed `P`)
+  centred inside it — all live, and in metric or imperial to match your unit
+  toggle. The figures thin out automatically when a room is too small on screen.
 - **Doors / windows** — click on a wall to drop one. Select a door to set which
   way it opens: **Hinge** (which jamb it pivots on) and **Swing** (which side of
   the wall the leaf opens toward). The plan redraws the door's swing arc to match,
