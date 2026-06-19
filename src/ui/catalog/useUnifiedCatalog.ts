@@ -43,13 +43,13 @@ export interface UnifiedCatalog {
  * packs + already-downloaded CC0) with the browsable CC0 remote index into one
  * grid model, grouped by category. A remote entry is hidden once it has been
  * downloaded (its resolved local def represents it instead) so nothing appears
- * twice. Also resolves the favourites list from the persisted `collections`.
+ * twice. Also resolves the favourites list from the persisted `favouriteDefIds`.
  */
 export function useUnifiedCatalog(): UnifiedCatalog {
   const localByCategory = useCatalogByCategory()
   const remoteEntries = useRemoteEntries('furniture')
   const resolvedKeys = useStore(useShallow((s) => Object.keys(s.resolvedRemoteFurniture)))
-  const collections = useStore(useShallow((s) => s.collections))
+  const collections = useStore(useShallow((s) => s.favouriteDefIds))
   const recentDefIds = useStore(useShallow((s) => s.recentDefIds))
 
   return useMemo(() => {

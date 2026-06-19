@@ -120,7 +120,10 @@ same change that reshapes a system.
   `ContextLossGuard.tsx` recovers WebGL context loss.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
-  CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice`).
+  CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice` /
+  `favouritesSlice` — both persist to localStorage, both per-device convenience state).
+  Favourites (star/heart button on each card, Favourites tab) are gated by the
+  `catalogFavourites` feature flag (tier: simple, default on).
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,

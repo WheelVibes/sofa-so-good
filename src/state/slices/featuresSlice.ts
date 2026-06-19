@@ -101,9 +101,6 @@ export interface FeaturesSlice {
   /** Optional shopping budget target (SGD); drives the over/under indicator in
    *  the Budget panel. Persisted per-device. `null` = no target set. */
   budgetTarget: number | null
-  /** Saved-to-collection catalog def ids (the heart on catalog cards). */
-  collections: string[]
-
   setCmdkOpen: (open: boolean) => void
   toggleCmdk: () => void
   setLeftMode: (mode: 'catalog' | 'layers') => void
@@ -148,7 +145,6 @@ export interface FeaturesSlice {
   setQuoteTemplateOpen: (open: boolean) => void
   setShopTab: (tab: 'list' | 'saved') => void
   setBudgetTarget: (target: number | null) => void
-  toggleCollection: (defId: string) => void
 }
 
 export const FEATURES_INITIAL = {
@@ -185,7 +181,6 @@ export const FEATURES_INITIAL = {
   quoteTemplateOpen: false,
   shopTab: 'list' as 'list' | 'saved',
   budgetTarget: null as number | null,
-  collections: [] as string[],
 }
 
 export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set) => ({
@@ -246,10 +241,4 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setShopTab: (shopTab) => set({ shopTab }),
   setBudgetTarget: (budgetTarget) =>
     set({ budgetTarget: budgetTarget != null && budgetTarget > 0 ? budgetTarget : null }),
-  toggleCollection: (defId) =>
-    set((s) => ({
-      collections: s.collections.includes(defId)
-        ? s.collections.filter((d) => d !== defId)
-        : [...s.collections, defId],
-    })),
 })

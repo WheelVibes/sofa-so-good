@@ -81,6 +81,7 @@ export function CatalogDrawer() {
   const fPacks = useFeature('packs')
   const fUpload = useFeature('modelUpload')
   const fParametric = useFeature('parametricFurniture')
+  const fFavourites = useFeature('catalogFavourites')
   // Price displays/filters are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
   const unified = useUnifiedCatalog()
@@ -129,14 +130,16 @@ export function CatalogDrawer() {
     ? // Searching uses synonym-aware fuzzy ranking (so "couch" finds a "Sofa",
       // even for pack/uploaded items without keywords) — sort is browse-only.
       fuzzySearchSmart(q, unified.all, gridItemText)
-    : active === 'favourites'
+    : active === 'favourites' && fFavourites
       ? unified.favourites
       : active === 'recent'
         ? unified.recent
-        : sortCards(
-            unified.byCategory[active] ?? [],
-            !priceOn && sortBy === 'price' ? 'default' : sortBy,
-          )
+        : active === 'favourites'
+          ? [] // favourites tab active but flag off: show nothing (edge-case guard)
+          : sortCards(
+              unified.byCategory[active] ?? [],
+              !priceOn && sortBy === 'price' ? 'default' : sortBy,
+            )
   // Optional max-price filter — browse-only (its control lives in the browse
   // sort row), so a stale cap can never silently filter search results.
   const allCards = q ? baseCards : filterByMaxPrice(baseCards, maxPrice)
@@ -321,6 +324,7 @@ export function CatalogDrawer() {
               counts={unified.counts}
               favCount={unified.favourites.length}
               recentCount={unified.recent.length}
+              favEnabled={fFavourites}
             />
           )}
           {!q &&

@@ -82,6 +82,7 @@ export type FeatureFlag =
   | 'contactShadows'
   | 'drawingCallouts'
   | 'quoteTemplate'
+  | 'catalogFavourites'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

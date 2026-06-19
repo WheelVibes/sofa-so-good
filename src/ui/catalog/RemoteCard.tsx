@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAssetSize, useResolveStatus, useThumbnail } from '../../catalog/remote/hooks'
 import type { RemoteEntry } from '../../catalog/remote/types'
+import { useFeature } from '../../features/useFeature'
 import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatBytes } from '../../utils/measurement'
@@ -27,8 +28,9 @@ export function RemoteCard({ entry, onResolved }: Props) {
   const favId = `${entry.provider}:${entry.slug}`
   const status = useResolveStatus(key)
   const size = useAssetSize(entry, resolution, visible)
-  const saved = useStore((s) => s.collections.includes(favId))
-  const toggleCollection = useStore((s) => s.toggleCollection)
+  const favOn = useFeature('catalogFavourites')
+  const saved = useStore((s) => s.favouriteDefIds.includes(favId))
+  const toggleFavourite = useStore((s) => s.toggleFavourite)
   // Furniture remote entries always carry a FurnitureCategory.
   const category = entry.category as FurnitureCategory
 
@@ -70,17 +72,19 @@ export function RemoteCard({ entry, onResolved }: Props) {
       }}
       className="cat-card group"
     >
-      <button
-        type="button"
-        className={`fav-btn${saved ? ' on' : ''}`}
-        aria-label={saved ? 'Remove from favourites' : 'Add to favourites'}
-        onClick={(e) => {
-          e.stopPropagation()
-          toggleCollection(favId)
-        }}
-      >
-        <Icon.Heart width={14} height={14} />
-      </button>
+      {favOn ? (
+        <button
+          type="button"
+          className={`fav-btn${saved ? ' on' : ''}`}
+          aria-label={saved ? 'Remove from favourites' : 'Add to favourites'}
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleFavourite(favId)
+          }}
+        >
+          <Icon.Heart width={14} height={14} />
+        </button>
+      ) : null}
       <div className="card-thumb">
         {thumb ? (
           <img src={thumb} alt={entry.name} />
