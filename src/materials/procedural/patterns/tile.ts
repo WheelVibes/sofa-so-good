@@ -1,6 +1,7 @@
 /** Tiled / masonry procedural patterns (tile, hexagon, checker, subway, brick). */
 import { blank, type Fields, setPx, shade } from '../fieldKit'
 import { clamp01, makeFbm, mulberry32 } from '../noise'
+import { DEFAULT_TILE_SURFACE_PARAMS, glazeRoughness, makeGlazePeel } from '../tileSurface'
 
 export function tileFields(base: [number, number, number], seed: number, S: number): Fields {
   const f = blank(S)
@@ -17,6 +18,11 @@ export function tileFields(base: [number, number, number], seed: number, S: numb
   // up the glossy ceramic-face roughness so the sheen isn't perfectly uniform.
   const groutDirt = makeFbm(seed + 17, 3, 7)
   const microRough = makeFbm(seed + 53, 4, 85)
+  // MAT-002: fired-glaze orange-peel micro-normal (tile face only) + an explicit
+  // glaze↔grout roughness contrast. Tasteful defaults; both ride this painter's
+  // own grout layout so the normal + roughness ALIGN with the visible joints.
+  const { glaze, grout: groutContrast } = DEFAULT_TILE_SURFACE_PARAMS
+  const glazePeel = makeGlazePeel(seed, glaze)
   const grout: [number, number, number] = [base[0] * 0.62, base[1] * 0.62, base[2] * 0.6]
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
@@ -27,8 +33,8 @@ export function tileFields(base: [number, number, number], seed: number, S: numb
       const distEdge = Math.min(inX, cell - inX, inY, cell - inY)
       const i = y * S + x
       if (distEdge < groutW) {
-        // Recessed grout line, darkened unevenly by accumulated dirt; dirtier
-        // patches read slightly rougher.
+        // Recessed grout line, darkened unevenly by accumulated dirt; matte
+        // cement (high roughness) vs the glossy glaze.
         const t = distEdge / groutW
         const ag = 0.74 + groutDirt(x / S, y / S) * 0.26
         setPx(
@@ -38,22 +44,25 @@ export function tileFields(base: [number, number, number], seed: number, S: numb
           grout[1] * ag,
           grout[2] * ag,
           0.05 + t * 0.1,
-          clamp01(0.86 + (1 - ag) * 0.5),
+          glazeRoughness(true, groutContrast, (1 - ag) * 0.06),
         )
       } else {
         const tint = cellTint[cy * tilesPerRow + cx]
         const sp = (speck(x / S, y / S) - 0.5) * 0.06
         const factor = clamp01(tint + sp)
         const [r, g, b] = shade(base, factor)
-        // Glossy ceramic: low roughness, slight variance + micro break-up.
+        // Glossy ceramic face: faint glaze orange-peel on the height (catches
+        // grazing light) + low roughness with the existing micro break-up so the
+        // sheen isn't a dead-uniform mirror.
+        const micro = Math.abs(sp) * 1.5 + (microRough(x / S, y / S) - 0.5) * 0.07
         setPx(
           f,
           i,
           r,
           g,
           b,
-          0.85,
-          clamp01(0.18 + Math.abs(sp) * 1.5 + (microRough(x / S, y / S) - 0.5) * 0.07),
+          0.85 + glazePeel(x / S, y / S),
+          glazeRoughness(false, groutContrast, micro),
         )
       }
     }
@@ -80,6 +89,9 @@ export function hexagonFields(base: [number, number, number], seed: number, S: n
   for (let i = 0; i < cols * rows; i++) tint.push(0.92 + rand() * 0.14)
   const speck = makeFbm(seed + 3, 3, 50)
   const groutDirt = makeFbm(seed + 17, 3, 7) // aged-grout dirt (RZ4)
+  // MAT-002: glaze orange-peel (face only) + glaze↔grout roughness contrast.
+  const { glaze, grout: groutContrast } = DEFAULT_TILE_SURFACE_PARAMS
+  const glazePeel = makeGlazePeel(seed, glaze)
   const grout: [number, number, number] = [base[0] * 0.6, base[1] * 0.6, base[2] * 0.58]
   const groutW = 3.5 // px threshold on the gap between the two nearest centres
   for (let y = 0; y < S; y++) {
@@ -126,13 +138,21 @@ export function hexagonFields(base: [number, number, number], seed: number, S: n
           grout[1] * ag,
           grout[2] * ag,
           0.05 + t * 0.1,
-          clamp01(0.86 + (1 - ag) * 0.5),
+          glazeRoughness(true, groutContrast, (1 - ag) * 0.06),
         )
       } else {
         const tt = tint[bestRow * cols + bestCol]
         const sp = (speck(x / S, y / S) - 0.5) * 0.05
         const [r, g, b] = shade(base, clamp01(tt + sp))
-        setPx(f, i, r, g, b, 0.82, 0.2 + Math.abs(sp) * 1.5)
+        setPx(
+          f,
+          i,
+          r,
+          g,
+          b,
+          0.82 + glazePeel(x / S, y / S),
+          glazeRoughness(false, groutContrast, Math.abs(sp) * 1.5),
+        )
       }
     }
   }
@@ -180,6 +200,9 @@ export function subwayFields(base: [number, number, number], seed: number, S: nu
   const groutRgb: [number, number, number] = [218, 214, 206]
   const speck = makeFbm(seed + 7, 3, 60)
   const groutDirt = makeFbm(seed + 17, 3, 7) // aged-grout dirt (RZ4)
+  // MAT-002: glaze orange-peel (face only) + glaze↔grout roughness contrast.
+  const { glaze, grout: groutContrast } = DEFAULT_TILE_SURFACE_PARAMS
+  const glazePeel = makeGlazePeel(seed, glaze)
   for (let y = 0; y < S; y++) {
     const row = Math.floor(y / th)
     const yIn = y - row * th
@@ -191,7 +214,7 @@ export function subwayFields(base: [number, number, number], seed: number, S: nu
       const edge = Math.min(xIn, tw - xIn, yIn, th - yIn)
       const i = y * S + x
       if (edge < grout) {
-        // Recessed grout joint, unevenly darkened by accumulated dirt.
+        // Recessed grout joint, unevenly darkened by accumulated dirt; matte.
         const ag = 0.74 + groutDirt(x / S, y / S) * 0.26
         setPx(
           f,
@@ -200,19 +223,23 @@ export function subwayFields(base: [number, number, number], seed: number, S: nu
           groutRgb[1] * ag,
           groutRgb[2] * ag,
           0.05,
-          clamp01(0.8 + (1 - ag) * 0.5),
+          glazeRoughness(true, groutContrast, (1 - ag) * 0.06),
         )
         continue
       }
-      // Ceramic face — bright, low roughness; a bevel band near the joint catches
-      // light (raised height) so each tile reads as proud + glossy.
+      // Ceramic face — bright, glossy; a bevel band near the joint catches light
+      // (raised height) so each tile reads as proud, with a faint glaze
+      // orange-peel undulation across the flat face.
       const onBevel = edge < grout + bevel
       const bv = onBevel ? (edge - grout) / bevel : 1
       const sp = (speck(x / S, y / S) - 0.5) * 0.04
       const factor = clamp01(0.97 + sp + (onBevel ? (1 - bv) * 0.06 : 0))
       const [r, g, b] = shade(base, factor)
-      const height = onBevel ? 0.5 + bv * 0.45 : 0.95
-      setPx(f, i, r, g, b, height, 0.12 + Math.abs(sp) * 1.2)
+      // Apply the glaze peel only on the flat face, not the bevel ramp (the bevel
+      // already supplies its own strong height gradient).
+      const peel = onBevel ? 0 : glazePeel(x / S, y / S)
+      const height = onBevel ? 0.5 + bv * 0.45 : 0.95 + peel
+      setPx(f, i, r, g, b, height, glazeRoughness(false, groutContrast, Math.abs(sp) * 1.2))
     }
   }
   return f

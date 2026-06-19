@@ -31,6 +31,16 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   disables a channel) — the goal is "reads as cloth", not quilted leather. It's deterministic +
   unit-tested (dims/determinism/seam-recess), baked once into the shared fabric normal singleton
   behind `pbrSurfaces` (off → legacy clean weave). Albedo stays sRGB, the normal stays linear.
+- **Tile/ceramic glaze (MAT-002)**: the glossy-ceramic painters (`procedural/patterns/tile.ts`
+  `tileFields`/`hexagonFields`/`subwayFields`) get their micro-detail from the pure
+  `procedural/tileSurface.ts`: `makeGlazePeel(seed, glaze)` adds a fine signed orange-peel height
+  delta on the **tile face only** (catches grazing light), and `glazeRoughness(isGrout, grout,
+  micro)` resolves a **glossy-glaze (≈0.16) ↔ matte-grout (≈0.92) roughness contrast** with the
+  painter's existing per-texel break-up folded in. The painter owns the grid and only asks the
+  helper per-texel, so normal+roughness **align with the visible grout** automatically (square /
+  hex / subway). Keep it **subtle** (`DEFAULT_TILE_SURFACE_PARAMS`; `glaze`/`grout` are 0..1, `0`
+  disables that channel). Path-A micro-detail (no flag, all tiers — like RZ4 grout aging); albedo
+  sRGB, normal/roughness linear. checker/brick are not ceramic — untouched.
 - **Uploaded-material persistence (`upload/persist.ts`)**: each channel blob is one IDB record;
   the material's full identity/appearance (`name`, `category`, `swatch`, `uvScaleX`/`uvScaleY`
   — `uvScale` is stored as two scalars since IDB `meta` values can't be arrays) is stamped on

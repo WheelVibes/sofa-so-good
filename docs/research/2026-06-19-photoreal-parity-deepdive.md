@@ -99,8 +99,10 @@ got seam/wrinkle (`upholsterySeams.ts`). Extend the identical cheap technique to
 - **Stone/marble** (`patterns/stone.ts` `marbleFields`/`concreteTerrazzo`): add fine
   roughness mottle so polished marble has wet/dry variation; veins should also perturb the
   normal slightly (currently mostly albedo). Concrete: pinhole-pore darkening in AO/rough.
-- **Tile/ceramic** (`patterns/tile.ts`): glaze "orange-peel" micro-normal on the tile face
-  (not the grout); grout should be rougher than the glaze (roughness contrast sells ceramic).
+- **Tile/ceramic** (`patterns/tile.ts`): ✅ **DONE (MAT-002)** — glaze "orange-peel" micro-normal
+  on the tile face (not the grout) + an explicit glaze↔grout roughness contrast, via the pure
+  `procedural/tileSurface.ts` (`makeGlazePeel`/`glazeRoughness`), aligned with each painter's grout
+  grid (tile/hexagon/subway). Tasteful defaults, Path-A all-tier, no flag.
 - **Plaster/paint** (`patterns/wall.ts`, shared `getPlasterNormal`): already one shared
   256² normal — add a faint large-scale roughness variation map (roller-nap unevenness).
 - **Metal — brushed-metal anisotropy (the notable gap).** Appliances use flat

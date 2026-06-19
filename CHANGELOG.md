@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Tile/ceramic glaze micro-detail — orange-peel micro-normal + glaze↔grout roughness contrast (MAT-002) (v0.1.0.42)
+
+Glazed tile/ceramic surfaces read flat. New pure, deterministic, worker-safe helper
+`src/materials/procedural/tileSurface.ts` adds two cues that sell real fired ceramic, mirroring
+the upholstery pattern (`upholsterySeams.ts`): a fine **orange-peel glaze micro-normal** on the
+**tile face only** (`makeGlazePeel(seed, glaze)` — a signed, centred fbm height delta at a fine
+integer pitch, tiny amplitude) and an explicit **glaze↔grout roughness contrast**
+(`glazeRoughness(isGrout, grout, micro)` — glossy glaze ~0.16 vs matte cement grout ~0.92, with
+the painter's existing per-texel micro break-up folded in). Wired into the three glossy-ceramic
+Path-A painters in `procedural/patterns/tile.ts` — `tileFields`, `hexagonFields`, `subwayFields`
+(checker/brick are not ceramic, untouched). Because the painter owns the grid and only *asks* the
+helper for the face peel + contrasted roughness, the micro-normal and roughness **align with each
+painter's visible grout** for free (square / honeycomb / running-bond), over any base/grout colour
+or width. Tasteful by default (`DEFAULT_TILE_SURFACE_PARAMS = { glaze: 1, grout: 1 }`; `glaze: 0`
+drops the orange-peel, `grout: 0` collapses the contrast). Albedo stays sRGB; normal/roughness
+linear. Path-A micro-detail rides the existing procedural maps on all tiers (cheap, no new flag) —
+on the default Performance/flat renderer the grout grid + matte/glaze split still read; the glaze
+sheen lifts further on PBR tiers. Unit-tested: `tileSurface.test.ts` (peel determinism/bounds/
+glaze-0 drop/linear-scale; roughness contrast/blend/clamp) + `generators.test.ts` (grout column
+markedly rougher than a glaze-face column AND that band lands on the grid edge → alignment; face
+normal non-flat; hex+subway carry the spread; deterministic).
+
 ## Flat-tier wall/floor corner-AO grounding decals (RD-403) (v0.1.0.41)
 
 Cheap baked ambient-occlusion darkening where walls meet the floor, so corners

@@ -268,6 +268,11 @@ same change that reshapes a system.
   `procedural/upholsterySeams.ts` `buildUpholsteryHeight()` generator (woven micro-texture +
   soft wrinkle + a faint panel-seam channel & topstitch; deterministic, unit-tested), baked once
   into a shared 256² normal singleton behind the `pbrSurfaces` flag (off → the legacy clean weave).
+  The glossy-ceramic painters (`procedural/patterns/tile.ts` tile/hexagon/subway) get their glaze
+  micro-detail from the pure `procedural/tileSurface.ts` (MAT-002): a fine face-only orange-peel
+  micro-normal (`makeGlazePeel`) + an explicit glaze↔grout roughness contrast (`glazeRoughness`)
+  that rides each painter's own grout grid so it aligns with the visible joints; Path-A, all-tier,
+  no flag, tasteful defaults.
 - **Material realism** (`materials/materialRealism.ts`, pure): `sheenLayer`(velvet/satin/leather)
   + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
   `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real
