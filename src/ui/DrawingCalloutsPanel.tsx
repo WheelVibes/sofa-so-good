@@ -92,7 +92,7 @@ export function DrawingCalloutsPanel() {
     })
     if (!sheetPick) return
     const sheetIdx = parseInt(sheetPick.trim(), 10) - 1
-    if (isNaN(sheetIdx) || sheetIdx < 0 || sheetIdx >= SHEET_KEYS.length) return
+    if (Number.isNaN(sheetIdx) || sheetIdx < 0 || sheetIdx >= SHEET_KEYS.length) return
     const sheet = SHEET_KEYS[sheetIdx]!
 
     // Step 3: anchor position (x%, y% from top-left of the drawing area).
