@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: sloped walls honour per-wall + plan-wide thickness (BUG-009) (v0.2.0.10)
+
+`slopedWallTriangles` derived its prism thickness from a hardcoded 0.2 m external / 0.1 m internal,
+ignoring both the per-wall `thicknessM` override and the plan-wide `wallThickness` default that
+`planWallThickness` honours for every flat wall — so a sloped wall with `thicknessM: 0.4` rendered
+0.2 m thinner than its abutting flat neighbours. `slopedWallTriangles` now takes an optional resolved
+`thicknessM` (falling back to the category default when omitted) and `PlanShell`'s `SlopedWallMesh`
+passes `planWallThickness(wall, plan)`. Tests assert the prism cross-span matches an overridden 0.4 m
+thickness and the 0.1 m default fallback.
+
 ## Fix: validate saved floor plans on load (BUG-014) (v0.2.0.9)
 
 `loadFloorPlans` restored localStorage-persisted plans with only `JSON.parse` + `Array.isArray`
