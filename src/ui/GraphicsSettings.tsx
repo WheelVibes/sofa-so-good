@@ -2,7 +2,7 @@ import { type ReactNode, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
 import { useModalGuard } from '../controls/modalGuard'
-import { EXPOSURE_MAX, EXPOSURE_MIN, TONE_MAPPING_LABEL, TONE_MAPPING_MODES } from '../scene/look'
+import { EXPOSURE_MAX, EXPOSURE_MIN, TONE_MAPPING_LABEL } from '../scene/look'
 import {
   type AssetTier,
   QUALITY_DESCRIPTION,
@@ -10,12 +10,19 @@ import {
   RENDER_TIERS,
   resolveQuality,
 } from '../scene/quality'
+import { TONE_MAPPING_SETTINGS, type ToneMappingSetting } from '../scene/toneContext'
 import { useStore } from '../state/store'
 import { Icon } from './toolbar/icons'
 
 const TIERS = RENDER_TIERS
-/** One-line description per tone-mapping look for the Graphics panel. */
-const TONE_MAPPING_HINT: Record<string, string> = {
+/** Segment label per setting — extends the look labels with the 'auto' option. */
+const TONE_MAPPING_SETTING_LABEL: Record<ToneMappingSetting, string> = {
+  auto: 'Auto',
+  ...TONE_MAPPING_LABEL,
+}
+/** One-line description per tone-mapping setting for the Graphics panel. */
+const TONE_MAPPING_HINT: Record<ToneMappingSetting, string> = {
+  auto: 'Auto — Neutral while you pick finishes (true colour), filmic otherwise.',
   filmic: 'ACES Filmic — punchy contrast. The classic default.',
   agx: 'AgX — gentler highlights, more photographic. Great for daylight scenes.',
   neutral: 'Neutral — minimal shift, truest material colour. Best for product/showroom looks.',
@@ -170,7 +177,7 @@ export function GraphicsSettings({
             <span>Look (tone mapping)</span>
           </div>
           <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
-            {TONE_MAPPING_MODES.map((m) => (
+            {TONE_MAPPING_SETTINGS.map((m) => (
               <button
                 key={m}
                 type="button"
@@ -178,7 +185,7 @@ export function GraphicsSettings({
                 className={toneMapping === m ? 'on' : ''}
                 style={{ flex: 1 }}
               >
-                {TONE_MAPPING_LABEL[m]}
+                {TONE_MAPPING_SETTING_LABEL[m]}
               </button>
             ))}
           </div>
