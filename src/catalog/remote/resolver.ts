@@ -1,5 +1,6 @@
 import type { RemoteGltfDef } from '../../furniture/types'
 import type { TexturedMaterialDef } from '../../materials/types'
+import { gltfJsonFootprint } from './gltfBounds'
 import type { AssetBundle, RemoteEntry, Resolution } from './types'
 
 const blobUrl = (b: Blob) => URL.createObjectURL(b)
@@ -83,11 +84,18 @@ export function bundleToFurnitureDef(
   const gltfBlob = new Blob([JSON.stringify(json)], { type: 'model/gltf+json' })
   const runtimeUrl = blobUrl(gltfBlob)
 
+  // Seed a real footprint from the glTF POSITION accessor bounds so pre-render
+  // placement / collision / catalog sizing / budget don't use a 1×1×1 m guess.
+  // `GltfModel` still measures + caches the authoritative bbox after first
+  // render; this just makes the PRE-render value honest. Falls back to the old
+  // 1×1×1 placeholder when bounds are unavailable or absurd (see gltfBounds.ts).
+  const defaultFootprint = gltfJsonFootprint(bundle.gltfJson) ?? { w: 1, d: 1, h: 1 }
+
   return {
     id: `${entry.provider}:${entry.slug}:${resolution}`,
     name: entry.name,
     category: entry.category as RemoteGltfDef['category'],
-    defaultFootprint: { w: 1, d: 1, h: 1 },
+    defaultFootprint,
     kind: 'gltf',
     source: 'remote',
     provider: entry.provider,

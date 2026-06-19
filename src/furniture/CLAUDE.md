@@ -16,6 +16,15 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   — set the same collision flags; run `npm run optimize:glb` for `-low`/`-medium` LOD variants
   (uploads generate theirs in-browser via `optimize/lodVariants.ts`, routed by the `gltf/lod.ts`
   variant registry).
+- **Pre-render footprint seed for GLB defs.** A GLB's true footprint is only learned after
+  `GltfModel` renders + caches its bbox (`FOOTPRINT_CACHE`), so anything placed/sized/collided
+  *before* first render needs a real seed, not a 1×1×1 guess. Two pure helpers do this from glTF
+  POSITION accessor `min`/`max` (no render): `catalog/packs/footprint.ts:glbFootprint` (GLB *bytes*,
+  used by the pack/upload path) and `catalog/remote/gltfBounds.ts:gltfJsonFootprint` (parsed glTF
+  *JSON*, used by `catalog/remote/resolver.ts:bundleToFurnitureDef` for remote/Poly Haven defs).
+  Both union multi-mesh bounds, clamp axes ≥0.05 m, reject absurd non-metre scales, and fall back
+  to the caller's 1×1×1 placeholder when bounds are unavailable. The render-time cache stays
+  authoritative — these only make the pre-render value honest.
 - **GLTF cache eviction on removal (PERF-001/008).** When a GLB asset is removed/replaced/
   uninstalled, call `evictGltfAsset(url)` (`GltfModel.tsx`) so its parsed GPU geometry/textures
   leave the drei `useGLTF` cache and are disposed, and its `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`

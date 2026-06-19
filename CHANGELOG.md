@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Seed remote/CC0 GLB footprint from glTF accessor bounds (AI-INTEG-001b) (v0.2.0.2)
+
+Remote (Poly Haven) furniture defs shipped `defaultFootprint:{w:1,d:1,h:1}` from
+`bundleToFurnitureDef` (`src/catalog/remote/resolver.ts`) and only self-corrected
+*after* `GltfModel` rendered — so pre-render placement, collision, catalog sizing,
+and budget all used a wrong 1×1×1 m guess.
+
+**Fix.** New pure helper `src/catalog/remote/gltfBounds.ts:gltfJsonFootprint(gltfJson)`
+unions every POSITION accessor's `min`/`max` from the already-parsed glTF JSON the
+provider hands us (mirrors the proven `src/catalog/packs/footprint.ts:glbFootprint`
+*GLB-bytes* path, but for parsed JSON — no Three.js / GLTFLoader / render, runs in
+Node + jsdom). `bundleToFurnitureDef` now seeds `defaultFootprint` from it, falling
+back to the old 1×1×1 placeholder when bounds are unavailable or absurd. Edge cases:
+multi-mesh union, near-flat axis clamped to 0.05 m, a metre sanity clamp that rejects
+non-metre (cm/mm) scales, no POSITION accessor → fallback. The render-time
+`GltfModel` bbox measurement stays authoritative and still self-corrects; this only
+makes the *pre-render* value honest. Unit tests: `gltfBounds.test.ts` (bounds / union
+/ clamp / fallback) + `resolver.test.ts` (seeded footprint ≠ 1×1×1; fallback case).
+No version bump here (orchestrator does the consolidated bump at integration).
+
 ## Fix milky Maximum render + dark ground rectangle (RD-409/RD-410) (v0.2.0.1)
 
 Two reported high-tier render bugs, root-caused at runtime via the scene graph + before/after

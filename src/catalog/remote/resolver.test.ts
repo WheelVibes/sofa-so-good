@@ -58,6 +58,36 @@ describe('resolver', () => {
     expect(def.runtimeAssets['scene.bin']).toMatch(/^blob:/)
   })
 
+  it('seeds defaultFootprint from the glTF POSITION accessor bounds (not 1×1×1)', () => {
+    const bundle: AssetBundle = {
+      kind: 'furniture',
+      gltfJson: {
+        buffers: [{ uri: 'scene.bin', byteLength: 1 }],
+        images: [],
+        meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+        accessors: [{ min: [-0.5, 0, -0.25], max: [0.5, 0.84, 0.25] }],
+      },
+      bin: new Blob(['b']),
+      textures: {},
+      rootPath: 'chair.gltf',
+    }
+    const def = bundleToFurnitureDef(furnEntry, '2k', bundle)
+    expect(def.defaultFootprint).toEqual({ w: 1, h: 0.84, d: 0.5 })
+    expect(def.defaultFootprint).not.toEqual({ w: 1, d: 1, h: 1 })
+  })
+
+  it('falls back to a 1×1×1 footprint when no accessor bounds are available', () => {
+    const bundle: AssetBundle = {
+      kind: 'furniture',
+      gltfJson: { buffers: [{ uri: 'scene.bin', byteLength: 1 }], images: [] },
+      bin: new Blob(['b']),
+      textures: {},
+      rootPath: 'asset.gltf',
+    }
+    const def = bundleToFurnitureDef(furnEntry, '2k', bundle)
+    expect(def.defaultFootprint).toEqual({ w: 1, d: 1, h: 1 })
+  })
+
   it('preserves the provider on furniture defs (does not hardcode polyhaven)', () => {
     const acgFurnEntry: RemoteEntry = {
       provider: 'ambientcg',
