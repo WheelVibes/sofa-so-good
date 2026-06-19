@@ -127,7 +127,7 @@ export function RemoteBrowseTab({
                   phStatus === 'error'
                     ? 'text-[var(--danger)]'
                     : phStatus === 'ready'
-                      ? 'text-green-600'
+                      ? 'text-[var(--ok)]'
                       : 'text-[var(--text-3)]'
                 }
               >
@@ -142,7 +142,7 @@ export function RemoteBrowseTab({
                     acgStatus === 'error'
                       ? 'text-[var(--danger)]'
                       : acgStatus === 'ready'
-                        ? 'text-green-600'
+                        ? 'text-[var(--ok)]'
                         : 'text-[var(--text-3)]'
                   }
                 >

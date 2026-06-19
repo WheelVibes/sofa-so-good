@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## tokens: add `--ok` success token; drop hardcoded colour literals (UX-005) (v0.2.0.25)
+
+Adds a theme-tracking `--ok` success token (paired with `--danger`) to all 10 theme blocks in
+`tokens.css` — a success green that respects light/dark + the 5 themes' contrast like every other
+token. Replaces the hardcoded `text-green-600` "ready" status pill in the remote Browse tab with
+`text-[var(--ok)]`, and clears the other stray colour literals the audit flagged in dev paths
+(`accent-blue-500` / `border-blue-500` / `hover:bg-blue-50` in IkeaBody, GltfBody, UploadModelDialog →
+`--accent`/`--accent-soft`). No `-green-/-blue-/-red-` literals remain under `src/ui` (non-test).
+Build validates the new oklch token.
+
 ## a11y: import-errors detail dialog → shared Modal (UX-008) (v0.2.0.24)
 
 `NotificationDetailsModal` (the "N items could not be imported" dialog) was a hand-rolled

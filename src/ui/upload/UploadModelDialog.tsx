@@ -291,7 +291,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
               onDrop={onDrop}
               className={`flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors ${
                 dragOver
-                  ? 'border-blue-500 bg-[var(--accent-soft)]'
+                  ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
                   : 'border-[var(--border-2)] bg-[var(--surface-2)]'
               }`}
             >

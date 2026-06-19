@@ -72,7 +72,7 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 | ~~33~~ | ~~**UX-008**~~ | ✅ DONE (v0.2.0.24) — import-errors detail dialog now uses shared `Modal` (dialog role/focus trap/restore) | LOW a11y | S | `ui/notifications/NotificationContainer.tsx` | `cg-notif` |
 | 34 | **UX-009** | `UploadMaterialDialog` custom overlay lacks dialog role/focus mgmt | LOW a11y *(dev-only)* | S | `ui/upload/UploadMaterialDialog.tsx` | `cg-uploadmatdlg` |
 | ~~35~~ | ~~**UX-007**~~ | ✅ DONE (v0.2.0.23) — tooltips open on keyboard focus (pointer-guarded), hide on blur | LOW a11y | S | `ui/toolbar/Tooltip.tsx` | `cg-tooltip` |
-| 36 | **UX-005** | Hardcoded `text-green-600`/`border-blue-500` status colours (theme/contrast leak) | LOW a11y *(dev-only)* | S | `ui/catalog/RemoteBrowseTab.tsx`, `ui/inspector/IkeaBody.tsx` | `cg-colorleak` |
+| ~~36~~ | ~~**UX-005**~~ | ✅ DONE (v0.2.0.25) — added `--ok` token to all 10 theme blocks; replaced green/blue literals in RemoteBrowseTab/IkeaBody/GltfBody/UploadModelDialog (none remain under src/ui) | LOW a11y *(dev-only)* | S | `styles/tokens.css` + dev paths | `cg-colorleak` |
 | 37 | **RD-411** | SSAA (2× render → downsample) on the snapshot/export path | MED polish (exports) | S | `scene/ScreenshotController.tsx`, `scene/captureCanvas.ts` | `cg-capture` |
 | 38 | **PC2-SSAA-EXPORT** | Supersample snapshot/PNG export (duplicate of RD-411 — **merge with RD-411**, do not dispatch separately) | MED polish | S | same as RD-411 | `cg-capture` |
 | 39 | **PC2-PLAN-FURN-ICONS** | Top-down furniture glyphs in the 2D plan (bed/sofa/toilet/sink…) | LOW polish | M | `ui/floorplan/editor/*`, `ui/floorplan/planLabels.ts` | `cg-planlabels` |
