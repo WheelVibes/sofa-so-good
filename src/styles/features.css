@@ -42,6 +42,8 @@
 }
 .empty-mini b { font-size: var(--t-sm); font-weight: 700; color: var(--text-2); }
 .empty-mini span { font-size: var(--t-xs); line-height: 1.5; max-width: 30ch; }
+/* span an empty state across all columns of the catalog card grid */
+.empty-mini.catalog-empty { grid-column: 1 / -1; }
 
 /* ============================================================
    RE-RENDER GUARD

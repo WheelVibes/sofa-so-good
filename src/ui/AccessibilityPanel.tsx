@@ -7,6 +7,7 @@ import {
 } from '../analysis/accessibility'
 import { useStore } from '../state/store'
 import { formatLength } from '../utils/measurement'
+import { EmptyState } from './EmptyState'
 import { Icon } from './toolbar/icons'
 
 /** Accessibility / universal-design check: per-door clear width (≥ 0.85 m) and a
@@ -61,11 +62,11 @@ export function AccessibilityPanel() {
         </div>
 
         {doors.length === 0 && rooms.length === 0 ? (
-          <div className="clr-allclear">
-            <span style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', textAlign: 'center' }}>
-              No doors or rooms to assess in this plan.
-            </span>
-          </div>
+          <EmptyState
+            icon={Icon.Measure}
+            title="Nothing to assess"
+            description="This plan has no doors or rooms to check for accessibility."
+          />
         ) : (
           <div className="clr-list">
             {doors.map((d) => (

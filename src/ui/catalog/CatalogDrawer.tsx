@@ -2,6 +2,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { lazyWithRetry } from '../app/lazyWithRetry'
+import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
@@ -397,19 +398,50 @@ export function CatalogDrawer() {
           ) : null}
           <div className="card-grid" onKeyDown={onGridKeyDown}>
             {cards.length === 0 ? (
-              <p className="empty-mini" style={{ gridColumn: '1 / -1' }}>
-                <span>
-                  {q
-                    ? `No matches for “${query.trim()}”.`
-                    : active === 'favourites'
-                      ? 'No favourites yet — tap the heart on any card to save it here.'
-                      : active === 'recent'
-                        ? 'Nothing placed yet — items you add will appear here for quick reuse.'
-                        : maxPrice.trim() && baseCards.length > 0
-                          ? `Nothing under $${maxPrice.trim()} here — raise the Max $ filter.`
-                          : 'No items in this category yet.'}
-                </span>
-              </p>
+              q ? (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Search}
+                  title="No matches found"
+                  description={`Nothing in the catalog matches “${query.trim()}”.`}
+                  cta={{ label: 'Clear search', onClick: () => onSearch('') }}
+                />
+              ) : active === 'favourites' ? (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Heart}
+                  title="No favourites yet"
+                  description="Tap the heart on any card to save it here for quick access."
+                />
+              ) : active === 'recent' ? (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Time}
+                  title="Nothing placed yet"
+                  description="Items you add appear here for quick reuse."
+                />
+              ) : maxPrice.trim() && baseCards.length > 0 ? (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Budget}
+                  title="Nothing in budget"
+                  description={`No items here under $${maxPrice.trim()}. Raise the Max $ filter to see more.`}
+                  cta={{
+                    label: 'Clear max price',
+                    onClick: () => {
+                      setMaxPrice('')
+                      setPage(0)
+                    },
+                  }}
+                />
+              ) : (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Catalog}
+                  title="No items here yet"
+                  description="This category is empty — try another tab."
+                />
+              )
             ) : (
               cards.map(renderCard)
             )}

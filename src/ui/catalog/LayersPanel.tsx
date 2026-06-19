@@ -12,6 +12,7 @@ import {
   readFinishDragPayload,
 } from '../../state/finishDropApply'
 import { useStore } from '../../state/store'
+import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
 
@@ -96,17 +97,17 @@ export function LayersPanel() {
       ) : null}
       <div className="lyr-body">
         {groups.length === 0 ? (
-          <div className="empty-mini">
-            <span className="em-ic">
-              <Icon.Layers width={20} height={20} />
-            </span>
-            <b>Nothing placed yet</b>
-            <span>Switch to the catalog and drag items onto the floor.</span>
-          </div>
+          <EmptyState
+            icon={Icon.Layers}
+            title="Nothing placed yet"
+            description="Switch to the catalog and drag items onto the floor — they'll show up here as a layer list."
+          />
         ) : visibleGroups.length === 0 ? (
-          <p className="empty-mini">
-            <span>No objects match “{filter.trim()}”.</span>
-          </p>
+          <EmptyState
+            icon={Icon.Search}
+            title="No objects match"
+            description={`Nothing here matches “${filter.trim()}”. Try a different word.`}
+          />
         ) : (
           visibleGroups.map((g) => {
             const isCollapsed = !q && !!collapsed[g.key]

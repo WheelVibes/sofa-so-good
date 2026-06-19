@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Consistent, friendly empty states across panels (PC-EMPTY-STATES) (v0.1.0.22)
+
+Every panel/list that can be empty now shows the same polished icon + title +
+optional description + optional call-to-action, matching modern design tools.
+
+- **New shared `EmptyState` component** (`src/ui/EmptyState.tsx`) — props: an icon
+  from the shared `Icon` set, a short title, an optional one-line description, and
+  an optional CTA (`{ label, onClick }`). Built on the existing `.empty-mini` token
+  vocabulary (no hardcoded colour), centred, and viewport-responsive (renders well
+  in desktop panels and the mobile bottom-sheet) across light + dark + all 5 themes.
+- **Applied across the panels**, replacing ad-hoc/inline empty messages with
+  consistent copy: comments ("No comments yet" + a "+ Add comment" CTA wired to the
+  existing arm-placement action), history ("No edits yet"), versions ("No saved
+  versions yet"), budget list + saved-items, layers (placed + filtered), the catalog
+  grid (distinct copy for search-no-results / favourites / recent / price-filter /
+  empty-category, with "Clear search"/"Clear max price" CTAs), remote browse
+  (index-empty vs no-results), swap-modal alternatives, and the daylight /
+  accessibility "nothing to check" states.
+- Search-no-results vs truly-empty get distinct copy; CTAs only ever call real,
+  existing handlers. Panel gating/behaviour is otherwise unchanged.
+- Tests: `EmptyState.test.tsx` (title/description/CTA rendering + CTA fires) and
+  `CommentsPanel.test.tsx` (asserts the empty state + CTA arms comment mode).
+
 ## Upholstery realism: procedural seam stitching + soft fabric wrinkle (RZ6) (v0.1.0.21)
 
 Upholstered furniture (sofas, armchairs, ottomans, beds, benches, cushioned

@@ -60,6 +60,11 @@ time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 
 ## Productivity / QOL
+- [x] PC-EMPTY-STATES: shared `EmptyState` component (`src/ui/EmptyState.tsx`, icon + title +
+  optional description + optional CTA on the `.empty-mini` token vocabulary) applied across every
+  empty panel/list (comments, history, versions, budget + saved items, layers, catalog grid +
+  favourites/recent/no-results, remote browse, swap, daylight, accessibility) for consistent,
+  friendly copy in light/dark/all themes + mobile bottom-sheets.
 - [~] IXT-SUITES (user rule, 2026-06-12): build interaction-test scenarios (simple → complex per
   feature, incl. cross-feature journeys like onboarding→tour→location) for every EXISTING feature
   using the C267 harness; work down the `FEATURE_FLAGS` list in priority order.

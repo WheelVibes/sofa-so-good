@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
 import { useStore } from '../state/store'
 import { formatArea } from '../utils/measurement'
+import { EmptyState } from './EmptyState'
 import { Icon } from './toolbar/icons'
 
 /** Daylight & ventilation check: per-room window glazing % vs floor area against
@@ -58,11 +59,11 @@ export function DaylightPanel() {
         </div>
 
         {rows.length === 0 ? (
-          <div className="clr-allclear">
-            <span style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', textAlign: 'center' }}>
-              No interior rooms to check in this plan.
-            </span>
-          </div>
+          <EmptyState
+            icon={Icon.Sun}
+            title="Nothing to check"
+            description="This plan has no interior rooms to assess for daylight."
+          />
         ) : (
           <div className="clr-list">
             {rows.map((r) => {
