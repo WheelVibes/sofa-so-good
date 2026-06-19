@@ -15,4 +15,11 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   asset kind must be rehydrated there or it won't survive reload.
 - In handlers read fresh state with `useStore.getState()`; push undo via `pushHistory` /
   `pushHistoryCoalesced` (coalesce streaming edits like slider drags into one step).
+  **Undo granularity:** one logical action = one entry. Batch actions (array / align /
+  distribute / mirror / set-drop) push **once**, then mutate many items via
+  `moveItem`/`rotateItem`/`flipItem`/`setItems` (which never push) — so one undo reverts the
+  whole batch. The keyboard nudge coalesces under the `'nudge'` key so a burst of taps and a
+  long hold form one step; `refreshCoalesce(key)` keeps that window alive across a hold→re-tap
+  without snapshotting and is a no-op for any other key (so a nudge can't merge with another
+  action). A deliberate pause past `COALESCE_MS` starts a fresh step.
 - `editing.ts` `canEditScene` is the single gate for all scene editing — don't bypass it.

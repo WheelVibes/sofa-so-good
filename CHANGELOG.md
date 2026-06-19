@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Cleaner undo for nudge / array / align / mirror (PC-NUDGE-UNDO)
+
+Multi-item edits now form the single, predictable undo step users expect from
+Coohom / Sweet Home 3D.
+
+- **Keyboard nudge coalesces into one step.** The arrow-key nudge now snapshots
+  history under a stable `'nudge'` coalesce key (was a plain `pushHistory` per
+  press). A *burst* of separate taps within the coalesce window — and a long
+  press-and-hold — collapse into **one** undo entry; a deliberate pause starts a
+  fresh step. A new `refreshCoalesce(key)` keeps the window alive across a long
+  hold→re-tap (the per-frame `moveItem` doesn't touch the coalesce clock) and is a
+  no-op for any other key, so a nudge never merges with an array / rotate / drag.
+  The undoable guard now checks the whole selection (`selectedItemIds`), so a
+  marquee / group nudge is undoable too (previously skipped when there was no
+  single primary id).
+- **Array / align / distribute / mirror / set-drop verified one entry each.** These
+  already pushed history once and then mutated many items via
+  `moveItem`/`rotateItem`/`flipItem`/`setItems` (which don't push), so each is a
+  single undo that fully reverts — now covered by tests asserting the entry count
+  (+1) and a full one-undo revert, including all-or-nothing mirror and no-op
+  guards (empty / single selection).
+
 ## Floor-plan editor: binding edits, stray-element flags, skeleton view + touch fixes
 
 A batch of floor-plan-editor fixes so plan edits are real, the apartment can be

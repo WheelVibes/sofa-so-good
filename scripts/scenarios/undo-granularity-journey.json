@@ -1,0 +1,54 @@
+{
+  "name": "undo-granularity-journey",
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "window.__store.getState().endTour?.(); window.__store.getState().setOnboardingOpen?.(false); window.__store.getState().dismissLocationPrompt?.()"
+    },
+    { "name": "daytime", "eval": "window.__store.getState().setManualHour(13)" },
+
+    { "name": "seed-one-item", "eval": "window.__store.getState().setItems([{ id: 'u-sofa', defId: 'sofa-3seat', position: [9, 3], rotation: 0, props: {} }]); window.__store.getState().setSelectedItemIds(['u-sofa'])" },
+    { "name": "clear-history", "eval": "window.__store.getState().clearHistory()" },
+    { "name": "shot-before-nudge", "screenshot": "01-before-nudge" },
+
+    {
+      "name": "nudge-burst",
+      "eval": "(() => { const st = window.__store.getState(); for (let i = 0; i < 6; i++) { st.pushHistoryCoalesced('nudge'); st.refreshCoalesce('nudge'); st.moveItem('u-sofa', [9 + (i + 1) * 0.2, 3]); } })()"
+    },
+    {
+      "name": "assert-burst-one-entry",
+      "eval": "(() => { const p = window.__store.getState().past.length; if (p !== 1) throw new Error('nudge burst should be ONE undo entry, got ' + p); })()"
+    },
+    { "name": "shot-after-nudge", "screenshot": "02-after-nudge-burst" },
+
+    {
+      "name": "undo-burst",
+      "eval": "window.__store.getState().undo()"
+    },
+    {
+      "name": "assert-burst-reverted",
+      "eval": "(() => { const it = window.__store.getState().items.find(i => i.id === 'u-sofa'); if (Math.abs(it.position[0] - 9) > 1e-9) throw new Error('one undo should revert the whole burst to x=9, got x=' + it.position[0]); if (window.__store.getState().past.length !== 0) throw new Error('past should be empty after undo'); })()"
+    },
+    { "name": "shot-after-undo", "screenshot": "03-after-single-undo-reverts-burst" },
+
+    { "name": "reset-for-array", "eval": "window.__store.getState().setItems([{ id: 'u-sofa', defId: 'sofa-3seat', position: [9, 3], rotation: 0, props: {} }]); window.__store.getState().clearHistory()" },
+    {
+      "name": "array-commit",
+      "eval": "(() => { const st = window.__store.getState(); st.pushHistory(); const src = st.items[0]; const copies = [1,2,3].map(n => ({ ...src, id: 'u-arr-' + n, position: [src.position[0], src.position[1] + n * 1.2], groupId: 'g1' })); st.setItems([{ ...src, groupId: 'g1' }, ...copies]); })()"
+    },
+    {
+      "name": "assert-array-one-entry",
+      "eval": "(() => { const st = window.__store.getState(); if (st.past.length !== 1) throw new Error('array should be ONE undo entry, got ' + st.past.length); if (st.items.length !== 4) throw new Error('expected 4 items after array, got ' + st.items.length); })()"
+    },
+    { "name": "shot-after-array", "screenshot": "04-after-array" },
+
+    { "name": "undo-array", "eval": "window.__store.getState().undo()" },
+    {
+      "name": "assert-array-reverted",
+      "eval": "(() => { const n = window.__store.getState().items.length; if (n !== 1) throw new Error('one undo should remove all array copies, expected 1 item, got ' + n); })()"
+    },
+    { "name": "shot-array-undone", "screenshot": "05-after-undo-array-all-copies-gone" }
+  ]
+}
