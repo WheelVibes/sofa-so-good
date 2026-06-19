@@ -285,7 +285,14 @@ same change that reshapes a system.
   mask (so the relief aligns with the visible albedo veins) + a broad polished roughness drift
   (`makeRoughDrift`). Wired into Path A (`patterns/stone.ts:marbleFields`, all-tier, no flag) and
   Path B (`getMarbleMaps`/`getStoneMaterial` — the shared marble singleton gains a roughness-drift
-  map gated behind `pbrSurfaces`; off → legacy uniform polish).
+  map gated behind `pbrSurfaces`; off → legacy uniform polish). Painted plaster/concrete (MAT-003)
+  gets its micro-detail from the pure `procedural/plasterSurface.ts`: a signed, mean-preserving
+  roller-nap roughness drift (`makeRollerNap` — broad coverage + fine nap stipple) so the matte
+  wall isn't a single flat value yet stays matte. Path A (`patterns/wall.ts:plasterFields`, the
+  `0.92` roughness now drifts; all-tier, no flag) and Path B (`generators.ts:getPlasterNormal`
+  builds the shared normal AND, behind `pbrSurfaces`, a tint-independent roughness-drift multiplier
+  map via `getPlasterRoughness()`, wired into the plaster branch of `cache.ts`; off → legacy flat
+  `0.92` scalar).
 - **Material realism** (`materials/materialRealism.ts`, pure): `sheenLayer`(velvet/satin/leather)
   + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
   `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real

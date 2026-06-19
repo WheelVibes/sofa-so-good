@@ -53,6 +53,18 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   map). The Path-B drift map is a multiplier clamped ≤ 1 → only glossier, never matter (no
   regression). Keep it **subtle** (`DEFAULT_STONE_SURFACE_PARAMS`; `veinRelief`/`roughDrift` 0..1,
   `0` disables). Albedo sRGB, normal/roughness linear. concrete/terrazzo are untouched.
+- **Plaster/concrete roller-nap (MAT-003)**: the pure `procedural/plasterSurface.ts` adds the cue
+  matte painted walls need — `makeRollerNap(seed, nap)` is a signed, mean-preserving roughness
+  *drift* (broad coverage + fine nap stipple, ±~0.035) so a matte wall isn't a single flat
+  specular value while **staying matte** (overdoing it reads as stucco). Wired into **Path A**
+  (`procedural/patterns/wall.ts:plasterFields` — the constant `0.92` roughness now drifts by the
+  nap; no flag, all tiers like RZ4) and **Path B** (`procedural/generators.ts:getPlasterNormal`
+  builds the shared normal AND, behind `pbrSurfaces`, a shared roughness-drift map via
+  `getPlasterRoughness()`, wired into the plaster branch of `cache.ts:buildMaterial`; off → the
+  legacy flat `roughness = 0.92` scalar). The Path-B map is a tint-independent multiplier over the
+  base scalar (like the shared normal), so every wall colour reuses one 256² map. Keep it
+  **subtle** (`DEFAULT_PLASTER_SURFACE_PARAMS`; `nap` 0..1, `0` disables). Albedo sRGB,
+  normal/roughness linear. batten/fluted are untouched.
 - **Uploaded-material persistence (`upload/persist.ts`)**: each channel blob is one IDB record;
   the material's full identity/appearance (`name`, `category`, `swatch`, `uvScaleX`/`uvScaleY`
   — `uvScale` is stored as two scalars since IDB `meta` values can't be arrays) is stamped on

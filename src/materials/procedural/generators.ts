@@ -10,6 +10,7 @@
  * public `generateProcedural*` API.
  */
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
+import { isFeatureEnabled } from '../../features/featureFlags'
 import { applyAnisotropy } from '../anisotropy'
 import type { ProceduralPattern } from '../types'
 import type { Fields } from './fieldKit'
@@ -261,9 +262,35 @@ export function generateProcedural(
 // is near-flat and varies only by tint, so every wall colour reuses this one
 // 256² normal map (tinted via material.color) instead of generating its own
 // full 512² albedo+normal+roughness set — a big memory saving for the palette.
+//
+// MAT-003 — the singleton also bakes a shared roughness-drift map (Path B) from
+// the SAME `plasterFields` tile the normal comes from, so every tinted wall reuses
+// one 256² roughness map for free (no per-colour generation). The map is a
+// MULTIPLIER over the material's base roughness scalar (so it's tint-independent,
+// like the normal): `f.rough` carries `base + roller-nap`, so `f.rough / base` is
+// the centred-on-1 nap drift. Gated behind `pbrSurfaces` exactly like the other
+// PBR micro-maps; off → no map, the legacy flat `roughness = 0.92` scalar. The
+// drift is a whisper (±~0.04 of the multiplier) so the wall stays clearly MATTE.
+const PLASTER_BASE_ROUGHNESS = 0.92
 let plasterNormalTex: Texture | null = null
+let plasterRoughTex: Texture | null = null
 export function getPlasterNormal(): Texture {
-  if (plasterNormalTex) return plasterNormalTex
+  if (!plasterNormalTex) buildPlasterMaps()
+  // `buildPlasterMaps` always populates the normal (only the rough map is gated).
+  return plasterNormalTex as Texture
+}
+
+/** MAT-003 — the shared roller-nap roughness-drift map for plaster walls, or
+ *  `null` when `pbrSurfaces` is off (legacy flat matte). A multiplier over the
+ *  material's base roughness scalar (tint-independent, like the normal). */
+export function getPlasterRoughness(): Texture | null {
+  if (plasterRoughTex) return plasterRoughTex
+  buildPlasterMaps()
+  return plasterRoughTex
+}
+
+function buildPlasterMaps(): void {
+  if (plasterNormalTex) return
   const prev = S
   S = 256
   try {
@@ -271,7 +298,19 @@ export function getPlasterNormal(): Texture {
     plasterNormalTex = toTexture(heightToNormalRGBA(f.height, S, f.normalStrength), false)
     // Wall faces carry metre UVs and all wall paints tile at 2.5 m.
     plasterNormalTex.repeat.set(1 / 2.5, 1 / 2.5)
-    return plasterNormalTex
+    if (isFeatureEnabled('pbrSurfaces')) {
+      const roughData = new Uint8ClampedArray(S * S * 4)
+      for (let i = 0; i < S * S; i++) {
+        // `f.rough` = base + nap drift; divide by base → a centred-on-1 multiplier
+        // so the map is tint-/scalar-independent. clamp01 keeps it a valid map.
+        const mult = clamp01(f.rough[i] / PLASTER_BASE_ROUGHNESS)
+        const c = Math.round(mult * 255)
+        roughData[i * 4] = roughData[i * 4 + 1] = roughData[i * 4 + 2] = c
+        roughData[i * 4 + 3] = 255
+      }
+      plasterRoughTex = toTexture(roughData, false)
+      plasterRoughTex.repeat.set(1 / 2.5, 1 / 2.5)
+    }
   } finally {
     S = prev
   }
