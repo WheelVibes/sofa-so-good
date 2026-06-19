@@ -29,6 +29,12 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   add unit tests in `parametric/__tests__/<type>.test.ts`; add a scenario ladder
   (`scripts/scenarios/parametric-<type>-simple.json` + journey). Kitchen-run specifics:
   `kitchenCabinets` flag (tier: `simple`), `TYPE_CATEGORY` maps to `'kitchen'`.
+- **Array helpers** — pure geometry, render-agnostic, unit-tested, no store imports:
+  - `arrayPlacement.ts` — linear/row array: N evenly-spaced positions along local +X or +Z.
+  - `radialArray.ts` — radial/polar array: N positions around a circle with optional
+    `faceCenter` yaw. Facing convention: `atan2(-cos angle, -sin angle)` so the item's
+    Three.js local +Z points toward the center. Gated by the `radialArray` Pro flag (and
+    `proMode`) in `InspectorPanel.tsx`; committed via `setItems` in a single undo step.
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).

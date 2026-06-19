@@ -84,6 +84,7 @@ export type FeatureFlag =
   | 'quoteTemplate'
   | 'catalogFavourites'
   | 'wallNumericEntry'
+  | 'radialArray'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

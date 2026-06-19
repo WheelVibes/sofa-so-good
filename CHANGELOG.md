@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Radial/polar array (PC-ARRAY-RADIAL) (v0.1.0.15)
+
+Place N copies of a selected item evenly around a circle — ideal for dining
+chairs around a round table, conference chairs, or any radial furniture layout.
+
+- **New pure helper** `src/furniture/radialArray.ts` (`radialArrayPlacements`):
+  render-agnostic, no store import — given center, radius, count, startAngle,
+  sweep (°), and a `faceCenter` flag, returns N `{ position, rotation }` placements.
+  Full-circle (sweep=360°) uses exclusive seam spacing (last copy ≠ first);
+  partial-sweep uses inclusive both-ends spacing. Edge cases: count<2 → [], radius
+  clamped to 0.01 m, sweep≤0 → [], count capped at 36.
+- **Facing convention**: `faceCenter=true` sets each copy's yaw using Three.js
+  Y-rotation semantics: `atan2(-cos angle, -sin angle)` — makes the item's local +Z
+  (its front) point toward the ring center. `faceCenter=false` keeps `baseRotation`.
+- **19 unit tests** covering positions on circle, even spacing, non-zero center,
+  startAngle, partial sweep, faceCenter yaw correctness, and all edge cases.
+- **UI** added to `InspectorPanel` (`src/ui/inspector/InspectorPanel.tsx`) below
+  the existing linear array row: count, radius, start angle, sweep, face-centre toggle.
+  Copies are placed in a single batched `setItems` + `pushHistory` call (same path as
+  linear array). Blocked positions are skipped (ring fills as many slots as possible,
+  unlike linear which stops at the first blocked slot).
+- **Feature flag** `radialArray` (`tier: 'pro'`, `default: true`) in
+  `src/features/flags/registry.ts` + `types.ts`. Gated by `useFeature('radialArray') &&
+  proMode` so it's hidden in Simple mode. Unit-tested in both Simple and Pro modes.
+
 ## PC-WALL-NUMERIC: live numeric length + angle entry while drawing a wall (v0.1.0.14)
 
 Shows a small floating numeric-entry overlay (Length + Angle °) near the cursor while a

@@ -298,6 +298,18 @@ describe('vrWalkthrough flag (F21)', () => {
   })
 })
 
+describe('radialArray flag (PC-ARRAY-RADIAL)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode', () => {
+    expect(resolveFlags(false, {}, false, 'simple').radialArray).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').radialArray).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.radialArray.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.radialArray.default).toBe(true)
+    expect(FEATURE_FLAGS.radialArray.tier).toBe('pro')
+  })
+})
+
 describe('walkCameraControls flag (PARITY-WALKCAM)', () => {
   it('is simple-tier: present in both Simple and Pro (both build kinds)', () => {
     expect(resolveFlags(false, {}, false, 'simple').walkCameraControls).toBe(true)

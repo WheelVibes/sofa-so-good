@@ -580,6 +580,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Radial/polar array: place N copies evenly around a circle (e.g. dining chairs
+  // around a round table), each optionally rotated to face the centre. Pure code,
+  // no external assets → prod-safe. An advanced placement/layout tool → pro tier.
+  radialArray: {
+    label: 'Radial array',
+    description: 'Place N copies evenly around a circle (e.g. chairs around a round table)',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]
