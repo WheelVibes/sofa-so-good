@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Auto-arrange decor styling pass (v0.1.0.9)
+
+New `src/furniture/layout/decorStyling.ts` helper (pure, unit-tested, seedable) adds a
+set-dressing pass to the auto-furnish flow: after `arrangeAllRoomsForPlan` places floor
+furniture, `applyDecorStylingForPlan` iterates each plan room and places 1–2 `noClip` decor
+props ON appropriate host surfaces (sofas → cushions/blanket; coffee/dining tables →
+bowl/magazines/candles; beds → cushion/blanket; nightstands → desk-plant/candle; desks →
+desk-plant/book-stack; sideboards/consoles → frames/sculpture/books; bookshelves →
+books/sculpture/plant). Surface height is read from `defaultFootprint.h` so props always sit
+at the correct elevation. A seedable mulberry32 PRNG keeps results deterministic for tests.
+`furnishPlanItems` gains an optional `withDecor` flag (default `true`) so callers can skip the
+pass. 12 new unit tests cover all edge cases (empty list, non-host items, determinism,
+idempotency, surfaceHeight correctness, noClip contract). `tsc` + `biome` + full test suite
+pass clean (77 test files, 599 tests).
+
 ## Parametric kitchen-cabinet run — geometry, controls, flag, tests, scenario ladder (v0.1.0.8)
 
 The parametric furniture generator (`src/furniture/parametric/`) now supports the

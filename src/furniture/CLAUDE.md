@@ -33,3 +33,8 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).
 - Match the surrounding primitive style: real-world metres, real three `Material` instances.
+- **Auto-arrange decor styling** (`layout/decorStyling.ts`): `applyDecorStyling(arranged, defs, seed?)`
+  places up to 2 `noClip` decor props per host surface (sofa→cushions/blanket, coffee-table→bowl/
+  magazines/candles, bed→cushions, nightstand→plant/candle, desk→plant/books, sideboard→frames/
+  sculpture). `applyDecorStylingForPlan` wraps it per-room. Both are pure + seedable → unit-testable.
+  Wired into `furnishPlanItems` (`withDecor=true` by default); skip with `withDecor=false`.

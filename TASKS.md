@@ -55,7 +55,7 @@ time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push
 
 ## Content & catalog
 - [~] C-PLANTS/DECOR + F9 [PROD] Set-dressing pack shipped (C276) + auto-styling of move-in default flat
-  shipped (C277). Remaining: auto-arrange styling pass (scatter decor onto generated surfaces); curated
+  shipped (C277) + auto-arrange styling pass shipped (C278, `decorStyling.ts`). Remaining: curated
   CC0 bundles from Poly Haven/Poly Pizza (networked assets, still needed for photoreal surfaces).
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 

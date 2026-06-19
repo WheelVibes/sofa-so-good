@@ -208,6 +208,10 @@ same change that reshapes a system.
   **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`; on a
   **custom plan/template** it instead seeds a per-room kit + runs the plan arranger via pure
   `furniture/furnishPlan.ts` `furnishPlanItems`, so any template furnishes in one click).
+  After arranging, `furniture/layout/decorStyling.ts` `applyDecorStylingForPlan` adds a
+  styling pass: up to 2 `noClip` decor props per host surface (sofa→cushions, coffee
+  table→bowl/magazines, bed→cushions, nightstand→plant/candle, desk→plant/books,
+  sideboard/console→frames/sculpture). Skip via `withDecor=false`.
 - **Quality tiers** (`quality.ts`): **render** `RenderTier` = Performance/Medium/High/
   Maximum. **Performance is the default for everyone** (flat: no shadows/IBL/post, DPR 1);
   Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+HueSat+Vignette+SMAA); Maximum=+cinematic
