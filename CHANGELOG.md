@@ -5,6 +5,53 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Parametric kitchen-cabinet run — geometry, controls, flag, tests, scenario ladder
+
+The parametric furniture generator (`src/furniture/parametric/`) now supports the
+`kitchen-run` type via `buildKitchenRun` in `buildParts.ts`. This completes the PF
+subsystem (bookshelf / wardrobe / sideboard / desk / kitchen-run).
+
+**Geometry** (`buildParts.ts` `buildKitchenRun`):
+- Recessed toe-kick plinth: 0.1 m tall, inset 0.05 m from front face.
+- Carcass sides (floor → worktop underside), back panel, top + bottom panels.
+- Per-bay dividers (spec-controlled count, 1–6 bays).
+- Per-bay fronts: hinged door leaves (≤ 0.6 m each) with handle pulls; stacked
+  drawer fronts with horizontal bar handles; or open bay with mid-height shelf.
+- Continuous worktop slab at `spec.height`: 0.04 m thick, 0.02 m front overhang,
+  0.01 m side overhang. No z-fighting — door/drawer fronts are proud of the carcass.
+- Optional upper cabinets (`hasUppers: true`): 0.35 m deep × 0.72 m tall
+  wall-mounted carcass with 0.18 m clearance above worktop; full-bay door leaves.
+
+**Spec** (`spec.ts`): `kitchen-run` in `ParametricType` union; limits width 0.6–3.6 m,
+worktop height 0.85–0.92 m, depth 0.55–0.65 m, bays 1–6; `specLabel` returns
+`"Custom kitchen run N cm wide"`.
+
+**Feature flag**: `kitchenCabinets` (tier: `simple`, default: `true`) gates the
+Kitchen run tab in `ParametricDialog` — no new flag needed (lives under the existing
+`parametricFurniture` designer, `kitchenCabinets` gates its tab specifically).
+
+**UI** (`ParametricControls.tsx` `KitchenControls`): width/worktop-height/depth sliders,
+bay-count range slider (1–6), upper-cabinets toggle with description, per-bay style
+pickers (Open / Door / Drawer), finish swatches. Viewport-responsive desktop + mobile.
+
+**Tests**: 29 unit tests in `parametric/__tests__/kitchen-run.test.ts` — clamping,
+toe-kick floor-anchor + height, worktop top face at spec.height, worktop front overhang,
+no floating members, base-side floor-anchor, correct divider count, bounds height,
+all-door / all-drawer / all-open / mixed bay configs, drawer-handle parity, upper-part
+float, price monotonicity (bays + width + uppers), price reasonableness band.
+
+**Scenario ladder** (`scripts/scenarios/`):
+- `parametric-kitchen-simple.json` — Simple/Pro flag gate, tab mount, default controls,
+  bay-to-drawers toggle, add-to-room saves item into scene.
+- `parametric-kitchen-journey.json` — full multi-step journey: Simple-mode flag assert,
+  dialog in Simple, pro-mode switch, uppers toggle live preview, mixed bay config
+  (drawer+open+door), add-to-room, mobile viewport 390×844.
+
+**Docs**: `ARCHITECTURE.md` updated to describe the full PF2 type set including
+kitchen-run; `src/furniture/CLAUDE.md` updated with kitchen-run specifics and the
+pattern for adding future parametric types; `TODO.md` stale "Remaining" reference
+removed (subsystem 4 is now complete).
+
 ## Floor-plan editor: binding edits, stray-element flags, skeleton view + touch fixes
 
 A batch of floor-plan-editor fixes so plan edits are real, the apartment can be

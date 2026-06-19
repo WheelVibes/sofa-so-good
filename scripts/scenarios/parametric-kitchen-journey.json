@@ -1,0 +1,168 @@
+{
+  "name": "parametric-kitchen-journey",
+  "description": "Full journey for C270 kitchen-run type: Simple/Pro flag gate, dialog controls (dimensions + bay count + uppers + bay-style picker), live-preview updates, drawers+doors mixed config, add-to-room saves GLB + arms placement, mobile viewport leg.",
+  "url": "http://localhost:5209/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "assert-kitchen-flag-simple",
+      "eval": "(function(){ const flags = window.__store.getState().featureFlags; if (!flags.kitchenCabinets) throw new Error('kitchenCabinets flag is OFF in Simple — expected ON (tier: simple)'); if (!flags.parametricFurniture) throw new Error('parametricFurniture is OFF in Simple — expected ON (tier: simple)'); })()"
+    },
+    {
+      "name": "open-dialog-simple",
+      "store": { "action": "setParametricOpen", "args": [true] }
+    },
+    {
+      "name": "dialog-visible",
+      "waitFor": { "css": ".parametric-dialog" },
+      "timeout": 20000
+    },
+    {
+      "name": "kitchen-tab-in-simple",
+      "waitFor": { "text": "Kitchen run" },
+      "timeout": 5000,
+      "failMessage": "Kitchen run tab not visible in Simple mode (kitchenCabinets is simple-tier)"
+    },
+    {
+      "name": "shot-dialog-simple-mode",
+      "screenshot": "01-dialog-simple-mode"
+    },
+    {
+      "name": "click-kitchen-tab",
+      "click": { "text": "Kitchen run" }
+    },
+    {
+      "name": "wait-kitchen-controls",
+      "waitFor": { "css": "input[aria-label='Bay count']" },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-kitchen-controls-default",
+      "screenshot": "02-kitchen-controls-default"
+    },
+    {
+      "name": "close-dialog",
+      "store": { "action": "setParametricOpen", "args": [false] }
+    },
+    {
+      "name": "dialog-gone",
+      "waitFor": { "css": ".parametric-dialog", "visible": false },
+      "timeout": 5000
+    },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{ const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "wait-pro",
+      "wait": 500
+    },
+    {
+      "name": "open-dialog-pro",
+      "store": { "action": "setParametricOpen", "args": [true] }
+    },
+    {
+      "name": "dialog-visible-pro",
+      "waitFor": { "css": ".parametric-dialog" },
+      "timeout": 20000
+    },
+    {
+      "name": "click-kitchen-tab-pro",
+      "click": { "text": "Kitchen run" }
+    },
+    {
+      "name": "wait-kitchen-controls-pro",
+      "waitFor": { "css": "input[aria-label='Bay count']" },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-kitchen-tab-pro",
+      "screenshot": "03-kitchen-tab-pro"
+    },
+    {
+      "name": "toggle-uppers",
+      "eval": "(function(){ const toggle = document.querySelector('button[aria-label=\"Upper cabinets\"]'); if (!toggle) throw new Error('Upper cabinets toggle not found'); toggle.click(); })()"
+    },
+    {
+      "name": "wait-uppers-on",
+      "wait": 800
+    },
+    {
+      "name": "wait-preview-uppers",
+      "wait": 1200
+    },
+    {
+      "name": "shot-with-uppers",
+      "screenshot": "04-with-upper-cabinets"
+    },
+    {
+      "name": "set-bay1-drawer",
+      "eval": "(function(){ const btns = Array.from(document.querySelectorAll('button[aria-label^=\"Bay 1:\"]')); const drawerBtn = btns.find(b => b.getAttribute('aria-label') === 'Bay 1: Drawer'); if (!drawerBtn) throw new Error('Bay 1 Drawer button not found'); drawerBtn.click(); })()"
+    },
+    {
+      "name": "set-bay2-open",
+      "eval": "(function(){ const btns = Array.from(document.querySelectorAll('button[aria-label^=\"Bay 2:\"]')); const openBtn = btns.find(b => b.getAttribute('aria-label') === 'Bay 2: Open'); if (!openBtn) throw new Error('Bay 2 Open button not found'); openBtn.click(); })()"
+    },
+    {
+      "name": "wait-mixed-preview",
+      "wait": 1200
+    },
+    {
+      "name": "shot-mixed-bay-config",
+      "screenshot": "05-mixed-drawer-open-door"
+    },
+    {
+      "name": "add-to-room",
+      "eval": "(function(){ const btns = Array.from(document.querySelectorAll('button')); const addBtn = btns.find(b => b.textContent && b.textContent.trim() === 'Add to room'); if (!addBtn) throw new Error('Add to room button not found'); addBtn.click(); })()"
+    },
+    {
+      "name": "wait-save",
+      "wait": 5000
+    },
+    {
+      "name": "verify-item-in-scene",
+      "eval": "(function(){ const items = window.__store.getState().items; if (!items || items.length === 0) throw new Error('No items in scene after add-to-room'); })()"
+    },
+    {
+      "name": "shot-kitchen-in-scene",
+      "screenshot": "06-kitchen-run-in-scene"
+    },
+    {
+      "name": "mobile-viewport",
+      "viewport": { "width": 390, "height": 844 }
+    },
+    {
+      "name": "wait-mobile-layout",
+      "wait": 800
+    },
+    {
+      "name": "open-dialog-mobile",
+      "store": { "action": "setParametricOpen", "args": [true] }
+    },
+    {
+      "name": "dialog-visible-mobile",
+      "waitFor": { "css": ".parametric-dialog" },
+      "timeout": 20000
+    },
+    {
+      "name": "shot-kitchen-dialog-mobile",
+      "screenshot": "07-kitchen-dialog-mobile"
+    },
+    {
+      "name": "close-mobile",
+      "store": { "action": "setParametricOpen", "args": [false] }
+    }
+  ]
+}

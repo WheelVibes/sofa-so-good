@@ -269,16 +269,22 @@ same change that reshapes a system.
   selected time). **Lights** (`lightsMode` off/on/auto) is an independent fixture toggle — not
   tied to the sun (lights can be on in daytime). Fixtures emit capped night point lights; shades
   glow via `fixtureGlow`.
-- **Parametric furniture generator** (`furniture/parametric/`, PF1): dimension-driven
-  bookshelf/wardrobe/sideboard. Pure tested core — `spec.ts` (`clampSpec` envelopes, never
-  throws), `buildParts.ts` `buildParametric(spec)` → box parts (floor-anchored/centred/+Z;
-  auto centre divider >1.2 m bays, ≤0.6 m door leaves, rail; bounds = footprint),
-  `price.ts` board-area estimate → def-level `price` (wins in `itemPrice`). `buildObject.ts`
-  maps parts → meshes (furnitureMaterials) shared by the dialog preview AND
-  `saveParametric.ts` (exportGlb → `persistUserGlb`, hash-dedupe → new `UserGltfDef` per
-  spec; price+footprint persist via IDB meta + schema). UI `ui/parametric/ParametricDialog`
+- **Parametric furniture generator** (`furniture/parametric/`, PF2): dimension-driven
+  bookshelf / wardrobe / sideboard / desk / **kitchen-cabinet run**. Pure tested core —
+  `spec.ts` (`ParametricType` union, `clampSpec` envelopes, `defaultSpec`, never throws),
+  `buildParts.ts` `buildParametric(spec)` → box `ParametricPart[]` (floor-anchored/centred/+Z;
+  type-dispatch to specialist builders). Per-type builders: storage carcass (auto centre
+  divider >1.2 m bays, ≤0.6 m door leaves, hanging rail, stacked drawers), desk (four-leg or
+  pedestal with drawer stack), **kitchen-run** (recessed toe-kick 0.1 m, carcass shell,
+  per-bay door/drawer/open fronts, continuous worktop slab 0.04 m thick with 0.02 m front
+  overhang, optional wall uppers 0.35 m deep × 0.72 m tall with 0.18 m gap).
+  `price.ts` board-area + worktop-premium estimate → def-level `price`. `buildObject.ts`
+  maps parts → meshes (furnitureMaterials) shared by dialog preview AND
+  `saveParametric.ts` (exportGlb → `persistUserGlb`, hash-dedupe → `UserGltfDef`;
+  price+footprint via IDB meta + schema). UI `ui/parametric/ParametricDialog`
   (type tabs + DimField sliders + live preview; Add to room arms placement); entries:
-  catalog-foot **Custom size**, ⌘K, mobile Design menu — `parametricFurniture` flag (pro).
+  catalog-foot **Custom size**, ⌘K, mobile Design menu — `parametricFurniture` flag (simple),
+  `kitchenCabinets` flag (simple) gates the Kitchen run tab specifically.
 - **Parametric cabinet engine** (`furniture/cabinet/`): mm-customisable modular cabinets.
   `cabinetModel.ts` = pure tested `buildCabinet(spec)` → flat `CabinetPart[]` (toe-kick/
   carcass/countertop/cornice + slab·shaker·drawers·glass·open fronts; structurally sound).
