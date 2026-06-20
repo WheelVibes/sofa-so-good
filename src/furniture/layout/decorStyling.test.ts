@@ -123,6 +123,29 @@ describe('applyDecorStyling', () => {
     }
   })
 
+  it('leads with the trailing-plant hero prop on open shelving (RD-408)', () => {
+    // The trailing plant is the top priority on the open shelving units, so it is
+    // placed even at the minimum per-surface budget of 1.
+    for (const defId of ['bookshelf', 'cube-shelf'] as const) {
+      const host = {
+        id: `host-${defId}`,
+        defId,
+        position: [4, 4] as [number, number],
+        rotation: 0,
+        props: {},
+      }
+      const decor = applyDecorStyling([host], BUILTIN_CATALOG)
+      expect(decor.some((d) => d.defId === 'trailing-plant')).toBe(true)
+      // The trailing plant must sit at the host top via surfaceHeight (self-lift),
+      // never via elevation, exactly like the other tabletop decor props.
+      const top = BUILTIN_CATALOG[defId].defaultFootprint.h
+      for (const d of decor.filter((x) => x.defId === 'trailing-plant')) {
+        expect(d.props.surfaceHeight).toBeCloseTo(top, 5)
+        expect(d.elevation ?? 0).toBe(0)
+      }
+    }
+  })
+
   it('respects the per-host-type ceiling even for huge hosts (RD408-001)', () => {
     // Per-type ceilings cap density regardless of how large a surface is.
     const sofa = {

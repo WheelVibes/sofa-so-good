@@ -146,6 +146,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'small-sculpture': 65,
   'desk-plant': 30,
   'photo-frame-cluster': 50,
+  'trailing-plant': 55,
 }
 
 /** Estimated price (SGD) for one item. For an IKEA def the per-INSTANCE variant

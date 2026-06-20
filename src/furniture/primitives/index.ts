@@ -96,6 +96,7 @@ import { Toilet } from './Toilet'
 import { TowelLadder } from './TowelLadder'
 import { TowelRail } from './TowelRail'
 import { ToyStorage } from './ToyStorage'
+import { TrailingPlant } from './TrailingPlant'
 import { TVConsole } from './TVConsole'
 import { Vanity } from './Vanity'
 import { WallArt } from './WallArt'
@@ -215,4 +216,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   SmallSculpture,
   DeskPlant,
   PhotoFrameCluster,
+  TrailingPlant,
 }

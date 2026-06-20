@@ -154,11 +154,14 @@ const HOST_PROPS: Record<string, readonly string[]> = {
   nightstand: ['desk-plant', 'candle-cluster'],
   // Work surfaces
   desk: ['desk-plant', 'book-stack'],
-  // Storage tops (console, sideboard, bookshelf, cube-shelf)
-  'console-table': ['photo-frame-cluster', 'small-sculpture', 'book-stack'],
-  sideboard: ['photo-frame-cluster', 'book-stack', 'candle-cluster'],
-  bookshelf: ['book-stack', 'small-sculpture', 'desk-plant'],
-  'cube-shelf': ['book-stack', 'small-sculpture'],
+  // Storage tops (console, sideboard, bookshelf, cube-shelf). The trailing
+  // plant drapes over the front edge — a hero piece on elevated/open tops, so
+  // it leads on the open shelving units and appears as a secondary option on the
+  // closed-top consoles once they have the budget for more than one prop.
+  'console-table': ['photo-frame-cluster', 'trailing-plant', 'small-sculpture', 'book-stack'],
+  sideboard: ['photo-frame-cluster', 'trailing-plant', 'book-stack', 'candle-cluster'],
+  bookshelf: ['trailing-plant', 'book-stack', 'small-sculpture', 'desk-plant'],
+  'cube-shelf': ['trailing-plant', 'book-stack', 'small-sculpture'],
   dresser: ['photo-frame-cluster', 'desk-plant'],
   // Media unit top — frames, a sculpture, a plant, books.
   'tv-console': ['photo-frame-cluster', 'small-sculpture', 'desk-plant', 'book-stack'],

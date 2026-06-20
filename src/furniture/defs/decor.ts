@@ -1180,4 +1180,62 @@ export const DECOR_DEFS = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0.1 },
     ],
   },
+  'trailing-plant': {
+    kind: 'parametric',
+    id: 'trailing-plant',
+    name: 'Trailing plant',
+    keywords: [
+      'trailing plant',
+      'pothos',
+      'cascading plant',
+      'ivy',
+      'vine',
+      'hanging vine',
+      'devil ivy',
+      'shelf plant',
+    ],
+    category: 'decor',
+    primitive: 'TrailingPlant',
+    // Footprint spans the cascade so the vines reading over the edge are honest.
+    defaultFootprint: { w: 0.28, d: 0.28, h: 0.32 },
+    // Pot crown reaches ~0.18 above the surface; vines drape ~0.3 m below it, so
+    // the rendered span runs from below the surface up past the crown.
+    verticalSpan: { base: 0.12, top: 0.62 },
+    noClip: true,
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'surfaceHeight',
+        label: 'Sits at',
+        min: 0,
+        max: 1.4,
+        step: 0.02,
+        default: 0.42,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'potColor', label: 'Pot', default: '#cdbb9a' },
+      { kind: 'color', key: 'leafColor', label: 'Foliage', default: '#4a7a44' },
+      {
+        kind: 'enum',
+        key: 'fullness',
+        label: 'Fullness',
+        default: 'full',
+        options: [
+          { value: 'full', label: 'Full' },
+          { value: 'sparse', label: 'Sparse' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'potFinish',
+        label: 'Pot finish',
+        default: 'painted',
+        options: [
+          { value: 'painted', label: 'Matte' },
+          { value: 'gloss', label: 'Glazed' },
+          { value: 'wood', label: 'Terracotta' },
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, FurnitureDef>

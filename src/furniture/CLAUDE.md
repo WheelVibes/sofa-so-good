@@ -89,5 +89,7 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `withDecor=false`. No feature flag — enriches the existing auto-furnish surface. Decor ids are
   `decor-<hostId>-<propId>-<slot>`. **Prop colour variety (RD-408):** repeated soft goods
   (cushion/blanket `color`) + book stacks (`spineColor`) draw a seeded colour from a curated
-  `VARIETY` palette (offset by slot) so they aren't identical clones. (Hero/wall passes are still
-  future RD-408 tasks.)
+  `VARIETY` palette (offset by slot) so they aren't identical clones. **Hero props (RD-408):**
+  richer set-dressing primitives with real silhouettes — e.g. `trailing-plant` (a raised pot whose
+  vines cascade over the edge, leading the prop list on open shelving `bookshelf`/`cube-shelf` and a
+  secondary option on `console-table`/`sideboard`). (The wall pass is still a future RD-408 task.)
