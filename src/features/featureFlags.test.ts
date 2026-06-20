@@ -401,3 +401,19 @@ describe('cameraDof flag (PC2-CAM-DOF-LENS)', () => {
     expect(FEATURE_FLAGS.cameraDof.tier).toBe('pro')
   })
 })
+
+describe('importSh3d flag (PARITY-SH3D)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
+    // Importing a Sweet Home 3D plan is a plan-interop / authoring surface beyond
+    // the core furnish loop → hidden in Simple where the UI stays minimal.
+    expect(resolveFlags(false, {}, false, 'simple').importSh3d).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').importSh3d).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').importSh3d).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').importSh3d).toBe(true)
+  })
+  it('ships in prod (pure client-side parse, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.importSh3d.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.importSh3d.default).toBe(true)
+    expect(FEATURE_FLAGS.importSh3d.tier).toBe('pro')
+  })
+})

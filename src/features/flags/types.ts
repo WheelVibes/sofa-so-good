@@ -91,6 +91,7 @@ export type FeatureFlag =
   | 'iesLights'
   | 'cameraDof'
   | 'proceduralSky'
+  | 'importSh3d'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

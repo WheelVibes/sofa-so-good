@@ -23,6 +23,7 @@ import { downloadFurnitureCsv } from './openFurnitureCsv'
 import { downloadPlanSvg } from './openPlanSvg'
 import { openDesignReport } from './openReport'
 import { exportScene3d } from './openSceneExport'
+import { openSh3dImport } from './openSh3dImport'
 import { openShoppingList } from './openShoplist'
 import { pickPaletteFromPhoto } from './paletteFromPhoto'
 import { Icon, type IconName } from './toolbar/icons'
@@ -52,6 +53,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'furniture-csv': 'shopExport',
   'plan-svg': 'dxfExport',
   'export-3d': 'sceneExport3d',
+  'import-sh3d': 'importSh3d',
   parametric: 'parametricFurniture',
   'replace-similar': 'replaceSimilar',
   'ai-furnish': 'aiLayout',
@@ -390,6 +392,13 @@ export function CommandPalette() {
         label: 'Export 3D model (GLB)',
         icon: 'Export',
         run: () => void exportScene3d('glb'),
+      },
+      {
+        id: 'import-sh3d',
+        group: 'Tools & panels',
+        label: 'Import Sweet Home 3D (.sh3d)',
+        icon: 'FloorPlan',
+        run: () => openSh3dImport(),
       },
       {
         id: 'floorplan',

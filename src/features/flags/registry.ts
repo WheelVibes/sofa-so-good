@@ -653,6 +653,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Import a Sweet Home 3D `.sh3d` plan (PARITY-SH3D). Pure client-side parse
+  // (unzip + XML → our plan model), no sidecar / licensing → prod-safe (default
+  // on). A plan-interop / authoring surface beyond the core furnish loop → pro
+  // tier (hidden in Simple mode automatically).
+  importSh3d: {
+    label: 'Import Sweet Home 3D',
+    description: 'Import a Sweet Home 3D (.sh3d) plan — walls, rooms and furniture',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

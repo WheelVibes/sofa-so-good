@@ -33,6 +33,7 @@ import { downloadFurnitureCsv } from '../openFurnitureCsv'
 import { downloadPlanSvg } from '../openPlanSvg'
 import { openDesignReport } from '../openReport'
 import { exportScene3d } from '../openSceneExport'
+import { openSh3dImport } from '../openSh3dImport'
 import { openShoppingList } from '../openShoplist'
 import { PresentationSetup } from '../presentation/PresentationSetup'
 import { BackdropUpload } from '../scene/BackdropUpload'
@@ -148,6 +149,7 @@ export function MobileToolbar() {
   const fShopExport = useFeature('shopExport')
   const fDxf = useFeature('dxfExport')
   const fSceneExport = useFeature('sceneExport3d')
+  const fImportSh3d = useFeature('importSh3d')
   const userSets = useStore((st) => st.userSets)
 
   // Detect which render preset (if any) matches current state for the dropdown.
@@ -1068,6 +1070,14 @@ export function MobileToolbar() {
                       label={recording ? 'Stop recording' : 'Record clip'}
                       on={recording}
                       onClick={act(() => s.getState().setRecording(!recording), { keep: true })}
+                    />
+                  ) : null}
+                  {fImportSh3d ? (
+                    <Item
+                      icon="FloorPlan"
+                      label="Import Sweet Home 3D…"
+                      sub="Load walls & rooms from a .sh3d file"
+                      onClick={act(() => openSh3dImport())}
                     />
                   ) : null}
                   <Item

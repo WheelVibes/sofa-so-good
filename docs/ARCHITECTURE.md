@@ -403,6 +403,15 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure
   `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog + injected `xmlns`). Both in Tools +
   mobile + ⌘K, `dxfExport` flag (pro).
+- **Sweet Home 3D import** (`importSh3d` flag, pro; PARITY-SH3D): pure parser core
+  `floorplan/import/sh3d.ts` `parseSh3d(bytes)` unzips a `.sh3d` (fflate `unzipSync`), reads
+  `Home.xml` (DOMParser), and maps it into our plan model — cm→m (÷100), origin-anchored bbox,
+  `<wall>` → `PlanWall` (thickness→external/internal), `<room>`/`<point>` → polygon `PlanRoom`,
+  `<pieceOfFurniture>` → best-effort `categoryForPieceName` descriptors (unmapped → `warnings`,
+  never dropped). Pure (no three/React/store); `importResultToFloorPlan` builds a `FloorPlan`.
+  DOM glue `ui/openSh3dImport.ts` file-picks → parse → `setFloorPlan` (undoable) + toasts
+  warnings. File menu + mobile File + ⌘K (`import-sh3d`). First slice imports walls + rooms;
+  furniture placement + openings are future slices.
 - **Multi-axis furniture tilt** (`tiltFurniture` flag, pro; PARITY-TILT): `FurnitureItem` gains optional
   `pitch`/`roll` (radians); `furniture/tiltRotation.ts` `itemRotation` returns the intrinsic Euler tuple
   `[pitch, yaw, roll, 'YXZ']` the `Furniture` root group uses (reduces to pure yaw when untilted).

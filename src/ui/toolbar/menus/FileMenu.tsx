@@ -10,6 +10,7 @@ import type { SlotMeta } from '../../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
 import { downloadFurnitureCsv } from '../../openFurnitureCsv'
+import { openSh3dImport } from '../../openSh3dImport'
 import { openShoppingList } from '../../openShoplist'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
@@ -27,6 +28,7 @@ export function FileMenu() {
   const resetToDefault = useStore((s) => s.resetToDefault)
   const resetToEmpty = useStore((s) => s.resetToEmpty)
   const fShopExport = useFeature('shopExport')
+  const fImportSh3d = useFeature('importSh3d')
   const [slots, setSlots] = useState<SlotMeta[]>([])
 
   // Refresh the slot list whenever the menu mounts a panel render.
@@ -145,6 +147,14 @@ export function FileMenu() {
       <div className="mt-1 border-t border-[var(--border)] px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">
         Load
       </div>
+      {fImportSh3d ? (
+        <MenuItem
+          icon="FloorPlan"
+          label="Import Sweet Home 3D…"
+          sub="Load walls & rooms from a .sh3d file"
+          onClick={() => openSh3dImport()}
+        />
+      ) : null}
       <MenuItem
         icon="Reset"
         label="Default"
