@@ -2,6 +2,7 @@ import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
 import { canPlace } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
+import { GROUND_LEVEL_ID, levelAsPlan, levelOfRoom, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import { type FloorPlan, type PlanRoom, pointInRoom, wallLength } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -887,7 +888,10 @@ function inferFocal(rect: Rect, windows: Array<[number, number]>): Edge | undefi
 
 /** Arrange a single custom-plan room (shared by the per-room "Tidy" + the
  *  whole-plan "Tidy home"). `keepOut`/`windows`/`walls` are precomputed so the
- *  whole-plan loop builds them once. */
+ *  whole-plan loop builds them once. `levelId` is the storey the room sits on —
+ *  the `inRoom` predicate gates on it (F13) so an item directly above/below this
+ *  room on another storey (a `duplicateLevel` clone shares the same x/z) is not
+ *  dragged against this storey's geometry. */
 function arrangeOnePlanRoom(
   room: PlanRoom,
   items: FurnitureItem[],
@@ -896,8 +900,11 @@ function arrangeOnePlanRoom(
   keepOut: Rect[],
   windows: Array<[number, number]>,
   walls: CollisionWall[],
+  levelId: string = GROUND_LEVEL_ID,
 ): FurnitureItem[] {
-  const inRoom = (i: FurnitureItem) => pointInPlanRoom(room, i.position[0], i.position[1])
+  const inRoom = (i: FurnitureItem) =>
+    (i.levelId ?? GROUND_LEVEL_ID) === levelId &&
+    pointInPlanRoom(room, i.position[0], i.position[1])
   if (!items.some(inRoom)) return items
   const rect = planRoomRect(room)
   const kind = roomKindFromItems(items.filter(inRoom), catalog, room.name)
@@ -929,16 +936,24 @@ export function arrangePlanRoom(
   catalog: Record<string, FurnitureDef>,
   doors: Record<string, { open: boolean }>,
 ): FurnitureItem[] {
-  const room = plan.rooms.find((r) => r.id === roomId)
+  // Resolve the room across ALL storeys (room ids are plan-unique): on a
+  // multi-storey plan an upper-floor room id is absent from `plan.rooms`
+  // (ground only), so look it up via its level (F13). Build that level's own
+  // geometry so an upper room arranges against its own walls/windows/door-swings.
+  const level = levelOfRoom(plan, roomId)
+  if (!level) return allItems
+  const room = level.rooms.find((r) => r.id === roomId)
   if (!room) return allItems
+  const lp = levelAsPlan(plan, level)
   return arrangeOnePlanRoom(
     room,
     allItems,
     catalog,
     doors,
-    doorSwingRects(plan),
-    windowCentres(plan),
-    planCollisionWalls(plan, doors),
+    doorSwingRects(lp),
+    windowCentres(lp),
+    planCollisionWalls(lp, doors),
+    level.id,
   )
 }
 
@@ -953,13 +968,20 @@ export function arrangeAllRoomsForPlan(
   catalog: Record<string, FurnitureDef>,
   doors: Record<string, { open: boolean }>,
 ): FurnitureItem[] {
-  const keepOut = doorSwingRects(plan)
-  const windows = windowCentres(plan)
-  // Collide against the custom plan's own walls, not the fixed flat's.
-  const walls = planCollisionWalls(plan, doors)
   let items = allItems
-  for (const room of plan.rooms) {
-    items = arrangeOnePlanRoom(room, items, catalog, doors, keepOut, windows, walls)
+  // Iterate EVERY storey (F13): `plan.rooms`/`walls`/`openings` are ground-only,
+  // so a multi-storey plan must arrange each level's rooms against that level's
+  // own geometry. `levelAsPlan` returns the plan itself for a single-storey plan
+  // (common case) → identical output to the old ground-only loop.
+  for (const level of planLevels(plan)) {
+    const lp = levelAsPlan(plan, level)
+    const keepOut = doorSwingRects(lp)
+    const windows = windowCentres(lp)
+    // Collide against this level's own walls, not the fixed flat's or ground's.
+    const walls = planCollisionWalls(lp, doors)
+    for (const room of level.rooms) {
+      items = arrangeOnePlanRoom(room, items, catalog, doors, keepOut, windows, walls, level.id)
+    }
   }
   return items
 }

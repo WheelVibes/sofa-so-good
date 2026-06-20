@@ -134,4 +134,107 @@ describe('furnishPlanItems', () => {
     expect(sofa!.props.color).toBe('#d6d4cc')
     expect(sofa!.props.material).toBe('fabric')
   })
+
+  // ── AUD-001 (F13 multi-level): upper storeys must be furnished too ──────────
+  describe('multi-storey plans (F13)', () => {
+    /** A 2-storey maisonette: ground living + kitchen, an upper bedroom + bath
+     *  on a second level whose room x/z DELIBERATELY overlap the ground living
+     *  (a `duplicateLevel`-style clone) to catch level-misclassification. */
+    function makeTwoStoreyPlan(): FloorPlan {
+      const ext: FloorPlan['walls'][number]['thickness'] = 'external'
+      const shell = (): FloorPlan['walls'] => [
+        { id: 'gn', start: [0.1, 0.1], end: [8.9, 0.1], thickness: ext },
+        { id: 'ge', start: [8.9, 0.1], end: [8.9, 8.9], thickness: ext },
+        { id: 'gs', start: [8.9, 8.9], end: [0.1, 8.9], thickness: ext },
+        { id: 'gw', start: [0.1, 8.9], end: [0.1, 0.1], thickness: ext },
+      ]
+      return {
+        id: 'two-storey',
+        name: 'Maisonette',
+        ceilingHeight: 2.6,
+        extent: [9, 9],
+        walls: shell(),
+        openings: [
+          { id: 'gdoor', kind: 'door', wallId: 'gs', offset: 4, width: 0.9, sill: 0, head: 2.1 },
+        ],
+        rooms: [
+          { id: 'g-living', name: 'Living / Dining', origin: [0.2, 0.2], width: 4.4, depth: 5.6 },
+          { id: 'g-kitchen', name: 'Kitchen', origin: [4.8, 0.2], width: 3.9, depth: 2.6 },
+        ],
+        upperLevels: [
+          {
+            id: 'lvl-2',
+            name: 'Upper floor',
+            elevation: 2.9,
+            walls: [
+              { id: 'un', start: [0.1, 0.1], end: [8.9, 0.1], thickness: ext },
+              { id: 'ue', start: [8.9, 0.1], end: [8.9, 8.9], thickness: ext },
+              { id: 'us', start: [8.9, 8.9], end: [0.1, 8.9], thickness: ext },
+              { id: 'uw', start: [0.1, 8.9], end: [0.1, 0.1], thickness: ext },
+            ],
+            openings: [],
+            rooms: [
+              // SAME x/z as the ground living room — exercises the levelId gate.
+              { id: 'u-bed', name: 'Master Bedroom', origin: [0.2, 0.2], width: 4.4, depth: 5.6 },
+              { id: 'u-bath', name: 'Bathroom', origin: [4.8, 3.0], width: 3.0, depth: 2.8 },
+            ],
+          },
+        ],
+      }
+    }
+
+    it('furnishes the UPPER storey, tagging its items with the level id', () => {
+      const plan = makeTwoStoreyPlan()
+      const items = furnishPlanItems(plan, movein, BUILTIN_CATALOG, {})
+      // The upper bedroom gets a bed, tagged levelId 'lvl-2'.
+      const bed = items.find((it) => it.defId === 'bed-queen')
+      expect(bed).toBeDefined()
+      expect(bed!.levelId).toBe('lvl-2')
+      // The upper bathroom gets a toilet, also tagged.
+      const toilet = items.find((it) => it.defId === 'toilet')
+      expect(toilet).toBeDefined()
+      expect(toilet!.levelId).toBe('lvl-2')
+      // Ground living-room sofa is present and stays UNTAGGED (= ground).
+      const sofa = items.find((it) => it.defId === 'sofa-3seat')
+      expect(sofa).toBeDefined()
+      expect(sofa!.levelId).toBeUndefined()
+    })
+
+    it('arranges upper items against the upper level, not the ground room', () => {
+      const plan = makeTwoStoreyPlan()
+      const items = furnishPlanItems(plan, movein, BUILTIN_CATALOG, {})
+      const upper = items.filter((it) => it.levelId === 'lvl-2')
+      // Every level-2 item lands inside the upper level's own rooms (the bed
+      // room shares x/z with the ground living room, so this only passes when
+      // the arranger used the upper geometry, not the ground walls).
+      const uBed = plan.upperLevels![0]!.rooms.find((r) => r.id === 'u-bed')!
+      const uBath = plan.upperLevels![0]!.rooms.find((r) => r.id === 'u-bath')!
+      for (const it of upper) {
+        const inBed = pointInRoom(uBed, it.position[0], it.position[1])
+        const inBath = pointInRoom(uBath, it.position[0], it.position[1])
+        expect(inBed || inBath).toBe(true)
+      }
+      // Cross-level collision is gated, so the whole multi-storey set is clean.
+      expect(findItemOverlaps(items, BUILTIN_CATALOG)).toHaveLength(0)
+    })
+
+    it('produces IDENTICAL output to the single-storey equivalent for the ground floor', () => {
+      // A single-storey plan with only the ground rooms must furnish its ground
+      // exactly as the 2-storey plan furnishes its ground floor.
+      const two = makeTwoStoreyPlan()
+      const one: FloorPlan = { ...two, id: 'one', upperLevels: undefined }
+      const itemsOne = furnishPlanItems(one, movein, BUILTIN_CATALOG, {})
+      const itemsTwo = furnishPlanItems(two, movein, BUILTIN_CATALOG, {})
+      const groundOf = (xs: typeof itemsTwo) =>
+        xs
+          .filter((it) => it.levelId === undefined)
+          .map((it) => ({
+            id: it.id,
+            defId: it.defId,
+            position: it.position,
+            rotation: it.rotation,
+          }))
+      expect(groundOf(itemsTwo)).toEqual(groundOf(itemsOne))
+    })
+  })
 })
