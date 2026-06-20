@@ -66,6 +66,7 @@ export function SceneMenu() {
   const setWallRevealScope = useStore((s) => s.setWallRevealScope)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const fBackdrops = useFeature('backdrops')
+  const fProceduralSky = useFeature('proceduralSky')
   const fRenderPresets = useFeature('renderPresets')
   const [compassOpen, setCompassOpen] = useState(false)
   const activePresetId = useActivePresetId()
@@ -147,7 +148,10 @@ export function SceneMenu() {
                 aria-label="Backdrop"
                 onChange={(e) => setBackdrop(e.target.value as BackdropKind)}
               >
-                {BACKDROPS.filter((b) => b.id !== 'custom' || hasCustomBackdrop).map((b) => (
+                {BACKDROPS.filter(
+                  (b) =>
+                    (b.id !== 'custom' || hasCustomBackdrop) && (b.id !== 'sky' || fProceduralSky),
+                ).map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.label} — {b.sub}
                   </option>

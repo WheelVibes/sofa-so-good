@@ -113,7 +113,12 @@ same change that reshapes a system.
   (skybox; **zero per-frame draws**) shown **in walk mode only** (seen through windows); orbit renders the
   plain procedural sky with no surroundings (`isPhotoBackdropActive(kind, cameraMode, hasCustom)` gates it;
   `Sky.tsx` hides its dome when active). Presets `city/dusk/park/hills` bake procedurally
-  (`backdropEquirect.ts` + pure `backdropHorizon.ts` buildings/treeline/hills generators); `custom` is a
+  (`backdropEquirect.ts` + pure `backdropHorizon.ts` buildings/treeline/hills generators); the `sky` preset is a
+  **sun-driven procedural sky** (RD-412, `proceduralSky` flag, pro tier) baked from the pure analytic Preetham
+  core `lighting/skyGradient.ts` (`skyRadiance`/`paintSkyEquirect`) via `backdropEquirect.ts`
+  `bakeSkyEquirect(sunDir, turbidity)`, re-baked (debounced + old texture disposed) when the sun crosses the
+  pure `lighting/skyRebuild.ts` `shouldRebuildSky` threshold — **walk-mode `scene.background` only, never
+  `scene.environment`** (the IBL is a separate, deferred concern); `custom` is a
   **user-uploaded photo** (persisted in IDB via `storage/walkBackdrop.ts`, hydrated on boot, controlled by
   `ui/scene/BackdropUpload.tsx` + the `customBackdrop` flag); `none` = plain sky. (The legacy instanced 3D
   City/Park/Hills/Studio estates were removed.) Main Canvas is **`frameloop="demand"`**:
@@ -398,6 +403,22 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure
   `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog + injected `xmlns`). Both in Tools +
   mobile + ⌘K, `dxfExport` flag (pro).
+- **Sweet Home 3D import** (`importSh3d` flag, pro; PARITY-SH3D): pure parser core
+  `floorplan/import/sh3d.ts` `parseSh3d(bytes)` unzips a `.sh3d` (fflate `unzipSync`), reads
+  `Home.xml` (DOMParser), and maps it into our plan model — cm→m (÷100), origin-anchored bbox,
+  `<wall>` → `PlanWall` (thickness→external/internal), `<room>`/`<point>` → polygon `PlanRoom`,
+  `<pieceOfFurniture>` → best-effort `categoryForPieceName` descriptors (unmapped → `warnings`,
+  never dropped). Door/window pieces (`<doorOrWindow>` / `doorOrWindow="true"`) are flagged
+  `opening` (`openingKindForName` → door|window). A second pure pass `import/sh3dPlacement.ts`
+  `resolveSh3dImport(items, walls, catalog, existing, genId)` turns those descriptors into scene
+  state: furniture → catalog defs (`defForCategory` footprint-best-match, orientation-agnostic)
+  placed collision-free via `placeNonOverlapping`; openings → `PlanOpening`s by `associateOpenings`
+  (nearest-wall via `floorPlanGeometry.nearestWall`/`alongWall`, centre→offset, sill/head from the
+  piece height). Pure (no three/React/store); `importResultToFloorPlan` builds a `FloorPlan`.
+  DOM glue `ui/openSh3dImport.ts` file-picks → parse → resolve placement → one undoable step
+  (`setItems` + `setFloorPlan` with the openings) + a toast summarising walls / rooms / furniture
+  placed / openings / unmatched (with each unplaceable piece as a warning detail). File menu +
+  mobile File + ⌘K (`import-sh3d`).
 - **Multi-axis furniture tilt** (`tiltFurniture` flag, pro; PARITY-TILT): `FurnitureItem` gains optional
   `pitch`/`roll` (radians); `furniture/tiltRotation.ts` `itemRotation` returns the intrinsic Euler tuple
   `[pitch, yaw, roll, 'YXZ']` the `Furniture` root group uses (reduces to pure yaw when untilted).
@@ -485,7 +506,15 @@ same change that reshapes a system.
   unit-tested, rendered in `AlignmentGuides`), flush-to-wall (`wallSnap.ts`, off
   when grid-snap on), live per-side distance-to-wall HUD (`DragHud` ← `clearanceGap.ts` `wallGapsPerSide`,
   left/right/back/front gaps, amber under `walkwayMin`); touch rotate ring (single 15°, multi rigid centroid, Shift=free,
-  green/red validity, complements **R** 90°).
+  green/red validity, complements **R** 90°). The drag's two O(n) per-move scans (snug-stack +
+  `canPlace` collision) are **broadphased** (PERF-003) through a per-drag spatial grid of the static
+  items (`collision/broadphase.ts` `buildGrid`/`queryRect`, built once + cleared on drop): a point query
+  for snug-stack, a moved-AABB query for collision; alignment snap keeps the full scan (cross-room
+  alignment is intended). Equivalent to the full scan (no overlapping AABB ⇒ no overlapping OBB).
+  On drop, a single **surface item** (one carrying a numeric `surfaceHeight`) over a table/shelf snaps
+  its rest height onto that surface's top (PC2-SURFACE-DROP, pure `collision/surfaceDrop.ts`
+  `resolveSurfaceDropHeight` over the `tables`/`storage` categories; updates `props.surfaceHeight` via
+  `setItems` so it's one undo step).
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): 2D editor of store `floorPlan`
   — walls, rectangular/L-shape (`extension`)/free-`polygon` rooms (Polygon + Auto-room),
   doors/windows, ceiling height (global + per-room), grid+corner snap, per-room floor
@@ -497,7 +526,10 @@ same change that reshapes a system.
   fields (`wallOps.ts` `endForLength`/`endForAngle`/`wallAngleDeg` — PARITY-WALLDIM) + draggable endpoint handles (`moveWallVertex`) +
   whole-wall drag/rotate keeping connected corners joined (`moveWallTo`, rotation clamped ±90°) for
   non-orthogonal shapes. Drawing a new wall snaps its endpoints to existing corners **and** wall spans
-  (a T-junction) via pure `ui/floorplan/editor/snapToWalls.ts` (vertex wins over edge; free past the radius);
+  (a T-junction) via pure `ui/floorplan/editor/snapToWalls.ts` (vertex wins over edge; free past the radius)
+  and snaps the draft *direction* to 15° increments (covering 30/45/90°) via pure
+  `ui/floorplan/editor/snapWallAngle.ts` — order is grid→angle→wall-snap (a join to real geometry still
+  wins), **Shift bypasses** the angle snap, and the live readout shows length + angle (PC2-PLAN-ANGLE-SNAP);
   **on touch the Wall tool is tap-to-place + chaining** (tap start, tap end, continues from the last end;
   `wallTapHadAnchor` ref distinguishes placing the start vs the end), with snapped start-dot/end-ring markers
   drawn on the draft (desktop keeps drag-to-draw).
@@ -531,7 +563,19 @@ same change that reshapes a system.
   PARITY-ROOMLABEL). Each room's label shows name + live floor **area** (`planRoomArea`) + wall
   **perimeter** (`planRoomPerimeter` — shared with the report) on the full-detail tier, unit-aware
   (`roomLabelDetail` thins it as the room shrinks). Live furniture as `canPlace`-checked footprints (active storey
-  only). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
+  only), draggable to move **and** with a **rotate handle** on the selected piece (ring + facing knob
+  mirroring the wall rotate ring; reuses the 3D gizmo's `scene/selection/rotateGizmoMath.ts`
+  `pointerAngle`/`computeRotation` 15°-snap, Shift = free; `canPlace`-validated per frame, one undo
+  step per drag — PARITY-PLAN-FURN-ROTATE); **selecting a placed item also shows a furniture inspector**
+  (`ui/floorplan/PlanFurnitureInspector.tsx`, PARITY-PLAN-FURN-INSPECT — rendered by
+  `PlanInspector` when the plan selection resolves to `selectedItemId`): rename, numeric
+  X/Z, angle and (parametric defs) width/depth + a size readout, lock + delete. Edits route
+  through the same `itemsSlice` actions as the 3D inspector — moves/rotations are
+  `canPlace`-checked and push one undo step; resize goes through coalesced `updateItemProps`.
+  Item- vs plan-element selection is **mutually exclusive** (`selectItem` clears
+  `planSelection`; `setPlanSelection` clears `selectedItemId`) so the two inspectors never
+  co-render. Available in **both Simple and Pro** (plan editing is a core loop — no extra flag;
+  rides the editor's `floorPlanEditor` gate). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
   "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
   furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an
   **"All levels"** toggle draws the other storeys' walls as a dimmed underlay to align floors; every tool,

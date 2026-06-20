@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { lazyWithRetry } from '../app/lazyWithRetry'
@@ -105,6 +105,30 @@ export function CatalogDrawer() {
   const [recent, setRecent] = useState<string[]>(() => loadRecent())
   const [searchFocused, setSearchFocused] = useState(false)
 
+  // PERF-005: keep typing responsive — rank against a DEFERRED query so the
+  // input updates immediately while the expensive fuzzy ranking over the whole
+  // (local + CC0) catalog runs in a non-blocking render, and memoise it so it
+  // only recomputes when the query/catalog/category actually change (not on
+  // unrelated re-renders like hover).
+  const deferredQuery = useDeferredValue(query)
+  const dq = deferredQuery.trim()
+  const baseCards = useMemo(
+    () =>
+      dq
+        ? fuzzySearchSmart(dq, unified.all, gridItemText)
+        : active === 'favourites' && fFavourites
+          ? unified.favourites
+          : active === 'recent'
+            ? unified.recent
+            : active === 'favourites'
+              ? [] // favourites tab active but flag off: show nothing (edge-case guard)
+              : sortCards(
+                  unified.byCategory[active] ?? [],
+                  !priceOn && sortBy === 'price' ? 'default' : sortBy,
+                ),
+    [dq, unified, active, fFavourites, priceOn, sortBy],
+  )
+
   useEffect(() => {
     // Don't fetch the remote model/material index when both browse surfaces are
     // off (e.g. Simple mode forces `remoteFurniture` off; with materials also off
@@ -136,23 +160,9 @@ export function CatalogDrawer() {
   // Placing/customising furniture is editing, so the catalog only shows inside
   // the per-room editor (orbit). Orbit-over-the-flat and walk are view-only.
   if (!open || cameraMode !== 'orbit' || !roomEditorActive) return null
-  const q = query.trim()
-  // Fuzzy (typo-tolerant, ranked) search across the WHOLE catalog (local +
-  // browsable CC0) when querying; otherwise the active category / favourites.
-  const baseCards = q
-    ? // Searching uses synonym-aware fuzzy ranking (so "couch" finds a "Sofa",
-      // even for pack/uploaded items without keywords) — sort is browse-only.
-      fuzzySearchSmart(q, unified.all, gridItemText)
-    : active === 'favourites' && fFavourites
-      ? unified.favourites
-      : active === 'recent'
-        ? unified.recent
-        : active === 'favourites'
-          ? [] // favourites tab active but flag off: show nothing (edge-case guard)
-          : sortCards(
-              unified.byCategory[active] ?? [],
-              !priceOn && sortBy === 'price' ? 'default' : sortBy,
-            )
+  // `q` reflects the deferred query (matches the ranked results shown below); the
+  // search input itself still binds to the live `query` so typing feels instant.
+  const q = dq
   // Optional max-price filter — browse-only (its control lives in the browse
   // sort row), so a stale cap can never silently filter search results.
   const allCards = q ? baseCards : filterByMaxPrice(baseCards, maxPrice)

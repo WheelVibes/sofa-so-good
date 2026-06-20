@@ -26,9 +26,16 @@ import { canEditScene } from './state/editing'
 import { editableRoomIds } from './state/rooms'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
-import { AccessibilityPanel } from './ui/AccessibilityPanel'
 import {
+  AccessibilityPanel,
+  BudgetPanel,
+  ClearancePanel,
+  CommentsPanel,
+  DaylightPanel,
+  DesignScorePanel,
+  DrawingCalloutsPanel,
   ElevationPanel,
+  FlagsPanel,
   FloorPlanEditor,
   GlbDesignerDialog,
   HistoryPanel,
@@ -46,25 +53,18 @@ import { preloadFeatureChunks } from './ui/app/preloadOnIdle'
 import { roomScopedItemIds } from './ui/app/roomScopedItemIds'
 import { LoginScreen } from './ui/auth/LoginScreen'
 import { BudgetHud } from './ui/BudgetHud'
-import { BudgetPanel } from './ui/BudgetPanel'
 import { resolveBootDecision } from './ui/bootDecision'
-import { ClearancePanel } from './ui/ClearancePanel'
 import { CommandPalette } from './ui/CommandPalette'
-import { CommentsPanel } from './ui/CommentsPanel'
 import { ConfirmModal } from './ui/ConfirmModal'
 import { ContextMenu } from './ui/ContextMenu'
 import { Crosshair } from './ui/Crosshair'
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
 import { usePlacementController } from './ui/catalog/usePlacementController'
-import { DaylightPanel } from './ui/DaylightPanel'
-import { DesignScorePanel } from './ui/DesignScorePanel'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
-import { DrawingCalloutsPanel } from './ui/DrawingCalloutsPanel'
 import { EmptyRoomHint } from './ui/EmptyRoomHint'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
-import { FlagsPanel } from './ui/FlagsPanel'
 import { FpsCounter } from './ui/FpsCounter'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
@@ -109,6 +109,16 @@ export default function App() {
     historyOpen: useStore((s) => s.historyOpen),
     smartStartOpen: useStore((s) => s.smartStartOpen),
     tourOpen: useStore((s) => s.tourOpen),
+    // Pro/analysis panels — lazy-loaded + gated so their chunks stay out of the
+    // Simple-tier boot bundle (PERF-004). Each self-gated on the same flag before.
+    budgetOpen: useStore((s) => s.budgetOpen),
+    clearanceOpen: useStore((s) => s.clearancePanelOpen),
+    daylightOpen: useStore((s) => s.daylightOpen),
+    designScoreOpen: useStore((s) => s.designScoreOpen),
+    commentsOpen: useStore((s) => s.commentsOpen),
+    drawingCalloutsOpen: useStore((s) => s.drawingCalloutsOpen),
+    accessibilityOpen: useStore((s) => s.accessibilityOpen),
+    flagsOpen: useStore((s) => s.flagsPanelOpen),
   }
   const catalog = useCatalog()
   usePlacementController()
@@ -347,8 +357,42 @@ export default function App() {
 
   const pasteClipboard = useCallback(() => {
     const state = useStore.getState()
-    const entry = state.clipboard
-    if (!entry) return
+    const entries = state.clipboard
+    if (!entries || entries.length === 0) return
+
+    // Multi-item paste: rebuild the copied selection as pseudo-sources at their
+    // copy-time positions and reuse `planDuplicates` (shared-offset, arrangement-
+    // preserving, collision-skipping) — one undo step (PC2-MULTI-DUP-PASTE).
+    if (entries.length > 1) {
+      const mkId = (n: number) =>
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `paste-${Date.now()}-${n}`
+      const sources = entries
+        .filter((e) => catalog[e.defId])
+        .map((e, i) => ({
+          id: `paste-src-${i}`,
+          defId: e.defId,
+          position: [e.sourcePosition[0], e.sourcePosition[1]] as [number, number],
+          rotation: e.rotation,
+          flipX: e.flipX,
+          flipZ: e.flipZ,
+          label: e.label,
+          props: { ...e.props },
+        }))
+      const copies = planDuplicates(
+        sources,
+        { others: state.items, defs: catalog, doors: state.doors },
+        mkId,
+      )
+      if (copies.length === 0) return
+      state.pushHistory()
+      state.setItems([...state.items, ...copies])
+      state.setSelectedItemIds(copies.map((c) => c.id))
+      return
+    }
+
+    const entry = entries[0]
     const def = catalog[entry.defId]
     if (!def) return
 
@@ -417,15 +461,17 @@ export default function App() {
     const single = st.items.find((i) => i.id === st.selectedItemId)
     if (ids.length <= 1) {
       if (!single) return
-      st.setClipboard({
-        defId: single.defId,
-        rotation: single.rotation,
-        props: single.props,
-        flipX: single.flipX,
-        flipZ: single.flipZ,
-        label: single.label,
-        sourcePosition: single.position,
-      })
+      st.setClipboard([
+        {
+          defId: single.defId,
+          rotation: single.rotation,
+          props: single.props,
+          flipX: single.flipX,
+          flipZ: single.flipZ,
+          label: single.label,
+          sourcePosition: single.position,
+        },
+      ])
       pasteClipboard()
       return
     }
@@ -527,22 +573,26 @@ export default function App() {
           if (!lockedIds.has(id)) useStore.getState().deleteItem(id)
         }
       }
-      if (mod && code === KEYBINDINGS.copySelected && state.selectedItemId) {
+      if (mod && code === KEYBINDINGS.copySelected && state.selectedItemIds.length > 0) {
         e.preventDefault()
-        const item = state.items.find((i) => i.id === state.selectedItemId)
-        if (item) {
-          state.setClipboard({
-            defId: item.defId,
-            rotation: item.rotation,
-            props: item.props,
-            flipX: item.flipX,
-            flipZ: item.flipZ,
-            label: item.label,
-            sourcePosition: item.position,
-          })
+        // Copy the WHOLE selection (each item with its position) so a multi-select
+        // pastes back as a group preserving its arrangement (PC2-MULTI-DUP-PASTE).
+        const sel = state.items.filter((i) => state.selectedItemIds.includes(i.id))
+        if (sel.length > 0) {
+          state.setClipboard(
+            sel.map((item) => ({
+              defId: item.defId,
+              rotation: item.rotation,
+              props: item.props,
+              flipX: item.flipX,
+              flipZ: item.flipZ,
+              label: item.label,
+              sourcePosition: item.position,
+            })),
+          )
         }
       }
-      if (mod && code === KEYBINDINGS.pasteClipboard && state.clipboard) {
+      if (mod && code === KEYBINDINGS.pasteClipboard && state.clipboard?.length) {
         e.preventDefault()
         pasteClipboard()
       }
@@ -819,19 +869,48 @@ export default function App() {
         <DoorPrompt />
         <CatalogDrawer />
         <InspectorPanel />
-        <BudgetPanel />
         <FinishPicker />
         <WallAccentPicker />
         <NotificationContainer />
         <CommandPalette />
         <ContextMenu />
         <SwapModal />
-        <ClearancePanel />
-        <DaylightPanel />
-        <DesignScorePanel />
-        <CommentsPanel />
-        <DrawingCalloutsPanel />
-        <AccessibilityPanel />
+        {/* Pro/analysis panels: chunk is idle-preloaded then mounts when opened (PERF-004). */}
+        {lazyPanels.budgetOpen ? (
+          <Suspense fallback={null}>
+            <BudgetPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.clearanceOpen ? (
+          <Suspense fallback={null}>
+            <ClearancePanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.daylightOpen ? (
+          <Suspense fallback={null}>
+            <DaylightPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.designScoreOpen ? (
+          <Suspense fallback={null}>
+            <DesignScorePanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.commentsOpen ? (
+          <Suspense fallback={null}>
+            <CommentsPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.drawingCalloutsOpen ? (
+          <Suspense fallback={null}>
+            <DrawingCalloutsPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.accessibilityOpen ? (
+          <Suspense fallback={null}>
+            <AccessibilityPanel />
+          </Suspense>
+        ) : null}
         <PresentationMode />
         {/* Lazy + flag-gated: chunk loads only when the panel is opened (PERF5). */}
         {lazyPanels.shareOpen ? (
@@ -891,7 +970,11 @@ export default function App() {
         ) : null}
         <QuoteTemplateModal />
         <LoginScreen />
-        <FlagsPanel />
+        {lazyPanels.flagsOpen ? (
+          <Suspense fallback={null}>
+            <FlagsPanel />
+          </Suspense>
+        ) : null}
         <Onboarding />
         {lazyPanels.tourOpen ? (
           <Suspense fallback={null}>

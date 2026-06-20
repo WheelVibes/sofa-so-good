@@ -1,0 +1,35 @@
+{
+  "name": "plan-furniture-rotate",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+
+    { "name": "seed-item", "eval": "(() => { const s=window.__store.getState(); s.setItems([{ id:'rot-test', defId:'sofa-3seat', position:[10.5,4.1], rotation:0, props:{} }]); s.selectItem('rot-test'); })()" },
+    { "name": "item-present", "waitFor": { "store": "state.items.some(i=>i.id==='rot-test')" } },
+
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+
+    { "name": "open-view-menu", "eval": "(() => { const b=[...document.querySelectorAll('button[aria-haspopup=\"menu\"]')].find(x=>/^\\s*View/.test(x.textContent||'')); if(!b) throw new Error('View menu button not found'); if(b.getAttribute('aria-expanded')!=='true') b.click(); })()" },
+    { "name": "furniture-btn", "waitFor": { "css": "button[title^='Show furniture footprints']" }, "timeout": 20000 },
+    { "name": "show-furniture", "eval": "(() => { const fb=document.querySelector(\"button[title^='Show furniture footprints']\"); if(!fb) throw new Error('Furniture toggle not found'); if(fb.getAttribute('aria-pressed')!=='true') fb.click(); })()" },
+    { "name": "footprint-shown", "waitFor": { "css": ".plan-screen polygon" }, "timeout": 15000 },
+    { "name": "reselect-item", "eval": "window.__store.getState().selectItem('rot-test')" },
+    { "name": "handle-present", "waitFor": { "css": "[data-rot-handle='rot-test']" }, "timeout": 10000 },
+    { "name": "shot-handle", "screenshot": "rotate-handle" },
+
+    { "name": "record-start-rot", "eval": "window.__rot0 = window.__store.getState().items.find(i=>i.id==='rot-test').rotation" },
+
+    { "name": "rotate-pointerdown", "eval": "(() => { const knob=document.querySelector(\"[data-rot-handle='rot-test']\"); const kb=knob.getBoundingClientRect(); window.__kx=kb.left+kb.width/2; window.__ky=kb.top+kb.height/2; const opt=(x,y)=>({bubbles:true,cancelable:true,composed:true,pointerId:7,pointerType:'mouse',isPrimary:true,button:0,buttons:1,clientX:x,clientY:y}); knob.dispatchEvent(new PointerEvent('pointerdown',opt(window.__kx,window.__ky))); })()" },
+    { "name": "wait-grab-commit", "wait": 200 },
+    { "name": "rotate-pointermove", "eval": "(() => { const svg=document.querySelector('.plan-screen svg'); const opt=(x,y)=>({bubbles:true,cancelable:true,composed:true,pointerId:7,pointerType:'mouse',isPrimary:true,button:0,buttons:1,clientX:x,clientY:y}); /* Knob starts due-south of the item centre; sweep it up-and-left a quarter-turn so the pointer angle changes well past one 15-deg step. */ svg.dispatchEvent(new PointerEvent('pointermove',opt(window.__kx-160,window.__ky-160))); })()" },
+
+    { "name": "rotation-changed", "waitFor": { "store": "state.items.find(i=>i.id==='rot-test').rotation !== window.__rot0", "timeout": 5000 } },
+    { "name": "rotate-pointerup", "eval": "(() => { const svg=document.querySelector('.plan-screen svg'); const opt=(x,y)=>({bubbles:true,cancelable:true,composed:true,pointerId:7,pointerType:'mouse',isPrimary:true,button:0,buttons:1,clientX:x,clientY:y}); svg.dispatchEvent(new PointerEvent('pointerup',opt(window.__kx-160,window.__ky-160))); })()" },
+    { "name": "assert-snapped", "eval": "(() => { const r=window.__store.getState().items.find(i=>i.id==='rot-test').rotation; const step=Math.PI/12; const rem=Math.abs(((r%step)+step)%step); if (rem>1e-6 && Math.abs(rem-step)>1e-6) throw new Error('rotation not 15-deg snapped: '+r); return r; })()" },
+    { "name": "shot-rotated", "screenshot": "rotated" }
+  ]
+}

@@ -160,6 +160,8 @@ export type PrimitiveKind =
   | 'SmallSculpture'
   | 'DeskPlant'
   | 'PhotoFrameCluster'
+  | 'TrailingPlant'
+  | 'DecorTray'
 
 export type ParamField =
   | {

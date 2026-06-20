@@ -8,6 +8,7 @@ import { GltfErrorBoundary } from './GltfErrorBoundary'
 import { GltfModel } from './GltfModel'
 import { selectGltfRender } from './gltfRender'
 import { PRIMITIVE_COMPONENTS } from './primitives'
+import { surfaceDecalSpec } from './surfaceDecal'
 import { isTilted, itemRotation } from './tiltRotation'
 import type { FurnitureDef, FurnitureItem, GltfDef } from './types'
 
@@ -190,6 +191,18 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
           return null
         const obb = itemFootprint(item, def)
         return <ContactShadow w={obb.hx * 2} d={obb.hz * 2} y={-liftY} />
+      })()}
+      {/* Surface contact decal (PC2-CONTACT-AO-DECOR): a small, faint blob under
+          decor resting ON a table/shelf, so vases/books/bowls/plants read as
+          sitting there rather than pasted on. Qualification is pure + tested in
+          `surfaceDecal.ts`; the prop self-lifts to `surfaceHeight`, so the decal
+          sits there (just above the host top). Only when contact shadows are on. */}
+      {(() => {
+        if (!contactShadow || passive) return null
+        const obb = itemFootprint(item, def)
+        const spec = surfaceDecalSpec(def, item.props, obb.hx, obb.hz)
+        if (!spec) return null
+        return <ContactShadow w={spec.w} d={spec.d} y={spec.y} opacity={0.34} scale={1.35} />
       })()}
       {/* Mirror flips in local space. three.js flips winding/normals for the
           negative-determinant matrix, so lighting + culling stay correct. */}

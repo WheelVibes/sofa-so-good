@@ -263,7 +263,7 @@ const PlanUpperLevelZ = z.object({
   openings: z.array(PlanOpeningZ),
   rooms: z.array(PlanRoomZ),
 })
-const FloorPlanZ = z.object({
+export const FloorPlanZ = z.object({
   id: z.string(),
   name: z.string(),
   // Template categorisation (housing type → project → apartment type). Optional

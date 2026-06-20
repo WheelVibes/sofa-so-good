@@ -1,4 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useFeature } from '../features/useFeature'
+import {
+  FOCAL_PRESETS,
+  FOCUS_MAX_M,
+  FOCUS_MIN_M,
+  FSTOP_PRESETS,
+} from '../scene/cameras/cameraLensSettings'
 import type { HqRenderSession } from '../scene/pathtrace/hqRenderSession'
 import { getHqRenderSource } from '../scene/pathtrace/hqRenderSource'
 import { useStore } from '../state/store'
@@ -18,7 +25,8 @@ const RESOLUTIONS = [
 
 const SAMPLE_STEPS = [64, 128, 256, 512, 1024] as const
 
-/** Photographic depth-of-field stops (F5); 0 = off (pinhole). */
+/** Simple-fallback photographic DoF stops (F5); 0 = off (pinhole). Used when the
+ *  full lens controls (`cameraDof` flag) are off. */
 const DOF_STOPS = [
   { v: 0, label: 'DoF off' },
   { v: 8, label: 'f/8 · subtle' },
@@ -32,13 +40,29 @@ const DOF_STOPS = [
  * three-gpu-pathtracer) from the live scene + camera pose; samples accumulate
  * with a live preview + progress, downloadable at any point. The session is
  * fully disposed on close, so the live raster pipeline is never affected.
+ *
+ * Lens + depth-of-field controls (PC2-CAM-DOF-LENS) are gated by the `cameraDof`
+ * feature flag (pro tier): when on, the user picks a focal length + aperture +
+ * focus distance, wired through the store (persisted via qualityPrefs). When off
+ * (Simple mode), the lone f-stop dropdown is the fallback.
  */
 export function HqRenderModal() {
   const open = useStore((s) => s.hqRenderOpen)
   const setOpen = useStore((s) => s.setHqRenderOpen)
+  const hasLensControls = useFeature('cameraDof')
+
+  // Lens + DoF live in the store (shared with the raster pass + persisted).
+  const lensFocalMm = useStore((s) => s.lensFocalMm)
+  const dofFStop = useStore((s) => s.dofFStop)
+  const dofFocusDistance = useStore((s) => s.dofFocusDistance)
+  const dofAuto = useStore((s) => s.dofAuto)
+  const setLensFocalMm = useStore((s) => s.setLensFocalMm)
+  const setDofFStop = useStore((s) => s.setDofFStop)
+  const setDofFocusDistance = useStore((s) => s.setDofFocusDistance)
+  const setDofAuto = useStore((s) => s.setDofAuto)
+
   const [resId, setResId] = useState<string>('1080')
   const [maxSamples, setMaxSamples] = useState<number>(256)
-  const [fStop, setFStop] = useState<number>(0)
   const [samples, setSamples] = useState(0)
   const [phase, setPhase] = useState<'idle' | 'building' | 'rendering' | 'done' | 'error'>('idle')
   const sessionRef = useRef<HqRenderSession | null>(null)
@@ -74,7 +98,10 @@ export function HqRenderModal() {
         width: res.w,
         height: res.h,
         maxSamples,
-        fStop: fStop || undefined,
+        fStop: dofFStop || undefined,
+        // Lens + manual focus only when the pro lens controls are enabled.
+        focalLengthMm: hasLensControls ? lensFocalMm : undefined,
+        focusDistance: hasLensControls && !dofAuto ? dofFocusDistance : undefined,
         onProgress: (n) => setSamples(n),
         onDone: () => setPhase('done'),
         onError: (err) => {
@@ -95,7 +122,16 @@ export function HqRenderModal() {
       if (import.meta.env.DEV) console.warn('HQ render failed to start:', err)
       setPhase('error')
     }
-  }, [resId, maxSamples, fStop, teardown])
+  }, [
+    resId,
+    maxSamples,
+    dofFStop,
+    hasLensControls,
+    lensFocalMm,
+    dofAuto,
+    dofFocusDistance,
+    teardown,
+  ])
 
   const download = () => {
     const session = sessionRef.current
@@ -111,6 +147,7 @@ export function HqRenderModal() {
   }
 
   const busy = phase === 'building' || phase === 'rendering'
+  const dofOn = dofFStop > 0
 
   return (
     <Modal
@@ -149,20 +186,89 @@ export function HqRenderModal() {
                 </option>
               ))}
             </select>
-            <select
-              className="input"
-              aria-label="Depth of field"
-              value={fStop}
-              onChange={(e) => setFStop(Number(e.target.value))}
-              disabled={busy}
-              title="Focus locks on whatever is at the centre of the view"
-            >
-              {DOF_STOPS.map((d) => (
-                <option key={d.v} value={d.v}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+            {hasLensControls ? (
+              <>
+                <select
+                  className="input"
+                  aria-label="Lens focal length"
+                  value={lensFocalMm}
+                  onChange={(e) => setLensFocalMm(Number(e.target.value))}
+                  disabled={busy}
+                  title="Lens focal length (wider = more of the room, longer = tighter perspective)"
+                >
+                  {FOCAL_PRESETS.map((f) => (
+                    <option key={f.mm} value={f.mm}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="input"
+                  aria-label="Aperture (f-stop)"
+                  value={dofFStop}
+                  onChange={(e) => setDofFStop(Number(e.target.value))}
+                  disabled={busy}
+                  title="Aperture — lower f-stop = shallower depth of field (more background blur)"
+                >
+                  {FSTOP_PRESETS.map((d) => (
+                    <option key={d.v} value={d.v}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+                {dofOn ? (
+                  <label
+                    className="panel-sub flex items-center gap-1"
+                    style={{ textTransform: 'none', letterSpacing: 0 }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={dofAuto}
+                      onChange={(e) => setDofAuto(e.target.checked)}
+                      disabled={busy}
+                      aria-label="Auto-focus on the centre of the view"
+                    />
+                    Auto focus
+                  </label>
+                ) : null}
+                {dofOn && !dofAuto ? (
+                  <label
+                    className="panel-sub flex items-center gap-1"
+                    style={{ textTransform: 'none', letterSpacing: 0 }}
+                  >
+                    Focus
+                    <input
+                      className="input"
+                      type="number"
+                      min={FOCUS_MIN_M}
+                      max={FOCUS_MAX_M}
+                      step={0.1}
+                      value={dofFocusDistance}
+                      onChange={(e) => setDofFocusDistance(Number(e.target.value))}
+                      disabled={busy}
+                      aria-label="Focus distance (metres)"
+                      style={{ width: 72 }}
+                    />
+                    m
+                  </label>
+                ) : null}
+              </>
+            ) : (
+              <select
+                className="input"
+                aria-label="Depth of field"
+                value={dofFStop}
+                onChange={(e) => setDofFStop(Number(e.target.value))}
+                disabled={busy}
+                title="Focus locks on whatever is at the centre of the view"
+              >
+                {DOF_STOPS.map((d) => (
+                  <option key={d.v} value={d.v}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {phase === 'rendering' ? (

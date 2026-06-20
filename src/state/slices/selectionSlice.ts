@@ -106,6 +106,11 @@ export const createSelectionSlice: SliceCreator<SelectionSlice, RootState> = (se
       selectedRoomId: null,
       selectedWall: null,
       activeGroupId: null,
+      // Picking a placed item in the 2D plan editor must take over the property
+      // panel from any wall/room/opening selection (and vice versa) so the plan
+      // furniture inspector and the plan-element inspector are never both live.
+      // No-op in the 3D editor where planSelection is already null.
+      ...(id ? { planSelection: null } : {}),
     }),
   setSelectedItemIds: (ids) =>
     set({

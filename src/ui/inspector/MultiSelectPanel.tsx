@@ -30,6 +30,7 @@ export function MultiSelectPanel() {
   const ungroup = useStore((s) => s.ungroup)
   const catalog = useCatalog()
   const copyAppearanceOn = useFeature('copyAppearance')
+  const groupsOn = useFeature('furnitureGroups')
   // Price displays are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
   const appearanceClipboard = useStore((s) => s.appearanceClipboard)
@@ -328,27 +329,28 @@ export function MultiSelectPanel() {
               </button>
             </div>
             <div className="sec">
-              {activeGroupId ? (
-                <button
-                  type="button"
-                  onClick={() => ungroup(activeGroupId)}
-                  className="btn btn-soft btn-block"
-                >
-                  <Icon.Group width={14} height={14} />
-                  Ungroup
-                </button>
-              ) : (
-                selectedItemIds.length > 1 && (
+              {groupsOn &&
+                (activeGroupId ? (
                   <button
                     type="button"
-                    onClick={() => groupItems(selectedItemIds)}
+                    onClick={() => ungroup(activeGroupId)}
                     className="btn btn-soft btn-block"
                   >
                     <Icon.Group width={14} height={14} />
-                    Group
+                    Ungroup
                   </button>
-                )
-              )}
+                ) : (
+                  selectedItemIds.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => groupItems(selectedItemIds)}
+                      className="btn btn-soft btn-block"
+                    >
+                      <Icon.Group width={14} height={14} />
+                      Group
+                    </button>
+                  )
+                ))}
               {copyAppearanceOn && appearanceClipboard ? (
                 <button
                   type="button"

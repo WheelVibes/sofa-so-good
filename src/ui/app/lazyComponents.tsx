@@ -51,3 +51,31 @@ export const ProductTour = lazyWithRetry(() =>
 export const SmartStartWizard = lazyWithRetry(() =>
   import('../wizard/SmartStartWizard').then((m) => ({ default: m.SmartStartWizard })),
 )
+// Pro/analysis panels (PERF-004). They render only when their open flag is set,
+// so gating each behind a Suspense boundary keeps their code + heavy pure cores
+// (designScore / accessibility / renovationCost / lighting2d / SVG builders) out
+// of the Simple-tier boot bundle — most sessions never open them.
+export const BudgetPanel = lazyWithRetry(() =>
+  import('../BudgetPanel').then((m) => ({ default: m.BudgetPanel })),
+)
+export const ClearancePanel = lazyWithRetry(() =>
+  import('../ClearancePanel').then((m) => ({ default: m.ClearancePanel })),
+)
+export const DaylightPanel = lazyWithRetry(() =>
+  import('../DaylightPanel').then((m) => ({ default: m.DaylightPanel })),
+)
+export const DesignScorePanel = lazyWithRetry(() =>
+  import('../DesignScorePanel').then((m) => ({ default: m.DesignScorePanel })),
+)
+export const CommentsPanel = lazyWithRetry(() =>
+  import('../CommentsPanel').then((m) => ({ default: m.CommentsPanel })),
+)
+export const DrawingCalloutsPanel = lazyWithRetry(() =>
+  import('../DrawingCalloutsPanel').then((m) => ({ default: m.DrawingCalloutsPanel })),
+)
+export const AccessibilityPanel = lazyWithRetry(() =>
+  import('../AccessibilityPanel').then((m) => ({ default: m.AccessibilityPanel })),
+)
+export const FlagsPanel = lazyWithRetry(() =>
+  import('../FlagsPanel').then((m) => ({ default: m.FlagsPanel })),
+)

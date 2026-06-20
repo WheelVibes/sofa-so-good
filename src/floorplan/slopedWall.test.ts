@@ -34,6 +34,31 @@ describe('slopedWallTriangles', () => {
     expect(maxY).toBeCloseTo(2.6, 6) // peaks at the taller (start) end
   })
 
+  it('honours the resolved thickness for the prism cross-span (BUG-009)', () => {
+    // Wall runs along +X, so its half-thickness offsets along Z. With a 0.4 m
+    // override the full Z span must be 0.4 (not the 0.1 m internal default).
+    const tris = slopedWallTriangles({ ...sloped, thicknessM: 0.4 }, 2.6, 0.4)
+    let minZ = Infinity
+    let maxZ = -Infinity
+    for (let i = 2; i < tris.length; i += 3) {
+      minZ = Math.min(minZ, tris[i])
+      maxZ = Math.max(maxZ, tris[i])
+    }
+    expect(maxZ - minZ).toBeCloseTo(0.4, 6)
+  })
+
+  it('falls back to the category default thickness when none is passed', () => {
+    // internal wall along +X → 0.1 m default Z span.
+    const tris = slopedWallTriangles(sloped, 2.6)
+    let minZ = Infinity
+    let maxZ = -Infinity
+    for (let i = 2; i < tris.length; i += 3) {
+      minZ = Math.min(minZ, tris[i])
+      maxZ = Math.max(maxZ, tris[i])
+    }
+    expect(maxZ - minZ).toBeCloseTo(0.1, 6)
+  })
+
   it('the start end is taller than the end end (the top ramps down)', () => {
     const tris = slopedWallTriangles(sloped, 2.6)
     // Collect top-vertex heights near x≈0 (start) vs x≈4 (end).

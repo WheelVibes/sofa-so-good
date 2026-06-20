@@ -277,7 +277,7 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
           step={0.05}
           value={scale}
           onChange={(e) => updateItemProps(item.id, { scale: Number(e.target.value) })}
-          className="flex-1 accent-blue-500"
+          className="flex-1 accent-[var(--accent)]"
         />
         <span className="w-12 text-right font-mono">{scale.toFixed(2)}×</span>
       </label>
@@ -309,7 +309,7 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
                           <button
                             onClick={() => placeOnThis(m.def, finish0, category)}
                             disabled={!canPlace}
-                            className="rounded border border-blue-500 px-1.5 py-1 text-[10px] text-[var(--accent-soft-text)] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="rounded border border-[var(--accent)] px-1.5 py-1 text-[10px] text-[var(--accent-soft-text)] hover:bg-[var(--accent-soft)] disabled:cursor-not-allowed disabled:opacity-40"
                             title="Combine this with the selected item"
                           >
                             Place on this

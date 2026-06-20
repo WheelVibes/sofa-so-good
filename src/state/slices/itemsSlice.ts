@@ -179,10 +179,12 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
   },
   renameItem: (id, label) => {
     const trimmed = label.trim()
+    const next = trimmed ? trimmed : undefined
+    const cur = get().items.find((it) => it.id === id)
+    if (!cur || cur.label === next) return
+    get().pushHistory()
     set((s) => ({
-      items: s.items.map((it) =>
-        it.id === id ? { ...it, label: trimmed ? trimmed : undefined } : it,
-      ),
+      items: s.items.map((it) => (it.id === id ? { ...it, label: next } : it)),
     }))
   },
   applyStyleToAll: (id) => {

@@ -9,6 +9,13 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `PATTERN_SIZE_CAP` (256 for smooth/noise-based, 512 for high-frequency geometric patterns).
 - **World-space UVs** (`worldUv.ts`): surfaces tile at a fixed physical scale — don't bake
   per-mesh UVs or assume a unit cube.
+- **Wood grain flow (PC2-WOOD-GRAIN-FLOW)**: the wood painters (`procedural/patterns/wood.ts` —
+  planks/parquet/herringbone) give each board a deterministic per-board grain **lean** via the pure
+  `procedural/woodPlank.ts` (`plankHash` shared stateless hash, `grainLean` ~±2.6°, `shearAcross`
+  shearing across-by-along about the board mid-length) so the figure flows board-to-board instead of
+  running uniformly. The lean is keyed by a hash **independent of** each painter's tint stream, so it
+  never perturbs the existing value/warmth/phase. Keep it subtle (a larger angle reads as warped
+  laminate). Path-A micro-detail (no flag, all tiers); albedo sRGB, normal/roughness linear.
 - **Texture anisotropy** (`anisotropy.ts`, RD-401): never hardcode `texture.anisotropy`.
   Route every CanvasTexture creation (and every per-repeat `.clone()`) through
   `applyAnisotropy(tex)` — it stamps the shared cap and tracks the texture. The cap defaults

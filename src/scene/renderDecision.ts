@@ -23,7 +23,8 @@ export interface PumpInputs {
   touring: boolean
   /** Recording the canvas to video — must capture frames. */
   recording: boolean
-  /** AccumulativeShadows converging (high-tier showcase). */
+  /** Legacy showcase-accumulation flag — pinned `false` since the accumulator was
+   *  retired (RD-410); retained so the pump-input shape stays stable. */
   showcaseAccumulating: boolean
   /** A furniture drag gesture is in progress. */
   dragging: boolean
@@ -52,9 +53,12 @@ export function shouldRender(i: PumpInputs): boolean {
   return i.now < i.dirtyUntil
 }
 
-/** Settle-tail length (ms) after a discrete change. Long enough on showcase
- *  tiers to bridge into AccumulativeShadows convergence (IDLE_MS=400 + damping
- *  margin); short elsewhere (covers emissive-glow lerp + damping safety). */
+/** Settle-tail length (ms) after a discrete change — how long the demand-mode
+ *  pump keeps drawing once a discrete edit lands, covering the emissive-glow lerp
+ *  + orbit-damping safety. The longer `showcaseEnabled` branch dates from the
+ *  retired AccumulativeShadows accumulator (RD-410); kept as a pure parameter so
+ *  the signature/test stay stable and a future parked-camera converge step can
+ *  reuse it. */
 export function settleTailMs(showcaseEnabled: boolean): number {
   return showcaseEnabled ? 700 : 300
 }

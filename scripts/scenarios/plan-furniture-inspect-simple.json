@@ -1,0 +1,22 @@
+{
+  "name": "plan-furniture-inspect-simple",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "wait-items", "waitFor": { "store": "state.items.length > 0" }, "timeout": 30000 },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "select-item", "eval": "(() => { const s=window.__store.getState(); const it=s.items.find(i=>!i.levelId)||s.items[0]; s.selectItem(it.id); })()" },
+    { "name": "wait-furn-panel", "waitFor": { "store": "state.selectedItemId !== null" } },
+    { "name": "expand-panel", "eval": "[...document.querySelectorAll('button[aria-label=\"Expand properties\"]')][0]?.click()" },
+    { "name": "wait-name-field", "waitFor": { "css": "input[aria-label=\"Custom item name\"]" }, "timeout": 10000 },
+    { "name": "shot-desktop", "screenshot": "01-furn-inspector-desktop" },
+
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "reselect-item-mobile", "eval": "(() => { const s=window.__store.getState(); const it=s.items.find(i=>!i.levelId)||s.items[0]; s.selectItem(it.id); })()" },
+    { "name": "expand-mobile", "eval": "[...document.querySelectorAll('button[aria-label=\"Expand properties\"]')][0]?.click()" },
+    { "name": "wait-name-mobile", "waitFor": { "css": "input[aria-label=\"Custom item name\"]" }, "timeout": 10000 },
+    { "name": "shot-mobile", "screenshot": "02-furn-inspector-mobile" }
+  ]
+}

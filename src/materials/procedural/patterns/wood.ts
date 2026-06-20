@@ -1,6 +1,7 @@
 /** Wood-grain procedural patterns (planks, parquet, herringbone). */
 import { blank, type Fields, setPx } from '../fieldKit'
 import { clamp01, makeFbm, mulberry32 } from '../noise'
+import { grainLean, plankHash, shearAcross } from '../woodPlank'
 
 export function woodFields(base: [number, number, number], seed: number, S: number): Fields {
   const f = blank(S)
@@ -9,14 +10,17 @@ export function woodFields(base: [number, number, number], seed: number, S: numb
   const planks = 6 // boards stacked across the tile
   const plankH = S / planks
   // Per-plank tint with correlated warmth (real boards vary in hue + value).
-  const plank = Array.from({ length: planks }, () => {
+  const plank = Array.from({ length: planks }, (_, i) => {
     const val = 0.86 + rand() * 0.24 // brightness
     const warm = 0.94 + rand() * 0.16 // >1 warmer (more red, less blue)
     const phase = rand() * 10
     // A couple of knots per board at random positions along its length.
     const knots =
       rand() < 0.6 ? [{ u: rand(), v: 0.25 + rand() * 0.5, r: 0.012 + rand() * 0.02 }] : []
-    return { val, warm, phase, knots }
+    // Per-board grain lean (PC2-WOOD-GRAIN-FLOW) — keyed by a stateless hash so it
+    // doesn't perturb the val/warm/phase/knots stream above.
+    const lean = grainLean(seed, i)
+    return { val, warm, phase, knots, lean }
   })
   // Cathedral grain: low-freq along the board, tight bands across it.
   const grainAlong = makeFbm(seed + 7, 4, 3)
@@ -35,7 +39,9 @@ export function woodFields(base: [number, number, number], seed: number, S: numb
       // Bands run along the board (x); warp them with low-freq noise so the
       // grain meanders like real timber rather than ruled lines.
       const warp = grainAlong(u * 1.2 + pk.phase, v * 1.5) - 0.5
-      const band = Math.abs(Math.sin((yInPlank + warp * 0.6) * Math.PI * 9 + pk.phase))
+      // Lean the grain bands per board so the figure flows board-to-board.
+      const across = shearAcross(yInPlank, u, pk.lean)
+      const band = Math.abs(Math.sin((across + warp * 0.6) * Math.PI * 9 + pk.phase))
       const fg = fineGrain(u * 4, v)
       // Grain lines darken; fine noise adds tooth.
       let factor = pk.val * (0.92 - band * 0.16 + (fg - 0.5) * 0.06)
@@ -85,12 +91,7 @@ export function parquetFields(base: [number, number, number], seed: number, S: n
   const grain = makeFbm(seed + 7, 4, 3)
   const fine = makeFbm(seed + 99, 3, 28)
   // Deterministic per-plank hash → tint variation without a stateful RNG stream.
-  const hsh = (n: number) => {
-    let t = (n * 2654435761) >>> 0
-    t ^= t >>> 15
-    t = (t * 2246822519) >>> 0
-    return (t >>> 8) / 16777216
-  }
+  const hsh = plankHash
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const bx = Math.floor(x / B)
@@ -114,9 +115,11 @@ export function parquetFields(base: [number, number, number], seed: number, S: n
       const pid = bx * 7 + by * 13 + plankIdx * 31
       const val = 0.84 + hsh(pid) * 0.26
       const warm = 0.95 + hsh(pid + 1) * 0.12
+      const lean = grainLean(seed, pid)
       // Latewood bands run along the plank length; warp them so they meander.
       const warp = grain(along * 1.2 + (pid % 11), across * 1.5) - 0.5
-      const band = Math.abs(Math.sin((across + warp * 0.5) * Math.PI * 7 + (pid % 7)))
+      const leaned = shearAcross(across, along, lean)
+      const band = Math.abs(Math.sin((leaned + warp * 0.5) * Math.PI * 7 + (pid % 7)))
       const fg = fine(along * 4, across)
       let factor = val * (0.92 - band * 0.14 + (fg - 0.5) * 0.06)
       // Recessed grooves between planks (across) and at plank ends (along).
@@ -159,12 +162,7 @@ export function herringboneFields(base: [number, number, number], seed: number, 
   const P = 2 * n // orientation period in W-units; across (16) is a multiple → seamless
   const grain = makeFbm(seed + 7, 4, 3)
   const fine = makeFbm(seed + 99, 3, 28)
-  const hsh = (k: number) => {
-    let t = (k * 2654435761) >>> 0
-    t ^= t >>> 15
-    t = (t * 2246822519) >>> 0
-    return (t >>> 8) / 16777216
-  }
+  const hsh = plankHash
   const wrap = (v: number) => ((v % across) + across) % across
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
@@ -191,9 +189,11 @@ export function herringboneFields(base: [number, number, number], seed: number, 
       }
       const val = 0.84 + hsh(pid) * 0.26
       const warm = 0.94 + hsh(pid + 1) * 0.14
+      const lean = grainLean(seed, pid)
       // Latewood bands run along the plank length; warp so they meander.
       const warp2 = grain(alongF * 1.2 + (pid % 11), acrossF * 1.5) - 0.5
-      const band = Math.abs(Math.sin((acrossF + warp2 * 0.5) * Math.PI * 7 + (pid % 7)))
+      const leaned = shearAcross(acrossF, alongF, lean)
+      const band = Math.abs(Math.sin((leaned + warp2 * 0.5) * Math.PI * 7 + (pid % 7)))
       const fg = fine(alongF * 4, acrossF)
       let factor = val * (0.92 - band * 0.14 + (fg - 0.5) * 0.06)
       // Recessed grooves: across the width (plank sides) + at the butt ends.

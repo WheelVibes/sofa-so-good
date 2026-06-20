@@ -7,6 +7,7 @@ import {
   isAuto,
   resolveToneMapping,
   TONE_MAPPING_SETTINGS,
+  toneContextFromState,
 } from './toneContext'
 
 const NO_CONTEXT = { finishPreview: false, photoMode: false }
@@ -55,5 +56,34 @@ describe('context-aware tone mapping (RD-404)', () => {
     expect(isAuto('filmic')).toBe(false)
     expect(isAuto('agx')).toBe(false)
     expect(isAuto('neutral')).toBe(false)
+  })
+})
+
+describe('toneContextFromState', () => {
+  const wall = { wallId: 'w1', roomId: 'r1' }
+
+  it('flags finish preview when a room is selected (floor FinishPicker open)', () => {
+    expect(toneContextFromState({ selectedRoomId: 'r1', selectedWall: null })).toEqual({
+      finishPreview: true,
+      photoMode: false,
+    })
+  })
+
+  it('ALSO flags finish preview when a wall is selected (wall FinishPicker open)', () => {
+    // The regression this closes: wall-finish preview used to miss Neutral.
+    expect(toneContextFromState({ selectedRoomId: null, selectedWall: wall }).finishPreview).toBe(
+      true,
+    )
+  })
+
+  it('is not a finish preview with nothing selected (everyday scene → filmic)', () => {
+    expect(toneContextFromState({ selectedRoomId: null, selectedWall: null }).finishPreview).toBe(
+      false,
+    )
+  })
+
+  it('resolves to Neutral while a wall finish is being previewed', () => {
+    const ctx = toneContextFromState({ selectedRoomId: null, selectedWall: wall })
+    expect(resolveToneMapping('auto', ctx)).toBe('neutral')
   })
 })

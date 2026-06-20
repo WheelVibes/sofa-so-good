@@ -1,16 +1,17 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plane, Raycaster, Vector2, Vector3 } from 'three'
+import { buildGrid, queryRect, type SpatialGrid } from '../collision/broadphase'
 import { nearestWallGap, wallGapsPerSide } from '../collision/clearanceGap'
 import {
   detectEqualSpacingAxis,
   type EqualSpacing,
   relevantWallFaces,
   type Span,
-  type WallFaceInput,
 } from '../collision/equalSpacing'
 import { canPlace, itemFootprint } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
+import { resolveSurfaceDropHeight } from '../collision/surfaceDrop'
 import { wallSnapOffset } from '../collision/wallSnap'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { isIkeaDef, useCatalogGetter } from '../furniture/catalog'
@@ -18,134 +19,20 @@ import { resolveCompatible } from '../furniture/ikea/compatibility'
 import { combineOnto } from '../furniture/ikea/stacking'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { useStore } from '../state/store'
+import {
+  halfExtents,
+  pointInFootprint,
+  snapAxis,
+  snapBase,
+  staticAabbs,
+  wallFaces,
+} from './dragHelpers'
 import { boxEdges, useDisposeGeometry } from './geometryUtil'
 import { snapToGrid } from './snap'
 
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0)
-const ALIGN_TH = 0.1 // alignment snap threshold (m)
 const SPACING_TH = 0.08 // equal-spacing match tolerance (m)
 const SPACING_BAND = 1.2 // only pair items within this band on the other axis (m)
-
-/** Collision walls → axis-aligned face descriptors for equal-spacing detection. */
-function wallFaces(walls: import('../collision/walls').CollisionWall[]): WallFaceInput[] {
-  const faces: WallFaceInput[] = []
-  for (const w of walls) {
-    const t = w.thickness / 2
-    if (Math.abs(w.ax - w.bx) < 0.02) {
-      faces.push({
-        orient: 'v',
-        face: w.ax, // inner face approximated at the wall centreline ± thickness handled by caller spacing
-        spanMin: Math.min(w.az, w.bz),
-        spanMax: Math.max(w.az, w.bz),
-      })
-      // Two faces (both sides) so a piece spaced off either side is caught.
-      faces.push({
-        orient: 'v',
-        face: w.ax + t,
-        spanMin: Math.min(w.az, w.bz),
-        spanMax: Math.max(w.az, w.bz),
-      })
-      faces.push({
-        orient: 'v',
-        face: w.ax - t,
-        spanMin: Math.min(w.az, w.bz),
-        spanMax: Math.max(w.az, w.bz),
-      })
-    } else if (Math.abs(w.az - w.bz) < 0.02) {
-      faces.push({
-        orient: 'h',
-        face: w.az,
-        spanMin: Math.min(w.ax, w.bx),
-        spanMax: Math.max(w.ax, w.bx),
-      })
-      faces.push({
-        orient: 'h',
-        face: w.az + t,
-        spanMin: Math.min(w.ax, w.bx),
-        spanMax: Math.max(w.ax, w.bx),
-      })
-      faces.push({
-        orient: 'h',
-        face: w.az - t,
-        spanMin: Math.min(w.ax, w.bx),
-        spanMax: Math.max(w.ax, w.bx),
-      })
-    }
-  }
-  return faces
-}
-
-/** Axis-aligned half-extents [hx, hz] of an item's footprint at its rotation. */
-function halfExtents(
-  item: { rotation: number; props: Record<string, unknown> },
-  def: import('../furniture/types').FurnitureDef,
-): [number, number] {
-  let w = def.defaultFootprint.w
-  let d = def.defaultFootprint.d
-  if (def.kind === 'parametric') {
-    const map = def.footprintParams ?? {}
-    const wv = item.props[map.w ?? 'width']
-    const dv = item.props[map.d ?? 'depth']
-    if (typeof wv === 'number') w = wv
-    if (typeof dv === 'number') d = dv
-  }
-  const c = Math.abs(Math.cos(item.rotation))
-  const s = Math.abs(Math.sin(item.rotation))
-  return [(c * w + s * d) / 2, (s * w + c * d) / 2]
-}
-
-/** Best 1-D snap of a dragged centre (half-extent `dh`) to others' centres and
- *  edges — centre-align, edge-align, or butt-adjacent. Returns the snapped
- *  centre + the guide-line coordinate, or null if nothing's within threshold. */
-function snapAxis(
-  center: number,
-  dh: number,
-  others: Array<{ c: number; h: number }>,
-): { center: number; guide: number } | null {
-  let best: { center: number; guide: number; d: number } | null = null
-  for (const o of others) {
-    const cands: Array<{ center: number; guide: number }> = [
-      { center: o.c, guide: o.c }, // centres aligned
-      { center: o.c - o.h + dh, guide: o.c - o.h }, // near edges aligned
-      { center: o.c + o.h - dh, guide: o.c + o.h }, // far edges aligned
-      { center: o.c - o.h - dh, guide: o.c - o.h }, // butt against o's near side
-      { center: o.c + o.h + dh, guide: o.c + o.h }, // butt against o's far side
-    ]
-    for (const cand of cands) {
-      const d = Math.abs(cand.center - center)
-      if (d < ALIGN_TH && (!best || d < best.d)) best = { ...cand, d }
-    }
-  }
-  return best
-}
-
-/** True when world point (px,pz) falls inside item `it`'s footprint OBB. */
-function pointInFootprint(px: number, pz: number, it: FurnitureItem, def: FurnitureDef): boolean {
-  const obb = itemFootprint(it, def)
-  const dx = px - obb.cx
-  const dz = pz - obb.cz
-  const cos = Math.cos(obb.rot)
-  const sin = Math.sin(obb.rot)
-  // Rotate the offset into the OBB's local (axis-aligned) frame.
-  const lx = dx * cos + dz * sin
-  const lz = -dx * sin + dz * cos
-  return Math.abs(lx) <= obb.hx && Math.abs(lz) <= obb.hz
-}
-
-/** Snug-stack candidate: the dragged item is the TOP, the hovered item the
- *  BASE — engages only when the base IKEA def accepts the dragged IKEA def's
- *  category (a confirmed compatibility match). Returns the base item or null. */
-function snapBase(
-  draggedDef: FurnitureDef | undefined,
-  hoveredItem: FurnitureItem | null,
-  hoveredDef: FurnitureDef | undefined,
-): FurnitureItem | null {
-  if (!hoveredItem || !draggedDef || !hoveredDef) return null
-  if (!isIkeaDef(draggedDef) || !isIkeaDef(hoveredDef)) return null
-  const matches = resolveCompatible(hoveredDef, [draggedDef])
-  const any = Object.values(matches).some((list) => list.length > 0)
-  return any ? hoveredItem : null
-}
 
 /**
  * Tracks the active furniture drag started by Furniture.onPointerDown.
@@ -174,6 +61,16 @@ export function DragController() {
   // latest value without re-subscribing; state drives the highlight render.
   const [snapBaseId, setSnapBaseId] = useState<string | null>(null)
   const snapBaseIdRef = useRef<string | null>(null)
+  // Broadphase cache for the current pointer drag (PERF-003): the non-moved items
+  // don't move during a drag, so their spatial grid + AABBs are built once and
+  // reused across every pointermove to restrict the snug-stack + canPlace scans to
+  // the dragged item's neighbourhood. Keyed by the drag's moved-id signature so a
+  // new drag rebuilds it; cleared on drop.
+  const dragGridRef = useRef<{
+    key: string
+    grid: SpatialGrid
+    staticItems: FurnitureItem[]
+  } | null>(null)
   const setSnap = (id: string | null) => {
     if (snapBaseIdRef.current === id) return
     snapBaseIdRef.current = id
@@ -212,6 +109,20 @@ export function DragController() {
       if (state.snapEnabled) next = snapToGrid(next, state.gridSize)
 
       const group = state.dragGroupOriginals
+      // Broadphase grid for this drag (PERF-003): the items that AREN'T moving keep
+      // their positions for the whole gesture, so index them once and reuse across
+      // moves to bound the snug-stack + canPlace scans to the dragged neighbourhood.
+      const movedIds = group.length > 1 ? group.map((g) => g.id) : [id]
+      const movedSet = new Set(movedIds)
+      const dragKey = movedIds.join(',')
+      let cache = dragGridRef.current
+      if (!cache || cache.key !== dragKey) {
+        const { aabbs, staticItems } = staticAabbs(state.items, movedSet, catalogRef.current)
+        cache = { key: dragKey, grid: buildGrid(aabbs), staticItems }
+        dragGridRef.current = cache
+      }
+      const broadphase = cache
+
       // Smart alignment guides: for a single-item drag, snap centres AND edges
       // to nearby items (line up rows / butt pieces together), surfacing guide
       // lines. Edge + adjacency candidates make pieces sit flush.
@@ -222,6 +133,10 @@ export function DragController() {
         const dragDef = dragItem ? catalogRef.current[dragItem.defId] : undefined
         if (dragDef && dragItem) {
           const dh = halfExtents(dragItem, dragDef)
+          // Walls are immutable for the duration of a pointer drag, and the snap +
+          // equal-spacing passes need the same set — resolve it ONCE per move
+          // instead of building it twice (PERF-003).
+          const dragWalls = placementWalls(state) ?? buildCollisionWalls(state.doors)
           const others = state.items
             .filter((i) => i.id !== id && catalogRef.current[i.defId])
             .map((i) => ({ c: i.position, h: halfExtents(i, catalogRef.current[i.defId]) }))
@@ -246,17 +161,15 @@ export function DragController() {
           // Flush-to-wall snap (corner-capable). Skipped when grid-snap is on —
           // that's a deliberate precise mode the user shouldn't have overridden.
           if (!state.snapEnabled) {
-            // Bound the snap to the same walls placement validates against, but
-            // never let it be empty (the default flat needs its door-aware walls
-            // to snap to, where placementWalls returns undefined).
-            const wallsForSnap = placementWalls(state) ?? buildCollisionWalls(state.doors)
+            // Bound the snap to the same walls placement validates against (resolved
+            // once above as `dragWalls`).
             const box = {
               x0: next[0] - dh[0],
               z0: next[1] - dh[1],
               x1: next[0] + dh[0],
               z1: next[1] + dh[1],
             }
-            const ws = wallSnapOffset(box, wallsForSnap)
+            const ws = wallSnapOffset(box, dragWalls)
             if (ws.dx) next = [next[0] + ws.dx, next[1]]
             if (ws.dz) next = [next[0], next[1] + ws.dz]
           }
@@ -266,8 +179,7 @@ export function DragController() {
           // neighbours to the same row/column (within SPACING_BAND on the other
           // axis) so we only pair items the user is visually aligning — this also
           // bounds the cost in busy scenes. The wall faces feed the same band.
-          const wallsForSpacing = placementWalls(state) ?? buildCollisionWalls(state.doors)
-          const faces = wallFaces(wallsForSpacing)
+          const faces = wallFaces(dragWalls)
           const dragBox = {
             x0: next[0] - dh[0],
             z0: next[1] - dh[1],
@@ -318,8 +230,18 @@ export function DragController() {
         const draggedItem = itemsById.get(id)
         const draggedDef = draggedItem ? catalogRef.current[draggedItem.defId] : undefined
         if (draggedItem && draggedDef) {
-          for (const cand of state.items) {
-            if (cand.id === id) continue
+          // Only an item whose footprint AABB contains the drop point can host the
+          // snug-stack — query the grid for those instead of scanning the scene
+          // (the grid excludes the dragged item, so no self-check is needed).
+          const nearIds = queryRect(broadphase.grid, {
+            minX: next[0],
+            maxX: next[0],
+            minZ: next[1],
+            maxZ: next[1],
+          })
+          for (const cid of nearIds) {
+            const cand = itemsById.get(cid)
+            if (!cand) continue
             const candDef = catalogRef.current[cand.defId]
             if (!candDef) continue
             if (!pointInFootprint(next[0], next[1], cand, candDef)) continue
@@ -347,14 +269,28 @@ export function DragController() {
       // Re-read state so freshly-moved items are included in canPlace.
       const after = useStore.getState()
       const afterById = new Map(after.items.map((i) => [i.id, i]))
-      const movedIds = group.length > 1 ? group.map((g) => g.id) : [id]
-      // For group drags, ignore in-group pairs when checking collisions —
-      // their relative positions don't change, so any pair-wise overlap
-      // would have existed at drag-start. Walls and unselected items
-      // still apply.
-      const inGroup = new Set(movedIds)
-      const others =
-        group.length > 1 ? after.items.filter((it) => !inGroup.has(it.id)) : after.items
+      // Broadphase (PERF-003): collision only happens between items whose footprint
+      // AABBs overlap, so restrict canPlace's neighbour set to the union of the
+      // moved items' grid neighbourhoods. The static grid already excludes the
+      // moved/in-group items (so in-group pairs are skipped, as before) and the
+      // dragged item itself; a non-overlapping AABB can't have an overlapping OBB,
+      // so this is result-equivalent to scanning the whole scene.
+      const neighbourIds = new Set<string>()
+      for (const mid of movedIds) {
+        const item = afterById.get(mid)
+        const def = item ? catalogRef.current[item.defId] : null
+        if (!item || !def) continue
+        const [mhx, mhz] = halfExtents(item, def)
+        for (const nid of queryRect(broadphase.grid, {
+          minX: item.position[0] - mhx,
+          maxX: item.position[0] + mhx,
+          minZ: item.position[1] - mhz,
+          maxZ: item.position[1] + mhz,
+        })) {
+          neighbourIds.add(nid)
+        }
+      }
+      const others = broadphase.staticItems.filter((it) => neighbourIds.has(it.id))
       // Inside the per-room editor this is the room's solid perimeter (so a
       // piece can't be dragged past the walls into adjacent rooms); elsewhere a
       // custom plan's own walls / the fixed flat's door-aware walls.
@@ -398,6 +334,9 @@ export function DragController() {
     }
 
     const onUp = () => {
+      // Drop ends the gesture — invalidate the broadphase cache so the next drag
+      // (or a between-drags edit elsewhere) rebuilds the grid from fresh state.
+      dragGridRef.current = null
       const state = useStore.getState()
       const id = state.draggingItemId
       if (!id) {
@@ -480,8 +419,41 @@ export function DragController() {
           state.moveItem(id, state.dragOriginal.position)
           state.rotateItem(id, state.dragOriginal.rotation)
         }
+      } else if (state.dragGroupOriginals.length <= 1) {
+        // Surface-drop magnetism (PC2-SURFACE-DROP): a single surface item (one
+        // that rests on a surface — carries a numeric `surfaceHeight`) dropped
+        // over a table/shelf snaps its rest height onto that surface's top, so
+        // decor sits on whatever you drop it on. No support under it → leave the
+        // height as-is. Committed via setItems (no extra history push) so it rides
+        // the drag's single startDrag snapshot.
+        const cur = useStore.getState()
+        const dropped = cur.items.find((i) => i.id === id)
+        const def = dropped ? catalogRef.current[dropped.defId] : undefined
+        const sh = dropped?.props['surfaceHeight']
+        if (dropped && def && typeof sh === 'number') {
+          const top = resolveSurfaceDropHeight(
+            dropped.position[0],
+            dropped.position[1],
+            cur.items,
+            catalogRef.current,
+            id,
+            dropped.levelId,
+          )
+          if (top != null && Math.abs(top - sh) > 1e-3) {
+            cur.setItems(
+              cur.items.map((it) =>
+                it.id === id ? { ...it, props: { ...it.props, surfaceHeight: top } } : it,
+              ),
+            )
+          }
+        }
       }
       state.endDrag()
+      // A click that didn't actually move/snap anything still pushed a history
+      // snapshot in startDrag — drop it so the user's first undo isn't a dead
+      // no-op step (BUG-016). A real drag changed an array reference, so this is
+      // a no-op there.
+      useStore.getState().dropRedundantHistory()
     }
 
     window.addEventListener('pointermove', onMove)

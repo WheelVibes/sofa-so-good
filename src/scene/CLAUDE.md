@@ -21,8 +21,26 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **Tier-gate GPU cost.** Read `RenderTier`; **Performance is the default for everyone**
   (flat: no shadows/IBL/post, DPR 1). Heavy effects (real mirrors, post stack) are
   High/Maximum only (`mirrorReflectorConfig(tier)` is the pattern).
+- **Bloom only blooms genuine HDR emitters, never broad daytime surfaces** (RD-409). The
+  Bloom `luminanceThreshold` (`look.BLOOM.luminanceThreshold`, 1.35) sits **above** sunlit
+  white walls/ceilings under the day IBL + ~1.2 graded exposure and **below** the night
+  light-fixture emissive peaks (`lighting/fixtureGlow.ts` — shade ~1.6 / strip ~1.8 / bulb
+  ~2.05). A lower threshold (the old 1.05) smeared a milky white veil across the whole
+  High/Maximum frame in daylight. The two live in lock-step: the `fixtureGlow` test asserts
+  `BLOOM_LUMINANCE_THRESHOLD === look.BLOOM.luminanceThreshold` and that every emitter peak
+  clears it with margin — **raise/lower one and you must move the other**, or daytime blooms
+  again or fixtures stop glowing.
+- **No `AccumulativeShadows` ground catcher** (RD-410, retired). It assumed one hero object
+  over an empty floor; for a whole apartment (own floor + real PCF sun shadows + contact
+  shadows + corner AO) its 19 m catcher plane caught the building silhouette and drew a large
+  dark rectangle on the ground, bigger than the footprint. `ShowcaseController` renders
+  nothing and pins `showcaseAccumulating=false`; the `showcase` quality flag is `false` on
+  every tier. Grounding comes from the cues above — don't reintroduce a scene-wide
+  shadow-catcher plane.
 - **Cheap baked AO on the flat tier.** With no SSAO on Performance/Medium, grounding is
-  faked with shared-texture alpha decals: `ContactShadow.tsx` (under-furniture blob, RZ1)
+  faked with shared-texture alpha decals: `ContactShadow.tsx` (under-furniture blob, RZ1; also a
+  fainter/tighter **surface decal under small decor** resting on a table/shelf — PC2-CONTACT-AO-DECOR,
+  qualified by the pure `furniture/surfaceDecal.ts` and rendered from `furniture/Furniture.tsx`)
   and `CornerAO.tsx` `WallFloorAO` (wall/floor corner strip, RD-403). Both use ONE shared
   `CanvasTexture`, a single transparent plane each, `depthWrite:false` + `polygonOffset` +
   small `+Y`. Corner AO mounts inside the wall's local frame in `WallSegment.tsx` (follows
@@ -36,6 +54,15 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   raw for the renderer. An explicit pick wins; `'auto'` picks Neutral while previewing finishes,
   AgX for a photo context, else filmic. Keep `look.ts` pure (no three) — the three constant comes
   from `toneMappingThree.ts`.
+- **Backdrops paint `scene.background` only — never `scene.environment`.** Walk-mode
+  surroundings (`SceneBackdrop.tsx`) bake an equirect into `scene.background`; the static photo
+  presets (`backdropEquirect.ts`/`backdropHorizon.ts`) and the sun-driven `sky` (RD-412,
+  `proceduralSky` flag) both follow this. The `sky` math is pure + headless
+  (`lighting/skyGradient.ts` analytic Preetham, `lighting/skyRebuild.ts` rebuild predicate); the
+  baker re-paints debounced when the sun crosses the threshold and **disposes the old texture**.
+  The IBL/PMREM/bloom/exposure path is a **separate, tuned, real-GPU concern** — do NOT feed a
+  backdrop into `scene.environment` or touch `SceneEnvironment.tsx`/`Lighting.tsx`/`look.ts` from
+  the backdrop code (the bloom-threshold lock-step regresses, RD-409).
 - **Materials**: pass a real three `Material` to `material=`, never a props object.
 - **Mount expensive controllers once**; collapse repeat geometry via `InstancedBoxes`.
   `ContextLossGuard` must stay mounted in **both** Canvases (main + room editor).

@@ -41,7 +41,6 @@ import {
 import {
   arcFromMidpoint,
   isCurvedWall,
-  nearestArcLength,
   pointAtArcLength,
   wallArcLength,
   wallCurveMidpoint,
@@ -49,9 +48,11 @@ import {
 } from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
+import { computeRotation, pointerAngle } from '../../scene/selection/rotateGizmoMath'
 import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
+import { CategoryIcon } from '../catalog/CategoryIcon'
 import { openDocs } from '../docsUrl'
 import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
@@ -64,6 +65,11 @@ import {
   removePersistedBackdrop,
   updateBackdropMeta,
 } from './backdropPersist'
+import {
+  alongWall as alongWallGeo,
+  nearestWall as nearestWallGeo,
+  planCenter as planCenterGeo,
+} from './editor/floorPlanGeometry'
 import { GridLines } from './editor/GridLines'
 import { PlanLibrary } from './editor/PlanLibrary'
 import { PlanMenu } from './editor/PlanMenu'
@@ -91,6 +97,7 @@ import {
   wrapLabel,
 } from './editor/planLabelDisplay'
 import { snapToWalls } from './editor/snapToWalls'
+import { snapWallAngle } from './editor/snapWallAngle'
 import { WallDimension } from './editor/WallDimension'
 import { WallNumericEntry } from './editor/WallNumericEntry'
 import { exportPlanPng } from './exportPlanPng'
@@ -225,6 +232,16 @@ export function FloorPlanEditor() {
     cz: number
     s0: [number, number]
     e0: [number, number]
+    a0: number
+  } | null>(null)
+  // Active furniture rotate (handle): item centre + its rotation at grab + the
+  // pointer angle at grab. The gesture tracks the handle relative to the grab
+  // (picking up the ring never snaps the piece) — mirrors the 3D RotateGizmo.
+  const [rotatingItem, setRotatingItem] = useState<{
+    id: string
+    cx: number
+    cz: number
+    startRot: number
     a0: number
   } | null>(null)
   // Active tour-stop drag: grab offset from the stop's world position.
@@ -457,30 +474,10 @@ export function FloorPlanEditor() {
   // True plan centre = midpoint of its actual bounding box (leftmost↔rightmost,
   // topmost↔bottommost of walls + rooms), NOT ew/2,ed/2 — the plan needn't start
   // at world 0, and we want that box's middle centred in the canvas.
-  const planCenter = useMemo<[number, number]>(() => {
-    let minX = Number.POSITIVE_INFINITY
-    let minZ = Number.POSITIVE_INFINITY
-    let maxX = Number.NEGATIVE_INFINITY
-    let maxZ = Number.NEGATIVE_INFINITY
-    const acc = (x: number, z: number) => {
-      if (x < minX) minX = x
-      if (x > maxX) maxX = x
-      if (z < minZ) minZ = z
-      if (z > maxZ) maxZ = z
-    }
-    for (const w of levelPlan.walls) {
-      acc(w.start[0], w.start[1])
-      acc(w.end[0], w.end[1])
-    }
-    for (const r of levelPlan.rooms) {
-      if (r.polygon && r.polygon.length >= 3) for (const [x, z] of r.polygon) acc(x, z)
-      else {
-        acc(r.origin[0], r.origin[1])
-        acc(r.origin[0] + r.width, r.origin[1] + r.depth)
-      }
-    }
-    return Number.isFinite(minX) ? [(minX + maxX) / 2, (minZ + maxZ) / 2] : [ew / 2, ed / 2]
-  }, [levelPlan, ew, ed])
+  const planCenter = useMemo<[number, number]>(
+    () => planCenterGeo(levelPlan.walls, levelPlan.rooms, [ew / 2, ed / 2]),
+    [levelPlan, ew, ed],
+  )
   const planCenterRef = useRef(planCenter)
   planCenterRef.current = planCenter
   const basePX = useMemo(() => {
@@ -766,61 +763,42 @@ export function FloorPlanEditor() {
 
   if (!editing) return null
 
+  // Raw pointer → grid-snapped world point (no wall magnetism). Split out so the
+  // wall-draw path can aim the grid point onto an angle increment *before* the
+  // wall snap gets the final say (grid → angle → wall-snap).
+  const pointerGrid = (e: React.PointerEvent): [number, number] => {
+    const rect = svgRef.current!.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * W
+    const y = ((e.clientY - rect.top) / rect.height) * H
+    return [snap(x / PX - GRID_MARGIN), snap(y / PX - GRID_MARGIN)]
+  }
+
   const pointerWorld = (
     e: React.PointerEvent,
     excludeWallId?: string,
     snapEdges?: boolean,
   ): [number, number] => {
-    const rect = svgRef.current!.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * W
-    const y = ((e.clientY - rect.top) / rect.height) * H
-    const wx = snap(x / PX - GRID_MARGIN)
-    const wz = snap(y / PX - GRID_MARGIN)
     // Vertex snap (always) + edge snap (wall drawing only): connect walls cleanly
     // at corners, and let a new wall tee mid-span into an existing one. Skip the
     // wall being vertex-dragged so its own endpoints don't capture the cursor.
-    return snapToWalls([wx, wz], levelPlan.walls, { excludeWallId, edges: snapEdges })
+    return snapToWalls(pointerGrid(e), levelPlan.walls, { excludeWallId, edges: snapEdges })
+  }
+
+  // Wall-draw endpoint: grid → angle-snap (15° increments, hold Shift to bypass)
+  // → wall-snap, so freehand walls land on clean directions while a join to a real
+  // corner/edge still wins near existing geometry.
+  const wallDrawEnd = (e: React.PointerEvent, anchor: [number, number]): [number, number] => {
+    const grid = pointerGrid(e)
+    const aimed = e.shiftKey ? grid : snapWallAngle(anchor, grid)
+    return snapToWalls(aimed, levelPlan.walls, { edges: true })
   }
 
   /** Nearest active-storey wall to a world point, with the projected offset. */
-  const nearestWall = (
-    wx: number,
-    wz: number,
-  ): { wall: PlanWall; offset: number; dist: number } | null => {
-    let best: { wall: PlanWall; offset: number; dist: number } | null = null
-    for (const wall of levelPlan.walls) {
-      // Curved walls: measure against the arc (distance + arc-length offset) so a
-      // click on the bulged span is detected and the opening lands at the right
-      // arc position; straight walls use the chord projection.
-      if (isCurvedWall(wall)) {
-        const { offset, dist } = nearestArcLength(wall, [wx, wz])
-        if (!best || dist < best.dist) best = { wall, offset, dist }
-        continue
-      }
-      const dx = wall.end[0] - wall.start[0]
-      const dz = wall.end[1] - wall.start[1]
-      const len = Math.hypot(dx, dz)
-      if (len === 0) continue
-      const t = ((wx - wall.start[0]) * dx + (wz - wall.start[1]) * dz) / (len * len)
-      const ct = Math.max(0, Math.min(1, t))
-      const px = wall.start[0] + ct * dx
-      const pz = wall.start[1] + ct * dz
-      const dist = Math.hypot(wx - px, wz - pz)
-      if (!best || dist < best.dist) best = { wall, offset: ct * len, dist }
-    }
-    return best && best.dist < 0.4 ? best : null
-  }
+  const nearestWall = (wx: number, wz: number) => nearestWallGeo(levelPlan.walls, wx, wz)
 
   // Along-wall distance of a world point: arc-length on a curved wall, chord
   // projection on a straight one. Used to drag an opening along its wall.
-  const alongWall = (wall: PlanWall, x: number, z: number): number => {
-    if (isCurvedWall(wall)) return nearestArcLength(wall, [x, z]).offset
-    const len = wallLength(wall)
-    if (len === 0) return 0
-    const ux = (wall.end[0] - wall.start[0]) / len
-    const uz = (wall.end[1] - wall.start[1]) / len
-    return (x - wall.start[0]) * ux + (z - wall.start[1]) * uz
-  }
+  const alongWall = (wall: PlanWall, x: number, z: number): number => alongWallGeo(wall, x, z)
 
   // Start a canvas pan from a pointer-down (used by middle/right-drag, view mode,
   // and mobile-edit drags that aren't moving the selected item).
@@ -847,7 +825,12 @@ export function FloorPlanEditor() {
     if (editMode !== 'edit') return false
     if (isMobile && !isSelectedNow) return false
     e.stopPropagation()
-    svgRef.current?.setPointerCapture(e.pointerId)
+    // Pointer capture keeps the drag tracking even if the pointer leaves the
+    // handle; guard it (a stale/synthetic pointerId throws InvalidPointerId on
+    // some browsers, which must not abort the gesture).
+    try {
+      svgRef.current?.setPointerCapture(e.pointerId)
+    } catch {}
     return true
   }
 
@@ -869,6 +852,7 @@ export function FloorPlanEditor() {
         setMovingBulge(null)
         setMovingWall(null)
         setRotatingWall(null)
+        setRotatingItem(null)
         setMovingOpening(null)
         setMovingStop(null)
         setMovingNote(null)
@@ -902,7 +886,14 @@ export function FloorPlanEditor() {
       // gesture still works (the end follows the finger before release).
       wallTapHadAnchor.current = draft !== null
       setNumericPreviewEnd(null)
-      setDraft(draft ? { ...draft, x: wx, z: wz } : { x0: wx, z0: wz, x: wx, z: wz })
+      // Chaining from an anchor: aim the end onto an angle increment (Shift to
+      // bypass) just like the desktop drag; the first tap just drops the anchor.
+      if (draft) {
+        const [ex, ez] = wallDrawEnd(e, [draft.x0, draft.z0])
+        setDraft({ ...draft, x: ex, z: ez })
+      } else {
+        setDraft({ x0: wx, z0: wz, x: wx, z: wz })
+      }
     } else if (tool === 'wall' || tool === 'room' || tool === 'scale' || tool === 'dimension') {
       setNumericPreviewEnd(null)
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
@@ -1114,6 +1105,33 @@ export function FloorPlanEditor() {
         .moveWallTo(rotatingWall.id, rot(rotatingWall.s0), rot(rotatingWall.e0), levelId)
       return
     }
+    if (rotatingItem) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const it = st.items.find((i) => i.id === rotatingItem.id)
+      const def = it ? catalogRef.current[it.defId] : undefined
+      if (!it || !def) return
+      // Reuse the 3D gizmo math: rotation tracks the handle relative to the grab,
+      // snapping to 15° marks unless Shift is held (free rotation), matching the
+      // wall rotate ring + the scene RotateGizmo. Plan world coords map x→x, z→z.
+      const angle = pointerAngle(rotatingItem.cx, rotatingItem.cz, wx, wz)
+      const next = computeRotation(rotatingItem.startRot, rotatingItem.a0, angle, !e.shiftKey)
+      // Only commit a rotation that doesn't collide with walls or other items —
+      // same rule the item move + 3D gizmo enforce. An invalid angle is skipped,
+      // leaving the last valid orientation in place (no revert needed mid-drag).
+      const planWalls = placementWalls(st, it.levelId)
+      const others = st.items.filter((o) => o.id !== it.id)
+      if (
+        canPlace({ ...it, rotation: next }, def, {
+          others,
+          defs: catalogRef.current,
+          doors: st.doors,
+          walls: planWalls,
+        })
+      )
+        st.rotateItem(it.id, next)
+      return
+    }
     if (movingOpening) {
       const [wx, wz] = pointerWorld(e)
       const st = useStore.getState()
@@ -1184,7 +1202,7 @@ export function FloorPlanEditor() {
       return
     }
     if (!draft) return
-    const [wx, wz] = pointerWorld(e, undefined, tool === 'wall')
+    const [wx, wz] = tool === 'wall' ? wallDrawEnd(e, [draft.x0, draft.z0]) : pointerWorld(e)
     setDraft({ ...draft, x: wx, z: wz })
   }
 
@@ -1198,6 +1216,11 @@ export function FloorPlanEditor() {
       // still down, keep waiting rather than running the single-touch up logic.
       if (wasPinching || touchPts.current.size >= 1) return
     }
+    // A moving gesture (item/wall/vertex/opening/…) pushes an undo snapshot on
+    // grab; if the grab didn't move anything, drop the redundant entry so the
+    // first undo isn't a dead step (BUG-016). A no-op when a real edit changed a
+    // store reference, and when the grab never pushed.
+    useStore.getState().dropRedundantHistory()
     if (panRef.current) {
       const moved = panDidMove.current
       panRef.current = null
@@ -1240,6 +1263,10 @@ export function FloorPlanEditor() {
     }
     if (rotatingWall) {
       setRotatingWall(null)
+      return
+    }
+    if (rotatingItem) {
+      setRotatingItem(null)
       return
     }
     if (movingOpening) {
@@ -1420,7 +1447,9 @@ export function FloorPlanEditor() {
                 ? 'Auto room — click inside a wall-enclosed area to make a room from it'
                 : t === 'polyline'
                   ? 'Polyline markup — click vertices, Enter to finish (open), click the first to close'
-                  : undefined
+                  : t === 'wall'
+                    ? 'Wall — drag to draw; snaps to 15° angles (hold Shift for any angle)'
+                    : undefined
           }
         >
           {toolLabel(t)}
@@ -2241,31 +2270,53 @@ export function FloorPlanEditor() {
                   .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
                   .join(' ')
                 const isSel = selectedItemId === it.id
+                // Top-down category glyph centred in the footprint (PC2-PLAN-FURN-
+                // ICONS) so a layout reads at a glance. Shown only when no text
+                // label covers the centre (labels off + not selected), sized to
+                // the footprint and hidden when too small to read.
+                const cx = toPx(it.position[0])
+                const cy = toPx(it.position[1])
+                const glyphPx = Math.min(Math.min(obb.hx, obb.hz) * 2 * PX * 0.55, 22)
+                const showGlyph = !labelsOn && !isSel && glyphPx >= 9
                 return (
-                  <polygon
-                    key={it.id}
-                    points={pts}
-                    fill={
-                      isSel
-                        ? 'var(--accent-soft)'
-                        : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
-                    }
-                    fillOpacity={isSel ? 0.95 : 0.55}
-                    stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
-                    strokeWidth={isSel ? 2 : 1}
-                    strokeLinejoin="round"
-                    style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
-                    onPointerDown={(e) => {
-                      if (tool !== 'select') return
-                      const st = useStore.getState()
-                      const willMove = beginElementDrag(e, selectedItemId === it.id)
-                      st.selectItem(it.id) // a tap always selects (for inspect/then-drag)
-                      if (!willMove) return // view / unselected-on-touch: let it pan
-                      const [wx, wz] = pointerWorld(e)
-                      st.pushHistory()
-                      setMovingItem({ id: it.id, gx: wx - it.position[0], gz: wz - it.position[1] })
-                    }}
-                  />
+                  <g key={it.id}>
+                    <polygon
+                      points={pts}
+                      fill={
+                        isSel
+                          ? 'var(--accent-soft)'
+                          : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
+                      }
+                      fillOpacity={isSel ? 0.95 : 0.55}
+                      stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                      strokeWidth={isSel ? 2 : 1}
+                      strokeLinejoin="round"
+                      style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                      onPointerDown={(e) => {
+                        if (tool !== 'select') return
+                        const st = useStore.getState()
+                        const willMove = beginElementDrag(e, selectedItemId === it.id)
+                        st.selectItem(it.id) // a tap always selects (for inspect/then-drag)
+                        if (!willMove) return // view / unselected-on-touch: let it pan
+                        const [wx, wz] = pointerWorld(e)
+                        st.pushHistory()
+                        setMovingItem({
+                          id: it.id,
+                          gx: wx - it.position[0],
+                          gz: wz - it.position[1],
+                        })
+                      }}
+                    />
+                    {showGlyph ? (
+                      <g
+                        transform={`translate(${cx - glyphPx / 2},${cy - glyphPx / 2})`}
+                        style={{ color: 'var(--text-2)', pointerEvents: 'none' }}
+                        opacity={0.7}
+                      >
+                        <CategoryIcon category={def.category} width={glyphPx} height={glyphPx} />
+                      </g>
+                    ) : null}
+                  </g>
                 )
               })}
 
@@ -2320,6 +2371,95 @@ export function FloorPlanEditor() {
                     </text>
                   )
                 })
+              })()}
+
+            {/* Selected-furniture rotate handle: a ring + knob around the chosen
+                footprint, mirroring the wall rotate ring's visual language. Drag
+                the ring/knob to spin the piece about its centre; reuses the 3D
+                gizmo's 15°-snap (hold Shift for free rotation). Single selection
+                only (like the wall handle), edit mode + select tool, unlocked.
+                The plan editor selects one furniture item at a time (no plan
+                multi-select yet), so a single-selection handle is the right scope. */}
+            {showFurniture &&
+              editMode === 'edit' &&
+              tool === 'select' &&
+              selectedItemId != null &&
+              (() => {
+                const it = levelItems.find((i) => i.id === selectedItemId)
+                if (!it || it.locked) return null
+                const def = getDef(it.defId)
+                if (!def) return null
+                const obb = itemFootprint(it, def)
+                const cx = toPx(obb.cx)
+                const cy = toPx(obb.cz)
+                // Ring clears the footprint (half-diagonal + gap), with a px floor
+                // so tiny pieces still get a grabbable ring.
+                const ringR = Math.max(Math.hypot(obb.hx, obb.hz) * PX + 16, 28)
+                // Knob at the item's facing (+Z): world facing unit = (sin, cos);
+                // both axes scale by PX into plan pixels.
+                const kx = cx + Math.sin(it.rotation) * ringR
+                const ky = cy + Math.cos(it.rotation) * ringR
+                const startRotate = (e: React.PointerEvent) => {
+                  if (!beginElementDrag(e, true)) return
+                  const [gx, gz] = pointerWorld(e)
+                  useStore.getState().pushHistory()
+                  setRotatingItem({
+                    id: it.id,
+                    cx: obb.cx,
+                    cz: obb.cz,
+                    startRot: it.rotation,
+                    a0: pointerAngle(obb.cx, obb.cz, gx, gz),
+                  })
+                }
+                return (
+                  <g key={`rot-${it.id}`}>
+                    {/* Fat transparent grab ring — generous touch target; only the
+                        stroke is interactive so the interior stays click-through. */}
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={ringR}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={18}
+                      style={{ cursor: 'grab', pointerEvents: 'stroke' }}
+                      onPointerDown={startRotate}
+                    />
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={ringR}
+                      fill="none"
+                      stroke="var(--accent)"
+                      strokeOpacity={0.5}
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                    {/* Spoke + knob at the item's facing, doubling as a heading cue. */}
+                    <line
+                      x1={cx}
+                      y1={cy}
+                      x2={kx}
+                      y2={ky}
+                      stroke="var(--accent)"
+                      strokeOpacity={0.5}
+                      strokeWidth={1.5}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                    <circle
+                      data-rot-handle={it.id}
+                      cx={kx}
+                      cy={ky}
+                      r={7}
+                      fill="var(--surface-solid)"
+                      stroke="var(--accent)"
+                      strokeWidth={2}
+                      style={{ cursor: 'grab' }}
+                      onPointerDown={startRotate}
+                    />
+                  </g>
+                )
               })()}
 
             {/* Text notes (active storey) — PARITY-DIMTEXT. Click (select tool)
@@ -3161,7 +3301,16 @@ export function FloorPlanEditor() {
                 style={{ paintOrder: 'stroke', stroke: 'var(--surface-solid)', strokeWidth: 4 }}
               >
                 {tool === 'wall'
-                  ? formatLength(Math.hypot(draft.x - draft.x0, draft.z - draft.z0), units)
+                  ? (() => {
+                      const len = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
+                      // Angle CCW from east, with +Z (screen-down) shown as a
+                      // downward bearing — negate dz so 0° is east, 90° is north.
+                      const raw = Math.round(
+                        (Math.atan2(-(draft.z - draft.z0), draft.x - draft.x0) * 180) / Math.PI,
+                      )
+                      const deg = ((raw % 360) + 360) % 360
+                      return `${formatLength(len, units)}  ${deg}°`
+                    })()
                   : `${formatLength(Math.abs(draft.x - draft.x0), units)} × ${formatLength(Math.abs(draft.z - draft.z0), units)}  (${formatArea(Math.abs(draft.x - draft.x0) * Math.abs(draft.z - draft.z0), units)})`}
               </text>
             )}

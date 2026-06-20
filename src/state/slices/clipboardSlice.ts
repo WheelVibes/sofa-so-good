@@ -19,10 +19,13 @@ export interface ClipboardEntry {
   sourcePosition: [number, number]
 }
 
-/** Ephemeral clipboard for copy/paste of placed items. Not persisted. */
+/** Ephemeral clipboard for copy/paste of placed items. Holds the whole
+ *  selection (one entry per copied item, each with its own `sourcePosition`) so a
+ *  multi-selection pastes back as a group preserving its arrangement (PC2-MULTI-
+ *  DUP-PASTE). A single copy is just a one-element array. Not persisted. */
 export interface ClipboardSlice {
-  clipboard: ClipboardEntry | null
-  setClipboard: (entry: ClipboardEntry | null) => void
+  clipboard: ClipboardEntry[] | null
+  setClipboard: (entries: ClipboardEntry[] | null) => void
 }
 
 export const CLIPBOARD_INITIAL: Pick<ClipboardSlice, 'clipboard'> = {
@@ -31,14 +34,15 @@ export const CLIPBOARD_INITIAL: Pick<ClipboardSlice, 'clipboard'> = {
 
 export const createClipboardSlice: SliceCreator<ClipboardSlice, RootState> = (set) => ({
   ...CLIPBOARD_INITIAL,
-  setClipboard: (entry) =>
+  setClipboard: (entries) =>
     set({
-      clipboard: entry
-        ? {
-            ...entry,
-            props: { ...entry.props },
-            sourcePosition: [entry.sourcePosition[0], entry.sourcePosition[1]],
-          }
-        : null,
+      clipboard:
+        entries && entries.length > 0
+          ? entries.map((entry) => ({
+              ...entry,
+              props: { ...entry.props },
+              sourcePosition: [entry.sourcePosition[0], entry.sourcePosition[1]],
+            }))
+          : null,
     }),
 })

@@ -9,8 +9,15 @@ describe('isPhotoBackdropActive', () => {
     expect(isPhotoBackdropActive('dusk', 'firstPerson')).toBe(true)
   })
 
+  it('treats the sun-driven `sky` kind as an active backdrop in walk mode', () => {
+    // The procedural sky occupies the same `scene.background` slot, so the
+    // DreiSky dome hides for it too (SkyBackdrop owns the paint).
+    expect(isPhotoBackdropActive('sky', 'firstPerson')).toBe(true)
+    expect(isPhotoBackdropActive('sky', 'orbit')).toBe(false)
+  })
+
   it('is inactive in orbit mode (surroundings not needed for the dollhouse)', () => {
-    for (const kind of ['city', 'dusk', 'park', 'hills', 'custom', 'none'] as const) {
+    for (const kind of ['city', 'dusk', 'park', 'hills', 'sky', 'custom', 'none'] as const) {
       expect(isPhotoBackdropActive(kind, 'orbit', true)).toBe(false)
     }
   })
@@ -26,11 +33,13 @@ describe('isPhotoBackdropActive', () => {
 })
 
 describe('BACKDROPS picker options', () => {
-  it('lists every photo preset plus custom + none, and each preset id has a bake', () => {
+  it('lists every photo preset plus sky + custom + none, and each photo preset id has a bake', () => {
     const ids = BACKDROPS.map((b) => b.id)
-    expect(ids).toEqual(['city', 'dusk', 'park', 'hills', 'custom', 'none'])
+    expect(ids).toEqual(['city', 'dusk', 'park', 'hills', 'sky', 'custom', 'none'])
     for (const id of ids) {
-      if (id === 'none' || id === 'custom') continue
+      // `none`/`custom` have no procedural bake; `sky` is baked from the analytic
+      // core (`bakeSkyEquirect`), not from BACKDROP_PRESETS.
+      if (id === 'none' || id === 'custom' || id === 'sky') continue
       expect(BACKDROP_PRESETS[id as keyof typeof BACKDROP_PRESETS]).toBeDefined()
     }
   })
@@ -43,5 +52,10 @@ describe('backdrop flags tiering (both modes)', () => {
       expect(flags.backdrops).toBe(true)
       expect(flags.customBackdrop).toBe(true)
     }
+  })
+
+  it('proceduralSky (the `sky` backdrop) is pro-tier: off in Simple, on in Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').proceduralSky).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').proceduralSky).toBe(true)
   })
 })

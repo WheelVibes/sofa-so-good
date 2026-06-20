@@ -71,6 +71,38 @@ describe('favouritesSlice', () => {
   })
 })
 
+describe('finish favourites (PC2-FAVOURITE-MATERIALS)', () => {
+  beforeEach(() => {
+    useStore.setState({ favouriteFinishIds: [] })
+  })
+
+  it('is a separate list from furniture favourites', () => {
+    useStore.getState().toggleFavourite('sofa-2seat')
+    useStore.getState().toggleFinishFavourite('oak-floor')
+    // Finish favourites must NOT leak into the furniture list (catalog tab) and
+    // vice-versa.
+    expect(useStore.getState().favouriteDefIds).not.toContain('oak-floor')
+    expect(useStore.getState().favouriteFinishIds).not.toContain('sofa-2seat')
+    expect(useStore.getState().favouriteFinishIds).toEqual(['oak-floor'])
+  })
+
+  it('toggleFinishFavourite adds, removes, and dedupes', () => {
+    useStore.getState().toggleFinishFavourite('marble')
+    expect(useStore.getState().isFinishFavourite('marble')).toBe(true)
+    useStore.getState().toggleFinishFavourite('marble') // remove
+    expect(useStore.getState().isFinishFavourite('marble')).toBe(false)
+    useStore.getState().toggleFinishFavourite('marble') // re-add
+    expect(useStore.getState().favouriteFinishIds.filter((id) => id === 'marble').length).toBe(1)
+  })
+
+  it('preserves insertion order and ignores empty ids', () => {
+    useStore.getState().toggleFinishFavourite('a')
+    useStore.getState().toggleFinishFavourite('')
+    useStore.getState().toggleFinishFavourite('b')
+    expect(useStore.getState().favouriteFinishIds).toEqual(['a', 'b'])
+  })
+})
+
 describe('catalogFavourites feature flag — Simple vs Pro mode', () => {
   it('is on in Simple mode (tier: simple)', () => {
     // resolveFlags(isDev, overrides, isAdmin, uiMode)

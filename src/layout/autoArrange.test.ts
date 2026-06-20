@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canPlace } from '../collision/placement'
+import { canPlace, findItemOverlaps } from '../collision/placement'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
@@ -488,5 +488,107 @@ describe('arrangePlanRoom (per-room tidy on custom plans)', () => {
   it('is a no-op for an unknown room id', () => {
     const items = [bed()]
     expect(arrangePlanRoom(plan, 'nope', items, BUILTIN_CATALOG, {})).toBe(items)
+  })
+})
+
+// ── AUD-001 (F13): multi-level tidy must not skip upper storeys ───────────────
+describe('multi-storey tidy (F13)', () => {
+  const ext = 'external' as const
+  /** Ground 4×4 living + an upper 4×4 bedroom at the SAME x/z (duplicateLevel
+   *  clones share origin), so the levelId gate is exercised. */
+  function makeTwoStoreyPlan(): FloorPlan {
+    return {
+      id: 'two',
+      name: 'Two storey',
+      ceilingHeight: 2.6,
+      extent: [4, 4],
+      walls: [
+        { id: 'gn', start: [0, 0], end: [4, 0], thickness: ext },
+        { id: 'ge', start: [4, 0], end: [4, 4], thickness: ext },
+        { id: 'gs', start: [4, 4], end: [0, 4], thickness: ext },
+        { id: 'gw', start: [0, 4], end: [0, 0], thickness: ext },
+      ],
+      openings: [],
+      rooms: [{ id: 'g-room', name: 'Living', origin: [0, 0], width: 4, depth: 4 }],
+      upperLevels: [
+        {
+          id: 'lvl-2',
+          name: 'Upper',
+          elevation: 2.9,
+          walls: [
+            { id: 'un', start: [0, 0], end: [4, 0], thickness: ext },
+            { id: 'ue', start: [4, 0], end: [4, 4], thickness: ext },
+            { id: 'us', start: [4, 4], end: [0, 4], thickness: ext },
+            { id: 'uw', start: [0, 4], end: [0, 0], thickness: ext },
+          ],
+          openings: [],
+          rooms: [{ id: 'u-room', name: 'Bedroom', origin: [0, 0], width: 4, depth: 4 }],
+        },
+      ],
+    }
+  }
+
+  const bedAt = (id: string, pos: [number, number], levelId?: string): FurnitureItem => ({
+    id,
+    defId: 'bed-queen',
+    position: pos,
+    rotation: 0,
+    ...(levelId ? { levelId } : {}),
+    props: { ...defaultParamProps(BUILTIN_CATALOG['bed-queen'] as never) },
+  })
+
+  it('arrangeAllRoomsForPlan tidies the UPPER storey (was a silent no-op)', () => {
+    const plan = makeTwoStoreyPlan()
+    // An upper-floor bed dumped at the room centre — must be wall-snapped.
+    const upperBed = bedAt('ub', [2, 2], 'lvl-2')
+    const out = arrangeAllRoomsForPlan(plan, [upperBed], BUILTIN_CATALOG, {})
+    const placed = out.find((i) => i.id === 'ub')!
+    // It moved off centre (a bed snaps its headboard flush to a wall).
+    expect(placed.position).not.toEqual([2, 2])
+    // Still inside the upper room and collision-valid against the upper walls.
+    const walls = planCollisionWalls(plan, {})
+    expect(
+      canPlace(placed, BUILTIN_CATALOG['bed-queen'], {
+        others: [],
+        defs: BUILTIN_CATALOG,
+        doors: {},
+        walls,
+      }),
+    ).toBe(true)
+  })
+
+  it('does NOT yank an upper item to a ground room sharing its x/z', () => {
+    const plan = makeTwoStoreyPlan()
+    // A ground bed at the wall + an upper bed at the ground room's centre. The
+    // upper item shares the ground room's [x,z] but must be arranged by the
+    // UPPER pass (its own walls), never dragged by the ground room's arranger.
+    const groundBed = bedAt('gb', [2, 0.8])
+    const upperBed = bedAt('ub', [2, 2], 'lvl-2')
+    const out = arrangeAllRoomsForPlan(plan, [groundBed, upperBed], BUILTIN_CATALOG, {})
+    const up = out.find((i) => i.id === 'ub')!
+    // The upper bed kept its level tag (untouched by the ground pass).
+    expect(up.levelId).toBe('lvl-2')
+    // No cross-level overlap (collision is level-gated).
+    expect(findItemOverlaps(out, BUILTIN_CATALOG)).toHaveLength(0)
+  })
+
+  it('arrangePlanRoom resolves an UPPER room id (was a silent no-op)', () => {
+    const plan = makeTwoStoreyPlan()
+    const upperBed = bedAt('ub', [2, 2], 'lvl-2')
+    const out = arrangePlanRoom(plan, 'u-room', [upperBed], BUILTIN_CATALOG, {})
+    const placed = out.find((i) => i.id === 'ub')!
+    // The per-room tidy on an upper room id now actually arranges it.
+    expect(placed.position).not.toEqual([2, 2])
+    expect(placed.levelId).toBe('lvl-2')
+  })
+
+  it('single-storey output is unchanged (ground-only path identical)', () => {
+    const two = makeTwoStoreyPlan()
+    const one: FloorPlan = { ...two, id: 'one', upperLevels: undefined }
+    const groundBed = () => bedAt('gb', [2, 2])
+    const a = arrangeAllRoomsForPlan(one, [groundBed()], BUILTIN_CATALOG, {})
+    const b = arrangeAllRoomsForPlan(two, [groundBed()], BUILTIN_CATALOG, {})
+    // The ground bed is arranged identically whether or not an upper storey exists.
+    expect(b.find((i) => i.id === 'gb')!.position).toEqual(a.find((i) => i.id === 'gb')!.position)
   })
 })

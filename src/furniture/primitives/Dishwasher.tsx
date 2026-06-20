@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { ApplianceBodyMaterial, applianceBody, applianceBodyMeshProps, readStr } from './shared'
 
 /**
@@ -20,15 +21,26 @@ export function Dishwasher({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Body */}
-      <mesh {...applianceBodyMeshProps(body)} castShadow receiveShadow position={[0, h / 2, 0]}>
-        <boxGeometry args={[w, h, d]} />
+      <BeveledBox
+        {...applianceBodyMeshProps(body)}
+        castShadow
+        receiveShadow
+        position={[0, h / 2, 0]}
+        args={[w, h, d]}
+        bevel={0.012}
+      >
         <ApplianceBodyMaterial finish={body} />
-      </mesh>
+      </BeveledBox>
       {/* Front door, slightly proud + inset border for a panel look */}
-      <mesh {...applianceBodyMeshProps(body)} castShadow position={[0, h * 0.46, d / 2 + 0.008]}>
-        <boxGeometry args={[w - 0.03, h * 0.82, 0.016]} />
+      <BeveledBox
+        {...applianceBodyMeshProps(body)}
+        castShadow
+        position={[0, h * 0.46, d / 2 + 0.008]}
+        args={[w - 0.03, h * 0.82, 0.016]}
+        bevel={0.012}
+      >
         <ApplianceBodyMaterial finish={body} />
-      </mesh>
+      </BeveledBox>
       {/* Recessed handle bar near the top of the door */}
       <mesh castShadow position={[0, h * 0.82, d / 2 + 0.02]}>
         <boxGeometry args={[w * 0.82, 0.025, 0.02]} />

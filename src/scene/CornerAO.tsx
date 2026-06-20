@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { CanvasTexture } from 'three'
+import { applyAnisotropy } from '../materials/anisotropy'
 import { CORNER_AO_OPACITY, cornerAoStripDims } from './cornerAoMath'
 
 let sharedTex: CanvasTexture | null = null
@@ -24,7 +25,9 @@ function cornerGradientTexture(): CanvasTexture {
   g.addColorStop(1, 'rgba(0,0,0,0)')
   ctx.fillStyle = g
   ctx.fillRect(0, 0, 1, h)
-  sharedTex = new CanvasTexture(c)
+  // Route through the shared anisotropy cap (RD-401) so the falloff stays crisp
+  // at the grazing floor angles where this strip is seen on the flat tier.
+  sharedTex = applyAnisotropy(new CanvasTexture(c))
   return sharedTex
 }
 

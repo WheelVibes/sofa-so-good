@@ -298,12 +298,6 @@ export function GraphicsSettings({
                   onChange={(v) => setOverride('contactShadows', v)}
                 />
                 <Toggle
-                  label="Showcase stills"
-                  hint="Sharpen shadows when the camera is still"
-                  checked={eff.showcase}
-                  onChange={(v) => setOverride('showcase', v)}
-                />
-                <Toggle
                   label="FPS counter"
                   hint="Live frame-rate overlay"
                   checked={showFps}

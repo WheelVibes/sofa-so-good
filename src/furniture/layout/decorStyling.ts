@@ -7,13 +7,16 @@
  *
  * Host-surface matching strategy:
  *   sofa / chaise / sectional   → throw-cushion, throw-blanket
- *   coffee-table                → fruit-bowl, magazine-stack, candle-cluster
+ *   coffee-table                → decor-tray, fruit-bowl, magazine-stack, candle-cluster
  *   dining-table                → candle-cluster, fruit-bowl
  *   bed                         → throw-cushion, throw-blanket
  *   nightstand                  → desk-plant, candle-cluster
  *   desk                        → desk-plant, book-stack
  *   console-table / sideboard   → book-stack, small-sculpture, photo-frame-cluster
  *   bookshelf / cube-shelf      → book-stack, small-sculpture, desk-plant
+ *   tv-console                  → photo-frame-cluster, small-sculpture, desk-plant, book-stack
+ *   ottoman                     → decor-tray, throw-blanket, throw-cushion
+ *   bench                       → throw-cushion, throw-blanket
  *
  * Density (RD408-001): each host gets a per-surface budget derived from its
  * footprint AREA and a conservative per-type ceiling, so a long sideboard or a
@@ -28,11 +31,16 @@
  * Rotation (RD408-003): each prop gets a small seeded yaw jitter around the
  * host's facing so nothing is dead-square / obviously auto-placed.
  *
+ * Variety (RD-408): repeated soft goods (cushions/blankets) and book stacks draw
+ * a seeded colour from a curated palette (offset by slot) so a sofa's cushions or
+ * a shelf's books aren't identical clones — the clearest auto-placed tell.
+ *
  * Pure + deterministic (no store, no GPU) → unit-testable. Seedable via the
  * optional `seed` parameter so results are stable in tests.
  */
 
-import type { FloorPlan, PlanRoom } from '../../floorplan/types'
+import { GROUND_LEVEL_ID, planLevels } from '../../floorplan/levels'
+import type { FloorPlan } from '../../floorplan/types'
 import { pointInRoom } from '../../floorplan/types'
 import type { FurnitureDef, FurnitureItem, ParamProps } from '../types'
 import { defaultParamProps } from '../types'
@@ -89,6 +97,39 @@ const HOST_MAX: Record<string, number> = {
   bookshelf: 3,
   'cube-shelf': 3,
   dresser: 2,
+  'tv-console': 3,
+  ottoman: 1,
+  bench: 2,
+}
+
+/** Curated, tasteful colour palettes for repeated soft-good / book props, so
+ *  multiple cushions on a sofa or books on a shelf vary instead of reading as
+ *  identical clones — the clearest "auto-placed" tell (RD-408 prop variety).
+ *  Keyed by prop id → the colour param to vary + its palette. */
+interface PropVariety {
+  /** Colour param to vary + its palette. */
+  key: string
+  palette: readonly string[]
+  /** Optional enum params to vary, each as a weighted option list (repeat a value
+   *  to bias toward it — e.g. mostly 'square', occasionally 'rect'). */
+  enums?: Record<string, readonly string[]>
+}
+const VARIETY: Record<string, PropVariety> = {
+  'throw-cushion': {
+    key: 'color',
+    palette: ['#b08068', '#7a8a7c', '#9c6b5a', '#5f6b78', '#c2a878', '#86736a', '#6b8a86'],
+    // Mostly square + plain, with the occasional rectangular / striped cushion so
+    // a sofa's scatter reads as a real mix, not stamped clones.
+    enums: { shape: ['square', 'square', 'rect'], pattern: ['plain', 'plain', 'stripe'] },
+  },
+  'throw-blanket': {
+    key: 'color',
+    palette: ['#c4b49a', '#9aa6a0', '#b89a86', '#8a9aa6', '#cabfa6'],
+  },
+  'book-stack': {
+    key: 'spineColor',
+    palette: ['#7a4028', '#3b5a6b', '#5a6b3b', '#7d3b3b', '#b08a3e', '#3b6f6b', '#6b4a7d'],
+  },
 }
 
 // ── Host-surface definitions ─────────────────────────────────────────────────
@@ -107,20 +148,42 @@ const HOST_PROPS: Record<string, readonly string[]> = {
   'bed-king': ['throw-cushion', 'throw-blanket'],
   'bed-double': ['throw-cushion', 'throw-blanket'],
   'bed-single': ['throw-cushion'],
-  // Low / occasional tables
-  'coffee-table': ['fruit-bowl', 'magazine-stack', 'candle-cluster'],
+  // Low / occasional tables. A styled tray is the classic coffee-table vignette
+  // (candle + bowl + books grouped on a tray), so it leads here.
+  'coffee-table': ['decor-tray', 'fruit-bowl', 'magazine-stack', 'candle-cluster'],
   'dining-table-4': ['candle-cluster', 'fruit-bowl'],
   'side-table': ['candle-cluster', 'desk-plant'],
   // Nightstands / bedside
   nightstand: ['desk-plant', 'candle-cluster'],
   // Work surfaces
   desk: ['desk-plant', 'book-stack'],
-  // Storage tops (console, sideboard, bookshelf, cube-shelf)
-  'console-table': ['photo-frame-cluster', 'small-sculpture', 'book-stack'],
-  sideboard: ['photo-frame-cluster', 'book-stack', 'candle-cluster'],
-  bookshelf: ['book-stack', 'small-sculpture', 'desk-plant'],
-  'cube-shelf': ['book-stack', 'small-sculpture'],
+  // Storage tops (console, sideboard, bookshelf, cube-shelf). The trailing
+  // plant drapes over the front edge — a hero piece on elevated/open tops, so
+  // it leads on the open shelving units and appears as a secondary option on the
+  // closed-top consoles once they have the budget for more than one prop.
+  'console-table': [
+    'photo-frame-cluster',
+    'trailing-plant',
+    'decor-tray',
+    'small-sculpture',
+    'book-stack',
+  ],
+  sideboard: [
+    'photo-frame-cluster',
+    'trailing-plant',
+    'decor-tray',
+    'book-stack',
+    'candle-cluster',
+  ],
+  bookshelf: ['trailing-plant', 'book-stack', 'small-sculpture', 'desk-plant'],
+  'cube-shelf': ['trailing-plant', 'book-stack', 'small-sculpture'],
   dresser: ['photo-frame-cluster', 'desk-plant'],
+  // Media unit top — frames, a sculpture, a plant, books.
+  'tv-console': ['photo-frame-cluster', 'small-sculpture', 'desk-plant', 'book-stack'],
+  // Soft seating — an ottoman doubles as a coffee table, so a styled tray leads,
+  // then a folded throw / a stray cushion.
+  ottoman: ['decor-tray', 'throw-blanket', 'throw-cushion'],
+  bench: ['throw-cushion', 'throw-blanket'],
 }
 
 /** Surface-top height in metres for common hosts (derived from defaultFootprint.h).
@@ -145,6 +208,9 @@ const FALLBACK_TOP: Record<string, number> = {
   bookshelf: 1.4,
   'cube-shelf': 0.84,
   dresser: 0.82,
+  'tv-console': 0.45,
+  ottoman: 0.42,
+  bench: 0.45,
 }
 
 /** Fallback host footprint (w × d, metres) when the catalog def is unavailable. */
@@ -168,6 +234,9 @@ const FALLBACK_FOOTPRINT: Record<string, { w: number; d: number }> = {
   bookshelf: { w: 0.8, d: 0.3 },
   'cube-shelf': { w: 0.8, d: 0.35 },
   dresser: { w: 1.0, d: 0.45 },
+  'tv-console': { w: 1.8, d: 0.4 },
+  ottoman: { w: 0.6, d: 0.6 },
+  bench: { w: 1.2, d: 0.4 },
 }
 
 // ── Seeded PRNG (mulberry32) ──────────────────────────────────────────────────
@@ -317,6 +386,19 @@ export function applyDecorStyling(
 
       const baseProps: ParamProps = propDef.kind === 'parametric' ? defaultParamProps(propDef) : {}
       const props: ParamProps = { ...baseProps, surfaceHeight: topHeight }
+      // Seeded colour variety for repeated soft goods / books (RD-408): offset by
+      // the slot so adjacent same-type props differ, plus a seeded start so hosts
+      // aren't all identical.
+      const variety = VARIETY[propId]
+      if (variety) {
+        const pal = variety.palette
+        props[variety.key] = pal[(slot + Math.floor(rand() * pal.length)) % pal.length]
+        if (variety.enums) {
+          for (const [k, opts] of Object.entries(variety.enums)) {
+            props[k] = opts[Math.floor(rand() * opts.length)]
+          }
+        }
+      }
 
       const id = `decor-${host.id}-${propId}-${slot}`
       if (usedIds.has(id)) continue
@@ -327,7 +409,10 @@ export function applyDecorStyling(
         defId: propId as FurnitureItem['defId'],
         position: positions[slot],
         rotation: propRotation(host, propId, rand),
-        elevation: topHeight,
+        // No `elevation` — every decor primitive self-lifts to `surfaceHeight` in
+        // local space (like the built-in tabletop defaults), so ALSO setting
+        // `elevation: topHeight` double-lifted the prop to ~2× the surface height
+        // (it floated above its host). The prop carries `surfaceHeight` only.
         props,
       })
       placed++
@@ -358,11 +443,29 @@ export function applyDecorStylingForPlan(
   seed = 42,
 ): FurnitureItem[] {
   const allDecor: FurnitureItem[] = []
-  plan.rooms.forEach((room: PlanRoom, idx: number) => {
-    const roomItems = arranged.filter((it) => pointInRoom(room, it.position[0], it.position[1]))
-    const roomDecor = applyDecorStyling(roomItems, defs, seed + idx * 997)
-    // Per-room total cap — trim the tail (lowest-priority props placed last).
-    allDecor.push(...roomDecor.slice(0, ROOM_DECOR_CAP))
-  })
+  // Walk EVERY storey (F13), not just the ground floor — an upper-level room's
+  // items would otherwise be skipped (AUD-001). Each room is styled against only
+  // its own storey's items (a ground item under an upper room's x/z must not be
+  // treated as a host there), and the resulting decor inherits the room's level
+  // so it renders on the right floor (decor items carry no `levelId` of their
+  // own). A global room index keeps per-room seeds distinct + the single-storey
+  // ground path byte-identical (ground is level 0, same rooms, same order).
+  let idx = 0
+  for (const level of planLevels(plan)) {
+    const onLevel = (it: FurnitureItem) => (it.levelId ?? GROUND_LEVEL_ID) === level.id
+    for (const room of level.rooms) {
+      const roomItems = arranged.filter(
+        (it) => onLevel(it) && pointInRoom(room, it.position[0], it.position[1]),
+      )
+      const roomDecor = applyDecorStyling(roomItems, defs, seed + idx * 997)
+      const tagged =
+        level.id === GROUND_LEVEL_ID
+          ? roomDecor
+          : roomDecor.map((d) => ({ ...d, levelId: level.id }))
+      // Per-room total cap — trim the tail (lowest-priority props placed last).
+      allDecor.push(...tagged.slice(0, ROOM_DECOR_CAP))
+      idx++
+    }
+  }
   return allDecor
 }

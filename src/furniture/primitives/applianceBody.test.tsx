@@ -21,9 +21,16 @@ beforeAll(() => {
 
 async function load(pbrOn: boolean) {
   vi.resetModules()
-  vi.doMock('../../features/featureFlags', () => ({
-    isFeatureEnabled: (flag: string) => (flag === 'pbrSurfaces' ? pbrOn : false),
-  }))
+  // Preserve the rest of the module (e.g. `resolveFlags`, which the store's
+  // featureFlagsSlice imports transitively now that BeveledBox → useDetail pulls
+  // in the store) and override only `isFeatureEnabled`.
+  vi.doMock('../../features/featureFlags', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../features/featureFlags')>()
+    return {
+      ...actual,
+      isFeatureEnabled: (flag: string) => (flag === 'pbrSurfaces' ? pbrOn : false),
+    }
+  })
   return import('./shared')
 }
 

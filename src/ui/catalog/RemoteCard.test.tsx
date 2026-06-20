@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RemoteEntry } from '../../catalog/remote/types'
 import { useStore } from '../../state/store'
@@ -44,5 +44,21 @@ describe('RemoteCard size estimate', () => {
     sizeRef.current = null
     render(<RemoteCard entry={entry} onResolved={() => {}} />)
     expect(screen.getByText(/tap to add/)).toBeInTheDocument()
+  })
+
+  it('swallows a failed download — no unhandled rejection, no onResolved (BUG-005)', async () => {
+    sizeRef.current = null
+    const onResolved = vi.fn()
+    const reject = vi.fn(async () => {
+      throw new Error('offline')
+    })
+    useStore.setState({ resolveRemoteAsset: reject } as Partial<
+      ReturnType<typeof useStore.getState>
+    >)
+    render(<RemoteCard entry={entry} onResolved={onResolved} />)
+    fireEvent.click(screen.getByRole('button', { name: /Add Big Lounge Chair/ }))
+    await waitFor(() => expect(reject).toHaveBeenCalled())
+    // The click handler caught the rejection: onResolved must NOT fire.
+    expect(onResolved).not.toHaveBeenCalled()
   })
 })

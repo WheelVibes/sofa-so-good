@@ -44,7 +44,7 @@ export function GltfBody({ item, def }: GltfBodyProps) {
         step={0.05}
         value={value}
         onChange={(e) => updateItemProps(item.id, { [prop]: Number(e.target.value) })}
-        className="flex-1 accent-blue-500"
+        className="flex-1 accent-[var(--accent)]"
       />
       <span className="w-12 text-right font-mono">{value.toFixed(2)}×</span>
     </label>
@@ -62,7 +62,7 @@ export function GltfBody({ item, def }: GltfBodyProps) {
             step={0.05}
             value={sx}
             onChange={(e) => setUniform(Number(e.target.value))}
-            className="flex-1 accent-blue-500"
+            className="flex-1 accent-[var(--accent)]"
           />
           <span className="w-12 text-right font-mono">{sx.toFixed(2)}×</span>
         </label>

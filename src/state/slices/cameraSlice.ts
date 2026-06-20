@@ -1,4 +1,12 @@
 import {
+  clampFocalMm,
+  clampFocusDistance,
+  clampFStop,
+  FOCAL_DEFAULT_MM,
+  FOCUS_DEFAULT_M,
+  FSTOP_DEFAULT,
+} from '../../scene/cameras/cameraLensSettings'
+import {
   clampWalkEyeHeight,
   clampWalkFov,
   WALK_EYE_DEFAULT,
@@ -45,6 +53,19 @@ export interface CameraSlice {
   walkEyeHeight: number
   setWalkFov: (deg: number) => void
   setWalkEyeHeight: (m: number) => void
+  /** Render/snapshot camera lens focal length (mm, clamped 14–200). Drives the
+   *  HQ path tracer's PhysicalCamera FOV (PC2-CAM-DOF-LENS). */
+  lensFocalMm: number
+  /** Depth-of-field aperture f-stop. 0 = off (pinhole, no blur); else 1–22. */
+  dofFStop: number
+  /** Manual focus distance (metres, clamped 0.2–50) when `dofAuto` is off. */
+  dofFocusDistance: number
+  /** Auto-focus on the surface at screen centre instead of `dofFocusDistance`. */
+  dofAuto: boolean
+  setLensFocalMm: (mm: number) => void
+  setDofFStop: (v: number) => void
+  setDofFocusDistance: (m: number) => void
+  setDofAuto: (v: boolean) => void
 }
 
 export const CAMERA_INITIAL: Pick<
@@ -60,6 +81,10 @@ export const CAMERA_INITIAL: Pick<
   | 'viewTourLegSeconds'
   | 'walkFov'
   | 'walkEyeHeight'
+  | 'lensFocalMm'
+  | 'dofFStop'
+  | 'dofFocusDistance'
+  | 'dofAuto'
 > = {
   cameraMode: 'orbit',
   topViewNonce: 0,
@@ -72,6 +97,10 @@ export const CAMERA_INITIAL: Pick<
   touring: false,
   walkFov: WALK_FOV_DEFAULT,
   walkEyeHeight: WALK_EYE_DEFAULT,
+  lensFocalMm: FOCAL_DEFAULT_MM,
+  dofFStop: FSTOP_DEFAULT,
+  dofFocusDistance: FOCUS_DEFAULT_M,
+  dofAuto: true,
 }
 
 export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get) => ({
@@ -94,4 +123,8 @@ export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get
   setViewTourLegSeconds: (s) => set({ viewTourLegSeconds: Math.max(0.5, Math.min(12, s)) }),
   setWalkFov: (deg) => set({ walkFov: clampWalkFov(deg) }),
   setWalkEyeHeight: (m) => set({ walkEyeHeight: clampWalkEyeHeight(m) }),
+  setLensFocalMm: (mm) => set({ lensFocalMm: clampFocalMm(mm) }),
+  setDofFStop: (v) => set({ dofFStop: clampFStop(v) }),
+  setDofFocusDistance: (m) => set({ dofFocusDistance: clampFocusDistance(m) }),
+  setDofAuto: (v) => set({ dofAuto: !!v }),
 })

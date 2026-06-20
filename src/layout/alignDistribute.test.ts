@@ -194,4 +194,64 @@ describe('obbAxisHalf', () => {
     const h = obbAxisHalf(0.5, 1.5, Math.PI / 4, 0)
     expect(h).toBeCloseTo((0.5 + 1.5) * Math.SQRT1_2)
   })
+  it('is sign-independent in the rotation (|cos|/|sin|)', () => {
+    // A negative yaw projects to the same axis-aligned half as its positive twin.
+    expect(obbAxisHalf(0.5, 1.5, -Math.PI / 3, 0)).toBeCloseTo(
+      obbAxisHalf(0.5, 1.5, Math.PI / 3, 0),
+    )
+    expect(obbAxisHalf(0.5, 1.5, -Math.PI / 3, 1)).toBeCloseTo(
+      obbAxisHalf(0.5, 1.5, Math.PI / 3, 1),
+    )
+  })
+  it('is π-periodic (a half-turn maps the box onto itself)', () => {
+    const r = 0.7
+    expect(obbAxisHalf(0.5, 1.5, r, 0)).toBeCloseTo(obbAxisHalf(0.5, 1.5, r + Math.PI, 0))
+    expect(obbAxisHalf(0.5, 1.5, r, 1)).toBeCloseTo(obbAxisHalf(0.5, 1.5, r + Math.PI, 1))
+  })
+})
+
+// PC2-DISTRIBUTE-AXIS: the inspector projects each (possibly-rotated) footprint
+// OBB onto the chosen axis via `obbAxisHalf`, then feeds the resulting AxisBoxes
+// into the distributors. These tests cover that OBB→distribute/align path end to
+// end, so a rotated selection lines up by its real axis-aligned extent (not a
+// raw unrotated half) — the audit's open gap.
+describe('rotated-footprint integration (obbAxisHalf → distribute/align)', () => {
+  // A long 0.4×2.0 (hx=0.2, hz=1.0) board: along X it's thin unrotated, but at a
+  // quarter-turn its long side projects onto X.
+  const hx = 0.2
+  const hz = 1.0
+
+  it('distributes by the rotated extent on X — a turned board takes its long span', () => {
+    // a + c unrotated (half = hx = 0.2); the middle board is turned 90° so on X it
+    // spans its length (half = hz = 1.0). Even edge gaps must account for that.
+    const boxes: AxisBox[] = [
+      { id: 'a', center: 0, half: obbAxisHalf(hx, hz, 0, 0) },
+      { id: 'mid', center: 4, half: obbAxisHalf(hx, hz, Math.PI / 2, 0) },
+      { id: 'c', center: 10, half: obbAxisHalf(hx, hz, 0, 0) },
+    ]
+    expect(boxes[1].half).toBeCloseTo(1.0)
+    const { positions, clamped } = distributeEvenGaps(boxes)
+    expect(clamped).toBe(false)
+    expect(positions.get('a')).toBeCloseTo(0)
+    expect(positions.get('c')).toBeCloseTo(10)
+    // The two edge-to-edge gaps must be equal using the rotated half for `mid`.
+    const aFar = (positions.get('a') as number) + 0.2
+    const midNear = (positions.get('mid') as number) - 1.0
+    const midFar = (positions.get('mid') as number) + 1.0
+    const cNear = (positions.get('c') as number) - 0.2
+    expect(midNear - aFar).toBeCloseTo(cNear - midFar)
+  })
+
+  it('aligns edges by the rotated extent — a turned board reaches further', () => {
+    // b is turned 45°, so its X half grows to (hx+hz)/√2 ≈ 0.849.
+    const turned = obbAxisHalf(hx, hz, Math.PI / 4, 0)
+    const boxes: AxisBox[] = [
+      { id: 'a', center: 0, half: obbAxisHalf(hx, hz, 0, 0) }, // half 0.2 → far 0.2
+      { id: 'b', center: 1, half: turned }, // far 1 + 0.849
+    ]
+    const r = alignEdge(boxes, 'max')
+    const far = 1 + turned // b's far edge is the selection max
+    expect(r.get('a')).toBeCloseTo(far - 0.2)
+    expect(r.get('b')).toBeCloseTo(far - turned)
+  })
 })

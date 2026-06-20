@@ -2,11 +2,28 @@ import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
 import { canPlace } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
+import { GROUND_LEVEL_ID, levelAsPlan, levelOfRoom, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import { type FloorPlan, type PlanRoom, pointInRoom, wallLength } from '../floorplan/types'
-import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
+import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import {
+  clamp,
+  cornersOf,
+  type Edge,
+  inward,
+  nearestEdge,
+  opposite,
+  planRoomRect,
+  type Rect,
+  rectsOverlap,
+} from './arrangeGeometry'
+import { type ArrangeRole, roleForCategory, roleOf } from './arrangeRoles'
 import { doorSwingRects } from './clearance'
 import { CLEARANCE } from './designRules'
+
+// Re-export the arrange-role classification (extracted to ./arrangeRoles) so
+// existing importers of these from './autoArrange' keep working.
+export { type ArrangeRole, roleForCategory, roleOf }
 
 /**
  * Heuristic per-room auto-arranger ("Tidy up room"). Given the items already
@@ -20,141 +37,6 @@ import { CLEARANCE } from './designRules'
  * Every placement is collision-checked; an item that can't be placed is left
  * where it was, so the result is always valid.
  */
-
-export type ArrangeRole =
-  | 'media'
-  | 'mediaConsole'
-  | 'featureWall'
-  | 'seating'
-  | 'armchair'
-  | 'lowTable'
-  | 'rug'
-  | 'diningTable'
-  | 'diningChair'
-  | 'bed'
-  | 'nightstand'
-  | 'storage'
-  | 'desk'
-  | 'deskChair'
-  | 'plant'
-  | 'floorLamp'
-  | 'barCart'
-  | 'shoe'
-  | 'mounted'
-  | 'ceiling'
-  | 'other'
-
-const ROLE: Record<string, ArrangeRole> = {
-  'tv-wall': 'media',
-  'flatscreen-tv': 'media',
-  'tv-console': 'mediaConsole',
-  'feature-wall': 'featureWall',
-  'sofa-3seat': 'seating',
-  'sofa-2seat': 'seating',
-  'sofa-lshape': 'seating',
-  armchair: 'armchair',
-  'coffee-table': 'lowTable',
-  'side-table': 'lowTable',
-  'console-table': 'storage',
-  sideboard: 'storage',
-  rug: 'rug',
-  'dining-table-4': 'diningTable',
-  'dining-chair': 'diningChair',
-  'bar-stool': 'diningChair',
-  'bed-single': 'bed',
-  'bed-double': 'bed',
-  'bed-queen': 'bed',
-  'bed-king': 'bed',
-  'bunk-bed': 'bed',
-  crib: 'bed',
-  nightstand: 'nightstand',
-  bookshelf: 'storage',
-  'cube-shelf': 'storage',
-  dresser: 'storage',
-  'changing-table': 'storage',
-  wardrobe: 'storage',
-  'wardrobe-3door': 'storage',
-  'shoe-cabinet': 'shoe',
-  refrigerator: 'storage',
-  'washing-machine': 'storage',
-  bathtub: 'storage',
-  piano: 'storage',
-  vanity: 'storage',
-  desk: 'desk',
-  'office-chair': 'deskChair',
-  'potted-plant': 'plant',
-  'floor-vase': 'plant',
-  'bar-cart': 'barCart',
-  'floor-lamp': 'floorLamp',
-  'standing-fan': 'floorLamp',
-  bench: 'lowTable',
-  'wall-art': 'mounted',
-  'wall-mirror': 'mounted',
-  'bathroom-mirror': 'mounted',
-  'wall-clock': 'mounted',
-  'wall-shelf': 'mounted',
-  'wall-sconce': 'mounted',
-  'wall-cabinet': 'mounted',
-  curtains: 'mounted',
-  'roller-blind': 'mounted',
-  'aircon-unit': 'mounted',
-  'range-hood': 'mounted',
-  soundbar: 'mounted',
-  'ceiling-light': 'ceiling',
-  'ceiling-fan': 'ceiling',
-  'cove-light': 'mounted',
-  'floor-mirror': 'storage',
-  'table-lamp': 'other',
-  'tabletop-decor': 'other',
-}
-
-/** Fallback arrange role for an item by its catalog category, when the defId
- *  isn't in the explicit ROLE map (e.g. imported IKEA defs, textiles, outdoor). */
-export function roleForCategory(cat: FurnitureCategory): ArrangeRole {
-  switch (cat) {
-    case 'beds':
-      return 'bed'
-    case 'storage':
-      return 'storage'
-    case 'appliances':
-      return 'storage'
-    case 'seating':
-      return 'seating'
-    case 'textiles':
-      return 'rug'
-    case 'electronics':
-      return 'media'
-    case 'kids':
-      return 'storage'
-    case 'laundry':
-      return 'storage'
-    case 'tables':
-      return 'lowTable'
-    case 'lighting':
-      // Non-mounted lighting (floor/table lamps) — ceiling/wall fixtures are
-      // already caught by the `mounted` flag in `roleOf` before this runs.
-      return 'floorLamp'
-    default:
-      // kitchen / bathroom / decor / outdoor / others fall here: no curated
-      // floor slot, so `settle()` parks them collision-free.
-      return 'other'
-  }
-}
-
-export function roleOf(defId: string, catalog: Record<string, FurnitureDef>): ArrangeRole {
-  const explicit = ROLE[defId]
-  if (explicit) return explicit
-  const def = catalog[defId]
-  if (!def) return 'other'
-  // Honour the def's collision flags first — an imported (IKEA/user) def gets
-  // no entry in ROLE, so without this a wall-mounted pendant or aircon would
-  // fall to a floor role (storage/other) and `settle()` would drop it on the
-  // floor. `mounted` defs are wall/ceiling fixtures (kept fixed, not relocated);
-  // `noClip` defs are rugs (laid flat, slide under everything).
-  if (def.mounted) return 'mounted'
-  if (def.noClip) return 'rug'
-  return roleForCategory(def.category)
-}
 
 /** Base (unrotated) footprint from the def + parametric overrides. */
 function baseFootprint(item: FurnitureItem, def: FurnitureDef): { w: number; d: number } {
@@ -210,10 +92,6 @@ function aabbOf(item: FurnitureItem, def: FurnitureDef, pos: [number, number], r
   return { x0: pos[0] - hx, z0: pos[1] - hz, x1: pos[0] + hx, z1: pos[1] + hz }
 }
 
-function rectsOverlap(a: Rect, b: Rect): boolean {
-  return a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0
-}
-
 /** Try to set an item's transform; accept only if it doesn't collide with the
  *  walls or any other item in `world`. Mutates `world` on success. Returns the
  *  (possibly unchanged) item. */
@@ -244,14 +122,6 @@ function tryPlace(
     return candidate
   }
   return item
-}
-
-type Edge = 'N' | 'S' | 'E' | 'W'
-interface Rect {
-  x0: number
-  z0: number
-  x1: number
-  z1: number
 }
 
 /** Per-room usable-rect overrides where origin+width over-reports the free
@@ -291,11 +161,6 @@ const KEEPOUT: Partial<Record<RoomId, Rect[]>> = {
   bedroom3: [{ x0: 6.05, z0: 2.7, x1: 7.05, z1: 3.65 }], // bedroom-3 door swing
 }
 
-/** Inward-facing rotation + perpendicular extent for an edge. */
-function inward(edge: Edge): number {
-  return edge === 'N' ? 0 : edge === 'S' ? Math.PI : edge === 'W' ? Math.PI / 2 : -Math.PI / 2
-}
-
 /** Snap an item flush against `edge`, keeping its along-wall coordinate
  *  (clamped), facing inward. Tries the given edge then falls back to others. */
 function snapToWall(
@@ -325,16 +190,6 @@ function snapToWall(
     if (placed !== item) return placed
   }
   return item
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, v))
-}
-
-/** Nearest edge of the rect to a point. */
-function nearestEdge(pos: [number, number], rect: Rect): Edge {
-  const d = { N: pos[1] - rect.z0, S: rect.z1 - pos[1], W: pos[0] - rect.x0, E: rect.x1 - pos[0] }
-  return Object.entries(d).sort((a, b) => a[1] - b[1])[0][0] as Edge
 }
 
 type RoomKind = 'living' | 'bedroom' | 'kitchen' | 'bath' | 'generic'
@@ -371,14 +226,6 @@ function placeFlush(
 }
 
 /** Corners of the rect, slightly inset, for tucking accents. */
-function cornersOf(rect: Rect): [number, number][] {
-  return [
-    [rect.x0 + 0.3, rect.z0 + 0.3],
-    [rect.x1 - 0.3, rect.z0 + 0.3],
-    [rect.x0 + 0.3, rect.z1 - 0.3],
-    [rect.x1 - 0.3, rect.z1 - 0.3],
-  ]
-}
 /** Last-resort placement: original transform, then corners, then a coarse
  *  grid sweep with a few rotations. Pushes the item into `world` wherever it
  *  first fits (leaves it out only if nothing fits). */
@@ -484,11 +331,6 @@ function arrangeCore(opts: {
   // transform from `world`; an unplaced room item keeps its original transform.
   const byId = new Map(world.map((w) => [w.id, w]))
   return allItems.map((orig) => byId.get(orig.id) ?? orig)
-}
-
-/** Opposite of a wall edge. */
-function opposite(e: Edge): Edge {
-  return e === 'N' ? 'S' : e === 'S' ? 'N' : e === 'E' ? 'W' : 'E'
 }
 
 /**
@@ -970,17 +812,6 @@ export function arrangeAllRooms(
 
 // ── User-authored floor plans ──────────────────────────────────────────────
 
-/** Usable rect for a plan room — its interior rectangle inset from the walls. */
-function planRoomRect(r: PlanRoom): Rect {
-  const inset = 0.12
-  return {
-    x0: r.origin[0] + inset,
-    z0: r.origin[1] + inset,
-    x1: r.origin[0] + r.width - inset,
-    z1: r.origin[1] + r.depth - inset,
-  }
-}
-
 /** Is a point inside a plan room (polygon-aware: explicit polygon, else the
  *  main rect + its L-shape extension)? */
 function pointInPlanRoom(r: PlanRoom, x: number, z: number): boolean {
@@ -1057,7 +888,10 @@ function inferFocal(rect: Rect, windows: Array<[number, number]>): Edge | undefi
 
 /** Arrange a single custom-plan room (shared by the per-room "Tidy" + the
  *  whole-plan "Tidy home"). `keepOut`/`windows`/`walls` are precomputed so the
- *  whole-plan loop builds them once. */
+ *  whole-plan loop builds them once. `levelId` is the storey the room sits on —
+ *  the `inRoom` predicate gates on it (F13) so an item directly above/below this
+ *  room on another storey (a `duplicateLevel` clone shares the same x/z) is not
+ *  dragged against this storey's geometry. */
 function arrangeOnePlanRoom(
   room: PlanRoom,
   items: FurnitureItem[],
@@ -1066,8 +900,11 @@ function arrangeOnePlanRoom(
   keepOut: Rect[],
   windows: Array<[number, number]>,
   walls: CollisionWall[],
+  levelId: string = GROUND_LEVEL_ID,
 ): FurnitureItem[] {
-  const inRoom = (i: FurnitureItem) => pointInPlanRoom(room, i.position[0], i.position[1])
+  const inRoom = (i: FurnitureItem) =>
+    (i.levelId ?? GROUND_LEVEL_ID) === levelId &&
+    pointInPlanRoom(room, i.position[0], i.position[1])
   if (!items.some(inRoom)) return items
   const rect = planRoomRect(room)
   const kind = roomKindFromItems(items.filter(inRoom), catalog, room.name)
@@ -1099,16 +936,24 @@ export function arrangePlanRoom(
   catalog: Record<string, FurnitureDef>,
   doors: Record<string, { open: boolean }>,
 ): FurnitureItem[] {
-  const room = plan.rooms.find((r) => r.id === roomId)
+  // Resolve the room across ALL storeys (room ids are plan-unique): on a
+  // multi-storey plan an upper-floor room id is absent from `plan.rooms`
+  // (ground only), so look it up via its level (F13). Build that level's own
+  // geometry so an upper room arranges against its own walls/windows/door-swings.
+  const level = levelOfRoom(plan, roomId)
+  if (!level) return allItems
+  const room = level.rooms.find((r) => r.id === roomId)
   if (!room) return allItems
+  const lp = levelAsPlan(plan, level)
   return arrangeOnePlanRoom(
     room,
     allItems,
     catalog,
     doors,
-    doorSwingRects(plan),
-    windowCentres(plan),
-    planCollisionWalls(plan, doors),
+    doorSwingRects(lp),
+    windowCentres(lp),
+    planCollisionWalls(lp, doors),
+    level.id,
   )
 }
 
@@ -1123,13 +968,20 @@ export function arrangeAllRoomsForPlan(
   catalog: Record<string, FurnitureDef>,
   doors: Record<string, { open: boolean }>,
 ): FurnitureItem[] {
-  const keepOut = doorSwingRects(plan)
-  const windows = windowCentres(plan)
-  // Collide against the custom plan's own walls, not the fixed flat's.
-  const walls = planCollisionWalls(plan, doors)
   let items = allItems
-  for (const room of plan.rooms) {
-    items = arrangeOnePlanRoom(room, items, catalog, doors, keepOut, windows, walls)
+  // Iterate EVERY storey (F13): `plan.rooms`/`walls`/`openings` are ground-only,
+  // so a multi-storey plan must arrange each level's rooms against that level's
+  // own geometry. `levelAsPlan` returns the plan itself for a single-storey plan
+  // (common case) → identical output to the old ground-only loop.
+  for (const level of planLevels(plan)) {
+    const lp = levelAsPlan(plan, level)
+    const keepOut = doorSwingRects(lp)
+    const windows = windowCentres(lp)
+    // Collide against this level's own walls, not the fixed flat's or ground's.
+    const walls = planCollisionWalls(lp, doors)
+    for (const room of level.rooms) {
+      items = arrangeOnePlanRoom(room, items, catalog, doors, keepOut, windows, walls, level.id)
+    }
   }
   return items
 }

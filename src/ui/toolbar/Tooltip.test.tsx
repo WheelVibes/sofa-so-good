@@ -34,6 +34,42 @@ describe('Tooltip', () => {
     expect(screen.queryByTestId('tooltip-chip')).toBeNull()
   })
 
+  it('shows immediately on keyboard focus (UX-007)', () => {
+    render(
+      <Tooltip label="Catalog" shortcut="C">
+        <button>btn</button>
+      </Tooltip>,
+    )
+    fireEvent.focus(screen.getByText('btn').parentElement!)
+    // No hover delay needed for keyboard focus — the hint appears at once.
+    expect(screen.getByText('Catalog')).toBeTruthy()
+  })
+
+  it('does not show the focus a click leaves on the button (UX-007 guard)', () => {
+    render(
+      <Tooltip label="Catalog" shortcut="C">
+        <button>btn</button>
+      </Tooltip>,
+    )
+    const wrap = screen.getByText('btn').parentElement!
+    fireEvent.pointerDown(wrap)
+    fireEvent.focus(wrap) // focus that follows a click
+    expect(screen.queryByText('Catalog')).toBeNull()
+  })
+
+  it('hides on blur', () => {
+    render(
+      <Tooltip label="Catalog" shortcut="C">
+        <button>btn</button>
+      </Tooltip>,
+    )
+    const wrap = screen.getByText('btn').parentElement!
+    fireEvent.focus(wrap)
+    expect(screen.getByText('Catalog')).toBeTruthy()
+    fireEvent.blur(wrap)
+    expect(screen.queryByText('Catalog')).toBeNull()
+  })
+
   it('hides on pointer leave before the delay elapses', () => {
     render(
       <Tooltip label="Catalog" shortcut="C">

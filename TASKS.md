@@ -221,7 +221,10 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] RZ7: PCF/penumbra shadow softening on Medium+ tiers.
 
 ### Code quality
-- [~] CQ1: dead-code sweep (autoArrange chair `half` removed this batch — keep scanning).
+- [~] CQ1: dead-code sweep — `knip` audit (2026-06-20): removed the unused `react-virtuoso` dep; the
+  ~90 "unused export" hits are over-exported-but-live symbols (used within their own module), so removing
+  the `export` keyword would be cosmetic churn with test-import risk — left as-is. `playwright`/
+  `@playwright/test` are unused but plausibly intentional e2e infra (no config) — left.
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

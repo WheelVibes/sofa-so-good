@@ -3,6 +3,7 @@ import type { FloorPlan } from '../../floorplan/types'
 import { BUILTIN_CATALOG } from '../builtinCatalog'
 import { furnishPlanItems } from '../furnishPlan'
 import { LAYOUT_PRESETS } from '../layoutPresets'
+import type { FurnitureItem } from '../types'
 import { applyDecorStyling, applyDecorStylingForPlan } from './decorStyling'
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')!
@@ -75,6 +76,116 @@ describe('applyDecorStyling', () => {
     expect(sofaDecor.length).toBeLessThanOrEqual(4)
   })
 
+  it('varies the colour of repeated soft-good props so they are not clones (RD-408)', () => {
+    // A 3-seat sofa gets multiple cushions; their fabric colour must vary.
+    const sofa = {
+      id: 'host-sofa',
+      defId: 'sofa-3seat' as const,
+      position: [2, 2] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const decor = applyDecorStyling([sofa], BUILTIN_CATALOG)
+    const cushions = decor.filter((d) => d.defId === 'throw-cushion')
+    expect(cushions.length).toBeGreaterThanOrEqual(2)
+    const colours = new Set(cushions.map((c) => c.props.color))
+    expect(colours.size).toBeGreaterThanOrEqual(2) // not identical clones
+    // Shape/pattern are varied from valid option sets (silhouette/fabric mix).
+    for (const c of cushions) {
+      expect(['square', 'rect']).toContain(c.props.shape)
+      expect(['plain', 'stripe']).toContain(c.props.pattern)
+    }
+    // Deterministic with the same seed.
+    const again = applyDecorStyling([sofa], BUILTIN_CATALOG)
+    expect(again.filter((d) => d.defId === 'throw-cushion').map((c) => c.props.color)).toEqual(
+      cushions.map((c) => c.props.color),
+    )
+  })
+
+  it('dresses the newly-added host surfaces (RD-408): tv-console, ottoman, bench', () => {
+    for (const defId of ['tv-console', 'ottoman', 'bench'] as const) {
+      const host = {
+        id: `host-${defId}`,
+        defId,
+        position: [3, 3] as [number, number],
+        rotation: 0,
+        props: {},
+      }
+      const decor = applyDecorStyling([host], BUILTIN_CATALOG)
+      expect(decor.length).toBeGreaterThanOrEqual(1)
+      // Decor sits at the host's real top surface via `surfaceHeight` (the prop
+      // self-lifts in local space). It must NOT also set `elevation`, or the prop
+      // double-lifts to ~2× the surface height and floats.
+      const top = BUILTIN_CATALOG[defId].defaultFootprint.h
+      for (const d of decor) {
+        expect(d.props.surfaceHeight).toBeCloseTo(top, 5)
+        expect(d.elevation ?? 0).toBe(0)
+      }
+    }
+  })
+
+  it('leads with the trailing-plant hero prop on open shelving (RD-408)', () => {
+    // The trailing plant is the top priority on the open shelving units, so it is
+    // placed even at the minimum per-surface budget of 1.
+    for (const defId of ['bookshelf', 'cube-shelf'] as const) {
+      const host = {
+        id: `host-${defId}`,
+        defId,
+        position: [4, 4] as [number, number],
+        rotation: 0,
+        props: {},
+      }
+      const decor = applyDecorStyling([host], BUILTIN_CATALOG)
+      expect(decor.some((d) => d.defId === 'trailing-plant')).toBe(true)
+      // The trailing plant must sit at the host top via surfaceHeight (self-lift),
+      // never via elevation, exactly like the other tabletop decor props.
+      const top = BUILTIN_CATALOG[defId].defaultFootprint.h
+      for (const d of decor.filter((x) => x.defId === 'trailing-plant')) {
+        expect(d.props.surfaceHeight).toBeCloseTo(top, 5)
+        expect(d.elevation ?? 0).toBe(0)
+      }
+    }
+  })
+
+  it('offers the decor-tray hero prop on its host surfaces and self-lifts via surfaceHeight (RD-408)', () => {
+    // The styled tray leads on the coffee-table and ottoman, so it appears even
+    // at the minimum per-surface budget of 1; it is a secondary option on the
+    // console-table / sideboard. Across the four wired hosts, at least one must
+    // offer it, and wherever it lands it must sit at the host top via
+    // `surfaceHeight` (self-lift) — never via `elevation`.
+    let offeredSomewhere = false
+    for (const defId of ['coffee-table', 'ottoman', 'console-table', 'sideboard'] as const) {
+      const host = {
+        id: `host-${defId}`,
+        defId,
+        position: [4, 4] as [number, number],
+        rotation: 0,
+        props: {},
+      }
+      const decor = applyDecorStyling([host], BUILTIN_CATALOG)
+      const trays = decor.filter((d) => d.defId === 'decor-tray')
+      if (trays.length > 0) offeredSomewhere = true
+      const top = BUILTIN_CATALOG[defId].defaultFootprint.h
+      for (const d of trays) {
+        expect(d.props.surfaceHeight).toBeCloseTo(top, 5)
+        expect(d.elevation ?? 0).toBe(0)
+      }
+    }
+    expect(offeredSomewhere).toBe(true)
+    // The coffee-table and ottoman lead with the tray, so it is guaranteed there.
+    for (const defId of ['coffee-table', 'ottoman'] as const) {
+      const host = {
+        id: `lead-${defId}`,
+        defId,
+        position: [4, 4] as [number, number],
+        rotation: 0,
+        props: {},
+      }
+      const decor = applyDecorStyling([host], BUILTIN_CATALOG)
+      expect(decor.some((d) => d.defId === 'decor-tray')).toBe(true)
+    }
+  })
+
   it('respects the per-host-type ceiling even for huge hosts (RD408-001)', () => {
     // Per-type ceilings cap density regardless of how large a surface is.
     const sofa = {
@@ -115,9 +226,10 @@ describe('applyDecorStyling', () => {
     const decor = applyDecorStyling([mockSofa], BUILTIN_CATALOG)
     expect(decor.length).toBeGreaterThan(0)
     for (const d of decor) {
-      // surfaceHeight should equal the sofa's defaultFootprint.h.
+      // surfaceHeight should equal the sofa's defaultFootprint.h; the prop
+      // self-lifts to it. `elevation` must stay unset, or the prop double-lifts.
       expect(d.props.surfaceHeight).toBeCloseTo(sofa!.defaultFootprint.h, 2)
-      expect(d.elevation).toBeCloseTo(sofa!.defaultFootprint.h, 2)
+      expect(d.elevation ?? 0).toBe(0)
     }
   })
 
@@ -273,6 +385,48 @@ describe('applyDecorStylingForPlan', () => {
       })
       expect(inRoom.length).toBeLessThanOrEqual(10)
     }
+  })
+
+  it('styles rooms on UPPER storeys too, tagged with the level (AUD-001/F13)', () => {
+    // Regression: `applyDecorStylingForPlan` used to iterate ground-only
+    // `plan.rooms`, so an upper-storey room's hosts produced NO decor (and any
+    // decor it did make would have rendered on the ground floor — decor items
+    // carry no `levelId` of their own).
+    const ground = makePlan()
+    // A 2-storey plan: a loft directly above the ground living room (same x/z).
+    const plan: FloorPlan = {
+      ...ground,
+      upperLevels: [
+        {
+          id: 'upper',
+          name: 'Loft',
+          elevation: 3,
+          walls: ground.walls,
+          openings: [],
+          rooms: [{ id: 'loft', name: 'Loft', origin: [0.2, 0.2], width: 5.0, depth: 7.6 }],
+        },
+      ],
+    }
+    // One host on the GROUND living room and an identical one on the UPPER loft
+    // (same x/z — only `levelId` distinguishes them).
+    const host = (id: string, levelId?: string): FurnitureItem => ({
+      id,
+      defId: 'coffee-table' as FurnitureItem['defId'],
+      position: [2.5, 3.5],
+      rotation: 0,
+      props: {},
+      ...(levelId ? { levelId } : {}),
+    })
+    const arranged: FurnitureItem[] = [host('g-table'), host('u-table', 'upper')]
+    const decor = applyDecorStylingForPlan(plan, arranged, BUILTIN_CATALOG)
+    // Decor produced for BOTH storeys' hosts.
+    const groundDecor = decor.filter((d) => d.id.includes('g-table'))
+    const upperDecor = decor.filter((d) => d.id.includes('u-table'))
+    expect(groundDecor.length).toBeGreaterThan(0)
+    expect(upperDecor.length).toBeGreaterThan(0)
+    // Upper decor is tagged onto the loft storey; ground decor stays untagged.
+    expect(upperDecor.every((d) => d.levelId === 'upper')).toBe(true)
+    expect(groundDecor.every((d) => d.levelId === undefined)).toBe(true)
   })
 })
 

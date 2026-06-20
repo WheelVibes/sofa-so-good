@@ -3,22 +3,12 @@ import { noExportUserData } from '../../export/sceneGltf'
 import { useStore } from '../../state/store'
 import { isPhotoBackdropActive } from '../SceneBackdrop'
 import { skyFromAltitude } from './altitudeCurve'
-import { sunDirectionToScene } from './sunPosition'
+import { rotateY, sunDirectionToScene } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
 
 /** Sky sun-position is rendered far away so DreiSky's shader places
  *  the disc near the horizon plane. */
 const SKY_SUN_DISTANCE = 1000
-
-// Clockwise around Y when viewed from above, matching compass bearings
-// (N=0° → E=90° → S=180° → W=270°). Same convention as Lighting.tsx.
-function rotateY(pos: readonly [number, number, number], deg: number): [number, number, number] {
-  const r = (deg * Math.PI) / 180
-  const c = Math.cos(r)
-  const s = Math.sin(r)
-  const [x, y, z] = pos
-  return [x * c - z * s, y, x * s + z * c]
-}
 
 export function Sky() {
   const sunPos = useSunPosition()

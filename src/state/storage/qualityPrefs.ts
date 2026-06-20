@@ -4,6 +4,15 @@
  * layout save format — quality is a per-device preference, not part of a
  * saved design.
  */
+
+import {
+  clampFocalMm,
+  clampFocusDistance,
+  clampFStop,
+  FOCAL_DEFAULT_MM,
+  FOCUS_DEFAULT_M,
+  FSTOP_DEFAULT,
+} from '../../scene/cameras/cameraLensSettings'
 import { clampExposure, DEFAULT_EXPOSURE } from '../../scene/look'
 import {
   DEFAULT_TONE_MAPPING_SETTING,
@@ -26,6 +35,10 @@ export function loadQualityPrefs(): void {
       assetTier?: 'low' | 'medium' | 'high' | null
       toneMapping?: string
       exposure?: number
+      lensFocalMm?: number
+      dofFStop?: number
+      dofFocusDistance?: number
+      dofAuto?: boolean
     }
     // Migrate the old flat tier name. Other names map 1:1 onto the new
     // RenderTier union (medium/high unchanged; maximum is new).
@@ -47,6 +60,15 @@ export function loadQualityPrefs(): void {
       assetTier: p.assetTier ?? null,
       toneMapping,
       exposure: typeof p.exposure === 'number' ? clampExposure(p.exposure) : DEFAULT_EXPOSURE,
+      // Lens + DoF (PC2-CAM-DOF-LENS) — back-compat defaults for legacy prefs.
+      lensFocalMm:
+        typeof p.lensFocalMm === 'number' ? clampFocalMm(p.lensFocalMm) : FOCAL_DEFAULT_MM,
+      dofFStop: typeof p.dofFStop === 'number' ? clampFStop(p.dofFStop) : FSTOP_DEFAULT,
+      dofFocusDistance:
+        typeof p.dofFocusDistance === 'number'
+          ? clampFocusDistance(p.dofFocusDistance)
+          : FOCUS_DEFAULT_M,
+      dofAuto: typeof p.dofAuto === 'boolean' ? p.dofAuto : true,
     })
   } catch {
     /* ignore corrupt prefs */
@@ -63,6 +85,10 @@ export function watchQualityPrefs(): void {
       assetTier: s.assetTier,
       toneMapping: s.toneMapping,
       exposure: s.exposure,
+      lensFocalMm: s.lensFocalMm,
+      dofFStop: s.dofFStop,
+      dofFocusDistance: s.dofFocusDistance,
+      dofAuto: s.dofAuto,
     })
     if (snap === last) return
     last = snap

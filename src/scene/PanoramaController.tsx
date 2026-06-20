@@ -55,7 +55,6 @@ export function PanoramaController() {
       const releasePump = registerAnimatedSource()
       try {
         store.setQualityTier('high')
-        store.setQualityOverride('showcase', true)
         store.setQualityOverride('postprocessing', true)
         store.setQualityOverride('wallReveal', false)
 

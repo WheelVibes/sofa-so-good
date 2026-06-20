@@ -1180,4 +1180,130 @@ export const DECOR_DEFS = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0.1 },
     ],
   },
+  'trailing-plant': {
+    kind: 'parametric',
+    id: 'trailing-plant',
+    name: 'Trailing plant',
+    keywords: [
+      'trailing plant',
+      'pothos',
+      'cascading plant',
+      'ivy',
+      'vine',
+      'hanging vine',
+      'devil ivy',
+      'shelf plant',
+    ],
+    category: 'decor',
+    primitive: 'TrailingPlant',
+    // Footprint spans the cascade so the vines reading over the edge are honest.
+    defaultFootprint: { w: 0.28, d: 0.28, h: 0.32 },
+    // Pot crown reaches ~0.18 above the surface; vines drape ~0.3 m below it, so
+    // the rendered span runs from below the surface up past the crown.
+    verticalSpan: { base: 0.12, top: 0.62 },
+    noClip: true,
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'surfaceHeight',
+        label: 'Sits at',
+        min: 0,
+        max: 1.4,
+        step: 0.02,
+        default: 0.42,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'potColor', label: 'Pot', default: '#cdbb9a' },
+      { kind: 'color', key: 'leafColor', label: 'Foliage', default: '#4a7a44' },
+      {
+        kind: 'enum',
+        key: 'fullness',
+        label: 'Fullness',
+        default: 'full',
+        options: [
+          { value: 'full', label: 'Full' },
+          { value: 'sparse', label: 'Sparse' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'potFinish',
+        label: 'Pot finish',
+        default: 'painted',
+        options: [
+          { value: 'painted', label: 'Matte' },
+          { value: 'gloss', label: 'Glazed' },
+          { value: 'wood', label: 'Terracotta' },
+        ],
+      },
+    ],
+  },
+  'decor-tray': {
+    kind: 'parametric',
+    id: 'decor-tray',
+    name: 'Decor tray',
+    keywords: [
+      'tray',
+      'styling tray',
+      'vignette',
+      'tabletop tray',
+      'serving tray',
+      'coffee table styling',
+      'candle tray',
+    ],
+    category: 'decor',
+    primitive: 'DecorTray',
+    // Footprint covers the tray plus the objects standing inside it.
+    defaultFootprint: { w: 0.34, d: 0.22, h: 0.13 },
+    // Base sits ~0.018 above the surface; the tallest object (candle/bowl)
+    // reaches ~0.13, so the span runs from the surface up past the vignette.
+    verticalSpan: { base: 0.42, top: 0.55 },
+    noClip: true,
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'surfaceHeight',
+        label: 'Sits at',
+        min: 0,
+        max: 1.4,
+        step: 0.02,
+        default: 0.42,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Arrangement',
+        default: 'mixed',
+        options: [
+          { value: 'mixed', label: 'Mixed (candle + bowl + books)' },
+          { value: 'candles', label: 'Candles' },
+          { value: 'minimal', label: 'Minimal' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'fullness',
+        label: 'Fullness',
+        default: 'full',
+        options: [
+          { value: 'full', label: 'Full' },
+          { value: 'sparse', label: 'Sparse' },
+        ],
+      },
+      { kind: 'color', key: 'trayColor', label: 'Tray', default: '#b8987a' },
+      { kind: 'color', key: 'accentColor', label: 'Objects', default: '#7a8a7c' },
+      {
+        kind: 'enum',
+        key: 'trayFinish',
+        label: 'Tray finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Matte' },
+          { value: 'gloss', label: 'Lacquer' },
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, FurnitureDef>

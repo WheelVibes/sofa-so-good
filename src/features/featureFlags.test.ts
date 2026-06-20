@@ -75,6 +75,13 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'simple').smartStart).toBe(true)
   })
 
+  it('furnitureGroups (pro tier) is present in Pro and hidden in Simple', () => {
+    // Grouping is an advanced authoring tool → pro; the UI gates on this flag so
+    // it disappears from Simple's minimal core loop.
+    expect(resolveFlags(true, {}, false, 'pro').furnitureGroups).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').furnitureGroups).toBe(false)
+  })
+
   it('sceneExport3d (simple tier) is present in BOTH Simple and Pro modes', () => {
     // Whole-scene 3D export is part of the curated launch set → simple tier.
     expect(resolveFlags(true, {}, false, 'simple').sceneExport3d).toBe(true)
@@ -226,6 +233,22 @@ describe('remoteFurniture flag (AI-INTEG-001a)', () => {
   })
 })
 
+describe('proceduralSky flag (RD-412)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
+    // The sun-driven sky is an advanced atmosphere/realism option beyond the
+    // curated static backdrops → hidden in Simple, on in Pro.
+    expect(resolveFlags(false, {}, false, 'simple').proceduralSky).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').proceduralSky).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').proceduralSky).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').proceduralSky).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.proceduralSky.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.proceduralSky.default).toBe(true)
+    expect(FEATURE_FLAGS.proceduralSky.tier).toBe('pro')
+  })
+})
+
 describe('parseFlagOverrides (URL ?ff=)', () => {
   it('parses on/off pairs for known flags, ignoring junk', () => {
     expect(parseFlagOverrides('report:off,walkthrough:on')).toEqual({
@@ -360,5 +383,37 @@ describe('walkCameraControls flag (PARITY-WALKCAM)', () => {
     expect(FEATURE_FLAGS.walkCameraControls.devOnly).toBeUndefined()
     expect(FEATURE_FLAGS.walkCameraControls.default).toBe(true)
     expect(FEATURE_FLAGS.walkCameraControls.tier).toBe('simple')
+  })
+})
+
+describe('cameraDof flag (PC2-CAM-DOF-LENS)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
+    // Lens + depth-of-field is an advanced photographic control → hidden in
+    // Simple where the camera UI keeps only the core view loop.
+    expect(resolveFlags(false, {}, false, 'simple').cameraDof).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').cameraDof).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').cameraDof).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').cameraDof).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.cameraDof.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.cameraDof.default).toBe(true)
+    expect(FEATURE_FLAGS.cameraDof.tier).toBe('pro')
+  })
+})
+
+describe('importSh3d flag (PARITY-SH3D)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
+    // Importing a Sweet Home 3D plan is a plan-interop / authoring surface beyond
+    // the core furnish loop → hidden in Simple where the UI stays minimal.
+    expect(resolveFlags(false, {}, false, 'simple').importSh3d).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').importSh3d).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').importSh3d).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').importSh3d).toBe(true)
+  })
+  it('ships in prod (pure client-side parse, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.importSh3d.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.importSh3d.default).toBe(true)
+    expect(FEATURE_FLAGS.importSh3d.tier).toBe('pro')
   })
 })

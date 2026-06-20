@@ -21,7 +21,7 @@ start designing immediately.
 | 🎨 **Finish** | Procedural PBR floors & walls (oak/walnut/parquet, marble, terrazzo, paints, brick, microcement) plus downloadable CC0 materials, per-room with “apply to all”. → [Finishes & materials](docs/user/finishes-and-materials.md) |
 | ☀️ **Light** | A real sun simulation for your location with day/night fixtures, glass tint, and one-tap lighting moods. → [Lighting & time](docs/user/lighting-and-time.md) |
 | 👀 **View** | Orbit dollhouse, top-down plan, and a first-person walkthrough (WASD / on-screen joystick) with a live minimap. → [Navigating](docs/user/navigating.md) |
-| 📐 **Floor plans** | A 2D editor to redraw the home (walls, rooms, doors, ceilings) or load an HDB / condo / landed template; the 3D home follows. → [Floor-plan editor](docs/user/floor-plan-editor.md) |
+| 📐 **Floor plans** | A 2D editor to redraw the home (walls, rooms, doors, ceilings) or load an HDB / condo / landed template; the 3D home follows. Import a **Sweet Home 3D** `.sh3d` plan *(Pro)*. → [Floor-plan editor](docs/user/floor-plan-editor.md) |
 | 🪑 **Per-room editor** | An IKEA-planner-style mode that isolates one room for focused furnishing. → [Room editor](docs/user/room-editor.md) |
 | 📊 **Design tools** | Budget & shopping list, clearance checks, measuring, a design score, and a printable design report. → [Design tools](docs/user/design-tools.md) |
 | 📦 **Your own models** | Import `.glb/.gltf/.obj/.fbx/.stl/.ply/.dae/.3mf/.usdz` — converted & optimized in-browser. → [Importing models](docs/user/importing-models.md) |

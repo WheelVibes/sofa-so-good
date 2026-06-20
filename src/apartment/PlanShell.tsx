@@ -13,7 +13,7 @@ import {
 import { useFeature } from '../features/useFeature'
 import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
-import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
+import { planWallThickness, type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
 import { isSlopedWall, slopedWallTriangles } from '../floorplan/slopedWall'
 import {
@@ -547,7 +547,13 @@ function PlanLevelShell({
 
       {/* Sloping-top walls render as prisms (slopedWall.ts), not boxes. */}
       {lp.walls.filter(isSlopedWall).map((w) => (
-        <SlopedWallMesh key={w.id} wall={w} ceiling={lp.ceilingHeight} color={wallColor} />
+        <SlopedWallMesh
+          key={w.id}
+          wall={w}
+          ceiling={lp.ceilingHeight}
+          thickness={planWallThickness(w, lp)}
+          color={wallColor}
+        />
       ))}
 
       {/* Skirting along floor-reaching wall spans (per-wall baseboard override:
@@ -694,18 +700,23 @@ function FadeWindow({
 function SlopedWallMesh({
   wall,
   ceiling,
+  thickness,
   color,
 }: {
   wall: PlanWall
   ceiling: number
+  thickness: number
   color: string
 }) {
   const geometry = useMemo(() => {
     const g = new BufferGeometry()
-    g.setAttribute('position', new BufferAttribute(slopedWallTriangles(wall, ceiling), 3))
+    g.setAttribute(
+      'position',
+      new BufferAttribute(slopedWallTriangles(wall, ceiling, thickness), 3),
+    )
     g.computeVertexNormals()
     return g
-  }, [wall, ceiling])
+  }, [wall, ceiling, thickness])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <mesh geometry={geometry} castShadow receiveShadow>

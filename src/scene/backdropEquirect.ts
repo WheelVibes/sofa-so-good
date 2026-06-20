@@ -15,6 +15,7 @@ import {
   HORIZON_Y,
   hillRidgeY,
 } from './backdropHorizon'
+import { paintSkyEquirect, type Vec3 } from './lighting/skyGradient'
 
 export { EQUIRECT_H, EQUIRECT_W, HORIZON_Y } from './backdropHorizon'
 
@@ -163,4 +164,33 @@ function paintHills(ctx: CanvasRenderingContext2D, preset: Preset) {
 function hexAlpha(hex: string, a: number): string {
   const n = Number.parseInt(hex.slice(1), 16)
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+}
+
+// ---------------------------------------------------------------------------
+// Sun-driven procedural sky (RD-412, steps 1–5)
+// ---------------------------------------------------------------------------
+
+/** A lower-resolution equirect for the sun-driven sky — it has no fine horizon
+ *  detail (pure gradient), and is re-baked as the sun moves, so a smaller buffer
+ *  keeps the per-rebake cost low. Still 2:1 so the mapping is identical. */
+export const SKY_EQUIRECT_W = 1024
+export const SKY_EQUIRECT_H = 512
+
+/**
+ * Paint the analytic sun-driven sky (`skyGradient.ts`) into a fresh canvas as a
+ * 2:1 equirect. Like `bakeBackdropEquirect`, guards a missing 2D context (e.g.
+ * happy-dom in tests) by returning the un-painted canvas. The pure painter fills
+ * an `ImageData` buffer which is blitted in one `putImageData`.
+ */
+export function bakeSkyEquirect(sunDir: Vec3, turbidity: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas')
+  canvas.width = SKY_EQUIRECT_W
+  canvas.height = SKY_EQUIRECT_H
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return canvas
+
+  const image = ctx.createImageData(SKY_EQUIRECT_W, SKY_EQUIRECT_H)
+  paintSkyEquirect(image.data, SKY_EQUIRECT_W, SKY_EQUIRECT_H, { sunDir, turbidity })
+  ctx.putImageData(image, 0, 0)
+  return canvas
 }

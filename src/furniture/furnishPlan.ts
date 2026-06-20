@@ -13,6 +13,7 @@
  * Pure + deterministic (no store, no GPU) → unit-testable.
  */
 import { findItemOverlaps } from '../collision/placement'
+import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
 import { arrangeAllRoomsForPlan, roomKindFromName } from '../layout/autoArrange'
@@ -143,6 +144,7 @@ function seedRoom(
   kit: KitPiece[],
   defs: Record<string, FurnitureDef>,
   style: Record<string, ParamProps>,
+  levelId: string = GROUND_LEVEL_ID,
 ): FurnitureItem[] {
   const [cx, cz] = roomCentre(room)
   const out: FurnitureItem[] = []
@@ -158,6 +160,12 @@ function seedRoom(
         defId: piece.defId as FurnitureItem['defId'],
         position: [cx, cz],
         rotation: 0,
+        // Tag the storey so the item belongs to this level's room (F13) — an
+        // upper-floor piece must not be classified into the ground room sharing
+        // its x/z, and the arranger / collision are level-gated. Ground items
+        // stay untagged (levelId omitted = ground) for identical single-storey
+        // output.
+        ...(levelId !== GROUND_LEVEL_ID ? { levelId } : {}),
         props: { ...props },
       })
     }
@@ -204,9 +212,14 @@ export function furnishPlanItems(
   withDecor = true,
 ): FurnitureItem[] {
   const seeded: FurnitureItem[] = []
-  for (const room of plan.rooms) {
-    const kit = kitForRoom(room)
-    if (kit) seeded.push(...seedRoom(room, kit, defs, preset.style))
+  // Furnish EVERY storey (F13): `plan.rooms` is ground-only, so iterate all
+  // levels and seed each room tagged with its storey. Single-storey plans yield
+  // only the ground level (no levelId tag) → identical to the old loop.
+  for (const level of planLevels(plan)) {
+    for (const room of level.rooms) {
+      const kit = kitForRoom(room)
+      if (kit) seeded.push(...seedRoom(room, kit, defs, preset.style, level.id))
+    }
   }
   if (seeded.length === 0) return []
   const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors)

@@ -24,7 +24,11 @@ export function slopedWallHeights(w: PlanWall, ceilingHeight: number): [number, 
   return [h0, h1]
 }
 
-function thicknessOf(w: PlanWall): number {
+/** Fallback half-thicknesses when no resolved thickness is supplied — kept in
+ *  sync with `planGeometry.ts` (EXTERNAL_T 0.2 / INTERNAL_T 0.1). Prefer passing
+ *  the resolved `thicknessM` (from `planWallThickness`) so per-wall overrides and
+ *  the plan-wide default are honoured (BUG-009). */
+function fallbackThickness(w: PlanWall): number {
   return w.thickness === 'external' ? 0.2 : 0.1
 }
 
@@ -32,8 +36,15 @@ function thicknessOf(w: PlanWall): number {
  * World-space triangle positions (flat array, 3 floats/vertex, 36 verts = 12
  * triangles) for a sloped wall prism: rectangular floor footprint, vertical end
  * caps at h0 (start) and h1 (end), a slanted top, and four sides.
+ *
+ * `thicknessM` is the resolved full wall thickness (m); when omitted it falls
+ * back to the built-in category default, so callers without a plan still work.
  */
-export function slopedWallTriangles(w: PlanWall, ceilingHeight: number): Float32Array {
+export function slopedWallTriangles(
+  w: PlanWall,
+  ceilingHeight: number,
+  thicknessM?: number,
+): Float32Array {
   const [sx, sz] = w.start
   const [ex, ez] = w.end
   const dx = ex - sx
@@ -42,7 +53,7 @@ export function slopedWallTriangles(w: PlanWall, ceilingHeight: number): Float32
   // Unit left-normal in XZ for the half-thickness offset.
   const nx = -dz / len
   const nz = dx / len
-  const t = thicknessOf(w) / 2
+  const t = (thicknessM != null && thicknessM > 0 ? thicknessM : fallbackThickness(w)) / 2
   const [h0, h1] = slopedWallHeights(w, ceilingHeight)
 
   // 8 corners: base (y=0) + top (sloped). L/R = ±left-normal side; S/E = start/end.

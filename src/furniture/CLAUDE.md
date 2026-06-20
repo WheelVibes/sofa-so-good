@@ -16,6 +16,15 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   — set the same collision flags; run `npm run optimize:glb` for `-low`/`-medium` LOD variants
   (uploads generate theirs in-browser via `optimize/lodVariants.ts`, routed by the `gltf/lod.ts`
   variant registry).
+- **Pre-render footprint seed for GLB defs.** A GLB's true footprint is only learned after
+  `GltfModel` renders + caches its bbox (`FOOTPRINT_CACHE`), so anything placed/sized/collided
+  *before* first render needs a real seed, not a 1×1×1 guess. Two pure helpers do this from glTF
+  POSITION accessor `min`/`max` (no render): `catalog/packs/footprint.ts:glbFootprint` (GLB *bytes*,
+  used by the pack/upload path) and `catalog/remote/gltfBounds.ts:gltfJsonFootprint` (parsed glTF
+  *JSON*, used by `catalog/remote/resolver.ts:bundleToFurnitureDef` for remote/Poly Haven defs).
+  Both union multi-mesh bounds, clamp axes ≥0.05 m, reject absurd non-metre scales, and fall back
+  to the caller's 1×1×1 placeholder when bounds are unavailable. The render-time cache stays
+  authoritative — these only make the pre-render value honest.
 - **GLTF cache eviction on removal (PERF-001/008).** When a GLB asset is removed/replaced/
   uninstalled, call `evictGltfAsset(url)` (`GltfModel.tsx`) so its parsed GPU geometry/textures
   leave the drei `useGLTF` cache and are disposed, and its `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`
@@ -78,4 +87,12 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `applyDecorStylingForPlan` wraps it per-room. Both stay pure + seedable + deterministic →
   unit-testable. Wired into `furnishPlanItems` (`withDecor=true` by default); skip with
   `withDecor=false`. No feature flag — enriches the existing auto-furnish surface. Decor ids are
-  `decor-<hostId>-<propId>-<slot>`. (Hero/wall passes + weighted variety are future RD-408 tasks.)
+  `decor-<hostId>-<propId>-<slot>`. **Prop colour variety (RD-408):** repeated soft goods
+  (cushion/blanket `color`) + book stacks (`spineColor`) draw a seeded colour from a curated
+  `VARIETY` palette (offset by slot) so they aren't identical clones. **Hero props (RD-408):**
+  richer set-dressing primitives with real silhouettes — e.g. `trailing-plant` (a raised pot whose
+  vines cascade over the edge, leading the prop list on open shelving `bookshelf`/`cube-shelf` and a
+  secondary option on `console-table`/`sideboard`); `decor-tray` (a shallow styled tray holding a
+  small index-seeded candle/bowl/books vignette, `style`/`fullness` controls — leading on
+  `coffee-table`/`ottoman` and a secondary option on `console-table`/`sideboard`). (The wall pass is
+  still a future RD-408 task.)

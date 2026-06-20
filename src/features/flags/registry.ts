@@ -284,6 +284,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  furnitureGroups: {
+    label: 'Furniture groups',
+    description: 'Group items so they move / rotate / duplicate / delete as one',
+    default: true,
+    tier: 'pro',
+  },
   designerPicks: {
     label: 'Designer picks',
     description: 'Curated one-tap floor/wall finishes in the picker',
@@ -620,6 +626,40 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   iesLights: {
     label: 'IES light profiles',
     description: 'Apply real luminaire photometric beam shapes (.ies) to light fixtures',
+    default: true,
+    tier: 'pro',
+  },
+  // Camera lens + depth-of-field controls (PC2-CAM-DOF-LENS): focal length,
+  // aperture f-stop and focus distance for the render/snapshot camera — drives
+  // the HQ path tracer's PhysicalCamera and the raster DoF pass on High/Maximum.
+  // Pure client-side code (no external assets / sidecar) → prod-safe. An advanced
+  // photographic control beyond the core view loop → pro tier (hidden in Simple
+  // mode automatically).
+  cameraDof: {
+    label: 'Camera lens & depth of field',
+    description: 'Focal length, aperture (f-stop) and focus controls for the render camera',
+    default: true,
+    tier: 'pro',
+  },
+  // Sun-driven procedural sky backdrop (RD-412, steps 1–5). An analytic Preetham
+  // sky baked into the walk-mode `scene.background` equirect that tracks the sun
+  // across the day (blue noon, warm low sun, dark night). Pure code, no external
+  // assets → prod-safe (default on). An advanced realism/atmosphere option beyond
+  // the curated static photo backdrops → pro tier (hidden in Simple mode). The
+  // IBL/lighting integration is deliberately out of scope here.
+  proceduralSky: {
+    label: 'Procedural sky',
+    description: 'Sun-driven analytic sky as the walk-mode window view (tracks the time of day)',
+    default: true,
+    tier: 'pro',
+  },
+  // Import a Sweet Home 3D `.sh3d` plan (PARITY-SH3D). Pure client-side parse
+  // (unzip + XML → our plan model), no sidecar / licensing → prod-safe (default
+  // on). A plan-interop / authoring surface beyond the core furnish loop → pro
+  // tier (hidden in Simple mode automatically).
+  importSh3d: {
+    label: 'Import Sweet Home 3D',
+    description: 'Import a Sweet Home 3D (.sh3d) plan — walls, rooms and furniture',
     default: true,
     tier: 'pro',
   },

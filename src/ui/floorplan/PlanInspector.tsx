@@ -2,9 +2,10 @@ import { useState } from 'react'
 import type { RoomId } from '../../apartment/types'
 import { useFeature } from '../../features/useFeature'
 import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
-import { levelById } from '../../floorplan/levels'
+import { levelById, levelOfItem } from '../../floorplan/levels'
 import { defaultOpeningName, defaultWallName } from '../../floorplan/planElementName'
 import { polylineLength } from '../../floorplan/polyline'
+import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../../floorplan/roomFinishes'
 import {
   type CeilingConfig,
   type CeilingStyle,
@@ -18,6 +19,7 @@ import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
+import { PlanFurnitureInspector } from './PlanFurnitureInspector'
 
 const FLOOR_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.floor ?? []
 const WALL_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.wall ?? []
@@ -45,7 +47,7 @@ function usePlanInspectorMinimize(
  *  focused so the user can clear / type a partial value ("1.", "-") freely, and
  *  only commits a *finite* number — so a blank/NaN field never reaches the plan
  *  geometry (which would make a degenerate room/wall and break save/render). */
-function Num({
+export function Num({
   label,
   value,
   onChange,
@@ -216,7 +218,21 @@ function CeilingControls({
 export function PlanInspector({ levelId }: { levelId?: string }) {
   const sel = useStore((s) => s.planSelection)
   const selectedWallIds = useStore((s) => s.selectedWallIds)
+  // A placed furniture item selected on the plan (PARITY-PLAN-FURN-INSPECT).
+  // Mutually exclusive with a plan-element selection: `selectItem` clears
+  // `planSelection` and vice versa, so this is set only when an item is the
+  // active selection. Filtered to the active storey so a stale/cross-level id
+  // never resolves the wrong panel.
+  const furnItem = useStore((s) =>
+    s.selectedItemId ? (s.items.find((i) => i.id === s.selectedItemId) ?? null) : null,
+  )
   const plan = useStore((s) => s.floorPlan)
+  // The persisted `finishes` map is the source of truth for a room's floor/wall
+  // pick — it round-trips through `serialize()` for EVERY plan, whereas the
+  // plan's own `room.floor`/`room.wall` is dropped on the seeded default plan
+  // (`isDefaultPlan` → no `floorPlan` in the save), so reading `room.floor`
+  // directly desyncs the picker after a reload on the default flat (FIN-DEFAULT-FORK).
+  const finishes = useStore((s) => s.finishes)
   const units = useStore((s) => s.units)
   const a = useStore.getState()
   const isMobile = useIsMobile()
@@ -235,14 +251,26 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   ].filter((id) => level.walls.some((w) => w.id === id))
   const isMulti = wallSelIds.length > 1
 
-  const selKey = isMulti ? `multi:${wallSelIds.length}` : sel ? `${sel.type}:${sel.id}` : 'none'
+  // A placed item is the active selection only when it exists AND sits on the
+  // storey the editor is showing (cross-level ids resolve no panel — graceful).
+  const planItem =
+    furnItem && levelOfItem(plan, furnItem).id === level.id && !isMulti && !sel ? furnItem : null
+
+  const selKey = planItem
+    ? `furn:${planItem.id}`
+    : isMulti
+      ? `multi:${wallSelIds.length}`
+      : sel
+        ? `${sel.type}:${sel.id}`
+        : 'none'
   // A multi-selection is an action panel — keep it expanded (don't auto-minimize).
-  const { minimized, toggle } = usePlanInspectorMinimize(selKey, !!sel && !isMulti)
+  const { minimized, toggle } = usePlanInspectorMinimize(selKey, (!!sel || !!planItem) && !isMulti)
 
   // On mobile the resting (no-selection) view only repeats the plan defaults,
   // which now live in the toolbar's Tools modal — so the panel is shown only
-  // when an element is selected (to edit it). Desktop keeps the defaults panel.
-  if (isMobile && !sel) return null
+  // when an element (or placed item) is selected (to edit it). Desktop keeps
+  // the defaults panel.
+  if (isMobile && !sel && !planItem) return null
 
   let body: React.ReactNode = (
     <div className="flex flex-col gap-3">
@@ -334,7 +362,11 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
     </div>
   )
 
-  if (isMulti) {
+  if (planItem) {
+    // A placed furniture item is selected on the plan — show its property sheet
+    // (rename / X·Z / angle / size / lock / delete) in its own focused module.
+    body = <PlanFurnitureInspector item={planItem} levelId={levelId} />
+  } else if (isMulti) {
     const selWalls = level.walls.filter((w) => wallSelIds.includes(w.id))
     const allLocked = selWalls.every((w) => w.locked)
     const lockedCount = selWalls.filter((w) => w.locked).length
@@ -454,7 +486,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           <label className="flex flex-col gap-1 text-xs">
             <span className="label">Floor finish</span>
             <select
-              value={r.floor ?? 'floor-wood-oak'}
+              value={resolvePlanRoomFloor(finishes, r)}
               onChange={(e) =>
                 // Routed through the finishes slice (not a bare updateRoom) so
                 // the live finishes map stays in sync with the plan data.
@@ -472,7 +504,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           <label className="flex flex-col gap-1 text-xs">
             <span className="label">Wall finish</span>
             <select
-              value={r.wall ?? ''}
+              value={resolvePlanRoomWall(finishes, r) ?? ''}
               onChange={(e) => {
                 if (e.target.value) a.setWallFinish(r.id as RoomId, e.target.value)
                 else a.clearWallFinish(r.id as RoomId)
@@ -1098,6 +1130,14 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   // starts minimized on selection). `null` for other selections / multi-select.
   const quick = (() => {
     if (isMulti) return null
+    if (planItem) {
+      return {
+        kind: 'item' as const,
+        locked: !!planItem.locked,
+        onLock: () => useStore.getState().toggleLock(planItem.id),
+        onDelete: () => useStore.getState().deleteItem(planItem.id),
+      }
+    }
     if (sel?.type === 'wall') {
       const w = level.walls.find((x) => x.id === sel.id)
       if (!w) return null

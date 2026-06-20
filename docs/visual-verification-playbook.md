@@ -294,6 +294,30 @@ flag); the tools' store actions are exposed directly (`addNote`/`addDimension`/`
 `splitWall`/`joinWall`), so drive them via `eval`/`store` steps rather than synthesising canvas drags
 (`splitWall` selects the first half, so `joinWall(planSelection.id)` merges it back to the original count).
 
+### Worked example — 2D plan furniture rotate handle (PARITY-PLAN-FURN-ROTATE)
+
+**`plan-furniture-rotate.json`** selects a seeded sofa in the plan, reveals furniture footprints,
+grabs the rotate-knob handle and sweeps it, then asserts `__store.items[i].rotation` changed and
+is 15°-snapped. **Key gotchas learned here:**
+- The **"Furniture" footprint toggle lives inside the desktop "View ▾" dropdown menu**
+  (`PlanMenu`), not on the top toolbar row — clicking by text `"Furniture"` fails until the menu
+  is open. Open it first; the trigger button is `button[aria-haspopup="menu"]` whose text starts
+  with `View`.
+- **`click: {text: "View ▾"}` does NOT match** — the `▾` chevron is part of the label string and
+  the deepest-text matcher won't find the combined `"View ▾"`. Drive the menu open with an `eval`
+  that finds the button by `aria-haspopup="menu"` + a `/^\s*View/` text test and calls `.click()`,
+  then click the now-visible "Furniture" button (also via an `eval` exact-text match, to avoid
+  matching the help-text paragraph that contains the word "furniture").
+- The plan editor is **SVG/DOM**, so unlike the R3F canvas it **does** receive synthetic
+  `PointerEvent`s — dispatch `pointerdown` on `[data-rot-handle='<id>']` then `pointermove`/
+  `pointerup` on `.plan-screen svg` (with `pointerId`, `button:0`, `buttons:1`) to simulate the
+  rotate drag. Wrap `setPointerCapture` in try/catch (it can throw for a fully-synthetic pointer,
+  but the handler still records the gesture before capture). The assert only needs the rotation to
+  change + be 15°-snapped, so the exact pointer-to-centre angle need not be precise.
+- **NEVER launch two `shot.mjs` runs at once.** They serialize on a `flock`, but a second queued
+  Chromium under SwiftShader starves the first and the editor's `.plan-screen` `waitFor` times out
+  spuriously. Run one scenario, wait for `EXIT`, then run the next.
+
 ---
 
 ## Legacy mode (one-shot, backward-compatible)

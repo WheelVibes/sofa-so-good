@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { BLOOM } from '../look'
 import {
+  BLOOM_LUMINANCE_THRESHOLD,
   type FixtureRole,
   fixtureEmissiveIntensity,
   getFixtureGlow,
@@ -8,13 +10,18 @@ import {
 
 // The Bloom luminance threshold in EffectsImpl — lit fixtures must clear it so
 // they bloom on High/Max (and read self-lit on the flat tier).
-const BLOOM_THRESHOLD = 1.05
+const BLOOM_THRESHOLD = BLOOM_LUMINANCE_THRESHOLD
 const ROLES: FixtureRole[] = ['shade', 'bulb', 'strip']
 
 describe('fixtureEmissiveIntensity', () => {
-  it('peaks above the bloom threshold at full darkness for every role', () => {
+  it('the mirrored threshold stays in lock-step with look.BLOOM (no drift)', () => {
+    expect(BLOOM_LUMINANCE_THRESHOLD).toBe(BLOOM.luminanceThreshold)
+  })
+
+  it('peaks clear the bloom threshold with margin at full darkness for every role', () => {
     for (const role of ROLES) {
-      expect(fixtureEmissiveIntensity(role, 1)).toBeGreaterThan(BLOOM_THRESHOLD)
+      // Margin (not just >) so a slightly graded-down night still blooms.
+      expect(fixtureEmissiveIntensity(role, 1)).toBeGreaterThan(BLOOM_THRESHOLD + 0.15)
     }
   })
 

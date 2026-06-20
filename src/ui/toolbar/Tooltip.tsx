@@ -16,6 +16,9 @@ export function Tooltip({
 }) {
   const ref = useRef<HTMLSpanElement>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // True between a pointer-down and the next blur, so the focus a click leaves on
+  // the button doesn't pop the tooltip (only keyboard focus should — UX-007).
+  const pointerFocus = useRef(false)
   const [open, setOpen] = useState(false)
 
   const enter = () => {
@@ -25,13 +28,28 @@ export function Tooltip({
     clearTimeout(timer.current)
     setOpen(false)
   }
+  const down = () => {
+    pointerFocus.current = true
+    leave()
+  }
+  // Keyboard focus (Tab) reveals the label + shortcut hint immediately; a click's
+  // resulting focus is suppressed via `pointerFocus`.
+  const focus = () => {
+    if (!pointerFocus.current) setOpen(true)
+  }
+  const blur = () => {
+    pointerFocus.current = false
+    leave()
+  }
 
   return (
     <span
       ref={ref}
       onPointerEnter={enter}
       onPointerLeave={leave}
-      onPointerDown={leave}
+      onPointerDown={down}
+      onFocus={focus}
+      onBlur={blur}
       className="inline-flex"
     >
       {children}

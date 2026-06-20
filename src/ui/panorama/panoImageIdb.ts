@@ -145,15 +145,22 @@ export async function putPanoCached(
     const db = await open()
     const cacheKey = `${stopId}:${designKey}`
     const entry: PanoCacheEntry = { cacheKey, stopId, designKey, blob, savedAt: Date.now() }
-    const t = db.transaction(PANO_STORE, 'readwrite')
-    const store = t.objectStore(PANO_STORE)
-    await idbRequest(store.put(entry))
-    // Evict oldest if over the cap.
-    const all = await idbRequest<PanoCacheEntry[]>(store.getAll())
+    // Write in its own transaction. IDB auto-commits a transaction once its
+    // requests settle, so reusing a store handle across the `await` below would
+    // risk TransactionInactiveError on the next request (BUG-012) — open a fresh
+    // transaction for the eviction read instead.
+    await idbRequest(db.transaction(PANO_STORE, 'readwrite').objectStore(PANO_STORE).put(entry))
+    // Evict oldest if over the cap (fresh read-only transaction).
+    const all = await idbRequest<PanoCacheEntry[]>(
+      db.transaction(PANO_STORE, 'readonly').objectStore(PANO_STORE).getAll(),
+    )
     if (all.length > PANO_CACHE_MAX_ENTRIES) {
       all.sort((a, b) => a.savedAt - b.savedAt)
       const evict = all.slice(0, all.length - PANO_CACHE_MAX_ENTRIES)
-      for (const e of evict) await idbRequest(store.delete(e.cacheKey))
+      // Issue all deletes within one transaction without awaiting between them,
+      // so the transaction stays active until they're all queued.
+      const delStore = db.transaction(PANO_STORE, 'readwrite').objectStore(PANO_STORE)
+      await Promise.all(evict.map((e) => idbRequest(delStore.delete(e.cacheKey))))
     }
     db.close()
   } catch {
@@ -165,11 +172,15 @@ export async function putPanoCached(
 export async function evictPanoStop(stopId: string): Promise<void> {
   try {
     const db = await open()
-    const t = db.transaction(PANO_STORE, 'readwrite')
-    const store = t.objectStore(PANO_STORE)
-    const all = await idbRequest<PanoCacheEntry[]>(store.getAll())
-    for (const e of all) {
-      if (e.stopId === stopId) await idbRequest(store.delete(e.cacheKey))
+    // Read in one transaction, then delete in a fresh one — don't reuse a store
+    // handle across the getAll await (TransactionInactiveError risk, BUG-012).
+    const all = await idbRequest<PanoCacheEntry[]>(
+      db.transaction(PANO_STORE, 'readonly').objectStore(PANO_STORE).getAll(),
+    )
+    const toDelete = all.filter((e) => e.stopId === stopId)
+    if (toDelete.length) {
+      const store = db.transaction(PANO_STORE, 'readwrite').objectStore(PANO_STORE)
+      await Promise.all(toDelete.map((e) => idbRequest(store.delete(e.cacheKey))))
     }
     db.close()
   } catch {

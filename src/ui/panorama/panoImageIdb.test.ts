@@ -146,8 +146,28 @@ describe('clearPanoCache', () => {
 })
 
 describe('PANO_CACHE_MAX_ENTRIES cap', () => {
+  beforeEach(async () => {
+    await clearPanoCache()
+  })
+
   it('exports a positive integer cap', () => {
     expect(PANO_CACHE_MAX_ENTRIES).toBeGreaterThan(0)
     expect(Number.isInteger(PANO_CACHE_MAX_ENTRIES)).toBe(true)
+  })
+
+  it('drives the over-cap eviction path without TransactionInactiveError (BUG-012)', async () => {
+    // Writing past the cap exercises put → getAll → delete; the put and the
+    // eviction read/delete each run in their own transaction now, so reusing a
+    // store handle across an await can't throw TransactionInactiveError.
+    const canvas = makeStubCanvas('cap')
+    let threw = false
+    try {
+      for (let i = 0; i < PANO_CACHE_MAX_ENTRIES + 5; i++) {
+        await putPanoCached(`stop-${i}`, 'hash', canvas)
+      }
+    } catch {
+      threw = true
+    }
+    expect(threw).toBe(false)
   })
 })

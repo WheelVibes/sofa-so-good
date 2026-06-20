@@ -33,6 +33,7 @@ import { CoveLight } from './CoveLight'
 import { Crib } from './Crib'
 import { CubeShelf } from './CubeShelf'
 import { Curtain } from './Curtain'
+import { DecorTray } from './DecorTray'
 import { Desk } from './Desk'
 import { DeskPlant } from './DeskPlant'
 import { DiningChair } from './DiningChair'
@@ -96,6 +97,7 @@ import { Toilet } from './Toilet'
 import { TowelLadder } from './TowelLadder'
 import { TowelRail } from './TowelRail'
 import { ToyStorage } from './ToyStorage'
+import { TrailingPlant } from './TrailingPlant'
 import { TVConsole } from './TVConsole'
 import { Vanity } from './Vanity'
 import { WallArt } from './WallArt'
@@ -215,4 +217,6 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   SmallSculpture,
   DeskPlant,
   PhotoFrameCluster,
+  TrailingPlant,
+  DecorTray,
 }

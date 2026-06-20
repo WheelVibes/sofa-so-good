@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   AO,
+  BLOOM,
   clampExposure,
   DEFAULT_EXPOSURE,
   DEFAULT_TONE_MAPPING,
@@ -43,6 +44,16 @@ describe('grade', () => {
     expect(AO.aoRadius).toBeGreaterThan(0)
     expect(AO.distanceFalloff).toBeGreaterThan(0)
     expect(AO.intensity).toBeGreaterThan(0)
+  })
+
+  it('bloom threshold clears bright daytime diffuse (above ~1.2 graded exposure)', () => {
+    // The "milky maximum" fix: the threshold must sit above broad sunlit
+    // surfaces (graded day exposure peaks ~1.25) so they do not bloom, while
+    // staying a sane positive glow strength.
+    expect(BLOOM.luminanceThreshold).toBeGreaterThan(1.25)
+    expect(BLOOM.intensity).toBeGreaterThan(0)
+    expect(BLOOM.intensity).toBeLessThan(1)
+    expect(BLOOM.luminanceSmoothing).toBeGreaterThan(0)
   })
 })
 

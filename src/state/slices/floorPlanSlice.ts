@@ -332,8 +332,17 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   setPlanLabels: (planLabels) => set({ planLabels }),
   cyclePlanLabels: () => set((s) => ({ planLabels: nextPlanLabelMode(s.planLabels) })),
   // A plain selection always replaces the multi-selection (clears the extras),
-  // so single-click select behaves exactly as before.
-  setPlanSelection: (sel) => set({ planSelection: sel, selectedWallIds: [] }),
+  // so single-click select behaves exactly as before. Selecting a plan element
+  // (wall/room/opening/…) also clears any placed-item selection so the furniture
+  // inspector (driven by `selectedItemId`) and the element inspector never both
+  // render; a null selection leaves the item selection alone (clicking empty
+  // canvas already clears items via `selectItem(null)` where relevant).
+  setPlanSelection: (sel) =>
+    set(
+      sel
+        ? { planSelection: sel, selectedWallIds: [], selectedItemId: null, selectedItemIds: [] }
+        : { planSelection: sel, selectedWallIds: [] },
+    ),
   setPlanWallMultiAdd: (on) => set({ planWallMultiAdd: on }),
   toggleWallSelection: (id) =>
     set((s) => {
@@ -388,6 +397,10 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     }))
   },
   newFloorPlan: (name = 'New apartment') => {
+    // Snapshot first so starting a blank plan is undoable — consistent with
+    // resetFloorPlan / loadSavedPlan; otherwise the prior plan is lost with no
+    // way back (BUG-013).
+    get().pushHistory()
     const fresh = blankPlan(name)
     set((s) => ({
       floorPlan: fresh,

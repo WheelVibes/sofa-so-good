@@ -25,6 +25,30 @@ export function sunDirectionToScene(s: SunPosition): [number, number, number] {
   return [x, y, z]
 }
 
+/** Rotate a vector clockwise around Y (viewed from above), matching compass
+ *  bearings (N=0° → E=90° → S=180° → W=270°). Shared by the sky dome, the
+ *  procedural sky backdrop, and the directional sun light so they stay in sync
+ *  with the plan `orientationDeg`. Pure / unit-testable. */
+export function rotateY(
+  pos: readonly [number, number, number],
+  deg: number,
+): [number, number, number] {
+  const r = (deg * Math.PI) / 180
+  const c = Math.cos(r)
+  const s = Math.sin(r)
+  const [x, y, z] = pos
+  return [x * c - z * s, y, x * s + z * c]
+}
+
+/** The sun's unit direction in scene space, rotated by the plan orientation.
+ *  Combines `sunDirectionToScene` + `rotateY` so callers don't re-derive it. */
+export function orientedSunDirection(
+  s: SunPosition,
+  orientationDeg: number,
+): [number, number, number] {
+  return rotateY(sunDirectionToScene(s), orientationDeg)
+}
+
 /** Build a Date for the same calendar day as `today` but with the given
  *  fractional hour in the **viewer's local clock**. The manual time slider runs
  *  on the local clock (so sunrise/sunset checkpoints from `daylightTimes` — which

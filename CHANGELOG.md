@@ -5,6 +5,748 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: 2D plan furniture rotate handle (PARITY-PLAN-FURN-ROTATE) (v0.3.0.8)
+
+The selected furniture footprint in the 2D plan editor now carries an on-canvas **rotate handle**
+— a dashed accent ring + facing spoke/knob around the piece, mirroring the wall rotate ring's
+visual language. Dragging the ring/knob spins the piece about its centre, reusing the 3D
+RotateGizmo's math (`scene/selection/rotateGizmoMath.ts` `pointerAngle`/`computeRotation`) so it
+snaps to 15° marks (hold Shift for free rotation), and every frame is `canPlace`-validated against
+walls + other items (an invalid angle is skipped, leaving the last valid orientation). One undo
+step per drag (`pushHistory` on grab → `rotateItem`). Single-selection, edit mode + select tool,
+unlocked pieces — sharing the existing `beginElementDrag`/`onMove` plumbing the wall rotate ring
+uses. No new flag (rides the editor's `floorPlanEditor` gate; works in Simple + Pro). 3 unit tests
++ a verification scenario; the handle render was screenshot-verified. (This completes an
+implementation-agent's work that was left uncommitted in its worktree on a stale base; ported onto
+the current branch.)
+
+## Fix: multi-level (F13) tidy / furnish / decor now reach every storey (AUD-001) (v0.3.0.7)
+
+The custom-plan layout paths iterated the GROUND-floor-only `plan.rooms`, so on a multi-storey
+plan "Tidy home" / per-room Tidy / Smart Start / decor styling silently skipped upper-storey
+rooms — and one path arranged upper items against ground geometry, mislaying them. Same bug class
+as FIN-ALLROOMS. Now every entry point walks `planLevels(plan)` and uses each level's own geometry
+via `levelAsPlan(plan, level)`, with a `(levelId ?? 'ground')` gate so a ground item under an upper
+room's x/z is never treated as that room's host:
+- `autoArrange.ts` — `arrangeAllRoomsForPlan` loops per level; `arrangePlanRoom` resolves the room's
+  level via `levelOfRoom`; `arrangeOnePlanRoom` takes a `levelId` and gates `inRoom`.
+- `furnishPlan.ts` — `furnishPlanItems` seeds every level's rooms, tagging each placed item's `levelId`.
+- `decorStyling.ts` — `applyDecorStylingForPlan` walks all storeys and tags each upper-level room's
+  decor with that level's id (decor items carry no `levelId` of their own, so they'd otherwise render
+  on the ground floor).
+Single-storey behaviour is byte-identical (`levelAsPlan` returns the plan itself; ground is level 0,
+same rooms/order). 8 regression tests added (autoArrange ×3, furnishPlan ×4, decor ×1) on 2-storey
+plans whose upper rooms share the ground rooms' x/z, verified red without the fix.
+
+## Feature: 2D plan furniture inspector (PARITY-PLAN-FURN-INSPECT) (v0.3.0.6)
+
+Selecting a placed furniture item in the 2D plan editor now opens a focused property sheet
+(`ui/floorplan/PlanFurnitureInspector.tsx`, rendered by `PlanInspector` when the plan selection
+resolves to a furniture item): rename, numeric X/Z, angle, parametric width/depth, a W×D×H size
+readout, lock, delete, and "Edit in 3D". Edits route through the same `itemsSlice` actions as the
+3D inspector — moves/rotations are `canPlace`-checked and push one undo step; resize coalesces via
+`updateItemProps`. Item- vs plan-element selection is now **mutually exclusive** (`selectItem` clears
+`planSelection`; `setPlanSelection` clears `selectedItemId`/`selectedItemIds`) so the two inspectors
+never co-render. No new flag — plan editing is a core loop, so it shows in **both Simple and Pro**
+(rides the existing `floorPlanEditor` gate); verified desktop + mobile bottom-sheet. `Num` is now
+exported from `PlanInspector` for reuse. Matches Coohom / Sweet Home 3D plan-side editing.
+
+## Refactor: extract pure rect/edge geometry from autoArrange (MOD-ARRANGE-GEO) (v0.3.0.4)
+
+Pulled the pure rectangle/edge geometry primitives (`Rect`/`Edge` types, `rectsOverlap`, `inward`,
+`clamp`, `nearestEdge`, `cornersOf`, `opposite`, `planRoomRect`) out of the 1005-line
+`layout/autoArrange.ts` into a new `layout/arrangeGeometry.ts` — free of furniture/apartment/collision
+deps (the proven `arrangeRoles.ts`/`floorPlanGeometry.ts` pattern). Adds `arrangeGeometry.test.ts`
+(18 tests: overlap/touching edges, edge-facing rotations, clamp bounds, nearest-edge tie-break,
+corner insets, opposite-edge involution, room-rect inset incl. degenerate). Pure refactor — the
+existing `autoArrange.test.ts` passes unchanged.
+
+## Feature: SH3D furniture + openings import, material-logic extraction, parity research (v0.3.0.3)
+
+Three parallel-agent integrations:
+
+- **PARITY-SH3D-FURN + OPENINGS** — the Sweet Home 3D importer now **places** parsed furniture as
+  collision-safe scene items and converts doors/windows to wall **openings**, all in one undoable
+  step with a counts toast (walls / rooms / furniture placed / openings / unmatched). New pure
+  `floorplan/import/sh3dPlacement.ts` (`resolveSh3dImport` → `resolveFurniture` category→def
+  footprint-best-match + `placeNonOverlapping`, `associateOpenings` nearest-wall via
+  `floorPlanGeometry`, centre→offset clamp, sill/head from piece height) with 21 unit tests; parser
+  gains an `opening` flag + `openingKindForName` (6 more tests). Limitations: category→def picks one
+  representative def per category (no per-product identity); door-vs-window is a name heuristic; sill
+  from piece height (SH3D `elevation` not yet captured); openings associate within 0.6 m of a
+  straight wall (curved/sloped walls don't render openings this version).
+- **MOD-FURNMAT-LOGIC** — extracted the pure three-free helpers (`hash01`, `sheenRough`,
+  `applianceFinish`, `liftedSheenRgb`) out of `materials/furnitureMaterials.ts` into a tested
+  `materials/furnitureMaterialLogic.ts` (21 tests); `furnitureMaterials.ts` re-exports `applianceFinish`
+  so the appliance primitives keep their import path. Byte-identical behaviour (the MAT-004
+  brushed-metal block stays in `furnitureMaterials.ts`).
+- **Research** — added `docs/research/2026-06-20-coohom-sh3d-parity-backlog.md`, a ranked
+  headlessly-verifiable Coohom/Sweet Home 3D parity backlog driving the next dispatch waves
+  (2D-plan furniture rotate/inspect, duplicate-along-path, plan marquee, FloorPlanEditor split).
+
+## Fix: 2D plan inspector finish pickers read the durable finishes map (FIN-DEFAULT-FORK) (v0.3.0.2)
+
+The 2D plan inspector's floor + wall finish `<select>`s displayed `room.floor`/`room.wall` straight
+off the plan room. On the **seeded default flat** `serialize()` deliberately drops the whole `floorPlan`
+(it's rebuilt from constants), so the plan's own `room.floor` is not persisted — only the `finishes`
+map round-trips. After a reload, the picker therefore reverted to the template default while the
+rendered surface (driven by the persisted `finishes` map) kept the user's actual pick — a silent
+picker↔render desync on the default plan. Both pickers now read through the canonical
+`resolvePlanRoomFloor`/`resolvePlanRoomWall` resolvers (finishes map → plan room → app default), so the
+control always matches what's rendered. Painting a finish still does **not** fork the default plan into
+a custom one (forking changes structural-plan semantics — `<Apartment/>`, walkway, design score). Added
+a `schema.test.ts` round-trip guard: paint floor+wall on the default plan, serialize→deserialize, and
+assert the resolver recovers both picks against the freshly-regenerated default room.
+
+## Feature: import Sweet Home 3D `.sh3d` plans + extract FloorPlanEditor geometry (v0.3.0.1)
+
+Two parallel-agent integrations:
+
+- **PARITY-SH3D** — import a Sweet Home 3D `.sh3d` plan (walls + rooms, first slice). New pure
+  parser core `floorplan/import/sh3d.ts` (`parseSh3d`/`parseHomeXml`/`importResultToFloorPlan`/
+  `categoryForPieceName`; fflate unzip + DOMParser, cm→m ÷100, bbox origin-anchoring, room
+  polygons, best-effort furniture name→category) with 20 unit tests covering scale/axis,
+  polygons, malformed-input warnings and hard failures. New `ui/openSh3dImport.ts` DOM glue
+  (file picker → parse → undoable `setFloorPlan`, toasts geometry summary + warnings). Behind
+  the `importSh3d` flag (`tier: 'pro'`, default on, prod-safe pure code), wired into the File
+  menu, mobile File sheet, and ⌘K (`import-sh3d`). First slice imports walls + rooms; furniture
+  is parsed + reported (placement) and openings (doors/windows) are deferred follow-ups.
+- **MOD-FPE-GEO** — extracted the pure plan-geometry helpers (`planCenter`, `nearestWall`,
+  `alongWall`) out of the ~3.1k-line `FloorPlanEditor.tsx` into a new tested
+  `ui/floorplan/editor/floorPlanGeometry.ts` (parameterised on walls/rooms/points, no
+  React/DOM/store/three), with 25 unit tests (ties, empty/degenerate input, on-vertex,
+  beyond-segment clamping, curved arcs). Pure refactor — identical behaviour.
+
+## Feature: sun-driven procedural sky backdrop (RD-412 steps 1–5) (v0.2.0.58)
+
+Adds an analytic Preetham sky as a walk-mode backdrop that tracks the sun across the day —
+blue noon (brighter zenith, warm horizon band), golden low sun at sunset, washed-out hazy
+noon (turbidity), near-black night. New pure, headless-verifiable core: `scene/lighting/
+skyGradient.ts` (analytic `skyRadiance`/`paintSkyEquirect`/`equirectDir`, no three/canvas)
++ `scene/lighting/skyRebuild.ts` (`shouldRebuildSky` threshold predicate). A new `sky`
+`BackdropKind` mounts via `SceneBackdrop.tsx` gated on the `proceduralSky` flag (`tier: 'pro'`,
+default on, prod-safe pure code), bakes a `CanvasTexture` into **`scene.background` only**,
+rebuilds debounced when the sun crosses the threshold (disposing the old texture), and is wired
+into the Scene menu, mobile toolbar, and ⌘K palette. `rotateY` was deduped out of `Sky.tsx`
+into `lighting/sunPosition.ts`. The IBL/PMREM/bloom/exposure path is deliberately **untouched**
+(the bloom-threshold lock-step, RD-409); steps 6–7 (HDR IBL probe) remain deferred. Tests in
+both Simple (hidden) and Pro (present) modes. Visual note: headless pointer-lock can't rotate
+the first-person camera to frame the sky through a window, so the in-window framing is
+interaction-pending; the pure equirect bakes were PNG-verified.
+
+## Fix: "apply finish to all rooms" now reaches upper storeys (FIN-ALLROOMS) (v0.2.0.56)
+
+`setAllFloorFinish`/`setAllWallFinish` iterated `floorPlan.rooms` — which is **ground-floor-only** by the
+project's level invariant — so on a multi-storey plan (F13) the bulk "apply to every room" silently left
+every upper-level room at its default, in both the `finishes` map and the plan objects. Swapped both to
+`allPlanRooms(plan)` (already imported + used elsewhere in the slice; `planWithRoomFinish` already resolves
+each room's own level). Found by a backlog-audit agent; regression-tested (an upper-level room added via
+`addLevel`/`addRoom` now receives the bulk floor + wall finish in both the finishes map and
+`upperLevels[].rooms`). Single-level plans (the default) are unaffected.
+
+## Realism: "Decor tray" hero decor primitive (RD-408) (v0.2.0.55)
+
+A second RD-408 hero prop — a shallow rectangular **styled tray** (wooden base + four low rim walls)
+holding 2–3 small index-seeded objects (pillar candle, recessed bowl, folded-book pair, coaster stack), a
+common Coohom/SH3D vignette staple. New `primitives/DecorTray.tsx` (floor-anchored to `surfaceHeight`,
+deterministic per-slot objects — no RNG, objects sit on the base inset from the rim, base lifted just
+above the surface). `style` (`mixed`/`candles`/`minimal`) + `fullness` vary the set. Registered in
+`primitives/index.ts` + `PrimitiveKind`; new `decor-tray` `ParametricDef` (noClip, surfaceHeight + style/
+fullness/colour controls); leads the auto-furnish list on `coffee-table`/`ottoman`, secondary on
+`console-table`/`sideboard`. Price entry + decor-styling test + a verification scenario added. No feature
+flag (enriches auto-furnish). Implemented by a parallel opus worktree agent; verified here (renders as a
+styled tray on a surface, no clipping/z-fighting; full suite + 23 decor tests green).
+
+## Refactor: extract auto-arrange role classification into a tested module (v0.2.0.54)
+
+Pulled the arrange-role classification (`ArrangeRole` type, the `ROLE` def→role map, `roleForCategory`,
+`roleOf`) out of the 1135-line `autoArrange.ts` into a new pure `src/layout/arrangeRoles.ts` — pure leaf
+logic, no geometry/`Ctx`, so it's now independently unit-testable. `autoArrange` imports + re-exports them
+for back-compat (existing importers unchanged). Added `arrangeRoles.test.ts` (roleForCategory per category
++ fallback, roleOf explicit-map / unknown / mounted / noClip-rug / category-fallback / mounted-priority).
+Part of the modularization sweep. tsc/biome/full-suite green (3227 tests).
+
+## Feature: camera lens + depth-of-field controls (PC2-CAM-DOF-LENS) (v0.2.0.53)
+
+Photographic camera controls for the render/snapshot camera — **focal length** (mm), **aperture** (f-stop)
+and **focus distance** — behind a new `cameraDof` flag (pro, default on). New pure
+`scene/cameras/cameraLensSettings.ts` (focal presets + clamps, `mmToFov`/`fovToMm` for a 24 mm sensor,
+`rasterDofParams` mapping f-stop → bokeh + world focus range; unit-tested). Wired into the HQ path tracer
+(`hqRenderSession` `PhysicalCamera` — focal mm→FOV, manual focus overrides the centre-screen auto-focus)
+and a raster `<DepthOfField>` pass on **High/Maximum only** (`QualitySettings.dof`, world-space focus,
+half-res, gated by `dof && cameraDof && f-stop>0`; the Maximum tier description that falsely claimed "lens
+defocus" is now true). The HqRenderModal shows the lens/aperture/focus controls in Pro and keeps the
+simple DoF dropdown as the Simple-mode fallback; lens/DoF prefs persist via `qualityPrefs` (back-compat
+defaults). Both-mode + store/persistence/HQ-option/UI presence unit-tested (controls present in Pro,
+hidden in Simple); the actual bokeh pixels are real-GPU-pending. Implemented by a parallel opus worktree
+agent; integrated here (resolved flag/quality/qualityPrefs/EffectsImpl conflicts against the newer
+tone-mapping API), full suite green (3219 tests).
+
+## Refactor: extract DragController's pure helpers into a tested module (v0.2.0.52)
+
+Moved the six pure, module-level helpers out of the `DragController` R3F component into a new
+`src/scene/dragHelpers.ts` (`wallFaces`, `halfExtents`, `staticAabbs`, `snapAxis`, `pointInFootprint`,
+`snapBase` + the `ALIGN_TH` constant). Pure move — identical behaviour — but it slims the controller and,
+crucially, makes the snapping/footprint/broadphase maths **unit-testable** (the component itself can't be).
+Added `dragHelpers.test.ts` (14 cases: rotated half-extents + parametric overrides, centre/edge snap +
+threshold, OBB containment, wall→face descriptors, static-AABB exclusion of moved/defless items,
+IKEA-only snug-stack). Part of the ongoing modularization sweep. tsc/biome/full-suite green.
+
+## Realism: "Trailing plant" hero decor primitive (RD-408) (v0.2.0.51)
+
+A new parametric decor primitive — a raised ceramic pot with an upright crown tuft plus 4–6 vines that
+arch out of the crown and **cascade down over the rim and below** — giving auto-furnished open shelving a
+richer, distinct set-dressing read (clearly different from the upright `DeskPlant`). New
+`primitives/TrailingPlant.tsx` (floor-anchored to `surfaceHeight`, footprint-centred, real metres, real
+three materials; each vine is a deterministic index-seeded polyline of continuous stem segments with
+paired oval leaves + seeded leaf-shade/length variety — no RNG, structurally connected to the crown).
+Registered in `primitives/index.ts` + the `PrimitiveKind` union; new `trailing-plant` `ParametricDef`
+(`noClip`, `surfaceHeight` param, `fullness`/`potColor`/`leafColor`/`potFinish` controls, drape-aware
+footprint/verticalSpan); leads the auto-furnish prop list on `bookshelf`/`cube-shelf` (so it's placed even
+at budget 1, where a cascade over open shelving reads best) and is a secondary option on
+`console-table`/`sideboard`. Price entry + a decor-styling test added. No feature flag (enriches the
+existing auto-furnish surface). Implemented by a parallel worktree agent; verified here (renders with
+draping foliage over a surface, no clipping/z-fighting; full suite + 22 decor tests green).
+
+## Photoreal: supersampled (SSAA) PNG export for crisp reference stills (PC2-SSAA-EXPORT / RD-411) (v0.2.0.49)
+
+The hi-fi PNG export now renders at **2× the target resolution and box-downsamples** back to size, so
+reference stills come out anti-aliased instead of jagged. New pure, unit-tested `src/scene/ssaaDownsample.ts`
+`boxDownsample(src, factor)` (averages factor×factor RGBA blocks incl. alpha; output = floor(src/factor);
+factor=1 identity; 9 tests). `ScreenshotController.renderHiFiPng` temporarily raises the renderer pixelRatio
+by the SSAA factor (CSS size untouched), renders, reads the large frame into an offscreen 2D canvas →
+`boxDownsample` → re-encodes at target dims; the exact prior size + pixelRatio are restored in a `finally`
+(the 2× buffer is never presented — no visible flash) with a graceful fallback to the raw frame. No feature
+flag — a transparent quality bump to the existing export. Verified headlessly: the exported PNG decodes at
+the **target** dimensions (1600×1000, not 3200×2000) and the drawing buffer/pixelRatio are restored after
+export (proving the downsample path ran); pixel-level AA quality is real-GPU-pending (SwiftShader headless).
+Implemented in a parallel worktree agent and integrated here.
+
+## Fix: 2D plan-editor grab-without-move no longer pollutes undo (BUG-016 follow-up) (v0.2.0.47)
+
+The floor-plan editor's moving gestures (item / wall / vertex / opening / bulge / room-label / tour-stop
+/ note drags) push an undo snapshot when the grab begins; grabbing then releasing without moving left a
+dead undo step, like BUG-016 in the 3D scene. Added a single `dropRedundantHistory()` call at the top of
+the editor's `onUp` — it covers every moving gesture at once and is a no-op when a real edit changed a
+store reference (or when the grab never pushed). Completes the BUG-016 sweep across the drag, rotate, and
+2D-editor gesture paths.
+
+## Fix: rotate-gizmo grab without a turn no longer pollutes undo (BUG-016 follow-up) (v0.2.0.46)
+
+The rotate gizmo's `onGrab` pushes an undo snapshot the same way `startDrag` does, so grabbing the ring
+and releasing without rotating left a dead undo step. Applied the same fix: its release handler now calls
+`dropRedundantHistory()` after the gesture settles, so a grab-without-turn is clean while a real rotation
+(which changed an item reference) keeps its undo step. Reuses the action + tests added for BUG-016.
+
+## Fix: clicking furniture no longer pollutes undo history (BUG-016) (v0.2.0.45)
+
+`Furniture.onPointerDown` starts a drag (and `startDrag` eagerly pushes an undo snapshot) on every press
+— so a plain click-to-select pushed a snapshot identical to the current state, and the user's *first*
+undo afterwards did nothing (it popped the dead entry). `startDrag`'s push is load-bearing for real
+drags, so the fix drops the redundant entry at drop time: new `dropRedundantHistory()` history action
+pops the newest `past` entry only when it's reference-identical to the live state (sound because every
+mutating slice replaces, never mutates, its array/object). `DragController.onUp` calls it after
+`endDrag`, so a no-op click is clean while a real move/rotate/surface-snap (which changed an array
+reference) keeps its undo step. Verified: a no-op click leaves `past` unchanged; a real drag still adds
+one entry. +4 unit tests.
+
+## Fix: surface-drop must respect storeys (PC2-SURFACE-DROP follow-up) (v0.2.0.44)
+
+The surface-drop resolver shipped in v0.2.0.42 iterated every item regardless of level, so on a
+multi-storey design (F13) a ground-floor decor item dropped under a table on the floor *above* would
+snap to that upper table's height. Added a `levelId` filter (matching the level-aware collision
+convention in `placement.ts` — `(it.levelId ?? 'ground')`), so only same-storey supports capture a
+drop. `DragController` passes the dragged item's `levelId`. Caught by a self-audit of the new code
+against the multi-level feature; +1 unit test (a table on `L1` is ignored for a ground drop but
+captures an `L1` drop). Single-level designs (the default) are unaffected.
+
+## QOL: surface-drop magnetism — decor snaps onto tables/shelves (PC2-SURFACE-DROP) (v0.2.0.42)
+
+Dragging a surface item (a vase, lamp, bowl, books — anything that rests on a surface, identified by a
+numeric `surfaceHeight` prop) onto a table or shelf now snaps its rest height onto that surface's top,
+instead of keeping a stale height from wherever it came from (so it no longer floats above / clips into
+the new surface). New pure `collision/surfaceDrop.ts` `resolveSurfaceDropHeight` finds the topmost
+support under the drop point — items in the `tables`/`storage` categories, excluding soft seating/beds
+and the dragged item itself — wired into `DragController.onUp`'s valid single-item commit, which updates
+`props.surfaceHeight` via `setItems` so it rides the drag's single undo step. `surfaceHeight` lifts both
+parametric self-lift primitives and GLB models, so one mechanism handles every surface item. Dropping
+over open floor leaves the height untouched (no surprise yank). Resolver unit-tested (8 cases:
+table/shelf hit, floor miss, soft-seating excluded, highest-of-overlapping wins, support elevation,
+self-exclusion, footprint edge); integration verified end-to-end — a book stack dropped on the coffee
+table snapped from 0 to 0.42 m.
+
+## Feature gating: furniture groups behind a flag + ⌘K command (PC2-FURN-GROUP) (v0.2.0.41)
+
+Audited furniture grouping against the backlog: the whole feature was **already built** — store
+`groupsSlice` (groupItems / ungroup / groupRotate / addToGroup), group-aware drag (DragController),
+group-mate-exempt collision, group-aware selection (selectItemGrouped / activeGroupId), exposed via the
+multi-select inspector panel + the right-click context menu. The real gap was a hard-rule violation: it
+shipped with **no feature flag**. Added the `furnitureGroups` flag (tier pro, default on per the
+Simple-stays-minimal rule) and gated the panel's Group/Ungroup buttons, the context-menu items, and a
+new Group/Ungroup ⌘K command (via `COMMAND_FLAGS`). Tested in both modes — resolver unit test plus a
+live check confirming Group appears in Pro and is hidden in Simple while the sibling Mirror tool still
+shows (so only grouping is affected). No behaviour change for Pro users; Simple's minimal core loop no
+longer surfaces the advanced authoring tool.
+
+## Fix: wall-finish preview now uses accurate Neutral tone-mapping (PC2-TONEMAP-EXPOSURE-CTX) (v0.2.0.40)
+
+Context-aware tone-mapping (Neutral for accurate product colour while previewing a finish, filmic for
+the everyday scene) shipped as RD-404, but the per-frame wiring only flagged "finish preview" when a
+**room** was selected — selecting a **wall** to change its finish (the wall FinishPicker) was missed, so
+wall colours were judged under the filmic look instead of the accurate Neutral one. Extracted a pure,
+unit-tested `toneContextFromState` that flags finish preview for a selected room **or wall**, and wired
+`Lighting` through it. (`photoMode` stays off — the only photographic context, the HQ-render modal,
+renders in its own surface, not the live canvas.) Closes the PC2-TONEMAP-EXPOSURE-CTX backlog item
+(largely already delivered by RD-404). Resolver + ctx-builder unit-tested (room/wall/none → Neutral/
+filmic).
+
+## Photoreal: contact-shadow decal under surface decor (PC2-CONTACT-AO-DECOR) (v0.2.0.39)
+
+Small decor resting on a table/shelf (vases, bowls, books, plants, candles, frames, sculptures) had no
+contact grounding, so it read pasted-on — the biggest cheap "is-it-really-sitting-there" realism gap on
+the default flat tier. Each qualifying prop now renders a faint, soft contact-shadow decal at the host
+surface height (reusing `scene/ContactShadow.tsx`, which gained `opacity` + `scale` params — the decal
+is fainter/tighter than a floor blob). Qualification is pure + unit-tested (`furniture/surfaceDecal.ts`:
+small `noClip` parametric decor carrying a numeric `surfaceHeight`; rugs, large pieces, GLB and
+floor-standing items excluded — and `noClip` guarantees the floor-shadow path already skipped it, so no
+double shadow). It's a cheap alpha quad (no render pass), gated by the existing `contactShadows` flag +
+quality so it follows the same tiering as floor blobs. Verified: a candle cluster sits grounded on a
+table with a soft shadow, no z-fighting; the floor lamp (no `surfaceHeight`) correctly gets none.
+
+## Fix: auto-furnish decor double-lifted above its host surface (BUG-015) (v0.2.0.38)
+
+Auto-furnish decor (cushions, throws, fruit bowls, books, plants, frames, sculptures, candles — the
+`decorStyling` props on custom-plan furnish) floated at **~2× the host surface height** instead of
+sitting on it. Every decor primitive self-lifts to its `surfaceHeight` in local space (like the built-in
+tabletop defaults, which set `surfaceHeight` only), but `decorStyling` *also* set `elevation: topHeight`
+on the item — and the render group adds `elevation` for parametric items, so the prop got lifted twice
+(a book stack meant for a 0.42 m coffee table rendered at 0.84 m). Fixed by dropping the redundant
+`elevation` (decor now carries `surfaceHeight` only, matching the proven-correct defaults pattern); no
+collision impact since decor is `noClip`. Confirmed: a book stack with `elevation+surfaceHeight` visibly
+floats twice as high as one with `surfaceHeight` only. Updated the two `decorStyling` tests that had
+encoded the buggy `elevation == top` expectation. Found while scoping PC2-CONTACT-AO-DECOR.
+
+## Perf: broadphase the furniture-drag collision/snug scans (PERF-003) (v0.2.0.37)
+
+`DragController.onMove` ran two O(n) scene scans per pointermove — the snug-stack candidate search and
+the `canPlace` collision check both walked every item. At scale (a full flat, 80+ items) that's wasted
+work each frame of a drag. Now a **spatial grid of the static (non-moving) items is built once per drag**
+(keyed by the moved-id signature, cleared on drop, since the un-dragged items don't move during a
+gesture) and reused across moves to restrict both scans to the dragged item's neighbourhood: the
+snug-stack uses a point query, `canPlace` a moved-AABB query. Alignment-snap deliberately keeps the
+full scan (lining up with a distant item across the room is intended behaviour). The result is
+**equivalent** — an item whose footprint AABB doesn't overlap the moved item's can't have an overlapping
+OBB — proven by a new test sweeping the dragged item across 667 lattice positions and asserting the
+broadphase-restricted `canPlace` matches the full-scene scan at every spot (both outcomes exercised),
+plus a far-item-pruned check. Completes PERF-003 (the v0.2.0.15 wall-build dedup was the first half).
+Smoke-verified: the room editor mounts + renders cleanly with the rewired controller.
+
+## Reliability: harden align/distribute for rotated footprints (PC2-DISTRIBUTE-AXIS) (v0.2.0.36)
+
+Audited the multi-select align/distribute path against the backlog concern (does it pick the right
+axis + handle rotated footprints?). Findings: the axis is **explicit** — the inspector's Distribute/
+Align-H vs -V buttons pass it, there's no fragile auto-inference to get wrong; rotated footprints
+already project through `obbAxisHalf` (OBB→axis-aligned half) in `MultiSelectPanel` before reaching
+`distributeEvenGaps`/`alignEdge`; and n<3 returns empty (graceful). No code bug. Closed the documented
+gap by hardening the **OBB→distribute/align integration** with tests: a turned board distributes with
+even edge gaps and aligns by its real projected extent (not a raw unrotated half), plus `obbAxisHalf`
+sign-independence (±yaw) and π-periodicity. Test-only.
+
+## Photoreal: per-board wood grain-direction flow (PC2-WOOD-GRAIN-FLOW) (v0.2.0.35)
+
+Procedural wood floors (planks, parquet, herringbone) already varied each board's value/warmth/phase,
+but every board's cathedral grain ran in the *same* direction — so a large floor read repetitive. Each
+board now gets a tiny, deterministic grain **lean** (~±2.6°, a shear of the across-coordinate about the
+board mid-length), so the figure flows board-to-board like real timber cut from different parts of the
+log. New pure `procedural/woodPlank.ts` (`plankHash` — the stateless hash the parquet/herringbone
+painters already used inline, now shared; `grainLean`; `shearAcross`), so the lean is derived from a
+hash **independent of** the painters' existing tint stream — no regression to the tuned look, only the
+new shear. Subtle by design (a larger angle reads as warped laminate). 14 unit tests (determinism,
+bounded range, board-to-board variation, pivot symmetry); verified by painting the flat texture in the
+browser — the six planks show grain leaning at distinct gentle per-board angles, no warping.
+
+## UX: angle-snap walls while drawing in the 2D plan (PC2-PLAN-ANGLE-SNAP) (v0.2.0.34)
+
+Freehand wall-drawing in the 2D editor produced walls a fraction of a degree off true (a parity gap vs
+Sweet Home 3D / Coohom, whose walls snap to clean angles). Wall drafts now snap to **15° increments**
+(covering 30/45/90°): the cursor distance is kept, only the direction rotates onto the nearest
+increment. **Hold Shift** to draw at any angle. Order is grid → angle → wall-snap, so a join to a real
+corner/edge still wins near existing geometry, and the live readout now shows the current **length +
+angle**. Applies to desktop drag and mobile tap-to-place chaining. New pure `snapWallAngle` helper
+(8 unit tests: horizontal/vertical/45°/30°, distance preserved, non-origin anchor, sub-min no-op,
+custom increment); the editor splits `pointerGrid` out of `pointerWorld` to insert the angle step.
+Verified in the editor: a ~3.6°-off drag committed at exactly **0.000°**, a ~41°-off drag at exactly
+**30.000°**, both rendering as clean straight walls.
+
+## Realism/UX: top-down furniture glyphs in the 2D plan (PC2-PLAN-FURN-ICONS) (v0.2.0.33)
+
+The 2D plan editor's furniture footprints were plain category-coloured rectangles — hard to read at a
+glance (a SH3D/Coohom parity gap). Each footprint now also shows the matching top-down **category
+glyph** (reusing the existing `CategoryIcon`, currentColor), centred + sized to the footprint and
+hidden when too small (<9px). It shows only when no text label covers the centre (labels off + not
+selected), so it complements rather than clashes with the name/price labels. Beds, sofas, toilets/
+sinks, kitchen appliances, tables, lamps and storage now read instantly. Verified in the editor (61
+glyphs render correctly across every category, well-sized, no overflow/clutter). Additive SVG —
+pointer-events off, so it never interferes with selection/drag.
+
+## QOL: favourite finishes/materials (PC2-FAVOURITE-MATERIALS) (v0.2.0.32)
+
+Favourites now extend to finishes, mirroring the furniture star. `favouritesSlice` gains a **separate**
+`favouriteFinishIds` list (`toggleFinishFavourite`/`isFinishFavourite`, persisted to `hdb_fav_finishes`)
+so finish ids never leak into the catalog "Favourites" tab. The FinishPicker swatches show a heart
+toggle (reusing the proven `fav-btn` pattern, gated on the existing `catalogFavourites` flag) and
+favourited finishes sort to the front of each surface group — on desktop (grid + heart per swatch) and
+mobile (dropdown `★` prefix + a heart by the preview). Adds slice tests (separate list, add/remove/
+dedupe, order); verified in the editor: 2 favourited floor finishes render filled + sorted ahead of the
+rest.
+
+## docs: reconcile the stale TODO master queue (v0.2.0.31)
+
+The `TODO.md` "MASTER EXECUTION QUEUE" index listed many items as open that shipped in earlier
+sessions (it was never struck through). Added an authoritative banner pointing to `CHANGELOG.md` as the
+source of truth and enumerating what's SHIPPED (all BUG/REV/UX/MAT, PERF-001/002/004/005/007/008, most
+RD) vs genuinely OPEN (PERF-003 broadphase half, RD-406/411/412 + other real-GPU items, the larger
+PC2-* features) — so the next session doesn't re-do completed work. Docs-only.
+
+## QOL: copy/paste a multi-selection as a group (PC2-MULTI-DUP-PASTE) (v0.2.0.30)
+
+⌘C/⌘V previously copied only the primary selected item (duplicate ⌘D already handled multi). The
+clipboard now holds the **whole selection** (one entry per item, each with its position), so ⌘C on a
+multi-select then ⌘V pastes them all back as a group preserving the arrangement — reusing the proven
+`planDuplicates` (shared-offset, collision-skipping) in one undo step, with the pasted copies selected.
+`clipboard` is now `ClipboardEntry[] | null`; single copy is a one-element array (behaviour unchanged).
+Adds a clipboard-slice test (array storage + deep copy + null/empty normalisation); verified end-to-end
+in the room editor (2 selected → ⌘C → ⌘V → +2 copies, selected). Editing-gated like all copy/paste.
+
+## Perf: short-circuit the SelectionOutline selector when nothing is selected (PERF-007) (v0.2.0.29)
+
+`SelectionOutline`'s selector ran `s.items.filter(i => selectedItemIds.includes(i.id) && !hiddenItemIds
+.includes(i.id))` on *every* store change (incl. each drag setter) — an O(n·m) scan even with no
+selection. It now returns a stable empty array immediately when nothing is selected (the common case,
+so an idle scene's store churn does no scan), and otherwise filters via `Set` lookups (O(n)). Same
+result; existing selection tests stay green.
+
+## a11y: UploadModelDialog dialog role + focus management (UX-003) (v0.2.0.28)
+
+The model-upload dialog (a 560px custom flex panel with drag-drop zones, scan progress, and per-group
+options) had `useModalGuard` + Escape but no `role="dialog"`/`aria-modal`, no focus trap, no focus
+restore — keyboard users could Tab behind it and AT didn't announce a dialog. Rather than restructure
+the complex layout onto the shared Modal, applied the same a11y wiring in place: the panel is now a
+`role="dialog"` + `aria-modal` + `aria-labelledby` (the title), focus moves into it on open and restores
+on close, and the existing key handler now also traps Tab/Shift+Tab within the panel. Layout unchanged.
+This clears the last UX a11y item. (`border-blue-500` literal was already tokenised in v0.2.0.25.)
+
+## a11y: UploadMaterialDialog → shared Modal (UX-009) (v0.2.0.27)
+
+The material-upload dialog was a hand-rolled `.modal-overlay > .panel` that didn't even call
+`useModalGuard` (global hotkeys fired behind it), with no `role="dialog"`/`aria-modal`, focus trap, or
+focus restore. It now renders through the shared `Modal` (all of those for free), keeping the channel
+slots / name / category / tile-size / swatch form and the Cancel/Save footer. Close (X / Escape /
+backdrop / Cancel) routes through one `close()` that resets the form. Dev-only path; no behaviour change
+beyond the a11y wiring.
+
+## Realism: dress more host surfaces in auto-decor (RD-408) (v0.2.0.26)
+
+Under-dressed rooms are the #1 "fake" tell. The decor-styling pass now also dresses three common
+surfaces it previously skipped: **tv-console** (frames / sculpture / plant / books), **ottoman** and
+**bench** (a folded throw / stray cushion) — added to `HOST_PROPS`/`HOST_MAX`/fallback maps with their
+real top-surface heights. (`vanity` is intentionally skipped — its footprint height includes the
+mirror, so decor would float.) Unit test asserts each new host gets ≥1 prop sitting at its real top
+(no floating). Uses the existing, already-verified prop primitives + placement pipeline.
+
+## tokens: add `--ok` success token; drop hardcoded colour literals (UX-005) (v0.2.0.25)
+
+Adds a theme-tracking `--ok` success token (paired with `--danger`) to all 10 theme blocks in
+`tokens.css` — a success green that respects light/dark + the 5 themes' contrast like every other
+token. Replaces the hardcoded `text-green-600` "ready" status pill in the remote Browse tab with
+`text-[var(--ok)]`, and clears the other stray colour literals the audit flagged in dev paths
+(`accent-blue-500` / `border-blue-500` / `hover:bg-blue-50` in IkeaBody, GltfBody, UploadModelDialog →
+`--accent`/`--accent-soft`). No `-green-/-blue-/-red-` literals remain under `src/ui` (non-test).
+Build validates the new oklch token.
+
+## a11y: import-errors detail dialog → shared Modal (UX-008) (v0.2.0.24)
+
+`NotificationDetailsModal` (the "N items could not be imported" dialog) was a hand-rolled
+`.modal-overlay > .panel` with no `role="dialog"`/`aria-modal`, no focus trap, no focus restore. It now
+renders through the shared `Modal` (all of those for free), keeping the same title/list/Close-footer
+content. Adds an RTL test that opens the dialog from a failed-import toast and asserts the `dialog` role
++ the failed-item list render. Drops the now-unused `createPortal` import.
+
+## a11y: toolbar tooltips reveal on keyboard focus (UX-007) (v0.2.0.23)
+
+Toolbar tooltips opened on `onPointerEnter` only, so a keyboard user tabbing to an icon button never
+saw the label + shortcut hint (the accessible name was present, but no on-screen chip). `Tooltip` now
+also opens on `onFocus` (immediately, no hover delay) and hides on `onBlur`, guarded by a `pointerFocus`
+ref so the focus a *click* leaves on a button doesn't pop the tooltip — only keyboard focus does. Adds
+RTL tests for the focus-shows / click-suppresses / blur-hides paths.
+
+## a11y: CompassModal → shared Modal + keyboard-operable dial (UX-004) (v0.2.0.22)
+
+The "Sun direction" dial was a hand-rolled `.modal-overlay` with no `role="dialog"`, no focus
+trap/restore, and no keyboard path to change the heading. It now renders through the shared `Modal`
+(dialog role + aria-modal + focus trap + focus restore + Escape, all for free), and the dial is a
+focusable `role="slider"` (aria-valuemin/max/now/text) with arrow-key control — ←↓/→↑ nudge ±5° (±15°
+with Shift), Home resets to 0° (north) — so keyboard users can set the sun. Drops the custom overlay,
+`useModalGuard`, and the bespoke Escape listener (the Modal owns them). Adds an RTL test (dialog +
+slider present, arrow/Home keys move `orientationDeg`); verified the dial renders cleanly in the Modal
+on mobile.
+
+## Realism: auto-decor cushion shape/fabric variety (RD-408 follow-up) (v0.2.0.21)
+
+Extends the decor `VARIETY` system to also vary enum params, not just colour: auto-placed
+throw-cushions now draw a seeded `shape` (mostly square, occasionally rectangular) and `pattern`
+(mostly plain, occasionally striped) from weighted option lists, using the `ThrowCushion` primitive's
+existing params — so a sofa's scatter reads as a real mix rather than stamped clones. Unit test asserts
+cushions carry valid shape/pattern values; verified the default sofa still renders cleanly.
+
+## Realism: auto-decor prop colour variety (RD-408) (v0.2.0.20)
+
+Repeated soft goods and books from the auto-styling pass were identical clones — multiple cushions on
+a sofa shared one fabric colour, books one spine colour. The clearest "auto-placed" tell.
+`applyDecorStyling` now draws a seeded colour from a curated per-prop `VARIETY` palette
+(throw-cushion/throw-blanket `color`, book-stack `spineColor`), offset by slot + a seeded start so
+adjacent same-type props differ and hosts vary. Stays pure/seedable/deterministic. Unit test asserts a
+3-seat sofa's cushions get ≥2 distinct colours (and the same seed reproduces them); verified the
+default flat's sofa now shows a terracotta + a blue-grey cushion instead of clones.
+
+## Realism: PHOTO-BEVELS on appliance bodies — RD-407 complete (v0.2.0.19)
+
+Completes the bevel migration: all 8 appliance primitives (Refrigerator/WashingMachine/Dishwasher/
+Oven/Microwave/WineCooler/Stove/RangeHood) now render their steel/painted bodies (and the proud door
+panels on the dishwasher/oven, the stove cooktop, the range-hood canopy+duct) through `BeveledBox`
+with a slightly rounder appliance-appropriate chamfer (~10–12 mm, auto-clamped) — real white goods
+have radiused edges, so the hard 90° box read is gone. Glass doors, handles, controls, burners stay
+sharp. Verified fridge/dishwasher/oven render as brushed-steel bodies with light-catching edges, no
+artifacts. Also fixes `applianceBody.test.tsx`'s `featureFlags` mock to use `importOriginal` (the new
+`BeveledBox → useDetail → store` transitive import needs `resolveFlags` preserved).
+
+## Realism: finish PHOTO-BEVELS on case-good carcasses (RD-407) (v0.2.0.18)
+
+Hard 90° edges are the clearest "primitive box" tell. The bevel migration (`BeveledBox` /
+`safeBevelRadius`, auto-clamped ≤7 mm) was complete for tables/desks + Bookshelf + CabinetModule's
+exterior, but **CabinetCorner was 100% sharp** and **Wardrobe** still had sharp interior panels. Now:
+- **CabinetCorner** — carcasses, L-countertop slabs, doors, and toe-kicks render through `BeveledBox`
+  (metal handles stay sharp — hardware reads better crisp).
+- **Wardrobe** — interior shelves, drawer fronts, and the two-bay divider now bevel too (doors/sides/
+  top/bottom already did).
+Footprints are visually unchanged (chamfer ≤7 mm). Verified a corner cabinet + wardrobe close-up on
+High: edges catch a soft highlight, no z-fighting or geometry breakage. (Appliance bodies share the
+brushed-metal `applianceBody` path and are tracked separately for a later pass.)
+
+## Realism: cheap window/glass fresnel + sky reflection on every tier (RD-405) (v0.2.0.17)
+
+Real refractive transmission is High/Maximum only; on Performance/Medium the cheap glass path
+(`getGlassMaterial` / `glassConfig`) was a flat transparent+opacity pane with no reflection. The cheap
+glass now also carries an `ior` (1.5) — giving a physically-correct fresnel rim (brighter reflection
+toward grazing angles) on any tier with lighting — and a faint `envMapIntensity` (0.6) so glassware /
+cabinet panes catch the IBL sky probe on Medium. Both are inert on the IBL-less Performance tier, so
+the flat default never regresses. Unit-tests assert the cheap-glass `ior`/`envMapIntensity`/roughness;
+verified glassware (bar-cart shelves, floor vase) renders glassy on Medium with no artifacts.
+
+## a11y: 44px close-button hit targets on bottom-sheet panels (UX-002) (v0.2.0.16)
+
+On phones the catalog/inspector/finish-picker/plan-props and the `.aux` analysis panels (Budget,
+Daylight, Clearance, …) dock as bottom sheets, but their header close **X** was a bare 26px
+`.icon-btn` — under the 44px touch-target guideline (only the mobile *menu* sheet's X had the
+treatment). Extended the existing invisible `::after` hit-area pattern to every docked-sheet
+`.panel-head .icon-btn`, so the close control is a 44px tap target (26px + 2×9px) while keeping the
+compact 26px visual. Measured the computed hit box at 390×844 (visual 26×26, hit 44px).
+
+## Perf: de-duplicate the per-move wall build in the drag path (PERF-003, partial) (v0.2.0.15)
+
+`DragController.onMove` built the placement-wall set twice per pointermove — once for the
+flush-to-wall snap and again for the equal-spacing pass (identical
+`placementWalls(state) ?? buildCollisionWalls(state.doors)`). Walls are immutable for the duration
+of a drag, so it now resolves once (`dragWalls`) and feeds both passes — removing a full wall-build
+per move on the hottest interactive path, with no behavioural change (the snap + spacing inputs are
+byte-identical). The broadphase neighbour-restriction half of PERF-003 (bounding `others`/`canPlace`
+to the dragged item's grid cell) is deferred — it changes the candidate set, so it needs a perf
+harness + snap/validity-equivalence tests before shipping (tracked in `TODO.md`). Verified the
+equal-spacing guides still render the same gaps via the `equal-spacing-guides` scenario.
+
+## Fix: resumable-scraper edge cases (REV-002/003/004/005) (v0.2.0.14)
+
+Hardens the dev-only Python scraper harness (`research/scrapers/`):
+- **REV-002** — `Manifest.has`/`mark` now treat a falsy/empty key as never-done / never-persisted,
+  so keyless items (a malformed search result with no id/url) no longer collapse onto one `""`
+  manifest entry and silently skip each other on resume — they're reprocessed instead.
+- **REV-003** — `Manifest._flush` `fsync`s the tmp ledger before the atomic rename, so a power-loss
+  between write and rename can't leave a truncated `_manifest.json` and lose resume progress.
+- **REV-004** — `download_file` retries the whole stream with backoff (a connection reset *mid-body*,
+  after the 200, was previously unretried) and always unlinks the orphaned `.part` on failure.
+- **REV-005** — `polyhaven_scraper` queries `?t=<type>` (the canonical param) instead of the `type=`
+  alias, so a future API tightening can't yield an empty asset map.
+
+## Fix: route baked-AO CanvasTextures through the anisotropy cap (REV-006) (v0.2.0.13)
+
+The shared `CornerAO` corner-strip gradient and the `ContactShadow` radial blob were the two
+`CanvasTexture`s created without `applyAnisotropy()`, against the RD-401 rule that routes *every*
+CanvasTexture through the shared cap. Both are floor decals seen at grazing angles on the flat
+(Performance) tier, where anisotropic filtering keeps the falloff crisp. Both now stamp the cap (and
+register for the device-max re-apply on first render). Verified the flat-tier scene still renders the
+grounding cues with no artifacts.
+
+## Perf: lazy-load the Pro/analysis panels out of the boot bundle (PERF-004) (v0.2.0.12)
+
+The eight Pro/analysis panels — Budget, Clearance, Daylight, DesignScore, Comments,
+DrawingCallouts, Accessibility, Flags — were statically imported into `App.tsx`, so every first
+paint (including the Simple-tier casual user who never opens them) downloaded + parsed them and
+their pure cores (`designScore`/`accessibility`/`renovationCost`/`lighting2d`/SVG builders). They
+now load through the existing `lazyComponents.tsx` `lazyWithRetry` pattern: each mounts behind a
+`Suspense` boundary gated on its open flag (so the chunk leaves the entry bundle), and is added to
+`preloadOnIdle.ts` so it's idle-warmed + offline-ready + instant-open like every other on-demand
+chunk. `npm run build` confirms each panel + its analysis core split into its own async chunk.
+Verified the Budget panel opens + renders correctly from its lazy chunk.
+
+## Fix: two IDB cache hazards — meta race + transaction reuse (BUG-011/012) (v0.2.0.11)
+
+- **BUG-011** — the remote-asset cache did `getMeta → mutate → setMeta` with awaits in between and
+  no locking, so two *different* assets resolving concurrently (rapid clicks on two cards) could
+  interleave and clobber each other's byte accounting (`remoteCacheBytes`/LRU drift). All meta
+  read-modify-write cycles (`putAsset`/`getAsset`/`deleteAsset`/eviction) now run through one
+  in-module promise chain (`withMetaLock`), and `evictUntilUnder` delegates to a new atomic
+  `evictAssetsUntilUnder` that selects + accounts evictions in a single locked cycle. Adds a
+  concurrent-put test asserting `totalBytes` equals the sum of both bundles.
+- **BUG-012** — `putPanoCached` (and `evictPanoStop`) reused one IDB store handle across an `await`
+  (put→getAll→delete), risking `TransactionInactiveError` once IDB auto-commits the transaction. Each
+  now opens a fresh transaction per phase and issues the deletes without awaiting between them. Adds
+  an over-cap eviction test that exercises the path without throwing.
+
+## Fix: sloped walls honour per-wall + plan-wide thickness (BUG-009) (v0.2.0.10)
+
+`slopedWallTriangles` derived its prism thickness from a hardcoded 0.2 m external / 0.1 m internal,
+ignoring both the per-wall `thicknessM` override and the plan-wide `wallThickness` default that
+`planWallThickness` honours for every flat wall — so a sloped wall with `thicknessM: 0.4` rendered
+0.2 m thinner than its abutting flat neighbours. `slopedWallTriangles` now takes an optional resolved
+`thicknessM` (falling back to the category default when omitted) and `PlanShell`'s `SlopedWallMesh`
+passes `planWallThickness(wall, plan)`. Tests assert the prism cross-span matches an overridden 0.4 m
+thickness and the 0.1 m default fallback.
+
+## Fix: validate saved floor plans on load (BUG-014) (v0.2.0.9)
+
+`loadFloorPlans` restored localStorage-persisted plans with only `JSON.parse` + `Array.isArray`
+checks, casting parseable-but-malformed plans (e.g. missing `walls`/`rooms`) straight into the store
+— unlike the autosave/designFile paths, which run Zod validation. That could feed bad geometry to the
+renderer. It now runs each entry through the (newly exported) `FloorPlanZ` schema via `safeParse`,
+dropping any that fail (the active plan falls back to the rebuilt default). Adds a unit test covering
+valid restore, malformed-entry drop, malformed-active fallback, and corrupt JSON.
+
+## Fix: strict angle parse + make "New apartment" undoable (BUG-010/013) (v0.2.0.8)
+
+- **BUG-010** — `parseAngleInput` ran `parseFloat` on the raw string, so trailing garbage
+  ("90xyz", "45 deg!", "90o", "3.5abc") silently parsed to a number instead of erroring. It now
+  anchors an exact numeric regex (`^-?\d+(\.\d+)?$`) before parsing — matching `parseLengthInput`'s
+  strictness — returning `NaN` for any unrecognised input so `validateAngle` can flag it.
+- **BUG-013** — `newFloorPlan` replaced the whole plan without snapshotting history, so "New
+  apartment" was not undoable and silently discarded the prior design. It now calls `pushHistory()`
+  before swapping in the blank plan, so a single undo fully restores the prior plan.
+- Tests: trailing-garbage rejection cases in `wallNumericEntry.test.ts`; an undo-restores-prior-plan
+  case in `floorPlanSlice.history.test.ts`.
+
+## Fix: catch failed remote-asset downloads in RemoteCard (BUG-005) (v0.2.0.7)
+
+`resolveRemoteAsset` sets the card status to `'error'` (showing "Retry") and rethrows for its
+in-flight integration consumers, but `RemoteCard.onClick` awaited it with no try/catch and the
+call site discarded the promise (`void onClick()`) — so clicking a CC0 card while offline or on a
+404 produced an unhandled promise rejection (console error / dev overlay), and `onResolved` could
+wrongly fire. The await is now wrapped in try/catch that returns early on failure (the visual error
+state is already handled by the slice). Adds a unit test asserting no `onResolved` on a rejected
+download.
+
+## Fix two resource leaks: wall-face geometry + thumbnail blob URLs (BUG-006/007) (v0.2.0.6)
+
+- **BUG-006** — `WallSegment` FacePlane memoised `worldUvPlaneGeometry` but never disposed it,
+  so editing ceiling height / wall thickness (which changes `segLen`/`segHeight`) or switching
+  starter plans orphaned every wall-face plane geometry. Added `useDisposeGeometry(geometry)`
+  (the same pattern RoomFloor/PlanRoomFloor already use). (`RoomFloor` was already covered by BUG-002.)
+- **BUG-007** — `useThumbnail` (`catalog/remote/hooks.ts`) created a blob URL per CC0 thumbnail and
+  never revoked it, leaking one URL per thumbnail viewed (drawer close / virtualised scroll). The
+  URL is now tracked in a ref and revoked on **unmount only** — not in the main effect's cleanup,
+  which re-runs on `url` change and would revoke the URL still being rendered. Adds a unit test
+  asserting revoke-on-unmount + no-create-while-hidden.
+
+## a11y: global prefers-reduced-motion handling (UX-006) (v0.2.0.5)
+
+Only `.walk-hud` (and the loading overlay) honoured the OS "reduce motion" setting;
+bottom-sheets, fades, popovers and toasts still animated. Added a global
+`@media (prefers-reduced-motion: reduce)` reset in `app.css` that drops transition +
+animation durations to 0.01ms app-wide (0.01ms — not 0 — so `transitionend`/`animationend`
+keep firing for JS that waits on them), caps animation iterations, and disables smooth
+scroll. CSS-only; the 3D render loop and JS camera tweens are unaffected, and users
+without the setting see no change.
+
+## Perf: defer + memoise catalog search ranking (PERF-005) (v0.2.0.4)
+
+Typing in the catalog search re-ran the synonym-aware fuzzy ranking over the WHOLE
+merged catalog (local + the large browsable CC0 index) on every keystroke, inside the
+render body with no memoisation. `CatalogDrawer` now ranks against a `useDeferredValue`
+of the query (the input updates instantly; the expensive rank runs in a non-blocking
+deferred render) and wraps the result in `useMemo` keyed on the deferred query + the
+memoised `useUnifiedCatalog` output + category/sort, so it only recomputes when those
+actually change — not on unrelated re-renders (hover, etc.). Visible results are
+identical (same ranking/order); existing catalog tests pass unchanged.
+
+## Fix: make item rename undoable (BUG-008) (v0.2.0.3)
+
+`renameItem` (`src/state/slices/itemsSlice.ts`) mutated the item label without a
+`pushHistory()`, so renaming a piece could not be undone. It now snapshots history
+before applying the change, with a no-op guard that skips the push (and the mutation)
+when the trimmed label is unchanged — so undo reverts a rename in one step and a
+redundant rename doesn't pollute the undo stack. Adds undo + no-op unit tests.
+
+## Seed remote/CC0 GLB footprint from glTF accessor bounds (AI-INTEG-001b) (v0.2.0.2)
+
+Remote (Poly Haven) furniture defs shipped `defaultFootprint:{w:1,d:1,h:1}` from
+`bundleToFurnitureDef` (`src/catalog/remote/resolver.ts`) and only self-corrected
+*after* `GltfModel` rendered — so pre-render placement, collision, catalog sizing,
+and budget all used a wrong 1×1×1 m guess.
+
+**Fix.** New pure helper `src/catalog/remote/gltfBounds.ts:gltfJsonFootprint(gltfJson)`
+unions every POSITION accessor's `min`/`max` from the already-parsed glTF JSON the
+provider hands us (mirrors the proven `src/catalog/packs/footprint.ts:glbFootprint`
+*GLB-bytes* path, but for parsed JSON — no Three.js / GLTFLoader / render, runs in
+Node + jsdom). `bundleToFurnitureDef` now seeds `defaultFootprint` from it, falling
+back to the old 1×1×1 placeholder when bounds are unavailable or absurd. Edge cases:
+multi-mesh union, near-flat axis clamped to 0.05 m, a metre sanity clamp that rejects
+non-metre (cm/mm) scales, no POSITION accessor → fallback. The render-time
+`GltfModel` bbox measurement stays authoritative and still self-corrects; this only
+makes the *pre-render* value honest. Unit tests: `gltfBounds.test.ts` (bounds / union
+/ clamp / fallback) + `resolver.test.ts` (seeded footprint ≠ 1×1×1; fallback case).
+No version bump here (orchestrator does the consolidated bump at integration).
+
+## Fix milky Maximum render + dark ground rectangle (RD-409/RD-410) (v0.2.0.1)
+
+Two reported high-tier render bugs, root-caused at runtime via the scene graph + before/after
+screenshots.
+
+**RD-409 — washed-out / milky Maximum (and High) in daylight.** The post-stack Bloom
+(`scene/EffectsImpl.tsx`) used `luminanceThreshold={1.05}` — low enough that broad sunlit
+surfaces (white walls/ceilings under the day IBL probe at ~1.2 graded exposure) cleared it and
+bloomed, smearing a milky white veil across the whole frame (confirmed: disabling the post
+stack removed the veil; isolating bloom reproduced it). Raised the threshold to **1.35**
+(above daytime diffuse, below the night fixtures), softened the knee (`luminanceSmoothing`
+0.15→0.25) and trimmed `intensity` 0.6→0.45. Centralised as `look.BLOOM` (pure, unit-tested).
+The light-fixture emissive peaks (`scene/lighting/fixtureGlow.ts`) were lifted in lock-step so
+genuine emitters still bloom with margin (shade peak 1.33→~1.60, strip 1.66→~1.80, bulb
+1.85→~2.05); a new test pins `BLOOM_LUMINANCE_THRESHOLD === look.BLOOM.luminanceThreshold` so
+they can't drift apart. Verified: Maximum daytime is now crisp + saturated, Performance/Medium
+unchanged, and a night scene still glows on the fixtures.
+
+**RD-410 — large dark rectangle on the ground.** Runtime scene-graph traversal found a single
+19.1 × 19.1 m `ShaderMaterial` plane at y≈0.01 (drei `SoftShadowMaterial`) — the
+`AccumulativeShadows` ground catcher in `scene/ShowcaseController.tsx`
+(`scale = max(W,D)*1.5 = 19.125`), which mounts at Medium+ when the camera parks. That
+component assumes a single hero object floating over an empty floor; for a full apartment
+(which has its own floor + real-time PCF sun shadows + contact-shadow blobs + corner AO) it
+caught the building's own silhouette and rendered it as a dark rectangle larger than the
+footprint. The capture paths (screenshot/panorama) only render one synchronous frame, which
+never converges the accumulation, so it added the unconverged plane for no benefit. Retired
+the accumulator: `showcase: false` on every quality preset, `ShowcaseController` renders
+nothing (and pins `showcaseAccumulating=false`), the capture-path `showcase` overrides + the
+Graphics "Showcase stills" toggle removed, and the now-dead `scene/showcase.ts` state machine
+deleted. Legitimate grounding (contact shadows + corner AO + real sun shadows) is untouched.
+Verified: no large ground plane remains in the scene graph and the rectangle is gone.
+
 ## Brushed/satin metal material + wired appliances (MAT-004/004b) (v0.1.0.48)
 
 Appliance bodies (and any steel-bodied primitive) rendered as flat grey plastic — `applianceFinish('steel')`

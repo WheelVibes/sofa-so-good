@@ -217,6 +217,10 @@ export function RotateGizmo() {
       useStore.getState().setRotatingGizmo(false)
       setValid(true)
       setLive(null)
+      // Grabbing the ring pushed an undo snapshot in onGrab; if the grab didn't
+      // actually rotate anything, drop it so the first undo isn't a dead step
+      // (BUG-016). A real rotation changed an item reference → kept.
+      useStore.getState().dropRedundantHistory()
     }
 
     window.addEventListener('pointermove', onMove)

@@ -99,3 +99,28 @@ export const AO = {
   distanceFalloff: 1.2,
   intensity: 3.0,
 } as const
+
+/**
+ * Bloom tuning for the High/Maximum post stack (`EffectsImpl`).
+ *
+ * The threshold is the load-bearing value: it must sit **above** the brightest
+ * broad *daytime* surfaces (sunlit white walls/ceilings under the IBL probe,
+ * graded at exposure ~1.2) so the bloom doesn't smear a milky veil across the
+ * whole frame, yet **below** the genuinely emissive night fixtures so a lit lamp
+ * still glows. The fixture emissive peaks (`fixtureGlow.ts`) are tuned to clear
+ * this with margin (shade ~1.6, strip ~1.76, bulb ~1.85 ≫ 1.35). Keep the two in
+ * lock-step: raising this needs the fixture peaks raised too (and vice-versa),
+ * which the `fixtureGlow` test asserts against `BLOOM_LUMINANCE_THRESHOLD`.
+ */
+export const BLOOM = {
+  /** Luminance above which a pixel contributes to bloom. Raised from the old
+   *  1.05 (which bloomed broad sunlit walls → the "milky maximum" bug) to 1.35,
+   *  clearing daytime diffuse while keeping emissive fixtures over the line. */
+  luminanceThreshold: 1.35,
+  /** Soft knee width around the threshold — wider than before so the cutover is
+   *  gradual (no hard ring on a fixture edge). */
+  luminanceSmoothing: 0.25,
+  /** Overall glow strength. Trimmed from 0.6 so even an over-threshold emitter
+   *  blooms gently, not blown out. */
+  intensity: 0.45,
+} as const

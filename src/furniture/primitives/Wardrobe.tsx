@@ -74,9 +74,14 @@ export function Wardrobe({ props }: WardrobeProps) {
     const shelfBay = (cx: number, bw: number, key: string) => (
       <group key={key}>
         {[0.45, 0.83, 1.21, 1.59].map((y, i) => (
-          <mesh key={i} castShadow receiveShadow position={[cx, y, 0]} material={wood}>
-            <boxGeometry args={[bw - 0.04, t, depth - 0.04]} />
-          </mesh>
+          <BeveledBox
+            key={i}
+            castShadow
+            receiveShadow
+            position={[cx, y, 0]}
+            material={wood}
+            args={[bw - 0.04, t, depth - 0.04]}
+          />
         ))}
         {[0.45, 0.83].map((y, i) => (
           <mesh key={`f${i}`} castShadow position={[cx, y + 0.1, 0]}>
@@ -92,9 +97,12 @@ export function Wardrobe({ props }: WardrobeProps) {
       <group key={key}>
         {[0.18, 0.45, 0.72, 0.99].map((y, i) => (
           <group key={i}>
-            <mesh castShadow position={[cx, y, depth / 2 - 0.04]} material={wood}>
-              <boxGeometry args={[bw - 0.05, 0.24, 0.02]} />
-            </mesh>
+            <BeveledBox
+              castShadow
+              position={[cx, y, depth / 2 - 0.04]}
+              material={wood}
+              args={[bw - 0.05, 0.24, 0.02]}
+            />
             <mesh position={[cx, y + 0.08, depth / 2 - 0.02]}>
               <boxGeometry args={[bw * 0.4, 0.015, 0.02]} />
               <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
@@ -147,9 +155,12 @@ export function Wardrobe({ props }: WardrobeProps) {
           />
         ))}
         {twoBays ? (
-          <mesh castShadow position={[0, height / 2, 0]} material={wood}>
-            <boxGeometry args={[t, height, depth]} />
-          </mesh>
+          <BeveledBox
+            castShadow
+            position={[0, height / 2, 0]}
+            material={wood}
+            args={[t, height, depth]}
+          />
         ) : null}
         {bays}
       </group>

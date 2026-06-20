@@ -96,16 +96,28 @@ class Manifest:
                 self.done = {}
 
     def has(self, key: str) -> bool:
-        return key in self.done
+        # An empty/falsy key is never "done": keying on "" would collapse every
+        # keyless item onto one entry and silently skip the rest on resume
+        # (REV-002). Such items are always reprocessed instead.
+        return bool(key) and key in self.done
 
     def mark(self, key: str, **meta) -> None:
+        # Never persist an empty/falsy key — see `has` (REV-002).
+        if not key:
+            return
         self.done[key] = {"ts": int(time.time()), **meta}
         self._flush()
 
     def _flush(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(self.path.suffix + ".tmp")
-        tmp.write_text(json.dumps(self.done, indent=0))
+        # fsync the tmp file before the atomic rename so a power-loss / kernel
+        # panic between write and rename can't leave a truncated ledger and lose
+        # resume progress (REV-003); the rename itself is atomic on POSIX.
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(json.dumps(self.done, indent=0))
+            f.flush()
+            os.fsync(f.fileno())
         tmp.replace(self.path)  # atomic on POSIX
 
     def __len__(self) -> int:
@@ -181,14 +193,31 @@ class HttpClient:
             return False
         dest.parent.mkdir(parents=True, exist_ok=True)
         part = dest.with_suffix(dest.suffix + ".part")
-        with self.open(url) as r, open(part, "wb") as f:
-            while True:
-                chunk = r.read(1 << 16)
-                if not chunk:
-                    break
-                f.write(chunk)
-        part.replace(dest)
-        return True
+        # `self.open` retries the request, but a connection reset *mid-stream*
+        # (after a 200) would otherwise propagate and leave an orphaned `.part`
+        # (REV-004). Retry the whole stream with backoff and always clean up the
+        # partial so a failed attempt never litters or is mistaken for progress.
+        attempt = 0
+        while True:
+            try:
+                with self.open(url) as r, open(part, "wb") as f:
+                    while True:
+                        chunk = r.read(1 << 16)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                part.replace(dest)
+                return True
+            except (urllib.error.URLError, TimeoutError, OSError) as e:
+                part.unlink(missing_ok=True)
+                if attempt < self.retries:
+                    delay = _retry_delay(attempt, None)
+                    _log(f"  stream error {e} on {url} → retry {delay:.1f}s "
+                         f"(attempt {attempt + 1}/{self.retries})")
+                    time.sleep(delay)
+                    attempt += 1
+                    continue
+                raise
 
 
 def _retry_delay(attempt: int, retry_after: Optional[str]) -> float:

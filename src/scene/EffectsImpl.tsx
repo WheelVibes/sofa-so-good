@@ -1,6 +1,7 @@
 import {
   Bloom,
   ChromaticAberration,
+  DepthOfField,
   EffectComposer,
   HueSaturation,
   N8AO,
@@ -10,20 +11,32 @@ import {
 } from '@react-three/postprocessing'
 import { type ReactElement, useMemo } from 'react'
 import { Vector2 } from 'three'
-import { AO } from './look'
+import { rasterDofParams } from './cameras/cameraLensSettings'
+import { AO, BLOOM } from './look'
 
 interface EffectsProps {
   /** Render SSAO at full resolution (sharper, deeper) instead of half-res. */
   aoFullRes?: boolean
   /** Add the cinematic finish: faint film grain + subtle chromatic aberration. */
   cinematic?: boolean
+  /** Mount the raster depth-of-field pass (already gated by tier + flag + the
+   *  user's aperture upstream). PC2-CAM-DOF-LENS. */
+  dof?: boolean
+  /** Aperture f-stop driving the bokeh strength + focus range (raster DoF). */
+  dofFStop?: number
+  /** Focus plane distance from the camera, metres (world-space) — shared with
+   *  the HQ path tracer. */
+  dofFocusDistance?: number
 }
 
 /**
  * Tier-aware post-processing stack.
  *   - N8AO: SSAO, tuned via look.AO so corners/recesses ground deeply. Full-res
  *     + high-quality on the top (`aoFullRes`) tier, half-res elsewhere.
- *   - Bloom: gentle glow on emissive fixtures at night (thresholded).
+ *   - Bloom: gentle glow on genuinely emissive night fixtures only. Thresholded
+ *     HIGH (`BLOOM.luminanceThreshold`) so broad sunlit daytime surfaces stay
+ *     under the line — a lower threshold smeared a milky veil across the whole
+ *     frame at High/Maximum.
  *   - HueSaturation: a touch of saturation so finishes read rich, not muddy.
  *   - ChromaticAberration (cinematic only): a sub-pixel RGB split at the frame
  *     edges — the lens signature that makes a still read "photographed".
@@ -34,10 +47,17 @@ interface EffectsProps {
  * Effects are assembled into a keyed array (the composer's children typing
  * rejects conditional `null`s) so the cinematic passes drop in/out cleanly.
  */
-export default function EffectsImpl({ aoFullRes = false, cinematic = false }: EffectsProps) {
+export default function EffectsImpl({
+  aoFullRes = false,
+  cinematic = false,
+  dof = false,
+  dofFStop = 0,
+  dofFocusDistance = 3,
+}: EffectsProps) {
   // Sub-pixel split, strongest at the edges via radial modulation. Memoised so
   // the Vector2 isn't recreated every render.
   const caOffset = useMemo(() => new Vector2(0.0006, 0.0006), [])
+  const { bokehScale, worldFocusRange } = useMemo(() => rasterDofParams(dofFStop), [dofFStop])
 
   const effects: ReactElement[] = [
     <N8AO
@@ -51,15 +71,29 @@ export default function EffectsImpl({ aoFullRes = false, cinematic = false }: Ef
     <Bloom
       key="bloom"
       mipmapBlur
-      luminanceThreshold={1.05}
-      luminanceSmoothing={0.15}
-      intensity={0.6}
+      luminanceThreshold={BLOOM.luminanceThreshold}
+      luminanceSmoothing={BLOOM.luminanceSmoothing}
+      intensity={BLOOM.intensity}
     />,
     <HueSaturation key="hue" saturation={0.06} hue={0} />,
   ]
   if (cinematic) {
     effects.push(
       <ChromaticAberration key="ca" offset={caOffset} radialModulation modulationOffset={0.35} />,
+    )
+  }
+  // Raster depth of field (PC2-CAM-DOF-LENS). World-space focus (metres) so the
+  // model matches the HQ path tracer; half-res (`resolutionScale`) to keep the
+  // bokeh convolution cheap. Mounted only when DoF is enabled upstream.
+  if (dof) {
+    effects.push(
+      <DepthOfField
+        key="dof"
+        worldFocusDistance={dofFocusDistance}
+        worldFocusRange={worldFocusRange}
+        bokehScale={bokehScale}
+        resolutionScale={0.5}
+      />,
     )
   }
   effects.push(<Vignette key="vig" eskil={false} offset={0.32} darkness={0.55} />)
