@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Photoreal: contact-shadow decal under surface decor (PC2-CONTACT-AO-DECOR) (v0.2.0.39)
+
+Small decor resting on a table/shelf (vases, bowls, books, plants, candles, frames, sculptures) had no
+contact grounding, so it read pasted-on — the biggest cheap "is-it-really-sitting-there" realism gap on
+the default flat tier. Each qualifying prop now renders a faint, soft contact-shadow decal at the host
+surface height (reusing `scene/ContactShadow.tsx`, which gained `opacity` + `scale` params — the decal
+is fainter/tighter than a floor blob). Qualification is pure + unit-tested (`furniture/surfaceDecal.ts`:
+small `noClip` parametric decor carrying a numeric `surfaceHeight`; rugs, large pieces, GLB and
+floor-standing items excluded — and `noClip` guarantees the floor-shadow path already skipped it, so no
+double shadow). It's a cheap alpha quad (no render pass), gated by the existing `contactShadows` flag +
+quality so it follows the same tiering as floor blobs. Verified: a candle cluster sits grounded on a
+table with a soft shadow, no z-fighting; the floor lamp (no `surfaceHeight`) correctly gets none.
+
 ## Fix: auto-furnish decor double-lifted above its host surface (BUG-015) (v0.2.0.38)
 
 Auto-furnish decor (cushions, throws, fruit bowls, books, plants, frames, sculptures, candles — the

@@ -38,7 +38,9 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   every tier. Grounding comes from the cues above — don't reintroduce a scene-wide
   shadow-catcher plane.
 - **Cheap baked AO on the flat tier.** With no SSAO on Performance/Medium, grounding is
-  faked with shared-texture alpha decals: `ContactShadow.tsx` (under-furniture blob, RZ1)
+  faked with shared-texture alpha decals: `ContactShadow.tsx` (under-furniture blob, RZ1; also a
+  fainter/tighter **surface decal under small decor** resting on a table/shelf — PC2-CONTACT-AO-DECOR,
+  qualified by the pure `furniture/surfaceDecal.ts` and rendered from `furniture/Furniture.tsx`)
   and `CornerAO.tsx` `WallFloorAO` (wall/floor corner strip, RD-403). Both use ONE shared
   `CanvasTexture`, a single transparent plane each, `depthWrite:false` + `polygonOffset` +
   small `+Y`. Corner AO mounts inside the wall's local frame in `WallSegment.tsx` (follows

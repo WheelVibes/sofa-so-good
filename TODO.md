@@ -440,13 +440,13 @@ re-take here). Nothing below duplicates shipped or open work. Prioritised: corre
   `decorStyling` *also* set `elevation: topHeight` and the render group adds `elevation` for parametric
   items. Fixed by dropping the redundant `elevation` (decor carries `surfaceHeight` only, like the
   defaults). Decor now sits correctly — which also unblocks the contact-AO decal below.
-- **PC2-CONTACT-AO-DECOR** (S/M) — Small surface decor (vases, bowls, books, trays) gets no contact
-  grounding, so it reads pasted-on. Add a tiny baked radial-gradient **contact-shadow decal** under
-  small props (a cheap alpha texture quad, not a render pass — works on the flat Performance tier).
-  Reuse/extend `scene/ContactShadow.tsx` patterns into a per-prop decal helper. Touches
-  `scene/ContactShadow.tsx` (or new `scene/PropContactDecal.tsx`), decor primitives. Biggest cheap
-  "is-it-really-sitting-there" realism lever on the default tier. Verify via screenshot + a present-
-  in-graph unit check. (Decor now sits at the right height after BUG-015.)
+- ~~**PC2-CONTACT-AO-DECOR**~~ ✅ DONE (v0.2.0.39) — small `noClip` parametric decor with a numeric
+  `surfaceHeight` (the `decorStyling` props + tabletop defaults) now renders a faint soft
+  contact-shadow decal at the host surface height, reusing `scene/ContactShadow.tsx` (gained `opacity`
+  + `scale` params). Qualification is pure + unit-tested (`furniture/surfaceDecal.ts` — small noClip
+  parametric + surfaceHeight only; rugs/large/GLB/floor excluded; `noClip` ⇒ the floor-shadow path
+  already skipped it, so no double shadow). Gated by the existing `contactShadows` flag + quality.
+  Verified via screenshot (candle cluster grounded on a table, soft, no z-fight) + 8-case unit test.
 - **PC2-TONEMAP-EXPOSURE-CTX** (S) — `PHOTOREALISM.md` recommends **Neutral as the default tone-map
   in the finish-preview context** (accurate base colours) and AgX for "photo" presets, but the app
   uses one global tone-mapper. Make tone-mapping context-aware: Neutral while a finish/material swatch
