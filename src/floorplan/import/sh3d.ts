@@ -52,6 +52,18 @@ export interface Sh3dImportItem {
   width: number
   depth: number
   height: number
+  /** When set, SH3D modelled this piece as a door/window (a wall-hosted opening,
+   *  not free furniture). The placement pass (`sh3dPlacement.ts`) associates it to
+   *  the nearest wall and converts it to a `PlanOpening`. Absent = ordinary
+   *  furniture. The door-vs-window kind is a best-effort name heuristic. */
+  opening?: 'door' | 'window'
+}
+
+/** Classify a door/window piece as a `door` or a `window` from its name (SH3D
+ *  records both as `doorOrWindow` without the kind). Window keywords win;
+ *  otherwise we treat it as a door (the common case for an unnamed opening). */
+export function openingKindForName(name: string): 'door' | 'window' {
+  return /\b(window|casement|sash|skylight|fanlight|glazing|pane)\b/i.test(name) ? 'window' : 'door'
 }
 
 export interface Sh3dImportResult {
@@ -217,6 +229,7 @@ export function parseHomeXml(xml: string, planName = 'Imported plan'): Sh3dImpor
     width: number
     depth: number
     height: number
+    opening?: 'door' | 'window'
   }
   const rawItems: RawItem[] = []
   let itemIdx = 0
@@ -241,6 +254,10 @@ export function parseHomeXml(xml: string, planName = 'Imported plan'): Sh3dImpor
       warnings.push(`Skipped furniture "${name}" with out-of-range geometry`)
       continue
     }
+    // A door/window is either its own `<doorOrWindow>` element or an ordinary
+    // `<pieceOfFurniture>` carrying `doorOrWindow="true"`.
+    const isOpening =
+      el.tagName.toLowerCase() === 'doororwindow' || el.getAttribute('doorOrWindow') === 'true'
     rawItems.push({
       id: el.getAttribute('id') || `sh3d-piece-${itemIdx}`,
       name,
@@ -250,6 +267,7 @@ export function parseHomeXml(xml: string, planName = 'Imported plan'): Sh3dImpor
       width,
       depth,
       height: height ?? 0,
+      opening: isOpening ? openingKindForName(name) : undefined,
     })
     itemIdx++
   }
@@ -321,10 +339,12 @@ export function parseHomeXml(xml: string, planName = 'Imported plan'): Sh3dImpor
     }
   })
 
-  // --- Emit furniture descriptors + collect unmapped warnings. ---
+  // --- Emit furniture descriptors + collect unmapped warnings. Door/window
+  //     pieces become wall openings later (sh3dPlacement.ts) so they are NOT
+  //     category-mapped and don't warn about being uncategorisable. ---
   const items: Sh3dImportItem[] = rawItems.map((it) => {
-    const category = categoryForPieceName(it.name)
-    if (category == null) {
+    const category = it.opening ? null : categoryForPieceName(it.name)
+    if (!it.opening && category == null) {
       warnings.push(`Furniture "${it.name}" could not be matched to a catalog category`)
     }
     const [px, pz] = toM(it.x, it.y)
@@ -339,6 +359,7 @@ export function parseHomeXml(xml: string, planName = 'Imported plan'): Sh3dImpor
       width: clampCoord(it.width * CM_TO_M),
       depth: clampCoord(it.depth * CM_TO_M),
       height: clampCoord(it.height * CM_TO_M),
+      ...(it.opening ? { opening: it.opening } : {}),
     }
   })
 

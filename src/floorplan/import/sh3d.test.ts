@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   categoryForPieceName,
   importResultToFloorPlan,
+  openingKindForName,
   parseHomeXml,
   parseSh3d,
   Sh3dParseError,
@@ -214,5 +215,50 @@ describe('categoryForPieceName heuristics', () => {
 
   it('returns null for an unrecognised name', () => {
     expect(categoryForPieceName('Zorblax 9000')).toBeNull()
+  })
+})
+
+describe('openingKindForName heuristics', () => {
+  it('classifies windows by keyword', () => {
+    expect(openingKindForName('Bedroom window')).toBe('window')
+    expect(openingKindForName('Casement')).toBe('window')
+    expect(openingKindForName('Skylight')).toBe('window')
+  })
+
+  it('defaults to door otherwise', () => {
+    expect(openingKindForName('Front door')).toBe('door')
+    expect(openingKindForName('Sliding entry')).toBe('door')
+  })
+})
+
+describe('parseHomeXml — door/window opening flag', () => {
+  const xml = `<?xml version="1.0"?>
+<home wallHeight="250">
+  <wall id="w1" xStart="0" yStart="0" xEnd="400" yEnd="0" thickness="20"/>
+  <doorOrWindow id="d1" name="Front door" x="200" y="0" width="90" depth="20" height="205"/>
+  <pieceOfFurniture id="d2" name="Bedroom window" doorOrWindow="true" x="100" y="0" width="120" depth="20" height="120"/>
+  <pieceOfFurniture id="s1" name="Sofa" x="200" y="100" width="200" depth="90" height="80"/>
+</home>`
+  const result = parseHomeXml(xml)
+
+  it('flags door/window pieces with their kind (and not as plain furniture)', () => {
+    const door = result.items.find((i) => i.id === 'd1')!
+    const win = result.items.find((i) => i.id === 'd2')!
+    const sofa = result.items.find((i) => i.id === 's1')!
+    expect(door.opening).toBe('door')
+    expect(win.opening).toBe('window')
+    expect(sofa.opening).toBeUndefined()
+  })
+
+  it('does not category-map or warn about opening pieces', () => {
+    const door = result.items.find((i) => i.id === 'd1')!
+    expect(door.category).toBeNull()
+    // The door should NOT generate an "uncategorisable furniture" warning.
+    expect(result.warnings.some((w) => /Front door/.test(w))).toBe(false)
+  })
+
+  it('still maps ordinary furniture alongside openings', () => {
+    const sofa = result.items.find((i) => i.id === 's1')!
+    expect(sofa.category).toBe('seating')
   })
 })

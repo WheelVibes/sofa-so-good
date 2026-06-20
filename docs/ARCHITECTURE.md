@@ -408,10 +408,17 @@ same change that reshapes a system.
   `Home.xml` (DOMParser), and maps it into our plan model — cm→m (÷100), origin-anchored bbox,
   `<wall>` → `PlanWall` (thickness→external/internal), `<room>`/`<point>` → polygon `PlanRoom`,
   `<pieceOfFurniture>` → best-effort `categoryForPieceName` descriptors (unmapped → `warnings`,
-  never dropped). Pure (no three/React/store); `importResultToFloorPlan` builds a `FloorPlan`.
-  DOM glue `ui/openSh3dImport.ts` file-picks → parse → `setFloorPlan` (undoable) + toasts
-  warnings. File menu + mobile File + ⌘K (`import-sh3d`). First slice imports walls + rooms;
-  furniture placement + openings are future slices.
+  never dropped). Door/window pieces (`<doorOrWindow>` / `doorOrWindow="true"`) are flagged
+  `opening` (`openingKindForName` → door|window). A second pure pass `import/sh3dPlacement.ts`
+  `resolveSh3dImport(items, walls, catalog, existing, genId)` turns those descriptors into scene
+  state: furniture → catalog defs (`defForCategory` footprint-best-match, orientation-agnostic)
+  placed collision-free via `placeNonOverlapping`; openings → `PlanOpening`s by `associateOpenings`
+  (nearest-wall via `floorPlanGeometry.nearestWall`/`alongWall`, centre→offset, sill/head from the
+  piece height). Pure (no three/React/store); `importResultToFloorPlan` builds a `FloorPlan`.
+  DOM glue `ui/openSh3dImport.ts` file-picks → parse → resolve placement → one undoable step
+  (`setItems` + `setFloorPlan` with the openings) + a toast summarising walls / rooms / furniture
+  placed / openings / unmatched (with each unplaceable piece as a warning detail). File menu +
+  mobile File + ⌘K (`import-sh3d`).
 - **Multi-axis furniture tilt** (`tiltFurniture` flag, pro; PARITY-TILT): `FurnitureItem` gains optional
   `pitch`/`roll` (radians); `furniture/tiltRotation.ts` `itemRotation` returns the intrinsic Euler tuple
   `[pitch, yaw, roll, 'YXZ']` the `Furniture` root group uses (reduces to pure yaw when untilted).
