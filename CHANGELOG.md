@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: SH3D furniture + openings import, material-logic extraction, parity research (v0.3.0.3)
+
+Three parallel-agent integrations:
+
+- **PARITY-SH3D-FURN + OPENINGS** — the Sweet Home 3D importer now **places** parsed furniture as
+  collision-safe scene items and converts doors/windows to wall **openings**, all in one undoable
+  step with a counts toast (walls / rooms / furniture placed / openings / unmatched). New pure
+  `floorplan/import/sh3dPlacement.ts` (`resolveSh3dImport` → `resolveFurniture` category→def
+  footprint-best-match + `placeNonOverlapping`, `associateOpenings` nearest-wall via
+  `floorPlanGeometry`, centre→offset clamp, sill/head from piece height) with 21 unit tests; parser
+  gains an `opening` flag + `openingKindForName` (6 more tests). Limitations: category→def picks one
+  representative def per category (no per-product identity); door-vs-window is a name heuristic; sill
+  from piece height (SH3D `elevation` not yet captured); openings associate within 0.6 m of a
+  straight wall (curved/sloped walls don't render openings this version).
+- **MOD-FURNMAT-LOGIC** — extracted the pure three-free helpers (`hash01`, `sheenRough`,
+  `applianceFinish`, `liftedSheenRgb`) out of `materials/furnitureMaterials.ts` into a tested
+  `materials/furnitureMaterialLogic.ts` (21 tests); `furnitureMaterials.ts` re-exports `applianceFinish`
+  so the appliance primitives keep their import path. Byte-identical behaviour (the MAT-004
+  brushed-metal block stays in `furnitureMaterials.ts`).
+- **Research** — added `docs/research/2026-06-20-coohom-sh3d-parity-backlog.md`, a ranked
+  headlessly-verifiable Coohom/Sweet Home 3D parity backlog driving the next dispatch waves
+  (2D-plan furniture rotate/inspect, duplicate-along-path, plan marquee, FloorPlanEditor split).
+
 ## Fix: 2D plan inspector finish pickers read the durable finishes map (FIN-DEFAULT-FORK) (v0.3.0.2)
 
 The 2D plan inspector's floor + wall finish `<select>`s displayed `room.floor`/`room.wall` straight

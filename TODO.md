@@ -69,16 +69,31 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 >   which `serialize()` drops), fixing the post-reload picker↔render desync. Chose the consumer-side fix
 >   over `forkIfDefault` so painting a surface doesn't turn the default flat into a custom plan. The
 >   report/BOQ/drawing-set paths already read the resolver (`finishSchedule.ts`) — no change needed there.
-> - ✅ **PARITY-SH3D** (marquee, done v0.3.0.1) — first slice imports Sweet Home 3D `.sh3d` walls +
->   rooms via pure `floorplan/import/sh3d.ts` (fflate + DOMParser, cm→m) behind `importSh3d` (pro);
->   File-menu/mobile/⌘K wiring. **Follow-ups still open:** place parsed furniture as scene items
->   (resolve descriptor→catalog def + collision-safe placement), import openings (SH3D models
->   doors/windows as furniture, not wall cuts — needs a wall-association pass), legacy serialized
->   (non-`Home.xml`) archives, and `.sh3f` furniture libraries.
+> - ✅ **PARITY-SH3D** (done v0.3.0.1 + v0.3.0.3) — imports Sweet Home 3D `.sh3d` walls + rooms
+>   (`floorplan/import/sh3d.ts`), and now **places furniture** (collision-safe) + converts
+>   **doors/windows to openings** (`floorplan/import/sh3dPlacement.ts`) behind `importSh3d` (pro).
+>   **Still open:** legacy serialized (non-`Home.xml`) archives, `.sh3f` furniture libraries, exact
+>   sill from SH3D `elevation`, openings on curved/sloped walls, per-product catalog identity.
+
+### 2026-06-20 Coohom/SH3D parity backlog (research agent) — next dispatch waves
+> Full doc: `docs/research/2026-06-20-coohom-sh3d-parity-backlog.md`. All pure-client + headlessly
+> verifiable. **Wave 1 (conflict-group-disjoint — dispatch in parallel):**
+> - **PARITY-PLAN-FURN-ROTATE** (HIGH, M, `cg-planeditor`) — 2D-plan furniture rotate handle (walls
+>   have one ~`FloorPlanEditor.tsx:2862`; furniture has none). Reuse `selection/rotateGizmoMath.ts`
+>   15°-snap → `itemsSlice.rotateItem`. Verify: scenario drags handle, asserts snapped rotation.
+> - **PARITY-PLAN-FURN-INSPECT** (HIGH, M, `cg-planinspector`) — furniture branch in the 2D inspector
+>   (new `PlanFurnitureInspector.tsx`; name/X-Z/rotation/W·D·H via `inspector/InspectorPanel.tsx`
+>   DimField). Test Simple + Pro.
+> - **PARITY-DUP-PATH** (MED, M, `cg-arrayplace`) — duplicate-along-polyline array (have
+>   linear/grid/radial). Pure `furniture/pathArray.ts` arc-length + tangent yaw, inspector array section.
+> **Wave 2 (serialize on shared files, after wave 1):** PARITY-PLAN-MARQUEE + **MOD-FPE-SPLIT**
+> (3.2k-line `FloorPlanEditor.tsx` refactor) after FURN-ROTATE; PARITY-PLAN-ALIGN + PARITY-PLAN-ROOM-DUP
+> after FURN-INSPECT. **Deprioritized (real-GPU/backend):** 8K render, RD-406/409/410, AI plan-gen.
 > - ✅ **MOD-FPE-GEO** (done v0.3.0.1) — extracted `planCenter`/`nearestWall`/`alongWall` from
 >   `FloorPlanEditor.tsx` (−49 lines) into a tested `ui/floorplan/editor/floorPlanGeometry.ts`.
-> - **MOD-FURNMAT-LOGIC** (S) — extract `hash01`/`sheenRough`/`applianceFinish`/`metalFinishPreset`
->   /`liftedSheenColor` from `furnitureMaterials.ts` into a tested `furnitureMaterialLogic.ts`.
+> - ✅ **MOD-FURNMAT-LOGIC** (done v0.3.0.3) — extracted `hash01`/`sheenRough`/`applianceFinish`/
+>   `liftedSheenRgb` into a tested `materials/furnitureMaterialLogic.ts` (`metalFinishPreset` doesn't
+>   exist in this codebase; it stays with the MAT-004 brushed-metal block in `furnitureMaterials.ts`).
 > - **MOD-PLANINSP-CEILING** (LOW) — extract PlanInspector ceiling-param/label-angle/Num-commit clamps.
 
 | Rank | ID | One-line | Sev/Impact | Eff | Area / files | Conflict-group |
