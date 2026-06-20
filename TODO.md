@@ -89,7 +89,7 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 | 37 | **RD-411** | SSAA (2× render → downsample) on the snapshot/export path | MED polish (exports) | S | `scene/ScreenshotController.tsx`, `scene/captureCanvas.ts` | `cg-capture` |
 | 38 | **PC2-SSAA-EXPORT** | Supersample snapshot/PNG export (duplicate of RD-411 — **merge with RD-411**, do not dispatch separately) | MED polish | S | same as RD-411 | `cg-capture` |
 | 39 | **PC2-PLAN-FURN-ICONS** | Top-down furniture glyphs in the 2D plan (bed/sofa/toilet/sink…) | LOW polish | M | `ui/floorplan/editor/*`, `ui/floorplan/planLabels.ts` | `cg-planlabels` |
-| 40 | **PC2-FAVOURITE-MATERIALS** | Extend favourites to finishes/materials (star + Favourites group) | LOW QOL | S | `ui/` material-picker, favourites slice | `cg-matfav` |
+| ~~40~~ | ~~**PC2-FAVOURITE-MATERIALS**~~ | ✅ DONE (v0.2.0.32) — `favouriteFinishIds` (separate list) + heart toggle on FinishPicker swatches (desktop + mobile) + favourites-first sort; gated on `catalogFavourites` | LOW QOL | S | `state/slices/favouritesSlice.ts`, `ui/finish/swatches.tsx` | `cg-matfav` |
 | 41 | **PC2-DISTRIBUTE-AXIS** | Audit `distributeEvenGaps` dominant-axis pick + rotated-OBB align; n<3 fallback | LOW reliability | S | `layout/alignDistribute.ts` (+test) | `cg-aligndist` |
 | 42 | **BUG-009** | Sloped wall ignores per-wall thickness override + plan default (renders 0.2 m) | LOW (wrong geo) | S | `floorplan/slopedWall.ts` | `cg-slopedwall` |
 | 43 | **BUG-010** | `parseAngleInput` accepts trailing garbage (`"90xyz"`→90) | LOW (validation) | S | `floorplan/wallNumericEntry.ts` | `cg-wallnumeric` |

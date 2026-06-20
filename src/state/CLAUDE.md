@@ -8,8 +8,10 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave. Some
   state is deliberately session-only / out of the save schema (recent items, favourites,
   hidden ids, user styles in `localStorage`) — don't add those to autosave. `recentSlice`
-  and `favouritesSlice` both self-persist to localStorage (keys `hdb_recent_items` and
-  `hdb_favourites`) — they are the pattern for per-device catalog convenience state.
+  and `favouritesSlice` both self-persist to localStorage (keys `hdb_recent_items`, `hdb_favourites`
+  for furniture, and `hdb_fav_finishes` for finish/material favourites — a **separate** list so the
+  catalog "Favourites" tab never shows un-renderable finish ids) — the pattern for per-device catalog
+  convenience state.
 - **`schema.ts` is the save/load serializer.** Any new *persisted* item/design field must
   round-trip there — keep it optional + back-compat; bump the version + add a migration for
   a breaking change (the v1→v2 `groupId` migration is the pattern).

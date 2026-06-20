@@ -3,6 +3,7 @@ import { useFeature } from '../../features/useFeature'
 import { encodeFinishDrag, FINISH_DND_MIME } from '../../materials/finishDrop'
 import { proceduralThumbnailDataUrl } from '../../materials/procedural/generators'
 import type { MaterialDef } from '../../materials/types'
+import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 
@@ -167,6 +168,17 @@ export function SwatchGroup({
   // and the 3D canvas drop surfaces. Desktop-only (HTML5 DnD has no touch
   // equivalent — mobile keeps the tap-to-apply flow).
   const fFinishDnd = useFeature('finishDnd')
+  // Finish favourites (PC2-FAVOURITE-MATERIALS) — reuse the catalogFavourites
+  // flag (same "star to favourite" feature, extended to finishes).
+  const favOn = useFeature('catalogFavourites')
+  const favIds = useStore((s) => s.favouriteFinishIds)
+  const toggleFinishFavourite = useStore((s) => s.toggleFinishFavourite)
+  const favSet = new Set(favIds)
+  // Favourited finishes float to the top of this group (stable within each part).
+  const sorted =
+    favOn && favSet.size > 0
+      ? [...items.filter((m) => favSet.has(m.id)), ...items.filter((m) => !favSet.has(m.id))]
+      : items
   // Recent finishes that belong to THIS surface (intersect with the group's
   // items so a recent floor finish doesn't surface in the Walls group).
   const recentMats = (recentFinishIds ?? [])
@@ -209,16 +221,30 @@ export function SwatchGroup({
             onChange={(e) => onSelect(e.target.value)}
           >
             {customActive ? <option value="">Custom colour</option> : null}
-            {items.map((m) => {
+            {sorted.map((m) => {
               const tag = providerTag(m)
               return (
                 <option key={m.id} value={m.id}>
+                  {favSet.has(m.id) ? '★ ' : ''}
                   {m.name}
                   {tag ? ` · ${tag.label}` : ''}
                 </option>
               )
             })}
           </select>
+          {favOn && !customActive && active ? (
+            <button
+              type="button"
+              className={`fav-btn${favSet.has(active) ? ' on' : ''}`}
+              style={{ position: 'static', flex: '0 0 auto' }}
+              aria-label={
+                favSet.has(active) ? 'Remove finish from favourites' : 'Add finish to favourites'
+              }
+              onClick={() => toggleFinishFavourite(active)}
+            >
+              <Icon.Heart width={16} height={16} />
+            </button>
+          ) : null}
           {onCustom ? (
             <label
               className="swatch-lg"
@@ -259,10 +285,11 @@ export function SwatchGroup({
       {curated ? <DesignerPicks mats={curated} active={active} onSelect={onSelect} /> : null}
       <RecentFinishes mats={recentMats} active={active} onSelect={onSelect} />
       <div className="finish-grid">
-        {items.map((m) => {
+        {sorted.map((m) => {
           const isUser = m.kind === 'textured' && m.source === 'user'
           const isActive = m.id === active
           const tag = providerTag(m)
+          const fav = favSet.has(m.id)
           return (
             // biome-ignore lint/a11y/useSemanticElements: tile holds a nested remove button, so it can't be a <button>
             <div
@@ -323,6 +350,19 @@ export function SwatchGroup({
                   aria-label="Remove uploaded material"
                 >
                   <Icon.Close width={12} height={12} />
+                </button>
+              ) : null}
+              {favOn ? (
+                <button
+                  type="button"
+                  className={`fav-btn${fav ? ' on' : ''}`}
+                  aria-label={fav ? 'Remove finish from favourites' : 'Add finish to favourites'}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleFinishFavourite(m.id)
+                  }}
+                >
+                  <Icon.Heart width={12} height={12} />
                 </button>
               ) : null}
             </div>

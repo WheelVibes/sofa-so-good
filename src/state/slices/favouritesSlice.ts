@@ -2,6 +2,7 @@ import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
 const LS_KEY = 'hdb_favourites'
+const LS_KEY_FINISH = 'hdb_fav_finishes'
 
 /**
  * Tracks the catalog item ids the user has starred/favourited, persisted to
@@ -20,12 +21,19 @@ export interface FavouritesSlice {
   /** Whether a def id is currently favourited. */
   isFavourite: (defId: string) => boolean
   clearFavourites: () => void
+  /** Ordered list of favourited finish/material ids (separate from furniture so
+   *  the catalog "Favourites" tab never shows un-renderable finish ids). */
+  favouriteFinishIds: string[]
+  /** Add or remove a finish/material id from finish favourites (deduped). */
+  toggleFinishFavourite: (finishId: string) => void
+  /** Whether a finish/material id is currently favourited. */
+  isFinishFavourite: (finishId: string) => boolean
 }
 
-function loadFavourites(): string[] {
+function loadFavourites(key: string): string[] {
   try {
     if (typeof localStorage === 'undefined') return []
-    const raw = localStorage.getItem(LS_KEY)
+    const raw = localStorage.getItem(key)
     const parsed = raw ? JSON.parse(raw) : null
     return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : []
   } catch {
@@ -33,16 +41,17 @@ function loadFavourites(): string[] {
   }
 }
 
-function persistFavourites(ids: string[]): void {
+function persistFavourites(key: string, ids: string[]): void {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify(ids))
+    localStorage.setItem(key, JSON.stringify(ids))
   } catch {
     // private mode / quota — favourites are non-critical, ignore.
   }
 }
 
-export const FAVOURITES_INITIAL: Pick<FavouritesSlice, 'favouriteDefIds'> = {
-  favouriteDefIds: loadFavourites(),
+export const FAVOURITES_INITIAL: Pick<FavouritesSlice, 'favouriteDefIds' | 'favouriteFinishIds'> = {
+  favouriteDefIds: loadFavourites(LS_KEY),
+  favouriteFinishIds: loadFavourites(LS_KEY_FINISH),
 }
 
 export const createFavouritesSlice: SliceCreator<FavouritesSlice, RootState> = (set, get) => ({
@@ -53,12 +62,22 @@ export const createFavouritesSlice: SliceCreator<FavouritesSlice, RootState> = (
     const next = current.includes(defId)
       ? current.filter((id) => id !== defId)
       : [...current, defId]
-    persistFavourites(next)
+    persistFavourites(LS_KEY, next)
     set({ favouriteDefIds: next })
   },
   isFavourite: (defId) => get().favouriteDefIds.includes(defId),
   clearFavourites: () => {
-    persistFavourites([])
+    persistFavourites(LS_KEY, [])
     set({ favouriteDefIds: [] })
   },
+  toggleFinishFavourite: (finishId) => {
+    if (!finishId) return
+    const current = get().favouriteFinishIds
+    const next = current.includes(finishId)
+      ? current.filter((id) => id !== finishId)
+      : [...current, finishId]
+    persistFavourites(LS_KEY_FINISH, next)
+    set({ favouriteFinishIds: next })
+  },
+  isFinishFavourite: (finishId) => get().favouriteFinishIds.includes(finishId),
 })

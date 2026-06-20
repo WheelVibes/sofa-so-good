@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## QOL: favourite finishes/materials (PC2-FAVOURITE-MATERIALS) (v0.2.0.32)
+
+Favourites now extend to finishes, mirroring the furniture star. `favouritesSlice` gains a **separate**
+`favouriteFinishIds` list (`toggleFinishFavourite`/`isFinishFavourite`, persisted to `hdb_fav_finishes`)
+so finish ids never leak into the catalog "Favourites" tab. The FinishPicker swatches show a heart
+toggle (reusing the proven `fav-btn` pattern, gated on the existing `catalogFavourites` flag) and
+favourited finishes sort to the front of each surface group — on desktop (grid + heart per swatch) and
+mobile (dropdown `★` prefix + a heart by the preview). Adds slice tests (separate list, add/remove/
+dedupe, order); verified in the editor: 2 favourited floor finishes render filled + sorted ahead of the
+rest.
+
 ## docs: reconcile the stale TODO master queue (v0.2.0.31)
 
 The `TODO.md` "MASTER EXECUTION QUEUE" index listed many items as open that shipped in earlier
