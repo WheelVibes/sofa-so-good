@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Refactor: extract DragController's pure helpers into a tested module (v0.2.0.52)
+
+Moved the six pure, module-level helpers out of the `DragController` R3F component into a new
+`src/scene/dragHelpers.ts` (`wallFaces`, `halfExtents`, `staticAabbs`, `snapAxis`, `pointInFootprint`,
+`snapBase` + the `ALIGN_TH` constant). Pure move — identical behaviour — but it slims the controller and,
+crucially, makes the snapping/footprint/broadphase maths **unit-testable** (the component itself can't be).
+Added `dragHelpers.test.ts` (14 cases: rotated half-extents + parametric overrides, centre/edge snap +
+threshold, OBB containment, wall→face descriptors, static-AABB exclusion of moved/defless items,
+IKEA-only snug-stack). Part of the ongoing modularization sweep. tsc/biome/full-suite green.
+
 ## Realism: "Trailing plant" hero decor primitive (RD-408) (v0.2.0.51)
 
 A new parametric decor primitive — a raised ceramic pot with an upright crown tuft plus 4–6 vines that
