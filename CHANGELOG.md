@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## UX: angle-snap walls while drawing in the 2D plan (PC2-PLAN-ANGLE-SNAP) (v0.2.0.34)
+
+Freehand wall-drawing in the 2D editor produced walls a fraction of a degree off true (a parity gap vs
+Sweet Home 3D / Coohom, whose walls snap to clean angles). Wall drafts now snap to **15° increments**
+(covering 30/45/90°): the cursor distance is kept, only the direction rotates onto the nearest
+increment. **Hold Shift** to draw at any angle. Order is grid → angle → wall-snap, so a join to a real
+corner/edge still wins near existing geometry, and the live readout now shows the current **length +
+angle**. Applies to desktop drag and mobile tap-to-place chaining. New pure `snapWallAngle` helper
+(8 unit tests: horizontal/vertical/45°/30°, distance preserved, non-origin anchor, sub-min no-op,
+custom increment); the editor splits `pointerGrid` out of `pointerWorld` to insert the angle step.
+Verified in the editor: a ~3.6°-off drag committed at exactly **0.000°**, a ~41°-off drag at exactly
+**30.000°**, both rendering as clean straight walls.
+
 ## Realism/UX: top-down furniture glyphs in the 2D plan (PC2-PLAN-FURN-ICONS) (v0.2.0.33)
 
 The 2D plan editor's furniture footprints were plain category-coloured rectangles — hard to read at a

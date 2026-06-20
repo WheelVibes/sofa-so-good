@@ -92,6 +92,7 @@ import {
   wrapLabel,
 } from './editor/planLabelDisplay'
 import { snapToWalls } from './editor/snapToWalls'
+import { snapWallAngle } from './editor/snapWallAngle'
 import { WallDimension } from './editor/WallDimension'
 import { WallNumericEntry } from './editor/WallNumericEntry'
 import { exportPlanPng } from './exportPlanPng'
@@ -767,20 +768,34 @@ export function FloorPlanEditor() {
 
   if (!editing) return null
 
+  // Raw pointer → grid-snapped world point (no wall magnetism). Split out so the
+  // wall-draw path can aim the grid point onto an angle increment *before* the
+  // wall snap gets the final say (grid → angle → wall-snap).
+  const pointerGrid = (e: React.PointerEvent): [number, number] => {
+    const rect = svgRef.current!.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * W
+    const y = ((e.clientY - rect.top) / rect.height) * H
+    return [snap(x / PX - GRID_MARGIN), snap(y / PX - GRID_MARGIN)]
+  }
+
   const pointerWorld = (
     e: React.PointerEvent,
     excludeWallId?: string,
     snapEdges?: boolean,
   ): [number, number] => {
-    const rect = svgRef.current!.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * W
-    const y = ((e.clientY - rect.top) / rect.height) * H
-    const wx = snap(x / PX - GRID_MARGIN)
-    const wz = snap(y / PX - GRID_MARGIN)
     // Vertex snap (always) + edge snap (wall drawing only): connect walls cleanly
     // at corners, and let a new wall tee mid-span into an existing one. Skip the
     // wall being vertex-dragged so its own endpoints don't capture the cursor.
-    return snapToWalls([wx, wz], levelPlan.walls, { excludeWallId, edges: snapEdges })
+    return snapToWalls(pointerGrid(e), levelPlan.walls, { excludeWallId, edges: snapEdges })
+  }
+
+  // Wall-draw endpoint: grid → angle-snap (15° increments, hold Shift to bypass)
+  // → wall-snap, so freehand walls land on clean directions while a join to a real
+  // corner/edge still wins near existing geometry.
+  const wallDrawEnd = (e: React.PointerEvent, anchor: [number, number]): [number, number] => {
+    const grid = pointerGrid(e)
+    const aimed = e.shiftKey ? grid : snapWallAngle(anchor, grid)
+    return snapToWalls(aimed, levelPlan.walls, { edges: true })
   }
 
   /** Nearest active-storey wall to a world point, with the projected offset. */
@@ -903,7 +918,14 @@ export function FloorPlanEditor() {
       // gesture still works (the end follows the finger before release).
       wallTapHadAnchor.current = draft !== null
       setNumericPreviewEnd(null)
-      setDraft(draft ? { ...draft, x: wx, z: wz } : { x0: wx, z0: wz, x: wx, z: wz })
+      // Chaining from an anchor: aim the end onto an angle increment (Shift to
+      // bypass) just like the desktop drag; the first tap just drops the anchor.
+      if (draft) {
+        const [ex, ez] = wallDrawEnd(e, [draft.x0, draft.z0])
+        setDraft({ ...draft, x: ex, z: ez })
+      } else {
+        setDraft({ x0: wx, z0: wz, x: wx, z: wz })
+      }
     } else if (tool === 'wall' || tool === 'room' || tool === 'scale' || tool === 'dimension') {
       setNumericPreviewEnd(null)
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
@@ -1185,7 +1207,7 @@ export function FloorPlanEditor() {
       return
     }
     if (!draft) return
-    const [wx, wz] = pointerWorld(e, undefined, tool === 'wall')
+    const [wx, wz] = tool === 'wall' ? wallDrawEnd(e, [draft.x0, draft.z0]) : pointerWorld(e)
     setDraft({ ...draft, x: wx, z: wz })
   }
 
@@ -1421,7 +1443,9 @@ export function FloorPlanEditor() {
                 ? 'Auto room — click inside a wall-enclosed area to make a room from it'
                 : t === 'polyline'
                   ? 'Polyline markup — click vertices, Enter to finish (open), click the first to close'
-                  : undefined
+                  : t === 'wall'
+                    ? 'Wall — drag to draw; snaps to 15° angles (hold Shift for any angle)'
+                    : undefined
           }
         >
           {toolLabel(t)}
@@ -3184,7 +3208,16 @@ export function FloorPlanEditor() {
                 style={{ paintOrder: 'stroke', stroke: 'var(--surface-solid)', strokeWidth: 4 }}
               >
                 {tool === 'wall'
-                  ? formatLength(Math.hypot(draft.x - draft.x0, draft.z - draft.z0), units)
+                  ? (() => {
+                      const len = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
+                      // Angle CCW from east, with +Z (screen-down) shown as a
+                      // downward bearing — negate dz so 0° is east, 90° is north.
+                      const raw = Math.round(
+                        (Math.atan2(-(draft.z - draft.z0), draft.x - draft.x0) * 180) / Math.PI,
+                      )
+                      const deg = ((raw % 360) + 360) % 360
+                      return `${formatLength(len, units)}  ${deg}°`
+                    })()
                   : `${formatLength(Math.abs(draft.x - draft.x0), units)} × ${formatLength(Math.abs(draft.z - draft.z0), units)}  (${formatArea(Math.abs(draft.x - draft.x0) * Math.abs(draft.z - draft.z0), units)})`}
               </text>
             )}

@@ -39,13 +39,15 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > below were completed in earlier sessions and never struck through. **Already SHIPPED** (do not
 > re-do): all **BUG-001…014**, all **REV-001…006**, all **UX-001…009**, all **MAT-001…004**,
 > **PERF-001/002/004/005/007/008** (PERF-003 *partial* — wall-build dedup done, broadphase
-> remainder open; PERF-006 is "don't fix"), **RD-401/402/403/404/405/407/408/409/410**, and
-> **PC2-MULTI-DUP-PASTE**. **Genuinely still OPEN:** PERF-003 (broadphase half), **RD-406** (tile
+> remainder open; PERF-006 is "don't fix"), **RD-401/402/403/404/405/407/408/409/410**,
+> **PC2-MULTI-DUP-PASTE**, **PC2-FAVOURITE-MATERIALS**, **PC2-PLAN-FURN-ICONS**, and
+> **PC2-PLAN-ANGLE-SNAP** (15° wall-draw snap, Shift to bypass + furniture-rotate already 15°-stepped).
+> **Genuinely still OPEN:** PERF-003 (broadphase half), **RD-406** (tile
 > break-up + triplanar — *needs real-GPU verify*), **RD-411/PC2-SSAA-EXPORT** (supersample export —
 > *real-GPU*), **RD-412** (procedural sky/IBL — *touches tuned lighting, real-GPU*), RD-408 hero
-> props (new primitives), **PC2-SURFACE-DROP**, **PC2-FURN-GROUP**, **PC2-PLAN-ANGLE-SNAP**,
-> **PC2-WOOD-GRAIN-FLOW** (real-GPU), **PC2-CONTACT-AO-DECOR**, **PC2-PLAN-FURN-ICONS**,
-> **PC2-FAVOURITE-MATERIALS**, **PC2-DISTRIBUTE-AXIS** (audited — `distributeEvenGaps` already
+> props (new primitives), **PC2-SURFACE-DROP**, **PC2-FURN-GROUP**,
+> **PC2-WOOD-GRAIN-FLOW** (real-GPU), **PC2-CONTACT-AO-DECOR**,
+> **PC2-DISTRIBUTE-AXIS** (audited — `distributeEvenGaps` already
 > sound, effectively a no-op). Rows already marked ✅ below were struck this session.
 
 | Rank | ID | One-line | Sev/Impact | Eff | Area / files | Conflict-group |
@@ -77,7 +79,7 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 | 25 | **PC2-SURFACE-DROP** | Auto-snap surface decor (lamp/vase/monitor) onto table/shelf top on drop | MED QOL | M | `scene/DragController.tsx`, `collision/placement.ts`, placement slice | `cg-dragctl` |
 | 26 | **PC2-FURN-GROUP** | First-class furniture grouping (group move/rotate/dup/delete + ⌘K cmd, pro flag) | MED QOL | M | placement slice, `layout/selectionActions.ts`, `features/featureFlags.ts` | `cg-selactions` |
 | ~~27~~ | ~~**PC2-MULTI-DUP-PASTE**~~ | ✅ DONE (v0.2.0.30) — clipboard holds the whole selection; ⌘C/⌘V paste a group via planDuplicates (one undo). Duplicate ⌘D already did multi. | MED QOL | S | `state/slices/clipboardSlice.ts`, `App.tsx` | `cg-selactions` |
-| 28 | **PC2-PLAN-ANGLE-SNAP** | Snap wall-draw + furniture-rotate to 15/30/45/90° with Shift/Alt override | MED QOL | S/M | `ui/floorplan/FloorPlanEditor.tsx`, `ui/floorplan/editor/snapToWalls.ts` (+test) | `cg-floorplaneditor` |
+| ~~28~~ | ~~**PC2-PLAN-ANGLE-SNAP**~~ | ✅ DONE (v0.2.0.34) — wall-draw snaps to 15° increments (Shift to bypass) via new pure `snapWallAngle`; grid→angle→wall-snap order keeps joins. Furniture-rotate was already 15°-stepped. | MED QOL | S/M | `ui/floorplan/FloorPlanEditor.tsx`, `ui/floorplan/editor/snapWallAngle.ts` (+test) | `cg-floorplaneditor` |
 | ~~29~~ | ~~**UX-002**~~ | ✅ DONE (v0.2.0.16) — 44px `::after` hit area on every docked-sheet `.panel-head .icon-btn` | MED a11y/touch | S | `styles/responsive.css` | `cg-css` |
 | 30 | **UX-006** | No global `prefers-reduced-motion` handling for sheet/fade animations | LOW/MED a11y | S | `styles/responsive.css` (global media block) | `cg-css` |
 | ~~31~~ | ~~**UX-003**~~ | ✅ DONE (v0.2.0.28) — dialog role + aria-modal + labelledby + focus into/restore + Tab-trap added in place (kept the custom 560px layout); blue literal tokenised in v0.2.0.25 | MED a11y *(dev-only path)* | M | `ui/upload/UploadModelDialog.tsx` | `cg-uploaddlg` |
@@ -473,11 +475,11 @@ re-take here). Nothing below duplicates shipped or open work. Prioritised: corre
   expose it as UI and apply a cheap post DoF on the High/Max raster tiers too. Touches the render-
   settings UI + `scene/pathtrace/*` + `scene/Effects.tsx`. Gap: SH3D fisheye/DoF lens row in
   `FEATURE_PARITY`. Wiring is headless-verifiable; the pixel pass is real-GPU-pending (mark it).
-- **PC2-PLAN-ANGLE-SNAP** (S/M) — In the 2D editor, snap wall-draw + furniture-rotate to common
-  angles (15°/30°/45°/90°) with a modifier-free default + a Shift/Alt override, mirroring Arcadium 3D /
-  SH3D precision snapping. Complements the shipped numeric wall entry. Touches
-  `ui/floorplan/FloorPlanEditor.tsx`, `ui/floorplan/editor/snapToWalls.ts` (+ a pure angle-snap test).
-  Gap: precision drafting (Arcadium 3D, new ref).
+- ~~**PC2-PLAN-ANGLE-SNAP**~~ ✅ DONE (v0.2.0.34) — wall-draw now snaps to 15° increments (covering
+  30/45/90°) with **Shift to bypass**; order is grid→angle→wall-snap so a join to a real corner/edge
+  still wins, and the live readout shows length + angle. Furniture-rotate was already 15°-stepped (the
+  Rotation field `step=15` + `rotate90` + off-square nudge). New pure `snapWallAngle` (+8 tests);
+  `pointerGrid` split out of `pointerWorld`. Verified: ~3.6°-off → 0.000°, ~41°-off → 30.000°.
 
 ### Polish
 - **PC2-PLAN-FURN-ICONS** (M) — The 2D plan draws furniture as plain footprint rectangles; SH3D draws
