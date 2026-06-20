@@ -49,7 +49,9 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > (decor double-lift, v0.2.0.38).
 > **Genuinely still OPEN — all real-GPU-pixel or server-infra (NOT headlessly verifiable here):**
 > **RD-406** (tile break-up + triplanar), **RD-412** (procedural sky/IBL — touches tuned lighting; plan in
-> `docs/research/2026-06-20-rd412-sky-ibl-plan.md`), **RD-408** hero props (in progress, worktree agent),
+> `docs/research/2026-06-20-rd412-sky-ibl-plan.md`), **RD-408** hero props (Trailing-plant shipped v0.2.0.51;
+> more hero primitives + wall passes remain), **PC2-CAM-DOF-LENS** (lens/DoF — in progress, worktree agent;
+> plan in `docs/research/2026-06-20-pc2-cam-dof-lens-plan.md`),
 > **PC2-CAM-DOF-LENS** / RD-421/422/410/423 (lens/DoF/VSM/render-clip — pixel passes), and the
 > catalog/DLC **server-proxy** items (CORS proxy, Kenney/Quaternius mirrors). Rows marked ✅ below
 > were struck this session.

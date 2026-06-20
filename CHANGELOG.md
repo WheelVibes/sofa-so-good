@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Realism: "Trailing plant" hero decor primitive (RD-408) (v0.2.0.51)
+
+A new parametric decor primitive — a raised ceramic pot with an upright crown tuft plus 4–6 vines that
+arch out of the crown and **cascade down over the rim and below** — giving auto-furnished open shelving a
+richer, distinct set-dressing read (clearly different from the upright `DeskPlant`). New
+`primitives/TrailingPlant.tsx` (floor-anchored to `surfaceHeight`, footprint-centred, real metres, real
+three materials; each vine is a deterministic index-seeded polyline of continuous stem segments with
+paired oval leaves + seeded leaf-shade/length variety — no RNG, structurally connected to the crown).
+Registered in `primitives/index.ts` + the `PrimitiveKind` union; new `trailing-plant` `ParametricDef`
+(`noClip`, `surfaceHeight` param, `fullness`/`potColor`/`leafColor`/`potFinish` controls, drape-aware
+footprint/verticalSpan); leads the auto-furnish prop list on `bookshelf`/`cube-shelf` (so it's placed even
+at budget 1, where a cascade over open shelving reads best) and is a secondary option on
+`console-table`/`sideboard`. Price entry + a decor-styling test added. No feature flag (enriches the
+existing auto-furnish surface). Implemented by a parallel worktree agent; verified here (renders with
+draping foliage over a surface, no clipping/z-fighting; full suite + 22 decor tests green).
+
 ## Photoreal: supersampled (SSAA) PNG export for crisp reference stills (PC2-SSAA-EXPORT / RD-411) (v0.2.0.49)
 
 The hi-fi PNG export now renders at **2× the target resolution and box-downsamples** back to size, so
