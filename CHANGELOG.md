@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: camera lens + depth-of-field controls (PC2-CAM-DOF-LENS) (v0.2.0.53)
+
+Photographic camera controls for the render/snapshot camera — **focal length** (mm), **aperture** (f-stop)
+and **focus distance** — behind a new `cameraDof` flag (pro, default on). New pure
+`scene/cameras/cameraLensSettings.ts` (focal presets + clamps, `mmToFov`/`fovToMm` for a 24 mm sensor,
+`rasterDofParams` mapping f-stop → bokeh + world focus range; unit-tested). Wired into the HQ path tracer
+(`hqRenderSession` `PhysicalCamera` — focal mm→FOV, manual focus overrides the centre-screen auto-focus)
+and a raster `<DepthOfField>` pass on **High/Maximum only** (`QualitySettings.dof`, world-space focus,
+half-res, gated by `dof && cameraDof && f-stop>0`; the Maximum tier description that falsely claimed "lens
+defocus" is now true). The HqRenderModal shows the lens/aperture/focus controls in Pro and keeps the
+simple DoF dropdown as the Simple-mode fallback; lens/DoF prefs persist via `qualityPrefs` (back-compat
+defaults). Both-mode + store/persistence/HQ-option/UI presence unit-tested (controls present in Pro,
+hidden in Simple); the actual bokeh pixels are real-GPU-pending. Implemented by a parallel opus worktree
+agent; integrated here (resolved flag/quality/qualityPrefs/EffectsImpl conflicts against the newer
+tone-mapping API), full suite green (3219 tests).
+
 ## Refactor: extract DragController's pure helpers into a tested module (v0.2.0.52)
 
 Moved the six pure, module-level helpers out of the `DragController` R3F component into a new
