@@ -563,7 +563,16 @@ same change that reshapes a system.
   PARITY-ROOMLABEL). Each room's label shows name + live floor **area** (`planRoomArea`) + wall
   **perimeter** (`planRoomPerimeter` — shared with the report) on the full-detail tier, unit-aware
   (`roomLabelDetail` thins it as the room shrinks). Live furniture as `canPlace`-checked footprints (active storey
-  only). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
+  only); **selecting a placed item shows a furniture inspector**
+  (`ui/floorplan/PlanFurnitureInspector.tsx`, PARITY-PLAN-FURN-INSPECT — rendered by
+  `PlanInspector` when the plan selection resolves to `selectedItemId`): rename, numeric
+  X/Z, angle and (parametric defs) width/depth + a size readout, lock + delete. Edits route
+  through the same `itemsSlice` actions as the 3D inspector — moves/rotations are
+  `canPlace`-checked and push one undo step; resize goes through coalesced `updateItemProps`.
+  Item- vs plan-element selection is **mutually exclusive** (`selectItem` clears
+  `planSelection`; `setPlanSelection` clears `selectedItemId`) so the two inspectors never
+  co-render. Available in **both Simple and Pro** (plan editing is a core loop — no extra flag;
+  rides the editor's `floorPlanEditor` gate). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
   "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
   furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an
   **"All levels"** toggle draws the other storeys' walls as a dimmed underlay to align floors; every tool,

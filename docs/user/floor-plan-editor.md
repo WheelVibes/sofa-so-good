@@ -98,6 +98,13 @@ toggle and tap walls instead. The Properties panel then shows how many are
 selected with **Lock all**, **Delete all** (locked walls are kept) and **Clear
 selection** — handy for clearing out a whole run of walls in one go.
 
+**Edit a piece of furniture from the plan** — select a furniture footprint and the
+Properties panel becomes a furniture editor: rename it, set its exact **X** / **Z**
+position and **Angle**, and (for custom‑size pieces) its **Width** and **Depth**.
+It also shows the piece's **size (W × D × H)** and offers **Lock**, **Delete** and
+**Edit in 3D** (jump straight into the 3D per‑room editor for that piece). No need
+to leave the plan to nudge a sofa a few centimetres or square it up to a wall.
+
 ## Non‑rectangular rooms (L‑shapes & angles)
 
 Rooms don't have to be plain rectangles:
