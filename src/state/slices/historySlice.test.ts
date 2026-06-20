@@ -268,4 +268,43 @@ describe('history slice', () => {
       expect(s().items).toBe(current)
     })
   })
+
+  describe('dropRedundantHistory (BUG-016 — no-op click pollution)', () => {
+    it('drops a snapshot that changed nothing (eager push, then no mutation)', () => {
+      const before = s().past.length
+      s().pushHistory() // e.g. startDrag on a plain click
+      expect(s().past.length).toBe(before + 1)
+      s().dropRedundantHistory() // …drag was a no-op → discard
+      expect(s().past.length).toBe(before)
+    })
+
+    it('keeps the snapshot when the state actually changed after the push', () => {
+      s().pushHistory()
+      s().addItem({ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} }) // real change
+      const grown = s().past.length // addItem also pushed; the drag push is buried
+      s().dropRedundantHistory()
+      // The newest entry (addItem's pre-state) differs from current → not dropped.
+      expect(s().past.length).toBe(grown)
+    })
+
+    it('is a no-op on empty history', () => {
+      s().clearHistory()
+      expect(s().past.length).toBe(0)
+      s().dropRedundantHistory()
+      expect(s().past.length).toBe(0)
+    })
+
+    it('a no-op click followed by undo is NOT a dead step', () => {
+      // Establish a real edit to undo back to.
+      const id = s().addItem({ defId: 'bed-double', position: [2, 2], rotation: 0, props: {} })
+      const afterAdd = s().items
+      // Simulate a no-op click-drag: push + nothing changed + drop.
+      s().pushHistory()
+      s().dropRedundantHistory()
+      // The first undo now reverts the real addItem (not a dead snapshot).
+      s().undo()
+      expect(s().items).not.toBe(afterAdd)
+      expect(s().items.some((i) => i.id === id)).toBe(false)
+    })
+  })
 })

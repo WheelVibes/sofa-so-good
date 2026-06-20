@@ -62,6 +62,13 @@ export interface HistorySlice {
    *  hold followed by a quick re-tap stays one undo step. No-op for a different
    *  key, so it can never extend or hijack another action's window. */
   refreshCoalesce: (key: string) => void
+  /** Pop the newest `past` entry IFF it is identical (by reference, across every
+   *  snapshotted field) to the current state — i.e. a gesture pushed a snapshot
+   *  then changed nothing. Used to undo the eager `pushHistory` in `startDrag`
+   *  when a "drag" was actually a no-op click, so the user's first undo isn't a
+   *  dead step (BUG-016). A no-op when the last entry differs (a real edit) or
+   *  when there's no history. */
+  dropRedundantHistory: () => void
   clearHistory: () => void
 }
 
@@ -75,6 +82,21 @@ function snapshot(s: RootState): HistorySnapshot {
     drawingCallouts: s.drawingCallouts,
     quoteTemplate: s.quoteTemplate,
   }
+}
+
+/** True when a snapshot's every field is reference-identical to the live state —
+ *  so restoring it would change nothing. Reference equality is sound because each
+ *  mutating slice replaces (never mutates in place) the array/object it owns. */
+function snapshotMatchesState(snap: HistorySnapshot, s: RootState): boolean {
+  return (
+    snap.items === s.items &&
+    snap.doors === s.doors &&
+    snap.finishes === s.finishes &&
+    snap.floorPlan === s.floorPlan &&
+    snap.comments === s.comments &&
+    snap.drawingCallouts === s.drawingCallouts &&
+    snap.quoteTemplate === s.quoteTemplate
+  )
 }
 
 /** Drop selection ids that no longer exist in the restored snapshot's items, so
@@ -140,6 +162,12 @@ export const createHistorySlice: SliceCreator<HistorySlice, RootState> = (set, g
     const s = get()
     if (s._lastPushKey === key) set({ _lastPushAt: Date.now() })
   },
+  dropRedundantHistory: () =>
+    set((s) => {
+      if (s.past.length === 0) return s
+      if (!snapshotMatchesState(s.past[s.past.length - 1], s)) return s
+      return { past: s.past.slice(0, -1) }
+    }),
   undo: () =>
     set((s) => {
       if (s.past.length === 0) return s

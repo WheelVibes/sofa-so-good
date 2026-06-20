@@ -594,6 +594,11 @@ export function DragController() {
         }
       }
       state.endDrag()
+      // A click that didn't actually move/snap anything still pushed a history
+      // snapshot in startDrag — drop it so the user's first undo isn't a dead
+      // no-op step (BUG-016). A real drag changed an array reference, so this is
+      // a no-op there.
+      useStore.getState().dropRedundantHistory()
     }
 
     window.addEventListener('pointermove', onMove)

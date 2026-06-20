@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: clicking furniture no longer pollutes undo history (BUG-016) (v0.2.0.45)
+
+`Furniture.onPointerDown` starts a drag (and `startDrag` eagerly pushes an undo snapshot) on every press
+— so a plain click-to-select pushed a snapshot identical to the current state, and the user's *first*
+undo afterwards did nothing (it popped the dead entry). `startDrag`'s push is load-bearing for real
+drags, so the fix drops the redundant entry at drop time: new `dropRedundantHistory()` history action
+pops the newest `past` entry only when it's reference-identical to the live state (sound because every
+mutating slice replaces, never mutates, its array/object). `DragController.onUp` calls it after
+`endDrag`, so a no-op click is clean while a real move/rotate/surface-snap (which changed an array
+reference) keeps its undo step. Verified: a no-op click leaves `past` unchanged; a real drag still adds
+one entry. +4 unit tests.
+
 ## Fix: surface-drop must respect storeys (PC2-SURFACE-DROP follow-up) (v0.2.0.44)
 
 The surface-drop resolver shipped in v0.2.0.42 iterated every item regardless of level, so on a
