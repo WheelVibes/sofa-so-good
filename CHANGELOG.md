@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Photoreal: supersampled (SSAA) PNG export for crisp reference stills (PC2-SSAA-EXPORT / RD-411) (v0.2.0.49)
+
+The hi-fi PNG export now renders at **2× the target resolution and box-downsamples** back to size, so
+reference stills come out anti-aliased instead of jagged. New pure, unit-tested `src/scene/ssaaDownsample.ts`
+`boxDownsample(src, factor)` (averages factor×factor RGBA blocks incl. alpha; output = floor(src/factor);
+factor=1 identity; 9 tests). `ScreenshotController.renderHiFiPng` temporarily raises the renderer pixelRatio
+by the SSAA factor (CSS size untouched), renders, reads the large frame into an offscreen 2D canvas →
+`boxDownsample` → re-encodes at target dims; the exact prior size + pixelRatio are restored in a `finally`
+(the 2× buffer is never presented — no visible flash) with a graceful fallback to the raw frame. No feature
+flag — a transparent quality bump to the existing export. Verified headlessly: the exported PNG decodes at
+the **target** dimensions (1600×1000, not 3200×2000) and the drawing buffer/pixelRatio are restored after
+export (proving the downsample path ran); pixel-level AA quality is real-GPU-pending (SwiftShader headless).
+Implemented in a parallel worktree agent and integrated here.
+
 ## Fix: 2D plan-editor grab-without-move no longer pollutes undo (BUG-016 follow-up) (v0.2.0.47)
 
 The floor-plan editor's moving gestures (item / wall / vertex / opening / bulge / room-label / tour-stop

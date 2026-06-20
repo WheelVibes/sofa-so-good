@@ -48,9 +48,8 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > flag + ⌘K command, v0.2.0.41), **PC2-SURFACE-DROP** (shelf-magnetism, v0.2.0.42), and **BUG-015**
 > (decor double-lift, v0.2.0.38).
 > **Genuinely still OPEN — all real-GPU-pixel or server-infra (NOT headlessly verifiable here):**
-> **RD-406** (tile break-up + triplanar), **RD-411/PC2-SSAA-EXPORT** (supersample export — downsample
-> math is pure but the 2× GPU render + AA quality need a real GPU), **RD-412** (procedural sky/IBL —
-> touches tuned lighting), **RD-408** hero props (new decor primitives — modelling + subjective polish),
+> **RD-406** (tile break-up + triplanar), **RD-412** (procedural sky/IBL — touches tuned lighting; plan in
+> `docs/research/2026-06-20-rd412-sky-ibl-plan.md`), **RD-408** hero props (in progress, worktree agent),
 > **PC2-CAM-DOF-LENS** / RD-421/422/410/423 (lens/DoF/VSM/render-clip — pixel passes), and the
 > catalog/DLC **server-proxy** items (CORS proxy, Kenney/Quaternius mirrors). Rows marked ✅ below
 > were struck this session.
@@ -466,12 +465,12 @@ re-take here). Nothing below duplicates shipped or open work. Prioritised: corre
   parquet/herringbone used inline, now shared; `grainLean`; `shearAcross`), keyed by a hash independent
   of the tint stream so it adds the shear without perturbing the tuned look. Wired into all three wood
   painters (`patterns/wood.ts`); 14 unit tests; verified by painting the flat texture in the browser.
-- **PC2-SSAA-EXPORT** (S) — Carry `PHOTO-SSAA-EXPORT` from `PHOTOREALISM.md`: supersample the
-  snapshot/PNG export path (render at 2×–3× then box-downsample) for crisp reference stills, separate
-  from live SMAA. Pure offscreen-canvas resize math in the capture path; **headless-verifiable**
-  (assert output dimensions + that downsample runs), unlike GPU-pixel items. Touches
-  `scene/captureCanvas.ts` / `scene/ScreenshotController.tsx` / `ui/floorplan/exportPlanPng.ts`. Gap:
-  reference-quality stills without a cloud render.
+- ~~**PC2-SSAA-EXPORT**~~ ✅ DONE (v0.2.0.49) — the hi-fi PNG export renders at 2× then box-downsamples
+  via the new pure `scene/ssaaDownsample.ts` `boxDownsample` (+9 tests), wired into
+  `ScreenshotController.renderHiFiPng` (raise pixelRatio → render → offscreen-canvas downsample → re-encode
+  at target dims; size/pixelRatio restored in `finally`, graceful fallback). No flag (transparent quality
+  bump). Verified headlessly: export decodes at target dims (1600×1000, not 2×), buffer restored after.
+  Pixel-AA quality real-GPU-pending.
 
 ### High-value QOL / UX
 - ~~**PC2-FURN-GROUP**~~ ✅ DONE (v0.2.0.41) — audited: grouping was **already fully built** (store
