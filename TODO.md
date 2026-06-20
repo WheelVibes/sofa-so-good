@@ -58,6 +58,23 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > catalog/DLC **server-proxy** items (CORS proxy, Kenney/Quaternius mirrors). Rows marked ✅ below
 > were struck this session.
 
+### 2026-06-20 follow-up audit (correctness/perf/dead-code) — `docs/research/2026-06-20-followup-audit.md`
+> A fresh audit confirmed these (recent modules sh3d/sky/DoF/furnitureMaterialLogic/floorPlanGeometry +
+> autosave/floorPlanSlice/itemsSlice were reviewed and are CORRECT — don't re-investigate):
+> - **AUD-001** (HIGH, M, dispatch) — multi-level (F13) auto-arrange bug: `arrangeAllRoomsForPlan`
+>   (`autoArrange.ts:961`), `arrangePlanRoom` (:932) and `inRoom` (:900) iterate ground-only `plan.rooms`
+>   / lack a `levelId` gate; `furnishPlan.ts:207` and `decorStyling.ts:445` likewise — so Tidy / Smart
+>   Start / decor silently skip upper storeys (one path mislays upper items against ground geometry). Fix:
+>   loop `planLevels`→`levelAsPlan(plan, level)` per-level geometry + gate items by `(levelId ?? 'ground')`.
+>   Same remedy as FIN-ALLROOMS. Headless regression via 2-storey `addLevel`/`addRoom`. **(next dispatch)**
+> - **AUD-002** (MED, M) — `materials/furnitureMaterials.ts` `cache`/`furnitureRepeatCache`/`patternTex`
+>   (lines ~497/769/445) never evict/dispose; keys embed free-hex colour + cloned textures → session VRAM
+>   ratchet. Add LRU + dispose-on-evict (precedent `disposeCachedMaterial`/`evictGltfAsset`). Unit-testable.
+> - **AUD-003** (LOW, S, inline) — `ui/inspector/InspectorPanel.tsx:371` array "didn't fit" toast uses
+>   `${total + 1}` but `total` already excludes the source → counts don't add up. `total + 1` → `total`.
+> - **MOD-FPE-SPLIT** (L) — phased FloorPlanEditor split plan in the doc (Phase A: 5 pure modules
+>   `wallTransform`/`openingPlacement`/`wallHandlesGeometry`/`draftCommit`/`zoomMath`).
+
 ### 2026-06-20 fan-out audit (research agent) — actionable, headlessly-verifiable lane
 > A backlog-audit agent re-verified the queue against source: **the table below is badly stale** — most
 > rows it lists as open are actually SHIPPED (PC2-ANISO-MAX/RD-401, BUG-001/004/010, PC-IES-LIGHT,
