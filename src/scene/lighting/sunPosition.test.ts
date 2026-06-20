@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { computeSun, hoursToDate, sunDirectionToScene } from './sunPosition'
+import {
+  computeSun,
+  hoursToDate,
+  orientedSunDirection,
+  rotateY,
+  sunDirectionToScene,
+} from './sunPosition'
 
 const RAD_TO_DEG = 180 / Math.PI
 
@@ -72,6 +78,43 @@ describe('sunDirectionToScene', () => {
     const dir = sunDirectionToScene({ azimuth: 1.2, altitude: 0.5 })
     const len = Math.hypot(dir[0], dir[1], dir[2])
     expect(len).toBeCloseTo(1, 5)
+  })
+})
+
+describe('rotateY (compass-clockwise around +Y)', () => {
+  it('is identity at 0°', () => {
+    const v = rotateY([1, 2, 3], 0)
+    expect(v[0]).toBeCloseTo(1, 5)
+    expect(v[1]).toBeCloseTo(2, 5)
+    expect(v[2]).toBeCloseTo(3, 5)
+  })
+
+  it('rotates +Z toward −X at +90° (and leaves Y untouched)', () => {
+    const v = rotateY([0, 5, 1], 90)
+    expect(v[0]).toBeCloseTo(-1, 5)
+    expect(v[1]).toBeCloseTo(5, 5)
+    expect(v[2]).toBeCloseTo(0, 5)
+  })
+
+  it('preserves length', () => {
+    const v = rotateY([0.3, 0.4, 0.8], 37)
+    expect(Math.hypot(v[0], v[1], v[2])).toBeCloseTo(Math.hypot(0.3, 0.4, 0.8), 5)
+  })
+})
+
+describe('orientedSunDirection', () => {
+  it('matches sunDirectionToScene at orientation 0', () => {
+    const s = { azimuth: 0.7, altitude: 0.6 }
+    const a = orientedSunDirection(s, 0)
+    const b = sunDirectionToScene(s)
+    for (let i = 0; i < 3; i++) expect(a[i]).toBeCloseTo(b[i], 6)
+  })
+
+  it('equals rotateY applied to the raw scene direction', () => {
+    const s = { azimuth: -0.4, altitude: 0.3 }
+    const a = orientedSunDirection(s, 45)
+    const b = rotateY(sunDirectionToScene(s), 45)
+    for (let i = 0; i < 3; i++) expect(a[i]).toBeCloseTo(b[i], 6)
   })
 })
 

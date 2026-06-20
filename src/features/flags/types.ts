@@ -90,6 +90,7 @@ export type FeatureFlag =
   | 'radialArray'
   | 'iesLights'
   | 'cameraDof'
+  | 'proceduralSky'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

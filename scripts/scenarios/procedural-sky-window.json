@@ -1,0 +1,34 @@
+{
+  "name": "procedural-sky-window",
+  "url": "http://localhost:5186/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "go-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "noon", "store": { "action": "setManualHour", "args": [13] } },
+    { "name": "select-sky", "store": { "action": "setBackdrop", "args": ["sky"] } },
+    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
+    { "name": "settle-walk", "wait": 4000 },
+    { "name": "turn-1", "drag": { "from": [400, 400], "to": [1100, 400] } },
+    { "name": "settle-1", "wait": 1200 },
+    { "name": "turn-2", "drag": { "from": [400, 400], "to": [1100, 400] } },
+    { "name": "settle-2", "wait": 1500 },
+    { "name": "shot-noon", "screenshot": "win-noon" },
+    {
+      "name": "probe-bg",
+      "eval": "(() => { const s = window.__store.getState(); const g = window.__r3f?.store?.getState?.(); return JSON.stringify({ backdrop: s.backdrop, hour: s.manualHour, hasBg: !!(g && g.scene && g.scene.background), bgType: g && g.scene && g.scene.background && g.scene.background.constructor && g.scene.background.constructor.name }); })()"
+    },
+    { "name": "turn-3", "drag": { "from": [400, 400], "to": [1100, 400] } },
+    { "name": "settle-3", "wait": 1500 },
+    { "name": "shot-noon-2", "screenshot": "win-noon-2" },
+    { "name": "sunset", "store": { "action": "setManualHour", "args": [18.7] } },
+    { "name": "settle-sunset", "wait": 2000 },
+    { "name": "shot-sunset", "screenshot": "win-sunset" },
+    { "name": "night", "store": { "action": "setManualHour", "args": [23] } },
+    { "name": "settle-night", "wait": 2000 },
+    { "name": "shot-night", "screenshot": "win-night" }
+  ]
+}

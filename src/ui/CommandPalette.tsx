@@ -59,6 +59,8 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'quote-template': 'quoteTemplate',
   'sel-group': 'furnitureGroups',
   'sel-ungroup': 'furnitureGroups',
+  // The sun-driven sky backdrop command is gated by its feature flag (RD-412).
+  'backdrop:sky': 'proceduralSky',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */

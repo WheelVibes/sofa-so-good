@@ -11,8 +11,9 @@ import type { SliceCreator } from './types'
  *  forced off. */
 export type LightsMode = 'auto' | 'on' | 'off'
 
-/** Selectable 3D scene surroundings (see `scene/SceneBackdrop`). */
-export type BackdropKind = 'city' | 'dusk' | 'park' | 'hills' | 'custom' | 'none'
+/** Selectable 3D scene surroundings (see `scene/SceneBackdrop`). `sky` is the
+ *  sun-driven procedural sky (RD-412), gated by the `proceduralSky` feature. */
+export type BackdropKind = 'city' | 'dusk' | 'park' | 'hills' | 'sky' | 'custom' | 'none'
 
 /** Interface density. 'simple' hides advanced/technical clusters (analysis Tools,
  *  the floor-plan editor) for a friendlier first experience; 'pro' shows all. */

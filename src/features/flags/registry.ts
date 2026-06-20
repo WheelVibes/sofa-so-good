@@ -641,6 +641,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Sun-driven procedural sky backdrop (RD-412, steps 1–5). An analytic Preetham
+  // sky baked into the walk-mode `scene.background` equirect that tracks the sun
+  // across the day (blue noon, warm low sun, dark night). Pure code, no external
+  // assets → prod-safe (default on). An advanced realism/atmosphere option beyond
+  // the curated static photo backdrops → pro tier (hidden in Simple mode). The
+  // IBL/lighting integration is deliberately out of scope here.
+  proceduralSky: {
+    label: 'Procedural sky',
+    description: 'Sun-driven analytic sky as the walk-mode window view (tracks the time of day)',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

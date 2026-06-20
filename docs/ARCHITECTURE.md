@@ -113,7 +113,12 @@ same change that reshapes a system.
   (skybox; **zero per-frame draws**) shown **in walk mode only** (seen through windows); orbit renders the
   plain procedural sky with no surroundings (`isPhotoBackdropActive(kind, cameraMode, hasCustom)` gates it;
   `Sky.tsx` hides its dome when active). Presets `city/dusk/park/hills` bake procedurally
-  (`backdropEquirect.ts` + pure `backdropHorizon.ts` buildings/treeline/hills generators); `custom` is a
+  (`backdropEquirect.ts` + pure `backdropHorizon.ts` buildings/treeline/hills generators); the `sky` preset is a
+  **sun-driven procedural sky** (RD-412, `proceduralSky` flag, pro tier) baked from the pure analytic Preetham
+  core `lighting/skyGradient.ts` (`skyRadiance`/`paintSkyEquirect`) via `backdropEquirect.ts`
+  `bakeSkyEquirect(sunDir, turbidity)`, re-baked (debounced + old texture disposed) when the sun crosses the
+  pure `lighting/skyRebuild.ts` `shouldRebuildSky` threshold — **walk-mode `scene.background` only, never
+  `scene.environment`** (the IBL is a separate, deferred concern); `custom` is a
   **user-uploaded photo** (persisted in IDB via `storage/walkBackdrop.ts`, hydrated on boot, controlled by
   `ui/scene/BackdropUpload.tsx` + the `customBackdrop` flag); `none` = plain sky. (The legacy instanced 3D
   City/Park/Hills/Studio estates were removed.) Main Canvas is **`frameloop="demand"`**:

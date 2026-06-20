@@ -108,6 +108,7 @@ export function MobileToolbar() {
   const fPresentation = useFeature('presentation')
   const fFloorPlan = useFeature('floorPlanEditor')
   const fBackdrops = useFeature('backdrops')
+  const fProceduralSky = useFeature('proceduralSky')
   const fSmartStart = useFeature('smartStart')
   const fParametric = useFeature('parametricFurniture')
   const fPanorama = useFeature('panorama')
@@ -659,13 +660,15 @@ export function MobileToolbar() {
                               s.getState().setBackdrop(e.target.value as BackdropKind)
                             }
                           >
-                            {BACKDROPS.filter((b) => b.id !== 'custom' || hasCustomBackdrop).map(
-                              (b) => (
-                                <option key={b.id} value={b.id}>
-                                  {b.label} — {b.sub}
-                                </option>
-                              ),
-                            )}
+                            {BACKDROPS.filter(
+                              (b) =>
+                                (b.id !== 'custom' || hasCustomBackdrop) &&
+                                (b.id !== 'sky' || fProceduralSky),
+                            ).map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.label} — {b.sub}
+                              </option>
+                            ))}
                           </select>
                         </label>
                         <BackdropUpload />

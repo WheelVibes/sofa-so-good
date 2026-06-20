@@ -48,7 +48,9 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > flag + ⌘K command, v0.2.0.41), **PC2-SURFACE-DROP** (shelf-magnetism, v0.2.0.42), and **BUG-015**
 > (decor double-lift, v0.2.0.38).
 > **Genuinely still OPEN — all real-GPU-pixel or server-infra (NOT headlessly verifiable here):**
-> **RD-406** (tile break-up + triplanar), **RD-412** (procedural sky/IBL — touches tuned lighting; plan in
+> **RD-406** (tile break-up + triplanar), **RD-412** (procedural sky — steps 1–5 SHIPPED v0.2.0.58: pure
+> analytic Preetham sky backdrop into `scene.background` via `proceduralSky` flag; the HDR **IBL** steps
+> 6–7 remain open + real-GPU as they touch tuned lighting — plan in
 > `docs/research/2026-06-20-rd412-sky-ibl-plan.md`), **RD-408** hero props (Trailing-plant v0.2.0.51 + more
 > in progress), **PC2-CAM-DOF-LENS** (lens/DoF controls + flag + HQ/raster wiring shipped v0.2.0.53; the
 > bokeh-pixel quality pass is real-GPU-pending),

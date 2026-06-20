@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: sun-driven procedural sky backdrop (RD-412 steps 1–5) (v0.2.0.58)
+
+Adds an analytic Preetham sky as a walk-mode backdrop that tracks the sun across the day —
+blue noon (brighter zenith, warm horizon band), golden low sun at sunset, washed-out hazy
+noon (turbidity), near-black night. New pure, headless-verifiable core: `scene/lighting/
+skyGradient.ts` (analytic `skyRadiance`/`paintSkyEquirect`/`equirectDir`, no three/canvas)
++ `scene/lighting/skyRebuild.ts` (`shouldRebuildSky` threshold predicate). A new `sky`
+`BackdropKind` mounts via `SceneBackdrop.tsx` gated on the `proceduralSky` flag (`tier: 'pro'`,
+default on, prod-safe pure code), bakes a `CanvasTexture` into **`scene.background` only**,
+rebuilds debounced when the sun crosses the threshold (disposing the old texture), and is wired
+into the Scene menu, mobile toolbar, and ⌘K palette. `rotateY` was deduped out of `Sky.tsx`
+into `lighting/sunPosition.ts`. The IBL/PMREM/bloom/exposure path is deliberately **untouched**
+(the bloom-threshold lock-step, RD-409); steps 6–7 (HDR IBL probe) remain deferred. Tests in
+both Simple (hidden) and Pro (present) modes. Visual note: headless pointer-lock can't rotate
+the first-person camera to frame the sky through a window, so the in-window framing is
+interaction-pending; the pure equirect bakes were PNG-verified.
+
 ## Fix: "apply finish to all rooms" now reaches upper storeys (FIN-ALLROOMS) (v0.2.0.56)
 
 `setAllFloorFinish`/`setAllWallFinish` iterated `floorPlan.rooms` — which is **ground-floor-only** by the

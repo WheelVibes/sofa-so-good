@@ -54,6 +54,15 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   raw for the renderer. An explicit pick wins; `'auto'` picks Neutral while previewing finishes,
   AgX for a photo context, else filmic. Keep `look.ts` pure (no three) — the three constant comes
   from `toneMappingThree.ts`.
+- **Backdrops paint `scene.background` only — never `scene.environment`.** Walk-mode
+  surroundings (`SceneBackdrop.tsx`) bake an equirect into `scene.background`; the static photo
+  presets (`backdropEquirect.ts`/`backdropHorizon.ts`) and the sun-driven `sky` (RD-412,
+  `proceduralSky` flag) both follow this. The `sky` math is pure + headless
+  (`lighting/skyGradient.ts` analytic Preetham, `lighting/skyRebuild.ts` rebuild predicate); the
+  baker re-paints debounced when the sun crosses the threshold and **disposes the old texture**.
+  The IBL/PMREM/bloom/exposure path is a **separate, tuned, real-GPU concern** — do NOT feed a
+  backdrop into `scene.environment` or touch `SceneEnvironment.tsx`/`Lighting.tsx`/`look.ts` from
+  the backdrop code (the bloom-threshold lock-step regresses, RD-409).
 - **Materials**: pass a real three `Material` to `material=`, never a props object.
 - **Mount expensive controllers once**; collapse repeat geometry via `InstancedBoxes`.
   `ContextLossGuard` must stay mounted in **both** Canvases (main + room editor).

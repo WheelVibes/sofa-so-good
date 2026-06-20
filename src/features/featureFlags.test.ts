@@ -233,6 +233,22 @@ describe('remoteFurniture flag (AI-INTEG-001a)', () => {
   })
 })
 
+describe('proceduralSky flag (RD-412)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
+    // The sun-driven sky is an advanced atmosphere/realism option beyond the
+    // curated static backdrops → hidden in Simple, on in Pro.
+    expect(resolveFlags(false, {}, false, 'simple').proceduralSky).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').proceduralSky).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').proceduralSky).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').proceduralSky).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.proceduralSky.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.proceduralSky.default).toBe(true)
+    expect(FEATURE_FLAGS.proceduralSky.tier).toBe('pro')
+  })
+})
+
 describe('parseFlagOverrides (URL ?ff=)', () => {
   it('parses on/off pairs for known flags, ignoring junk', () => {
     expect(parseFlagOverrides('report:off,walkthrough:on')).toEqual({
