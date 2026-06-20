@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: 2D plan furniture inspector (PARITY-PLAN-FURN-INSPECT) (v0.3.0.6)
+
+Selecting a placed furniture item in the 2D plan editor now opens a focused property sheet
+(`ui/floorplan/PlanFurnitureInspector.tsx`, rendered by `PlanInspector` when the plan selection
+resolves to a furniture item): rename, numeric X/Z, angle, parametric width/depth, a W×D×H size
+readout, lock, delete, and "Edit in 3D". Edits route through the same `itemsSlice` actions as the
+3D inspector — moves/rotations are `canPlace`-checked and push one undo step; resize coalesces via
+`updateItemProps`. Item- vs plan-element selection is now **mutually exclusive** (`selectItem` clears
+`planSelection`; `setPlanSelection` clears `selectedItemId`/`selectedItemIds`) so the two inspectors
+never co-render. No new flag — plan editing is a core loop, so it shows in **both Simple and Pro**
+(rides the existing `floorPlanEditor` gate); verified desktop + mobile bottom-sheet. `Num` is now
+exported from `PlanInspector` for reuse. Matches Coohom / Sweet Home 3D plan-side editing.
+
 ## Refactor: extract pure rect/edge geometry from autoArrange (MOD-ARRANGE-GEO) (v0.3.0.4)
 
 Pulled the pure rectangle/edge geometry primitives (`Rect`/`Edge` types, `rectsOverlap`, `inward`,

@@ -98,9 +98,9 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > - **PARITY-PLAN-FURN-ROTATE** (HIGH, M, `cg-planeditor`) — 2D-plan furniture rotate handle (walls
 >   have one ~`FloorPlanEditor.tsx:2862`; furniture has none). Reuse `selection/rotateGizmoMath.ts`
 >   15°-snap → `itemsSlice.rotateItem`. Verify: scenario drags handle, asserts snapped rotation.
-> - **PARITY-PLAN-FURN-INSPECT** (HIGH, M, `cg-planinspector`) — furniture branch in the 2D inspector
->   (new `PlanFurnitureInspector.tsx`; name/X-Z/rotation/W·D·H via `inspector/InspectorPanel.tsx`
->   DimField). Test Simple + Pro.
+> - ✅ **PARITY-PLAN-FURN-INSPECT** (done v0.3.0.6) — `PlanFurnitureInspector.tsx`: rename/X-Z/angle/
+>   W·D·H/lock/delete/Edit-in-3D; item↔plan-element selection now mutually exclusive. Both modes,
+>   desktop + mobile verified.
 > - **PARITY-DUP-PATH** (MED, M, `cg-arrayplace`) — duplicate-along-polyline array (have
 >   linear/grid/radial). Pure `furniture/pathArray.ts` arc-length + tangent yaw, inspector array section.
 > **Wave 2 (serialize on shared files, after wave 1):** PARITY-PLAN-MARQUEE + **MOD-FPE-SPLIT**
