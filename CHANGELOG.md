@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Photoreal: per-board wood grain-direction flow (PC2-WOOD-GRAIN-FLOW) (v0.2.0.35)
+
+Procedural wood floors (planks, parquet, herringbone) already varied each board's value/warmth/phase,
+but every board's cathedral grain ran in the *same* direction — so a large floor read repetitive. Each
+board now gets a tiny, deterministic grain **lean** (~±2.6°, a shear of the across-coordinate about the
+board mid-length), so the figure flows board-to-board like real timber cut from different parts of the
+log. New pure `procedural/woodPlank.ts` (`plankHash` — the stateless hash the parquet/herringbone
+painters already used inline, now shared; `grainLean`; `shearAcross`), so the lean is derived from a
+hash **independent of** the painters' existing tint stream — no regression to the tuned look, only the
+new shear. Subtle by design (a larger angle reads as warped laminate). 14 unit tests (determinism,
+bounded range, board-to-board variation, pivot symmetry); verified by painting the flat texture in the
+browser — the six planks show grain leaning at distinct gentle per-board angles, no warping.
+
 ## UX: angle-snap walls while drawing in the 2D plan (PC2-PLAN-ANGLE-SNAP) (v0.2.0.34)
 
 Freehand wall-drawing in the 2D editor produced walls a fraction of a degree off true (a parity gap vs

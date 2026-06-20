@@ -40,13 +40,14 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > re-do): all **BUG-001…014**, all **REV-001…006**, all **UX-001…009**, all **MAT-001…004**,
 > **PERF-001/002/004/005/007/008** (PERF-003 *partial* — wall-build dedup done, broadphase
 > remainder open; PERF-006 is "don't fix"), **RD-401/402/403/404/405/407/408/409/410**,
-> **PC2-MULTI-DUP-PASTE**, **PC2-FAVOURITE-MATERIALS**, **PC2-PLAN-FURN-ICONS**, and
-> **PC2-PLAN-ANGLE-SNAP** (15° wall-draw snap, Shift to bypass + furniture-rotate already 15°-stepped).
+> **PC2-MULTI-DUP-PASTE**, **PC2-FAVOURITE-MATERIALS**, **PC2-PLAN-FURN-ICONS**,
+> **PC2-PLAN-ANGLE-SNAP** (15° wall-draw snap, Shift to bypass + furniture-rotate already 15°-stepped),
+> and **PC2-WOOD-GRAIN-FLOW** (per-board grain-direction lean; verified via flat-texture render).
 > **Genuinely still OPEN:** PERF-003 (broadphase half), **RD-406** (tile
 > break-up + triplanar — *needs real-GPU verify*), **RD-411/PC2-SSAA-EXPORT** (supersample export —
-> *real-GPU*), **RD-412** (procedural sky/IBL — *touches tuned lighting, real-GPU*), RD-408 hero
-> props (new primitives), **PC2-SURFACE-DROP**, **PC2-FURN-GROUP**,
-> **PC2-WOOD-GRAIN-FLOW** (real-GPU), **PC2-CONTACT-AO-DECOR**,
+> downsample math headless-verifiable, GPU 2× render real-GPU), **RD-412** (procedural sky/IBL —
+> *touches tuned lighting, real-GPU*), RD-408 hero
+> props (new primitives), **PC2-SURFACE-DROP**, **PC2-FURN-GROUP**, **PC2-CONTACT-AO-DECOR**,
 > **PC2-DISTRIBUTE-AXIS** (audited — `distributeEvenGaps` already
 > sound, effectively a no-op). Rows already marked ✅ below were struck this session.
 
@@ -72,7 +73,7 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 | 18 | **PC2-CONTACT-AO-DECOR** | Per-prop contact-shadow decal under small decor (grounds vases/books/trays) | HIGH photoreal | S/M | `scene/ContactShadow.tsx` / `scene/PropContactDecal.tsx` (new), decor primitives | `cg-scenemount` |
 | 19 | **RD-408** | Decor density/variety. **DONE:** per-surface budget+spread+jitter (earlier), **prop colour variety** (v0.2.0.20). **REMAINING:** hero props with real silhouettes (varied book heights, layered cushion stacks, trailing plants) + more host-surface types — needs new primitives. | HIGH photoreal | M | `furniture/layout/decorStyling.ts`, new primitives | `cg-decor` |
 | 20 | **RD-412** | Procedural Preetham/Hosek sky gradient → backdrop + procedural IBL | MED photoreal | S | `scene/backdropEquirect.ts`, `scene/lighting/SceneEnvironment.tsx` | `cg-sky` |
-| 21 | **PC2-WOOD-GRAIN-FLOW** | Seeded per-plank hue/value jitter + grain-direction rotation (kills repetitive flooring) | MED photoreal | M | `procedural/generators.ts` / `procedural/woodPlank.ts` (new) (+test) | `cg-materials` |
+| ~~21~~ | ~~**PC2-WOOD-GRAIN-FLOW**~~ | ✅ DONE (v0.2.0.35) — per-plank hue/value/phase jitter already present; added per-board grain-direction **lean** (~±2.6° shear) via new pure `procedural/woodPlank.ts` (shared `plankHash` + `grainLean` + `shearAcross`), keyed by a hash independent of the tint stream (no regression). Wired into all 3 wood painters; verified via flat-texture render. | MED photoreal | M | `procedural/patterns/wood.ts`, `procedural/woodPlank.ts` (new) (+test) | `cg-materials` |
 | 22 | **RD-406** | Tile-repetition break-up (UV hash/macro-variation) + triplanar for sloped/curved walls | MED photoreal | M | `materials/worldUv.ts`, `materials/triplanar.ts` (new) | `cg-worlduv` |
 | 23 | **RD-409** | Light colour-temperature (Kelvin→RGB) + inverse-square falloff per fixture | MED photoreal | M | `scene/lighting/FurnitureLights.tsx`, `lighting/colorTemperature.ts` (new) | `cg-furnlights` |
 | ~~24~~ | ~~**RD-407**~~ | ✅ DONE (v0.2.0.18 case goods + v0.2.0.19 appliances) — Bookshelf/CabinetModule/CabinetCorner/Wardrobe + all 8 appliance bodies beveled (glass/handles/controls stay sharp) | MED photoreal | M | primitives | `cg-primitives` |
@@ -445,12 +446,13 @@ re-take here). Nothing below duplicates shipped or open work. Prioritised: corre
   is being previewed/dragged, the user's choice (or AgX) otherwise. Pure config in `scene/look.ts` +
   `scene/toneMappingThree.ts` + the finish-drag signal. Headless-verifiable (renderer constant +
   unit test on the resolver). Gap: fidelity-correct previewing per `PHOTOREALISM.md` tone note.
-- **PC2-WOOD-GRAIN-FLOW** (M) — Wood procedural grain (`materials/procedural/`) tiles uniformly with
-  no plank-to-plank variation or directional flow, so parquet/flooring reads repetitive. Add seeded
-  per-plank hue/value jitter + grain-direction rotation per plank (pure field math, deterministic,
-  unit-testable like `upholsterySeams.ts`). Touches `materials/procedural/generators.ts` (or a new
-  `procedural/woodPlank.ts`) + a test asserting determinism + per-plank variation. Photoreal flooring
-  lever; Coohom's "jaw-dropping wood grain" is the bar. No GPU needed for the base read.
+- ~~**PC2-WOOD-GRAIN-FLOW**~~ ✅ DONE (v0.2.0.35) — the painters already carried per-plank hue/value/
+  phase jitter; what made flooring read repetitive was every board's grain running the *same*
+  direction. Added a deterministic per-board grain **lean** (~±2.6°, a shear of across about the board
+  mid-length) via the new pure `materials/procedural/woodPlank.ts` (`plankHash` — the stateless hash
+  parquet/herringbone used inline, now shared; `grainLean`; `shearAcross`), keyed by a hash independent
+  of the tint stream so it adds the shear without perturbing the tuned look. Wired into all three wood
+  painters (`patterns/wood.ts`); 14 unit tests; verified by painting the flat texture in the browser.
 - **PC2-SSAA-EXPORT** (S) — Carry `PHOTO-SSAA-EXPORT` from `PHOTOREALISM.md`: supersample the
   snapshot/PNG export path (render at 2×–3× then box-downsample) for crisp reference stills, separate
   from live SMAA. Pure offscreen-canvas resize math in the capture path; **headless-verifiable**
