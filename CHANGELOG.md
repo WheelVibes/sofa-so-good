@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Refactor: extract auto-arrange role classification into a tested module (v0.2.0.54)
+
+Pulled the arrange-role classification (`ArrangeRole` type, the `ROLE` def→role map, `roleForCategory`,
+`roleOf`) out of the 1135-line `autoArrange.ts` into a new pure `src/layout/arrangeRoles.ts` — pure leaf
+logic, no geometry/`Ctx`, so it's now independently unit-testable. `autoArrange` imports + re-exports them
+for back-compat (existing importers unchanged). Added `arrangeRoles.test.ts` (roleForCategory per category
++ fallback, roleOf explicit-map / unknown / mounted / noClip-rug / category-fallback / mounted-priority).
+Part of the modularization sweep. tsc/biome/full-suite green (3227 tests).
+
 ## Feature: camera lens + depth-of-field controls (PC2-CAM-DOF-LENS) (v0.2.0.53)
 
 Photographic camera controls for the render/snapshot camera — **focal length** (mm), **aperture** (f-stop)
