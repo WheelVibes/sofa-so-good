@@ -55,6 +55,19 @@ describe('resolveSurfaceDropHeight', () => {
     expect(resolveSurfaceDropHeight(2, 2, [coffee], BUILTIN_CATALOG, 't')).toBeNull()
   })
 
+  it('only considers supports on the same level (F13 multi-storey)', () => {
+    // A table directly above on level "L1" must not capture a ground-floor drop.
+    const upstairs: FurnitureItem = { ...place('up', 'coffee-table', 2, 2), levelId: 'L1' }
+    // Dragged item is on the ground (levelId undefined → ground): no same-level support.
+    expect(
+      resolveSurfaceDropHeight(2, 2, [upstairs], BUILTIN_CATALOG, undefined, undefined),
+    ).toBeNull()
+    // …but a piece ON L1 dropped at the same spot snaps to that table.
+    expect(
+      resolveSurfaceDropHeight(2, 2, [upstairs], BUILTIN_CATALOG, undefined, 'L1'),
+    ).toBeCloseTo(coffeeTop, 5)
+  })
+
   it('respects the support footprint (a point past the edge misses)', () => {
     // Far outside the coffee table footprint on X.
     expect(resolveSurfaceDropHeight(2 + 50, 2, [coffee], BUILTIN_CATALOG)).toBeNull()

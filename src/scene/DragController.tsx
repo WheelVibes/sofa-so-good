@@ -582,6 +582,7 @@ export function DragController() {
             cur.items,
             catalogRef.current,
             id,
+            dropped.levelId,
           )
           if (top != null && Math.abs(top - sh) > 1e-3) {
             cur.setItems(

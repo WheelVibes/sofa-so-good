@@ -13,6 +13,7 @@
  * caller then leaves the height untouched (a drop onto open floor doesn't yank a
  * decor item's height around).
  */
+import { GROUND_LEVEL_ID } from '../floorplan/levels'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { itemFootprint } from './placement'
 
@@ -39,7 +40,9 @@ function topHeight(it: FurnitureItem, def: FurnitureDef): number {
 
 /**
  * Height of the highest support surface (table/shelf top) under the point, or
- * `null` if none. `excludeId` skips the dragged item itself.
+ * `null` if none. `excludeId` skips the dragged item itself; `levelId` restricts
+ * to supports on the same storey (a table on the floor above must not capture a
+ * piece on the ground, F13) — matching the level-aware collision convention.
  */
 export function resolveSurfaceDropHeight(
   px: number,
@@ -47,10 +50,13 @@ export function resolveSurfaceDropHeight(
   items: readonly FurnitureItem[],
   defs: Record<string, FurnitureDef>,
   excludeId?: string,
+  levelId?: string,
 ): number | null {
+  const level = levelId ?? GROUND_LEVEL_ID
   let best: number | null = null
   for (const it of items) {
     if (it.id === excludeId) continue
+    if ((it.levelId ?? GROUND_LEVEL_ID) !== level) continue
     const def = defs[it.defId]
     if (!def || !SUPPORT_CATEGORIES.has(def.category)) continue
     if (!containsPoint(it, def, px, pz)) continue

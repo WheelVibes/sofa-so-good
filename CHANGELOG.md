@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: surface-drop must respect storeys (PC2-SURFACE-DROP follow-up) (v0.2.0.44)
+
+The surface-drop resolver shipped in v0.2.0.42 iterated every item regardless of level, so on a
+multi-storey design (F13) a ground-floor decor item dropped under a table on the floor *above* would
+snap to that upper table's height. Added a `levelId` filter (matching the level-aware collision
+convention in `placement.ts` — `(it.levelId ?? 'ground')`), so only same-storey supports capture a
+drop. `DragController` passes the dragged item's `levelId`. Caught by a self-audit of the new code
+against the multi-level feature; +1 unit test (a table on `L1` is ignored for a ground drop but
+captures an `L1` drop). Single-level designs (the default) are unaffected.
+
 ## QOL: surface-drop magnetism — decor snaps onto tables/shelves (PC2-SURFACE-DROP) (v0.2.0.42)
 
 Dragging a surface item (a vase, lamp, bowl, books — anything that rests on a surface, identified by a
