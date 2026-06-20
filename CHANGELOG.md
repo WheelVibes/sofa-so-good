@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Realism: "Decor tray" hero decor primitive (RD-408) (v0.2.0.55)
+
+A second RD-408 hero prop — a shallow rectangular **styled tray** (wooden base + four low rim walls)
+holding 2–3 small index-seeded objects (pillar candle, recessed bowl, folded-book pair, coaster stack), a
+common Coohom/SH3D vignette staple. New `primitives/DecorTray.tsx` (floor-anchored to `surfaceHeight`,
+deterministic per-slot objects — no RNG, objects sit on the base inset from the rim, base lifted just
+above the surface). `style` (`mixed`/`candles`/`minimal`) + `fullness` vary the set. Registered in
+`primitives/index.ts` + `PrimitiveKind`; new `decor-tray` `ParametricDef` (noClip, surfaceHeight + style/
+fullness/colour controls); leads the auto-furnish list on `coffee-table`/`ottoman`, secondary on
+`console-table`/`sideboard`. Price entry + decor-styling test + a verification scenario added. No feature
+flag (enriches auto-furnish). Implemented by a parallel opus worktree agent; verified here (renders as a
+styled tray on a surface, no clipping/z-fighting; full suite + 23 decor tests green).
+
 ## Refactor: extract auto-arrange role classification into a tested module (v0.2.0.54)
 
 Pulled the arrange-role classification (`ArrangeRole` type, the `ROLE` def→role map, `roleForCategory`,
