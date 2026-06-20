@@ -33,6 +33,7 @@ import { CoveLight } from './CoveLight'
 import { Crib } from './Crib'
 import { CubeShelf } from './CubeShelf'
 import { Curtain } from './Curtain'
+import { DecorTray } from './DecorTray'
 import { Desk } from './Desk'
 import { DeskPlant } from './DeskPlant'
 import { DiningChair } from './DiningChair'
@@ -217,4 +218,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   DeskPlant,
   PhotoFrameCluster,
   TrailingPlant,
+  DecorTray,
 }

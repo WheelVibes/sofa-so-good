@@ -7,7 +7,7 @@
  *
  * Host-surface matching strategy:
  *   sofa / chaise / sectional   → throw-cushion, throw-blanket
- *   coffee-table                → fruit-bowl, magazine-stack, candle-cluster
+ *   coffee-table                → decor-tray, fruit-bowl, magazine-stack, candle-cluster
  *   dining-table                → candle-cluster, fruit-bowl
  *   bed                         → throw-cushion, throw-blanket
  *   nightstand                  → desk-plant, candle-cluster
@@ -15,7 +15,8 @@
  *   console-table / sideboard   → book-stack, small-sculpture, photo-frame-cluster
  *   bookshelf / cube-shelf      → book-stack, small-sculpture, desk-plant
  *   tv-console                  → photo-frame-cluster, small-sculpture, desk-plant, book-stack
- *   ottoman / bench             → throw-blanket, throw-cushion
+ *   ottoman                     → decor-tray, throw-blanket, throw-cushion
+ *   bench                       → throw-cushion, throw-blanket
  *
  * Density (RD408-001): each host gets a per-surface budget derived from its
  * footprint AREA and a conservative per-type ceiling, so a long sideboard or a
@@ -146,8 +147,9 @@ const HOST_PROPS: Record<string, readonly string[]> = {
   'bed-king': ['throw-cushion', 'throw-blanket'],
   'bed-double': ['throw-cushion', 'throw-blanket'],
   'bed-single': ['throw-cushion'],
-  // Low / occasional tables
-  'coffee-table': ['fruit-bowl', 'magazine-stack', 'candle-cluster'],
+  // Low / occasional tables. A styled tray is the classic coffee-table vignette
+  // (candle + bowl + books grouped on a tray), so it leads here.
+  'coffee-table': ['decor-tray', 'fruit-bowl', 'magazine-stack', 'candle-cluster'],
   'dining-table-4': ['candle-cluster', 'fruit-bowl'],
   'side-table': ['candle-cluster', 'desk-plant'],
   // Nightstands / bedside
@@ -158,15 +160,28 @@ const HOST_PROPS: Record<string, readonly string[]> = {
   // plant drapes over the front edge — a hero piece on elevated/open tops, so
   // it leads on the open shelving units and appears as a secondary option on the
   // closed-top consoles once they have the budget for more than one prop.
-  'console-table': ['photo-frame-cluster', 'trailing-plant', 'small-sculpture', 'book-stack'],
-  sideboard: ['photo-frame-cluster', 'trailing-plant', 'book-stack', 'candle-cluster'],
+  'console-table': [
+    'photo-frame-cluster',
+    'trailing-plant',
+    'decor-tray',
+    'small-sculpture',
+    'book-stack',
+  ],
+  sideboard: [
+    'photo-frame-cluster',
+    'trailing-plant',
+    'decor-tray',
+    'book-stack',
+    'candle-cluster',
+  ],
   bookshelf: ['trailing-plant', 'book-stack', 'small-sculpture', 'desk-plant'],
   'cube-shelf': ['trailing-plant', 'book-stack', 'small-sculpture'],
   dresser: ['photo-frame-cluster', 'desk-plant'],
   // Media unit top — frames, a sculpture, a plant, books.
   'tv-console': ['photo-frame-cluster', 'small-sculpture', 'desk-plant', 'book-stack'],
-  // Soft seating — a folded throw / a stray cushion.
-  ottoman: ['throw-blanket', 'throw-cushion'],
+  // Soft seating — an ottoman doubles as a coffee table, so a styled tray leads,
+  // then a folded throw / a stray cushion.
+  ottoman: ['decor-tray', 'throw-blanket', 'throw-cushion'],
   bench: ['throw-cushion', 'throw-blanket'],
 }
 

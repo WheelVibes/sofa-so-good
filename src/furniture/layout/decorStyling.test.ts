@@ -146,6 +146,45 @@ describe('applyDecorStyling', () => {
     }
   })
 
+  it('offers the decor-tray hero prop on its host surfaces and self-lifts via surfaceHeight (RD-408)', () => {
+    // The styled tray leads on the coffee-table and ottoman, so it appears even
+    // at the minimum per-surface budget of 1; it is a secondary option on the
+    // console-table / sideboard. Across the four wired hosts, at least one must
+    // offer it, and wherever it lands it must sit at the host top via
+    // `surfaceHeight` (self-lift) — never via `elevation`.
+    let offeredSomewhere = false
+    for (const defId of ['coffee-table', 'ottoman', 'console-table', 'sideboard'] as const) {
+      const host = {
+        id: `host-${defId}`,
+        defId,
+        position: [4, 4] as [number, number],
+        rotation: 0,
+        props: {},
+      }
+      const decor = applyDecorStyling([host], BUILTIN_CATALOG)
+      const trays = decor.filter((d) => d.defId === 'decor-tray')
+      if (trays.length > 0) offeredSomewhere = true
+      const top = BUILTIN_CATALOG[defId].defaultFootprint.h
+      for (const d of trays) {
+        expect(d.props.surfaceHeight).toBeCloseTo(top, 5)
+        expect(d.elevation ?? 0).toBe(0)
+      }
+    }
+    expect(offeredSomewhere).toBe(true)
+    // The coffee-table and ottoman lead with the tray, so it is guaranteed there.
+    for (const defId of ['coffee-table', 'ottoman'] as const) {
+      const host = {
+        id: `lead-${defId}`,
+        defId,
+        position: [4, 4] as [number, number],
+        rotation: 0,
+        props: {},
+      }
+      const decor = applyDecorStyling([host], BUILTIN_CATALOG)
+      expect(decor.some((d) => d.defId === 'decor-tray')).toBe(true)
+    }
+  })
+
   it('respects the per-host-type ceiling even for huge hosts (RD408-001)', () => {
     // Per-type ceilings cap density regardless of how large a surface is.
     const sofa = {

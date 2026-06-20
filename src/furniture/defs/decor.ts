@@ -1238,4 +1238,72 @@ export const DECOR_DEFS = {
       },
     ],
   },
+  'decor-tray': {
+    kind: 'parametric',
+    id: 'decor-tray',
+    name: 'Decor tray',
+    keywords: [
+      'tray',
+      'styling tray',
+      'vignette',
+      'tabletop tray',
+      'serving tray',
+      'coffee table styling',
+      'candle tray',
+    ],
+    category: 'decor',
+    primitive: 'DecorTray',
+    // Footprint covers the tray plus the objects standing inside it.
+    defaultFootprint: { w: 0.34, d: 0.22, h: 0.13 },
+    // Base sits ~0.018 above the surface; the tallest object (candle/bowl)
+    // reaches ~0.13, so the span runs from the surface up past the vignette.
+    verticalSpan: { base: 0.42, top: 0.55 },
+    noClip: true,
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'surfaceHeight',
+        label: 'Sits at',
+        min: 0,
+        max: 1.4,
+        step: 0.02,
+        default: 0.42,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Arrangement',
+        default: 'mixed',
+        options: [
+          { value: 'mixed', label: 'Mixed (candle + bowl + books)' },
+          { value: 'candles', label: 'Candles' },
+          { value: 'minimal', label: 'Minimal' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'fullness',
+        label: 'Fullness',
+        default: 'full',
+        options: [
+          { value: 'full', label: 'Full' },
+          { value: 'sparse', label: 'Sparse' },
+        ],
+      },
+      { kind: 'color', key: 'trayColor', label: 'Tray', default: '#b8987a' },
+      { kind: 'color', key: 'accentColor', label: 'Objects', default: '#7a8a7c' },
+      {
+        kind: 'enum',
+        key: 'trayFinish',
+        label: 'Tray finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Matte' },
+          { value: 'gloss', label: 'Lacquer' },
+        ],
+      },
+    ],
+  },
 } satisfies Record<string, FurnitureDef>

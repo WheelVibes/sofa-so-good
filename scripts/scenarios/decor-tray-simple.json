@@ -1,0 +1,15 @@
+{
+  "name": "decor-tray-simple",
+  "description": "RD-408: DecorTray hero prop — three style variants on the floor, close 3/4 camera. Verify objects sit on the tray base, no floating/clipping/z-fighting.",
+  "url": "http://localhost:5185/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "wait-boot", "wait": 5000 },
+    { "name": "dismiss-overlays", "eval": "try{localStorage.setItem('hdb_onboarded','1')}catch{};const s=window.__store.getState();s.endTour?.();s.setOnboardingOpen?.(false);s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "place-trays", "eval": "window.__store.getState().setItems([{id:'t-mixed',defId:'decor-tray',position:[2,2],rotation:0,props:{surfaceHeight:0.0,style:'mixed',fullness:'full'}},{id:'t-candles',defId:'decor-tray',position:[2.7,2],rotation:0.4,props:{surfaceHeight:0.0,style:'candles',fullness:'full'}},{id:'t-minimal',defId:'decor-tray',position:[3.4,2],rotation:-0.3,props:{surfaceHeight:0.0,style:'minimal',fullness:'full'}}])" },
+    { "name": "camera", "eval": "(()=>{const t=window.__three,cam=t?.camera,c=t?.controls;if(!cam)return;cam.position.set(2.7,0.42,3.05);if(c){c.target.set(2.7,0.05,2.0);c.update();}cam.lookAt(2.7,0.05,2.0);})()" },
+    { "name": "settle", "wait": 3000 },
+    { "name": "shot", "screenshot": "decor-tray-simple" }
+  ]
+}

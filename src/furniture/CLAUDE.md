@@ -92,4 +92,7 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `VARIETY` palette (offset by slot) so they aren't identical clones. **Hero props (RD-408):**
   richer set-dressing primitives with real silhouettes — e.g. `trailing-plant` (a raised pot whose
   vines cascade over the edge, leading the prop list on open shelving `bookshelf`/`cube-shelf` and a
-  secondary option on `console-table`/`sideboard`). (The wall pass is still a future RD-408 task.)
+  secondary option on `console-table`/`sideboard`); `decor-tray` (a shallow styled tray holding a
+  small index-seeded candle/bowl/books vignette, `style`/`fullness` controls — leading on
+  `coffee-table`/`ottoman` and a secondary option on `console-table`/`sideboard`). (The wall pass is
+  still a future RD-408 task.)
