@@ -48,8 +48,9 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > downsample math headless-verifiable, GPU 2× render real-GPU), **RD-412** (procedural sky/IBL —
 > *touches tuned lighting, real-GPU*), RD-408 hero
 > props (new primitives), **PC2-SURFACE-DROP**, **PC2-FURN-GROUP**, **PC2-CONTACT-AO-DECOR**,
-> **PC2-DISTRIBUTE-AXIS** (audited — `distributeEvenGaps` already
-> sound, effectively a no-op). Rows already marked ✅ below were struck this session.
+> and **PC2-DISTRIBUTE-AXIS** (audited sound — axis is explicit + rotated footprints already use
+> `obbAxisHalf`; closed out with OBB→distribute/align integration tests). Rows already marked ✅ below
+> were struck this session.
 
 | Rank | ID | One-line | Sev/Impact | Eff | Area / files | Conflict-group |
 |------|----|----------|-----------|-----|--------------|----------------|
@@ -426,11 +427,12 @@ re-take here). Nothing below duplicates shipped or open work. Prioritised: corre
   drop path and set the item elevation. Touches `scene/DragController.tsx`, `collision/placement.ts`,
   the placement/elevation slice. Gap: SH3D `shelfElevations` magnetism. Verify with a unit test on
   the support-height resolver + a drop scenario.
-- **PC2-DISTRIBUTE-AXIS** (S) — `layout/alignDistribute.ts` `distributeEvenGaps` distributes along a
-  single inferred axis; confirm it picks the dominant spread axis correctly for a diagonal selection
-  and that align-edge ops handle rotated footprints (OBB, not AABB). Audit + add a rotated-item test;
-  fall back gracefully when n<3. Reliability follow-on to the shipped overlap clamp. Touches
-  `layout/alignDistribute.ts` (+ test).
+- ~~**PC2-DISTRIBUTE-AXIS**~~ ✅ DONE (v0.2.0.36) — audited: the axis is **explicit** (the inspector's
+  Distribute/Align-H vs -V buttons pass `axis`, not auto-inferred), rotated footprints already route
+  through `obbAxisHalf` (OBB→AABB projection) in `MultiSelectPanel`, and n<3 returns empty (graceful).
+  No code bug → hardened the documented gap with tests: the OBB→distribute/align **integration**
+  (a turned board distributes/aligns by its real projected extent) + `obbAxisHalf` sign-independence
+  and π-periodicity. Test-only.
 
 ### Photorealism levers (pure-code / headless-verifiable wiring)
 - **PC2-CONTACT-AO-DECOR** (S/M) — Small surface decor (vases, bowls, books, trays) gets no contact

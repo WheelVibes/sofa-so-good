@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Reliability: harden align/distribute for rotated footprints (PC2-DISTRIBUTE-AXIS) (v0.2.0.36)
+
+Audited the multi-select align/distribute path against the backlog concern (does it pick the right
+axis + handle rotated footprints?). Findings: the axis is **explicit** — the inspector's Distribute/
+Align-H vs -V buttons pass it, there's no fragile auto-inference to get wrong; rotated footprints
+already project through `obbAxisHalf` (OBB→axis-aligned half) in `MultiSelectPanel` before reaching
+`distributeEvenGaps`/`alignEdge`; and n<3 returns empty (graceful). No code bug. Closed the documented
+gap by hardening the **OBB→distribute/align integration** with tests: a turned board distributes with
+even edge gaps and aligns by its real projected extent (not a raw unrotated half), plus `obbAxisHalf`
+sign-independence (±yaw) and π-periodicity. Test-only.
+
 ## Photoreal: per-board wood grain-direction flow (PC2-WOOD-GRAIN-FLOW) (v0.2.0.35)
 
 Procedural wood floors (planks, parquet, herringbone) already varied each board's value/warmth/phase,
