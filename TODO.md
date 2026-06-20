@@ -435,13 +435,18 @@ re-take here). Nothing below duplicates shipped or open work. Prioritised: corre
   and π-periodicity. Test-only.
 
 ### Photorealism levers (pure-code / headless-verifiable wiring)
+- ✅ **BUG-015** (v0.2.0.38, found while scoping the below) — auto-furnish decor double-lifted to ~2×
+  its host surface height: every decor primitive self-lifts to `surfaceHeight` in local space, but
+  `decorStyling` *also* set `elevation: topHeight` and the render group adds `elevation` for parametric
+  items. Fixed by dropping the redundant `elevation` (decor carries `surfaceHeight` only, like the
+  defaults). Decor now sits correctly — which also unblocks the contact-AO decal below.
 - **PC2-CONTACT-AO-DECOR** (S/M) — Small surface decor (vases, bowls, books, trays) gets no contact
   grounding, so it reads pasted-on. Add a tiny baked radial-gradient **contact-shadow decal** under
   small props (a cheap alpha texture quad, not a render pass — works on the flat Performance tier).
   Reuse/extend `scene/ContactShadow.tsx` patterns into a per-prop decal helper. Touches
   `scene/ContactShadow.tsx` (or new `scene/PropContactDecal.tsx`), decor primitives. Biggest cheap
   "is-it-really-sitting-there" realism lever on the default tier. Verify via screenshot + a present-
-  in-graph unit check.
+  in-graph unit check. (Decor now sits at the right height after BUG-015.)
 - **PC2-TONEMAP-EXPOSURE-CTX** (S) — `PHOTOREALISM.md` recommends **Neutral as the default tone-map
   in the finish-preview context** (accurate base colours) and AgX for "photo" presets, but the app
   uses one global tone-mapper. Make tone-mapping context-aware: Neutral while a finish/material swatch

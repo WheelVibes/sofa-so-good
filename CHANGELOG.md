@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: auto-furnish decor double-lifted above its host surface (BUG-015) (v0.2.0.38)
+
+Auto-furnish decor (cushions, throws, fruit bowls, books, plants, frames, sculptures, candles — the
+`decorStyling` props on custom-plan furnish) floated at **~2× the host surface height** instead of
+sitting on it. Every decor primitive self-lifts to its `surfaceHeight` in local space (like the built-in
+tabletop defaults, which set `surfaceHeight` only), but `decorStyling` *also* set `elevation: topHeight`
+on the item — and the render group adds `elevation` for parametric items, so the prop got lifted twice
+(a book stack meant for a 0.42 m coffee table rendered at 0.84 m). Fixed by dropping the redundant
+`elevation` (decor now carries `surfaceHeight` only, matching the proven-correct defaults pattern); no
+collision impact since decor is `noClip`. Confirmed: a book stack with `elevation+surfaceHeight` visibly
+floats twice as high as one with `surfaceHeight` only. Updated the two `decorStyling` tests that had
+encoded the buggy `elevation == top` expectation. Found while scoping PC2-CONTACT-AO-DECOR.
+
 ## Perf: broadphase the furniture-drag collision/snug scans (PERF-003) (v0.2.0.37)
 
 `DragController.onMove` ran two O(n) scene scans per pointermove — the snug-stack candidate search and

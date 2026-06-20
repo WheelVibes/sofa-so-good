@@ -390,7 +390,10 @@ export function applyDecorStyling(
         defId: propId as FurnitureItem['defId'],
         position: positions[slot],
         rotation: propRotation(host, propId, rand),
-        elevation: topHeight,
+        // No `elevation` — every decor primitive self-lifts to `surfaceHeight` in
+        // local space (like the built-in tabletop defaults), so ALSO setting
+        // `elevation: topHeight` double-lifted the prop to ~2× the surface height
+        // (it floated above its host). The prop carries `surfaceHeight` only.
         props,
       })
       placed++

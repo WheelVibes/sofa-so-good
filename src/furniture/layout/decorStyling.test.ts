@@ -112,9 +112,14 @@ describe('applyDecorStyling', () => {
       }
       const decor = applyDecorStyling([host], BUILTIN_CATALOG)
       expect(decor.length).toBeGreaterThanOrEqual(1)
-      // Decor sits at the host's real top surface, not floating.
+      // Decor sits at the host's real top surface via `surfaceHeight` (the prop
+      // self-lifts in local space). It must NOT also set `elevation`, or the prop
+      // double-lifts to ~2× the surface height and floats.
       const top = BUILTIN_CATALOG[defId].defaultFootprint.h
-      for (const d of decor) expect(d.elevation).toBeCloseTo(top, 5)
+      for (const d of decor) {
+        expect(d.props.surfaceHeight).toBeCloseTo(top, 5)
+        expect(d.elevation ?? 0).toBe(0)
+      }
     }
   })
 
@@ -158,9 +163,10 @@ describe('applyDecorStyling', () => {
     const decor = applyDecorStyling([mockSofa], BUILTIN_CATALOG)
     expect(decor.length).toBeGreaterThan(0)
     for (const d of decor) {
-      // surfaceHeight should equal the sofa's defaultFootprint.h.
+      // surfaceHeight should equal the sofa's defaultFootprint.h; the prop
+      // self-lifts to it. `elevation` must stay unset, or the prop double-lifts.
       expect(d.props.surfaceHeight).toBeCloseTo(sofa!.defaultFootprint.h, 2)
-      expect(d.elevation).toBeCloseTo(sofa!.defaultFootprint.h, 2)
+      expect(d.elevation ?? 0).toBe(0)
     }
   })
 
