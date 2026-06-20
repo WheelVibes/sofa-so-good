@@ -5,6 +5,7 @@ import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
 import { levelById } from '../../floorplan/levels'
 import { defaultOpeningName, defaultWallName } from '../../floorplan/planElementName'
 import { polylineLength } from '../../floorplan/polyline'
+import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../../floorplan/roomFinishes'
 import {
   type CeilingConfig,
   type CeilingStyle,
@@ -217,6 +218,12 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const sel = useStore((s) => s.planSelection)
   const selectedWallIds = useStore((s) => s.selectedWallIds)
   const plan = useStore((s) => s.floorPlan)
+  // The persisted `finishes` map is the source of truth for a room's floor/wall
+  // pick — it round-trips through `serialize()` for EVERY plan, whereas the
+  // plan's own `room.floor`/`room.wall` is dropped on the seeded default plan
+  // (`isDefaultPlan` → no `floorPlan` in the save), so reading `room.floor`
+  // directly desyncs the picker after a reload on the default flat (FIN-DEFAULT-FORK).
+  const finishes = useStore((s) => s.finishes)
   const units = useStore((s) => s.units)
   const a = useStore.getState()
   const isMobile = useIsMobile()
@@ -454,7 +461,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           <label className="flex flex-col gap-1 text-xs">
             <span className="label">Floor finish</span>
             <select
-              value={r.floor ?? 'floor-wood-oak'}
+              value={resolvePlanRoomFloor(finishes, r)}
               onChange={(e) =>
                 // Routed through the finishes slice (not a bare updateRoom) so
                 // the live finishes map stays in sync with the plan data.
@@ -472,7 +479,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           <label className="flex flex-col gap-1 text-xs">
             <span className="label">Wall finish</span>
             <select
-              value={r.wall ?? ''}
+              value={resolvePlanRoomWall(finishes, r) ?? ''}
               onChange={(e) => {
                 if (e.target.value) a.setWallFinish(r.id as RoomId, e.target.value)
                 else a.clearWallFinish(r.id as RoomId)

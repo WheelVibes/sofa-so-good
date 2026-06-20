@@ -64,11 +64,11 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > UX-006, PC2-MULTI-DUP-PASTE, PC2-FAVOURITE-MATERIALS are all done — see CHANGELOG). The genuinely
 > open, pure-client/no-GPU items it surfaced:
 > - ✅ **FIN-ALLROOMS** (HIGH, done v0.2.0.56) — bulk apply-finish skipped upper storeys; → `allPlanRooms`.
-> - **FIN-DEFAULT-FORK** (MED reliability, S) — default-plan finish edits write `plan.rooms[].floor` but
->   don't `forkIfDefault`, so the plan id stays default → `serialize()` drops the floorPlan → after reload
->   `room.floor` reverts (the `finishes` map persists, so render is correct; only consumers reading
->   `room.floor` — 2D swatch/reports — desync on the DEFAULT plan). Fix: route the finish write through
->   `forkIfDefault`, or have those consumers read the `finishes` map. `state/slices/finishesSlice.ts`.
+> - ✅ **FIN-DEFAULT-FORK** (done v0.3.0.2) — the 2D plan inspector's finish pickers now read the durable
+>   `finishes` map via `resolvePlanRoomFloor`/`resolvePlanRoomWall` (not the default-plan `room.floor`,
+>   which `serialize()` drops), fixing the post-reload picker↔render desync. Chose the consumer-side fix
+>   over `forkIfDefault` so painting a surface doesn't turn the default flat into a custom plan. The
+>   report/BOQ/drawing-set paths already read the resolver (`finishSchedule.ts`) — no change needed there.
 > - ✅ **PARITY-SH3D** (marquee, done v0.3.0.1) — first slice imports Sweet Home 3D `.sh3d` walls +
 >   rooms via pure `floorplan/import/sh3d.ts` (fflate + DOMParser, cm→m) behind `importSh3d` (pro);
 >   File-menu/mobile/⌘K wiring. **Follow-ups still open:** place parsed furniture as scene items

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { isDefaultPlan } from '../floorplan/planGeometry'
+import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { applySerialized, SerializedStateZ, serialize } from './schema'
 import { useStore } from './store'
@@ -370,6 +372,37 @@ describe('schema', () => {
     expect(patch.selectedItemId).toBeNull()
     expect(patch.selectedItemIds).toEqual([])
     expect(patch.hiddenItemIds).toEqual([])
+  })
+
+  it('default-plan finish picks survive a save/load via the finishes map (FIN-DEFAULT-FORK)', () => {
+    useStore.getState().__resetForTest()
+    // Paint a floor + wall on the seeded DEFAULT plan (no fork — painting a
+    // surface must not turn the move-in flat into a custom plan).
+    const room = 'livingDining' as never
+    useStore.getState().setFloorFinish(room, 'floor-parquet-oak' as never)
+    useStore.getState().setWallFinish(room, 'wall-brick-red' as never)
+    expect(isDefaultPlan(useStore.getState().floorPlan)).toBe(true)
+
+    const saved = serialize(useStore.getState())
+    // serialize() drops the default plan, so the plan's own room.floor/wall is
+    // NOT persisted — the finishes map is the only durable record of the pick.
+    expect(saved.floorPlan).toBeUndefined()
+
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (!round.success) return
+    const patch = applySerialized(round.data, new Set())
+    // The default plan regenerates fresh from constants — so its own room.floor
+    // is back at the template default (the desync the picker used to show).
+    expect(patch.floorPlan && isDefaultPlan(patch.floorPlan)).toBe(true)
+    const finishes = patch.finishes ?? useStore.getState().finishes
+    const defaultRoom = patch.floorPlan?.rooms.find((r) => r.id === room)
+    expect(defaultRoom).toBeDefined()
+    if (!defaultRoom) return
+    // The canonical resolver (what every consumer now reads) recovers the pick
+    // from the restored finishes map against the freshly-regenerated default room.
+    expect(resolvePlanRoomFloor(finishes, defaultRoom)).toBe('floor-parquet-oak')
+    expect(resolvePlanRoomWall(finishes, defaultRoom)).toBe('wall-brick-red')
   })
 
   it('round-trips a custom plan’s wall colour', () => {

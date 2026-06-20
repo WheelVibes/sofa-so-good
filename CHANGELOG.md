@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: 2D plan inspector finish pickers read the durable finishes map (FIN-DEFAULT-FORK) (v0.3.0.2)
+
+The 2D plan inspector's floor + wall finish `<select>`s displayed `room.floor`/`room.wall` straight
+off the plan room. On the **seeded default flat** `serialize()` deliberately drops the whole `floorPlan`
+(it's rebuilt from constants), so the plan's own `room.floor` is not persisted — only the `finishes`
+map round-trips. After a reload, the picker therefore reverted to the template default while the
+rendered surface (driven by the persisted `finishes` map) kept the user's actual pick — a silent
+picker↔render desync on the default plan. Both pickers now read through the canonical
+`resolvePlanRoomFloor`/`resolvePlanRoomWall` resolvers (finishes map → plan room → app default), so the
+control always matches what's rendered. Painting a finish still does **not** fork the default plan into
+a custom one (forking changes structural-plan semantics — `<Apartment/>`, walkway, design score). Added
+a `schema.test.ts` round-trip guard: paint floor+wall on the default plan, serialize→deserialize, and
+assert the resolver recovers both picks against the freshly-regenerated default room.
+
 ## Feature: import Sweet Home 3D `.sh3d` plans + extract FloorPlanEditor geometry (v0.3.0.1)
 
 Two parallel-agent integrations:
