@@ -19,6 +19,12 @@ import { isFeatureEnabled } from '../features/featureFlags'
 import type { RenderTier } from '../scene/quality'
 import { applyAnisotropy } from './anisotropy'
 import { getBuiltMaterial } from './cache'
+import {
+  applianceFinish as applianceFinishLogic,
+  hash01,
+  liftedSheenRgb,
+  sheenRough,
+} from './furnitureMaterialLogic'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
 import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/metalBrush'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
@@ -36,12 +42,6 @@ export function parseFurnitureMaterialFinish(finish: string): string | null {
 }
 
 const N = 256
-
-/** Deterministic 0..1 hash for per-plank / per-cell variation (no allocation). */
-function hash01(n: number): number {
-  const s = Math.sin(n * 12.9898) * 43758.5453
-  return s - Math.floor(s)
-}
 
 function canvasFrom(data: Uint8ClampedArray): CanvasTexture {
   const c = document.createElement('canvas')
@@ -497,10 +497,13 @@ function getPatternTexture(pattern: string): Texture {
 const cache = new Map<string, MeshStandardMaterial>()
 
 /** Lift a hex colour toward white by `amount` (0..1) for a sheen lobe that
- *  reads brighter than the cloth body — the hallmark of velvet / satin pile. */
+ *  reads brighter than the cloth body — the hallmark of velvet / satin pile.
+ *  The component lerp lives in the pure `liftedSheenRgb`; we only parse the hex
+ *  into three's working (linear) RGB and write the lerped components back. */
 function liftedSheenColor(color: string, amount: number): Color {
   const c = new Color(color)
-  return c.lerp(new Color(1, 1, 1), clamp01(amount))
+  const [r, g, b] = liftedSheenRgb([c.r, c.g, c.b], amount)
+  return c.setRGB(r, g, b)
 }
 
 /** Apply a fabric sheen layer to a physical material in place. Only velvet /
@@ -511,14 +514,6 @@ function applySheen(m: MeshPhysicalMaterial, color: string, layer: SheenLayer): 
   m.sheen = layer.sheen
   m.sheenRoughness = layer.sheenRoughness
   m.sheenColor = liftedSheenColor(color, layer.sheenColorLift)
-}
-
-/** Continuous "shine" 0..1 → roughness: 0 keeps the material's natural matte
- *  roughness, 1 drives it to a high-gloss finish. Lets any colour+material be
- *  tuned matte → satin → gloss. */
-function sheenRough(base: number, sheen: number): number {
-  const s = Math.min(1, Math.max(0, sheen))
-  return base * (1 - s) + 0.04 * s
 }
 
 /** Soft-fabric material tinted to `color` (upholstery). `rough` overrides the
@@ -1001,17 +996,10 @@ export function getGlassMaterial(
  * `meshStandardMaterial` props (roughness/metalness) to spread onto a mesh
  * material so the same painted/steel/gloss look is consistent across the
  * fridge, washer, oven, hood, microwave, etc. Colour is supplied separately.
+ * The mapping itself lives in the pure `furnitureMaterialLogic` module; this
+ * re-exports it so existing callers keep importing it from here.
  */
-export function applianceFinish(finish: string): { roughness: number; metalness: number } {
-  switch (finish) {
-    case 'steel': // brushed stainless steel
-      return { roughness: 0.3, metalness: 0.88 }
-    case 'gloss': // glossy lacquer / glass front
-      return { roughness: 0.12, metalness: 0.25 }
-    default: // 'matte' (painted matte) and any unknown finish
-      return { roughness: 0.55, metalness: 0.1 }
-  }
-}
+export const applianceFinish = applianceFinishLogic
 
 // ---- Brushed / satin metal (MAT-004) -------------------------------------
 //
