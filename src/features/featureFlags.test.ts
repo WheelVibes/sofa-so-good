@@ -75,6 +75,13 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'simple').smartStart).toBe(true)
   })
 
+  it('furnitureGroups (pro tier) is present in Pro and hidden in Simple', () => {
+    // Grouping is an advanced authoring tool → pro; the UI gates on this flag so
+    // it disappears from Simple's minimal core loop.
+    expect(resolveFlags(true, {}, false, 'pro').furnitureGroups).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').furnitureGroups).toBe(false)
+  })
+
   it('sceneExport3d (simple tier) is present in BOTH Simple and Pro modes', () => {
     // Whole-scene 3D export is part of the curated launch set → simple tier.
     expect(resolveFlags(true, {}, false, 'simple').sceneExport3d).toBe(true)

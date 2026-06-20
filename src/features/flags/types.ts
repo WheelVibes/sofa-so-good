@@ -49,6 +49,7 @@ export type FeatureFlag =
   | 'mountHeights'
   | 'copyAppearance'
   | 'userSets'
+  | 'furnitureGroups'
   | 'designerPicks'
   | 'ceilingDesign'
   | 'presentation'

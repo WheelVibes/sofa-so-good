@@ -469,13 +469,12 @@ re-take here). Nothing below duplicates shipped or open work. Prioritised: corre
   reference-quality stills without a cloud render.
 
 ### High-value QOL / UX
-- **PC2-FURN-GROUP** (M) — First-class **furniture grouping**: select N items → "Group" so they
-  move/rotate/duplicate/delete as one (SH3D + Coohom core). Collision already has a `group-mate`
-  concept (`collision/placement.ts` exempts group-mates) — surface user-facing grouping on top of it:
-  a `groupId` on placed items, group-aware transforms in `layout/selectionActions.ts`, and a Group/
-  Ungroup ⌘K command + toolbar entry (flag-gated, pro). Touches the placement slice,
-  `layout/selectionActions.ts`, `features/featureFlags.ts`. Test both Simple/Pro. Gap explicitly
-  named in `FEATURE_PARITY` (furniture groups) — confirm not already wired before building.
+- ~~**PC2-FURN-GROUP**~~ ✅ DONE (v0.2.0.41) — audited: grouping was **already fully built** (store
+  `groupsSlice` groupItems/ungroup/groupRotate/addToGroup + group-aware drag/collision/selection, exposed
+  in `MultiSelectPanel` + `ContextMenu`) but had **no feature flag** (hard-rule gap). Added the
+  `furnitureGroups` flag (pro, default on); gated the panel buttons, context-menu items, and a new
+  Group/Ungroup ⌘K command (`COMMAND_FLAGS`). Tested both modes (resolver + live: present in Pro, hidden
+  in Simple while the sibling Mirror tool still shows).
 - **PC2-MULTI-DUP-PASTE** (S) — Copy/paste + duplicate-in-place for the current selection with a small
   offset (Coohom/SH3D Ctrl+C/Ctrl+V). Verify the existing duplicate path handles a multi-selection and
   pushes one coalesced undo entry; add clipboard-style paste if missing. Touches

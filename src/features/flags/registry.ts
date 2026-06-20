@@ -284,6 +284,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  furnitureGroups: {
+    label: 'Furniture groups',
+    description: 'Group items so they move / rotate / duplicate / delete as one',
+    default: true,
+    tier: 'pro',
+  },
   designerPicks: {
     label: 'Designer picks',
     description: 'Curated one-tap floor/wall finishes in the picker',

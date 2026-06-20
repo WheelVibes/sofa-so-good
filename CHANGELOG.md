@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature gating: furniture groups behind a flag + ⌘K command (PC2-FURN-GROUP) (v0.2.0.41)
+
+Audited furniture grouping against the backlog: the whole feature was **already built** — store
+`groupsSlice` (groupItems / ungroup / groupRotate / addToGroup), group-aware drag (DragController),
+group-mate-exempt collision, group-aware selection (selectItemGrouped / activeGroupId), exposed via the
+multi-select inspector panel + the right-click context menu. The real gap was a hard-rule violation: it
+shipped with **no feature flag**. Added the `furnitureGroups` flag (tier pro, default on per the
+Simple-stays-minimal rule) and gated the panel's Group/Ungroup buttons, the context-menu items, and a
+new Group/Ungroup ⌘K command (via `COMMAND_FLAGS`). Tested in both modes — resolver unit test plus a
+live check confirming Group appears in Pro and is hidden in Simple while the sibling Mirror tool still
+shows (so only grouping is affected). No behaviour change for Pro users; Simple's minimal core loop no
+longer surfaces the advanced authoring tool.
+
 ## Fix: wall-finish preview now uses accurate Neutral tone-mapping (PC2-TONEMAP-EXPOSURE-CTX) (v0.2.0.40)
 
 Context-aware tone-mapping (Neutral for accurate product colour while previewing a finish, filmic for

@@ -57,6 +57,8 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'ai-furnish': 'aiLayout',
   'drawing-callouts': 'drawingCallouts',
   'quote-template': 'quoteTemplate',
+  'sel-group': 'furnitureGroups',
+  'sel-ungroup': 'furnitureGroups',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -84,6 +86,8 @@ export function CommandPalette() {
   // The single selected item id (null when 0 or 2+ selected) gates the
   // single-item "replace with similar" command.
   const selOneId = useStore((s) => (s.selectedItemIds.length === 1 ? s.selectedItemId : null))
+  // The active group id (when the selection resolves to one group) gates Ungroup.
+  const activeGroupId = useStore((s) => s.activeGroupId)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -542,6 +546,23 @@ export function CommandPalette() {
               icon: 'FlipH',
               run: () => mirrorSelectionX(catalog),
             },
+            // Group/Ungroup the multi-selection (gated by `furnitureGroups` via
+            // COMMAND_FLAGS). Ungroup shows when the selection is one group.
+            activeGroupId
+              ? {
+                  id: 'sel-ungroup',
+                  group: 'Selection',
+                  label: 'Ungroup',
+                  icon: 'Group',
+                  run: () => s().ungroup(activeGroupId),
+                }
+              : {
+                  id: 'sel-group',
+                  group: 'Selection',
+                  label: 'Group selection',
+                  icon: 'Group',
+                  run: () => s().groupItems(s().selectedItemIds),
+                },
           ]
         : []
     // Single-item command: open the replace-with-similar picker for the one
@@ -564,7 +585,7 @@ export function CommandPalette() {
         close()
       },
     }))
-  }, [byCategory, catalog, selCount, selOneId])
+  }, [byCategory, catalog, selCount, selOneId, activeGroupId])
 
   // Drop commands whose feature flag is off (saved-view commands gate on the
   // savedViews flag) so the palette can't launch a disabled feature. Pro-only

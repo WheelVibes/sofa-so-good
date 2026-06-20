@@ -26,6 +26,7 @@ export function ContextMenu() {
   const close = useStore((s) => s.closeContextMenu)
   const catalog = useCatalog()
   const replaceSimilarOn = useFeature('replaceSimilar')
+  const groupsOn = useFeature('furnitureGroups')
 
   useEffect(() => {
     if (!menu) return
@@ -265,13 +266,13 @@ export function ContextMenu() {
         />
       ) : null}
       <div className="ctx-sep" />
-      {item.groupId ? (
+      {groupsOn && item.groupId ? (
         <Row
           icon="Group"
           label="Ungroup"
           onClick={() => useStore.getState().ungroup(item.groupId as string)}
         />
-      ) : s.selectedItemIds.length > 1 ? (
+      ) : groupsOn && s.selectedItemIds.length > 1 ? (
         <Row
           icon="Group"
           label="Group"
