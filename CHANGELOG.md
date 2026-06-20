@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: "apply finish to all rooms" now reaches upper storeys (FIN-ALLROOMS) (v0.2.0.56)
+
+`setAllFloorFinish`/`setAllWallFinish` iterated `floorPlan.rooms` — which is **ground-floor-only** by the
+project's level invariant — so on a multi-storey plan (F13) the bulk "apply to every room" silently left
+every upper-level room at its default, in both the `finishes` map and the plan objects. Swapped both to
+`allPlanRooms(plan)` (already imported + used elsewhere in the slice; `planWithRoomFinish` already resolves
+each room's own level). Found by a backlog-audit agent; regression-tested (an upper-level room added via
+`addLevel`/`addRoom` now receives the bulk floor + wall finish in both the finishes map and
+`upperLevels[].rooms`). Single-level plans (the default) are unaffected.
+
 ## Realism: "Decor tray" hero decor primitive (RD-408) (v0.2.0.55)
 
 A second RD-408 hero prop — a shallow rectangular **styled tray** (wooden base + four low rim walls)

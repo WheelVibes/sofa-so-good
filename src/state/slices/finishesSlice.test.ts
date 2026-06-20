@@ -128,6 +128,25 @@ describe('finishes ↔ plan write-through (FP-next)', () => {
     expect((s.finishes.floor as Record<string, string>)[roomId]).toBe('floor-parquet-oak')
   })
 
+  it('setAll{Floor,Wall}Finish reaches rooms on upper storeys (FIN-ALLROOMS)', () => {
+    // Regression: the bulk "apply to every room" used to iterate ground-only
+    // `floorPlan.rooms`, silently skipping upper-level rooms on multi-storey plans.
+    const lvl = useStore.getState().addLevel()
+    const upper = useStore
+      .getState()
+      .addRoom({ name: 'Attic', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    useStore.getState().setAllFloorFinish('floor-parquet-oak')
+    useStore.getState().setAllWallFinish('wall-brick-red')
+    const s = useStore.getState()
+    // The finishes map carries the upper room.
+    expect((s.finishes.floor as Record<string, string>)[upper]).toBe('floor-parquet-oak')
+    expect((s.finishes.walls as Record<string, string>)[upper]).toBe('wall-brick-red')
+    // …and so does the upper-level plan object.
+    const room = s.floorPlan.upperLevels?.[0].rooms.find((r) => r.id === upper)
+    expect(room?.floor).toBe('floor-parquet-oak')
+    expect(room?.wall).toBe('wall-brick-red')
+  })
+
   it('activating a different plan prunes the previous plan’s custom-room finishes', () => {
     activateCustomPlan()
     useStore.getState().setFloorFinish('studio-main' as RoomId, 'floor-parquet-oak')

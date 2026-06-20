@@ -130,9 +130,10 @@ export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set,
   },
   setAllFloorFinish: (id) => {
     get().pushHistory()
-    // Iterate the ACTIVE plan's rooms (default or custom) so "apply to every
-    // room" works on custom plans too; skip the default flat's external ledges.
-    const rooms = get().floorPlan.rooms
+    // Iterate EVERY room across ALL storeys (default or custom) so "apply to
+    // every room" reaches upper levels too (F13); skip the default flat's
+    // external ledges. `planWithRoomFinish` resolves each room's own level.
+    const rooms = allPlanRooms(get().floorPlan)
     set((s) => {
       const floor = { ...s.finishes.floor }
       let plan = s.floorPlan
@@ -146,7 +147,8 @@ export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set,
   },
   setAllWallFinish: (id) => {
     get().pushHistory()
-    const rooms = get().floorPlan.rooms
+    // Every room across all storeys (F13), not just the ground floor.
+    const rooms = allPlanRooms(get().floorPlan)
     set((s) => {
       const walls = { ...s.finishes.walls }
       let plan = s.floorPlan
