@@ -447,12 +447,13 @@ re-take here). Nothing below duplicates shipped or open work. Prioritised: corre
   parametric + surfaceHeight only; rugs/large/GLB/floor excluded; `noClip` ⇒ the floor-shadow path
   already skipped it, so no double shadow). Gated by the existing `contactShadows` flag + quality.
   Verified via screenshot (candle cluster grounded on a table, soft, no z-fight) + 8-case unit test.
-- **PC2-TONEMAP-EXPOSURE-CTX** (S) — `PHOTOREALISM.md` recommends **Neutral as the default tone-map
-  in the finish-preview context** (accurate base colours) and AgX for "photo" presets, but the app
-  uses one global tone-mapper. Make tone-mapping context-aware: Neutral while a finish/material swatch
-  is being previewed/dragged, the user's choice (or AgX) otherwise. Pure config in `scene/look.ts` +
-  `scene/toneMappingThree.ts` + the finish-drag signal. Headless-verifiable (renderer constant +
-  unit test on the resolver). Gap: fidelity-correct previewing per `PHOTOREALISM.md` tone note.
+- ~~**PC2-TONEMAP-EXPOSURE-CTX**~~ ✅ DONE — context-aware tone mapping shipped as **RD-404**
+  (`scene/toneContext.ts` `resolveToneMapping`: `'auto'` → Neutral while previewing finishes, AgX for
+  a photo context, else filmic; explicit pick wins; pure + unit-tested, wired in `lighting/Lighting.tsx`
+  each frame). v0.2.0.40 refinement: extracted a pure `toneContextFromState` and **also** flag finish
+  preview when a **wall** is selected (not just a room) — wall-finish preview previously missed Neutral
+  — with tests. (`photoMode` stays off: the only photographic context, the HQ-render modal, renders in
+  its own surface, not the live canvas.)
 - ~~**PC2-WOOD-GRAIN-FLOW**~~ ✅ DONE (v0.2.0.35) — the painters already carried per-plank hue/value/
   phase jitter; what made flooring read repetitive was every board's grain running the *same*
   direction. Added a deterministic per-board grain **lean** (~±2.6°, a shear of across about the board

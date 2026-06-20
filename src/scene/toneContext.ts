@@ -50,6 +50,24 @@ export function isAuto(setting: ToneMappingSetting): setting is 'auto' {
 }
 
 /**
+ * Build the {@link ToneContext} from the store fields that imply it, so the
+ * renderer's per-frame wiring is a thin (testable) projection. The FinishPicker
+ * is open — i.e. the user is judging a surface finish — whenever a room **or a
+ * wall** is selected (both preview a floor/wall finish), so either pins Neutral
+ * for accurate product colour. `photoMode` stays off: the only photographic
+ * context (the HQ-render modal) renders in its own surface, not the live canvas.
+ */
+export function toneContextFromState(s: {
+  selectedRoomId: string | null
+  selectedWall: { wallId: string; roomId: string } | null
+}): ToneContext {
+  return {
+    finishPreview: s.selectedRoomId != null || s.selectedWall != null,
+    photoMode: false,
+  }
+}
+
+/**
  * Resolve the user's stored setting + the current context into the concrete
  * operator the renderer should apply.
  *

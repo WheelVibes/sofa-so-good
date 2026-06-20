@@ -5,7 +5,7 @@ import { isFeatureEnabled } from '../../features/featureFlags'
 import { useStore } from '../../state/store'
 import { registerAnimatedSource } from '../animatedSources'
 import { grade, SOFT_SHADOW, toneExposureBias } from '../look'
-import { resolveToneMapping } from '../toneContext'
+import { resolveToneMapping, toneContextFromState } from '../toneContext'
 import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
@@ -119,10 +119,7 @@ export function Lighting() {
     // resolves to Neutral while the FinishPicker is open (accurate product
     // colour), else the historical filmic look. The exposure bias tracks the
     // *resolved* operator so brightness stays steady across a context switch.
-    const toneMode = resolveToneMapping(st.toneMapping, {
-      finishPreview: st.selectedRoomId != null,
-      photoMode: false,
-    })
+    const toneMode = resolveToneMapping(st.toneMapping, toneContextFromState(st))
     gl.toneMapping = TONE_MAPPING_THREE[toneMode]
     gl.toneMappingExposure =
       grade(sunPos.altitude).exposure * toneExposureBias(toneMode) * st.exposure

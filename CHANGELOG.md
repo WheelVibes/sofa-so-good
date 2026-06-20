@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: wall-finish preview now uses accurate Neutral tone-mapping (PC2-TONEMAP-EXPOSURE-CTX) (v0.2.0.40)
+
+Context-aware tone-mapping (Neutral for accurate product colour while previewing a finish, filmic for
+the everyday scene) shipped as RD-404, but the per-frame wiring only flagged "finish preview" when a
+**room** was selected — selecting a **wall** to change its finish (the wall FinishPicker) was missed, so
+wall colours were judged under the filmic look instead of the accurate Neutral one. Extracted a pure,
+unit-tested `toneContextFromState` that flags finish preview for a selected room **or wall**, and wired
+`Lighting` through it. (`photoMode` stays off — the only photographic context, the HQ-render modal,
+renders in its own surface, not the live canvas.) Closes the PC2-TONEMAP-EXPOSURE-CTX backlog item
+(largely already delivered by RD-404). Resolver + ctx-builder unit-tested (room/wall/none → Neutral/
+filmic).
+
 ## Photoreal: contact-shadow decal under surface decor (PC2-CONTACT-AO-DECOR) (v0.2.0.39)
 
 Small decor resting on a table/shelf (vases, bowls, books, plants, candles, frames, sculptures) had no
