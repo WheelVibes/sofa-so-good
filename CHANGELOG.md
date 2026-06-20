@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: 2D plan-editor grab-without-move no longer pollutes undo (BUG-016 follow-up) (v0.2.0.47)
+
+The floor-plan editor's moving gestures (item / wall / vertex / opening / bulge / room-label / tour-stop
+/ note drags) push an undo snapshot when the grab begins; grabbing then releasing without moving left a
+dead undo step, like BUG-016 in the 3D scene. Added a single `dropRedundantHistory()` call at the top of
+the editor's `onUp` — it covers every moving gesture at once and is a no-op when a real edit changed a
+store reference (or when the grab never pushed). Completes the BUG-016 sweep across the drag, rotate, and
+2D-editor gesture paths.
+
 ## Fix: rotate-gizmo grab without a turn no longer pollutes undo (BUG-016 follow-up) (v0.2.0.46)
 
 The rotate gizmo's `onGrab` pushes an undo snapshot the same way `startDrag` does, so grabbing the ring

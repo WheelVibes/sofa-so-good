@@ -1221,6 +1221,11 @@ export function FloorPlanEditor() {
       // still down, keep waiting rather than running the single-touch up logic.
       if (wasPinching || touchPts.current.size >= 1) return
     }
+    // A moving gesture (item/wall/vertex/opening/…) pushes an undo snapshot on
+    // grab; if the grab didn't move anything, drop the redundant entry so the
+    // first undo isn't a dead step (BUG-016). A no-op when a real edit changed a
+    // store reference, and when the grab never pushed.
+    useStore.getState().dropRedundantHistory()
     if (panRef.current) {
       const moved = panDidMove.current
       panRef.current = null
