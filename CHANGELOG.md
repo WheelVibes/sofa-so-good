@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## QOL: surface-drop magnetism — decor snaps onto tables/shelves (PC2-SURFACE-DROP) (v0.2.0.42)
+
+Dragging a surface item (a vase, lamp, bowl, books — anything that rests on a surface, identified by a
+numeric `surfaceHeight` prop) onto a table or shelf now snaps its rest height onto that surface's top,
+instead of keeping a stale height from wherever it came from (so it no longer floats above / clips into
+the new surface). New pure `collision/surfaceDrop.ts` `resolveSurfaceDropHeight` finds the topmost
+support under the drop point — items in the `tables`/`storage` categories, excluding soft seating/beds
+and the dragged item itself — wired into `DragController.onUp`'s valid single-item commit, which updates
+`props.surfaceHeight` via `setItems` so it rides the drag's single undo step. `surfaceHeight` lifts both
+parametric self-lift primitives and GLB models, so one mechanism handles every surface item. Dropping
+over open floor leaves the height untouched (no surprise yank). Resolver unit-tested (8 cases:
+table/shelf hit, floor miss, soft-seating excluded, highest-of-overlapping wins, support elevation,
+self-exclusion, footprint edge); integration verified end-to-end — a book stack dropped on the coffee
+table snapped from 0 to 0.42 m.
+
 ## Feature gating: furniture groups behind a flag + ⌘K command (PC2-FURN-GROUP) (v0.2.0.41)
 
 Audited furniture grouping against the backlog: the whole feature was **already built** — store

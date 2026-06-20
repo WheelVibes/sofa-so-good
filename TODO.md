@@ -420,13 +420,15 @@ re-take here). Nothing below duplicates shipped or open work. Prioritised: corre
   read blurry. Thread the renderer's max through a shared helper and clamp per texture. Touches
   `materials/furnitureMaterials.ts`, `materials/cache.ts` (+ a small pure clamp test). Photoreal
   sharpness win at near-zero cost; reliability because the value silently ignores the GPU cap.
-- **PC2-SURFACE-DROP** (M) — When dropping a surface item (lamp/vase/monitor — anything with the
-  `surfaceHeight` prop the collision span in `collision/placement.ts` already honours) onto a table/
-  shelf top, auto-snap its base elevation to that surface's top (SH3D shelf-magnetism). Today drop Y
-  is floor-anchored, so decor visually floats or clips. Compute the support surface height in the
-  drop path and set the item elevation. Touches `scene/DragController.tsx`, `collision/placement.ts`,
-  the placement/elevation slice. Gap: SH3D `shelfElevations` magnetism. Verify with a unit test on
-  the support-height resolver + a drop scenario.
+- ~~**PC2-SURFACE-DROP**~~ ✅ DONE (v0.2.0.42) — dropping a surface item (one carrying a numeric
+  `surfaceHeight` — vase/lamp/bowl/books) over a **table or shelf** (category `tables`/`storage`) now
+  snaps its rest height onto that surface's top (SH3D shelf-magnetism). New pure
+  `collision/surfaceDrop.ts` `resolveSurfaceDropHeight` (topmost support under the point, excludes the
+  dragged item + soft seating/beds; +8 tests) wired into `DragController.onUp`'s valid single-item
+  commit, updating `props.surfaceHeight` via `setItems` (one undo step). `surfaceHeight` lifts both
+  parametric self-lift primitives and GLB models, so one mechanism covers both. No support under the
+  drop → height left as-is. Verified end-to-end: a book-stack dropped on the coffee table snapped
+  0 → 0.42.
 - ~~**PC2-DISTRIBUTE-AXIS**~~ ✅ DONE (v0.2.0.36) — audited: the axis is **explicit** (the inspector's
   Distribute/Align-H vs -V buttons pass `axis`, not auto-inferred), rotated footprints already route
   through `obbAxisHalf` (OBB→AABB projection) in `MultiSelectPanel`, and n<3 returns empty (graceful).

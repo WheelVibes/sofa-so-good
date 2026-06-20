@@ -12,6 +12,7 @@ import {
 } from '../collision/equalSpacing'
 import { canPlace, itemFootprint } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
+import { resolveSurfaceDropHeight } from '../collision/surfaceDrop'
 import { wallSnapOffset } from '../collision/wallSnap'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { isIkeaDef, useCatalogGetter } from '../furniture/catalog'
@@ -562,6 +563,33 @@ export function DragController() {
         } else if (state.dragOriginal) {
           state.moveItem(id, state.dragOriginal.position)
           state.rotateItem(id, state.dragOriginal.rotation)
+        }
+      } else if (state.dragGroupOriginals.length <= 1) {
+        // Surface-drop magnetism (PC2-SURFACE-DROP): a single surface item (one
+        // that rests on a surface — carries a numeric `surfaceHeight`) dropped
+        // over a table/shelf snaps its rest height onto that surface's top, so
+        // decor sits on whatever you drop it on. No support under it → leave the
+        // height as-is. Committed via setItems (no extra history push) so it rides
+        // the drag's single startDrag snapshot.
+        const cur = useStore.getState()
+        const dropped = cur.items.find((i) => i.id === id)
+        const def = dropped ? catalogRef.current[dropped.defId] : undefined
+        const sh = dropped?.props['surfaceHeight']
+        if (dropped && def && typeof sh === 'number') {
+          const top = resolveSurfaceDropHeight(
+            dropped.position[0],
+            dropped.position[1],
+            cur.items,
+            catalogRef.current,
+            id,
+          )
+          if (top != null && Math.abs(top - sh) > 1e-3) {
+            cur.setItems(
+              cur.items.map((it) =>
+                it.id === id ? { ...it, props: { ...it.props, surfaceHeight: top } } : it,
+              ),
+            )
+          }
         }
       }
       state.endDrag()

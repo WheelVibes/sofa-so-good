@@ -490,6 +490,10 @@ same change that reshapes a system.
   items (`collision/broadphase.ts` `buildGrid`/`queryRect`, built once + cleared on drop): a point query
   for snug-stack, a moved-AABB query for collision; alignment snap keeps the full scan (cross-room
   alignment is intended). Equivalent to the full scan (no overlapping AABB ⇒ no overlapping OBB).
+  On drop, a single **surface item** (one carrying a numeric `surfaceHeight`) over a table/shelf snaps
+  its rest height onto that surface's top (PC2-SURFACE-DROP, pure `collision/surfaceDrop.ts`
+  `resolveSurfaceDropHeight` over the `tables`/`storage` categories; updates `props.surfaceHeight` via
+  `setItems` so it's one undo step).
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): 2D editor of store `floorPlan`
   — walls, rectangular/L-shape (`extension`)/free-`polygon` rooms (Polygon + Auto-room),
   doors/windows, ceiling height (global + per-room), grid+corner snap, per-room floor
