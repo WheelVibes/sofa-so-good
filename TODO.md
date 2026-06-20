@@ -61,12 +61,11 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 ### 2026-06-20 follow-up audit (correctness/perf/dead-code) — `docs/research/2026-06-20-followup-audit.md`
 > A fresh audit confirmed these (recent modules sh3d/sky/DoF/furnitureMaterialLogic/floorPlanGeometry +
 > autosave/floorPlanSlice/itemsSlice were reviewed and are CORRECT — don't re-investigate):
-> - **AUD-001** (HIGH, M, dispatch) — multi-level (F13) auto-arrange bug: `arrangeAllRoomsForPlan`
->   (`autoArrange.ts:961`), `arrangePlanRoom` (:932) and `inRoom` (:900) iterate ground-only `plan.rooms`
->   / lack a `levelId` gate; `furnishPlan.ts:207` and `decorStyling.ts:445` likewise — so Tidy / Smart
->   Start / decor silently skip upper storeys (one path mislays upper items against ground geometry). Fix:
->   loop `planLevels`→`levelAsPlan(plan, level)` per-level geometry + gate items by `(levelId ?? 'ground')`.
->   Same remedy as FIN-ALLROOMS. Headless regression via 2-storey `addLevel`/`addRoom`. **(next dispatch)**
+> - ✅ **AUD-001** (HIGH, done v0.3.0.7) — multi-level (F13) tidy/furnish/decor now walk `planLevels`
+>   with per-level `levelAsPlan` geometry + a `(levelId ?? 'ground')` gate (`autoArrange.ts`,
+>   `furnishPlan.ts`, `decorStyling.ts`); 8 regression tests (verified red without fix). The
+>   stale-based worktree agent fixed autoArrange+furnishPlan; the decorStyling site was completed
+>   inline during integration.
 > - **AUD-002** (MED, M) — `materials/furnitureMaterials.ts` `cache`/`furnitureRepeatCache`/`patternTex`
 >   (lines ~497/769/445) never evict/dispose; keys embed free-hex colour + cloned textures → session VRAM
 >   ratchet. Add LRU + dispose-on-evict (precedent `disposeCachedMaterial`/`evictGltfAsset`). Unit-testable.

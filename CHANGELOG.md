@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: multi-level (F13) tidy / furnish / decor now reach every storey (AUD-001) (v0.3.0.7)
+
+The custom-plan layout paths iterated the GROUND-floor-only `plan.rooms`, so on a multi-storey
+plan "Tidy home" / per-room Tidy / Smart Start / decor styling silently skipped upper-storey
+rooms — and one path arranged upper items against ground geometry, mislaying them. Same bug class
+as FIN-ALLROOMS. Now every entry point walks `planLevels(plan)` and uses each level's own geometry
+via `levelAsPlan(plan, level)`, with a `(levelId ?? 'ground')` gate so a ground item under an upper
+room's x/z is never treated as that room's host:
+- `autoArrange.ts` — `arrangeAllRoomsForPlan` loops per level; `arrangePlanRoom` resolves the room's
+  level via `levelOfRoom`; `arrangeOnePlanRoom` takes a `levelId` and gates `inRoom`.
+- `furnishPlan.ts` — `furnishPlanItems` seeds every level's rooms, tagging each placed item's `levelId`.
+- `decorStyling.ts` — `applyDecorStylingForPlan` walks all storeys and tags each upper-level room's
+  decor with that level's id (decor items carry no `levelId` of their own, so they'd otherwise render
+  on the ground floor).
+Single-storey behaviour is byte-identical (`levelAsPlan` returns the plan itself; ground is level 0,
+same rooms/order). 8 regression tests added (autoArrange ×3, furnishPlan ×4, decor ×1) on 2-storey
+plans whose upper rooms share the ground rooms' x/z, verified red without the fix.
+
 ## Feature: 2D plan furniture inspector (PARITY-PLAN-FURN-INSPECT) (v0.3.0.6)
 
 Selecting a placed furniture item in the 2D plan editor now opens a focused property sheet

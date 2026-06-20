@@ -39,7 +39,8 @@
  * optional `seed` parameter so results are stable in tests.
  */
 
-import type { FloorPlan, PlanRoom } from '../../floorplan/types'
+import { GROUND_LEVEL_ID, planLevels } from '../../floorplan/levels'
+import type { FloorPlan } from '../../floorplan/types'
 import { pointInRoom } from '../../floorplan/types'
 import type { FurnitureDef, FurnitureItem, ParamProps } from '../types'
 import { defaultParamProps } from '../types'
@@ -442,11 +443,29 @@ export function applyDecorStylingForPlan(
   seed = 42,
 ): FurnitureItem[] {
   const allDecor: FurnitureItem[] = []
-  plan.rooms.forEach((room: PlanRoom, idx: number) => {
-    const roomItems = arranged.filter((it) => pointInRoom(room, it.position[0], it.position[1]))
-    const roomDecor = applyDecorStyling(roomItems, defs, seed + idx * 997)
-    // Per-room total cap — trim the tail (lowest-priority props placed last).
-    allDecor.push(...roomDecor.slice(0, ROOM_DECOR_CAP))
-  })
+  // Walk EVERY storey (F13), not just the ground floor — an upper-level room's
+  // items would otherwise be skipped (AUD-001). Each room is styled against only
+  // its own storey's items (a ground item under an upper room's x/z must not be
+  // treated as a host there), and the resulting decor inherits the room's level
+  // so it renders on the right floor (decor items carry no `levelId` of their
+  // own). A global room index keeps per-room seeds distinct + the single-storey
+  // ground path byte-identical (ground is level 0, same rooms, same order).
+  let idx = 0
+  for (const level of planLevels(plan)) {
+    const onLevel = (it: FurnitureItem) => (it.levelId ?? GROUND_LEVEL_ID) === level.id
+    for (const room of level.rooms) {
+      const roomItems = arranged.filter(
+        (it) => onLevel(it) && pointInRoom(room, it.position[0], it.position[1]),
+      )
+      const roomDecor = applyDecorStyling(roomItems, defs, seed + idx * 997)
+      const tagged =
+        level.id === GROUND_LEVEL_ID
+          ? roomDecor
+          : roomDecor.map((d) => ({ ...d, levelId: level.id }))
+      // Per-room total cap — trim the tail (lowest-priority props placed last).
+      allDecor.push(...tagged.slice(0, ROOM_DECOR_CAP))
+      idx++
+    }
+  }
   return allDecor
 }

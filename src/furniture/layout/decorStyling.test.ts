@@ -3,6 +3,7 @@ import type { FloorPlan } from '../../floorplan/types'
 import { BUILTIN_CATALOG } from '../builtinCatalog'
 import { furnishPlanItems } from '../furnishPlan'
 import { LAYOUT_PRESETS } from '../layoutPresets'
+import type { FurnitureItem } from '../types'
 import { applyDecorStyling, applyDecorStylingForPlan } from './decorStyling'
 
 const movein = LAYOUT_PRESETS.find((p) => p.id === 'move-in')!
@@ -384,6 +385,48 @@ describe('applyDecorStylingForPlan', () => {
       })
       expect(inRoom.length).toBeLessThanOrEqual(10)
     }
+  })
+
+  it('styles rooms on UPPER storeys too, tagged with the level (AUD-001/F13)', () => {
+    // Regression: `applyDecorStylingForPlan` used to iterate ground-only
+    // `plan.rooms`, so an upper-storey room's hosts produced NO decor (and any
+    // decor it did make would have rendered on the ground floor — decor items
+    // carry no `levelId` of their own).
+    const ground = makePlan()
+    // A 2-storey plan: a loft directly above the ground living room (same x/z).
+    const plan: FloorPlan = {
+      ...ground,
+      upperLevels: [
+        {
+          id: 'upper',
+          name: 'Loft',
+          elevation: 3,
+          walls: ground.walls,
+          openings: [],
+          rooms: [{ id: 'loft', name: 'Loft', origin: [0.2, 0.2], width: 5.0, depth: 7.6 }],
+        },
+      ],
+    }
+    // One host on the GROUND living room and an identical one on the UPPER loft
+    // (same x/z — only `levelId` distinguishes them).
+    const host = (id: string, levelId?: string): FurnitureItem => ({
+      id,
+      defId: 'coffee-table' as FurnitureItem['defId'],
+      position: [2.5, 3.5],
+      rotation: 0,
+      props: {},
+      ...(levelId ? { levelId } : {}),
+    })
+    const arranged: FurnitureItem[] = [host('g-table'), host('u-table', 'upper')]
+    const decor = applyDecorStylingForPlan(plan, arranged, BUILTIN_CATALOG)
+    // Decor produced for BOTH storeys' hosts.
+    const groundDecor = decor.filter((d) => d.id.includes('g-table'))
+    const upperDecor = decor.filter((d) => d.id.includes('u-table'))
+    expect(groundDecor.length).toBeGreaterThan(0)
+    expect(upperDecor.length).toBeGreaterThan(0)
+    // Upper decor is tagged onto the loft storey; ground decor stays untagged.
+    expect(upperDecor.every((d) => d.levelId === 'upper')).toBe(true)
+    expect(groundDecor.every((d) => d.levelId === undefined)).toBe(true)
   })
 })
 
