@@ -41,7 +41,6 @@ import {
 import {
   arcFromMidpoint,
   isCurvedWall,
-  nearestArcLength,
   pointAtArcLength,
   wallArcLength,
   wallCurveMidpoint,
@@ -65,6 +64,11 @@ import {
   removePersistedBackdrop,
   updateBackdropMeta,
 } from './backdropPersist'
+import {
+  alongWall as alongWallGeo,
+  nearestWall as nearestWallGeo,
+  planCenter as planCenterGeo,
+} from './editor/floorPlanGeometry'
 import { GridLines } from './editor/GridLines'
 import { PlanLibrary } from './editor/PlanLibrary'
 import { PlanMenu } from './editor/PlanMenu'
@@ -459,30 +463,10 @@ export function FloorPlanEditor() {
   // True plan centre = midpoint of its actual bounding box (leftmost↔rightmost,
   // topmost↔bottommost of walls + rooms), NOT ew/2,ed/2 — the plan needn't start
   // at world 0, and we want that box's middle centred in the canvas.
-  const planCenter = useMemo<[number, number]>(() => {
-    let minX = Number.POSITIVE_INFINITY
-    let minZ = Number.POSITIVE_INFINITY
-    let maxX = Number.NEGATIVE_INFINITY
-    let maxZ = Number.NEGATIVE_INFINITY
-    const acc = (x: number, z: number) => {
-      if (x < minX) minX = x
-      if (x > maxX) maxX = x
-      if (z < minZ) minZ = z
-      if (z > maxZ) maxZ = z
-    }
-    for (const w of levelPlan.walls) {
-      acc(w.start[0], w.start[1])
-      acc(w.end[0], w.end[1])
-    }
-    for (const r of levelPlan.rooms) {
-      if (r.polygon && r.polygon.length >= 3) for (const [x, z] of r.polygon) acc(x, z)
-      else {
-        acc(r.origin[0], r.origin[1])
-        acc(r.origin[0] + r.width, r.origin[1] + r.depth)
-      }
-    }
-    return Number.isFinite(minX) ? [(minX + maxX) / 2, (minZ + maxZ) / 2] : [ew / 2, ed / 2]
-  }, [levelPlan, ew, ed])
+  const planCenter = useMemo<[number, number]>(
+    () => planCenterGeo(levelPlan.walls, levelPlan.rooms, [ew / 2, ed / 2]),
+    [levelPlan, ew, ed],
+  )
   const planCenterRef = useRef(planCenter)
   planCenterRef.current = planCenter
   const basePX = useMemo(() => {
@@ -799,44 +783,11 @@ export function FloorPlanEditor() {
   }
 
   /** Nearest active-storey wall to a world point, with the projected offset. */
-  const nearestWall = (
-    wx: number,
-    wz: number,
-  ): { wall: PlanWall; offset: number; dist: number } | null => {
-    let best: { wall: PlanWall; offset: number; dist: number } | null = null
-    for (const wall of levelPlan.walls) {
-      // Curved walls: measure against the arc (distance + arc-length offset) so a
-      // click on the bulged span is detected and the opening lands at the right
-      // arc position; straight walls use the chord projection.
-      if (isCurvedWall(wall)) {
-        const { offset, dist } = nearestArcLength(wall, [wx, wz])
-        if (!best || dist < best.dist) best = { wall, offset, dist }
-        continue
-      }
-      const dx = wall.end[0] - wall.start[0]
-      const dz = wall.end[1] - wall.start[1]
-      const len = Math.hypot(dx, dz)
-      if (len === 0) continue
-      const t = ((wx - wall.start[0]) * dx + (wz - wall.start[1]) * dz) / (len * len)
-      const ct = Math.max(0, Math.min(1, t))
-      const px = wall.start[0] + ct * dx
-      const pz = wall.start[1] + ct * dz
-      const dist = Math.hypot(wx - px, wz - pz)
-      if (!best || dist < best.dist) best = { wall, offset: ct * len, dist }
-    }
-    return best && best.dist < 0.4 ? best : null
-  }
+  const nearestWall = (wx: number, wz: number) => nearestWallGeo(levelPlan.walls, wx, wz)
 
   // Along-wall distance of a world point: arc-length on a curved wall, chord
   // projection on a straight one. Used to drag an opening along its wall.
-  const alongWall = (wall: PlanWall, x: number, z: number): number => {
-    if (isCurvedWall(wall)) return nearestArcLength(wall, [x, z]).offset
-    const len = wallLength(wall)
-    if (len === 0) return 0
-    const ux = (wall.end[0] - wall.start[0]) / len
-    const uz = (wall.end[1] - wall.start[1]) / len
-    return (x - wall.start[0]) * ux + (z - wall.start[1]) * uz
-  }
+  const alongWall = (wall: PlanWall, x: number, z: number): number => alongWallGeo(wall, x, z)
 
   // Start a canvas pan from a pointer-down (used by middle/right-drag, view mode,
   // and mobile-edit drags that aren't moving the selected item).
