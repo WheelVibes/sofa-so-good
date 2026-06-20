@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: import Sweet Home 3D `.sh3d` plans + extract FloorPlanEditor geometry (v0.3.0.1)
+
+Two parallel-agent integrations:
+
+- **PARITY-SH3D** — import a Sweet Home 3D `.sh3d` plan (walls + rooms, first slice). New pure
+  parser core `floorplan/import/sh3d.ts` (`parseSh3d`/`parseHomeXml`/`importResultToFloorPlan`/
+  `categoryForPieceName`; fflate unzip + DOMParser, cm→m ÷100, bbox origin-anchoring, room
+  polygons, best-effort furniture name→category) with 20 unit tests covering scale/axis,
+  polygons, malformed-input warnings and hard failures. New `ui/openSh3dImport.ts` DOM glue
+  (file picker → parse → undoable `setFloorPlan`, toasts geometry summary + warnings). Behind
+  the `importSh3d` flag (`tier: 'pro'`, default on, prod-safe pure code), wired into the File
+  menu, mobile File sheet, and ⌘K (`import-sh3d`). First slice imports walls + rooms; furniture
+  is parsed + reported (placement) and openings (doors/windows) are deferred follow-ups.
+- **MOD-FPE-GEO** — extracted the pure plan-geometry helpers (`planCenter`, `nearestWall`,
+  `alongWall`) out of the ~3.1k-line `FloorPlanEditor.tsx` into a new tested
+  `ui/floorplan/editor/floorPlanGeometry.ts` (parameterised on walls/rooms/points, no
+  React/DOM/store/three), with 25 unit tests (ties, empty/degenerate input, on-vertex,
+  beyond-segment clamping, curved arcs). Pure refactor — identical behaviour.
+
 ## Feature: sun-driven procedural sky backdrop (RD-412 steps 1–5) (v0.2.0.58)
 
 Adds an analytic Preetham sky as a walk-mode backdrop that tracks the sun across the day —

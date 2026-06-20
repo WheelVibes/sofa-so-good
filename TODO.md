@@ -69,12 +69,14 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 >   `room.floor` reverts (the `finishes` map persists, so render is correct; only consumers reading
 >   `room.floor` — 2D swatch/reports — desync on the DEFAULT plan). Fix: route the finish write through
 >   `forkIfDefault`, or have those consumers read the `finishes` map. `state/slices/finishesSlice.ts`.
-> - **PARITY-SH3D** (marquee, M first-slice) — import Sweet Home 3D `.sh3d`/`.sh3f`. Pure
->   `Uint8Array→{plan,items}` parser (`fflate` unzip `Home.xml` → walls/rooms/furniture, cm→m, Y-down),
->   unit-testable against a fixture; flag `importSh3d` (pro). New `floorplan/import/sh3d.ts` + `ui/upload/`.
-> - **MOD-FPE-GEO** (MED modularization) — extract `nearestWall`/`alongWall`/`planCenter` from the
->   3285-line `FloorPlanEditor.tsx` into a pure tested `editor/floorPlanGeometry.ts` (parameterise on
->   walls/rooms), following the proven `editor/snapToWalls.ts`/`snapWallAngle.ts` pattern.
+> - ✅ **PARITY-SH3D** (marquee, done v0.3.0.1) — first slice imports Sweet Home 3D `.sh3d` walls +
+>   rooms via pure `floorplan/import/sh3d.ts` (fflate + DOMParser, cm→m) behind `importSh3d` (pro);
+>   File-menu/mobile/⌘K wiring. **Follow-ups still open:** place parsed furniture as scene items
+>   (resolve descriptor→catalog def + collision-safe placement), import openings (SH3D models
+>   doors/windows as furniture, not wall cuts — needs a wall-association pass), legacy serialized
+>   (non-`Home.xml`) archives, and `.sh3f` furniture libraries.
+> - ✅ **MOD-FPE-GEO** (done v0.3.0.1) — extracted `planCenter`/`nearestWall`/`alongWall` from
+>   `FloorPlanEditor.tsx` (−49 lines) into a tested `ui/floorplan/editor/floorPlanGeometry.ts`.
 > - **MOD-FURNMAT-LOGIC** (S) — extract `hash01`/`sheenRough`/`applianceFinish`/`metalFinishPreset`
 >   /`liftedSheenColor` from `furnitureMaterials.ts` into a tested `furnitureMaterialLogic.ts`.
 > - **MOD-PLANINSP-CEILING** (LOW) — extract PlanInspector ceiling-param/label-angle/Num-commit clamps.
