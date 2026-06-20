@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: 2D plan furniture rotate handle (PARITY-PLAN-FURN-ROTATE) (v0.3.0.8)
+
+The selected furniture footprint in the 2D plan editor now carries an on-canvas **rotate handle**
+— a dashed accent ring + facing spoke/knob around the piece, mirroring the wall rotate ring's
+visual language. Dragging the ring/knob spins the piece about its centre, reusing the 3D
+RotateGizmo's math (`scene/selection/rotateGizmoMath.ts` `pointerAngle`/`computeRotation`) so it
+snaps to 15° marks (hold Shift for free rotation), and every frame is `canPlace`-validated against
+walls + other items (an invalid angle is skipped, leaving the last valid orientation). One undo
+step per drag (`pushHistory` on grab → `rotateItem`). Single-selection, edit mode + select tool,
+unlocked pieces — sharing the existing `beginElementDrag`/`onMove` plumbing the wall rotate ring
+uses. No new flag (rides the editor's `floorPlanEditor` gate; works in Simple + Pro). 3 unit tests
++ a verification scenario; the handle render was screenshot-verified. (This completes an
+implementation-agent's work that was left uncommitted in its worktree on a stale base; ported onto
+the current branch.)
+
 ## Fix: multi-level (F13) tidy / furnish / decor now reach every storey (AUD-001) (v0.3.0.7)
 
 The custom-plan layout paths iterated the GROUND-floor-only `plan.rooms`, so on a multi-storey

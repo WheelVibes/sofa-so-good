@@ -94,9 +94,10 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 ### 2026-06-20 Coohom/SH3D parity backlog (research agent) — next dispatch waves
 > Full doc: `docs/research/2026-06-20-coohom-sh3d-parity-backlog.md`. All pure-client + headlessly
 > verifiable. **Wave 1 (conflict-group-disjoint — dispatch in parallel):**
-> - **PARITY-PLAN-FURN-ROTATE** (HIGH, M, `cg-planeditor`) — 2D-plan furniture rotate handle (walls
->   have one ~`FloorPlanEditor.tsx:2862`; furniture has none). Reuse `selection/rotateGizmoMath.ts`
->   15°-snap → `itemsSlice.rotateItem`. Verify: scenario drags handle, asserts snapped rotation.
+> - ✅ **PARITY-PLAN-FURN-ROTATE** (done v0.3.0.8) — on-canvas rotate handle (ring + facing knob) on
+>   the selected 2D-plan furniture footprint; reuses `selection/rotateGizmoMath.ts` 15°-snap (Shift =
+>   free), `canPlace`-validated per frame, one undo step per drag. 3 unit tests + scenario; render
+>   screenshot-verified.
 > - ✅ **PARITY-PLAN-FURN-INSPECT** (done v0.3.0.6) — `PlanFurnitureInspector.tsx`: rename/X-Z/angle/
 >   W·D·H/lock/delete/Edit-in-3D; item↔plan-element selection now mutually exclusive. Both modes,
 >   desktop + mobile verified.

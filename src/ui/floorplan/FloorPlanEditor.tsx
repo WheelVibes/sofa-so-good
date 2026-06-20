@@ -48,6 +48,7 @@ import {
 } from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
+import { computeRotation, pointerAngle } from '../../scene/selection/rotateGizmoMath'
 import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
@@ -231,6 +232,16 @@ export function FloorPlanEditor() {
     cz: number
     s0: [number, number]
     e0: [number, number]
+    a0: number
+  } | null>(null)
+  // Active furniture rotate (handle): item centre + its rotation at grab + the
+  // pointer angle at grab. The gesture tracks the handle relative to the grab
+  // (picking up the ring never snaps the piece) — mirrors the 3D RotateGizmo.
+  const [rotatingItem, setRotatingItem] = useState<{
+    id: string
+    cx: number
+    cz: number
+    startRot: number
     a0: number
   } | null>(null)
   // Active tour-stop drag: grab offset from the stop's world position.
@@ -814,7 +825,12 @@ export function FloorPlanEditor() {
     if (editMode !== 'edit') return false
     if (isMobile && !isSelectedNow) return false
     e.stopPropagation()
-    svgRef.current?.setPointerCapture(e.pointerId)
+    // Pointer capture keeps the drag tracking even if the pointer leaves the
+    // handle; guard it (a stale/synthetic pointerId throws InvalidPointerId on
+    // some browsers, which must not abort the gesture).
+    try {
+      svgRef.current?.setPointerCapture(e.pointerId)
+    } catch {}
     return true
   }
 
@@ -836,6 +852,7 @@ export function FloorPlanEditor() {
         setMovingBulge(null)
         setMovingWall(null)
         setRotatingWall(null)
+        setRotatingItem(null)
         setMovingOpening(null)
         setMovingStop(null)
         setMovingNote(null)
@@ -1088,6 +1105,33 @@ export function FloorPlanEditor() {
         .moveWallTo(rotatingWall.id, rot(rotatingWall.s0), rot(rotatingWall.e0), levelId)
       return
     }
+    if (rotatingItem) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const it = st.items.find((i) => i.id === rotatingItem.id)
+      const def = it ? catalogRef.current[it.defId] : undefined
+      if (!it || !def) return
+      // Reuse the 3D gizmo math: rotation tracks the handle relative to the grab,
+      // snapping to 15° marks unless Shift is held (free rotation), matching the
+      // wall rotate ring + the scene RotateGizmo. Plan world coords map x→x, z→z.
+      const angle = pointerAngle(rotatingItem.cx, rotatingItem.cz, wx, wz)
+      const next = computeRotation(rotatingItem.startRot, rotatingItem.a0, angle, !e.shiftKey)
+      // Only commit a rotation that doesn't collide with walls or other items —
+      // same rule the item move + 3D gizmo enforce. An invalid angle is skipped,
+      // leaving the last valid orientation in place (no revert needed mid-drag).
+      const planWalls = placementWalls(st, it.levelId)
+      const others = st.items.filter((o) => o.id !== it.id)
+      if (
+        canPlace({ ...it, rotation: next }, def, {
+          others,
+          defs: catalogRef.current,
+          doors: st.doors,
+          walls: planWalls,
+        })
+      )
+        st.rotateItem(it.id, next)
+      return
+    }
     if (movingOpening) {
       const [wx, wz] = pointerWorld(e)
       const st = useStore.getState()
@@ -1219,6 +1263,10 @@ export function FloorPlanEditor() {
     }
     if (rotatingWall) {
       setRotatingWall(null)
+      return
+    }
+    if (rotatingItem) {
+      setRotatingItem(null)
       return
     }
     if (movingOpening) {
@@ -2323,6 +2371,95 @@ export function FloorPlanEditor() {
                     </text>
                   )
                 })
+              })()}
+
+            {/* Selected-furniture rotate handle: a ring + knob around the chosen
+                footprint, mirroring the wall rotate ring's visual language. Drag
+                the ring/knob to spin the piece about its centre; reuses the 3D
+                gizmo's 15°-snap (hold Shift for free rotation). Single selection
+                only (like the wall handle), edit mode + select tool, unlocked.
+                The plan editor selects one furniture item at a time (no plan
+                multi-select yet), so a single-selection handle is the right scope. */}
+            {showFurniture &&
+              editMode === 'edit' &&
+              tool === 'select' &&
+              selectedItemId != null &&
+              (() => {
+                const it = levelItems.find((i) => i.id === selectedItemId)
+                if (!it || it.locked) return null
+                const def = getDef(it.defId)
+                if (!def) return null
+                const obb = itemFootprint(it, def)
+                const cx = toPx(obb.cx)
+                const cy = toPx(obb.cz)
+                // Ring clears the footprint (half-diagonal + gap), with a px floor
+                // so tiny pieces still get a grabbable ring.
+                const ringR = Math.max(Math.hypot(obb.hx, obb.hz) * PX + 16, 28)
+                // Knob at the item's facing (+Z): world facing unit = (sin, cos);
+                // both axes scale by PX into plan pixels.
+                const kx = cx + Math.sin(it.rotation) * ringR
+                const ky = cy + Math.cos(it.rotation) * ringR
+                const startRotate = (e: React.PointerEvent) => {
+                  if (!beginElementDrag(e, true)) return
+                  const [gx, gz] = pointerWorld(e)
+                  useStore.getState().pushHistory()
+                  setRotatingItem({
+                    id: it.id,
+                    cx: obb.cx,
+                    cz: obb.cz,
+                    startRot: it.rotation,
+                    a0: pointerAngle(obb.cx, obb.cz, gx, gz),
+                  })
+                }
+                return (
+                  <g key={`rot-${it.id}`}>
+                    {/* Fat transparent grab ring — generous touch target; only the
+                        stroke is interactive so the interior stays click-through. */}
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={ringR}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={18}
+                      style={{ cursor: 'grab', pointerEvents: 'stroke' }}
+                      onPointerDown={startRotate}
+                    />
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={ringR}
+                      fill="none"
+                      stroke="var(--accent)"
+                      strokeOpacity={0.5}
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                    {/* Spoke + knob at the item's facing, doubling as a heading cue. */}
+                    <line
+                      x1={cx}
+                      y1={cy}
+                      x2={kx}
+                      y2={ky}
+                      stroke="var(--accent)"
+                      strokeOpacity={0.5}
+                      strokeWidth={1.5}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                    <circle
+                      data-rot-handle={it.id}
+                      cx={kx}
+                      cy={ky}
+                      r={7}
+                      fill="var(--surface-solid)"
+                      stroke="var(--accent)"
+                      strokeWidth={2}
+                      style={{ cursor: 'grab' }}
+                      onPointerDown={startRotate}
+                    />
+                  </g>
+                )
               })()}
 
             {/* Text notes (active storey) — PARITY-DIMTEXT. Click (select tool)

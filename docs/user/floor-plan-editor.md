@@ -174,7 +174,10 @@ Designing a maisonette, loft or landed home? The tab strip in the header —
 The editor draws your **placed furniture as footprints**, coloured by category.
 Click a footprint to select it (the selection is shared with the 3D view), and
 drag it to move — it stays grid‑snapped and collision‑checked just like in 3D.
-Leaving the editor frames the selected piece back in 3D.
+A selected piece also gets a **rotate handle**: a ring around the footprint with a
+knob pointing the way it faces. Drag the ring (or knob) to spin it — it snaps to
+15° steps, and you can hold **Shift** for a free angle, exactly like the wall and
+3D furniture rotation. Leaving the editor frames the selected piece back in 3D.
 
 ## Tracing from a photo
 

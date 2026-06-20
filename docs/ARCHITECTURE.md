@@ -563,7 +563,10 @@ same change that reshapes a system.
   PARITY-ROOMLABEL). Each room's label shows name + live floor **area** (`planRoomArea`) + wall
   **perimeter** (`planRoomPerimeter` — shared with the report) on the full-detail tier, unit-aware
   (`roomLabelDetail` thins it as the room shrinks). Live furniture as `canPlace`-checked footprints (active storey
-  only); **selecting a placed item shows a furniture inspector**
+  only), draggable to move **and** with a **rotate handle** on the selected piece (ring + facing knob
+  mirroring the wall rotate ring; reuses the 3D gizmo's `scene/selection/rotateGizmoMath.ts`
+  `pointerAngle`/`computeRotation` 15°-snap, Shift = free; `canPlace`-validated per frame, one undo
+  step per drag — PARITY-PLAN-FURN-ROTATE); **selecting a placed item also shows a furniture inspector**
   (`ui/floorplan/PlanFurnitureInspector.tsx`, PARITY-PLAN-FURN-INSPECT — rendered by
   `PlanInspector` when the plan selection resolves to `selectedItemId`): rename, numeric
   X/Z, angle and (parametric defs) width/depth + a size readout, lock + delete. Edits route
