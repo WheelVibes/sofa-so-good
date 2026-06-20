@@ -56,6 +56,27 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > catalog/DLC **server-proxy** items (CORS proxy, Kenney/Quaternius mirrors). Rows marked ✅ below
 > were struck this session.
 
+### 2026-06-20 fan-out audit (research agent) — actionable, headlessly-verifiable lane
+> A backlog-audit agent re-verified the queue against source: **the table below is badly stale** — most
+> rows it lists as open are actually SHIPPED (PC2-ANISO-MAX/RD-401, BUG-001/004/010, PC-IES-LIGHT,
+> UX-006, PC2-MULTI-DUP-PASTE, PC2-FAVOURITE-MATERIALS are all done — see CHANGELOG). The genuinely
+> open, pure-client/no-GPU items it surfaced:
+> - ✅ **FIN-ALLROOMS** (HIGH, done v0.2.0.56) — bulk apply-finish skipped upper storeys; → `allPlanRooms`.
+> - **FIN-DEFAULT-FORK** (MED reliability, S) — default-plan finish edits write `plan.rooms[].floor` but
+>   don't `forkIfDefault`, so the plan id stays default → `serialize()` drops the floorPlan → after reload
+>   `room.floor` reverts (the `finishes` map persists, so render is correct; only consumers reading
+>   `room.floor` — 2D swatch/reports — desync on the DEFAULT plan). Fix: route the finish write through
+>   `forkIfDefault`, or have those consumers read the `finishes` map. `state/slices/finishesSlice.ts`.
+> - **PARITY-SH3D** (marquee, M first-slice) — import Sweet Home 3D `.sh3d`/`.sh3f`. Pure
+>   `Uint8Array→{plan,items}` parser (`fflate` unzip `Home.xml` → walls/rooms/furniture, cm→m, Y-down),
+>   unit-testable against a fixture; flag `importSh3d` (pro). New `floorplan/import/sh3d.ts` + `ui/upload/`.
+> - **MOD-FPE-GEO** (MED modularization) — extract `nearestWall`/`alongWall`/`planCenter` from the
+>   3285-line `FloorPlanEditor.tsx` into a pure tested `editor/floorPlanGeometry.ts` (parameterise on
+>   walls/rooms), following the proven `editor/snapToWalls.ts`/`snapWallAngle.ts` pattern.
+> - **MOD-FURNMAT-LOGIC** (S) — extract `hash01`/`sheenRough`/`applianceFinish`/`metalFinishPreset`
+>   /`liftedSheenColor` from `furnitureMaterials.ts` into a tested `furnitureMaterialLogic.ts`.
+> - **MOD-PLANINSP-CEILING** (LOW) — extract PlanInspector ceiling-param/label-angle/Num-commit clamps.
+
 | Rank | ID | One-line | Sev/Impact | Eff | Area / files | Conflict-group |
 |------|----|----------|-----------|-----|--------------|----------------|
 | 1 | **BUG-001** | Autosave watch-list omits comments/drawingCallouts/quoteTemplate → silent data loss on reload | HIGH (data loss) | S | `state/storage/autosave.ts` (+test) | `cg-autosave` |
