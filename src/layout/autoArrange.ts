@@ -5,6 +5,17 @@ import type { CollisionWall } from '../collision/walls'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import { type FloorPlan, type PlanRoom, pointInRoom, wallLength } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import {
+  clamp,
+  cornersOf,
+  type Edge,
+  inward,
+  nearestEdge,
+  opposite,
+  planRoomRect,
+  type Rect,
+  rectsOverlap,
+} from './arrangeGeometry'
 import { type ArrangeRole, roleForCategory, roleOf } from './arrangeRoles'
 import { doorSwingRects } from './clearance'
 import { CLEARANCE } from './designRules'
@@ -80,10 +91,6 @@ function aabbOf(item: FurnitureItem, def: FurnitureDef, pos: [number, number], r
   return { x0: pos[0] - hx, z0: pos[1] - hz, x1: pos[0] + hx, z1: pos[1] + hz }
 }
 
-function rectsOverlap(a: Rect, b: Rect): boolean {
-  return a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0
-}
-
 /** Try to set an item's transform; accept only if it doesn't collide with the
  *  walls or any other item in `world`. Mutates `world` on success. Returns the
  *  (possibly unchanged) item. */
@@ -114,14 +121,6 @@ function tryPlace(
     return candidate
   }
   return item
-}
-
-type Edge = 'N' | 'S' | 'E' | 'W'
-interface Rect {
-  x0: number
-  z0: number
-  x1: number
-  z1: number
 }
 
 /** Per-room usable-rect overrides where origin+width over-reports the free
@@ -161,11 +160,6 @@ const KEEPOUT: Partial<Record<RoomId, Rect[]>> = {
   bedroom3: [{ x0: 6.05, z0: 2.7, x1: 7.05, z1: 3.65 }], // bedroom-3 door swing
 }
 
-/** Inward-facing rotation + perpendicular extent for an edge. */
-function inward(edge: Edge): number {
-  return edge === 'N' ? 0 : edge === 'S' ? Math.PI : edge === 'W' ? Math.PI / 2 : -Math.PI / 2
-}
-
 /** Snap an item flush against `edge`, keeping its along-wall coordinate
  *  (clamped), facing inward. Tries the given edge then falls back to others. */
 function snapToWall(
@@ -195,16 +189,6 @@ function snapToWall(
     if (placed !== item) return placed
   }
   return item
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, v))
-}
-
-/** Nearest edge of the rect to a point. */
-function nearestEdge(pos: [number, number], rect: Rect): Edge {
-  const d = { N: pos[1] - rect.z0, S: rect.z1 - pos[1], W: pos[0] - rect.x0, E: rect.x1 - pos[0] }
-  return Object.entries(d).sort((a, b) => a[1] - b[1])[0][0] as Edge
 }
 
 type RoomKind = 'living' | 'bedroom' | 'kitchen' | 'bath' | 'generic'
@@ -241,14 +225,6 @@ function placeFlush(
 }
 
 /** Corners of the rect, slightly inset, for tucking accents. */
-function cornersOf(rect: Rect): [number, number][] {
-  return [
-    [rect.x0 + 0.3, rect.z0 + 0.3],
-    [rect.x1 - 0.3, rect.z0 + 0.3],
-    [rect.x0 + 0.3, rect.z1 - 0.3],
-    [rect.x1 - 0.3, rect.z1 - 0.3],
-  ]
-}
 /** Last-resort placement: original transform, then corners, then a coarse
  *  grid sweep with a few rotations. Pushes the item into `world` wherever it
  *  first fits (leaves it out only if nothing fits). */
@@ -354,11 +330,6 @@ function arrangeCore(opts: {
   // transform from `world`; an unplaced room item keeps its original transform.
   const byId = new Map(world.map((w) => [w.id, w]))
   return allItems.map((orig) => byId.get(orig.id) ?? orig)
-}
-
-/** Opposite of a wall edge. */
-function opposite(e: Edge): Edge {
-  return e === 'N' ? 'S' : e === 'S' ? 'N' : e === 'E' ? 'W' : 'E'
 }
 
 /**
@@ -839,17 +810,6 @@ export function arrangeAllRooms(
 }
 
 // ── User-authored floor plans ──────────────────────────────────────────────
-
-/** Usable rect for a plan room — its interior rectangle inset from the walls. */
-function planRoomRect(r: PlanRoom): Rect {
-  const inset = 0.12
-  return {
-    x0: r.origin[0] + inset,
-    z0: r.origin[1] + inset,
-    x1: r.origin[0] + r.width - inset,
-    z1: r.origin[1] + r.depth - inset,
-  }
-}
 
 /** Is a point inside a plan room (polygon-aware: explicit polygon, else the
  *  main rect + its L-shape extension)? */

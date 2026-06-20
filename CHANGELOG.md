@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Refactor: extract pure rect/edge geometry from autoArrange (MOD-ARRANGE-GEO) (v0.3.0.4)
+
+Pulled the pure rectangle/edge geometry primitives (`Rect`/`Edge` types, `rectsOverlap`, `inward`,
+`clamp`, `nearestEdge`, `cornersOf`, `opposite`, `planRoomRect`) out of the 1005-line
+`layout/autoArrange.ts` into a new `layout/arrangeGeometry.ts` — free of furniture/apartment/collision
+deps (the proven `arrangeRoles.ts`/`floorPlanGeometry.ts` pattern). Adds `arrangeGeometry.test.ts`
+(18 tests: overlap/touching edges, edge-facing rotations, clamp bounds, nearest-edge tie-break,
+corner insets, opposite-edge involution, room-rect inset incl. degenerate). Pure refactor — the
+existing `autoArrange.test.ts` passes unchanged.
+
 ## Feature: SH3D furniture + openings import, material-logic extraction, parity research (v0.3.0.3)
 
 Three parallel-agent integrations:
