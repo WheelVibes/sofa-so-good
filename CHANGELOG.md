@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: rotate-gizmo grab without a turn no longer pollutes undo (BUG-016 follow-up) (v0.2.0.46)
+
+The rotate gizmo's `onGrab` pushes an undo snapshot the same way `startDrag` does, so grabbing the ring
+and releasing without rotating left a dead undo step. Applied the same fix: its release handler now calls
+`dropRedundantHistory()` after the gesture settles, so a grab-without-turn is clean while a real rotation
+(which changed an item reference) keeps its undo step. Reuses the action + tests added for BUG-016.
+
 ## Fix: clicking furniture no longer pollutes undo history (BUG-016) (v0.2.0.45)
 
 `Furniture.onPointerDown` starts a drag (and `startDrag` eagerly pushes an undo snapshot) on every press
