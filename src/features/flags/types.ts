@@ -89,6 +89,7 @@ export type FeatureFlag =
   | 'wallNumericEntry'
   | 'radialArray'
   | 'iesLights'
+  | 'cameraDof'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

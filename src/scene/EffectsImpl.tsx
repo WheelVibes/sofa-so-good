@@ -1,6 +1,7 @@
 import {
   Bloom,
   ChromaticAberration,
+  DepthOfField,
   EffectComposer,
   HueSaturation,
   N8AO,
@@ -10,6 +11,7 @@ import {
 } from '@react-three/postprocessing'
 import { type ReactElement, useMemo } from 'react'
 import { Vector2 } from 'three'
+import { rasterDofParams } from './cameras/cameraLensSettings'
 import { AO, BLOOM } from './look'
 
 interface EffectsProps {
@@ -17,6 +19,14 @@ interface EffectsProps {
   aoFullRes?: boolean
   /** Add the cinematic finish: faint film grain + subtle chromatic aberration. */
   cinematic?: boolean
+  /** Mount the raster depth-of-field pass (already gated by tier + flag + the
+   *  user's aperture upstream). PC2-CAM-DOF-LENS. */
+  dof?: boolean
+  /** Aperture f-stop driving the bokeh strength + focus range (raster DoF). */
+  dofFStop?: number
+  /** Focus plane distance from the camera, metres (world-space) — shared with
+   *  the HQ path tracer. */
+  dofFocusDistance?: number
 }
 
 /**
@@ -37,10 +47,17 @@ interface EffectsProps {
  * Effects are assembled into a keyed array (the composer's children typing
  * rejects conditional `null`s) so the cinematic passes drop in/out cleanly.
  */
-export default function EffectsImpl({ aoFullRes = false, cinematic = false }: EffectsProps) {
+export default function EffectsImpl({
+  aoFullRes = false,
+  cinematic = false,
+  dof = false,
+  dofFStop = 0,
+  dofFocusDistance = 3,
+}: EffectsProps) {
   // Sub-pixel split, strongest at the edges via radial modulation. Memoised so
   // the Vector2 isn't recreated every render.
   const caOffset = useMemo(() => new Vector2(0.0006, 0.0006), [])
+  const { bokehScale, worldFocusRange } = useMemo(() => rasterDofParams(dofFStop), [dofFStop])
 
   const effects: ReactElement[] = [
     <N8AO
@@ -63,6 +80,20 @@ export default function EffectsImpl({ aoFullRes = false, cinematic = false }: Ef
   if (cinematic) {
     effects.push(
       <ChromaticAberration key="ca" offset={caOffset} radialModulation modulationOffset={0.35} />,
+    )
+  }
+  // Raster depth of field (PC2-CAM-DOF-LENS). World-space focus (metres) so the
+  // model matches the HQ path tracer; half-res (`resolutionScale`) to keep the
+  // bokeh convolution cheap. Mounted only when DoF is enabled upstream.
+  if (dof) {
+    effects.push(
+      <DepthOfField
+        key="dof"
+        worldFocusDistance={dofFocusDistance}
+        worldFocusRange={worldFocusRange}
+        bokehScale={bokehScale}
+        resolutionScale={0.5}
+      />,
     )
   }
   effects.push(<Vignette key="vig" eskil={false} offset={0.32} darkness={0.55} />)

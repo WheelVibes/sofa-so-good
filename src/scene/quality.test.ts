@@ -80,4 +80,16 @@ describe('quality presets', () => {
       if (p.cinematic || p.aoFullRes) expect(p.postprocessing).toBe(true)
     }
   })
+
+  it('raster DoF is on only for high/maximum (and only where the post stack runs)', () => {
+    // PC2-CAM-DOF-LENS: DoF rides the post stack, so it must be off on the flat
+    // tiers and on (available) only on high+.
+    expect(QUALITY_PRESETS.high.dof).toBe(true)
+    expect(QUALITY_PRESETS.maximum.dof).toBe(true)
+    expect(QUALITY_PRESETS.performance.dof).toBe(false)
+    expect(QUALITY_PRESETS.medium.dof).toBe(false)
+    for (const t of RENDER_TIERS) {
+      if (QUALITY_PRESETS[t].dof) expect(QUALITY_PRESETS[t].postprocessing).toBe(true)
+    }
+  })
 })

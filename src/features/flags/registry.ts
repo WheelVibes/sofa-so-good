@@ -629,6 +629,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Camera lens + depth-of-field controls (PC2-CAM-DOF-LENS): focal length,
+  // aperture f-stop and focus distance for the render/snapshot camera — drives
+  // the HQ path tracer's PhysicalCamera and the raster DoF pass on High/Maximum.
+  // Pure client-side code (no external assets / sidecar) → prod-safe. An advanced
+  // photographic control beyond the core view loop → pro tier (hidden in Simple
+  // mode automatically).
+  cameraDof: {
+    label: 'Camera lens & depth of field',
+    description: 'Focal length, aperture (f-stop) and focus controls for the render camera',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

@@ -369,3 +369,19 @@ describe('walkCameraControls flag (PARITY-WALKCAM)', () => {
     expect(FEATURE_FLAGS.walkCameraControls.tier).toBe('simple')
   })
 })
+
+describe('cameraDof flag (PC2-CAM-DOF-LENS)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
+    // Lens + depth-of-field is an advanced photographic control → hidden in
+    // Simple where the camera UI keeps only the core view loop.
+    expect(resolveFlags(false, {}, false, 'simple').cameraDof).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').cameraDof).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').cameraDof).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').cameraDof).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.cameraDof.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.cameraDof.default).toBe(true)
+    expect(FEATURE_FLAGS.cameraDof.tier).toBe('pro')
+  })
+})

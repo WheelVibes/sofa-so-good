@@ -13,6 +13,7 @@
  */
 
 import type { Camera, Object3D, Scene } from 'three'
+import { mmToFov } from '../cameras/cameraLensSettings'
 import { HQ_TRACER_CONFIG } from './hqTracerConfig'
 
 export interface HqRenderOptions {
@@ -21,8 +22,15 @@ export interface HqRenderOptions {
   /** Stop after this many accumulated samples (quality ↔ time). */
   maxSamples: number
   /** Photographic depth of field (F5): aperture f-stop; undefined/0 = off
-   *  (pinhole). Focus distance is auto — the first surface at screen centre. */
+   *  (pinhole). When > 0, focus is either `focusDistance` (if provided) or auto —
+   *  the first surface at screen centre. */
   fStop?: number
+  /** Lens focal length (mm, 35 mm-equivalent). Overrides the live camera FOV via
+   *  `mmToFov` when provided (PC2-CAM-DOF-LENS). Only applied when DoF is on. */
+  focalLengthMm?: number
+  /** Manual focus distance (metres). When provided (with `fStop` > 0), overrides
+   *  the centre-screen auto-focus raycast. Undefined → auto-focus. */
+  focusDistance?: number
   /** Edge-preserving denoise blit on the preview/output (default true) —
    *  smooths Monte-Carlo noise at low sample counts. */
   denoise?: boolean
@@ -225,19 +233,29 @@ export async function createHqRenderSession(
     const snapshot = await buildTracerScene(scene)
     let renderCamera: Camera = camera
     if (opts.fStop && opts.fStop > 0) {
-      // Photographic camera (F5): clone the live pose/fov into the tracer's
-      // PhysicalCamera; focus on the first surface at screen centre (3 m when
-      // looking at sky/nothing) so the subject stays sharp.
+      // Photographic camera (F5 + PC2-CAM-DOF-LENS): clone the live pose into the
+      // tracer's PhysicalCamera. The vertical FOV is either the chosen lens focal
+      // length (mm → fov) or the live camera's. Focus is the user's manual focus
+      // distance when given, else auto on the first surface at screen centre
+      // (3 m when looking at sky/nothing) so the subject stays sharp.
       const live = camera as InstanceType<typeof three.PerspectiveCamera>
-      const phys = new PhysicalCamera(live.fov ?? 50, opts.width / opts.height, 0.05, 300)
+      const fov =
+        opts.focalLengthMm && opts.focalLengthMm > 0
+          ? mmToFov(opts.focalLengthMm)
+          : (live.fov ?? 50)
+      const phys = new PhysicalCamera(fov, opts.width / opts.height, 0.05, 300)
       phys.position.copy(live.position)
       phys.quaternion.copy(live.quaternion)
       phys.updateMatrixWorld(true)
       phys.fStop = opts.fStop
-      const ray = new three.Raycaster()
-      ray.setFromCamera(new three.Vector2(0, 0), live)
-      const hit = ray.intersectObjects(snapshot.children, true)[0]
-      phys.focusDistance = hit ? hit.distance : 3
+      if (opts.focusDistance && opts.focusDistance > 0) {
+        phys.focusDistance = opts.focusDistance
+      } else {
+        const ray = new three.Raycaster()
+        ray.setFromCamera(new three.Vector2(0, 0), live)
+        const hit = ray.intersectObjects(snapshot.children, true)[0]
+        phys.focusDistance = hit ? hit.distance : 3
+      }
       renderCamera = phys
     }
     tracer.setScene(snapshot, renderCamera)
