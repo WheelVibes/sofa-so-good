@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## docs: reconcile the stale TODO master queue (v0.2.0.31)
+
+The `TODO.md` "MASTER EXECUTION QUEUE" index listed many items as open that shipped in earlier
+sessions (it was never struck through). Added an authoritative banner pointing to `CHANGELOG.md` as the
+source of truth and enumerating what's SHIPPED (all BUG/REV/UX/MAT, PERF-001/002/004/005/007/008, most
+RD) vs genuinely OPEN (PERF-003 broadphase half, RD-406/411/412 + other real-GPU items, the larger
+PC2-* features) — so the next session doesn't re-do completed work. Docs-only.
+
 ## QOL: copy/paste a multi-selection as a group (PC2-MULTI-DUP-PASTE) (v0.2.0.30)
 
 ⌘C/⌘V previously copied only the primary selected item (duplicate ⌘D already handled multi). The

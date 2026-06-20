@@ -35,6 +35,19 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 
 ### Ranked queue (highest priority first)
 
+> **⚠️ This index is STALE — `CHANGELOG.md` is the source of truth for what shipped.** Many rows
+> below were completed in earlier sessions and never struck through. **Already SHIPPED** (do not
+> re-do): all **BUG-001…014**, all **REV-001…006**, all **UX-001…009**, all **MAT-001…004**,
+> **PERF-001/002/004/005/007/008** (PERF-003 *partial* — wall-build dedup done, broadphase
+> remainder open; PERF-006 is "don't fix"), **RD-401/402/403/404/405/407/408/409/410**, and
+> **PC2-MULTI-DUP-PASTE**. **Genuinely still OPEN:** PERF-003 (broadphase half), **RD-406** (tile
+> break-up + triplanar — *needs real-GPU verify*), **RD-411/PC2-SSAA-EXPORT** (supersample export —
+> *real-GPU*), **RD-412** (procedural sky/IBL — *touches tuned lighting, real-GPU*), RD-408 hero
+> props (new primitives), **PC2-SURFACE-DROP**, **PC2-FURN-GROUP**, **PC2-PLAN-ANGLE-SNAP**,
+> **PC2-WOOD-GRAIN-FLOW** (real-GPU), **PC2-CONTACT-AO-DECOR**, **PC2-PLAN-FURN-ICONS**,
+> **PC2-FAVOURITE-MATERIALS**, **PC2-DISTRIBUTE-AXIS** (audited — `distributeEvenGaps` already
+> sound, effectively a no-op). Rows already marked ✅ below were struck this session.
+
 | Rank | ID | One-line | Sev/Impact | Eff | Area / files | Conflict-group |
 |------|----|----------|-----------|-----|--------------|----------------|
 | 1 | **BUG-001** | Autosave watch-list omits comments/drawingCallouts/quoteTemplate → silent data loss on reload | HIGH (data loss) | S | `state/storage/autosave.ts` (+test) | `cg-autosave` |
