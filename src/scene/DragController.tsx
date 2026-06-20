@@ -1,6 +1,7 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plane, Raycaster, Vector2, Vector3 } from 'three'
+import { type AabbItem, buildGrid, queryRect, type SpatialGrid } from '../collision/broadphase'
 import { nearestWallGap, wallGapsPerSide } from '../collision/clearanceGap'
 import {
   detectEqualSpacingAxis,
@@ -94,6 +95,36 @@ function halfExtents(
   return [(c * w + s * d) / 2, (s * w + c * d) / 2]
 }
 
+/**
+ * Footprint AABBs of every item NOT moving during the current drag (PERF-003
+ * broadphase). Static items keep their position for the whole pointer drag, so
+ * their grid is built once and queried per move. Defless items are skipped (they
+ * never collide / never host a snug-stack), matching the canPlace neighbour scan.
+ */
+function staticAabbs(
+  items: readonly FurnitureItem[],
+  movedSet: ReadonlySet<string>,
+  catalog: Record<string, FurnitureDef>,
+): { aabbs: AabbItem[]; staticItems: FurnitureItem[] } {
+  const aabbs: AabbItem[] = []
+  const staticItems: FurnitureItem[] = []
+  for (const it of items) {
+    if (movedSet.has(it.id)) continue
+    const def = catalog[it.defId]
+    if (!def) continue
+    const [hx, hz] = halfExtents(it, def)
+    aabbs.push({
+      id: it.id,
+      minX: it.position[0] - hx,
+      maxX: it.position[0] + hx,
+      minZ: it.position[1] - hz,
+      maxZ: it.position[1] + hz,
+    })
+    staticItems.push(it)
+  }
+  return { aabbs, staticItems }
+}
+
 /** Best 1-D snap of a dragged centre (half-extent `dh`) to others' centres and
  *  edges — centre-align, edge-align, or butt-adjacent. Returns the snapped
  *  centre + the guide-line coordinate, or null if nothing's within threshold. */
@@ -174,6 +205,16 @@ export function DragController() {
   // latest value without re-subscribing; state drives the highlight render.
   const [snapBaseId, setSnapBaseId] = useState<string | null>(null)
   const snapBaseIdRef = useRef<string | null>(null)
+  // Broadphase cache for the current pointer drag (PERF-003): the non-moved items
+  // don't move during a drag, so their spatial grid + AABBs are built once and
+  // reused across every pointermove to restrict the snug-stack + canPlace scans to
+  // the dragged item's neighbourhood. Keyed by the drag's moved-id signature so a
+  // new drag rebuilds it; cleared on drop.
+  const dragGridRef = useRef<{
+    key: string
+    grid: SpatialGrid
+    staticItems: FurnitureItem[]
+  } | null>(null)
   const setSnap = (id: string | null) => {
     if (snapBaseIdRef.current === id) return
     snapBaseIdRef.current = id
@@ -212,6 +253,20 @@ export function DragController() {
       if (state.snapEnabled) next = snapToGrid(next, state.gridSize)
 
       const group = state.dragGroupOriginals
+      // Broadphase grid for this drag (PERF-003): the items that AREN'T moving keep
+      // their positions for the whole gesture, so index them once and reuse across
+      // moves to bound the snug-stack + canPlace scans to the dragged neighbourhood.
+      const movedIds = group.length > 1 ? group.map((g) => g.id) : [id]
+      const movedSet = new Set(movedIds)
+      const dragKey = movedIds.join(',')
+      let cache = dragGridRef.current
+      if (!cache || cache.key !== dragKey) {
+        const { aabbs, staticItems } = staticAabbs(state.items, movedSet, catalogRef.current)
+        cache = { key: dragKey, grid: buildGrid(aabbs), staticItems }
+        dragGridRef.current = cache
+      }
+      const broadphase = cache
+
       // Smart alignment guides: for a single-item drag, snap centres AND edges
       // to nearby items (line up rows / butt pieces together), surfacing guide
       // lines. Edge + adjacency candidates make pieces sit flush.
@@ -319,8 +374,18 @@ export function DragController() {
         const draggedItem = itemsById.get(id)
         const draggedDef = draggedItem ? catalogRef.current[draggedItem.defId] : undefined
         if (draggedItem && draggedDef) {
-          for (const cand of state.items) {
-            if (cand.id === id) continue
+          // Only an item whose footprint AABB contains the drop point can host the
+          // snug-stack — query the grid for those instead of scanning the scene
+          // (the grid excludes the dragged item, so no self-check is needed).
+          const nearIds = queryRect(broadphase.grid, {
+            minX: next[0],
+            maxX: next[0],
+            minZ: next[1],
+            maxZ: next[1],
+          })
+          for (const cid of nearIds) {
+            const cand = itemsById.get(cid)
+            if (!cand) continue
             const candDef = catalogRef.current[cand.defId]
             if (!candDef) continue
             if (!pointInFootprint(next[0], next[1], cand, candDef)) continue
@@ -348,14 +413,28 @@ export function DragController() {
       // Re-read state so freshly-moved items are included in canPlace.
       const after = useStore.getState()
       const afterById = new Map(after.items.map((i) => [i.id, i]))
-      const movedIds = group.length > 1 ? group.map((g) => g.id) : [id]
-      // For group drags, ignore in-group pairs when checking collisions —
-      // their relative positions don't change, so any pair-wise overlap
-      // would have existed at drag-start. Walls and unselected items
-      // still apply.
-      const inGroup = new Set(movedIds)
-      const others =
-        group.length > 1 ? after.items.filter((it) => !inGroup.has(it.id)) : after.items
+      // Broadphase (PERF-003): collision only happens between items whose footprint
+      // AABBs overlap, so restrict canPlace's neighbour set to the union of the
+      // moved items' grid neighbourhoods. The static grid already excludes the
+      // moved/in-group items (so in-group pairs are skipped, as before) and the
+      // dragged item itself; a non-overlapping AABB can't have an overlapping OBB,
+      // so this is result-equivalent to scanning the whole scene.
+      const neighbourIds = new Set<string>()
+      for (const mid of movedIds) {
+        const item = afterById.get(mid)
+        const def = item ? catalogRef.current[item.defId] : null
+        if (!item || !def) continue
+        const [mhx, mhz] = halfExtents(item, def)
+        for (const nid of queryRect(broadphase.grid, {
+          minX: item.position[0] - mhx,
+          maxX: item.position[0] + mhx,
+          minZ: item.position[1] - mhz,
+          maxZ: item.position[1] + mhz,
+        })) {
+          neighbourIds.add(nid)
+        }
+      }
+      const others = broadphase.staticItems.filter((it) => neighbourIds.has(it.id))
       // Inside the per-room editor this is the room's solid perimeter (so a
       // piece can't be dragged past the walls into adjacent rooms); elsewhere a
       // custom plan's own walls / the fixed flat's door-aware walls.
@@ -399,6 +478,9 @@ export function DragController() {
     }
 
     const onUp = () => {
+      // Drop ends the gesture — invalidate the broadphase cache so the next drag
+      // (or a between-drags edit elsewhere) rebuilds the grid from fresh state.
+      dragGridRef.current = null
       const state = useStore.getState()
       const id = state.draggingItemId
       if (!id) {

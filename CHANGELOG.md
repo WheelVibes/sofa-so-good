@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Perf: broadphase the furniture-drag collision/snug scans (PERF-003) (v0.2.0.37)
+
+`DragController.onMove` ran two O(n) scene scans per pointermove — the snug-stack candidate search and
+the `canPlace` collision check both walked every item. At scale (a full flat, 80+ items) that's wasted
+work each frame of a drag. Now a **spatial grid of the static (non-moving) items is built once per drag**
+(keyed by the moved-id signature, cleared on drop, since the un-dragged items don't move during a
+gesture) and reused across moves to restrict both scans to the dragged item's neighbourhood: the
+snug-stack uses a point query, `canPlace` a moved-AABB query. Alignment-snap deliberately keeps the
+full scan (lining up with a distant item across the room is intended behaviour). The result is
+**equivalent** — an item whose footprint AABB doesn't overlap the moved item's can't have an overlapping
+OBB — proven by a new test sweeping the dragged item across 667 lattice positions and asserting the
+broadphase-restricted `canPlace` matches the full-scene scan at every spot (both outcomes exercised),
+plus a far-item-pruned check. Completes PERF-003 (the v0.2.0.15 wall-build dedup was the first half).
+Smoke-verified: the room editor mounts + renders cleanly with the rewired controller.
+
 ## Reliability: harden align/distribute for rotated footprints (PC2-DISTRIBUTE-AXIS) (v0.2.0.36)
 
 Audited the multi-select align/distribute path against the backlog concern (does it pick the right

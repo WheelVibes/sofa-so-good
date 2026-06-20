@@ -485,7 +485,11 @@ same change that reshapes a system.
   unit-tested, rendered in `AlignmentGuides`), flush-to-wall (`wallSnap.ts`, off
   when grid-snap on), live per-side distance-to-wall HUD (`DragHud` ← `clearanceGap.ts` `wallGapsPerSide`,
   left/right/back/front gaps, amber under `walkwayMin`); touch rotate ring (single 15°, multi rigid centroid, Shift=free,
-  green/red validity, complements **R** 90°).
+  green/red validity, complements **R** 90°). The drag's two O(n) per-move scans (snug-stack +
+  `canPlace` collision) are **broadphased** (PERF-003) through a per-drag spatial grid of the static
+  items (`collision/broadphase.ts` `buildGrid`/`queryRect`, built once + cleared on drop): a point query
+  for snug-stack, a moved-AABB query for collision; alignment snap keeps the full scan (cross-room
+  alignment is intended). Equivalent to the full scan (no overlapping AABB ⇒ no overlapping OBB).
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): 2D editor of store `floorPlan`
   — walls, rectangular/L-shape (`extension`)/free-`polygon` rooms (Polygon + Auto-room),
   doors/windows, ceiling height (global + per-room), grid+corner snap, per-room floor

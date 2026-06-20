@@ -38,12 +38,12 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > **⚠️ This index is STALE — `CHANGELOG.md` is the source of truth for what shipped.** Many rows
 > below were completed in earlier sessions and never struck through. **Already SHIPPED** (do not
 > re-do): all **BUG-001…014**, all **REV-001…006**, all **UX-001…009**, all **MAT-001…004**,
-> **PERF-001/002/004/005/007/008** (PERF-003 *partial* — wall-build dedup done, broadphase
-> remainder open; PERF-006 is "don't fix"), **RD-401/402/403/404/405/407/408/409/410**,
+> **PERF-001/002/003/004/005/007/008** (PERF-006 is "don't fix"; PERF-003 broadphase landed
+> v0.2.0.37), **RD-401/402/403/404/405/407/408/409/410**,
 > **PC2-MULTI-DUP-PASTE**, **PC2-FAVOURITE-MATERIALS**, **PC2-PLAN-FURN-ICONS**,
 > **PC2-PLAN-ANGLE-SNAP** (15° wall-draw snap, Shift to bypass + furniture-rotate already 15°-stepped),
 > and **PC2-WOOD-GRAIN-FLOW** (per-board grain-direction lean; verified via flat-texture render).
-> **Genuinely still OPEN:** PERF-003 (broadphase half), **RD-406** (tile
+> **Genuinely still OPEN:** **RD-406** (tile
 > break-up + triplanar — *needs real-GPU verify*), **RD-411/PC2-SSAA-EXPORT** (supersample export —
 > downsample math headless-verifiable, GPU 2× render real-GPU), **RD-412** (procedural sky/IBL —
 > *touches tuned lighting, real-GPU*), RD-408 hero
@@ -67,7 +67,7 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 | 11 | **PERF-002** | Orbit mode renders *every* fixture as a real light (ignores `maxFixtureLights`) → frame cost at scale | MED (perf) | S | `scene/lighting/FurnitureLights.tsx` | `cg-furnlights` |
 | 12 | **PERF-004** | Pro analysis panels eagerly imported into boot bundle (Simple users pay for them) | MED (boot perf) | M | `ui/app/lazyComponents.tsx`, `App.tsx` | `cg-applazy` |
 | 13 | **PERF-005** | Catalog search re-ranks the whole merged catalog per keystroke (no debounce/defer) | MED (input lag at scale) | S | `ui/catalog/CatalogDrawer.tsx` | `cg-catalogdrawer` |
-| 14 | **PERF-003** | `DragController.onMove` O(n) passes per pointermove. **PARTIAL (v0.2.0.15):** per-move wall build de-duplicated. **REMAINING:** broadphase-restrict the `others`/snug-stack/`canPlace` neighbour set to the dragged item's grid cell (`buildGrid`/`candidatePairs`) + memoise `halfExtents` across moves. Needs a perf harness + snap/validity-equivalence tests (the candidate set changes). | MED (drag perf at scale) | M | `scene/DragController.tsx` | `cg-dragctl` |
+| ~~14~~ | ~~**PERF-003**~~ | ✅ DONE (v0.2.0.37) — wall-build dedup (v0.2.0.15) + broadphase: a per-drag spatial grid of the static items (built once, cleared on drop) restricts the **snug-stack** scan (point query) and the **canPlace** neighbour set (moved-AABB query) to the dragged neighbourhood. Alignment snap keeps the full scan (cross-room alignment is intended). Equivalence proven (667-position sweep: broadphase result ≡ full scan). | MED (drag perf at scale) | M | `scene/DragController.tsx`, `collision/broadphase.ts` | `cg-dragctl` |
 | 15 | **RD-403** | Flat-tier corner-AO + contact-darkening decals (biggest default-tier realism cue) | HIGH photoreal | M | `scene/CornerAO.tsx` (new), `scene/ContactShadow.tsx`, mounts in `Scene.tsx` | `cg-scenemount` |
 | 16 | **RD-402** | Roughness/AO/normal micro-variation: stone/tile/concrete/plaster + brushed-metal anisotropy | HIGH photoreal | M | `procedural/patterns/{stone,tile,wall}.ts`, `patterns/metal.ts` (new), `furnitureMaterials.ts`, `generators.test.ts` | `cg-materials` |
 | ~~17~~ | ~~**RD-405**~~ | ✅ DONE (v0.2.0.17) — cheap glass `ior` fresnel + faint `envMapIntensity` sky reflection (inert on Performance) | HIGH photoreal | M | `materials/materialRealism.ts`, `furnitureMaterials.ts` | `cg-materials` |
