@@ -41,15 +41,18 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > **PERF-001/002/003/004/005/007/008** (PERF-006 is "don't fix"; PERF-003 broadphase landed
 > v0.2.0.37), **RD-401/402/403/404/405/407/408/409/410**,
 > **PC2-MULTI-DUP-PASTE**, **PC2-FAVOURITE-MATERIALS**, **PC2-PLAN-FURN-ICONS**,
-> **PC2-PLAN-ANGLE-SNAP** (15° wall-draw snap, Shift to bypass + furniture-rotate already 15°-stepped),
-> and **PC2-WOOD-GRAIN-FLOW** (per-board grain-direction lean; verified via flat-texture render).
-> **Genuinely still OPEN:** **RD-406** (tile
-> break-up + triplanar — *needs real-GPU verify*), **RD-411/PC2-SSAA-EXPORT** (supersample export —
-> downsample math headless-verifiable, GPU 2× render real-GPU), **RD-412** (procedural sky/IBL —
-> *touches tuned lighting, real-GPU*), RD-408 hero
-> props (new primitives), **PC2-SURFACE-DROP**, **PC2-FURN-GROUP**, **PC2-CONTACT-AO-DECOR**,
-> and **PC2-DISTRIBUTE-AXIS** (audited sound — axis is explicit + rotated footprints already use
-> `obbAxisHalf`; closed out with OBB→distribute/align integration tests). Rows already marked ✅ below
+> **PC2-PLAN-ANGLE-SNAP** (15° wall-draw snap), **PC2-WOOD-GRAIN-FLOW** (per-board grain lean),
+> **PC2-DISTRIBUTE-AXIS** (audited sound; OBB integration tests added), **PC2-TONEMAP-EXPOSURE-CTX**
+> (shipped as RD-404; v0.2.0.40 added wall-finish preview), **PC2-CONTACT-AO-DECOR** (surface-decor
+> contact decal, v0.2.0.39), **PC2-FURN-GROUP** (was fully built; added the missing `furnitureGroups`
+> flag + ⌘K command, v0.2.0.41), **PC2-SURFACE-DROP** (shelf-magnetism, v0.2.0.42), and **BUG-015**
+> (decor double-lift, v0.2.0.38).
+> **Genuinely still OPEN — all real-GPU-pixel or server-infra (NOT headlessly verifiable here):**
+> **RD-406** (tile break-up + triplanar), **RD-411/PC2-SSAA-EXPORT** (supersample export — downsample
+> math is pure but the 2× GPU render + AA quality need a real GPU), **RD-412** (procedural sky/IBL —
+> touches tuned lighting), **RD-408** hero props (new decor primitives — modelling + subjective polish),
+> **PC2-CAM-DOF-LENS** / RD-421/422/410/423 (lens/DoF/VSM/render-clip — pixel passes), and the
+> catalog/DLC **server-proxy** items (CORS proxy, Kenney/Quaternius mirrors). Rows marked ✅ below
 > were struck this session.
 
 | Rank | ID | One-line | Sev/Impact | Eff | Area / files | Conflict-group |
