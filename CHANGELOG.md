@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Realism/UX: top-down furniture glyphs in the 2D plan (PC2-PLAN-FURN-ICONS) (v0.2.0.33)
+
+The 2D plan editor's furniture footprints were plain category-coloured rectangles — hard to read at a
+glance (a SH3D/Coohom parity gap). Each footprint now also shows the matching top-down **category
+glyph** (reusing the existing `CategoryIcon`, currentColor), centred + sized to the footprint and
+hidden when too small (<9px). It shows only when no text label covers the centre (labels off + not
+selected), so it complements rather than clashes with the name/price labels. Beds, sofas, toilets/
+sinks, kitchen appliances, tables, lamps and storage now read instantly. Verified in the editor (61
+glyphs render correctly across every category, well-sized, no overflow/clutter). Additive SVG —
+pointer-events off, so it never interferes with selection/drag.
+
 ## QOL: favourite finishes/materials (PC2-FAVOURITE-MATERIALS) (v0.2.0.32)
 
 Favourites now extend to finishes, mirroring the furniture star. `favouritesSlice` gains a **separate**

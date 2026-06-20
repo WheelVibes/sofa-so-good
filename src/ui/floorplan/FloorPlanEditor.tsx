@@ -52,6 +52,7 @@ import { itemPrice } from '../../furniture/furniturePrices'
 import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
+import { CategoryIcon } from '../catalog/CategoryIcon'
 import { openDocs } from '../docsUrl'
 import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
@@ -2241,31 +2242,53 @@ export function FloorPlanEditor() {
                   .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
                   .join(' ')
                 const isSel = selectedItemId === it.id
+                // Top-down category glyph centred in the footprint (PC2-PLAN-FURN-
+                // ICONS) so a layout reads at a glance. Shown only when no text
+                // label covers the centre (labels off + not selected), sized to
+                // the footprint and hidden when too small to read.
+                const cx = toPx(it.position[0])
+                const cy = toPx(it.position[1])
+                const glyphPx = Math.min(Math.min(obb.hx, obb.hz) * 2 * PX * 0.55, 22)
+                const showGlyph = !labelsOn && !isSel && glyphPx >= 9
                 return (
-                  <polygon
-                    key={it.id}
-                    points={pts}
-                    fill={
-                      isSel
-                        ? 'var(--accent-soft)'
-                        : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
-                    }
-                    fillOpacity={isSel ? 0.95 : 0.55}
-                    stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
-                    strokeWidth={isSel ? 2 : 1}
-                    strokeLinejoin="round"
-                    style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
-                    onPointerDown={(e) => {
-                      if (tool !== 'select') return
-                      const st = useStore.getState()
-                      const willMove = beginElementDrag(e, selectedItemId === it.id)
-                      st.selectItem(it.id) // a tap always selects (for inspect/then-drag)
-                      if (!willMove) return // view / unselected-on-touch: let it pan
-                      const [wx, wz] = pointerWorld(e)
-                      st.pushHistory()
-                      setMovingItem({ id: it.id, gx: wx - it.position[0], gz: wz - it.position[1] })
-                    }}
-                  />
+                  <g key={it.id}>
+                    <polygon
+                      points={pts}
+                      fill={
+                        isSel
+                          ? 'var(--accent-soft)'
+                          : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
+                      }
+                      fillOpacity={isSel ? 0.95 : 0.55}
+                      stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                      strokeWidth={isSel ? 2 : 1}
+                      strokeLinejoin="round"
+                      style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                      onPointerDown={(e) => {
+                        if (tool !== 'select') return
+                        const st = useStore.getState()
+                        const willMove = beginElementDrag(e, selectedItemId === it.id)
+                        st.selectItem(it.id) // a tap always selects (for inspect/then-drag)
+                        if (!willMove) return // view / unselected-on-touch: let it pan
+                        const [wx, wz] = pointerWorld(e)
+                        st.pushHistory()
+                        setMovingItem({
+                          id: it.id,
+                          gx: wx - it.position[0],
+                          gz: wz - it.position[1],
+                        })
+                      }}
+                    />
+                    {showGlyph ? (
+                      <g
+                        transform={`translate(${cx - glyphPx / 2},${cy - glyphPx / 2})`}
+                        style={{ color: 'var(--text-2)', pointerEvents: 'none' }}
+                        opacity={0.7}
+                      >
+                        <CategoryIcon category={def.category} width={glyphPx} height={glyphPx} />
+                      </g>
+                    ) : null}
+                  </g>
                 )
               })}
 
