@@ -434,6 +434,32 @@ describe('buildReportHtml — design suggestions (PARITY-SUGGESTIONS-SECTION)', 
   })
 })
 
+describe('buildReportHtml — move-in / handover checklist (PARITY-MOVEIN-CHECKLIST)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('renders a Move-in checklist with per-room snags + the generic handover bucket', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Move-in checklist')
+    // The kitchen snag rule + the always-present generic items.
+    expect(html).toContain('Kitchen')
+    expect(html).toMatch(/water-stop valves/i)
+    expect(html).toContain('Keys, meters &amp; documents')
+    expect(html).toMatch(/Collect all keys/i)
+    // Checkbox glyph on each line.
+    expect(html).toContain('☐')
+  })
+
+  it('still renders the generic handover group for a bare empty plan', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Move-in checklist')
+    expect(html).toContain('Keys, meters &amp; documents')
+  })
+})
+
 describe('buildReportHtml — multi-storey fan-out (F13)', () => {
   const plan = buildDefaultPlan()
   const upper = {

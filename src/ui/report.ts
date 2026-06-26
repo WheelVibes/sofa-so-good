@@ -6,6 +6,7 @@
 
 import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildDesignScore } from '../analysis/designScore'
+import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
 import { estimateRenovation } from '../analysis/renovationCost'
@@ -629,6 +630,26 @@ export function buildReportHtml(
         .join('')}
     </div>`
 
+  // Move-in / handover checklist (PARITY-MOVEIN-CHECKLIST) — a derived snagging +
+  // key-handover punch-list grouped by room (per-kind defect checks), plus
+  // appliance/utility activation items for the appliance categories actually
+  // placed, plus the generic keys/meters/documents bucket. Pure
+  // (analysis/handoverChecklist); rides the existing `report` flag (additive
+  // section). Always renders — an empty plan still yields the generic group.
+  const handover = buildHandoverChecklist(plan, items, catalog)
+  const handoverSection = `<div class="room-cost">
+      <h2>Move-in checklist</h2>
+      <div class="foot" style="margin-bottom:6px">${handover.totalItems} item${handover.totalItems === 1 ? '' : 's'} to walk through on collection / handover — tick each off on site.</div>
+      ${handover.groups
+        .map(
+          (g) =>
+            `<div class="ci-detail" style="margin-top:6px"><strong>${esc(g.title)}</strong>${g.items
+              .map((i) => `<div style="color:#374151">☐ ${esc(i.label)}</div>`)
+              .join('')}</div>`,
+        )
+        .join('')}
+    </div>`
+
   // Wall elevations — the vertical drawings, only for walls that actually carry
   // furniture or openings (skip the many bare structural segments).
   const elevations = hasItems
@@ -803,6 +824,7 @@ export function buildReportHtml(
   ${suggestionsSection}
   ${accessibilitySection}
   ${complianceSection}
+  ${handoverSection}
   ${hackingSection}
   ${dimensionedPlanSection}
   ${elevationsSection}
