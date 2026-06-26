@@ -1,7 +1,7 @@
 import { RoundedBox } from '@react-three/drei'
 import { getUpholsteryMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
-import { readNum, readStr } from './shared'
+import { metalLeg, readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
 /** Office chair on a 5-star castor base + gas lift. Styles: 'task' (padded
@@ -20,6 +20,9 @@ export function OfficeChair({ props }: { props: ParamProps }) {
   const seatD = 0.46
   const mat = getUpholsteryMaterial(material, color, sheen, pattern)
   const plastic = { color: '#1d1f22', roughness: 0.5, metalness: 0.2 }
+  // Polished-steel gas-lift column → shared brushed-metal (the castor base hub /
+  // shroud / wheels stay matte black plastic).
+  const liftMetal = metalLeg('#9aa0a6', 'stainless')
   const meshMat = { color, roughness: 0.85, metalness: 0, transparent: true, opacity: 0.82 }
 
   const backH = style === 'executive' ? 0.62 : 0.5
@@ -53,9 +56,8 @@ export function OfficeChair({ props }: { props: ParamProps }) {
         return (
           <>
             {/* Telescoping column */}
-            <mesh castShadow position={[0, (liftBottom + liftTop) / 2, 0]}>
+            <mesh castShadow position={[0, (liftBottom + liftTop) / 2, 0]} material={liftMetal}>
               <cylinderGeometry args={[0.03, 0.032, liftH, seg(16, detail)]} />
-              <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
             </mesh>
             {/* Black plastic shroud over the lower half */}
             <mesh castShadow position={[0, liftBottom + liftH * 0.28, 0]}>

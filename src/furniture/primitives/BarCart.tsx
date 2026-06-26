@@ -1,7 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { GlassMaterial } from './GlassMaterial'
-import { readNum, readStr } from './shared'
+import { metalLeg, readNum, readStr } from './shared'
 
 /**
  * Bar cart — a slim rolling trolley for an entertaining corner. A metal frame
@@ -22,12 +22,15 @@ export function BarCart({ props }: { props: ParamProps }) {
   const railH = 0.06
   const postT = 0.014
 
+  // Frame members route through the shared brushed-metal material so they read
+  // as real anisotropic metal: brass → warm satin brushing, chrome → bright
+  // stainless, black → matte black-steel. Tint carries the brass/black colour.
   const frameMat =
     frame === 'brass'
-      ? { color: '#b08d57', roughness: 0.35, metalness: 0.85 }
+      ? metalLeg('#b08d57', 'satin')
       : frame === 'chrome'
-        ? { color: '#cfd2d6', roughness: 0.18, metalness: 0.95 }
-        : { color: '#26262a', roughness: 0.4, metalness: 0.7 }
+        ? metalLeg('#cfd2d6', 'stainless')
+        : metalLeg('#26262a', 'black-steel')
 
   // Glass shelves render the tier-gated GlassMaterial (real transmission on
   // High/Maximum); wood/marble use the cached surface material instances.
@@ -58,9 +61,8 @@ export function BarCart({ props }: { props: ParamProps }) {
     <group>
       {/* Corner posts */}
       {posts.map(([x, z], i) => (
-        <mesh key={i} castShadow position={[x, totalH / 2, z]}>
+        <mesh key={i} castShadow position={[x, totalH / 2, z]} material={frameMat}>
           <cylinderGeometry args={[postT, postT, totalH, 12]} />
-          <meshStandardMaterial {...frameMat} />
         </mesh>
       ))}
 
@@ -100,17 +102,16 @@ export function BarCart({ props }: { props: ParamProps }) {
           key={i}
           position={r.pos}
           rotation={[r.axis === 'z' ? 0 : Math.PI / 2, 0, r.axis === 'z' ? Math.PI / 2 : 0]}
+          material={frameMat}
         >
           <cylinderGeometry args={[0.006, 0.006, r.len, 8]} />
-          <meshStandardMaterial {...frameMat} />
         </mesh>
       ))}
 
       {/* Push handle, arching over the back edge */}
       <group position={[0, totalH - 0.02, -pz]}>
-        <mesh position={[0, 0.05, -0.04]} rotation={[0, 0, Math.PI / 2]}>
+        <mesh position={[0, 0.05, -0.04]} rotation={[0, 0, Math.PI / 2]} material={frameMat}>
           <cylinderGeometry args={[0.01, 0.01, width - postT, 10]} />
-          <meshStandardMaterial {...frameMat} />
         </mesh>
       </group>
 

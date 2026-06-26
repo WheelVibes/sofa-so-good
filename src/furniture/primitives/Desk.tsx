@@ -1,7 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
-import { readNum, readStr } from './shared'
+import { metalLeg, readNum, readStr } from './shared'
 
 interface DeskProps {
   props: ParamProps
@@ -29,7 +29,9 @@ export function Desk({ props }: DeskProps) {
   const legY = height - topThickness
 
   const wood = getSurfaceMaterial(finish, color, 1.5, sheen)
-  const metal = { color: '#2c2e30', roughness: 0.35, metalness: 0.75 }
+  // Mid-century hairpin legs route through the shared brushed-metal material
+  // (matte black-steel grain).
+  const metal = metalLeg('#2c2e30', 'black-steel')
   const inset = 0.07
   const corners: [number, number][] = [
     [-width / 2 + inset, -depth / 2 + inset],
@@ -105,9 +107,9 @@ export function Desk({ props }: DeskProps) {
                 castShadow
                 position={[x, legY / 2, z - dz / 2]}
                 rotation={[s * lean * Math.sign(z || 1), 0, 0]}
+                material={metal}
               >
                 <cylinderGeometry args={[0.008, 0.008, legH, 8]} />
-                <meshStandardMaterial {...metal} />
               </mesh>
             )
           })
