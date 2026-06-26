@@ -105,6 +105,14 @@ It also shows the piece's **size (W × D × H)** and offers **Lock**, **Delete**
 **Edit in 3D** (jump straight into the 3D per‑room editor for that piece). No need
 to leave the plan to nudge a sofa a few centimetres or square it up to a wall.
 
+**Tidy several pieces at once** — when **two or more** furniture footprints are
+selected (marquee‑drag a box over them on empty canvas), the Properties panel turns
+into an action panel: **Align X** / **Align Z** (line their centres up),
+**Align edges** (**Left** / **Right** / **Top** / **Bottom**), **Distribute evenly**
+(**Across X** / **Across Z** — equal gaps between a row of pieces) and **Mirror**
+(flip the whole group left↔right across its centre). Each action is a single undo
+step and respects walls and other furniture; **locked** pieces stay put.
+
 ## Non‑rectangular rooms (L‑shapes & angles)
 
 Rooms don't have to be plain rectangles:

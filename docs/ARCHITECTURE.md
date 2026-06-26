@@ -605,7 +605,14 @@ same change that reshapes a system.
   bulk-deletes the multi-selection — furniture in **one** coalesced undo step (the `deleteItem`
   `'delete'` coalesce key). Works on desktop **and** mobile touch (in edit mode; two-finger pinch
   still zooms). Selecting only furniture leaves `planSelection` null so the furniture inspector owns
-  the panel. **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
+  the panel. When **2+ placed pieces** are selected (`selectedItemIds.length > 1`, e.g. via the
+  marquee), `PlanInspector` instead shows the **align/distribute/mirror action panel**
+  (`ui/floorplan/PlanMultiSelectActions.tsx`, PARITY-PLAN-ALIGN): Align centres (X/Z), Align
+  edges (Left/Right/Top/Bottom), Distribute evenly (Across X/Z) and Mirror — pure **wiring** of
+  the SAME render-agnostic ops the 3D `MultiSelectPanel` uses (`layout/alignDistribute.ts` +
+  `layout/selectionActions.ts` `mirrorSelectionX`), each one undo step, `canPlace`-checked,
+  locked items skipped, **ungated core** (shown in both Simple and Pro, like align/distribute in 3D).
+  **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
   "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
   furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an
   **"All levels"** toggle draws the other storeys' walls as a dimmed underlay to align floors; every tool,
