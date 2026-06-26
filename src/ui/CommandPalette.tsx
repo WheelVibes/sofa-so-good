@@ -22,6 +22,7 @@ import { openDocs } from './docsUrl'
 import { downloadFurnitureCsv } from './openFurnitureCsv'
 import { downloadPlanSvg } from './openPlanSvg'
 import { openDesignReport } from './openReport'
+import { downloadRoomScheduleCsv } from './openRoomScheduleCsv'
 import { exportScene3d } from './openSceneExport'
 import { openSh3dImport } from './openSh3dImport'
 import { openShoppingList } from './openShoplist'
@@ -51,6 +52,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'render-compare': 'renderCompare',
   'shopping-list': 'shopExport',
   'furniture-csv': 'shopExport',
+  'room-schedule-csv': 'shopExport',
   'plan-svg': 'dxfExport',
   'export-3d': 'sceneExport3d',
   'import-sh3d': 'importSh3d',
@@ -378,6 +380,13 @@ export function CommandPalette() {
         label: 'Furniture list (CSV export)',
         icon: 'Export',
         run: () => void downloadFurnitureCsv(),
+      },
+      {
+        id: 'room-schedule-csv',
+        group: 'Tools & panels',
+        label: 'Room schedule (CSV export)',
+        icon: 'Export',
+        run: () => void downloadRoomScheduleCsv(),
       },
       {
         id: 'plan-svg',

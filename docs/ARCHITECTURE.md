@@ -390,6 +390,12 @@ same change that reshapes a system.
   **Furniture CSV** (`ui/furnitureCsv.ts` pure `buildFurnitureCsv` → RFC-4180 CSV of the schedule:
   Room/Item/Source/SKU/W·D·H mm/Qty/Unit/Total + grand-total footer; `ui/openFurnitureCsv.ts` =
   Blob download). File menu + mobile + ⌘K, `shopExport` flag (simple).
+  **Room-schedule CSV** (PARITY-ROOM-CSV) (`export/roomScheduleCsv.ts` pure `buildRoomSchedule` /
+  `buildRoomScheduleCsv` → one row per room across ALL storeys: Storey/Room/Area/Perimeter/Floor finish/
+  Wall finish/Ceiling height + a grand-total footer (room count + total area), unit-aware
+  (`formatArea`/`formatLength`), RFC-4180-quoted, reusing `planRoomArea`/`planRoomPerimeter`/
+  `resolvePlanRoomFloor`/`resolvePlanRoomWall` + `allPlanRooms`/`levelOfRoom`; `ui/openRoomScheduleCsv.ts`
+  = Blob download). File menu + mobile + ⌘K, `shopExport` flag (simple).
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
   (cover + plan + per-wall elevations + cross-section + lighting + electrical (`floorplan/electricalPlan*`,
   `electricalPlan` flag) + plumbing (`floorplan/plumbingPlan*`, `plumbingPlan` flag — points auto-derived

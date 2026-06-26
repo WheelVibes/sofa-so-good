@@ -32,6 +32,7 @@ import { Modal } from '../Modal'
 import { downloadFurnitureCsv } from '../openFurnitureCsv'
 import { downloadPlanSvg } from '../openPlanSvg'
 import { openDesignReport } from '../openReport'
+import { downloadRoomScheduleCsv } from '../openRoomScheduleCsv'
 import { exportScene3d } from '../openSceneExport'
 import { openSh3dImport } from '../openSh3dImport'
 import { openShoppingList } from '../openShoplist'
@@ -1054,6 +1055,14 @@ export function MobileToolbar() {
                       label="Furniture list (CSV)"
                       sub="Spreadsheet of every item — dims, qty, prices"
                       onClick={act(() => void downloadFurnitureCsv())}
+                    />
+                  ) : null}
+                  {fShopExport ? (
+                    <Item
+                      icon="Export"
+                      label="Room schedule (CSV)"
+                      sub="Per-room area, perimeter, finishes & ceiling"
+                      onClick={act(() => void downloadRoomScheduleCsv())}
                     />
                   ) : null}
                   {fSceneExport ? (

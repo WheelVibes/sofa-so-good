@@ -37,6 +37,13 @@ listed under *Unpriced / generic* with the same indicative estimates as the
 Budget panel), with a subtotal per retailer, the grand total, and your budget
 target's under/over. Print it, save it as PDF, or send it with your design.
 
+The **File** menu (also ⌘K and the mobile **File** section) has two spreadsheet
+exports alongside it: **Furniture list (CSV)** — every placed piece with its room,
+dimensions, quantity and prices — and **Room schedule (CSV)** — one row per room
+across every storey with its floor area, wall perimeter, floor + wall finish and
+ceiling height, plus a grand-total footer. Both open straight in Excel or Google
+Sheets.
+
 For a contractor-ready costing, **Tools → Quote (BOQ)** opens a printable bill of
 quantities (FF&E, flooring/painting finishes priced per area, and built-in
 carpentry by linear metre, with per-section subtotals + a grand total). **Tools →

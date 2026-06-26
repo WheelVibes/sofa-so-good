@@ -82,6 +82,19 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'simple').furnitureGroups).toBe(false)
   })
 
+  it('shopExport (simple tier) resolves the same in BOTH modes (gates the room-schedule CSV)', () => {
+    // The room-schedule + furniture-list + shopping-list exports all gate on
+    // shopExport (simple tier, default off). Its resolution must not depend on
+    // the Simple/Pro mode — only on the flag itself.
+    expect(resolveFlags(true, {}, false, 'simple').shopExport).toBe(
+      FEATURE_FLAGS.shopExport.default,
+    )
+    expect(resolveFlags(true, {}, false, 'pro').shopExport).toBe(FEATURE_FLAGS.shopExport.default)
+    // When turned on (dev override), it is on in both modes.
+    expect(resolveFlags(true, { shopExport: true }, false, 'simple').shopExport).toBe(true)
+    expect(resolveFlags(true, { shopExport: true }, false, 'pro').shopExport).toBe(true)
+  })
+
   it('sceneExport3d (simple tier) is present in BOTH Simple and Pro modes', () => {
     // Whole-scene 3D export is part of the curated launch set → simple tier.
     expect(resolveFlags(true, {}, false, 'simple').sceneExport3d).toBe(true)
