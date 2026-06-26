@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: combined cost-breakdown CSV export (PARITY-COST-BREAKDOWN-CSV) (v0.3.0.40)
+
+A single exportable **cost breakdown CSV** consolidating what the report shows separately. Pure
+`export/costBreakdownCsv.ts` (`buildCostBreakdown`/`buildCostBreakdownCsv`) emits sectioned rows —
+Furniture by category (qty + subtotal), Finishes/renovation lines (floor/wall area × rate), and a
+**reconciling GRAND TOTAL** (`grandTotal === furnitureSubtotal + renovationSubtotal`, asserted in
+tests) — reusing the existing pricing (`itemPrice`, `floorAreaByFinish`/`wallAreaByFinish`,
+`estimateRenovation` with `RENO_RATES`); RFC-4180 + injection guard + UTF-8 BOM. `ui/openCostBreakdownCsv.ts`
+downloads `<plan>-costs.csv`. File menu + mobile + ⌘K under `shopExport` (no new flag). 9 unit tests.
+
+## Feature: move-in / handover checklist in the design report (PARITY-MOVEIN-CHECKLIST) (v0.3.0.39)
+
+The report gains a **Move-in checklist** — a derived handover punch-list for the SG reno handover.
+Pure `analysis/handoverChecklist.ts` (`buildHandoverChecklist(plan, items, catalog)`) groups by room:
+common snag rules + per-`RoomKind` rules (via `roomKindFromName`, unrecognised → generic bucket), an
+appliance/utility-activation group for the appliance categories actually present (kitchen/appliances/
+laundry/electronics), and an always-present keys/meters/documents group (empty plan → just that).
+Deterministic (no clocks/random). Rides the `report` flag (no new flag). 9 unit tests + report-render.
+
+## Feature: design-suggestions section in the design report (PARITY-SUGGESTIONS-SECTION) (v0.3.0.38)
+
+The per-room "what to add / improve" tips from the existing `analysis/suggestions.ts buildSuggestions`
+(previously panel-only) are now also a **report section** — derives each room's furniture categories
+via `pointInRoom` and renders the grouped suggestions, omitted when no rule fires. No new analysis
+code, no new flag (rides `report`). Report-render tests for the furnished, empty-room, and no-suggestion
+cases.
+
 ## Feature: FF&E schedule CSV export (PARITY-FFE-CSV) (v0.3.0.37)
 
 The FF&E (furniture, fixtures & equipment) schedule that the design report already renders as HTML is
