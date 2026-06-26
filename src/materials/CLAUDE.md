@@ -9,6 +9,22 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `PATTERN_SIZE_CAP` (256 for smooth/noise-based, 512 for high-frequency geometric patterns).
 - **World-space UVs** (`worldUv.ts`): surfaces tile at a fixed physical scale — don't bake
   per-mesh UVs or assume a unit cube.
+- **Tile repetition break-up (RD-406 / MAT-006a)**: `worldUv.ts` exports the pure, deterministic
+  `cellUvTransform(cu,cv)` (hash a tile cell → a 90°/180°/270° quarter-turn + a {0, 0.5} half-tile
+  offset) and `breakRepetitionPlane(w,h,tileSize)` (subdivide a rect floor on the `tileSize`-metre
+  grid — `tileSize` = the material `uvScale` — and re-phase/rotate each cell's UVs so a big tiled
+  floor stops repeating identically). It's **pure UV math** — no shader, no 2nd UV set, no extra
+  texture. Cells snap to the texture period (boundaries land on grout) and the rotation is rigid +
+  the offset a half-tile, so a 2ⁿ-grid ceramic stays grout-continuous and a non-gridded
+  stone/marble/wood just varies tile-to-tile; the tiles keep their square aspect (no UV stretch),
+  share boundary positions (no seam/crack), and sit at the same Y (no z-fighting). Wired into the
+  **rectangular** floor build sites only (`apartment/floor/RoomFloor.tsx` + `PlanRoomFloor.tsx`
+  `RectFloor` — polygon floors and walls are untouched) behind the **`tileBreakup`** flag
+  (`tier:'pro'`, default on — pure prod-safe). Flag off / a sub-tile (repeat≈1) surface →
+  `breakRepetitionPlane` returns `null` and the plain world-UV plane is byte-identical to before.
+  Degenerate guards: non-positive size/tile, non-finite tile, and a runaway subdivision all fall
+  back to the plain plane. Unit-tested in `worldUv.test.ts` (period-breaking + determinism + no UV
+  NaN + repeat=1 untouched + the Simple/Pro flag-gate, both modes).
 - **Wood grain flow (PC2-WOOD-GRAIN-FLOW)**: the wood painters (`procedural/patterns/wood.ts` —
   planks/parquet/herringbone) give each board a deterministic per-board grain **lean** via the pure
   `procedural/woodPlank.ts` (`plankHash` shared stateless hash, `grainLean` ~±2.6°, `shearAcross`

@@ -1,0 +1,27 @@
+{
+  "name": "tile-breakup-mat006a",
+  "description": "MAT-006a: per-tile UV repetition break-up on a large tiled floor. Applies a 0.8 m grey porcelain tile to the living/dining floor, shoots a close grazing angle with the tileBreakup flag OFF (Simple mode → forced off → plain grid) vs ON (Pro mode → per-cell rotation/offset). Review: ON breaks the obvious repeating grid with NO seams/cracks at tile edges, no z-fighting, no UV stretching.",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setItems?.([])" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "simple-mode-off", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "flag-off", "waitFor": { "store": "state.featureFlags.tileBreakup === false" }, "timeout": 5000 },
+    { "name": "apply-tile-floor", "store": { "action": "setFloorFinish", "args": ["livingDining", "floor-tile-grey"] } },
+    { "name": "verify-tile", "waitFor": { "store": "state.finishes.floor['livingDining'] === 'floor-tile-grey'" }, "timeout": 5000 },
+    { "name": "focus-floor", "eval": "window.__store.getState().focusOn?.([8.5,2.8])" },
+    { "name": "settle", "wait": 2500 },
+    { "name": "tilt-down", "drag": { "from": [800, 250], "to": [800, 540] } },
+    { "name": "settle2", "wait": 500 },
+    { "name": "zoom-floor", "wheel": { "x": 800, "y": 540, "dy": -480 } },
+    { "name": "settle3", "wait": 2000 },
+    { "name": "shot-off", "screenshot": "breakup-off-simple" },
+    { "name": "pro-mode-on", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "flag-on", "waitFor": { "store": "state.featureFlags.tileBreakup === true" }, "timeout": 5000 },
+    { "name": "nudge-rebuild", "eval": "(function(){ const st = window.__store.getState(); st.setFloorFinish('livingDining','floor-tile-white'); st.setFloorFinish('livingDining','floor-tile-grey') })()" },
+    { "name": "settle4", "wait": 2500 },
+    { "name": "shot-on", "screenshot": "breakup-on-pro" },
+    { "name": "shot-on-2", "screenshot": "breakup-on-pro-2" }
+  ]
+}

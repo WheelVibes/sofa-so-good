@@ -99,7 +99,9 @@ same change that reshapes a system.
 - `src/materials/` — `builtinCatalog.ts` (floors/walls), `procedural/generators.ts`
   (wood/parquet/tile/marble/carpet/concrete/terrazzo/plaster/wallpaper/checker/brick…),
   `furnitureMaterials.ts` (tintable grain + `getSolidMaterial` + `mat:<id>` DLC +
-  `getSurfaceMaterial`), `worldUv.ts`, `finishDrop.ts` (drag-to-apply core; canvas drop =
+  `getSurfaceMaterial`), `worldUv.ts` (world-metre UV planes/shapes + the pure
+  `breakRepetitionPlane`/`cellUvTransform` tile-repetition break-up, RD-406/MAT-006a, gated by
+  the `tileBreakup` flag at the rect-floor build sites), `finishDrop.ts` (drag-to-apply core; canvas drop =
   `scene/FinishDropSurface.tsx` + `scene/finishDropTarget.ts`, commit = `state/finishDropApply.ts`), `convert/`
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR/KTX2/DDS, `reencode.ts`→WebP; 16MB cap; `decodeGpuTexture.ts` handles KTX2+DDS via pure-JS or GPU readback).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),

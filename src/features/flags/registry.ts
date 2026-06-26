@@ -663,6 +663,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Tiled-floor repetition break-up (RD-406 / MAT-006a): a large tiled floor
+  // gets a pure per-tile-cell UV hash-rotation (90°/180°/270°) + sub-tile offset
+  // so adjacent tiles stop aligning into the "obvious grid" tell — pure UV math,
+  // no shader / extra texture / 2nd UV set. Prod-safe pure code (default on). An
+  // advanced realism refinement beyond the core finish loop → pro tier (forced
+  // off in Simple, where the plain world-UV plane is byte-identical to before).
+  tileBreakup: {
+    label: 'Tile repetition break-up',
+    description: 'Rotate / offset each floor tile so a large tiled floor stops visibly repeating',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]
