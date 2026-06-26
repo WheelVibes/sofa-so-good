@@ -19,6 +19,7 @@ import { firstEditableRoomId } from '../state/rooms'
 import { useStore } from '../state/store'
 import { closeAllAuxPanels } from './auxPanels'
 import { openDocs } from './docsUrl'
+import { downloadFfeCsv } from './openFfeCsv'
 import { downloadFurnitureCsv } from './openFurnitureCsv'
 import { downloadPlanSvg } from './openPlanSvg'
 import { downloadRenoIcs } from './openRenoIcs'
@@ -55,6 +56,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'shopping-list': 'shopExport',
   'furniture-csv': 'shopExport',
   'room-schedule-csv': 'shopExport',
+  'ffe-csv': 'shopExport',
   'plan-svg': 'dxfExport',
   'export-3d': 'sceneExport3d',
   'import-sh3d': 'importSh3d',
@@ -432,6 +434,13 @@ export function CommandPalette() {
         label: 'Room schedule (CSV export)',
         icon: 'Export',
         run: () => void downloadRoomScheduleCsv(),
+      },
+      {
+        id: 'ffe-csv',
+        group: 'Tools & panels',
+        label: 'FF&E schedule (CSV export)',
+        icon: 'Export',
+        run: () => void downloadFfeCsv(),
       },
       {
         id: 'plan-svg',

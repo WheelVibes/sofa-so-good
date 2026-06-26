@@ -29,6 +29,7 @@ import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
+import { downloadFfeCsv } from '../openFfeCsv'
 import { downloadFurnitureCsv } from '../openFurnitureCsv'
 import { downloadPlanSvg } from '../openPlanSvg'
 import { downloadRenoIcs } from '../openRenoIcs'
@@ -1072,6 +1073,14 @@ export function MobileToolbar() {
                       label="Room schedule (CSV)"
                       sub="Per-room area, perimeter, finishes & ceiling"
                       onClick={act(() => void downloadRoomScheduleCsv())}
+                    />
+                  ) : null}
+                  {fShopExport ? (
+                    <Item
+                      icon="Export"
+                      label="FF&E schedule (CSV)"
+                      sub="Item-by-item schedule — source, SKU, size, qty, price"
+                      onClick={act(() => void downloadFfeCsv())}
                     />
                   ) : null}
                   {fSceneExport ? (
