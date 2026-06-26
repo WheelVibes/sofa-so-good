@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: FF&E schedule CSV export (PARITY-FFE-CSV) (v0.3.0.37)
+
+The FF&E (furniture, fixtures & equipment) schedule that the design report already renders as HTML is
+now also a **machine-readable CSV** — the missing third export alongside the furniture-list and
+room-schedule CSVs. Pure `export/ffeCsv.ts` (`buildFfeCsv(rows, units, opts?)`) runs over the existing
+`buildFfeSchedule` rows (no recompute): Room / Item / Source / SKU / Size (W×D×H, unit-aware) / Qty /
+Unit price / Line total, RFC-4180-quoted with the OWASP injection guard (`utils/csv`), a UTF-8 BOM and
+a grand-total footer; prices are blanked when the `budget` feature is off (the gate lives in the
+download glue, keeping the builder pure). `ui/openFfeCsv.ts` downloads `<plan>-ffe.csv`. File menu +
+mobile + ⌘K, under the existing `shopExport` flag (no new flag). 6 unit tests (metric/imperial,
+injection-neutralised, footer, prices-off, empty plan).
+
+## Feature: door & window schedule in the design report (PARITY-OPENING-SCHED) (v0.3.0.36)
+
+The printable report gains an **Openings schedule** — a standard CAD/SH3D door & window schedule. Pure
+`analysis/openingSchedule.ts` (`buildOpeningSchedule(plan)`) walks `plan.openings` across all storeys,
+resolves each opening's bordering room(s) via a wall-midpoint probe, and groups openings with identical
+(kind, width, head−sill) into **typed marks** (D1/D2…/W1/W2…) with a count, per-mark size (W×H), sill,
+door swing/hinge, and the rooms each mark appears in (a "door type D1 ×4" schedule). Openings off any
+wall/room fall into an "Unassigned" bucket (no crash); doors sort before windows; section omitted when
+there are no openings. Rides the existing `report` flag. 15 unit tests + report-render coverage.
+
+## Feature: daylight & ventilation section in the design report (PARITY-DAYLIGHT-DIGEST) (v0.3.0.35)
+
+The daylight/ventilation analysis (`analysis/daylight.ts buildDaylightReport`) that powered only the
+in-app panel is now also a **printable report section**: per-room glazing % + openable % with PASS/FAIL
+against the module's `DAYLIGHT_MIN_RATIO` (10% glazing) / `VENT_MIN_RATIO` (5% openable) thresholds, a
+pass-count summary, and a disclaimer; omitted when no room has a window. No new analysis code, no new
+flag (rides `report`) — closes an obvious gap (the report already had accessibility + thermal but not
+daylight). Report-render tests for the windowed + bare-shell cases.
+
 ## Feature: inset / outset a room polygon by a signed distance (PARITY-ROOM-INSET) (v0.3.0.33)
 
 A Pro action **insets** (shrink — dropped soffit / set-down) or **outsets** (grow — setback) a

@@ -91,12 +91,6 @@ report/export. **IN FLIGHT (Wave 9):** PARITY-OPENING-SCHED, PARITY-DAYLIGHT-DIG
 > NOTE: report-section items contend on `report.ts` — serialize them (one agent owns report.ts per wave);
 > export-only items run in parallel.
 
-- [~] **PARITY-OPENING-SCHED** (HIGH/M, `report-section`+`export-csv`) — `analysis/openingSchedule.ts`
-  door/window schedule (typed marks D1/W1 ×n, W×H/sill/swing/room) → report section (+opt CSV). *(W9)*
-- [~] **PARITY-DAYLIGHT-DIGEST** (HIGH/S, `report-section`) — surface the existing
-  `analysis/daylight.ts buildDaylightReport` as a report section (no new code/flag). *(W9)*
-- [~] **PARITY-FFE-CSV** (HIGH/S, `export-csv`) — `export/ffeCsv.ts` machine-readable FF&E schedule CSV
-  over the existing `buildFfeSchedule` rows + menu/⌘K. *(W9)*
 - [ ] **PARITY-COST-BREAKDOWN-CSV** (MED/S, `export-csv`) — `export/costBreakdownCsv.ts` combined
   furniture+finishes+reno cost lines + grand total (reuses `itemPrice`/`estimateRenovation`/finish areas).
 - [ ] **PARITY-SUGGESTIONS-SECTION** (MED/S, `report-section`) — surface the existing `suggestions.ts`
