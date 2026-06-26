@@ -10,6 +10,7 @@ import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
 import { estimateRenovation } from '../analysis/renovationCost'
 import { buildStairAdvisories } from '../analysis/stairConnectivity'
+import { buildThermalReport, thermalKindLabel } from '../analysis/thermalAnalysis'
 import { ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
 import { ROOMS } from '../apartment/constants'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
@@ -460,6 +461,36 @@ export function buildReportHtml(
       <div class="foot" style="margin-top:6px">Indicative supply &amp; install only — excludes hacking/disposal, false ceilings, carpentry, M&amp;E and contractor margin.</div>
     </div>`
 
+  // Thermal envelope (PARITY-THERMAL) — an indicative U-value digest of the
+  // exterior envelope: opaque external wall area + glazing area summed across
+  // all storeys, mapped to representative SG U-values, with the area-weighted
+  // average U and a conductive heat-transfer index (Σ area×U). Pure
+  // (analysis/thermalAnalysis); rides the existing `report` flag (additive
+  // section). A bare shell / all-interior plan yields an empty digest (skipped).
+  const thermal = buildThermalReport(
+    plan,
+    floorOf && wallOf ? { floor: floorOf, walls: wallOf } : undefined,
+  )
+  const thermalSection =
+    thermal.totalEnvelopeSqm <= 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Thermal envelope</h2>
+      <table>
+        <tr class="cat"><td>Surface</td><td class="num">Area</td><td class="num">U-value</td><td class="num">Index</td></tr>
+        ${thermal.surfaces
+          .map(
+            (s) =>
+              `<tr><td>${esc(thermalKindLabel(s.category, s.kind))}</td><td class="num">${esc(formatArea(s.areaSqm, units))}</td><td class="num">${s.uValue.toFixed(1)} W/m²K</td><td class="num">${s.index.toFixed(1)} W/K</td></tr>`,
+          )
+          .join('')}
+      </table>
+      <div class="subtotal"><span>Average U-value</span><span>${thermal.averageU.toFixed(2)} W/m²K</span></div>
+      <div class="subtotal"><span>Glazing ratio</span><span>${Math.round(thermal.glazingRatio * 100)}% of envelope</span></div>
+      <div class="total"><span>Heat-transfer index (Σ area×U)</span><span>${thermal.heatTransferIndex.toFixed(0)} W/K</span></div>
+      <div class="foot" style="margin-top:6px">Indicative envelope estimate from representative U-values (lookup table, not a certified calculation) — exterior walls + windows only; excludes roof/floor slabs, thermal bridging, solar gain, infiltration and orientation.</div>
+    </div>`
+
   // Dimensioned plan — an auto-generated running-dimension drawing (overall wall
   // lengths + per-room sizes), a pro 2D deliverable competitors auto-produce.
   // Multi-storey: one captioned drawing per storey with walls.
@@ -752,6 +783,7 @@ export function buildReportHtml(
       : ''
   }
   ${renovationSection}
+  ${thermalSection}
   ${timelineSection}
   ${ffeSection}
   ${clearanceSection}

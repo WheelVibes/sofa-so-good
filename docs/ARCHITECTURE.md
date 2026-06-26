@@ -475,6 +475,15 @@ same change that reshapes a system.
 - **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas)`:
   indicative SG supply+install $/m² per finish category, `RENO_RATES` table). The report's Renovation
   estimate section (finishes subtotal + combined furniture+finishes total).
+- **Thermal envelope** (PARITY-THERMAL) (`analysis/thermalAnalysis.ts` pure →
+  `buildThermalReport(plan, finishes?)`: sums exterior opaque wall area + glazing (window-opening) area
+  across ALL storeys, maps each surface → a representative SG U-value via the documented `U_VALUES`
+  lookup (RC wall 2.0, brick 1.7, lightweight 1.0, cladding 0.6; single glazing 5.7, double 2.8,
+  low-E 1.8), returns total envelope area, area-weighted average U + glazing ratio, and a conductive
+  heat-transfer index `Σ area×U` (W/K). Indicative, NOT a certified calc; exterior walls
+  (`thickness==='external'`) + window openings only. Reuses `planLevels`/`wallLength`; bare-shell /
+  all-interior plan → zeroed digest. The report's "Thermal envelope" section (rides the `report` flag,
+  no new flag).
 - **Accessibility check** (`analysis/accessibility.ts` pure → `buildAccessibilityReport(plan)`:
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
   thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
