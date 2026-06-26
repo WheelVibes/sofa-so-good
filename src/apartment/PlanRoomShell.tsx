@@ -7,6 +7,7 @@ import type { MaterialId } from '../materials/types'
 import { finishSurfaceUserData } from '../scene/finishDropTarget'
 import { useStore } from '../state/store'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
+import { wallFacesAway } from './wallFacing'
 import { PlanWallFinishFace } from './walls/PlanWallFinishFace'
 
 const WALL_COLOR = '#ede9e2' // matches PlanShell's plaster walls
@@ -52,9 +53,10 @@ function WallBox({
   useFrame((state) => {
     const m = ref.current
     if (!m) return
+    // No per-frame Vector2 allocation: the pure scalar test mirrors the old
+    // `camDir.dot(normal) <= 0.05`.
     const cam = state.camera.position
-    const camDir = new Vector2(cam.x - midX, cam.z - midZ)
-    m.visible = camDir.dot(normal) <= 0.05
+    m.visible = wallFacesAway(cam.x, cam.z, midX, midZ, normal)
   })
 
   if (len < 1e-6) return null
