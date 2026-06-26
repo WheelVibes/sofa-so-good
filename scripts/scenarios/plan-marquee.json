@@ -1,0 +1,88 @@
+{
+  "name": "plan-marquee",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1'); })()"
+    },
+    {
+      "name": "seed-items",
+      "eval": "(() => { const s = window.__store.getState(); s.setItems([ { id:'m1', defId:'armchair', position:[9.0,6.5], rotation:0, props:{} }, { id:'m2', defId:'armchair', position:[9.9,6.5], rotation:0, props:{} }, { id:'m3', defId:'armchair', position:[10.8,6.5], rotation:0, props:{} } ]); })()"
+    },
+    {
+      "name": "open-plan-editor",
+      "eval": "window.__store.getState().setFloorPlanEditing(true)"
+    },
+    { "name": "plan-mounted", "waitFor": { "css": ".plan-screen svg" }, "timeout": 30000 },
+    { "name": "settle-1", "wait": 600 },
+    {
+      "name": "show-furniture",
+      "eval": "(async () => { const nap = (ms) => new Promise(r => setTimeout(r, ms)); const root = document.querySelector('.plan-screen'); const findFurn = () => [...document.querySelectorAll('button[aria-pressed]')].find(b => (b.textContent||'').trim() === 'Furniture'); for (let i = 0; i < 8; i++) { let f = findFurn(); if (!f) { const open = [...root.querySelectorAll('button[aria-haspopup=\"menu\"]')].find(b => /^\\s*View/.test(b.textContent||'')); open?.click(); await nap(200); f = findFurn(); } if (f && f.getAttribute('aria-pressed') !== 'true') { f.click(); await nap(200); } if (document.querySelectorAll('.plan-screen polygon[data-item-id]').length >= 3) return 'shown'; await nap(150); } return { state: 'failed', footprints: document.querySelectorAll('.plan-screen polygon[data-item-id]').length }; })()"
+    },
+    { "name": "footprints-shown", "waitFor": { "store": "document.querySelectorAll('.plan-screen polygon[data-item-id]').length >= 3" }, "timeout": 10000, "failMessage": "furniture footprints did not appear" },
+    { "name": "settle-2", "wait": 500 },
+    { "name": "shot-before", "screenshot": "before" },
+    {
+      "name": "marquee-compute",
+      "eval": "(() => { const svg = document.querySelector('svg.plan-paper'); const r = svg.getBoundingClientRect(); const polys = [...svg.querySelectorAll('polygon[data-item-id]')]; const cents = polys.map(p => { const pts = p.getAttribute('points').trim().split(/\\s+/).map(s => s.split(',').map(Number)); const cx = pts.reduce((a,[x])=>a+x,0)/pts.length; const cy = pts.reduce((a,[,y])=>a+y,0)/pts.length; const sx = r.left + cx * r.width / svg.width.baseVal.value; const sy = r.top + cy * r.height / svg.height.baseVal.value; return { id:p.getAttribute('data-item-id'), cx, cy, sx, sy }; }); cents.sort((a,b)=>a.cx-b.cx); const a = cents[0], b = cents[1], c = cents[2]; window.__mq = { x0: (a.sx*3 - b.sx)/2, x1: (b.sx + c.sx)/2, top: Math.min(a.sy,b.sy) - 22, bot: Math.max(a.sy,b.sy) + 22 }; window.__fire = (type, x, y, btns) => svg.dispatchEvent(new PointerEvent(type, { bubbles:true, cancelable:true, clientX:x, clientY:y, button:0, buttons: btns, pointerId:1, pointerType:'mouse' })); })()"
+    },
+    { "name": "mq-down", "eval": "window.__fire('pointerdown', window.__mq.x0, window.__mq.top, 1)" },
+    { "name": "wait-down", "wait": 150 },
+    { "name": "mq-move1", "eval": "window.__fire('pointermove', (window.__mq.x0+window.__mq.x1)/2, (window.__mq.top+window.__mq.bot)/2, 1)" },
+    { "name": "wait-move1", "wait": 150 },
+    { "name": "shot-marquee-live", "screenshot": "marquee-live" },
+    { "name": "mq-move2", "eval": "window.__fire('pointermove', window.__mq.x1, window.__mq.bot, 1)" },
+    { "name": "wait-move2", "wait": 150 },
+    { "name": "mq-up", "eval": "window.__fire('pointerup', window.__mq.x1, window.__mq.bot, 0)" },
+    { "name": "settle-3", "wait": 400 },
+    {
+      "name": "assert-two-selected",
+      "waitFor": { "store": "window.__store.getState().selectedItemIds.length === 2" },
+      "failMessage": "expected exactly 2 items marquee-selected"
+    },
+    { "name": "shot-selected", "screenshot": "selected" },
+    {
+      "name": "record-count",
+      "eval": "(() => { window.__before = window.__store.getState().items.length; return window.__before; })()"
+    },
+    { "name": "assert-only-furniture", "waitFor": { "store": "window.__store.getState().planSelection === null && window.__store.getState().selectedWallIds.length === 0" }, "failMessage": "marquee unexpectedly caught a wall — tighten the box" },
+    { "name": "press-delete", "key": "Delete" },
+    { "name": "settle-4", "wait": 300 },
+    {
+      "name": "assert-deleted",
+      "waitFor": { "store": "window.__store.getState().items.length === window.__before - 2" },
+      "failMessage": "expected 2 items removed by Delete"
+    },
+    { "name": "shot-deleted", "screenshot": "deleted" },
+    { "name": "undo", "eval": "window.__store.getState().undo()" },
+    { "name": "settle-5", "wait": 300 },
+    {
+      "name": "assert-undo-restores-both",
+      "waitFor": { "store": "window.__store.getState().items.length === window.__before" },
+      "failMessage": "expected ONE undo to restore both deleted items"
+    },
+    { "name": "shot-undone", "screenshot": "undone" },
+
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "mobile-settle", "wait": 600 },
+    { "name": "re-seed-mobile", "eval": "(() => { window.__store.getState().setItems([ { id:'k1', defId:'armchair', position:[9.0,6.5], rotation:0, props:{} }, { id:'k2', defId:'armchair', position:[9.9,6.5], rotation:0, props:{} }, { id:'k3', defId:'armchair', position:[10.8,6.5], rotation:0, props:{} } ]); })()" },
+    { "name": "mobile-click-edit", "eval": "(() => { const e=[...document.querySelectorAll('.plan-screen button')].find(b=>(b.textContent||'').trim()==='Edit'); e && e.click(); })()" },
+    { "name": "mobile-edit-wait", "wait": 400 },
+    { "name": "mobile-edit-active", "waitFor": { "store": "(() => { const b=[...document.querySelectorAll('.plan-screen button')].find(x=>(x.textContent||'').trim()==='Edit'); return !!b && b.getAttribute('aria-pressed') === 'true'; })()" }, "timeout": 10000, "failMessage": "mobile: could not switch to Edit mode" },
+    { "name": "mobile-footprints", "waitFor": { "store": "document.querySelectorAll('svg.plan-paper polygon[data-item-id]').length >= 3" }, "timeout": 12000, "failMessage": "mobile: furniture footprints did not appear" },
+    { "name": "mobile-compute", "eval": "(() => { const svg = document.querySelector('svg.plan-paper'); const r = svg.getBoundingClientRect(); const polys = [...svg.querySelectorAll('polygon[data-item-id]')]; const cents = polys.map(p => { const pts = p.getAttribute('points').trim().split(/\\s+/).map(s => s.split(',').map(Number)); const cx = pts.reduce((a,[x])=>a+x,0)/pts.length; const cy = pts.reduce((a,[,y])=>a+y,0)/pts.length; return { sx: r.left + cx * r.width / svg.width.baseVal.value, sy: r.top + cy * r.height / svg.height.baseVal.value }; }); cents.sort((a,b)=>a.sx-b.sx); const a=cents[0],b=cents[1],c=cents[2]; window.__mq = { x0:(a.sx*3-b.sx)/2, x1:(b.sx+c.sx)/2, top:Math.min(a.sy,b.sy)-16, bot:Math.max(a.sy,b.sy)+16 }; window.__fire = (type, x, y, btns) => svg.dispatchEvent(new PointerEvent(type, { bubbles:true, cancelable:true, clientX:x, clientY:y, button:0, buttons: btns, pointerId:2, pointerType:'touch' })); })()" },
+    { "name": "mobile-recheck-edit", "waitFor": { "store": "(() => { const b=[...document.querySelectorAll('.plan-screen button')].find(x=>(x.textContent||'').trim()==='Edit'); return !!b && b.getAttribute('aria-pressed') === 'true'; })()" }, "timeout": 8000, "failMessage": "mobile: Edit mode reverted before marquee" },
+    { "name": "mobile-down", "eval": "window.__fire('pointerdown', window.__mq.x0, window.__mq.top, 1)" },
+    { "name": "mobile-w1", "wait": 200 },
+    { "name": "mobile-move1", "eval": "window.__fire('pointermove', (window.__mq.x0+window.__mq.x1)/2, (window.__mq.top+window.__mq.bot)/2, 1)" },
+    { "name": "mobile-w2", "wait": 150 },
+    { "name": "mobile-move2", "eval": "window.__fire('pointermove', window.__mq.x1, window.__mq.bot, 1)" },
+    { "name": "mobile-w3", "wait": 150 },
+    { "name": "mobile-up", "eval": "window.__fire('pointerup', window.__mq.x1, window.__mq.bot, 0)" },
+    { "name": "mobile-settle2", "wait": 400 },
+    { "name": "assert-mobile-two-selected", "waitFor": { "store": "window.__store.getState().selectedItemIds.length === 2" }, "timeout": 8000, "failMessage": "mobile: expected exactly 2 items marquee-selected via touch" },
+    { "name": "shot-mobile-selected", "screenshot": "mobile-selected" }
+  ]
+}

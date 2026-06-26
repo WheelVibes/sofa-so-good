@@ -144,6 +144,32 @@ describe('floorPlanSlice', () => {
     expect(useStore.getState().selectedWallIds).toEqual([])
   })
 
+  it('setPlanMarqueeSelection populates item + wall selections atomically', () => {
+    useStore.getState().newFloorPlan('Marquee test')
+    for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
+    const w1 = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    const w2 = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
+
+    // Furniture + walls together: walls → primary + extras; items → multi-set.
+    useStore.getState().setPlanMarqueeSelection(['i1', 'i2'], [w1, w2])
+    expect(useStore.getState().planSelection).toEqual({ type: 'wall', id: w1 })
+    expect(useStore.getState().selectedWallIds).toEqual([w2])
+    expect(useStore.getState().selectedItemIds).toEqual(['i1', 'i2'])
+    expect(useStore.getState().selectedItemId).toBe('i2')
+
+    // Furniture only: no plan element selected (the furniture inspector owns it).
+    useStore.getState().setPlanMarqueeSelection(['i3'], [])
+    expect(useStore.getState().planSelection).toBeNull()
+    expect(useStore.getState().selectedWallIds).toEqual([])
+    expect(useStore.getState().selectedItemIds).toEqual(['i3'])
+
+    // Walls only: clears the item selection.
+    useStore.getState().setPlanMarqueeSelection([], [w1])
+    expect(useStore.getState().planSelection).toEqual({ type: 'wall', id: w1 })
+    expect(useStore.getState().selectedItemIds).toEqual([])
+    expect(useStore.getState().selectedItemId).toBeNull()
+  })
+
   it('a plain selection clears the multi-selection extras', () => {
     useStore.getState().newFloorPlan('Multi clear test')
     const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })

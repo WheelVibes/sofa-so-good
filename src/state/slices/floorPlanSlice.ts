@@ -119,6 +119,12 @@ export interface FloorPlanSlice {
   /** Toggle a wall in the multi-selection (Shift/⌘-click or multi-add mode):
    *  adds it as the new primary, or removes it (promoting another to primary). */
   toggleWallSelection: (id: string) => void
+  /** Apply a marquee (rubber-band) result: select the given furniture items
+   *  (into `selectedItemIds`) and walls (`planSelection` primary + extras in
+   *  `selectedWallIds`) at once, so a drag-box can sweep up both kinds without
+   *  one clearing the other. Session-only; pushes no history (selection only).
+   *  An empty result clears everything (the drag selected nothing). */
+  setPlanMarqueeSelection: (itemIds: string[], wallIds: string[]) => void
   /** Bulk-delete walls (skips locked ones); one history step; clears selection. */
   removeWalls: (ids: string[], levelId?: string) => void
   /** Bulk lock/unlock walls; one history step. */
@@ -350,6 +356,28 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         ? { planSelection: sel, selectedWallIds: [], selectedItemId: null, selectedItemIds: [] }
         : { planSelection: sel, selectedWallIds: [] },
     ),
+  setPlanMarqueeSelection: (itemIds, wallIds) =>
+    set(() => {
+      const items = [...new Set(itemIds)]
+      const walls = [...new Set(wallIds)]
+      // Walls: first hit is the primary (drives the element inspector); the rest
+      // are extras. Furniture: the whole set goes into `selectedItemIds` (with
+      // `selectedItemId` mirroring the last, like every other multi-item path).
+      // A wall primary and a furniture primary can't both show in their
+      // inspectors, so when both kinds are hit we let the wall be the plan
+      // `planSelection` primary while the furniture multi-selection still drives
+      // bulk delete/align. When only furniture is hit, planSelection is null so
+      // the furniture inspector takes over.
+      const planSelection: PlanSelection = walls.length ? { type: 'wall', id: walls[0] } : null
+      return {
+        planSelection,
+        selectedWallIds: walls.slice(1),
+        selectedItemIds: items,
+        selectedItemId: items.length ? items[items.length - 1] : null,
+        selectedRoomId: null,
+        selectedWall: null,
+      }
+    }),
   setPlanWallMultiAdd: (on) => set({ planWallMultiAdd: on }),
   toggleWallSelection: (id) =>
     set((s) => {

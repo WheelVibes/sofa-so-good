@@ -589,7 +589,17 @@ same change that reshapes a system.
   Item- vs plan-element selection is **mutually exclusive** (`selectItem` clears
   `planSelection`; `setPlanSelection` clears `selectedItemId`) so the two inspectors never
   co-render. Available in **both Simple and Pro** (plan editing is a core loop — no extra flag;
-  rides the editor's `floorPlanEditor` gate). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
+  rides the editor's `floorPlanEditor` gate). **Rubber-band marquee** (PARITY-PLAN-MARQUEE):
+  a drag on **empty canvas** with the select tool draws a dashed accent rect (pure
+  `ui/floorplan/editor/marqueeSelect.ts` — SAT **intersection** test reusing `collision/obb.ts`
+  `obbVsObb`/`obbVsSegment`, so a footprint/wall counts when it *touches or overlaps* the box, not
+  only when fully enclosed; rotated footprints use their true OBB; a zero-area drag is a click and
+  doesn't hijack selection). On release furniture hits feed `selectedItemIds` and wall hits feed
+  `selectedWallIds` (+ a primary `planSelection`) atomically via `setPlanMarqueeSelection`. Delete/⌫
+  bulk-deletes the multi-selection — furniture in **one** coalesced undo step (the `deleteItem`
+  `'delete'` coalesce key). Works on desktop **and** mobile touch (in edit mode; two-finger pinch
+  still zooms). Selecting only furniture leaves `planSelection` null so the furniture inspector owns
+  the panel. **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
   "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
   furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an
   **"All levels"** toggle draws the other storeys' walls as a dimmed underlay to align floors; every tool,
