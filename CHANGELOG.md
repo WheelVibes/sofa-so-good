@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: rubber-band marquee multi-select in the 2D plan editor (PARITY-PLAN-MARQUEE) (v0.3.0.15)
+
+The 2D plan editor gains **drag-box (marquee) multi-select**, matching Sweet Home 3D / Coohom.
+Dragging from empty canvas with the select tool draws a dashed-accent rectangle (token vocabulary,
+no hardcoded colour); on release every furniture footprint and wall segment that **intersects** the
+box is selected (intersection, not full-containment — the SH3D/Coohom convention). The hit-test is a
+new pure `ui/floorplan/editor/marqueeSelect.ts` that reuses the existing `collision/obb.ts`
+`obbVsObb`/`obbVsSegment` SAT helpers, so rotated footprints test against their true OBB. A new
+`setPlanMarqueeSelection(itemIds, wallIds)` slice action sets `selectedItemIds` + `selectedWallIds`
+atomically; multi-selected footprints highlight in accent. Delete/Backspace bulk-removes the
+selected furniture in **one** coalesced undo step. Zero-area drags fall through to normal click
+selection, so existing single-click/select/draw tools are unaffected. Works with touch drag on
+mobile. No feature flag — plan editing is a core loop (Simple + Pro), consistent with the existing
+ungated wall Shift-click multi-select. 14 unit tests (incl. the rotated-footprint corner case) + a
+desktop/mobile scenario; visually verified.
+
+## Feature: duplicate a room on the 2D plan (PARITY-PLAN-ROOM-DUP) (v0.3.0.14)
+
+Rooms now have a **Duplicate** action on the 2D plan (walls + openings already did). A new pure
+`floorplan/duplicateRoom.ts` clones the room polygon with a 0.5 m origin offset, copies its floor +
+wall finishes, assigns a fresh unique id + "… copy" name, and re-runs
+`assignRoomWallNames`/`assignRoomOpeningNames` so boundary walls/openings get non-colliding names.
+Crucially it gives the copy its **own** fresh offset boundary walls (matched to the source by the
+same collinearity test the namer uses) + clones of their openings, so walls shared with neighbours
+are never mutated; a floating room with no matching walls just clones the polygon + finishes (no
+crash). The `duplicateRoom` slice action pushes one undo step, selects the new room, and resolves the
+room's storey via `levelOfRoom` so multi-level plans stay on the correct level. A thin "Duplicate
+room" button in the `PlanInspector` room branch (no flag — matches the ungated `duplicateWall`/
+`duplicateOpening`, shows in Simple + Pro). 11 unit tests + scenario; visually verified
+(11→12 rooms, shape + finishes preserved, clean single-step undo).
+
+## Feature: smart rotation snap to a neighbour's axis (PARITY-SNAP-ROTATE) (v0.3.0.13)
+
+Rotating furniture now **snaps to a nearby item's (or wall's) axis** when within 5° — Coohom-grade
+"align to the sofa next to it" — falling back to the existing 15° grid otherwise (Shift still
+bypasses all snapping). New pure helpers in `scene/selection/rotateGizmoMath.ts`
+(`smartSnapRotation`, `neighbourAxes`, `offsetToNeighbourAxis`, `NEIGHBOUR_SNAP_THRESHOLD`): the
+snap is **mod-90°** (parallel or perpendicular both read as aligned), the nearest neighbour wins on
+ties (strict `<` boundaries → no flicker), and the 5° threshold sits well inside one 15° step so no
+hysteresis is needed. `RotateGizmo` feeds the free candidate yaw through the helper and draws a
+faint diametric alignment guide (`depthTest:false` + 1 mm lift → no z-fighting) only while a
+neighbour-snap is active. Gated behind a new `smartRotateSnap` flag (`tier: 'pro'`, `default: true`)
+so Simple users keep the familiar 15°-only behaviour (the gizmo gathers no reference axes when the
+flag is off → byte-identical fallback). 17 unit tests + both-mode flag tests.
+
 ## Feature: duplicate-along-path array tool (PARITY-DUP-PATH) (v0.3.0.12)
 
 Coohom-style array tooling now includes **duplicate-along-path**: place N copies of the selected
