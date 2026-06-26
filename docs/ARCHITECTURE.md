@@ -543,6 +543,12 @@ same change that reshapes a system.
   **on touch the Wall tool is tap-to-place + chaining** (tap start, tap end, continues from the last end;
   `wallTapHadAnchor` ref distinguishes placing the start vs the end), with snapped start-dot/end-ring markers
   drawn on the draft (desktop keeps drag-to-draw).
+  The per-tool **draft-state transitions** (commit thresholds + endpoints for wall / room / scale /
+  dimension drags, polyroom/polyline vertex-add-vs-close, and the wall rotate-ring transform) are pure,
+  unit-tested functions in `ui/floorplan/editor/toolDraftReducer.ts` (`wallCommit`/`roomCommit`/
+  `dimensionCommit`/`scaleCommits`/`wallTapCommits`/`polygonClick`/`rectFromVerts`/`rectFromDraft`/
+  `rotateWallTransform`); `FloorPlanEditor`'s `onDown`/`onMove`/`onUp` are thin dispatchers that own the
+  React draft state + store writes and delegate the math (MOD-FPE-SPLIT, behaviour-preserving extraction).
   **Numeric wall entry** (`wallNumericEntry` flag, pro, default on): while a desktop wall draft is active
   a floating overlay (`ui/floorplan/editor/WallNumericEntry.tsx`) appears near the cursor endpoint with
   Length and Angle ° text fields; typing drives a live preview; Enter commits at the exact values; Tab
