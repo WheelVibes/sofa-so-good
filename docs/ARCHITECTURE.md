@@ -475,6 +475,12 @@ same change that reshapes a system.
 - **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas)`:
   indicative SG supply+install $/m² per finish category, `RENO_RATES` table). The report's Renovation
   estimate section (finishes subtotal + combined furniture+finishes total).
+- **Plan statistics** (`analysis/planStatistics.ts` pure → `buildPlanStatistics(plan)`: GFA summed
+  across ALL storeys, room count + per-kind mix (`roomKindFromName` buckets, unknown→`other`),
+  average room size, total room perimeter + total wall length, and the net-vs-circulation split
+  (corridor/hallway rooms by name). Reuses `allPlanRooms`/`planLevels`/`planRoomArea`/
+  `planRoomPerimeter`/`wallLength`; empty plan → fully-zeroed digest. The report's "Plan statistics"
+  section (rides the `report` flag, no new flag).
 - **Accessibility check** (`analysis/accessibility.ts` pure → `buildAccessibilityReport(plan)`:
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
   thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
