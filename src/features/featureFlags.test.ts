@@ -150,6 +150,12 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').viewInAr).toBe(true)
   })
 
+  it('scatterFill (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    // Scatter-fill is an advanced bulk-placement/layout tool → pro tier.
+    expect(resolveFlags(true, {}, false, 'simple').scatterFill).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').scatterFill).toBe(true)
+  })
+
   it('floorTexture (simple tier) is present in BOTH Simple and Pro modes', () => {
     expect(resolveFlags(true, {}, false, 'simple').floorTexture).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').floorTexture).toBe(true)

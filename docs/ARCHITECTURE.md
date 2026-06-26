@@ -166,8 +166,11 @@ same change that reshapes a system.
   **radial/polar array** (`furniture/radialArray.ts` — pure, unit-tested, Pro-only via
   `radialArray` flag), **path/polyline array** (`furniture/pathArray.ts` — pure, unit-tested;
   `inspector/PathArraySection.tsx` arrays copies along a drawn plan polyline by arc-length
-  sampling with tangent yaw; Pro-only via `pathArray` flag)), FinishPicker, WallAccentPicker,
-  GraphicsSettings, BudgetPanel, NavCluster,
+  sampling with tangent yaw; Pro-only via `pathArray` flag), **scatter-fill room**
+  (`inspector/ScatterFillSection.tsx` → pure `layout/scatterInRoom.ts` — evenly fills the
+  selected item's room with N collision-safe copies on a packed grid, deterministic by seed;
+  Pro-only via `scatterFill` flag)), FinishPicker, WallAccentPicker, GraphicsSettings,
+  BudgetPanel, NavCluster,
   CommandPalette, ContextMenu, Onboarding, HelpModal, Modal, `upload/`/`floorplan/`/
   `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`. Empty panels/lists render the shared
   **`EmptyState`** (`EmptyState.tsx`: icon + title + optional description + optional CTA on

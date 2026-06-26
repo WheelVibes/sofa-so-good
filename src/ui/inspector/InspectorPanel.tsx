@@ -28,6 +28,7 @@ import { MultiSelectPanel } from './MultiSelectPanel'
 import { ParametricBody } from './ParametricBody'
 import { PathArraySection } from './PathArraySection'
 import { PosField } from './PosField'
+import { ScatterFillSection } from './ScatterFillSection'
 import { SourceLine } from './SourceLine'
 import { TiltControls } from './TiltControls'
 import { MinimizeButton, useInspectorMinimize } from './useInspectorMinimize'
@@ -54,6 +55,8 @@ export function InspectorPanel() {
   const radialArrayOn = useFeature('radialArray')
   // Duplicate-along-path array (PARITY-DUP-PATH): place copies along a drawn polyline.
   const pathArrayOn = useFeature('pathArray')
+  // Scatter-fill a room with N collision-safe copies (PARITY-SCATTER-ROOM).
+  const scatterFillOn = useFeature('scatterFill')
   const tiltItem = useStore((s) => s.tiltItem)
   // Per-item elevation (SweetHome3DJS parity) — grouped with mount-height control.
   const elevationOn = useFeature('mountHeights')
@@ -838,6 +841,9 @@ export function InspectorPanel() {
               ) : null}
               {proMode && pathArrayOn ? (
                 <PathArraySection item={item} def={def} catalog={catalog} />
+              ) : null}
+              {proMode && scatterFillOn ? (
+                <ScatterFillSection item={item} def={def} catalog={catalog} />
               ) : null}
               {isOffSquare(item.rotation) ? (
                 <button

@@ -1,0 +1,73 @@
+{
+  "name": "scatter-fill-room-simple",
+  "url": "http://localhost:5217/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(()=>{const s=window.__store.getState();s.endTour&&s.endTour();s.setOnboardingOpen&&s.setOnboardingOpen(false);s.dismissLocationPrompt&&s.dismissLocationPrompt();localStorage.setItem('hdb_onboarded','1');})()"
+    },
+    { "name": "daylight", "eval": "window.__store.getState().setManualHour(13)" },
+    { "name": "enter-room", "eval": "window.__store.getState().enterRoomEditor('livingDining')" },
+    { "name": "wait-editor", "waitFor": { "store": "state.roomEditor.active === true" } },
+    {
+      "name": "seed-one-chair",
+      "eval": "(()=>{const s=window.__store.getState();s.setItems([{id:'src-chair',defId:'dining-chair',position:[10.55,4.1],rotation:0,props:{}}]);})()"
+    },
+    { "name": "wait-item", "waitFor": { "store": "state.items.length === 1" } },
+    { "name": "select-chair", "eval": "window.__store.getState().selectItem('src-chair')" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "assert-hidden-in-simple",
+      "eval": "(()=>{window.__store.getState().setUiMode('simple');})()"
+    },
+    { "name": "shot-simple-no-section", "screenshot": "01-simple-no-scatter" },
+    {
+      "name": "assert-section-absent-simple",
+      "eval": "(()=>{if(document.querySelector('.act-array--scatter'))throw new Error('scatter section visible in Simple mode');})()"
+    },
+    { "name": "back-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "expand-inspector",
+      "eval": "(()=>{const b=document.querySelector('button[aria-label=\"Expand inspector\"]');if(b)b.click();})()"
+    },
+    { "name": "wait-section", "waitFor": { "css": ".act-array--scatter" }, "timeout": 20000 },
+    { "name": "shot-section", "screenshot": "02-pro-scatter-section" },
+    {
+      "name": "set-count",
+      "eval": "(()=>{const el=document.querySelector('.act-array--scatter input[aria-label=\"Number of copies to fill the room with\"]');const set=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value').set;set.call(el,'12');el.dispatchEvent(new Event('input',{bubbles:true}));})()"
+    },
+    {
+      "name": "record-before",
+      "eval": "window.__before = window.__store.getState().items.length"
+    },
+    {
+      "name": "click-go",
+      "eval": "(()=>{const btns=[...document.querySelectorAll('.act-array--scatter .act-array-go')];btns[0].click();})()"
+    },
+    {
+      "name": "wait-placed",
+      "waitFor": { "store": "state.items.length > window.__before" },
+      "timeout": 20000
+    },
+    {
+      "name": "assert-inside-and-no-overlap",
+      "eval": "(async()=>{const s=window.__store.getState();const room=s.floorPlan.rooms.find(r=>r.id==='livingDining');const mod=await import('/src/floorplan/types.ts');const poly=mod.roomPolygon(room);const copies=s.items.filter(i=>i.id!=='src-chair'&&i.defId==='dining-chair');if(copies.length<2)throw new Error('expected multiple copies, got '+copies.length);for(const c of copies){if(!mod.pointInPolygon(c.position[0],c.position[1],poly))throw new Error('copy outside room: '+JSON.stringify(c.position));}for(let i=0;i<copies.length;i++)for(let j=i+1;j<copies.length;j++){const dx=copies[i].position[0]-copies[j].position[0];const dz=copies[i].position[1]-copies[j].position[1];if(Math.hypot(dx,dz)<0.3)throw new Error('copies too close (overlap): '+Math.hypot(dx,dz));}window.__scatterCount=copies.length;console.log('PROBE scatter placed copies='+copies.length);})()"
+    },
+    { "name": "shot-filled", "screenshot": "03-room-filled" },
+    {
+      "name": "assert-one-undo-step",
+      "eval": "(()=>{const s=window.__store.getState();s.undo();if(window.__store.getState().items.length!==1)throw new Error('undo did not revert scatter in one step: '+window.__store.getState().items.length);})()"
+    },
+    { "name": "shot-after-undo", "screenshot": "04-after-undo" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "redo-fill", "eval": "window.__store.getState().redo()" },
+    { "name": "wait-redo", "waitFor": { "store": "state.items.length > 1" } },
+    {
+      "name": "expand-inspector-mobile",
+      "eval": "(()=>{const b=document.querySelector('button[aria-label=\"Expand inspector\"]');if(b)b.click();})()"
+    },
+    { "name": "wait-section-mobile", "waitFor": { "css": ".act-array--scatter" }, "timeout": 20000 },
+    { "name": "shot-mobile", "screenshot": "05-mobile-scatter-section" }
+  ]
+}

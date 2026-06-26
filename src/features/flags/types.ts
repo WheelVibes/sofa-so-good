@@ -96,6 +96,7 @@ export type FeatureFlag =
   | 'importSh3d'
   | 'smartRotateSnap'
   | 'stampPlace'
+  | 'scatterFill'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
