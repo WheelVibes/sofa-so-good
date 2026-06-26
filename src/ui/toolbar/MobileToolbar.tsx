@@ -29,6 +29,7 @@ import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
+import { downloadCostBreakdownCsv } from '../openCostBreakdownCsv'
 import { downloadFurnitureCsv } from '../openFurnitureCsv'
 import { downloadPlanSvg } from '../openPlanSvg'
 import { openDesignReport } from '../openReport'
@@ -1054,6 +1055,14 @@ export function MobileToolbar() {
                       label="Furniture list (CSV)"
                       sub="Spreadsheet of every item — dims, qty, prices"
                       onClick={act(() => void downloadFurnitureCsv())}
+                    />
+                  ) : null}
+                  {fShopExport ? (
+                    <Item
+                      icon="Export"
+                      label="Cost breakdown (CSV)"
+                      sub="Furniture + finishes + renovation, with a grand total"
+                      onClick={act(() => void downloadCostBreakdownCsv())}
                     />
                   ) : null}
                   {fSceneExport ? (
