@@ -177,7 +177,13 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   structural walls, wet‑area waterproofing, facade windows; on a multi‑storey
   plan this also flags any **upper storey no staircase reaches**, until you
   place a Staircase whose run lands on that storey's landing), areas, and your
-  design notes — a handoff-ready document.
+  design notes — a handoff-ready document. The Report also shows a **renovation
+  timeline** — an indicative phase schedule (protection & hacking → … → cleaning
+  & handover) estimated from your floor area and room count.
+- **Reno timeline (.ics)** — exports that renovation timeline as a calendar file
+  you can import into Google / Apple / Outlook Calendar, with one all-day event per
+  phase starting today. Find it in **Tools** (desktop and the mobile sheet) or via
+  ⌘K — it shares the Report toggle, so it's available whenever the Report is.
 - **Drawing set** — a formal, paginated **plan set** (A4 landscape, one drawing per
   sheet with title blocks): cover + sheet index, floor plan, each wall elevation,
   the lighting plan, and the FF&E schedule. Print or save as PDF for builders and

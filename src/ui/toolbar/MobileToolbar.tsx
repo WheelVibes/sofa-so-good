@@ -31,6 +31,7 @@ import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
 import { downloadFurnitureCsv } from '../openFurnitureCsv'
 import { downloadPlanSvg } from '../openPlanSvg'
+import { downloadRenoIcs } from '../openRenoIcs'
 import { openDesignReport } from '../openReport'
 import { exportScene3d } from '../openSceneExport'
 import { openSh3dImport } from '../openSh3dImport'
@@ -980,6 +981,14 @@ export function MobileToolbar() {
                             label="Report"
                             sub="Printable design report"
                             onClick={act(openReport)}
+                          />
+                        ) : null}
+                        {fReport ? (
+                          <Item
+                            icon="Export"
+                            label="Reno timeline (.ics)"
+                            sub="Renovation phases as calendar events"
+                            onClick={act(() => void downloadRenoIcs())}
                           />
                         ) : null}
                         {fDxf ? (

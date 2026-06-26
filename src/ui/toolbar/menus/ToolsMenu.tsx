@@ -12,6 +12,7 @@ import { openDrawingSet } from '../../openDrawingSet'
 import { downloadPlanDxf } from '../../openDxf'
 import { openMoodboard } from '../../openMoodboard'
 import { downloadPlanSvg } from '../../openPlanSvg'
+import { downloadRenoIcs } from '../../openRenoIcs'
 import { openDesignReport } from '../../openReport'
 import { exportScene3d } from '../../openSceneExport'
 import { viewInAr } from '../../viewInAr'
@@ -294,6 +295,14 @@ export function ToolsMenu() {
       )}
       {fReport && (
         <MenuItem icon="Report" label="Report" sub="Printable design report" onClick={openReport} />
+      )}
+      {fReport && (
+        <MenuItem
+          icon="Export"
+          label="Reno timeline (.ics)"
+          sub="Renovation phases as calendar events"
+          onClick={() => void downloadRenoIcs()}
+        />
       )}
       {fBoq && (
         <>

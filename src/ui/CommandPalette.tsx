@@ -21,6 +21,7 @@ import { closeAllAuxPanels } from './auxPanels'
 import { openDocs } from './docsUrl'
 import { downloadFurnitureCsv } from './openFurnitureCsv'
 import { downloadPlanSvg } from './openPlanSvg'
+import { downloadRenoIcs } from './openRenoIcs'
 import { openDesignReport } from './openReport'
 import { exportScene3d } from './openSceneExport'
 import { openSh3dImport } from './openSh3dImport'
@@ -39,6 +40,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   history: 'history',
   share: 'shareExport',
   report: 'report',
+  'reno-ics': 'report',
   floorplan: 'floorPlanEditor',
   'design-score': 'designScore',
   accessibility: 'accessibility',
@@ -357,6 +359,13 @@ export function CommandPalette() {
         label: 'Design report (printable)',
         icon: 'Report',
         run: () => openDesignReport(),
+      },
+      {
+        id: 'reno-ics',
+        group: 'Tools & panels',
+        label: 'Reno timeline (.ics calendar export)',
+        icon: 'Export',
+        run: () => void downloadRenoIcs(),
       },
       {
         id: 'shopping-list',
