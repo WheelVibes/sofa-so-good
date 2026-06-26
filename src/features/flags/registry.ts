@@ -618,6 +618,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Path/polyline array (PARITY-DUP-PATH, Coohom array tooling): place N copies of the
+  // selected item along a drawn polyline by arc-length sampling, each optionally yawed to
+  // face along the path tangent. Pure code, no external assets → prod-safe. An advanced
+  // placement/layout tool → pro tier.
+  pathArray: {
+    label: 'Path array',
+    description: 'Place N copies along a drawn polyline (e.g. chairs along an L-shaped counter)',
+    default: true,
+    tier: 'pro',
+  },
   // IES photometric light profiles (PC-IES-LIGHT, Coohom parity): drive a real
   // luminaire beam shape (cone/penumbra/intensity from an LM-63 .ies candela
   // distribution) on a light fixture. Pure client-side code (parse + map), no

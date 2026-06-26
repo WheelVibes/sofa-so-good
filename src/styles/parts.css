@@ -245,6 +245,7 @@
   background: var(--accent);
 }
 .act-array-go:hover { filter: brightness(1.05); }
+.act-array-go:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
 
 /* budget bar */
 .bud-total { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }

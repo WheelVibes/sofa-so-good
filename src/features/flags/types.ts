@@ -88,6 +88,7 @@ export type FeatureFlag =
   | 'catalogFavourites'
   | 'wallNumericEntry'
   | 'radialArray'
+  | 'pathArray'
   | 'iesLights'
   | 'cameraDof'
   | 'proceduralSky'

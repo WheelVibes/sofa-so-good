@@ -82,6 +82,17 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'simple').furnitureGroups).toBe(false)
   })
 
+  it('pathArray (pro tier) is present in Pro and hidden in Simple', () => {
+    // Duplicate-along-path (PARITY-DUP-PATH) is advanced array tooling → pro; the
+    // inspector section gates on this flag so it disappears from Simple's core loop.
+    expect(resolveFlags(true, {}, false, 'pro').pathArray).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').pathArray).toBe(false)
+    // Prod (non-dev) default is on in Pro (pure-code, no sidecar/licence) …
+    expect(resolveFlags(false, {}, false, 'pro').pathArray).toBe(true)
+    // … and still forced off in Simple.
+    expect(resolveFlags(false, {}, false, 'simple').pathArray).toBe(false)
+  })
+
   it('sceneExport3d (simple tier) is present in BOTH Simple and Pro modes', () => {
     // Whole-scene 3D export is part of the curated launch set → simple tier.
     expect(resolveFlags(true, {}, false, 'simple').sceneExport3d).toBe(true)
