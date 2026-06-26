@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: snap the whole plan to a grid (PARITY-GRID-SNAP) (v0.3.0.31)
+
+A Pro **"Snap to grid"** Plan-menu action tidies a traced/imported plan by rounding every
+coordinate to a grid. Pure `floorplan/gridSnap.ts` (`snapPlanToGrid(plan, items, gridM=0.05, opts?)`,
+modelled on `rescalePlan`/`mirrorPlanRegion`) rounds wall endpoints, room origins/size/polygon/
+labelOffset, opening offset+width, notes/dims/polylines, every upper storey (+ `elevation`/`extent`)
+via `Math.round(v/gridM)*gridM`; openings are re-threaded (offset snapped + clamped to
+`[0, wallLen−width]`) so they stay on their snapped wall, and a wall that would collapse to zero
+length is left unsnapped. Idempotent (`snap∘snap === snap`); `gridM ≤ 0`/NaN/∞ throws; furniture
+positions snap only with `{snapFurniture}` (sizes preserved). `snapFloorPlanToGrid(gridM?, opts?)`
+slice action defaults the grid to the editor's `gridSize` (else 0.05 m), one undo step, forks the
+default plan. New `planGridSnap` flag (`tier:'pro'`, default on). 19 unit + slice tests; visually
+verified (off-grid plan → P 18.00 m, walls still join, door swing intact, no z-fighting).
+
+## Feature: renovation-timeline .ics calendar export (PARITY-RENO-ICS) (v0.3.0.30)
+
+The renovation timeline (`analysis/renoTimeline.ts`) can now be exported as an **`.ics` calendar**
+(Tools / mobile / ⌘K, under the existing `report` flag) so a homeowner can drop the reno phases into
+their calendar app. Pure `export/renoIcs.ts` (`buildRenoIcs(phases, startDate[, now])`) emits an
+RFC-5545 VCALENDAR with one all-day VEVENT per phase (`DTSTART;VALUE=DATE`/exclusive `DTEND`), CRLF
+line endings, TEXT escaping, a stable per-phase UID, PRODID + DTSTAMP — clock-free (dates passed in)
+so it's deterministic + unit-testable; an empty timeline yields a valid empty VCALENDAR.
+`ui/openRenoIcs.ts` is the Blob-download glue (starts "today", toasts when there are no phases).
+18 tests incl. an integration test against the real `buildRenoTimeline`.
+
+## Feature: plan-statistics digest in the design report (PARITY-PLAN-STATS) (v0.3.0.29)
+
+The printable design report gains a **Plan statistics** section: total GFA (summed across all
+storeys), room count + per-kind mix, average room size, total room perimeter, total wall length, and
+a net-vs-circulation split. Pure `analysis/planStatistics.ts` (`buildPlanStatistics(plan)`) reuses
+`allPlanRooms`/`planLevels`/`planRoomArea`/`planRoomPerimeter`/`wallLength`/`roomKindFromName`; an
+empty/bare-shell plan yields a fully-zeroed digest (never NaN), unknown room kinds bucket as `other`.
+Rides the existing `report` flag (no new flag). 12 unit tests + a report-render test.
+
 ## Feature: mirror a whole plan region about an axis (PARITY-PLAN-MIRROR-REGION) (v0.3.0.27)
 
 A **"Mirror plan"** action (Plan menu, Pro) reflects the entire plan region — every storey's walls,
