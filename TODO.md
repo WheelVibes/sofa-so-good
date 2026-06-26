@@ -9,12 +9,23 @@ truth). All items are pure-client and headlessly verifiable on SwiftShader (unit
 `window.__store` scenario assertions). Conflict-group tags (`cg-*`) parallelize: same tag = serialize.
 **Already dispatched/shipped this session — do NOT re-do:** AUD-002/003, PARITY-SH3D-FURN/OPENINGS
 (tests), PARITY-DUP-PATH, PARITY-SNAP-ROTATE, PARITY-PLAN-ROOM-DUP, PARITY-PLAN-MARQUEE,
-PARITY-PLAN-ALIGN (in-flight), MOD-FPE-SPLIT (in-flight).
+PARITY-PLAN-ALIGN, MOD-FPE-SPLIT, BUG-RADIAL-FULLCIRCLE, PARITY-ROOM-CSV, PARITY-PLAN-SCALE,
+PARITY-STAMP-PLACE, PARITY-SCATTER-ROOM, BUG-PATHARRAY-LOOP (the no-polyline infinite-render fix).
+**BUG-PATHARRAY-EMPTY was VERIFIED a false positive** (pathArrayPlacements already guards
+`segments.length===0 || total<=1e-9 → []` and sampleAt guards the division) — removed, no fix needed.
+
+> **⚠️ Orchestration constraint (learned this session):** isolated worktree subagents fork from the
+> **session-start base** (`b0371d9`), NOT the branch tip — so (a) files *created* this session
+> (`pathArray.ts`, `scatterInRoom.ts`, `rescalePlan.ts`, `marqueeSelect.ts`, `toolDraftReducer.ts`,
+> `PlanMultiSelectActions.tsx`, `PathArraySection.tsx`, …) are **invisible** to a delegated agent and
+> must be edited inline; and (b) **behaviour-preserving refactors of files modified this session**
+> (`FloorPlanEditor.tsx`, `PlanInspector.tsx`, `MobileToolbar.tsx`) can't be safely delegated — a
+> b0371d9-based refactor would drop this session's additions on merge. **Deferred until the base
+> resets** (next PR merge to `main`) or to careful inline work: **MOD-PLANINSPECTOR-SPLIT**,
+> **MOD-MOBILETOOLBAR-SPLIT**, **PARITY-PLAN-VERTEX-ANGLESNAP** (FloorPlanEditor), and the
+> FloorPlanEditor-touching parts of **PARITY-PLAN-GUIDES**.
 
 ### Correctness / reliability (highest priority)
-- [ ] **BUG-PATHARRAY-EMPTY** (LOW/S, `cg-patharray`) — `furniture/pathArray.ts:~127,140`: degenerate
-  all-coincident-points path (`total≈0`) slips past the `<2 points` check; `t=d/total` blows up. Fix:
-  guard `total <= 1e-6 → return start`. Verify: unit test two near-coincident points → no NaN/`t>1`.
 - [ ] **BUG-RECORD-TIMER-LEAK** (LOW/S, `cg-record`) — `scene/RecordController.tsx:64`: untracked
   `setTimeout(revokeObjectURL,2000)` fires on a dead context if unmounted in-window. Fix: ref + clear
   in effect cleanup. (Fold into any RecordController touch — not cleanly headless.)
