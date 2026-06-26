@@ -368,7 +368,7 @@ export function InspectorPanel() {
     if (dropped > 0) {
       const placed = newItems.length
       st.notify.start({
-        title: `Placed ${placed} of ${total + 1} — ${dropped} didn't fit`,
+        title: `Placed ${placed} of ${total} — ${dropped} didn't fit`,
         kind: 'info',
       })
     }
