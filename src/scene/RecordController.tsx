@@ -28,6 +28,22 @@ export function RecordController() {
   const recording = useStore((s) => s.recording)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const trackRef = useRef<CaptureTrack | null>(null)
+  // Pending object-URL revoke timers, tracked so they can be cleared on unmount
+  // (a download can fire `onstop` then unmount within the 2 s window — without
+  // this the timer would run on a dead context). Multiple recordings in one
+  // session each add their own handle, so we keep a set rather than a single ref.
+  const revokeTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>())
+
+  // Clear any still-pending revoke timers on unmount. They are best-effort
+  // cleanup of already-downloaded blobs; the browser reclaims the object URLs on
+  // page teardown anyway, so dropping them on unmount is safe.
+  useEffect(() => {
+    const timers = revokeTimersRef.current
+    return () => {
+      for (const handle of timers) clearTimeout(handle)
+      timers.clear()
+    }
+  }, [])
 
   useEffect(() => {
     if (!recording) return
@@ -61,7 +77,12 @@ export function RecordController() {
         document.body.appendChild(a)
         a.click()
         a.remove()
-        setTimeout(() => URL.revokeObjectURL(url), 2000)
+        const timers = revokeTimersRef.current
+        const handle = setTimeout(() => {
+          URL.revokeObjectURL(url)
+          timers.delete(handle)
+        }, 2000)
+        timers.add(handle)
       }
       // Timeslice flushes encoded data periodically rather than only on stop,
       // which is more reliable across browser MediaRecorder implementations.
