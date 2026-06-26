@@ -71,7 +71,12 @@ same change that reshapes a system.
   `wallArc.ts` (curved walls — `PlanWall.arc` bulge → quadratic-Bézier chord sub-segments reused by
   `wallBoxes`/`planCollisionWalls`/room detection; 2D bulge handle; `curvedWalls` flag, openings
   disabled on curves), `slopedWall.ts` (sloping walls — `PlanWall.topHeightEnd` → a prism rendered by
-  PlanShell's `SlopedWallMesh`; `slopingWalls` flag, openings disabled). Each wall may carry a
+  PlanShell's `SlopedWallMesh`; `slopingWalls` flag, openings disabled),
+  `mirrorPlanRegion.ts` (whole-plan left↔right reflection about a vertical axis `x` — every wall/room/
+  opening/annotation + all storeys + furniture, for mirror-image HDB stacks; flips opening hinge/swing
+  handedness + wall `arc` sign + furniture yaw/`flipX`; pure + composable, double-mirror = identity;
+  store action `floorPlanSlice.mirrorFloorPlan`, "Mirror plan" in the editor's Plan menu behind the
+  `planMirrorRegion` Pro flag — PARITY-PLAN-MIRROR-REGION). Each wall may carry a
   per-wall baseboard override (`PlanWall.baseboard` height/colour/hidden → PlanShell skirting;
   `wallBaseboard` flag, custom plans only). Furniture also supports multi-axis tilt (`pitch`/`roll`, `furniture/tiltRotation.ts`,
   `tiltFurniture` flag). 2D editor = `ui/floorplan/`.

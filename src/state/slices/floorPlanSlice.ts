@@ -9,18 +9,20 @@ import {
   planLevels,
   withLevelGeometry,
 } from '../../floorplan/levels'
+import { mirrorPlanRegion } from '../../floorplan/mirrorPlanRegion'
 import { DEFAULT_PLAN_ID } from '../../floorplan/planGeometry'
 import { assignRoomOpeningNames, assignRoomWallNames } from '../../floorplan/roomWallNames'
-import type {
-  CeilingConfig,
-  FloorPlan,
-  PlanDimension,
-  PlanNote,
-  PlanOpening,
-  PlanPolyline,
-  PlanRoom,
-  PlanUpperLevel,
-  PlanWall,
+import {
+  type CeilingConfig,
+  type FloorPlan,
+  type PlanDimension,
+  type PlanNote,
+  type PlanOpening,
+  type PlanPolyline,
+  type PlanRoom,
+  type PlanUpperLevel,
+  type PlanWall,
+  planBounds,
 } from '../../floorplan/types'
 import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
@@ -228,6 +230,13 @@ export interface FloorPlanSlice {
   /** Remove a storey: its rooms/walls/openings, its items, and its finish keys.
    *  Undoable (history snapshot first). No-op for 'ground' or unknown ids. */
   removeLevel: (id: string) => void
+  /** Mirror the WHOLE plan region (walls + rooms + openings + annotations +
+   *  furniture, every storey) about the vertical world line `x = axisX`, for
+   *  mirror-image HDB stacks / condo pairs (PARITY-PLAN-MIRROR-REGION). Reflects
+   *  coords, flips opening hinge/swing handedness, and mirrors furniture
+   *  yaw/flipX. Defaults the axis to the plan's centre-X when unset. Replaces
+   *  plan + items in ONE undo step; forks the default plan on first edit. */
+  mirrorFloorPlan: (axisX?: number) => void
 }
 
 export const FLOOR_PLAN_INITIAL: Pick<
@@ -892,6 +901,29 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         // Its rooms' finish keys are now stale — prune against the new plan.
         finishes: pruneFinishesForPlan(s.finishes, floorPlan),
         planSelection: null,
+      }
+    })
+  },
+  mirrorFloorPlan: (axisX) => {
+    const s0 = get()
+    // Default the mirror axis to the plan's centre-X (origin frame is [0,0] at
+    // the NW corner, so half the bounds X) — a plan mirrored about its own centre
+    // stays roughly in place rather than flipping off to the far side.
+    const axis = axisX ?? planBounds(s0.floorPlan)[0] / 2
+    // Validate up front so a bad axis throws BEFORE any history snapshot / fork —
+    // the action stays a clean no-op on failure.
+    const result = mirrorPlanRegion(s0.floorPlan, s0.items, axis)
+    s0.pushHistory()
+    set((s) => {
+      // Re-id the seeded default plan on the first structural edit (forkIfDefault),
+      // then carry over the mirrored geometry. Items + plan are replaced in one
+      // set() so a single undo reverts the whole mirror.
+      const forked = forkIfDefault(s.floorPlan)
+      return {
+        floorPlan: { ...result.plan, id: forked.id },
+        items: result.items,
+        planSelection: null,
+        selectedWallIds: [],
       }
     })
   },

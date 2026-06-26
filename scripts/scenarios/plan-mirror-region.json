@@ -1,0 +1,29 @@
+{
+  "name": "plan-mirror-region",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+
+    { "name": "show-furniture", "eval": "(() => { const v=[...document.querySelectorAll('button[aria-haspopup=\"menu\"]')].find(x=>/^\\s*View/.test(x.textContent||'')); if(v && v.getAttribute('aria-expanded')!=='true') v.click(); const fb=document.querySelector(\"button[title^='Show furniture footprints']\"); if(fb && fb.getAttribute('aria-pressed')!=='true') fb.click(); })()" },
+    { "name": "shot-before", "screenshot": "before-mirror" },
+
+    { "name": "record-before", "eval": "(() => { const p=window.__store.getState().floorPlan; window.__w0 = p.walls.map(w=>({id:w.id,sx:w.start[0],sz:w.start[1],ex:w.end[0],ey:w.end[1]})); window.__bounds = (function(){ let mx=p.extent[0]; for(const w of p.walls){mx=Math.max(mx,w.start[0],w.end[0]);} for(const r of p.rooms){mx=Math.max(mx, r.origin[0]+r.width);} return mx; })(); window.__axis = window.__bounds/2; window.__nItems = window.__store.getState().items.length; })()" },
+
+    { "name": "find-mirror-btn", "eval": "(() => { const m=[...document.querySelectorAll('button[aria-haspopup=\"menu\"]')].find(x=>/^\\s*Plan/.test(x.textContent||'')); if(m && m.getAttribute('aria-expanded')!=='true') m.click(); })()" },
+    { "name": "mirror-btn-present", "waitFor": { "text": "Mirror plan" }, "timeout": 10000 },
+    { "name": "click-mirror", "click": { "text": "Mirror plan" } },
+
+    { "name": "assert-reflected", "eval": "(() => { const p=window.__store.getState().floorPlan; const axis=window.__axis; for(const b of window.__w0){ const w=p.walls.find(x=>x.id===b.id); if(!w) throw new Error('wall gone: '+b.id); const exSX=2*axis-b.sx; if(Math.abs(w.start[0]-exSX)>1e-6) throw new Error('start.x not reflected '+b.id+': '+w.start[0]+' vs '+exSX); if(Math.abs(w.start[1]-b.sz)>1e-9) throw new Error('start.z changed '+b.id); } if(window.__store.getState().items.length!==window.__nItems) throw new Error('item count changed'); return 'reflected '+window.__w0.length+' walls about x='+axis.toFixed(2); })()" },
+    { "name": "shot-mirrored", "screenshot": "mirrored" },
+
+    { "name": "mirror-again-same-axis", "eval": "window.__store.getState().mirrorFloorPlan(window.__axis)" },
+    { "name": "assert-identity", "eval": "(() => { const p=window.__store.getState().floorPlan; for(const b of window.__w0){ const w=p.walls.find(x=>x.id===b.id); if(Math.abs(w.start[0]-b.sx)>1e-6) throw new Error('double-mirror NOT identity '+b.id+': '+w.start[0]+' vs '+b.sx); } return 'double-mirror about same axis = identity over '+window.__w0.length+' walls'; })()" },
+    { "name": "shot-restored", "screenshot": "double-mirror-restored" }
+  ]
+}

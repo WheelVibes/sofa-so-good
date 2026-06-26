@@ -473,3 +473,81 @@ describe('per-storey editing — level routing for the 2D editor (F13/ML4b)', ()
     expect(s.floorPlan.walls.find((w) => w.id === gw)?.start).toEqual([2, 0])
   })
 })
+
+describe('mirrorFloorPlan (PARITY-PLAN-MIRROR-REGION)', () => {
+  beforeEach(() => useStore.getState().__resetForTest())
+
+  it('mirrors plan walls + furniture about an explicit axis in ONE undo step', () => {
+    useStore.getState().newFloorPlan('Mirror test')
+    useStore.getState().setItems([])
+    const wid = useStore.getState().addWall({ start: [1, 1], end: [3, 1], thickness: 'internal' })
+    // One furniture item to mirror alongside the walls.
+    useStore.setState((s) => ({
+      items: [
+        ...s.items,
+        {
+          id: 'mi1',
+          defId: 'bed',
+          position: [2, 1] as [number, number],
+          rotation: 0.3,
+          props: {},
+        },
+      ],
+    }))
+    const before = useStore.getState()
+    const wBefore = before.floorPlan.walls.find((w) => w.id === wid)!
+    const planBefore = before.floorPlan
+    const itemBefore = before.items.find((i) => i.id === 'mi1')!
+
+    const axisX = 4
+    useStore.getState().mirrorFloorPlan(axisX)
+
+    const after = useStore.getState()
+    const wAfter = after.floorPlan.walls.find((w) => w.id === wid)!
+    // Wall endpoints reflect about x = 4 (Z unchanged).
+    expect(wAfter.start).toEqual([2 * axisX - wBefore.start[0], wBefore.start[1]])
+    expect(wAfter.end).toEqual([2 * axisX - wBefore.end[0], wBefore.end[1]])
+    // Furniture position reflects in X, rotation negates, flipX toggles.
+    const itemAfter = after.items.find((i) => i.id === 'mi1')!
+    expect(itemAfter.position).toEqual([2 * axisX - itemBefore.position[0], itemBefore.position[1]])
+    expect(itemAfter.rotation).toBeCloseTo(-0.3, 9)
+    expect(itemAfter.flipX).toBe(true)
+
+    // ONE undo reverts the WHOLE mirror (plan + items together).
+    useStore.getState().undo()
+    const reverted = useStore.getState()
+    expect(reverted.floorPlan.walls.find((w) => w.id === wid)!.start).toEqual(wBefore.start)
+    expect(reverted.items.find((i) => i.id === 'mi1')!.position).toEqual(itemBefore.position)
+    expect(reverted.items.find((i) => i.id === 'mi1')!.rotation).toBeCloseTo(0.3, 9)
+    // Plan deep-equals its pre-mirror state.
+    expect(reverted.floorPlan).toEqual(planBefore)
+  })
+
+  it('double-mirror about the same axis restores the plan (composition)', () => {
+    useStore.getState().newFloorPlan('Double mirror')
+    const wid = useStore.getState().addWall({ start: [0, 0], end: [2, 2], thickness: 'internal' })
+    const wBefore = useStore.getState().floorPlan.walls.find((w) => w.id === wid)!
+    useStore.getState().mirrorFloorPlan(3)
+    useStore.getState().mirrorFloorPlan(3)
+    const wAfter = useStore.getState().floorPlan.walls.find((w) => w.id === wid)!
+    expect(wAfter.start[0]).toBeCloseTo(wBefore.start[0], 9)
+    expect(wAfter.end[0]).toBeCloseTo(wBefore.end[0], 9)
+  })
+
+  it('forks the seeded default plan on mirror (binds edits to the live scene)', () => {
+    // Fresh default plan id; mirroring it must re-id it to a custom plan.
+    expect(useStore.getState().floorPlan.id).toBe('default-hdb-4room')
+    useStore.getState().mirrorFloorPlan()
+    expect(useStore.getState().floorPlan.id).not.toBe('default-hdb-4room')
+  })
+
+  it('defaults the axis to the plan centre-X when unset', () => {
+    useStore.getState().newFloorPlan('Centre mirror')
+    const wid = useStore.getState().addWall({ start: [1, 0], end: [3, 0], thickness: 'internal' })
+    useStore.getState().mirrorFloorPlan()
+    // Mirror runs without throwing and reflects the wall (X changes, Z fixed).
+    const w = useStore.getState().floorPlan.walls.find((x) => x.id === wid)!
+    expect(w.start[1]).toBe(0)
+    expect(w.end[1]).toBe(0)
+  })
+})
