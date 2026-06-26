@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: indicative thermal-envelope digest in the design report (PARITY-THERMAL) (v0.3.0.32)
+
+The printable report gains a **Thermal envelope** section — an indicative (not certified) building-
+science estimate. Pure `analysis/thermalAnalysis.ts` (`buildThermalReport(plan, finishes?)`) sums
+the exterior opaque wall area (`thickness==='external'` walls × storey height across all storeys via
+`planLevels`/`wallLength`) and the glazing area (window openings on those walls), maps each surface to
+a representative Singapore U-value via a documented `U_VALUES` table (RC wall 2.0, brick 1.7,
+lightweight 1.0, cladding 0.6 W/m²K; single glazing 5.7, double 2.8, low-E 1.8), and returns total
+envelope area, area-weighted average U, glazing ratio, and a conductive heat-transfer index
+`Σ area×U` (W/K). Explicitly labelled indicative — excludes roof/floor slabs, thermal bridging, solar
+gain, infiltration, shading and orientation. Edge cases: bare-shell/all-interior plan → zeroed digest
+(no NaN), window on an interior wall ignored, unrecognised finish → documented RC default, multi-storey
+summed with per-level ceiling override. Rides the existing `report` flag (no new flag — matches the
+Plan-statistics / Renovation-timeline sections). 13 unit tests + report-render coverage.
+
 ## Feature: snap the whole plan to a grid (PARITY-GRID-SNAP) (v0.3.0.31)
 
 A Pro **"Snap to grid"** Plan-menu action tidies a traced/imported plan by rounding every

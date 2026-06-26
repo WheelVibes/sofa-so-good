@@ -60,16 +60,12 @@ PARITY-STAMP-PLACE, PARITY-SCATTER-ROOM, BUG-PATHARRAY-LOOP (the no-polyline inf
 
 A second read-only audit (app at v0.3.0.27) found **no open correctness/leak bugs** (the pure
 geometry modules audit clean; BUG-001/004/008 already shipped). Next value is **new pure-module
-parity features**. Conflict-group tags parallelize. **IN FLIGHT (Wave 6, dispatched 2026-06-26):**
-PARITY-PLAN-STATS, PARITY-RENO-ICS, PARITY-GRID-SNAP.
+parity features**. Conflict-group tags parallelize. **SHIPPED:** PARITY-PLAN-STATS, PARITY-RENO-ICS,
+PARITY-GRID-SNAP (Wave 6, v0.3.0.29–.31), PARITY-THERMAL (Wave 7, v0.3.0.32).
+**DROPPED — PARITY-SCENE-JSON-EXPORT VERIFIED redundant** (ShareModal "Export file" /
+`exportDesignToFile` already downloads `<name>.sofa.json` with a round-trip test).
 
-### Clean-delegate (new pure file, core needs no churned-file edit)
-- [~] **PARITY-PLAN-STATS** (MED/S, `cg-planstats`) — `analysis/planStatistics.ts` digest (GFA, room
-  counts/kinds, perimeter, total wall length) into the design report. *(Wave 6)*
-- [~] **PARITY-RENO-ICS** (MED/S, `cg-renoics`) — `export/renoIcs.ts` RFC-5545 `.ics` export of the
-  reno timeline phases + menu download. *(Wave 6)*
-- [~] **PARITY-GRID-SNAP** (HIGH/S, `cg-gridsnap`) — `floorplan/gridSnap.ts` snap whole plan to a grid
-  + additive slice action + Plan-menu trigger + `planGridSnap` flag. *(Wave 6)*
+### Clean-delegate pure core (UI wiring is inline-only → split; defer the editor trigger to a base reset)
 - [ ] **PARITY-CORNER-FILLET** (MED/M, `cg-cornerfillet`) — `floorplan/cornerFillet.ts` round/bevel a
   wall corner (reuses `wallArc`). Pure core clean-delegate; on-canvas handle inline-only (split).
 - [ ] **PARITY-ROOM-INSET** (MED/M, `cg-roominset`) — `floorplan/insetRoom.ts` signed polygon offset
@@ -78,11 +74,6 @@ PARITY-PLAN-STATS, PARITY-RENO-ICS, PARITY-GRID-SNAP.
   strings. Pure core clean-delegate; editor dimension-tool wiring inline-only (split).
 - [ ] **PARITY-PLAN-GUIDES** pure core (MED/S, `cg-planguides`) — `floorplan/snapToGuides.ts` +
   `plan.guides[]` schema field (additive). Editor snapping integration inline-only (split).
-- [ ] **PARITY-THERMAL** (MED/M, `cg-thermal`, niche) — `analysis/thermalAnalysis.ts` envelope U-value
-  heat-loss digest into the report + `thermalAnalysis` flag.
-- [ ] **PARITY-SCENE-JSON-EXPORT** (LOW-MED/S, `cg-scenejson`) — `ui/openDesignJson.ts` one-click
-  `.sofa.json` data export. **First verify it isn't redundant with the existing Save-to-file path; drop if so.**
-
 ### Inline-only / needs base-reset (touch churned files — defer to next `main` merge)
 - [ ] **PARITY-PLAN-VERTEX-ANGLESNAP** (`cg-planeditor`) — `FloorPlanEditor.tsx:~1102` vertex-drag
   ortho/15° snap via `snapWallAngle`.
