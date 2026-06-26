@@ -663,6 +663,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Sticky "stamp" placement mode (PARITY-STAMP-PLACE, Floorplanner parity): arm a
+  // catalog item, then click-place the same item over and over (chairs, downlights,
+  // plants) without re-selecting it — each drop is one undo step and the mode stays
+  // armed until Escape / Done / a different item. Pure client-side, reuses the
+  // existing placement/ghost pipeline → prod-safe (default on). A power-user
+  // productivity aid beyond the core single-add furnish loop → pro tier (hidden in
+  // Simple mode, where each plain click commits once and disarms as before).
+  stampPlace: {
+    label: 'Stamp placement',
+    description: 'Place the same catalog item repeatedly with one click each (no re-selecting)',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

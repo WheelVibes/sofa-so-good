@@ -55,6 +55,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'export-3d': 'sceneExport3d',
   'import-sh3d': 'importSh3d',
   parametric: 'parametricFurniture',
+  'stamp-mode': 'stampPlace',
   'replace-similar': 'replaceSimilar',
   'ai-furnish': 'aiLayout',
   'drawing-callouts': 'drawingCallouts',
@@ -151,6 +152,36 @@ export function CommandPalette() {
         label: 'Custom-size furniture (shelf / wardrobe / sideboard)',
         icon: 'Cube',
         run: () => s().setParametricOpen(true),
+      },
+      {
+        // Sticky stamp placement (PARITY-STAMP-PLACE): keep the currently-armed
+        // catalog item (or the selected item's def) armed for repeated clicks.
+        id: 'stamp-mode',
+        group: 'Actions',
+        label: 'Stamp — place an item repeatedly',
+        icon: 'Copy',
+        run: () => {
+          const st = useStore.getState()
+          // Arm the def that's already in hand, else the selected item's def.
+          const defId =
+            st.activeDefId ??
+            (st.selectedItemId
+              ? (st.items.find((it) => it.id === st.selectedItemId)?.defId ?? null)
+              : null)
+          if (!defId) {
+            // Nothing to stamp — open the catalog so the user can pick an item.
+            st.setLeftMode('catalog')
+            st.setCatalogOpen(true)
+            return
+          }
+          if (!canEditScene(st)) {
+            const id = firstEditableRoomId(st.floorPlan)
+            if (id) st.enterRoomEditor(id)
+          }
+          // Arm the def, then turn on sticky stamp (setActiveDefId clears it).
+          useStore.getState().setActiveDefId(defId)
+          useStore.getState().setStampMode(true)
+        },
       },
       {
         id: 'tidy',

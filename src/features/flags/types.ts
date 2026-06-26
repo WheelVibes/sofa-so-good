@@ -92,6 +92,7 @@ export type FeatureFlag =
   | 'cameraDof'
   | 'proceduralSky'
   | 'importSh3d'
+  | 'stampPlace'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

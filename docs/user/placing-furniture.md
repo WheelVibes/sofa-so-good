@@ -37,7 +37,14 @@ or a wall) and **green** where it fits — it only drops on a green spot, snaps 
 the grid, and won't push through walls. Press <kbd>R</kbd> (<kbd>Shift</kbd>+<kbd>R</kbd>
 = 15°) while the preview is up to **rotate it before dropping**, so it lands facing the
 right way. **Hold <kbd>Shift</kbd> when you drop** to keep the same piece loaded and place
-several in a row (a plain click or <kbd>Esc</kbd> finishes). As you position it, **alignment guides**
+several in a row (a plain click or <kbd>Esc</kbd> finishes).
+
+> **Stamp mode (Pro):** for a row of identical pieces — dining chairs, downlights, plants —
+> tap the **stamp** button (the copy icon) on a card instead. The item stays loaded after every
+> drop, so each click on the floor places another copy without re-selecting. A banner shows what
+> you're stamping; press **Done** or <kbd>Esc</kbd> to stop. Each copy is its own undo step.
+
+As you position it, **alignment guides**
 snap to other items' centres and edges, it can sit **flush against a nearby
 wall**, and a readout shows the gap to the nearest wall.
 
