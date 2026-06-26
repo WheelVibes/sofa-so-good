@@ -436,6 +436,12 @@ same change that reshapes a system.
   schedule: Room/Item/Source/SKU/Size (W×D×H, unit-aware)/Qty/Unit price/Line total + grand-total
   footer; prices blanked when `budget` is off; `ui/openFfeCsv.ts` = Blob download `<plan>-ffe.csv`).
   File menu + mobile + ⌘K, `shopExport` flag (simple) — the machine-readable third FF&E export.
+  **Cost breakdown CSV** (`export/costBreakdownCsv.ts` pure `buildCostBreakdown`/`buildCostBreakdownCsv` →
+  one sectioned RFC-4180 CSV reconciling Furniture-by-category (qty + subtotal via `itemPrice`) +
+  Renovation/finishes lines (floor/wall area × the `renovationCost` rate table via `estimateRenovation`
+  over `reportData.floorAreaByFinish`/`wallAreaByFinish`) + a reconciling GRAND TOTAL row
+  (`grandTotal === furnitureSubtotal + renovationSubtotal`); `ui/openCostBreakdownCsv.ts` = Blob download,
+  filename `<plan>-costs.csv`). No reinvented pricing. File menu + mobile + ⌘K, `shopExport` flag (simple).
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
   (cover + plan + per-wall elevations + cross-section + lighting + electrical (`floorplan/electricalPlan*`,
   `electricalPlan` flag) + plumbing (`floorplan/plumbingPlan*`, `plumbingPlan` flag — points auto-derived

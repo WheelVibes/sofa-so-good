@@ -50,6 +50,12 @@ carpentry by linear metre, with per-section subtotals + a grand total). **Tools 
 Quote → Excel (.xlsx)** downloads the same bill as a spreadsheet you can edit or
 send on.
 
+For a single machine-readable costing file, **File → Cost breakdown (CSV)** (also
+on ⌘K and the mobile **File** section) downloads one spreadsheet that combines
+your furniture spend (grouped by category, with quantities and subtotals), the
+flooring/painting finishes priced per area, and a reconciling **grand total** —
+the furniture and renovation subtotals always add up to it.
+
 Spend is shown wherever it helps: each catalog card and the inspector show a
 per‑item price (with a **selection total** when you multi‑select), the panel
 breaks spend down **by category and by room**, and the per‑room editor caption

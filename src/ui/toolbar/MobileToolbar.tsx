@@ -29,6 +29,7 @@ import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
+import { downloadCostBreakdownCsv } from '../openCostBreakdownCsv'
 import { downloadFfeCsv } from '../openFfeCsv'
 import { downloadFurnitureCsv } from '../openFurnitureCsv'
 import { downloadPlanSvg } from '../openPlanSvg'
@@ -1081,6 +1082,14 @@ export function MobileToolbar() {
                       label="FF&E schedule (CSV)"
                       sub="Item-by-item schedule — source, SKU, size, qty, price"
                       onClick={act(() => void downloadFfeCsv())}
+                    />
+                  ) : null}
+                  {fShopExport ? (
+                    <Item
+                      icon="Export"
+                      label="Cost breakdown (CSV)"
+                      sub="Furniture + finishes + renovation, with a grand total"
+                      onClick={act(() => void downloadCostBreakdownCsv())}
                     />
                   ) : null}
                   {fSceneExport ? (

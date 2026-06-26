@@ -19,6 +19,7 @@ import { firstEditableRoomId } from '../state/rooms'
 import { useStore } from '../state/store'
 import { closeAllAuxPanels } from './auxPanels'
 import { openDocs } from './docsUrl'
+import { downloadCostBreakdownCsv } from './openCostBreakdownCsv'
 import { downloadFfeCsv } from './openFfeCsv'
 import { downloadFurnitureCsv } from './openFurnitureCsv'
 import { downloadPlanSvg } from './openPlanSvg'
@@ -57,6 +58,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'furniture-csv': 'shopExport',
   'room-schedule-csv': 'shopExport',
   'ffe-csv': 'shopExport',
+  'cost-breakdown-csv': 'shopExport',
   'plan-svg': 'dxfExport',
   'export-3d': 'sceneExport3d',
   'import-sh3d': 'importSh3d',
@@ -441,6 +443,13 @@ export function CommandPalette() {
         label: 'FF&E schedule (CSV export)',
         icon: 'Export',
         run: () => void downloadFfeCsv(),
+      },
+      {
+        id: 'cost-breakdown-csv',
+        group: 'Tools & panels',
+        label: 'Cost breakdown (CSV export)',
+        icon: 'Export',
+        run: () => void downloadCostBreakdownCsv(),
       },
       {
         id: 'plan-svg',
