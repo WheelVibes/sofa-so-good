@@ -100,6 +100,7 @@ export type FeatureFlag =
   | 'planMirrorRegion'
   | 'planGridSnap'
   | 'roomInset'
+  | 'tileBreakup'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

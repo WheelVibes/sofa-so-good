@@ -1,6 +1,7 @@
 import type { ThreeEvent } from '@react-three/fiber'
 import { Suspense, useCallback, useMemo } from 'react'
 import type { MeshStandardMaterial } from 'three'
+import { isFeatureEnabled } from '../../features/featureFlags'
 import type {
   MaterialId,
   ProceduralMaterialDef,
@@ -77,6 +78,9 @@ interface Rect {
   roomId?: string
   /** Optional floor-texture transform (scale/angle) — SweetHome3DJS parity. */
   texTransform?: UvTransform
+  /** Tile period in metres (material `uvScale`) for the RD-406 repetition
+   *  break-up — only tiling (procedural/textured) finishes set it. */
+  tileSize?: number
 }
 type Props = Rect & { materialId: MaterialId }
 
@@ -87,12 +91,15 @@ function FloorMesh({
   polygon,
   roomId,
   texTransform,
+  tileSize,
   material,
 }: Rect & { material: MeshStandardMaterial }) {
   const handlers = useOverviewRoomEntry(roomId)
   // Drop-target tag for the canvas finish drag (scene/finishDropTarget.ts).
   const userData = roomId ? finishSurfaceUserData('floor', roomId) : undefined
   if (polygon && polygon.length >= 3) {
+    // Non-rectangular floors stay on the triangulated shape path (the tile
+    // break-up subdivides a rectangle only).
     return (
       <PolygonFloor
         polygon={polygon}
@@ -112,6 +119,7 @@ function FloorMesh({
       handlers={handlers}
       userData={userData}
       texTransform={texTransform}
+      tileSize={tileSize}
     />
   )
 }
@@ -129,6 +137,7 @@ function RectFloor({
   handlers,
   userData,
   texTransform,
+  tileSize,
 }: {
   origin: [number, number]
   width: number
@@ -137,15 +146,22 @@ function RectFloor({
   handlers?: Record<string, unknown>
   userData?: Record<string, unknown>
   texTransform?: UvTransform
+  tileSize?: number
 }) {
   const texScale = texTransform?.scale
   const texAngle = texTransform?.angle
+  // RD-406 repetition break-up (`tileBreakup`, pro-tier): per-tile-cell UV
+  // rotation/offset on a large tiled floor. Off / no tile size → plain plane.
+  const breakup = tileSize != null && isFeatureEnabled('tileBreakup') ? tileSize : undefined
   // Guard degenerate sizes: a zero/negative plane would build an empty/NaN
   // geometry. Returning null keeps the render valid and skips the leak entirely.
   const valid = width > 0 && depth > 0
   const geometry = useMemo(
-    () => (valid ? worldUvPlaneGeometry(width, depth, { scale: texScale, angle: texAngle }) : null),
-    [valid, width, depth, texScale, texAngle],
+    () =>
+      valid
+        ? worldUvPlaneGeometry(width, depth, { scale: texScale, angle: texAngle }, breakup)
+        : null,
+    [valid, width, depth, texScale, texAngle, breakup],
   )
   useDisposeGeometry(geometry)
   if (!geometry) return null
@@ -202,10 +218,10 @@ function Solid({ def, ...rest }: Rect & { def: SolidMaterialDef }) {
   return <FloorMesh {...rest} material={useSolidMaterial(def)} />
 }
 function Textured({ def, ...rest }: Rect & { def: TexturedMaterialDef }) {
-  return <FloorMesh {...rest} material={useTexturedMaterial(def)} />
+  return <FloorMesh {...rest} material={useTexturedMaterial(def)} tileSize={def.uvScale[0]} />
 }
 function Procedural({ def, ...rest }: Rect & { def: ProceduralMaterialDef }) {
-  return <FloorMesh {...rest} material={useProceduralMaterial(def)} />
+  return <FloorMesh {...rest} material={useProceduralMaterial(def)} tileSize={def.uvScale[0]} />
 }
 
 function Inner({ materialId, ...rest }: Props) {
