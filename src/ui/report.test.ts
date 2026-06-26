@@ -409,6 +409,48 @@ describe('buildReportHtml — plan statistics digest (PARITY-PLAN-STATS)', () =>
   })
 })
 
+describe('buildReportHtml — daylight & ventilation (PARITY-DAYLIGHT-DIGEST)', () => {
+  const plan = buildDefaultPlan()
+
+  it('renders a Daylight & ventilation section with per-room glazing % for a windowed plan', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Daylight &amp; ventilation')
+    // The pass-count summary uses the module thresholds (10% glazing / 5% openable).
+    expect(html).toMatch(/rooms meet daylight ≥ 10% glazing/)
+    expect(html).toMatch(/meet ventilation ≥ 5% openable/)
+    // Per-room table column headers.
+    expect(html).toContain('>Glazing</td>')
+    expect(html).toContain('>Openable</td>')
+  })
+
+  it('omits the section for a bare shell with no windowed rooms', () => {
+    const bare = { ...plan, openings: [] }
+    const html = buildReportHtml(bare, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Daylight &amp; ventilation')
+  })
+})
+
+describe('buildReportHtml — openings schedule (PARITY-OPENING-SCHED)', () => {
+  const plan = buildDefaultPlan()
+
+  it('renders an Openings schedule with typed marks + a door/window count', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Openings schedule')
+    expect(html).toContain('Doors &amp; windows')
+    // Size column + at least one typed mark (D1/W1).
+    expect(html).toContain('Size (W×H)')
+    expect(html).toMatch(/>[DW]1<\/td>/)
+    // Size cells use the "× " form (W × H).
+    expect(html).toMatch(/m × .*m/)
+  })
+
+  it('omits the Openings schedule for a plan with no openings', () => {
+    const bare = { ...plan, openings: [] }
+    const html = buildReportHtml(bare, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Openings schedule')
+  })
+})
+
 describe('buildReportHtml — multi-storey fan-out (F13)', () => {
   const plan = buildDefaultPlan()
   const upper = {

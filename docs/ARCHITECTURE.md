@@ -548,6 +548,17 @@ same change that reshapes a system.
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
   thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
   Plan-only (reads for a bare shell).
+- **Daylight & ventilation check** (`analysis/daylight.ts` pure → `buildDaylightReport(plan)`:
+  per-room window glazing % + openable % vs rule-of-thumb thresholds `DAYLIGHT_MIN_RATIO` (0.1) /
+  `VENT_MIN_RATIO` (0.05); windows attributed to rooms by a wall-midpoint probe, `OPENABLE_FRACTION`
+  for sliding windows; level-gated for multi-storey). `ui/DaylightPanel.tsx` + the report's
+  "Daylight & ventilation" section (PARITY-DAYLIGHT-DIGEST; skipped when no room has a window).
+- **Door & window schedule** (`analysis/openingSchedule.ts` pure → `buildOpeningSchedule(plan)`:
+  walks `plan.openings` across all storeys, resolves each opening's room(s) by a wall-midpoint probe
+  (`PROBE_OFFSET`, as in `daylight.ts`), and groups openings with identical (kind, width, head−sill)
+  into typed marks — D1/D2…/W1/W2… — each with a count, size W×H, sill, door swing/hinge and the
+  rooms it borders; openings on a missing wall / off any room fall into an `Unassigned` bucket).
+  Renders the report's "Openings schedule" section (PARITY-OPENING-SCHED; omitted when no openings).
 - **Plan advisories** (`analysis/hdbCompliance.ts` pure → `buildComplianceReport(plan)`: data-driven
   `RULES` producing non-binding permit/caution/info `Advisory` hints — structural walls, wet areas,
   facade windows, floor loading, ceiling heights). `analysis/stairConnectivity.ts` (ML6b) follows
