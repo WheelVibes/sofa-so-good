@@ -86,7 +86,10 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   not chrome-mirror; cached per `(finish, color, repeat)`. The roughness map is a multiplier centred
   on 1 (mean-preserving). Keep it **subtle** (`DEFAULT_BRUSH_PARAMS`; `streak: 0` collapses to plain
   metal). Albedo/tint sRGB, normal/roughness linear. The 8 appliance primitives wire to it via
-  `furniture/primitives/shared.tsx:applianceBody` (steel body → shared material; non-steel unchanged).
+  `furniture/primitives/shared.tsx:applianceBody` (steel body → shared material; non-steel unchanged);
+  furniture metal legs/frames/rails wire to it via the sibling `metalLeg(color?, finish?, repeat?)`
+  helper (BarCart/OfficeChair/BarStool/Sideboard/TowelLadder/DryingRack/Desk/KitchenIsland) — both
+  inherit the same `pbrSurfaces` gate, so Performance is unchanged.
 - **Uploaded-material persistence (`upload/persist.ts`)**: each channel blob is one IDB record;
   the material's full identity/appearance (`name`, `category`, `swatch`, `uvScaleX`/`uvScaleY`
   — `uvScale` is stored as two scalars since IDB `meta` values can't be arrays) is stamped on

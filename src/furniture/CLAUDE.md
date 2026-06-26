@@ -88,6 +88,17 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `<mesh {...applianceBodyMeshProps(body)} …><geometry/><ApplianceBodyMaterial finish={body}/></mesh>`.
   Don't put the steel material on the door glass / control panels / handles — those keep their own
   finishes. (`shared.tsx`, not `.ts`, because it exports the JSX `ApplianceBodyMaterial` component.)
+- **Metal legs / frames (METAL-LEGS)**: a primitive's structural metal members (legs, frames,
+  rails, posts, gas-lifts, taps) route through `primitives/shared.tsx:metalLeg(color?, finish?, repeat?)`
+  — a thin wrapper over `getMetalMaterial` that inherits its `pbrSurfaces` gate (brushed
+  `MeshPhysicalMaterial` on / identical plain `MeshStandardMaterial` off, so Performance is
+  unchanged). Set the returned shared instance on the `<mesh material={…}>` prop (don't spread a
+  plain props object onto a `<meshStandardMaterial>` for metal parts). Pick a finish by colour
+  intent: `stainless` (bright chrome), `satin` (soft brushed), `black-steel` (matte industrial);
+  tint via `color`. Wired into `BarCart` (frame), `OfficeChair` (gas-lift), `BarStool` (legs/column/
+  footrest), `Sideboard` (hairpin legs), `TowelLadder` (frame), `DryingRack` (A-frame), `Desk`
+  (hairpin legs), `KitchenIsland` (faucet). Leave painted/plastic parts and small hardware (knobs,
+  small drawer pulls) as-is; don't touch wood/fabric.
 - **Auto-arrange decor styling** (`layout/decorStyling.ts`): `applyDecorStyling(arranged, defs, seed?)`
   places `noClip` decor props per host surface (sofa→cushions/blanket, coffee-table→bowl/magazines/
   candles, bed→cushions, nightstand→plant/candle, desk→plant/books, sideboard→frames/sculpture).
