@@ -132,6 +132,15 @@ Rooms don't have to be plain rectangles:
   are part of their wall, so a wall with openings still encloses the room. If you
   click inside an area that's **already a room**, Auto room leaves it alone (it
   won't stack a duplicate) and tells you so.
+- **Inset / grow the outline** — with a room selected, use **Inset −0.1 m** to
+  pull the whole outline inward (e.g. a dropped soffit or set‑down) or **Grow
+  +0.1 m** to push it outward (e.g. a setback). Every edge moves by the same
+  distance and the corners are re‑mitred, so a rectangle, L‑shape or free‑form
+  room all offset cleanly. Tap again to step further. If an inset would collapse
+  the room (bigger than its narrowest width), it's refused with a message rather
+  than producing a broken shape. The same actions are in the command palette
+  (<kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>K</kbd>) as **Inset room** / **Grow room**.
+  *(Pro mode.)*
 
 ## Annotations & markup
 

@@ -61,6 +61,9 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'quote-template': 'quoteTemplate',
   'sel-group': 'furnitureGroups',
   'sel-ungroup': 'furnitureGroups',
+  // Inset / grow the selected plan room (PARITY-ROOM-INSET).
+  'inset-room': 'roomInset',
+  'grow-room': 'roomInset',
   // The sun-driven sky backdrop command is gated by its feature flag (RD-412).
   'backdrop:sky': 'proceduralSky',
 }
@@ -92,6 +95,8 @@ export function CommandPalette() {
   const selOneId = useStore((s) => (s.selectedItemIds.length === 1 ? s.selectedItemId : null))
   // The active group id (when the selection resolves to one group) gates Ungroup.
   const activeGroupId = useStore((s) => s.activeGroupId)
+  // The selected plan room (id) gates the inset / grow room commands.
+  const selRoomId = useStore((s) => (s.planSelection?.type === 'room' ? s.planSelection.id : null))
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -589,14 +594,34 @@ export function CommandPalette() {
           },
         ]
       : []
-    return [...base, ...layout, ...single, ...furniture].map((c) => ({
+    // Room commands: inset / grow the selected plan room by ±0.1 m (gated by the
+    // `roomInset` flag via COMMAND_FLAGS). Only shown when a room is selected.
+    const room: Command[] = selRoomId
+      ? [
+          {
+            id: 'inset-room',
+            group: 'Selection',
+            label: 'Inset room (−0.1 m)',
+            icon: 'FloorPlan',
+            run: () => s().insetSelectedRoom(0.1),
+          },
+          {
+            id: 'grow-room',
+            group: 'Selection',
+            label: 'Grow room (+0.1 m)',
+            icon: 'FloorPlan',
+            run: () => s().insetSelectedRoom(-0.1),
+          },
+        ]
+      : []
+    return [...base, ...layout, ...single, ...room, ...furniture].map((c) => ({
       ...c,
       run: () => {
         c.run()
         close()
       },
     }))
-  }, [byCategory, catalog, selCount, selOneId, activeGroupId])
+  }, [byCategory, catalog, selCount, selOneId, activeGroupId, selRoomId])
 
   // Drop commands whose feature flag is off (saved-view commands gate on the
   // savedViews flag) so the palette can't launch a disabled feature. Pro-only

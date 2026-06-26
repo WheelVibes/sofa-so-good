@@ -663,6 +663,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Inset / outset a room polygon by a signed distance (PARITY-ROOM-INSET, a
+  // common Coohom / CAD "offset polygon" op): shrink for a dropped soffit / set-
+  // down or grow for a setback. Pure geometry, no sidecar / licensing → prod-safe
+  // (default on). An advanced authoring tool beyond the core furnish loop → pro
+  // tier (hidden in Simple mode automatically).
+  roomInset: {
+    label: 'Inset room',
+    description: 'Inset (shrink) or outset (grow) a room outline by a signed distance',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

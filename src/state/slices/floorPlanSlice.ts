@@ -1,4 +1,5 @@
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
+import { insetPolygon } from '../../floorplan/insetRoom'
 import {
   cloneLevelGeometry,
   GROUND_LEVEL_ID,
@@ -11,16 +12,18 @@ import {
 } from '../../floorplan/levels'
 import { DEFAULT_PLAN_ID } from '../../floorplan/planGeometry'
 import { assignRoomOpeningNames, assignRoomWallNames } from '../../floorplan/roomWallNames'
-import type {
-  CeilingConfig,
-  FloorPlan,
-  PlanDimension,
-  PlanNote,
-  PlanOpening,
-  PlanPolyline,
-  PlanRoom,
-  PlanUpperLevel,
-  PlanWall,
+import {
+  type CeilingConfig,
+  type FloorPlan,
+  type PlanDimension,
+  type PlanNote,
+  type PlanOpening,
+  type PlanPolyline,
+  type PlanRoom,
+  type PlanUpperLevel,
+  type PlanVec2,
+  type PlanWall,
+  roomPolygon,
 } from '../../floorplan/types'
 import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
@@ -190,6 +193,22 @@ export interface FloorPlanSlice {
    *  clears it back to a flat ceiling. Searches every storey, like updateRoom. */
   setRoomCeiling: (id: string, patch: Partial<CeilingConfig> | null) => void
   removeRoom: (id: string, levelId?: string) => void
+  /** Inset (dist>0, shrink for a dropped soffit / set-down) or outset (dist<0,
+   *  grow for a setback) a room's outline by a signed distance in metres
+   *  (PARITY-ROOM-INSET). Offsets every edge of the room polygon and writes the
+   *  result back as an explicit `polygon` (so a rect / L-shape becomes a true
+   *  mitred offset), re-flowing the room's boundary wall/opening names. Searches
+   *  every storey (room ids are plan-unique). Pushes ONE undo step. A degenerate
+   *  result (the inset collapses / self-intersects the room) is REJECTED with an
+   *  error toast and leaves the plan untouched (no fork, no history). Returns
+   *  `true` on success, `false` on a no-op (missing room / collapse).
+   *  Limitation: the room's boundary WALLS are not re-traced, so openings on them
+   *  keep their wall offsets — re-thread walls after a large inset if needed. */
+  insetRoom: (id: string, dist: number) => boolean
+  /** Inset/outset the currently-selected plan room (`planSelection.type==='room'`)
+   *  by a signed distance (the ⌘K "Inset / Grow room" commands). No selected room
+   *  → an info toast, no-op. Delegates to `insetRoom`. */
+  insetSelectedRoom: (dist: number) => boolean
 
   addOpening: (opening: Omit<PlanOpening, 'id'>, levelId?: string) => string
   updateOpening: (id: string, patch: Partial<PlanOpening>, levelId?: string) => void
@@ -647,6 +666,71 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       })),
       planSelection: null,
     }))
+  },
+  insetRoom: (id, dist) => {
+    const s0 = get()
+    // Resolve the room's own storey (room ids are plan-unique across levels) so
+    // an upper-level room insets in place.
+    const lvl = levelOfRoom(s0.floorPlan, id)?.id
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, lvl))
+    const src = g.rooms.find((r) => r.id === id)
+    if (!src) return false
+    // A zero (or non-finite) distance is a no-op — never push an empty step.
+    if (!Number.isFinite(dist) || Math.abs(dist) < 1e-6) return false
+
+    // Offset the room's current outline (explicit polygon, else the rect / L
+    // outline). A degenerate result (collapse / self-intersection) → reject.
+    const inset = insetPolygon(roomPolygon(src), dist)
+    if (!inset) {
+      s0.notify.start({
+        title: dist > 0 ? 'Inset too large — room would collapse' : "Couldn't grow the room",
+        kind: 'error',
+        message:
+          dist > 0
+            ? 'Try a smaller inset; the offset exceeds the room’s narrowest width.'
+            : 'The outset produced an invalid outline.',
+      })
+      return false
+    }
+
+    // Bounding box of the new outline keeps origin/width/depth in sync for the
+    // back-compat consumers that still read them (the explicit polygon is now
+    // authoritative; a prior L-shape `extension` is subsumed by the polygon).
+    const xs = inset.map((p) => p[0])
+    const zs = inset.map((p) => p[1])
+    const minX = Math.min(...xs)
+    const minZ = Math.min(...zs)
+    const nextRoom: PlanRoom = {
+      ...src,
+      origin: [minX, minZ] as PlanVec2,
+      width: Math.max(...xs) - minX,
+      depth: Math.max(...zs) - minZ,
+      polygon: inset,
+      extension: undefined,
+    }
+
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), lvl, (gg) => {
+        const rooms = gg.rooms.map((r) => (r.id === id ? nextRoom : r))
+        // The room's boundary shifted — re-flow its auto wall/opening names so
+        // they keep tracking the (now-inset) room; user-set names are untouched.
+        const named = applyRoomElementNames(gg.walls, gg.openings, nextRoom)
+        return { rooms, walls: named.walls, openings: named.openings }
+      }),
+      planSelection: { type: 'room' as const, id },
+      selectedWallIds: [],
+    }))
+    return true
+  },
+  insetSelectedRoom: (dist) => {
+    const s0 = get()
+    const sel = s0.planSelection
+    if (sel?.type !== 'room') {
+      s0.notify.start({ title: 'Select a room first', kind: 'info' })
+      return false
+    }
+    return s0.insetRoom(sel.id, dist)
   },
 
   addOpening: (opening, levelId) => {
