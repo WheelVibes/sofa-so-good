@@ -95,6 +95,7 @@ export type FeatureFlag =
   | 'proceduralSky'
   | 'importSh3d'
   | 'smartRotateSnap'
+  | 'stampPlace'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

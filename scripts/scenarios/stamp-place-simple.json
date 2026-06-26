@@ -1,0 +1,118 @@
+{
+  "name": "stamp-place-simple",
+  "description": "Simple ladder for sticky stamp placement (PARITY-STAMP-PLACE): in Pro mode the stamp button shows on catalog cards; arming a stamp via startStamp sets stampMode + activeDefId and shows the active-stamp banner; simulated canvas clicks place multiple distinct copies of the same def while the mode stays armed; Esc (cancelPlacement) disarms. Confirms the feature is gated OFF in Simple mode.",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+
+    { "name": "to-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "pro-active",
+      "waitFor": { "store": "state.uiMode === 'pro'" },
+      "timeout": 5000
+    },
+    {
+      "name": "stampPlace-flag-on-pro",
+      "waitFor": { "store": "state.featureFlags.stampPlace === true" },
+      "timeout": 5000,
+      "failMessage": "stampPlace flag should be ON in Pro mode"
+    },
+
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-editor-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "wait-room-load", "wait": 2500 },
+
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    {
+      "name": "catalog-visible",
+      "waitFor": { "css": ".panel.catalog" },
+      "timeout": 20000,
+      "failMessage": "Catalog drawer did not appear"
+    },
+    {
+      "name": "verify-stamp-buttons-on-cards",
+      "eval": "(function(){ const btns = document.querySelectorAll('.stamp-btn'); if (btns.length === 0) throw new Error('No .stamp-btn on catalog cards — stampPlace gate failed in Pro'); console.log('stamp buttons:', btns.length); })()"
+    },
+    { "name": "shot-01-catalog-pro", "screenshot": "01-catalog-pro-stamp-buttons" },
+
+    { "name": "arm-stamp", "store": { "action": "startStamp", "args": ["dining-chair"] } },
+    {
+      "name": "stamp-armed",
+      "waitFor": { "store": "state.stampMode === true && state.activeDefId === 'dining-chair'" },
+      "timeout": 3000,
+      "failMessage": "startStamp did not arm stampMode + activeDefId"
+    },
+    {
+      "name": "verify-stamp-banner",
+      "eval": "(function(){ const b = document.querySelector('.stamp-banner'); if (!b) throw new Error('Active-stamp banner not shown'); console.log('banner:', b.textContent?.trim()); })()"
+    },
+    { "name": "shot-02-stamp-armed", "screenshot": "02-stamp-armed-banner" },
+
+    {
+      "name": "record-baseline-count",
+      "eval": "window.__stampBase = window.__store.getState().items.length; console.log('baseline items:', window.__stampBase)"
+    },
+    {
+      "name": "stamp-three-clicks",
+      "eval": "(async function(){ const canvas = document.querySelector('canvas'); if (!canvas) throw new Error('no canvas'); const r = canvas.getBoundingClientRect(); const pts = [[0.42,0.58],[0.52,0.62],[0.62,0.58]]; const frame = () => new Promise(res => requestAnimationFrame(()=>requestAnimationFrame(res))); for (const [fx,fy] of pts) { const x = r.left + r.width*fx, y = r.top + r.height*fy; canvas.dispatchEvent(new PointerEvent('pointermove',{clientX:x,clientY:y,bubbles:true})); window.dispatchEvent(new PointerEvent('pointermove',{clientX:x,clientY:y,bubbles:true})); await frame(); await frame(); canvas.dispatchEvent(new MouseEvent('click',{clientX:x,clientY:y,button:0,bubbles:true})); await frame(); } })()"
+    },
+    { "name": "wait-stamps-commit", "wait": 1500 },
+    {
+      "name": "verify-three-placed-and-still-armed",
+      "eval": "(function(){ const st = window.__store.getState(); const placed = st.items.length - window.__stampBase; if (placed < 1) throw new Error('No copies placed by stamp clicks (placed=' + placed + ') — ghost may not have computed a valid spot headlessly'); const chairs = st.items.filter(i => i.defId === 'dining-chair'); const pos = new Set(chairs.map(c => c.position.join(','))); if (pos.size !== chairs.length) throw new Error('dining-chair copies share positions'); if (!st.stampMode || st.activeDefId !== 'dining-chair') throw new Error('Stamp mode disarmed after a commit — should stay armed'); console.log('placed', placed, 'distinct dining-chairs; still armed'); })()"
+    },
+    { "name": "shot-03-stamped-copies", "screenshot": "03-stamped-copies" },
+
+    {
+      "name": "esc-disarms",
+      "eval": "window.dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}))"
+    },
+    { "name": "wait-disarm", "wait": 400 },
+    {
+      "name": "verify-disarmed",
+      "waitFor": { "store": "state.stampMode === false && state.activeDefId === null" },
+      "timeout": 3000,
+      "failMessage": "Escape did not disarm stamp mode"
+    },
+    { "name": "shot-04-after-esc", "screenshot": "04-after-esc-disarmed" },
+
+    { "name": "to-simple-mode", "store": { "action": "setUiMode", "args": ["simple"] } },
+    {
+      "name": "stampPlace-flag-off-simple",
+      "waitFor": { "store": "state.featureFlags.stampPlace === false" },
+      "timeout": 5000,
+      "failMessage": "stampPlace flag should be forced OFF in Simple mode"
+    },
+    { "name": "wait-simple", "wait": 600 },
+    {
+      "name": "verify-no-stamp-buttons-simple",
+      "eval": "(function(){ const btns = document.querySelectorAll('.stamp-btn'); if (btns.length !== 0) throw new Error('stamp buttons should be hidden in Simple mode, found ' + btns.length); console.log('no stamp buttons in Simple — gated correctly'); })()"
+    },
+    { "name": "shot-05-simple-no-stamp", "screenshot": "05-simple-mode-no-stamp" },
+
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844, "mobile": true } },
+    { "name": "to-pro-mobile", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "wait-mobile-pro", "wait": 800 },
+    { "name": "open-catalog-mobile", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "wait-mobile-catalog", "wait": 800 },
+    {
+      "name": "verify-stamp-buttons-mobile",
+      "eval": "(function(){ const btns = document.querySelectorAll('.stamp-btn'); console.log('mobile stamp buttons:', btns.length); if (btns.length === 0) throw new Error('stamp buttons missing on mobile catalog cards (Pro)'); })()"
+    },
+    {
+      "name": "arm-stamp-mobile",
+      "store": { "action": "startStamp", "args": ["dining-chair"] }
+    },
+    { "name": "wait-mobile-banner", "wait": 400 },
+    {
+      "name": "verify-mobile-banner",
+      "eval": "(function(){ const b = document.querySelector('.stamp-banner'); if (!b) throw new Error('mobile stamp banner missing'); })()"
+    },
+    { "name": "shot-06-mobile-stamp", "screenshot": "06-mobile-stamp-armed" }
+  ]
+}

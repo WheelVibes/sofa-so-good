@@ -147,6 +147,18 @@ same change that reshapes a system.
   remote provider index when `remoteFurniture || remoteMaterials` is on (no fetch otherwise).
   Gating affects the browse/add path only — a placed/resolved remote def still merges into
   `useCatalog` (`buildMergedCatalog`) and renders regardless of the flag.
+  **Sticky stamp placement** (`stampPlace` flag, tier: **pro**, default on — Floorplanner parity,
+  PARITY-STAMP-PLACE): a per-card **stamp button** (`.stamp-btn`, `Icon.Copy`) arms a def via
+  `startStamp(defId)`, which sets `placementSlice.stampMode` + `activeDefId`. While `stampMode` is
+  on, `usePlacementController`'s commit click (and the `addItem` it fires — one undo step each) keeps
+  the placement **armed** instead of disarming, so the same item drops repeatedly with one click
+  each (chairs, downlights, plants) until **Escape** / the **Done** button / a different item
+  (`cancelPlacement` clears it). The active-stamp **`StampBanner`** above the catalog footer is the
+  on-cue; the armed card gets a `.stamping` accent ring. A plain single-add arm (`setActiveDefId`)
+  always clears `stampMode`, and the controller defends with `isFeatureEnabled('stampPlace')` so a
+  stale `stampMode` can't persist a click once the flag is off (Simple mode forces it off → the
+  stamp button + banner hide and each click commits once as before). ⌘K **"Stamp — place an item
+  repeatedly"** (`stamp-mode`, gated in `COMMAND_FLAGS`) arms the held/selected def.
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,

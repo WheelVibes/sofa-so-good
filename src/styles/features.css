@@ -207,6 +207,22 @@
 .fav-btn:hover { color: var(--accent-soft-text); }
 .fav-btn.on { opacity: 1; color: var(--accent); }
 
+/* Stamp (sticky repeat-place) button — sits just under the favourite heart at the
+   card's top-right; shares the heart's pill treatment. Always visible while armed
+   (.on) so the active stamp is obvious; reveals on hover otherwise. */
+.stamp-btn { position: absolute; top: 34px; right: 6px; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; color: var(--text-3); background: var(--surface-solid); border: 1px solid var(--border); opacity: 0; transition: var(--dur) var(--ease); z-index: 2; }
+.cat-card:hover .stamp-btn { opacity: 1; }
+.stamp-btn:hover { color: var(--accent-soft-text); }
+.stamp-btn.on { opacity: 1; color: var(--accent); border-color: var(--accent); }
+/* The card whose stamp is armed reads as selected so the active tool is unmistakable. */
+.cat-card.stamping { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+
+/* Active-stamp banner above the catalog footer — a clear "you are stamping X" cue
+   with a Done escape hatch. Token classes only (accent-soft surface). */
+.stamp-banner { display: flex; align-items: center; gap: var(--s-2); margin: 0 var(--s-4); padding: var(--s-2) var(--s-3); border-radius: var(--r-2); background: var(--accent-soft); color: var(--accent-soft-text); border: 1px solid var(--accent); font-size: var(--t-2xs); }
+.stamp-banner .stamp-banner-text { flex: 1; min-width: 0; line-height: 1.35; }
+.stamp-banner .btn { flex: none; }
+
 /* ============================================================
    VERSIONS  — floating aux panel
    ============================================================ */
