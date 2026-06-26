@@ -82,6 +82,30 @@ PARITY-GRID-SNAP (Wave 6, v0.3.0.29–.31), PARITY-THERMAL (Wave 7, v0.3.0.32).
 > **Real-GPU/backend (out of scope):** DoF bokeh, 8K render, VSM/PCSS, denoise, HDRI IBL, SSGI,
 > AI plan-gen, branded catalogs, multi-user collab, CORS-proxied providers.
 
+## 🔭 2026-06-26 RESEARCH WAVE #3 — report/export-surface features (fully clean-delegate)
+
+Audit found the report/export/analysis surfaces (`ui/report.ts` append slots, `export/*`, `analysis/*`,
+additive ToolsMenu/⌘K) are conflict-light + fully shippable — the productive lane while the editor
+files stay churned. Several analysis **builders already exist** but aren't surfaced in the printable
+report/export. **IN FLIGHT (Wave 9):** PARITY-OPENING-SCHED, PARITY-DAYLIGHT-DIGEST, PARITY-FFE-CSV.
+> NOTE: report-section items contend on `report.ts` — serialize them (one agent owns report.ts per wave);
+> export-only items run in parallel.
+
+- [~] **PARITY-OPENING-SCHED** (HIGH/M, `report-section`+`export-csv`) — `analysis/openingSchedule.ts`
+  door/window schedule (typed marks D1/W1 ×n, W×H/sill/swing/room) → report section (+opt CSV). *(W9)*
+- [~] **PARITY-DAYLIGHT-DIGEST** (HIGH/S, `report-section`) — surface the existing
+  `analysis/daylight.ts buildDaylightReport` as a report section (no new code/flag). *(W9)*
+- [~] **PARITY-FFE-CSV** (HIGH/S, `export-csv`) — `export/ffeCsv.ts` machine-readable FF&E schedule CSV
+  over the existing `buildFfeSchedule` rows + menu/⌘K. *(W9)*
+- [ ] **PARITY-COST-BREAKDOWN-CSV** (MED/S, `export-csv`) — `export/costBreakdownCsv.ts` combined
+  furniture+finishes+reno cost lines + grand total (reuses `itemPrice`/`estimateRenovation`/finish areas).
+- [ ] **PARITY-SUGGESTIONS-SECTION** (MED/S, `report-section`) — surface the existing `suggestions.ts`
+  `buildSuggestions` as a report section (no new code/flag).
+- [ ] **PARITY-MOVEIN-CHECKLIST** (MED/M, `report-section`+`analysis-pure`) — `analysis/handoverChecklist.ts`
+  per-room snagging/handover punch-list (rule table over room kinds + present appliances) → report (+opt CSV).
+- [ ] **PARITY-ELECTRICAL-SCHED** (MED/M, `report-section`+`analysis-pure`) — `analysis/electricalSchedule.ts`
+  per-room lighting + powered-appliance point count (indicative) → report section.
+
 ## MASTER EXECUTION QUEUE (consolidated 2026-06-19)
 
 One de-duplicated, prioritised dispatch queue distilled from the five 2026-06-19 audit
