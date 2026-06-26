@@ -472,6 +472,11 @@ same change that reshapes a system.
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
   emitter coverage). `ui/DesignScorePanel.tsx` (`.aux`: grade dial + bars + fixes); Tools + ⌘K; +
   a section in the printable `report.ts`. Guards a partial plan (missing walls/openings).
+- **Design suggestions** (`analysis/suggestions.ts` pure → `buildSuggestions({rooms})`: a data-driven
+  rule set over each room's inferred kind + the furniture categories present, yielding per-room
+  "what to add / improve" tips). Powers the in-app suggestions panel and the report's **Design
+  suggestions** section (PARITY-SUGGESTIONS-SECTION) — same builder, categories derived via
+  `pointInRoom`; rides the existing `report` flag, omitted when no suggestion fires.
 - **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas)`:
   indicative SG supply+install $/m² per finish category, `RENO_RATES` table). The report's Renovation
   estimate section (finishes subtotal + combined furniture+finishes total).

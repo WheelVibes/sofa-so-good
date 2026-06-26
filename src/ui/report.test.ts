@@ -396,6 +396,44 @@ describe('buildReportHtml', () => {
   })
 })
 
+describe('buildReportHtml — design suggestions (PARITY-SUGGESTIONS-SECTION)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('renders a Design suggestions section with per-room tips for the furnished default flat', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Design suggestions')
+    // Plural-aware lead-in (the default flat produces multiple suggestions).
+    expect(html).toMatch(/idea(s)? to add or improve, room by room/)
+    // The rule engine fires the kitchen-storage idea on the default layout; the
+    // room name heads its block.
+    expect(html).toContain('Kitchen')
+    expect(html).toContain('cabinets or shelving')
+  })
+
+  it('surfaces an empty-room furnishing tip for a bare habitable room', () => {
+    // A single empty bedroom → the "start with a bed…" empty-bedroom tip.
+    const bedroomOnly: typeof plan = {
+      ...plan,
+      rooms: [{ id: 'br', name: 'Master Bedroom', origin: [1, 1], width: 3, depth: 3 }],
+    }
+    const html = buildReportHtml(bedroomOnly, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Design suggestions')
+    expect(html).toContain('Master Bedroom')
+    expect(html).toMatch(/Furnish this room — start with a bed/)
+  })
+
+  it('omits the Design suggestions section when the rules produce nothing', () => {
+    // A plan with no rooms yields no suggestions → no section.
+    const noRooms: typeof plan = { ...plan, rooms: [] }
+    const html = buildReportHtml(noRooms, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Design suggestions')
+  })
+})
+
 describe('buildReportHtml — multi-storey fan-out (F13)', () => {
   const plan = buildDefaultPlan()
   const upper = {

@@ -10,6 +10,7 @@ import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
 import { estimateRenovation } from '../analysis/renovationCost'
 import { buildStairAdvisories } from '../analysis/stairConnectivity'
+import { buildSuggestions } from '../analysis/suggestions'
 import { ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
 import { ROOMS } from '../apartment/constants'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
@@ -33,7 +34,7 @@ import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildSection } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
-import { planRoomArea } from '../floorplan/types'
+import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -390,6 +391,49 @@ export function buildReportHtml(
           .join('')}
       </div>`,
         )
+        .join('')}
+    </div>`
+
+  // Design suggestions (PARITY-SUGGESTIONS-SECTION) — the per-room "what to add /
+  // improve" tips the in-app suggestions panel surfaces, carried into the printable
+  // report. Reuses the same `buildSuggestions` rule engine: each plan room's furniture
+  // categories are derived from the pieces whose footprint centre lands inside it
+  // (mirroring DesignScorePanel), then run through the rule set. Rides the existing
+  // `report` flag (additive section, no new analysis code). Skipped when the rules
+  // produce nothing (e.g. a bare shell with no habitable rooms, or a fully-kitted home).
+  const suggestionRooms = plan.rooms.map((r) => {
+    const cats = new Set<string>()
+    for (const it of items) {
+      const def = catalog[it.defId]
+      if (def && pointInRoom(r, it.position[0], it.position[1])) cats.add(def.category)
+    }
+    return { id: r.id, name: r.name, areaSqm: planRoomArea(r), itemCategories: [...cats] }
+  })
+  const suggestions = buildSuggestions({ rooms: suggestionRooms })
+  // Group the flat suggestion list by room, preserving plan room order, so each room
+  // reads as its own block of tips. A 'tip' (something missing/off) is flagged warn;
+  // an 'idea' (optional styling nicety) is muted.
+  const sugByRoom = new Map<string, typeof suggestions>()
+  for (const s of suggestions) {
+    const list = sugByRoom.get(s.roomId)
+    if (list) list.push(s)
+    else sugByRoom.set(s.roomId, [s])
+  }
+  const sugColor = (sev: string) => (sev === 'tip' ? '#b45309' : '#6b7280')
+  const suggestionsSection =
+    suggestions.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Design suggestions</h2>
+      <div class="foot" style="margin-bottom:6px">${suggestions.length} idea${suggestions.length === 1 ? '' : 's'} to add or improve, room by room — guidance only.</div>
+      ${plan.rooms
+        .filter((r) => sugByRoom.has(r.id))
+        .map((r) => {
+          const list = sugByRoom.get(r.id)!
+          return `<div class="ci-detail" style="margin-top:6px"><strong>${esc(r.name)}</strong>${list
+            .map((s) => `<div style="color:${sugColor(s.severity)}">• ${esc(s.message)}</div>`)
+            .join('')}</div>`
+        })
         .join('')}
     </div>`
 
@@ -756,6 +800,7 @@ export function buildReportHtml(
   ${ffeSection}
   ${clearanceSection}
   ${designScoreSection}
+  ${suggestionsSection}
   ${accessibilitySection}
   ${complianceSection}
   ${hackingSection}
