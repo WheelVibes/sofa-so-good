@@ -297,6 +297,12 @@ flat is **HDB › Serangoon North Vista › 4‑Room**. It covers the common Sin
 home types — HDB 2‑Room Flexi, 3/4/5‑Room, Executive Apartment, 3Gen and Jumbo,
 plus condominium layouts (Studio, 1‑Bedroom, 1+Study, 2‑, 3‑ and 4‑Bedroom,
 Penthouse, Loft and a landed Terrace), each grouped under a development name.
+The **Plan ▾** menu also has **Mirror plan**, which flips the *whole* plan —
+walls, rooms, doors and windows, and all the furniture — left‑to‑right about its
+centre, handy for a mirror‑image HDB stack or a paired condo unit. Door swing
+directions flip to match, and it's a single undo away. (This is a **Pro** tool,
+so switch to **Pro** mode to see it.)
+
 When you **Save** a plan to your library you're prompted for its housing type,
 project and apartment type, so your own apartments are categorised like the
 built‑ins. Three templates are genuinely

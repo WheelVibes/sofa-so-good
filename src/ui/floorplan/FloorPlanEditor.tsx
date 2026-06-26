@@ -287,6 +287,7 @@ export function FloorPlanEditor() {
   const [polylineDraft, setPolylineDraft] = useState<[number, number][]>([])
   const fPolyline = useFeature('planPolyline')
   const fWallNumericEntry = useFeature('wallNumericEntry')
+  const fMirrorRegion = useFeature('planMirrorRegion')
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   // Persisted to IDB (blob + calibration) so it survives editor close + reload.
   const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
@@ -1575,6 +1576,20 @@ export function FloorPlanEditor() {
       <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
         Reset to HDB
       </button>
+      {/* Mirror the whole plan (walls + rooms + openings + furniture) about its
+          centre-X — for mirror-image HDB stacks / condo pairs
+          (PARITY-PLAN-MIRROR-REGION), gated by the `planMirrorRegion` pro flag
+          (hidden in Simple mode). One undoable action. */}
+      {fMirrorRegion ? (
+        <button
+          type="button"
+          onClick={() => a.mirrorFloorPlan()}
+          title="Mirror the whole plan left↔right about its centre (for mirror-image stacks)"
+          className="btn btn-sm"
+        >
+          Mirror plan
+        </button>
+      ) : null}
       {/* Reference photo — trace walls over a floor-plan image / room scan. */}
       <input
         ref={fileRef}

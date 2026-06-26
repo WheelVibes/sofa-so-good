@@ -28,3 +28,14 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (double-scale composes); factor ≤ 0 / NaN throws; factor 1 is a deep-clone
   no-op. The store action is `floorPlanSlice.rescaleFloorPlan` (one undo step);
   UI is `ui/floorplan/ScalePlanModal.tsx` behind the `planScale` Pro flag.
+- **Whole-plan transforms reflect/scale ALL storeys consistently.** `mirrorPlanRegion.ts`
+  (PARITY-PLAN-MIRROR-REGION) reflects every wall endpoint / room origin·polygon·labelOffset /
+  opening / note·dim·polyline vertex / upper-storey geometry + furniture POSITION across the
+  vertical world line `x = axisX` (`x → 2·axisX − x`, Z untouched). Because a reflection is
+  orientation-REVERSING it also flips handedness: opening `hinge` (start↔end) + `swing` (left↔right),
+  wall `arc` sign, room `labelAngle` sign, and furniture yaw (`rotation → −rotation`) + `flipX`. Lengths
+  and areas are preserved (it's an isometry — sizes/`extent`/`elevation` are untouched). Pure +
+  composable: a double-mirror about the same axis is the identity; non-finite `axisX` throws. The store
+  action is `floorPlanSlice.mirrorFloorPlan(axisX?)` (defaults to the plan's centre-X; one undo step;
+  forks the default plan); UI is the "Mirror plan" entry in the editor's Plan menu behind the
+  `planMirrorRegion` Pro flag.

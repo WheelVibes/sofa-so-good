@@ -721,6 +721,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Mirror the whole plan region (walls + rooms + openings + furniture) about a
+  // vertical axis — for mirror-image HDB stacks / condo pairs
+  // (PARITY-PLAN-MIRROR-REGION). Pure geometry, no sidecar / licensing →
+  // prod-safe (default on). An advanced authoring tool beyond the core furnish
+  // loop → pro tier (hidden in Simple mode automatically).
+  planMirrorRegion: {
+    label: 'Mirror plan',
+    description: 'Mirror the whole plan (walls, rooms, openings, furniture) about a vertical axis',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

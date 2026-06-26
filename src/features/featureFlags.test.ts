@@ -135,6 +135,14 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').catalogModelInfo).toBe(true)
   })
 
+  it('planMirrorRegion (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    // Mirror-a-plan-region is an advanced authoring tool → pro tier.
+    expect(resolveFlags(true, {}, false, 'simple').planMirrorRegion).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').planMirrorRegion).toBe(true)
+    // Prod-safe pure geometry → default on (present in a prod Pro build).
+    expect(resolveFlags(false, {}, false, 'pro').planMirrorRegion).toBe(true)
+  })
+
   it('curvedWalls (simple tier) is present in BOTH Simple and Pro modes', () => {
     expect(resolveFlags(true, {}, false, 'simple').curvedWalls).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').curvedWalls).toBe(true)

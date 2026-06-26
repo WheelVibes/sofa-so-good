@@ -97,6 +97,7 @@ export type FeatureFlag =
   | 'smartRotateSnap'
   | 'stampPlace'
   | 'scatterFill'
+  | 'planMirrorRegion'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
