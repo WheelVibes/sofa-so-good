@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: mirror a whole plan region about an axis (PARITY-PLAN-MIRROR-REGION) (v0.3.0.27)
+
+A **"Mirror plan"** action (Plan menu, Pro) reflects the entire plan region — every storey's walls,
+rooms, openings, notes/dimensions/polylines, **and** furniture — across a vertical axis, for
+mirror-image HDB stacks / condo pairs. Pure `floorplan/mirrorPlanRegion.ts`
+(`mirrorPlanRegion(plan, items, axisX)`) maps `x → 2·axisX − x` (Z untouched); being
+orientation-reversing it also flips handedness — opening `hinge` (start↔end) + `swing` (left↔right),
+wall `arc` sign, room `labelAngle` sign, furniture yaw (`rotation → −rotation`) + `flipX` — while
+preserving all lengths/areas/sizes (it's an isometry). The `mirrorFloorPlan(axisX?)` slice action
+defaults the axis to the plan's centre-X, commits plan+items in one undo step, and forks the default
+plan on first edit. New `planMirrorRegion` flag (`tier:'pro'`, default on, prod-safe). 26 unit +
+slice tests (coords reflect, areas preserved, hinge/swing/arc/yaw flips, multi-level, double-mirror =
+identity, non-finite axis throws) + flag-gating both modes; visually verified on the integrated tree
+(4-Room HDB mirrored left↔right, door swings flipped, 92.6 m²·11 rooms preserved, double-mirror
+pixel-identical to the original — no z-fighting/overlap).
+
+## Fix: clear pending object-URL revoke timer on RecordController unmount (BUG-RECORD-TIMER-LEAK) (v0.3.0.26)
+
+`scene/RecordController.tsx` scheduled `setTimeout(() => URL.revokeObjectURL(url), 2000)` in
+`rec.onstop` without tracking the handle, so unmounting within that 2 s window left the timer to fire
+on a dead context. Each pending handle is now held in a `useRef(new Set<…>())` (self-pruning when the
+timer fires), and a mount-once effect `clearTimeout`s all still-pending handles on unmount. The
+normal still-mounted path is byte-identical (revoke still fires at 2 s); multiple recordings in one
+session each track their own handle without clobbering.
+
 ## Fix: PathArraySection infinite render loop when no polyline is drawn (BUG-PATHARRAY-LOOP) (v0.3.0.24)
 
 `ui/inspector/PathArraySection.tsx` subscribed with `useStore((s) => s.floorPlan.polylines ?? [])`
