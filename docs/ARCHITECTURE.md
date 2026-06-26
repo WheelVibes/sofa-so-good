@@ -146,7 +146,10 @@ same change that reshapes a system.
   (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,
   Straighten, **linear array** (`furniture/arrayPlacement.ts` — pure, unit-tested),
   **radial/polar array** (`furniture/radialArray.ts` — pure, unit-tested, Pro-only via
-  `radialArray` flag)), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel, NavCluster,
+  `radialArray` flag), **path/polyline array** (`furniture/pathArray.ts` — pure, unit-tested;
+  `inspector/PathArraySection.tsx` arrays copies along a drawn plan polyline by arc-length
+  sampling with tangent yaw; Pro-only via `pathArray` flag)), FinishPicker, WallAccentPicker,
+  GraphicsSettings, BudgetPanel, NavCluster,
   CommandPalette, ContextMenu, Onboarding, HelpModal, Modal, `upload/`/`floorplan/`/
   `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`. Empty panels/lists render the shared
   **`EmptyState`** (`EmptyState.tsx`: icon + title + optional description + optional CTA on

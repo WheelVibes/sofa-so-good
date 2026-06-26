@@ -61,6 +61,15 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
     `faceCenter` yaw. Facing convention: `atan2(-cos angle, -sin angle)` so the item's
     Three.js local +Z points toward the center. Gated by the `radialArray` Pro flag (and
     `proMode`) in `InspectorPanel.tsx`; committed via `setItems` in a single undo step.
+  - `pathArray.ts` — path/polyline array (PARITY-DUP-PATH): `pathArrayPlacements(points, opts)`
+    samples N copies along an ordered polyline by **arc-length** (evenly along the path, not
+    chord-spaced), with optional tangent-facing yaw (`align`, facing `atan2(dx, dz)` so +Z
+    follows the travel direction) and `mode: 'count' | 'spacing'`. Handles <2 points, zero-length
+    segments, closed-vs-open loops, and spacing > path length; capped at `PATH_ARRAY_MAX_COUNT`
+    (200). The path source is any **plan polyline** (`floorPlan.polylines`, PARITY-POLYLINE). Gated
+    by the `pathArray` Pro flag (+ `proMode`); the UI lives in a sibling
+    `ui/inspector/PathArraySection.tsx` (not InspectorPanel) which collision-checks each copy
+    (skip-and-report blocked slots, like radial) and commits via `setItems` in a single undo step.
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).

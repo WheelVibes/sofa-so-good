@@ -1,0 +1,50 @@
+{
+  "name": "path-array-simple",
+  "description": "Ladder for the duplicate-along-path array feature (PARITY-DUP-PATH). Rungs: (1) seed an L-shaped plan polyline + a source chair in the livingDining room; (2) verify the Path array UI is hidden in Simple mode; (3) switch to Pro, expand the inspector, fire the Path array Go button, assert 4 collision-fitting copies are placed along the path with arc-length spacing + tangent yaw (the source-position copy is reported as not-fitting); (4) screenshot top + perspective; (5) mobile-viewport leg.",
+  "url": "http://localhost:5176/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-editor-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "wait-room-load", "wait": 2000 },
+    { "name": "seed-polyline-and-chair", "eval": "(function(){ const s = window.__store.getState(); const id = s.addPolyline({ points: [[9.2,2.2],[11.6,2.2],[11.6,4.6]] }); window.__polyId = id; s.setItems([{ id: 'src-chair', defId: 'dining-chair', position: [9.2,2.2], rotation: 0, props: {} }]); })()" },
+    { "name": "verify-seed", "waitFor": { "store": "state.items.length === 1 && (state.floorPlan.polylines||[]).length >= 1" }, "timeout": 5000 },
+
+    { "name": "simple-mode", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "select-chair-simple", "eval": "window.__store.getState().selectItem('src-chair')" },
+    { "name": "wait-inspector-simple", "wait": 800 },
+    { "name": "expand-inspector-simple", "eval": "(function(){ const b = document.querySelector('button[aria-label=\"Expand inspector\"]'); if (b) b.click(); })()" },
+    { "name": "wait-expand-simple", "wait": 600 },
+    { "name": "verify-path-hidden-simple", "eval": "(function(){ if (document.querySelector('.act-array--path')) throw new Error('Path array UI should be hidden in Simple mode but is visible'); console.log('PASS: path array hidden in Simple mode'); })()" },
+    { "name": "shot-simple", "screenshot": "01-inspector-simple-no-path" },
+
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reselect-chair", "eval": "(function(){ const s = window.__store.getState(); s.selectItem(null); s.selectItem('src-chair'); })()" },
+    { "name": "wait-inspector-pro", "wait": 1200 },
+    { "name": "expand-inspector-pro", "eval": "(function(){ const b = document.querySelector('button[aria-label=\"Expand inspector\"]'); if (b) b.click(); })()" },
+    { "name": "wait-expand-pro", "wait": 800 },
+    { "name": "verify-path-visible-pro", "eval": "(function(){ if (!document.querySelector('.act-array--path')) throw new Error('Path array UI (.act-array--path) should be visible in Pro mode but is not present'); console.log('PASS: path array visible in Pro mode'); })()" },
+    { "name": "focus", "eval": "window.__store.getState().focusOn?.([10.4, 3.4])" },
+    { "name": "wait-focus", "wait": 1500 },
+    { "name": "shot-inspector-pro", "screenshot": "02-inspector-pro-path-ui" },
+
+    { "name": "apply-path-array", "eval": "(function(){ const b = document.querySelector('.act-array--path .act-array-go'); if (!b) throw new Error('Path array Go button not found'); b.click(); })()" },
+    { "name": "wait-placed", "waitFor": { "store": "state.items.length >= 4" }, "timeout": 10000, "failMessage": "Expected at least 4 items after path array (source + 3 fitting copies)" },
+    { "name": "wait-settle", "wait": 1500 },
+    { "name": "verify-tangent-yaw", "eval": "(function(){ const s = window.__store.getState(); const items = s.items; const onX = items.filter(i => Math.abs(i.position[1] - 2.2) < 0.05 && Math.abs(i.rotation - Math.PI/2) < 0.01); const onZ = items.filter(i => Math.abs(i.position[0] - 11.6) < 0.05 && Math.abs(i.rotation - 0) < 0.01 && Math.abs(i.position[1] - 2.2) > 0.05); if (onX.length < 1 || onZ.length < 1) throw new Error('Expected tangent yaw to differ across the L bend; onX='+onX.length+' onZ='+onZ.length); console.log('PASS: tangent yaw correct across the bend'); })()" },
+    { "name": "request-top-view", "eval": "window.__store.getState().requestTopView?.()" },
+    { "name": "wait-top", "wait": 2000 },
+    { "name": "zoom-out", "wheel": { "x": 640, "y": 400, "dy": 900 } },
+    { "name": "wait-zoom", "wait": 1000 },
+    { "name": "shot-top", "screenshot": "03-path-array-top-view" },
+    { "name": "restore-perspective", "eval": "window.__store.getState().focusOn?.([10.4, 3.4])" },
+    { "name": "wait-restore", "wait": 1500 },
+    { "name": "shot-perspective", "screenshot": "04-path-array-perspective" },
+
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "wait-mobile", "wait": 1200 },
+    { "name": "shot-mobile", "screenshot": "05-mobile-inspector" }
+  ]
+}
