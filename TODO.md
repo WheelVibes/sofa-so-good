@@ -2,6 +2,83 @@
 
 Single source of truth for deferred work across this project. Each entry links back to the spec, plan, or file that introduced it. Removed when done.
 
+## 🔭 2026-06-26 RESEARCH WAVE — fresh pure-client/headless backlog (TOP PRIORITY)
+
+Compiled by a read-only audit+research agent, cross-checked against `CHANGELOG.md` (source of
+truth). All items are pure-client and headlessly verifiable on SwiftShader (unit tests or
+`window.__store` scenario assertions). Conflict-group tags (`cg-*`) parallelize: same tag = serialize.
+**Already dispatched/shipped this session — do NOT re-do:** AUD-002/003, PARITY-SH3D-FURN/OPENINGS
+(tests), PARITY-DUP-PATH, PARITY-SNAP-ROTATE, PARITY-PLAN-ROOM-DUP, PARITY-PLAN-MARQUEE,
+PARITY-PLAN-ALIGN (in-flight), MOD-FPE-SPLIT (in-flight).
+
+### Correctness / reliability (highest priority)
+- [ ] **BUG-RADIAL-FULLCIRCLE** (MED/S, `cg-radial`) — `furniture/radialArray.ts:90,96`: a `rawSweep`
+  of `2π−ε` (user dragging "almost full circle") falls to the partial formula `sweep/(n-1)` →
+  visible double-up at the seam. Fix: treat `sweep >= TWO_PI − SEAM_EPS` (~1e-3 rad) as full-circle.
+  Verify: unit test `sweep=2π−1e-4` → exclusive-seam spacing `2π/n`.
+- [ ] **BUG-PATHARRAY-EMPTY** (LOW/S, `cg-patharray`) — `furniture/pathArray.ts:~127,140`: degenerate
+  all-coincident-points path (`total≈0`) slips past the `<2 points` check; `t=d/total` blows up. Fix:
+  guard `total <= 1e-6 → return start`. Verify: unit test two near-coincident points → no NaN/`t>1`.
+- [ ] **BUG-RECORD-TIMER-LEAK** (LOW/S, `cg-record`) — `scene/RecordController.tsx:64`: untracked
+  `setTimeout(revokeObjectURL,2000)` fires on a dead context if unmounted in-window. Fix: ref + clear
+  in effect cleanup. (Fold into any RecordController touch — not cleanly headless.)
+
+### 2D plan editor ergonomics (high value, pure geometry)
+- [ ] **PARITY-PLAN-VERTEX-ANGLESNAP** (MED/S, `cg-planeditor` — serialize AFTER MOD-FPE-SPLIT) —
+  `FloorPlanEditor.tsx:1102-1104`: new-wall draw angle-snaps but dragging an existing wall **endpoint**
+  (`moveWallVertex`) passes raw cursor coords (no ortho/15° snap, no Shift-bypass). Fix: route the
+  vertex-drag target through the existing `snapWallAngle(anchor=otherEnd, cursor)`; Shift bypasses.
+  Verify: scenario drags a vertex near 88° → wall angle snaps 90°; Shift → free.
+- [ ] **PARITY-PLAN-SCALE** (MED/M, `cg-planscale`, new pure file) — no `rescalePlan` exists.
+  SH3D/RoomSketcher "scale walls to a target dimension" (fix a wrong-scale traced/imported plan). Pure
+  `rescalePlan(plan, factor | {anchorWallId,targetLength})` scales wall endpoints/room polygons/opening
+  offsets about an anchor; furniture ×factor (or preserved behind a flag). Verify: unit — lengths
+  ×factor, areas ×factor², openings proportional, double-scale composes.
+- [ ] **PARITY-PLAN-MIRROR-REGION** (MED/M, `cg-planmirror`, new pure file) — `layout/mirrorRoom.ts`
+  mirrors only furniture items, not a **plan region** (walls+rooms+openings+furniture) about an axis
+  (common for mirror-image HDB stacks). Pure `mirrorPlanRegion(plan, items, axisX)` reflecting coords,
+  flipping opening hinge/swing handedness, yaw θ→π−θ. Verify: unit — coords reflect, double-mirror =
+  identity, hinge flips, areas preserved.
+- [ ] **PARITY-PLAN-GUIDES** (MED/S, `cg-planguides`) — no persistent guide/reference-line type
+  (only transient smart guides). Add `plan.guides:{axis:'x'|'z',pos}[]` + pure
+  `snapToGuides(point,guides,threshold)`, persisted in schema. Verify: unit — point near vertical guide
+  snaps X only, intersection snaps both; scenario round-trips guides through serialize.
+
+### Layout productivity
+- [ ] **PARITY-STAMP-PLACE** (MED/M, `cg-stamp`) — no "stamp" sticky add-mode (click-place the same
+  def N times without re-selecting). Add `stampDefId` ui-slice state; each commit (one undo) keeps the
+  mode armed until Esc/clear. Verify: scenario — arm, commit N, assert N items distinct ids/positions,
+  mode persists.
+- [ ] **PARITY-SCATTER-ROOM** (MED/M, `cg-scatter`, new pure file in `layout/`) — no "evenly fill a
+  room's free floor with N packed, collision-avoiding copies". Pure
+  `scatterInRoom(roomPolygon, footprint, count, {existing, clearance, seed})` reusing
+  `canPlace`/`placeNonOverlapping`. Verify: unit — all inside polygon, none overlap, deterministic by
+  seed, ~even spacing.
+
+### Data / export
+- [ ] **PARITY-ROOM-CSV** (MED/S, `cg-roomcsv`, new pure file) — no machine-readable **room schedule**
+  CSV (rooms × area/perimeter/floor+wall finish/ceiling height across storeys). Pure
+  `buildRoomScheduleCsv(plan, finishes, units)` reusing `planRoomArea`/`planRoomPerimeter`/
+  `resolvePlanRoomFloor` + grand-total footer; wire into File/Tools/⌘K under the `shopExport` flag.
+  Verify: unit — one row/room across storeys, correct callouts, RFC-4180.
+
+### Maintainability (debt — CLAUDE.md "no monolithic files")
+- [ ] **MOD-PLANINSPECTOR-SPLIT** (MED/M, `cg-planinspector` — serialize AFTER PARITY-PLAN-ALIGN) —
+  `ui/floorplan/PlanInspector.tsx` is **1348 lines**. Extract wall/room/opening/notes-dimension
+  branches into sibling `editor/inspector/<Branch>.tsx` panels; keep `PlanInspector` a thin dispatcher
+  (proven `PathArraySection`/`PlanFurnitureInspector` pattern). Verify: behaviour-preserving — existing
+  scenarios green + tsc/biome.
+- [ ] **MOD-MOBILETOOLBAR-SPLIT** (LOW/M, `cg-mobiletoolbar`) — `ui/toolbar/MobileToolbar.tsx` is
+  **1204 lines**. Extract per-section detail-pane renderers into `toolbar/mobile/<Section>.tsx`; keep
+  the rail/sheet shell thin. Verify: mobile scenario parity + tsc/biome.
+
+> **Recommended first parallel batch (no shared cg):** BUG-RADIAL-FULLCIRCLE + PARITY-PLAN-SCALE +
+> PARITY-ROOM-CSV + PARITY-SCATTER-ROOM + PARITY-STAMP-PLACE (all independent new pure files). Then
+> PARITY-PLAN-VERTEX-ANGLESNAP after MOD-FPE-SPLIT; MOD-PLANINSPECTOR-SPLIT after PARITY-PLAN-ALIGN.
+> **Verified already shipped (do NOT propose):** door-swing obstruction check, arrow-key nudge,
+> compass/north + scale-bar + auto-dimension strings, photo-trace backdrop. **Per-frame alloc findings**
+> in DragController/SelectionOutline are LOW (Canvas is `frameloop="demand"` → only during active drags).
+
 ## MASTER EXECUTION QUEUE (consolidated 2026-06-19)
 
 One de-duplicated, prioritised dispatch queue distilled from the five 2026-06-19 audit
