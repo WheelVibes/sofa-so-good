@@ -71,6 +71,7 @@ import {
   planCenter as planCenterGeo,
 } from './editor/floorPlanGeometry'
 import { GridLines } from './editor/GridLines'
+import { type MarqueeItem, type MarqueeRect, marqueeSelect } from './editor/marqueeSelect'
 import { PlanLibrary } from './editor/PlanLibrary'
 import { PlanMenu } from './editor/PlanMenu'
 import { PlanToolMenu } from './editor/PlanToolMenu'
@@ -126,6 +127,10 @@ export function FloorPlanEditor() {
   // Price displays are gated behind the budget/price feature (off by default).
   const fPrice = useFeature('budget')
   const selectedItemId = useStore((s) => s.selectedItemId)
+  // Multi-item plan selection (marquee / future shift-click). A Set for O(1)
+  // membership while highlighting footprints.
+  const selectedItemIdsRaw = useStore((s) => s.selectedItemIds)
+  const selectedItemIds = useMemo(() => new Set(selectedItemIdsRaw), [selectedItemIdsRaw])
   const annotations = useStore((s) => s.annotations)
   const { getDef, ref: catalogRef } = useCatalogGetter()
   // Mobile: the toolbar is too cluttered to fit, so secondary controls + the
@@ -193,6 +198,11 @@ export function FloorPlanEditor() {
   const isMultiLevel = allLevels.length > 1
   const otherLevels = allLevels.filter((l) => l.id !== levelId)
   const [draft, setDraft] = useState<{ x0: number; z0: number; x: number; z: number } | null>(null)
+  // Rubber-band marquee (PARITY-PLAN-MARQUEE): a drag on empty canvas with the
+  // select tool draws this rect (plan coords, unsnapped so it tracks the
+  // cursor); on pointer-up every furniture footprint / wall it intersects is
+  // multi-selected. Null when no marquee is in progress.
+  const [marquee, setMarquee] = useState<MarqueeRect | null>(null)
   // Numeric-entry preview: when the user types in the WallNumericEntry overlay,
   // this overrides the drag endpoint for the live preview. Cleared on each new
   // pointer-down (drag starts fresh) or commit/cancel.
@@ -736,6 +746,21 @@ export function FloorPlanEditor() {
             ...st.selectedWallIds,
           ]),
         ]
+        // A marquee can multi-select furniture (and/or walls). Bulk-delete the
+        // furniture first: the loop coalesces under the 'delete' key so all the
+        // pieces drop in ONE undo step (parity with the 3D delete path). Locked
+        // items are pinned (skipped).
+        const itemIds = st.selectedItemIds
+        if (itemIds.length > 0) {
+          const lockedIds = new Set(st.items.filter((i) => i.locked).map((i) => i.id))
+          for (const id of [...itemIds]) {
+            if (!lockedIds.has(id)) st.deleteItem(id)
+          }
+          // If the same marquee also caught walls, drop them too (their own
+          // history step). Then we're done.
+          if (wallIds.length > 0) st.removeWalls(wallIds, levelId)
+          return
+        }
         if (wallIds.length > 1) {
           st.removeWalls(wallIds, levelId)
           return
@@ -751,9 +776,6 @@ export function FloorPlanEditor() {
           else if (sel.type === 'polyline') st.removePolyline(sel.id)
           else if (!lvl.openings.find((o) => o.id === sel.id)?.locked)
             st.removeOpening(sel.id, levelId)
-        } else if (st.selectedItemId) {
-          // A furniture footprint is selected — delete it (parity with 3D).
-          st.deleteItem(st.selectedItemId)
         }
       }
     }
@@ -771,6 +793,16 @@ export function FloorPlanEditor() {
     const x = ((e.clientX - rect.left) / rect.width) * W
     const y = ((e.clientY - rect.top) / rect.height) * H
     return [snap(x / PX - GRID_MARGIN), snap(y / PX - GRID_MARGIN)]
+  }
+
+  // Raw (unsnapped) pointer → plan metres. The marquee rect tracks the cursor
+  // smoothly without grid quantisation (snapping would make the selection box
+  // jump in grid steps).
+  const pointerPlanRaw = (e: React.PointerEvent): [number, number] => {
+    const rect = svgRef.current!.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * W
+    const y = ((e.clientY - rect.top) / rect.height) * H
+    return [x / PX - GRID_MARGIN, y / PX - GRID_MARGIN]
   }
 
   const pointerWorld = (
@@ -845,6 +877,7 @@ export function FloorPlanEditor() {
         pinch.current = { dist: Math.hypot(a2.x - b2.x, a2.y - b2.y) || 1, zoom: zoomRef.current }
         panRef.current = null
         setDraft(null)
+        setMarquee(null)
         setMoving(null)
         setMovingItem(null)
         setMovingVertex(null)
@@ -869,10 +902,13 @@ export function FloorPlanEditor() {
       return
     }
     if (e.button !== 0) return
-    // View mode (any drag pans), or a mobile-edit select-tool drag — on empty
-    // canvas, or an unselected item whose handler fell through here — pans
-    // instead of editing. The selected item's handler captures before this runs.
-    if (editMode === 'view' || (isMobile && tool === 'select')) {
+    // View mode: any drag pans (touch + mouse). In edit mode the select tool
+    // instead rubber-band marquee-selects on empty canvas (handled in the tool
+    // dispatch below) — desktop AND mobile; mobile navigation uses two-finger
+    // pinch (zoom + recentre). The selected item's handler captures before this
+    // runs; an unselected item's fall-through reaches the empty-canvas marquee,
+    // which a tap (zero-area) treats as a click so the selection is preserved.
+    if (editMode === 'view') {
       startPan(e)
       return
     }
@@ -998,7 +1034,17 @@ export function FloorPlanEditor() {
         st.setPlanSelection({ type: 'note', id })
       })()
     } else {
-      st.setPlanSelection(null)
+      // Empty-canvas press with the select tool: begin a rubber-band marquee
+      // (PARITY-PLAN-MARQUEE). We don't clear the selection yet — that happens
+      // on pointer-up only if the marquee stayed a click (zero-area), so a drag
+      // that selects nothing clears, and a plain tap on a just-selected item
+      // (mobile fall-through) is preserved. Raw (unsnapped) coords track the
+      // cursor smoothly.
+      const [rx, rz] = pointerPlanRaw(e)
+      setMarquee({ x0: rx, z0: rz, x1: rx, z1: rz })
+      try {
+        svgRef.current?.setPointerCapture(e.pointerId)
+      } catch {}
     }
   }
 
@@ -1201,6 +1247,11 @@ export function FloorPlanEditor() {
         .updateRoom(moving.id, { origin: [snap(wx - moving.gx), snap(wz - moving.gz)] })
       return
     }
+    if (marquee) {
+      const [rx, rz] = pointerPlanRaw(e)
+      setMarquee({ ...marquee, x1: rx, z1: rz })
+      return
+    }
     if (!draft) return
     const [wx, wz] = tool === 'wall' ? wallDrawEnd(e, [draft.x0, draft.z0]) : pointerWorld(e)
     setDraft({ ...draft, x: wx, z: wz })
@@ -1228,6 +1279,41 @@ export function FloorPlanEditor() {
       // selection — the desktop edit path already deselects on pointer-down via
       // the `else` in onDown; this covers view mode + touch, which pan instead.
       if (!moved && tool === 'select') useStore.getState().setPlanSelection(null)
+      return
+    }
+    if (marquee) {
+      const rect = marquee
+      setMarquee(null)
+      // Build the candidate footprints / segments for the active storey and run
+      // the pure intersection test. A zero-area (click-sized) marquee returns no
+      // hits → fall through to a plain deselect, so a tap on empty canvas still
+      // clears, while a tap that just selected an item (mobile) is preserved
+      // because the item handler ran first and this only clears the *plan*
+      // element selection (selectedWallIds), not selectedItemId.
+      // Only footprints that are actually shown (the Furniture toggle) are
+      // selectable — mirror the render gate so the marquee can't grab invisible
+      // pieces.
+      const candItems: MarqueeItem[] = []
+      if (showFurniture) {
+        for (const it of levelItems) {
+          const def = getDef(it.defId)
+          if (!def) continue
+          candItems.push({ id: it.id, obb: itemFootprint(it, def) })
+        }
+      }
+      const candWalls = levelPlan.walls.map((w) => ({
+        id: w.id,
+        segment: { ax: w.start[0], az: w.start[1], bx: w.end[0], bz: w.end[1] },
+      }))
+      const hits = marqueeSelect(rect, candItems, candWalls)
+      const st = useStore.getState()
+      if (hits.itemIds.length === 0 && hits.wallIds.length === 0) {
+        // Drag selected nothing (or was a click) → clear the selection.
+        st.setPlanSelection(null)
+        st.selectItem(null)
+      } else {
+        st.setPlanMarqueeSelection(hits.itemIds, hits.wallIds)
+      }
       return
     }
     if (movingStop) {
@@ -2269,7 +2355,9 @@ export function FloorPlanEditor() {
                 const pts = obbCorners(obb)
                   .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
                   .join(' ')
-                const isSel = selectedItemId === it.id
+                // Highlighted when it's the primary OR part of a marquee
+                // multi-selection.
+                const isSel = selectedItemId === it.id || selectedItemIds.has(it.id)
                 // Top-down category glyph centred in the footprint (PC2-PLAN-FURN-
                 // ICONS) so a layout reads at a glance. Shown only when no text
                 // label covers the centre (labels off + not selected), sized to
@@ -2281,6 +2369,8 @@ export function FloorPlanEditor() {
                 return (
                   <g key={it.id}>
                     <polygon
+                      data-item-id={it.id}
+                      data-item-selected={isSel ? '1' : undefined}
                       points={pts}
                       fill={
                         isSel
@@ -3233,6 +3323,24 @@ export function FloorPlanEditor() {
                 height={Math.abs(draft.z - draft.z0) * PX}
                 fill="var(--accent-soft)"
                 stroke="var(--accent)"
+              />
+            )}
+            {/* Rubber-band marquee (PARITY-PLAN-MARQUEE): a dashed accent box
+                while dragging on empty canvas; on release everything it crosses
+                is multi-selected. Pointer-transparent so it can't intercept the
+                drag it's tracking. */}
+            {marquee && (
+              <rect
+                x={toPx(Math.min(marquee.x0, marquee.x1))}
+                y={toPx(Math.min(marquee.z0, marquee.z1))}
+                width={Math.abs(marquee.x1 - marquee.x0) * PX}
+                height={Math.abs(marquee.z1 - marquee.z0) * PX}
+                fill="var(--accent-soft)"
+                fillOpacity={0.25}
+                stroke="var(--accent)"
+                strokeWidth={1}
+                strokeDasharray="4 3"
+                style={{ pointerEvents: 'none' }}
               />
             )}
             {/* In-progress polygon room: placed edges + vertices; the first
