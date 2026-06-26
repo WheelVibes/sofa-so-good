@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: indicative electrical-points schedule in the design report (PARITY-ELECTRICAL-SCHED) (v0.3.0.41)
+
+The report gains an **Electrical points (indicative)** section — a rough per-room socket/point count
+an electrician can quote against. Pure `analysis/electricalSchedule.ts` (`buildElectricalSchedule(plan,
+items, catalog)`) counts per room: **lighting points** (reusing `furniture/lightEmitters.ts`
+`isItemEmitter` — the exact predicate the lighting plan uses, so the two reports never disagree on
+what a light is) and **power points** inferred from powered furniture categories present
+(`SOCKETS_PER_CATEGORY`: kitchen 2, appliances/electronics/laundry/other 1; lighting excluded), with a
+per-room-kind minimum floor (`MIN_SOCKETS_BY_KIND`: living/kitchen 4, study 3, dining/bedroom 2, …) so a
+sparsely-powered room still reads as wired, plus per-room and grand totals. Explicitly labelled
+indicative (no circuits/loads/cable runs). Rides the `report` flag (no new flag). 12 unit tests +
+report-render coverage; empty plan → zeroed (no NaN), strays → an "Unassigned" row, multi-storey summed.
+
 ## Feature: combined cost-breakdown CSV export (PARITY-COST-BREAKDOWN-CSV) (v0.3.0.40)
 
 A single exportable **cost breakdown CSV** consolidating what the report shows separately. Pure

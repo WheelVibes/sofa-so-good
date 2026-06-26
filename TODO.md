@@ -91,9 +91,6 @@ report/export. **IN FLIGHT (Wave 9):** PARITY-OPENING-SCHED, PARITY-DAYLIGHT-DIG
 > NOTE: report-section items contend on `report.ts` — serialize them (one agent owns report.ts per wave);
 > export-only items run in parallel.
 
-- [ ] **PARITY-ELECTRICAL-SCHED** (MED/M, `report-section`+`analysis-pure`) — `analysis/electricalSchedule.ts`
-  per-room lighting + powered-appliance point count (indicative) → report section.
-
 ## MASTER EXECUTION QUEUE (consolidated 2026-06-19)
 
 One de-duplicated, prioritised dispatch queue distilled from the five 2026-06-19 audit
