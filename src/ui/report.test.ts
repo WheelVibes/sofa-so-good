@@ -417,6 +417,27 @@ describe('buildReportHtml — daylight & ventilation (PARITY-DAYLIGHT-DIGEST)', 
   })
 })
 
+describe('buildReportHtml — openings schedule (PARITY-OPENING-SCHED)', () => {
+  const plan = buildDefaultPlan()
+
+  it('renders an Openings schedule with typed marks + a door/window count', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Openings schedule')
+    expect(html).toContain('Doors &amp; windows')
+    // Size column + at least one typed mark (D1/W1).
+    expect(html).toContain('Size (W×H)')
+    expect(html).toMatch(/>[DW]1<\/td>/)
+    // Size cells use the "× " form (W × H).
+    expect(html).toMatch(/m × .*m/)
+  })
+
+  it('omits the Openings schedule for a plan with no openings', () => {
+    const bare = { ...plan, openings: [] }
+    const html = buildReportHtml(bare, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Openings schedule')
+  })
+})
+
 describe('buildReportHtml — multi-storey fan-out (F13)', () => {
   const plan = buildDefaultPlan()
   const upper = {
