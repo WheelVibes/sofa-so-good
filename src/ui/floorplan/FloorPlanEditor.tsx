@@ -98,7 +98,7 @@ import {
   wrapLabel,
 } from './editor/planLabelDisplay'
 import { snapToWalls } from './editor/snapToWalls'
-import { snapWallAngle } from './editor/snapWallAngle'
+import { snapWallAngle, vertexDragTarget } from './editor/snapWallAngle'
 import {
   dimensionCommit,
   polygonClick,
@@ -1113,7 +1113,16 @@ export function FloorPlanEditor() {
     }
     if (movingVertex) {
       const [wx, wz] = pointerWorld(e, movingVertex.id)
-      useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz], levelId)
+      // PARITY-PLAN-VERTEX-ANGLESNAP: dragging an existing wall endpoint snaps to a
+      // 15° increment off the OTHER (fixed) end — the same ortho/angle snap that
+      // wall-drawing uses — so an existing wall can be squared up, not just
+      // newly-drawn ones. Shift bypasses it (free drag). `moveWallVertex` still
+      // applies its own corner/join snap afterwards (order: angle → wall-snap).
+      const wall = levelPlan.walls.find((w) => w.id === movingVertex.id)
+      const aimed: [number, number] = wall
+        ? vertexDragTarget(wall.start, wall.end, movingVertex.which, [wx, wz], e.shiftKey)
+        : [wx, wz]
+      useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, aimed, levelId)
       return
     }
     if (movingBulge) {

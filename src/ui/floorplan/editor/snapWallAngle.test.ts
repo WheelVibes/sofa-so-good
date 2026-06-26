@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PlanVec2 } from '../../../floorplan/types'
-import { snapWallAngle } from './snapWallAngle'
+import { snapWallAngle, vertexDragTarget } from './snapWallAngle'
 
 const close = (a: PlanVec2, b: PlanVec2, eps = 1e-9) =>
   Math.abs(a[0] - b[0]) < eps && Math.abs(a[1] - b[1]) < eps
@@ -54,5 +54,41 @@ describe('snapWallAngle', () => {
     const len = 1
     const out = snapWallAngle([0, 0], [len * Math.cos(ang), len * Math.sin(ang)], { stepDeg: 90 })
     expect(close(out, [len, 0])).toBe(true)
+  })
+})
+
+describe('vertexDragTarget (PARITY-PLAN-VERTEX-ANGLESNAP)', () => {
+  // A wall from [0,0] (start) to [3,0] (end), horizontal.
+  const start: PlanVec2 = [0, 0]
+  const end: PlanVec2 = [3, 0]
+
+  it('dragging the END snaps about the START (the fixed other end)', () => {
+    // Cursor ~3.4° above the start → snaps to exactly horizontal off [0,0].
+    const out = vertexDragTarget(start, end, 'end', [3, 0.18], false)
+    expect(close(out, [Math.hypot(3, 0.18), 0])).toBe(true)
+  })
+
+  it('dragging the START snaps about the END (the fixed other end)', () => {
+    // Anchor = end [3,0]; a cursor near [0, 0.2] → snaps to horizontal off [3,0]
+    // i.e. straight back along -x at the cursor distance, landing at z=0.
+    const out = vertexDragTarget(start, end, 'start', [0.1, 0.2], false)
+    expect(out[1]).toBeCloseTo(0, 9) // snapped to exactly horizontal (z=0)
+  })
+
+  it('snaps a near-90° vertex drag to exactly vertical', () => {
+    // Drag END up and slightly off vertical → 90° about the start.
+    const out = vertexDragTarget(start, end, 'end', [0.15, 4], false)
+    expect(close(out, [0, Math.hypot(0.15, 4)])).toBe(true)
+  })
+
+  it('bypass (Shift held) returns the raw cursor untouched', () => {
+    const cursor: PlanVec2 = [3, 0.18]
+    expect(vertexDragTarget(start, end, 'end', cursor, true)).toBe(cursor)
+  })
+
+  it('honours a custom step increment', () => {
+    // 90° step: a ~30°-ish drag rounds to horizontal (0°), length preserved.
+    const out = vertexDragTarget(start, end, 'end', [2, 1], false, { stepDeg: 90 })
+    expect(close(out, [Math.hypot(2, 1), 0])).toBe(true)
   })
 })

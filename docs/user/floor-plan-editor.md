@@ -119,7 +119,10 @@ Rooms don't have to be plain rectangles:
 
 - **Reshape a wall** — select a wall with the **Select** tool and drag the round
   handles at its ends. Walls that share that corner move with it, so the outline
-  stays joined. Drag a corner off the grid line and the wall takes an angle —
+  stays joined. As you drag an endpoint it **snaps to clean angles** (15°
+  increments — horizontal / vertical / 45°…) off the wall's other end, just like
+  drawing a new wall, so a run squares up cleanly; hold **Shift** to drag to a
+  free angle. Drag a corner off the grid line and the wall takes an angle —
   use this with **Split** to bend a straight run into an **L**. To **rotate** the
   whole wall, grab the **ring** drawn around it (anywhere on the ring, or its
   knob) and swing it — just like the furniture rotation gizmo. For exact sizes,

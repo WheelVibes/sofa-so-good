@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: angle-snap when dragging an existing wall endpoint (PARITY-PLAN-VERTEX-ANGLESNAP) (v0.3.0.42)
+
+Dragging a wall's endpoint handle in the 2D editor now **snaps to 15° increments** (horizontal /
+vertical / 45°…) about the wall's other, fixed end — the same ortho/angle snap that *drawing* a new
+wall already used (`snapWallAngle`), so an existing wall squares up cleanly instead of landing a
+fraction of a degree off; **Shift** bypasses it for a free drag. Previously only freshly-drawn walls
+got the snap — `moveWallVertex` received the raw cursor. The decision is a new pure
+`vertexDragTarget(start, end, which, cursor, bypass)` in `ui/floorplan/editor/snapWallAngle.ts`
+(picks the fixed anchor = the *other* endpoint, applies `snapWallAngle` unless bypassed); the editor's
+`moveWallVertex` still applies its own corner/wall-join snap afterwards (order: angle → wall-snap,
+matching the draw path). 5 new unit tests (anchor selection per dragged end, near-90° snap, Shift
+bypass, custom step); the `plan-editor-tools-journey` scenario stays green (behaviour-preserving for
+every other gesture). This is an inline orchestrator fix — the editor file is too churned this
+session to delegate to a fork-from-base worktree agent.
+
 ## Feature: indicative electrical-points schedule in the design report (PARITY-ELECTRICAL-SCHED) (v0.3.0.41)
 
 The report gains an **Electrical points (indicative)** section — a rough per-room socket/point count

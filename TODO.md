@@ -22,16 +22,12 @@ PARITY-STAMP-PLACE, PARITY-SCATTER-ROOM, BUG-PATHARRAY-LOOP (the no-polyline inf
 > (`FloorPlanEditor.tsx`, `PlanInspector.tsx`, `MobileToolbar.tsx`) can't be safely delegated — a
 > b0371d9-based refactor would drop this session's additions on merge. **Deferred until the base
 > resets** (next PR merge to `main`) or to careful inline work: **MOD-PLANINSPECTOR-SPLIT**,
-> **MOD-MOBILETOOLBAR-SPLIT**, **PARITY-PLAN-VERTEX-ANGLESNAP** (FloorPlanEditor), and the
-> FloorPlanEditor-touching parts of **PARITY-PLAN-GUIDES**.
+> **MOD-MOBILETOOLBAR-SPLIT**, and the FloorPlanEditor-touching parts of **PARITY-PLAN-GUIDES**.
+> (**PARITY-PLAN-VERTEX-ANGLESNAP** was done **inline** by the orchestrator, v0.3.0.42 — a small
+> localized edit only the orchestrator could make, since worktree agents fork pre-churn.)
 
 ### Correctness / reliability (highest priority)
 ### 2D plan editor ergonomics (high value, pure geometry)
-- [ ] **PARITY-PLAN-VERTEX-ANGLESNAP** (MED/S, `cg-planeditor` — serialize AFTER MOD-FPE-SPLIT) —
-  `FloorPlanEditor.tsx:1102-1104`: new-wall draw angle-snaps but dragging an existing wall **endpoint**
-  (`moveWallVertex`) passes raw cursor coords (no ortho/15° snap, no Shift-bypass). Fix: route the
-  vertex-drag target through the existing `snapWallAngle(anchor=otherEnd, cursor)`; Shift bypasses.
-  Verify: scenario drags a vertex near 88° → wall angle snaps 90°; Shift → free.
 - [ ] **PARITY-PLAN-GUIDES** (MED/S, `cg-planguides`) — no persistent guide/reference-line type
   (only transient smart guides). Add `plan.guides:{axis:'x'|'z',pos}[]` + pure
   `snapToGuides(point,guides,threshold)`, persisted in schema. Verify: unit — point near vertical guide
@@ -49,9 +45,10 @@ PARITY-STAMP-PLACE, PARITY-SCATTER-ROOM, BUG-PATHARRAY-LOOP (the no-polyline inf
   **1204 lines**. Extract per-section detail-pane renderers into `toolbar/mobile/<Section>.tsx`; keep
   the rail/sheet shell thin. Verify: mobile scenario parity + tsc/biome.
 
-> **Recommended first parallel batch (no shared cg):** BUG-RADIAL-FULLCIRCLE + PARITY-PLAN-SCALE +
-> PARITY-ROOM-CSV + PARITY-SCATTER-ROOM + PARITY-STAMP-PLACE (all independent new pure files). Then
-> PARITY-PLAN-VERTEX-ANGLESNAP after MOD-FPE-SPLIT; MOD-PLANINSPECTOR-SPLIT after PARITY-PLAN-ALIGN.
+> **(historical) Recommended first parallel batch** — BUG-RADIAL-FULLCIRCLE + PARITY-PLAN-SCALE +
+> PARITY-ROOM-CSV + PARITY-SCATTER-ROOM + PARITY-STAMP-PLACE: **all shipped** (Waves 4–6).
+> PARITY-PLAN-VERTEX-ANGLESNAP shipped inline (v0.3.0.42). MOD-PLANINSPECTOR-SPLIT still deferred
+> (needs base reset).
 > **Verified already shipped (do NOT propose):** door-swing obstruction check, arrow-key nudge,
 > compass/north + scale-bar + auto-dimension strings, photo-trace backdrop. **Per-frame alloc findings**
 > in DragController/SelectionOutline are LOW (Canvas is `frameloop="demand"` → only during active drags).
@@ -73,8 +70,6 @@ PARITY-GRID-SNAP (Wave 6, v0.3.0.29–.31), PARITY-THERMAL (Wave 7, v0.3.0.32).
 - [ ] **PARITY-PLAN-GUIDES** pure core (MED/S, `cg-planguides`) — `floorplan/snapToGuides.ts` +
   `plan.guides[]` schema field (additive). Editor snapping integration inline-only (split).
 ### Inline-only / needs base-reset (touch churned files — defer to next `main` merge)
-- [ ] **PARITY-PLAN-VERTEX-ANGLESNAP** (`cg-planeditor`) — `FloorPlanEditor.tsx:~1102` vertex-drag
-  ortho/15° snap via `snapWallAngle`.
 - [ ] **PARITY-PLAN-GUIDES** editor wiring · **PARITY-CORNER-FILLET / -ROOM-INSET / -DIM-CHAIN** UI triggers.
 - [ ] **MOD-PLANINSPECTOR-SPLIT** (`cg-planinspector`, 1348 ln) · **MOD-MOBILETOOLBAR-SPLIT**
   (`cg-mobiletoolbar`, 1204 ln) — behaviour-preserving splits; can't be stale-base-refactored safely.

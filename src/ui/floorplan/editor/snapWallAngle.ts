@@ -38,3 +38,26 @@ export function snapWallAngle(
   const snapped = Math.round(Math.atan2(dz, dx) / step) * step
   return [anchor[0] + len * Math.cos(snapped), anchor[1] + len * Math.sin(snapped)]
 }
+
+/**
+ * Angle-snap target for dragging an EXISTING wall's endpoint (PARITY-PLAN-VERTEX-ANGLESNAP).
+ * The dragged end (`which`) is aimed onto the nearest `stepDeg` increment about the wall's
+ * OTHER (fixed) end — the same ortho/15° snap wall-drawing uses — so an existing wall can be
+ * squared up, not just freshly-drawn ones. `bypass` (Shift held) returns the raw cursor for a
+ * free drag. The caller's `moveWallVertex` still applies its own corner/wall-join snap afterwards
+ * (order: angle → wall-snap), so this helper never needs to know about other walls.
+ *
+ * Pure (no React/three/store) — parameterised on the two endpoints + cursor.
+ */
+export function vertexDragTarget(
+  start: PlanVec2,
+  end: PlanVec2,
+  which: 'start' | 'end',
+  cursor: PlanVec2,
+  bypass: boolean,
+  opts: SnapWallAngleOpts = {},
+): PlanVec2 {
+  if (bypass) return cursor
+  const anchor = which === 'end' ? start : end
+  return snapWallAngle(anchor, cursor, opts)
+}
