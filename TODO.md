@@ -68,8 +68,6 @@ PARITY-GRID-SNAP (Wave 6, v0.3.0.29–.31), PARITY-THERMAL (Wave 7, v0.3.0.32).
 ### Clean-delegate pure core (UI wiring is inline-only → split; defer the editor trigger to a base reset)
 - [ ] **PARITY-CORNER-FILLET** (MED/M, `cg-cornerfillet`) — `floorplan/cornerFillet.ts` round/bevel a
   wall corner (reuses `wallArc`). Pure core clean-delegate; on-canvas handle inline-only (split).
-- [ ] **PARITY-ROOM-INSET** (MED/M, `cg-roominset`) — `floorplan/insetRoom.ts` signed polygon offset
-  (soffit/setback). Pure core clean-delegate; PlanInspector button inline-only (split).
 - [ ] **PARITY-DIM-CHAIN** (MED/M, `cg-dimchain`) — `floorplan/dimensionChain.ts` chained dimension
   strings. Pure core clean-delegate; editor dimension-tool wiring inline-only (split).
 - [ ] **PARITY-PLAN-GUIDES** pure core (MED/S, `cg-planguides`) — `floorplan/snapToGuides.ts` +

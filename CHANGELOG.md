@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: inset / outset a room polygon by a signed distance (PARITY-ROOM-INSET) (v0.3.0.33)
+
+A Pro action **insets** (shrink — dropped soffit / set-down) or **outsets** (grow — setback) a
+room's outline by a signed distance, a common Coohom/CAD offset-polygon op. Pure
+`floorplan/insetRoom.ts` (`insetPolygon(points, dist)`) offsets every edge and re-intersects
+adjacent offset edges — convex AND simple concave (L-shape) rooms, winding auto-detected — and
+returns **`null`** on a degenerate result (an edge reverses, the winding sign flips, or the area
+collapses to ~0) rather than a self-intersecting polygon. `insetRoom(id, dist)` /
+`insetSelectedRoom(dist)` slice actions write the result back as an explicit `polygon`, re-flow the
+room's boundary wall/opening names, push one undo step, and **reject a collapse with an error toast**
+(no fork, no history). Triggers: ⌘K "Inset room (−0.1 m)" / "Grow room (+0.1 m)" (shown only with a
+room selected) **and** Inset/Grow buttons in the PlanInspector room branch. New `roomInset` flag
+(`tier:'pro'`, default on). 19 unit + slice/flag tests (square inset shrinks area predictably,
+inset>half-width → null, outset grows, L-shape concave, double-inset composes, both modes).
+Documented limitation: boundary walls aren't re-traced, so openings keep their wall offsets.
+
 ## Feature: indicative thermal-envelope digest in the design report (PARITY-THERMAL) (v0.3.0.32)
 
 The printable report gains a **Thermal envelope** section — an indicative (not certified) building-
