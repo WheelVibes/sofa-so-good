@@ -318,6 +318,27 @@ is 15°-snapped. **Key gotchas learned here:**
   Chromium under SwiftShader starves the first and the editor's `.plan-screen` `waitFor` times out
   spuriously. Run one scenario, wait for `EXIT`, then run the next.
 
+### Worked example — Sweet Home 3D furniture import (PARITY-SH3D-FURN)
+
+**`sh3d-furn-import.json`** drives a full `.sh3d` parse → place: it base64-decodes a synthetic
+archive into a `Uint8Array`, calls the dev-only `window.__importSh3dBytes(bytes, name)` hook
+(parse + `applySh3dResult`), then asserts `__store.items.length > 0` and probes the placed
+items / openings before screenshotting the furnished scene (dollhouse + a tilted profile) and the
+2D plan (door + window openings). Verified: 4 pieces (Comfy Sofa→`sofa-3seat`, Coffee Table→
+`coffee-table`, Double Bed→`bed-queen` keeping its 1.57 rad rotation, Wardrobe→`dresser`) placed
+inside the room, plus a door + a window opening on the plan. **Key gotchas learned here:**
+- **Module functions aren't on `window`** — to drive the importer headlessly, add a dev-only lever
+  in `exposeDevHelpers` (`bootstrap.ts`) next to `__arrangeRoom`/`__loadTemplate`. `__importSh3dBytes`
+  is now permanent (dev-only, tree-shaken from prod), so the scenario is re-runnable without a temp
+  hook. Don't try `await import('/src/...')` from the eval — page-context path resolution fails.
+- **Build the `.sh3d` bytes out-of-page and inline them.** `fflate` isn't reachable from the eval
+  scope; generate the zip in a Node script (`zipSync({ 'Home.xml': strToU8(xml) })`), base64 it, and
+  decode in the eval via `atob` → `Uint8Array` (a small fixture is ~700 chars). Keep the fixture's
+  furniture names matched to catalog categories (sofa/table/bed/wardrobe) so they resolve to defs.
+- **Sync on the placement, not a fixed wait.** `applySh3dResult` mutates the store synchronously, so
+  `{"waitFor": {"store": "window.__store.getState().items.length > 0"}}` is the reliable gate before
+  probing/screenshotting; `requestHomeView()` then frames the new plan like a template load.
+
 ---
 
 ## Legacy mode (one-shot, backward-compatible)
