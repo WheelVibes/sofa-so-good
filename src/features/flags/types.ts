@@ -98,6 +98,7 @@ export type FeatureFlag =
   | 'stampPlace'
   | 'scatterFill'
   | 'planMirrorRegion'
+  | 'planGridSnap'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

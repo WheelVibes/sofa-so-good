@@ -39,3 +39,14 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   action is `floorPlanSlice.mirrorFloorPlan(axisX?)` (defaults to the plan's centre-X; one undo step;
   forks the default plan); UI is the "Mirror plan" entry in the editor's Plan menu behind the
   `planMirrorRegion` Pro flag.
+- **Whole-plan transforms snap ALL storeys to a grid.** `gridSnap.ts` (PARITY-GRID-SNAP) rounds
+  every wall endpoint / room origin·width·depth·extension·polygon·labelOffset / opening offset+width /
+  note·dim·polyline vertex / upper-storey geometry + `elevation` + the plan `extent` to the nearest
+  multiple of `gridM` (`Math.round(v/gridM)*gridM`) — to tidy a traced/imported plan. Openings are
+  **re-threaded** against the snapped wall (offset snapped + clamped to `[0, wallLen−width]`) so they
+  stay on their wall; a wall that would **collapse to zero length** is left unsnapped (never dropped).
+  Furniture POSITIONS snap only with `{snapFurniture}` (sizes always preserved). Pure + idempotent
+  (`snap∘snap === snap`); `gridM ≤ 0` / NaN / Infinity throws. The store action is
+  `floorPlanSlice.snapFloorPlanToGrid(gridM?, opts?)` (one undo step; defaults `gridM` to the editor
+  `gridSize`, else 0.05 m; forks the default plan); UI is the "Snap to grid" entry in the editor's
+  Plan menu behind the `planGridSnap` Pro flag.

@@ -1,5 +1,6 @@
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
 import { duplicateRoom as cloneRoom } from '../../floorplan/duplicateRoom'
+import { type GridSnapOptions, snapPlanToGrid } from '../../floorplan/gridSnap'
 import {
   cloneLevelGeometry,
   GROUND_LEVEL_ID,
@@ -260,6 +261,17 @@ export interface FloorPlanSlice {
    *  yaw/flipX. Defaults the axis to the plan's centre-X when unset. Replaces
    *  plan + items in ONE undo step; forks the default plan on first edit. */
   mirrorFloorPlan: (axisX?: number) => void
+
+  /** Snap the WHOLE plan (every storey) to a grid — round every wall endpoint /
+   *  room polygon vertex / opening offset / annotation coordinate to the nearest
+   *  multiple of `gridM` to clean up a traced or imported plan (PARITY-GRID-SNAP).
+   *  Openings are re-threaded so they stay on their snapped walls; a wall that
+   *  would collapse to zero length is left as-is. `gridM` defaults to the editor's
+   *  current grid setting (falling back to 0.05 m). Furniture POSITIONS snap only
+   *  when `opts.snapFurniture`; sizes are always preserved. ONE undo step
+   *  (snapshots plan + items first); forks the default plan on first edit; throws
+   *  on a non-positive / non-finite grid. */
+  snapFloorPlanToGrid: (gridM?: number, opts?: GridSnapOptions) => void
 }
 
 export const FLOOR_PLAN_INITIAL: Pick<
@@ -1039,6 +1051,28 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       // Re-id the seeded default plan on the first structural edit (forkIfDefault),
       // then carry over the mirrored geometry. Items + plan are replaced in one
       // set() so a single undo reverts the whole mirror.
+      const forked = forkIfDefault(s.floorPlan)
+      return {
+        floorPlan: { ...result.plan, id: forked.id },
+        items: result.items,
+        planSelection: null,
+        selectedWallIds: [],
+      }
+    })
+  },
+  snapFloorPlanToGrid: (gridM, opts) => {
+    const s0 = get()
+    // Default the grid to the editor's current grid setting when discoverable,
+    // else 0.05 m (50 mm) — the canonical "clean up a traced plan" step.
+    const grid = gridM ?? (s0.gridSize > 0 ? s0.gridSize : 0.05)
+    // Validate + compute up front so a bad grid throws BEFORE any history snapshot
+    // or fork — the action stays a clean no-op on failure.
+    const result = snapPlanToGrid(s0.floorPlan, s0.items, grid, opts)
+    s0.pushHistory()
+    set((s) => {
+      // Re-id the seeded default plan on the first structural edit (forkIfDefault),
+      // then carry over the snapped geometry. Items + plan are replaced in one
+      // set() so a single undo reverts the whole snap.
       const forked = forkIfDefault(s.floorPlan)
       return {
         floorPlan: { ...result.plan, id: forked.id },

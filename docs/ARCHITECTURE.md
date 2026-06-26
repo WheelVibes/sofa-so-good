@@ -667,6 +667,15 @@ same change that reshapes a system.
   2D⇄3D** — the binding lives in `controls/planEditorHotkey.ts` (always mounted via App,
   modal-guarded), NOT in the lazy-mounted editor, so it opens from the 3D view too.
   **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).
+  **Snap to grid** (Plan menu "Snap to grid", `planGridSnap` flag, pro; PARITY-GRID-SNAP): a
+  whole-plan transform that rounds every wall endpoint / room polygon vertex / opening offset /
+  note·dim·polyline coordinate (and every upper storey + the `extent`) to the editor's current
+  grid via pure `floorplan/gridSnap.ts` `snapPlanToGrid(plan, items, gridM, opts?)` — to clean up a
+  traced or imported plan. Openings are re-threaded so they stay on their snapped walls; a wall that
+  would collapse to zero length is left as-is; furniture POSITIONS snap only with `{snapFurniture}`
+  (sizes always preserved). Pure + idempotent (`snap∘snap === snap`); `gridM ≤ 0`/non-finite throws.
+  The store action is `floorPlanSlice.snapFloorPlanToGrid(gridM?, opts?)` (one undo step; defaults
+  `gridM` to the editor `gridSize`, else 0.05 m; forks the default plan).
   Undoable + persists (`floorPlanStore.ts`). On open the plan is **fit to the measured canvas
   viewport** (a `ResizeObserver` drives `basePX`, replacing a fixed 940×620 assumption) so it
   fills any screen without a manual zoom-out. **Mobile:** the toolbar is a single row

@@ -219,6 +219,15 @@ scale the furniture too — useful when the entire design was drawn at the wrong
 scale. The dialog previews the new total floor area before you commit, and one
 **Undo** reverts the whole rescale.
 
+## Snap the plan to a grid *(Pro)*
+
+Traced walls rarely land on tidy round numbers. In **Pro** mode the **Plan ▾**
+menu has a **Snap to grid** action that rounds every wall, room, opening and
+annotation to the current grid in one undoable step, so a hand‑traced plan
+cleans up to neat measurements without re‑drawing it. Doors and windows are
+nudged to stay on their walls; change the grid size first if you want a coarser
+or finer round‑off.
+
 ## Room finishes
 
 Select a room and the inspector shows **Floor finish** and **Wall finish**
