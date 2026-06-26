@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: correct array "didn't fit" toast count (AUD-003) (v0.3.0.11)
+
+The inspector's array "N of M didn't fit" toast (`ui/inspector/InspectorPanel.tsx`) used
+`${total + 1}` for the denominator, but `total` (= `placements.length` from
+`arrayOffsets`/`gridArrayPlacements`) already **excludes** the source cell. The `+ 1` wrongly
+folded the source back in, so the count never added up (`placed + dropped === total`, not
+`total + 1`). Changed to `${total}`. Surgical one-line fix.
+
+## Fix: bound + dispose furniture material caches (AUD-002) (v0.3.0.10)
+
+The three in-memory furniture caches in `materials/furnitureMaterials.ts` (`cache`,
+`furnitureRepeatCache`, `patternTex`) were unbounded `Map`s keyed on free-hex colours + cloned
+textures, so a long editing session ratcheted GPU/VRAM upward without ever releasing the
+`MeshStandardMaterial`s (and their cloned `map`/`normalMap`/`roughnessMap`) they held. Replaced
+all three with a small reusable bounded **LRU** (`materials/materialLru.ts` — insertion-order
+`Map`, recency-refresh on `get`/`set`) that disposes the GPU resources of evicted entries. Bounds:
+`cache` 256, `furnitureRepeatCache` 128, `patternTex` 16 — each far above the count of *distinct
+materials simultaneously on screen*, so an evicted LRU entry is virtually certain to be orphaned,
+and the dispose is deferred one frame (`requestAnimationFrame`, mirroring `GltfModel`'s
+`afterUnmount`) so any still-mounted mesh has unmounted first. Crucially, the cached materials mix
+**exclusively-owned cloned textures** with **shared 256² singletons** (fabric/leather/velvet/paint/
+rattan normals + the pattern textures) referenced by many live materials; an `OWNED_TEXTURES`
+`WeakSet` tags only the per-material clones/`CanvasTexture`s so `disposeOwnedMaterial` frees those
+and the material itself but never a shared singleton (which would corrupt every other material that
+uses it). New unit tests cover LRU bound/eviction-order/dispose-on-evict and the owned-vs-shared
+texture split.
+
 ## Feature: 2D plan furniture rotate handle (PARITY-PLAN-FURN-ROTATE) (v0.3.0.8)
 
 The selected furniture footprint in the 2D plan editor now carries an on-canvas **rotate handle**

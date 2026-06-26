@@ -37,10 +37,6 @@ time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push
   discards them) via a pure `floorplan/import/sh3dItems.ts` mapper + wire into `openSh3dImport.ts`.
 - [~] PARITY-DUP-PATH (`cg-arrayplace`): duplicate-along-polyline array (pure `furniture/pathArray.ts`
   arc-length + tangent yaw) + inspector array section.
-- [~] AUD-002 (`cg-materials`): add LRU + dispose-on-evict to `furnitureMaterials.ts` caches
-  (`cache`/`furnitureRepeatCache`/`patternTex`) to stop session VRAM ratchet.
-- [~] AUD-003 (`cg-inspectorpanel`): `InspectorPanel.tsx:371` array "didn't fit" toast `${total + 1}`
-  → `${total}` (total already excludes the source).
 
 ---
 
