@@ -98,6 +98,16 @@ import {
 } from './editor/planLabelDisplay'
 import { snapToWalls } from './editor/snapToWalls'
 import { snapWallAngle } from './editor/snapWallAngle'
+import {
+  dimensionCommit,
+  polygonClick,
+  rectFromVerts,
+  roomCommit,
+  rotateWallTransform,
+  scaleCommits,
+  wallCommit,
+  wallTapCommits,
+} from './editor/toolDraftReducer'
 import { WallDimension } from './editor/WallDimension'
 import { WallNumericEntry } from './editor/WallNumericEntry'
 import { exportPlanPng } from './exportPlanPng'
@@ -653,18 +663,15 @@ export function FloorPlanEditor() {
   const commitPolyRoom = useCallback(
     (verts: [number, number][]) => {
       if (verts.length < 3) return
-      const xs = verts.map((v) => v[0])
-      const zs = verts.map((v) => v[1])
-      const x0 = Math.min(...xs)
-      const z0 = Math.min(...zs)
+      const { origin, width, depth } = rectFromVerts(verts)
       const st = useStore.getState()
       const n = levelById(st.floorPlan, levelId).rooms.length + 1
       const id = st.addRoom(
         {
           name: `Room ${n}`,
-          origin: [x0, z0],
-          width: Math.max(0.1, Math.max(...xs) - x0),
-          depth: Math.max(0.1, Math.max(...zs) - z0),
+          origin,
+          width,
+          depth,
           polygon: verts,
         },
         levelId,
@@ -916,22 +923,22 @@ export function FloorPlanEditor() {
       }
     } else if (tool === 'polyroom') {
       // Click near the first vertex (≥3 placed) closes the polygon into a room.
-      const first = polyDraft[0]
-      if (first && polyDraft.length >= 3 && Math.hypot(first[0] - wx, first[1] - wz) < 0.35) {
+      const action = polygonClick(polyDraft, [wx, wz])
+      if (action.type === 'close') {
         commitPolyRoom(polyDraft)
         setPolyDraft([])
       } else {
-        setPolyDraft((p) => [...p, [wx, wz]])
+        setPolyDraft((p) => [...p, action.point])
       }
     } else if (tool === 'polyline') {
       // Click adds a vertex; clicking the first vertex (≥3) closes the loop;
       // Enter finishes as an open path, Escape cancels (PARITY-POLYLINE).
-      const first = polylineDraft[0]
-      if (first && polylineDraft.length >= 3 && Math.hypot(first[0] - wx, first[1] - wz) < 0.35) {
+      const action = polygonClick(polylineDraft, [wx, wz])
+      if (action.type === 'close') {
         commitPolyline(polylineDraft, true)
         setPolylineDraft([])
       } else {
-        setPolylineDraft((p) => [...p, [wx, wz]])
+        setPolylineDraft((p) => [...p, action.point])
       }
     } else if (tool === 'split') {
       // Split the wall nearest the click at the projected point.
@@ -1084,25 +1091,16 @@ export function FloorPlanEditor() {
     }
     if (rotatingWall) {
       const [wx, wz] = pointerWorld(e)
-      const ang = Math.atan2(wz - rotatingWall.cz, wx - rotatingWall.cx)
-      // Wrap to (-π, π], then clamp to ±90° each way: a larger turn would swing
-      // a segment back across its neighbours and tangle the shared corners.
-      let d = ang - rotatingWall.a0
-      d = Math.atan2(Math.sin(d), Math.cos(d))
-      d = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, d))
-      const cos = Math.cos(d)
-      const sin = Math.sin(d)
-      const rot = (p: [number, number]): [number, number] => {
-        const x = p[0] - rotatingWall.cx
-        const z = p[1] - rotatingWall.cz
-        return [
-          snap(rotatingWall.cx + x * cos - z * sin),
-          snap(rotatingWall.cz + x * sin + z * cos),
-        ]
-      }
-      useStore
-        .getState()
-        .moveWallTo(rotatingWall.id, rot(rotatingWall.s0), rot(rotatingWall.e0), levelId)
+      const { start, end } = rotateWallTransform(
+        [rotatingWall.cx, rotatingWall.cz],
+        rotatingWall.a0,
+        wx,
+        wz,
+        rotatingWall.s0,
+        rotatingWall.e0,
+        snap,
+      )
+      useStore.getState().moveWallTo(rotatingWall.id, start, end, levelId)
       return
     }
     if (rotatingItem) {
@@ -1157,16 +1155,8 @@ export function FloorPlanEditor() {
         )
         // Keep origin/width/depth in sync as the polygon's bbox (back-compat for
         // consumers that still read the rect; the polygon stays authoritative).
-        const xs = poly.map((p) => p[0])
-        const zs = poly.map((p) => p[1])
-        const x0 = Math.min(...xs)
-        const z0 = Math.min(...zs)
-        st.updateRoom(room.id, {
-          polygon: poly,
-          origin: [x0, z0],
-          width: Math.max(0.1, Math.max(...xs) - x0),
-          depth: Math.max(0.1, Math.max(...zs) - z0),
-        })
+        const { origin, width, depth } = rectFromVerts(poly)
+        st.updateRoom(room.id, { polygon: poly, origin, width, depth })
       }
       return
     }
@@ -1287,7 +1277,7 @@ export function FloorPlanEditor() {
       // Calibrate: the dragged span equals a real length the user types, so the
       // backdrop rescales (mPerPx) to match. No walls created.
       const worldDist = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
-      if (backdrop && worldDist > 0.05) {
+      if (backdrop && scaleCommits(draft)) {
         void (async () => {
           const input = await useStore.getState().promptText({
             title: 'Calibrate scale',
@@ -1307,10 +1297,11 @@ export function FloorPlanEditor() {
     }
     if (tool === 'dimension') {
       // Commit a custom dimension line between the dragged endpoints (snapped).
-      if (Math.hypot(draft.x - draft.x0, draft.z - draft.z0) > 0.1) {
+      const dim = dimensionCommit(draft, snap)
+      if (dim) {
         const id = st.addDimension({
-          a: [snap(draft.x0), snap(draft.z0)],
-          b: [snap(draft.x), snap(draft.z)],
+          a: dim.a,
+          b: dim.b,
           ...(levelId !== GROUND_LEVEL_ID ? { levelId } : {}),
         })
         st.setPlanSelection({ type: 'dim', id })
@@ -1322,8 +1313,7 @@ export function FloorPlanEditor() {
       // Touch tap-to-place: a real segment commits and the chain continues from
       // its end (tap the next point to keep going). A tap on/near the anchor (no
       // segment) ends the chain; the very first tap just keeps the anchor.
-      const len = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
-      if (len > 0.2) {
+      if (wallTapCommits(draft)) {
         const id = st.addWall(
           { start: [draft.x0, draft.z0], end: [draft.x, draft.z], thickness: wallType },
           levelId,
@@ -1338,28 +1328,20 @@ export function FloorPlanEditor() {
     }
     if (tool === 'wall') {
       // Use the numeric-entry preview endpoint if the user typed one.
-      const wallEndX = numericPreviewEnd ? numericPreviewEnd[0] : draft.x
-      const wallEndZ = numericPreviewEnd ? numericPreviewEnd[1] : draft.z
-      if (Math.hypot(wallEndX - draft.x0, wallEndZ - draft.z0) > 0.2) {
-        const id = st.addWall(
-          {
-            start: [draft.x0, draft.z0],
-            end: [wallEndX, wallEndZ],
-            thickness: wallType,
-          },
-          levelId,
-        )
+      const wall = wallCommit(draft, numericPreviewEnd)
+      if (wall) {
+        const id = st.addWall({ start: wall.start, end: wall.end, thickness: wallType }, levelId)
         st.setPlanSelection({ type: 'wall', id })
       }
       setNumericPreviewEnd(null)
     } else if (tool === 'room') {
-      const x = Math.min(draft.x0, draft.x)
-      const z = Math.min(draft.z0, draft.z)
-      const w = Math.abs(draft.x - draft.x0)
-      const d = Math.abs(draft.z - draft.z0)
-      if (w > 0.3 && d > 0.3) {
+      const rect = roomCommit(draft)
+      if (rect) {
         const n = levelById(st.floorPlan, levelId).rooms.length + 1
-        const id = st.addRoom({ name: `Room ${n}`, origin: [x, z], width: w, depth: d }, levelId)
+        const id = st.addRoom(
+          { name: `Room ${n}`, origin: rect.origin, width: rect.width, depth: rect.depth },
+          levelId,
+        )
         st.setPlanSelection({ type: 'room', id })
       }
     }
