@@ -663,6 +663,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Scatter-fill a room (PARITY-SCATTER-ROOM): evenly fill a room's free floor
+  // with N collision-avoiding copies of the selected item on a packed grid
+  // (deterministic, seeded). Pure code, no external assets → prod-safe (default
+  // on). An advanced bulk-placement/layout tool beyond the core furnish loop →
+  // pro tier (hidden in Simple mode automatically).
+  scatterFill: {
+    label: 'Scatter-fill room',
+    description: 'Evenly fill a room with N collision-safe copies of the selected item',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]
