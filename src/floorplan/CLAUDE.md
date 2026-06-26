@@ -50,3 +50,15 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   `floorPlanSlice.snapFloorPlanToGrid(gridM?, opts?)` (one undo step; defaults `gridM` to the editor
   `gridSize`, else 0.05 m; forks the default plan); UI is the "Snap to grid" entry in the editor's
   Plan menu behind the `planGridSnap` Pro flag.
+- **Room inset/outset (PARITY-ROOM-INSET): `insetRoom.ts` `insetPolygon(points, dist)`** offsets
+  every edge of a simple polygon by a signed distance and re-intersects adjacent offset edges:
+  `dist>0` shrinks inward (dropped soffit / set-down), `dist<0` grows outward (setback). Handles
+  convex AND simple concave (L-shape) rooms; winding is auto-detected (folded into the offset
+  sign) so CW/CCW both work. A degenerate result (the offset over-runs — an edge reverses
+  direction, the winding sign flips, or the area collapses to ~0) returns **`null`** rather than a
+  self-intersecting polygon. Pure (reuses `polygonArea`). The store action
+  `floorPlanSlice.insetRoom(id, dist)` (+ `insetSelectedRoom`) runs it on the room's outline
+  (`roomPolygon`), writes the result back as an explicit `polygon` (subsuming any L-`extension`),
+  re-flows the room's auto wall/opening names, pushes ONE undo step, and rejects a `null` result
+  with an error toast (no fork / no history). Boundary WALLS are not re-traced, so openings keep
+  their wall offsets — a known limitation for large insets. `roomInset` Pro flag.

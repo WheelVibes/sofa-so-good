@@ -99,6 +99,7 @@ export type FeatureFlag =
   | 'scatterFill'
   | 'planMirrorRegion'
   | 'planGridSnap'
+  | 'roomInset'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

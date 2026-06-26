@@ -86,6 +86,13 @@ same change that reshapes a system.
   `wallBaseboard` flag, custom plans only). Furniture also supports multi-axis tilt (`pitch`/`roll`, `furniture/tiltRotation.ts`,
   `tiltFurniture` flag). `duplicateRoom.ts` (pure room clone — offset polygon + finishes + own boundary
   walls/openings, re-flowed names; powers the `floorPlanSlice.duplicateRoom` action). 2D editor = `ui/floorplan/`.
+  `tiltFurniture` flag). `insetRoom.ts` (PARITY-ROOM-INSET, pure) — `insetPolygon(points, dist)`
+  offsets every edge of a room polygon by a signed distance (dist>0 shrinks for a dropped
+  soffit, dist<0 grows for a setback) and re-intersects adjacent offset edges (convex + concave
+  L-shapes; a collapse / self-intersection → `null`); the `floorPlanSlice.insetRoom(id, dist)` /
+  `insetSelectedRoom(dist)` actions write the result back as an explicit `polygon` in ONE undo
+  step and reject a degenerate inset with a toast (`roomInset` Pro flag; ⌘K "Inset / Grow room"
+  + PlanInspector room buttons). 2D editor = `ui/floorplan/`.
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (assembles the catalog from
   per-category `defs/<category>.ts` modules + the `cabinet/` engine; also derives
   `BUILTIN_BY_CATEGORY`),

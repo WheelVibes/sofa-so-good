@@ -247,6 +247,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const wallBaseboardOn = useFeature('wallBaseboard')
   const wallThicknessOn = useFeature('wallThickness')
   const floorTextureOn = useFeature('floorTexture')
+  const roomInsetOn = useFeature('roomInset')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -665,6 +666,27 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               {formatArea(planRoomArea(r), units)}
             </span>
           </div>
+          {roomInsetOn ? (
+            <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
+              <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                Inset / grow outline (offset every edge by 0.1 m)
+              </div>
+              <div className="action-grid two">
+                <ActBtn
+                  label="Inset −0.1 m"
+                  icon={<Icon.Minus width={16} height={16} />}
+                  title="Shrink the room outline inward by 0.1 m (e.g. a dropped soffit)"
+                  onClick={() => a.insetRoom(r.id, 0.1)}
+                />
+                <ActBtn
+                  label="Grow +0.1 m"
+                  icon={<Icon.Plus width={16} height={16} />}
+                  title="Grow the room outline outward by 0.1 m (e.g. a setback)"
+                  onClick={() => a.insetRoom(r.id, -0.1)}
+                />
+              </div>
+            </div>
+          ) : null}
           <button
             type="button"
             className="btn btn-accent btn-block"
