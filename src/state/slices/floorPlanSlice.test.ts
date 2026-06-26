@@ -472,4 +472,47 @@ describe('per-storey editing — level routing for the 2D editor (F13/ML4b)', ()
     expect(up?.walls.find((w) => w.id === w2)?.start).toEqual([3, 1])
     expect(s.floorPlan.walls.find((w) => w.id === gw)?.start).toEqual([2, 0])
   })
+
+  it('duplicateRoom adds one room + its own offset boundary walls, selects it, one undo step', () => {
+    useStore.getState().newFloorPlan('Dup room test')
+    for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
+    // Four walls tracing a 4×3 rectangle + a room over them.
+    useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
+    useStore.getState().addWall({ start: [4, 0], end: [4, 3], thickness: 'internal' })
+    useStore.getState().addWall({ start: [4, 3], end: [0, 3], thickness: 'internal' })
+    useStore.getState().addWall({ start: [0, 3], end: [0, 0], thickness: 'internal' })
+    const rid = useStore.getState().addRoom({ name: 'Bed', origin: [0, 0], width: 4, depth: 3 })
+    // Give the source a floor finish so the copy inherits it.
+    useStore.getState().setFloorFinish(rid as never, 'mat:oak')
+
+    const roomsBefore = useStore.getState().floorPlan.rooms.length
+    const wallsBefore = useStore.getState().floorPlan.walls.length
+
+    const newId = useStore.getState().duplicateRoom(rid)
+    expect(newId).toBeTruthy()
+    const s = useStore.getState()
+    // Room count +1; the copy carried its 4 boundary walls.
+    expect(s.floorPlan.rooms.length).toBe(roomsBefore + 1)
+    expect(s.floorPlan.walls.length).toBe(wallsBefore + 4)
+    const copy = s.floorPlan.rooms.find((r) => r.id === newId)!
+    expect(copy.name).toBe('Bed copy')
+    expect(copy.origin).toEqual([0.5, 0.5]) // default offset
+    // Source walls are untouched (shared-boundary safety).
+    const srcWall = s.floorPlan.walls.find((w) => w.start[0] === 0 && w.start[1] === 0)
+    expect(srcWall).toBeTruthy()
+    // Floor finish copied onto the new room id.
+    expect((s.finishes.floor as Record<string, string>)[newId!]).toBe('mat:oak')
+    // The copy is selected.
+    expect(s.planSelection).toEqual({ type: 'room', id: newId })
+
+    // ONE undo step reverts the whole duplication.
+    useStore.getState().undo()
+    const after = useStore.getState()
+    expect(after.floorPlan.rooms.length).toBe(roomsBefore)
+    expect(after.floorPlan.walls.length).toBe(wallsBefore)
+  })
+
+  it('duplicateRoom is a no-op for an unknown room id', () => {
+    expect(useStore.getState().duplicateRoom('nope')).toBeUndefined()
+  })
 })

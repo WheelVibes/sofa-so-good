@@ -1,4 +1,5 @@
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
+import { duplicateRoom as cloneRoom } from '../../floorplan/duplicateRoom'
 import {
   cloneLevelGeometry,
   GROUND_LEVEL_ID,
@@ -190,6 +191,12 @@ export interface FloorPlanSlice {
    *  clears it back to a flat ceiling. Searches every storey, like updateRoom. */
   setRoomCeiling: (id: string, patch: Partial<CeilingConfig> | null) => void
   removeRoom: (id: string, levelId?: string) => void
+  /** Duplicate a room on its own storey: clone its polygon (offset so the copy
+   *  is visible), its floor/wall finishes, and its OWN boundary walls + the
+   *  openings on them (fresh ids, re-flowed `<room> copy` names) — shared walls
+   *  are never mutated. Pushes ONE undo step and selects the new room. Returns
+   *  the new room's id, or undefined when the source is missing. */
+  duplicateRoom: (id: string, levelId?: string) => string | undefined
 
   addOpening: (opening: Omit<PlanOpening, 'id'>, levelId?: string) => string
   updateOpening: (id: string, patch: Partial<PlanOpening>, levelId?: string) => void
@@ -647,6 +654,60 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       })),
       planSelection: null,
     }))
+  },
+  duplicateRoom: (id, levelId) => {
+    const s0 = get()
+    // Resolve the room's own storey (room ids are plan-unique across levels) so a
+    // duplicate of an upper-level room stays on that level.
+    const lvl = levelOfRoom(s0.floorPlan, id)?.id ?? levelId
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, lvl))
+    const src = g.rooms.find((r) => r.id === id)
+    if (!src) return undefined
+
+    const f = s0.finishes
+    // The room's wall-accent finishes are keyed `${wallId}:${roomId}` — pull the
+    // subset for THIS room, re-keyed by source wall id for the clone helper.
+    const srcWallAccents: Record<string, string> = {}
+    for (const [key, mat] of Object.entries(f.wallAccents)) {
+      const [wid, rid] = key.split(':')
+      if (rid === id) srcWallAccents[wid] = mat
+    }
+    const result = cloneRoom({
+      room: src,
+      walls: g.walls,
+      openings: g.openings,
+      finishes: {
+        floor: (f.floor as Record<string, string>)[id],
+        wall: (f.walls as Record<string, string>)[id],
+        wallAccents: srcWallAccents,
+      },
+      genId: planId,
+    })
+
+    get().pushHistory()
+    set((s) => {
+      const ff = s.finishes
+      const floor = { ...ff.floor } as Record<string, string>
+      const walls = { ...ff.walls } as Record<string, string>
+      if (result.finishes.floor !== undefined) floor[result.room.id] = result.finishes.floor
+      if (result.finishes.wall !== undefined) walls[result.room.id] = result.finishes.wall
+      return {
+        floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), lvl, (gg) => ({
+          rooms: [...gg.rooms, result.room],
+          walls: [...gg.walls, ...result.walls],
+          openings: [...gg.openings, ...result.openings],
+        })),
+        finishes: {
+          ...ff,
+          floor: floor as typeof ff.floor,
+          walls: walls as typeof ff.walls,
+          wallAccents: { ...ff.wallAccents, ...result.finishes.wallAccents },
+        },
+        planSelection: { type: 'room' as const, id: result.room.id },
+        selectedWallIds: [],
+      }
+    })
+    return result.room.id
   },
 
   addOpening: (opening, levelId) => {
