@@ -5,6 +5,74 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: scatter-fill a room with N collision-safe copies (PARITY-SCATTER-ROOM) (v0.3.0.23)
+
+A new Pro inspector action **"Fill room"** evenly packs a room's free floor with N copies of the
+selected item (dining chairs, downlight grids, planter rows). Pure `layout/scatterInRoom.ts`
+(`scatterInRoom(roomPolygon, footprint, count, {existing, defs, doors, walls, clearance, rotation,
+levelId, seed, defId})`) lays a footprint+clearance-pitched grid over the room bbox, keeps cells
+whose whole (rotation-aware) footprint is inside via the reused `pointInPolygon`, visits them in a
+seeded Fisher–Yates order (`mulberry32` — deterministic) and accepts each that passes the reused
+`collision/placement.ts canPlace` against existing + already-placed copies, capping at `count` and
+reporting the shortfall. `ui/inspector/ScatterFillSection.tsx` resolves the selected item's room
+(`allPlanRooms`+`levelOfRoom`+`pointInRoom`), commits all copies in one undo step, and toasts
+"placed N of M" on a cap. New `scatterFill` flag (`tier:'pro'`, default on, prod-safe) — hidden in
+Simple, present in Pro, tested both ways. 13 unit tests (all-inside, no-overlap, deterministic-by-
+seed, even spacing, over-count cap, degenerate/concave-L room, footprint-bigger-than-room, existing-
+item respect, rotation carry) + scenario; visually verified (12 chairs evenly spread, upright, no
+clip/z-fighting, one-step undo, mobile bottom-sheet).
+
+## Feature: sticky stamp placement mode (PARITY-STAMP-PLACE) (v0.3.0.22)
+
+A Floorplanner-style **stamp** mode: arm a catalog item, then click-place it repeatedly without
+re-selecting (chairs, downlights, plants), each drop a single undo step, until Escape / Done / a
+different item disarms it. `placementSlice` gains `stampMode` (the armed def stays `activeDefId`;
+`stampMode` only decides whether a commit re-arms or disarms); `usePlacementController` keeps
+placement armed while stamping (guarded by `isFeatureEnabled('stampPlace')`); a per-card stamp
+button (accent ring on the armed card) + a `StampBanner` cue ("Stamping <item> — click the floor to
+drop copies" + Done) + a `stamp-mode` ⌘K command. New `stampPlace` flag (`tier:'pro'`, default on,
+prod-safe) — Simple keeps the classic one-click-commits-once behaviour. 11 tests; visually verified
+(arm → place distinct copies, mode persists; Esc disarms keeping copies; hidden in Simple; mobile
+full-width banner).
+
+## Feature: rescale a plan to a factor or target dimension (PARITY-PLAN-SCALE) (v0.3.0.21)
+
+"Scale the walls to a target dimension" (Sweet Home 3D / RoomSketcher parity) — fix a wrong-scale
+traced/imported plan or resize a template to a known room length in one action. Pure
+`floorplan/rescalePlan.ts` (`rescalePlan(plan, factor | {anchorWallId, targetLength}, items?, opts?)`)
+scales every wall endpoint (+ thickness/arc/topHeight/baseboard), room origin/size/polygon/label/
+ceiling, opening offset+width+sill+head, notes/dimensions/polylines and **every upper storey** about
+an anchor (origin, or the anchor wall's start for the target-length form), plus furniture positions —
+**sizes preserved by default** (a wrong-scale plan corrected around real-size furniture), opt-in
+`scaleFurnitureSize` for a whole-design rescale. `rescaleFloorPlan` slice action validates first
+(clean throw, no state change), commits plan+items in one undo step, and treats factor 1 as a true
+no-op. `ScalePlanModal` (By-factor / To-a-length, "Also resize furniture", live area preview) +
+Plan/Tools trigger. New `planScale` flag (`tier:'pro'`, default on). 26 unit + store tests
+(lengths ×factor, areas ×factor², openings proportional, target-length exact, multi-level,
+double-scale composes, factor≤0/NaN/Inf rejected, no-mutation).
+
+## Feature: room-schedule CSV export (PARITY-ROOM-CSV) (v0.3.0.20)
+
+A machine-readable **room schedule** export complements the existing furniture-list CSV. Pure
+`export/roomScheduleCsv.ts` (`buildRoomScheduleCsv(plan, finishes, nameOf, units)`) emits one row
+per room across **all storeys** (Storey / Room / Area / Perimeter / Floor finish / Wall finish /
+Ceiling height) + a grand-total footer, reusing `planRoomArea`/`planRoomPerimeter`/
+`resolvePlanRoomFloor`/`resolvePlanRoomWall` + `allPlanRooms`/`levelOfRoom`, unit-aware
+(`formatArea`/`formatLength`) and RFC-4180-quoted via `utils/csv` (with the OWASP injection guard).
+Download glue `ui/openRoomScheduleCsv.ts` wired into File menu, mobile Tools, and ⌘K under the
+existing `shopExport` flag (no new flag). 10 unit tests (row-per-room across storeys, callouts,
+imperial formatting, RFC-4180 + injection neutralisation, grand-total, empty plan).
+
+## Fix: treat a near-2π sweep as a full-circle radial array (BUG-RADIAL-FULLCIRCLE) (v0.3.0.19)
+
+A radial array dragged to "almost a full circle" (`rawSweep = 2π − ε`) fell to the partial-spacing
+formula `sweep/(n−1)` and **double-upped at the seam** (the first and last copies overlapping). The
+full-circle test (`Math.abs(sweep − 2π) < 1e-9`) was too strict for a dragged value. Now a sweep
+`>= 2π − RADIAL_SEAM_EPS` (`1e-3` rad ≈ 0.057°, below any draggable/perceptible resolution and wide
+enough to absorb float drift) is treated as a full circle (exclusive seam, `step = 2π/n`); smaller
+sweeps keep the inclusive-both-ends partial formula. Unit test added for `2π − 1e-4` → no seam
+duplicate.
+
 ## Feature: align/distribute/mirror multi-selected furniture in the 2D plan (PARITY-PLAN-ALIGN) (v0.3.0.18)
 
 Selecting **2+ placed pieces** on the 2D plan (e.g. via the new marquee) now swaps the inspector
