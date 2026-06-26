@@ -479,6 +479,11 @@ same change that reshapes a system.
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
   thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
   Plan-only (reads for a bare shell).
+- **Daylight & ventilation check** (`analysis/daylight.ts` pure → `buildDaylightReport(plan)`:
+  per-room window glazing % + openable % vs rule-of-thumb thresholds `DAYLIGHT_MIN_RATIO` (0.1) /
+  `VENT_MIN_RATIO` (0.05); windows attributed to rooms by a wall-midpoint probe, `OPENABLE_FRACTION`
+  for sliding windows; level-gated for multi-storey). `ui/DaylightPanel.tsx` + the report's
+  "Daylight & ventilation" section (PARITY-DAYLIGHT-DIGEST; skipped when no room has a window).
 - **Plan advisories** (`analysis/hdbCompliance.ts` pure → `buildComplianceReport(plan)`: data-driven
   `RULES` producing non-binding permit/caution/info `Advisory` hints — structural walls, wet areas,
   facade windows, floor loading, ceiling heights). `analysis/stairConnectivity.ts` (ML6b) follows

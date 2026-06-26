@@ -5,6 +5,7 @@
  */
 
 import { buildAccessibilityReport } from '../analysis/accessibility'
+import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
 import { buildDesignScore } from '../analysis/designScore'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
@@ -435,6 +436,36 @@ export function buildReportHtml(
           : ''
       }</div>`
 
+  // Daylight & ventilation (PARITY-DAYLIGHT-DIGEST) — per-room glazing % +
+  // openable % vs the rule-of-thumb HDB/BCA thresholds (glazing ≥ 10% of floor,
+  // openable ≥ 5%). Pure (analysis/daylight, the same builder the in-app panel
+  // uses); rides the existing `report` flag (additive section). Skipped when no
+  // analysed room actually has a window (a bare shell / windowless plan), so an
+  // all-zero table never shows.
+  const daylight = buildDaylightReport(plan)
+  const daylightRoomsWithGlazing = daylight.rooms.filter((r) => r.glazingArea > 0)
+  const daylightPct = (f: number) => `${Math.round(f * 100)}%`
+  const daylightSection =
+    daylightRoomsWithGlazing.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Daylight &amp; ventilation</h2>
+      <div class="${daylight.allPass ? 'ok' : 'warn'}">
+        ${daylight.daylightPassCount}/${daylight.rooms.length} rooms meet daylight ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} glazing ·
+        ${daylight.ventPassCount}/${daylight.rooms.length} meet ventilation ≥ ${daylightPct(VENT_MIN_RATIO)} openable
+      </div>
+      <table style="margin-top:6px">
+        <tr class="cat"><td>Room</td><td class="num">Floor</td><td class="num">Glazing</td><td class="num">Openable</td></tr>
+        ${daylight.rooms
+          .map(
+            (r) =>
+              `<tr><td>${esc(r.roomName)}</td><td class="num">${esc(formatArea(r.floorArea, units))}</td><td class="num" style="color:${r.daylightPass ? '#047857' : '#b91c1c'}">${esc(formatArea(r.glazingArea, units))} · ${daylightPct(r.glazingPct)}</td><td class="num" style="color:${r.ventPass ? '#047857' : '#b91c1c'}">${daylightPct(r.ventPct)}</td></tr>`,
+          )
+          .join('')}
+      </table>
+      <div class="foot" style="margin-top:6px">Rule-of-thumb check (glazing ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} of floor area for daylight, openable ≥ ${daylightPct(VENT_MIN_RATIO)} for ventilation) — indicative, not a certified BCA/HDB calculation; openable ≈ half the window area for sliding windows.</div>
+    </div>`
+
   // Renovation estimate — the finishes counterpart to the furniture budget:
   // flooring + painting/wall supply+install over the per-finish areas, at
   // indicative SG rates. Only when finishes are supplied + something to cost.
@@ -757,6 +788,7 @@ export function buildReportHtml(
   ${clearanceSection}
   ${designScoreSection}
   ${accessibilitySection}
+  ${daylightSection}
   ${complianceSection}
   ${hackingSection}
   ${dimensionedPlanSection}
