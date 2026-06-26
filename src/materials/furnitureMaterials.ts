@@ -25,6 +25,7 @@ import {
   liftedSheenRgb,
   sheenRough,
 } from './furnitureMaterialLogic'
+import { LruCache } from './materialLru'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
 import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/metalBrush'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
@@ -250,13 +251,13 @@ export function getStoneMaterial(color: string, repeat = 1, rough = 0.12): MeshS
   const hit = cache.get(key)
   if (hit) return hit
   const maps = getMarbleMaps()
-  const map = applyAnisotropy(maps.albedo.clone())
-  const normal = applyAnisotropy(maps.normal.clone())
+  const map = own(applyAnisotropy(maps.albedo.clone()))
+  const normal = own(applyAnisotropy(maps.normal.clone()))
   map.repeat.set(repeat, repeat)
   normal.repeat.set(repeat, repeat)
   map.needsUpdate = normal.needsUpdate = true
   // MAT-001 — polished roughness drift map (present only under `pbrSurfaces`).
-  const roughnessMap = maps.rough ? applyAnisotropy(maps.rough.clone()) : null
+  const roughnessMap = maps.rough ? own(applyAnisotropy(maps.rough.clone())) : null
   if (roughnessMap) {
     roughnessMap.repeat.set(repeat, repeat)
     roughnessMap.needsUpdate = true
@@ -324,8 +325,8 @@ export function getConcreteMaterial(color: string, repeat = 1, rough = 0.85): Me
   const hit = cache.get(key)
   if (hit) return hit
   const maps = getConcreteMaps()
-  const map = applyAnisotropy(maps.albedo.clone())
-  const normal = applyAnisotropy(maps.normal.clone())
+  const map = own(applyAnisotropy(maps.albedo.clone()))
+  const normal = own(applyAnisotropy(maps.normal.clone()))
   map.repeat.set(repeat, repeat)
   normal.repeat.set(repeat, repeat)
   map.needsUpdate = normal.needsUpdate = true
@@ -442,7 +443,14 @@ function getVelvetMaps(): { albedo: Texture; normal: Texture } {
 
 // Tone-on-tone weave patterns: a near-white luminance albedo (so the
 // material colour tints it) carrying striped or herringbone structure.
-const patternTex = new Map<string, Texture>()
+// Tone-on-tone weave patterns. Keyed by a fixed, finite set of pattern names
+// (striped/checkered/plaid/dots/herringbone) so this never grows large in
+// practice; a small LRU bound is a belt-and-braces guard that still disposes the
+// CanvasTexture if a key ever leaves the cache (AUD-002).
+const patternTex = new LruCache<Texture>({
+  max: 16,
+  dispose: (tex) => tex.dispose(),
+})
 function getPatternTexture(pattern: string): Texture {
   const hit = patternTex.get(pattern)
   if (hit) return hit
@@ -491,10 +499,51 @@ function getPatternTexture(pattern: string): Texture {
   return tex
 }
 
+// Textures a single cached material owns exclusively (clones + its own
+// CanvasTextures). The disposer (AUD-002) disposes ONLY these on eviction —
+// never the shared 256² singletons (fabric/leather/velvet/paint/rattan normals,
+// the pattern textures), which many live materials reference. Disposing a shared
+// singleton would corrupt every other material that uses it.
+const OWNED_TEXTURES = new WeakSet<Texture>()
+
+/** Tag a freshly-cloned / per-material texture as exclusively owned by the
+ *  material about to be cached, so it is safe to dispose on eviction. Returns
+ *  the texture for inline use. */
+function own<T extends Texture>(tex: T): T {
+  OWNED_TEXTURES.add(tex)
+  return tex
+}
+
+/** Dispose an evicted cached material plus the textures it OWNS exclusively
+ *  (mirrors `cache.ts:disposeCachedMaterial`, but skips shared singletons via
+ *  the `OWNED_TEXTURES` tag). Called one frame after eviction by the LRU. */
+function disposeOwnedMaterial(m: MeshStandardMaterial): void {
+  for (const tex of [m.map, m.normalMap, m.roughnessMap, m.aoMap]) {
+    if (tex && OWNED_TEXTURES.has(tex)) tex.dispose()
+  }
+  m.dispose()
+}
+
 // MeshPhysicalMaterial extends MeshStandardMaterial, so the cache holds both —
 // callers still receive a real three `Material` and the `material=` contract
 // (a MeshStandardMaterial instance) is preserved.
-const cache = new Map<string, MeshStandardMaterial>()
+//
+// AUD-002 — bounded LRU + dispose-on-evict. Keys embed free-hex colours, so
+// without a bound this grows unboundedly and VRAM ratchets up over a session.
+// MAX is far above any realistic count of *simultaneously on-screen* distinct
+// materials (a furnished plan uses dozens, not hundreds), so the LRU entry being
+// evicted is virtually certain to be orphaned — and the LRU defers the dispose
+// one frame so any still-mounted mesh has unmounted first (see materialLru.ts).
+const MATERIAL_CACHE_MAX = 256
+const cache = new LruCache<MeshStandardMaterial>({
+  max: MATERIAL_CACHE_MAX,
+  dispose: disposeOwnedMaterial,
+})
+
+/** Test-only: current entry count of the main furniture material cache. */
+export function __getMaterialCacheSizeForTest(): number {
+  return cache.size
+}
 
 /** Lift a hex colour toward white by `amount` (0..1) for a sheen lobe that
  *  reads brighter than the cloth body — the hallmark of velvet / satin pile.
@@ -562,7 +611,7 @@ export function getGradientFabricMaterial(a: string, b: string): MeshStandardMat
   g.addColorStop(1, b)
   ctx.fillStyle = g
   ctx.fillRect(0, 0, 64, 64)
-  const tex = new CanvasTexture(c)
+  const tex = own(new CanvasTexture(c))
   tex.colorSpace = SRGBColorSpace
   applyAnisotropy(tex)
   const m = new MeshPhysicalMaterial({
@@ -598,7 +647,7 @@ export function getGradientMaterial(a: string, b: string): MeshStandardMaterial 
   g.addColorStop(1, b)
   ctx.fillStyle = g
   ctx.fillRect(0, 0, 64, 64)
-  const tex = new CanvasTexture(c)
+  const tex = own(new CanvasTexture(c))
   tex.colorSpace = SRGBColorSpace
   applyAnisotropy(tex)
   const m = new MeshStandardMaterial({ map: tex, roughness: 0.85, metalness: 0 })
@@ -648,7 +697,7 @@ export function getPrintMaterial(a: string, b: string, kind: string): MeshStanda
     ctx.fillStyle = shade(a, 1.15)
     ctx.fillRect(0, S * 0.6, S * 0.55, S * 0.4)
   }
-  const tex = new CanvasTexture(c)
+  const tex = own(new CanvasTexture(c))
   tex.colorSpace = SRGBColorSpace
   applyAnisotropy(tex)
   const m = new MeshStandardMaterial({ map: tex, roughness: 0.82, metalness: 0 })
@@ -766,7 +815,14 @@ export function getPaintedMaterial(
  *  Allows individual primitives to control tiling density at their natural
  *  scale (same as how `getWoodMaterial(color, repeat)` works for procedural
  *  wood).  Only allocated when `repeat` differs from 1 (the base). */
-const furnitureRepeatCache = new Map<string, MeshStandardMaterial>()
+// AUD-002 — same bounded-LRU + owned-texture disposal as `cache`. Keyed per
+// (mat id, repeat); the base material is cloned and its map/normal/rough textures
+// are cloned per repeat (so all owned). Bound generously above any realistic
+// simultaneous variant count.
+const furnitureRepeatCache = new LruCache<MeshStandardMaterial>({
+  max: 128,
+  dispose: disposeOwnedMaterial,
+})
 
 /** Return (or build) a variant of a furniture `mat:` material with `repeat`
  *  applied to all texture channels.  The base is cloned and each texture
@@ -782,17 +838,17 @@ function getFurnitureMatWithRepeat(
   if (hit) return hit
   const m = base.clone()
   if (m.map) {
-    m.map = applyAnisotropy(m.map.clone())
+    m.map = own(applyAnisotropy(m.map.clone()))
     m.map.needsUpdate = true
     m.map.repeat.set(repeat, repeat)
   }
   if (m.normalMap) {
-    m.normalMap = applyAnisotropy(m.normalMap.clone())
+    m.normalMap = own(applyAnisotropy(m.normalMap.clone()))
     m.normalMap.needsUpdate = true
     m.normalMap.repeat.set(repeat, repeat)
   }
   if (m.roughnessMap) {
-    m.roughnessMap = applyAnisotropy(m.roughnessMap.clone())
+    m.roughnessMap = own(applyAnisotropy(m.roughnessMap.clone()))
     m.roughnessMap.needsUpdate = true
     m.roughnessMap.repeat.set(repeat, repeat)
   }
@@ -854,9 +910,9 @@ export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshSta
   const maps = getWoodMaps()
   // Clone so per-repeat tiling doesn't clobber the shared source. Re-stamp the
   // anisotropy cap so the clone tracks a later device-max update too (RD-401).
-  const map = applyAnisotropy(maps.albedo.clone())
-  const normal = applyAnisotropy(maps.normal.clone())
-  const roughMap = applyAnisotropy(maps.rough.clone())
+  const map = own(applyAnisotropy(maps.albedo.clone()))
+  const normal = own(applyAnisotropy(maps.normal.clone()))
+  const roughMap = own(applyAnisotropy(maps.rough.clone()))
   map.repeat.set(repeat, repeat)
   normal.repeat.set(repeat, repeat)
   roughMap.repeat.set(repeat, repeat)
@@ -912,7 +968,7 @@ export function getRattanMaterial(color: string, repeat = 3): MeshStandardMateri
   const key = `rattan:${color}:${repeat}`
   const hit = cache.get(key)
   if (hit) return hit
-  const normal = applyAnisotropy(getRattanNormal().clone())
+  const normal = own(applyAnisotropy(getRattanNormal().clone()))
   normal.repeat.set(repeat, repeat)
   normal.needsUpdate = true
   const [r, g, b] = hexToRgb(color)
@@ -1116,8 +1172,8 @@ export function getMetalMaterial(
     return m
   }
   const maps = getBrushedMetalMaps(preset.streak)
-  const normal = applyAnisotropy(maps.normal.clone())
-  const roughnessMap = applyAnisotropy(maps.rough.clone())
+  const normal = own(applyAnisotropy(maps.normal.clone()))
+  const roughnessMap = own(applyAnisotropy(maps.rough.clone()))
   normal.repeat.set(r, r)
   roughnessMap.repeat.set(r, r)
   normal.needsUpdate = roughnessMap.needsUpdate = true
