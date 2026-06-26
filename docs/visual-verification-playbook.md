@@ -318,6 +318,29 @@ is 15°-snapped. **Key gotchas learned here:**
   Chromium under SwiftShader starves the first and the editor's `.plan-screen` `waitFor` times out
   spuriously. Run one scenario, wait for `EXIT`, then run the next.
 
+### Worked example — 2D plan align/distribute/mirror (PARITY-PLAN-ALIGN)
+
+**`plan-align-distribute-mirror.json`** seeds 3 furniture items inside the largest room,
+puts them in a furniture multi-selection (`setSelectedItemIds(ids)`), then clicks **Align X**,
+**Across Z** (distribute) and **Mirror** in the plan Properties panel, asserting equal X / even
+Z gaps / mirrored X via `waitFor: {store: …}` after each, with an undo between. **Key gotchas
+learned here:**
+- **`canPlace` blocks an align/distribute that would overlap.** A fixture where two items share
+  the same Z and align to the same X lands them on top of each other → both moves are silently
+  rejected and the assert never flips. Space the seed items so the *post*-action layout has no
+  overlap (distinct Z when testing Align X, distinct X when testing Distribute Z).
+- **Place seed items INSIDE a real room, not at `[0,0]`.** The plan origin is a corner outside
+  every room, so a `canPlace` there fails against the boundary wall — every move is a no-op.
+  Find the largest room (`rooms.reduce(...)`) and seed within its interior with margin.
+- **Reveal footprints for the screenshot** via the **View ▾** menu → **Furniture** toggle
+  (it's local component state, not a store flag, so you must click it — same as the rotate-handle
+  scenario). The store assertions don't need it, but the PNG is uninformative without it.
+- **Don't `pkill -f chrome` mid-session** — it also kills the Vite dev server (the page then logs
+  `ERR_CONNECTION_REFUSED` and every store action silently no-ops). Let the harness manage its own
+  browser; only restart the dev server you started.
+- The panel surfaces purely on `selectedItemIds.length > 1` — drive it with `setSelectedItemIds`
+  (or `setPlanMarqueeSelection` once the marquee lands) rather than synthesising a canvas drag.
+
 ---
 
 ## Legacy mode (one-shot, backward-compatible)

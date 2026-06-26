@@ -574,7 +574,14 @@ same change that reshapes a system.
   `canPlace`-checked and push one undo step; resize goes through coalesced `updateItemProps`.
   Item- vs plan-element selection is **mutually exclusive** (`selectItem` clears
   `planSelection`; `setPlanSelection` clears `selectedItemId`) so the two inspectors never
-  co-render. Available in **both Simple and Pro** (plan editing is a core loop — no extra flag;
+  co-render. When **2+ placed pieces** are selected (`selectedItemIds.length > 1`, e.g. a
+  marquee), `PlanInspector` instead shows the **align/distribute/mirror action panel**
+  (`ui/floorplan/PlanMultiSelectActions.tsx`, PARITY-PLAN-ALIGN): Align centres (X/Z), Align
+  edges (Left/Right/Top/Bottom), Distribute evenly (Across X/Z) and Mirror — pure **wiring** of
+  the SAME render-agnostic ops the 3D `MultiSelectPanel` uses (`layout/alignDistribute.ts` +
+  `layout/selectionActions.ts` `mirrorSelectionX`), each one undo step, `canPlace`-checked,
+  locked items skipped. Like align/distribute in 3D it is **ungated core** (no feature flag) —
+  shown in both Simple and Pro. Available in **both Simple and Pro** (plan editing is a core loop — no extra flag;
   rides the editor's `floorPlanEditor` gate). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
   "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
   furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an
