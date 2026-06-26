@@ -673,6 +673,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Smart rotation snap (PARITY-SNAP-ROTATE, Coohom parity): while rotating a
+  // single item the gizmo also snaps to a nearby item's / wall's axis (parallel
+  // or perpendicular) within a few degrees, else the existing 15° grid. Pure
+  // angle math, no external assets → prod-safe (default on). An advanced
+  // precision aid beyond the core furnish loop → pro tier (forced off in Simple,
+  // where the familiar 15° snap is the only behaviour — so casual users are
+  // unaffected). Shift still bypasses all snapping in both modes.
+  smartRotateSnap: {
+    label: 'Smart rotation snap',
+    description: 'Snap a rotating item to a neighbouring item / wall axis (else the 15° grid)',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]
