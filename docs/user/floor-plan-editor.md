@@ -194,6 +194,13 @@ Your reference photo and its calibration are **saved on your device** — close
 the editor or reload the app and it's still there when you come back. Remove it
 any time with the **✕** next to the photo controls.
 
+Traced walls rarely land on tidy round numbers. In **Pro** mode the **Plan ▾**
+menu has a **Snap to grid** action that rounds every wall, room, opening and
+annotation to the current grid in one undoable step, so a hand‑traced plan
+cleans up to neat measurements without re‑drawing it. Doors and windows are
+nudged to stay on their walls; change the grid size first if you want a coarser
+or finer round‑off.
+
 ## Room finishes
 
 Select a room and the inspector shows **Floor finish** and **Wall finish**

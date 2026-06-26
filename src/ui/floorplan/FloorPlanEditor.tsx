@@ -136,6 +136,7 @@ export function FloorPlanEditor() {
   const fPanoTour = useFeature('panoTour')
   const fCurvedWalls = useFeature('curvedWalls')
   const fCompass = useFeature('planCompass')
+  const fGridSnap = useFeature('planGridSnap')
   const orientationDeg = useStore((s) => s.orientationDeg)
   // Tour stops are only shown/editable on the ground level (stops have a
   // levelId field but the plan editor operates per-level; ground is the
@@ -1504,6 +1505,20 @@ export function FloorPlanEditor() {
       <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
         Reset to HDB
       </button>
+      {/* Snap the whole plan to the current grid — round every wall endpoint /
+          room vertex / opening offset / annotation coordinate to clean up a
+          traced or imported plan (PARITY-GRID-SNAP), gated by the `planGridSnap`
+          pro flag (hidden in Simple mode). One undoable action. */}
+      {fGridSnap ? (
+        <button
+          type="button"
+          onClick={() => a.snapFloorPlanToGrid()}
+          title="Round every wall, room, opening and annotation coordinate to the grid (cleans up a traced plan)"
+          className="btn btn-sm"
+        >
+          Snap to grid
+        </button>
+      ) : null}
       {/* Reference photo — trace walls over a floor-plan image / room scan. */}
       <input
         ref={fileRef}

@@ -663,6 +663,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Snap the whole plan to a grid (PARITY-GRID-SNAP, Sweet Home 3D / Coohom
+  // parity): round every wall endpoint / room vertex / opening offset /
+  // annotation coordinate to a chosen grid to clean up a traced or imported plan.
+  // Pure geometry, no sidecar / licensing → prod-safe (default on). An advanced
+  // authoring tool beyond the core furnish loop → pro tier (hidden in Simple mode
+  // automatically).
+  planGridSnap: {
+    label: 'Snap plan to grid',
+    description:
+      'Round every wall / room / opening / annotation coordinate to a grid to tidy a plan',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]
