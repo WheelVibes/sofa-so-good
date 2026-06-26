@@ -26,21 +26,12 @@ PARITY-STAMP-PLACE, PARITY-SCATTER-ROOM, BUG-PATHARRAY-LOOP (the no-polyline inf
 > FloorPlanEditor-touching parts of **PARITY-PLAN-GUIDES**.
 
 ### Correctness / reliability (highest priority)
-- [ ] **BUG-RECORD-TIMER-LEAK** (LOW/S, `cg-record`) — `scene/RecordController.tsx:64`: untracked
-  `setTimeout(revokeObjectURL,2000)` fires on a dead context if unmounted in-window. Fix: ref + clear
-  in effect cleanup. (Fold into any RecordController touch — not cleanly headless.)
-
 ### 2D plan editor ergonomics (high value, pure geometry)
 - [ ] **PARITY-PLAN-VERTEX-ANGLESNAP** (MED/S, `cg-planeditor` — serialize AFTER MOD-FPE-SPLIT) —
   `FloorPlanEditor.tsx:1102-1104`: new-wall draw angle-snaps but dragging an existing wall **endpoint**
   (`moveWallVertex`) passes raw cursor coords (no ortho/15° snap, no Shift-bypass). Fix: route the
   vertex-drag target through the existing `snapWallAngle(anchor=otherEnd, cursor)`; Shift bypasses.
   Verify: scenario drags a vertex near 88° → wall angle snaps 90°; Shift → free.
-- [ ] **PARITY-PLAN-MIRROR-REGION** (MED/M, `cg-planmirror`, new pure file) — `layout/mirrorRoom.ts`
-  mirrors only furniture items, not a **plan region** (walls+rooms+openings+furniture) about an axis
-  (common for mirror-image HDB stacks). Pure `mirrorPlanRegion(plan, items, axisX)` reflecting coords,
-  flipping opening hinge/swing handedness, yaw θ→π−θ. Verify: unit — coords reflect, double-mirror =
-  identity, hinge flips, areas preserved.
 - [ ] **PARITY-PLAN-GUIDES** (MED/S, `cg-planguides`) — no persistent guide/reference-line type
   (only transient smart guides). Add `plan.guides:{axis:'x'|'z',pos}[]` + pure
   `snapToGuides(point,guides,threshold)`, persisted in schema. Verify: unit — point near vertical guide
@@ -64,6 +55,43 @@ PARITY-STAMP-PLACE, PARITY-SCATTER-ROOM, BUG-PATHARRAY-LOOP (the no-polyline inf
 > **Verified already shipped (do NOT propose):** door-swing obstruction check, arrow-key nudge,
 > compass/north + scale-bar + auto-dimension strings, photo-trace backdrop. **Per-frame alloc findings**
 > in DragController/SelectionOutline are LOW (Canvas is `frameloop="demand"` → only during active drags).
+
+## 🔭 2026-06-26 RESEARCH WAVE #2 — new-file parity features (post-Wave-5 audit)
+
+A second read-only audit (app at v0.3.0.27) found **no open correctness/leak bugs** (the pure
+geometry modules audit clean; BUG-001/004/008 already shipped). Next value is **new pure-module
+parity features**. Conflict-group tags parallelize. **IN FLIGHT (Wave 6, dispatched 2026-06-26):**
+PARITY-PLAN-STATS, PARITY-RENO-ICS, PARITY-GRID-SNAP.
+
+### Clean-delegate (new pure file, core needs no churned-file edit)
+- [~] **PARITY-PLAN-STATS** (MED/S, `cg-planstats`) — `analysis/planStatistics.ts` digest (GFA, room
+  counts/kinds, perimeter, total wall length) into the design report. *(Wave 6)*
+- [~] **PARITY-RENO-ICS** (MED/S, `cg-renoics`) — `export/renoIcs.ts` RFC-5545 `.ics` export of the
+  reno timeline phases + menu download. *(Wave 6)*
+- [~] **PARITY-GRID-SNAP** (HIGH/S, `cg-gridsnap`) — `floorplan/gridSnap.ts` snap whole plan to a grid
+  + additive slice action + Plan-menu trigger + `planGridSnap` flag. *(Wave 6)*
+- [ ] **PARITY-CORNER-FILLET** (MED/M, `cg-cornerfillet`) — `floorplan/cornerFillet.ts` round/bevel a
+  wall corner (reuses `wallArc`). Pure core clean-delegate; on-canvas handle inline-only (split).
+- [ ] **PARITY-ROOM-INSET** (MED/M, `cg-roominset`) — `floorplan/insetRoom.ts` signed polygon offset
+  (soffit/setback). Pure core clean-delegate; PlanInspector button inline-only (split).
+- [ ] **PARITY-DIM-CHAIN** (MED/M, `cg-dimchain`) — `floorplan/dimensionChain.ts` chained dimension
+  strings. Pure core clean-delegate; editor dimension-tool wiring inline-only (split).
+- [ ] **PARITY-PLAN-GUIDES** pure core (MED/S, `cg-planguides`) — `floorplan/snapToGuides.ts` +
+  `plan.guides[]` schema field (additive). Editor snapping integration inline-only (split).
+- [ ] **PARITY-THERMAL** (MED/M, `cg-thermal`, niche) — `analysis/thermalAnalysis.ts` envelope U-value
+  heat-loss digest into the report + `thermalAnalysis` flag.
+- [ ] **PARITY-SCENE-JSON-EXPORT** (LOW-MED/S, `cg-scenejson`) — `ui/openDesignJson.ts` one-click
+  `.sofa.json` data export. **First verify it isn't redundant with the existing Save-to-file path; drop if so.**
+
+### Inline-only / needs base-reset (touch churned files — defer to next `main` merge)
+- [ ] **PARITY-PLAN-VERTEX-ANGLESNAP** (`cg-planeditor`) — `FloorPlanEditor.tsx:~1102` vertex-drag
+  ortho/15° snap via `snapWallAngle`.
+- [ ] **PARITY-PLAN-GUIDES** editor wiring · **PARITY-CORNER-FILLET / -ROOM-INSET / -DIM-CHAIN** UI triggers.
+- [ ] **MOD-PLANINSPECTOR-SPLIT** (`cg-planinspector`, 1348 ln) · **MOD-MOBILETOOLBAR-SPLIT**
+  (`cg-mobiletoolbar`, 1204 ln) — behaviour-preserving splits; can't be stale-base-refactored safely.
+
+> **Real-GPU/backend (out of scope):** DoF bokeh, 8K render, VSM/PCSS, denoise, HDRI IBL, SSGI,
+> AI plan-gen, branded catalogs, multi-user collab, CORS-proxied providers.
 
 ## MASTER EXECUTION QUEUE (consolidated 2026-06-19)
 
