@@ -506,7 +506,13 @@ same change that reshapes a system.
   unit-tested, rendered in `AlignmentGuides`), flush-to-wall (`wallSnap.ts`, off
   when grid-snap on), live per-side distance-to-wall HUD (`DragHud` ← `clearanceGap.ts` `wallGapsPerSide`,
   left/right/back/front gaps, amber under `walkwayMin`); touch rotate ring (single 15°, multi rigid centroid, Shift=free,
-  green/red validity, complements **R** 90°). The drag's two O(n) per-move scans (snug-stack +
+  green/red validity, complements **R** 90°). **Smart rotation snap** (`smartRotateSnap` flag, pro;
+  PARITY-SNAP-ROTATE): while rotating a single item the ring also snaps to a nearby item's / wall's
+  axis (parallel **or** perpendicular, mod-90°) when the free yaw lands within `NEIGHBOUR_SNAP_THRESHOLD`
+  (5°) — strict precedence over the 15° grid (5° ≪ one grid step → no flicker zone), Shift still
+  bypasses all snapping — with a faint diametric alignment guide drawn while the neighbour snap is
+  active. Pure `rotateGizmoMath.ts smartSnapRotation`/`neighbourAxes` (gizmo gathers refs once at grab).
+  The drag's two O(n) per-move scans (snug-stack +
   `canPlace` collision) are **broadphased** (PERF-003) through a per-drag spatial grid of the static
   items (`collision/broadphase.ts` `buildGrid`/`queryRect`, built once + cleared on drop): a point query
   for snug-stack, a moved-AABB query for collision; alignment snap keeps the full scan (cross-room
