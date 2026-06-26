@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: duplicate-along-path array tool (PARITY-DUP-PATH) (v0.3.0.12)
+
+Coohom-style array tooling now includes **duplicate-along-path**: place N copies of the selected
+furniture along a drawn plan polyline, each oriented to the path's local tangent. The math lives
+in a new pure `furniture/pathArray.ts` (`pathArrayPlacements(points, opts)`): arc-length
+re-sampling of the polyline with optional tangent yaw (`align`), `count` or `spacing` modes, open
+or closed loops, capped at `PATH_ARRAY_MAX_COUNT` (200), and full edge-case handling (<2 points,
+zero-length segments, count<1, spacing≤0, spacing longer than the path). The UI is a sibling
+`ui/inspector/PathArraySection.tsx` (not bolted onto the 1300-line `InspectorPanel.tsx` — it gets
+only an import + a gated 3-line render block) that `canPlace`-validates each copy, skips + reports
+collisions via the standard toast, and commits in a single undo step (`setItems`). Gated behind a
+new `pathArray` feature flag (`tier: 'pro'`, `default: true`, pure-code so not `devOnly`) — forced
+off in Simple mode by `resolveFlags`, present in Pro; unit-tested in **both** modes. 21 unit tests
+for the sampler + a Simple/Pro gating test + a `path-array-simple.json` scenario. Visually verified
+on an L-shaped polyline: copies land at exact arc-length steps across the bend with correct
+per-copy yaw, flush on the floor (no float/sink/z-fighting), desktop + mobile bottom-sheet.
+
 ## Fix: correct array "didn't fit" toast count (AUD-003) (v0.3.0.11)
 
 The inspector's array "N of M didn't fit" toast (`ui/inspector/InspectorPanel.tsx`) used

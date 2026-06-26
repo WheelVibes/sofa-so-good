@@ -32,13 +32,11 @@ time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push
 
 ---
 
-## WAVE 1 (dispatched 2026-06-26) — conflict-disjoint parallel batch
-- [~] PARITY-SH3D-FURN (`cg-sh3d`): place parsed SH3D furniture descriptors (today `setItems([])`
-  discards them) via a pure `floorplan/import/sh3dItems.ts` mapper + wire into `openSh3dImport.ts`.
-- [~] PARITY-DUP-PATH (`cg-arrayplace`): duplicate-along-polyline array (pure `furniture/pathArray.ts`
-  arc-length + tangent yaw) + inspector array section.
-
----
+> **Backlog-staleness note (2026-06-26):** the `2026-06-20-coohom-sh3d-parity-backlog.md`
+> doc lists **PARITY-SH3D-FURN** + **PARITY-SH3D-OPENINGS** as open, but both already shipped
+> (commit `e5f47a9`; `openSh3dImport.ts` calls `setItems(placement.placedFurniture)` and
+> `sh3dPlacement.ts` exists). Treat that doc as an index, **CHANGELOG.md as truth**. Wave 1
+> added the missing store-level integration coverage for them.
 
 ## Multi-storey remnants (F13 core shipped C221–C235 — see CHANGELOG)
 
