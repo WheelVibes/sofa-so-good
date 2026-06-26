@@ -1,6 +1,6 @@
 import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
-import { canPlace } from '../collision/placement'
+import { broadphaseNeighbours, canPlace } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { GROUND_LEVEL_ID, levelAsPlan, levelOfRoom, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
@@ -115,7 +115,21 @@ function tryPlace(
   // this room. Items still pending placement are NOT in `world`, so a messy
   // starting layout can't block the tidy target.
   const others = world.filter((w) => w.id !== item.id)
-  if (canPlace(candidate, def, { others, defs: ctx.catalog, doors: ctx.doors, walls: ctx.walls })) {
+  // Broadphase the per-candidate item scan (ARRANGE-GRID / PERF-003): restrict
+  // `others` to the candidate's footprint neighbourhood. An item whose AABB
+  // doesn't overlap the candidate can't have an overlapping OBB, so the
+  // canPlace boolean is identical to scanning the full list — proven by an
+  // equivalence sweep in arrangeBroadphase.test.ts. The wall arm of canPlace
+  // is unaffected (it never reads `others`).
+  const near = broadphaseNeighbours(candidate, def, others, ctx.catalog)
+  if (
+    canPlace(candidate, def, {
+      others: near,
+      defs: ctx.catalog,
+      doors: ctx.doors,
+      walls: ctx.walls,
+    })
+  ) {
     const idx = world.findIndex((w) => w.id === item.id)
     if (idx >= 0) world[idx] = candidate
     else world.push(candidate)

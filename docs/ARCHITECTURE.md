@@ -511,6 +511,10 @@ same change that reshapes a system.
   items (`collision/broadphase.ts` `buildGrid`/`queryRect`, built once + cleared on drop): a point query
   for snug-stack, a moved-AABB query for collision; alignment snap keeps the full scan (cross-room
   alignment is intended). Equivalent to the full scan (no overlapping AABB ⇒ no overlapping OBB).
+  The **auto-arrange tidy pass** (`layout/autoArrange.ts` → `tryPlace`) reuses the same broadphase:
+  each candidate placement restricts `canPlace`'s `others` to its footprint neighbourhood via
+  `placement.ts` `broadphaseNeighbours` (ARRANGE-GRID) — identical result, proven by
+  `layout/arrangeBroadphase.test.ts`.
   On drop, a single **surface item** (one carrying a numeric `surfaceHeight`) over a table/shelf snaps
   its rest height onto that surface's top (PC2-SURFACE-DROP, pure `collision/surfaceDrop.ts`
   `resolveSurfaceDropHeight` over the `tables`/`storage` categories; updates `props.surfaceHeight` via
