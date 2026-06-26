@@ -34,15 +34,18 @@ export function PathArraySection({
   catalog: Record<string, FurnitureDef>
 }) {
   // All defined plan polylines (ordered, ≥2 points). Subscribed so the dropdown
-  // tracks newly-drawn paths without a manual refresh.
-  const polylines = useStore((s) => s.floorPlan.polylines ?? [])
+  // tracks newly-drawn paths without a manual refresh. NOTE: select the raw value
+  // (which may be `undefined`) — do NOT `?? []` inside the selector, as that returns
+  // a fresh array reference every render and drives an infinite update loop (the
+  // selector's result is compared by identity). Fall back with optional chaining below.
+  const polylines = useStore((s) => s.floorPlan.polylines)
   const [selectedPolyId, setSelectedPolyId] = useState<string>('')
   const [count, setCount] = useState(5)
   const [align, setAlign] = useState(true)
 
-  const hasPaths = polylines.length > 0
+  const hasPaths = (polylines?.length ?? 0) > 0
   // Resolve the chosen polyline (default to the first available).
-  const poly = polylines.find((p) => p.id === selectedPolyId) ?? polylines[0]
+  const poly = polylines?.find((p) => p.id === selectedPolyId) ?? polylines?.[0]
 
   const apply = () => {
     if (!poly) return
@@ -147,7 +150,7 @@ export function PathArraySection({
               className="input"
               style={{ fontSize: 'var(--t-xs)' }}
             >
-              {polylines.map((p, i) => (
+              {polylines?.map((p, i) => (
                 <option key={p.id} value={p.id}>
                   {`Polyline ${i + 1}${p.closed ? ' (closed)' : ''} — ${p.points.length} pts`}
                 </option>

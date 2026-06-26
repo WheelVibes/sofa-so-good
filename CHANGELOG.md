@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: PathArraySection infinite render loop when no polyline is drawn (BUG-PATHARRAY-LOOP) (v0.3.0.24)
+
+`ui/inspector/PathArraySection.tsx` subscribed with `useStore((s) => s.floorPlan.polylines ?? [])`
+— the `?? []` **inside the selector** returns a brand-new array reference on every render whenever
+`polylines` is undefined (the default — no polyline drawn yet), which Zustand compares by identity,
+driving an infinite update loop ("Maximum update depth exceeded") that the error boundary then
+caught. Because the section renders for any single furniture item in Pro mode, the inspector crashed
+on the common no-polyline case — a latent regression from PARITY-DUP-PATH (v0.3.0.12) that its own
+scenario masked by always drawing a polyline first. Surfaced by **integration visual verification**
+(the scatter-fill scenario selects a plain item with no polyline, mounting `PathArraySection`
+alongside the new `ScatterFillSection`). Fixed by selecting the raw value (stable `undefined` or
+stable array reference) and falling back with optional chaining in the render body instead of in the
+selector. Re-verified: the scatter scenario completes and the inspector renders the array sections
+cleanly with the room filled.
+
 ## Feature: scatter-fill a room with N collision-safe copies (PARITY-SCATTER-ROOM) (v0.3.0.23)
 
 A new Pro inspector action **"Fill room"** evenly packs a room's free floor with N copies of the
