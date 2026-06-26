@@ -9,6 +9,7 @@ import { LocalStorageAdapter } from '../../../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
+import { downloadFfeCsv } from '../../openFfeCsv'
 import { downloadFurnitureCsv } from '../../openFurnitureCsv'
 import { openSh3dImport } from '../../openSh3dImport'
 import { openShoppingList } from '../../openShoplist'
@@ -132,6 +133,14 @@ export function FileMenu() {
           label="Furniture list (CSV)"
           sub="Spreadsheet of every item — dims, qty, prices"
           onClick={() => void downloadFurnitureCsv()}
+        />
+      ) : null}
+      {fShopExport ? (
+        <MenuItem
+          icon="Export"
+          label="FF&E schedule (CSV)"
+          sub="Item-by-item schedule — source, SKU, size, qty, price"
+          onClick={() => void downloadFfeCsv()}
         />
       ) : null}
       {canRecord() && proMode ? (

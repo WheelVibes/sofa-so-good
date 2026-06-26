@@ -390,6 +390,10 @@ same change that reshapes a system.
   **Furniture CSV** (`ui/furnitureCsv.ts` pure `buildFurnitureCsv` → RFC-4180 CSV of the schedule:
   Room/Item/Source/SKU/W·D·H mm/Qty/Unit/Total + grand-total footer; `ui/openFurnitureCsv.ts` =
   Blob download). File menu + mobile + ⌘K, `shopExport` flag (simple).
+  **FF&E CSV** (`export/ffeCsv.ts` pure `buildFfeCsv(rows, units, opts)` → RFC-4180 CSV of the same
+  schedule: Room/Item/Source/SKU/Size (W×D×H, unit-aware)/Qty/Unit price/Line total + grand-total
+  footer; prices blanked when `budget` is off; `ui/openFfeCsv.ts` = Blob download `<plan>-ffe.csv`).
+  File menu + mobile + ⌘K, `shopExport` flag (simple) — the machine-readable third FF&E export.
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
   (cover + plan + per-wall elevations + cross-section + lighting + electrical (`floorplan/electricalPlan*`,
   `electricalPlan` flag) + plumbing (`floorplan/plumbingPlan*`, `plumbingPlan` flag — points auto-derived
