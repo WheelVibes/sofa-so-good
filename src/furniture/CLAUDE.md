@@ -59,8 +59,12 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
       batches commits via `setItems`/`pushHistory`, and surfaces a dropped-count toast.
   - `radialArray.ts` — radial/polar array: N positions around a circle with optional
     `faceCenter` yaw. Facing convention: `atan2(-cos angle, -sin angle)` so the item's
-    Three.js local +Z points toward the center. Gated by the `radialArray` Pro flag (and
-    `proMode`) in `InspectorPanel.tsx`; committed via `setItems` in a single undo step.
+    Three.js local +Z points toward the center. A sweep `>= 2π − RADIAL_SEAM_EPS` (~1e-3 rad —
+    incl. a dragged "almost full circle") is treated as **full-circle** (exclusive seam,
+    `step = 2π/n`), so a near-2π drag can't double-up at the seam (BUG-RADIAL-FULLCIRCLE);
+    smaller sweeps use the inclusive-both-ends partial formula `sweep/(n−1)`. Gated by the
+    `radialArray` Pro flag (and `proMode`) in `InspectorPanel.tsx`; committed via `setItems` in
+    a single undo step.
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).

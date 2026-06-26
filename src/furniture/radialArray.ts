@@ -17,8 +17,10 @@
  * When sweep < 2π the copies are placed at `startAngle + i * step` for
  * `i = 0 … count-1` where `step = sweep / (count - 1)` (inclusive both ends).
  * This makes a count=2 half-circle put one copy at the start, one at the end.
- * When sweep = 2π (full circle) the spacing is exclusive at the seam:
- * `step = 2π / count`, so the last copy doesn't overlap the first.
+ * When sweep ≈ 2π (full circle, within `RADIAL_SEAM_EPS`) the spacing is exclusive
+ * at the seam: `step = 2π / count`, so the last copy doesn't overlap the first.
+ * A sweep of `2π − ε` (a user dragging an *almost* full circle) is also treated as
+ * full so the partial formula `sweep/(n-1)` can't produce a near-duplicate at the seam.
  *
  * ## Edge cases
  * - count < 2  → returns [] (no meaningful ring; caller should no-op)
@@ -30,6 +32,16 @@
 export const RADIAL_MIN_RADIUS = 0.01
 /** Maximum copies in a single radial array. */
 export const RADIAL_MAX_COUNT = 36
+/**
+ * Sweep tolerance (radians) for treating a near-2π sweep as a full circle.
+ * A user dragging an "almost full circle" lands a hair below 2π; without this
+ * the partial formula `sweep/(n-1)` would place the last copy on top of (or a
+ * sliver away from) the first — a visible double-up at the seam. ~1e-3 rad
+ * (≈0.057°) is well below any perceptible / draggable resolution yet wide enough
+ * to absorb float drift, so any sweep `>= 2π − RADIAL_SEAM_EPS` is full-circle
+ * (exclusive seam, `step = 2π/n`).
+ */
+export const RADIAL_SEAM_EPS = 1e-3
 
 export interface RadialPlacement {
   /** World-space [x, z] position of this copy. */
@@ -91,9 +103,10 @@ export function radialArrayPlacements(opts: RadialArrayOptions): RadialPlacement
   if (sweep <= 0) return []
 
   // Step between copies.
-  // Full circle (sweep ≈ 2π): exclusive seam — step = 2π / n, i = 0…n-1.
+  // Full circle (sweep ≥ 2π − RADIAL_SEAM_EPS, incl. a dragged "almost full
+  //   circle"): exclusive seam — step = 2π / n, i = 0…n-1.
   // Partial sweep: inclusive both ends — step = sweep / (n-1), i = 0…n-1.
-  const isFullCircle = Math.abs(sweep - TWO_PI) < 1e-9
+  const isFullCircle = sweep >= TWO_PI - RADIAL_SEAM_EPS
   const step = isFullCircle ? TWO_PI / n : sweep / (n - 1)
 
   const placements: RadialPlacement[] = []
