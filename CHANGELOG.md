@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: align/distribute/mirror multi-selected furniture in the 2D plan (PARITY-PLAN-ALIGN) (v0.3.0.18)
+
+Selecting **2+ placed pieces** on the 2D plan (e.g. via the new marquee) now swaps the inspector
+for a **multi-select action panel** (`ui/floorplan/PlanMultiSelectActions.tsx`): Align centres
+(X/Z), Align edges (Left/Right/Top/Bottom), Distribute evenly (Across X/Z) and Mirror. It's pure
+**wiring** of the same render-agnostic ops the 3D `MultiSelectPanel` already uses
+(`layout/alignDistribute.ts` `alignCenter`/`alignEdge`/`distributeEvenGaps`/`obbAxisHalf` +
+`layout/selectionActions.ts` `mirrorSelectionX`) — no geometry reimplemented, since plan positions
+are world XZ the ops apply unchanged. Each action is one `pushHistory` undo step, `canPlace`-checked
+per item, locked items skipped, with the same over-wide-distribute clamp toast as the 3D panel.
+`PlanInspector` shows it whenever `selectedItemIds.length > 1`. Ungated core (no flag — consistent
+with the ungated 3D align/distribute; shown in both Simple and Pro and tested in both). 8 component
+tests + a `plan-align-distribute-mirror` scenario; visually verified (Align X → single column at
+distinct Z, Distribute Z → even gaps, Mirror → reflected across the selection centre; clean mobile
+bottom-sheet, one undo each, no overlap/z-fighting).
+
+## Refactor: extract tool draft reducers from FloorPlanEditor (MOD-FPE-SPLIT) (v0.3.0.17)
+
+Behaviour-preserving modularization of the repo's largest file (`ui/floorplan/FloorPlanEditor.tsx`,
+~3300 lines, violating the "no monolithic files" rule). The wall/room/dimension/scale-calibration/
+polygon-vertex/wall-rotate **draft transitions** are now a pure, parameterized
+`ui/floorplan/editor/toolDraftReducer.ts` (`wallCommit`/`wallTapCommits`/`roomCommit`/`rectFromDraft`/
+`dimensionCommit`/`scaleCommits`/`polygonClick`/`rectFromVerts`/`rotateWallTransform`/`draftLength`),
+with the React component reduced to a thin dispatcher that holds state and delegates the math. The
+live element-drag bodies + item-rotate path stay in the component (tight store-read/`canPlace` loops,
+not pure draft math) and are byte-identical — the PARITY-PLAN-FURN-ROTATE handle and wall rotate ring
+are fully preserved. 23 new reducer unit tests; the existing editor scenarios (wall/room/polyroom/
+autoroom/dimension/text/split-join/wall-rotate) + the just-merged marquee all stay green on the
+integrated tree (a path-scoped `ui/floorplan/editor/CLAUDE.md` documents the pure/tested module
+convention). A pre-existing `plan-furniture-rotate` scenario step-20 flake (reproduces on baseline)
+is noted for the PARITY-PLAN-FURN-ROTATE owner — not a regression.
+
 ## Feature: rubber-band marquee multi-select in the 2D plan editor (PARITY-PLAN-MARQUEE) (v0.3.0.15)
 
 The 2D plan editor gains **drag-box (marquee) multi-select**, matching Sweet Home 3D / Coohom.
