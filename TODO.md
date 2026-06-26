@@ -94,14 +94,6 @@ from `docs/research/2026-06-19-material-microdetail-plan.md` (MAT-006a/b are the
 + a codebase audit. **IN FLIGHT (Wave 12):** MAT-006a, METAL-LEGS, SHELLPERF + ARRANGE-GRID.
 
 ### Clean-delegate
-- [~] **MAT-006a** (HIGH/M, `G-worlduv`) — UV per-tile-cell hash rotation/offset in `materials/worldUv.ts`
-  to break obvious tiling; `tileBreakup` pro flag. Pure UV math, flat-texture-render verified. *(W12)*
-- [~] **METAL-LEGS** (HIGH/S-M, `G-metal-primitives`) — route furniture metal legs/frames through the
-  existing `getMetalMaterial` (brushed/anisotropic); rides `pbrSurfaces`. Per-primitive files. *(W12)*
-- [~] **SHELLPERF** (MED/S, `G-apartment-shell`) — hoist per-frame `new Vector2` out of `RoomShell`/
-  `PlanRoomShell` `useFrame`; extract a pure `wallFacesAway` helper + test. *(W12)*
-- [~] **ARRANGE-GRID** (MED/M, `G-arrange`) — broadphase `layout/autoArrange`/`arrangeRun` collision
-  scans (PERF-003 pattern); prove broadphase ≡ full-scan by sweep test. *(W12)*
 - [ ] **CONCRETE-PORES** (LOW-MED/S, `G-materials`) — pore-pit roughness micro-variation in
   `procedural/patterns/stone.ts concreteFields` (the leftover MAT micro-detail sub-item); all-tier, no flag.
 - [ ] **GAP-SUGGEST** (MED/S-M, new `layout/gapFix.ts`) — minimal nudge vector to clear each narrow

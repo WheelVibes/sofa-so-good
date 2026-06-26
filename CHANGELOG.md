@@ -5,6 +5,50 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: UV repetition break-up for large tiled surfaces (MAT-006a) (v0.3.0.47)
+
+Large tiled floors no longer read as an "obvious repeating grid". A new pure, deterministic
+`materials/worldUv.ts` `cellUvTransform`/`breakRepetitionPlane` subdivides a rectangular floor on the
+tile-size grid and re-phases each cell's UVs with a hashed quarter-turn (90/180/270°) + a sub-tile
+offset — **no shader, no second UV set, no extra texture**. The offset is quantised to {0, 0.5} so a
+gridded ceramic tile stays **grout-continuous** (boundaries land on grout, no cracks) while
+non-gridded stone/marble/wood de-correlates tile-to-tile; rotation is rigid (no UV stretch) and cells
+share boundary positions + Y (no geometry seam, no z-fighting). Wired into the rect floor build sites
+(`RoomFloor`/`PlanRoomFloor`) behind a new `tileBreakup` flag (`tier:'pro'`, default on, prod-safe
+pure code; off → byte-identical to the previous plane). 29 unit tests (period-breaking, determinism,
+no UV NaN, grout-continuity, both-mode gating); flat-texture-verified ON-vs-OFF on gridded tile +
+marble, and re-confirmed seam/z-fighting-free on the integrated tree.
+
+## Perf: brushed-metal legs/frames via getMetalMaterial (METAL-LEGS) (v0.3.0.46)
+
+The shared anisotropic brushed-metal material (`getMetalMaterial`, previously wired only into the 8
+appliance bodies) now also dresses furniture **legs / frames / rails / posts / gas-lifts / taps** via
+a new `primitives/shared.tsx` `metalLeg(color?, finish?, repeat?)` helper, routed through 8 primitives
+(BarCart, OfficeChair, BarStool, Sideboard, TowelLadder, DryingRack, Desk, KitchenIsland). It inherits
+`getMetalMaterial`'s `pbrSurfaces` gate — a `MeshPhysicalMaterial` with brush normal/roughness-streak +
+anisotropy on High/Max, an identical-to-before plain `MeshStandardMaterial` on Performance (the flat
+path is byte-for-byte unchanged). Geometry is untouched (legs stay floor-anchored, inside the
+footprint); painted/plastic/wood/fabric parts and small hardware are left alone. 6 tests (both tiers);
+verified HQ (metal reads correctly, structurally sound, no z-fighting) + Performance (unchanged).
+
+## Perf: broadphase the auto-arrange collision scans (ARRANGE-GRID) (v0.3.0.45)
+
+The auto-arrange ("Tidy") pass ran `canPlace` per candidate position against the **full** item list.
+It now restricts each placement's neighbour set via the existing `collision/broadphase.ts`
+`buildGrid`/`queryRect` (the proven PERF-003 drag-path pattern) — a new `broadphaseNeighbours` +
+reused `itemAabbBox` in `collision/placement.ts`, consumed by `layout/autoArrange.ts` `tryPlace`. A
+position×rotation **equivalence sweep** over a dense scene asserts the broadphase-restricted result is
+**identical** to the full scan, and the existing `autoArrange` collision-validity tests pass unchanged
+— so it's a pure speedup at scale with no behaviour change.
+
+## Perf: zero-allocation wall camera-facing reveal (SHELLPERF) (v0.3.0.44)
+
+`RoomShell`/`PlanRoomShell` allocated a `new Vector2` every frame, per clipped wall, inside `useFrame`
+(steady GC pressure in the isolated-room editor). The per-frame camera-facing test is now a pure
+`apartment/wallFacing.ts` `wallFacesAway(camX, camZ, midX, midZ, normal, threshold)` called with
+scalars — **zero allocation** on the hot path, byte-identical visibility result. 8 unit tests
+(faces-away/toward, threshold boundary, equivalence to the prior `Vector2.dot`).
+
 ## Feature: angle-snap when dragging an existing wall endpoint (PARITY-PLAN-VERTEX-ANGLESNAP) (v0.3.0.42)
 
 Dragging a wall's endpoint handle in the 2D editor now **snaps to 15° increments** (horizontal /
