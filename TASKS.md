@@ -32,6 +32,18 @@ time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push
 
 ---
 
+## WAVE 1 (dispatched 2026-06-26) — conflict-disjoint parallel batch
+- [~] PARITY-SH3D-FURN (`cg-sh3d`): place parsed SH3D furniture descriptors (today `setItems([])`
+  discards them) via a pure `floorplan/import/sh3dItems.ts` mapper + wire into `openSh3dImport.ts`.
+- [~] PARITY-DUP-PATH (`cg-arrayplace`): duplicate-along-polyline array (pure `furniture/pathArray.ts`
+  arc-length + tangent yaw) + inspector array section.
+- [~] AUD-002 (`cg-materials`): add LRU + dispose-on-evict to `furnitureMaterials.ts` caches
+  (`cache`/`furnitureRepeatCache`/`patternTex`) to stop session VRAM ratchet.
+- [~] AUD-003 (`cg-inspectorpanel`): `InspectorPanel.tsx:371` array "didn't fit" toast `${total + 1}`
+  → `${total}` (total already excludes the source).
+
+---
+
 ## Multi-storey remnants (F13 core shipped C221–C235 — see CHANGELOG)
 
 ## Competitor research 2026-06 (sources: coohom.com/article Planner5D-alternative · capterra.com
