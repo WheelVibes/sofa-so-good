@@ -86,6 +86,34 @@ report/export. **IN FLIGHT (Wave 9):** PARITY-OPENING-SCHED, PARITY-DAYLIGHT-DIG
 > NOTE: report-section items contend on `report.ts` — serialize them (one agent owns report.ts per wave);
 > export-only items run in parallel.
 
+## 🔭 2026-06-26 RESEARCH WAVE #4 — materials / realism / perf (beyond the saturated report surface)
+
+The report/export surface is saturated; this wave mines `materials/`/`furniture/`/`apartment/`/`layout/`
+(clean, not in the churned-editor avoid-list), aligned with the photoreal/parity North Star. Sourced
+from `docs/research/2026-06-19-material-microdetail-plan.md` (MAT-006a/b are the only un-shipped rows)
++ a codebase audit. **IN FLIGHT (Wave 12):** MAT-006a, METAL-LEGS, SHELLPERF + ARRANGE-GRID.
+
+### Clean-delegate
+- [~] **MAT-006a** (HIGH/M, `G-worlduv`) — UV per-tile-cell hash rotation/offset in `materials/worldUv.ts`
+  to break obvious tiling; `tileBreakup` pro flag. Pure UV math, flat-texture-render verified. *(W12)*
+- [~] **METAL-LEGS** (HIGH/S-M, `G-metal-primitives`) — route furniture metal legs/frames through the
+  existing `getMetalMaterial` (brushed/anisotropic); rides `pbrSurfaces`. Per-primitive files. *(W12)*
+- [~] **SHELLPERF** (MED/S, `G-apartment-shell`) — hoist per-frame `new Vector2` out of `RoomShell`/
+  `PlanRoomShell` `useFrame`; extract a pure `wallFacesAway` helper + test. *(W12)*
+- [~] **ARRANGE-GRID** (MED/M, `G-arrange`) — broadphase `layout/autoArrange`/`arrangeRun` collision
+  scans (PERF-003 pattern); prove broadphase ≡ full-scan by sweep test. *(W12)*
+- [ ] **CONCRETE-PORES** (LOW-MED/S, `G-materials`) — pore-pit roughness micro-variation in
+  `procedural/patterns/stone.ts concreteFields` (the leftover MAT micro-detail sub-item); all-tier, no flag.
+- [ ] **GAP-SUGGEST** (MED/S-M, new `layout/gapFix.ts`) — minimal nudge vector to clear each narrow
+  walkway gap (`walkway.ts findNarrowGaps`); pure helper (UI affordance later, pro).
+- [ ] **BRUSH-AXIS** (LOW/S, `G-furnmat`) — per-face `anisotropyRotation` resolver so brushed-metal
+  hairlines align to the dominant face axis; rides `pbrSurfaces`.
+
+### Clean-delegate but PARTLY real-GPU (verification limited — split / defer the pixel pass)
+- [ ] **MAT-006b** (MED/M, `G-flags`) — triplanar projection for sloped/curved walls
+  (`materials/triplanar.ts` + `triplanarWalls` pro flag). Uses `onBeforeCompile` → only the CPU-side
+  projection-weight math + "shader compiles" is headless-verifiable; the visual needs a real render pass.
+
 ## MASTER EXECUTION QUEUE (consolidated 2026-06-19)
 
 One de-duplicated, prioritised dispatch queue distilled from the five 2026-06-19 audit
