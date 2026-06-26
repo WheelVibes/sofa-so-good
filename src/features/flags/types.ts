@@ -78,6 +78,7 @@ export type FeatureFlag =
   | 'wallThickness'
   | 'unroomedFlag'
   | 'planIntegrity'
+  | 'planScale'
   | 'viewInAr'
   | 'floorTexture'
   | 'planCompass'

@@ -10,6 +10,7 @@ import {
   withLevelGeometry,
 } from '../../floorplan/levels'
 import { DEFAULT_PLAN_ID } from '../../floorplan/planGeometry'
+import { type RescaleOptions, type RescaleSpec, rescalePlan } from '../../floorplan/rescalePlan'
 import { assignRoomOpeningNames, assignRoomWallNames } from '../../floorplan/roomWallNames'
 import type {
   CeilingConfig,
@@ -228,6 +229,14 @@ export interface FloorPlanSlice {
   /** Remove a storey: its rooms/walls/openings, its items, and its finish keys.
    *  Undoable (history snapshot first). No-op for 'ground' or unknown ids. */
   removeLevel: (id: string) => void
+
+  /** Rescale the WHOLE plan (every storey) + the furniture by a factor or to a
+   *  target wall length, about an anchor point (PARITY-PLAN-SCALE). Scales wall
+   *  endpoints, room polygons, opening offsets, notes/dims/polylines, and item
+   *  positions; item SIZES are preserved unless `opts.scaleFurnitureSize`. ONE
+   *  undo step (snapshots plan + items first). No-op for factor 1; throws on an
+   *  invalid factor / unmeetable target (the caller validates first). */
+  rescaleFloorPlan: (spec: RescaleSpec, opts?: RescaleOptions) => void
 }
 
 export const FLOOR_PLAN_INITIAL: Pick<
@@ -892,6 +901,28 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         // Its rooms' finish keys are now stale — prune against the new plan.
         finishes: pruneFinishesForPlan(s.finishes, floorPlan),
         planSelection: null,
+      }
+    })
+  },
+  rescaleFloorPlan: (spec, opts) => {
+    const s0 = get()
+    // Validate up front so a bad factor / unmeetable target throws BEFORE any
+    // history snapshot or fork — the action stays a clean no-op on failure.
+    const result = rescalePlan(s0.floorPlan, spec, s0.items, opts)
+    // Factor 1 is a structural no-op — don't fork the default plan or push an
+    // empty undo step for it.
+    if (result.factor === 1) return
+    s0.pushHistory()
+    set((s) => {
+      // Re-id the seeded default plan on the first structural edit (forkIfDefault),
+      // then carry over the rescaled geometry. Items + plan are replaced in one
+      // set() so a single undo reverts the whole rescale.
+      const forked = forkIfDefault(s.floorPlan)
+      return {
+        floorPlan: { ...result.plan, id: forked.id },
+        items: result.items,
+        planSelection: null,
+        selectedWallIds: [],
       }
     })
   },
