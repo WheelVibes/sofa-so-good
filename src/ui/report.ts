@@ -7,6 +7,7 @@
 import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
 import { buildDesignScore } from '../analysis/designScore'
+import { buildElectricalSchedule } from '../analysis/electricalSchedule'
 import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildOpeningSchedule } from '../analysis/openingSchedule'
@@ -850,6 +851,33 @@ export function buildReportHtml(
         ${roomLux.length ? `<div class="foot" style="margin-top:6px">Estimated average illuminance per room (lumen method, utilisation factor 0.45) vs recommended residential levels.</div>` : ''}</div>`
     : ''
 
+  // Electrical points (PARITY-ELECTRICAL-SCHED) — a consolidated, room-by-room
+  // count of lighting points (the same light emitters the lighting plan plots)
+  // and indicative power points / sockets (inferred from the powered furniture
+  // categories present + a per-room-kind floor), with a grand total. The rough
+  // socket/point tally an electrician quotes against early on; distinct from the
+  // lighting plan + fixture schedule above. Pure (analysis/electricalSchedule);
+  // rides the existing `report` flag (additive section). Omitted when empty (a
+  // bare shell with no rooms / no fixtures) so an all-zero table never shows.
+  const electrical = buildElectricalSchedule(plan, items, catalog)
+  const electricalSection =
+    electrical.rooms.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Electrical points (indicative)</h2>
+      <div class="foot" style="margin-bottom:6px">${electrical.total} point${electrical.total === 1 ? '' : 's'} — ${electrical.totalLighting} lighting · ${electrical.totalPower} power. A rough planning aid for an electrician to quote against, not a certified electrical layout (no circuits, loads or cable runs).</div>
+      <table>
+        <tr class="cat"><td>Room</td><td class="num">Lighting</td><td class="num">Power</td><td class="num">Total</td></tr>
+        ${electrical.rooms
+          .map(
+            (r) =>
+              `<tr><td>${esc(r.roomName)}</td><td class="num">${r.lightingPoints}</td><td class="num">${r.powerPoints}</td><td class="num">${r.total}</td></tr>`,
+          )
+          .join('')}
+        <tr class="cat"><td>Total</td><td class="num">${electrical.totalLighting}</td><td class="num">${electrical.totalPower}</td><td class="num">${electrical.total}</td></tr>
+      </table>
+    </div>`
+
   // FF&E schedule — the item-level procurement table (room · item · source · SKU
   // · size · qty · pricing), the central designer hand-off. Full width.
   const ffe = hasItems ? buildFfeSchedule(plan, items, catalog) : []
@@ -965,6 +993,7 @@ export function buildReportHtml(
   ${elevationsSection}
   ${sectionSection}
   ${lightingSection}
+  ${electricalSection}
   ${
     paletteChips
       ? `<div class="palette">

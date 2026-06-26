@@ -591,3 +591,37 @@ describe('buildReportHtml — multi-storey fan-out (F13)', () => {
     expect(html).toContain('Entire storey added')
   })
 })
+
+describe('buildReportHtml — electrical points (PARITY-ELECTRICAL-SCHED)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('renders an indicative Electrical points section with per-room counts + a total', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Electrical points (indicative)')
+    // Per-room table column headers.
+    expect(html).toContain('>Lighting</td>')
+    expect(html).toContain('>Power</td>')
+    // The furnished default flat has lighting + power points → the lead-in
+    // mentions both, and a grand-total row appears.
+    expect(html).toMatch(/lighting · \d+ power/)
+    // Labelled indicative, not a certified layout.
+    expect(html).toMatch(/not a certified electrical layout/i)
+  })
+
+  it('still renders the section for a bare (unfurnished) plan with habitable rooms', () => {
+    // No furniture: the per-kind socket floor still gives each habitable room
+    // power points, so the section renders (lighting columns read 0).
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Electrical points (indicative)')
+  })
+
+  it('omits the section for a plan with no rooms', () => {
+    const noRooms = { ...plan, rooms: [] }
+    const html = buildReportHtml(noRooms, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Electrical points (indicative)')
+  })
+})

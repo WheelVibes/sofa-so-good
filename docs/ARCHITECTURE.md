@@ -510,6 +510,15 @@ same change that reshapes a system.
   toggled by `luxOverlayOn` from the Drawings panel's Lighting tab — rides the `drawings` flag.
   LP6: `luxExcludedIds` filters fixtures before grid build; `luxPlaying` rAF auto-advances `manualHour`
   at 1 hr/s; Drawings panel Lighting tab gains inline time slider + play button + per-fixture checkboxes.
+- **Electrical points schedule** (`analysis/electricalSchedule.ts` pure → `buildElectricalSchedule(plan,
+  items, catalog)`: a consolidated, room-by-room count of **lighting points** (reuses
+  `lightEmitters.isItemEmitter`, the same predicate the lighting plan uses) + indicative **power points /
+  sockets** inferred from the powered furniture categories present (`SOCKETS_PER_CATEGORY`:
+  kitchen/appliances/electronics/laundry/others) floored to a per-room-kind minimum (`MIN_SOCKETS_BY_KIND`
+  via `roomKindFromName`), with per-room + grand totals; items attributed via `allPlanRooms` + `pointInRoom`
+  (multi-storey aware, strays → "Unassigned"). An *indicative* rough quote aid, not a certified electrical
+  layout. Rendered as the "Electrical points (indicative)" report section (rides the `report` flag, additive
+  block — distinct from the lighting plan + fixture schedule). PARITY-ELECTRICAL-SCHED.
 - **IES photometric profiles** (`src/lighting/ies/`, pure + render-agnostic — PC-IES-LIGHT, Coohom
   parity): `parseIes.ts` parses an IESNA LM-63 ASCII `.ies` file (header keywords, TILT line incl.
   inline `TILT=INCLUDE`, the 10 photometric params, vertical/horizontal angle arrays, candela grid ×
