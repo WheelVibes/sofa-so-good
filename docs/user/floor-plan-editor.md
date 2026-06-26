@@ -205,6 +205,12 @@ You can also **drag a room's name** on the plan to nudge it clear of furniture o
 a tight room — it prints in the new spot on the Report and Drawing set too. The
 inspector's **Reset label position** button recentres it.
 
+**Duplicate room** — at the bottom of a selected room's inspector, **Duplicate
+room** drops a complete copy beside the original: its shape (rectangle, L‑shape
+or free‑form polygon), its floor and wall finishes, and its own boundary walls
+all come along, offset slightly so the copy is easy to grab. The copy stays on
+the same level, gets a *‹room› copy* name, and one **Undo** removes it cleanly.
+
 ## Ceiling height & wall colour
 
 With nothing selected, the inspector shows a **Ceiling height** field — raise or

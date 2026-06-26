@@ -656,6 +656,14 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           >
             Edit in 3D
           </button>
+          <button
+            type="button"
+            className="btn btn-block"
+            title="Make a copy of this room — its shape, finishes, and boundary walls, offset so it's visible"
+            onClick={() => a.duplicateRoom(r.id, levelId)}
+          >
+            Duplicate room
+          </button>
           <DeleteBtn onClick={() => a.removeRoom(r.id, levelId)} label="Delete room" />
         </div>
       )

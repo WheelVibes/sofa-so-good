@@ -74,7 +74,8 @@ same change that reshapes a system.
   PlanShell's `SlopedWallMesh`; `slopingWalls` flag, openings disabled). Each wall may carry a
   per-wall baseboard override (`PlanWall.baseboard` height/colour/hidden → PlanShell skirting;
   `wallBaseboard` flag, custom plans only). Furniture also supports multi-axis tilt (`pitch`/`roll`, `furniture/tiltRotation.ts`,
-  `tiltFurniture` flag). 2D editor = `ui/floorplan/`.
+  `tiltFurniture` flag). `duplicateRoom.ts` (pure room clone — offset polygon + finishes + own boundary
+  walls/openings, re-flowed names; powers the `floorPlanSlice.duplicateRoom` action). 2D editor = `ui/floorplan/`.
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (assembles the catalog from
   per-category `defs/<category>.ts` modules + the `cabinet/` engine; also derives
   `BUILTIN_BY_CATEGORY`),
@@ -559,6 +560,10 @@ same change that reshapes a system.
   an **action grid** (Reverse/Split/Join/Duplicate/Lock/Delete for walls; Flip hinge/swing/Duplicate/Lock/Delete
   for doors). **Lock** (`PlanWall.locked`/`PlanOpening.locked`) keeps an element selectable but un-draggable/
   -deletable on the canvas; **`duplicateWall`/`duplicateOpening`** make an editable copy (name + lock dropped).
+  **`duplicateRoom`** (pure `floorplan/duplicateRoom.ts`, PARITY-PLAN-ROOM-DUP — "Duplicate room" in the room
+  inspector) clones a room's polygon (offset 0.5 m), its floor/wall finishes, and its OWN offset boundary
+  walls + their openings (fresh ids, re-flowed `<room> copy …` names) so shared walls are never mutated;
+  one undo step, selects the copy, stays on the room's storey.
   **Multi-select walls** (Shift/⌘-click, or touch **Select+** = `planWallMultiAdd`): primary `planSelection`
   ∪ session `selectedWallIds` (filtered to existing); the inspector shows an *N walls selected* panel with
   bulk **Lock all** / **Delete all** (`setWallsLocked`/`removeWalls`, locked-skipping) + Clear; `toggleWallSelection`
