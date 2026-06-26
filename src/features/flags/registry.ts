@@ -517,6 +517,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Scale the whole plan by a factor, or to a known wall length, in one undoable
+  // action (Sweet Home 3D / RoomSketcher parity) — fix a wrong-scale traced /
+  // imported plan or resize to an exact dimension. Pure geometry, no external
+  // deps → prod-safe (default on). An advanced authoring tool beyond the core
+  // furnish loop → pro tier (hidden in Simple).
+  planScale: {
+    label: 'Scale plan',
+    description: 'Rescale the whole plan by a factor or to a known wall length, in one action',
+    default: true,
+    tier: 'pro',
+  },
   // "View in your room" AR: iOS AR Quick Look from a USDZ (blob), GLB download
   // elsewhere. Pure client-side (no backend/dep) → prod-safe. A high-wow viewing
   // surface beyond the core loop → pro tier.

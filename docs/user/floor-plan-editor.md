@@ -202,6 +202,23 @@ Your reference photo and its calibration are **saved on your device** — close
 the editor or reload the app and it's still there when you come back. Remove it
 any time with the **✕** next to the photo controls.
 
+## Scale the whole plan *(Pro)*
+
+Traced or imported a plan at the wrong scale, or want to resize it to a known
+dimension? Open **Scale plan…** (in the **Plan** menu on desktop, or the **Tools**
+sheet on a phone) to rescale everything in one undoable step:
+
+- **By factor** — type a multiplier (2 = double, 0.5 = half). Every wall, room,
+  door and window grows or shrinks together.
+- **To a length** — pick a reference wall and type its real length; the whole plan
+  scales so that wall measures exactly what you typed.
+
+Furniture is **repositioned** to match the new layout but **keeps its real size**
+by default, so standard pieces stay standard. Tick **Also resize furniture** to
+scale the furniture too — useful when the entire design was drawn at the wrong
+scale. The dialog previews the new total floor area before you commit, and one
+**Undo** reverts the whole rescale.
+
 ## Room finishes
 
 Select a room and the inspector shows **Floor finish** and **Wall finish**

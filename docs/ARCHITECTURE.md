@@ -65,7 +65,12 @@ same change that reshapes a system.
   Vista › 4-Room; `ui/floorplan/SaveTemplateModal.tsx` prompts for the category on save),
   `roomDetect.ts`, `planIntegrity.ts` (stray-element checks — walls joined to no other wall,
   rooms touching no other room, openings off any wall — drawn red in the editor behind the
-  `planIntegrity` Pro flag), `levels.ts` (multi-storey resolution layer F13: top-level arrays = ground,
+  `planIntegrity` Pro flag), `rescalePlan.ts` (PARITY-PLAN-SCALE — pure `rescalePlan(plan, factor |
+  {anchorWallId,targetLength}, items?, opts?)` scales every wall endpoint / room polygon / opening
+  offset / note·dim·polyline / upper storey + furniture POSITION about an anchor; furniture sizes
+  preserved unless `scaleFurnitureSize`; `rescaleFloorPlan` slice action = one undo step;
+  `ui/floorplan/ScalePlanModal.tsx` "Scale plan…" in the Plan menu / mobile Tools sheet; `planScale`
+  Pro flag), `levels.ts` (multi-storey resolution layer F13: top-level arrays = ground,
   `upperLevels` adds storeys; `planLevels`/`levelById`/`levelAsPlan`/`allPlanRooms`/
   `withLevelGeometry` — see `docs/research/multi-level-design.md`),
   `wallArc.ts` (curved walls — `PlanWall.arc` bulge → quadratic-Bézier chord sub-segments reused by

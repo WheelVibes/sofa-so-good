@@ -19,3 +19,12 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (ground default). Schema: `upperLevels` + `levelId` are optional + additive —
   no version bump needed for level features that follow that shape.
 - Geometry stays **pure + unit-tested** here (no three/React imports beyond types).
+- **Whole-plan transforms scale ALL storeys about one anchor.** `rescalePlan.ts`
+  (PARITY-PLAN-SCALE) multiplies every wall endpoint / room polygon / opening
+  offset / note·dim·polyline vertex / upper-storey geometry + furniture POSITION
+  by a factor (or `targetLength/currentLength`) about an anchor point (origin, or
+  the anchor wall's `start`). Furniture **sizes are preserved** by default (SH3D
+  "scale walls" parity) — opt in with `scaleFurnitureSize`. Pure + composable
+  (double-scale composes); factor ≤ 0 / NaN throws; factor 1 is a deep-clone
+  no-op. The store action is `floorPlanSlice.rescaleFloorPlan` (one undo step);
+  UI is `ui/floorplan/ScalePlanModal.tsx` behind the `planScale` Pro flag.

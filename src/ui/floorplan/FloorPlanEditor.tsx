@@ -115,6 +115,7 @@ import { exportPlanPng } from './exportPlanPng'
 import { LevelTabs } from './LevelTabs'
 import { PlanInspector } from './PlanInspector'
 import { PLAN_LABEL_TEXT, planLabelLines } from './planLabels'
+import { ScalePlanModal } from './ScalePlanModal'
 import { TemplatePicker } from './TemplatePicker'
 
 export function FloorPlanEditor() {
@@ -148,6 +149,8 @@ export function FloorPlanEditor() {
   // per-room editor's collapsed mobile toolbar).
   const isMobile = useIsMobile()
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false)
+  const [scaleModalOpen, setScaleModalOpen] = useState(false)
+  const fPlanScale = useFeature('planScale')
   const fPanoTour = useFeature('panoTour')
   const fCurvedWalls = useFeature('curvedWalls')
   const fCompass = useFeature('planCompass')
@@ -1640,6 +1643,18 @@ export function FloorPlanEditor() {
           </button>
         </div>
       )}
+      {/* Scale the whole plan to a factor or a known wall length (PARITY-PLAN-SCALE),
+          gated by the `planScale` pro flag (hidden in Simple mode). */}
+      {fPlanScale ? (
+        <button
+          type="button"
+          onClick={() => setScaleModalOpen(true)}
+          title="Rescale the whole plan by a factor or to a known wall length"
+          className="btn btn-sm"
+        >
+          Scale plan…
+        </button>
+      ) : null}
     </>
   )
 
@@ -2056,6 +2071,13 @@ export function FloorPlanEditor() {
           </div>
         </Modal>
       )}
+
+      {/* Scale-plan dialog (PARITY-PLAN-SCALE) — opened from the "Scale plan…"
+          action in the Plan menu / mobile Tools sheet. Mounted only when its flag
+          is on so the modal never opens in Simple mode. */}
+      {fPlanScale ? (
+        <ScalePlanModal open={scaleModalOpen} onClose={() => setScaleModalOpen(false)} />
+      ) : null}
 
       <div className="flex min-h-0 flex-1">
         {/* Canvas */}
