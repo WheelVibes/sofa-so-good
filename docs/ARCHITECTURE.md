@@ -516,6 +516,14 @@ same change that reshapes a system.
   (corridor/hallway rooms by name). Reuses `allPlanRooms`/`planLevels`/`planRoomArea`/
   `planRoomPerimeter`/`wallLength`; empty plan → fully-zeroed digest. The report's "Plan statistics"
   section (rides the `report` flag, no new flag).
+- **Renovation timeline** (`analysis/renoTimeline.ts` pure → `buildRenoTimeline(input|plan)`: an
+  indicative phased schedule [protection/hacking → … → cleaning/handover] scaled by area + room count,
+  `RENO_PHASES` table). Rendered as the report's Renovation timeline Gantt section. **`.ics` calendar
+  export** (`export/renoIcs.ts` pure `buildRenoIcs(phases, startDate[, now])` → RFC-5545 VCALENDAR,
+  one all-day VEVENT per phase, CRLF + TEXT escaping + stable per-phase UID + PRODID; `startDate`
+  passed in so the module is clock-free; empty phases → a valid empty VCALENDAR. `ui/openRenoIcs.ts` =
+  Blob download starting today, toasts when there are no phases). Tools + mobile + ⌘K, rides the
+  existing `report` flag (pro).
 - **Accessibility check** (`analysis/accessibility.ts` pure → `buildAccessibilityReport(plan)`:
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
   thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
