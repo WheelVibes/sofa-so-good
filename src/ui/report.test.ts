@@ -396,6 +396,19 @@ describe('buildReportHtml', () => {
   })
 })
 
+describe('buildReportHtml — plan statistics digest (PARITY-PLAN-STATS)', () => {
+  const plan = buildDefaultPlan()
+
+  it('renders a Plan statistics section with the room-type breakdown', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Plan statistics')
+    expect(html).toContain('Gross floor area')
+    expect(html).toContain('Average room size')
+    expect(html).toContain('Total wall length')
+    expect(html).toContain('Room type')
+  })
+})
+
 describe('buildReportHtml — multi-storey fan-out (F13)', () => {
   const plan = buildDefaultPlan()
   const upper = {

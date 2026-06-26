@@ -7,6 +7,7 @@
 import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildDesignScore } from '../analysis/designScore'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
+import { buildPlanStatistics, roomKindLabel } from '../analysis/planStatistics'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
 import { estimateRenovation } from '../analysis/renovationCost'
 import { buildStairAdvisories } from '../analysis/stairConnectivity'
@@ -175,6 +176,47 @@ export function buildReportHtml(
           .join('')
       : plan.rooms.map((r) => roomRow(r, plan.ceilingHeight)).join(''))
   const totalArea = roomsAll.reduce((s, r) => s + planRoomArea(r), 0)
+
+  // Plan statistics digest (PARITY-PLAN-STATS) — a single "by the numbers" read
+  // of the home: GFA across all storeys, room count + per-kind mix, average room
+  // size, total perimeter + wall length, and the net-vs-circulation split when
+  // corridor/hallway rooms exist. Pure (analysis/planStatistics); reconciles with
+  // the room schedule because it shares the same area/perimeter helpers.
+  const stats = buildPlanStatistics(plan)
+  const pct = (f: number) => `${Math.round(f * 100)}%`
+  const statRow = (label: string, value: string) =>
+    `<tr><td>${esc(label)}</td><td class="num">${esc(value)}</td></tr>`
+  const planStatsSection =
+    stats.roomCount === 0 && stats.totalWallLengthM === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Plan statistics</h2>
+      <table>
+        ${statRow('Gross floor area', formatArea(stats.totalAreaSqm, units))}
+        ${statRow(stats.levelCount > 1 ? `Rooms · ${stats.levelCount} storeys` : 'Rooms', String(stats.roomCount))}
+        ${stats.roomCount > 0 ? statRow('Average room size', formatArea(stats.averageRoomSqm, units)) : ''}
+        ${statRow('Total room perimeter', formatLength(stats.totalPerimeterM, units))}
+        ${stats.totalWallLengthM > 0 ? statRow('Total wall length', formatLength(stats.totalWallLengthM, units)) : ''}
+        ${
+          stats.circulationSqm > 0
+            ? statRow(
+                'Net vs circulation',
+                `${formatArea(stats.netAreaSqm, units)} net · ${formatArea(stats.circulationSqm, units)} circulation (${pct(stats.circulationFraction)})`,
+              )
+            : ''
+        }
+      </table>
+      ${
+        stats.byKind.length > 0
+          ? `<table style="margin-top:8px"><tr class="cat"><td>Room type</td><td class="num">Count</td><td class="num">Area</td></tr>${stats.byKind
+              .map(
+                (k) =>
+                  `<tr><td>${esc(roomKindLabel(k.kind))}</td><td class="num">${k.count}</td><td class="num">${formatArea(k.areaSqm, units)}</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }
+    </div>`
 
   // Furniture grouped by category.
   const byCat = new Map<
@@ -719,6 +761,7 @@ export function buildReportHtml(
       }
     </div>
   </div>
+  ${planStatsSection}
   ${
     roomCostRows
       ? `<div class="room-cost">
