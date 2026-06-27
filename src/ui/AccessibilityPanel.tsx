@@ -7,6 +7,7 @@ import {
 } from '../analysis/accessibility'
 import { useStore } from '../state/store'
 import { formatLength } from '../utils/measurement'
+import { AuxPanelHead } from './AuxPanelHead'
 import { EmptyState } from './EmptyState'
 import { Icon } from './toolbar/icons'
 
@@ -27,23 +28,17 @@ export function AccessibilityPanel() {
 
   return (
     <aside className="panel mini aux aux-360" id="accessibilityPanel">
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Accessibility</div>
-          <div className="panel-sub">
+      <AuxPanelHead
+        title="Accessibility"
+        sub={
+          <>
             Doors ≥ {formatLength(MIN_DOOR_CLEAR, units)} · {formatLength(TURN_CIRCLE, units)}{' '}
             turning circle per room
-          </div>
-        </div>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close"
-          onClick={() => setOpen(false)}
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
+          </>
+        }
+        docs="accessibility"
+        onClose={() => setOpen(false)}
+      />
       <hr className="hr" />
       <div className="panel-body">
         <div className="clr-summary">

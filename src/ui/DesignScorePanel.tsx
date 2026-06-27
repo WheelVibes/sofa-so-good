@@ -13,7 +13,7 @@ import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
-import { Icon } from './toolbar/icons'
+import { AuxPanelHead } from './AuxPanelHead'
 
 /** Maps a letter grade to a token colour for the dial + grade chip. */
 function gradeColor(grade: Grade): string {
@@ -102,20 +102,12 @@ export function DesignScorePanel() {
 
   return (
     <aside className="panel mini aux aux-360" id="designScorePanel">
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Design score</div>
-          <div className="panel-sub">Clearance · furnishing · flow · daylight · lighting</div>
-        </div>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close"
-          onClick={() => setOpen(false)}
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
+      <AuxPanelHead
+        title="Design score"
+        sub="Clearance · furnishing · flow · daylight · lighting"
+        docs="designScore"
+        onClose={() => setOpen(false)}
+      />
       <hr className="hr" />
       <div className="panel-body">
         {/* Overall dial */}

@@ -14,6 +14,7 @@ import { LocalStorageAdapter } from '../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../state/storage/slotThumbs'
 import { useStore } from '../state/store'
+import { AuxPanelHead } from './AuxPanelHead'
 import { EmptyState } from './EmptyState'
 import { Icon } from './toolbar/icons'
 import {
@@ -167,20 +168,12 @@ export function VersionsPanel() {
 
   return (
     <aside className="panel mini aux" id="versionsPanel" style={{ width: 340 }}>
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Versions</div>
-          <div className="panel-sub">Layout history</div>
-        </div>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close"
-          onClick={() => setOpen(false)}
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
+      <AuxPanelHead
+        title="Versions"
+        sub="Layout history"
+        docs="versions"
+        onClose={() => setOpen(false)}
+      />
       <hr className="hr" />
       <div className="panel-body">
         <button type="button" className="btn btn-accent btn-block" onClick={save}>

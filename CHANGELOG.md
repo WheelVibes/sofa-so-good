@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Contextual docs deep-links: helper + aux-panel headers (v0.5.0.4)
+
+First slice of the discoverability work (DOCS-DEEPLINK). `src/ui/docsUrl.ts` gains a `FEATURE_DOCS`
+registry (`DocKey` = `FeatureFlag` + a few non-flag tool keys) with `docsUrlFor(key)`/`openToolDocs(key)`
+that build `${DOCS_URL}<slug>#<anchor>` deep-links — anchors are the **real generated heading ids**
+grepped from the built `dist/docs/<slug>.html` (so they don't 404), `encodeURI`'d for the few unicode
+ones. A new shared `src/ui/AuxPanelHead.tsx` renders the standard panel header (title + sub + Close)
+plus a contextual **"?" (`Icon.Help`)** that opens that panel's guide section; the ten aux panels
+(Budget, Clearance, Design score, Accessibility, Daylight, Drawings, Comments, History, Versions,
+Sheet callouts) now use it. Unit tests cover `docsUrlFor` (URL shape, no-anchor, unicode encoding,
+fallback) + a page-slug integrity guard. Groundwork for the action-registry migration that wires the
+same `docs` links into the command palette, toolbar menus, and tooltips.
+
 ## Polygon-room tool discoverability (v0.5.0.3)
 
 Non-rectangular / L-shaped rooms were already drawable via the `polyroom` tool, but it was just

@@ -1,0 +1,57 @@
+{
+  "name": "auxhead-verify",
+  "description": "Aux panel header shows the docs '?' + Close (Design score panel).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "skip-onboarding",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}"
+    },
+    {
+      "name": "reload",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-ready",
+      "waitFor": {
+        "store": "state.bootPhase === 'ready'"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "force-scene-ready",
+      "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}"
+    },
+    {
+      "name": "dismiss-location",
+      "eval": "window.__store.getState().dismissLocationPrompt()"
+    },
+    {
+      "name": "pro-mode",
+      "eval": "try{ window.__store.getState().setUiMode && window.__store.getState().setUiMode('pro') }catch(e){}"
+    },
+    {
+      "name": "open-score",
+      "eval": "window.__store.getState().setDesignScoreOpen(true)"
+    },
+    {
+      "name": "settle",
+      "wait": 3500
+    },
+    {
+      "name": "shot",
+      "screenshot": "aux-head-score"
+    },
+    {
+      "name": "check-help",
+      "eval": "(function(){var b=document.querySelector('.aux .panel-head-actions button[aria-label^=\"Open the user guide\"]');if(!b)throw new Error('no docs help button; panels='+document.querySelectorAll('.aux').length);return 'ok'})()"
+    }
+  ]
+}

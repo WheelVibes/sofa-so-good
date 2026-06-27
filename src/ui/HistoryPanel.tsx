@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
+import { AuxPanelHead } from './AuxPanelHead'
 import { EmptyState } from './EmptyState'
 import { buildHistoryTimeline } from './historyTimeline'
 import { Icon } from './toolbar/icons'
@@ -60,22 +61,12 @@ export function HistoryPanel() {
 
   return (
     <aside className="panel mini aux" id="historyPanel" style={{ width: 300 }}>
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">History</div>
-          <div className="panel-sub">
-            {stepCount === 0 ? 'No edits yet' : `${stepCount} step${stepCount === 1 ? '' : 's'}`}
-          </div>
-        </div>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close"
-          onClick={() => setOpen(false)}
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
+      <AuxPanelHead
+        title="History"
+        sub={stepCount === 0 ? 'No edits yet' : `${stepCount} step${stepCount === 1 ? '' : 's'}`}
+        docs="history"
+        onClose={() => setOpen(false)}
+      />
       <hr className="hr" />
       <div className="panel-body">
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>

@@ -8,6 +8,7 @@ import { spendByRoom } from '../furniture/spendByRoom'
 import type { FurnitureCategory } from '../furniture/types'
 import { useStore } from '../state/store'
 import { safeUrl } from '../utils/safeUrl'
+import { AuxPanelHead } from './AuxPanelHead'
 import { CategoryIcon } from './catalog/CategoryIcon'
 import { EmptyState } from './EmptyState'
 import { buildShoppingCsv } from './shoppingCsv'
@@ -86,15 +87,13 @@ export function BudgetPanel() {
 
   return (
     <aside className="panel mini aux">
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Shopping</div>
-          <div className="panel-sub">Budget &amp; collections</div>
-        </div>
-        <button type="button" onClick={toggle} className="icon-btn" aria-label="Close budget">
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
+      <AuxPanelHead
+        title="Shopping"
+        sub="Budget & collections"
+        docs="budget"
+        onClose={toggle}
+        closeLabel="Close budget"
+      />
       <div className="shop-tabs" style={{ padding: '0 var(--s-4)' }}>
         <button
           type="button"
