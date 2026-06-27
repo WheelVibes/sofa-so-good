@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Furniture: precise rotation + numeric elevation entry (v0.6.0.6)
+
+Rounds out the *position* axis. The Transform rotation field stepped in 15° jumps — now 1° (any whole
+angle; the Rotate-90 button stays for quick turns). The elevation (off-floor height) control was a
+slider with a read-only value — the value is now an editable metre field (clamped to floor→ceiling), so
+a wall shelf / floating console can be placed at an exact height, not only dragged.
+
 ## Furniture: per-part texture/material (not just colour) + clear-revert fix (v0.6.0.5)
 
 Extends the per-part GLB finish from colour-only to **textures**: each named part of a model can now be

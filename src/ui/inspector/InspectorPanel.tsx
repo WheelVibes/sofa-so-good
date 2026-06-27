@@ -17,7 +17,7 @@ import { radialArrayPlacements } from '../../furniture/radialArray'
 import { isOffSquare, nearestRightAngle } from '../../layout/angle'
 import { rotationFacingRoom } from '../../layout/faceWall'
 import { useStore } from '../../state/store'
-import { formatDimsShort, formatLength } from '../../utils/measurement'
+import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
 import { Icon } from '../toolbar/icons'
 import { GltfBody } from './GltfBody'
@@ -501,7 +501,7 @@ export function InspectorPanel() {
                     label="Rotation"
                     unit="°"
                     value={(item.rotation * 180) / Math.PI}
-                    step={15}
+                    step={1}
                     onCommit={trySetRot}
                     integer
                   />
@@ -900,7 +900,37 @@ export function InspectorPanel() {
                     }}
                   >
                     <span>Elevation (off floor)</span>
-                    <span>{formatLength(item.elevation ?? 0, units)}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={Math.max(0.1, inspectorCeiling)}
+                      step={0.05}
+                      key={(item.elevation ?? 0).toFixed(2)}
+                      defaultValue={(item.elevation ?? 0).toFixed(2)}
+                      onBlur={(e) => {
+                        const v = Number(e.target.value)
+                        if (Number.isFinite(v))
+                          setItemElevation(
+                            item.id,
+                            Math.min(Math.max(0.1, inspectorCeiling), Math.max(0, v)),
+                          )
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                      }}
+                      aria-label="Elevation above floor (m)"
+                      style={{
+                        width: '58px',
+                        textAlign: 'right',
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border-2)',
+                        borderRadius: 'var(--r-1)',
+                        padding: '1px 4px',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 'var(--t-2xs)',
+                        color: 'var(--text)',
+                      }}
+                    />
                   </div>
                   <input
                     type="range"
