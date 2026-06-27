@@ -15,6 +15,19 @@ interface GltfBodyProps {
   def: GltfDef
 }
 
+/** Texture finishes a model part can be re-skinned with (besides a flat colour).
+ *  Each id is a `getSurfaceMaterial` kind, applied to the matched mesh. */
+const PART_MATERIALS = [
+  { id: 'wood', label: 'Wood' },
+  { id: 'marble', label: 'Marble' },
+  { id: 'stone', label: 'Stone' },
+  { id: 'metal', label: 'Metal' },
+  { id: 'rattan', label: 'Rattan' },
+  { id: 'concrete', label: 'Concrete' },
+  { id: 'painted', label: 'Painted' },
+  { id: 'gloss', label: 'Gloss' },
+] as const
+
 /** GLTF-backed items expose a small set of generic controls — scale (uniform or
  *  per-axis W/D/H), optional tint, and (for built-ins) the attribution string so
  *  users can credit the asset author. */
@@ -164,28 +177,54 @@ export function GltfBody({ item, def }: GltfBodyProps) {
           <DimField label="H" axis="H" value={curH} />
         </div>
       </div>
-      {/* Per-part recolour: one swatch per named material in the model, so a
-          user can repaint just the legs / seat / frame, not only tint the whole
-          piece. Shown once the GLB has loaded and exposes 2+ parts. */}
+      {/* Per-part finish: per named material in the model, pick a colour OR a
+          texture (wood / marble / metal / rattan / painted / gloss) so a user can
+          re-skin just the legs / seat / frame. Shown once the GLB has loaded and
+          exposes 2+ parts. */}
       {targets.length >= 2 ? (
         <div className="space-y-1">
           <div className="text-[10px] uppercase tracking-wide text-[var(--text-3)]">
-            Recolour parts
+            Part finishes
           </div>
           {targets.map((t) => {
             const key = finishOverrideKey(t.key)
             const override = typeof item.props[key] === 'string' ? (item.props[key] as string) : ''
+            const isColour = override === '' || override.startsWith('#')
+            const mode = isColour ? 'colour' : override
             return (
-              <label key={t.key} className="flex items-center justify-between gap-2 text-xs">
-                <span className="flex-1 truncate" title={t.label}>
+              <label key={t.key} className="flex items-center gap-2 text-xs">
+                <span className="min-w-0 flex-1 truncate" title={t.label}>
                   {t.label}
                 </span>
-                <input
-                  type="color"
-                  value={override || '#ffffff'}
-                  onChange={(e) => updateItemProps(item.id, { [key]: e.target.value })}
-                  className="h-6 w-10 cursor-pointer rounded border border-[var(--border-2)]"
-                />
+                <select
+                  value={mode}
+                  onChange={(e) =>
+                    updateItemProps(item.id, {
+                      [key]:
+                        e.target.value === 'colour'
+                          ? override.startsWith('#')
+                            ? override
+                            : '#cfcfcf'
+                          : e.target.value,
+                    })
+                  }
+                  className="rounded border border-[var(--border-2)] bg-[var(--surface)] px-1 py-0.5 text-[10px]"
+                >
+                  <option value="colour">Colour</option>
+                  {PART_MATERIALS.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+                {isColour ? (
+                  <input
+                    type="color"
+                    value={override.startsWith('#') ? override : '#cfcfcf'}
+                    onChange={(e) => updateItemProps(item.id, { [key]: e.target.value })}
+                    className="h-6 w-9 cursor-pointer rounded border border-[var(--border-2)]"
+                  />
+                ) : null}
                 {override ? (
                   <button
                     type="button"

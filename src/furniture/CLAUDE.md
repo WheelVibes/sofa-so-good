@@ -12,12 +12,18 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected
   for imports, **never** typed by hand.
-- **Per-part recolour** of any GLB: a placed item's `props['finish:<materialOrMeshName>'] = '#hex'`
-  recolours that named group. `selectGltfRender` collects these for **every** GLB kind (IKEA, builtin,
-  upload, remote), merging over any def-level `finishOverrides` (item wins) and dropping blanks (a
-  cleared swatch must never reach `new Color('')`). The inspector (`GltfBody`) lists a model's parts
-  from `getCachedFinishTargets(url)` — `GltfModel` runs `listFinishTargets` once on load, caches by base
-  url, and fires `subscribeFinishTargets` so the panel shows pickers as soon as the model is ready.
+- **Per-part finish** of any GLB: a placed item's `props['finish:<materialOrMeshName>']` re-skins that
+  named group — value is either a hex `#colour` (retints the part's own material, keeping its maps) OR a
+  material token (`wood`/`marble`/`stone`/`metal`/`rattan`/`concrete`/`painted`/`gloss`/`mat:<id>`,
+  resolved via `getSurfaceMaterial` and swapped in). `selectGltfRender` collects these for **every** GLB
+  kind (IKEA, builtin, upload, remote), merging over any def-level `finishOverrides` (item wins) and
+  dropping blanks. `GltfModel`'s apply pass captures each touched part's **original** material once
+  (`userData.__finishOrig`) and restores it each run, so clearing one finish among several reverts that
+  part cleanly. The inspector (`GltfBody`) lists a model's parts from `getCachedFinishTargets(url)` —
+  `GltfModel` runs `listFinishTargets` once on load, caches by base url, and fires
+  `subscribeFinishTargets` so the panel shows the per-part colour/material pickers as soon as the model
+  is ready. (LOD note: material/mesh names can differ between tier variants, so the cached targets
+  reflect whichever variant rendered.)
 - **All GLB items** (bundled CC0 / user uploads / IKEA) render through `GltfModel`/`gltfRender.ts`
   — set the same collision flags; run `npm run optimize:glb` for `-low`/`-medium` LOD variants
   (uploads generate theirs in-browser via `optimize/lodVariants.ts`, routed by the `gltf/lod.ts`

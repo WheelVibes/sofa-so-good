@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Furniture: per-part texture/material (not just colour) + clear-revert fix (v0.6.0.5)
+
+Extends the per-part GLB finish from colour-only to **textures**: each named part of a model can now be
+re-skinned with Wood / Marble / Stone / Metal / Rattan / Concrete / Painted / Gloss (via
+`getSurfaceMaterial`), or a flat colour — chosen from a per-part dropdown + swatch in the inspector
+("Part finishes"). `getSurfaceMaterial` gained a `metal` branch (brushed satin) so the menu's metal
+option isn't silently wood. The `finishOverrides` apply path in `GltfModel` now treats a value as a
+hex colour (retint the part's own material, keeping its maps) or a material token (swap in the surface
+material), and — fixing a latent bug — **captures each touched part's original material and restores it
+each pass**, so clearing one finish among several reverts that part cleanly instead of leaving it on a
+just-disposed clone. Verified end-to-end: a built-in pool table → all parts Marble (renders as marble),
+then Clear → back to the original green felt + timber frame.
+
 ## Per-element colour: walls, doors & window glass (v0.6.0.4)
 
 Extends the customizability push to the architecture (`elementColors`, simple tier, default on). Walls,

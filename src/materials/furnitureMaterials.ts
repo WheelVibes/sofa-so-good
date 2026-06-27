@@ -899,6 +899,7 @@ export function getSurfaceMaterial(
   if (kind === 'rattan') return getRattanMaterial(color, repeat * 3)
   if (kind === 'concrete')
     return getConcreteMaterial(color, repeat, sheen > 0 ? sheenRough(0.85, sheen) : 0.85)
+  if (kind === 'metal') return getMetalMaterial(color, 'satin', repeat)
   return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
 }
 

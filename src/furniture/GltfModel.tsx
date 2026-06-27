@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BufferGeometry, Material, Object3D, Texture } from 'three'
 import { Box3, Color, type Mesh, type MeshStandardMaterial, Triangle, Vector3 } from 'three'
 import { SkeletonUtils } from 'three-stdlib'
+import { getSurfaceMaterial } from '../materials/furnitureMaterials'
 import { effectiveAssetTier } from '../scene/quality'
 import { useStore } from '../state/store'
 import { type FinishTarget, listFinishTargets, meshMatchesTarget } from './gltf/finishTargets'
@@ -400,35 +401,61 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides, reflective }:
     })
   }, [cloned, tint])
 
-  // Per-target finish overrides (key → hex tint). Cloned so instances don't
-  // share materials. (The configurator milestone will extend this to full
-  // mat:<id>/procedural finishes via getSurfaceMaterial.)
+  // Per-target finish overrides (key → a hex `#colour` OR a material/texture
+  // token like `wood` / `marble` / `metal` / `rattan` / `painted` / `gloss` /
+  // `mat:<id>`). Cloned so instances don't share materials.
   //
-  // NOTE: this effect and the global `tint` effect above both mutate `cloned`
-  // materials. In normal use a piece sets one or the other. If both are set,
-  // last-effect-wins on any overlapping meshes (this effect runs after the
-  // tint effect) — acceptable for this task.
+  // Each pass first restores every previously-touched mesh to its captured
+  // ORIGINAL material (stored once in `userData.__finishOrig`), so clearing /
+  // removing one override among several reverts that part cleanly (instead of
+  // leaving it on a just-disposed clone). Then it re-applies the current set.
+  //
+  // NOTE: this effect and the global `tint` effect both mutate `cloned`
+  // materials; for one piece a user sets one or the other (last-effect-wins on
+  // any overlap — this runs after tint).
   useEffect(() => {
-    // Free the clones from the previous finish pass before re-applying.
     for (const m of finishMatsRef.current) m.dispose()
     finishMatsRef.current = []
-    if (!finishOverrides || Object.keys(finishOverrides).length === 0) return
     cloned.traverse((obj) => {
       const mesh = obj as Mesh
       if (!mesh.isMesh) return
-      for (const [key, hex] of Object.entries(finishOverrides)) {
+      const orig = mesh.userData.__finishOrig as
+        | MeshStandardMaterial
+        | MeshStandardMaterial[]
+        | undefined
+      if (orig) mesh.material = orig
+    })
+    const overrides = finishOverrides ?? {}
+    if (Object.keys(overrides).length === 0) return
+    cloned.traverse((obj) => {
+      const mesh = obj as Mesh
+      if (!mesh.isMesh) return
+      for (const [key, value] of Object.entries(overrides)) {
         if (!meshMatchesTarget(mesh, key)) continue
-        const c = new Color(hex)
+        // Capture the untouched material once so a later clear can revert to it.
+        if (mesh.userData.__finishOrig == null) mesh.userData.__finishOrig = mesh.material
+        const skin = (m: MeshStandardMaterial): MeshStandardMaterial => {
+          if (value.startsWith('#')) {
+            // Colour: keep the part's own material (maps/roughness), retint it.
+            const clone = m.clone()
+            if ('color' in clone && clone.color) clone.color = new Color(value)
+            finishMatsRef.current.push(clone)
+            return clone
+          }
+          // Material/texture: swap in a furniture surface material (wood grain,
+          // marble, brushed metal, …). Cloned so per-instance disposal is safe.
+          const surf = getSurfaceMaterial(value, '#cfcfcf', 1).clone()
+          finishMatsRef.current.push(surf)
+          return surf
+        }
         const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
-        mesh.material = mats.map((m) => {
-          const clone = (m as MeshStandardMaterial).clone()
-          if ('color' in clone && clone.color) clone.color = c.clone()
-          finishMatsRef.current.push(clone)
-          return clone
-        }) as MeshStandardMaterial | MeshStandardMaterial[]
+        mesh.material = mats.map((m) => skin(m as MeshStandardMaterial)) as
+          | MeshStandardMaterial
+          | MeshStandardMaterial[]
         if (!Array.isArray(mesh.material) || mesh.material.length === 1) {
           mesh.material = (mesh.material as MeshStandardMaterial[])[0]
         }
+        break
       }
     })
   }, [cloned, finishOverrides])
