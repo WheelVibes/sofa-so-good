@@ -246,6 +246,54 @@ describe('procedural detail: marble vein normal-relief + polished roughness drif
   })
 })
 
+// CONCRETE-PORES: fine pinhole-pore roughness micro-variation — a sealed
+// concrete face is peppered with tiny air pinholes that scatter light and read
+// rougher than the sealed face. This is a roughness-only term LAYERED on top of
+// the existing macro mottle/pore/stain break-up (marble/tile/plaster untouched).
+describe('procedural detail: concrete pinhole-pore roughness micro-variation (CONCRETE-PORES)', () => {
+  const S = 96
+
+  it('the concrete roughness carries fine pinhole micro-variation (a wide distinct-value set)', () => {
+    const { roughness } = generateProceduralRaw('cpores', 'concrete', '#b8b6b2', S)
+    const vals = new Set<number>()
+    for (let i = 0; i < roughness.length; i += 4) vals.add(roughness[i])
+    // The macro mottle/stain drift alone is gentle; the scattered pinhole lift
+    // pushes the distinct-value set markedly wider (guards the pore term).
+    expect(vals.size, 'concrete roughness reads flat (no pinhole pores)').toBeGreaterThan(20)
+  })
+
+  it('the pinhole pores open a distinctly-rougher tail above the macro roughness band', () => {
+    const { roughness } = generateProceduralRaw('cporestail', 'concrete', '#b8b6b2', S)
+    // Macro concrete roughness = 0.78 + (m-0.5)*0.1 − (st-0.5)*0.06, so it can
+    // only reach ≈0.86 (≈219/255) without the pinhole lift. Any texel clearly
+    // above that ceiling can ONLY come from the +0.16 pinhole term → a real,
+    // localized guard that the pore lift is present (not just broad drift).
+    let max = 0
+    for (let i = 0; i < roughness.length; i += 4) if (roughness[i] > max) max = roughness[i]
+    expect(max, 'no pinhole-pore roughness peak above the macro band').toBeGreaterThan(0.9 * 255)
+  })
+
+  it('every concrete roughness texel stays in [0,1] (no NaN, no out-of-range pore peak)', () => {
+    const { roughness } = generateProceduralRaw('cporesclamp', 'concrete', '#b8b6b2', S)
+    for (let i = 0; i < roughness.length; i += 4) {
+      const r = roughness[i]
+      expect(Number.isNaN(r)).toBe(false)
+      // The greyscale roughness byte must stay within the valid 0..255 range —
+      // the painter clamps roughness to [0,1] after adding the pinhole lift.
+      expect(r).toBeGreaterThanOrEqual(0)
+      expect(r).toBeLessThanOrEqual(255)
+    }
+  })
+
+  it('stays deterministic with the pinhole-pore term added', () => {
+    const a = generateProceduralRaw('cporesdet', 'concrete', '#b8b6b2', S)
+    const b = generateProceduralRaw('cporesdet', 'concrete', '#b8b6b2', S)
+    expect(Array.from(a.roughness)).toEqual(Array.from(b.roughness))
+    expect(Array.from(a.albedo)).toEqual(Array.from(b.albedo))
+    expect(Array.from(a.normal)).toEqual(Array.from(b.normal))
+  })
+})
+
 // MAT-003: painted-plaster roller-nap roughness drift — a roller leaves a faint
 // stipple/orange-peel; the plaster roughness must drift (broad coverage + fine
 // nap) so the wall isn't a single flat matte value, while STAYING clearly matte.

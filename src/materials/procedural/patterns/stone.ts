@@ -1,7 +1,13 @@
 /** Stone / mineral procedural patterns (concrete, marble, terrazzo). */
 import { blank, type Fields, setPx, shade } from '../fieldKit'
 import { clamp01, makeFbm, mulberry32 } from '../noise'
-import { DEFAULT_STONE_SURFACE_PARAMS, makeRoughDrift, veinHeight } from '../stoneSurface'
+import {
+  DEFAULT_CONCRETE_SURFACE_PARAMS,
+  DEFAULT_STONE_SURFACE_PARAMS,
+  makePinholePores,
+  makeRoughDrift,
+  veinHeight,
+} from '../stoneSurface'
 
 export function concreteFields(base: [number, number, number], seed: number, S: number): Fields {
   const f = blank(S)
@@ -14,6 +20,14 @@ export function concreteFields(base: [number, number, number], seed: number, S: 
   // (sealed/stained sheen). `baseFreq` MUST be an integer (it sizes the value-
   // noise grid) — 3 gives patches larger than the freq-5 mottle.
   const stain = makeFbm(seed + 19, 2, 3)
+  // CONCRETE-PORES — a fine pinhole-pore roughness lift LAYERED on top of the
+  // macro mottle/pore/stain break-up above: a sealed concrete face is peppered
+  // with tiny air pinholes that scatter light and read rougher than the sealed
+  // face. Roughness-only (the macro `pore` term already darkens/recesses the
+  // big voids); distinct seed offset (+137 inside the helper) so it doesn't
+  // correlate with the +5/+41/+19 macro fields.
+  const { pores: poreIntensity } = DEFAULT_CONCRETE_SURFACE_PARAMS
+  const pinhole = makePinholePores(seed, poreIntensity)
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const u = x / S
@@ -24,15 +38,10 @@ export function concreteFields(base: [number, number, number], seed: number, S: 
       const pore = p > 0.86 ? (p - 0.86) / 0.14 : 0
       const factor = (0.86 + (m - 0.5) * 0.22 - pore * 0.25) * (0.9 + st * 0.1)
       const [r, g, b] = shade(base, clamp01(factor))
-      setPx(
-        f,
-        y * S + x,
-        r,
-        g,
-        b,
-        clamp01(m * 0.6 + pore),
-        0.78 + (m - 0.5) * 0.1 - (st - 0.5) * 0.06,
-      )
+      // Macro roughness (mottle drift − stain sheen) PLUS the fine pinhole lift,
+      // clamped to [0,1] so no pore peak ever pushes roughness out of range.
+      const rough = clamp01(0.78 + (m - 0.5) * 0.1 - (st - 0.5) * 0.06 + pinhole(u, v))
+      setPx(f, y * S + x, r, g, b, clamp01(m * 0.6 + pore), rough)
     }
   }
   return f

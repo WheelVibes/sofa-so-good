@@ -59,7 +59,17 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   **gated behind `pbrSurfaces`**, same gate as the PR6 cloud; off → legacy uniform polish, no rough
   map). The Path-B drift map is a multiplier clamped ≤ 1 → only glossier, never matter (no
   regression). Keep it **subtle** (`DEFAULT_STONE_SURFACE_PARAMS`; `veinRelief`/`roughDrift` 0..1,
-  `0` disables). Albedo sRGB, normal/roughness linear. concrete/terrazzo are untouched.
+  `0` disables). Albedo sRGB, normal/roughness linear. terrazzo is untouched.
+- **Concrete pinhole pores (CONCRETE-PORES)**: the same `procedural/stoneSurface.ts` exports
+  `makePinholePores(seed, pores)` — a **roughness-only**, non-negative micro lift where a
+  high-frequency noise field (distinct seed offset +137, integer freq) crosses a high threshold, so
+  a sparse, scattered set of tiny air pinholes reads rougher than the sealed face (a ramp at the
+  rim, never a hard speckle; never polka-dots). Wired into **Path A** only
+  (`procedural/patterns/stone.ts:concreteFields` — **layered onto** the existing macro
+  mottle/pore/stain roughness, NOT replacing it; the macro `pore` term still owns the albedo
+  darkening + height recess). The combined roughness is clamped `[0,1]` after the lift. No flag, all
+  tiers (like RZ4); deterministic. Keep it **subtle** (`DEFAULT_CONCRETE_SURFACE_PARAMS`; `pores`
+  0..1, `0` disables). marble/tile/plaster paths untouched.
 - **Plaster/concrete roller-nap (MAT-003)**: the pure `procedural/plasterSurface.ts` adds the cue
   matte painted walls need — `makeRollerNap(seed, nap)` is a signed, mean-preserving roughness
   *drift* (broad coverage + fine nap stipple, ±~0.035) so a matte wall isn't a single flat

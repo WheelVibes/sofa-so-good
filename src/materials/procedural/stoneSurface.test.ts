@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_STONE_SURFACE_PARAMS, makeRoughDrift, veinHeight } from './stoneSurface'
+import {
+  DEFAULT_CONCRETE_SURFACE_PARAMS,
+  DEFAULT_STONE_SURFACE_PARAMS,
+  makePinholePores,
+  makeRoughDrift,
+  veinHeight,
+} from './stoneSurface'
 
 const SIZE = 64
 const SEED = 0x5a17
@@ -84,6 +90,73 @@ describe('makeRoughDrift (MAT-001 polished roughness drift)', () => {
     for (let i = 1; i < 30; i++) {
       const u = i / 30
       const v = (i * 3) / 30
+      expect(half(u, v)).toBeCloseTo(full(u, v) * 0.5, 10)
+    }
+  })
+})
+
+describe('makePinholePores (CONCRETE-PORES fine pinhole roughness)', () => {
+  const G = 96 // sample grid
+
+  it('is a sparse, non-negative, finite roughness lift (scattered pinholes, not polka-dots)', () => {
+    const pore = makePinholePores(SEED, DEFAULT_CONCRETE_SURFACE_PARAMS.pores)
+    let open = 0
+    let total = 0
+    let max = -Infinity
+    for (let y = 0; y < G; y++) {
+      for (let x = 0; x < G; x++) {
+        const v = pore(x / G, y / G)
+        expect(Number.isFinite(v)).toBe(true)
+        expect(v).toBeGreaterThanOrEqual(0) // a lift, never lowers roughness
+        if (v > 0) open++
+        if (v > max) max = v
+        total++
+      }
+    }
+    // A real pinhole field is present…
+    expect(open).toBeGreaterThan(0)
+    // …but SPARSE — most of the face is the sealed (zero-lift) base, so this
+    // reads as scattered pinholes rather than an even spotted pattern.
+    expect(open).toBeLessThan(total * 0.5)
+    // …and stays a tasteful micro lift, never a crater.
+    expect(max).toBeLessThanOrEqual(0.16)
+  })
+
+  it('is deterministic for the same seed', () => {
+    const a = makePinholePores(SEED, 1)
+    const b = makePinholePores(SEED, 1)
+    for (let i = 0; i < 60; i++) {
+      const u = (i * 7) / 100
+      const v = (i * 13) / 100
+      expect(a(u, v)).toBe(b(u, v))
+    }
+  })
+
+  it('changes with the seed (the pinholes land elsewhere)', () => {
+    const a = makePinholePores(SEED, 1)
+    const b = makePinholePores(0x9999, 1)
+    // Scan a full 2D grid — the field is sparse, so a single scan line may sit
+    // entirely below threshold for both seeds; the grid catches the pinholes.
+    let differs = false
+    for (let y = 0; y < G && !differs; y++) {
+      for (let x = 0; x < G && !differs; x++) {
+        if (a(x / G, y / G) !== b(x / G, y / G)) differs = true
+      }
+    }
+    expect(differs).toBe(true)
+  })
+
+  it('pores=0 cleanly drops the term (flat zero everywhere)', () => {
+    const pore = makePinholePores(SEED, 0)
+    for (let i = 0; i < 60; i++) expect(pore(i / 60, i / 80)).toBe(0)
+  })
+
+  it('scales linearly with the intensity', () => {
+    const full = makePinholePores(SEED, 1)
+    const half = makePinholePores(SEED, 0.5)
+    for (let i = 1; i < 40; i++) {
+      const u = i / 40
+      const v = (i * 3) / 40
       expect(half(u, v)).toBeCloseTo(full(u, v) * 0.5, 10)
     }
   })
