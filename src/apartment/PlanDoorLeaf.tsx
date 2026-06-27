@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useRef } from 'react'
-import type { Group } from 'three'
+import { Color, type Group } from 'three'
 import type { PlanOpening, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
@@ -11,6 +11,14 @@ import { cameraFacingNormal, orientOutward, wallRevealFactor } from './walls/wal
 const SWING_RAD = Math.PI / 2
 const SWING_SECONDS = 0.2
 const LEAF_THICK = FLAT.doorThickness
+const DEFAULT_LEAF = '#9d7c54'
+const DEFAULT_PANEL = '#8a6c48'
+
+/** Multiply a hex colour toward black by `f` (≤1) — used to derive the recessed
+ *  panel shade a touch darker than a custom door-leaf colour. */
+function shade(hex: string, f: number): string {
+  return `#${new Color(hex).multiplyScalar(f).getHexString()}`
+}
 
 /**
  * A swinging, clickable door leaf for a **custom-plan** door opening — the 3D
@@ -151,7 +159,7 @@ export function PlanDoorLeaf({
             castShadow
           >
             <boxGeometry args={[opening.width, height, LEAF_THICK]} />
-            <meshStandardMaterial color="#9d7c54" roughness={0.7} />
+            <meshStandardMaterial color={opening.color ?? DEFAULT_LEAF} roughness={0.7} />
           </mesh>
           {/* Recessed panels (two per face) for a panelled-door look. */}
           {[1, -1].map((face) =>
@@ -165,7 +173,10 @@ export function PlanDoorLeaf({
                 rotation={[0, face === 1 ? 0 : Math.PI, 0]}
               >
                 <planeGeometry args={[opening.width * 0.62, p.h]} />
-                <meshStandardMaterial color="#8a6c48" roughness={0.75} />
+                <meshStandardMaterial
+                  color={opening.color ? shade(opening.color, 0.82) : DEFAULT_PANEL}
+                  roughness={0.75}
+                />
               </mesh>
             )),
           )}

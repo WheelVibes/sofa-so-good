@@ -18,6 +18,12 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
 - Plan-mutating slice actions route through `withLevelGeometry(plan, levelId, fn)`
   (ground default). Schema: `upperLevels` + `levelId` are optional + additive —
   no version bump needed for level features that follow that shape.
+- **Per-element colour (`elementColors`):** `PlanWall.color` overrides the plan-wide `wallColor` for
+  one wall; `PlanOpening.color` paints a door leaf (panels derive a darker shade) or tints window glass.
+  Both are optional hex strings, edited in `PlanInspector`, round-tripped via `schema.ts`
+  (`PlanWallZ`/`PlanOpeningZ`), and rendered by `PlanShell` (`FadeWall`/`SlopedWallMesh`/`FadeWindow`) +
+  `PlanDoorLeaf`. Adding another per-element appearance field follows the same additive shape (no
+  version bump).
 - Geometry stays **pure + unit-tested** here (no three/React imports beyond types).
 - **Whole-plan transforms scale ALL storeys about one anchor.** `rescalePlan.ts`
   (PARITY-PLAN-SCALE) multiplies every wall endpoint / room polygon / opening

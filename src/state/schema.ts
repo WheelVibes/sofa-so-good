@@ -198,6 +198,8 @@ const PlanWallZ = z.object({
       hidden: z.boolean().optional(),
     })
     .optional(),
+  // Optional per-wall paint colour override (elementColors) — additive, back-compat.
+  color: z.string().optional(),
 })
 const PlanOpeningZ = z.object({
   id: z.string(),
@@ -213,6 +215,8 @@ const PlanOpeningZ = z.object({
   head: z.number(),
   hinge: z.enum(['start', 'end']).optional(),
   swing: z.enum(['left', 'right']).optional(),
+  // Optional door-leaf / window-glass colour (elementColors) — additive, back-compat.
+  color: z.string().optional(),
 })
 const PlanRoomZ = z.object({
   id: z.string(),

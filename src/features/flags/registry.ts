@@ -767,6 +767,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Per-element colour overrides in the 2D plan inspector (CUSTOMIZE-COLOUR): a
+  // per-wall paint colour (overriding the plan-wide wall colour), a door-leaf
+  // colour, and a window glass tint. Pure colour data on the plan model, rendered
+  // by PlanShell / PlanDoorLeaf → prod-safe. A core part of making every surface
+  // customizable, useful to a casual user → simple tier (shown in both modes).
+  elementColors: {
+    label: 'Element colours',
+    description: 'Recolour individual walls, doors and window glass in the plan editor',
+    default: true,
+    tier: 'simple',
+  },
   // Tiled-floor repetition break-up (RD-406 / MAT-006a): a large tiled floor
   // gets a pure per-tile-cell UV hash-rotation (90°/180°/270°) + sub-tile offset
   // so adjacent tiles stop aligning into the "obvious grid" tell — pure UV math,

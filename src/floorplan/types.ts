@@ -49,6 +49,10 @@ export interface PlanWall {
    *  wall's foot; `hidden` suppresses it entirely. Absent fields fall back to the
    *  shell default (0.09 m, off-white). */
   baseboard?: { height?: number; color?: string; hidden?: boolean }
+  /** Optional per-wall paint colour (hex), overriding the plan-wide `wallColor`
+   *  for THIS wall only. Absent = use the plan default. Edited in the 2D plan
+   *  inspector (`elementColors`). */
+  color?: string
 }
 
 export interface PlanOpening {
@@ -79,6 +83,11 @@ export interface PlanOpening {
    *  wall's right-hand normal (−Z of the start→end tangent), 'left' the other.
    *  Defaults to 'right' when unset. */
   swing?: 'left' | 'right'
+  /** Optional colour (hex). For a **door** it paints the leaf (frame/panels
+   *  derive a darker shade); for a **window** it tints the glass. Absent = the
+   *  default timber / cool-glass look. Edited in the 2D plan inspector
+   *  (`elementColors`). */
+  color?: string
 }
 
 export interface PlanRoom {

@@ -1,0 +1,17 @@
+{
+  "name": "element-colours-verify",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "noon", "store": { "action": "setPresetTime", "args": ["noon"] } },
+    { "name": "translucent-walls", "store": { "action": "setWallRevealMode", "args": ["translucent"] } },
+    { "name": "recolour-elements", "eval": "(() => { const st=window.__store.getState(); const fp=st.floorPlan; const walls=fp.walls.filter(w=>w.thickness==='internal'); walls.forEach(w=>window.__store.getState().updateWall(w.id,{color:'#c0392b'})); const door=fp.openings.find(o=>o.kind==='door'); const win=fp.openings.find(o=>o.kind==='window'); if(door) window.__store.getState().updateOpening(door.id,{color:'#2f6fd2'}); if(win) window.__store.getState().updateOpening(win.id,{color:'#7fe0c0'}); return JSON.stringify({internalWalls:walls.length, door:door&&door.id, win:win&&win.id}); })()" },
+    { "name": "fork-render-wait", "wait": 2500 },
+    { "name": "top-ish", "store": { "action": "requestTopView", "args": [] } },
+    { "name": "settle", "wait": 1500 },
+    { "name": "shot-3d", "screenshot": "element-colours-3d" }
+  ]
+}

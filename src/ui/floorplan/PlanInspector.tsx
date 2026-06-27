@@ -248,6 +248,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const wallThicknessOn = useFeature('wallThickness')
   const floorTextureOn = useFeature('floorTexture')
   const roomInsetOn = useFeature('roomInset')
+  const elementColorsOn = useFeature('elementColors')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -935,6 +936,27 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               ) : null}
             </div>
           ) : null}
+          {elementColorsOn ? (
+            <label className="flex items-center justify-between gap-2 text-xs">
+              <span className="label">Wall colour</span>
+              <span className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={w.color ?? plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
+                  onChange={(e) => a.updateWall(w.id, { color: e.target.value }, levelId)}
+                />
+                {w.color ? (
+                  <button
+                    type="button"
+                    className="text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]"
+                    onClick={() => a.updateWall(w.id, { color: undefined }, levelId)}
+                  >
+                    reset
+                  </button>
+                ) : null}
+              </span>
+            </label>
+          ) : null}
         </div>
       )
   } else if (sel?.type === 'opening') {
@@ -1074,6 +1096,27 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               </div>
             </>
           )}
+          {elementColorsOn ? (
+            <label className="flex items-center justify-between gap-2 text-xs">
+              <span className="label">{o.kind === 'door' ? 'Leaf colour' : 'Glass tint'}</span>
+              <span className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={o.color ?? (o.kind === 'door' ? '#9d7c54' : '#bcd4e6')}
+                  onChange={(e) => a.updateOpening(o.id, { color: e.target.value }, levelId)}
+                />
+                {o.color ? (
+                  <button
+                    type="button"
+                    className="text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]"
+                    onClick={() => a.updateOpening(o.id, { color: undefined }, levelId)}
+                  >
+                    reset
+                  </button>
+                ) : null}
+              </span>
+            </label>
+          ) : null}
         </div>
       )
     }

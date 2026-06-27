@@ -102,6 +102,7 @@ export type FeatureFlag =
   | 'planGridSnap'
   | 'roomInset'
   | 'tileBreakup'
+  | 'elementColors'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

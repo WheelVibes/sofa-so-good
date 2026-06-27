@@ -371,9 +371,14 @@ function PlanLevelShell({
   const boxes = useMemo(
     () =>
       lp.walls.flatMap((w) =>
-        wallBoxes(lp, w).map((box) => ({ box, isExterior: w.thickness === 'external' })),
+        wallBoxes(lp, w).map((box) => ({
+          box,
+          isExterior: w.thickness === 'external',
+          // Per-wall paint colour override (elementColors), else the plan default.
+          color: w.color ?? wallColor,
+        })),
       ),
-    [lp],
+    [lp, wallColor],
   )
 
   // Skirting strips along floor-reaching wall spans, carrying each wall's
@@ -431,6 +436,8 @@ function PlanLevelShell({
           height: o.head - o.sill,
           angle,
           revealable: wall.thickness === 'external',
+          // Optional per-window glass tint (elementColors); absent = cool default.
+          glassTint: o.color,
         }
       })
       .filter((x): x is NonNullable<typeof x> => x != null)
@@ -533,13 +540,13 @@ function PlanLevelShell({
 
       {/* Walls — external walls fade when between the orbit camera and the plan
           centre; internal partitions stay solid. */}
-      {boxes.map(({ box, isExterior }, i) => (
+      {boxes.map(({ box, isExterior, color }, i) => (
         <FadeWall
           key={i}
           box={box}
           cx={cx}
           cz={cz}
-          color={wallColor}
+          color={color}
           isExterior={isExterior}
           isInterior={isInterior}
         />
@@ -552,7 +559,7 @@ function PlanLevelShell({
           wall={w}
           ceiling={lp.ceilingHeight}
           thickness={planWallThickness(w, lp)}
-          color={wallColor}
+          color={w.color ?? wallColor}
         />
       ))}
 
@@ -632,6 +639,7 @@ function FadeWindow({
     height: number
     angle: number
     revealable: boolean
+    glassTint?: string
   }
   cx: number
   cz: number
@@ -641,6 +649,12 @@ function FadeWindow({
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
+  // A custom glass tint replaces the cool default for the daylight colour; the
+  // night blend toward dark reflective glass is preserved either way.
+  const dayColor = useMemo(
+    () => (win.glassTint ? new Color(win.glassTint) : GLASS_DAY),
+    [win.glassTint],
+  )
   useFrame(() => {
     const mesh = ref.current
     if (!mesh) return
@@ -649,7 +663,7 @@ function FadeWindow({
     // clear sky-lit pane by day → dark reflective at night, via an emissive
     // sky-catch (cheap, all tiers) + a day/night colour + opacity blend.
     const d = getFixtureGlow() // 1 at night, 0 in daylight
-    mat.color.lerpColors(GLASS_DAY, GLASS_NIGHT, d)
+    mat.color.lerpColors(dayColor, GLASS_NIGHT, d)
     mat.emissiveIntensity = glassSkyCatchIntensity(1 - d)
     const base = 0.28 + d * 0.45 // more opaque (less see-through) at night
     let factor = 1

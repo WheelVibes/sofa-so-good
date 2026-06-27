@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Per-element colour: walls, doors & window glass (v0.6.0.4)
+
+Extends the customizability push to the architecture (`elementColors`, simple tier, default on). Walls,
+doors and windows had no colour control of their own — only a single plan-wide wall colour, and
+hardcoded timber doors / cool glass. Now the 2D plan inspector exposes, per selected element:
+**Wall colour** (overrides the plan-wide colour for that wall, with reset), door **Leaf colour** (the
+recessed panels derive a darker shade), and window **Glass tint**. New optional `color` fields on
+`PlanWall` + `PlanOpening` (round-tripped through the save schema); rendered by `PlanShell` (per-wall
+`FadeWall`/`SlopedWallMesh`, glass-tint in `FadeWindow`) and `PlanDoorLeaf`. Because the first plan edit
+forks the default home to a live plan, these reach every home. Verified: recolouring the interior walls
+repaints them in the 3D top view. Tested in both Simple + Pro (simple-tier, on in both) + schema
+round-trip.
+
 ## Furniture: per-part recolour for any GLB model (v0.6.0.3)
 
 Continues the customizability push (colour/texture for custom uploads + 3D models). Built-in,
