@@ -82,6 +82,30 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'simple').furnitureGroups).toBe(false)
   })
 
+  it('pathArray (pro tier) is present in Pro and hidden in Simple', () => {
+    // Duplicate-along-path (PARITY-DUP-PATH) is advanced array tooling → pro; the
+    // inspector section gates on this flag so it disappears from Simple's core loop.
+    expect(resolveFlags(true, {}, false, 'pro').pathArray).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').pathArray).toBe(false)
+    // Prod (non-dev) default is on in Pro (pure-code, no sidecar/licence) …
+    expect(resolveFlags(false, {}, false, 'pro').pathArray).toBe(true)
+    // … and still forced off in Simple.
+    expect(resolveFlags(false, {}, false, 'simple').pathArray).toBe(false)
+  })
+
+  it('shopExport (simple tier) resolves the same in BOTH modes (gates the room-schedule CSV)', () => {
+    // The room-schedule + furniture-list + shopping-list exports all gate on
+    // shopExport (simple tier, default off). Its resolution must not depend on
+    // the Simple/Pro mode — only on the flag itself.
+    expect(resolveFlags(true, {}, false, 'simple').shopExport).toBe(
+      FEATURE_FLAGS.shopExport.default,
+    )
+    expect(resolveFlags(true, {}, false, 'pro').shopExport).toBe(FEATURE_FLAGS.shopExport.default)
+    // When turned on (dev override), it is on in both modes.
+    expect(resolveFlags(true, { shopExport: true }, false, 'simple').shopExport).toBe(true)
+    expect(resolveFlags(true, { shopExport: true }, false, 'pro').shopExport).toBe(true)
+  })
+
   it('sceneExport3d (simple tier) is present in BOTH Simple and Pro modes', () => {
     // Whole-scene 3D export is part of the curated launch set → simple tier.
     expect(resolveFlags(true, {}, false, 'simple').sceneExport3d).toBe(true)
@@ -111,6 +135,14 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').catalogModelInfo).toBe(true)
   })
 
+  it('planMirrorRegion (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    // Mirror-a-plan-region is an advanced authoring tool → pro tier.
+    expect(resolveFlags(true, {}, false, 'simple').planMirrorRegion).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').planMirrorRegion).toBe(true)
+    // Prod-safe pure geometry → default on (present in a prod Pro build).
+    expect(resolveFlags(false, {}, false, 'pro').planMirrorRegion).toBe(true)
+  })
+
   it('curvedWalls (simple tier) is present in BOTH Simple and Pro modes', () => {
     expect(resolveFlags(true, {}, false, 'simple').curvedWalls).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').curvedWalls).toBe(true)
@@ -124,6 +156,12 @@ describe('Simple/Pro tiering', () => {
   it('viewInAr (pro tier) is hidden in Simple mode and present in Pro mode', () => {
     expect(resolveFlags(true, {}, false, 'simple').viewInAr).toBe(false)
     expect(resolveFlags(true, {}, false, 'pro').viewInAr).toBe(true)
+  })
+
+  it('scatterFill (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    // Scatter-fill is an advanced bulk-placement/layout tool → pro tier.
+    expect(resolveFlags(true, {}, false, 'simple').scatterFill).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').scatterFill).toBe(true)
   })
 
   it('floorTexture (simple tier) is present in BOTH Simple and Pro modes', () => {

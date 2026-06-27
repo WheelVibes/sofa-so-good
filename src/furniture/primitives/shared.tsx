@@ -7,7 +7,11 @@
  */
 
 import type { MeshStandardMaterial } from 'three'
-import { applianceFinish, getMetalMaterial } from '../../materials/furnitureMaterials'
+import {
+  applianceFinish,
+  getMetalMaterial,
+  type MetalFinish,
+} from '../../materials/furnitureMaterials'
 import type { ParamProps, ParamValue } from '../types'
 
 export function readNum(props: ParamProps, key: string, fallback: number): number {
@@ -89,4 +93,32 @@ export function applianceBodyMeshProps(finish: ApplianceBodyFinish): {
   material?: MeshStandardMaterial
 } {
   return finish.material ? { material: finish.material } : {}
+}
+
+/**
+ * Metal legs / frames / rails (METAL-LEGS). The structural metal members of a
+ * primitive (chair gas-lifts, stool legs, ladder posts, hairpin legs, bar-cart
+ * frames, drying-rack A-frames, taps…) route through the shared brushed-metal
+ * material so they read as real anisotropic brushed/satin steel or chrome
+ * instead of a flat grey `<meshStandardMaterial>` props spread.
+ *
+ * Thin wrapper over `getMetalMaterial(color, finish, repeat)`, so it inherits
+ * the `pbrSurfaces` gate already inside it: a `MeshPhysicalMaterial` with brush
+ * normal + roughness-streak maps + anisotropy when on, and an *identical-to-
+ * today* plain `MeshStandardMaterial` (just metalness/roughness, no maps) when
+ * off — so the flat Performance tier is unchanged. Cached per `(finish, color,
+ * repeat)`, so every metal member on every piece shares one GPU material.
+ *
+ * Pick a finish that matches the piece's existing colour intent:
+ *  - `stainless` — bright modern chrome / stainless legs + frames (the default);
+ *  - `satin` — a softer brushed sheen (lighter brushed-aluminium frames);
+ *  - `black-steel` — dark matte-stainless (industrial black legs / hairpins).
+ * Tint via `color` (the maps are tint-independent greyscale).
+ */
+export function metalLeg(
+  color = '#cfd2d6',
+  finish: MetalFinish = 'stainless',
+  repeat = 1,
+): MeshStandardMaterial {
+  return getMetalMaterial(color, finish, repeat)
 }

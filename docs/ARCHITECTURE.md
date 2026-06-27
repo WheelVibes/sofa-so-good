@@ -65,16 +65,34 @@ same change that reshapes a system.
   Vista › 4-Room; `ui/floorplan/SaveTemplateModal.tsx` prompts for the category on save),
   `roomDetect.ts`, `planIntegrity.ts` (stray-element checks — walls joined to no other wall,
   rooms touching no other room, openings off any wall — drawn red in the editor behind the
-  `planIntegrity` Pro flag), `levels.ts` (multi-storey resolution layer F13: top-level arrays = ground,
+  `planIntegrity` Pro flag), `rescalePlan.ts` (PARITY-PLAN-SCALE — pure `rescalePlan(plan, factor |
+  {anchorWallId,targetLength}, items?, opts?)` scales every wall endpoint / room polygon / opening
+  offset / note·dim·polyline / upper storey + furniture POSITION about an anchor; furniture sizes
+  preserved unless `scaleFurnitureSize`; `rescaleFloorPlan` slice action = one undo step;
+  `ui/floorplan/ScalePlanModal.tsx` "Scale plan…" in the Plan menu / mobile Tools sheet; `planScale`
+  Pro flag), `levels.ts` (multi-storey resolution layer F13: top-level arrays = ground,
   `upperLevels` adds storeys; `planLevels`/`levelById`/`levelAsPlan`/`allPlanRooms`/
   `withLevelGeometry` — see `docs/research/multi-level-design.md`),
   `wallArc.ts` (curved walls — `PlanWall.arc` bulge → quadratic-Bézier chord sub-segments reused by
   `wallBoxes`/`planCollisionWalls`/room detection; 2D bulge handle; `curvedWalls` flag, openings
   disabled on curves), `slopedWall.ts` (sloping walls — `PlanWall.topHeightEnd` → a prism rendered by
-  PlanShell's `SlopedWallMesh`; `slopingWalls` flag, openings disabled). Each wall may carry a
+  PlanShell's `SlopedWallMesh`; `slopingWalls` flag, openings disabled),
+  `mirrorPlanRegion.ts` (whole-plan left↔right reflection about a vertical axis `x` — every wall/room/
+  opening/annotation + all storeys + furniture, for mirror-image HDB stacks; flips opening hinge/swing
+  handedness + wall `arc` sign + furniture yaw/`flipX`; pure + composable, double-mirror = identity;
+  store action `floorPlanSlice.mirrorFloorPlan`, "Mirror plan" in the editor's Plan menu behind the
+  `planMirrorRegion` Pro flag — PARITY-PLAN-MIRROR-REGION). Each wall may carry a
   per-wall baseboard override (`PlanWall.baseboard` height/colour/hidden → PlanShell skirting;
   `wallBaseboard` flag, custom plans only). Furniture also supports multi-axis tilt (`pitch`/`roll`, `furniture/tiltRotation.ts`,
-  `tiltFurniture` flag). 2D editor = `ui/floorplan/`.
+  `tiltFurniture` flag). `duplicateRoom.ts` (pure room clone — offset polygon + finishes + own boundary
+  walls/openings, re-flowed names; powers the `floorPlanSlice.duplicateRoom` action). 2D editor = `ui/floorplan/`.
+  `tiltFurniture` flag). `insetRoom.ts` (PARITY-ROOM-INSET, pure) — `insetPolygon(points, dist)`
+  offsets every edge of a room polygon by a signed distance (dist>0 shrinks for a dropped
+  soffit, dist<0 grows for a setback) and re-intersects adjacent offset edges (convex + concave
+  L-shapes; a collapse / self-intersection → `null`); the `floorPlanSlice.insetRoom(id, dist)` /
+  `insetSelectedRoom(dist)` actions write the result back as an explicit `polygon` in ONE undo
+  step and reject a degenerate inset with a toast (`roomInset` Pro flag; ⌘K "Inset / Grow room"
+  + PlanInspector room buttons). 2D editor = `ui/floorplan/`.
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (assembles the catalog from
   per-category `defs/<category>.ts` modules + the `cabinet/` engine; also derives
   `BUILTIN_BY_CATEGORY`),
@@ -99,7 +117,9 @@ same change that reshapes a system.
 - `src/materials/` — `builtinCatalog.ts` (floors/walls), `procedural/generators.ts`
   (wood/parquet/tile/marble/carpet/concrete/terrazzo/plaster/wallpaper/checker/brick…),
   `furnitureMaterials.ts` (tintable grain + `getSolidMaterial` + `mat:<id>` DLC +
-  `getSurfaceMaterial`), `worldUv.ts`, `finishDrop.ts` (drag-to-apply core; canvas drop =
+  `getSurfaceMaterial`), `worldUv.ts` (world-metre UV planes/shapes + the pure
+  `breakRepetitionPlane`/`cellUvTransform` tile-repetition break-up, RD-406/MAT-006a, gated by
+  the `tileBreakup` flag at the rect-floor build sites), `finishDrop.ts` (drag-to-apply core; canvas drop =
   `scene/FinishDropSurface.tsx` + `scene/finishDropTarget.ts`, commit = `state/finishDropApply.ts`), `convert/`
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR/KTX2/DDS, `reencode.ts`→WebP; 16MB cap; `decodeGpuTexture.ts` handles KTX2+DDS via pure-JS or GPU readback).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
@@ -141,12 +161,30 @@ same change that reshapes a system.
   remote provider index when `remoteFurniture || remoteMaterials` is on (no fetch otherwise).
   Gating affects the browse/add path only — a placed/resolved remote def still merges into
   `useCatalog` (`buildMergedCatalog`) and renders regardless of the flag.
+  **Sticky stamp placement** (`stampPlace` flag, tier: **pro**, default on — Floorplanner parity,
+  PARITY-STAMP-PLACE): a per-card **stamp button** (`.stamp-btn`, `Icon.Copy`) arms a def via
+  `startStamp(defId)`, which sets `placementSlice.stampMode` + `activeDefId`. While `stampMode` is
+  on, `usePlacementController`'s commit click (and the `addItem` it fires — one undo step each) keeps
+  the placement **armed** instead of disarming, so the same item drops repeatedly with one click
+  each (chairs, downlights, plants) until **Escape** / the **Done** button / a different item
+  (`cancelPlacement` clears it). The active-stamp **`StampBanner`** above the catalog footer is the
+  on-cue; the armed card gets a `.stamping` accent ring. A plain single-add arm (`setActiveDefId`)
+  always clears `stampMode`, and the controller defends with `isFeatureEnabled('stampPlace')` so a
+  stale `stampMode` can't persist a click once the flag is off (Simple mode forces it off → the
+  stamp button + banner hide and each click commits once as before). ⌘K **"Stamp — place an item
+  repeatedly"** (`stamp-mode`, gated in `COMMAND_FLAGS`) arms the held/selected def.
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,
   Straighten, **linear array** (`furniture/arrayPlacement.ts` — pure, unit-tested),
   **radial/polar array** (`furniture/radialArray.ts` — pure, unit-tested, Pro-only via
-  `radialArray` flag)), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel, NavCluster,
+  `radialArray` flag), **path/polyline array** (`furniture/pathArray.ts` — pure, unit-tested;
+  `inspector/PathArraySection.tsx` arrays copies along a drawn plan polyline by arc-length
+  sampling with tangent yaw; Pro-only via `pathArray` flag), **scatter-fill room**
+  (`inspector/ScatterFillSection.tsx` → pure `layout/scatterInRoom.ts` — evenly fills the
+  selected item's room with N collision-safe copies on a packed grid, deterministic by seed;
+  Pro-only via `scatterFill` flag)), FinishPicker, WallAccentPicker, GraphicsSettings,
+  BudgetPanel, NavCluster,
   CommandPalette, ContextMenu, Onboarding, HelpModal, Modal, `upload/`/`floorplan/`/
   `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`. Empty panels/lists render the shared
   **`EmptyState`** (`EmptyState.tsx`: icon + title + optional description + optional CTA on
@@ -290,7 +328,12 @@ same change that reshapes a system.
   mask (so the relief aligns with the visible albedo veins) + a broad polished roughness drift
   (`makeRoughDrift`). Wired into Path A (`patterns/stone.ts:marbleFields`, all-tier, no flag) and
   Path B (`getMarbleMaps`/`getStoneMaterial` — the shared marble singleton gains a roughness-drift
-  map gated behind `pbrSurfaces`; off → legacy uniform polish). Painted plaster/concrete (MAT-003)
+  map gated behind `pbrSurfaces`; off → legacy uniform polish). Concrete (CONCRETE-PORES) adds a
+  fine pinhole-pore roughness lift from the same `stoneSurface.ts` helper (`makePinholePores` — a
+  sparse, non-negative roughness term where a high-frequency noise field crosses a high threshold,
+  so scattered air pinholes read rougher than the sealed face) LAYERED onto `concreteFields`'
+  existing macro mottle/pore/stain roughness (Path A, all-tier, no flag; roughness clamped [0,1]).
+  Painted plaster/concrete (MAT-003)
   gets its micro-detail from the pure `procedural/plasterSurface.ts`: a signed, mean-preserving
   roller-nap roughness drift (`makeRollerNap` — broad coverage + fine nap stipple) so the matte
   wall isn't a single flat value yet stays matte. Path A (`patterns/wall.ts:plasterFields`, the
@@ -390,6 +433,22 @@ same change that reshapes a system.
   **Furniture CSV** (`ui/furnitureCsv.ts` pure `buildFurnitureCsv` → RFC-4180 CSV of the schedule:
   Room/Item/Source/SKU/W·D·H mm/Qty/Unit/Total + grand-total footer; `ui/openFurnitureCsv.ts` =
   Blob download). File menu + mobile + ⌘K, `shopExport` flag (simple).
+  **Room-schedule CSV** (PARITY-ROOM-CSV) (`export/roomScheduleCsv.ts` pure `buildRoomSchedule` /
+  `buildRoomScheduleCsv` → one row per room across ALL storeys: Storey/Room/Area/Perimeter/Floor finish/
+  Wall finish/Ceiling height + a grand-total footer (room count + total area), unit-aware
+  (`formatArea`/`formatLength`), RFC-4180-quoted, reusing `planRoomArea`/`planRoomPerimeter`/
+  `resolvePlanRoomFloor`/`resolvePlanRoomWall` + `allPlanRooms`/`levelOfRoom`; `ui/openRoomScheduleCsv.ts`
+  = Blob download). File menu + mobile + ⌘K, `shopExport` flag (simple).
+  **FF&E CSV** (`export/ffeCsv.ts` pure `buildFfeCsv(rows, units, opts)` → RFC-4180 CSV of the same
+  schedule: Room/Item/Source/SKU/Size (W×D×H, unit-aware)/Qty/Unit price/Line total + grand-total
+  footer; prices blanked when `budget` is off; `ui/openFfeCsv.ts` = Blob download `<plan>-ffe.csv`).
+  File menu + mobile + ⌘K, `shopExport` flag (simple) — the machine-readable third FF&E export.
+  **Cost breakdown CSV** (`export/costBreakdownCsv.ts` pure `buildCostBreakdown`/`buildCostBreakdownCsv` →
+  one sectioned RFC-4180 CSV reconciling Furniture-by-category (qty + subtotal via `itemPrice`) +
+  Renovation/finishes lines (floor/wall area × the `renovationCost` rate table via `estimateRenovation`
+  over `reportData.floorAreaByFinish`/`wallAreaByFinish`) + a reconciling GRAND TOTAL row
+  (`grandTotal === furnitureSubtotal + renovationSubtotal`); `ui/openCostBreakdownCsv.ts` = Blob download,
+  filename `<plan>-costs.csv`). No reinvented pricing. File menu + mobile + ⌘K, `shopExport` flag (simple).
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
   (cover + plan + per-wall elevations + cross-section + lighting + electrical (`floorplan/electricalPlan*`,
   `electricalPlan` flag) + plumbing (`floorplan/plumbingPlan*`, `plumbingPlan` flag — points auto-derived
@@ -458,6 +517,15 @@ same change that reshapes a system.
   toggled by `luxOverlayOn` from the Drawings panel's Lighting tab — rides the `drawings` flag.
   LP6: `luxExcludedIds` filters fixtures before grid build; `luxPlaying` rAF auto-advances `manualHour`
   at 1 hr/s; Drawings panel Lighting tab gains inline time slider + play button + per-fixture checkboxes.
+- **Electrical points schedule** (`analysis/electricalSchedule.ts` pure → `buildElectricalSchedule(plan,
+  items, catalog)`: a consolidated, room-by-room count of **lighting points** (reuses
+  `lightEmitters.isItemEmitter`, the same predicate the lighting plan uses) + indicative **power points /
+  sockets** inferred from the powered furniture categories present (`SOCKETS_PER_CATEGORY`:
+  kitchen/appliances/electronics/laundry/others) floored to a per-room-kind minimum (`MIN_SOCKETS_BY_KIND`
+  via `roomKindFromName`), with per-room + grand totals; items attributed via `allPlanRooms` + `pointInRoom`
+  (multi-storey aware, strays → "Unassigned"). An *indicative* rough quote aid, not a certified electrical
+  layout. Rendered as the "Electrical points (indicative)" report section (rides the `report` flag, additive
+  block — distinct from the lighting plan + fixture schedule). PARITY-ELECTRICAL-SCHED.
 - **IES photometric profiles** (`src/lighting/ies/`, pure + render-agnostic — PC-IES-LIGHT, Coohom
   parity): `parseIes.ts` parses an IESNA LM-63 ASCII `.ies` file (header keywords, TILT line incl.
   inline `TILT=INCLUDE`, the 10 photometric params, vertical/horizontal angle arrays, candela grid ×
@@ -472,13 +540,59 @@ same change that reshapes a system.
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
   emitter coverage). `ui/DesignScorePanel.tsx` (`.aux`: grade dial + bars + fixes); Tools + ⌘K; +
   a section in the printable `report.ts`. Guards a partial plan (missing walls/openings).
+- **Design suggestions** (`analysis/suggestions.ts` pure → `buildSuggestions({rooms})`: a data-driven
+  rule set over each room's inferred kind + the furniture categories present, yielding per-room
+  "what to add / improve" tips). Powers the in-app suggestions panel and the report's **Design
+  suggestions** section (PARITY-SUGGESTIONS-SECTION) — same builder, categories derived via
+  `pointInRoom`; rides the existing `report` flag, omitted when no suggestion fires.
+- **Move-in / handover checklist** (`analysis/handoverChecklist.ts` pure →
+  `buildHandoverChecklist(plan,items,catalog)`: a derived snagging + key-handover punch-list
+  grouped by room (per-`RoomKind` defect rules via `roomKindFromName`, generic bucket for an
+  unrecognised kind), plus appliance/utility activation items for the appliance categories
+  actually placed, plus an always-present keys/meters/documents group). The report's **Move-in
+  checklist** section (PARITY-MOVEIN-CHECKLIST); rides the existing `report` flag, always renders
+  (an empty plan still yields the generic group).
 - **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas)`:
   indicative SG supply+install $/m² per finish category, `RENO_RATES` table). The report's Renovation
   estimate section (finishes subtotal + combined furniture+finishes total).
+- **Plan statistics** (`analysis/planStatistics.ts` pure → `buildPlanStatistics(plan)`: GFA summed
+  across ALL storeys, room count + per-kind mix (`roomKindFromName` buckets, unknown→`other`),
+  average room size, total room perimeter + total wall length, and the net-vs-circulation split
+  (corridor/hallway rooms by name). Reuses `allPlanRooms`/`planLevels`/`planRoomArea`/
+  `planRoomPerimeter`/`wallLength`; empty plan → fully-zeroed digest. The report's "Plan statistics"
+  section (rides the `report` flag, no new flag).
+- **Renovation timeline** (`analysis/renoTimeline.ts` pure → `buildRenoTimeline(input|plan)`: an
+  indicative phased schedule [protection/hacking → … → cleaning/handover] scaled by area + room count,
+  `RENO_PHASES` table). Rendered as the report's Renovation timeline Gantt section. **`.ics` calendar
+  export** (`export/renoIcs.ts` pure `buildRenoIcs(phases, startDate[, now])` → RFC-5545 VCALENDAR,
+  one all-day VEVENT per phase, CRLF + TEXT escaping + stable per-phase UID + PRODID; `startDate`
+  passed in so the module is clock-free; empty phases → a valid empty VCALENDAR. `ui/openRenoIcs.ts` =
+  Blob download starting today, toasts when there are no phases). Tools + mobile + ⌘K, rides the
+  existing `report` flag (pro).
+- **Thermal envelope** (PARITY-THERMAL) (`analysis/thermalAnalysis.ts` pure →
+  `buildThermalReport(plan, finishes?)`: sums exterior opaque wall area + glazing (window-opening) area
+  across ALL storeys, maps each surface → a representative SG U-value via the documented `U_VALUES`
+  lookup (RC wall 2.0, brick 1.7, lightweight 1.0, cladding 0.6; single glazing 5.7, double 2.8,
+  low-E 1.8), returns total envelope area, area-weighted average U + glazing ratio, and a conductive
+  heat-transfer index `Σ area×U` (W/K). Indicative, NOT a certified calc; exterior walls
+  (`thickness==='external'`) + window openings only. Reuses `planLevels`/`wallLength`; bare-shell /
+  all-interior plan → zeroed digest. The report's "Thermal envelope" section (rides the `report` flag,
+  no new flag).
 - **Accessibility check** (`analysis/accessibility.ts` pure → `buildAccessibilityReport(plan)`:
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
   thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
   Plan-only (reads for a bare shell).
+- **Daylight & ventilation check** (`analysis/daylight.ts` pure → `buildDaylightReport(plan)`:
+  per-room window glazing % + openable % vs rule-of-thumb thresholds `DAYLIGHT_MIN_RATIO` (0.1) /
+  `VENT_MIN_RATIO` (0.05); windows attributed to rooms by a wall-midpoint probe, `OPENABLE_FRACTION`
+  for sliding windows; level-gated for multi-storey). `ui/DaylightPanel.tsx` + the report's
+  "Daylight & ventilation" section (PARITY-DAYLIGHT-DIGEST; skipped when no room has a window).
+- **Door & window schedule** (`analysis/openingSchedule.ts` pure → `buildOpeningSchedule(plan)`:
+  walks `plan.openings` across all storeys, resolves each opening's room(s) by a wall-midpoint probe
+  (`PROBE_OFFSET`, as in `daylight.ts`), and groups openings with identical (kind, width, head−sill)
+  into typed marks — D1/D2…/W1/W2… — each with a count, size W×H, sill, door swing/hinge and the
+  rooms it borders; openings on a missing wall / off any room fall into an `Unassigned` bucket).
+  Renders the report's "Openings schedule" section (PARITY-OPENING-SCHED; omitted when no openings).
 - **Plan advisories** (`analysis/hdbCompliance.ts` pure → `buildComplianceReport(plan)`: data-driven
   `RULES` producing non-binding permit/caution/info `Advisory` hints — structural walls, wet areas,
   facade windows, floor loading, ceiling heights). `analysis/stairConnectivity.ts` (ML6b) follows
@@ -506,11 +620,21 @@ same change that reshapes a system.
   unit-tested, rendered in `AlignmentGuides`), flush-to-wall (`wallSnap.ts`, off
   when grid-snap on), live per-side distance-to-wall HUD (`DragHud` ← `clearanceGap.ts` `wallGapsPerSide`,
   left/right/back/front gaps, amber under `walkwayMin`); touch rotate ring (single 15°, multi rigid centroid, Shift=free,
-  green/red validity, complements **R** 90°). The drag's two O(n) per-move scans (snug-stack +
+  green/red validity, complements **R** 90°). **Smart rotation snap** (`smartRotateSnap` flag, pro;
+  PARITY-SNAP-ROTATE): while rotating a single item the ring also snaps to a nearby item's / wall's
+  axis (parallel **or** perpendicular, mod-90°) when the free yaw lands within `NEIGHBOUR_SNAP_THRESHOLD`
+  (5°) — strict precedence over the 15° grid (5° ≪ one grid step → no flicker zone), Shift still
+  bypasses all snapping — with a faint diametric alignment guide drawn while the neighbour snap is
+  active. Pure `rotateGizmoMath.ts smartSnapRotation`/`neighbourAxes` (gizmo gathers refs once at grab).
+  The drag's two O(n) per-move scans (snug-stack +
   `canPlace` collision) are **broadphased** (PERF-003) through a per-drag spatial grid of the static
   items (`collision/broadphase.ts` `buildGrid`/`queryRect`, built once + cleared on drop): a point query
   for snug-stack, a moved-AABB query for collision; alignment snap keeps the full scan (cross-room
   alignment is intended). Equivalent to the full scan (no overlapping AABB ⇒ no overlapping OBB).
+  The **auto-arrange tidy pass** (`layout/autoArrange.ts` → `tryPlace`) reuses the same broadphase:
+  each candidate placement restricts `canPlace`'s `others` to its footprint neighbourhood via
+  `placement.ts` `broadphaseNeighbours` (ARRANGE-GRID) — identical result, proven by
+  `layout/arrangeBroadphase.test.ts`.
   On drop, a single **surface item** (one carrying a numeric `surfaceHeight`) over a table/shelf snaps
   its rest height onto that surface's top (PC2-SURFACE-DROP, pure `collision/surfaceDrop.ts`
   `resolveSurfaceDropHeight` over the `tables`/`storage` categories; updates `props.surfaceHeight` via
@@ -533,6 +657,12 @@ same change that reshapes a system.
   **on touch the Wall tool is tap-to-place + chaining** (tap start, tap end, continues from the last end;
   `wallTapHadAnchor` ref distinguishes placing the start vs the end), with snapped start-dot/end-ring markers
   drawn on the draft (desktop keeps drag-to-draw).
+  The per-tool **draft-state transitions** (commit thresholds + endpoints for wall / room / scale /
+  dimension drags, polyroom/polyline vertex-add-vs-close, and the wall rotate-ring transform) are pure,
+  unit-tested functions in `ui/floorplan/editor/toolDraftReducer.ts` (`wallCommit`/`roomCommit`/
+  `dimensionCommit`/`scaleCommits`/`wallTapCommits`/`polygonClick`/`rectFromVerts`/`rectFromDraft`/
+  `rotateWallTransform`); `FloorPlanEditor`'s `onDown`/`onMove`/`onUp` are thin dispatchers that own the
+  React draft state + store writes and delegate the math (MOD-FPE-SPLIT, behaviour-preserving extraction).
   **Numeric wall entry** (`wallNumericEntry` flag, pro, default on): while a desktop wall draft is active
   a floating overlay (`ui/floorplan/editor/WallNumericEntry.tsx`) appears near the cursor endpoint with
   Length and Angle ° text fields; typing drives a live preview; Enter commits at the exact values; Tab
@@ -550,6 +680,10 @@ same change that reshapes a system.
   an **action grid** (Reverse/Split/Join/Duplicate/Lock/Delete for walls; Flip hinge/swing/Duplicate/Lock/Delete
   for doors). **Lock** (`PlanWall.locked`/`PlanOpening.locked`) keeps an element selectable but un-draggable/
   -deletable on the canvas; **`duplicateWall`/`duplicateOpening`** make an editable copy (name + lock dropped).
+  **`duplicateRoom`** (pure `floorplan/duplicateRoom.ts`, PARITY-PLAN-ROOM-DUP — "Duplicate room" in the room
+  inspector) clones a room's polygon (offset 0.5 m), its floor/wall finishes, and its OWN offset boundary
+  walls + their openings (fresh ids, re-flowed `<room> copy …` names) so shared walls are never mutated;
+  one undo step, selects the copy, stays on the room's storey.
   **Multi-select walls** (Shift/⌘-click, or touch **Select+** = `planWallMultiAdd`): primary `planSelection`
   ∪ session `selectedWallIds` (filtered to existing); the inspector shows an *N walls selected* panel with
   bulk **Lock all** / **Delete all** (`setWallsLocked`/`removeWalls`, locked-skipping) + Clear; `toggleWallSelection`
@@ -575,7 +709,24 @@ same change that reshapes a system.
   Item- vs plan-element selection is **mutually exclusive** (`selectItem` clears
   `planSelection`; `setPlanSelection` clears `selectedItemId`) so the two inspectors never
   co-render. Available in **both Simple and Pro** (plan editing is a core loop — no extra flag;
-  rides the editor's `floorPlanEditor` gate). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
+  rides the editor's `floorPlanEditor` gate). **Rubber-band marquee** (PARITY-PLAN-MARQUEE):
+  a drag on **empty canvas** with the select tool draws a dashed accent rect (pure
+  `ui/floorplan/editor/marqueeSelect.ts` — SAT **intersection** test reusing `collision/obb.ts`
+  `obbVsObb`/`obbVsSegment`, so a footprint/wall counts when it *touches or overlaps* the box, not
+  only when fully enclosed; rotated footprints use their true OBB; a zero-area drag is a click and
+  doesn't hijack selection). On release furniture hits feed `selectedItemIds` and wall hits feed
+  `selectedWallIds` (+ a primary `planSelection`) atomically via `setPlanMarqueeSelection`. Delete/⌫
+  bulk-deletes the multi-selection — furniture in **one** coalesced undo step (the `deleteItem`
+  `'delete'` coalesce key). Works on desktop **and** mobile touch (in edit mode; two-finger pinch
+  still zooms). Selecting only furniture leaves `planSelection` null so the furniture inspector owns
+  the panel. When **2+ placed pieces** are selected (`selectedItemIds.length > 1`, e.g. via the
+  marquee), `PlanInspector` instead shows the **align/distribute/mirror action panel**
+  (`ui/floorplan/PlanMultiSelectActions.tsx`, PARITY-PLAN-ALIGN): Align centres (X/Z), Align
+  edges (Left/Right/Top/Bottom), Distribute evenly (Across X/Z) and Mirror — pure **wiring** of
+  the SAME render-agnostic ops the 3D `MultiSelectPanel` uses (`layout/alignDistribute.ts` +
+  `layout/selectionActions.ts` `mirrorSelectionX`), each one undo step, `canPlace`-checked,
+  locked items skipped, **ungated core** (shown in both Simple and Pro, like align/distribute in 3D).
+  **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
   "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
   furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an
   **"All levels"** toggle draws the other storeys' walls as a dimmed underlay to align floors; every tool,
@@ -585,6 +736,15 @@ same change that reshapes a system.
   2D⇄3D** — the binding lives in `controls/planEditorHotkey.ts` (always mounted via App,
   modal-guarded), NOT in the lazy-mounted editor, so it opens from the 3D view too.
   **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).
+  **Snap to grid** (Plan menu "Snap to grid", `planGridSnap` flag, pro; PARITY-GRID-SNAP): a
+  whole-plan transform that rounds every wall endpoint / room polygon vertex / opening offset /
+  note·dim·polyline coordinate (and every upper storey + the `extent`) to the editor's current
+  grid via pure `floorplan/gridSnap.ts` `snapPlanToGrid(plan, items, gridM, opts?)` — to clean up a
+  traced or imported plan. Openings are re-threaded so they stay on their snapped walls; a wall that
+  would collapse to zero length is left as-is; furniture POSITIONS snap only with `{snapFurniture}`
+  (sizes always preserved). Pure + idempotent (`snap∘snap === snap`); `gridM ≤ 0`/non-finite throws.
+  The store action is `floorPlanSlice.snapFloorPlanToGrid(gridM?, opts?)` (one undo step; defaults
+  `gridM` to the editor `gridSize`, else 0.05 m; forks the default plan).
   Undoable + persists (`floorPlanStore.ts`). On open the plan is **fit to the measured canvas
   viewport** (a `ResizeObserver` drives `basePX`, replacing a fixed 940×620 assumption) so it
   fills any screen without a manual zoom-out. **Mobile:** the toolbar is a single row

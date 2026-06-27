@@ -1,6 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
-import { readNum, readStr } from './shared'
+import { metalLeg, readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
 /** Counter-height bar stool. Styles: 'splayed' (round seat on four splayed
@@ -18,7 +18,9 @@ export function BarStool({ props }: { props: ParamProps }) {
   const r = 0.18
 
   const seatMat = getSurfaceMaterial(finish, seatColor, 0.5, sheen)
-  const metal = { color: legColor, roughness: 0.4, metalness: 0.6 }
+  // Legs / column / footrest ring / backrest bars route through the shared
+  // brushed-metal material (matte black-steel grain, tinted by legColor).
+  const metal = metalLeg(legColor, 'black-steel')
 
   const splayedLegs = [0, 1, 2, 3].map((i) => {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4
@@ -35,9 +37,9 @@ export function BarStool({ props }: { props: ParamProps }) {
         castShadow
         position={[mx, seatH / 2, mz]}
         rotation={[Math.cos(a) * lean, 0, -Math.sin(a) * lean]}
+        material={metal}
       >
         <cylinderGeometry args={[0.014, 0.014, seatH, 8]} />
-        <meshStandardMaterial {...metal} />
       </mesh>
     )
   })
@@ -52,28 +54,24 @@ export function BarStool({ props }: { props: ParamProps }) {
       {style === 'pedestal' ? (
         <>
           {/* Central column */}
-          <mesh castShadow position={[0, seatH / 2, 0]}>
+          <mesh castShadow position={[0, seatH / 2, 0]} material={metal}>
             <cylinderGeometry args={[0.03, 0.035, seatH, seg(16, detail)]} />
-            <meshStandardMaterial {...metal} />
           </mesh>
           {/* Weighted disc base */}
-          <mesh castShadow receiveShadow position={[0, 0.02, 0]}>
+          <mesh castShadow receiveShadow position={[0, 0.02, 0]} material={metal}>
             <cylinderGeometry args={[r + 0.02, r + 0.04, 0.03, seg(28, detail)]} />
-            <meshStandardMaterial {...metal} />
           </mesh>
           {/* Footrest ring on the column */}
-          <mesh position={[0, 0.25, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <mesh position={[0, 0.25, 0]} rotation={[Math.PI / 2, 0, 0]} material={metal}>
             <torusGeometry args={[0.1, 0.012, seg(8, detail), seg(24, detail)]} />
-            <meshStandardMaterial {...metal} />
           </mesh>
         </>
       ) : (
         <>
           {splayedLegs}
           {/* Footrest ring */}
-          <mesh position={[0, 0.25, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <mesh position={[0, 0.25, 0]} rotation={[Math.PI / 2, 0, 0]} material={metal}>
             <torusGeometry args={[r + 0.02, 0.012, seg(8, detail), seg(24, detail)]} />
-            <meshStandardMaterial {...metal} />
           </mesh>
         </>
       )}
@@ -82,14 +80,22 @@ export function BarStool({ props }: { props: ParamProps }) {
       {style === 'backed' && (
         <>
           {[-1, 1].map((s) => (
-            <mesh key={s} castShadow position={[s * (r - 0.03), seatH + 0.16, -r + 0.03]}>
+            <mesh
+              key={s}
+              castShadow
+              position={[s * (r - 0.03), seatH + 0.16, -r + 0.03]}
+              material={metal}
+            >
               <cylinderGeometry args={[0.01, 0.01, 0.32, 8]} />
-              <meshStandardMaterial {...metal} />
             </mesh>
           ))}
-          <mesh castShadow position={[0, seatH + 0.3, -r + 0.04]} rotation={[Math.PI / 2, 0, 0]}>
+          <mesh
+            castShadow
+            position={[0, seatH + 0.3, -r + 0.04]}
+            rotation={[Math.PI / 2, 0, 0]}
+            material={metal}
+          >
             <torusGeometry args={[r - 0.03, 0.012, seg(8, detail), seg(16, detail), Math.PI]} />
-            <meshStandardMaterial {...metal} />
           </mesh>
         </>
       )}

@@ -1,0 +1,22 @@
+{
+  "name": "plan-room-duplicate",
+  "url": "http://localhost:5251/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1')" },
+    { "name": "open-plan-editor", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "plan-screen-up", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "pick-a-room", "eval": "(() => { const s = window.__store.getState(); const r = s.floorPlan.rooms[0]; window.__roomId = r.id; window.__roomName = r.name; window.__roomsBefore = s.floorPlan.rooms.length; window.__wallsBefore = s.floorPlan.walls.length; s.setPlanSelection({ type: 'room', id: r.id }); return r.id })()" },
+    { "name": "expand-panel", "eval": "(() => { const b = document.querySelector('button[aria-label=\"Expand properties\"]'); if (b) b.click(); return !!b })()" },
+    { "name": "inspector-up", "waitFor": { "text": "Duplicate room" }, "timeout": 10000 },
+    { "name": "shot-before", "screenshot": "before-duplicate" },
+    { "name": "assert-button-present", "eval": "(() => { const btns = [...document.querySelectorAll('button')].filter(b => b.textContent.trim() === 'Duplicate room'); if (btns.length !== 1) throw new Error('expected 1 Duplicate room button, got ' + btns.length); window.__dupBtnOk = true; return true })()" },
+    { "name": "click-duplicate", "eval": "(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === 'Duplicate room'); b.scrollIntoView(); b.click(); return true })()" },
+    { "name": "room-added", "waitFor": { "store": "window.__store.getState().floorPlan.rooms.length === window.__roomsBefore + 1" }, "timeout": 10000 },
+    { "name": "assert-clone", "eval": "(() => { const s = window.__store.getState(); const sel = s.planSelection; const copy = s.floorPlan.rooms.find(r => r.id === sel.id); const ok = { rooms: s.floorPlan.rooms.length, roomsBefore: window.__roomsBefore, wallsBefore: window.__wallsBefore, wallsNow: s.floorPlan.walls.length, copyName: copy && copy.name, copyOrigin: copy && copy.origin, selectedNew: sel.type === 'room' && sel.id !== window.__roomId }; window.__dupResult = ok; if (!ok.selectedNew) throw new Error('copy not selected'); if (s.floorPlan.rooms.length !== window.__roomsBefore + 1) throw new Error('room count wrong'); return ok })()" },
+    { "name": "shot-after", "screenshot": "after-duplicate" },
+    { "name": "undo", "eval": "window.__store.getState().undo()" },
+    { "name": "room-restored", "waitFor": { "store": "window.__store.getState().floorPlan.rooms.length === window.__roomsBefore && window.__store.getState().floorPlan.walls.length === window.__wallsBefore" }, "timeout": 10000 },
+    { "name": "shot-undo", "screenshot": "after-undo" }
+  ]
+}

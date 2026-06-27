@@ -19,3 +19,46 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (ground default). Schema: `upperLevels` + `levelId` are optional + additive —
   no version bump needed for level features that follow that shape.
 - Geometry stays **pure + unit-tested** here (no three/React imports beyond types).
+- **Whole-plan transforms scale ALL storeys about one anchor.** `rescalePlan.ts`
+  (PARITY-PLAN-SCALE) multiplies every wall endpoint / room polygon / opening
+  offset / note·dim·polyline vertex / upper-storey geometry + furniture POSITION
+  by a factor (or `targetLength/currentLength`) about an anchor point (origin, or
+  the anchor wall's `start`). Furniture **sizes are preserved** by default (SH3D
+  "scale walls" parity) — opt in with `scaleFurnitureSize`. Pure + composable
+  (double-scale composes); factor ≤ 0 / NaN throws; factor 1 is a deep-clone
+  no-op. The store action is `floorPlanSlice.rescaleFloorPlan` (one undo step);
+  UI is `ui/floorplan/ScalePlanModal.tsx` behind the `planScale` Pro flag.
+- **Whole-plan transforms reflect/scale ALL storeys consistently.** `mirrorPlanRegion.ts`
+  (PARITY-PLAN-MIRROR-REGION) reflects every wall endpoint / room origin·polygon·labelOffset /
+  opening / note·dim·polyline vertex / upper-storey geometry + furniture POSITION across the
+  vertical world line `x = axisX` (`x → 2·axisX − x`, Z untouched). Because a reflection is
+  orientation-REVERSING it also flips handedness: opening `hinge` (start↔end) + `swing` (left↔right),
+  wall `arc` sign, room `labelAngle` sign, and furniture yaw (`rotation → −rotation`) + `flipX`. Lengths
+  and areas are preserved (it's an isometry — sizes/`extent`/`elevation` are untouched). Pure +
+  composable: a double-mirror about the same axis is the identity; non-finite `axisX` throws. The store
+  action is `floorPlanSlice.mirrorFloorPlan(axisX?)` (defaults to the plan's centre-X; one undo step;
+  forks the default plan); UI is the "Mirror plan" entry in the editor's Plan menu behind the
+  `planMirrorRegion` Pro flag.
+- **Whole-plan transforms snap ALL storeys to a grid.** `gridSnap.ts` (PARITY-GRID-SNAP) rounds
+  every wall endpoint / room origin·width·depth·extension·polygon·labelOffset / opening offset+width /
+  note·dim·polyline vertex / upper-storey geometry + `elevation` + the plan `extent` to the nearest
+  multiple of `gridM` (`Math.round(v/gridM)*gridM`) — to tidy a traced/imported plan. Openings are
+  **re-threaded** against the snapped wall (offset snapped + clamped to `[0, wallLen−width]`) so they
+  stay on their wall; a wall that would **collapse to zero length** is left unsnapped (never dropped).
+  Furniture POSITIONS snap only with `{snapFurniture}` (sizes always preserved). Pure + idempotent
+  (`snap∘snap === snap`); `gridM ≤ 0` / NaN / Infinity throws. The store action is
+  `floorPlanSlice.snapFloorPlanToGrid(gridM?, opts?)` (one undo step; defaults `gridM` to the editor
+  `gridSize`, else 0.05 m; forks the default plan); UI is the "Snap to grid" entry in the editor's
+  Plan menu behind the `planGridSnap` Pro flag.
+- **Room inset/outset (PARITY-ROOM-INSET): `insetRoom.ts` `insetPolygon(points, dist)`** offsets
+  every edge of a simple polygon by a signed distance and re-intersects adjacent offset edges:
+  `dist>0` shrinks inward (dropped soffit / set-down), `dist<0` grows outward (setback). Handles
+  convex AND simple concave (L-shape) rooms; winding is auto-detected (folded into the offset
+  sign) so CW/CCW both work. A degenerate result (the offset over-runs — an edge reverses
+  direction, the winding sign flips, or the area collapses to ~0) returns **`null`** rather than a
+  self-intersecting polygon. Pure (reuses `polygonArea`). The store action
+  `floorPlanSlice.insetRoom(id, dist)` (+ `insetSelectedRoom`) runs it on the room's outline
+  (`roomPolygon`), writes the result back as an explicit `polygon` (subsuming any L-`extension`),
+  re-flows the room's auto wall/opening names, pushes ONE undo step, and rejects a `null` result
+  with an error toast (no fork / no history). Boundary WALLS are not re-traced, so openings keep
+  their wall offsets — a known limitation for large insets. `roomInset` Pro flag.

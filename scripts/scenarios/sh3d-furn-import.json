@@ -1,0 +1,25 @@
+{
+  "name": "sh3d-furn-import",
+  "url": "http://localhost:5311/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(()=>{const s=window.__store.getState();s.endTour&&s.endTour();s.setOnboardingOpen&&s.setOnboardingOpen(false);s.dismissLocationPrompt&&s.dismissLocationPrompt();localStorage.setItem('hdb_onboarded','1');})()" },
+    { "name": "wait-import-hook", "waitFor": { "store": "typeof window.__importSh3dBytes === 'function'" }, "timeout": 60000 },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour(13)" },
+    { "name": "import-sh3d", "eval": "(()=>{const b64='UEsDBBQAAAAIAFxu2lwENDcgsAEAALwEAAAIAAAASG9tZS54bWyVlMtOwzAQRfd8heV9aAItFKkpEo+KBRILQKzT2mksEk/kuKT9e2bs5iHatGITjW8m98y1rczut0XOfqSpFOiYR5chZ1KvQCi9jvnnxyKY8vv5xSyDQrI6yfMXqdaZjfnVTcjnF4zNSGRKxLwOLJScbd9tYrABjXZduX3W2DIJSXUlFjZTq28tqwrdQj7662YI1Pn5b084jqk847kEa6EYMHUG3vZfprlMe3OeMRywMwCFszMRZzopZMxf1Q8egttkbChBacu23omeo3mn+RhDKo3R1/sqsUcEd1Wp5Eq+pYuN0cpujHQTlUEFadJM9QhFumPvTkGvaOLdrjEJS/Q6xxasaiVsRvGwFrKk+g7LbH95pg16AGiTZS47YppKyT681mM69wNmFHVMvKMtczw5zVxK0RCfYIMs9kAK8q5xXOJFvYzR5eQ2nHZQGmkPdWM1VNRPUuvECAPLNuxXu0bw+PbU5rpxjgQlvmcKAPNmvpQWUDueCFIDGi+rhy1owZ6wy+Gu9vt6DEan1+brs5pdPWDVOqiUaIM9JDvm3zpWczcHzrAXrY8jHXGzEf2O5r9QSwECFAAUAAAACABcbtpcBDQ3ILABAAC8BAAACAAAAAAAAAAAAAAAAAAAAAAASG9tZS54bWxQSwUGAAAAAAEAAQA2AAAA1gEAAAAA';const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);window.__importSh3dBytes(bytes,'VF Furnished Plan');})()" },
+    { "name": "wait-items", "waitFor": { "store": "window.__store.getState().items.length > 0" }, "timeout": 30000 },
+    { "name": "probe", "eval": "(()=>{const s=window.__store.getState();const r={items:s.items.length,walls:s.floorPlan.walls.length,rooms:s.floorPlan.rooms.length,openings:s.floorPlan.openings.length,positions:s.items.map(i=>i.position),rotations:s.items.map(i=>Math.round(i.rotation*100)/100),defIds:s.items.map(i=>i.defId)};console.log('VF_PROBE '+JSON.stringify(r));return r;})()" },
+    { "name": "frame", "eval": "window.__store.getState().requestHomeView()" },
+    { "name": "settle", "wait": 2500 },
+    { "name": "shot-dollhouse", "screenshot": "dollhouse" },
+    { "name": "tilt", "drag": { "from": [800, 520], "to": [800, 250] } },
+    { "name": "settle2", "wait": 600 },
+    { "name": "zoom", "wheel": { "x": 800, "y": 500, "dy": -350 } },
+    { "name": "settle3", "wait": 1200 },
+    { "name": "shot-angle", "screenshot": "angle" },
+    { "name": "open-plan", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "wait-plan", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "settle-plan", "wait": 1500 },
+    { "name": "shot-plan", "screenshot": "plan" }
+  ]
+}

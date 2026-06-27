@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { isAnyModalOpen } from '../../controls/modalGuard'
 import { isEditableTarget } from '../../controls/useKeyboard'
+import { isFeatureEnabled } from '../../features/featureFlags'
 import { useCatalog } from '../../furniture/catalog'
 import { defaultParamProps, type FurnitureDef, type ParamProps } from '../../furniture/types'
 import { useStore } from '../../state/store'
@@ -8,6 +9,13 @@ import { useStore } from '../../state/store'
 function defaultProps(def: FurnitureDef): ParamProps {
   if (def.kind === 'parametric') return defaultParamProps(def)
   return def.scale != null ? { scale: def.scale } : {}
+}
+
+/** Sticky stamp placement is active only when the user armed it AND the feature
+ *  is on — a defence-in-depth gate so a stale `stampMode` can never keep a click
+ *  armed once the `stampPlace` flag is off (e.g. switched to Simple mode). */
+function stampActive(): boolean {
+  return useStore.getState().stampMode && isFeatureEnabled('stampPlace')
 }
 
 /**
@@ -51,10 +59,12 @@ export function usePlacementController() {
         rotation: (def.defaultRotation ?? 0) + useStore.getState().ghostRotation,
         props: defaultProps(def),
       })
-      // Shift-click keeps the placement armed (with the same orientation) so a
-      // row of identical pieces can be dropped one after another; a plain click
-      // disarms. The ghost goes red over the piece just placed until moved.
-      if (!ev.shiftKey) cancelPlacement()
+      // Keep the placement armed when stamping: either an explicit Shift-click
+      // (one-off) or sticky stamp mode (PARITY-STAMP-PLACE — stays armed across
+      // many plain clicks until Escape / Done). Otherwise a plain click commits
+      // once and disarms. The ghost goes red over the piece just placed until
+      // moved. Each commit is its own addItem ⇒ its own undo step.
+      if (!ev.shiftKey && !stampActive()) cancelPlacement()
     }
     const onContext = (ev: MouseEvent) => {
       ev.preventDefault()

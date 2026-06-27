@@ -19,9 +19,13 @@ import { firstEditableRoomId } from '../state/rooms'
 import { useStore } from '../state/store'
 import { closeAllAuxPanels } from './auxPanels'
 import { openDocs } from './docsUrl'
+import { downloadCostBreakdownCsv } from './openCostBreakdownCsv'
+import { downloadFfeCsv } from './openFfeCsv'
 import { downloadFurnitureCsv } from './openFurnitureCsv'
 import { downloadPlanSvg } from './openPlanSvg'
+import { downloadRenoIcs } from './openRenoIcs'
 import { openDesignReport } from './openReport'
+import { downloadRoomScheduleCsv } from './openRoomScheduleCsv'
 import { exportScene3d } from './openSceneExport'
 import { openSh3dImport } from './openSh3dImport'
 import { openShoppingList } from './openShoplist'
@@ -39,6 +43,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   history: 'history',
   share: 'shareExport',
   report: 'report',
+  'reno-ics': 'report',
   floorplan: 'floorPlanEditor',
   'design-score': 'designScore',
   accessibility: 'accessibility',
@@ -51,16 +56,23 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'render-compare': 'renderCompare',
   'shopping-list': 'shopExport',
   'furniture-csv': 'shopExport',
+  'room-schedule-csv': 'shopExport',
+  'ffe-csv': 'shopExport',
+  'cost-breakdown-csv': 'shopExport',
   'plan-svg': 'dxfExport',
   'export-3d': 'sceneExport3d',
   'import-sh3d': 'importSh3d',
   parametric: 'parametricFurniture',
+  'stamp-mode': 'stampPlace',
   'replace-similar': 'replaceSimilar',
   'ai-furnish': 'aiLayout',
   'drawing-callouts': 'drawingCallouts',
   'quote-template': 'quoteTemplate',
   'sel-group': 'furnitureGroups',
   'sel-ungroup': 'furnitureGroups',
+  // Inset / grow the selected plan room (PARITY-ROOM-INSET).
+  'inset-room': 'roomInset',
+  'grow-room': 'roomInset',
   // The sun-driven sky backdrop command is gated by its feature flag (RD-412).
   'backdrop:sky': 'proceduralSky',
 }
@@ -92,6 +104,8 @@ export function CommandPalette() {
   const selOneId = useStore((s) => (s.selectedItemIds.length === 1 ? s.selectedItemId : null))
   // The active group id (when the selection resolves to one group) gates Ungroup.
   const activeGroupId = useStore((s) => s.activeGroupId)
+  // The selected plan room (id) gates the inset / grow room commands.
+  const selRoomId = useStore((s) => (s.planSelection?.type === 'room' ? s.planSelection.id : null))
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -151,6 +165,36 @@ export function CommandPalette() {
         label: 'Custom-size furniture (shelf / wardrobe / sideboard)',
         icon: 'Cube',
         run: () => s().setParametricOpen(true),
+      },
+      {
+        // Sticky stamp placement (PARITY-STAMP-PLACE): keep the currently-armed
+        // catalog item (or the selected item's def) armed for repeated clicks.
+        id: 'stamp-mode',
+        group: 'Actions',
+        label: 'Stamp — place an item repeatedly',
+        icon: 'Copy',
+        run: () => {
+          const st = useStore.getState()
+          // Arm the def that's already in hand, else the selected item's def.
+          const defId =
+            st.activeDefId ??
+            (st.selectedItemId
+              ? (st.items.find((it) => it.id === st.selectedItemId)?.defId ?? null)
+              : null)
+          if (!defId) {
+            // Nothing to stamp — open the catalog so the user can pick an item.
+            st.setLeftMode('catalog')
+            st.setCatalogOpen(true)
+            return
+          }
+          if (!canEditScene(st)) {
+            const id = firstEditableRoomId(st.floorPlan)
+            if (id) st.enterRoomEditor(id)
+          }
+          // Arm the def, then turn on sticky stamp (setActiveDefId clears it).
+          useStore.getState().setActiveDefId(defId)
+          useStore.getState().setStampMode(true)
+        },
       },
       {
         id: 'tidy',
@@ -359,6 +403,13 @@ export function CommandPalette() {
         run: () => openDesignReport(),
       },
       {
+        id: 'reno-ics',
+        group: 'Tools & panels',
+        label: 'Reno timeline (.ics calendar export)',
+        icon: 'Export',
+        run: () => void downloadRenoIcs(),
+      },
+      {
         id: 'shopping-list',
         group: 'Tools & panels',
         label: 'Shopping list (buy-list export)',
@@ -378,6 +429,27 @@ export function CommandPalette() {
         label: 'Furniture list (CSV export)',
         icon: 'Export',
         run: () => void downloadFurnitureCsv(),
+      },
+      {
+        id: 'room-schedule-csv',
+        group: 'Tools & panels',
+        label: 'Room schedule (CSV export)',
+        icon: 'Export',
+        run: () => void downloadRoomScheduleCsv(),
+      },
+      {
+        id: 'ffe-csv',
+        group: 'Tools & panels',
+        label: 'FF&E schedule (CSV export)',
+        icon: 'Export',
+        run: () => void downloadFfeCsv(),
+      },
+      {
+        id: 'cost-breakdown-csv',
+        group: 'Tools & panels',
+        label: 'Cost breakdown (CSV export)',
+        icon: 'Export',
+        run: () => void downloadCostBreakdownCsv(),
       },
       {
         id: 'plan-svg',
@@ -589,14 +661,34 @@ export function CommandPalette() {
           },
         ]
       : []
-    return [...base, ...layout, ...single, ...furniture].map((c) => ({
+    // Room commands: inset / grow the selected plan room by ±0.1 m (gated by the
+    // `roomInset` flag via COMMAND_FLAGS). Only shown when a room is selected.
+    const room: Command[] = selRoomId
+      ? [
+          {
+            id: 'inset-room',
+            group: 'Selection',
+            label: 'Inset room (−0.1 m)',
+            icon: 'FloorPlan',
+            run: () => s().insetSelectedRoom(0.1),
+          },
+          {
+            id: 'grow-room',
+            group: 'Selection',
+            label: 'Grow room (+0.1 m)',
+            icon: 'FloorPlan',
+            run: () => s().insetSelectedRoom(-0.1),
+          },
+        ]
+      : []
+    return [...base, ...layout, ...single, ...room, ...furniture].map((c) => ({
       ...c,
       run: () => {
         c.run()
         close()
       },
     }))
-  }, [byCategory, catalog, selCount, selOneId, activeGroupId])
+  }, [byCategory, catalog, selCount, selOneId, activeGroupId, selRoomId])
 
   // Drop commands whose feature flag is off (saved-view commands gate on the
   // savedViews flag) so the palette can't launch a disabled feature. Pro-only

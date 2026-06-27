@@ -7,16 +7,18 @@ import { canPlace, itemFootprint } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { noExportUserData } from '../../export/sceneGltf'
+import { isFeatureEnabled } from '../../features/featureFlags'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
 import { priorityRaycast } from '../raycastPriority'
 import {
-  computeRotation,
   enclosingRadius,
   gizmoRadius,
+  neighbourAxes,
   pointerAngle,
   rotatePointAround,
+  smartSnapRotation,
   snapDelta,
   toDegrees,
 } from './rotateGizmoMath'
@@ -30,6 +32,9 @@ const GRAB_HALF = 0.16
 const COLOR_IDLE = '#3b82f6'
 const COLOR_VALID = '#22c55e'
 const COLOR_INVALID = '#ef4444'
+// Faint alignment-guide colour, drawn only while a neighbour-axis snap is active.
+// Reads as a subtle precision cue distinct from the valid/invalid ring tints.
+const COLOR_ALIGN = '#a78bfa'
 
 interface GizmoTarget {
   id: string
@@ -49,6 +54,10 @@ interface Gesture {
   grabAngle: number
   startRot: number // single only: the item's rotation at grab
   originals: Array<{ id: string; position: [number, number]; rotation: number }>
+  /** Single-item only: neighbour/wall reference yaws for the smart snap, captured
+   *  once at grab (neighbours don't move during the gesture). Empty when smart
+   *  snap is off (Simple mode / flag off) so the gizmo falls back to 15° only. */
+  refs: number[]
 }
 
 /**
@@ -91,6 +100,10 @@ export function RotateGizmo() {
   const [valid, setValid] = useState(true)
   // While rotating: the absolute angle (single) or signed delta (group), radians.
   const [live, setLive] = useState<number | null>(null)
+  // Local yaw (relative to faceRot) of the active neighbour-axis snap, or null
+  // when none — drives the faint alignment guide. Null whenever snapping to the
+  // 15° grid, free-rotating (Shift), or rotating a group.
+  const [alignYaw, setAlignYaw] = useState<number | null>(null)
   const gesture = useRef<Gesture | null>(null)
 
   // Resolve the target set + ring geometry from the live selection.
@@ -191,9 +204,13 @@ export function RotateGizmo() {
       const free = ev.shiftKey
       let delta: number
       if (g.single) {
-        const abs = computeRotation(g.startRot, g.grabAngle, angle, !free)
-        delta = abs - g.startRot
-        setLive(abs)
+        // Free candidate yaw (relative grab), then smart snap: neighbour/wall axis
+        // within threshold wins, else the 15° grid; Shift (free) bypasses both.
+        const candidate = g.startRot + (angle - g.grabAngle)
+        const { yaw, snappedToRef } = smartSnapRotation(candidate, g.refs, !free)
+        delta = yaw - g.startRot
+        setLive(yaw)
+        setAlignYaw(snappedToRef >= 0 ? yaw : null)
       } else {
         delta = snapDelta(angle - g.grabAngle, !free)
         setLive(delta)
@@ -217,6 +234,7 @@ export function RotateGizmo() {
       useStore.getState().setRotatingGizmo(false)
       setValid(true)
       setLive(null)
+      setAlignYaw(null)
       // Grabbing the ring pushed an undo snapshot in onGrab; if the grab didn't
       // actually rotate anything, drop it so the first undo isn't a dead step
       // (BUG-016). A real rotation changed an item reference → kept.
@@ -241,12 +259,22 @@ export function RotateGizmo() {
   const onGrab = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     const grabAngle = pointerAngle(pivot[0], pivot[1], e.point.x, e.point.z)
+    // Capture neighbour/wall reference axes once, for a single item, when the
+    // smart-snap feature is on (pro-tier; forced off in Simple → empty refs →
+    // plain 15° snap, so casual users keep the familiar behaviour).
+    let refs: number[] = []
+    if (single && isFeatureEnabled('smartRotateSnap')) {
+      const st = useStore.getState()
+      const walls = placementWalls(st) ?? buildCollisionWalls(st.doors)
+      refs = neighbourAxes(targets[0].id, st.items, walls)
+    }
     gesture.current = {
       single,
       pivot,
       grabAngle,
       startRot: single ? targets[0].rotation : 0,
       originals: targets.map((t) => ({ id: t.id, position: t.position, rotation: t.rotation })),
+      refs,
     }
     useStore.getState().pushHistory()
     setValid(true)
@@ -307,6 +335,22 @@ export function RotateGizmo() {
           depthWrite={false}
         />
       </mesh>
+      {/* Faint neighbour-alignment guide: a full-diameter line along the snapped
+          axis, shown only while a neighbour/wall snap is active (the group is
+          already rotated to the snapped yaw, so local +Z is that axis). Subtle +
+          slightly above the ring's plane → no z-fighting. */}
+      {rotating && single && alignYaw != null && (
+        <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}>
+          <planeGeometry args={[0.012, radius * 2]} />
+          <meshBasicMaterial
+            color={COLOR_ALIGN}
+            transparent
+            opacity={0.55}
+            depthTest={false}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
       {rotating && readout && (
         <Html position={[0, 0, radius + 0.18]} center distanceFactor={9}>
           <div className="rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap pointer-events-none">

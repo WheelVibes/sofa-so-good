@@ -26,7 +26,9 @@ import { IkeaBody } from './IkeaBody'
 import { InspectorSection } from './InspectorSection'
 import { MultiSelectPanel } from './MultiSelectPanel'
 import { ParametricBody } from './ParametricBody'
+import { PathArraySection } from './PathArraySection'
 import { PosField } from './PosField'
+import { ScatterFillSection } from './ScatterFillSection'
 import { SourceLine } from './SourceLine'
 import { TiltControls } from './TiltControls'
 import { MinimizeButton, useInspectorMinimize } from './useInspectorMinimize'
@@ -51,6 +53,10 @@ export function InspectorPanel() {
   // Multi-axis tilt (SweetHome3DJS parity): pitch/roll an item off vertical.
   const tiltOn = useFeature('tiltFurniture')
   const radialArrayOn = useFeature('radialArray')
+  // Duplicate-along-path array (PARITY-DUP-PATH): place copies along a drawn polyline.
+  const pathArrayOn = useFeature('pathArray')
+  // Scatter-fill a room with N collision-safe copies (PARITY-SCATTER-ROOM).
+  const scatterFillOn = useFeature('scatterFill')
   const tiltItem = useStore((s) => s.tiltItem)
   // Per-item elevation (SweetHome3DJS parity) — grouped with mount-height control.
   const elevationOn = useFeature('mountHeights')
@@ -368,7 +374,7 @@ export function InspectorPanel() {
     if (dropped > 0) {
       const placed = newItems.length
       st.notify.start({
-        title: `Placed ${placed} of ${total + 1} — ${dropped} didn't fit`,
+        title: `Placed ${placed} of ${total} — ${dropped} didn't fit`,
         kind: 'info',
       })
     }
@@ -832,6 +838,12 @@ export function InspectorPanel() {
                     </span>
                   </label>
                 </div>
+              ) : null}
+              {proMode && pathArrayOn ? (
+                <PathArraySection item={item} def={def} catalog={catalog} />
+              ) : null}
+              {proMode && scatterFillOn ? (
+                <ScatterFillSection item={item} def={def} catalog={catalog} />
               ) : null}
               {isOffSquare(item.rotation) ? (
                 <button

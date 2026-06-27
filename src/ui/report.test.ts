@@ -396,6 +396,124 @@ describe('buildReportHtml', () => {
   })
 })
 
+describe('buildReportHtml — plan statistics digest (PARITY-PLAN-STATS)', () => {
+  const plan = buildDefaultPlan()
+
+  it('renders a Plan statistics section with the room-type breakdown', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Plan statistics')
+    expect(html).toContain('Gross floor area')
+    expect(html).toContain('Average room size')
+    expect(html).toContain('Total wall length')
+    expect(html).toContain('Room type')
+  })
+})
+
+describe('buildReportHtml — daylight & ventilation (PARITY-DAYLIGHT-DIGEST)', () => {
+  const plan = buildDefaultPlan()
+
+  it('renders a Daylight & ventilation section with per-room glazing % for a windowed plan', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Daylight &amp; ventilation')
+    // The pass-count summary uses the module thresholds (10% glazing / 5% openable).
+    expect(html).toMatch(/rooms meet daylight ≥ 10% glazing/)
+    expect(html).toMatch(/meet ventilation ≥ 5% openable/)
+    // Per-room table column headers.
+    expect(html).toContain('>Glazing</td>')
+    expect(html).toContain('>Openable</td>')
+  })
+
+  it('omits the section for a bare shell with no windowed rooms', () => {
+    const bare = { ...plan, openings: [] }
+    const html = buildReportHtml(bare, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Daylight &amp; ventilation')
+  })
+})
+
+describe('buildReportHtml — openings schedule (PARITY-OPENING-SCHED)', () => {
+  const plan = buildDefaultPlan()
+
+  it('renders an Openings schedule with typed marks + a door/window count', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Openings schedule')
+    expect(html).toContain('Doors &amp; windows')
+    // Size column + at least one typed mark (D1/W1).
+    expect(html).toContain('Size (W×H)')
+    expect(html).toMatch(/>[DW]1<\/td>/)
+    // Size cells use the "× " form (W × H).
+    expect(html).toMatch(/m × .*m/)
+  })
+
+  it('omits the Openings schedule for a plan with no openings', () => {
+    const bare = { ...plan, openings: [] }
+    const html = buildReportHtml(bare, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Openings schedule')
+  })
+})
+describe('buildReportHtml — design suggestions (PARITY-SUGGESTIONS-SECTION)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('renders a Design suggestions section with per-room tips for the furnished default flat', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Design suggestions')
+    // Plural-aware lead-in (the default flat produces multiple suggestions).
+    expect(html).toMatch(/idea(s)? to add or improve, room by room/)
+    // The rule engine fires the kitchen-storage idea on the default layout; the
+    // room name heads its block.
+    expect(html).toContain('Kitchen')
+    expect(html).toContain('cabinets or shelving')
+  })
+
+  it('surfaces an empty-room furnishing tip for a bare habitable room', () => {
+    // A single empty bedroom → the "start with a bed…" empty-bedroom tip.
+    const bedroomOnly: typeof plan = {
+      ...plan,
+      rooms: [{ id: 'br', name: 'Master Bedroom', origin: [1, 1], width: 3, depth: 3 }],
+    }
+    const html = buildReportHtml(bedroomOnly, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Design suggestions')
+    expect(html).toContain('Master Bedroom')
+    expect(html).toMatch(/Furnish this room — start with a bed/)
+  })
+
+  it('omits the Design suggestions section when the rules produce nothing', () => {
+    // A plan with no rooms yields no suggestions → no section.
+    const noRooms: typeof plan = { ...plan, rooms: [] }
+    const html = buildReportHtml(noRooms, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Design suggestions')
+  })
+})
+
+describe('buildReportHtml — move-in / handover checklist (PARITY-MOVEIN-CHECKLIST)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('renders a Move-in checklist with per-room snags + the generic handover bucket', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Move-in checklist')
+    // The kitchen snag rule + the always-present generic items.
+    expect(html).toContain('Kitchen')
+    expect(html).toMatch(/water-stop valves/i)
+    expect(html).toContain('Keys, meters &amp; documents')
+    expect(html).toMatch(/Collect all keys/i)
+    // Checkbox glyph on each line.
+    expect(html).toContain('☐')
+  })
+
+  it('still renders the generic handover group for a bare empty plan', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Move-in checklist')
+    expect(html).toContain('Keys, meters &amp; documents')
+  })
+})
+
 describe('buildReportHtml — multi-storey fan-out (F13)', () => {
   const plan = buildDefaultPlan()
   const upper = {
@@ -471,5 +589,39 @@ describe('buildReportHtml — multi-storey fan-out (F13)', () => {
     )
     expect(html).toContain('Hacking &amp; new walls')
     expect(html).toContain('Entire storey added')
+  })
+})
+
+describe('buildReportHtml — electrical points (PARITY-ELECTRICAL-SCHED)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('renders an indicative Electrical points section with per-room counts + a total', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Electrical points (indicative)')
+    // Per-room table column headers.
+    expect(html).toContain('>Lighting</td>')
+    expect(html).toContain('>Power</td>')
+    // The furnished default flat has lighting + power points → the lead-in
+    // mentions both, and a grand-total row appears.
+    expect(html).toMatch(/lighting · \d+ power/)
+    // Labelled indicative, not a certified layout.
+    expect(html).toMatch(/not a certified electrical layout/i)
+  })
+
+  it('still renders the section for a bare (unfurnished) plan with habitable rooms', () => {
+    // No furniture: the per-kind socket floor still gives each habitable room
+    // power points, so the section renders (lighting columns read 0).
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).toContain('Electrical points (indicative)')
+  })
+
+  it('omits the section for a plan with no rooms', () => {
+    const noRooms = { ...plan, rooms: [] }
+    const html = buildReportHtml(noRooms, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Electrical points (indicative)')
   })
 })

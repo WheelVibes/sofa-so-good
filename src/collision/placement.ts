@@ -11,7 +11,7 @@
 
 import { getCachedGltfFootprint } from '../furniture/GltfModel'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
-import { type AabbItem, buildGrid, candidatePairs } from './broadphase'
+import { type AabbItem, buildGrid, candidatePairs, queryRect } from './broadphase'
 import { type OBB, obbVsObb } from './obb'
 import type { CollisionWall } from './walls'
 import { buildCollisionWalls } from './wallsFromState'
@@ -255,13 +255,48 @@ function computeItemOverlaps(
 }
 
 /** Axis-aligned bounding box of an item footprint OBB (for the broadphase). */
-function itemAabbBox(item: FurnitureItem, def: FurnitureDef): AabbItem {
+export function itemAabbBox(item: FurnitureItem, def: FurnitureDef): AabbItem {
   const o = itemFootprint(item, def)
   const c = Math.abs(Math.cos(o.rot))
   const s = Math.abs(Math.sin(o.rot))
   const hx = c * o.hx + s * o.hz
   const hz = s * o.hx + c * o.hz
   return { id: item.id, minX: o.cx - hx, minZ: o.cz - hz, maxX: o.cx + hx, maxZ: o.cz + hz }
+}
+
+/**
+ * Broadphase prune of a candidate's item-vs-item neighbour set (PERF-003,
+ * applied to the auto-arrange tidy pass — see `layout/autoArrange.ts`).
+ *
+ * Returns the subset of `others` whose footprint AABB overlaps `candidate`'s —
+ * a SUPERSET of the items that could collide, so feeding it as `canPlace`'s
+ * `others` yields the *identical* boolean: an item whose AABB does not overlap
+ * the candidate's cannot have an overlapping OBB (`itemsCollide` would reject
+ * it), and defless items never collide (`itemsCollide` returns false on a
+ * missing def), so they are safe to drop here too.
+ *
+ * The wall-collision arm of `canPlace` is untouched (it does not scan `others`),
+ * so restricting `others` cannot change wall results.
+ */
+export function broadphaseNeighbours(
+  candidate: FurnitureItem,
+  def: FurnitureDef,
+  others: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+): FurnitureItem[] {
+  // Rugs (noClip) never collide and the candidate's own id is filtered by id.
+  if (others.length === 0) return others
+  const boxed: { item: FurnitureItem; box: AabbItem }[] = []
+  for (const o of others) {
+    const od = defs[o.defId]
+    if (!od) continue // defless → never collides; safe to exclude
+    boxed.push({ item: o, box: itemAabbBox(o, od) })
+  }
+  if (boxed.length === 0) return []
+  const grid = buildGrid(boxed.map((b) => b.box))
+  const candBox = itemAabbBox(candidate, def)
+  const nearIds = new Set(queryRect(grid, candBox))
+  return boxed.filter((b) => nearIds.has(b.item.id)).map((b) => b.item)
 }
 
 /**

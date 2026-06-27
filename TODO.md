@@ -2,6 +2,110 @@
 
 Single source of truth for deferred work across this project. Each entry links back to the spec, plan, or file that introduced it. Removed when done.
 
+## 🔭 2026-06-26 RESEARCH WAVE — fresh pure-client/headless backlog (TOP PRIORITY)
+
+Compiled by a read-only audit+research agent, cross-checked against `CHANGELOG.md` (source of
+truth). All items are pure-client and headlessly verifiable on SwiftShader (unit tests or
+`window.__store` scenario assertions). Conflict-group tags (`cg-*`) parallelize: same tag = serialize.
+**Already dispatched/shipped this session — do NOT re-do:** AUD-002/003, PARITY-SH3D-FURN/OPENINGS
+(tests), PARITY-DUP-PATH, PARITY-SNAP-ROTATE, PARITY-PLAN-ROOM-DUP, PARITY-PLAN-MARQUEE,
+PARITY-PLAN-ALIGN, MOD-FPE-SPLIT, BUG-RADIAL-FULLCIRCLE, PARITY-ROOM-CSV, PARITY-PLAN-SCALE,
+PARITY-STAMP-PLACE, PARITY-SCATTER-ROOM, BUG-PATHARRAY-LOOP (the no-polyline infinite-render fix).
+**BUG-PATHARRAY-EMPTY was VERIFIED a false positive** (pathArrayPlacements already guards
+`segments.length===0 || total<=1e-9 → []` and sampleAt guards the division) — removed, no fix needed.
+
+> **⚠️ Orchestration constraint (learned this session):** isolated worktree subagents fork from the
+> **session-start base** (`b0371d9`), NOT the branch tip — so (a) files *created* this session
+> (`pathArray.ts`, `scatterInRoom.ts`, `rescalePlan.ts`, `marqueeSelect.ts`, `toolDraftReducer.ts`,
+> `PlanMultiSelectActions.tsx`, `PathArraySection.tsx`, …) are **invisible** to a delegated agent and
+> must be edited inline; and (b) **behaviour-preserving refactors of files modified this session**
+> (`FloorPlanEditor.tsx`, `PlanInspector.tsx`, `MobileToolbar.tsx`) can't be safely delegated — a
+> b0371d9-based refactor would drop this session's additions on merge. **Deferred until the base
+> resets** (next PR merge to `main`) or to careful inline work: **MOD-PLANINSPECTOR-SPLIT**,
+> **MOD-MOBILETOOLBAR-SPLIT**, and the FloorPlanEditor-touching parts of **PARITY-PLAN-GUIDES**.
+> (**PARITY-PLAN-VERTEX-ANGLESNAP** was done **inline** by the orchestrator, v0.3.0.42 — a small
+> localized edit only the orchestrator could make, since worktree agents fork pre-churn.)
+
+### Correctness / reliability (highest priority)
+### 2D plan editor ergonomics (high value, pure geometry)
+- [ ] **PARITY-PLAN-GUIDES** (MED/S, `cg-planguides`) — no persistent guide/reference-line type
+  (only transient smart guides). Add `plan.guides:{axis:'x'|'z',pos}[]` + pure
+  `snapToGuides(point,guides,threshold)`, persisted in schema. Verify: unit — point near vertical guide
+  snaps X only, intersection snaps both; scenario round-trips guides through serialize.
+
+### Layout productivity
+### Data / export
+### Maintainability (debt — CLAUDE.md "no monolithic files")
+- [ ] **MOD-PLANINSPECTOR-SPLIT** (MED/M, `cg-planinspector` — serialize AFTER PARITY-PLAN-ALIGN) —
+  `ui/floorplan/PlanInspector.tsx` is **1348 lines**. Extract wall/room/opening/notes-dimension
+  branches into sibling `editor/inspector/<Branch>.tsx` panels; keep `PlanInspector` a thin dispatcher
+  (proven `PathArraySection`/`PlanFurnitureInspector` pattern). Verify: behaviour-preserving — existing
+  scenarios green + tsc/biome.
+- [ ] **MOD-MOBILETOOLBAR-SPLIT** (LOW/M, `cg-mobiletoolbar`) — `ui/toolbar/MobileToolbar.tsx` is
+  **1204 lines**. Extract per-section detail-pane renderers into `toolbar/mobile/<Section>.tsx`; keep
+  the rail/sheet shell thin. Verify: mobile scenario parity + tsc/biome.
+
+> **(historical) Recommended first parallel batch** — BUG-RADIAL-FULLCIRCLE + PARITY-PLAN-SCALE +
+> PARITY-ROOM-CSV + PARITY-SCATTER-ROOM + PARITY-STAMP-PLACE: **all shipped** (Waves 4–6).
+> PARITY-PLAN-VERTEX-ANGLESNAP shipped inline (v0.3.0.42). MOD-PLANINSPECTOR-SPLIT still deferred
+> (needs base reset).
+> **Verified already shipped (do NOT propose):** door-swing obstruction check, arrow-key nudge,
+> compass/north + scale-bar + auto-dimension strings, photo-trace backdrop. **Per-frame alloc findings**
+> in DragController/SelectionOutline are LOW (Canvas is `frameloop="demand"` → only during active drags).
+
+## 🔭 2026-06-26 RESEARCH WAVE #2 — new-file parity features (post-Wave-5 audit)
+
+A second read-only audit (app at v0.3.0.27) found **no open correctness/leak bugs** (the pure
+geometry modules audit clean; BUG-001/004/008 already shipped). Next value is **new pure-module
+parity features**. Conflict-group tags parallelize. **SHIPPED:** PARITY-PLAN-STATS, PARITY-RENO-ICS,
+PARITY-GRID-SNAP (Wave 6, v0.3.0.29–.31), PARITY-THERMAL (Wave 7, v0.3.0.32).
+**DROPPED — PARITY-SCENE-JSON-EXPORT VERIFIED redundant** (ShareModal "Export file" /
+`exportDesignToFile` already downloads `<name>.sofa.json` with a round-trip test).
+
+### Clean-delegate pure core (UI wiring is inline-only → split; defer the editor trigger to a base reset)
+- [ ] **PARITY-CORNER-FILLET** (MED/M, `cg-cornerfillet`) — `floorplan/cornerFillet.ts` round/bevel a
+  wall corner (reuses `wallArc`). Pure core clean-delegate; on-canvas handle inline-only (split).
+- [ ] **PARITY-DIM-CHAIN** (MED/M, `cg-dimchain`) — `floorplan/dimensionChain.ts` chained dimension
+  strings. Pure core clean-delegate; editor dimension-tool wiring inline-only (split).
+- [ ] **PARITY-PLAN-GUIDES** pure core (MED/S, `cg-planguides`) — `floorplan/snapToGuides.ts` +
+  `plan.guides[]` schema field (additive). Editor snapping integration inline-only (split).
+### Inline-only / needs base-reset (touch churned files — defer to next `main` merge)
+- [ ] **PARITY-PLAN-GUIDES** editor wiring · **PARITY-CORNER-FILLET / -ROOM-INSET / -DIM-CHAIN** UI triggers.
+- [ ] **MOD-PLANINSPECTOR-SPLIT** (`cg-planinspector`, 1348 ln) · **MOD-MOBILETOOLBAR-SPLIT**
+  (`cg-mobiletoolbar`, 1204 ln) — behaviour-preserving splits; can't be stale-base-refactored safely.
+
+> **Real-GPU/backend (out of scope):** DoF bokeh, 8K render, VSM/PCSS, denoise, HDRI IBL, SSGI,
+> AI plan-gen, branded catalogs, multi-user collab, CORS-proxied providers.
+
+## 🔭 2026-06-26 RESEARCH WAVE #3 — report/export-surface features (fully clean-delegate)
+
+Audit found the report/export/analysis surfaces (`ui/report.ts` append slots, `export/*`, `analysis/*`,
+additive ToolsMenu/⌘K) are conflict-light + fully shippable — the productive lane while the editor
+files stay churned. Several analysis **builders already exist** but aren't surfaced in the printable
+report/export. **IN FLIGHT (Wave 9):** PARITY-OPENING-SCHED, PARITY-DAYLIGHT-DIGEST, PARITY-FFE-CSV.
+> NOTE: report-section items contend on `report.ts` — serialize them (one agent owns report.ts per wave);
+> export-only items run in parallel.
+
+## 🔭 2026-06-26 RESEARCH WAVE #4 — materials / realism / perf (beyond the saturated report surface)
+
+The report/export surface is saturated; this wave mines `materials/`/`furniture/`/`apartment/`/`layout/`
+(clean, not in the churned-editor avoid-list), aligned with the photoreal/parity North Star. Sourced
+from `docs/research/2026-06-19-material-microdetail-plan.md` (MAT-006a/b are the only un-shipped rows)
++ a codebase audit. **IN FLIGHT (Wave 12):** MAT-006a, METAL-LEGS, SHELLPERF + ARRANGE-GRID.
+
+### Clean-delegate
+- [x] **CONCRETE-PORES** (LOW-MED/S, `G-materials`) — DONE v0.4.0.0: `makePinholePores` roughness-only
+  pore micro-variation layered onto `concreteFields`; `DEFAULT_CONCRETE_SURFACE_PARAMS`; 39 pixel-stats tests.
+- [ ] **GAP-SUGGEST** (MED/S-M, new `layout/gapFix.ts`) — minimal nudge vector to clear each narrow
+  walkway gap (`walkway.ts findNarrowGaps`); pure helper (UI affordance later, pro).
+- [x] **BRUSH-AXIS** (LOW/S, `G-furnmat`) — DONE v0.4.0.0: pure `brushAxis.ts anisotropyRotationForNormal`
+  threaded through `getMetalMaterial`'s LRU key; default-byte-identical; 9 tests.
+
+### Clean-delegate but PARTLY real-GPU (verification limited — split / defer the pixel pass)
+- [ ] **MAT-006b** (MED/M, `G-flags`) — triplanar projection for sloped/curved walls
+  (`materials/triplanar.ts` + `triplanarWalls` pro flag). Uses `onBeforeCompile` → only the CPU-side
+  projection-weight math + "shader compiles" is headless-verifiable; the visual needs a real render pass.
+
 ## MASTER EXECUTION QUEUE (consolidated 2026-06-19)
 
 One de-duplicated, prioritised dispatch queue distilled from the five 2026-06-19 audit

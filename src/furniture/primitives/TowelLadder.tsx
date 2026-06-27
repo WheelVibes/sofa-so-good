@@ -1,10 +1,10 @@
 import {
   getFabricMaterial,
-  getSolidMaterial,
   getSurfaceMaterial,
+  type MetalFinish,
 } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
-import { readNum, readStr } from './shared'
+import { metalLeg, readNum, readStr } from './shared'
 
 /**
  * Freestanding heated towel ladder — two vertical side posts on small feet,
@@ -21,14 +21,17 @@ export function TowelLadder({ props }: { props: ParamProps }) {
   const towel = readStr(props, 'towel', 'yes') === 'yes'
   const towelColor = readStr(props, 'towelColor', '#e8e3d8')
 
-  const FRAME: Record<string, { color: string; rough: number; metal: number }> = {
-    chrome: { color: '#cfd3d6', rough: 0.18, metal: 0.95 },
-    black: { color: '#2b2d30', rough: 0.4, metal: 0.7 },
-    brass: { color: '#b8923f', rough: 0.3, metal: 0.85 },
+  // Metal frame tones route through the shared brushed-metal material: chrome →
+  // bright stainless, black → matte black-steel, brass → warm satin brushing.
+  // A non-metal `finish` (wood) falls back to the wood surface material.
+  const FRAME: Record<string, { color: string; metal: MetalFinish }> = {
+    chrome: { color: '#cfd3d6', metal: 'stainless' },
+    black: { color: '#2b2d30', metal: 'black-steel' },
+    brass: { color: '#b8923f', metal: 'satin' },
   }
   const frame = FRAME[finish]
   const mat = frame
-    ? getSolidMaterial(frame.color, frame.rough, frame.metal)
+    ? metalLeg(frame.color, frame.metal)
     : getSurfaceMaterial('wood', readStr(props, 'color', '#6f553f'), 0.6, 0.2)
 
   const postR = 0.016

@@ -32,6 +32,12 @@ time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push
 
 ---
 
+> **Backlog-staleness note (2026-06-26):** the `2026-06-20-coohom-sh3d-parity-backlog.md`
+> doc lists **PARITY-SH3D-FURN** + **PARITY-SH3D-OPENINGS** as open, but both already shipped
+> (commit `e5f47a9`; `openSh3dImport.ts` calls `setItems(placement.placedFurniture)` and
+> `sh3dPlacement.ts` exists). Treat that doc as an index, **CHANGELOG.md as truth**. Wave 1
+> added the missing store-level integration coverage for them.
+
 ## Multi-storey remnants (F13 core shipped C221–C235 — see CHANGELOG)
 
 ## Competitor research 2026-06 (sources: coohom.com/article Planner5D-alternative · capterra.com

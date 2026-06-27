@@ -1,7 +1,7 @@
 import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
-import { readNum, readStr } from './shared'
+import { metalLeg, readNum, readStr } from './shared'
 
 /**
  * Sideboard / credenza — a low, long storage cabinet for a dining or living
@@ -30,6 +30,10 @@ export function Sideboard({ props }: { props: ParamProps }) {
   const legMat = getWoodMaterial(legColor, 0.45)
   const metal = { color: '#2b2b2b', roughness: 0.35, metalness: 0.65 } as const
   const brass = { color: '#b08d57', roughness: 0.4, metalness: 0.7 } as const
+  // Hairpin legs route through the shared brushed-metal material (matte
+  // black-steel); the small bar/knob/recessed pulls keep their plain hardware
+  // props above.
+  const hairpinMat = metalLeg('#2b2b2b', 'black-steel')
 
   const gap = 0.02
   const bayW = (width - gap * (bays + 1)) / bays
@@ -128,9 +132,13 @@ export function Sideboard({ props }: { props: ParamProps }) {
             const lz = sz * (depth / 2 - 0.06)
             if (legs === 'hairpin') {
               return (
-                <mesh key={`${sx}.${sz}`} castShadow position={[lx, legH / 2, lz]}>
+                <mesh
+                  key={`${sx}.${sz}`}
+                  castShadow
+                  position={[lx, legH / 2, lz]}
+                  material={hairpinMat}
+                >
                   <cylinderGeometry args={[0.008, 0.008, legH, 8]} />
-                  <meshStandardMaterial {...metal} />
                 </mesh>
               )
             }

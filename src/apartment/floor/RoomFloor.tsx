@@ -1,6 +1,7 @@
 import type { ThreeEvent } from '@react-three/fiber'
 import { memo, Suspense, useCallback, useMemo } from 'react'
 import type { MeshStandardMaterial } from 'three'
+import { isFeatureEnabled } from '../../features/featureFlags'
 import type {
   MaterialId,
   ProceduralMaterialDef,
@@ -38,11 +39,21 @@ interface FloorMeshProps {
   width: number
   depth: number
   material: MeshStandardMaterial
+  /** Tile period in metres (material `uvScale`) for the RD-406 repetition
+   *  break-up — only tiling (procedural/textured) finishes pass it. */
+  tileSize?: number
 }
 
-function FloorMesh({ roomId, origin, width, depth, material }: FloorMeshProps) {
+function FloorMesh({ roomId, origin, width, depth, material, tileSize }: FloorMeshProps) {
   const selectRoom = useStore((s) => s.selectRoom)
-  const geometry = useMemo(() => worldUvPlaneGeometry(width, depth), [width, depth])
+  // RD-406 repetition break-up (`tileBreakup`, pro-tier): a large tiled floor
+  // gets a per-tile-cell UV rotation/offset so it stops repeating every metre.
+  // Off (or no tile size) → the plain world-UV plane (byte-identical).
+  const breakup = tileSize != null && isFeatureEnabled('tileBreakup') ? tileSize : undefined
+  const geometry = useMemo(
+    () => worldUvPlaneGeometry(width, depth, undefined, breakup),
+    [width, depth, breakup],
+  )
   // Geometry passed via `geometry=` isn't R3F-owned: dispose on resize/unmount.
   useDisposeGeometry(geometry)
   const onClick = useCallback(
@@ -110,17 +121,17 @@ function SolidRoomFloor({
 function TexturedRoomFloor({
   def,
   ...rest
-}: Omit<FloorMeshProps, 'material'> & { def: TexturedMaterialDef }) {
+}: Omit<FloorMeshProps, 'material' | 'tileSize'> & { def: TexturedMaterialDef }) {
   const material = useTexturedMaterial(def)
-  return <FloorMesh {...rest} material={material} />
+  return <FloorMesh {...rest} material={material} tileSize={def.uvScale[0]} />
 }
 
 function ProceduralRoomFloor({
   def,
   ...rest
-}: Omit<FloorMeshProps, 'material'> & { def: ProceduralMaterialDef }) {
+}: Omit<FloorMeshProps, 'material' | 'tileSize'> & { def: ProceduralMaterialDef }) {
   const material = useProceduralMaterial(def)
-  return <FloorMesh {...rest} material={material} />
+  return <FloorMesh {...rest} material={material} tileSize={def.uvScale[0]} />
 }
 
 function RoomFloorInner({ materialId, ...rest }: RoomFloorProps) {

@@ -9,7 +9,10 @@ import { LocalStorageAdapter } from '../../../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
+import { downloadCostBreakdownCsv } from '../../openCostBreakdownCsv'
+import { downloadFfeCsv } from '../../openFfeCsv'
 import { downloadFurnitureCsv } from '../../openFurnitureCsv'
+import { downloadRoomScheduleCsv } from '../../openRoomScheduleCsv'
 import { openSh3dImport } from '../../openSh3dImport'
 import { openShoppingList } from '../../openShoplist'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
@@ -132,6 +135,30 @@ export function FileMenu() {
           label="Furniture list (CSV)"
           sub="Spreadsheet of every item — dims, qty, prices"
           onClick={() => void downloadFurnitureCsv()}
+        />
+      ) : null}
+      {fShopExport ? (
+        <MenuItem
+          icon="Export"
+          label="Room schedule (CSV)"
+          sub="Per-room area, perimeter, finishes & ceiling"
+          onClick={() => void downloadRoomScheduleCsv()}
+        />
+      ) : null}
+      {fShopExport ? (
+        <MenuItem
+          icon="Export"
+          label="FF&E schedule (CSV)"
+          sub="Item-by-item schedule — source, SKU, size, qty, price"
+          onClick={() => void downloadFfeCsv()}
+        />
+      ) : null}
+      {fShopExport ? (
+        <MenuItem
+          icon="Export"
+          label="Cost breakdown (CSV)"
+          sub="Furniture + finishes + renovation, with a grand total"
+          onClick={() => void downloadCostBreakdownCsv()}
         />
       ) : null}
       {canRecord() && proMode ? (

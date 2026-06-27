@@ -1,0 +1,24 @@
+{
+  "name": "plan-grid-snap-simple",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "flag-on", "waitFor": { "store": "state.featureFlags.planGridSnap === true" }, "timeout": 5000, "failMessage": "planGridSnap should be ON in Pro mode" },
+
+    { "name": "load-off-grid-plan", "eval": "(() => { const s=window.__store.getState(); s.setItems([]); s.setFloorPlan({ id:'offgrid', name:'Off grid', ceilingHeight:2.6, extent:[5.43,4.41], walls:[ {id:'w1',start:[0.07,0.13],end:[5.36,0.13],thickness:'external'}, {id:'w2',start:[5.36,0.13],end:[5.36,4.28],thickness:'external'}, {id:'w3',start:[5.36,4.28],end:[0.07,4.28],thickness:'external'}, {id:'w4',start:[0.07,4.28],end:[0.07,0.13],thickness:'external'} ], openings:[ {id:'o1',kind:'door',wallId:'w1',offset:1.23,width:0.91,sill:0,head:2} ], rooms:[ {id:'r1',name:'Living',origin:[0.17,0.23],width:5.06,depth:3.93} ] }); })()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "set-grid", "store": { "action": "setGridSize", "args": [0.05] } },
+    { "name": "wait-before", "wait": 800 },
+    { "name": "shot-before", "screenshot": "plan-before-snap" },
+
+    { "name": "snap", "store": { "action": "snapFloorPlanToGrid", "args": [0.05] } },
+    { "name": "assert-on-grid", "waitFor": { "store": "state.floorPlan.walls.every(w => [w.start[0],w.start[1],w.end[0],w.end[1]].every(v => Math.abs(v/0.05 - Math.round(v/0.05)) < 1e-9))" }, "timeout": 5000, "failMessage": "every wall endpoint should land on the 0.05 m grid after snap" },
+    { "name": "assert-opening-on-wall", "waitFor": { "store": "(()=>{const s=window.__store.getState();const o=s.floorPlan.openings[0];const w=s.floorPlan.walls.find(x=>x.id===o.wallId);const len=Math.hypot(w.end[0]-w.start[0],w.end[1]-w.start[1]);return o.offset>=0 && o.offset+o.width<=len+1e-9;})()" }, "timeout": 5000, "failMessage": "the door should stay on its snapped wall" },
+    { "name": "wait-after", "wait": 800 },
+    { "name": "shot-after", "screenshot": "plan-after-snap" }
+  ]
+}

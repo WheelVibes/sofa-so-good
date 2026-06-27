@@ -5,11 +5,18 @@
  */
 
 import { buildAccessibilityReport } from '../analysis/accessibility'
+import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
 import { buildDesignScore } from '../analysis/designScore'
+import { buildElectricalSchedule } from '../analysis/electricalSchedule'
+import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
+import { buildOpeningSchedule } from '../analysis/openingSchedule'
+import { buildPlanStatistics, roomKindLabel } from '../analysis/planStatistics'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
 import { estimateRenovation } from '../analysis/renovationCost'
 import { buildStairAdvisories } from '../analysis/stairConnectivity'
+import { buildSuggestions } from '../analysis/suggestions'
+import { buildThermalReport, thermalKindLabel } from '../analysis/thermalAnalysis'
 import { ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
 import { ROOMS } from '../apartment/constants'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
@@ -33,7 +40,7 @@ import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildSection } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
-import { planRoomArea } from '../floorplan/types'
+import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -175,6 +182,47 @@ export function buildReportHtml(
           .join('')
       : plan.rooms.map((r) => roomRow(r, plan.ceilingHeight)).join(''))
   const totalArea = roomsAll.reduce((s, r) => s + planRoomArea(r), 0)
+
+  // Plan statistics digest (PARITY-PLAN-STATS) — a single "by the numbers" read
+  // of the home: GFA across all storeys, room count + per-kind mix, average room
+  // size, total perimeter + wall length, and the net-vs-circulation split when
+  // corridor/hallway rooms exist. Pure (analysis/planStatistics); reconciles with
+  // the room schedule because it shares the same area/perimeter helpers.
+  const stats = buildPlanStatistics(plan)
+  const pct = (f: number) => `${Math.round(f * 100)}%`
+  const statRow = (label: string, value: string) =>
+    `<tr><td>${esc(label)}</td><td class="num">${esc(value)}</td></tr>`
+  const planStatsSection =
+    stats.roomCount === 0 && stats.totalWallLengthM === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Plan statistics</h2>
+      <table>
+        ${statRow('Gross floor area', formatArea(stats.totalAreaSqm, units))}
+        ${statRow(stats.levelCount > 1 ? `Rooms · ${stats.levelCount} storeys` : 'Rooms', String(stats.roomCount))}
+        ${stats.roomCount > 0 ? statRow('Average room size', formatArea(stats.averageRoomSqm, units)) : ''}
+        ${statRow('Total room perimeter', formatLength(stats.totalPerimeterM, units))}
+        ${stats.totalWallLengthM > 0 ? statRow('Total wall length', formatLength(stats.totalWallLengthM, units)) : ''}
+        ${
+          stats.circulationSqm > 0
+            ? statRow(
+                'Net vs circulation',
+                `${formatArea(stats.netAreaSqm, units)} net · ${formatArea(stats.circulationSqm, units)} circulation (${pct(stats.circulationFraction)})`,
+              )
+            : ''
+        }
+      </table>
+      ${
+        stats.byKind.length > 0
+          ? `<table style="margin-top:8px"><tr class="cat"><td>Room type</td><td class="num">Count</td><td class="num">Area</td></tr>${stats.byKind
+              .map(
+                (k) =>
+                  `<tr><td>${esc(roomKindLabel(k.kind))}</td><td class="num">${k.count}</td><td class="num">${formatArea(k.areaSqm, units)}</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }
+    </div>`
 
   // Furniture grouped by category.
   const byCat = new Map<
@@ -393,6 +441,49 @@ export function buildReportHtml(
         .join('')}
     </div>`
 
+  // Design suggestions (PARITY-SUGGESTIONS-SECTION) — the per-room "what to add /
+  // improve" tips the in-app suggestions panel surfaces, carried into the printable
+  // report. Reuses the same `buildSuggestions` rule engine: each plan room's furniture
+  // categories are derived from the pieces whose footprint centre lands inside it
+  // (mirroring DesignScorePanel), then run through the rule set. Rides the existing
+  // `report` flag (additive section, no new analysis code). Skipped when the rules
+  // produce nothing (e.g. a bare shell with no habitable rooms, or a fully-kitted home).
+  const suggestionRooms = plan.rooms.map((r) => {
+    const cats = new Set<string>()
+    for (const it of items) {
+      const def = catalog[it.defId]
+      if (def && pointInRoom(r, it.position[0], it.position[1])) cats.add(def.category)
+    }
+    return { id: r.id, name: r.name, areaSqm: planRoomArea(r), itemCategories: [...cats] }
+  })
+  const suggestions = buildSuggestions({ rooms: suggestionRooms })
+  // Group the flat suggestion list by room, preserving plan room order, so each room
+  // reads as its own block of tips. A 'tip' (something missing/off) is flagged warn;
+  // an 'idea' (optional styling nicety) is muted.
+  const sugByRoom = new Map<string, typeof suggestions>()
+  for (const s of suggestions) {
+    const list = sugByRoom.get(s.roomId)
+    if (list) list.push(s)
+    else sugByRoom.set(s.roomId, [s])
+  }
+  const sugColor = (sev: string) => (sev === 'tip' ? '#b45309' : '#6b7280')
+  const suggestionsSection =
+    suggestions.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Design suggestions</h2>
+      <div class="foot" style="margin-bottom:6px">${suggestions.length} idea${suggestions.length === 1 ? '' : 's'} to add or improve, room by room — guidance only.</div>
+      ${plan.rooms
+        .filter((r) => sugByRoom.has(r.id))
+        .map((r) => {
+          const list = sugByRoom.get(r.id)!
+          return `<div class="ci-detail" style="margin-top:6px"><strong>${esc(r.name)}</strong>${list
+            .map((s) => `<div style="color:${sugColor(s.severity)}">• ${esc(s.message)}</div>`)
+            .join('')}</div>`
+        })
+        .join('')}
+    </div>`
+
   // Accessibility / universal-design — plan-level door-width + turning-circle
   // check (BCA Code on Accessibility rule of thumb). Plan-only, so it shows even
   // for an unfurnished shell; skipped when the plan has no doors or rooms.
@@ -435,6 +526,62 @@ export function buildReportHtml(
           : ''
       }</div>`
 
+  // Daylight & ventilation (PARITY-DAYLIGHT-DIGEST) — per-room glazing % +
+  // openable % vs the rule-of-thumb HDB/BCA thresholds (glazing ≥ 10% of floor,
+  // openable ≥ 5%). Pure (analysis/daylight, the same builder the in-app panel
+  // uses); rides the existing `report` flag (additive section). Skipped when no
+  // analysed room actually has a window (a bare shell / windowless plan), so an
+  // all-zero table never shows.
+  const daylight = buildDaylightReport(plan)
+  const daylightRoomsWithGlazing = daylight.rooms.filter((r) => r.glazingArea > 0)
+  const daylightPct = (f: number) => `${Math.round(f * 100)}%`
+  const daylightSection =
+    daylightRoomsWithGlazing.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Daylight &amp; ventilation</h2>
+      <div class="${daylight.allPass ? 'ok' : 'warn'}">
+        ${daylight.daylightPassCount}/${daylight.rooms.length} rooms meet daylight ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} glazing ·
+        ${daylight.ventPassCount}/${daylight.rooms.length} meet ventilation ≥ ${daylightPct(VENT_MIN_RATIO)} openable
+      </div>
+      <table style="margin-top:6px">
+        <tr class="cat"><td>Room</td><td class="num">Floor</td><td class="num">Glazing</td><td class="num">Openable</td></tr>
+        ${daylight.rooms
+          .map(
+            (r) =>
+              `<tr><td>${esc(r.roomName)}</td><td class="num">${esc(formatArea(r.floorArea, units))}</td><td class="num" style="color:${r.daylightPass ? '#047857' : '#b91c1c'}">${esc(formatArea(r.glazingArea, units))} · ${daylightPct(r.glazingPct)}</td><td class="num" style="color:${r.ventPass ? '#047857' : '#b91c1c'}">${daylightPct(r.ventPct)}</td></tr>`,
+          )
+          .join('')}
+      </table>
+      <div class="foot" style="margin-top:6px">Rule-of-thumb check (glazing ≥ ${daylightPct(DAYLIGHT_MIN_RATIO)} of floor area for daylight, openable ≥ ${daylightPct(VENT_MIN_RATIO)} for ventilation) — indicative, not a certified BCA/HDB calculation; openable ≈ half the window area for sliding windows.</div>
+    </div>`
+
+  // Openings schedule (PARITY-OPENING-SCHED) — the door & window schedule an
+  // architectural drawing set carries: openings grouped by (kind, width, height)
+  // into typed marks (D1/D2…/W1/W2…) with a count, size (W×H), sill,
+  // swing/hinge (doors), and the rooms each mark borders. Pure
+  // (analysis/openingSchedule); rides the existing `report` flag (additive
+  // section). Omitted when the plan has no openings.
+  const openSched = buildOpeningSchedule(plan)
+  const swingLabel = (m: { swing?: string; hinge?: string }) =>
+    m.swing || m.hinge ? `${m.hinge ?? 'start'} / ${m.swing ?? 'right'}` : '—'
+  const openingsSection =
+    openSched.marks.length === 0
+      ? ''
+      : `<div class="elev-section">
+      <h2>Openings schedule</h2>
+      <div class="subtotal"><span>Doors &amp; windows</span><span>${openSched.doorCount} door${openSched.doorCount === 1 ? '' : 's'} · ${openSched.windowCount} window${openSched.windowCount === 1 ? '' : 's'}</span></div>
+      <table style="margin-top:6px">
+        <tr class="cat"><td>Mark</td><td>Type</td><td class="num">Qty</td><td class="num">Size (W×H)</td><td class="num">Sill</td><td>Hinge / swing</td><td>Rooms</td></tr>
+        ${openSched.marks
+          .map(
+            (m) =>
+              `<tr><td>${esc(m.mark)}</td><td>${m.kind === 'door' ? 'Door' : 'Window'}</td><td class="num">×${m.count}</td><td class="num">${esc(formatLength(m.width, units))} × ${esc(formatLength(m.height, units))}</td><td class="num">${esc(formatLength(m.sill, units))}</td><td>${m.kind === 'door' ? esc(swingLabel(m)) : '—'}</td><td>${esc(m.rooms.join(', '))}</td></tr>`,
+          )
+          .join('')}
+      </table>
+    </div>`
+
   // Renovation estimate — the finishes counterpart to the furniture budget:
   // flooring + painting/wall supply+install over the per-finish areas, at
   // indicative SG rates. Only when finishes are supplied + something to cost.
@@ -458,6 +605,36 @@ export function buildReportHtml(
       <div class="total"><span>Finishes subtotal</span><span>${sgd(reno.subtotal)}</span></div>
       <div class="subtotal"><span>Furniture + finishes</span><span>${sgd(budget + reno.subtotal)}</span></div>
       <div class="foot" style="margin-top:6px">Indicative supply &amp; install only — excludes hacking/disposal, false ceilings, carpentry, M&amp;E and contractor margin.</div>
+    </div>`
+
+  // Thermal envelope (PARITY-THERMAL) — an indicative U-value digest of the
+  // exterior envelope: opaque external wall area + glazing area summed across
+  // all storeys, mapped to representative SG U-values, with the area-weighted
+  // average U and a conductive heat-transfer index (Σ area×U). Pure
+  // (analysis/thermalAnalysis); rides the existing `report` flag (additive
+  // section). A bare shell / all-interior plan yields an empty digest (skipped).
+  const thermal = buildThermalReport(
+    plan,
+    floorOf && wallOf ? { floor: floorOf, walls: wallOf } : undefined,
+  )
+  const thermalSection =
+    thermal.totalEnvelopeSqm <= 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Thermal envelope</h2>
+      <table>
+        <tr class="cat"><td>Surface</td><td class="num">Area</td><td class="num">U-value</td><td class="num">Index</td></tr>
+        ${thermal.surfaces
+          .map(
+            (s) =>
+              `<tr><td>${esc(thermalKindLabel(s.category, s.kind))}</td><td class="num">${esc(formatArea(s.areaSqm, units))}</td><td class="num">${s.uValue.toFixed(1)} W/m²K</td><td class="num">${s.index.toFixed(1)} W/K</td></tr>`,
+          )
+          .join('')}
+      </table>
+      <div class="subtotal"><span>Average U-value</span><span>${thermal.averageU.toFixed(2)} W/m²K</span></div>
+      <div class="subtotal"><span>Glazing ratio</span><span>${Math.round(thermal.glazingRatio * 100)}% of envelope</span></div>
+      <div class="total"><span>Heat-transfer index (Σ area×U)</span><span>${thermal.heatTransferIndex.toFixed(0)} W/K</span></div>
+      <div class="foot" style="margin-top:6px">Indicative envelope estimate from representative U-values (lookup table, not a certified calculation) — exterior walls + windows only; excludes roof/floor slabs, thermal bridging, solar gain, infiltration and orientation.</div>
     </div>`
 
   // Dimensioned plan — an auto-generated running-dimension drawing (overall wall
@@ -585,6 +762,26 @@ export function buildReportHtml(
         .join('')}
     </div>`
 
+  // Move-in / handover checklist (PARITY-MOVEIN-CHECKLIST) — a derived snagging +
+  // key-handover punch-list grouped by room (per-kind defect checks), plus
+  // appliance/utility activation items for the appliance categories actually
+  // placed, plus the generic keys/meters/documents bucket. Pure
+  // (analysis/handoverChecklist); rides the existing `report` flag (additive
+  // section). Always renders — an empty plan still yields the generic group.
+  const handover = buildHandoverChecklist(plan, items, catalog)
+  const handoverSection = `<div class="room-cost">
+      <h2>Move-in checklist</h2>
+      <div class="foot" style="margin-bottom:6px">${handover.totalItems} item${handover.totalItems === 1 ? '' : 's'} to walk through on collection / handover — tick each off on site.</div>
+      ${handover.groups
+        .map(
+          (g) =>
+            `<div class="ci-detail" style="margin-top:6px"><strong>${esc(g.title)}</strong>${g.items
+              .map((i) => `<div style="color:#374151">☐ ${esc(i.label)}</div>`)
+              .join('')}</div>`,
+        )
+        .join('')}
+    </div>`
+
   // Wall elevations — the vertical drawings, only for walls that actually carry
   // furniture or openings (skip the many bare structural segments).
   const elevations = hasItems
@@ -654,6 +851,33 @@ export function buildReportHtml(
         ${roomLux.length ? `<div class="foot" style="margin-top:6px">Estimated average illuminance per room (lumen method, utilisation factor 0.45) vs recommended residential levels.</div>` : ''}</div>`
     : ''
 
+  // Electrical points (PARITY-ELECTRICAL-SCHED) — a consolidated, room-by-room
+  // count of lighting points (the same light emitters the lighting plan plots)
+  // and indicative power points / sockets (inferred from the powered furniture
+  // categories present + a per-room-kind floor), with a grand total. The rough
+  // socket/point tally an electrician quotes against early on; distinct from the
+  // lighting plan + fixture schedule above. Pure (analysis/electricalSchedule);
+  // rides the existing `report` flag (additive section). Omitted when empty (a
+  // bare shell with no rooms / no fixtures) so an all-zero table never shows.
+  const electrical = buildElectricalSchedule(plan, items, catalog)
+  const electricalSection =
+    electrical.rooms.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Electrical points (indicative)</h2>
+      <div class="foot" style="margin-bottom:6px">${electrical.total} point${electrical.total === 1 ? '' : 's'} — ${electrical.totalLighting} lighting · ${electrical.totalPower} power. A rough planning aid for an electrician to quote against, not a certified electrical layout (no circuits, loads or cable runs).</div>
+      <table>
+        <tr class="cat"><td>Room</td><td class="num">Lighting</td><td class="num">Power</td><td class="num">Total</td></tr>
+        ${electrical.rooms
+          .map(
+            (r) =>
+              `<tr><td>${esc(r.roomName)}</td><td class="num">${r.lightingPoints}</td><td class="num">${r.powerPoints}</td><td class="num">${r.total}</td></tr>`,
+          )
+          .join('')}
+        <tr class="cat"><td>Total</td><td class="num">${electrical.totalLighting}</td><td class="num">${electrical.totalPower}</td><td class="num">${electrical.total}</td></tr>
+      </table>
+    </div>`
+
   // FF&E schedule — the item-level procurement table (room · item · source · SKU
   // · size · qty · pricing), the central designer hand-off. Full width.
   const ffe = hasItems ? buildFfeSchedule(plan, items, catalog) : []
@@ -719,6 +943,7 @@ export function buildReportHtml(
       }
     </div>
   </div>
+  ${planStatsSection}
   ${
     roomCostRows
       ? `<div class="room-cost">
@@ -752,17 +977,23 @@ export function buildReportHtml(
       : ''
   }
   ${renovationSection}
+  ${thermalSection}
   ${timelineSection}
   ${ffeSection}
   ${clearanceSection}
   ${designScoreSection}
+  ${suggestionsSection}
   ${accessibilitySection}
+  ${daylightSection}
+  ${openingsSection}
   ${complianceSection}
+  ${handoverSection}
   ${hackingSection}
   ${dimensionedPlanSection}
   ${elevationsSection}
   ${sectionSection}
   ${lightingSection}
+  ${electricalSection}
   ${
     paletteChips
       ? `<div class="palette">

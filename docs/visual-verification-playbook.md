@@ -318,6 +318,49 @@ is 15°-snapped. **Key gotchas learned here:**
   Chromium under SwiftShader starves the first and the editor's `.plan-screen` `waitFor` times out
   spuriously. Run one scenario, wait for `EXIT`, then run the next.
 
+### Worked example — Sweet Home 3D furniture import (PARITY-SH3D-FURN)
+
+**`sh3d-furn-import.json`** drives a full `.sh3d` parse → place: it base64-decodes a synthetic
+archive into a `Uint8Array`, calls the dev-only `window.__importSh3dBytes(bytes, name)` hook
+(parse + `applySh3dResult`), then asserts `__store.items.length > 0` and probes the placed
+items / openings before screenshotting the furnished scene (dollhouse + a tilted profile) and the
+2D plan (door + window openings). Verified: 4 pieces (Comfy Sofa→`sofa-3seat`, Coffee Table→
+`coffee-table`, Double Bed→`bed-queen` keeping its 1.57 rad rotation, Wardrobe→`dresser`) placed
+inside the room, plus a door + a window opening on the plan. **Key gotchas learned here:**
+- **Module functions aren't on `window`** — to drive the importer headlessly, add a dev-only lever
+  in `exposeDevHelpers` (`bootstrap.ts`) next to `__arrangeRoom`/`__loadTemplate`. `__importSh3dBytes`
+  is now permanent (dev-only, tree-shaken from prod), so the scenario is re-runnable without a temp
+  hook. Don't try `await import('/src/...')` from the eval — page-context path resolution fails.
+- **Build the `.sh3d` bytes out-of-page and inline them.** `fflate` isn't reachable from the eval
+  scope; generate the zip in a Node script (`zipSync({ 'Home.xml': strToU8(xml) })`), base64 it, and
+  decode in the eval via `atob` → `Uint8Array` (a small fixture is ~700 chars). Keep the fixture's
+  furniture names matched to catalog categories (sofa/table/bed/wardrobe) so they resolve to defs.
+- **Sync on the placement, not a fixed wait.** `applySh3dResult` mutates the store synchronously, so
+  `{"waitFor": {"store": "window.__store.getState().items.length > 0"}}` is the reliable gate before
+  probing/screenshotting; `requestHomeView()` then frames the new plan like a template load.
+### Worked example — 2D plan align/distribute/mirror (PARITY-PLAN-ALIGN)
+
+**`plan-align-distribute-mirror.json`** seeds 3 furniture items inside the largest room,
+puts them in a furniture multi-selection (`setSelectedItemIds(ids)`), then clicks **Align X**,
+**Across Z** (distribute) and **Mirror** in the plan Properties panel, asserting equal X / even
+Z gaps / mirrored X via `waitFor: {store: …}` after each, with an undo between. **Key gotchas
+learned here:**
+- **`canPlace` blocks an align/distribute that would overlap.** A fixture where two items share
+  the same Z and align to the same X lands them on top of each other → both moves are silently
+  rejected and the assert never flips. Space the seed items so the *post*-action layout has no
+  overlap (distinct Z when testing Align X, distinct X when testing Distribute Z).
+- **Place seed items INSIDE a real room, not at `[0,0]`.** The plan origin is a corner outside
+  every room, so a `canPlace` there fails against the boundary wall — every move is a no-op.
+  Find the largest room (`rooms.reduce(...)`) and seed within its interior with margin.
+- **Reveal footprints for the screenshot** via the **View ▾** menu → **Furniture** toggle
+  (it's local component state, not a store flag, so you must click it — same as the rotate-handle
+  scenario). The store assertions don't need it, but the PNG is uninformative without it.
+- **Don't `pkill -f chrome` mid-session** — it also kills the Vite dev server (the page then logs
+  `ERR_CONNECTION_REFUSED` and every store action silently no-ops). Let the harness manage its own
+  browser; only restart the dev server you started.
+- The panel surfaces purely on `selectedItemIds.length > 1` — drive it with `setSelectedItemIds`
+  (or `setPlanMarqueeSelection` once the marquee lands) rather than synthesising a canvas drag.
+
 ---
 
 ## Legacy mode (one-shot, backward-compatible)

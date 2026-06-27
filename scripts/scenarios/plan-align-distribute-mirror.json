@@ -1,0 +1,60 @@
+{
+  "name": "plan-align-distribute-mirror",
+  "url": "http://localhost:5232/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s=window.__store.getState(); s.endTour&&s.endTour(); s.setOnboardingOpen&&s.setOnboardingOpen(false); s.dismissLocationPrompt&&s.dismissLocationPrompt(); localStorage.setItem('hdb_onboarded','1');"
+    },
+    {
+      "name": "seed-items-and-open-plan",
+      "eval": "(function(){const s=window.__store.getState(); s.setFloorPlanEditing(true); s.setItems([]); const rooms=s.floorPlan.rooms; const room=rooms.reduce((a,b)=>(b.width*b.depth>a.width*a.depth?b:a),rooms[0]); const ids=[]; for(let i=0;i<3;i++){ const x=room.origin[0]+0.8+i*0.4; const z=room.origin[1]+0.8+i*1.4; const id=s.addItem({defId:'potted-plant', position:[x,z], rotation:0, props:{}}); ids.push(id);} window.__alignIds=ids; s.setSelectedItemIds(ids); })()"
+    },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    {
+      "name": "open-view-menu",
+      "eval": "(function(){const b=[...document.querySelectorAll('button[aria-haspopup=\"menu\"]')].find(x=>/^\\s*View/.test(x.textContent)); if(b) b.click();})()"
+    },
+    {
+      "name": "reveal-footprints",
+      "eval": "(function(){const b=[...document.querySelectorAll('button')].find(x=>x.textContent.trim()==='Furniture'); if(b) b.click();})()"
+    },
+    {
+      "name": "panel-shows-multi",
+      "waitFor": { "store": "window.__store.getState().selectedItemIds.length === 3" }
+    },
+    { "name": "record-before", "eval": "window.__before = window.__store.getState().items.map(i=>({id:i.id,p:[...i.position]}));" },
+    { "name": "shot-before", "screenshot": "01-before" },
+    {
+      "name": "click-align-x",
+      "eval": "(function(){const b=[...document.querySelectorAll('.plan-props button')].find(x=>x.textContent.trim()==='Align X'); if(!b) throw new Error('no Align X button'); b.click();})()"
+    },
+    {
+      "name": "assert-aligned-x",
+      "waitFor": { "store": "(function(){const its=window.__store.getState().items; const xs=its.map(i=>i.position[0]); return Math.max(...xs)-Math.min(...xs) < 1e-6;})()" }
+    },
+    { "name": "shot-aligned", "screenshot": "02-aligned-x" },
+    { "name": "undo-align", "eval": "window.__store.getState().undo()" },
+    {
+      "name": "assert-undo-restored",
+      "waitFor": { "store": "(function(){const its=window.__store.getState().items; return its.every((it,i)=>Math.abs(it.position[0]-window.__before[i].p[0])<1e-9);})()" }
+    },
+    { "name": "click-distribute-z", "eval": "(function(){const b=[...document.querySelectorAll('.plan-props button')].find(x=>x.textContent.trim()==='Across Z'); if(!b) throw new Error('no Across Z button'); b.click();})()" },
+    {
+      "name": "assert-even-gaps",
+      "waitFor": { "store": "(function(){const its=[...window.__store.getState().items].sort((a,b)=>a.position[1]-b.position[1]); const g1=its[1].position[1]-its[0].position[1]; const g2=its[2].position[1]-its[1].position[1]; return Math.abs(g1-g2)<1e-4;})()" }
+    },
+    { "name": "shot-distributed", "screenshot": "03-distributed-z" },
+    { "name": "undo-distribute", "eval": "window.__store.getState().undo()" },
+    { "name": "record-mirror-before", "eval": "(function(){const its=window.__store.getState().items; const xs=its.map(i=>i.position[0]); window.__cx = xs.reduce((a,b)=>a+b,0)/xs.length; window.__mb = its.map(i=>i.position[0]);})()" },
+    { "name": "click-mirror", "eval": "(function(){const b=[...document.querySelectorAll('.plan-props button')].find(x=>x.textContent.trim()==='Mirror'); if(!b) throw new Error('no Mirror button'); b.click();})()" },
+    {
+      "name": "assert-mirrored-x",
+      "waitFor": { "store": "(function(){const its=window.__store.getState().items; return its.every((it,i)=>Math.abs(it.position[0]-(2*window.__cx-window.__mb[i]))<1e-4);})()" }
+    },
+    { "name": "shot-mirrored", "screenshot": "04-mirrored-x" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "shot-mobile", "screenshot": "05-mobile" }
+  ]
+}

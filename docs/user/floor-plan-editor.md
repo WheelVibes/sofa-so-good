@@ -105,13 +105,24 @@ It also shows the piece's **size (W × D × H)** and offers **Lock**, **Delete**
 **Edit in 3D** (jump straight into the 3D per‑room editor for that piece). No need
 to leave the plan to nudge a sofa a few centimetres or square it up to a wall.
 
+**Tidy several pieces at once** — when **two or more** furniture footprints are
+selected (marquee‑drag a box over them on empty canvas), the Properties panel turns
+into an action panel: **Align X** / **Align Z** (line their centres up),
+**Align edges** (**Left** / **Right** / **Top** / **Bottom**), **Distribute evenly**
+(**Across X** / **Across Z** — equal gaps between a row of pieces) and **Mirror**
+(flip the whole group left↔right across its centre). Each action is a single undo
+step and respects walls and other furniture; **locked** pieces stay put.
+
 ## Non‑rectangular rooms (L‑shapes & angles)
 
 Rooms don't have to be plain rectangles:
 
 - **Reshape a wall** — select a wall with the **Select** tool and drag the round
   handles at its ends. Walls that share that corner move with it, so the outline
-  stays joined. Drag a corner off the grid line and the wall takes an angle —
+  stays joined. As you drag an endpoint it **snaps to clean angles** (15°
+  increments — horizontal / vertical / 45°…) off the wall's other end, just like
+  drawing a new wall, so a run squares up cleanly; hold **Shift** to drag to a
+  free angle. Drag a corner off the grid line and the wall takes an angle —
   use this with **Split** to bend a straight run into an **L**. To **rotate** the
   whole wall, grab the **ring** drawn around it (anywhere on the ring, or its
   knob) and swing it — just like the furniture rotation gizmo. For exact sizes,
@@ -132,6 +143,15 @@ Rooms don't have to be plain rectangles:
   are part of their wall, so a wall with openings still encloses the room. If you
   click inside an area that's **already a room**, Auto room leaves it alone (it
   won't stack a duplicate) and tells you so.
+- **Inset / grow the outline** — with a room selected, use **Inset −0.1 m** to
+  pull the whole outline inward (e.g. a dropped soffit or set‑down) or **Grow
+  +0.1 m** to push it outward (e.g. a setback). Every edge moves by the same
+  distance and the corners are re‑mitred, so a rectangle, L‑shape or free‑form
+  room all offset cleanly. Tap again to step further. If an inset would collapse
+  the room (bigger than its narrowest width), it's refused with a message rather
+  than producing a broken shape. The same actions are in the command palette
+  (<kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>K</kbd>) as **Inset room** / **Grow room**.
+  *(Pro mode.)*
 
 ## Annotations & markup
 
@@ -194,6 +214,32 @@ Your reference photo and its calibration are **saved on your device** — close
 the editor or reload the app and it's still there when you come back. Remove it
 any time with the **✕** next to the photo controls.
 
+## Scale the whole plan *(Pro)*
+
+Traced or imported a plan at the wrong scale, or want to resize it to a known
+dimension? Open **Scale plan…** (in the **Plan** menu on desktop, or the **Tools**
+sheet on a phone) to rescale everything in one undoable step:
+
+- **By factor** — type a multiplier (2 = double, 0.5 = half). Every wall, room,
+  door and window grows or shrinks together.
+- **To a length** — pick a reference wall and type its real length; the whole plan
+  scales so that wall measures exactly what you typed.
+
+Furniture is **repositioned** to match the new layout but **keeps its real size**
+by default, so standard pieces stay standard. Tick **Also resize furniture** to
+scale the furniture too — useful when the entire design was drawn at the wrong
+scale. The dialog previews the new total floor area before you commit, and one
+**Undo** reverts the whole rescale.
+
+## Snap the plan to a grid *(Pro)*
+
+Traced walls rarely land on tidy round numbers. In **Pro** mode the **Plan ▾**
+menu has a **Snap to grid** action that rounds every wall, room, opening and
+annotation to the current grid in one undoable step, so a hand‑traced plan
+cleans up to neat measurements without re‑drawing it. Doors and windows are
+nudged to stay on their walls; change the grid size first if you want a coarser
+or finer round‑off.
+
 ## Room finishes
 
 Select a room and the inspector shows **Floor finish** and **Wall finish**
@@ -204,6 +250,12 @@ finish picker inside the per‑room editor. **Wall finish** offers **Plaster
 You can also **drag a room's name** on the plan to nudge it clear of furniture or
 a tight room — it prints in the new spot on the Report and Drawing set too. The
 inspector's **Reset label position** button recentres it.
+
+**Duplicate room** — at the bottom of a selected room's inspector, **Duplicate
+room** drops a complete copy beside the original: its shape (rectangle, L‑shape
+or free‑form polygon), its floor and wall finishes, and its own boundary walls
+all come along, offset slightly so the copy is easy to grab. The copy stays on
+the same level, gets a *‹room› copy* name, and one **Undo** removes it cleanly.
 
 ## Ceiling height & wall colour
 
@@ -266,6 +318,12 @@ flat is **HDB › Serangoon North Vista › 4‑Room**. It covers the common Sin
 home types — HDB 2‑Room Flexi, 3/4/5‑Room, Executive Apartment, 3Gen and Jumbo,
 plus condominium layouts (Studio, 1‑Bedroom, 1+Study, 2‑, 3‑ and 4‑Bedroom,
 Penthouse, Loft and a landed Terrace), each grouped under a development name.
+The **Plan ▾** menu also has **Mirror plan**, which flips the *whole* plan —
+walls, rooms, doors and windows, and all the furniture — left‑to‑right about its
+centre, handy for a mirror‑image HDB stack or a paired condo unit. Door swing
+directions flip to match, and it's a single undo away. (This is a **Pro** tool,
+so switch to **Pro** mode to see it.)
+
 When you **Save** a plan to your library you're prompted for its housing type,
 project and apartment type, so your own apartments are categorised like the
 built‑ins. Three templates are genuinely

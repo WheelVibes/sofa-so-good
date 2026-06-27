@@ -1,4 +1,7 @@
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
+import { duplicateRoom as cloneRoom } from '../../floorplan/duplicateRoom'
+import { type GridSnapOptions, snapPlanToGrid } from '../../floorplan/gridSnap'
+import { insetPolygon } from '../../floorplan/insetRoom'
 import {
   cloneLevelGeometry,
   GROUND_LEVEL_ID,
@@ -9,18 +12,23 @@ import {
   planLevels,
   withLevelGeometry,
 } from '../../floorplan/levels'
+import { mirrorPlanRegion } from '../../floorplan/mirrorPlanRegion'
 import { DEFAULT_PLAN_ID } from '../../floorplan/planGeometry'
+import { type RescaleOptions, type RescaleSpec, rescalePlan } from '../../floorplan/rescalePlan'
 import { assignRoomOpeningNames, assignRoomWallNames } from '../../floorplan/roomWallNames'
-import type {
-  CeilingConfig,
-  FloorPlan,
-  PlanDimension,
-  PlanNote,
-  PlanOpening,
-  PlanPolyline,
-  PlanRoom,
-  PlanUpperLevel,
-  PlanWall,
+import {
+  type CeilingConfig,
+  type FloorPlan,
+  type PlanDimension,
+  type PlanNote,
+  type PlanOpening,
+  type PlanPolyline,
+  type PlanRoom,
+  type PlanUpperLevel,
+  type PlanVec2,
+  type PlanWall,
+  planBounds,
+  roomPolygon,
 } from '../../floorplan/types'
 import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
@@ -118,6 +126,12 @@ export interface FloorPlanSlice {
   /** Toggle a wall in the multi-selection (Shift/⌘-click or multi-add mode):
    *  adds it as the new primary, or removes it (promoting another to primary). */
   toggleWallSelection: (id: string) => void
+  /** Apply a marquee (rubber-band) result: select the given furniture items
+   *  (into `selectedItemIds`) and walls (`planSelection` primary + extras in
+   *  `selectedWallIds`) at once, so a drag-box can sweep up both kinds without
+   *  one clearing the other. Session-only; pushes no history (selection only).
+   *  An empty result clears everything (the drag selected nothing). */
+  setPlanMarqueeSelection: (itemIds: string[], wallIds: string[]) => void
   /** Bulk-delete walls (skips locked ones); one history step; clears selection. */
   removeWalls: (ids: string[], levelId?: string) => void
   /** Bulk lock/unlock walls; one history step. */
@@ -190,6 +204,28 @@ export interface FloorPlanSlice {
    *  clears it back to a flat ceiling. Searches every storey, like updateRoom. */
   setRoomCeiling: (id: string, patch: Partial<CeilingConfig> | null) => void
   removeRoom: (id: string, levelId?: string) => void
+  /** Duplicate a room on its own storey: clone its polygon (offset so the copy
+   *  is visible), its floor/wall finishes, and its OWN boundary walls + the
+   *  openings on them (fresh ids, re-flowed `<room> copy` names) — shared walls
+   *  are never mutated. Pushes ONE undo step and selects the new room. Returns
+   *  the new room's id, or undefined when the source is missing. */
+  duplicateRoom: (id: string, levelId?: string) => string | undefined
+  /** Inset (dist>0, shrink for a dropped soffit / set-down) or outset (dist<0,
+   *  grow for a setback) a room's outline by a signed distance in metres
+   *  (PARITY-ROOM-INSET). Offsets every edge of the room polygon and writes the
+   *  result back as an explicit `polygon` (so a rect / L-shape becomes a true
+   *  mitred offset), re-flowing the room's boundary wall/opening names. Searches
+   *  every storey (room ids are plan-unique). Pushes ONE undo step. A degenerate
+   *  result (the inset collapses / self-intersects the room) is REJECTED with an
+   *  error toast and leaves the plan untouched (no fork, no history). Returns
+   *  `true` on success, `false` on a no-op (missing room / collapse).
+   *  Limitation: the room's boundary WALLS are not re-traced, so openings on them
+   *  keep their wall offsets — re-thread walls after a large inset if needed. */
+  insetRoom: (id: string, dist: number) => boolean
+  /** Inset/outset the currently-selected plan room (`planSelection.type==='room'`)
+   *  by a signed distance (the ⌘K "Inset / Grow room" commands). No selected room
+   *  → an info toast, no-op. Delegates to `insetRoom`. */
+  insetSelectedRoom: (dist: number) => boolean
 
   addOpening: (opening: Omit<PlanOpening, 'id'>, levelId?: string) => string
   updateOpening: (id: string, patch: Partial<PlanOpening>, levelId?: string) => void
@@ -228,6 +264,33 @@ export interface FloorPlanSlice {
   /** Remove a storey: its rooms/walls/openings, its items, and its finish keys.
    *  Undoable (history snapshot first). No-op for 'ground' or unknown ids. */
   removeLevel: (id: string) => void
+
+  /** Rescale the WHOLE plan (every storey) + the furniture by a factor or to a
+   *  target wall length, about an anchor point (PARITY-PLAN-SCALE). Scales wall
+   *  endpoints, room polygons, opening offsets, notes/dims/polylines, and item
+   *  positions; item SIZES are preserved unless `opts.scaleFurnitureSize`. ONE
+   *  undo step (snapshots plan + items first). No-op for factor 1; throws on an
+   *  invalid factor / unmeetable target (the caller validates first). */
+  rescaleFloorPlan: (spec: RescaleSpec, opts?: RescaleOptions) => void
+
+  /** Mirror the WHOLE plan region (walls + rooms + openings + annotations +
+   *  furniture, every storey) about the vertical world line `x = axisX`, for
+   *  mirror-image HDB stacks / condo pairs (PARITY-PLAN-MIRROR-REGION). Reflects
+   *  coords, flips opening hinge/swing handedness, and mirrors furniture
+   *  yaw/flipX. Defaults the axis to the plan's centre-X when unset. Replaces
+   *  plan + items in ONE undo step; forks the default plan on first edit. */
+  mirrorFloorPlan: (axisX?: number) => void
+
+  /** Snap the WHOLE plan (every storey) to a grid — round every wall endpoint /
+   *  room polygon vertex / opening offset / annotation coordinate to the nearest
+   *  multiple of `gridM` to clean up a traced or imported plan (PARITY-GRID-SNAP).
+   *  Openings are re-threaded so they stay on their snapped walls; a wall that
+   *  would collapse to zero length is left as-is. `gridM` defaults to the editor's
+   *  current grid setting (falling back to 0.05 m). Furniture POSITIONS snap only
+   *  when `opts.snapFurniture`; sizes are always preserved. ONE undo step
+   *  (snapshots plan + items first); forks the default plan on first edit; throws
+   *  on a non-positive / non-finite grid. */
+  snapFloorPlanToGrid: (gridM?: number, opts?: GridSnapOptions) => void
 }
 
 export const FLOOR_PLAN_INITIAL: Pick<
@@ -343,6 +406,28 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         ? { planSelection: sel, selectedWallIds: [], selectedItemId: null, selectedItemIds: [] }
         : { planSelection: sel, selectedWallIds: [] },
     ),
+  setPlanMarqueeSelection: (itemIds, wallIds) =>
+    set(() => {
+      const items = [...new Set(itemIds)]
+      const walls = [...new Set(wallIds)]
+      // Walls: first hit is the primary (drives the element inspector); the rest
+      // are extras. Furniture: the whole set goes into `selectedItemIds` (with
+      // `selectedItemId` mirroring the last, like every other multi-item path).
+      // A wall primary and a furniture primary can't both show in their
+      // inspectors, so when both kinds are hit we let the wall be the plan
+      // `planSelection` primary while the furniture multi-selection still drives
+      // bulk delete/align. When only furniture is hit, planSelection is null so
+      // the furniture inspector takes over.
+      const planSelection: PlanSelection = walls.length ? { type: 'wall', id: walls[0] } : null
+      return {
+        planSelection,
+        selectedWallIds: walls.slice(1),
+        selectedItemIds: items,
+        selectedItemId: items.length ? items[items.length - 1] : null,
+        selectedRoomId: null,
+        selectedWall: null,
+      }
+    }),
   setPlanWallMultiAdd: (on) => set({ planWallMultiAdd: on }),
   toggleWallSelection: (id) =>
     set((s) => {
@@ -648,6 +733,125 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       planSelection: null,
     }))
   },
+  duplicateRoom: (id, levelId) => {
+    const s0 = get()
+    // Resolve the room's own storey (room ids are plan-unique across levels) so a
+    // duplicate of an upper-level room stays on that level.
+    const lvl = levelOfRoom(s0.floorPlan, id)?.id ?? levelId
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, lvl))
+    const src = g.rooms.find((r) => r.id === id)
+    if (!src) return undefined
+
+    const f = s0.finishes
+    // The room's wall-accent finishes are keyed `${wallId}:${roomId}` — pull the
+    // subset for THIS room, re-keyed by source wall id for the clone helper.
+    const srcWallAccents: Record<string, string> = {}
+    for (const [key, mat] of Object.entries(f.wallAccents)) {
+      const [wid, rid] = key.split(':')
+      if (rid === id) srcWallAccents[wid] = mat
+    }
+    const result = cloneRoom({
+      room: src,
+      walls: g.walls,
+      openings: g.openings,
+      finishes: {
+        floor: (f.floor as Record<string, string>)[id],
+        wall: (f.walls as Record<string, string>)[id],
+        wallAccents: srcWallAccents,
+      },
+      genId: planId,
+    })
+
+    get().pushHistory()
+    set((s) => {
+      const ff = s.finishes
+      const floor = { ...ff.floor } as Record<string, string>
+      const walls = { ...ff.walls } as Record<string, string>
+      if (result.finishes.floor !== undefined) floor[result.room.id] = result.finishes.floor
+      if (result.finishes.wall !== undefined) walls[result.room.id] = result.finishes.wall
+      return {
+        floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), lvl, (gg) => ({
+          rooms: [...gg.rooms, result.room],
+          walls: [...gg.walls, ...result.walls],
+          openings: [...gg.openings, ...result.openings],
+        })),
+        finishes: {
+          ...ff,
+          floor: floor as typeof ff.floor,
+          walls: walls as typeof ff.walls,
+          wallAccents: { ...ff.wallAccents, ...result.finishes.wallAccents },
+        },
+        planSelection: { type: 'room' as const, id: result.room.id },
+        selectedWallIds: [],
+      }
+    })
+    return result.room.id
+  },
+  insetRoom: (id, dist) => {
+    const s0 = get()
+    // Resolve the room's own storey (room ids are plan-unique across levels) so
+    // an upper-level room insets in place.
+    const lvl = levelOfRoom(s0.floorPlan, id)?.id
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, lvl))
+    const src = g.rooms.find((r) => r.id === id)
+    if (!src) return false
+    // A zero (or non-finite) distance is a no-op — never push an empty step.
+    if (!Number.isFinite(dist) || Math.abs(dist) < 1e-6) return false
+
+    // Offset the room's current outline (explicit polygon, else the rect / L
+    // outline). A degenerate result (collapse / self-intersection) → reject.
+    const inset = insetPolygon(roomPolygon(src), dist)
+    if (!inset) {
+      s0.notify.start({
+        title: dist > 0 ? 'Inset too large — room would collapse' : "Couldn't grow the room",
+        kind: 'error',
+        message:
+          dist > 0
+            ? 'Try a smaller inset; the offset exceeds the room’s narrowest width.'
+            : 'The outset produced an invalid outline.',
+      })
+      return false
+    }
+
+    // Bounding box of the new outline keeps origin/width/depth in sync for the
+    // back-compat consumers that still read them (the explicit polygon is now
+    // authoritative; a prior L-shape `extension` is subsumed by the polygon).
+    const xs = inset.map((p) => p[0])
+    const zs = inset.map((p) => p[1])
+    const minX = Math.min(...xs)
+    const minZ = Math.min(...zs)
+    const nextRoom: PlanRoom = {
+      ...src,
+      origin: [minX, minZ] as PlanVec2,
+      width: Math.max(...xs) - minX,
+      depth: Math.max(...zs) - minZ,
+      polygon: inset,
+      extension: undefined,
+    }
+
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), lvl, (gg) => {
+        const rooms = gg.rooms.map((r) => (r.id === id ? nextRoom : r))
+        // The room's boundary shifted — re-flow its auto wall/opening names so
+        // they keep tracking the (now-inset) room; user-set names are untouched.
+        const named = applyRoomElementNames(gg.walls, gg.openings, nextRoom)
+        return { rooms, walls: named.walls, openings: named.openings }
+      }),
+      planSelection: { type: 'room' as const, id },
+      selectedWallIds: [],
+    }))
+    return true
+  },
+  insetSelectedRoom: (dist) => {
+    const s0 = get()
+    const sel = s0.planSelection
+    if (sel?.type !== 'room') {
+      s0.notify.start({ title: 'Select a room first', kind: 'info' })
+      return false
+    }
+    return s0.insetRoom(sel.id, dist)
+  },
 
   addOpening: (opening, levelId) => {
     const id = planId(opening.kind === 'door' ? 'door' : 'win')
@@ -892,6 +1096,73 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         // Its rooms' finish keys are now stale — prune against the new plan.
         finishes: pruneFinishesForPlan(s.finishes, floorPlan),
         planSelection: null,
+      }
+    })
+  },
+  rescaleFloorPlan: (spec, opts) => {
+    const s0 = get()
+    // Validate up front so a bad factor / unmeetable target throws BEFORE any
+    // history snapshot or fork — the action stays a clean no-op on failure.
+    const result = rescalePlan(s0.floorPlan, spec, s0.items, opts)
+    // Factor 1 is a structural no-op — don't fork the default plan or push an
+    // empty undo step for it.
+    if (result.factor === 1) return
+    s0.pushHistory()
+    set((s) => {
+      // Re-id the seeded default plan on the first structural edit (forkIfDefault),
+      // then carry over the rescaled geometry. Items + plan are replaced in one
+      // set() so a single undo reverts the whole rescale.
+      const forked = forkIfDefault(s.floorPlan)
+      return {
+        floorPlan: { ...result.plan, id: forked.id },
+        items: result.items,
+        planSelection: null,
+        selectedWallIds: [],
+      }
+    })
+  },
+  mirrorFloorPlan: (axisX) => {
+    const s0 = get()
+    // Default the mirror axis to the plan's centre-X (origin frame is [0,0] at
+    // the NW corner, so half the bounds X) — a plan mirrored about its own centre
+    // stays roughly in place rather than flipping off to the far side.
+    const axis = axisX ?? planBounds(s0.floorPlan)[0] / 2
+    // Validate up front so a bad axis throws BEFORE any history snapshot / fork —
+    // the action stays a clean no-op on failure.
+    const result = mirrorPlanRegion(s0.floorPlan, s0.items, axis)
+    s0.pushHistory()
+    set((s) => {
+      // Re-id the seeded default plan on the first structural edit (forkIfDefault),
+      // then carry over the mirrored geometry. Items + plan are replaced in one
+      // set() so a single undo reverts the whole mirror.
+      const forked = forkIfDefault(s.floorPlan)
+      return {
+        floorPlan: { ...result.plan, id: forked.id },
+        items: result.items,
+        planSelection: null,
+        selectedWallIds: [],
+      }
+    })
+  },
+  snapFloorPlanToGrid: (gridM, opts) => {
+    const s0 = get()
+    // Default the grid to the editor's current grid setting when discoverable,
+    // else 0.05 m (50 mm) — the canonical "clean up a traced plan" step.
+    const grid = gridM ?? (s0.gridSize > 0 ? s0.gridSize : 0.05)
+    // Validate + compute up front so a bad grid throws BEFORE any history snapshot
+    // or fork — the action stays a clean no-op on failure.
+    const result = snapPlanToGrid(s0.floorPlan, s0.items, grid, opts)
+    s0.pushHistory()
+    set((s) => {
+      // Re-id the seeded default plan on the first structural edit (forkIfDefault),
+      // then carry over the snapped geometry. Items + plan are replaced in one
+      // set() so a single undo reverts the whole snap.
+      const forked = forkIfDefault(s.floorPlan)
+      return {
+        floorPlan: { ...result.plan, id: forked.id },
+        items: result.items,
+        planSelection: null,
+        selectedWallIds: [],
       }
     })
   },

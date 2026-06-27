@@ -10,6 +10,13 @@ import type { SliceCreator } from './types'
  *  Not persisted; not surfaced to the autosave subscriber. */
 export interface PlacementSlice {
   activeDefId: string | null
+  /** Sticky "stamp" placement (PARITY-STAMP-PLACE, `stampPlace` flag): when true,
+   *  a plain commit click keeps the placement armed (same def + orientation) so the
+   *  user can drop a row of identical items without re-selecting. Off ⇒ a click
+   *  commits once and disarms (the classic single-add behaviour). The armed def is
+   *  always `activeDefId`; this flag only changes whether a commit disarms. Cleared
+   *  by `cancelPlacement` (Escape / Done / leaving the editor). Session-only. */
+  stampMode: boolean
   cursor: { x: number; y: number } | null
   /** Latest world-space ghost position (XZ), written by PlacementGhost
    *  on each useFrame. Read by the pointer-up commit handler so it
@@ -60,6 +67,13 @@ export interface PlacementSlice {
   rotatingGizmo: boolean
   setRotatingGizmo: (v: boolean) => void
   setActiveDefId: (id: string | null) => void
+  /** Arm sticky stamp placement for `defId`: arms the def AND turns on stamp mode
+   *  so each commit re-arms instead of disarming. Toggles off (cancels placement)
+   *  when called again with the def already armed in stamp mode. */
+  startStamp: (defId: string) => void
+  /** Turn stamp mode on/off without changing the armed def (e.g. a "keep placing"
+   *  toggle while a def is armed). */
+  setStampMode: (on: boolean) => void
   setCursor: (cursor: { x: number; y: number } | null) => void
   setGhostWorld: (pos: [number, number] | null, valid: boolean) => void
   cancelPlacement: () => void
@@ -76,6 +90,7 @@ export interface PlacementSlice {
 export const PLACEMENT_INITIAL: Pick<
   PlacementSlice,
   | 'activeDefId'
+  | 'stampMode'
   | 'cursor'
   | 'ghostWorld'
   | 'ghostValid'
@@ -92,6 +107,7 @@ export const PLACEMENT_INITIAL: Pick<
   | 'rotatingGizmo'
 > = {
   activeDefId: null,
+  stampMode: false,
   cursor: null,
   ghostWorld: null,
   ghostValid: false,
@@ -110,13 +126,36 @@ export const PLACEMENT_INITIAL: Pick<
 
 export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (set, get) => ({
   ...PLACEMENT_INITIAL,
-  // Arming a new placement resets any dialed-in ghost rotation.
-  setActiveDefId: (id) => set({ activeDefId: id, ghostRotation: 0 }),
+  // Arming a new placement resets any dialed-in ghost rotation. A plain single-add
+  // arm also clears stamp mode (only `startStamp` opts into sticky placement).
+  setActiveDefId: (id) => set({ activeDefId: id, ghostRotation: 0, stampMode: false }),
+  startStamp: (defId) =>
+    set((s) =>
+      // Toggling the same already-armed stamp off is a cancel.
+      s.activeDefId === defId && s.stampMode
+        ? {
+            activeDefId: null,
+            stampMode: false,
+            cursor: null,
+            ghostWorld: null,
+            ghostValid: false,
+            ghostRotation: 0,
+          }
+        : { activeDefId: defId, stampMode: true, ghostRotation: 0 },
+    ),
+  setStampMode: (on) => set({ stampMode: on }),
   setCursor: (cursor) => set({ cursor }),
   setGhostWorld: (ghostWorld, ghostValid) => set({ ghostWorld, ghostValid }),
   rotateGhost: (deltaRad) => set((s) => ({ ghostRotation: s.ghostRotation + deltaRad })),
   cancelPlacement: () =>
-    set({ activeDefId: null, cursor: null, ghostWorld: null, ghostValid: false, ghostRotation: 0 }),
+    set({
+      activeDefId: null,
+      stampMode: false,
+      cursor: null,
+      ghostWorld: null,
+      ghostValid: false,
+      ghostRotation: 0,
+    }),
   startDrag: (id, original, offset, groupOriginals) => {
     // Snapshot before any per-frame moveItem fires so undo restores the
     // pre-drag transform of every dragged item in one step.

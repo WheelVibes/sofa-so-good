@@ -22,6 +22,7 @@ import { DoorLeaf } from './Door'
 import { RoomFloor } from './floor/RoomFloor'
 import type { ClippedWall, RoomShell as RoomShellData } from './roomShell'
 import { WindowPane } from './Window'
+import { wallFacesAway } from './wallFacing'
 import { wallThicknessMetres } from './wallSegments'
 
 /** A clipped wall box, painted with the room's wall finish, that hides itself
@@ -62,9 +63,10 @@ function WallBox({
   useFrame((state) => {
     const m = ref.current
     if (!m) return
+    // No per-frame Vector2 allocation: the pure scalar test mirrors the old
+    // `camDir.dot(normal) <= 0.05`.
     const cam = state.camera.position
-    const camDir = new Vector2(cam.x - midX, cam.z - midZ)
-    m.visible = camDir.dot(normal) <= 0.05
+    m.visible = wallFacesAway(cam.x, cam.z, midX, midZ, normal)
   })
 
   if (len < 1e-6) return null

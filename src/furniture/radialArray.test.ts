@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   RADIAL_MAX_COUNT,
   RADIAL_MIN_RADIUS,
+  RADIAL_SEAM_EPS,
   type RadialPlacement,
   radialArrayPlacements,
 } from './radialArray'
@@ -85,6 +86,44 @@ describe('radialArrayPlacements', () => {
       (pl[3].position[0] - pl[0].position[0]) ** 2 + (pl[3].position[1] - pl[0].position[1]) ** 2,
     )
     expect(d).toBeGreaterThan(0.01)
+  })
+
+  it('treats a near-2π sweep (2π − 1e-4) as a full circle: exclusive seam, step = 2π/n', () => {
+    // BUG-RADIAL-FULLCIRCLE: dragging an "almost full circle" must NOT fall to
+    // the partial formula sweep/(n-1) (which would double-up at the seam).
+    const n = 6
+    const sweep = TWO_PI - 1e-4
+    const near = radialArrayPlacements({ center: [0, 0], radius: 1, count: n, sweep })
+    const exact = radialArrayPlacements({ center: [0, 0], radius: 1, count: n })
+    expect(near).toHaveLength(n)
+    // Identical to a true full-circle ring (exclusive-seam spacing 2π/n).
+    for (let i = 0; i < n; i++) {
+      const angle = (i * TWO_PI) / n
+      expect(near[i].position[0]).toBeCloseTo(Math.cos(angle), 9)
+      expect(near[i].position[1]).toBeCloseTo(Math.sin(angle), 9)
+      expect(near[i].position[0]).toBeCloseTo(exact[i].position[0], 9)
+      expect(near[i].position[1]).toBeCloseTo(exact[i].position[1], 9)
+    }
+    // No duplicate at the seam: last copy is a full 2π/n step from the first,
+    // not a near-zero sliver away (the bug).
+    const seamGap = Math.sqrt(
+      (near[n - 1].position[0] - near[0].position[0]) ** 2 +
+        (near[n - 1].position[1] - near[0].position[1]) ** 2,
+    )
+    expect(seamGap).toBeGreaterThan(0.5)
+  })
+
+  it('a sweep just inside the seam tolerance is still partial (inclusive both ends)', () => {
+    // Below the full-circle threshold → partial formula step = sweep/(n-1).
+    const n = 4
+    const sweep = TWO_PI - 2 * RADIAL_SEAM_EPS
+    const pl = radialArrayPlacements({ center: [0, 0], radius: 1, count: n, sweep })
+    const step = sweep / (n - 1)
+    for (let i = 0; i < n; i++) {
+      const angle = i * step
+      expect(pl[i].position[0]).toBeCloseTo(Math.cos(angle), 9)
+      expect(pl[i].position[1]).toBeCloseTo(Math.sin(angle), 9)
+    }
   })
 
   it('respects a non-zero center', () => {

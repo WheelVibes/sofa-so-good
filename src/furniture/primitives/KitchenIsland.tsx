@@ -1,7 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
-import { readNum, readStr } from './shared'
+import { metalLeg, readNum, readStr } from './shared'
 
 /**
  * Freestanding kitchen island — a base cabinet with a stone worktop that
@@ -26,7 +26,9 @@ export function KitchenIsland({ props }: { props: ParamProps }) {
   const cabMat = getSurfaceMaterial(finish, color, 1.2, sheen)
   const stone = getSurfaceMaterial(worktopFinish, worktopColor, 1.4, 0.55)
   const handle = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 } as const
-  const metal = { color: '#cfd2d6', roughness: 0.2, metalness: 0.85 } as const
+  // Faucet spout routes through the shared brushed-metal material (bright
+  // stainless); the small cabinet door pull keeps its plain hardware props.
+  const metal = metalLeg('#cfd2d6', 'stainless')
 
   // Cabinet sits toward −Z; worktop spans the full depth (overhangs +Z).
   const cabCz = -overhang / 2
@@ -77,9 +79,8 @@ export function KitchenIsland({ props }: { props: ParamProps }) {
             <boxGeometry args={[0.5, 0.05, 0.36]} />
             <meshStandardMaterial color="#b9bcc0" roughness={0.3} metalness={0.6} />
           </mesh>
-          <mesh position={[0, cabinetH + topT + 0.12, cabCz - 0.14]}>
+          <mesh position={[0, cabinetH + topT + 0.12, cabCz - 0.14]} material={metal}>
             <cylinderGeometry args={[0.012, 0.012, 0.24, 10]} />
-            <meshStandardMaterial {...metal} />
           </mesh>
         </>
       )}

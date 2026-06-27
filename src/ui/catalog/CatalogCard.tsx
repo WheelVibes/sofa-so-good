@@ -26,6 +26,11 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const modelInfoOn = useFeature('catalogModelInfo')
   // Price displays are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
+  // Sticky "stamp" placement (PARITY-STAMP-PLACE) — a pro power-tool: arm this def
+  // and click-place it repeatedly without re-selecting.
+  const stampOn = useFeature('stampPlace')
+  const startStamp = useStore((s) => s.startStamp)
+  const stampingThis = useStore((s) => s.stampMode && s.activeDefId === def.id)
   // Model size + creator/licence for the card tooltip (SweetHome3DJS parity).
   const modelInfo = modelInfoOn ? modelInfoText(def) : null
   return (
@@ -57,7 +62,8 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
         // If the drop didn't land on the canvas (still armed), disarm.
         if (useStore.getState().activeDefId === def.id) useStore.getState().cancelPlacement()
       }}
-      className="cat-card group"
+      className={`cat-card group${stampingThis ? ' stamping' : ''}`}
+      aria-pressed={stampingThis || undefined}
     >
       {favOn ? (
         <button
@@ -70,6 +76,25 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
           }}
         >
           <Icon.Heart width={14} height={14} />
+        </button>
+      ) : null}
+      {stampOn ? (
+        <button
+          type="button"
+          className={`stamp-btn${stampingThis ? ' on' : ''}`}
+          aria-label={stampingThis ? `Stop stamping ${def.name}` : `Stamp ${def.name} repeatedly`}
+          aria-pressed={stampingThis}
+          title={
+            stampingThis
+              ? 'Stamping — click the floor to drop copies, Esc to stop'
+              : 'Stamp: place this item repeatedly with one click each'
+          }
+          onClick={(e) => {
+            e.stopPropagation()
+            startStamp(def.id)
+          }}
+        >
+          <Icon.Copy width={14} height={14} />
         </button>
       ) : null}
       <div className="card-thumb">

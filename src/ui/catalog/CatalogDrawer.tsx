@@ -10,6 +10,7 @@ import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalog
 import { LayersPanel } from './LayersPanel'
 import { RemoteCard } from './RemoteCard'
 import { clearRecent, loadRecent, pushRecent } from './recentSearches'
+import { StampBanner } from './StampBanner'
 import { fuzzySearchSmart } from './searchSynonyms'
 
 // Lazy-loaded: the packs tab (pack install pipeline + unzip + thumbnail
@@ -489,6 +490,7 @@ export function CatalogDrawer() {
               </button>
             </div>
           ) : null}
+          <StampBanner />
           <div className="cat-foot">
             <span className="hint">
               Drag onto the floor · <kbd>R</kbd> rotates

@@ -29,9 +29,13 @@ import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
+import { downloadCostBreakdownCsv } from '../openCostBreakdownCsv'
+import { downloadFfeCsv } from '../openFfeCsv'
 import { downloadFurnitureCsv } from '../openFurnitureCsv'
 import { downloadPlanSvg } from '../openPlanSvg'
+import { downloadRenoIcs } from '../openRenoIcs'
 import { openDesignReport } from '../openReport'
+import { downloadRoomScheduleCsv } from '../openRoomScheduleCsv'
 import { exportScene3d } from '../openSceneExport'
 import { openSh3dImport } from '../openSh3dImport'
 import { openShoppingList } from '../openShoplist'
@@ -982,6 +986,14 @@ export function MobileToolbar() {
                             onClick={act(openReport)}
                           />
                         ) : null}
+                        {fReport ? (
+                          <Item
+                            icon="Export"
+                            label="Reno timeline (.ics)"
+                            sub="Renovation phases as calendar events"
+                            onClick={act(() => void downloadRenoIcs())}
+                          />
+                        ) : null}
                         {fDxf ? (
                           <Item
                             icon="Export"
@@ -1054,6 +1066,30 @@ export function MobileToolbar() {
                       label="Furniture list (CSV)"
                       sub="Spreadsheet of every item — dims, qty, prices"
                       onClick={act(() => void downloadFurnitureCsv())}
+                    />
+                  ) : null}
+                  {fShopExport ? (
+                    <Item
+                      icon="Export"
+                      label="Room schedule (CSV)"
+                      sub="Per-room area, perimeter, finishes & ceiling"
+                      onClick={act(() => void downloadRoomScheduleCsv())}
+                    />
+                  ) : null}
+                  {fShopExport ? (
+                    <Item
+                      icon="Export"
+                      label="FF&E schedule (CSV)"
+                      sub="Item-by-item schedule — source, SKU, size, qty, price"
+                      onClick={act(() => void downloadFfeCsv())}
+                    />
+                  ) : null}
+                  {fShopExport ? (
+                    <Item
+                      icon="Export"
+                      label="Cost breakdown (CSV)"
+                      sub="Furniture + finishes + renovation, with a grand total"
+                      onClick={act(() => void downloadCostBreakdownCsv())}
                     />
                   ) : null}
                   {fSceneExport ? (

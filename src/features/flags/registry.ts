@@ -517,6 +517,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Scale the whole plan by a factor, or to a known wall length, in one undoable
+  // action (Sweet Home 3D / RoomSketcher parity) — fix a wrong-scale traced /
+  // imported plan or resize to an exact dimension. Pure geometry, no external
+  // deps → prod-safe (default on). An advanced authoring tool beyond the core
+  // furnish loop → pro tier (hidden in Simple).
+  planScale: {
+    label: 'Scale plan',
+    description: 'Rescale the whole plan by a factor or to a known wall length, in one action',
+    default: true,
+    tier: 'pro',
+  },
   // "View in your room" AR: iOS AR Quick Look from a USDZ (blob), GLB download
   // elsewhere. Pure client-side (no backend/dep) → prod-safe. A high-wow viewing
   // surface beyond the core loop → pro tier.
@@ -618,6 +629,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Path/polyline array (PARITY-DUP-PATH, Coohom array tooling): place N copies of the
+  // selected item along a drawn polyline by arc-length sampling, each optionally yawed to
+  // face along the path tangent. Pure code, no external assets → prod-safe. An advanced
+  // placement/layout tool → pro tier.
+  pathArray: {
+    label: 'Path array',
+    description: 'Place N copies along a drawn polyline (e.g. chairs along an L-shaped counter)',
+    default: true,
+    tier: 'pro',
+  },
   // IES photometric light profiles (PC-IES-LIGHT, Coohom parity): drive a real
   // luminaire beam shape (cone/penumbra/intensity from an LM-63 .ies candela
   // distribution) on a light fixture. Pure client-side code (parse + map), no
@@ -660,6 +681,90 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   importSh3d: {
     label: 'Import Sweet Home 3D',
     description: 'Import a Sweet Home 3D (.sh3d) plan — walls, rooms and furniture',
+    default: true,
+    tier: 'pro',
+  },
+  // Smart rotation snap (PARITY-SNAP-ROTATE, Coohom parity): while rotating a
+  // single item the gizmo also snaps to a nearby item's / wall's axis (parallel
+  // or perpendicular) within a few degrees, else the existing 15° grid. Pure
+  // angle math, no external assets → prod-safe (default on). An advanced
+  // precision aid beyond the core furnish loop → pro tier (forced off in Simple,
+  // where the familiar 15° snap is the only behaviour — so casual users are
+  // unaffected). Shift still bypasses all snapping in both modes.
+  smartRotateSnap: {
+    label: 'Smart rotation snap',
+    description: 'Snap a rotating item to a neighbouring item / wall axis (else the 15° grid)',
+    default: true,
+    tier: 'pro',
+  },
+  // Sticky "stamp" placement mode (PARITY-STAMP-PLACE, Floorplanner parity): arm a
+  // catalog item, then click-place the same item over and over (chairs, downlights,
+  // plants) without re-selecting it — each drop is one undo step and the mode stays
+  // armed until Escape / Done / a different item. Pure client-side, reuses the
+  // existing placement/ghost pipeline → prod-safe (default on). A power-user
+  // productivity aid beyond the core single-add furnish loop → pro tier (hidden in
+  // Simple mode, where each plain click commits once and disarms as before).
+  stampPlace: {
+    label: 'Stamp placement',
+    description: 'Place the same catalog item repeatedly with one click each (no re-selecting)',
+    default: true,
+    tier: 'pro',
+  },
+  // Scatter-fill a room (PARITY-SCATTER-ROOM): evenly fill a room's free floor
+  // with N collision-avoiding copies of the selected item on a packed grid
+  // (deterministic, seeded). Pure code, no external assets → prod-safe (default
+  // on). An advanced bulk-placement/layout tool beyond the core furnish loop →
+  // pro tier (hidden in Simple mode automatically).
+  scatterFill: {
+    label: 'Scatter-fill room',
+    description: 'Evenly fill a room with N collision-safe copies of the selected item',
+    default: true,
+    tier: 'pro',
+  },
+  // Mirror the whole plan region (walls + rooms + openings + furniture) about a
+  // vertical axis — for mirror-image HDB stacks / condo pairs
+  // (PARITY-PLAN-MIRROR-REGION). Pure geometry, no sidecar / licensing →
+  // prod-safe (default on). An advanced authoring tool beyond the core furnish
+  // loop → pro tier (hidden in Simple mode automatically).
+  planMirrorRegion: {
+    label: 'Mirror plan',
+    description: 'Mirror the whole plan (walls, rooms, openings, furniture) about a vertical axis',
+    default: true,
+    tier: 'pro',
+  },
+  // Snap the whole plan to a grid (PARITY-GRID-SNAP, Sweet Home 3D / Coohom
+  // parity): round every wall endpoint / room vertex / opening offset /
+  // annotation coordinate to a chosen grid to clean up a traced or imported plan.
+  // Pure geometry, no sidecar / licensing → prod-safe (default on). An advanced
+  // authoring tool beyond the core furnish loop → pro tier (hidden in Simple mode
+  // automatically).
+  planGridSnap: {
+    label: 'Snap plan to grid',
+    description:
+      'Round every wall / room / opening / annotation coordinate to a grid to tidy a plan',
+    default: true,
+    tier: 'pro',
+  },
+  // Inset / outset a room polygon by a signed distance (PARITY-ROOM-INSET, a
+  // common Coohom / CAD "offset polygon" op): shrink for a dropped soffit / set-
+  // down or grow for a setback. Pure geometry, no sidecar / licensing → prod-safe
+  // (default on). An advanced authoring tool beyond the core furnish loop → pro
+  // tier (hidden in Simple mode automatically).
+  roomInset: {
+    label: 'Inset room',
+    description: 'Inset (shrink) or outset (grow) a room outline by a signed distance',
+    default: true,
+    tier: 'pro',
+  },
+  // Tiled-floor repetition break-up (RD-406 / MAT-006a): a large tiled floor
+  // gets a pure per-tile-cell UV hash-rotation (90°/180°/270°) + sub-tile offset
+  // so adjacent tiles stop aligning into the "obvious grid" tell — pure UV math,
+  // no shader / extra texture / 2nd UV set. Prod-safe pure code (default on). An
+  // advanced realism refinement beyond the core finish loop → pro tier (forced
+  // off in Simple, where the plain world-UV plane is byte-identical to before).
+  tileBreakup: {
+    label: 'Tile repetition break-up',
+    description: 'Rotate / offset each floor tile so a large tiled floor stops visibly repeating',
     default: true,
     tier: 'pro',
   },

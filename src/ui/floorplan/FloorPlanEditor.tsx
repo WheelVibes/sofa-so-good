@@ -71,6 +71,7 @@ import {
   planCenter as planCenterGeo,
 } from './editor/floorPlanGeometry'
 import { GridLines } from './editor/GridLines'
+import { type MarqueeItem, type MarqueeRect, marqueeSelect } from './editor/marqueeSelect'
 import { PlanLibrary } from './editor/PlanLibrary'
 import { PlanMenu } from './editor/PlanMenu'
 import { PlanToolMenu } from './editor/PlanToolMenu'
@@ -97,13 +98,24 @@ import {
   wrapLabel,
 } from './editor/planLabelDisplay'
 import { snapToWalls } from './editor/snapToWalls'
-import { snapWallAngle } from './editor/snapWallAngle'
+import { snapWallAngle, vertexDragTarget } from './editor/snapWallAngle'
+import {
+  dimensionCommit,
+  polygonClick,
+  rectFromVerts,
+  roomCommit,
+  rotateWallTransform,
+  scaleCommits,
+  wallCommit,
+  wallTapCommits,
+} from './editor/toolDraftReducer'
 import { WallDimension } from './editor/WallDimension'
 import { WallNumericEntry } from './editor/WallNumericEntry'
 import { exportPlanPng } from './exportPlanPng'
 import { LevelTabs } from './LevelTabs'
 import { PlanInspector } from './PlanInspector'
 import { PLAN_LABEL_TEXT, planLabelLines } from './planLabels'
+import { ScalePlanModal } from './ScalePlanModal'
 import { TemplatePicker } from './TemplatePicker'
 
 export function FloorPlanEditor() {
@@ -126,6 +138,10 @@ export function FloorPlanEditor() {
   // Price displays are gated behind the budget/price feature (off by default).
   const fPrice = useFeature('budget')
   const selectedItemId = useStore((s) => s.selectedItemId)
+  // Multi-item plan selection (marquee / future shift-click). A Set for O(1)
+  // membership while highlighting footprints.
+  const selectedItemIdsRaw = useStore((s) => s.selectedItemIds)
+  const selectedItemIds = useMemo(() => new Set(selectedItemIdsRaw), [selectedItemIdsRaw])
   const annotations = useStore((s) => s.annotations)
   const { getDef, ref: catalogRef } = useCatalogGetter()
   // Mobile: the toolbar is too cluttered to fit, so secondary controls + the
@@ -133,9 +149,12 @@ export function FloorPlanEditor() {
   // per-room editor's collapsed mobile toolbar).
   const isMobile = useIsMobile()
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false)
+  const [scaleModalOpen, setScaleModalOpen] = useState(false)
+  const fPlanScale = useFeature('planScale')
   const fPanoTour = useFeature('panoTour')
   const fCurvedWalls = useFeature('curvedWalls')
   const fCompass = useFeature('planCompass')
+  const fGridSnap = useFeature('planGridSnap')
   const orientationDeg = useStore((s) => s.orientationDeg)
   // Tour stops are only shown/editable on the ground level (stops have a
   // levelId field but the plan editor operates per-level; ground is the
@@ -193,6 +212,11 @@ export function FloorPlanEditor() {
   const isMultiLevel = allLevels.length > 1
   const otherLevels = allLevels.filter((l) => l.id !== levelId)
   const [draft, setDraft] = useState<{ x0: number; z0: number; x: number; z: number } | null>(null)
+  // Rubber-band marquee (PARITY-PLAN-MARQUEE): a drag on empty canvas with the
+  // select tool draws this rect (plan coords, unsnapped so it tracks the
+  // cursor); on pointer-up every furniture footprint / wall it intersects is
+  // multi-selected. Null when no marquee is in progress.
+  const [marquee, setMarquee] = useState<MarqueeRect | null>(null)
   // Numeric-entry preview: when the user types in the WallNumericEntry overlay,
   // this overrides the drag endpoint for the live preview. Cleared on each new
   // pointer-down (drag starts fresh) or commit/cancel.
@@ -264,6 +288,7 @@ export function FloorPlanEditor() {
   const [polylineDraft, setPolylineDraft] = useState<[number, number][]>([])
   const fPolyline = useFeature('planPolyline')
   const fWallNumericEntry = useFeature('wallNumericEntry')
+  const fMirrorRegion = useFeature('planMirrorRegion')
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   // Persisted to IDB (blob + calibration) so it survives editor close + reload.
   const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
@@ -653,18 +678,15 @@ export function FloorPlanEditor() {
   const commitPolyRoom = useCallback(
     (verts: [number, number][]) => {
       if (verts.length < 3) return
-      const xs = verts.map((v) => v[0])
-      const zs = verts.map((v) => v[1])
-      const x0 = Math.min(...xs)
-      const z0 = Math.min(...zs)
+      const { origin, width, depth } = rectFromVerts(verts)
       const st = useStore.getState()
       const n = levelById(st.floorPlan, levelId).rooms.length + 1
       const id = st.addRoom(
         {
           name: `Room ${n}`,
-          origin: [x0, z0],
-          width: Math.max(0.1, Math.max(...xs) - x0),
-          depth: Math.max(0.1, Math.max(...zs) - z0),
+          origin,
+          width,
+          depth,
           polygon: verts,
         },
         levelId,
@@ -736,6 +758,21 @@ export function FloorPlanEditor() {
             ...st.selectedWallIds,
           ]),
         ]
+        // A marquee can multi-select furniture (and/or walls). Bulk-delete the
+        // furniture first: the loop coalesces under the 'delete' key so all the
+        // pieces drop in ONE undo step (parity with the 3D delete path). Locked
+        // items are pinned (skipped).
+        const itemIds = st.selectedItemIds
+        if (itemIds.length > 0) {
+          const lockedIds = new Set(st.items.filter((i) => i.locked).map((i) => i.id))
+          for (const id of [...itemIds]) {
+            if (!lockedIds.has(id)) st.deleteItem(id)
+          }
+          // If the same marquee also caught walls, drop them too (their own
+          // history step). Then we're done.
+          if (wallIds.length > 0) st.removeWalls(wallIds, levelId)
+          return
+        }
         if (wallIds.length > 1) {
           st.removeWalls(wallIds, levelId)
           return
@@ -751,9 +788,6 @@ export function FloorPlanEditor() {
           else if (sel.type === 'polyline') st.removePolyline(sel.id)
           else if (!lvl.openings.find((o) => o.id === sel.id)?.locked)
             st.removeOpening(sel.id, levelId)
-        } else if (st.selectedItemId) {
-          // A furniture footprint is selected — delete it (parity with 3D).
-          st.deleteItem(st.selectedItemId)
         }
       }
     }
@@ -771,6 +805,16 @@ export function FloorPlanEditor() {
     const x = ((e.clientX - rect.left) / rect.width) * W
     const y = ((e.clientY - rect.top) / rect.height) * H
     return [snap(x / PX - GRID_MARGIN), snap(y / PX - GRID_MARGIN)]
+  }
+
+  // Raw (unsnapped) pointer → plan metres. The marquee rect tracks the cursor
+  // smoothly without grid quantisation (snapping would make the selection box
+  // jump in grid steps).
+  const pointerPlanRaw = (e: React.PointerEvent): [number, number] => {
+    const rect = svgRef.current!.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * W
+    const y = ((e.clientY - rect.top) / rect.height) * H
+    return [x / PX - GRID_MARGIN, y / PX - GRID_MARGIN]
   }
 
   const pointerWorld = (
@@ -845,6 +889,7 @@ export function FloorPlanEditor() {
         pinch.current = { dist: Math.hypot(a2.x - b2.x, a2.y - b2.y) || 1, zoom: zoomRef.current }
         panRef.current = null
         setDraft(null)
+        setMarquee(null)
         setMoving(null)
         setMovingItem(null)
         setMovingVertex(null)
@@ -869,10 +914,13 @@ export function FloorPlanEditor() {
       return
     }
     if (e.button !== 0) return
-    // View mode (any drag pans), or a mobile-edit select-tool drag — on empty
-    // canvas, or an unselected item whose handler fell through here — pans
-    // instead of editing. The selected item's handler captures before this runs.
-    if (editMode === 'view' || (isMobile && tool === 'select')) {
+    // View mode: any drag pans (touch + mouse). In edit mode the select tool
+    // instead rubber-band marquee-selects on empty canvas (handled in the tool
+    // dispatch below) — desktop AND mobile; mobile navigation uses two-finger
+    // pinch (zoom + recentre). The selected item's handler captures before this
+    // runs; an unselected item's fall-through reaches the empty-canvas marquee,
+    // which a tap (zero-area) treats as a click so the selection is preserved.
+    if (editMode === 'view') {
       startPan(e)
       return
     }
@@ -916,22 +964,22 @@ export function FloorPlanEditor() {
       }
     } else if (tool === 'polyroom') {
       // Click near the first vertex (≥3 placed) closes the polygon into a room.
-      const first = polyDraft[0]
-      if (first && polyDraft.length >= 3 && Math.hypot(first[0] - wx, first[1] - wz) < 0.35) {
+      const action = polygonClick(polyDraft, [wx, wz])
+      if (action.type === 'close') {
         commitPolyRoom(polyDraft)
         setPolyDraft([])
       } else {
-        setPolyDraft((p) => [...p, [wx, wz]])
+        setPolyDraft((p) => [...p, action.point])
       }
     } else if (tool === 'polyline') {
       // Click adds a vertex; clicking the first vertex (≥3) closes the loop;
       // Enter finishes as an open path, Escape cancels (PARITY-POLYLINE).
-      const first = polylineDraft[0]
-      if (first && polylineDraft.length >= 3 && Math.hypot(first[0] - wx, first[1] - wz) < 0.35) {
+      const action = polygonClick(polylineDraft, [wx, wz])
+      if (action.type === 'close') {
         commitPolyline(polylineDraft, true)
         setPolylineDraft([])
       } else {
-        setPolylineDraft((p) => [...p, [wx, wz]])
+        setPolylineDraft((p) => [...p, action.point])
       }
     } else if (tool === 'split') {
       // Split the wall nearest the click at the projected point.
@@ -998,7 +1046,17 @@ export function FloorPlanEditor() {
         st.setPlanSelection({ type: 'note', id })
       })()
     } else {
-      st.setPlanSelection(null)
+      // Empty-canvas press with the select tool: begin a rubber-band marquee
+      // (PARITY-PLAN-MARQUEE). We don't clear the selection yet — that happens
+      // on pointer-up only if the marquee stayed a click (zero-area), so a drag
+      // that selects nothing clears, and a plain tap on a just-selected item
+      // (mobile fall-through) is preserved. Raw (unsnapped) coords track the
+      // cursor smoothly.
+      const [rx, rz] = pointerPlanRaw(e)
+      setMarquee({ x0: rx, z0: rz, x1: rx, z1: rz })
+      try {
+        svgRef.current?.setPointerCapture(e.pointerId)
+      } catch {}
     }
   }
 
@@ -1055,7 +1113,16 @@ export function FloorPlanEditor() {
     }
     if (movingVertex) {
       const [wx, wz] = pointerWorld(e, movingVertex.id)
-      useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz], levelId)
+      // PARITY-PLAN-VERTEX-ANGLESNAP: dragging an existing wall endpoint snaps to a
+      // 15° increment off the OTHER (fixed) end — the same ortho/angle snap that
+      // wall-drawing uses — so an existing wall can be squared up, not just
+      // newly-drawn ones. Shift bypasses it (free drag). `moveWallVertex` still
+      // applies its own corner/join snap afterwards (order: angle → wall-snap).
+      const wall = levelPlan.walls.find((w) => w.id === movingVertex.id)
+      const aimed: [number, number] = wall
+        ? vertexDragTarget(wall.start, wall.end, movingVertex.which, [wx, wz], e.shiftKey)
+        : [wx, wz]
+      useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, aimed, levelId)
       return
     }
     if (movingBulge) {
@@ -1084,25 +1151,16 @@ export function FloorPlanEditor() {
     }
     if (rotatingWall) {
       const [wx, wz] = pointerWorld(e)
-      const ang = Math.atan2(wz - rotatingWall.cz, wx - rotatingWall.cx)
-      // Wrap to (-π, π], then clamp to ±90° each way: a larger turn would swing
-      // a segment back across its neighbours and tangle the shared corners.
-      let d = ang - rotatingWall.a0
-      d = Math.atan2(Math.sin(d), Math.cos(d))
-      d = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, d))
-      const cos = Math.cos(d)
-      const sin = Math.sin(d)
-      const rot = (p: [number, number]): [number, number] => {
-        const x = p[0] - rotatingWall.cx
-        const z = p[1] - rotatingWall.cz
-        return [
-          snap(rotatingWall.cx + x * cos - z * sin),
-          snap(rotatingWall.cz + x * sin + z * cos),
-        ]
-      }
-      useStore
-        .getState()
-        .moveWallTo(rotatingWall.id, rot(rotatingWall.s0), rot(rotatingWall.e0), levelId)
+      const { start, end } = rotateWallTransform(
+        [rotatingWall.cx, rotatingWall.cz],
+        rotatingWall.a0,
+        wx,
+        wz,
+        rotatingWall.s0,
+        rotatingWall.e0,
+        snap,
+      )
+      useStore.getState().moveWallTo(rotatingWall.id, start, end, levelId)
       return
     }
     if (rotatingItem) {
@@ -1157,16 +1215,8 @@ export function FloorPlanEditor() {
         )
         // Keep origin/width/depth in sync as the polygon's bbox (back-compat for
         // consumers that still read the rect; the polygon stays authoritative).
-        const xs = poly.map((p) => p[0])
-        const zs = poly.map((p) => p[1])
-        const x0 = Math.min(...xs)
-        const z0 = Math.min(...zs)
-        st.updateRoom(room.id, {
-          polygon: poly,
-          origin: [x0, z0],
-          width: Math.max(0.1, Math.max(...xs) - x0),
-          depth: Math.max(0.1, Math.max(...zs) - z0),
-        })
+        const { origin, width, depth } = rectFromVerts(poly)
+        st.updateRoom(room.id, { polygon: poly, origin, width, depth })
       }
       return
     }
@@ -1201,6 +1251,11 @@ export function FloorPlanEditor() {
         .updateRoom(moving.id, { origin: [snap(wx - moving.gx), snap(wz - moving.gz)] })
       return
     }
+    if (marquee) {
+      const [rx, rz] = pointerPlanRaw(e)
+      setMarquee({ ...marquee, x1: rx, z1: rz })
+      return
+    }
     if (!draft) return
     const [wx, wz] = tool === 'wall' ? wallDrawEnd(e, [draft.x0, draft.z0]) : pointerWorld(e)
     setDraft({ ...draft, x: wx, z: wz })
@@ -1228,6 +1283,41 @@ export function FloorPlanEditor() {
       // selection — the desktop edit path already deselects on pointer-down via
       // the `else` in onDown; this covers view mode + touch, which pan instead.
       if (!moved && tool === 'select') useStore.getState().setPlanSelection(null)
+      return
+    }
+    if (marquee) {
+      const rect = marquee
+      setMarquee(null)
+      // Build the candidate footprints / segments for the active storey and run
+      // the pure intersection test. A zero-area (click-sized) marquee returns no
+      // hits → fall through to a plain deselect, so a tap on empty canvas still
+      // clears, while a tap that just selected an item (mobile) is preserved
+      // because the item handler ran first and this only clears the *plan*
+      // element selection (selectedWallIds), not selectedItemId.
+      // Only footprints that are actually shown (the Furniture toggle) are
+      // selectable — mirror the render gate so the marquee can't grab invisible
+      // pieces.
+      const candItems: MarqueeItem[] = []
+      if (showFurniture) {
+        for (const it of levelItems) {
+          const def = getDef(it.defId)
+          if (!def) continue
+          candItems.push({ id: it.id, obb: itemFootprint(it, def) })
+        }
+      }
+      const candWalls = levelPlan.walls.map((w) => ({
+        id: w.id,
+        segment: { ax: w.start[0], az: w.start[1], bx: w.end[0], bz: w.end[1] },
+      }))
+      const hits = marqueeSelect(rect, candItems, candWalls)
+      const st = useStore.getState()
+      if (hits.itemIds.length === 0 && hits.wallIds.length === 0) {
+        // Drag selected nothing (or was a click) → clear the selection.
+        st.setPlanSelection(null)
+        st.selectItem(null)
+      } else {
+        st.setPlanMarqueeSelection(hits.itemIds, hits.wallIds)
+      }
       return
     }
     if (movingStop) {
@@ -1287,7 +1377,7 @@ export function FloorPlanEditor() {
       // Calibrate: the dragged span equals a real length the user types, so the
       // backdrop rescales (mPerPx) to match. No walls created.
       const worldDist = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
-      if (backdrop && worldDist > 0.05) {
+      if (backdrop && scaleCommits(draft)) {
         void (async () => {
           const input = await useStore.getState().promptText({
             title: 'Calibrate scale',
@@ -1307,10 +1397,11 @@ export function FloorPlanEditor() {
     }
     if (tool === 'dimension') {
       // Commit a custom dimension line between the dragged endpoints (snapped).
-      if (Math.hypot(draft.x - draft.x0, draft.z - draft.z0) > 0.1) {
+      const dim = dimensionCommit(draft, snap)
+      if (dim) {
         const id = st.addDimension({
-          a: [snap(draft.x0), snap(draft.z0)],
-          b: [snap(draft.x), snap(draft.z)],
+          a: dim.a,
+          b: dim.b,
           ...(levelId !== GROUND_LEVEL_ID ? { levelId } : {}),
         })
         st.setPlanSelection({ type: 'dim', id })
@@ -1322,8 +1413,7 @@ export function FloorPlanEditor() {
       // Touch tap-to-place: a real segment commits and the chain continues from
       // its end (tap the next point to keep going). A tap on/near the anchor (no
       // segment) ends the chain; the very first tap just keeps the anchor.
-      const len = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
-      if (len > 0.2) {
+      if (wallTapCommits(draft)) {
         const id = st.addWall(
           { start: [draft.x0, draft.z0], end: [draft.x, draft.z], thickness: wallType },
           levelId,
@@ -1338,28 +1428,20 @@ export function FloorPlanEditor() {
     }
     if (tool === 'wall') {
       // Use the numeric-entry preview endpoint if the user typed one.
-      const wallEndX = numericPreviewEnd ? numericPreviewEnd[0] : draft.x
-      const wallEndZ = numericPreviewEnd ? numericPreviewEnd[1] : draft.z
-      if (Math.hypot(wallEndX - draft.x0, wallEndZ - draft.z0) > 0.2) {
-        const id = st.addWall(
-          {
-            start: [draft.x0, draft.z0],
-            end: [wallEndX, wallEndZ],
-            thickness: wallType,
-          },
-          levelId,
-        )
+      const wall = wallCommit(draft, numericPreviewEnd)
+      if (wall) {
+        const id = st.addWall({ start: wall.start, end: wall.end, thickness: wallType }, levelId)
         st.setPlanSelection({ type: 'wall', id })
       }
       setNumericPreviewEnd(null)
     } else if (tool === 'room') {
-      const x = Math.min(draft.x0, draft.x)
-      const z = Math.min(draft.z0, draft.z)
-      const w = Math.abs(draft.x - draft.x0)
-      const d = Math.abs(draft.z - draft.z0)
-      if (w > 0.3 && d > 0.3) {
+      const rect = roomCommit(draft)
+      if (rect) {
         const n = levelById(st.floorPlan, levelId).rooms.length + 1
-        const id = st.addRoom({ name: `Room ${n}`, origin: [x, z], width: w, depth: d }, levelId)
+        const id = st.addRoom(
+          { name: `Room ${n}`, origin: rect.origin, width: rect.width, depth: rect.depth },
+          levelId,
+        )
         st.setPlanSelection({ type: 'room', id })
       }
     }
@@ -1504,6 +1586,34 @@ export function FloorPlanEditor() {
       <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
         Reset to HDB
       </button>
+      {/* Mirror the whole plan (walls + rooms + openings + furniture) about its
+          centre-X — for mirror-image HDB stacks / condo pairs
+          (PARITY-PLAN-MIRROR-REGION), gated by the `planMirrorRegion` pro flag
+          (hidden in Simple mode). One undoable action. */}
+      {fMirrorRegion ? (
+        <button
+          type="button"
+          onClick={() => a.mirrorFloorPlan()}
+          title="Mirror the whole plan left↔right about its centre (for mirror-image stacks)"
+          className="btn btn-sm"
+        >
+          Mirror plan
+        </button>
+      ) : null}
+      {/* Snap the whole plan to the current grid — round every wall endpoint /
+          room vertex / opening offset / annotation coordinate to clean up a
+          traced or imported plan (PARITY-GRID-SNAP), gated by the `planGridSnap`
+          pro flag (hidden in Simple mode). One undoable action. */}
+      {fGridSnap ? (
+        <button
+          type="button"
+          onClick={() => a.snapFloorPlanToGrid()}
+          title="Round every wall, room, opening and annotation coordinate to the grid (cleans up a traced plan)"
+          className="btn btn-sm"
+        >
+          Snap to grid
+        </button>
+      ) : null}
       {/* Reference photo — trace walls over a floor-plan image / room scan. */}
       <input
         ref={fileRef}
@@ -1572,6 +1682,18 @@ export function FloorPlanEditor() {
           </button>
         </div>
       )}
+      {/* Scale the whole plan to a factor or a known wall length (PARITY-PLAN-SCALE),
+          gated by the `planScale` pro flag (hidden in Simple mode). */}
+      {fPlanScale ? (
+        <button
+          type="button"
+          onClick={() => setScaleModalOpen(true)}
+          title="Rescale the whole plan by a factor or to a known wall length"
+          className="btn btn-sm"
+        >
+          Scale plan…
+        </button>
+      ) : null}
     </>
   )
 
@@ -1989,6 +2111,13 @@ export function FloorPlanEditor() {
         </Modal>
       )}
 
+      {/* Scale-plan dialog (PARITY-PLAN-SCALE) — opened from the "Scale plan…"
+          action in the Plan menu / mobile Tools sheet. Mounted only when its flag
+          is on so the modal never opens in Simple mode. */}
+      {fPlanScale ? (
+        <ScalePlanModal open={scaleModalOpen} onClose={() => setScaleModalOpen(false)} />
+      ) : null}
+
       <div className="flex min-h-0 flex-1">
         {/* Canvas */}
         {/* Canvas — also a drop zone for the reference image */}
@@ -2269,7 +2398,9 @@ export function FloorPlanEditor() {
                 const pts = obbCorners(obb)
                   .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
                   .join(' ')
-                const isSel = selectedItemId === it.id
+                // Highlighted when it's the primary OR part of a marquee
+                // multi-selection.
+                const isSel = selectedItemId === it.id || selectedItemIds.has(it.id)
                 // Top-down category glyph centred in the footprint (PC2-PLAN-FURN-
                 // ICONS) so a layout reads at a glance. Shown only when no text
                 // label covers the centre (labels off + not selected), sized to
@@ -2281,6 +2412,8 @@ export function FloorPlanEditor() {
                 return (
                   <g key={it.id}>
                     <polygon
+                      data-item-id={it.id}
+                      data-item-selected={isSel ? '1' : undefined}
                       points={pts}
                       fill={
                         isSel
@@ -3233,6 +3366,24 @@ export function FloorPlanEditor() {
                 height={Math.abs(draft.z - draft.z0) * PX}
                 fill="var(--accent-soft)"
                 stroke="var(--accent)"
+              />
+            )}
+            {/* Rubber-band marquee (PARITY-PLAN-MARQUEE): a dashed accent box
+                while dragging on empty canvas; on release everything it crosses
+                is multi-selected. Pointer-transparent so it can't intercept the
+                drag it's tracking. */}
+            {marquee && (
+              <rect
+                x={toPx(Math.min(marquee.x0, marquee.x1))}
+                y={toPx(Math.min(marquee.z0, marquee.z1))}
+                width={Math.abs(marquee.x1 - marquee.x0) * PX}
+                height={Math.abs(marquee.z1 - marquee.z0) * PX}
+                fill="var(--accent-soft)"
+                fillOpacity={0.25}
+                stroke="var(--accent)"
+                strokeWidth={1}
+                strokeDasharray="4 3"
+                style={{ pointerEvents: 'none' }}
               />
             )}
             {/* In-progress polygon room: placed edges + vertices; the first

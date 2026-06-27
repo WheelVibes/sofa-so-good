@@ -5,11 +5,17 @@ import {
   GIZMO_MIN_RADIUS,
   GIZMO_SNAP_STEP,
   gizmoRadius,
+  NEIGHBOUR_SNAP_THRESHOLD,
+  neighbourAxes,
+  offsetToNeighbourAxis,
   pointerAngle,
   rotatePointAround,
+  smartSnapRotation,
   snapDelta,
   toDegrees,
 } from './rotateGizmoMath'
+
+const deg = (d: number) => (d * Math.PI) / 180
 
 describe('gizmoRadius', () => {
   it('clears the footprint by the handle gap', () => {
@@ -95,5 +101,96 @@ describe('toDegrees', () => {
     expect(toDegrees(2 * Math.PI)).toBe(0)
     expect(toDegrees(-Math.PI / 2)).toBe(270)
     expect(toDegrees(3 * Math.PI)).toBe(180)
+  })
+})
+
+describe('offsetToNeighbourAxis (mod-90°)', () => {
+  it('is 0 when already parallel to the reference', () => {
+    expect(offsetToNeighbourAxis(deg(40), deg(40))).toBeCloseTo(0, 6)
+  })
+  it('is 0 when perpendicular to the reference (mod 90° treats it as aligned)', () => {
+    expect(offsetToNeighbourAxis(deg(130), deg(40))).toBeCloseTo(0, 6) // 130 = 40 + 90
+  })
+  it('returns the signed gap to the nearest 90°-multiple axis', () => {
+    expect(offsetToNeighbourAxis(deg(43), deg(40))).toBeCloseTo(deg(3), 6)
+    expect(offsetToNeighbourAxis(deg(37), deg(40))).toBeCloseTo(deg(-3), 6)
+  })
+  it('never exceeds ±45°', () => {
+    for (let a = -200; a <= 200; a += 7) {
+      expect(Math.abs(offsetToNeighbourAxis(deg(a), deg(13)))).toBeLessThanOrEqual(deg(45) + 1e-9)
+    }
+  })
+})
+
+describe('smartSnapRotation', () => {
+  it('snaps to a neighbour axis when the candidate is within threshold', () => {
+    // Candidate 3° off a neighbour at 0° → snaps to the neighbour axis (0°),
+    // NOT to the 15° grid (which 3° would round to 0° too, so use 18° below).
+    const { yaw, snappedToRef } = smartSnapRotation(deg(3), [deg(0)], true)
+    expect(yaw).toBeCloseTo(0, 6)
+    expect(snappedToRef).toBe(0)
+  })
+  it('beats the 15° grid: 18° near a 20° neighbour snaps to 20°, not 15°', () => {
+    const { yaw, snappedToRef } = smartSnapRotation(deg(18), [deg(20)], true)
+    expect(yaw).toBeCloseTo(deg(20), 6)
+    expect(snappedToRef).toBe(0)
+  })
+  it('falls back to the 15° grid when no neighbour is within threshold', () => {
+    // 18° is >5° from the only neighbour (45°) → grid snap → 15°.
+    const { yaw, snappedToRef } = smartSnapRotation(deg(18), [deg(45)], true)
+    expect(yaw).toBeCloseTo(GIZMO_SNAP_STEP, 6) // 15°
+    expect(snappedToRef).toBe(-1)
+  })
+  it('falls back to the 15° grid when there are no neighbours', () => {
+    const { yaw, snappedToRef } = smartSnapRotation(deg(10), [], true)
+    expect(yaw).toBeCloseTo(GIZMO_SNAP_STEP, 6)
+    expect(snappedToRef).toBe(-1)
+  })
+  it('snaps to the NEAREST neighbour when several are within threshold', () => {
+    // Candidate 31°; neighbours at 28° (3° away) and 33° (2° away) → 33° wins.
+    const { yaw, snappedToRef } = smartSnapRotation(deg(31), [deg(28), deg(33)], true)
+    expect(yaw).toBeCloseTo(deg(33), 6)
+    expect(snappedToRef).toBe(1)
+  })
+  it('treats a perpendicular neighbour as an aligned axis (mod 90°)', () => {
+    // Candidate ~92°, neighbour at 0° → perpendicular axis is 90° → snaps to 90°.
+    const { yaw, snappedToRef } = smartSnapRotation(deg(92), [deg(0)], true)
+    expect(yaw).toBeCloseTo(deg(90), 6)
+    expect(snappedToRef).toBe(0)
+  })
+  it('Shift (snap=false) bypasses ALL snapping — neighbour AND grid', () => {
+    const { yaw, snappedToRef } = smartSnapRotation(deg(3), [deg(0)], false)
+    expect(yaw).toBeCloseTo(deg(3), 6) // untouched candidate
+    expect(snappedToRef).toBe(-1)
+  })
+  it('exactly at the threshold boundary does not neighbour-snap (strict <)', () => {
+    // Offset === threshold → not strictly inside → grid fallback (no flicker zone).
+    const { snappedToRef } = smartSnapRotation(NEIGHBOUR_SNAP_THRESHOLD, [0], true)
+    expect(snappedToRef).toBe(-1)
+  })
+})
+
+describe('neighbourAxes', () => {
+  it('excludes the rotating item itself and collapses parallel/perpendicular dupes', () => {
+    const axes = neighbourAxes(
+      'self',
+      [
+        { id: 'self', rotation: deg(30) }, // excluded
+        { id: 'a', rotation: deg(45) },
+        { id: 'b', rotation: deg(135) }, // 135 = 45 + 90 → same mod-90° axis
+      ],
+      [],
+    )
+    expect(axes).toHaveLength(1)
+    expect(axes[0]).toBeCloseTo(deg(45), 6)
+  })
+  it('derives a yaw from each wall direction (atan2(dx, dz)) and folds mod-90°', () => {
+    // A horizontal wall along +X → direction yaw 90°; folds to 0° axis.
+    const axes = neighbourAxes('self', [], [{ ax: 0, az: 0, bx: 2, bz: 0 }])
+    expect(axes).toHaveLength(1)
+    expect(axes[0]).toBeCloseTo(0, 6) // 90° mod 90° = 0
+  })
+  it('skips degenerate zero-length walls', () => {
+    expect(neighbourAxes('self', [], [{ ax: 1, az: 1, bx: 1, bz: 1 }])).toHaveLength(0)
   })
 })

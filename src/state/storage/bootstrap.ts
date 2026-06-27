@@ -230,4 +230,13 @@ async function exposeDevHelpers(): Promise<void> {
   const { persistUserMaterial } = await import('../../materials/upload/persist')
   ;(window as unknown as { __persistUserMaterial?: unknown }).__persistUserMaterial =
     persistUserMaterial
+  // Expose the Sweet Home 3D import path so the scenario harness can drive a full
+  // `.sh3d` parse → place (PARITY-SH3D); `bytes` are the raw archive (the harness
+  // base64-decodes a synthetic fixture into a Uint8Array).
+  const { parseSh3d } = await import('../../floorplan/import/sh3d')
+  const { applySh3dResult } = await import('../../ui/openSh3dImport')
+  ;(window as unknown as { __importSh3dBytes?: unknown }).__importSh3dBytes = (
+    bytes: Uint8Array,
+    name = 'Imported plan',
+  ) => applySh3dResult(parseSh3d(bytes, name), name)
 }

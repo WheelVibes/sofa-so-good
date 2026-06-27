@@ -59,8 +59,21 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
       batches commits via `setItems`/`pushHistory`, and surfaces a dropped-count toast.
   - `radialArray.ts` — radial/polar array: N positions around a circle with optional
     `faceCenter` yaw. Facing convention: `atan2(-cos angle, -sin angle)` so the item's
-    Three.js local +Z points toward the center. Gated by the `radialArray` Pro flag (and
-    `proMode`) in `InspectorPanel.tsx`; committed via `setItems` in a single undo step.
+    Three.js local +Z points toward the center. A sweep `>= 2π − RADIAL_SEAM_EPS` (~1e-3 rad —
+    incl. a dragged "almost full circle") is treated as **full-circle** (exclusive seam,
+    `step = 2π/n`), so a near-2π drag can't double-up at the seam (BUG-RADIAL-FULLCIRCLE);
+    smaller sweeps use the inclusive-both-ends partial formula `sweep/(n−1)`. Gated by the
+    `radialArray` Pro flag (and `proMode`) in `InspectorPanel.tsx`; committed via `setItems` in
+    a single undo step.
+  - `pathArray.ts` — path/polyline array (PARITY-DUP-PATH): `pathArrayPlacements(points, opts)`
+    samples N copies along an ordered polyline by **arc-length** (evenly along the path, not
+    chord-spaced), with optional tangent-facing yaw (`align`, facing `atan2(dx, dz)` so +Z
+    follows the travel direction) and `mode: 'count' | 'spacing'`. Handles <2 points, zero-length
+    segments, closed-vs-open loops, and spacing > path length; capped at `PATH_ARRAY_MAX_COUNT`
+    (200). The path source is any **plan polyline** (`floorPlan.polylines`, PARITY-POLYLINE). Gated
+    by the `pathArray` Pro flag (+ `proMode`); the UI lives in a sibling
+    `ui/inspector/PathArraySection.tsx` (not InspectorPanel) which collision-checks each copy
+    (skip-and-report blocked slots, like radial) and commits via `setItems` in a single undo step.
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).
@@ -75,6 +88,17 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `<mesh {...applianceBodyMeshProps(body)} …><geometry/><ApplianceBodyMaterial finish={body}/></mesh>`.
   Don't put the steel material on the door glass / control panels / handles — those keep their own
   finishes. (`shared.tsx`, not `.ts`, because it exports the JSX `ApplianceBodyMaterial` component.)
+- **Metal legs / frames (METAL-LEGS)**: a primitive's structural metal members (legs, frames,
+  rails, posts, gas-lifts, taps) route through `primitives/shared.tsx:metalLeg(color?, finish?, repeat?)`
+  — a thin wrapper over `getMetalMaterial` that inherits its `pbrSurfaces` gate (brushed
+  `MeshPhysicalMaterial` on / identical plain `MeshStandardMaterial` off, so Performance is
+  unchanged). Set the returned shared instance on the `<mesh material={…}>` prop (don't spread a
+  plain props object onto a `<meshStandardMaterial>` for metal parts). Pick a finish by colour
+  intent: `stainless` (bright chrome), `satin` (soft brushed), `black-steel` (matte industrial);
+  tint via `color`. Wired into `BarCart` (frame), `OfficeChair` (gas-lift), `BarStool` (legs/column/
+  footrest), `Sideboard` (hairpin legs), `TowelLadder` (frame), `DryingRack` (A-frame), `Desk`
+  (hairpin legs), `KitchenIsland` (faucet). Leave painted/plastic parts and small hardware (knobs,
+  small drawer pulls) as-is; don't touch wood/fabric.
 - **Auto-arrange decor styling** (`layout/decorStyling.ts`): `applyDecorStyling(arranged, defs, seed?)`
   places `noClip` decor props per host surface (sofa→cushions/blanket, coffee-table→bowl/magazines/
   candles, bed→cushions, nightstand→plant/candle, desk→plant/books, sideboard→frames/sculpture).

@@ -20,6 +20,7 @@ import { formatArea, formatLength } from '../../utils/measurement'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { PlanFurnitureInspector } from './PlanFurnitureInspector'
+import { PlanMultiSelectActions } from './PlanMultiSelectActions'
 
 const FLOOR_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.floor ?? []
 const WALL_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.wall ?? []
@@ -226,6 +227,11 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const furnItem = useStore((s) =>
     s.selectedItemId ? (s.items.find((i) => i.id === s.selectedItemId) ?? null) : null,
   )
+  // Furniture multi-selection (PARITY-PLAN-ALIGN): when a marquee sweeps up 2+
+  // placed pieces, `selectedItemIds` holds them all and `selectedItemId` mirrors
+  // the last. We surface align/distribute/mirror actions instead of a single-item
+  // sheet. Count only — the actions read fresh state via `useStore.getState()`.
+  const furnSelCount = useStore((s) => s.selectedItemIds.length)
   const plan = useStore((s) => s.floorPlan)
   // The persisted `finishes` map is the source of truth for a room's floor/wall
   // pick — it round-trips through `serialize()` for EVERY plan, whereas the
@@ -241,6 +247,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const wallBaseboardOn = useFeature('wallBaseboard')
   const wallThicknessOn = useFeature('wallThickness')
   const floorTextureOn = useFeature('floorTexture')
+  const roomInsetOn = useFeature('roomInset')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -250,27 +257,38 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
     ...new Set([...(sel?.type === 'wall' ? [sel.id] : []), ...selectedWallIds]),
   ].filter((id) => level.walls.some((w) => w.id === id))
   const isMulti = wallSelIds.length > 1
+  // 2+ placed pieces selected (marquee) → the align/distribute/mirror panel.
+  const isFurnMulti = furnSelCount > 1
 
   // A placed item is the active selection only when it exists AND sits on the
   // storey the editor is showing (cross-level ids resolve no panel — graceful).
+  // A furniture multi-selection takes the bulk-action panel instead, so a single
+  // item sheet must not also resolve off the mirrored primary `selectedItemId`.
   const planItem =
-    furnItem && levelOfItem(plan, furnItem).id === level.id && !isMulti && !sel ? furnItem : null
+    furnItem && levelOfItem(plan, furnItem).id === level.id && !isMulti && !isFurnMulti && !sel
+      ? furnItem
+      : null
 
   const selKey = planItem
     ? `furn:${planItem.id}`
-    : isMulti
-      ? `multi:${wallSelIds.length}`
-      : sel
-        ? `${sel.type}:${sel.id}`
-        : 'none'
+    : isFurnMulti
+      ? `furnmulti:${furnSelCount}`
+      : isMulti
+        ? `multi:${wallSelIds.length}`
+        : sel
+          ? `${sel.type}:${sel.id}`
+          : 'none'
   // A multi-selection is an action panel — keep it expanded (don't auto-minimize).
-  const { minimized, toggle } = usePlanInspectorMinimize(selKey, (!!sel || !!planItem) && !isMulti)
+  const { minimized, toggle } = usePlanInspectorMinimize(
+    selKey,
+    (!!sel || !!planItem) && !isMulti && !isFurnMulti,
+  )
 
   // On mobile the resting (no-selection) view only repeats the plan defaults,
   // which now live in the toolbar's Tools modal — so the panel is shown only
   // when an element (or placed item) is selected (to edit it). Desktop keeps
   // the defaults panel.
-  if (isMobile && !sel && !planItem) return null
+  if (isMobile && !sel && !planItem && !isFurnMulti) return null
 
   let body: React.ReactNode = (
     <div className="flex flex-col gap-3">
@@ -366,6 +384,10 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
     // A placed furniture item is selected on the plan — show its property sheet
     // (rename / X·Z / angle / size / lock / delete) in its own focused module.
     body = <PlanFurnitureInspector item={planItem} levelId={levelId} />
+  } else if (isFurnMulti) {
+    // 2+ placed pieces marquee-selected — align / distribute / mirror them in
+    // place (PARITY-PLAN-ALIGN). Reuses the same pure ops as the 3D panel.
+    body = <PlanMultiSelectActions levelId={levelId} />
   } else if (isMulti) {
     const selWalls = level.walls.filter((w) => wallSelIds.includes(w.id))
     const allLocked = selWalls.every((w) => w.locked)
@@ -644,6 +666,27 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               {formatArea(planRoomArea(r), units)}
             </span>
           </div>
+          {roomInsetOn ? (
+            <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
+              <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                Inset / grow outline (offset every edge by 0.1 m)
+              </div>
+              <div className="action-grid two">
+                <ActBtn
+                  label="Inset −0.1 m"
+                  icon={<Icon.Minus width={16} height={16} />}
+                  title="Shrink the room outline inward by 0.1 m (e.g. a dropped soffit)"
+                  onClick={() => a.insetRoom(r.id, 0.1)}
+                />
+                <ActBtn
+                  label="Grow +0.1 m"
+                  icon={<Icon.Plus width={16} height={16} />}
+                  title="Grow the room outline outward by 0.1 m (e.g. a setback)"
+                  onClick={() => a.insetRoom(r.id, -0.1)}
+                />
+              </div>
+            </div>
+          ) : null}
           <button
             type="button"
             className="btn btn-accent btn-block"
@@ -655,6 +698,14 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             }}
           >
             Edit in 3D
+          </button>
+          <button
+            type="button"
+            className="btn btn-block"
+            title="Make a copy of this room — its shape, finishes, and boundary walls, offset so it's visible"
+            onClick={() => a.duplicateRoom(r.id, levelId)}
+          >
+            Duplicate room
           </button>
           <DeleteBtn onClick={() => a.removeRoom(r.id, levelId)} label="Delete room" />
         </div>

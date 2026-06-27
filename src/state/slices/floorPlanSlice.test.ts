@@ -144,6 +144,32 @@ describe('floorPlanSlice', () => {
     expect(useStore.getState().selectedWallIds).toEqual([])
   })
 
+  it('setPlanMarqueeSelection populates item + wall selections atomically', () => {
+    useStore.getState().newFloorPlan('Marquee test')
+    for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
+    const w1 = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    const w2 = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
+
+    // Furniture + walls together: walls → primary + extras; items → multi-set.
+    useStore.getState().setPlanMarqueeSelection(['i1', 'i2'], [w1, w2])
+    expect(useStore.getState().planSelection).toEqual({ type: 'wall', id: w1 })
+    expect(useStore.getState().selectedWallIds).toEqual([w2])
+    expect(useStore.getState().selectedItemIds).toEqual(['i1', 'i2'])
+    expect(useStore.getState().selectedItemId).toBe('i2')
+
+    // Furniture only: no plan element selected (the furniture inspector owns it).
+    useStore.getState().setPlanMarqueeSelection(['i3'], [])
+    expect(useStore.getState().planSelection).toBeNull()
+    expect(useStore.getState().selectedWallIds).toEqual([])
+    expect(useStore.getState().selectedItemIds).toEqual(['i3'])
+
+    // Walls only: clears the item selection.
+    useStore.getState().setPlanMarqueeSelection([], [w1])
+    expect(useStore.getState().planSelection).toEqual({ type: 'wall', id: w1 })
+    expect(useStore.getState().selectedItemIds).toEqual([])
+    expect(useStore.getState().selectedItemId).toBeNull()
+  })
+
   it('a plain selection clears the multi-selection extras', () => {
     useStore.getState().newFloorPlan('Multi clear test')
     const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
@@ -471,5 +497,126 @@ describe('per-storey editing — level routing for the 2D editor (F13/ML4b)', ()
     expect(up?.walls.find((w) => w.id === w1)?.end).toEqual([3, 1])
     expect(up?.walls.find((w) => w.id === w2)?.start).toEqual([3, 1])
     expect(s.floorPlan.walls.find((w) => w.id === gw)?.start).toEqual([2, 0])
+  })
+
+  it('duplicateRoom adds one room + its own offset boundary walls, selects it, one undo step', () => {
+    useStore.getState().newFloorPlan('Dup room test')
+    for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
+    // Four walls tracing a 4×3 rectangle + a room over them.
+    useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
+    useStore.getState().addWall({ start: [4, 0], end: [4, 3], thickness: 'internal' })
+    useStore.getState().addWall({ start: [4, 3], end: [0, 3], thickness: 'internal' })
+    useStore.getState().addWall({ start: [0, 3], end: [0, 0], thickness: 'internal' })
+    const rid = useStore.getState().addRoom({ name: 'Bed', origin: [0, 0], width: 4, depth: 3 })
+    // Give the source a floor finish so the copy inherits it.
+    useStore.getState().setFloorFinish(rid as never, 'mat:oak')
+
+    const roomsBefore = useStore.getState().floorPlan.rooms.length
+    const wallsBefore = useStore.getState().floorPlan.walls.length
+
+    const newId = useStore.getState().duplicateRoom(rid)
+    expect(newId).toBeTruthy()
+    const s = useStore.getState()
+    // Room count +1; the copy carried its 4 boundary walls.
+    expect(s.floorPlan.rooms.length).toBe(roomsBefore + 1)
+    expect(s.floorPlan.walls.length).toBe(wallsBefore + 4)
+    const copy = s.floorPlan.rooms.find((r) => r.id === newId)!
+    expect(copy.name).toBe('Bed copy')
+    expect(copy.origin).toEqual([0.5, 0.5]) // default offset
+    // Source walls are untouched (shared-boundary safety).
+    const srcWall = s.floorPlan.walls.find((w) => w.start[0] === 0 && w.start[1] === 0)
+    expect(srcWall).toBeTruthy()
+    // Floor finish copied onto the new room id.
+    expect((s.finishes.floor as Record<string, string>)[newId!]).toBe('mat:oak')
+    // The copy is selected.
+    expect(s.planSelection).toEqual({ type: 'room', id: newId })
+
+    // ONE undo step reverts the whole duplication.
+    useStore.getState().undo()
+    const after = useStore.getState()
+    expect(after.floorPlan.rooms.length).toBe(roomsBefore)
+    expect(after.floorPlan.walls.length).toBe(wallsBefore)
+  })
+
+  it('duplicateRoom is a no-op for an unknown room id', () => {
+    expect(useStore.getState().duplicateRoom('nope')).toBeUndefined()
+  })
+})
+
+describe('mirrorFloorPlan (PARITY-PLAN-MIRROR-REGION)', () => {
+  beforeEach(() => useStore.getState().__resetForTest())
+
+  it('mirrors plan walls + furniture about an explicit axis in ONE undo step', () => {
+    useStore.getState().newFloorPlan('Mirror test')
+    useStore.getState().setItems([])
+    const wid = useStore.getState().addWall({ start: [1, 1], end: [3, 1], thickness: 'internal' })
+    // One furniture item to mirror alongside the walls.
+    useStore.setState((s) => ({
+      items: [
+        ...s.items,
+        {
+          id: 'mi1',
+          defId: 'bed',
+          position: [2, 1] as [number, number],
+          rotation: 0.3,
+          props: {},
+        },
+      ],
+    }))
+    const before = useStore.getState()
+    const wBefore = before.floorPlan.walls.find((w) => w.id === wid)!
+    const planBefore = before.floorPlan
+    const itemBefore = before.items.find((i) => i.id === 'mi1')!
+
+    const axisX = 4
+    useStore.getState().mirrorFloorPlan(axisX)
+
+    const after = useStore.getState()
+    const wAfter = after.floorPlan.walls.find((w) => w.id === wid)!
+    // Wall endpoints reflect about x = 4 (Z unchanged).
+    expect(wAfter.start).toEqual([2 * axisX - wBefore.start[0], wBefore.start[1]])
+    expect(wAfter.end).toEqual([2 * axisX - wBefore.end[0], wBefore.end[1]])
+    // Furniture position reflects in X, rotation negates, flipX toggles.
+    const itemAfter = after.items.find((i) => i.id === 'mi1')!
+    expect(itemAfter.position).toEqual([2 * axisX - itemBefore.position[0], itemBefore.position[1]])
+    expect(itemAfter.rotation).toBeCloseTo(-0.3, 9)
+    expect(itemAfter.flipX).toBe(true)
+
+    // ONE undo reverts the WHOLE mirror (plan + items together).
+    useStore.getState().undo()
+    const reverted = useStore.getState()
+    expect(reverted.floorPlan.walls.find((w) => w.id === wid)!.start).toEqual(wBefore.start)
+    expect(reverted.items.find((i) => i.id === 'mi1')!.position).toEqual(itemBefore.position)
+    expect(reverted.items.find((i) => i.id === 'mi1')!.rotation).toBeCloseTo(0.3, 9)
+    // Plan deep-equals its pre-mirror state.
+    expect(reverted.floorPlan).toEqual(planBefore)
+  })
+
+  it('double-mirror about the same axis restores the plan (composition)', () => {
+    useStore.getState().newFloorPlan('Double mirror')
+    const wid = useStore.getState().addWall({ start: [0, 0], end: [2, 2], thickness: 'internal' })
+    const wBefore = useStore.getState().floorPlan.walls.find((w) => w.id === wid)!
+    useStore.getState().mirrorFloorPlan(3)
+    useStore.getState().mirrorFloorPlan(3)
+    const wAfter = useStore.getState().floorPlan.walls.find((w) => w.id === wid)!
+    expect(wAfter.start[0]).toBeCloseTo(wBefore.start[0], 9)
+    expect(wAfter.end[0]).toBeCloseTo(wBefore.end[0], 9)
+  })
+
+  it('forks the seeded default plan on mirror (binds edits to the live scene)', () => {
+    // Fresh default plan id; mirroring it must re-id it to a custom plan.
+    expect(useStore.getState().floorPlan.id).toBe('default-hdb-4room')
+    useStore.getState().mirrorFloorPlan()
+    expect(useStore.getState().floorPlan.id).not.toBe('default-hdb-4room')
+  })
+
+  it('defaults the axis to the plan centre-X when unset', () => {
+    useStore.getState().newFloorPlan('Centre mirror')
+    const wid = useStore.getState().addWall({ start: [1, 0], end: [3, 0], thickness: 'internal' })
+    useStore.getState().mirrorFloorPlan()
+    // Mirror runs without throwing and reflects the wall (X changes, Z fixed).
+    const w = useStore.getState().floorPlan.walls.find((x) => x.id === wid)!
+    expect(w.start[1]).toBe(0)
+    expect(w.end[1]).toBe(0)
   })
 })

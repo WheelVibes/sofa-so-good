@@ -9,6 +9,22 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `PATTERN_SIZE_CAP` (256 for smooth/noise-based, 512 for high-frequency geometric patterns).
 - **World-space UVs** (`worldUv.ts`): surfaces tile at a fixed physical scale — don't bake
   per-mesh UVs or assume a unit cube.
+- **Tile repetition break-up (RD-406 / MAT-006a)**: `worldUv.ts` exports the pure, deterministic
+  `cellUvTransform(cu,cv)` (hash a tile cell → a 90°/180°/270° quarter-turn + a {0, 0.5} half-tile
+  offset) and `breakRepetitionPlane(w,h,tileSize)` (subdivide a rect floor on the `tileSize`-metre
+  grid — `tileSize` = the material `uvScale` — and re-phase/rotate each cell's UVs so a big tiled
+  floor stops repeating identically). It's **pure UV math** — no shader, no 2nd UV set, no extra
+  texture. Cells snap to the texture period (boundaries land on grout) and the rotation is rigid +
+  the offset a half-tile, so a 2ⁿ-grid ceramic stays grout-continuous and a non-gridded
+  stone/marble/wood just varies tile-to-tile; the tiles keep their square aspect (no UV stretch),
+  share boundary positions (no seam/crack), and sit at the same Y (no z-fighting). Wired into the
+  **rectangular** floor build sites only (`apartment/floor/RoomFloor.tsx` + `PlanRoomFloor.tsx`
+  `RectFloor` — polygon floors and walls are untouched) behind the **`tileBreakup`** flag
+  (`tier:'pro'`, default on — pure prod-safe). Flag off / a sub-tile (repeat≈1) surface →
+  `breakRepetitionPlane` returns `null` and the plain world-UV plane is byte-identical to before.
+  Degenerate guards: non-positive size/tile, non-finite tile, and a runaway subdivision all fall
+  back to the plain plane. Unit-tested in `worldUv.test.ts` (period-breaking + determinism + no UV
+  NaN + repeat=1 untouched + the Simple/Pro flag-gate, both modes).
 - **Wood grain flow (PC2-WOOD-GRAIN-FLOW)**: the wood painters (`procedural/patterns/wood.ts` —
   planks/parquet/herringbone) give each board a deterministic per-board grain **lean** via the pure
   `procedural/woodPlank.ts` (`plankHash` shared stateless hash, `grainLean` ~±2.6°, `shearAcross`
@@ -59,7 +75,17 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   **gated behind `pbrSurfaces`**, same gate as the PR6 cloud; off → legacy uniform polish, no rough
   map). The Path-B drift map is a multiplier clamped ≤ 1 → only glossier, never matter (no
   regression). Keep it **subtle** (`DEFAULT_STONE_SURFACE_PARAMS`; `veinRelief`/`roughDrift` 0..1,
-  `0` disables). Albedo sRGB, normal/roughness linear. concrete/terrazzo are untouched.
+  `0` disables). Albedo sRGB, normal/roughness linear. terrazzo is untouched.
+- **Concrete pinhole pores (CONCRETE-PORES)**: the same `procedural/stoneSurface.ts` exports
+  `makePinholePores(seed, pores)` — a **roughness-only**, non-negative micro lift where a
+  high-frequency noise field (distinct seed offset +137, integer freq) crosses a high threshold, so
+  a sparse, scattered set of tiny air pinholes reads rougher than the sealed face (a ramp at the
+  rim, never a hard speckle; never polka-dots). Wired into **Path A** only
+  (`procedural/patterns/stone.ts:concreteFields` — **layered onto** the existing macro
+  mottle/pore/stain roughness, NOT replacing it; the macro `pore` term still owns the albedo
+  darkening + height recess). The combined roughness is clamped `[0,1]` after the lift. No flag, all
+  tiers (like RZ4); deterministic. Keep it **subtle** (`DEFAULT_CONCRETE_SURFACE_PARAMS`; `pores`
+  0..1, `0` disables). marble/tile/plaster paths untouched.
 - **Plaster/concrete roller-nap (MAT-003)**: the pure `procedural/plasterSurface.ts` adds the cue
   matte painted walls need — `makeRollerNap(seed, nap)` is a signed, mean-preserving roughness
   *drift* (broad coverage + fine nap stipple, ±~0.035) so a matte wall isn't a single flat
@@ -83,10 +109,27 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   (swept highlight, `anisotropyRotation = 0` so the sweep follows the U hairlines); finishes
   `stainless`/`satin`/`black-steel` pick the metalness/roughness + brush/anisotropy preset (tint from
   the caller). Flag **off** → a plain `MeshStandardMaterial` (legacy flat steel, no maps). Tasteful,
-  not chrome-mirror; cached per `(finish, color, repeat)`. The roughness map is a multiplier centred
-  on 1 (mean-preserving). Keep it **subtle** (`DEFAULT_BRUSH_PARAMS`; `streak: 0` collapses to plain
-  metal). Albedo/tint sRGB, normal/roughness linear. The 8 appliance primitives wire to it via
-  `furniture/primitives/shared.tsx:applianceBody` (steel body → shared material; non-steel unchanged).
+  not chrome-mirror; cached per `(finish, color, repeat, brushRotation)`. The roughness map is a
+  multiplier centred on 1 (mean-preserving). Keep it **subtle** (`DEFAULT_BRUSH_PARAMS`; `streak: 0`
+  collapses to plain metal). Albedo/tint sRGB, normal/roughness linear. The 8 appliance primitives
+  wire to it via `furniture/primitives/shared.tsx:applianceBody` (steel body → shared material;
+  non-steel unchanged); furniture metal legs/frames/rails wire to it via the sibling
+  `metalLeg(color?, finish?, repeat?)` helper (BarCart/OfficeChair/BarStool/Sideboard/TowelLadder/
+  DryingRack/Desk/KitchenIsland) — both inherit the same `pbrSurfaces` gate, so Performance is unchanged.
+- **Brush axis per face (BRUSH-AXIS)**: the baked hairlines run along U and three.js sweeps the
+  anisotropic highlight along them. The pure, deterministic `brushAxis.ts`
+  `anisotropyRotationForNormal(normal)` maps a face/mesh **world** normal → the `anisotropyRotation`
+  that keeps the hairlines on that face's dominant in-plane axis: a near-vertical normal (top/bottom
+  face) keeps the default `0` (U is already in-plane); any upright face (front/side panel) gets a
+  quarter turn so the grain runs vertically (the conventional appliance brush direction). Degenerate
+  / near-zero / non-finite normals fall back to the default; **no normal → `0`, byte-identical to
+  before**. `getMetalMaterial(color, finish, repeat, faceNormal?)` takes the optional `faceNormal`,
+  folds the resolved rotation into its cache key (omitted when `0`, so default callers are
+  unchanged), and sets `m.anisotropyRotation`. No new flag — it rides the existing `pbrSurfaces`
+  gate (the flat tier has no anisotropy). Unit-tested in `brushAxis.test.ts` (axis-aligned faces,
+  default unchanged, degenerate/non-finite, determinism). The body-shared sites (`applianceBody`,
+  `metalLeg`) span multiple face orientations on one material, so they keep the default fixed axis;
+  pass `faceNormal` only from a single-orientation mesh.
 - **Uploaded-material persistence (`upload/persist.ts`)**: each channel blob is one IDB record;
   the material's full identity/appearance (`name`, `category`, `swatch`, `uvScaleX`/`uvScaleY`
   — `uvScale` is stored as two scalars since IDB `meta` values can't be arrays) is stamped on

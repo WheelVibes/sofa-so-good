@@ -78,6 +78,7 @@ export type FeatureFlag =
   | 'wallThickness'
   | 'unroomedFlag'
   | 'planIntegrity'
+  | 'planScale'
   | 'viewInAr'
   | 'floorTexture'
   | 'planCompass'
@@ -88,10 +89,18 @@ export type FeatureFlag =
   | 'catalogFavourites'
   | 'wallNumericEntry'
   | 'radialArray'
+  | 'pathArray'
   | 'iesLights'
   | 'cameraDof'
   | 'proceduralSky'
   | 'importSh3d'
+  | 'smartRotateSnap'
+  | 'stampPlace'
+  | 'scatterFill'
+  | 'planMirrorRegion'
+  | 'planGridSnap'
+  | 'roomInset'
+  | 'tileBreakup'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

@@ -37,11 +37,24 @@ listed under *Unpriced / generic* with the same indicative estimates as the
 Budget panel), with a subtotal per retailer, the grand total, and your budget
 target's under/over. Print it, save it as PDF, or send it with your design.
 
+The **File** menu (also ⌘K and the mobile **File** section) has two spreadsheet
+exports alongside it: **Furniture list (CSV)** — every placed piece with its room,
+dimensions, quantity and prices — and **Room schedule (CSV)** — one row per room
+across every storey with its floor area, wall perimeter, floor + wall finish and
+ceiling height, plus a grand-total footer. Both open straight in Excel or Google
+Sheets.
+
 For a contractor-ready costing, **Tools → Quote (BOQ)** opens a printable bill of
 quantities (FF&E, flooring/painting finishes priced per area, and built-in
 carpentry by linear metre, with per-section subtotals + a grand total). **Tools →
 Quote → Excel (.xlsx)** downloads the same bill as a spreadsheet you can edit or
 send on.
+
+For a single machine-readable costing file, **File → Cost breakdown (CSV)** (also
+on ⌘K and the mobile **File** section) downloads one spreadsheet that combines
+your furniture spend (grouped by category, with quantities and subtotals), the
+flooring/painting finishes priced per area, and a reconciling **grand total** —
+the furniture and renovation subtotals always add up to it.
 
 Spend is shown wherever it helps: each catalog card and the inspector show a
 per‑item price (with a **selection total** when you multi‑select), the panel
@@ -177,7 +190,13 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   structural walls, wet‑area waterproofing, facade windows; on a multi‑storey
   plan this also flags any **upper storey no staircase reaches**, until you
   place a Staircase whose run lands on that storey's landing), areas, and your
-  design notes — a handoff-ready document.
+  design notes — a handoff-ready document. The Report also shows a **renovation
+  timeline** — an indicative phase schedule (protection & hacking → … → cleaning
+  & handover) estimated from your floor area and room count.
+- **Reno timeline (.ics)** — exports that renovation timeline as a calendar file
+  you can import into Google / Apple / Outlook Calendar, with one all-day event per
+  phase starting today. Find it in **Tools** (desktop and the mobile sheet) or via
+  ⌘K — it shares the Report toggle, so it's available whenever the Report is.
 - **Drawing set** — a formal, paginated **plan set** (A4 landscape, one drawing per
   sheet with title blocks): cover + sheet index, floor plan, each wall elevation,
   the lighting plan, and the FF&E schedule. Print or save as PDF for builders and

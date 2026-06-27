@@ -5,6 +5,449 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: per-face brushed-metal anisotropy rotation (BRUSH-AXIS) (v0.4.0.0)
+
+Brushed-metal surfaces now orient their anisotropic highlight per face instead of using one global
+brush direction. A new pure `materials/brushAxis.ts` `anisotropyRotationForNormal(normal)` maps a
+face normal to an `anisotropyRotation` so the streak runs consistently across each surface, and
+`getMetalMaterial(color, finish, repeat, faceNormal?)` threads it through the LRU cache key
+(rotation-tagged) so distinct orientations stay cached independently. With no `faceNormal` supplied
+the result is **byte-identical** to the previous material (default rotation 0). 9 unit tests
+(axis mapping, default-identity, determinism).
+
+## Feature: concrete pinhole-pore roughness micro-variation (CONCRETE-PORES) (v0.4.0.0)
+
+Procedural concrete reads less uniformly flat: `materials/procedural/stoneSurface.ts`
+`makePinholePores(seed, pores)` layers sparse high-frequency pinhole pores (freq 110, seed offset
++137, threshold 0.8, max roughness lift +0.16, clamped [0,1]) onto the `concreteFields` roughness
+channel in `procedural/patterns/stone.ts`. The change is **roughness-only** — no normal/displacement,
+so it cannot z-fight or clip — and `DEFAULT_CONCRETE_SURFACE_PARAMS` keeps it tunable. 39 pixel-stats
+unit tests (pore density, roughness bounds, determinism, channel isolation).
+
+## Feature: UV repetition break-up for large tiled surfaces (MAT-006a) (v0.3.0.47)
+
+Large tiled floors no longer read as an "obvious repeating grid". A new pure, deterministic
+`materials/worldUv.ts` `cellUvTransform`/`breakRepetitionPlane` subdivides a rectangular floor on the
+tile-size grid and re-phases each cell's UVs with a hashed quarter-turn (90/180/270°) + a sub-tile
+offset — **no shader, no second UV set, no extra texture**. The offset is quantised to {0, 0.5} so a
+gridded ceramic tile stays **grout-continuous** (boundaries land on grout, no cracks) while
+non-gridded stone/marble/wood de-correlates tile-to-tile; rotation is rigid (no UV stretch) and cells
+share boundary positions + Y (no geometry seam, no z-fighting). Wired into the rect floor build sites
+(`RoomFloor`/`PlanRoomFloor`) behind a new `tileBreakup` flag (`tier:'pro'`, default on, prod-safe
+pure code; off → byte-identical to the previous plane). 29 unit tests (period-breaking, determinism,
+no UV NaN, grout-continuity, both-mode gating); flat-texture-verified ON-vs-OFF on gridded tile +
+marble, and re-confirmed seam/z-fighting-free on the integrated tree.
+
+## Perf: brushed-metal legs/frames via getMetalMaterial (METAL-LEGS) (v0.3.0.46)
+
+The shared anisotropic brushed-metal material (`getMetalMaterial`, previously wired only into the 8
+appliance bodies) now also dresses furniture **legs / frames / rails / posts / gas-lifts / taps** via
+a new `primitives/shared.tsx` `metalLeg(color?, finish?, repeat?)` helper, routed through 8 primitives
+(BarCart, OfficeChair, BarStool, Sideboard, TowelLadder, DryingRack, Desk, KitchenIsland). It inherits
+`getMetalMaterial`'s `pbrSurfaces` gate — a `MeshPhysicalMaterial` with brush normal/roughness-streak +
+anisotropy on High/Max, an identical-to-before plain `MeshStandardMaterial` on Performance (the flat
+path is byte-for-byte unchanged). Geometry is untouched (legs stay floor-anchored, inside the
+footprint); painted/plastic/wood/fabric parts and small hardware are left alone. 6 tests (both tiers);
+verified HQ (metal reads correctly, structurally sound, no z-fighting) + Performance (unchanged).
+
+## Perf: broadphase the auto-arrange collision scans (ARRANGE-GRID) (v0.3.0.45)
+
+The auto-arrange ("Tidy") pass ran `canPlace` per candidate position against the **full** item list.
+It now restricts each placement's neighbour set via the existing `collision/broadphase.ts`
+`buildGrid`/`queryRect` (the proven PERF-003 drag-path pattern) — a new `broadphaseNeighbours` +
+reused `itemAabbBox` in `collision/placement.ts`, consumed by `layout/autoArrange.ts` `tryPlace`. A
+position×rotation **equivalence sweep** over a dense scene asserts the broadphase-restricted result is
+**identical** to the full scan, and the existing `autoArrange` collision-validity tests pass unchanged
+— so it's a pure speedup at scale with no behaviour change.
+
+## Perf: zero-allocation wall camera-facing reveal (SHELLPERF) (v0.3.0.44)
+
+`RoomShell`/`PlanRoomShell` allocated a `new Vector2` every frame, per clipped wall, inside `useFrame`
+(steady GC pressure in the isolated-room editor). The per-frame camera-facing test is now a pure
+`apartment/wallFacing.ts` `wallFacesAway(camX, camZ, midX, midZ, normal, threshold)` called with
+scalars — **zero allocation** on the hot path, byte-identical visibility result. 8 unit tests
+(faces-away/toward, threshold boundary, equivalence to the prior `Vector2.dot`).
+
+## Feature: angle-snap when dragging an existing wall endpoint (PARITY-PLAN-VERTEX-ANGLESNAP) (v0.3.0.42)
+
+Dragging a wall's endpoint handle in the 2D editor now **snaps to 15° increments** (horizontal /
+vertical / 45°…) about the wall's other, fixed end — the same ortho/angle snap that *drawing* a new
+wall already used (`snapWallAngle`), so an existing wall squares up cleanly instead of landing a
+fraction of a degree off; **Shift** bypasses it for a free drag. Previously only freshly-drawn walls
+got the snap — `moveWallVertex` received the raw cursor. The decision is a new pure
+`vertexDragTarget(start, end, which, cursor, bypass)` in `ui/floorplan/editor/snapWallAngle.ts`
+(picks the fixed anchor = the *other* endpoint, applies `snapWallAngle` unless bypassed); the editor's
+`moveWallVertex` still applies its own corner/wall-join snap afterwards (order: angle → wall-snap,
+matching the draw path). 5 new unit tests (anchor selection per dragged end, near-90° snap, Shift
+bypass, custom step); the `plan-editor-tools-journey` scenario stays green (behaviour-preserving for
+every other gesture). This is an inline orchestrator fix — the editor file is too churned this
+session to delegate to a fork-from-base worktree agent.
+
+## Feature: indicative electrical-points schedule in the design report (PARITY-ELECTRICAL-SCHED) (v0.3.0.41)
+
+The report gains an **Electrical points (indicative)** section — a rough per-room socket/point count
+an electrician can quote against. Pure `analysis/electricalSchedule.ts` (`buildElectricalSchedule(plan,
+items, catalog)`) counts per room: **lighting points** (reusing `furniture/lightEmitters.ts`
+`isItemEmitter` — the exact predicate the lighting plan uses, so the two reports never disagree on
+what a light is) and **power points** inferred from powered furniture categories present
+(`SOCKETS_PER_CATEGORY`: kitchen 2, appliances/electronics/laundry/other 1; lighting excluded), with a
+per-room-kind minimum floor (`MIN_SOCKETS_BY_KIND`: living/kitchen 4, study 3, dining/bedroom 2, …) so a
+sparsely-powered room still reads as wired, plus per-room and grand totals. Explicitly labelled
+indicative (no circuits/loads/cable runs). Rides the `report` flag (no new flag). 12 unit tests +
+report-render coverage; empty plan → zeroed (no NaN), strays → an "Unassigned" row, multi-storey summed.
+
+## Feature: combined cost-breakdown CSV export (PARITY-COST-BREAKDOWN-CSV) (v0.3.0.40)
+
+A single exportable **cost breakdown CSV** consolidating what the report shows separately. Pure
+`export/costBreakdownCsv.ts` (`buildCostBreakdown`/`buildCostBreakdownCsv`) emits sectioned rows —
+Furniture by category (qty + subtotal), Finishes/renovation lines (floor/wall area × rate), and a
+**reconciling GRAND TOTAL** (`grandTotal === furnitureSubtotal + renovationSubtotal`, asserted in
+tests) — reusing the existing pricing (`itemPrice`, `floorAreaByFinish`/`wallAreaByFinish`,
+`estimateRenovation` with `RENO_RATES`); RFC-4180 + injection guard + UTF-8 BOM. `ui/openCostBreakdownCsv.ts`
+downloads `<plan>-costs.csv`. File menu + mobile + ⌘K under `shopExport` (no new flag). 9 unit tests.
+
+## Feature: move-in / handover checklist in the design report (PARITY-MOVEIN-CHECKLIST) (v0.3.0.39)
+
+The report gains a **Move-in checklist** — a derived handover punch-list for the SG reno handover.
+Pure `analysis/handoverChecklist.ts` (`buildHandoverChecklist(plan, items, catalog)`) groups by room:
+common snag rules + per-`RoomKind` rules (via `roomKindFromName`, unrecognised → generic bucket), an
+appliance/utility-activation group for the appliance categories actually present (kitchen/appliances/
+laundry/electronics), and an always-present keys/meters/documents group (empty plan → just that).
+Deterministic (no clocks/random). Rides the `report` flag (no new flag). 9 unit tests + report-render.
+
+## Feature: design-suggestions section in the design report (PARITY-SUGGESTIONS-SECTION) (v0.3.0.38)
+
+The per-room "what to add / improve" tips from the existing `analysis/suggestions.ts buildSuggestions`
+(previously panel-only) are now also a **report section** — derives each room's furniture categories
+via `pointInRoom` and renders the grouped suggestions, omitted when no rule fires. No new analysis
+code, no new flag (rides `report`). Report-render tests for the furnished, empty-room, and no-suggestion
+cases.
+
+## Feature: FF&E schedule CSV export (PARITY-FFE-CSV) (v0.3.0.37)
+
+The FF&E (furniture, fixtures & equipment) schedule that the design report already renders as HTML is
+now also a **machine-readable CSV** — the missing third export alongside the furniture-list and
+room-schedule CSVs. Pure `export/ffeCsv.ts` (`buildFfeCsv(rows, units, opts?)`) runs over the existing
+`buildFfeSchedule` rows (no recompute): Room / Item / Source / SKU / Size (W×D×H, unit-aware) / Qty /
+Unit price / Line total, RFC-4180-quoted with the OWASP injection guard (`utils/csv`), a UTF-8 BOM and
+a grand-total footer; prices are blanked when the `budget` feature is off (the gate lives in the
+download glue, keeping the builder pure). `ui/openFfeCsv.ts` downloads `<plan>-ffe.csv`. File menu +
+mobile + ⌘K, under the existing `shopExport` flag (no new flag). 6 unit tests (metric/imperial,
+injection-neutralised, footer, prices-off, empty plan).
+
+## Feature: door & window schedule in the design report (PARITY-OPENING-SCHED) (v0.3.0.36)
+
+The printable report gains an **Openings schedule** — a standard CAD/SH3D door & window schedule. Pure
+`analysis/openingSchedule.ts` (`buildOpeningSchedule(plan)`) walks `plan.openings` across all storeys,
+resolves each opening's bordering room(s) via a wall-midpoint probe, and groups openings with identical
+(kind, width, head−sill) into **typed marks** (D1/D2…/W1/W2…) with a count, per-mark size (W×H), sill,
+door swing/hinge, and the rooms each mark appears in (a "door type D1 ×4" schedule). Openings off any
+wall/room fall into an "Unassigned" bucket (no crash); doors sort before windows; section omitted when
+there are no openings. Rides the existing `report` flag. 15 unit tests + report-render coverage.
+
+## Feature: daylight & ventilation section in the design report (PARITY-DAYLIGHT-DIGEST) (v0.3.0.35)
+
+The daylight/ventilation analysis (`analysis/daylight.ts buildDaylightReport`) that powered only the
+in-app panel is now also a **printable report section**: per-room glazing % + openable % with PASS/FAIL
+against the module's `DAYLIGHT_MIN_RATIO` (10% glazing) / `VENT_MIN_RATIO` (5% openable) thresholds, a
+pass-count summary, and a disclaimer; omitted when no room has a window. No new analysis code, no new
+flag (rides `report`) — closes an obvious gap (the report already had accessibility + thermal but not
+daylight). Report-render tests for the windowed + bare-shell cases.
+
+## Feature: inset / outset a room polygon by a signed distance (PARITY-ROOM-INSET) (v0.3.0.33)
+
+A Pro action **insets** (shrink — dropped soffit / set-down) or **outsets** (grow — setback) a
+room's outline by a signed distance, a common Coohom/CAD offset-polygon op. Pure
+`floorplan/insetRoom.ts` (`insetPolygon(points, dist)`) offsets every edge and re-intersects
+adjacent offset edges — convex AND simple concave (L-shape) rooms, winding auto-detected — and
+returns **`null`** on a degenerate result (an edge reverses, the winding sign flips, or the area
+collapses to ~0) rather than a self-intersecting polygon. `insetRoom(id, dist)` /
+`insetSelectedRoom(dist)` slice actions write the result back as an explicit `polygon`, re-flow the
+room's boundary wall/opening names, push one undo step, and **reject a collapse with an error toast**
+(no fork, no history). Triggers: ⌘K "Inset room (−0.1 m)" / "Grow room (+0.1 m)" (shown only with a
+room selected) **and** Inset/Grow buttons in the PlanInspector room branch. New `roomInset` flag
+(`tier:'pro'`, default on). 19 unit + slice/flag tests (square inset shrinks area predictably,
+inset>half-width → null, outset grows, L-shape concave, double-inset composes, both modes).
+Documented limitation: boundary walls aren't re-traced, so openings keep their wall offsets.
+
+## Feature: indicative thermal-envelope digest in the design report (PARITY-THERMAL) (v0.3.0.32)
+
+The printable report gains a **Thermal envelope** section — an indicative (not certified) building-
+science estimate. Pure `analysis/thermalAnalysis.ts` (`buildThermalReport(plan, finishes?)`) sums
+the exterior opaque wall area (`thickness==='external'` walls × storey height across all storeys via
+`planLevels`/`wallLength`) and the glazing area (window openings on those walls), maps each surface to
+a representative Singapore U-value via a documented `U_VALUES` table (RC wall 2.0, brick 1.7,
+lightweight 1.0, cladding 0.6 W/m²K; single glazing 5.7, double 2.8, low-E 1.8), and returns total
+envelope area, area-weighted average U, glazing ratio, and a conductive heat-transfer index
+`Σ area×U` (W/K). Explicitly labelled indicative — excludes roof/floor slabs, thermal bridging, solar
+gain, infiltration, shading and orientation. Edge cases: bare-shell/all-interior plan → zeroed digest
+(no NaN), window on an interior wall ignored, unrecognised finish → documented RC default, multi-storey
+summed with per-level ceiling override. Rides the existing `report` flag (no new flag — matches the
+Plan-statistics / Renovation-timeline sections). 13 unit tests + report-render coverage.
+
+## Feature: snap the whole plan to a grid (PARITY-GRID-SNAP) (v0.3.0.31)
+
+A Pro **"Snap to grid"** Plan-menu action tidies a traced/imported plan by rounding every
+coordinate to a grid. Pure `floorplan/gridSnap.ts` (`snapPlanToGrid(plan, items, gridM=0.05, opts?)`,
+modelled on `rescalePlan`/`mirrorPlanRegion`) rounds wall endpoints, room origins/size/polygon/
+labelOffset, opening offset+width, notes/dims/polylines, every upper storey (+ `elevation`/`extent`)
+via `Math.round(v/gridM)*gridM`; openings are re-threaded (offset snapped + clamped to
+`[0, wallLen−width]`) so they stay on their snapped wall, and a wall that would collapse to zero
+length is left unsnapped. Idempotent (`snap∘snap === snap`); `gridM ≤ 0`/NaN/∞ throws; furniture
+positions snap only with `{snapFurniture}` (sizes preserved). `snapFloorPlanToGrid(gridM?, opts?)`
+slice action defaults the grid to the editor's `gridSize` (else 0.05 m), one undo step, forks the
+default plan. New `planGridSnap` flag (`tier:'pro'`, default on). 19 unit + slice tests; visually
+verified (off-grid plan → P 18.00 m, walls still join, door swing intact, no z-fighting).
+
+## Feature: renovation-timeline .ics calendar export (PARITY-RENO-ICS) (v0.3.0.30)
+
+The renovation timeline (`analysis/renoTimeline.ts`) can now be exported as an **`.ics` calendar**
+(Tools / mobile / ⌘K, under the existing `report` flag) so a homeowner can drop the reno phases into
+their calendar app. Pure `export/renoIcs.ts` (`buildRenoIcs(phases, startDate[, now])`) emits an
+RFC-5545 VCALENDAR with one all-day VEVENT per phase (`DTSTART;VALUE=DATE`/exclusive `DTEND`), CRLF
+line endings, TEXT escaping, a stable per-phase UID, PRODID + DTSTAMP — clock-free (dates passed in)
+so it's deterministic + unit-testable; an empty timeline yields a valid empty VCALENDAR.
+`ui/openRenoIcs.ts` is the Blob-download glue (starts "today", toasts when there are no phases).
+18 tests incl. an integration test against the real `buildRenoTimeline`.
+
+## Feature: plan-statistics digest in the design report (PARITY-PLAN-STATS) (v0.3.0.29)
+
+The printable design report gains a **Plan statistics** section: total GFA (summed across all
+storeys), room count + per-kind mix, average room size, total room perimeter, total wall length, and
+a net-vs-circulation split. Pure `analysis/planStatistics.ts` (`buildPlanStatistics(plan)`) reuses
+`allPlanRooms`/`planLevels`/`planRoomArea`/`planRoomPerimeter`/`wallLength`/`roomKindFromName`; an
+empty/bare-shell plan yields a fully-zeroed digest (never NaN), unknown room kinds bucket as `other`.
+Rides the existing `report` flag (no new flag). 12 unit tests + a report-render test.
+
+## Feature: mirror a whole plan region about an axis (PARITY-PLAN-MIRROR-REGION) (v0.3.0.27)
+
+A **"Mirror plan"** action (Plan menu, Pro) reflects the entire plan region — every storey's walls,
+rooms, openings, notes/dimensions/polylines, **and** furniture — across a vertical axis, for
+mirror-image HDB stacks / condo pairs. Pure `floorplan/mirrorPlanRegion.ts`
+(`mirrorPlanRegion(plan, items, axisX)`) maps `x → 2·axisX − x` (Z untouched); being
+orientation-reversing it also flips handedness — opening `hinge` (start↔end) + `swing` (left↔right),
+wall `arc` sign, room `labelAngle` sign, furniture yaw (`rotation → −rotation`) + `flipX` — while
+preserving all lengths/areas/sizes (it's an isometry). The `mirrorFloorPlan(axisX?)` slice action
+defaults the axis to the plan's centre-X, commits plan+items in one undo step, and forks the default
+plan on first edit. New `planMirrorRegion` flag (`tier:'pro'`, default on, prod-safe). 26 unit +
+slice tests (coords reflect, areas preserved, hinge/swing/arc/yaw flips, multi-level, double-mirror =
+identity, non-finite axis throws) + flag-gating both modes; visually verified on the integrated tree
+(4-Room HDB mirrored left↔right, door swings flipped, 92.6 m²·11 rooms preserved, double-mirror
+pixel-identical to the original — no z-fighting/overlap).
+
+## Fix: clear pending object-URL revoke timer on RecordController unmount (BUG-RECORD-TIMER-LEAK) (v0.3.0.26)
+
+`scene/RecordController.tsx` scheduled `setTimeout(() => URL.revokeObjectURL(url), 2000)` in
+`rec.onstop` without tracking the handle, so unmounting within that 2 s window left the timer to fire
+on a dead context. Each pending handle is now held in a `useRef(new Set<…>())` (self-pruning when the
+timer fires), and a mount-once effect `clearTimeout`s all still-pending handles on unmount. The
+normal still-mounted path is byte-identical (revoke still fires at 2 s); multiple recordings in one
+session each track their own handle without clobbering.
+
+## Fix: PathArraySection infinite render loop when no polyline is drawn (BUG-PATHARRAY-LOOP) (v0.3.0.24)
+
+`ui/inspector/PathArraySection.tsx` subscribed with `useStore((s) => s.floorPlan.polylines ?? [])`
+— the `?? []` **inside the selector** returns a brand-new array reference on every render whenever
+`polylines` is undefined (the default — no polyline drawn yet), which Zustand compares by identity,
+driving an infinite update loop ("Maximum update depth exceeded") that the error boundary then
+caught. Because the section renders for any single furniture item in Pro mode, the inspector crashed
+on the common no-polyline case — a latent regression from PARITY-DUP-PATH (v0.3.0.12) that its own
+scenario masked by always drawing a polyline first. Surfaced by **integration visual verification**
+(the scatter-fill scenario selects a plain item with no polyline, mounting `PathArraySection`
+alongside the new `ScatterFillSection`). Fixed by selecting the raw value (stable `undefined` or
+stable array reference) and falling back with optional chaining in the render body instead of in the
+selector. Re-verified: the scatter scenario completes and the inspector renders the array sections
+cleanly with the room filled.
+
+## Feature: scatter-fill a room with N collision-safe copies (PARITY-SCATTER-ROOM) (v0.3.0.23)
+
+A new Pro inspector action **"Fill room"** evenly packs a room's free floor with N copies of the
+selected item (dining chairs, downlight grids, planter rows). Pure `layout/scatterInRoom.ts`
+(`scatterInRoom(roomPolygon, footprint, count, {existing, defs, doors, walls, clearance, rotation,
+levelId, seed, defId})`) lays a footprint+clearance-pitched grid over the room bbox, keeps cells
+whose whole (rotation-aware) footprint is inside via the reused `pointInPolygon`, visits them in a
+seeded Fisher–Yates order (`mulberry32` — deterministic) and accepts each that passes the reused
+`collision/placement.ts canPlace` against existing + already-placed copies, capping at `count` and
+reporting the shortfall. `ui/inspector/ScatterFillSection.tsx` resolves the selected item's room
+(`allPlanRooms`+`levelOfRoom`+`pointInRoom`), commits all copies in one undo step, and toasts
+"placed N of M" on a cap. New `scatterFill` flag (`tier:'pro'`, default on, prod-safe) — hidden in
+Simple, present in Pro, tested both ways. 13 unit tests (all-inside, no-overlap, deterministic-by-
+seed, even spacing, over-count cap, degenerate/concave-L room, footprint-bigger-than-room, existing-
+item respect, rotation carry) + scenario; visually verified (12 chairs evenly spread, upright, no
+clip/z-fighting, one-step undo, mobile bottom-sheet).
+
+## Feature: sticky stamp placement mode (PARITY-STAMP-PLACE) (v0.3.0.22)
+
+A Floorplanner-style **stamp** mode: arm a catalog item, then click-place it repeatedly without
+re-selecting (chairs, downlights, plants), each drop a single undo step, until Escape / Done / a
+different item disarms it. `placementSlice` gains `stampMode` (the armed def stays `activeDefId`;
+`stampMode` only decides whether a commit re-arms or disarms); `usePlacementController` keeps
+placement armed while stamping (guarded by `isFeatureEnabled('stampPlace')`); a per-card stamp
+button (accent ring on the armed card) + a `StampBanner` cue ("Stamping <item> — click the floor to
+drop copies" + Done) + a `stamp-mode` ⌘K command. New `stampPlace` flag (`tier:'pro'`, default on,
+prod-safe) — Simple keeps the classic one-click-commits-once behaviour. 11 tests; visually verified
+(arm → place distinct copies, mode persists; Esc disarms keeping copies; hidden in Simple; mobile
+full-width banner).
+
+## Feature: rescale a plan to a factor or target dimension (PARITY-PLAN-SCALE) (v0.3.0.21)
+
+"Scale the walls to a target dimension" (Sweet Home 3D / RoomSketcher parity) — fix a wrong-scale
+traced/imported plan or resize a template to a known room length in one action. Pure
+`floorplan/rescalePlan.ts` (`rescalePlan(plan, factor | {anchorWallId, targetLength}, items?, opts?)`)
+scales every wall endpoint (+ thickness/arc/topHeight/baseboard), room origin/size/polygon/label/
+ceiling, opening offset+width+sill+head, notes/dimensions/polylines and **every upper storey** about
+an anchor (origin, or the anchor wall's start for the target-length form), plus furniture positions —
+**sizes preserved by default** (a wrong-scale plan corrected around real-size furniture), opt-in
+`scaleFurnitureSize` for a whole-design rescale. `rescaleFloorPlan` slice action validates first
+(clean throw, no state change), commits plan+items in one undo step, and treats factor 1 as a true
+no-op. `ScalePlanModal` (By-factor / To-a-length, "Also resize furniture", live area preview) +
+Plan/Tools trigger. New `planScale` flag (`tier:'pro'`, default on). 26 unit + store tests
+(lengths ×factor, areas ×factor², openings proportional, target-length exact, multi-level,
+double-scale composes, factor≤0/NaN/Inf rejected, no-mutation).
+
+## Feature: room-schedule CSV export (PARITY-ROOM-CSV) (v0.3.0.20)
+
+A machine-readable **room schedule** export complements the existing furniture-list CSV. Pure
+`export/roomScheduleCsv.ts` (`buildRoomScheduleCsv(plan, finishes, nameOf, units)`) emits one row
+per room across **all storeys** (Storey / Room / Area / Perimeter / Floor finish / Wall finish /
+Ceiling height) + a grand-total footer, reusing `planRoomArea`/`planRoomPerimeter`/
+`resolvePlanRoomFloor`/`resolvePlanRoomWall` + `allPlanRooms`/`levelOfRoom`, unit-aware
+(`formatArea`/`formatLength`) and RFC-4180-quoted via `utils/csv` (with the OWASP injection guard).
+Download glue `ui/openRoomScheduleCsv.ts` wired into File menu, mobile Tools, and ⌘K under the
+existing `shopExport` flag (no new flag). 10 unit tests (row-per-room across storeys, callouts,
+imperial formatting, RFC-4180 + injection neutralisation, grand-total, empty plan).
+
+## Fix: treat a near-2π sweep as a full-circle radial array (BUG-RADIAL-FULLCIRCLE) (v0.3.0.19)
+
+A radial array dragged to "almost a full circle" (`rawSweep = 2π − ε`) fell to the partial-spacing
+formula `sweep/(n−1)` and **double-upped at the seam** (the first and last copies overlapping). The
+full-circle test (`Math.abs(sweep − 2π) < 1e-9`) was too strict for a dragged value. Now a sweep
+`>= 2π − RADIAL_SEAM_EPS` (`1e-3` rad ≈ 0.057°, below any draggable/perceptible resolution and wide
+enough to absorb float drift) is treated as a full circle (exclusive seam, `step = 2π/n`); smaller
+sweeps keep the inclusive-both-ends partial formula. Unit test added for `2π − 1e-4` → no seam
+duplicate.
+
+## Feature: align/distribute/mirror multi-selected furniture in the 2D plan (PARITY-PLAN-ALIGN) (v0.3.0.18)
+
+Selecting **2+ placed pieces** on the 2D plan (e.g. via the new marquee) now swaps the inspector
+for a **multi-select action panel** (`ui/floorplan/PlanMultiSelectActions.tsx`): Align centres
+(X/Z), Align edges (Left/Right/Top/Bottom), Distribute evenly (Across X/Z) and Mirror. It's pure
+**wiring** of the same render-agnostic ops the 3D `MultiSelectPanel` already uses
+(`layout/alignDistribute.ts` `alignCenter`/`alignEdge`/`distributeEvenGaps`/`obbAxisHalf` +
+`layout/selectionActions.ts` `mirrorSelectionX`) — no geometry reimplemented, since plan positions
+are world XZ the ops apply unchanged. Each action is one `pushHistory` undo step, `canPlace`-checked
+per item, locked items skipped, with the same over-wide-distribute clamp toast as the 3D panel.
+`PlanInspector` shows it whenever `selectedItemIds.length > 1`. Ungated core (no flag — consistent
+with the ungated 3D align/distribute; shown in both Simple and Pro and tested in both). 8 component
+tests + a `plan-align-distribute-mirror` scenario; visually verified (Align X → single column at
+distinct Z, Distribute Z → even gaps, Mirror → reflected across the selection centre; clean mobile
+bottom-sheet, one undo each, no overlap/z-fighting).
+
+## Refactor: extract tool draft reducers from FloorPlanEditor (MOD-FPE-SPLIT) (v0.3.0.17)
+
+Behaviour-preserving modularization of the repo's largest file (`ui/floorplan/FloorPlanEditor.tsx`,
+~3300 lines, violating the "no monolithic files" rule). The wall/room/dimension/scale-calibration/
+polygon-vertex/wall-rotate **draft transitions** are now a pure, parameterized
+`ui/floorplan/editor/toolDraftReducer.ts` (`wallCommit`/`wallTapCommits`/`roomCommit`/`rectFromDraft`/
+`dimensionCommit`/`scaleCommits`/`polygonClick`/`rectFromVerts`/`rotateWallTransform`/`draftLength`),
+with the React component reduced to a thin dispatcher that holds state and delegates the math. The
+live element-drag bodies + item-rotate path stay in the component (tight store-read/`canPlace` loops,
+not pure draft math) and are byte-identical — the PARITY-PLAN-FURN-ROTATE handle and wall rotate ring
+are fully preserved. 23 new reducer unit tests; the existing editor scenarios (wall/room/polyroom/
+autoroom/dimension/text/split-join/wall-rotate) + the just-merged marquee all stay green on the
+integrated tree (a path-scoped `ui/floorplan/editor/CLAUDE.md` documents the pure/tested module
+convention). A pre-existing `plan-furniture-rotate` scenario step-20 flake (reproduces on baseline)
+is noted for the PARITY-PLAN-FURN-ROTATE owner — not a regression.
+
+## Feature: rubber-band marquee multi-select in the 2D plan editor (PARITY-PLAN-MARQUEE) (v0.3.0.15)
+
+The 2D plan editor gains **drag-box (marquee) multi-select**, matching Sweet Home 3D / Coohom.
+Dragging from empty canvas with the select tool draws a dashed-accent rectangle (token vocabulary,
+no hardcoded colour); on release every furniture footprint and wall segment that **intersects** the
+box is selected (intersection, not full-containment — the SH3D/Coohom convention). The hit-test is a
+new pure `ui/floorplan/editor/marqueeSelect.ts` that reuses the existing `collision/obb.ts`
+`obbVsObb`/`obbVsSegment` SAT helpers, so rotated footprints test against their true OBB. A new
+`setPlanMarqueeSelection(itemIds, wallIds)` slice action sets `selectedItemIds` + `selectedWallIds`
+atomically; multi-selected footprints highlight in accent. Delete/Backspace bulk-removes the
+selected furniture in **one** coalesced undo step. Zero-area drags fall through to normal click
+selection, so existing single-click/select/draw tools are unaffected. Works with touch drag on
+mobile. No feature flag — plan editing is a core loop (Simple + Pro), consistent with the existing
+ungated wall Shift-click multi-select. 14 unit tests (incl. the rotated-footprint corner case) + a
+desktop/mobile scenario; visually verified.
+
+## Feature: duplicate a room on the 2D plan (PARITY-PLAN-ROOM-DUP) (v0.3.0.14)
+
+Rooms now have a **Duplicate** action on the 2D plan (walls + openings already did). A new pure
+`floorplan/duplicateRoom.ts` clones the room polygon with a 0.5 m origin offset, copies its floor +
+wall finishes, assigns a fresh unique id + "… copy" name, and re-runs
+`assignRoomWallNames`/`assignRoomOpeningNames` so boundary walls/openings get non-colliding names.
+Crucially it gives the copy its **own** fresh offset boundary walls (matched to the source by the
+same collinearity test the namer uses) + clones of their openings, so walls shared with neighbours
+are never mutated; a floating room with no matching walls just clones the polygon + finishes (no
+crash). The `duplicateRoom` slice action pushes one undo step, selects the new room, and resolves the
+room's storey via `levelOfRoom` so multi-level plans stay on the correct level. A thin "Duplicate
+room" button in the `PlanInspector` room branch (no flag — matches the ungated `duplicateWall`/
+`duplicateOpening`, shows in Simple + Pro). 11 unit tests + scenario; visually verified
+(11→12 rooms, shape + finishes preserved, clean single-step undo).
+
+## Feature: smart rotation snap to a neighbour's axis (PARITY-SNAP-ROTATE) (v0.3.0.13)
+
+Rotating furniture now **snaps to a nearby item's (or wall's) axis** when within 5° — Coohom-grade
+"align to the sofa next to it" — falling back to the existing 15° grid otherwise (Shift still
+bypasses all snapping). New pure helpers in `scene/selection/rotateGizmoMath.ts`
+(`smartSnapRotation`, `neighbourAxes`, `offsetToNeighbourAxis`, `NEIGHBOUR_SNAP_THRESHOLD`): the
+snap is **mod-90°** (parallel or perpendicular both read as aligned), the nearest neighbour wins on
+ties (strict `<` boundaries → no flicker), and the 5° threshold sits well inside one 15° step so no
+hysteresis is needed. `RotateGizmo` feeds the free candidate yaw through the helper and draws a
+faint diametric alignment guide (`depthTest:false` + 1 mm lift → no z-fighting) only while a
+neighbour-snap is active. Gated behind a new `smartRotateSnap` flag (`tier: 'pro'`, `default: true`)
+so Simple users keep the familiar 15°-only behaviour (the gizmo gathers no reference axes when the
+flag is off → byte-identical fallback). 17 unit tests + both-mode flag tests.
+
+## Feature: duplicate-along-path array tool (PARITY-DUP-PATH) (v0.3.0.12)
+
+Coohom-style array tooling now includes **duplicate-along-path**: place N copies of the selected
+furniture along a drawn plan polyline, each oriented to the path's local tangent. The math lives
+in a new pure `furniture/pathArray.ts` (`pathArrayPlacements(points, opts)`): arc-length
+re-sampling of the polyline with optional tangent yaw (`align`), `count` or `spacing` modes, open
+or closed loops, capped at `PATH_ARRAY_MAX_COUNT` (200), and full edge-case handling (<2 points,
+zero-length segments, count<1, spacing≤0, spacing longer than the path). The UI is a sibling
+`ui/inspector/PathArraySection.tsx` (not bolted onto the 1300-line `InspectorPanel.tsx` — it gets
+only an import + a gated 3-line render block) that `canPlace`-validates each copy, skips + reports
+collisions via the standard toast, and commits in a single undo step (`setItems`). Gated behind a
+new `pathArray` feature flag (`tier: 'pro'`, `default: true`, pure-code so not `devOnly`) — forced
+off in Simple mode by `resolveFlags`, present in Pro; unit-tested in **both** modes. 21 unit tests
+for the sampler + a Simple/Pro gating test + a `path-array-simple.json` scenario. Visually verified
+on an L-shaped polyline: copies land at exact arc-length steps across the bend with correct
+per-copy yaw, flush on the floor (no float/sink/z-fighting), desktop + mobile bottom-sheet.
+
+## Fix: correct array "didn't fit" toast count (AUD-003) (v0.3.0.11)
+
+The inspector's array "N of M didn't fit" toast (`ui/inspector/InspectorPanel.tsx`) used
+`${total + 1}` for the denominator, but `total` (= `placements.length` from
+`arrayOffsets`/`gridArrayPlacements`) already **excludes** the source cell. The `+ 1` wrongly
+folded the source back in, so the count never added up (`placed + dropped === total`, not
+`total + 1`). Changed to `${total}`. Surgical one-line fix.
+
+## Fix: bound + dispose furniture material caches (AUD-002) (v0.3.0.10)
+
+The three in-memory furniture caches in `materials/furnitureMaterials.ts` (`cache`,
+`furnitureRepeatCache`, `patternTex`) were unbounded `Map`s keyed on free-hex colours + cloned
+textures, so a long editing session ratcheted GPU/VRAM upward without ever releasing the
+`MeshStandardMaterial`s (and their cloned `map`/`normalMap`/`roughnessMap`) they held. Replaced
+all three with a small reusable bounded **LRU** (`materials/materialLru.ts` — insertion-order
+`Map`, recency-refresh on `get`/`set`) that disposes the GPU resources of evicted entries. Bounds:
+`cache` 256, `furnitureRepeatCache` 128, `patternTex` 16 — each far above the count of *distinct
+materials simultaneously on screen*, so an evicted LRU entry is virtually certain to be orphaned,
+and the dispose is deferred one frame (`requestAnimationFrame`, mirroring `GltfModel`'s
+`afterUnmount`) so any still-mounted mesh has unmounted first. Crucially, the cached materials mix
+**exclusively-owned cloned textures** with **shared 256² singletons** (fabric/leather/velvet/paint/
+rattan normals + the pattern textures) referenced by many live materials; an `OWNED_TEXTURES`
+`WeakSet` tags only the per-material clones/`CanvasTexture`s so `disposeOwnedMaterial` frees those
+and the material itself but never a shared singleton (which would corrupt every other material that
+uses it). New unit tests cover LRU bound/eviction-order/dispose-on-evict and the owned-vs-shared
+texture split.
+
 ## Feature: 2D plan furniture rotate handle (PARITY-PLAN-FURN-ROTATE) (v0.3.0.8)
 
 The selected furniture footprint in the 2D plan editor now carries an on-canvas **rotate handle**
