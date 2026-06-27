@@ -45,7 +45,7 @@ import { TimeOfDaySlider } from '../scene/TimeOfDaySlider'
 import { AppearanceControls } from './AppearancePopover'
 import { CompassModal } from './CompassModal'
 import { Icon, type IconName } from './icons'
-import { Item, LIGHTS_LABEL, Section } from './mobile/parts'
+import { Item, LIGHTS_LABEL, Section, SubHeader } from './mobile/parts'
 import { RoomSwitcher } from './RoomSwitcher'
 export function MobileToolbar() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -871,11 +871,22 @@ export function MobileToolbar() {
                 {/* Tools (advanced — hidden in Simple mode) */}
                 {proMode ? (
                   <Section id="tools" title="Tools" icon="Tools" {...sectionProps}>
+                    {fBudget ||
+                    fChecks ||
+                    fDrawings ||
+                    fDaylight ||
+                    fDesignScore ||
+                    fAccessibility ||
+                    fMeasure ||
+                    fComments ? (
+                      <SubHeader>Analyse</SubHeader>
+                    ) : null}
                     {fBudget ? (
                       <Item
                         icon="Budget"
                         label="Budget / shopping"
                         on={budgetOpen}
+                        docs="budget"
                         onClick={act(openBudget)}
                       />
                     ) : null}
@@ -884,6 +895,7 @@ export function MobileToolbar() {
                         icon="Checks"
                         label="Clearance checks"
                         on={clearancePanelOpen}
+                        docs="clearanceChecks"
                         onClick={act(toggleChecks)}
                       />
                     ) : null}
@@ -892,14 +904,16 @@ export function MobileToolbar() {
                         icon="FloorPlan"
                         label="Drawings"
                         on={elevationsOpen}
+                        docs="drawings"
                         onClick={act(toggleElevations)}
                       />
                     ) : null}
                     {fDaylight ? (
                       <Item
-                        icon="SunStudy"
+                        icon="Daylight"
                         label="Daylight"
                         on={daylightOpen}
+                        docs="daylight"
                         onClick={act(toggleDaylight)}
                       />
                     ) : null}
@@ -908,14 +922,16 @@ export function MobileToolbar() {
                         icon="Star"
                         label="Design score"
                         on={designScoreOpen}
+                        docs="designScore"
                         onClick={act(toggleDesignScore)}
                       />
                     ) : null}
                     {fAccessibility ? (
                       <Item
-                        icon="Checks"
+                        icon="Accessibility"
                         label="Accessibility"
                         on={accessibilityOpen}
+                        docs="accessibility"
                         onClick={act(toggleAccessibility)}
                       />
                     ) : null}
@@ -924,6 +940,7 @@ export function MobileToolbar() {
                         icon="Measure"
                         label="Measure distance"
                         on={tapeMode}
+                        docs="measure"
                         onClick={act(() => s.getState().toggleTapeMode())}
                       />
                     ) : null}
@@ -933,14 +950,19 @@ export function MobileToolbar() {
                         label="Comments"
                         sub="Pinned notes on the design"
                         on={commentsOpen}
+                        docs="comments"
                         onClick={act(toggleComments)}
                       />
+                    ) : null}
+                    {fHistory || fVersions || (!roomEditorActive && (fSun || fWalk)) ? (
+                      <SubHeader>Review &amp; tour</SubHeader>
                     ) : null}
                     {fHistory ? (
                       <Item
                         icon="Undo"
                         label="History"
                         on={historyOpen}
+                        docs="history"
                         onClick={act(openHistory)}
                       />
                     ) : null}
@@ -949,14 +971,8 @@ export function MobileToolbar() {
                         icon="Versions"
                         label="Versions"
                         on={versionsOpen}
+                        docs="versions"
                         onClick={act(openVersions)}
-                      />
-                    ) : null}
-                    {fShare ? (
-                      <Item
-                        icon="Share"
-                        label="Share & export"
-                        onClick={act(() => s.getState().setShareOpen(true))}
                       />
                     ) : null}
                     {!roomEditorActive ? (
@@ -967,6 +983,7 @@ export function MobileToolbar() {
                             label="Sun study"
                             sub="Time-lapse dawn → dusk"
                             on={sunStudy}
+                            docs="sunStudy"
                             onClick={act(() => setSunStudy((v) => !v), { keep: true })}
                           />
                         ) : null}
@@ -975,14 +992,31 @@ export function MobileToolbar() {
                             icon="Walkthrough"
                             label={touring ? 'Stop tour' : 'Walkthrough'}
                             on={Boolean(touring)}
+                            docs="walkthrough"
                             onClick={act(startWalkthrough)}
                           />
                         ) : null}
+                      </>
+                    ) : null}
+                    {fShare || (!roomEditorActive && fReport) || (!roomEditorActive && fDxf) ? (
+                      <SubHeader>Export &amp; document</SubHeader>
+                    ) : null}
+                    {fShare ? (
+                      <Item
+                        icon="Share"
+                        label="Share & export"
+                        docs="shareExport"
+                        onClick={act(() => s.getState().setShareOpen(true))}
+                      />
+                    ) : null}
+                    {!roomEditorActive ? (
+                      <>
                         {fReport ? (
                           <Item
                             icon="Report"
                             label="Report"
                             sub="Printable design report"
+                            docs="report"
                             onClick={act(openReport)}
                           />
                         ) : null}
@@ -1025,6 +1059,7 @@ export function MobileToolbar() {
                       icon="Export"
                       label="360° panorama"
                       sub="Capture a look-around panorama"
+                      docs="panorama"
                       onClick={act(() => s.getState().setPanoramaOpen(true))}
                     />
                   ) : null}
@@ -1033,6 +1068,7 @@ export function MobileToolbar() {
                       icon="Walkthrough"
                       label="360° tour"
                       sub="Linked panoramas — jump room to room"
+                      docs="panoTour"
                       onClick={act(() => s.getState().setPanoTourOpen(true))}
                     />
                   ) : null}
@@ -1049,6 +1085,7 @@ export function MobileToolbar() {
                       icon="Export"
                       label="Render compare"
                       sub="A/B compare two render presets"
+                      docs="renderCompare"
                       onClick={act(() => s.getState().setRenderCompareOpen(true))}
                     />
                   ) : null}
@@ -1057,6 +1094,7 @@ export function MobileToolbar() {
                       icon="Budget"
                       label="Shopping list"
                       sub="Buy-list with prices, grouped by retailer"
+                      docs="shopExport"
                       onClick={act(() => openShoppingList())}
                     />
                   ) : null}
@@ -1113,6 +1151,7 @@ export function MobileToolbar() {
                       icon="FloorPlan"
                       label="Import Sweet Home 3D…"
                       sub="Load walls & rooms from a .sh3d file"
+                      docs="importSh3d"
                       onClick={act(() => openSh3dImport())}
                     />
                   ) : null}

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { type DocKey, openToolDocs } from '../../docsUrl'
 import { Icon, type IconName } from '../icons'
 
 export const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = {
@@ -16,6 +17,7 @@ export function Item({
   on,
   disabled,
   tourId,
+  docs,
   onClick,
 }: {
   icon: IconName
@@ -24,10 +26,14 @@ export function Item({
   on?: boolean
   disabled?: boolean
   tourId?: string
+  /** When set, a "?" opens this item's user-guide section (DOCS-DEEPLINK). On
+   *  mobile (no hover) it's always shown; a sibling control so it doesn't fire
+   *  the row or close the sheet. */
+  docs?: DocKey
   onClick: () => void
 }) {
   const Glyph = Icon[icon]
-  return (
+  const row = (
     <button
       type="button"
       className="m-item"
@@ -43,6 +49,30 @@ export function Item({
       {on ? <span className="m-on">On</span> : null}
     </button>
   )
+  if (!docs) return row
+  return (
+    <div className="m-item-wrap">
+      {row}
+      <button
+        type="button"
+        className="m-item-help"
+        aria-label={`Open the user guide: ${label}`}
+        title="Open the user guide"
+        onClick={(e) => {
+          e.stopPropagation()
+          openToolDocs(docs)
+        }}
+      >
+        <Icon.Help width={18} height={18} />
+      </button>
+    </div>
+  )
+}
+
+/** A sub-header that groups rows within a mobile accordion section (e.g. the
+ *  Analyse / Review / Export groups inside Tools) — mirrors the desktop menus. */
+export function SubHeader({ children }: { children: ReactNode }) {
+  return <div className="m-sec-h">{children}</div>
 }
 
 /** One section of the mobile menu, rendered in the detail pane. The icon-only

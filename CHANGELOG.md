@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Mobile sheet: docs links + section headers + distinct icons (v0.5.0.8)
+
+Brings the mobile bottom-sheet to full parity with the desktop menus for the DOCS-DEEPLINK work.
+The `Item` row gains an optional `docs?: DocKey` that renders an always-visible **"?" (`Icon.Help`)**
+sibling control (touch has no hover) wired with `stopPropagation` so it neither runs the row nor
+closes the sheet — added to every analytical/export item in the Tools section (Budget, Checks,
+Drawings, Daylight, Design score, Accessibility, Measure, Comments, History, Versions, Share, Sun
+study, Walkthrough, Report) and the File section (360° panorama, 360° tour, Render compare, Shopping
+list, Import Sweet Home 3D). A new `SubHeader` (`.m-sec-h`) groups the Tools section under the same
+**Analyse / Review & tour / Export & document** headers as desktop, each visibility-guarded.
+Two **distinct line-icons** added to `icons.tsx` to end icon reuse: `Accessibility` (universal-access
+figure, was sharing the shield `Checks` glyph) and `Daylight` (window casting light rays, was sharing
+the `SunStudy` sun) — applied across the Tools menu, mobile sheet, and ⌘K palette.
+
 ## File/Edit menu sections + docs links (v0.5.0.7)
 
 The File menu's long top block is now headed **Save & export**, and its two hand-rolled headers are

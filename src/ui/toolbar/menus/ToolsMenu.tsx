@@ -209,7 +209,7 @@ export function ToolsMenu() {
       )}
       {fDaylight && (
         <MenuItem
-          icon="SunStudy"
+          icon="Daylight"
           label="Daylight"
           sub="Window glazing & ventilation per room"
           docs="daylight"
@@ -229,7 +229,7 @@ export function ToolsMenu() {
       )}
       {fAccessibility && (
         <MenuItem
-          icon="Checks"
+          icon="Accessibility"
           label="Accessibility"
           sub="Door widths + wheelchair turning space"
           docs="accessibility"

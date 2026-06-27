@@ -239,7 +239,7 @@ export function CommandPalette() {
         id: 'accessibility',
         group: 'Tools & panels',
         label: 'Accessibility check',
-        icon: 'Checks',
+        icon: 'Accessibility',
         run: () => {
           closeAllAuxPanels(s())
           s().setAccessibilityOpen(true)
