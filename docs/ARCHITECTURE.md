@@ -328,7 +328,12 @@ same change that reshapes a system.
   mask (so the relief aligns with the visible albedo veins) + a broad polished roughness drift
   (`makeRoughDrift`). Wired into Path A (`patterns/stone.ts:marbleFields`, all-tier, no flag) and
   Path B (`getMarbleMaps`/`getStoneMaterial` — the shared marble singleton gains a roughness-drift
-  map gated behind `pbrSurfaces`; off → legacy uniform polish). Painted plaster/concrete (MAT-003)
+  map gated behind `pbrSurfaces`; off → legacy uniform polish). Concrete (CONCRETE-PORES) adds a
+  fine pinhole-pore roughness lift from the same `stoneSurface.ts` helper (`makePinholePores` — a
+  sparse, non-negative roughness term where a high-frequency noise field crosses a high threshold,
+  so scattered air pinholes read rougher than the sealed face) LAYERED onto `concreteFields`'
+  existing macro mottle/pore/stain roughness (Path A, all-tier, no flag; roughness clamped [0,1]).
+  Painted plaster/concrete (MAT-003)
   gets its micro-detail from the pure `procedural/plasterSurface.ts`: a signed, mean-preserving
   roller-nap roughness drift (`makeRollerNap` — broad coverage + fine nap stipple) so the matte
   wall isn't a single flat value yet stays matte. Path A (`patterns/wall.ts:plasterFields`, the
