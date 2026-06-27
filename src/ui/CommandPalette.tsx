@@ -744,6 +744,9 @@ export function CommandPalette() {
                       <Glyph className="icn" width={16} height={16} />
                       <span className="ci-label">{cmd.label}</span>
                       {cmd.hint ? <kbd>{cmd.hint}</kbd> : null}
+                      {/* Always reserve the trailing help slot so the keyboard-
+                          shortcut <kbd> chips line up in a consistent right-hand
+                          column whether or not a row has a docs "?". */}
                       {hasDocs ? (
                         // biome-ignore lint/a11y/useSemanticElements: can't nest a <button> inside the row <button>; a focusable span is the accessible alternative
                         <span
@@ -766,7 +769,9 @@ export function CommandPalette() {
                         >
                           <Icon.Help width={14} height={14} />
                         </span>
-                      ) : null}
+                      ) : (
+                        <span className="ci-help-spacer" aria-hidden="true" />
+                      )}
                     </button>
                   )
                 })}

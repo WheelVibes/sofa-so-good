@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Scrollable Tools menu (sticky headers) + aligned ⌘K shortcut column (v0.6.0.1)
+
+Two polish fixes for the toolbar. (1) The Tools dropdown was capped at `72vh` with overflow scroll but
+gave no scroll affordance, so a long menu just looked cut off — the `.menu-label` section headers
+(Analyse / Review & tour / Export & document) are now **sticky** within the scroll region (opaque
+`--surface-solid` background), so the group name pins to the top while scrolling and the menu reads
+clearly as scrollable. (2) The ⌘K palette's keyboard-shortcut `<kbd>` chips didn't line up: a row with
+a docs "?" reserved a 22px slot on the right, pushing its `<kbd>` left of rows without one. Rows now
+always render a matching `.ci-help-spacer`, so every shortcut chip sits in one consistent right-hand
+column.
+
 ## Data-driven tool-action registry — single source for Tools across all 3 surfaces (v0.6.0.0)
 
 The analytical **Tools** cluster (the Analyse + Review panels) is now defined once in a declarative
