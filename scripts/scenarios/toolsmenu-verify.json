@@ -1,0 +1,19 @@
+{
+  "name": "toolsmenu-verify",
+  "description": "Tools menu shows section headers (Analyse / Review & tour / Export & document).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
+    { "name": "reload", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
+    { "name": "force-scene-ready", "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}" },
+    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
+    { "name": "pro-mode", "eval": "try{ window.__store.getState().setUiMode('pro') }catch(e){}" },
+    { "name": "settle", "wait": 1500 },
+    { "name": "open-tools", "click": { "text": "Tools" } },
+    { "name": "tools-settle", "wait": 700 },
+    { "name": "shot-tools", "screenshot": "tools-sectioned" },
+    { "name": "check-sections", "eval": "(function(){var labels=Array.from(document.querySelectorAll('.pop-panel .menu-label')).map(function(e){return e.textContent});var want=['Analyse','Review & tour','Export & document'];for(var i=0;i<want.length;i++){if(!labels.includes(want[i]))throw new Error('missing section '+want[i]+'; got '+labels.join('|'))}return 'sections-ok:'+labels.join('|')})()" }
+  ]
+}

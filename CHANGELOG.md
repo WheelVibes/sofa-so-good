@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Declutter the Tools menu into sections (v0.5.0.6)
+
+The Tools menu was a flat 15–20-item dump mixing analytical panels, review/tour, and six export
+formats. It's now grouped under three scannable section headers — **Analyse** (Budget, Checks,
+Drawings, Daylight, Design score, Accessibility, Measure, Comments), **Review & tour** (History,
+Versions, Sun study, Walkthrough), and **Export & document** (Share, Moodboard, Report, Reno .ics,
+Quote/BOQ, DXF/SVG, 3D exports, AR, Drawing set, Sheet callouts) — reusing the existing `.menu-label`
+token; each header is visibility-guarded so it never shows over an all-flagged-off group. `ToolbarMenu`
+panels now cap at `72vh` with overflow scroll so a long menu can't run off-screen.
+
 ## Contextual docs deep-links: command palette + Tools menu (v0.5.0.5)
 
 Extends DOCS-DEEPLINK to two more surfaces. `MenuItem` gains an optional `docs?: DocKey` that

@@ -38,7 +38,12 @@ export function ToolbarMenu({
         <Icon.Chevron width={12} height={12} className="chev" />
       </button>
       <Popover open={open} anchorRef={ref} onClose={() => setOpen(false)}>
-        <div role="menu" onClick={() => setOpen(false)} className="pop-panel" style={{ width }}>
+        <div
+          role="menu"
+          onClick={() => setOpen(false)}
+          className="pop-panel"
+          style={{ width, maxHeight: '72vh', overflowY: 'auto' }}
+        >
           {children}
         </div>
       </Popover>

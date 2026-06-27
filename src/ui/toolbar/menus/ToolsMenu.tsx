@@ -169,6 +169,14 @@ export function ToolsMenu() {
 
   return (
     <ToolbarMenu icon="Tools" label="Tools" active={Boolean(anyActive)}>
+      {(fBudget ||
+        fChecks ||
+        fDrawings ||
+        fDaylight ||
+        fDesignScore ||
+        fAccessibility ||
+        fMeasure ||
+        fComments) && <div className="menu-label">Analyse</div>}
       {fBudget && (
         <MenuItem
           icon="Budget"
@@ -249,6 +257,7 @@ export function ToolsMenu() {
           onClick={toggleComments}
         />
       )}
+      {(fHistory || fVersions || fSun || fWalk) && <div className="menu-label">Review & tour</div>}
       {fHistory && (
         <MenuItem
           icon="Undo"
@@ -269,23 +278,6 @@ export function ToolsMenu() {
           onClick={openVersions}
         />
       )}
-      {fShare && (
-        <MenuItem
-          icon="Share"
-          label="Share & export"
-          sub="Link, PNG snapshot, shoppable PDF"
-          docs="shareExport"
-          onClick={() => setShareOpen(true)}
-        />
-      )}
-      {fMoodboard && (
-        <MenuItem
-          icon="Palette"
-          label="Moodboard"
-          sub="Style board: palette + finishes + pieces"
-          onClick={() => openMoodboard()}
-        />
-      )}
       {fSun && (
         <MenuItem
           icon="SunStudy"
@@ -304,6 +296,31 @@ export function ToolsMenu() {
           docs="walkthrough"
           active={Boolean(touring)}
           onClick={startWalkthrough}
+        />
+      )}
+      {(fReport ||
+        fBoq ||
+        fDxf ||
+        fSceneExport ||
+        fViewInAr ||
+        fDrawingCallouts ||
+        fShare ||
+        fMoodboard) && <div className="menu-label">Export & document</div>}
+      {fShare && (
+        <MenuItem
+          icon="Share"
+          label="Share & export"
+          sub="Link, PNG snapshot, shoppable PDF"
+          docs="shareExport"
+          onClick={() => setShareOpen(true)}
+        />
+      )}
+      {fMoodboard && (
+        <MenuItem
+          icon="Palette"
+          label="Moodboard"
+          sub="Style board: palette + finishes + pieces"
+          onClick={() => openMoodboard()}
         />
       )}
       {fReport && (
