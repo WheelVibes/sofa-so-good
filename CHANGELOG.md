@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Composer: tint existing materials, incl. Poly Haven (v0.5.0.1)
+
+The finish composer's source dropdown now has a **"Tint a material"** group listing the
+surface's catalog materials alongside the procedural patterns. Picking one + a colour applies a
+`tint:<baseId>:<#hex>` finish, resolved in `useMaterial.ts` by cloning the base def with the new
+`swatch` — which recolours procedural materials AND multiplies the albedo of **textured CC0 / Poly
+Haven** materials (their `m.color` = `swatch`). New pure `tintMaterialId`/`parseTintMaterialId`/
+`tintedMaterialDef` helpers in `composeMaterial.ts` (+ unit tests). Verified: a red tint over the
+oak-plank floor shows the grain through the colour.
+
 ## Design-tool bug sweep + composable finishes + midday-lighting fix (v0.5.0.0)
 
 A batch of reported design-tool fixes plus one major finish feature and a lighting fix:

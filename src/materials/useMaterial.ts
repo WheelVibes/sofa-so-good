@@ -4,7 +4,13 @@ import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../state/store'
 import { BUILTIN_MATERIALS } from './builtinCatalog'
 import { buildMaterial, getCachedMaterial } from './cache'
-import { composedMaterialDef, isComposedMaterialId } from './composeMaterial'
+import {
+  composedMaterialDef,
+  isComposedMaterialId,
+  isTintMaterialId,
+  parseTintMaterialId,
+  tintedMaterialDef,
+} from './composeMaterial'
 import { GENERATED_MATERIALS } from './generatedCatalog'
 import type {
   MaterialDef,
@@ -50,6 +56,16 @@ export function useMaterialDef(id: MaterialId): MaterialDef {
   if (isComposedMaterialId(id)) {
     const composed = composedMaterialDef(id)
     if (composed) return composed
+  }
+  // A tinted finish (`tint:<baseId>:<#hex>`) recolours an existing catalog
+  // material — including textured CC0 / Poly Haven ones (MAT-COMPOSE tail).
+  if (isTintMaterialId(id)) {
+    const parts = parseTintMaterialId(id)
+    const base = parts ? materials[parts.baseId] : undefined
+    if (base) {
+      const tinted = tintedMaterialDef(id, base)
+      if (tinted) return tinted
+    }
   }
   const def = materials[id]
   if (def) return def

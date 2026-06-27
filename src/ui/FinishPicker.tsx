@@ -385,6 +385,7 @@ export function FinishPicker() {
             <MaterialComposer
               label="Floor"
               active={activeFloor ?? ''}
+              materials={groups.floor}
               onApply={(id) => handleSelect('floor', id)}
             />
           ) : null}
@@ -416,6 +417,7 @@ export function FinishPicker() {
             <MaterialComposer
               label="Walls"
               active={activeWall ?? ''}
+              materials={groups.wall}
               onApply={(id) => handleSelect('wall', id)}
             />
           ) : null}

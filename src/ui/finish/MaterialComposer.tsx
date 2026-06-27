@@ -5,44 +5,72 @@ import {
   DEFAULT_COMPOSE_COLOR,
   DEFAULT_COMPOSE_PATTERN,
   parseComposedMaterialId,
+  parseTintMaterialId,
+  tintMaterialId,
 } from '../../materials/composeMaterial'
 import { proceduralThumbnailDataUrl } from '../../materials/procedural/generators'
-import type { ProceduralPattern } from '../../materials/types'
+import type { MaterialDef, ProceduralPattern } from '../../materials/types'
 
 /**
- * Compose a finish from a **texture/pattern** + a **colour** (MAT-COMPOSE).
- * A collapsible row under each surface's swatch grid: pick a texture, pick a
- * colour, see a live tiled preview, Apply. The result is a synthesised
- * `compose:<pattern>:<#hex>` finish id (resolved by `useMaterialDef`), so any
- * pattern can be paired with any colour without a catalog entry.
+ * Compose a finish from a **texture/pattern** + a **colour** (MAT-COMPOSE), OR
+ * recolour an **existing catalog material** — including the textured CC0 / Poly
+ * Haven ones (the colour multiplies their albedo). A collapsible row under each
+ * surface's swatch grid: pick a source (a procedural pattern or any material in
+ * this surface's catalog), pick a colour, see a live preview, Apply.
+ *
+ * The result is either a `compose:<pattern>:<#hex>` (synthesised procedural) or a
+ * `tint:<baseId>:<#hex>` (recoloured existing) finish id — both resolved by
+ * `useMaterialDef`, so no catalog entry is needed and it serialises as a string.
  */
 export function MaterialComposer({
   label,
   active,
+  materials,
   onApply,
 }: {
   label: string
   active: string
+  /** This surface's catalog materials, offered as tintable sources. */
+  materials: MaterialDef[]
   onApply: (id: string) => void
 }) {
-  const seed = parseComposedMaterialId(active)
-  const [pattern, setPattern] = useState<ProceduralPattern>(
-    seed?.pattern ?? DEFAULT_COMPOSE_PATTERN,
-  )
-  const [color, setColor] = useState<string>(seed?.color ?? DEFAULT_COMPOSE_COLOR)
+  // Source is encoded as `p:<pattern>` (procedural) or `m:<materialId>` (tint an
+  // existing material) so a single <select> can offer both groups.
+  const seedSource = (): string => {
+    const composed = parseComposedMaterialId(active)
+    if (composed) return `p:${composed.pattern}`
+    const tint = parseTintMaterialId(active)
+    if (tint && materials.some((m) => m.id === tint.baseId)) return `m:${tint.baseId}`
+    return `p:${DEFAULT_COMPOSE_PATTERN}`
+  }
+  const seedColor = (): string =>
+    parseComposedMaterialId(active)?.color ??
+    parseTintMaterialId(active)?.color ??
+    DEFAULT_COMPOSE_COLOR
 
-  // Re-seed the controls when the active finish becomes a composed one (e.g. the
-  // user applied a composed finish, switched rooms, and came back).
+  const [source, setSource] = useState<string>(seedSource)
+  const [color, setColor] = useState<string>(seedColor)
+
+  // Re-seed when the active finish becomes a composed / tinted one elsewhere.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-seed only on `active` change
   useEffect(() => {
-    const parts = parseComposedMaterialId(active)
-    if (parts) {
-      setPattern(parts.pattern)
-      setColor(parts.color)
-    }
+    setSource(seedSource())
+    setColor(seedColor())
   }, [active])
 
-  const id = composeMaterialId(pattern, color)
-  const preview = proceduralThumbnailDataUrl(id, pattern, color)
+  const isPattern = source.startsWith('p:')
+  const key = source.slice(2)
+  const baseMat = isPattern ? null : materials.find((m) => m.id === key)
+
+  // Resolve the finish id + a preview swatch for the current source + colour.
+  const id = isPattern
+    ? composeMaterialId(key as ProceduralPattern, color)
+    : tintMaterialId(key, color)
+  const preview = isPattern
+    ? proceduralThumbnailDataUrl(id, key as ProceduralPattern, color)
+    : baseMat?.kind === 'procedural'
+      ? proceduralThumbnailDataUrl(id, baseMat.pattern, color)
+      : undefined
   const isActive = active === id
 
   return (
@@ -63,7 +91,7 @@ export function MaterialComposer({
             width: 44,
             height: 36,
             flex: '0 0 auto',
-            backgroundImage: `url("${preview}")`,
+            backgroundImage: preview ? `url("${preview}")` : undefined,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundColor: color,
@@ -72,15 +100,26 @@ export function MaterialComposer({
         <select
           className="input"
           style={{ flex: 1, minWidth: 0 }}
-          aria-label={`${label} texture`}
-          value={pattern}
-          onChange={(e) => setPattern(e.target.value as ProceduralPattern)}
+          aria-label={`${label} texture or material`}
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
         >
-          {COMPOSE_TEXTURES.map((t) => (
-            <option key={t.pattern} value={t.pattern}>
-              {t.label}
-            </option>
-          ))}
+          <optgroup label="Textures">
+            {COMPOSE_TEXTURES.map((t) => (
+              <option key={t.pattern} value={`p:${t.pattern}`}>
+                {t.label}
+              </option>
+            ))}
+          </optgroup>
+          {materials.length > 0 ? (
+            <optgroup label="Tint a material">
+              {materials.map((m) => (
+                <option key={m.id} value={`m:${m.id}`}>
+                  {m.name}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
         </select>
         <label
           className="swatch-lg"

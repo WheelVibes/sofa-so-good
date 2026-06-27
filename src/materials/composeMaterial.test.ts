@@ -4,8 +4,13 @@ import {
   composedMaterialDef,
   composeMaterialId,
   isComposedMaterialId,
+  isTintMaterialId,
   parseComposedMaterialId,
+  parseTintMaterialId,
+  tintedMaterialDef,
+  tintMaterialId,
 } from './composeMaterial'
+import type { MaterialDef } from './types'
 
 describe('composeMaterial', () => {
   it('round-trips an id through compose → parse', () => {
@@ -61,5 +66,69 @@ describe('composeMaterial', () => {
       expect(parts?.pattern).toBe(t.pattern)
       expect(parts?.texture.uvScale).toEqual(t.uvScale)
     }
+  })
+})
+
+describe('tintMaterial (recolour an existing material)', () => {
+  const proceduralBase: MaterialDef = {
+    id: 'floor-wood-oak',
+    name: 'Oak planks',
+    category: 'floor',
+    kind: 'procedural',
+    pattern: 'wood',
+    swatch: '#b88f5d',
+    uvScale: [1.9, 1.2],
+  }
+  const texturedBase: MaterialDef = {
+    id: 'polyhaven:wood_floor_deck',
+    name: 'Wood floor deck',
+    category: 'floor',
+    kind: 'textured',
+    source: 'polyhaven',
+    swatch: '#ffffff',
+    textures: { albedo: 'https://example/albedo.jpg' },
+    uvScale: [2, 2],
+  }
+
+  it('round-trips a tint id (base id with no colon)', () => {
+    const id = tintMaterialId('floor-wood-oak', '#3aa0ff')
+    expect(id).toBe('tint:floor-wood-oak:#3aa0ff')
+    expect(isTintMaterialId(id)).toBe(true)
+    expect(parseTintMaterialId(id)).toEqual({ baseId: 'floor-wood-oak', color: '#3aa0ff' })
+  })
+
+  it('keeps a colon-bearing base id intact (provider slug)', () => {
+    const id = tintMaterialId('polyhaven:wood_floor_deck', '#cc8844')
+    expect(parseTintMaterialId(id)).toEqual({
+      baseId: 'polyhaven:wood_floor_deck',
+      color: '#cc8844',
+    })
+  })
+
+  it('rejects non-tint / malformed ids', () => {
+    expect(isTintMaterialId('compose:wood:#fff')).toBe(false)
+    expect(parseTintMaterialId('tint:base')).toBeNull()
+    expect(parseTintMaterialId('tint:base:notacolour')).toBeNull()
+    expect(parseTintMaterialId('floor-wood-oak')).toBeNull()
+  })
+
+  it('tints a procedural base by overriding its swatch (keeps pattern/uvScale)', () => {
+    const def = tintedMaterialDef('tint:floor-wood-oak:#3aa0ff', proceduralBase)
+    expect(def?.kind).toBe('procedural')
+    expect(def?.swatch).toBe('#3aa0ff')
+    expect(def?.id).toBe('tint:floor-wood-oak:#3aa0ff')
+    if (def?.kind === 'procedural') expect(def.pattern).toBe('wood')
+  })
+
+  it('tints a textured (Poly Haven) base — swatch multiplies the albedo, textures kept', () => {
+    const id = tintMaterialId('polyhaven:wood_floor_deck', '#cc8844')
+    const def = tintedMaterialDef(id, texturedBase)
+    expect(def?.kind).toBe('textured')
+    expect(def?.swatch).toBe('#cc8844')
+    if (def?.kind === 'textured') expect(def.textures.albedo).toBe('https://example/albedo.jpg')
+  })
+
+  it('returns null for a malformed tint id', () => {
+    expect(tintedMaterialDef('tint:bad', proceduralBase)).toBeNull()
   })
 })
