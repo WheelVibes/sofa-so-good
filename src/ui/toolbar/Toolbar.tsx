@@ -206,6 +206,12 @@ export function Toolbar() {
           <>
             <Divider />
             <EditMenu />
+            {/* Arrange = whole-apartment Smart Start / theme presets / finish styles
+                (applyLayoutPreset / tidyHome / applyStyle all act on the whole flat,
+                not a single room). Surfaced here so the style themes (Scandinavian,
+                Minimalist, …) are reachable from the overview, not only the per-room
+                editor — previously they were only in ⌘K from this mode. */}
+            <ArrangeMenu />
             {proMode && <ToolsMenu />}
 
             <Divider />

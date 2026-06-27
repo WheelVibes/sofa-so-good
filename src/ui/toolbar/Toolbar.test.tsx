@@ -14,9 +14,13 @@ describe('Toolbar', () => {
     render(<Toolbar />)
     // Primary entry into editing — the Edit menu (Edit a room / Floor plan).
     expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
-    // Furniture-editing clusters are NOT in the overview anymore.
+    // Per-room furniture-editing clusters (catalog/inspector/finish) are NOT in
+    // the overview — those need the per-room editor.
     expect(screen.queryByRole('button', { name: /catalog/i })).toBeNull()
-    expect(screen.queryByRole('button', { name: /arrange/i })).toBeNull()
+    // The Arrange menu IS available here: it hosts whole-apartment styling
+    // (Smart Start + layout/theme presets + finish styles), not per-room editing —
+    // so the style themes are reachable from the overview, not only ⌘K.
+    expect(screen.getByRole('button', { name: /arrange/i })).toBeTruthy()
   })
 
   it('shows editing clusters only inside the per-room editor', () => {

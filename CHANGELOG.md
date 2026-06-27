@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Style themes reachable from the overview (v0.5.0.2)
+
+The **Arrange** menu — Smart Start + the layout/theme presets (Scandinavian, Minimalist, Japandi,
+…) + finish styles, all *whole-apartment* actions — was only rendered inside the per-room editor, so
+from the main overview the themes were unreachable except via ⌘K ("apartment presets not
+available"). `Toolbar.tsx` now also renders `<ArrangeMenu />` in the overview view-mode cluster
+(`orbit && !roomEditorActive`); the actions (`applyLayoutPreset`/`tidyHome`/`applyStyle`/set-drops)
+already act on the whole flat and aren't editor-gated. Verified: the Arrange menu shows in the
+overview and applying "Scandi Calm" restyles the flat.
+
 ## Composer: tint existing materials, incl. Poly Haven (v0.5.0.1)
 
 The finish composer's source dropdown now has a **"Tint a material"** group listing the
