@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Feature: per-face brushed-metal anisotropy rotation (BRUSH-AXIS) (v0.4.0.0)
+
+Brushed-metal surfaces now orient their anisotropic highlight per face instead of using one global
+brush direction. A new pure `materials/brushAxis.ts` `anisotropyRotationForNormal(normal)` maps a
+face normal to an `anisotropyRotation` so the streak runs consistently across each surface, and
+`getMetalMaterial(color, finish, repeat, faceNormal?)` threads it through the LRU cache key
+(rotation-tagged) so distinct orientations stay cached independently. With no `faceNormal` supplied
+the result is **byte-identical** to the previous material (default rotation 0). 9 unit tests
+(axis mapping, default-identity, determinism).
+
+## Feature: concrete pinhole-pore roughness micro-variation (CONCRETE-PORES) (v0.4.0.0)
+
+Procedural concrete reads less uniformly flat: `materials/procedural/stoneSurface.ts`
+`makePinholePores(seed, pores)` layers sparse high-frequency pinhole pores (freq 110, seed offset
++137, threshold 0.8, max roughness lift +0.16, clamped [0,1]) onto the `concreteFields` roughness
+channel in `procedural/patterns/stone.ts`. The change is **roughness-only** — no normal/displacement,
+so it cannot z-fight or clip — and `DEFAULT_CONCRETE_SURFACE_PARAMS` keeps it tunable. 39 pixel-stats
+unit tests (pore density, roughness bounds, determinism, channel isolation).
+
 ## Feature: UV repetition break-up for large tiled surfaces (MAT-006a) (v0.3.0.47)
 
 Large tiled floors no longer read as an "obvious repeating grid". A new pure, deterministic

@@ -94,12 +94,12 @@ from `docs/research/2026-06-19-material-microdetail-plan.md` (MAT-006a/b are the
 + a codebase audit. **IN FLIGHT (Wave 12):** MAT-006a, METAL-LEGS, SHELLPERF + ARRANGE-GRID.
 
 ### Clean-delegate
-- [ ] **CONCRETE-PORES** (LOW-MED/S, `G-materials`) — pore-pit roughness micro-variation in
-  `procedural/patterns/stone.ts concreteFields` (the leftover MAT micro-detail sub-item); all-tier, no flag.
+- [x] **CONCRETE-PORES** (LOW-MED/S, `G-materials`) — DONE v0.4.0.0: `makePinholePores` roughness-only
+  pore micro-variation layered onto `concreteFields`; `DEFAULT_CONCRETE_SURFACE_PARAMS`; 39 pixel-stats tests.
 - [ ] **GAP-SUGGEST** (MED/S-M, new `layout/gapFix.ts`) — minimal nudge vector to clear each narrow
   walkway gap (`walkway.ts findNarrowGaps`); pure helper (UI affordance later, pro).
-- [ ] **BRUSH-AXIS** (LOW/S, `G-furnmat`) — per-face `anisotropyRotation` resolver so brushed-metal
-  hairlines align to the dominant face axis; rides `pbrSurfaces`.
+- [x] **BRUSH-AXIS** (LOW/S, `G-furnmat`) — DONE v0.4.0.0: pure `brushAxis.ts anisotropyRotationForNormal`
+  threaded through `getMetalMaterial`'s LRU key; default-byte-identical; 9 tests.
 
 ### Clean-delegate but PARTLY real-GPU (verification limited — split / defer the pixel pass)
 - [ ] **MAT-006b** (MED/M, `G-flags`) — triplanar projection for sloped/curved walls
