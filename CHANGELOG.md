@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Furniture: exact numeric W×D×H size entry (v0.6.0.2)
+
+First step of the "everything is customizable" push (size). Furniture could only be resized with
+scale-multiplier sliders (0.25–3×), so a user thinking in real dimensions couldn't size a sofa to
+"1.8 m". Now: GLTF/builtin/upload/remote items show an **Exact size (m)** row with editable W/D/H
+fields that back-solve the axis scale from the model's base bounding box (proportions-locked → any
+field rescales uniformly; unlocked → per-axis), and parametric items' dimension params (`NumberField`)
+gain an inline numeric box beside the slider so an exact value can be typed, not only dragged. Both
+clamp to sane ranges; the coarse sliders stay. Pure UI over the existing scale/param props — no render
+changes.
+
 ## Scrollable Tools menu (sticky headers) + aligned ⌘K shortcut column (v0.6.0.1)
 
 Two polish fixes for the toolbar. (1) The Tools dropdown was capped at `72vh` with overflow scroll but

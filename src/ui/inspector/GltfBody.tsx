@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { itemFootprint } from '../../collision/placement'
+import { getCachedGltfFootprint } from '../../furniture/GltfModel'
 import type { FurnitureItem, GltfDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
@@ -30,9 +31,62 @@ export function GltfBody({ item, def }: GltfBodyProps) {
   const fp = itemFootprint({ ...item, rotation: 0 }, def)
   const dims = formatDimsShort([fp.hx * 2, fp.hz * 2], units)
 
+  // Base (scale = 1) extents in metres, so the user can size by exact dimension
+  // — the W/D footprint divides out the current axis scale; the height comes
+  // from the cached GLB bbox (falling back to the def's authored footprint).
+  const url = def.source === 'builtin' ? def.url : def.runtimeUrl
+  const baseH = (url ? getCachedGltfFootprint(url)?.h : null) ?? def.defaultFootprint.h
+  const baseW = fp.hx * 2 > 0 ? (fp.hx * 2) / sx : def.defaultFootprint.w
+  const baseD = fp.hz * 2 > 0 ? (fp.hz * 2) / sz : def.defaultFootprint.d
+  const curW = baseW * sx
+  const curD = baseD * sz
+  const curH = baseH * sy
+
   // Write all four scale props so the per-axis values stay authoritative.
   const setUniform = (v: number) =>
     updateItemProps(item.id, { scale: v, scaleX: v, scaleY: v, scaleZ: v })
+
+  // Size by exact metre dimension: back-solve the axis scale (clamped to a sane
+  // range). With proportions locked, any axis drives a uniform rescale so the
+  // model keeps its shape; unlocked, each field resizes only its own axis.
+  const clampScale = (v: number) => Math.min(20, Math.max(0.05, v))
+  const setDim = (axis: 'W' | 'D' | 'H', metres: number) => {
+    if (!Number.isFinite(metres) || metres <= 0) return
+    const base = axis === 'W' ? baseW : axis === 'D' ? baseD : baseH
+    if (base <= 0) return
+    const next = clampScale(metres / base)
+    if (keepProportions) setUniform(next)
+    else
+      updateItemProps(item.id, {
+        [axis === 'W' ? 'scaleX' : axis === 'D' ? 'scaleZ' : 'scaleY']: next,
+      })
+  }
+
+  const DimField = ({
+    label,
+    axis,
+    value,
+  }: {
+    label: string
+    axis: 'W' | 'D' | 'H'
+    value: number
+  }) => (
+    <label className="flex flex-1 items-center gap-1 text-[11px]">
+      <span className="w-3.5 text-[var(--text-3)]">{label}</span>
+      <input
+        type="number"
+        min={0.05}
+        step={0.01}
+        defaultValue={value.toFixed(2)}
+        key={value.toFixed(2)}
+        onBlur={(e) => setDim(axis, Number(e.target.value))}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+        }}
+        className="w-full min-w-0 rounded border border-[var(--border-2)] bg-[var(--surface)] px-1 py-0.5 text-right font-mono"
+      />
+    </label>
+  )
 
   const AxisSlider = ({ label, prop, value }: { label: string; prop: string; value: number }) => (
     <label className="flex items-center justify-between gap-2 text-xs">
@@ -85,7 +139,19 @@ export function GltfBody({ item, def }: GltfBodyProps) {
         />
         <span>Keep proportions</span>
       </label>
-      <p className="text-right text-[10px] text-[var(--text-3)] font-mono">≈ {dims}</p>
+      {/* Exact-size entry (metres): type a real dimension and the scale is
+          back-solved. Sliders above stay for quick coarse resizing. */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-[10px] text-[var(--text-3)]">
+          <span>Exact size (m)</span>
+          <span className="font-mono">≈ {dims}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <DimField label="W" axis="W" value={curW} />
+          <DimField label="D" axis="D" value={curD} />
+          <DimField label="H" axis="H" value={curH} />
+        </div>
+      </div>
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="flex-1">Tint</span>
         <input

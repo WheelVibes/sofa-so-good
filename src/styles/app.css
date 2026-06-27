@@ -281,6 +281,30 @@
   text-align: right;
   flex: none;
 }
+/* Editable numeric readout: a compact typed-entry box + a faint unit suffix,
+   so a parametric dimension can be entered exactly, not only dragged. */
+.fld .val-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 64px;
+}
+.fld .val-edit input {
+  width: 44px;
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-1);
+  padding: 2px 4px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  color: var(--text);
+}
+.fld .val-edit em {
+  font-style: normal;
+  color: var(--text-3);
+}
 .fld select.input,
 .fld .fld-input {
   width: auto;
