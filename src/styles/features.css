@@ -296,6 +296,14 @@
 .cmdk-item .ci-label { flex: 1; font-size: var(--t-base); font-weight: 500; }
 .cmdk-item .ci-hint { font-size: var(--t-2xs); color: var(--text-3); font-family: var(--font-mono); }
 .cmdk-item kbd { flex: none; }
+/* Contextual docs "?" on a palette row (DOCS-DEEPLINK). */
+.cmdk-item .ci-help {
+  flex: none; display: grid; place-items: center; width: 22px; height: 22px;
+  border-radius: var(--r-1); color: var(--text-3); cursor: pointer;
+  opacity: 0; transition: var(--dur) var(--ease);
+}
+.cmdk-item:hover .ci-help, .cmdk-item.active .ci-help, .ci-help:focus-visible { opacity: 1; }
+.ci-help:hover { background: var(--surface-2); color: var(--accent-soft-text); }
 .cmdk-item.active { background: var(--accent-soft); color: var(--accent-soft-text); }
 .cmdk-item.active .icn { color: var(--accent-soft-text); }
 .cmdk-empty { padding: 30px; text-align: center; color: var(--text-3); font-size: var(--t-sm); }

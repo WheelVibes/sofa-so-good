@@ -217,6 +217,17 @@ body.mobile .tip::after { content: none; }
   transition: var(--dur) var(--ease); text-align: left; width: 100%;
 }
 .menu-item:hover { background: var(--surface-3); color: var(--text); }
+/* Contextual docs "?" affordance on a menu row (DOCS-DEEPLINK). */
+.menu-item-wrap { position: relative; }
+.menu-item-wrap .menu-item { padding-right: 32px; }
+.mi-help {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 22px; height: 22px;
+  border-radius: var(--r-1); color: var(--text-3);
+  opacity: 0; transition: var(--dur) var(--ease);
+}
+.menu-item-wrap:hover .mi-help, .mi-help:focus-visible { opacity: 1; }
+.mi-help:hover { background: var(--surface-2); color: var(--accent-soft-text); }
 .menu-item .icn { color: var(--text-3); }
 .menu-item:hover .icn { color: var(--accent-soft-text); }
 .menu-item .sk { margin-left: auto; }

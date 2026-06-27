@@ -1,4 +1,5 @@
 import { type ReactNode, useRef, useState } from 'react'
+import { type DocKey, openToolDocs } from '../docsUrl'
 import { Icon, type IconName } from './icons'
 import { Popover } from './Popover'
 
@@ -54,6 +55,7 @@ export function MenuItem({
   sub,
   active,
   ariaLabel,
+  docs,
   onClick,
 }: {
   icon: IconName
@@ -61,10 +63,14 @@ export function MenuItem({
   sub?: string
   active?: boolean
   ariaLabel?: string
+  /** When set, a contextual "?" opens this item's user-guide section
+   *  (DOCS-DEEPLINK). It's a sibling control (not nested in the row button) and
+   *  stops propagation so it neither runs the item nor closes the menu. */
+  docs?: DocKey
   onClick: () => void
 }) {
   const Cmp = Icon[icon]
-  return (
+  const row = (
     <button
       type="button"
       role="menuitem"
@@ -78,5 +84,23 @@ export function MenuItem({
         {sub ? <span className="mi-sub">{sub}</span> : null}
       </span>
     </button>
+  )
+  if (!docs) return row
+  return (
+    <div className="menu-item-wrap">
+      {row}
+      <button
+        type="button"
+        className="mi-help"
+        aria-label={`Open the user guide: ${label}`}
+        title="Open the user guide"
+        onClick={(e) => {
+          e.stopPropagation()
+          openToolDocs(docs)
+        }}
+      >
+        <Icon.Help width={14} height={14} />
+      </button>
+    </div>
   )
 }

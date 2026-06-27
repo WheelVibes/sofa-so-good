@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Contextual docs deep-links: command palette + Tools menu (v0.5.0.5)
+
+Extends DOCS-DEEPLINK to two more surfaces. `MenuItem` gains an optional `docs?: DocKey` that
+renders a hover/focus **"?" (`Icon.Help`)** — a sibling control with `stopPropagation` so it neither
+runs the row nor closes the menu — wired into every analytical item in the **Tools menu** (budget,
+checks, drawings, daylight, design score, accessibility, measure, comments, history, versions, share,
+sun study, walkthrough, report, sheet callouts). The **command palette** rows now show the same "?"
+when a command maps (via its gating flag) to a documented feature, opening that section of the guide.
+Tokenised CSS (`.mi-help` / `.ci-help`), accessible (real focusable control, aria-labelled). Together
+with the aux-panel headers, contextual help now reaches the panels, the palette, and the menus.
+
 ## Contextual docs deep-links: helper + aux-panel headers (v0.5.0.4)
 
 First slice of the discoverability work (DOCS-DEEPLINK). `src/ui/docsUrl.ts` gains a `FEATURE_DOCS`

@@ -174,6 +174,7 @@ export function ToolsMenu() {
           icon="Budget"
           label="Budget"
           sub="Estimate furniture cost (SGD)"
+          docs="budget"
           active={budgetOpen}
           onClick={openBudget}
         />
@@ -183,6 +184,7 @@ export function ToolsMenu() {
           icon="Checks"
           label={blockedCount > 0 ? `Checks · ${blockedCount}` : 'Checks'}
           sub="Door-swing + walkway clearance"
+          docs="clearanceChecks"
           active={clearancePanelOpen}
           onClick={toggleChecks}
         />
@@ -192,6 +194,7 @@ export function ToolsMenu() {
           icon="FloorPlan"
           label="Drawings"
           sub="Wall elevations + lighting plan"
+          docs="drawings"
           active={elevationsOpen}
           onClick={toggleElevations}
         />
@@ -201,6 +204,7 @@ export function ToolsMenu() {
           icon="SunStudy"
           label="Daylight"
           sub="Window glazing & ventilation per room"
+          docs="daylight"
           active={daylightOpen}
           onClick={toggleDaylight}
         />
@@ -210,6 +214,7 @@ export function ToolsMenu() {
           icon="Star"
           label="Design score"
           sub="Overall layout quality + fixes"
+          docs="designScore"
           active={designScoreOpen}
           onClick={toggleDesignScore}
         />
@@ -219,6 +224,7 @@ export function ToolsMenu() {
           icon="Checks"
           label="Accessibility"
           sub="Door widths + wheelchair turning space"
+          docs="accessibility"
           active={accessibilityOpen}
           onClick={toggleAccessibility}
         />
@@ -228,6 +234,7 @@ export function ToolsMenu() {
           icon="Measure"
           label={tapeMode ? 'Measuring…' : 'Measure'}
           sub="Tap two points for a distance"
+          docs="measure"
           active={tapeMode}
           onClick={toggleTape}
         />
@@ -237,6 +244,7 @@ export function ToolsMenu() {
           icon="Pin"
           label={commentCount > 0 ? `Comments · ${commentCount}` : 'Comments'}
           sub="Pinned notes — travel with saves & links"
+          docs="comments"
           active={commentsOpen || commentMode}
           onClick={toggleComments}
         />
@@ -246,6 +254,7 @@ export function ToolsMenu() {
           icon="Undo"
           label="History"
           sub="Timeline of edits — jump to any step"
+          docs="history"
           active={historyOpen}
           onClick={openHistory}
         />
@@ -255,6 +264,7 @@ export function ToolsMenu() {
           icon="Versions"
           label="Versions"
           sub="Save, restore, compare & export layouts"
+          docs="versions"
           active={versionsOpen}
           onClick={openVersions}
         />
@@ -264,6 +274,7 @@ export function ToolsMenu() {
           icon="Share"
           label="Share & export"
           sub="Link, PNG snapshot, shoppable PDF"
+          docs="shareExport"
           onClick={() => setShareOpen(true)}
         />
       )}
@@ -280,6 +291,7 @@ export function ToolsMenu() {
           icon="SunStudy"
           label="Sun study"
           sub="Time-lapse dawn → dusk"
+          docs="sunStudy"
           active={sunStudy}
           onClick={() => setSunStudy((v) => !v)}
         />
@@ -289,12 +301,19 @@ export function ToolsMenu() {
           icon="Walkthrough"
           label={touring ? 'Stop tour' : 'Walkthrough'}
           sub="Fly a tour through every room"
+          docs="walkthrough"
           active={Boolean(touring)}
           onClick={startWalkthrough}
         />
       )}
       {fReport && (
-        <MenuItem icon="Report" label="Report" sub="Printable design report" onClick={openReport} />
+        <MenuItem
+          icon="Report"
+          label="Report"
+          sub="Printable design report"
+          docs="report"
+          onClick={openReport}
+        />
       )}
       {fReport && (
         <MenuItem
@@ -398,6 +417,7 @@ export function ToolsMenu() {
             drawingCalloutCount > 0 ? `Sheet callouts · ${drawingCalloutCount}` : 'Sheet callouts'
           }
           sub="Free-text notes on drawing-set sheets"
+          docs="drawingCallouts"
           active={drawingCalloutsOpen}
           onClick={toggleDrawingCallouts}
         />

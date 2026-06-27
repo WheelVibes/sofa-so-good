@@ -18,7 +18,7 @@ import { canEditScene } from '../state/editing'
 import { firstEditableRoomId } from '../state/rooms'
 import { useStore } from '../state/store'
 import { closeAllAuxPanels } from './auxPanels'
-import { openDocs } from './docsUrl'
+import { type DocKey, FEATURE_DOCS, openDocs, openToolDocs } from './docsUrl'
 import { downloadCostBreakdownCsv } from './openCostBreakdownCsv'
 import { downloadFfeCsv } from './openFfeCsv'
 import { downloadFurnitureCsv } from './openFurnitureCsv'
@@ -781,6 +781,12 @@ export function CommandPalette() {
                 <div className="cmdk-glabel">{g.label}</div>
                 {g.items.map(({ cmd, index }) => {
                   const Glyph = Icon[cmd.icon]
+                  // Contextual docs "?" (DOCS-DEEPLINK): map the command to a
+                  // DocKey via its gating flag (else the saved-view default) and
+                  // show the affordance only when the guide actually documents it.
+                  const docKey = (COMMAND_FLAGS[cmd.id] ??
+                    (cmd.id.startsWith('view:') ? 'savedViews' : undefined)) as DocKey | undefined
+                  const hasDocs = docKey != null && FEATURE_DOCS[docKey] != null
                   return (
                     <button
                       type="button"
@@ -792,6 +798,29 @@ export function CommandPalette() {
                       <Glyph className="icn" width={16} height={16} />
                       <span className="ci-label">{cmd.label}</span>
                       {cmd.hint ? <kbd>{cmd.hint}</kbd> : null}
+                      {hasDocs ? (
+                        // biome-ignore lint/a11y/useSemanticElements: can't nest a <button> inside the row <button>; a focusable span is the accessible alternative
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          className="ci-help"
+                          aria-label={`Open the user guide: ${cmd.label}`}
+                          title="Open the user guide"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openToolDocs(docKey as DocKey)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.stopPropagation()
+                              e.preventDefault()
+                              openToolDocs(docKey as DocKey)
+                            }
+                          }}
+                        >
+                          <Icon.Help width={14} height={14} />
+                        </span>
+                      ) : null}
                     </button>
                   )
                 })}
