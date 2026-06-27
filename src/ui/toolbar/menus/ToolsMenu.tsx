@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useFeature } from '../../../features/useFeature'
 import { useCatalog } from '../../../furniture/catalog'
 import { blockedDoorItems } from '../../../layout/clearance'
-import { canRecord } from '../../../scene/RecordController'
 import { useStore } from '../../../state/store'
+import {
+  groupToolActions,
+  resolveToolLabel,
+  type ToolAction,
+  visibleToolActions,
+} from '../../actions/toolActions'
 import { closeAllAuxPanels } from '../../auxPanels'
 import { downloadBoqXlsx } from '../../downloadBoqXlsx'
 import { DRAWING_LAYERS } from '../../drawingLayers'
@@ -41,54 +46,10 @@ export function ToolsMenu() {
   // The budget / clearance / versions / history / analysis panels all dock to the
   // same centred-top `.aux` slot, so they're mutually exclusive — opening one
   // closes the others (shared helper, also used by mobile + ⌘K).
+  // Aux-panel open/close logic for the Analyse + Review rows now lives in the
+  // shared tool-action registry (`actions/toolActions`); this menu just renders
+  // it. The drawing-callouts toggle below stays bespoke (Export section).
   const closeAux = () => closeAllAuxPanels(useStore.getState())
-  const openBudget = () => {
-    const wasOpen = useStore.getState().budgetOpen
-    closeAux()
-    if (!wasOpen) useStore.getState().toggleBudget()
-  }
-  const toggleChecks = () => {
-    const s = useStore.getState()
-    const next = !s.clearancePanelOpen
-    closeAux()
-    s.setClearancePanelOpen(next)
-    if (next && !s.clearanceOn) s.toggleClearance()
-  }
-  const toggleElevations = () => {
-    const wasOpen = useStore.getState().elevationsOpen
-    closeAux()
-    useStore.getState().setElevationsOpen(!wasOpen)
-  }
-  const toggleDaylight = () => {
-    const wasOpen = useStore.getState().daylightOpen
-    closeAux()
-    useStore.getState().setDaylightOpen(!wasOpen)
-  }
-  const toggleDesignScore = () => {
-    const wasOpen = useStore.getState().designScoreOpen
-    closeAux()
-    useStore.getState().setDesignScoreOpen(!wasOpen)
-  }
-  const toggleAccessibility = () => {
-    const wasOpen = useStore.getState().accessibilityOpen
-    closeAux()
-    useStore.getState().setAccessibilityOpen(!wasOpen)
-  }
-  const openVersions = () => {
-    const wasOpen = useStore.getState().versionsOpen
-    closeAux()
-    useStore.getState().setVersionsOpen(!wasOpen)
-  }
-  const openHistory = () => {
-    const wasOpen = useStore.getState().historyOpen
-    closeAux()
-    useStore.getState().setHistoryOpen(!wasOpen)
-  }
-  const toggleComments = () => {
-    const wasOpen = useStore.getState().commentsOpen
-    closeAux()
-    useStore.getState().setCommentsOpen(!wasOpen)
-  }
 
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
@@ -102,10 +63,6 @@ export function ToolsMenu() {
   useSunStudy(sunStudy)
 
   const tapeMode = useStore((s) => s.tapeMode)
-  const toggleTape = () => {
-    closeAux()
-    useStore.getState().toggleTapeMode()
-  }
 
   const toggleDrawingCallouts = () => {
     const wasOpen = useStore.getState().drawingCalloutsOpen
@@ -130,35 +87,14 @@ export function ToolsMenu() {
     commentMode ||
     drawingCalloutsOpen
 
-  const startWalkthrough = () => {
-    const s = useStore.getState()
-    if (s.touring) {
-      s.setTouring(false)
-      if (s.recording) s.setRecording(false)
-      return
-    }
-    s.setCameraMode('orbit')
-    if (canRecord()) s.setRecording(true)
-    s.setTouring(true)
-  }
-
   const openReport = () => openDesignReport()
 
-  // Per-feature gates: an item is hidden when its flag is off (see featureFlags).
-  const fBudget = useFeature('budget')
-  const fChecks = useFeature('clearanceChecks')
-  const fMeasure = useFeature('measure')
-  const fHistory = useFeature('history')
-  const fVersions = useFeature('versions')
+  // Per-feature gates for the bespoke Export section. The Analyse + Review rows
+  // are gated inside the registry (`visibleToolActions`), so they need no flags
+  // here — only Sun study (local-state) keeps a flag.
   const fShare = useFeature('shareExport')
   const fSun = useFeature('sunStudy')
-  const fWalk = useFeature('walkthrough')
   const fReport = useFeature('report')
-  const fDrawings = useFeature('drawings')
-  const fDaylight = useFeature('daylight')
-  const fDesignScore = useFeature('designScore')
-  const fAccessibility = useFeature('accessibility')
-  const fComments = useFeature('comments')
   const fMoodboard = useFeature('moodboard')
   const fDxf = useFeature('dxfExport')
   const fBoq = useFeature('boq')
@@ -167,137 +103,49 @@ export function ToolsMenu() {
   const fViewInAr = useFeature('viewInAr')
   const fDrawingCallouts = useFeature('drawingCallouts')
 
+  // Analyse + Review rows come from the shared registry so this menu, the mobile
+  // sheet and ⌘K can't drift (see actions/toolActions). The Sun-study toggle is
+  // injected into the Review group because its on/off lives in local component
+  // state (not the store), so it can't be a registry action.
+  const flags = useStore((s) => s.featureFlags)
+  const groups = groupToolActions(visibleToolActions('desktop', flags))
+  const snap = useStore.getState()
+  const badgeFor = (id: string) =>
+    id === 'clearance' ? blockedCount : id === 'comments' ? commentCount : 0
+  const renderAction = (a: ToolAction) => {
+    const n = badgeFor(a.id)
+    const base = resolveToolLabel(a, snap)
+    return (
+      <MenuItem
+        key={a.id}
+        icon={a.icon}
+        label={n > 0 ? `${base} · ${n}` : base}
+        sub={a.sub}
+        docs={a.docs}
+        active={a.isActive(snap)}
+        onClick={() => a.run(useStore)}
+      />
+    )
+  }
+
   return (
     <ToolbarMenu icon="Tools" label="Tools" active={Boolean(anyActive)}>
-      {(fBudget ||
-        fChecks ||
-        fDrawings ||
-        fDaylight ||
-        fDesignScore ||
-        fAccessibility ||
-        fMeasure ||
-        fComments) && <div className="menu-label">Analyse</div>}
-      {fBudget && (
-        <MenuItem
-          icon="Budget"
-          label="Budget"
-          sub="Estimate furniture cost (SGD)"
-          docs="budget"
-          active={budgetOpen}
-          onClick={openBudget}
-        />
-      )}
-      {fChecks && (
-        <MenuItem
-          icon="Checks"
-          label={blockedCount > 0 ? `Checks · ${blockedCount}` : 'Checks'}
-          sub="Door-swing + walkway clearance"
-          docs="clearanceChecks"
-          active={clearancePanelOpen}
-          onClick={toggleChecks}
-        />
-      )}
-      {fDrawings && (
-        <MenuItem
-          icon="FloorPlan"
-          label="Drawings"
-          sub="Wall elevations + lighting plan"
-          docs="drawings"
-          active={elevationsOpen}
-          onClick={toggleElevations}
-        />
-      )}
-      {fDaylight && (
-        <MenuItem
-          icon="Daylight"
-          label="Daylight"
-          sub="Window glazing & ventilation per room"
-          docs="daylight"
-          active={daylightOpen}
-          onClick={toggleDaylight}
-        />
-      )}
-      {fDesignScore && (
-        <MenuItem
-          icon="Star"
-          label="Design score"
-          sub="Overall layout quality + fixes"
-          docs="designScore"
-          active={designScoreOpen}
-          onClick={toggleDesignScore}
-        />
-      )}
-      {fAccessibility && (
-        <MenuItem
-          icon="Accessibility"
-          label="Accessibility"
-          sub="Door widths + wheelchair turning space"
-          docs="accessibility"
-          active={accessibilityOpen}
-          onClick={toggleAccessibility}
-        />
-      )}
-      {fMeasure && (
-        <MenuItem
-          icon="Measure"
-          label={tapeMode ? 'Measuring…' : 'Measure'}
-          sub="Tap two points for a distance"
-          docs="measure"
-          active={tapeMode}
-          onClick={toggleTape}
-        />
-      )}
-      {fComments && (
-        <MenuItem
-          icon="Pin"
-          label={commentCount > 0 ? `Comments · ${commentCount}` : 'Comments'}
-          sub="Pinned notes — travel with saves & links"
-          docs="comments"
-          active={commentsOpen || commentMode}
-          onClick={toggleComments}
-        />
-      )}
-      {(fHistory || fVersions || fSun || fWalk) && <div className="menu-label">Review & tour</div>}
-      {fHistory && (
-        <MenuItem
-          icon="Undo"
-          label="History"
-          sub="Timeline of edits — jump to any step"
-          docs="history"
-          active={historyOpen}
-          onClick={openHistory}
-        />
-      )}
-      {fVersions && (
-        <MenuItem
-          icon="Versions"
-          label="Versions"
-          sub="Save, restore, compare & export layouts"
-          docs="versions"
-          active={versionsOpen}
-          onClick={openVersions}
-        />
-      )}
-      {fSun && (
-        <MenuItem
-          icon="SunStudy"
-          label="Sun study"
-          sub="Time-lapse dawn → dusk"
-          docs="sunStudy"
-          active={sunStudy}
-          onClick={() => setSunStudy((v) => !v)}
-        />
-      )}
-      {fWalk && (
-        <MenuItem
-          icon="Walkthrough"
-          label={touring ? 'Stop tour' : 'Walkthrough'}
-          sub="Fly a tour through every room"
-          docs="walkthrough"
-          active={Boolean(touring)}
-          onClick={startWalkthrough}
-        />
-      )}
+      {groups.map((g) => (
+        <Fragment key={g.category}>
+          <div className="menu-label">{g.label}</div>
+          {g.actions.map(renderAction)}
+          {g.category === 'review' && fSun ? (
+            <MenuItem
+              icon="SunStudy"
+              label="Sun study"
+              sub="Time-lapse dawn → dusk"
+              docs="sunStudy"
+              active={sunStudy}
+              onClick={() => setSunStudy((v) => !v)}
+            />
+          ) : null}
+        </Fragment>
+      ))}
       {(fReport ||
         fBoq ||
         fDxf ||

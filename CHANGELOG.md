@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Data-driven tool-action registry — single source for Tools across all 3 surfaces (v0.6.0.0)
+
+The analytical **Tools** cluster (the Analyse + Review panels) is now defined once in a declarative
+registry, `src/ui/actions/toolActions.tsx`, and the three surfaces that used to hand-build those rows
+in their own JSX — the desktop **Tools menu**, the **mobile** bottom-sheet, and the **⌘K palette** —
+all render from it. Each `ToolAction` carries its gating `flag` (which already encodes Simple/Pro),
+its `docs` deep-link key, which `surfaces` it appears on, an `isActive` predicate, and a `run(store)`
+that performs the close-siblings-then-toggle behaviour the three surfaces previously duplicated. This
+removes the triplication that caused drift and is enforced by `toolActions.test.ts` (registry
+invariants — real flags / icons / docs keys / unique ids — plus Simple-vs-Pro visibility resolution
+and the per-surface projection). Behaviour is preserved on desktop + palette; the mobile rows pick up
+the desktop labels + descriptions and the same section headers (a consistency win). The export cluster
+(BOQ / CSV / 3D / drawing-set) and the local-state Sun-study toggle remain hand-rendered — they
+diverge per surface and aren't store-backed — so they're intentionally out of the registry for now.
+
 ## Mobile sheet: docs links + section headers + distinct icons (v0.5.0.8)
 
 Brings the mobile bottom-sheet to full parity with the desktop menus for the DOCS-DEEPLINK work.

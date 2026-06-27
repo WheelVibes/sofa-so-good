@@ -17,6 +17,7 @@ import { BACKDROPS } from '../scene/SceneBackdrop'
 import { canEditScene } from '../state/editing'
 import { firstEditableRoomId } from '../state/rooms'
 import { useStore } from '../state/store'
+import { toolActionsForSurface } from './actions/toolActions'
 import { closeAllAuxPanels } from './auxPanels'
 import { type DocKey, FEATURE_DOCS, openDocs, openToolDocs } from './docsUrl'
 import { downloadCostBreakdownCsv } from './openCostBreakdownCsv'
@@ -37,17 +38,10 @@ import { Icon, type IconName } from './toolbar/icons'
 const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   measure: 'measure',
   'smart-start': 'smartStart',
-  budget: 'budget',
-  clearance: 'clearanceChecks',
-  versions: 'versions',
-  history: 'history',
   share: 'shareExport',
   report: 'report',
   'reno-ics': 'report',
   floorplan: 'floorPlanEditor',
-  'design-score': 'designScore',
-  accessibility: 'accessibility',
-  comments: 'comments',
   'palette-from-photo': 'paletteFromPhoto',
   panorama: 'panorama',
   'pano-tour': 'panoTour',
@@ -86,6 +80,10 @@ interface Command {
   label: string
   hint?: string
   icon: IconName
+  /** Gating flag (registry-sourced commands carry their own; others use COMMAND_FLAGS). */
+  flag?: FeatureFlag
+  /** Docs deep-link key (registry-sourced commands carry their own). */
+  docKey?: DocKey
   run: () => void
 }
 
@@ -204,57 +202,20 @@ export function CommandPalette() {
         icon: 'Tidy',
         run: () => tidyHome(),
       },
-      {
-        id: 'budget',
-        group: 'Tools & panels',
-        label: 'Budget / shopping list',
-        icon: 'Budget',
-        run: () => {
-          closeAllAuxPanels(s())
-          s().toggleBudget()
-        },
-      },
-      {
-        id: 'clearance',
-        group: 'Tools & panels',
-        label: 'Clearance & fit checks',
-        icon: 'Checks',
-        run: () => {
-          closeAllAuxPanels(s())
-          s().setClearancePanelOpen(true)
-          if (!s().clearanceOn) s().toggleClearance()
-        },
-      },
-      {
-        id: 'design-score',
-        group: 'Tools & panels',
-        label: 'Design score — layout quality',
-        icon: 'Star',
-        run: () => {
-          closeAllAuxPanels(s())
-          s().setDesignScoreOpen(true)
-        },
-      },
-      {
-        id: 'accessibility',
-        group: 'Tools & panels',
-        label: 'Accessibility check',
-        icon: 'Accessibility',
-        run: () => {
-          closeAllAuxPanels(s())
-          s().setAccessibilityOpen(true)
-        },
-      },
-      {
-        id: 'comments',
-        group: 'Tools & panels',
-        label: 'Comments — pinned notes',
-        icon: 'Pin',
-        run: () => {
-          closeAllAuxPanels(s())
-          s().setCommentsOpen(true)
-        },
-      },
+      // Analytical panel commands come from the shared tool-action registry
+      // (single source of truth with the desktop Tools menu + mobile sheet). Each
+      // carries its own gating flag + docs key.
+      ...toolActionsForSurface('palette').map(
+        (a): Command => ({
+          id: a.id,
+          group: 'Tools & panels',
+          label: a.paletteLabel ?? (typeof a.label === 'string' ? a.label : a.id),
+          icon: a.icon,
+          flag: a.flag,
+          docKey: a.docs,
+          run: () => a.run(useStore),
+        }),
+      ),
       {
         id: 'drawing-callouts',
         group: 'Tools & panels',
@@ -263,26 +224,6 @@ export function CommandPalette() {
         run: () => {
           closeAllAuxPanels(s())
           s().setDrawingCalloutsOpen(true)
-        },
-      },
-      {
-        id: 'versions',
-        group: 'Tools & panels',
-        label: 'Versions — save / restore',
-        icon: 'Versions',
-        run: () => {
-          closeAllAuxPanels(s())
-          s().setVersionsOpen(true)
-        },
-      },
-      {
-        id: 'history',
-        group: 'Tools & panels',
-        label: 'Edit history — jump to any step',
-        icon: 'Undo',
-        run: () => {
-          closeAllAuxPanels(s())
-          s().setHistoryOpen(true)
         },
       },
       {
@@ -699,7 +640,8 @@ export function CommandPalette() {
     () =>
       commands.filter((c) => {
         if (PRO_ONLY_COMMANDS.has(c.id) && !isPro) return false
-        const flag = COMMAND_FLAGS[c.id] ?? (c.id.startsWith('view:') ? 'savedViews' : undefined)
+        const flag =
+          c.flag ?? COMMAND_FLAGS[c.id] ?? (c.id.startsWith('view:') ? 'savedViews' : undefined)
         return !flag || flags[flag]
       }),
     [commands, flags, isPro],
@@ -784,8 +726,12 @@ export function CommandPalette() {
                   // Contextual docs "?" (DOCS-DEEPLINK): map the command to a
                   // DocKey via its gating flag (else the saved-view default) and
                   // show the affordance only when the guide actually documents it.
-                  const docKey = (COMMAND_FLAGS[cmd.id] ??
-                    (cmd.id.startsWith('view:') ? 'savedViews' : undefined)) as DocKey | undefined
+                  const docKey =
+                    cmd.docKey ??
+                    ((COMMAND_FLAGS[cmd.id] ??
+                      (cmd.id.startsWith('view:') ? 'savedViews' : undefined)) as
+                      | DocKey
+                      | undefined)
                   const hasDocs = docKey != null && FEATURE_DOCS[docKey] != null
                   return (
                     <button

@@ -189,6 +189,14 @@ same change that reshapes a system.
   `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`. Empty panels/lists render the shared
   **`EmptyState`** (`EmptyState.tsx`: icon + title + optional description + optional CTA on
   the `.empty-mini` token vocabulary) for consistent, friendly empty-state messaging.
+  The analytical **Tools** cluster (Analyse + Review panels) is defined once in
+  **`src/ui/actions/toolActions.tsx`** (a declarative `ToolAction[]` — `flag`/`docs`/`surfaces`/
+  `isActive`/`run`); the desktop `menus/ToolsMenu`, the `MobileToolbar` sheet, and the
+  `CommandPalette` all render from it via `visibleToolActions(surface, flags)` /
+  `groupToolActions`, so they can't drift (invariants + per-surface projection covered by
+  `toolActions.test.ts`). The export cluster + local-state Sun-study toggle stay hand-rendered.
+  Aux panels that share the centred-top slot are closed as a group via `src/ui/auxPanels.ts`
+  (`closeAllAuxPanels`); contextual user-guide deep-links resolve through `src/ui/docsUrl.ts`.
 - `src/styles/` — design CSS (after Tailwind via `index.css`): `tokens.css` (10 OKLCH
   palettes) + `components`/`parts`/`features`/`flows`/`screens`/`responsive`/`app`.
   Components use the class vocabulary (`.panel`/`.btn`/`.toolbar`/…), never hardcoded colour.
