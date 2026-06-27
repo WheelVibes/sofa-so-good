@@ -84,6 +84,48 @@ export function grade(altitude: number): Grade {
   return { exposure, warmth }
 }
 
+/**
+ * Image-based-lighting fill compensation (LIGHT-IBL-OVERLAP).
+ *
+ * The analytical hemisphere + ambient fill in `Lighting` is tuned to be the
+ * SOLE soft fill on the flat Performance tier (no IBL). On Medium+ tiers the
+ * procedural Lightformer environment (`SceneEnvironment`) adds its own ambient
+ * bounce on TOP of that fill, scaled by the day level (`environmentIntensity =
+ * 0.12 + dayLevel*0.55`). The two then OVERLAP and a midday scene over-brightens
+ * — sunlit walls wash out and surface colours flatten ("the lighting and graphics
+ * settings overlap").
+ *
+ * `iblFillScale` scales the analytical fill DOWN in proportion to the day level
+ * (which is exactly what drives the IBL intensity), so the combined ambient stays
+ * consistent with the flat tier: maximum reduction at midday (when IBL is
+ * strongest), none at night (when IBL sits near its 0.12 floor and the analytical
+ * fill must still lift interiors). Pure + unit-tested.
+ */
+export const IBL_FILL_COMPENSATION = 0.5
+
+export function iblFillScale(iblActive: boolean, dayLevel: number): number {
+  if (!iblActive) return 1
+  const d = clamp(Number.isFinite(dayLevel) ? dayLevel : 0, 0, 1)
+  return 1 - IBL_FILL_COMPENSATION * d
+}
+
+/**
+ * Daytime bloom ramp (RD-409 tail / LIGHT-IBL-OVERLAP).
+ *
+ * Bloom exists to glow genuinely-emissive NIGHT fixtures. In daylight the same
+ * pass smears a milky white veil/halo over broad sunlit surfaces — and because a
+ * sunlit wall is BRIGHTER in HDR than a night lamp, a single luminance threshold
+ * can't tell them apart (raising it past the fixture peaks would kill the night
+ * glow). So instead ramp the bloom STRENGTH down with the day level: full at
+ * night (fixtures glow, threshold unchanged so the `fixtureGlow` lock-step holds)
+ * and →0 at midday (no daytime veil). `dayLevel` is the 0→1 sun level
+ * (`lightingFromAltitude(alt).sun`). Pure + unit-tested.
+ */
+export function bloomIntensityForDay(dayLevel: number): number {
+  const d = clamp(Number.isFinite(dayLevel) ? dayLevel : 0, 0, 1)
+  return BLOOM.intensity * (1 - d)
+}
+
 /** Soft-shadow tuning for the sun directional light (PCFSoftShadowMap). */
 export const SOFT_SHADOW = {
   radius: 4,

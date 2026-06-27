@@ -22,6 +22,7 @@ import { useStore } from '../state/store'
 import { formatArea } from '../utils/measurement'
 import { lazyWithRetry } from './app/lazyWithRetry'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
+import { MaterialComposer } from './finish/MaterialComposer'
 import { SwatchGroup } from './finish/swatches'
 import { Icon } from './toolbar/icons'
 
@@ -245,6 +246,7 @@ export function FinishPicker() {
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   const fRemoteMaterials = useFeature('remoteMaterials')
   const fDesignerPicks = useFeature('designerPicks')
+  const fComposer = useFeature('materialComposer')
   const materials = useMaterials()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [finishQuery, setFinishQuery] = useState('')
@@ -379,6 +381,13 @@ export function FinishPicker() {
           >
             Apply floor to all rooms
           </button>
+          {fComposer ? (
+            <MaterialComposer
+              label="Floor"
+              active={activeFloor ?? ''}
+              onApply={(id) => handleSelect('floor', id)}
+            />
+          ) : null}
           <SwatchGroup
             label="Walls"
             items={filterFinishes(groups.wall, finishQuery)}
@@ -403,6 +412,13 @@ export function FinishPicker() {
           >
             Apply walls to all rooms
           </button>
+          {fComposer ? (
+            <MaterialComposer
+              label="Walls"
+              active={activeWall ?? ''}
+              onApply={(id) => handleSelect('wall', id)}
+            />
+          ) : null}
           {otherRooms.length > 0 ? (
             <select
               className="input"

@@ -1,0 +1,18 @@
+{
+  "name": "lighting-check",
+  "description": "Maximum graphics, orbit, midday — check the apartment isn't washed out by overlapping fill + IBL.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
+    { "name": "reload", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
+    { "name": "force-scene-ready", "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
+    { "name": "set-max-quality", "eval": "window.__store.getState().setQualityTier('maximum')" },
+    { "name": "set-noon", "eval": "var s=window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13)" },
+    { "name": "settle", "wait": 4000 },
+    { "name": "shot-max-midday", "screenshot": "max-midday-orbit" }
+  ]
+}

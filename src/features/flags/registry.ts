@@ -296,6 +296,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Compose a floor/wall finish from a texture/pattern + a colour (MAT-COMPOSE):
+  // every procedural finish is a (pattern, colour) pair, so the composer exposes
+  // that directly instead of only pre-baked catalog entries. Pure client-side
+  // (synthesised on the fly, reuses the procedural pipeline) → prod-safe. A core
+  // part of the finish loop a casual user benefits from → simple tier.
+  materialComposer: {
+    label: 'Compose finishes',
+    description: 'Build a floor/wall finish from a texture/pattern combined with any colour',
+    default: true,
+    tier: 'simple',
+  },
   ceilingDesign: {
     label: 'Ceiling design',
     description: 'Per-room tray / coffered / dropped ceilings',

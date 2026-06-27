@@ -51,6 +51,7 @@ export type FeatureFlag =
   | 'userSets'
   | 'furnitureGroups'
   | 'designerPicks'
+  | 'materialComposer'
   | 'ceilingDesign'
   | 'presentation'
   | 'pbrSurfaces'

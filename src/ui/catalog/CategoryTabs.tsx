@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
@@ -44,8 +45,21 @@ export function CategoryTabs({
   recentCount,
   favEnabled = true,
 }: CategoryTabsProps) {
+  const railRef = useRef<HTMLElement>(null)
+  // Desktop: a vertical mouse wheel can't scroll a horizontal-overflow row, so
+  // the category rail reads as "stuck" / scrolls the page instead. Translate a
+  // dominant vertical wheel delta into horizontal scroll so the wheel browses
+  // categories left↔right. Trackpads (which already emit horizontal deltaX) and
+  // touch are untouched.
+  const onWheel = (e: React.WheelEvent<HTMLElement>) => {
+    const el = railRef.current
+    if (!el || el.scrollWidth <= el.clientWidth) return
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+    el.scrollLeft += e.deltaY
+    e.preventDefault()
+  }
   return (
-    <nav className="cat-rail">
+    <nav className="cat-rail" ref={railRef} onWheel={onWheel}>
       {favEnabled ? (
         <button
           type="button"

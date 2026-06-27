@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { type BriefMatch, parseBrief } from '../../furniture/briefParser'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
+import { BUILTIN_MATERIALS } from '../../materials/builtinCatalog'
 import type { ThemeName } from '../../state/slices/appearanceSlice'
 import { useStore } from '../../state/store'
 import { Modal } from '../Modal'
@@ -15,6 +16,14 @@ import { Modal } from '../Modal'
  */
 
 /** Complementary UI theme per layout preset, so the chrome matches the room. */
+/** Resolve a finish id (a material id, or a raw `#hex` colour) to a CSS colour
+ *  for the preview swatch — falls back to a neutral surface token if unknown. */
+function swatchColor(id: string | undefined, fallback: string): string {
+  if (!id) return fallback
+  if (id.startsWith('#')) return id
+  return BUILTIN_MATERIALS[id]?.swatch ?? fallback
+}
+
 const PRESET_THEME: Record<string, ThemeName> = {
   'move-in': 'clay',
   'scandi-calm': 'porcelain',
@@ -150,8 +159,8 @@ export function SmartStartWizard() {
               <span className="ss-card-name">{p.name}</span>
               <span className="ss-card-desc">{p.description}</span>
               <span className="ss-card-swatches">
-                <i style={{ background: `var(--swatch-${p.dryFloor}, var(--surface-2))` }} />
-                <i style={{ background: `var(--swatch-${p.wall}, var(--surface))` }} />
+                <i style={{ background: swatchColor(p.dryFloor, 'var(--surface-2)') }} />
+                <i style={{ background: swatchColor(p.wall, 'var(--surface)') }} />
               </span>
             </button>
           )

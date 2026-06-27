@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../state/store'
 import { BUILTIN_MATERIALS } from './builtinCatalog'
 import { buildMaterial, getCachedMaterial } from './cache'
+import { composedMaterialDef, isComposedMaterialId } from './composeMaterial'
 import { GENERATED_MATERIALS } from './generatedCatalog'
 import type {
   MaterialDef,
@@ -44,6 +45,12 @@ export function customColorDef(id: string): MaterialDef {
 export function useMaterialDef(id: MaterialId): MaterialDef {
   const materials = useMaterials()
   if (typeof id === 'string' && id.startsWith('#')) return customColorDef(id)
+  // A composed finish (`compose:<pattern>:<#hex>`) is synthesised on the fly —
+  // texture + colour, no catalog entry needed (MAT-COMPOSE).
+  if (isComposedMaterialId(id)) {
+    const composed = composedMaterialDef(id)
+    if (composed) return composed
+  }
   const def = materials[id]
   if (def) return def
   const firstKey = Object.keys(materials)[0]!

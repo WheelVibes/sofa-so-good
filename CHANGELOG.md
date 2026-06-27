@@ -5,6 +5,41 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Design-tool bug sweep + composable finishes + midday-lighting fix (v0.5.0.0)
+
+A batch of reported design-tool fixes plus one major finish feature and a lighting fix:
+
+- **Compose finishes from texture + colour (MAT-COMPOSE, `materialComposer` flag, simple).** A new
+  pure `materials/composeMaterial.ts` encodes a finish as `compose:<pattern>:<#hex>` and synthesises a
+  `ProceduralMaterialDef` on the fly (resolved in `useMaterial.ts`, mirroring the raw-`#hex`
+  custom-colour path) — so ANY of 17 texture families can pair with ANY colour without a catalog
+  entry. New `ui/finish/MaterialComposer.tsx` collapsible per surface in the FinishPicker (live tiled
+  preview + texture dropdown + colour). Renders through the existing procedural pipeline on floors +
+  walls; serialises as a plain string. Unit-tested.
+- **Smart Start palette swatches** now resolve the real floor/wall colours (`BUILTIN_MATERIALS[id].swatch`)
+  instead of undefined `--swatch-*` CSS vars (which fell back to grey).
+- **Catalog category rail scrolls horizontally on desktop** — a vertical mouse-wheel over `.cat-rail`
+  is translated to horizontal scroll (`CategoryTabs` `onWheel`); trackpads/touch untouched.
+- **Inspector auto-expands on desktop** — `useInspectorMinimize` defaults to expanded on desktop and
+  minimised only on mobile (`useIsMobile`), instead of always minimised.
+- **Wardrobe / Toilet (and any later catalog item) thumbnails render** — the single-Canvas thumbnail
+  host now has a watchdog so one stalled def (e.g. a remote GLB whose fetch hangs under `<Suspense>`)
+  can't block every queued item behind it; `handleReady` is memoised to stop rAF-capture churn.
+- **Checkered / plaid / dots patterns show on the Rug** — `Rug.tsx` now routes those patterns through
+  `getFabricMaterial` (which already supports them), not just striped/herringbone.
+- **A/B render compare no longer hangs the browser** — `RenderCompareModal` captures the live RASTER
+  frame (`captureCanvasPng`) after applying each preset instead of spinning up two heavy path-trace
+  sessions; the "Capturing B…" overlay no longer overlaps the rendered image A.
+- **Midday "washed out on Maximum" fix (LIGHT-IBL-OVERLAP).** On IBL tiers the procedural environment
+  added ambient bounce on top of the analytical hemisphere+ambient fill (tuned as the sole fill for the
+  flat tier), and the broad sunlit surfaces then exceeded the bloom threshold → milky veil. `look.ts`
+  `iblFillScale` scales the analytical fill down with the day level when IBL is active, and
+  `bloomIntensityForDay` ramps bloom strength to ~0 at midday (full at night, threshold unchanged so
+  the `fixtureGlow` lock-step + night glow are preserved). Both pure + unit-tested.
+
+Verified: undo/redo (move/rename/redo) work; condominium presets (incl. penthouse) load from the 2D
+editor's Template picker; whole-house finishes apply via the FinishPicker's "Apply to all rooms".
+
 ## Feature: per-face brushed-metal anisotropy rotation (BRUSH-AXIS) (v0.4.0.0)
 
 Brushed-metal surfaces now orient their anisotropic highlight per face instead of using one global

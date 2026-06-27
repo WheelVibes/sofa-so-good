@@ -12,7 +12,9 @@ import {
 import { type ReactElement, useMemo } from 'react'
 import { Vector2 } from 'three'
 import { rasterDofParams } from './cameras/cameraLensSettings'
-import { AO, BLOOM } from './look'
+import { lightingFromAltitude } from './lighting/altitudeCurve'
+import { useSunPosition } from './lighting/useSunPosition'
+import { AO, BLOOM, bloomIntensityForDay } from './look'
 
 interface EffectsProps {
   /** Render SSAO at full resolution (sharper, deeper) instead of half-res. */
@@ -59,6 +61,15 @@ export default function EffectsImpl({
   const caOffset = useMemo(() => new Vector2(0.0006, 0.0006), [])
   const { bokehScale, worldFocusRange } = useMemo(() => rasterDofParams(dofFStop), [dofFStop])
 
+  // Bloom strength tracks the day level: full at night (glow genuinely-emissive
+  // fixtures) and →0 at midday, where the same pass would otherwise smear a milky
+  // veil over the (HDR-brighter-than-fixtures) sunlit surfaces — the "washed out
+  // on Maximum" report (LIGHT-IBL-OVERLAP). The threshold is unchanged, so the
+  // fixtureGlow lock-step + night glow are preserved.
+  const sun = useSunPosition()
+  const dayLevel = lightingFromAltitude(sun.altitude).sun
+  const bloomIntensity = bloomIntensityForDay(dayLevel)
+
   const effects: ReactElement[] = [
     <N8AO
       key="ao"
@@ -73,7 +84,7 @@ export default function EffectsImpl({
       mipmapBlur
       luminanceThreshold={BLOOM.luminanceThreshold}
       luminanceSmoothing={BLOOM.luminanceSmoothing}
-      intensity={BLOOM.intensity}
+      intensity={bloomIntensity}
     />,
     <HueSaturation key="hue" saturation={0.06} hue={0} />,
   ]

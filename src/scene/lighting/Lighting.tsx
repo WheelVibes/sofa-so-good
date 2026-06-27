@@ -4,7 +4,7 @@ import { type AmbientLight, type DirectionalLight, type HemisphereLight, Object3
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { useStore } from '../../state/store'
 import { registerAnimatedSource } from '../animatedSources'
-import { grade, SOFT_SHADOW, toneExposureBias } from '../look'
+import { grade, iblFillScale, SOFT_SHADOW, toneExposureBias } from '../look'
 import { resolveToneMapping, toneContextFromState } from '../toneContext'
 import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { useQuality } from '../useQuality'
@@ -62,6 +62,10 @@ export function Lighting() {
   const sunPos = useSunPosition()
   const orientation = useStore((s) => s.orientationDeg)
   const shadowMapSize = useQuality().shadowMapSize
+  // IBL is on for Medium+ tiers; when it is, the procedural environment provides
+  // ambient bounce, so the analytical hemisphere+ambient fill is dialled down to
+  // avoid double-counting (LIGHT-IBL-OVERLAP — midday washout otherwise).
+  const iblActive = useQuality().ibl
   const gl = useThree((s) => s.gl)
   const invalidate = useThree((s) => s.invalidate)
   const sunRef = useRef<DirectionalLight>(null!)
@@ -175,12 +179,16 @@ export function Lighting() {
     // Split the fill budget: a directional hemisphere (sky/ground) reads as
     // soft GI and gives objects form, while a small flat ambient lifts the
     // deepest interior shadows so nothing crushes to black.
+    // Reduce the analytical fill where IBL also lights the scene (scaled by the
+    // day level, so night interiors keep their full fill). `cur.sun` is the eased
+    // 0→1 day level (same signal that drives `SceneEnvironment` IBL intensity).
+    const fillScale = iblFillScale(iblActive, cur.sun)
     if (hemiRef.current) {
-      hemiRef.current.intensity = cur.ambient * 1.1
+      hemiRef.current.intensity = cur.ambient * 1.1 * fillScale
       hemiRef.current.color.setRGB(cur.skyColor[0], cur.skyColor[1], cur.skyColor[2])
       hemiRef.current.groundColor.setRGB(cur.groundColor[0], cur.groundColor[1], cur.groundColor[2])
     }
-    if (ambientRef.current) ambientRef.current.intensity = cur.ambient * 0.35
+    if (ambientRef.current) ambientRef.current.intensity = cur.ambient * 0.35 * fillScale
 
     // Keep the OS/browser chrome (iOS standalone status bar, mobile address bar)
     // tinted to the top of the canvas so its top edge blends into the scene.
