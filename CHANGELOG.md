@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Polygon-room tool discoverability (v0.5.0.3)
+
+Non-rectangular / L-shaped rooms were already drawable via the `polyroom` tool, but it was just
+labelled "Polygon" (ambiguous next to "Polyline") and the close-gesture wasn't obvious, so users
+allocating rooms didn't find it. `FloorPlanEditor.tsx`: relabel the tool to **"Polygon room"**,
+expand its tooltip (draw an L-shaped room — click each corner, click the first / press Enter to
+close, Esc cancels), and show a live **`.plan-draw-hint`** chip in the rail while the Polygon-room
+(or Polyline) tool is active. No behaviour/geometry change. Verified with
+`scripts/scenarios/polyroom-verify.json` (draw vertices → Enter → a room with a ≥3-vertex polygon).
+
 ## Style themes reachable from the overview (v0.5.0.2)
 
 The **Arrange** menu — Smart Start + the layout/theme presets (Scandinavian, Minimalist, Japandi,

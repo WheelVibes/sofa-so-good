@@ -1,0 +1,106 @@
+{
+  "name": "polyroom-verify",
+  "description": "Draw a polygon room with the Polygon tool: pick tool, click vertices, Enter to close.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "skip-onboarding",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}"
+    },
+    {
+      "name": "reload",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-ready",
+      "waitFor": {
+        "store": "state.bootPhase === 'ready'"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "force-scene-ready",
+      "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}"
+    },
+    {
+      "name": "dismiss-location",
+      "eval": "window.__store.getState().dismissLocationPrompt()"
+    },
+    {
+      "name": "open-editor",
+      "eval": "window.__store.getState().setFloorPlanEditing(true)"
+    },
+    {
+      "name": "editor-visible",
+      "waitFor": {
+        "css": ".plan-canvas"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "record-before",
+      "eval": "window.__roomsBefore = window.__store.getState().floorPlan.rooms.length"
+    },
+    {
+      "name": "pick-polygon",
+      "click": {
+        "text": "Polygon"
+      }
+    },
+    {
+      "name": "tool-settle",
+      "wait": 500
+    },
+    {
+      "name": "v1",
+      "type": "click",
+      "x": 520,
+      "y": 300
+    },
+    {
+      "name": "v2",
+      "type": "click",
+      "x": 820,
+      "y": 300
+    },
+    {
+      "name": "v3",
+      "type": "click",
+      "x": 820,
+      "y": 560
+    },
+    {
+      "name": "v4",
+      "type": "click",
+      "x": 520,
+      "y": 560
+    },
+    {
+      "name": "shot-draft",
+      "screenshot": "polyroom-draft"
+    },
+    {
+      "name": "close-enter",
+      "key": "Enter"
+    },
+    {
+      "name": "close-settle",
+      "wait": 600
+    },
+    {
+      "name": "shot-room",
+      "screenshot": "polyroom-room"
+    },
+    {
+      "name": "verify",
+      "eval": "(function(){var rooms=window.__store.getState().floorPlan.rooms;if(rooms.length<=window.__roomsBefore)throw new Error('no room added: '+rooms.length+' vs '+window.__roomsBefore);var last=rooms[rooms.length-1];if(!last.polygon||last.polygon.length<3)throw new Error('room has no polygon: '+JSON.stringify(last.polygon));return 'polygon-room-ok:'+last.polygon.length+'verts'})()"
+    }
+  ]
+}

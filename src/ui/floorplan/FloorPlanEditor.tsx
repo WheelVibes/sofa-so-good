@@ -1469,7 +1469,7 @@ export function FloorPlanEditor() {
   ]
   const toolLabel = (t: Tool): string =>
     t === 'polyroom'
-      ? 'Polygon'
+      ? 'Polygon room'
       : t === 'autoroom'
         ? 'Auto room'
         : t.charAt(0).toUpperCase() + t.slice(1)
@@ -1524,7 +1524,7 @@ export function FloorPlanEditor() {
           className={`capitalize${tool === t ? ' on' : ''}`}
           title={
             t === 'polyroom'
-              ? 'Polygon room — click vertices, click the first to close'
+              ? 'Polygon room — draw an L-shaped / non-rectangular room: click each corner, then click the first corner (or press Enter) to close it. Esc cancels.'
               : t === 'autoroom'
                 ? 'Auto room — click inside a wall-enclosed area to make a room from it'
                 : t === 'polyline'
@@ -1539,6 +1539,17 @@ export function FloorPlanEditor() {
       ))}
     </div>
   )
+
+  // Live how-to-finish hint for the multi-click drawing tools (the "how do I
+  // close it?" gap) — shown while the Polygon-room / Polyline tool is active.
+  const drawHint =
+    editMode === 'edit' && (tool === 'polyroom' || tool === 'polyline') ? (
+      <span className="plan-draw-hint" role="status">
+        {tool === 'polyroom'
+          ? 'Click each corner · click the first corner or press Enter to finish the room · Esc cancels'
+          : 'Click each point · Enter to finish · click the first point to close · Esc cancels'}
+      </span>
+    ) : null
 
   // External/internal thickness for newly-drawn walls (only meaningful for Wall).
   const wallTypeSeg = tool === 'wall' && (
@@ -2003,6 +2014,7 @@ export function FloorPlanEditor() {
             {editMode === 'edit' && (
               <PlanToolMenu tools={toolList} tool={tool} label={toolLabel} onPick={pickTool} />
             )}
+            {drawHint}
             {/* Undo/redo are important enough to stay in the top bar (not buried
                 in the ☰ Menu). `ml-auto` pushes them + Done to the right. */}
             <div className="ml-auto flex items-center gap-2">
@@ -2030,6 +2042,7 @@ export function FloorPlanEditor() {
             {viewToggle}
             {editMode === 'edit' && toolPalette}
             {editMode === 'edit' && wallTypeSeg}
+            {drawHint}
             {templateLibrary}
             <PlanMenu label="Plan">{fileActions}</PlanMenu>
             <div className="ml-auto flex items-center gap-2">
