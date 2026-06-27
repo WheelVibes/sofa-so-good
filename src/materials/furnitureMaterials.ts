@@ -18,6 +18,7 @@ import {
 import { isFeatureEnabled } from '../features/featureFlags'
 import type { RenderTier } from '../scene/quality'
 import { applyAnisotropy } from './anisotropy'
+import { anisotropyRotationForNormal, type Vec3 } from './brushAxis'
 import { getBuiltMaterial } from './cache'
 import {
   applianceFinish as applianceFinishLogic,
@@ -1141,21 +1142,32 @@ function getBrushedMetalMaps(streak: number): { normal: Texture; rough: Texture 
  * intensity preset; `repeat` tiles the brush to the part size.
  *
  * Under `pbrSurfaces` it is a `MeshPhysicalMaterial` with the shared brush
- * normal + roughness-streak maps and three.js `anisotropy` (swept highlight,
- * `anisotropyRotation = 0` so the sweep runs along the U brush direction). With
- * the flag off it is a plain `MeshStandardMaterial` carrying just the finish's
- * metalness/roughness (the legacy flat steel look — no maps, no extra cost).
+ * normal + roughness-streak maps and three.js `anisotropy` (swept highlight).
+ * With the flag off it is a plain `MeshStandardMaterial` carrying just the
+ * finish's metalness/roughness (the legacy flat steel look — no maps, no extra
+ * cost).
  *
- * Cached per `(finish, color, repeat)` so every steel body shares one GPU
- * material (don't rebuild per appliance).
+ * BRUSH-AXIS: pass a face/mesh `normal` to orient the swept highlight along that
+ * face's dominant in-plane axis (the pure `brushAxis.ts` resolver maps it to an
+ * `anisotropyRotation`). Omit it (the default) and the sweep runs along the fixed
+ * U brush direction (`anisotropyRotation = 0`) — byte-identical to before.
+ *
+ * Cached per `(finish, color, repeat, brushRotation)` so every steel body sharing
+ * the same orientation shares one GPU material (don't rebuild per appliance).
  */
 export function getMetalMaterial(
   color: string,
   finish: MetalFinish = 'stainless',
   repeat = 1,
+  faceNormal?: Vec3 | null,
 ): MeshStandardMaterial {
   const r = Math.round(repeat * 100) / 100
-  const key = `metal:${finish}:${color}:${r}`
+  // BRUSH-AXIS: resolve the per-face brush rotation up front so it keys the cache
+  // (distinct orientations are distinct materials). No normal → 0, the legacy U
+  // axis, so the key + the material are unchanged from before.
+  const rotation = anisotropyRotationForNormal(faceNormal)
+  const rotKey = rotation === 0 ? '' : `:a${rotation.toFixed(4)}`
+  const key = `metal:${finish}:${color}:${r}${rotKey}`
   const hit = cache.get(key)
   if (hit) return hit
   const preset = metalFinishPreset(finish)
@@ -1187,10 +1199,11 @@ export function getMetalMaterial(
   })
   // Subtle brush relief — a satin grain, not a scratched groove.
   m.normalScale.set(0.2, 0.2)
-  // Swept anisotropic highlight along the U brush direction. `anisotropyRotation`
-  // stays 0 so every face's sweep is consistent with the baked hairlines.
+  // Swept anisotropic highlight. `anisotropyRotation` is 0 (the legacy fixed U
+  // brush direction) unless a face `normal` was supplied (BRUSH-AXIS), in which
+  // case the sweep is rotated to follow that face's dominant in-plane axis.
   m.anisotropy = preset.anisotropy
-  m.anisotropyRotation = 0
+  m.anisotropyRotation = rotation
   cache.set(key, m)
   return m
 }
