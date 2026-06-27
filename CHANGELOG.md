@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## File/Edit menu sections + docs links (v0.5.0.7)
+
+The File menu's long top block is now headed **Save & export**, and its two hand-rolled headers are
+unified onto the shared `.menu-label` token (**Load & reset**, **App**) — consistent with the Tools
+menu. Docs "?" links added to File items (360° panorama, 360° tour, Render compare, Shopping list,
+Import Sweet Home 3D) and the Edit menu (Edit a room, Floor-plan editor). Continues the DOCS-DEEPLINK
++ menu-organization work.
+
 ## Declutter the Tools menu into sections (v0.5.0.6)
 
 The Tools menu was a flat 15–20-item dump mixing analytical panels, review/tour, and six export

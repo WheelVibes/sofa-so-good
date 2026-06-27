@@ -82,6 +82,7 @@ export function FileMenu() {
 
   return (
     <ToolbarMenu icon="Save" label="File" active={recording} width={256}>
+      <div className="menu-label">Save & export</div>
       <MenuItem icon="Save" label="Save…" sub="Store the current layout" onClick={save} />
       <MenuItem
         icon="Export"
@@ -94,6 +95,7 @@ export function FileMenu() {
           icon="Export"
           label="360° panorama"
           sub="Capture a look-around panorama"
+          docs="panorama"
           onClick={() => useStore.getState().setPanoramaOpen(true)}
         />
       ) : null}
@@ -102,6 +104,7 @@ export function FileMenu() {
           icon="Walkthrough"
           label="360° tour"
           sub="Linked panoramas — jump room to room"
+          docs="panoTour"
           onClick={() => useStore.getState().setPanoTourOpen(true)}
         />
       ) : null}
@@ -118,6 +121,7 @@ export function FileMenu() {
           icon="Export"
           label="Render compare"
           sub="A/B compare two render presets"
+          docs="renderCompare"
           onClick={() => useStore.getState().setRenderCompareOpen(true)}
         />
       ) : null}
@@ -126,6 +130,7 @@ export function FileMenu() {
           icon="Budget"
           label="Shopping list"
           sub="Buy-list with prices, grouped by retailer"
+          docs="shopExport"
           onClick={() => openShoppingList()}
         />
       ) : null}
@@ -171,14 +176,13 @@ export function FileMenu() {
         />
       ) : null}
 
-      <div className="mt-1 border-t border-[var(--border)] px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">
-        Load
-      </div>
+      <div className="menu-label">Load & reset</div>
       {fImportSh3d ? (
         <MenuItem
           icon="FloorPlan"
           label="Import Sweet Home 3D…"
           sub="Load walls & rooms from a .sh3d file"
+          docs="importSh3d"
           onClick={() => openSh3dImport()}
         />
       ) : null}
@@ -259,9 +263,7 @@ export function FileMenu() {
         </div>
       )}
 
-      <div className="mt-1 border-t border-[var(--border)] px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">
-        App
-      </div>
+      <div className="menu-label">App</div>
       <MenuItem
         icon="Download"
         label="Check for updates"
