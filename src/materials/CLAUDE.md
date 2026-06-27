@@ -83,10 +83,25 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   (swept highlight, `anisotropyRotation = 0` so the sweep follows the U hairlines); finishes
   `stainless`/`satin`/`black-steel` pick the metalness/roughness + brush/anisotropy preset (tint from
   the caller). Flag **off** → a plain `MeshStandardMaterial` (legacy flat steel, no maps). Tasteful,
-  not chrome-mirror; cached per `(finish, color, repeat)`. The roughness map is a multiplier centred
-  on 1 (mean-preserving). Keep it **subtle** (`DEFAULT_BRUSH_PARAMS`; `streak: 0` collapses to plain
-  metal). Albedo/tint sRGB, normal/roughness linear. The 8 appliance primitives wire to it via
-  `furniture/primitives/shared.tsx:applianceBody` (steel body → shared material; non-steel unchanged).
+  not chrome-mirror; cached per `(finish, color, repeat, brushRotation)`. The roughness map is a
+  multiplier centred on 1 (mean-preserving). Keep it **subtle** (`DEFAULT_BRUSH_PARAMS`; `streak: 0`
+  collapses to plain metal). Albedo/tint sRGB, normal/roughness linear. The 8 appliance primitives
+  wire to it via `furniture/primitives/shared.tsx:applianceBody` (steel body → shared material;
+  non-steel unchanged).
+- **Brush axis per face (BRUSH-AXIS)**: the baked hairlines run along U and three.js sweeps the
+  anisotropic highlight along them. The pure, deterministic `brushAxis.ts`
+  `anisotropyRotationForNormal(normal)` maps a face/mesh **world** normal → the `anisotropyRotation`
+  that keeps the hairlines on that face's dominant in-plane axis: a near-vertical normal (top/bottom
+  face) keeps the default `0` (U is already in-plane); any upright face (front/side panel) gets a
+  quarter turn so the grain runs vertically (the conventional appliance brush direction). Degenerate
+  / near-zero / non-finite normals fall back to the default; **no normal → `0`, byte-identical to
+  before**. `getMetalMaterial(color, finish, repeat, faceNormal?)` takes the optional `faceNormal`,
+  folds the resolved rotation into its cache key (omitted when `0`, so default callers are
+  unchanged), and sets `m.anisotropyRotation`. No new flag — it rides the existing `pbrSurfaces`
+  gate (the flat tier has no anisotropy). Unit-tested in `brushAxis.test.ts` (axis-aligned faces,
+  default unchanged, degenerate/non-finite, determinism). The body-shared sites (`applianceBody`,
+  `metalLeg`) span multiple face orientations on one material, so they keep the default fixed axis;
+  pass `faceNormal` only from a single-orientation mesh.
 - **Uploaded-material persistence (`upload/persist.ts`)**: each channel blob is one IDB record;
   the material's full identity/appearance (`name`, `category`, `swatch`, `uvScaleX`/`uvScaleY`
   — `uvScale` is stored as two scalars since IDB `meta` values can't be arrays) is stamped on
