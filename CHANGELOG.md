@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Furniture: per-part recolour for any GLB model (v0.6.0.3)
+
+Continues the customizability push (colour/texture for custom uploads + 3D models). Built-in,
+uploaded and Poly Haven GLB models could only be **tinted as a whole**; you couldn't repaint just the
+legs or seat. Now the inspector lists each of a model's named material/mesh groups under **Recolour
+parts**, with a swatch + clear per part. Plumbing: `GltfModel` caches a model's finish targets
+(`listFinishTargets`, previously dead code) keyed by base url once it loads, with a subscribe notifier
+so the inspector shows the pickers the moment a freshly placed model is ready (`getCachedFinishTargets`
+/ `subscribeFinishTargets`). `selectGltfRender` now reads per-item `finish:<material>` overrides for
+**every** GLB kind (not just IKEA variants), merging them over any def-level overrides and dropping
+blanks so a cleared swatch can't paint a part black. Verified end-to-end: a built-in pool table exposes
+its 13 materials and recolouring one repaints just that part in 3D. The whole-model **Tint (all)** stays.
+
 ## Furniture: exact numeric W×D×H size entry (v0.6.0.2)
 
 First step of the "everything is customizable" push (size). Furniture could only be resized with

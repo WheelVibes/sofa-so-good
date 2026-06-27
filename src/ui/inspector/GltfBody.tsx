@@ -1,9 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { itemFootprint } from '../../collision/placement'
-import { getCachedGltfFootprint } from '../../furniture/GltfModel'
+import {
+  getCachedFinishTargets,
+  getCachedGltfFootprint,
+  subscribeFinishTargets,
+} from '../../furniture/GltfModel'
 import type { FurnitureItem, GltfDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
+import { finishOverrideKey } from './ikeaBodyProps'
 
 interface GltfBodyProps {
   item: FurnitureItem
@@ -36,6 +41,13 @@ export function GltfBody({ item, def }: GltfBodyProps) {
   // from the cached GLB bbox (falling back to the def's authored footprint).
   const url = def.source === 'builtin' ? def.url : def.runtimeUrl
   const baseH = (url ? getCachedGltfFootprint(url)?.h : null) ?? def.defaultFootprint.h
+
+  // Per-part recolour: the GLB's named material/mesh groups, discovered once the
+  // model loads (re-render via the subscribe notifier so pickers appear as soon
+  // as a freshly placed model is ready). Each writes a `finish:<key>` override.
+  const [, bumpTargets] = useReducer((n: number) => n + 1, 0)
+  useEffect(() => subscribeFinishTargets(bumpTargets), [])
+  const targets = url ? (getCachedFinishTargets(url) ?? []) : []
   const baseW = fp.hx * 2 > 0 ? (fp.hx * 2) / sx : def.defaultFootprint.w
   const baseD = fp.hz * 2 > 0 ? (fp.hz * 2) / sz : def.defaultFootprint.d
   const curW = baseW * sx
@@ -152,8 +164,44 @@ export function GltfBody({ item, def }: GltfBodyProps) {
           <DimField label="H" axis="H" value={curH} />
         </div>
       </div>
+      {/* Per-part recolour: one swatch per named material in the model, so a
+          user can repaint just the legs / seat / frame, not only tint the whole
+          piece. Shown once the GLB has loaded and exposes 2+ parts. */}
+      {targets.length >= 2 ? (
+        <div className="space-y-1">
+          <div className="text-[10px] uppercase tracking-wide text-[var(--text-3)]">
+            Recolour parts
+          </div>
+          {targets.map((t) => {
+            const key = finishOverrideKey(t.key)
+            const override = typeof item.props[key] === 'string' ? (item.props[key] as string) : ''
+            return (
+              <label key={t.key} className="flex items-center justify-between gap-2 text-xs">
+                <span className="flex-1 truncate" title={t.label}>
+                  {t.label}
+                </span>
+                <input
+                  type="color"
+                  value={override || '#ffffff'}
+                  onChange={(e) => updateItemProps(item.id, { [key]: e.target.value })}
+                  className="h-6 w-10 cursor-pointer rounded border border-[var(--border-2)]"
+                />
+                {override ? (
+                  <button
+                    type="button"
+                    onClick={() => updateItemProps(item.id, { [key]: '' })}
+                    className="text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]"
+                  >
+                    clear
+                  </button>
+                ) : null}
+              </label>
+            )
+          })}
+        </div>
+      ) : null}
       <label className="flex items-center justify-between gap-2 text-xs">
-        <span className="flex-1">Tint</span>
+        <span className="flex-1">Tint {targets.length >= 2 ? '(all)' : ''}</span>
         <input
           type="color"
           value={tint || '#ffffff'}

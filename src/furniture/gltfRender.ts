@@ -24,6 +24,16 @@ export function selectGltfRender(item: FurnitureItem, def: GltfDef): GltfRender 
   const tint = typeof item.props['tint'] === 'string' ? item.props['tint'] : undefined
   const reflective = item.props['reflective'] === 1
 
+  // Per-part colour overrides typed in the inspector, keyed `finish:<material>`.
+  // A blank value is a "clear" and must be dropped before it reaches
+  // `new Color()` (which would silently paint the part black). Applies to every
+  // GLB kind — IKEA variants, built-ins, and user uploads alike.
+  const itemOverrides: Record<string, string> = {}
+  for (const [k, val] of Object.entries(item.props)) {
+    if (k.startsWith('finish:') && typeof val === 'string' && val.trim() !== '')
+      itemOverrides[k.slice('finish:'.length)] = val
+  }
+
   if (isIkeaDef(def)) {
     const wanted =
       typeof item.props['variant'] === 'string' ? item.props['variant'] : def.activeVariant
@@ -33,29 +43,28 @@ export function selectGltfRender(item: FurnitureItem, def: GltfDef): GltfRender 
       def.variants.find((v) => v.finish === def.activeVariant && v.runtimeUrl) ??
       def.variants.find((v) => v.runtimeUrl)
     if (!active?.runtimeUrl) return null
-    const finishOverrides: Record<string, string> = {}
-    for (const [k, val] of Object.entries(item.props)) {
-      if (k.startsWith('finish:') && typeof val === 'string')
-        finishOverrides[k.slice('finish:'.length)] = val
-    }
     return {
       url: active.runtimeUrl,
       scale,
       scale3,
       tint,
-      finishOverrides: Object.keys(finishOverrides).length ? finishOverrides : undefined,
+      finishOverrides: Object.keys(itemOverrides).length ? itemOverrides : undefined,
       reflective,
     }
   }
 
   const url = def.source === 'builtin' ? def.url : def.runtimeUrl
   if (!url) return null
+  // Merge the def's baked-in overrides (if any) with the per-item picks; the
+  // item's choices win.
+  const defOverrides = 'finishOverrides' in def ? def.finishOverrides : undefined
+  const merged = { ...(defOverrides ?? {}), ...itemOverrides }
   return {
     url,
     scale,
     scale3,
     tint,
-    finishOverrides: 'finishOverrides' in def ? def.finishOverrides : undefined,
+    finishOverrides: Object.keys(merged).length ? merged : undefined,
     reflective,
   }
 }

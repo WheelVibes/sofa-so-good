@@ -5,7 +5,7 @@ import { Box3, Color, type Mesh, type MeshStandardMaterial, Triangle, Vector3 } 
 import { SkeletonUtils } from 'three-stdlib'
 import { effectiveAssetTier } from '../scene/quality'
 import { useStore } from '../state/store'
-import { meshMatchesTarget } from './gltf/finishTargets'
+import { type FinishTarget, listFinishTargets, meshMatchesTarget } from './gltf/finishTargets'
 import { baseUrl, lodUrlsForBase, prewarmLod, resolveLodUrlSync } from './gltf/lod'
 import { detectMirrorPlane, hideMirrorMesh, type MirrorPlane } from './gltf/mirrorPlane'
 import { applyTextureBudget } from './gltf/textureBudget'
@@ -36,6 +36,28 @@ const FOOTPRINT_CACHE = new Map<string, GltfFootprint & { authoritative: boolean
 export function getCachedGltfFootprint(url: string): GltfFootprint | null {
   const e = FOOTPRINT_CACHE.get(baseUrl(url))
   return e ? { w: e.w, d: e.d, h: e.h, ox: e.ox, oz: e.oz } : null
+}
+
+/** Recolourable finish targets (named material/mesh groups) discovered in a GLB
+ *  once it loads, keyed by base url. Lets the inspector offer a per-part colour
+ *  picker for uploaded / built-in models (the `finish:<key>` override mechanism
+ *  already exists; this is the missing "what parts are there?" half). Listeners
+ *  let the inspector re-render the moment a model's targets become known. */
+const FINISH_TARGETS_CACHE = new Map<string, FinishTarget[]>()
+const finishTargetListeners = new Set<() => void>()
+
+/** Cached recolour targets for a GLB (by base or variant url), or null if the
+ *  model hasn't loaded yet. */
+export function getCachedFinishTargets(url: string): FinishTarget[] | null {
+  return FINISH_TARGETS_CACHE.get(baseUrl(url)) ?? null
+}
+
+/** Subscribe to "a model's finish targets were just cached" (returns an
+ *  unsubscribe). The inspector uses this to show pickers as soon as a freshly
+ *  placed model finishes loading. */
+export function subscribeFinishTargets(cb: () => void): () => void {
+  finishTargetListeners.add(cb)
+  return () => finishTargetListeners.delete(cb)
 }
 
 const SUPPORT_PLANE_CACHE = new Map<string, number | null>()
@@ -265,6 +287,20 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides, reflective }:
       oz: center.z,
       authoritative: servingOriginal,
     })
+  }, [url, cloned, servingOriginal])
+
+  // Discover the model's recolourable finish targets (named material/mesh
+  // groups) once, so the inspector can offer a per-part colour picker. The
+  // original (high-tier) scene names materials best, so only it is authoritative
+  // — a LOD variant may seed but the original overwrites. Notify listeners so an
+  // open inspector shows the pickers the moment the model loads.
+  useEffect(() => {
+    const key = baseUrl(url)
+    if (FINISH_TARGETS_CACHE.has(key) && !servingOriginal) return
+    const targets = listFinishTargets(cloned)
+    if (targets.length === 0) return
+    FINISH_TARGETS_CACHE.set(key, targets)
+    for (const cb of finishTargetListeners) cb()
   }, [url, cloned, servingOriginal])
 
   // Support-plane detection (its own effect — must NOT be short-circuited by the
