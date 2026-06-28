@@ -6,9 +6,18 @@ import {
   subscribeFinishTargets,
 } from '../../furniture/GltfModel'
 import type { FurnitureItem, GltfDef } from '../../furniture/types'
+import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
 import { finishOverrideKey } from './ikeaBodyProps'
+
+/** Catalog CC0 materials offerable per part as `mat:<id>` (resolved + re-tiled
+ *  for furniture by getSurfaceMaterial; the FurnitureMaterialLoader auto-builds
+ *  whatever an item references). Floor + wall finishes both work on a part. */
+const LIBRARY_MATERIALS: { id: string; name: string }[] = [
+  ...BUILTIN_MATERIALS_BY_CATEGORY.floor,
+  ...BUILTIN_MATERIALS_BY_CATEGORY.wall,
+].map((m) => ({ id: m.id, name: m.name }))
 
 interface GltfBodyProps {
   item: FurnitureItem
@@ -211,11 +220,20 @@ export function GltfBody({ item, def }: GltfBodyProps) {
                   className="rounded border border-[var(--border-2)] bg-[var(--surface)] px-1 py-0.5 text-[10px]"
                 >
                   <option value="colour">Colour</option>
-                  {PART_MATERIALS.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
+                  <optgroup label="Texture">
+                    {PART_MATERIALS.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Material library">
+                    {LIBRARY_MATERIALS.map((m) => (
+                      <option key={m.id} value={`mat:${m.id}`}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
                 {isColour ? (
                   <input

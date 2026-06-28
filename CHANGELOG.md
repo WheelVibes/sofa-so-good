@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Per-part CC0 material library for placed models (v0.6.0.10)
+
+The per-part finish picker (Part finishes) now offers, besides a colour and the eight generic textures,
+the whole **catalog material library** as a "Material library" option group — any `mat:<id>` finish
+(oak, walnut, marble tile, terrazzo, concrete, carpet, …). Selecting one writes `finish:<part> =
+mat:<id>`; the existing `FurnitureMaterialLoader` (which scans item prop values) auto-builds the
+material and `getSurfaceMaterial` resolves + re-tiles it for furniture — so no loader change was needed.
+Verified: a built-in pool table's parts re-skinned with `mat:floor-tile-marble` render the marble.
+
 ## Polygon rooms: add / remove vertices (v0.6.0.9)
 
 A polygon (non-rectangular) room could already have its vertices **dragged**; now its shape is fully
