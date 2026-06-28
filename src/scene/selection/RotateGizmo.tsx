@@ -221,6 +221,7 @@ export function RotateGizmo() {
 
     const onUp = () => {
       const g = gesture.current
+      const originals = g ? g.originals.map((o) => ({ ...o })) : []
       if (g && !valid) {
         // Invalid landing — restore every member's pre-gesture transform.
         const state = useStore.getState()
@@ -235,10 +236,34 @@ export function RotateGizmo() {
       setValid(true)
       setLive(null)
       setAlignYaw(null)
-      // Grabbing the ring pushed an undo snapshot in onGrab; if the grab didn't
-      // actually rotate anything, drop it so the first undo isn't a dead step
-      // (BUG-016). A real rotation changed an item reference → kept.
-      useStore.getState().dropRedundantHistory()
+      // A valid rotation that actually turned something becomes a pending
+      // tick/cross edit; a grab that rotated nothing drops the dead snapshot
+      // pushed in onGrab so the first undo isn't a no-op step (BUG-016).
+      const cur = useStore.getState()
+      let changed = false
+      if (g && valid) {
+        const byId = new Map(cur.items.map((i) => [i.id, i]))
+        changed = originals.some((o) => {
+          const it = byId.get(o.id)
+          return (
+            !!it &&
+            (it.position[0] !== o.position[0] ||
+              it.position[1] !== o.position[1] ||
+              it.rotation !== o.rotation)
+          )
+        })
+      }
+      if (changed) {
+        const priorItems = cur.past[cur.past.length - 1]?.items
+        cur.setPendingEdit({
+          kind: 'transform',
+          ids: originals.map((o) => o.id),
+          originals,
+          priorItems,
+        })
+      } else {
+        cur.dropRedundantHistory()
+      }
     }
 
     window.addEventListener('pointermove', onMove)
@@ -258,6 +283,8 @@ export function RotateGizmo() {
 
   const onGrab = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
+    // Starting a new rotation commits any edit still awaiting confirmation.
+    if (useStore.getState().pendingEdit) useStore.getState().confirmPendingEdit()
     const grabAngle = pointerAngle(pivot[0], pivot[1], e.point.x, e.point.z)
     // Capture neighbour/wall reference axes once, for a single item, when the
     // smart-snap feature is on (pro-tier; forced off in Simple → empty refs →

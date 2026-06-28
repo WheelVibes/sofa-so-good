@@ -1,0 +1,32 @@
+{
+  "name": "editor-ui-fixes",
+  "description": "Verify editor UI interaction fixes: catalog as a left sidebar, light brightness slider styling, and the tick/cross confirmation bar.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "place-items",
+      "eval": "(function(){ const s=window.__store.getState(); const r=s.floorPlan.rooms.find(x=>/living|dining/i.test(x.id))||s.floorPlan.rooms[0]; const cx=r.origin[0]+r.width/2, cz=r.origin[1]+r.depth/2; s.setItems([{id:'lamp1',defId:'floor-lamp',position:[cx,cz],rotation:0,props:{}},{id:'sofa1',defId:'sofa-3seat',position:[cx-1,cz+1],rotation:0,props:{}}]); })()"
+    },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "editor-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "wait-load", "wait": 2500 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "wait-catalog", "wait": 1200 },
+    { "name": "shot-catalog-sidebar", "screenshot": "01-catalog-left-sidebar" },
+    { "name": "select-lamp", "store": { "action": "selectItem", "args": ["lamp1"] } },
+    { "name": "wait-inspector", "wait": 800 },
+    { "name": "shot-inspector-light", "screenshot": "02-inspector-light-slider" },
+    {
+      "name": "set-pending",
+      "eval": "window.__store.getState().setPendingEdit({kind:'transform',ids:['lamp1'],originals:[{id:'lamp1',position:[0,0],rotation:0}]})"
+    },
+    { "name": "wait-confirm", "wait": 600 },
+    { "name": "shot-confirm-bar", "screenshot": "03-edit-confirm-bar" }
+  ]
+}

@@ -15,6 +15,7 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { isDragRelease } from '../../scene/clickVsDrag'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
@@ -68,7 +69,10 @@ function FloorMesh({ roomId, origin, width, depth, material, tileSize }: FloorMe
       // View-only orbit over the whole flat: clicking a room dives into its
       // editor (the primary way to start editing) — after a confirm, since it's
       // easy to click a floor by accident while looking around. Walk does nothing.
+      // A press-drag that rotated the orbit camera ends as a "click" here too, so
+      // skip those — only a genuine tap should prompt to enter the room.
       if (state.cameraMode === 'orbit' && !state.roomEditor.active) {
+        if (isDragRelease(e.nativeEvent)) return
         e.stopPropagation()
         void confirmAndEnterRoom(roomId)
       }

@@ -20,6 +20,7 @@ import { CameraRig } from './cameras/CameraRig'
 import { CameraForwardTracker } from './cameras/cameraForward'
 import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
+import { deselectOnMiss } from './deselectOnMiss'
 import { Effects } from './Effects'
 import { FinishDropSurface } from './FinishDropSurface'
 import { GridOverlay } from './GridOverlay'
@@ -91,6 +92,7 @@ export function Scene() {
         toneMapping: TONE_MAPPING_THREE[DEFAULT_TONE_MAPPING],
         toneMappingExposure: 1.05,
       }}
+      onPointerMissed={deselectOnMiss}
     >
       {/* Inert pass-through until a VR session is requested (F21). */}
       <MaybeXr>

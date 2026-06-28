@@ -14,6 +14,7 @@ import { CameraRig } from './cameras/CameraRig'
 import { CameraForwardTracker } from './cameras/cameraForward'
 import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
+import { deselectOnMiss } from './deselectOnMiss'
 import { FinishDropSurface } from './FinishDropSurface'
 import { GridOverlay } from './GridOverlay'
 import { PlacementGhost } from './PlacementGhost'
@@ -36,6 +37,13 @@ export function RoomEditorScene() {
   const shell = editorShell.shell
   const [cx, cz] = shell.center
   const r = shell.radius
+  // Mask the alignment grid to just this room (its polygon when free-form, else
+  // its footprint rects) so it never paints the whole apartment floor.
+  const gridPolygon =
+    editorShell.kind === 'plan' && editorShell.shell.room.polygon?.length
+      ? (editorShell.shell.room.polygon as [number, number][])
+      : undefined
+  const gridRects = shell.rects
   return (
     <Canvas
       dpr={1}
@@ -52,6 +60,7 @@ export function RoomEditorScene() {
         stencil: false,
         preserveDrawingBuffer: true,
       }}
+      onPointerMissed={deselectOnMiss}
     >
       <ContextLossGuard />
       <AnisotropyController />
@@ -62,7 +71,7 @@ export function RoomEditorScene() {
       ) : (
         <PlanRoomShell shell={editorShell.shell} />
       )}
-      <GridOverlay />
+      <GridOverlay rects={gridRects} polygon={gridPolygon} />
       <AlignmentGuides />
       <ClearanceOverlay />
       <FurnitureLayer room={shell} />

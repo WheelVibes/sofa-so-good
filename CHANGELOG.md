@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Editor UI interaction fixes — confirm-to-commit, left catalog dock, room-scoped grid/measure (v0.7.0.0)
+
+A batch of per-room-editor and floor-plan-editor interaction fixes:
+
+- **Tick/cross confirmation for edits.** Moving, rotating or placing furniture now resolves to a
+  pending change with a floating **Apply change?** bar (✓ commit / ✗ cancel; Enter / Esc). New
+  `placementSlice` `pendingEdit` state + `EditConfirmBar` (`src/ui/EditConfirmBar.tsx`). A cancel
+  restores the pre-edit `items` reference (transform) or removes the just-placed item (placement)
+  and drops the dead history step. `DragController`/`RotateGizmo` raise a pending edit on a valid
+  change; `usePlacementController` does so on a commit (stamp/shift keep the old rapid path).
+- **Mobile long-press to place.** Press-and-hold a catalog card on touch → arms placement, hides the
+  catalog, and the ghost follows the finger; the lift commits to the tick/cross confirmation and the
+  catalog reappears once the placement resolves (committed / cancelled / aborted).
+- **Desktop catalog is a persistent left sidebar** (mirrors the right-docked inspector): a
+  `dock-panel-left` opens a `--left-rail` so the canvas takes the remaining width and the centred
+  toolbar re-centres over it; the catalog only closes via its ✕ / the catalog button.
+- **Blank-space click deselects** (3D `onPointerMissed` + 2D editor empty-canvas tap), closing the
+  inspector / finish-picker; the catalog stays open.
+- **Per-room editor grid** fades in only while moving/rotating/placing and is masked to the room
+  (its polygon, else its footprint rects) instead of the whole apartment floor.
+- **Furniture is bounded to the room** while dragging (clamped to the room rects, IKEA-style).
+- **Measurements are room-scoped** in the editor (room label + pinned callouts), and the measurement
+  `<Html>` overlays drop to a canvas-level z-index so panels/toolbars sit above them.
+- An orbit-drag on a room floor no longer triggers the "Enter room?" confirm (click-vs-drag guard).
+- Mobile inspector drag-handle swipe-down collapses the panel; the light **Brightness** slider now
+  uses the shared `.slider` style.
+
 ## Curtains & blinds get an opacity / light-blocking axis — sheer → blackout (v0.6.0.27)
 
 Curtains and blinds gain an **Opacity** control, separate from the weave (any fabric can be loose or

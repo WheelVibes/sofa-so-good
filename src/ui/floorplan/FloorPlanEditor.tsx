@@ -1284,7 +1284,13 @@ export function FloorPlanEditor() {
       // A tap (not a drag) on the empty canvas in select mode clears the
       // selection — the desktop edit path already deselects on pointer-down via
       // the `else` in onDown; this covers view mode + touch, which pan instead.
-      if (!moved && tool === 'select') useStore.getState().setPlanSelection(null)
+      if (!moved && tool === 'select') {
+        // A tap on empty canvas clears every selection (plan element + placed
+        // furniture), which closes the property panels keyed off them.
+        const st = useStore.getState()
+        st.setPlanSelection(null)
+        st.selectItem(null)
+      }
       return
     }
     if (marquee) {

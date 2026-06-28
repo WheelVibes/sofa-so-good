@@ -32,7 +32,7 @@ import { PosField } from './PosField'
 import { ScatterFillSection } from './ScatterFillSection'
 import { SourceLine } from './SourceLine'
 import { TiltControls } from './TiltControls'
-import { MinimizeButton, useInspectorMinimize } from './useInspectorMinimize'
+import { MinimizeButton, useInspectorMinimize, useSwipeToCollapse } from './useInspectorMinimize'
 
 /** Right-side panel shown when an item is selected. Maps the selected
  *  def kind to either ParametricBody or GltfBody, plus a small header
@@ -88,6 +88,7 @@ export function InspectorPanel() {
   const units = useStore((s) => s.units)
   const renameItem = useStore((s) => s.renameItem)
   const { minimized, toggle } = useInspectorMinimize(item?.id)
+  const swipe = useSwipeToCollapse(minimized, toggle)
   const [arrayCount, setArrayCount] = useState(3)
   const [arrayAxis, setArrayAxis] = useState<ArrayAxis>('right')
   const [arraySpacingOverride, setArraySpacingOverride] = useState<number | null>(null)
@@ -387,7 +388,7 @@ export function InspectorPanel() {
 
   return (
     <aside className={`panel inspector dock-panel${minimized ? ' minimized' : ''}`}>
-      <div className="panel-head">
+      <div className="panel-head" onTouchStart={swipe.onTouchStart} onTouchEnd={swipe.onTouchEnd}>
         <div>
           <div className="insp-thumb">
             <CategoryIcon category={def.category} width={22} height={22} />
@@ -1045,6 +1046,7 @@ export function InspectorPanel() {
                           <span>Brightness</span>
                           <input
                             type="range"
+                            className="slider"
                             aria-label="Light brightness"
                             min={1}
                             max={12}

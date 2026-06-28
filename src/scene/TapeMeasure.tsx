@@ -137,7 +137,12 @@ export function TapeMeasure() {
               <meshBasicMaterial color={MARKER} depthTest={false} depthWrite={false} transparent />
             </mesh>
           </group>
-          <Html position={[bar.mx, LIFT + 0.05, bar.mz]} center distanceFactor={9}>
+          <Html
+            position={[bar.mx, LIFT + 0.05, bar.mz]}
+            center
+            distanceFactor={9}
+            zIndexRange={[15, 0]}
+          >
             <div className="flex items-center gap-1.5 rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap">
               <span className="pointer-events-none">{formatLength(bar.len, units)}</span>
               {complete ? <PinButton onClick={pin} /> : null}
@@ -159,7 +164,12 @@ export function TapeMeasure() {
               depthWrite={false}
             />
           </mesh>
-          <Html position={[rect.cx, LIFT + 0.05, rect.cz]} center distanceFactor={9}>
+          <Html
+            position={[rect.cx, LIFT + 0.05, rect.cz]}
+            center
+            distanceFactor={9}
+            zIndexRange={[15, 0]}
+          >
             <div className="flex items-center gap-1.5 rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap">
               <span className="pointer-events-none">{`${formatDims(rect.w, rect.d, units)} · ${formatArea(rect.w * rect.d, units)}`}</span>
               {complete ? <PinButton onClick={pin} /> : null}

@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { isUserDef } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
@@ -6,9 +7,15 @@ import type { FurnitureDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatDims } from '../../utils/measurement'
 import { Icon } from '../toolbar/icons'
+import { useIsMobile } from '../useIsMobile'
 import { CategoryIcon } from './CategoryIcon'
 import { useBuiltinThumbnail } from './thumbnails'
 import { usePlacementDrag } from './usePlacementDrag'
+
+/** How long a stationary press must last to count as a "pick it up" long-press. */
+const LONG_PRESS_MS = 420
+/** Finger travel that cancels a pending long-press (it's a scroll, not a hold). */
+const LONG_PRESS_MOVE_PX = 12
 
 interface CatalogCardProps {
   def: FurnitureDef
@@ -18,6 +25,50 @@ interface CatalogCardProps {
 export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const isUser = isUserDef(def)
   const onClick = usePlacementDrag(def)
+  const isMobile = useIsMobile()
+  // Mobile long-press = "pick this up": arm placement, hide the catalog so the
+  // room is visible, and let the ghost follow the finger to be placed with the
+  // tick/cross confirmation (the catalog reappears once the placement resolves).
+  const press = useRef<{ x: number; y: number; timer: number; fired: boolean } | null>(null)
+  const startLongPress = (e: React.TouchEvent) => {
+    if (!isMobile) return
+    const t = e.touches[0]
+    if (!t) return
+    const x = t.clientX
+    const y = t.clientY
+    const timer = window.setTimeout(() => {
+      if (press.current) press.current.fired = true
+      const s = useStore.getState()
+      s.setReopenCatalogAfterPlace(true)
+      s.setActiveDefId(def.id)
+      s.setCursor({ x, y })
+      s.setCatalogOpen(false)
+    }, LONG_PRESS_MS)
+    press.current = { x, y, timer, fired: false }
+  }
+  const moveLongPress = (e: React.TouchEvent) => {
+    const p = press.current
+    if (!p || p.fired) return
+    const t = e.touches[0]
+    if (!t) return
+    if (Math.hypot(t.clientX - p.x, t.clientY - p.y) > LONG_PRESS_MOVE_PX) {
+      window.clearTimeout(p.timer)
+      press.current = null
+    }
+  }
+  const endLongPress = () => {
+    const p = press.current
+    if (p && !p.fired) window.clearTimeout(p.timer)
+    // Keep `fired` readable by the click handler that follows; clear it next tick.
+    if (p?.fired) window.setTimeout(() => (press.current = null), 0)
+    else press.current = null
+  }
+  const handleClick = (e?: React.MouseEvent) => {
+    // A long-press already armed placement — swallow the trailing tap so it
+    // doesn't toggle placement back off.
+    if (press.current?.fired) return
+    onClick(e)
+  }
   const thumb = useBuiltinThumbnail(def)
   const favOn = useFeature('catalogFavourites')
   const saved = useStore((s) => s.favouriteDefIds.includes(def.id))
@@ -40,7 +91,11 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
       tabIndex={0}
       aria-label={`Place ${def.name}`}
       title={modelInfo ? `${def.name} — ${modelInfo}` : undefined}
-      onClick={onClick}
+      onClick={handleClick}
+      onTouchStart={startLongPress}
+      onTouchMove={moveLongPress}
+      onTouchEnd={endLongPress}
+      onTouchCancel={endLongPress}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()

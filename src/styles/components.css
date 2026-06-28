@@ -69,10 +69,12 @@ input { font-family: inherit; }
    Mobile (≤640px) keeps the rail at 0 and the panels stay bottom-sheets. */
 .app-shell {
   --right-rail: 0px;
+  --left-rail: 0px;
 }
 .stage-area {
   position: absolute;
   inset: 0;
+  left: var(--left-rail);
   right: var(--right-rail);
   overflow: hidden;
 }
@@ -88,6 +90,22 @@ input { font-family: inherit; }
     max-height: none;
     border-top: 0;
     border-right: 0;
+    border-bottom: 0;
+    border-radius: 0;
+  }
+  /* Left-docked panel (the catalog): mirrors the right dock so the canvas takes
+     the remaining width and the centred toolbar re-centres over it. */
+  .app-shell:has(.dock-panel-left) {
+    --left-rail: 320px;
+  }
+  .app-shell:has(.dock-panel-left) .dock-panel-left {
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 320px;
+    max-height: none;
+    border-top: 0;
+    border-left: 0;
     border-bottom: 0;
     border-radius: 0;
   }

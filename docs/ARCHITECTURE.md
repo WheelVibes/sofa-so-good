@@ -40,7 +40,8 @@ same change that reshapes a system.
 
 ## Layout of the code
 - `src/state/` — Zustand store, `slices/*`: items, selection, finishes, doors, time,
-  location, camera, ui (quality+snap+`backdrop`+`uiMode`), placement, clipboard, history,
+  location, camera, ui (quality+snap+`backdrop`+`uiMode`), placement (+`pendingEdit` tick/cross
+  confirm + `reopenCatalogAfterPlace`), clipboard, history,
   remoteCatalog, installedPacks, measurements (+`units`), orientation, notifications,
   **prompt** (`promptText`/`confirmAction`→themed modals), **project** (`designNote`),
   reset, **userAssets** (user GLBs + `IkeaGltfDef`s), **floorPlan**, **appearance**,

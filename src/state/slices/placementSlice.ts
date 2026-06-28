@@ -1,7 +1,21 @@
 import type { WallGaps } from '../../collision/clearanceGap'
 import type { EqualSpacing } from '../../collision/equalSpacing'
+import type { FurnitureItem } from '../../furniture/types'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
+
+/** A move / rotate / placement awaiting an explicit tick (commit) or cross
+ *  (cancel) confirmation before it's final. `transform` edits already wrote their
+ *  new transform live (so the user sees the result); confirming keeps it,
+ *  cancelling restores `originals`. A `placement` add can be undone wholesale by
+ *  restoring `priorItems` (the items array before the add). */
+export interface PendingEdit {
+  kind: 'transform' | 'placement'
+  ids: string[]
+  originals: Array<{ id: string; position: [number, number]; rotation: number }>
+  /** placement only: the items array reference captured before the add. */
+  priorItems?: FurnitureItem[]
+}
 
 /** Ephemeral drag-place state — tracks the def the user is dragging
  *  and the latest cursor position in screen pixels. The PlacementGhost
@@ -66,6 +80,19 @@ export interface PlacementSlice {
    *  spin the view — the view/edit split means camera + edit share orbit. */
   rotatingGizmo: boolean
   setRotatingGizmo: (v: boolean) => void
+  /** A move/rotate/placement awaiting tick/cross confirmation, or null. */
+  pendingEdit: PendingEdit | null
+  setPendingEdit: (p: PendingEdit | null) => void
+  /** Accept the pending edit (keep the change; clear the confirmation). */
+  confirmPendingEdit: () => void
+  /** Reject the pending edit: restore the pre-edit transform (or remove a
+   *  just-placed item) and drop its dead history step. */
+  cancelPendingEdit: () => void
+  /** When a placement was armed via a mobile long-press on the catalog, the
+   *  catalog was auto-hidden and should reappear once the placement resolves
+   *  (committed, cancelled or aborted). */
+  reopenCatalogAfterPlace: boolean
+  setReopenCatalogAfterPlace: (v: boolean) => void
   setActiveDefId: (id: string | null) => void
   /** Arm sticky stamp placement for `defId`: arms the def AND turns on stamp mode
    *  so each commit re-arms instead of disarming. Toggles off (cancels placement)
@@ -105,9 +132,13 @@ export const PLACEMENT_INITIAL: Pick<
   | 'dragClearance'
   | 'dragWallGaps'
   | 'rotatingGizmo'
+  | 'pendingEdit'
+  | 'reopenCatalogAfterPlace'
 > = {
   activeDefId: null,
   stampMode: false,
+  pendingEdit: null,
+  reopenCatalogAfterPlace: false,
   cursor: null,
   ghostWorld: null,
   ghostValid: false,
@@ -147,7 +178,41 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
   setCursor: (cursor) => set({ cursor }),
   setGhostWorld: (ghostWorld, ghostValid) => set({ ghostWorld, ghostValid }),
   rotateGhost: (deltaRad) => set((s) => ({ ghostRotation: s.ghostRotation + deltaRad })),
-  cancelPlacement: () =>
+  setReopenCatalogAfterPlace: (reopenCatalogAfterPlace) => set({ reopenCatalogAfterPlace }),
+  setPendingEdit: (pendingEdit) => set({ pendingEdit }),
+  confirmPendingEdit: () => {
+    const reopen = get().reopenCatalogAfterPlace
+    set({ pendingEdit: null, reopenCatalogAfterPlace: false })
+    // A mobile long-press placement hid the catalog; bring it back now that the
+    // placement is committed.
+    if (reopen) get().setCatalogOpen(true)
+  },
+  cancelPendingEdit: () => {
+    const p = get().pendingEdit
+    const reopen = get().reopenCatalogAfterPlace
+    if (p?.priorItems) {
+      // Restore the exact pre-edit items array reference — for a placement this
+      // removes the just-added item; for a transform it reverts every affected
+      // item to its pre-gesture position/rotation. Because the reference matches
+      // the gesture's history snapshot, dropRedundantHistory then removes the
+      // now-dead undo step. Placement also clears the (now-gone) selection.
+      const selReset =
+        p.kind === 'placement' ? { selectedItemId: null, selectedItemIds: [] as string[] } : {}
+      set({ items: p.priorItems, ...selReset })
+      get().dropRedundantHistory()
+    } else if (p) {
+      // Fallback (no captured snapshot): restore transforms item-by-item.
+      for (const o of p.originals) {
+        get().moveItem(o.id, o.position)
+        get().rotateItem(o.id, o.rotation)
+      }
+      get().dropRedundantHistory()
+    }
+    set({ pendingEdit: null, reopenCatalogAfterPlace: false })
+    if (reopen) get().setCatalogOpen(true)
+  },
+  cancelPlacement: () => {
+    const reopen = get().reopenCatalogAfterPlace
     set({
       activeDefId: null,
       stampMode: false,
@@ -155,8 +220,16 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       ghostWorld: null,
       ghostValid: false,
       ghostRotation: 0,
-    }),
+      reopenCatalogAfterPlace: false,
+    })
+    // An aborted long-press placement (Escape / right-click / drag end off-canvas)
+    // should restore the catalog the long-press hid.
+    if (reopen) get().setCatalogOpen(true)
+  },
   startDrag: (id, original, offset, groupOriginals) => {
+    // Starting a fresh gesture commits any edit still awaiting confirmation
+    // (the user moved on) so we never stack two pending edits.
+    if (get().pendingEdit) get().confirmPendingEdit()
     // Snapshot before any per-frame moveItem fires so undo restores the
     // pre-drag transform of every dragged item in one step.
     get().pushHistory()

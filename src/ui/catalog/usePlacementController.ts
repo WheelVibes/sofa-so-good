@@ -12,6 +12,12 @@ function defaultProps(def: FurnitureDef): ParamProps {
   return def.scale != null ? { scale: def.scale } : {}
 }
 
+/** A touch commit fires a synthetic `click` just after `pointerup` — but by then
+ *  the armed-placement effect may have torn down (committing disarms it), so its
+ *  own swallow can miss. This module-level flag + the always-on capture listener
+ *  below swallow that one trailing canvas click regardless of teardown timing. */
+let swallowNextCanvasClick = false
+
 /** Sticky stamp placement is active only when the user armed it AND the feature
  *  is on — a defence-in-depth gate so a stale `stampMode` can never keep a click
  *  armed once the `stampPlace` flag is off (e.g. switched to Simple mode). */
@@ -32,6 +38,21 @@ function stampActive(): boolean {
 export function usePlacementController() {
   const activeDefId = useStore((s) => s.activeDefId)
   const catalog = useCatalog()
+
+  // Always-on swallow for the trailing synthetic click after a touch commit (see
+  // `swallowNextCanvasClick`). Independent of the armed effect so it fires even
+  // after that effect tears down on commit.
+  useEffect(() => {
+    const onClickCapture = (ev: MouseEvent) => {
+      if (swallowNextCanvasClick && ev.target instanceof HTMLCanvasElement) {
+        swallowNextCanvasClick = false
+        ev.preventDefault()
+        ev.stopPropagation()
+      }
+    }
+    window.addEventListener('click', onClickCapture, true)
+    return () => window.removeEventListener('click', onClickCapture, true)
+  }, [])
 
   useEffect(() => {
     if (!activeDefId) return
@@ -69,46 +90,82 @@ export function usePlacementController() {
       })
       return true
     }
-    const onClick = (ev: MouseEvent) => {
-      if (ev.button !== 0) return
-      if (!(ev.target instanceof HTMLCanvasElement)) return
+    /** Commit the armed placement at the current ghost. `keepArmed` keeps the
+     *  placement live (stamp / shift) instead of resolving it to a pending
+     *  tick/cross confirmation. Returns what happened. */
+    const doCommit = (keepArmed: boolean): 'committed' | 'invalid' | 'none' => {
       const { ghostWorld, ghostValid, addItem, cancelPlacement } = useStore.getState()
-      if (!ghostWorld) {
-        ev.preventDefault()
-        ev.stopPropagation()
-        return
-      }
+      if (!ghostWorld) return 'none'
       // Window-bound fixtures bypass the floor-collision gate: they snap to a
       // window (the ghost stores the raw drop point) rather than resting on the
-      // floor, so `ghostValid` (a floor placement check) doesn't apply.
+      // floor, so `ghostValid` (a floor placement check) doesn't apply. They
+      // commit immediately (no tick/cross).
       if (def.windowBound) {
-        ev.preventDefault()
-        ev.stopPropagation()
-        commitWindowBound(ghostWorld)
-        if (!ev.shiftKey && !stampActive()) cancelPlacement()
-        return
+        if (commitWindowBound(ghostWorld) && !keepArmed) cancelPlacement()
+        return 'committed'
       }
-      if (!ghostValid) {
-        // Red ghost — swallow the click so it doesn't deselect or do
-        // anything else; user must move to a green spot first.
-        ev.preventDefault()
-        ev.stopPropagation()
-        return
-      }
-      ev.preventDefault()
-      ev.stopPropagation()
-      addItem({
+      if (!ghostValid) return 'invalid'
+      // Capture the items array before the add so a cross (cancel) can revert the
+      // placement wholesale.
+      const priorItems = useStore.getState().items
+      const newId = addItem({
         defId: def.id,
         position: ghostWorld,
         rotation: (def.defaultRotation ?? 0) + useStore.getState().ghostRotation,
         props: defaultProps(def),
       })
-      // Keep the placement armed when stamping: either an explicit Shift-click
-      // (one-off) or sticky stamp mode (PARITY-STAMP-PLACE — stays armed across
-      // many plain clicks until Escape / Done). Otherwise a plain click commits
-      // once and disarms. The ghost goes red over the piece just placed until
-      // moved. Each commit is its own addItem ⇒ its own undo step.
-      if (!ev.shiftKey && !stampActive()) cancelPlacement()
+      // Stamp / shift keeps the placement armed for the next drop. Otherwise the
+      // placement resolves to a pending tick/cross confirmation — the ghost is
+      // disarmed but a long-press-hidden catalog stays hidden until the user
+      // confirms/cancels (handled in confirm/cancelPendingEdit).
+      if (!keepArmed) {
+        useStore.getState().setActiveDefId(null)
+        useStore.getState().setGhostWorld(null, false)
+        useStore.getState().setPendingEdit({
+          kind: 'placement',
+          ids: [newId],
+          originals: [],
+          priorItems,
+        })
+      }
+      return 'committed'
+    }
+
+    const onClick = (ev: MouseEvent) => {
+      if (ev.button !== 0) return
+      if (!(ev.target instanceof HTMLCanvasElement)) return
+      // A touch commit already handled this gesture on pointerup; swallow its
+      // trailing synthetic click.
+      if (swallowNextCanvasClick) {
+        swallowNextCanvasClick = false
+        ev.preventDefault()
+        ev.stopPropagation()
+        return
+      }
+      // Swallow every armed-placement click on the canvas (committed, red-ghost
+      // or empty) so it can't also deselect / fall through.
+      ev.preventDefault()
+      ev.stopPropagation()
+      doCommit(ev.shiftKey || stampActive())
+    }
+
+    // Touch: a long-press on a catalog card arms placement + hides the catalog,
+    // then the ghost follows the finger and the lift commits in one continuous
+    // gesture. The trailing synthetic click is swallowed (above). A lift off the
+    // canvas or on an invalid spot aborts (which reopens a hidden catalog).
+    const onPointerUp = (ev: PointerEvent) => {
+      if (ev.pointerType !== 'touch') return
+      const el = document.elementFromPoint(ev.clientX, ev.clientY)
+      if (!(el instanceof HTMLCanvasElement)) {
+        useStore.getState().cancelPlacement()
+      } else if (doCommit(stampActive()) !== 'committed') {
+        useStore.getState().cancelPlacement()
+      }
+      // Swallow the synthetic click that follows this touch lift.
+      swallowNextCanvasClick = true
+      window.setTimeout(() => {
+        swallowNextCanvasClick = false
+      }, 400)
     }
     const onContext = (ev: MouseEvent) => {
       ev.preventDefault()
@@ -147,21 +204,13 @@ export function usePlacementController() {
         useStore.getState().cancelPlacement()
         return
       }
-      const { ghostWorld, ghostValid, addItem, cancelPlacement } = useStore.getState()
-      if (ghostWorld && def.windowBound) {
-        commitWindowBound(ghostWorld)
-      } else if (ghostWorld && ghostValid) {
-        addItem({
-          defId: def.id,
-          position: ghostWorld,
-          rotation: (def.defaultRotation ?? 0) + useStore.getState().ghostRotation,
-          props: defaultProps(def),
-        })
-      }
-      cancelPlacement()
+      // Drop-placed item commits via the shared path (→ pending tick/cross for a
+      // normal item); a drop on an invalid spot / off-window aborts.
+      if (doCommit(false) !== 'committed') useStore.getState().cancelPlacement()
     }
 
     window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onPointerUp)
     window.addEventListener('click', onClick, true)
     window.addEventListener('contextmenu', onContext)
     window.addEventListener('keydown', onKey)
@@ -169,6 +218,7 @@ export function usePlacementController() {
     window.addEventListener('drop', onDrop)
     return () => {
       window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('click', onClick, true)
       window.removeEventListener('contextmenu', onContext)
       window.removeEventListener('keydown', onKey)

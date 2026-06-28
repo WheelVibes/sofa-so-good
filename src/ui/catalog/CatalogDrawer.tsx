@@ -218,7 +218,7 @@ export function CatalogDrawer() {
   }
 
   return (
-    <aside className="panel catalog">
+    <aside className="panel catalog dock-panel-left">
       <div className="panel-head">
         <div className="panel-title">
           {view === 'layers' ? 'Objects' : view === 'packs' ? 'Packs' : 'Catalog'}

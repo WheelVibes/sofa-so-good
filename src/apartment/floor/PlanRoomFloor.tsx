@@ -19,6 +19,7 @@ import {
   worldUvPlaneGeometry,
   worldUvShapeGeometry,
 } from '../../materials/worldUv'
+import { isDragRelease } from '../../scene/clickVsDrag'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
@@ -35,6 +36,8 @@ function useOverviewRoomEntry(roomId?: string) {
       if (!roomId) return
       const s = useStore.getState()
       if (s.cameraMode === 'orbit' && !s.roomEditor.active) {
+        // Skip the tail of an orbit drag (it lands here as a click too).
+        if (isDragRelease(e.nativeEvent)) return
         e.stopPropagation()
         void confirmAndEnterRoom(roomId)
       }

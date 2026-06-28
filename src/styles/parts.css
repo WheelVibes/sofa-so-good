@@ -108,6 +108,31 @@
   display: grid; place-items: center; color: var(--text-3);
 }
 .dims { font-size: var(--t-2xs); color: var(--text-3); margin-top: 2px; }
+
+/* ---- Edit confirm bar (tick / cross for a pending move/rotate/place) ---- */
+.edit-confirm {
+  position: fixed; left: 50%; bottom: calc(var(--s-5) + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-4);
+  background: var(--elevated);
+  backdrop-filter: blur(var(--blur)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
+  border: 1px solid var(--border); border-radius: var(--r-pill);
+  box-shadow: var(--shadow-pop);
+  z-index: var(--z-overlay);
+  animation: sheetDrop var(--dur) var(--ease);
+}
+.edit-confirm-label { font-size: var(--t-sm); font-weight: 600; color: var(--text); white-space: nowrap; }
+.edit-confirm-btn {
+  display: grid; place-items: center;
+  width: 38px; height: 38px; border-radius: 999px;
+  transition: var(--dur) var(--ease); flex: none;
+}
+.edit-confirm-btn.confirm { background: var(--accent); color: var(--on-accent); }
+.edit-confirm-btn.confirm:hover { background: var(--accent-2); }
+.edit-confirm-btn.cancel { background: var(--danger-soft); color: var(--danger); }
+.edit-confirm-btn.cancel:hover { filter: brightness(0.97); }
 .transform-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3); }
 .sec { padding: var(--s-4) 0; border-top: 1px solid var(--border); }
 .sec:first-of-type { border-top: none; }
