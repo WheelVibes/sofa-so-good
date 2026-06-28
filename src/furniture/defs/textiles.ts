@@ -73,6 +73,8 @@ export const TEXTILES_DEFS = {
     defaultFootprint: { w: 1.8, d: 0.12, h: 2.3 },
     // Drapes hang flat against a wall behind furniture — never block placement.
     noClip: true,
+    // Window-bound: statically placed on a window (no move/rotate/flip).
+    windowBound: true,
     paramSchema: [
       {
         kind: 'number',

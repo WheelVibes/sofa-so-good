@@ -114,8 +114,7 @@ export function Curtain({ props }: { props: ParamProps }) {
         const x0 = l.openX + (l.closedX - l.openX) * target
         return (
           <mesh
-            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length pleat array, positional
-            key={i}
+            key={`pleat-${i}`}
             ref={(m) => {
               pleatRefs.current[i] = m
             }}
@@ -130,8 +129,7 @@ export function Curtain({ props }: { props: ParamProps }) {
       {/* Tieback bands at each end (visible when open, scaled out when drawn). */}
       {[-1, 1].map((s, i) => (
         <mesh
-          // biome-ignore lint/suspicious/noArrayIndexKey: two fixed tiebacks
-          key={i}
+          key={`tieback-${i}`}
           ref={(m) => {
             tiebackRefs.current[i] = m
           }}

@@ -149,6 +149,8 @@ export const DECOR_DEFS = {
     primitive: 'RollerBlind',
     defaultFootprint: { w: 1.2, d: 0.12, h: 2.3 },
     noClip: true,
+    // Window-bound: statically placed on a window (no move/rotate/flip).
+    windowBound: true,
     paramSchema: [
       {
         kind: 'number',

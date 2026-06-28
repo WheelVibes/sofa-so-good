@@ -221,6 +221,10 @@ interface FurnitureDefBase {
   mounted?: boolean
   /** Flat floor covering (e.g. a rug): never collides with walls or items. */
   noClip?: boolean
+  /** Window-bound fixture (curtains/blinds/grilles): statically placed on a
+   *  window — no move/rotate/flip (the inspector hides those + drag is blocked).
+   *  Customisation (size/colour/texture/draw) still applies. */
+  windowBound?: boolean
   /** Clear floor (m) the layout must preserve in front of this piece; from IKEA design semantics. */
   frontClearance?: number
 }

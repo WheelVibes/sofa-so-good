@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Window fixtures are static (no move/rotate/flip) (v0.6.0.21)
+
+Window-bound fixtures (curtains, roller blinds) are now flagged `windowBound` and treated as **statically
+placed**: the inspector hides the Transform section and the Rotate / Flip H / Flip V actions, and
+dragging them in the scene is blocked (they stay selectable — for customising size/colour/texture/draw —
+and keep Duplicate / Lock / Delete). Verified: the curtains inspector shows Properties (incl. the Draw
+slider) + Size + Duplicate/Lock/Delete only, no transform controls. (Still to come: constraining *new*
+placement to snap onto a window — today they're flagged + non-movable once placed.)
+
 ## Curtains draw with a smooth animation + graduated light filtering (v0.6.0.20)
 
 Curtains now **draw open/closed with a smooth animation** and let exterior light **filter in as they

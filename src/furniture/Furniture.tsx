@@ -60,8 +60,10 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       if (!e.shiftKey && !state.selectedItemIds.includes(item.id)) {
         state.selectItemGrouped(item.id, { alt: e.altKey })
       }
-      // Locked items can be selected (to unlock) but not dragged.
-      if (item.locked) return
+      // Locked items can be selected (to unlock) but not dragged. Window-bound
+      // fixtures (curtains/blinds) are static on their window — selectable but
+      // never dragged (WINDOW-FIXTURE).
+      if (item.locked || def.windowBound) return
       const offset: [number, number] = [e.point.x - item.position[0], e.point.z - item.position[1]]
       // If the grabbed item is part of a multi-selection, snapshot every
       // member's transform so DragController can translate the whole
@@ -86,7 +88,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
         groupOriginals,
       )
     },
-    [item.id, item.position, item.rotation, passive, item.locked],
+    [item.id, item.position, item.rotation, passive, item.locked, def.windowBound],
   )
 
   const body =

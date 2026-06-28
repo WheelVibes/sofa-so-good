@@ -481,7 +481,7 @@ export function InspectorPanel() {
                 style={{ flex: 1, minWidth: 0 }}
               />
             </label>
-            {proMode ? (
+            {proMode && !def.windowBound ? (
               <InspectorSection
                 title="Transform"
                 defaultOpen
@@ -529,28 +529,34 @@ export function InspectorPanel() {
             )}
             <div className="sec">
               <div className="action-grid">
-                <button type="button" className="act" onClick={rotate90} disabled={item.locked}>
-                  <Icon.Rotate width={16} height={16} />
-                  Rotate
-                </button>
-                <button
-                  type="button"
-                  className={`act${item.flipX ? ' on' : ''}`}
-                  onClick={() => flip('x')}
-                  disabled={item.locked}
-                >
-                  <Icon.FlipH width={16} height={16} />
-                  Flip H
-                </button>
-                <button
-                  type="button"
-                  className={`act${item.flipZ ? ' on' : ''}`}
-                  onClick={() => flip('z')}
-                  disabled={item.locked}
-                >
-                  <Icon.FlipV width={16} height={16} />
-                  Flip V
-                </button>
+                {/* Window-bound fixtures (curtains/blinds/grilles) are static on
+                    their window — no rotate/flip; only duplicate/lock/delete. */}
+                {!def.windowBound ? (
+                  <>
+                    <button type="button" className="act" onClick={rotate90} disabled={item.locked}>
+                      <Icon.Rotate width={16} height={16} />
+                      Rotate
+                    </button>
+                    <button
+                      type="button"
+                      className={`act${item.flipX ? ' on' : ''}`}
+                      onClick={() => flip('x')}
+                      disabled={item.locked}
+                    >
+                      <Icon.FlipH width={16} height={16} />
+                      Flip H
+                    </button>
+                    <button
+                      type="button"
+                      className={`act${item.flipZ ? ' on' : ''}`}
+                      onClick={() => flip('z')}
+                      disabled={item.locked}
+                    >
+                      <Icon.FlipV width={16} height={16} />
+                      Flip V
+                    </button>
+                  </>
+                ) : null}
                 <button type="button" className="act" onClick={duplicate}>
                   <Icon.Copy width={16} height={16} />
                   Duplicate
