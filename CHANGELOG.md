@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Per-item opacity + hide-in-view (v0.6.0.11)
+
+Any placed item can now be made **semi-transparent** or **hidden** from the 3D view — useful for
+seeing behind a tall wardrobe, ghosting a piece while arranging around it, or temporarily removing
+clutter without deleting. The inspector gains an **opacity slider** (15 %–100 %) and a **"Hide in 3D
+view"** checkbox (gated by the `itemOpacity` Pro flag, default on). Opacity is applied safely by
+cloning each rendered mesh's material per-item (so the shared/cached material other items reuse is
+never mutated) and setting `transparent`/`opacity`/`depthWrite=false`; the original material is
+captured per-mesh (`userData.__opacityOrig`) and restored when opacity returns to 100 % or the item
+unmounts, and a short rAF window re-applies to async-loaded GLB meshes. Verified: a room's pieces
+ghost to 30 % then restore cleanly to fully opaque with no leaked/disposed-material artifacts.
+
 ## Per-part CC0 material library for placed models (v0.6.0.10)
 
 The per-part finish picker (Part finishes) now offers, besides a colour and the eight generic textures,

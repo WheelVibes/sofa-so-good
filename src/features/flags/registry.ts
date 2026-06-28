@@ -788,6 +788,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Per-item opacity / hide (CUSTOMIZE-OPACITY): make a placed piece
+  // semi-transparent (ghost it to see behind) or hide it in 3D, from the
+  // inspector. Pure render-side (per-item material clones) → prod-safe. An
+  // advanced view aid beyond the core furnish loop → pro tier.
+  itemOpacity: {
+    label: 'Item opacity & hide',
+    description: 'Make a placed item semi-transparent or hide it in the 3D view',
+    default: true,
+    tier: 'pro',
+  },
   // Tiled-floor repetition break-up (RD-406 / MAT-006a): a large tiled floor
   // gets a pure per-tile-cell UV hash-rotation (90°/180°/270°) + sub-tile offset
   // so adjacent tiles stop aligning into the "obvious grid" tell — pure UV math,

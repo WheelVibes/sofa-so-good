@@ -62,6 +62,10 @@ export function InspectorPanel() {
   const elevationOn = useFeature('mountHeights')
   const setItemElevation = useStore((s) => s.setItemElevation)
   const inspectorCeiling = useStore((s) => s.floorPlan.ceilingHeight)
+  // Per-item opacity (ghost) + hide in 3D.
+  const itemOpacityOn = useFeature('itemOpacity')
+  const toggleItemHidden = useStore((s) => s.toggleItemHidden)
+  const itemHidden = useStore((s) => (item ? s.hiddenItemIds.includes(item.id) : false))
   // Copy/paste appearance (look-only transfer) + recolour-by-category.
   const copyAppearanceOn = useFeature('copyAppearance')
   // Price displays are gated behind the budget/price feature (off by default).
@@ -943,6 +947,53 @@ export function InspectorPanel() {
                     onChange={(e) => setItemElevation(item.id, Number(e.target.value))}
                     style={{ width: '100%' }}
                   />
+                </div>
+              ) : null}
+              {itemOpacityOn ? (
+                <div className="fld" style={{ display: 'block', marginTop: 'var(--s-2)' }}>
+                  <div
+                    className="label"
+                    style={{
+                      fontSize: 'var(--t-2xs)',
+                      color: 'var(--text-3)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span>Opacity</span>
+                    <span>
+                      {Math.round(
+                        (item.props['opacity'] != null ? Number(item.props['opacity']) : 1) * 100,
+                      )}
+                      %
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    className="slider"
+                    aria-label="Item opacity"
+                    min={0.15}
+                    max={1}
+                    step={0.05}
+                    value={item.props['opacity'] != null ? Number(item.props['opacity']) : 1}
+                    onChange={(e) =>
+                      useStore
+                        .getState()
+                        .updateItemProps(item.id, { opacity: Number(e.target.value) })
+                    }
+                    style={{ width: '100%' }}
+                  />
+                  <label
+                    className="flex items-center gap-2 text-xs"
+                    style={{ marginTop: 'var(--s-1)' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={itemHidden}
+                      onChange={() => toggleItemHidden(item.id)}
+                    />
+                    <span>Hide in 3D view</span>
+                  </label>
                 </div>
               ) : null}
               {itemAsLightOn && isItemEmitter(item.defId, item.props)

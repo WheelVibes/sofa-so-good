@@ -1,5 +1,6 @@
 import type { ThreeEvent } from '@react-three/fiber'
-import { memo, Suspense, useCallback } from 'react'
+import { memo, Suspense, useCallback, useEffect, useRef } from 'react'
+import type { Group, Material, Mesh } from 'three'
 import { itemFootprint } from '../collision/placement'
 import { ContactShadow } from '../scene/ContactShadow'
 import { canEditScene } from '../state/editing'
@@ -126,8 +127,69 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
   // Per-item elevation raises the whole piece off the floor (SH3D parity).
   const elevation = item.elevation ?? 0
 
+  // Per-item opacity (CUSTOMIZE-OPACITY): ghost a piece to see behind it. Applied
+  // by cloning each rendered mesh's material (so shared/cached materials aren't
+  // mutated for every other item) and setting transparent + opacity; the original
+  // is captured per-mesh and restored when opacity returns to 1 / on unmount. A
+  // short rAF window re-applies to async-loaded GLB meshes. No work at opacity 1.
+  const opacity = typeof item.props['opacity'] === 'number' ? (item.props['opacity'] as number) : 1
+  const opacityRootRef = useRef<Group>(null)
+  const opacityClonesRef = useRef<Material[]>([])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: item.props identity drives re-apply (tint/finish changes); def re-keys on swap.
+  useEffect(() => {
+    const g = opacityRootRef.current
+    if (!g) return
+    const restore = () => {
+      g.traverse((o) => {
+        const m = o as Mesh
+        if (!m.isMesh) return
+        const orig = m.userData.__opacityOrig as Material | Material[] | undefined
+        if (orig) {
+          m.material = orig
+          m.userData.__opacityOrig = undefined
+        }
+      })
+      for (const c of opacityClonesRef.current) c.dispose()
+      opacityClonesRef.current = []
+    }
+    if (opacity >= 1) {
+      restore()
+      return
+    }
+    const apply = () => {
+      g.traverse((o) => {
+        const m = o as Mesh
+        if (!m.isMesh || !m.material) return
+        if (m.userData.__opacityOrig != null) return // already ghosted
+        m.userData.__opacityOrig = m.material
+        const arr = Array.isArray(m.material) ? m.material : [m.material]
+        const cloned = arr.map((mm) => {
+          const c = (mm as Material).clone()
+          c.transparent = true
+          c.opacity = opacity
+          c.depthWrite = false
+          opacityClonesRef.current.push(c)
+          return c
+        })
+        m.material = cloned.length === 1 ? cloned[0] : cloned
+      })
+    }
+    apply()
+    // Catch async GLB meshes that mount after this effect runs (~0.5 s window).
+    let frames = 0
+    let raf = requestAnimationFrame(function tick() {
+      apply()
+      if (++frames < 30) raf = requestAnimationFrame(tick)
+    })
+    return () => {
+      cancelAnimationFrame(raf)
+      restore()
+    }
+  }, [opacity, item.props, def])
+
   return (
     <group
+      ref={opacityRootRef}
       position={[
         item.position[0],
         (def.kind === 'parametric' ? 0 : liftY) + elevation,

@@ -14,6 +14,15 @@ describe('elementColors + openingStyles feature flags', () => {
   })
 })
 
+describe('itemOpacity feature flag (pro tier)', () => {
+  // Pro-tier + default-on → forced OFF in Simple, ON in Pro (CLAUDE.md: a pro
+  // feature must be tested hidden in Simple and present in Pro).
+  it('is hidden in Simple mode and present in Pro mode', () => {
+    expect(resolveFlags(true, {}, false, 'simple').itemOpacity).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').itemOpacity).toBe(true)
+  })
+})
+
 describe('per-element colour persistence (schema round-trip)', () => {
   const plan = {
     id: 'plan-x',

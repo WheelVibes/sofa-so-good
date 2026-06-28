@@ -104,6 +104,7 @@ export type FeatureFlag =
   | 'tileBreakup'
   | 'elementColors'
   | 'openingStyles'
+  | 'itemOpacity'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
