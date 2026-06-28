@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { MaterialCategory } from '../../materials/types'
 import { type MaterialUploadFiles, persistUserMaterial } from '../../materials/upload/persist'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { Modal } from '../Modal'
 
 interface UploadMaterialDialogProps {
@@ -188,6 +189,9 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
               Picker thumbnail + loading fallback colour
             </span>
           </label>
+          <div className="col-span-2">
+            <ThemeColorRows active={swatch} roomId={null} onPick={setSwatch} />
+          </div>
         </div>
         {error ? (
           <p className="mt-3 rounded bg-[var(--danger-soft)] px-2 py-1 text-xs text-[var(--danger)]">

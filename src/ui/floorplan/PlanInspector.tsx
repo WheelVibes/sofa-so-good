@@ -5,7 +5,11 @@ import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
 import { levelById, levelOfItem } from '../../floorplan/levels'
 import { defaultOpeningName, defaultWallName } from '../../floorplan/planElementName'
 import { polylineLength } from '../../floorplan/polyline'
-import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../../floorplan/roomFinishes'
+import {
+  resolvePlanRoomCeiling,
+  resolvePlanRoomFloor,
+  resolvePlanRoomWall,
+} from '../../floorplan/roomFinishes'
 import {
   type CeilingConfig,
   type CeilingStyle,
@@ -17,6 +21,7 @@ import { endForAngle, endForLength, wallAngleDeg } from '../../floorplan/wallOps
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { PlanFurnitureInspector } from './PlanFurnitureInspector'
@@ -208,6 +213,13 @@ function CeilingControls({
               ) : null}
             </label>
           ) : null}
+          {config?.coveLight ? (
+            <ThemeColorRows
+              active={config?.coveColor ?? '#ffe6c0'}
+              roomId={roomId}
+              onPick={(hex) => set({ coveColor: hex })}
+            />
+          ) : null}
         </>
       ) : null}
     </>
@@ -248,6 +260,9 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const wallThicknessOn = useFeature('wallThickness')
   const floorTextureOn = useFeature('floorTexture')
   const roomInsetOn = useFeature('roomInset')
+  const elementColorsOn = useFeature('elementColors')
+  const openingStylesOn = useFeature('openingStyles')
+  const ceilingFinishOn = useFeature('ceilingFinish')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -329,6 +344,11 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             </button>
           ) : null}
         </div>
+        <ThemeColorRows
+          active={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
+          roomId={null}
+          onPick={(hex) => a.updateFloorPlanMeta({ wallColor: hex })}
+        />
         <span className="text-xs" style={{ color: 'var(--text-3)' }}>
           Paints every wall in this plan.
         </span>
@@ -541,6 +561,30 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               ))}
             </select>
           </label>
+          {/* Per-room ceiling finish (CUSTOMIZE-CEILING): paint or texture the
+              ceiling, mirroring the floor/wall pickers. Empty = the default
+              plain white ceiling. Ceilings read well as painted surfaces, so the
+              wall material set (paints + plaster + CC0 textures) is offered. */}
+          {ceilingFinishOn ? (
+            <label className="flex flex-col gap-1 text-xs">
+              <span className="label">Ceiling finish</span>
+              <select
+                value={resolvePlanRoomCeiling(finishes, r) ?? ''}
+                onChange={(e) => {
+                  if (e.target.value) a.setCeilingFinish(r.id as RoomId, e.target.value)
+                  else a.clearCeilingFinish(r.id as RoomId)
+                }}
+                className="input"
+              >
+                <option value="">White (default)</option>
+                {WALL_MATERIALS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           {/* Per-room ceiling height — overrides the home default for this room
               only (a dropped/false ceiling; walls stay full height, like the
               built-in 2.4 m bathrooms). Empty = inherit the home height. */}
@@ -922,6 +966,12 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
                       }
                     />
                   </label>
+                  <ThemeColorRows
+                    active={w.baseboard?.color ?? '#eceae4'}
+                    onPick={(hex) =>
+                      a.updateWall(w.id, { baseboard: { ...w.baseboard, color: hex } }, levelId)
+                    }
+                  />
                 </>
               ) : null}
               {w.baseboard ? (
@@ -934,6 +984,33 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
                 </button>
               ) : null}
             </div>
+          ) : null}
+          {elementColorsOn ? (
+            <label className="flex items-center justify-between gap-2 text-xs">
+              <span className="label">Wall colour</span>
+              <span className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={w.color ?? plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
+                  onChange={(e) => a.updateWall(w.id, { color: e.target.value }, levelId)}
+                />
+                {w.color ? (
+                  <button
+                    type="button"
+                    className="text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]"
+                    onClick={() => a.updateWall(w.id, { color: undefined }, levelId)}
+                  >
+                    reset
+                  </button>
+                ) : null}
+              </span>
+            </label>
+          ) : null}
+          {elementColorsOn ? (
+            <ThemeColorRows
+              active={w.color ?? plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
+              onPick={(hex) => a.updateWall(w.id, { color: hex }, levelId)}
+            />
           ) : null}
         </div>
       )
@@ -1074,6 +1151,61 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               </div>
             </>
           )}
+          {openingStylesOn ? (
+            <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+              <span className="label">Style</span>
+              <select
+                className="input"
+                style={{ marginLeft: 'auto', maxWidth: '56%' }}
+                value={o.style ?? (o.kind === 'door' ? 'panel' : 'plain')}
+                onChange={(e) => a.updateOpening(o.id, { style: e.target.value }, levelId)}
+              >
+                {(o.kind === 'door'
+                  ? [
+                      ['panel', 'Panelled'],
+                      ['flush', 'Flush'],
+                      ['glazed', 'Glazed'],
+                    ]
+                  : [
+                      ['plain', 'Plain glass'],
+                      ['grille', 'Safety grille'],
+                      ['louvre', 'Louvre'],
+                    ]
+                ).map(([v, label]) => (
+                  <option key={v} value={v}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          {elementColorsOn ? (
+            <label className="flex items-center justify-between gap-2 text-xs">
+              <span className="label">{o.kind === 'door' ? 'Leaf colour' : 'Glass tint'}</span>
+              <span className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={o.color ?? (o.kind === 'door' ? '#9d7c54' : '#bcd4e6')}
+                  onChange={(e) => a.updateOpening(o.id, { color: e.target.value }, levelId)}
+                />
+                {o.color ? (
+                  <button
+                    type="button"
+                    className="text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]"
+                    onClick={() => a.updateOpening(o.id, { color: undefined }, levelId)}
+                  >
+                    reset
+                  </button>
+                ) : null}
+              </span>
+            </label>
+          ) : null}
+          {elementColorsOn ? (
+            <ThemeColorRows
+              active={o.color ?? (o.kind === 'door' ? '#9d7c54' : '#bcd4e6')}
+              onPick={(hex) => a.updateOpening(o.id, { color: hex }, levelId)}
+            />
+          ) : null}
         </div>
       )
     }

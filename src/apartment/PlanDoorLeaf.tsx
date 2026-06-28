@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useRef } from 'react'
-import type { Group } from 'three'
+import { Color, type Group } from 'three'
 import type { PlanOpening, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
@@ -11,6 +11,14 @@ import { cameraFacingNormal, orientOutward, wallRevealFactor } from './walls/wal
 const SWING_RAD = Math.PI / 2
 const SWING_SECONDS = 0.2
 const LEAF_THICK = FLAT.doorThickness
+const DEFAULT_LEAF = '#9d7c54'
+const DEFAULT_PANEL = '#8a6c48'
+
+/** Multiply a hex colour toward black by `f` (≤1) — used to derive the recessed
+ *  panel shade a touch darker than a custom door-leaf colour. */
+function shade(hex: string, f: number): string {
+  return `#${new Color(hex).multiplyScalar(f).getHexString()}`
+}
 
 /**
  * A swinging, clickable door leaf for a **custom-plan** door opening — the 3D
@@ -151,24 +159,43 @@ export function PlanDoorLeaf({
             castShadow
           >
             <boxGeometry args={[opening.width, height, LEAF_THICK]} />
-            <meshStandardMaterial color="#9d7c54" roughness={0.7} />
+            <meshStandardMaterial color={opening.color ?? DEFAULT_LEAF} roughness={0.7} />
           </mesh>
-          {/* Recessed panels (two per face) for a panelled-door look. */}
-          {[1, -1].map((face) =>
-            [
-              { y: height * 0.24, h: height * 0.34 },
-              { y: -height * 0.22, h: height * 0.42 },
-            ].map((p, i) => (
-              <mesh
-                key={`${face}.${i}`}
-                position={[0, p.y, face * (LEAF_THICK / 2 + 0.001)]}
-                rotation={[0, face === 1 ? 0 : Math.PI, 0]}
-              >
-                <planeGeometry args={[opening.width * 0.62, p.h]} />
-                <meshStandardMaterial color="#8a6c48" roughness={0.75} />
-              </mesh>
-            )),
-          )}
+          {/* Recessed panels (two per face) for a panelled-door look — the
+              default 'panel' style only; 'flush' is a plain slab. */}
+          {(opening.style ?? 'panel') === 'panel'
+            ? [1, -1].map((face) =>
+                [
+                  { y: height * 0.24, h: height * 0.34 },
+                  { y: -height * 0.22, h: height * 0.42 },
+                ].map((p, i) => (
+                  <mesh
+                    key={`${face}.${i}`}
+                    position={[0, p.y, face * (LEAF_THICK / 2 + 0.001)]}
+                    rotation={[0, face === 1 ? 0 : Math.PI, 0]}
+                  >
+                    <planeGeometry args={[opening.width * 0.62, p.h]} />
+                    <meshStandardMaterial
+                      color={opening.color ? shade(opening.color, 0.82) : DEFAULT_PANEL}
+                      roughness={0.75}
+                    />
+                  </mesh>
+                )),
+              )
+            : null}
+          {/* 'glazed': a frosted glass vision panel in the upper third. */}
+          {opening.style === 'glazed' ? (
+            <mesh position={[0, height * 0.22, 0]}>
+              <boxGeometry args={[opening.width * 0.62, height * 0.4, LEAF_THICK + 0.004]} />
+              <meshStandardMaterial
+                color="#cddbe4"
+                transparent
+                opacity={0.55}
+                roughness={0.25}
+                metalness={0}
+              />
+            </mesh>
+          ) : null}
         </group>
         {/* Handle. */}
         <group position={[direction * (opening.width - 0.06), Math.min(0.95, height - 0.1), 0]}>

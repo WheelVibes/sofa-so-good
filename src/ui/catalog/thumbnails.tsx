@@ -1,6 +1,6 @@
 import { useGLTF } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
-import { Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { Box3, type Object3D, Vector3 } from 'three'
 import { SkeletonUtils } from 'three-stdlib'
 import { selectGltfRender } from '../../furniture/gltfRender'
@@ -241,12 +241,36 @@ export function ThumbnailHost() {
     if (next) setActive(next)
   }, [active, tick])
 
-  const handleReady = (id: string, url: string) => {
+  // Stable identity: ThumbnailScene's capture effect lists `onReady` in its deps,
+  // so a fresh function each render would re-run that effect and cancel the
+  // pending requestAnimationFrame before it captures — starving items behind the
+  // active one in the single-Canvas queue (the "wardrobe has no thumbnail" bug,
+  // where a notify storm kept re-creating this callback). Only module-level
+  // state + the stable `setActive` are used, so an empty dep list is correct.
+  const handleReady = useCallback((id: string, url: string) => {
     cache.set(id, url)
     queued.delete(id)
     setActive(null)
     notify()
-  }
+  }, [])
+
+  // Watchdog: the host renders ONE def at a time, so a single def that never
+  // calls `onReady` — a remote GLB whose fetch hangs/404s under `<Suspense>`,
+  // or any stalled capture — would block EVERY queued def behind it (the
+  // "wardrobe / later items have no thumbnail" bug: an earlier stuck item starves
+  // the rest). If the active def hasn't completed within the budget, drop it and
+  // advance so the rest of the queue still renders. The skipped def just falls
+  // back to its category icon.
+  useEffect(() => {
+    if (!active) return
+    const stuckId = active.id
+    const timer = setTimeout(() => {
+      queued.delete(stuckId)
+      setActive((cur) => (cur?.id === stuckId ? null : cur))
+      notify()
+    }, 8000)
+    return () => clearTimeout(timer)
+  }, [active])
 
   return (
     <div

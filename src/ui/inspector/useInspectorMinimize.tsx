@@ -1,12 +1,17 @@
 import { useState } from 'react'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
+import { useIsMobile } from '../useIsMobile'
 
 /**
  * Minimize state for the inspector. The user can collapse it to just its header
  * (so it stops blocking the furniture, especially on mobile), and it
  * *auto-minimizes* while a move/rotate gesture is in progress so the piece is
  * visible as it's manipulated — restoring to the user's chosen state afterwards.
+ *
+ * Default state is viewport-aware: the inspector starts **expanded on desktop**
+ * (where there's room beside the scene) and **minimized on mobile** (where it
+ * would otherwise cover the furniture as a bottom sheet).
  */
 export function useInspectorMinimize(itemId?: string): {
   minimized: boolean
@@ -14,10 +19,12 @@ export function useInspectorMinimize(itemId?: string): {
   manual: boolean
 } {
   const gesturing = useStore((s) => !!s.draggingItemId || s.rotatingGizmo)
-  // Start minimized; track itemId so a new selection resets to minimized.
-  const [state, setState] = useState({ id: itemId, manual: true })
+  const isMobile = useIsMobile()
+  // Start expanded on desktop, minimized on mobile; track itemId so a new
+  // selection resets to that viewport-appropriate default.
+  const [state, setState] = useState({ id: itemId, manual: isMobile })
   if (state.id !== itemId) {
-    setState({ id: itemId, manual: true })
+    setState({ id: itemId, manual: isMobile })
   }
   const { manual } = state
   return {

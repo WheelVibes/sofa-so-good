@@ -170,6 +170,15 @@
   box-shadow: var(--shadow-panel); font-size: var(--t-xs); font-weight: 600; color: var(--text-2);
   backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
 }
+/* Live how-to-finish hint shown while a multi-click draw tool (Polygon room /
+   Polyline) is active. */
+.plan-draw-hint {
+  display: inline-flex; align-items: center;
+  padding: 4px var(--s-3); border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent-soft-text);
+  border: 1px solid transparent;
+  font-size: var(--t-2xs); font-weight: 600; white-space: nowrap;
+}
 .plan-status .dot { width: 3px; height: 3px; border-radius: 999px; background: var(--text-3); }
 .plan-status b { color: var(--text); }
 .plan-status span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { HqRenderSession } from '../scene/pathtrace/hqRenderSession'
-import { getHqRenderSource } from '../scene/pathtrace/hqRenderSource'
+import { captureCanvasPng } from '../scene/captureCanvas'
 import { applyRenderPreset, RENDER_PRESETS } from '../scene/renderPresets'
 import { useStore } from '../state/store'
 import { Modal } from './Modal'
@@ -13,29 +12,22 @@ import {
   swapAB,
 } from './renderCompare/compareState'
 
-const SAMPLE_STEPS = [32, 64, 128, 256] as const
+// Milliseconds to let the live raster scene re-render with the freshly-applied
+// preset (sun time / tone / exposure / fixture lights all settle on the next few
+// demand-loop frames) before we read the canvas back. A render preset is a set
+// of RASTER levers, so a quick raster capture is faithful — and, unlike the old
+// dual path-trace, it's near-instant and can never lock up the browser.
+const SETTLE_MS = 380
 
-// Use a tiny resolution in dev so the headless harness can exercise the full
-// pipeline in seconds; real GPUs use 720p for a quick comparison render.
-const DEV_RENDER_SIZE = { w: 192, h: 108 }
-const PROD_RENDER_SIZE = { w: 1280, h: 720 }
-
-function renderSize() {
-  return import.meta.env.DEV ? DEV_RENDER_SIZE : PROD_RENDER_SIZE
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-/** Apply a preset to the store, take a snapshot render, then restore the
- *  original store state. Returns a data-URL PNG on success. */
-async function capturePreset(
-  presetId: string,
-  maxSamples: number,
-  onProgress: (n: number) => void,
-): Promise<string> {
+/** Apply a preset to the live store, let the raster scene settle, capture the
+ *  current frame as a PNG, then restore the original store state. */
+async function capturePreset(presetId: string): Promise<string> {
   const preset = RENDER_PRESETS.find((p) => p.id === presetId)
   if (!preset) throw new Error(`Unknown preset: ${presetId}`)
-
-  const src = getHqRenderSource()
-  if (!src) throw new Error('No render source — open the 3D view first')
 
   // Save the store state we're about to mutate.
   const st = useStore.getState()
@@ -45,41 +37,14 @@ async function capturePreset(
   const prevExposure = st.exposure
   const prevLights = st.lightsMode
 
-  // Apply the preset (mutates live store — the live view changes briefly).
-  applyRenderPreset(st, preset)
-
-  const { w, h } = renderSize()
-  const { createHqRenderSession } = await import('../scene/pathtrace/hqRenderSession')
-  let session: HqRenderSession | null = null
   try {
-    session = await createHqRenderSession(src.scene, src.camera, {
-      width: w,
-      height: h,
-      maxSamples,
-      onProgress: (n) => onProgress(n),
-    })
-    // Accumulate samples via polling — the session uses rAF internally.
-    // We poll every 100 ms and resolve when enough samples have accumulated,
-    // or after a 10 s safety timeout so we never hang the modal.
-    await new Promise<void>((resolve) => {
-      const s = session!
-      s.start()
-      let done = false
-      const finish = () => {
-        if (done) return
-        done = true
-        clearInterval(poll)
-        clearTimeout(safety)
-        resolve()
-      }
-      const poll = setInterval(() => {
-        if (s.samples >= maxSamples) finish()
-      }, 100)
-      const safety = setTimeout(finish, 10_000)
-    })
-    return session.toDataURL()
+    // Apply the preset (mutates the live store — the demand loop re-renders).
+    applyRenderPreset(st, preset)
+    await wait(SETTLE_MS)
+    const png = captureCanvasPng()
+    if (!png) throw new Error('Open the 3D view first, then compare.')
+    return png
   } finally {
-    session?.dispose()
     // Restore the store to its pre-capture state.
     const s = useStore.getState()
     s.setTimeMode(prevTime)
@@ -108,7 +73,6 @@ export function RenderCompareModal() {
   const setOpen = useStore((s) => s.setRenderCompareOpen)
 
   const [state, setState] = useState<CompareState>(initialCompareState)
-  const [maxSamples, setMaxSamples] = useState<number>(64)
   const [phaseA, setPhaseA] = useState<'idle' | 'rendering' | 'done' | 'error'>('idle')
   const [phaseB, setPhaseB] = useState<'idle' | 'rendering' | 'done' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -182,10 +146,8 @@ export function RenderCompareModal() {
     setState((s) => ({ ...s, imageA: null, imageB: null, samplesA: 0, samplesB: 0 }))
 
     try {
-      // Render A first (applies its preset, captures, restores store).
-      const dataA = await capturePreset(state.presetA, maxSamples, (n) =>
-        setState((s) => ({ ...s, samplesA: n })),
-      )
+      // Capture A first (applies its preset, grabs the raster frame, restores).
+      const dataA = await capturePreset(state.presetA)
       setState((s) => ({ ...s, imageA: dataA }))
       setPhaseA('done')
     } catch (err) {
@@ -196,17 +158,15 @@ export function RenderCompareModal() {
 
     setPhaseB('rendering')
     try {
-      // Render B (applies its preset, captures, restores store).
-      const dataB = await capturePreset(state.presetB, maxSamples, (n) =>
-        setState((s) => ({ ...s, samplesB: n })),
-      )
+      // Capture B (applies its preset, grabs the raster frame, restores).
+      const dataB = await capturePreset(state.presetB)
       setState((s) => ({ ...s, imageB: dataB }))
       setPhaseB('done')
     } catch (err) {
       setPhaseB('error')
       setErrorMsg(String(err instanceof Error ? err.message : err))
     }
-  }, [state.presetA, state.presetB, maxSamples])
+  }, [state.presetA, state.presetB])
 
   const busy = phaseA === 'rendering' || phaseB === 'rendering'
   const hasBothImages = state.imageA !== null && state.imageB !== null
@@ -303,19 +263,6 @@ export function RenderCompareModal() {
                 {presetOptions}
               </select>
             </label>
-            <select
-              className="input"
-              aria-label="Render quality (samples)"
-              value={maxSamples}
-              disabled={busy}
-              onChange={(e) => setMaxSamples(Number(e.target.value))}
-            >
-              {SAMPLE_STEPS.map((n) => (
-                <option key={n} value={n}>
-                  {n} samples
-                </option>
-              ))}
-            </select>
           </div>
           {/* Actions */}
           <button type="button" className="btn btn-accent" onClick={renderBoth} disabled={busy}>
@@ -471,8 +418,11 @@ export function RenderCompareModal() {
           </>
         ) : null}
 
-        {/* Empty / in-progress overlay */}
-        {!hasBothImages ? (
+        {/* Empty / in-progress overlay — only while NOTHING is captured yet (or
+            on error). Once side A is rendered, a centered message would overlap
+            the image and read as clipped text, so progress for B falls to the
+            status line below instead. */}
+        {errorMsg || (!state.imageA && !state.imageB) ? (
           <div
             className="panel-sub"
             style={{
@@ -492,9 +442,7 @@ export function RenderCompareModal() {
             {errorMsg ? (
               <span style={{ color: 'var(--danger, #c0392b)' }}>{errorMsg}</span>
             ) : phaseA === 'rendering' ? (
-              `Rendering A (${state.samplesA} / ${maxSamples} samples)…`
-            ) : phaseB === 'rendering' ? (
-              `Rendering B (${state.samplesB} / ${maxSamples} samples)…`
+              'Capturing A…'
             ) : (
               'Pick two presets and click "Render both" to compare them side-by-side.'
             )}
@@ -509,9 +457,9 @@ export function RenderCompareModal() {
         aria-live="polite"
       >
         {phaseA === 'rendering'
-          ? `A: ${state.samplesA} / ${maxSamples} samples`
+          ? 'Capturing A…'
           : phaseB === 'rendering'
-            ? `B: ${state.samplesB} / ${maxSamples} samples`
+            ? 'Capturing B…'
             : hasBothImages
               ? 'Drag the divider to compare. Click "Re-render" to update.'
               : ' '}

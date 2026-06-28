@@ -8,10 +8,10 @@ import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { estimateRoomLux, type LuxStatus } from '../lighting2d/roomLux'
 import { useEffectiveHour } from '../scene/lighting/useEffectiveHour'
 import { useStore } from '../state/store'
+import { AuxPanelHead } from './AuxPanelHead'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { LuxLegend } from './lighting2d/LuxLegend'
 import { type LightingPalette, lightingPlanSvg } from './lighting2d/lightingPlanSvg'
-import { Icon } from './toolbar/icons'
 
 /** Theme-token palette — resolves against the document, so drawings follow the
  *  active light/dark theme like the rest of the UI. */
@@ -123,22 +123,12 @@ export function ElevationPanel() {
 
   return (
     <aside className="panel mini aux" id="elevationPanel" style={{ width: 380 }}>
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Drawings</div>
-          <div className="panel-sub">
-            {mode === 'elevations' ? 'Side-on views per wall' : 'Fixtures + coverage'}
-          </div>
-        </div>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close"
-          onClick={() => setOpen(false)}
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
+      <AuxPanelHead
+        title="Drawings"
+        sub={mode === 'elevations' ? 'Side-on views per wall' : 'Fixtures + coverage'}
+        docs="drawings"
+        onClose={() => setOpen(false)}
+      />
       <hr className="hr" />
       <div className="panel-body">
         {/* Mode toggle: wall elevations vs lighting plan. */}

@@ -14,8 +14,8 @@ import { useFeature } from '../features/useFeature'
 import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { planWallThickness, type WallBox, wallBoxes } from '../floorplan/planGeometry'
-import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
-import { isSlopedWall, slopedWallTriangles } from '../floorplan/slopedWall'
+import { resolvePlanRoomCeiling, resolvePlanRoomFloor } from '../floorplan/roomFinishes'
+import { isSlopedWall, slopedWallHeights, slopedWallTriangles } from '../floorplan/slopedWall'
 import {
   DEFAULT_PLAN_WALL_COLOR,
   type FloorPlan,
@@ -371,9 +371,14 @@ function PlanLevelShell({
   const boxes = useMemo(
     () =>
       lp.walls.flatMap((w) =>
-        wallBoxes(lp, w).map((box) => ({ box, isExterior: w.thickness === 'external' })),
+        wallBoxes(lp, w).map((box) => ({
+          box,
+          isExterior: w.thickness === 'external',
+          // Per-wall paint colour override (elementColors), else the plan default.
+          color: w.color ?? wallColor,
+        })),
       ),
-    [lp],
+    [lp, wallColor],
   )
 
   // Skirting strips along floor-reaching wall spans, carrying each wall's
@@ -401,9 +406,9 @@ function PlanLevelShell({
       .filter((o) => o.kind === 'window')
       .map((o) => {
         const wall = lp.walls.find((w) => w.id === o.wallId)
-        // Sloped walls (solid prism) don't host openings. Curved walls do — the
-        // glass is positioned + oriented at the opening's mid-arc point.
-        if (!wall || isSlopedWall(wall)) return null
+        // Curved + sloped walls host openings too — the glass sits at the
+        // opening's mid-arc point (curved) or wall midpoint (straight/sloped).
+        if (!wall) return null
         const s = o.offset + o.width / 2
         let cx: number
         let cz: number
@@ -431,6 +436,10 @@ function PlanLevelShell({
           height: o.head - o.sill,
           angle,
           revealable: wall.thickness === 'external',
+          // Optional per-window glass tint (elementColors); absent = cool default.
+          glassTint: o.color,
+          // Optional window style (openingStyles): plain / grille / louvre.
+          style: o.style,
         }
       })
       .filter((x): x is NonNullable<typeof x> => x != null)
@@ -495,6 +504,7 @@ function PlanLevelShell({
           Honour a per-room override, falling back to the level/plan height. */}
       {lp.rooms.map((r) => {
         const h = r.ceilingHeight ?? lp.ceilingHeight
+        const ceilMat = resolvePlanRoomCeiling(finishes, r)
         if (r.polygon && r.polygon.length >= 3) {
           return (
             <PlanRoomCeiling
@@ -505,6 +515,7 @@ function PlanLevelShell({
               height={h}
               polygon={r.polygon}
               ceiling={r.ceiling}
+              materialId={ceilMat}
             />
           )
         }
@@ -516,15 +527,17 @@ function PlanLevelShell({
               depth={r.depth}
               height={h}
               ceiling={r.ceiling}
+              materialId={ceilMat}
             />
             {/* An L-extension keeps a plain flat ceiling — the treatment applies
-                to the main rectangle only. */}
+                to the main rectangle only. The finish covers it too. */}
             {r.extension && (
               <PlanRoomCeiling
                 origin={[r.origin[0] + r.extension.offset[0], r.origin[1] + r.extension.offset[1]]}
                 width={r.extension.width}
                 depth={r.extension.depth}
                 height={h}
+                materialId={ceilMat}
               />
             )}
           </group>
@@ -533,26 +546,29 @@ function PlanLevelShell({
 
       {/* Walls — external walls fade when between the orbit camera and the plan
           centre; internal partitions stay solid. */}
-      {boxes.map(({ box, isExterior }, i) => (
+      {boxes.map(({ box, isExterior, color }, i) => (
         <FadeWall
           key={i}
           box={box}
           cx={cx}
           cz={cz}
-          color={wallColor}
+          color={color}
           isExterior={isExterior}
           isInterior={isInterior}
         />
       ))}
 
-      {/* Sloping-top walls render as prisms (slopedWall.ts), not boxes. */}
+      {/* Sloping-top walls: the rectangular lower band [0, minTop] is drawn as
+          boxes above (so it cuts openings like a flat wall); this prism is the
+          upper wedge [minTop, slopedTop]. */}
       {lp.walls.filter(isSlopedWall).map((w) => (
         <SlopedWallMesh
           key={w.id}
           wall={w}
           ceiling={lp.ceilingHeight}
           thickness={planWallThickness(w, lp)}
-          color={wallColor}
+          color={w.color ?? wallColor}
+          baseY={Math.min(...slopedWallHeights(w, lp.ceilingHeight))}
         />
       ))}
 
@@ -593,9 +609,9 @@ function PlanLevelShell({
         .filter((o) => o.kind === 'door')
         .map((o) => {
           const wall = lp.walls.find((w) => w.id === o.wallId)
-          // Sloped walls (solid prism) don't host openings; curved walls do
-          // (PlanDoorLeaf reads arc-aware geometry from doorSwingGeometry).
-          return wall && !isSlopedWall(wall) ? (
+          // Curved + sloped walls host doors too (the leaf sits in the wall's
+          // lower band; curved walls use arc-aware geometry in PlanDoorLeaf).
+          return wall ? (
             <PlanDoorLeaf
               key={o.id}
               wall={wall}
@@ -632,6 +648,8 @@ function FadeWindow({
     height: number
     angle: number
     revealable: boolean
+    glassTint?: string
+    style?: string
   }
   cx: number
   cz: number
@@ -641,6 +659,12 @@ function FadeWindow({
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
+  // A custom glass tint replaces the cool default for the daylight colour; the
+  // night blend toward dark reflective glass is preserved either way.
+  const dayColor = useMemo(
+    () => (win.glassTint ? new Color(win.glassTint) : GLASS_DAY),
+    [win.glassTint],
+  )
   useFrame(() => {
     const mesh = ref.current
     if (!mesh) return
@@ -649,7 +673,7 @@ function FadeWindow({
     // clear sky-lit pane by day → dark reflective at night, via an emissive
     // sky-catch (cheap, all tiers) + a day/night colour + opacity blend.
     const d = getFixtureGlow() // 1 at night, 0 in daylight
-    mat.color.lerpColors(GLASS_DAY, GLASS_NIGHT, d)
+    mat.color.lerpColors(dayColor, GLASS_NIGHT, d)
     mat.emissiveIntensity = glassSkyCatchIntensity(1 - d)
     const base = 0.28 + d * 0.45 // more opaque (less see-through) at night
     let factor = 1
@@ -678,19 +702,44 @@ function FadeWindow({
     mat.opacity += (target - mat.opacity) * 0.18
     if (Math.abs(mat.opacity - target) > 0.003) invalidate()
   })
+  // Optional safety grille (vertical bars) or louvre (horizontal slats) over the
+  // glass — pure thin geometry in the window plane (local Z = width, Y = height).
+  const style = win.style ?? 'plain'
+  const bars: { pos: [number, number, number]; size: [number, number, number] }[] = []
+  if (style === 'grille') {
+    const n = Math.max(2, Math.round(win.width / 0.16))
+    for (let i = 1; i < n; i++) {
+      const z = -win.width / 2 + (win.width * i) / n
+      bars.push({ pos: [0, 0, z], size: [0.018, win.height * 0.98, 0.012] })
+    }
+  } else if (style === 'louvre') {
+    const n = Math.max(3, Math.round(win.height / 0.14))
+    for (let i = 0; i < n; i++) {
+      const y = -win.height / 2 + (win.height * (i + 0.5)) / n
+      bars.push({ pos: [0, y, 0], size: [0.05, 0.02, win.width * 0.98] })
+    }
+  }
   return (
-    <mesh ref={ref} position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>
-      <boxGeometry args={[0.03, win.height, win.width]} />
-      <meshStandardMaterial
-        color="#bcd4e6"
-        emissive={GLASS_SKYCATCH_COLOR}
-        emissiveIntensity={0.4}
-        transparent
-        opacity={0.32}
-        roughness={0.1}
-        metalness={0}
-      />
-    </mesh>
+    <group position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>
+      <mesh ref={ref}>
+        <boxGeometry args={[0.03, win.height, win.width]} />
+        <meshStandardMaterial
+          color="#bcd4e6"
+          emissive={GLASS_SKYCATCH_COLOR}
+          emissiveIntensity={0.4}
+          transparent
+          opacity={0.32}
+          roughness={0.1}
+          metalness={0}
+        />
+      </mesh>
+      {bars.map((b, i) => (
+        <mesh key={i} position={b.pos} castShadow>
+          <boxGeometry args={b.size} />
+          <meshStandardMaterial color="#cfd2d4" roughness={0.5} metalness={0.4} />
+        </mesh>
+      ))}
+    </group>
   )
 }
 
@@ -702,21 +751,25 @@ function SlopedWallMesh({
   ceiling,
   thickness,
   color,
+  baseY = 0,
 }: {
   wall: PlanWall
   ceiling: number
   thickness: number
   color: string
+  /** Prism base (m) — set to the wall's min top height when its lower band is
+   *  drawn as boxes (so this is just the upper wedge above any openings). */
+  baseY?: number
 }) {
   const geometry = useMemo(() => {
     const g = new BufferGeometry()
     g.setAttribute(
       'position',
-      new BufferAttribute(slopedWallTriangles(wall, ceiling, thickness), 3),
+      new BufferAttribute(slopedWallTriangles(wall, ceiling, thickness, baseY), 3),
     )
     g.computeVertexNormals()
     return g
-  }, [wall, ceiling, thickness])
+  }, [wall, ceiling, thickness, baseY])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <mesh geometry={geometry} castShadow receiveShadow>

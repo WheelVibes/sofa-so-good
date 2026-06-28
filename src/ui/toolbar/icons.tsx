@@ -353,6 +353,11 @@ export const Icon = {
       <path d="M5 12l4.5 4.5L19 7" />
     </Svg>
   ),
+  Edit: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M14 5l5 5M4 20l1-4L16 5l3 3L8 19l-4 1z" />
+    </Svg>
+  ),
   Home: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <path d="M4 11l8-7 8 7" />
@@ -466,6 +471,25 @@ export const Icon = {
   Menu: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <path d="M4 7h16M4 12h16M4 17h16" />
+    </Svg>
+  ),
+  // Universal-access figure — distinct from the shield "Checks" glyph so the
+  // Accessibility tool reads on its own.
+  Accessibility: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <circle cx="12" cy="4" r="1.6" />
+      <path d="M5 8h14" />
+      <path d="M12 7v6" />
+      <path d="M9 20l3-7 3 7" />
+    </Svg>
+  ),
+  // Window casting light rays — daylight / glazing per room, distinct from the
+  // sun-over-horizon "SunStudy" glyph.
+  Daylight: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <rect x="4" y="3" width="11" height="18" rx="1" />
+      <path d="M4 9h11M9.5 3v18" />
+      <path d="M18 7l3-3M18 12h4M18 17l3 3" />
     </Svg>
   ),
 } as const

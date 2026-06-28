@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { isMultiLevel, planLevels } from '../../floorplan/levels'
 import { dropBuiltinSet, dropIkeaSet, dropUserSet } from '../../furniture/arrangeActions'
@@ -24,7 +24,12 @@ import { LocalStorageAdapter } from '../../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, saveThumb } from '../../state/storage/slotThumbs'
 import { useStore } from '../../state/store'
-import { closeAllAuxPanels } from '../auxPanels'
+import {
+  groupToolActions,
+  resolveToolLabel,
+  type ToolAction,
+  visibleToolActions,
+} from '../actions/toolActions'
 import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
@@ -45,7 +50,7 @@ import { TimeOfDaySlider } from '../scene/TimeOfDaySlider'
 import { AppearanceControls } from './AppearancePopover'
 import { CompassModal } from './CompassModal'
 import { Icon, type IconName } from './icons'
-import { Item, LIGHTS_LABEL, Section } from './mobile/parts'
+import { Item, LIGHTS_LABEL, Section, SubHeader } from './mobile/parts'
 import { RoomSwitcher } from './RoomSwitcher'
 export function MobileToolbar() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -92,6 +97,7 @@ export function MobileToolbar() {
   const backdrop = useStore((st) => st.backdrop)
   const hasCustomBackdrop = useStore((st) => !!st.customBackdropUrl)
   const proMode = useStore((st) => st.uiMode === 'pro')
+  const featureFlags = useStore((st) => st.featureFlags)
   const canUndo = useStore((st) => st.past.length > 0)
   const canRedo = useStore((st) => st.future.length > 0)
   const recording = useStore((st) => st.recording)
@@ -135,20 +141,12 @@ export function MobileToolbar() {
       on = false
     }
   }, [fVr])
-  const fBudget = useFeature('budget')
-  const fChecks = useFeature('clearanceChecks')
-  const fMeasure = useFeature('measure')
-  const fHistory = useFeature('history')
-  const fVersions = useFeature('versions')
+  // The Analyse + Review tool rows are gated inside the shared registry
+  // (`visibleToolActions('mobile', …)`), so only the bespoke Export section + the
+  // local-state Sun study keep their own flags here.
   const fShare = useFeature('shareExport')
   const fSun = useFeature('sunStudy')
-  const fWalk = useFeature('walkthrough')
   const fReport = useFeature('report')
-  const fDrawings = useFeature('drawings')
-  const fDaylight = useFeature('daylight')
-  const fDesignScore = useFeature('designScore')
-  const fAccessibility = useFeature('accessibility')
-  const fComments = useFeature('comments')
   const fUserSets = useFeature('userSets')
   const fShopExport = useFeature('shopExport')
   const fDxf = useFeature('dxfExport')
@@ -179,74 +177,39 @@ export function MobileToolbar() {
     if (!opts?.keep) close()
   }
 
+  // The Analyse + Review tool rows render from the shared registry (parity with
+  // desktop + ⌘K). Active highlighting reads the already-subscribed open-flags
+  // (so the sheet re-renders when a panel toggles); labels resolve dynamically
+  // (Measure → Measuring…, Walkthrough → Stop tour).
+  const toolActive: Record<string, boolean> = {
+    budget: budgetOpen,
+    clearance: clearancePanelOpen,
+    drawings: elevationsOpen,
+    daylight: daylightOpen,
+    'design-score': designScoreOpen,
+    accessibility: accessibilityOpen,
+    measure: tapeMode,
+    comments: commentsOpen,
+    history: historyOpen,
+    versions: versionsOpen,
+    walkthrough: Boolean(touring),
+  }
+  const renderToolItem = (a: ToolAction) => (
+    <Item
+      key={a.id}
+      icon={a.icon}
+      label={resolveToolLabel(a, s.getState())}
+      sub={a.sub}
+      on={toolActive[a.id]}
+      docs={a.docs}
+      onClick={act(() => a.run(s))}
+    />
+  )
+
   const gridLabel = gridSize >= 1 ? `${gridSize} m` : `${Math.round(gridSize * 100)} cm`
   // The room the "Edit a room" entry dives into — first editable room of the
   // active plan (default apartment or a custom plan's own rooms).
   const defaultEditRoomId = firstEditableRoomId(floorPlanForRooms)
-
-  // Mutually-exclusive .aux panels — shared helper (covers budget / checks /
-  // elevations / daylight / design-score / accessibility / versions / history).
-  const closeAux = () => closeAllAuxPanels(s.getState())
-  const openBudget = () => {
-    const wasOpen = s.getState().budgetOpen
-    closeAux()
-    if (!wasOpen) s.getState().toggleBudget()
-  }
-  const toggleChecks = () => {
-    const st = s.getState()
-    const next = !st.clearancePanelOpen
-    closeAux()
-    st.setClearancePanelOpen(next)
-    if (next && !st.clearanceOn) st.toggleClearance()
-  }
-  const openVersions = () => {
-    const wasOpen = s.getState().versionsOpen
-    closeAux()
-    s.getState().setVersionsOpen(!wasOpen)
-  }
-  // Analysis / drawing panels — same mutual-exclusion as desktop (B3 parity).
-  const toggleElevations = () => {
-    const wasOpen = s.getState().elevationsOpen
-    closeAux()
-    s.getState().setElevationsOpen(!wasOpen)
-  }
-  const toggleDaylight = () => {
-    const wasOpen = s.getState().daylightOpen
-    closeAux()
-    s.getState().setDaylightOpen(!wasOpen)
-  }
-  const toggleDesignScore = () => {
-    const wasOpen = s.getState().designScoreOpen
-    closeAux()
-    s.getState().setDesignScoreOpen(!wasOpen)
-  }
-  const toggleAccessibility = () => {
-    const wasOpen = s.getState().accessibilityOpen
-    closeAux()
-    s.getState().setAccessibilityOpen(!wasOpen)
-  }
-  const openHistory = () => {
-    const wasOpen = s.getState().historyOpen
-    closeAux()
-    s.getState().setHistoryOpen(!wasOpen)
-  }
-  const toggleComments = () => {
-    const wasOpen = s.getState().commentsOpen
-    closeAux()
-    s.getState().setCommentsOpen(!wasOpen)
-  }
-
-  const startWalkthrough = () => {
-    const st = s.getState()
-    if (st.touring) {
-      st.setTouring(false)
-      if (st.recording) st.setRecording(false)
-      return
-    }
-    st.setCameraMode('orbit')
-    if (canRecord()) st.setRecording(true)
-    st.setTouring(true)
-  }
 
   const openReport = () => openDesignReport()
 
@@ -871,118 +834,43 @@ export function MobileToolbar() {
                 {/* Tools (advanced — hidden in Simple mode) */}
                 {proMode ? (
                   <Section id="tools" title="Tools" icon="Tools" {...sectionProps}>
-                    {fBudget ? (
-                      <Item
-                        icon="Budget"
-                        label="Budget / shopping"
-                        on={budgetOpen}
-                        onClick={act(openBudget)}
-                      />
-                    ) : null}
-                    {fChecks ? (
-                      <Item
-                        icon="Checks"
-                        label="Clearance checks"
-                        on={clearancePanelOpen}
-                        onClick={act(toggleChecks)}
-                      />
-                    ) : null}
-                    {fDrawings ? (
-                      <Item
-                        icon="FloorPlan"
-                        label="Drawings"
-                        on={elevationsOpen}
-                        onClick={act(toggleElevations)}
-                      />
-                    ) : null}
-                    {fDaylight ? (
-                      <Item
-                        icon="SunStudy"
-                        label="Daylight"
-                        on={daylightOpen}
-                        onClick={act(toggleDaylight)}
-                      />
-                    ) : null}
-                    {fDesignScore ? (
-                      <Item
-                        icon="Star"
-                        label="Design score"
-                        on={designScoreOpen}
-                        onClick={act(toggleDesignScore)}
-                      />
-                    ) : null}
-                    {fAccessibility ? (
-                      <Item
-                        icon="Checks"
-                        label="Accessibility"
-                        on={accessibilityOpen}
-                        onClick={act(toggleAccessibility)}
-                      />
-                    ) : null}
-                    {fMeasure ? (
-                      <Item
-                        icon="Measure"
-                        label="Measure distance"
-                        on={tapeMode}
-                        onClick={act(() => s.getState().toggleTapeMode())}
-                      />
-                    ) : null}
-                    {fComments ? (
-                      <Item
-                        icon="Pin"
-                        label="Comments"
-                        sub="Pinned notes on the design"
-                        on={commentsOpen}
-                        onClick={act(toggleComments)}
-                      />
-                    ) : null}
-                    {fHistory ? (
-                      <Item
-                        icon="Undo"
-                        label="History"
-                        on={historyOpen}
-                        onClick={act(openHistory)}
-                      />
-                    ) : null}
-                    {fVersions ? (
-                      <Item
-                        icon="Versions"
-                        label="Versions"
-                        on={versionsOpen}
-                        onClick={act(openVersions)}
-                      />
-                    ) : null}
-                    {fShare ? (
-                      <Item
-                        icon="Share"
-                        label="Share & export"
-                        onClick={act(() => s.getState().setShareOpen(true))}
-                      />
-                    ) : null}
-                    {!roomEditorActive ? (
-                      <>
-                        {fSun ? (
+                    {groupToolActions(
+                      visibleToolActions('mobile', featureFlags, { roomEditorActive }),
+                    ).map((g) => (
+                      <Fragment key={g.category}>
+                        <SubHeader>{g.label}</SubHeader>
+                        {g.actions.map(renderToolItem)}
+                        {g.category === 'review' && !roomEditorActive && fSun ? (
                           <Item
                             icon="SunStudy"
                             label="Sun study"
                             sub="Time-lapse dawn → dusk"
                             on={sunStudy}
+                            docs="sunStudy"
                             onClick={act(() => setSunStudy((v) => !v), { keep: true })}
                           />
                         ) : null}
-                        {fWalk ? (
-                          <Item
-                            icon="Walkthrough"
-                            label={touring ? 'Stop tour' : 'Walkthrough'}
-                            on={Boolean(touring)}
-                            onClick={act(startWalkthrough)}
-                          />
-                        ) : null}
+                      </Fragment>
+                    ))}
+                    {fShare || (!roomEditorActive && fReport) || (!roomEditorActive && fDxf) ? (
+                      <SubHeader>Export &amp; document</SubHeader>
+                    ) : null}
+                    {fShare ? (
+                      <Item
+                        icon="Share"
+                        label="Share & export"
+                        docs="shareExport"
+                        onClick={act(() => s.getState().setShareOpen(true))}
+                      />
+                    ) : null}
+                    {!roomEditorActive ? (
+                      <>
                         {fReport ? (
                           <Item
                             icon="Report"
                             label="Report"
                             sub="Printable design report"
+                            docs="report"
                             onClick={act(openReport)}
                           />
                         ) : null}
@@ -1025,6 +913,7 @@ export function MobileToolbar() {
                       icon="Export"
                       label="360° panorama"
                       sub="Capture a look-around panorama"
+                      docs="panorama"
                       onClick={act(() => s.getState().setPanoramaOpen(true))}
                     />
                   ) : null}
@@ -1033,6 +922,7 @@ export function MobileToolbar() {
                       icon="Walkthrough"
                       label="360° tour"
                       sub="Linked panoramas — jump room to room"
+                      docs="panoTour"
                       onClick={act(() => s.getState().setPanoTourOpen(true))}
                     />
                   ) : null}
@@ -1049,6 +939,7 @@ export function MobileToolbar() {
                       icon="Export"
                       label="Render compare"
                       sub="A/B compare two render presets"
+                      docs="renderCompare"
                       onClick={act(() => s.getState().setRenderCompareOpen(true))}
                     />
                   ) : null}
@@ -1057,6 +948,7 @@ export function MobileToolbar() {
                       icon="Budget"
                       label="Shopping list"
                       sub="Buy-list with prices, grouped by retailer"
+                      docs="shopExport"
                       onClick={act(() => openShoppingList())}
                     />
                   ) : null}
@@ -1113,6 +1005,7 @@ export function MobileToolbar() {
                       icon="FloorPlan"
                       label="Import Sweet Home 3D…"
                       sub="Load walls & rooms from a .sh3d file"
+                      docs="importSh3d"
                       onClick={act(() => openSh3dImport())}
                     />
                   ) : null}

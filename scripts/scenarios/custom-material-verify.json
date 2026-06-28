@@ -1,0 +1,24 @@
+{
+  "name": "custom-material-verify",
+  "description": "CUSTOMIZE-SAVE-MATERIAL: enter a room, save composed materials (incl. a scaled one) as named custom materials, apply them to the floor, and screenshot the picker (showing 'mine' tiles) + the 3D floor (confirming the saved + scaled finishes resolve and render).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "enter-room", "eval": "(() => { const st=window.__store.getState(); const room=st.floorPlan.rooms.find(r=>!r.external)||st.floorPlan.rooms[0]; st.enterRoomEditor(room.id); window.__roomId = room.id; return room.id; })()" },
+    { "name": "settle", "wait": 2000 },
+    { "name": "save-materials", "eval": "(() => { const st=window.__store.getState(); st.saveMaterial({ finishId:'compose:hexagon:#cc4444', name:'Crimson hex', category:'floor' }); st.saveMaterial({ finishId:'compose:tile:#3a7bd5@0.4', name:'Fine blue tile', category:'floor' }); st.saveMaterial({ finishId:'tint:wall-paint-white:#2a9d6f', name:'Emerald paint', category:'wall' }); return st.savedMaterials.length; })()" },
+    { "name": "wait-save", "wait": 800 },
+    { "name": "apply-saved-floor", "eval": "window.__store.getState().setFloorFinish(window.__roomId, 'compose:hexagon:#cc4444')" },
+    { "name": "wait-apply", "wait": 1500 },
+    { "name": "shot-applied", "screenshot": "01-saved-hex-applied" },
+    { "name": "apply-scaled", "eval": "window.__store.getState().setFloorFinish(window.__roomId, 'compose:tile:#3a7bd5@0.4')" },
+    { "name": "wait-scaled", "wait": 1500 },
+    { "name": "shot-scaled", "screenshot": "02-scaled-tile-applied" }
+  ]
+}

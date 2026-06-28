@@ -1,0 +1,18 @@
+{
+  "name": "per-part-recolour-verify",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "place-pool-table", "eval": "(() => { const st=window.__store.getState(); const rooms=(st.floorPlan.rooms||[]); const room=rooms.find(r=>!r.external)||rooms[0]; st.enterRoomEditor(room.id); const ox=room.origin?room.origin[0]:0, oz=room.origin?room.origin[1]:0; const cx=ox+(room.width||3)/2, cz=oz+(room.depth||3)/2; const id='verify-pool'; const it={ id, defId:'pool-table-6ft', position:[cx,cz], rotation:0, props:{} }; const s2=window.__store.getState(); s2.setItems([...s2.items.filter(i=>i.id!==id), it]); s2.selectItem(id); return id; })()" },
+    { "name": "load-wait", "wait": 3000 },
+    { "name": "shot-inspector", "screenshot": "recolour-inspector" },
+    { "name": "recolour-part", "eval": "(() => { const hdr=[...document.querySelectorAll('div')].find(d=>d.textContent.trim()==='Recolour parts'); const sec=hdr&&hdr.parentElement; const inp=sec&&sec.querySelector('input[type=color]'); if(!inp) return 'no-picker'; const set=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set; set.call(inp,'#ff2d2d'); inp.dispatchEvent(new Event('input',{bubbles:true})); inp.dispatchEvent(new Event('change',{bubbles:true})); return 'set'; })()" },
+    { "name": "recolour-wait", "wait": 1200 },
+    { "name": "shot-recoloured", "screenshot": "recolour-3d" }
+  ]
+}

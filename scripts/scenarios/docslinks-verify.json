@@ -1,0 +1,23 @@
+{
+  "name": "docslinks-verify",
+  "description": "Docs '?' affordances render in the command palette and the Tools menu.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
+    { "name": "reload", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
+    { "name": "force-scene-ready", "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}" },
+    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
+    { "name": "open-cmdk", "eval": "window.__store.getState().setCmdkOpen(true)" },
+    { "name": "cmdk-visible", "waitFor": { "css": ".cmdk-item" }, "timeout": 8000 },
+    { "name": "settle", "wait": 600 },
+    { "name": "shot-cmdk", "screenshot": "cmdk-docs" },
+    { "name": "check-cmdk-help", "eval": "(function(){var n=document.querySelectorAll('.cmdk-item .ci-help').length;if(n===0)throw new Error('no palette docs help affordances');return 'cmdk-help-'+n})()" },
+    { "name": "close-cmdk", "eval": "window.__store.getState().setCmdkOpen(false)" },
+    { "name": "open-tools", "click": { "text": "Tools" } },
+    { "name": "tools-settle", "wait": 600 },
+    { "name": "shot-tools", "screenshot": "tools-docs" },
+    { "name": "check-tools-help", "eval": "(function(){var n=document.querySelectorAll('.menu-item-wrap .mi-help').length;if(n===0)throw new Error('no tools-menu docs help affordances');return 'tools-help-'+n})()" }
+  ]
+}

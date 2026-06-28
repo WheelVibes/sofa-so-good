@@ -1,0 +1,21 @@
+{
+  "name": "wardrobe-thumb",
+  "description": "Inspect the wardrobe catalog thumbnail.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
+    { "name": "reload", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
+    { "name": "force-scene-ready", "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}" },
+    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
+    { "name": "enter-room-editor", "eval": "window.__store.getState().enterRoomEditor('mainBedroom')" },
+    { "name": "room-settle", "wait": 2000 },
+    { "name": "open-catalog", "eval": "window.__store.getState().setCatalogOpen(true)" },
+    { "name": "catalog-settle", "wait": 1500 },
+    { "name": "focus-search", "click": { "selector": ".cat-search input" } },
+    { "name": "type-wardrobe", "type": "type", "text": "wardrobe" },
+    { "name": "search-settle", "wait": 3500 },
+    { "name": "shot-wardrobe", "screenshot": "wardrobe-thumb" }
+  ]
+}

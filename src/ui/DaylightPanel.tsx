@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
 import { useStore } from '../state/store'
 import { formatArea } from '../utils/measurement'
+import { AuxPanelHead } from './AuxPanelHead'
 import { EmptyState } from './EmptyState'
 import { Icon } from './toolbar/icons'
 
@@ -24,23 +25,17 @@ export function DaylightPanel() {
 
   return (
     <aside className="panel mini aux aux-360" id="daylightPanel">
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Daylight & ventilation</div>
-          <div className="panel-sub">
+      <AuxPanelHead
+        title="Daylight & ventilation"
+        sub={
+          <>
             Glazing ≥ {Math.round(DAYLIGHT_MIN_RATIO * 100)}% · openable ≥{' '}
             {Math.round(VENT_MIN_RATIO * 100)}% of floor
-          </div>
-        </div>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close"
-          onClick={() => setOpen(false)}
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
+          </>
+        }
+        docs="daylight"
+        onClose={() => setOpen(false)}
+      />
       <hr className="hr" />
       <div className="panel-body">
         <div className="clr-summary">

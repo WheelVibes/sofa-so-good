@@ -8,6 +8,7 @@ import {
   PARAMETRIC_LIMITS,
   type ParametricSpec,
 } from '../../furniture/parametric/spec'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { DimField } from './DimField'
 
 /** Preset finish swatches (kind + tint) — common board finishes. A free colour
@@ -222,6 +223,11 @@ function KitchenControls({
             onChange={(e) => onChange({ color: e.target.value })}
           />
         </div>
+        <ThemeColorRows
+          active={spec.color}
+          roomId={null}
+          onPick={(hex) => onChange({ color: hex })}
+        />
       </div>
     </>
   )
@@ -521,6 +527,11 @@ export function ParametricControls({
             onChange={(e) => onChange({ color: e.target.value })}
           />
         </div>
+        <ThemeColorRows
+          active={spec.color}
+          roomId={null}
+          onPick={(hex) => onChange({ color: hex })}
+        />
       </div>
     </>
   )

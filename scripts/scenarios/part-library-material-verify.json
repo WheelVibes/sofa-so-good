@@ -1,0 +1,17 @@
+{
+  "name": "part-library-material-verify",
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "place-pool-table", "eval": "(() => { const st=window.__store.getState(); const rooms=(st.floorPlan.rooms||[]); const room=rooms.find(r=>!r.external)||rooms[0]; st.enterRoomEditor(room.id); const ox=room.origin?room.origin[0]:0, oz=room.origin?room.origin[1]:0; const cx=ox+(room.width||3)/2, cz=oz+(room.depth||3)/2; const id='verify-pool'; const it={ id, defId:'pool-table-6ft', position:[cx,cz], rotation:0, props:{} }; const s2=window.__store.getState(); s2.setItems([...s2.items.filter(i=>i.id!==id), it]); s2.selectItem(id); return id; })()" },
+    { "name": "load-wait", "wait": 3500 },
+    { "name": "apply-library-material", "eval": "(() => { const hdr=[...document.querySelectorAll('div')].find(d=>d.textContent.trim()==='Part finishes'); const sec=hdr&&hdr.parentElement; const names=[...(sec?sec.querySelectorAll('span[title]'):[])].map(s=>s.getAttribute('title')).filter(Boolean); const patch={}; names.forEach(n=>{patch['finish:'+n]='mat:floor-tile-marble';}); window.__store.getState().updateItemProps('verify-pool', patch); return JSON.stringify(names.length); })()" },
+    { "name": "build-wait", "wait": 3000 },
+    { "name": "shot", "screenshot": "part-library-material" }
+  ]
+}

@@ -134,6 +134,11 @@ export function buildMaterial(
     roughness: 0.85,
     metalness: 0.0,
   })
+  // Optional roughness/gloss override (CUSTOMIZE-MATERIAL-PARAMS): a composed /
+  // tinted finish can carry a `~<rough>` scalar. It REPLACES the kind's default
+  // scalar below (set after each branch builds its maps) — multiplying any
+  // roughness map. Absent → the kind's own default applies.
+  const roughOverride = typeof def.roughness === 'number' ? def.roughness : undefined
   if (def.kind === 'procedural' && def.pattern === 'plaster') {
     // Painted plaster: shared normal + flat tint (no per-material textures).
     const normal = getPlasterNormal()
@@ -146,6 +151,7 @@ export function buildMaterial(
     // base scalar, so the wall stays clearly MATTE — just no longer dead-uniform.
     const roughnessMap = getPlasterRoughness()
     if (roughnessMap) m.roughnessMap = roughnessMap
+    if (roughOverride != null) m.roughness = roughOverride
     CACHE.set(cacheKey, m)
     return m
   }
@@ -160,6 +166,7 @@ export function buildMaterial(
     for (const t of [maps.albedo, maps.normal, maps.roughness]) {
       t.repeat.set(1 / def.uvScale[0], 1 / def.uvScale[1])
     }
+    if (roughOverride != null) m.roughness = roughOverride
     CACHE.set(cacheKey, m)
 
     // Request higher-quality generation off the main thread. The sync
@@ -184,6 +191,7 @@ export function buildMaterial(
       t.repeat.set(1 / def.uvScale[0], 1 / def.uvScale[1])
     }
   }
+  if (roughOverride != null) m.roughness = roughOverride
   CACHE.set(cacheKey, m)
   return m
 }

@@ -1,9 +1,11 @@
 import type React from 'react'
+import { useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { encodeFinishDrag, FINISH_DND_MIME } from '../../materials/finishDrop'
 import { proceduralThumbnailDataUrl } from '../../materials/procedural/generators'
 import type { MaterialDef } from '../../materials/types'
 import { useStore } from '../../state/store'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 
@@ -25,6 +27,11 @@ interface SwatchGroupProps {
   active: string
   onSelect: (id: string) => void
   onRemoveUser: (id: string) => void
+  /** Finish ids that are user-saved custom materials — badged "mine" + removable
+   *  even when they aren't uploaded textures (composed/tinted/colour finishes). */
+  savedIds?: Set<string>
+  /** Rename a user material (uploaded or saved). Enables the inline pencil. */
+  onRename?: (id: string, name: string) => void
   onCustom?: (hex: string) => void
   recent?: string[]
   /** Recently-applied finish ids (any surface); filtered to this group's items. */
@@ -157,12 +164,17 @@ export function SwatchGroup({
   active,
   onSelect,
   onRemoveUser,
+  savedIds,
+  onRename,
   onCustom,
   recent,
   recentFinishIds,
   curated,
 }: SwatchGroupProps) {
   const customActive = typeof active === 'string' && active.startsWith('#')
+  // Inline rename: which user/saved tile is currently being renamed (id) + draft.
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [draftName, setDraftName] = useState('')
   const isMobile = useIsMobile()
   // Drag-to-apply (Q31): swatches are drag sources for the Objects-list rows
   // and the 3D canvas drop surfaces. Desktop-only (HTML5 DnD has no touch
@@ -270,6 +282,12 @@ export function SwatchGroup({
             </label>
           ) : null}
         </div>
+        {onCustom ? (
+          <ThemeColorRows
+            active={customActive ? (active as string) : undefined}
+            onPick={onCustom}
+          />
+        ) : null}
         {onCustom && recent && recent.length > 0 ? (
           <RecentColors recent={recent} active={active} onCustom={onCustom} />
         ) : null}
@@ -286,9 +304,12 @@ export function SwatchGroup({
       <RecentFinishes mats={recentMats} active={active} onSelect={onSelect} />
       <div className="finish-grid">
         {sorted.map((m) => {
-          const isUser = m.kind === 'textured' && m.source === 'user'
+          const isSaved = savedIds?.has(m.id) ?? false
+          // Uploaded textures and saved custom materials are both the user's own
+          // → removable. Saved (composed/tinted/colour) ones get a "mine" badge.
+          const isUser = (m.kind === 'textured' && m.source === 'user') || isSaved
           const isActive = m.id === active
-          const tag = providerTag(m)
+          const tag = providerTag(m) ?? (isSaved ? { label: 'mine', cls: 'badge neutral' } : null)
           const fav = favSet.has(m.id)
           return (
             // biome-ignore lint/a11y/useSemanticElements: tile holds a nested remove button, so it can't be a <button>
@@ -329,7 +350,49 @@ export function SwatchGroup({
                   backgroundPosition: 'center',
                 }}
               />
-              <span className="name">{m.name}</span>
+              {renamingId === m.id ? (
+                <input
+                  type="text"
+                  className="input"
+                  style={{ width: '100%', fontSize: 'var(--t-2xs)', padding: '1px 4px' }}
+                  value={draftName}
+                  // Focus on mount without the flagged `autoFocus` attribute.
+                  ref={(el) => el?.focus()}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  onBlur={() => {
+                    if (draftName.trim()) onRename?.(m.id, draftName)
+                    setRenamingId(null)
+                  }}
+                  onKeyDown={(e) => {
+                    e.stopPropagation()
+                    if (e.key === 'Enter') {
+                      if (draftName.trim()) onRename?.(m.id, draftName)
+                      setRenamingId(null)
+                    } else if (e.key === 'Escape') {
+                      setRenamingId(null)
+                    }
+                  }}
+                  aria-label={`Rename ${m.name}`}
+                />
+              ) : (
+                <span className="name">{m.name}</span>
+              )}
+              {isUser && onRename && renamingId !== m.id ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDraftName(m.name)
+                    setRenamingId(m.id)
+                  }}
+                  className="coll-x"
+                  style={{ bottom: 4, top: 'auto', left: 4, right: 'auto' }}
+                  aria-label={`Rename ${m.name}`}
+                >
+                  <Icon.Edit width={12} height={12} />
+                </button>
+              ) : null}
               {tag ? (
                 <span
                   className="badge neutral"
@@ -347,7 +410,7 @@ export function SwatchGroup({
                   }}
                   className="coll-x"
                   style={{ bottom: 4, top: 'auto' }}
-                  aria-label="Remove uploaded material"
+                  aria-label={isSaved ? 'Remove saved material' : 'Remove uploaded material'}
                 >
                   <Icon.Close width={12} height={12} />
                 </button>

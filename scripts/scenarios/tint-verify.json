@@ -1,0 +1,21 @@
+{
+  "name": "tint-verify",
+  "description": "Tint an existing material (custom colour over a catalog texture) renders, and the composer offers a 'Tint a material' group.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
+    { "name": "reload", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
+    { "name": "force-scene-ready", "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}" },
+    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
+    { "name": "enter-room-editor", "eval": "window.__store.getState().enterRoomEditor('livingDining')" },
+    { "name": "room-settle", "wait": 2500 },
+    { "name": "apply-tinted-floor", "eval": "window.__store.getState().setFloorFinish('livingDining','tint:floor-wood-oak:#cc3333')" },
+    { "name": "render-settle", "wait": 2500 },
+    { "name": "shot-tinted-floor", "screenshot": "tinted-floor" },
+    { "name": "open-finish", "eval": "window.__store.getState().selectRoom('livingDining')" },
+    { "name": "finish-settle", "wait": 1500 },
+    { "name": "check-optgroup", "eval": "(function(){var g=Array.from(document.querySelectorAll('.compose optgroup')).map(function(o){return o.label});if(!g.includes('Tint a material'))throw new Error('no Tint optgroup, got: '+g.join(','));return 'ok:'+g.join(',')})()" }
+  ]
+}

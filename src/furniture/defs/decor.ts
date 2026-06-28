@@ -147,17 +147,20 @@ export const DECOR_DEFS = {
     keywords: ['blinds', 'window shade', 'shade'],
     category: 'decor',
     primitive: 'RollerBlind',
-    defaultFootprint: { w: 1.2, d: 0.12, h: 2.3 },
+    defaultFootprint: { w: 1.3, d: 0.12, h: 2.3 },
     noClip: true,
+    // Window-bound: statically placed on a window (no move/rotate/flip). Placement
+    // sizes the blind slightly wider than its window with a covering drop.
+    windowBound: true,
     paramSchema: [
       {
         kind: 'number',
         key: 'width',
         label: 'Width',
         min: 0.6,
-        max: 2.6,
+        max: 2.8,
         step: 0.1,
-        default: 1.2,
+        default: 1.3,
         unit: 'm',
       },
       {
@@ -171,16 +174,70 @@ export const DECOR_DEFS = {
         unit: 'm',
       },
       {
+        // Maximum extent (m) the blind covers when fully lowered — placement sets
+        // it to span the window.
         kind: 'number',
         key: 'drop',
         label: 'Drop',
         min: 0.4,
-        max: 2.2,
+        max: 2.4,
         step: 0.1,
         default: 1.7,
         unit: 'm',
       },
-      { kind: 'color', key: 'color', label: 'Fabric', default: '#d8d2c4' },
+      {
+        // Raise/lower the blind with a smooth animation (BLIND-LOWER): 0 = raised
+        // (rolled up, window exposed), 1 = lowered (covers the window). The
+        // primitive eases between the two; window light attenuation can track it.
+        kind: 'number',
+        key: 'lower',
+        label: 'Lower (open → closed)',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        default: 1,
+      },
+      {
+        // Fabric weave — fabric-only (a blind's shade is cloth); reuses the
+        // shared tone-on-tone pattern set below. Applies to the roller panel.
+        kind: 'enum',
+        key: 'material',
+        label: 'Fabric',
+        default: 'cotton',
+        options: [
+          { value: 'cotton', label: 'Cotton' },
+          { value: 'linen', label: 'Linen' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
+      {
+        // Opacity / light-blocking (CURTAIN-OPACITY): sheer → blackout.
+        kind: 'enum',
+        key: 'lightBlock',
+        label: 'Opacity',
+        default: 'room',
+        options: [
+          { value: 'sheer', label: 'Sheer' },
+          { value: 'light', label: 'Light-filtering' },
+          { value: 'room', label: 'Room-darkening' },
+          { value: 'blackout', label: 'Blackout' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'pattern',
+        label: 'Pattern',
+        default: 'plain',
+        options: [
+          { value: 'plain', label: 'Plain' },
+          { value: 'striped', label: 'Striped' },
+          { value: 'herringbone', label: 'Herringbone' },
+          { value: 'checkered', label: 'Checkered' },
+          { value: 'plaid', label: 'Plaid' },
+          { value: 'dots', label: 'Dots' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#d8d2c4' },
       {
         kind: 'enum',
         key: 'kind',

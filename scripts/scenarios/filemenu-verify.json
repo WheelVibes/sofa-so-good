@@ -1,0 +1,18 @@
+{
+  "name": "filemenu-verify",
+  "description": "File menu sections render.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
+    { "name": "reload", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
+    { "name": "force-scene-ready", "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}" },
+    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
+    { "name": "settle", "wait": 1500 },
+    { "name": "open-file", "click": { "text": "File" } },
+    { "name": "file-settle", "wait": 700 },
+    { "name": "shot-file", "screenshot": "file-sectioned" },
+    { "name": "check", "eval": "(function(){var l=Array.from(document.querySelectorAll('.pop-panel .menu-label')).map(function(e){return e.textContent});if(!l.includes('Save & export'))throw new Error('no Save & export header; got '+l.join('|'));return 'ok:'+l.join('|')})()" }
+  ]
+}

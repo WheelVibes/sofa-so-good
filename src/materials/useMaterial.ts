@@ -4,8 +4,16 @@ import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../state/store'
 import { BUILTIN_MATERIALS } from './builtinCatalog'
 import { buildMaterial, getCachedMaterial } from './cache'
+import {
+  composedMaterialDef,
+  isComposedMaterialId,
+  isTintMaterialId,
+  parseTintMaterialId,
+  tintedMaterialDef,
+} from './composeMaterial'
 import { GENERATED_MATERIALS } from './generatedCatalog'
 import type {
+  MaterialCategory,
   MaterialDef,
   MaterialId,
   ProceduralMaterialDef,
@@ -17,11 +25,39 @@ import type {
 export function useMaterials(): Record<MaterialId, MaterialDef> {
   const userMaterials = useStore(useShallow((s) => s.userMaterials))
   const remoteMaterials = useStore(useShallow((s) => s.resolvedRemoteMaterials))
+  const savedMaterials = useStore(useShallow((s) => s.savedMaterials))
   const merged: Record<MaterialId, MaterialDef> = { ...BUILTIN_MATERIALS }
   for (const m of GENERATED_MATERIALS) merged[m.id] = m
   for (const m of userMaterials) merged[m.id] = m
   for (const m of Object.values(remoteMaterials)) merged[m.id] = m
+  // User-saved custom materials (CUSTOMIZE-SAVE-MATERIAL): a saved entry is a
+  // self-describing finish id (`compose:…` / `tint:…` / `#hex`) + a name. Resolve
+  // each to a def (the base for a tint comes from the catalog built above) and
+  // give it the user's name so it shows as a named tile in the picker.
+  for (const s of savedMaterials) {
+    const def = resolveFinishDef(s.finishId, merged, s.category)
+    if (def) merged[s.finishId] = { ...def, id: s.finishId, name: s.name }
+  }
   return merged
+}
+
+/** Resolve any self-describing finish id (`#hex` / `compose:…` / `tint:…`) or a
+ *  plain catalog id to a `MaterialDef`, using `catalog` to look up a tint base.
+ *  Returns `null` when it can't be resolved. Shared by `useMaterials` (named
+ *  saved entries) and reusable for any non-hook resolution. */
+function resolveFinishDef(
+  id: string,
+  catalog: Record<MaterialId, MaterialDef>,
+  category: MaterialCategory,
+): MaterialDef | null {
+  if (id.startsWith('#')) return { ...customColorDef(id), category }
+  if (isComposedMaterialId(id)) return composedMaterialDef(id, category)
+  if (isTintMaterialId(id)) {
+    const parts = parseTintMaterialId(id)
+    const base = parts ? catalog[parts.baseId] : undefined
+    return base ? tintedMaterialDef(id, base) : null
+  }
+  return catalog[id] ?? null
 }
 
 /** A custom user-chosen colour is encoded directly as a `#RRGGBB` finish id;
@@ -44,6 +80,22 @@ export function customColorDef(id: string): MaterialDef {
 export function useMaterialDef(id: MaterialId): MaterialDef {
   const materials = useMaterials()
   if (typeof id === 'string' && id.startsWith('#')) return customColorDef(id)
+  // A composed finish (`compose:<pattern>:<#hex>`) is synthesised on the fly —
+  // texture + colour, no catalog entry needed (MAT-COMPOSE).
+  if (isComposedMaterialId(id)) {
+    const composed = composedMaterialDef(id)
+    if (composed) return composed
+  }
+  // A tinted finish (`tint:<baseId>:<#hex>`) recolours an existing catalog
+  // material — including textured CC0 / Poly Haven ones (MAT-COMPOSE tail).
+  if (isTintMaterialId(id)) {
+    const parts = parseTintMaterialId(id)
+    const base = parts ? materials[parts.baseId] : undefined
+    if (base) {
+      const tinted = tintedMaterialDef(id, base)
+      if (tinted) return tinted
+    }
+  }
   const def = materials[id]
   if (def) return def
   const firstKey = Object.keys(materials)[0]!

@@ -220,6 +220,17 @@
   transition: var(--dur) var(--ease);
 }
 .finish-apply-all:hover { background: var(--surface-3); color: var(--text); border-color: var(--accent); }
+/* Texture + colour composer (MAT-COMPOSE) under each surface's swatch grid. */
+.compose { margin: 0 0 var(--s-3); }
+.compose-summary {
+  cursor: pointer; list-style: none; user-select: none;
+  font-size: var(--t-2xs); font-weight: 600; color: var(--text-2);
+  padding: 2px 0;
+}
+.compose-summary::-webkit-details-marker { display: none; }
+.compose-summary::before { content: '＋ '; color: var(--text-3); }
+.compose[open] .compose-summary::before { content: '－ '; }
+.compose-summary:hover { color: var(--text); }
 .prop-reset {
   margin-left: auto; padding: 2px 8px; border-radius: var(--r-pill);
   font-size: var(--t-2xs); font-weight: 600; color: var(--text-2);

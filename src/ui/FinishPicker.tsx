@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ROOMS, roomArea } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
@@ -22,6 +22,8 @@ import { useStore } from '../state/store'
 import { formatArea } from '../utils/measurement'
 import { lazyWithRetry } from './app/lazyWithRetry'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
+import { MasterPaletteEditor } from './color/MasterPaletteEditor'
+import { MaterialComposer } from './finish/MaterialComposer'
 import { SwatchGroup } from './finish/swatches'
 import { Icon } from './toolbar/icons'
 
@@ -245,7 +247,35 @@ export function FinishPicker() {
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   const fRemoteMaterials = useFeature('remoteMaterials')
   const fDesignerPicks = useFeature('designerPicks')
+  const fComposer = useFeature('materialComposer')
+  const fSaveMaterials = useFeature('saveMaterials')
   const materials = useMaterials()
+  const savedMaterials = useStore(useShallow((s) => s.savedMaterials))
+  const saveMaterial = useStore((s) => s.saveMaterial)
+  const removeSavedMaterial = useStore((s) => s.removeSavedMaterial)
+  const renameSavedMaterial = useStore((s) => s.renameSavedMaterial)
+  const renameUserMaterial = useStore((s) => s.renameUserMaterial)
+  // Set of saved-material finish ids, so the picker grid can badge them as the
+  // user's own + route their remove (X) to the saved-materials slice.
+  const savedIds = useMemo(() => new Set(savedMaterials.map((m) => m.finishId)), [savedMaterials])
+  const savedNameFor = (finishId: string): string | undefined =>
+    savedMaterials.find((m) => m.finishId === finishId)?.name
+  // A saved custom material (compose:/tint:/#hex id) removes from the saved
+  // slice; an uploaded textured material removes from userMaterials + IDB.
+  const removeUserOrSaved = (id: string) => {
+    if (savedIds.has(id)) removeSavedMaterial(id)
+    else removeUserMaterial(id)
+  }
+  const renameUserOrSaved = (id: string, name: string) => {
+    if (savedIds.has(id)) renameSavedMaterial(id, name)
+    else renameUserMaterial(id, name)
+  }
+  const handleSaveMaterial = (category: MaterialCategory) => (finishId: string, name: string) => {
+    saveMaterial({ finishId, name, category })
+    useStore
+      .getState()
+      .notify.start({ title: `Saved "${name}" to your materials`, kind: 'success' })
+  }
   const [uploadOpen, setUploadOpen] = useState(false)
   const [finishQuery, setFinishQuery] = useState('')
   const [view, setView] = useState<View>('swatch')
@@ -311,7 +341,7 @@ export function FinishPicker() {
   }
 
   return (
-    <aside className="panel inspector" style={view === 'browse' ? { width: 320 } : undefined}>
+    <aside className="panel inspector dock-panel">
       <div className="panel-head">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           {view === 'browse' && (
@@ -355,12 +385,22 @@ export function FinishPicker() {
             aria-label="Search finishes"
             style={{ marginBottom: 'var(--s-3)' }}
           />
+          {/* Apartment master palette + per-room override (CUSTOMIZE-MASTER-PALETTE).
+              Drives the "Apartment theme" + "Recommended" rows on every picker. */}
+          <details className="compose" style={{ marginBottom: 'var(--s-3)' }}>
+            <summary className="compose-summary">Apartment colour palette…</summary>
+            <div style={{ marginTop: 'var(--s-2)' }}>
+              <MasterPaletteEditor roomId={roomId} />
+            </div>
+          </details>
           <SwatchGroup
             label="Floor"
             items={filterFinishes(groups.floor, finishQuery)}
             active={activeFloor}
             onSelect={(id) => handleSelect('floor', id)}
-            onRemoveUser={removeUserMaterial}
+            onRemoveUser={removeUserOrSaved}
+            savedIds={savedIds}
+            onRename={renameUserOrSaved}
             onCustom={(hex) => handleSelect('floor', hex)}
             recent={recentColors}
             recentFinishIds={recentFinishes}
@@ -379,12 +419,24 @@ export function FinishPicker() {
           >
             Apply floor to all rooms
           </button>
+          {fComposer ? (
+            <MaterialComposer
+              label="Floor"
+              active={activeFloor ?? ''}
+              materials={groups.floor}
+              onApply={(id) => handleSelect('floor', id)}
+              onSave={fSaveMaterials ? handleSaveMaterial('floor') : undefined}
+              savedNameOf={savedNameFor}
+            />
+          ) : null}
           <SwatchGroup
             label="Walls"
             items={filterFinishes(groups.wall, finishQuery)}
             active={activeWall}
             onSelect={(id) => handleSelect('wall', id)}
-            onRemoveUser={removeUserMaterial}
+            onRemoveUser={removeUserOrSaved}
+            savedIds={savedIds}
+            onRename={renameUserOrSaved}
             onCustom={(hex) => handleSelect('wall', hex)}
             recent={recentColors}
             recentFinishIds={recentFinishes}
@@ -403,6 +455,16 @@ export function FinishPicker() {
           >
             Apply walls to all rooms
           </button>
+          {fComposer ? (
+            <MaterialComposer
+              label="Walls"
+              active={activeWall ?? ''}
+              materials={groups.wall}
+              onApply={(id) => handleSelect('wall', id)}
+              onSave={fSaveMaterials ? handleSaveMaterial('wall') : undefined}
+              savedNameOf={savedNameFor}
+            />
+          ) : null}
           {otherRooms.length > 0 ? (
             <select
               className="input"

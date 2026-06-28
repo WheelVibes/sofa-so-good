@@ -1,0 +1,40 @@
+{
+  "name": "design-bugs-verify",
+  "description": "Verify the design-tool bug fixes: Smart Start palette, condo presets, finish composer, wardrobe thumbnail, A/B compare.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
+    { "name": "reload", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
+    { "name": "force-scene-ready", "eval": "try{ window.__store.getState().setSceneReady && window.__store.getState().setSceneReady(true) }catch(e){}" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
+    { "name": "wait-settle", "wait": 1500 },
+
+    { "name": "open-smart-start", "eval": "window.__store.getState().setSmartStartOpen(true)" },
+    { "name": "smart-start-visible", "waitFor": { "css": ".ss-grid" }, "timeout": 8000 },
+    { "name": "shot-smart-start", "screenshot": "smart-start-palette" },
+    { "name": "close-smart-start", "eval": "window.__store.getState().setSmartStartOpen(false)" },
+    { "name": "wait-a", "wait": 500 },
+
+    { "name": "open-plan-editor", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "plan-editor-visible", "waitFor": { "css": ".plan-canvas" }, "timeout": 8000 },
+    { "name": "pick-housing", "select": { "selector": "select[aria-label='Template housing type']", "value": "Condominium" } },
+    { "name": "wait-proj", "wait": 400 },
+    { "name": "shot-condo-projects", "screenshot": "condo-projects" },
+    { "name": "pick-project", "select": { "selector": "select[aria-label='Template project']", "value": "Marina One Residences" } },
+    { "name": "wait-type", "wait": 400 },
+    { "name": "pick-type", "select": { "selector": "select[aria-label='Template apartment type']", "value": "tpl-condo-penthouse" } },
+    { "name": "wait-load", "wait": 1200 },
+    { "name": "shot-condo-loaded", "screenshot": "condo-penthouse-loaded" },
+    { "name": "report-plan", "eval": "window.__SCENARIO_NOTE = window.__store.getState().floorPlan.rooms.map(r=>r.name).join(', ')" },
+    { "name": "close-plan-editor", "eval": "window.__store.getState().setFloorPlanEditing(false)" },
+    { "name": "wait-b", "wait": 600 },
+
+    { "name": "enter-room-editor", "eval": "window.__store.getState().enterRoomEditor(window.__store.getState().floorPlan.rooms[0].id)" },
+    { "name": "room-editor-settle", "wait": 1800 },
+    { "name": "open-catalog-storage", "eval": "try{ window.__store.getState().setLeftMode && window.__store.getState().setLeftMode('catalog') }catch(e){}" },
+    { "name": "shot-room-editor", "screenshot": "room-editor-catalog" }
+  ]
+}

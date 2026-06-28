@@ -24,6 +24,21 @@ describe('finishes — apply to all rooms', () => {
     for (const id of interiorRooms) expect(walls[id]).toBe('wall-brick-red')
   })
 
+  it('setAllCeilingFinish applies one id to every interior room', () => {
+    useStore.getState().setAllCeilingFinish('wall-paint-white')
+    const ceiling = useStore.getState().finishes.ceiling
+    for (const id of interiorRooms) expect(ceiling[id]).toBe('wall-paint-white')
+  })
+
+  it('ceiling finish starts empty (default white) and clears back to it', () => {
+    expect(Object.keys(useStore.getState().finishes.ceiling)).toHaveLength(0)
+    const room = interiorRooms[0]
+    useStore.getState().setCeilingFinish(room, 'wall-fluted-walnut')
+    expect(useStore.getState().finishes.ceiling[room]).toBe('wall-fluted-walnut')
+    useStore.getState().clearCeilingFinish(room)
+    expect(useStore.getState().finishes.ceiling[room]).toBeUndefined()
+  })
+
   it('applies to a custom plan’s own rooms (not the fixed apartment rooms)', () => {
     useStore.setState({
       floorPlan: {
@@ -96,6 +111,21 @@ describe('finishes ↔ plan write-through (FP-next)', () => {
     useStore.getState().clearWallFinish('nook' as RoomId)
     expect(useStore.getState().floorPlan.rooms.find((r) => r.id === 'nook')?.wall).toBeUndefined()
     expect((useStore.getState().finishes.walls as Record<string, string>)['nook']).toBeUndefined()
+  })
+
+  it('setCeilingFinish + clearCeilingFinish write through to the plan room ceilingFinish', () => {
+    activateCustomPlan()
+    useStore.getState().setCeilingFinish('studio-main' as RoomId, 'wall-fluted-walnut')
+    expect(
+      useStore.getState().floorPlan.rooms.find((r) => r.id === 'studio-main')?.ceilingFinish,
+    ).toBe('wall-fluted-walnut')
+    useStore.getState().clearCeilingFinish('studio-main' as RoomId)
+    expect(
+      useStore.getState().floorPlan.rooms.find((r) => r.id === 'studio-main')?.ceilingFinish,
+    ).toBeUndefined()
+    expect(
+      (useStore.getState().finishes.ceiling as Record<string, string>)['studio-main'],
+    ).toBeUndefined()
   })
 
   it('setAllFloorFinish writes through to every plan room', () => {

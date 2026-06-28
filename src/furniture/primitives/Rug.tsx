@@ -15,10 +15,11 @@ export function Rug({ props }: { props: ParamProps }) {
   const pattern = readStr(props, 'pattern', 'solid')
   const shape = readStr(props, 'shape', 'rectangular')
 
+  const WOVEN_PATTERNS = ['striped', 'herringbone', 'checkered', 'plaid', 'dots']
   const fieldMat =
     pattern === 'gradient'
       ? getGradientFabricMaterial(color, color2)
-      : pattern === 'striped' || pattern === 'herringbone'
+      : WOVEN_PATTERNS.includes(pattern)
         ? getFabricMaterial(color, 0.95, pattern)
         : getFabricMaterial(color)
   const borderMat = getFabricMaterial(border)

@@ -44,6 +44,11 @@ export function slopedWallTriangles(
   w: PlanWall,
   ceilingHeight: number,
   thicknessM?: number,
+  /** Base of the prism (m). 0 = floor (a full sloped wall). When a sloped wall
+   *  hosts openings the rectangular lower band [0, minTop] is rendered as solid
+   *  boxes (cut for the openings) and only the upper wedge [minTop, slopedTop] is
+   *  this prism, so `baseY` is set to that min top height. */
+  baseY = 0,
 ): Float32Array {
   const [sx, sz] = w.start
   const [ex, ez] = w.end
@@ -56,11 +61,11 @@ export function slopedWallTriangles(
   const t = (thicknessM != null && thicknessM > 0 ? thicknessM : fallbackThickness(w)) / 2
   const [h0, h1] = slopedWallHeights(w, ceilingHeight)
 
-  // 8 corners: base (y=0) + top (sloped). L/R = ±left-normal side; S/E = start/end.
-  const SLb: V = [sx + nx * t, 0, sz + nz * t]
-  const SRb: V = [sx - nx * t, 0, sz - nz * t]
-  const ELb: V = [ex + nx * t, 0, ez + nz * t]
-  const ERb: V = [ex - nx * t, 0, ez - nz * t]
+  // 8 corners: base (y=baseY) + top (sloped). L/R = ±left-normal side; S/E = start/end.
+  const SLb: V = [sx + nx * t, baseY, sz + nz * t]
+  const SRb: V = [sx - nx * t, baseY, sz - nz * t]
+  const ELb: V = [ex + nx * t, baseY, ez + nz * t]
+  const ERb: V = [ex - nx * t, baseY, ez - nz * t]
   const SLt: V = [SLb[0], h0, SLb[2]]
   const SRt: V = [SRb[0], h0, SRb[2]]
   const ELt: V = [ELb[0], h1, ELb[2]]

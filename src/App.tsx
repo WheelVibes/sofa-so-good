@@ -846,28 +846,34 @@ export default function App() {
 
   return (
     <WebGLFallback>
-      <div className="relative h-[100dvh] w-screen overflow-hidden">
-        <Toolbar />
-        <ErrorBoundary scope="3D scene">
-          {roomEditorActive ? <RoomEditorScene /> : <Scene />}
-        </ErrorBoundary>
-        {/* Drop-target ring: shown while a finish drag is over the canvas
-            (DOM overlay, outside R3F — works under frameloop="demand"). */}
-        <FinishDragOverlay />
-        <FpsCounter />
-        <RoomEditorCaption />
-        <EmptyRoomHint />
-        <MobileLongPress />
-        <MarqueeSelector />
-        <NavCluster />
-        <DragHud />
-        <BudgetHud />
-        <TapeModeToggle />
-        <Crosshair />
-        <WalkJoystick />
-        <WalkHud />
-        <DoorPrompt />
-        <CatalogDrawer />
+      <div className="app-shell relative h-[100dvh] w-screen overflow-hidden">
+        {/* Stage area: the 3D canvas + its canvas-relative HUD overlays + the
+            toolbar. On desktop it shrinks to the left of a docked right panel
+            (`--right-rail`, driven by `:has(.dock-panel)`), so the canvas takes
+            the remaining space and the toolbar re-centres over it. */}
+        <div className="stage-area">
+          <Toolbar />
+          <ErrorBoundary scope="3D scene">
+            {roomEditorActive ? <RoomEditorScene /> : <Scene />}
+          </ErrorBoundary>
+          {/* Drop-target ring: shown while a finish drag is over the canvas
+              (DOM overlay, outside R3F — works under frameloop="demand"). */}
+          <FinishDragOverlay />
+          <FpsCounter />
+          <RoomEditorCaption />
+          <EmptyRoomHint />
+          <MobileLongPress />
+          <MarqueeSelector />
+          <NavCluster />
+          <DragHud />
+          <BudgetHud />
+          <TapeModeToggle />
+          <Crosshair />
+          <WalkJoystick />
+          <WalkHud />
+          <DoorPrompt />
+          <CatalogDrawer />
+        </div>
         <InspectorPanel />
         <FinishPicker />
         <WallAccentPicker />

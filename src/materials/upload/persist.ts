@@ -122,3 +122,26 @@ export async function persistUserMaterial(
   useStore.getState().addUserMaterial(def)
   return { ok: true, def }
 }
+
+/** Update the persisted `name` on every channel record of an uploaded material
+ *  so a rename survives a reload (hydrateAssets reads the name back from the
+ *  channel meta — BUG-003). Best-effort per channel; a missing record is
+ *  skipped. The in-memory def rename is handled by the store action. */
+export async function renameUserMaterialBlobs(
+  def: TexturedMaterialDef,
+  name: string,
+): Promise<void> {
+  const trimmed = name.trim()
+  if (!trimmed) return
+  const assetIds = [
+    def.textures.albedo,
+    def.textures.normal,
+    def.textures.roughness,
+    def.textures.ao,
+  ].filter((a): a is string => !!a)
+  for (const assetId of assetIds) {
+    const rec = await IdbAssetStore.get(assetId).catch(() => null)
+    if (!rec) continue
+    await IdbAssetStore.put({ ...rec, meta: { ...rec.meta, name: trimmed } }).catch(() => {})
+  }
+}

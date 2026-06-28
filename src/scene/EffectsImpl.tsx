@@ -11,8 +11,12 @@ import {
 } from '@react-three/postprocessing'
 import { type ReactElement, useMemo } from 'react'
 import { Vector2 } from 'three'
+import { useStore } from '../state/store'
 import { rasterDofParams } from './cameras/cameraLensSettings'
-import { AO, BLOOM } from './look'
+import { lightingFromAltitude } from './lighting/altitudeCurve'
+import { isDollhouseLighting } from './lighting/dollhouse'
+import { useSunPosition } from './lighting/useSunPosition'
+import { AO, BLOOM, bloomIntensityForDay } from './look'
 
 interface EffectsProps {
   /** Render SSAO at full resolution (sharper, deeper) instead of half-res. */
@@ -59,6 +63,21 @@ export default function EffectsImpl({
   const caOffset = useMemo(() => new Vector2(0.0006, 0.0006), [])
   const { bokehScale, worldFocusRange } = useMemo(() => rasterDofParams(dofFStop), [dofFStop])
 
+  // Bloom strength tracks the day level: full at night (glow genuinely-emissive
+  // fixtures) and →0 at midday, where the same pass would otherwise smear a milky
+  // veil over the (HDR-brighter-than-fixtures) sunlit surfaces — the "washed out
+  // on Maximum" report (LIGHT-IBL-OVERLAP). The threshold is unchanged, so the
+  // fixtureGlow lock-step + night glow are preserved.
+  const sun = useSunPosition()
+  const dayLevel = lightingFromAltitude(sun.altitude).sun
+  // Orbit daytime dollhouse (ORBIT-DOLLHOUSE): no bloom — it's a flat, uniform
+  // view, not the exterior-sun simulation. Walk + night orbit keep the day-ramped
+  // bloom (genuinely-emissive fixtures glow at night, →0 at midday).
+  const cameraMode = useStore((s) => s.cameraMode)
+  const lightsMode = useStore((s) => s.lightsMode ?? 'auto')
+  const dollhouse = isDollhouseLighting({ cameraMode, sunAltitude: sun.altitude, lightsMode })
+  const bloomIntensity = dollhouse ? 0 : bloomIntensityForDay(dayLevel)
+
   const effects: ReactElement[] = [
     <N8AO
       key="ao"
@@ -73,7 +92,7 @@ export default function EffectsImpl({
       mipmapBlur
       luminanceThreshold={BLOOM.luminanceThreshold}
       luminanceSmoothing={BLOOM.luminanceSmoothing}
-      intensity={BLOOM.intensity}
+      intensity={bloomIntensity}
     />,
     <HueSaturation key="hue" saturation={0.06} hue={0} />,
   ]

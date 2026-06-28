@@ -1,6 +1,8 @@
 import { isFeatureEnabled } from '../features/featureFlags'
+import type { MaterialId } from '../materials/types'
 import { useStore } from '../state/store'
 import { RoomCeiling } from './ceiling/RoomCeiling'
+import { RoomCeilingTile } from './ceiling/RoomCeilingTile'
 import { ROOMS } from './constants'
 
 export function Ceiling() {
@@ -10,6 +12,8 @@ export function Ceiling() {
   // the ROOMS constant then the global height.
   const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
   const planRooms = useStore((s) => s.floorPlan.rooms)
+  // Per-room ceiling finish (CUSTOMIZE-CEILING) — absent → plain white.
+  const ceilingFinishes = useStore((s) => s.finishes.ceiling)
   return (
     <group>
       {Object.values(ROOMS)
@@ -48,6 +52,23 @@ export function Ceiling() {
               d: r.extension.depth,
               key: `${r.id}-ext`,
             })
+          }
+          // A per-room finish paints/textures the ceiling; otherwise plain white.
+          const finishId =
+            (ceilingFinishes?.[r.id] as MaterialId | undefined) ??
+            (planRoom?.ceilingFinish as MaterialId | undefined)
+          if (finishId && isFeatureEnabled('ceilingFinish')) {
+            return tiles.map((t) => (
+              <RoomCeilingTile
+                key={t.key}
+                materialId={finishId}
+                cx={t.cx}
+                cz={t.cz}
+                y={h}
+                w={t.w}
+                d={t.d}
+              />
+            ))
           }
           return tiles.map((t) => (
             <mesh key={t.key} position={[t.cx, h, t.cz]} rotation={[Math.PI / 2, 0, 0]}>

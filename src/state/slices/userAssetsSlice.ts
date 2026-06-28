@@ -34,6 +34,8 @@ export interface UserAssetsSlice {
   userMaterials: TexturedMaterialDef[]
   addUserMaterial: (def: TexturedMaterialDef) => void
   removeUserMaterial: (id: string) => void
+  /** Rename an uploaded material (in memory + its persisted IDB channel meta). */
+  renameUserMaterial: (id: string, name: string) => void
   setUserMaterials: (defs: TexturedMaterialDef[]) => void
 }
 
@@ -158,6 +160,20 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
         if (url) URL.revokeObjectURL(url)
       }
     }
+  },
+  renameUserMaterial: (id, name) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    const def = get().userMaterials.find((d) => d.id === id)
+    if (!def) return
+    set((s) => ({
+      userMaterials: s.userMaterials.map((d) => (d.id === id ? { ...d, name: trimmed } : d)),
+    }))
+    // Persist the rename to the IDB channel meta so it survives a reload
+    // (best-effort; the in-memory rename above is what the picker reflects now).
+    void import('../../materials/upload/persist').then((m) =>
+      m.renameUserMaterialBlobs(def, trimmed).catch(() => {}),
+    )
   },
   setUserMaterials: (defs) => set({ userMaterials: defs }),
 })

@@ -9,6 +9,27 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `PATTERN_SIZE_CAP` (256 for smooth/noise-based, 512 for high-frequency geometric patterns).
 - **World-space UVs** (`worldUv.ts`): surfaces tile at a fixed physical scale — don't bake
   per-mesh UVs or assume a unit cube.
+- **Colour harmony (`colorHarmony.ts`, CUSTOMIZE-MASTER-PALETTE)**: pure hex↔HSL + `recommendedBlends(palette, max=10)`
+  derives harmony companions (complementary/analogous/triadic + tints/shades/neutral) from the
+  apartment master palette. The palette lives in `state/slices/colorPaletteSlice.ts` (`masterPalette`
+  + per-room `roomPalettes`, persisted as design data; `effectivePalette` resolves override→master).
+  Every colour picker renders the shared `ui/color/ThemeColorRows` (an "Apartment theme" row + a live
+  "Recommended" row); the editor is `ui/color/MasterPaletteEditor`. Gated by the `masterPalette` flag.
+  When you add a new colour picker, drop in `<ThemeColorRows onPick=… active=… />`.
+- **Composed / tinted finishes are self-describing ids** (`composeMaterial.ts`): a finish built from
+  a pattern + colour is `compose:<pattern>:<#hex>`; recolouring a catalog material is
+  `tint:<baseId>:<#hex>`. Both resolve on the fly in `useMaterialDef` (no catalog entry) and serialise
+  as a plain string. An optional **`@<scale>` suffix** (CUSTOMIZE-MATERIAL-PARAMS) multiplies the
+  tile size (clamped 0.25×–4×; omitted at 1× → back-compat byte-identical id) and is folded into the
+  resolved `uvScale`. When you add another composer parameter, encode it in the id the same way
+  (suffix that defaults to "absent") and apply it in `composedMaterialDef`/`tintedMaterialDef`.
+- **User-saved custom materials (`saveMaterials`)**: `state/slices/savedMaterialsSlice.ts` keeps a
+  per-device (localStorage, like favourites — NOT the save schema) list of `{ finishId, name,
+  category }`. `useMaterials` synthesises a named `MaterialDef` for each (resolving a tint's base from
+  the catalog) so it shows in the picker grid (badged "mine", removable). The composer's name+Save
+  row writes here; applying still writes the underlying self-describing id to the room (renders even
+  where the name isn't present). Saving a different colour/scale is a *new* material (the id changed),
+  so editing = re-seed the composer from a saved finish, tweak, and Save again.
 - **Tile repetition break-up (RD-406 / MAT-006a)**: `worldUv.ts` exports the pure, deterministic
   `cellUvTransform(cu,cv)` (hash a tile cell → a 90°/180°/270° quarter-turn + a {0, 0.5} half-tile
   offset) and `breakRepetitionPlane(w,h,tileSize)` (subdivide a rect floor on the `tileSize`-metre
@@ -42,6 +63,13 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   no-op.
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
+  **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the
+  **fabric-only** mapper for curtains/blinds (cotton/linen/sheer/velvet — never wood/stone), reusing
+  the tone-on-tone `getPatternTexture` set; the **opacity/light-blocking** axis is separate
+  (`draperyOpacity.ts` `DraperyOpacity` sheer→blackout → `{visual, transmit}`): the primitive passes
+  `getDraperyMaterial`'s `opacity` (sheer renders translucent via `getFabricMaterial`'s `opacity` arg)
+  and `windowLightModifiers` reads `draperyTransmit` for the daylight floor. Velvet uses
+  `getVelvetMaterial`'s `doubleSided` arg (cache-keyed, default-unchanged).
   Don't invent bespoke texture art — apply a CC0 DLC material over the procedural fallback.
   The procedural micro-textures (256² shared singletons, tinted via `material.color`) get their
   higher-fidelity variants — plank wood, woven fabric, painted micro-normal — behind the

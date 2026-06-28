@@ -18,6 +18,24 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
 - Plan-mutating slice actions route through `withLevelGeometry(plan, levelId, fn)`
   (ground default). Schema: `upperLevels` + `levelId` are optional + additive —
   no version bump needed for level features that follow that shape.
+- **Per-element colour (`elementColors`):** `PlanWall.color` overrides the plan-wide `wallColor` for
+  one wall; `PlanOpening.color` paints a door leaf (panels derive a darker shade) or tints window glass.
+  Both are optional hex strings, edited in `PlanInspector`, round-tripped via `schema.ts`
+  (`PlanWallZ`/`PlanOpeningZ`), and rendered by `PlanShell` (`FadeWall`/`SlopedWallMesh`/`FadeWindow`) +
+  `PlanDoorLeaf`. Adding another per-element appearance field follows the same additive shape (no
+  version bump).
+- **Per-room ceiling finish (`ceilingFinish`):** a room's ceiling can be painted/textured with any
+  catalog material, mirroring floor/wall finish. Stored in the finishes slice (`finishes.ceiling`,
+  keyed by room id) with write-through to the plan room's `ceilingFinish` field; resolved by
+  `roomFinishes.ts:resolvePlanRoomCeiling` (slice → `room.ceilingFinish` → `null`/plain white).
+  Rendered by `apartment/Ceiling.tsx` (default flat, via `ceiling/RoomCeilingTile`) and
+  `apartment/floor/PlanRoomCeiling` (custom plans) — the finished plane faces down (front-side) so
+  it reads from below and stays culled from above. Applies to the **flat** ceiling only; a designed
+  (tray/coffered/dropped/sloped) treatment keeps its plain planes. Same additive schema shape.
+- **Door/window styles (`openingStyles`):** `PlanOpening.style` selects a door type
+  (`panel`/`flush`/`glazed`) or window type (`plain`/`grille`/`louvre`), rendered as pure procedural
+  geometry by `PlanDoorLeaf` (panel/glaze branches) and `PlanShell`'s `FadeWindow` (grille/louvre bars);
+  same additive schema shape as `color`.
 - Geometry stays **pure + unit-tested** here (no three/React imports beyond types).
 - **Whole-plan transforms scale ALL storeys about one anchor.** `rescalePlan.ts`
   (PARITY-PLAN-SCALE) multiplies every wall endpoint / room polygon / opening

@@ -1,6 +1,7 @@
 import { useShallow } from 'zustand/react/shallow'
 import { GROUND_LEVEL_ID, isMultiLevel, levelById } from '../floorplan/levels'
 import { useStore } from '../state/store'
+import { AuxPanelHead } from './AuxPanelHead'
 import { EmptyState } from './EmptyState'
 import { Icon } from './toolbar/icons'
 
@@ -50,24 +51,16 @@ export function CommentsPanel() {
 
   return (
     <aside className="panel mini aux" id="commentsPanel">
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Comments</div>
-          <div className="panel-sub">
-            {comments.length === 0
-              ? 'Pinned notes on this design'
-              : `${openCount} open · ${comments.length - openCount} resolved`}
-          </div>
-        </div>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close"
-          onClick={() => setOpen(false)}
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
+      <AuxPanelHead
+        title="Comments"
+        sub={
+          comments.length === 0
+            ? 'Pinned notes on this design'
+            : `${openCount} open · ${comments.length - openCount} resolved`
+        }
+        docs="comments"
+        onClose={() => setOpen(false)}
+      />
       <hr className="hr" />
       <div className="panel-body">
         <button

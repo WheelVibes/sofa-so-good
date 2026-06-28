@@ -51,6 +51,7 @@ export type FeatureFlag =
   | 'userSets'
   | 'furnitureGroups'
   | 'designerPicks'
+  | 'materialComposer'
   | 'ceilingDesign'
   | 'presentation'
   | 'pbrSurfaces'
@@ -101,6 +102,12 @@ export type FeatureFlag =
   | 'planGridSnap'
   | 'roomInset'
   | 'tileBreakup'
+  | 'elementColors'
+  | 'openingStyles'
+  | 'itemOpacity'
+  | 'ceilingFinish'
+  | 'saveMaterials'
+  | 'masterPalette'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

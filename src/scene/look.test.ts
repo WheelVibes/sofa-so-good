@@ -2,16 +2,62 @@ import { describe, expect, it } from 'vitest'
 import {
   AO,
   BLOOM,
+  bloomIntensityForDay,
   clampExposure,
   DEFAULT_EXPOSURE,
   DEFAULT_TONE_MAPPING,
   EXPOSURE_MAX,
   EXPOSURE_MIN,
   grade,
+  IBL_FILL_COMPENSATION,
+  iblFillScale,
   SOFT_SHADOW,
   TONE_MAPPING_MODES,
   toneExposureBias,
 } from './look'
+
+describe('iblFillScale', () => {
+  it('is a no-op when IBL is inactive (flat tier keeps its full fill)', () => {
+    expect(iblFillScale(false, 0)).toBe(1)
+    expect(iblFillScale(false, 1)).toBe(1)
+  })
+
+  it('leaves the night fill untouched (IBL near its floor)', () => {
+    expect(iblFillScale(true, 0)).toBe(1)
+  })
+
+  it('reduces the fill most at midday to avoid double-counting IBL', () => {
+    expect(iblFillScale(true, 1)).toBeCloseTo(1 - IBL_FILL_COMPENSATION, 5)
+    expect(iblFillScale(true, 1)).toBeLessThan(iblFillScale(true, 0.5))
+    expect(iblFillScale(true, 0.5)).toBeLessThan(iblFillScale(true, 0))
+  })
+
+  it('clamps a non-finite or out-of-range day level', () => {
+    expect(iblFillScale(true, Number.NaN)).toBe(1)
+    expect(iblFillScale(true, 5)).toBeCloseTo(1 - IBL_FILL_COMPENSATION, 5)
+    expect(iblFillScale(true, -2)).toBe(1)
+  })
+})
+
+describe('bloomIntensityForDay', () => {
+  it('is full bloom at night (fixtures glow)', () => {
+    expect(bloomIntensityForDay(0)).toBeCloseTo(BLOOM.intensity, 5)
+  })
+
+  it('falls to zero at midday (no daytime veil)', () => {
+    expect(bloomIntensityForDay(1)).toBeCloseTo(0, 5)
+  })
+
+  it('decreases monotonically as the day brightens', () => {
+    expect(bloomIntensityForDay(0.25)).toBeGreaterThan(bloomIntensityForDay(0.75))
+  })
+
+  it('clamps non-finite / out-of-range day levels', () => {
+    expect(bloomIntensityForDay(Number.NaN)).toBeCloseTo(BLOOM.intensity, 5)
+    expect(bloomIntensityForDay(5)).toBeCloseTo(0, 5)
+    expect(bloomIntensityForDay(-3)).toBeCloseTo(BLOOM.intensity, 5)
+  })
+})
 
 describe('grade', () => {
   it('exposure rises monotonically with sun altitude', () => {

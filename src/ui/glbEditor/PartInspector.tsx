@@ -3,6 +3,7 @@ import {
   DEFAULT_PART_ROUGHNESS,
   type ShapePart,
 } from '../../furniture/glbEdit/editSpec'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { useSurfaceMaterialOptions } from '../inspector/ParametricBody'
 import { QuickFinishes } from '../inspector/QuickFinishes'
 import { Icon } from '../toolbar/icons'
@@ -150,6 +151,11 @@ export function PartInspector({
               onChange={(e) => onPatch({ color: e.target.value })}
             />
           </label>
+          <ThemeColorRows
+            active={part.color}
+            roomId={null}
+            onPick={(hex) => onPatch({ color: hex })}
+          />
           <div style={{ marginTop: 'var(--s-2)' }}>
             <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
               Texture

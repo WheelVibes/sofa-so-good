@@ -17,8 +17,9 @@ import { radialArrayPlacements } from '../../furniture/radialArray'
 import { isOffSquare, nearestRightAngle } from '../../layout/angle'
 import { rotationFacingRoom } from '../../layout/faceWall'
 import { useStore } from '../../state/store'
-import { formatDimsShort, formatLength } from '../../utils/measurement'
+import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { Icon } from '../toolbar/icons'
 import { GltfBody } from './GltfBody'
 import { IesProfilePicker } from './IesProfilePicker'
@@ -62,6 +63,10 @@ export function InspectorPanel() {
   const elevationOn = useFeature('mountHeights')
   const setItemElevation = useStore((s) => s.setItemElevation)
   const inspectorCeiling = useStore((s) => s.floorPlan.ceilingHeight)
+  // Per-item opacity (ghost) + hide in 3D.
+  const itemOpacityOn = useFeature('itemOpacity')
+  const toggleItemHidden = useStore((s) => s.toggleItemHidden)
+  const itemHidden = useStore((s) => (item ? s.hiddenItemIds.includes(item.id) : false))
   // Copy/paste appearance (look-only transfer) + recolour-by-category.
   const copyAppearanceOn = useFeature('copyAppearance')
   // Price displays are gated behind the budget/price feature (off by default).
@@ -381,7 +386,7 @@ export function InspectorPanel() {
   }
 
   return (
-    <aside className={`panel inspector${minimized ? ' minimized' : ''}`}>
+    <aside className={`panel inspector dock-panel${minimized ? ' minimized' : ''}`}>
       <div className="panel-head">
         <div>
           <div className="insp-thumb">
@@ -476,7 +481,7 @@ export function InspectorPanel() {
                 style={{ flex: 1, minWidth: 0 }}
               />
             </label>
-            {proMode ? (
+            {proMode && !def.windowBound ? (
               <InspectorSection
                 title="Transform"
                 defaultOpen
@@ -501,7 +506,7 @@ export function InspectorPanel() {
                     label="Rotation"
                     unit="°"
                     value={(item.rotation * 180) / Math.PI}
-                    step={15}
+                    step={1}
                     onCommit={trySetRot}
                     integer
                   />
@@ -524,28 +529,34 @@ export function InspectorPanel() {
             )}
             <div className="sec">
               <div className="action-grid">
-                <button type="button" className="act" onClick={rotate90} disabled={item.locked}>
-                  <Icon.Rotate width={16} height={16} />
-                  Rotate
-                </button>
-                <button
-                  type="button"
-                  className={`act${item.flipX ? ' on' : ''}`}
-                  onClick={() => flip('x')}
-                  disabled={item.locked}
-                >
-                  <Icon.FlipH width={16} height={16} />
-                  Flip H
-                </button>
-                <button
-                  type="button"
-                  className={`act${item.flipZ ? ' on' : ''}`}
-                  onClick={() => flip('z')}
-                  disabled={item.locked}
-                >
-                  <Icon.FlipV width={16} height={16} />
-                  Flip V
-                </button>
+                {/* Window-bound fixtures (curtains/blinds/grilles) are static on
+                    their window — no rotate/flip; only duplicate/lock/delete. */}
+                {!def.windowBound ? (
+                  <>
+                    <button type="button" className="act" onClick={rotate90} disabled={item.locked}>
+                      <Icon.Rotate width={16} height={16} />
+                      Rotate
+                    </button>
+                    <button
+                      type="button"
+                      className={`act${item.flipX ? ' on' : ''}`}
+                      onClick={() => flip('x')}
+                      disabled={item.locked}
+                    >
+                      <Icon.FlipH width={16} height={16} />
+                      Flip H
+                    </button>
+                    <button
+                      type="button"
+                      className={`act${item.flipZ ? ' on' : ''}`}
+                      onClick={() => flip('z')}
+                      disabled={item.locked}
+                    >
+                      <Icon.FlipV width={16} height={16} />
+                      Flip V
+                    </button>
+                  </>
+                ) : null}
                 <button type="button" className="act" onClick={duplicate}>
                   <Icon.Copy width={16} height={16} />
                   Duplicate
@@ -900,7 +911,37 @@ export function InspectorPanel() {
                     }}
                   >
                     <span>Elevation (off floor)</span>
-                    <span>{formatLength(item.elevation ?? 0, units)}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={Math.max(0.1, inspectorCeiling)}
+                      step={0.05}
+                      key={(item.elevation ?? 0).toFixed(2)}
+                      defaultValue={(item.elevation ?? 0).toFixed(2)}
+                      onBlur={(e) => {
+                        const v = Number(e.target.value)
+                        if (Number.isFinite(v))
+                          setItemElevation(
+                            item.id,
+                            Math.min(Math.max(0.1, inspectorCeiling), Math.max(0, v)),
+                          )
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                      }}
+                      aria-label="Elevation above floor (m)"
+                      style={{
+                        width: '58px',
+                        textAlign: 'right',
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border-2)',
+                        borderRadius: 'var(--r-1)',
+                        padding: '1px 4px',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 'var(--t-2xs)',
+                        color: 'var(--text)',
+                      }}
+                    />
                   </div>
                   <input
                     type="range"
@@ -913,6 +954,53 @@ export function InspectorPanel() {
                     onChange={(e) => setItemElevation(item.id, Number(e.target.value))}
                     style={{ width: '100%' }}
                   />
+                </div>
+              ) : null}
+              {itemOpacityOn ? (
+                <div className="fld" style={{ display: 'block', marginTop: 'var(--s-2)' }}>
+                  <div
+                    className="label"
+                    style={{
+                      fontSize: 'var(--t-2xs)',
+                      color: 'var(--text-3)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span>Opacity</span>
+                    <span>
+                      {Math.round(
+                        (item.props['opacity'] != null ? Number(item.props['opacity']) : 1) * 100,
+                      )}
+                      %
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    className="slider"
+                    aria-label="Item opacity"
+                    min={0.15}
+                    max={1}
+                    step={0.05}
+                    value={item.props['opacity'] != null ? Number(item.props['opacity']) : 1}
+                    onChange={(e) =>
+                      useStore
+                        .getState()
+                        .updateItemProps(item.id, { opacity: Number(e.target.value) })
+                    }
+                    style={{ width: '100%' }}
+                  />
+                  <label
+                    className="flex items-center gap-2 text-xs"
+                    style={{ marginTop: 'var(--s-1)' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={itemHidden}
+                      onChange={() => toggleItemHidden(item.id)}
+                    />
+                    <span>Hide in 3D view</span>
+                  </label>
                 </div>
               ) : null}
               {itemAsLightOn && isItemEmitter(item.defId, item.props)
@@ -947,6 +1035,12 @@ export function InspectorPanel() {
                             }
                           />
                         </label>
+                        <ThemeColorRows
+                          active={color}
+                          onPick={(hex) =>
+                            useStore.getState().updateItemProps(item.id, { lightColor: hex })
+                          }
+                        />
                         <label className="flex items-center justify-between gap-2 text-xs">
                           <span>Brightness</span>
                           <input

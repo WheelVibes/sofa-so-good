@@ -23,6 +23,28 @@
   color: var(--text);
 }
 
+/* Sticky section headers inside a scrollable dropdown (e.g. the Tools menu,
+   capped at 72vh): the group name pins to the top of the scroll region so the
+   user keeps section context while scrolling a long menu, and the opaque
+   background hides rows passing underneath. */
+.pop-panel .menu-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-solid);
+}
+/* The panel's top padding would leave an 8px band above a pinned sticky header
+   where scrolling rows leak through before clipping. Move that breathing-room
+   off the scroll container (clip edge flush at top:0) onto the first child, so
+   the pinned header covers cleanly to the very top of the list — the resting
+   top spacing is unchanged. */
+.pop-panel {
+  padding-top: 0;
+}
+.pop-panel > :first-child {
+  margin-top: var(--s-2);
+}
+
 /* Portaled tooltip bubble (positioned by Popover). */
 .tip-box {
   display: inline-flex;
@@ -258,6 +280,30 @@
   min-width: 52px;
   text-align: right;
   flex: none;
+}
+/* Editable numeric readout: a compact typed-entry box + a faint unit suffix,
+   so a parametric dimension can be entered exactly, not only dragged. */
+.fld .val-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 64px;
+}
+.fld .val-edit input {
+  width: 44px;
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-1);
+  padding: 2px 4px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  color: var(--text);
+}
+.fld .val-edit em {
+  font-style: normal;
+  color: var(--text-3);
 }
 .fld select.input,
 .fld .fld-input {

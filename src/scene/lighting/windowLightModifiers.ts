@@ -13,20 +13,21 @@
  *
  * ## Curtain attenuation
  * When a Curtain (or RollerBlind) item's footprint overlaps a window's 1D extent
- * along the wall AND the curtain faces approximately the same wall, the sun intensity
- * through that window is dimmed:
- *   style=drawn (closed) + sheer=false → full block (factor 0.05 — lets a sliver through)
- *   style=drawn + sheer=true           → partial block (factor 0.40)
- *   style=open  (tied back)            → no block (factor 1.0)
+ * along the wall AND the curtain faces approximately the same wall, the sun
+ * intensity through that window is dimmed by how DRAWN it is (CURTAIN-DRAW) and
+ * its OPACITY level (CURTAIN-OPACITY, `draperyOpacity.ts`): at full cover each
+ * treatment passes its opacity floor — sheer ≈ 0.45, light-filtering ≈ 0.30,
+ * room-darkening ≈ 0.12, blackout ≈ 0.02 (blocks essentially all). An open
+ * (tied-back) curtain passes 1.0. Stacked treatments combine multiplicatively.
  *
- * The final scene attenuation = min over all windows (each window's factor averaged
- * with the fraction of window width blocked by curtains). Multiple curtains additive.
+ * The final scene attenuation averages each window's factor across all windows.
  *
  * All computations are 2D (floor plan). Zero allocations on re-reads.
  */
 
 import type { WallSpec, WindowSpec } from '../../apartment/types'
 import type { FurnitureItem } from '../../furniture/types'
+import { draperyOpacityLevel, draperyTransmit } from '../../materials/draperyOpacity'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -174,6 +175,27 @@ export function isCurtainOpen(item: FurnitureItem): boolean {
   return item.props.style === 'open'
 }
 
+/** Fraction of daylight that still passes when this treatment FULLY covers a
+ *  window — its opacity/light-blocking floor (CURTAIN-OPACITY): sheer ≈ 0.45 …
+ *  blackout ≈ 0.02. Driven by the item's `lightBlock` level (legacy
+ *  `material: 'sheer'` → sheer). */
+export function curtainTransmission(item: FurnitureItem): number {
+  return draperyTransmit(draperyOpacityLevel(item.props))
+}
+
+/** How much a window treatment covers its window, 0 (fully open → exterior light
+ *  filters in) … 1 (fully closed → covers the window). Reads the graduated
+ *  `drawAmount` (curtains) or `lower` (roller blinds) prop if present, else falls
+ *  back to the legacy `style` flag ('open' → 0, else 1). This lets a partially
+ *  open treatment attenuate proportionally. */
+export function curtainDrawAmount(item: FurnitureItem): number {
+  const d = item.props.drawAmount
+  if (typeof d === 'number') return Math.min(1, Math.max(0, d))
+  const l = item.props.lower
+  if (typeof l === 'number') return Math.min(1, Math.max(0, l))
+  return item.props.style === 'open' ? 0 : 1
+}
+
 /** Returns true if this is a sheer/translucent curtain. */
 function isSheerItem(item: FurnitureItem): boolean {
   // RollerBlind has a 'material' prop that can be 'sheer'
@@ -183,35 +205,34 @@ function isSheerItem(item: FurnitureItem): boolean {
 /**
  * Compute the attenuation factor for a single window given the list of items.
  *
- * factor 1.0 = unobstructed, 0.05 = fully drawn opaque curtain.
+ * factor 1.0 = unobstructed; each covering treatment passes its own opacity
+ * floor (`curtainTransmission`: sheer ≈ 0.45 … blackout ≈ 0.02), so a drawn
+ * blackout curtain blocks essentially all daylight while a sheer only softens it.
+ * Treatments combine multiplicatively (stacked layers each block in turn).
  */
 export function windowAttenuationFactor(
   wall: WallSpec,
   win: WindowSpec,
   items: ReadonlyArray<FurnitureItem>,
 ): number {
-  let maxCoveredOpaque = 0
-  let maxCoveredSheer = 0
+  let transmit = 1
 
   for (const item of items) {
-    if (isCurtainOpen(item)) continue
+    // Graduated by how drawn the curtain is: an open curtain (draw 0) lets the
+    // exterior light fully through; a half-drawn one covers half. (CURTAIN-DRAW)
+    const draw = curtainDrawAmount(item)
+    if (draw <= 0.001) continue
     const overlap = curtainWindowOverlap(item, wall, win)
     if (!overlap) continue
-    if (overlap.isSheer) {
-      maxCoveredSheer = Math.max(maxCoveredSheer, overlap.coveredFraction)
-    } else {
-      maxCoveredOpaque = Math.max(maxCoveredOpaque, overlap.coveredFraction)
-    }
+    // Coverage of the window by this treatment, and the light it still passes at
+    // full cover (its opacity level). Light through this layer = 1 at no cover,
+    // → the floor at full cover.
+    const cover = overlap.coveredFraction * draw
+    const floor = curtainTransmission(item)
+    transmit *= 1 - cover * (1 - floor)
   }
 
-  // Blend: opaque fully covered → 0.05; sheer fully covered → 0.40
-  const OPAQUE_MIN = 0.05
-  const SHEER_MIN = 0.4
-  const factor =
-    1.0 -
-    maxCoveredOpaque * (1.0 - OPAQUE_MIN) -
-    maxCoveredSheer * (1.0 - SHEER_MIN) * (1.0 - maxCoveredOpaque)
-  return Math.max(OPAQUE_MIN, Math.min(1.0, factor))
+  return Math.max(0, Math.min(1, transmit))
 }
 
 /**

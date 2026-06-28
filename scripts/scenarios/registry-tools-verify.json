@@ -1,0 +1,19 @@
+{
+  "name": "registry-tools-verify",
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "tall-viewport", "viewport": { "width": 1100, "height": 1300 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-tools", "click": "button[aria-label=\"Tools\"]" },
+    { "name": "tools-open", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "shot-tools", "screenshot": "registry-tools-menu" },
+    { "name": "close-tools", "eval": "document.body.click()" },
+    { "name": "open-cmdk", "store": { "action": "setCmdkOpen", "args": [true] } },
+    { "name": "cmdk-open", "waitFor": { "css": ".cmdk-item" }, "timeout": 8000 },
+    { "name": "shot-cmdk", "screenshot": "registry-cmdk" }
+  ]
+}

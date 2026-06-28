@@ -572,8 +572,16 @@ export function getFabricMaterial(
   color: string,
   rough = 0.95,
   pattern = 'plain',
+  /** Render both faces — for thin draped sheets (curtains) visible from inside
+   *  the room AND through the window. Folded into the cache key; default
+   *  FrontSide keeps every existing caller byte-identical. */
+  doubleSided = false,
+  /** <1 makes the cloth translucent (sheer curtains/blinds). Folded into the
+   *  cache key; default 1 keeps every existing caller byte-identical. */
+  opacity = 1,
 ): MeshStandardMaterial {
-  const key = `fab:${color}:${rough.toFixed(2)}:${pattern}`
+  const sheer = opacity < 1
+  const key = `fab:${color}:${rough.toFixed(2)}:${pattern}${doubleSided ? ':2s' : ''}${sheer ? `:o${opacity.toFixed(2)}` : ''}`
   const hit = cache.get(key)
   if (hit) return hit
   const patterned =
@@ -588,6 +596,8 @@ export function getFabricMaterial(
     metalness: 0,
     normalMap: getFabricNormal(),
     map: patterned ? getPatternTexture(pattern) : null,
+    ...(doubleSided ? { side: DoubleSide } : {}),
+    ...(sheer ? { transparent: true, opacity, depthWrite: false } : {}),
   })
   // Sharper weave relief so linen/cotton catch grazing light without noise.
   m.normalScale.set(0.65, 0.65)
@@ -729,8 +739,14 @@ export function getLeatherMaterial(color: string, rough = 0.42): MeshStandardMat
 
 /** Velvet upholstery — soft pile (fine weave normal) with a pronounced sheen
  *  lobe (the hallmark of velvet) so it catches grazing light richly. */
-export function getVelvetMaterial(color: string, rough = 0.62): MeshStandardMaterial {
-  const key = `velv:${color}:${rough.toFixed(2)}`
+export function getVelvetMaterial(
+  color: string,
+  rough = 0.62,
+  /** Render both faces — for draped velvet curtains seen from inside + through
+   *  the glass. Folded into the cache key; default FrontSide is byte-identical. */
+  doubleSided = false,
+): MeshStandardMaterial {
+  const key = `velv:${color}:${rough.toFixed(2)}${doubleSided ? ':2s' : ''}`
   const hit = cache.get(key)
   if (hit) return hit
   // PR6: velvet gets its own smooth pile (own normal + faint albedo), not the
@@ -744,6 +760,7 @@ export function getVelvetMaterial(color: string, rough = 0.62): MeshStandardMate
     map: vm?.albedo ?? null,
     normalMap: vm?.normal ?? getFabricNormal(),
     envMapIntensity: GLOSSY_ENV_INTENSITY,
+    ...(doubleSided ? { side: DoubleSide } : {}),
   })
   m.normalScale.set(0.3, 0.3)
   const sheen = sheenLayer('velvet')
@@ -766,6 +783,31 @@ export function getUpholsteryMaterial(
     return getLeatherMaterial(color, sheen > 0 ? sheenRough(0.42, sheen) : 0.42)
   if (kind === 'velvet') return getVelvetMaterial(color, sheen > 0 ? sheenRough(0.62, sheen) : 0.62)
   return getFabricMaterial(color, sheen > 0 ? sheenRough(0.95, sheen) : 0.95, pattern)
+}
+
+/**
+ * Window-treatment fabric for curtains/blinds (CURTAIN-FABRIC). Restricted to
+ * **fabric-only** weaves by design — drapery is cloth, so wood/stone/metal never
+ * apply — while reusing the shared tone-on-tone `pattern` set (striped, plaid,
+ * checkered, herringbone, dots). `kind` is the weave: `cotton` (default woven),
+ * `linen` (matter, coarser), or `velvet` (sheen-rich pile; pattern ignored).
+ * `opacity` (<1 = translucent) is the separate opacity/light-blocking axis (see
+ * `draperyOpacity.ts`) — sheer cloth renders see-through. `doubleSided` for
+ * draped curtains seen from both sides.
+ */
+export function getDraperyMaterial(
+  kind: string,
+  color: string,
+  pattern = 'plain',
+  doubleSided = false,
+  opacity = 1,
+): MeshStandardMaterial {
+  // Velvet is a heavy opaque pile — always opaque (sheer velvet is nonsensical).
+  if (kind === 'velvet') return getVelvetMaterial(color, 0.6, doubleSided)
+  // cotton (default) | linen — linen reads a touch matter/coarser. (Legacy
+  // `sheer` weave falls through to cotton; its translucency now comes from
+  // `opacity`, set from the opacity level by the caller.)
+  return getFabricMaterial(color, kind === 'linen' ? 0.98 : 0.95, pattern, doubleSided, opacity)
 }
 
 /** Flat painted material — matte by default, or glossy (lacquered) when
@@ -899,6 +941,7 @@ export function getSurfaceMaterial(
   if (kind === 'rattan') return getRattanMaterial(color, repeat * 3)
   if (kind === 'concrete')
     return getConcreteMaterial(color, repeat, sheen > 0 ? sheenRough(0.85, sheen) : 0.85)
+  if (kind === 'metal') return getMetalMaterial(color, 'satin', repeat)
   return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
 }
 

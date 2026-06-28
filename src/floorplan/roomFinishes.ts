@@ -14,10 +14,13 @@ import type { PlanRoom } from './types'
 /** Default floor finish for plan rooms with no explicit pick. */
 export const DEFAULT_PLAN_FLOOR = 'floor-wood-oak'
 
-/** The finish maps the resolvers read (a structural subset of FinishesSlice). */
+/** The finish maps the resolvers read (a structural subset of FinishesSlice).
+ *  `ceiling` is optional so older callers / fixtures that predate ceiling
+ *  finishes still satisfy the type. */
 export interface RoomFinishMaps {
   floor: Record<string, string>
   walls: Record<string, string>
+  ceiling?: Record<string, string>
 }
 
 /** The floor finish to render for a plan room. */
@@ -29,4 +32,11 @@ export function resolvePlanRoomFloor(finishes: RoomFinishMaps, room: PlanRoom): 
  *  plaster shell (no finish was ever picked for this room). */
 export function resolvePlanRoomWall(finishes: RoomFinishMaps, room: PlanRoom): string | null {
   return finishes.walls[room.id] ?? room.wall ?? null
+}
+
+/** The ceiling finish to render for a plan room, or `null` for the default
+ *  plain white ceiling (no finish was ever picked for this room). Read order
+ *  mirrors floor/wall: live slice → plan room default → null. */
+export function resolvePlanRoomCeiling(finishes: RoomFinishMaps, room: PlanRoom): string | null {
+  return finishes.ceiling?.[room.id] ?? room.ceilingFinish ?? null
 }

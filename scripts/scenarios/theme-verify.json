@@ -1,0 +1,20 @@
+{
+  "name": "theme-verify",
+  "description": "Style themes reachable from the main overview Arrange menu, and applying one restyles the flat.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
+    { "name": "reload", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
+    { "name": "force-scene-ready", "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}" },
+    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
+    { "name": "wait-settle", "wait": 2000 },
+    { "name": "open-arrange", "click": { "text": "Arrange" } },
+    { "name": "arrange-settle", "wait": 800 },
+    { "name": "shot-arrange-menu", "screenshot": "arrange-menu-overview" },
+    { "name": "apply-scandi", "eval": "window.__store.getState().applyLayoutPreset('scandi-calm')" },
+    { "name": "restyle-settle", "wait": 3000 },
+    { "name": "shot-scandi", "screenshot": "scandi-applied" }
+  ]
+}

@@ -8,10 +8,45 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   Set `verticalSpan`/`mounted`/`noClip` for non-floor items; `lightEmitters.ts` to emit light
   at night; add to `defaults/` to ship in the move-in flat (collision-checked by
   `defaultLayout.test.ts`).
+- **Window-bound fixtures (`def.windowBound`, WINDOW-FIXTURE)** — curtains, roller blinds, and any
+  other fixture that lives ON a window — place ONLY on windows and are static once placed. Setting
+  `windowBound: true` does three things: the inspector hides the Transform section + Rotate/Flip
+  actions, the scene drag is blocked (`Furniture.tsx`), and at placement time the fixture **snaps to
+  the nearest window opening** via the pure `placement/windowSnap.ts:snapToNearestWindow(walls,
+  openings, dropPos)` — both the commit (`ui/catalog/usePlacementController.ts`, bypassing the floor
+  `canPlace` gate; an info toast + no-add when the plan has no window) and the `scene/PlacementGhost`
+  preview (snaps the ghost, keeps the raw drop point in `ghostWorld` so the commit re-derives the same
+  snap incl. facing). Window grilles stay an opening `style` (`grille`/`louvre`), not a fixture.
+  Placement also **sizes** the fixture to its window via the pure `windowFixtureProps(defId, window,
+  ceilingHeight)` — curtains wider than the glass + floor-to-ceiling, blinds slightly wider with a
+  covering drop. The `Curtain` primitive is a **double-sided wavy draped sheet** (two gathering panels,
+  `drawAmount` 0 = open/clear, 1 = drawn) and `RollerBlind` **raises/lowers** (`lower` 0 = up, 1 =
+  down); both ease in demand mode (hold `registerAnimatedSource` only while moving). The closed amount
+  (curtain `drawAmount` / blind `lower`) feeds `windowLightModifiers.curtainDrawAmount` for graduated
+  daylight attenuation. Both are customizable as **fabric surfaces** (CURTAIN-FABRIC): a `material`
+  weave (cotton/linen/velvet — **fabric only**, no wood/stone) + a `pattern` (the shared tone-on-tone
+  set, now on blinds too) + `color`, mapped via `materials/furnitureMaterials.ts:getDraperyMaterial`.
+  A separate **opacity / light-blocking** axis `lightBlock` (sheer → light-filtering → room-darkening
+  → blackout, CURTAIN-OPACITY / `materials/draperyOpacity.ts`) drives BOTH the rendered transparency
+  (passed as `getDraperyMaterial`'s `opacity`) AND the daylight blocked (`windowLightModifiers`
+  `curtainTransmission` — blackout blocks nearly all). Legacy `material: 'sheer'` maps to the sheer
+  opacity.
 - **Categories**: 15 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected
   for imports, **never** typed by hand.
+- **Per-part finish** of any GLB: a placed item's `props['finish:<materialOrMeshName>']` re-skins that
+  named group — value is either a hex `#colour` (retints the part's own material, keeping its maps) OR a
+  material token (`wood`/`marble`/`stone`/`metal`/`rattan`/`concrete`/`painted`/`gloss`/`mat:<id>`,
+  resolved via `getSurfaceMaterial` and swapped in). `selectGltfRender` collects these for **every** GLB
+  kind (IKEA, builtin, upload, remote), merging over any def-level `finishOverrides` (item wins) and
+  dropping blanks. `GltfModel`'s apply pass captures each touched part's **original** material once
+  (`userData.__finishOrig`) and restores it each run, so clearing one finish among several reverts that
+  part cleanly. The inspector (`GltfBody`) lists a model's parts from `getCachedFinishTargets(url)` —
+  `GltfModel` runs `listFinishTargets` once on load, caches by base url, and fires
+  `subscribeFinishTargets` so the panel shows the per-part colour/material pickers as soon as the model
+  is ready. (LOD note: material/mesh names can differ between tier variants, so the cached targets
+  reflect whichever variant rendered.)
 - **All GLB items** (bundled CC0 / user uploads / IKEA) render through `GltfModel`/`gltfRender.ts`
   — set the same collision flags; run `npm run optimize:glb` for `-low`/`-medium` LOD variants
   (uploads generate theirs in-browser via `optimize/lodVariants.ts`, routed by the `gltf/lod.ts`
@@ -77,6 +112,14 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).
+- **Universal parametric resize (CUSTOMIZE-PARAM-SIZE)**: any parametric item scales via
+  `props.scale` (+ optional per-axis `scaleX`/`scaleY`/`scaleZ`). `Furniture` wraps the primitive in a
+  `<group scale=…>` (about its floor-anchored, footprint-centred origin; no wrapper at 1×), and
+  `collision/placement.ts:itemFootprint` already multiplies the same props into the footprint — so
+  render + collision stay consistent. The inspector's `ParametricBody` Size section sets them (uniform
+  / per-axis / exact metres, mirroring `GltfBody`). Primitives stay pure geometry — don't read scale
+  inside a primitive; let the group handle it. (Decor auto-styling still reads `def.defaultFootprint`
+  unscaled — a minor density/height imperfection for a *scaled* decor host, not a crash.)
 - Match the surrounding primitive style: real-world metres, real three `Material` instances.
 - **Appliance bodies (MAT-004b)**: the 8 steel-bodied appliance primitives
   (`Refrigerator`/`Oven`/`Stove`/`RangeHood`/`Dishwasher`/`Microwave`/`WashingMachine`/`WineCooler`)

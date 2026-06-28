@@ -27,7 +27,7 @@ import { planIntegrityFlags } from '../../floorplan/planIntegrity'
 import { polylinePointsAttr } from '../../floorplan/polyline'
 import { roomLabelPoint, roomLabelPosition } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
-import { isSlopedWall } from '../../floorplan/slopedWall'
+import { isSlopedWall, slopedWallHeights } from '../../floorplan/slopedWall'
 import type { PlanWall } from '../../floorplan/types'
 import {
   DEFAULT_PLAN_WALL_COLOR,
@@ -53,6 +53,7 @@ import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { openDocs } from '../docsUrl'
 import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
@@ -990,27 +991,28 @@ export function FloorPlanEditor() {
       }
     } else if (tool === 'door' || tool === 'window') {
       const hit = nearestWall(wx, wz)
-      if (hit && isSlopedWall(hit.wall)) {
-        // Sloped walls are a solid prism — they can't host openings.
-        st.notify.start({
-          title: 'Sloped walls can’t have doors or windows yet',
-          kind: 'info',
-          autoDismissMs: 3000,
-        })
-      } else if (hit) {
+      if (hit) {
         const width = tool === 'door' ? 0.9 : 1.2
         // Offsets are arc-length on a curved wall, chord length on a straight one.
         const wlen = isCurvedWall(hit.wall) ? wallArcLength(hit.wall) : wallLength(hit.wall)
         const offset = Math.max(0, Math.min(wlen - width, hit.offset - width / 2))
         const snapped = snap(offset)
+        // On a sloped wall, openings live in the rectangular lower band — clamp
+        // the head (and a window's sill) to the wall's min top height so the
+        // opening stays clear of the slope wedge above it.
+        const minTop = isSlopedWall(hit.wall)
+          ? Math.min(...slopedWallHeights(hit.wall, st.floorPlan.ceilingHeight))
+          : Number.POSITIVE_INFINITY
+        const head = Math.min(2.1, minTop)
+        const sill = tool === 'door' ? 0 : Math.max(0, Math.min(0.95, head - 0.4))
         const id = st.addOpening(
           {
             kind: tool,
             wallId: hit.wall.id,
             offset: snapped,
             width,
-            sill: tool === 'door' ? 0 : 0.95,
-            head: tool === 'door' ? 2.1 : 2.1,
+            sill,
+            head,
             // Orient a new door to open into the room it serves (convention) —
             // judged against the active storey's rooms.
             ...(tool === 'door'
@@ -1469,7 +1471,7 @@ export function FloorPlanEditor() {
   ]
   const toolLabel = (t: Tool): string =>
     t === 'polyroom'
-      ? 'Polygon'
+      ? 'Polygon room'
       : t === 'autoroom'
         ? 'Auto room'
         : t.charAt(0).toUpperCase() + t.slice(1)
@@ -1524,7 +1526,7 @@ export function FloorPlanEditor() {
           className={`capitalize${tool === t ? ' on' : ''}`}
           title={
             t === 'polyroom'
-              ? 'Polygon room — click vertices, click the first to close'
+              ? 'Polygon room — draw an L-shaped / non-rectangular room: click each corner, then click the first corner (or press Enter) to close it. Esc cancels.'
               : t === 'autoroom'
                 ? 'Auto room — click inside a wall-enclosed area to make a room from it'
                 : t === 'polyline'
@@ -1539,6 +1541,17 @@ export function FloorPlanEditor() {
       ))}
     </div>
   )
+
+  // Live how-to-finish hint for the multi-click drawing tools (the "how do I
+  // close it?" gap) — shown while the Polygon-room / Polyline tool is active.
+  const drawHint =
+    editMode === 'edit' && (tool === 'polyroom' || tool === 'polyline') ? (
+      <span className="plan-draw-hint" role="status">
+        {tool === 'polyroom'
+          ? 'Click each corner · click the first corner or press Enter to finish the room · Esc cancels'
+          : 'Click each point · Enter to finish · click the first point to close · Esc cancels'}
+      </span>
+    ) : null
 
   // External/internal thickness for newly-drawn walls (only meaningful for Wall).
   const wallTypeSeg = tool === 'wall' && (
@@ -1924,6 +1937,11 @@ export function FloorPlanEditor() {
           style={{ width: 40, height: 28, padding: 0, border: 'none', background: 'none' }}
         />
       </label>
+      <ThemeColorRows
+        active={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
+        roomId={null}
+        onPick={(hex) => a.updateFloorPlanMeta({ wallColor: hex })}
+      />
     </>
   )
 
@@ -2003,6 +2021,7 @@ export function FloorPlanEditor() {
             {editMode === 'edit' && (
               <PlanToolMenu tools={toolList} tool={tool} label={toolLabel} onPick={pickTool} />
             )}
+            {drawHint}
             {/* Undo/redo are important enough to stay in the top bar (not buried
                 in the ☰ Menu). `ml-auto` pushes them + Done to the right. */}
             <div className="ml-auto flex items-center gap-2">
@@ -2030,6 +2049,7 @@ export function FloorPlanEditor() {
             {viewToggle}
             {editMode === 'edit' && toolPalette}
             {editMode === 'edit' && wallTypeSeg}
+            {drawHint}
             {templateLibrary}
             <PlanMenu label="Plan">{fileActions}</PlanMenu>
             <div className="ml-auto flex items-center gap-2">
@@ -2290,25 +2310,74 @@ export function FloorPlanEditor() {
                   tool === 'select' &&
                   r.polygon &&
                   r.polygon.length >= 3
-                    ? r.polygon.map(([vx, vz], i) => (
-                        <circle
-                          key={`pv-${r.id}-${i}`}
-                          data-poly-vertex={`${r.id}:${i}`}
-                          cx={toPx(vx)}
-                          cy={toPx(vz)}
-                          r={5}
-                          fill="var(--accent)"
-                          stroke="var(--surface)"
-                          strokeWidth={1.5}
-                          style={{ cursor: 'grab' }}
-                          onPointerDown={(e) => {
-                            e.stopPropagation()
-                            a.setPlanSelection({ type: 'room', id: r.id })
-                            setMovingPolyVertex({ id: r.id, index: i })
-                            svgRef.current?.setPointerCapture(e.pointerId)
-                          }}
-                        />
-                      ))
+                    ? [
+                        // Edge-midpoint "+" handles: click to insert a vertex on
+                        // that edge and immediately drag it (so a rectangle can
+                        // grow an L / bay). Rendered first so vertex handles sit
+                        // on top where they coincide.
+                        ...(r.polygon as [number, number][]).map(([vx, vz], i) => {
+                          const poly = r.polygon as [number, number][]
+                          const [nx, nz] = poly[(i + 1) % poly.length]
+                          const mx = (vx + nx) / 2
+                          const mz = (vz + nz) / 2
+                          return (
+                            <circle
+                              key={`pm-${r.id}-${i}`}
+                              data-poly-midpoint={`${r.id}:${i}`}
+                              cx={toPx(mx)}
+                              cy={toPx(mz)}
+                              r={3.5}
+                              fill="var(--surface)"
+                              stroke="var(--accent)"
+                              strokeWidth={1.5}
+                              style={{ cursor: 'copy' }}
+                              onPointerDown={(e) => {
+                                e.stopPropagation()
+                                const next = [...poly]
+                                next.splice(i + 1, 0, [mx, mz])
+                                const { origin, width, depth } = rectFromVerts(next)
+                                a.setPlanSelection({ type: 'room', id: r.id })
+                                useStore
+                                  .getState()
+                                  .updateRoom(r.id, { polygon: next, origin, width, depth })
+                                setMovingPolyVertex({ id: r.id, index: i + 1 })
+                                svgRef.current?.setPointerCapture(e.pointerId)
+                              }}
+                            />
+                          )
+                        }),
+                        // Vertex handles: drag to move, double-click to remove
+                        // (kept ≥ 3 so the room stays a polygon).
+                        ...(r.polygon as [number, number][]).map(([vx, vz], i) => (
+                          <circle
+                            key={`pv-${r.id}-${i}`}
+                            data-poly-vertex={`${r.id}:${i}`}
+                            cx={toPx(vx)}
+                            cy={toPx(vz)}
+                            r={5}
+                            fill="var(--accent)"
+                            stroke="var(--surface)"
+                            strokeWidth={1.5}
+                            style={{ cursor: 'grab' }}
+                            onPointerDown={(e) => {
+                              e.stopPropagation()
+                              a.setPlanSelection({ type: 'room', id: r.id })
+                              setMovingPolyVertex({ id: r.id, index: i })
+                              svgRef.current?.setPointerCapture(e.pointerId)
+                            }}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation()
+                              const poly = r.polygon as [number, number][]
+                              if (poly.length <= 3) return
+                              const next = poly.filter((_, j) => j !== i)
+                              const { origin, width, depth } = rectFromVerts(next)
+                              useStore
+                                .getState()
+                                .updateRoom(r.id, { polygon: next, origin, width, depth })
+                            }}
+                          />
+                        )),
+                      ]
                     : null}
                   {(() => {
                     // Progressive detail by on-screen room size: full (name +

@@ -1,0 +1,18 @@
+{
+  "name": "polygon-vertex-verify",
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "inset-room-to-polygon", "eval": "(() => { const st=window.__store.getState(); const room=st.floorPlan.rooms.find(r=>!r.external)||st.floorPlan.rooms[0]; const ok=st.insetRoom(room.id, 0.3); window.__store.getState().setPlanSelection({type:'room', id:room.id}); const r2=window.__store.getState().floorPlan.rooms.find(r=>r.id===room.id); return JSON.stringify({room:room.id, inset:ok, verts: r2&&r2.polygon&&r2.polygon.length}); })()" },
+    { "name": "open-editor", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "editor-mount", "wait": 2000 },
+    { "name": "select-polygon-room", "eval": "(() => { const st=window.__store.getState(); const r=st.floorPlan.rooms.find(x=>x.polygon&&x.polygon.length>=3); if(!r) return 'no-poly-room'; st.setPlanSelection({type:'room', id:r.id}); return JSON.stringify({id:r.id, verts:r.polygon.length}); })()" },
+    { "name": "editor-ready", "waitFor": { "css": "[data-poly-vertex]" }, "timeout": 8000 },
+    { "name": "settle", "wait": 600 },
+    { "name": "shot", "screenshot": "polygon-handles" }
+  ]
+}

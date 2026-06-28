@@ -1,0 +1,32 @@
+{
+  "name": "final-verify",
+  "description": "Undo/redo (move + rename), catalog Storage rail + wardrobe thumbnail, finish composer, A/B overlay.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
+    { "name": "reload", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
+    { "name": "force-scene-ready", "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}" },
+    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
+    { "name": "wait-settle", "wait": 1500 },
+
+    { "name": "undo-move-test", "eval": "(function(){var s=window.__store.getState();var items=s.items;if(!items.length)throw new Error('no items');var it=items[0];var id=it.id;var x0=it.position[0];s.pushHistory();s.moveItem(id,[x0+0.5,it.position[1]]);var moved=window.__store.getState().items.find(function(i){return i.id===id}).position[0];if(Math.abs(moved-(x0+0.5))>1e-6)throw new Error('move did not apply');window.__store.getState().undo();var back=window.__store.getState().items.find(function(i){return i.id===id}).position[0];if(Math.abs(back-x0)>1e-6)throw new Error('undo move failed: '+back+' vs '+x0);return 'move-undo-ok'})()" },
+    { "name": "undo-rename-test", "eval": "(function(){var s=window.__store.getState();var it=s.items[0];var id=it.id;var n0=it.label;s.renameItem(id,'__TESTNAME__');if(window.__store.getState().items.find(function(i){return i.id===id}).label!=='__TESTNAME__')throw new Error('rename did not apply');window.__store.getState().undo();var back=window.__store.getState().items.find(function(i){return i.id===id}).label;if(back!==n0)throw new Error('undo rename failed');return 'rename-undo-ok'})()" },
+    { "name": "redo-test", "eval": "(function(){var s=window.__store.getState();var it=s.items[0];var id=it.id;var x0=it.position[0];s.pushHistory();s.moveItem(id,[x0+0.3,it.position[1]]);window.__store.getState().undo();window.__store.getState().redo();var v=window.__store.getState().items.find(function(i){return i.id===id}).position[0];if(Math.abs(v-(x0+0.3))>1e-6)throw new Error('redo failed: '+v);window.__store.getState().undo();return 'redo-ok'})()" },
+
+    { "name": "enter-room-editor", "eval": "window.__store.getState().enterRoomEditor('livingDining')" },
+    { "name": "room-settle", "wait": 2000 },
+    { "name": "open-catalog", "eval": "window.__store.getState().setCatalogOpen(true)" },
+    { "name": "catalog-settle", "wait": 1500 },
+    { "name": "click-storage", "click": { "text": "Storage" } },
+    { "name": "storage-settle", "wait": 2500 },
+    { "name": "shot-catalog-storage", "screenshot": "catalog-storage" },
+
+    { "name": "open-finish", "eval": "window.__store.getState().selectRoom('livingDining')" },
+    { "name": "finish-settle", "wait": 1500 },
+    { "name": "expand-composer", "eval": "document.querySelectorAll('.compose-summary').forEach(function(e){e.parentElement.open=true})" },
+    { "name": "composer-settle", "wait": 800 },
+    { "name": "shot-composer", "screenshot": "finish-composer" }
+  ]
+}

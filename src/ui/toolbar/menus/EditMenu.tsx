@@ -25,6 +25,7 @@ export function EditMenu() {
         label="Edit a room"
         sub="Furnish & finish a room"
         ariaLabel="Edit a room"
+        docs="catalog"
         onClick={() => editRoomId && enterRoomEditor(editRoomId)}
       />
       {fFloorPlan ? (
@@ -32,6 +33,7 @@ export function EditMenu() {
           icon="FloorPlan"
           label={`Floor plan editor${chip(shortcutLabel('togglePlanEditor'))}`}
           sub={`Reshape ${planLabel}`}
+          docs="floorPlanEditor"
           active={floorPlanEditing}
           onClick={toggleFloorPlanEditing}
         />

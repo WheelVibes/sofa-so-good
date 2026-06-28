@@ -296,11 +296,55 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Compose a floor/wall finish from a texture/pattern + a colour (MAT-COMPOSE):
+  // every procedural finish is a (pattern, colour) pair, so the composer exposes
+  // that directly instead of only pre-baked catalog entries. Pure client-side
+  // (synthesised on the fly, reuses the procedural pipeline) → prod-safe. A core
+  // part of the finish loop a casual user benefits from → simple tier.
+  materialComposer: {
+    label: 'Compose finishes',
+    description: 'Build a floor/wall finish from a texture/pattern combined with any colour',
+    default: true,
+    tier: 'simple',
+  },
   ceilingDesign: {
     label: 'Ceiling design',
     description: 'Per-room tray / coffered / dropped ceilings',
     default: true,
     tier: 'pro',
+  },
+  // Per-room ceiling finish (CUSTOMIZE-CEILING): paint or texture a room's
+  // ceiling (colour / wood / plaster / any CC0 material), mirroring the floor &
+  // wall finish pickers. Pure render-side (resolves a catalog material like the
+  // floor) → prod-safe. A basic surface customization in the core design loop,
+  // so it lives in Simple tier alongside floor/wall finish.
+  ceilingFinish: {
+    label: 'Ceiling finish',
+    description: "Paint or texture a room's ceiling (colour / wood / any material)",
+    default: true,
+    tier: 'simple',
+  },
+  // Save a composed/tinted finish as a named, reusable custom material
+  // (CUSTOMIZE-SAVE-MATERIAL). Extends the composer: name the look you built and
+  // it joins the picker under your own materials, reusable across rooms/projects.
+  // Pure (a named bookmark of a self-describing finish id) → prod-safe; part of
+  // the core finishing loop, so Simple tier.
+  saveMaterials: {
+    label: 'Save custom materials',
+    description: 'Name a composed/tinted finish and save it as a reusable material',
+    default: true,
+    tier: 'simple',
+  },
+  // Apartment master colour palette + per-room overrides + harmony-blend
+  // suggestions on every colour picker (CUSTOMIZE-MASTER-PALETTE). Pure UI/data
+  // (a swatch row + a pure harmony engine) → prod-safe; a core design aid, so
+  // Simple tier.
+  masterPalette: {
+    label: 'Apartment colour palette',
+    description:
+      'Set a master palette (+ per-room overrides); every picker shows it + harmony blends',
+    default: true,
+    tier: 'simple',
   },
   presentation: {
     label: 'Presentation mode',
@@ -753,6 +797,37 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   roomInset: {
     label: 'Inset room',
     description: 'Inset (shrink) or outset (grow) a room outline by a signed distance',
+    default: true,
+    tier: 'pro',
+  },
+  // Per-element colour overrides in the 2D plan inspector (CUSTOMIZE-COLOUR): a
+  // per-wall paint colour (overriding the plan-wide wall colour), a door-leaf
+  // colour, and a window glass tint. Pure colour data on the plan model, rendered
+  // by PlanShell / PlanDoorLeaf → prod-safe. A core part of making every surface
+  // customizable, useful to a casual user → simple tier (shown in both modes).
+  elementColors: {
+    label: 'Element colours',
+    description: 'Recolour individual walls, doors and window glass in the plan editor',
+    default: true,
+    tier: 'simple',
+  },
+  // Door / window style picker (CUSTOMIZE-STYLE): panel/flush/glazed doors and
+  // plain/grille/louvre windows, chosen per opening in the plan inspector. Pure
+  // procedural geometry rendered by PlanDoorLeaf / PlanShell → prod-safe. Part of
+  // making every fitting customizable, useful to a casual user → simple tier.
+  openingStyles: {
+    label: 'Door & window styles',
+    description: 'Choose a door style (panel / flush / glazed) and window style (grille / louvre)',
+    default: true,
+    tier: 'simple',
+  },
+  // Per-item opacity / hide (CUSTOMIZE-OPACITY): make a placed piece
+  // semi-transparent (ghost it to see behind) or hide it in 3D, from the
+  // inspector. Pure render-side (per-item material clones) → prod-safe. An
+  // advanced view aid beyond the core furnish loop → pro tier.
+  itemOpacity: {
+    label: 'Item opacity & hide',
+    description: 'Make a placed item semi-transparent or hide it in the 3D view',
     default: true,
     tier: 'pro',
   },

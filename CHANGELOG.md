@@ -5,6 +5,493 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Curtains & blinds get an opacity / light-blocking axis — sheer → blackout (v0.6.0.27)
+
+Curtains and blinds gain an **Opacity** control, separate from the weave (any fabric can be loose or
+blackout-lined): `Sheer` (translucent, daylight diffuses through), `Light-filtering`, `Room-darkening`
+(default), or `Blackout`. It drives **both** the rendered transparency of the cloth **and** how much
+daylight it actually blocks — a drawn **blackout** curtain now blocks essentially all light (≈0.02
+transmission) where the old model floored at 0.05, while a sheer only softens it (≈0.45). A new pure
+`materials/draperyOpacity.ts` maps each level to a visual opacity + a daylight-transmission floor,
+shared by the primitives and the lighting model; `windowLightModifiers.windowAttenuationFactor` now
+blocks per-treatment (stacked layers combine multiplicatively) instead of the old binary opaque/sheer
+blend. `Sheer` was removed from the **weave** enum (it's now an opacity, not a weave); the legacy
+`material: 'sheer'` weave still maps to the sheer opacity for back-compat. Verified: four same-colour
+curtains from sheer (see-through) to blackout (solid) render distinctly.
+
+## Curtains & blinds are customizable fabric surfaces — weave + pattern + colour (v0.6.0.26)
+
+Curtains and blinds can now be customized like surfaces, but **fabric-only** (drapery is cloth, so
+wood/stone/metal never apply) while reusing the shared procedural **pattern** set:
+
+- A new **Fabric** weave control on both — `Cotton` (default), `Linen` (matter/coarser), `Sheer`
+  (translucent — it now renders see-through AND drives the window light-filtering via
+  `windowLightModifiers`), or `Velvet` (sheen-rich pile).
+- **Pattern** (Plain / Striped / Herringbone / Checkered / Plaid / Dots) now applies to **blinds**
+  too (previously curtains-only), reusing the existing tone-on-tone fabric patterns; the curtain
+  pattern control was relabelled `Pattern` and its colour `Colour` (was the ambiguous "Fabric").
+- A shared `materials/furnitureMaterials.ts:getDraperyMaterial(kind, color, pattern, doubleSided)`
+  centralizes the fabric-only mapping; `getFabricMaterial` gained an `opacity` arg (sheer) and
+  `getVelvetMaterial` a `doubleSided` arg (draped velvet seen from both sides) — both cache-keyed,
+  existing callers byte-identical.
+
+Verified: a row of curtains in cotton-stripe, linen-plaid, translucent sheer, and velvet renders
+distinctly, plus a dotted roller blind — all fabric, patterns reused.
+
+## Per-room editor walls fade like orbit mode (translucent reveal) (v0.6.0.25)
+
+The per-room editor's walls now use the **same camera-facing wall reveal as orbit mode** instead of a
+binary show/hide: a wall fronting the camera (between you and the room) **fades to translucent** so you
+always see into the room, while far walls stay opaque and grazing walls go partially translucent —
+matching the main scene exactly (it reuses the pure `wallRevealFactor` + the `wallRevealMode` /
+`wallReveal` quality settings, so it's translucent by default). A new shared `useWallReveal` hook drives
+both `RoomShell` (default flat) and `PlanRoomShell` (custom plans); because every wall of an isolated
+room shares one finish material, it fades via a **per-mesh material clone** (restored when opaque) so
+only the correct walls fade, and it publishes each wall's opacity (`setWallOpacity`) so the room's
+windows/doors fade with their wall. The old binary `wallFacing` helper (+ test) is removed. Verified:
+entering a room shows the furniture through faded near walls.
+
+## Curtain length toggle — floor-to-ceiling or sill-length (v0.6.0.24)
+
+Curtains gain a **Length** control: `Floor-to-ceiling` (default, hem to the floor) or `Sill length`
+(hem stops just below the window sill). Both hang from the same rod (the `height`); sill-length uses
+the placement-stored window sill (`sillY`, set by `windowFixtureProps`) to place the hem, falling back
+to a typical ~0.9 m sill for a hand-placed curtain. Verified side-by-side: the sill curtain floats above
+the floor (floor visible beneath) while the floor-to-ceiling one reaches the floor.
+
+## Realistic curtains (wavy, floor-to-ceiling) + raise/lower blinds, window-sized (v0.6.0.23)
+
+Reworked the window treatments so they look and behave like the real thing:
+
+- **Curtains** are now **soft draped fabric with wavy vertical folds** (a displaced sheet, gathered
+  tighter at the rod and fuller at the hem) instead of a flat board, hang **floor-to-ceiling**, and
+  **open fully clear of the window** — the two panels gather into narrow bunches at the ends (centre
+  exposed) and meet in the middle when drawn, easing smoothly between via `drawAmount`. The fabric is
+  double-sided so it reads from inside the room and through the glass.
+- **Roller / venetian blinds** now **raise and lower with a smooth animation** (new `lower` control,
+  0 = rolled up / window exposed, 1 = lowered / covered); the fabric panel (or slat stack) eases its
+  drop each frame, and a lowered blind attenuates window light like a drawn curtain.
+- **Placement sizes each fixture to its window** (`windowFixtureProps`): curtains span **wider than the
+  glass** and **floor-to-ceiling** (to the room's ceiling height); blinds size **slightly wider than the
+  window** with a drop that covers it — so a snapped treatment fits the opening instead of a fixed
+  catalog size.
+
+Verified (orbit + top views): a drawn curtain covers the window with visible folds floor-to-ceiling; an
+open one bunches to two side gathers leaving the centre clear; a blind lowers to cover and rolls up to
+expose the window. Unit tests cover `windowFixtureProps` sizing (wider-than-glass, floor-to-ceiling,
+clamp, blind drop, non-fixture → no-op).
+
+## Window fixtures snap onto the nearest window on placement (v0.6.0.22)
+
+Window-bound fixtures (curtains, roller blinds) now **place only on windows** (WINDOW-FIXTURE). A new
+pure helper `furniture/placement/windowSnap.ts:snapToNearestWindow(walls, openings, dropPos)` resolves a
+dropped fixture onto the nearest window opening — landing it flush on the wall, centred on the window,
+facing the room side dropped toward (the wall normal toward the drop point); it returns `null` when the
+plan has no window. The placement controller (`usePlacementController`) snaps both the click- and
+drop-commit (`windowBound` defs bypass the floor-collision gate and snap; no window → an info toast and
+no add), and the `PlacementGhost` preview snaps the ghost transform onto the window while keeping the raw
+drop point in `ghostWorld` so the commit re-derives the same snap (incl. facing). Window *grilles* remain
+a customizable window opening `style` (`grille`/`louvre`), so no redundant grille fixture is added.
+Verified: a curtain dragged from the catalog lands on the window, oriented into the room. (Unit:
+`windowSnap.test.ts` — centre/facing/nearest-pick/no-window cases.)
+
+## Window fixtures are static (no move/rotate/flip) (v0.6.0.21)
+
+Window-bound fixtures (curtains, roller blinds) are now flagged `windowBound` and treated as **statically
+placed**: the inspector hides the Transform section and the Rotate / Flip H / Flip V actions, and
+dragging them in the scene is blocked (they stay selectable — for customising size/colour/texture/draw —
+and keep Duplicate / Lock / Delete). Verified: the curtains inspector shows Properties (incl. the Draw
+slider) + Size + Duplicate/Lock/Delete only, no transform controls. (Still to come: constraining *new*
+placement to snap onto a window — today they're flagged + non-movable once placed.)
+
+## Curtains draw with a smooth animation + graduated light filtering (v0.6.0.20)
+
+Curtains now **draw open/closed with a smooth animation** and let exterior light **filter in as they
+open**. A continuous `drawAmount` (0 = open/tied-back, 1 = drawn/closed) replaces the old binary
+open/drawn toggle: the `Curtain` primitive eases its pleats between an evenly-gathered cover and two
+bunched side panels each frame (holding the demand render-loop open only while moving), and the
+window-light attenuation is now **graduated by the same value** (`curtainDrawAmount`) — a half-drawn
+curtain dims half, a fully open one lets all the daylight through. Legacy `style: 'open'|'drawn'` maps
+to drawAmount 0/1 for back-compat. Verified: closed spreads across the window, open bunches at the ends
+with the centre clear.
+
+## Orbit "dollhouse" lighting in daytime (v0.6.0.19)
+
+Orbit view removes the ceiling, so simulating the exterior sun there (hard shadows, day/night exposure
+grading, bloom) is inaccurate — light pours straight in from above. Now, in **orbit + daytime + interior
+lights not forced on**, the view renders as a flat, uniform **dollhouse**: even bright fill, no
+directional sun, no sun shadow, no bloom, neutral exposure. The full simulation is reserved for **walk
+mode** (proper interior view) and **orbit at night** (interior fixtures light the rooms as before).
+Material quality is untouched — IBL reflections, sheen/gloss and PBR detail keep working in orbit per
+the graphics tier, so a glossy sofa still reads glossy. Pure predicate `isDollhouseLighting` (unit-tested)
+drives `Lighting` (sun/fill/exposure) + `EffectsImpl` (bloom). Verified: orbit-day flat & uniform,
+orbit-night interior-lit, walk-day full sim with ceiling + sun.
+
+## Theme-palette swatches on the remaining colour pickers (v0.6.0.18)
+
+Completes the master-palette coverage so **every** design colour picker offers the apartment theme +
+recommended-blend rows: the floor-plan editor's cove-light colour and per-wall baseboard colour, the
+mobile plan wall colour, the parametric-furniture custom-colour control (bookshelf/wardrobe/kitchen),
+the GLB designer's per-shape colour, and the material-upload swatch. (The GLB designer's per-mesh
+recolour *list* keeps a plain picker — two swatch rows per mesh would clutter that authoring list.)
+Also confirmed the 2D floor-plan editor already uses the docked-sidebar layout (a flex row: canvas
+`flex-1` + a full-height `PlanInspector` column), so it needed no change — only the 3D per-room editor
+had the floating panel that v0.6.0.17 docked.
+
+## Docked inspector sidebar + canvas reflow (desktop) (v0.6.0.17)
+
+On desktop the right-hand inspector / finish picker is now a **full-height docked sidebar** instead of
+a floating panel: when it's open the **3D canvas reflows** to fill the remaining space to its left
+(rather than being overlaid), and the **top toolbar re-centres** over the canvas area — centred over
+the full width when no panel is open, centred over the canvas when it is. The nav cluster + HUDs ride
+the canvas edge too. It's pure CSS: the scene, toolbar and HUDs live in a `.stage-area` that shrinks
+by a `--right-rail` width, opened purely by `:has(.dock-panel)` (the panels mount only when open, so
+no JS state). Mobile is untouched — the panels stay bottom-sheets (the dock rules are gated to
+≥ 641px). Verified in all three desktop states (no panel / finish docked / inspector docked) + mobile.
+
+## Universal resize for parametric furniture (v0.6.0.16)
+
+Every built-in (parametric) furniture piece can now be **freely resized** — closing the last size gap
+(previously only GLB/uploaded models had a scale, and only some parametric items exposed width/depth).
+The inspector gains a **Size** section for parametric items mirroring the GLB one: a uniform scale
+slider, per-axis Width/Height/Depth sliders (uncheck "Keep proportions"), and exact metre W/D/H entry
+that back-solves the scale. The scale rides `props.scale`/`scaleX/Y/Z`, applied as a render-group
+scale in `Furniture` about the floor-anchored, footprint-centred origin — and `itemFootprint` already
+folds the same props into collision, so the rendered size and the collision footprint stay in lock-step
+(no wrapper at 1×, byte-identical to before). Verified: a room's pieces scale to 1.6× and 0.5× cleanly,
+staying on the floor.
+
+## Apartment master colour palette + harmony blends on every picker (v0.6.0.15)
+
+Set an overall **master colour palette** for the home (up to 5 colours) — every colour picker then
+shows it as an **"Apartment theme"** swatch row, plus a **"Recommended"** row of up to 10 harmony
+colours derived programmatically from the palette (complementary, analogous, triadic companions +
+tints/shades/neutrals). The palette has a **per-room override**, and the recommended blends
+**recompute live** whenever the master palette or a room override changes.
+
+- Pure, deterministic harmony engine `materials/colorHarmony.ts` (hex↔HSL + `recommendedBlends`),
+  unit-tested.
+- `colorPaletteSlice` holds `masterPalette` + per-room `roomPalettes`; it's design data — persisted
+  in the save schema + autosave watch-list (back-compat optional) and undoable. `effectivePalette`
+  resolves override → master.
+- Shared `ThemeColorRows` (the two swatch rows) is wired into every colour picker: the material
+  composer, custom-colour picker, parametric `ColorField`, per-wall / door-leaf / window-tint and
+  whole-plan wall colour, furniture/IKEA tint, item light colour, and the accent-wall picker. A
+  `MasterPaletteEditor` (up to 5 slots + per-room override toggle + a live recommended preview) lives
+  at the top of the finish picker.
+- New `masterPalette` flag (Simple tier, default on); tested in both modes. Verified: a 3-colour
+  palette renders the editor + a 10-colour harmony row, both updating live.
+
+## Material editor: gloss/roughness parameter + rename materials (v0.6.0.14)
+
+Closes the two deferred follow-ups from the custom material editor:
+
+- **Gloss/sheen slider** — the composer gains a matte→glossy control (the
+  material's roughness scalar, 5–100%). It rides the finish id as an optional
+  `~<rough>` suffix (`compose:<pattern>:<#hex>@<scale>~<rough>`, omitted at the
+  default for back-compat) and is applied in `buildMaterial` over any roughness
+  map, so the same texture+colour can read flat or polished. Works for composed
+  and tinted finishes.
+- **Rename any user material** — an inline pencil on every user/saved finish
+  tile renames it. Saved (composed/tinted) materials rename via the
+  savedMaterials slice; uploaded image-map materials rename in memory **and**
+  write the new name back to their IndexedDB channel meta (`renameUserMaterial` →
+  `renameUserMaterialBlobs`) so it survives a reload. New `Icon.Edit` line glyph.
+
+The full editor now covers texture, colour, scale, gloss, save-with-a-name,
+reuse, edit, rename, and remove for both composed and uploaded materials.
+
+## Custom material editor: save named materials + scale parameter (v0.6.0.13)
+
+The "Compose your own" finish tool becomes a real **custom material editor**: build a look from a
+texture/pattern + colour, **tune the tile scale** with a new slider (0.25×–4×), then **name it and
+Save** as your own reusable material. Saved materials appear in the floor/wall picker grids with a
+"mine" badge, persist per-device (localStorage, like favourites), and can be **re-applied across
+rooms, edited (the composer re-seeds from any saved/applied finish so you can tweak and re-save), and
+removed** (the X on the tile). Applying one writes the underlying self-describing finish id to the
+room, so the design still renders even where the saved name isn't present.
+
+- `savedMaterialsSlice` (per-device): `saveMaterial`/`removeSavedMaterial`/`renameSavedMaterial`.
+- The scale rides the finish id itself — `compose:<pattern>:<#hex>@<scale>` /
+  `tint:<base>:<#hex>@<scale>` (suffix omitted at 1× → byte-identical to old ids, fully back-compat),
+  parsed/clamped in `composeMaterial.ts` and multiplied into the resolved `uvScale`.
+- `useMaterials` synthesises a named def for each saved entry (resolving a tint's base from the
+  catalog) so it shows in the picker; the composer's Save/Update reflects the *current* composition.
+- New `saveMaterials` flag (Simple tier, default on); tested in both modes. Verified in a room: a
+  saved hexagon composition and a saved fine-scaled blue tile both apply and render correctly.
+- (Deferred follow-ups: roughness/sheen parameters for procedural finishes, and renaming uploaded
+  image-map materials.)
+
+## Per-room ceiling finish (v0.6.0.12)
+
+Ceilings were the one surface with no colour/texture control — always plain white. Now every room's
+ceiling can be **painted or textured** from the room inspector (a "Ceiling finish" picker beside
+Floor finish and Wall finish), choosing any catalog material — paint colour, wood, plaster, concrete,
+tile, or a CC0 texture. It works on the **default move-in flat** (`apartment/Ceiling.tsx` →
+`RoomCeilingTile`) and **custom plans** (`PlanShell` → `PlanRoomCeiling`), stored per-room in the
+finishes slice (`finishes.ceiling`, write-through to the plan's `room.ceilingFinish`), resolved by
+`resolvePlanRoomCeiling` exactly like floor/wall. The finished plane reuses the cached catalog
+material directly (no clone/mutation, so the procedural worker's texture hot-swap stays safe) and
+faces down so it reads from below and stays culled from the orbit/dollhouse view. Gated by the new
+`ceilingFinish` flag (Simple tier, default on); tested in both modes. (A *designed* tray/coffered
+ceiling keeps the plain treatment for now — the flat ceiling every room has by default carries the
+finish.) Verified in walk mode: a brick-red and a walnut-fluted ceiling both render correctly.
+
+## Per-item opacity + hide-in-view (v0.6.0.11)
+
+Any placed item can now be made **semi-transparent** or **hidden** from the 3D view — useful for
+seeing behind a tall wardrobe, ghosting a piece while arranging around it, or temporarily removing
+clutter without deleting. The inspector gains an **opacity slider** (15 %–100 %) and a **"Hide in 3D
+view"** checkbox (gated by the `itemOpacity` Pro flag, default on). Opacity is applied safely by
+cloning each rendered mesh's material per-item (so the shared/cached material other items reuse is
+never mutated) and setting `transparent`/`opacity`/`depthWrite=false`; the original material is
+captured per-mesh (`userData.__opacityOrig`) and restored when opacity returns to 100 % or the item
+unmounts, and a short rAF window re-applies to async-loaded GLB meshes. Verified: a room's pieces
+ghost to 30 % then restore cleanly to fully opaque with no leaked/disposed-material artifacts.
+
+## Per-part CC0 material library for placed models (v0.6.0.10)
+
+The per-part finish picker (Part finishes) now offers, besides a colour and the eight generic textures,
+the whole **catalog material library** as a "Material library" option group — any `mat:<id>` finish
+(oak, walnut, marble tile, terrazzo, concrete, carpet, …). Selecting one writes `finish:<part> =
+mat:<id>`; the existing `FurnitureMaterialLoader` (which scans item prop values) auto-builds the
+material and `getSurfaceMaterial` resolves + re-tiles it for furniture — so no loader change was needed.
+Verified: a built-in pool table's parts re-skinned with `mat:floor-tile-marble` render the marble.
+
+## Polygon rooms: add / remove vertices (v0.6.0.9)
+
+A polygon (non-rectangular) room could already have its vertices **dragged**; now its shape is fully
+editable in the 2D plan editor. Each edge gets a hollow **midpoint handle** — click it to insert a new
+vertex there and immediately drag it (grow a rectangle into an L / bay). **Double-click** a vertex
+handle to remove it (kept ≥ 3 so the room stays a polygon). Both reuse the existing
+`rectFromVerts` + `updateRoom` commit path that keeps the room's bbox (origin/width/depth) in sync with
+the polygon. Verified in the editor — a selected room shows its corner + midpoint handles.
+
+## Openings on sloped walls (v0.6.0.8)
+
+Doors and windows can now sit on **sloped** (shed/mono-pitch) walls — previously the editor refused them
+and a sloped wall rendered as a solid prism. A sloped wall is now drawn as a rectangular **lower band**
+(capped at its lower top height, via `wallBoxes` like a flat wall, so it cuts openings cleanly) plus the
+triangular **upper wedge** above (the prism now takes a `baseY` so it starts at that min height — no
+double-draw). `PlanShell` renders the door leaf / window glass on sloped walls, the editor places
+openings on them (clamping head/sill into the lower band), and the 2D door-swing symbol + collision
+gaps work too. (Curved walls already supported openings end-to-end.) Unit-tested (`wallBoxes` emits a
+band capped at min-top and cuts the door gap) + render verified.
+
+## Door & window styles (panel/flush/glazed · plain/grille/louvre) (v0.6.0.7)
+
+Doors and windows were a single hardcoded type. Add a **Style** picker per opening (`openingStyles`,
+simple tier) in the plan inspector: doors choose **Panelled** (default recessed panels) / **Flush**
+(plain slab) / **Glazed** (frosted upper vision panel); windows choose **Plain glass** (default) /
+**Safety grille** (vertical bars, HDB-standard) / **Louvre** (horizontal slats). New optional `style`
+on `PlanOpening` (round-tripped through the save schema); rendered as pure procedural geometry by
+`PlanDoorLeaf` (panel/glaze branches) and `PlanShell`'s `FadeWindow` (grille/louvre bars). Verified in
+3D — perimeter windows show grille bars; tested in both Simple + Pro + schema round-trip.
+
+## Furniture: precise rotation + numeric elevation entry (v0.6.0.6)
+
+Rounds out the *position* axis. The Transform rotation field stepped in 15° jumps — now 1° (any whole
+angle; the Rotate-90 button stays for quick turns). The elevation (off-floor height) control was a
+slider with a read-only value — the value is now an editable metre field (clamped to floor→ceiling), so
+a wall shelf / floating console can be placed at an exact height, not only dragged.
+
+## Furniture: per-part texture/material (not just colour) + clear-revert fix (v0.6.0.5)
+
+Extends the per-part GLB finish from colour-only to **textures**: each named part of a model can now be
+re-skinned with Wood / Marble / Stone / Metal / Rattan / Concrete / Painted / Gloss (via
+`getSurfaceMaterial`), or a flat colour — chosen from a per-part dropdown + swatch in the inspector
+("Part finishes"). `getSurfaceMaterial` gained a `metal` branch (brushed satin) so the menu's metal
+option isn't silently wood. The `finishOverrides` apply path in `GltfModel` now treats a value as a
+hex colour (retint the part's own material, keeping its maps) or a material token (swap in the surface
+material), and — fixing a latent bug — **captures each touched part's original material and restores it
+each pass**, so clearing one finish among several reverts that part cleanly instead of leaving it on a
+just-disposed clone. Verified end-to-end: a built-in pool table → all parts Marble (renders as marble),
+then Clear → back to the original green felt + timber frame.
+
+## Per-element colour: walls, doors & window glass (v0.6.0.4)
+
+Extends the customizability push to the architecture (`elementColors`, simple tier, default on). Walls,
+doors and windows had no colour control of their own — only a single plan-wide wall colour, and
+hardcoded timber doors / cool glass. Now the 2D plan inspector exposes, per selected element:
+**Wall colour** (overrides the plan-wide colour for that wall, with reset), door **Leaf colour** (the
+recessed panels derive a darker shade), and window **Glass tint**. New optional `color` fields on
+`PlanWall` + `PlanOpening` (round-tripped through the save schema); rendered by `PlanShell` (per-wall
+`FadeWall`/`SlopedWallMesh`, glass-tint in `FadeWindow`) and `PlanDoorLeaf`. Because the first plan edit
+forks the default home to a live plan, these reach every home. Verified: recolouring the interior walls
+repaints them in the 3D top view. Tested in both Simple + Pro (simple-tier, on in both) + schema
+round-trip.
+
+## Furniture: per-part recolour for any GLB model (v0.6.0.3)
+
+Continues the customizability push (colour/texture for custom uploads + 3D models). Built-in,
+uploaded and Poly Haven GLB models could only be **tinted as a whole**; you couldn't repaint just the
+legs or seat. Now the inspector lists each of a model's named material/mesh groups under **Recolour
+parts**, with a swatch + clear per part. Plumbing: `GltfModel` caches a model's finish targets
+(`listFinishTargets`, previously dead code) keyed by base url once it loads, with a subscribe notifier
+so the inspector shows the pickers the moment a freshly placed model is ready (`getCachedFinishTargets`
+/ `subscribeFinishTargets`). `selectGltfRender` now reads per-item `finish:<material>` overrides for
+**every** GLB kind (not just IKEA variants), merging them over any def-level overrides and dropping
+blanks so a cleared swatch can't paint a part black. Verified end-to-end: a built-in pool table exposes
+its 13 materials and recolouring one repaints just that part in 3D. The whole-model **Tint (all)** stays.
+
+## Furniture: exact numeric W×D×H size entry (v0.6.0.2)
+
+First step of the "everything is customizable" push (size). Furniture could only be resized with
+scale-multiplier sliders (0.25–3×), so a user thinking in real dimensions couldn't size a sofa to
+"1.8 m". Now: GLTF/builtin/upload/remote items show an **Exact size (m)** row with editable W/D/H
+fields that back-solve the axis scale from the model's base bounding box (proportions-locked → any
+field rescales uniformly; unlocked → per-axis), and parametric items' dimension params (`NumberField`)
+gain an inline numeric box beside the slider so an exact value can be typed, not only dragged. Both
+clamp to sane ranges; the coarse sliders stay. Pure UI over the existing scale/param props — no render
+changes.
+
+## Scrollable Tools menu (sticky headers) + aligned ⌘K shortcut column (v0.6.0.1)
+
+Two polish fixes for the toolbar. (1) The Tools dropdown was capped at `72vh` with overflow scroll but
+gave no scroll affordance, so a long menu just looked cut off — the `.menu-label` section headers
+(Analyse / Review & tour / Export & document) are now **sticky** within the scroll region (opaque
+`--surface-solid` background), so the group name pins to the top while scrolling and the menu reads
+clearly as scrollable. (2) The ⌘K palette's keyboard-shortcut `<kbd>` chips didn't line up: a row with
+a docs "?" reserved a 22px slot on the right, pushing its `<kbd>` left of rows without one. Rows now
+always render a matching `.ci-help-spacer`, so every shortcut chip sits in one consistent right-hand
+column.
+
+## Data-driven tool-action registry — single source for Tools across all 3 surfaces (v0.6.0.0)
+
+The analytical **Tools** cluster (the Analyse + Review panels) is now defined once in a declarative
+registry, `src/ui/actions/toolActions.tsx`, and the three surfaces that used to hand-build those rows
+in their own JSX — the desktop **Tools menu**, the **mobile** bottom-sheet, and the **⌘K palette** —
+all render from it. Each `ToolAction` carries its gating `flag` (which already encodes Simple/Pro),
+its `docs` deep-link key, which `surfaces` it appears on, an `isActive` predicate, and a `run(store)`
+that performs the close-siblings-then-toggle behaviour the three surfaces previously duplicated. This
+removes the triplication that caused drift and is enforced by `toolActions.test.ts` (registry
+invariants — real flags / icons / docs keys / unique ids — plus Simple-vs-Pro visibility resolution
+and the per-surface projection). Behaviour is preserved on desktop + palette; the mobile rows pick up
+the desktop labels + descriptions and the same section headers (a consistency win). The export cluster
+(BOQ / CSV / 3D / drawing-set) and the local-state Sun-study toggle remain hand-rendered — they
+diverge per surface and aren't store-backed — so they're intentionally out of the registry for now.
+
+## Mobile sheet: docs links + section headers + distinct icons (v0.5.0.8)
+
+Brings the mobile bottom-sheet to full parity with the desktop menus for the DOCS-DEEPLINK work.
+The `Item` row gains an optional `docs?: DocKey` that renders an always-visible **"?" (`Icon.Help`)**
+sibling control (touch has no hover) wired with `stopPropagation` so it neither runs the row nor
+closes the sheet — added to every analytical/export item in the Tools section (Budget, Checks,
+Drawings, Daylight, Design score, Accessibility, Measure, Comments, History, Versions, Share, Sun
+study, Walkthrough, Report) and the File section (360° panorama, 360° tour, Render compare, Shopping
+list, Import Sweet Home 3D). A new `SubHeader` (`.m-sec-h`) groups the Tools section under the same
+**Analyse / Review & tour / Export & document** headers as desktop, each visibility-guarded.
+Two **distinct line-icons** added to `icons.tsx` to end icon reuse: `Accessibility` (universal-access
+figure, was sharing the shield `Checks` glyph) and `Daylight` (window casting light rays, was sharing
+the `SunStudy` sun) — applied across the Tools menu, mobile sheet, and ⌘K palette.
+
+## File/Edit menu sections + docs links (v0.5.0.7)
+
+The File menu's long top block is now headed **Save & export**, and its two hand-rolled headers are
+unified onto the shared `.menu-label` token (**Load & reset**, **App**) — consistent with the Tools
+menu. Docs "?" links added to File items (360° panorama, 360° tour, Render compare, Shopping list,
+Import Sweet Home 3D) and the Edit menu (Edit a room, Floor-plan editor). Continues the DOCS-DEEPLINK
++ menu-organization work.
+
+## Declutter the Tools menu into sections (v0.5.0.6)
+
+The Tools menu was a flat 15–20-item dump mixing analytical panels, review/tour, and six export
+formats. It's now grouped under three scannable section headers — **Analyse** (Budget, Checks,
+Drawings, Daylight, Design score, Accessibility, Measure, Comments), **Review & tour** (History,
+Versions, Sun study, Walkthrough), and **Export & document** (Share, Moodboard, Report, Reno .ics,
+Quote/BOQ, DXF/SVG, 3D exports, AR, Drawing set, Sheet callouts) — reusing the existing `.menu-label`
+token; each header is visibility-guarded so it never shows over an all-flagged-off group. `ToolbarMenu`
+panels now cap at `72vh` with overflow scroll so a long menu can't run off-screen.
+
+## Contextual docs deep-links: command palette + Tools menu (v0.5.0.5)
+
+Extends DOCS-DEEPLINK to two more surfaces. `MenuItem` gains an optional `docs?: DocKey` that
+renders a hover/focus **"?" (`Icon.Help`)** — a sibling control with `stopPropagation` so it neither
+runs the row nor closes the menu — wired into every analytical item in the **Tools menu** (budget,
+checks, drawings, daylight, design score, accessibility, measure, comments, history, versions, share,
+sun study, walkthrough, report, sheet callouts). The **command palette** rows now show the same "?"
+when a command maps (via its gating flag) to a documented feature, opening that section of the guide.
+Tokenised CSS (`.mi-help` / `.ci-help`), accessible (real focusable control, aria-labelled). Together
+with the aux-panel headers, contextual help now reaches the panels, the palette, and the menus.
+
+## Contextual docs deep-links: helper + aux-panel headers (v0.5.0.4)
+
+First slice of the discoverability work (DOCS-DEEPLINK). `src/ui/docsUrl.ts` gains a `FEATURE_DOCS`
+registry (`DocKey` = `FeatureFlag` + a few non-flag tool keys) with `docsUrlFor(key)`/`openToolDocs(key)`
+that build `${DOCS_URL}<slug>#<anchor>` deep-links — anchors are the **real generated heading ids**
+grepped from the built `dist/docs/<slug>.html` (so they don't 404), `encodeURI`'d for the few unicode
+ones. A new shared `src/ui/AuxPanelHead.tsx` renders the standard panel header (title + sub + Close)
+plus a contextual **"?" (`Icon.Help`)** that opens that panel's guide section; the ten aux panels
+(Budget, Clearance, Design score, Accessibility, Daylight, Drawings, Comments, History, Versions,
+Sheet callouts) now use it. Unit tests cover `docsUrlFor` (URL shape, no-anchor, unicode encoding,
+fallback) + a page-slug integrity guard. Groundwork for the action-registry migration that wires the
+same `docs` links into the command palette, toolbar menus, and tooltips.
+
+## Polygon-room tool discoverability (v0.5.0.3)
+
+Non-rectangular / L-shaped rooms were already drawable via the `polyroom` tool, but it was just
+labelled "Polygon" (ambiguous next to "Polyline") and the close-gesture wasn't obvious, so users
+allocating rooms didn't find it. `FloorPlanEditor.tsx`: relabel the tool to **"Polygon room"**,
+expand its tooltip (draw an L-shaped room — click each corner, click the first / press Enter to
+close, Esc cancels), and show a live **`.plan-draw-hint`** chip in the rail while the Polygon-room
+(or Polyline) tool is active. No behaviour/geometry change. Verified with
+`scripts/scenarios/polyroom-verify.json` (draw vertices → Enter → a room with a ≥3-vertex polygon).
+
+## Style themes reachable from the overview (v0.5.0.2)
+
+The **Arrange** menu — Smart Start + the layout/theme presets (Scandinavian, Minimalist, Japandi,
+…) + finish styles, all *whole-apartment* actions — was only rendered inside the per-room editor, so
+from the main overview the themes were unreachable except via ⌘K ("apartment presets not
+available"). `Toolbar.tsx` now also renders `<ArrangeMenu />` in the overview view-mode cluster
+(`orbit && !roomEditorActive`); the actions (`applyLayoutPreset`/`tidyHome`/`applyStyle`/set-drops)
+already act on the whole flat and aren't editor-gated. Verified: the Arrange menu shows in the
+overview and applying "Scandi Calm" restyles the flat.
+
+## Composer: tint existing materials, incl. Poly Haven (v0.5.0.1)
+
+The finish composer's source dropdown now has a **"Tint a material"** group listing the
+surface's catalog materials alongside the procedural patterns. Picking one + a colour applies a
+`tint:<baseId>:<#hex>` finish, resolved in `useMaterial.ts` by cloning the base def with the new
+`swatch` — which recolours procedural materials AND multiplies the albedo of **textured CC0 / Poly
+Haven** materials (their `m.color` = `swatch`). New pure `tintMaterialId`/`parseTintMaterialId`/
+`tintedMaterialDef` helpers in `composeMaterial.ts` (+ unit tests). Verified: a red tint over the
+oak-plank floor shows the grain through the colour.
+
+## Design-tool bug sweep + composable finishes + midday-lighting fix (v0.5.0.0)
+
+A batch of reported design-tool fixes plus one major finish feature and a lighting fix:
+
+- **Compose finishes from texture + colour (MAT-COMPOSE, `materialComposer` flag, simple).** A new
+  pure `materials/composeMaterial.ts` encodes a finish as `compose:<pattern>:<#hex>` and synthesises a
+  `ProceduralMaterialDef` on the fly (resolved in `useMaterial.ts`, mirroring the raw-`#hex`
+  custom-colour path) — so ANY of 17 texture families can pair with ANY colour without a catalog
+  entry. New `ui/finish/MaterialComposer.tsx` collapsible per surface in the FinishPicker (live tiled
+  preview + texture dropdown + colour). Renders through the existing procedural pipeline on floors +
+  walls; serialises as a plain string. Unit-tested.
+- **Smart Start palette swatches** now resolve the real floor/wall colours (`BUILTIN_MATERIALS[id].swatch`)
+  instead of undefined `--swatch-*` CSS vars (which fell back to grey).
+- **Catalog category rail scrolls horizontally on desktop** — a vertical mouse-wheel over `.cat-rail`
+  is translated to horizontal scroll (`CategoryTabs` `onWheel`); trackpads/touch untouched.
+- **Inspector auto-expands on desktop** — `useInspectorMinimize` defaults to expanded on desktop and
+  minimised only on mobile (`useIsMobile`), instead of always minimised.
+- **Wardrobe / Toilet (and any later catalog item) thumbnails render** — the single-Canvas thumbnail
+  host now has a watchdog so one stalled def (e.g. a remote GLB whose fetch hangs under `<Suspense>`)
+  can't block every queued item behind it; `handleReady` is memoised to stop rAF-capture churn.
+- **Checkered / plaid / dots patterns show on the Rug** — `Rug.tsx` now routes those patterns through
+  `getFabricMaterial` (which already supports them), not just striped/herringbone.
+- **A/B render compare no longer hangs the browser** — `RenderCompareModal` captures the live RASTER
+  frame (`captureCanvasPng`) after applying each preset instead of spinning up two heavy path-trace
+  sessions; the "Capturing B…" overlay no longer overlaps the rendered image A.
+- **Midday "washed out on Maximum" fix (LIGHT-IBL-OVERLAP).** On IBL tiers the procedural environment
+  added ambient bounce on top of the analytical hemisphere+ambient fill (tuned as the sole fill for the
+  flat tier), and the broad sunlit surfaces then exceeded the bloom threshold → milky veil. `look.ts`
+  `iblFillScale` scales the analytical fill down with the day level when IBL is active, and
+  `bloomIntensityForDay` ramps bloom strength to ~0 at midday (full at night, threshold unchanged so
+  the `fixtureGlow` lock-step + night glow are preserved). Both pure + unit-tested.
+
+Verified: undo/redo (move/rename/redo) work; condominium presets (incl. penthouse) load from the 2D
+editor's Template picker; whole-house finishes apply via the FinishPicker's "Apply to all rooms".
+
 ## Feature: per-face brushed-metal anisotropy rotation (BRUSH-AXIS) (v0.4.0.0)
 
 Brushed-metal surfaces now orient their anisotropic highlight per face instead of using one global

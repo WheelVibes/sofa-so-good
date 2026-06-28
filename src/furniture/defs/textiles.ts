@@ -70,45 +70,92 @@ export const TEXTILES_DEFS = {
     keywords: ['drapes', 'drapery', 'window treatment'],
     category: 'textiles',
     primitive: 'Curtain',
-    defaultFootprint: { w: 1.8, d: 0.12, h: 2.3 },
+    defaultFootprint: { w: 2.0, d: 0.12, h: 2.75 },
     // Drapes hang flat against a wall behind furniture — never block placement.
     noClip: true,
+    // Window-bound: statically placed on a window (no move/rotate/flip). Placement
+    // sizes the curtain to its window (wider than the glass, floor-to-ceiling).
+    windowBound: true,
     paramSchema: [
       {
         kind: 'number',
         key: 'width',
         label: 'Width',
         min: 1.0,
-        max: 3.0,
+        max: 3.4,
         step: 0.1,
-        default: 1.8,
+        default: 2.0,
         unit: 'm',
       },
       {
+        // Floor-to-rod drop — floor-to-ceiling by default (placement sets it to
+        // the room's ceiling height).
         kind: 'number',
         key: 'height',
         label: 'Height',
-        min: 1.5,
-        max: 2.5,
+        min: 1.8,
+        max: 3.2,
         step: 0.05,
-        default: 2.3,
+        default: 2.75,
         unit: 'm',
       },
-      { kind: 'color', key: 'color', label: 'Fabric', default: '#c4b9a6' },
       {
+        // Drop length: floor-to-ceiling (default) or down to just below the
+        // window sill. Both hang from the rod (the `height` above).
         kind: 'enum',
-        key: 'style',
-        label: 'State',
-        default: 'drawn',
+        key: 'length',
+        label: 'Length',
+        default: 'floor',
         options: [
-          { value: 'drawn', label: 'Drawn (closed)' },
-          { value: 'open', label: 'Tied back (open)' },
+          { value: 'floor', label: 'Floor-to-ceiling' },
+          { value: 'sill', label: 'Sill length' },
         ],
+      },
+      {
+        // Fabric weave — fabric-only by design (drapery is cloth; no wood/stone).
+        // Reuses the shared tone-on-tone pattern set below.
+        kind: 'enum',
+        key: 'material',
+        label: 'Fabric',
+        default: 'cotton',
+        options: [
+          { value: 'cotton', label: 'Cotton' },
+          { value: 'linen', label: 'Linen' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
+      {
+        // Opacity / light-blocking (CURTAIN-OPACITY) — separate from the weave:
+        // how see-through the cloth is + how much daylight it blocks when drawn.
+        kind: 'enum',
+        key: 'lightBlock',
+        label: 'Opacity',
+        default: 'room',
+        options: [
+          { value: 'sheer', label: 'Sheer' },
+          { value: 'light', label: 'Light-filtering' },
+          { value: 'room', label: 'Room-darkening' },
+          { value: 'blackout', label: 'Blackout' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#c4b9a6' },
+      {
+        // Draw the curtains with a smooth animation (CURTAIN-DRAW): 0 = open
+        // (tied back, exterior light filters in), 1 = drawn (covers the window).
+        // The primitive eases between the two; the window light attenuation
+        // tracks the same value.
+        kind: 'number',
+        key: 'drawAmount',
+        label: 'Draw (open → closed)',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        default: 1,
       },
       {
         kind: 'enum',
         key: 'pattern',
-        label: 'Weave',
+        label: 'Pattern',
         default: 'plain',
         options: [
           { value: 'plain', label: 'Plain' },

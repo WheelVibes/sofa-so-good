@@ -10,6 +10,7 @@ import { blockedDoorItems } from '../layout/clearance'
 import { findNarrowGaps, type NarrowGap } from '../layout/walkway'
 import { useStore } from '../state/store'
 import { formatLength } from '../utils/measurement'
+import { AuxPanelHead } from './AuxPanelHead'
 import { Icon } from './toolbar/icons'
 
 /** Clearance & fit checks: surfaces HDB door-swing blocking (`blockedDoorItems`),
@@ -116,20 +117,12 @@ export function ClearancePanel() {
 
   return (
     <aside className="panel mini aux" id="clearancePanel" style={{ width: 340 }}>
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Clearance checks</div>
-          <div className="panel-sub">HDB 90 cm walkways</div>
-        </div>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close"
-          onClick={() => setOpen(false)}
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
+      <AuxPanelHead
+        title="Clearance checks"
+        sub="HDB 90 cm walkways"
+        docs="clearanceChecks"
+        onClose={() => setOpen(false)}
+      />
       <hr className="hr" />
       <div className="panel-body">
         <div className="clr-summary">

@@ -1,0 +1,20 @@
+{
+  "name": "item-opacity-verify",
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "enter-room", "eval": "(() => { const st=window.__store.getState(); const room=st.floorPlan.rooms.find(r=>!r.external)||st.floorPlan.rooms[0]; st.enterRoomEditor(room.id); return room.id; })()" },
+    { "name": "settle", "wait": 2500 },
+    { "name": "ghost-items", "eval": "(() => { const st=window.__store.getState(); let n=0; for(const it of st.items){ window.__store.getState().updateItemProps(it.id, {opacity:0.3}); n++; } return n; })()" },
+    { "name": "ghost-wait", "wait": 1500 },
+    { "name": "shot-ghost", "screenshot": "opacity-ghosted" },
+    { "name": "restore-items", "eval": "(() => { const st=window.__store.getState(); for(const it of st.items){ window.__store.getState().updateItemProps(it.id, {opacity:1}); } return 'restored'; })()" },
+    { "name": "restore-wait", "wait": 1500 },
+    { "name": "shot-restored", "screenshot": "opacity-restored" }
+  ]
+}

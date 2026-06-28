@@ -14,6 +14,7 @@
 import { useShallow } from 'zustand/react/shallow'
 import type { CalloutSheet } from '../state/slices/drawingCalloutsSlice'
 import { useStore } from '../state/store'
+import { AuxPanelHead } from './AuxPanelHead'
 import { Icon } from './toolbar/icons'
 
 /** Human labels for each sheet target — shown in the picker and the list. */
@@ -150,24 +151,16 @@ export function DrawingCalloutsPanel() {
 
   return (
     <aside className="panel mini aux" id="drawingCalloutsPanel">
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Sheet callouts</div>
-          <div className="panel-sub">
-            {callouts.length === 0
-              ? 'Free-text notes on drawing-set sheets'
-              : `${callouts.length} callout${callouts.length !== 1 ? 's' : ''} — appear on export`}
-          </div>
-        </div>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Close"
-          onClick={() => setOpen(false)}
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
+      <AuxPanelHead
+        title="Sheet callouts"
+        sub={
+          callouts.length === 0
+            ? 'Free-text notes on drawing-set sheets'
+            : `${callouts.length} callout${callouts.length !== 1 ? 's' : ''} — appear on export`
+        }
+        docs="drawingCallouts"
+        onClose={() => setOpen(false)}
+      />
       <hr className="hr" />
       <div className="panel-body">
         <button

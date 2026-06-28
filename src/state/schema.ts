@@ -198,6 +198,8 @@ const PlanWallZ = z.object({
       hidden: z.boolean().optional(),
     })
     .optional(),
+  // Optional per-wall paint colour override (elementColors) — additive, back-compat.
+  color: z.string().optional(),
 })
 const PlanOpeningZ = z.object({
   id: z.string(),
@@ -213,6 +215,10 @@ const PlanOpeningZ = z.object({
   head: z.number(),
   hinge: z.enum(['start', 'end']).optional(),
   swing: z.enum(['left', 'right']).optional(),
+  // Optional door-leaf / window-glass colour (elementColors) — additive, back-compat.
+  color: z.string().optional(),
+  // Optional door/window style/type (openingStyles) — additive, back-compat.
+  style: z.string().optional(),
 })
 const PlanRoomZ = z.object({
   id: z.string(),
@@ -346,11 +352,17 @@ const RawSerializedStateZ = z.object({
   finishes: z.object({
     floor: z.record(z.string(), z.string()),
     walls: z.record(z.string(), z.string()),
+    // Optional for backward compat with payloads saved before ceiling finishes.
+    ceiling: z.record(z.string(), z.string()).optional(),
     // Optional for backward compat with payloads saved before accent walls.
     wallAccents: z.record(z.string(), z.string()).optional(),
   }),
   userFurniture: z.array(z.union([UserGltfDefZ, IkeaGltfDefZ])),
   userMaterials: z.array(UserMaterialDefZ),
+  // Optional apartment master colour palette + per-room overrides
+  // (CUSTOMIZE-MASTER-PALETTE). Absent on legacy saves → empty.
+  masterPalette: z.array(z.string()).optional(),
+  roomPalettes: z.record(z.string(), z.array(z.string())).optional(),
   timeMode: z.enum(['system', 'manual']),
   manualHour: z.number().min(0).max(24),
   // Optional (added later): fixture-lights mode, so a saved lighting mood's
@@ -488,6 +500,9 @@ export function serialize(state: RootState): SerializedState {
     ...(isDefaultPlan(state.floorPlan) ? {} : { floorPlan: state.floorPlan }),
     doors: state.doors,
     finishes: state.finishes,
+    // Master palette + per-room overrides (omit empties to keep saves lean).
+    ...(state.masterPalette.length ? { masterPalette: state.masterPalette } : {}),
+    ...(Object.keys(state.roomPalettes).length ? { roomPalettes: state.roomPalettes } : {}),
     // User-uploaded and IKEA-imported defs persist; runtime-only blob URLs
     // (the def's `runtimeUrl` and each IKEA variant's `runtimeUrl`) are
     // stripped and rebuilt from the assetId at hydration.
@@ -594,6 +609,10 @@ export function applySerialized(
   for (const [k, v] of Object.entries(state.finishes.walls)) {
     if (validRoom(k)) walls[k] = v
   }
+  const ceiling: Partial<Record<RoomId, string>> = {}
+  for (const [k, v] of Object.entries(state.finishes.ceiling ?? {})) {
+    if (validRoom(k)) ceiling[k] = v
+  }
   // Drop items whose transform isn't finite — `z.number()` admits NaN/Infinity,
   // so a corrupt or hand-edited save could otherwise feed NaN into the Three.js
   // matrices and break (or crash-loop) the whole renderer.
@@ -615,8 +634,11 @@ export function applySerialized(
     finishes: {
       floor: floor as Record<RoomId, string>,
       walls: walls as Record<RoomId, string>,
+      ceiling: ceiling as Record<RoomId, string>,
       wallAccents: state.finishes.wallAccents ?? {},
     },
+    masterPalette: state.masterPalette ?? [],
+    roomPalettes: state.roomPalettes ?? {},
     timeMode: state.timeMode,
     manualHour: state.manualHour,
     lightsMode: state.lightsMode ?? 'auto',

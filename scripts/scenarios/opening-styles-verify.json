@@ -1,0 +1,17 @@
+{
+  "name": "opening-styles-verify",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "noon", "store": { "action": "setPresetTime", "args": ["noon"] } },
+    { "name": "translucent-walls", "store": { "action": "setWallRevealMode", "args": ["translucent"] } },
+    { "name": "set-styles", "eval": "(() => { const st=window.__store.getState(); const fp=st.floorPlan; const doors=fp.openings.filter(o=>o.kind==='door'); const wins=fp.openings.filter(o=>o.kind==='window'); doors.forEach(d=>window.__store.getState().updateOpening(d.id,{style:'glazed'})); wins.forEach(w=>window.__store.getState().updateOpening(w.id,{style:'grille'})); return JSON.stringify({doors:doors.length, windows:wins.length}); })()" },
+    { "name": "fork-wait", "wait": 2500 },
+    { "name": "orbit", "store": { "action": "requestHomeView", "args": [] } },
+    { "name": "settle", "wait": 1500 },
+    { "name": "shot", "screenshot": "opening-styles" }
+  ]
+}

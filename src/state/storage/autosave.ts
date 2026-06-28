@@ -26,6 +26,8 @@ type Persistent = {
   finishes: unknown
   userFurniture: unknown
   userMaterials: unknown
+  masterPalette: unknown
+  roomPalettes: unknown
   timeMode: unknown
   manualHour: unknown
   lightsMode: unknown
@@ -51,6 +53,8 @@ export const PERSISTENT_WATCH_KEYS = [
   'finishes',
   'userFurniture',
   'userMaterials',
+  'masterPalette',
+  'roomPalettes',
   'timeMode',
   'manualHour',
   'lightsMode',
@@ -75,6 +79,8 @@ function pickPersistent(): Persistent {
     finishes: s.finishes,
     userFurniture: s.userFurniture,
     userMaterials: s.userMaterials,
+    masterPalette: s.masterPalette,
+    roomPalettes: s.roomPalettes,
     timeMode: s.timeMode,
     manualHour: s.manualHour,
     lightsMode: s.lightsMode,
@@ -99,6 +105,8 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
     a.finishes === b.finishes &&
     a.userFurniture === b.userFurniture &&
     a.userMaterials === b.userMaterials &&
+    a.masterPalette === b.masterPalette &&
+    a.roomPalettes === b.roomPalettes &&
     a.timeMode === b.timeMode &&
     a.manualHour === b.manualHour &&
     a.lightsMode === b.lightsMode &&

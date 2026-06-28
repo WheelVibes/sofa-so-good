@@ -1,4 +1,3 @@
-import { useFrame } from '@react-three/fiber'
 import { Suspense, useRef } from 'react'
 import { type Mesh, type MeshStandardMaterial, Vector2 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
@@ -22,12 +21,12 @@ import { DoorLeaf } from './Door'
 import { RoomFloor } from './floor/RoomFloor'
 import type { ClippedWall, RoomShell as RoomShellData } from './roomShell'
 import { WindowPane } from './Window'
-import { wallFacesAway } from './wallFacing'
 import { wallThicknessMetres } from './wallSegments'
+import { useWallReveal } from './walls/useWallReveal'
 
-/** A clipped wall box, painted with the room's wall finish, that hides itself
- *  when the orbit camera is on its outward side — so you always see into the
- *  room (IKEA-planner-style camera-facing wall reveal). */
+/** A clipped wall box, painted with the room's wall finish, that fades to
+ *  translucent when the orbit camera fronts it — so you always see into the
+ *  room (IKEA-planner-style camera-facing wall reveal, matching orbit mode). */
 function WallBox({
   wall,
   center,
@@ -60,14 +59,9 @@ function WallBox({
     ? new Vector2(0, Math.sign(toMid.y) || 1)
     : new Vector2(Math.sign(toMid.x) || 1, 0)
 
-  useFrame((state) => {
-    const m = ref.current
-    if (!m) return
-    // No per-frame Vector2 allocation: the pure scalar test mirrors the old
-    // `camDir.dot(normal) <= 0.05`.
-    const cam = state.camera.position
-    m.visible = wallFacesAway(cam.x, cam.z, midX, midZ, normal)
-  })
+  // Fade to translucent when the orbit camera fronts this wall (matches the main
+  // orbit scene); publishes the wall's opacity so its windows/doors fade too.
+  useWallReveal(ref, { midX, midZ, nx: normal.x, nz: normal.y, center, wallId: wall.wallId })
 
   if (len < 1e-6) return null
   const t = wallThicknessMetres(wall.spec)

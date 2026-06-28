@@ -1,0 +1,23 @@
+{
+  "name": "composer-verify",
+  "description": "Prove a composed (texture+colour) finish renders on the floor and the composer UI is present.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
+    { "name": "reload", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
+    { "name": "force-scene-ready", "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}" },
+    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
+    { "name": "enter-room-editor", "eval": "window.__store.getState().enterRoomEditor('livingDining')" },
+    { "name": "room-settle", "wait": 2500 },
+    { "name": "apply-composed-floor", "eval": "window.__store.getState().setFloorFinish('livingDining','compose:checker:#3aa0ff')" },
+    { "name": "render-settle", "wait": 2500 },
+    { "name": "shot-composed-floor", "screenshot": "composed-floor" },
+    { "name": "open-finish", "eval": "window.__store.getState().selectRoom('livingDining')" },
+    { "name": "finish-settle", "wait": 1500 },
+    { "name": "composer-present", "eval": "(function(){var n=document.querySelectorAll('.compose-summary').length;if(n<2)throw new Error('composer not found, count='+n);var el=document.querySelector('.compose-summary');el.parentElement.open=true;el.parentElement.scrollIntoView();return 'composer-count-'+n})()" },
+    { "name": "composer-settle", "wait": 800 },
+    { "name": "shot-composer-ui", "screenshot": "composer-ui" }
+  ]
+}

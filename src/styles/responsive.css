@@ -210,6 +210,14 @@ body.mobile {
   .m-item-s { display: block; font-size: var(--t-2xs); font-weight: 500; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .m-item .sk { margin-left: auto; flex: none; }
   .m-item .m-on { margin-left: auto; flex: none; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-soft-text); background: var(--accent-soft); padding: 2px 7px; border-radius: var(--r-pill); }
+  /* Docs "?" affordance on a mobile row (DOCS-DEEPLINK) — always visible (no hover on touch). */
+  .m-item-wrap { display: flex; align-items: center; }
+  .m-item-wrap .m-item { flex: 1; min-width: 0; }
+  .m-item-help {
+    flex: none; display: grid; place-items: center; width: 44px; min-height: 44px;
+    color: var(--text-3); border-radius: var(--r-2);
+  }
+  .m-item-help:active { background: var(--surface-3); color: var(--accent-soft-text); }
   .m-row2 { display: flex; gap: var(--s-2); padding: 0 5px; }
   .m-row2 .m-item { justify-content: center; background: var(--surface-2); }
 

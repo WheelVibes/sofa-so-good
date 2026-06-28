@@ -36,8 +36,8 @@ export interface PlanWall {
   topHeight?: number
   /** Optional top height at the wall's `end` (SweetHome3DJS sloping-wall parity):
    *  when set, the wall top ramps linearly from `topHeight` (or ceiling) at start
-   *  to this at end — a shed/mono-pitch wall. Sloped walls render as a prism and
-   *  don't host openings in this version. */
+   *  to this at end — a shed/mono-pitch wall. A sloped wall renders as a
+   *  rectangular lower band (which hosts openings) + a triangular upper wedge. */
   topHeightEnd?: number
   /** Optional curvature (SweetHome3DJS parity): signed perpendicular bulge (m) at
    *  the wall's midpoint, measured from the straight chord. Absent/0 = straight.
@@ -49,6 +49,10 @@ export interface PlanWall {
    *  wall's foot; `hidden` suppresses it entirely. Absent fields fall back to the
    *  shell default (0.09 m, off-white). */
   baseboard?: { height?: number; color?: string; hidden?: boolean }
+  /** Optional per-wall paint colour (hex), overriding the plan-wide `wallColor`
+   *  for THIS wall only. Absent = use the plan default. Edited in the 2D plan
+   *  inspector (`elementColors`). */
+  color?: string
 }
 
 export interface PlanOpening {
@@ -79,6 +83,16 @@ export interface PlanOpening {
    *  wall's right-hand normal (−Z of the start→end tangent), 'left' the other.
    *  Defaults to 'right' when unset. */
   swing?: 'left' | 'right'
+  /** Optional colour (hex). For a **door** it paints the leaf (frame/panels
+   *  derive a darker shade); for a **window** it tints the glass. Absent = the
+   *  default timber / cool-glass look. Edited in the 2D plan inspector
+   *  (`elementColors`). */
+  color?: string
+  /** Optional style/type (`openingStyles`). Doors: `panel` (default, recessed
+   *  panels) / `flush` (plain slab) / `glazed` (upper vision panel). Windows:
+   *  `plain` (default glass) / `grille` (vertical safety bars) / `louvre`
+   *  (horizontal slats). Absent = the default for the kind. */
+  style?: string
 }
 
 export interface PlanRoom {
@@ -105,6 +119,8 @@ export interface PlanRoom {
   wall?: string
   /** Optional ceiling treatment (tray / coffered / dropped); absent → flat. */
   ceiling?: CeilingConfig
+  /** Optional ceiling finish (catalog material id); plain white when unset. */
+  ceilingFinish?: string
   /** Optional floor-texture transform (SweetHome3DJS texture scale/angle parity):
    *  `floorTexScale` multiplies tile size (×, >1 = bigger), `floorTexAngle`
    *  rotates the texture (radians). Absent = default tiling. */
