@@ -15,7 +15,7 @@ import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { planWallThickness, type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
-import { isSlopedWall, slopedWallTriangles } from '../floorplan/slopedWall'
+import { isSlopedWall, slopedWallHeights, slopedWallTriangles } from '../floorplan/slopedWall'
 import {
   DEFAULT_PLAN_WALL_COLOR,
   type FloorPlan,
@@ -406,9 +406,9 @@ function PlanLevelShell({
       .filter((o) => o.kind === 'window')
       .map((o) => {
         const wall = lp.walls.find((w) => w.id === o.wallId)
-        // Sloped walls (solid prism) don't host openings. Curved walls do — the
-        // glass is positioned + oriented at the opening's mid-arc point.
-        if (!wall || isSlopedWall(wall)) return null
+        // Curved + sloped walls host openings too — the glass sits at the
+        // opening's mid-arc point (curved) or wall midpoint (straight/sloped).
+        if (!wall) return null
         const s = o.offset + o.width / 2
         let cx: number
         let cz: number
@@ -554,7 +554,9 @@ function PlanLevelShell({
         />
       ))}
 
-      {/* Sloping-top walls render as prisms (slopedWall.ts), not boxes. */}
+      {/* Sloping-top walls: the rectangular lower band [0, minTop] is drawn as
+          boxes above (so it cuts openings like a flat wall); this prism is the
+          upper wedge [minTop, slopedTop]. */}
       {lp.walls.filter(isSlopedWall).map((w) => (
         <SlopedWallMesh
           key={w.id}
@@ -562,6 +564,7 @@ function PlanLevelShell({
           ceiling={lp.ceilingHeight}
           thickness={planWallThickness(w, lp)}
           color={w.color ?? wallColor}
+          baseY={Math.min(...slopedWallHeights(w, lp.ceilingHeight))}
         />
       ))}
 
@@ -602,9 +605,9 @@ function PlanLevelShell({
         .filter((o) => o.kind === 'door')
         .map((o) => {
           const wall = lp.walls.find((w) => w.id === o.wallId)
-          // Sloped walls (solid prism) don't host openings; curved walls do
-          // (PlanDoorLeaf reads arc-aware geometry from doorSwingGeometry).
-          return wall && !isSlopedWall(wall) ? (
+          // Curved + sloped walls host doors too (the leaf sits in the wall's
+          // lower band; curved walls use arc-aware geometry in PlanDoorLeaf).
+          return wall ? (
             <PlanDoorLeaf
               key={o.id}
               wall={wall}
@@ -744,21 +747,25 @@ function SlopedWallMesh({
   ceiling,
   thickness,
   color,
+  baseY = 0,
 }: {
   wall: PlanWall
   ceiling: number
   thickness: number
   color: string
+  /** Prism base (m) — set to the wall's min top height when its lower band is
+   *  drawn as boxes (so this is just the upper wedge above any openings). */
+  baseY?: number
 }) {
   const geometry = useMemo(() => {
     const g = new BufferGeometry()
     g.setAttribute(
       'position',
-      new BufferAttribute(slopedWallTriangles(wall, ceiling, thickness), 3),
+      new BufferAttribute(slopedWallTriangles(wall, ceiling, thickness, baseY), 3),
     )
     g.computeVertexNormals()
     return g
-  }, [wall, ceiling, thickness])
+  }, [wall, ceiling, thickness, baseY])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <mesh geometry={geometry} castShadow receiveShadow>

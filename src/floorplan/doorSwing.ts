@@ -10,7 +10,6 @@
  *   tangent `(ux, uz)`; 'left' = the opposite side.
  */
 
-import { isSlopedWall } from './slopedWall'
 import type { FloorPlan, PlanOpening, PlanWall } from './types'
 import { pointInRoom, wallLength } from './types'
 import { isCurvedWall, pointAtArcLength } from './wallArc'
@@ -48,8 +47,6 @@ export interface DoorSwingGeometry {
  * flag from its `hinge`/`swing` (defaulted). Returns null for a zero-length wall.
  */
 export function doorSwingGeometry(wall: PlanWall, o: PlanOpening): DoorSwingGeometry | null {
-  // Sloped walls don't host openings (their geometry is a solid prism).
-  if (isSlopedWall(wall)) return null
   // Tangent (ux,uz) + the two jamb points. On a curved wall the jambs sit on the
   // arc (positioned by arc-length) and the tangent is taken at the opening's
   // mid-arc; on a straight wall it's the usual linear interpolation.

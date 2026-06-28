@@ -4,7 +4,7 @@
  * furniture collision so both see the same shell.
  */
 import type { CollisionWall } from '../collision/walls'
-import { isSlopedWall } from './slopedWall'
+import { isSlopedWall, slopedWallHeights } from './slopedWall'
 import type { FloorPlan, PlanOpening, PlanWall } from './types'
 import { wallLength } from './types'
 import { isCurvedWall, wallChords } from './wallArc'
@@ -72,9 +72,6 @@ function openingsForWall(plan: FloorPlan, wallId: string): PlanOpening[] {
  * and a header above.
  */
 export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
-  // Sloped-top wall: rendered as a prism by PlanShell (slopedWall.ts), not as a
-  // box — emit no boxes here so it isn't double-drawn.
-  if (isSlopedWall(wall)) return []
   // Curved wall: boxes follow the chord sub-segments. Openings (placed by
   // arc-length offset) are cut per-chord — each chord applies the same
   // solid/sill/header logic as a straight wall to the portion of any opening
@@ -129,7 +126,12 @@ export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
   const dz = (wall.end[1] - wall.start[1]) / len
   const angle = Math.atan2(dx, dz) // heading so +Z maps along the wall
   const t = planWallThickness(wall, plan)
-  const ceil = wall.topHeight ?? plan.ceilingHeight
+  // A sloped wall's solid box is its rectangular lower band, capped at the
+  // LOWER of its two top heights; the triangular wedge above is the prism
+  // (slopedWall.ts), so openings (head ≤ minTop) cut the band like a flat wall.
+  const ceil = isSlopedWall(wall)
+    ? Math.min(...slopedWallHeights(wall, plan.ceilingHeight))
+    : (wall.topHeight ?? plan.ceilingHeight)
   const boxes: WallBox[] = []
   const at = (s: number): [number, number] => [wall.start[0] + dx * s, wall.start[1] + dz * s]
 

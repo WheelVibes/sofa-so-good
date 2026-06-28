@@ -27,7 +27,7 @@ import { planIntegrityFlags } from '../../floorplan/planIntegrity'
 import { polylinePointsAttr } from '../../floorplan/polyline'
 import { roomLabelPoint, roomLabelPosition } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
-import { isSlopedWall } from '../../floorplan/slopedWall'
+import { isSlopedWall, slopedWallHeights } from '../../floorplan/slopedWall'
 import type { PlanWall } from '../../floorplan/types'
 import {
   DEFAULT_PLAN_WALL_COLOR,
@@ -990,27 +990,28 @@ export function FloorPlanEditor() {
       }
     } else if (tool === 'door' || tool === 'window') {
       const hit = nearestWall(wx, wz)
-      if (hit && isSlopedWall(hit.wall)) {
-        // Sloped walls are a solid prism — they can't host openings.
-        st.notify.start({
-          title: 'Sloped walls can’t have doors or windows yet',
-          kind: 'info',
-          autoDismissMs: 3000,
-        })
-      } else if (hit) {
+      if (hit) {
         const width = tool === 'door' ? 0.9 : 1.2
         // Offsets are arc-length on a curved wall, chord length on a straight one.
         const wlen = isCurvedWall(hit.wall) ? wallArcLength(hit.wall) : wallLength(hit.wall)
         const offset = Math.max(0, Math.min(wlen - width, hit.offset - width / 2))
         const snapped = snap(offset)
+        // On a sloped wall, openings live in the rectangular lower band — clamp
+        // the head (and a window's sill) to the wall's min top height so the
+        // opening stays clear of the slope wedge above it.
+        const minTop = isSlopedWall(hit.wall)
+          ? Math.min(...slopedWallHeights(hit.wall, st.floorPlan.ceilingHeight))
+          : Number.POSITIVE_INFINITY
+        const head = Math.min(2.1, minTop)
+        const sill = tool === 'door' ? 0 : Math.max(0, Math.min(0.95, head - 0.4))
         const id = st.addOpening(
           {
             kind: tool,
             wallId: hit.wall.id,
             offset: snapped,
             width,
-            sill: tool === 'door' ? 0 : 0.95,
-            head: tool === 'door' ? 2.1 : 2.1,
+            sill,
+            head,
             // Orient a new door to open into the room it serves (convention) —
             // judged against the active storey's rooms.
             ...(tool === 'door'

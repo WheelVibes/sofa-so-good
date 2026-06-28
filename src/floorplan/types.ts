@@ -36,8 +36,8 @@ export interface PlanWall {
   topHeight?: number
   /** Optional top height at the wall's `end` (SweetHome3DJS sloping-wall parity):
    *  when set, the wall top ramps linearly from `topHeight` (or ceiling) at start
-   *  to this at end — a shed/mono-pitch wall. Sloped walls render as a prism and
-   *  don't host openings in this version. */
+   *  to this at end — a shed/mono-pitch wall. A sloped wall renders as a
+   *  rectangular lower band (which hosts openings) + a triangular upper wedge. */
   topHeightEnd?: number
   /** Optional curvature (SweetHome3DJS parity): signed perpendicular bulge (m) at
    *  the wall's midpoint, measured from the straight chord. Absent/0 = straight.

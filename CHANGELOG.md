@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Openings on sloped walls (v0.6.0.8)
+
+Doors and windows can now sit on **sloped** (shed/mono-pitch) walls — previously the editor refused them
+and a sloped wall rendered as a solid prism. A sloped wall is now drawn as a rectangular **lower band**
+(capped at its lower top height, via `wallBoxes` like a flat wall, so it cuts openings cleanly) plus the
+triangular **upper wedge** above (the prism now takes a `baseY` so it starts at that min height — no
+double-draw). `PlanShell` renders the door leaf / window glass on sloped walls, the editor places
+openings on them (clamping head/sill into the lower band), and the 2D door-swing symbol + collision
+gaps work too. (Curved walls already supported openings end-to-end.) Unit-tested (`wallBoxes` emits a
+band capped at min-top and cuts the door gap) + render verified.
+
 ## Door & window styles (panel/flush/glazed · plain/grille/louvre) (v0.6.0.7)
 
 Doors and windows were a single hardcoded type. Add a **Style** picker per opening (`openingStyles`,
