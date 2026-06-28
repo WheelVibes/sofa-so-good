@@ -21,6 +21,15 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **Tier-gate GPU cost.** Read `RenderTier`; **Performance is the default for everyone**
   (flat: no shadows/IBL/post, DPR 1). Heavy effects (real mirrors, post stack) are
   High/Maximum only (`mirrorReflectorConfig(tier)` is the pattern).
+- **Orbit daytime is a flat dollhouse, not an exterior sim** (ORBIT-DOLLHOUSE,
+  `lighting/dollhouse.ts`). The pure `isDollhouseLighting({cameraMode, sunAltitude, lightsMode})` is
+  true in orbit + day + lights-not-forced-on; `Lighting` then zeroes the directional sun + its shadow
+  and lights the scene with a bright neutral hemi/ambient fill at a fixed (ungraded) exposure, and
+  `EffectsImpl` zeroes bloom. Walk mode + orbit-at-night keep the full graded simulation (sun curve,
+  shadows, day-ramped bloom). **Don't** gate material-quality knobs (IBL/PMREM, sheen/clearcoat, PBR,
+  anisotropy) on this — they must keep working in orbit per tier (a glossy surface stays glossy). The
+  module signal (`get/setDollhouseActive`) lets a per-frame reader agree without a re-render; React
+  consumers compute the predicate directly from store + sun for no frame lag.
 - **Bloom only blooms genuine HDR emitters, never broad daytime surfaces** (RD-409). The
   Bloom `luminanceThreshold` (`look.BLOOM.luminanceThreshold`, 1.35) sits **above** sunlit
   white walls/ceilings under the day IBL + ~1.2 graded exposure and **below** the night

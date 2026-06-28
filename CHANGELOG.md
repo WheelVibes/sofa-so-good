@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Orbit "dollhouse" lighting in daytime (v0.6.0.19)
+
+Orbit view removes the ceiling, so simulating the exterior sun there (hard shadows, day/night exposure
+grading, bloom) is inaccurate — light pours straight in from above. Now, in **orbit + daytime + interior
+lights not forced on**, the view renders as a flat, uniform **dollhouse**: even bright fill, no
+directional sun, no sun shadow, no bloom, neutral exposure. The full simulation is reserved for **walk
+mode** (proper interior view) and **orbit at night** (interior fixtures light the rooms as before).
+Material quality is untouched — IBL reflections, sheen/gloss and PBR detail keep working in orbit per
+the graphics tier, so a glossy sofa still reads glossy. Pure predicate `isDollhouseLighting` (unit-tested)
+drives `Lighting` (sun/fill/exposure) + `EffectsImpl` (bloom). Verified: orbit-day flat & uniform,
+orbit-night interior-lit, walk-day full sim with ceiling + sun.
+
 ## Theme-palette swatches on the remaining colour pickers (v0.6.0.18)
 
 Completes the master-palette coverage so **every** design colour picker offers the apartment theme +
