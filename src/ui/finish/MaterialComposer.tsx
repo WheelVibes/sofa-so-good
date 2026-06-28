@@ -63,10 +63,13 @@ export function MaterialComposer({
     parseComposedMaterialId(active)?.scale ??
     parseTintMaterialId(active)?.scale ??
     DEFAULT_COMPOSE_SCALE
+  const seedRoughness = (): number | undefined =>
+    parseComposedMaterialId(active)?.roughness ?? parseTintMaterialId(active)?.roughness
 
   const [source, setSource] = useState<string>(seedSource)
   const [color, setColor] = useState<string>(seedColor)
   const [scale, setScale] = useState<number>(seedScale)
+  const [roughness, setRoughness] = useState<number | undefined>(seedRoughness)
   const [name, setName] = useState<string>('')
 
   // Re-seed when the active finish becomes a composed / tinted one elsewhere.
@@ -75,6 +78,7 @@ export function MaterialComposer({
     setSource(seedSource())
     setColor(seedColor())
     setScale(seedScale())
+    setRoughness(seedRoughness())
   }, [active])
 
   const isPattern = source.startsWith('p:')
@@ -85,10 +89,16 @@ export function MaterialComposer({
     ? (COMPOSE_TEXTURES.find((t) => t.pattern === key)?.label ?? key)
     : (baseMat?.name ?? 'Custom material')
 
-  // Resolve the finish id + a preview swatch for the current source + colour + scale.
+  // Resolve the finish id + a preview swatch for the current source + colour +
+  // scale + gloss.
   const id = isPattern
-    ? composeMaterialId(key as ProceduralPattern, color, scale)
-    : tintMaterialId(key, color, scale)
+    ? composeMaterialId(key as ProceduralPattern, color, scale, roughness)
+    : tintMaterialId(key, color, scale, roughness)
+  // Gloss slider: 0 % = matte (roughness 1), 100 % = glossy (roughness 0.05).
+  // An unset roughness shows at the procedural default (0.85) but stays absent
+  // from the id until the user drags it.
+  const roughVal = roughness ?? 0.85
+  const glossPct = Math.round(((1 - roughVal) / 0.95) * 100)
   const preview = isPattern
     ? proceduralThumbnailDataUrl(id, key as ProceduralPattern, color)
     : baseMat?.kind === 'procedural'
@@ -210,6 +220,40 @@ export function MaterialComposer({
           style={{ flex: '0 0 auto', fontSize: 'var(--t-2xs)', minWidth: 36, textAlign: 'right' }}
         >
           {scale.toFixed(2)}×
+        </span>
+      </label>
+      {/* Gloss/sheen parameter (CUSTOMIZE-MATERIAL-PARAMS): matte → glossy via the
+          material's roughness scalar, so the same finish can read flat or polished. */}
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--s-2)',
+          marginTop: 'var(--s-2)',
+        }}
+      >
+        <span className="label" style={{ flex: '0 0 auto', fontSize: 'var(--t-2xs)' }}>
+          Gloss
+        </span>
+        <input
+          type="range"
+          style={{ flex: 1, minWidth: 0 }}
+          min={0}
+          max={100}
+          step={5}
+          value={glossPct}
+          onChange={(e) =>
+            setRoughness(
+              Math.min(1, Math.max(0.05, 1 - (Number.parseFloat(e.target.value) / 100) * 0.95)),
+            )
+          }
+          aria-label={`${label} gloss`}
+        />
+        <span
+          className="label"
+          style={{ flex: '0 0 auto', fontSize: 'var(--t-2xs)', minWidth: 36, textAlign: 'right' }}
+        >
+          {glossPct}%
         </span>
       </label>
       <button

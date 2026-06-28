@@ -16,6 +16,11 @@ export interface MaterialDefBase {
   category: MaterialCategory
   /** Hex colour for the picker thumb and the loading-fallback material. */
   swatch: string
+  /** Optional roughness scalar override (CUSTOMIZE-MATERIAL-PARAMS): 0 = mirror
+   *  gloss, 1 = fully matte. Multiplies any roughness map. Absent → the kind's
+   *  default (procedural 0.85 / plaster 0.92 / textured map as-is). Used by
+   *  composed/tinted finishes that carry a `~<rough>` suffix in their id. */
+  roughness?: number
 }
 
 export interface SolidMaterialDef extends MaterialDefBase {

@@ -29,22 +29,58 @@ export const COMPOSE_SCALE_MIN = 0.25
 export const COMPOSE_SCALE_MAX = 4
 export const DEFAULT_COMPOSE_SCALE = 1
 
+/** Roughness (gloss) override bounds: 0 = mirror gloss, 1 = fully matte. */
+export const COMPOSE_ROUGHNESS_MIN = 0.05
+export const COMPOSE_ROUGHNESS_MAX = 1
+/** No roughness override — the material kind's own default applies. */
+export const DEFAULT_COMPOSE_ROUGHNESS: number | undefined = undefined
+
 /** Clamp + sanitise a tile-scale multiplier (non-finite / out-of-range → 1). */
 function clampScale(s: number): number {
   if (!Number.isFinite(s) || s <= 0) return DEFAULT_COMPOSE_SCALE
   return Math.min(COMPOSE_SCALE_MAX, Math.max(COMPOSE_SCALE_MIN, s))
 }
 
-/** Split a `<#hex>` or `<#hex>@<scale>` colour segment into its parts. The
- *  optional `@<scale>` suffix multiplies the tile size (CUSTOMIZE-MATERIAL-PARAMS);
- *  absent → scale 1 (byte-identical to the pre-parameter ids, so old saved/applied
- *  finishes keep working). */
-function splitColorScale(seg: string): { color: string; scale: number } {
-  const at = seg.indexOf('@')
-  if (at < 0) return { color: seg, scale: DEFAULT_COMPOSE_SCALE }
-  const color = seg.slice(0, at)
-  const scale = clampScale(Number.parseFloat(seg.slice(at + 1)))
-  return { color, scale }
+/** Clamp a roughness override, or `undefined` if non-finite / out of range. */
+function clampRoughness(r: number): number | undefined {
+  if (!Number.isFinite(r)) return undefined
+  return Math.min(COMPOSE_ROUGHNESS_MAX, Math.max(COMPOSE_ROUGHNESS_MIN, r))
+}
+
+/** Split a colour segment into its parts. After the `<#hex>` colour an optional
+ *  `@<scale>` multiplies the tile size and an optional `~<rough>` overrides the
+ *  roughness/gloss (CUSTOMIZE-MATERIAL-PARAMS). Both absent → defaults
+ *  (byte-identical to the pre-parameter ids, so old saved/applied finishes keep
+ *  working). Tokens are order-independent. */
+function splitColorScale(seg: string): {
+  color: string
+  scale: number
+  roughness: number | undefined
+} {
+  // Colour is everything up to the first parameter token (`@` or `~`).
+  const firstTok = (() => {
+    const at = seg.indexOf('@')
+    const ti = seg.indexOf('~')
+    if (at < 0) return ti
+    if (ti < 0) return at
+    return Math.min(at, ti)
+  })()
+  if (firstTok < 0) return { color: seg, scale: DEFAULT_COMPOSE_SCALE, roughness: undefined }
+  const color = seg.slice(0, firstTok)
+  const scaleM = seg.match(/@(-?[\d.]+)/)
+  const roughM = seg.match(/~(-?[\d.]+)/)
+  return {
+    color,
+    scale: scaleM ? clampScale(Number.parseFloat(scaleM[1])) : DEFAULT_COMPOSE_SCALE,
+    roughness: roughM ? clampRoughness(Number.parseFloat(roughM[1])) : undefined,
+  }
+}
+
+/** Build the `@<scale>~<rough>` parameter suffix, omitting defaults. */
+function paramSuffix(scale: number, roughness: number | undefined): string {
+  const s = clampScale(scale)
+  const r = roughness == null ? undefined : clampRoughness(roughness)
+  return `${s === DEFAULT_COMPOSE_SCALE ? '' : `@${s}`}${r == null ? '' : `~${r}`}`
 }
 
 /** Multiply a `[u, v]` tile size by a scale, guarding non-finite inputs. */
@@ -98,10 +134,9 @@ export function composeMaterialId(
   pattern: ProceduralPattern,
   color: string,
   scale: number = DEFAULT_COMPOSE_SCALE,
+  roughness?: number,
 ): string {
-  const s = clampScale(scale)
-  const suffix = s === DEFAULT_COMPOSE_SCALE ? '' : `@${s}`
-  return `${COMPOSE_PREFIX}${pattern}:${color}${suffix}`
+  return `${COMPOSE_PREFIX}${pattern}:${color}${paramSuffix(scale, roughness)}`
 }
 
 export interface ComposedParts {
@@ -110,6 +145,8 @@ export interface ComposedParts {
   texture: ComposeTexture
   /** Tile-size multiplier (× the pattern's default `uvScale`). */
   scale: number
+  /** Roughness/gloss override, or `undefined` for the pattern default. */
+  roughness: number | undefined
 }
 
 /** Parse a composed id into its parts, or `null` if malformed / unknown
@@ -120,11 +157,11 @@ export function parseComposedMaterialId(id: string): ComposedParts | null {
   const sep = rest.indexOf(':')
   if (sep < 0) return null
   const pattern = rest.slice(0, sep) as ProceduralPattern
-  const { color, scale } = splitColorScale(rest.slice(sep + 1))
+  const { color, scale, roughness } = splitColorScale(rest.slice(sep + 1))
   const texture = BY_PATTERN.get(pattern)
   if (!texture) return null
   if (!HEX_RE.test(color)) return null
-  return { pattern, color, texture, scale }
+  return { pattern, color, texture, scale, roughness }
 }
 
 // ── Tinting an EXISTING catalog material (MAT-COMPOSE tail) ─────────────────
@@ -146,10 +183,9 @@ export function tintMaterialId(
   baseId: string,
   color: string,
   scale: number = DEFAULT_COMPOSE_SCALE,
+  roughness?: number,
 ): string {
-  const s = clampScale(scale)
-  const suffix = s === DEFAULT_COMPOSE_SCALE ? '' : `@${s}`
-  return `${TINT_PREFIX}${baseId}:${color}${suffix}`
+  return `${TINT_PREFIX}${baseId}:${color}${paramSuffix(scale, roughness)}`
 }
 
 export interface TintParts {
@@ -157,18 +193,22 @@ export interface TintParts {
   color: string
   /** Tile-size multiplier (× the base material's default `uvScale`). */
   scale: number
+  /** Roughness/gloss override, or `undefined` for the base default. */
+  roughness: number | undefined
 }
 
-/** Parse a tint id into `{ baseId, color, scale }`, or `null` if malformed. */
+/** Parse a tint id into `{ baseId, color, scale, roughness }`, or `null` if malformed. */
 export function parseTintMaterialId(id: string): TintParts | null {
   if (!isTintMaterialId(id)) return null
   const rest = id.slice(TINT_PREFIX.length)
-  const idx = rest.lastIndexOf(':')
-  if (idx <= 0) return null
-  const baseId = rest.slice(0, idx)
-  const { color, scale } = splitColorScale(rest.slice(idx + 1))
+  // The colour + params are the final ':'-segment; the base id (which may itself
+  // contain ':') is everything before it.
+  const lastColon = rest.lastIndexOf(':')
+  if (lastColon <= 0) return null
+  const baseId = rest.slice(0, lastColon)
+  const { color, scale, roughness } = splitColorScale(rest.slice(lastColon + 1))
   if (!baseId || !HEX_RE.test(color)) return null
-  return { baseId, color, scale }
+  return { baseId, color, scale, roughness }
 }
 
 /**
@@ -182,12 +222,18 @@ export function parseTintMaterialId(id: string): TintParts | null {
 export function tintedMaterialDef(id: string, base: MaterialDef): MaterialDef | null {
   const parts = parseTintMaterialId(id)
   if (!parts) return null
-  const next = { ...base, id, swatch: parts.color, name: `${base.name} · ${parts.color}` }
+  let next: MaterialDef = {
+    ...base,
+    id,
+    swatch: parts.color,
+    name: `${base.name} · ${parts.color}`,
+  }
   // Apply the tile-scale multiplier where the base has a uvScale (procedural /
   // textured); a solid base has none, so scale is a no-op there.
   if (parts.scale !== DEFAULT_COMPOSE_SCALE && 'uvScale' in next && next.uvScale) {
-    return { ...next, uvScale: scaledUv(next.uvScale, parts.scale) }
+    next = { ...next, uvScale: scaledUv(next.uvScale, parts.scale) }
   }
+  if (parts.roughness != null) next = { ...next, roughness: parts.roughness }
   return next
 }
 
@@ -211,5 +257,6 @@ export function composedMaterialDef(
     pattern: parts.pattern,
     swatch: parts.color,
     uvScale: scaledUv(parts.texture.uvScale, parts.scale),
+    ...(parts.roughness != null ? { roughness: parts.roughness } : {}),
   }
 }

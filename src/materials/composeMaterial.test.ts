@@ -180,4 +180,32 @@ describe('tile-scale parameter (CUSTOMIZE-MATERIAL-PARAMS)', () => {
     expect(parseComposedMaterialId('compose:tile:#ffffff')?.scale).toBe(1)
     expect(parseTintMaterialId('tint:floor-wood-oak:#3aa0ff')?.scale).toBe(1)
   })
+
+  it('round-trips a gloss/roughness override (~<rough>) and sets def.roughness', () => {
+    const id = composeMaterialId('tile', '#ffffff', 1, 0.2)
+    expect(id).toBe('compose:tile:#ffffff~0.2')
+    const parts = parseComposedMaterialId(id)
+    expect(parts?.roughness).toBe(0.2)
+    expect(composedMaterialDef(id)?.roughness).toBe(0.2)
+  })
+
+  it('combines scale + gloss in one id (order-independent parse)', () => {
+    const id = composeMaterialId('wood', '#b88f5d', 2, 0.4)
+    expect(id).toBe('compose:wood:#b88f5d@2~0.4')
+    const parts = parseComposedMaterialId(id)
+    expect(parts?.scale).toBe(2)
+    expect(parts?.roughness).toBe(0.4)
+    // colour must still parse cleanly with both suffixes present.
+    expect(parts?.color).toBe('#b88f5d')
+  })
+
+  it('omits roughness from the id when unset (back-compat)', () => {
+    expect(composeMaterialId('wood', '#b88f5d', 1)).toBe('compose:wood:#b88f5d')
+    expect(parseComposedMaterialId('compose:wood:#b88f5d')?.roughness).toBeUndefined()
+  })
+
+  it('clamps an out-of-range gloss override', () => {
+    expect(parseComposedMaterialId('compose:tile:#fff~5')?.roughness).toBe(1)
+    expect(parseComposedMaterialId('compose:tile:#fff~0')?.roughness).toBe(0.05)
+  })
 })

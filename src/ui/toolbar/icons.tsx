@@ -353,6 +353,11 @@ export const Icon = {
       <path d="M5 12l4.5 4.5L19 7" />
     </Svg>
   ),
+  Edit: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M14 5l5 5M4 20l1-4L16 5l3 3L8 19l-4 1z" />
+    </Svg>
+  ),
   Home: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <path d="M4 11l8-7 8 7" />

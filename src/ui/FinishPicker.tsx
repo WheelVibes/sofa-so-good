@@ -252,6 +252,8 @@ export function FinishPicker() {
   const savedMaterials = useStore(useShallow((s) => s.savedMaterials))
   const saveMaterial = useStore((s) => s.saveMaterial)
   const removeSavedMaterial = useStore((s) => s.removeSavedMaterial)
+  const renameSavedMaterial = useStore((s) => s.renameSavedMaterial)
+  const renameUserMaterial = useStore((s) => s.renameUserMaterial)
   // Set of saved-material finish ids, so the picker grid can badge them as the
   // user's own + route their remove (X) to the saved-materials slice.
   const savedIds = useMemo(() => new Set(savedMaterials.map((m) => m.finishId)), [savedMaterials])
@@ -262,6 +264,10 @@ export function FinishPicker() {
   const removeUserOrSaved = (id: string) => {
     if (savedIds.has(id)) removeSavedMaterial(id)
     else removeUserMaterial(id)
+  }
+  const renameUserOrSaved = (id: string, name: string) => {
+    if (savedIds.has(id)) renameSavedMaterial(id, name)
+    else renameUserMaterial(id, name)
   }
   const handleSaveMaterial = (category: MaterialCategory) => (finishId: string, name: string) => {
     saveMaterial({ finishId, name, category })
@@ -385,6 +391,7 @@ export function FinishPicker() {
             onSelect={(id) => handleSelect('floor', id)}
             onRemoveUser={removeUserOrSaved}
             savedIds={savedIds}
+            onRename={renameUserOrSaved}
             onCustom={(hex) => handleSelect('floor', hex)}
             recent={recentColors}
             recentFinishIds={recentFinishes}
@@ -420,6 +427,7 @@ export function FinishPicker() {
             onSelect={(id) => handleSelect('wall', id)}
             onRemoveUser={removeUserOrSaved}
             savedIds={savedIds}
+            onRename={renameUserOrSaved}
             onCustom={(hex) => handleSelect('wall', hex)}
             recent={recentColors}
             recentFinishIds={recentFinishes}

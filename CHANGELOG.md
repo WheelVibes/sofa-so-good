@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Material editor: gloss/roughness parameter + rename materials (v0.6.0.14)
+
+Closes the two deferred follow-ups from the custom material editor:
+
+- **Gloss/sheen slider** — the composer gains a matte→glossy control (the
+  material's roughness scalar, 5–100%). It rides the finish id as an optional
+  `~<rough>` suffix (`compose:<pattern>:<#hex>@<scale>~<rough>`, omitted at the
+  default for back-compat) and is applied in `buildMaterial` over any roughness
+  map, so the same texture+colour can read flat or polished. Works for composed
+  and tinted finishes.
+- **Rename any user material** — an inline pencil on every user/saved finish
+  tile renames it. Saved (composed/tinted) materials rename via the
+  savedMaterials slice; uploaded image-map materials rename in memory **and**
+  write the new name back to their IndexedDB channel meta (`renameUserMaterial` →
+  `renameUserMaterialBlobs`) so it survives a reload. New `Icon.Edit` line glyph.
+
+The full editor now covers texture, colour, scale, gloss, save-with-a-name,
+reuse, edit, rename, and remove for both composed and uploaded materials.
+
 ## Custom material editor: save named materials + scale parameter (v0.6.0.13)
 
 The "Compose your own" finish tool becomes a real **custom material editor**: build a look from a
