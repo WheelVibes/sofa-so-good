@@ -1,0 +1,24 @@
+{
+  "name": "curtain-blind-iso",
+  "description": "Isolated comparison of window treatments in open floor: closed vs open curtain (open must clear the centre) and lowered vs raised roller blind. Placed in a row in the living/dining room and viewed via focus + top view.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "place-row",
+      "eval": "(function(){ const s=window.__store.getState(); const r=s.floorPlan.rooms.find(x=>/living|dining/i.test(x.id))||s.floorPlan.rooms[0]; const cx=r.origin[0]+r.width/2, cz=r.origin[1]+r.depth/2; const y=cz; const items=[ {id:'c-closed',defId:'curtains',position:[cx-2.4,y],rotation:0,props:{width:1.6,height:2.6,color:'#9c6b4f',drawAmount:1}}, {id:'c-open',defId:'curtains',position:[cx-0.8,y],rotation:0,props:{width:1.6,height:2.6,color:'#9c6b4f',drawAmount:0}}, {id:'b-down',defId:'roller-blind',position:[cx+0.8,y],rotation:0,props:{width:1.3,height:2.2,drop:1.6,lower:1,color:'#cdd2cc'}}, {id:'b-up',defId:'roller-blind',position:[cx+2.4,y],rotation:0,props:{width:1.3,height:2.2,drop:1.6,lower:0.15,color:'#cdd2cc'}} ]; s.setItems(items); window.__row={cx,cz}; })()"
+    },
+    { "name": "wait-mount", "wait": 2500 },
+    { "name": "focus-row", "eval": "window.__store.getState().focusOn?.([window.__row.cx, window.__row.cz])" },
+    { "name": "wait-focus", "wait": 1800 },
+    { "name": "shot-row", "screenshot": "01-row" },
+    { "name": "top-view", "eval": "window.__store.getState().requestTopView?.()" },
+    { "name": "wait-top", "wait": 1800 },
+    { "name": "shot-top", "screenshot": "02-row-top" }
+  ]
+}

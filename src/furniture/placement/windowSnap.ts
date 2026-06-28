@@ -17,6 +17,16 @@
  */
 
 import type { PlanOpening, PlanWall } from '../../floorplan/types'
+import type { ParamProps } from '../types'
+
+/** The dimensions of a window opening a fixture is sizing itself to. */
+export interface SnapWindow {
+  width: number
+  /** Bottom edge above floor (m). */
+  sill: number
+  /** Top edge above floor (m). */
+  head: number
+}
 
 export interface WindowSnapResult {
   /** Snapped world position (XZ, metres) — the window centre on the wall line. */
@@ -25,6 +35,8 @@ export interface WindowSnapResult {
   rotation: number
   /** The window opening that was snapped to. */
   openingId: string
+  /** The snapped window's dimensions, for `windowFixtureProps` sizing. */
+  window: SnapWindow
 }
 
 /** A wall keyed by id, for resolving an opening's host wall. */
@@ -85,8 +97,52 @@ export function snapToNearestWindow(
     if (ddx * nx + ddz * nz < 0) rotation += Math.PI
 
     bestDist = dist
-    best = { position: [wx, wz], rotation, openingId: op.id }
+    best = {
+      position: [wx, wz],
+      rotation,
+      openingId: op.id,
+      window: { width: op.width, sill: op.sill, head: op.head },
+    }
   }
 
   return best
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
+
+/** Curtain overhang past each side of the glass (m) so it covers the window. */
+const CURTAIN_OVERHANG = 0.18
+/** Blind overhang past each side of the glass (m) — slightly bigger than the window. */
+const BLIND_OVERHANG = 0.06
+
+/**
+ * Window-aware sizing for a window-bound fixture, merged over its default props
+ * at placement so it fits the window it snaps to (rather than a fixed catalog
+ * size). Pure + unit-tested; clamped to each def's param ranges.
+ *
+ *  - **Curtains** size **wider than the glass** (`CURTAIN_OVERHANG` each side) and
+ *    hang **floor-to-ceiling** (`height` = ceiling drop).
+ *  - **Roller blinds** size **slightly wider than the window** (`BLIND_OVERHANG`),
+ *    mount just above the head, and get a `drop` that covers the glass.
+ *
+ * Returns `{}` for any other def (no resizing).
+ */
+export function windowFixtureProps(
+  defId: string,
+  win: SnapWindow,
+  ceilingHeight: number,
+): ParamProps {
+  if (defId === 'curtains') {
+    return {
+      width: clamp(win.width + 2 * CURTAIN_OVERHANG, 1.0, 3.4),
+      height: clamp(ceilingHeight - 0.05, 1.8, 3.2),
+    }
+  }
+  if (defId === 'roller-blind') {
+    const top = clamp(win.head + 0.12, 1.8, 2.7)
+    // Cover from just above the head down to just below the sill.
+    const drop = clamp(win.head - win.sill + 0.24, 0.4, 2.4)
+    return { width: clamp(win.width + 2 * BLIND_OVERHANG, 0.6, 2.8), height: top, drop }
+  }
+  return {}
 }

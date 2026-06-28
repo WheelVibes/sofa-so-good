@@ -572,8 +572,12 @@ export function getFabricMaterial(
   color: string,
   rough = 0.95,
   pattern = 'plain',
+  /** Render both faces — for thin draped sheets (curtains) visible from inside
+   *  the room AND through the window. Folded into the cache key; default
+   *  FrontSide keeps every existing caller byte-identical. */
+  doubleSided = false,
 ): MeshStandardMaterial {
-  const key = `fab:${color}:${rough.toFixed(2)}:${pattern}`
+  const key = `fab:${color}:${rough.toFixed(2)}:${pattern}${doubleSided ? ':2s' : ''}`
   const hit = cache.get(key)
   if (hit) return hit
   const patterned =
@@ -588,6 +592,7 @@ export function getFabricMaterial(
     metalness: 0,
     normalMap: getFabricNormal(),
     map: patterned ? getPatternTexture(pattern) : null,
+    ...(doubleSided ? { side: DoubleSide } : {}),
   })
   // Sharper weave relief so linen/cotton catch grazing light without noise.
   m.normalScale.set(0.65, 0.65)

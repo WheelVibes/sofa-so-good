@@ -3,7 +3,7 @@ import { isAnyModalOpen } from '../../controls/modalGuard'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { useCatalog } from '../../furniture/catalog'
-import { snapToNearestWindow } from '../../furniture/placement/windowSnap'
+import { snapToNearestWindow, windowFixtureProps } from '../../furniture/placement/windowSnap'
 import { defaultParamProps, type FurnitureDef, type ParamProps } from '../../furniture/types'
 import { useStore } from '../../state/store'
 
@@ -60,7 +60,12 @@ export function usePlacementController() {
         defId: def.id,
         position: snap.position,
         rotation: snap.rotation,
-        props: defaultProps(def),
+        // Size the fixture to the window it snapped onto (wider than the glass;
+        // curtains floor-to-ceiling, blinds covering the opening).
+        props: {
+          ...defaultProps(def),
+          ...windowFixtureProps(def.id, snap.window, floorPlan.ceilingHeight),
+        },
       })
       return true
     }

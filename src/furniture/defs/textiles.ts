@@ -70,10 +70,11 @@ export const TEXTILES_DEFS = {
     keywords: ['drapes', 'drapery', 'window treatment'],
     category: 'textiles',
     primitive: 'Curtain',
-    defaultFootprint: { w: 1.8, d: 0.12, h: 2.3 },
+    defaultFootprint: { w: 2.0, d: 0.12, h: 2.75 },
     // Drapes hang flat against a wall behind furniture — never block placement.
     noClip: true,
-    // Window-bound: statically placed on a window (no move/rotate/flip).
+    // Window-bound: statically placed on a window (no move/rotate/flip). Placement
+    // sizes the curtain to its window (wider than the glass, floor-to-ceiling).
     windowBound: true,
     paramSchema: [
       {
@@ -81,19 +82,21 @@ export const TEXTILES_DEFS = {
         key: 'width',
         label: 'Width',
         min: 1.0,
-        max: 3.0,
+        max: 3.4,
         step: 0.1,
-        default: 1.8,
+        default: 2.0,
         unit: 'm',
       },
       {
+        // Floor-to-rod drop — floor-to-ceiling by default (placement sets it to
+        // the room's ceiling height).
         kind: 'number',
         key: 'height',
         label: 'Height',
-        min: 1.5,
-        max: 2.5,
+        min: 1.8,
+        max: 3.2,
         step: 0.05,
-        default: 2.3,
+        default: 2.75,
         unit: 'm',
       },
       { kind: 'color', key: 'color', label: 'Fabric', default: '#c4b9a6' },

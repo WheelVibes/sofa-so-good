@@ -17,6 +17,13 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `canPlace` gate; an info toast + no-add when the plan has no window) and the `scene/PlacementGhost`
   preview (snaps the ghost, keeps the raw drop point in `ghostWorld` so the commit re-derives the same
   snap incl. facing). Window grilles stay an opening `style` (`grille`/`louvre`), not a fixture.
+  Placement also **sizes** the fixture to its window via the pure `windowFixtureProps(defId, window,
+  ceilingHeight)` — curtains wider than the glass + floor-to-ceiling, blinds slightly wider with a
+  covering drop. The `Curtain` primitive is a **double-sided wavy draped sheet** (two gathering panels,
+  `drawAmount` 0 = open/clear, 1 = drawn) and `RollerBlind` **raises/lowers** (`lower` 0 = up, 1 =
+  down); both ease in demand mode (hold `registerAnimatedSource` only while moving). The closed amount
+  (curtain `drawAmount` / blind `lower`) feeds `windowLightModifiers.curtainDrawAmount` for graduated
+  daylight attenuation.
 - **Categories**: 15 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected

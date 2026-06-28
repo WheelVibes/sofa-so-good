@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Realistic curtains (wavy, floor-to-ceiling) + raise/lower blinds, window-sized (v0.6.0.23)
+
+Reworked the window treatments so they look and behave like the real thing:
+
+- **Curtains** are now **soft draped fabric with wavy vertical folds** (a displaced sheet, gathered
+  tighter at the rod and fuller at the hem) instead of a flat board, hang **floor-to-ceiling**, and
+  **open fully clear of the window** — the two panels gather into narrow bunches at the ends (centre
+  exposed) and meet in the middle when drawn, easing smoothly between via `drawAmount`. The fabric is
+  double-sided so it reads from inside the room and through the glass.
+- **Roller / venetian blinds** now **raise and lower with a smooth animation** (new `lower` control,
+  0 = rolled up / window exposed, 1 = lowered / covered); the fabric panel (or slat stack) eases its
+  drop each frame, and a lowered blind attenuates window light like a drawn curtain.
+- **Placement sizes each fixture to its window** (`windowFixtureProps`): curtains span **wider than the
+  glass** and **floor-to-ceiling** (to the room's ceiling height); blinds size **slightly wider than the
+  window** with a drop that covers it — so a snapped treatment fits the opening instead of a fixed
+  catalog size.
+
+Verified (orbit + top views): a drawn curtain covers the window with visible folds floor-to-ceiling; an
+open one bunches to two side gathers leaving the centre clear; a blind lowers to cover and rolls up to
+expose the window. Unit tests cover `windowFixtureProps` sizing (wider-than-glass, floor-to-ceiling,
+clamp, blind drop, non-fixture → no-op).
+
 ## Window fixtures snap onto the nearest window on placement (v0.6.0.22)
 
 Window-bound fixtures (curtains, roller blinds) now **place only on windows** (WINDOW-FIXTURE). A new

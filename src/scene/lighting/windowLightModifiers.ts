@@ -174,13 +174,16 @@ export function isCurtainOpen(item: FurnitureItem): boolean {
   return item.props.style === 'open'
 }
 
-/** How drawn a curtain is, 0 (fully open → exterior light filters in) … 1 (fully
- *  drawn → covers the window). Reads the graduated `drawAmount` prop if present,
- *  else falls back to the legacy `style` flag ('open' → 0, else 1). This lets a
- *  partially-drawn curtain attenuate proportionally. */
+/** How much a window treatment covers its window, 0 (fully open → exterior light
+ *  filters in) … 1 (fully closed → covers the window). Reads the graduated
+ *  `drawAmount` (curtains) or `lower` (roller blinds) prop if present, else falls
+ *  back to the legacy `style` flag ('open' → 0, else 1). This lets a partially
+ *  open treatment attenuate proportionally. */
 export function curtainDrawAmount(item: FurnitureItem): number {
   const d = item.props.drawAmount
   if (typeof d === 'number') return Math.min(1, Math.max(0, d))
+  const l = item.props.lower
+  if (typeof l === 'number') return Math.min(1, Math.max(0, l))
   return item.props.style === 'open' ? 0 : 1
 }
 
