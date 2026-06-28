@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { type BufferGeometry, type Group, PlaneGeometry } from 'three'
+import { draperyOpacityLevel, draperyVisualOpacity } from '../../materials/draperyOpacity'
 import { getDraperyMaterial } from '../../materials/furnitureMaterials'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import type { ParamProps } from '../types'
@@ -74,7 +75,13 @@ export function Curtain({ props }: { props: ParamProps }) {
   const height = readNum(props, 'height', 2.75)
   const color = readStr(props, 'color', '#c4b9a6')
   const pattern = readStr(props, 'pattern', 'plain')
-  const fabric = readStr(props, 'material', 'cotton')
+  // Weave (cotton/linen/velvet); a legacy `material: 'sheer'` is a cotton weave
+  // whose translucency now comes from the opacity axis below.
+  const rawWeave = readStr(props, 'material', 'cotton')
+  const fabric = rawWeave === 'sheer' ? 'cotton' : rawWeave
+  // Opacity / light-blocking (sheer → blackout) drives the see-through look.
+  const opacityLevel = draperyOpacityLevel(props)
+  const visualOpacity = draperyVisualOpacity(opacityLevel)
   // Target draw: explicit `drawAmount` wins; else the legacy `style` flag.
   const drawAmountProp = props.drawAmount
   const target =
@@ -83,9 +90,9 @@ export function Curtain({ props }: { props: ParamProps }) {
       : readStr(props, 'style', 'drawn') === 'open'
         ? 0
         : 1
-  // Fabric-only weave (cotton/linen/sheer/velvet) honouring the tone-on-tone
-  // pattern; double-sided so the draped sheet reads from inside AND through glass.
-  const fabricMat = getDraperyMaterial(fabric, color, pattern, true)
+  // Fabric-only weave honouring the tone-on-tone pattern + the opacity level;
+  // double-sided so the draped sheet reads from inside AND through glass.
+  const fabricMat = getDraperyMaterial(fabric, color, pattern, true, visualOpacity)
 
   // Hem (bottom of the drop): floor-to-ceiling reaches the floor (0); sill-length
   // stops just below the window sill (`sillY`, set by placement; ~0.9 fallback).

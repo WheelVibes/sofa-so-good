@@ -65,8 +65,11 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
   **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the
   **fabric-only** mapper for curtains/blinds (cotton/linen/sheer/velvet — never wood/stone), reusing
-  the tone-on-tone `getPatternTexture` set; `sheer` uses `getFabricMaterial`'s `opacity` arg and
-  velvet uses `getVelvetMaterial`'s `doubleSided` arg (both cache-keyed, default-unchanged).
+  the tone-on-tone `getPatternTexture` set; the **opacity/light-blocking** axis is separate
+  (`draperyOpacity.ts` `DraperyOpacity` sheer→blackout → `{visual, transmit}`): the primitive passes
+  `getDraperyMaterial`'s `opacity` (sheer renders translucent via `getFabricMaterial`'s `opacity` arg)
+  and `windowLightModifiers` reads `draperyTransmit` for the daylight floor. Velvet uses
+  `getVelvetMaterial`'s `doubleSided` arg (cache-keyed, default-unchanged).
   Don't invent bespoke texture art — apply a CC0 DLC material over the procedural fallback.
   The procedural micro-textures (256² shared singletons, tinted via `material.color`) get their
   higher-fidelity variants — plank wood, woven fabric, painted micro-normal — behind the

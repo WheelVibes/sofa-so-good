@@ -121,8 +121,21 @@ export const TEXTILES_DEFS = {
         options: [
           { value: 'cotton', label: 'Cotton' },
           { value: 'linen', label: 'Linen' },
-          { value: 'sheer', label: 'Sheer' },
           { value: 'velvet', label: 'Velvet' },
+        ],
+      },
+      {
+        // Opacity / light-blocking (CURTAIN-OPACITY) — separate from the weave:
+        // how see-through the cloth is + how much daylight it blocks when drawn.
+        kind: 'enum',
+        key: 'lightBlock',
+        label: 'Opacity',
+        default: 'room',
+        options: [
+          { value: 'sheer', label: 'Sheer' },
+          { value: 'light', label: 'Light-filtering' },
+          { value: 'room', label: 'Room-darkening' },
+          { value: 'blackout', label: 'Blackout' },
         ],
       },
       { kind: 'color', key: 'color', label: 'Colour', default: '#c4b9a6' },

@@ -24,10 +24,13 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   down); both ease in demand mode (hold `registerAnimatedSource` only while moving). The closed amount
   (curtain `drawAmount` / blind `lower`) feeds `windowLightModifiers.curtainDrawAmount` for graduated
   daylight attenuation. Both are customizable as **fabric surfaces** (CURTAIN-FABRIC): a `material`
-  weave (cotton/linen/sheer/velvet — **fabric only**, no wood/stone) + a `pattern` (the shared
-  tone-on-tone set, now on blinds too) + `color`, mapped via
-  `materials/furnitureMaterials.ts:getDraperyMaterial` (`sheer` renders translucent and also reads as
-  sheer in `windowLightModifiers`).
+  weave (cotton/linen/velvet — **fabric only**, no wood/stone) + a `pattern` (the shared tone-on-tone
+  set, now on blinds too) + `color`, mapped via `materials/furnitureMaterials.ts:getDraperyMaterial`.
+  A separate **opacity / light-blocking** axis `lightBlock` (sheer → light-filtering → room-darkening
+  → blackout, CURTAIN-OPACITY / `materials/draperyOpacity.ts`) drives BOTH the rendered transparency
+  (passed as `getDraperyMaterial`'s `opacity`) AND the daylight blocked (`windowLightModifiers`
+  `curtainTransmission` — blackout blocks nearly all). Legacy `material: 'sheer'` maps to the sheer
+  opacity.
 - **Categories**: 15 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected

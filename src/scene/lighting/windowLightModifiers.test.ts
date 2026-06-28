@@ -328,10 +328,16 @@ describe('windowAttenuationFactor', () => {
     expect(windowAttenuationFactor(WALL_N, win, [])).toBeCloseTo(1.0)
   })
 
-  it('returns near-minimum (0.05) with a fully drawn opaque curtain', () => {
+  it('room-darkening (default) fully drawn blocks most light', () => {
     const items = [makeCurtain('c1', 1.7, 0.05, 0, 2.0, 'drawn')]
     const factor = windowAttenuationFactor(WALL_N, win, items)
-    expect(factor).toBeCloseTo(0.05, 1)
+    expect(factor).toBeCloseTo(0.12, 2)
+  })
+
+  it('a fully drawn BLACKOUT curtain blocks essentially all light', () => {
+    const items = [makeCurtain('c1', 1.7, 0.05, 0, 2.0, 'drawn', { lightBlock: 'blackout' })]
+    const factor = windowAttenuationFactor(WALL_N, win, items)
+    expect(factor).toBeLessThan(0.05)
   })
 
   it('returns 1.0 with a tied-back (open) curtain', () => {
@@ -340,11 +346,21 @@ describe('windowAttenuationFactor', () => {
     expect(factor).toBeCloseTo(1.0, 2)
   })
 
-  it('returns partial attenuation for sheer curtain', () => {
+  it('a sheer treatment only softens the light (passes much more than blackout)', () => {
     const items = [makeBlind('b1', 1.7, 0.05, 0, 2.0, 'sheer')]
     const factor = windowAttenuationFactor(WALL_N, win, items)
-    // sheer fully covered → 0.40; partial = some value > 0.05, < 1.0
-    expect(factor).toBeCloseTo(0.4, 1)
+    // sheer fully covered → ~0.45
+    expect(factor).toBeCloseTo(0.45, 1)
+  })
+
+  it('opacity levels order: sheer passes more than light, more than room, more than blackout', () => {
+    const cover = (lb: string) =>
+      windowAttenuationFactor(WALL_N, win, [
+        makeCurtain('c', 1.7, 0.05, 0, 2.0, 'drawn', { lightBlock: lb }),
+      ])
+    expect(cover('sheer')).toBeGreaterThan(cover('light'))
+    expect(cover('light')).toBeGreaterThan(cover('room'))
+    expect(cover('room')).toBeGreaterThan(cover('blackout'))
   })
 
   it('returns intermediate attenuation for half-covered window', () => {

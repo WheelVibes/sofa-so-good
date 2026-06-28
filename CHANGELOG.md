@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Curtains & blinds get an opacity / light-blocking axis — sheer → blackout (v0.6.0.27)
+
+Curtains and blinds gain an **Opacity** control, separate from the weave (any fabric can be loose or
+blackout-lined): `Sheer` (translucent, daylight diffuses through), `Light-filtering`, `Room-darkening`
+(default), or `Blackout`. It drives **both** the rendered transparency of the cloth **and** how much
+daylight it actually blocks — a drawn **blackout** curtain now blocks essentially all light (≈0.02
+transmission) where the old model floored at 0.05, while a sheer only softens it (≈0.45). A new pure
+`materials/draperyOpacity.ts` maps each level to a visual opacity + a daylight-transmission floor,
+shared by the primitives and the lighting model; `windowLightModifiers.windowAttenuationFactor` now
+blocks per-treatment (stacked layers combine multiplicatively) instead of the old binary opaque/sheer
+blend. `Sheer` was removed from the **weave** enum (it's now an opacity, not a weave); the legacy
+`material: 'sheer'` weave still maps to the sheer opacity for back-compat. Verified: four same-colour
+curtains from sheer (see-through) to blackout (solid) render distinctly.
+
 ## Curtains & blinds are customizable fabric surfaces — weave + pattern + colour (v0.6.0.26)
 
 Curtains and blinds can now be customized like surfaces, but **fabric-only** (drapery is cloth, so

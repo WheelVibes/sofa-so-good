@@ -1,0 +1,21 @@
+{
+  "name": "curtain-opacity",
+  "description": "Verify the curtain opacity / light-blocking axis: sheer (translucent), light-filtering, room-darkening, blackout — rendered side by side. Sheer should be see-through; blackout fully opaque.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "place-opacity-row",
+      "eval": "(function(){ const s=window.__store.getState(); const r=s.floorPlan.rooms.find(x=>/living|dining/i.test(x.id))||s.floorPlan.rooms[0]; const cx=r.origin[0]+r.width/2, cz=r.origin[1]+r.depth/2; const levels=['sheer','light','room','blackout']; const items=levels.map((lb,i)=>({id:'c-'+lb,defId:'curtains',position:[cx-2.4+i*1.6,cz],rotation:0,props:{width:1.4,height:2.6,drawAmount:1,material:'cotton',lightBlock:lb,color:'#6f5aa8'}})); s.setItems(items); window.__row={cx,cz}; })()"
+    },
+    { "name": "wait-mount", "wait": 2500 },
+    { "name": "focus", "eval": "window.__store.getState().focusOn?.([window.__row.cx, window.__row.cz])" },
+    { "name": "wait-focus", "wait": 1800 },
+    { "name": "shot", "screenshot": "01-opacity-levels" }
+  ]
+}

@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { Group, Mesh } from 'three'
+import { draperyOpacityLevel, draperyVisualOpacity } from '../../materials/draperyOpacity'
 import { getDraperyMaterial } from '../../materials/furnitureMaterials'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import type { ParamProps } from '../types'
@@ -29,15 +30,17 @@ export function RollerBlind({ props }: { props: ParamProps }) {
   const color = readStr(props, 'color', '#d8d2c4')
   const kind = readStr(props, 'kind', 'roller')
   const pattern = readStr(props, 'pattern', 'plain')
-  const fabric = readStr(props, 'material', 'cotton')
+  const rawWeave = readStr(props, 'material', 'cotton')
+  const fabric = rawWeave === 'sheer' ? 'cotton' : rawWeave
+  const visualOpacity = draperyVisualOpacity(draperyOpacityLevel(props))
   // Target lower fraction: explicit `lower` wins; legacy plans default to 1
   // (fully lowered to their stored `drop`).
   const lowerProp = props.lower
   const target = typeof lowerProp === 'number' ? Math.min(1, Math.max(0, lowerProp)) : 1
 
-  // Fabric-only weave (cotton/linen/sheer/velvet) with the tone-on-tone pattern;
-  // the roller panel is a box (visible both sides) so it needn't be double-sided.
-  const fabricMat = getDraperyMaterial(fabric, color, pattern)
+  // Fabric-only weave with the tone-on-tone pattern + opacity level; the roller
+  // panel is a box (visible both sides) so it needn't be double-sided.
+  const fabricMat = getDraperyMaterial(fabric, color, pattern, false, visualOpacity)
   const cassetteY = height - 0.04
   const fabricTop = cassetteY - 0.04
   const metal = { color: '#9a9da2', roughness: 0.4, metalness: 0.6 } as const

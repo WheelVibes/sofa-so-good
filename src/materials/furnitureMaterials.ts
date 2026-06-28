@@ -789,22 +789,25 @@ export function getUpholsteryMaterial(
  * Window-treatment fabric for curtains/blinds (CURTAIN-FABRIC). Restricted to
  * **fabric-only** weaves by design — drapery is cloth, so wood/stone/metal never
  * apply — while reusing the shared tone-on-tone `pattern` set (striped, plaid,
- * checkered, herringbone, dots). `kind`: `cotton` (default woven), `linen`
- * (matter, coarser weave), `sheer` (translucent — also drives the window
- * light-filtering via `windowLightModifiers`), or `velvet` (sheen-rich pile;
- * pattern is ignored on velvet). `doubleSided` for draped curtains seen from
- * both sides.
+ * checkered, herringbone, dots). `kind` is the weave: `cotton` (default woven),
+ * `linen` (matter, coarser), or `velvet` (sheen-rich pile; pattern ignored).
+ * `opacity` (<1 = translucent) is the separate opacity/light-blocking axis (see
+ * `draperyOpacity.ts`) — sheer cloth renders see-through. `doubleSided` for
+ * draped curtains seen from both sides.
  */
 export function getDraperyMaterial(
   kind: string,
   color: string,
   pattern = 'plain',
   doubleSided = false,
+  opacity = 1,
 ): MeshStandardMaterial {
+  // Velvet is a heavy opaque pile — always opaque (sheer velvet is nonsensical).
   if (kind === 'velvet') return getVelvetMaterial(color, 0.6, doubleSided)
-  if (kind === 'sheer') return getFabricMaterial(color, 0.85, pattern, doubleSided, 0.45)
-  // cotton (default) | linen — linen reads a touch matter/coarser.
-  return getFabricMaterial(color, kind === 'linen' ? 0.98 : 0.95, pattern, doubleSided)
+  // cotton (default) | linen — linen reads a touch matter/coarser. (Legacy
+  // `sheer` weave falls through to cotton; its translucency now comes from
+  // `opacity`, set from the opacity level by the caller.)
+  return getFabricMaterial(color, kind === 'linen' ? 0.98 : 0.95, pattern, doubleSided, opacity)
 }
 
 /** Flat painted material — matte by default, or glossy (lacquered) when
