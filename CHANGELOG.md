@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Window fixtures snap onto the nearest window on placement (v0.6.0.22)
+
+Window-bound fixtures (curtains, roller blinds) now **place only on windows** (WINDOW-FIXTURE). A new
+pure helper `furniture/placement/windowSnap.ts:snapToNearestWindow(walls, openings, dropPos)` resolves a
+dropped fixture onto the nearest window opening — landing it flush on the wall, centred on the window,
+facing the room side dropped toward (the wall normal toward the drop point); it returns `null` when the
+plan has no window. The placement controller (`usePlacementController`) snaps both the click- and
+drop-commit (`windowBound` defs bypass the floor-collision gate and snap; no window → an info toast and
+no add), and the `PlacementGhost` preview snaps the ghost transform onto the window while keeping the raw
+drop point in `ghostWorld` so the commit re-derives the same snap (incl. facing). Window *grilles* remain
+a customizable window opening `style` (`grille`/`louvre`), so no redundant grille fixture is added.
+Verified: a curtain dragged from the catalog lands on the window, oriented into the room. (Unit:
+`windowSnap.test.ts` — centre/facing/nearest-pick/no-window cases.)
+
 ## Window fixtures are static (no move/rotate/flip) (v0.6.0.21)
 
 Window-bound fixtures (curtains, roller blinds) are now flagged `windowBound` and treated as **statically

@@ -3,6 +3,7 @@ import { isAnyModalOpen } from '../../controls/modalGuard'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { useCatalog } from '../../furniture/catalog'
+import { snapToNearestWindow } from '../../furniture/placement/windowSnap'
 import { defaultParamProps, type FurnitureDef, type ParamProps } from '../../furniture/types'
 import { useStore } from '../../state/store'
 
@@ -40,11 +41,49 @@ export function usePlacementController() {
     const onMove = (ev: PointerEvent) => {
       useStore.getState().setCursor({ x: ev.clientX, y: ev.clientY })
     }
+    // Window-bound fixtures (curtains/blinds/grilles, WINDOW-FIXTURE) snap onto the
+    // nearest window opening: the raw drop point is ignored, the fixture lands flush
+    // on the window facing the room side dropped toward, and a plan with no window
+    // rejects the placement (toast). Returns whether the commit succeeded.
+    const commitWindowBound = (dropPos: [number, number]): boolean => {
+      const { floorPlan, addItem, notify } = useStore.getState()
+      const snap = snapToNearestWindow(floorPlan.walls, floorPlan.openings, dropPos)
+      if (!snap) {
+        notify.start({
+          kind: 'info',
+          title: 'No window to place on',
+          message: `${def.name} can only be placed on a window — this plan has none.`,
+        })
+        return false
+      }
+      addItem({
+        defId: def.id,
+        position: snap.position,
+        rotation: snap.rotation,
+        props: defaultProps(def),
+      })
+      return true
+    }
     const onClick = (ev: MouseEvent) => {
       if (ev.button !== 0) return
       if (!(ev.target instanceof HTMLCanvasElement)) return
       const { ghostWorld, ghostValid, addItem, cancelPlacement } = useStore.getState()
-      if (!ghostWorld || !ghostValid) {
+      if (!ghostWorld) {
+        ev.preventDefault()
+        ev.stopPropagation()
+        return
+      }
+      // Window-bound fixtures bypass the floor-collision gate: they snap to a
+      // window (the ghost stores the raw drop point) rather than resting on the
+      // floor, so `ghostValid` (a floor placement check) doesn't apply.
+      if (def.windowBound) {
+        ev.preventDefault()
+        ev.stopPropagation()
+        commitWindowBound(ghostWorld)
+        if (!ev.shiftKey && !stampActive()) cancelPlacement()
+        return
+      }
+      if (!ghostValid) {
         // Red ghost — swallow the click so it doesn't deselect or do
         // anything else; user must move to a green spot first.
         ev.preventDefault()
@@ -104,7 +143,9 @@ export function usePlacementController() {
         return
       }
       const { ghostWorld, ghostValid, addItem, cancelPlacement } = useStore.getState()
-      if (ghostWorld && ghostValid) {
+      if (ghostWorld && def.windowBound) {
+        commitWindowBound(ghostWorld)
+      } else if (ghostWorld && ghostValid) {
         addItem({
           defId: def.id,
           position: ghostWorld,

@@ -8,6 +8,15 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   Set `verticalSpan`/`mounted`/`noClip` for non-floor items; `lightEmitters.ts` to emit light
   at night; add to `defaults/` to ship in the move-in flat (collision-checked by
   `defaultLayout.test.ts`).
+- **Window-bound fixtures (`def.windowBound`, WINDOW-FIXTURE)** — curtains, roller blinds, and any
+  other fixture that lives ON a window — place ONLY on windows and are static once placed. Setting
+  `windowBound: true` does three things: the inspector hides the Transform section + Rotate/Flip
+  actions, the scene drag is blocked (`Furniture.tsx`), and at placement time the fixture **snaps to
+  the nearest window opening** via the pure `placement/windowSnap.ts:snapToNearestWindow(walls,
+  openings, dropPos)` — both the commit (`ui/catalog/usePlacementController.ts`, bypassing the floor
+  `canPlace` gate; an info toast + no-add when the plan has no window) and the `scene/PlacementGhost`
+  preview (snaps the ghost, keeps the raw drop point in `ghostWorld` so the commit re-derives the same
+  snap incl. facing). Window grilles stay an opening `style` (`grille`/`louvre`), not a fixture.
 - **Categories**: 15 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected

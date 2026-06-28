@@ -7,6 +7,7 @@ import { placementWalls } from '../collision/placementWalls'
 import { noExportUserData } from '../export/sceneGltf'
 import { useCatalogGetter } from '../furniture/catalog'
 import { Furniture } from '../furniture/Furniture'
+import { snapToNearestWindow } from '../furniture/placement/windowSnap'
 import {
   defaultParamProps,
   type FurnitureDef,
@@ -96,7 +97,33 @@ export function PlacementGhost() {
     let px = target.current.x
     let pz = target.current.z
     if (st.snapEnabled) [px, pz] = snapToGrid([px, pz], st.gridSize)
+    // Window-bound fixtures (curtains/blinds/grilles, WINDOW-FIXTURE) preview ON the
+    // nearest window: snap the displayed transform onto it, but keep the RAW drop
+    // point in `ghostWorld` so the commit re-derives the same snap (incl. the room
+    // side faced). Validity = a window exists to snap to (floor collision N/A).
+    if (def.windowBound) {
+      const snap = snapToNearestWindow(st.floorPlan.walls, st.floorPlan.openings, [px, pz])
+      const valid = snap != null
+      if (snap) {
+        groupRef.current.position.set(snap.position[0], 0, snap.position[1])
+        // Total world yaw = outer-group + the Furniture inner group's item.rotation;
+        // set the outer so the two sum to the snapped rotation.
+        groupRef.current.rotation.y = snap.rotation - ghostItem.rotation
+      } else {
+        groupRef.current.position.set(px, 0, pz)
+        groupRef.current.rotation.y = 0
+      }
+      if (valid !== validRef.current) {
+        validRef.current = valid
+        tintMaterial.color.copy(valid ? greenColor : redColor)
+      }
+      useStore.getState().setGhostWorld([px, pz], valid)
+      return
+    }
     groupRef.current.position.set(px, 0, pz)
+    // Clear any leftover yaw from a previously-armed window-bound def (the outer
+    // group is shared across arms); non-window items orient via the inner group.
+    groupRef.current.rotation.y = 0
     ghostItem.position = [px, pz]
     const valid = canPlace(ghostItem, def, {
       others: items,
