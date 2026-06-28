@@ -174,6 +174,16 @@ export function isCurtainOpen(item: FurnitureItem): boolean {
   return item.props.style === 'open'
 }
 
+/** How drawn a curtain is, 0 (fully open → exterior light filters in) … 1 (fully
+ *  drawn → covers the window). Reads the graduated `drawAmount` prop if present,
+ *  else falls back to the legacy `style` flag ('open' → 0, else 1). This lets a
+ *  partially-drawn curtain attenuate proportionally. */
+export function curtainDrawAmount(item: FurnitureItem): number {
+  const d = item.props.drawAmount
+  if (typeof d === 'number') return Math.min(1, Math.max(0, d))
+  return item.props.style === 'open' ? 0 : 1
+}
+
 /** Returns true if this is a sheer/translucent curtain. */
 function isSheerItem(item: FurnitureItem): boolean {
   // RollerBlind has a 'material' prop that can be 'sheer'
@@ -194,13 +204,17 @@ export function windowAttenuationFactor(
   let maxCoveredSheer = 0
 
   for (const item of items) {
-    if (isCurtainOpen(item)) continue
+    // Graduated by how drawn the curtain is: an open curtain (draw 0) lets the
+    // exterior light fully through; a half-drawn one covers half. (CURTAIN-DRAW)
+    const draw = curtainDrawAmount(item)
+    if (draw <= 0.001) continue
     const overlap = curtainWindowOverlap(item, wall, win)
     if (!overlap) continue
+    const covered = overlap.coveredFraction * draw
     if (overlap.isSheer) {
-      maxCoveredSheer = Math.max(maxCoveredSheer, overlap.coveredFraction)
+      maxCoveredSheer = Math.max(maxCoveredSheer, covered)
     } else {
-      maxCoveredOpaque = Math.max(maxCoveredOpaque, overlap.coveredFraction)
+      maxCoveredOpaque = Math.max(maxCoveredOpaque, covered)
     }
   }
 

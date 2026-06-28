@@ -96,14 +96,17 @@ export const TEXTILES_DEFS = {
       },
       { kind: 'color', key: 'color', label: 'Fabric', default: '#c4b9a6' },
       {
-        kind: 'enum',
-        key: 'style',
-        label: 'State',
-        default: 'drawn',
-        options: [
-          { value: 'drawn', label: 'Drawn (closed)' },
-          { value: 'open', label: 'Tied back (open)' },
-        ],
+        // Draw the curtains with a smooth animation (CURTAIN-DRAW): 0 = open
+        // (tied back, exterior light filters in), 1 = drawn (covers the window).
+        // The primitive eases between the two; the window light attenuation
+        // tracks the same value.
+        kind: 'number',
+        key: 'drawAmount',
+        label: 'Draw (open → closed)',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        default: 1,
       },
       {
         kind: 'enum',

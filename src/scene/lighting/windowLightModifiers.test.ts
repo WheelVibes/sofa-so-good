@@ -11,6 +11,7 @@ import { FEATURE_FLAGS, resolveFlags } from '../../features/featureFlags'
 import type { FurnitureItem } from '../../furniture/types'
 import {
   computeWindowModifiers,
+  curtainDrawAmount,
   curtainWindowOverlap,
   glassTintRgb,
   hexToRgb01,
@@ -91,6 +92,49 @@ describe('isCurtainOpen', () => {
   it('returns false for style=drawn', () => {
     const item = makeCurtain('c1', 1.7, 0.0, 0, 1.8, 'drawn')
     expect(isCurtainOpen(item)).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// curtainDrawAmount + graduated attenuation (CURTAIN-DRAW)
+// ---------------------------------------------------------------------------
+describe('curtainDrawAmount', () => {
+  it('reads the graduated drawAmount prop, clamped', () => {
+    expect(curtainDrawAmount(makeCurtain('c', 1.7, 0, 0, 1.8, 'drawn', { drawAmount: 0.5 }))).toBe(
+      0.5,
+    )
+    expect(curtainDrawAmount(makeCurtain('c', 1.7, 0, 0, 1.8, 'drawn', { drawAmount: 9 }))).toBe(1)
+    expect(curtainDrawAmount(makeCurtain('c', 1.7, 0, 0, 1.8, 'drawn', { drawAmount: -3 }))).toBe(0)
+  })
+  it('falls back to the legacy style flag when drawAmount is absent', () => {
+    expect(curtainDrawAmount(makeCurtain('c', 1.7, 0, 0, 1.8, 'open'))).toBe(0)
+    expect(curtainDrawAmount(makeCurtain('c', 1.7, 0, 0, 1.8, 'drawn'))).toBe(1)
+  })
+})
+
+describe('windowAttenuationFactor is graduated by drawAmount', () => {
+  const win = {
+    id: 'win-test',
+    wallId: WALL_N.id,
+    offset: 1.0,
+    width: 1.4,
+    sill: 0.95,
+    head: 2.1,
+  }
+  // A curtain centred over the window, fully covering it.
+  const at = (draw: number) =>
+    windowAttenuationFactor(WALL_N, win, [
+      makeCurtain('c', 1.7, 0.0, 0, 2.0, 'drawn', { drawAmount: draw }),
+    ])
+
+  it('fully open (0) lets all light through; fully drawn (1) blocks most', () => {
+    expect(at(0)).toBeCloseTo(1.0, 2)
+    expect(at(1)).toBeLessThan(0.2)
+  })
+  it('half-drawn attenuates between the two extremes (light filters in)', () => {
+    const half = at(0.5)
+    expect(half).toBeLessThan(at(0))
+    expect(half).toBeGreaterThan(at(1))
   })
 })
 

@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Curtains draw with a smooth animation + graduated light filtering (v0.6.0.20)
+
+Curtains now **draw open/closed with a smooth animation** and let exterior light **filter in as they
+open**. A continuous `drawAmount` (0 = open/tied-back, 1 = drawn/closed) replaces the old binary
+open/drawn toggle: the `Curtain` primitive eases its pleats between an evenly-gathered cover and two
+bunched side panels each frame (holding the demand render-loop open only while moving), and the
+window-light attenuation is now **graduated by the same value** (`curtainDrawAmount`) — a half-drawn
+curtain dims half, a fully open one lets all the daylight through. Legacy `style: 'open'|'drawn'` maps
+to drawAmount 0/1 for back-compat. Verified: closed spreads across the window, open bunches at the ends
+with the centre clear.
+
 ## Orbit "dollhouse" lighting in daytime (v0.6.0.19)
 
 Orbit view removes the ceiling, so simulating the exterior sun there (hard shadows, day/night exposure
