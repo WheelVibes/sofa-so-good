@@ -6,6 +6,13 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   (`.panel`/`.btn`/`.toolbar`/`.menu-item`/`.seg`/`.swatch`/`.cmdk`/`.ctx-menu`/`.toast`/…),
   never Tailwind colour utilities or literal hex. Every surface must read correctly in
   light + dark across all 5 themes.
+- **Docked right sidebar (desktop).** The scene, toolbar and canvas HUDs live inside `.stage-area`
+  (in `App.tsx`); the inspector/finish panels carry a `dock-panel` class. On desktop (≥641px),
+  `.app-shell:has(.dock-panel)` opens a `--right-rail` so `.stage-area` shrinks (canvas reflows, the
+  `left:50%` toolbar re-centres over it) and the panel docks full-height on the right. It's pure CSS
+  keyed on the panel's *presence* (panels mount only when open) — no JS open-state. A new right panel
+  that should reflow the canvas just needs the `dock-panel` class; mobile (≤640px) keeps bottom-sheets
+  (the dock rules are gated to ≥641px). (The 2D floor-plan editor has its own layout — not docked yet.)
 - **Viewport-responsive + touch parity.** Support desktop **and** mobile: `body.mobile`
   bottom-sheets at ≤640px (`useIsMobile`), controls inside `env(safe-area-inset-*)`, and
   mobile-toolbar/accordion parity for any new desktop action. Drag-and-drop drop zones must

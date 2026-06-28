@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Docked inspector sidebar + canvas reflow (desktop) (v0.6.0.17)
+
+On desktop the right-hand inspector / finish picker is now a **full-height docked sidebar** instead of
+a floating panel: when it's open the **3D canvas reflows** to fill the remaining space to its left
+(rather than being overlaid), and the **top toolbar re-centres** over the canvas area — centred over
+the full width when no panel is open, centred over the canvas when it is. The nav cluster + HUDs ride
+the canvas edge too. It's pure CSS: the scene, toolbar and HUDs live in a `.stage-area` that shrinks
+by a `--right-rail` width, opened purely by `:has(.dock-panel)` (the panels mount only when open, so
+no JS state). Mobile is untouched — the panels stay bottom-sheets (the dock rules are gated to
+≥ 641px). Verified in all three desktop states (no panel / finish docked / inspector docked) + mobile.
+
 ## Universal resize for parametric furniture (v0.6.0.16)
 
 Every built-in (parametric) furniture piece can now be **freely resized** — closing the last size gap

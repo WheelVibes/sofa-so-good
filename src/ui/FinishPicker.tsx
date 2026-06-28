@@ -341,7 +341,7 @@ export function FinishPicker() {
   }
 
   return (
-    <aside className="panel inspector" style={view === 'browse' ? { width: 320 } : undefined}>
+    <aside className="panel inspector dock-panel">
       <div className="panel-head">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           {view === 'browse' && (

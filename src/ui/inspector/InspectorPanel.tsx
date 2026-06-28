@@ -386,7 +386,7 @@ export function InspectorPanel() {
   }
 
   return (
-    <aside className={`panel inspector${minimized ? ' minimized' : ''}`}>
+    <aside className={`panel inspector dock-panel${minimized ? ' minimized' : ''}`}>
       <div className="panel-head">
         <div>
           <div className="insp-thumb">

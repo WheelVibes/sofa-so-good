@@ -60,6 +60,39 @@ input { font-family: inherit; }
 /* ---- App stage ------------------------------------------------ */
 .stage { position: absolute; inset: 0; overflow: hidden; background: var(--scene-b); }
 
+/* ---- Stage area + docked right sidebar (desktop) -------------- */
+/* The stage area holds the 3D canvas, its HUD overlays and the toolbar. On
+   desktop it shrinks to the left of a docked right panel so the canvas takes the
+   remaining space and the toolbar (centred at left:50% within this box)
+   re-centres over the canvas. The rail opens purely from the panel's presence
+   (`:has(.dock-panel)`) — panels mount only when open, so there's no JS state.
+   Mobile (≤640px) keeps the rail at 0 and the panels stay bottom-sheets. */
+.app-shell {
+  --right-rail: 0px;
+}
+.stage-area {
+  position: absolute;
+  inset: 0;
+  right: var(--right-rail);
+  overflow: hidden;
+}
+@media (min-width: 641px) {
+  .app-shell:has(.dock-panel) {
+    --right-rail: 320px;
+  }
+  .app-shell:has(.dock-panel) .dock-panel {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 320px;
+    max-height: none;
+    border-top: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-radius: 0;
+  }
+}
+
 /* ---- Floating panel base ------------------------------------- */
 .panel {
   position: absolute;
