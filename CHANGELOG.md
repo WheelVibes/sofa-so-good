@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Theme-palette swatches on the remaining colour pickers (v0.6.0.18)
+
+Completes the master-palette coverage so **every** design colour picker offers the apartment theme +
+recommended-blend rows: the floor-plan editor's cove-light colour and per-wall baseboard colour, the
+mobile plan wall colour, the parametric-furniture custom-colour control (bookshelf/wardrobe/kitchen),
+the GLB designer's per-shape colour, and the material-upload swatch. (The GLB designer's per-mesh
+recolour *list* keeps a plain picker — two swatch rows per mesh would clutter that authoring list.)
+Also confirmed the 2D floor-plan editor already uses the docked-sidebar layout (a flex row: canvas
+`flex-1` + a full-height `PlanInspector` column), so it needed no change — only the 3D per-room editor
+had the floating panel that v0.6.0.17 docked.
+
 ## Docked inspector sidebar + canvas reflow (desktop) (v0.6.0.17)
 
 On desktop the right-hand inspector / finish picker is now a **full-height docked sidebar** instead of

@@ -213,6 +213,13 @@ function CeilingControls({
               ) : null}
             </label>
           ) : null}
+          {config?.coveLight ? (
+            <ThemeColorRows
+              active={config?.coveColor ?? '#ffe6c0'}
+              roomId={roomId}
+              onPick={(hex) => set({ coveColor: hex })}
+            />
+          ) : null}
         </>
       ) : null}
     </>
@@ -959,6 +966,12 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
                       }
                     />
                   </label>
+                  <ThemeColorRows
+                    active={w.baseboard?.color ?? '#eceae4'}
+                    onPick={(hex) =>
+                      a.updateWall(w.id, { baseboard: { ...w.baseboard, color: hex } }, levelId)
+                    }
+                  />
                 </>
               ) : null}
               {w.baseboard ? (

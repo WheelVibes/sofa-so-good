@@ -53,6 +53,7 @@ import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { openDocs } from '../docsUrl'
 import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
@@ -1936,6 +1937,11 @@ export function FloorPlanEditor() {
           style={{ width: 40, height: 28, padding: 0, border: 'none', background: 'none' }}
         />
       </label>
+      <ThemeColorRows
+        active={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
+        roomId={null}
+        onPick={(hex) => a.updateFloorPlanMeta({ wallColor: hex })}
+      />
     </>
   )
 
