@@ -1,4 +1,3 @@
-import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import { type Group, Vector2 } from 'three'
 import type { PlanClippedWall, PlanRoomShell as Shell } from '../floorplan/planRoomShell'
@@ -7,8 +6,8 @@ import type { MaterialId } from '../materials/types'
 import { finishSurfaceUserData } from '../scene/finishDropTarget'
 import { useStore } from '../state/store'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
-import { wallFacesAway } from './wallFacing'
 import { PlanWallFinishFace } from './walls/PlanWallFinishFace'
+import { useWallReveal } from './walls/useWallReveal'
 
 const WALL_COLOR = '#ede9e2' // matches PlanShell's plaster walls
 const DOOR_COLOR = '#8a6d4f'
@@ -50,14 +49,9 @@ function WallBox({
   const normal = new Vector2(-(ez - sz), ex - sx).normalize()
   if (toMid.dot(normal) < 0) normal.negate()
 
-  useFrame((state) => {
-    const m = ref.current
-    if (!m) return
-    // No per-frame Vector2 allocation: the pure scalar test mirrors the old
-    // `camDir.dot(normal) <= 0.05`.
-    const cam = state.camera.position
-    m.visible = wallFacesAway(cam.x, cam.z, midX, midZ, normal)
-  })
+  // Fade the whole wall group (plaster body + finish face) to translucent when
+  // the orbit camera fronts it — matches the main orbit scene's wall reveal.
+  useWallReveal(ref, { midX, midZ, nx: normal.x, nz: normal.y, center, wallId: wall.wallId })
 
   if (len < 1e-6) return null
   const t = clippedThickness(wall.thickness)

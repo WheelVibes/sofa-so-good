@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Per-room editor walls fade like orbit mode (translucent reveal) (v0.6.0.25)
+
+The per-room editor's walls now use the **same camera-facing wall reveal as orbit mode** instead of a
+binary show/hide: a wall fronting the camera (between you and the room) **fades to translucent** so you
+always see into the room, while far walls stay opaque and grazing walls go partially translucent —
+matching the main scene exactly (it reuses the pure `wallRevealFactor` + the `wallRevealMode` /
+`wallReveal` quality settings, so it's translucent by default). A new shared `useWallReveal` hook drives
+both `RoomShell` (default flat) and `PlanRoomShell` (custom plans); because every wall of an isolated
+room shares one finish material, it fades via a **per-mesh material clone** (restored when opaque) so
+only the correct walls fade, and it publishes each wall's opacity (`setWallOpacity`) so the room's
+windows/doors fade with their wall. The old binary `wallFacing` helper (+ test) is removed. Verified:
+entering a room shows the furniture through faded near walls.
+
 ## Curtain length toggle — floor-to-ceiling or sill-length (v0.6.0.24)
 
 Curtains gain a **Length** control: `Floor-to-ceiling` (default, hem to the floor) or `Sill length`
