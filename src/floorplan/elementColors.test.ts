@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { resolveFlags } from '../features/flags/resolve'
 import { FloorPlanZ } from '../state/schema'
+import { resolvePlanRoomCeiling } from './roomFinishes'
+import type { PlanRoom } from './types'
 
 describe('elementColors + openingStyles feature flags', () => {
   // Simple-tier + default-on → visible in BOTH modes (CLAUDE.md: tier-dependent
@@ -11,6 +13,41 @@ describe('elementColors + openingStyles feature flags', () => {
       expect(f.elementColors).toBe(true)
       expect(f.openingStyles).toBe(true)
     }
+  })
+})
+
+describe('ceilingFinish feature flag (simple tier)', () => {
+  // Simple-tier + default-on → visible in BOTH modes, like floor/wall finish.
+  it('is enabled in both Simple and Pro mode', () => {
+    for (const mode of ['simple', 'pro'] as const) {
+      expect(resolveFlags(true, {}, false, mode).ceilingFinish).toBe(true)
+    }
+  })
+})
+
+describe('resolvePlanRoomCeiling read order', () => {
+  const room = (over: Partial<PlanRoom> = {}): PlanRoom => ({
+    id: 'r1',
+    name: 'Room',
+    origin: [0, 0],
+    width: 4,
+    depth: 3,
+    ...over,
+  })
+  it('reads slice → plan room default → null', () => {
+    // No pick anywhere → default white (null).
+    expect(resolvePlanRoomCeiling({ floor: {}, walls: {} }, room())).toBeNull()
+    // Plan-room default applies when the slice has none.
+    expect(
+      resolvePlanRoomCeiling({ floor: {}, walls: {} }, room({ ceilingFinish: 'wall-paint-blue' })),
+    ).toBe('wall-paint-blue')
+    // Live slice wins over the plan-room default.
+    expect(
+      resolvePlanRoomCeiling(
+        { floor: {}, walls: {}, ceiling: { r1: 'wall-brick-red' } },
+        room({ ceilingFinish: 'wall-paint-blue' }),
+      ),
+    ).toBe('wall-brick-red')
   })
 })
 

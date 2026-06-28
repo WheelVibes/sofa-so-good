@@ -313,6 +313,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Per-room ceiling finish (CUSTOMIZE-CEILING): paint or texture a room's
+  // ceiling (colour / wood / plaster / any CC0 material), mirroring the floor &
+  // wall finish pickers. Pure render-side (resolves a catalog material like the
+  // floor) → prod-safe. A basic surface customization in the core design loop,
+  // so it lives in Simple tier alongside floor/wall finish.
+  ceilingFinish: {
+    label: 'Ceiling finish',
+    description: "Paint or texture a room's ceiling (colour / wood / any material)",
+    default: true,
+    tier: 'simple',
+  },
   presentation: {
     label: 'Presentation mode',
     description: 'Full-screen saved-views slideshow with notes',

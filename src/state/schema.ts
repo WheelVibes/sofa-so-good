@@ -352,6 +352,8 @@ const RawSerializedStateZ = z.object({
   finishes: z.object({
     floor: z.record(z.string(), z.string()),
     walls: z.record(z.string(), z.string()),
+    // Optional for backward compat with payloads saved before ceiling finishes.
+    ceiling: z.record(z.string(), z.string()).optional(),
     // Optional for backward compat with payloads saved before accent walls.
     wallAccents: z.record(z.string(), z.string()).optional(),
   }),
@@ -600,6 +602,10 @@ export function applySerialized(
   for (const [k, v] of Object.entries(state.finishes.walls)) {
     if (validRoom(k)) walls[k] = v
   }
+  const ceiling: Partial<Record<RoomId, string>> = {}
+  for (const [k, v] of Object.entries(state.finishes.ceiling ?? {})) {
+    if (validRoom(k)) ceiling[k] = v
+  }
   // Drop items whose transform isn't finite — `z.number()` admits NaN/Infinity,
   // so a corrupt or hand-edited save could otherwise feed NaN into the Three.js
   // matrices and break (or crash-loop) the whole renderer.
@@ -621,6 +627,7 @@ export function applySerialized(
     finishes: {
       floor: floor as Record<RoomId, string>,
       walls: walls as Record<RoomId, string>,
+      ceiling: ceiling as Record<RoomId, string>,
       wallAccents: state.finishes.wallAccents ?? {},
     },
     timeMode: state.timeMode,

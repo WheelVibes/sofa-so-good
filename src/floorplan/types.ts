@@ -119,6 +119,8 @@ export interface PlanRoom {
   wall?: string
   /** Optional ceiling treatment (tray / coffered / dropped); absent → flat. */
   ceiling?: CeilingConfig
+  /** Optional ceiling finish (catalog material id); plain white when unset. */
+  ceilingFinish?: string
   /** Optional floor-texture transform (SweetHome3DJS texture scale/angle parity):
    *  `floorTexScale` multiplies tile size (×, >1 = bigger), `floorTexAngle`
    *  rotates the texture (radians). Absent = default tiling. */

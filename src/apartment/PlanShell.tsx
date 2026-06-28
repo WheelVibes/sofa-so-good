@@ -14,7 +14,7 @@ import { useFeature } from '../features/useFeature'
 import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { planWallThickness, type WallBox, wallBoxes } from '../floorplan/planGeometry'
-import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
+import { resolvePlanRoomCeiling, resolvePlanRoomFloor } from '../floorplan/roomFinishes'
 import { isSlopedWall, slopedWallHeights, slopedWallTriangles } from '../floorplan/slopedWall'
 import {
   DEFAULT_PLAN_WALL_COLOR,
@@ -504,6 +504,7 @@ function PlanLevelShell({
           Honour a per-room override, falling back to the level/plan height. */}
       {lp.rooms.map((r) => {
         const h = r.ceilingHeight ?? lp.ceilingHeight
+        const ceilMat = resolvePlanRoomCeiling(finishes, r)
         if (r.polygon && r.polygon.length >= 3) {
           return (
             <PlanRoomCeiling
@@ -514,6 +515,7 @@ function PlanLevelShell({
               height={h}
               polygon={r.polygon}
               ceiling={r.ceiling}
+              materialId={ceilMat}
             />
           )
         }
@@ -525,15 +527,17 @@ function PlanLevelShell({
               depth={r.depth}
               height={h}
               ceiling={r.ceiling}
+              materialId={ceilMat}
             />
             {/* An L-extension keeps a plain flat ceiling — the treatment applies
-                to the main rectangle only. */}
+                to the main rectangle only. The finish covers it too. */}
             {r.extension && (
               <PlanRoomCeiling
                 origin={[r.origin[0] + r.extension.offset[0], r.origin[1] + r.extension.offset[1]]}
                 width={r.extension.width}
                 depth={r.extension.depth}
                 height={h}
+                materialId={ceilMat}
               />
             )}
           </group>

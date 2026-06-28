@@ -24,6 +24,14 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (`PlanWallZ`/`PlanOpeningZ`), and rendered by `PlanShell` (`FadeWall`/`SlopedWallMesh`/`FadeWindow`) +
   `PlanDoorLeaf`. Adding another per-element appearance field follows the same additive shape (no
   version bump).
+- **Per-room ceiling finish (`ceilingFinish`):** a room's ceiling can be painted/textured with any
+  catalog material, mirroring floor/wall finish. Stored in the finishes slice (`finishes.ceiling`,
+  keyed by room id) with write-through to the plan room's `ceilingFinish` field; resolved by
+  `roomFinishes.ts:resolvePlanRoomCeiling` (slice → `room.ceilingFinish` → `null`/plain white).
+  Rendered by `apartment/Ceiling.tsx` (default flat, via `ceiling/RoomCeilingTile`) and
+  `apartment/floor/PlanRoomCeiling` (custom plans) — the finished plane faces down (front-side) so
+  it reads from below and stays culled from above. Applies to the **flat** ceiling only; a designed
+  (tray/coffered/dropped/sloped) treatment keeps its plain planes. Same additive schema shape.
 - **Door/window styles (`openingStyles`):** `PlanOpening.style` selects a door type
   (`panel`/`flush`/`glazed`) or window type (`plain`/`grille`/`louvre`), rendered as pure procedural
   geometry by `PlanDoorLeaf` (panel/glaze branches) and `PlanShell`'s `FadeWindow` (grille/louvre bars);

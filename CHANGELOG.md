@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Per-room ceiling finish (v0.6.0.12)
+
+Ceilings were the one surface with no colour/texture control — always plain white. Now every room's
+ceiling can be **painted or textured** from the room inspector (a "Ceiling finish" picker beside
+Floor finish and Wall finish), choosing any catalog material — paint colour, wood, plaster, concrete,
+tile, or a CC0 texture. It works on the **default move-in flat** (`apartment/Ceiling.tsx` →
+`RoomCeilingTile`) and **custom plans** (`PlanShell` → `PlanRoomCeiling`), stored per-room in the
+finishes slice (`finishes.ceiling`, write-through to the plan's `room.ceilingFinish`), resolved by
+`resolvePlanRoomCeiling` exactly like floor/wall. The finished plane reuses the cached catalog
+material directly (no clone/mutation, so the procedural worker's texture hot-swap stays safe) and
+faces down so it reads from below and stays culled from the orbit/dollhouse view. Gated by the new
+`ceilingFinish` flag (Simple tier, default on); tested in both modes. (A *designed* tray/coffered
+ceiling keeps the plain treatment for now — the flat ceiling every room has by default carries the
+finish.) Verified in walk mode: a brick-red and a walnut-fluted ceiling both render correctly.
+
 ## Per-item opacity + hide-in-view (v0.6.0.11)
 
 Any placed item can now be made **semi-transparent** or **hidden** from the 3D view — useful for

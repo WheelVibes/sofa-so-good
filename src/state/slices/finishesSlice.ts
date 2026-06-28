@@ -23,16 +23,19 @@ import type { SliceCreator } from './types'
 function planWithRoomFinish(
   plan: FloorPlan,
   roomId: string,
-  surface: 'floor' | 'wall',
+  surface: 'floor' | 'wall' | 'ceiling',
   id: MaterialId | undefined,
 ): FloorPlan {
   // The room can live on any storey (F13) — resolve its level first so an
   // upper-level room's finish writes through too, not just ground rooms.
+  // The ceiling finish lives on `ceilingFinish` (the `ceiling` field is the
+  // tray/coffered *config*), so map the surface to the right plan field.
+  const field = surface === 'ceiling' ? 'ceilingFinish' : surface
   const level = levelOfRoom(plan, roomId)
   const room = level?.rooms.find((r) => r.id === roomId)
-  if (!level || !room || room[surface] === id) return plan
+  if (!level || !room || room[field] === id) return plan
   return withLevelGeometry(plan, level.id, (g) => ({
-    rooms: g.rooms.map((r) => (r.id === roomId ? { ...r, [surface]: id } : r)),
+    rooms: g.rooms.map((r) => (r.id === roomId ? { ...r, [field]: id } : r)),
   }))
 }
 
@@ -48,13 +51,15 @@ export function pruneFinishesForPlan(
   const stale = (k: string) => !valid.has(k)
   const floorStale = Object.keys(finishes.floor).some(stale)
   const wallStale = Object.keys(finishes.walls).some(stale)
-  if (!floorStale && !wallStale) return finishes
+  const ceilStale = Object.keys(finishes.ceiling).some(stale)
+  if (!floorStale && !wallStale && !ceilStale) return finishes
   const keep = <V>(rec: Record<string, V>): Record<string, V> =>
     Object.fromEntries(Object.entries(rec).filter(([k]) => valid.has(k)))
   return {
     ...finishes,
     floor: keep(finishes.floor) as Record<RoomId, MaterialId>,
     walls: keep(finishes.walls) as Record<RoomId, MaterialId>,
+    ceiling: keep(finishes.ceiling) as Record<RoomId, MaterialId>,
   }
 }
 
@@ -62,6 +67,8 @@ export interface FinishesSlice {
   finishes: {
     floor: Record<RoomId, MaterialId>
     walls: Record<RoomId, MaterialId>
+    /** Per-room ceiling finish — absent key → the default plain white ceiling. */
+    ceiling: Record<RoomId, MaterialId>
     /** Accent-wall overrides keyed `${wallId}:${roomId}` — paints one wall
      *  face (the side facing that room) differently from the room default. */
     wallAccents: Record<string, MaterialId>
@@ -70,9 +77,13 @@ export interface FinishesSlice {
   setWallFinish: (room: RoomId, id: MaterialId) => void
   /** Remove a room's wall finish (back to the neutral plaster shell). */
   clearWallFinish: (room: RoomId) => void
-  /** Apply one floor/wall finish to every interior (non-external) room at once. */
+  /** Paint/texture a room's ceiling, or clear back to the default white. */
+  setCeilingFinish: (room: RoomId, id: MaterialId) => void
+  clearCeilingFinish: (room: RoomId) => void
+  /** Apply one floor/wall/ceiling finish to every interior (non-external) room at once. */
   setAllFloorFinish: (id: MaterialId) => void
   setAllWallFinish: (id: MaterialId) => void
+  setAllCeilingFinish: (id: MaterialId) => void
   setWallAccent: (key: string, id: MaterialId) => void
   clearWallAccent: (key: string) => void
 }
@@ -90,6 +101,8 @@ export const FINISHES_INITIAL: Pick<FinishesSlice, 'finishes'> = {
   finishes: {
     floor: initialMap(DEFAULT_FLOOR, DEFAULT_ROOM_FLOOR),
     walls: initialMap(DEFAULT_WALL, DEFAULT_ROOM_WALL),
+    // No seed: an absent key means the plain white ceiling (the prior default).
+    ceiling: {} as Record<RoomId, MaterialId>,
     wallAccents: {},
   },
 }
@@ -128,6 +141,27 @@ export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set,
       }
     })
   },
+  setCeilingFinish: (room, id) => {
+    get().pushHistory()
+    set((s) => ({
+      finishes: {
+        ...s.finishes,
+        ceiling: { ...s.finishes.ceiling, [room]: id },
+      },
+      floorPlan: planWithRoomFinish(s.floorPlan, room, 'ceiling', id),
+    }))
+  },
+  clearCeilingFinish: (room) => {
+    get().pushHistory()
+    set((s) => {
+      const ceiling = { ...s.finishes.ceiling }
+      delete ceiling[room]
+      return {
+        finishes: { ...s.finishes, ceiling },
+        floorPlan: planWithRoomFinish(s.floorPlan, room, 'ceiling', undefined),
+      }
+    })
+  },
   setAllFloorFinish: (id) => {
     get().pushHistory()
     // Iterate EVERY room across ALL storeys (default or custom) so "apply to
@@ -158,6 +192,21 @@ export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set,
         plan = planWithRoomFinish(plan, room.id, 'wall', id)
       }
       return { finishes: { ...s.finishes, walls }, floorPlan: plan }
+    })
+  },
+  setAllCeilingFinish: (id) => {
+    get().pushHistory()
+    // Every room across all storeys (F13), not just the ground floor.
+    const rooms = allPlanRooms(get().floorPlan)
+    set((s) => {
+      const ceiling = { ...s.finishes.ceiling }
+      let plan = s.floorPlan
+      for (const room of rooms) {
+        if (ROOMS[room.id as RoomId]?.external) continue
+        ceiling[room.id as RoomId] = id
+        plan = planWithRoomFinish(plan, room.id, 'ceiling', id)
+      }
+      return { finishes: { ...s.finishes, ceiling }, floorPlan: plan }
     })
   },
   setWallAccent: (key, id) => {

@@ -5,7 +5,11 @@ import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
 import { levelById, levelOfItem } from '../../floorplan/levels'
 import { defaultOpeningName, defaultWallName } from '../../floorplan/planElementName'
 import { polylineLength } from '../../floorplan/polyline'
-import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../../floorplan/roomFinishes'
+import {
+  resolvePlanRoomCeiling,
+  resolvePlanRoomFloor,
+  resolvePlanRoomWall,
+} from '../../floorplan/roomFinishes'
 import {
   type CeilingConfig,
   type CeilingStyle,
@@ -250,6 +254,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const roomInsetOn = useFeature('roomInset')
   const elementColorsOn = useFeature('elementColors')
   const openingStylesOn = useFeature('openingStyles')
+  const ceilingFinishOn = useFeature('ceilingFinish')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -543,6 +548,30 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               ))}
             </select>
           </label>
+          {/* Per-room ceiling finish (CUSTOMIZE-CEILING): paint or texture the
+              ceiling, mirroring the floor/wall pickers. Empty = the default
+              plain white ceiling. Ceilings read well as painted surfaces, so the
+              wall material set (paints + plaster + CC0 textures) is offered. */}
+          {ceilingFinishOn ? (
+            <label className="flex flex-col gap-1 text-xs">
+              <span className="label">Ceiling finish</span>
+              <select
+                value={resolvePlanRoomCeiling(finishes, r) ?? ''}
+                onChange={(e) => {
+                  if (e.target.value) a.setCeilingFinish(r.id as RoomId, e.target.value)
+                  else a.clearCeilingFinish(r.id as RoomId)
+                }}
+                className="input"
+              >
+                <option value="">White (default)</option>
+                {WALL_MATERIALS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           {/* Per-room ceiling height — overrides the home default for this room
               only (a dropped/false ceiling; walls stay full height, like the
               built-in 2.4 m bathrooms). Empty = inherit the home height. */}
