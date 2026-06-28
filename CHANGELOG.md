@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Apartment master colour palette + harmony blends on every picker (v0.6.0.15)
+
+Set an overall **master colour palette** for the home (up to 5 colours) — every colour picker then
+shows it as an **"Apartment theme"** swatch row, plus a **"Recommended"** row of up to 10 harmony
+colours derived programmatically from the palette (complementary, analogous, triadic companions +
+tints/shades/neutrals). The palette has a **per-room override**, and the recommended blends
+**recompute live** whenever the master palette or a room override changes.
+
+- Pure, deterministic harmony engine `materials/colorHarmony.ts` (hex↔HSL + `recommendedBlends`),
+  unit-tested.
+- `colorPaletteSlice` holds `masterPalette` + per-room `roomPalettes`; it's design data — persisted
+  in the save schema + autosave watch-list (back-compat optional) and undoable. `effectivePalette`
+  resolves override → master.
+- Shared `ThemeColorRows` (the two swatch rows) is wired into every colour picker: the material
+  composer, custom-colour picker, parametric `ColorField`, per-wall / door-leaf / window-tint and
+  whole-plan wall colour, furniture/IKEA tint, item light colour, and the accent-wall picker. A
+  `MasterPaletteEditor` (up to 5 slots + per-room override toggle + a live recommended preview) lives
+  at the top of the finish picker.
+- New `masterPalette` flag (Simple tier, default on); tested in both modes. Verified: a 3-colour
+  palette renders the editor + a 10-colour harmony row, both updating live.
+
 ## Material editor: gloss/roughness parameter + rename materials (v0.6.0.14)
 
 Closes the two deferred follow-ups from the custom material editor:

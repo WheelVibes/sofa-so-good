@@ -22,6 +22,7 @@ import { useStore } from '../state/store'
 import { formatArea } from '../utils/measurement'
 import { lazyWithRetry } from './app/lazyWithRetry'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
+import { MasterPaletteEditor } from './color/MasterPaletteEditor'
 import { MaterialComposer } from './finish/MaterialComposer'
 import { SwatchGroup } from './finish/swatches'
 import { Icon } from './toolbar/icons'
@@ -384,6 +385,14 @@ export function FinishPicker() {
             aria-label="Search finishes"
             style={{ marginBottom: 'var(--s-3)' }}
           />
+          {/* Apartment master palette + per-room override (CUSTOMIZE-MASTER-PALETTE).
+              Drives the "Apartment theme" + "Recommended" rows on every picker. */}
+          <details className="compose" style={{ marginBottom: 'var(--s-3)' }}>
+            <summary className="compose-summary">Apartment colour palette…</summary>
+            <div style={{ marginTop: 'var(--s-2)' }}>
+              <MasterPaletteEditor roomId={roomId} />
+            </div>
+          </details>
           <SwatchGroup
             label="Floor"
             items={filterFinishes(groups.floor, finishQuery)}

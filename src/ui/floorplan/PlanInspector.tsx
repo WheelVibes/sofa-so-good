@@ -21,6 +21,7 @@ import { endForAngle, endForLength, wallAngleDeg } from '../../floorplan/wallOps
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { PlanFurnitureInspector } from './PlanFurnitureInspector'
@@ -336,6 +337,11 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             </button>
           ) : null}
         </div>
+        <ThemeColorRows
+          active={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
+          roomId={null}
+          onPick={(hex) => a.updateFloorPlanMeta({ wallColor: hex })}
+        />
         <span className="text-xs" style={{ color: 'var(--text-3)' }}>
           Paints every wall in this plan.
         </span>
@@ -987,6 +993,12 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               </span>
             </label>
           ) : null}
+          {elementColorsOn ? (
+            <ThemeColorRows
+              active={w.color ?? plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
+              onPick={(hex) => a.updateWall(w.id, { color: hex }, levelId)}
+            />
+          ) : null}
         </div>
       )
   } else if (sel?.type === 'opening') {
@@ -1174,6 +1186,12 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
                 ) : null}
               </span>
             </label>
+          ) : null}
+          {elementColorsOn ? (
+            <ThemeColorRows
+              active={o.color ?? (o.kind === 'door' ? '#9d7c54' : '#bcd4e6')}
+              onPick={(hex) => a.updateOpening(o.id, { color: hex }, levelId)}
+            />
           ) : null}
         </div>
       )

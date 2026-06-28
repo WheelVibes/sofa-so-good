@@ -359,6 +359,10 @@ const RawSerializedStateZ = z.object({
   }),
   userFurniture: z.array(z.union([UserGltfDefZ, IkeaGltfDefZ])),
   userMaterials: z.array(UserMaterialDefZ),
+  // Optional apartment master colour palette + per-room overrides
+  // (CUSTOMIZE-MASTER-PALETTE). Absent on legacy saves → empty.
+  masterPalette: z.array(z.string()).optional(),
+  roomPalettes: z.record(z.string(), z.array(z.string())).optional(),
   timeMode: z.enum(['system', 'manual']),
   manualHour: z.number().min(0).max(24),
   // Optional (added later): fixture-lights mode, so a saved lighting mood's
@@ -496,6 +500,9 @@ export function serialize(state: RootState): SerializedState {
     ...(isDefaultPlan(state.floorPlan) ? {} : { floorPlan: state.floorPlan }),
     doors: state.doors,
     finishes: state.finishes,
+    // Master palette + per-room overrides (omit empties to keep saves lean).
+    ...(state.masterPalette.length ? { masterPalette: state.masterPalette } : {}),
+    ...(Object.keys(state.roomPalettes).length ? { roomPalettes: state.roomPalettes } : {}),
     // User-uploaded and IKEA-imported defs persist; runtime-only blob URLs
     // (the def's `runtimeUrl` and each IKEA variant's `runtimeUrl`) are
     // stripped and rebuilt from the assetId at hydration.
@@ -630,6 +637,8 @@ export function applySerialized(
       ceiling: ceiling as Record<RoomId, string>,
       wallAccents: state.finishes.wallAccents ?? {},
     },
+    masterPalette: state.masterPalette ?? [],
+    roomPalettes: state.roomPalettes ?? {},
     timeMode: state.timeMode,
     manualHour: state.manualHour,
     lightsMode: state.lightsMode ?? 'auto',

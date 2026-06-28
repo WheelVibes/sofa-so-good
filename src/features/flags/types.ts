@@ -107,6 +107,7 @@ export type FeatureFlag =
   | 'itemOpacity'
   | 'ceilingFinish'
   | 'saveMaterials'
+  | 'masterPalette'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

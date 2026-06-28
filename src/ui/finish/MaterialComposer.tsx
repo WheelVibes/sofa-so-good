@@ -13,6 +13,7 @@ import {
 } from '../../materials/composeMaterial'
 import { proceduralThumbnailDataUrl } from '../../materials/procedural/generators'
 import type { MaterialDef, ProceduralPattern } from '../../materials/types'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 
 /**
  * Compose a finish from a **texture/pattern** + a **colour** (MAT-COMPOSE), OR
@@ -192,6 +193,7 @@ export function MaterialComposer({
           />
         </label>
       </div>
+      <ThemeColorRows active={color} onPick={setColor} />
       {/* Tile-size parameter (CUSTOMIZE-MATERIAL-PARAMS): scales the pattern's
           physical repeat, so the same texture+colour can read fine or chunky. */}
       <label

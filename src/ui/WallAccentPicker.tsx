@@ -5,6 +5,7 @@ import type { MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
 import { roomDisplayName } from '../state/rooms'
 import { useStore } from '../state/store'
+import { ThemeColorRows } from './color/ThemeColorRows'
 import { Icon } from './toolbar/icons'
 
 function swatchImage(m: MaterialDef): string | undefined {
@@ -92,6 +93,10 @@ export function WallAccentPicker() {
             />
           </label>
         </div>
+        <ThemeColorRows
+          active={typeof current === 'string' && current.startsWith('#') ? current : undefined}
+          onPick={(hex) => setWallAccent(key, hex)}
+        />
         <button
           type="button"
           onClick={() => clearWallAccent(key)}

@@ -19,6 +19,7 @@ import { rotationFacingRoom } from '../../layout/faceWall'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { Icon } from '../toolbar/icons'
 import { GltfBody } from './GltfBody'
 import { IesProfilePicker } from './IesProfilePicker'
@@ -1028,6 +1029,12 @@ export function InspectorPanel() {
                             }
                           />
                         </label>
+                        <ThemeColorRows
+                          active={color}
+                          onPick={(hex) =>
+                            useStore.getState().updateItemProps(item.id, { lightColor: hex })
+                          }
+                        />
                         <label className="flex items-center justify-between gap-2 text-xs">
                           <span>Brightness</span>
                           <input

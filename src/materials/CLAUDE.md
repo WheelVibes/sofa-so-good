@@ -9,6 +9,13 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `PATTERN_SIZE_CAP` (256 for smooth/noise-based, 512 for high-frequency geometric patterns).
 - **World-space UVs** (`worldUv.ts`): surfaces tile at a fixed physical scale — don't bake
   per-mesh UVs or assume a unit cube.
+- **Colour harmony (`colorHarmony.ts`, CUSTOMIZE-MASTER-PALETTE)**: pure hex↔HSL + `recommendedBlends(palette, max=10)`
+  derives harmony companions (complementary/analogous/triadic + tints/shades/neutral) from the
+  apartment master palette. The palette lives in `state/slices/colorPaletteSlice.ts` (`masterPalette`
+  + per-room `roomPalettes`, persisted as design data; `effectivePalette` resolves override→master).
+  Every colour picker renders the shared `ui/color/ThemeColorRows` (an "Apartment theme" row + a live
+  "Recommended" row); the editor is `ui/color/MasterPaletteEditor`. Gated by the `masterPalette` flag.
+  When you add a new colour picker, drop in `<ThemeColorRows onPick=… active=… />`.
 - **Composed / tinted finishes are self-describing ids** (`composeMaterial.ts`): a finish built from
   a pattern + colour is `compose:<pattern>:<#hex>`; recolouring a catalog material is
   `tint:<baseId>:<#hex>`. Both resolve on the fly in `useMaterialDef` (no catalog entry) and serialise

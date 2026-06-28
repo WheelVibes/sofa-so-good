@@ -9,6 +9,7 @@ import type { FurnitureItem, GltfDef } from '../../furniture/types'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { finishOverrideKey } from './ikeaBodyProps'
 
 /** Catalog CC0 materials offerable per part as `mat:<id>` (resolved + re-tiled
@@ -274,6 +275,10 @@ export function GltfBody({ item, def }: GltfBodyProps) {
           </button>
         ) : null}
       </label>
+      <ThemeColorRows
+        active={tint || undefined}
+        onPick={(hex) => updateItemProps(item.id, { tint: hex })}
+      />
       <label className="flex items-center gap-2 text-xs">
         <input
           type="checkbox"

@@ -5,6 +5,7 @@ import { encodeFinishDrag, FINISH_DND_MIME } from '../../materials/finishDrop'
 import { proceduralThumbnailDataUrl } from '../../materials/procedural/generators'
 import type { MaterialDef } from '../../materials/types'
 import { useStore } from '../../state/store'
+import { ThemeColorRows } from '../color/ThemeColorRows'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 
@@ -281,6 +282,12 @@ export function SwatchGroup({
             </label>
           ) : null}
         </div>
+        {onCustom ? (
+          <ThemeColorRows
+            active={customActive ? (active as string) : undefined}
+            onPick={onCustom}
+          />
+        ) : null}
         {onCustom && recent && recent.length > 0 ? (
           <RecentColors recent={recent} active={active} onCustom={onCustom} />
         ) : null}

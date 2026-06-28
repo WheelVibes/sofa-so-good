@@ -21,6 +21,11 @@ import {
   type ClipboardSlice,
   createClipboardSlice,
 } from './slices/clipboardSlice'
+import {
+  COLOR_PALETTE_INITIAL,
+  type ColorPaletteSlice,
+  createColorPaletteSlice,
+} from './slices/colorPaletteSlice'
 import { COMMENTS_INITIAL, type CommentsSlice, createCommentsSlice } from './slices/commentsSlice'
 import { createDoorsSlice, DOORS_INITIAL, type DoorsSlice } from './slices/doorsSlice'
 import {
@@ -154,6 +159,7 @@ export interface RootState
     RecentSlice,
     FavouritesSlice,
     SavedMaterialsSlice,
+    ColorPaletteSlice,
     CameraViewsSlice,
     PanoTourSlice,
     PromptSlice,
@@ -193,6 +199,7 @@ const INITIAL = {
   ...RECENT_INITIAL,
   ...FAVOURITES_INITIAL,
   ...SAVED_MATERIALS_INITIAL,
+  ...COLOR_PALETTE_INITIAL,
   ...CAMERA_VIEWS_INITIAL,
   ...PANO_TOUR_INITIAL,
   ...PROMPT_INITIAL,
@@ -233,6 +240,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createRecentSlice(set, get, api),
   ...createFavouritesSlice(set, get, api),
   ...createSavedMaterialsSlice(set, get, api),
+  ...createColorPaletteSlice(set, get, api),
   ...createCameraViewsSlice(set, get, api),
   ...createPanoTourSlice(set, get, api),
   ...createPromptSlice(set, get, api),

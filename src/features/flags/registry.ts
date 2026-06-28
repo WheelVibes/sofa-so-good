@@ -335,6 +335,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Apartment master colour palette + per-room overrides + harmony-blend
+  // suggestions on every colour picker (CUSTOMIZE-MASTER-PALETTE). Pure UI/data
+  // (a swatch row + a pure harmony engine) → prod-safe; a core design aid, so
+  // Simple tier.
+  masterPalette: {
+    label: 'Apartment colour palette',
+    description:
+      'Set a master palette (+ per-room overrides); every picker shows it + harmony blends',
+    default: true,
+    tier: 'simple',
+  },
   presentation: {
     label: 'Presentation mode',
     description: 'Full-screen saved-views slideshow with notes',
