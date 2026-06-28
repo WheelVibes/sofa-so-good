@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Curtain length toggle — floor-to-ceiling or sill-length (v0.6.0.24)
+
+Curtains gain a **Length** control: `Floor-to-ceiling` (default, hem to the floor) or `Sill length`
+(hem stops just below the window sill). Both hang from the same rod (the `height`); sill-length uses
+the placement-stored window sill (`sillY`, set by `windowFixtureProps`) to place the hem, falling back
+to a typical ~0.9 m sill for a hand-placed curtain. Verified side-by-side: the sill curtain floats above
+the floor (floor visible beneath) while the floor-to-ceiling one reaches the floor.
+
 ## Realistic curtains (wavy, floor-to-ceiling) + raise/lower blinds, window-sized (v0.6.0.23)
 
 Reworked the window treatments so they look and behave like the real thing:

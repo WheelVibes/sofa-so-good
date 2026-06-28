@@ -135,7 +135,11 @@ export function windowFixtureProps(
   if (defId === 'curtains') {
     return {
       width: clamp(win.width + 2 * CURTAIN_OVERHANG, 1.0, 3.4),
+      // Rod near the ceiling; both length modes hang from here.
       height: clamp(ceilingHeight - 0.05, 1.8, 3.2),
+      // Stored so the `length: 'sill'` mode can drop the hem to just below the
+      // sill without re-deriving the window.
+      sillY: win.sill,
     }
   }
   if (defId === 'roller-blind') {

@@ -24,15 +24,15 @@ const SEG_Y = 5
  * geometry; the draw animation scales/positions them (the folds compress into a
  * gather as a panel bunches to the side).
  */
-function buildWavyPanel(height: number): BufferGeometry {
-  const geo = new PlaneGeometry(1, height, SEG_X, SEG_Y)
-  geo.translate(0, height / 2, 0) // floor-anchor the base at y=0
+function buildWavyPanel(panelHeight: number): BufferGeometry {
+  const geo = new PlaneGeometry(1, panelHeight, SEG_X, SEG_Y)
+  geo.translate(0, panelHeight / 2, 0) // anchor the hem at local y=0
   const pos = geo.attributes.position
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i)
     const y = pos.getY(i)
     // Gathered (shallower folds) at the rod, fuller toward the hem.
-    const taper = 0.5 + 0.5 * (1 - y / height)
+    const taper = 0.5 + 0.5 * (1 - y / panelHeight)
     pos.setZ(i, FOLD_DEPTH * Math.sin((x + 0.5) * FOLDS * Math.PI * 2) * taper)
   }
   pos.needsUpdate = true
@@ -62,8 +62,10 @@ function panelTransform(d: number, width: number, bunchW: number, side: number) 
  * cover the window), 0 = open (each panel gathers into a narrow bunch at its end,
  * leaving the **whole window exposed**). The primitive eases the rendered panels
  * toward `drawAmount` each frame (holding the demand render-loop open only while
- * moving). Placement sizes a curtain to its window (wider than the glass,
- * floor-to-ceiling drop — see `placement/windowSnap.ts`). Legacy
+ * moving). `length` picks the drop: `floor` (floor-to-ceiling, default) or `sill`
+ * (ceiling to just below the window sill, using the placement-stored `sillY`).
+ * Placement sizes a curtain to its window (wider than the glass — see
+ * `placement/windowSnap.ts`). Legacy
  * `style: 'open'|'drawn'` maps to drawAmount 0/1. Light filtering through the
  * window is graduated by the same `drawAmount`. Mounted against a wall (faces +Z).
  */
@@ -83,7 +85,15 @@ export function Curtain({ props }: { props: ParamProps }) {
   // Double-sided: a draped sheet reads from inside the room AND through the glass.
   const fabricMat = getFabricMaterial(color, 0.95, pattern, true)
 
-  const geo = useMemo(() => buildWavyPanel(height), [height])
+  // Hem (bottom of the drop): floor-to-ceiling reaches the floor (0); sill-length
+  // stops just below the window sill (`sillY`, set by placement; ~0.9 fallback).
+  // `height` is always the rod (top), so both lengths hang from the same rod.
+  const lengthMode = readStr(props, 'length', 'floor')
+  const sillY = readNum(props, 'sillY', 0.9)
+  const bottom = lengthMode === 'sill' ? Math.max(0.1, sillY - 0.1) : 0
+  const panelHeight = Math.max(0.4, height - bottom)
+
+  const geo = useMemo(() => buildWavyPanel(panelHeight), [panelHeight])
   useEffect(() => () => geo.dispose(), [geo])
 
   // Each open panel bunches to this width — small enough to clear the window.
@@ -147,11 +157,16 @@ export function Curtain({ props }: { props: ParamProps }) {
           <meshStandardMaterial color="#54585e" roughness={0.4} metalness={0.6} />
         </mesh>
       ))}
-      {/* Two draped panels (gather to the sides when open). */}
-      <group ref={leftRef} position={[left0.centreX, 0, 0.05]} scale={[left0.covered, 1, 1]}>
+      {/* Two draped panels (gather to the sides when open), hung from the rod
+          down to the hem (`bottom`). */}
+      <group ref={leftRef} position={[left0.centreX, bottom, 0.05]} scale={[left0.covered, 1, 1]}>
         <mesh geometry={geo} material={fabricMat} castShadow />
       </group>
-      <group ref={rightRef} position={[right0.centreX, 0, 0.05]} scale={[right0.covered, 1, 1]}>
+      <group
+        ref={rightRef}
+        position={[right0.centreX, bottom, 0.05]}
+        scale={[right0.covered, 1, 1]}
+      >
         <mesh geometry={geo} material={fabricMat} castShadow />
       </group>
     </group>

@@ -99,6 +99,18 @@ export const TEXTILES_DEFS = {
         default: 2.75,
         unit: 'm',
       },
+      {
+        // Drop length: floor-to-ceiling (default) or down to just below the
+        // window sill. Both hang from the rod (the `height` above).
+        kind: 'enum',
+        key: 'length',
+        label: 'Length',
+        default: 'floor',
+        options: [
+          { value: 'floor', label: 'Floor-to-ceiling' },
+          { value: 'sill', label: 'Sill length' },
+        ],
+      },
       { kind: 'color', key: 'color', label: 'Fabric', default: '#c4b9a6' },
       {
         // Draw the curtains with a smooth animation (CURTAIN-DRAW): 0 = open
