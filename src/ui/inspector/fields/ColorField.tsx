@@ -1,5 +1,5 @@
 import type { ParamField } from '../../../furniture/types'
-import { ThemeColorRows } from '../../color/ThemeColorRows'
+import { ColorPicker } from '../../controls/ColorPicker'
 
 interface ColorFieldProps {
   field: Extract<ParamField, { kind: 'color' }>
@@ -9,12 +9,9 @@ interface ColorFieldProps {
 
 export function ColorField({ field, value, onChange }: ColorFieldProps) {
   return (
-    <div>
-      <label className="fld">
-        <span className="lbl">{field.label}</span>
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} />
-      </label>
-      <ThemeColorRows active={value} onPick={onChange} />
-    </div>
+    <label className="fld">
+      <span className="lbl">{field.label}</span>
+      <ColorPicker value={value} onChange={onChange} ariaLabel={field.label} />
+    </label>
   )
 }

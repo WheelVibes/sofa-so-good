@@ -23,6 +23,7 @@ import { formatArea } from '../utils/measurement'
 import { lazyWithRetry } from './app/lazyWithRetry'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
 import { MasterPaletteEditor } from './color/MasterPaletteEditor'
+import { Select } from './controls/Select'
 import { MaterialComposer } from './finish/MaterialComposer'
 import { SwatchGroup } from './finish/swatches'
 import { Icon } from './toolbar/icons'
@@ -466,25 +467,20 @@ export function FinishPicker() {
             />
           ) : null}
           {otherRooms.length > 0 ? (
-            <select
+            <Select
               className="input"
-              aria-label="Copy this room's floor + wall finish to another room"
+              ariaLabel="Copy this room's floor + wall finish to another room"
               value=""
-              onChange={(e) => {
-                if (e.target.value) copyFinishesTo(e.target.value)
-                e.target.value = ''
+              placeholder="Copy finishes to…"
+              onChange={(v) => {
+                if (v) copyFinishesTo(v)
               }}
               style={{ marginTop: 'var(--s-2)', width: '100%' }}
-            >
-              <option value="" disabled>
-                Copy finishes to…
-              </option>
-              {otherRooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Copy finishes to…', disabled: true },
+                ...otherRooms.map((r) => ({ value: r.id, label: r.name })),
+              ]}
+            />
           ) : null}
           <div
             className="label"
@@ -518,46 +514,36 @@ export function FinishPicker() {
             </button>
           ) : null}
           {roomItemIds.length > 0 && otherRooms.length > 0 ? (
-            <select
+            <Select
               className="input"
-              aria-label="Copy this room's layout to another room"
+              ariaLabel="Copy this room's layout to another room"
               value=""
-              onChange={(e) => {
-                if (e.target.value) cloneLayoutTo(e.target.value)
-                e.target.value = ''
+              placeholder="Copy layout to…"
+              onChange={(v) => {
+                if (v) cloneLayoutTo(v)
               }}
               style={{ marginTop: 'var(--s-2)', width: '100%' }}
-            >
-              <option value="" disabled>
-                Copy layout to…
-              </option>
-              {otherRooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Copy layout to…', disabled: true },
+                ...otherRooms.map((r) => ({ value: r.id, label: r.name })),
+              ]}
+            />
           ) : null}
           {otherRooms.length > 0 ? (
-            <select
+            <Select
               className="input"
-              aria-label="Swap this room's layout with another room"
+              ariaLabel="Swap this room's layout with another room"
               value=""
-              onChange={(e) => {
-                if (e.target.value) swapLayoutWith(e.target.value)
-                e.target.value = ''
+              placeholder="Swap layout with…"
+              onChange={(v) => {
+                if (v) swapLayoutWith(v)
               }}
               style={{ marginTop: 'var(--s-2)', width: '100%' }}
-            >
-              <option value="" disabled>
-                Swap layout with…
-              </option>
-              {otherRooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Swap layout with…', disabled: true },
+                ...otherRooms.map((r) => ({ value: r.id, label: r.name })),
+              ]}
+            />
           ) : null}
           {roomItemIds.length > 0 ? (
             <button

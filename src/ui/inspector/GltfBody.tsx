@@ -9,7 +9,8 @@ import type { FurnitureItem, GltfDef } from '../../furniture/types'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
-import { ThemeColorRows } from '../color/ThemeColorRows'
+import { ColorPicker } from '../controls/ColorPicker'
+import { Select } from '../controls/Select'
 import { finishOverrideKey } from './ikeaBodyProps'
 
 /** Catalog CC0 materials offerable per part as `mat:<id>` (resolved + re-tiled
@@ -202,46 +203,32 @@ export function GltfBody({ item, def }: GltfBodyProps) {
             const isColour = override === '' || override.startsWith('#')
             const mode = isColour ? 'colour' : override
             return (
-              <label key={t.key} className="flex items-center gap-2 text-xs">
+              <div key={t.key} className="flex items-center gap-2 text-xs">
                 <span className="min-w-0 flex-1 truncate" title={t.label}>
                   {t.label}
                 </span>
-                <select
+                <Select
                   value={mode}
-                  onChange={(e) =>
+                  onChange={(v) =>
                     updateItemProps(item.id, {
-                      [key]:
-                        e.target.value === 'colour'
-                          ? override.startsWith('#')
-                            ? override
-                            : '#cfcfcf'
-                          : e.target.value,
+                      [key]: v === 'colour' ? (override.startsWith('#') ? override : '#cfcfcf') : v,
                     })
                   }
+                  ariaLabel={`${t.label} finish`}
                   className="rounded border border-[var(--border-2)] bg-[var(--surface)] px-1 py-0.5 text-[10px]"
-                >
-                  <option value="colour">Colour</option>
-                  <optgroup label="Texture">
-                    {PART_MATERIALS.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Material library">
-                    {LIBRARY_MATERIALS.map((m) => (
-                      <option key={m.id} value={`mat:${m.id}`}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
+                  options={[
+                    { value: 'colour', label: 'Colour' },
+                    { value: '__grp_texture', label: 'Texture', disabled: true },
+                    ...PART_MATERIALS.map((m) => ({ value: m.id, label: m.label })),
+                    { value: '__grp_library', label: 'Material library', disabled: true },
+                    ...LIBRARY_MATERIALS.map((m) => ({ value: `mat:${m.id}`, label: m.name })),
+                  ]}
+                />
                 {isColour ? (
-                  <input
-                    type="color"
+                  <ColorPicker
                     value={override.startsWith('#') ? override : '#cfcfcf'}
-                    onChange={(e) => updateItemProps(item.id, { [key]: e.target.value })}
-                    className="h-6 w-9 cursor-pointer rounded border border-[var(--border-2)]"
+                    onChange={(hex) => updateItemProps(item.id, { [key]: hex })}
+                    ariaLabel={`${t.label} colour`}
                   />
                 ) : null}
                 {override ? (
@@ -253,18 +240,17 @@ export function GltfBody({ item, def }: GltfBodyProps) {
                     clear
                   </button>
                 ) : null}
-              </label>
+              </div>
             )
           })}
         </div>
       ) : null}
-      <label className="flex items-center justify-between gap-2 text-xs">
+      <div className="flex items-center justify-between gap-2 text-xs">
         <span className="flex-1">Tint {targets.length >= 2 ? '(all)' : ''}</span>
-        <input
-          type="color"
+        <ColorPicker
           value={tint || '#ffffff'}
-          onChange={(e) => updateItemProps(item.id, { tint: e.target.value })}
-          className="h-6 w-10 cursor-pointer rounded border border-[var(--border-2)]"
+          onChange={(hex) => updateItemProps(item.id, { tint: hex })}
+          ariaLabel="Tint"
         />
         {tint ? (
           <button
@@ -274,11 +260,7 @@ export function GltfBody({ item, def }: GltfBodyProps) {
             clear
           </button>
         ) : null}
-      </label>
-      <ThemeColorRows
-        active={tint || undefined}
-        onPick={(hex) => updateItemProps(item.id, { tint: hex })}
-      />
+      </div>
       <label className="flex items-center gap-2 text-xs">
         <input
           type="checkbox"

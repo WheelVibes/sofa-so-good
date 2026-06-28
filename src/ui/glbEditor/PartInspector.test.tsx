@@ -14,12 +14,12 @@ describe('PartInspector — per-part texture picker (GE3c)', () => {
   it('offers the furniture finish vocabulary as `mat:<id>` options, defaulting to solid', () => {
     const onPatch = vi.fn()
     render(<PartInspector part={defaultPart('box')} onPatch={onPatch} onMirror={() => {}} />)
-    const select = screen.getByLabelText('Shape texture') as HTMLSelectElement
-    expect(select.value).toBe('') // no finish → solid colour
-    const values = [...select.options].map((o) => o.value)
-    expect(values[0]).toBe('')
-    expect(values).toContain('mat:floor-wood-oak') // builtin catalog surfaces
-    fireEvent.change(select, { target: { value: 'mat:floor-wood-oak' } })
+    // The texture picker is now the custom Select (a combobox button).
+    const combo = screen.getByRole('combobox', { name: 'Shape texture' })
+    expect(combo).toHaveTextContent('None — solid colour') // no finish → solid colour
+    fireEvent.click(combo) // open the listbox
+    // Builtin catalog surfaces are listed; pick Oak planks (mat:floor-wood-oak).
+    fireEvent.click(screen.getByRole('option', { name: /Oak planks/ }))
     expect(onPatch).toHaveBeenCalledWith({ finish: 'mat:floor-wood-oak' })
   })
 
@@ -32,9 +32,10 @@ describe('PartInspector — per-part texture picker (GE3c)', () => {
         onMirror={() => {}}
       />,
     )
-    const select = screen.getByLabelText('Shape texture') as HTMLSelectElement
-    expect(select.value).toBe('mat:floor-wood-oak')
-    fireEvent.change(select, { target: { value: '' } })
+    const combo = screen.getByRole('combobox', { name: 'Shape texture' })
+    expect(combo).toHaveTextContent('Oak planks')
+    fireEvent.click(combo)
+    fireEvent.click(screen.getByRole('option', { name: /None — solid colour/ }))
     expect(onPatch).toHaveBeenCalledWith({ finish: undefined })
   })
 

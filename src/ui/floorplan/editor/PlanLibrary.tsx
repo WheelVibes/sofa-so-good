@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../../state/store'
+import { Select } from '../../controls/Select'
 import { SaveTemplateModal } from '../SaveTemplateModal'
 
 export function PlanLibrary() {
@@ -19,22 +20,20 @@ export function PlanLibrary() {
         Save
       </button>
       {saved.length > 0 && (
-        <select
+        <Select
           value=""
-          onChange={(e) => {
-            if (e.target.value) a.loadSavedPlan(e.target.value)
+          onChange={(v) => {
+            if (v) a.loadSavedPlan(v)
           }}
           title="Load a saved apartment"
           className="input"
           style={{ width: 'auto' }}
-        >
-          <option value="">Load… ({saved.length})</option>
-          {saved.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+          ariaLabel="Load a saved apartment"
+          options={[
+            { value: '', label: `Load… (${saved.length})` },
+            ...saved.map((p) => ({ value: p.id, label: p.name })),
+          ]}
+        />
       )}
       {saved.some((p) => p.name === plan.name) && (
         <button

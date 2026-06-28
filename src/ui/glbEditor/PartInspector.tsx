@@ -3,7 +3,8 @@ import {
   DEFAULT_PART_ROUGHNESS,
   type ShapePart,
 } from '../../furniture/glbEdit/editSpec'
-import { ThemeColorRows } from '../color/ThemeColorRows'
+import { ColorPicker } from '../controls/ColorPicker'
+import { Select } from '../controls/Select'
 import { useSurfaceMaterialOptions } from '../inspector/ParametricBody'
 import { QuickFinishes } from '../inspector/QuickFinishes'
 import { Icon } from '../toolbar/icons'
@@ -142,38 +143,30 @@ export function PartInspector({
           and combine again to change finishes. */}
       {!isCombined ? (
         <>
-          <label className="fld">
+          <div className="fld">
             <span>Colour</span>
-            <input
-              type="color"
+            <ColorPicker
               value={part.color}
-              aria-label="Shape colour"
-              onChange={(e) => onPatch({ color: e.target.value })}
+              ariaLabel="Shape colour"
+              paletteRoomId={null}
+              onChange={(hex) => onPatch({ color: hex })}
             />
-          </label>
-          <ThemeColorRows
-            active={part.color}
-            roomId={null}
-            onPick={(hex) => onPatch({ color: hex })}
-          />
+          </div>
           <div style={{ marginTop: 'var(--s-2)' }}>
             <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
               Texture
             </div>
-            <select
+            <Select
               className="input"
-              aria-label="Shape texture"
+              ariaLabel="Shape texture"
               value={finish}
-              onChange={(e) => onPatch({ finish: e.target.value || undefined })}
+              onChange={(v) => onPatch({ finish: v || undefined })}
               style={{ width: '100%' }}
-            >
-              <option value="">None — solid colour</option>
-              {surfaceMaterials.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'None — solid colour' },
+                ...surfaceMaterials.map((o) => ({ value: o.value, label: o.label })),
+              ]}
+            />
             {/* Same curated one-tap swatches the furniture inspector shows; tapping
                 the active swatch clears back to the solid colour. */}
             <QuickFinishes

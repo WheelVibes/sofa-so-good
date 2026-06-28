@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Mobile input polish — no focus-zoom, themed dropdown + colour picker (v0.7.1.0)
+
+Replaces the off-brand native phone controls and fixes the oversized mobile field text:
+
+- **iOS focus-zoom fix without the 16px bump.** Removed the mobile `font-size: 16px` rule (which made
+  fields look huge) and added `src/controls/iosZoomGuard.ts` — it toggles viewport `maximum-scale=1`
+  only while a text field is focused (restored on blur), so iOS no longer zooms in on focus yet
+  pinch-zoom stays available the rest of the time. Fields render at their normal small size again.
+- **Custom `Select`** (`src/ui/controls/Select.tsx`) replaces every native `<select>` (~33 sites):
+  an `.input`-styled trigger that opens an anchored `Popover` on desktop / a titled `Modal` sheet on
+  mobile, with full listbox keyboard + ARIA. No OS dropdown wheel; small fields no longer trigger the
+  focus-zoom.
+- **Custom `ColorPicker`** (`src/ui/controls/ColorPicker.tsx`) replaces every native
+  `<input type="color">` (~22 sites): a swatch trigger opening a saturation/brightness pad + hue bar +
+  hex field, plus the shared theme/recommended swatch rows and a recent-colours row. Conversions use
+  the pure `colorConvert` (HSV) + `materials/colorHarmony` (`normalizeHex`) helpers.
+
 ## Editor UI interaction fixes — confirm-to-commit, left catalog dock, room-scoped grid/measure (v0.7.0.0)
 
 A batch of per-room-editor and floor-plan-editor interaction fixes:

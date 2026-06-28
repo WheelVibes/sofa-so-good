@@ -1,0 +1,31 @@
+{
+  "name": "controls-mobile",
+  "description": "Verify the custom Select dropdown + ColorPicker render (replacing native phone controls). Desktop popover + the inspector light colour picker.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setUiMode?.('pro')"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "place-lamp",
+      "eval": "(function(){ const s=window.__store.getState(); const r=s.floorPlan.rooms.find(x=>/living|dining/i.test(x.id))||s.floorPlan.rooms[0]; const cx=r.origin[0]+r.width/2, cz=r.origin[1]+r.depth/2; s.setItems([{id:'lamp1',defId:'floor-lamp',position:[cx,cz],rotation:0,props:{lightOn:'yes'}}]); })()"
+    },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "editor-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "wait-load", "wait": 2000 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "wait-catalog", "wait": 800 },
+    { "name": "open-sort", "click": { "selector": ".catalog .select-trigger" } },
+    { "name": "wait-sort", "wait": 500 },
+    { "name": "shot-select-open", "screenshot": "01-select-dropdown-open" },
+    { "name": "close-sort", "eval": "document.body.click()" },
+    { "name": "select-lamp", "store": { "action": "selectItem", "args": ["lamp1"] } },
+    { "name": "wait-inspector", "wait": 700 },
+    { "name": "open-color", "click": { "selector": ".inspector .color-trigger" } },
+    { "name": "wait-color", "wait": 500 },
+    { "name": "shot-color-open", "screenshot": "02-colorpicker-open" }
+  ]
+}

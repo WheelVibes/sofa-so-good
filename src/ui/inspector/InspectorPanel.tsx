@@ -19,7 +19,8 @@ import { rotationFacingRoom } from '../../layout/faceWall'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
-import { ThemeColorRows } from '../color/ThemeColorRows'
+import { ColorPicker } from '../controls/ColorPicker'
+import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
 import { GltfBody } from './GltfBody'
 import { IesProfilePicker } from './IesProfilePicker'
@@ -702,29 +703,27 @@ export function InspectorPanel() {
                       />
                     </label>
                   </div>
-                  <label
-                    className="fld"
-                    style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
-                  >
+                  <div className="fld" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span
                       className="label"
                       style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
                     >
                       Direction
                     </span>
-                    <select
+                    <Select
                       value={arrayAxis}
-                      onChange={(e) => setArrayAxis(e.target.value as ArrayAxis)}
-                      aria-label="Array column direction"
+                      onChange={(v) => setArrayAxis(v as ArrayAxis)}
+                      ariaLabel="Array column direction"
                       className="input"
                       style={{ fontSize: 'var(--t-xs)' }}
-                    >
-                      <option value="right">Right (+X)</option>
-                      <option value="left">Left (−X)</option>
-                      <option value="forward">Forward (+Z)</option>
-                      <option value="back">Back (−Z)</option>
-                    </select>
-                  </label>
+                      options={[
+                        { value: 'right', label: 'Right (+X)' },
+                        { value: 'left', label: 'Left (−X)' },
+                        { value: 'forward', label: 'Forward (+Z)' },
+                        { value: 'back', label: 'Back (−Z)' },
+                      ]}
+                    />
+                  </div>
                 </div>
               ) : null}
               {proMode && radialArrayOn ? (
@@ -1023,25 +1022,16 @@ export function InspectorPanel() {
                         >
                           Light
                         </div>
-                        <label className="flex items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center justify-between gap-2 text-xs">
                           <span>Colour</span>
-                          <input
-                            type="color"
-                            aria-label="Light colour"
+                          <ColorPicker
+                            ariaLabel="Light colour"
                             value={color}
-                            onChange={(e) =>
-                              useStore
-                                .getState()
-                                .updateItemProps(item.id, { lightColor: e.target.value })
+                            onChange={(hex) =>
+                              useStore.getState().updateItemProps(item.id, { lightColor: hex })
                             }
                           />
-                        </label>
-                        <ThemeColorRows
-                          active={color}
-                          onPick={(hex) =>
-                            useStore.getState().updateItemProps(item.id, { lightColor: hex })
-                          }
-                        />
+                        </div>
                         <label className="flex items-center justify-between gap-2 text-xs">
                           <span>Brightness</span>
                           <input

@@ -9,6 +9,7 @@ import {
 import type { HqRenderSession } from '../scene/pathtrace/hqRenderSession'
 import { getHqRenderSource } from '../scene/pathtrace/hqRenderSource'
 import { useStore } from '../state/store'
+import { Select } from './controls/Select'
 import { Modal } from './Modal'
 
 const RESOLUTIONS = [
@@ -160,62 +161,42 @@ export function HqRenderModal() {
       footer={
         <div className="flex items-center justify-between gap-2" style={{ width: '100%' }}>
           <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
-            <select
+            <Select
               className="input"
-              aria-label="Render resolution"
+              ariaLabel="Render resolution"
               value={resId}
-              onChange={(e) => setResId(e.target.value)}
+              onChange={(v) => setResId(v)}
               disabled={busy}
-            >
-              {RESOLUTIONS.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-            <select
+              options={RESOLUTIONS.map((r) => ({ value: r.id, label: r.label }))}
+            />
+            <Select
               className="input"
-              aria-label="Render quality (samples)"
-              value={maxSamples}
-              onChange={(e) => setMaxSamples(Number(e.target.value))}
+              ariaLabel="Render quality (samples)"
+              value={String(maxSamples)}
+              onChange={(v) => setMaxSamples(Number(v))}
               disabled={busy}
-            >
-              {SAMPLE_STEPS.map((n) => (
-                <option key={n} value={n}>
-                  {n} samples
-                </option>
-              ))}
-            </select>
+              options={SAMPLE_STEPS.map((n) => ({ value: String(n), label: `${n} samples` }))}
+            />
             {hasLensControls ? (
               <>
-                <select
+                <Select
                   className="input"
-                  aria-label="Lens focal length"
-                  value={lensFocalMm}
-                  onChange={(e) => setLensFocalMm(Number(e.target.value))}
+                  ariaLabel="Lens focal length"
+                  value={String(lensFocalMm)}
+                  onChange={(v) => setLensFocalMm(Number(v))}
                   disabled={busy}
                   title="Lens focal length (wider = more of the room, longer = tighter perspective)"
-                >
-                  {FOCAL_PRESETS.map((f) => (
-                    <option key={f.mm} value={f.mm}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-                <select
+                  options={FOCAL_PRESETS.map((f) => ({ value: String(f.mm), label: f.label }))}
+                />
+                <Select
                   className="input"
-                  aria-label="Aperture (f-stop)"
-                  value={dofFStop}
-                  onChange={(e) => setDofFStop(Number(e.target.value))}
+                  ariaLabel="Aperture (f-stop)"
+                  value={String(dofFStop)}
+                  onChange={(v) => setDofFStop(Number(v))}
                   disabled={busy}
                   title="Aperture — lower f-stop = shallower depth of field (more background blur)"
-                >
-                  {FSTOP_PRESETS.map((d) => (
-                    <option key={d.v} value={d.v}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
+                  options={FSTOP_PRESETS.map((d) => ({ value: String(d.v), label: d.label }))}
+                />
                 {dofOn ? (
                   <label
                     className="panel-sub flex items-center gap-1"
@@ -254,20 +235,15 @@ export function HqRenderModal() {
                 ) : null}
               </>
             ) : (
-              <select
+              <Select
                 className="input"
-                aria-label="Depth of field"
-                value={dofFStop}
-                onChange={(e) => setDofFStop(Number(e.target.value))}
+                ariaLabel="Depth of field"
+                value={String(dofFStop)}
+                onChange={(v) => setDofFStop(Number(v))}
                 disabled={busy}
                 title="Focus locks on whatever is at the centre of the view"
-              >
-                {DOF_STOPS.map((d) => (
-                  <option key={d.v} value={d.v}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
+                options={DOF_STOPS.map((d) => ({ value: String(d.v), label: d.label }))}
+              />
             )}
           </div>
           <div className="flex items-center gap-2">

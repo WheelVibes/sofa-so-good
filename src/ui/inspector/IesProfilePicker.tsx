@@ -3,6 +3,7 @@ import { useFeature } from '../../features/useFeature'
 import { registerUploadedIes } from '../../lighting/ies/iesStore'
 import { BUNDLED_IES_PROFILES } from '../../lighting/ies/sampleProfiles'
 import { useStore } from '../../state/store'
+import { Select } from '../controls/Select'
 
 /**
  * IES photometric-profile picker for a light-emitting item (PC-IES-LIGHT). Lets
@@ -43,28 +44,25 @@ export function IesProfilePicker({ itemId, value }: { itemId: string; value: str
 
   return (
     <div className="space-y-1" style={{ marginTop: 'var(--s-2)' }}>
-      <label className="flex items-center justify-between gap-2 text-xs">
+      <div className="flex items-center justify-between gap-2 text-xs">
         <span>Photometry (IES)</span>
-        <select
-          aria-label="IES photometric profile"
+        <Select
+          ariaLabel="IES photometric profile"
           className="input"
           value={isCustom ? 'custom' : value}
-          onChange={(e) => {
-            if (e.target.value === 'custom') inputRef.current?.click()
-            else set(e.target.value)
+          onChange={(v) => {
+            if (v === 'custom') inputRef.current?.click()
+            else set(v)
           }}
           style={{ flex: 1, minWidth: 0, fontSize: 'var(--t-xs)' }}
-        >
-          <option value="">None (omni glow)</option>
-          {BUNDLED_IES_PROFILES.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-          {isCustom ? <option value={value}>Uploaded profile</option> : null}
-          <option value="custom">Upload .ies…</option>
-        </select>
-      </label>
+          options={[
+            { value: '', label: 'None (omni glow)' },
+            ...BUNDLED_IES_PROFILES.map((p) => ({ value: p.id, label: p.label })),
+            ...(isCustom ? [{ value, label: 'Uploaded profile' }] : []),
+            { value: 'custom', label: 'Upload .ies…' },
+          ]}
+        />
+      </div>
       <input ref={inputRef} type="file" accept=".ies" hidden onChange={onUpload} />
     </div>
   )

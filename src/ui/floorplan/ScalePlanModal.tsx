@@ -3,6 +3,7 @@ import { type RescaleSpec, resolveRescaleFactor } from '../../floorplan/rescaleP
 import { planTotalArea, wallLength } from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
+import { Select } from '../controls/Select'
 import { Modal } from '../Modal'
 
 type Mode = 'factor' | 'target'
@@ -134,25 +135,23 @@ export function ScalePlanModal({ open, onClose }: { open: boolean; onClose: () =
           </label>
         ) : (
           <>
-            <label className="flex flex-col gap-1 text-xs">
+            <div className="flex flex-col gap-1 text-xs">
               <span className="label">Reference wall</span>
-              <select
+              <Select
                 className="input"
                 value={refWall?.id ?? ''}
-                onChange={(e) => {
-                  setWallId(e.target.value)
-                  const w = walls.find((x) => x.id === e.target.value)
+                onChange={(v) => {
+                  setWallId(v)
+                  const w = walls.find((x) => x.id === v)
                   if (w) setTargetStr(w.len.toFixed(2))
                 }}
-                aria-label="Reference wall"
-              >
-                {walls.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name ?? 'Wall'} — {formatLength(w.len, units)}
-                  </option>
-                ))}
-              </select>
-            </label>
+                ariaLabel="Reference wall"
+                options={walls.map((w) => ({
+                  value: w.id,
+                  label: `${w.name ?? 'Wall'} — ${formatLength(w.len, units)}`,
+                }))}
+              />
+            </div>
             <label className="flex flex-col gap-1 text-xs">
               <span className="label">Real length (m)</span>
               <input

@@ -6,6 +6,15 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   (`.panel`/`.btn`/`.toolbar`/`.menu-item`/`.seg`/`.swatch`/`.cmdk`/`.ctx-menu`/`.toast`/…),
   never Tailwind colour utilities or literal hex. Every surface must read correctly in
   light + dark across all 5 themes.
+- **Form controls are custom, never native `<select>`/`<input type=color>`.** Use the shared
+  `ui/controls/Select.tsx` (themed dropdown — `.input`-styled trigger → anchored `Popover` on
+  desktop / `Modal` sheet on mobile, listbox keyboard + ARIA) and `ui/controls/ColorPicker.tsx`
+  (swatch trigger → SV pad + hue bar + hex + `ThemeColorRows` + recents; HSV math in the pure
+  `ui/controls/colorConvert.ts`, hex via `materials/colorHarmony` `normalizeHex`). Native phone
+  dropdown/colour UIs are off-brand and small native fields trigger the iOS focus-zoom. Text inputs
+  keep their normal small size on mobile — the iOS focus-zoom is suppressed by
+  `controls/iosZoomGuard.ts` (toggles viewport `maximum-scale=1` only while a field is focused),
+  installed once in `main.tsx`; do **not** re-add a blanket `font-size:16px` rule.
 - **Docked side sidebars (desktop).** The scene, toolbar and canvas HUDs live inside `.stage-area`
   (in `App.tsx`); the inspector/finish panels carry a `dock-panel` class and the **catalog** a
   `dock-panel-left` class (it's a sibling of `.stage-area`, not a child, so the rail can shrink the

@@ -2,6 +2,7 @@ import { useFeature } from '../../features/useFeature'
 import { recommendedBlends } from '../../materials/colorHarmony'
 import { effectivePalette, MAX_PALETTE_COLORS } from '../../state/slices/colorPaletteSlice'
 import { useStore } from '../../state/store'
+import { ColorPicker } from '../controls/ColorPicker'
 import { Icon } from '../toolbar/icons'
 
 /**
@@ -77,27 +78,14 @@ function PaletteSlots({
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-1)', flexWrap: 'wrap' }}>
         {palette.map((hex, i) => (
           <span key={`${label}-${i}`} style={{ position: 'relative', width: 32, height: 32 }}>
-            <label
-              className="swatch-lg"
+            <ColorPicker
+              value={/^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#cccccc'}
+              onChange={(next) => setAt(i, next)}
+              ariaLabel={`${label} colour ${i + 1}`}
               title={hex}
-              style={{
-                display: 'block',
-                width: 32,
-                height: 32,
-                cursor: 'pointer',
-                background: hex,
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
-              <input
-                type="color"
-                value={/^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#cccccc'}
-                onChange={(e) => setAt(i, e.target.value)}
-                className="absolute inset-0 cursor-pointer opacity-0"
-                aria-label={`${label} colour ${i + 1}`}
-              />
-            </label>
+              paletteRoomId={null}
+              style={{ width: 32, height: 32 }}
+            />
             <button
               type="button"
               className="coll-x"

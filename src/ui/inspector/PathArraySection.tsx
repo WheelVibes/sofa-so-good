@@ -8,6 +8,7 @@ import {
 } from '../../furniture/pathArray'
 import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
 
 /**
@@ -139,24 +140,22 @@ export function PathArraySection({
       </div>
       {hasPaths ? (
         <>
-          <label className="fld" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div className="fld" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
               Path
             </span>
-            <select
+            <Select
               value={poly?.id ?? ''}
-              onChange={(e) => setSelectedPolyId(e.target.value)}
-              aria-label="Polyline to array along"
+              onChange={(v) => setSelectedPolyId(v)}
+              ariaLabel="Polyline to array along"
               className="input"
               style={{ fontSize: 'var(--t-xs)' }}
-            >
-              {polylines?.map((p, i) => (
-                <option key={p.id} value={p.id}>
-                  {`Polyline ${i + 1}${p.closed ? ' (closed)' : ''} — ${p.points.length} pts`}
-                </option>
-              ))}
-            </select>
-          </label>
+              options={(polylines ?? []).map((p, i) => ({
+                value: p.id,
+                label: `Polyline ${i + 1}${p.closed ? ' (closed)' : ''} — ${p.points.length} pts`,
+              }))}
+            />
+          </div>
           <label className="fld" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
               Count

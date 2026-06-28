@@ -37,6 +37,8 @@ import type { UserGltfDef } from '../../furniture/types'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { parseFurnitureMaterialFinish } from '../../materials/furnitureMaterials'
 import { useStore } from '../../state/store'
+import { ColorPicker } from '../controls/ColorPicker'
+import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { PartInspector } from './PartInspector'
@@ -473,22 +475,17 @@ export function GlbDesignerDialog() {
               <div className="sec-h">
                 <span>Start from</span>
               </div>
-              <select
+              <Select
                 className="input"
-                aria-label="Source model"
+                ariaLabel="Source model"
                 value={spec.sourceAssetId ?? ''}
-                onChange={(e) =>
-                  setSpec((s) => ({ ...s, sourceAssetId: e.target.value || undefined }))
-                }
+                onChange={(v) => setSpec((s) => ({ ...s, sourceAssetId: v || undefined }))}
                 style={{ width: '100%' }}
-              >
-                <option value="">Blank (compose from shapes)</option>
-                {userGlbs.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Blank (compose from shapes)' },
+                  ...userGlbs.map((d) => ({ value: d.id, label: d.name })),
+                ]}
+              />
               {spec.sourceAssetId ? (
                 <label className="fld" style={{ marginTop: 'var(--s-2)' }}>
                   <span>Scale ×{spec.sourceScale.toFixed(2)}</span>
@@ -517,13 +514,10 @@ export function GlbDesignerDialog() {
                     const ov = spec.meshOverrides[mn] ?? {}
                     return (
                       <div key={mn} className="lyr-row" style={{ gap: 'var(--s-2)' }}>
-                        <input
-                          type="color"
+                        <ColorPicker
                           value={ov.color ?? '#cccccc'}
-                          aria-label={`Recolour ${mn}`}
-                          onChange={(e) =>
-                            setSpec((s) => setMeshOverride(s, mn, { color: e.target.value }))
-                          }
+                          ariaLabel={`Recolour ${mn}`}
+                          onChange={(hex) => setSpec((s) => setMeshOverride(s, mn, { color: hex }))}
                           disabled={ov.hidden}
                         />
                         <span className="lyr-nm" title={mn}>
@@ -655,22 +649,20 @@ export function GlbDesignerDialog() {
                 <div className="sec-h">
                   <span>Combine (boolean)</span>
                 </div>
-                <select
+                <Select
                   className="input"
-                  aria-label="Combine with"
+                  ariaLabel="Combine with"
                   value={combineWithId}
-                  onChange={(e) => setCombineId(e.target.value)}
+                  onChange={(v) => setCombineId(v)}
                   style={{ width: '100%', marginBottom: 'var(--s-2)' }}
-                >
-                  <option value="">with…</option>
-                  {spec.parts.map((p, i) =>
-                    p.id === sel.id ? null : (
-                      <option key={p.id} value={p.id}>
-                        {p.kind} {i + 1}
-                      </option>
-                    ),
-                  )}
-                </select>
+                  options={[
+                    { value: '', label: 'with…' },
+                    ...spec.parts
+                      .map((p, i) => ({ p, i }))
+                      .filter(({ p }) => p.id !== sel.id)
+                      .map(({ p, i }) => ({ value: p.id, label: `${p.kind} ${i + 1}` })),
+                  ]}
+                />
                 <div className="action-grid two">
                   {CSG_OPS.map(({ op, label }) => (
                     <button
@@ -706,30 +698,26 @@ export function GlbDesignerDialog() {
                 placeholder="Asset name"
                 style={{ width: '100%', marginBottom: 'var(--s-2)' }}
               />
-              <select
+              <Select
                 className="input"
-                aria-label="Asset category"
+                ariaLabel="Asset category"
                 value={category}
-                onChange={(e) => setCategory(e.target.value as FurnitureCategory)}
+                onChange={(v) => setCategory(v as FurnitureCategory)}
                 style={{ width: '100%', marginBottom: 'var(--s-2)' }}
-              >
-                {FURNITURE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-              <select
+                options={FURNITURE_CATEGORIES.map((c) => ({ value: c, label: c }))}
+              />
+              <Select
                 className="input"
-                aria-label="Placement type"
+                ariaLabel="Placement type"
                 value={placement}
-                onChange={(e) => setPlacement(e.target.value as typeof placement)}
+                onChange={(v) => setPlacement(v as typeof placement)}
                 style={{ width: '100%', marginBottom: 'var(--s-2)' }}
-              >
-                <option value="floor">Stands on the floor</option>
-                <option value="wall">Mounts on a wall</option>
-                <option value="floorCovering">Floor covering (rug — never blocks)</option>
-              </select>
+                options={[
+                  { value: 'floor', label: 'Stands on the floor' },
+                  { value: 'wall', label: 'Mounts on a wall' },
+                  { value: 'floorCovering', label: 'Floor covering (rug — never blocks)' },
+                ]}
+              />
               {spec.sourceAssetId ? (
                 <label
                   className="row"
