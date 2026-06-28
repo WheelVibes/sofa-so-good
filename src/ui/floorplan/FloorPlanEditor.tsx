@@ -2304,25 +2304,74 @@ export function FloorPlanEditor() {
                   tool === 'select' &&
                   r.polygon &&
                   r.polygon.length >= 3
-                    ? r.polygon.map(([vx, vz], i) => (
-                        <circle
-                          key={`pv-${r.id}-${i}`}
-                          data-poly-vertex={`${r.id}:${i}`}
-                          cx={toPx(vx)}
-                          cy={toPx(vz)}
-                          r={5}
-                          fill="var(--accent)"
-                          stroke="var(--surface)"
-                          strokeWidth={1.5}
-                          style={{ cursor: 'grab' }}
-                          onPointerDown={(e) => {
-                            e.stopPropagation()
-                            a.setPlanSelection({ type: 'room', id: r.id })
-                            setMovingPolyVertex({ id: r.id, index: i })
-                            svgRef.current?.setPointerCapture(e.pointerId)
-                          }}
-                        />
-                      ))
+                    ? [
+                        // Edge-midpoint "+" handles: click to insert a vertex on
+                        // that edge and immediately drag it (so a rectangle can
+                        // grow an L / bay). Rendered first so vertex handles sit
+                        // on top where they coincide.
+                        ...(r.polygon as [number, number][]).map(([vx, vz], i) => {
+                          const poly = r.polygon as [number, number][]
+                          const [nx, nz] = poly[(i + 1) % poly.length]
+                          const mx = (vx + nx) / 2
+                          const mz = (vz + nz) / 2
+                          return (
+                            <circle
+                              key={`pm-${r.id}-${i}`}
+                              data-poly-midpoint={`${r.id}:${i}`}
+                              cx={toPx(mx)}
+                              cy={toPx(mz)}
+                              r={3.5}
+                              fill="var(--surface)"
+                              stroke="var(--accent)"
+                              strokeWidth={1.5}
+                              style={{ cursor: 'copy' }}
+                              onPointerDown={(e) => {
+                                e.stopPropagation()
+                                const next = [...poly]
+                                next.splice(i + 1, 0, [mx, mz])
+                                const { origin, width, depth } = rectFromVerts(next)
+                                a.setPlanSelection({ type: 'room', id: r.id })
+                                useStore
+                                  .getState()
+                                  .updateRoom(r.id, { polygon: next, origin, width, depth })
+                                setMovingPolyVertex({ id: r.id, index: i + 1 })
+                                svgRef.current?.setPointerCapture(e.pointerId)
+                              }}
+                            />
+                          )
+                        }),
+                        // Vertex handles: drag to move, double-click to remove
+                        // (kept ≥ 3 so the room stays a polygon).
+                        ...(r.polygon as [number, number][]).map(([vx, vz], i) => (
+                          <circle
+                            key={`pv-${r.id}-${i}`}
+                            data-poly-vertex={`${r.id}:${i}`}
+                            cx={toPx(vx)}
+                            cy={toPx(vz)}
+                            r={5}
+                            fill="var(--accent)"
+                            stroke="var(--surface)"
+                            strokeWidth={1.5}
+                            style={{ cursor: 'grab' }}
+                            onPointerDown={(e) => {
+                              e.stopPropagation()
+                              a.setPlanSelection({ type: 'room', id: r.id })
+                              setMovingPolyVertex({ id: r.id, index: i })
+                              svgRef.current?.setPointerCapture(e.pointerId)
+                            }}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation()
+                              const poly = r.polygon as [number, number][]
+                              if (poly.length <= 3) return
+                              const next = poly.filter((_, j) => j !== i)
+                              const { origin, width, depth } = rectFromVerts(next)
+                              useStore
+                                .getState()
+                                .updateRoom(r.id, { polygon: next, origin, width, depth })
+                            }}
+                          />
+                        )),
+                      ]
                     : null}
                   {(() => {
                     // Progressive detail by on-screen room size: full (name +

@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Polygon rooms: add / remove vertices (v0.6.0.9)
+
+A polygon (non-rectangular) room could already have its vertices **dragged**; now its shape is fully
+editable in the 2D plan editor. Each edge gets a hollow **midpoint handle** — click it to insert a new
+vertex there and immediately drag it (grow a rectangle into an L / bay). **Double-click** a vertex
+handle to remove it (kept ≥ 3 so the room stays a polygon). Both reuse the existing
+`rectFromVerts` + `updateRoom` commit path that keeps the room's bbox (origin/width/depth) in sync with
+the polygon. Verified in the editor — a selected room shows its corner + midpoint handles.
+
 ## Openings on sloped walls (v0.6.0.8)
 
 Doors and windows can now sit on **sloped** (shed/mono-pitch) walls — previously the editor refused them
