@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { Group, Mesh } from 'three'
-import { getFabricMaterial } from '../../materials/furnitureMaterials'
+import { getDraperyMaterial } from '../../materials/furnitureMaterials'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
@@ -28,12 +28,16 @@ export function RollerBlind({ props }: { props: ParamProps }) {
   const maxDrop = readNum(props, 'drop', 1.7)
   const color = readStr(props, 'color', '#d8d2c4')
   const kind = readStr(props, 'kind', 'roller')
+  const pattern = readStr(props, 'pattern', 'plain')
+  const fabric = readStr(props, 'material', 'cotton')
   // Target lower fraction: explicit `lower` wins; legacy plans default to 1
   // (fully lowered to their stored `drop`).
   const lowerProp = props.lower
   const target = typeof lowerProp === 'number' ? Math.min(1, Math.max(0, lowerProp)) : 1
 
-  const fabricMat = getFabricMaterial(color)
+  // Fabric-only weave (cotton/linen/sheer/velvet) with the tone-on-tone pattern;
+  // the roller panel is a box (visible both sides) so it needn't be double-sided.
+  const fabricMat = getDraperyMaterial(fabric, color, pattern)
   const cassetteY = height - 0.04
   const fabricTop = cassetteY - 0.04
   const metal = { color: '#9a9da2', roughness: 0.4, metalness: 0.6 } as const

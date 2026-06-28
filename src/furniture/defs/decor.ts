@@ -197,7 +197,35 @@ export const DECOR_DEFS = {
         step: 0.05,
         default: 1,
       },
-      { kind: 'color', key: 'color', label: 'Fabric', default: '#d8d2c4' },
+      {
+        // Fabric weave — fabric-only (a blind's shade is cloth); reuses the
+        // shared tone-on-tone pattern set below. Applies to the roller panel.
+        kind: 'enum',
+        key: 'material',
+        label: 'Fabric',
+        default: 'cotton',
+        options: [
+          { value: 'cotton', label: 'Cotton' },
+          { value: 'linen', label: 'Linen' },
+          { value: 'sheer', label: 'Sheer' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'pattern',
+        label: 'Pattern',
+        default: 'plain',
+        options: [
+          { value: 'plain', label: 'Plain' },
+          { value: 'striped', label: 'Striped' },
+          { value: 'herringbone', label: 'Herringbone' },
+          { value: 'checkered', label: 'Checkered' },
+          { value: 'plaid', label: 'Plaid' },
+          { value: 'dots', label: 'Dots' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#d8d2c4' },
       {
         kind: 'enum',
         key: 'kind',

@@ -111,7 +111,21 @@ export const TEXTILES_DEFS = {
           { value: 'sill', label: 'Sill length' },
         ],
       },
-      { kind: 'color', key: 'color', label: 'Fabric', default: '#c4b9a6' },
+      {
+        // Fabric weave — fabric-only by design (drapery is cloth; no wood/stone).
+        // Reuses the shared tone-on-tone pattern set below.
+        kind: 'enum',
+        key: 'material',
+        label: 'Fabric',
+        default: 'cotton',
+        options: [
+          { value: 'cotton', label: 'Cotton' },
+          { value: 'linen', label: 'Linen' },
+          { value: 'sheer', label: 'Sheer' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#c4b9a6' },
       {
         // Draw the curtains with a smooth animation (CURTAIN-DRAW): 0 = open
         // (tied back, exterior light filters in), 1 = drawn (covers the window).
@@ -128,7 +142,7 @@ export const TEXTILES_DEFS = {
       {
         kind: 'enum',
         key: 'pattern',
-        label: 'Weave',
+        label: 'Pattern',
         default: 'plain',
         options: [
           { value: 'plain', label: 'Plain' },

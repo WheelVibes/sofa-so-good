@@ -63,6 +63,10 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   no-op.
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
+  **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the
+  **fabric-only** mapper for curtains/blinds (cotton/linen/sheer/velvet — never wood/stone), reusing
+  the tone-on-tone `getPatternTexture` set; `sheer` uses `getFabricMaterial`'s `opacity` arg and
+  velvet uses `getVelvetMaterial`'s `doubleSided` arg (both cache-keyed, default-unchanged).
   Don't invent bespoke texture art — apply a CC0 DLC material over the procedural fallback.
   The procedural micro-textures (256² shared singletons, tinted via `material.color`) get their
   higher-fidelity variants — plank wood, woven fabric, painted micro-normal — behind the

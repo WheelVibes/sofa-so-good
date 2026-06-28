@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Curtains & blinds are customizable fabric surfaces — weave + pattern + colour (v0.6.0.26)
+
+Curtains and blinds can now be customized like surfaces, but **fabric-only** (drapery is cloth, so
+wood/stone/metal never apply) while reusing the shared procedural **pattern** set:
+
+- A new **Fabric** weave control on both — `Cotton` (default), `Linen` (matter/coarser), `Sheer`
+  (translucent — it now renders see-through AND drives the window light-filtering via
+  `windowLightModifiers`), or `Velvet` (sheen-rich pile).
+- **Pattern** (Plain / Striped / Herringbone / Checkered / Plaid / Dots) now applies to **blinds**
+  too (previously curtains-only), reusing the existing tone-on-tone fabric patterns; the curtain
+  pattern control was relabelled `Pattern` and its colour `Colour` (was the ambiguous "Fabric").
+- A shared `materials/furnitureMaterials.ts:getDraperyMaterial(kind, color, pattern, doubleSided)`
+  centralizes the fabric-only mapping; `getFabricMaterial` gained an `opacity` arg (sheer) and
+  `getVelvetMaterial` a `doubleSided` arg (draped velvet seen from both sides) — both cache-keyed,
+  existing callers byte-identical.
+
+Verified: a row of curtains in cotton-stripe, linen-plaid, translucent sheer, and velvet renders
+distinctly, plus a dotted roller blind — all fabric, patterns reused.
+
 ## Per-room editor walls fade like orbit mode (translucent reveal) (v0.6.0.25)
 
 The per-room editor's walls now use the **same camera-facing wall reveal as orbit mode** instead of a

@@ -23,7 +23,11 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `drawAmount` 0 = open/clear, 1 = drawn) and `RollerBlind` **raises/lowers** (`lower` 0 = up, 1 =
   down); both ease in demand mode (hold `registerAnimatedSource` only while moving). The closed amount
   (curtain `drawAmount` / blind `lower`) feeds `windowLightModifiers.curtainDrawAmount` for graduated
-  daylight attenuation.
+  daylight attenuation. Both are customizable as **fabric surfaces** (CURTAIN-FABRIC): a `material`
+  weave (cotton/linen/sheer/velvet — **fabric only**, no wood/stone) + a `pattern` (the shared
+  tone-on-tone set, now on blinds too) + `color`, mapped via
+  `materials/furnitureMaterials.ts:getDraperyMaterial` (`sheer` renders translucent and also reads as
+  sheer in `windowLightModifiers`).
 - **Categories**: 15 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected

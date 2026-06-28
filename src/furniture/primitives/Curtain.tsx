@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { type BufferGeometry, type Group, PlaneGeometry } from 'three'
-import { getFabricMaterial } from '../../materials/furnitureMaterials'
+import { getDraperyMaterial } from '../../materials/furnitureMaterials'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
@@ -74,6 +74,7 @@ export function Curtain({ props }: { props: ParamProps }) {
   const height = readNum(props, 'height', 2.75)
   const color = readStr(props, 'color', '#c4b9a6')
   const pattern = readStr(props, 'pattern', 'plain')
+  const fabric = readStr(props, 'material', 'cotton')
   // Target draw: explicit `drawAmount` wins; else the legacy `style` flag.
   const drawAmountProp = props.drawAmount
   const target =
@@ -82,8 +83,9 @@ export function Curtain({ props }: { props: ParamProps }) {
       : readStr(props, 'style', 'drawn') === 'open'
         ? 0
         : 1
-  // Double-sided: a draped sheet reads from inside the room AND through the glass.
-  const fabricMat = getFabricMaterial(color, 0.95, pattern, true)
+  // Fabric-only weave (cotton/linen/sheer/velvet) honouring the tone-on-tone
+  // pattern; double-sided so the draped sheet reads from inside AND through glass.
+  const fabricMat = getDraperyMaterial(fabric, color, pattern, true)
 
   // Hem (bottom of the drop): floor-to-ceiling reaches the floor (0); sill-length
   // stops just below the window sill (`sillY`, set by placement; ~0.9 fallback).
