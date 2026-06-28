@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { resolveFlags } from '../features/flags/resolve'
 import { FloorPlanZ } from '../state/schema'
 
-describe('elementColors feature flag', () => {
+describe('elementColors + openingStyles feature flags', () => {
   // Simple-tier + default-on → visible in BOTH modes (CLAUDE.md: tier-dependent
   // visibility must be tested in Simple and Pro).
-  it('is enabled in both Simple and Pro mode', () => {
-    expect(resolveFlags(true, {}, false, 'simple').elementColors).toBe(true)
-    expect(resolveFlags(true, {}, false, 'pro').elementColors).toBe(true)
+  it('are enabled in both Simple and Pro mode', () => {
+    for (const mode of ['simple', 'pro'] as const) {
+      const f = resolveFlags(true, {}, false, mode)
+      expect(f.elementColors).toBe(true)
+      expect(f.openingStyles).toBe(true)
+    }
   })
 })
 
@@ -37,6 +40,7 @@ describe('per-element colour persistence (schema round-trip)', () => {
         sill: 0,
         head: 2,
         color: '#3366cc',
+        style: 'glazed',
       },
       {
         id: 'o2',
@@ -47,13 +51,16 @@ describe('per-element colour persistence (schema round-trip)', () => {
         sill: 0.9,
         head: 2.1,
         color: '#88ddff',
+        style: 'grille',
       },
     ],
   }
 
-  it('round-trips a per-wall colour and door/window colours', () => {
+  it('round-trips a per-wall colour and door/window colours + styles', () => {
     const parsed = FloorPlanZ.parse(plan)
     expect(parsed.walls[0].color).toBe('#ff8800')
+    expect(parsed.openings[0].style).toBe('glazed')
+    expect(parsed.openings[1].style).toBe('grille')
     expect(parsed.openings[0].color).toBe('#3366cc')
     expect(parsed.openings[1].color).toBe('#88ddff')
   })

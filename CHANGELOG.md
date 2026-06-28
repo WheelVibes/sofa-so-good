@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Door & window styles (panel/flush/glazed · plain/grille/louvre) (v0.6.0.7)
+
+Doors and windows were a single hardcoded type. Add a **Style** picker per opening (`openingStyles`,
+simple tier) in the plan inspector: doors choose **Panelled** (default recessed panels) / **Flush**
+(plain slab) / **Glazed** (frosted upper vision panel); windows choose **Plain glass** (default) /
+**Safety grille** (vertical bars, HDB-standard) / **Louvre** (horizontal slats). New optional `style`
+on `PlanOpening` (round-tripped through the save schema); rendered as pure procedural geometry by
+`PlanDoorLeaf` (panel/glaze branches) and `PlanShell`'s `FadeWindow` (grille/louvre bars). Verified in
+3D — perimeter windows show grille bars; tested in both Simple + Pro + schema round-trip.
+
 ## Furniture: precise rotation + numeric elevation entry (v0.6.0.6)
 
 Rounds out the *position* axis. The Transform rotation field stepped in 15° jumps — now 1° (any whole

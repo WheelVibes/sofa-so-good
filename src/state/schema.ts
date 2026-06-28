@@ -217,6 +217,8 @@ const PlanOpeningZ = z.object({
   swing: z.enum(['left', 'right']).optional(),
   // Optional door-leaf / window-glass colour (elementColors) — additive, back-compat.
   color: z.string().optional(),
+  // Optional door/window style/type (openingStyles) — additive, back-compat.
+  style: z.string().optional(),
 })
 const PlanRoomZ = z.object({
   id: z.string(),

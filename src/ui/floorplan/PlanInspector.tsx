@@ -249,6 +249,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const floorTextureOn = useFeature('floorTexture')
   const roomInsetOn = useFeature('roomInset')
   const elementColorsOn = useFeature('elementColors')
+  const openingStylesOn = useFeature('openingStyles')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -1096,6 +1097,34 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               </div>
             </>
           )}
+          {openingStylesOn ? (
+            <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+              <span className="label">Style</span>
+              <select
+                className="input"
+                style={{ marginLeft: 'auto', maxWidth: '56%' }}
+                value={o.style ?? (o.kind === 'door' ? 'panel' : 'plain')}
+                onChange={(e) => a.updateOpening(o.id, { style: e.target.value }, levelId)}
+              >
+                {(o.kind === 'door'
+                  ? [
+                      ['panel', 'Panelled'],
+                      ['flush', 'Flush'],
+                      ['glazed', 'Glazed'],
+                    ]
+                  : [
+                      ['plain', 'Plain glass'],
+                      ['grille', 'Safety grille'],
+                      ['louvre', 'Louvre'],
+                    ]
+                ).map(([v, label]) => (
+                  <option key={v} value={v}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           {elementColorsOn ? (
             <label className="flex items-center justify-between gap-2 text-xs">
               <span className="label">{o.kind === 'door' ? 'Leaf colour' : 'Glass tint'}</span>

@@ -24,6 +24,10 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (`PlanWallZ`/`PlanOpeningZ`), and rendered by `PlanShell` (`FadeWall`/`SlopedWallMesh`/`FadeWindow`) +
   `PlanDoorLeaf`. Adding another per-element appearance field follows the same additive shape (no
   version bump).
+- **Door/window styles (`openingStyles`):** `PlanOpening.style` selects a door type
+  (`panel`/`flush`/`glazed`) or window type (`plain`/`grille`/`louvre`), rendered as pure procedural
+  geometry by `PlanDoorLeaf` (panel/glaze branches) and `PlanShell`'s `FadeWindow` (grille/louvre bars);
+  same additive schema shape as `color`.
 - Geometry stays **pure + unit-tested** here (no three/React imports beyond types).
 - **Whole-plan transforms scale ALL storeys about one anchor.** `rescalePlan.ts`
   (PARITY-PLAN-SCALE) multiplies every wall endpoint / room polygon / opening

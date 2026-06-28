@@ -161,25 +161,41 @@ export function PlanDoorLeaf({
             <boxGeometry args={[opening.width, height, LEAF_THICK]} />
             <meshStandardMaterial color={opening.color ?? DEFAULT_LEAF} roughness={0.7} />
           </mesh>
-          {/* Recessed panels (two per face) for a panelled-door look. */}
-          {[1, -1].map((face) =>
-            [
-              { y: height * 0.24, h: height * 0.34 },
-              { y: -height * 0.22, h: height * 0.42 },
-            ].map((p, i) => (
-              <mesh
-                key={`${face}.${i}`}
-                position={[0, p.y, face * (LEAF_THICK / 2 + 0.001)]}
-                rotation={[0, face === 1 ? 0 : Math.PI, 0]}
-              >
-                <planeGeometry args={[opening.width * 0.62, p.h]} />
-                <meshStandardMaterial
-                  color={opening.color ? shade(opening.color, 0.82) : DEFAULT_PANEL}
-                  roughness={0.75}
-                />
-              </mesh>
-            )),
-          )}
+          {/* Recessed panels (two per face) for a panelled-door look — the
+              default 'panel' style only; 'flush' is a plain slab. */}
+          {(opening.style ?? 'panel') === 'panel'
+            ? [1, -1].map((face) =>
+                [
+                  { y: height * 0.24, h: height * 0.34 },
+                  { y: -height * 0.22, h: height * 0.42 },
+                ].map((p, i) => (
+                  <mesh
+                    key={`${face}.${i}`}
+                    position={[0, p.y, face * (LEAF_THICK / 2 + 0.001)]}
+                    rotation={[0, face === 1 ? 0 : Math.PI, 0]}
+                  >
+                    <planeGeometry args={[opening.width * 0.62, p.h]} />
+                    <meshStandardMaterial
+                      color={opening.color ? shade(opening.color, 0.82) : DEFAULT_PANEL}
+                      roughness={0.75}
+                    />
+                  </mesh>
+                )),
+              )
+            : null}
+          {/* 'glazed': a frosted glass vision panel in the upper third. */}
+          {opening.style === 'glazed' ? (
+            <mesh position={[0, height * 0.22, 0]}>
+              <boxGeometry args={[opening.width * 0.62, height * 0.4, LEAF_THICK + 0.004]} />
+              <meshStandardMaterial
+                color="#cddbe4"
+                transparent
+                opacity={0.55}
+                roughness={0.25}
+                metalness={0}
+              />
+            </mesh>
+          ) : null}
         </group>
         {/* Handle. */}
         <group position={[direction * (opening.width - 0.06), Math.min(0.95, height - 0.1), 0]}>

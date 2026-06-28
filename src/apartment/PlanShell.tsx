@@ -438,6 +438,8 @@ function PlanLevelShell({
           revealable: wall.thickness === 'external',
           // Optional per-window glass tint (elementColors); absent = cool default.
           glassTint: o.color,
+          // Optional window style (openingStyles): plain / grille / louvre.
+          style: o.style,
         }
       })
       .filter((x): x is NonNullable<typeof x> => x != null)
@@ -640,6 +642,7 @@ function FadeWindow({
     angle: number
     revealable: boolean
     glassTint?: string
+    style?: string
   }
   cx: number
   cz: number
@@ -692,19 +695,44 @@ function FadeWindow({
     mat.opacity += (target - mat.opacity) * 0.18
     if (Math.abs(mat.opacity - target) > 0.003) invalidate()
   })
+  // Optional safety grille (vertical bars) or louvre (horizontal slats) over the
+  // glass — pure thin geometry in the window plane (local Z = width, Y = height).
+  const style = win.style ?? 'plain'
+  const bars: { pos: [number, number, number]; size: [number, number, number] }[] = []
+  if (style === 'grille') {
+    const n = Math.max(2, Math.round(win.width / 0.16))
+    for (let i = 1; i < n; i++) {
+      const z = -win.width / 2 + (win.width * i) / n
+      bars.push({ pos: [0, 0, z], size: [0.018, win.height * 0.98, 0.012] })
+    }
+  } else if (style === 'louvre') {
+    const n = Math.max(3, Math.round(win.height / 0.14))
+    for (let i = 0; i < n; i++) {
+      const y = -win.height / 2 + (win.height * (i + 0.5)) / n
+      bars.push({ pos: [0, y, 0], size: [0.05, 0.02, win.width * 0.98] })
+    }
+  }
   return (
-    <mesh ref={ref} position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>
-      <boxGeometry args={[0.03, win.height, win.width]} />
-      <meshStandardMaterial
-        color="#bcd4e6"
-        emissive={GLASS_SKYCATCH_COLOR}
-        emissiveIntensity={0.4}
-        transparent
-        opacity={0.32}
-        roughness={0.1}
-        metalness={0}
-      />
-    </mesh>
+    <group position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>
+      <mesh ref={ref}>
+        <boxGeometry args={[0.03, win.height, win.width]} />
+        <meshStandardMaterial
+          color="#bcd4e6"
+          emissive={GLASS_SKYCATCH_COLOR}
+          emissiveIntensity={0.4}
+          transparent
+          opacity={0.32}
+          roughness={0.1}
+          metalness={0}
+        />
+      </mesh>
+      {bars.map((b, i) => (
+        <mesh key={i} position={b.pos} castShadow>
+          <boxGeometry args={b.size} />
+          <meshStandardMaterial color="#cfd2d4" roughness={0.5} metalness={0.4} />
+        </mesh>
+      ))}
+    </group>
   )
 }
 

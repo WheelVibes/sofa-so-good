@@ -88,6 +88,11 @@ export interface PlanOpening {
    *  default timber / cool-glass look. Edited in the 2D plan inspector
    *  (`elementColors`). */
   color?: string
+  /** Optional style/type (`openingStyles`). Doors: `panel` (default, recessed
+   *  panels) / `flush` (plain slab) / `glazed` (upper vision panel). Windows:
+   *  `plain` (default glass) / `grille` (vertical safety bars) / `louvre`
+   *  (horizontal slats). Absent = the default for the kind. */
+  style?: string
 }
 
 export interface PlanRoom {

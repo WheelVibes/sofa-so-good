@@ -778,6 +778,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Door / window style picker (CUSTOMIZE-STYLE): panel/flush/glazed doors and
+  // plain/grille/louvre windows, chosen per opening in the plan inspector. Pure
+  // procedural geometry rendered by PlanDoorLeaf / PlanShell → prod-safe. Part of
+  // making every fitting customizable, useful to a casual user → simple tier.
+  openingStyles: {
+    label: 'Door & window styles',
+    description: 'Choose a door style (panel / flush / glazed) and window style (grille / louvre)',
+    default: true,
+    tier: 'simple',
+  },
   // Tiled-floor repetition break-up (RD-406 / MAT-006a): a large tiled floor
   // gets a pure per-tile-cell UV hash-rotation (90°/180°/270°) + sub-tile offset
   // so adjacent tiles stop aligning into the "obvious grid" tell — pure UV math,

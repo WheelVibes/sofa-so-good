@@ -103,6 +103,7 @@ export type FeatureFlag =
   | 'roomInset'
   | 'tileBreakup'
   | 'elementColors'
+  | 'openingStyles'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
