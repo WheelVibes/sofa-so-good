@@ -1,0 +1,58 @@
+{
+  "name": "curtain-window-snap",
+  "description": "Verify window-bound curtains snap onto a window opening: compute the snap transform for a real window from the plan walls/openings (mirrors snapToNearestWindow), place a curtain there, and screenshot in orbit daytime to confirm it sits flush on the window facing the room interior.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "place-curtains-on-all-windows",
+      "eval": "(function(){ const s=window.__store.getState(); const plan=s.floorPlan; const walls=plan.walls; const wins=plan.openings.filter(o=>o.kind==='window'); if(!wins.length) throw new Error('no windows in default plan'); const cx=plan.extent[0]/2, cz=plan.extent[1]/2; const byId=new Map(walls.map(w=>[w.id,w])); const items=wins.map((op,idx)=>{ const wall=byId.get(op.wallId); if(!wall) return null; const dx=wall.end[0]-wall.start[0], dz=wall.end[1]-wall.start[1]; const len=Math.hypot(dx,dz); const ux=dx/len, uz=dz/len; const cd=op.offset+op.width/2; const wx=wall.start[0]+ux*cd, wz=wall.start[1]+uz*cd; let rot=-Math.atan2(dz,dx); const nx=-uz, nz=ux; const ddx=cx-wx, ddz=cz-wz; if(ddx*nx+ddz*nz<0) rot+=Math.PI; return {id:'snap-curtain-'+idx,defId:'curtains',position:[wx,wz],rotation:rot,props:{width:op.width+0.2,height:op.head,color:'#b03a3a',drawAmount:1}}; }).filter(Boolean); s.setItems(items); window.__snapCount=items.length; })()"
+    },
+    {
+      "name": "wait-mount",
+      "wait": 2000
+    },
+    {
+      "name": "verify-placed",
+      "waitFor": { "store": "state.items.filter(it=>it.id.startsWith('snap-curtain')).length > 0" },
+      "timeout": 5000,
+      "failMessage": "curtains not placed"
+    },
+    {
+      "name": "home-view",
+      "eval": "window.__store.getState().requestHomeView?.()"
+    },
+    {
+      "name": "wait-home",
+      "wait": 2000
+    },
+    {
+      "name": "shot-curtains-overview",
+      "screenshot": "01-curtains-overview"
+    },
+    {
+      "name": "top-view",
+      "eval": "window.__store.getState().requestTopView?.()"
+    },
+    {
+      "name": "wait-top",
+      "wait": 2000
+    },
+    {
+      "name": "shot-curtains-top",
+      "screenshot": "02-curtains-top"
+    }
+  ]
+}
