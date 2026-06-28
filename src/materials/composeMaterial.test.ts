@@ -94,7 +94,11 @@ describe('tintMaterial (recolour an existing material)', () => {
     const id = tintMaterialId('floor-wood-oak', '#3aa0ff')
     expect(id).toBe('tint:floor-wood-oak:#3aa0ff')
     expect(isTintMaterialId(id)).toBe(true)
-    expect(parseTintMaterialId(id)).toEqual({ baseId: 'floor-wood-oak', color: '#3aa0ff' })
+    expect(parseTintMaterialId(id)).toEqual({
+      baseId: 'floor-wood-oak',
+      color: '#3aa0ff',
+      scale: 1,
+    })
   })
 
   it('keeps a colon-bearing base id intact (provider slug)', () => {
@@ -102,6 +106,7 @@ describe('tintMaterial (recolour an existing material)', () => {
     expect(parseTintMaterialId(id)).toEqual({
       baseId: 'polyhaven:wood_floor_deck',
       color: '#cc8844',
+      scale: 1,
     })
   })
 
@@ -130,5 +135,49 @@ describe('tintMaterial (recolour an existing material)', () => {
 
   it('returns null for a malformed tint id', () => {
     expect(tintedMaterialDef('tint:bad', proceduralBase)).toBeNull()
+  })
+})
+
+describe('tile-scale parameter (CUSTOMIZE-MATERIAL-PARAMS)', () => {
+  it('omits the @scale suffix at scale 1 (back-compat)', () => {
+    expect(composeMaterialId('wood', '#b88f5d', 1)).toBe('compose:wood:#b88f5d')
+    expect(tintMaterialId('floor-wood-oak', '#3aa0ff', 1)).toBe('tint:floor-wood-oak:#3aa0ff')
+  })
+
+  it('round-trips a composed scale and multiplies the uvScale', () => {
+    const id = composeMaterialId('wood', '#b88f5d', 2)
+    expect(id).toBe('compose:wood:#b88f5d@2')
+    const parts = parseComposedMaterialId(id)
+    expect(parts?.scale).toBe(2)
+    // wood default uvScale is [1.9, 1.2] → doubled.
+    const def = composedMaterialDef(id)
+    expect(def?.uvScale).toEqual([3.8, 2.4])
+  })
+
+  it('round-trips a tint scale and multiplies the base uvScale', () => {
+    const base: MaterialDef = {
+      id: 'floor-wood-oak',
+      name: 'Oak planks',
+      category: 'floor',
+      kind: 'procedural',
+      pattern: 'wood',
+      swatch: '#b88f5d',
+      uvScale: [2, 2],
+    }
+    const id = tintMaterialId('floor-wood-oak', '#3aa0ff', 0.5)
+    expect(parseTintMaterialId(id)?.scale).toBe(0.5)
+    const def = tintedMaterialDef(id, base)
+    if (def?.kind === 'procedural') expect(def.uvScale).toEqual([1, 1]) // [2,2] × 0.5
+  })
+
+  it('clamps an out-of-range or non-finite scale', () => {
+    expect(parseComposedMaterialId('compose:wood:#b88f5d@99')?.scale).toBe(4)
+    expect(parseComposedMaterialId('compose:wood:#b88f5d@0')?.scale).toBe(1)
+    expect(parseComposedMaterialId('compose:wood:#b88f5d@x')?.scale).toBe(1)
+  })
+
+  it('legacy ids without @scale parse as scale 1', () => {
+    expect(parseComposedMaterialId('compose:tile:#ffffff')?.scale).toBe(1)
+    expect(parseTintMaterialId('tint:floor-wood-oak:#3aa0ff')?.scale).toBe(1)
   })
 })

@@ -25,6 +25,14 @@ describe('ceilingFinish feature flag (simple tier)', () => {
   })
 })
 
+describe('saveMaterials feature flag (simple tier)', () => {
+  it('is enabled in both Simple and Pro mode', () => {
+    for (const mode of ['simple', 'pro'] as const) {
+      expect(resolveFlags(true, {}, false, mode).saveMaterials).toBe(true)
+    }
+  })
+})
+
 describe('resolvePlanRoomCeiling read order', () => {
   const room = (over: Partial<PlanRoom> = {}): PlanRoom => ({
     id: 'r1',

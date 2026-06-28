@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ROOMS, roomArea } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
@@ -247,7 +247,28 @@ export function FinishPicker() {
   const fRemoteMaterials = useFeature('remoteMaterials')
   const fDesignerPicks = useFeature('designerPicks')
   const fComposer = useFeature('materialComposer')
+  const fSaveMaterials = useFeature('saveMaterials')
   const materials = useMaterials()
+  const savedMaterials = useStore(useShallow((s) => s.savedMaterials))
+  const saveMaterial = useStore((s) => s.saveMaterial)
+  const removeSavedMaterial = useStore((s) => s.removeSavedMaterial)
+  // Set of saved-material finish ids, so the picker grid can badge them as the
+  // user's own + route their remove (X) to the saved-materials slice.
+  const savedIds = useMemo(() => new Set(savedMaterials.map((m) => m.finishId)), [savedMaterials])
+  const savedNameFor = (finishId: string): string | undefined =>
+    savedMaterials.find((m) => m.finishId === finishId)?.name
+  // A saved custom material (compose:/tint:/#hex id) removes from the saved
+  // slice; an uploaded textured material removes from userMaterials + IDB.
+  const removeUserOrSaved = (id: string) => {
+    if (savedIds.has(id)) removeSavedMaterial(id)
+    else removeUserMaterial(id)
+  }
+  const handleSaveMaterial = (category: MaterialCategory) => (finishId: string, name: string) => {
+    saveMaterial({ finishId, name, category })
+    useStore
+      .getState()
+      .notify.start({ title: `Saved "${name}" to your materials`, kind: 'success' })
+  }
   const [uploadOpen, setUploadOpen] = useState(false)
   const [finishQuery, setFinishQuery] = useState('')
   const [view, setView] = useState<View>('swatch')
@@ -362,7 +383,8 @@ export function FinishPicker() {
             items={filterFinishes(groups.floor, finishQuery)}
             active={activeFloor}
             onSelect={(id) => handleSelect('floor', id)}
-            onRemoveUser={removeUserMaterial}
+            onRemoveUser={removeUserOrSaved}
+            savedIds={savedIds}
             onCustom={(hex) => handleSelect('floor', hex)}
             recent={recentColors}
             recentFinishIds={recentFinishes}
@@ -387,6 +409,8 @@ export function FinishPicker() {
               active={activeFloor ?? ''}
               materials={groups.floor}
               onApply={(id) => handleSelect('floor', id)}
+              onSave={fSaveMaterials ? handleSaveMaterial('floor') : undefined}
+              savedNameOf={savedNameFor}
             />
           ) : null}
           <SwatchGroup
@@ -394,7 +418,8 @@ export function FinishPicker() {
             items={filterFinishes(groups.wall, finishQuery)}
             active={activeWall}
             onSelect={(id) => handleSelect('wall', id)}
-            onRemoveUser={removeUserMaterial}
+            onRemoveUser={removeUserOrSaved}
+            savedIds={savedIds}
             onCustom={(hex) => handleSelect('wall', hex)}
             recent={recentColors}
             recentFinishIds={recentFinishes}
@@ -419,6 +444,8 @@ export function FinishPicker() {
               active={activeWall ?? ''}
               materials={groups.wall}
               onApply={(id) => handleSelect('wall', id)}
+              onSave={fSaveMaterials ? handleSaveMaterial('wall') : undefined}
+              savedNameOf={savedNameFor}
             />
           ) : null}
           {otherRooms.length > 0 ? (

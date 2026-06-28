@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import {
+  COMPOSE_SCALE_MAX,
+  COMPOSE_SCALE_MIN,
   COMPOSE_TEXTURES,
   composeMaterialId,
   DEFAULT_COMPOSE_COLOR,
   DEFAULT_COMPOSE_PATTERN,
+  DEFAULT_COMPOSE_SCALE,
   parseComposedMaterialId,
   parseTintMaterialId,
   tintMaterialId,
@@ -27,12 +30,21 @@ export function MaterialComposer({
   active,
   materials,
   onApply,
+  onSave,
+  savedNameOf,
 }: {
   label: string
   active: string
   /** This surface's catalog materials, offered as tintable sources. */
   materials: MaterialDef[]
   onApply: (id: string) => void
+  /** When provided, shows a "name + Save" row so the composed/tinted finish can
+   *  be saved as a reusable named material (CUSTOMIZE-SAVE-MATERIAL). */
+  onSave?: (finishId: string, name: string) => void
+  /** Looks up the saved name for a finish id (so the Save button reads "Saved"/
+   *  "Update" and the field pre-fills when the *current* composition is saved —
+   *  this is what makes editing a saved material coherent). */
+  savedNameOf?: (finishId: string) => string | undefined
 }) {
   // Source is encoded as `p:<pattern>` (procedural) or `m:<materialId>` (tint an
   // existing material) so a single <select> can offer both groups.
@@ -47,31 +59,59 @@ export function MaterialComposer({
     parseComposedMaterialId(active)?.color ??
     parseTintMaterialId(active)?.color ??
     DEFAULT_COMPOSE_COLOR
+  const seedScale = (): number =>
+    parseComposedMaterialId(active)?.scale ??
+    parseTintMaterialId(active)?.scale ??
+    DEFAULT_COMPOSE_SCALE
 
   const [source, setSource] = useState<string>(seedSource)
   const [color, setColor] = useState<string>(seedColor)
+  const [scale, setScale] = useState<number>(seedScale)
+  const [name, setName] = useState<string>('')
 
   // Re-seed when the active finish becomes a composed / tinted one elsewhere.
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-seed only on `active` change
   useEffect(() => {
     setSource(seedSource())
     setColor(seedColor())
+    setScale(seedScale())
   }, [active])
 
   const isPattern = source.startsWith('p:')
   const key = source.slice(2)
   const baseMat = isPattern ? null : materials.find((m) => m.id === key)
+  // Suggested default name from the current source (texture label or base name).
+  const suggestedName = isPattern
+    ? (COMPOSE_TEXTURES.find((t) => t.pattern === key)?.label ?? key)
+    : (baseMat?.name ?? 'Custom material')
 
-  // Resolve the finish id + a preview swatch for the current source + colour.
+  // Resolve the finish id + a preview swatch for the current source + colour + scale.
   const id = isPattern
-    ? composeMaterialId(key as ProceduralPattern, color)
-    : tintMaterialId(key, color)
+    ? composeMaterialId(key as ProceduralPattern, color, scale)
+    : tintMaterialId(key, color, scale)
   const preview = isPattern
     ? proceduralThumbnailDataUrl(id, key as ProceduralPattern, color)
     : baseMat?.kind === 'procedural'
       ? proceduralThumbnailDataUrl(id, baseMat.pattern, color)
       : undefined
   const isActive = active === id
+  // The saved name of the CURRENT composition (so editing reflects live edits).
+  const savedName = savedNameOf?.(id)
+
+  // Pre-fill the name field with the saved name when the current finish is
+  // already saved; clear it (placeholder shows the suggestion) otherwise.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-seed only when the finish id / saved name changes
+  useEffect(() => {
+    setName(savedName ?? '')
+  }, [id, savedName])
+
+  const trimmedName = name.trim()
+  const effectiveName = trimmedName || suggestedName
+  const saveLabel = savedName
+    ? trimmedName === savedName
+      ? 'Saved ✓'
+      : 'Update material'
+    : 'Save material'
 
   return (
     <details className="compose">
@@ -142,6 +182,36 @@ export function MaterialComposer({
           />
         </label>
       </div>
+      {/* Tile-size parameter (CUSTOMIZE-MATERIAL-PARAMS): scales the pattern's
+          physical repeat, so the same texture+colour can read fine or chunky. */}
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--s-2)',
+          marginTop: 'var(--s-2)',
+        }}
+      >
+        <span className="label" style={{ flex: '0 0 auto', fontSize: 'var(--t-2xs)' }}>
+          Scale
+        </span>
+        <input
+          type="range"
+          style={{ flex: 1, minWidth: 0 }}
+          min={COMPOSE_SCALE_MIN}
+          max={COMPOSE_SCALE_MAX}
+          step={0.05}
+          value={scale}
+          onChange={(e) => setScale(Number.parseFloat(e.target.value))}
+          aria-label={`${label} texture scale`}
+        />
+        <span
+          className="label"
+          style={{ flex: '0 0 auto', fontSize: 'var(--t-2xs)', minWidth: 36, textAlign: 'right' }}
+        >
+          {scale.toFixed(2)}×
+        </span>
+      </label>
       <button
         type="button"
         className="btn btn-soft btn-block"
@@ -152,6 +222,38 @@ export function MaterialComposer({
       >
         {isActive ? 'Applied' : 'Apply composed finish'}
       </button>
+      {/* Save the current composition as a named, reusable custom material
+          (CUSTOMIZE-SAVE-MATERIAL) — appears in this surface's picker grid. */}
+      {onSave ? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--s-2)',
+            marginTop: 'var(--s-2)',
+          }}
+        >
+          <input
+            type="text"
+            className="input"
+            style={{ flex: 1, minWidth: 0 }}
+            value={name}
+            placeholder={`Name (e.g. ${suggestedName})`}
+            onChange={(e) => setName(e.target.value)}
+            aria-label={`${label} custom material name`}
+          />
+          <button
+            type="button"
+            className="btn btn-soft"
+            style={{ flex: '0 0 auto' }}
+            onClick={() => onSave(id, effectiveName)}
+            disabled={savedName != null && trimmedName === savedName}
+            aria-label={`Save composed ${label.toLowerCase()} finish as a custom material`}
+          >
+            {saveLabel}
+          </button>
+        </div>
+      ) : null}
     </details>
   )
 }

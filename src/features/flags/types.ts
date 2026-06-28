@@ -106,6 +106,7 @@ export type FeatureFlag =
   | 'openingStyles'
   | 'itemOpacity'
   | 'ceilingFinish'
+  | 'saveMaterials'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

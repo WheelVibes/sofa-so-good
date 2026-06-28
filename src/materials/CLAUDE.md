@@ -9,6 +9,20 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `PATTERN_SIZE_CAP` (256 for smooth/noise-based, 512 for high-frequency geometric patterns).
 - **World-space UVs** (`worldUv.ts`): surfaces tile at a fixed physical scale — don't bake
   per-mesh UVs or assume a unit cube.
+- **Composed / tinted finishes are self-describing ids** (`composeMaterial.ts`): a finish built from
+  a pattern + colour is `compose:<pattern>:<#hex>`; recolouring a catalog material is
+  `tint:<baseId>:<#hex>`. Both resolve on the fly in `useMaterialDef` (no catalog entry) and serialise
+  as a plain string. An optional **`@<scale>` suffix** (CUSTOMIZE-MATERIAL-PARAMS) multiplies the
+  tile size (clamped 0.25×–4×; omitted at 1× → back-compat byte-identical id) and is folded into the
+  resolved `uvScale`. When you add another composer parameter, encode it in the id the same way
+  (suffix that defaults to "absent") and apply it in `composedMaterialDef`/`tintedMaterialDef`.
+- **User-saved custom materials (`saveMaterials`)**: `state/slices/savedMaterialsSlice.ts` keeps a
+  per-device (localStorage, like favourites — NOT the save schema) list of `{ finishId, name,
+  category }`. `useMaterials` synthesises a named `MaterialDef` for each (resolving a tint's base from
+  the catalog) so it shows in the picker grid (badged "mine", removable). The composer's name+Save
+  row writes here; applying still writes the underlying self-describing id to the room (renders even
+  where the name isn't present). Saving a different colour/scale is a *new* material (the id changed),
+  so editing = re-seed the composer from a saved finish, tweak, and Save again.
 - **Tile repetition break-up (RD-406 / MAT-006a)**: `worldUv.ts` exports the pure, deterministic
   `cellUvTransform(cu,cv)` (hash a tile cell → a 90°/180°/270° quarter-turn + a {0, 0.5} half-tile
   offset) and `breakRepetitionPlane(w,h,tileSize)` (subdivide a rect floor on the `tileSize`-metre

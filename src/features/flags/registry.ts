@@ -324,6 +324,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Save a composed/tinted finish as a named, reusable custom material
+  // (CUSTOMIZE-SAVE-MATERIAL). Extends the composer: name the look you built and
+  // it joins the picker under your own materials, reusable across rooms/projects.
+  // Pure (a named bookmark of a self-describing finish id) → prod-safe; part of
+  // the core finishing loop, so Simple tier.
+  saveMaterials: {
+    label: 'Save custom materials',
+    description: 'Name a composed/tinted finish and save it as a reusable material',
+    default: true,
+    tier: 'simple',
+  },
   presentation: {
     label: 'Presentation mode',
     description: 'Full-screen saved-views slideshow with notes',

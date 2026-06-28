@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Custom material editor: save named materials + scale parameter (v0.6.0.13)
+
+The "Compose your own" finish tool becomes a real **custom material editor**: build a look from a
+texture/pattern + colour, **tune the tile scale** with a new slider (0.25×–4×), then **name it and
+Save** as your own reusable material. Saved materials appear in the floor/wall picker grids with a
+"mine" badge, persist per-device (localStorage, like favourites), and can be **re-applied across
+rooms, edited (the composer re-seeds from any saved/applied finish so you can tweak and re-save), and
+removed** (the X on the tile). Applying one writes the underlying self-describing finish id to the
+room, so the design still renders even where the saved name isn't present.
+
+- `savedMaterialsSlice` (per-device): `saveMaterial`/`removeSavedMaterial`/`renameSavedMaterial`.
+- The scale rides the finish id itself — `compose:<pattern>:<#hex>@<scale>` /
+  `tint:<base>:<#hex>@<scale>` (suffix omitted at 1× → byte-identical to old ids, fully back-compat),
+  parsed/clamped in `composeMaterial.ts` and multiplied into the resolved `uvScale`.
+- `useMaterials` synthesises a named def for each saved entry (resolving a tint's base from the
+  catalog) so it shows in the picker; the composer's Save/Update reflects the *current* composition.
+- New `saveMaterials` flag (Simple tier, default on); tested in both modes. Verified in a room: a
+  saved hexagon composition and a saved fine-scaled blue tile both apply and render correctly.
+- (Deferred follow-ups: roughness/sheen parameters for procedural finishes, and renaming uploaded
+  image-map materials.)
+
 ## Per-room ceiling finish (v0.6.0.12)
 
 Ceilings were the one surface with no colour/texture control — always plain white. Now every room's

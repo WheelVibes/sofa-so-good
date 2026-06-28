@@ -24,6 +24,34 @@ const TINT_PREFIX = 'tint:'
 
 const HEX_RE = /^#[0-9a-fA-F]{3,8}$/
 
+/** Scale multiplier bounds for the composer's tile-size control (× per tile). */
+export const COMPOSE_SCALE_MIN = 0.25
+export const COMPOSE_SCALE_MAX = 4
+export const DEFAULT_COMPOSE_SCALE = 1
+
+/** Clamp + sanitise a tile-scale multiplier (non-finite / out-of-range → 1). */
+function clampScale(s: number): number {
+  if (!Number.isFinite(s) || s <= 0) return DEFAULT_COMPOSE_SCALE
+  return Math.min(COMPOSE_SCALE_MAX, Math.max(COMPOSE_SCALE_MIN, s))
+}
+
+/** Split a `<#hex>` or `<#hex>@<scale>` colour segment into its parts. The
+ *  optional `@<scale>` suffix multiplies the tile size (CUSTOMIZE-MATERIAL-PARAMS);
+ *  absent → scale 1 (byte-identical to the pre-parameter ids, so old saved/applied
+ *  finishes keep working). */
+function splitColorScale(seg: string): { color: string; scale: number } {
+  const at = seg.indexOf('@')
+  if (at < 0) return { color: seg, scale: DEFAULT_COMPOSE_SCALE }
+  const color = seg.slice(0, at)
+  const scale = clampScale(Number.parseFloat(seg.slice(at + 1)))
+  return { color, scale }
+}
+
+/** Multiply a `[u, v]` tile size by a scale, guarding non-finite inputs. */
+function scaledUv(uv: [number, number], scale: number): [number, number] {
+  return [uv[0] * scale, uv[1] * scale]
+}
+
 /** A texture family the composer offers, with a sensible physical tile size
  *  (metres-per-tile) mirroring the curated builtin `uvScale` values. */
 export interface ComposeTexture {
@@ -64,15 +92,24 @@ export function isComposedMaterialId(id: string): boolean {
   return typeof id === 'string' && id.startsWith(COMPOSE_PREFIX)
 }
 
-/** Build a composed finish id from a texture pattern + a hex colour. */
-export function composeMaterialId(pattern: ProceduralPattern, color: string): string {
-  return `${COMPOSE_PREFIX}${pattern}:${color}`
+/** Build a composed finish id from a texture pattern + a hex colour, optionally
+ *  with a tile-scale multiplier (omitted from the id when 1, for back-compat). */
+export function composeMaterialId(
+  pattern: ProceduralPattern,
+  color: string,
+  scale: number = DEFAULT_COMPOSE_SCALE,
+): string {
+  const s = clampScale(scale)
+  const suffix = s === DEFAULT_COMPOSE_SCALE ? '' : `@${s}`
+  return `${COMPOSE_PREFIX}${pattern}:${color}${suffix}`
 }
 
 export interface ComposedParts {
   pattern: ProceduralPattern
   color: string
   texture: ComposeTexture
+  /** Tile-size multiplier (× the pattern's default `uvScale`). */
+  scale: number
 }
 
 /** Parse a composed id into its parts, or `null` if malformed / unknown
@@ -83,11 +120,11 @@ export function parseComposedMaterialId(id: string): ComposedParts | null {
   const sep = rest.indexOf(':')
   if (sep < 0) return null
   const pattern = rest.slice(0, sep) as ProceduralPattern
-  const color = rest.slice(sep + 1)
+  const { color, scale } = splitColorScale(rest.slice(sep + 1))
   const texture = BY_PATTERN.get(pattern)
   if (!texture) return null
   if (!HEX_RE.test(color)) return null
-  return { pattern, color, texture }
+  return { pattern, color, texture, scale }
 }
 
 // ── Tinting an EXISTING catalog material (MAT-COMPOSE tail) ─────────────────
@@ -103,26 +140,35 @@ export function isTintMaterialId(id: string): boolean {
   return typeof id === 'string' && id.startsWith(TINT_PREFIX)
 }
 
-/** Build a tint id from a base material id + a hex colour. */
-export function tintMaterialId(baseId: string, color: string): string {
-  return `${TINT_PREFIX}${baseId}:${color}`
+/** Build a tint id from a base material id + a hex colour, optionally with a
+ *  tile-scale multiplier (omitted from the id when 1, for back-compat). */
+export function tintMaterialId(
+  baseId: string,
+  color: string,
+  scale: number = DEFAULT_COMPOSE_SCALE,
+): string {
+  const s = clampScale(scale)
+  const suffix = s === DEFAULT_COMPOSE_SCALE ? '' : `@${s}`
+  return `${TINT_PREFIX}${baseId}:${color}${suffix}`
 }
 
 export interface TintParts {
   baseId: string
   color: string
+  /** Tile-size multiplier (× the base material's default `uvScale`). */
+  scale: number
 }
 
-/** Parse a tint id into `{ baseId, color }`, or `null` if malformed. */
+/** Parse a tint id into `{ baseId, color, scale }`, or `null` if malformed. */
 export function parseTintMaterialId(id: string): TintParts | null {
   if (!isTintMaterialId(id)) return null
   const rest = id.slice(TINT_PREFIX.length)
   const idx = rest.lastIndexOf(':')
   if (idx <= 0) return null
   const baseId = rest.slice(0, idx)
-  const color = rest.slice(idx + 1)
+  const { color, scale } = splitColorScale(rest.slice(idx + 1))
   if (!baseId || !HEX_RE.test(color)) return null
-  return { baseId, color }
+  return { baseId, color, scale }
 }
 
 /**
@@ -136,7 +182,13 @@ export function parseTintMaterialId(id: string): TintParts | null {
 export function tintedMaterialDef(id: string, base: MaterialDef): MaterialDef | null {
   const parts = parseTintMaterialId(id)
   if (!parts) return null
-  return { ...base, id, swatch: parts.color, name: `${base.name} · ${parts.color}` }
+  const next = { ...base, id, swatch: parts.color, name: `${base.name} · ${parts.color}` }
+  // Apply the tile-scale multiplier where the base has a uvScale (procedural /
+  // textured); a solid base has none, so scale is a no-op there.
+  if (parts.scale !== DEFAULT_COMPOSE_SCALE && 'uvScale' in next && next.uvScale) {
+    return { ...next, uvScale: scaledUv(next.uvScale, parts.scale) }
+  }
+  return next
 }
 
 /**
@@ -158,6 +210,6 @@ export function composedMaterialDef(
     kind: 'procedural',
     pattern: parts.pattern,
     swatch: parts.color,
-    uvScale: parts.texture.uvScale,
+    uvScale: scaledUv(parts.texture.uvScale, parts.scale),
   }
 }

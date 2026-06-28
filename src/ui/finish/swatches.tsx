@@ -25,6 +25,9 @@ interface SwatchGroupProps {
   active: string
   onSelect: (id: string) => void
   onRemoveUser: (id: string) => void
+  /** Finish ids that are user-saved custom materials — badged "mine" + removable
+   *  even when they aren't uploaded textures (composed/tinted/colour finishes). */
+  savedIds?: Set<string>
   onCustom?: (hex: string) => void
   recent?: string[]
   /** Recently-applied finish ids (any surface); filtered to this group's items. */
@@ -157,6 +160,7 @@ export function SwatchGroup({
   active,
   onSelect,
   onRemoveUser,
+  savedIds,
   onCustom,
   recent,
   recentFinishIds,
@@ -286,9 +290,12 @@ export function SwatchGroup({
       <RecentFinishes mats={recentMats} active={active} onSelect={onSelect} />
       <div className="finish-grid">
         {sorted.map((m) => {
-          const isUser = m.kind === 'textured' && m.source === 'user'
+          const isSaved = savedIds?.has(m.id) ?? false
+          // Uploaded textures and saved custom materials are both the user's own
+          // → removable. Saved (composed/tinted/colour) ones get a "mine" badge.
+          const isUser = (m.kind === 'textured' && m.source === 'user') || isSaved
           const isActive = m.id === active
-          const tag = providerTag(m)
+          const tag = providerTag(m) ?? (isSaved ? { label: 'mine', cls: 'badge neutral' } : null)
           const fav = favSet.has(m.id)
           return (
             // biome-ignore lint/a11y/useSemanticElements: tile holds a nested remove button, so it can't be a <button>
@@ -347,7 +354,7 @@ export function SwatchGroup({
                   }}
                   className="coll-x"
                   style={{ bottom: 4, top: 'auto' }}
-                  aria-label="Remove uploaded material"
+                  aria-label={isSaved ? 'Remove saved material' : 'Remove uploaded material'}
                 >
                   <Icon.Close width={12} height={12} />
                 </button>
