@@ -93,7 +93,21 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
     def.kind === 'parametric' ? (
       (() => {
         const Component = PRIMITIVE_COMPONENTS[def.primitive]
-        return <Component props={item.props} />
+        // Universal per-item resize (CUSTOMIZE-PARAM-SIZE): a `scale` (+ optional
+        // per-axis scaleX/Y/Z) prop scales the primitive about its floor-anchored,
+        // footprint-centred origin. Collision already reads the same props in
+        // `itemFootprint`, so render + footprint stay consistent. No wrapper at 1×
+        // (byte-identical to before).
+        const sc = typeof item.props['scale'] === 'number' ? (item.props['scale'] as number) : 1
+        const psx = typeof item.props['scaleX'] === 'number' ? (item.props['scaleX'] as number) : sc
+        const psy = typeof item.props['scaleY'] === 'number' ? (item.props['scaleY'] as number) : sc
+        const psz = typeof item.props['scaleZ'] === 'number' ? (item.props['scaleZ'] as number) : sc
+        const el = <Component props={item.props} />
+        return psx !== 1 || psy !== 1 || psz !== 1 ? (
+          <group scale={[psx, psy, psz]}>{el}</group>
+        ) : (
+          el
+        )
       })()
     ) : (
       <GltfErrorBoundary

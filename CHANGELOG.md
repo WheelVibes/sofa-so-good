@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Universal resize for parametric furniture (v0.6.0.16)
+
+Every built-in (parametric) furniture piece can now be **freely resized** — closing the last size gap
+(previously only GLB/uploaded models had a scale, and only some parametric items exposed width/depth).
+The inspector gains a **Size** section for parametric items mirroring the GLB one: a uniform scale
+slider, per-axis Width/Height/Depth sliders (uncheck "Keep proportions"), and exact metre W/D/H entry
+that back-solves the scale. The scale rides `props.scale`/`scaleX/Y/Z`, applied as a render-group
+scale in `Furniture` about the floor-anchored, footprint-centred origin — and `itemFootprint` already
+folds the same props into collision, so the rendered size and the collision footprint stay in lock-step
+(no wrapper at 1×, byte-identical to before). Verified: a room's pieces scale to 1.6× and 0.5× cleanly,
+staying on the floor.
+
 ## Apartment master colour palette + harmony blends on every picker (v0.6.0.15)
 
 Set an overall **master colour palette** for the home (up to 5 colours) — every colour picker then

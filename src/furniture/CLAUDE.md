@@ -89,6 +89,14 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).
+- **Universal parametric resize (CUSTOMIZE-PARAM-SIZE)**: any parametric item scales via
+  `props.scale` (+ optional per-axis `scaleX`/`scaleY`/`scaleZ`). `Furniture` wraps the primitive in a
+  `<group scale=…>` (about its floor-anchored, footprint-centred origin; no wrapper at 1×), and
+  `collision/placement.ts:itemFootprint` already multiplies the same props into the footprint — so
+  render + collision stay consistent. The inspector's `ParametricBody` Size section sets them (uniform
+  / per-axis / exact metres, mirroring `GltfBody`). Primitives stay pure geometry — don't read scale
+  inside a primitive; let the group handle it. (Decor auto-styling still reads `def.defaultFootprint`
+  unscaled — a minor density/height imperfection for a *scaled* decor host, not a crash.)
 - Match the surrounding primitive style: real-world metres, real three `Material` instances.
 - **Appliance bodies (MAT-004b)**: the 8 steel-bodied appliance primitives
   (`Refrigerator`/`Oven`/`Stove`/`RangeHood`/`Dishwasher`/`Microwave`/`WashingMachine`/`WineCooler`)
