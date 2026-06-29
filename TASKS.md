@@ -32,6 +32,17 @@ time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push
 
 ---
 
+> **⛔ ENVIRONMENT-BLOCKED — cannot be done client-side (leave as-is with this note):**
+> these need infrastructure or hardware this app/repo doesn't have, so they are NOT
+> client-implementable no matter the dev environment (a GPU + network don't help):
+> - **COLLAB-STRUCT** + **F24** (live presence / multi-user sync) — need a persistent
+>   real-time **backend** (auth, DB, websockets). Out of scope for a pure browser app.
+> - **F22 Android Scene Viewer** — needs an **https-hosted GLB** (a public URL); iOS AR
+>   Quick Look already ships (`viewInAr.ts`). Android requires a hosting/upload backend.
+> - **F21 real-headset WebXR** controller-locomotion pass — needs a **physical VR headset**
+>   to drive/verify; the inert WebXR entry + provider already ship (C247).
+> These stay in the backlog as explicitly env-blocked; do not keep re-attempting them.
+
 > **Backlog-staleness note (2026-06-26):** the `2026-06-20-coohom-sh3d-parity-backlog.md`
 > doc lists **PARITY-SH3D-FURN** + **PARITY-SH3D-OPENINGS** as open, but both already shipped
 > (commit `e5f47a9`; `openSh3dImport.ts` calls `setItems(placement.placedFurniture)` and
