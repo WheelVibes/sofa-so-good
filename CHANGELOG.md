@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IXT-SUITES: wall-art auto-styling interaction scenario (v0.8.0.42)
+
+- Added `scripts/scenarios/wall-art-decor-simple.json` — asserts the move-in furnished flat
+  auto-hangs ≥1 framed `wall-art` piece (RD408-008) and that every such piece is wall-mounted
+  (carries a `mountHeight`, no floor `elevation`). 5/5 steps pass against the dev server. Extends
+  IXT-SUITES coverage to the wall-art decor pass shipped this line.
+
 ## IXT-SUITES: HDRI environment-lighting interaction scenario (v0.8.0.41)
 
 - Added `scripts/scenarios/hdri-environment-simple.json` — covers the HDRI environment-lighting
