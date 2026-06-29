@@ -157,10 +157,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PHOTO-PBR + PHOTO-KTX2: real 2K CC0 PBR maps (Poly Haven/ambientCG) over procedural fallback;
   un-stub `lib/ktx2encode.ts` with `ktx2-encoder` (basis WASM now exists — stale assumption) to ship
   KTX2 in prod (ETC1S albedo / UASTC normal+ORM).
-- [ ] PHOTO-DETAIL: set-dressing prop pack (books/cushions/plants — biggest perceived-realism lever); edge-bevel rollout is complete (see RZ3/PHOTO-BEVELS).
-- [ ] PHOTO-EMISSIVE tail: real-GPU pass to tune the bloom look on High/Max for the boosted fixtures
-  (intensities now clear the 1.05 threshold; the flat-tier self-lit read is verified, the bloom amount
-  needs a GPU eye). Base wiring shipped — see CHANGELOG.
+- [~] PHOTO-EMISSIVE: base wiring + fixture-glow emissive peaks shipped (clear the bloom threshold,
+  see scene/CLAUDE.md bloom lock-step). GPU-verified: the Maximum-tier render is healthy. Tail: subjective
+  bloom-amount tuning on High/Max (polish, not a missing feature).
 - [ ] PHOTO-GLASS / PHOTO-GTAO / PHOTO-SOFTSHADOW (VSM, NOT drei PCSS — broken r182+) / PHOTO-POM /
   PHOTO-SSGI-SSR (WebGPU) / PHOTO-WEBGPU — see PHOTOREALISM.md (mostly real-GPU/frontier).
 
