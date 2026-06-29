@@ -204,10 +204,10 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   runtime numeric-prop NaN path. No redundant guards added (would mask real bugs).
 
 ### Realism (pure-code, prod-safe — most users see the flat Performance tier)
-- [~] RZ2: window glass realism — **emissive sky-catch shipped** on the fixed apartment
-  (`apartment/Window.tsx`) AND custom-plan windows (`PlanShell` `FadeWindow`: daylight day/night tint +
-  sky-catch emissive). Tail: room-editor glass (`PlanRoomShell`, separate lightweight canvas) + wire
-  `getGlassMaterial`/`glassConfig` transmission on High+ (real-GPU verify).
+- [~] RZ2: window glass realism — **emissive sky-catch + High+ transmission both shipped**
+  (`apartment/Window.tsx` + custom-plan `PlanShell` `FadeWindow`; `getGlassMaterial` sets
+  `transmission`/`ior`/`thickness` on the transmission tiers, verified in code + healthy at Maximum on
+  GPU). Remaining tail only: room-editor glass (`PlanRoomShell`, separate lightweight canvas).
 - [~] RZ3/PHOTO-BEVELS: edge-bevel rollout complete for all appropriate box-built case goods and structural
   panels (KitchenCounter, KitchenIsland, ShoeCabinet, WallCabinet, Vanity, ChangingTable, WallShelf, Bench,
   Bed, ToddlerBed, BunkBed, Staircase treads/landings — plus prior case goods). Remaining: edge light-catch
@@ -215,7 +215,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [~] RZ5: painted-trim realism — baseboard + crown molding now bevel their edges in BOTH the fixed
   apartment (`WallSegment`) and custom plans (`PlanShell` skirting + crown), so trim catches a highlight
   (light-catch real-GPU-pending). Remaining: skirting-floor seam AO + painted-trim wear.
-- [ ] RZ7: PCF/penumbra shadow softening on Medium+ tiers.
 
 ### Code quality
 - [~] CQ1: dead-code sweep — `knip` audit (2026-06-20): removed the unused `react-virtuoso` dep; the

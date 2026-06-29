@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Reconcile shipped GPU-lighting items: RZ7 + RZ2 transmission (v0.8.0.18)
+
+- **RZ7** (PCF/penumbra soft shadows on Medium+) verified shipped & removed: the main
+  Canvas uses `PCFSoftShadowMap` with `shadow-radius` penumbra (`SOFT_SHADOW`) and a
+  per-tier `shadowMapSize` (0 on Performance, >0 on Medium+) — the complete feature.
+- **RZ2** glass transmission verified shipped: `getGlassMaterial` sets `transmission`/
+  `ior`/`thickness` on the transmission tiers (High/Max); the Maximum-tier render is
+  healthy on the real GPU. Trimmed RZ2's tail to the lone remaining bit (room-editor glass).
+
 ## MAT-006b: triplanar (world-scaled) UVs on sloped walls (v0.8.0.17)
 
 - New pure `materials/triplanar.ts` (`dominantAxis`/`projectUv`/`triplanarUv`) —
