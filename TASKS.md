@@ -66,11 +66,6 @@ time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 
 ## Productivity / QOL
-- [x] PC-EMPTY-STATES: shared `EmptyState` component (`src/ui/EmptyState.tsx`, icon + title +
-  optional description + optional CTA on the `.empty-mini` token vocabulary) applied across every
-  empty panel/list (comments, history, versions, budget + saved items, layers, catalog grid +
-  favourites/recent/no-results, remote browse, swap, daylight, accessibility) for consistent,
-  friendly copy in light/dark/all themes + mobile bottom-sheets.
 - [~] IXT-SUITES (user rule, 2026-06-12): build interaction-test scenarios (simple → complex per
   feature, incl. cross-feature journeys like onboarding→tour→location) for every EXISTING feature
   using the C267 harness; work down the `FEATURE_FLAGS` list in priority order.
@@ -158,25 +153,13 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PHOTO-GLASS / PHOTO-GTAO / PHOTO-SOFTSHADOW (VSM, NOT drei PCSS — broken r182+) / PHOTO-POM /
   PHOTO-SSGI-SSR (WebGPU) / PHOTO-WEBGPU — see PHOTOREALISM.md (mostly real-GPU/frontier).
 
-### Pending — quick wins (S)
-- [x] PARITY-BATCHRENDER: SH3D batch-render all saved views — Saved-views "Render all views" flies the
-  camera to each saved view (`applyView`) and downloads a hi-fi PNG per view via `captureCanvasPng`
-  (`ui/renderAllViews.ts`, `batchRender` pro flag).
 ### Pending — high value (M)
 - [~] PARITY-AR: AR "view in your room" **shipped** — iOS AR Quick Look (USDZ) + GLB fallback
   (`ui/viewInAr.ts`, `viewInAr` flag). Remaining: Android Scene Viewer (needs an https-hosted model).
 - [ ] PARITY-DENOISE: Coohom render denoiser (OIDN-wasm/bilateral post-pass on HQ render). [real-GPU verify]
 - [ ] PARITY-8K: Coohom 8K+ tiled still render.
-- [x] PARITY-SLOPECEIL: SH3D sloping ceilings **shipped** (see PARITY-SLOPECEIL in CHANGELOG).
-- [x] PARITY-SLANTWALL: SH3D slanting walls **shipped** (PARITY-SLOPEWALL: `PlanWall.topHeightEnd` prism).
-- [x] PARITY-BASEBOARD: SH3D per-wall baseboard params **shipped** — `PlanWall.baseboard`
-  (height/colour/hidden) drives the PlanShell skirting; Plan-inspector wall section + `wallBaseboard`
-  pro flag. (Custom plans only; default HDB layout uses the fixed `Skirting.tsx`.)
-- [x] PARITY-QUOTE-XLSX: quote XLSX/CSV + user-editable quote templates **shipped** (v0.1.0.7). `QuoteTemplate` model, `quoteTemplateSlice`, `QuoteTemplateModal`, `applyTemplate`, BOQ export threaded. Feature flag `quoteTemplate` (pro), undo-tracked, persisted in save schema.
 
 ### Pending — marquee (L)
-- [x] PARITY-VIDEO: video flythrough export **shipped** — saved-views cinematic tour → .webm
-  (`ui/recordViewTour.ts`, PARITY-VIDEO in CHANGELOG).
 - [~] PARITY-CURVEDWALL: SH3D curved/arc walls **shipped** — `PlanWall.arc` bulge + `floorplan/wallArc.ts`
   (Bézier → chord sub-segments) reused by `wallBoxes`/`planCollisionWalls`/room detection; 2D midpoint
   bulge handle (`curvedWalls` flag, pro). **Openings on curves now supported** — arc-length positioned,
@@ -197,7 +180,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   `placeNonOverlapping` drops colliding pieces) + ⌘K "AI auto-furnish" (`aiLayout` flag, pro). Pure
   logic + no-key guard unit-tested; live LLM output needs a real key to tune. Follow-up: a key/brief
   panel beyond the ⌘K prompt + route through autoArrange for tidier spacing.
-- [x] PARITY-3DEXPORT: whole-scene OBJ/glTF/STL export **shipped** (see Q-3DEXPORT).
 - [~] PARITY-TILT: multi-axis furniture tilt (pitch/roll) **shipped** — `tiltFurniture` flag,
   `FurnitureItem.pitch/roll`, inspector sliders, `furniture/tiltRotation.ts` (`[pitch, yaw, roll, 'YXZ']`).
   Follow-up: a 3D tilt gizmo handle + the SH3D 2D-plan tilt indicator; collision stays yaw-OBB.
@@ -222,8 +204,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [~] RZ5: painted-trim realism — baseboard + crown molding now bevel their edges in BOTH the fixed
   apartment (`WallSegment`) and custom plans (`PlanShell` skirting + crown), so trim catches a highlight
   (light-catch real-GPU-pending). Remaining: skirting-floor seam AO + painted-trim wear.
-- [x] RZ6: upholstery seam stitching + soft fabric wrinkle now ship on the fabric material
-  (`procedural/upholsterySeams.ts`, behind `pbrSurfaces`) so sofas/chairs read as woven cloth.
 - [ ] RZ7: PCF/penumbra shadow softening on Medium+ tiers.
 
 ### Code quality

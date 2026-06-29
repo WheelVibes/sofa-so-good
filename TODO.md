@@ -94,12 +94,8 @@ from `docs/research/2026-06-19-material-microdetail-plan.md` (MAT-006a/b are the
 + a codebase audit. **IN FLIGHT (Wave 12):** MAT-006a, METAL-LEGS, SHELLPERF + ARRANGE-GRID.
 
 ### Clean-delegate
-- [x] **CONCRETE-PORES** (LOW-MED/S, `G-materials`) — DONE v0.4.0.0: `makePinholePores` roughness-only
-  pore micro-variation layered onto `concreteFields`; `DEFAULT_CONCRETE_SURFACE_PARAMS`; 39 pixel-stats tests.
 - [ ] **GAP-SUGGEST** (MED/S-M, new `layout/gapFix.ts`) — minimal nudge vector to clear each narrow
   walkway gap (`walkway.ts findNarrowGaps`); pure helper (UI affordance later, pro).
-- [x] **BRUSH-AXIS** (LOW/S, `G-furnmat`) — DONE v0.4.0.0: pure `brushAxis.ts anisotropyRotationForNormal`
-  threaded through `getMetalMaterial`'s LRU key; default-byte-identical; 9 tests.
 
 ### Clean-delegate but PARTLY real-GPU (verification limited — split / defer the pixel pass)
 - [ ] **MAT-006b** (MED/M, `G-flags`) — triplanar projection for sloped/curved walls
@@ -219,53 +215,11 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 
 | Rank | ID | One-line | Sev/Impact | Eff | Area / files | Conflict-group |
 |------|----|----------|-----------|-----|--------------|----------------|
-| 1 | **BUG-001** | Autosave watch-list omits comments/drawingCallouts/quoteTemplate → silent data loss on reload | HIGH (data loss) | S | `state/storage/autosave.ts` (+test) | `cg-autosave` |
-| 2 | **BUG-002** | `PlanRoomFloor` rect floor allocates a new `PlaneGeometry` every render, never disposed → WebGL context loss | HIGH (GPU leak/crash) | S | `apartment/floor/PlanRoomFloor.tsx` | `cg-floorgeo` |
-| 3 | **BUG-003** | Uploaded materials lose name/category/uvScale/swatch on reload (persist↔hydrate schema mismatch) | HIGH (persistence corruption) | M | `materials/upload/persist.ts`, `state/storage/hydrateAssets.ts` (+test) | `cg-matpersist` |
-| 4 | **PERF-001** | drei `useGLTF` cache never evicted → unbounded GPU memory growth over a session | HIGH (GPU leak/crash) | M | `state/slices/userAssetsSlice.ts`, `furniture/GltfModel.tsx` (incl. PERF-008 caches) | `cg-gltfcache` |
-| 5 | **BUG-004** | L-shape room area double-counts overlapping extension (sum vs union) → wrong schedules/score/labels | MED (wrong data) | S | `floorplan/types.ts` `planRoomArea` (+test) | `cg-roomarea` |
-| 6 | **BUG-006** | `RoomFloor`/`WallSegment` face geometries memoized but never disposed (leak on plan switch / wall edit) | MED (bounded GPU leak) | S | `apartment/floor/RoomFloor.tsx`, `apartment/walls/WallSegment.tsx` | `cg-floorgeo` |
-| 7 | **BUG-005** | Unhandled promise rejection when a remote catalog asset 404s/offline | MED (console error/overlay) | S | `ui/catalog/RemoteCard.tsx` | `cg-remotecard` |
-| 8 | **BUG-007** | Blob-URL leak in remote-catalog thumbnails (never revoked) | MED (steady leak) | S | `catalog/remote/hooks.ts` | `cg-remotehooks` |
-| 9 | **BUG-008** | `renameItem` is not undoable (no history push) | MED (QOL/data) | S | `state/slices/itemsSlice.ts` (+test) | `cg-itemsslice` |
-| 10 | **UX-001** | Toasts have no `aria-live` region → screen readers hear nothing | HIGH (a11y blocker) | S | `ui/notifications/NotificationContainer.tsx` | `cg-notif` |
-| 11 | **PERF-002** | Orbit mode renders *every* fixture as a real light (ignores `maxFixtureLights`) → frame cost at scale | MED (perf) | S | `scene/lighting/FurnitureLights.tsx` | `cg-furnlights` |
-| 12 | **PERF-004** | Pro analysis panels eagerly imported into boot bundle (Simple users pay for them) | MED (boot perf) | M | `ui/app/lazyComponents.tsx`, `App.tsx` | `cg-applazy` |
-| 13 | **PERF-005** | Catalog search re-ranks the whole merged catalog per keystroke (no debounce/defer) | MED (input lag at scale) | S | `ui/catalog/CatalogDrawer.tsx` | `cg-catalogdrawer` |
-| ~~14~~ | ~~**PERF-003**~~ | ✅ DONE (v0.2.0.37) — wall-build dedup (v0.2.0.15) + broadphase: a per-drag spatial grid of the static items (built once, cleared on drop) restricts the **snug-stack** scan (point query) and the **canPlace** neighbour set (moved-AABB query) to the dragged neighbourhood. Alignment snap keeps the full scan (cross-room alignment is intended). Equivalence proven (667-position sweep: broadphase result ≡ full scan). | MED (drag perf at scale) | M | `scene/DragController.tsx`, `collision/broadphase.ts` | `cg-dragctl` |
-| 15 | **RD-403** | Flat-tier corner-AO + contact-darkening decals (biggest default-tier realism cue) | HIGH photoreal | M | `scene/CornerAO.tsx` (new), `scene/ContactShadow.tsx`, mounts in `Scene.tsx` | `cg-scenemount` |
 | 16 | **RD-402** | Roughness/AO/normal micro-variation: stone/tile/concrete/plaster + brushed-metal anisotropy | HIGH photoreal | M | `procedural/patterns/{stone,tile,wall}.ts`, `patterns/metal.ts` (new), `furnitureMaterials.ts`, `generators.test.ts` | `cg-materials` |
-| ~~17~~ | ~~**RD-405**~~ | ✅ DONE (v0.2.0.17) — cheap glass `ior` fresnel + faint `envMapIntensity` sky reflection (inert on Performance) | HIGH photoreal | M | `materials/materialRealism.ts`, `furnitureMaterials.ts` | `cg-materials` |
-| 18 | **PC2-CONTACT-AO-DECOR** | Per-prop contact-shadow decal under small decor (grounds vases/books/trays) | HIGH photoreal | S/M | `scene/ContactShadow.tsx` / `scene/PropContactDecal.tsx` (new), decor primitives | `cg-scenemount` |
-| 19 | **RD-408** | Decor density/variety. **DONE:** per-surface budget+spread+jitter (earlier), **prop colour variety** (v0.2.0.20). **REMAINING:** hero props with real silhouettes (varied book heights, layered cushion stacks, trailing plants) + more host-surface types — needs new primitives. | HIGH photoreal | M | `furniture/layout/decorStyling.ts`, new primitives | `cg-decor` |
-| 20 | **RD-412** | Procedural Preetham/Hosek sky gradient → backdrop + procedural IBL | MED photoreal | S | `scene/backdropEquirect.ts`, `scene/lighting/SceneEnvironment.tsx` | `cg-sky` |
-| ~~21~~ | ~~**PC2-WOOD-GRAIN-FLOW**~~ | ✅ DONE (v0.2.0.35) — per-plank hue/value/phase jitter already present; added per-board grain-direction **lean** (~±2.6° shear) via new pure `procedural/woodPlank.ts` (shared `plankHash` + `grainLean` + `shearAcross`), keyed by a hash independent of the tint stream (no regression). Wired into all 3 wood painters; verified via flat-texture render. | MED photoreal | M | `procedural/patterns/wood.ts`, `procedural/woodPlank.ts` (new) (+test) | `cg-materials` |
+| 19 | **RD-408** | Decor density/variety. **DONE:** per-surface budget+spread+jitter, prop colour variety, hero props (decor tray, trailing plant), more host surfaces. **REMAINING:** more hero props with real silhouettes (varied book heights, layered cushion stacks) — needs new primitives. | HIGH photoreal | M | `furniture/layout/decorStyling.ts`, new primitives | `cg-decor` |
+| 20 | **RD-412** | Procedural sky shipped (steps 1–5, v0.2.0.58); **REMAINING:** HDR IBL probe (steps 6–7, real-GPU) | MED photoreal | S | `scene/backdropEquirect.ts`, `scene/lighting/SceneEnvironment.tsx` | `cg-sky` |
 | 22 | **RD-406** | Tile-repetition break-up (UV hash/macro-variation) + triplanar for sloped/curved walls | MED photoreal | M | `materials/worldUv.ts`, `materials/triplanar.ts` (new) | `cg-worlduv` |
 | 23 | **RD-409** | Light colour-temperature (Kelvin→RGB) + inverse-square falloff per fixture | MED photoreal | M | `scene/lighting/FurnitureLights.tsx`, `lighting/colorTemperature.ts` (new) | `cg-furnlights` |
-| ~~24~~ | ~~**RD-407**~~ | ✅ DONE (v0.2.0.18 case goods + v0.2.0.19 appliances) — Bookshelf/CabinetModule/CabinetCorner/Wardrobe + all 8 appliance bodies beveled (glass/handles/controls stay sharp) | MED photoreal | M | primitives | `cg-primitives` |
-| 25 | **PC2-SURFACE-DROP** | Auto-snap surface decor (lamp/vase/monitor) onto table/shelf top on drop | MED QOL | M | `scene/DragController.tsx`, `collision/placement.ts`, placement slice | `cg-dragctl` |
-| 26 | **PC2-FURN-GROUP** | First-class furniture grouping (group move/rotate/dup/delete + ⌘K cmd, pro flag) | MED QOL | M | placement slice, `layout/selectionActions.ts`, `features/featureFlags.ts` | `cg-selactions` |
-| ~~27~~ | ~~**PC2-MULTI-DUP-PASTE**~~ | ✅ DONE (v0.2.0.30) — clipboard holds the whole selection; ⌘C/⌘V paste a group via planDuplicates (one undo). Duplicate ⌘D already did multi. | MED QOL | S | `state/slices/clipboardSlice.ts`, `App.tsx` | `cg-selactions` |
-| ~~28~~ | ~~**PC2-PLAN-ANGLE-SNAP**~~ | ✅ DONE (v0.2.0.34) — wall-draw snaps to 15° increments (Shift to bypass) via new pure `snapWallAngle`; grid→angle→wall-snap order keeps joins. Furniture-rotate was already 15°-stepped. | MED QOL | S/M | `ui/floorplan/FloorPlanEditor.tsx`, `ui/floorplan/editor/snapWallAngle.ts` (+test) | `cg-floorplaneditor` |
-| ~~29~~ | ~~**UX-002**~~ | ✅ DONE (v0.2.0.16) — 44px `::after` hit area on every docked-sheet `.panel-head .icon-btn` | MED a11y/touch | S | `styles/responsive.css` | `cg-css` |
-| 30 | **UX-006** | No global `prefers-reduced-motion` handling for sheet/fade animations | LOW/MED a11y | S | `styles/responsive.css` (global media block) | `cg-css` |
-| ~~31~~ | ~~**UX-003**~~ | ✅ DONE (v0.2.0.28) — dialog role + aria-modal + labelledby + focus into/restore + Tab-trap added in place (kept the custom 560px layout); blue literal tokenised in v0.2.0.25 | MED a11y *(dev-only path)* | M | `ui/upload/UploadModelDialog.tsx` | `cg-uploaddlg` |
-| ~~32~~ | ~~**UX-004**~~ | ✅ DONE (v0.2.0.22) — on shared `Modal` (dialog/focus trap/restore) + dial is a keyboard `role=slider` (arrows/Home) | MED a11y | M | `ui/toolbar/CompassModal.tsx` | `cg-compass` |
-| ~~33~~ | ~~**UX-008**~~ | ✅ DONE (v0.2.0.24) — import-errors detail dialog now uses shared `Modal` (dialog role/focus trap/restore) | LOW a11y | S | `ui/notifications/NotificationContainer.tsx` | `cg-notif` |
-| ~~34~~ | ~~**UX-009**~~ | ✅ DONE (v0.2.0.27) — now on shared `Modal` (dialog role/focus trap/restore + modal guard) | LOW a11y *(dev-only)* | S | `ui/upload/UploadMaterialDialog.tsx` | `cg-uploadmatdlg` |
-| ~~35~~ | ~~**UX-007**~~ | ✅ DONE (v0.2.0.23) — tooltips open on keyboard focus (pointer-guarded), hide on blur | LOW a11y | S | `ui/toolbar/Tooltip.tsx` | `cg-tooltip` |
-| ~~36~~ | ~~**UX-005**~~ | ✅ DONE (v0.2.0.25) — added `--ok` token to all 10 theme blocks; replaced green/blue literals in RemoteBrowseTab/IkeaBody/GltfBody/UploadModelDialog (none remain under src/ui) | LOW a11y *(dev-only)* | S | `styles/tokens.css` + dev paths | `cg-colorleak` |
-| 37 | **RD-411** | SSAA (2× render → downsample) on the snapshot/export path | MED polish (exports) | S | `scene/ScreenshotController.tsx`, `scene/captureCanvas.ts` | `cg-capture` |
-| 38 | **PC2-SSAA-EXPORT** | Supersample snapshot/PNG export (duplicate of RD-411 — **merge with RD-411**, do not dispatch separately) | MED polish | S | same as RD-411 | `cg-capture` |
-| ~~39~~ | ~~**PC2-PLAN-FURN-ICONS**~~ | ✅ DONE (v0.2.0.33) — `CategoryIcon` glyph centred in each footprint (shown when no label covers it), reusing the catalog iconography | LOW polish | M | `ui/floorplan/FloorPlanEditor.tsx` | `cg-planlabels` |
-| ~~40~~ | ~~**PC2-FAVOURITE-MATERIALS**~~ | ✅ DONE (v0.2.0.32) — `favouriteFinishIds` (separate list) + heart toggle on FinishPicker swatches (desktop + mobile) + favourites-first sort; gated on `catalogFavourites` | LOW QOL | S | `state/slices/favouritesSlice.ts`, `ui/finish/swatches.tsx` | `cg-matfav` |
-| 41 | **PC2-DISTRIBUTE-AXIS** | Audit `distributeEvenGaps` dominant-axis pick + rotated-OBB align; n<3 fallback | LOW reliability | S | `layout/alignDistribute.ts` (+test) | `cg-aligndist` |
-| 42 | **BUG-009** | Sloped wall ignores per-wall thickness override + plan default (renders 0.2 m) | LOW (wrong geo) | S | `floorplan/slopedWall.ts` | `cg-slopedwall` |
-| 43 | **BUG-010** | `parseAngleInput` accepts trailing garbage (`"90xyz"`→90) | LOW (validation) | S | `floorplan/wallNumericEntry.ts` | `cg-wallnumeric` |
-| 44 | **BUG-013** | `newFloorPlan` replaces plan without pushing history (confirm intent) | LOW (decide) | S | `state/slices/floorPlanSlice.ts` | `cg-floorplanslice` |
-| 45 | **BUG-014** | `floorPlanStore.loadFloorPlans` restores saved plans without migrate+Zod validation | LOW (robustness) | S | `state/floorPlanStore.ts` | `cg-floorplanstore` |
-| 46 | **BUG-011** | Non-atomic read-modify-write of remote-cache meta (cross-key race) | LOW (cache drift) | S | `catalog/remote/cache/db.ts`, `cache/lru.ts` | `cg-remotecache` |
-| 47 | **BUG-012** | Possible swallowed `TransactionInactiveError` in pano cache write | LOW (rare, swallowed) | S | `ui/panorama/panoImageIdb.ts` | `cg-panoidb` |
 
 **Do NOT preemptively fix (audit verdict):** PERF-006 (`moveItem`/`rotateItem` array rebuild —
 acceptable at design scale, explicitly "don't fix preemptively"). Listed in the perf doc as
@@ -281,8 +235,7 @@ real-GPU-pending — split if dispatched.
 - **RD-421** Fisheye/DoF lens options on render camera — *wiring headless, bokeh real-GPU*
   (= PC2-CAM-DOF-LENS; same item, merge).
 - **RD-422** 8K tiled still + fast rasterized "preview render" — *dimensions headless, quality real-GPU*.
-- **RD-410** VSM soft shadows (replace PCFSoft) — *type assert headless, penumbra real-GPU; shares
-  `Scene.tsx` with RD-403 → serialize if both run* (`cg-scenemount`).
+- **RD-410** VSM soft shadows (replace PCFSoft) — *type assert headless, penumbra real-GPU* (`cg-scenemount`).
 - **RD-423** Day-to-night animated render clip — *hour interpolation headless, final clip real-GPU*.
 - Photoreal real-GPU/backend track (from the dossier §4): PHOTO-PT-TUNE, PHOTO-DENOISE,
   PHOTO-SSGI-SSR, PHOTO-WEBGPU, PHOTO-GTAO, PHOTO-POM, PHOTO-HDRI, PHOTO-PBR-MAPS, PHOTO-KTX2.
@@ -290,40 +243,17 @@ real-GPU-pending — split if dispatched.
   and *not* blocked — they sit in the QOL/polish lane but were left in the dossier's parity track;
   pull them forward only after the photoreal material chain.
 
-### SAFE PARALLEL BATCHES (no shared conflict-group → dispatch concurrently)
+### REMAINING OPEN — dispatch concurrently (all distinct conflict-groups)
 
-Each batch is mutually conflict-free; run a batch's items in parallel, then move to the next.
-Within the material chain (`cg-materials`) and the scene-mount pair (`cg-scenemount`), items
-**must serialize** — they are split across batches below for exactly that reason.
-
-- **Batch A — HIGH bugs/leaks (independent files):** BUG-001 `cg-autosave`, BUG-002 `cg-floorgeo`,
-  BUG-003 `cg-matpersist`, PERF-001 `cg-gltfcache`, UX-001 `cg-notif`. *(All different files;
-  the two GPU-leak items + the two persistence items don't overlap.)*
-- **Batch B — remaining bugs + perf (independent):** BUG-004 `cg-roomarea`, BUG-005 `cg-remotecard`,
-  BUG-007 `cg-remotehooks`, BUG-008 `cg-itemsslice`, PERF-002 `cg-furnlights`, PERF-005 `cg-catalogdrawer`,
-  PERF-004 `cg-applazy`. *(BUG-006 shares `cg-floorgeo` with BUG-002 → run after Batch A, not here.)*
-- **Batch C — photoreal lane 1 (one per conflict-group):** RD-403 `cg-scenemount`, RD-402 `cg-materials`,
-  RD-408 `cg-decor`, RD-412 `cg-sky`, RD-407 `cg-primitives`. *(RD-405 + PC2-WOOD-GRAIN-FLOW share
-  `cg-materials` with RD-402 → next batch; PC2-CONTACT-AO-DECOR shares `cg-scenemount` with RD-403 → next.)*
-- **Batch D — photoreal lane 2 + QOL:** RD-405 `cg-materials`, PC2-CONTACT-AO-DECOR `cg-scenemount`,
-  RD-406 `cg-worlduv`, RD-409 `cg-furnlights`, PC2-FURN-GROUP `cg-selactions`, PC2-PLAN-ANGLE-SNAP
-  `cg-floorplaneditor`. *(then PC2-WOOD-GRAIN-FLOW alone on `cg-materials`, PC2-MULTI-DUP-PASTE after
-  PC2-FURN-GROUP on `cg-selactions`.)*
-- **Batch E — a11y/polish (all independent files):** UX-002+UX-006 `cg-css` (one agent, same files),
-  UX-003 `cg-uploaddlg`, UX-004 `cg-compass`, UX-007 `cg-tooltip`, RD-411(+PC2-SSAA-EXPORT) `cg-capture`,
-  PC2-PLAN-FURN-ICONS `cg-planlabels`, PC2-FAVOURITE-MATERIALS `cg-matfav`.
-
-
+Batches A/B (all bugs/leaks/perf) and the a11y/polish batch fully shipped (see CHANGELOG). Only the
+photoreal-material items survive, each on its own conflict-group → safe to run in parallel:
+RD-402 `cg-materials`, RD-408 `cg-decor`, RD-406 `cg-worlduv`, RD-409 `cg-furnlights`, RD-412 `cg-sky`
+(RD-412 HDR-IBL tail is real-GPU).
 
 ## Render fidelity + GLTF hardening (2026-05-31)
 Milestone 1 of the IKEA-grade fidelity program. Spec:
 [docs/superpowers/specs/2026-05-30-render-fidelity-gltf-hardening-design.md](docs/superpowers/specs/2026-05-30-render-fidelity-gltf-hardening-design.md);
 plan: [docs/superpowers/plans/2026-05-30-render-fidelity-gltf-hardening.md](docs/superpowers/plans/2026-05-30-render-fidelity-gltf-hardening.md).
-
-- ~~Follow-ups: verify the runtime Draco CDN fetch behind the prod reverse-proxy
-  / CSP.~~ **Done** — the Draco decoder is now self-hosted under `public/draco/`
-  (`scripts/copy-decoders.mjs`, base-aware `withBase('/draco/')`), so there is no
-  runtime CDN fetch to proxy. See the offline/PWA work below.
 
 **Next milestone — slot-based product configurator** (mattress-on-frame,
 modular sofa): base + named slots with anchor points, swappable compatible
@@ -346,13 +276,6 @@ plan:
   - **KTX2/DDS standalone-material decode** — needs a WebGL readback; the model
     importer handles embedded KTX2, but standalone KTX2/DDS material uploads are
     not yet decoded ([src/materials/convert/decodeImage.ts]).
-  - ~~**Multi-tier `-low`/`-medium` LOD generation for uploads**~~ — **done**
-    (C249/T3): `optimize/lodVariants.ts` generates both tiers in the optimize
-    worker (meshopt simplify + tier texture caps), stored in IDB under
-    `<assetId>:lod-<tier>` keys and tier-routed at render via the
-    `gltf/lod.ts` variant registry; default-on opt-out checkbox in the upload
-    dialog. KTX2-encoded textures still pass through tier variants
-    un-downscaled (blocked on the decoder gap above).
 
 ## Layout / placement (2026-05-30)
 Done — preset circulation is now regression-tested (`layoutPresets.test.ts`:
@@ -585,63 +508,8 @@ re-take here). Nothing below duplicates shipped or open work. Prioritised: corre
   read blurry. Thread the renderer's max through a shared helper and clamp per texture. Touches
   `materials/furnitureMaterials.ts`, `materials/cache.ts` (+ a small pure clamp test). Photoreal
   sharpness win at near-zero cost; reliability because the value silently ignores the GPU cap.
-- ~~**PC2-SURFACE-DROP**~~ ✅ DONE (v0.2.0.42) — dropping a surface item (one carrying a numeric
-  `surfaceHeight` — vase/lamp/bowl/books) over a **table or shelf** (category `tables`/`storage`) now
-  snaps its rest height onto that surface's top (SH3D shelf-magnetism). New pure
-  `collision/surfaceDrop.ts` `resolveSurfaceDropHeight` (topmost support under the point, excludes the
-  dragged item + soft seating/beds; +8 tests) wired into `DragController.onUp`'s valid single-item
-  commit, updating `props.surfaceHeight` via `setItems` (one undo step). `surfaceHeight` lifts both
-  parametric self-lift primitives and GLB models, so one mechanism covers both. No support under the
-  drop → height left as-is. Verified end-to-end: a book-stack dropped on the coffee table snapped
-  0 → 0.42.
-- ~~**PC2-DISTRIBUTE-AXIS**~~ ✅ DONE (v0.2.0.36) — audited: the axis is **explicit** (the inspector's
-  Distribute/Align-H vs -V buttons pass `axis`, not auto-inferred), rotated footprints already route
-  through `obbAxisHalf` (OBB→AABB projection) in `MultiSelectPanel`, and n<3 returns empty (graceful).
-  No code bug → hardened the documented gap with tests: the OBB→distribute/align **integration**
-  (a turned board distributes/aligns by its real projected extent) + `obbAxisHalf` sign-independence
-  and π-periodicity. Test-only.
-
-### Photorealism levers (pure-code / headless-verifiable wiring)
-- ✅ **BUG-015** (v0.2.0.38, found while scoping the below) — auto-furnish decor double-lifted to ~2×
-  its host surface height: every decor primitive self-lifts to `surfaceHeight` in local space, but
-  `decorStyling` *also* set `elevation: topHeight` and the render group adds `elevation` for parametric
-  items. Fixed by dropping the redundant `elevation` (decor carries `surfaceHeight` only, like the
-  defaults). Decor now sits correctly — which also unblocks the contact-AO decal below.
-- ~~**PC2-CONTACT-AO-DECOR**~~ ✅ DONE (v0.2.0.39) — small `noClip` parametric decor with a numeric
-  `surfaceHeight` (the `decorStyling` props + tabletop defaults) now renders a faint soft
-  contact-shadow decal at the host surface height, reusing `scene/ContactShadow.tsx` (gained `opacity`
-  + `scale` params). Qualification is pure + unit-tested (`furniture/surfaceDecal.ts` — small noClip
-  parametric + surfaceHeight only; rugs/large/GLB/floor excluded; `noClip` ⇒ the floor-shadow path
-  already skipped it, so no double shadow). Gated by the existing `contactShadows` flag + quality.
-  Verified via screenshot (candle cluster grounded on a table, soft, no z-fight) + 8-case unit test.
-- ~~**PC2-TONEMAP-EXPOSURE-CTX**~~ ✅ DONE — context-aware tone mapping shipped as **RD-404**
-  (`scene/toneContext.ts` `resolveToneMapping`: `'auto'` → Neutral while previewing finishes, AgX for
-  a photo context, else filmic; explicit pick wins; pure + unit-tested, wired in `lighting/Lighting.tsx`
-  each frame). v0.2.0.40 refinement: extracted a pure `toneContextFromState` and **also** flag finish
-  preview when a **wall** is selected (not just a room) — wall-finish preview previously missed Neutral
-  — with tests. (`photoMode` stays off: the only photographic context, the HQ-render modal, renders in
-  its own surface, not the live canvas.)
-- ~~**PC2-WOOD-GRAIN-FLOW**~~ ✅ DONE (v0.2.0.35) — the painters already carried per-plank hue/value/
-  phase jitter; what made flooring read repetitive was every board's grain running the *same*
-  direction. Added a deterministic per-board grain **lean** (~±2.6°, a shear of across about the board
-  mid-length) via the new pure `materials/procedural/woodPlank.ts` (`plankHash` — the stateless hash
-  parquet/herringbone used inline, now shared; `grainLean`; `shearAcross`), keyed by a hash independent
-  of the tint stream so it adds the shear without perturbing the tuned look. Wired into all three wood
-  painters (`patterns/wood.ts`); 14 unit tests; verified by painting the flat texture in the browser.
-- ~~**PC2-SSAA-EXPORT**~~ ✅ DONE (v0.2.0.49) — the hi-fi PNG export renders at 2× then box-downsamples
-  via the new pure `scene/ssaaDownsample.ts` `boxDownsample` (+9 tests), wired into
-  `ScreenshotController.renderHiFiPng` (raise pixelRatio → render → offscreen-canvas downsample → re-encode
-  at target dims; size/pixelRatio restored in `finally`, graceful fallback). No flag (transparent quality
-  bump). Verified headlessly: export decodes at target dims (1600×1000, not 2×), buffer restored after.
-  Pixel-AA quality real-GPU-pending.
 
 ### High-value QOL / UX
-- ~~**PC2-FURN-GROUP**~~ ✅ DONE (v0.2.0.41) — audited: grouping was **already fully built** (store
-  `groupsSlice` groupItems/ungroup/groupRotate/addToGroup + group-aware drag/collision/selection, exposed
-  in `MultiSelectPanel` + `ContextMenu`) but had **no feature flag** (hard-rule gap). Added the
-  `furnitureGroups` flag (pro, default on); gated the panel buttons, context-menu items, and a new
-  Group/Ungroup ⌘K command (`COMMAND_FLAGS`). Tested both modes (resolver + live: present in Pro, hidden
-  in Simple while the sibling Mirror tool still shows).
 - **PC2-MULTI-DUP-PASTE** (S) — Copy/paste + duplicate-in-place for the current selection with a small
   offset (Coohom/SH3D Ctrl+C/Ctrl+V). Verify the existing duplicate path handles a multi-selection and
   pushes one coalesced undo entry; add clipboard-style paste if missing. Touches
@@ -651,11 +519,6 @@ re-take here). Nothing below duplicates shipped or open work. Prioritised: corre
   expose it as UI and apply a cheap post DoF on the High/Max raster tiers too. Touches the render-
   settings UI + `scene/pathtrace/*` + `scene/Effects.tsx`. Gap: SH3D fisheye/DoF lens row in
   `FEATURE_PARITY`. Wiring is headless-verifiable; the pixel pass is real-GPU-pending (mark it).
-- ~~**PC2-PLAN-ANGLE-SNAP**~~ ✅ DONE (v0.2.0.34) — wall-draw now snaps to 15° increments (covering
-  30/45/90°) with **Shift to bypass**; order is grid→angle→wall-snap so a join to a real corner/edge
-  still wins, and the live readout shows length + angle. Furniture-rotate was already 15°-stepped (the
-  Rotation field `step=15` + `rotate90` + off-square nudge). New pure `snapWallAngle` (+8 tests);
-  `pointerGrid` split out of `pointerWorld`. Verified: ~3.6°-off → 0.000°, ~41°-off → 30.000°.
 
 ### Polish
 - **PC2-PLAN-FURN-ICONS** (M) — The 2D plan draws furniture as plain footprint rectangles; SH3D draws

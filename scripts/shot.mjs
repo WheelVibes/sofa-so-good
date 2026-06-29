@@ -131,13 +131,19 @@ if (!process.env.SHOT_HARNESS_LOCKED) {
   process.exit(res.status ?? 1)
 }
 
+// SHOT_GPU=1 routes WebGL to the real hardware GPU (ANGLE over the WSL D3D12
+// /dev/dxg passthrough) instead of the default SwiftShader software renderer —
+// needed to verify GPU-only effects (DoF bokeh, VSM/soft shadows, glass
+// transmission, bloom, SSAO/SSGI). Falls back cleanly if no GPU is present.
+const useGpu = process.env.SHOT_GPU === '1'
 const browser = await puppeteer.launch({
-  headless: 'shell',
+  headless: useGpu ? true : 'shell',
   args: [
     '--no-sandbox',
     '--disable-setuid-sandbox',
     '--use-gl=angle',
-    '--use-angle=swiftshader',
+    useGpu ? '--use-angle=gl-egl' : '--use-angle=swiftshader',
+    ...(useGpu ? ['--enable-gpu', '--enable-features=Vulkan,UseSkiaRenderer'] : []),
     '--enable-unsafe-swiftshader',
     '--ignore-gpu-blocklist',
     '--enable-webgl',

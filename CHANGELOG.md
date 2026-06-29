@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Harness: real-GPU verification mode + backlog reconciliation (v0.8.0.12)
+
+- **`SHOT_GPU=1`** in `scripts/shot.mjs` routes WebGL to the **real hardware GPU**
+  (ANGLE `gl-egl` over the WSL D3D12 `/dev/dxg` passthrough — renderer confirmed
+  `D3D12 (Intel(R) UHD Graphics)`) instead of the default SwiftShader, so GPU-only
+  effects (DoF/bloom/soft-shadows/glass/HDRI/path-trace) can be visually verified.
+  Documented in `docs/visual-verification-playbook.md` (new "Real-GPU mode" section).
+- **Backlog reconciliation:** removed all completed items from `TODO.md` / `TASKS.md`
+  (verified against this changelog) — the entire high-priority bug/perf block
+  (BUG-001…014, PERF-001/002/004/005, UX-001/006, RD-403/411, all shipped PC2-*) plus
+  the `[x]` parity/realism items. Kept only genuinely-open work (`[ ]`/`[~]`); caught
+  an RD-409 ID-collision (the colour-temperature feature is still deferred, distinct
+  from the shipped milky-render fix that reused the ID).
+
 ## Full user-docs audit — fix stale facts across the whole guide (v0.8.0.11)
 
 - Audited every `docs/user/*.md` file against the current code (not just this branch's
