@@ -63,6 +63,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'export-3d': 'sceneExport3d',
   'import-sh3d': 'importSh3d',
   parametric: 'parametricFurniture',
+  'configure-product': 'productConfigurator',
   'stamp-mode': 'stampPlace',
   'replace-similar': 'replaceSimilar',
   'ai-furnish': 'aiLayout',
@@ -169,6 +170,13 @@ export function CommandPalette() {
         label: 'Custom-size furniture (shelf / wardrobe / sideboard)',
         icon: 'Cube',
         run: () => s().setParametricOpen(true),
+      },
+      {
+        id: 'configure-product',
+        group: 'Actions',
+        label: 'Configure a product (mattress-on-frame / modular sofa)',
+        icon: 'Cube',
+        run: () => s().setConfiguratorOpen(true),
       },
       {
         // Sticky stamp placement (PARITY-STAMP-PLACE): keep the currently-armed

@@ -108,6 +108,8 @@ export interface FeaturesSlice {
   /** Parametric furniture generator (custom-size shelving/wardrobe/sideboard,
    *  PF1) dialog visibility. */
   parametricOpen: boolean
+  /** Slot-based product configurator dialog visibility (SLOT-105). */
+  configuratorOpen: boolean
   /** Login screen (admin sign-in) visibility. */
   loginOpen: boolean
   /** Feature-flags panel (dev/admin) visibility. */
@@ -158,6 +160,7 @@ export interface FeaturesSlice {
   setSmartStartOpen: (open: boolean) => void
   setGlbDesignerOpen: (open: boolean) => void
   setParametricOpen: (open: boolean) => void
+  setConfiguratorOpen: (open: boolean) => void
   setLoginOpen: (open: boolean) => void
   setFlagsPanelOpen: (open: boolean) => void
   setQuoteTemplateOpen: (open: boolean) => void
@@ -194,6 +197,7 @@ export const FEATURES_INITIAL = {
   smartStartOpen: false,
   glbDesignerOpen: false,
   parametricOpen: false,
+  configuratorOpen: false,
   loginOpen: false,
   flagsPanelOpen: false,
   quoteTemplateOpen: false,
@@ -253,6 +257,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
   setGlbDesignerOpen: (glbDesignerOpen) => set({ glbDesignerOpen }),
   setParametricOpen: (parametricOpen) => set({ parametricOpen }),
+  setConfiguratorOpen: (configuratorOpen) => set({ configuratorOpen }),
   setLoginOpen: (loginOpen) => set({ loginOpen }),
   setFlagsPanelOpen: (flagsPanelOpen) => set({ flagsPanelOpen }),
   setQuoteTemplateOpen: (quoteTemplateOpen) => set({ quoteTemplateOpen }),

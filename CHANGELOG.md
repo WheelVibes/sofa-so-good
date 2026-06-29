@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## SLOT-105: configurator dialog + ⌘K entry (v0.8.0.45)
+
+- `ui/configurator/ConfiguratorDialog.tsx` + `ConfiguratorPreview.tsx` — a structural clone of the
+  parametric dialog: product tabs (mattress-on-frame / modular sofa), one slot row per slot with
+  option pickers (optional slots get a "None"), a live `<Canvas>` preview (reuses
+  `buildConfiguredObject` so it can't drift from the bake), a running "Configured price" (gated by
+  `budget`), and Add-to-room / Save-to-catalog (bakes via `saveConfiguredAsset`, arms placement).
+  Selections are clamped on every change so constraints resolve live. Store `configuratorOpen` +
+  `setConfiguratorOpen`; lazy-mounted in `App`; ⌘K "Configure a product" command gated by
+  `productConfigurator` (COMMAND_FLAGS). GPU-verified: both products assemble correctly (the bed's
+  mattress rests on the frame with the headboard behind; the sofa's left-chaise L-shape with the
+  mutex auto-emptying the corner). SLOT is now functionally complete end-to-end; GLB-sub-asset
+  options (203), re-editable placed items (204), and the docs/scenario ladder (301) are fast-follows.
+
 ## SLOT-102/103/104: configurator object-builder + bake + feature flag (v0.8.0.44)
 
 - `buildObject.ts` (`buildConfiguredObject`) maps the composed part list to a three.js `Group` of

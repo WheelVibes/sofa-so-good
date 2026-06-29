@@ -18,6 +18,11 @@ export const GlbDesignerDialog = lazyWithRetry(() =>
 export const ParametricDialog = lazyWithRetry(() =>
   import('../parametric/ParametricDialog').then((m) => ({ default: m.ParametricDialog })),
 )
+// Slot-based product configurator (SLOT-105) — own R3F preview + GLTF exporter;
+// lazy so it stays out of the boot bundle, gated on `configuratorOpen`.
+export const ConfiguratorDialog = lazyWithRetry(() =>
+  import('../configurator/ConfiguratorDialog').then((m) => ({ default: m.ConfiguratorDialog })),
+)
 // Rarely-opened, dependency-heavy panels/modals — lazy-loaded + gated on their
 // open flag so their code (AI client, GLTF/design-file IO, elevation projection,
 // SVG builders, tour) stays out of the initial bundle (PERF5).

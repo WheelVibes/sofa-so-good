@@ -31,6 +31,7 @@ import {
   BudgetPanel,
   ClearancePanel,
   CommentsPanel,
+  ConfiguratorDialog,
   DaylightPanel,
   DesignScorePanel,
   DrawingCalloutsPanel,
@@ -93,6 +94,7 @@ export default function App() {
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const glbDesignerOpen = useStore((s) => s.glbDesignerOpen)
   const parametricOpen = useStore((s) => s.parametricOpen)
+  const configuratorOpen = useStore((s) => s.configuratorOpen)
   const bootPhase = useStore((s) => s.bootPhase)
   const sceneReady = useStore((s) => s.sceneReady)
   const loading = useStore((s) => s.loading)
@@ -986,6 +988,11 @@ export default function App() {
         {parametricOpen ? (
           <Suspense fallback={null}>
             <ParametricDialog />
+          </Suspense>
+        ) : null}
+        {configuratorOpen ? (
+          <Suspense fallback={null}>
+            <ConfiguratorDialog />
           </Suspense>
         ) : null}
         <QuoteTemplateModal />
