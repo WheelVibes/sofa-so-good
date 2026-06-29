@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## User-docs sweep — sync guide to the Canva-feature work (v0.8.0.10)
+
+- Full audit of `docs/user/*.md` against current code; fixed every stale/wrong claim left over
+  from the multi-select / floor-plan editor work. **`floor-plan-editor.md`**: removed the
+  defunct **Room finishes** dropdowns (finishes are per-room-3D-editor only now) → renamed the
+  section to *Room name & label position*; rewrote **Levels (storeys)** from the old header
+  tab-strip to the new bottom-left **floor dropdown** (topmost-first; rename/reorder/add/
+  duplicate/remove); documented the **Labels** view toggle, the now-**editable** dimensions
+  (endpoint handles + Length/A/B fields + delete), the right-click **context menu**, the
+  multi-select **bounding box + rotation ring + corner resize handles**, the canvas **compass +
+  dynamic scale bar**, the desktop-**expanded** Properties panel, and dropped the stale "levels"
+  reference from the phone Tools sheet.
+- **`keyboard-shortcuts.md`**: undo/redo are now **always active** (per-room editor, 2D plan
+  editor and overview share one history) — moved to *General* with a note, out of the
+  per-room-only *Editing a selection* table. **`placing-furniture.md`**: added the layer-order
+  context-menu moves (Bring to front/forward, Send backward/to back) and the 2+ selection
+  **corner resize handles** (shared with the 2D editor).
+
 ## Floor selector → bottom-left dropdown, renamable + reorderable (v0.8.0.9)
 
 - Replaced the toolbar's level-tab strip with a single **floor dropdown pinned to the canvas

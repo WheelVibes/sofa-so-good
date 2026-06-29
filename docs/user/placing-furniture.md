@@ -88,15 +88,20 @@ back. (The <kbd>R</kbd> key still does quick 90° turns.)
 **Select several pieces** and the ring grows to enclose the whole group — drag it
 to **rotate the whole arrangement** as one, pivoting around its centre (the
 read‑out shows how far you've turned). Great for angling a sofa‑and‑rug set or a
-dining table with its chairs together.
+dining table with its chairs together. A two‑or‑more selection also gets **corner
+resize handles** on its bounding box — drag a corner to scale the whole group
+uniformly about the opposite corner (a single piece is resized from the inspector
+instead). The same unified bounding box, rotation ring and corner handles appear
+in the 2D floor‑plan editor too.
 
 **Right‑click** any placed piece for a **context menu** with the most common
 actions right where you need them — **replace with similar**, rotate, **straighten**
 (snap a freely-turned piece back square to the walls; shown only when it's
 off-axis), **centre in room** (snap it to the middle of its room — handy for
 rugs and ceiling lights), flip, duplicate, **isolate** (hide everything else to
-focus on this piece/selection; **Show all** brings them back),
-**group / ungroup**, lock / unlock, and delete. (Group appears when
+focus on this piece/selection; **Show all** brings them back), the layer‑order
+moves **Bring to front** / **Bring forward** / **Send backward** / **Send to
+back**, **group / ungroup**, lock / unlock, and delete. (Group appears when
 you have several pieces selected; Ungroup appears when the piece is already part
 of a group.)
 

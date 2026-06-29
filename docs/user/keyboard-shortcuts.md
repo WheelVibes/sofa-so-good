@@ -10,6 +10,12 @@
 | Toggle catalog | <kbd>C</kbd> |
 | Help & shortcuts | <kbd>?</kbd> |
 | 2D ⇄ 3D floor plan | <kbd>P</kbd> |
+| Undo / redo | <kbd>⌘Z</kbd> / <kbd>⌘Y</kbd> (or <kbd>Shift</kbd>+<kbd>⌘Z</kbd>) |
+
+> **Undo / redo are always active** — every editing surface (the per‑room editor,
+> the 2D floor‑plan editor and the orbit overview) records into the same history,
+> so you can undo or redo from anywhere except while a dialog is open or you're
+> typing in a field.
 
 ## View & camera
 
@@ -25,7 +31,8 @@
 ## Editing a selection
 
 These work **inside the [per‑room editor](/room-editor)** only — the orbit
-overview and walk mode are view‑only.
+overview and walk mode are view‑only. (Undo / redo are the exception — they're
+always active; see [General](#general) above.)
 
 | Action | Shortcut |
 | --- | --- |
@@ -40,7 +47,6 @@ overview and walk mode are view‑only.
 | Budget / shopping panel | <kbd>B</kbd> |
 | Delete | <kbd>Del</kbd> |
 | Deselect / exit room | <kbd>Esc</kbd> |
-| Undo / redo | <kbd>⌘Z</kbd> / <kbd>⌘Y</kbd> (or <kbd>Shift</kbd>+<kbd>⌘Z</kbd>) |
 
 ## In walk mode
 
