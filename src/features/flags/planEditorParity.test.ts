@@ -9,7 +9,13 @@ import type { FeatureFlag } from './types'
  * authoring aids: present in Pro, hidden in Simple (the default). Tested in BOTH
  * modes per the CLAUDE.md hard rule.
  */
-const FLAGS: FeatureFlag[] = ['planGuides', 'cornerFillet', 'dimensionChain', 'gapSuggest']
+const FLAGS: FeatureFlag[] = [
+  'planGuides',
+  'cornerFillet',
+  'dimensionChain',
+  'gapSuggest',
+  'triplanarWalls',
+]
 
 describe('plan-editor parity feature flags', () => {
   for (const flag of FLAGS) {

@@ -565,6 +565,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Triplanar (dominant-axis world) UVs on sloped/curved wall geometry (MAT-006b)
+  // so a tiled finish reads at a constant world scale with no stretch. Pure
+  // geometry → prod-safe; advanced authoring concern → pro tier.
+  triplanarWalls: {
+    label: 'Triplanar walls',
+    description: 'World-scaled, non-stretched texture mapping on sloped/curved walls',
+    default: true,
+    tier: 'pro',
+  },
   // Configurable wall thickness: a plan-wide default (external/internal) plus
   // per-wall metre overrides, edited in the 2D plan inspector. Pure geometry →
   // prod-safe. Surfaced in the default experience (curated launch set) → simple tier.

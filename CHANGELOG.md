@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## MAT-006b: triplanar (world-scaled) UVs on sloped walls (v0.8.0.17)
+
+- New pure `materials/triplanar.ts` (`dominantAxis`/`projectUv`/`triplanarUv`) —
+  per-triangle dominant-axis world projection so a tiled finish on non-planar wall
+  geometry reads at a constant world scale with no stretch (6 tests).
+- Wired into `PlanShell` `SlopedWallMesh` behind a new `triplanarWalls` pro flag:
+  the sloped-wall prism now carries world-scaled UVs (it previously had none), making
+  it correctly texture-ready. The current solid-colour fallback ignores UVs, so this is
+  a non-regressing texture-readiness change (closes RD-406's remaining triplanar half).
+  Flag tested in both Simple & Pro.
+
 ## Backlog reconciliation: verified-shipped photoreal items removed (v0.8.0.15)
 
 Cross-checked three "open" TODO table rows against the code and confirmed they

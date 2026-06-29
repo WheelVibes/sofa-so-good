@@ -80,6 +80,7 @@ export type FeatureFlag =
   | 'cornerFillet'
   | 'dimensionChain'
   | 'gapSuggest'
+  | 'triplanarWalls'
   | 'wallThickness'
   | 'unroomedFlag'
   | 'planIntegrity'

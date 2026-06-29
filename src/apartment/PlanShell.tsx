@@ -28,6 +28,7 @@ import {
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import { BeveledBox } from '../furniture/primitives/BeveledBox'
 import { GLASS_SKYCATCH_COLOR, glassSkyCatchIntensity } from '../materials/materialRealism'
+import { triplanarUv } from '../materials/triplanar'
 import type { MaterialId } from '../materials/types'
 import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
 import { useStore } from '../state/store'
@@ -761,15 +762,21 @@ function SlopedWallMesh({
    *  drawn as boxes (so this is just the upper wedge above any openings). */
   baseY?: number
 }) {
+  const triplanar = useFeature('triplanarWalls')
   const geometry = useMemo(() => {
     const g = new BufferGeometry()
-    g.setAttribute(
-      'position',
-      new BufferAttribute(slopedWallTriangles(wall, ceiling, thickness, baseY), 3),
-    )
+    const pos = slopedWallTriangles(wall, ceiling, thickness, baseY)
+    g.setAttribute('position', new BufferAttribute(pos, 3))
     g.computeVertexNormals()
+    // Triplanar (dominant-axis world) UVs (MAT-006b) so a tiled finish on this
+    // non-planar prism reads at a constant world scale with no stretch. Pure
+    // geometry; the solid-colour fallback ignores UVs, so this is texture-readiness.
+    if (triplanar) {
+      const uv = triplanarUv(pos, 1)
+      if (uv) g.setAttribute('uv', new BufferAttribute(uv, 2))
+    }
     return g
-  }, [wall, ceiling, thickness, baseY])
+  }, [wall, ceiling, thickness, baseY, triplanar])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <mesh geometry={geometry} castShadow receiveShadow>

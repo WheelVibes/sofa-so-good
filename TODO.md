@@ -79,11 +79,6 @@ The report/export surface is saturated; this wave mines `materials/`/`furniture/
 from `docs/research/2026-06-19-material-microdetail-plan.md` (MAT-006a/b are the only un-shipped rows)
 + a codebase audit. **IN FLIGHT (Wave 12):** MAT-006a, METAL-LEGS, SHELLPERF + ARRANGE-GRID.
 
-### Clean-delegate but PARTLY real-GPU (verification limited — split / defer the pixel pass)
-- [ ] **MAT-006b** (MED/M, `G-flags`) — triplanar projection for sloped/curved walls
-  (`materials/triplanar.ts` + `triplanarWalls` pro flag). Uses `onBeforeCompile` → only the CPU-side
-  projection-weight math + "shader compiles" is headless-verifiable; the visual needs a real render pass.
-
 ## MASTER EXECUTION QUEUE (consolidated 2026-06-19)
 
 One de-duplicated, prioritised dispatch queue distilled from the five 2026-06-19 audit
