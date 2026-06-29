@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useFeature } from '../../../features/useFeature'
+import { HDRI_PRESETS } from '../../../scene/lighting/hdriCatalog'
 import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
 import type { BackdropKind } from '../../../scene/SceneBackdrop'
 import { BACKDROPS } from '../../../scene/SceneBackdrop'
@@ -68,6 +69,9 @@ export function SceneMenu() {
   const proMode = useStore((s) => s.uiMode === 'pro')
   const fBackdrops = useFeature('backdrops')
   const fProceduralSky = useFeature('proceduralSky')
+  const fHdri = useFeature('hdriEnvironment')
+  const hdriId = useStore((s) => s.hdriId)
+  const setHdri = useStore((s) => s.setHdri)
   const fRenderPresets = useFeature('renderPresets')
   const [compassOpen, setCompassOpen] = useState(false)
   const activePresetId = useActivePresetId()
@@ -152,6 +156,26 @@ export function SceneMenu() {
               />
             </label>
             <BackdropUpload />
+          </>
+        )}
+
+        {/* ---- HDRI environment lighting (F3/R-HDRI · PHOTO-HDRI) ---- */}
+        {fHdri && (
+          <>
+            <div className="scene-sep" />
+            <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+              <span>Environment lighting</span>
+              <Select
+                className="input scene-select"
+                value={hdriId ?? ''}
+                ariaLabel="HDRI environment"
+                onChange={(v) => setHdri(v === '' ? null : v)}
+                options={[
+                  { value: '', label: 'Procedural (default)' },
+                  ...HDRI_PRESETS.map((h) => ({ value: h.id, label: `${h.name} — ${h.hint}` })),
+                ]}
+              />
+            </label>
           </>
         )}
 

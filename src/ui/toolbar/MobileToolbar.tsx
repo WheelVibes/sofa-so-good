@@ -9,6 +9,7 @@ import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
 import { tidyHome } from '../../layout/tidyHome'
 import { applyStyle, STYLE_PRESETS } from '../../materials/stylePresets'
 import { runUpdateCheck } from '../../pwa/swUpdate'
+import { HDRI_PRESETS } from '../../scene/lighting/hdriCatalog'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
 import { applyRenderPreset, RENDER_PRESETS } from '../../scene/renderPresets'
@@ -97,6 +98,7 @@ export function MobileToolbar() {
   const exposure = useStore((st) => st.exposure)
   const backdrop = useStore((st) => st.backdrop)
   const hasCustomBackdrop = useStore((st) => !!st.customBackdropUrl)
+  const hdriId = useStore((st) => st.hdriId)
   const proMode = useStore((st) => st.uiMode === 'pro')
   const featureFlags = useStore((st) => st.featureFlags)
   const canUndo = useStore((st) => st.past.length > 0)
@@ -121,6 +123,7 @@ export function MobileToolbar() {
   const fFloorPlan = useFeature('floorPlanEditor')
   const fBackdrops = useFeature('backdrops')
   const fProceduralSky = useFeature('proceduralSky')
+  const fHdri = useFeature('hdriEnvironment')
   const fSmartStart = useFeature('smartStart')
   const fParametric = useFeature('parametricFurniture')
   const fPanorama = useFeature('panorama')
@@ -631,6 +634,21 @@ export function MobileToolbar() {
                         </label>
                         <BackdropUpload />
                       </>
+                    ) : null}
+                    {fHdri ? (
+                      <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+                        <span>Environment lighting</span>
+                        <Select
+                          className="input scene-select"
+                          value={hdriId ?? ''}
+                          ariaLabel="HDRI environment"
+                          onChange={(v) => s.getState().setHdri(v === '' ? null : v)}
+                          options={[
+                            { value: '', label: 'Procedural (default)' },
+                            ...HDRI_PRESETS.map((h) => ({ value: h.id, label: h.name })),
+                          ]}
+                        />
+                      </label>
                     ) : null}
                   </Section>
                 ) : null}

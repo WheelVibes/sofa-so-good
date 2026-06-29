@@ -574,6 +574,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // CC0 HDRI environment library for image-based lighting (F3/R-HDRI · PHOTO-HDRI).
+  // Poly Haven CC0 .hdr (CORS-direct) → prod-safe; an advanced lighting control → pro.
+  // Off by selection (default keeps the procedural probe), so no default-look change.
+  hdriEnvironment: {
+    label: 'HDRI lighting',
+    description: 'Light the scene with a real captured CC0 HDRI environment',
+    default: true,
+    tier: 'pro',
+  },
   // Configurable wall thickness: a plan-wide default (external/internal) plus
   // per-wall metre overrides, edited in the 2D plan inspector. Pure geometry →
   // prod-safe. Surfaced in the default experience (curated launch set) → simple tier.

@@ -15,6 +15,7 @@ const FLAGS: FeatureFlag[] = [
   'dimensionChain',
   'gapSuggest',
   'triplanarWalls',
+  'hdriEnvironment',
 ]
 
 describe('plan-editor parity feature flags', () => {

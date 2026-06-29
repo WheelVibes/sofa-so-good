@@ -22,6 +22,15 @@ day**, **Soft morning**, **Golden hour** or **Cozy evening** — each combining 
 time of day, a tone-mapping look, exposure and the light-fixture state. Tweak
 anything afterwards; the preset is just a starting point.
 
+## Environment lighting (HDRI) *(Pro)*
+
+The Scene menu's **Environment lighting** picker lets you light the flat with a
+real **captured HDRI** instead of the built-in procedural light — pick **Neutral
+studio**, **Warm studio**, **Clear sky**, **Golden hour** or **Soft dawn** for a
+different mood and set of reflections. These are free CC0 environments from Poly
+Haven and need a higher graphics tier (Medium or above) to show. Leave it on
+**Procedural (default)** to keep the standard look. *(Pro mode; hidden in Simple.)*
+
 ## Light fixtures
 
 Lamps, pendants, and ceiling lights **glow and cast light at night**, and fade

@@ -59,10 +59,8 @@ time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push
 ## Realism & rendering
 - [~] F1 (C238/C240/C243): HQ render + DoF + denoise shipped. TAIL: real-GPU convergence/quality
   pass + decide quality-tier gating of the menu entry.
-- [ ] F3/R-HDRI [PROD] HDRI environment library (Poly Haven CC0 `.hdr`) for IBL + backdrop.
-  Sandbox can't fetch — wire + dev-verify; CC0 so prod-ok.
-- [ ] F4 tail (HDRI only): A/B compare shipped (C263); HDRI coupling deferred until F3 (R-HDRI) lands.
-  Once F3 is available, wire the HDRI selector into `capturePreset` and expose it in the compare modal.
+- [~] F4 tail (HDRI only): A/B compare shipped (C263). Now that F3 (HDRI) has landed, the optional
+  follow-up is wiring the HDRI selector into `capturePreset` + the compare modal (minor).
 - [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle with WebGL fallback.
 - [ ] PR4/R-SSAO Soft-shadow upgrade (PCSS/VSM) + contact-shadow refinement; needs real GPU.
 - [ ] R-BLEED: inter-room light bleed directional weighting (deferred from C275 — needs geometry
@@ -145,10 +143,7 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - PHOTO-BACKDROP ✓ SHIPPED — surroundings are a flat equirectangular photo as `scene.background`, **walk
   mode only** (orbit clean); legacy 3D City/Park/Hills/Studio removed. Presets city/dusk/park/hills +
   **user-uploaded `custom` photo** (IDB-persisted) + none; flags `backdrops`/`customBackdrop`, prod-safe.
-  Follow-up: bundle real CC0 equirectangular photos for the presets; pairs with PHOTO-HDRI (#1b).
-- [ ] PHOTO-HDRI (R-HDRI): CC0 Poly Haven HDRI for IBL + sky through windows (Medium+); keep
-  procedural backdrops for near parallax + far HDRI dome. `hdriEnvironment` pro flag, prod-safe (CC0).
-  Needs the .hdr asset added in a connected session (sandbox can't fetch). M.
+  Follow-up: bundle real CC0 equirectangular photos for the presets.
 - [~] PHOTO-DENOISE: edge-preserving **DenoiseMaterial bilateral pass shipped** on the HQ-render blit
   (`hqRenderSession.ts`, = PARITY-DENOISE). Remaining nicety: swap in browser OIDN
   (`DennisSmolek/Denoiser`) + albedo/normal AOV for a higher-quality denoise (real-GPU).

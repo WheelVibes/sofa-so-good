@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## F3/R-HDRI · PHOTO-HDRI: CC0 HDRI environment lighting (v0.8.0.24)
+
+- Curated CC0 HDRI library (`scene/lighting/hdriCatalog.ts`, 5 Poly Haven `.hdr` served
+  CORS-direct from the Poly Haven CDN — neutral/warm studio, clear sky, golden hour, soft
+  dawn). Selecting one (Scene menu → **Environment lighting**, desktop + mobile) swaps the
+  procedural Lightformer probe for the captured HDRI as `scene.environment` IBL via drei
+  `<Environment files>`; the default (`hdriId === null`) keeps the exact procedural look, so
+  there's **no out-of-box change**. State `hdriId` + `setHdri` (uiSlice, persisted in editorPrefs),
+  `hdriEnvironment` pro flag, Medium+ (needs IBL). GPU-verified: the venice_sunset HDRI loads
+  over the network and lights the flat. Catalog + flag + slice tests (both modes). Closes F3/R-HDRI
+  + PHOTO-HDRI; F4's HDRI-compare coupling is now an optional follow-up.
+
 ## PARITY-8K: 8K still-render preset (v0.8.0.23)
 
 - Added an **8K · 7680×4320** preset to `HqRenderModal` resolutions. The HQ path-tracer

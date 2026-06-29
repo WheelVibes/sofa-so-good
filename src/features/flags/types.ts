@@ -81,6 +81,7 @@ export type FeatureFlag =
   | 'dimensionChain'
   | 'gapSuggest'
   | 'triplanarWalls'
+  | 'hdriEnvironment'
   | 'wallThickness'
   | 'unroomedFlag'
   | 'planIntegrity'
