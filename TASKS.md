@@ -19,10 +19,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   the inert WebXR entry + provider already ship.
 
 ## Open — client-doable
-- [ ] **MOD-PLANINSPECTOR-SPLIT** — split `ui/floorplan/PlanInspector.tsx` (~1441 ln) into sibling
-  `editor/inspector/<Branch>.tsx` panels; thin dispatcher. Behaviour-preserving.
-- [ ] **MOD-MOBILETOOLBAR-SPLIT** — split `ui/toolbar/MobileToolbar.tsx` (~1140 ln) into
-  `toolbar/mobile/<Section>.tsx`; thin shell. Behaviour-preserving.
 - [ ] RD-408 decor tail: wall-art / gallery-cluster placement (RD408-008) — the per-surface budget,
   spread/jitter, weighted variety, and hero props already ship; the wall pass is the remaining gap.
   Source: `docs/research/2026-06-19-rd408-decor-density-plan.md`.

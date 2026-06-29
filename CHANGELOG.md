@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## MOD-PLANINSPECTOR-SPLIT: split the monolithic plan inspector (v0.8.0.35)
+
+- Behaviour-preserving refactor of `ui/floorplan/PlanInspector.tsx` (**1441 → 524 lines**): extracted
+  the room / wall / opening selection branches into `ui/floorplan/editor/inspector/RoomInspector.tsx`,
+  `WallInspector.tsx`, `OpeningInspector.tsx`, with the shared helpers (`Num`, `CeilingControls`,
+  `DeleteBtn`, `NameField`, `ActBtn`) in `editor/inspector/shared.tsx`. `PlanInspector` stays the thin
+  dispatcher (selection resolution, defaults/multi-wall/note/dim/polyline branches, minimize/footer
+  chrome) and renders the three extracted components; `Num` is re-exported so existing imports keep
+  working. Verbatim markup/store-calls/flag-gates — verified: tsc + biome clean, 131 floorplan tests
+  pass, and the wall + room inspector panels render identically (screenshot-verified in the 2D editor,
+  Pro mode). Closes MOD-PLANINSPECTOR-SPLIT — both monolithic-UI splits in TASKS are now done.
+
 ## IO-008: optimize worker `messageerror` handler (v0.8.0.34)
 
 - `furniture/optimize/runOptimize.ts` now sets `worker.onmessageerror` (alongside `onerror`) to fail
