@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PHOTO-KTX2: real in-browser KTX2/UASTC texture encoder (v0.8.0.25)
+
+- Un-stubbed `lib/ktx2encode.ts` — the model-optimize path now actually emits GPU-compressed
+  KTX2/UASTC textures (Zstd-supercompressed, mipmapped) when the import dialog's *Maximum
+  compression (KTX2)* toggle is on, the biggest runtime-VRAM win on integrated GPUs. Encoder is
+  the Basis Universal WASM build from `ktx2-encoder`; its glue + wasm are **self-hosted** under
+  `public/basis/` (vendored by `scripts/copy-decoders.mjs` alongside the Draco/transcoder, and the
+  explicit `jsUrl`/`wasmUrl` keep it off the package's default upstream CDN — fully offline,
+  prod-safe). `isKtx2EncodeAvailable()` now returns `true`, so `optimizeGlb`'s `ktx2` opt-in
+  re-encodes textures instead of falling back to WebP; degenerate input still falls back cleanly.
+  End-to-end tested (raw RGBA8 → valid KTX2 magic) + guard tests. Tail: per-channel tuning
+  (normal maps want `isNormalMap`/no perceptual transfer — currently every map is perceptual UASTC,
+  high-quality lossy and visually safe).
+
 ## F3/R-HDRI · PHOTO-HDRI: CC0 HDRI environment lighting (v0.8.0.24)
 
 - Curated CC0 HDRI library (`scene/lighting/hdriCatalog.ts`, 5 Poly Haven `.hdr` served

@@ -147,9 +147,8 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [~] PHOTO-DENOISE: edge-preserving **DenoiseMaterial bilateral pass shipped** on the HQ-render blit
   (`hqRenderSession.ts`, = PARITY-DENOISE). Remaining nicety: swap in browser OIDN
   (`DennisSmolek/Denoiser`) + albedo/normal AOV for a higher-quality denoise (real-GPU).
-- [ ] PHOTO-PBR + PHOTO-KTX2: real 2K CC0 PBR maps (Poly Haven/ambientCG) over procedural fallback;
-  un-stub `lib/ktx2encode.ts` with `ktx2-encoder` (basis WASM now exists — stale assumption) to ship
-  KTX2 in prod (ETC1S albedo / UASTC normal+ORM).
+- [ ] PHOTO-PBR: real 2K CC0 PBR maps (Poly Haven/ambientCG albedo+normal+roughness) layered over the
+  procedural fallback materials for the named surface tokens.
 - [~] PHOTO-EMISSIVE: base wiring + fixture-glow emissive peaks shipped (clear the bloom threshold,
   see scene/CLAUDE.md bloom lock-step). GPU-verified: the Maximum-tier render is healthy. Tail: subjective
   bloom-amount tuning on High/Max (polish, not a missing feature).

@@ -249,10 +249,6 @@ plan:
 [docs/superpowers/plans/2026-06-04-multi-format-import-conversion.md](docs/superpowers/plans/2026-06-04-multi-format-import-conversion.md).
 
 - Deferred follow-ups (carried from the plan's honest-scope flags):
-  - **Real in-browser KTX2/UASTC encoder** — currently the `ktx2` opt-in
-    scaffolds the path but falls back to near-lossless WebP (no clean
-    browser basis-encoder dep in this stack), mirroring `optimize_glb_lod.mjs`
-    falling back when `toktx` is absent ([src/lib/ktx2encode.ts]).
   - **KTX2/DDS standalone-material decode** — needs a WebGL readback; the model
     importer handles embedded KTX2, but standalone KTX2/DDS material uploads are
     not yet decoded ([src/materials/convert/decodeImage.ts]).
@@ -363,13 +359,6 @@ Multi-storey plans are now in progress (F13 / ML phases — see TASKS.md).
   asset-pipeline KTX2 TODO under §Assets.
 
 ## Multi-format model + texture import
-- **KTX2 in-browser encode (scaffold only)** — the model dialog's *Maximum
-  compression (KTX2)* toggle and `optimizeGlb`'s `ktx2` option are wired, but
-  `src/lib/ktx2encode.ts` is a stub (`isKtx2EncodeAvailable()` → false) so it
-  always falls back to WebP. To actually emit KTX2 in-browser, integrate a
-  Basis-Universal WASM encoder (e.g. the KTX-Software `libktx` wasm build or a
-  basis_encoder wasm) and have `encodeKtx2` produce UASTC/ETC1S payloads;
-  `KHRTextureBasisu` is already added when an encode succeeds.
 - **Standalone KTX2/DDS texture upload** ✓ SHIPPED (C274) — `decodeGpuTexture.ts`
   handles both formats: uncompressed KTX2 via pure-JS `ktx-parse`, Basis-compressed
   KTX2 via `KTX2Loader` + GPU readback, DDS via `DDSLoader` + GPU readback for
