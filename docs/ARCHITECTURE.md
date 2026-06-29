@@ -93,7 +93,14 @@ same change that reshapes a system.
   L-shapes; a collapse / self-intersection → `null`); the `floorPlanSlice.insetRoom(id, dist)` /
   `insetSelectedRoom(dist)` actions write the result back as an explicit `polygon` in ONE undo
   step and reject a degenerate inset with a toast (`roomInset` Pro flag; ⌘K "Inset / Grow room"
-  + PlanInspector room buttons). 2D editor = `ui/floorplan/`.
+  + PlanInspector room buttons). 2D editor = `ui/floorplan/`. **Editor HUD**: a compass + a
+  **dynamic scale bar** (`editor/scaleBar.ts` `chooseScaleBar`, pure + tested, zoom-aware) pin to
+  the canvas column's bottom-right (`planCompass` flag). The View "Labels" toggle (`showRoomLabels`)
+  hides room name + dimensions; **finishes are NOT offered in the plan inspector** (per-room editor
+  only). New walls/openings auto-name by room (`roomWallNames.newWallName`/`newOpeningName`). Custom
+  **dimensions** are selectable + deletable + **editable** (`updateDimension` — drag A/B handles or
+  edit length/endpoints in the inspector). Room outlines drag as a whole (polygon points translate
+  with the origin).
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (assembles the catalog from
   per-category `defs/<category>.ts` modules + the `cabinet/` engine; also derives
   `BUILTIN_BY_CATEGORY`),
@@ -186,7 +193,13 @@ same change that reshapes a system.
   selected item's room with N collision-safe copies on a packed grid, deterministic by seed;
   Pro-only via `scatterFill` flag)), FinishPicker, WallAccentPicker, GraphicsSettings,
   BudgetPanel, NavCluster,
-  CommandPalette, ContextMenu, Onboarding, HelpModal, Modal, `upload/`/`floorplan/`/
+  CommandPalette, **ContextMenu** (dynamic right-click menu — `featuresSlice.ContextTarget`
+  carries what was right-clicked; `ContextMenu.tsx` rebuilds actions per target + selection:
+  furniture rotate/flip/duplicate/**layer-order**/group/lock/hide/delete, plan walls
+  reverse/split/join/dup/lock/delete, rooms/openings dup+delete, dim/note/polyline delete.
+  Overrides the browser menu in both editors; gated by the `contextMenu` flag. The 2D editor's
+  canvas `onContextMenu` opens it for the current selection), Onboarding, HelpModal, Modal,
+  `upload/`/`floorplan/`/
   `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`. Empty panels/lists render the shared
   **`EmptyState`** (`EmptyState.tsx`: icon + title + optional description + optional CTA on
   the `.empty-mini` token vocabulary) for consistent, friendly empty-state messaging.
@@ -211,6 +224,19 @@ same change that reshapes a system.
   `categorize.py`, `compatibility.py`, `optimize_glb_lod.mjs`.
 
 ## Key systems
+- **Multi-select transforms & layering** (Canva parity): a multi-selection (`selectedItemIds`)
+  moves/rotates/flips/**resizes** as one unit in BOTH editors — 3D via `DragController` (rigid
+  translate) + `RotateGizmo` (centroid pivot + `enclosingRadius` ring) + `ResizeGizmo` (floor corner
+  handles, uniform scale about the opposite corner) + keyboard F/R; 2D via the editor's
+  `movingItem` group-drag + a unified dashed bounding box with a `rotatingMulti` rotation ring
+  (reusing `scene/selection/rotateGizmoMath`) and `scalingMulti` corner resize handles (uniform
+  `props.scale` about the opposite corner). **Grouping** (`groupsSlice`, `furnitureGroups` flag)
+  binds members so a click selects the whole group. **Z-order / layering** (`layerOrder` flag): pure
+  `state/zorder.ts` `reorderByIds` + `itemsSlice.reorderItems(ids, move)` give bring-forward /
+  send-to-back (render order = array order), surfaced in the context menu. **Locked** items/walls are
+  pinned — a locked wall never moves even when a connected wall is dragged (`moveWallTo`/`moveWallVertex`
+  detach at the corner). **Undo/redo** keyboard shortcuts are always active (App.tsx global handler,
+  not `canEditScene`-gated) so they work in the floor-plan editor + overview too.
 - **View / edit split** (`state/editing.ts`): orbit-overview + walk are **view-only**.
   **All editing happens only in the per-room editor**;
   `canEditScene(s)=roomEditor.active && cameraMode==='orbit'` gates every handler. No
@@ -741,9 +767,11 @@ same change that reshapes a system.
   the SAME render-agnostic ops the 3D `MultiSelectPanel` uses (`layout/alignDistribute.ts` +
   `layout/selectionActions.ts` `mirrorSelectionX`), each one undo step, `canPlace`-checked,
   locked items skipped, **ungated core** (shown in both Simple and Pro, like align/distribute in 3D).
-  **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
-  "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
-  furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an
+  **Floor menu** (`editor/LevelMenu.tsx`, F13/ML4b): a single dropdown pinned to the canvas
+  bottom-left, listing floors **topmost-first** (mall-directory order) — switch / rename
+  (`renameLevel`; ground writes `plan.groundName`) / reorder ▲▼ (`moveLevel` re-stacks elevations) /
+  add (`addLevel`) / duplicate (`duplicateLevel` clones a storey's geometry + furniture + finishes via
+  pure `cloneLevelGeometry`) / remove upper storeys (confirmed `removeLevel`); an
   **"All levels"** toggle draws the other storeys' walls as a dimmed underlay to align floors; every tool,
   overlay and `PlanInspector` edit routes through the active level (`levelAsPlan` reads,
   `levelId` action args; `updateRoom`/`setRoomCeiling`/finish write-through search all

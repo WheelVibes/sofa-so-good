@@ -8,7 +8,7 @@ import runs entirely **in your browser** — nothing is uploaded to a server.
 
 - Native: **`.glb`** / **`.gltf`**
 - Converted to GLB in your browser on import: **`.obj`**, **`.fbx`**, **`.stl`**,
-  **`.ply`**, **`.dae`**, **`.3mf`**, **`.usdz`**
+  **`.ply`**, **`.dae`**, **`.3ds`**, **`.3mf`**, **`.usdz`**
 
 > **Multi‑file formats** (e.g. an `.obj` with its `.mtl` and texture images) need
 > their sibling files included in the same drop, or the materials won't resolve.

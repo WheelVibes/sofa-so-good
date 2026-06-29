@@ -5,6 +5,163 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Full user-docs audit — fix stale facts across the whole guide (v0.8.0.11)
+
+- Audited every `docs/user/*.md` file against the current code (not just this branch's
+  features) and corrected each factual error found:
+  - **`importing-models.md`**: added `.3ds` to the convertible-format list (it's in
+    `convert/formats.ts`).
+  - **`importing-textures.md`**: added **KTX2** and **DDS** to supported formats, and corrected
+    the decode-and-re-encode list (KTX2/DDS are the true exotic cases; BMP decodes natively).
+  - **`design-tools.md`**: Budget panel tab is **Saved** (not "Saved collections"); removed the
+    stale **sample-quality** step from Render compare (the modal is now a near-instant raster
+    capture with no samples picker).
+  - **`room-editor.md`**: the exit button is labelled **"Exit room"**, not the room name (the
+    room name lives in the adjacent dropdown).
+  - **`tips-and-faq.md`**: **five** themes, not four (`THEME_NAMES` has 5).
+  - **`lighting-and-time.md`** / **`walkthrough-and-sun-study.md`**: marked the **sun-direction
+    compass** and **Sun study** as **Pro** (both are pro-tier and hidden in Simple mode).
+- The remaining docs (`finishes-and-materials.md`, `navigating.md`, `getting-started.md`,
+  `index.md`, `themes-and-appearance.md`) verified fully accurate, with all internal doc links
+  resolving.
+
+## User-docs sweep — sync guide to the Canva-feature work (v0.8.0.10)
+
+- Full audit of `docs/user/*.md` against current code; fixed every stale/wrong claim left over
+  from the multi-select / floor-plan editor work. **`floor-plan-editor.md`**: removed the
+  defunct **Room finishes** dropdowns (finishes are per-room-3D-editor only now) → renamed the
+  section to *Room name & label position*; rewrote **Levels (storeys)** from the old header
+  tab-strip to the new bottom-left **floor dropdown** (topmost-first; rename/reorder/add/
+  duplicate/remove); documented the **Labels** view toggle, the now-**editable** dimensions
+  (endpoint handles + Length/A/B fields + delete), the right-click **context menu**, the
+  multi-select **bounding box + rotation ring + corner resize handles**, the canvas **compass +
+  dynamic scale bar**, the desktop-**expanded** Properties panel, and dropped the stale "levels"
+  reference from the phone Tools sheet.
+- **`keyboard-shortcuts.md`**: undo/redo are now **always active** (per-room editor, 2D plan
+  editor and overview share one history) — moved to *General* with a note, out of the
+  per-room-only *Editing a selection* table. **`placing-furniture.md`**: added the layer-order
+  context-menu moves (Bring to front/forward, Send backward/to back) and the 2+ selection
+  **corner resize handles** (shared with the 2D editor).
+
+## Floor selector → bottom-left dropdown, renamable + reorderable (v0.8.0.9)
+
+- Replaced the toolbar's level-tab strip with a single **floor dropdown pinned to the canvas
+  bottom-left** (`editor/LevelMenu.tsx`). It opens **upward** and lists floors **topmost-first**
+  (shopping-mall directory / lift-panel order): switch, inline **rename**, **reorder** ▲▼,
+  add, duplicate, and remove (upper storeys). The active floor shows on the trigger.
+- New model/actions: `plan.groundName` (so the ground floor is renamable too), `renameLevel`
+  (coalesced) and `moveLevel` (reorders an upper storey and re-stacks every elevation). Both
+  round-trip through the schema; covered by new slice tests. Removed the now-unused `LevelTabs`.
+
+## Condensed floor-plan editor toolbar — single row (v0.8.0.8)
+
+- Reworked the desktop toolbar so it never spills to two rows: **Select** is a pointer icon,
+  **Wall**/**Split** stay direct buttons, and the rest collapse into labelled dropdowns —
+  **Room ▾** (Rectangle / Polygon / Auto), **Opening ▾** (Door / Window), **Markup ▾** (Text /
+  Dimension / Polyline). Dropped the redundant "Floor plan" title, shrank the name field, made
+  the `Total` readout `nowrap`, and set the bar to `flex-nowrap` with a horizontal-scroll fallback
+  so it stays one row at any width. Verified one row (53px, no overflow at 1600px).
+
+## Group resize in the 3D per-room editor (v0.8.0.7)
+
+- **`ResizeGizmo`** mirrors the 2D corner-resize into the 3D editor: floor-plane corner handles
+  around a 2+ selection (beside the rotation ring), dragging one scales every selected item
+  uniformly about the opposite corner, collision-tinted, reverting via the pre-gesture snapshot
+  on an invalid release (same `pendingEdit`/confirm-bar UX as `RotateGizmo`). Mounted in both the
+  main and room-editor scenes.
+- Extracted the scale math to a pure, unit-tested `scene/selection/resizeGizmoMath.ts`
+  (`groupResizeFactor` + `resizedTransform`), now shared by the 2D editor and the 3D gizmo.
+- Verified the 3D gizmo renders (bounding box + 4 corner handles + ring). Note: the headless
+  harness cannot trigger an R3F gizmo *grab* — confirmed the existing rotate-ring knob is equally
+  un-draggable headlessly — so the resize *behaviour* is covered by the shared unit tests + the
+  behaviourally-verified 2D path that uses the identical helper.
+
+## Group resize for the 2D multi-selection (v0.8.0.6)
+
+- **Corner resize handles** on the unified multi-select bounding box (`scalingMulti`): dragging a
+  corner scales **every** selected item uniformly by the same factor (`props.scale`/`scaleX/Y/Z`)
+  and repositions them about the **opposite corner**, so the whole selection grows/shrinks as a
+  block (Canva parity). Collision-checked all-or-nothing; locked items skipped; one undo step.
+  Verified headlessly: a corner drag scaled both items by `×2.162` and spread their separation by
+  the same `×2.162`.
+
+## Mobile compass/scale-bar to bottom-right + multi-select verification (v0.8.0.5)
+
+- **Mobile compass + scale bar moved to the canvas bottom-right** (same as desktop) — the
+  expanded inspector bottom-sheet may overlap them, which is acceptable.
+- Added `scripts/scenarios/plan-multiselect-transform.json` — a headless journey that shows
+  furniture, selects two items, group-drags them into open floor, then rotates them via the ring
+  handle, asserting both move/rotate by an identical delta. Verified: multi-drag `Δ=[0,9.35]` on
+  both, multi-rotate `Δ=-1.8326 rad` on both (equal), with collision rejection all-or-nothing.
+
+## 2D plan multi-select transforms + unified handles (v0.8.0.3)
+
+Brings the 2D floor-plan editor up to the 3D editor's multi-select parity (Canva-style):
+
+- **Multi-drag**: dragging any item that's part of a multi-selection now moves the whole
+  selection rigidly by the same delta (collision-checked as a group; locked items skipped),
+  mirroring the 3D `DragController`. Clicking an item already in the selection no longer
+  collapses the selection to just that item.
+- **Unified selection border + rotation ring**: when 2+ furniture items are selected, a single
+  dashed bounding box encloses them all and a rotation ring with a top handle rotates the whole
+  selection about its centroid (`rotatingMulti`, reusing the unit-tested `rotateGizmoMath`
+  `enclosingRadius` / `rotatePointAround` / `computeRotation`).
+- **Flip / rotate all** already apply to the whole selection in 3D (keyboard F / R) and now also
+  via the dynamic context menu in both editors.
+
+## Wall-lock connected components, editable dimensions, movable room outlines (v0.8.0.2)
+
+- **Locking respects wall connectivity.** A locked wall is now pinned: `moveWallVertex`
+  / `moveWallTo` no-op on a locked target and never drag a locked wall's endpoints even
+  when a connected wall is moved — the moved wall detaches from the locked corner instead.
+  Covered by new slice tests.
+- **Dimensions are editable.** New `updateDimension` action + draggable A/B endpoint
+  handles on the selected dimension, and an inspector with editable Length + A/B endpoint
+  fields (in addition to the existing select + delete).
+- **Room outlines move correctly.** Dragging a free-form (polygon) room now translates its
+  absolute polygon points along with the origin, so the whole outline moves (previously only
+  the origin shifted, leaving the polygon behind).
+
+## Always-active undo/redo, dynamic context menu, z-order (v0.8.0.1)
+
+- **Undo/redo keyboard shortcuts are always active** — moved Cmd/Ctrl+Z and
+  Cmd/Ctrl+Shift+Z / Cmd/Ctrl+Y from the room-editor-scoped handler into the
+  always-on global handler, so they now work in the 2D floor-plan editor and the
+  overview too (suppressed only behind a modal or while typing). Verified an
+  add-wall → undo → redo cycle in the plan editor.
+- **Dynamic right-click context menu** (`contextMenu` flag) — `ContextMenu` is now
+  target-aware: it rebuilds its actions from what was right-clicked + the current
+  selection. The 2D plan editor wires a canvas `onContextMenu` that overrides the
+  browser menu and opens operations for the selected element — walls (reverse /
+  split / join / duplicate / lock / delete), rooms (duplicate / delete), openings,
+  dimensions / notes / polylines (delete) — and furniture keeps its rich menu.
+- **Layer order / z-order** (`layerOrder` flag) — `reorderItems(ids, move)` +
+  pure `state/zorder.ts` `reorderByIds` give Canva-style Bring to front / Bring
+  forward / Send backward / Send to back for the selection (render order = array
+  order), surfaced in the furniture context menu.
+
+## Floor-plan editor fixes — labels, finishes, naming, inspector, scale bar (v0.8.0.0)
+
+First wave of the Canva-style editor parity work:
+
+- **Labels toggle now controls room name + dimensions.** Added a "Labels" toggle to the floor-plan
+  editor's View menu (`showRoomLabels`, on by default); room name + area/perimeter callouts were
+  previously drawn unconditionally (sized only by room area) and ignored every toggle. Off now hides
+  them everywhere, even for the selected room.
+- **No finishes in the floor-plan editor.** Removed the Floor / Wall / Ceiling **finish** pickers from
+  the room properties in `PlanInspector` — material choices belong to the per-room editor only, so the
+  plan stays a structural/layout view. Ceiling **height** (geometry) stays.
+- **New walls/windows/doors are auto-named by their room + a unique id.** `roomWallNames.ts` gains
+  `roomForWall`/`newWallName`/`newOpeningName`; `floorPlanSlice.addWall`/`addOpening` now stamp
+  `<room> wall <id>` / `<room> door|window <id>` when the element lands on a room boundary (a
+  caller-supplied name still wins; free-standing elements keep the generic default).
+- **Properties inspector opens expanded on desktop** when clicking a wall/window/door (it still starts
+  minimized on mobile to avoid covering the plan).
+- **Compass pinned to the canvas, with a dynamic scale bar below it.** The compass HUD now lives in a
+  relative canvas-column wrapper (bottom-right of the canvas viewport, not the whole editor frame over
+  the docked inspector). A new zoom-aware scale bar (`editor/scaleBar.ts` `chooseScaleBar`, pure +
+  unit-tested) sits beneath it as a real-world reference.
+
 ## Catalog/inspector text polish (v0.7.1.1)
 
 Small consistency fixes from a screenshot review:

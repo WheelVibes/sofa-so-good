@@ -108,6 +108,8 @@ export type FeatureFlag =
   | 'ceilingFinish'
   | 'saveMaterials'
   | 'masterPalette'
+  | 'layerOrder'
+  | 'contextMenu'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

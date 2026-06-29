@@ -10,6 +10,7 @@
  *
  * Pure (no React/three) so it unit-tests in isolation.
  */
+import { hash6 } from './planElementName'
 import type { PlanOpening, PlanRoom, PlanVec2, PlanWall } from './types'
 
 type Edge = [PlanVec2, PlanVec2]
@@ -102,6 +103,46 @@ export function assignRoomWallNames(
     }
   }
   return out
+}
+
+/** The first room whose boundary the wall lies along, or `null` when the wall
+ *  is free-standing (belongs to no room yet). Used to room-prefix the name of a
+ *  freshly-drawn wall/opening at creation time. */
+export function roomForWall(
+  rooms: readonly PlanRoom[],
+  wall: PlanWall,
+  tol = 0.25,
+): PlanRoom | null {
+  for (const room of rooms) {
+    for (const edge of roomBoundaryEdges(room)) {
+      if (wallOnEdge(wall, edge, tol)) return room
+    }
+  }
+  return null
+}
+
+/** Auto-name for a newly-created wall: `<room name> wall <unique id>` when it
+ *  lies on a room's boundary, else `undefined` (caller leaves it unnamed so the
+ *  generic `defaultWallName` fallback applies). The id-hash keeps every name
+ *  unique even when two walls share a room. */
+export function newWallName(rooms: readonly PlanRoom[], wall: PlanWall): string | undefined {
+  const room = roomForWall(rooms, wall)
+  return room ? `${room.name} wall ${hash6(wall.id)}` : undefined
+}
+
+/** Auto-name for a newly-created door/window: `<room name> door|window <unique
+ *  id>` based on the room its host wall belongs to, else `undefined`. */
+export function newOpeningName(
+  rooms: readonly PlanRoom[],
+  walls: readonly PlanWall[],
+  opening: PlanOpening,
+): string | undefined {
+  const host = walls.find((w) => w.id === opening.wallId)
+  if (!host) return undefined
+  const room = roomForWall(rooms, host)
+  if (!room) return undefined
+  const kind = opening.kind === 'door' ? 'door' : 'window'
+  return `${room.name} ${kind} ${hash6(opening.id)}`
 }
 
 /**

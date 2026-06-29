@@ -49,5 +49,5 @@ In the **Objects / Layers** view each room group has an **eye** (hide) and a
 
 ## Exiting
 
-Click the **left‑arrow exit button** at the far left of the toolbar (labelled
-with the room name) or press <kbd>Esc</kbd>.
+Click the **left‑arrow exit button** (“Exit room”) at the far left of the toolbar
+— the room name shows in the dropdown beside it — or press <kbd>Esc</kbd>.

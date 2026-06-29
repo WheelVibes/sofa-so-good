@@ -26,7 +26,8 @@ share.
 
 Also in the **Tools** menu, **Sun study** time‑lapses the sun from dawn to dusk so
 you can see how daylight, shadows, and warmth move through the flat across a day —
-useful for checking which rooms get morning vs afternoon light.
+useful for checking which rooms get morning vs afternoon light. *(Pro mode — switch
+to Pro from the mode toggle; it's hidden in Simple.)*
 
 > Tip: combine these — run a Sun study while in [Walk mode](/navigating) to watch
 > the light change from inside a room.

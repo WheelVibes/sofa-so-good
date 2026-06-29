@@ -1,15 +1,9 @@
 import { useState } from 'react'
-import type { RoomId } from '../../apartment/types'
 import { useFeature } from '../../features/useFeature'
 import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
 import { levelById, levelOfItem } from '../../floorplan/levels'
 import { defaultOpeningName, defaultWallName } from '../../floorplan/planElementName'
 import { polylineLength } from '../../floorplan/polyline'
-import {
-  resolvePlanRoomCeiling,
-  resolvePlanRoomFloor,
-  resolvePlanRoomWall,
-} from '../../floorplan/roomFinishes'
 import {
   type CeilingConfig,
   type CeilingStyle,
@@ -18,7 +12,6 @@ import {
   wallLength,
 } from '../../floorplan/types'
 import { endForAngle, endForLength, wallAngleDeg } from '../../floorplan/wallOps'
-import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
 import { ColorPicker } from '../controls/ColorPicker'
@@ -28,13 +21,11 @@ import { useIsMobile } from '../useIsMobile'
 import { PlanFurnitureInspector } from './PlanFurnitureInspector'
 import { PlanMultiSelectActions } from './PlanMultiSelectActions'
 
-const FLOOR_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.floor ?? []
-const WALL_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.wall ?? []
-
-/** Minimize state for the plan inspector. Starts minimized whenever an element
- *  is selected (so the property sheet doesn't cover the plan, especially on
- *  mobile) — a new selection re-minimizes; the resting (no-selection) defaults
- *  view stays expanded. The user can toggle at any time. */
+/** Minimize state for the plan inspector. On mobile it starts minimized whenever
+ *  an element is selected (so the property sheet doesn't cover the plan) — a new
+ *  selection re-minimizes; on desktop it opens expanded so wall/window/door
+ *  properties are immediately visible. The resting (no-selection) defaults view
+ *  stays expanded. The user can toggle at any time. */
 function usePlanInspectorMinimize(
   selKey: string,
   hasSelection: boolean,
@@ -239,12 +230,6 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   // sheet. Count only — the actions read fresh state via `useStore.getState()`.
   const furnSelCount = useStore((s) => s.selectedItemIds.length)
   const plan = useStore((s) => s.floorPlan)
-  // The persisted `finishes` map is the source of truth for a room's floor/wall
-  // pick — it round-trips through `serialize()` for EVERY plan, whereas the
-  // plan's own `room.floor`/`room.wall` is dropped on the seeded default plan
-  // (`isDefaultPlan` → no `floorPlan` in the save), so reading `room.floor`
-  // directly desyncs the picker after a reload on the default flat (FIN-DEFAULT-FORK).
-  const finishes = useStore((s) => s.finishes)
   const units = useStore((s) => s.units)
   const a = useStore.getState()
   const isMobile = useIsMobile()
@@ -256,7 +241,6 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const roomInsetOn = useFeature('roomInset')
   const elementColorsOn = useFeature('elementColors')
   const openingStylesOn = useFeature('openingStyles')
-  const ceilingFinishOn = useFeature('ceilingFinish')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -288,9 +272,12 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           ? `${sel.type}:${sel.id}`
           : 'none'
   // A multi-selection is an action panel — keep it expanded (don't auto-minimize).
+  // On DESKTOP the inspector opens expanded when an element is selected (so wall/
+  // window/door properties are visible immediately); only on mobile does it start
+  // minimized to avoid covering the plan.
   const { minimized, toggle } = usePlanInspectorMinimize(
     selKey,
-    (!!sel || !!planItem) && !isMulti && !isFurnMulti,
+    (!!sel || !!planItem) && !isMulti && !isFurnMulti && isMobile,
   )
 
   // On mobile the resting (no-selection) view only repeats the plan defaults,
@@ -513,58 +500,10 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             min={0.1}
             onChange={(v) => a.updateRoom(r.id, { depth: Math.max(0.1, v) })}
           />
-          <div className="flex flex-col gap-1 text-xs">
-            <span className="label">Floor finish</span>
-            <Select
-              value={resolvePlanRoomFloor(finishes, r)}
-              onChange={(v) =>
-                // Routed through the finishes slice (not a bare updateRoom) so
-                // the live finishes map stays in sync with the plan data.
-                a.setFloorFinish(r.id as RoomId, v)
-              }
-              className="input"
-              ariaLabel="Floor finish"
-              options={FLOOR_MATERIALS.map((m) => ({ value: m.id, label: m.name }))}
-            />
-          </div>
-          <div className="flex flex-col gap-1 text-xs">
-            <span className="label">Wall finish</span>
-            <Select
-              value={resolvePlanRoomWall(finishes, r) ?? ''}
-              onChange={(v) => {
-                if (v) a.setWallFinish(r.id as RoomId, v)
-                else a.clearWallFinish(r.id as RoomId)
-              }}
-              className="input"
-              ariaLabel="Wall finish"
-              options={[
-                { value: '', label: 'Plaster (default)' },
-                ...WALL_MATERIALS.map((m) => ({ value: m.id, label: m.name })),
-              ]}
-            />
-          </div>
-          {/* Per-room ceiling finish (CUSTOMIZE-CEILING): paint or texture the
-              ceiling, mirroring the floor/wall pickers. Empty = the default
-              plain white ceiling. Ceilings read well as painted surfaces, so the
-              wall material set (paints + plaster + CC0 textures) is offered. */}
-          {ceilingFinishOn ? (
-            <div className="flex flex-col gap-1 text-xs">
-              <span className="label">Ceiling finish</span>
-              <Select
-                value={resolvePlanRoomCeiling(finishes, r) ?? ''}
-                onChange={(v) => {
-                  if (v) a.setCeilingFinish(r.id as RoomId, v)
-                  else a.clearCeilingFinish(r.id as RoomId)
-                }}
-                className="input"
-                ariaLabel="Ceiling finish"
-                options={[
-                  { value: '', label: 'White (default)' },
-                  ...WALL_MATERIALS.map((m) => ({ value: m.id, label: m.name })),
-                ]}
-              />
-            </div>
-          ) : null}
+          {/* Surface finishes (floor / wall / ceiling) are intentionally NOT
+              offered in the floor plan editor — material choices belong to the
+              per-room editor only, so the plan stays a structural/layout view.
+              Only ceiling HEIGHT (geometry, not a finish) is editable here. */}
           {/* Per-room ceiling height — overrides the home default for this room
               only (a dropped/false ceiling; walls stay full height, like the
               built-in 2.4 m bathrooms). Empty = inherit the home height. */}
@@ -1191,17 +1130,42 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
     const dim = (plan.dimensions ?? []).find((x) => x.id === sel.id)
     if (dim) {
       const len = Math.hypot(dim.b[0] - dim.a[0], dim.b[1] - dim.a[1])
+      // Editing the length moves endpoint B along the A→B direction (A fixed).
+      const setLength = (next: number) => {
+        if (!Number.isFinite(next) || next <= 0 || len < 1e-6) return
+        const ux = (dim.b[0] - dim.a[0]) / len
+        const uz = (dim.b[1] - dim.a[1]) / len
+        a.updateDimension(dim.id, { b: [dim.a[0] + ux * next, dim.a[1] + uz * next] })
+      }
       body = (
         <div className="space-y-2">
           <div className="sec-h">
             <span>Dimension</span>
           </div>
-          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
-            <span className="label">Length</span>
-            <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
-              {formatLength(len, units)}
-            </span>
+          <Num label="Length (m)" value={len} min={0.01} step={0.05} onChange={setLength} />
+          <div className="sec-h" style={{ marginTop: 'var(--s-2)' }}>
+            <span>Endpoints</span>
           </div>
+          <Num
+            label="A · X (m)"
+            value={dim.a[0]}
+            onChange={(v) => a.updateDimension(dim.id, { a: [v, dim.a[1]] })}
+          />
+          <Num
+            label="A · Z (m)"
+            value={dim.a[1]}
+            onChange={(v) => a.updateDimension(dim.id, { a: [dim.a[0], v] })}
+          />
+          <Num
+            label="B · X (m)"
+            value={dim.b[0]}
+            onChange={(v) => a.updateDimension(dim.id, { b: [v, dim.b[1]] })}
+          />
+          <Num
+            label="B · Z (m)"
+            value={dim.b[1]}
+            onChange={(v) => a.updateDimension(dim.id, { b: [dim.b[0], v] })}
+          />
           <DeleteBtn onClick={() => a.removeDimension(dim.id)} label="Delete dimension" />
         </div>
       )

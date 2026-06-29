@@ -292,6 +292,7 @@ export const FloorPlanZ = z.object({
     .object({ external: z.number().optional(), internal: z.number().optional() })
     .optional(),
   upperLevels: z.array(PlanUpperLevelZ).optional(),
+  groundName: z.string().optional(),
   notes: z
     .array(
       z.object({

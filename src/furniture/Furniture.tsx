@@ -246,6 +246,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
         state.openContextMenu({
           x: e.nativeEvent.clientX,
           y: e.nativeEvent.clientY,
+          target: { kind: 'item', id: item.id },
           itemId: item.id,
         })
       }}

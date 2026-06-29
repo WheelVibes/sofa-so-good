@@ -7,10 +7,11 @@ upload.
 
 ## Supported maps
 
-- Formats: **PNG**, **JPG**, **WebP**, **BMP**, **TGA**, **TIFF**, **EXR**, **HDR**
+- Formats: **PNG**, **JPG**, **WebP**, **BMP**, **TGA**, **TIFF**, **EXR**, **HDR**,
+  **KTX2**, **DDS**
 - Limits: up to **4096 × 4096**, up to **16 MB** per file
-- Exotic formats (TGA / TIFF / EXR / HDR / BMP) are **decoded and re‑encoded to
-  WebP** in the browser.
+- Exotic formats (TGA / TIFF / EXR / HDR / KTX2 / DDS) are **decoded and re‑encoded
+  to WebP** in the browser.
 
 ## Maps
 

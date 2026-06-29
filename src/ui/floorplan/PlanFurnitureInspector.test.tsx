@@ -120,8 +120,10 @@ describe('PlanInspector furniture branch — Simple + Pro (mode-independent)', (
       placeOne(def.id)
       render(<PlanInspector />)
       expect(useStore.getState().uiMode).toBe(mode)
-      // The panel auto-minimizes on selection; expand it to reveal the body.
-      act(() => fireEvent.click(screen.getAllByLabelText('Expand properties')[0]))
+      // Desktop opens the inspector expanded; mobile starts minimized — expand
+      // it (if a collapsed panel is present) to reveal the body.
+      const expandBtns = screen.queryAllByLabelText('Expand properties')
+      if (expandBtns.length > 0) act(() => fireEvent.click(expandBtns[0]))
       // The furniture branch renders its name field + footprint readout in both
       // modes — plan editing is a core loop, not a pro-only surface.
       expect(screen.getByLabelText('Custom item name')).toBeTruthy()

@@ -217,6 +217,9 @@ export interface FloorPlan {
   /** Optional storeys above the ground floor (the top-level fields above ARE
    *  the ground floor). Absent/empty = the single-storey plans of today. */
   upperLevels?: PlanUpperLevel[]
+  /** Optional custom name for the ground storey (the top-level geometry).
+   *  Defaults to "Ground floor". Additive + optional. */
+  groundName?: string
   /** Free-text annotation notes placed on the plan (PARITY-DIMTEXT). Each is
    *  level-tagged (`levelId` absent = ground). Additive + optional. */
   notes?: PlanNote[]

@@ -15,7 +15,12 @@ import {
 import { mirrorPlanRegion } from '../../floorplan/mirrorPlanRegion'
 import { DEFAULT_PLAN_ID } from '../../floorplan/planGeometry'
 import { type RescaleOptions, type RescaleSpec, rescalePlan } from '../../floorplan/rescalePlan'
-import { assignRoomOpeningNames, assignRoomWallNames } from '../../floorplan/roomWallNames'
+import {
+  assignRoomOpeningNames,
+  assignRoomWallNames,
+  newOpeningName,
+  newWallName,
+} from '../../floorplan/roomWallNames'
 import {
   type CeilingConfig,
   type FloorPlan,
@@ -245,6 +250,9 @@ export interface FloorPlanSlice {
 
   /** Add a custom dimension line (PARITY-DIMTEXT); returns its id. */
   addDimension: (dim: Omit<PlanDimension, 'id'>) => string
+  /** Patch a dimension's endpoints (drag handles / inspector numeric edit).
+   *  Coalesced so a drag or a stream of typed edits is one undo step. */
+  updateDimension: (id: string, patch: Partial<Pick<PlanDimension, 'a' | 'b'>>) => void
   /** Remove a dimension; clears the selection if it was selected. */
   removeDimension: (id: string) => void
 
@@ -264,6 +272,13 @@ export interface FloorPlanSlice {
   /** Remove a storey: its rooms/walls/openings, its items, and its finish keys.
    *  Undoable (history snapshot first). No-op for 'ground' or unknown ids. */
   removeLevel: (id: string) => void
+  /** Rename a storey. Ground writes `plan.groundName`; an upper level writes its
+   *  own `name`. Undoable (coalesced per level so typing is one step). */
+  renameLevel: (id: string, name: string) => void
+  /** Reorder an UPPER storey one slot up/down in the stack and recompute every
+   *  upper elevation so the storeys re-stack cleanly (ground stays the base).
+   *  No-op for ground / at the ends. One undo step (PARITY-LEVEL-REORDER). */
+  moveLevel: (id: string, dir: 'up' | 'down') => void
 
   /** Rescale the WHOLE plan (every storey) + the furniture by a factor or to a
    *  target wall length, about an anchor point (PARITY-PLAN-SCALE). Scales wall
@@ -503,9 +518,13 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     const id = planId('w')
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
-        walls: [...g.walls, { ...wall, id }],
-      })),
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
+        const full: PlanWall = { ...wall, id }
+        // Room-prefix the name (`<room> wall <unique id>`) when the new wall
+        // lands on a room's boundary; an explicit caller-supplied name wins.
+        const name = wall.name ?? newWallName(g.rooms, full)
+        return { walls: [...g.walls, name ? { ...full, name, nameAuto: true } : full] }
+      }),
     }))
     return id
   },
@@ -625,12 +644,17 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
         const target = g.walls.find((w) => w.id === id)
         if (!target) return {}
+        // A locked wall is pinned — its vertices never move.
+        if (target.locked) return {}
         const from = which === 'start' ? target.start : target.end
         const EPS = 1e-3
         const shared = (p: [number, number]) =>
           Math.abs(p[0] - from[0]) < EPS && Math.abs(p[1] - from[1]) < EPS
         return {
           walls: g.walls.map((w) => {
+            // Locked walls stay anchored even when they share this corner: the
+            // dragged wall detaches from them instead of dragging them along.
+            if (w.locked) return w
             const next = { ...w }
             if (shared(w.start)) next.start = [...to] as [number, number]
             if (shared(w.end)) next.end = [...to] as [number, number]
@@ -647,6 +671,8 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
         const target = g.walls.find((w) => w.id === id)
         if (!target) return {}
+        // A locked wall is pinned — it can't be dragged.
+        if (target.locked) return {}
         const cs = target.start
         const ce = target.end
         const EPS = 1e-3
@@ -658,7 +684,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         const remap = (p: [number, number]): [number, number] =>
           near(p, cs) ? [...newStart] : near(p, ce) ? [...newEnd] : p
         return {
-          walls: g.walls.map((w) => ({ ...w, start: remap(w.start), end: remap(w.end) })),
+          // Locked walls stay anchored even at a shared corner — the moved wall
+          // detaches from them rather than dragging them along.
+          walls: g.walls.map((w) =>
+            w.locked ? w : { ...w, start: remap(w.start), end: remap(w.end) },
+          ),
         }
       }),
     }))
@@ -857,9 +887,13 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     const id = planId(opening.kind === 'door' ? 'door' : 'win')
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
-        openings: [...g.openings, { ...opening, id }],
-      })),
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
+        const full: PlanOpening = { ...opening, id }
+        // Room-prefix the name (`<room> door|window <unique id>`) from the room
+        // its host wall belongs to; an explicit caller-supplied name wins.
+        const name = opening.name ?? newOpeningName(g.rooms, g.walls, full)
+        return { openings: [...g.openings, name ? { ...full, name, nameAuto: true } : full] }
+      }),
     }))
     return id
   },
@@ -946,6 +980,17 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       },
     }))
     return id
+  },
+  updateDimension: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-dim-${id}`)
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        dimensions: (s.floorPlan.dimensions ?? []).map((d) =>
+          d.id === id ? { ...d, ...patch } : d,
+        ),
+      },
+    }))
   },
   removeDimension: (id) => {
     get().pushHistory()
@@ -1097,6 +1142,47 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         finishes: pruneFinishesForPlan(s.finishes, floorPlan),
         planSelection: null,
       }
+    })
+  },
+  renameLevel: (id, name) => {
+    const trimmed = name.trim()
+    get().pushHistoryCoalesced(`level-name-${id}`)
+    set((s) => {
+      if (id === GROUND_LEVEL_ID) {
+        return { floorPlan: { ...s.floorPlan, groundName: trimmed || undefined } }
+      }
+      return {
+        floorPlan: {
+          ...s.floorPlan,
+          upperLevels: (s.floorPlan.upperLevels ?? []).map((l) =>
+            l.id === id ? { ...l, name: trimmed || l.name } : l,
+          ),
+        },
+      }
+    })
+  },
+  moveLevel: (id, dir) => {
+    if (id === GROUND_LEVEL_ID) return
+    const s0 = get()
+    const uppers = s0.floorPlan.upperLevels ?? []
+    const idx = uppers.findIndex((l) => l.id === id)
+    if (idx < 0) return
+    const swapWith = dir === 'up' ? idx + 1 : idx - 1
+    if (swapWith < 0 || swapWith >= uppers.length) return // already at an end
+    s0.pushHistory()
+    set((s) => {
+      const arr = [...(s.floorPlan.upperLevels ?? [])]
+      ;[arr[idx], arr[swapWith]] = [arr[swapWith], arr[idx]]
+      // Re-stack elevations from the (now reordered) array so each storey sits a
+      // floor-to-floor height above the one below (ground = base, y=0).
+      const slab = 0.3
+      let top = 0
+      const restacked = arr.map((l) => {
+        const elevation = top + (l.ceilingHeight ?? s.floorPlan.ceilingHeight) + slab
+        top = elevation
+        return { ...l, elevation }
+      })
+      return { floorPlan: { ...s.floorPlan, upperLevels: restacked } }
     })
   },
   rescaleFloorPlan: (spec, opts) => {

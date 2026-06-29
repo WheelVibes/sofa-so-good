@@ -175,6 +175,23 @@ export default function App() {
         useStore.getState().toggleCmdk()
         return
       }
+      // Undo / redo are ALWAYS active — every editing surface tracks edits in the
+      // same history (per-room editor, the 2D floor-plan editor, and the
+      // overview). Suppressed only while a modal is open (handled above) or while
+      // typing in a field (native input undo wins). Cmd/Ctrl+Z = undo,
+      // Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y = redo.
+      const undoMod = e.metaKey || e.ctrlKey
+      if (undoMod && e.code === KEYBINDINGS.undo && !isEditableTarget(e)) {
+        e.preventDefault()
+        if (e.shiftKey) useStore.getState().redo()
+        else useStore.getState().undo()
+        return
+      }
+      if (undoMod && e.code === KEYBINDINGS.redo && !isEditableTarget(e)) {
+        e.preventDefault()
+        useStore.getState().redo()
+        return
+      }
       // `?` toggles the Appearance panel (which now hosts the user guide + tour).
       if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e)) {
         e.preventDefault()
@@ -551,17 +568,8 @@ export default function App() {
       // whole-flat orbit overview and walk mode are view-only. ---
       if (!canEditScene(useStore.getState())) return
       const state = useStore.getState()
-      if (mod && code === KEYBINDINGS.undo) {
-        e.preventDefault()
-        if (e.shiftKey) state.redo()
-        else state.undo()
-        return
-      }
-      if (mod && code === KEYBINDINGS.redo) {
-        e.preventDefault()
-        state.redo()
-        return
-      }
+      // Undo / redo live in the always-active global handler (see the ⌘K effect)
+      // so they work in the floor-plan editor + overview too — not just here.
       if (!mod && code === KEYBINDINGS.toggleCatalog) {
         state.toggleCatalogOpen()
       }

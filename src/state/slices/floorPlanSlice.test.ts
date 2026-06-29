@@ -50,6 +50,63 @@ describe('floorPlanSlice', () => {
     expect(B.end).toEqual([2, 2])
   })
 
+  it('keeps a locked wall anchored when a connected wall is moved (detaches at the corner)', () => {
+    useStore.getState().newFloorPlan('Lock connectivity test')
+    // A = (0,0)->(2,0), B = (2,0)->(2,2) meet at (2,0). Lock B.
+    const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    const b = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
+    useStore.getState().setWallsLocked([b], true)
+    // Move A up by 1: normally B's start would follow, but B is locked.
+    useStore.getState().moveWallTo(a, [0, 1], [2, 1])
+    const A = useStore.getState().floorPlan.walls.find((w) => w.id === a)!
+    const B = useStore.getState().floorPlan.walls.find((w) => w.id === b)!
+    expect(A.start).toEqual([0, 1])
+    expect(A.end).toEqual([2, 1])
+    // B stayed put (locked) — the corner detached rather than dragging B.
+    expect(B.start).toEqual([2, 0])
+    expect(B.end).toEqual([2, 2])
+  })
+
+  it('refuses to drag a locked wall itself (moveWallTo / moveWallVertex are no-ops)', () => {
+    useStore.getState().newFloorPlan('Lock self test')
+    const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    useStore.getState().setWallsLocked([a], true)
+    useStore.getState().moveWallTo(a, [5, 5], [7, 5])
+    let A = useStore.getState().floorPlan.walls.find((w) => w.id === a)!
+    expect(A.start).toEqual([0, 0])
+    expect(A.end).toEqual([2, 0])
+    useStore.getState().moveWallVertex(a, 'start', [1, 1])
+    A = useStore.getState().floorPlan.walls.find((w) => w.id === a)!
+    expect(A.start).toEqual([0, 0])
+  })
+
+  it('renames the ground floor (groundName) and an upper level', () => {
+    useStore.getState().newFloorPlan('Rename levels')
+    const up = useStore.getState().addLevel()
+    useStore.getState().renameLevel('ground', 'Level 1')
+    useStore.getState().renameLevel(up, 'Roof')
+    const plan = useStore.getState().floorPlan
+    expect(plan.groundName).toBe('Level 1')
+    expect(plan.upperLevels?.find((l) => l.id === up)?.name).toBe('Roof')
+  })
+
+  it('reorders upper levels and re-stacks their elevations', () => {
+    useStore.getState().newFloorPlan('Reorder levels')
+    const a = useStore.getState().addLevel() // first upper (lowest)
+    const b = useStore.getState().addLevel() // second upper (highest)
+    const before = useStore.getState().floorPlan.upperLevels ?? []
+    expect(before.map((l) => l.id)).toEqual([a, b])
+    expect(before[0].elevation).toBeLessThan(before[1].elevation)
+    // Move the lower one up — it swaps with b and elevations re-stack ascending.
+    useStore.getState().moveLevel(a, 'up')
+    const after = useStore.getState().floorPlan.upperLevels ?? []
+    expect(after.map((l) => l.id)).toEqual([b, a])
+    expect(after[0].elevation).toBeLessThan(after[1].elevation)
+    // Ground can't move; an end move is a no-op.
+    useStore.getState().moveLevel('ground', 'up')
+    expect((useStore.getState().floorPlan.upperLevels ?? []).map((l) => l.id)).toEqual([b, a])
+  })
+
   it('duplicates a wall as a new, unlocked, unnamed copy offset from the source', () => {
     useStore.getState().newFloorPlan('Dup wall test')
     const id = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })

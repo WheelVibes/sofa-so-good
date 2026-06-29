@@ -8,7 +8,7 @@
   re‑material it from the picker.
 - **Walk for scale** — switch to Walk (<kbd>V</kbd>) to feel the flat at eye
   level.
-- **Make it yours** — open the Appearance menu to switch between the four themes
+- **Make it yours** — open the Appearance menu to switch between the five themes
   and light / dark.
 - **Start fast** — use **Smart Start** to furnish and finish the whole flat in one
   click, then tweak.

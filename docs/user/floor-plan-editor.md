@@ -22,6 +22,11 @@ between the 2D plan and the 3D scene at any time.
 
 ## Drawing
 
+On desktop the toolbar is a single compact row: a **Select** pointer icon, then
+**Wall** and **Split** buttons, then three grouped dropdowns — **Room ▾**
+(Rectangle / Polygon / Auto room), **Opening ▾** (Door / Window) and **Markup ▾**
+(Text / Dimension / Polyline). Picking any tool switches you to Edit.
+
 - **Walls** — choose interior or exterior thickness, then draw. On a computer,
   drag from start to end. On a **phone or tablet**, *tap* to drop the start then
   *tap* to drop the end — each point snaps to the grid and to existing walls, so
@@ -50,11 +55,14 @@ between the 2D plan and the 3D scene at any time.
   and the **Checks** tool keeps that swing arc clear of furniture.
 - **Split** — click a wall to cut it into two segments at that point. Any door or
   window on it moves to the matching half.
-- **Select tool** — click to select, drag to move a room or a piece of furniture
-  (on touch, tap to select first — see *View vs Edit* above).
+- **Select (the pointer icon)** — click to select, drag to move a room or a piece
+  of furniture (on touch, tap to select first — see *View vs Edit* above).
 - **Grid, corner & wall snapping** keep everything aligned — new walls snap to the
   grid, to existing corners, and onto existing walls (cycle the grid size from the
   toolbar).
+- **Labels** (header toggle, **on by default**) shows each room's name, floor
+  **area** and wall **perimeter** centred inside it. Turn it off for a clean
+  outline‑only plan.
 - **Dims** (header toggle, **off by default**) draws a dimension line — with
   arrowheads spanning the length — on every wall and every door/window width.
   Labels scale with zoom and thin out automatically when zoomed out so the plan
@@ -92,6 +100,11 @@ furniture inspector — a **Name** field on top, then a grid of quick actions:
 - **Duplicate** — drops an editable copy beside the original (the name and lock
   aren't carried over).
 
+**Right‑click for a quick menu** — right‑clicking a selected wall, opening, room or
+furniture footprint opens a context menu of the operations that apply to it (the
+browser's own menu is suppressed inside the editor). Right‑clicking with nothing
+selected does nothing.
+
 **Select several walls at once** — Shift‑click (or ⌘/Ctrl‑click) walls to add or
 remove them from the selection; on a touch screen, turn on the toolbar **Select+**
 toggle and tap walls instead. The Properties panel then shows how many are
@@ -106,12 +119,16 @@ It also shows the piece's **size (W × D × H)** and offers **Lock**, **Delete**
 to leave the plan to nudge a sofa a few centimetres or square it up to a wall.
 
 **Tidy several pieces at once** — when **two or more** furniture footprints are
-selected (marquee‑drag a box over them on empty canvas), the Properties panel turns
-into an action panel: **Align X** / **Align Z** (line their centres up),
-**Align edges** (**Left** / **Right** / **Top** / **Bottom**), **Distribute evenly**
-(**Across X** / **Across Z** — equal gaps between a row of pieces) and **Mirror**
-(flip the whole group left↔right across its centre). Each action is a single undo
-step and respects walls and other furniture; **locked** pieces stay put.
+selected (marquee‑drag a box over them on empty canvas), a single **bounding box**
+wraps the whole group with a **rotation ring** and **corner resize handles** — drag
+inside to move them together, grab the ring to rotate the group about its centre,
+or pull a corner to scale the whole group uniformly (the same unified handles as the
+3D scene). The Properties panel also turns into an action panel: **Align X** /
+**Align Z** (line their centres up), **Align edges** (**Left** / **Right** /
+**Top** / **Bottom**), **Distribute evenly** (**Across X** / **Across Z** — equal
+gaps between a row of pieces) and **Mirror** (flip the whole group left↔right across
+its centre). Each action is a single undo step and respects walls and other
+furniture; **locked** pieces stay put.
 
 ## Non‑rectangular rooms (L‑shapes & angles)
 
@@ -160,7 +177,10 @@ Beyond walls and rooms you can mark up the plan:
 - **Text** — pick the **Text** tool and click to drop a note; type the label.
   Switch back to **Select** to drag it, or edit/delete it in the inspector.
 - **Dimension** — pick the **Dimension** tool and drag a line between two points;
-  it shows the measured length. Select it to delete.
+  it shows the measured length. Select it to **edit or delete** it: drag either
+  endpoint handle to re‑span it, or use the inspector's **Length** field (moves
+  endpoint B along the line) and the exact **A** / **B** endpoint coordinates, then
+  **Delete** to remove it.
 - **Polyline** *(Pro)* — pick the **Polyline** tool and click to drop each point.
   Press <kbd>Enter</kbd> to finish an **open** path, or click the first point
   again (after three points) to **close** it into a loop; <kbd>Esc</kbd> cancels.
@@ -175,15 +195,21 @@ Your **text notes** also print onto the floor-plan sheet of the **Report** and t
 
 ## Levels (storeys)
 
-Designing a maisonette, loft or landed home? The tab strip in the header —
-**Ground floor** plus a tab for each storey — picks which level you're editing:
+Designing a maisonette, loft or landed home? The **floor dropdown** at the
+**bottom‑left of the canvas** (it shows the current floor's name, e.g.
+*Ground floor ▾*) picks which level you're editing. It opens **upward** and lists
+every storey **topmost floor first**, like a shopping‑mall directory or a lift
+panel:
 
-- **＋ Level** adds an empty storey above the highest one and switches to it.
-- Every tool (walls, rooms, doors/windows, Split, Auto room) and every inspector
-  edit applies to the **active tab's** level only; the area total and room count
-  in the header follow it too.
-- The **✕** on an upper tab removes that storey (you'll be asked to confirm —
-  its rooms, walls and furniture go with it, and undo brings it all back).
+- **Add floor (above top)** adds an empty storey above the highest one and
+  switches to it; **Duplicate current floor** copies the active one.
+- Click a floor's name to switch to it. Every tool (walls, rooms, doors/windows,
+  Split, Auto room) and every inspector edit applies to the **active** level only;
+  the area total and room count in the header follow it too.
+- Each row has inline controls: **rename** (✎), **reorder** up/down (▲▼ — upper
+  storeys only; Ground stays the base) and **remove** (🗑, upper storeys only —
+  you'll be asked to confirm; its rooms, walls and furniture go with it, and undo
+  brings it all back).
 - The 3D view stacks your storeys; use **View → Levels** to show all of them or
   isolate one. In [walk mode](/walkthrough-and-sun-study) picking a storey also
   **teleports you onto it**, walking against that storey's own walls and
@@ -240,16 +266,15 @@ cleans up to neat measurements without re‑drawing it. Doors and windows are
 nudged to stay on their walls; change the grid size first if you want a coarser
 or finer round‑off.
 
-## Room finishes
+## Room name & label position
 
-Select a room and the inspector shows **Floor finish** and **Wall finish**
-dropdowns — the pick renders immediately in 3D and stays in sync with the
-finish picker inside the per‑room editor. **Wall finish** offers **Plaster
-(default)** to return a room's walls to the plain shell.
+Floor and wall **finishes** are set in the **per‑room (3D) editor**, not here — the
+floor‑plan editor is for the shell (walls, rooms, openings) and layout, so the room
+inspector keeps you focused on shape and naming.
 
-You can also **drag a room's name** on the plan to nudge it clear of furniture or
-a tight room — it prints in the new spot on the Report and Drawing set too. The
-inspector's **Reset label position** button recentres it.
+You can **drag a room's name** on the plan to nudge it clear of furniture or a tight
+room — it prints in the new spot on the Report and Drawing set too. The inspector's
+**Reset label position** button recentres it.
 
 **Duplicate room** — at the bottom of a selected room's inspector, **Duplicate
 room** drops a complete copy beside the original: its shape (rectangle, L‑shape
@@ -278,6 +303,11 @@ reset to 100%.
 Tapping the **empty canvas** with the **Select** tool clears the current
 selection, and opening or closing the editor starts with nothing selected.
 
+A **compass** and a **dynamic scale bar** sit at the **bottom‑right of the canvas**,
+on both desktop and mobile. The scale bar's length and label update live as you
+zoom, so you always have a real‑world reference for the current view. On a phone the
+expanded Properties panel may cover them.
+
 ## On a phone: the Tools menu
 
 On a small screen the toolbar fits one row: **View / Edit**, a **☰ Menu** button,
@@ -285,7 +315,7 @@ a **tool button** (shows the current tool, e.g. *Wall ▾*) that opens a grid of
 all the drawing tools to tap, **undo / redo** (↶ ↷), and **Done**. Tap **☰ Menu**
 to open the
 **Plan tools** sheet, organised into tidy sections so it isn't a wall of buttons:
-**Plan** (name, levels, templates, New / Reset / Reference photo), **View**
+**Plan** (name, templates, New / Reset / Reference photo), **View**
 (labels, dimensions, furniture, all-levels, Export PNG, undo/redo, grid, zoom),
 **Edit** (wall thickness and multi-select, when you're using those), and
 **Defaults** (Ceiling height, Wall colour, area total) — plus a **Help → user
@@ -293,10 +323,11 @@ guide** link.
 
 ## Properties panel
 
-The **Properties** panel starts **minimized** (just its header) so it never
-covers the plan — **tap the title bar** to expand it, and tap it again to
-collapse (the **＋ / −** button does the same). Selecting a wall, room, door or
-window keeps it minimized until you expand it. While it's minimized, a selected
+On **desktop** the **Properties** panel opens **expanded** when you select
+something, so a wall, room, door or window's fields are right there. On a **phone**
+it starts **minimized** (just its header) so it never covers the plan, and each new
+selection re‑minimizes it. Either way you can **tap the title bar** to expand or
+collapse it (the **＋ / −** button does the same). While it's minimized, a selected
 **wall, door or window** shows quick **lock** and **delete** icons right in the
 title bar, so you can lock or remove it without expanding the panel.
 

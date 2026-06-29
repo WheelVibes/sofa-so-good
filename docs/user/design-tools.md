@@ -25,8 +25,8 @@ suitable furniture set for each room and arranges it to that plan's walls.
 ## Budget & shopping list
 
 The **Budget / shopping list** (Tools menu) groups every placed piece by category
-and totals an approximate cost in **SGD**, with a **Saved collections** tab for
-everything you've hearted. **Export CSV** downloads the list (category, item,
+and totals an approximate cost in **SGD**, with a **Saved** tab for everything
+you've hearted. **Export CSV** downloads the list (category, item,
 quantity, unit price, line total) for a spreadsheet or to send to a supplier.
 
 For a buy-list you can share, **File → Shopping list** (also on ⌘K and the
@@ -248,12 +248,11 @@ judge which lighting mood works best for your design.
 
 1. Pick **Preset A** (left) and **Preset B** (right) from the drop-downs at the
    bottom of the modal.
-2. Choose the **sample quality** (32–256; more samples = cleaner image, longer wait).
-3. Click **Render both** — the app renders A first, then B, restoring your lighting
-   settings once both are done.
-4. **Drag the divider** left and right to reveal more of A or B. Both halves are
+2. Click **Render both** — the capture is near-instant: the app renders A first,
+   then B, restoring your lighting settings once both are done.
+3. **Drag the divider** left and right to reveal more of A or B. Both halves are
    pixel-aligned — you're comparing the exact same camera angle.
-5. Use the **⇄ swap** button to flip A and B (their images swap too).
-6. Click **Re-render** any time you change the presets or settings.
+4. Use the **⇄ swap** button to flip A and B (their images swap too).
+5. Click **Re-render** any time you change the presets or settings.
 
 On mobile, touch-drag the divider to compare. The feature requires Pro mode.

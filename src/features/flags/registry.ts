@@ -598,6 +598,25 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Z-order / layer reordering (bring forward / send to back) for placed items
+  // (PARITY-ZORDER). A core Canva-style editing op — pure array reorder, prod-safe
+  // → simple tier, default on.
+  layerOrder: {
+    label: 'Layer order',
+    description: 'Bring forward / send to back (z-order) for selected items',
+    default: true,
+    tier: 'simple',
+  },
+  // Dynamic right-click context menu that overrides the browser menu and adapts
+  // its actions to the current selection/screen (furniture, walls, rooms,
+  // openings, dimensions, multi-select) in both editors. Pure UI, prod-safe →
+  // simple tier, default on.
+  contextMenu: {
+    label: 'Context menu',
+    description: 'Right-click menu with selection-aware actions (group/lock/layer/flip/delete)',
+    default: true,
+    tier: 'simple',
+  },
   // Persisted catalog favourites / star list (PC-CATALOG-FAVOURITES). A QOL
   // convenience matching Coohom/Planner5D — users star items for quick reuse
   // across sessions. Pure client-side (localStorage) → prod-safe. Part of the
