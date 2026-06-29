@@ -48,7 +48,12 @@ import {
 } from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
-import { computeRotation, pointerAngle } from '../../scene/selection/rotateGizmoMath'
+import {
+  computeRotation,
+  enclosingRadius,
+  pointerAngle,
+  rotatePointAround,
+} from '../../scene/selection/rotateGizmoMath'
 import type { ContextTarget } from '../../state/slices/featuresSlice'
 import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
@@ -273,6 +278,15 @@ export function FloorPlanEditor() {
     cz: number
     startRot: number
     a0: number
+  } | null>(null)
+  // Active MULTI-select rotate (unified ring handle): the selection centroid +
+  // the pointer angle at grab + every member's original position/rotation, so the
+  // whole selection orbits its centroid rigidly (Canva parity).
+  const [rotatingMulti, setRotatingMulti] = useState<{
+    cx: number
+    cz: number
+    a0: number
+    originals: { id: string; position: [number, number]; rotation: number }[]
   } | null>(null)
   // Active tour-stop drag: grab offset from the stop's world position.
   const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
@@ -908,6 +922,7 @@ export function FloorPlanEditor() {
         setMovingWall(null)
         setRotatingWall(null)
         setRotatingItem(null)
+        setRotatingMulti(null)
         setMovingOpening(null)
         setMovingStop(null)
         setMovingNote(null)
@@ -1174,6 +1189,41 @@ export function FloorPlanEditor() {
       useStore.getState().moveWallTo(rotatingWall.id, start, end, levelId)
       return
     }
+    if (rotatingMulti) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const pivot: [number, number] = [rotatingMulti.cx, rotatingMulti.cz]
+      const angle = pointerAngle(rotatingMulti.cx, rotatingMulti.cz, wx, wz)
+      // Delta from the grab angle (snap to 15° unless Shift); startRot 0 → a delta.
+      const delta = computeRotation(0, rotatingMulti.a0, angle, !e.shiftKey)
+      const moveSet = new Set(rotatingMulti.originals.map((o) => o.id))
+      const others = st.items.filter((o) => !moveSet.has(o.id))
+      const next = rotatingMulti.originals.map((o) => ({
+        id: o.id,
+        position: rotatePointAround(o.position[0], o.position[1], pivot[0], pivot[1], delta),
+        rotation: o.rotation + delta,
+      }))
+      const ok = next.every((n) => {
+        const m = st.items.find((i) => i.id === n.id)
+        const d = m && catalogRef.current[m.defId]
+        if (!m || !d || m.locked) return true
+        return canPlace({ ...m, position: n.position, rotation: n.rotation }, d, {
+          others,
+          defs: catalogRef.current,
+          doors: st.doors,
+          walls: placementWalls(st, m.levelId),
+        })
+      })
+      if (ok)
+        for (const n of next) {
+          const m = st.items.find((i) => i.id === n.id)
+          if (m && !m.locked) {
+            st.moveItem(n.id, n.position)
+            st.rotateItem(n.id, n.rotation)
+          }
+        }
+      return
+    }
     if (rotatingItem) {
       const [wx, wz] = pointerWorld(e)
       const st = useStore.getState()
@@ -1238,6 +1288,30 @@ export function FloorPlanEditor() {
       const def = it ? catalogRef.current[it.defId] : undefined
       if (!it || !def) return
       const pos: [number, number] = [snap(wx - movingItem.gx), snap(wz - movingItem.gz)]
+      // Multi-select drag: move the whole selection rigidly by the same delta as
+      // the grabbed item (mirrors the 3D DragController). Only commit when EVERY
+      // mover is collision-free, so the group stays put rather than partly moving.
+      const selIds = st.selectedItemIds
+      if (selIds.length > 1 && selIds.includes(it.id)) {
+        const dx = pos[0] - it.position[0]
+        const dz = pos[1] - it.position[1]
+        if (dx === 0 && dz === 0) return
+        const moveSet = new Set(selIds)
+        const movers = st.items.filter((m) => moveSet.has(m.id) && !m.locked)
+        const others = st.items.filter((o) => !moveSet.has(o.id))
+        const ok = movers.every((m) => {
+          const d = catalogRef.current[m.defId]
+          if (!d) return true
+          return canPlace({ ...m, position: [m.position[0] + dx, m.position[1] + dz] }, d, {
+            others,
+            defs: catalogRef.current,
+            doors: st.doors,
+            walls: placementWalls(st, m.levelId),
+          })
+        })
+        if (ok) for (const m of movers) st.moveItem(m.id, [m.position[0] + dx, m.position[1] + dz])
+        return
+      }
       // Validate against the ITEM's storey walls (shared placement-wall rule —
       // ground items on the default flat get its door-aware walls via canPlace).
       const planWalls = placementWalls(st, it.levelId)
@@ -1394,6 +1468,10 @@ export function FloorPlanEditor() {
     }
     if (rotatingItem) {
       setRotatingItem(null)
+      return
+    }
+    if (rotatingMulti) {
+      setRotatingMulti(null)
       return
     }
     if (movingOpening) {
@@ -2618,8 +2696,13 @@ export function FloorPlanEditor() {
                         onPointerDown={(e) => {
                           if (tool !== 'select') return
                           const st = useStore.getState()
-                          const willMove = beginElementDrag(e, selectedItemId === it.id)
-                          st.selectItem(it.id) // a tap always selects (for inspect/then-drag)
+                          // Dragging an item that's part of a multi-selection moves
+                          // the whole selection — so keep it; otherwise select just
+                          // this one (tap to inspect/then-drag).
+                          const inMulti =
+                            st.selectedItemIds.length > 1 && st.selectedItemIds.includes(it.id)
+                          const willMove = beginElementDrag(e, selectedItemId === it.id || inMulti)
+                          if (!inMulti) st.selectItem(it.id)
                           if (!willMove) return // view / unselected-on-touch: let it pan
                           const [wx, wz] = pointerWorld(e)
                           st.pushHistory()
@@ -2642,6 +2725,96 @@ export function FloorPlanEditor() {
                     </g>
                   )
                 })}
+
+              {/* Unified multi-select bounding box + rotation ring (Canva parity):
+                  when 2+ furniture items are selected, one border encloses them all
+                  and a ring handle rotates the whole selection about its centroid. */}
+              {showFurniture &&
+                (() => {
+                  const selItems = levelItems.filter((i) => selectedItemIds.has(i.id))
+                  if (selItems.length < 2) return null
+                  let minX = Number.POSITIVE_INFINITY
+                  let minZ = Number.POSITIVE_INFINITY
+                  let maxX = Number.NEGATIVE_INFINITY
+                  let maxZ = Number.NEGATIVE_INFINITY
+                  const centers: { cx: number; cz: number; halfDiag: number }[] = []
+                  for (const it of selItems) {
+                    const def = getDef(it.defId)
+                    if (!def) continue
+                    const obb = itemFootprint(it, def)
+                    let r = 0
+                    for (const [x, z] of obbCorners(obb)) {
+                      if (x < minX) minX = x
+                      if (z < minZ) minZ = z
+                      if (x > maxX) maxX = x
+                      if (z > maxZ) maxZ = z
+                      r = Math.max(r, Math.hypot(x - it.position[0], z - it.position[1]))
+                    }
+                    centers.push({ cx: it.position[0], cz: it.position[1], halfDiag: r })
+                  }
+                  if (!Number.isFinite(minX)) return null
+                  const cwx = (minX + maxX) / 2
+                  const cwz = (minZ + maxZ) / 2
+                  const ringR = enclosingRadius(cwx, cwz, centers) * PX + 14
+                  const cxp = toPx(cwx)
+                  const cyp = toPx(cwz)
+                  return (
+                    <g style={{ pointerEvents: 'none' }}>
+                      <rect
+                        x={toPx(minX)}
+                        y={toPx(minZ)}
+                        width={(maxX - minX) * PX}
+                        height={(maxZ - minZ) * PX}
+                        fill="none"
+                        stroke="var(--accent)"
+                        strokeWidth={1.5}
+                        strokeDasharray="5 4"
+                        rx={2}
+                      />
+                      {tool === 'select' && editMode === 'edit' ? (
+                        <>
+                          <circle
+                            cx={cxp}
+                            cy={cyp}
+                            r={ringR}
+                            fill="none"
+                            stroke="var(--accent)"
+                            strokeWidth={1}
+                            strokeOpacity={0.5}
+                          />
+                          <circle
+                            cx={cxp}
+                            cy={cyp - ringR}
+                            r={7}
+                            fill="var(--accent)"
+                            stroke="var(--surface)"
+                            strokeWidth={2}
+                            style={{ cursor: 'grab', pointerEvents: 'all' }}
+                            onPointerDown={(e) => {
+                              if (tool !== 'select' || editMode !== 'edit') return
+                              if (!beginElementDrag(e, true)) return
+                              const [wx, wz] = pointerWorld(e)
+                              const st = useStore.getState()
+                              st.pushHistory()
+                              setRotatingMulti({
+                                cx: cwx,
+                                cz: cwz,
+                                a0: pointerAngle(cwx, cwz, wx, wz),
+                                originals: st.items
+                                  .filter((m) => selectedItemIds.has(m.id))
+                                  .map((m) => ({
+                                    id: m.id,
+                                    position: [...m.position] as [number, number],
+                                    rotation: m.rotation,
+                                  })),
+                              })
+                            }}
+                          />
+                        </>
+                      ) : null}
+                    </g>
+                  )
+                })()}
 
               {/* Furniture labels. When the Labels toggle is on (PARITY-PLANLABELS),
                 every footprint shows its name (+ price); otherwise just the

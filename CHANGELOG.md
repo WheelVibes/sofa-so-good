@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## 2D plan multi-select transforms + unified handles (v0.8.0.3)
+
+Brings the 2D floor-plan editor up to the 3D editor's multi-select parity (Canva-style):
+
+- **Multi-drag**: dragging any item that's part of a multi-selection now moves the whole
+  selection rigidly by the same delta (collision-checked as a group; locked items skipped),
+  mirroring the 3D `DragController`. Clicking an item already in the selection no longer
+  collapses the selection to just that item.
+- **Unified selection border + rotation ring**: when 2+ furniture items are selected, a single
+  dashed bounding box encloses them all and a rotation ring with a top handle rotates the whole
+  selection about its centroid (`rotatingMulti`, reusing the unit-tested `rotateGizmoMath`
+  `enclosingRadius` / `rotatePointAround` / `computeRotation`).
+- **Flip / rotate all** already apply to the whole selection in 3D (keyboard F / R) and now also
+  via the dynamic context menu in both editors.
+
 ## Wall-lock connected components, editable dimensions, movable room outlines (v0.8.0.2)
 
 - **Locking respects wall connectivity.** A locked wall is now pinned: `moveWallVertex`
