@@ -1681,30 +1681,109 @@ export function FloorPlanEditor() {
     </div>
   )
 
-  // The drawing-tool palette (desktop: a button row; mobile: a compact <select>
-  // so the whole bar stays one row instead of wrapping "Auto room" to 2 lines).
+  // The drawing-tool palette. Condensed so the whole bar stays ONE row: Select is
+  // a pointer icon, Wall/Split are direct buttons, and the related tools collapse
+  // into labelled dropdowns (Room / Opening / Markup). The mobile bar keeps its
+  // single `PlanToolMenu` picker.
+  const toolGroups: { label: string; tools: { t: Tool; label: string; title: string }[] }[] = [
+    {
+      label: 'Room',
+      tools: [
+        {
+          t: 'room',
+          label: 'Rectangle',
+          title: 'Rectangular room — drag a rectangle (area is computed)',
+        },
+        {
+          t: 'polyroom',
+          label: 'Polygon',
+          title:
+            'Polygon room — draw an L-shaped / non-rectangular room: click each corner, then click the first corner (or press Enter) to close it. Esc cancels.',
+        },
+        {
+          t: 'autoroom',
+          label: 'Auto',
+          title: 'Auto room — click inside a wall-enclosed area to make a room from it',
+        },
+      ],
+    },
+    {
+      label: 'Opening',
+      tools: [
+        { t: 'door', label: 'Door', title: 'Door — click on a wall to add a door' },
+        { t: 'window', label: 'Window', title: 'Window — click on a wall to add a window' },
+      ],
+    },
+    {
+      label: 'Markup',
+      tools: [
+        { t: 'text', label: 'Text', title: 'Text note — click to place a label' },
+        { t: 'dimension', label: 'Dimension', title: 'Dimension line — drag between two points' },
+        ...(fPolyline
+          ? [
+              {
+                t: 'polyline' as Tool,
+                label: 'Polyline',
+                title:
+                  'Polyline markup — click vertices, Enter to finish (open), click the first to close',
+              },
+            ]
+          : []),
+      ],
+    },
+  ]
   const toolPalette = (
-    <div className="seg accent" style={{ marginLeft: 4 }}>
-      {toolList.map((t) => (
+    <div className="flex items-center gap-1" style={{ marginLeft: 4 }}>
+      <div className="seg accent">
         <button
-          key={t}
           type="button"
-          onClick={() => pickTool(t)}
-          className={`capitalize${tool === t ? ' on' : ''}`}
-          title={
-            t === 'polyroom'
-              ? 'Polygon room — draw an L-shaped / non-rectangular room: click each corner, then click the first corner (or press Enter) to close it. Esc cancels.'
-              : t === 'autoroom'
-                ? 'Auto room — click inside a wall-enclosed area to make a room from it'
-                : t === 'polyline'
-                  ? 'Polyline markup — click vertices, Enter to finish (open), click the first to close'
-                  : t === 'wall'
-                    ? 'Wall — drag to draw; snaps to 15° angles (hold Shift for any angle)'
-                    : undefined
-          }
+          onClick={() => pickTool('select')}
+          className={tool === 'select' || tool === 'scale' ? 'on' : ''}
+          title="Select / move — click an element to select it, drag to move"
+          aria-label="Select"
+          aria-pressed={tool === 'select'}
         >
-          {toolLabel(t)}
+          <Icon.Select width={16} height={16} />
         </button>
+        <button
+          type="button"
+          onClick={() => pickTool('wall')}
+          className={tool === 'wall' ? 'on' : ''}
+          title="Wall — drag to draw; snaps to 15° angles (hold Shift for any angle)"
+        >
+          Wall
+        </button>
+        <button
+          type="button"
+          onClick={() => pickTool('split')}
+          className={tool === 'split' ? 'on' : ''}
+          title="Split — click a wall to split it in two"
+        >
+          Split
+        </button>
+      </div>
+      {toolGroups.map((g) => (
+        <PlanMenu
+          key={g.label}
+          label={g.label}
+          width={200}
+          active={g.tools.some((x) => x.t === tool)}
+        >
+          <div className="action-grid">
+            {g.tools.map((x) => (
+              <button
+                key={x.t}
+                type="button"
+                className={`act${tool === x.t ? ' on' : ''}`}
+                aria-current={tool === x.t}
+                title={x.title}
+                onClick={() => pickTool(x.t)}
+              >
+                {x.label}
+              </button>
+            ))}
+          </div>
+        </PlanMenu>
       ))}
     </div>
   )
@@ -2061,7 +2140,10 @@ export function FloorPlanEditor() {
   )
 
   const totalLabel = (
-    <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
+    <span
+      className="panel-sub"
+      style={{ textTransform: 'none', letterSpacing: 0, whiteSpace: 'nowrap', flexShrink: 0 }}
+    >
       Total{' '}
       <b className="mono" style={{ color: 'var(--text)' }}>
         {formatArea(total, units)}
@@ -2112,9 +2194,13 @@ export function FloorPlanEditor() {
 
   return (
     <div className="plan-screen absolute inset-0 z-30 flex flex-col">
-      {/* Header / toolbar */}
+      {/* Header / toolbar. Desktop stays a SINGLE row (`flex-nowrap` + horizontal
+          scroll fallback so it can never spill to two rows); mobile keeps its
+          short wrapping bar. */}
       <div
-        className="flex flex-wrap items-center gap-2 px-4 py-2"
+        className={`flex items-center gap-2 px-4 py-2 ${
+          isMobile ? 'flex-wrap' : 'flex-nowrap overflow-x-auto'
+        }`}
         style={{
           borderBottom: '1px solid var(--border)',
           background: 'var(--surface)',
@@ -2155,13 +2241,13 @@ export function FloorPlanEditor() {
           </>
         ) : (
           <>
-            <span className="panel-title">Floor plan</span>
             <input
               value={plan.name}
               onChange={(e) => a.updateFloorPlanMeta({ name: e.target.value })}
               className="input"
-              style={{ width: 192 }}
+              style={{ width: 148, flexShrink: 0 }}
               aria-label="Plan name"
+              title="Plan name"
             />
             <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
             {viewToggle}

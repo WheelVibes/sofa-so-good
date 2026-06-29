@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Condensed floor-plan editor toolbar — single row (v0.8.0.8)
+
+- Reworked the desktop toolbar so it never spills to two rows: **Select** is a pointer icon,
+  **Wall**/**Split** stay direct buttons, and the rest collapse into labelled dropdowns —
+  **Room ▾** (Rectangle / Polygon / Auto), **Opening ▾** (Door / Window), **Markup ▾** (Text /
+  Dimension / Polyline). Dropped the redundant "Floor plan" title, shrank the name field, made
+  the `Total` readout `nowrap`, and set the bar to `flex-nowrap` with a horizontal-scroll fallback
+  so it stays one row at any width. Verified one row (53px, no overflow at 1600px).
+
 ## Group resize in the 3D per-room editor (v0.8.0.7)
 
 - **`ResizeGizmo`** mirrors the 2D corner-resize into the 3D editor: floor-plane corner handles
