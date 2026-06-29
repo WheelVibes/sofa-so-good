@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## docs: prune TODO.md + TASKS.md to open items only (v0.8.0.26)
+
+- Per user instruction, removed every shipped/historical/reconciliation entry from `TODO.md`
+  (402 → 52 lines) and `TASKS.md` (225 → 60 lines) — both now list only genuinely-open work, the
+  environment-blocked items that can't be done in a pure-client repo, and a short risk/process
+  note. `CHANGELOG.md` remains the source of truth for what shipped.
+
 ## PHOTO-KTX2: real in-browser KTX2/UASTC texture encoder (v0.8.0.25)
 
 - Un-stubbed `lib/ktx2encode.ts` — the model-optimize path now actually emits GPU-compressed
