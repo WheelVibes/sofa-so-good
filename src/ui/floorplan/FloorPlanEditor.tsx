@@ -169,6 +169,7 @@ export function FloorPlanEditor() {
   const fGuides = useFeature('planGuides')
   const fDimChain = useFeature('dimensionChain')
   const fCornerFillet = useFeature('cornerFillet')
+  const fTilt = useFeature('tiltFurniture')
   const orientationDeg = useStore((s) => s.orientationDeg)
   // Tour stops are only shown/editable on the ground level (stops have a
   // levelId field but the plan editor operates per-level; ground is the
@@ -2934,9 +2935,13 @@ export function FloorPlanEditor() {
                   const def = getDef(it.defId)
                   if (!def) return null
                   const obb = itemFootprint(it, def)
-                  const pts = obbCorners(obb)
-                    .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
-                    .join(' ')
+                  const corners = obbCorners(obb)
+                  const pts = corners.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')
+                  // Tilt indicator (PARITY-TILT): a small badge on a footprint
+                  // corner when the piece is pitched/rolled out of plane, so a 2D
+                  // plan shows the same tilt the 3D view + inspector carry. Gated
+                  // by the same `tiltFurniture` flag as the tilt controls.
+                  const tilted = fTilt && !!(it.pitch || it.roll)
                   // Highlighted when it's the primary OR part of a marquee
                   // multi-selection.
                   const isSel = selectedItemId === it.id || selectedItemIds.has(it.id)
@@ -2991,6 +2996,28 @@ export function FloorPlanEditor() {
                           opacity={0.7}
                         >
                           <CategoryIcon category={def.category} width={glyphPx} height={glyphPx} />
+                        </g>
+                      ) : null}
+                      {tilted ? (
+                        <g
+                          transform={`translate(${toPx(corners[0][0])},${toPx(corners[0][1])})`}
+                          pointerEvents="none"
+                        >
+                          <title>Tilted (pitch/roll)</title>
+                          <circle
+                            r={7}
+                            fill="var(--panel)"
+                            stroke="var(--accent)"
+                            strokeWidth={1.5}
+                          />
+                          {/* Diagonal double-arrow = out-of-plane tilt. */}
+                          <path
+                            d="M-3.4,3.4 L3.4,-3.4 M3.4,-3.4 l-2.5,0.15 M3.4,-3.4 l-0.15,2.5 M-3.4,3.4 l2.5,-0.15 M-3.4,3.4 l0.15,-2.5"
+                            stroke="var(--accent)"
+                            strokeWidth={1.2}
+                            fill="none"
+                            strokeLinecap="round"
+                          />
                         </g>
                       ) : null}
                     </g>

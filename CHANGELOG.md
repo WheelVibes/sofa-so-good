@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-TILT: 2D-plan tilt indicator (v0.8.0.40)
+
+- The 2D floor-plan editor's furniture overlay now draws a small tilt badge (a circled diagonal
+  double-arrow) on the corner of any footprint whose item is pitched/rolled out of plane, so the
+  plan view carries the same tilt the 3D view + inspector show. Gated by the same `tiltFurniture`
+  pro flag as the tilt controls; pure additive SVG with token colours; renders only when
+  `pitch || roll` is set. (The draggable 3D pitch/roll gizmo handle remains the open half of
+  PARITY-TILT; tilt is editable today via the inspector sliders.)
+
 ## PARITY-AILAYOUT: inline key prompt + endpoint security gate for ⌘K auto-furnish (v0.8.0.39)
 
 - The ⌘K **AI auto-furnish** flow now prompts for + persists the BYO vision-model API key inline when

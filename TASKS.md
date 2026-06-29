@@ -29,7 +29,8 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   re-rung, crown-molding, ceilingDesign (needs walk-mode look-up), livePrices, first-run re-rungs,
   backdrop-upload + furnlight re-rungs.
 - [ ] PARITY-VIDEO tail: MP4 transcode of the walkthrough `.webm` + a duration modal.
-- [ ] PARITY-TILT tail: a 3D tilt gizmo handle + the SH3D 2D-plan tilt indicator.
+- [ ] PARITY-TILT tail: a 3D tilt gizmo handle (the 2D-plan tilt indicator shipped v0.8.0.40; the
+  draggable 3D pitch/roll gizmo remains — tilt is otherwise editable via the inspector sliders).
 - [ ] Q-3DEXPORT tail: worker-streamed whole-scene export for very large scenes.
 - [ ] C-PLANTS/DECOR tail: curated CC0 set-dressing bundles from Poly Haven / Poly Pizza.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
