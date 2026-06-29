@@ -291,6 +291,14 @@ Decomposed into four subsystems, each shipped independently. Brainstormed 2026-0
 ## Runtime CC0 Catalog
 Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md). Spec: [docs/superpowers/specs/2026-05-01-runtime-cc0-catalog-design.md](docs/superpowers/specs/2026-05-01-runtime-cc0-catalog-design.md). Active implementation in progress on this branch.
 
+> **⛔ PRODUCTION-INFRA-BLOCKED (the items below need DEPLOYED hosting, not app code):**
+> the **CORS proxy** (ambientCG prod), **Kenney/Quaternius mirrors**, **Sketchfab OAuth**, and the
+> **Poly Haven multi-file model fetcher / Kenney zip extraction** all require a *deployed* server
+> (Cloudflare Worker / Vercel edge / CDN mirror) or a build-pipeline host that this pure-client repo
+> can't stand up. The **dev paths already work** (Vite reverse proxy, dev-gated providers); only the
+> *production* proxy/mirror is missing, and standing one up is a deployment task, not a code change
+> here. Leave these until a backend/host exists. (ambientCG is dev-gated; Poly Haven works direct in prod.)
+
 - **Runtime catalog: production CORS proxy** — ambientCG's API and CDN do not send `Access-Control-Allow-Origin` (re-verified 2026-06). Dev uses Vite's reverse proxy ([vite.config.ts](vite.config.ts) `/acg` and `/acg-cdn`); production needs an equivalent proxy (Cloudflare Worker, Vercel edge function, or hosted reverse-proxy) to re-enable ambientCG in prod. Until then ambientCG is **dev-gated** (`catalog/remote/providers/index.ts` `activeProviderIds` / `PROD_PROVIDER_IDS`) so prod only bootstraps Poly Haven, whose API + CDN send CORS and work direct.
 - **Runtime catalog: Kenney support** — Kenney has no CORS-friendly API and ships single ZIPs. Add a build-time mirror (or proxy worker) before extending the runtime catalog to Kenney.
 - **Runtime catalog: Quaternius support** — same rationale as Kenney.
