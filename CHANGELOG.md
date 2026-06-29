@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## MOD-MOBILETOOLBAR-SPLIT: split the monolithic mobile toolbar (v0.8.0.31)
+
+- Behaviour-preserving refactor of `ui/toolbar/MobileToolbar.tsx` (**1140 → 259 lines**): extracted
+  each menu section into its own component under `ui/toolbar/mobile/` (View/File/Scene/Tools/Arrange/
+  Design/Edit/Appearance/EditHome `Section.tsx`). `MobileToolbar` is now a thin rail/sheet shell that
+  owns the local UI state + effects and picks the active section; each section reads its own
+  store/feature-flag values (same selectors, same gates) and takes only the few shell-owned values as
+  props. Same markup/classNames/labels/`data-tour`/flag gates — verified: tsc + biome clean, 25 toolbar
+  tests pass, and the mobile sheet renders identically (View + Scene sections screenshot-verified in
+  Simple mode). Closes MOD-MOBILETOOLBAR-SPLIT.
+
 ## docs: reconcile RD-405 + RD-411 as shipped (v0.8.0.30)
 
 - Verified against code that two items surfaced during the research-doc audit had already shipped:

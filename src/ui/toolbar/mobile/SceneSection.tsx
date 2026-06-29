@@ -1,0 +1,162 @@
+import { useFeature } from '../../../features/useFeature'
+import { HDRI_PRESETS } from '../../../scene/lighting/hdriCatalog'
+import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
+import { BACKDROPS, type BackdropKind } from '../../../scene/SceneBackdrop'
+import { PRESET_HOURS } from '../../../state/slices/timeSlice'
+import { useStore } from '../../../state/store'
+import { Select } from '../../controls/Select'
+import { BackdropUpload } from '../../scene/BackdropUpload'
+import { TimeOfDaySlider } from '../../scene/TimeOfDaySlider'
+import { Item, LIGHTS_LABEL, Section } from './parts'
+
+/** Scene — time of day, lights, render preset, sun, wall reveal, backdrops, HDRI. */
+export function SceneSection({
+  activeId,
+  act,
+  onOpenCompass,
+}: {
+  activeId: string
+  act: (fn: () => void, opts?: { keep?: boolean }) => () => void
+  onOpenCompass: () => void
+}) {
+  const s = useStore
+  const lightsMode = useStore((st) => st.lightsMode)
+  const showCeilingFixtures = useStore((st) => st.showCeilingFixtures)
+  const wallRevealMode = useStore((st) => st.wallRevealMode)
+  const wallRevealScope = useStore((st) => st.wallRevealScope)
+  const timeMode = useStore((st) => st.timeMode)
+  const manualHour = useStore((st) => st.manualHour)
+  const toneMapping = useStore((st) => st.toneMapping)
+  const exposure = useStore((st) => st.exposure)
+  const backdrop = useStore((st) => st.backdrop)
+  const hasCustomBackdrop = useStore((st) => !!st.customBackdropUrl)
+  const hdriId = useStore((st) => st.hdriId)
+
+  const fRenderPresets = useFeature('renderPresets')
+  const fBackdrops = useFeature('backdrops')
+  const fProceduralSky = useFeature('proceduralSky')
+  const fHdri = useFeature('hdriEnvironment')
+
+  // Detect which render preset (if any) matches current state for the dropdown.
+  const activePresetId = (() => {
+    if (timeMode !== 'manual') return 'none'
+    for (const p of RENDER_PRESETS) {
+      if (
+        Math.abs(manualHour - PRESET_HOURS[p.time]) < 0.01 &&
+        lightsMode === p.lights &&
+        toneMapping === p.toneMapping &&
+        Math.abs(exposure - p.exposure) < 0.01
+      ) {
+        return p.id
+      }
+    }
+    return 'none'
+  })()
+
+  return (
+    <Section id="scene" title="Scene" icon="Time" activeId={activeId}>
+      {/* Time of day: slider + snap-to icon checkpoints (shared with
+          desktop). The System toggle inside shows the real clock. */}
+      <TimeOfDaySlider />
+      <Item
+        icon="Lights"
+        label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
+        sub="Independent of the time of day"
+        on={lightsMode !== 'auto'}
+        onClick={act(() => s.getState().cycleLightsMode(), { keep: true })}
+      />
+      <Item
+        icon="Lights"
+        label={`Ceiling fixtures: ${showCeilingFixtures ? 'Visible' : 'Hidden'}`}
+        sub="3D geometry; illumination stays on"
+        on={showCeilingFixtures}
+        onClick={act(() => s.getState().setShowCeilingFixtures(!showCeilingFixtures), {
+          keep: true,
+        })}
+      />
+      {fRenderPresets && (
+        <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+          <span>Render preset</span>
+          <Select
+            className="input scene-select"
+            value={activePresetId}
+            ariaLabel="Render preset"
+            onChange={(v) => {
+              const p = RENDER_PRESETS.find((x) => x.id === v)
+              if (p) applyRenderPreset(s.getState(), p)
+            }}
+            options={[
+              { value: 'none', label: 'None' },
+              ...RENDER_PRESETS.map((p) => ({ value: p.id, label: p.label })),
+            ]}
+          />
+        </label>
+      )}
+      <Item icon="Sun" label="Sun direction" onClick={act(() => onOpenCompass(), { keep: true })} />
+      <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+        <span>Wall reveal</span>
+        <Select
+          className="input scene-select"
+          value={wallRevealMode}
+          ariaLabel="Wall reveal mode"
+          onChange={(v) =>
+            s.getState().setWallRevealMode(v as 'auto-hide' | 'translucent' | 'opaque')
+          }
+          options={[
+            { value: 'translucent', label: 'Fade translucent' },
+            { value: 'auto-hide', label: 'Fully hidden' },
+            { value: 'opaque', label: 'Fully opaque' },
+          ]}
+        />
+      </label>
+      {wallRevealMode !== 'opaque' && (
+        <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+          <span>Reveal walls</span>
+          <Select
+            className="input scene-select"
+            value={wallRevealScope}
+            ariaLabel="Wall reveal scope"
+            onChange={(v) => s.getState().setWallRevealScope(v as 'exterior' | 'all')}
+            options={[
+              { value: 'exterior', label: 'Exterior only' },
+              { value: 'all', label: 'Exterior + interior' },
+            ]}
+          />
+        </label>
+      )}
+      {fBackdrops ? (
+        <>
+          <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+            <span>Window view (walk mode)</span>
+            <Select
+              className="input scene-select"
+              value={backdrop}
+              ariaLabel="Backdrop"
+              onChange={(v) => s.getState().setBackdrop(v as BackdropKind)}
+              options={BACKDROPS.filter(
+                (b) =>
+                  (b.id !== 'custom' || hasCustomBackdrop) && (b.id !== 'sky' || fProceduralSky),
+              ).map((b) => ({ value: b.id, label: `${b.label} — ${b.sub}` }))}
+            />
+          </label>
+          <BackdropUpload />
+        </>
+      ) : null}
+      {fHdri ? (
+        <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+          <span>Environment lighting</span>
+          <Select
+            className="input scene-select"
+            value={hdriId ?? ''}
+            ariaLabel="HDRI environment"
+            onChange={(v) => s.getState().setHdri(v === '' ? null : v)}
+            options={[
+              { value: '', label: 'Procedural (default)' },
+              ...HDRI_PRESETS.map((h) => ({ value: h.id, label: h.name })),
+            ]}
+          />
+        </label>
+      ) : null}
+    </Section>
+  )
+}
