@@ -20,11 +20,29 @@ function markTourDone(): void {
   }
 }
 
-/** Position of the right-click context menu, in viewport px. */
+/** What the right-click landed on. The menu builds its action list from this +
+ *  the current selection, so it adapts per screen (3D room editor furniture, the
+ *  2D plan's walls/rooms/openings/dimensions/annotations, or empty canvas). */
+export type ContextTarget =
+  | { kind: 'item'; id: string }
+  | { kind: 'wall'; id: string }
+  | { kind: 'room'; id: string }
+  | { kind: 'opening'; id: string }
+  | { kind: 'dim'; id: string }
+  | { kind: 'note'; id: string }
+  | { kind: 'polyline'; id: string }
+  | { kind: 'canvas' }
+
+/** Position of the right-click context menu, in viewport px, + its target. */
 export interface ContextMenuState {
   x: number
   y: number
-  itemId: string
+  /** The right-clicked target. `itemId` is kept as a convenience alias for the
+   *  furniture case (legacy callers / the 3D menu). */
+  target: ContextTarget
+  itemId?: string
+  /** Active storey for plan-element actions (default ground when absent). */
+  levelId?: string
 }
 
 /** UI state for the production-feature layer (command palette, layers mode,

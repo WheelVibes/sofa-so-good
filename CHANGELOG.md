@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Always-active undo/redo, dynamic context menu, z-order (v0.8.0.1)
+
+- **Undo/redo keyboard shortcuts are always active** — moved Cmd/Ctrl+Z and
+  Cmd/Ctrl+Shift+Z / Cmd/Ctrl+Y from the room-editor-scoped handler into the
+  always-on global handler, so they now work in the 2D floor-plan editor and the
+  overview too (suppressed only behind a modal or while typing). Verified an
+  add-wall → undo → redo cycle in the plan editor.
+- **Dynamic right-click context menu** (`contextMenu` flag) — `ContextMenu` is now
+  target-aware: it rebuilds its actions from what was right-clicked + the current
+  selection. The 2D plan editor wires a canvas `onContextMenu` that overrides the
+  browser menu and opens operations for the selected element — walls (reverse /
+  split / join / duplicate / lock / delete), rooms (duplicate / delete), openings,
+  dimensions / notes / polylines (delete) — and furniture keeps its rich menu.
+- **Layer order / z-order** (`layerOrder` flag) — `reorderItems(ids, move)` +
+  pure `state/zorder.ts` `reorderByIds` give Canva-style Bring to front / Bring
+  forward / Send backward / Send to back for the selection (render order = array
+  order), surfaced in the furniture context menu.
+
 ## Floor-plan editor fixes — labels, finishes, naming, inspector, scale bar (v0.8.0.0)
 
 First wave of the Canva-style editor parity work:

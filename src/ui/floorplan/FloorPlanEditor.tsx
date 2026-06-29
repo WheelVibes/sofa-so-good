@@ -49,6 +49,7 @@ import {
 import { useCatalogGetter } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { computeRotation, pointerAngle } from '../../scene/selection/rotateGizmoMath'
+import type { ContextTarget } from '../../state/slices/featuresSlice'
 import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
@@ -2218,11 +2219,32 @@ export function FloorPlanEditor() {
             // above); a React onWheel here would be passive and couldn't
             // preventDefault. Right-drag pans, so suppress its context menu.
             onContextMenu={(e) => {
-              // Swallow the menu only when a right-drag pan actually moved.
+              // Always override the browser menu inside the editor.
+              e.preventDefault()
+              // A right-drag pan that actually moved swallows the menu.
               if (panDidMove.current) {
-                e.preventDefault()
                 panDidMove.current = false
+                return
               }
+              // Open our dynamic menu for the current selection (right-click on a
+              // selection shows its operations). Furniture wins, then the primary
+              // plan element. Nothing selected → no menu.
+              const st = useStore.getState()
+              let menuTarget: ContextTarget | null = null
+              if (st.selectedItemIds.length > 0) {
+                const id = st.selectedItemId ?? st.selectedItemIds[st.selectedItemIds.length - 1]
+                menuTarget = { kind: 'item', id }
+              } else if (st.planSelection) {
+                menuTarget = { kind: st.planSelection.type, id: st.planSelection.id }
+              }
+              if (!menuTarget) return
+              st.openContextMenu({
+                x: e.clientX,
+                y: e.clientY,
+                target: menuTarget,
+                levelId,
+                itemId: menuTarget.kind === 'item' ? menuTarget.id : undefined,
+              })
             }}
             onDragOver={(e) => {
               if (e.dataTransfer.types.includes('Files')) e.preventDefault()

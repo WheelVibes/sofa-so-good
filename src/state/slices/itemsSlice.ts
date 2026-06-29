@@ -2,6 +2,7 @@ import { GROUND_LEVEL_ID, levelOfRoom } from '../../floorplan/levels'
 import { buildMergedCatalog } from '../../furniture/catalog'
 import { defaultParamProps, type FurnitureItem, type ParamProps } from '../../furniture/types'
 import type { RootState } from '../store'
+import { reorderByIds, type ZMove } from '../zorder'
 import type { SliceCreator } from './types'
 
 /** Returns a fresh UUID. Falls back to a Math.random-based id if
@@ -48,6 +49,11 @@ export interface ItemsSlice {
    *  since the old finish/dimension props don't carry across a different def.
    *  No-op (returns false) if the item or the new def is missing. One undo step. */
   replaceItemDef: (id: string, newDefId: string) => boolean
+  /** Re-stack items in z-order (layer order = array order; later = on top).
+   *  `front`/`back` jump to the top/bottom, `forward`/`backward` step one slot.
+   *  Operates on the given ids as one block; one undo step; no-op if nothing
+   *  would move. */
+  reorderItems: (ids: string[], move: ZMove) => void
   setItems: (items: FurnitureItem[]) => void
 }
 
@@ -224,6 +230,15 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
       items: st.items.map((it) => (it.id === id ? { ...it, defId: newDefId, props } : it)),
     }))
     return true
+  },
+  reorderItems: (ids, move) => {
+    if (ids.length === 0) return
+    const next = reorderByIds(get().items, ids, move)
+    // Skip the history push when the order is unchanged (e.g. already at front).
+    const cur = get().items
+    if (next.length === cur.length && next.every((it, i) => it === cur[i])) return
+    get().pushHistory()
+    set({ items: next })
   },
   setItems: (items) => set({ items }),
 })

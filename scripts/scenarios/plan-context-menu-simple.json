@@ -1,0 +1,17 @@
+{
+  "name": "plan-context-menu-simple",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "screen", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "select-wall", "eval": "(() => { const s=window.__store.getState(); const w=s.floorPlan.walls.find(x=>x.thickness==='external')||s.floorPlan.walls[0]; s.setPlanSelection({ type:'wall', id:w.id }); })()" },
+    { "name": "ctx-wall", "eval": "(() => { const c=document.querySelector('.plan-canvas'); c.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:500,clientY:400})); })()" },
+    { "name": "wait", "wait": 400 },
+    { "name": "probe", "eval": "(() => { const m=document.querySelector('.ctx-menu'); console.log('PROBE menuOpen='+!!m+' items='+[...document.querySelectorAll('.ctx-item')].map(b=>b.textContent.replace(/\\s+/g,' ').trim()).join(' | ')); return 'ok'; })()" },
+    { "name": "shot", "screenshot": "ctx-wall" }
+  ]
+}
