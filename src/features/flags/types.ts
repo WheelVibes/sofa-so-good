@@ -59,6 +59,7 @@ export type FeatureFlag =
   | 'finishDnd'
   | 'parametricFurniture'
   | 'kitchenCabinets'
+  | 'productConfigurator'
   | 'renderCompare'
   | 'crownMolding'
   | 'windowGlassTint'

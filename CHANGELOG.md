@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## SLOT-102/103/104: configurator object-builder + bake + feature flag (v0.8.0.44)
+
+- `buildObject.ts` (`buildConfiguredObject`) maps the composed part list to a three.js `Group` of
+  box meshes, reusing `getSurfaceMaterial`; parts sharing a `finishKey` get one cloned, key-named
+  material so the baked GLB's finish targets are discoverable by the existing override channel.
+- `saveConfigured.ts` (`saveConfiguredAsset`) bakes the assembly through the GLB-designer pipeline
+  (`exportGlb` → `persistUserGlb`) with the composed footprint, summed price, and finish targets — a
+  configured product becomes a regular `UserGltfDef` (no new persistence path). Wiring unit-tested.
+- New **`productConfigurator`** feature flag (simple tier, default on, prod-safe); both-modes test
+  asserts it's on in Simple and Pro and not devOnly. (The dialog/⌘K UI — SLOT-105 — lands next.)
+
 ## SLOT-101/201/202: configurable-product core + two products (v0.8.0.43)
 
 - New pure `src/furniture/configurator/` foundation for the slot-based product configurator (base +

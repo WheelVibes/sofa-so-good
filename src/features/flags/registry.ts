@@ -378,6 +378,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Slot-based product configurator (SLOT). Pure procedural geometry → prod-safe;
+  // a core "configure this product" furnishing surface like parametricFurniture →
+  // simple tier (shown in both Simple and Pro).
+  productConfigurator: {
+    label: 'Configurable products',
+    description: 'Build mattress-on-frame + modular sofas by picking options per slot',
+    default: true,
+    tier: 'simple',
+  },
   // Parametric kitchen cabinet run (C270). Pure procedural geometry → prod-safe.
   // Surfaced in the default experience (curated launch set) → simple tier.
   kitchenCabinets: {
