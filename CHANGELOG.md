@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Group resize in the 3D per-room editor (v0.8.0.7)
+
+- **`ResizeGizmo`** mirrors the 2D corner-resize into the 3D editor: floor-plane corner handles
+  around a 2+ selection (beside the rotation ring), dragging one scales every selected item
+  uniformly about the opposite corner, collision-tinted, reverting via the pre-gesture snapshot
+  on an invalid release (same `pendingEdit`/confirm-bar UX as `RotateGizmo`). Mounted in both the
+  main and room-editor scenes.
+- Extracted the scale math to a pure, unit-tested `scene/selection/resizeGizmoMath.ts`
+  (`groupResizeFactor` + `resizedTransform`), now shared by the 2D editor and the 3D gizmo.
+- Verified the 3D gizmo renders (bounding box + 4 corner handles + ring). Note: the headless
+  harness cannot trigger an R3F gizmo *grab* — confirmed the existing rotate-ring knob is equally
+  un-draggable headlessly — so the resize *behaviour* is covered by the shared unit tests + the
+  behaviourally-verified 2D path that uses the identical helper.
+
 ## Group resize for the 2D multi-selection (v0.8.0.6)
 
 - **Corner resize handles** on the unified multi-select bounding box (`scalingMulti`): dragging a

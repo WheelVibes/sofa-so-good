@@ -22,6 +22,7 @@ import { getRoomEditorShell } from './roomEditorShell'
 import { ScreenshotController } from './ScreenshotController'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
+import { ResizeGizmo } from './selection/ResizeGizmo'
 import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
 
@@ -78,6 +79,7 @@ export function RoomEditorScene() {
       <FurnitureMaterialLoader />
       <SelectionOutline />
       <RotateGizmo />
+      <ResizeGizmo />
       <HoverHighlight />
       <PlacementGhost />
       <DragController />

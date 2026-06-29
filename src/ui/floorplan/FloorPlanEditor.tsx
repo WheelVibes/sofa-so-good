@@ -48,6 +48,7 @@ import {
 } from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
+import { groupResizeFactor, resizedTransform } from '../../scene/selection/resizeGizmoMath'
 import {
   computeRotation,
   enclosingRadius,
@@ -1239,24 +1240,18 @@ export function FloorPlanEditor() {
       const st = useStore.getState()
       const pivot = scalingMulti.pivot
       const dist = Math.hypot(wx - pivot[0], wz - pivot[1])
-      let f = dist / scalingMulti.grabDist
-      if (!Number.isFinite(f) || f <= 0) return
-      // Clamp the factor globally so the group stays consistent (no per-item clamp
-      // that would break rigidity).
-      f = Math.max(0.2, Math.min(5, f))
+      // Uniform group scale factor about the pivot (shared with the 3D ResizeGizmo).
+      const f = groupResizeFactor(scalingMulti.grabDist, dist)
       const origById = new Map(scalingMulti.originals.map((o) => [o.id, o]))
       const others = st.items.filter((o) => !origById.has(o.id))
       const cand = st.items.map((it) => {
         const o = origById.get(it.id)
         if (!o || it.locked) return it
-        const ns = Math.round(o.scale * f * 1000) / 1000
-        const np: [number, number] = [
-          pivot[0] + (o.position[0] - pivot[0]) * f,
-          pivot[1] + (o.position[1] - pivot[1]) * f,
-        ]
+        const r = resizedTransform(o.position, o.scale, pivot, f)
+        const ns = r.scale
         return {
           ...it,
-          position: np,
+          position: r.position,
           props: { ...it.props, scale: ns, scaleX: ns, scaleY: ns, scaleZ: ns },
         }
       })

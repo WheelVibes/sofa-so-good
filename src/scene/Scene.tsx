@@ -43,6 +43,7 @@ import { ScreenshotController } from './ScreenshotController'
 import { ShowcaseController } from './ShowcaseController'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
+import { ResizeGizmo } from './selection/ResizeGizmo'
 import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
 import { TapeMeasure } from './TapeMeasure'
@@ -115,6 +116,7 @@ export function Scene() {
         <FurnitureMaterialLoader />
         <SelectionOutline />
         <RotateGizmo />
+        <ResizeGizmo />
         <HoverHighlight />
         <PlacementGhost />
         <DragController />
