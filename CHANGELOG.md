@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IXT-SUITES: HDRI environment-lighting interaction scenario (v0.8.0.41)
+
+- Added `scripts/scenarios/hdri-environment-simple.json` — covers the HDRI environment-lighting
+  feature end-to-end: asserts `hdriEnvironment` is OFF in Simple / ON in Pro, `hdriId` defaults to
+  null (procedural probe), selecting a curated CC0 HDRI (`venice_sunset`) sets `state.hdriId`,
+  Procedural resets it to null, and the picker hides again back in Simple. All 15 steps pass against
+  the dev server (screenshot captured at Medium tier). Extends IXT-SUITES coverage to the lighting
+  feature shipped this line.
+
 ## PARITY-TILT: 2D-plan tilt indicator (v0.8.0.40)
 
 - The 2D floor-plan editor's furniture overlay now draws a small tilt badge (a circled diagonal
