@@ -29,7 +29,14 @@ export function ConfiguratorDialog() {
   const enabled = useFeature('productConfigurator')
   const priceOn = useFeature('budget')
   const isMobile = useIsMobile()
-  const close = () => useStore.getState().setConfiguratorOpen(false)
+  const close = () => {
+    const st = useStore.getState()
+    st.setConfiguratorOpen(false)
+    // Consume the edit recipe on close (not in the open-effect, which React
+    // StrictMode double-invokes — clearing it there made the second run reset to
+    // the default product instead of the seeded one).
+    st.setConfiguratorEditSpec(null)
+  }
 
   const [productId, setProductId] = useState(CONFIGURABLE_PRODUCTS[0].id)
   const product = getConfigurableProduct(productId) ?? CONFIGURABLE_PRODUCTS[0]
@@ -39,15 +46,33 @@ export function ConfiguratorDialog() {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // Reset to the first product, default selections, each time the dialog opens.
+  // On open: seed from an edit recipe if one was set (SLOT-204 — re-editing a
+  // placed configured product), else a fresh first product. The edit spec is
+  // consumed (cleared) so a later fresh open doesn't re-seed.
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    const editJson = useStore.getState().configuratorEditSpec
+    let seeded = false
+    if (editJson) {
+      try {
+        const parsed = JSON.parse(editJson) as { productId?: string; selections?: Selections }
+        const p = parsed.productId ? getConfigurableProduct(parsed.productId) : null
+        if (p) {
+          setProductId(p.id)
+          setSelections(clampConfig(p, { selections: parsed.selections ?? {} }).selections)
+          seeded = true
+        }
+      } catch {
+        // Malformed recipe → fall through to a fresh product.
+      }
+    }
+    if (!seeded) {
       const p = CONFIGURABLE_PRODUCTS[0]
       setProductId(p.id)
       setSelections(clampConfig(p, null).selections)
-      setName('')
-      setBusy(false)
     }
+    setName('')
+    setBusy(false)
   }, [open])
 
   useModalGuard(open && enabled)

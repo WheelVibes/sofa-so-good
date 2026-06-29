@@ -125,6 +125,7 @@ export async function hydrateUserAssets(): Promise<void> {
         finishOverrides: safeParse<Record<string, string>>(m.meta?.['finishOverrides']),
         ...(typeof m.meta?.['price'] === 'number' ? { price: m.meta['price'] } : {}),
         ...(typeof m.meta?.['byteSize'] === 'number' ? { byteSize: m.meta['byteSize'] } : {}),
+        ...(typeof m.meta?.['slotSpec'] === 'string' ? { slotSpec: m.meta['slotSpec'] } : {}),
       })
       // Re-resolve the asset's generated LOD tier siblings (derived keys) and
       // re-register them — blob URLs are session-scoped, so the registry must

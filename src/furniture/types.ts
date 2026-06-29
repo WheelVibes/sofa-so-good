@@ -289,6 +289,10 @@ export interface UserGltfDef extends FurnitureDefBase {
   /** GLB byte size (bytes), captured at upload, for the catalog model-info
    *  tooltip (SweetHome3DJS size parity). Persisted (IDB meta + save schema). */
   byteSize?: number
+  /** Slot-configurator recipe (JSON `ConfiguredSpec`) when this def was baked by
+   *  the product configurator — lets the inspector re-open it for editing
+   *  (SLOT-204). Persisted (IDB meta + save schema). Absent for other defs. */
+  slotSpec?: string
 }
 
 export interface RemoteGltfDef extends FurnitureDefBase {

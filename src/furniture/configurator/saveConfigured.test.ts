@@ -42,6 +42,10 @@ describe('saveConfiguredAsset (SLOT-103)', () => {
       'headboard:face',
       'mattress:cover',
     ])
+    // SLOT-204: the recipe rides on the def for later re-editing.
+    const recipe = JSON.parse(opts.slotSpec as string)
+    expect(recipe.productId).toBe('mattress-frame')
+    expect(recipe.selections.mattress).toBe('m-foam')
   })
 
   it('omitting the headboard drops its finish target + lowers the price', async () => {

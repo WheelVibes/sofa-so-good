@@ -38,5 +38,7 @@ export async function saveConfiguredAsset(
     footprint: model.bounds,
     price: model.price,
     finishTargets,
+    // The recipe rides on the def so a placed product re-opens for editing (SLOT-204).
+    slotSpec: JSON.stringify(clamped),
   })
 }

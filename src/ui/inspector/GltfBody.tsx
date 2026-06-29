@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useState } from 'react'
 import { itemFootprint } from '../../collision/placement'
+import { useFeature } from '../../features/useFeature'
 import {
   getCachedFinishTargets,
   getCachedGltfFootprint,
@@ -45,6 +46,7 @@ const PART_MATERIALS = [
 export function GltfBody({ item, def }: GltfBodyProps) {
   const updateItemProps = useStore((s) => s.updateItemProps)
   const units = useStore((s) => s.units)
+  const configuratorOn = useFeature('productConfigurator')
   const scale = typeof item.props['scale'] === 'number' ? item.props['scale'] : (def.scale ?? 1)
   const ax = (k: string) => (typeof item.props[k] === 'number' ? (item.props[k] as number) : scale)
   const sx = ax('scaleX')
@@ -281,6 +283,19 @@ export function GltfBody({ item, def }: GltfBodyProps) {
         <p className="pt-1 text-[10px] text-[var(--text-3)]">
           Uploaded {new Date(def.uploadedAt).toLocaleDateString()}
         </p>
+      ) : null}
+      {def.source === 'user' && def.slotSpec && configuratorOn ? (
+        <button
+          type="button"
+          className="btn btn-soft btn-block btn-sm mt-2"
+          onClick={() => {
+            const st = useStore.getState()
+            st.setConfiguratorEditSpec(def.slotSpec ?? null)
+            st.setConfiguratorOpen(true)
+          }}
+        >
+          Edit configuration
+        </button>
       ) : null}
     </div>
   )

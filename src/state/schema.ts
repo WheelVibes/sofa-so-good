@@ -75,6 +75,8 @@ const UserGltfDefZ = z.object({
   price: z.number().optional(),
   // Optional GLB byte size for the catalog model-info tooltip — additive.
   byteSize: z.number().optional(),
+  // Optional slot-configurator recipe (JSON) for re-editing (SLOT-204) — additive.
+  slotSpec: z.string().optional(),
 })
 
 const IkeaVariantZ = z.object({
@@ -556,6 +558,7 @@ export function serialize(state: RootState): SerializedState {
               finishTargets: d.finishTargets,
               finishOverrides: d.finishOverrides,
               price: d.price,
+              slotSpec: d.slotSpec,
             },
       ),
     userMaterials: state.userMaterials.map((d) => ({

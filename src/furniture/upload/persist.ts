@@ -37,6 +37,9 @@ export interface PersistOptions {
   lods?: LodVariantSet
   /** Estimated price (SGD) to carry on the def (parametric generator). */
   price?: number
+  /** Slot-configurator recipe (JSON `ConfiguredSpec`) so a placed configured
+   *  product can be re-opened in the configurator and re-baked (SLOT-204). */
+  slotSpec?: string
 }
 
 export type PersistResult =
@@ -92,6 +95,9 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
       contentHash,
       byteSize: buf.byteLength,
       ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
+      // Slot-configurator recipe (already a JSON string) → stored verbatim so a
+      // placed configured product round-trips for re-editing (SLOT-204).
+      ...(opts.slotSpec ? { slotSpec: opts.slotSpec } : {}),
       // Footprint (when measured up front) JSON-encodes into the primitive
       // meta store so hydration restores exact dims before the GLB loads.
       ...(opts.footprint ? { footprint: JSON.stringify(opts.footprint) } : {}),
@@ -149,6 +155,7 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
       finishOverrides: opts.finishOverrides,
       byteSize: buf.byteLength,
       ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
+      ...(opts.slotSpec ? { slotSpec: opts.slotSpec } : {}),
     }
     if (opts.commit ?? true) useStore.getState().addUserFurniture(def)
     return { ok: true, def }

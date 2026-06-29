@@ -110,6 +110,9 @@ export interface FeaturesSlice {
   parametricOpen: boolean
   /** Slot-based product configurator dialog visibility (SLOT-105). */
   configuratorOpen: boolean
+  /** When set, the configurator opens seeded with this recipe (JSON
+   *  `ConfiguredSpec`) for re-editing a placed product (SLOT-204); null = fresh. */
+  configuratorEditSpec: string | null
   /** Login screen (admin sign-in) visibility. */
   loginOpen: boolean
   /** Feature-flags panel (dev/admin) visibility. */
@@ -161,6 +164,7 @@ export interface FeaturesSlice {
   setGlbDesignerOpen: (open: boolean) => void
   setParametricOpen: (open: boolean) => void
   setConfiguratorOpen: (open: boolean) => void
+  setConfiguratorEditSpec: (spec: string | null) => void
   setLoginOpen: (open: boolean) => void
   setFlagsPanelOpen: (open: boolean) => void
   setQuoteTemplateOpen: (open: boolean) => void
@@ -198,6 +202,7 @@ export const FEATURES_INITIAL = {
   glbDesignerOpen: false,
   parametricOpen: false,
   configuratorOpen: false,
+  configuratorEditSpec: null,
   loginOpen: false,
   flagsPanelOpen: false,
   quoteTemplateOpen: false,
@@ -258,6 +263,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setGlbDesignerOpen: (glbDesignerOpen) => set({ glbDesignerOpen }),
   setParametricOpen: (parametricOpen) => set({ parametricOpen }),
   setConfiguratorOpen: (configuratorOpen) => set({ configuratorOpen }),
+  setConfiguratorEditSpec: (configuratorEditSpec) => set({ configuratorEditSpec }),
   setLoginOpen: (loginOpen) => set({ loginOpen }),
   setFlagsPanelOpen: (flagsPanelOpen) => set({ flagsPanelOpen }),
   setQuoteTemplateOpen: (quoteTemplateOpen) => set({ quoteTemplateOpen }),

@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## SLOT-204: re-editable configured products (v0.8.0.48)
+
+- A baked configured product now carries its recipe (`UserGltfDef.slotSpec` — JSON `ConfiguredSpec`)
+  so it can be re-opened in the configurator and re-baked. Round-trips through the existing channels
+  (additive, back-compat): `persistUserGlb` stores it in IDB meta + on the def, `hydrateAssets`
+  restores it, `schema` serializes it. `saveConfiguredAsset` sets it. The dialog seeds its product +
+  selections from a store `configuratorEditSpec` on open (cleared on close — not in the open-effect,
+  which React StrictMode double-invokes, a bug caught + fixed in visual verification), and `GltfBody`
+  shows an **"Edit configuration"** button on a placed configured product (gated by
+  `productConfigurator`). Save-side recipe assertion + full round-trip tests pass; the seeded dialog
+  is screenshot-verified (a modular-sofa recipe re-opens on the right product with the right options).
+  Closes the SLOT-204 fast-follow.
+
 ## IXT-SUITES: configurator interaction scenario (v0.8.0.47)
 
 - Added `scripts/scenarios/configurator-simple.json` — asserts `productConfigurator` is ON in both
