@@ -4,14 +4,8 @@ Legacy deferred-work log. **`CHANGELOG.md` is the source of truth for what shipp
 item ships it is removed from here entirely. Only genuinely-open work remains below; the bulk of
 this file's historical audit-wave / reconciliation content has been pruned (it all shipped).
 
-## Maintainability (debt — CLAUDE.md "no monolithic files")
-- [ ] **MOD-PLANINSPECTOR-SPLIT** — `ui/floorplan/PlanInspector.tsx` (~1348 lines). Extract
-  wall/room/opening/notes-dimension branches into sibling `editor/inspector/<Branch>.tsx` panels;
-  keep `PlanInspector` a thin dispatcher (proven `PathArraySection`/`PlanFurnitureInspector`
-  pattern). Behaviour-preserving — existing scenarios green + tsc/biome.
-- [ ] **MOD-MOBILETOOLBAR-SPLIT** — `ui/toolbar/MobileToolbar.tsx` (~1204 lines). Extract
-  per-section detail-pane renderers into `toolbar/mobile/<Section>.tsx`; keep the rail/sheet shell
-  thin. Behaviour-preserving — mobile scenario parity + tsc/biome.
+> **Maintainability refactors** (MOD-PLANINSPECTOR-SPLIT, MOD-MOBILETOOLBAR-SPLIT) are tracked in
+> `TASKS.md` under "Open — client-doable".
 
 ## ⛔ Production-infra-blocked — need a DEPLOYED host/backend, not app code
 The dev paths already work (Vite reverse proxy, dev-gated providers); only the *production*

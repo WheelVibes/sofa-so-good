@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## docs: prune fully-shipped research docs; unify open items into TASKS (v0.8.0.29)
+
+- Deleted 9 `docs/research/` audit/plan docs whose every actionable item shipped (verified
+  against CHANGELOG + code): correctness-bug-hunt (BUG-001…014), security-review (SEC-001…003),
+  recent-work-code-review (REV-001…006), mobile-a11y-ux-audit (UX-001…009), material-microdetail-plan
+  (MAT-001…006b), pc2-cam-dof-lens-plan (PC2-CAM-DOF-LENS + raster DoF), cc0-model-catalog-integration-plan
+  (remoteFurniture flag + footprint seed), coohom-sh3d-parity-backlog (all shipped bar SH3F/i18n,
+  tracked in FEATURE_PARITY), rd412-sky-ibl-plan (procedural sky + HDRI IBL both ship). Surfaced the
+  genuinely-open items from the *kept* docs (RD-405 glass fresnel, RD-408 decor tail, RD-411 SSAA
+  export, IO-pipeline robustness, SLOT configurator, MOD-* splits) into `TASKS.md` so the backlog is
+  unified. Kept docs with real open work + the 4 reference docs (floor-plan specs, competitive analysis).
+
 ## docs: prune shipped/on-parity items from FEATURE_PARITY.md + PHOTOREALISM.md (v0.8.0.28)
 
 - Per user instruction, removed all shipped/at-parity rows from the living parity matrices.
