@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IO-004 + IO-005: import blob-URL + scene-graph cleanup (v0.8.0.36)
+
+- **IO-004** — `furniture/upload/persist.ts` now wraps the base + LOD object-URL creation through the
+  store commit in a try/catch: if anything throws after the URLs are created (e.g. `addUserFurniture`
+  failing), it revokes them and drops the LOD-registry mapping before re-throwing, instead of orphaning
+  multi-MB blob URLs for the page lifetime. (Ownership is handed off only once the def commits.)
+  Unit-tested (forced commit failure → all created URLs revoked).
+- **IO-005** — `furniture/convert/convertModel.ts` disposes the intermediate three.js scene graph (a
+  new tested `disposeObject3D`: geometry + materials + their textures) in a `finally` after the GLB is
+  exported, so a bulk import of thousands of models releases CPU buffers/decoded textures
+  deterministically instead of leaving them for GC. Unit-tested with dispose spies.
+
 ## MOD-PLANINSPECTOR-SPLIT: split the monolithic plan inspector (v0.8.0.35)
 
 - Behaviour-preserving refactor of `ui/floorplan/PlanInspector.tsx` (**1441 → 524 lines**): extracted

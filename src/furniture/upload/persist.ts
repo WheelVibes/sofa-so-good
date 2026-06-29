@@ -1,6 +1,12 @@
 import { IdbAssetStore } from '../../state/storage/IdbAssetStore'
 import { useStore } from '../../state/store'
-import { LOD_TIERS, type LodTier, lodAssetId, registerLodVariants } from '../gltf/lod'
+import {
+  LOD_TIERS,
+  type LodTier,
+  lodAssetId,
+  registerLodVariants,
+  unregisterLodVariants,
+} from '../gltf/lod'
 import type { LodVariantSet } from '../optimize/lodVariants'
 import type { FurnitureCategory, UserGltfDef } from '../types'
 import { hashBuffer } from './hashFile'
@@ -103,46 +109,57 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
   // that tier, never the upload.
   const runtimeUrl = URL.createObjectURL(blob)
   const lodUrls: Partial<Record<LodTier, string>> = {}
-  for (const tier of LOD_TIERS) {
-    const bytes = opts.lods?.[tier]
-    if (!bytes) continue
-    const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
-    const lodBlob = new Blob([ab as ArrayBuffer], { type: v.mime })
-    try {
-      await IdbAssetStore.put({
-        assetId: lodAssetId(assetId, tier),
-        kind: 'gltf',
-        mime: v.mime,
-        name: `${opts.name} (${tier} LOD)`,
-        uploadedAt: new Date().toISOString(),
-        blob: lodBlob,
-        meta: { role: 'lod', tier, baseAssetId: assetId },
-      })
-      lodUrls[tier] = URL.createObjectURL(lodBlob)
-    } catch {
-      // tier dropped; the original serves that tier instead
+  try {
+    for (const tier of LOD_TIERS) {
+      const bytes = opts.lods?.[tier]
+      if (!bytes) continue
+      const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+      const lodBlob = new Blob([ab as ArrayBuffer], { type: v.mime })
+      try {
+        await IdbAssetStore.put({
+          assetId: lodAssetId(assetId, tier),
+          kind: 'gltf',
+          mime: v.mime,
+          name: `${opts.name} (${tier} LOD)`,
+          uploadedAt: new Date().toISOString(),
+          blob: lodBlob,
+          meta: { role: 'lod', tier, baseAssetId: assetId },
+        })
+        lodUrls[tier] = URL.createObjectURL(lodBlob)
+      } catch {
+        // tier dropped; the original serves that tier instead
+      }
     }
-  }
-  if (lodUrls.low || lodUrls.medium) registerLodVariants(runtimeUrl, lodUrls)
+    if (lodUrls.low || lodUrls.medium) registerLodVariants(runtimeUrl, lodUrls)
 
-  const def: UserGltfDef = {
-    id: `user-${assetId}`,
-    name: opts.name,
-    category: opts.category,
-    kind: 'gltf',
-    source: 'user',
-    assetId,
-    contentHash,
-    uploadedAt: new Date().toISOString(),
-    defaultFootprint: opts.footprint ?? { w: 1.0, d: 1.0, h: 1.0 },
-    runtimeUrl,
-    mounted: opts.mounted,
-    noClip: opts.noClip,
-    finishTargets: opts.finishTargets,
-    finishOverrides: opts.finishOverrides,
-    byteSize: buf.byteLength,
-    ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
+    const def: UserGltfDef = {
+      id: `user-${assetId}`,
+      name: opts.name,
+      category: opts.category,
+      kind: 'gltf',
+      source: 'user',
+      assetId,
+      contentHash,
+      uploadedAt: new Date().toISOString(),
+      defaultFootprint: opts.footprint ?? { w: 1.0, d: 1.0, h: 1.0 },
+      runtimeUrl,
+      mounted: opts.mounted,
+      noClip: opts.noClip,
+      finishTargets: opts.finishTargets,
+      finishOverrides: opts.finishOverrides,
+      byteSize: buf.byteLength,
+      ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
+    }
+    if (opts.commit ?? true) useStore.getState().addUserFurniture(def)
+    return { ok: true, def }
+  } catch (e) {
+    // IO-004: a throw after the object URLs are created (e.g. addUserFurniture
+    // failing synchronously) would orphan the base + LOD blob URLs for the page
+    // lifetime. Ownership is handed off only once the def commits, so on any
+    // failure revoke them (and drop the LOD registry mapping) before re-throwing.
+    unregisterLodVariants(runtimeUrl)
+    URL.revokeObjectURL(runtimeUrl)
+    for (const u of Object.values(lodUrls)) if (u) URL.revokeObjectURL(u)
+    throw e
   }
-  if (opts.commit ?? true) useStore.getState().addUserFurniture(def)
-  return { ok: true, def }
 }

@@ -92,6 +92,37 @@ describe('persistUserGlb with LOD variants', () => {
     expect(resolveLodUrlSync(base, 'medium')).not.toBe(base)
   })
 
+  it('IO-004: revokes orphaned base + LOD blob URLs when the store commit throws', async () => {
+    const created: string[] = []
+    const revoked: string[] = []
+    let n = 0
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: () => {
+        const u = `blob:io004-${n++}`
+        created.push(u)
+        return u
+      },
+      revokeObjectURL: (u: string) => {
+        revoked.push(u)
+      },
+    })
+    const spy = vi.spyOn(useStore.getState(), 'addUserFurniture').mockImplementation(() => {
+      throw new Error('commit boom')
+    })
+    await expect(
+      persistUserGlb(glbFile('boom.glb'), {
+        name: 'Boom',
+        category: 'decor',
+        lods: { low: new Uint8Array([1]) },
+      }),
+    ).rejects.toThrow('commit boom')
+    // Both object URLs created during persist (base + low LOD) were revoked.
+    expect(created.length).toBeGreaterThanOrEqual(2)
+    for (const u of created) expect(revoked).toContain(u)
+    spy.mockRestore()
+  })
+
   it('removing the def deletes its tier siblings from IDB', async () => {
     const r = await persistUserGlb(glbFile('bin.glb'), {
       name: 'Bin',

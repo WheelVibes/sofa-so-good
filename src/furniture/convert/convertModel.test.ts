@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { convertModel } from './convertModel'
+import { describe, expect, it, vi } from 'vitest'
+import { convertModel, disposeObject3D } from './convertModel'
 
 // Minimal ASCII STL: a single triangle. STL parsing + GLTF export are pure JS
 // (no WebGL / DOM), so this round-trips under jsdom.
@@ -32,5 +32,36 @@ describe('convertModel', () => {
   it('rejects an unsupported format', async () => {
     const entry = new File([new Uint8Array([1, 2, 3])], 'x.mtl')
     await expect(convertModel(entry, [])).rejects.toThrow(/Unsupported model format/)
+  })
+
+  it('IO-005: disposes geometry, materials, and their textures across the tree', () => {
+    const texDispose = vi.fn()
+    const tex = { isTexture: true, dispose: texDispose }
+    const geoDispose = vi.fn()
+    const matDispose = vi.fn()
+    const mesh = {
+      geometry: { dispose: geoDispose },
+      material: {
+        isMaterial: true,
+        map: tex,
+        normalMap: tex,
+        color: { r: 1 },
+        dispose: matDispose,
+      },
+    }
+    let cb: ((o: unknown) => void) | null = null
+    const root = {
+      traverse(fn: (o: unknown) => void) {
+        cb = fn
+        fn(root)
+        fn(mesh)
+      },
+    } as unknown as Parameters<typeof disposeObject3D>[0]
+    disposeObject3D(root)
+    expect(cb).not.toBeNull()
+    expect(geoDispose).toHaveBeenCalledTimes(1)
+    expect(matDispose).toHaveBeenCalledTimes(1)
+    // The same texture is referenced by two slots (map + normalMap) → disposed twice.
+    expect(texDispose).toHaveBeenCalledTimes(2)
   })
 })
