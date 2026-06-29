@@ -488,9 +488,6 @@ export function CatalogDrawer() {
           ) : null}
           <StampBanner />
           <div className="cat-foot">
-            <span className="hint">
-              Drag onto the floor · <kbd>R</kbd> rotates
-            </span>
             <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
               {fParametric ? (
                 <button

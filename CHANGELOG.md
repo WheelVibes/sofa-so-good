@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Catalog/inspector text polish (v0.7.1.1)
+
+Small consistency fixes from a screenshot review:
+
+- Removed the redundant **"Drag onto the floor · R rotates"** hint from the catalog footer; the
+  footer's action buttons (Custom size / Design / Upload) now align to the right (`.cat-foot`).
+- Fixed the oversized inspector array **section titles** (Linear / Radial / Path array, Fill room):
+  their intended small-label rule (`.act-array > span`) only matched a direct child, but each title
+  span is nested in the header's flex row, so it fell back to the base font size. Extended the rule
+  (`.act-array > div:first-child > span`) so all four titles use the intended `--t-xs` size,
+  harmonising the panel text.
+
 ## Mobile input polish — no focus-zoom, themed dropdown + colour picker (v0.7.1.0)
 
 Replaces the off-brand native phone controls and fixes the oversized mobile field text:

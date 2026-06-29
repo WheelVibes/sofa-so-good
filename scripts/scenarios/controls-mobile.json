@@ -1,9 +1,10 @@
 {
   "name": "controls-mobile",
-  "description": "Verify the custom Select dropdown + ColorPicker render (replacing native phone controls). Desktop popover + the inspector light colour picker.",
+  "description": "Verify the custom Select + ColorPicker render as mobile bottom-sheets (replacing native phone controls), and the catalog footer has no hint.",
   "url": "http://localhost:5173/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844, "mobile": true } },
     {
       "name": "dismiss-overlays",
       "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setUiMode?.('pro')"
@@ -18,14 +19,19 @@
     { "name": "wait-load", "wait": 2000 },
     { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
     { "name": "wait-catalog", "wait": 800 },
+    { "name": "shot-catalog-mobile", "screenshot": "00-catalog-footer-mobile" },
     { "name": "open-sort", "click": { "selector": ".catalog .select-trigger" } },
     { "name": "wait-sort", "wait": 500 },
-    { "name": "shot-select-open", "screenshot": "01-select-dropdown-open" },
-    { "name": "close-sort", "eval": "document.body.click()" },
+    { "name": "shot-select-sheet", "screenshot": "01-select-sheet-mobile" },
+    { "name": "close-sort", "eval": "window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))" },
+    { "name": "wait-close", "wait": 400 },
     { "name": "select-lamp", "store": { "action": "selectItem", "args": ["lamp1"] } },
-    { "name": "wait-inspector", "wait": 700 },
+    { "name": "wait-inspector", "wait": 600 },
+    { "name": "expand-inspector", "click": { "selector": ".inspector [aria-label=\"Expand inspector\"]" } },
+    { "name": "wait-expand", "wait": 400 },
+    { "name": "shot-inspector-mobile", "screenshot": "02-inspector-mobile" },
     { "name": "open-color", "click": { "selector": ".inspector .color-trigger" } },
     { "name": "wait-color", "wait": 500 },
-    { "name": "shot-color-open", "screenshot": "02-colorpicker-open" }
+    { "name": "shot-color-sheet", "screenshot": "03-colorpicker-sheet-mobile" }
   ]
 }

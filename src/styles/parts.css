@@ -87,7 +87,7 @@
 .pager { display: flex; align-items: center; justify-content: space-between; padding: var(--s-2) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-xs); color: var(--text-3); font-weight: 600; }
 .pager button { padding: 4px 8px; border-radius: var(--r-2); color: var(--text-2); }
 .pager button:hover { background: var(--surface-3); }
-.cat-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); }
+.cat-foot { display: flex; align-items: center; justify-content: flex-end; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); }
 .cat-foot .hint { font-size: var(--t-2xs); color: var(--text-3); line-height: 1.4; min-width: 0; }
 .cat-foot .btn { flex: none; }
 
@@ -328,7 +328,11 @@
   padding: 6px 10px; border-radius: var(--r-2);
   background: var(--surface-2); border: 1px solid var(--border);
 }
-.act-array > span { font-size: var(--t-xs); font-weight: 600; color: var(--text-2); }
+/* The section title is the span in the header's flex row (a grandchild), so match
+   both shapes — direct child and the first-row span — to keep titles small +
+   consistent with the array inputs/labels (not the inherited base size). */
+.act-array > span,
+.act-array > div:first-child > span { font-size: var(--t-xs); font-weight: 600; color: var(--text-2); }
 .act-array input {
   width: 48px; padding: 3px 6px; border-radius: var(--r-2);
   border: 1px solid var(--border); background: var(--surface-solid); color: var(--text);
