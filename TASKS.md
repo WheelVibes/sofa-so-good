@@ -164,10 +164,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 ### Pending — high value (M)
 - [~] PARITY-AR: AR "view in your room" **shipped** — iOS AR Quick Look (USDZ) + GLB fallback
   (`ui/viewInAr.ts`, `viewInAr` flag). Remaining: Android Scene Viewer (needs an https-hosted model).
-- [~] PARITY-8K: the HQ render is **already tiled** (`hqRenderSession.ts` `tracer.tiles`, 2–6 tiles
-  scaled to resolution) and takes arbitrary `width`/`height`, so large stills render tile-by-tile
-  without blowing a frame. Remaining: expose an explicit 8K preset/cap in `HqRenderModal` (UI only).
-  (PARITY-DENOISE shipped via the DenoiseMaterial bilateral pass — see PHOTO-DENOISE above.)
+> PARITY-8K + PARITY-DENOISE **shipped** (v0.8.0.23): the HQ render is tiled (`tracer.tiles`) +
+> takes arbitrary dims, and `HqRenderModal` now offers an **8K · 7680×4320** preset; PARITY-DENOISE
+> ships via the `DenoiseMaterial` bilateral pass on the blit.
 
 ### Pending — marquee (L)
 - [~] PARITY-CURVEDWALL: SH3D curved/arc walls **shipped** — `PlanWall.arc` bulge + `floorplan/wallArc.ts`

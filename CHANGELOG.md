@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-8K: 8K still-render preset (v0.8.0.23)
+
+- Added an **8K · 7680×4320** preset to `HqRenderModal` resolutions. The HQ path-tracer
+  already renders tile-by-tile (`hqRenderSession` `tracer.tiles`, scaled to resolution) and
+  takes arbitrary dimensions, so 8K renders responsively (real GPU + patience). Closes PARITY-8K.
+
 ## PHOTO-PT-TUNE complete (stableNoise) + render-pipeline reconciliation (v0.8.0.22)
 
 - **PHOTO-PT-TUNE** finished: added `stableNoise: true` to `HqTracerConfig` + applied it in

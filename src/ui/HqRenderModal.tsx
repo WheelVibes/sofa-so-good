@@ -22,6 +22,10 @@ const RESOLUTIONS = [
   { id: '1080', label: 'Full HD · 1920×1080', w: 1920, h: 1080 },
   { id: '1440', label: 'QHD · 2560×1440', w: 2560, h: 1440 },
   { id: '2160', label: '4K · 3840×2160', w: 3840, h: 2160 },
+  // 8K tiled still (PARITY-8K) — the path tracer renders tile-by-tile
+  // (`hqRenderSession` `tracer.tiles`, scaled to resolution) so even this stays
+  // responsive; needs a real GPU + patience at high sample counts.
+  { id: '4320', label: '8K · 7680×4320', w: 7680, h: 4320 },
 ]
 
 const SAMPLE_STEPS = [64, 128, 256, 512, 1024] as const
