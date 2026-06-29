@@ -22,6 +22,11 @@ export interface HqTracerConfig {
   filterGlossyFactor: number
   /** Multiple importance sampling — markedly faster convergence on lit surfaces. */
   multipleImportanceSampling: boolean
+  /** Stable (deterministic) noise across samples — the speckle pattern doesn't
+   *  swim frame-to-frame as the still accumulates, so the converging image reads
+   *  cleaner and a captured frame mid-convergence isn't visibly dithered. Best
+   *  for a progressive still (vs. an animation). */
+  stableNoise: boolean
 }
 
 export const HQ_TRACER_CONFIG: HqTracerConfig = {
@@ -29,4 +34,5 @@ export const HQ_TRACER_CONFIG: HqTracerConfig = {
   transmissiveBounces: 6,
   filterGlossyFactor: 0.75,
   multipleImportanceSampling: true,
+  stableNoise: true,
 }

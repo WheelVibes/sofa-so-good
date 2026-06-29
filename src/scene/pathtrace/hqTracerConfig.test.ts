@@ -19,4 +19,8 @@ describe('HQ_TRACER_CONFIG (PHOTO-PT-TUNE)', () => {
   it('enables multiple importance sampling for faster convergence', () => {
     expect(HQ_TRACER_CONFIG.multipleImportanceSampling).toBe(true)
   })
+
+  it('enables stable noise so the progressive still does not swim', () => {
+    expect(HQ_TRACER_CONFIG.stableNoise).toBe(true)
+  })
 })

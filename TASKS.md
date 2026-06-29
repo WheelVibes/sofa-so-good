@@ -146,14 +146,12 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   mode only** (orbit clean); legacy 3D City/Park/Hills/Studio removed. Presets city/dusk/park/hills +
   **user-uploaded `custom` photo** (IDB-persisted) + none; flags `backdrops`/`customBackdrop`, prod-safe.
   Follow-up: bundle real CC0 equirectangular photos for the presets; pairs with PHOTO-HDRI (#1b).
-- [ ] PHOTO-PT-TUNE: tune `three-gpu-pathtracer` in `hqRenderSession.ts` (bounces/transmissiveBounces/
-  filterGlossyFactor/MIS/stableNoise/minSamples) + AgX/Neutral + exposure. Pure config; pixel pass
-  real-GPU-pending.
 - [ ] PHOTO-HDRI (R-HDRI): CC0 Poly Haven HDRI for IBL + sky through windows (Medium+); keep
   procedural backdrops for near parallax + far HDRI dome. `hdriEnvironment` pro flag, prod-safe (CC0).
   Needs the .hdr asset added in a connected session (sandbox can't fetch). M.
-- [ ] PHOTO-DENOISE: browser OIDN (`DennisSmolek/Denoiser` WebGL / `oidn-web` WebGPU) + albedo/normal
-  AOV on the HQ render; fallback to current DenoiseMaterial. [real-GPU verify]
+- [~] PHOTO-DENOISE: edge-preserving **DenoiseMaterial bilateral pass shipped** on the HQ-render blit
+  (`hqRenderSession.ts`, = PARITY-DENOISE). Remaining nicety: swap in browser OIDN
+  (`DennisSmolek/Denoiser`) + albedo/normal AOV for a higher-quality denoise (real-GPU).
 - [ ] PHOTO-PBR + PHOTO-KTX2: real 2K CC0 PBR maps (Poly Haven/ambientCG) over procedural fallback;
   un-stub `lib/ktx2encode.ts` with `ktx2-encoder` (basis WASM now exists — stale assumption) to ship
   KTX2 in prod (ETC1S albedo / UASTC normal+ORM).
@@ -166,8 +164,10 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 ### Pending — high value (M)
 - [~] PARITY-AR: AR "view in your room" **shipped** — iOS AR Quick Look (USDZ) + GLB fallback
   (`ui/viewInAr.ts`, `viewInAr` flag). Remaining: Android Scene Viewer (needs an https-hosted model).
-- [ ] PARITY-DENOISE: Coohom render denoiser (OIDN-wasm/bilateral post-pass on HQ render). [real-GPU verify]
-- [ ] PARITY-8K: Coohom 8K+ tiled still render.
+- [~] PARITY-8K: the HQ render is **already tiled** (`hqRenderSession.ts` `tracer.tiles`, 2–6 tiles
+  scaled to resolution) and takes arbitrary `width`/`height`, so large stills render tile-by-tile
+  without blowing a frame. Remaining: expose an explicit 8K preset/cap in `HqRenderModal` (UI only).
+  (PARITY-DENOISE shipped via the DenoiseMaterial bilateral pass — see PHOTO-DENOISE above.)
 
 ### Pending — marquee (L)
 - [~] PARITY-CURVEDWALL: SH3D curved/arc walls **shipped** — `PlanWall.arc` bulge + `floorplan/wallArc.ts`

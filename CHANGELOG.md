@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PHOTO-PT-TUNE complete (stableNoise) + render-pipeline reconciliation (v0.8.0.22)
+
+- **PHOTO-PT-TUNE** finished: added `stableNoise: true` to `HqTracerConfig` + applied it in
+  `hqRenderSession` so the progressive still's speckle pattern doesn't swim as it converges
+  (the rest — bounces/transmissiveBounces/filterGlossyFactor/MIS/minSamples — were already
+  tuned). Removed from the backlog.
+- Verified-shipped reconciliations: **PARITY-DENOISE** ships via the edge-preserving
+  `DenoiseMaterial` bilateral pass on the HQ blit (PHOTO-DENOISE downgraded to a [~] OIDN-upgrade
+  nicety); **PARITY-8K** — the HQ render is already tiled (`tracer.tiles`) and takes arbitrary
+  dimensions, so only an 8K preset in `HqRenderModal` remains ([~]).
+
 ## Reconcile shipped GPU-lighting items: RZ7 + RZ2 transmission (v0.8.0.18)
 
 - **RZ7** (PCF/penumbra soft shadows on Medium+) verified shipped & removed: the main
