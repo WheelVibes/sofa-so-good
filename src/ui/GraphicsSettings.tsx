@@ -12,6 +12,7 @@ import {
 } from '../scene/quality'
 import { TONE_MAPPING_SETTINGS, type ToneMappingSetting } from '../scene/toneContext'
 import { useStore } from '../state/store'
+import { Select } from './controls/Select'
 import { Icon } from './toolbar/icons'
 
 const TIERS = RENDER_TIERS
@@ -259,18 +260,16 @@ export function GraphicsSettings({
 
               <div className="sec">
                 <Row label="Sun shadows" hint="Resolution; off is fastest">
-                  <select
-                    value={eff.shadowMapSize}
-                    onChange={(e) => setOverride('shadowMapSize', Number(e.target.value))}
+                  <Select
+                    value={String(eff.shadowMapSize)}
+                    onChange={(v) => setOverride('shadowMapSize', Number(v))}
                     className="input"
                     style={{ width: 'auto' }}
-                  >
-                    {SHADOW_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                    options={SHADOW_OPTIONS.map((o) => ({
+                      value: String(o.value),
+                      label: o.label,
+                    }))}
+                  />
                 </Row>
 
                 <Toggle

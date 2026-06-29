@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { MaterialCategory } from '../../materials/types'
 import { type MaterialUploadFiles, persistUserMaterial } from '../../materials/upload/persist'
-import { ThemeColorRows } from '../color/ThemeColorRows'
+import { ColorPicker } from '../controls/ColorPicker'
+import { Select } from '../controls/Select'
 import { Modal } from '../Modal'
 
 interface UploadMaterialDialogProps {
@@ -144,17 +145,18 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
               className="input block w-full"
             />
           </label>
-          <label className="block">
+          <div className="block">
             <span className="mb-1 block text-xs text-[var(--text-2)]">Category</span>
-            <select
+            <Select
               value={category}
-              onChange={(e) => setCategory(e.target.value as MaterialCategory)}
+              onChange={(v) => setCategory(v as MaterialCategory)}
               className="input block w-full"
-            >
-              <option value="floor">Floor</option>
-              <option value="wall">Wall</option>
-            </select>
-          </label>
+              options={[
+                { value: 'floor', label: 'Floor' },
+                { value: 'wall', label: 'Wall' },
+              ]}
+            />
+          </div>
           <label className="block">
             <span className="mb-1 block text-xs text-[var(--text-2)]">Tile width (m)</span>
             <input
@@ -177,20 +179,17 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
               className="input block w-full"
             />
           </label>
-          <label className="col-span-2 flex items-center gap-2">
+          <div className="col-span-2 flex items-center gap-2">
             <span className="block text-xs text-[var(--text-2)]">Swatch</span>
-            <input
-              type="color"
+            <ColorPicker
               value={swatch}
-              onChange={(e) => setSwatch(e.target.value)}
-              className="h-6 w-10 cursor-pointer rounded border border-[var(--border-2)]"
+              onChange={setSwatch}
+              ariaLabel="Swatch colour"
+              paletteRoomId={null}
             />
             <span className="text-[10px] text-[var(--text-3)]">
               Picker thumbnail + loading fallback colour
             </span>
-          </label>
-          <div className="col-span-2">
-            <ThemeColorRows active={swatch} roomId={null} onPick={setSwatch} />
           </div>
         </div>
         {error ? (

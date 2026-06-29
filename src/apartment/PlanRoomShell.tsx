@@ -1,6 +1,11 @@
+import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
-import { type Group, Vector2 } from 'three'
-import type { PlanClippedWall, PlanRoomShell as Shell } from '../floorplan/planRoomShell'
+import { type Group, Mesh, type MeshStandardMaterial, Vector2 } from 'three'
+import type {
+  PlanClippedWall,
+  PlanRoomOpening,
+  PlanRoomShell as Shell,
+} from '../floorplan/planRoomShell'
 import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
 import type { MaterialId } from '../materials/types'
 import { finishSurfaceUserData } from '../scene/finishDropTarget'
@@ -8,6 +13,7 @@ import { useStore } from '../state/store'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { PlanWallFinishFace } from './walls/PlanWallFinishFace'
 import { useWallReveal } from './walls/useWallReveal'
+import { getWallOpacity } from './walls/wallReveal'
 
 const WALL_COLOR = '#ede9e2' // matches PlanShell's plaster walls
 const DOOR_COLOR = '#8a6d4f'
@@ -88,6 +94,56 @@ function WallBox({
   )
 }
 
+/** A door leaf / window pane for a plan opening that fades together with its host
+ *  wall during the orbit-style reveal (mirrors `Window`/`Door` in the default
+ *  flat). Without this the opaque leaf / semi-transparent glass kept its fixed
+ *  opacity while the wall faded, so it floated as a too-bright ghost. */
+function PlanOpeningMesh({ entry }: { entry: PlanRoomOpening }) {
+  const { opening: o, center, angle } = entry
+  const ref = useRef<Group>(null)
+  const transparentRef = useRef(false)
+  const isDoor = o.kind === 'door'
+  const h = Math.max(0.1, o.head - o.sill)
+  const cy = isDoor ? h / 2 : (o.sill + o.head) / 2
+  // The glass pane is intentionally see-through; the door leaf is solid. Both then
+  // multiply by the host wall's reveal opacity each frame.
+  const baseOpacity = isDoor ? 1 : 0.32
+
+  useFrame(() => {
+    const g = ref.current
+    if (!g) return
+    const wallOp = getWallOpacity(o.wallId)
+    g.visible = wallOp > 0.02
+    if (!g.visible) return
+    const fading = wallOp < 0.985
+    const changed = fading !== transparentRef.current
+    transparentRef.current = fading
+    g.traverse((m) => {
+      if (!(m instanceof Mesh)) return
+      const mat = m.material as MeshStandardMaterial
+      mat.transparent = !isDoor || fading
+      mat.opacity = baseOpacity * wallOp
+      mat.depthWrite = isDoor && wallOp > 0.6
+      if (changed) mat.needsUpdate = true
+    })
+  })
+
+  return (
+    <group ref={ref} position={[center[0], cy, center[1]]} rotation={[0, angle, 0]}>
+      <mesh>
+        <boxGeometry args={[0.04, h, o.width]} />
+        <meshStandardMaterial
+          color={isDoor ? DOOR_COLOR : GLASS_COLOR}
+          transparent={!isDoor}
+          opacity={baseOpacity}
+          roughness={isDoor ? 0.6 : 0.1}
+          metalness={0}
+        />
+      </mesh>
+    </group>
+  )
+}
+
 /**
  * Renders one isolated room of a **custom floor plan** for the per-room editor —
  * the plan-data analogue of `apartment/RoomShell`. Per-rect (or polygon) floors
@@ -141,24 +197,11 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
       ))}
 
       {/* Openings: a glass pane (window) or a wood leaf (door), at the resolved
-          centre, oriented along its host wall. Doors sit on the floor. */}
-      {shell.openings.map(({ opening: o, center, angle }) => {
-        const h = Math.max(0.1, o.head - o.sill)
-        const isDoor = o.kind === 'door'
-        const cy = isDoor ? h / 2 : (o.sill + o.head) / 2
-        return (
-          <mesh key={o.id} position={[center[0], cy, center[1]]} rotation={[0, angle, 0]}>
-            <boxGeometry args={[0.04, h, o.width]} />
-            <meshStandardMaterial
-              color={isDoor ? DOOR_COLOR : GLASS_COLOR}
-              transparent={!isDoor}
-              opacity={isDoor ? 1 : 0.32}
-              roughness={isDoor ? 0.6 : 0.1}
-              metalness={0}
-            />
-          </mesh>
-        )
-      })}
+          centre, oriented along its host wall. Doors sit on the floor. Each fades
+          with its host wall during the camera-facing reveal. */}
+      {shell.openings.map((entry) => (
+        <PlanOpeningMesh key={entry.opening.id} entry={entry} />
+      ))}
     </group>
   )
 }

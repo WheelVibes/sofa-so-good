@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { captureCanvasPng } from '../scene/captureCanvas'
 import { applyRenderPreset, RENDER_PRESETS } from '../scene/renderPresets'
 import { useStore } from '../state/store'
+import { Select } from './controls/Select'
 import { Modal } from './Modal'
 import {
   type CompareState,
@@ -172,11 +173,7 @@ export function RenderCompareModal() {
   const hasBothImages = state.imageA !== null && state.imageB !== null
   const dividerPct = `${(state.divider * 100).toFixed(1)}%`
 
-  const presetOptions = RENDER_PRESETS.map((p) => (
-    <option key={p.id} value={p.id}>
-      {p.label}
-    </option>
-  ))
+  const presetOptions = RENDER_PRESETS.map((p) => ({ value: p.id, label: p.label }))
 
   return (
     <Modal
@@ -216,15 +213,14 @@ export function RenderCompareModal() {
                 aria-hidden
               />
               A
-              <select
+              <Select
                 className="input"
-                aria-label="Preset A"
+                ariaLabel="Preset A"
                 value={state.presetA}
                 disabled={busy}
-                onChange={(e) => setState((s) => pureSetPresetA(s, e.target.value))}
-              >
-                {presetOptions}
-              </select>
+                onChange={(v) => setState((s) => pureSetPresetA(s, v))}
+                options={presetOptions}
+              />
             </label>
             <button
               type="button"
@@ -253,15 +249,14 @@ export function RenderCompareModal() {
                 aria-hidden
               />
               B
-              <select
+              <Select
                 className="input"
-                aria-label="Preset B"
+                ariaLabel="Preset B"
                 value={state.presetB}
                 disabled={busy}
-                onChange={(e) => setState((s) => pureSetPresetB(s, e.target.value))}
-              >
-                {presetOptions}
-              </select>
+                onChange={(v) => setState((s) => pureSetPresetB(s, v))}
+                options={presetOptions}
+              />
             </label>
           </div>
           {/* Actions */}

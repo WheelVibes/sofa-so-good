@@ -306,18 +306,18 @@
   color: var(--text-3);
 }
 .fld select.input,
+.fld .select-trigger,
 .fld .fld-input {
   width: auto;
   flex: none;
   max-width: 56%;
 }
-.fld input[type='color'] {
+/* The custom colour-picker swatch trigger sits where the native colour well did. */
+.fld .color-trigger {
   width: 40px;
   height: 24px;
-  padding: 2px;
   border-radius: var(--r-2);
   border: 1px solid var(--border-2);
-  background: var(--surface-2);
   cursor: pointer;
   flex: none;
 }

@@ -32,7 +32,8 @@
         "useButtonType": "off",
         "noSvgWithoutTitle": "off",
         "noStaticElementInteractions": "off",
-        "useKeyWithClickEvents": "off"
+        "useKeyWithClickEvents": "off",
+        "noLabelWithoutControl": "off"
       },
       "suspicious": {
         "noArrayIndexKey": "off",

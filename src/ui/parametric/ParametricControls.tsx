@@ -8,7 +8,7 @@ import {
   PARAMETRIC_LIMITS,
   type ParametricSpec,
 } from '../../furniture/parametric/spec'
-import { ThemeColorRows } from '../color/ThemeColorRows'
+import { ColorPicker } from '../controls/ColorPicker'
 import { DimField } from './DimField'
 
 /** Preset finish swatches (kind + tint) — common board finishes. A free colour
@@ -215,19 +215,14 @@ function KitchenControls({
               onClick={() => onChange({ finish: p.finish, color: p.color })}
             />
           ))}
-          <input
-            type="color"
+          <ColorPicker
             value={spec.color}
-            aria-label="Custom colour"
+            ariaLabel="Custom colour"
             title="Custom colour"
-            onChange={(e) => onChange({ color: e.target.value })}
+            paletteRoomId={null}
+            onChange={(hex) => onChange({ color: hex })}
           />
         </div>
-        <ThemeColorRows
-          active={spec.color}
-          roomId={null}
-          onPick={(hex) => onChange({ color: hex })}
-        />
       </div>
     </>
   )
@@ -519,19 +514,14 @@ export function ParametricControls({
               onClick={() => onChange({ finish: p.finish, color: p.color })}
             />
           ))}
-          <input
-            type="color"
+          <ColorPicker
             value={spec.color}
-            aria-label="Custom colour"
+            ariaLabel="Custom colour"
             title="Custom colour"
-            onChange={(e) => onChange({ color: e.target.value })}
+            paletteRoomId={null}
+            onChange={(hex) => onChange({ color: hex })}
           />
         </div>
-        <ThemeColorRows
-          active={spec.color}
-          roomId={null}
-          onPick={(hex) => onChange({ color: hex })}
-        />
       </div>
     </>
   )

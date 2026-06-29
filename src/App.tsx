@@ -62,6 +62,7 @@ import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
 import { usePlacementController } from './ui/catalog/usePlacementController'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
+import { EditConfirmBar } from './ui/EditConfirmBar'
 import { EmptyRoomHint } from './ui/EmptyRoomHint'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
@@ -872,8 +873,13 @@ export default function App() {
           <WalkJoystick />
           <WalkHud />
           <DoorPrompt />
-          <CatalogDrawer />
         </div>
+        {/* Catalog docks as a persistent LEFT sidebar on desktop (mirrors the
+            right-docked inspector): a sibling of `.stage-area` so `--left-rail`
+            shrinks the canvas and the centred toolbar re-centres over it. On
+            mobile it stays a bottom sheet. */}
+        <CatalogDrawer />
+        <EditConfirmBar />
         <InspectorPanel />
         <FinishPicker />
         <WallAccentPicker />

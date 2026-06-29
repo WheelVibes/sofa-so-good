@@ -5,7 +5,8 @@ import { encodeFinishDrag, FINISH_DND_MIME } from '../../materials/finishDrop'
 import { proceduralThumbnailDataUrl } from '../../materials/procedural/generators'
 import type { MaterialDef } from '../../materials/types'
 import { useStore } from '../../state/store'
-import { ThemeColorRows } from '../color/ThemeColorRows'
+import { ColorPicker } from '../controls/ColorPicker'
+import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 
@@ -225,25 +226,23 @@ export function SwatchGroup({
             aria-hidden
             style={{ width: 52, height: 36, flex: '0 0 auto', ...previewStyle }}
           />
-          <select
+          <Select
             className="input"
             style={{ flex: 1, minWidth: 0 }}
-            aria-label={`${label} finish`}
+            ariaLabel={`${label} finish`}
             value={customActive ? '' : active}
-            onChange={(e) => onSelect(e.target.value)}
-          >
-            {customActive ? <option value="">Custom colour</option> : null}
-            {sorted.map((m) => {
-              const tag = providerTag(m)
-              return (
-                <option key={m.id} value={m.id}>
-                  {favSet.has(m.id) ? '★ ' : ''}
-                  {m.name}
-                  {tag ? ` · ${tag.label}` : ''}
-                </option>
-              )
-            })}
-          </select>
+            onChange={(v) => onSelect(v)}
+            options={[
+              ...(customActive ? [{ value: '', label: 'Custom colour' }] : []),
+              ...sorted.map((m) => {
+                const tag = providerTag(m)
+                return {
+                  value: m.id,
+                  label: `${favSet.has(m.id) ? '★ ' : ''}${m.name}${tag ? ` · ${tag.label}` : ''}`,
+                }
+              }),
+            ]}
+          />
           {favOn && !customActive && active ? (
             <button
               type="button"
@@ -258,36 +257,14 @@ export function SwatchGroup({
             </button>
           ) : null}
           {onCustom ? (
-            <label
-              className="swatch-lg"
+            <ColorPicker
+              value={customActive ? (active as string) : '#cccccc'}
+              onChange={onCustom}
+              ariaLabel={`Custom ${label.toLowerCase()} colour`}
               title="Custom colour"
-              style={{
-                width: 36,
-                height: 36,
-                flex: '0 0 auto',
-                position: 'relative',
-                cursor: 'pointer',
-                background: customActive
-                  ? (active as string)
-                  : 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
-              }}
-            >
-              <input
-                type="color"
-                value={customActive ? (active as string) : '#cccccc'}
-                onChange={(e) => onCustom(e.target.value)}
-                className="absolute inset-0 cursor-pointer opacity-0"
-                aria-label={`Custom ${label.toLowerCase()} colour`}
-              />
-            </label>
+            />
           ) : null}
         </div>
-        {onCustom ? (
-          <ThemeColorRows
-            active={customActive ? (active as string) : undefined}
-            onPick={onCustom}
-          />
-        ) : null}
         {onCustom && recent && recent.length > 0 ? (
           <RecentColors recent={recent} active={active} onCustom={onCustom} />
         ) : null}
@@ -431,30 +408,15 @@ export function SwatchGroup({
             </div>
           )
         })}
-        {/* Custom colour: a native colour picker styled as a swatch tile. */}
+        {/* Custom colour: a themed colour picker styled as a swatch tile. */}
         {onCustom ? (
-          <label
-            className={`finish-cell${customActive ? ' on' : ''}`}
-            style={{ position: 'relative', cursor: 'pointer' }}
+          <ColorPicker
+            value={customActive ? (active as string) : '#cccccc'}
+            onChange={onCustom}
+            ariaLabel={`Custom ${label.toLowerCase()} colour`}
             title="Custom colour"
-          >
-            <span
-              className="swatch-lg"
-              style={{
-                background: customActive
-                  ? (active as string)
-                  : 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
-              }}
-            />
-            <span className="name">Custom…</span>
-            <input
-              type="color"
-              value={customActive ? (active as string) : '#cccccc'}
-              onChange={(e) => onCustom(e.target.value)}
-              className="absolute inset-0 cursor-pointer opacity-0"
-              aria-label={`Custom ${label.toLowerCase()} colour`}
-            />
-          </label>
+            className={`finish-cell${customActive ? ' on' : ''}`}
+          />
         ) : null}
       </div>
       {onCustom && recent && recent.length > 0 ? (

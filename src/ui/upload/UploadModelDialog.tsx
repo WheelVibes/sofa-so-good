@@ -15,6 +15,7 @@ import { inferCollisionFlags } from '../../furniture/upload/inferFlags'
 import { persistUserGlb } from '../../furniture/upload/persist'
 import { readDroppedItems } from '../../furniture/upload/readDrop'
 import { startBackgroundImport } from '../../furniture/upload/runImport'
+import { Select } from '../controls/Select'
 import { ConfirmDialog } from './ConfirmDialog'
 
 interface UploadModelDialogProps {
@@ -421,29 +422,29 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                     />
                   </label>
                 ) : null}
-                <label className="block">
+                <div className="block">
                   <span className="mb-1 block text-xs text-[var(--text-2)]">
                     Category {hasGroups ? '(loose models)' : ''}
                   </span>
-                  <select
+                  <Select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as FurnitureCategory | 'auto')}
+                    onChange={(v) => setCategory(v as FurnitureCategory | 'auto')}
                     disabled={busy}
                     className="block w-full rounded border border-[var(--border-2)] bg-[var(--surface-solid)] px-2 py-1 text-sm"
-                  >
-                    <option value="auto">Auto (use detected, else Others)</option>
-                    {FURNITURE_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {CATEGORY_LABEL[c]}
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: 'auto', label: 'Auto (use detected, else Others)' },
+                      ...FURNITURE_CATEGORIES.map((c) => ({
+                        value: c,
+                        label: CATEGORY_LABEL[c],
+                      })),
+                    ]}
+                  />
                   {category === 'auto' ? (
                     <span className="mt-1 block text-[10px] text-[var(--text-3)]">
                       Model groups keep their own detected category; loose files go to Others.
                     </span>
                   ) : null}
-                </label>
+                </div>
                 <label className="flex items-center gap-2 text-xs text-[var(--text-2)]">
                   <input
                     type="checkbox"

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { PLAN_TEMPLATES, templateCategoryTree } from '../../floorplan/templates'
 import type { HousingType } from '../../floorplan/types'
 import { useStore } from '../../state/store'
+import { Select } from '../controls/Select'
 import { FuzzyCombo } from '../FuzzyCombo'
 import { Modal } from '../Modal'
 
@@ -81,21 +82,16 @@ export function SaveTemplateModal({ open, onClose }: { open: boolean; onClose: (
             aria-label="Apartment name"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs">
+        <div className="flex flex-col gap-1 text-xs">
           <span className="label">Housing type</span>
-          <select
+          <Select
             value={housing}
-            onChange={(e) => setHousing(e.target.value as HousingType)}
+            onChange={(v) => setHousing(v as HousingType)}
             className="input"
-            aria-label="Housing type"
-          >
-            {HOUSING_TYPES.map((h) => (
-              <option key={h} value={h}>
-                {h}
-              </option>
-            ))}
-          </select>
-        </label>
+            ariaLabel="Housing type"
+            options={HOUSING_TYPES.map((h) => ({ value: h, label: h }))}
+          />
+        </div>
         <div className="flex flex-col gap-1 text-xs">
           <span className="label">Project name</span>
           <FuzzyCombo

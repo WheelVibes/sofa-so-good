@@ -30,6 +30,7 @@ import {
   type ToolAction,
   visibleToolActions,
 } from '../actions/toolActions'
+import { Select } from '../controls/Select'
 import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
@@ -559,22 +560,19 @@ export function MobileToolbar() {
                     {fRenderPresets && (
                       <label className="scene-field" onClick={(e) => e.stopPropagation()}>
                         <span>Render preset</span>
-                        <select
+                        <Select
                           className="input scene-select"
                           value={activePresetId}
-                          aria-label="Render preset"
-                          onChange={(e) => {
-                            const p = RENDER_PRESETS.find((x) => x.id === e.target.value)
+                          ariaLabel="Render preset"
+                          onChange={(v) => {
+                            const p = RENDER_PRESETS.find((x) => x.id === v)
                             if (p) applyRenderPreset(s.getState(), p)
                           }}
-                        >
-                          <option value="none">None</option>
-                          {RENDER_PRESETS.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.label}
-                            </option>
-                          ))}
-                        </select>
+                          options={[
+                            { value: 'none', label: 'None' },
+                            ...RENDER_PRESETS.map((p) => ({ value: p.id, label: p.label })),
+                          ]}
+                        />
                       </label>
                     )}
                     <Item
@@ -584,61 +582,52 @@ export function MobileToolbar() {
                     />
                     <label className="scene-field" onClick={(e) => e.stopPropagation()}>
                       <span>Wall reveal</span>
-                      <select
+                      <Select
                         className="input scene-select"
                         value={wallRevealMode}
-                        aria-label="Wall reveal mode"
-                        onChange={(e) =>
+                        ariaLabel="Wall reveal mode"
+                        onChange={(v) =>
                           s
                             .getState()
-                            .setWallRevealMode(
-                              e.target.value as 'auto-hide' | 'translucent' | 'opaque',
-                            )
+                            .setWallRevealMode(v as 'auto-hide' | 'translucent' | 'opaque')
                         }
-                      >
-                        <option value="translucent">Fade translucent</option>
-                        <option value="auto-hide">Fully hidden</option>
-                        <option value="opaque">Fully opaque</option>
-                      </select>
+                        options={[
+                          { value: 'translucent', label: 'Fade translucent' },
+                          { value: 'auto-hide', label: 'Fully hidden' },
+                          { value: 'opaque', label: 'Fully opaque' },
+                        ]}
+                      />
                     </label>
                     {wallRevealMode !== 'opaque' && (
                       <label className="scene-field" onClick={(e) => e.stopPropagation()}>
                         <span>Reveal walls</span>
-                        <select
+                        <Select
                           className="input scene-select"
                           value={wallRevealScope}
-                          aria-label="Wall reveal scope"
-                          onChange={(e) =>
-                            s.getState().setWallRevealScope(e.target.value as 'exterior' | 'all')
-                          }
-                        >
-                          <option value="exterior">Exterior only</option>
-                          <option value="all">Exterior + interior</option>
-                        </select>
+                          ariaLabel="Wall reveal scope"
+                          onChange={(v) => s.getState().setWallRevealScope(v as 'exterior' | 'all')}
+                          options={[
+                            { value: 'exterior', label: 'Exterior only' },
+                            { value: 'all', label: 'Exterior + interior' },
+                          ]}
+                        />
                       </label>
                     )}
                     {fBackdrops ? (
                       <>
                         <label className="scene-field" onClick={(e) => e.stopPropagation()}>
                           <span>Window view (walk mode)</span>
-                          <select
+                          <Select
                             className="input scene-select"
                             value={backdrop}
-                            aria-label="Backdrop"
-                            onChange={(e) =>
-                              s.getState().setBackdrop(e.target.value as BackdropKind)
-                            }
-                          >
-                            {BACKDROPS.filter(
+                            ariaLabel="Backdrop"
+                            onChange={(v) => s.getState().setBackdrop(v as BackdropKind)}
+                            options={BACKDROPS.filter(
                               (b) =>
                                 (b.id !== 'custom' || hasCustomBackdrop) &&
                                 (b.id !== 'sky' || fProceduralSky),
-                            ).map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {b.label} — {b.sub}
-                              </option>
-                            ))}
-                          </select>
+                            ).map((b) => ({ value: b.id, label: `${b.label} — ${b.sub}` }))}
+                          />
                         </label>
                         <BackdropUpload />
                       </>

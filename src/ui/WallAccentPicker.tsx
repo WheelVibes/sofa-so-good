@@ -5,7 +5,7 @@ import type { MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
 import { roomDisplayName } from '../state/rooms'
 import { useStore } from '../state/store'
-import { ThemeColorRows } from './color/ThemeColorRows'
+import { ColorPicker } from './controls/ColorPicker'
 import { Icon } from './toolbar/icons'
 
 function swatchImage(m: MaterialDef): string | undefined {
@@ -72,31 +72,14 @@ export function WallAccentPicker() {
             />
           ))}
           {/* Custom colour */}
-          <label
+          <ColorPicker
+            value={typeof current === 'string' && current.startsWith('#') ? current : '#cccccc'}
+            onChange={(hex) => setWallAccent(key, hex)}
+            ariaLabel="Custom accent colour"
             title="Custom colour"
-            className={`swatch${typeof current === 'string' && current.startsWith('#') ? ' on' : ''}`}
-            style={{
-              position: 'relative',
-              cursor: 'pointer',
-              background:
-                typeof current === 'string' && current.startsWith('#')
-                  ? current
-                  : 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
-            }}
-          >
-            <input
-              type="color"
-              value={typeof current === 'string' && current.startsWith('#') ? current : '#cccccc'}
-              onChange={(e) => setWallAccent(key, e.target.value)}
-              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
-              aria-label="Custom accent colour"
-            />
-          </label>
+            className={typeof current === 'string' && current.startsWith('#') ? 'on' : ''}
+          />
         </div>
-        <ThemeColorRows
-          active={typeof current === 'string' && current.startsWith('#') ? current : undefined}
-          onPick={(hex) => setWallAccent(key, hex)}
-        />
         <button
           type="button"
           onClick={() => clearWallAccent(key)}

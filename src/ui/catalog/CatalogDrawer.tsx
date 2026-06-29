@@ -2,6 +2,7 @@ import { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { lazyWithRetry } from '../app/lazyWithRetry'
+import { Select } from '../controls/Select'
 import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 import { CatalogCard } from './CatalogCard'
@@ -218,7 +219,7 @@ export function CatalogDrawer() {
   }
 
   return (
-    <aside className="panel catalog">
+    <aside className="panel catalog dock-panel-left">
       <div className="panel-head">
         <div className="panel-title">
           {view === 'layers' ? 'Objects' : view === 'packs' ? 'Packs' : 'Catalog'}
@@ -367,24 +368,19 @@ export function CatalogDrawer() {
               }}
             >
               <span>Sort</span>
-              <select
+              <Select
                 value={sortBy}
-                aria-label="Sort catalog"
-                onChange={(e) => {
-                  setSortBy(e.target.value as SortKey)
+                ariaLabel="Sort catalog"
+                onChange={(v) => {
+                  setSortBy(v as SortKey)
                   setPage(0)
                 }}
                 className="input"
                 style={{ flex: 1, height: 28, padding: '0 6px' }}
-              >
-                {(Object.keys(SORT_LABEL) as SortKey[])
+                options={(Object.keys(SORT_LABEL) as SortKey[])
                   .filter((k) => priceOn || k !== 'price')
-                  .map((k) => (
-                    <option key={k} value={k}>
-                      {SORT_LABEL[k]}
-                    </option>
-                  ))}
-              </select>
+                  .map((k) => ({ value: k, label: SORT_LABEL[k] }))}
+              />
               {priceOn ? <span style={{ marginLeft: 4 }}>Max&nbsp;$</span> : null}
               {priceOn ? (
                 <input
@@ -492,9 +488,6 @@ export function CatalogDrawer() {
           ) : null}
           <StampBanner />
           <div className="cat-foot">
-            <span className="hint">
-              Drag onto the floor · <kbd>R</kbd> rotates
-            </span>
             <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
               {fParametric ? (
                 <button

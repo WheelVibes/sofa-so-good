@@ -2,6 +2,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { pointInRoom } from '../../floorplan/types'
 import { editableRooms } from '../../state/rooms'
 import { useStore } from '../../state/store'
+import { Select } from '../controls/Select'
 
 /**
  * The per-room editor's room dropdown, with a furniture count per room so you
@@ -22,17 +23,12 @@ export function RoomSwitcher({ className = 'input toolbar-room-select' }: { clas
     return pr ? items.filter((it) => pointInRoom(pr, it.position[0], it.position[1])).length : 0
   }
   return (
-    <select
+    <Select
       className={className}
-      aria-label="Room to edit"
+      ariaLabel="Room to edit"
       value={roomId ?? ''}
-      onChange={(e) => enterRoomEditor(e.target.value)}
-    >
-      {options.map((r) => (
-        <option key={r.id} value={r.id}>
-          {r.name} ({countFor(r.id)})
-        </option>
-      ))}
-    </select>
+      onChange={(v) => enterRoomEditor(v)}
+      options={options.map((r) => ({ value: r.id, label: `${r.name} (${countFor(r.id)})` }))}
+    />
   )
 }

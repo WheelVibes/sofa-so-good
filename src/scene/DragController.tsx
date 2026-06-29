@@ -28,6 +28,8 @@ import {
   wallFaces,
 } from './dragHelpers'
 import { boxEdges, useDisposeGeometry } from './geometryUtil'
+import { clampCentreToRects } from './roomClamp'
+import { getRoomEditorShell } from './roomEditorShell'
 import { snapToGrid } from './snap'
 
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0)
@@ -70,6 +72,13 @@ export function DragController() {
     key: string
     grid: SpatialGrid
     staticItems: FurnitureItem[]
+  } | null>(null)
+  // Per-room editor: cache the active room's footprint rects so a single-item
+  // drag can be clamped inside the room (IKEA-style boundary) without rebuilding
+  // the shell every pointermove. Keyed on the room id; null outside the editor.
+  const roomBoundsRef = useRef<{
+    roomId: string
+    rects: Array<{ x0: number; z0: number; x1: number; z1: number }>
   } | null>(null)
   const setSnap = (id: string | null) => {
     if (snapBaseIdRef.current === id) return
@@ -207,6 +216,22 @@ export function DragController() {
               tol: SPACING_TH,
             })
             if (s?.snapCenter != null) next = [next[0], s.snapCenter]
+          }
+          // Per-room editor: keep the piece inside the room. Clamp the footprint
+          // centre to the room's rects (inset by the item's half-extents) so it
+          // can't be dragged out past the walls / boundary — even for a polygon
+          // room with no surrounding walls. Done after all snapping so the snap
+          // can't push it back outside.
+          if (state.roomEditor.active && state.roomEditor.roomId) {
+            const rid = state.roomEditor.roomId
+            if (roomBoundsRef.current?.roomId !== rid) {
+              const sh = getRoomEditorShell(state.floorPlan, rid)
+              roomBoundsRef.current = sh ? { roomId: rid, rects: sh.shell.rects } : null
+            }
+            const rects = roomBoundsRef.current?.rects
+            if (rects && rects.length > 0) {
+              next = clampCentreToRects(next[0], next[1], dh[0], dh[1], rects)
+            }
           }
           const esx = detectEqualSpacingAxis('x', next[0], dh[0], xOthers, wf.x, {
             tol: SPACING_TH,
@@ -408,6 +433,26 @@ export function DragController() {
       }
       setSnap(null)
 
+      // Capture the pre-drag transform(s) before endDrag clears them — a valid
+      // move that actually changed something becomes a pending tick/cross edit.
+      const wasValid = state.dragValid
+      const originals: Array<{ id: string; position: [number, number]; rotation: number }> =
+        state.dragGroupOriginals.length > 1
+          ? state.dragGroupOriginals.map((o) => ({
+              id: o.id,
+              position: o.position,
+              rotation: o.rotation,
+            }))
+          : state.dragOriginal
+            ? [
+                {
+                  id,
+                  position: state.dragOriginal.position,
+                  rotation: state.dragOriginal.rotation,
+                },
+              ]
+            : []
+
       if (!state.dragValid) {
         const group = state.dragGroupOriginals
         if (group.length > 1) {
@@ -449,11 +494,37 @@ export function DragController() {
         }
       }
       state.endDrag()
-      // A click that didn't actually move/snap anything still pushed a history
-      // snapshot in startDrag — drop it so the user's first undo isn't a dead
-      // no-op step (BUG-016). A real drag changed an array reference, so this is
-      // a no-op there.
-      useStore.getState().dropRedundantHistory()
+      // Decide between a pending confirmation and a dead no-op:
+      // - a valid drag that actually moved/rotated an item → tick/cross edit.
+      // - a click that didn't move anything (BUG-016) → drop the dead snapshot
+      //   pushed in startDrag so the user's first undo isn't a no-op step.
+      const cur = useStore.getState()
+      let changed = false
+      if (wasValid) {
+        const byId = new Map(cur.items.map((i) => [i.id, i]))
+        changed = originals.some((o) => {
+          const it = byId.get(o.id)
+          return (
+            !!it &&
+            (it.position[0] !== o.position[0] ||
+              it.position[1] !== o.position[1] ||
+              it.rotation !== o.rotation)
+          )
+        })
+      }
+      if (changed) {
+        // The gesture's pre-drag items array (top history snapshot) lets a cancel
+        // restore every item by reference in one step.
+        const priorItems = cur.past[cur.past.length - 1]?.items
+        cur.setPendingEdit({
+          kind: 'transform',
+          ids: originals.map((o) => o.id),
+          originals,
+          priorItems,
+        })
+      } else {
+        cur.dropRedundantHistory()
+      }
     }
 
     window.addEventListener('pointermove', onMove)

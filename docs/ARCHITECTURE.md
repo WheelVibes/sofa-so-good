@@ -40,7 +40,8 @@ same change that reshapes a system.
 
 ## Layout of the code
 - `src/state/` — Zustand store, `slices/*`: items, selection, finishes, doors, time,
-  location, camera, ui (quality+snap+`backdrop`+`uiMode`), placement, clipboard, history,
+  location, camera, ui (quality+snap+`backdrop`+`uiMode`), placement (+`pendingEdit` tick/cross
+  confirm + `reopenCatalogAfterPlace`), clipboard, history,
   remoteCatalog, installedPacks, measurements (+`units`), orientation, notifications,
   **prompt** (`promptText`/`confirmAction`→themed modals), **project** (`designNote`),
   reset, **userAssets** (user GLBs + `IkeaGltfDef`s), **floorPlan**, **appearance**,
@@ -197,6 +198,12 @@ same change that reshapes a system.
   `toolActions.test.ts`). The export cluster + local-state Sun-study toggle stay hand-rendered.
   Aux panels that share the centred-top slot are closed as a group via `src/ui/auxPanels.ts`
   (`closeAllAuxPanels`); contextual user-guide deep-links resolve through `src/ui/docsUrl.ts`.
+  **Shared form controls** (`src/ui/controls/`): `Select` (themed dropdown — replaces every native
+  `<select>`; `Popover` on desktop / `Modal` sheet on mobile, listbox keyboard + ARIA) and
+  `ColorPicker` (replaces every native `<input type=color>`; SV pad + hue bar + hex +
+  `ThemeColorRows` + recents, HSV math in the pure `colorConvert.ts`). The native iOS focus-zoom on
+  small fields is suppressed by `src/controls/iosZoomGuard.ts` (dynamic viewport `maximum-scale`
+  toggle, installed in `main.tsx`) — no `font-size:16px` mobile bump.
 - `src/styles/` — design CSS (after Tailwind via `index.css`): `tokens.css` (10 OKLCH
   palettes) + `components`/`parts`/`features`/`flows`/`screens`/`responsive`/`app`.
   Components use the class vocabulary (`.panel`/`.btn`/`.toolbar`/…), never hardcoded colour.

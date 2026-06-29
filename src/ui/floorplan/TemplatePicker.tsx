@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { PLAN_TEMPLATES, templateCategoryTree } from '../../floorplan/templates'
 import type { FloorPlan, HousingType } from '../../floorplan/types'
 import { useStore } from '../../state/store'
+import { Select } from '../controls/Select'
 
 /**
  * Cascading template picker: Housing type › Project › Apartment type. Choosing
@@ -29,57 +30,51 @@ export function TemplatePicker() {
 
   return (
     <div className="flex items-center gap-1" title="Start from a template apartment">
-      <select
+      <Select
         value={housing}
-        onChange={(e) => {
-          setHousing(e.target.value as HousingType | '')
+        onChange={(v) => {
+          setHousing(v as HousingType | '')
           setProject('')
         }}
         className="input"
         style={{ width: 'auto' }}
-        aria-label="Template housing type"
-      >
-        <option value="">Template…</option>
-        {housingTypes.map((h) => (
-          <option key={h} value={h}>
-            {h}
-          </option>
-        ))}
-      </select>
+        ariaLabel="Template housing type"
+        options={[
+          { value: '', label: 'Template…' },
+          ...housingTypes.map((h) => ({ value: h, label: h })),
+        ]}
+      />
       {housing ? (
-        <select
+        <Select
           value={project}
-          onChange={(e) => setProject(e.target.value)}
+          onChange={(v) => setProject(v)}
           className="input"
           style={{ width: 'auto' }}
-          aria-label="Template project"
-        >
-          <option value="">Project…</option>
-          {projects.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
+          ariaLabel="Template project"
+          options={[
+            { value: '', label: 'Project…' },
+            ...projects.map((p) => ({ value: p, label: p })),
+          ]}
+        />
       ) : null}
       {housing && project ? (
-        <select
+        <Select
           value=""
-          onChange={(e) => {
-            const tpl = apartments.find((t) => t.id === e.target.value)
+          onChange={(v) => {
+            const tpl = apartments.find((t) => t.id === v)
             if (tpl) apply(tpl)
           }}
           className="input"
           style={{ width: 'auto' }}
-          aria-label="Template apartment type"
-        >
-          <option value="">Type…</option>
-          {apartments.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.category?.apartmentType ?? t.name}
-            </option>
-          ))}
-        </select>
+          ariaLabel="Template apartment type"
+          options={[
+            { value: '', label: 'Type…' },
+            ...apartments.map((t) => ({
+              value: t.id,
+              label: t.category?.apartmentType ?? t.name,
+            })),
+          ]}
+        />
       ) : null}
     </div>
   )

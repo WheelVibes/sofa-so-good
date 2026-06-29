@@ -13,7 +13,8 @@ import {
 } from '../../materials/composeMaterial'
 import { proceduralThumbnailDataUrl } from '../../materials/procedural/generators'
 import type { MaterialDef, ProceduralPattern } from '../../materials/types'
-import { ThemeColorRows } from '../color/ThemeColorRows'
+import { ColorPicker } from '../controls/ColorPicker'
+import { Select } from '../controls/Select'
 
 /**
  * Compose a finish from a **texture/pattern** + a **colour** (MAT-COMPOSE), OR
@@ -48,7 +49,7 @@ export function MaterialComposer({
   savedNameOf?: (finishId: string) => string | undefined
 }) {
   // Source is encoded as `p:<pattern>` (procedural) or `m:<materialId>` (tint an
-  // existing material) so a single <select> can offer both groups.
+  // existing material) so a single Select can offer both groups.
   const seedSource = (): string => {
     const composed = parseComposedMaterialId(active)
     if (composed) return `p:${composed.pattern}`
@@ -148,52 +149,30 @@ export function MaterialComposer({
             backgroundColor: color,
           }}
         />
-        <select
+        <Select
           className="input"
           style={{ flex: 1, minWidth: 0 }}
-          aria-label={`${label} texture or material`}
+          ariaLabel={`${label} texture or material`}
           value={source}
-          onChange={(e) => setSource(e.target.value)}
-        >
-          <optgroup label="Textures">
-            {COMPOSE_TEXTURES.map((t) => (
-              <option key={t.pattern} value={`p:${t.pattern}`}>
-                {t.label}
-              </option>
-            ))}
-          </optgroup>
-          {materials.length > 0 ? (
-            <optgroup label="Tint a material">
-              {materials.map((m) => (
-                <option key={m.id} value={`m:${m.id}`}>
-                  {m.name}
-                </option>
-              ))}
-            </optgroup>
-          ) : null}
-        </select>
-        <label
-          className="swatch-lg"
+          onChange={(v) => setSource(v)}
+          options={[
+            { value: '__grp_textures', label: 'Textures', disabled: true },
+            ...COMPOSE_TEXTURES.map((t) => ({ value: `p:${t.pattern}`, label: t.label })),
+            ...(materials.length > 0
+              ? [
+                  { value: '__grp_tint', label: 'Tint a material', disabled: true },
+                  ...materials.map((m) => ({ value: `m:${m.id}`, label: m.name })),
+                ]
+              : []),
+          ]}
+        />
+        <ColorPicker
+          value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : '#cccccc'}
+          onChange={setColor}
+          ariaLabel={`${label} colour`}
           title="Colour"
-          style={{
-            width: 36,
-            height: 36,
-            flex: '0 0 auto',
-            position: 'relative',
-            cursor: 'pointer',
-            background: color,
-          }}
-        >
-          <input
-            type="color"
-            value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : '#cccccc'}
-            onChange={(e) => setColor(e.target.value)}
-            className="absolute inset-0 cursor-pointer opacity-0"
-            aria-label={`${label} colour`}
-          />
-        </label>
+        />
       </div>
-      <ThemeColorRows active={color} onPick={setColor} />
       {/* Tile-size parameter (CUSTOMIZE-MATERIAL-PARAMS): scales the pattern's
           physical repeat, so the same texture+colour can read fine or chunky. */}
       <label

@@ -30,17 +30,23 @@ export function MeasurementOverlay() {
   // Hide the drei <Html> labels while the 2D floor-plan editor covers the scene
   // (its <Html> sits above the editor's z-index otherwise).
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  // In the per-room editor only the room being edited is on screen, so its label
+  // is the only one that should show — never the whole apartment's.
+  const roomEditorActive = useStore((s) => s.roomEditor.active)
+  const roomEditorId = useStore((s) => s.roomEditor.roomId)
   if (!show || floorPlanEditing) return null
+  const rooms =
+    roomEditorActive && roomEditorId ? planRooms.filter((r) => r.id === roomEditorId) : planRooms
   return (
     <group userData={noExportUserData()}>
-      {planRooms.map((r) => {
+      {rooms.map((r) => {
         const [cx, cz] = roomLabelCentre(r)
         const height =
           r.ceilingHeight ?? ROOMS[r.id as keyof typeof ROOMS]?.ceilingHeight ?? ceilingHeight
         const cy = height / 2
         const area = planRoomArea(r)
         return (
-          <Html key={r.id} position={[cx, cy, cz]} center distanceFactor={10}>
+          <Html key={r.id} position={[cx, cy, cz]} center distanceFactor={10} zIndexRange={[15, 0]}>
             <div className="rounded bg-[var(--surface-solid)]/90 px-2 py-1 text-xs text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
               <div className="font-semibold">{r.name}</div>
               <div>{formatRoomSize(r.width, r.depth, area, units)}</div>

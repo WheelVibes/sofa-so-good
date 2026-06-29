@@ -12,6 +12,7 @@ import '@fontsource/jetbrains-mono/500.css'
 import '@fontsource/jetbrains-mono/600.css'
 import './index.css'
 import App from './App'
+import { installIosZoomGuard } from './controls/iosZoomGuard'
 import { registerGltfDecoders } from './furniture/gltf/decoders'
 import { registerAppServiceWorker } from './pwa/swUpdate'
 import { installChunkErrorRecovery } from './ui/app/lazyWithRetry'
@@ -20,6 +21,10 @@ import { ErrorBoundary } from './ui/ErrorBoundary'
 // Recover from stale post-deploy chunk loads (Vite `modulepreload` failures):
 // reload once to fetch the fresh build instead of crash-landing the app.
 installChunkErrorRecovery()
+
+// Suppress iOS Safari's focus-zoom on small text fields (without bumping every
+// field to 16px) by toggling viewport `maximum-scale` while a field is focused.
+installIosZoomGuard()
 
 // Wire the Draco/KTX2/meshopt decoders into the shared drei useGLTF loader
 // before any model is requested, so compressed GLBs decode correctly. This is

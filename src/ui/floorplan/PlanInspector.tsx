@@ -21,7 +21,8 @@ import { endForAngle, endForLength, wallAngleDeg } from '../../floorplan/wallOps
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
-import { ThemeColorRows } from '../color/ThemeColorRows'
+import { ColorPicker } from '../controls/ColorPicker'
+import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { PlanFurnitureInspector } from './PlanFurnitureInspector'
@@ -203,22 +204,15 @@ function CeilingControls({
               />
               <span>Cove light</span>
               {config?.coveLight ? (
-                <input
-                  type="color"
-                  aria-label="Cove light colour"
+                <ColorPicker
+                  ariaLabel="Cove light colour"
                   value={config?.coveColor ?? '#ffe6c0'}
-                  onChange={(e) => set({ coveColor: e.target.value })}
+                  onChange={(hex) => set({ coveColor: hex })}
+                  paletteRoomId={roomId}
                   style={{ marginLeft: 'auto' }}
                 />
               ) : null}
             </label>
-          ) : null}
-          {config?.coveLight ? (
-            <ThemeColorRows
-              active={config?.coveColor ?? '#ffe6c0'}
-              roomId={roomId}
-              onPick={(hex) => set({ coveColor: hex })}
-            />
           ) : null}
         </>
       ) : null}
@@ -327,12 +321,11 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
       <div className="flex flex-col gap-2">
         <span className="label">Wall colour</span>
         <div className="flex items-center gap-2">
-          <input
-            type="color"
-            aria-label="Wall colour"
+          <ColorPicker
+            ariaLabel="Wall colour"
             value={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
-            onChange={(e) => a.updateFloorPlanMeta({ wallColor: e.target.value })}
-            style={{ width: 40, height: 28, padding: 0, border: 'none', background: 'none' }}
+            onChange={(hex) => a.updateFloorPlanMeta({ wallColor: hex })}
+            paletteRoomId={null}
           />
           {plan.wallColor && plan.wallColor.toLowerCase() !== DEFAULT_PLAN_WALL_COLOR ? (
             <button
@@ -344,11 +337,6 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             </button>
           ) : null}
         </div>
-        <ThemeColorRows
-          active={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
-          roomId={null}
-          onPick={(hex) => a.updateFloorPlanMeta({ wallColor: hex })}
-        />
         <span className="text-xs" style={{ color: 'var(--text-3)' }}>
           Paints every wall in this plan.
         </span>
@@ -525,65 +513,57 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             min={0.1}
             onChange={(v) => a.updateRoom(r.id, { depth: Math.max(0.1, v) })}
           />
-          <label className="flex flex-col gap-1 text-xs">
+          <div className="flex flex-col gap-1 text-xs">
             <span className="label">Floor finish</span>
-            <select
+            <Select
               value={resolvePlanRoomFloor(finishes, r)}
-              onChange={(e) =>
+              onChange={(v) =>
                 // Routed through the finishes slice (not a bare updateRoom) so
                 // the live finishes map stays in sync with the plan data.
-                a.setFloorFinish(r.id as RoomId, e.target.value)
+                a.setFloorFinish(r.id as RoomId, v)
               }
               className="input"
-            >
-              {FLOOR_MATERIALS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs">
+              ariaLabel="Floor finish"
+              options={FLOOR_MATERIALS.map((m) => ({ value: m.id, label: m.name }))}
+            />
+          </div>
+          <div className="flex flex-col gap-1 text-xs">
             <span className="label">Wall finish</span>
-            <select
+            <Select
               value={resolvePlanRoomWall(finishes, r) ?? ''}
-              onChange={(e) => {
-                if (e.target.value) a.setWallFinish(r.id as RoomId, e.target.value)
+              onChange={(v) => {
+                if (v) a.setWallFinish(r.id as RoomId, v)
                 else a.clearWallFinish(r.id as RoomId)
               }}
               className="input"
-            >
-              <option value="">Plaster (default)</option>
-              {WALL_MATERIALS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              ariaLabel="Wall finish"
+              options={[
+                { value: '', label: 'Plaster (default)' },
+                ...WALL_MATERIALS.map((m) => ({ value: m.id, label: m.name })),
+              ]}
+            />
+          </div>
           {/* Per-room ceiling finish (CUSTOMIZE-CEILING): paint or texture the
               ceiling, mirroring the floor/wall pickers. Empty = the default
               plain white ceiling. Ceilings read well as painted surfaces, so the
               wall material set (paints + plaster + CC0 textures) is offered. */}
           {ceilingFinishOn ? (
-            <label className="flex flex-col gap-1 text-xs">
+            <div className="flex flex-col gap-1 text-xs">
               <span className="label">Ceiling finish</span>
-              <select
+              <Select
                 value={resolvePlanRoomCeiling(finishes, r) ?? ''}
-                onChange={(e) => {
-                  if (e.target.value) a.setCeilingFinish(r.id as RoomId, e.target.value)
+                onChange={(v) => {
+                  if (v) a.setCeilingFinish(r.id as RoomId, v)
                   else a.clearCeilingFinish(r.id as RoomId)
                 }}
                 className="input"
-              >
-                <option value="">White (default)</option>
-                {WALL_MATERIALS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                ariaLabel="Ceiling finish"
+                options={[
+                  { value: '', label: 'White (default)' },
+                  ...WALL_MATERIALS.map((m) => ({ value: m.id, label: m.name })),
+                ]}
+              />
+            </div>
           ) : null}
           {/* Per-room ceiling height — overrides the home default for this room
               only (a dropped/false ceiling; walls stay full height, like the
@@ -952,26 +932,16 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
                       )
                     }
                   />
-                  <label className="flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center justify-between gap-2 text-xs">
                     <span className="label">Colour</span>
-                    <input
-                      type="color"
+                    <ColorPicker
+                      ariaLabel="Baseboard colour"
                       value={w.baseboard?.color ?? '#eceae4'}
-                      onChange={(e) =>
-                        a.updateWall(
-                          w.id,
-                          { baseboard: { ...w.baseboard, color: e.target.value } },
-                          levelId,
-                        )
+                      onChange={(hex) =>
+                        a.updateWall(w.id, { baseboard: { ...w.baseboard, color: hex } }, levelId)
                       }
                     />
-                  </label>
-                  <ThemeColorRows
-                    active={w.baseboard?.color ?? '#eceae4'}
-                    onPick={(hex) =>
-                      a.updateWall(w.id, { baseboard: { ...w.baseboard, color: hex } }, levelId)
-                    }
-                  />
+                  </div>
                 </>
               ) : null}
               {w.baseboard ? (
@@ -986,13 +956,13 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             </div>
           ) : null}
           {elementColorsOn ? (
-            <label className="flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center justify-between gap-2 text-xs">
               <span className="label">Wall colour</span>
               <span className="flex items-center gap-2">
-                <input
-                  type="color"
+                <ColorPicker
+                  ariaLabel="Wall colour"
                   value={w.color ?? plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
-                  onChange={(e) => a.updateWall(w.id, { color: e.target.value }, levelId)}
+                  onChange={(hex) => a.updateWall(w.id, { color: hex }, levelId)}
                 />
                 {w.color ? (
                   <button
@@ -1004,13 +974,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
                   </button>
                 ) : null}
               </span>
-            </label>
-          ) : null}
-          {elementColorsOn ? (
-            <ThemeColorRows
-              active={w.color ?? plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
-              onPick={(hex) => a.updateWall(w.id, { color: hex }, levelId)}
-            />
+            </div>
           ) : null}
         </div>
       )
@@ -1154,13 +1118,13 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           {openingStylesOn ? (
             <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
               <span className="label">Style</span>
-              <select
+              <Select
                 className="input"
                 style={{ marginLeft: 'auto', maxWidth: '56%' }}
                 value={o.style ?? (o.kind === 'door' ? 'panel' : 'plain')}
-                onChange={(e) => a.updateOpening(o.id, { style: e.target.value }, levelId)}
-              >
-                {(o.kind === 'door'
+                onChange={(v) => a.updateOpening(o.id, { style: v }, levelId)}
+                ariaLabel="Style"
+                options={(o.kind === 'door'
                   ? [
                       ['panel', 'Panelled'],
                       ['flush', 'Flush'],
@@ -1171,22 +1135,18 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
                       ['grille', 'Safety grille'],
                       ['louvre', 'Louvre'],
                     ]
-                ).map(([v, label]) => (
-                  <option key={v} value={v}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+                ).map(([v, label]) => ({ value: v, label }))}
+              />
             </div>
           ) : null}
           {elementColorsOn ? (
-            <label className="flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center justify-between gap-2 text-xs">
               <span className="label">{o.kind === 'door' ? 'Leaf colour' : 'Glass tint'}</span>
               <span className="flex items-center gap-2">
-                <input
-                  type="color"
+                <ColorPicker
+                  ariaLabel={o.kind === 'door' ? 'Leaf colour' : 'Glass tint'}
                   value={o.color ?? (o.kind === 'door' ? '#9d7c54' : '#bcd4e6')}
-                  onChange={(e) => a.updateOpening(o.id, { color: e.target.value }, levelId)}
+                  onChange={(hex) => a.updateOpening(o.id, { color: hex }, levelId)}
                 />
                 {o.color ? (
                   <button
@@ -1198,13 +1158,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
                   </button>
                 ) : null}
               </span>
-            </label>
-          ) : null}
-          {elementColorsOn ? (
-            <ThemeColorRows
-              active={o.color ?? (o.kind === 'door' ? '#9d7c54' : '#bcd4e6')}
-              onPick={(hex) => a.updateOpening(o.id, { color: hex }, levelId)}
-            />
+            </div>
           ) : null}
         </div>
       )

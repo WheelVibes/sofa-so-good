@@ -87,7 +87,7 @@
 .pager { display: flex; align-items: center; justify-content: space-between; padding: var(--s-2) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-xs); color: var(--text-3); font-weight: 600; }
 .pager button { padding: 4px 8px; border-radius: var(--r-2); color: var(--text-2); }
 .pager button:hover { background: var(--surface-3); }
-.cat-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); }
+.cat-foot { display: flex; align-items: center; justify-content: flex-end; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); }
 .cat-foot .hint { font-size: var(--t-2xs); color: var(--text-3); line-height: 1.4; min-width: 0; }
 .cat-foot .btn { flex: none; }
 
@@ -108,6 +108,91 @@
   display: grid; place-items: center; color: var(--text-3);
 }
 .dims { font-size: var(--t-2xs); color: var(--text-3); margin-top: 2px; }
+
+/* ---- Custom Select (themed replacement for native <select>) ------------- */
+.select-trigger {
+  display: inline-flex; align-items: center; justify-content: space-between;
+  gap: var(--s-2); text-align: left; cursor: pointer;
+}
+.select-trigger .select-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.select-trigger .icn { flex: none; opacity: 0.55; }
+.select-trigger:disabled { opacity: 0.5; cursor: default; }
+.select-trigger[aria-expanded='true'] {
+  border-color: var(--accent); background: var(--surface-solid);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.select-panel { max-height: 60vh; overflow-y: auto; padding: var(--s-2); gap: 1px; }
+.select-list { display: flex; flex-direction: column; gap: 1px; }
+.select-option { justify-content: space-between; }
+.select-option .select-option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.select-option.selected { color: var(--text); font-weight: 600; }
+.select-option .select-check { flex: none; color: var(--accent); }
+.select-option.active .select-check { color: var(--accent-soft-text); }
+.select-option:disabled { opacity: 0.4; cursor: default; }
+/* Mobile sheet: roomy 44px option rows. */
+.select-sheet .select-option { min-height: 44px; }
+
+/* ---- Custom ColorPicker (themed replacement for <input type=color>) ----- */
+.color-trigger {
+  width: 40px; height: 24px; flex: none;
+  border-radius: var(--r-2); border: 1px solid var(--border-2);
+  cursor: pointer; transition: var(--dur) var(--ease);
+}
+.color-trigger:hover { border-color: var(--accent); }
+.color-trigger:disabled { opacity: 0.5; cursor: default; }
+.color-trigger[aria-expanded='true'] { box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); }
+.color-panel { width: 248px; padding: var(--s-3); }
+.color-editor { display: flex; flex-direction: column; gap: var(--s-3); }
+.color-pad {
+  position: relative; width: 100%; height: 140px; border-radius: var(--r-2);
+  /* white→transparent (saturation) over transparent→black (value). */
+  background-image:
+    linear-gradient(to top, #000, rgba(0, 0, 0, 0)),
+    linear-gradient(to right, #fff, rgba(255, 255, 255, 0));
+  cursor: crosshair; touch-action: none; border: 1px solid var(--border);
+}
+.color-pad-thumb,
+.color-hue-thumb {
+  position: absolute; width: 14px; height: 14px; border-radius: 999px;
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, -50%); pointer-events: none;
+}
+.color-hue {
+  position: relative; width: 100%; height: 16px; border-radius: 999px;
+  background: linear-gradient(to right,
+    #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+  cursor: ew-resize; touch-action: none;
+}
+.color-hue-thumb { top: 50%; }
+.color-hexrow { display: flex; align-items: center; gap: var(--s-2); }
+.color-hex-swatch { width: 26px; height: 26px; flex: none; border-radius: var(--r-2); border: 1px solid var(--border-2); }
+.color-hexrow .input { flex: 1; min-width: 0; }
+.color-sheet .color-pad { height: 180px; }
+
+/* ---- Edit confirm bar (tick / cross for a pending move/rotate/place) ---- */
+.edit-confirm {
+  position: fixed; left: 50%; bottom: calc(var(--s-5) + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-4);
+  background: var(--elevated);
+  backdrop-filter: blur(var(--blur)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
+  border: 1px solid var(--border); border-radius: var(--r-pill);
+  box-shadow: var(--shadow-pop);
+  z-index: var(--z-overlay);
+  animation: sheetDrop var(--dur) var(--ease);
+}
+.edit-confirm-label { font-size: var(--t-sm); font-weight: 600; color: var(--text); white-space: nowrap; }
+.edit-confirm-btn {
+  display: grid; place-items: center;
+  width: 38px; height: 38px; border-radius: 999px;
+  transition: var(--dur) var(--ease); flex: none;
+}
+.edit-confirm-btn.confirm { background: var(--accent); color: var(--on-accent); }
+.edit-confirm-btn.confirm:hover { background: var(--accent-2); }
+.edit-confirm-btn.cancel { background: var(--danger-soft); color: var(--danger); }
+.edit-confirm-btn.cancel:hover { filter: brightness(0.97); }
 .transform-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3); }
 .sec { padding: var(--s-4) 0; border-top: 1px solid var(--border); }
 .sec:first-of-type { border-top: none; }
@@ -243,7 +328,11 @@
   padding: 6px 10px; border-radius: var(--r-2);
   background: var(--surface-2); border: 1px solid var(--border);
 }
-.act-array > span { font-size: var(--t-xs); font-weight: 600; color: var(--text-2); }
+/* The section title is the span in the header's flex row (a grandchild), so match
+   both shapes — direct child and the first-row span — to keep titles small +
+   consistent with the array inputs/labels (not the inherited base size). */
+.act-array > span,
+.act-array > div:first-child > span { font-size: var(--t-xs); font-weight: 600; color: var(--text-2); }
 .act-array input {
   width: 48px; padding: 3px 6px; border-radius: var(--r-2);
   border: 1px solid var(--border); background: var(--surface-solid); color: var(--text);

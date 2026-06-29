@@ -53,7 +53,8 @@ import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
-import { ThemeColorRows } from '../color/ThemeColorRows'
+import { ColorPicker } from '../controls/ColorPicker'
+import { Select } from '../controls/Select'
 import { openDocs } from '../docsUrl'
 import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
@@ -1284,7 +1285,13 @@ export function FloorPlanEditor() {
       // A tap (not a drag) on the empty canvas in select mode clears the
       // selection — the desktop edit path already deselects on pointer-down via
       // the `else` in onDown; this covers view mode + touch, which pan instead.
-      if (!moved && tool === 'select') useStore.getState().setPlanSelection(null)
+      if (!moved && tool === 'select') {
+        // A tap on empty canvas clears every selection (plan element + placed
+        // furniture), which closes the property panels keyed off them.
+        const st = useStore.getState()
+        st.setPlanSelection(null)
+        st.selectItem(null)
+      }
       return
     }
     if (marquee) {
@@ -1753,23 +1760,18 @@ export function FloorPlanEditor() {
   const gridZoom = (
     <>
       {/* Snap-grid size — finer = more precise placement. */}
-      <label className="seg" style={{ alignItems: 'center', gap: 6, paddingLeft: 8 }}>
+      <div className="seg" style={{ alignItems: 'center', gap: 6, paddingLeft: 8 }}>
         <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
           Grid
         </span>
-        <select
-          aria-label="Snap grid size"
+        <Select
+          ariaLabel="Snap grid size"
           className="input"
-          value={gridSize}
-          onChange={(e) => setGridSize(Number(e.target.value))}
-        >
-          {GRID_SIZES.map((g) => (
-            <option key={g} value={g}>
-              {formatLength(g, units)}
-            </option>
-          ))}
-        </select>
-      </label>
+          value={String(gridSize)}
+          onChange={(v) => setGridSize(Number(v))}
+          options={GRID_SIZES.map((g) => ({ value: String(g), label: formatLength(g, units) }))}
+        />
+      </div>
       <div className="seg" style={{ alignItems: 'center' }}>
         <button
           type="button"
@@ -1927,21 +1929,15 @@ export function FloorPlanEditor() {
           style={{ width: 96, textAlign: 'right' }}
         />
       </label>
-      <label className="flex items-center justify-between gap-2 text-xs">
+      <div className="flex items-center justify-between gap-2 text-xs">
         <span className="label">Wall colour</span>
-        <input
-          type="color"
-          aria-label="Wall colour"
+        <ColorPicker
+          ariaLabel="Wall colour"
           value={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
-          onChange={(e) => a.updateFloorPlanMeta({ wallColor: e.target.value })}
-          style={{ width: 40, height: 28, padding: 0, border: 'none', background: 'none' }}
+          onChange={(hex) => a.updateFloorPlanMeta({ wallColor: hex })}
+          paletteRoomId={null}
         />
-      </label>
-      <ThemeColorRows
-        active={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
-        roomId={null}
-        onPick={(hex) => a.updateFloorPlanMeta({ wallColor: hex })}
-      />
+      </div>
     </>
   )
 

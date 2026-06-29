@@ -7,6 +7,7 @@ import { LAYOUT_PRESETS } from '../../../furniture/layoutPresets'
 import { tidyHome } from '../../../layout/tidyHome'
 import { applyStyle, STYLE_PRESETS } from '../../../materials/stylePresets'
 import { useStore } from '../../../state/store'
+import { Select } from '../../controls/Select'
 import { Icon, type IconName } from '../icons'
 import { shortcutLabel } from '../shortcuts'
 import { ToolbarMenu } from '../ToolbarMenu'
@@ -219,21 +220,17 @@ function PickApply({
   const [val, setVal] = useState('')
   return (
     <div className="arr-pick" onClick={(e) => e.stopPropagation()}>
-      <select
+      <Select
         className="input arr-select"
         value={val}
-        aria-label={placeholder}
-        onChange={(e) => setVal(e.target.value)}
-      >
-        <option value="" disabled>
-          {placeholder}
-        </option>
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.name}
-          </option>
-        ))}
-      </select>
+        ariaLabel={placeholder}
+        placeholder={placeholder}
+        onChange={(v) => setVal(v)}
+        options={[
+          { value: '', label: placeholder, disabled: true },
+          ...options.map((o) => ({ value: o.id, label: o.name })),
+        ]}
+      />
       <button
         type="button"
         className="btn btn-soft sm arr-apply"

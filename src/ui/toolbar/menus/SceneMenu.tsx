@@ -6,6 +6,7 @@ import { BACKDROPS } from '../../../scene/SceneBackdrop'
 import { PRESET_HOURS } from '../../../state/slices/timeSlice'
 import type { LightsMode } from '../../../state/slices/uiSlice'
 import { useStore } from '../../../state/store'
+import { Select } from '../../controls/Select'
 import { BackdropUpload } from '../../scene/BackdropUpload'
 import { TimeOfDaySlider } from '../../scene/TimeOfDaySlider'
 import { CompassModal } from '../CompassModal'
@@ -116,22 +117,19 @@ export function SceneMenu() {
             <div className="scene-sep" />
             <label className="scene-field" onClick={(e) => e.stopPropagation()}>
               <span>Render preset</span>
-              <select
+              <Select
                 className="input scene-select"
                 value={activePresetId}
-                aria-label="Render preset"
-                onChange={(e) => {
-                  const p = RENDER_PRESETS.find((x) => x.id === e.target.value)
+                ariaLabel="Render preset"
+                onChange={(v) => {
+                  const p = RENDER_PRESETS.find((x) => x.id === v)
                   if (p) applyRenderPreset(useStore.getState(), p)
                 }}
-              >
-                <option value="none">None</option>
-                {RENDER_PRESETS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: 'none', label: 'None' },
+                  ...RENDER_PRESETS.map((p) => ({ value: p.id, label: p.label })),
+                ]}
+              />
             </label>
           </>
         )}
@@ -142,21 +140,16 @@ export function SceneMenu() {
             <div className="scene-sep" />
             <label className="scene-field" onClick={(e) => e.stopPropagation()}>
               <span>Window view (walk mode)</span>
-              <select
+              <Select
                 className="input scene-select"
                 value={backdrop}
-                aria-label="Backdrop"
-                onChange={(e) => setBackdrop(e.target.value as BackdropKind)}
-              >
-                {BACKDROPS.filter(
+                ariaLabel="Backdrop"
+                onChange={(v) => setBackdrop(v as BackdropKind)}
+                options={BACKDROPS.filter(
                   (b) =>
                     (b.id !== 'custom' || hasCustomBackdrop) && (b.id !== 'sky' || fProceduralSky),
-                ).map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.label} — {b.sub}
-                  </option>
-                ))}
-              </select>
+                ).map((b) => ({ value: b.id, label: `${b.label} — ${b.sub}` }))}
+              />
             </label>
             <BackdropUpload />
           </>
@@ -166,38 +159,26 @@ export function SceneMenu() {
         <div className="scene-sep" />
         <label className="scene-field" onClick={(e) => e.stopPropagation()}>
           <span>Wall reveal</span>
-          <select
+          <Select
             className="input scene-select"
             value={wallRevealMode}
-            aria-label="Wall reveal mode"
-            onChange={(e) =>
-              setWallRevealMode(e.target.value as 'auto-hide' | 'translucent' | 'opaque')
-            }
-          >
-            {WALL_REVEAL_MODES.map((m) => (
-              <option key={m.key} value={m.key}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+            ariaLabel="Wall reveal mode"
+            onChange={(v) => setWallRevealMode(v as 'auto-hide' | 'translucent' | 'opaque')}
+            options={WALL_REVEAL_MODES.map((m) => ({ value: m.key, label: m.label }))}
+          />
         </label>
         {/* Scope: which walls the reveal applies to. Irrelevant when fully
             opaque (no fade), so it's only shown for the two fading modes. */}
         {wallRevealMode !== 'opaque' && (
           <label className="scene-field" onClick={(e) => e.stopPropagation()}>
             <span>Reveal walls</span>
-            <select
+            <Select
               className="input scene-select"
               value={wallRevealScope}
-              aria-label="Wall reveal scope"
-              onChange={(e) => setWallRevealScope(e.target.value as 'exterior' | 'all')}
-            >
-              {WALL_REVEAL_SCOPES.map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+              ariaLabel="Wall reveal scope"
+              onChange={(v) => setWallRevealScope(v as 'exterior' | 'all')}
+              options={WALL_REVEAL_SCOPES.map((s) => ({ value: s.key, label: s.label }))}
+            />
           </label>
         )}
 

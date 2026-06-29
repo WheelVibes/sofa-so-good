@@ -1,0 +1,37 @@
+{
+  "name": "controls-mobile",
+  "description": "Verify the custom Select + ColorPicker render as mobile bottom-sheets (replacing native phone controls), and the catalog footer has no hint.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844, "mobile": true } },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setUiMode?.('pro')"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "place-lamp",
+      "eval": "(function(){ const s=window.__store.getState(); const r=s.floorPlan.rooms.find(x=>/living|dining/i.test(x.id))||s.floorPlan.rooms[0]; const cx=r.origin[0]+r.width/2, cz=r.origin[1]+r.depth/2; s.setItems([{id:'lamp1',defId:'floor-lamp',position:[cx,cz],rotation:0,props:{lightOn:'yes'}}]); })()"
+    },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "editor-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "wait-load", "wait": 2000 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "wait-catalog", "wait": 800 },
+    { "name": "shot-catalog-mobile", "screenshot": "00-catalog-footer-mobile" },
+    { "name": "open-sort", "click": { "selector": ".catalog .select-trigger" } },
+    { "name": "wait-sort", "wait": 500 },
+    { "name": "shot-select-sheet", "screenshot": "01-select-sheet-mobile" },
+    { "name": "close-sort", "eval": "window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))" },
+    { "name": "wait-close", "wait": 400 },
+    { "name": "select-lamp", "store": { "action": "selectItem", "args": ["lamp1"] } },
+    { "name": "wait-inspector", "wait": 600 },
+    { "name": "expand-inspector", "click": { "selector": ".inspector [aria-label=\"Expand inspector\"]" } },
+    { "name": "wait-expand", "wait": 400 },
+    { "name": "shot-inspector-mobile", "screenshot": "02-inspector-mobile" },
+    { "name": "open-color", "click": { "selector": ".inspector .color-trigger" } },
+    { "name": "wait-color", "wait": 500 },
+    { "name": "shot-color-sheet", "screenshot": "03-colorpicker-sheet-mobile" }
+  ]
+}

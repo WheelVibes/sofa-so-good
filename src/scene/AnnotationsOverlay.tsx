@@ -4,6 +4,7 @@ import { noExportUserData } from '../export/sceneGltf'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { useStore } from '../state/store'
 import { formatArea, formatDims, formatLength } from '../utils/measurement'
+import { getRoomEditorShell } from './roomEditorShell'
 
 const LIFT = 0.028 // just below the active tape (0.03) so live tape draws above
 const COLOR = '#475569' // slate — distinct from the amber tape + blue selection
@@ -21,10 +22,27 @@ export function AnnotationsOverlay() {
   // at a very high z-index, so hide them while the editor covers the canvas (the
   // editor draws its own annotation layer).
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  // In the per-room editor only show callouts whose span sits inside the room
+  // being edited — the rest belong to other rooms of the apartment.
+  const roomEditorActive = useStore((s) => s.roomEditor.active)
+  const roomEditorId = useStore((s) => s.roomEditor.roomId)
+  const plan = useStore((s) => s.floorPlan)
   if (annotations.length === 0 || floorPlanEditing) return null
+  let shown = annotations
+  if (roomEditorActive && roomEditorId) {
+    const shell = getRoomEditorShell(plan, roomEditorId)
+    if (shell) {
+      const inside = shell.shell.contains
+      shown = annotations.filter((ann) => {
+        const mx = (ann.a[0] + ann.b[0]) / 2
+        const mz = (ann.a[1] + ann.b[1]) / 2
+        return inside(mx, mz)
+      })
+    }
+  }
   return (
     <group userData={noExportUserData()}>
-      {annotations.map((ann) => (
+      {shown.map((ann) => (
         <Annotation
           key={ann.id}
           ann={ann}
@@ -104,7 +122,7 @@ function Label({
   onRemove: () => void
 }) {
   return (
-    <Html position={[cx, LIFT + 0.05, cz]} center distanceFactor={9}>
+    <Html position={[cx, LIFT + 0.05, cz]} center distanceFactor={9} zIndexRange={[15, 0]}>
       <div className="flex items-center gap-1 rounded bg-[var(--surface-solid)]/95 px-1.5 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap">
         <span className="pointer-events-none">{text}</span>
         <button

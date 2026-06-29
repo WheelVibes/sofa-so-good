@@ -71,16 +71,10 @@ body.mobile {
     -webkit-user-select: text; user-select: text;
   }
 
-  /* iOS Safari auto-zooms the whole page when a focused field's font-size is
-     < 16px — and never zooms back out, stranding the user (e.g. typing a room
-     name or a dimension in the plan editor). Bump text-entry controls to 16px
-     on mobile so focusing them never triggers the zoom (preferred over a
-     `maximum-scale` viewport lock, which would also disable pinch-zoom). */
-  input[type='text'], input[type='number'], input[type='search'],
-  input[type='email'], input[type='tel'], input[type='url'],
-  input[type='password'], input:not([type]), textarea, select {
-    font-size: 16px;
-  }
+  /* (iOS Safari focus-zoom on < 16px fields is handled by the dynamic viewport
+     `maximum-scale` toggle in src/controls/iosZoomGuard.ts — no font-size bump,
+     so mobile fields keep their normal small size while pinch-zoom is preserved
+     except while a field is focused.) */
 
   /* ---- Collapsed toolbar (single menu icon) ---------------- */
   .toolbar.mobilebar {
@@ -178,7 +172,7 @@ body.mobile {
     font-size: var(--t-md); font-weight: 800; color: var(--text);
     padding: 10px 9px 7px; background: var(--elevated);
   }
-  .m-detail select.input { min-height: 44px; }
+  .m-detail select.input, .m-detail .select-trigger { min-height: 44px; }
   .m-detail .slider { height: 44px; background: transparent; }
   .m-detail .slider::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: var(--surface-3); }
   .m-detail .slider::-webkit-slider-thumb { margin-top: -5.5px; }

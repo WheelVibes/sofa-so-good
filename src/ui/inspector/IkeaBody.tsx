@@ -10,7 +10,7 @@ import type {
 } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { safeUrl } from '../../utils/safeUrl'
-import { ThemeColorRows } from '../color/ThemeColorRows'
+import { ColorPicker } from '../controls/ColorPicker'
 import { finishOverrideKey, variantProps } from './ikeaBodyProps'
 
 interface IkeaBodyProps {
@@ -233,45 +233,37 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
                 typeof item.props[key] === 'string' ? (item.props[key] as string) : ''
               const value = override || m.hex || m.sampledHex || '#ffffff'
               return (
-                <label key={m.name} className="flex items-center justify-between gap-2 text-xs">
+                <div key={m.name} className="flex items-center justify-between gap-2 text-xs">
                   <span className="flex-1 truncate" title={m.name}>
                     {m.name}
                   </span>
-                  <input
-                    type="color"
+                  <ColorPicker
                     value={value}
-                    onChange={(e) => updateItemProps(item.id, { [key]: e.target.value })}
-                    className="h-6 w-10 cursor-pointer rounded border border-[var(--border-2)]"
+                    onChange={(hex) => updateItemProps(item.id, { [key]: hex })}
+                    ariaLabel={`${m.name} colour`}
                   />
-                </label>
+                </div>
               )
             })}
           </div>
         </div>
       ) : (
-        <>
-          <label className="flex items-center justify-between gap-2 text-xs">
-            <span className="flex-1">Tint</span>
-            <input
-              type="color"
-              value={tint || '#ffffff'}
-              onChange={(e) => updateItemProps(item.id, { tint: e.target.value })}
-              className="h-6 w-10 cursor-pointer rounded border border-[var(--border-2)]"
-            />
-            {tint ? (
-              <button
-                onClick={() => updateItemProps(item.id, { tint: '' })}
-                className="text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]"
-              >
-                clear
-              </button>
-            ) : null}
-          </label>
-          <ThemeColorRows
-            active={tint || undefined}
-            onPick={(hex) => updateItemProps(item.id, { tint: hex })}
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="flex-1">Tint</span>
+          <ColorPicker
+            value={tint || '#ffffff'}
+            onChange={(hex) => updateItemProps(item.id, { tint: hex })}
+            ariaLabel="Tint"
           />
-        </>
+          {tint ? (
+            <button
+              onClick={() => updateItemProps(item.id, { tint: '' })}
+              className="text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]"
+            >
+              clear
+            </button>
+          ) : null}
+        </div>
       )}
 
       {/* (c) Scale */}
