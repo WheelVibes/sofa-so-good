@@ -29,8 +29,8 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   modular sofa, ⌘K "Configure a product", GPU-verified. See `src/furniture/configurator/CLAUDE.md`.)
 - [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces, GLB-designer
   re-rung, crown-molding, ceilingDesign (needs walk-mode look-up), livePrices, first-run re-rungs,
-  backdrop-upload + furnlight re-rungs. (Added this line: HDRI environment lighting →
-  `hdri-environment-simple.json`.)
+  backdrop-upload + furnlight re-rungs. (Added this line: HDRI environment lighting, configurable products →
+  `hdri-environment-simple.json` / `configurator-simple.json`.)
 - [ ] PARITY-VIDEO tail: MP4 transcode of the walkthrough `.webm` + a duration modal.
 - [ ] PARITY-TILT tail: a 3D tilt gizmo handle (the 2D-plan tilt indicator shipped v0.8.0.40; the
   draggable 3D pitch/roll gizmo remains — tilt is otherwise editable via the inspector sliders).

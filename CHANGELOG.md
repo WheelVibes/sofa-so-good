@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IXT-SUITES: configurator interaction scenario (v0.8.0.47)
+
+- Added `scripts/scenarios/configurator-simple.json` — asserts `productConfigurator` is ON in both
+  Simple and Pro (simple tier), `setConfiguratorOpen` mounts the `.configurator-dialog` with the
+  "Configure a product" title, and closing unmounts it. 12/12 steps pass. Extends IXT coverage to the
+  SLOT configurator shipped this line.
+
 ## SLOT-301: configurator module docs (v0.8.0.46)
 
 - Added `src/furniture/configurator/CLAUDE.md` (area rules: base+slots model, `clampConfig`
