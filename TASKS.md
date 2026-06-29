@@ -33,7 +33,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   tidier spacing.
 - [ ] PARITY-TILT tail: a 3D tilt gizmo handle + the SH3D 2D-plan tilt indicator.
 - [ ] Q-3DEXPORT tail: worker-streamed whole-scene export for very large scenes.
-- [ ] F4 tail: wire the HDRI selector into `capturePreset` + the A/B compare modal.
 - [ ] C-PLANTS/DECOR tail: curated CC0 set-dressing bundles from Poly Haven / Poly Pizza.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).

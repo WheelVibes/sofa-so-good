@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { captureCanvasPng } from '../scene/captureCanvas'
+import { HDRI_PRESETS } from '../scene/lighting/hdriCatalog'
 import { applyRenderPreset, RENDER_PRESETS } from '../scene/renderPresets'
 import { useStore } from '../state/store'
 import { Select } from './controls/Select'
@@ -8,6 +9,8 @@ import {
   type CompareState,
   clampDivider,
   initialCompareState,
+  setHdriA as pureSetHdriA,
+  setHdriB as pureSetHdriB,
   setPresetA as pureSetPresetA,
   setPresetB as pureSetPresetB,
   swapAB,
@@ -24,9 +27,11 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-/** Apply a preset to the live store, let the raster scene settle, capture the
- *  current frame as a PNG, then restore the original store state. */
-async function capturePreset(presetId: string): Promise<string> {
+/** Apply a preset (and an optional HDRI environment) to the live store, let the
+ *  raster scene settle, capture the current frame as a PNG, then restore the
+ *  original store state. `hdriId === undefined` leaves the current HDRI alone;
+ *  a string sets that environment; `null` forces the procedural probe (F4). */
+async function capturePreset(presetId: string, hdriId?: string | null): Promise<string> {
   const preset = RENDER_PRESETS.find((p) => p.id === presetId)
   if (!preset) throw new Error(`Unknown preset: ${presetId}`)
 
@@ -37,10 +42,13 @@ async function capturePreset(presetId: string): Promise<string> {
   const prevTone = st.toneMapping
   const prevExposure = st.exposure
   const prevLights = st.lightsMode
+  const prevHdri = st.hdriId
+  const touchHdri = hdriId !== undefined
 
   try {
     // Apply the preset (mutates the live store — the demand loop re-renders).
     applyRenderPreset(st, preset)
+    if (touchHdri) st.setHdri(hdriId ?? null)
     await wait(SETTLE_MS)
     const png = captureCanvasPng()
     if (!png) throw new Error('Open the 3D view first, then compare.')
@@ -53,6 +61,7 @@ async function capturePreset(presetId: string): Promise<string> {
     s.setToneMapping(prevTone)
     s.setExposure(prevExposure)
     s.setLightsMode(prevLights)
+    if (touchHdri) s.setHdri(prevHdri)
   }
 }
 
@@ -147,8 +156,8 @@ export function RenderCompareModal() {
     setState((s) => ({ ...s, imageA: null, imageB: null, samplesA: 0, samplesB: 0 }))
 
     try {
-      // Capture A first (applies its preset, grabs the raster frame, restores).
-      const dataA = await capturePreset(state.presetA)
+      // Capture A first (applies its preset + HDRI, grabs the frame, restores).
+      const dataA = await capturePreset(state.presetA, state.hdriA)
       setState((s) => ({ ...s, imageA: dataA }))
       setPhaseA('done')
     } catch (err) {
@@ -159,28 +168,33 @@ export function RenderCompareModal() {
 
     setPhaseB('rendering')
     try {
-      // Capture B (applies its preset, grabs the raster frame, restores).
-      const dataB = await capturePreset(state.presetB)
+      // Capture B (applies its preset + HDRI, grabs the frame, restores).
+      const dataB = await capturePreset(state.presetB, state.hdriB)
       setState((s) => ({ ...s, imageB: dataB }))
       setPhaseB('done')
     } catch (err) {
       setPhaseB('error')
       setErrorMsg(String(err instanceof Error ? err.message : err))
     }
-  }, [state.presetA, state.presetB])
+  }, [state.presetA, state.presetB, state.hdriA, state.hdriB])
 
   const busy = phaseA === 'rendering' || phaseB === 'rendering'
   const hasBothImages = state.imageA !== null && state.imageB !== null
   const dividerPct = `${(state.divider * 100).toFixed(1)}%`
 
   const presetOptions = RENDER_PRESETS.map((p) => ({ value: p.id, label: p.label }))
+  // HDRI environment options for each slot — '' = the procedural probe (F4).
+  const hdriOptions = [
+    { value: '', label: 'Procedural' },
+    ...HDRI_PRESETS.map((h) => ({ value: h.id, label: h.name })),
+  ]
 
   return (
     <Modal
       open={open}
       onClose={() => setOpen(false)}
       title="Render compare"
-      sub="A/B comparison — two presets, same camera view"
+      sub="A/B comparison — preset + environment per side, same camera view"
       width={820}
       panelId="render-compare"
       footer={
@@ -221,6 +235,14 @@ export function RenderCompareModal() {
                 onChange={(v) => setState((s) => pureSetPresetA(s, v))}
                 options={presetOptions}
               />
+              <Select
+                className="input"
+                ariaLabel="Environment A"
+                value={state.hdriA ?? ''}
+                disabled={busy}
+                onChange={(v) => setState((s) => pureSetHdriA(s, v === '' ? null : v))}
+                options={hdriOptions}
+              />
             </label>
             <button
               type="button"
@@ -256,6 +278,14 @@ export function RenderCompareModal() {
                 disabled={busy}
                 onChange={(v) => setState((s) => pureSetPresetB(s, v))}
                 options={presetOptions}
+              />
+              <Select
+                className="input"
+                ariaLabel="Environment B"
+                value={state.hdriB ?? ''}
+                disabled={busy}
+                onChange={(v) => setState((s) => pureSetHdriB(s, v === '' ? null : v))}
+                options={hdriOptions}
               />
             </label>
           </div>

@@ -7,6 +7,8 @@ import {
   DEFAULT_PRESET_B,
   initialCompareState,
   isValidPresetId,
+  setHdriA,
+  setHdriB,
   setPresetA,
   setPresetB,
   swapAB,
@@ -25,6 +27,28 @@ describe('compareState — pure logic', () => {
     expect(s.samplesB).toBe(0)
     expect(s.renderingA).toBe(false)
     expect(s.renderingB).toBe(false)
+    expect(s.hdriA).toBeNull()
+    expect(s.hdriB).toBeNull()
+  })
+
+  it('setHdriA / setHdriB set the env and clear that slot image (F4)', () => {
+    const base = { ...initialCompareState(), imageA: 'data:a', imageB: 'data:b' }
+    const a = setHdriA(base, 'venice_sunset')
+    expect(a.hdriA).toBe('venice_sunset')
+    expect(a.imageA).toBeNull() // re-render needed
+    expect(a.imageB).toBe('data:b') // untouched
+    const b = setHdriB(a, 'studio')
+    expect(b.hdriB).toBe('studio')
+    expect(b.imageB).toBeNull()
+    // null = procedural; no-op when unchanged returns the same object.
+    expect(setHdriA(initialCompareState(), null)).toEqual(initialCompareState())
+  })
+
+  it('swapAB also exchanges the HDRI environments (F4)', () => {
+    const s = { ...initialCompareState(), hdriA: 'studio', hdriB: null }
+    const swapped = swapAB(s)
+    expect(swapped.hdriA).toBeNull()
+    expect(swapped.hdriB).toBe('studio')
   })
 
   it('clampDivider clamps to [0, 1]', () => {

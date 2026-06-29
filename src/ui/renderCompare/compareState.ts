@@ -31,6 +31,10 @@ export interface CompareState {
   samplesA: number
   /** Sample counts for slot B (0 before render starts). */
   samplesB: number
+  /** HDRI environment for slot A — a `hdriCatalog` id, or null = procedural (F4). */
+  hdriA: string | null
+  /** HDRI environment for slot B — a `hdriCatalog` id, or null = procedural (F4). */
+  hdriB: string | null
 }
 
 export const DEFAULT_PRESET_A = RENDER_PRESETS[0]?.id ?? 'bright-day'
@@ -47,6 +51,8 @@ export function initialCompareState(): CompareState {
     imageB: null,
     samplesA: 0,
     samplesB: 0,
+    hdriA: null,
+    hdriB: null,
   }
 }
 
@@ -69,6 +75,8 @@ export function swapAB(s: CompareState): CompareState {
     samplesB: s.samplesA,
     renderingA: s.renderingB,
     renderingB: s.renderingA,
+    hdriA: s.hdriB,
+    hdriB: s.hdriA,
   }
 }
 
@@ -82,6 +90,18 @@ export function setPresetA(s: CompareState, id: string): CompareState {
 export function setPresetB(s: CompareState, id: string): CompareState {
   if (s.presetB === id) return s
   return { ...s, presetB: id, imageB: null, samplesB: 0, renderingB: false }
+}
+
+/** Set slot A's HDRI environment (id or null = procedural), clearing its image. */
+export function setHdriA(s: CompareState, hdriId: string | null): CompareState {
+  if (s.hdriA === hdriId) return s
+  return { ...s, hdriA: hdriId, imageA: null, samplesA: 0, renderingA: false }
+}
+
+/** Set slot B's HDRI environment (id or null = procedural), clearing its image. */
+export function setHdriB(s: CompareState, hdriId: string | null): CompareState {
+  if (s.hdriB === hdriId) return s
+  return { ...s, hdriB: hdriId, imageB: null, samplesB: 0, renderingB: false }
 }
 
 /** Validate that a preset ID exists in the registry. */

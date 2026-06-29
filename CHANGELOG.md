@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## F4: HDRI environment per side in the render-compare modal (v0.8.0.38)
+
+- The A/B render-compare modal now lets each side pick its own **HDRI environment** (or Procedural)
+  alongside the render preset, so users can compare lighting environments — not just presets — on the
+  same camera view. `capturePreset` takes an optional `hdriId` (undefined = leave current, string =
+  set that env, null = procedural), applying it before the raster capture and restoring it after
+  (joining the existing time/tone/exposure/lights restore). `compareState` gains `hdriA`/`hdriB`
+  (+ `setHdriA`/`setHdriB`, swapped by `swapAB`); two themed env `Select`s sit beside the preset
+  pickers in the footer. Pure-state + swap unit-tested; modal screenshot-verified (Pro). Closes the
+  F4 HDRI-compare tail.
+
 ## RD408-008: auto-hang wall art behind wall-flushed furniture (v0.8.0.37)
 
 - The decor auto-styling pass (`layout/decorStyling.ts`) now hangs one framed `wall-art` piece on the
