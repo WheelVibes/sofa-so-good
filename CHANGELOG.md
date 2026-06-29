@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PHOTO-PBR: upgrade bundled CC0 finishes to full PBR (v0.8.0.27)
+
+- The 6 bundled Poly Haven finishes that shipped **albedo-only** (and so read flat) —
+  `floor-carpet`, `floor-parquet`, `wall-beige`, `wall-brick`, `wall-plaster`,
+  `wall-stone-brick` — now carry real CC0 **normal + roughness** maps (fetched from the Poly
+  Haven CDN at 2K, resized to 1024² JPG to match the existing bundled maps). Sidecars +
+  `index-assets` regenerated `generatedCatalog.ts`; all 12 bundled material finishes are now
+  full-PBR. GPU-verified in walk mode: the brick/stone-brick walls show real block relief, the
+  parquet shows plank detail, plaster stays correctly smooth — no z-fighting/seam/normal
+  artifacts. (The runtime Poly Haven catalog already fetches 2K PBR materials in prod, and the
+  procedural patterns remain the instant-load fallback — this closes the flat-finish gap.)
+
 ## docs: prune TODO.md + TASKS.md to open items only (v0.8.0.26)
 
 - Per user instruction, removed every shipped/historical/reconciliation entry from `TODO.md`

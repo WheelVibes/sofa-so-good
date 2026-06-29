@@ -19,8 +19,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   the inert WebXR entry + provider already ship.
 
 ## Open — client-doable
-- [ ] PHOTO-PBR: real 2K CC0 PBR maps (Poly Haven/ambientCG albedo+normal+roughness) layered over
-  the procedural fallback materials for the named surface tokens.
 - [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces, GLB-designer
   re-rung, crown-molding, ceilingDesign (needs walk-mode look-up), livePrices, first-run re-rungs,
   backdrop-upload + furnlight re-rungs.

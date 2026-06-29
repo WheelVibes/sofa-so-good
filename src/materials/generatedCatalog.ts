@@ -12,6 +12,8 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     sourceUrl: 'https://polyhaven.com/a/dirty_carpet',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/floor-carpet/albedo.jpg`,
+      normal: `${import.meta.env.BASE_URL}assets/materials/floor-carpet/normal.jpg`,
+      roughness: `${import.meta.env.BASE_URL}assets/materials/floor-carpet/rough.jpg`,
     },
     uvScale: [2, 2],
   },
@@ -25,6 +27,8 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     sourceUrl: 'https://polyhaven.com/a/brown_planks_03',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/floor-parquet/albedo.jpg`,
+      normal: `${import.meta.env.BASE_URL}assets/materials/floor-parquet/normal.jpg`,
+      roughness: `${import.meta.env.BASE_URL}assets/materials/floor-parquet/rough.jpg`,
     },
     uvScale: [1.5, 1.5],
   },
@@ -98,6 +102,8 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     sourceUrl: 'https://polyhaven.com/a/beige_wall_001',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-beige/albedo.jpg`,
+      normal: `${import.meta.env.BASE_URL}assets/materials/wall-beige/normal.jpg`,
+      roughness: `${import.meta.env.BASE_URL}assets/materials/wall-beige/rough.jpg`,
     },
     uvScale: [2, 2],
   },
@@ -111,6 +117,8 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     sourceUrl: 'https://polyhaven.com/a/medieval_red_brick',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-brick/albedo.jpg`,
+      normal: `${import.meta.env.BASE_URL}assets/materials/wall-brick/normal.jpg`,
+      roughness: `${import.meta.env.BASE_URL}assets/materials/wall-brick/rough.jpg`,
     },
     uvScale: [1.5, 1.5],
   },
@@ -139,6 +147,8 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     sourceUrl: 'https://polyhaven.com/a/plastered_wall_02',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-plaster/albedo.jpg`,
+      normal: `${import.meta.env.BASE_URL}assets/materials/wall-plaster/normal.jpg`,
+      roughness: `${import.meta.env.BASE_URL}assets/materials/wall-plaster/rough.jpg`,
     },
     uvScale: [2, 2],
   },
@@ -152,6 +162,8 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     sourceUrl: 'https://polyhaven.com/a/stone_brick_wall_001',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-stone-brick/albedo.jpg`,
+      normal: `${import.meta.env.BASE_URL}assets/materials/wall-stone-brick/normal.jpg`,
+      roughness: `${import.meta.env.BASE_URL}assets/materials/wall-stone-brick/rough.jpg`,
     },
     uvScale: [1.5, 1.5],
   },
