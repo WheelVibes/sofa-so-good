@@ -1,0 +1,25 @@
+{
+  "name": "plan-canva-wave1-verify",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "shot-default", "screenshot": "01-default-labels-compass-scalebar" },
+
+    { "name": "select-room", "eval": "(() => { const s=window.__store.getState(); s.setPlanSelection({ type:'room', id:s.floorPlan.rooms[0].id }); })()" },
+    { "name": "shot-room-inspector", "screenshot": "02-room-inspector-no-finishes" },
+
+    { "name": "select-wall", "eval": "(() => { const s=window.__store.getState(); const w=s.floorPlan.walls.find(x=>x.thickness==='external')||s.floorPlan.walls[0]; s.setPlanSelection({ type:'wall', id:w.id }); })()" },
+    { "name": "shot-wall-inspector", "screenshot": "03-wall-inspector-expanded" },
+
+    { "name": "labels-off", "eval": "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Labels')?.click()" },
+    { "name": "shot-labels-off", "screenshot": "04-labels-off" },
+
+    { "name": "zoom-in", "store": { "action": "setPlanSelection", "args": [null] } },
+    { "name": "shot-clear", "screenshot": "05-cleared" }
+  ]
+}

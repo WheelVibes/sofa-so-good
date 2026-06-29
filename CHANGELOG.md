@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor fixes — labels, finishes, naming, inspector, scale bar (v0.8.0.0)
+
+First wave of the Canva-style editor parity work:
+
+- **Labels toggle now controls room name + dimensions.** Added a "Labels" toggle to the floor-plan
+  editor's View menu (`showRoomLabels`, on by default); room name + area/perimeter callouts were
+  previously drawn unconditionally (sized only by room area) and ignored every toggle. Off now hides
+  them everywhere, even for the selected room.
+- **No finishes in the floor-plan editor.** Removed the Floor / Wall / Ceiling **finish** pickers from
+  the room properties in `PlanInspector` — material choices belong to the per-room editor only, so the
+  plan stays a structural/layout view. Ceiling **height** (geometry) stays.
+- **New walls/windows/doors are auto-named by their room + a unique id.** `roomWallNames.ts` gains
+  `roomForWall`/`newWallName`/`newOpeningName`; `floorPlanSlice.addWall`/`addOpening` now stamp
+  `<room> wall <id>` / `<room> door|window <id>` when the element lands on a room boundary (a
+  caller-supplied name still wins; free-standing elements keep the generic default).
+- **Properties inspector opens expanded on desktop** when clicking a wall/window/door (it still starts
+  minimized on mobile to avoid covering the plan).
+- **Compass pinned to the canvas, with a dynamic scale bar below it.** The compass HUD now lives in a
+  relative canvas-column wrapper (bottom-right of the canvas viewport, not the whole editor frame over
+  the docked inspector). A new zoom-aware scale bar (`editor/scaleBar.ts` `chooseScaleBar`, pure +
+  unit-tested) sits beneath it as a real-world reference.
+
 ## Catalog/inspector text polish (v0.7.1.1)
 
 Small consistency fixes from a screenshot review:

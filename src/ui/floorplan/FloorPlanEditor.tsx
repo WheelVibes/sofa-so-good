@@ -99,6 +99,7 @@ import {
   showWallDim,
   wrapLabel,
 } from './editor/planLabelDisplay'
+import { chooseScaleBar } from './editor/scaleBar'
 import { snapToWalls } from './editor/snapToWalls'
 import { snapWallAngle, vertexDragTarget } from './editor/snapWallAngle'
 import {
@@ -301,6 +302,10 @@ export function FloorPlanEditor() {
   // when zoomed out; the toolbar "Dims" toggle turns them on. When on, callouts
   // are culled + font-scaled by zoom/screen so they stay legible (see below).
   const [showWallDims, setShowWallDims] = useState(false)
+  // Room name + area/perimeter callouts. On by default, but the "Labels" View
+  // toggle hides them (PARITY-PLANLABELS) — when off, no room name or dimensions
+  // are drawn even for the selected room, so the plan can be read uncluttered.
+  const [showRoomLabels, setShowRoomLabels] = useState(true)
   // View vs Edit interaction mode. **View** = pan/zoom + tap-to-inspect only, so
   // a one-finger drag never shifts anything (the default on touch, where stray
   // drags are easy). **Edit** enables drawing + moving; on touch an item must be
@@ -1828,6 +1833,15 @@ export function FloorPlanEditor() {
       )}
       <button
         type="button"
+        onClick={() => setShowRoomLabels((v) => !v)}
+        className={`btn btn-sm${showRoomLabels ? ' btn-accent' : ''}`}
+        title="Toggle room name + dimension labels"
+        aria-pressed={showRoomLabels}
+      >
+        Labels
+      </button>
+      <button
+        type="button"
         onClick={() => setShowWallDims((v) => !v)}
         className={`btn btn-sm${showWallDims ? ' btn-accent' : ''}`}
         title="Toggle wall-length labels"
@@ -1943,53 +1957,6 @@ export function FloorPlanEditor() {
 
   return (
     <div className="plan-screen absolute inset-0 z-30 flex flex-col">
-      {/* North/compass rose (SweetHome3DJS parity) — pinned to the editor frame,
-          the needle rotates with the plan's orientation. On mobile the bottom-right
-          is the (full-width) inspector bottom-sheet's corner — and the compass
-          would sit over its expand/lock/delete icons — so it moves to the free
-          top-right of the canvas (just below the header). */}
-      {fCompass ? (
-        <div
-          className="panel"
-          style={{
-            position: 'absolute',
-            right: 12,
-            ...(isMobile ? { top: 128 } : { bottom: 12 }),
-            zIndex: 5,
-            width: 52,
-            height: 52,
-            borderRadius: '50%',
-            display: 'grid',
-            placeItems: 'center',
-            pointerEvents: 'none',
-            opacity: 0.9,
-          }}
-          aria-hidden
-        >
-          <svg
-            width={44}
-            height={44}
-            viewBox="-22 -22 44 44"
-            style={{ transform: `rotate(${-orientationDeg}deg)` }}
-          >
-            <title>North compass</title>
-            <circle r={20} fill="none" stroke="var(--border-2)" strokeWidth={1} />
-            {/* North half (accent), South half (muted). */}
-            <polygon points="0,-16 5,0 -5,0" fill="var(--accent)" />
-            <polygon points="0,16 5,0 -5,0" fill="var(--text-3)" />
-            <text
-              x={0}
-              y={-15}
-              textAnchor="middle"
-              fontSize={7}
-              fontWeight={700}
-              fill="var(--text)"
-            >
-              N
-            </text>
-          </svg>
-        </div>
-      ) : null}
       {/* Header / toolbar */}
       <div
         className="flex flex-wrap items-center gap-2 px-4 py-2"
@@ -2053,7 +2020,14 @@ export function FloorPlanEditor() {
               {quickActions}
               <PlanMenu
                 label="View"
-                active={showWallDims || showFurniture || skeleton || labelsOn || showOtherLevels}
+                active={
+                  showWallDims ||
+                  showFurniture ||
+                  skeleton ||
+                  labelsOn ||
+                  showOtherLevels ||
+                  !showRoomLabels
+                }
               >
                 {viewMenuActions}
               </PlanMenu>
@@ -2135,638 +2109,1049 @@ export function FloorPlanEditor() {
       ) : null}
 
       <div className="flex min-h-0 flex-1">
-        {/* Canvas */}
-        {/* Canvas — also a drop zone for the reference image */}
-        <div
-          ref={canvasRef}
-          className="plan-canvas min-h-0 flex-1 overflow-auto p-4"
-          // Wheel zoom is wired as a native non-passive listener (see effect
-          // above); a React onWheel here would be passive and couldn't
-          // preventDefault. Right-drag pans, so suppress its context menu.
-          onContextMenu={(e) => {
-            // Swallow the menu only when a right-drag pan actually moved.
-            if (panDidMove.current) {
-              e.preventDefault()
-              panDidMove.current = false
-            }
-          }}
-          onDragOver={(e) => {
-            if (e.dataTransfer.types.includes('Files')) e.preventDefault()
-          }}
-          onDrop={(e) => {
-            const f = e.dataTransfer.files?.[0]
-            if (f?.type.startsWith('image/')) {
-              e.preventDefault()
-              loadBackdrop(f)
-            }
-          }}
-        >
-          <svg
-            ref={svgRef}
-            width={W}
-            height={H}
-            className="plan-paper touch-none"
-            style={{
-              cursor: editMode === 'view' ? 'grab' : tool === 'select' ? 'default' : 'crosshair',
-              padding: 0,
-              // Render at the full canvas size (overrides responsive `.plan-paper`
-              // width rules) so the grid + plan aren't shrunk/clipped.
-              width: W,
-              height: H,
+        {/* Canvas column — a relative wrapper so the compass + scale-bar HUD pins
+            to the CANVAS viewport's corner (not the whole editor frame, which on
+            desktop would sit over the docked inspector). `min-w-0 overflow-hidden`
+            constrains it to the flex track (the inner `.plan-canvas` scrolls), so
+            `right:12` lands on the visible canvas edge, not past the wide SVG. */}
+        <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          {/* Compass + dynamic scale bar, each absolutely pinned to the canvas
+              column's corner. The scale bar sits at the very corner (bottom-right
+              on desktop / top-right on mobile to clear the inspector sheet) and the
+              compass sits just above/below it — two explicit offsets rather than a
+              flex stack so they never collapse onto each other. */}
+          {fCompass ? (
+            <>
+              <div
+                className="panel"
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  ...(isMobile ? { top: 12 } : { bottom: 56 }),
+                  zIndex: 5,
+                  width: 52,
+                  height: 52,
+                  borderRadius: '50%',
+                  display: 'grid',
+                  placeItems: 'center',
+                  opacity: 0.9,
+                  pointerEvents: 'none',
+                }}
+                aria-hidden
+              >
+                <svg
+                  width={44}
+                  height={44}
+                  viewBox="-22 -22 44 44"
+                  style={{ transform: `rotate(${-orientationDeg}deg)` }}
+                >
+                  <title>North compass</title>
+                  <circle r={20} fill="none" stroke="var(--border-2)" strokeWidth={1} />
+                  {/* North half (accent), South half (muted). */}
+                  <polygon points="0,-16 5,0 -5,0" fill="var(--accent)" />
+                  <polygon points="0,16 5,0 -5,0" fill="var(--text-3)" />
+                  <text
+                    x={0}
+                    y={-15}
+                    textAnchor="middle"
+                    fontSize={7}
+                    fontWeight={700}
+                    fill="var(--text)"
+                  >
+                    N
+                  </text>
+                </svg>
+              </div>
+              {/* Dynamic scale bar — a real-world reference that rescales with the
+                  zoom (PARITY-SCALEBAR). */}
+              {(() => {
+                const bar = chooseScaleBar(PX, units)
+                return (
+                  <div
+                    className="panel"
+                    style={{
+                      position: 'absolute',
+                      right: 12,
+                      ...(isMobile ? { top: 74 } : { bottom: 12 }),
+                      zIndex: 5,
+                      padding: '4px 8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 2,
+                      pointerEvents: 'none',
+                    }}
+                    aria-hidden
+                  >
+                    <svg width={bar.px + 2} height={8} style={{ display: 'block' }}>
+                      <line
+                        x1={1}
+                        y1={6}
+                        x2={bar.px + 1}
+                        y2={6}
+                        stroke="var(--text-2)"
+                        strokeWidth={1.5}
+                      />
+                      <line x1={1} y1={1} x2={1} y2={7} stroke="var(--text-2)" strokeWidth={1.5} />
+                      <line
+                        x1={bar.px + 1}
+                        y1={1}
+                        x2={bar.px + 1}
+                        y2={7}
+                        stroke="var(--text-2)"
+                        strokeWidth={1.5}
+                      />
+                    </svg>
+                    <span style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-2)' }}>
+                      {bar.label}
+                    </span>
+                  </div>
+                )
+              })()}
+            </>
+          ) : null}
+          {/* Canvas — also a drop zone for the reference image */}
+          <div
+            ref={canvasRef}
+            className="plan-canvas min-h-0 flex-1 overflow-auto p-4"
+            // Wheel zoom is wired as a native non-passive listener (see effect
+            // above); a React onWheel here would be passive and couldn't
+            // preventDefault. Right-drag pans, so suppress its context menu.
+            onContextMenu={(e) => {
+              // Swallow the menu only when a right-drag pan actually moved.
+              if (panDidMove.current) {
+                e.preventDefault()
+                panDidMove.current = false
+              }
             }}
-            onPointerDown={onDown}
-            onPointerMove={onMove}
-            onPointerUp={onUp}
-            onPointerCancel={onUp}
+            onDragOver={(e) => {
+              if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+            }}
+            onDrop={(e) => {
+              const f = e.dataTransfer.files?.[0]
+              if (f?.type.startsWith('image/')) {
+                e.preventDefault()
+                loadBackdrop(f)
+              }
+            }}
           >
-            {/* Reference photo/scan to trace over (behind the grid). */}
-            {backdrop && (
-              <image
-                href={backdrop.url}
-                x={toPx(backdrop.ox)}
-                y={toPx(backdrop.oz)}
-                width={backdrop.w * backdrop.mPerPx * PX}
-                height={backdrop.h * backdrop.mPerPx * PX}
-                opacity={backdrop.opacity}
-                preserveAspectRatio="none"
-                style={{ pointerEvents: 'none' }}
-              />
-            )}
-
-            <GridLines
-              W={W}
-              H={H}
-              PX={PX}
-              gridSize={gridSize}
-              margin={GRID_MARGIN}
-              ew={ew}
-              ed={ed}
-            />
-
-            {/* Other storeys' walls as a dimmed underlay (SH3D "all levels"),
-                so walls/stairs can be lined up between floors. Non-interactive. */}
-            {showOtherLevels &&
-              otherLevels.flatMap((lvl) =>
-                lvl.walls
-                  .filter((w) => wallLength(w) > 0)
-                  .map((w) => (
-                    <line
-                      key={`ghost-${lvl.id}-${w.id}`}
-                      x1={toPx(w.start[0])}
-                      y1={toPx(w.start[1])}
-                      x2={toPx(w.end[0])}
-                      y2={toPx(w.end[1])}
-                      stroke="var(--text-3)"
-                      strokeWidth={w.thickness === 'external' ? 4 : 2.5}
-                      strokeLinecap="round"
-                      opacity={0.16}
-                      style={{ pointerEvents: 'none' }}
-                    />
-                  )),
+            <svg
+              ref={svgRef}
+              width={W}
+              height={H}
+              className="plan-paper touch-none"
+              style={{
+                cursor: editMode === 'view' ? 'grab' : tool === 'select' ? 'default' : 'crosshair',
+                padding: 0,
+                // Render at the full canvas size (overrides responsive `.plan-paper`
+                // width rules) so the grid + plan aren't shrunk/clipped.
+                width: W,
+                height: H,
+              }}
+              onPointerDown={onDown}
+              onPointerMove={onMove}
+              onPointerUp={onUp}
+              onPointerCancel={onUp}
+            >
+              {/* Reference photo/scan to trace over (behind the grid). */}
+              {backdrop && (
+                <image
+                  href={backdrop.url}
+                  x={toPx(backdrop.ox)}
+                  y={toPx(backdrop.oz)}
+                  width={backdrop.w * backdrop.mPerPx * PX}
+                  height={backdrop.h * backdrop.mPerPx * PX}
+                  opacity={backdrop.opacity}
+                  preserveAspectRatio="none"
+                  style={{ pointerEvents: 'none' }}
+                />
               )}
 
-            {/* Un-roomed flag: the exact wall-enclosed outline filled red, drawn
+              <GridLines
+                W={W}
+                H={H}
+                PX={PX}
+                gridSize={gridSize}
+                margin={GRID_MARGIN}
+                ew={ew}
+                ed={ed}
+              />
+
+              {/* Other storeys' walls as a dimmed underlay (SH3D "all levels"),
+                so walls/stairs can be lined up between floors. Non-interactive. */}
+              {showOtherLevels &&
+                otherLevels.flatMap((lvl) =>
+                  lvl.walls
+                    .filter((w) => wallLength(w) > 0)
+                    .map((w) => (
+                      <line
+                        key={`ghost-${lvl.id}-${w.id}`}
+                        x1={toPx(w.start[0])}
+                        y1={toPx(w.start[1])}
+                        x2={toPx(w.end[0])}
+                        y2={toPx(w.end[1])}
+                        stroke="var(--text-3)"
+                        strokeWidth={w.thickness === 'external' ? 4 : 2.5}
+                        strokeLinecap="round"
+                        opacity={0.16}
+                        style={{ pointerEvents: 'none' }}
+                      />
+                    )),
+                )}
+
+              {/* Un-roomed flag: the exact wall-enclosed outline filled red, drawn
                 BENEATH the rooms so only walled-in floor with no room shows red
                 (a "add a room here" cue). Clears as rooms cover it. */}
-            {unroomedOutline && (
-              <polygon
-                points={unroomedOutline.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
-                fill="var(--danger)"
-                fillOpacity={0.5}
-                stroke="none"
-                style={{ pointerEvents: 'none' }}
-              />
-            )}
+              {unroomedOutline && (
+                <polygon
+                  points={unroomedOutline.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
+                  fill="var(--danger)"
+                  fillOpacity={0.5}
+                  stroke="none"
+                  style={{ pointerEvents: 'none' }}
+                />
+              )}
 
-            {/* Rooms (active storey) */}
-            {levelPlan.rooms.map((r) => {
-              const isSel = sel?.type === 'room' && sel.id === r.id
-              // Stray room (touches no other room) → red tint so it's obvious it
-              // needs joining into the apartment.
-              const stray = strays.rooms.has(r.id)
-              const roomFill = isSel
-                ? 'var(--accent-soft)'
-                : stray
-                  ? 'var(--danger-soft)'
-                  : 'var(--surface-2)'
-              const roomStroke = isSel
-                ? 'var(--accent)'
-                : stray
-                  ? 'var(--danger)'
-                  : 'var(--border-2)'
-              return (
-                <g
-                  key={r.id}
-                  style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
-                  onPointerDown={(e) => {
-                    if (tool !== 'select') return
-                    const willMove = beginElementDrag(e, sel?.type === 'room' && sel.id === r.id)
-                    a.setPlanSelection({ type: 'room', id: r.id })
-                    if (!willMove) return
-                    const [wx, wz] = pointerWorld(e)
-                    setMoving({ id: r.id, gx: wx - r.origin[0], gz: wz - r.origin[1] })
-                  }}
-                >
-                  {r.polygon && r.polygon.length >= 3 ? (
-                    <polygon
-                      points={r.polygon.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
-                      fill={roomFill}
-                      stroke={roomStroke}
-                      strokeDasharray="4 3"
-                    />
-                  ) : (
-                    <>
-                      <rect
-                        x={toPx(r.origin[0])}
-                        y={toPx(r.origin[1])}
-                        width={r.width * PX}
-                        height={r.depth * PX}
+              {/* Rooms (active storey) */}
+              {levelPlan.rooms.map((r) => {
+                const isSel = sel?.type === 'room' && sel.id === r.id
+                // Stray room (touches no other room) → red tint so it's obvious it
+                // needs joining into the apartment.
+                const stray = strays.rooms.has(r.id)
+                const roomFill = isSel
+                  ? 'var(--accent-soft)'
+                  : stray
+                    ? 'var(--danger-soft)'
+                    : 'var(--surface-2)'
+                const roomStroke = isSel
+                  ? 'var(--accent)'
+                  : stray
+                    ? 'var(--danger)'
+                    : 'var(--border-2)'
+                return (
+                  <g
+                    key={r.id}
+                    style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                    onPointerDown={(e) => {
+                      if (tool !== 'select') return
+                      const willMove = beginElementDrag(e, sel?.type === 'room' && sel.id === r.id)
+                      a.setPlanSelection({ type: 'room', id: r.id })
+                      if (!willMove) return
+                      const [wx, wz] = pointerWorld(e)
+                      setMoving({ id: r.id, gx: wx - r.origin[0], gz: wz - r.origin[1] })
+                    }}
+                  >
+                    {r.polygon && r.polygon.length >= 3 ? (
+                      <polygon
+                        points={r.polygon.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
                         fill={roomFill}
                         stroke={roomStroke}
                         strokeDasharray="4 3"
                       />
-                      {r.extension && (
+                    ) : (
+                      <>
                         <rect
-                          x={toPx(r.origin[0] + r.extension.offset[0])}
-                          y={toPx(r.origin[1] + r.extension.offset[1])}
-                          width={r.extension.width * PX}
-                          height={r.extension.depth * PX}
+                          x={toPx(r.origin[0])}
+                          y={toPx(r.origin[1])}
+                          width={r.width * PX}
+                          height={r.depth * PX}
                           fill={roomFill}
                           stroke={roomStroke}
                           strokeDasharray="4 3"
                         />
-                      )}
-                    </>
-                  )}
-                  {/* Reshape handles: drag any vertex of a selected free-form
+                        {r.extension && (
+                          <rect
+                            x={toPx(r.origin[0] + r.extension.offset[0])}
+                            y={toPx(r.origin[1] + r.extension.offset[1])}
+                            width={r.extension.width * PX}
+                            height={r.extension.depth * PX}
+                            fill={roomFill}
+                            stroke={roomStroke}
+                            strokeDasharray="4 3"
+                          />
+                        )}
+                      </>
+                    )}
+                    {/* Reshape handles: drag any vertex of a selected free-form
                       (polyroom) room. stopPropagation keeps the room-move
                       handler on the parent <g> from firing. */}
-                  {editMode === 'edit' &&
-                  isSel &&
-                  tool === 'select' &&
-                  r.polygon &&
-                  r.polygon.length >= 3
-                    ? [
-                        // Edge-midpoint "+" handles: click to insert a vertex on
-                        // that edge and immediately drag it (so a rectangle can
-                        // grow an L / bay). Rendered first so vertex handles sit
-                        // on top where they coincide.
-                        ...(r.polygon as [number, number][]).map(([vx, vz], i) => {
-                          const poly = r.polygon as [number, number][]
-                          const [nx, nz] = poly[(i + 1) % poly.length]
-                          const mx = (vx + nx) / 2
-                          const mz = (vz + nz) / 2
-                          return (
+                    {editMode === 'edit' &&
+                    isSel &&
+                    tool === 'select' &&
+                    r.polygon &&
+                    r.polygon.length >= 3
+                      ? [
+                          // Edge-midpoint "+" handles: click to insert a vertex on
+                          // that edge and immediately drag it (so a rectangle can
+                          // grow an L / bay). Rendered first so vertex handles sit
+                          // on top where they coincide.
+                          ...(r.polygon as [number, number][]).map(([vx, vz], i) => {
+                            const poly = r.polygon as [number, number][]
+                            const [nx, nz] = poly[(i + 1) % poly.length]
+                            const mx = (vx + nx) / 2
+                            const mz = (vz + nz) / 2
+                            return (
+                              <circle
+                                key={`pm-${r.id}-${i}`}
+                                data-poly-midpoint={`${r.id}:${i}`}
+                                cx={toPx(mx)}
+                                cy={toPx(mz)}
+                                r={3.5}
+                                fill="var(--surface)"
+                                stroke="var(--accent)"
+                                strokeWidth={1.5}
+                                style={{ cursor: 'copy' }}
+                                onPointerDown={(e) => {
+                                  e.stopPropagation()
+                                  const next = [...poly]
+                                  next.splice(i + 1, 0, [mx, mz])
+                                  const { origin, width, depth } = rectFromVerts(next)
+                                  a.setPlanSelection({ type: 'room', id: r.id })
+                                  useStore
+                                    .getState()
+                                    .updateRoom(r.id, { polygon: next, origin, width, depth })
+                                  setMovingPolyVertex({ id: r.id, index: i + 1 })
+                                  svgRef.current?.setPointerCapture(e.pointerId)
+                                }}
+                              />
+                            )
+                          }),
+                          // Vertex handles: drag to move, double-click to remove
+                          // (kept ≥ 3 so the room stays a polygon).
+                          ...(r.polygon as [number, number][]).map(([vx, vz], i) => (
                             <circle
-                              key={`pm-${r.id}-${i}`}
-                              data-poly-midpoint={`${r.id}:${i}`}
-                              cx={toPx(mx)}
-                              cy={toPx(mz)}
-                              r={3.5}
-                              fill="var(--surface)"
-                              stroke="var(--accent)"
+                              key={`pv-${r.id}-${i}`}
+                              data-poly-vertex={`${r.id}:${i}`}
+                              cx={toPx(vx)}
+                              cy={toPx(vz)}
+                              r={5}
+                              fill="var(--accent)"
+                              stroke="var(--surface)"
                               strokeWidth={1.5}
-                              style={{ cursor: 'copy' }}
+                              style={{ cursor: 'grab' }}
                               onPointerDown={(e) => {
                                 e.stopPropagation()
-                                const next = [...poly]
-                                next.splice(i + 1, 0, [mx, mz])
-                                const { origin, width, depth } = rectFromVerts(next)
                                 a.setPlanSelection({ type: 'room', id: r.id })
+                                setMovingPolyVertex({ id: r.id, index: i })
+                                svgRef.current?.setPointerCapture(e.pointerId)
+                              }}
+                              onDoubleClick={(e) => {
+                                e.stopPropagation()
+                                const poly = r.polygon as [number, number][]
+                                if (poly.length <= 3) return
+                                const next = poly.filter((_, j) => j !== i)
+                                const { origin, width, depth } = rectFromVerts(next)
                                 useStore
                                   .getState()
                                   .updateRoom(r.id, { polygon: next, origin, width, depth })
-                                setMovingPolyVertex({ id: r.id, index: i + 1 })
-                                svgRef.current?.setPointerCapture(e.pointerId)
                               }}
                             />
-                          )
-                        }),
-                        // Vertex handles: drag to move, double-click to remove
-                        // (kept ≥ 3 so the room stays a polygon).
-                        ...(r.polygon as [number, number][]).map(([vx, vz], i) => (
-                          <circle
-                            key={`pv-${r.id}-${i}`}
-                            data-poly-vertex={`${r.id}:${i}`}
-                            cx={toPx(vx)}
-                            cy={toPx(vz)}
-                            r={5}
-                            fill="var(--accent)"
-                            stroke="var(--surface)"
-                            strokeWidth={1.5}
-                            style={{ cursor: 'grab' }}
-                            onPointerDown={(e) => {
-                              e.stopPropagation()
-                              a.setPlanSelection({ type: 'room', id: r.id })
-                              setMovingPolyVertex({ id: r.id, index: i })
-                              svgRef.current?.setPointerCapture(e.pointerId)
-                            }}
-                            onDoubleClick={(e) => {
-                              e.stopPropagation()
-                              const poly = r.polygon as [number, number][]
-                              if (poly.length <= 3) return
-                              const next = poly.filter((_, j) => j !== i)
-                              const { origin, width, depth } = rectFromVerts(next)
-                              useStore
-                                .getState()
-                                .updateRoom(r.id, { polygon: next, origin, width, depth })
-                            }}
-                          />
-                        )),
-                      ]
-                    : null}
-                  {(() => {
-                    // Progressive detail by on-screen room size: full (name +
-                    // area) → name only → hidden. Keeps the most important info
-                    // (the name) longest as the plan zooms out / shrinks. A
-                    // selected room always shows full so editing stays legible.
-                    const detail =
-                      isSel && tool === 'select' ? 'full' : roomLabelDetail(planRoomArea(r), PX)
-                    if (detail === 'none') return null
-                    const [lx, lz] = roomLabelPosition(r)
-                    const px = toPx(lx)
-                    const pz = toPx(lz)
-                    // Optional label rotation (radians → degrees, about the anchor)
-                    // and font-size multiplier — Sweet Home 3D label angle/font.
-                    const deg = r.labelAngle ? (r.labelAngle * 180) / Math.PI : 0
-                    const fontPx = roomFont * (r.labelFontScale ?? 1)
-                    // Wrap the name to the room's on-screen width so long names
-                    // (e.g. "Household Shelter") stay inside the room; over-long
-                    // words hyphenate. ~0.55·fontPx ≈ average glyph advance.
-                    const roomWidthM =
-                      r.polygon && r.polygon.length >= 3
-                        ? Math.max(...r.polygon.map((p) => p[0])) -
-                          Math.min(...r.polygon.map((p) => p[0]))
-                        : r.width
-                    const maxChars = Math.max(
-                      4,
-                      Math.floor((roomWidthM * PX * 0.92) / (fontPx * 0.55)),
-                    )
-                    const nameLines = wrapLabel(r.name, maxChars)
-                    const lineH = fontPx + 1
-                    const totalLines = nameLines.length + (detail === 'full' ? 2 : 0)
-                    // Vertically centre the multi-line block on the label anchor.
-                    const yTop = pz - ((totalLines - 1) * lineH) / 2
-                    return (
-                      <text
-                        x={px}
-                        y={yTop}
-                        textAnchor="middle"
-                        className="select-none"
-                        fontSize={fontPx}
-                        fill="var(--text-2)"
-                        transform={deg ? `rotate(${deg} ${px} ${pz})` : undefined}
-                        style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
-                        onPointerDown={(e) => {
-                          if (tool !== 'select') return
-                          const willMove = beginElementDrag(
-                            e,
-                            sel?.type === 'room' && sel.id === r.id,
-                          )
-                          a.setPlanSelection({ type: 'room', id: r.id })
-                          if (!willMove) return
-                          const [wx, wz] = pointerWorld(e)
-                          setMovingRoomLabel({ id: r.id, gx: wx - lx, gz: wz - lz })
-                        }}
-                      >
-                        {nameLines.map((ln, i) => (
-                          <tspan key={`${ln}-${i}`} x={px} dy={i === 0 ? 0 : lineH}>
-                            {ln}
-                          </tspan>
-                        ))}
-                        {detail === 'full' && (
-                          <>
-                            <tspan x={px} dy={lineH + 2} fill="var(--text-3)">
-                              {formatArea(planRoomArea(r), units)}
+                          )),
+                        ]
+                      : null}
+                    {(() => {
+                      // Progressive detail by on-screen room size: full (name +
+                      // area) → name only → hidden. Keeps the most important info
+                      // (the name) longest as the plan zooms out / shrinks. A
+                      // selected room always shows full so editing stays legible.
+                      // The "Labels" View toggle hides room name + dimensions
+                      // entirely (honoured even for the selected room).
+                      if (!showRoomLabels) return null
+                      const detail =
+                        isSel && tool === 'select' ? 'full' : roomLabelDetail(planRoomArea(r), PX)
+                      if (detail === 'none') return null
+                      const [lx, lz] = roomLabelPosition(r)
+                      const px = toPx(lx)
+                      const pz = toPx(lz)
+                      // Optional label rotation (radians → degrees, about the anchor)
+                      // and font-size multiplier — Sweet Home 3D label angle/font.
+                      const deg = r.labelAngle ? (r.labelAngle * 180) / Math.PI : 0
+                      const fontPx = roomFont * (r.labelFontScale ?? 1)
+                      // Wrap the name to the room's on-screen width so long names
+                      // (e.g. "Household Shelter") stay inside the room; over-long
+                      // words hyphenate. ~0.55·fontPx ≈ average glyph advance.
+                      const roomWidthM =
+                        r.polygon && r.polygon.length >= 3
+                          ? Math.max(...r.polygon.map((p) => p[0])) -
+                            Math.min(...r.polygon.map((p) => p[0]))
+                          : r.width
+                      const maxChars = Math.max(
+                        4,
+                        Math.floor((roomWidthM * PX * 0.92) / (fontPx * 0.55)),
+                      )
+                      const nameLines = wrapLabel(r.name, maxChars)
+                      const lineH = fontPx + 1
+                      const totalLines = nameLines.length + (detail === 'full' ? 2 : 0)
+                      // Vertically centre the multi-line block on the label anchor.
+                      const yTop = pz - ((totalLines - 1) * lineH) / 2
+                      return (
+                        <text
+                          x={px}
+                          y={yTop}
+                          textAnchor="middle"
+                          className="select-none"
+                          fontSize={fontPx}
+                          fill="var(--text-2)"
+                          transform={deg ? `rotate(${deg} ${px} ${pz})` : undefined}
+                          style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                          onPointerDown={(e) => {
+                            if (tool !== 'select') return
+                            const willMove = beginElementDrag(
+                              e,
+                              sel?.type === 'room' && sel.id === r.id,
+                            )
+                            a.setPlanSelection({ type: 'room', id: r.id })
+                            if (!willMove) return
+                            const [wx, wz] = pointerWorld(e)
+                            setMovingRoomLabel({ id: r.id, gx: wx - lx, gz: wz - lz })
+                          }}
+                        >
+                          {nameLines.map((ln, i) => (
+                            <tspan key={`${ln}-${i}`} x={px} dy={i === 0 ? 0 : lineH}>
+                              {ln}
                             </tspan>
-                            <tspan x={px} dy={lineH} fill="var(--text-3)">
-                              {`P ${formatLength(planRoomPerimeter(r), units)}`}
-                            </tspan>
-                          </>
-                        )}
-                      </text>
-                    )
-                  })()}
-                </g>
-              )
-            })}
-
-            {/* Furniture footprints — the live 3D layout, top-down, filtered to
-                the active storey. Hidden by default (the "Furniture" toggle);
-                while hidden they render nothing, so they can't be selected/moved.
-                Click to select (shared with 3D); drag (select tool) to move. */}
-            {showFurniture &&
-              levelItems.map((it) => {
-                const def = getDef(it.defId)
-                if (!def) return null
-                const obb = itemFootprint(it, def)
-                const pts = obbCorners(obb)
-                  .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
-                  .join(' ')
-                // Highlighted when it's the primary OR part of a marquee
-                // multi-selection.
-                const isSel = selectedItemId === it.id || selectedItemIds.has(it.id)
-                // Top-down category glyph centred in the footprint (PC2-PLAN-FURN-
-                // ICONS) so a layout reads at a glance. Shown only when no text
-                // label covers the centre (labels off + not selected), sized to
-                // the footprint and hidden when too small to read.
-                const cx = toPx(it.position[0])
-                const cy = toPx(it.position[1])
-                const glyphPx = Math.min(Math.min(obb.hx, obb.hz) * 2 * PX * 0.55, 22)
-                const showGlyph = !labelsOn && !isSel && glyphPx >= 9
-                return (
-                  <g key={it.id}>
-                    <polygon
-                      data-item-id={it.id}
-                      data-item-selected={isSel ? '1' : undefined}
-                      points={pts}
-                      fill={
-                        isSel
-                          ? 'var(--accent-soft)'
-                          : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
-                      }
-                      fillOpacity={isSel ? 0.95 : 0.55}
-                      stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
-                      strokeWidth={isSel ? 2 : 1}
-                      strokeLinejoin="round"
-                      style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
-                      onPointerDown={(e) => {
-                        if (tool !== 'select') return
-                        const st = useStore.getState()
-                        const willMove = beginElementDrag(e, selectedItemId === it.id)
-                        st.selectItem(it.id) // a tap always selects (for inspect/then-drag)
-                        if (!willMove) return // view / unselected-on-touch: let it pan
-                        const [wx, wz] = pointerWorld(e)
-                        st.pushHistory()
-                        setMovingItem({
-                          id: it.id,
-                          gx: wx - it.position[0],
-                          gz: wz - it.position[1],
-                        })
-                      }}
-                    />
-                    {showGlyph ? (
-                      <g
-                        transform={`translate(${cx - glyphPx / 2},${cy - glyphPx / 2})`}
-                        style={{ color: 'var(--text-2)', pointerEvents: 'none' }}
-                        opacity={0.7}
-                      >
-                        <CategoryIcon category={def.category} width={glyphPx} height={glyphPx} />
-                      </g>
-                    ) : null}
+                          ))}
+                          {detail === 'full' && (
+                            <>
+                              <tspan x={px} dy={lineH + 2} fill="var(--text-3)">
+                                {formatArea(planRoomArea(r), units)}
+                              </tspan>
+                              <tspan x={px} dy={lineH} fill="var(--text-3)">
+                                {`P ${formatLength(planRoomPerimeter(r), units)}`}
+                              </tspan>
+                            </>
+                          )}
+                        </text>
+                      )
+                    })()}
                   </g>
                 )
               })}
 
-            {/* Furniture labels. When the Labels toggle is on (PARITY-PLANLABELS),
-                every footprint shows its name (+ price); otherwise just the
-                selected one, so the user can always tell what they clicked. */}
-            {showFurniture &&
-              (() => {
-                const labelled = labelsOn
-                  ? levelItems
-                  : levelItems.filter((i) => i.id === selectedItemId)
-                return labelled.map((it) => {
+              {/* Furniture footprints — the live 3D layout, top-down, filtered to
+                the active storey. Hidden by default (the "Furniture" toggle);
+                while hidden they render nothing, so they can't be selected/moved.
+                Click to select (shared with 3D); drag (select tool) to move. */}
+              {showFurniture &&
+                levelItems.map((it) => {
                   const def = getDef(it.defId)
-                  const name = it.label ?? def?.name
-                  if (!name) return null
-                  const variant =
-                    typeof it.props.variant === 'string' ? it.props.variant : undefined
-                  const price = fPrice && def ? itemPrice(def, def.category, variant) : undefined
-                  const lines = labelsOn ? planLabelLines(name, price, planLabels) : [name]
-                  if (lines.length === 0) return null
+                  if (!def) return null
+                  const obb = itemFootprint(it, def)
+                  const pts = obbCorners(obb)
+                    .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
+                    .join(' ')
+                  // Highlighted when it's the primary OR part of a marquee
+                  // multi-selection.
+                  const isSel = selectedItemId === it.id || selectedItemIds.has(it.id)
+                  // Top-down category glyph centred in the footprint (PC2-PLAN-FURN-
+                  // ICONS) so a layout reads at a glance. Shown only when no text
+                  // label covers the centre (labels off + not selected), sized to
+                  // the footprint and hidden when too small to read.
                   const cx = toPx(it.position[0])
                   const cy = toPx(it.position[1])
+                  const glyphPx = Math.min(Math.min(obb.hx, obb.hz) * 2 * PX * 0.55, 22)
+                  const showGlyph = !labelsOn && !isSel && glyphPx >= 9
                   return (
-                    <text
-                      key={it.id}
-                      x={cx}
-                      y={cy - (lines.length - 1) * 6}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      className="plan-item-label"
-                      style={{
-                        pointerEvents: 'none',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        fill: 'var(--text)',
-                        paintOrder: 'stroke',
-                        stroke: 'var(--surface)',
-                        strokeWidth: 3,
-                        strokeLinejoin: 'round',
-                      }}
-                    >
-                      {lines.map((ln, i) => (
-                        <tspan
-                          key={ln}
-                          x={cx}
-                          dy={i === 0 ? 0 : 12}
-                          fontWeight={i === 0 ? 700 : 600}
+                    <g key={it.id}>
+                      <polygon
+                        data-item-id={it.id}
+                        data-item-selected={isSel ? '1' : undefined}
+                        points={pts}
+                        fill={
+                          isSel
+                            ? 'var(--accent-soft)'
+                            : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
+                        }
+                        fillOpacity={isSel ? 0.95 : 0.55}
+                        stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                        strokeWidth={isSel ? 2 : 1}
+                        strokeLinejoin="round"
+                        style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                        onPointerDown={(e) => {
+                          if (tool !== 'select') return
+                          const st = useStore.getState()
+                          const willMove = beginElementDrag(e, selectedItemId === it.id)
+                          st.selectItem(it.id) // a tap always selects (for inspect/then-drag)
+                          if (!willMove) return // view / unselected-on-touch: let it pan
+                          const [wx, wz] = pointerWorld(e)
+                          st.pushHistory()
+                          setMovingItem({
+                            id: it.id,
+                            gx: wx - it.position[0],
+                            gz: wz - it.position[1],
+                          })
+                        }}
+                      />
+                      {showGlyph ? (
+                        <g
+                          transform={`translate(${cx - glyphPx / 2},${cy - glyphPx / 2})`}
+                          style={{ color: 'var(--text-2)', pointerEvents: 'none' }}
+                          opacity={0.7}
                         >
-                          {ln}
-                        </tspan>
-                      ))}
-                    </text>
+                          <CategoryIcon category={def.category} width={glyphPx} height={glyphPx} />
+                        </g>
+                      ) : null}
+                    </g>
                   )
-                })
-              })()}
+                })}
 
-            {/* Selected-furniture rotate handle: a ring + knob around the chosen
+              {/* Furniture labels. When the Labels toggle is on (PARITY-PLANLABELS),
+                every footprint shows its name (+ price); otherwise just the
+                selected one, so the user can always tell what they clicked. */}
+              {showFurniture &&
+                (() => {
+                  const labelled = labelsOn
+                    ? levelItems
+                    : levelItems.filter((i) => i.id === selectedItemId)
+                  return labelled.map((it) => {
+                    const def = getDef(it.defId)
+                    const name = it.label ?? def?.name
+                    if (!name) return null
+                    const variant =
+                      typeof it.props.variant === 'string' ? it.props.variant : undefined
+                    const price = fPrice && def ? itemPrice(def, def.category, variant) : undefined
+                    const lines = labelsOn ? planLabelLines(name, price, planLabels) : [name]
+                    if (lines.length === 0) return null
+                    const cx = toPx(it.position[0])
+                    const cy = toPx(it.position[1])
+                    return (
+                      <text
+                        key={it.id}
+                        x={cx}
+                        y={cy - (lines.length - 1) * 6}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        className="plan-item-label"
+                        style={{
+                          pointerEvents: 'none',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          fill: 'var(--text)',
+                          paintOrder: 'stroke',
+                          stroke: 'var(--surface)',
+                          strokeWidth: 3,
+                          strokeLinejoin: 'round',
+                        }}
+                      >
+                        {lines.map((ln, i) => (
+                          <tspan
+                            key={ln}
+                            x={cx}
+                            dy={i === 0 ? 0 : 12}
+                            fontWeight={i === 0 ? 700 : 600}
+                          >
+                            {ln}
+                          </tspan>
+                        ))}
+                      </text>
+                    )
+                  })
+                })()}
+
+              {/* Selected-furniture rotate handle: a ring + knob around the chosen
                 footprint, mirroring the wall rotate ring's visual language. Drag
                 the ring/knob to spin the piece about its centre; reuses the 3D
                 gizmo's 15°-snap (hold Shift for free rotation). Single selection
                 only (like the wall handle), edit mode + select tool, unlocked.
                 The plan editor selects one furniture item at a time (no plan
                 multi-select yet), so a single-selection handle is the right scope. */}
-            {showFurniture &&
-              editMode === 'edit' &&
-              tool === 'select' &&
-              selectedItemId != null &&
-              (() => {
-                const it = levelItems.find((i) => i.id === selectedItemId)
-                if (!it || it.locked) return null
-                const def = getDef(it.defId)
-                if (!def) return null
-                const obb = itemFootprint(it, def)
-                const cx = toPx(obb.cx)
-                const cy = toPx(obb.cz)
-                // Ring clears the footprint (half-diagonal + gap), with a px floor
-                // so tiny pieces still get a grabbable ring.
-                const ringR = Math.max(Math.hypot(obb.hx, obb.hz) * PX + 16, 28)
-                // Knob at the item's facing (+Z): world facing unit = (sin, cos);
-                // both axes scale by PX into plan pixels.
-                const kx = cx + Math.sin(it.rotation) * ringR
-                const ky = cy + Math.cos(it.rotation) * ringR
-                const startRotate = (e: React.PointerEvent) => {
-                  if (!beginElementDrag(e, true)) return
-                  const [gx, gz] = pointerWorld(e)
-                  useStore.getState().pushHistory()
-                  setRotatingItem({
-                    id: it.id,
-                    cx: obb.cx,
-                    cz: obb.cz,
-                    startRot: it.rotation,
-                    a0: pointerAngle(obb.cx, obb.cz, gx, gz),
-                  })
-                }
-                return (
-                  <g key={`rot-${it.id}`}>
-                    {/* Fat transparent grab ring — generous touch target; only the
+              {showFurniture &&
+                editMode === 'edit' &&
+                tool === 'select' &&
+                selectedItemId != null &&
+                (() => {
+                  const it = levelItems.find((i) => i.id === selectedItemId)
+                  if (!it || it.locked) return null
+                  const def = getDef(it.defId)
+                  if (!def) return null
+                  const obb = itemFootprint(it, def)
+                  const cx = toPx(obb.cx)
+                  const cy = toPx(obb.cz)
+                  // Ring clears the footprint (half-diagonal + gap), with a px floor
+                  // so tiny pieces still get a grabbable ring.
+                  const ringR = Math.max(Math.hypot(obb.hx, obb.hz) * PX + 16, 28)
+                  // Knob at the item's facing (+Z): world facing unit = (sin, cos);
+                  // both axes scale by PX into plan pixels.
+                  const kx = cx + Math.sin(it.rotation) * ringR
+                  const ky = cy + Math.cos(it.rotation) * ringR
+                  const startRotate = (e: React.PointerEvent) => {
+                    if (!beginElementDrag(e, true)) return
+                    const [gx, gz] = pointerWorld(e)
+                    useStore.getState().pushHistory()
+                    setRotatingItem({
+                      id: it.id,
+                      cx: obb.cx,
+                      cz: obb.cz,
+                      startRot: it.rotation,
+                      a0: pointerAngle(obb.cx, obb.cz, gx, gz),
+                    })
+                  }
+                  return (
+                    <g key={`rot-${it.id}`}>
+                      {/* Fat transparent grab ring — generous touch target; only the
                         stroke is interactive so the interior stays click-through. */}
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={ringR}
-                      fill="none"
-                      stroke="transparent"
-                      strokeWidth={18}
-                      style={{ cursor: 'grab', pointerEvents: 'stroke' }}
-                      onPointerDown={startRotate}
-                    />
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={ringR}
-                      fill="none"
-                      stroke="var(--accent)"
-                      strokeOpacity={0.5}
-                      strokeWidth={2}
-                      strokeDasharray="4 4"
-                      style={{ pointerEvents: 'none' }}
-                    />
-                    {/* Spoke + knob at the item's facing, doubling as a heading cue. */}
-                    <line
-                      x1={cx}
-                      y1={cy}
-                      x2={kx}
-                      y2={ky}
-                      stroke="var(--accent)"
-                      strokeOpacity={0.5}
-                      strokeWidth={1.5}
-                      style={{ pointerEvents: 'none' }}
-                    />
-                    <circle
-                      data-rot-handle={it.id}
-                      cx={kx}
-                      cy={ky}
-                      r={7}
-                      fill="var(--surface-solid)"
-                      stroke="var(--accent)"
-                      strokeWidth={2}
-                      style={{ cursor: 'grab' }}
-                      onPointerDown={startRotate}
-                    />
-                  </g>
-                )
-              })()}
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r={ringR}
+                        fill="none"
+                        stroke="transparent"
+                        strokeWidth={18}
+                        style={{ cursor: 'grab', pointerEvents: 'stroke' }}
+                        onPointerDown={startRotate}
+                      />
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r={ringR}
+                        fill="none"
+                        stroke="var(--accent)"
+                        strokeOpacity={0.5}
+                        strokeWidth={2}
+                        strokeDasharray="4 4"
+                        style={{ pointerEvents: 'none' }}
+                      />
+                      {/* Spoke + knob at the item's facing, doubling as a heading cue. */}
+                      <line
+                        x1={cx}
+                        y1={cy}
+                        x2={kx}
+                        y2={ky}
+                        stroke="var(--accent)"
+                        strokeOpacity={0.5}
+                        strokeWidth={1.5}
+                        style={{ pointerEvents: 'none' }}
+                      />
+                      <circle
+                        data-rot-handle={it.id}
+                        cx={kx}
+                        cy={ky}
+                        r={7}
+                        fill="var(--surface-solid)"
+                        stroke="var(--accent)"
+                        strokeWidth={2}
+                        style={{ cursor: 'grab' }}
+                        onPointerDown={startRotate}
+                      />
+                    </g>
+                  )
+                })()}
 
-            {/* Text notes (active storey) — PARITY-DIMTEXT. Click (select tool)
+              {/* Text notes (active storey) — PARITY-DIMTEXT. Click (select tool)
                 to select + drag; edit/delete in the inspector. */}
-            {(plan.notes ?? [])
-              .filter((nt) => (nt.levelId ?? GROUND_LEVEL_ID) === levelId)
-              .map((nt) => {
-                const selected = sel?.type === 'note' && sel.id === nt.id
-                return (
-                  <text
-                    key={nt.id}
-                    x={toPx(nt.x)}
-                    y={toPx(nt.z)}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="plan-note"
-                    style={{
-                      cursor: tool === 'select' ? 'move' : 'crosshair',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      fill: selected ? 'var(--accent)' : 'var(--text)',
-                      paintOrder: 'stroke',
-                      stroke: 'var(--surface)',
-                      strokeWidth: 3,
-                      strokeLinejoin: 'round',
-                    }}
-                    onPointerDown={(e) => {
-                      if (tool !== 'select') return
-                      const willMove = beginElementDrag(e, sel?.type === 'note' && sel.id === nt.id)
-                      useStore.getState().setPlanSelection({ type: 'note', id: nt.id })
-                      if (!willMove) return
-                      const [wx, wz] = pointerWorld(e)
-                      setMovingNote({ id: nt.id, gx: wx - nt.x, gz: wz - nt.z })
-                    }}
-                  >
-                    {nt.text}
-                  </text>
-                )
-              })}
-
-            {/* Dimension lines (active storey) — PARITY-DIMTEXT. Drawn with the
-                Dimension tool; click to select, delete in the inspector. */}
-            {(plan.dimensions ?? [])
-              .filter((d) => (d.levelId ?? GROUND_LEVEL_ID) === levelId)
-              .map((d) => {
-                const selected = sel?.type === 'dim' && sel.id === d.id
-                const x1 = toPx(d.a[0])
-                const y1 = toPx(d.a[1])
-                const x2 = toPx(d.b[0])
-                const y2 = toPx(d.b[1])
-                const dx = x2 - x1
-                const dy = y2 - y1
-                const L = Math.hypot(dx, dy) || 1
-                // Perpendicular unit (px) for end ticks + label offset.
-                const px = -dy / L
-                const py = dx / L
-                const len = Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1])
-                const stroke = selected ? 'var(--accent)' : 'var(--text-3)'
-                return (
-                  <g
-                    key={d.id}
-                    style={{ cursor: 'pointer' }}
-                    onPointerDown={(e) => {
-                      e.stopPropagation()
-                      useStore.getState().setPlanSelection({ type: 'dim', id: d.id })
-                    }}
-                  >
-                    {/* Fat invisible hit target so the thin line is easy to click. */}
-                    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={12} />
-                    <line
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke={stroke}
-                      strokeWidth={selected ? 2 : 1.5}
-                    />
-                    {/* End ticks (±6 px perpendicular). */}
-                    <line
-                      x1={x1 - px * 6}
-                      y1={y1 - py * 6}
-                      x2={x1 + px * 6}
-                      y2={y1 + py * 6}
-                      stroke={stroke}
-                      strokeWidth={1.5}
-                    />
-                    <line
-                      x1={x2 - px * 6}
-                      y1={y2 - py * 6}
-                      x2={x2 + px * 6}
-                      y2={y2 + py * 6}
-                      stroke={stroke}
-                      strokeWidth={1.5}
-                    />
+              {(plan.notes ?? [])
+                .filter((nt) => (nt.levelId ?? GROUND_LEVEL_ID) === levelId)
+                .map((nt) => {
+                  const selected = sel?.type === 'note' && sel.id === nt.id
+                  return (
                     <text
-                      x={(x1 + x2) / 2 + px * 11}
-                      y={(y1 + y2) / 2 + py * 11}
+                      key={nt.id}
+                      x={toPx(nt.x)}
+                      y={toPx(nt.z)}
                       textAnchor="middle"
-                      dominantBaseline="central"
+                      dominantBaseline="middle"
+                      className="plan-note"
                       style={{
-                        pointerEvents: 'none',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        fill: 'var(--text)',
+                        cursor: tool === 'select' ? 'move' : 'crosshair',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        fill: selected ? 'var(--accent)' : 'var(--text)',
                         paintOrder: 'stroke',
                         stroke: 'var(--surface)',
                         strokeWidth: 3,
                         strokeLinejoin: 'round',
                       }}
+                      onPointerDown={(e) => {
+                        if (tool !== 'select') return
+                        const willMove = beginElementDrag(
+                          e,
+                          sel?.type === 'note' && sel.id === nt.id,
+                        )
+                        useStore.getState().setPlanSelection({ type: 'note', id: nt.id })
+                        if (!willMove) return
+                        const [wx, wz] = pointerWorld(e)
+                        setMovingNote({ id: nt.id, gx: wx - nt.x, gz: wz - nt.z })
+                      }}
+                    >
+                      {nt.text}
+                    </text>
+                  )
+                })}
+
+              {/* Dimension lines (active storey) — PARITY-DIMTEXT. Drawn with the
+                Dimension tool; click to select, delete in the inspector. */}
+              {(plan.dimensions ?? [])
+                .filter((d) => (d.levelId ?? GROUND_LEVEL_ID) === levelId)
+                .map((d) => {
+                  const selected = sel?.type === 'dim' && sel.id === d.id
+                  const x1 = toPx(d.a[0])
+                  const y1 = toPx(d.a[1])
+                  const x2 = toPx(d.b[0])
+                  const y2 = toPx(d.b[1])
+                  const dx = x2 - x1
+                  const dy = y2 - y1
+                  const L = Math.hypot(dx, dy) || 1
+                  // Perpendicular unit (px) for end ticks + label offset.
+                  const px = -dy / L
+                  const py = dx / L
+                  const len = Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1])
+                  const stroke = selected ? 'var(--accent)' : 'var(--text-3)'
+                  return (
+                    <g
+                      key={d.id}
+                      style={{ cursor: 'pointer' }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation()
+                        useStore.getState().setPlanSelection({ type: 'dim', id: d.id })
+                      }}
+                    >
+                      {/* Fat invisible hit target so the thin line is easy to click. */}
+                      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={12} />
+                      <line
+                        x1={x1}
+                        y1={y1}
+                        x2={x2}
+                        y2={y2}
+                        stroke={stroke}
+                        strokeWidth={selected ? 2 : 1.5}
+                      />
+                      {/* End ticks (±6 px perpendicular). */}
+                      <line
+                        x1={x1 - px * 6}
+                        y1={y1 - py * 6}
+                        x2={x1 + px * 6}
+                        y2={y1 + py * 6}
+                        stroke={stroke}
+                        strokeWidth={1.5}
+                      />
+                      <line
+                        x1={x2 - px * 6}
+                        y1={y2 - py * 6}
+                        x2={x2 + px * 6}
+                        y2={y2 + py * 6}
+                        stroke={stroke}
+                        strokeWidth={1.5}
+                      />
+                      <text
+                        x={(x1 + x2) / 2 + px * 11}
+                        y={(y1 + y2) / 2 + py * 11}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        style={{
+                          pointerEvents: 'none',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          fill: 'var(--text)',
+                          paintOrder: 'stroke',
+                          stroke: 'var(--surface)',
+                          strokeWidth: 3,
+                          strokeLinejoin: 'round',
+                        }}
+                      >
+                        {formatLength(len, units)}
+                      </text>
+                    </g>
+                  )
+                })}
+
+              {/* Polyline annotations (active storey) — PARITY-POLYLINE. Drawn
+                with the Polyline tool; click to select, edit/delete in the
+                inspector. Open paths can carry an end arrowhead. */}
+              {(plan.polylines ?? [])
+                .filter((p) => (p.levelId ?? GROUND_LEVEL_ID) === levelId)
+                .map((p) => {
+                  const selected = sel?.type === 'polyline' && sel.id === p.id
+                  const project = ([x, z]: [number, number]): [number, number] => [toPx(x), toPx(z)]
+                  const ptsAttr = polylinePointsAttr(p.points, project)
+                  const stroke = selected ? 'var(--accent)' : 'var(--text-2)'
+                  const Shape = p.closed ? 'polygon' : 'polyline'
+                  // Arrowhead at the final point of an open path: a small filled
+                  // triangle aligned with the last segment's direction.
+                  let arrowPts: string | null = null
+                  if (p.arrow && !p.closed && p.points.length >= 2) {
+                    const [ex, ey] = project(p.points[p.points.length - 1])
+                    const [sx, sy] = project(p.points[p.points.length - 2])
+                    const dx = ex - sx
+                    const dy = ey - sy
+                    const L = Math.hypot(dx, dy) || 1
+                    const ux = dx / L
+                    const uy = dy / L
+                    const size = 11
+                    const bx = ex - ux * size
+                    const by = ey - uy * size
+                    const nx = -uy
+                    const ny = ux
+                    arrowPts = `${ex},${ey} ${bx + nx * size * 0.45},${by + ny * size * 0.45} ${bx - nx * size * 0.45},${by - ny * size * 0.45}`
+                  }
+                  return (
+                    <g
+                      key={p.id}
+                      style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
+                      onPointerDown={(e) => {
+                        if (tool !== 'select') return
+                        e.stopPropagation()
+                        useStore.getState().setPlanSelection({ type: 'polyline', id: p.id })
+                      }}
+                    >
+                      {/* Fat invisible hit target so the thin path is easy to click. */}
+                      <Shape points={ptsAttr} fill="none" stroke="transparent" strokeWidth={12} />
+                      <Shape
+                        points={ptsAttr}
+                        fill="none"
+                        stroke={stroke}
+                        strokeWidth={selected ? 2.5 : 2}
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                        strokeDasharray={p.dashed ? '6 4' : undefined}
+                      />
+                      {arrowPts && <polygon points={arrowPts} fill={stroke} />}
+                    </g>
+                  )
+                })}
+
+              {/* Walls (active storey) */}
+              {levelPlan.walls.map((w) => {
+                const isSel = sel?.type === 'wall' && sel.id === w.id
+                const inSel = selectedWalls.has(w.id) // primary OR a multi-select extra
+                const stray = strays.walls.has(w.id) // joined to no other wall
+                const d = wallSvgPath(w, toPx)
+                const stroke = inSel
+                  ? 'var(--accent)'
+                  : stray
+                    ? 'var(--danger)'
+                    : w.thickness === 'external'
+                      ? 'var(--plan-wall)'
+                      : 'var(--text-3)'
+                // Skeleton view draws every wall at one thin stroke so corner
+                // connections (gaps / overlaps) are obvious regardless of thickness.
+                const bodyW = skeleton ? 2 : w.thickness === 'external' ? 7 : 4
+                const onWallDown = (e: React.PointerEvent) => {
+                  if (tool !== 'select') return
+                  // Additive select (Shift/⌘/Ctrl-click, or the touch "Select more"
+                  // toggle): toggle this wall in the multi-selection and don't drag.
+                  if (e.shiftKey || e.metaKey || e.ctrlKey || planWallMultiAdd) {
+                    e.stopPropagation()
+                    a.toggleWallSelection(w.id)
+                    return
+                  }
+                  const willMove = beginElementDrag(e, inSel)
+                  a.setPlanSelection({ type: 'wall', id: w.id })
+                  if (!willMove) return // view / unselected-on-touch: let it pan
+                  if (w.locked) return // locked walls select but don't move (like furniture)
+                  // Drag the whole wall (endpoint handles, which stopPropagation,
+                  // handle per-corner reshape instead).
+                  const [wx, wz] = pointerWorld(e)
+                  setMovingWall({ id: w.id, s0: [...w.start], e0: [...w.end], grab: [wx, wz] })
+                }
+                // Curve bulge handle: drag a selected wall's midpoint to bow it.
+                const bulge =
+                  editMode === 'edit' && fCurvedWalls && isSel && tool === 'select' && !w.locked
+                    ? wallCurveMidpoint(w)
+                    : null
+                return (
+                  <g key={w.id} data-wall={w.id}>
+                    {/* Selected: a translucent accent halo around the wall so the
+                      selection is obvious (mirrors the furniture highlight).
+                      Shown for every wall in the (multi-)selection. */}
+                    {inSel && (
+                      <path
+                        d={d}
+                        fill="none"
+                        stroke="var(--accent)"
+                        strokeOpacity={0.35}
+                        strokeWidth={bodyW + 11}
+                        strokeLinecap="round"
+                        style={{ pointerEvents: 'none' }}
+                      />
+                    )}
+                    {/* Stray wall halo (red dashed) so a disconnected wall stands
+                      out even when it's not selected. */}
+                    {stray && !inSel && (
+                      <path
+                        d={d}
+                        fill="none"
+                        stroke="var(--danger)"
+                        strokeOpacity={0.4}
+                        strokeWidth={bodyW + 8}
+                        strokeDasharray="2 5"
+                        strokeLinecap="round"
+                        style={{ pointerEvents: 'none' }}
+                      />
+                    )}
+                    {/* Fat invisible hit target so curved/thin walls are easy to grab. */}
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={14}
+                      onPointerDown={onWallDown}
+                      style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
+                    />
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke={stroke}
+                      strokeWidth={bodyW}
+                      strokeLinecap="round"
+                      onPointerDown={onWallDown}
+                      style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
+                    />
+                    {bulge ? (
+                      <circle
+                        data-wall-bulge={w.id}
+                        cx={toPx(bulge[0])}
+                        cy={toPx(bulge[1])}
+                        r={5}
+                        fill="var(--accent)"
+                        stroke="var(--surface)"
+                        strokeWidth={1.5}
+                        style={{ cursor: 'grab' }}
+                        onPointerDown={(e) => {
+                          e.stopPropagation()
+                          a.setPlanSelection({ type: 'wall', id: w.id })
+                          setMovingBulge({ id: w.id })
+                          svgRef.current?.setPointerCapture(e.pointerId)
+                        }}
+                      />
+                    ) : null}
+                  </g>
+                )
+              })}
+
+              {/* Persistent wall-length dimensions (a staple of pro floor
+                planners): a proper dimension line with extension lines +
+                arrowheads spanning each wall, oriented to the plan's outside.
+                Culled to walls long enough on screen to fit the callout, and the
+                text font scales with zoom — so they stay legible without
+                cluttering when zoomed out. */}
+              {showWallDims &&
+                levelPlan.walls.map((w) => {
+                  const len = wallLength(w)
+                  if (!showWallDim(len, PX)) return null
+                  return (
+                    <WallDimension
+                      key={`dim-${w.id}`}
+                      a={w.start}
+                      b={w.end}
+                      label={formatLength(len, units)}
+                      toPx={toPx}
+                      centre={planCentrePx}
+                      fontPx={dimFont}
+                      selected={sel?.type === 'wall' && sel.id === w.id}
+                    />
+                  )
+                })}
+
+              {/* Opening (door/window) width dimensions — same "Dims" toggle.
+                Rendered as a dimension marker spanning the opening along its
+                wall, matching the wall callouts. Curved walls keep a plain label
+                (a straight marker can't follow the arc). */}
+              {showWallDims &&
+                levelPlan.openings.map((o) => {
+                  const wall = levelPlan.walls.find((w) => w.id === o.wallId)
+                  if (!wall) return null
+                  const len = wallLength(wall)
+                  if (len === 0) return null
+                  // Least-important, most-numerous labels — drop when they can't
+                  // fit (and sooner on mobile) to keep the plan readable.
+                  if (!showOpeningDim(o.width, PX, isMobile)) return null
+                  const isSel = sel?.type === 'opening' && sel.id === o.id
+                  if (isCurvedWall(wall)) {
+                    const p = pointAtArcLength(wall, o.offset + o.width / 2)
+                    const ux = Math.sin(p.angle)
+                    const uz = Math.cos(p.angle)
+                    const off = o.kind === 'door' && doorSwing(o) === 'right' ? -0.32 : 0.32
+                    return (
+                      <text
+                        key={`odim-${o.id}`}
+                        x={toPx(p.x - uz * off)}
+                        y={toPx(p.z + ux * off)}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        className="plan-dim-label"
+                        fill={isSel ? 'var(--accent)' : 'var(--accent-soft-text)'}
+                        style={{ pointerEvents: 'none', fontSize: dimFont, fontWeight: 600 }}
+                      >
+                        {formatLength(o.width, units)}
+                      </text>
+                    )
+                  }
+                  const ux = (wall.end[0] - wall.start[0]) / len
+                  const uz = (wall.end[1] - wall.start[1]) / len
+                  return (
+                    <WallDimension
+                      key={`odim-${o.id}`}
+                      a={[wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]}
+                      b={[
+                        wall.start[0] + ux * (o.offset + o.width),
+                        wall.start[1] + uz * (o.offset + o.width),
+                      ]}
+                      label={formatLength(o.width, units)}
+                      toPx={toPx}
+                      centre={planCentrePx}
+                      fontPx={dimFont}
+                      selected={isSel}
+                    />
+                  )
+                })}
+
+              {/* Pinned dimension annotations — the same callouts shown in 3D and
+                the report, so a measurement traced in either view appears here. */}
+              {annotations.map((an) => {
+                const [ax, az] = an.a
+                const [bx, bz] = an.b
+                if (an.shape === 'rect') {
+                  const x = Math.min(ax, bx)
+                  const z = Math.min(az, bz)
+                  const w = Math.abs(bx - ax)
+                  const h = Math.abs(bz - az)
+                  if (w < 1e-3 || h < 1e-3) return null
+                  return (
+                    <g key={an.id} style={{ pointerEvents: 'none' }}>
+                      <rect
+                        x={toPx(x)}
+                        y={toPx(z)}
+                        width={w * PX}
+                        height={h * PX}
+                        fill="var(--plan-annot)"
+                        fillOpacity={0.1}
+                        stroke="var(--plan-annot)"
+                        strokeWidth={1.5}
+                        strokeDasharray="5 3"
+                      />
+                      <text
+                        x={toPx(x + w / 2)}
+                        y={toPx(z + h / 2)}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fill="var(--plan-annot)"
+                        style={{ fontSize: 11, fontWeight: 600 }}
+                      >
+                        {`${formatDims(w, h, units)} · ${formatArea(w * h, units)}`}
+                      </text>
+                    </g>
+                  )
+                }
+                const len = Math.hypot(bx - ax, bz - az)
+                if (len < 1e-3) return null
+                return (
+                  <g key={an.id} style={{ pointerEvents: 'none' }}>
+                    <line
+                      x1={toPx(ax)}
+                      y1={toPx(az)}
+                      x2={toPx(bx)}
+                      y2={toPx(bz)}
+                      stroke="var(--plan-annot)"
+                      strokeWidth={2}
+                      strokeDasharray="5 3"
+                    />
+                    <text
+                      x={toPx((ax + bx) / 2)}
+                      y={toPx((az + bz) / 2) - 6}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill="var(--plan-annot)"
+                      style={{ fontSize: 11, fontWeight: 600 }}
                     >
                       {formatLength(len, units)}
                     </text>
@@ -2774,811 +3159,506 @@ export function FloorPlanEditor() {
                 )
               })}
 
-            {/* Polyline annotations (active storey) — PARITY-POLYLINE. Drawn
-                with the Polyline tool; click to select, edit/delete in the
-                inspector. Open paths can carry an end arrowhead. */}
-            {(plan.polylines ?? [])
-              .filter((p) => (p.levelId ?? GROUND_LEVEL_ID) === levelId)
-              .map((p) => {
-                const selected = sel?.type === 'polyline' && sel.id === p.id
-                const project = ([x, z]: [number, number]): [number, number] => [toPx(x), toPx(z)]
-                const ptsAttr = polylinePointsAttr(p.points, project)
-                const stroke = selected ? 'var(--accent)' : 'var(--text-2)'
-                const Shape = p.closed ? 'polygon' : 'polyline'
-                // Arrowhead at the final point of an open path: a small filled
-                // triangle aligned with the last segment's direction.
-                let arrowPts: string | null = null
-                if (p.arrow && !p.closed && p.points.length >= 2) {
-                  const [ex, ey] = project(p.points[p.points.length - 1])
-                  const [sx, sy] = project(p.points[p.points.length - 2])
-                  const dx = ex - sx
-                  const dy = ey - sy
-                  const L = Math.hypot(dx, dy) || 1
-                  const ux = dx / L
-                  const uy = dy / L
-                  const size = 11
-                  const bx = ex - ux * size
-                  const by = ey - uy * size
-                  const nx = -uy
-                  const ny = ux
-                  arrowPts = `${ex},${ey} ${bx + nx * size * 0.45},${by + ny * size * 0.45} ${bx - nx * size * 0.45},${by - ny * size * 0.45}`
-                }
-                return (
-                  <g
-                    key={p.id}
-                    style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
-                    onPointerDown={(e) => {
-                      if (tool !== 'select') return
-                      e.stopPropagation()
-                      useStore.getState().setPlanSelection({ type: 'polyline', id: p.id })
-                    }}
-                  >
-                    {/* Fat invisible hit target so the thin path is easy to click. */}
-                    <Shape points={ptsAttr} fill="none" stroke="transparent" strokeWidth={12} />
-                    <Shape
-                      points={ptsAttr}
-                      fill="none"
-                      stroke={stroke}
-                      strokeWidth={selected ? 2.5 : 2}
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                      strokeDasharray={p.dashed ? '6 4' : undefined}
-                    />
-                    {arrowPts && <polygon points={arrowPts} fill={stroke} />}
-                  </g>
-                )
-              })}
-
-            {/* Walls (active storey) */}
-            {levelPlan.walls.map((w) => {
-              const isSel = sel?.type === 'wall' && sel.id === w.id
-              const inSel = selectedWalls.has(w.id) // primary OR a multi-select extra
-              const stray = strays.walls.has(w.id) // joined to no other wall
-              const d = wallSvgPath(w, toPx)
-              const stroke = inSel
-                ? 'var(--accent)'
-                : stray
-                  ? 'var(--danger)'
-                  : w.thickness === 'external'
-                    ? 'var(--plan-wall)'
-                    : 'var(--text-3)'
-              // Skeleton view draws every wall at one thin stroke so corner
-              // connections (gaps / overlaps) are obvious regardless of thickness.
-              const bodyW = skeleton ? 2 : w.thickness === 'external' ? 7 : 4
-              const onWallDown = (e: React.PointerEvent) => {
-                if (tool !== 'select') return
-                // Additive select (Shift/⌘/Ctrl-click, or the touch "Select more"
-                // toggle): toggle this wall in the multi-selection and don't drag.
-                if (e.shiftKey || e.metaKey || e.ctrlKey || planWallMultiAdd) {
-                  e.stopPropagation()
-                  a.toggleWallSelection(w.id)
-                  return
-                }
-                const willMove = beginElementDrag(e, inSel)
-                a.setPlanSelection({ type: 'wall', id: w.id })
-                if (!willMove) return // view / unselected-on-touch: let it pan
-                if (w.locked) return // locked walls select but don't move (like furniture)
-                // Drag the whole wall (endpoint handles, which stopPropagation,
-                // handle per-corner reshape instead).
-                const [wx, wz] = pointerWorld(e)
-                setMovingWall({ id: w.id, s0: [...w.start], e0: [...w.end], grab: [wx, wz] })
-              }
-              // Curve bulge handle: drag a selected wall's midpoint to bow it.
-              const bulge =
-                editMode === 'edit' && fCurvedWalls && isSel && tool === 'select' && !w.locked
-                  ? wallCurveMidpoint(w)
-                  : null
-              return (
-                <g key={w.id} data-wall={w.id}>
-                  {/* Selected: a translucent accent halo around the wall so the
-                      selection is obvious (mirrors the furniture highlight).
-                      Shown for every wall in the (multi-)selection. */}
-                  {inSel && (
-                    <path
-                      d={d}
-                      fill="none"
-                      stroke="var(--accent)"
-                      strokeOpacity={0.35}
-                      strokeWidth={bodyW + 11}
-                      strokeLinecap="round"
-                      style={{ pointerEvents: 'none' }}
-                    />
-                  )}
-                  {/* Stray wall halo (red dashed) so a disconnected wall stands
-                      out even when it's not selected. */}
-                  {stray && !inSel && (
-                    <path
-                      d={d}
-                      fill="none"
-                      stroke="var(--danger)"
-                      strokeOpacity={0.4}
-                      strokeWidth={bodyW + 8}
-                      strokeDasharray="2 5"
-                      strokeLinecap="round"
-                      style={{ pointerEvents: 'none' }}
-                    />
-                  )}
-                  {/* Fat invisible hit target so curved/thin walls are easy to grab. */}
-                  <path
-                    d={d}
-                    fill="none"
-                    stroke="transparent"
-                    strokeWidth={14}
-                    onPointerDown={onWallDown}
-                    style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
-                  />
-                  <path
-                    d={d}
-                    fill="none"
-                    stroke={stroke}
-                    strokeWidth={bodyW}
-                    strokeLinecap="round"
-                    onPointerDown={onWallDown}
-                    style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
-                  />
-                  {bulge ? (
-                    <circle
-                      data-wall-bulge={w.id}
-                      cx={toPx(bulge[0])}
-                      cy={toPx(bulge[1])}
-                      r={5}
-                      fill="var(--accent)"
-                      stroke="var(--surface)"
-                      strokeWidth={1.5}
-                      style={{ cursor: 'grab' }}
-                      onPointerDown={(e) => {
-                        e.stopPropagation()
-                        a.setPlanSelection({ type: 'wall', id: w.id })
-                        setMovingBulge({ id: w.id })
-                        svgRef.current?.setPointerCapture(e.pointerId)
-                      }}
-                    />
-                  ) : null}
-                </g>
-              )
-            })}
-
-            {/* Persistent wall-length dimensions (a staple of pro floor
-                planners): a proper dimension line with extension lines +
-                arrowheads spanning each wall, oriented to the plan's outside.
-                Culled to walls long enough on screen to fit the callout, and the
-                text font scales with zoom — so they stay legible without
-                cluttering when zoomed out. */}
-            {showWallDims &&
-              levelPlan.walls.map((w) => {
-                const len = wallLength(w)
-                if (!showWallDim(len, PX)) return null
-                return (
-                  <WallDimension
-                    key={`dim-${w.id}`}
-                    a={w.start}
-                    b={w.end}
-                    label={formatLength(len, units)}
-                    toPx={toPx}
-                    centre={planCentrePx}
-                    fontPx={dimFont}
-                    selected={sel?.type === 'wall' && sel.id === w.id}
-                  />
-                )
-              })}
-
-            {/* Opening (door/window) width dimensions — same "Dims" toggle.
-                Rendered as a dimension marker spanning the opening along its
-                wall, matching the wall callouts. Curved walls keep a plain label
-                (a straight marker can't follow the arc). */}
-            {showWallDims &&
-              levelPlan.openings.map((o) => {
-                const wall = levelPlan.walls.find((w) => w.id === o.wallId)
-                if (!wall) return null
-                const len = wallLength(wall)
-                if (len === 0) return null
-                // Least-important, most-numerous labels — drop when they can't
-                // fit (and sooner on mobile) to keep the plan readable.
-                if (!showOpeningDim(o.width, PX, isMobile)) return null
-                const isSel = sel?.type === 'opening' && sel.id === o.id
-                if (isCurvedWall(wall)) {
-                  const p = pointAtArcLength(wall, o.offset + o.width / 2)
-                  const ux = Math.sin(p.angle)
-                  const uz = Math.cos(p.angle)
-                  const off = o.kind === 'door' && doorSwing(o) === 'right' ? -0.32 : 0.32
-                  return (
-                    <text
-                      key={`odim-${o.id}`}
-                      x={toPx(p.x - uz * off)}
-                      y={toPx(p.z + ux * off)}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      className="plan-dim-label"
-                      fill={isSel ? 'var(--accent)' : 'var(--accent-soft-text)'}
-                      style={{ pointerEvents: 'none', fontSize: dimFont, fontWeight: 600 }}
-                    >
-                      {formatLength(o.width, units)}
-                    </text>
-                  )
-                }
-                const ux = (wall.end[0] - wall.start[0]) / len
-                const uz = (wall.end[1] - wall.start[1]) / len
-                return (
-                  <WallDimension
-                    key={`odim-${o.id}`}
-                    a={[wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]}
-                    b={[
-                      wall.start[0] + ux * (o.offset + o.width),
-                      wall.start[1] + uz * (o.offset + o.width),
-                    ]}
-                    label={formatLength(o.width, units)}
-                    toPx={toPx}
-                    centre={planCentrePx}
-                    fontPx={dimFont}
-                    selected={isSel}
-                  />
-                )
-              })}
-
-            {/* Pinned dimension annotations — the same callouts shown in 3D and
-                the report, so a measurement traced in either view appears here. */}
-            {annotations.map((an) => {
-              const [ax, az] = an.a
-              const [bx, bz] = an.b
-              if (an.shape === 'rect') {
-                const x = Math.min(ax, bx)
-                const z = Math.min(az, bz)
-                const w = Math.abs(bx - ax)
-                const h = Math.abs(bz - az)
-                if (w < 1e-3 || h < 1e-3) return null
-                return (
-                  <g key={an.id} style={{ pointerEvents: 'none' }}>
-                    <rect
-                      x={toPx(x)}
-                      y={toPx(z)}
-                      width={w * PX}
-                      height={h * PX}
-                      fill="var(--plan-annot)"
-                      fillOpacity={0.1}
-                      stroke="var(--plan-annot)"
-                      strokeWidth={1.5}
-                      strokeDasharray="5 3"
-                    />
-                    <text
-                      x={toPx(x + w / 2)}
-                      y={toPx(z + h / 2)}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fill="var(--plan-annot)"
-                      style={{ fontSize: 11, fontWeight: 600 }}
-                    >
-                      {`${formatDims(w, h, units)} · ${formatArea(w * h, units)}`}
-                    </text>
-                  </g>
-                )
-              }
-              const len = Math.hypot(bx - ax, bz - az)
-              if (len < 1e-3) return null
-              return (
-                <g key={an.id} style={{ pointerEvents: 'none' }}>
-                  <line
-                    x1={toPx(ax)}
-                    y1={toPx(az)}
-                    x2={toPx(bx)}
-                    y2={toPx(bz)}
-                    stroke="var(--plan-annot)"
-                    strokeWidth={2}
-                    strokeDasharray="5 3"
-                  />
-                  <text
-                    x={toPx((ax + bx) / 2)}
-                    y={toPx((az + bz) / 2) - 6}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fill="var(--plan-annot)"
-                    style={{ fontSize: 11, fontWeight: 600 }}
-                  >
-                    {formatLength(len, units)}
-                  </text>
-                </g>
-              )
-            })}
-
-            {/* 360° tour stop markers (panoTour feature, plan-based placement).
+              {/* 360° tour stop markers (panoTour feature, plan-based placement).
                 Shown as numbered eye-shaped pins on the ground level only.
                 Drag to reposition; on drag-end the IDB cache for the stop is
                 evicted so the next tour view recaptures from the new spot.
                 Stops on other storeys are shown without a drag handle (greyed). */}
-            {fPanoTour &&
-              panoTourStops.map((s, i) => {
-                const [sx, sz] = s.position
-                const isGround = !s.levelId
-                return (
-                  <g
-                    key={s.id}
-                    style={{ cursor: isGround ? 'grab' : 'default' }}
-                    onPointerDown={
-                      isGround
-                        ? (e) => {
-                            if (e.button !== 0) return
-                            if (editMode !== 'edit') return // view mode: let it pan
-                            e.stopPropagation()
-                            const [wx, wz] = pointerWorld(e)
-                            setMovingStop({ id: s.id, gx: wx - sx, gz: wz - sz })
-                            svgRef.current?.setPointerCapture(e.pointerId)
-                          }
-                        : undefined
-                    }
-                  >
-                    {/* Outer ring */}
-                    <circle
-                      cx={toPx(sx)}
-                      cy={toPx(sz)}
-                      r={10}
-                      fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
-                      fillOpacity={0.18}
-                      stroke={isGround ? 'var(--accent)' : 'var(--text-3)'}
-                      strokeWidth={1.5}
-                    />
-                    {/* Inner filled dot */}
-                    <circle
-                      cx={toPx(sx)}
-                      cy={toPx(sz)}
-                      r={4}
-                      fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
-                    />
-                    {/* Stop number */}
-                    <text
-                      x={toPx(sx) + 13}
-                      y={toPx(sz)}
-                      dominantBaseline="middle"
-                      fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
-                      style={{ fontSize: 10, fontWeight: 700, pointerEvents: 'none' }}
+              {fPanoTour &&
+                panoTourStops.map((s, i) => {
+                  const [sx, sz] = s.position
+                  const isGround = !s.levelId
+                  return (
+                    <g
+                      key={s.id}
+                      style={{ cursor: isGround ? 'grab' : 'default' }}
+                      onPointerDown={
+                        isGround
+                          ? (e) => {
+                              if (e.button !== 0) return
+                              if (editMode !== 'edit') return // view mode: let it pan
+                              e.stopPropagation()
+                              const [wx, wz] = pointerWorld(e)
+                              setMovingStop({ id: s.id, gx: wx - sx, gz: wz - sz })
+                              svgRef.current?.setPointerCapture(e.pointerId)
+                            }
+                          : undefined
+                      }
                     >
-                      {i + 1}
-                    </text>
-                  </g>
-                )
-              })}
+                      {/* Outer ring */}
+                      <circle
+                        cx={toPx(sx)}
+                        cy={toPx(sz)}
+                        r={10}
+                        fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
+                        fillOpacity={0.18}
+                        stroke={isGround ? 'var(--accent)' : 'var(--text-3)'}
+                        strokeWidth={1.5}
+                      />
+                      {/* Inner filled dot */}
+                      <circle
+                        cx={toPx(sx)}
+                        cy={toPx(sz)}
+                        r={4}
+                        fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
+                      />
+                      {/* Stop number */}
+                      <text
+                        x={toPx(sx) + 13}
+                        y={toPx(sz)}
+                        dominantBaseline="middle"
+                        fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
+                        style={{ fontSize: 10, fontWeight: 700, pointerEvents: 'none' }}
+                      >
+                        {i + 1}
+                      </text>
+                    </g>
+                  )
+                })}
 
-            {/* Selected-wall handles: drag the body to move (connected corners
+              {/* Selected-wall handles: drag the body to move (connected corners
                 follow), drag an end handle to extend/shorten that end, or drag
                 the rotate handle (offset from the midpoint) to rotate. */}
-            {editMode === 'edit' &&
-              tool === 'select' &&
-              sel?.type === 'wall' &&
-              (() => {
-                const w = levelPlan.walls.find((x) => x.id === sel.id)
-                if (!w || w.locked) return null // locked: no reshape/rotate handles
-                const sx = toPx(w.start[0])
-                const sy = toPx(w.start[1])
-                const ex = toPx(w.end[0])
-                const ey = toPx(w.end[1])
-                const mpx = (sx + ex) / 2
-                const mpy = (sy + ey) / 2
-                const L = Math.hypot(ex - sx, ey - sy) || 1
-                const npx = -(ey - sy) / L
-                const npy = (ex - sx) / L
-                // Rotation ring radius — encircles the wall (like the furniture
-                // rotate gizmo), with a floor so short walls still get a grabbable ring.
-                const ringR = Math.max(L / 2 + 16, 30)
-                const startRotate = (e: React.PointerEvent) => {
-                  e.stopPropagation()
-                  const [gx, gz] = pointerWorld(e)
-                  const cx = (w.start[0] + w.end[0]) / 2
-                  const cz = (w.start[1] + w.end[1]) / 2
-                  setRotatingWall({
-                    id: w.id,
-                    cx,
-                    cz,
-                    s0: [...w.start],
-                    e0: [...w.end],
-                    a0: Math.atan2(gz - cz, gx - cx),
-                  })
-                  svgRef.current?.setPointerCapture(e.pointerId)
-                }
-                return (
-                  <>
-                    {(['start', 'end'] as const).map((which) => {
-                      const p = w[which]
-                      return (
-                        <circle
-                          key={which}
-                          cx={toPx(p[0])}
-                          cy={toPx(p[1])}
-                          r={6}
-                          fill="var(--accent)"
-                          stroke="var(--surface-solid)"
-                          strokeWidth={2}
-                          style={{ cursor: 'grab' }}
-                          onPointerDown={(e) => {
-                            e.stopPropagation()
-                            setMovingVertex({ id: w.id, which })
-                            svgRef.current?.setPointerCapture(e.pointerId)
-                          }}
-                        />
-                      )
-                    })}
-                    {/* Rotation ring — grab anywhere on the ring (or its knob) to
+              {editMode === 'edit' &&
+                tool === 'select' &&
+                sel?.type === 'wall' &&
+                (() => {
+                  const w = levelPlan.walls.find((x) => x.id === sel.id)
+                  if (!w || w.locked) return null // locked: no reshape/rotate handles
+                  const sx = toPx(w.start[0])
+                  const sy = toPx(w.start[1])
+                  const ex = toPx(w.end[0])
+                  const ey = toPx(w.end[1])
+                  const mpx = (sx + ex) / 2
+                  const mpy = (sy + ey) / 2
+                  const L = Math.hypot(ex - sx, ey - sy) || 1
+                  const npx = -(ey - sy) / L
+                  const npy = (ex - sx) / L
+                  // Rotation ring radius — encircles the wall (like the furniture
+                  // rotate gizmo), with a floor so short walls still get a grabbable ring.
+                  const ringR = Math.max(L / 2 + 16, 30)
+                  const startRotate = (e: React.PointerEvent) => {
+                    e.stopPropagation()
+                    const [gx, gz] = pointerWorld(e)
+                    const cx = (w.start[0] + w.end[0]) / 2
+                    const cz = (w.start[1] + w.end[1]) / 2
+                    setRotatingWall({
+                      id: w.id,
+                      cx,
+                      cz,
+                      s0: [...w.start],
+                      e0: [...w.end],
+                      a0: Math.atan2(gz - cz, gx - cx),
+                    })
+                    svgRef.current?.setPointerCapture(e.pointerId)
+                  }
+                  return (
+                    <>
+                      {(['start', 'end'] as const).map((which) => {
+                        const p = w[which]
+                        return (
+                          <circle
+                            key={which}
+                            cx={toPx(p[0])}
+                            cy={toPx(p[1])}
+                            r={6}
+                            fill="var(--accent)"
+                            stroke="var(--surface-solid)"
+                            strokeWidth={2}
+                            style={{ cursor: 'grab' }}
+                            onPointerDown={(e) => {
+                              e.stopPropagation()
+                              setMovingVertex({ id: w.id, which })
+                              svgRef.current?.setPointerCapture(e.pointerId)
+                            }}
+                          />
+                        )
+                      })}
+                      {/* Rotation ring — grab anywhere on the ring (or its knob) to
                         rotate the wall about its centre, like the furniture rotate
                         gizmo. A fat transparent ring makes the stroke easy to grab;
                         `pointerEvents: 'stroke'` keeps the ring's interior
                         click-through so elements inside stay selectable. */}
-                    <circle
-                      cx={mpx}
-                      cy={mpy}
-                      r={ringR}
-                      fill="none"
-                      stroke="transparent"
-                      strokeWidth={18}
-                      style={{ cursor: 'grab', pointerEvents: 'stroke' }}
-                      onPointerDown={startRotate}
-                    />
-                    <circle
-                      cx={mpx}
-                      cy={mpy}
-                      r={ringR}
-                      fill="none"
-                      stroke="var(--accent)"
-                      strokeOpacity={0.5}
-                      strokeWidth={2}
-                      strokeDasharray="4 4"
-                      style={{ pointerEvents: 'none' }}
-                    />
-                    <circle
-                      cx={mpx + npx * ringR}
-                      cy={mpy + npy * ringR}
-                      r={7}
-                      fill="var(--surface-solid)"
-                      stroke="var(--accent)"
-                      strokeWidth={2}
-                      style={{ cursor: 'grab' }}
-                      onPointerDown={startRotate}
-                    />
-                  </>
-                )
-              })()}
+                      <circle
+                        cx={mpx}
+                        cy={mpy}
+                        r={ringR}
+                        fill="none"
+                        stroke="transparent"
+                        strokeWidth={18}
+                        style={{ cursor: 'grab', pointerEvents: 'stroke' }}
+                        onPointerDown={startRotate}
+                      />
+                      <circle
+                        cx={mpx}
+                        cy={mpy}
+                        r={ringR}
+                        fill="none"
+                        stroke="var(--accent)"
+                        strokeOpacity={0.5}
+                        strokeWidth={2}
+                        strokeDasharray="4 4"
+                        style={{ pointerEvents: 'none' }}
+                      />
+                      <circle
+                        cx={mpx + npx * ringR}
+                        cy={mpy + npy * ringR}
+                        r={7}
+                        fill="var(--surface-solid)"
+                        stroke="var(--accent)"
+                        strokeWidth={2}
+                        style={{ cursor: 'grab' }}
+                        onPointerDown={startRotate}
+                      />
+                    </>
+                  )
+                })()}
 
-            {/* Openings — architectural symbols (door swing / window double-line) */}
-            {levelPlan.openings.map((o) => {
-              const wall = levelPlan.walls.find((w) => w.id === o.wallId)
-              if (!wall) return null
-              const len = wallLength(wall)
-              if (len === 0) return null
-              // Jamb endpoints + wall normal — arc-aware for curved walls.
-              let nx: number
-              let nz: number
-              let sPt: [number, number]
-              let ePt: [number, number]
-              if (isCurvedWall(wall)) {
-                const a0 = pointAtArcLength(wall, o.offset)
-                const a1 = pointAtArcLength(wall, o.offset + o.width)
-                const m = pointAtArcLength(wall, o.offset + o.width / 2)
-                nx = -Math.cos(m.angle)
-                nz = Math.sin(m.angle)
-                sPt = [a0.x, a0.z]
-                ePt = [a1.x, a1.z]
-              } else {
-                const ux = (wall.end[0] - wall.start[0]) / len
-                const uz = (wall.end[1] - wall.start[1]) / len
-                nx = -uz
-                nz = ux
-                sPt = [wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]
-                ePt = [
-                  wall.start[0] + ux * (o.offset + o.width),
-                  wall.start[1] + uz * (o.offset + o.width),
-                ]
-              }
-              const isSel = sel?.type === 'opening' && sel.id === o.id
-              // Stray opening (sitting off its wall's span) → red so it's flagged.
-              const color = isSel
-                ? 'var(--accent)'
-                : strays.openings.has(o.id)
-                  ? 'var(--danger)'
-                  : o.kind === 'door'
-                    ? 'var(--accent)'
-                    : 'var(--accent-soft-text)'
-              const strokeW = skeleton ? 2 : wall.thickness === 'external' ? 7 : 4
-              const onPD = (e: React.PointerEvent) => {
-                if (tool !== 'select') return
-                const willMove = beginElementDrag(e, isSel)
-                a.setPlanSelection({ type: 'opening', id: o.id })
-                if (!willMove) return // view / unselected-on-touch: let it pan
-                if (o.locked) return // locked openings select but don't move
-                // Start dragging the opening along its wall.
-                const [wx, wz] = pointerWorld(e)
-                useStore.getState().pushHistory()
-                setMovingOpening({ id: o.id, grab: alongWall(wall, wx, wz) - o.offset })
-              }
-              return (
-                <g
-                  key={o.id}
-                  data-opening={o.id}
-                  onPointerDown={onPD}
-                  style={{ cursor: editMode === 'edit' && !o.locked ? 'grab' : 'pointer' }}
-                >
-                  {/* Selected: translucent accent halo over the opening span so
+              {/* Openings — architectural symbols (door swing / window double-line) */}
+              {levelPlan.openings.map((o) => {
+                const wall = levelPlan.walls.find((w) => w.id === o.wallId)
+                if (!wall) return null
+                const len = wallLength(wall)
+                if (len === 0) return null
+                // Jamb endpoints + wall normal — arc-aware for curved walls.
+                let nx: number
+                let nz: number
+                let sPt: [number, number]
+                let ePt: [number, number]
+                if (isCurvedWall(wall)) {
+                  const a0 = pointAtArcLength(wall, o.offset)
+                  const a1 = pointAtArcLength(wall, o.offset + o.width)
+                  const m = pointAtArcLength(wall, o.offset + o.width / 2)
+                  nx = -Math.cos(m.angle)
+                  nz = Math.sin(m.angle)
+                  sPt = [a0.x, a0.z]
+                  ePt = [a1.x, a1.z]
+                } else {
+                  const ux = (wall.end[0] - wall.start[0]) / len
+                  const uz = (wall.end[1] - wall.start[1]) / len
+                  nx = -uz
+                  nz = ux
+                  sPt = [wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]
+                  ePt = [
+                    wall.start[0] + ux * (o.offset + o.width),
+                    wall.start[1] + uz * (o.offset + o.width),
+                  ]
+                }
+                const isSel = sel?.type === 'opening' && sel.id === o.id
+                // Stray opening (sitting off its wall's span) → red so it's flagged.
+                const color = isSel
+                  ? 'var(--accent)'
+                  : strays.openings.has(o.id)
+                    ? 'var(--danger)'
+                    : o.kind === 'door'
+                      ? 'var(--accent)'
+                      : 'var(--accent-soft-text)'
+                const strokeW = skeleton ? 2 : wall.thickness === 'external' ? 7 : 4
+                const onPD = (e: React.PointerEvent) => {
+                  if (tool !== 'select') return
+                  const willMove = beginElementDrag(e, isSel)
+                  a.setPlanSelection({ type: 'opening', id: o.id })
+                  if (!willMove) return // view / unselected-on-touch: let it pan
+                  if (o.locked) return // locked openings select but don't move
+                  // Start dragging the opening along its wall.
+                  const [wx, wz] = pointerWorld(e)
+                  useStore.getState().pushHistory()
+                  setMovingOpening({ id: o.id, grab: alongWall(wall, wx, wz) - o.offset })
+                }
+                return (
+                  <g
+                    key={o.id}
+                    data-opening={o.id}
+                    onPointerDown={onPD}
+                    style={{ cursor: editMode === 'edit' && !o.locked ? 'grab' : 'pointer' }}
+                  >
+                    {/* Selected: translucent accent halo over the opening span so
                       the selection is obvious (mirrors the furniture highlight). */}
-                  {isSel && (
+                    {isSel && (
+                      <line
+                        x1={toPx(sPt[0])}
+                        y1={toPx(sPt[1])}
+                        x2={toPx(ePt[0])}
+                        y2={toPx(ePt[1])}
+                        stroke="var(--accent)"
+                        strokeOpacity={0.4}
+                        strokeWidth={strokeW + 11}
+                        strokeLinecap="round"
+                        style={{ pointerEvents: 'none' }}
+                      />
+                    )}
+                    {/* Fat invisible hit target along the opening span so the whole
+                      door/window is easy to grab (drag it along the wall), not
+                      just its thin symbol lines. */}
                     <line
                       x1={toPx(sPt[0])}
                       y1={toPx(sPt[1])}
                       x2={toPx(ePt[0])}
                       y2={toPx(ePt[1])}
-                      stroke="var(--accent)"
-                      strokeOpacity={0.4}
-                      strokeWidth={strokeW + 11}
+                      stroke="transparent"
+                      strokeWidth={Math.max(16, strokeW + 10)}
                       strokeLinecap="round"
+                    />
+                    {/* Mask the wall under the opening */}
+                    <line
+                      x1={toPx(sPt[0])}
+                      y1={toPx(sPt[1])}
+                      x2={toPx(ePt[0])}
+                      y2={toPx(ePt[1])}
+                      stroke="var(--surface-solid)"
+                      strokeWidth={strokeW + 2}
+                      strokeLinecap="butt"
                       style={{ pointerEvents: 'none' }}
                     />
-                  )}
-                  {/* Fat invisible hit target along the opening span so the whole
-                      door/window is easy to grab (drag it along the wall), not
-                      just its thin symbol lines. */}
-                  <line
-                    x1={toPx(sPt[0])}
-                    y1={toPx(sPt[1])}
-                    x2={toPx(ePt[0])}
-                    y2={toPx(ePt[1])}
-                    stroke="transparent"
-                    strokeWidth={Math.max(16, strokeW + 10)}
-                    strokeLinecap="round"
-                  />
-                  {/* Mask the wall under the opening */}
-                  <line
-                    x1={toPx(sPt[0])}
-                    y1={toPx(sPt[1])}
-                    x2={toPx(ePt[0])}
-                    y2={toPx(ePt[1])}
-                    stroke="var(--surface-solid)"
-                    strokeWidth={strokeW + 2}
-                    strokeLinecap="butt"
-                    style={{ pointerEvents: 'none' }}
-                  />
-                  {o.kind === 'door' ? (
-                    (() => {
-                      // Leaf line (hinge → open tip) + swing arc, honouring the
-                      // door's configured hinge jamb + swing side.
-                      const g = doorSwingGeometry(wall, o)
-                      if (!g) return null
-                      return (
-                        <>
+                    {o.kind === 'door' ? (
+                      (() => {
+                        // Leaf line (hinge → open tip) + swing arc, honouring the
+                        // door's configured hinge jamb + swing side.
+                        const g = doorSwingGeometry(wall, o)
+                        if (!g) return null
+                        return (
+                          <>
+                            <line
+                              x1={toPx(g.hinge[0])}
+                              y1={toPx(g.hinge[1])}
+                              x2={toPx(g.leafTip[0])}
+                              y2={toPx(g.leafTip[1])}
+                              stroke={color}
+                              strokeWidth={isSel ? 3 : 2}
+                            />
+                            <path
+                              d={`M ${toPx(g.freeJamb[0])} ${toPx(g.freeJamb[1])} A ${o.width * PX} ${o.width * PX} 0 0 ${g.sweep} ${toPx(g.leafTip[0])} ${toPx(g.leafTip[1])}`}
+                              fill="none"
+                              stroke={color}
+                              strokeWidth={1}
+                              opacity={0.7}
+                            />
+                          </>
+                        )
+                      })()
+                    ) : (
+                      <>
+                        {/* Window double line across the opening */}
+                        {[-1, 1].map((s) => (
                           <line
-                            x1={toPx(g.hinge[0])}
-                            y1={toPx(g.hinge[1])}
-                            x2={toPx(g.leafTip[0])}
-                            y2={toPx(g.leafTip[1])}
+                            key={s}
+                            x1={toPx(sPt[0] + nx * 0.04 * s)}
+                            y1={toPx(sPt[1] + nz * 0.04 * s)}
+                            x2={toPx(ePt[0] + nx * 0.04 * s)}
+                            y2={toPx(ePt[1] + nz * 0.04 * s)}
                             stroke={color}
-                            strokeWidth={isSel ? 3 : 2}
+                            strokeWidth={isSel ? 2.5 : 1.5}
                           />
-                          <path
-                            d={`M ${toPx(g.freeJamb[0])} ${toPx(g.freeJamb[1])} A ${o.width * PX} ${o.width * PX} 0 0 ${g.sweep} ${toPx(g.leafTip[0])} ${toPx(g.leafTip[1])}`}
-                            fill="none"
-                            stroke={color}
-                            strokeWidth={1}
-                            opacity={0.7}
-                          />
-                        </>
-                      )
-                    })()
-                  ) : (
+                        ))}
+                      </>
+                    )}
+                  </g>
+                )
+              })}
+
+              {/* Scale calibration / dimension draft line */}
+              {draft && (tool === 'scale' || tool === 'dimension') && (
+                <line
+                  x1={toPx(draft.x0)}
+                  y1={toPx(draft.z0)}
+                  x2={toPx(draft.x)}
+                  y2={toPx(draft.z)}
+                  stroke="var(--accent)"
+                  strokeWidth={2}
+                  strokeDasharray="5 4"
+                />
+              )}
+
+              {/* Draft (in-progress draw) */}
+              {draft &&
+                tool === 'wall' &&
+                (() => {
+                  // When the user is typing in the numeric overlay, preview uses
+                  // that endpoint; otherwise the live drag position.
+                  const effX = numericPreviewEnd ? numericPreviewEnd[0] : draft.x
+                  const effZ = numericPreviewEnd ? numericPreviewEnd[1] : draft.z
+                  return (
                     <>
-                      {/* Window double line across the opening */}
-                      {[-1, 1].map((s) => (
-                        <line
-                          key={s}
-                          x1={toPx(sPt[0] + nx * 0.04 * s)}
-                          y1={toPx(sPt[1] + nz * 0.04 * s)}
-                          x2={toPx(ePt[0] + nx * 0.04 * s)}
-                          y2={toPx(ePt[1] + nz * 0.04 * s)}
-                          stroke={color}
-                          strokeWidth={isSel ? 2.5 : 1.5}
-                        />
-                      ))}
-                    </>
-                  )}
-                </g>
-              )
-            })}
-
-            {/* Scale calibration / dimension draft line */}
-            {draft && (tool === 'scale' || tool === 'dimension') && (
-              <line
-                x1={toPx(draft.x0)}
-                y1={toPx(draft.z0)}
-                x2={toPx(draft.x)}
-                y2={toPx(draft.z)}
-                stroke="var(--accent)"
-                strokeWidth={2}
-                strokeDasharray="5 4"
-              />
-            )}
-
-            {/* Draft (in-progress draw) */}
-            {draft &&
-              tool === 'wall' &&
-              (() => {
-                // When the user is typing in the numeric overlay, preview uses
-                // that endpoint; otherwise the live drag position.
-                const effX = numericPreviewEnd ? numericPreviewEnd[0] : draft.x
-                const effZ = numericPreviewEnd ? numericPreviewEnd[1] : draft.z
-                return (
-                  <>
-                    <line
-                      x1={toPx(draft.x0)}
-                      y1={toPx(draft.z0)}
-                      x2={toPx(effX)}
-                      y2={toPx(effZ)}
-                      stroke="var(--accent)"
-                      strokeWidth={4}
-                      strokeLinecap="round"
-                    />
-                    {/* Snap markers at the exact (grid/wall-snapped) endpoints, so the
+                      <line
+                        x1={toPx(draft.x0)}
+                        y1={toPx(draft.z0)}
+                        x2={toPx(effX)}
+                        y2={toPx(effZ)}
+                        stroke="var(--accent)"
+                        strokeWidth={4}
+                        strokeLinecap="round"
+                      />
+                      {/* Snap markers at the exact (grid/wall-snapped) endpoints, so the
                       point you're placing is visible even under a fingertip. The
                       filled dot is the start/anchor; the ring is the live end. */}
-                    <circle cx={toPx(draft.x0)} cy={toPx(draft.z0)} r={5} fill="var(--accent)" />
-                    <circle
-                      cx={toPx(effX)}
-                      cy={toPx(effZ)}
-                      r={5}
-                      fill="var(--surface-solid)"
-                      stroke="var(--accent)"
-                      strokeWidth={2}
-                    />
-                  </>
-                )
-              })()}
-            {draft && tool === 'room' && (
-              <rect
-                x={toPx(Math.min(draft.x0, draft.x))}
-                y={toPx(Math.min(draft.z0, draft.z))}
-                width={Math.abs(draft.x - draft.x0) * PX}
-                height={Math.abs(draft.z - draft.z0) * PX}
-                fill="var(--accent-soft)"
-                stroke="var(--accent)"
-              />
-            )}
-            {/* Rubber-band marquee (PARITY-PLAN-MARQUEE): a dashed accent box
+                      <circle cx={toPx(draft.x0)} cy={toPx(draft.z0)} r={5} fill="var(--accent)" />
+                      <circle
+                        cx={toPx(effX)}
+                        cy={toPx(effZ)}
+                        r={5}
+                        fill="var(--surface-solid)"
+                        stroke="var(--accent)"
+                        strokeWidth={2}
+                      />
+                    </>
+                  )
+                })()}
+              {draft && tool === 'room' && (
+                <rect
+                  x={toPx(Math.min(draft.x0, draft.x))}
+                  y={toPx(Math.min(draft.z0, draft.z))}
+                  width={Math.abs(draft.x - draft.x0) * PX}
+                  height={Math.abs(draft.z - draft.z0) * PX}
+                  fill="var(--accent-soft)"
+                  stroke="var(--accent)"
+                />
+              )}
+              {/* Rubber-band marquee (PARITY-PLAN-MARQUEE): a dashed accent box
                 while dragging on empty canvas; on release everything it crosses
                 is multi-selected. Pointer-transparent so it can't intercept the
                 drag it's tracking. */}
-            {marquee && (
-              <rect
-                x={toPx(Math.min(marquee.x0, marquee.x1))}
-                y={toPx(Math.min(marquee.z0, marquee.z1))}
-                width={Math.abs(marquee.x1 - marquee.x0) * PX}
-                height={Math.abs(marquee.z1 - marquee.z0) * PX}
-                fill="var(--accent-soft)"
-                fillOpacity={0.25}
-                stroke="var(--accent)"
-                strokeWidth={1}
-                strokeDasharray="4 3"
-                style={{ pointerEvents: 'none' }}
-              />
-            )}
-            {/* In-progress polygon room: placed edges + vertices; the first
-                vertex is ringed (click it, or press Enter, to close). */}
-            {tool === 'polyroom' && polyDraft.length > 0 && (
-              <g>
-                <polyline
-                  points={polyDraft.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
-                  fill="none"
+              {marquee && (
+                <rect
+                  x={toPx(Math.min(marquee.x0, marquee.x1))}
+                  y={toPx(Math.min(marquee.z0, marquee.z1))}
+                  width={Math.abs(marquee.x1 - marquee.x0) * PX}
+                  height={Math.abs(marquee.z1 - marquee.z0) * PX}
+                  fill="var(--accent-soft)"
+                  fillOpacity={0.25}
                   stroke="var(--accent)"
-                  strokeWidth={2}
-                  strokeDasharray="5 3"
+                  strokeWidth={1}
+                  strokeDasharray="4 3"
+                  style={{ pointerEvents: 'none' }}
                 />
-                {polyDraft.map(([x, z], i) => (
-                  <circle
-                    key={i}
-                    cx={toPx(x)}
-                    cy={toPx(z)}
-                    r={i === 0 ? 6 : 4}
-                    fill={i === 0 ? 'none' : 'var(--accent)'}
+              )}
+              {/* In-progress polygon room: placed edges + vertices; the first
+                vertex is ringed (click it, or press Enter, to close). */}
+              {tool === 'polyroom' && polyDraft.length > 0 && (
+                <g>
+                  <polyline
+                    points={polyDraft.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
+                    fill="none"
                     stroke="var(--accent)"
-                    strokeWidth={i === 0 ? 2 : 0}
+                    strokeWidth={2}
+                    strokeDasharray="5 3"
                   />
-                ))}
-              </g>
-            )}
-            {/* In-progress polyline markup: placed edges + vertices; the first
+                  {polyDraft.map(([x, z], i) => (
+                    <circle
+                      key={i}
+                      cx={toPx(x)}
+                      cy={toPx(z)}
+                      r={i === 0 ? 6 : 4}
+                      fill={i === 0 ? 'none' : 'var(--accent)'}
+                      stroke="var(--accent)"
+                      strokeWidth={i === 0 ? 2 : 0}
+                    />
+                  ))}
+                </g>
+              )}
+              {/* In-progress polyline markup: placed edges + vertices; the first
                 vertex is ringed (click it to close, or press Enter to finish
                 as an open path). */}
-            {tool === 'polyline' && polylineDraft.length > 0 && (
-              <g>
-                <polyline
-                  points={polylineDraft.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
-                  fill="none"
-                  stroke="var(--accent)"
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-                {polylineDraft.map(([x, z], i) => (
-                  <circle
-                    key={i}
-                    cx={toPx(x)}
-                    cy={toPx(z)}
-                    r={i === 0 ? 6 : 4}
-                    fill={i === 0 ? 'none' : 'var(--accent)'}
+              {tool === 'polyline' && polylineDraft.length > 0 && (
+                <g>
+                  <polyline
+                    points={polylineDraft.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
+                    fill="none"
                     stroke="var(--accent)"
-                    strokeWidth={i === 0 ? 2 : 0}
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
                   />
-                ))}
-              </g>
-            )}
-            {/* Live dimension readout while drawing — follows the cursor with a
+                  {polylineDraft.map(([x, z], i) => (
+                    <circle
+                      key={i}
+                      cx={toPx(x)}
+                      cy={toPx(z)}
+                      r={i === 0 ? 6 : 4}
+                      fill={i === 0 ? 'none' : 'var(--accent)'}
+                      stroke="var(--accent)"
+                      strokeWidth={i === 0 ? 2 : 0}
+                    />
+                  ))}
+                </g>
+              )}
+              {/* Live dimension readout while drawing — follows the cursor with a
                 readable halo so you always know the current length/size.
                 When numeric-entry is active, the overlay shows the numbers; this
                 SVG readout is suppressed to avoid duplication. */}
-            {draft && !(tool === 'wall' && fWallNumericEntry && !isMobile) && (
-              <text
-                x={toPx(draft.x) + 10}
-                y={toPx(draft.z) - 10}
-                fontSize={13}
-                fontWeight={700}
-                fill="var(--accent)"
-                className="select-none"
-                style={{ paintOrder: 'stroke', stroke: 'var(--surface-solid)', strokeWidth: 4 }}
-              >
-                {tool === 'wall'
-                  ? (() => {
-                      const len = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
-                      // Angle CCW from east, with +Z (screen-down) shown as a
-                      // downward bearing — negate dz so 0° is east, 90° is north.
-                      const raw = Math.round(
-                        (Math.atan2(-(draft.z - draft.z0), draft.x - draft.x0) * 180) / Math.PI,
-                      )
-                      const deg = ((raw % 360) + 360) % 360
-                      return `${formatLength(len, units)}  ${deg}°`
-                    })()
-                  : `${formatLength(Math.abs(draft.x - draft.x0), units)} × ${formatLength(Math.abs(draft.z - draft.z0), units)}  (${formatArea(Math.abs(draft.x - draft.x0) * Math.abs(draft.z - draft.z0), units)})`}
-              </text>
-            )}
-          </svg>
-        </div>
+              {draft && !(tool === 'wall' && fWallNumericEntry && !isMobile) && (
+                <text
+                  x={toPx(draft.x) + 10}
+                  y={toPx(draft.z) - 10}
+                  fontSize={13}
+                  fontWeight={700}
+                  fill="var(--accent)"
+                  className="select-none"
+                  style={{ paintOrder: 'stroke', stroke: 'var(--surface-solid)', strokeWidth: 4 }}
+                >
+                  {tool === 'wall'
+                    ? (() => {
+                        const len = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
+                        // Angle CCW from east, with +Z (screen-down) shown as a
+                        // downward bearing — negate dz so 0° is east, 90° is north.
+                        const raw = Math.round(
+                          (Math.atan2(-(draft.z - draft.z0), draft.x - draft.x0) * 180) / Math.PI,
+                        )
+                        const deg = ((raw % 360) + 360) % 360
+                        return `${formatLength(len, units)}  ${deg}°`
+                      })()
+                    : `${formatLength(Math.abs(draft.x - draft.x0), units)} × ${formatLength(Math.abs(draft.z - draft.z0), units)}  (${formatArea(Math.abs(draft.x - draft.x0) * Math.abs(draft.z - draft.z0), units)})`}
+                </text>
+              )}
+            </svg>
+          </div>
 
-        {/* Numeric wall-entry overlay — desktop only, Wall tool, while a draft is active.
+          {/* Numeric wall-entry overlay — desktop only, Wall tool, while a draft is active.
             Gated by the wallNumericEntry pro feature flag. The overlay is positioned at
             a fixed screen offset from the draft end (world → screen via SVG rect). */}
-        {fWallNumericEntry &&
-          !isMobile &&
-          tool === 'wall' &&
-          draft &&
-          (() => {
-            // Convert the draft end-point to screen px using the SVG's current rect.
-            const effX = numericPreviewEnd ? numericPreviewEnd[0] : draft.x
-            const effZ = numericPreviewEnd ? numericPreviewEnd[1] : draft.z
-            const svgEl = svgRef.current
-            const svgRect = svgEl?.getBoundingClientRect()
-            // SVG internal coords → screen: scale by (svgRect.width / W).
-            const scaleX = svgRect ? svgRect.width / W : 1
-            const scaleY = svgRect ? svgRect.height / H : 1
-            const screenX = svgRect ? svgRect.left + toPx(effX) * scaleX : toPx(effX)
-            const screenY = svgRect ? svgRect.top + toPx(effZ) * scaleY : toPx(effZ)
-            return (
-              <WallNumericEntry
-                start={[draft.x0, draft.z0]}
-                end={[effX, effZ]}
-                units={units}
-                endScreenPx={[screenX, screenY]}
-                onPreview={(pt) => setNumericPreviewEnd(pt)}
-                onCommit={(pt) => {
-                  const st = useStore.getState()
-                  if (Math.hypot(pt[0] - draft.x0, pt[1] - draft.z0) > 0.2) {
-                    const id = st.addWall(
-                      { start: [draft.x0, draft.z0], end: pt, thickness: wallType },
-                      levelId,
-                    )
-                    st.setPlanSelection({ type: 'wall', id })
-                    // Chain: next segment starts from the committed endpoint.
+          {fWallNumericEntry &&
+            !isMobile &&
+            tool === 'wall' &&
+            draft &&
+            (() => {
+              // Convert the draft end-point to screen px using the SVG's current rect.
+              const effX = numericPreviewEnd ? numericPreviewEnd[0] : draft.x
+              const effZ = numericPreviewEnd ? numericPreviewEnd[1] : draft.z
+              const svgEl = svgRef.current
+              const svgRect = svgEl?.getBoundingClientRect()
+              // SVG internal coords → screen: scale by (svgRect.width / W).
+              const scaleX = svgRect ? svgRect.width / W : 1
+              const scaleY = svgRect ? svgRect.height / H : 1
+              const screenX = svgRect ? svgRect.left + toPx(effX) * scaleX : toPx(effX)
+              const screenY = svgRect ? svgRect.top + toPx(effZ) * scaleY : toPx(effZ)
+              return (
+                <WallNumericEntry
+                  start={[draft.x0, draft.z0]}
+                  end={[effX, effZ]}
+                  units={units}
+                  endScreenPx={[screenX, screenY]}
+                  onPreview={(pt) => setNumericPreviewEnd(pt)}
+                  onCommit={(pt) => {
+                    const st = useStore.getState()
+                    if (Math.hypot(pt[0] - draft.x0, pt[1] - draft.z0) > 0.2) {
+                      const id = st.addWall(
+                        { start: [draft.x0, draft.z0], end: pt, thickness: wallType },
+                        levelId,
+                      )
+                      st.setPlanSelection({ type: 'wall', id })
+                      // Chain: next segment starts from the committed endpoint.
+                      setNumericPreviewEnd(null)
+                      setDraft({ x0: pt[0], z0: pt[1], x: pt[0], z: pt[1] })
+                    }
+                  }}
+                  onEscape={() => {
                     setNumericPreviewEnd(null)
-                    setDraft({ x0: pt[0], z0: pt[1], x: pt[0], z: pt[1] })
-                  }
-                }}
-                onEscape={() => {
-                  setNumericPreviewEnd(null)
-                  setDraft(null)
-                }}
-              />
-            )
-          })()}
-
+                    setDraft(null)
+                  }}
+                />
+              )
+            })()}
+        </div>
         {/* Inspector — edits hit the active storey's elements */}
         <PlanInspector levelId={levelId} />
       </div>

@@ -15,7 +15,12 @@ import {
 import { mirrorPlanRegion } from '../../floorplan/mirrorPlanRegion'
 import { DEFAULT_PLAN_ID } from '../../floorplan/planGeometry'
 import { type RescaleOptions, type RescaleSpec, rescalePlan } from '../../floorplan/rescalePlan'
-import { assignRoomOpeningNames, assignRoomWallNames } from '../../floorplan/roomWallNames'
+import {
+  assignRoomOpeningNames,
+  assignRoomWallNames,
+  newOpeningName,
+  newWallName,
+} from '../../floorplan/roomWallNames'
 import {
   type CeilingConfig,
   type FloorPlan,
@@ -503,9 +508,13 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     const id = planId('w')
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
-        walls: [...g.walls, { ...wall, id }],
-      })),
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
+        const full: PlanWall = { ...wall, id }
+        // Room-prefix the name (`<room> wall <unique id>`) when the new wall
+        // lands on a room's boundary; an explicit caller-supplied name wins.
+        const name = wall.name ?? newWallName(g.rooms, full)
+        return { walls: [...g.walls, name ? { ...full, name, nameAuto: true } : full] }
+      }),
     }))
     return id
   },
@@ -857,9 +866,13 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     const id = planId(opening.kind === 'door' ? 'door' : 'win')
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
-        openings: [...g.openings, { ...opening, id }],
-      })),
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
+        const full: PlanOpening = { ...opening, id }
+        // Room-prefix the name (`<room> door|window <unique id>`) from the room
+        // its host wall belongs to; an explicit caller-supplied name wins.
+        const name = opening.name ?? newOpeningName(g.rooms, g.walls, full)
+        return { openings: [...g.openings, name ? { ...full, name, nameAuto: true } : full] }
+      }),
     }))
     return id
   },
