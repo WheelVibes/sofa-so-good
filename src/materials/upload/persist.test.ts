@@ -8,10 +8,12 @@ import { useStore } from '../../state/store'
 // test env). The validator + normalizer are exercised in their own tests; here
 // we only care that persistUserMaterial writes the identity meta and that it
 // round-trips through hydrateUserAssets (BUG-003).
+const { normalizeSpy } = vi.hoisted(() => ({ normalizeSpy: vi.fn(async (f: File) => f) }))
 vi.mock('../convert/reencode', () => ({
-  normalizeTextureFile: async (f: File) => f,
+  normalizeTextureFile: normalizeSpy,
 }))
 vi.mock('./validate', () => ({
+  MAX_IMAGE_BYTES: 16 * 1024 * 1024,
   validateImageFile: async () => ({ ok: true, mime: 'image/webp', width: 8, height: 8 }),
 }))
 
@@ -26,11 +28,26 @@ describe('persistUserMaterial → hydrateUserAssets round-trip (BUG-003)', () =>
     for (const a of await IdbAssetStore.list()) await IdbAssetStore.delete(a.assetId)
     useStore.getState().setUserMaterials([])
     useStore.getState().setUserFurniture([])
+    normalizeSpy.mockClear()
     vi.stubGlobal('URL', {
       ...URL,
       createObjectURL: () => 'blob:test',
       revokeObjectURL: () => {},
     })
+  })
+
+  it('IO-001: rejects an oversized source file before decoding it', async () => {
+    // A 20 MB source (bytes need not be a real image — only `.size` is read).
+    const big = new File([new Uint8Array([1])], 'huge.tiff', { type: 'image/tiff' })
+    Object.defineProperty(big, 'size', { value: 20 * 1024 * 1024 })
+    const res = await persistUserMaterial(
+      { albedo: big },
+      { name: 'Big', category: 'wall', uvScale: [1, 1], swatch: '#ffffff' },
+    )
+    expect(res.ok).toBe(false)
+    if (!res.ok) expect(res.reason).toMatch(/too large/i)
+    // The expensive decode/re-encode must never run for an over-cap source.
+    expect(normalizeSpy).not.toHaveBeenCalled()
   })
 
   it('persists all identity fields so they survive a re-hydrate', async () => {

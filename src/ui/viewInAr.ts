@@ -36,32 +36,43 @@ export async function viewInAr(): Promise<void> {
       const { exportSceneUsdz } = await import('../export/sceneUsdz')
       const bytes = await exportSceneUsdz(exportRoot)
       const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'model/vnd.usdz+zip' }))
-      // AR Quick Look: the anchor must carry rel="ar" and contain an <img>.
-      const a = document.createElement('a')
-      a.rel = 'ar'
-      a.href = url
-      a.appendChild(document.createElement('img'))
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      setTimeout(() => URL.revokeObjectURL(url), 60_000)
-      notify.start({ title: 'Opening AR Quick Look…', kind: 'success' })
+      try {
+        // AR Quick Look: the anchor must carry rel="ar" and contain an <img>.
+        const a = document.createElement('a')
+        a.rel = 'ar'
+        a.href = url
+        a.appendChild(document.createElement('img'))
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        notify.start({ title: 'Opening AR Quick Look…', kind: 'success' })
+      } finally {
+        // Revoke in a `finally` so a click/DOM exception can't leak the USDZ
+        // blob for the page lifetime (IO-003). 60 s keeps it alive long enough
+        // for AR Quick Look to read it.
+        setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      }
     } else {
       const { exportGlb } = await import('../furniture/convert/toGlb')
       const buffer = await exportGlb(exportRoot)
       const url = URL.createObjectURL(new Blob([buffer], { type: 'model/gltf-binary' }))
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${safe}-ar.glb`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      setTimeout(() => URL.revokeObjectURL(url), 0)
-      notify.start({
-        title: 'AR model downloaded — open it on an AR-capable phone to place it in your room',
-        kind: 'info',
-        autoDismissMs: 5000,
-      })
+      try {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${safe}-ar.glb`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        notify.start({
+          title: 'AR model downloaded — open it on an AR-capable phone to place it in your room',
+          kind: 'info',
+          autoDismissMs: 5000,
+        })
+      } finally {
+        // Revoke in a `finally` so a click/DOM exception can't leak the GLB blob
+        // for the page lifetime (IO-003).
+        setTimeout(() => URL.revokeObjectURL(url), 0)
+      }
     }
   } catch {
     notify.start({ title: 'Could not start AR', kind: 'error' })

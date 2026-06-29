@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IO-001 + IO-003: import/export robustness (v0.8.0.32)
+
+- **IO-001** — `materials/upload/persist.ts` now gates the **source** file size against
+  `MAX_IMAGE_BYTES` (16 MB) **before** `normalizeTextureFile` runs the full decode + WebP re-encode,
+  so an oversized source (e.g. a 150 MB TIFF, or a 4096² EXR → ~268 MB of intermediate floats) is
+  rejected up front instead of after the allocation the cap exists to prevent. Unit-tested (a >16 MB
+  source is rejected and `normalizeTextureFile` is never called).
+- **IO-003** — `ui/openSceneExport.ts` + `ui/viewInAr.ts` now schedule `URL.revokeObjectURL` in a
+  `finally`, so an anchor `click()`/DOM exception can't leak the export/AR blob (a multi-MB GLB/USDZ)
+  for the page lifetime.
+
 ## MOD-MOBILETOOLBAR-SPLIT: split the monolithic mobile toolbar (v0.8.0.31)
 
 - Behaviour-preserving refactor of `ui/toolbar/MobileToolbar.tsx` (**1140 → 259 lines**): extracted

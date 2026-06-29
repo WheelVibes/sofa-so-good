@@ -9,14 +9,19 @@ export type SceneExportFormat = 'glb' | 'obj' | 'stl' | 'usdz'
 
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  // Revoke on the next tick so the click has consumed the blob URL.
-  setTimeout(() => URL.revokeObjectURL(url), 0)
+  try {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  } finally {
+    // Revoke on the next tick so the click has consumed the blob URL — in a
+    // `finally` so an anchor click/DOM exception can't leave the blob's bytes
+    // (a multi-MB GLB/USDZ) retained for the page lifetime (IO-003).
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
 }
 
 /**
