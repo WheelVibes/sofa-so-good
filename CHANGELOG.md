@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## SLOT-101/201/202: configurable-product core + two products (v0.8.0.43)
+
+- New pure `src/furniture/configurator/` foundation for the slot-based product configurator (base +
+  named anchor slots + per-slot options): `model.ts` (typed `ConfigurableProduct`/`ConfiguredSpec` +
+  `clampConfig` — the single never-throws defence, with mutex/requires/excludes constraints resolved
+  left-wins) and `compose.ts` (`transformPart` quarter-turn anchor transform + `composeProduct` →
+  assembled part list, unioned footprint, summed price, re-skin finish-target keys). Two authored
+  all-procedural products in `products.ts`: **mattress-on-frame** (mattress + optional headboard
+  slots) and **modular-sofa** (left/right-end + corner slots with mutex/excludes). 14 unit tests
+  (clamping, constraints, transform math, composition counts/bounds/price/finish-keys). Pure +
+  render-agnostic; the object-builder, save (`persistUserGlb` bake) and dialog land next. No UI wired
+  yet (nothing user-reachable ships ungated).
+
 ## IXT-SUITES: wall-art auto-styling interaction scenario (v0.8.0.42)
 
 - Added `scripts/scenarios/wall-art-decor-simple.json` — asserts the move-in furnished flat
