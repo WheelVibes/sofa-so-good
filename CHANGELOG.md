@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-AILAYOUT: inline key prompt + endpoint security gate for ⌘K auto-furnish (v0.8.0.39)
+
+- The ⌘K **AI auto-furnish** flow now prompts for + persists the BYO vision-model API key inline when
+  it's missing (mirroring the AI floor-plan-recognition flow) instead of dead-ending on an "add a key
+  first" error, and applies the same endpoint security gate (refuse plaintext; require explicit host
+  confirmation before the bearer key goes to an untrusted server) — reusing `getVisionKey`/
+  `setVisionKey`/`classifyVisionEndpoint`. With the engine + collision-safe placement + BYO-key
+  settings already shipped, this closes the practical AILAYOUT gap. (A dedicated brief panel and
+  routing through autoArrange were considered and dropped — the latter would override the AI's
+  intended positions, defeating the point.)
+
 ## F4: HDRI environment per side in the render-compare modal (v0.8.0.38)
 
 - The A/B render-compare modal now lets each side pick its own **HDRI environment** (or Procedural)

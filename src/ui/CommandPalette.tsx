@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { requestAutoLayout } from '../ai/autoLayoutAi'
-import { AiPlanError } from '../ai/floorPlanAi'
+import {
+  AiPlanError,
+  classifyVisionEndpoint,
+  getVisionKey,
+  getVisionUrl,
+  setVisionKey,
+} from '../ai/floorPlanAi'
 import type { FeatureFlag } from '../features/featureFlags'
 import { allPlanRooms } from '../floorplan/levels'
 import { useCatalog, useCatalogByCategory } from '../furniture/catalog'
@@ -292,6 +298,41 @@ export function CommandPalette() {
               submitLabel: 'Furnish',
             })
             if (brief == null) return
+            // Prompt for + persist the BYO vision-model key inline when missing
+            // (mirrors the AI floor-plan-recognition flow) instead of dead-ending
+            // on a "add a key first" error.
+            if (!getVisionKey()) {
+              const key =
+                (await st.promptText({
+                  title: 'AI auto-furnish',
+                  label: 'Vision-model API key (OpenAI-compatible, kept in this browser)',
+                  submitLabel: 'Continue',
+                })) || ''
+              if (!key) return
+              setVisionKey(key)
+            }
+            // Security gate: refuse a plaintext endpoint and require explicit
+            // host confirmation before the bearer key goes to an untrusted server.
+            const endpoint = classifyVisionEndpoint(getVisionUrl())
+            if (!endpoint.secure) {
+              st.notify.start({
+                title: 'Insecure AI endpoint',
+                message: endpoint.reason,
+                kind: 'error',
+              })
+              return
+            }
+            if (!endpoint.trusted) {
+              const ok = await st.promptText({
+                title: 'Send your API key to this server?',
+                label: `${endpoint.reason} Type the host name (${endpoint.host}) to confirm.`,
+                submitLabel: 'Send',
+              })
+              if ((ok || '').trim().toLowerCase() !== endpoint.host.toLowerCase()) {
+                st.notify.start({ title: 'AI auto-furnish cancelled', kind: 'info' })
+                return
+              }
+            }
             const rooms = allPlanRooms(st.floorPlan).map((r) => ({
               name: r.name,
               w: r.width,
