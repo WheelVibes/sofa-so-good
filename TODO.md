@@ -129,11 +129,9 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 > analytic Preetham sky backdrop into `scene.background` via `proceduralSky` flag; the HDR **IBL** steps
 > 6–7 remain open + real-GPU as they touch tuned lighting — plan in
 > `docs/research/2026-06-20-rd412-sky-ibl-plan.md`), **RD-408** hero props (Trailing-plant v0.2.0.51 + more
-> in progress), **PC2-CAM-DOF-LENS** (lens/DoF controls + flag + HQ/raster wiring shipped v0.2.0.53; the
-> bokeh-pixel quality pass is real-GPU-pending),
-> **PC2-CAM-DOF-LENS** / RD-421/422/410/423 (lens/DoF/VSM/render-clip — pixel passes), and the
-> catalog/DLC **server-proxy** items (CORS proxy, Kenney/Quaternius mirrors). Rows marked ✅ below
-> were struck this session.
+> in progress), **RD-421/422/410/423** (lens/DoF/VSM/render-clip — pixel passes), and the
+> catalog/DLC **server-proxy** items (CORS proxy, Kenney/Quaternius mirrors). (PC2-CAM-DOF-LENS lens/DoF
+> shipped v0.2.0.53 — `cameraDof` flag + `cameraLensSettings.ts` + Effects/path-trace + HqRenderModal.)
 
 ### 2026-06-20 follow-up audit (correctness/perf/dead-code) — `docs/research/2026-06-20-followup-audit.md`
 > A fresh audit confirmed these (recent modules sh3d/sky/DoF/furnitureMaterialLogic/floorPlanGeometry +
@@ -393,99 +391,3 @@ Deferred / follow-ups:
   site's plausible search-response shape — they need a real-network verification
   pass (run `npm run price-server` on a connected machine, confirm/fix the URL +
   response shapes, refresh the fixtures in `price-server.test.mjs`).
-
-## Pure-client improvement pipeline (2026-06-19 audit)
-
-Refreshed backlog of high-value items that are **100% client-side** — no real GPU, no
-network/backend dependency — so each is implementable AND verifiable headlessly in this
-sandbox. Audited against `CHANGELOG.md` (latest: edge bevels, set-dressing decor pack,
-auto-styling, drawing-set callouts, quote templates, parametric kitchen-run) +
-`FEATURE_PARITY.md` + `FEATURE_FLAGS`; nothing here duplicates shipped work. Prioritised:
-correctness/reliability first, then QOL/UX, then polish. Effort: S/M/L. Each item names the
-files/areas it touches and the parity gap it fills.
-
-### Correctness / reliability
-- **PC-ARRAY-GAP** (M) — The array tool (`InspectorPanel.tsx` `duplicateRow`,
-  `arrayPlacement.ts` `arrayOffsets`) only emits a single **row to the right** at a hardcoded
-  step (`w + 0.12`, axis `'right'`) and silently drops any copy that fails `canPlace` — so a
-  user asking for 6 chairs can get 3 with no feedback. Surface a count/got toast and expose the
-  already-supported `axis` ('right'/'forward') + a spacing field; also add a 2D **grid array**
-  (rows × cols) since `arrayOffsets` is row-only. Touches `furniture/arrayPlacement.ts`,
-  `ui/inspector/InspectorPanel.tsx`. Gap: Coohom/SH3D step-and-repeat; current row-only tool is
-  a partial. Verify via unit tests on offsets + a scenario asserting placed-count.
-- **PC-DISTRIBUTE-OVERLAP** (S) — `distributeEvenGaps` (`layout/alignDistribute.ts`) computes
-  `gap = (hi - lo - totalWidth)/(n-1)`; when the selection's combined footprint exceeds the
-  span the gap goes **negative** and items are packed into overlaps with no guard. Clamp to ≥0
-  (or fall back to even-centre spacing) and add a "won't fit" signal. Touches
-  `layout/alignDistribute.ts` (+ test). Reliability/edge-case bug found during audit.
-- **PC-MEASURE-UNITS** (S) — Confirm the tape/measure overlay (`ui/MeasurementOverlay.tsx`,
-  `state/slices/measurementsSlice.ts`) renders its distance label through `formatLength(…, units)`
-  (imperial support exists in `utils/measurement.ts` but several overlays may hardcode metres).
-  Audit every distance/area readout (measure, drag HUD, wall dimension, room labels) for the unit
-  toggle; fix any that bypass it. Touches `ui/MeasurementOverlay.tsx`, `ui/DragHud.tsx`,
-  `ui/floorplan/editor/WallDimension.tsx`. Gap: SH3D metric+imperial everywhere.
-
-### High-value QOL / UX
-- **PC-WALL-NUMERIC** (M) — Live numeric **length + angle entry while drawing a wall** in the 2D
-  editor (type "3.6" + Tab → angle, commit). FEATURE_PARITY flags this as a partial vs SH3D.
-  Touches `ui/floorplan/FloorPlanEditor.tsx` (draw state), a small numeric-entry overlay, and the
-  wall-commit path. Pure geometry + DOM input; verify via scenario typing a length.
-- **PC-ARRAY-RADIAL** (M) — Add a **radial/polar array** (N copies around a centre at radius R,
-  angular step) alongside the linear/grid array — common for dining chairs around a round table.
-  Pure trig in `furniture/arrayPlacement.ts` (`radialOffsets`) + inspector controls; collision-
-  checked per copy. Gap: Coohom/CAD-style array tooling. Unit-test the offsets.
-- **PC-IES-LIGHT** (M) — Parse `.ies` photometric files into a spotlight intensity/cone profile
-  for placed light fixtures (no GPU needed for the parse + cone-angle/intensity mapping; the
-  visual is just standard three lights). FEATURE_PARITY lists IES import as a client-feasible
-  Coohom gap. New `scene/lighting/iesParse.ts` (pure, unit-testable) + a fixture upload in the
-  light inspector; gate behind a new `iesLights` pro flag. Verify parse with a sample `.ies`.
-- **PC-GUIDE-SPACING** (S/M) — Extend `AlignmentGuides.tsx` (currently constant-X/Z centre lines)
-  with **equal-spacing badges**: when the dragged item sits between two others, draw the two gaps
-  and flag when they're equal (smart-guide "equal distance" cue). Pure 2D math from existing
-  footprint OBBs; touches `scene/AlignmentGuides.tsx` + the drag-guide producer in
-  `scene/DragController.tsx`. Gap: Figma/Coohom-grade smart guides. Verify via screenshot.
-- **PC-NUDGE-UNDO** (S) — Audit that every furniture **nudge/array/align/distribute/mirror**
-  pushes exactly one coalesced undo entry (rapid arrow-key nudges should collapse, not flood the
-  history). Check `layout/selectionActions.ts` + `state/slices/historySlice.ts` interplay and add
-  nudge-coalescing if missing. Reliability/QOL; unit-test the history depth after a nudge burst.
-- **PC-CATALOG-FAVOURITES** (S) — A persisted **favourites/star** list in the catalog (separate
-  from `recentSlice`) so users can pin go-to pieces. Touches `ui/catalog/*`, a small
-  `favouritesSlice` + save schema field; `simple`-tier. Gap: every consumer planner has favourites;
-  we only have "recent". Unit-test the slice + persistence.
-- **PC-ROOM-AREA-ONPLAN** (S) — Verify the 2D plan shows each room's **live area + perimeter**
-  label (SH3D shows area on-plan); if only dimensions show, add area via `roomCentroid.ts` +
-  `floorplan/roomDetect.ts` polygon area, respecting the unit toggle. Touches
-  `ui/floorplan/editor/*` room-label rendering. Quick, high-perceived-value.
-
-### Aesthetic / polish
-- **PC-RZ6-SEAMS** (M) — Carry the open RZ6 item: procedural **upholstery seam stitching +
-  seeded fabric-wrinkle** normal variation on sofas/chairs (pure procedural geometry/normal map,
-  no GPU tier needed for the base read on Performance). Touches `furniture/primitives/Sofa*.tsx`
-  + a shared seam helper in `materials/`. Gap: photoreal soft goods. Verify via screenshot.
-- **PC-DRAG-DIM** (S) — While dragging furniture, show a **live distance-to-nearest-wall** readout
-  (the FFE/clearance value) in `DragHud.tsx`, not just position — turns the existing clearance
-  data into an at-a-glance placement aid. Pure DOM overlay off existing collision distances.
-- **PC-EMPTY-STATES** (S) — Polish empty/edge states across panels (no saved views, empty BOQ, no
-  comments, empty room): consistent illustrative empty-state copy + a primary CTA, instead of blank
-  panels. Touches the various `*Panel.tsx`. Aesthetic/onboarding polish; verify Simple + Pro modes.
-
-## Pure-client improvement pipeline (2026-06-19 refresh #2)
-
-Second refreshed backlog of high-value items that are **100% client-side** — no real GPU, no
-network/backend dependency — so each is implementable AND headlessly verifiable in this sandbox
-(SwiftShader WebGL works; a real GPU does not). Audited against `CHANGELOG.md` (top ~25: edge
-bevels, set-dressing decor, auto-styling, drawing-set callouts, quote templates, parametric
-kitchen-run, distribute-overlap fix, measure-unit audit, catalog favourites, numeric wall entry,
-radial/linear/grid arrays, room area+perimeter labels, drag-HUD distance, undo coalescing,
-equal-spacing guides, upholstery seams, shared EmptyState), plus `FEATURE_PARITY.md`,
-`PHOTOREALISM.md`, and `FEATURE_FLAGS`. The prior audit's items (`## Pure-client improvement
-pipeline (2026-06-19 audit)`) are all shipped except **PC-IES-LIGHT** (still in flight — do not
-re-take here). Nothing below duplicates shipped or open work. Prioritised: correctness/reliability
-→ photorealism levers → QOL/UX → polish. Effort: S/M/L. Each names the files/areas + the parity gap.
-
-### High-value QOL / UX
-- **PC2-CAM-DOF-LENS** (M) — Add **lens type + depth-of-field** controls to the render/snapshot camera
-  (focal length / f-stop / focus distance). DoF partly exists in the HQ path tracer (`PhysicalCamera`);
-  expose it as UI and apply a cheap post DoF on the High/Max raster tiers too. Touches the render-
-  settings UI + `scene/pathtrace/*` + `scene/Effects.tsx`. Gap: SH3D fisheye/DoF lens row in
-  `FEATURE_PARITY`. Wiring is headless-verifiable; the pixel pass is real-GPU-pending (mark it).
