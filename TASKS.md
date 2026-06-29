@@ -19,14 +19,16 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   the inert WebXR entry + provider already ship.
 
 ## Open — client-doable
-- [ ] IO-pipeline robustness (`…import-export-pipeline-audit.md`): IO-002 (check converted GLB size
-  before the optimize/LOD pass) + IO-006 (zip-bomb guard on the decompressed usdz/3mf payload).
+- [ ] IO-006 only (`…import-export-pipeline-audit.md`): zip-bomb guard on the **decompressed**
+  usdz/3mf payload — needs a zip central-directory parser to bound the inflated size (a blunt lower
+  on-disk cap would regress legitimate large files), so deferred until that parser exists.
   (Shipped: IO-001 + IO-003 v0.8.0.32; IO-009 + IO-010 v0.8.0.33; IO-008 v0.8.0.34; IO-004 + IO-005
-  v0.8.0.36; IO-007 NaN + IO-011 CSV injection already handled.)
-- [ ] SLOT configurator fast-follows: SLOT-203 (GLB-sub-asset options — load + per-slot
-  `listFinishTargets` namespacing) + SLOT-204 (re-editable placed items via `props['__slotSpec']`).
-  (Core shipped v0.8.0.43–.45: model/compose/products/build/bake/flag/dialog — mattress-on-frame +
-  modular sofa, ⌘K "Configure a product", GPU-verified. See `src/furniture/configurator/CLAUDE.md`.)
+  v0.8.0.36; IO-002 v0.8.0.49; IO-007 NaN + IO-011 CSV injection already handled.)
+- [ ] SLOT-203 (configurator GLB-sub-asset options): needs a **bundled CC0 GLB** asset + the load
+  path (load → reparent at the slot anchor → per-slot `listFinishTargets` namespacing). The v1
+  products are all-procedural, so this is gated on sourcing a suitable CC0 GLB option to bundle.
+  (Rest of SLOT shipped v0.8.0.43–.48: model/compose/products/build/bake/flag/dialog/docs +
+  re-editable products (204). See `src/furniture/configurator/CLAUDE.md`.)
 - [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces, GLB-designer
   re-rung, crown-molding, ceilingDesign (needs walk-mode look-up), livePrices, first-run re-rungs,
   backdrop-upload + furnlight re-rungs. (Added this line: HDRI environment lighting, configurable products →

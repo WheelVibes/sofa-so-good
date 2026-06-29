@@ -7,6 +7,7 @@ import type { FurnitureCategory, UserGltfDef } from '../types'
 import { hashFile } from './hashFile'
 import { inferCollisionFlags } from './inferFlags'
 import { persistUserGlb } from './persist'
+import { MAX_GLB_BYTES } from './validate'
 
 /** How many built defs to commit to the store per write during a bulk import.
  *  One catalog rebuild per batch instead of per file — keeps the main thread
@@ -92,6 +93,18 @@ async function prepareGlb(
   }
   const buf = new Uint8Array(await glb.arrayBuffer())
   const { data, lods } = await runOptimize(buf, { ktx2: opts.ktx2 }, { lodTiers: opts.lodTiers })
+  // IO-002: reject an over-limit result against the GLB ceiling with a CLEAR,
+  // conversion-aware message — instead of letting `persistUserGlb`'s generic
+  // "file too large" fire after the full pipeline. We check the POST-optimize
+  // size (the real size that would be stored), so a compressible model that
+  // shrinks under the cap is never wrongly rejected.
+  if (data.byteLength > MAX_GLB_BYTES) {
+    const mb = (data.byteLength / 1_048_576).toFixed(1)
+    const cap = MAX_GLB_BYTES / 1_048_576
+    throw new Error(
+      `Converted model is ${mb} MB — over the ${cap} MB limit even after optimization. Try a simpler model or fewer/smaller textures.`,
+    )
+  }
   const name = glb.name.replace(/\.[a-z0-9]+$/i, '.glb')
   const ab = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
   return { file: new File([ab], name, { type: 'model/gltf-binary' }), lods }

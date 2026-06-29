@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IO-002: clear over-limit message for converted models (v0.8.0.49)
+
+- `bulkImport.prepareGlb` now checks the **post-optimize** GLB size against `MAX_GLB_BYTES` and throws
+  a clear, conversion-aware message ("Converted model is X MB — over the 25 MB limit even after
+  optimization…") instead of letting `persistUserGlb`'s generic "file too large" fire at the end of
+  the pipeline. Checking the final (post-shrink) size means a compressible model that optimizes under
+  the cap is never wrongly rejected. tsc + the bulk-import suite green (no happy-path regression).
+
 ## SLOT-204: re-editable configured products (v0.8.0.48)
 
 - A baked configured product now carries its recipe (`UserGltfDef.slotSpec` — JSON `ConfiguredSpec`)
