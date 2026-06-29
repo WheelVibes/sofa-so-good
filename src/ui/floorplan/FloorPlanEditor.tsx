@@ -2221,10 +2221,10 @@ export function FloorPlanEditor() {
             `right:12` lands on the visible canvas edge, not past the wide SVG. */}
         <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
           {/* Compass + dynamic scale bar, each absolutely pinned to the canvas
-              column's corner. The scale bar sits at the very corner (bottom-right
-              on desktop / top-right on mobile to clear the inspector sheet) and the
-              compass sits just above/below it — two explicit offsets rather than a
-              flex stack so they never collapse onto each other. */}
+              column's bottom-right corner (desktop AND mobile — on mobile the
+              expanded inspector bottom-sheet may cover them, which is acceptable).
+              Two explicit offsets rather than a flex stack so they never collapse
+              onto each other: scale bar at the very corner, compass just above it. */}
           {fCompass ? (
             <>
               <div
@@ -2232,7 +2232,7 @@ export function FloorPlanEditor() {
                 style={{
                   position: 'absolute',
                   right: 12,
-                  ...(isMobile ? { top: 12 } : { bottom: 56 }),
+                  bottom: 56,
                   zIndex: 5,
                   width: 52,
                   height: 52,
@@ -2277,7 +2277,7 @@ export function FloorPlanEditor() {
                     style={{
                       position: 'absolute',
                       right: 12,
-                      ...(isMobile ? { top: 74 } : { bottom: 12 }),
+                      bottom: 12,
                       zIndex: 5,
                       padding: '4px 8px',
                       display: 'flex',

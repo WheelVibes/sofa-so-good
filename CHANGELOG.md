@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Mobile compass/scale-bar to bottom-right + multi-select verification (v0.8.0.5)
+
+- **Mobile compass + scale bar moved to the canvas bottom-right** (same as desktop) — the
+  expanded inspector bottom-sheet may overlap them, which is acceptable.
+- Added `scripts/scenarios/plan-multiselect-transform.json` — a headless journey that shows
+  furniture, selects two items, group-drags them into open floor, then rotates them via the ring
+  handle, asserting both move/rotate by an identical delta. Verified: multi-drag `Δ=[0,9.35]` on
+  both, multi-rotate `Δ=-1.8326 rad` on both (equal), with collision rejection all-or-nothing.
+
 ## 2D plan multi-select transforms + unified handles (v0.8.0.3)
 
 Brings the 2D floor-plan editor up to the 3D editor's multi-select parity (Canva-style):
