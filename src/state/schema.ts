@@ -307,6 +307,8 @@ export const FloorPlanZ = z.object({
   dimensions: z
     .array(z.object({ id: z.string(), a: Vec2Z, b: Vec2Z, levelId: z.string().optional() }))
     .optional(),
+  // Persistent ruler guides (PARITY-PLAN-GUIDES). Optional + additive — absent → [].
+  guides: z.array(z.object({ axis: z.enum(['x', 'z']), pos: z.number() })).optional(),
   // Free-form polyline markup (PARITY-POLYLINE). Optional + additive — no
   // schema-version bump; absent → []. `points` MUST round-trip or the polyline
   // silently vanishes on reload.

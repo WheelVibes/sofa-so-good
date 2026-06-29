@@ -533,6 +533,38 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Persistent ruler guides (PARITY-PLAN-GUIDES): axis-aligned reference lines
+  // points snap to in the 2D editor. Pure geometry → prod-safe; analytical
+  // authoring aid → pro tier (hidden in Simple).
+  planGuides: {
+    label: 'Plan guides',
+    description: 'Pin ruler guide lines that the 2D editor snaps to',
+    default: true,
+    tier: 'pro',
+  },
+  // Round/bevel a wall corner (PARITY-CORNER-FILLET): trims the two walls meeting
+  // at a vertex to tangent points and inserts a curved connecting wall. Pro tier.
+  cornerFillet: {
+    label: 'Round corner',
+    description: 'Fillet (round) or bevel a corner where two walls meet',
+    default: true,
+    tier: 'pro',
+  },
+  // Chained dimension strings (PARITY-DIM-CHAIN): a row of consecutive dimensions
+  // along a room/wall baseline. Pro tier (analytical drawing aid).
+  dimensionChain: {
+    label: 'Chain dimensions',
+    description: 'Generate a row of consecutive dimension strings along a room edge',
+    default: true,
+    tier: 'pro',
+  },
+  // Suggest/apply minimal nudges to clear narrow walkway gaps (GAP-SUGGEST). Pro.
+  gapSuggest: {
+    label: 'Fix narrow gaps',
+    description: 'Nudge furniture to clear flagged narrow walkway gaps',
+    default: true,
+    tier: 'pro',
+  },
   // Configurable wall thickness: a plan-wide default (external/internal) plus
   // per-wall metre overrides, edited in the 2D plan inspector. Pure geometry →
   // prod-safe. Surfaced in the default experience (curated launch set) → simple tier.

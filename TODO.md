@@ -22,17 +22,11 @@ PARITY-STAMP-PLACE, PARITY-SCATTER-ROOM, BUG-PATHARRAY-LOOP (the no-polyline inf
 > (`FloorPlanEditor.tsx`, `PlanInspector.tsx`, `MobileToolbar.tsx`) can't be safely delegated — a
 > b0371d9-based refactor would drop this session's additions on merge. **Deferred until the base
 > resets** (next PR merge to `main`) or to careful inline work: **MOD-PLANINSPECTOR-SPLIT**,
-> **MOD-MOBILETOOLBAR-SPLIT**, and the FloorPlanEditor-touching parts of **PARITY-PLAN-GUIDES**.
+> **MOD-MOBILETOOLBAR-SPLIT**.
 > (**PARITY-PLAN-VERTEX-ANGLESNAP** was done **inline** by the orchestrator, v0.3.0.42 — a small
 > localized edit only the orchestrator could make, since worktree agents fork pre-churn.)
 
 ### Correctness / reliability (highest priority)
-### 2D plan editor ergonomics (high value, pure geometry)
-- [ ] **PARITY-PLAN-GUIDES** (MED/S, `cg-planguides`) — no persistent guide/reference-line type
-  (only transient smart guides). Add `plan.guides:{axis:'x'|'z',pos}[]` + pure
-  `snapToGuides(point,guides,threshold)`, persisted in schema. Verify: unit — point near vertical guide
-  snaps X only, intersection snaps both; scenario round-trips guides through serialize.
-
 ### Layout productivity
 ### Data / export
 ### Maintainability (debt — CLAUDE.md "no monolithic files")
@@ -62,15 +56,7 @@ PARITY-GRID-SNAP (Wave 6, v0.3.0.29–.31), PARITY-THERMAL (Wave 7, v0.3.0.32).
 **DROPPED — PARITY-SCENE-JSON-EXPORT VERIFIED redundant** (ShareModal "Export file" /
 `exportDesignToFile` already downloads `<name>.sofa.json` with a round-trip test).
 
-### Clean-delegate pure core (UI wiring is inline-only → split; defer the editor trigger to a base reset)
-- [ ] **PARITY-CORNER-FILLET** (MED/M, `cg-cornerfillet`) — `floorplan/cornerFillet.ts` round/bevel a
-  wall corner (reuses `wallArc`). Pure core clean-delegate; on-canvas handle inline-only (split).
-- [ ] **PARITY-DIM-CHAIN** (MED/M, `cg-dimchain`) — `floorplan/dimensionChain.ts` chained dimension
-  strings. Pure core clean-delegate; editor dimension-tool wiring inline-only (split).
-- [ ] **PARITY-PLAN-GUIDES** pure core (MED/S, `cg-planguides`) — `floorplan/snapToGuides.ts` +
-  `plan.guides[]` schema field (additive). Editor snapping integration inline-only (split).
 ### Inline-only / needs base-reset (touch churned files — defer to next `main` merge)
-- [ ] **PARITY-PLAN-GUIDES** editor wiring · **PARITY-CORNER-FILLET / -ROOM-INSET / -DIM-CHAIN** UI triggers.
 - [ ] **MOD-PLANINSPECTOR-SPLIT** (`cg-planinspector`, 1348 ln) · **MOD-MOBILETOOLBAR-SPLIT**
   (`cg-mobiletoolbar`, 1204 ln) — behaviour-preserving splits; can't be stale-base-refactored safely.
 
@@ -501,32 +487,9 @@ pipeline (2026-06-19 audit)`) are all shipped except **PC-IES-LIGHT** (still in 
 re-take here). Nothing below duplicates shipped or open work. Prioritised: correctness/reliability
 → photorealism levers → QOL/UX → polish. Effort: S/M/L. Each names the files/areas + the parity gap.
 
-### Correctness / reliability (do first)
-- **PC2-ANISO-MAX** (S) — Texture anisotropy is **hardcoded** (`furnitureMaterials.ts` line ~53
-  `t.anisotropy = 4`; `materials/cache.ts` line ~60 `tex.anisotropy = 8`) instead of clamped to the
-  device cap via `renderer.capabilities.getMaxAnisotropy()` (commonly 16). Grazing-angle floors/wood
-  read blurry. Thread the renderer's max through a shared helper and clamp per texture. Touches
-  `materials/furnitureMaterials.ts`, `materials/cache.ts` (+ a small pure clamp test). Photoreal
-  sharpness win at near-zero cost; reliability because the value silently ignores the GPU cap.
-
 ### High-value QOL / UX
-- **PC2-MULTI-DUP-PASTE** (S) — Copy/paste + duplicate-in-place for the current selection with a small
-  offset (Coohom/SH3D Ctrl+C/Ctrl+V). Verify the existing duplicate path handles a multi-selection and
-  pushes one coalesced undo entry; add clipboard-style paste if missing. Touches
-  `layout/selectionActions.ts`, the keymap/⌘K commands. QOL parity; unit-test history depth + count.
 - **PC2-CAM-DOF-LENS** (M) — Add **lens type + depth-of-field** controls to the render/snapshot camera
   (focal length / f-stop / focus distance). DoF partly exists in the HQ path tracer (`PhysicalCamera`);
   expose it as UI and apply a cheap post DoF on the High/Max raster tiers too. Touches the render-
   settings UI + `scene/pathtrace/*` + `scene/Effects.tsx`. Gap: SH3D fisheye/DoF lens row in
   `FEATURE_PARITY`. Wiring is headless-verifiable; the pixel pass is real-GPU-pending (mark it).
-
-### Polish
-- **PC2-PLAN-FURN-ICONS** (M) — The 2D plan draws furniture as plain footprint rectangles; SH3D draws
-  recognisable top-down **furniture icons** (bed, sofa, toilet, sink…). Add simple per-category SVG
-  glyphs keyed off the furniture role/category so the plan reads at a glance. Touches the 2D plan
-  furniture renderer (`ui/floorplan/editor/*`, `ui/floorplan/planLabels.ts`) + a category→glyph map.
-  Pure SVG; verify via plan-PNG screenshot. Gap: SH3D plan legibility.
-- **PC2-FAVOURITE-MATERIALS** (S) — Extend the shipped catalog-favourites pattern to **finishes/
-  materials** (star a finish, a "Favourites" group in the material picker), so users can pin go-to
-  surfaces. Reuse the favourites slice/schema. Touches `ui/` material-picker components + the
-  favourites slice. QOL parity with the model favourites just shipped; unit-test the slice path.

@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## 2D plan-editor parity: ruler guides, chained dimensions, corner fillet/bevel (v0.8.0.13)
+
+Three SweetHome3D/Coohom-style authoring aids for the 2D floor-plan editor, all
+pro-tier (hidden in Simple), surfaced in the **Plan ▾** menu (desktop + mobile Tools):
+
+- **PARITY-PLAN-GUIDES** — persistent ruler guides (`plan.guides:{axis,pos}[]`,
+  additive schema). Pure `floorplan/snapToGuides.ts` snaps points per-axis within a
+  threshold; the editor applies it in `pointerGrid` (a guide beats the grid) and renders
+  dashed accent lines (click to remove). Store: `addPlanGuide`/`removePlanGuide`/
+  `clearPlanGuides`. `planGuides` flag.
+- **PARITY-DIM-CHAIN** — `floorplan/dimensionChain.ts` (chain/running/total). Store
+  `addChainDimensions(levelId)` drops a row of dimension strings along the level's bottom +
+  left baselines, one per wall-vertex position (ground dims untagged). `dimensionChain` flag.
+- **PARITY-CORNER-FILLET** — `floorplan/cornerFillet.ts` (tangent/bisector geometry) +
+  `floorplan/filletWalls.ts` `applyWallFillet` trims two connected walls to their tangent/
+  setback points and inserts a curved (round) or straight (bevel) connecting wall. Store
+  `filletCorner`; editor shows **Round/Bevel corner** when exactly two connected walls are
+  selected. `cornerFillet` flag.
+
+55 pure-geometry tests + slice/flag tests (both Simple & Pro). GPU-verified in the editor
+(rounded corner + chain dimension strings render correctly). Also adds Vite dev `watch.ignored`
+for large non-app trees (ikea/dataset/graphify-out/python) to stay under the inotify limit.
+
 ## Harness: real-GPU verification mode + backlog reconciliation (v0.8.0.12)
 
 - **`SHOT_GPU=1`** in `scripts/shot.mjs` routes WebGL to the **real hardware GPU**
