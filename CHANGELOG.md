@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## docs: prune shipped/on-parity items from FEATURE_PARITY.md + PHOTOREALISM.md (v0.8.0.28)
+
+- Per user instruction, removed all shipped/at-parity rows from the living parity matrices.
+  **FEATURE_PARITY.md:** deleted the shipped gap-table rows (walkthrough video, AR, 8K render,
+  IES, DoF lens, curved/slanting walls, sloping ceilings, baseboards, label rotation, batch
+  render, scene export) and folded them into the "Already at parity (✅)" summaries; SH3D import
+  row updated to partial (`.sh3d` ships, `.sh3f`/legacy open); roadmap trimmed to open gaps only.
+  **PHOTOREALISM.md:** moved PHOTO-HDRI + PHOTO-KTX2 + PHOTO-PBR-MAPS(core) to the Shipped
+  section, refreshed the stale pipeline-audit lines (HDRI IBL + KTX2 + bundled PBR now ship), and
+  trimmed PHOTO-DETAIL-PROPS / PHOTO-BEVELS / PHOTO-PBR-MAPS / PHOTO-HDRI-PT to their open tails.
+
 ## PHOTO-PBR: upgrade bundled CC0 finishes to full PBR (v0.8.0.27)
 
 - The 6 bundled Poly Haven finishes that shipped **albedo-only** (and so read flat) —

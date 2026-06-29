@@ -51,27 +51,23 @@ model swap** · **smart/semantic catalog search** · **section/cross-section dra
 render/lighting presets (day/night/mood)** · **BYO-key AI auto-furnish (text brief →
 layout)** · **drawing-set sheet/layer toggles (choose which sheets to include)** ·
 **on-plan text callouts on the report + drawing-set sheets** ·
-**quotation CSV + Excel (.xlsx) export** ·
-**all analysis tools (we exceed)**.
+**quotation CSV + Excel (.xlsx) export** · **8K tiled still render** · **IES photometric
+light import** · **keyframed walkthrough video export** · **AR "view in your room" (iOS
+Quick Look)** · **all analysis tools (we exceed)**.
 
 ### Gaps & approach
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| 8K+ tiled still render | ◑ | ✅ | Add tiled offscreen render at 8K+ to the HQ render presets. | M |
 | Fast rasterized "preview render" tier | ◑ | ✅ | A high-quality single-frame raster capture as the local analog to cloud 10-s render. | M |
-| IES photometric light import | ❌ | ✅ | Parse `.ies` into spotlight intensity distribution in `scene/lighting`. | M |
 | Quotation **editable templates** + price-rule library | ◑ | ✅ | BOQ + CSV + **XLSX** ship; add user-editable quote templates + a configurable price-rule library. | M |
-| Walkthrough/flythrough **video** export (keyframed camera path → MP4/WebM) | ✅ | ✅ | **Shipped (PARITY-VIDEO)** — "Record walkthrough video" records the saved-views cinematic tour to .webm with a user-set pace (`recordViewTour` + RecordController). | L |
-| Day-to-night animated render clip | ◑ | ✅ | Animate the time-of-day slider along the video path. | M |
+| Day-to-night animated render clip | ◑ | ✅ | Animate the time-of-day slider along the video path (real-GPU final clip). | M |
 | AI floor-plan generation (text → plan) | ❌ | 🔑 | BYO-key LLM emits wall/room JSON into the 2D plan schema. | L |
 | AI plan recognition: auto-detect doors/windows + scale | ◑ | 🔑 | Extend the existing BYO-key AI wall tracing to openings + scale calibration. | M |
 | AI matting / background removal | ❌ | ✅ | WASM segmentation (MODNet/rembg-wasm) for product cutouts. | M |
-| AR "view in your room" | ✅ | ✅ | **Shipped (PARITY-AR)** — Tools → "View in your room (AR)" opens iOS AR Quick Look from USDZ, GLB download elsewhere (`viewInAr`). Android Scene Viewer needs an https-hosted model (backend) — the only remaining gap. | M |
-| Massive hosted model library (60k–1M+) | ◑ | ☁️ | Can't match scale without a CDN; lean on procedural + curated CC0 + upload. | L |
-| Branded/manufacturer catalogs | ❌ | 📜 | Licensed vendor catalogs need deals + backend. | L |
-| Cloud accounts / real-time multi-user collab / teams / white-label | ❌ | ☁️ | Backend/CRDT; out of our client-side scope. | L |
-| Supplier/e-commerce/CNC production integration | ❌ | ☁️ | ERP/manufacturing integration; out of scope. | L |
+
+_(Hosted 60k–1M+ model library · branded/manufacturer catalogs · cloud accounts /
+multi-user collab / teams · supplier/e-commerce/CNC integration → see §4 Out of scope.)_
 
 ---
 
@@ -97,24 +93,18 @@ dimension-line objects** · **on-plan text notes** · **polyline annotations
 FOV/eye-height controls** · **auto-detect room (double-click)** ·
 **furniture-as-light-source into render** · **per-furniture lock** · **furniture
 name/price labels on the 2D plan** · **wall split/join/reverse** · **all-levels
-(dimmed) overlay + duplicate-level** · **turntable video recording (WebM)** · **drag-to-reposition
-room-name labels**.
+(dimmed) overlay + duplicate-level** · **turntable + keyframed video recording (WebM)** ·
+**drag-to-reposition room-name labels** · **curved/arc walls** · **slanting walls** ·
+**sloping ceilings** · **baseboards/skirting on walls** · **room-name label rotation/font** ·
+**batch render of all saved cameras** · **fisheye/DoF lens on the render camera** ·
+**whole-scene OBJ/glTF/GLB/STL/USDZ export** · **SH3D `.sh3d` import (walls/rooms/furniture/openings)**.
 
 ### Gaps & approach
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| **Curved / arc walls** | ✅ | ✅ | **Shipped (PARITY-CURVEDWALL)** — true circular arc + midpoint bulge handle, openings on curves, 2D `A`-path + 3D chord extrusion. | L |
-| **Slanting walls** (per-endpoint top heights) | ✅ | ✅ | **Shipped (PARITY-SLOPEWALL)** — `PlanWall.topHeightEnd` prism + inspector start/end height. | M |
-| **Sloping ceilings** (per-room ceiling slope) | ✅ | ✅ | **Shipped (PARITY-SLOPECEIL)** — `sloped` `CeilingConfig` pitched plane + per-room picker. | M |
-| **Baseboards/skirting on walls** (height/thickness/finish) | ✅ | ✅ | **Shipped (PARITY-BASEBOARD)** — `PlanWall.baseboard` (height/colour/hidden) drives the PlanShell skirting; Plan-inspector wall section + `wallBaseboard` pro flag. | M |
-| On-plan room-name label **rotation / font** | ✅ | ✅ | **Shipped (PARITY-ROOMLABEL-STYLE)** — `PlanRoom.labelAngle` (SVG `rotate`) + `labelFontScale` with Plan-inspector angle/size fields; drag-to-reposition already shipped. | S |
-| **Batch render** all saved cameras | ✅ | ✅ | **Shipped (PARITY-BATCHRENDER)** — Saved-views "Render all views" flies to each view and downloads a PNG via `captureCanvasPng` (`ui/renderAllViews.ts`, `batchRender` pro flag). | S |
-| **Fisheye / DoF** lens options on render | ◑ | ✅ | Add lens-type + DoF controls to the render camera (DoF partly exists in HQ). | M |
-| Keyboard wall-length entry while drawing | ◑ | ✅ | Live numeric length/angle entry during wall draw. | M |
-| **Video flythrough** export (keyframed camera path → file) | ✅ | ✅ | **Shipped (PARITY-VIDEO)** — saved-views cinematic tour recorded to .webm. | L |
-| Export 3D scene to OBJ / glTF / STL | ✅ | ✅ | **glTF/GLB + OBJ + STL shipped** (`sceneExport3d`, Q-3DEXPORT) — `export/sceneGltf.ts` + `convert/toGlb.ts` / `export/sceneObj.ts` / `export/sceneStl.ts`, in Tools/Share/⌘K/mobile. | M |
-| Import SH3D / SH3F libraries | ❌ | ✅ | Parse the SH3D/SH3F zip (XML + models) into our model; conversion only. | L |
+| Keyboard wall-length entry **while drawing** | ◑ | ✅ | Live numeric length/angle entry during wall draw (the exact-dims *edit dialog* + 15° angle-snap already ship). | M |
+| Import SH3D **`.sh3f` libraries** + legacy archives | ◑ | ✅ | `.sh3d` (Home.xml) walls/rooms/furniture/openings already import; remaining: `.sh3f` furniture libraries, legacy serialized (non-`Home.xml`) archives, exact sill from SH3D `elevation`. | L |
 | Multi-language UI (20+) | ❌ | ✅ | i18n framework + translations; large, pure-client, low near-term value for HDB focus. | L |
 | Plugin/extension API | ❌ | ✅ | Define a JS extension surface; large architectural effort, low near-term value. | L |
 
@@ -128,21 +118,16 @@ room-name labels**.
 **Quick wins (S):** _(all shipped — see `CHANGELOG.md`)_
 
 **High-value medium efforts (M):**
-4. AR "view in your room" (Coohom/F22) — high "wow"/sales value.
-5. 8K tiled still render + fast rasterized preview tier (Coohom) — quality lift.
-6. _(shipped: sloping ceilings, slanting walls, per-wall baseboards — see `CHANGELOG.md`)_
-7. Quote editable templates + price-rule library (Coohom) — CSV/XLSX export already ship.
-8. Fisheye / DoF lens options on the render camera (SH3D).
-9. Keyboard wall-length / angle entry while drawing (SH3D).
-10. IES photometric light import (Coohom).
-11. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
+1. Fast rasterized "preview render" tier (Coohom) — local analog to cloud 10-s render.
+2. Quote editable templates + price-rule library (Coohom) — CSV/XLSX export already ship.
+3. Keyboard wall-length / angle entry **while drawing** (SH3D) — edit dialog already ships.
+4. Day-to-night animated render clip (Coohom) — animate time-of-day along the video path.
+5. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
+6. AI matting / background removal for product cutouts (WASM segmentation).
 
 **Marquee large efforts (L):**
-12. **Keyframed video flythrough export** (camera path → MP4/WebM) — shared Coohom+SH3D marquee gap (turntable recording already ships); very high marketing value.
-13. **Curved / arc walls** (SH3D) — big drafting differentiator.
-14. **AI floor-plan generation** (text → plan, Coohom, 🔑 BYO-key).
-15. Whole-scene OBJ/glTF/STL export (Q-3DEXPORT).
-16. Import SH3D/SH3F libraries; multi-language UI; plugin/extension API (SH3D) — large, lower near-term value.
+7. **AI floor-plan generation** (text → plan, Coohom, 🔑 BYO-key).
+8. Import SH3D **`.sh3f`** libraries + legacy archives; multi-language UI; plugin/extension API (SH3D) — large, lower near-term value.
 
 **Consumer/styling front-end (from the broader cluster research — context, not Coohom/SH3D):**
 style/personality **quiz onboarding** (powers Smart Start), **in-engine one-tap style
