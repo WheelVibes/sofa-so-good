@@ -23,11 +23,9 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   `editor/inspector/<Branch>.tsx` panels; thin dispatcher. Behaviour-preserving.
 - [ ] **MOD-MOBILETOOLBAR-SPLIT** — split `ui/toolbar/MobileToolbar.tsx` (~1140 ln) into
   `toolbar/mobile/<Section>.tsx`; thin shell. Behaviour-preserving.
-- [ ] RD-405: cheap glass fresnel + sky reflection on all tiers (PMREM probe from backdrop/sky →
-  `getGlassMaterial` cheap branch + window panes). Source: `docs/research/2026-06-19-rd405-glass-fresnel-plan.md`.
-- [ ] RD-408 decor tail (004–010): weighted/anti-repeat + style-aware prop selection, more host
-  vocab, hero floor props, wall-art/gallery clusters, per-room cap. Source: `…rd408-decor-density-plan.md`.
-- [ ] RD-411 / PHOTO-SSAA-EXPORT: supersample the snapshot/export path (render large → downsample).
+- [ ] RD-408 decor tail: wall-art / gallery-cluster placement (RD408-008) — the per-surface budget,
+  spread/jitter, weighted variety, and hero props already ship; the wall pass is the remaining gap.
+  Source: `docs/research/2026-06-19-rd408-decor-density-plan.md`.
 - [ ] IO-pipeline robustness (`…import-export-pipeline-audit.md`): IO-001/002 (enforce texture/GLB
   size caps before decode/convert), IO-003/004/005 (blob-URL + three-object disposal on error),
   IO-006 (zip-bomb guard), IO-008 (worker `messageerror`), IO-009 (ASCII magic-byte), IO-010

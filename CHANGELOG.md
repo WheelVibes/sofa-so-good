@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## docs: reconcile RD-405 + RD-411 as shipped (v0.8.0.30)
+
+- Verified against code that two items surfaced during the research-doc audit had already shipped:
+  **RD-405** cheap-glass Fresnel + sky reflection (`getGlassMaterial` cheap branch sets `ior` +
+  `envMapIntensity`, explicit `(RD-405)` comment) and **RD-411 / PHOTO-SSAA-EXPORT** (the PNG export
+  in `ScreenshotController` already renders at 2× and box-downsamples via `ssaaDownsample.ts`).
+  Removed both from `TASKS.md` and deleted the now-fully-shipped `rd405-glass-fresnel-plan.md`.
+  Trimmed RD-408 to its one genuinely-open piece (wall-art / gallery clusters).
+
 ## docs: prune fully-shipped research docs; unify open items into TASKS (v0.8.0.29)
 
 - Deleted 9 `docs/research/` audit/plan docs whose every actionable item shipped (verified
