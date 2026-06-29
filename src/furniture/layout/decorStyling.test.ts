@@ -71,9 +71,12 @@ describe('applyDecorStyling', () => {
     expect(sofaDecor.length).toBeGreaterThan(sideDecor.length)
     // Side table has a strict ceiling of 1.
     expect(sideDecor.length).toBe(1)
-    // Sofa is dense but capped at its host ceiling (4).
-    expect(sofaDecor.length).toBeGreaterThanOrEqual(2)
-    expect(sofaDecor.length).toBeLessThanOrEqual(4)
+    // Sofa surface props are dense but capped at the host ceiling (4); the
+    // separate wall-art pass (RD408-008) adds one wall-mounted piece on top.
+    const sofaSurface = sofaDecor.filter((d) => d.defId !== 'wall-art')
+    expect(sofaSurface.length).toBeGreaterThanOrEqual(2)
+    expect(sofaSurface.length).toBeLessThanOrEqual(4)
+    expect(sofaDecor.filter((d) => d.defId === 'wall-art')).toHaveLength(1)
   })
 
   it('varies the colour of repeated soft-good props so they are not clones (RD-408)', () => {
@@ -186,6 +189,42 @@ describe('applyDecorStyling', () => {
     }
   })
 
+  it('hangs one wall-art piece on the wall behind a sofa, facing the room (RD408-008)', () => {
+    const sofa = {
+      id: 'host-sofa',
+      defId: 'sofa-3seat' as const,
+      position: [2, 2] as [number, number],
+      rotation: 0, // faces +Z → wall is behind at -Z
+      props: {},
+    }
+    const decor = applyDecorStyling([sofa], BUILTIN_CATALOG)
+    const art = decor.filter((d) => d.defId === 'wall-art')
+    expect(art).toHaveLength(1)
+    const a = art[0]
+    // Faces the same way as the host (into the room).
+    expect(a.rotation).toBe(0)
+    // Sits on the wall BEHIND the host (−Z of a +Z-facing sofa), so its z is less
+    // than the host centre by ~half the host depth.
+    expect(a.position[1]).toBeLessThan(sofa.position[1])
+    expect(a.position[0]).toBeCloseTo(2, 5)
+    // Mounted (self-lifts via mountHeight) — no floor elevation.
+    expect(a.elevation ?? 0).toBe(0)
+    expect(typeof a.props.mountHeight).toBe('number')
+    expect(a.props.width).toBeGreaterThan(0)
+  })
+
+  it('does NOT hang wall-art on hosts that are not wall-flushed (e.g. coffee-table)', () => {
+    const table = {
+      id: 'host-coffee',
+      defId: 'coffee-table' as const,
+      position: [3, 3] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const decor = applyDecorStyling([table], BUILTIN_CATALOG)
+    expect(decor.some((d) => d.defId === 'wall-art')).toBe(false)
+  })
+
   it('respects the per-host-type ceiling even for huge hosts (RD408-001)', () => {
     // Per-type ceilings cap density regardless of how large a surface is.
     const sofa = {
@@ -196,7 +235,9 @@ describe('applyDecorStyling', () => {
       props: {},
     }
     const decor = applyDecorStyling([sofa], BUILTIN_CATALOG)
-    expect(decor.length).toBeLessThanOrEqual(4) // HOST_MAX['sofa-3seat']
+    // Surface props are capped at HOST_MAX['sofa-3seat']; the wall-art pass adds
+    // one separate wall-mounted piece (RD408-008).
+    expect(decor.filter((d) => d.defId !== 'wall-art').length).toBeLessThanOrEqual(4)
   })
 
   it('always dresses a tiny (but ≥ min-area) host with at least one prop', () => {
@@ -224,8 +265,11 @@ describe('applyDecorStyling', () => {
       props: {},
     }
     const decor = applyDecorStyling([mockSofa], BUILTIN_CATALOG)
-    expect(decor.length).toBeGreaterThan(0)
-    for (const d of decor) {
+    // Surface props self-lift to the host top; the wall-art piece is
+    // wall-mounted (lifts via mountHeight, no surfaceHeight) so it's excluded.
+    const surfaceProps = decor.filter((d) => d.defId !== 'wall-art')
+    expect(surfaceProps.length).toBeGreaterThan(0)
+    for (const d of surfaceProps) {
       // surfaceHeight should equal the sofa's defaultFootprint.h; the prop
       // self-lifts to it. `elevation` must stay unset, or the prop double-lifts.
       expect(d.props.surfaceHeight).toBeCloseTo(sofa!.defaultFootprint.h, 2)

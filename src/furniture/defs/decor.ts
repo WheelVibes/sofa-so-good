@@ -430,6 +430,8 @@ export const DECOR_DEFS = {
     primitive: 'WallArt',
     defaultFootprint: { w: 0.8, d: 0.08, h: 0.6 },
     mounted: true,
+    // Hangs on a wall plane — never participates in floor collision/placement.
+    noClip: true,
     verticalSpan: { base: 1.1, top: 2.0 },
     paramSchema: [
       {

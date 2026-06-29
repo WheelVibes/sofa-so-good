@@ -19,9 +19,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   the inert WebXR entry + provider already ship.
 
 ## Open — client-doable
-- [ ] RD-408 decor tail: wall-art / gallery-cluster placement (RD408-008) — the per-surface budget,
-  spread/jitter, weighted variety, and hero props already ship; the wall pass is the remaining gap.
-  Source: `docs/research/2026-06-19-rd408-decor-density-plan.md`.
 - [ ] IO-pipeline robustness (`…import-export-pipeline-audit.md`): IO-002 (check converted GLB size
   before the optimize/LOD pass) + IO-006 (zip-bomb guard on the decompressed usdz/3mf payload).
   (Shipped: IO-001 + IO-003 v0.8.0.32; IO-009 + IO-010 v0.8.0.33; IO-008 v0.8.0.34; IO-004 + IO-005

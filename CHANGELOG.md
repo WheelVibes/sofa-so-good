@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RD408-008: auto-hang wall art behind wall-flushed furniture (v0.8.0.37)
+
+- The decor auto-styling pass (`layout/decorStyling.ts`) now hangs one framed `wall-art` piece on the
+  wall **behind** each wall-flushed host (`WALL_ART_HOSTS`: 3/2-seat sofas, queen/king/double beds,
+  sideboard, console — L-shape sofas excluded). The art sits at the host's back edge facing the room,
+  sized `widthFrac`×host width (clamped), self-lifting to its def `mountHeight`. Artifact-safe by
+  construction: the host already occupies a clear wall span, so the art never overlaps a door/window.
+  `wall-art` def gains `noClip` (wall-mounted → no floor collision); seeded art tint keeps rooms
+  distinct; excluded from the surface-prop budget/cap. GPU-verified (the move-in flat now hangs 3
+  pieces; one screenshot-checked as correctly mounted at eye height). New unit tests + existing decor
+  suite green (26). Closes the last open RD-408 item (the wall pass).
+
 ## IO-004 + IO-005: import blob-URL + scene-graph cleanup (v0.8.0.36)
 
 - **IO-004** — `furniture/upload/persist.ts` now wraps the base + LOD object-URL creation through the
