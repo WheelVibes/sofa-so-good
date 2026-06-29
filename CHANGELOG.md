@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Full user-docs audit — fix stale facts across the whole guide (v0.8.0.11)
+
+- Audited every `docs/user/*.md` file against the current code (not just this branch's
+  features) and corrected each factual error found:
+  - **`importing-models.md`**: added `.3ds` to the convertible-format list (it's in
+    `convert/formats.ts`).
+  - **`importing-textures.md`**: added **KTX2** and **DDS** to supported formats, and corrected
+    the decode-and-re-encode list (KTX2/DDS are the true exotic cases; BMP decodes natively).
+  - **`design-tools.md`**: Budget panel tab is **Saved** (not "Saved collections"); removed the
+    stale **sample-quality** step from Render compare (the modal is now a near-instant raster
+    capture with no samples picker).
+  - **`room-editor.md`**: the exit button is labelled **"Exit room"**, not the room name (the
+    room name lives in the adjacent dropdown).
+  - **`tips-and-faq.md`**: **five** themes, not four (`THEME_NAMES` has 5).
+  - **`lighting-and-time.md`** / **`walkthrough-and-sun-study.md`**: marked the **sun-direction
+    compass** and **Sun study** as **Pro** (both are pro-tier and hidden in Simple mode).
+- The remaining docs (`finishes-and-materials.md`, `navigating.md`, `getting-started.md`,
+  `index.md`, `themes-and-appearance.md`) verified fully accurate, with all internal doc links
+  resolving.
+
 ## User-docs sweep — sync guide to the Canva-feature work (v0.8.0.10)
 
 - Full audit of `docs/user/*.md` against current code; fixed every stale/wrong claim left over

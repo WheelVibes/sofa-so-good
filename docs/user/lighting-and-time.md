@@ -10,7 +10,7 @@ ambient light.
 - Press <kbd>T</kbd> to cycle through the presets — **morning → noon → dusk →
   night** (and back to following the system clock).
 - Or open the **Scene** menu in the toolbar for the presets plus a **sun‑direction
-  compass** to aim the sun yourself.
+  compass** to aim the sun yourself *(Pro mode — the compass is hidden in Simple)*.
 
 As you move through the day the directional sunlight, shadow length, sky colour,
 and overall exposure all shift — interiors go warm at dusk and dark at night.
