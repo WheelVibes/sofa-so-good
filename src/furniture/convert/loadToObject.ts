@@ -44,6 +44,29 @@ function meshFromGeometry(geom: THREE.BufferGeometry, vertexColors = false): THR
   return new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: 0xcccccc, vertexColors }))
 }
 
+/**
+ * Collect every `.mtl` referenced by an OBJ's `mtllib` directives, lowercased
+ * to their basename (IO-010). A valid OBJ may list several files on one line
+ * (`mtllib a.mtl b.mtl`) and/or repeat `mtllib` across lines; the old parser
+ * took only the first token of the first line, silently dropping the rest of
+ * the materials. Order-preserving + de-duplicated. (Filenames containing spaces
+ * — rare — are not disambiguated from multi-file lines; whitespace splits them.)
+ */
+export function parseMtllibNames(objText: string): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const m of objText.matchAll(/^\s*mtllib\s+(.+)$/gm)) {
+    for (const tok of m[1].trim().split(/\s+/)) {
+      const base = (tok.split('/').pop() ?? '').toLowerCase()
+      if (base && !seen.has(base)) {
+        seen.add(base)
+        out.push(base)
+      }
+    }
+  }
+  return out
+}
+
 /** Load `pool.entryUrl` for the given format into an Object3D, resolving any
  *  referenced sibling files (materials/textures/buffers) through the pool. */
 export async function loadToObject(
@@ -58,18 +81,27 @@ export async function loadToObject(
       return g.scene
     }
     case 'obj': {
-      // Resolve the referenced .mtl if it's present in the pool.
+      // Resolve EVERY referenced .mtl present in the pool, merging their
+      // material definitions so an OBJ that splits materials across multiple
+      // .mtl files (or lists several per `mtllib` line) keeps them all (IO-010).
       const objText = await (await fetch(pool.entryUrl)).text()
-      const mtlMatch = objText.match(/^\s*mtllib\s+(.+)$/m)
       const loader = new OBJLoader(mgr)
-      if (mtlMatch) {
-        const mtlBase = (mtlMatch[1].trim().split(/\s+/)[0].split('/').pop() ?? '').toLowerCase()
-        const mtlUrl = pool.urls.get(mtlBase)
-        if (mtlUrl) {
-          const mtl = await new MTLLoader(mgr).loadAsync(mtlUrl)
-          mtl.preload()
-          loader.setMaterials(mtl)
-        }
+      const mtlLoader = new MTLLoader(mgr)
+      let merged: MTLLoader.MaterialCreator | null = null
+      for (const name of parseMtllibNames(objText)) {
+        const mtlUrl = pool.urls.get(name)
+        if (!mtlUrl) continue
+        const creator = await mtlLoader.loadAsync(mtlUrl)
+        if (!merged) merged = creator
+        else
+          Object.assign(
+            (merged as unknown as { materialsInfo: Record<string, unknown> }).materialsInfo,
+            (creator as unknown as { materialsInfo: Record<string, unknown> }).materialsInfo,
+          )
+      }
+      if (merged) {
+        merged.preload()
+        loader.setMaterials(merged)
       }
       return await loader.loadAsync(pool.entryUrl)
     }

@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IO-009 + IO-010: model-import format detection + multi-MTL (v0.8.0.33)
+
+- **IO-009** — `convert/formats.ts` `detectModelFormat` now recognises **ASCII FBX** (the `; FBX`
+  comment header), so a mis-extensioned ASCII FBX routes to the FBX loader instead of throwing an
+  opaque parse error in the wrong loader. (Zip/XML magics confirm a family but can't disambiguate
+  3mf-vs-usdz or dae-vs-gltf, so the extension stays authoritative there.)
+- **IO-010** — OBJ import now resolves **every** `mtllib` reference, not just the first token of the
+  first line: pure `parseMtllibNames` collects all files across all `mtllib` lines (de-duped,
+  basename-lowercased) and `loadToObject` loads + merges their material definitions, so an OBJ that
+  splits materials across multiple `.mtl` files keeps them all instead of silently rendering grey.
+- Unit tests for both (ASCII-FBX-as-.obj detection; multi-line/multi-file/de-dup mtllib parsing).
+
 ## IO-001 + IO-003: import/export robustness (v0.8.0.32)
 
 - **IO-001** — `materials/upload/persist.ts` now gates the **source** file size against

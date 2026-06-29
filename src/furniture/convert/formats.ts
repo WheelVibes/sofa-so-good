@@ -84,7 +84,14 @@ export async function detectModelFormat(file: File): Promise<ModelFormat | null>
   if (head.byteLength >= 4 && ascii(head, 4) === 'glTF') return 'glb'
   // FBX binary: 'Kaydara FBX Binary' magic.
   if (head.byteLength >= 18 && ascii(head, 18) === 'Kaydara FBX Binary') return 'fbx'
+  // FBX ASCII: the text variant opens with a '; FBX <version> project file'
+  // comment header. Catching it reroutes a mis-extensioned ASCII FBX to the FBX
+  // loader instead of throwing an opaque parse error elsewhere (IO-009).
+  if (head.byteLength >= 5 && ascii(head, 5) === '; FBX') return 'fbx'
   // PLY: ASCII/binary both start with 'ply'.
   if (head.byteLength >= 3 && ascii(head, 3) === 'ply') return 'ply'
+  // Zip (PK\x03\x04 → 3mf/usdz) and XML ('<?xml' → dae/gltf) magics confirm a
+  // family but can't disambiguate within it, so the extension stays the source
+  // of truth for those — no override here.
   return byExt
 }

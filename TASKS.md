@@ -28,9 +28,9 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   Source: `docs/research/2026-06-19-rd408-decor-density-plan.md`.
 - [ ] IO-pipeline robustness (`…import-export-pipeline-audit.md`): IO-002 (check converted GLB size
   before the optimize/LOD pass), IO-004/005 (GLB-persist blob-URL + three-object disposal on error),
-  IO-006 (zip-bomb guard on decompressed payload), IO-008 (worker `messageerror`), IO-009 (ASCII
-  magic-byte), IO-010 (multi-MTL). (IO-001 source-size-before-decode + IO-003 export/AR blob-URL
-  revoke-in-finally shipped v0.8.0.32; IO-007 NaN + IO-011 CSV injection already handled.)
+  IO-006 (zip-bomb guard on decompressed payload), IO-008 (worker `messageerror`). (Shipped: IO-001
+  source-size-before-decode + IO-003 revoke-in-finally v0.8.0.32; IO-009 ASCII-FBX magic + IO-010
+  multi-MTL v0.8.0.33; IO-007 NaN + IO-011 CSV injection already handled.)
 - [ ] SLOT configurator (`…slot-configurator-design.md`): base + named anchor slots, swappable
   compatible options, live reprice (mattress-on-frame, modular sofa).
 - [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces, GLB-designer

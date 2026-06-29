@@ -18,6 +18,12 @@ describe('detectModelFormat', () => {
     const magic = Array.from('ply\n').map((c) => c.charCodeAt(0))
     expect(await detectModelFormat(fileWithBytes('x.ply', magic))).toBe('ply')
   })
+  it('detects ASCII FBX by its comment header even when mis-extensioned (IO-009)', async () => {
+    const magic = Array.from('; FBX 7.4.0 project file').map((c) => c.charCodeAt(0))
+    // A file named .obj that is actually ASCII FBX routes to the FBX loader.
+    expect(await detectModelFormat(fileWithBytes('mislabeled.obj', magic))).toBe('fbx')
+    expect(await detectModelFormat(fileWithBytes('x.fbx', magic))).toBe('fbx')
+  })
   it('falls back to extension for obj/stl/dae/3mf/usdz/gltf', async () => {
     expect(await detectModelFormat(fileWithBytes('a.obj', [111]))).toBe('obj')
     expect(await detectModelFormat(fileWithBytes('a.stl', [1]))).toBe('stl')
