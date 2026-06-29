@@ -197,11 +197,16 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 
 | Rank | ID | One-line | Sev/Impact | Eff | Area / files | Conflict-group |
 |------|----|----------|-----------|-----|--------------|----------------|
-| 16 | **RD-402** | Roughness/AO/normal micro-variation: stone/tile/concrete/plaster + brushed-metal anisotropy | HIGH photoreal | M | `procedural/patterns/{stone,tile,wall}.ts`, `patterns/metal.ts` (new), `furnitureMaterials.ts`, `generators.test.ts` | `cg-materials` |
 | 19 | **RD-408** | Decor density/variety. **DONE:** per-surface budget+spread+jitter, prop colour variety, hero props (decor tray, trailing plant), more host surfaces. **REMAINING:** more hero props with real silhouettes (varied book heights, layered cushion stacks) — needs new primitives. | HIGH photoreal | M | `furniture/layout/decorStyling.ts`, new primitives | `cg-decor` |
 | 20 | **RD-412** | Procedural sky shipped (steps 1–5, v0.2.0.58); **REMAINING:** HDR IBL probe (steps 6–7, real-GPU) | MED photoreal | S | `scene/backdropEquirect.ts`, `scene/lighting/SceneEnvironment.tsx` | `cg-sky` |
-| 22 | **RD-406** | Tile-repetition break-up (UV hash/macro-variation) + triplanar for sloped/curved walls | MED photoreal | M | `materials/worldUv.ts`, `materials/triplanar.ts` (new) | `cg-worlduv` |
-| 23 | **RD-409** | Light colour-temperature (Kelvin→RGB) + inverse-square falloff per fixture | MED photoreal | M | `scene/lighting/FurnitureLights.tsx`, `lighting/colorTemperature.ts` (new) | `cg-furnlights` |
+
+> **Verified SHIPPED & removed (v0.8.0.15 reconciliation, cross-checked against code):**
+> **RD-402** micro-variation = MAT-001…004 (`stoneSurface`/`tileSurface`/`plasterSurface`/`metalBrush`,
+> wired via `patterns/*` + `furnitureMaterials.ts`) + CONCRETE-PORES + BRUSH-AXIS — all in the render.
+> **RD-406** tile-repetition break-up ships (`worldUv.ts` `breakRepetitionPlane`, `tileBreakup` flag);
+> its only remaining half is **triplanar** = **MAT-006b** (still open, below). **RD-409** ships:
+> point lights use `decay={2}` (physically-correct inverse-square) + per-fixture warm colour-temperature
+> hexes (`lightEmitters.ts`). (The codebase `RD-409` id also tags the shipped bloom-threshold work.)
 
 **Do NOT preemptively fix (audit verdict):** PERF-006 (`moveItem`/`rotateItem` array rebuild —
 acceptable at design scale, explicitly "don't fix preemptively"). Listed in the perf doc as

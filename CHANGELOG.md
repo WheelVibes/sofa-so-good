@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Backlog reconciliation: verified-shipped photoreal items removed (v0.8.0.15)
+
+Cross-checked three "open" TODO table rows against the code and confirmed they
+already ship in the product (removed from the backlog):
+- **RD-402** (roughness/AO/normal micro-variation for stone/tile/concrete/plaster +
+  brushed-metal) = the shipped MAT-001…004 surfaces (`stoneSurface`/`tileSurface`/
+  `plasterSurface`/`metalBrush`) wired through `patterns/*` + `furnitureMaterials.ts`,
+  plus CONCRETE-PORES + BRUSH-AXIS.
+- **RD-406** tile-repetition break-up ships (`worldUv.ts` `breakRepetitionPlane`,
+  `tileBreakup` flag); its remaining half (triplanar) is tracked as the still-open MAT-006b.
+- **RD-409** ships: fixture point lights use `decay={2}` (physically-correct inverse-square
+  falloff) and per-fixture warm colour-temperature hexes (`lightEmitters.ts`).
+
 ## GAP-SUGGEST: one-click "Nudge apart" to widen narrow walkways (v0.8.0.14)
 
 - `nudgeGapApart(aId, bId, currentGap, required=0.9)` (itemsSlice) uses the pure
