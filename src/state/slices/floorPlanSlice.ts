@@ -250,6 +250,9 @@ export interface FloorPlanSlice {
 
   /** Add a custom dimension line (PARITY-DIMTEXT); returns its id. */
   addDimension: (dim: Omit<PlanDimension, 'id'>) => string
+  /** Patch a dimension's endpoints (drag handles / inspector numeric edit).
+   *  Coalesced so a drag or a stream of typed edits is one undo step. */
+  updateDimension: (id: string, patch: Partial<Pick<PlanDimension, 'a' | 'b'>>) => void
   /** Remove a dimension; clears the selection if it was selected. */
   removeDimension: (id: string) => void
 
@@ -634,12 +637,17 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
         const target = g.walls.find((w) => w.id === id)
         if (!target) return {}
+        // A locked wall is pinned — its vertices never move.
+        if (target.locked) return {}
         const from = which === 'start' ? target.start : target.end
         const EPS = 1e-3
         const shared = (p: [number, number]) =>
           Math.abs(p[0] - from[0]) < EPS && Math.abs(p[1] - from[1]) < EPS
         return {
           walls: g.walls.map((w) => {
+            // Locked walls stay anchored even when they share this corner: the
+            // dragged wall detaches from them instead of dragging them along.
+            if (w.locked) return w
             const next = { ...w }
             if (shared(w.start)) next.start = [...to] as [number, number]
             if (shared(w.end)) next.end = [...to] as [number, number]
@@ -656,6 +664,8 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
         const target = g.walls.find((w) => w.id === id)
         if (!target) return {}
+        // A locked wall is pinned — it can't be dragged.
+        if (target.locked) return {}
         const cs = target.start
         const ce = target.end
         const EPS = 1e-3
@@ -667,7 +677,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         const remap = (p: [number, number]): [number, number] =>
           near(p, cs) ? [...newStart] : near(p, ce) ? [...newEnd] : p
         return {
-          walls: g.walls.map((w) => ({ ...w, start: remap(w.start), end: remap(w.end) })),
+          // Locked walls stay anchored even at a shared corner — the moved wall
+          // detaches from them rather than dragging them along.
+          walls: g.walls.map((w) =>
+            w.locked ? w : { ...w, start: remap(w.start), end: remap(w.end) },
+          ),
         }
       }),
     }))
@@ -959,6 +973,17 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       },
     }))
     return id
+  },
+  updateDimension: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-dim-${id}`)
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        dimensions: (s.floorPlan.dimensions ?? []).map((d) =>
+          d.id === id ? { ...d, ...patch } : d,
+        ),
+      },
+    }))
   },
   removeDimension: (id) => {
     get().pushHistory()

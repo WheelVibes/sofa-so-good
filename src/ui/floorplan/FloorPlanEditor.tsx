@@ -233,6 +233,8 @@ export function FloorPlanEditor() {
   const [movingVertex, setMovingVertex] = useState<{ id: string; which: 'start' | 'end' } | null>(
     null,
   )
+  // Active dimension-endpoint drag (select tool): which end ('a'/'b') is moving.
+  const [movingDimEnd, setMovingDimEnd] = useState<{ id: string; which: 'a' | 'b' } | null>(null)
   // Active polygon-room vertex drag (select tool): which polygon point is moving.
   // Lets a free-form (polyroom) room be reshaped after creation.
   const [movingPolyVertex, setMovingPolyVertex] = useState<{ id: string; index: number } | null>(
@@ -1255,9 +1257,29 @@ export function FloorPlanEditor() {
     }
     if (moving) {
       const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const nextOrigin: [number, number] = [snap(wx - moving.gx), snap(wz - moving.gz)]
+      const room = st.floorPlan.rooms.find((r) => r.id === moving.id)
+      // A free-form (polygon) room stores ABSOLUTE polygon points, so moving the
+      // origin alone wouldn't shift its outline — translate the polygon by the
+      // same delta so the whole room (rect or polygon) moves together.
+      if (room?.polygon && room.polygon.length > 0) {
+        const dx = nextOrigin[0] - room.origin[0]
+        const dz = nextOrigin[1] - room.origin[1]
+        st.updateRoom(moving.id, {
+          origin: nextOrigin,
+          polygon: room.polygon.map(([px, pz]) => [px + dx, pz + dz] as [number, number]),
+        })
+      } else {
+        st.updateRoom(moving.id, { origin: nextOrigin })
+      }
+      return
+    }
+    if (movingDimEnd) {
+      const [wx, wz] = pointerWorld(e)
       useStore
         .getState()
-        .updateRoom(moving.id, { origin: [snap(wx - moving.gx), snap(wz - moving.gz)] })
+        .updateDimension(movingDimEnd.id, { [movingDimEnd.which]: [snap(wx), snap(wz)] })
       return
     }
     if (marquee) {
@@ -1384,6 +1406,10 @@ export function FloorPlanEditor() {
     }
     if (moving) {
       setMoving(null)
+      return
+    }
+    if (movingDimEnd) {
+      setMovingDimEnd(null)
       return
     }
     if (!draft) return
@@ -2872,6 +2898,32 @@ export function FloorPlanEditor() {
                       >
                         {formatLength(len, units)}
                       </text>
+                      {/* Draggable endpoint handles (edit mode) — drag to reshape
+                          the dimension; the inspector also edits A/B + length. */}
+                      {selected &&
+                        tool === 'select' &&
+                        editMode === 'edit' &&
+                        (
+                          [
+                            ['a', x1, y1],
+                            ['b', x2, y2],
+                          ] as const
+                        ).map(([which, cx, cy]) => (
+                          <circle
+                            key={which}
+                            cx={cx}
+                            cy={cy}
+                            r={6}
+                            fill="var(--accent)"
+                            stroke="var(--surface)"
+                            strokeWidth={1.5}
+                            style={{ cursor: 'grab' }}
+                            onPointerDown={(e) => {
+                              e.stopPropagation()
+                              setMovingDimEnd({ id: d.id, which })
+                            }}
+                          />
+                        ))}
                     </g>
                   )
                 })}

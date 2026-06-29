@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Wall-lock connected components, editable dimensions, movable room outlines (v0.8.0.2)
+
+- **Locking respects wall connectivity.** A locked wall is now pinned: `moveWallVertex`
+  / `moveWallTo` no-op on a locked target and never drag a locked wall's endpoints even
+  when a connected wall is moved — the moved wall detaches from the locked corner instead.
+  Covered by new slice tests.
+- **Dimensions are editable.** New `updateDimension` action + draggable A/B endpoint
+  handles on the selected dimension, and an inspector with editable Length + A/B endpoint
+  fields (in addition to the existing select + delete).
+- **Room outlines move correctly.** Dragging a free-form (polygon) room now translates its
+  absolute polygon points along with the origin, so the whole outline moves (previously only
+  the origin shifted, leaving the polygon behind).
+
 ## Always-active undo/redo, dynamic context menu, z-order (v0.8.0.1)
 
 - **Undo/redo keyboard shortcuts are always active** — moved Cmd/Ctrl+Z and

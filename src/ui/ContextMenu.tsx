@@ -114,12 +114,7 @@ export function ContextMenu() {
         <b>{heading}</b>
       </div>
       {rows.map((r, i) =>
-        r === 'sep' ? (
-          // biome-ignore lint/suspicious/noArrayIndexKey: separators are positional.
-          <div key={`sep-${i}`} className="ctx-sep" />
-        ) : (
-          <Row key={r.label} {...r} />
-        ),
+        r === 'sep' ? <div key={`sep-${i}`} className="ctx-sep" /> : <Row key={r.label} {...r} />,
       )}
     </div>,
     document.body,

@@ -1130,17 +1130,42 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
     const dim = (plan.dimensions ?? []).find((x) => x.id === sel.id)
     if (dim) {
       const len = Math.hypot(dim.b[0] - dim.a[0], dim.b[1] - dim.a[1])
+      // Editing the length moves endpoint B along the A→B direction (A fixed).
+      const setLength = (next: number) => {
+        if (!Number.isFinite(next) || next <= 0 || len < 1e-6) return
+        const ux = (dim.b[0] - dim.a[0]) / len
+        const uz = (dim.b[1] - dim.a[1]) / len
+        a.updateDimension(dim.id, { b: [dim.a[0] + ux * next, dim.a[1] + uz * next] })
+      }
       body = (
         <div className="space-y-2">
           <div className="sec-h">
             <span>Dimension</span>
           </div>
-          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
-            <span className="label">Length</span>
-            <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
-              {formatLength(len, units)}
-            </span>
+          <Num label="Length (m)" value={len} min={0.01} step={0.05} onChange={setLength} />
+          <div className="sec-h" style={{ marginTop: 'var(--s-2)' }}>
+            <span>Endpoints</span>
           </div>
+          <Num
+            label="A · X (m)"
+            value={dim.a[0]}
+            onChange={(v) => a.updateDimension(dim.id, { a: [v, dim.a[1]] })}
+          />
+          <Num
+            label="A · Z (m)"
+            value={dim.a[1]}
+            onChange={(v) => a.updateDimension(dim.id, { a: [dim.a[0], v] })}
+          />
+          <Num
+            label="B · X (m)"
+            value={dim.b[0]}
+            onChange={(v) => a.updateDimension(dim.id, { b: [v, dim.b[1]] })}
+          />
+          <Num
+            label="B · Z (m)"
+            value={dim.b[1]}
+            onChange={(v) => a.updateDimension(dim.id, { b: [dim.b[0], v] })}
+          />
           <DeleteBtn onClick={() => a.removeDimension(dim.id)} label="Delete dimension" />
         </div>
       )
