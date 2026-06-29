@@ -227,8 +227,9 @@ same change that reshapes a system.
 - **Multi-select transforms & layering** (Canva parity): a multi-selection (`selectedItemIds`)
   moves/rotates/flips as one unit in BOTH editors — 3D via `DragController` (rigid translate) +
   `RotateGizmo` (centroid pivot + `enclosingRadius` ring) + keyboard F/R; 2D via the editor's
-  `movingItem` group-drag + a unified dashed bounding box and `rotatingMulti` rotation ring
-  (reusing `scene/selection/rotateGizmoMath`). **Grouping** (`groupsSlice`, `furnitureGroups` flag)
+  `movingItem` group-drag + a unified dashed bounding box with a `rotatingMulti` rotation ring
+  (reusing `scene/selection/rotateGizmoMath`) and `scalingMulti` corner resize handles (uniform
+  `props.scale` about the opposite corner). **Grouping** (`groupsSlice`, `furnitureGroups` flag)
   binds members so a click selects the whole group. **Z-order / layering** (`layerOrder` flag): pure
   `state/zorder.ts` `reorderByIds` + `itemsSlice.reorderItems(ids, move)` give bring-forward /
   send-to-back (render order = array order), surfaced in the context menu. **Locked** items/walls are

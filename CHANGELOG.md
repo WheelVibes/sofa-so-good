@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Group resize for the 2D multi-selection (v0.8.0.6)
+
+- **Corner resize handles** on the unified multi-select bounding box (`scalingMulti`): dragging a
+  corner scales **every** selected item uniformly by the same factor (`props.scale`/`scaleX/Y/Z`)
+  and repositions them about the **opposite corner**, so the whole selection grows/shrinks as a
+  block (Canva parity). Collision-checked all-or-nothing; locked items skipped; one undo step.
+  Verified headlessly: a corner drag scaled both items by `×2.162` and spread their separation by
+  the same `×2.162`.
+
 ## Mobile compass/scale-bar to bottom-right + multi-select verification (v0.8.0.5)
 
 - **Mobile compass + scale bar moved to the canvas bottom-right** (same as desktop) — the

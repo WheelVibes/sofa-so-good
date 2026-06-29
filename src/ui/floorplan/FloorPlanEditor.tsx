@@ -288,6 +288,15 @@ export function FloorPlanEditor() {
     a0: number
     originals: { id: string; position: [number, number]; rotation: number }[]
   } | null>(null)
+  // Active MULTI-select resize (corner handle): the fixed pivot (opposite corner
+  // of the dragged handle, world coords) + the pivot→grab distance + every
+  // member's original position/uniform-scale, so the whole selection scales as a
+  // block about that corner (Canva parity).
+  const [scalingMulti, setScalingMulti] = useState<{
+    pivot: [number, number]
+    grabDist: number
+    originals: { id: string; position: [number, number]; scale: number }[]
+  } | null>(null)
   // Active tour-stop drag: grab offset from the stop's world position.
   const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Active note drag (select tool): grab offset from the note's position.
@@ -923,6 +932,7 @@ export function FloorPlanEditor() {
         setRotatingWall(null)
         setRotatingItem(null)
         setRotatingMulti(null)
+        setScalingMulti(null)
         setMovingOpening(null)
         setMovingStop(null)
         setMovingNote(null)
@@ -1224,6 +1234,47 @@ export function FloorPlanEditor() {
         }
       return
     }
+    if (scalingMulti) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const pivot = scalingMulti.pivot
+      const dist = Math.hypot(wx - pivot[0], wz - pivot[1])
+      let f = dist / scalingMulti.grabDist
+      if (!Number.isFinite(f) || f <= 0) return
+      // Clamp the factor globally so the group stays consistent (no per-item clamp
+      // that would break rigidity).
+      f = Math.max(0.2, Math.min(5, f))
+      const origById = new Map(scalingMulti.originals.map((o) => [o.id, o]))
+      const others = st.items.filter((o) => !origById.has(o.id))
+      const cand = st.items.map((it) => {
+        const o = origById.get(it.id)
+        if (!o || it.locked) return it
+        const ns = Math.round(o.scale * f * 1000) / 1000
+        const np: [number, number] = [
+          pivot[0] + (o.position[0] - pivot[0]) * f,
+          pivot[1] + (o.position[1] - pivot[1]) * f,
+        ]
+        return {
+          ...it,
+          position: np,
+          props: { ...it.props, scale: ns, scaleX: ns, scaleY: ns, scaleZ: ns },
+        }
+      })
+      const ok = scalingMulti.originals.every((o) => {
+        const cit = cand.find((c) => c.id === o.id)
+        const d = cit && catalogRef.current[cit.defId]
+        if (!cit || !d) return true
+        if (st.items.find((i) => i.id === o.id)?.locked) return true
+        return canPlace(cit, d, {
+          others,
+          defs: catalogRef.current,
+          doors: st.doors,
+          walls: placementWalls(st, cit.levelId),
+        })
+      })
+      if (ok) st.setItems(cand)
+      return
+    }
     if (rotatingItem) {
       const [wx, wz] = pointerWorld(e)
       const st = useStore.getState()
@@ -1472,6 +1523,10 @@ export function FloorPlanEditor() {
     }
     if (rotatingMulti) {
       setRotatingMulti(null)
+      return
+    }
+    if (scalingMulti) {
+      setScalingMulti(null)
       return
     }
     if (movingOpening) {
@@ -2810,6 +2865,63 @@ export function FloorPlanEditor() {
                               })
                             }}
                           />
+                          {/* Corner resize handles — drag to scale the whole
+                              selection about the opposite corner (uniform). */}
+                          {(
+                            [
+                              ['nw', minX, minZ, maxX, maxZ],
+                              ['ne', maxX, minZ, minX, maxZ],
+                              ['se', maxX, maxZ, minX, minZ],
+                              ['sw', minX, maxZ, maxX, minZ],
+                            ] as const
+                          ).map(([key, hxw, hzw, pxw, pzw]) => (
+                            <rect
+                              key={key}
+                              x={toPx(hxw) - 5}
+                              y={toPx(hzw) - 5}
+                              width={10}
+                              height={10}
+                              rx={2}
+                              fill="var(--surface)"
+                              stroke="var(--accent)"
+                              strokeWidth={2}
+                              style={{
+                                cursor:
+                                  key === 'nw' || key === 'se' ? 'nwse-resize' : 'nesw-resize',
+                                pointerEvents: 'all',
+                              }}
+                              onPointerDown={(e) => {
+                                if (tool !== 'select' || editMode !== 'edit') return
+                                if (!beginElementDrag(e, true)) return
+                                const [wx, wz] = pointerWorld(e)
+                                const st = useStore.getState()
+                                st.pushHistory()
+                                const pivot: [number, number] = [pxw, pzw]
+                                setScalingMulti({
+                                  pivot,
+                                  grabDist: Math.max(
+                                    0.05,
+                                    Math.hypot(wx - pivot[0], wz - pivot[1]),
+                                  ),
+                                  originals: st.items
+                                    .filter((m) => selectedItemIds.has(m.id))
+                                    .map((m) => {
+                                      const d = catalogRef.current[m.defId]
+                                      const defScale =
+                                        d && d.kind !== 'parametric' ? d.scale : undefined
+                                      return {
+                                        id: m.id,
+                                        position: [...m.position] as [number, number],
+                                        scale:
+                                          (typeof m.props.scale === 'number'
+                                            ? m.props.scale
+                                            : defScale) ?? 1,
+                                      }
+                                    }),
+                                })
+                              }}
+                            />
+                          ))}
                         </>
                       ) : null}
                     </g>
