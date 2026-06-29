@@ -1,6 +1,7 @@
 import { GROUND_LEVEL_ID, levelOfRoom } from '../../floorplan/levels'
 import { buildMergedCatalog } from '../../furniture/catalog'
 import { defaultParamProps, type FurnitureItem, type ParamProps } from '../../furniture/types'
+import { gapFixVector } from '../../layout/gapFix'
 import type { RootState } from '../store'
 import { reorderByIds, type ZMove } from '../zorder'
 import type { SliceCreator } from './types'
@@ -20,6 +21,10 @@ export interface ItemsSlice {
   addItem: (item: Omit<FurnitureItem, 'id'>) => string
   moveItem: (id: string, position: [number, number]) => void
   rotateItem: (id: string, rotation: number) => void
+  /** Widen a narrow walkway gap between two items (GAP-SUGGEST): split the minimal
+   *  nudge to reach `requiredClearance` (default 0.9 m) across both, moving them
+   *  apart along their centre-to-centre axis. One undo step. */
+  nudgeGapApart: (aId: string, bId: string, currentGap: number, requiredClearance?: number) => void
   /** Set an item's tilt (pitch about local X, roll about local Z), in radians.
    *  Pass `undefined` for an axis to leave it unchanged; 0 clears that tilt.
    *  SweetHome3DJS multi-axis tilt parity (tiltFurniture flag). */
@@ -96,6 +101,38 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     set((s) => ({
       items: s.items.map((it) => (it.id === id ? { ...it, rotation } : it)),
     })),
+  nudgeGapApart: (aId, bId, currentGap, requiredClearance = 0.9) => {
+    const items = get().items
+    const a = items.find((i) => i.id === aId)
+    const b = items.find((i) => i.id === bId)
+    if (!a || !b) return
+    const fix = gapFixVector(
+      {
+        a: aId,
+        b: bId,
+        gap: currentGap,
+        severity: 'sub-ideal',
+        wall: false,
+        ax: a.position[0],
+        az: a.position[1],
+        bx: b.position[0],
+        bz: b.position[1],
+      },
+      requiredClearance,
+    )
+    if (fix.distance <= 0) return
+    // Split the widen across both items (half each) so neither travels far.
+    const hx = fix.dx / 2
+    const hz = fix.dz / 2
+    get().pushHistory()
+    set((s) => ({
+      items: s.items.map((it) => {
+        if (it.id === aId) return { ...it, position: [it.position[0] + hx, it.position[1] + hz] }
+        if (it.id === bId) return { ...it, position: [it.position[0] - hx, it.position[1] - hz] }
+        return it
+      }),
+    }))
+  },
   // Coalesced like updateItemProps so a pitch/roll slider drag is one undo step.
   tiltItem: (id, tilt) => {
     get().pushHistoryCoalesced(`tilt:${id}`)

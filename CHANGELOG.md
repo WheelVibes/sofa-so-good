@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## GAP-SUGGEST: one-click "Nudge apart" to widen narrow walkways (v0.8.0.14)
+
+- `nudgeGapApart(aId, bId, currentGap, required=0.9)` (itemsSlice) uses the pure
+  `layout/gapFix.ts` `gapFixVector` to compute the minimal widen to reach the ideal
+  90 cm walkway, then splits it across both items (half each) along their
+  centre-to-centre axis — one undo step; a no-op when the gap already clears.
+- Clearance-checks panel now shows a **Nudge apart** action on each item↔item narrow
+  gap (pro `gapSuggest` flag; not shown for wall gaps). Slice + pure-core + flag tests
+  (both Simple & Pro).
+
 ## 2D plan-editor parity: ruler guides, chained dimensions, corner fillet/bevel (v0.8.0.13)
 
 Three SweetHome3D/Coohom-style authoring aids for the 2D floor-plan editor, all

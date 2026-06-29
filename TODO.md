@@ -79,10 +79,6 @@ The report/export surface is saturated; this wave mines `materials/`/`furniture/
 from `docs/research/2026-06-19-material-microdetail-plan.md` (MAT-006a/b are the only un-shipped rows)
 + a codebase audit. **IN FLIGHT (Wave 12):** MAT-006a, METAL-LEGS, SHELLPERF + ARRANGE-GRID.
 
-### Clean-delegate
-- [ ] **GAP-SUGGEST** (MED/S-M, new `layout/gapFix.ts`) — minimal nudge vector to clear each narrow
-  walkway gap (`walkway.ts findNarrowGaps`); pure helper (UI affordance later, pro).
-
 ### Clean-delegate but PARTLY real-GPU (verification limited — split / defer the pixel pass)
 - [ ] **MAT-006b** (MED/M, `G-flags`) — triplanar projection for sloped/curved walls
   (`materials/triplanar.ts` + `triplanarWalls` pro flag). Uses `onBeforeCompile` → only the CPU-side
