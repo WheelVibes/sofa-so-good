@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor selector → bottom-left dropdown, renamable + reorderable (v0.8.0.9)
+
+- Replaced the toolbar's level-tab strip with a single **floor dropdown pinned to the canvas
+  bottom-left** (`editor/LevelMenu.tsx`). It opens **upward** and lists floors **topmost-first**
+  (shopping-mall directory / lift-panel order): switch, inline **rename**, **reorder** ▲▼,
+  add, duplicate, and remove (upper storeys). The active floor shows on the trigger.
+- New model/actions: `plan.groundName` (so the ground floor is renamable too), `renameLevel`
+  (coalesced) and `moveLevel` (reorders an upper storey and re-stacks every elevation). Both
+  round-trip through the schema; covered by new slice tests. Removed the now-unused `LevelTabs`.
+
 ## Condensed floor-plan editor toolbar — single row (v0.8.0.8)
 
 - Reworked the desktop toolbar so it never spills to two rows: **Select** is a pointer icon,

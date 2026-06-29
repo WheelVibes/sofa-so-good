@@ -767,9 +767,11 @@ same change that reshapes a system.
   the SAME render-agnostic ops the 3D `MultiSelectPanel` uses (`layout/alignDistribute.ts` +
   `layout/selectionActions.ts` `mirrorSelectionX`), each one undo step, `canPlace`-checked,
   locked items skipped, **ungated core** (shown in both Simple and Pro, like align/distribute in 3D).
-  **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
-  "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
-  furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an
+  **Floor menu** (`editor/LevelMenu.tsx`, F13/ML4b): a single dropdown pinned to the canvas
+  bottom-left, listing floors **topmost-first** (mall-directory order) — switch / rename
+  (`renameLevel`; ground writes `plan.groundName`) / reorder ▲▼ (`moveLevel` re-stacks elevations) /
+  add (`addLevel`) / duplicate (`duplicateLevel` clones a storey's geometry + furniture + finishes via
+  pure `cloneLevelGeometry`) / remove upper storeys (confirmed `removeLevel`); an
   **"All levels"** toggle draws the other storeys' walls as a dimmed underlay to align floors; every tool,
   overlay and `PlanInspector` edit routes through the active level (`levelAsPlan` reads,
   `levelId` action args; `updateRoom`/`setRoomCeiling`/finish write-through search all

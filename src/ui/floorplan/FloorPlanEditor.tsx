@@ -80,6 +80,7 @@ import {
   planCenter as planCenterGeo,
 } from './editor/floorPlanGeometry'
 import { GridLines } from './editor/GridLines'
+import { LevelMenu } from './editor/LevelMenu'
 import { type MarqueeItem, type MarqueeRect, marqueeSelect } from './editor/marqueeSelect'
 import { PlanLibrary } from './editor/PlanLibrary'
 import { PlanMenu } from './editor/PlanMenu'
@@ -122,7 +123,6 @@ import {
 import { WallDimension } from './editor/WallDimension'
 import { WallNumericEntry } from './editor/WallNumericEntry'
 import { exportPlanPng } from './exportPlanPng'
-import { LevelTabs } from './LevelTabs'
 import { PlanInspector } from './PlanInspector'
 import { PLAN_LABEL_TEXT, planLabelLines } from './planLabels'
 import { ScalePlanModal } from './ScalePlanModal'
@@ -2249,7 +2249,6 @@ export function FloorPlanEditor() {
               aria-label="Plan name"
               title="Plan name"
             />
-            <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
             {viewToggle}
             {editMode === 'edit' && toolPalette}
             {editMode === 'edit' && wallTypeSeg}
@@ -2297,7 +2296,7 @@ export function FloorPlanEditor() {
                 className="input"
                 aria-label="Plan name"
               />
-              <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
+              {/* Floors are managed from the bottom-left LevelMenu dropdown. */}
               <div className="flex flex-wrap items-center gap-2">
                 {templateLibrary}
                 {fileActions}
@@ -2356,6 +2355,10 @@ export function FloorPlanEditor() {
             constrains it to the flex track (the inner `.plan-canvas` scrolls), so
             `right:12` lands on the visible canvas edge, not past the wide SVG. */}
         <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          {/* Floor (storey) selector — a dropdown pinned to the canvas bottom-left,
+              listing floors topmost-first (mall-directory order) with rename +
+              reorder. */}
+          <LevelMenu plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
           {/* Compass + dynamic scale bar, each absolutely pinned to the canvas
               column's bottom-right corner (desktop AND mobile — on mobile the
               expanded inspector bottom-sheet may cover them, which is acceptable).

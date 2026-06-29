@@ -28,7 +28,7 @@ export interface PlanLevel {
 export function planLevels(plan: FloorPlan): PlanLevel[] {
   const ground: PlanLevel = {
     id: GROUND_LEVEL_ID,
-    name: 'Ground floor',
+    name: plan.groundName?.trim() || 'Ground floor',
     elevation: 0,
     walls: plan.walls,
     openings: plan.openings,

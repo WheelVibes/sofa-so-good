@@ -80,6 +80,33 @@ describe('floorPlanSlice', () => {
     expect(A.start).toEqual([0, 0])
   })
 
+  it('renames the ground floor (groundName) and an upper level', () => {
+    useStore.getState().newFloorPlan('Rename levels')
+    const up = useStore.getState().addLevel()
+    useStore.getState().renameLevel('ground', 'Level 1')
+    useStore.getState().renameLevel(up, 'Roof')
+    const plan = useStore.getState().floorPlan
+    expect(plan.groundName).toBe('Level 1')
+    expect(plan.upperLevels?.find((l) => l.id === up)?.name).toBe('Roof')
+  })
+
+  it('reorders upper levels and re-stacks their elevations', () => {
+    useStore.getState().newFloorPlan('Reorder levels')
+    const a = useStore.getState().addLevel() // first upper (lowest)
+    const b = useStore.getState().addLevel() // second upper (highest)
+    const before = useStore.getState().floorPlan.upperLevels ?? []
+    expect(before.map((l) => l.id)).toEqual([a, b])
+    expect(before[0].elevation).toBeLessThan(before[1].elevation)
+    // Move the lower one up — it swaps with b and elevations re-stack ascending.
+    useStore.getState().moveLevel(a, 'up')
+    const after = useStore.getState().floorPlan.upperLevels ?? []
+    expect(after.map((l) => l.id)).toEqual([b, a])
+    expect(after[0].elevation).toBeLessThan(after[1].elevation)
+    // Ground can't move; an end move is a no-op.
+    useStore.getState().moveLevel('ground', 'up')
+    expect((useStore.getState().floorPlan.upperLevels ?? []).map((l) => l.id)).toEqual([b, a])
+  })
+
   it('duplicates a wall as a new, unlocked, unnamed copy offset from the source', () => {
     useStore.getState().newFloorPlan('Dup wall test')
     const id = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })

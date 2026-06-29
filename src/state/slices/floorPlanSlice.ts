@@ -272,6 +272,13 @@ export interface FloorPlanSlice {
   /** Remove a storey: its rooms/walls/openings, its items, and its finish keys.
    *  Undoable (history snapshot first). No-op for 'ground' or unknown ids. */
   removeLevel: (id: string) => void
+  /** Rename a storey. Ground writes `plan.groundName`; an upper level writes its
+   *  own `name`. Undoable (coalesced per level so typing is one step). */
+  renameLevel: (id: string, name: string) => void
+  /** Reorder an UPPER storey one slot up/down in the stack and recompute every
+   *  upper elevation so the storeys re-stack cleanly (ground stays the base).
+   *  No-op for ground / at the ends. One undo step (PARITY-LEVEL-REORDER). */
+  moveLevel: (id: string, dir: 'up' | 'down') => void
 
   /** Rescale the WHOLE plan (every storey) + the furniture by a factor or to a
    *  target wall length, about an anchor point (PARITY-PLAN-SCALE). Scales wall
@@ -1135,6 +1142,47 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         finishes: pruneFinishesForPlan(s.finishes, floorPlan),
         planSelection: null,
       }
+    })
+  },
+  renameLevel: (id, name) => {
+    const trimmed = name.trim()
+    get().pushHistoryCoalesced(`level-name-${id}`)
+    set((s) => {
+      if (id === GROUND_LEVEL_ID) {
+        return { floorPlan: { ...s.floorPlan, groundName: trimmed || undefined } }
+      }
+      return {
+        floorPlan: {
+          ...s.floorPlan,
+          upperLevels: (s.floorPlan.upperLevels ?? []).map((l) =>
+            l.id === id ? { ...l, name: trimmed || l.name } : l,
+          ),
+        },
+      }
+    })
+  },
+  moveLevel: (id, dir) => {
+    if (id === GROUND_LEVEL_ID) return
+    const s0 = get()
+    const uppers = s0.floorPlan.upperLevels ?? []
+    const idx = uppers.findIndex((l) => l.id === id)
+    if (idx < 0) return
+    const swapWith = dir === 'up' ? idx + 1 : idx - 1
+    if (swapWith < 0 || swapWith >= uppers.length) return // already at an end
+    s0.pushHistory()
+    set((s) => {
+      const arr = [...(s.floorPlan.upperLevels ?? [])]
+      ;[arr[idx], arr[swapWith]] = [arr[swapWith], arr[idx]]
+      // Re-stack elevations from the (now reordered) array so each storey sits a
+      // floor-to-floor height above the one below (ground = base, y=0).
+      const slab = 0.3
+      let top = 0
+      const restacked = arr.map((l) => {
+        const elevation = top + (l.ceilingHeight ?? s.floorPlan.ceilingHeight) + slab
+        top = elevation
+        return { ...l, elevation }
+      })
+      return { floorPlan: { ...s.floorPlan, upperLevels: restacked } }
     })
   },
   rescaleFloorPlan: (spec, opts) => {
