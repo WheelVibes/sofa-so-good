@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IO-008: optimize worker `messageerror` handler (v0.8.0.34)
+
+- `furniture/optimize/runOptimize.ts` now sets `worker.onmessageerror` (alongside `onerror`) to fail
+  every in-flight call to the direct fallback and retire the worker. A reply that can't be
+  structured-cloned fires `messageerror` (not `error`); without this handler that call's pending
+  promise never resolved — hanging the import and wedging a bulk-import pool slot forever.
+
 ## IO-009 + IO-010: model-import format detection + multi-MTL (v0.8.0.33)
 
 - **IO-009** — `convert/formats.ts` `detectModelFormat` now recognises **ASCII FBX** (the `; FBX`

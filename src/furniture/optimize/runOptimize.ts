@@ -60,13 +60,19 @@ function ensureWorker(): Worker | null {
       pending.delete(e.data.id)
       resolve(replyToResult(e.data))
     }
-    worker.onerror = () => {
+    // Fail every in-flight call to the direct fallback and retire the worker.
+    const failAll = () => {
       workerBroken = true
-      // Reject all in-flight calls so they fall back to the direct path.
       for (const [, resolve] of pending) resolve(null)
       pending.clear()
       worker = null
     }
+    worker.onerror = failAll
+    // A reply that can't be structured-cloned fires `messageerror`, not
+    // `error`. Without this handler that call's `pending` promise would never
+    // resolve — hanging the import (and wedging a bulk-import pool slot)
+    // forever. We can't tell which id failed, so fall everything back (IO-008).
+    worker.onmessageerror = failAll
     return worker
   } catch {
     workerBroken = true
