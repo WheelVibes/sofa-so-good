@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## SLOT-301: configurator module docs (v0.8.0.46)
+
+- Added `src/furniture/configurator/CLAUDE.md` (area rules: base+slots model, `clampConfig`
+  discipline, pure `composeProduct`, GLB-designer bake channel, flag-gating, open fast-follows) and
+  trimmed the `TASKS.md` SLOT entry to its remaining fast-follows (203 GLB-options / 204 re-edit) now
+  that the core (model/compose/products/build/bake/flag/dialog) has shipped end-to-end.
+
 ## SLOT-105: configurator dialog + ⌘K entry (v0.8.0.45)
 
 - `ui/configurator/ConfiguratorDialog.tsx` + `ConfiguratorPreview.tsx` — a structural clone of the
