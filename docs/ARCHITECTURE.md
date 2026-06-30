@@ -913,6 +913,9 @@ same change that reshapes a system.
   unit-tested incl. a builtin-finish-id guard; `ui/StyleTransferModal.tsx` style-card grid →
   `finishesSlice.applyHomeStyle` swaps every room's floor+wall in one undo + `setMasterPalette`;
   `styleTransfer` flag, pro),
+  **Style quiz** (`ui/styling/styleQuiz.ts` pure `STYLE_QUIZ` data + `scoreQuiz` weighted-answer
+  scoring, unit-tested incl. a preset-id guard; `ui/StyleQuizModal.tsx` stepper → recommends a
+  `STYLE_PRESETS` look and applies it via the same path; `styleQuiz` flag, pro),
   **360° tour** (P-720: `panoTourSlice` stop list `{label,position,[levelId]}`
   persisted per-device to localStorage + encoded in share/save links (C261, optional field →
   back-compat); pure `ui/panorama/panoTour.ts` DERIVES room-to-room hotspots (yaw/pitch via

@@ -49,6 +49,7 @@ import {
   ShareModal,
   SmartStartWizard,
   StagingRevealModal,
+  StyleQuizModal,
   StyleTransferModal,
   VersionsPanel,
 } from './ui/app/lazyComponents'
@@ -111,6 +112,7 @@ export default function App() {
     renderCompareOpen: useStore((s) => s.renderCompareOpen),
     stagingRevealOpen: useStore((s) => s.stagingRevealOpen),
     styleTransferOpen: useStore((s) => s.styleTransferOpen),
+    styleQuizOpen: useStore((s) => s.styleQuizOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
     historyOpen: useStore((s) => s.historyOpen),
@@ -972,6 +974,11 @@ export default function App() {
         {lazyPanels.styleTransferOpen ? (
           <Suspense fallback={null}>
             <StyleTransferModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.styleQuizOpen ? (
+          <Suspense fallback={null}>
+            <StyleQuizModal />
           </Suspense>
         ) : null}
         {lazyPanels.elevationsOpen ? (

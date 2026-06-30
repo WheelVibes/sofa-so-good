@@ -97,6 +97,7 @@ export function ToolsMenu() {
   const fReport = useFeature('report')
   const fMoodboard = useFeature('moodboard')
   const fStyleTransfer = useFeature('styleTransfer')
+  const fStyleQuiz = useFeature('styleQuiz')
   const fDxf = useFeature('dxfExport')
   const fBoq = useFeature('boq')
   const fQuoteTemplate = useFeature('quoteTemplate')
@@ -155,7 +156,16 @@ export function ToolsMenu() {
         fDrawingCallouts ||
         fShare ||
         fMoodboard ||
-        fStyleTransfer) && <div className="menu-label">Export & document</div>}
+        fStyleTransfer ||
+        fStyleQuiz) && <div className="menu-label">Export & document</div>}
+      {fStyleQuiz && (
+        <MenuItem
+          icon="Palette"
+          label="Style quiz"
+          sub="Find your interior style in a few taps"
+          onClick={() => useStore.getState().setStyleQuizOpen(true)}
+        />
+      )}
       {fStyleTransfer && (
         <MenuItem
           icon="Palette"

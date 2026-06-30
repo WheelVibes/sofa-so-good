@@ -421,6 +421,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Short personality quiz that recommends + applies a curated style. Pure data
+  // + builtin finishes, prod-safe; a guided design extra → pro tier.
+  styleQuiz: {
+    label: 'Style quiz',
+    description: 'Answer a few questions to find & apply your interior style',
+    default: true,
+    tier: 'pro',
+  },
   // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
   // assets → prod-safe. Crown molding is a core finish detail visible in casual
   // use, so it belongs in Simple tier.

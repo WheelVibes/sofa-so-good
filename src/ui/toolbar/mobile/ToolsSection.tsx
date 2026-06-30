@@ -42,6 +42,7 @@ export function ToolsSection({
 
   const fShare = useFeature('shareExport')
   const fStyleTransfer = useFeature('styleTransfer')
+  const fStyleQuiz = useFeature('styleQuiz')
   const fSun = useFeature('sunStudy')
   const fReport = useFeature('report')
   const fDxf = useFeature('dxfExport')
@@ -97,8 +98,19 @@ export function ToolsSection({
           </Fragment>
         ),
       )}
-      {fShare || fStyleTransfer || (!roomEditorActive && fReport) || (!roomEditorActive && fDxf) ? (
+      {fShare ||
+      fStyleTransfer ||
+      fStyleQuiz ||
+      (!roomEditorActive && fReport) ||
+      (!roomEditorActive && fDxf) ? (
         <SubHeader>Export &amp; document</SubHeader>
+      ) : null}
+      {fStyleQuiz ? (
+        <Item
+          icon="Palette"
+          label="Style quiz"
+          onClick={act(() => s.getState().setStyleQuizOpen(true))}
+        />
       ) : null}
       {fShare ? (
         <Item

@@ -63,12 +63,11 @@ Confirmed NOT already shipped at audit time (grep-checked); re-confirm before st
 _First 2026-06-30 batch resolved (2 shipped, 1 deferred, 1 was already-shipped)._
 
 ### Next batch (2026-06-30, grep-confirmed unbuilt; value-ranked)
-- ~~In-engine one-tap style transfer~~ — **shipped v0.9.0.5** (`styleTransfer` flag; pure
-  `ui/styling/styleTransfer.ts` 5 presets + `finishesSlice.applyHomeStyle`; `ui/StyleTransferModal.tsx`).
-  See `CHANGELOG.md`. **Next up: style/personality quiz onboarding.**
-- **Style/personality quiz onboarding** (consumer-parity) — a short 3–4 question quiz → a style preset
-  that seeds Smart Start. Builds on the style defs above. Pure scoring fn (answers → style) is
-  unit-testable; scenario drives the quiz → asserts the seeded style. M.
+- ~~In-engine one-tap style transfer~~ — **shipped v0.9.0.5** (`styleTransfer`). See `CHANGELOG.md`.
+- ~~Style/personality quiz~~ — **shipped v0.9.0.6** (`styleQuiz` flag; pure `ui/styling/styleQuiz.ts`
+  `scoreQuiz` + `ui/StyleQuizModal.tsx`; recommends + applies a `STYLE_PRESETS` look). _Tail: deeper
+  Smart Start integration (seed the wizard from the quiz result) remains optional._ See `CHANGELOG.md`.
+  **Next up: fast rasterized "preview render" tier.**
 - **Fast rasterized "preview render" tier** (Coohom M) — a high-quality single-frame raster capture as
   the local analog to the 10-s cloud render (reuses `scene/captureCanvas`). Mostly a quality/post
   preset + export; GPU-look fidelity is only partly verifiable headless, so verify the capture/export

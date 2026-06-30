@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: style quiz — find & apply your interior style (v0.9.0.6)
+
+- **New `styleQuiz` (pro) feature** — a short 4-question personality quiz that recommends one of the
+  curated styles (Scandinavian/Japandi/Industrial/Coastal/Warm-minimal) and applies it whole-home in
+  one tap (reusing `applyHomeStyle` + `setMasterPalette`). Consumer onboarding parity
+  (Decor8/Havenly/Decoratly style quizzes), fully client-side.
+- **Modular + tested:** pure `ui/styling/styleQuiz.ts` — weighted `STYLE_QUIZ` data + `scoreQuiz`
+  (answers → winning style, deterministic tiebreak by preset order, always returns a valid id) with
+  7 unit tests including a guard that every option weights only real `STYLE_PRESETS` ids.
+  `ui/StyleQuizModal.tsx` is a presentational stepper (one question per screen, Back, then a result
+  card with palette swatches + Apply / Retake).
+- **Wired + gated:** `styleQuiz` flag (pro, prod-safe; hidden in Simple — both-mode test), store
+  `styleQuizOpen` + setter, Tools menu + mobile ToolsSection, ⌘K command, lazy-loaded modal. New
+  `style-quiz-simple.json` IXT scenario (gate → stepper → asserts the Scandinavian recommendation →
+  apply → finish + palette change). Visually verified: result card + restyled scene.
+
 ## FEATURE: in-engine one-tap style transfer (v0.9.0.5)
 
 - **New `styleTransfer` (pro) feature** — a curated library of interior styles (Scandinavian, Japandi,

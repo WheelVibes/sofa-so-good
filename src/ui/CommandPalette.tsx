@@ -56,6 +56,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'render-compare': 'renderCompare',
   'staging-reveal': 'stagingReveal',
   'style-transfer': 'styleTransfer',
+  'style-quiz': 'styleQuiz',
   'shopping-list': 'shopExport',
   'furniture-csv': 'shopExport',
   'room-schedule-csv': 'shopExport',
@@ -306,6 +307,13 @@ export function CommandPalette() {
         label: 'Style transfer — restyle every room',
         icon: 'Palette',
         run: () => s().setStyleTransferOpen(true),
+      },
+      {
+        id: 'style-quiz',
+        group: 'Tools & panels',
+        label: 'Style quiz — find your interior style',
+        icon: 'Palette',
+        run: () => s().setStyleQuizOpen(true),
       },
       {
         id: 'ai-furnish',

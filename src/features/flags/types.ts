@@ -63,6 +63,7 @@ export type FeatureFlag =
   | 'renderCompare'
   | 'stagingReveal'
   | 'styleTransfer'
+  | 'styleQuiz'
   | 'crownMolding'
   | 'windowGlassTint'
   | 'curtainLightEffect'
