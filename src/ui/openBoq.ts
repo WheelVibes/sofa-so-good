@@ -1,4 +1,4 @@
-import { floorRateKind, RENO_RATES, wallRateKind } from '../analysis/renovationCost'
+import { floorRateFor, wallRateFor } from '../analysis/renovationCost'
 import type { BoqInput } from '../export/boq'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { type FloorPlan, planRoomArea } from '../floorplan/types'
@@ -7,8 +7,6 @@ import { itemPrice } from '../furniture/furniturePrices'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import { useStore } from '../state/store'
 
-/** Built-in carpentry rate (SGD per linear metre) for cabinet/wardrobe runs. */
-const CARPENTRY_RATE = 320
 const matName = (id: string) => BUILTIN_MATERIALS[id]?.name ?? id
 
 /** Floor-finish map for the active plan: the store finishes for the default
@@ -67,6 +65,8 @@ export async function assembleBoqInput(): Promise<BoqInput> {
 
   const fMap = floorMap(plan)
   const wMap = isDefaultPlan(plan) ? (s.finishes.walls as Record<string, string>) : {}
+  // Apply the user's configurable rate card (defaults to the built-in SG rates).
+  const rules = s.priceRules
   return {
     plan,
     rooms: plan.rooms.map((r) => ({
@@ -80,12 +80,12 @@ export async function assembleBoqInput(): Promise<BoqInput> {
       floorByFinish: floorAreaByFinish(plan, fMap).map((f) => ({
         name: matName(f.id),
         areaSqm: f.area,
-        ratePerSqm: RENO_RATES.floor[floorRateKind(f.id)],
+        ratePerSqm: floorRateFor(rules, f.id),
       })),
       wallByFinish: wallAreaByFinish(plan, wMap, plan.ceilingHeight).map((f) => ({
         name: matName(f.id),
         areaSqm: f.area,
-        ratePerSqm: RENO_RATES.wall[wallRateKind(f.id)],
+        ratePerSqm: wallRateFor(rules, f.id),
       })),
     },
     carpentry:
@@ -94,7 +94,7 @@ export async function assembleBoqInput(): Promise<BoqInput> {
             {
               name: 'Built-in carpentry (cabinets / wardrobes)',
               lengthM: carpentryM,
-              ratePerM: CARPENTRY_RATE,
+              ratePerM: rules.carpentryPerM,
             },
           ]
         : undefined,

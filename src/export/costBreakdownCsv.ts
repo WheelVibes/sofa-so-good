@@ -24,7 +24,7 @@
  * money total (unit-independent) bar the m² area column.
  */
 
-import { estimateRenovation } from '../analysis/renovationCost'
+import { estimateRenovation, type PriceRules } from '../analysis/renovationCost'
 import type { FloorPlan } from '../floorplan/types'
 import { itemPrice } from '../furniture/furniturePrices'
 import {
@@ -114,6 +114,7 @@ export function buildCostBreakdown(
   catalog: Record<string, FurnitureDef>,
   finishes: FinishesByRoom | undefined,
   nameOf: (id: string) => string,
+  priceRules?: PriceRules,
 ): CostBreakdown {
   // --- Furniture by category ---
   const byCat = new Map<FurnitureCategory, CategoryCost>()
@@ -134,7 +135,7 @@ export function buildCostBreakdown(
   // --- Renovation (finishes) via the existing rate model ---
   const floors = floorAreaByFinish(plan, finishes?.floor)
   const walls = wallAreaByFinish(plan, finishes?.walls, plan.ceilingHeight)
-  const reno = estimateRenovation(floors, walls)
+  const reno = estimateRenovation(floors, walls, priceRules)
   const finishLines: FinishCost[] = [
     ...reno.floors.map(
       (l): FinishCost => ({
@@ -198,8 +199,9 @@ export function buildCostBreakdownCsv(
   finishes: FinishesByRoom | undefined,
   nameOf: (id: string) => string,
   _units: UnitSystem = 'metric',
+  priceRules?: PriceRules,
 ): string {
-  const b = buildCostBreakdown(plan, items, catalog, finishes, nameOf)
+  const b = buildCostBreakdown(plan, items, catalog, finishes, nameOf, priceRules)
   const header = ['Section', 'Item', 'Qty', 'Area (m²)', 'Rate (SGD/m²)', 'Subtotal (SGD)']
   const rows: string[][] = [header]
 

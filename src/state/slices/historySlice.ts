@@ -1,3 +1,4 @@
+import type { PriceRules } from '../../analysis/renovationCost'
 import type { QuoteTemplate } from '../../export/quoteTemplate'
 import type { FloorPlan } from '../../floorplan/types'
 import type { FurnitureItem } from '../../furniture/types'
@@ -33,6 +34,8 @@ export interface HistorySnapshot {
   drawingCallouts: DrawingCallout[]
   /** Quote template settings — branding/tax/section changes are undoable. */
   quoteTemplate: QuoteTemplate
+  /** Price-rule library — finish + carpentry rate changes are undoable. */
+  priceRules: PriceRules
 }
 
 export interface HistorySlice {
@@ -81,6 +84,7 @@ function snapshot(s: RootState): HistorySnapshot {
     comments: s.comments,
     drawingCallouts: s.drawingCallouts,
     quoteTemplate: s.quoteTemplate,
+    priceRules: s.priceRules,
   }
 }
 
@@ -95,7 +99,8 @@ function snapshotMatchesState(snap: HistorySnapshot, s: RootState): boolean {
     snap.floorPlan === s.floorPlan &&
     snap.comments === s.comments &&
     snap.drawingCallouts === s.drawingCallouts &&
-    snap.quoteTemplate === s.quoteTemplate
+    snap.quoteTemplate === s.quoteTemplate &&
+    snap.priceRules === s.priceRules
   )
 }
 

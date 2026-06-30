@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: configurable price-rule library for the quote & estimate (v0.9.0.8)
+
+- **Contractor-editable rate card** (`priceRules`, pro flag) — the BOQ quote and the renovation
+  estimate previously priced everything from a fixed built-in table (`RENO_RATES` + a hardcoded
+  `CARPENTRY_RATE = 320`). They now read a user-configurable `PriceRules` card: per-bucket $/m²
+  floor rates (tiles / stone / timber / vinyl / other), per-bucket $/m² wall rates (paint / tiles /
+  wallpaper / other) and the carpentry $/linear-metre. Defaults reproduce the built-in SG table
+  exactly, so output is unchanged until a rate is edited. Closes the second half of parity gap
+  **M#2** (quote templates shipped earlier; this adds the price-rule library).
+- **One source of truth** — `analysis/renovationCost.ts` owns the model (`PriceRules`,
+  `DEFAULT_PRICE_RULES`, `mergePriceRules`/`isNonDefaultPriceRules`, `floorRateFor`/`wallRateFor`);
+  `estimateRenovation` takes an optional `rules` param (defaults to the built-in table — fully
+  backward compatible). The quote (`assembleBoqInput`), the printable report (`buildReportHtml`)
+  and the cost-breakdown CSV (`buildCostBreakdown`) all thread `store.priceRules` through, so the
+  three deliverables price identically.
+- **Editor** lives in the existing **Quote template** dialog under a new "Price rules (rates)"
+  section, gated by `useFeature('priceRules')` (the section, plus a "Reset rates" affordance).
+  Rate edits push a single undo step and are undoable (added `priceRules` to the history snapshot).
+- **Persistence** — the rate card travels with the design (Zod `PriceRulesZ` + autosave watch-list +
+  `serialize`/`applySerialized`), persisted only when non-default; `mergePriceRules` sanitises any
+  corrupt/negative/NaN rate back to the default on load.
+- Tests: rate-card helpers, `estimateRenovation` honouring a custom card, the slice (set/reset +
+  single-undo revert), schema round-trip (non-default persist + corrupt-clamp), and the `priceRules`
+  flag in **both** Simple (off) and Pro (on) modes. Visually verified the dialog via the
+  quote-template scenario (19/19; edit→undo round-trip 420→320).
+
 ## QOL+FIX: Undo affordance on style apply + single-undo fix (v0.9.0.7)
 
 - **"Undo" button on the style-applied toast** (style transfer + style quiz) — applying a whole-home

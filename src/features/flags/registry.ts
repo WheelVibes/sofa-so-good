@@ -757,6 +757,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Configurable price-rule library (PARITY-PRICE-RULES). Contractor-editable
+  // $/m² floor + wall rates and the carpentry $/lin.m that drive the BOQ quote
+  // and the renovation estimate. Pure code, no external assets → prod-safe; a
+  // professional quoting tool → pro tier (hidden in Simple mode automatically).
+  priceRules: {
+    label: 'Price rules',
+    description: 'Edit the per-m² finish + carpentry rates used in the quote & estimate',
+    default: true,
+    tier: 'pro',
+  },
   // Live numeric length + angle entry while drawing walls (PC-WALL-NUMERIC).
   // Matches Sweet Home 3D / Arcadium 3D behaviour: type an exact length (and
   // optional angle) while dragging, press Enter to commit. Pure code, no

@@ -13,7 +13,7 @@ import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildOpeningSchedule } from '../analysis/openingSchedule'
 import { buildPlanStatistics, roomKindLabel } from '../analysis/planStatistics'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
-import { estimateRenovation } from '../analysis/renovationCost'
+import { estimateRenovation, type PriceRules } from '../analysis/renovationCost'
 import { buildStairAdvisories } from '../analysis/stairConnectivity'
 import { buildSuggestions } from '../analysis/suggestions'
 import { buildThermalReport, thermalKindLabel } from '../analysis/thermalAnalysis'
@@ -86,6 +86,7 @@ export function buildReportHtml(
   annotations: MeasurementAnnotation[] = [],
   budgetTarget?: number | null,
   baselinePlan?: FloorPlan,
+  priceRules?: PriceRules,
 ): string {
   // Multi-storey fan-out (F13): on a multi-level plan every plan-derived
   // diagram (floor plan, dimensioned plan, hacking plan, lighting plan) renders
@@ -585,7 +586,7 @@ export function buildReportHtml(
   // Renovation estimate — the finishes counterpart to the furniture budget:
   // flooring + painting/wall supply+install over the per-finish areas, at
   // indicative SG rates. Only when finishes are supplied + something to cost.
-  const reno = estimateRenovation(floorAreas, wallAreas)
+  const reno = estimateRenovation(floorAreas, wallAreas, priceRules)
   const renoLineRows = (rows: ReturnType<typeof estimateRenovation>['floors']) =>
     rows
       .map(

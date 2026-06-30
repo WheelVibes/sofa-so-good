@@ -47,6 +47,7 @@ export async function downloadCostBreakdownCsv(): Promise<void> {
     finishMaps(s.floorPlan),
     nameOf,
     s.units,
+    s.priceRules,
   )
   // Prepend a UTF-8 BOM so Excel reads accented item / finish names correctly.
   const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' })

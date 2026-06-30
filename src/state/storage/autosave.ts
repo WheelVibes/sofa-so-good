@@ -41,6 +41,7 @@ type Persistent = {
   designNote: unknown
   panoTourStops: unknown
   quoteTemplate: unknown
+  priceRules: unknown
 }
 
 /** The exact set of root-state keys this watch-list tracks. Exposed so a guard
@@ -68,6 +69,7 @@ export const PERSISTENT_WATCH_KEYS = [
   'designNote',
   'panoTourStops',
   'quoteTemplate',
+  'priceRules',
 ] as const satisfies readonly (keyof Persistent)[]
 
 function pickPersistent(): Persistent {
@@ -94,6 +96,7 @@ function pickPersistent(): Persistent {
     designNote: s.designNote,
     panoTourStops: s.panoTourStops,
     quoteTemplate: s.quoteTemplate,
+    priceRules: s.priceRules,
   }
 }
 
@@ -119,7 +122,8 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
     a.locationPromptDismissed === b.locationPromptDismissed &&
     a.designNote === b.designNote &&
     a.panoTourStops === b.panoTourStops &&
-    a.quoteTemplate === b.quoteTemplate
+    a.quoteTemplate === b.quoteTemplate &&
+    a.priceRules === b.priceRules
   )
 }
 

@@ -1,17 +1,40 @@
 /**
  * Quote template settings dialog — lets the user customise the company branding,
- * header/footer notes, currency label, GST / markup / discount percentages, and
- * which BOQ sections appear in their exported quote.
+ * header/footer notes, currency label, GST / markup / discount percentages, which
+ * BOQ sections appear, and (when the `priceRules` flag is on) the configurable
+ * supply+install rate card that prices the quote + renovation estimate.
  *
  * Accessible via the ⌘K palette ("quote-template") and the Tools menu (nested
  * inside the Quote/BOQ block, gated by the `boq` flag). Gated by `quoteTemplate`
- * (pro tier) — hidden in Simple mode automatically.
+ * (pro tier) — hidden in Simple mode automatically. The price-rule section is
+ * additionally gated by `priceRules` (pro).
  */
 
+import {
+  DEFAULT_PRICE_RULES,
+  type FloorRateKind,
+  type WallRateKind,
+} from '../analysis/renovationCost'
 import { DEFAULT_QUOTE_TEMPLATE, type QuoteTemplate } from '../export/quoteTemplate'
 import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
 import { Modal } from './Modal'
+
+/** Friendly labels for the floor-finish rate buckets. */
+const FLOOR_RATE_LABELS: Record<FloorRateKind, string> = {
+  tile: 'Tiles',
+  stone: 'Stone / marble',
+  wood: 'Timber / parquet',
+  vinyl: 'Vinyl / laminate',
+  other: 'Other floors',
+}
+/** Friendly labels for the wall-finish rate buckets. */
+const WALL_RATE_LABELS: Record<WallRateKind, string> = {
+  paint: 'Paint',
+  tile: 'Wall tiles',
+  wallpaper: 'Wallpaper',
+  other: 'Other walls',
+}
 
 // ---------------------------------------------------------------------------
 // Helper: controlled text input row
@@ -111,6 +134,63 @@ function PctRow({ label, value, onChange, ariaLabel }: PctRowProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: controlled money-rate input row (e.g. $/m², $/lin.m)
+
+interface RateRowProps {
+  label: string
+  value: number
+  unit: string
+  onChange: (v: number) => void
+}
+
+function RateRow({ label, value, unit, onChange }: RateRowProps) {
+  const id = `qt-rate-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 'var(--s-1)',
+      }}
+    >
+      <label
+        htmlFor={id}
+        className="label"
+        style={{ fontSize: 'var(--t-xs)', flex: 1, cursor: 'default' }}
+      >
+        {label}
+      </label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-0)' }}>
+        <span className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+          S$
+        </span>
+        <input
+          id={id}
+          type="number"
+          aria-label={`${label} rate`}
+          className="input"
+          value={value}
+          min={0}
+          step={1}
+          onChange={(e) => {
+            const v = Number.parseFloat(e.target.value)
+            onChange(Number.isFinite(v) && v >= 0 ? v : 0)
+          }}
+          style={{ width: 80, textAlign: 'right' }}
+        />
+        <span
+          className="label"
+          style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', width: 40 }}
+        >
+          {unit}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Helper: checkbox row for section visibility
 
 interface CheckRowProps {
@@ -172,9 +252,21 @@ export function QuoteTemplateModal() {
   const template = useStore((s) => s.quoteTemplate)
   const setTemplate = useStore((s) => s.setQuoteTemplate)
   const resetTemplate = useStore((s) => s.resetQuoteTemplate)
+  const rules = useStore((s) => s.priceRules)
+  const setRules = useStore((s) => s.setPriceRules)
+  const resetRules = useStore((s) => s.resetPriceRules)
   const enabled = useFeature('quoteTemplate')
+  // Price-rule editing is its own pro feature; the section shows only when on.
+  const ratesEnabled = useFeature('priceRules')
 
   if (!enabled) return null
+
+  // Per-bucket rate updaters (replace the nested object so persistence detects it).
+  const setFloorRate = (kind: FloorRateKind, v: number) =>
+    setRules({ ...rules, floor: { ...rules.floor, [kind]: v } })
+  const setWallRate = (kind: WallRateKind, v: number) =>
+    setRules({ ...rules, wall: { ...rules.wall, [kind]: v } })
+  const rulesAreDefault = JSON.stringify(rules) === JSON.stringify(DEFAULT_PRICE_RULES)
 
   // Partial updater: merge one field at a time.
   const update = <K extends keyof QuoteTemplate>(key: K, value: QuoteTemplate[K]) =>
@@ -187,7 +279,7 @@ export function QuoteTemplateModal() {
       open={open}
       onClose={() => setOpen(false)}
       title="Quote template"
-      sub="Branding, notes & tax settings"
+      sub={ratesEnabled ? 'Branding, notes, tax & rates' : 'Branding, notes & tax settings'}
       width={400}
       footer={
         <div
@@ -302,6 +394,75 @@ export function QuoteTemplateModal() {
           checked={template.showCarpentry}
           onChange={(v) => update('showCarpentry', v)}
         />
+
+        {/* Price rules — configurable supply+install rates (own pro flag). */}
+        {ratesEnabled ? (
+          <>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                justifyContent: 'space-between',
+                marginTop: 'var(--s-2)',
+                borderBottom: '1px solid var(--border)',
+                paddingBottom: 'var(--s-0)',
+              }}
+            >
+              <span className="label" style={{ fontSize: 'var(--t-xs)', fontWeight: 600 }}>
+                Price rules (rates)
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => resetRules()}
+                disabled={rulesAreDefault}
+                title="Reset rates to the built-in Singapore rate table"
+                style={{ fontSize: 'var(--t-2xs)' }}
+              >
+                Reset rates
+              </button>
+            </div>
+            <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+              Flooring (supply &amp; install)
+            </div>
+            {(Object.keys(FLOOR_RATE_LABELS) as FloorRateKind[]).map((kind) => (
+              <RateRow
+                key={`floor-${kind}`}
+                label={FLOOR_RATE_LABELS[kind]}
+                value={rules.floor[kind]}
+                unit="/m²"
+                onChange={(v) => setFloorRate(kind, v)}
+              />
+            ))}
+            <div
+              className="label"
+              style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-1)' }}
+            >
+              Wall finishes
+            </div>
+            {(Object.keys(WALL_RATE_LABELS) as WallRateKind[]).map((kind) => (
+              <RateRow
+                key={`wall-${kind}`}
+                label={WALL_RATE_LABELS[kind]}
+                value={rules.wall[kind]}
+                unit="/m²"
+                onChange={(v) => setWallRate(kind, v)}
+              />
+            ))}
+            <div
+              className="label"
+              style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-1)' }}
+            >
+              Carpentry
+            </div>
+            <RateRow
+              label="Built-in carpentry"
+              value={rules.carpentryPerM}
+              unit="/lin.m"
+              onChange={(v) => setRules({ ...rules, carpentryPerM: v })}
+            />
+          </>
+        ) : null}
       </div>
     </Modal>
   )

@@ -67,11 +67,20 @@ _First 2026-06-30 batch resolved (2 shipped, 1 deferred, 1 was already-shipped).
 - ~~Style/personality quiz~~ — **shipped v0.9.0.6** (`styleQuiz` flag; pure `ui/styling/styleQuiz.ts`
   `scoreQuiz` + `ui/StyleQuizModal.tsx`; recommends + applies a `STYLE_PRESETS` look). _Tail: deeper
   Smart Start integration (seed the wizard from the quiz result) remains optional._ See `CHANGELOG.md`.
-  **Next up: fast rasterized "preview render" tier.**
-- **Fast rasterized "preview render" tier** (Coohom M) — a high-quality single-frame raster capture as
-  the local analog to the 10-s cloud render (reuses `scene/captureCanvas`). Mostly a quality/post
-  preset + export; GPU-look fidelity is only partly verifiable headless, so verify the capture/export
-  wiring + flag gating. M.
+- ~~Configurable price-rule library~~ — **shipped v0.9.0.8** (`priceRules` flag;
+  `analysis/renovationCost.ts` `PriceRules`; editor in `QuoteTemplateModal`). Closed parity gap M#2.
+- **Fast rasterized "preview render" tier** (Coohom M) — local analog to the 10-s cloud render.
+  Deferred under the direction change below (it's an analytics/deliverable, not core design UX).
+
+## ⭐ DIRECTION CHANGE (2026-07-01, user) — focus on CORE INTERIOR-DESIGN UX
+> "Instead of price and quotes, focus **solely on the core interior-design aspects and interactions**
+> that make a good interior-design tool. Make it more **user-friendly, intuitive, easy to use,
+> discoverable, customizable**, following modern UI/UX & design principles, curated for **both desktop
+> and mobile**. Research the tools in `REFERENCES.md` for inspiration + best practices."
+
+Next iterations target **the core design loop + its UX/discoverability/customizability** (furnish,
+arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytics deliverables. Research
+`REFERENCES.md` (Coohom, Planner 5D, IKEA Kreativ, Sweet Home 3D, …) before designing each change.
 
 ## Process
 - Update this file every time a plan is designed or work is implemented (MEMORY.md feedback rule).

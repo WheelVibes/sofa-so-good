@@ -60,7 +60,6 @@ Quick Look)** · **all analysis tools (we exceed)**.
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
 | Fast rasterized "preview render" tier | ◑ | ✅ | A high-quality single-frame raster capture as the local analog to cloud 10-s render. | M |
-| Quotation **editable templates** + price-rule library | ◑ | ✅ | BOQ + CSV + **XLSX** ship; add user-editable quote templates + a configurable price-rule library. | M |
 | Day-to-night animated render clip | ◑ | ✅ | Animate the time-of-day slider along the video path (real-GPU final clip). | M |
 | AI floor-plan generation (text → plan) | ❌ | 🔑 | BYO-key LLM emits wall/room JSON into the 2D plan schema. | L |
 | AI plan recognition: auto-detect doors/windows + scale | ◑ | 🔑 | Extend the existing BYO-key AI wall tracing to openings + scale calibration. | M |
@@ -119,10 +118,11 @@ name/price labels on the 2D plan** · **wall split/join/reverse** · **all-level
 
 **High-value medium efforts (M):**
 1. Fast rasterized "preview render" tier (Coohom) — local analog to cloud 10-s render.
-2. Quote editable templates + price-rule library (Coohom) — CSV/XLSX export already ship.
-3. Day-to-night animated render clip (Coohom) — animate time-of-day along the video path.
-4. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
-5. AI matting / background removal for product cutouts (WASM segmentation).
+2. Day-to-night animated render clip (Coohom) — animate time-of-day along the video path.
+3. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
+4. AI matting / background removal for product cutouts (WASM segmentation).
+   _(Shipped: quote editable templates + the **configurable price-rule library** — `priceRules`,
+   `analysis/renovationCost.ts` `PriceRules`; see `CHANGELOG.md`.)_
 
 **Marquee large efforts (L):**
 7. **AI floor-plan generation** (text → plan, Coohom, 🔑 BYO-key).

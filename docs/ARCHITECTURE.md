@@ -593,9 +593,16 @@ same change that reshapes a system.
   actually placed, plus an always-present keys/meters/documents group). The report's **Move-in
   checklist** section (PARITY-MOVEIN-CHECKLIST); rides the existing `report` flag, always renders
   (an empty plan still yields the generic group).
-- **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas)`:
-  indicative SG supply+install $/m² per finish category, `RENO_RATES` table). The report's Renovation
-  estimate section (finishes subtotal + combined furniture+finishes total).
+- **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas,rules?)`:
+  SG supply+install $/m² per finish category). The default rate table (`RENO_RATES`) is the factory
+  default of a **configurable price-rule library** (`PriceRules`/`DEFAULT_PRICE_RULES`, with
+  `mergePriceRules`/`isNonDefaultPriceRules`/`floorRateFor`/`wallRateFor`): the user can override any
+  per-bucket floor/wall rate + the carpentry $/lin.m. The card lives in `priceRulesSlice` (`priceRules`,
+  `setPriceRules`/`resetPriceRules`, both push undo + in the history snapshot), persists in the save
+  schema when non-default, and is threaded into the quote (`assembleBoqInput`), the report
+  (`buildReportHtml`) and the cost CSV (`buildCostBreakdown`) so all three price identically. Editor:
+  the "Price rules (rates)" section of `QuoteTemplateModal` (`priceRules` flag, pro). The report's
+  Renovation estimate section shows the finishes subtotal + combined furniture+finishes total.
 - **Plan statistics** (`analysis/planStatistics.ts` pure → `buildPlanStatistics(plan)`: GFA summed
   across ALL storeys, room count + per-kind mix (`roomKindFromName` buckets, unknown→`other`),
   average room size, total room perimeter + total wall length, and the net-vs-circulation split
@@ -870,7 +877,9 @@ same change that reshapes a system.
   is part of `HistorySnapshot` so template edits are fully undoable; `boqToHtml`/`boqToCsv`/`boqRows`/
   `boqToXlsx` all accept an optional template and produce identical output when omitted; `openBoq.ts`
   and `downloadBoqXlsx.ts` read `quoteTemplate` from the store and apply it; `ui/QuoteTemplateModal.tsx`
-  modal with CSS-token-only styling; `quoteTemplate` flag, pro),
+  modal with CSS-token-only styling; `quoteTemplate` flag, pro. The same modal also hosts the
+  **price-rule library** editor (`priceRulesSlice` → `analysis/renovationCost.ts` `PriceRules`; see the
+  Renovation-estimate bullet above), gated by the separate `priceRules` flag, pro),
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
   even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
   snap-to-wall (`layout/faceWall.ts`) / arrange-as-run (`layout/arrangeRun.ts`, butt a kitchen

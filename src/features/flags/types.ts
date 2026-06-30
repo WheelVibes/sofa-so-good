@@ -97,6 +97,7 @@ export type FeatureFlag =
   | 'cornerAo'
   | 'drawingCallouts'
   | 'quoteTemplate'
+  | 'priceRules'
   | 'catalogFavourites'
   | 'wallNumericEntry'
   | 'radialArray'

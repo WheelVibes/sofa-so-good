@@ -9,6 +9,7 @@
  */
 
 import { z } from 'zod'
+import { isNonDefaultPriceRules, mergePriceRules } from '../analysis/renovationCost'
 import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
 import {
@@ -347,6 +348,16 @@ const QuoteTemplateZ = z
   })
   .optional()
 
+// Configurable price-rule library — every field optional + lenient; `mergePriceRules`
+// sanitises (clamps negatives/NaN) and back-fills defaults on deserialise.
+const PriceRulesZ = z
+  .object({
+    floor: z.record(z.string(), z.number()).optional(),
+    wall: z.record(z.string(), z.number()).optional(),
+    carpentryPerM: z.number().optional(),
+  })
+  .optional()
+
 const RawSerializedStateZ = z.object({
   version: z.literal(2),
   apartmentId: z.literal('serangoon-north-vista-4r'),
@@ -457,6 +468,8 @@ const RawSerializedStateZ = z.object({
   // Optional user-editable quote template (PARITY-QUOTE-XLSX tail).
   // Optional + additive — no schema-version bump; absent → DEFAULT_QUOTE_TEMPLATE on load.
   quoteTemplate: QuoteTemplateZ,
+  // Optional + additive — absent → DEFAULT_PRICE_RULES on load.
+  priceRules: PriceRulesZ,
   savedAt: z.string(),
 })
 
@@ -587,6 +600,8 @@ export function serialize(state: RootState): SerializedState {
     ...(state.panoTourStops.length ? { panoTourStops: state.panoTourStops } : {}),
     // Persist the quote template only when the user has changed it (saves space).
     ...(isNonDefaultTemplate(state.quoteTemplate) ? { quoteTemplate: state.quoteTemplate } : {}),
+    // Persist the price-rule library only when the user has changed a rate.
+    ...(isNonDefaultPriceRules(state.priceRules) ? { priceRules: state.priceRules } : {}),
     savedAt: new Date().toISOString(),
   }
 }
@@ -662,5 +677,7 @@ export function applySerialized(
     quoteTemplate: state.quoteTemplate
       ? mergeTemplate(state.quoteTemplate)
       : DEFAULT_QUOTE_TEMPLATE,
+    // Restore the price-rule library (absent / partial → sanitised defaults).
+    priceRules: mergePriceRules(state.priceRules),
   }
 }
