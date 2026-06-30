@@ -300,14 +300,27 @@ function computeItemOverlaps(
   return pairs
 }
 
-/** Axis-aligned bounding box of an item footprint OBB (for the broadphase). */
+/** Axis-aligned bounding box of an item footprint (for the broadphase). Unions
+ *  the AABBs of every footprint **part**, so a composite (L-shaped) piece's box
+ *  bounds its true collision shape — the broadphase must stay a *superset* of the
+ *  narrowphase or it would prune a real overlap. For a single-part piece this is
+ *  identical to boxing the lone `itemFootprint` OBB. */
 export function itemAabbBox(item: FurnitureItem, def: FurnitureDef): AabbItem {
-  const o = itemFootprint(item, def)
-  const c = Math.abs(Math.cos(o.rot))
-  const s = Math.abs(Math.sin(o.rot))
-  const hx = c * o.hx + s * o.hz
-  const hz = s * o.hx + c * o.hz
-  return { id: item.id, minX: o.cx - hx, minZ: o.cz - hz, maxX: o.cx + hx, maxZ: o.cz + hz }
+  let minX = Number.POSITIVE_INFINITY
+  let minZ = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let maxZ = Number.NEGATIVE_INFINITY
+  for (const o of itemFootprintParts(item, def)) {
+    const c = Math.abs(Math.cos(o.rot))
+    const s = Math.abs(Math.sin(o.rot))
+    const hx = c * o.hx + s * o.hz
+    const hz = s * o.hx + c * o.hz
+    if (o.cx - hx < minX) minX = o.cx - hx
+    if (o.cz - hz < minZ) minZ = o.cz - hz
+    if (o.cx + hx > maxX) maxX = o.cx + hx
+    if (o.cz + hz > maxZ) maxZ = o.cz + hz
+  }
+  return { id: item.id, minX, minZ, maxX, maxZ }
 }
 
 /**

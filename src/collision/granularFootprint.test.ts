@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import type { BuiltinGltfDef, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { obbVsObb } from './obb'
-import { canPlace, findItemOverlaps, itemFootprint, itemFootprintParts } from './placement'
+import {
+  canPlace,
+  findItemOverlaps,
+  itemAabbBox,
+  itemFootprint,
+  itemFootprintParts,
+} from './placement'
 
 /**
  * Granular, shape-aware collision (composite footprints): a non-rectangular
@@ -125,6 +131,55 @@ describe('granular footprint — L-shaped corner base cabinet', () => {
     expect(canPlace(probeAt(0, -0.35), probeDef, ctx([cornerAt(0, 0)]))).toBe(false)
     // On run B (left leg, along −X): (-0.35, 0.2) is inside the left leg.
     expect(canPlace(probeAt(-0.35, 0.2), probeDef, ctx([cornerAt(0, 0)]))).toBe(false)
+  })
+})
+
+describe('granular footprint — broadphase AABB encloses every part (superset invariant)', () => {
+  // The broadphase grid must be a SUPERSET of the narrowphase, or it prunes a
+  // real overlap. itemAabbBox therefore unions all part AABBs — regression for
+  // the L-sofa, whose enclosing itemFootprint OBB (read from `depth`) is
+  // *shallower* than the true main-run+chaise shape (BUG v0.9.0.9).
+  const partAabb = (p: { cx: number; cz: number; hx: number; hz: number; rot: number }) => {
+    const c = Math.abs(Math.cos(p.rot))
+    const s = Math.abs(Math.sin(p.rot))
+    const hx = c * p.hx + s * p.hz
+    const hz = s * p.hx + c * p.hz
+    return { minX: p.cx - hx, minZ: p.cz - hz, maxX: p.cx + hx, maxZ: p.cz + hz }
+  }
+
+  it('the L-sofa AABB bounds both parts (incl. the chaise that depth omits)', () => {
+    const sofa = lsofa()
+    const def = BUILTIN_CATALOG['sofa-lshape']
+    const box = itemAabbBox(sofa, def)
+    for (const p of itemFootprintParts(sofa, def)) {
+      const a = partAabb(p)
+      expect(box.minX).toBeLessThanOrEqual(a.minX + 1e-9)
+      expect(box.minZ).toBeLessThanOrEqual(a.minZ + 1e-9)
+      expect(box.maxX).toBeGreaterThanOrEqual(a.maxX - 1e-9)
+      expect(box.maxZ).toBeGreaterThanOrEqual(a.maxZ - 1e-9)
+    }
+  })
+
+  it('the L-sofa AABB is deeper than the single enclosing OBB when depth is set', () => {
+    // The real-world trigger (preset props): an explicit shallow `depth` makes
+    // itemFootprint a thin 0.95 m box, but the chaise still extends the true
+    // shape to ~1.95 m — the AABB must follow the parts, not the OBB.
+    const sofa = lsofa({ width: 2.6, depth: 0.95, chaise: 1.0 })
+    const def = BUILTIN_CATALOG['sofa-lshape']
+    const box = itemAabbBox(sofa, def)
+    const obb = itemFootprint(sofa, def) // depth-only: 0.95 deep, centred
+    expect(box.maxZ - box.minZ).toBeGreaterThan(obb.hz * 2 + 0.5)
+  })
+
+  it('rotates with the item (90° AABB still bounds the parts)', () => {
+    const sofa = { ...lsofa(), rotation: Math.PI / 2 }
+    const def = BUILTIN_CATALOG['sofa-lshape']
+    const box = itemAabbBox(sofa, def)
+    for (const p of itemFootprintParts(sofa, def)) {
+      const a = partAabb(p)
+      expect(box.minX).toBeLessThanOrEqual(a.minX + 1e-9)
+      expect(box.maxX).toBeGreaterThanOrEqual(a.maxX - 1e-9)
+    }
   })
 })
 

@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: granular-footprint broadphase superset + L-sofa preset wall clip (v0.9.0.11)
+
+- Two latent bugs from the v0.9.0.9 granular-collision work, both surfaced by the full test suite:
+  - **Broadphase AABB no longer enclosed the collision shape.** `itemAabbBox` boxed the single
+    `itemFootprint` OBB, but for the L-sofa that OBB is read from the `depth` prop (the main-run
+    depth only, ~0.95 m) while the true main-run+chaise shape is ~1.95 m deep. The broadphase grid
+    is required to be a **superset** of the narrowphase; a too-small box could prune a real
+    chaise-vs-neighbour overlap (missed by the clearance/score scans + auto-arrange). `itemAabbBox`
+    now **unions every part's AABB** (identical for single-part pieces). +3 regression tests.
+  - **`open-lounge` / `entertainer` presets clipped the west partition.** Authored against the old
+    *shallow* (depth-only) footprint, the L-sectional's true 1.95 m-deep back run poked ~0.12 m
+    through the wall at x≈9.05. Nudged both to x=10.2 so the back clears the wall (coffee table is
+    separated in Z, so the small east shift is safe). The `layoutPresets` collision test passes.
+- No render/feature change — collision correctness only.
+
 ## FEATURE: granular footprint for the L-shaped corner base cabinet (v0.9.0.10)
 
 - Applied the v0.9.0.9 `footprintParts` infra to the **corner base cabinet** (`cabinet-corner`):

@@ -12,7 +12,9 @@ export const entertainer: LayoutPreset = {
     {
       id: 'es-sectional',
       defId: 'sofa-lshape',
-      position: [9.95, 2.75],
+      // L-sofa true footprint is 1.95 m deep; its back run must clear the west
+      // partition at x≈9.1, so it sits a touch off the wall (see openLounge).
+      position: [10.2, 2.75],
       rotation: -Math.PI / 2,
       props: {
         width: 2.6,
