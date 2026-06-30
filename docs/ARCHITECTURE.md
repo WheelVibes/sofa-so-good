@@ -652,7 +652,15 @@ same change that reshapes a system.
   rule across the whole design (frame-scoped memo: same items/defs identities within
   one task reuse the result) and `findWallClips(items,defs,walls)` flags pieces
   embedded in a wall (both power the Clearance panel's checks); items
-  carry a vertical span + `mounted`/`noClip`. `placementWalls.ts`
+  carry a vertical span + `mounted`/`noClip`. **Granular (shape-aware) footprints**:
+  a def may declare `footprintParts` (a convex decomposition of a non-rectangular
+  shape — static, or a function of live props for parametric pieces), and
+  `itemFootprintParts(item,def)` maps each part to a world OBB (scale + rotation +
+  GLB offset applied). All collision tests are **any-part-vs-any-part** SAT, so e.g.
+  an L-sofa's concave notch is open floor; absent `footprintParts` → the single
+  `defaultFootprint` OBB (unchanged). The broadphase (`itemAabbBox`) keeps using the
+  enclosing OBB — a valid superset, so it stays O(n). (The L-shaped sectional ships
+  the first real decomposition: main run + chaise.) `placementWalls.ts`
   centralizes wall selection (room editor → solid perimeter; upper storeys → own
   walls). All cross-item/wall scans are **storey-scoped** (F13/ML3): `itemsCollide`
   + `findNarrowGaps` gate pairs on `levelId`, `levelWallClips.ts

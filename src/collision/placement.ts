@@ -31,6 +31,17 @@ function wallToObb(w: CollisionWall): OBB {
   }
 }
 
+/** Resolve an item's effective per-axis scale: uniform `scale` (def scale for
+ *  non-parametric, prop `scale` override) with optional per-axis `scaleX`/`scaleZ`
+ *  (SweetHome3DJS resize parity). Shared by the single-OBB and per-part footprints. */
+function resolveScale(item: FurnitureItem, def: FurnitureDef): { scaleX: number; scaleZ: number } {
+  const defScale = def.kind === 'parametric' ? undefined : def.scale
+  const scale = (typeof item.props['scale'] === 'number' ? item.props['scale'] : defScale) ?? 1
+  const scaleX = typeof item.props['scaleX'] === 'number' ? (item.props['scaleX'] as number) : scale
+  const scaleZ = typeof item.props['scaleZ'] === 'number' ? (item.props['scaleZ'] as number) : scale
+  return { scaleX, scaleZ }
+}
+
 /** Returns the OBB footprint of an item using the def's defaultFootprint
  *  modified by parametric overrides where the schema exposes them. */
 export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
@@ -66,12 +77,7 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
     }
   }
 
-  const defScale = def.kind === 'parametric' ? undefined : def.scale
-  const scale = (typeof item.props['scale'] === 'number' ? item.props['scale'] : defScale) ?? 1
-  // Per-axis (non-uniform) resize: width = local X, depth = local Z; each falls
-  // back to the uniform scale (SweetHome3DJS resize parity).
-  const scaleX = typeof item.props['scaleX'] === 'number' ? (item.props['scaleX'] as number) : scale
-  const scaleZ = typeof item.props['scaleZ'] === 'number' ? (item.props['scaleZ'] as number) : scale
+  const { scaleX, scaleZ } = resolveScale(item, def)
   const cos = Math.cos(item.rotation)
   const sin = Math.sin(item.rotation)
   const sx = ox * scaleX
@@ -84,6 +90,45 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
     hz: (d * scaleZ) / 2,
     rot: item.rotation,
   }
+}
+
+/**
+ * The item's footprint as one or more world-space OBBs. When the def declares
+ * `footprintParts` (a convex decomposition of a non-rectangular shape, static or
+ * props-driven), each part is mapped into world space — relative to the
+ * footprint bbox centre (so a GLB's authored off-origin offset is honoured),
+ * with the item's per-axis scale and rotation applied. Otherwise returns the
+ * single enclosing OBB. The result drives granular, shape-aware collision; the
+ * enclosing OBB ({@link itemFootprint}) still backs the broadphase AABB.
+ */
+export function itemFootprintParts(item: FurnitureItem, def: FurnitureDef): OBB[] {
+  const spec = def.footprintParts
+  const parts = typeof spec === 'function' ? spec(item.props) : spec
+  const base = itemFootprint(item, def)
+  if (!parts || parts.length === 0) return [base]
+
+  const { scaleX, scaleZ } = resolveScale(item, def)
+  const cos = Math.cos(item.rotation)
+  const sin = Math.sin(item.rotation)
+  // `base.cx/cz` is the footprint bbox centre in world space (item position +
+  // rotated GLB offset). Parts are authored relative to that centre.
+  return parts.map((p) => {
+    const sdx = p.dx * scaleX
+    const sdz = p.dz * scaleZ
+    return {
+      cx: base.cx + cos * sdx - sin * sdz,
+      cz: base.cz + sin * sdx + cos * sdz,
+      hx: (p.w * scaleX) / 2,
+      hz: (p.d * scaleZ) / 2,
+      rot: item.rotation + (p.rot ?? 0),
+    }
+  })
+}
+
+/** True iff any OBB in `a` overlaps any OBB in `b` (granular part-vs-part SAT). */
+function partsOverlap(a: OBB[], b: OBB[]): boolean {
+  for (const oa of a) for (const ob of b) if (obbVsObb(oa, ob)) return true
+  return false
 }
 
 interface PlacementContext {
@@ -124,7 +169,7 @@ export function canPlace(item: FurnitureItem, def: FurnitureDef, ctx: PlacementC
   // Flat floor coverings (rugs) sit under everything and never collide.
   if (def.noClip) return true
 
-  const obb = itemFootprint(item, def)
+  const parts = itemFootprintParts(item, def)
 
   // Walls — tested as full-thickness OBBs so an item placed flush
   // against the visible interior face still has to clear the wall body.
@@ -132,7 +177,8 @@ export function canPlace(item: FurnitureItem, def: FurnitureDef, ctx: PlacementC
   if (!def.mounted) {
     const walls = ctx.walls ?? buildCollisionWalls(ctx.doors)
     for (const seg of walls) {
-      if (obbVsObb(obb, wallToObb(seg))) return false
+      const wobb = wallToObb(seg)
+      if (parts.some((p) => obbVsObb(p, wobb))) return false
     }
   }
 
@@ -167,7 +213,7 @@ function itemsCollide(
   // its frame's OBB by design, and grouped pieces move as a unit.
   if (a.groupId && b.groupId === a.groupId) return false
   if (!spansOverlap(aSpan, verticalSpan(b, bDef))) return false
-  return obbVsObb(itemFootprint(a, aDef), itemFootprint(b, bDef))
+  return partsOverlap(itemFootprintParts(a, aDef), itemFootprintParts(b, bDef))
 }
 
 /** An unordered pair of placed-item ids whose footprints intersect. */
@@ -319,8 +365,8 @@ export function findWallClips(
   for (const it of items) {
     const def = defs[it.defId]
     if (!def || def.mounted || def.noClip) continue
-    const obb = itemFootprint(it, def)
-    if (wallObbs.some((w) => obbVsObb(obb, w))) clipped.push(it.id)
+    const parts = itemFootprintParts(it, def)
+    if (wallObbs.some((w) => parts.some((p) => obbVsObb(p, w)))) clipped.push(it.id)
   }
   return clipped
 }

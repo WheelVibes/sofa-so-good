@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: granular shape-aware furniture collision (composite footprints) (v0.9.0.9)
+
+- **Collision is no longer bounding-box-only.** A `FurnitureDef` can now declare `footprintParts`
+  — a convex decomposition of a non-rectangular plan shape (a list of local-space oriented
+  sub-rects), either static or a **function of the item's live props** for parametric pieces
+  whose shape varies. `collision/placement.ts` gained `itemFootprintParts(item, def)` which maps
+  each part into world space (item scale + rotation applied; honours a GLB's off-origin offset),
+  and `canPlace` (walls + furniture), `itemsCollide`, `findItemOverlaps` and `findWallClips` now
+  test **any-part-vs-any-part** (SAT). The broadphase still uses the single enclosing OBB
+  (`itemFootprint`) — a valid superset, so it stays O(n) with identical results. Absent
+  `footprintParts` → unchanged single-OBB behaviour (fully backward compatible).
+- **L-shaped sectional decomposed** into its main run + perpendicular chaise (param-driven from
+  `width`/`depth`/`chaise`/`chaiseSide`), so the concave notch reads as open floor: a side table,
+  stool, plant, etc. can now sit in the L instead of being falsely blocked by the 2.5×1.95 box.
+- Tests: 10 new (`collision/granularFootprint.test.ts` — single-OBB back-compat, L-sofa
+  decomposition, notch-is-free vs. chaise/main-run-blocked, left/right mirror, `findItemOverlaps`
+  in the notch, static-parts array, scale + rotation of parts) + the full 124-test collision suite
+  still green. Visually verified in-app: a bar-stool placed in the L-sofa's open notch coexists
+  cleanly (no clip), camera-framed at noon.
+- First step of the **deeper core-interaction** direction (granular collision → animations →
+  physics); the `footprintParts` infra is reusable for other non-rectangular pieces (corner
+  cabinets, U-sofas, corner desks) — tracked in `TODO.md`.
+
 ## FEATURE: configurable price-rule library for the quote & estimate (v0.9.0.8)
 
 - **Contractor-editable rate card** (`priceRules`, pro flag) — the BOQ quote and the renovation

@@ -202,6 +202,23 @@ export const SEATING_DEFS = {
     category: 'seating',
     primitive: 'SofaSectional',
     defaultFootprint: { w: 2.5, d: 1.95, h: 0.85 },
+    // Granular footprint: the main run + the perpendicular chaise, leaving the
+    // concave notch (forward of the non-chaise side) open — so a piece can sit
+    // in the L instead of being blocked by the full bounding box. Matches the
+    // SofaSectional primitive's geometry (footprint centred; back faces −Z).
+    footprintParts: (props) => {
+      const width = typeof props.width === 'number' ? props.width : 2.5
+      const depth = typeof props.depth === 'number' ? props.depth : 0.95
+      const chaise = typeof props.chaise === 'number' ? props.chaise : 1.0
+      const side = props.chaiseSide === 'left' ? -1 : 1
+      const chaiseW = depth // square-ish chaise, matching the primitive
+      return [
+        // Main run: full width along the back, one depth deep.
+        { dx: 0, dz: -chaise / 2, w: width, d: depth },
+        // Chaise return: forward of the main seat on `chaiseSide`.
+        { dx: side * (width / 2 - chaiseW / 2), dz: depth / 2, w: chaiseW, d: chaise },
+      ]
+    },
     paramSchema: [
       {
         kind: 'number',

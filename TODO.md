@@ -82,5 +82,24 @@ Next iterations target **the core design loop + its UX/discoverability/customiza
 arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytics deliverables. Research
 `REFERENCES.md` (Coohom, Planner 5D, IKEA Kreativ, Sweet Home 3D, …) before designing each change.
 
+### Deeper core interactions (user 2026-07-01 #2: "granular collision, animations, realistic physics")
+- ~~Granular shape-aware collision~~ — **shipped v0.9.0.9** (`footprintParts` convex decomposition +
+  `itemFootprintParts`; any-part-vs-any-part SAT; L-sofa main-run+chaise). Infra reusable.
+- **More composite footprints** — apply `footprintParts` to other non-rectangular pieces: corner
+  cabinet/wardrobe, U-shaped sofa, corner desk, round/oval tables (octagon approximation), bar-L.
+  Pure + unit-verifiable; each just needs a decomposition + a test. M (incremental).
+- **Animations** — door/drawer open-close easing (some exists: curtains/blinds ease in demand mode),
+  smooth placement "drop-in" + selection transitions, eased camera moves between saved views. Mostly
+  pure state→transition; verify state transitions headless, smoothness by eye. M.
+- **Realistic physics (light touch)** — gravity-settle on drop (rest on the surface below — partial via
+  `surfaceDrop.ts`), drag inertia/easing, soft collision nudge (push-apart) rather than hard block.
+  Scope carefully: a design tool wants *predictable* placement, so physics must aid, not fight, the
+  user. Pure math core = verifiable; keep it opt-in/subtle. L.
+
+> Audit note (2026-07-01): the core loop is already mature — align/distribute, apply-finish-to-all-rooms,
+> numeric+90° rotate, saved cameras, smart-guides, height-aware collision all exist. The remaining soft
+> spot is **discoverability** (silent synonym search, no keyboard/gesture cheat-sheet, one-time-only
+> onboarding). Candidates for a later UX pass, lower priority than the deeper-interaction work above.
+
 ## Process
 - Update this file every time a plan is designed or work is implemented (MEMORY.md feedback rule).
