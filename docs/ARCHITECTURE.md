@@ -911,8 +911,8 @@ same change that reshapes a system.
   reveal slider; `stagingReveal` flag, pro),
   **One-tap style transfer** (`ui/styling/styleTransfer.ts` pure `STYLE_PRESETS` + `planStyleApply`,
   unit-tested incl. a builtin-finish-id guard; `ui/StyleTransferModal.tsx` style-card grid →
-  `finishesSlice.applyHomeStyle` swaps every room's floor+wall in one undo + `setMasterPalette`;
-  `styleTransfer` flag, pro),
+  `finishesSlice.applyHomeStyle(floor, wall, palette?)` swaps every room's floor+wall + master palette
+  in one undo step; the applied toast carries an inline Undo; `styleTransfer` flag, pro),
   **Style quiz** (`ui/styling/styleQuiz.ts` pure `STYLE_QUIZ` data + `scoreQuiz` weighted-answer
   scoring, unit-tested incl. a preset-id guard; `ui/StyleQuizModal.tsx` stepper → recommends a
   `STYLE_PRESETS` look and applies it via the same path; `styleQuiz` flag, pro),

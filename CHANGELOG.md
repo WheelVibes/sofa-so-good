@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## QOL+FIX: Undo affordance on style apply + single-undo fix (v0.9.0.7)
+
+- **"Undo" button on the style-applied toast** (style transfer + style quiz) — applying a whole-home
+  style is a big change, so the success toast now carries an inline **Undo** action (reusing the
+  notification `actionLabel`/`onAction` from v0.9.0.1) and stays up 8s. One tap reverts it.
+- **Fixed a latent undo-granularity bug:** applying a style used to push **two** history entries
+  (`applyHomeStyle` + `setMasterPalette`), and since the master palette isn't in the history snapshot,
+  a single undo reverted *nothing visible* — the finishes stayed changed (it took two undos). Folded
+  the palette into `applyHomeStyle(floorId, wallId, palette?)`'s single `pushHistory` (palette set
+  inline, no second entry), so applying a style is now **one** undo step that cleanly reverts the
+  finishes. `cleanPalette` is now exported from `colorPaletteSlice` for reuse.
+- Tests: new `finishesSlice` test asserts applyHomeStyle pushes exactly one history entry, sets
+  floor+wall+palette, and that a single undo reverts it. `style-transfer-simple.json` extended to
+  click the toast's Undo and assert the floor finish round-trips to its original. Visually verified
+  the Undo toast.
+
 ## FEATURE: style quiz — find & apply your interior style (v0.9.0.6)
 
 - **New `styleQuiz` (pro) feature** — a short 4-question personality quiz that recommends one of the

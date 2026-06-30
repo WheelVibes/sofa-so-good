@@ -18,12 +18,16 @@ export function StyleTransferModal() {
     const plan = planStyleApply(style.id)
     if (!plan) return
     const s = useStore.getState()
-    s.applyHomeStyle(plan.floorFinishId, plan.wallFinishId)
-    s.setMasterPalette(plan.palette)
+    s.applyHomeStyle(plan.floorFinishId, plan.wallFinishId, plan.palette)
     s.notify.start({
       title: `Applied “${style.name}”`,
-      message: 'Floors, walls & palette updated — undo to revert.',
+      message: 'Floors, walls & palette updated.',
       kind: 'success',
+      // The whole-home swap is a single undo step (applyHomeStyle) — offer it
+      // inline so a mistaken style is one tap to revert.
+      autoDismissMs: 8000,
+      actionLabel: 'Undo',
+      onAction: () => useStore.getState().undo(),
     })
     setOpen(false)
   }

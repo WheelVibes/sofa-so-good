@@ -24,6 +24,25 @@ describe('finishes — apply to all rooms', () => {
     for (const id of interiorRooms) expect(walls[id]).toBe('wall-brick-red')
   })
 
+  it('applyHomeStyle sets floor + wall + palette in ONE undo step, and undo reverts it', () => {
+    const pastBefore = useStore.getState().past.length
+    const origFloor = useStore.getState().finishes.floor.livingDining
+    useStore.getState().applyHomeStyle('floor-wood-ash', 'wall-paint-white', ['#ffffff', '#000000'])
+    const after = useStore.getState()
+    // One logical action → exactly one history entry (regression: setMasterPalette
+    // used to push a second, so a single undo couldn't revert the finishes).
+    expect(after.past.length).toBe(pastBefore + 1)
+    for (const id of interiorRooms) {
+      expect(after.finishes.floor[id]).toBe('floor-wood-ash')
+      expect(after.finishes.walls[id]).toBe('wall-paint-white')
+    }
+    expect(after.masterPalette).toEqual(['#ffffff', '#000000'])
+    // A single undo reverts the whole style's finishes.
+    useStore.getState().undo()
+    expect(useStore.getState().finishes.floor.livingDining).toBe(origFloor)
+    expect(useStore.getState().past.length).toBe(pastBefore)
+  })
+
   it('setAllCeilingFinish applies one id to every interior room', () => {
     useStore.getState().setAllCeilingFinish('wall-paint-white')
     const ceiling = useStore.getState().finishes.ceiling

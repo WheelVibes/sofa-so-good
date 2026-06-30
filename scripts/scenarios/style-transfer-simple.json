@@ -27,6 +27,10 @@
     { "name": "modal-open", "waitFor": { "css": "#style-transfer" }, "timeout": 15000 },
     { "name": "shot-cards", "screenshot": "style-cards" },
     {
+      "name": "record-orig-floor",
+      "eval": "window.__origFloor = window.__store.getState().finishes.floor.livingDining ?? null"
+    },
+    {
       "name": "apply-first",
       "eval": "(() => { const b = Array.from(document.querySelectorAll('#style-transfer button')).find(x => (x.textContent||'').trim() === 'Apply'); if (!b) throw new Error('no Apply button'); b.click(); })()"
     },
@@ -38,9 +42,24 @@
     },
     {
       "name": "assert-finish-changed",
-      "eval": "(() => { const f = window.__store.getState().finishes.floor.livingDining; if (!f || !String(f).startsWith('floor-')) throw new Error('floor finish not applied: ' + f); })()"
+      "eval": "(() => { const f = window.__store.getState().finishes.floor.livingDining; if (!f || !String(f).startsWith('floor-')) throw new Error('floor finish not applied: ' + f); if (f === window.__origFloor) throw new Error('floor finish did not change from original'); })()"
     },
-    { "name": "settle", "wait": 1500 },
-    { "name": "shot-restyled", "screenshot": "restyled-scene" }
+    {
+      "name": "undo-toast",
+      "waitFor": { "css": ".toast-host .toast-act" },
+      "timeout": 6000,
+      "failMessage": "Undo action button not shown on the applied toast"
+    },
+    { "name": "shot-restyled", "screenshot": "restyled-scene" },
+    {
+      "name": "click-undo",
+      "eval": "(() => { const b = Array.from(document.querySelectorAll('.toast-host .toast-act')).find(x => /Undo/.test(x.textContent||'')); if (!b) throw new Error('no Undo button'); b.click(); })()"
+    },
+    {
+      "name": "reverted",
+      "waitFor": { "store": "window.__store.getState().finishes.floor.livingDining === (window.__origFloor ?? undefined)" },
+      "timeout": 8000,
+      "failMessage": "Undo did not revert the floor finish to its original value"
+    }
   ]
 }

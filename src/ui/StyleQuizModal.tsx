@@ -42,12 +42,14 @@ export function StyleQuizModal() {
     const plan = planStyleApply(recommended.id)
     if (!plan) return
     const s = useStore.getState()
-    s.applyHomeStyle(plan.floorFinishId, plan.wallFinishId)
-    s.setMasterPalette(plan.palette)
+    s.applyHomeStyle(plan.floorFinishId, plan.wallFinishId, plan.palette)
     s.notify.start({
       title: `Your style: ${recommended.name}`,
-      message: 'Applied to every room — undo to revert.',
+      message: 'Applied to every room.',
       kind: 'success',
+      autoDismissMs: 8000,
+      actionLabel: 'Undo',
+      onAction: () => useStore.getState().undo(),
     })
     close()
   }
