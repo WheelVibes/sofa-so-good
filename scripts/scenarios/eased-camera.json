@@ -1,0 +1,23 @@
+{
+  "name": "eased-camera",
+  "steps": [
+    {
+      "name": "boot",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 45000
+    },
+    { "name": "daylight", "eval": "window.__store.getState().setPresetTime('noon'); window.__store.getState().setLightsMode('on'); window.__store.getState().setCameraMode('orbit')" },
+    { "name": "settle-start", "wait": 1200 },
+    { "name": "start-shot", "screenshot": "01-start.png" },
+    { "name": "request-top", "eval": "window.__store.getState().requestTopView()" },
+    { "name": "mid-fly", "wait": 250 },
+    { "name": "mid-shot", "screenshot": "02-top-midfly.png" },
+    { "name": "settle-top", "wait": 1200 },
+    { "name": "top-shot", "screenshot": "03-top-final.png" },
+    { "name": "request-home", "eval": "window.__store.getState().requestHomeView()" },
+    { "name": "home-mid", "wait": 250 },
+    { "name": "home-mid-shot", "screenshot": "04-home-midfly.png" },
+    { "name": "settle-home", "wait": 1200 },
+    { "name": "home-shot", "screenshot": "05-home-final.png" }
+  ]
+}

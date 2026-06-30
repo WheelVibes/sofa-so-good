@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: eased camera transitions for focus / top / reset views (v0.9.0.12)
+
+- **Animations leg** of the deeper-interaction directive. Every camera retarget now *glides*
+  instead of teleporting: double-click **focus**, the **top-down** view and **reset/home** all
+  route through the same eased fly that saved-views already used, rather than an instant
+  `controls.update()` snap. (The focus path's comment always promised "smoothly re-target" — now
+  it actually does.)
+- New pure-math core `scene/cameras/cameraTween.ts` (no three/React → unit-testable): `smoothstep`
+  ease + `flyDurationFor`, a **distance-aware** duration (a short hop snaps at `FLY_MIN_SECONDS`,
+  a long jump across the flat glides up to `FLY_MAX_SECONDS`). `OrbitCamera` holds one `startFly`
+  helper that all four retargets call; the per-frame tween uses the fly's own `dur`.
+- The fly self-pumps the demand-mode renderer via OrbitControls' `change` event on each
+  `update()`, so no new RenderPump input was needed.
+- Tests: +10 (`cameraTween.test.ts` — smoothstep endpoints/clamp/monotonicity, duration bounds /
+  monotonic scaling / 3-D travel / non-finite fallback). Visually verified (`scenarios/eased-camera.json`):
+  start → mid-flight → settled frames confirm a genuine interpolation that lands on the correct pose.
+
 ## FIX: granular-footprint broadphase superset + L-sofa preset wall clip (v0.9.0.11)
 
 - Two latent bugs from the v0.9.0.9 granular-collision work, both surfaced by the full test suite:
@@ -19,6 +36,22 @@ pruned from `main`; entries from C251 on (branch
     through the wall at x≈9.05. Nudged both to x=10.2 so the back clears the wall (coffee table is
     separated in Z, so the small east shift is safe). The `layoutPresets` collision test passes.
 - No render/feature change — collision correctness only.
+## FEATURE: eased camera transitions for focus / top / reset views (v0.9.0.11)
+
+- **Animations leg** of the deeper-interaction directive. Every camera retarget now *glides*
+  instead of teleporting: double-click **focus**, the **top-down** view and **reset/home** all
+  route through the same eased fly that saved-views already used, rather than an instant
+  `controls.update()` snap. (The focus path's comment always promised "smoothly re-target" — now
+  it actually does.)
+- New pure-math core `scene/cameras/cameraTween.ts` (no three/React → unit-testable): `smoothstep`
+  ease + `flyDurationFor`, a **distance-aware** duration (a short hop snaps at `FLY_MIN_SECONDS`,
+  a long jump across the flat glides up to `FLY_MAX_SECONDS`). `OrbitCamera` holds one `startFly`
+  helper that all four retargets call; the per-frame tween uses the fly's own `dur`.
+- The fly self-pumps the demand-mode renderer via OrbitControls' `change` event on each
+  `update()`, so no new RenderPump input was needed.
+- Tests: +10 (`cameraTween.test.ts` — smoothstep endpoints/clamp/monotonicity, duration bounds /
+  monotonic scaling / 3-D travel / non-finite fallback). Visually verified (`scenarios/eased-camera.json`):
+  start → mid-flight → settled frames confirm a genuine interpolation that lands on the correct pose.
 
 ## FEATURE: granular footprint for the L-shaped corner base cabinet (v0.9.0.10)
 

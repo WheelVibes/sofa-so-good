@@ -253,6 +253,11 @@ same change that reshapes a system.
   camera **fits the whole room to the viewport** (`OrbitCamera` room branch → aspect-aware
   `fitDistance`, the same helper as the whole-plan dollhouse), so the room just fills the
   screen on any aspect ratio.
+- **Eased camera transitions** (`scene/cameras/cameraTween.ts`, pure + unit-tested): every
+  retarget — saved view, double-click focus, top-down, reset/home — flies through one shared
+  `startFly` in `OrbitCamera` (smoothstep ease, **distance-aware** `flyDurationFor` so a short
+  hop snaps and a long jump glides) rather than a hard `controls.update()` snap. The fly
+  self-pumps the demand-mode renderer via OrbitControls' `change` event each frame.
 - **Design system & theming** (`appearanceSlice`, `appearancePrefs`): 5 themes
   (Clay/Kampong/Porcelain/Estate/Harbour) × light/dark = 10 OKLCH palettes via
   `[data-theme]`+`[data-mode]` (pre-paint inline script, `hdb_appearance`, Auto=OS).

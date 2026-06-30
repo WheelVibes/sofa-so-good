@@ -90,8 +90,11 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
   tables (octagon approximation — convex, low priority), and any future U-sofa / corner desk /
   peninsula (none in the catalog today). Each just needs a decomposition + a test. S (incremental).
 - **Animations** — door/drawer open-close easing (some exists: curtains/blinds ease in demand mode),
-  smooth placement "drop-in" + selection transitions, eased camera moves between saved views. Mostly
-  pure state→transition; verify state transitions headless, smoothness by eye. M.
+  smooth placement "drop-in" + selection transitions. Mostly pure state→transition; verify state
+  transitions headless, smoothness by eye. M.
+  - ~~Eased camera transitions~~ — **shipped v0.9.0.11** (`scene/cameras/cameraTween.ts`: smoothstep
+    + distance-aware `flyDurationFor`; focus/top/home/saved-view all route through one `startFly`).
+  - Remaining: placement "drop-in" easing (item eases down on commit), selection scale/fade-in.
 - **Realistic physics (light touch)** — gravity-settle on drop (rest on the surface below — partial via
   `surfaceDrop.ts`), drag inertia/easing, soft collision nudge (push-apart) rather than hard block.
   Scope carefully: a design tool wants *predictable* placement, so physics must aid, not fight, the
