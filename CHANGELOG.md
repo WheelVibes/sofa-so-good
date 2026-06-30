@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: granular footprint for the L-shaped corner base cabinet (v0.9.0.10)
+
+- Applied the v0.9.0.9 `footprintParts` infra to the **corner base cabinet** (`cabinet-corner`):
+  its two perpendicular runs (back along X + left along Z, minus the shared corner) are now the
+  collision shape, leaving the inner +X/+Z quadrant open. An adjacent base cabinet can butt against
+  a leg in a kitchen corner without the empty inner corner reading as solid. Param-driven from
+  `width`/`depth`, matching the `CabinetCorner` primitive geometry.
+- Tests: +3 (`granularFootprint.test.ts` — 2-run decomposition, inner-corner-free vs.
+  bounding-box-would-block, both legs still block); 13 in that file, full collision suite green.
+  Same collision path as v0.9.0.9 (visually verified there); render unchanged.
+
 ## FEATURE: granular shape-aware furniture collision (composite footprints) (v0.9.0.9)
 
 - **Collision is no longer bounding-box-only.** A `FurnitureDef` can now declare `footprintParts`

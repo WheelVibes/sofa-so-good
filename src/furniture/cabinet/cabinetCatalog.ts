@@ -202,6 +202,19 @@ export const CABINET_DEFS: Record<string, ParametricDef> = {
     keywords: ['cabinet', 'corner', 'L-shape', 'base unit', 'kitchen', 'modular'],
     defaultFootprint: { w: 1.0, d: 1.0, h: 0.9 },
     footprintParams: { w: 'width', d: 'width' },
+    // Granular L footprint: the two perpendicular runs (back along X, left along
+    // Z minus the shared corner), leaving the inner +X/+Z quadrant open so an
+    // adjacent base cabinet butts against a leg without the corner reading solid.
+    // Matches the CabinetCorner primitive (footprint-centred square; backs at −X/−Z).
+    footprintParts: (props) => {
+      const s = typeof props.width === 'number' ? props.width : 1.0
+      const d = typeof props.depth === 'number' ? props.depth : 0.6
+      const off = (s - d) / 2
+      return [
+        { dx: 0, dz: -off, w: s, d }, // run A — across the back, along X
+        { dx: -off, dz: d / 2, w: d, d: s - d }, // run B — left, along Z (minus corner)
+      ]
+    },
     paramSchema: [
       dim('width', 'Size (square)', 0.8, 1.2, 1.0),
       dim('height', 'Carcass height', 0.5, 0.95, 0.72),

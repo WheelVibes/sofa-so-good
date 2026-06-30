@@ -94,6 +94,40 @@ describe('granular footprint — L-sofa concave notch', () => {
   })
 })
 
+describe('granular footprint — L-shaped corner base cabinet', () => {
+  const cornerAt = (cx: number, cz: number, rot = 0): FurnitureItem => ({
+    id: 'cc',
+    defId: 'cabinet-corner',
+    position: [cx, cz],
+    rotation: rot,
+    props: {},
+  })
+
+  it('decomposes into 2 perpendicular runs', () => {
+    expect(itemFootprintParts(cornerAt(0, 0), BUILTIN_CATALOG['cabinet-corner'])).toHaveLength(2)
+  })
+
+  it('leaves the inner corner open (an adjacent piece can sit in the +X/+Z quadrant)', () => {
+    // Default S=1, d=0.6 → inner open quadrant is X(-0.2..0.5) × Z(-0.2..0.5).
+    // A small probe at (0.3, 0.3) is inside the bounding square but in the open corner.
+    expect(canPlace(probeAt(0.3, 0.3), probeDef, ctx([cornerAt(0, 0)]))).toBe(true)
+    // But the enclosing boxes overlap — granularity is the difference.
+    expect(
+      obbVsObb(
+        itemFootprint(probeAt(0.3, 0.3), probeDef),
+        itemFootprint(cornerAt(0, 0), BUILTIN_CATALOG['cabinet-corner']),
+      ),
+    ).toBe(true)
+  })
+
+  it('still blocks a piece on either run (back / left leg)', () => {
+    // On run A (back, along −Z): (0, -0.35) is inside the back leg.
+    expect(canPlace(probeAt(0, -0.35), probeDef, ctx([cornerAt(0, 0)]))).toBe(false)
+    // On run B (left leg, along −X): (-0.35, 0.2) is inside the left leg.
+    expect(canPlace(probeAt(-0.35, 0.2), probeDef, ctx([cornerAt(0, 0)]))).toBe(false)
+  })
+})
+
 describe('granular footprint — static parts + transforms', () => {
   // Two 0.5×1 blocks with a 1 m gap between their inner edges (centres ±0.75),
   // inside a 2×1 enclosing bbox — a barbell shape with an open middle.

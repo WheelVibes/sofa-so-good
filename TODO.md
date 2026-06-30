@@ -85,9 +85,10 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
 ### Deeper core interactions (user 2026-07-01 #2: "granular collision, animations, realistic physics")
 - ~~Granular shape-aware collision~~ — **shipped v0.9.0.9** (`footprintParts` convex decomposition +
   `itemFootprintParts`; any-part-vs-any-part SAT; L-sofa main-run+chaise). Infra reusable.
-- **More composite footprints** — apply `footprintParts` to other non-rectangular pieces: corner
-  cabinet/wardrobe, U-shaped sofa, corner desk, round/oval tables (octagon approximation), bar-L.
-  Pure + unit-verifiable; each just needs a decomposition + a test. M (incremental).
+- **More composite footprints** — apply `footprintParts` to other non-rectangular pieces.
+  Done: L-sofa (v0.9.0.9), corner base cabinet (v0.9.0.10). Remaining candidates: round/oval
+  tables (octagon approximation — convex, low priority), and any future U-sofa / corner desk /
+  peninsula (none in the catalog today). Each just needs a decomposition + a test. S (incremental).
 - **Animations** — door/drawer open-close easing (some exists: curtains/blinds ease in demand mode),
   smooth placement "drop-in" + selection transitions, eased camera moves between saved views. Mostly
   pure state→transition; verify state transitions headless, smoothness by eye. M.
