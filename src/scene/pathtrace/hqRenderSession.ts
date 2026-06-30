@@ -195,6 +195,8 @@ export async function createHqRenderSession(
     tracer.transmissiveBounces = HQ_TRACER_CONFIG.transmissiveBounces
     tracer.filterGlossyFactor = HQ_TRACER_CONFIG.filterGlossyFactor
     tracer.multipleImportanceSampling = HQ_TRACER_CONFIG.multipleImportanceSampling
+    // `stableNoise` exists at runtime but isn't in this lib version's d.ts.
+    ;(tracer as { stableNoise?: boolean }).stableNoise = HQ_TRACER_CONFIG.stableNoise
   } catch {
     // keep library defaults
   }

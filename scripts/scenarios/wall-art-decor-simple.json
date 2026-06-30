@@ -1,0 +1,12 @@
+{
+  "name": "wall-art-decor-simple",
+  "description": "IXT-SUITES: RD408-008 wall-art auto-styling. The move-in furnished flat hangs framed wall-art on the wall behind wall-flushed hosts (sofa/bed/sideboard/console); each is a mounted, noClip decor item that renders in both Simple and Pro.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "settle", "wait": 1500 },
+    { "name": "assert-wall-art-present", "waitFor": { "store": "state.items.filter(i => i.defId === 'wall-art').length >= 1" }, "timeout": 8000, "failMessage": "the furnished move-in flat should auto-hang at least one wall-art piece" },
+    { "name": "assert-wall-art-mounted-noclip", "waitFor": { "store": "state.items.filter(i => i.defId === 'wall-art').every(a => (a.elevation ?? 0) === 0 && typeof a.props.mountHeight === 'number')" }, "timeout": 5000, "failMessage": "wall-art should be wall-mounted (mountHeight, no floor elevation)" }
+  ]
+}

@@ -345,6 +345,30 @@ function propRotation(host: FurnitureItem, propId: string, rand: () => number): 
 }
 
 /**
+ * Wall-art pass (RD408-008): hosts whose back is flush to a wall get one framed
+ * piece hung on that wall, centred above the host. Restricted to simple
+ * rectangular wall-flushed pieces (sofas/beds/sideboard/console) whose back edge
+ * IS the wall plane — so the art lands in a span the host already occupies (no
+ * door/window overlap). L-shape sofas are excluded (their back isn't one wall).
+ * `widthFrac`×host width (clamped to `maxWidth`) keeps the art proportionate.
+ */
+const WALL_ART_HOSTS: Record<
+  string,
+  { widthFrac: number; maxWidth: number; height: number; mountHeight: number }
+> = {
+  'sofa-3seat': { widthFrac: 0.55, maxWidth: 1.4, height: 0.7, mountHeight: 1.55 },
+  'sofa-2seat': { widthFrac: 0.6, maxWidth: 1.1, height: 0.6, mountHeight: 1.5 },
+  'bed-queen': { widthFrac: 0.5, maxWidth: 1.3, height: 0.55, mountHeight: 1.62 },
+  'bed-king': { widthFrac: 0.5, maxWidth: 1.4, height: 0.55, mountHeight: 1.62 },
+  'bed-double': { widthFrac: 0.5, maxWidth: 1.1, height: 0.5, mountHeight: 1.62 },
+  sideboard: { widthFrac: 0.7, maxWidth: 1.0, height: 0.6, mountHeight: 1.5 },
+  'console-table': { widthFrac: 0.7, maxWidth: 0.9, height: 0.55, mountHeight: 1.5 },
+}
+
+/** Seeded art-canvas tints so neighbouring rooms' pieces aren't identical. */
+const WALL_ART_COLORS = ['#9fb0a6', '#b9a48a', '#8c9bb0', '#c2a0a0', '#a7b39c', '#6f7d8c'] as const
+
+/**
  * Given a list of already-arranged items (for one or all rooms), return
  * supplementary decor prop items placed on appropriate host surfaces.
  *
@@ -418,6 +442,35 @@ export function applyDecorStyling(
       placed++
     }
     void placed
+
+    // Wall-art pass (RD408-008): one framed piece on the wall behind this host.
+    const artCfg = WALL_ART_HOSTS[host.defId]
+    if (artCfg) {
+      const id = `decor-${host.id}-wall-art`
+      if (!usedIds.has(id)) {
+        usedIds.add(id)
+        // The wall is behind the host: host centre minus its forward vector
+        // (+Z local rotated by yaw = (sin, cos)) × half-depth. The art faces the
+        // room (same yaw as the host) and self-lifts to `mountHeight`.
+        const fwdX = Math.sin(host.rotation)
+        const fwdZ = Math.cos(host.rotation)
+        const back = footprint.d / 2
+        const width = Math.max(0.4, Math.min(artCfg.maxWidth, footprint.w * artCfg.widthFrac))
+        result.push({
+          id,
+          defId: 'wall-art' as FurnitureItem['defId'],
+          position: [host.position[0] - fwdX * back, host.position[1] - fwdZ * back],
+          rotation: host.rotation,
+          props: {
+            width,
+            height: artCfg.height,
+            mountHeight: artCfg.mountHeight,
+            frameStyle: 'thin',
+            artColor: WALL_ART_COLORS[Math.floor(rand() * WALL_ART_COLORS.length)],
+          },
+        })
+      }
+    }
   }
 
   return result

@@ -24,10 +24,11 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
   (1024 sun shadow + procedural IBL probe + contact shadows) → High (2048 + N8AO + Bloom + SMAA) →
   Maximum (4096 + full-res AO + film grain + chromatic aberration).
 - **Lighting**: sun `DirectionalLight` + `PCFSoftShadowMap` (radius 4, not PCSS); hemisphere + flat
-  ambient; **procedural Lightformer IBL probe** (64–256px) — **no HDRI image IBL**.
+  ambient; **procedural Lightformer IBL probe** (64–256px) by default, **with an opt-in captured CC0
+  HDRI IBL** (`hdriEnvironment`, Medium+) — the path-tracer env is still the 2-colour gradient.
 - **Materials**: `MeshPhysicalMaterial` with procedural micro-textures (≤512px albedo/normal/rough),
-  sheen + clearcoat (all tiers, `materialRealism.ts`), transmission glass (High/Max only). **No
-  high-res scanned PBR maps; KTX2 scaffolded but not shipped in prod; no POM/displacement.**
+  sheen + clearcoat (all tiers, `materialRealism.ts`), transmission glass (High/Max only). **Bundled +
+  runtime Poly Haven 2K PBR finishes ship; in-browser KTX2/UASTC encode ships (opt-in); no POM/displacement.**
 - **Post** (`Effects.tsx`): N8AO → Bloom → HueSat → (CA) → Vignette → (grain) → SMAA. Tone-mappers
   Filmic(ACES)/AgX/Neutral available; auto-exposure + user dial.
 - **Path tracer** (`pathtrace/hqRenderSession.ts`): progressive, tiled, `PhysicalCamera` DoF,
@@ -40,9 +41,20 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
   sky/IBL image yet.**
 
 ## Shipped (pruned from the roadmap — see `CHANGELOG.md` for detail)
+- **PHOTO-HDRI** — CC0 HDRI environment lighting (v0.8.0.24): `scene/lighting/hdriCatalog.ts` (5 Poly
+  Haven `.hdr`, CORS-direct) + `SceneEnvironment` opt-in branch swaps the procedural probe for a captured
+  HDRI as `scene.environment`; default (`hdriId === null`) keeps the procedural look. `hdriEnvironment` pro
+  flag, Medium+. *Follow-up:* feed the same env into the path tracer + F4 HDRI-compare coupling.
+- **PHOTO-KTX2** — in-browser KTX2/UASTC encoder (v0.8.0.25): `lib/ktx2encode.ts` un-stubbed with the
+  `ktx2-encoder` Basis WASM build (self-hosted `public/basis/`); `optimizeGlb`'s `ktx2` opt-in emits real
+  KTX2 in prod. *Tail:* per-channel encode tuning (normal maps).
+- **PHOTO-PBR-MAPS (core)** — bundled CC0 PBR finishes (v0.8.0.27): the 12 bundled Poly Haven finishes are
+  now full-PBR (albedo+normal+roughness), and the runtime Poly Haven catalog fetches 2K PBR materials in
+  prod; procedural patterns remain the instant fallback. *Remaining (open):* more curated sets for the
+  fabric/leather/metal tokens + ambientCG (Tier 3 below).
 - **PHOTO-BACKDROP** — walk-mode equirectangular photo `scene.background` (procedural `city/dusk/park/hills`
   presets + user upload via `storage/walkBackdrop.ts`; instanced 3D estates removed). Flags `backdrops` +
-  `customBackdrop`. *Follow-up still open:* bundle real CC0 equirectangular photos for the presets (see PHOTO-HDRI).
+  `customBackdrop`. *Follow-up still open:* bundle real CC0 equirectangular photos for the presets.
 - **PHOTO-EMISSIVE** — HDR emissive + bloom: lamps/sconces/cove/fan/TV/vanity ramp via
   `scene/lighting/fixtureGlow.ts` (`fixtureEmissiveIntensity`), night peaks clear the Bloom threshold.
   *G-tail:* tune the bloom amount on a real GPU.
@@ -68,21 +80,18 @@ Legend — Verify: `H` headless-verifiable (DOM/scene-graph/unit) · `G` needs a
 belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
 
 ### Tier 1 — highest impact, mostly verifiable, do first
-- **PHOTO-HDRI — HDRI environment lighting (IBL)** (M, real-time Medium+ **and** path tracer; Verify G/H).
-  The *lighting* counterpart to the shipped photo backdrop: bundle a few **CC0 Poly Haven** HDRIs (1–2K
-  `.hdr`); add an HDRI mode to `SceneEnvironment` (drei `<Environment>` → PMREM) as `scene.environment`
-  (IBL) and feed the **same env into the path tracer** (`root.environment`, importance-sampled). The HDRI
-  may also serve as the photo background when present. New `hdriEnvironment` flag (pro, prod-safe). Needs
-  the `.hdr` asset added in a connected session (sandbox can't fetch).
-- **PHOTO-DETAIL-PROPS — set-dressing prop bundle** (M, all tiers; Verify H).
-  Curated CC0 decor/styling props (books, trays, cushions, vases, plants, rugs, bowls) — the single
-  biggest *perceived*-realism lever for casual users (empty rooms read fake). Overlaps C-PLANTS/DECOR
-  in TASKS; ship as a prod CC0 pack + one-tap "style this room" placement.
-- **PHOTO-BEVELS — edge bevels on hard primitives** ◑ **IN PROGRESS** (M, all tiers incl. flat; Verify G).
-  Shared `furniture/primitives/BeveledBox.tsx` (drei `RoundedBox` + auto-clamped ~7 mm chamfer, pure
-  tested `safeBevelRadius`) already migrated tables/desk + freestanding case goods. **Remaining:**
-  panel/shelf-built units (Bookshelf, Wardrobe, cabinet modules) + appliances. Edge light-catch is
-  real-GPU-pending; structural correctness verified.
+- **PHOTO-HDRI-PT — feed the HDRI env into the path tracer** (M, HQ still; Verify G).
+  HDRI IBL ships for the real-time tiers (`hdriEnvironment`); the remaining piece is feeding the same
+  `scene.environment` into `three-gpu-pathtracer` (`root.environment`, importance-sampled) so the HQ
+  still uses the captured HDRI instead of its 2-colour gradient. (Real-time HDRI IBL itself is shipped.)
+- **PHOTO-DETAIL-PROPS — more CC0 set-dressing** ◑ (M, all tiers; Verify H).
+  The set-dressing pack + one-tap auto-styling already ship (C276–C278, `decorStyling.ts`). **Remaining:**
+  more curated CC0 decor/prop bundles from Poly Haven / Poly Pizza (networked assets). Overlaps
+  C-PLANTS/DECOR in TASKS.
+- **PHOTO-BEVELS — edge-bevel light-catch verify** ◑ (real-GPU tail; Verify G).
+  The shared `furniture/primitives/BeveledBox.tsx` (~7 mm chamfer) rollout is **complete** across case
+  goods, panel/shelf units, and appliances; structural correctness verified. **Remaining:** the edge
+  light-catch real-GPU pixel pass (RZ3 tail).
 
 ### Tier 2 — high impact, needs real-GPU verification
 - **PHOTO-DENOISE — browser OIDN on the HQ still** (M–L, HQ still; Verify G).
@@ -108,14 +117,11 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   Medium where affordable.
 
 ### Tier 3 — ultra-detail materials/assets (memory-bound, mostly verifiable)
-- **PHOTO-PBR-MAPS — real 2K CC0 PBR textures over procedural** (L, materials; Verify H/G).
-  Bundle curated **Poly Haven / ambientCG** CC0 PBR sets (wood/marble/tile/concrete/fabric/leather/
-  metal: albedo+normal+rough+AO) as higher-fidelity finishes over the procedural fallback, world-UV
-  tiled. The procedural generators stay as the always-available base.
-- **PHOTO-KTX2 — KTX2/Basis compression in prod** (M; Verify H).
-  Ship bundled + uploaded textures as KTX2 (ETC1S/UASTC) to cut VRAM ~4–6× so we can afford 2K maps
-  (clears the TODO "real in-browser KTX2 encoder" gap; offline `compress:glb-textures` already
-  exists for bundled assets).
+- **PHOTO-PBR-MAPS — extend CC0 PBR coverage** ◑ (L, materials; Verify H/G).
+  Core shipped (the 12 bundled finishes are full-PBR + runtime Poly Haven fetch — v0.8.0.27).
+  **Remaining:** bundle curated **Poly Haven / ambientCG** sets for the still-procedural-only tokens
+  (fabric/leather/metal + more wood/tile/concrete variants: albedo+normal+rough+AO), world-UV tiled,
+  with the procedural generators as the always-available base.
 - **PHOTO-POM — parallax-occlusion mapping on hero floors** (M, High/Max; Verify G).
   POM on tile/brick/parquet floors for real recessed grout/relief as the camera moves — big step up
   from normal maps; gate to High+ (shader ray-march cost).

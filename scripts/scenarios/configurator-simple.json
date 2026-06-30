@@ -1,0 +1,19 @@
+{
+  "name": "configurator-simple",
+  "description": "IXT-SUITES: slot product configurator (SLOT, simple tier → shown in both modes). productConfigurator flag is on in Simple AND Pro; setConfiguratorOpen mounts the dialog (.configurator-dialog) with product tabs + per-slot option pickers; closing unmounts it.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "assert-simple-on", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.productConfigurator === true" }, "timeout": 5000, "failMessage": "productConfigurator should be ON in Simple (simple tier)" },
+    { "name": "to-pro", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-pro-on", "waitFor": { "store": "state.featureFlags.productConfigurator === true" }, "timeout": 5000, "failMessage": "productConfigurator should be ON in Pro" },
+    { "name": "open", "store": { "action": "setConfiguratorOpen", "args": [true] } },
+    { "name": "dialog-mounts", "waitFor": { "css": ".configurator-dialog" }, "timeout": 10000, "failMessage": "configurator dialog did not mount" },
+    { "name": "title", "waitFor": { "text": "Configure a product" }, "timeout": 5000 },
+    { "name": "settle", "wait": 2500 },
+    { "name": "shot", "screenshot": "configurator-dialog" },
+    { "name": "close", "store": { "action": "setConfiguratorOpen", "args": [false] } },
+    { "name": "dialog-gone", "waitFor": { "css": ".configurator-dialog", "visible": false }, "timeout": 5000 }
+  ]
+}

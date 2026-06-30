@@ -72,6 +72,15 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   The IBL/PMREM/bloom/exposure path is a **separate, tuned, real-GPU concern** — do NOT feed a
   backdrop into `scene.environment` or touch `SceneEnvironment.tsx`/`Lighting.tsx`/`look.ts` from
   the backdrop code (the bloom-threshold lock-step regresses, RD-409).
+- **`scene.environment` IBL is the procedural Lightformer probe by default; a user-selected CC0
+  HDRI replaces it (F3/R-HDRI · PHOTO-HDRI).** `SceneEnvironment.tsx` renders drei `<Environment>`
+  with the procedural Lightformers UNLESS `s.hdriId` is set (+ `hdriEnvironment` flag + `quality.ibl`,
+  i.e. Medium+), in which case it renders `<Environment files={hdri.url} background={false}>` — a real
+  captured environment from the curated `lighting/hdriCatalog.ts` (Poly Haven CC0 `.hdr`, CORS-direct).
+  The default (`hdriId === null`) keeps the exact procedural probe, so the out-of-box look never
+  changes. The night-dim `environmentIntensity` ramp applies to both. (This is the sanctioned way to
+  set `scene.environment` — distinct from the backdrop rule above, which forbids *backdrop* code from
+  touching it.)
 - **Materials**: pass a real three `Material` to `material=`, never a props object.
 - **Mount expensive controllers once**; collapse repeat geometry via `InstancedBoxes`.
   `ContextLossGuard` must stay mounted in **both** Canvases (main + room editor).

@@ -132,6 +132,19 @@ export default defineConfig(({ command }) => ({
     chunkSizeWarningLimit: 1000,
   },
   server: {
+    // Keep the dev file-watcher under the system inotify limit by ignoring large
+    // non-app trees (scraped IKEA models, datasets, graphify output, python tools).
+    // These never feed the Vite module graph, so ignoring them is safe + faster.
+    watch: {
+      ignored: [
+        '**/ikea/**',
+        '**/dataset/**',
+        '**/graphify-out/**',
+        '**/python/**',
+        '**/public/draco/**',
+        '**/.git/**',
+      ],
+    },
     proxy: {
       '/acg': {
         target: 'https://ambientcg.com',

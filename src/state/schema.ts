@@ -75,6 +75,8 @@ const UserGltfDefZ = z.object({
   price: z.number().optional(),
   // Optional GLB byte size for the catalog model-info tooltip — additive.
   byteSize: z.number().optional(),
+  // Optional slot-configurator recipe (JSON) for re-editing (SLOT-204) — additive.
+  slotSpec: z.string().optional(),
 })
 
 const IkeaVariantZ = z.object({
@@ -307,6 +309,8 @@ export const FloorPlanZ = z.object({
   dimensions: z
     .array(z.object({ id: z.string(), a: Vec2Z, b: Vec2Z, levelId: z.string().optional() }))
     .optional(),
+  // Persistent ruler guides (PARITY-PLAN-GUIDES). Optional + additive — absent → [].
+  guides: z.array(z.object({ axis: z.enum(['x', 'z']), pos: z.number() })).optional(),
   // Free-form polyline markup (PARITY-POLYLINE). Optional + additive — no
   // schema-version bump; absent → []. `points` MUST round-trip or the polyline
   // silently vanishes on reload.
@@ -554,6 +558,7 @@ export function serialize(state: RootState): SerializedState {
               finishTargets: d.finishTargets,
               finishOverrides: d.finishOverrides,
               price: d.price,
+              slotSpec: d.slotSpec,
             },
       ),
     userMaterials: state.userMaterials.map((d) => ({

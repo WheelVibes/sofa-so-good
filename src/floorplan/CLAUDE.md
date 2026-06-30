@@ -37,6 +37,21 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   geometry by `PlanDoorLeaf` (panel/glaze branches) and `PlanShell`'s `FadeWindow` (grille/louvre bars);
   same additive schema shape as `color`.
 - Geometry stays **pure + unit-tested** here (no three/React imports beyond types).
+- **Ruler guides (PARITY-PLAN-GUIDES): `plan.guides: {axis:'x'|'z',pos}[]`** are plan-wide reference
+  lines (not level-tagged) the 2D editor snaps points to. Pure `snapToGuides.ts`
+  (`snapToGuides`/`nearestGuide`/`addGuide`) snaps each axis independently within a threshold; the
+  editor applies it in `pointerGrid` (guide beats grid). Store: `addPlanGuide`/`removePlanGuide`/
+  `clearPlanGuides` (fork-default, one undo). Additive schema field — no version bump. `planGuides` pro flag.
+- **Corner fillet/bevel (PARITY-CORNER-FILLET): `cornerFillet.ts`** (pure tangent/bisector geometry) +
+  `filletWalls.ts` `applyWallFillet(walls, idA, idB, amount, mode)` trims two connected walls to their
+  tangent/setback points and inserts a connecting wall (curved `arc` for `'round'`, straight for
+  `'bevel'`). Store `filletCorner(idA, idB, amount, mode, levelId)`; editor shows Round/Bevel when 2
+  connected walls are selected. Openings on a filleted wall keep their offset (may shift) — same
+  limitation as `insetRoom`. `cornerFillet` pro flag.
+- **Chained dimensions (PARITY-DIM-CHAIN): `dimensionChain.ts`** (`chainDimensions`/`runningDimensions`)
+  projects points onto a baseline and emits consecutive segments. Store `addChainDimensions(levelId)`
+  generates a row of `PlanDimension`s along the level's bottom + left baselines from the wall-vertex
+  positions (ground dims carry no `levelId`). `dimensionChain` pro flag.
 - **Whole-plan transforms scale ALL storeys about one anchor.** `rescalePlan.ts`
   (PARITY-PLAN-SCALE) multiplies every wall endpoint / room polygon / opening
   offset / note·dim·polyline vertex / upper-storey geometry + furniture POSITION

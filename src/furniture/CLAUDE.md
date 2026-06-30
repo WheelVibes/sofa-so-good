@@ -161,5 +161,9 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   vines cascade over the edge, leading the prop list on open shelving `bookshelf`/`cube-shelf` and a
   secondary option on `console-table`/`sideboard`); `decor-tray` (a shallow styled tray holding a
   small index-seeded candle/bowl/books vignette, `style`/`fullness` controls — leading on
-  `coffee-table`/`ottoman` and a secondary option on `console-table`/`sideboard`). (The wall pass is
-  still a future RD-408 task.)
+  `coffee-table`/`ottoman` and a secondary option on `console-table`/`sideboard`). **Wall pass
+  (RD408-008):** a separate loop hangs one `wall-art` piece on the wall BEHIND each wall-flushed host
+  (`WALL_ART_HOSTS` — sofas/beds/sideboard/console; L-shapes excluded) at the host's back edge, facing
+  the room, sized `widthFrac`×host width and self-lifting via the def's `mountHeight` (the def is
+  `mounted`+`noClip`). Artifact-safe: the host already occupies a clear wall span, so the art never
+  overlaps a door/window. Deterministic seeded art tint; excluded from the surface-prop budget/cap.

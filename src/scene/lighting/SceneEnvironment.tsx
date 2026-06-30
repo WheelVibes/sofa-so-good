@@ -1,7 +1,10 @@
 import { Environment, Lightformer } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
+import { useFeature } from '../../features/useFeature'
+import { useStore } from '../../state/store'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
+import { hdriById } from './hdriCatalog'
 import { useSunPosition } from './useSunPosition'
 
 /**
@@ -16,6 +19,12 @@ export function SceneEnvironment() {
   const sun = useSunPosition()
   const quality = useQuality()
   const enabled = quality.ibl
+  // Opt-in CC0 HDRI environment (F3/R-HDRI · PHOTO-HDRI): when the user selects an
+  // HDRI (and the flag is on), it replaces the procedural Lightformer probe. The
+  // default (`hdriId === null`) keeps the exact procedural probe — no look change.
+  const hdriOn = useFeature('hdriEnvironment')
+  const hdriId = useStore((s) => s.hdriId)
+  const hdri = hdriOn ? hdriById(hdriId) : null
 
   useFrame(() => {
     if (!enabled) return
@@ -27,6 +36,11 @@ export function SceneEnvironment() {
   if (!enabled) {
     if (scene.environment) scene.environment = null
     return null
+  }
+  // A real captured HDRI (drei loads the .hdr via RGBELoader + PMREM); shown as
+  // IBL only (`background={false}` — the walk-mode backdrop owns scene.background).
+  if (hdri) {
+    return <Environment files={hdri.url} resolution={quality.envResolution} background={false} />
   }
   return (
     <Environment resolution={quality.envResolution} frames={1} background={false}>

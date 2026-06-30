@@ -2,7 +2,7 @@ import { IdbAssetStore } from '../../state/storage/IdbAssetStore'
 import { useStore } from '../../state/store'
 import { normalizeTextureFile } from '../convert/reencode'
 import type { MaterialCategory, TexturedMaterialDef } from '../types'
-import { validateImageFile } from './validate'
+import { MAX_IMAGE_BYTES, validateImageFile } from './validate'
 
 export interface MaterialUploadFiles {
   albedo: File
@@ -33,8 +33,19 @@ async function persistChannel(
   file: File,
   identity: MaterialUploadOptions,
 ): Promise<{ assetId: string; url: string }> {
+  // IO-001: gate the SOURCE file size BEFORE the expensive decode. The size cap
+  // exists to bound the in-memory allocation (a 4096² EXR decodes to ~268 MB of
+  // intermediate floats), so it must be consulted before `normalizeTextureFile`
+  // runs the full decode + WebP re-encode — not only on the already-decoded
+  // result (which, being a shrunken WebP, could slip under the cap the source
+  // blew past).
+  if (file.size > MAX_IMAGE_BYTES) {
+    throw new Error(
+      `${role}: Image too large (${(file.size / 1_048_576).toFixed(1)} MB > ${MAX_IMAGE_BYTES / 1_048_576} MB).`,
+    )
+  }
   // Exotic formats (TGA/TIFF/EXR/HDR) decode + PNG/JPEG re-encode to WebP;
-  // WebP passes through. The dimension/size ceiling is checked post-normalize.
+  // WebP passes through. The dimension ceiling is checked post-normalize.
   const normalized = await normalizeTextureFile(file)
   const v = await validateImageFile(normalized)
   if (!v.ok) throw new Error(`${role}: ${v.reason}`)

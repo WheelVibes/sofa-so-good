@@ -29,6 +29,29 @@ kept in `scripts/scenarios/`.
   `pano-tour-journey.json`); keep each scenario focused and re-runnable on a clean
   profile (`first-run.json` is the worked example).
 
+## Real-GPU mode (`SHOT_GPU=1`)
+
+By default the harness renders with **SwiftShader** (software WebGL) — fine for
+layout/geometry/UI checks but it cannot validate GPU-only effects. Set
+**`SHOT_GPU=1`** to route WebGL to the **real hardware GPU** via ANGLE's `gl-egl`
+backend over the WSL D3D12 passthrough (`/dev/dxg`). Confirmed renderer string:
+`ANGLE (… D3D12 (Intel(R) UHD Graphics) …)`. Use it to verify anything that
+SwiftShader can't show truthfully:
+
+- depth-of-field bokeh, bloom thresholds/intensity, tone-mapping look
+- soft/penumbra shadows (PCSS/VSM), contact/corner AO
+- glass transmission/IOR, env-map reflections, HDRI IBL
+- path-traced HQ render convergence + denoise
+
+```
+SHOT_GPU=1 node scripts/shot.mjs out.png 3000
+SHOT_GPU=1 node scripts/shot.mjs --scenario scripts/scenarios/foo.json
+```
+
+Notes: GPU mode uses Chromium's `--headless=new` (not `shell`) so the compositor
+path is real; it is slower per frame than SwiftShader but renders truthfully.
+Always GPU-verify items the backlog tags `[real-GPU verify]` before striking them.
+
 ## Scenario mode (recommended — use this for anything multi-step)
 
 **Harness runs are serialized machine-wide.** `shot.mjs` re-execs itself under

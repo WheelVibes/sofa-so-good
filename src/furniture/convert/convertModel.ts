@@ -1,8 +1,36 @@
+import type { Material, Object3D, Texture } from 'three'
 import { detectModelFormat, MAX_BYTES_BY_FORMAT, type ModelFormat } from './formats'
 import type { SiblingPool } from './loadToObject'
 
 /** Thrown when a model can't be converted; carries a user-facing message. */
 export class ConvertError extends Error {}
+
+/** Dispose one material plus every Texture it references (IO-005). */
+function disposeMaterial(m: Material): void {
+  for (const v of Object.values(m as unknown as Record<string, unknown>)) {
+    if (v && typeof v === 'object' && (v as Texture).isTexture) (v as Texture).dispose()
+  }
+  m.dispose()
+}
+
+/**
+ * Dispose the intermediate scene graph produced by the import loaders once its
+ * GLB has been exported (IO-005). The object is never added to a live renderer,
+ * so this releases CPU-side geometry buffers + any decoded textures (FBX/USDZ/…)
+ * deterministically instead of leaving them for GC — important across a bulk
+ * import of thousands of models.
+ */
+export function disposeObject3D(root: Object3D): void {
+  root.traverse((o) => {
+    const mesh = o as Object3D & {
+      geometry?: { dispose?: () => void }
+      material?: Material | Material[]
+    }
+    mesh.geometry?.dispose?.()
+    const mat = mesh.material
+    if (mat) for (const m of Array.isArray(mat) ? mat : [mat]) disposeMaterial(m)
+  })
+}
 
 function pathOf(f: File): string {
   return (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name
@@ -43,6 +71,7 @@ export async function convertModel(
     )
   }
   const pool = buildPool(entry, [entry, ...siblings])
+  let object: Object3D | null = null
   try {
     // Dynamic imports keep the rare-format three loaders (FBX/Collada/USDZ/…)
     // and the GLTFExporter out of the boot bundle — they only load when a
@@ -51,7 +80,7 @@ export async function convertModel(
       import('./loadToObject'),
       import('./toGlb'),
     ])
-    const object = await loadToObject(format, pool)
+    object = await loadToObject(format, pool)
     const buf = await exportGlb(object)
     if (buf.byteLength === 0) {
       throw new ConvertError(`Conversion produced an empty GLB: ${entry.name}`)
@@ -64,6 +93,9 @@ export async function convertModel(
       `Failed to convert ${entry.name}: ${e instanceof Error ? e.message : String(e)}`,
     )
   } finally {
+    // Dispose the intermediate scene graph (GLB already exported) + revoke the
+    // sibling blob URLs — deterministic release across a bulk import (IO-005).
+    if (object) disposeObject3D(object)
     revoke(pool)
   }
 }

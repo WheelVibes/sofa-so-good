@@ -28,6 +28,7 @@ import { polylinePointsAttr } from '../../floorplan/polyline'
 import { roomLabelPoint, roomLabelPosition } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { isSlopedWall, slopedWallHeights } from '../../floorplan/slopedWall'
+import { snapToGuides } from '../../floorplan/snapToGuides'
 import type { PlanWall } from '../../floorplan/types'
 import {
   DEFAULT_PLAN_WALL_COLOR,
@@ -165,6 +166,10 @@ export function FloorPlanEditor() {
   const fCurvedWalls = useFeature('curvedWalls')
   const fCompass = useFeature('planCompass')
   const fGridSnap = useFeature('planGridSnap')
+  const fGuides = useFeature('planGuides')
+  const fDimChain = useFeature('dimensionChain')
+  const fCornerFillet = useFeature('cornerFillet')
+  const fTilt = useFeature('tiltFurniture')
   const orientationDeg = useStore((s) => s.orientationDeg)
   // Tour stops are only shown/editable on the ground level (stops have a
   // levelId field but the plan editor operates per-level; ground is the
@@ -369,6 +374,9 @@ export function FloorPlanEditor() {
   // once-on-mount effect). Skips if one is already loaded so reopening doesn't
   // create a duplicate object URL.
   const backdropUrlRef = useRef<string | null>(null)
+  // Last pointer position in plan metres — where a new ruler guide is dropped
+  // (PARITY-PLAN-GUIDES). Updated on every pointer move over the canvas.
+  const lastPlanPtRef = useRef<[number, number]>([0, 0])
   useEffect(() => {
     if (!editing) return
     let cancelled = false
@@ -838,7 +846,11 @@ export function FloorPlanEditor() {
     const rect = svgRef.current!.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * W
     const y = ((e.clientY - rect.top) / rect.height) * H
-    return [snap(x / PX - GRID_MARGIN), snap(y / PX - GRID_MARGIN)]
+    const gridded: [number, number] = [snap(x / PX - GRID_MARGIN), snap(y / PX - GRID_MARGIN)]
+    // Persistent ruler guides take precedence over the grid within a small
+    // metric threshold (PARITY-PLAN-GUIDES), so a point lands exactly on a guide.
+    if (fGuides && plan.guides?.length) return snapToGuides(gridded, plan.guides, 0.15)
+    return gridded
   }
 
   // Raw (unsnapped) pointer → plan metres. The marquee rect tracks the cursor
@@ -1098,6 +1110,7 @@ export function FloorPlanEditor() {
   }
 
   const onMove = (e: React.PointerEvent) => {
+    if (svgRef.current) lastPlanPtRef.current = pointerPlanRaw(e)
     if (pinch.current && e.pointerType === 'touch') {
       if (touchPts.current.has(e.pointerId)) {
         touchPts.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
@@ -1873,6 +1886,87 @@ export function FloorPlanEditor() {
           Snap to grid
         </button>
       ) : null}
+      {/* Persistent ruler guides (PARITY-PLAN-GUIDES) — pin an axis-aligned
+          reference line at the cursor; points snap to it. Gated by `planGuides`
+          (pro, hidden in Simple). */}
+      {fGuides ? (
+        <>
+          <button
+            type="button"
+            onClick={() => a.addPlanGuide({ axis: 'x', pos: snap(lastPlanPtRef.current[0]) })}
+            title="Pin a vertical guide line at the cursor — points snap to it"
+            className="btn btn-sm"
+          >
+            + V guide
+          </button>
+          <button
+            type="button"
+            onClick={() => a.addPlanGuide({ axis: 'z', pos: snap(lastPlanPtRef.current[1]) })}
+            title="Pin a horizontal guide line at the cursor — points snap to it"
+            className="btn btn-sm"
+          >
+            + H guide
+          </button>
+          {(plan.guides?.length ?? 0) > 0 ? (
+            <button
+              type="button"
+              onClick={() => a.clearPlanGuides()}
+              title="Remove all ruler guides"
+              className="btn btn-sm"
+            >
+              Clear guides
+            </button>
+          ) : null}
+        </>
+      ) : null}
+      {/* Chained dimension strings (PARITY-DIM-CHAIN) — a row of consecutive
+          dimensions along the plan's bottom + left baselines, gated by
+          `dimensionChain` (pro, hidden in Simple). */}
+      {fDimChain ? (
+        <button
+          type="button"
+          onClick={() => {
+            const n = a.addChainDimensions(levelId)
+            if (n === 0)
+              a.notify.start({ title: 'Add at least two walls to chain dimensions', kind: 'info' })
+          }}
+          title="Generate a row of dimension strings along this floor's edges"
+          className="btn btn-sm"
+        >
+          Chain dims
+        </button>
+      ) : null}
+      {/* Round / bevel the corner of two selected connected walls
+          (PARITY-CORNER-FILLET), gated by `cornerFillet` (pro). Enabled only with
+          exactly two walls selected. */}
+      {fCornerFillet && selectedWalls.size === 2 ? (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              const [w1, w2] = [...selectedWalls]
+              if (!a.filletCorner(w1, w2, 0.3, 'round', levelId))
+                a.notify.start({ title: 'Select two walls that meet at a corner', kind: 'info' })
+            }}
+            title="Round the corner where the two selected walls meet (0.3 m radius)"
+            className="btn btn-sm"
+          >
+            Round corner
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const [w1, w2] = [...selectedWalls]
+              if (!a.filletCorner(w1, w2, 0.3, 'bevel', levelId))
+                a.notify.start({ title: 'Select two walls that meet at a corner', kind: 'info' })
+            }}
+            title="Bevel (chamfer) the corner where the two selected walls meet (0.3 m)"
+            className="btn btn-sm"
+          >
+            Bevel corner
+          </button>
+        </>
+      ) : null}
       {/* Reference photo — trace walls over a floor-plan image / room scan. */}
       <input
         ref={fileRef}
@@ -2542,6 +2636,45 @@ export function FloorPlanEditor() {
                 ed={ed}
               />
 
+              {/* Persistent ruler guides (PARITY-PLAN-GUIDES) — dashed accent
+                  lines that points snap to. Click one to remove it. */}
+              {fGuides &&
+                (plan.guides ?? []).map((g, i) => {
+                  const p = toPx(g.pos)
+                  const x1 = g.axis === 'x' ? p : 0
+                  const x2 = g.axis === 'x' ? p : W
+                  const y1 = g.axis === 'x' ? 0 : p
+                  const y2 = g.axis === 'x' ? H : p
+                  return (
+                    <g key={`guide-${g.axis}-${i}`} style={{ cursor: 'pointer' }}>
+                      <line
+                        x1={x1}
+                        y1={y1}
+                        x2={x2}
+                        y2={y2}
+                        stroke="transparent"
+                        strokeWidth={10}
+                        onPointerDown={(e) => {
+                          e.stopPropagation()
+                          a.removePlanGuide(i)
+                        }}
+                      >
+                        <title>Click to remove guide</title>
+                      </line>
+                      <line
+                        x1={x1}
+                        y1={y1}
+                        x2={x2}
+                        y2={y2}
+                        stroke="var(--accent)"
+                        strokeWidth={1}
+                        strokeDasharray="6 4"
+                        style={{ pointerEvents: 'none' }}
+                      />
+                    </g>
+                  )
+                })}
+
               {/* Other storeys' walls as a dimmed underlay (SH3D "all levels"),
                 so walls/stairs can be lined up between floors. Non-interactive. */}
               {showOtherLevels &&
@@ -2802,9 +2935,13 @@ export function FloorPlanEditor() {
                   const def = getDef(it.defId)
                   if (!def) return null
                   const obb = itemFootprint(it, def)
-                  const pts = obbCorners(obb)
-                    .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
-                    .join(' ')
+                  const corners = obbCorners(obb)
+                  const pts = corners.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')
+                  // Tilt indicator (PARITY-TILT): a small badge on a footprint
+                  // corner when the piece is pitched/rolled out of plane, so a 2D
+                  // plan shows the same tilt the 3D view + inspector carry. Gated
+                  // by the same `tiltFurniture` flag as the tilt controls.
+                  const tilted = fTilt && !!(it.pitch || it.roll)
                   // Highlighted when it's the primary OR part of a marquee
                   // multi-selection.
                   const isSel = selectedItemId === it.id || selectedItemIds.has(it.id)
@@ -2859,6 +2996,28 @@ export function FloorPlanEditor() {
                           opacity={0.7}
                         >
                           <CategoryIcon category={def.category} width={glyphPx} height={glyphPx} />
+                        </g>
+                      ) : null}
+                      {tilted ? (
+                        <g
+                          transform={`translate(${toPx(corners[0][0])},${toPx(corners[0][1])})`}
+                          pointerEvents="none"
+                        >
+                          <title>Tilted (pitch/roll)</title>
+                          <circle
+                            r={7}
+                            fill="var(--panel)"
+                            stroke="var(--accent)"
+                            strokeWidth={1.5}
+                          />
+                          {/* Diagonal double-arrow = out-of-plane tilt. */}
+                          <path
+                            d="M-3.4,3.4 L3.4,-3.4 M3.4,-3.4 l-2.5,0.15 M3.4,-3.4 l-0.15,2.5 M-3.4,3.4 l2.5,-0.15 M-3.4,3.4 l0.15,-2.5"
+                            stroke="var(--accent)"
+                            strokeWidth={1.2}
+                            fill="none"
+                            strokeLinecap="round"
+                          />
                         </g>
                       ) : null}
                     </g>

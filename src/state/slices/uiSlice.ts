@@ -75,6 +75,10 @@ export interface UiSlice {
    *  walk mode. Persisted via editorPrefs, like snap/units. */
   backdrop: BackdropKind
   setBackdrop: (b: BackdropKind) => void
+  /** Selected CC0 HDRI environment id for image-based lighting (F3/R-HDRI), or
+   *  `null` for the default procedural probe. Persisted via editorPrefs. */
+  hdriId: string | null
+  setHdri: (id: string | null) => void
   /** Live object URL of the user-uploaded `custom` backdrop photo, or null. Not
    *  persisted directly (the blob lives in IDB via `storage/walkBackdrop`; this
    *  URL is recreated on boot by `hydrateWalkBackdrop`). */
@@ -204,6 +208,7 @@ export const UI_INITIAL: Pick<
   | 'drawingLayers'
   | 'autoShadowsOff'
   | 'backdrop'
+  | 'hdriId'
   | 'customBackdropUrl'
   | 'uiMode'
   | 'snapEnabled'
@@ -240,6 +245,7 @@ export const UI_INITIAL: Pick<
   snapEnabled: false,
   gridSize: 0.5,
   backdrop: 'city' as BackdropKind,
+  hdriId: null as string | null,
   customBackdropUrl: null,
   uiMode: 'simple' as UiMode,
   presenting: false,
@@ -349,6 +355,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
   setBackdrop: (backdrop) => set({ backdrop }),
+  setHdri: (hdriId) => set({ hdriId }),
   setCustomBackdropUrl: (url) =>
     set((s) => {
       // Revoke the previous live URL so swapping photos doesn't leak blobs.

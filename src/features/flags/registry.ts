@@ -378,6 +378,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Slot-based product configurator (SLOT). Pure procedural geometry → prod-safe;
+  // a core "configure this product" furnishing surface like parametricFurniture →
+  // simple tier (shown in both Simple and Pro).
+  productConfigurator: {
+    label: 'Configurable products',
+    description: 'Build mattress-on-frame + modular sofas by picking options per slot',
+    default: true,
+    tier: 'simple',
+  },
   // Parametric kitchen cabinet run (C270). Pure procedural geometry → prod-safe.
   // Surfaced in the default experience (curated launch set) → simple tier.
   kitchenCabinets: {
@@ -532,6 +541,56 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Per-wall skirting board height, colour and a hide toggle',
     default: true,
     tier: 'simple',
+  },
+  // Persistent ruler guides (PARITY-PLAN-GUIDES): axis-aligned reference lines
+  // points snap to in the 2D editor. Pure geometry → prod-safe; analytical
+  // authoring aid → pro tier (hidden in Simple).
+  planGuides: {
+    label: 'Plan guides',
+    description: 'Pin ruler guide lines that the 2D editor snaps to',
+    default: true,
+    tier: 'pro',
+  },
+  // Round/bevel a wall corner (PARITY-CORNER-FILLET): trims the two walls meeting
+  // at a vertex to tangent points and inserts a curved connecting wall. Pro tier.
+  cornerFillet: {
+    label: 'Round corner',
+    description: 'Fillet (round) or bevel a corner where two walls meet',
+    default: true,
+    tier: 'pro',
+  },
+  // Chained dimension strings (PARITY-DIM-CHAIN): a row of consecutive dimensions
+  // along a room/wall baseline. Pro tier (analytical drawing aid).
+  dimensionChain: {
+    label: 'Chain dimensions',
+    description: 'Generate a row of consecutive dimension strings along a room edge',
+    default: true,
+    tier: 'pro',
+  },
+  // Suggest/apply minimal nudges to clear narrow walkway gaps (GAP-SUGGEST). Pro.
+  gapSuggest: {
+    label: 'Fix narrow gaps',
+    description: 'Nudge furniture to clear flagged narrow walkway gaps',
+    default: true,
+    tier: 'pro',
+  },
+  // Triplanar (dominant-axis world) UVs on sloped/curved wall geometry (MAT-006b)
+  // so a tiled finish reads at a constant world scale with no stretch. Pure
+  // geometry → prod-safe; advanced authoring concern → pro tier.
+  triplanarWalls: {
+    label: 'Triplanar walls',
+    description: 'World-scaled, non-stretched texture mapping on sloped/curved walls',
+    default: true,
+    tier: 'pro',
+  },
+  // CC0 HDRI environment library for image-based lighting (F3/R-HDRI · PHOTO-HDRI).
+  // Poly Haven CC0 .hdr (CORS-direct) → prod-safe; an advanced lighting control → pro.
+  // Off by selection (default keeps the procedural probe), so no default-look change.
+  hdriEnvironment: {
+    label: 'HDRI lighting',
+    description: 'Light the scene with a real captured CC0 HDRI environment',
+    default: true,
+    tier: 'pro',
   },
   // Configurable wall thickness: a plan-wide default (external/internal) plus
   // per-wall metre overrides, edited in the 2D plan inspector. Pure geometry →

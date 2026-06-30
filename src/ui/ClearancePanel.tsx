@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
 import { findItemOverlaps, type OverlapPair } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
+import { useFeature } from '../features/useFeature'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildMergedCatalog } from '../furniture/catalog'
 import type { FurnitureDef, FurnitureType } from '../furniture/types'
@@ -21,6 +22,7 @@ import { Icon } from './toolbar/icons'
 export function ClearancePanel() {
   const open = useStore((s) => s.clearancePanelOpen)
   const setOpen = useStore((s) => s.setClearancePanelOpen)
+  const fGapFix = useFeature('gapSuggest')
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
   const doors = useStore((s) => s.doors)
@@ -213,28 +215,44 @@ export function ClearancePanel() {
               </button>
             ))}
             {narrowGaps.map((g) => (
-              <button
-                type="button"
-                key={`${g.a}|${g.b}`}
-                className="clr-item warn"
-                onClick={() => selectGap(g)}
-              >
-                <div className="ci-head">
-                  <span className="badge warn">{g.severity === 'tight' ? 'Tight' : 'Narrow'}</span>
-                  <span className="ci-title">
-                    {name(g.a)} ↔ {gapPartner(g.b)} · {formatLength(g.gap, units)}
-                  </span>
-                </div>
-                <div className="ci-detail">
-                  {g.severity === 'tight'
-                    ? 'Below the 60 cm minimum walkway — tight to squeeze through.'
-                    : 'Under the ideal 90 cm walkway — a touch tight to pass comfortably.'}
-                </div>
-                <div className="ci-fix">
-                  <Icon.Check width={14} height={14} />
-                  Widen the gap to ≥ 90 cm for a comfortable path.
-                </div>
-              </button>
+              <div key={`${g.a}|${g.b}`} className="clr-item warn" style={{ display: 'block' }}>
+                <button
+                  type="button"
+                  className="clr-item-row"
+                  style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}
+                  onClick={() => selectGap(g)}
+                >
+                  <div className="ci-head">
+                    <span className="badge warn">
+                      {g.severity === 'tight' ? 'Tight' : 'Narrow'}
+                    </span>
+                    <span className="ci-title">
+                      {name(g.a)} ↔ {gapPartner(g.b)} · {formatLength(g.gap, units)}
+                    </span>
+                  </div>
+                  <div className="ci-detail">
+                    {g.severity === 'tight'
+                      ? 'Below the 60 cm minimum walkway — tight to squeeze through.'
+                      : 'Under the ideal 90 cm walkway — a touch tight to pass comfortably.'}
+                  </div>
+                  <div className="ci-fix">
+                    <Icon.Check width={14} height={14} />
+                    Widen the gap to ≥ 90 cm for a comfortable path.
+                  </div>
+                </button>
+                {/* GAP-SUGGEST: one-click nudge that splits the minimal widen across
+                    both pieces (pro `gapSuggest` flag). Not shown for wall gaps. */}
+                {fGapFix && !g.wall ? (
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    style={{ marginTop: 6 }}
+                    onClick={() => useStore.getState().nudgeGapApart(g.a, g.b, g.gap)}
+                  >
+                    Nudge apart
+                  </button>
+                ) : null}
+              </div>
             ))}
           </div>
         )}

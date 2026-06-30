@@ -1,5 +1,7 @@
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
+import { chainDimensions } from '../../floorplan/dimensionChain'
 import { duplicateRoom as cloneRoom } from '../../floorplan/duplicateRoom'
+import { applyWallFillet } from '../../floorplan/filletWalls'
 import { type GridSnapOptions, snapPlanToGrid } from '../../floorplan/gridSnap'
 import { insetPolygon } from '../../floorplan/insetRoom'
 import {
@@ -21,10 +23,12 @@ import {
   newOpeningName,
   newWallName,
 } from '../../floorplan/roomWallNames'
+import { addGuide } from '../../floorplan/snapToGuides'
 import {
   type CeilingConfig,
   type FloorPlan,
   type PlanDimension,
+  type PlanGuide,
   type PlanNote,
   type PlanOpening,
   type PlanPolyline,
@@ -255,6 +259,20 @@ export interface FloorPlanSlice {
   updateDimension: (id: string, patch: Partial<Pick<PlanDimension, 'a' | 'b'>>) => void
   /** Remove a dimension; clears the selection if it was selected. */
   removeDimension: (id: string) => void
+  /** Generate chained dimension strings (PARITY-DIM-CHAIN) along the level's
+   *  bottom + left baselines, one segment per wall-vertex position. Returns the
+   *  count added (0 if the level has too few walls). */
+  addChainDimensions: (levelId?: string) => number
+  /** Round (`'round'`) or bevel (`'bevel'`) the corner where two walls meet
+   *  (PARITY-CORNER-FILLET): trims both walls to tangent points + inserts a
+   *  connecting wall. Returns false if they don't share a corner. */
+  filletCorner: (
+    idA: string,
+    idB: string,
+    amount: number,
+    mode: 'round' | 'bevel',
+    levelId?: string,
+  ) => boolean
 
   /** Add a free-form polyline annotation (PARITY-POLYLINE); returns its id. */
   addPolyline: (poly: Omit<PlanPolyline, 'id'>) => string
@@ -262,6 +280,13 @@ export interface FloorPlanSlice {
   updatePolyline: (id: string, patch: Partial<Omit<PlanPolyline, 'id'>>) => void
   /** Remove a polyline; clears the selection if it was selected. */
   removePolyline: (id: string) => void
+
+  /** Add a persistent ruler guide (PARITY-PLAN-GUIDES); de-duped per-axis. */
+  addPlanGuide: (guide: PlanGuide) => void
+  /** Remove the guide at array index `i`. */
+  removePlanGuide: (i: number) => void
+  /** Remove every ruler guide. */
+  clearPlanGuides: () => void
 
   /** Add an empty storey above the highest level; returns its id (F13/ML4). */
   addLevel: (name?: string) => string
@@ -1003,6 +1028,73 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         s.planSelection?.type === 'dim' && s.planSelection.id === id ? null : s.planSelection,
     }))
   },
+  addChainDimensions: (levelId) => {
+    // Ground-level annotations carry no levelId (matches addDimension), so a dim
+    // generated for ground is tagged undefined.
+    const tag = levelId === GROUND_LEVEL_ID ? undefined : levelId
+    const plan = get().floorPlan
+    const lvl = levelAsPlan(plan, levelById(plan, tag))
+    const walls = lvl.walls.filter((w) => w.start && w.end)
+    if (walls.length < 2) return 0
+    const verts: PlanVec2[] = walls.flatMap((w) => [w.start, w.end])
+    let minX = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let minZ = Number.POSITIVE_INFINITY
+    let maxZ = Number.NEGATIVE_INFINITY
+    for (const [vx, vz] of verts) {
+      if (vx < minX) minX = vx
+      if (vx > maxX) maxX = vx
+      if (vz < minZ) minZ = vz
+      if (vz > maxZ) maxZ = vz
+    }
+    const OFF = 0.6 // baseline offset (m) outside the plan
+    const zBase = maxZ + OFF
+    const xBase = minX - OFF
+    // Bottom baseline (horizontal chain along X) + left baseline (vertical along Z).
+    const hSegs = chainDimensions(verts, [minX, zBase], [1, 0])
+    const vSegs = chainDimensions(verts, [xBase, minZ], [0, 1])
+    const dims: PlanDimension[] = []
+    for (const s of hSegs) {
+      if (s.length > 0.05) {
+        dims.push({
+          id: planId('dim'),
+          a: [minX + s.from, zBase],
+          b: [minX + s.to, zBase],
+          levelId: tag,
+        })
+      }
+    }
+    for (const s of vSegs) {
+      if (s.length > 0.05) {
+        dims.push({
+          id: planId('dim'),
+          a: [xBase, minZ + s.from],
+          b: [xBase, minZ + s.to],
+          levelId: tag,
+        })
+      }
+    }
+    if (dims.length === 0) return 0
+    get().pushHistory()
+    set((st) => ({
+      floorPlan: { ...st.floorPlan, dimensions: [...(st.floorPlan.dimensions ?? []), ...dims] },
+    }))
+    return dims.length
+  },
+  filletCorner: (idA, idB, amount, mode, levelId) => {
+    const tag = levelId === GROUND_LEVEL_ID ? undefined : levelId
+    const plan = get().floorPlan
+    const lvl = levelAsPlan(plan, levelById(plan, tag))
+    const result = applyWallFillet(lvl.walls, idA, idB, amount, mode)
+    if (!result) return false
+    // Re-id the synthetic connector wall to a real plan id.
+    const walls = result.map((w) => (w.id === `${idA}__fillet` ? { ...w, id: planId('w') } : w))
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), tag, () => ({ walls })),
+    }))
+    return true
+  },
 
   // Polylines are a top-level plan array (level-tagged via `levelId`), like
   // notes/dimensions — free-form markup, not storey geometry.
@@ -1036,6 +1128,31 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       planSelection:
         s.planSelection?.type === 'polyline' && s.planSelection.id === id ? null : s.planSelection,
     }))
+  },
+
+  // Ruler guides are a plan-wide array (not level-tagged) — pure reference lines
+  // the 2D editor snaps to (PARITY-PLAN-GUIDES). `addGuide` de-dupes per axis.
+  addPlanGuide: (guide) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        guides: addGuide(s.floorPlan.guides ?? [], guide),
+      },
+    }))
+  },
+  removePlanGuide: (i) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        guides: (s.floorPlan.guides ?? []).filter((_, idx) => idx !== i),
+      },
+    }))
+  },
+  clearPlanGuides: () => {
+    get().pushHistory()
+    set((s) => ({ floorPlan: { ...forkIfDefault(s.floorPlan), guides: [] } }))
   },
 
   addLevel: (name) => {

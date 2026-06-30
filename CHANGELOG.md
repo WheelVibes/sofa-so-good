@@ -5,6 +5,387 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Release: clear-backlog-gpu → main (v0.9.0.0)
+
+Minor bump for the multi-feature backlog-clearing line (v0.8.0.25–.49): the full **SLOT product
+configurator** (model/compose/products/build/GLB-bake/flag/dialog/⌘K/re-editable/docs), **PHOTO-KTX2**
+in-browser encoder, **PHOTO-PBR** full-PBR bundled finishes, **RD-408** wall-art auto-styling, **F4**
+HDRI A/B compare, both monolithic-UI refactors (**MobileToolbar** 1140→259, **PlanInspector**
+1441→524), **IO-001…010** import/export robustness, **PARITY-AILAYOUT** inline-key + **PARITY-TILT**
+2D indicator, 3 new **IXT-SUITES** scenarios, and a large docs prune (TODO/TASKS/FEATURE_PARITY/
+PHOTOREALISM + 10 fully-shipped research docs). See the per-build entries below.
+
+## IO-002: clear over-limit message for converted models (v0.8.0.49)
+
+- `bulkImport.prepareGlb` now checks the **post-optimize** GLB size against `MAX_GLB_BYTES` and throws
+  a clear, conversion-aware message ("Converted model is X MB — over the 25 MB limit even after
+  optimization…") instead of letting `persistUserGlb`'s generic "file too large" fire at the end of
+  the pipeline. Checking the final (post-shrink) size means a compressible model that optimizes under
+  the cap is never wrongly rejected. tsc + the bulk-import suite green (no happy-path regression).
+
+## SLOT-204: re-editable configured products (v0.8.0.48)
+
+- A baked configured product now carries its recipe (`UserGltfDef.slotSpec` — JSON `ConfiguredSpec`)
+  so it can be re-opened in the configurator and re-baked. Round-trips through the existing channels
+  (additive, back-compat): `persistUserGlb` stores it in IDB meta + on the def, `hydrateAssets`
+  restores it, `schema` serializes it. `saveConfiguredAsset` sets it. The dialog seeds its product +
+  selections from a store `configuratorEditSpec` on open (cleared on close — not in the open-effect,
+  which React StrictMode double-invokes, a bug caught + fixed in visual verification), and `GltfBody`
+  shows an **"Edit configuration"** button on a placed configured product (gated by
+  `productConfigurator`). Save-side recipe assertion + full round-trip tests pass; the seeded dialog
+  is screenshot-verified (a modular-sofa recipe re-opens on the right product with the right options).
+  Closes the SLOT-204 fast-follow.
+
+## IXT-SUITES: configurator interaction scenario (v0.8.0.47)
+
+- Added `scripts/scenarios/configurator-simple.json` — asserts `productConfigurator` is ON in both
+  Simple and Pro (simple tier), `setConfiguratorOpen` mounts the `.configurator-dialog` with the
+  "Configure a product" title, and closing unmounts it. 12/12 steps pass. Extends IXT coverage to the
+  SLOT configurator shipped this line.
+
+## SLOT-301: configurator module docs (v0.8.0.46)
+
+- Added `src/furniture/configurator/CLAUDE.md` (area rules: base+slots model, `clampConfig`
+  discipline, pure `composeProduct`, GLB-designer bake channel, flag-gating, open fast-follows) and
+  trimmed the `TASKS.md` SLOT entry to its remaining fast-follows (203 GLB-options / 204 re-edit) now
+  that the core (model/compose/products/build/bake/flag/dialog) has shipped end-to-end.
+
+## SLOT-105: configurator dialog + ⌘K entry (v0.8.0.45)
+
+- `ui/configurator/ConfiguratorDialog.tsx` + `ConfiguratorPreview.tsx` — a structural clone of the
+  parametric dialog: product tabs (mattress-on-frame / modular sofa), one slot row per slot with
+  option pickers (optional slots get a "None"), a live `<Canvas>` preview (reuses
+  `buildConfiguredObject` so it can't drift from the bake), a running "Configured price" (gated by
+  `budget`), and Add-to-room / Save-to-catalog (bakes via `saveConfiguredAsset`, arms placement).
+  Selections are clamped on every change so constraints resolve live. Store `configuratorOpen` +
+  `setConfiguratorOpen`; lazy-mounted in `App`; ⌘K "Configure a product" command gated by
+  `productConfigurator` (COMMAND_FLAGS). GPU-verified: both products assemble correctly (the bed's
+  mattress rests on the frame with the headboard behind; the sofa's left-chaise L-shape with the
+  mutex auto-emptying the corner). SLOT is now functionally complete end-to-end; GLB-sub-asset
+  options (203), re-editable placed items (204), and the docs/scenario ladder (301) are fast-follows.
+
+## SLOT-102/103/104: configurator object-builder + bake + feature flag (v0.8.0.44)
+
+- `buildObject.ts` (`buildConfiguredObject`) maps the composed part list to a three.js `Group` of
+  box meshes, reusing `getSurfaceMaterial`; parts sharing a `finishKey` get one cloned, key-named
+  material so the baked GLB's finish targets are discoverable by the existing override channel.
+- `saveConfigured.ts` (`saveConfiguredAsset`) bakes the assembly through the GLB-designer pipeline
+  (`exportGlb` → `persistUserGlb`) with the composed footprint, summed price, and finish targets — a
+  configured product becomes a regular `UserGltfDef` (no new persistence path). Wiring unit-tested.
+- New **`productConfigurator`** feature flag (simple tier, default on, prod-safe); both-modes test
+  asserts it's on in Simple and Pro and not devOnly. (The dialog/⌘K UI — SLOT-105 — lands next.)
+
+## SLOT-101/201/202: configurable-product core + two products (v0.8.0.43)
+
+- New pure `src/furniture/configurator/` foundation for the slot-based product configurator (base +
+  named anchor slots + per-slot options): `model.ts` (typed `ConfigurableProduct`/`ConfiguredSpec` +
+  `clampConfig` — the single never-throws defence, with mutex/requires/excludes constraints resolved
+  left-wins) and `compose.ts` (`transformPart` quarter-turn anchor transform + `composeProduct` →
+  assembled part list, unioned footprint, summed price, re-skin finish-target keys). Two authored
+  all-procedural products in `products.ts`: **mattress-on-frame** (mattress + optional headboard
+  slots) and **modular-sofa** (left/right-end + corner slots with mutex/excludes). 14 unit tests
+  (clamping, constraints, transform math, composition counts/bounds/price/finish-keys). Pure +
+  render-agnostic; the object-builder, save (`persistUserGlb` bake) and dialog land next. No UI wired
+  yet (nothing user-reachable ships ungated).
+
+## IXT-SUITES: wall-art auto-styling interaction scenario (v0.8.0.42)
+
+- Added `scripts/scenarios/wall-art-decor-simple.json` — asserts the move-in furnished flat
+  auto-hangs ≥1 framed `wall-art` piece (RD408-008) and that every such piece is wall-mounted
+  (carries a `mountHeight`, no floor `elevation`). 5/5 steps pass against the dev server. Extends
+  IXT-SUITES coverage to the wall-art decor pass shipped this line.
+
+## IXT-SUITES: HDRI environment-lighting interaction scenario (v0.8.0.41)
+
+- Added `scripts/scenarios/hdri-environment-simple.json` — covers the HDRI environment-lighting
+  feature end-to-end: asserts `hdriEnvironment` is OFF in Simple / ON in Pro, `hdriId` defaults to
+  null (procedural probe), selecting a curated CC0 HDRI (`venice_sunset`) sets `state.hdriId`,
+  Procedural resets it to null, and the picker hides again back in Simple. All 15 steps pass against
+  the dev server (screenshot captured at Medium tier). Extends IXT-SUITES coverage to the lighting
+  feature shipped this line.
+
+## PARITY-TILT: 2D-plan tilt indicator (v0.8.0.40)
+
+- The 2D floor-plan editor's furniture overlay now draws a small tilt badge (a circled diagonal
+  double-arrow) on the corner of any footprint whose item is pitched/rolled out of plane, so the
+  plan view carries the same tilt the 3D view + inspector show. Gated by the same `tiltFurniture`
+  pro flag as the tilt controls; pure additive SVG with token colours; renders only when
+  `pitch || roll` is set. (The draggable 3D pitch/roll gizmo handle remains the open half of
+  PARITY-TILT; tilt is editable today via the inspector sliders.)
+
+## PARITY-AILAYOUT: inline key prompt + endpoint security gate for ⌘K auto-furnish (v0.8.0.39)
+
+- The ⌘K **AI auto-furnish** flow now prompts for + persists the BYO vision-model API key inline when
+  it's missing (mirroring the AI floor-plan-recognition flow) instead of dead-ending on an "add a key
+  first" error, and applies the same endpoint security gate (refuse plaintext; require explicit host
+  confirmation before the bearer key goes to an untrusted server) — reusing `getVisionKey`/
+  `setVisionKey`/`classifyVisionEndpoint`. With the engine + collision-safe placement + BYO-key
+  settings already shipped, this closes the practical AILAYOUT gap. (A dedicated brief panel and
+  routing through autoArrange were considered and dropped — the latter would override the AI's
+  intended positions, defeating the point.)
+
+## F4: HDRI environment per side in the render-compare modal (v0.8.0.38)
+
+- The A/B render-compare modal now lets each side pick its own **HDRI environment** (or Procedural)
+  alongside the render preset, so users can compare lighting environments — not just presets — on the
+  same camera view. `capturePreset` takes an optional `hdriId` (undefined = leave current, string =
+  set that env, null = procedural), applying it before the raster capture and restoring it after
+  (joining the existing time/tone/exposure/lights restore). `compareState` gains `hdriA`/`hdriB`
+  (+ `setHdriA`/`setHdriB`, swapped by `swapAB`); two themed env `Select`s sit beside the preset
+  pickers in the footer. Pure-state + swap unit-tested; modal screenshot-verified (Pro). Closes the
+  F4 HDRI-compare tail.
+
+## RD408-008: auto-hang wall art behind wall-flushed furniture (v0.8.0.37)
+
+- The decor auto-styling pass (`layout/decorStyling.ts`) now hangs one framed `wall-art` piece on the
+  wall **behind** each wall-flushed host (`WALL_ART_HOSTS`: 3/2-seat sofas, queen/king/double beds,
+  sideboard, console — L-shape sofas excluded). The art sits at the host's back edge facing the room,
+  sized `widthFrac`×host width (clamped), self-lifting to its def `mountHeight`. Artifact-safe by
+  construction: the host already occupies a clear wall span, so the art never overlaps a door/window.
+  `wall-art` def gains `noClip` (wall-mounted → no floor collision); seeded art tint keeps rooms
+  distinct; excluded from the surface-prop budget/cap. GPU-verified (the move-in flat now hangs 3
+  pieces; one screenshot-checked as correctly mounted at eye height). New unit tests + existing decor
+  suite green (26). Closes the last open RD-408 item (the wall pass).
+
+## IO-004 + IO-005: import blob-URL + scene-graph cleanup (v0.8.0.36)
+
+- **IO-004** — `furniture/upload/persist.ts` now wraps the base + LOD object-URL creation through the
+  store commit in a try/catch: if anything throws after the URLs are created (e.g. `addUserFurniture`
+  failing), it revokes them and drops the LOD-registry mapping before re-throwing, instead of orphaning
+  multi-MB blob URLs for the page lifetime. (Ownership is handed off only once the def commits.)
+  Unit-tested (forced commit failure → all created URLs revoked).
+- **IO-005** — `furniture/convert/convertModel.ts` disposes the intermediate three.js scene graph (a
+  new tested `disposeObject3D`: geometry + materials + their textures) in a `finally` after the GLB is
+  exported, so a bulk import of thousands of models releases CPU buffers/decoded textures
+  deterministically instead of leaving them for GC. Unit-tested with dispose spies.
+
+## MOD-PLANINSPECTOR-SPLIT: split the monolithic plan inspector (v0.8.0.35)
+
+- Behaviour-preserving refactor of `ui/floorplan/PlanInspector.tsx` (**1441 → 524 lines**): extracted
+  the room / wall / opening selection branches into `ui/floorplan/editor/inspector/RoomInspector.tsx`,
+  `WallInspector.tsx`, `OpeningInspector.tsx`, with the shared helpers (`Num`, `CeilingControls`,
+  `DeleteBtn`, `NameField`, `ActBtn`) in `editor/inspector/shared.tsx`. `PlanInspector` stays the thin
+  dispatcher (selection resolution, defaults/multi-wall/note/dim/polyline branches, minimize/footer
+  chrome) and renders the three extracted components; `Num` is re-exported so existing imports keep
+  working. Verbatim markup/store-calls/flag-gates — verified: tsc + biome clean, 131 floorplan tests
+  pass, and the wall + room inspector panels render identically (screenshot-verified in the 2D editor,
+  Pro mode). Closes MOD-PLANINSPECTOR-SPLIT — both monolithic-UI splits in TASKS are now done.
+
+## IO-008: optimize worker `messageerror` handler (v0.8.0.34)
+
+- `furniture/optimize/runOptimize.ts` now sets `worker.onmessageerror` (alongside `onerror`) to fail
+  every in-flight call to the direct fallback and retire the worker. A reply that can't be
+  structured-cloned fires `messageerror` (not `error`); without this handler that call's pending
+  promise never resolved — hanging the import and wedging a bulk-import pool slot forever.
+
+## IO-009 + IO-010: model-import format detection + multi-MTL (v0.8.0.33)
+
+- **IO-009** — `convert/formats.ts` `detectModelFormat` now recognises **ASCII FBX** (the `; FBX`
+  comment header), so a mis-extensioned ASCII FBX routes to the FBX loader instead of throwing an
+  opaque parse error in the wrong loader. (Zip/XML magics confirm a family but can't disambiguate
+  3mf-vs-usdz or dae-vs-gltf, so the extension stays authoritative there.)
+- **IO-010** — OBJ import now resolves **every** `mtllib` reference, not just the first token of the
+  first line: pure `parseMtllibNames` collects all files across all `mtllib` lines (de-duped,
+  basename-lowercased) and `loadToObject` loads + merges their material definitions, so an OBJ that
+  splits materials across multiple `.mtl` files keeps them all instead of silently rendering grey.
+- Unit tests for both (ASCII-FBX-as-.obj detection; multi-line/multi-file/de-dup mtllib parsing).
+
+## IO-001 + IO-003: import/export robustness (v0.8.0.32)
+
+- **IO-001** — `materials/upload/persist.ts` now gates the **source** file size against
+  `MAX_IMAGE_BYTES` (16 MB) **before** `normalizeTextureFile` runs the full decode + WebP re-encode,
+  so an oversized source (e.g. a 150 MB TIFF, or a 4096² EXR → ~268 MB of intermediate floats) is
+  rejected up front instead of after the allocation the cap exists to prevent. Unit-tested (a >16 MB
+  source is rejected and `normalizeTextureFile` is never called).
+- **IO-003** — `ui/openSceneExport.ts` + `ui/viewInAr.ts` now schedule `URL.revokeObjectURL` in a
+  `finally`, so an anchor `click()`/DOM exception can't leak the export/AR blob (a multi-MB GLB/USDZ)
+  for the page lifetime.
+
+## MOD-MOBILETOOLBAR-SPLIT: split the monolithic mobile toolbar (v0.8.0.31)
+
+- Behaviour-preserving refactor of `ui/toolbar/MobileToolbar.tsx` (**1140 → 259 lines**): extracted
+  each menu section into its own component under `ui/toolbar/mobile/` (View/File/Scene/Tools/Arrange/
+  Design/Edit/Appearance/EditHome `Section.tsx`). `MobileToolbar` is now a thin rail/sheet shell that
+  owns the local UI state + effects and picks the active section; each section reads its own
+  store/feature-flag values (same selectors, same gates) and takes only the few shell-owned values as
+  props. Same markup/classNames/labels/`data-tour`/flag gates — verified: tsc + biome clean, 25 toolbar
+  tests pass, and the mobile sheet renders identically (View + Scene sections screenshot-verified in
+  Simple mode). Closes MOD-MOBILETOOLBAR-SPLIT.
+
+## docs: reconcile RD-405 + RD-411 as shipped (v0.8.0.30)
+
+- Verified against code that two items surfaced during the research-doc audit had already shipped:
+  **RD-405** cheap-glass Fresnel + sky reflection (`getGlassMaterial` cheap branch sets `ior` +
+  `envMapIntensity`, explicit `(RD-405)` comment) and **RD-411 / PHOTO-SSAA-EXPORT** (the PNG export
+  in `ScreenshotController` already renders at 2× and box-downsamples via `ssaaDownsample.ts`).
+  Removed both from `TASKS.md` and deleted the now-fully-shipped `rd405-glass-fresnel-plan.md`.
+  Trimmed RD-408 to its one genuinely-open piece (wall-art / gallery clusters).
+
+## docs: prune fully-shipped research docs; unify open items into TASKS (v0.8.0.29)
+
+- Deleted 9 `docs/research/` audit/plan docs whose every actionable item shipped (verified
+  against CHANGELOG + code): correctness-bug-hunt (BUG-001…014), security-review (SEC-001…003),
+  recent-work-code-review (REV-001…006), mobile-a11y-ux-audit (UX-001…009), material-microdetail-plan
+  (MAT-001…006b), pc2-cam-dof-lens-plan (PC2-CAM-DOF-LENS + raster DoF), cc0-model-catalog-integration-plan
+  (remoteFurniture flag + footprint seed), coohom-sh3d-parity-backlog (all shipped bar SH3F/i18n,
+  tracked in FEATURE_PARITY), rd412-sky-ibl-plan (procedural sky + HDRI IBL both ship). Surfaced the
+  genuinely-open items from the *kept* docs (RD-405 glass fresnel, RD-408 decor tail, RD-411 SSAA
+  export, IO-pipeline robustness, SLOT configurator, MOD-* splits) into `TASKS.md` so the backlog is
+  unified. Kept docs with real open work + the 4 reference docs (floor-plan specs, competitive analysis).
+
+## docs: prune shipped/on-parity items from FEATURE_PARITY.md + PHOTOREALISM.md (v0.8.0.28)
+
+- Per user instruction, removed all shipped/at-parity rows from the living parity matrices.
+  **FEATURE_PARITY.md:** deleted the shipped gap-table rows (walkthrough video, AR, 8K render,
+  IES, DoF lens, curved/slanting walls, sloping ceilings, baseboards, label rotation, batch
+  render, scene export) and folded them into the "Already at parity (✅)" summaries; SH3D import
+  row updated to partial (`.sh3d` ships, `.sh3f`/legacy open); roadmap trimmed to open gaps only.
+  **PHOTOREALISM.md:** moved PHOTO-HDRI + PHOTO-KTX2 + PHOTO-PBR-MAPS(core) to the Shipped
+  section, refreshed the stale pipeline-audit lines (HDRI IBL + KTX2 + bundled PBR now ship), and
+  trimmed PHOTO-DETAIL-PROPS / PHOTO-BEVELS / PHOTO-PBR-MAPS / PHOTO-HDRI-PT to their open tails.
+
+## PHOTO-PBR: upgrade bundled CC0 finishes to full PBR (v0.8.0.27)
+
+- The 6 bundled Poly Haven finishes that shipped **albedo-only** (and so read flat) —
+  `floor-carpet`, `floor-parquet`, `wall-beige`, `wall-brick`, `wall-plaster`,
+  `wall-stone-brick` — now carry real CC0 **normal + roughness** maps (fetched from the Poly
+  Haven CDN at 2K, resized to 1024² JPG to match the existing bundled maps). Sidecars +
+  `index-assets` regenerated `generatedCatalog.ts`; all 12 bundled material finishes are now
+  full-PBR. GPU-verified in walk mode: the brick/stone-brick walls show real block relief, the
+  parquet shows plank detail, plaster stays correctly smooth — no z-fighting/seam/normal
+  artifacts. (The runtime Poly Haven catalog already fetches 2K PBR materials in prod, and the
+  procedural patterns remain the instant-load fallback — this closes the flat-finish gap.)
+
+## docs: prune TODO.md + TASKS.md to open items only (v0.8.0.26)
+
+- Per user instruction, removed every shipped/historical/reconciliation entry from `TODO.md`
+  (402 → 52 lines) and `TASKS.md` (225 → 60 lines) — both now list only genuinely-open work, the
+  environment-blocked items that can't be done in a pure-client repo, and a short risk/process
+  note. `CHANGELOG.md` remains the source of truth for what shipped.
+
+## PHOTO-KTX2: real in-browser KTX2/UASTC texture encoder (v0.8.0.25)
+
+- Un-stubbed `lib/ktx2encode.ts` — the model-optimize path now actually emits GPU-compressed
+  KTX2/UASTC textures (Zstd-supercompressed, mipmapped) when the import dialog's *Maximum
+  compression (KTX2)* toggle is on, the biggest runtime-VRAM win on integrated GPUs. Encoder is
+  the Basis Universal WASM build from `ktx2-encoder`; its glue + wasm are **self-hosted** under
+  `public/basis/` (vendored by `scripts/copy-decoders.mjs` alongside the Draco/transcoder, and the
+  explicit `jsUrl`/`wasmUrl` keep it off the package's default upstream CDN — fully offline,
+  prod-safe). `isKtx2EncodeAvailable()` now returns `true`, so `optimizeGlb`'s `ktx2` opt-in
+  re-encodes textures instead of falling back to WebP; degenerate input still falls back cleanly.
+  End-to-end tested (raw RGBA8 → valid KTX2 magic) + guard tests. Tail: per-channel tuning
+  (normal maps want `isNormalMap`/no perceptual transfer — currently every map is perceptual UASTC,
+  high-quality lossy and visually safe).
+
+## F3/R-HDRI · PHOTO-HDRI: CC0 HDRI environment lighting (v0.8.0.24)
+
+- Curated CC0 HDRI library (`scene/lighting/hdriCatalog.ts`, 5 Poly Haven `.hdr` served
+  CORS-direct from the Poly Haven CDN — neutral/warm studio, clear sky, golden hour, soft
+  dawn). Selecting one (Scene menu → **Environment lighting**, desktop + mobile) swaps the
+  procedural Lightformer probe for the captured HDRI as `scene.environment` IBL via drei
+  `<Environment files>`; the default (`hdriId === null`) keeps the exact procedural look, so
+  there's **no out-of-box change**. State `hdriId` + `setHdri` (uiSlice, persisted in editorPrefs),
+  `hdriEnvironment` pro flag, Medium+ (needs IBL). GPU-verified: the venice_sunset HDRI loads
+  over the network and lights the flat. Catalog + flag + slice tests (both modes). Closes F3/R-HDRI
+  + PHOTO-HDRI; F4's HDRI-compare coupling is now an optional follow-up.
+
+## PARITY-8K: 8K still-render preset (v0.8.0.23)
+
+- Added an **8K · 7680×4320** preset to `HqRenderModal` resolutions. The HQ path-tracer
+  already renders tile-by-tile (`hqRenderSession` `tracer.tiles`, scaled to resolution) and
+  takes arbitrary dimensions, so 8K renders responsively (real GPU + patience). Closes PARITY-8K.
+
+## PHOTO-PT-TUNE complete (stableNoise) + render-pipeline reconciliation (v0.8.0.22)
+
+- **PHOTO-PT-TUNE** finished: added `stableNoise: true` to `HqTracerConfig` + applied it in
+  `hqRenderSession` so the progressive still's speckle pattern doesn't swim as it converges
+  (the rest — bounces/transmissiveBounces/filterGlossyFactor/MIS/minSamples — were already
+  tuned). Removed from the backlog.
+- Verified-shipped reconciliations: **PARITY-DENOISE** ships via the edge-preserving
+  `DenoiseMaterial` bilateral pass on the HQ blit (PHOTO-DENOISE downgraded to a [~] OIDN-upgrade
+  nicety); **PARITY-8K** — the HQ render is already tiled (`tracer.tiles`) and takes arbitrary
+  dimensions, so only an 8K preset in `HqRenderModal` remains ([~]).
+
+## Reconcile shipped GPU-lighting items: RZ7 + RZ2 transmission (v0.8.0.18)
+
+- **RZ7** (PCF/penumbra soft shadows on Medium+) verified shipped & removed: the main
+  Canvas uses `PCFSoftShadowMap` with `shadow-radius` penumbra (`SOFT_SHADOW`) and a
+  per-tier `shadowMapSize` (0 on Performance, >0 on Medium+) — the complete feature.
+- **RZ2** glass transmission verified shipped: `getGlassMaterial` sets `transmission`/
+  `ior`/`thickness` on the transmission tiers (High/Max); the Maximum-tier render is
+  healthy on the real GPU. Trimmed RZ2's tail to the lone remaining bit (room-editor glass).
+
+## MAT-006b: triplanar (world-scaled) UVs on sloped walls (v0.8.0.17)
+
+- New pure `materials/triplanar.ts` (`dominantAxis`/`projectUv`/`triplanarUv`) —
+  per-triangle dominant-axis world projection so a tiled finish on non-planar wall
+  geometry reads at a constant world scale with no stretch (6 tests).
+- Wired into `PlanShell` `SlopedWallMesh` behind a new `triplanarWalls` pro flag:
+  the sloped-wall prism now carries world-scaled UVs (it previously had none), making
+  it correctly texture-ready. The current solid-colour fallback ignores UVs, so this is
+  a non-regressing texture-readiness change (closes RD-406's remaining triplanar half).
+  Flag tested in both Simple & Pro.
+
+## Backlog reconciliation: verified-shipped photoreal items removed (v0.8.0.15)
+
+Cross-checked three "open" TODO table rows against the code and confirmed they
+already ship in the product (removed from the backlog):
+- **RD-402** (roughness/AO/normal micro-variation for stone/tile/concrete/plaster +
+  brushed-metal) = the shipped MAT-001…004 surfaces (`stoneSurface`/`tileSurface`/
+  `plasterSurface`/`metalBrush`) wired through `patterns/*` + `furnitureMaterials.ts`,
+  plus CONCRETE-PORES + BRUSH-AXIS.
+- **RD-406** tile-repetition break-up ships (`worldUv.ts` `breakRepetitionPlane`,
+  `tileBreakup` flag); its remaining half (triplanar) is tracked as the still-open MAT-006b.
+- **RD-409** ships: fixture point lights use `decay={2}` (physically-correct inverse-square
+  falloff) and per-fixture warm colour-temperature hexes (`lightEmitters.ts`).
+
+## GAP-SUGGEST: one-click "Nudge apart" to widen narrow walkways (v0.8.0.14)
+
+- `nudgeGapApart(aId, bId, currentGap, required=0.9)` (itemsSlice) uses the pure
+  `layout/gapFix.ts` `gapFixVector` to compute the minimal widen to reach the ideal
+  90 cm walkway, then splits it across both items (half each) along their
+  centre-to-centre axis — one undo step; a no-op when the gap already clears.
+- Clearance-checks panel now shows a **Nudge apart** action on each item↔item narrow
+  gap (pro `gapSuggest` flag; not shown for wall gaps). Slice + pure-core + flag tests
+  (both Simple & Pro).
+
+## 2D plan-editor parity: ruler guides, chained dimensions, corner fillet/bevel (v0.8.0.13)
+
+Three SweetHome3D/Coohom-style authoring aids for the 2D floor-plan editor, all
+pro-tier (hidden in Simple), surfaced in the **Plan ▾** menu (desktop + mobile Tools):
+
+- **PARITY-PLAN-GUIDES** — persistent ruler guides (`plan.guides:{axis,pos}[]`,
+  additive schema). Pure `floorplan/snapToGuides.ts` snaps points per-axis within a
+  threshold; the editor applies it in `pointerGrid` (a guide beats the grid) and renders
+  dashed accent lines (click to remove). Store: `addPlanGuide`/`removePlanGuide`/
+  `clearPlanGuides`. `planGuides` flag.
+- **PARITY-DIM-CHAIN** — `floorplan/dimensionChain.ts` (chain/running/total). Store
+  `addChainDimensions(levelId)` drops a row of dimension strings along the level's bottom +
+  left baselines, one per wall-vertex position (ground dims untagged). `dimensionChain` flag.
+- **PARITY-CORNER-FILLET** — `floorplan/cornerFillet.ts` (tangent/bisector geometry) +
+  `floorplan/filletWalls.ts` `applyWallFillet` trims two connected walls to their tangent/
+  setback points and inserts a curved (round) or straight (bevel) connecting wall. Store
+  `filletCorner`; editor shows **Round/Bevel corner** when exactly two connected walls are
+  selected. `cornerFillet` flag.
+
+55 pure-geometry tests + slice/flag tests (both Simple & Pro). GPU-verified in the editor
+(rounded corner + chain dimension strings render correctly). Also adds Vite dev `watch.ignored`
+for large non-app trees (ikea/dataset/graphify-out/python) to stay under the inotify limit.
+
+## Harness: real-GPU verification mode + backlog reconciliation (v0.8.0.12)
+
+- **`SHOT_GPU=1`** in `scripts/shot.mjs` routes WebGL to the **real hardware GPU**
+  (ANGLE `gl-egl` over the WSL D3D12 `/dev/dxg` passthrough — renderer confirmed
+  `D3D12 (Intel(R) UHD Graphics)`) instead of the default SwiftShader, so GPU-only
+  effects (DoF/bloom/soft-shadows/glass/HDRI/path-trace) can be visually verified.
+  Documented in `docs/visual-verification-playbook.md` (new "Real-GPU mode" section).
+- **Backlog reconciliation:** removed all completed items from `TODO.md` / `TASKS.md`
+  (verified against this changelog) — the entire high-priority bug/perf block
+  (BUG-001…014, PERF-001/002/004/005, UX-001/006, RD-403/411, all shipped PC2-*) plus
+  the `[x]` parity/realism items. Kept only genuinely-open work (`[ ]`/`[~]`); caught
+  an RD-409 ID-collision (the colour-temperature feature is still deferred, distinct
+  from the shipped milky-render fix that reused the ID).
+
 ## Full user-docs audit — fix stale facts across the whole guide (v0.8.0.11)
 
 - Audited every `docs/user/*.md` file against the current code (not just this branch's

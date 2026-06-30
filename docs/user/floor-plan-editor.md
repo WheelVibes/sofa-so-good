@@ -355,6 +355,19 @@ centre, handy for a mirror‑image HDB stack or a paired condo unit. Door swing
 directions flip to match, and it's a single undo away. (This is a **Pro** tool,
 so switch to **Pro** mode to see it.)
 
+In **Pro** mode the **Plan ▾** menu also offers a few drafting aids:
+
+- **+ V guide / + H guide** drop a **ruler guide** — a dashed reference line at
+  the cursor that walls, rooms and furniture snap to as you draw or drag, so you
+  can line elements up precisely. Click a guide to remove it, or **Clear guides**
+  to remove them all.
+- **Chain dims** drops a row of **chained dimension strings** along the plan's
+  bottom and left edges — one segment per wall position — for a quick overall
+  measured drawing.
+- With **two connected walls selected**, **Round corner** / **Bevel corner**
+  rounds or chamfers the corner where they meet (a curved or straight connecting
+  wall is inserted). One undo away.
+
 When you **Save** a plan to your library you're prompted for its housing type,
 project and apartment type, so your own apartments are categorised like the
 built‑ins. Three templates are genuinely

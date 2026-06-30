@@ -7,7 +7,9 @@
     1.5
   ],
   "channels": {
-    "albedo": "albedo.jpg"
+    "albedo": "albedo.jpg",
+    "normal": "normal.jpg",
+    "rough": "rough.jpg"
   },
   "license": "CC0",
   "attribution": "Poly Haven",

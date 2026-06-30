@@ -230,6 +230,17 @@ export interface FloorPlan {
    *  closed paths with optional dashed stroke / end arrow, for sketching zones,
    *  routes and callouts beyond walls/rooms. Level-tagged. Additive + optional. */
   polylines?: PlanPolyline[]
+  /** Persistent reference guide lines (PARITY-PLAN-GUIDES) — axis-aligned lines
+   *  the editor snaps points to (Figma/Coohom-style ruler guides), distinct from
+   *  transient smart guides. Plan-wide (not level-tagged). Additive + optional. */
+  guides?: PlanGuide[]
+}
+
+/** A persistent axis-aligned reference guide: a vertical line at `x = pos`
+ *  (`axis: 'x'`) or a horizontal line at `z = pos` (`axis: 'z'`). */
+export interface PlanGuide {
+  axis: 'x' | 'z'
+  pos: number
 }
 
 /** A free-text note placed on the 2D plan at a world position. */

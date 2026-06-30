@@ -21,6 +21,7 @@ export function loadEditorPrefs(): void {
       gridSize?: number
       units?: 'metric' | 'imperial'
       backdrop?: string
+      hdriId?: string | null
       uiMode?: string
       walkFov?: number
       walkEyeHeight?: number
@@ -35,6 +36,7 @@ export function loadEditorPrefs(): void {
       backdrop: backdrops.includes((p.backdrop ?? '') as BackdropKind)
         ? (p.backdrop as BackdropKind)
         : 'city',
+      hdriId: typeof p.hdriId === 'string' ? p.hdriId : null,
       uiMode: p.uiMode === 'pro' ? 'pro' : 'simple',
       walkFov: typeof p.walkFov === 'number' ? clampWalkFov(p.walkFov) : cur.walkFov,
       walkEyeHeight:
@@ -61,6 +63,7 @@ export function watchEditorPrefs(): void {
       gridSize: s.gridSize,
       units: s.units,
       backdrop: s.backdrop,
+      hdriId: s.hdriId,
       uiMode: s.uiMode,
       walkFov: s.walkFov,
       walkEyeHeight: s.walkEyeHeight,

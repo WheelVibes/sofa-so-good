@@ -1,0 +1,22 @@
+{
+  "name": "hdri-environment-simple",
+  "description": "IXT-SUITES: HDRI environment lighting (pro, Medium+). Hidden in Simple, present in Pro; selecting a curated CC0 HDRI sets state.hdriId (swapping the procedural probe for a captured environment as scene.environment), and Procedural (null) restores the default. Back-to-Simple hides the picker.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "assert-simple-hidden", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.hdriEnvironment === false" }, "timeout": 5000, "failMessage": "hdriEnvironment should be OFF in Simple mode" },
+    { "name": "to-pro", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-pro-on", "waitFor": { "store": "state.featureFlags.hdriEnvironment === true" }, "timeout": 5000, "failMessage": "hdriEnvironment should be ON in Pro mode" },
+    { "name": "default-procedural", "waitFor": { "store": "state.hdriId === null" }, "timeout": 5000, "failMessage": "hdriId should default to null (procedural probe)" },
+    { "name": "medium-tier", "store": { "action": "setQualityTier", "args": ["medium"] } },
+    { "name": "select-hdri", "store": { "action": "setHdri", "args": ["venice_sunset"] } },
+    { "name": "assert-hdri-set", "waitFor": { "store": "state.hdriId === 'venice_sunset'" }, "timeout": 5000, "failMessage": "selecting an HDRI should set state.hdriId" },
+    { "name": "settle", "wait": 2500 },
+    { "name": "shot-hdri", "screenshot": "hdri-venice" },
+    { "name": "restore-procedural", "store": { "action": "setHdri", "args": [null] } },
+    { "name": "assert-procedural", "waitFor": { "store": "state.hdriId === null" }, "timeout": 5000, "failMessage": "Procedural should reset hdriId to null" },
+    { "name": "back-to-simple", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-simple-again", "waitFor": { "store": "state.featureFlags.hdriEnvironment === false" }, "timeout": 5000, "failMessage": "hdriEnvironment should hide again in Simple" }
+  ]
+}

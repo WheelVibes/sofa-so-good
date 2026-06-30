@@ -1,6 +1,12 @@
 import { IdbAssetStore } from '../../state/storage/IdbAssetStore'
 import { useStore } from '../../state/store'
-import { LOD_TIERS, type LodTier, lodAssetId, registerLodVariants } from '../gltf/lod'
+import {
+  LOD_TIERS,
+  type LodTier,
+  lodAssetId,
+  registerLodVariants,
+  unregisterLodVariants,
+} from '../gltf/lod'
 import type { LodVariantSet } from '../optimize/lodVariants'
 import type { FurnitureCategory, UserGltfDef } from '../types'
 import { hashBuffer } from './hashFile'
@@ -31,6 +37,9 @@ export interface PersistOptions {
   lods?: LodVariantSet
   /** Estimated price (SGD) to carry on the def (parametric generator). */
   price?: number
+  /** Slot-configurator recipe (JSON `ConfiguredSpec`) so a placed configured
+   *  product can be re-opened in the configurator and re-baked (SLOT-204). */
+  slotSpec?: string
 }
 
 export type PersistResult =
@@ -86,6 +95,9 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
       contentHash,
       byteSize: buf.byteLength,
       ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
+      // Slot-configurator recipe (already a JSON string) → stored verbatim so a
+      // placed configured product round-trips for re-editing (SLOT-204).
+      ...(opts.slotSpec ? { slotSpec: opts.slotSpec } : {}),
       // Footprint (when measured up front) JSON-encodes into the primitive
       // meta store so hydration restores exact dims before the GLB loads.
       ...(opts.footprint ? { footprint: JSON.stringify(opts.footprint) } : {}),
@@ -103,46 +115,58 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
   // that tier, never the upload.
   const runtimeUrl = URL.createObjectURL(blob)
   const lodUrls: Partial<Record<LodTier, string>> = {}
-  for (const tier of LOD_TIERS) {
-    const bytes = opts.lods?.[tier]
-    if (!bytes) continue
-    const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
-    const lodBlob = new Blob([ab as ArrayBuffer], { type: v.mime })
-    try {
-      await IdbAssetStore.put({
-        assetId: lodAssetId(assetId, tier),
-        kind: 'gltf',
-        mime: v.mime,
-        name: `${opts.name} (${tier} LOD)`,
-        uploadedAt: new Date().toISOString(),
-        blob: lodBlob,
-        meta: { role: 'lod', tier, baseAssetId: assetId },
-      })
-      lodUrls[tier] = URL.createObjectURL(lodBlob)
-    } catch {
-      // tier dropped; the original serves that tier instead
+  try {
+    for (const tier of LOD_TIERS) {
+      const bytes = opts.lods?.[tier]
+      if (!bytes) continue
+      const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+      const lodBlob = new Blob([ab as ArrayBuffer], { type: v.mime })
+      try {
+        await IdbAssetStore.put({
+          assetId: lodAssetId(assetId, tier),
+          kind: 'gltf',
+          mime: v.mime,
+          name: `${opts.name} (${tier} LOD)`,
+          uploadedAt: new Date().toISOString(),
+          blob: lodBlob,
+          meta: { role: 'lod', tier, baseAssetId: assetId },
+        })
+        lodUrls[tier] = URL.createObjectURL(lodBlob)
+      } catch {
+        // tier dropped; the original serves that tier instead
+      }
     }
-  }
-  if (lodUrls.low || lodUrls.medium) registerLodVariants(runtimeUrl, lodUrls)
+    if (lodUrls.low || lodUrls.medium) registerLodVariants(runtimeUrl, lodUrls)
 
-  const def: UserGltfDef = {
-    id: `user-${assetId}`,
-    name: opts.name,
-    category: opts.category,
-    kind: 'gltf',
-    source: 'user',
-    assetId,
-    contentHash,
-    uploadedAt: new Date().toISOString(),
-    defaultFootprint: opts.footprint ?? { w: 1.0, d: 1.0, h: 1.0 },
-    runtimeUrl,
-    mounted: opts.mounted,
-    noClip: opts.noClip,
-    finishTargets: opts.finishTargets,
-    finishOverrides: opts.finishOverrides,
-    byteSize: buf.byteLength,
-    ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
+    const def: UserGltfDef = {
+      id: `user-${assetId}`,
+      name: opts.name,
+      category: opts.category,
+      kind: 'gltf',
+      source: 'user',
+      assetId,
+      contentHash,
+      uploadedAt: new Date().toISOString(),
+      defaultFootprint: opts.footprint ?? { w: 1.0, d: 1.0, h: 1.0 },
+      runtimeUrl,
+      mounted: opts.mounted,
+      noClip: opts.noClip,
+      finishTargets: opts.finishTargets,
+      finishOverrides: opts.finishOverrides,
+      byteSize: buf.byteLength,
+      ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
+      ...(opts.slotSpec ? { slotSpec: opts.slotSpec } : {}),
+    }
+    if (opts.commit ?? true) useStore.getState().addUserFurniture(def)
+    return { ok: true, def }
+  } catch (e) {
+    // IO-004: a throw after the object URLs are created (e.g. addUserFurniture
+    // failing synchronously) would orphan the base + LOD blob URLs for the page
+    // lifetime. Ownership is handed off only once the def commits, so on any
+    // failure revoke them (and drop the LOD registry mapping) before re-throwing.
+    unregisterLodVariants(runtimeUrl)
+    URL.revokeObjectURL(runtimeUrl)
+    for (const u of Object.values(lodUrls)) if (u) URL.revokeObjectURL(u)
+    throw e
   }
-  if (opts.commit ?? true) useStore.getState().addUserFurniture(def)
-  return { ok: true, def }
 }
