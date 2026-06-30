@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Release: clear-backlog-gpu → main (v0.9.0.0)
+
+Minor bump for the multi-feature backlog-clearing line (v0.8.0.25–.49): the full **SLOT product
+configurator** (model/compose/products/build/GLB-bake/flag/dialog/⌘K/re-editable/docs), **PHOTO-KTX2**
+in-browser encoder, **PHOTO-PBR** full-PBR bundled finishes, **RD-408** wall-art auto-styling, **F4**
+HDRI A/B compare, both monolithic-UI refactors (**MobileToolbar** 1140→259, **PlanInspector**
+1441→524), **IO-001…010** import/export robustness, **PARITY-AILAYOUT** inline-key + **PARITY-TILT**
+2D indicator, 3 new **IXT-SUITES** scenarios, and a large docs prune (TODO/TASKS/FEATURE_PARITY/
+PHOTOREALISM + 10 fully-shipped research docs). See the per-build entries below.
+
 ## IO-002: clear over-limit message for converted models (v0.8.0.49)
 
 - `bulkImport.prepareGlb` now checks the **post-optimize** GLB size against `MAX_GLB_BYTES` and throws
