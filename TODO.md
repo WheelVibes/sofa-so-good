@@ -50,16 +50,18 @@ Confirmed NOT already shipped at audit time (grep-checked); re-confirm before st
   currently schedules dismissal purely from `createdAt`, so a toast can vanish mid-read. Track a
   paused-id set + per-toast remaining-ms ref; clear on `mouseenter`/`focusin`, resume on
   `mouseleave`/`focusout`. Unit-test with fake timers (pause stops the clock; resume uses remaining).
-- **`livePrices` IXT scenario** (reliability, the one open named IXT rung): drive the BudgetPanel
-  live-price toggle headlessly by stubbing the sidecar — `vi`-style isn't available in scenarios, so
-  add a dev-only `window.__priceSidecarStub` lever (like `__importSh3dBytes`) that `livePrice.ts`
-  prefers when set, then assert offers render cheapest-first with `safeUrl` links.
-- **Shareable "design card"** (consumer-parity, Spoak/Havenly front-of-funnel): a branded summary
-  PNG/HTML (hero snapshot + room name + key stats + palette swatches) via the new-window-exporter
-  pattern (see visual-verification-playbook "Verifying a new-window exporter"). Pro-tier flag.
-- **Before/after staging reveal** (consumer-parity, distinct from render-preset RenderCompare): a
-  divider-slider comparing the empty room vs the furnished design (capture two scene snapshots).
-  Reuse `renderCompare/compareState.ts` divider logic; verify the pure state + DOM slider headlessly.
+- **`livePrices` IXT scenario** — **DEFERRED (user, 2026-06-30).** The feature is dev-only +
+  network/sidecar-bound (lower user value), and a headless scenario would need a new dev-only
+  `window.__priceSidecarStub` lever in `livePrice.ts` purely for the test. The unit-level coverage
+  added in v0.9.0.2 already exercises the client logic; revisit only if the sidecar path regresses.
+- ~~Shareable "design card"~~ — **already shipped** as the **moodboard** (F19, `ui/moodboard.ts` +
+  `openMoodboard.ts`; flag `moodboard` "Shareable style-board export"): hero snapshot + palette +
+  materials strip + furniture tiles → print/share HTML. Not a gap.
+- ~~Before/after staging reveal~~ — **shipped v0.9.0.4** (`stagingReveal` flag; `ui/staging/stagingReveal.ts`
+  + `ui/StagingRevealModal.tsx`; empty room vs furnished on a divider slider). See `CHANGELOG.md`.
+
+_All four 2026-06-30 candidates are now resolved (2 shipped, 1 deferred, 1 was already-shipped). Run a
+fresh proactive-research pass for the next batch._
 
 ## Process
 - Update this file every time a plan is designed or work is implemented (MEMORY.md feedback rule).

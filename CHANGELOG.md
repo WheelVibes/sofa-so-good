@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: before/after staging reveal (empty vs furnished) (v0.9.0.4)
+
+- **New `stagingReveal` (pro) feature** — a consumer-staging "before/after" reveal slider
+  (Decor8/Havenly/ReimagineHome front-of-funnel parity). Captures the room twice from the **same
+  camera** — the furnished design, then the empty room (all furniture transiently hidden via the
+  visual-only `hiddenItemIds` set, no persisted/undo impact) — and presents them on a draggable
+  vertical divider (mouse + touch).
+- **Modular + tested:** capture orchestration lives in the pure, injected-dependency
+  `ui/staging/stagingReveal.ts` (5 unit tests — capture order, hidden-set restore incl. on failure,
+  no-furniture + view-closed guards); `ui/StagingRevealModal.tsx` owns only React state + the drag UI
+  and reuses `renderCompare/compareState.ts` `clampDivider`.
+- **Fully wired + gated:** `stagingReveal` flag (pro, prod-safe pure code; hidden in Simple — both-mode
+  test added), store `stagingRevealOpen` + setter, File menu + mobile FileSection entries (useFeature
+  gated), ⌘K command (`COMMAND_FLAGS`), lazy-loaded modal. New `staging-reveal-simple.json` IXT scenario
+  (Simple-hidden → Pro-shown gate, capture, both frames present). Visually verified: empty-left /
+  furnished-right, pixel-aligned across the divider, theme-cohesive, no artifacts.
+
 ## A11Y: toast auto-dismiss pauses on hover/focus (WCAG 2.2.1) (v0.9.0.3)
 
 - **Toasts no longer vanish mid-read.** `NotificationContainer` paused auto-dismiss while a toast is

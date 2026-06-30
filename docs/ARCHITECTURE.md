@@ -905,6 +905,10 @@ same change that reshapes a system.
   **Render preset A/B compare** (`ui/renderCompare/compareState.ts` pure logic — preset
   selection, swap, divider clamping; `ui/RenderCompareModal.tsx` two sequential captures +
   Lightroom-style before/after slider with touch parity; `renderCompare` flag, pro),
+  **Before/after staging reveal** (`ui/staging/stagingReveal.ts` pure capture orchestrator —
+  injected canvas-capture + hidden-set deps, unit-tested; `ui/StagingRevealModal.tsx` captures the
+  furnished view then transiently hides all furniture for the empty-room frame and shows the same
+  reveal slider; `stagingReveal` flag, pro),
   **360° tour** (P-720: `panoTourSlice` stop list `{label,position,[levelId]}`
   persisted per-device to localStorage + encoded in share/save links (C261, optional field →
   back-compat); pure `ui/panorama/panoTour.ts` DERIVES room-to-room hotspots (yaw/pitch via

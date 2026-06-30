@@ -54,6 +54,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'pano-tour-add': 'panoTour',
   'hq-render': 'hqRender',
   'render-compare': 'renderCompare',
+  'staging-reveal': 'stagingReveal',
   'shopping-list': 'shopExport',
   'furniture-csv': 'shopExport',
   'room-schedule-csv': 'shopExport',
@@ -290,6 +291,13 @@ export function CommandPalette() {
         label: 'Render compare — A/B preset comparison',
         icon: 'Export',
         run: () => s().setRenderCompareOpen(true),
+      },
+      {
+        id: 'staging-reveal',
+        group: 'Tools & panels',
+        label: 'Before / after reveal — empty vs furnished',
+        icon: 'Export',
+        run: () => s().setStagingRevealOpen(true),
       },
       {
         id: 'ai-furnish',

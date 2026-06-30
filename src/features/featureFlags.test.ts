@@ -229,6 +229,16 @@ describe('Simple/Pro tiering', () => {
     expect(FEATURE_FLAGS.wallNumericEntry.default).toBe(true)
   })
 
+  it('stagingReveal (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    // Before/after reveal is a presentation flourish, not the core design loop.
+    expect(resolveFlags(false, {}, false, 'simple').stagingReveal).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').stagingReveal).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').stagingReveal).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').stagingReveal).toBe(true)
+    expect(FEATURE_FLAGS.stagingReveal.tier).toBe('pro')
+    expect(FEATURE_FLAGS.stagingReveal.default).toBe(true)
+  })
+
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
     const simple = resolveFlags(true, { drawings: true }, false, 'simple')
     expect(simple.drawings).toBe(false)

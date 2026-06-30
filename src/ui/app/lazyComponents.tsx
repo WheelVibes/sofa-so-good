@@ -41,6 +41,9 @@ export const HqRenderModal = lazyWithRetry(() =>
 export const RenderCompareModal = lazyWithRetry(() =>
   import('../RenderCompareModal').then((m) => ({ default: m.RenderCompareModal })),
 )
+export const StagingRevealModal = lazyWithRetry(() =>
+  import('../StagingRevealModal').then((m) => ({ default: m.StagingRevealModal })),
+)
 export const VersionsPanel = lazyWithRetry(() =>
   import('../VersionsPanel').then((m) => ({ default: m.VersionsPanel })),
 )

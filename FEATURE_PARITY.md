@@ -131,9 +131,11 @@ name/price labels on the 2D plan** · **wall split/join/reverse** · **all-level
 **Consumer/styling front-end (from the broader cluster research — context, not Coohom/SH3D):**
 style/personality **quiz onboarding** (powers Smart Start), **in-engine one-tap style
 transfer** (no API key — swap palette/materials/finishes to a named style using our
-procedural + CC0 assets), **before/after reveal slider**, shareable **design card**.
-These are the consumer apps' (Spoak/Decor8/Havenly/DecorMatters) front-of-funnel edge
-and are all client-side feasible; the community/gamification/feed layer is ☁️ backend.
+procedural + CC0 assets). These are the consumer apps' (Spoak/Decor8/Havenly/DecorMatters)
+front-of-funnel edge and are all client-side feasible; the community/gamification/feed layer
+is ☁️ backend.
+_(Already shipped from this cluster: the **before/after reveal slider** — `stagingReveal`, empty
+room vs furnished design; and the shareable **design card** — the `moodboard` style-board export.)_
 
 ---
 

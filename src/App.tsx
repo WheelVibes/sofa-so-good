@@ -48,6 +48,7 @@ import {
   RenderCompareModal,
   ShareModal,
   SmartStartWizard,
+  StagingRevealModal,
   VersionsPanel,
 } from './ui/app/lazyComponents'
 import { preloadFeatureChunks } from './ui/app/preloadOnIdle'
@@ -107,6 +108,7 @@ export default function App() {
     panoTourOpen: useStore((s) => s.panoTourOpen),
     hqRenderOpen: useStore((s) => s.hqRenderOpen),
     renderCompareOpen: useStore((s) => s.renderCompareOpen),
+    stagingRevealOpen: useStore((s) => s.stagingRevealOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
     historyOpen: useStore((s) => s.historyOpen),
@@ -958,6 +960,11 @@ export default function App() {
         {lazyPanels.renderCompareOpen ? (
           <Suspense fallback={null}>
             <RenderCompareModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.stagingRevealOpen ? (
+          <Suspense fallback={null}>
+            <StagingRevealModal />
           </Suspense>
         ) : null}
         {lazyPanels.elevationsOpen ? (

@@ -403,6 +403,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Before/after staging reveal — empty room vs furnished design on a draggable
+  // divider (consumer-staging parity). Prod-safe pure code (reuses the live
+  // canvas capture), but a presentation flourish, not the core loop → pro tier.
+  stagingReveal: {
+    label: 'Before / after reveal',
+    description: 'Compare the empty room with your furnished design on a draggable divider',
+    default: true,
+    tier: 'pro',
+  },
   // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
   // assets → prod-safe. Crown molding is a core finish detail visible in casual
   // use, so it belongs in Simple tier.

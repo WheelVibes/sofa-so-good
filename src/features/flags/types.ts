@@ -61,6 +61,7 @@ export type FeatureFlag =
   | 'kitchenCabinets'
   | 'productConfigurator'
   | 'renderCompare'
+  | 'stagingReveal'
   | 'crownMolding'
   | 'windowGlassTint'
   | 'curtainLightEffect'
