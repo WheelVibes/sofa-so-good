@@ -8,6 +8,7 @@ import {
   itemAabbBox,
   itemFootprint,
   itemFootprintParts,
+  itemFootprintPartsLocal,
 } from './placement'
 
 /**
@@ -180,6 +181,56 @@ describe('granular footprint — broadphase AABB encloses every part (superset i
       expect(box.minX).toBeLessThanOrEqual(a.minX + 1e-9)
       expect(box.maxX).toBeGreaterThanOrEqual(a.maxX - 1e-9)
     }
+  })
+})
+
+describe('granular footprint — local parts (for selection / ghost tint overlay)', () => {
+  it('returns one centred part equal to the footprint for a plain piece', () => {
+    const local = itemFootprintPartsLocal(probeAt(3, 4), probeDef)
+    expect(local).toHaveLength(1)
+    expect(local[0]).toEqual({ ox: 0, oz: 0, hx: 0.2, hz: 0.2, rot: 0 })
+  })
+
+  it('is yaw-independent (local frame) — same parts at any item rotation', () => {
+    const a = itemFootprintPartsLocal(lsofa(), BUILTIN_CATALOG['sofa-lshape'])
+    const b = itemFootprintPartsLocal(
+      { ...lsofa(), rotation: Math.PI / 3 },
+      BUILTIN_CATALOG['sofa-lshape'],
+    )
+    expect(a).toEqual(b)
+  })
+
+  it('decomposes the L-sofa into 2 local parts offset from the centre', () => {
+    const local = itemFootprintPartsLocal(lsofa(), BUILTIN_CATALOG['sofa-lshape'])
+    expect(local).toHaveLength(2)
+    // Main run sits behind the centre (−Z), chaise ahead (+Z): opposite signs.
+    expect(Math.sign(local[0].oz)).toBe(-1)
+    expect(Math.sign(local[1].oz)).toBe(1)
+    // Chaise is offset to one side (non-zero X); main run is centred in X.
+    expect(local[0].ox).toBeCloseTo(0, 6)
+    expect(Math.abs(local[1].ox)).toBeGreaterThan(0.1)
+  })
+
+  it('applies item scale to local part offsets + extents', () => {
+    const local = itemFootprintPartsLocal(
+      { id: 'b', defId: 'barbell-x', position: [0, 0], rotation: 0, props: { scaleX: 2 } },
+      {
+        id: 'barbell-x',
+        name: 'B',
+        category: 'decor',
+        kind: 'gltf',
+        source: 'builtin',
+        url: '/none.glb',
+        license: 'CC0',
+        defaultFootprint: { w: 2, d: 1, h: 1 },
+        footprintParts: [
+          { dx: -0.75, dz: 0, w: 0.5, d: 1 },
+          { dx: 0.75, dz: 0, w: 0.5, d: 1 },
+        ],
+      },
+    )
+    expect(local.map((p) => p.ox).sort((a, b) => a - b)).toEqual([-1.5, 1.5])
+    expect(local[0].hx * 2).toBeCloseTo(1, 6)
   })
 })
 

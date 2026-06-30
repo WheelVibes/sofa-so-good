@@ -99,7 +99,8 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
  * footprint bbox centre (so a GLB's authored off-origin offset is honoured),
  * with the item's per-axis scale and rotation applied. Otherwise returns the
  * single enclosing OBB. The result drives granular, shape-aware collision; the
- * enclosing OBB ({@link itemFootprint}) still backs the broadphase AABB.
+ * broadphase AABB ({@link itemAabbBox}) unions these parts so it bounds the true
+ * shape.
  */
 export function itemFootprintParts(item: FurnitureItem, def: FurnitureDef): OBB[] {
   const spec = def.footprintParts
@@ -123,6 +124,49 @@ export function itemFootprintParts(item: FurnitureItem, def: FurnitureDef): OBB[
       rot: item.rotation + (p.rot ?? 0),
     }
   })
+}
+
+/** One footprint part in the item's LOCAL frame — relative to the footprint
+ *  centre, *before* the item's yaw. For rendering a shape-accurate footprint
+ *  overlay (selection tint / placement ghost) inside a group already positioned
+ *  at the footprint centre and rotated by the item's yaw. */
+export interface LocalFootprintPart {
+  /** Centre offset from the footprint centre, in metres (pre-yaw). */
+  ox: number
+  oz: number
+  /** Half-extents in metres. */
+  hx: number
+  hz: number
+  /** Extra in-plane rotation of this part (radians), on top of the item yaw. */
+  rot: number
+}
+
+/**
+ * The item's footprint as local parts (see {@link LocalFootprintPart}). Mirrors
+ * {@link itemFootprintParts} but keeps the parts in the item's local frame so a
+ * renderer can drop them into a group that already owns the world position + yaw.
+ * A composite def yields its convex parts (scaled); any other def yields a single
+ * centred part equal to the enclosing footprint — so the caller renders one plane
+ * either way, and the single-part case is pixel-identical to the old box overlay.
+ */
+export function itemFootprintPartsLocal(
+  item: FurnitureItem,
+  def: FurnitureDef,
+): LocalFootprintPart[] {
+  const spec = def.footprintParts
+  const parts = typeof spec === 'function' ? spec(item.props) : spec
+  const { scaleX, scaleZ } = resolveScale(item, def)
+  if (!parts || parts.length === 0) {
+    const obb = itemFootprint(item, def)
+    return [{ ox: 0, oz: 0, hx: obb.hx, hz: obb.hz, rot: 0 }]
+  }
+  return parts.map((p) => ({
+    ox: p.dx * scaleX,
+    oz: p.dz * scaleZ,
+    hx: (p.w * scaleX) / 2,
+    hz: (p.d * scaleZ) / 2,
+    rot: p.rot ?? 0,
+  }))
 }
 
 /** True iff any OBB in `a` overlaps any OBB in `b` (granular part-vs-part SAT). */

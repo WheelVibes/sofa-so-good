@@ -85,6 +85,8 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
 ### Deeper core interactions (user 2026-07-01 #2: "granular collision, animations, realistic physics")
 - ~~Granular shape-aware collision~~ — **shipped v0.9.0.9** (`footprintParts` convex decomposition +
   `itemFootprintParts`; any-part-vs-any-part SAT; L-sofa main-run+chaise). Infra reusable.
+  Follow-ups: broadphase AABB unions parts (v0.9.0.11 fix); **selection + placement tint follows the
+  granular polygon** (v0.9.0.13, `itemFootprintPartsLocal`) so the highlight matches the collision shape.
 - **More composite footprints** — apply `footprintParts` to other non-rectangular pieces.
   Done: L-sofa (v0.9.0.9), corner base cabinet (v0.9.0.10). Remaining candidates: round/oval
   tables (octagon approximation — convex, low priority), and any future U-sofa / corner desk /
@@ -92,7 +94,7 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
 - **Animations** — door/drawer open-close easing (some exists: curtains/blinds ease in demand mode),
   smooth placement "drop-in" + selection transitions. Mostly pure state→transition; verify state
   transitions headless, smoothness by eye. M.
-  - ~~Eased camera transitions~~ — **shipped v0.9.0.11** (`scene/cameras/cameraTween.ts`: smoothstep
+  - ~~Eased camera transitions~~ — **shipped v0.9.0.12** (`scene/cameras/cameraTween.ts`: smoothstep
     + distance-aware `flyDurationFor`; focus/top/home/saved-view all route through one `startFly`).
   - Remaining: placement "drop-in" easing (item eases down on commit), selection scale/fade-in.
 - **Realistic physics (light touch)** — gravity-settle on drop (rest on the surface below — partial via

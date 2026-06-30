@@ -663,9 +663,18 @@ same change that reshapes a system.
   `itemFootprintParts(item,def)` maps each part to a world OBB (scale + rotation +
   GLB offset applied). All collision tests are **any-part-vs-any-part** SAT, so e.g.
   an L-sofa's concave notch is open floor; absent `footprintParts` → the single
-  `defaultFootprint` OBB (unchanged). The broadphase (`itemAabbBox`) keeps using the
-  enclosing OBB — a valid superset, so it stays O(n). (The L-shaped sectional ships
-  the first real decomposition: main run + chaise.) `placementWalls.ts`
+  `defaultFootprint` OBB (unchanged). The broadphase (`itemAabbBox`) **unions every
+  part's AABB** so the box always bounds the true shape (the L-sofa's enclosing OBB
+  is read from `depth` and is shallower than the main-run+chaise shape — boxing it
+  alone would break the superset invariant and prune a real overlap); single-part
+  pieces are identical to before. The **selection floor-tint + placement ghost**
+  paint the same shape: `itemFootprintPartsLocal(item,def)` returns the parts in the
+  item's local frame (one centred part = the old rectangle for plain pieces), and
+  each consumer renders one plane per part inside a group carrying the world pose —
+  so an L-sofa tints its true L (notch open), while the bbox bracket outline + hover
+  outline stay on the enclosing box (the handle affordance). (The L-shaped sectional
+  + corner base cabinet ship the first decompositions: main run + chaise / two runs.)
+  `placementWalls.ts`
   centralizes wall selection (room editor → solid perimeter; upper storeys → own
   walls). All cross-item/wall scans are **storey-scoped** (F13/ML3): `itemsCollide`
   + `findNarrowGaps` gate pairs on `levelId`, `levelWallClips.ts

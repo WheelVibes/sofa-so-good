@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { itemFootprint } from '../../collision/placement'
+import { itemFootprint, itemFootprintPartsLocal } from '../../collision/placement'
 import { noExportUserData } from '../../export/sceneGltf'
 import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
@@ -47,6 +47,11 @@ function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
       : OUTLINE_COLOR_INVALID
     : OUTLINE_COLOR_DEFAULT
   const tintColor = isDragging ? (dragValid ? TINT_VALID : TINT_INVALID) : TINT_DEFAULT
+  // Shape-accurate floor tint: one plane per collision-footprint part, so an
+  // L-sofa / corner cabinet tints its true L (matching what collision uses).
+  // Single-part pieces yield exactly the old centred rectangle. The bracket
+  // outline below stays on the enclosing box (the selection-handle affordance).
+  const tintParts = itemFootprintPartsLocal(item, def)
 
   const cx = w / 2
   const cz = d / 2
@@ -63,15 +68,22 @@ function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
       rotation={[0, obb.rot, 0]}
       userData={noExportUserData()}
     >
-      <mesh position={[0, 0.0005, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
-        <planeGeometry args={[obb.hx * 2, obb.hz * 2]} />
-        <meshBasicMaterial
-          color={tintColor}
-          transparent
-          opacity={isDragging ? 0.3 : 0.18}
-          depthWrite={false}
-        />
-      </mesh>
+      {tintParts.map((p, i) => (
+        <mesh
+          key={i}
+          position={[p.ox, 0.0005, p.oz]}
+          rotation={[-Math.PI / 2, 0, p.rot]}
+          renderOrder={1}
+        >
+          <planeGeometry args={[p.hx * 2, p.hz * 2]} />
+          <meshBasicMaterial
+            color={tintColor}
+            transparent
+            opacity={isDragging ? 0.3 : 0.18}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
       <lineSegments geometry={geomOuter} renderOrder={2}>
         <lineBasicMaterial color={outlineColor} transparent opacity={0.5} depthTest={false} />
       </lineSegments>

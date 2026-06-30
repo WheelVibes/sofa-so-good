@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Color, MeshBasicMaterial, Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
-import { canPlace, itemFootprint } from '../collision/placement'
+import { canPlace, itemFootprintPartsLocal } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
 import { noExportUserData } from '../export/sceneGltf'
 import { useCatalogGetter } from '../furniture/catalog'
@@ -141,16 +141,28 @@ export function PlacementGhost() {
 
   if (!def || !ghostItem || !editing) return null
 
-  // Render an OBB-shaped translucent disc under the ghost so the
-  // collision result is visible without disturbing the Furniture
-  // primitive's own material.
-  const obb = itemFootprint(ghostItem, def)
+  // Shape-accurate translucent footprint under the ghost so the collision result
+  // is visible without disturbing the Furniture primitive's own material. One
+  // plane per collision-footprint part (an L-sofa shows its true L); the inner
+  // group carries the item yaw so the tint rotates with the previewed orientation
+  // (single-part pieces are the same centred rectangle as before, now correctly
+  // oriented). Window-bound defs add their snap yaw via the outer group.
+  const tintParts = itemFootprintPartsLocal(ghostItem, def)
   return (
     <group ref={groupRef} userData={noExportUserData()}>
       <Furniture item={ghostItem} def={def} passive />
-      <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} material={tintMaterial}>
-        <planeGeometry args={[obb.hx * 2, obb.hz * 2]} />
-      </mesh>
+      <group rotation={[0, ghostItem.rotation, 0]}>
+        {tintParts.map((p, i) => (
+          <mesh
+            key={i}
+            position={[p.ox, 0.005, p.oz]}
+            rotation={[-Math.PI / 2, 0, p.rot]}
+            material={tintMaterial}
+          >
+            <planeGeometry args={[p.hx * 2, p.hz * 2]} />
+          </mesh>
+        ))}
+      </group>
     </group>
   )
 }

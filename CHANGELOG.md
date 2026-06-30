@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: selection + placement tint follows the granular collision polygon (v0.9.0.13)
+
+- Closes the consistency gap the granular-collision work opened: collision became shape-aware
+  (`footprintParts`) but the **selection floor-tint** (`SelectionOutline`) and the **placement
+  ghost** (`PlacementGhost`) still painted a single enclosing rectangle. An L-sofa / corner cabinet
+  now tints its **true L** — the concave notch reads as open floor, matching exactly where a piece
+  may actually go.
+- New pure helper `collision/placement.ts:itemFootprintPartsLocal` returns the footprint parts in
+  the item's **local** frame (offset + half-extents + part-rotation), so a renderer drops one plane
+  per part into a group already carrying the world position + yaw. A non-composite def yields a
+  single centred part — **pixel-identical** to the old rectangle, so plain pieces are unchanged.
+- The placement ghost's tint now also **rotates with the previewed orientation** (it previously
+  stayed axis-aligned — a latent bug for rotated non-square pieces), via an inner yaw group.
+- The **enclosing-box outline brackets + hover outline stay on the bbox** — they're the
+  selection/resize-handle affordance; it's the colored *fill* that should hug the shape.
+- Tests: +4 (`granularFootprint.test.ts` — local single-part = centred footprint, yaw-independence,
+  L-sofa 2-part offsets, scale applied). Visually verified (`scenarios/granular-tint.json`): the
+  L-sofa tints its L cleanly with no z-fighting; the notch is not filled.
+
 ## FEATURE: eased camera transitions for focus / top / reset views (v0.9.0.12)
 
 - **Animations leg** of the deeper-interaction directive. Every camera retarget now *glides*
