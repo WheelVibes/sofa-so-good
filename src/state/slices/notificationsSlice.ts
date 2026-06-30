@@ -1,3 +1,4 @@
+import type { IconName } from '../../ui/toolbar/icons'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -15,11 +16,20 @@ export interface Notification {
   kind: NotificationKind
   title: string
   message?: string
-  /** 0..1, only for kind: 'progress' */
-  progress?: number
+  /** 0..1 for a determinate bar; `null` = indeterminate (animated, unknown
+   *  duration — e.g. a service-worker update check with no real % to report).
+   *  Only meaningful for kind: 'progress'. */
+  progress?: number | null
   /** Optional per-item breakdown — when present the notification is clickable
    *  and opens a details panel (e.g. the list of failed imports + reasons). */
   details?: NotificationDetail[]
+  /** Optional primary action rendered as a button (e.g. "Update" on an
+   *  update-available toast). When set, `onAction` runs on click. */
+  actionLabel?: string
+  onAction?: () => void
+  /** Override the kind-derived leading icon (e.g. a "Versions" glyph on an
+   *  update-available info toast instead of the default info glyph). */
+  icon?: IconName
   dismissable: boolean
   /** Auto-dismiss timeout in ms; null = never auto-dismiss. */
   autoDismissMs: number | null
@@ -32,6 +42,11 @@ export interface NotificationStartOpts {
   message?: string
   /** Override auto-dismiss for non-progress kinds. */
   autoDismissMs?: number | null
+  /** Primary action button + its handler (e.g. "Update"). */
+  actionLabel?: string
+  onAction?: () => void
+  /** Override the kind-derived leading icon. */
+  icon?: IconName
 }
 
 export interface NotificationsSlice {
@@ -68,7 +83,7 @@ export const NOTIFICATIONS_INITIAL: Pick<NotificationsSlice, 'notifications'> = 
 export const createNotificationsSlice: SliceCreator<NotificationsSlice, RootState> = (set) => ({
   ...NOTIFICATIONS_INITIAL,
   notify: {
-    start: ({ title, kind = 'info', message, autoDismissMs }) => {
+    start: ({ title, kind = 'info', message, autoDismissMs, actionLabel, onAction, icon }) => {
       const id = nextId()
       const n: Notification = {
         id,
@@ -76,6 +91,9 @@ export const createNotificationsSlice: SliceCreator<NotificationsSlice, RootStat
         title,
         message,
         progress: kind === 'progress' ? 0 : undefined,
+        actionLabel,
+        onAction,
+        icon,
         dismissable: defaultDismissable(kind),
         autoDismissMs: autoDismissMs !== undefined ? autoDismissMs : defaultAutoDismissMs(kind),
         createdAt: Date.now(),

@@ -123,7 +123,7 @@ export function NotificationContainer() {
         // keyboard + screen-reader navigation.
         <div className="toast-host">
           {notifications.slice(-5).map((n) => {
-            const Glyph = Icon[KIND_ICON[n.kind]]
+            const Glyph = Icon[n.icon ?? KIND_ICON[n.kind]]
             const hasDetails = !!n.details?.length
             return (
               <div
@@ -131,7 +131,11 @@ export function NotificationContainer() {
                 data-notification
                 className={`toast in${n.kind === 'error' ? ' err' : ''}`}
               >
-                <Glyph className="icn" width={16} height={16} />
+                <Glyph
+                  className={`icn${n.kind === 'progress' ? ' spin' : ''}`}
+                  width={16}
+                  height={16}
+                />
                 <button
                   type="button"
                   disabled={!hasDetails}
@@ -146,24 +150,39 @@ export function NotificationContainer() {
                 >
                   <b>{n.title}</b>
                   {n.message ? <div style={{ marginTop: 1 }}>{n.message}</div> : null}
-                  {n.kind === 'progress' && (
-                    <div
-                      role="progressbar"
-                      aria-valuenow={Math.round((n.progress ?? 0) * 100)}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      className="bud-bar"
-                      style={{ marginTop: 6, height: 4 }}
-                    >
+                  {n.kind === 'progress' &&
+                    // `progress == null` ⇒ indeterminate: an animated sweeping
+                    // bar (no real % to report, e.g. a SW update check) with
+                    // `aria-valuenow` omitted per ARIA. Otherwise a determinate
+                    // fill driven by the 0..1 value.
+                    (n.progress == null ? (
                       <div
-                        className="bud-seg"
-                        style={{
-                          width: `${Math.round((n.progress ?? 0) * 100)}%`,
-                          background: 'var(--accent)',
-                        }}
-                      />
-                    </div>
-                  )}
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        className="bud-bar indet"
+                        style={{ marginTop: 6, height: 4 }}
+                      >
+                        <div className="bud-seg" style={{ background: 'var(--accent)' }} />
+                      </div>
+                    ) : (
+                      <div
+                        role="progressbar"
+                        aria-valuenow={Math.round(n.progress * 100)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        className="bud-bar"
+                        style={{ marginTop: 6, height: 4 }}
+                      >
+                        <div
+                          className="bud-seg"
+                          style={{
+                            width: `${Math.round(n.progress * 100)}%`,
+                            background: 'var(--accent)',
+                          }}
+                        />
+                      </div>
+                    ))}
                   {hasDetails ? (
                     <div
                       style={{
@@ -177,6 +196,18 @@ export function NotificationContainer() {
                     </div>
                   ) : null}
                 </button>
+                {n.actionLabel && n.onAction ? (
+                  <button
+                    type="button"
+                    className="toast-act"
+                    onClick={() => {
+                      n.onAction?.()
+                      dismiss(n.id)
+                    }}
+                  >
+                    {n.actionLabel}
+                  </button>
+                ) : null}
                 {n.dismissable && (
                   <button
                     type="button"

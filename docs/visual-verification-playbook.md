@@ -645,6 +645,17 @@ in `caches`, then goes offline and opens the editor — asserting no
 (`import.meta.env.DEV`), so drive the prod build through the UI (keys/clicks),
 not the store.
 
+### Verifying the update toast (PWA-UPDATE) without a live service worker
+The service worker is build-only, so the real "Update available" flow can't fire against
+`npm run dev` — but the toast is just a notification, so drive `__store.getState().notify`
+directly to render each state and screenshot it (`update-check-toast.json`): a `kind:'progress'`
+toast with `progress:null` for the **checking** spinner + indeterminate bar (`waitFor` on
+`.toast-host .bud-bar.indet`), then an `info` toast with `actionLabel:'Update'` + `icon:'Versions'`
+for the **Update available** prompt (`waitFor` on `.toast-host .toast-act`), then a plain `info`
+toast for up-to-date. Gate on `.toolbar` + a short `settle` first, or the toast renders over the
+boot splash. The SW wiring itself (`onNeedRefresh` → `showUpdatePrompt`, `applyUpdate` →
+`updateSW(true)`) is covered by `swUpdate.test.ts` with a faked `navigator.serviceWorker`.
+
 ### Editing source mid-session triggers HMR
 Vite hot-reloads your edits into the running server, so you usually don't need to
 restart after a code change — but a change to `main.tsx`'s startup block may need

@@ -1,0 +1,30 @@
+{
+  "name": "update-check-toast",
+  "url": "http://localhost:5219/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "app-loaded", "waitFor": { "css": ".toolbar" }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1')"
+    },
+    { "name": "settle", "wait": 2500 },
+    {
+      "name": "phase-checking",
+      "eval": "window.__uid = window.__store.getState().notify.start({ title: 'Checking for updates…', kind: 'progress' }); window.__store.getState().notify.update(window.__uid, { progress: null })"
+    },
+    { "name": "checking-bar", "waitFor": { "css": ".toast-host .bud-bar.indet" } },
+    { "name": "shot-checking", "screenshot": "checking" },
+    {
+      "name": "phase-update-available",
+      "eval": "window.__store.getState().notify.dismiss(window.__uid); window.__store.getState().notify.start({ title: 'Update available', message: 'A new version of Sofa So Good is ready.', kind: 'info', icon: 'Versions', autoDismissMs: null, actionLabel: 'Update', onAction: () => {} })"
+    },
+    { "name": "update-btn", "waitFor": { "css": ".toast-host .toast-act" } },
+    { "name": "shot-update-available", "screenshot": "update-available" },
+    {
+      "name": "phase-uptodate",
+      "eval": "window.__store.getState().notify.start({ title: 'You’re on the latest version (v0.9.0.0)', kind: 'info' })"
+    },
+    { "name": "shot-uptodate", "screenshot": "uptodate" }
+  ]
+}

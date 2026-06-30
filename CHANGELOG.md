@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PWA-UPDATE: confirm-to-update flow with progress feedback (v0.9.0.1)
+
+- **Checks on open + confirms before reloading.** Switched `vite-plugin-pwa` from `registerType:
+  'autoUpdate'` (which reloaded the page behind the user) to **`'prompt'`**. `swUpdate.ts` now checks
+  for a new build **on open** (plus the existing hourly + foreground checks); a found build installs
+  but **waits**, and `onNeedRefresh` surfaces a single de-duped **"Update available"** toast with an
+  **Update** button. `applyUpdate()` calls `updateSW(true)` (skipWaiting + reload) only on click —
+  no surprise reloads. On-open/background checks are silent unless an update exists; the manual
+  **"Check for updates"** still gives full feedback (checking spinner → up-to-date / Update prompt /
+  error).
+- **Fixed the static "Checking for updates…" bar.** Progress toasts now spin their icon and, when
+  `progress` is `null`, render an **indeterminate animated bar** instead of a frozen 0%
+  (`notificationsSlice` `progress?: number | null`; `@keyframes toastspin`/`toastindet` in
+  `features.css`, both honoured by the app-wide reduced-motion clamp).
+- **Notifications can carry an action + icon override.** New optional `actionLabel`/`onAction` (renders
+  the existing `.toast-act` button) and `icon` fields on the notifications slice; the update prompt uses
+  them (Update button + Versions glyph).
+- Tests: `swUpdate.test.ts` (check results, on-find prompt, de-dupe, up-to-date, error), slice + container
+  tests for indeterminate progress and the action button. New `update-check-toast.json` IXT scenario
+  (checking spinner → Update-available prompt → up-to-date). Full suite + tsc + biome green; visually
+  verified all three toast states.
+
 ## Release: clear-backlog-gpu → main (v0.9.0.0)
 
 Minor bump for the multi-feature backlog-clearing line (v0.8.0.25–.49): the full **SLOT product

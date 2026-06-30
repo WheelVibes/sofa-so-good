@@ -28,6 +28,50 @@ describe('NotificationContainer', () => {
     expect(bar.getAttribute('aria-valuenow')).toBe('42')
   })
 
+  it('spins the icon while a progress toast is in flight', () => {
+    render(<NotificationContainer />)
+    act(() => {
+      useStore.getState().notify.start({ title: 'Checking for updates…', kind: 'progress' })
+    })
+    const host = document.querySelector('.toast-host') as HTMLElement
+    expect(host.querySelector('.icn.spin')).not.toBeNull()
+  })
+
+  it('renders an indeterminate bar (no aria-valuenow) when progress is null', () => {
+    render(<NotificationContainer />)
+    act(() => {
+      const id = useStore.getState().notify.start({ title: 'Checking…', kind: 'progress' })
+      useStore.getState().notify.update(id, { progress: null })
+    })
+    const bar = document.querySelector('[role="progressbar"]') as HTMLElement
+    expect(bar).not.toBeNull()
+    expect(bar.classList.contains('indet')).toBe(true)
+    expect(bar.hasAttribute('aria-valuenow')).toBe(false)
+  })
+
+  it('renders an action button that runs onAction and dismisses', () => {
+    render(<NotificationContainer />)
+    let ran = false
+    let id = ''
+    act(() => {
+      id = useStore.getState().notify.start({
+        title: 'Update available',
+        kind: 'info',
+        actionLabel: 'Update',
+        onAction: () => {
+          ran = true
+        },
+      })
+    })
+    const btn = screen.getByRole('button', { name: 'Update' })
+    expect(btn).toBeInTheDocument()
+    act(() => {
+      btn.click()
+    })
+    expect(ran).toBe(true)
+    expect(useStore.getState().notifications.find((n) => n.id === id)).toBeUndefined()
+  })
+
   it('renders an X button for dismissable notifications and dismisses on click', () => {
     render(<NotificationContainer />)
     let id = ''

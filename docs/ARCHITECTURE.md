@@ -952,12 +952,18 @@ same change that reshapes a system.
   is `public/basis/` via `withBase('/basis/')`. A `vite-plugin-pwa` Workbox service worker
   (`vite.config.ts`) precaches the build so the app loads and runs offline after the first visit
   (build-only — `devOptions` off; opt out with `VITE_DISABLE_PWA=1`, which `disable`s the plugin
-  while keeping `virtual:pwa-register` resolvable). **Updates** (`registerType: 'autoUpdate'`):
-  registration is owned by `src/pwa/swUpdate.ts` (`injectRegister: null`) which polls
-  `registration.update()` hourly **and** on foreground (visibility/focus) so installed Home-Screen
-  PWAs — iOS standalone has no reload UI — pick up new builds; a found build installs + reloads
-  silently, and a manual **"Check for updates"** (`runUpdateCheck`, File menu / mobile Appearance &
-  help) gives toast feedback. Optional network-bound
+  while keeping `virtual:pwa-register` resolvable). **Updates** (`registerType: 'prompt'` — never
+  reloads behind the user): registration is owned by `src/pwa/swUpdate.ts` (`injectRegister: null`)
+  which checks `registration.update()` **on open**, hourly, **and** on foreground (visibility/focus)
+  so installed Home-Screen PWAs — iOS standalone has no reload UI — pick up new builds. A found build
+  installs but **waits**; `onNeedRefresh` then surfaces a single de-duped **"Update available"** toast
+  (info kind, no auto-dismiss) carrying an **Update** action button — `applyUpdate()` calls the
+  plugin's `updateSW(true)` (skipWaiting + reload) only on confirmation. The on-open/background checks
+  are silent unless they find an update; the manual **"Check for updates"** (`runUpdateCheck`, File
+  menu / mobile Appearance & help) shows a checking spinner then up-to-date / the same Update prompt /
+  error. Toast feedback rides the notifications slice (`kind:'progress'` toasts spin + show an
+  indeterminate bar when `progress` is `null`; toasts may carry an `actionLabel`/`onAction` +
+  `icon` override). Optional network-bound
   features (remote CC0 catalog, AI, geocoding) degrade gracefully when offline. The SPA
   navigation fallback is denylisted for `<base>/docs/` (`navigateFallbackDenylist`) so it can't
   serve the app shell in place of the separately-built VitePress **user guide**. The guide is

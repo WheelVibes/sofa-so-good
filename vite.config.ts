@@ -18,11 +18,15 @@ export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      // Register the SW ourselves (src/pwa/swUpdate.ts) to add foreground +
-      // periodic update checks and a manual "Check for updates"; `disable`
-      // keeps the virtual:pwa-register module available (a no-op) when the
-      // SW is turned off via VITE_DISABLE_PWA, so the import never breaks.
+      // `prompt` (not autoUpdate): a found update INSTALLS but waits — we never
+      // reload behind the user's back. `src/pwa/swUpdate.ts` surfaces an
+      // "Update available" toast with an Update button and applies it (skipWaiting
+      // + reload) only on confirmation.
+      registerType: 'prompt',
+      // Register the SW ourselves (src/pwa/swUpdate.ts) to add an on-open +
+      // foreground + periodic update check and a manual "Check for updates";
+      // `disable` keeps the virtual:pwa-register module available (a no-op) when
+      // the SW is turned off via VITE_DISABLE_PWA, so the import never breaks.
       injectRegister: null,
       disable: !pwaEnabled,
       // Keep the existing public/manifest.webmanifest (linked from index.html)

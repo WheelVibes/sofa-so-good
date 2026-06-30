@@ -352,6 +352,17 @@
 .toast .toast-msg b { color: var(--text); font-weight: 700; }
 .toast .toast-act { flex: none; padding: 5px 10px; border-radius: var(--r-1); background: var(--accent-soft); color: var(--accent-soft-text); font-size: var(--t-xs); font-weight: 700; }
 .toast .toast-act:hover { background: var(--accent); color: var(--on-accent); }
+/* Spinner for in-flight progress toasts (e.g. "Checking for updates…"). The
+   reduced-motion block in app.css clamps the iteration count, so it stops for
+   users who opt out. */
+@keyframes toastspin { to { transform: rotate(360deg); } }
+.toast .icn.spin { animation: toastspin 0.9s linear infinite; transform-origin: 50% 50%; }
+/* Indeterminate progress bar: a segment sweeps across when there's no real %
+   to report. `.bud-bar` is normally a flex row of fixed-width segments; the
+   indeterminate variant positions a single sweeping segment absolutely. */
+@keyframes toastindet { 0% { left: -35%; } 100% { left: 100%; } }
+.bud-bar.indet { position: relative; display: block; }
+.bud-bar.indet .bud-seg { position: absolute; top: 0; width: 35%; border-radius: inherit; animation: toastindet 1.1s ease-in-out infinite; }
 
 /* ============================================================
    SMART GUIDES OVERLAY  (in 3D sandbox, decorative/measure)
