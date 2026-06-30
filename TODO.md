@@ -42,5 +42,24 @@ Auto-advancing in-world clock; window-glass tinting affecting shadow colour; loc
 probes; directional door-bleed weighting; real-time path-traced GI/RTX (revisit only with affordable
 WebGPU path tracing).
 
+## Proactive-research candidates — client-feasible + headless-verifiable (2026-06-30 audit)
+Vetted next-iteration targets surfaced when the active backlog proved thin/GPU-or-backend-blocked.
+Each is pure-client, unit/scenario-verifiable without a real GPU or network, and value-ranked.
+Confirmed NOT already shipped at audit time (grep-checked); re-confirm before starting.
+- **Toast auto-dismiss pause-on-hover/focus** (a11y, WCAG 2.2.1 "enough time"): `NotificationContainer`
+  currently schedules dismissal purely from `createdAt`, so a toast can vanish mid-read. Track a
+  paused-id set + per-toast remaining-ms ref; clear on `mouseenter`/`focusin`, resume on
+  `mouseleave`/`focusout`. Unit-test with fake timers (pause stops the clock; resume uses remaining).
+- **`livePrices` IXT scenario** (reliability, the one open named IXT rung): drive the BudgetPanel
+  live-price toggle headlessly by stubbing the sidecar — `vi`-style isn't available in scenarios, so
+  add a dev-only `window.__priceSidecarStub` lever (like `__importSh3dBytes`) that `livePrice.ts`
+  prefers when set, then assert offers render cheapest-first with `safeUrl` links.
+- **Shareable "design card"** (consumer-parity, Spoak/Havenly front-of-funnel): a branded summary
+  PNG/HTML (hero snapshot + room name + key stats + palette swatches) via the new-window-exporter
+  pattern (see visual-verification-playbook "Verifying a new-window exporter"). Pro-tier flag.
+- **Before/after staging reveal** (consumer-parity, distinct from render-preset RenderCompare): a
+  divider-slider comparing the empty room vs the furnished design (capture two scene snapshots).
+  Reuse `renderCompare/compareState.ts` divider logic; verify the pure state + DOM slider headlessly.
+
 ## Process
 - Update this file every time a plan is designed or work is implemented (MEMORY.md feedback rule).

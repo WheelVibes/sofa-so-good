@@ -86,19 +86,62 @@ export function NotificationContainer() {
   const dismiss = useStore((s) => s.notify.dismiss)
   // The notification whose details panel is open (by id), if any.
   const [openDetails, setOpenDetails] = useState<string | null>(null)
+  // Toasts the user is hovering/focusing — their auto-dismiss is paused so a
+  // toast never vanishes mid-read or while being interacted with (WCAG 2.2.1).
+  const [pausedIds, setPausedIds] = useState<ReadonlySet<string>>(() => new Set())
   const { polite, assertive } = useToastAnnouncer(notifications)
 
+  // Per-toast remaining auto-dismiss budget (ms), self-managed across re-renders
+  // and pauses: seeded once from `createdAt`, then decremented by the time each
+  // running interval actually consumed. While paused, no timer runs and no time
+  // is banked, so the budget freezes and resumes exactly where it left off.
+  const remainingRef = useRef(new Map<string, number>())
+  const startedAtRef = useRef(new Map<string, number>())
+
+  const pause = (id: string) =>
+    setPausedIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)))
+  const resume = (id: string) =>
+    setPausedIds((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+
   useEffect(() => {
+    const remaining = remainingRef.current
+    const startedAt = startedAtRef.current
+    const live = new Set(notifications.map((n) => n.id))
+    // Forget budgets for dismissed toasts (so a reused id starts fresh).
+    for (const id of [...remaining.keys()]) {
+      if (!live.has(id)) {
+        remaining.delete(id)
+        startedAt.delete(id)
+      }
+    }
     const timers: number[] = []
     for (const n of notifications) {
       if (n.autoDismissMs == null) continue
-      const elapsed = Date.now() - n.createdAt
-      const remaining = Math.max(0, n.autoDismissMs - elapsed)
-      const t = window.setTimeout(() => dismiss(n.id), remaining)
-      timers.push(t)
+      if (!remaining.has(n.id)) {
+        remaining.set(n.id, Math.max(0, n.autoDismissMs - (Date.now() - n.createdAt)))
+      }
+      if (pausedIds.has(n.id)) {
+        startedAt.delete(n.id)
+        continue // paused — no running timer
+      }
+      startedAt.set(n.id, Date.now())
+      timers.push(window.setTimeout(() => dismiss(n.id), remaining.get(n.id) ?? 0))
     }
-    return () => timers.forEach(window.clearTimeout)
-  }, [notifications, dismiss])
+    return () => {
+      // Bank the time each running (non-paused) timer actually consumed before
+      // this effect re-runs (a new toast, a progress tick, or a pause toggle).
+      const now = Date.now()
+      for (const [id, start] of startedAt) {
+        remaining.set(id, Math.max(0, (remaining.get(id) ?? 0) - (now - start)))
+      }
+      timers.forEach(window.clearTimeout)
+    }
+  }, [notifications, pausedIds, dismiss])
 
   const detailNotif = openDetails ? notifications.find((n) => n.id === openDetails) : null
 
@@ -130,6 +173,12 @@ export function NotificationContainer() {
                 key={n.id}
                 data-notification
                 className={`toast in${n.kind === 'error' ? ' err' : ''}`}
+                // Pause auto-dismiss while hovered or keyboard-focused, so the
+                // toast stays put while it's being read or acted on (WCAG 2.2.1).
+                onMouseEnter={() => pause(n.id)}
+                onMouseLeave={() => resume(n.id)}
+                onFocus={() => pause(n.id)}
+                onBlur={() => resume(n.id)}
               >
                 <Glyph
                   className={`icn${n.kind === 'progress' ? ' spin' : ''}`}

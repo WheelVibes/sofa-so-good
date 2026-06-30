@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## A11Y: toast auto-dismiss pauses on hover/focus (WCAG 2.2.1) (v0.9.0.3)
+
+- **Toasts no longer vanish mid-read.** `NotificationContainer` paused auto-dismiss while a toast is
+  hovered or keyboard-focused (`onMouseEnter`/`onFocus` pause, `onMouseLeave`/`onBlur` resume),
+  satisfying WCAG 2.2.1 ("Enough Time"). The dismiss timer was reworked from a naive
+  `createdAt`-derived countdown to a self-managed per-toast **remaining-ms budget**
+  (`remainingRef`/`startedAtRef`): each running interval banks only the time it actually consumed, so
+  while paused the budget freezes and resumes exactly where it left off — correct across pauses,
+  progress ticks, and new-toast re-renders. Appearance is unchanged. Verified with a fake-timer unit
+  test (hover freezes a 3 s timer through +5 s, then resumes and dismisses after the remaining ~2 s).
+- Logged a vetted set of client-feasible, headless-verifiable next-iteration candidates in `TODO.md`
+  (live-price IXT scenario, shareable design card, before/after staging reveal) to feed the loop.
+
 ## RELIABILITY: live-price client coverage + parity-doc reconcile (v0.9.0.2)
 
 - **Hardened the live-price sidecar client** (`catalog/pricing/livePrice.ts`) with 8 new
