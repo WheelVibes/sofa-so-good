@@ -96,6 +96,7 @@ export function ToolsMenu() {
   const fSun = useFeature('sunStudy')
   const fReport = useFeature('report')
   const fMoodboard = useFeature('moodboard')
+  const fStyleTransfer = useFeature('styleTransfer')
   const fDxf = useFeature('dxfExport')
   const fBoq = useFeature('boq')
   const fQuoteTemplate = useFeature('quoteTemplate')
@@ -153,7 +154,16 @@ export function ToolsMenu() {
         fViewInAr ||
         fDrawingCallouts ||
         fShare ||
-        fMoodboard) && <div className="menu-label">Export & document</div>}
+        fMoodboard ||
+        fStyleTransfer) && <div className="menu-label">Export & document</div>}
+      {fStyleTransfer && (
+        <MenuItem
+          icon="Palette"
+          label="Style transfer"
+          sub="Restyle every room's floors, walls & palette"
+          onClick={() => useStore.getState().setStyleTransferOpen(true)}
+        />
+      )}
       {fShare && (
         <MenuItem
           icon="Share"

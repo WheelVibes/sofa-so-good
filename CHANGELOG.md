@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: in-engine one-tap style transfer (v0.9.0.5)
+
+- **New `styleTransfer` (pro) feature** — a curated library of interior styles (Scandinavian, Japandi,
+  Industrial, Coastal, Warm minimal); one tap restyles **every room's** floor + wall finish and sets
+  the master colour palette. All finishes are builtin procedural/CC0 → no downloads, prod-safe. The
+  consumer front-of-funnel "instant restyle" (Decor8/Havenly/Spoak parity), fully client-side.
+- **Single-undo apply:** new `finishesSlice.applyHomeStyle(floorId, wallId)` sets floor + wall for
+  every interior room across all storeys in **one** history entry (vs the two `setAll*` would push),
+  honouring "one logical action = one undo." Palette via `setMasterPalette`.
+- **Modular + tested:** pure `ui/styling/styleTransfer.ts` (`STYLE_PRESETS` data + `planStyleApply`)
+  with 6 unit tests, including a guard that every preset's floor/wall id exists in
+  `BUILTIN_MATERIALS` (catches typo'd ids). `ui/StyleTransferModal.tsx` is a presentational card grid.
+- **Wired + gated:** `styleTransfer` flag (pro, prod-safe; hidden in Simple — both-mode test), store
+  `styleTransferOpen` + setter, Tools menu + mobile ToolsSection entries (useFeature gated), ⌘K
+  command, lazy-loaded modal. New `style-transfer-simple.json` IXT scenario (Simple-hidden →
+  Pro-shown gate, apply → finish + palette change). Visually verified: the card grid renders and the
+  scene restyles. (Fixed a render bug found in visual review — cards used `.panel` which is
+  `position:absolute`, collapsing the grid; replaced with token-based inline styles.)
+
 ## FEATURE: before/after staging reveal (empty vs furnished) (v0.9.0.4)
 
 - **New `stagingReveal` (pro) feature** — a consumer-staging "before/after" reveal slider

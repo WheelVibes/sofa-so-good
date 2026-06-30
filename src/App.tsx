@@ -49,6 +49,7 @@ import {
   ShareModal,
   SmartStartWizard,
   StagingRevealModal,
+  StyleTransferModal,
   VersionsPanel,
 } from './ui/app/lazyComponents'
 import { preloadFeatureChunks } from './ui/app/preloadOnIdle'
@@ -109,6 +110,7 @@ export default function App() {
     hqRenderOpen: useStore((s) => s.hqRenderOpen),
     renderCompareOpen: useStore((s) => s.renderCompareOpen),
     stagingRevealOpen: useStore((s) => s.stagingRevealOpen),
+    styleTransferOpen: useStore((s) => s.styleTransferOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
     historyOpen: useStore((s) => s.historyOpen),
@@ -965,6 +967,11 @@ export default function App() {
         {lazyPanels.stagingRevealOpen ? (
           <Suspense fallback={null}>
             <StagingRevealModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.styleTransferOpen ? (
+          <Suspense fallback={null}>
+            <StyleTransferModal />
           </Suspense>
         ) : null}
         {lazyPanels.elevationsOpen ? (

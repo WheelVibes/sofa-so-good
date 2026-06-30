@@ -44,6 +44,9 @@ export const RenderCompareModal = lazyWithRetry(() =>
 export const StagingRevealModal = lazyWithRetry(() =>
   import('../StagingRevealModal').then((m) => ({ default: m.StagingRevealModal })),
 )
+export const StyleTransferModal = lazyWithRetry(() =>
+  import('../StyleTransferModal').then((m) => ({ default: m.StyleTransferModal })),
+)
 export const VersionsPanel = lazyWithRetry(() =>
   import('../VersionsPanel').then((m) => ({ default: m.VersionsPanel })),
 )

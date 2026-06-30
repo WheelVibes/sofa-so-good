@@ -84,6 +84,10 @@ export interface FinishesSlice {
   setAllFloorFinish: (id: MaterialId) => void
   setAllWallFinish: (id: MaterialId) => void
   setAllCeilingFinish: (id: MaterialId) => void
+  /** Apply a whole-home floor + wall finish in ONE undo step (one-tap style
+   *  transfer). Like setAllFloorFinish + setAllWallFinish but a single history
+   *  entry, since it's one logical action. */
+  applyHomeStyle: (floorId: MaterialId, wallId: MaterialId) => void
   setWallAccent: (key: string, id: MaterialId) => void
   clearWallAccent: (key: string) => void
 }
@@ -192,6 +196,25 @@ export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set,
         plan = planWithRoomFinish(plan, room.id, 'wall', id)
       }
       return { finishes: { ...s.finishes, walls }, floorPlan: plan }
+    })
+  },
+  applyHomeStyle: (floorId, wallId) => {
+    get().pushHistory()
+    // Set floor AND wall for every interior room across all storeys in one
+    // snapshot → a single undo reverts the whole style.
+    const rooms = allPlanRooms(get().floorPlan)
+    set((s) => {
+      const floor = { ...s.finishes.floor }
+      const walls = { ...s.finishes.walls }
+      let plan = s.floorPlan
+      for (const room of rooms) {
+        if (ROOMS[room.id as RoomId]?.external) continue
+        floor[room.id as RoomId] = floorId
+        walls[room.id as RoomId] = wallId
+        plan = planWithRoomFinish(plan, room.id, 'floor', floorId)
+        plan = planWithRoomFinish(plan, room.id, 'wall', wallId)
+      }
+      return { finishes: { ...s.finishes, floor, walls }, floorPlan: plan }
     })
   },
   setAllCeilingFinish: (id) => {

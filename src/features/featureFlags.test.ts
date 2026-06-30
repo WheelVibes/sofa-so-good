@@ -239,6 +239,15 @@ describe('Simple/Pro tiering', () => {
     expect(FEATURE_FLAGS.stagingReveal.default).toBe(true)
   })
 
+  it('styleTransfer (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').styleTransfer).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').styleTransfer).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').styleTransfer).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').styleTransfer).toBe(true)
+    expect(FEATURE_FLAGS.styleTransfer.tier).toBe('pro')
+    expect(FEATURE_FLAGS.styleTransfer.default).toBe(true)
+  })
+
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
     const simple = resolveFlags(true, { drawings: true }, false, 'simple')
     expect(simple.drawings).toBe(false)

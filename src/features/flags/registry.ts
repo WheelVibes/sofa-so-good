@@ -412,6 +412,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // One-tap style transfer — restyle every room's floor/wall finish + palette to
+  // a named look (Scandi/Japandi/Industrial/…). Pure data + builtin CC0 finishes,
+  // prod-safe, but an advanced design shortcut → pro tier.
+  styleTransfer: {
+    label: 'Style transfer',
+    description: 'One tap restyles every room’s floors, walls & palette to a curated look',
+    default: true,
+    tier: 'pro',
+  },
   // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
   // assets → prod-safe. Crown molding is a core finish detail visible in casual
   // use, so it belongs in Simple tier.

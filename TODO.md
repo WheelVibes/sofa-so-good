@@ -60,8 +60,19 @@ Confirmed NOT already shipped at audit time (grep-checked); re-confirm before st
 - ~~Before/after staging reveal~~ — **shipped v0.9.0.4** (`stagingReveal` flag; `ui/staging/stagingReveal.ts`
   + `ui/StagingRevealModal.tsx`; empty room vs furnished on a divider slider). See `CHANGELOG.md`.
 
-_All four 2026-06-30 candidates are now resolved (2 shipped, 1 deferred, 1 was already-shipped). Run a
-fresh proactive-research pass for the next batch._
+_First 2026-06-30 batch resolved (2 shipped, 1 deferred, 1 was already-shipped)._
+
+### Next batch (2026-06-30, grep-confirmed unbuilt; value-ranked)
+- ~~In-engine one-tap style transfer~~ — **shipped v0.9.0.5** (`styleTransfer` flag; pure
+  `ui/styling/styleTransfer.ts` 5 presets + `finishesSlice.applyHomeStyle`; `ui/StyleTransferModal.tsx`).
+  See `CHANGELOG.md`. **Next up: style/personality quiz onboarding.**
+- **Style/personality quiz onboarding** (consumer-parity) — a short 3–4 question quiz → a style preset
+  that seeds Smart Start. Builds on the style defs above. Pure scoring fn (answers → style) is
+  unit-testable; scenario drives the quiz → asserts the seeded style. M.
+- **Fast rasterized "preview render" tier** (Coohom M) — a high-quality single-frame raster capture as
+  the local analog to the 10-s cloud render (reuses `scene/captureCanvas`). Mostly a quality/post
+  preset + export; GPU-look fidelity is only partly verifiable headless, so verify the capture/export
+  wiring + flag gating. M.
 
 ## Process
 - Update this file every time a plan is designed or work is implemented (MEMORY.md feedback rule).

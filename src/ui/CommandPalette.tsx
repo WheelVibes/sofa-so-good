@@ -55,6 +55,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'hq-render': 'hqRender',
   'render-compare': 'renderCompare',
   'staging-reveal': 'stagingReveal',
+  'style-transfer': 'styleTransfer',
   'shopping-list': 'shopExport',
   'furniture-csv': 'shopExport',
   'room-schedule-csv': 'shopExport',
@@ -298,6 +299,13 @@ export function CommandPalette() {
         label: 'Before / after reveal — empty vs furnished',
         icon: 'Export',
         run: () => s().setStagingRevealOpen(true),
+      },
+      {
+        id: 'style-transfer',
+        group: 'Tools & panels',
+        label: 'Style transfer — restyle every room',
+        icon: 'Palette',
+        run: () => s().setStyleTransferOpen(true),
       },
       {
         id: 'ai-furnish',

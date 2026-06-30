@@ -129,13 +129,13 @@ name/price labels on the 2D plan** · **wall split/join/reverse** · **all-level
 8. Import SH3D **`.sh3f`** libraries + legacy archives; multi-language UI; plugin/extension API (SH3D) — large, lower near-term value.
 
 **Consumer/styling front-end (from the broader cluster research — context, not Coohom/SH3D):**
-style/personality **quiz onboarding** (powers Smart Start), **in-engine one-tap style
-transfer** (no API key — swap palette/materials/finishes to a named style using our
-procedural + CC0 assets). These are the consumer apps' (Spoak/Decor8/Havenly/DecorMatters)
-front-of-funnel edge and are all client-side feasible; the community/gamification/feed layer
-is ☁️ backend.
+style/personality **quiz onboarding** (powers Smart Start). This is the consumer apps'
+(Spoak/Decor8/Havenly/DecorMatters) front-of-funnel edge and is client-side feasible; the
+community/gamification/feed layer is ☁️ backend.
 _(Already shipped from this cluster: the **before/after reveal slider** — `stagingReveal`, empty
-room vs furnished design; and the shareable **design card** — the `moodboard` style-board export.)_
+room vs furnished design; the shareable **design card** — the `moodboard` style-board export; and
+**in-engine one-tap style transfer** — `styleTransfer`, restyle every room's floors/walls/palette to
+a named look using builtin CC0 finishes.)_
 
 ---
 

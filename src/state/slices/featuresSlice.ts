@@ -76,6 +76,8 @@ export interface FeaturesSlice {
   renderCompareOpen: boolean
   /** Before/after staging-reveal modal visibility (empty room vs furnished). */
   stagingRevealOpen: boolean
+  /** One-tap style-transfer modal visibility. */
+  styleTransferOpen: boolean
   /** An immersive-VR session is active/requested (mounts the XR provider). */
   vrActive: boolean
   /** Clearance & fit checks panel visibility. */
@@ -147,6 +149,7 @@ export interface FeaturesSlice {
   setHqRenderOpen: (open: boolean) => void
   setRenderCompareOpen: (open: boolean) => void
   setStagingRevealOpen: (open: boolean) => void
+  setStyleTransferOpen: (open: boolean) => void
   setVrActive: (active: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
   setElevationsOpen: (open: boolean) => void
@@ -190,6 +193,7 @@ export const FEATURES_INITIAL = {
   hqRenderOpen: false,
   renderCompareOpen: false,
   stagingRevealOpen: false,
+  styleTransferOpen: false,
   vrActive: false,
   clearancePanelOpen: false,
   elevationsOpen: false,
@@ -245,6 +249,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setHqRenderOpen: (hqRenderOpen) => set({ hqRenderOpen }),
   setRenderCompareOpen: (renderCompareOpen) => set({ renderCompareOpen }),
   setStagingRevealOpen: (stagingRevealOpen) => set({ stagingRevealOpen }),
+  setStyleTransferOpen: (styleTransferOpen) => set({ styleTransferOpen }),
   setVrActive: (vrActive) => set({ vrActive }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
   setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),

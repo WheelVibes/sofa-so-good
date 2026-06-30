@@ -909,6 +909,10 @@ same change that reshapes a system.
   injected canvas-capture + hidden-set deps, unit-tested; `ui/StagingRevealModal.tsx` captures the
   furnished view then transiently hides all furniture for the empty-room frame and shows the same
   reveal slider; `stagingReveal` flag, pro),
+  **One-tap style transfer** (`ui/styling/styleTransfer.ts` pure `STYLE_PRESETS` + `planStyleApply`,
+  unit-tested incl. a builtin-finish-id guard; `ui/StyleTransferModal.tsx` style-card grid →
+  `finishesSlice.applyHomeStyle` swaps every room's floor+wall in one undo + `setMasterPalette`;
+  `styleTransfer` flag, pro),
   **360° tour** (P-720: `panoTourSlice` stop list `{label,position,[levelId]}`
   persisted per-device to localStorage + encoded in share/save links (C261, optional field →
   back-compat); pure `ui/panorama/panoTour.ts` DERIVES room-to-room hotspots (yaw/pitch via
