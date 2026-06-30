@@ -97,13 +97,13 @@ name/price labels on the 2D plan** · **wall split/join/reverse** · **all-level
 **drag-to-reposition room-name labels** · **curved/arc walls** · **slanting walls** ·
 **sloping ceilings** · **baseboards/skirting on walls** · **room-name label rotation/font** ·
 **batch render of all saved cameras** · **fisheye/DoF lens on the render camera** ·
-**whole-scene OBJ/glTF/GLB/STL/USDZ export** · **SH3D `.sh3d` import (walls/rooms/furniture/openings)**.
+**whole-scene OBJ/glTF/GLB/STL/USDZ export** · **SH3D `.sh3d` import (walls/rooms/furniture/openings)** ·
+**keyboard wall-length/angle entry while drawing** (`wallNumericEntry`).
 
 ### Gaps & approach
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| Keyboard wall-length entry **while drawing** | ◑ | ✅ | Live numeric length/angle entry during wall draw (the exact-dims *edit dialog* + 15° angle-snap already ship). | M |
 | Import SH3D **`.sh3f` libraries** + legacy archives | ◑ | ✅ | `.sh3d` (Home.xml) walls/rooms/furniture/openings already import; remaining: `.sh3f` furniture libraries, legacy serialized (non-`Home.xml`) archives, exact sill from SH3D `elevation`. | L |
 | Multi-language UI (20+) | ❌ | ✅ | i18n framework + translations; large, pure-client, low near-term value for HDB focus. | L |
 | Plugin/extension API | ❌ | ✅ | Define a JS extension surface; large architectural effort, low near-term value. | L |
@@ -120,10 +120,9 @@ name/price labels on the 2D plan** · **wall split/join/reverse** · **all-level
 **High-value medium efforts (M):**
 1. Fast rasterized "preview render" tier (Coohom) — local analog to cloud 10-s render.
 2. Quote editable templates + price-rule library (Coohom) — CSV/XLSX export already ship.
-3. Keyboard wall-length / angle entry **while drawing** (SH3D) — edit dialog already ships.
-4. Day-to-night animated render clip (Coohom) — animate time-of-day along the video path.
-5. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
-6. AI matting / background removal for product cutouts (WASM segmentation).
+3. Day-to-night animated render clip (Coohom) — animate time-of-day along the video path.
+4. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
+5. AI matting / background removal for product cutouts (WASM segmentation).
 
 **Marquee large efforts (L):**
 7. **AI floor-plan generation** (text → plan, Coohom, 🔑 BYO-key).

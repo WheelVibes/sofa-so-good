@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RELIABILITY: live-price client coverage + parity-doc reconcile (v0.9.0.2)
+
+- **Hardened the live-price sidecar client** (`catalog/pricing/livePrice.ts`) with 8 new
+  deterministic tests for the previously-untested paths of this external-data client: successful-result
+  caching (same key never re-fetches), failed-lookup null-caching (no retry storms), network-throw →
+  cached null, per-retailer cache keying, concurrent in-flight dedup (one shared fetch), `/health`
+  probe caching + reset-forces-reprobe, sidecar-down on `/health` throw, and default-retailer fallback
+  when `/health` omits the list. All green — regression protection for the untrusted retailer-offer
+  path (offer URLs already render through `safeUrl` in `BudgetPanel`, SEC-001).
+- **Reconciled `FEATURE_PARITY.md` drift:** removed the stale "keyboard wall-length entry while
+  drawing" gap row — it shipped as `wallNumericEntry` (flag + `floorplan/wallNumericEntry.ts` +
+  editor overlay + tests) — folding it into the SH3D parity summary and dropping it from the roadmap.
+- Verified (and rejected) a flagged `formatLength` "banker's-rounding" bug — JS `Math.round` rounds
+  halves toward +∞, so the imperial formatter is correct; no change. Docs/tests-only (no app code).
+
 ## PWA-UPDATE: confirm-to-update flow with progress feedback (v0.9.0.1)
 
 - **Checks on open + confirms before reloading.** Switched `vite-plugin-pwa` from `registerType:
