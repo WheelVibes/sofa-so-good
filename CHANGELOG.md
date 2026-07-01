@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: gate the accent-wall picker behind a feature flag (v0.9.0.23)
+
+- Hard-rule compliance ("no feature ships ungated"): the `WallAccentPicker` — the panel that paints
+  one wall face a different finish from the rest of the room (a feature/accent wall), opened by
+  clicking a wall in the room editor — shipped with **no feature flag at all**. Added the
+  **`wallAccentPicker`** flag (`simple`, default on — a common casual design move) and gated both
+  ends: the panel mounts only when the flag is on, and the wall-face click that selects a wall is
+  a no-op when off (the face also drops its clickable cursor, so nothing hints at an unavailable
+  action). Behaviour is unchanged in the default on-state.
+- Tests: `WallAccentPicker.test.tsx` — flag is simple + on in BOTH modes; panel mounts on
+  wall-select when on, renders nothing when off (even with a wall selected) or when no wall is
+  selected.
+
 ## FEATURE: ceiling finish in the per-room picker — wire a dead flag (v0.9.0.22)
 
 - Customizability: the per-room `FinishPicker` (shown when a room is selected) now has a **Ceiling**

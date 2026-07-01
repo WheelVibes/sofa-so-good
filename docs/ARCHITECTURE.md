@@ -195,7 +195,8 @@ same change that reshapes a system.
   sampling with tangent yaw; Pro-only via `pathArray` flag), **scatter-fill room**
   (`inspector/ScatterFillSection.tsx` → pure `layout/scatterInRoom.ts` — evenly fills the
   selected item's room with N collision-safe copies on a packed grid, deterministic by seed;
-  Pro-only via `scatterFill` flag)), FinishPicker, WallAccentPicker, GraphicsSettings,
+  Pro-only via `scatterFill` flag)), FinishPicker, WallAccentPicker (paint one wall face an accent
+  finish, opened by a wall-face click; `wallAccentPicker` flag), GraphicsSettings,
   BudgetPanel, NavCluster,
   CommandPalette, **ContextMenu** (dynamic right-click menu — `featuresSlice.ContextTarget`
   carries what was right-clicked; `ContextMenu.tsx` rebuilds actions per target + selection:

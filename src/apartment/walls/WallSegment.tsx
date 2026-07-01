@@ -481,15 +481,17 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const selectWall = useStore((s) => s.selectWall)
   const selectedWall = useStore((s) => s.selectedWall)
   const crownMolding = useFeature('crownMolding')
+  const accentWalls = useFeature('wallAccentPicker')
   // Cheap baked wall/floor corner AO (RD-403): feature flag AND the per-tier
   // quality setting (on for performance/medium, off on high+ where SSAO runs).
   const cornerAoFlag = useFeature('cornerAo')
   const cornerAoQuality = useQuality().cornerAo
   const cornerAoOn = cornerAoFlag && cornerAoQuality
   // Accent-wall finishing is editing, so it's only reachable inside the room
-  // editor (orbit). Outside it, wall-face clicks do nothing (view-only).
+  // editor (orbit) AND when the `wallAccentPicker` feature is on. Otherwise a
+  // wall-face click does nothing (view-only / feature disabled).
   const selectWallIfEditing = (wallId: string, roomId: RoomId) => {
-    if (canEditScene(useStore.getState())) selectWall(wallId, roomId)
+    if (accentWalls && canEditScene(useStore.getState())) selectWall(wallId, roomId)
   }
 
   return (
@@ -550,7 +552,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                       materialId={positiveMat}
                       roomId={span.positive ?? undefined}
                       onSelect={
-                        span.positive
+                        span.positive && accentWalls
                           ? () => selectWallIfEditing(wall.id, span.positive!)
                           : undefined
                       }
@@ -595,7 +597,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                       materialId={negativeMat}
                       roomId={span.negative ?? undefined}
                       onSelect={
-                        span.negative
+                        span.negative && accentWalls
                           ? () => selectWallIfEditing(wall.id, span.negative!)
                           : undefined
                       }

@@ -1,5 +1,6 @@
 import { useShallow } from 'zustand/react/shallow'
 import type { RoomId } from '../apartment/types'
+import { useFeature } from '../features/useFeature'
 import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
 import type { MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
@@ -23,6 +24,7 @@ function swatchImage(m: MaterialDef): string | undefined {
  * clears the override so the wall follows the room default again.
  */
 export function WallAccentPicker() {
+  const enabled = useFeature('wallAccentPicker')
   const selectedWall = useStore((s) => s.selectedWall)
   const wallAccents = useStore(useShallow((s) => s.finishes.wallAccents))
   const roomWall = useStore(useShallow((s) => s.finishes.walls))
@@ -32,7 +34,7 @@ export function WallAccentPicker() {
   const plan = useStore((s) => s.floorPlan)
   const materials = useMaterials()
 
-  if (!selectedWall) return null
+  if (!enabled || !selectedWall) return null
   const key = `${selectedWall.wallId}:${selectedWall.roomId}`
   const roomName = roomDisplayName(selectedWall.roomId, plan)
   const current = wallAccents[key] ?? roomWall[selectedWall.roomId as RoomId]

@@ -444,6 +444,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Paint a single wall face a different finish (a feature/accent wall) by
+  // clicking it in the room editor. Pure per-wall finish state, prod-safe; a
+  // common casual design move → Simple tier, default on.
+  wallAccentPicker: {
+    label: 'Accent walls',
+    description: 'Click a wall to paint it a different finish from the rest of the room',
+    default: true,
+    tier: 'simple',
+  },
   // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
   // assets → prod-safe. Crown molding is a core finish detail visible in casual
   // use, so it belongs in Simple tier.
