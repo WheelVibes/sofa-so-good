@@ -123,8 +123,26 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
 > follow-ups: ~~keyboard cheat-sheet~~ **shipped v0.9.0.18** (`?` / ⌘K "Keyboard shortcuts"). ~~Silent
 > synonym search~~ — smart synonym/intent search + "No matches" empty state were already shipped; the
 > hidden **search-by-room** intent now shows a "Showing <room> furniture" caption (**v0.9.0.19**).
-> Remaining: one-time-only
-> onboarding). Candidates for a later UX pass, lower priority than the deeper-interaction work above.
+> ~~Inspector buttons don't advertise their hotkeys~~ — **shipped v0.9.0.20** (`title` tooltips
+> w/ shortcut hints on Rotate/Flip/Duplicate/Delete). Remaining: one-time-only onboarding replay
+> (lower priority).
+
+### Vetted customizability / UX candidates (2026-07-01 Explore audit, source-verified absent)
+Each grep-confirmed missing; re-confirm before starting. Ranked value×feasibility:
+- **Live dimension readout during multi-select resize** (M) — the `ResizeGizmo` (2+ items only;
+  single items resize via inspector sliders) has no live W×D feedback. `DragHud` is position-only
+  (returns null for groups). Add a resize-drag signal + a HUD pill showing the group's live W×D.
+  Flag `itemDimensionReadout` (simple). Note: single-item resize already shows metres in the
+  inspector Size section, so scope this to the group-resize gizmo.
+- **Unified room-customization panel** (M–L) — ceiling / baseboard / wall-accent finishes exist but
+  are spread across separate pickers/modals (`ceilingFinish`, `wallBaseboard`, `wallAccentPicker`
+  flags all present). A compact per-room panel (floor+wall+ceiling+baseboard+accent) would cut
+  click-away friction. Needs a room-select signal on 3D wall/floor click (may not exist — verify).
+  Flag `roomCustomizationPanel` (simple). Higher effort + risk (new panel + selection wiring).
+- **2D-plan finish drag-and-drop** (S–M) — `finishDnd` drag-to-apply works in 3D
+  (`scene/FinishDropSurface`) but NOT in the 2D plan editor. Add plan drop-zones reusing
+  `finishDrop` + `setRoomFinish`/`setWallFinish`. Reuses the `finishDnd` flag (no new flag). Lower
+  reach (many users never open the 2D editor); drag-drop is fiddly to verify headlessly.
 
 ## Process
 - Update this file every time a plan is designed or work is implemented (MEMORY.md feedback rule).

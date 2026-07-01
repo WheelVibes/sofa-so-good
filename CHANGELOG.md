@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## POLISH: shortcut hints on inspector action buttons (v0.9.0.20)
+
+- Discoverability: the inspector's action buttons (Rotate / Flip H / Flip V / Duplicate / Delete)
+  now carry `title` tooltips that spell out their keyboard shortcuts — "Rotate 90° (R · Shift for
+  15°)", "Flip left–right (F)", "Duplicate (Ctrl D)", etc. — sourced from `KEYBINDINGS` via
+  `shortcutLabel` so they never drift. Complements the v0.9.0.18 "?" overlay (surfacing shortcuts
+  right where the action is), and matches the existing descriptive tooltips already on Face-room /
+  Centre. An affordance enhancement to existing buttons (like their neighbours' titles) — no new
+  flag. Verified: DOM-probed every action button's rendered `title`.
+
 ## FEATURE: reveal "search by room" with a results caption (v0.9.0.19)
 
 - Discoverability: catalog search already understood room/use intent (`searchSynonyms.ts` —

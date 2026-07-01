@@ -22,6 +22,7 @@ import { CategoryIcon } from '../catalog/CategoryIcon'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
+import { shortcutLabel } from '../toolbar/shortcuts'
 import { GltfBody } from './GltfBody'
 import { IesProfilePicker } from './IesProfilePicker'
 import { IkeaBody } from './IkeaBody'
@@ -535,7 +536,13 @@ export function InspectorPanel() {
                     their window — no rotate/flip; only duplicate/lock/delete. */}
                 {!def.windowBound ? (
                   <>
-                    <button type="button" className="act" onClick={rotate90} disabled={item.locked}>
+                    <button
+                      type="button"
+                      className="act"
+                      onClick={rotate90}
+                      disabled={item.locked}
+                      title={`Rotate 90° (${shortcutLabel('rotate')} · Shift for 15°)`}
+                    >
                       <Icon.Rotate width={16} height={16} />
                       Rotate
                     </button>
@@ -544,6 +551,7 @@ export function InspectorPanel() {
                       className={`act${item.flipX ? ' on' : ''}`}
                       onClick={() => flip('x')}
                       disabled={item.locked}
+                      title={`Flip left–right (${shortcutLabel('flip')})`}
                     >
                       <Icon.FlipH width={16} height={16} />
                       Flip H
@@ -553,13 +561,19 @@ export function InspectorPanel() {
                       className={`act${item.flipZ ? ' on' : ''}`}
                       onClick={() => flip('z')}
                       disabled={item.locked}
+                      title={`Flip front–back (Shift ${shortcutLabel('flip')})`}
                     >
                       <Icon.FlipV width={16} height={16} />
                       Flip V
                     </button>
                   </>
                 ) : null}
-                <button type="button" className="act" onClick={duplicate}>
+                <button
+                  type="button"
+                  className="act"
+                  onClick={duplicate}
+                  title={`Duplicate (${shortcutLabel('duplicateSelected')})`}
+                >
                   <Icon.Copy width={16} height={16} />
                   Duplicate
                 </button>
@@ -567,6 +581,7 @@ export function InspectorPanel() {
                   type="button"
                   className={`act${item.locked ? ' on' : ''}`}
                   onClick={() => toggleLock(item.id)}
+                  title={item.locked ? 'Unlock — allow moving & editing' : 'Lock in place'}
                 >
                   {item.locked ? (
                     <Icon.Lock width={16} height={16} />
@@ -580,6 +595,7 @@ export function InspectorPanel() {
                   className="act danger"
                   onClick={() => !item.locked && deleteItem(item.id)}
                   disabled={item.locked}
+                  title="Delete this item (Del)"
                 >
                   <Icon.Trash width={16} height={16} />
                   Delete
