@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract the WallHandlesLayer from FloorPlanEditor (v0.9.0.59)
+
+- De-monolith step 13: moved the **selected-wall reshape handles** (two endpoint grab dots + the
+  rotation ring & knob) into `editor/layers/WallHandlesLayer.tsx` via pure prop code-motion; the
+  parent still gates on edit mode + select tool + a selected wall. FloorPlanEditor 2949 → 2865 lines
+  (−1406 total from 4271).
+- Behaviour-preserving: tsc + full suite green; an **interactive** scenario selects a wall and
+  confirms its handles render (2 endpoint dots + 1 rotation ring).
+
 ## REFACTOR: extract the FurnitureRotateHandle from FloorPlanEditor (v0.9.0.58)
 
 - De-monolith step 12: moved the **single-selected furniture rotate handle** (ring + facing knob

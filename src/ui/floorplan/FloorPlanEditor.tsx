@@ -58,6 +58,7 @@ import { OpeningsLayer } from './editor/layers/OpeningsLayer'
 import { PolylinesLayer } from './editor/layers/PolylinesLayer'
 import { RoomsLayer } from './editor/layers/RoomsLayer'
 import { TourStopsLayer } from './editor/layers/TourStopsLayer'
+import { WallHandlesLayer } from './editor/layers/WallHandlesLayer'
 import { WallsLayer } from './editor/layers/WallsLayer'
 import { type MarqueeItem, type MarqueeRect, marqueeSelect } from './editor/marqueeSelect'
 import { PlanLibrary } from './editor/PlanLibrary'
@@ -2621,103 +2622,18 @@ export function FloorPlanEditor() {
                 />
               )}
 
-              {/* Selected-wall handles: drag the body to move (connected corners
-                follow), drag an end handle to extend/shorten that end, or drag
-                the rotate handle (offset from the midpoint) to rotate. */}
-              {editMode === 'edit' &&
-                tool === 'select' &&
-                sel?.type === 'wall' &&
-                (() => {
-                  const w = levelPlan.walls.find((x) => x.id === sel.id)
-                  if (!w || w.locked) return null // locked: no reshape/rotate handles
-                  const sx = toPx(w.start[0])
-                  const sy = toPx(w.start[1])
-                  const ex = toPx(w.end[0])
-                  const ey = toPx(w.end[1])
-                  const mpx = (sx + ex) / 2
-                  const mpy = (sy + ey) / 2
-                  const L = Math.hypot(ex - sx, ey - sy) || 1
-                  const npx = -(ey - sy) / L
-                  const npy = (ex - sx) / L
-                  // Rotation ring radius — encircles the wall (like the furniture
-                  // rotate gizmo), with a floor so short walls still get a grabbable ring.
-                  const ringR = Math.max(L / 2 + 16, 30)
-                  const startRotate = (e: React.PointerEvent) => {
-                    e.stopPropagation()
-                    const [gx, gz] = pointerWorld(e)
-                    const cx = (w.start[0] + w.end[0]) / 2
-                    const cz = (w.start[1] + w.end[1]) / 2
-                    setRotatingWall({
-                      id: w.id,
-                      cx,
-                      cz,
-                      s0: [...w.start],
-                      e0: [...w.end],
-                      a0: Math.atan2(gz - cz, gx - cx),
-                    })
-                    svgRef.current?.setPointerCapture(e.pointerId)
-                  }
-                  return (
-                    <>
-                      {(['start', 'end'] as const).map((which) => {
-                        const p = w[which]
-                        return (
-                          <circle
-                            key={which}
-                            cx={toPx(p[0])}
-                            cy={toPx(p[1])}
-                            r={6}
-                            fill="var(--accent)"
-                            stroke="var(--surface-solid)"
-                            strokeWidth={2}
-                            style={{ cursor: 'grab' }}
-                            onPointerDown={(e) => {
-                              e.stopPropagation()
-                              setMovingVertex({ id: w.id, which })
-                              svgRef.current?.setPointerCapture(e.pointerId)
-                            }}
-                          />
-                        )
-                      })}
-                      {/* Rotation ring — grab anywhere on the ring (or its knob) to
-                        rotate the wall about its centre, like the furniture rotate
-                        gizmo. A fat transparent ring makes the stroke easy to grab;
-                        `pointerEvents: 'stroke'` keeps the ring's interior
-                        click-through so elements inside stay selectable. */}
-                      <circle
-                        cx={mpx}
-                        cy={mpy}
-                        r={ringR}
-                        fill="none"
-                        stroke="transparent"
-                        strokeWidth={18}
-                        style={{ cursor: 'grab', pointerEvents: 'stroke' }}
-                        onPointerDown={startRotate}
-                      />
-                      <circle
-                        cx={mpx}
-                        cy={mpy}
-                        r={ringR}
-                        fill="none"
-                        stroke="var(--accent)"
-                        strokeOpacity={0.5}
-                        strokeWidth={2}
-                        strokeDasharray="4 4"
-                        style={{ pointerEvents: 'none' }}
-                      />
-                      <circle
-                        cx={mpx + npx * ringR}
-                        cy={mpy + npy * ringR}
-                        r={7}
-                        fill="var(--surface-solid)"
-                        stroke="var(--accent)"
-                        strokeWidth={2}
-                        style={{ cursor: 'grab' }}
-                        onPointerDown={startRotate}
-                      />
-                    </>
-                  )
-                })()}
+              {/* Selected-wall reshape handles: endpoint grab dots + rotation ring
+                (see WallHandlesLayer). */}
+              {editMode === 'edit' && tool === 'select' && sel?.type === 'wall' && (
+                <WallHandlesLayer
+                  wall={levelPlan.walls.find((x) => x.id === sel.id)}
+                  toPx={toPx}
+                  svgRef={svgRef}
+                  pointerWorld={pointerWorld}
+                  setMovingVertex={setMovingVertex}
+                  setRotatingWall={setRotatingWall}
+                />
+              )}
 
               {/* Openings — architectural symbols (door swing / window double-line) */}
               <OpeningsLayer
