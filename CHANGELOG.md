@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract the NotesLayer + PolylinesLayer render layers from FloorPlanEditor (v0.9.0.55)
+
+- De-monolith step 9: moved two more active-storey annotation layers into their own components via
+  pure prop code-motion — `editor/layers/NotesLayer.tsx` (Text-tool labels: halo-outlined text,
+  click-to-select + drag) and `editor/layers/PolylinesLayer.tsx` (Polyline-tool open/closed paths:
+  optional dash + end arrowhead, fat hit target, click-to-select). FloorPlanEditor 3408 → 3340 lines
+  (−931 total from 4271).
+- Behaviour-preserving: tsc + full suite green (the only red was 4 unrelated load-timeout flakes —
+  collision/planShare/materials/appliances — all green re-run in isolation). An **interactive**
+  scenario adds a note and a polyline and confirms clicking each still selects it (`planSelection` →
+  that note / polyline id).
+
 ## REFACTOR: extract the DimensionsLayer render layer from FloorPlanEditor (v0.9.0.54)
 
 - De-monolith step 8: moved the active-storey **dimension lines** SVG layer (each Dimension-tool

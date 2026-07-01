@@ -10,7 +10,6 @@ import { defaultDoorSwing, doorSwing } from '../../floorplan/doorSwing'
 import { traceBuildingOutline } from '../../floorplan/footprint'
 import { GROUND_LEVEL_ID, levelAsPlan, levelById, levelOfItem } from '../../floorplan/levels'
 import { planIntegrityFlags } from '../../floorplan/planIntegrity'
-import { polylinePointsAttr } from '../../floorplan/polyline'
 import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { isSlopedWall, slopedWallHeights } from '../../floorplan/slopedWall'
@@ -56,7 +55,9 @@ import {
 import { GridLines } from './editor/GridLines'
 import { LevelMenu } from './editor/LevelMenu'
 import { DimensionsLayer } from './editor/layers/DimensionsLayer'
+import { NotesLayer } from './editor/layers/NotesLayer'
 import { OpeningsLayer } from './editor/layers/OpeningsLayer'
+import { PolylinesLayer } from './editor/layers/PolylinesLayer'
 import { RoomsLayer } from './editor/layers/RoomsLayer'
 import { WallsLayer } from './editor/layers/WallsLayer'
 import { type MarqueeItem, type MarqueeRect, marqueeSelect } from './editor/marqueeSelect'
@@ -2753,44 +2754,17 @@ export function FloorPlanEditor() {
 
               {/* Text notes (active storey) — PARITY-DIMTEXT. Click (select tool)
                 to select + drag; edit/delete in the inspector. */}
-              {(plan.notes ?? [])
-                .filter((nt) => (nt.levelId ?? GROUND_LEVEL_ID) === levelId)
-                .map((nt) => {
-                  const selected = sel?.type === 'note' && sel.id === nt.id
-                  return (
-                    <text
-                      key={nt.id}
-                      x={toPx(nt.x)}
-                      y={toPx(nt.z)}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      className="plan-note"
-                      style={{
-                        cursor: tool === 'select' ? 'move' : 'crosshair',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        fill: selected ? 'var(--accent)' : 'var(--text)',
-                        paintOrder: 'stroke',
-                        stroke: 'var(--surface)',
-                        strokeWidth: 3,
-                        strokeLinejoin: 'round',
-                      }}
-                      onPointerDown={(e) => {
-                        if (tool !== 'select') return
-                        const willMove = beginElementDrag(
-                          e,
-                          sel?.type === 'note' && sel.id === nt.id,
-                        )
-                        useStore.getState().setPlanSelection({ type: 'note', id: nt.id })
-                        if (!willMove) return
-                        const [wx, wz] = pointerWorld(e)
-                        setMovingNote({ id: nt.id, gx: wx - nt.x, gz: wz - nt.z })
-                      }}
-                    >
-                      {nt.text}
-                    </text>
-                  )
-                })}
+              <NotesLayer
+                notes={(plan.notes ?? []).filter(
+                  (nt) => (nt.levelId ?? GROUND_LEVEL_ID) === levelId,
+                )}
+                sel={sel}
+                toPx={toPx}
+                tool={tool}
+                beginElementDrag={beginElementDrag}
+                pointerWorld={pointerWorld}
+                setMovingNote={setMovingNote}
+              />
 
               {/* Dimension lines (active storey) — PARITY-DIMTEXT. Drawn with the
                 Dimension tool; click to select, delete in the inspector. */}
@@ -2809,57 +2783,14 @@ export function FloorPlanEditor() {
               {/* Polyline annotations (active storey) — PARITY-POLYLINE. Drawn
                 with the Polyline tool; click to select, edit/delete in the
                 inspector. Open paths can carry an end arrowhead. */}
-              {(plan.polylines ?? [])
-                .filter((p) => (p.levelId ?? GROUND_LEVEL_ID) === levelId)
-                .map((p) => {
-                  const selected = sel?.type === 'polyline' && sel.id === p.id
-                  const project = ([x, z]: [number, number]): [number, number] => [toPx(x), toPx(z)]
-                  const ptsAttr = polylinePointsAttr(p.points, project)
-                  const stroke = selected ? 'var(--accent)' : 'var(--text-2)'
-                  const Shape = p.closed ? 'polygon' : 'polyline'
-                  // Arrowhead at the final point of an open path: a small filled
-                  // triangle aligned with the last segment's direction.
-                  let arrowPts: string | null = null
-                  if (p.arrow && !p.closed && p.points.length >= 2) {
-                    const [ex, ey] = project(p.points[p.points.length - 1])
-                    const [sx, sy] = project(p.points[p.points.length - 2])
-                    const dx = ex - sx
-                    const dy = ey - sy
-                    const L = Math.hypot(dx, dy) || 1
-                    const ux = dx / L
-                    const uy = dy / L
-                    const size = 11
-                    const bx = ex - ux * size
-                    const by = ey - uy * size
-                    const nx = -uy
-                    const ny = ux
-                    arrowPts = `${ex},${ey} ${bx + nx * size * 0.45},${by + ny * size * 0.45} ${bx - nx * size * 0.45},${by - ny * size * 0.45}`
-                  }
-                  return (
-                    <g
-                      key={p.id}
-                      style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
-                      onPointerDown={(e) => {
-                        if (tool !== 'select') return
-                        e.stopPropagation()
-                        useStore.getState().setPlanSelection({ type: 'polyline', id: p.id })
-                      }}
-                    >
-                      {/* Fat invisible hit target so the thin path is easy to click. */}
-                      <Shape points={ptsAttr} fill="none" stroke="transparent" strokeWidth={12} />
-                      <Shape
-                        points={ptsAttr}
-                        fill="none"
-                        stroke={stroke}
-                        strokeWidth={selected ? 2.5 : 2}
-                        strokeLinejoin="round"
-                        strokeLinecap="round"
-                        strokeDasharray={p.dashed ? '6 4' : undefined}
-                      />
-                      {arrowPts && <polygon points={arrowPts} fill={stroke} />}
-                    </g>
-                  )
-                })}
+              <PolylinesLayer
+                polylines={(plan.polylines ?? []).filter(
+                  (p) => (p.levelId ?? GROUND_LEVEL_ID) === levelId,
+                )}
+                sel={sel}
+                toPx={toPx}
+                tool={tool}
+              />
 
               {/* Walls (active storey) */}
               <WallsLayer
