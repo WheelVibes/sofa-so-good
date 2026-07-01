@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract usePlanViewport from the FloorPlanEditor monolith (v0.9.0.49)
+
+- De-monolith step 3 (the big one): lifted the entire **viewport** concern — fit-to-screen base
+  scale (`basePX` from a measured `ResizeObserver` size), user zoom (wheel via a native non-passive
+  listener, pinch, ± buttons — all cursor/centre-anchored with the post-zoom scroll re-anchor), the
+  pannable scroll container, `centerPlan` fit, `resetView`, and the metre↔pixel scale (`PX`/`toPx`/
+  `W`/`H`) — into `editor/usePlanViewport.ts`. The pan/pinch **gestures stay in the editor's shared
+  pointer dispatch**, which reads the returned refs (`svgRef`/`canvasRef`/`panRef`/`panDidMove`/
+  `touchPts`/`pinch`/`zoomRef`). Introduced `resetView()` so the "100%" button no longer reaches into
+  `setZoom`/`pendingScroll`. **FloorPlanEditor 4109 → 3927 lines (−344 total across steps 1–3).**
+- Pure code-motion — behaviour-preserving: tsc green, full suite + 724 floorplan tests green, and a
+  live editor scenario confirms zoom (100% → 140% via the buttons), reset (→ 100%), and the plan
+  visibly re-rendering at the new scale. Added a `usePlanViewport.test.tsx` smoke test (initial
+  scale, the `toPx` metre→pixel mapping, and the returned refs/handlers).
+
 ## DOCS: record the FloorPlanEditor de-monolith plan + remaining steps (v0.9.0.48)
 
 - Logged MOD-FPE-SPLIT progress + the remaining plan in `TASKS.md`: the two safely-isolated concerns

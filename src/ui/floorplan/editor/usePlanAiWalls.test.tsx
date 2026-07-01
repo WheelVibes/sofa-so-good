@@ -33,7 +33,10 @@ const BACKDROP: Backdrop = {
 
 beforeEach(() => {
   useStore.getState().__resetForTest?.()
-  for (const f of Object.values(ai)) if (typeof f === 'object' && 'mockReset' in f) f.mockReset()
+  ai.classifyVisionEndpoint.mockReset()
+  ai.getVisionKey.mockReset()
+  ai.recognizeFloorPlan.mockReset()
+  ai.setVisionKey.mockReset()
   ai.getVisionUrl.mockReturnValue('https://api.example.com')
 })
 
