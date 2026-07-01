@@ -65,6 +65,7 @@ export type FeatureFlag =
   | 'styleTransfer'
   | 'styleQuiz'
   | 'shortcutsHelp'
+  | 'itemDimensionReadout'
   | 'crownMolding'
   | 'windowGlassTint'
   | 'curtainLightEffect'

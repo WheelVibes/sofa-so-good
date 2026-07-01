@@ -129,11 +129,9 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
 
 ### Vetted customizability / UX candidates (2026-07-01 Explore audit, source-verified absent)
 Each grep-confirmed missing; re-confirm before starting. Ranked value×feasibility:
-- **Live dimension readout during multi-select resize** (M) — the `ResizeGizmo` (2+ items only;
-  single items resize via inspector sliders) has no live W×D feedback. `DragHud` is position-only
-  (returns null for groups). Add a resize-drag signal + a HUD pill showing the group's live W×D.
-  Flag `itemDimensionReadout` (simple). Note: single-item resize already shows metres in the
-  inspector Size section, so scope this to the group-resize gizmo.
+- ~~Live dimension readout during multi-select resize~~ — **shipped v0.9.0.21**
+  (`itemDimensionReadout` flag, simple; `scene/selection/resizeReadoutSignal.ts` module signal +
+  `ui/ResizeHud.tsx` pill; `ResizeGizmo` publishes the live box W×D on drag). See `CHANGELOG.md`.
 - **Unified room-customization panel** (M–L) — ceiling / baseboard / wall-accent finishes exist but
   are spread across separate pickers/modals (`ceilingFinish`, `wallBaseboard`, `wallAccentPicker`
   flags all present). A compact per-room panel (floor+wall+ceiling+baseboard+accent) would cut

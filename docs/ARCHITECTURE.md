@@ -231,7 +231,9 @@ same change that reshapes a system.
 - **Multi-select transforms & layering** (Canva parity): a multi-selection (`selectedItemIds`)
   moves/rotates/flips/**resizes** as one unit in BOTH editors — 3D via `DragController` (rigid
   translate) + `RotateGizmo` (centroid pivot + `enclosingRadius` ring) + `ResizeGizmo` (floor corner
-  handles, uniform scale about the opposite corner) + keyboard F/R; 2D via the editor's
+  handles, uniform scale about the opposite corner; publishes the live selection **W×D** to
+  `scene/selection/resizeReadoutSignal.ts` — a module signal read by the bottom-centre `ui/ResizeHud`
+  pill, `itemDimensionReadout` flag, so the group scales to a target size) + keyboard F/R; 2D via the editor's
   `movingItem` group-drag + a unified dashed bounding box with a `rotatingMulti` rotation ring
   (reusing `scene/selection/rotateGizmoMath`) and `scalingMulti` corner resize handles (uniform
   `props.scale` about the opposite corner). **Grouping** (`groupsSlice`, `furnitureGroups` flag)

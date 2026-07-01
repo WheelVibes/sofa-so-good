@@ -81,6 +81,7 @@ import { Onboarding } from './ui/Onboarding'
 import { PresentationMode } from './ui/PresentationMode'
 import { PromptModal } from './ui/PromptModal'
 import { QuoteTemplateModal } from './ui/QuoteTemplateModal'
+import { ResizeHud } from './ui/ResizeHud'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
 import { SwapModal } from './ui/SwapModal'
 import { TapeModeToggle } from './ui/TapeModeToggle'
@@ -888,6 +889,7 @@ export default function App() {
           <MarqueeSelector />
           <NavCluster />
           <DragHud />
+          <ResizeHud />
           <BudgetHud />
           <TapeModeToggle />
           <Crosshair />

@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: live dimension readout while group-resizing (v0.9.0.21)
+
+- Customizability: the multi-select `ResizeGizmo` (2+ items, orbit + select) now shows a live
+  **width × depth** pill (bottom-centre `.hud-pill`) as you drag a corner handle, so a block of
+  furniture can be scaled to a target size — the group-resize gesture previously gave no numeric
+  size feedback (single items already show metres in the inspector's Size section, so this is
+  scoped to the group case). Respects the user's unit system (metric "3.60 × 3.40 m" / imperial
+  "11′ 10″ × 11′ 2″" via `formatDims`).
+- Plumbing: `scene/selection/resizeReadoutSignal.ts` — a module-level `useSyncExternalStore` signal
+  (same rationale as `finishDragSignal`: a resize fires many `pointermove` ticks/sec; routing each
+  through the store would wake the RenderPump per event). `ResizeGizmo` publishes the live box W×D
+  (unioning every selected member's footprint PARTS — matches the true-geometry gizmo box) on each
+  move and clears on release/unmount; `ui/ResizeHud.tsx` reads it.
+- Flag: **`itemDimensionReadout`** (`simple`, default on — a core sizing affordance; enabled in
+  BOTH Simple and Pro). Self-gated via `useFeature`.
+- Tests: signal unit test (publish/clear/notify/dedup) + `ResizeHud` render test (hidden when
+  idle, hidden when flag off, metric + imperial dims) + flag both-mode test. Visually verified the
+  pill (metric + imperial) via a temporary signal hook, then reverted the hook.
+
 ## POLISH: shortcut hints on inspector action buttons (v0.9.0.20)
 
 - Discoverability: the inspector's action buttons (Rotate / Flip H / Flip V / Duplicate / Delete)

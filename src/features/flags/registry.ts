@@ -435,6 +435,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Live width × depth pill while group-resizing a multi-selection (the resize
+  // gizmo otherwise gives no size feedback). Pure DOM overlay off a signal, no
+  // GPU/assets → prod-safe; a core sizing affordance → Simple tier.
+  itemDimensionReadout: {
+    label: 'Resize dimensions',
+    description: 'Show live width × depth while resizing a group of items',
+    default: true,
+    tier: 'simple',
+  },
   // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
   // assets → prod-safe. Crown molding is a core finish detail visible in casual
   // use, so it belongs in Simple tier.
