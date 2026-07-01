@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type OBB, obbCorners, obbVsObb, obbVsSegment, type Segment } from './obb'
+import { type OBB, obbCorners, obbMtv, obbVsObb, obbVsSegment, type Segment } from './obb'
 
 const aabb = (cx: number, cz: number, w: number, d: number): OBB => ({
   cx,
@@ -56,5 +56,54 @@ describe('obb math', () => {
     const o: OBB = { cx: 0, cz: 0, hx: 0.5, hz: 0.5, rot: 0 }
     const s: Segment = { ax: 2, az: 0, bx: 3, bz: 0 }
     expect(obbVsSegment(o, s)).toBe(false)
+  })
+})
+
+describe('obbMtv (minimum translation vector for soft push-apart)', () => {
+  it('returns null when the boxes do not overlap', () => {
+    expect(obbMtv(aabb(0, 0, 1, 1), aabb(5, 0, 1, 1))).toBeNull()
+  })
+
+  it('returns null when boxes merely touch (gap == 0 is not penetration)', () => {
+    // A spans x∈[-0.5,0.5], B spans x∈[0.5,1.5] — edges coincide, no overlap.
+    expect(obbMtv(aabb(0, 0, 1, 1), aabb(1, 0, 1, 1))).toBeNull()
+  })
+
+  it('pushes A along the shallow axis by the penetration depth', () => {
+    // A@(0,0) B@(0.8,0), both 1×1 → overlap 0.2 on X, none-to-spare on Z (1.0).
+    const mtv = obbMtv(aabb(0, 0, 1, 1), aabb(0.8, 0, 1, 1))
+    expect(mtv).not.toBeNull()
+    if (!mtv) return
+    expect(mtv.depth).toBeCloseTo(0.2)
+    // Min-penetration axis is X; A is left of B, so it's pushed further −X.
+    expect(Math.abs(mtv.nx)).toBeCloseTo(1)
+    expect(mtv.nz).toBeCloseTo(0)
+    expect(mtv.nx).toBeLessThan(0)
+  })
+
+  it('orients the push away from B (A on the right → +X)', () => {
+    const mtv = obbMtv(aabb(0.8, 0, 1, 1), aabb(0, 0, 1, 1))
+    expect(mtv?.nx).toBeGreaterThan(0)
+  })
+
+  it('picks the axis of least penetration when they differ', () => {
+    // X overlap = 1.0−0.9 = 0.1; Z overlap = 1.0−0.2 = 0.8 → choose X (0.1).
+    const mtv = obbMtv(aabb(0, 0, 1, 1), aabb(0.9, 0.2, 1, 1))
+    expect(mtv?.depth).toBeCloseTo(0.1)
+    expect(Math.abs(mtv?.nx ?? 0)).toBeCloseTo(1)
+  })
+
+  it('is a unit separation axis (nx,nz normalised)', () => {
+    // A x∈[-1,1]; B@1.3 x∈[0.8,1.8] → overlaps by 0.2 on X (genuinely penetrating).
+    const mtv = obbMtv(aabb(0, 0, 2, 1), aabb(1.3, 0.3, 1, 1))
+    expect(mtv).not.toBeNull()
+    if (!mtv) return
+    expect(Math.hypot(mtv.nx, mtv.nz)).toBeCloseTo(1)
+  })
+
+  it('handles fully coincident boxes (max penetration, still non-null)', () => {
+    const mtv = obbMtv(aabb(0, 0, 1, 1), aabb(0, 0, 1, 1))
+    expect(mtv).not.toBeNull()
+    expect(mtv?.depth).toBeCloseTo(1)
   })
 })

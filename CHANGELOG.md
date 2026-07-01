@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TESTS: cover obbMtv (soft push-apart MTV) (v0.9.0.39)
+
+- `collision/obb.ts` `obbMtv` — the minimum-translation-vector used by the soft push-apart nudge
+  (v0.9.0.17) — had no test. Added 7 cases: null when separated, null when boxes merely touch
+  (gap 0 ≠ penetration), pushes A along the shallow axis by the penetration depth, orients the push
+  away from B (both directions), picks the axis of least penetration when axes differ, returns a
+  unit separation axis, and handles fully-coincident boxes (max penetration, still non-null).
+- No bug found — regression safety for the push-apart geometry. (One initial fixture failure
+  actually confirmed the correct touch=null behaviour.)
+
 ## TESTS: cover the door-aware collision wall builder (v0.9.0.38)
 
 - `collision/wallsFromState.ts` `buildCollisionWalls(doorState)` — shared by first-person camera +
