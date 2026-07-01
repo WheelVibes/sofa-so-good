@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: Layers-panel group hide/lock eyes unreachable on mobile (v0.9.0.32)
+
+- Same hover-reveal trap as v0.9.0.31, swept for across the CSS: the Layers panel's group-header
+  **hide-all** / **lock-all** eyes (`.lyr-geye`) are `opacity: 0` until `.lyr-ghead-row:hover`. On
+  touch (no hover) you can't turn a group hidden/locked in the first place — and only the resulting
+  `.on` state is visible, so it's a chicken-and-egg like the catalog heart. Shown always + enlarged
+  to 30px on mobile. Verified 30×30, `opacity: 1`, eyes visible on the group header at 390px.
+- Audit of the remaining `:hover`→`opacity:1` reveals: the per-item row actions (`.lyr-acts`) already
+  have a `.sel` (tap-to-select) fallback, and the rest (`.tip`, `.mi-help`, `.ci-help`) are
+  non-essential help hints appropriately hidden on touch — no further action.
+
 ## FIX: catalog favourite/stamp buttons unreachable on mobile (v0.9.0.31)
 
 - Real mobile bug found during the deep-dive: the catalog card's **favourite ♥** and **stamp**

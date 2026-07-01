@@ -354,6 +354,11 @@ body.mobile {
   .fav-btn, .stamp-btn { opacity: 1; width: 32px; height: 32px; }
   .stamp-btn { top: 44px; }
 
+  /* Same hover-reveal trap on the Layers panel's group hide-all / lock-all eyes
+     (`.lyr-geye`): opacity:0 until `.lyr-ghead-row:hover`, so on touch you can't
+     turn a group hidden/locked in the first place. Show + enlarge them on mobile. */
+  .lyr-geye { opacity: 1; width: 30px; height: 30px; }
+
   /* ============================================================
      SCREEN: 2D Floor Plan
      ============================================================ */
