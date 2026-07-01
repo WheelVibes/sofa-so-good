@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TESTS: cover the door-aware collision wall builder (v0.9.0.38)
+
+- `collision/wallsFromState.ts` `buildCollisionWalls(doorState)` — shared by first-person camera +
+  placement collision to decide "what's solid right now" — was untested. Added `wallsFromState.test.ts`
+  (6 cases): produces segments for the built-in flat, every segment has positive length + thickness,
+  opening doors removes wall span (less solid length than all-closed, but walls don't vanish),
+  a single open door only shortens, output is deterministic, and an empty door-state falls back to
+  each door's `defaultOpen`.
+- No bug found — regression safety for core collision infrastructure.
+
 ## TESTS: cover the plan geometry helpers in floorplan/types.ts (v0.9.0.37)
 
 - Robustness/coverage pass. `src/floorplan/types.ts` holds 10 pure geometry helpers used app-wide
