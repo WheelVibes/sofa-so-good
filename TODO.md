@@ -1,11 +1,13 @@
 # TODO
 
-Legacy deferred-work log. **`CHANGELOG.md` is the source of truth for what shipped** — when an
-item ships it is removed from here entirely. Only genuinely-open work remains below; the bulk of
-this file's historical audit-wave / reconciliation content has been pruned (it all shipped).
+Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth for what shipped;
+when an item ships it is **removed from this file entirely**. Maintainability refactors live in
+`TASKS.md`.
 
-> **Maintainability refactors** (MOD-PLANINSPECTOR-SPLIT, MOD-MOBILETOOLBAR-SPLIT) are tracked in
-> `TASKS.md` under "Open — client-doable".
+> Direction (user, 2026-07-01): prioritise the **core interior-design loop + its UX,
+> discoverability, customizability** (furnish, arrange, finish, view) on desktop **and** mobile,
+> researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
+> Avoid pricing/quotes/analytics deliverables unless asked.
 
 ## ⛔ Production-infra-blocked — need a DEPLOYED host/backend, not app code
 The dev paths already work (Vite reverse proxy, dev-gated providers); only the *production*
@@ -42,132 +44,41 @@ Auto-advancing in-world clock; window-glass tinting affecting shadow colour; loc
 probes; directional door-bleed weighting; real-time path-traced GI/RTX (revisit only with affordable
 WebGPU path tracing).
 
-## Proactive-research candidates — client-feasible + headless-verifiable (2026-06-30 audit)
-Vetted next-iteration targets surfaced when the active backlog proved thin/GPU-or-backend-blocked.
-Each is pure-client, unit/scenario-verifiable without a real GPU or network, and value-ranked.
-Confirmed NOT already shipped at audit time (grep-checked); re-confirm before starting.
-- ~~Toast auto-dismiss pause-on-hover/focus~~ — **ALREADY SHIPPED** (verified 2026-07-01). The
-  `NotificationContainer` already tracks a `pausedIds` set + per-toast remaining-ms ref
-  (`remainingRef`/`startedAtRef`), pausing on `onMouseEnter`/`onFocus` and resuming on
-  `onMouseLeave`/`onBlur`, banking elapsed time so the budget freezes/resumes (WCAG 2.2.1). This
-  audit note was stale — not a gap.
-- **`livePrices` IXT scenario** — **DEFERRED (user, 2026-06-30).** The feature is dev-only +
-  network/sidecar-bound (lower user value), and a headless scenario would need a new dev-only
-  `window.__priceSidecarStub` lever in `livePrice.ts` purely for the test. The unit-level coverage
-  added in v0.9.0.2 already exercises the client logic; revisit only if the sidecar path regresses.
-- ~~Shareable "design card"~~ — **already shipped** as the **moodboard** (F19, `ui/moodboard.ts` +
-  `openMoodboard.ts`; flag `moodboard` "Shareable style-board export"): hero snapshot + palette +
-  materials strip + furniture tiles → print/share HTML. Not a gap.
-- ~~Before/after staging reveal~~ — **shipped v0.9.0.4** (`stagingReveal` flag; `ui/staging/stagingReveal.ts`
-  + `ui/StagingRevealModal.tsx`; empty room vs furnished on a divider slider). See `CHANGELOG.md`.
+## Deferred candidates
+- **`livePrices` IXT scenario** — deferred (user, 2026-06-30): dev-only + network/sidecar-bound
+  (lower value), and a headless scenario would need a new dev-only `window.__priceSidecarStub` lever
+  in `livePrice.ts` purely for the test. Unit coverage already exercises the client logic; revisit
+  only if the sidecar path regresses.
+- **Fast rasterized "preview render" tier** (Coohom parity) — a local analog to the 10-s cloud
+  render. Deferred as an analytics/deliverable, not core design UX.
 
-_First 2026-06-30 batch resolved (2 shipped, 1 deferred, 1 was already-shipped)._
+## Open — core interactions
+- **More composite footprints (round/oval tables).** `footprintParts` is a **union** of OBBs (can
+  only *add* area), so it can't carve corners off a square to make an octagon/disc. A round-table
+  approx needs either a new *intersection*/polygon footprint primitive, or a coarse cross of
+  inscribed rects (leaves diagonal gaps). Low priority + needs a design decision. (No U-sofa /
+  corner desk / peninsula in the catalog today.)
+- **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
+  would be a new interaction. Doors already animate (could ease the linear swing curve — low value).
+- **Live slide during drag** (optional, higher-risk) — item hugs walls/furniture in real time, not
+  just on release; more invasive in `DragController`'s per-move snapping. (Drag inertia: skip —
+  hurts placement precision.)
 
-### Next batch (2026-06-30, grep-confirmed unbuilt; value-ranked)
-- ~~In-engine one-tap style transfer~~ — **shipped v0.9.0.5** (`styleTransfer`). See `CHANGELOG.md`.
-- ~~Style/personality quiz~~ — **shipped v0.9.0.6** (`styleQuiz` flag; pure `ui/styling/styleQuiz.ts`
-  `scoreQuiz` + `ui/StyleQuizModal.tsx`; recommends + applies a `STYLE_PRESETS` look). _Tail: deeper
-  Smart Start integration (seed the wizard from the quiz result) remains optional._ See `CHANGELOG.md`.
-- ~~Configurable price-rule library~~ — **shipped v0.9.0.8** (`priceRules` flag;
-  `analysis/renovationCost.ts` `PriceRules`; editor in `QuoteTemplateModal`). Closed parity gap M#2.
-- **Fast rasterized "preview render" tier** (Coohom M) — local analog to the 10-s cloud render.
-  Deferred under the direction change below (it's an analytics/deliverable, not core design UX).
-
-## ⭐ DIRECTION CHANGE (2026-07-01, user) — focus on CORE INTERIOR-DESIGN UX
-> "Instead of price and quotes, focus **solely on the core interior-design aspects and interactions**
-> that make a good interior-design tool. Make it more **user-friendly, intuitive, easy to use,
-> discoverable, customizable**, following modern UI/UX & design principles, curated for **both desktop
-> and mobile**. Research the tools in `REFERENCES.md` for inspiration + best practices."
-
-Next iterations target **the core design loop + its UX/discoverability/customizability** (furnish,
-arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytics deliverables. Research
-`REFERENCES.md` (Coohom, Planner 5D, IKEA Kreativ, Sweet Home 3D, …) before designing each change.
-
-### Deeper core interactions (user 2026-07-01 #2: "granular collision, animations, realistic physics")
-- ~~Granular shape-aware collision~~ — **shipped v0.9.0.9** (`footprintParts` convex decomposition +
-  `itemFootprintParts`; any-part-vs-any-part SAT; L-sofa main-run+chaise). Infra reusable.
-  Follow-ups: broadphase AABB unions parts (v0.9.0.11 fix); **selection + placement tint follows the
-  granular polygon** (v0.9.0.13, `itemFootprintPartsLocal`) so the highlight matches the collision shape.
-- **More composite footprints** — apply `footprintParts` to other non-rectangular pieces.
-  Done: L-sofa (v0.9.0.9), corner base cabinet (v0.9.0.10) + the true spanning box drives the
-  selection/resize handles (v0.9.0.14). Remaining candidates: **round/oval tables** — but note
-  `footprintParts` is a **union** of OBBs, which can only *add* area, so it cannot carve the 4
-  corners off a bounding square to make an octagon/disc. A round-table approx needs either (a) a
-  new *intersection*/polygon footprint primitive, or (b) accepting a coarse cross/plus of inscribed
-  rects (leaves diagonal gaps). Low priority + needs a design decision, not a quick decomposition.
-  No U-sofa / corner desk / peninsula in the catalog today.
-- **Animations** — door/drawer open-close easing (some exists: curtains/blinds ease in demand mode),
-  smooth placement "drop-in" + selection transitions. Mostly pure state→transition; verify state
-  transitions headless, smoothness by eye. M.
-  - ~~Eased camera transitions~~ — **shipped v0.9.0.12** (`scene/cameras/cameraTween.ts`: smoothstep
-    + distance-aware `flyDurationFor`; focus/top/home/saved-view all route through one `startFly`).
-  - ~~Placement "drop-in" easing~~ — **shipped v0.9.0.15** (`scene/placementDrop.ts` central animator:
-    `beginDrop` at commit + `registerDropGroup` per item + one mounted `<PlacementDropAnimator>`
-    mutating only dropping groups' Y; no per-item `useFrame`). Pure timing unit-tested + verified live.
-  - ~~Selection scale-in~~ — **shipped v0.9.0.16** (`scene/selection/selectionAppear.ts`; outline +
-    tint ease 0.9→1 over 130 ms on select).
-  - Door/drawer/cabinet open-close easing: **doors already animate** (linear swing 0.2 s in
-    `Door.tsx`/`PlanDoorLeaf.tsx`) — could ease the curve, low value. Cabinet drawers/doors don't
-    open at all (static fronts) — opening them would be a new feature, not just easing.
-- **Realistic physics (light touch)** — gravity-settle on drop (rest on the surface below — partial via
-  `surfaceDrop.ts`), drag inertia/easing, soft collision nudge (push-apart) rather than hard block.
-  Scope carefully: a design tool wants *predictable* placement, so physics must aid, not fight, the
-  user. Pure math core = verifiable; keep it opt-in/subtle. L.
-  - ~~Soft push-apart on drop~~ — **shipped v0.9.0.17** (`obbMtv` MTV + `nudgeToValid`; invalid single-item
-    drop nudges to the nearest valid spot, bounded ≤0.4 m, verified by `canPlace`). Wired in `DragController`.
-  - Remaining (optional, higher-risk): **live** slide during drag (item hugs walls/furniture in real
-    time, not just on release) — more invasive in `DragController`'s per-move snapping; drag inertia
-    (skip — hurts precision). Gravity-settle already covered by `surfaceDrop.ts`.
-
-> Audit note (2026-07-01): the core loop is already mature — align/distribute, apply-finish-to-all-rooms,
-> numeric+90° rotate, saved cameras, smart-guides, height-aware collision all exist. Discoverability
-> follow-ups: ~~keyboard cheat-sheet~~ **shipped v0.9.0.18** (`?` / ⌘K "Keyboard shortcuts"). ~~Silent
-> synonym search~~ — smart synonym/intent search + "No matches" empty state were already shipped; the
-> hidden **search-by-room** intent now shows a "Showing <room> furniture" caption (**v0.9.0.19**).
-> ~~Inspector buttons don't advertise their hotkeys~~ — **shipped v0.9.0.20** (`title` tooltips
-> w/ shortcut hints on Rotate/Flip/Duplicate/Delete). Remaining: one-time-only onboarding replay
-> (lower priority).
-
-### Mobile/touch deep-dive findings (2026-07-01)
-Core flows verified clean at 390px + 320px (no horizontal overflow): overview, room editor,
-single/multi inspector (min+expanded), finish picker (floor/wall/ceiling), menu bottom-sheet,
-catalog tap/long-press placement. Fixed: isolated small tap targets (modal close/back, toast
-dismiss, multi-select clear-tint) → 44px (**v0.9.0.28**). Remaining candidate (needs a design
-call, not forced):
-- ~~Enlarge finish swatches on mobile~~ — **shipped v0.9.0.30** (`body.mobile .swatches .swatch`
-  26 → 40px; finish-picker groups + designer picks + accent picker; desktop unchanged; the large
-  `.swatch-lg` grid was already fine). Verified 40×40, ~7/row at 390px, no overflow. See `CHANGELOG.md`.
-
-### Accessibility (2026-07-01 keyboard/SR audit)
-Shipped: consistent `:focus-visible` ring across all controls (**v0.9.0.33**); CreditsModal rebuilt
-on the shared `Modal` (**v0.9.0.34**). Remaining candidates from the audit (each grep-verified):
-- ~~Wire up `CreditsModal`~~ — **shipped v0.9.0.41** (`assetCredits` flag; "Asset credits" entry in
-  the shared `AppearanceControls` → desktop popover + mobile menu; `creditsOpen` in featuresSlice;
-  mounted in App). See `CHANGELOG.md`.
-- ~~Popover focus restore~~ — **shipped v0.9.0.35** (Escape returns focus to the trigger `anchorRef`,
-  standard menu-button pattern; not on outside pointer-down). See `CHANGELOG.md`.
-- ~~Mobile bottom-sheet (MobileToolbar) Escape + guard~~ — **shipped v0.9.0.36** (Escape closes +
-  `useModalGuard`). A full focus-trap on the sheet remains optional (very low value on touch).
-- Verified NOT gaps: ParametricDialog + ConfiguratorDialog already handle Escape; Modal has full
-  focus trap/restore + Escape; row-level layer actions have a tap-select fallback.
-
-### Vetted customizability / UX candidates (2026-07-01 Explore audit, source-verified absent)
-Each grep-confirmed missing; re-confirm before starting. Ranked value×feasibility:
-- ~~Live dimension readout during multi-select resize~~ — **shipped v0.9.0.21**
-  (`itemDimensionReadout` flag, simple; `scene/selection/resizeReadoutSignal.ts` module signal +
-  `ui/ResizeHud.tsx` pill; `ResizeGizmo` publishes the live box W×D on drag). See `CHANGELOG.md`.
-- **Unified room-customization panel** — PARTLY DONE. Rather than a parallel new panel, the existing
-  per-room `FinishPicker` (already floor + wall, opens on room select — the `selectedRoomId` signal
-  DOES exist) became the unified surface panel by **adding a Ceiling section** (**shipped v0.9.0.22**,
-  wiring the previously-dead `ceilingFinish` flag; no new flag needed). Remaining, if pursued:
-  fold **baseboard** (today 2D-plan-inspector only, `wallBaseboard` flag) and a **per-room wall-accent**
-  editor (today only via clicking a single wall face, `WallAccentPicker`, unflagged) into the same
-  picker. Baseboard is keyed per-wall (not per-room) so it needs a per-room aggregation decision;
-  wall-accent is per-`wallId:roomId`. Medium effort, lower incremental value than the ceiling gap was.
+## Open — customizability / UX
+- **Fold baseboard + per-room wall-accent into the FinishPicker.** The per-room `FinishPicker` now
+  covers floor + wall + ceiling; baseboard is 2D-plan-inspector only (`wallBaseboard`, keyed
+  per-wall → needs a per-room aggregation decision) and wall-accent is only via clicking a single
+  wall face (`WallAccentPicker`, per-`wallId:roomId`). Medium effort, lower incremental value.
 - **2D-plan finish drag-and-drop** (S–M) — `finishDnd` drag-to-apply works in 3D
-  (`scene/FinishDropSurface`) but NOT in the 2D plan editor. Add plan drop-zones reusing
-  `finishDrop` + `setRoomFinish`/`setWallFinish`. Reuses the `finishDnd` flag (no new flag). Lower
-  reach (many users never open the 2D editor); drag-drop is fiddly to verify headlessly.
+  (`scene/FinishDropSurface`) but not the 2D plan editor. Add plan drop-zones reusing `finishDrop`
+  + `setRoomFinish`/`setWallFinish` (reuses the `finishDnd` flag). Lower reach (many users never
+  open the 2D editor); drag-drop is fiddly to verify headlessly. Note: 2D room polygons are SVG, so
+  the `ui/CLAUDE.md` "drop zones must be `<div>`" rule needs a workaround.
+
+## Open — accessibility (very low value, optional)
+- **Full focus-trap on the mobile menu sheet** (`MobileToolbar`) — Escape-close + `useModalGuard`
+  ship; a Tab focus-trap remains, but keyboard-on-touch is rare.
 
 ## Process
-- Update this file every time a plan is designed or work is implemented (MEMORY.md feedback rule).
+- Update this file whenever work is planned/deferred; remove items entirely once shipped (they live
+  in `CHANGELOG.md`).

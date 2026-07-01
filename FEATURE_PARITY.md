@@ -9,13 +9,13 @@ classic 2D-plan→3D-furnish workflow) — and turns the gaps into a prioritised
 
 > **Method.** Each competitor's current (2025-2026) feature set was inventoried from
 > its live app + help/docs/blog/reviews. Every feature is scored against what we
-> already ship (per `docs/ARCHITECTURE.md` + `FEATURE_FLAGS`). This file is **gaps +
-> approach + effort**, not a brag sheet — features we already match are summarised,
-> not enumerated row-by-row.
+> already ship (per `docs/ARCHITECTURE.md` + `FEATURE_FLAGS`). This file lists **only
+> open gaps** (+ approach + effort) — features we already match are recorded in
+> `CHANGELOG.md` / `docs/ARCHITECTURE.md`, not enumerated here.
 >
-> **Maintenance.** When a gap ships, **delete its row** from the tables below and fold
-> it into the relevant "Already at parity (✅)" summary (and drop it from the roadmap),
-> so the gap tables stay an accurate to-do list and we never re-audit shipped work.
+> **Maintenance.** When a gap ships, **delete its row** from the tables below (and from
+> the roadmap in §3) — shipped work lives in `CHANGELOG.md` only, so the gap tables stay
+> an accurate to-do list and we never re-audit shipped work.
 
 **Legend** — _Have_: ✅ at parity · ◑ partial · ❌ missing. _Feasible_: ✅ pure
 client-side · ☁️ needs a backend/cloud or accounts · 🔑 client-side but needs a
@@ -37,23 +37,6 @@ production integration). We already **match or exceed** it on parametric modelin
 wide margin — **design analysis** (design score, HDB compliance, accessibility,
 daylight, renovation cost; Coohom has none of these). The valuable client-side gaps
 are interaction/productivity features, plus the AI auto-layout family.
-
-### Already at parity (✅) — not gaps
-Photoreal still render · 360° panorama · 720°/linked panorama tour · 2D plan editor
-(walls/rooms/doors/windows) · precise dimensioning · elevations · auto 3D→2D drawing
-set · material/finish schedule (FF&E) · PDF export · DXF export · BOM/quotation (BOQ) ·
-shoppable buy-list · GLB/OBJ/FBX/STL import · floor-plan image backdrop · texture
-upload · mobile/touch · plan templates · parametric kitchen cabinets · parametric
-wardrobe/shelving/sideboard · free custom modeling (CSG designer) · pinned comments ·
-version history · BYO-key AI photo restyle + style variants · **replace-with-similar
-model swap** · **smart/semantic catalog search** · **section/cross-section drawings** ·
-**plumbing plan layer** · **render denoiser (HQ path-trace)** · **one-click
-render/lighting presets (day/night/mood)** · **BYO-key AI auto-furnish (text brief →
-layout)** · **drawing-set sheet/layer toggles (choose which sheets to include)** ·
-**on-plan text callouts on the report + drawing-set sheets** ·
-**quotation CSV + Excel (.xlsx) export** · **8K tiled still render** · **IES photometric
-light import** · **keyframed walkthrough video export** · **AR "view in your room" (iOS
-Quick Look)** · **all analysis tools (we exceed)**.
 
 ### Gaps & approach
 
@@ -78,27 +61,6 @@ remaining edge is its **precise-CAD drafting** (curved/slanting walls, sloping
 ceilings), its **first-class on-plan annotations** (styled dimension lines, text,
 polylines), and its iconic **video flythrough** export.
 
-### Already at parity (✅) — not gaps
-Straight-wall draw + chain · per-wall thickness · wall snapping/magnetism · wall edit
-dialog (exact dims) · room floor/ceiling finishes · room-area display · multi-level
-tabs (per-level elevation/height) · categorized drag-drop catalog · OBJ/FBX/STL import ·
-furniture groups · furniture edit dialog · resize/deform · orbit + first-person walk ·
-saved cameras · sky/backdrop · path-traced render w/ quality levels · sun by
-date/time/geo + North · metric & imperial units · tape/area measure · undo/redo ·
-reference backdrop (scale/locate/opacity) · printable plan + 3D + list · raster (PNG)
-export · **CSV furniture-list export** · **SVG plan export** · **first-class
-dimension-line objects** · **on-plan text notes** · **polyline annotations
-(open/closed, dashed, arrow)** · **rotatable North/compass widget** · **walk
-FOV/eye-height controls** · **auto-detect room (double-click)** ·
-**furniture-as-light-source into render** · **per-furniture lock** · **furniture
-name/price labels on the 2D plan** · **wall split/join/reverse** · **all-levels
-(dimmed) overlay + duplicate-level** · **turntable + keyframed video recording (WebM)** ·
-**drag-to-reposition room-name labels** · **curved/arc walls** · **slanting walls** ·
-**sloping ceilings** · **baseboards/skirting on walls** · **room-name label rotation/font** ·
-**batch render of all saved cameras** · **fisheye/DoF lens on the render camera** ·
-**whole-scene OBJ/glTF/GLB/STL/USDZ export** · **SH3D `.sh3d` import (walls/rooms/furniture/openings)** ·
-**keyboard wall-length/angle entry while drawing** (`wallNumericEntry`).
-
 ### Gaps & approach
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
@@ -114,28 +76,19 @@ name/price labels on the 2D plan** · **wall split/join/reverse** · **all-level
 > Shipped items are removed from this list as they land (see `CHANGELOG.md`); this
 > section tracks only what is still open.
 
-**Quick wins (S):** _(all shipped — see `CHANGELOG.md`)_
-
 **High-value medium efforts (M):**
 1. Fast rasterized "preview render" tier (Coohom) — local analog to cloud 10-s render.
 2. Day-to-night animated render clip (Coohom) — animate time-of-day along the video path.
 3. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
 4. AI matting / background removal for product cutouts (WASM segmentation).
-   _(Shipped: quote editable templates + the **configurable price-rule library** — `priceRules`,
-   `analysis/renovationCost.ts` `PriceRules`; see `CHANGELOG.md`.)_
 
 **Marquee large efforts (L):**
-7. **AI floor-plan generation** (text → plan, Coohom, 🔑 BYO-key).
-8. Import SH3D **`.sh3f`** libraries + legacy archives; multi-language UI; plugin/extension API (SH3D) — large, lower near-term value.
+5. **AI floor-plan generation** (text → plan, Coohom, 🔑 BYO-key).
+6. Import SH3D **`.sh3f`** libraries + legacy archives; multi-language UI; plugin/extension API (SH3D) — large, lower near-term value.
 
-**Consumer/styling front-end (from the broader cluster research — context, not Coohom/SH3D):**
-The remaining consumer front-of-funnel edge (Spoak/Decor8/Havenly/DecorMatters) is the
-community/gamification/feed layer, which is ☁️ backend (out of scope).
-_(Shipped from this cluster: the **before/after reveal slider** — `stagingReveal`, empty room vs
-furnished design; the shareable **design card** — the `moodboard` style-board export; **in-engine
-one-tap style transfer** — `styleTransfer`, restyle every room to a named look using builtin CC0
-finishes; and the **style/personality quiz** — `styleQuiz`, a short quiz that recommends + applies a
-style.)_
+**Consumer/styling front-end (context, not Coohom/SH3D):** the remaining consumer front-of-funnel
+edge (Spoak/Decor8/Havenly/DecorMatters) is the community/gamification/feed layer, which is ☁️
+backend (out of scope).
 
 ---
 

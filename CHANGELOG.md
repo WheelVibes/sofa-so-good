@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: purge shipped items from the backlog/roadmap trackers (v0.9.0.42)
+
+- Per user request — shipped work belongs only in `CHANGELOG.md`, so the living backlog/roadmap docs
+  now list **open items only**:
+  - `TODO.md` — rewrote to open-only (removed every `~~struck~~`/"shipped vX"/"already shipped" entry
+    and the audit-batch framing; kept infra-blocked, asset-pipeline, risk, deferred, and open
+    core-interaction/UX/a11y items).
+  - `TASKS.md` — stripped the embedded "(Shipped: …)" parentheticals from the open items.
+  - `FEATURE_PARITY.md` — removed both "Already at parity (✅)" shipped summaries + the "(all
+    shipped)"/"(Shipped: …)" roadmap notes; kept the gap tables + method/legend/out-of-scope.
+  - `PHOTOREALISM.md` — removed the "## Shipped" section; kept the open roadmap.
+  - `docs/research/sweethome3djs-feature-analysis.md` — collapsed the ✅-heavy gap table + the phased
+    roadmap's shipped items to the remaining gaps only.
+- Left untouched: `CHANGELOG.md` (the source of truth for shipped) and `docs/superpowers/plans/*`
+  (historical implementation-plan artifacts whose checkbox history is their execution record, not a
+  living backlog).
+
 ## FEATURE: wire up the asset-credits viewer (v0.9.0.41)
 
 - Closes the loose end from v0.9.0.34: `CreditsModal` was built + made accessible but **mounted
