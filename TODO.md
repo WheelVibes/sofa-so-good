@@ -138,6 +138,20 @@ call, not forced):
   26 → 40px; finish-picker groups + designer picks + accent picker; desktop unchanged; the large
   `.swatch-lg` grid was already fine). Verified 40×40, ~7/row at 390px, no overflow. See `CHANGELOG.md`.
 
+### Accessibility (2026-07-01 keyboard/SR audit)
+Shipped: consistent `:focus-visible` ring across all controls (**v0.9.0.33**); CreditsModal rebuilt
+on the shared `Modal` (**v0.9.0.34**). Remaining candidates from the audit (each grep-verified):
+- **Wire up `CreditsModal`** — it's fully built + now accessible + tested, but **not mounted
+  anywhere** (no menu/About entry opens it). Per-item attribution already shows in the inspector, so
+  it's optional; a global "Asset credits / About" entry (e.g. in the ☰ menu or a Help surface) would
+  surface bundled CC-BY attributions in one place. Small; needs a menu entry + feature flag.
+- **Popover focus restore** (`ui/toolbar/Popover.tsx`) — has Escape + outside-click close but doesn't
+  restore focus to the trigger on close (keyboard users lose their place). Small.
+- **Mobile bottom-sheet (MobileToolbar) Escape + focus** — no Escape-to-close / focus trap on the
+  mobile menu sheet (rare on touch, but a keyboard-on-mobile gap). Medium.
+- Verified NOT gaps: ParametricDialog + ConfiguratorDialog already handle Escape; Modal has full
+  focus trap/restore + Escape; row-level layer actions have a tap-select fallback.
+
 ### Vetted customizability / UX candidates (2026-07-01 Explore audit, source-verified absent)
 Each grep-confirmed missing; re-confirm before starting. Ranked value×feasibility:
 - ~~Live dimension readout during multi-select resize~~ — **shipped v0.9.0.21**

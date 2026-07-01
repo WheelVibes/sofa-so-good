@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CreditsModal } from './CreditsModal'
 
@@ -46,5 +46,26 @@ describe('CreditsModal', () => {
     await waitFor(() => expect(screen.getByText(/Armchair/)).toBeInTheDocument())
     expect(screen.getByText(/Oak/)).toBeInTheDocument()
     expect(screen.getAllByText(/CC0/).length).toBeGreaterThan(0)
+  })
+
+  // A11Y (v0.9.0.34): rebuilt on the shared Modal → dialog role + Escape close.
+  it('exposes a dialog role with the title when open', () => {
+    render(<CreditsModal open onClose={() => {}} />)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('Asset credits')).toBeInTheDocument()
+  })
+
+  it('closes on Escape', () => {
+    const onClose = vi.fn()
+    render(<CreditsModal open onClose={onClose} />)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes when the header Close button is clicked', () => {
+    const onClose = vi.fn()
+    render(<CreditsModal open onClose={onClose} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalled()
   })
 })

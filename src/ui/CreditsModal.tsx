@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { withBase } from '../utils/assetUrl'
 import { safeUrl } from '../utils/safeUrl'
+import { Modal } from './Modal'
 
 interface CreditEntry {
   id: string
@@ -29,46 +30,33 @@ export function CreditsModal({ open, onClose }: Props) {
       .then(setCredits)
       .catch(() => setCredits({ furniture: [], materials: [] }))
   }, [open])
-  if (!open) return null
+  // Built on the shared Modal primitive so it gets Escape-to-close, a focus
+  // trap + focus restore, `role="dialog"`/`aria-modal`, and the global hotkey
+  // guard for free (A11Y — it was previously a bare overlay lacking all of these).
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="panel max-h-[80vh] w-full max-w-lg overflow-y-auto p-4 text-sm"
-        style={{ color: 'var(--text)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="panel-title mb-2 text-lg">Asset credits</h2>
-        {credits ? (
-          <>
-            <Section title="Furniture" entries={credits.furniture} />
-            <Section title="Materials" entries={credits.materials} />
-            {credits.furniture.length === 0 && credits.materials.length === 0 && (
-              <div className="space-y-2" style={{ color: 'var(--text-2)' }}>
-                <p>
-                  All built-in furniture and finishes are{' '}
-                  <span className="font-medium">generated procedurally on-device</span> — no
-                  third-party assets are bundled, so none need attribution.
-                </p>
-                <p>
-                  Assets you download from the in-app libraries (Poly Haven, ambientCG, Kenney — all
-                  CC0) are credited on each item&rsquo;s catalog card.
-                </p>
-              </div>
-            )}
-          </>
-        ) : (
-          <p>Loading…</p>
-        )}
-        <button
-          type="button"
-          onClick={onClose}
-          className="btn btn-soft"
-          style={{ marginTop: 'var(--s-3)' }}
-        >
-          Close
-        </button>
-      </div>
-    </div>
+    <Modal open={open} onClose={onClose} title="Asset credits" width={512}>
+      {credits ? (
+        <>
+          <Section title="Furniture" entries={credits.furniture} />
+          <Section title="Materials" entries={credits.materials} />
+          {credits.furniture.length === 0 && credits.materials.length === 0 && (
+            <div className="space-y-2" style={{ color: 'var(--text-2)' }}>
+              <p>
+                All built-in furniture and finishes are{' '}
+                <span className="font-medium">generated procedurally on-device</span> — no
+                third-party assets are bundled, so none need attribution.
+              </p>
+              <p>
+                Assets you download from the in-app libraries (Poly Haven, ambientCG, Kenney — all
+                CC0) are credited on each item&rsquo;s catalog card.
+              </p>
+            </div>
+          )}
+        </>
+      ) : (
+        <p>Loading…</p>
+      )}
+    </Modal>
   )
 }
 

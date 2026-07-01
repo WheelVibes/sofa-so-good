@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## A11Y/CHORE: rebuild CreditsModal on the shared Modal primitive (v0.9.0.34)
+
+- `CreditsModal` was a bare `.modal-overlay` with no Escape, no focus trap/restore, no
+  `role="dialog"`/`aria-modal`, and no `useModalGuard` — violating the `ui/CLAUDE.md` rule that any
+  modal-style overlay not built on `Modal` must at least call `useModalGuard`. Rebuilt on the shared
+  `Modal` primitive, which supplies all of the above for free; dropped the redundant footer Close
+  (Modal's header × + Escape + backdrop cover it). **Note:** the component is not currently mounted
+  anywhere (only a per-item attribution surface in the inspector is wired) — so this is code hygiene
+  + a11y-correctness + test coverage, latent until it's wired up (candidate recorded in TODO).
+- Tests: extended `CreditsModal.test.tsx` — dialog role + title present, closes on Escape, closes on
+  the header Close button (in addition to the existing fetch/display + closed-renders-null cases).
+
 ## A11Y: consistent keyboard focus ring across all controls (v0.9.0.33)
 
 - New area — keyboard/screen-reader accessibility (chosen via a grep-verified audit). WCAG 2.4.7
