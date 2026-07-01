@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TESTS: validate every built-in starter plan + the default plan (v0.9.0.43)
+
+- The 18 built-in templates (`PLAN_TEMPLATES` — HDB 2-room→Maisonette, condo studio→penthouse,
+  landed terrace) + `buildDefaultPlan()` are the data users actually load, but had no validity test.
+  Added `templates.test.ts` (`describe.each` per plan, 121 cases): every plan has rooms/walls +
+  positive extent + ceiling height; every room has finite geometry + **positive floor area**
+  (`planRoomArea`); **room ids are unique** (the plan-unique invariant room-keyed consumers rely on);
+  every wall has finite endpoints + **positive length** (`wallLength`); every opening **references an
+  existing wall and fits within its length** (offset ≥ 0, offset+width ≤ wall length); and
+  `planBounds` is finite + positive. Also asserts all templates are categorised (drives the picker).
+- Composes the geometry helpers covered in v0.9.0.37. No bug found — the starter plans are all valid;
+  this guards against a malformed template shipping (a broken first-run experience).
+
 ## DOCS: purge shipped items from the backlog/roadmap trackers (v0.9.0.42)
 
 - Per user request — shipped work belongs only in `CHANGELOG.md`, so the living backlog/roadmap docs
