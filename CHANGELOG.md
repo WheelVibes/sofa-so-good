@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TESTS: cover the plan geometry helpers in floorplan/types.ts (v0.9.0.37)
+
+- Robustness/coverage pass. `src/floorplan/types.ts` holds 10 pure geometry helpers used app-wide
+  (room detection, area labels, furniture-in-room, floor render, plan bounds) but had **no test
+  file**. Added `types.test.ts` — 21 cases covering `polygonArea` (degenerate/winding/triangle),
+  `pointInPolygon` (inside/outside/concave-notch), `roomPolygon` (explicit/rect), `planRoomArea`
+  (rect, non-overlapping L, and the **BUG-004 overlapping-extension invariant** — union 28, not
+  double-counted 32), `planRoomPerimeter`, `pointInRoom` (boundary-inclusive rect, extension,
+  explicit polygon), `planTotalArea`, `wallLength`, `planBounds` (walls + explicit polygon), and
+  `rectUnionOutline` (adjacent merge, overlap union, empty).
+- No bug found — the geometry is correct; this is regression safety for previously-untested,
+  app-critical pure functions.
+
 ## A11Y: mobile menu sheet closes on Escape + guards hotkeys (v0.9.0.36)
 
 - Last item from the keyboard/SR audit: the `MobileToolbar` menu sheet was the only overlay with no
