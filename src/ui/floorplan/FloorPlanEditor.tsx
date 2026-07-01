@@ -59,6 +59,7 @@ import { NotesLayer } from './editor/layers/NotesLayer'
 import { OpeningsLayer } from './editor/layers/OpeningsLayer'
 import { PolylinesLayer } from './editor/layers/PolylinesLayer'
 import { RoomsLayer } from './editor/layers/RoomsLayer'
+import { TourStopsLayer } from './editor/layers/TourStopsLayer'
 import { WallsLayer } from './editor/layers/WallsLayer'
 import { type MarqueeItem, type MarqueeRect, marqueeSelect } from './editor/marqueeSelect'
 import { PlanLibrary } from './editor/PlanLibrary'
@@ -2959,57 +2960,16 @@ export function FloorPlanEditor() {
                 Drag to reposition; on drag-end the IDB cache for the stop is
                 evicted so the next tour view recaptures from the new spot.
                 Stops on other storeys are shown without a drag handle (greyed). */}
-              {fPanoTour &&
-                panoTourStops.map((s, i) => {
-                  const [sx, sz] = s.position
-                  const isGround = !s.levelId
-                  return (
-                    <g
-                      key={s.id}
-                      style={{ cursor: isGround ? 'grab' : 'default' }}
-                      onPointerDown={
-                        isGround
-                          ? (e) => {
-                              if (e.button !== 0) return
-                              if (editMode !== 'edit') return // view mode: let it pan
-                              e.stopPropagation()
-                              const [wx, wz] = pointerWorld(e)
-                              setMovingStop({ id: s.id, gx: wx - sx, gz: wz - sz })
-                              svgRef.current?.setPointerCapture(e.pointerId)
-                            }
-                          : undefined
-                      }
-                    >
-                      {/* Outer ring */}
-                      <circle
-                        cx={toPx(sx)}
-                        cy={toPx(sz)}
-                        r={10}
-                        fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
-                        fillOpacity={0.18}
-                        stroke={isGround ? 'var(--accent)' : 'var(--text-3)'}
-                        strokeWidth={1.5}
-                      />
-                      {/* Inner filled dot */}
-                      <circle
-                        cx={toPx(sx)}
-                        cy={toPx(sz)}
-                        r={4}
-                        fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
-                      />
-                      {/* Stop number */}
-                      <text
-                        x={toPx(sx) + 13}
-                        y={toPx(sz)}
-                        dominantBaseline="middle"
-                        fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
-                        style={{ fontSize: 10, fontWeight: 700, pointerEvents: 'none' }}
-                      >
-                        {i + 1}
-                      </text>
-                    </g>
-                  )
-                })}
+              {fPanoTour && (
+                <TourStopsLayer
+                  stops={panoTourStops}
+                  editMode={editMode}
+                  toPx={toPx}
+                  svgRef={svgRef}
+                  pointerWorld={pointerWorld}
+                  setMovingStop={setMovingStop}
+                />
+              )}
 
               {/* Selected-wall handles: drag the body to move (connected corners
                 follow), drag an end handle to extend/shorten that end, or drag

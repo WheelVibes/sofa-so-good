@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract the TourStopsLayer render layer from FloorPlanEditor (v0.9.0.56)
+
+- De-monolith step 10: moved the 360° **tour stop markers** SVG layer (panoTour feature — numbered
+  eye-shaped pins; ground-level stops drag to reposition in edit mode, other-storey stops render
+  greyed + inert) into `editor/layers/TourStopsLayer.tsx` via pure prop code-motion; the parent
+  still gates the whole layer on the `panoTour` flag. FloorPlanEditor 3340 → 3299 lines
+  (−972 total from 4271).
+- Behaviour-preserving: tsc + full suite green; an **interactive** scenario (Pro mode) seeds two
+  tour stops and confirms both render as numbered pins (2 labels + 2 rings) on the plan.
+
 ## REFACTOR: extract the NotesLayer + PolylinesLayer render layers from FloorPlanEditor (v0.9.0.55)
 
 - De-monolith step 9: moved two more active-storey annotation layers into their own components via
