@@ -46,10 +46,11 @@ WebGPU path tracing).
 Vetted next-iteration targets surfaced when the active backlog proved thin/GPU-or-backend-blocked.
 Each is pure-client, unit/scenario-verifiable without a real GPU or network, and value-ranked.
 Confirmed NOT already shipped at audit time (grep-checked); re-confirm before starting.
-- **Toast auto-dismiss pause-on-hover/focus** (a11y, WCAG 2.2.1 "enough time"): `NotificationContainer`
-  currently schedules dismissal purely from `createdAt`, so a toast can vanish mid-read. Track a
-  paused-id set + per-toast remaining-ms ref; clear on `mouseenter`/`focusin`, resume on
-  `mouseleave`/`focusout`. Unit-test with fake timers (pause stops the clock; resume uses remaining).
+- ~~Toast auto-dismiss pause-on-hover/focus~~ — **ALREADY SHIPPED** (verified 2026-07-01). The
+  `NotificationContainer` already tracks a `pausedIds` set + per-toast remaining-ms ref
+  (`remainingRef`/`startedAtRef`), pausing on `onMouseEnter`/`onFocus` and resuming on
+  `onMouseLeave`/`onBlur`, banking elapsed time so the budget freezes/resumes (WCAG 2.2.1). This
+  audit note was stale — not a gap.
 - **`livePrices` IXT scenario** — **DEFERRED (user, 2026-06-30).** The feature is dev-only +
   network/sidecar-bound (lower user value), and a headless scenario would need a new dev-only
   `window.__priceSidecarStub` lever in `livePrice.ts` purely for the test. The unit-level coverage
