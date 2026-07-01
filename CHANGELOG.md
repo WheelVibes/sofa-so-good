@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## A11Y: consistent keyboard focus ring across all controls (v0.9.0.33)
+
+- New area — keyboard/screen-reader accessibility (chosen via a grep-verified audit). WCAG 2.4.7
+  Focus Visible: the app had themed focus styling only on text inputs (`.input`/`.num` box-shadow)
+  and catalog cards (`.cat-card` outline) — every other interactive control (`.btn`, `.icon-btn`,
+  `.tool-btn`, chips, inspector action tiles, segmented toggles, menu/context items, custom
+  Select/Color triggers, swatches, …) fell back to the inconsistent browser-default ring.
+- Added one low-specificity `:where(button, [role=button], [role=menuitem], [role=menuitemcheckbox],
+  [role=option], [role=tab], summary, [tabindex='0']):focus-visible` rule → a 2px accent outline
+  (offset 2px). `:where()` keeps specificity 0 so the richer input/card focus styles still win;
+  `:focus-visible` shows it for keyboard/AT focus only, never on mouse click. One rule covers the
+  whole control vocabulary + future controls.
+- Verified in-browser: Tab moves focus through `.tool-btn`s, each showing `outline: 2px solid`
+  in the accent colour. (CSS `:focus-visible` cascade isn't reproducible in happy-dom, so browser
+  verification is the check, as with the prior CSS a11y fixes.)
+
 ## FIX: Layers-panel group hide/lock eyes unreachable on mobile (v0.9.0.32)
 
 - Same hover-reveal trap as v0.9.0.31, swept for across the CSS: the Layers panel's group-header
