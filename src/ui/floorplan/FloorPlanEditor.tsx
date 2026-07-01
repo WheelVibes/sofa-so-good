@@ -8,13 +8,7 @@ import { isEditableTarget } from '../../controls/useKeyboard'
 import { useFeature } from '../../features/useFeature'
 import { defaultDoorSwing, doorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
 import { traceBuildingOutline } from '../../floorplan/footprint'
-import {
-  GROUND_LEVEL_ID,
-  levelAsPlan,
-  levelById,
-  levelOfItem,
-  planLevels,
-} from '../../floorplan/levels'
+import { GROUND_LEVEL_ID, levelAsPlan, levelById, levelOfItem } from '../../floorplan/levels'
 import { planIntegrityFlags } from '../../floorplan/planIntegrity'
 import { polylinePointsAttr } from '../../floorplan/polyline'
 import { roomLabelPoint, roomLabelPosition } from '../../floorplan/roomCentroid'
@@ -99,6 +93,7 @@ import {
 } from './editor/toolDraftReducer'
 import { usePlanAiWalls } from './editor/usePlanAiWalls'
 import { usePlanBackdrop } from './editor/usePlanBackdrop'
+import { usePlanLevel } from './editor/usePlanLevel'
 import { usePlanViewport } from './editor/usePlanViewport'
 import { WallDimension } from './editor/WallDimension'
 import { WallNumericEntry } from './editor/WallNumericEntry'
@@ -157,19 +152,12 @@ export function FloorPlanEditor() {
 
   const [tool, setTool] = useState<Tool>('select')
   const [wallType, setWallType] = useState<'internal' | 'external'>('internal')
-  // Active storey (F13/ML4b): every tool, overlay and inspector edit operates
-  // on this level's walls/rooms/openings. Resets to ground when the editor
-  // opens or a different plan becomes active.
-  const [activeLevelId, setActiveLevelId] = useState<string>(GROUND_LEVEL_ID)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: editing/plan.id are reset triggers.
-  useEffect(() => {
-    setActiveLevelId(GROUND_LEVEL_ID)
-  }, [editing, plan.id])
-  // A stale id (level undone/removed) degrades to ground; use the EFFECTIVE id
-  // everywhere so the tab highlight and the routed actions always agree.
-  const activeLevel = levelById(plan, activeLevelId)
-  const levelPlan = levelAsPlan(plan, activeLevel)
-  const levelId = activeLevel.id
+  // Active storey (F13/ML4b) + everything derived from it (the single-storey
+  // `levelPlan` every tool/overlay/inspector edit targets) — see `usePlanLevel`.
+  const { setActiveLevelId, levelPlan, levelId, isMultiLevel, otherLevels } = usePlanLevel(
+    plan,
+    editing,
+  )
   // The full wall selection = primary wall (if any) ∪ the multi-select extras,
   // filtered to walls that still exist (so deletes/merges leave no stale ids).
   const selectedWalls = useMemo(() => {
@@ -202,9 +190,6 @@ export function FloorPlanEditor() {
     [fIntegrity, levelPlan.walls, levelPlan.rooms, levelPlan.openings],
   )
   const strayCount = strays.walls.size + strays.rooms.size + strays.openings.size
-  const allLevels = planLevels(plan)
-  const isMultiLevel = allLevels.length > 1
-  const otherLevels = allLevels.filter((l) => l.id !== levelId)
   const [draft, setDraft] = useState<{ x0: number; z0: number; x: number; z: number } | null>(null)
   // Rubber-band marquee (PARITY-PLAN-MARQUEE): a drag on empty canvas with the
   // select tool draws this rect (plan coords, unsnapped so it tracks the

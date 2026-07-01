@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract usePlanLevel from the FloorPlanEditor monolith (v0.9.0.50)
+
+- De-monolith step 4: lifted the **active-storey resolution** (F13) into `editor/usePlanLevel.ts` —
+  the `activeLevelId` state + its reset-to-ground effect (on editor open / plan change), the
+  stale-id-degrades-to-ground `activeLevel`, the single-storey `levelPlan` (`levelAsPlan`, what every
+  tool/overlay/inspector edit operates on), `levelId`, and the level list. FloorPlanEditor
+  3927 → 3912 lines (−359 total across steps 1–4). Pure code-motion — tsc + full suite + floorplan
+  tests green. Added `usePlanLevel.test.tsx` (ground default + populated levelPlan, stale-id degrades
+  to ground, reset-on-reopen) — DOM-free so directly unit-testable.
+
 ## REFACTOR: extract usePlanViewport from the FloorPlanEditor monolith (v0.9.0.49)
 
 - De-monolith step 3 (the big one): lifted the entire **viewport** concern — fit-to-screen base
