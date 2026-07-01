@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract the WallsLayer render layer from FloorPlanEditor (v0.9.0.51)
+
+- De-monolith step 5 (first render layer): moved the active-storey **walls** SVG layer (each wall's
+  selection/stray halos, fat hit target, curve-bulge handle + the `onWallDown` select/drag handler)
+  into `editor/layers/WallsLayer.tsx`, driven entirely by props (pure code-motion). FloorPlanEditor
+  3912 → 3825 lines; establishes the `editor/layers/` pattern for the remaining render sub-sections.
+- Behaviour-preserving: tsc + full suite + floorplan tests green; the editor renders identically
+  (322 wall/path elements, unchanged); and an **interactive** scenario confirms a real pointerdown on
+  a wall still selects it (`planSelection` → that wall id).
+
 ## REFACTOR: extract usePlanLevel from the FloorPlanEditor monolith (v0.9.0.50)
 
 - De-monolith step 4: lifted the **active-storey resolution** (F13) into `editor/usePlanLevel.ts` —
