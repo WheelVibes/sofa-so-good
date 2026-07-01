@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## POLISH: clear bulk tint even for mixed selections (v0.9.0.26)
+
+- Follow-up to v0.9.0.25 (found during a mobile-parity verification pass — the three new surfaces
+  this session all render correctly in the mobile bottom-sheets; no mobile bug). The multi-select
+  "Clear tint" button previously appeared only when the selection *shared* one tint, so a selection
+  with **mixed** tints had no way to reset. It now shows whenever **any** selected item is tinted
+  (new `anyTinted` check), clearing them all in one undo step.
+- Tests: added mixed-tint clear + nothing-tinted-hidden cases to `MultiSelectPanel.bulkTint.test.tsx`.
+
 ## FEATURE: bulk recolour on multi-select (v0.9.0.25)
 
 - Customizability: the multi-select panel now has an **Appearance › Tint all** colour picker that

@@ -3,7 +3,7 @@
  * (v0.9.0.25) — a direct multi-select tint picker (vs the copy-then-paste
  * appearance path). Gated by `bulkAppearance` (simple, on in both modes).
  */
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { FEATURE_FLAGS } from '../../features/featureFlags'
 import { useStore } from '../../state/store'
@@ -62,5 +62,25 @@ describe('MultiSelectPanel bulk tint section', () => {
     useStore.getState().updateManyItemProps([a, b], { tint: '#ff0000' })
     render(<MultiSelectPanel />)
     expect(screen.getByLabelText('Clear tint')).toBeInTheDocument()
+  })
+
+  it('offers clear-tint even when the selection has MIXED tints', () => {
+    const [a, b] = selectTwo()
+    useStore.getState().updateManyItemProps([a], { tint: '#ff0000' })
+    useStore.getState().updateManyItemProps([b], { tint: '#0000ff' })
+    render(<MultiSelectPanel />)
+    // Different tints → no shared swatch, but a reset is still useful.
+    const clear = screen.getByLabelText('Clear tint')
+    expect(clear).toBeInTheDocument()
+    fireEvent.click(clear)
+    const byId = new Map(useStore.getState().items.map((i) => [i.id, i]))
+    expect(byId.get(a)?.props.tint).toBe('')
+    expect(byId.get(b)?.props.tint).toBe('')
+  })
+
+  it('hides clear-tint when nothing is tinted', () => {
+    selectTwo()
+    render(<MultiSelectPanel />)
+    expect(screen.queryByLabelText('Clear tint')).toBeNull()
   })
 })

@@ -43,6 +43,17 @@ export function MultiSelectPanel() {
       ? first
       : ''
   })
+  // Whether ANY selected item carries a tint — so "Clear tint" is offered even
+  // when the selection's tints differ (sharedTint is '' but a reset still helps).
+  const anyTinted = useStore((s) =>
+    s.items.some(
+      (i) =>
+        s.selectedItemIds.includes(i.id) &&
+        !i.locked &&
+        typeof i.props.tint === 'string' &&
+        i.props.tint !== '',
+    ),
+  )
   // Price displays are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
   const appearanceClipboard = useStore((s) => s.appearanceClipboard)
@@ -366,7 +377,7 @@ export function MultiSelectPanel() {
                     title="Recolour every selected item"
                     className={sharedTint ? 'on' : ''}
                   />
-                  {sharedTint ? (
+                  {anyTinted ? (
                     <button
                       type="button"
                       className="icon-btn"
