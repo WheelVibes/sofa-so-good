@@ -100,14 +100,12 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
   transitions headless, smoothness by eye. M.
   - ~~Eased camera transitions~~ — **shipped v0.9.0.12** (`scene/cameras/cameraTween.ts`: smoothstep
     + distance-aware `flyDurationFor`; focus/top/home/saved-view all route through one `startFly`).
-  - **Placement "drop-in" easing** (item eases down on commit) — NEEDS DESIGN: `Furniture` has no
-    per-item `useFrame` by deliberate perf rule (only specific primitives like Curtain/RollerBlind
-    animate). A generic drop-in needs a **central animator**: a `placementDrop.ts` module signal
-    (`Map<id, startMs>` + `useSyncExternalStore`) + one mounted `<PlacementDropAnimator>` that
-    mutates only the dropping item groups' Y via a shared ref registry (Furniture registers its
-    group ref), holding `registerAnimatedSource` while any drop is active. Pure ease core =
-    verifiable; smoothness by eye. Don't add `useFrame` to every Furniture. M.
+  - ~~Placement "drop-in" easing~~ — **shipped v0.9.0.15** (`scene/placementDrop.ts` central animator:
+    `beginDrop` at commit + `registerDropGroup` per item + one mounted `<PlacementDropAnimator>`
+    mutating only dropping groups' Y; no per-item `useFrame`). Pure timing unit-tested + verified live.
   - Selection scale/fade-in: localized to `SelectionOutline` (few nodes) — a safe smaller win.
+  - Door/drawer/cabinet open-close easing on toggle — currently instant for most; curtains/blinds
+    already ease. Could reuse the animated-source pattern.
 - **Realistic physics (light touch)** — gravity-settle on drop (rest on the surface below — partial via
   `surfaceDrop.ts`), drag inertia/easing, soft collision nudge (push-apart) rather than hard block.
   Scope carefully: a design tool wants *predictable* placement, so physics must aid, not fight, the

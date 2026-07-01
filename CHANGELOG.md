@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: placement drop-in easing (v0.9.0.15)
+
+- **Animations leg.** A freshly placed piece now eases DOWN onto its resting spot from a small
+  height (~0.16 m, 300 ms, ease-out) — tactile feedback that reads as "placed", not teleported.
+- Respects the `Furniture` **no per-item `useFrame`** perf rule via a **central animator**:
+  `scene/placementDrop.ts` (pure timing: `dropEase` / `dropOffsetY`, + a small module registry) —
+  the commit calls `beginDrop(id)`, each item registers its root group (`registerDropGroup`), and
+  one mounted `<PlacementDropAnimator>` mutates only the dropping groups' Y each frame, holding the
+  demand-mode pump open (`registerAnimatedSource`) until the drop lands. Idle = one `Map.size` check.
+- Wired at the single-item placement commit (`usePlacementController`), so catalog click/drag drops
+  animate; window-bound fixtures (curtains/blinds) and bulk/boot adds don't drop-in (no jank).
+- Tests: +7 (`placementDrop.test.ts` — ease endpoints/clamp, offset monotonic + lands at 0, and the
+  full tick lifecycle: lifts a group Y = rest+offset, snaps to rest + releases the pump hold at the
+  end, and ends cleanly if the group unmounts mid-drop). Verified end-to-end in the room editor
+  (sampled the live group Y through a real placement: lifts to ~0.10 m, eases to rest).
+
 ## FEATURE: selection / resize box is the true minimum spanning box (v0.9.0.14)
 
 - Follow-up to the granular-footprint work. The selection **bounding box + resize handles** used

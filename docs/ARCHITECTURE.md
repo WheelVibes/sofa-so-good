@@ -258,6 +258,13 @@ same change that reshapes a system.
   `startFly` in `OrbitCamera` (smoothstep ease, **distance-aware** `flyDurationFor` so a short
   hop snaps and a long jump glides) rather than a hard `controls.update()` snap. The fly
   self-pumps the demand-mode renderer via OrbitControls' `change` event each frame.
+- **Placement drop-in easing** (`scene/placementDrop.ts`, pure timing + unit-tested): a freshly
+  placed piece eases DOWN onto its resting spot from a small height (~0.16 m, 300 ms, ease-out).
+  `Furniture` keeps NO per-item `useFrame` (perf rule) — instead each item registers its root
+  group (`registerDropGroup`), the commit calls `beginDrop(id)`, and one mounted
+  `<PlacementDropAnimator>` (`useFrame`) mutates only the dropping groups' Y and holds the render
+  pump open (via `registerAnimatedSource`) until the drop lands. Idle cost is a single `Map.size`
+  check per frame.
 - **Design system & theming** (`appearanceSlice`, `appearancePrefs`): 5 themes
   (Clay/Kampong/Porcelain/Estate/Harbour) × light/dark = 10 OKLCH palettes via
   `[data-theme]`+`[data-mode]` (pre-paint inline script, `hdb_appearance`, Auto=OS).

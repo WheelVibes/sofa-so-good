@@ -33,6 +33,7 @@ import { SceneEnvironment } from './lighting/SceneEnvironment'
 import { Sky } from './lighting/Sky'
 import { DEFAULT_TONE_MAPPING } from './look'
 import { PanoramaController } from './PanoramaController'
+import { PlacementDropAnimator } from './PlacementDropAnimator'
 import { PlacementGhost } from './PlacementGhost'
 import { QualityController } from './QualityController'
 import { RecordController } from './RecordController'
@@ -119,6 +120,7 @@ export function Scene() {
         <ResizeGizmo />
         <HoverHighlight />
         <PlacementGhost />
+        <PlacementDropAnimator />
         <DragController />
         <FinishDropSurface />
         <MarqueeCameraTracker />

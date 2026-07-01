@@ -5,6 +5,7 @@ import { isFeatureEnabled } from '../../features/featureFlags'
 import { useCatalog } from '../../furniture/catalog'
 import { snapToNearestWindow, windowFixtureProps } from '../../furniture/placement/windowSnap'
 import { defaultParamProps, type FurnitureDef, type ParamProps } from '../../furniture/types'
+import { beginDrop } from '../../scene/placementDrop'
 import { useStore } from '../../state/store'
 
 function defaultProps(def: FurnitureDef): ParamProps {
@@ -114,6 +115,8 @@ export function usePlacementController() {
         rotation: (def.defaultRotation ?? 0) + useStore.getState().ghostRotation,
         props: defaultProps(def),
       })
+      // Tactile drop-in: ease the piece down onto the floor from a small height.
+      beginDrop(newId, performance.now())
       // Stamp / shift keeps the placement armed for the next drop. Otherwise the
       // placement resolves to a pending tick/cross confirmation — the ghost is
       // disarmed but a long-press-hidden catalog stays hidden until the user
