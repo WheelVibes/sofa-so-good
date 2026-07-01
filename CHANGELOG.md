@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract the RoomsLayer render layer from FloorPlanEditor (v0.9.0.52)
+
+- De-monolith step 6: moved the active-storey **rooms** SVG layer (rect / L-extension / free-polygon
+  fills, the polygon-vertex reshape + edge-insert handles, and the progressive-detail name/area label
+  with move-drag + rotation/font scale) into `editor/layers/RoomsLayer.tsx` via pure prop code-motion.
+  FloorPlanEditor 3825 → 3619 lines (−652 total from 4271).
+- Behaviour-preserving: tsc + full suite + floorplan tests green; the editor renders identically
+  (13 room fills + 12 labels), and an **interactive** scenario confirms clicking a room still selects
+  it (`planSelection` → that room id).
+
 ## REFACTOR: extract the WallsLayer render layer from FloorPlanEditor (v0.9.0.51)
 
 - De-monolith step 5 (first render layer): moved the active-storey **walls** SVG layer (each wall's
