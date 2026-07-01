@@ -88,15 +88,26 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
   Follow-ups: broadphase AABB unions parts (v0.9.0.11 fix); **selection + placement tint follows the
   granular polygon** (v0.9.0.13, `itemFootprintPartsLocal`) so the highlight matches the collision shape.
 - **More composite footprints** — apply `footprintParts` to other non-rectangular pieces.
-  Done: L-sofa (v0.9.0.9), corner base cabinet (v0.9.0.10). Remaining candidates: round/oval
-  tables (octagon approximation — convex, low priority), and any future U-sofa / corner desk /
-  peninsula (none in the catalog today). Each just needs a decomposition + a test. S (incremental).
+  Done: L-sofa (v0.9.0.9), corner base cabinet (v0.9.0.10) + the true spanning box drives the
+  selection/resize handles (v0.9.0.14). Remaining candidates: **round/oval tables** — but note
+  `footprintParts` is a **union** of OBBs, which can only *add* area, so it cannot carve the 4
+  corners off a bounding square to make an octagon/disc. A round-table approx needs either (a) a
+  new *intersection*/polygon footprint primitive, or (b) accepting a coarse cross/plus of inscribed
+  rects (leaves diagonal gaps). Low priority + needs a design decision, not a quick decomposition.
+  No U-sofa / corner desk / peninsula in the catalog today.
 - **Animations** — door/drawer open-close easing (some exists: curtains/blinds ease in demand mode),
   smooth placement "drop-in" + selection transitions. Mostly pure state→transition; verify state
   transitions headless, smoothness by eye. M.
   - ~~Eased camera transitions~~ — **shipped v0.9.0.12** (`scene/cameras/cameraTween.ts`: smoothstep
     + distance-aware `flyDurationFor`; focus/top/home/saved-view all route through one `startFly`).
-  - Remaining: placement "drop-in" easing (item eases down on commit), selection scale/fade-in.
+  - **Placement "drop-in" easing** (item eases down on commit) — NEEDS DESIGN: `Furniture` has no
+    per-item `useFrame` by deliberate perf rule (only specific primitives like Curtain/RollerBlind
+    animate). A generic drop-in needs a **central animator**: a `placementDrop.ts` module signal
+    (`Map<id, startMs>` + `useSyncExternalStore`) + one mounted `<PlacementDropAnimator>` that
+    mutates only the dropping item groups' Y via a shared ref registry (Furniture registers its
+    group ref), holding `registerAnimatedSource` while any drop is active. Pure ease core =
+    verifiable; smoothness by eye. Don't add `useFrame` to every Furniture. M.
+  - Selection scale/fade-in: localized to `SelectionOutline` (few nodes) — a safe smaller win.
 - **Realistic physics (light touch)** — gravity-settle on drop (rest on the surface below — partial via
   `surfaceDrop.ts`), drag inertia/easing, soft collision nudge (push-apart) rather than hard block.
   Scope carefully: a design tool wants *predictable* placement, so physics must aid, not fight, the
