@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract the OpeningsLayer render layer from FloorPlanEditor (v0.9.0.53)
+
+- De-monolith step 7: moved the active-storey **openings** SVG layer (each door/window as its
+  architectural symbol — door leaf + swing arc, or window double-line; arc-aware for curved walls;
+  wall mask, selection halo, fat hit target, along-wall drag) into `editor/layers/OpeningsLayer.tsx`
+  via pure prop code-motion. FloorPlanEditor 3619 → 3495 lines (−776 total from 4271).
+- Behaviour-preserving: tsc + full suite + floorplan tests green; the editor renders identically
+  (13 openings), and an **interactive** scenario confirms clicking an opening still selects it
+  (`planSelection` → that opening id).
+
 ## REFACTOR: extract the RoomsLayer render layer from FloorPlanEditor (v0.9.0.52)
 
 - De-monolith step 6: moved the active-storey **rooms** SVG layer (rect / L-extension / free-polygon
