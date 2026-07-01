@@ -159,6 +159,10 @@ same change that reshapes a system.
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
   CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice` /
   `favouritesSlice` — both persist to localStorage, both per-device convenience state).
+  Search is synonym- + intent-aware (`catalog/searchSynonyms.ts` `fuzzySearchSmart`:
+  couch→sofa, plurals, and **search-by-room** — "bedroom"→bed/wardrobe/…); when a query
+  names a room/use, a subtle caption (`matchedIntents`, `.catalog-search-hint`) reads
+  "Showing <room> furniture" so that otherwise-invisible capability is discoverable.
   Favourites (star/heart button on each card, Favourites tab) are gated by the
   `catalogFavourites` feature flag (tier: simple, default on). Browsable **remote CC0
   *models*** (Poly Haven `RemoteCard`s) are gated by the **`remoteFurniture`** flag (tier:

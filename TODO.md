@@ -120,8 +120,10 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
 
 > Audit note (2026-07-01): the core loop is already mature — align/distribute, apply-finish-to-all-rooms,
 > numeric+90° rotate, saved cameras, smart-guides, height-aware collision all exist. Discoverability
-> follow-ups: ~~keyboard cheat-sheet~~ **shipped v0.9.0.18** (`?` / ⌘K "Keyboard shortcuts" →
-> `ShortcutsModal`, `shortcutsHelp` pro flag). Remaining: silent synonym search feedback, one-time-only
+> follow-ups: ~~keyboard cheat-sheet~~ **shipped v0.9.0.18** (`?` / ⌘K "Keyboard shortcuts"). ~~Silent
+> synonym search~~ — smart synonym/intent search + "No matches" empty state were already shipped; the
+> hidden **search-by-room** intent now shows a "Showing <room> furniture" caption (**v0.9.0.19**).
+> Remaining: one-time-only
 > onboarding). Candidates for a later UX pass, lower priority than the deeper-interaction work above.
 
 ## Process

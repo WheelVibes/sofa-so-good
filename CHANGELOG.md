@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: reveal "search by room" with a results caption (v0.9.0.19)
+
+- Discoverability: catalog search already understood room/use intent (`searchSynonyms.ts` —
+  "bedroom" → bed/wardrobe/nightstand, "office" → desk/office chair/bookshelf), but that was
+  **invisible** — a user would never guess to type a room name. Now, when a query names a room/use,
+  a subtle caption reads **"Showing <room> furniture"** above the results, revealing the capability.
+- New pure `matchedIntents(query)` (the room/use intents a query expresses, longest-match-first,
+  de-duped) drives the caption in `CatalogDrawer` (`.catalog-search-hint`, themed `--text-2`/`--t-xs`).
+  Verified live: typing "bedroom"/"office" surfaces the caption + the right items (DOM-probed the
+  rendered caption text + bounding box — visible, themed).
+- Tests: +3 (`searchSynonyms.test.ts` — intent detection, empty for plain/blank queries, no
+  substring-shadowed duplicates). (Audit follow-up: the synonym search + "No matches" empty state
+  the audit flagged as "silent" were already shipped — this closes the remaining invisible-intent gap.)
+
 ## FEATURE: keyboard-shortcuts help overlay (discoverability) (v0.9.0.18)
 
 - Closes the verified discoverability gap: shortcuts lived only in `KEYBINDINGS` + piecemeal ⌘K
