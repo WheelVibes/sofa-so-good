@@ -1,12 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import {
-  AiPlanError,
-  classifyVisionEndpoint,
-  getVisionKey,
-  getVisionUrl,
-  recognizeFloorPlan,
-  setVisionKey,
-} from '../../ai/floorPlanAi'
 import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
@@ -113,6 +105,7 @@ import {
   wallCommit,
   wallTapCommits,
 } from './editor/toolDraftReducer'
+import { usePlanAiWalls } from './editor/usePlanAiWalls'
 import { usePlanBackdrop } from './editor/usePlanBackdrop'
 import { WallDimension } from './editor/WallDimension'
 import { WallNumericEntry } from './editor/WallNumericEntry'
@@ -320,7 +313,7 @@ export function FloorPlanEditor() {
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   // Persisted to IDB (blob + calibration) so it survives editor close + reload.
   const { backdrop, setBackdrop, loadBackdrop, removeBackdrop } = usePlanBackdrop(editing, setTool)
-  const [aiBusy, setAiBusy] = useState(false)
+  const { aiBusy, runAiWalls } = usePlanAiWalls(backdrop)
   const aiWalls = useFeature('aiWalls')
   // Persistent wall-length labels (on by default; toggle in the editor header).
   // Dimensions default OFF — they're the densest overlay and collide with walls
@@ -365,78 +358,6 @@ export function FloorPlanEditor() {
   // Last pointer position in plan metres — where a new ruler guide is dropped
   // (PARITY-PLAN-GUIDES). Updated on every pointer move over the canvas.
   const lastPlanPtRef = useRef<[number, number]>([0, 0])
-  // Experimental AI wall recognition (Wave E): send the backdrop to a vision
-  // model and seed an editable draft plan from the returned walls. Falls back
-  // to manual tracing on any failure.
-  const runAiWalls = async () => {
-    if (!backdrop || aiBusy) return
-    let key = getVisionKey()
-    if (!key) {
-      key =
-        (await useStore.getState().promptText({
-          title: 'AI floor-plan recognition',
-          label: 'Vision-model API key (OpenAI-compatible, kept in this browser)',
-          submitLabel: 'Continue',
-        })) || ''
-      if (!key) return
-      setVisionKey(key)
-    }
-    // Security gate: warn (and require explicit confirmation) before the bearer
-    // key is sent to anything other than a recognised provider. A plaintext
-    // endpoint is refused outright downstream in recognizeFloorPlan.
-    const endpoint = classifyVisionEndpoint(getVisionUrl())
-    if (!endpoint.secure) {
-      useStore
-        .getState()
-        .notify.start({ title: 'Insecure AI endpoint', message: endpoint.reason, kind: 'error' })
-      return
-    }
-    if (!endpoint.trusted) {
-      const ok = await useStore.getState().promptText({
-        title: 'Send your API key to this server?',
-        label: `${endpoint.reason} Type the host name (${endpoint.host}) to confirm.`,
-        submitLabel: 'Send',
-      })
-      if ((ok || '').trim().toLowerCase() !== endpoint.host.toLowerCase()) {
-        useStore.getState().notify.start({ title: 'AI recognition cancelled', kind: 'info' })
-        return
-      }
-    }
-    setAiBusy(true)
-    try {
-      // The backdrop is an object URL; the remote model needs inline data.
-      const img = new Image()
-      img.src = backdrop.url
-      await img.decode().catch(() => {})
-      const c = document.createElement('canvas')
-      c.width = backdrop.w
-      c.height = backdrop.h
-      c.getContext('2d')?.drawImage(img, 0, 0)
-      const walls = await recognizeFloorPlan(c.toDataURL('image/png'), { key })
-      const st = useStore.getState()
-      st.pushHistory()
-      st.newFloorPlan('AI draft')
-      for (const w of walls) {
-        st.addWall({
-          start: [w.x1, w.z1],
-          end: [w.x2, w.z2],
-          thickness: w.external ? 'external' : 'internal',
-        })
-      }
-      st.notify.start({
-        title: `AI drafted ${walls.length} walls — adjust as needed`,
-        kind: 'success',
-      })
-    } catch (e) {
-      useStore.getState().notify.start({
-        title: e instanceof AiPlanError ? e.message : 'AI floor-plan recognition failed.',
-        kind: 'error',
-      })
-    } finally {
-      setAiBusy(false)
-    }
-  }
-
   // Exiting back to 3D (Done button / Escape) frames the selected furniture via
   // the shared `exitPlanEditorToScene`. NOTE: the `P` open/close binding lives in
   // `controls/planEditorHotkey.ts` (always mounted via App) — this component is

@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract usePlanAiWalls from the FloorPlanEditor monolith (v0.9.0.47)
+
+- De-monolith step 2: lifted the experimental **AI wall-recognition** concern (`aiBusy` flag +
+  `runAiWalls` — the vision-key prompt, the insecure/untrusted-endpoint security gate, backdrop→PNG
+  capture, `recognizeFloorPlan`, and seeding a draft plan from the returned walls) into
+  `editor/usePlanAiWalls.ts`, taking the current `backdrop` as its only editor input. **FloorPlanEditor
+  4188 → 4109 lines** (−162 total across steps 1–2).
+- Pure code-motion — behaviour-preserving (tsc + full suite + 715 floorplan tests green; the 6
+  `floorPlanAi` imports moved out of the editor). Added `usePlanAiWalls.test.tsx` covering the cheap,
+  important guards: no-op with no backdrop, and the security gate refuses to send the API key to an
+  insecure endpoint.
+
 ## REFACTOR: extract usePlanBackdrop from the FloorPlanEditor monolith (v0.9.0.46)
 
 - Started de-monolithing `FloorPlanEditor.tsx` (4271 lines — the "no monolithic files" hard-rule
