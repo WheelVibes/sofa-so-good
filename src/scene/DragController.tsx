@@ -9,7 +9,7 @@ import {
   relevantWallFaces,
   type Span,
 } from '../collision/equalSpacing'
-import { canPlace, itemFootprint } from '../collision/placement'
+import { canPlace, itemFootprint, nudgeToValid } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
 import { resolveSurfaceDropHeight } from '../collision/surfaceDrop'
 import { wallSnapOffset } from '../collision/wallSnap'
@@ -453,7 +453,31 @@ export function DragController() {
               ]
             : []
 
-      if (!state.dragValid) {
+      // Soft push-apart (single-item drag): a drop that lands overlapping doesn't
+      // hard-snap back to where it started — nudge it OUT of the collision to the
+      // nearest valid spot (a gentle slide off the obstacle). Bounded, so a deep
+      // overlap with nowhere near to go still reverts. Group drags keep the
+      // hard-revert (resolving many pieces at once would fight the user).
+      let softLanded = false
+      if (!state.dragValid && state.dragGroupOriginals.length <= 1) {
+        const dropped = state.items.find((i) => i.id === id)
+        const def = dropped ? catalogRef.current[dropped.defId] : undefined
+        if (dropped && def) {
+          const resolved = nudgeToValid(dropped, def, {
+            others: state.items,
+            defs: catalogRef.current,
+            doors: state.doors,
+            walls: placementWalls(state, dropped.levelId),
+          })
+          if (resolved) {
+            state.moveItem(id, resolved)
+            softLanded = true
+          }
+        }
+      }
+      const effectiveValid = wasValid || softLanded
+
+      if (!effectiveValid) {
         const group = state.dragGroupOriginals
         if (group.length > 1) {
           for (const orig of group) {
@@ -464,6 +488,8 @@ export function DragController() {
           state.moveItem(id, state.dragOriginal.position)
           state.rotateItem(id, state.dragOriginal.rotation)
         }
+      } else if (softLanded) {
+        // Nudged into place — no surface-drop pass (that's for valid free drops).
       } else if (state.dragGroupOriginals.length <= 1) {
         // Surface-drop magnetism (PC2-SURFACE-DROP): a single surface item (one
         // that rests on a surface — carries a numeric `surfaceHeight`) dropped
@@ -500,7 +526,7 @@ export function DragController() {
       //   pushed in startDrag so the user's first undo isn't a no-op step.
       const cur = useStore.getState()
       let changed = false
-      if (wasValid) {
+      if (effectiveValid) {
         const byId = new Map(cur.items.map((i) => [i.id, i]))
         changed = originals.some((o) => {
           const it = byId.get(o.id)

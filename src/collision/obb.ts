@@ -80,6 +80,45 @@ export function obbVsObb(a: OBB, b: OBB): boolean {
   return true
 }
 
+/** Minimum translation vector to push OBB `a` out of OBB `b` (SAT). Returns the
+ *  unit separation axis (`nx,nz`, oriented to move `a` away from `b`) + the
+ *  penetration `depth` along it, or `null` when they don't overlap. Drives the
+ *  soft push-apart nudge (a design tool wants a gentle slide off an obstacle, not
+ *  a hard block). Pure — same 4 SAT axes as {@link obbVsObb}. */
+export function obbMtv(a: OBB, b: OBB): { nx: number; nz: number; depth: number } | null {
+  const ca = Math.cos(a.rot)
+  const sa = Math.sin(a.rot)
+  const cb = Math.cos(b.rot)
+  const sb = Math.sin(b.rot)
+  const axes: [number, number][] = [
+    [ca, sa],
+    [-sa, ca],
+    [cb, sb],
+    [-sb, cb],
+  ]
+  const cornersA = obbCorners(a)
+  const cornersB = obbCorners(b)
+  let bestDepth = Number.POSITIVE_INFINITY
+  let bestNx = 0
+  let bestNz = 0
+  for (const [ax, az] of axes) {
+    const pa = project(cornersA, ax, az)
+    const pb = project(cornersB, ax, az)
+    // Penetration along this axis; a non-positive value means a separating axis.
+    const depth = Math.min(pa[1], pb[1]) - Math.max(pa[0], pb[0])
+    if (depth <= OVERLAP_EPSILON) return null
+    if (depth < bestDepth) {
+      bestDepth = depth
+      // Orient the axis so it pushes A's centre away from B's centre.
+      const dCenter = a.cx * ax + a.cz * az - (b.cx * ax + b.cz * az)
+      const sign = dCenter < 0 ? -1 : 1
+      bestNx = ax * sign
+      bestNz = az * sign
+    }
+  }
+  return { nx: bestNx, nz: bestNz, depth: bestDepth }
+}
+
 /** Returns true iff an OBB intersects the closed segment.
  *  SAT axes: OBB's two local axes + the segment's perpendicular. */
 export function obbVsSegment(o: OBB, s: Segment): boolean {

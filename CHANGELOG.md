@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: soft push-apart on drop (physics leg) (v0.9.0.17)
+
+- **Physics leg** (light touch). A single-item drag that ends on an *overlapping* spot no longer
+  hard-snaps back to where it started — it's **nudged out of the collision** to the nearest valid
+  spot (a gentle slide off the obstacle), the "soft collision nudge rather than hard block" behaviour
+  requested. **Bounded** (≤ 0.4 m), so a deep overlap with nowhere near to go still reverts, and it
+  stays predictable — the design tool never teleports a piece across the room.
+- New pure SAT `collision/obb.ts:obbMtv` (minimum translation vector — unit separation axis + depth)
+  + `collision/placement.ts:nudgeToValid`, which uses the MTV only to pick a *push direction* then
+  steps outward (with a small ± fan to round corners) verifying each candidate with **`canPlace`** —
+  so validity (height spans, group/rug/mounted exemptions, doors, walls) is always the real rule, not
+  a duplicated approximation. Wired into `DragController`'s invalid-release branch; a soft-land
+  resolves to a confirmable tick/cross edit. Group drags keep the hard-revert (resolving many at
+  once would fight the user).
+- Tests: +7 (`pushApart.test.ts` — MTV null-when-apart / shallow-axis separation / direction sign /
+  applying it clears the overlap; nudge already-valid passthrough / pushes an overlap to a valid
+  adjacent spot / returns null beyond `maxStep`). Verified end-to-end: a shallow overlap soft-lands
+  clear of its neighbour with a pending edit; a deep overlap reverts.
+
 ## FEATURE: selection scale-in micro-interaction (v0.9.0.16)
 
 - **Animations leg.** Selecting an item now eases its outline + floor tint up from slightly smaller

@@ -12,7 +12,7 @@
 import { getCachedGltfFootprint } from '../furniture/GltfModel'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { type AabbItem, buildGrid, candidatePairs, queryRect } from './broadphase'
-import { type OBB, obbVsObb } from './obb'
+import { type OBB, obbMtv, obbVsObb } from './obb'
 import type { CollisionWall } from './walls'
 import { buildCollisionWalls } from './wallsFromState'
 
@@ -281,6 +281,75 @@ export function canPlace(item: FurnitureItem, def: FurnitureDef, ctx: PlacementC
   }
 
   return true
+}
+
+/**
+ * Soft push-apart: when `item` is placed on an overlapping (invalid) spot, find
+ * the nearest valid resting position by nudging it OUT of the collision — a
+ * gentle slide off the obstacle instead of a hard block/revert. Uses the SAT
+ * {@link obbMtv} against nearby furniture parts + walls only to pick a *push
+ * direction*, then steps outward along it (with a small fan) verifying each
+ * candidate with {@link canPlace} — so validity (height spans, group/rug/mounted
+ * exemptions, doors) is always the real rule, never a duplicated approximation.
+ * Bounded by `maxStep` (m) so it settles beside the obstacle, never teleports.
+ * Returns the resolved `[x, z]`, the current position if already valid, or
+ * `null` if no valid spot is within reach (caller keeps its hard-revert).
+ */
+export function nudgeToValid(
+  item: FurnitureItem,
+  def: FurnitureDef,
+  ctx: PlacementContext,
+  maxStep = 0.4,
+  step = 0.03,
+): [number, number] | null {
+  if (canPlace(item, def, ctx)) return [item.position[0], item.position[1]]
+
+  // Obstacle OBBs — a direction heuristic only (canPlace is the truth), so we
+  // don't need canPlace's exact exemptions here; skip rugs + (for a mounted
+  // item) walls, which never block it.
+  const obstacles: OBB[] = []
+  for (const o of ctx.others) {
+    if (o.id === item.id) continue
+    const od = ctx.defs[o.defId]
+    if (!od || od.noClip) continue
+    for (const p of itemFootprintParts(o, od)) obstacles.push(p)
+  }
+  if (!def.mounted) {
+    const walls = ctx.walls ?? buildCollisionWalls(ctx.doors)
+    for (const w of walls) obstacles.push(wallToObb(w))
+  }
+
+  const parts = itemFootprintParts(item, def)
+  let dirX = 0
+  let dirZ = 0
+  let best = 0
+  for (const p of parts) {
+    for (const ob of obstacles) {
+      const m = obbMtv(p, ob)
+      if (m && m.depth > best) {
+        best = m.depth
+        dirX = m.nx
+        dirZ = m.nz
+      }
+    }
+  }
+  if (best === 0) return null // overlaps something canPlace flags but no OBB dir
+
+  // Step outward along the push direction, plus a small ± fan so it can round a
+  // corner, taking the first canPlace-valid spot within `maxStep`.
+  const fan = [0, 0.5, -0.5, 1.0, -1.0]
+  const [ox, oz] = item.position
+  for (let d = step; d <= maxStep + 1e-9; d += step) {
+    for (const a of fan) {
+      const ca = Math.cos(a)
+      const sa = Math.sin(a)
+      const nx = dirX * ca - dirZ * sa
+      const nz = dirX * sa + dirZ * ca
+      const pos: [number, number] = [ox + nx * d, oz + nz * d]
+      if (canPlace({ ...item, position: pos }, def, ctx)) return pos
+    }
+  }
+  return null
 }
 
 /** Shared furniture-vs-furniture overlap test (the exact rule `canPlace` uses

@@ -685,7 +685,12 @@ same change that reshapes a system.
   depth-only OBB that cut through it; single-part pieces are unchanged. The placement
   ghost's green/red tint is driven by `canPlace` → `ghostValid` (true-shape parts, so
   the tint reflects the real fit). (The L-shaped sectional + corner base cabinet ship
-  the first decompositions: main run + chaise / two runs.) `placementWalls.ts`
+  the first decompositions: main run + chaise / two runs.) **Soft push-apart on drop**:
+  a single-item drag that ends overlapping is nudged out to the nearest valid spot
+  instead of hard-reverting — `obbMtv` (SAT minimum translation vector) picks a push
+  direction and `nudgeToValid` steps outward (± fan) verifying each candidate with
+  `canPlace`, bounded to ~0.4 m (deep overlaps still revert); wired in `DragController`
+  as a confirmable edit. `placementWalls.ts`
   centralizes wall selection (room editor → solid perimeter; upper storeys → own
   walls). All cross-item/wall scans are **storey-scoped** (F13/ML3): `itemsCollide`
   + `findNarrowGaps` gate pairs on `levelId`, `levelWallClips.ts

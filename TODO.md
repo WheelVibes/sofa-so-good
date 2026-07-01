@@ -112,6 +112,11 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
   `surfaceDrop.ts`), drag inertia/easing, soft collision nudge (push-apart) rather than hard block.
   Scope carefully: a design tool wants *predictable* placement, so physics must aid, not fight, the
   user. Pure math core = verifiable; keep it opt-in/subtle. L.
+  - ~~Soft push-apart on drop~~ — **shipped v0.9.0.17** (`obbMtv` MTV + `nudgeToValid`; invalid single-item
+    drop nudges to the nearest valid spot, bounded ≤0.4 m, verified by `canPlace`). Wired in `DragController`.
+  - Remaining (optional, higher-risk): **live** slide during drag (item hugs walls/furniture in real
+    time, not just on release) — more invasive in `DragController`'s per-move snapping; drag inertia
+    (skip — hurts precision). Gravity-settle already covered by `surfaceDrop.ts`.
 
 > Audit note (2026-07-01): the core loop is already mature — align/distribute, apply-finish-to-all-rooms,
 > numeric+90° rotate, saved cameras, smart-guides, height-aware collision all exist. The remaining soft
