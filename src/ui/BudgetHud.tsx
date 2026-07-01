@@ -1,16 +1,20 @@
 import { useMemo } from 'react'
+import { useFeature } from '../features/useFeature'
 import { useCatalog } from '../furniture/catalog'
 import { itemsCost } from '../furniture/itemsCost'
 import { useStore } from '../state/store'
 
 /**
- * A small always-on budget pill, shown only once the user has set a budget
- * target (Budget panel) and is in an orbit view. Keeps spend-vs-target in view
- * while arranging — a commercial "stay on budget" aid — without opening the
- * Budget panel. Green when under, red when over. Hidden in walk mode (the walk
- * HUD owns the bottom-centre) and when no target is set.
+ * A small budget pill, shown only once the user has set a budget target
+ * (Budget panel) and is in an orbit view. Keeps spend-vs-target in view while
+ * arranging — a commercial "stay on budget" aid — without opening the Budget
+ * panel. Green when under, red when over. Hidden in walk mode (the walk HUD
+ * owns the bottom-centre), when no target is set, and — like every feature
+ * surface — whenever the `budget` feature is off (so a persisted target can't
+ * leak the pill after the feature is disabled / in Simple with budget off).
  */
 export function BudgetHud() {
+  const budgetOn = useFeature('budget')
   const target = useStore((s) => s.budgetTarget)
   const cameraMode = useStore((s) => s.cameraMode)
   // The 2D floor-plan editor is a full-screen mode (still on the orbit camera)
@@ -21,7 +25,7 @@ export function BudgetHud() {
 
   const spent = useMemo(() => itemsCost(items, catalog), [items, catalog])
 
-  if (target == null || cameraMode !== 'orbit' || floorPlanEditing) return null
+  if (!budgetOn || target == null || cameraMode !== 'orbit' || floorPlanEditing) return null
   const over = spent > target
   const pct = Math.min(100, Math.round((spent / target) * 100))
   const fmt = (n: number) => `$${n.toLocaleString('en-SG')}`

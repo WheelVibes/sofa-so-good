@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: gate remaining ungated feature surfaces (v0.9.0.24)
+
+- Hard-rule compliance sweep (follow-up to v0.9.0.23; found via an audit of every surface mounted
+  in `App.tsx`). Three more user-facing feature surfaces rendered guarded only by internal state,
+  not by their feature flag — so a persisted/stray state could leak the surface after the feature
+  was disabled (notably a `pro` feature surfacing in Simple mode). Each now also checks its flag:
+  - **`BudgetHud`** (the spend pill) → `useFeature('budget')` (was: only `budgetTarget != null`).
+  - **`TapeModeToggle`** (tape line/area mode pill) → `useFeature('measure')` (was: only `tapeMode`).
+  - **`PresentationMode`** (full-screen saved-views slideshow, `pro`) → `useFeature('presentation')`
+    (was: only `presenting`). The menu entry that *opens* each was already gated; this closes the
+    render surface itself. Default on-states unchanged.
+- Audit outcome: every other App.tsx surface is either correctly gated (self- or mount-gated) or is
+  intrinsic chrome (toolbar, selection outline, drag HUD, nav cluster, error boundaries, …).
+- Tests: `BudgetHud.test.tsx`, `TapeModeToggle.test.tsx`, `PresentationMode.gate.test.tsx` — each
+  renders the surface with its flag on (present) and off (null), plus the `presentation` pro-tier
+  both-mode resolution (off in Simple, on in Pro).
+
 ## FIX: gate the accent-wall picker behind a feature flag (v0.9.0.23)
 
 - Hard-rule compliance ("no feature ships ungated"): the `WallAccentPicker` — the panel that paints

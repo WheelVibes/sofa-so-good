@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { useFeature } from '../features/useFeature'
 import { allPlanRooms, levelElevation } from '../floorplan/levels'
 import { capturePanorama } from '../scene/panorama/capturePanorama'
 import { useStore } from '../state/store'
@@ -40,6 +41,7 @@ import { Icon } from './toolbar/icons'
  * Gated by the `presentation` feature flag at the mount site (App).
  */
 export function PresentationMode() {
+  const enabled = useFeature('presentation')
   const presenting = useStore((s) => s.presenting)
   const setPresenting = useStore((s) => s.setPresenting)
   const views = useStore(useShallow((s) => s.savedViews))
@@ -232,7 +234,7 @@ export function PresentationMode() {
     return () => clearTimeout(t)
   }, [presenting, auto, index, count, goTo, isPano])
 
-  if (!presenting || count === 0 || !slide) return null
+  if (!enabled || !presenting || count === 0 || !slide) return null
 
   return (
     <div
