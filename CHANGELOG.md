@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: README currency — ceiling finishes + accent walls (v0.9.0.44)
+
+- The README's **Finish** highlight enumerated "floors & walls" but per-room **ceiling** finishes
+  (v0.9.0.22) and **accent walls** (v0.9.0.23, now flag-gated) are shipped core capabilities — updated
+  the row to "floors, walls & ceilings … and per-wall accent walls" so the overview no longer
+  undersells the finishing tools.
+
 ## TESTS: validate every built-in starter plan + the default plan (v0.9.0.43)
 
 - The 18 built-in templates (`PLAN_TEMPLATES` — HDB 2-room→Maisonette, condo studio→penthouse,
