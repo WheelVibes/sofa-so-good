@@ -103,9 +103,11 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
   - ~~Placement "drop-in" easing~~ — **shipped v0.9.0.15** (`scene/placementDrop.ts` central animator:
     `beginDrop` at commit + `registerDropGroup` per item + one mounted `<PlacementDropAnimator>`
     mutating only dropping groups' Y; no per-item `useFrame`). Pure timing unit-tested + verified live.
-  - Selection scale/fade-in: localized to `SelectionOutline` (few nodes) — a safe smaller win.
-  - Door/drawer/cabinet open-close easing on toggle — currently instant for most; curtains/blinds
-    already ease. Could reuse the animated-source pattern.
+  - ~~Selection scale-in~~ — **shipped v0.9.0.16** (`scene/selection/selectionAppear.ts`; outline +
+    tint ease 0.9→1 over 130 ms on select).
+  - Door/drawer/cabinet open-close easing: **doors already animate** (linear swing 0.2 s in
+    `Door.tsx`/`PlanDoorLeaf.tsx`) — could ease the curve, low value. Cabinet drawers/doors don't
+    open at all (static fronts) — opening them would be a new feature, not just easing.
 - **Realistic physics (light touch)** — gravity-settle on drop (rest on the surface below — partial via
   `surfaceDrop.ts`), drag inertia/easing, soft collision nudge (push-apart) rather than hard block.
   Scope carefully: a design tool wants *predictable* placement, so physics must aid, not fight, the

@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: selection scale-in micro-interaction (v0.9.0.16)
+
+- **Animations leg.** Selecting an item now eases its outline + floor tint up from slightly smaller
+  (0.9→1 over 130 ms, ease-out) instead of popping in hard — a subtle focus cue (Coohom / Planner 5D
+  do similar). Plays once when the item enters the selection; a no-op thereafter.
+- Localized to `SelectionOutline`'s `ItemOutline` (only the handful of selected nodes get a
+  `useFrame`), driving the root group's scale from the pure `scene/selection/selectionAppear.ts`
+  (`appearEase` / `appearScale`). At rest the scale is exactly 1 — no change to the settled outline.
+  Short enough to finish inside the demand-mode settle tail; invalidates while ramping to be safe.
+- Tests: +4 (`selectionAppear.test.ts` — ease endpoints/clamp, scale starts at 0.9 and settles at
+  exactly 1, monotonic within bounds). Verified live: sampled the outline group's scale mid-appear
+  (observed sub-1 scaling easing to 1) and confirmed the outline renders cleanly, no glitch.
+
 ## FEATURE: placement drop-in easing (v0.9.0.15)
 
 - **Animations leg.** A freshly placed piece now eases DOWN onto its resting spot from a small

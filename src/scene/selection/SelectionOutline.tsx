@@ -1,4 +1,6 @@
-import { useMemo } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useMemo, useRef } from 'react'
+import type { Group } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import {
   itemFootprint,
@@ -10,6 +12,7 @@ import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { boxEdges, useDisposeGeometry } from '../geometryUtil'
+import { APPEAR_MS, appearScale } from './selectionAppear'
 
 /** Stable empty result so the selector returns the SAME reference when nothing is
  *  selected (useShallow no-op) and skips the per-change items scan (PERF-007). */
@@ -70,8 +73,24 @@ function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
     [-cx, -cz, -1, -1],
   ] as const
 
+  // Gentle scale-in on select (selectionAppear.ts): the whole indicator eases up
+  // from slightly smaller instead of popping. Plays once on mount (the outline
+  // mounts when the item enters the selection); a no-op thereafter. Short enough
+  // to complete within the demand-mode settle tail, but we invalidate to be safe.
+  const appearRef = useRef<Group>(null)
+  const mountRef = useRef(performance.now())
+  const invalidate = useThree((s) => s.invalidate)
+  useFrame(() => {
+    const g = appearRef.current
+    if (!g) return
+    const elapsed = performance.now() - mountRef.current
+    g.scale.setScalar(appearScale(elapsed))
+    if (elapsed < APPEAR_MS) invalidate()
+  })
+
   return (
     <group
+      ref={appearRef}
       position={[obb.cx, OUTLINE_LIFT, obb.cz]}
       rotation={[0, obb.rot, 0]}
       userData={noExportUserData()}
