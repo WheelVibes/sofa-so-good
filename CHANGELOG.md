@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract the DimensionsLayer render layer from FloorPlanEditor (v0.9.0.54)
+
+- De-monolith step 8: moved the active-storey **dimension lines** SVG layer (each Dimension-tool
+  measurement — measured line + perpendicular end ticks + length label, fat hit target, and
+  draggable A/B endpoint handles in edit mode) into `editor/layers/DimensionsLayer.tsx` via pure
+  prop code-motion. FloorPlanEditor 3495 → 3408 lines (−863 total from 4271).
+- Behaviour-preserving: tsc + full suite (4435) green; an **interactive** scenario adds a dimension
+  and confirms clicking it still selects it (`planSelection` → that dim id).
+
 ## REFACTOR: extract the OpeningsLayer render layer from FloorPlanEditor (v0.9.0.53)
 
 - De-monolith step 7: moved the active-storey **openings** SVG layer (each door/window as its
