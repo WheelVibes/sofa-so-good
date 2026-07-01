@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: keyboard-shortcuts help overlay (discoverability) (v0.9.0.18)
+
+- Closes the verified discoverability gap: shortcuts lived only in `KEYBINDINGS` + piecemeal ⌘K
+  hints/tooltips, with no single reference. A **"?" overlay** now lists every shortcut grouped by
+  task (Move & arrange / Edit / View / Panels & tools / Walk mode) with themed `<kbd>` chips.
+- Opens with **Shift+/** (`?`) or the ⌘K **"Keyboard shortcuts"** command (replacing the old
+  mislabelled "Appearance & help" entry that just opened Appearance). Feature-flagged
+  (`shortcutsHelp`, **pro**, default on — a power-user aid, hidden in Simple); the `?` handler +
+  the ⌘K command both gate on it.
+- Single-key labels are sourced from `KEYBINDINGS` via the pure `controls/shortcutHelp.ts`, so the
+  overlay can't drift from the real bindings; modifiers/Shift variants are in the descriptions.
+  Reuses the shared `.kbd-grid`/`<kbd>` token vocabulary — themed, light + dark verified.
+- Tests: +13 (`shortcutHelp.test.ts` list integrity + KEYBINDINGS sync; `shortcutsHelp.test.ts`
+  flag both-mode; `ShortcutsModal.test.tsx` render — dialog + every group + exact kbd-chip count).
+  Visually verified in light + dark (via a direct-import mount — see the new playbook note that
+  React.lazy modals don't resolve headlessly).
+
 ## FEATURE: soft push-apart on drop (physics leg) (v0.9.0.17)
 
 - **Physics leg** (light touch). A single-item drag that ends on an *overlapping* spot no longer

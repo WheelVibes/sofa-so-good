@@ -166,6 +166,15 @@ come out near-black.
 - **Geolocation is unavailable headless** — `navigator.geolocation.getCurrentPosition`
   calls the error callback silently. Use `store: dismissLocationPrompt` or
   `click: "Skip — use default location"` instead.
+- **`React.lazy` (dynamic-import) modals never resolve headlessly** (v0.9.0.18): the
+  post-load module fetch is gated (the console logs `goto networkidle2 timed out`), so a
+  lazily-mounted modal — e.g. everything routed through `ui/app/lazyComponents.tsx` like
+  `StyleQuizModal`, `ShortcutsModal` — stays on its `Suspense` fallback (`null`) forever
+  even after a multi-second wait; `.modal-overlay` never appears and the store flag is
+  irrelevant. To *visually* verify such a modal, temporarily swap its App mount for a
+  **direct import** (`import { X } from './ui/X'`, drop the `Suspense`), screenshot, then
+  revert — and/or assert its DOM via a `@testing-library/react` render test (see
+  `ShortcutsModal.test.tsx`). Non-lazy modals (the first-run location prompt) render fine.
 
 ### Scenario template
 

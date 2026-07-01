@@ -80,6 +80,8 @@ export interface FeaturesSlice {
   styleTransferOpen: boolean
   /** Style-quiz modal visibility. */
   styleQuizOpen: boolean
+  /** Keyboard-shortcuts help overlay visibility. */
+  shortcutsHelpOpen: boolean
   /** An immersive-VR session is active/requested (mounts the XR provider). */
   vrActive: boolean
   /** Clearance & fit checks panel visibility. */
@@ -153,6 +155,7 @@ export interface FeaturesSlice {
   setStagingRevealOpen: (open: boolean) => void
   setStyleTransferOpen: (open: boolean) => void
   setStyleQuizOpen: (open: boolean) => void
+  setShortcutsHelpOpen: (open: boolean) => void
   setVrActive: (active: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
   setElevationsOpen: (open: boolean) => void
@@ -198,6 +201,7 @@ export const FEATURES_INITIAL = {
   stagingRevealOpen: false,
   styleTransferOpen: false,
   styleQuizOpen: false,
+  shortcutsHelpOpen: false,
   vrActive: false,
   clearancePanelOpen: false,
   elevationsOpen: false,
@@ -255,6 +259,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setStagingRevealOpen: (stagingRevealOpen) => set({ stagingRevealOpen }),
   setStyleTransferOpen: (styleTransferOpen) => set({ styleTransferOpen }),
   setStyleQuizOpen: (styleQuizOpen) => set({ styleQuizOpen }),
+  setShortcutsHelpOpen: (shortcutsHelpOpen) => set({ shortcutsHelpOpen }),
   setVrActive: (vrActive) => set({ vrActive }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
   setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),

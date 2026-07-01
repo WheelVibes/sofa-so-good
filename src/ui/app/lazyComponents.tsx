@@ -50,6 +50,9 @@ export const StyleTransferModal = lazyWithRetry(() =>
 export const StyleQuizModal = lazyWithRetry(() =>
   import('../StyleQuizModal').then((m) => ({ default: m.StyleQuizModal })),
 )
+export const ShortcutsModal = lazyWithRetry(() =>
+  import('../ShortcutsModal').then((m) => ({ default: m.ShortcutsModal })),
+)
 export const VersionsPanel = lazyWithRetry(() =>
   import('../VersionsPanel').then((m) => ({ default: m.VersionsPanel })),
 )

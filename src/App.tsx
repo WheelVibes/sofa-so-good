@@ -47,6 +47,7 @@ import {
   ProductTour,
   RenderCompareModal,
   ShareModal,
+  ShortcutsModal,
   SmartStartWizard,
   StagingRevealModal,
   StyleQuizModal,
@@ -113,6 +114,7 @@ export default function App() {
     stagingRevealOpen: useStore((s) => s.stagingRevealOpen),
     styleTransferOpen: useStore((s) => s.styleTransferOpen),
     styleQuizOpen: useStore((s) => s.styleQuizOpen),
+    shortcutsHelpOpen: useStore((s) => s.shortcutsHelpOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
     historyOpen: useStore((s) => s.historyOpen),
@@ -200,11 +202,14 @@ export default function App() {
         useStore.getState().redo()
         return
       }
-      // `?` toggles the Appearance panel (which now hosts the user guide + tour).
+      // `?` opens the keyboard-shortcuts overlay (the universal convention) when
+      // that feature is on; otherwise it falls back to toggling the Appearance
+      // panel (which hosts the user guide + tour), preserving the old behaviour.
       if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e)) {
         e.preventDefault()
         const s = useStore.getState()
-        s.setAppearanceOpen(!s.appearanceOpen)
+        if (isFeatureEnabled('shortcutsHelp')) s.setShortcutsHelpOpen(true)
+        else s.setAppearanceOpen(!s.appearanceOpen)
         return
       }
       // `B` toggles the Budget / shopping panel (an orbit-view .aux panel) when
@@ -979,6 +984,11 @@ export default function App() {
         {lazyPanels.styleQuizOpen ? (
           <Suspense fallback={null}>
             <StyleQuizModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.shortcutsHelpOpen ? (
+          <Suspense fallback={null}>
+            <ShortcutsModal />
           </Suspense>
         ) : null}
         {lazyPanels.elevationsOpen ? (

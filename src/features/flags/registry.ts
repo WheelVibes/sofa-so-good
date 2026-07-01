@@ -429,6 +429,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  shortcutsHelp: {
+    label: 'Keyboard shortcuts',
+    description: 'A "?" overlay listing every keyboard shortcut',
+    default: true,
+    tier: 'pro',
+  },
   // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
   // assets → prod-safe. Crown molding is a core finish detail visible in casual
   // use, so it belongs in Simple tier.

@@ -319,7 +319,10 @@ same change that reshapes a system.
   Edit are hidden in the room editor (desktop `Toolbar` and the mobile sheet both gate them on
   `!roomEditorActive`), so they'd otherwise have no live target.
   **Location prompt suppressed while `onboardingOpen || tourOpen`** (no stacking) — so it always
-  surfaces last, after the tour. Replay via Help (?) or ⌘K.
+  surfaces last, after the tour. Replay the tour via the Appearance panel or ⌘K. (`?`
+  itself now opens the **keyboard-shortcuts overlay** — `ui/ShortcutsModal`, `shortcutsHelp`
+  flag; `controls/shortcutHelp.ts` sources single keys from `KEYBINDINGS`; also on the ⌘K
+  "Keyboard shortcuts" command.)
   **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`; on a
   **custom plan/template** it instead seeds a per-room kit + runs the plan arranger via pure
   `furniture/furnishPlan.ts` `furnishPlanItems`, so any template furnishes in one click).

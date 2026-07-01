@@ -64,6 +64,7 @@ export type FeatureFlag =
   | 'stagingReveal'
   | 'styleTransfer'
   | 'styleQuiz'
+  | 'shortcutsHelp'
   | 'crownMolding'
   | 'windowGlassTint'
   | 'curtainLightEffect'

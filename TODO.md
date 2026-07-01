@@ -119,8 +119,9 @@ arrange, finish, view) on desktop **and** mobile — NOT pricing/quotes/analytic
     (skip — hurts precision). Gravity-settle already covered by `surfaceDrop.ts`.
 
 > Audit note (2026-07-01): the core loop is already mature — align/distribute, apply-finish-to-all-rooms,
-> numeric+90° rotate, saved cameras, smart-guides, height-aware collision all exist. The remaining soft
-> spot is **discoverability** (silent synonym search, no keyboard/gesture cheat-sheet, one-time-only
+> numeric+90° rotate, saved cameras, smart-guides, height-aware collision all exist. Discoverability
+> follow-ups: ~~keyboard cheat-sheet~~ **shipped v0.9.0.18** (`?` / ⌘K "Keyboard shortcuts" →
+> `ShortcutsModal`, `shortcutsHelp` pro flag). Remaining: silent synonym search feedback, one-time-only
 > onboarding). Candidates for a later UX pass, lower priority than the deeper-interaction work above.
 
 ## Process
