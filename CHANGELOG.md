@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract the FurnitureRotateHandle from FloorPlanEditor (v0.9.0.58)
+
+- De-monolith step 12: moved the **single-selected furniture rotate handle** (ring + facing knob
+  around the chosen footprint; drag to spin about its centre, 15°-snap) into
+  `editor/layers/FurnitureRotateHandle.tsx` via pure prop code-motion; the parent still gates on
+  Furniture toggle + edit mode + select tool + a live single selection. FloorPlanEditor 3019 → 2949
+  lines (−1322 total from 4271).
+- Behaviour-preserving: tsc + full suite green; an **interactive** scenario selects a footprint and
+  confirms the rotate handle (`data-rot-handle`) appears for that item.
+
 ## REFACTOR: extract the FurnitureLayer render layer from FloorPlanEditor (v0.9.0.57)
 
 - De-monolith step 11 (the biggest render block): moved the whole active-storey **furniture** SVG

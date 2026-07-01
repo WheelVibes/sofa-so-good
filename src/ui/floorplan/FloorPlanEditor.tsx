@@ -52,6 +52,7 @@ import { GridLines } from './editor/GridLines'
 import { LevelMenu } from './editor/LevelMenu'
 import { DimensionsLayer } from './editor/layers/DimensionsLayer'
 import { FurnitureLayer } from './editor/layers/FurnitureLayer'
+import { FurnitureRotateHandle } from './editor/layers/FurnitureRotateHandle'
 import { NotesLayer } from './editor/layers/NotesLayer'
 import { OpeningsLayer } from './editor/layers/OpeningsLayer'
 import { PolylinesLayer } from './editor/layers/PolylinesLayer'
@@ -2385,93 +2386,22 @@ export function FloorPlanEditor() {
               )}
 
               {/* Selected-furniture rotate handle: a ring + knob around the chosen
-                footprint, mirroring the wall rotate ring's visual language. Drag
-                the ring/knob to spin the piece about its centre; reuses the 3D
-                gizmo's 15°-snap (hold Shift for free rotation). Single selection
-                only (like the wall handle), edit mode + select tool, unlocked.
-                The plan editor selects one furniture item at a time (no plan
-                multi-select yet), so a single-selection handle is the right scope. */}
+                footprint. Single selection only, edit mode + select tool, unlocked
+                (see FurnitureRotateHandle). */}
               {showFurniture &&
                 editMode === 'edit' &&
                 tool === 'select' &&
-                selectedItemId != null &&
-                (() => {
-                  const it = levelItems.find((i) => i.id === selectedItemId)
-                  if (!it || it.locked) return null
-                  const def = getDef(it.defId)
-                  if (!def) return null
-                  const obb = itemFootprint(it, def)
-                  const cx = toPx(obb.cx)
-                  const cy = toPx(obb.cz)
-                  // Ring clears the footprint (half-diagonal + gap), with a px floor
-                  // so tiny pieces still get a grabbable ring.
-                  const ringR = Math.max(Math.hypot(obb.hx, obb.hz) * PX + 16, 28)
-                  // Knob at the item's facing (+Z): world facing unit = (sin, cos);
-                  // both axes scale by PX into plan pixels.
-                  const kx = cx + Math.sin(it.rotation) * ringR
-                  const ky = cy + Math.cos(it.rotation) * ringR
-                  const startRotate = (e: React.PointerEvent) => {
-                    if (!beginElementDrag(e, true)) return
-                    const [gx, gz] = pointerWorld(e)
-                    useStore.getState().pushHistory()
-                    setRotatingItem({
-                      id: it.id,
-                      cx: obb.cx,
-                      cz: obb.cz,
-                      startRot: it.rotation,
-                      a0: pointerAngle(obb.cx, obb.cz, gx, gz),
-                    })
-                  }
-                  return (
-                    <g key={`rot-${it.id}`}>
-                      {/* Fat transparent grab ring — generous touch target; only the
-                        stroke is interactive so the interior stays click-through. */}
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        r={ringR}
-                        fill="none"
-                        stroke="transparent"
-                        strokeWidth={18}
-                        style={{ cursor: 'grab', pointerEvents: 'stroke' }}
-                        onPointerDown={startRotate}
-                      />
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        r={ringR}
-                        fill="none"
-                        stroke="var(--accent)"
-                        strokeOpacity={0.5}
-                        strokeWidth={2}
-                        strokeDasharray="4 4"
-                        style={{ pointerEvents: 'none' }}
-                      />
-                      {/* Spoke + knob at the item's facing, doubling as a heading cue. */}
-                      <line
-                        x1={cx}
-                        y1={cy}
-                        x2={kx}
-                        y2={ky}
-                        stroke="var(--accent)"
-                        strokeOpacity={0.5}
-                        strokeWidth={1.5}
-                        style={{ pointerEvents: 'none' }}
-                      />
-                      <circle
-                        data-rot-handle={it.id}
-                        cx={kx}
-                        cy={ky}
-                        r={7}
-                        fill="var(--surface-solid)"
-                        stroke="var(--accent)"
-                        strokeWidth={2}
-                        style={{ cursor: 'grab' }}
-                        onPointerDown={startRotate}
-                      />
-                    </g>
-                  )
-                })()}
+                selectedItemId != null && (
+                  <FurnitureRotateHandle
+                    item={levelItems.find((i) => i.id === selectedItemId)}
+                    getDef={getDef}
+                    PX={PX}
+                    toPx={toPx}
+                    beginElementDrag={beginElementDrag}
+                    pointerWorld={pointerWorld}
+                    setRotatingItem={setRotatingItem}
+                  />
+                )}
 
               {/* Text notes (active storey) — PARITY-DIMTEXT. Click (select tool)
                 to select + drag; edit/delete in the inspector. */}
