@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## A11Y: mobile menu sheet closes on Escape + guards hotkeys (v0.9.0.36)
+
+- Last item from the keyboard/SR audit: the `MobileToolbar` menu sheet was the only overlay with no
+  Escape handler and no `useModalGuard`. Added both — Escape closes it, and app-wide hotkeys are
+  suppressed while it's open, matching every other overlay. (Keyboard-on-mobile is rare, but this
+  closes the consistency gap.)
+- Test: new `MobileToolbar.test.tsx` — open via the Menu button, Escape closes the sheet.
+
 ## A11Y: Popover returns focus to its trigger on Escape (v0.9.0.35)
 
 - The toolbar `Popover` (View / Scene / Arrange / File menus, and other anchored menus) closed on

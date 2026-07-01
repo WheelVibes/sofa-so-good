@@ -147,8 +147,8 @@ on the shared `Modal` (**v0.9.0.34**). Remaining candidates from the audit (each
   surface bundled CC-BY attributions in one place. Small; needs a menu entry + feature flag.
 - ~~Popover focus restore~~ — **shipped v0.9.0.35** (Escape returns focus to the trigger `anchorRef`,
   standard menu-button pattern; not on outside pointer-down). See `CHANGELOG.md`.
-- **Mobile bottom-sheet (MobileToolbar) Escape + focus** — no Escape-to-close / focus trap on the
-  mobile menu sheet (rare on touch, but a keyboard-on-mobile gap). Medium.
+- ~~Mobile bottom-sheet (MobileToolbar) Escape + guard~~ — **shipped v0.9.0.36** (Escape closes +
+  `useModalGuard`). A full focus-trap on the sheet remains optional (very low value on touch).
 - Verified NOT gaps: ParametricDialog + ConfiguratorDialog already handle Escape; Modal has full
   focus trap/restore + Escape; row-level layer actions have a tap-select fallback.
 
