@@ -141,10 +141,9 @@ call, not forced):
 ### Accessibility (2026-07-01 keyboard/SR audit)
 Shipped: consistent `:focus-visible` ring across all controls (**v0.9.0.33**); CreditsModal rebuilt
 on the shared `Modal` (**v0.9.0.34**). Remaining candidates from the audit (each grep-verified):
-- **Wire up `CreditsModal`** — it's fully built + now accessible + tested, but **not mounted
-  anywhere** (no menu/About entry opens it). Per-item attribution already shows in the inspector, so
-  it's optional; a global "Asset credits / About" entry (e.g. in the ☰ menu or a Help surface) would
-  surface bundled CC-BY attributions in one place. Small; needs a menu entry + feature flag.
+- ~~Wire up `CreditsModal`~~ — **shipped v0.9.0.41** (`assetCredits` flag; "Asset credits" entry in
+  the shared `AppearanceControls` → desktop popover + mobile menu; `creditsOpen` in featuresSlice;
+  mounted in App). See `CHANGELOG.md`.
 - ~~Popover focus restore~~ — **shipped v0.9.0.35** (Escape returns focus to the trigger `anchorRef`,
   standard menu-button pattern; not on outside pointer-down). See `CHANGELOG.md`.
 - ~~Mobile bottom-sheet (MobileToolbar) Escape + guard~~ — **shipped v0.9.0.36** (Escape closes +

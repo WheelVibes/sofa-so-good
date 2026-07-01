@@ -197,7 +197,8 @@ same change that reshapes a system.
   selected item's room with N collision-safe copies on a packed grid, deterministic by seed;
   Pro-only via `scatterFill` flag)), FinishPicker, WallAccentPicker (paint one wall face an accent
   finish, opened by a wall-face click; `wallAccentPicker` flag), GraphicsSettings,
-  BudgetPanel, NavCluster,
+  BudgetPanel, NavCluster, CreditsModal (asset attribution/licenses, opened from the Appearance
+  panel's "Asset credits" entry; `assetCredits` flag; built on the shared `Modal`),
   CommandPalette, **ContextMenu** (dynamic right-click menu — `featuresSlice.ContextTarget`
   carries what was right-clicked; `ContextMenu.tsx` rebuilds actions per target + selection:
   furniture rotate/flip/duplicate/**layer-order**/group/lock/hide/delete, plan walls

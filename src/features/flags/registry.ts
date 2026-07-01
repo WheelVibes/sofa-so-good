@@ -462,6 +462,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Consolidated asset-credits / attribution viewer (CC-BY assets that require
+  // visible attribution + CC0 sources). Pure data, prod-safe; universal → simple.
+  assetCredits: {
+    label: 'Asset credits',
+    description: 'View attribution & licenses for bundled and downloaded assets',
+    default: true,
+    tier: 'simple',
+  },
   // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
   // assets → prod-safe. Crown molding is a core finish detail visible in casual
   // use, so it belongs in Simple tier.

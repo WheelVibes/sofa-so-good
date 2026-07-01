@@ -62,6 +62,7 @@ import { resolveBootDecision } from './ui/bootDecision'
 import { CommandPalette } from './ui/CommandPalette'
 import { ConfirmModal } from './ui/ConfirmModal'
 import { ContextMenu } from './ui/ContextMenu'
+import { CreditsModal } from './ui/CreditsModal'
 import { Crosshair } from './ui/Crosshair'
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
 import { usePlacementController } from './ui/catalog/usePlacementController'
@@ -102,6 +103,7 @@ export default function App() {
   const configuratorOpen = useStore((s) => s.configuratorOpen)
   const bootPhase = useStore((s) => s.bootPhase)
   const sceneReady = useStore((s) => s.sceneReady)
+  const creditsOpen = useStore((s) => s.creditsOpen)
   const loading = useStore((s) => s.loading)
   const hideLoading = useStore((s) => s.hideLoading)
   // Open flags for the lazy-loaded panels (PERF5) — gate their mount so each
@@ -910,6 +912,10 @@ export default function App() {
         <CommandPalette />
         <ContextMenu />
         <SwapModal />
+        <CreditsModal
+          open={creditsOpen}
+          onClose={() => useStore.getState().setCreditsOpen(false)}
+        />
         {/* Pro/analysis panels: chunk is idle-preloaded then mounts when opened (PERF-004). */}
         {lazyPanels.budgetOpen ? (
           <Suspense fallback={null}>

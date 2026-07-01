@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { useFeature } from '../../features/useFeature'
 import {
   type ModePref,
   THEME_META,
@@ -26,6 +27,8 @@ const MODES: { key: ModePref; label: string; icon: 'Sun' | 'Moon' | 'Settings' }
 export function AppearanceControls() {
   const theme = useStore((s) => s.theme)
   const setTheme = useStore((s) => s.setTheme)
+  const setCreditsOpen = useStore((s) => s.setCreditsOpen)
+  const creditsOn = useFeature('assetCredits')
   const modePref = useStore((s) => s.modePref)
   const setModePref = useStore((s) => s.setModePref)
   const uiMode = useStore((s) => s.uiMode)
@@ -158,6 +161,24 @@ export function AppearanceControls() {
             Replay guided tour
           </button>
         </>
+      ) : null}
+
+      {/* Asset credits / attribution (shown on desktop + mobile — outside the
+          desktop-only Help block above). Universal licensing surface. */}
+      {creditsOn ? (
+        <button
+          type="button"
+          className="btn btn-soft btn-block"
+          style={{ marginTop: 10 }}
+          onClick={() => {
+            const s = useStore.getState()
+            s.setAppearanceOpen(false)
+            setCreditsOpen(true)
+          }}
+        >
+          <Icon.Credits width={14} height={14} />
+          Asset credits
+        </button>
       ) : null}
 
       {/* Running build (major.minor.patch.build) — what "Check for updates"

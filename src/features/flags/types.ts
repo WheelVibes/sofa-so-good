@@ -68,6 +68,7 @@ export type FeatureFlag =
   | 'itemDimensionReadout'
   | 'wallAccentPicker'
   | 'bulkAppearance'
+  | 'assetCredits'
   | 'crownMolding'
   | 'windowGlassTint'
   | 'curtainLightEffect'

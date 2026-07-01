@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: wire up the asset-credits viewer (v0.9.0.41)
+
+- Closes the loose end from v0.9.0.34: `CreditsModal` was built + made accessible but **mounted
+  nowhere** (no way to open it). Added an "Asset credits" entry in the shared `AppearanceControls`
+  (so it appears in BOTH the desktop Appearance popover and the mobile menu, placed by the version
+  footer — outside the desktop-only Help block), a `creditsOpen` flag + `setCreditsOpen` action in
+  `featuresSlice`, and mounted `<CreditsModal>` in `App`. Surfaces bundled/downloaded CC-BY
+  attributions + CC0 sources in one place (licensing visibility) — per-item attribution in the
+  inspector is unchanged.
+- Flag: **`assetCredits`** (`simple`, default on — universal licensing surface; on in both modes).
+- Tests: `assetCredits.test.tsx` — flag both-mode, the button opens the modal, hidden when the flag
+  is off (plus the existing CreditsModal dialog/Escape tests). Verified in-app via DOM probe
+  (`role=dialog`, title "Asset credits" present on open).
+
 ## TESTS: cover uploaded-material validation (v0.9.0.40)
 
 - `materials/upload/validate.ts` `validateImageFile` (the gate that rejects bad user uploads before
