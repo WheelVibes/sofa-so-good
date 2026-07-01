@@ -145,8 +145,8 @@ on the shared `Modal` (**v0.9.0.34**). Remaining candidates from the audit (each
   anywhere** (no menu/About entry opens it). Per-item attribution already shows in the inspector, so
   it's optional; a global "Asset credits / About" entry (e.g. in the ☰ menu or a Help surface) would
   surface bundled CC-BY attributions in one place. Small; needs a menu entry + feature flag.
-- **Popover focus restore** (`ui/toolbar/Popover.tsx`) — has Escape + outside-click close but doesn't
-  restore focus to the trigger on close (keyboard users lose their place). Small.
+- ~~Popover focus restore~~ — **shipped v0.9.0.35** (Escape returns focus to the trigger `anchorRef`,
+  standard menu-button pattern; not on outside pointer-down). See `CHANGELOG.md`.
 - **Mobile bottom-sheet (MobileToolbar) Escape + focus** — no Escape-to-close / focus trap on the
   mobile menu sheet (rare on touch, but a keyboard-on-mobile gap). Medium.
 - Verified NOT gaps: ParametricDialog + ConfiguratorDialog already handle Escape; Modal has full

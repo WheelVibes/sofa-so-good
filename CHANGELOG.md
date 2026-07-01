@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## A11Y: Popover returns focus to its trigger on Escape (v0.9.0.35)
+
+- The toolbar `Popover` (View / Scene / Arrange / File menus, and other anchored menus) closed on
+  Escape but never restored focus — a keyboard user who opened a menu and pressed Escape was left
+  with focus orphaned on `<body>`, having to re-tab to their place. Now Escape returns focus to the
+  trigger (`anchorRef`), the standard menu-button pattern. Only on Escape — an outside pointer-down
+  deliberately does not yank focus back.
+- Test: added a focus-restore case to `Popover.test.tsx` (Escape → `activeElement === trigger`).
+
 ## A11Y/CHORE: rebuild CreditsModal on the shared Modal primitive (v0.9.0.34)
 
 - `CreditsModal` was a bare `.modal-overlay` with no Escape, no focus trap/restore, no
