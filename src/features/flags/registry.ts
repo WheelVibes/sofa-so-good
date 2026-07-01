@@ -453,6 +453,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Recolour every selected piece at once from the multi-select panel (vs the
+  // copy-one-then-paste-appearance path). Pure `props.tint` state, prod-safe;
+  // a fast common re-skin → Simple tier, default on.
+  bulkAppearance: {
+    label: 'Bulk recolour',
+    description: 'Tint every selected item at once from the multi-select panel',
+    default: true,
+    tier: 'simple',
+  },
   // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
   // assets → prod-safe. Crown molding is a core finish detail visible in casual
   // use, so it belongs in Simple tier.

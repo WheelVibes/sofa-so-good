@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: bulk recolour on multi-select (v0.9.0.25)
+
+- Customizability: the multi-select panel now has an **Appearance › Tint all** colour picker that
+  recolours **every selected item at once** ("make all these chairs burgundy") — one action, vs the
+  previous copy-one-item's-appearance → paste-to-rest dance. A reset button clears the tint from all
+  when the selection shares one. The picker's swatch reflects the selection's shared tint (or blank
+  when they differ). Matches the bulk material/colour editors in Coohom / Planner 5D / IKEA Kreativ.
+- Store: new **`updateManyItemProps(ids, props)`** batch action (`itemsSlice`) — merges props into
+  every listed item in ONE undo step (`pushHistory` once + a single `set`), the idiomatic batch
+  pattern (align/distribute push once then mutate many). Reusable for future bulk appearance edits.
+- Flag: **`bulkAppearance`** (`simple`, default on — a fast common re-skin; on in both modes).
+- Tests: `updateManyItemProps` unit tests (batch merge, single-undo, clear-with-'', empty-list
+  no-op) + `MultiSelectPanel.bulkTint.test.tsx` (section shows when on / hidden when off, both-mode
+  flag, clear affordance appears once the selection shares a tint). Visually verified the picker +
+  recolour in the room editor.
+
 ## FIX: gate remaining ungated feature surfaces (v0.9.0.24)
 
 - Hard-rule compliance sweep (follow-up to v0.9.0.23; found via an audit of every surface mounted
