@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract the FurnitureLayer render layer from FloorPlanEditor (v0.9.0.57)
+
+- De-monolith step 11 (the biggest render block): moved the whole active-storey **furniture** SVG
+  layer into `editor/layers/FurnitureLayer.tsx` via pure prop code-motion — top-down footprints
+  (category-tinted fill + centred glyph + out-of-plane tilt badge, click-to-select + drag), the
+  unified 2+-item multi-select bounding box with rotation ring + four corner scale handles, and the
+  name/price labels. The parent still gates the layer on the "Furniture" visibility toggle.
+  FloorPlanEditor 3299 → 3019 lines (−1252 total from 4271 — the monolith is now under 3100).
+- Behaviour-preserving: tsc + full suite green; an **interactive** scenario shows the Furniture
+  layer (81 footprints) and confirms clicking a footprint selects that item (`selectedItemId`).
+
 ## REFACTOR: extract the TourStopsLayer render layer from FloorPlanEditor (v0.9.0.56)
 
 - De-monolith step 10: moved the 360° **tour stop markers** SVG layer (panoTour feature — numbered
