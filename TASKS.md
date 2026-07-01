@@ -19,6 +19,15 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   the inert WebXR entry + provider already ship.
 
 ## Open — client-doable
+- [ ] MOD-FPE-SPLIT (continue): `FloorPlanEditor.tsx` is still ~4109 lines. Safely-isolated concerns
+  are extracted (`usePlanBackdrop` v0.9.0.46, `usePlanAiWalls` v0.9.0.47; helpers already in
+  `editor/*`). Remaining reductions are **higher-risk** — they touch foundational/pervasive state and
+  correctness-critical interactive math that the headless harness can't fully verify: (a) **viewport**
+  (zoom/pan/pinch + `PX`/`toPx` coordinate conversion, ~50 render refs) → `usePlanViewport`;
+  (b) **per-level plan** (`activeLevelId`→`levelPlan`, threaded through every handler + the render);
+  (c) the giant **pointer-tool dispatch** (onPointerDown/Move/Up) → per-tool handlers; (d) splitting
+  the SVG render into sub-components. Do each with manual zoom/pan/gesture verification (not just the
+  render smoke-shot + ± zoom).
 - [ ] IO-006: zip-bomb guard on the **decompressed** usdz/3mf payload — needs a zip
   central-directory parser to bound the inflated size (a blunt on-disk cap would regress legitimate
   large files), so deferred until that parser exists.

@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: record the FloorPlanEditor de-monolith plan + remaining steps (v0.9.0.48)
+
+- Logged MOD-FPE-SPLIT progress + the remaining plan in `TASKS.md`: the two safely-isolated concerns
+  are extracted (`usePlanBackdrop`, `usePlanAiWalls`; −162 lines to ~4109). The remaining reductions
+  (viewport zoom/pan/pinch + `PX`/`toPx`; per-level `levelPlan` state; the pointer-tool dispatch;
+  the SVG render split) touch foundational/pervasive, correctness-critical interactive code that the
+  headless harness can't fully verify — flagged to do each with manual gesture verification.
+
 ## REFACTOR: extract usePlanAiWalls from the FloorPlanEditor monolith (v0.9.0.47)
 
 - De-monolith step 2: lifted the experimental **AI wall-recognition** concern (`aiBusy` flag +
