@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: manage accent walls from the per-room FinishPicker (v0.9.0.45)
+
+- Customizability/discoverability: accent walls (`finishes.wallAccents`, keyed `wallId:roomId`) could
+  only be created — and *only seen* — by clicking each wall face in 3D. The per-room `FinishPicker`
+  now has an **"Accent walls"** section that surfaces the selected room's accents in one place: each
+  accent shows a swatch + name (material name, or the hex) with a one-tap **remove** (match-room)
+  button, plus a hint to tap a wall in 3D to add one. Gated by the existing `wallAccentPicker` flag;
+  filters `wallAccents` to the selected room (`…:roomId`), so other rooms' accents never leak in.
+- **Design note:** *creating* an accent stays a 3D wall tap (opens `WallAccentPicker`) — the
+  wall→room mapping differs between the fixed apartment (`wallRoomSides`) and custom plans, so this
+  is the management/discovery view rather than re-enumerating a room's walls in the panel.
+- Tests: `FinishPicker.accent.test.tsx` — hint shown when empty, existing accent listed + cleared,
+  only the selected room's accents listed, hidden when the flag is off. Verified in the room editor.
+
 ## DOCS: README currency — ceiling finishes + accent walls (v0.9.0.44)
 
 - The README's **Finish** highlight enumerated "floors & walls" but per-room **ceiling** finishes

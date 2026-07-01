@@ -65,10 +65,12 @@ WebGPU path tracing).
   hurts placement precision.)
 
 ## Open — customizability / UX
-- **Fold baseboard + per-room wall-accent into the FinishPicker.** The per-room `FinishPicker` now
-  covers floor + wall + ceiling; baseboard is 2D-plan-inspector only (`wallBaseboard`, keyed
-  per-wall → needs a per-room aggregation decision) and wall-accent is only via clicking a single
-  wall face (`WallAccentPicker`, per-`wallId:roomId`). Medium effort, lower incremental value.
+- **Fold baseboard + accent-wall *creation* into the FinishPicker.** The FinishPicker now covers
+  floor + wall + ceiling and *manages* a room's existing accent walls (v0.9.0.45 — list + clear +
+  hint). Remaining: (a) *create* an accent from the panel by picking a wall (needs a room→walls
+  enumeration that works for both the fixed apartment `wallRoomSides` and custom plans); (b) fold
+  baseboard (2D-plan-inspector only, `wallBaseboard`, keyed per-wall → needs a per-room aggregation
+  decision). Medium effort, lower incremental value.
 - **2D-plan finish drag-and-drop** (S–M) — `finishDnd` drag-to-apply works in 3D
   (`scene/FinishDropSurface`) but not the 2D plan editor. Add plan drop-zones reusing `finishDrop`
   + `setRoomFinish`/`setWallFinish` (reuses the `finishDnd` flag). Lower reach (many users never

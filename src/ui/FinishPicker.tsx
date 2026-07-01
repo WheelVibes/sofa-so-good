@@ -71,6 +71,7 @@ export function FinishPicker() {
   const setWallFinish = useStore((s) => s.setWallFinish)
   const setCeilingFinish = useStore((s) => s.setCeilingFinish)
   const clearCeilingFinish = useStore((s) => s.clearCeilingFinish)
+  const clearWallAccent = useStore((s) => s.clearWallAccent)
   const setAllFloorFinish = useStore((s) => s.setAllFloorFinish)
   const setAllWallFinish = useStore((s) => s.setAllWallFinish)
   const setAllCeilingFinish = useStore((s) => s.setAllCeilingFinish)
@@ -261,6 +262,7 @@ export function FinishPicker() {
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   const fRemoteMaterials = useFeature('remoteMaterials')
   const fCeiling = useFeature('ceilingFinish')
+  const fWallAccent = useFeature('wallAccentPicker')
   const fDesignerPicks = useFeature('designerPicks')
   const fComposer = useFeature('materialComposer')
   const fSaveMaterials = useFeature('saveMaterials')
@@ -545,6 +547,84 @@ export function FinishPicker() {
               ) : null}
             </>
           ) : null}
+          {/* Accent walls (per-`wallId:roomId`): surface + manage this room's
+              accents in one place. Creating one stays a 3D wall tap (opens the
+              WallAccentPicker) — the wall→room mapping differs by plan type, so
+              we don't re-enumerate it here; this is the management/discovery view. */}
+          {fWallAccent
+            ? (() => {
+                const accents = Object.entries(finishes.wallAccents).filter(
+                  ([k]) => k.slice(k.lastIndexOf(':') + 1) === roomId,
+                )
+                return (
+                  <div className="sec">
+                    <div className="label">Accent walls</div>
+                    {accents.length === 0 ? (
+                      <p
+                        className="panel-sub"
+                        style={{ textTransform: 'none', letterSpacing: 0, margin: '2px 0 0' }}
+                      >
+                        Tap any wall in the 3D view to paint it a different colour from the rest of
+                        the room.
+                      </p>
+                    ) : (
+                      <>
+                        {accents.map(([key, id]) => {
+                          const mat = materials[id]
+                          const swatchColor = id.startsWith('#') ? id : (mat?.swatch ?? '#ccc')
+                          const name = id.startsWith('#') ? id.toUpperCase() : (mat?.name ?? id)
+                          return (
+                            <div
+                              key={key}
+                              className="row"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--s-2)',
+                                marginTop: 'var(--s-1)',
+                              }}
+                            >
+                              <span
+                                className="swatch"
+                                style={{ backgroundColor: swatchColor }}
+                                aria-hidden="true"
+                              />
+                              <span
+                                className="flex-1"
+                                style={{
+                                  minWidth: 0,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  fontSize: 'var(--t-xs)',
+                                }}
+                              >
+                                {name}
+                              </span>
+                              <button
+                                type="button"
+                                className="icon-btn"
+                                onClick={() => clearWallAccent(key)}
+                                title="Match room finish (remove accent)"
+                                aria-label={`Remove accent wall (${name})`}
+                              >
+                                <Icon.Reset width={14} height={14} />
+                              </button>
+                            </div>
+                          )
+                        })}
+                        <p
+                          className="panel-sub"
+                          style={{ textTransform: 'none', letterSpacing: 0, margin: '6px 0 0' }}
+                        >
+                          Tap another wall in the 3D view to add one.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )
+              })()
+            : null}
           {otherRooms.length > 0 ? (
             <Select
               className="input"

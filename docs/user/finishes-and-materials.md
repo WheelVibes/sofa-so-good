@@ -11,6 +11,10 @@
 4. Scroll down for the **Ceiling** section — paint a room's ceiling from the same
    palette, **Apply ceiling to all rooms**, or **Reset ceiling to white** to go
    back to the plain default.
+5. **Accent walls** — click any single wall in the 3D view to paint it a different
+   colour from the rest of the room. The room's finish picker lists its accent
+   walls under **Accent walls**, where you can remove one (match it back to the
+   room) at a tap.
 
 This works the same on a **custom floor plan** (a template or one you drew
 yourself): each plan room takes its own floor and wall finish, live in 3D, and
