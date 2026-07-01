@@ -1,0 +1,17 @@
+{
+  "name": "granular-collision",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "scene-ready", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 45000 },
+    {
+      "name": "place-lsofa-and-probe-in-notch",
+      "eval": "const st=window.__store.getState(); st.setPresetTime('noon'); st.setLightsMode && st.setLightsMode('on'); st.setItems([{id:'L',defId:'sofa-lshape',position:[10,4],rotation:0,props:{}},{id:'stool',defId:'bar-stool',position:[9.3,4.5],rotation:0,props:{}}]); st.setCameraMode && st.setCameraMode('orbit'); st.focusOn([9.7,4.2])"
+    },
+    { "name": "wait-render", "wait": 1800 },
+    { "name": "screenshot-notch-occupied", "screenshot": true },
+    {
+      "name": "check-items",
+      "eval": "console.log('items placed:', window.__store.getState().items.map(i=>i.defId).join(', '))"
+    }
+  ]
+}

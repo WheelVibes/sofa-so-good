@@ -86,19 +86,62 @@ export function NotificationContainer() {
   const dismiss = useStore((s) => s.notify.dismiss)
   // The notification whose details panel is open (by id), if any.
   const [openDetails, setOpenDetails] = useState<string | null>(null)
+  // Toasts the user is hovering/focusing — their auto-dismiss is paused so a
+  // toast never vanishes mid-read or while being interacted with (WCAG 2.2.1).
+  const [pausedIds, setPausedIds] = useState<ReadonlySet<string>>(() => new Set())
   const { polite, assertive } = useToastAnnouncer(notifications)
 
+  // Per-toast remaining auto-dismiss budget (ms), self-managed across re-renders
+  // and pauses: seeded once from `createdAt`, then decremented by the time each
+  // running interval actually consumed. While paused, no timer runs and no time
+  // is banked, so the budget freezes and resumes exactly where it left off.
+  const remainingRef = useRef(new Map<string, number>())
+  const startedAtRef = useRef(new Map<string, number>())
+
+  const pause = (id: string) =>
+    setPausedIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)))
+  const resume = (id: string) =>
+    setPausedIds((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+
   useEffect(() => {
+    const remaining = remainingRef.current
+    const startedAt = startedAtRef.current
+    const live = new Set(notifications.map((n) => n.id))
+    // Forget budgets for dismissed toasts (so a reused id starts fresh).
+    for (const id of [...remaining.keys()]) {
+      if (!live.has(id)) {
+        remaining.delete(id)
+        startedAt.delete(id)
+      }
+    }
     const timers: number[] = []
     for (const n of notifications) {
       if (n.autoDismissMs == null) continue
-      const elapsed = Date.now() - n.createdAt
-      const remaining = Math.max(0, n.autoDismissMs - elapsed)
-      const t = window.setTimeout(() => dismiss(n.id), remaining)
-      timers.push(t)
+      if (!remaining.has(n.id)) {
+        remaining.set(n.id, Math.max(0, n.autoDismissMs - (Date.now() - n.createdAt)))
+      }
+      if (pausedIds.has(n.id)) {
+        startedAt.delete(n.id)
+        continue // paused — no running timer
+      }
+      startedAt.set(n.id, Date.now())
+      timers.push(window.setTimeout(() => dismiss(n.id), remaining.get(n.id) ?? 0))
     }
-    return () => timers.forEach(window.clearTimeout)
-  }, [notifications, dismiss])
+    return () => {
+      // Bank the time each running (non-paused) timer actually consumed before
+      // this effect re-runs (a new toast, a progress tick, or a pause toggle).
+      const now = Date.now()
+      for (const [id, start] of startedAt) {
+        remaining.set(id, Math.max(0, (remaining.get(id) ?? 0) - (now - start)))
+      }
+      timers.forEach(window.clearTimeout)
+    }
+  }, [notifications, pausedIds, dismiss])
 
   const detailNotif = openDetails ? notifications.find((n) => n.id === openDetails) : null
 
@@ -123,15 +166,25 @@ export function NotificationContainer() {
         // keyboard + screen-reader navigation.
         <div className="toast-host">
           {notifications.slice(-5).map((n) => {
-            const Glyph = Icon[KIND_ICON[n.kind]]
+            const Glyph = Icon[n.icon ?? KIND_ICON[n.kind]]
             const hasDetails = !!n.details?.length
             return (
               <div
                 key={n.id}
                 data-notification
                 className={`toast in${n.kind === 'error' ? ' err' : ''}`}
+                // Pause auto-dismiss while hovered or keyboard-focused, so the
+                // toast stays put while it's being read or acted on (WCAG 2.2.1).
+                onMouseEnter={() => pause(n.id)}
+                onMouseLeave={() => resume(n.id)}
+                onFocus={() => pause(n.id)}
+                onBlur={() => resume(n.id)}
               >
-                <Glyph className="icn" width={16} height={16} />
+                <Glyph
+                  className={`icn${n.kind === 'progress' ? ' spin' : ''}`}
+                  width={16}
+                  height={16}
+                />
                 <button
                   type="button"
                   disabled={!hasDetails}
@@ -146,24 +199,39 @@ export function NotificationContainer() {
                 >
                   <b>{n.title}</b>
                   {n.message ? <div style={{ marginTop: 1 }}>{n.message}</div> : null}
-                  {n.kind === 'progress' && (
-                    <div
-                      role="progressbar"
-                      aria-valuenow={Math.round((n.progress ?? 0) * 100)}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      className="bud-bar"
-                      style={{ marginTop: 6, height: 4 }}
-                    >
+                  {n.kind === 'progress' &&
+                    // `progress == null` ⇒ indeterminate: an animated sweeping
+                    // bar (no real % to report, e.g. a SW update check) with
+                    // `aria-valuenow` omitted per ARIA. Otherwise a determinate
+                    // fill driven by the 0..1 value.
+                    (n.progress == null ? (
                       <div
-                        className="bud-seg"
-                        style={{
-                          width: `${Math.round((n.progress ?? 0) * 100)}%`,
-                          background: 'var(--accent)',
-                        }}
-                      />
-                    </div>
-                  )}
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        className="bud-bar indet"
+                        style={{ marginTop: 6, height: 4 }}
+                      >
+                        <div className="bud-seg" style={{ background: 'var(--accent)' }} />
+                      </div>
+                    ) : (
+                      <div
+                        role="progressbar"
+                        aria-valuenow={Math.round(n.progress * 100)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        className="bud-bar"
+                        style={{ marginTop: 6, height: 4 }}
+                      >
+                        <div
+                          className="bud-seg"
+                          style={{
+                            width: `${Math.round(n.progress * 100)}%`,
+                            background: 'var(--accent)',
+                          }}
+                        />
+                      </div>
+                    ))}
                   {hasDetails ? (
                     <div
                       style={{
@@ -177,6 +245,18 @@ export function NotificationContainer() {
                     </div>
                   ) : null}
                 </button>
+                {n.actionLabel && n.onAction ? (
+                  <button
+                    type="button"
+                    className="toast-act"
+                    onClick={() => {
+                      n.onAction?.()
+                      dismiss(n.id)
+                    }}
+                  >
+                    {n.actionLabel}
+                  </button>
+                ) : null}
                 {n.dismissable && (
                   <button
                     type="button"

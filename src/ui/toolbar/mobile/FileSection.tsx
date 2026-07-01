@@ -36,6 +36,7 @@ export function FileSection({
   const fPanoTour = useFeature('panoTour')
   const fHqRender = useFeature('hqRender')
   const fRenderCompare = useFeature('renderCompare')
+  const fStagingReveal = useFeature('stagingReveal')
   const fShopExport = useFeature('shopExport')
   const fSceneExport = useFeature('sceneExport3d')
   const fImportSh3d = useFeature('importSh3d')
@@ -121,6 +122,14 @@ export function FileSection({
           sub="A/B compare two render presets"
           docs="renderCompare"
           onClick={act(() => s.getState().setRenderCompareOpen(true))}
+        />
+      ) : null}
+      {fStagingReveal ? (
+        <Item
+          icon="Export"
+          label="Before / after"
+          sub="Reveal slider: empty room vs furnished"
+          onClick={act(() => s.getState().setStagingRevealOpen(true))}
         />
       ) : null}
       {fShopExport ? (

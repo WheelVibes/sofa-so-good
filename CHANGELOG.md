@@ -5,6 +5,827 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: MOD-FPE-SPLIT status — render-layer decomposition complete (v0.9.0.61)
+
+- Recorded the FloorPlanEditor de-monolith outcome: **4271 → 2728 lines (−36%)** across 14 commits —
+  4 state/effect hooks + all 11 SVG render layers (`editor/layers/*`), with pure tool math already
+  modularised. Updated `TASKS.md` (MOD-FPE-SPLIT now an optional tail) and `editor/CLAUDE.md` (the
+  `layers/` render-layer convention). The pointer-tool **dispatcher** stays in the component by
+  design (thin dispatch over pure helpers + store writes, per `editor/CLAUDE.md`); the only further
+  reduction is a presentational `PlanToolbar` shell, deferred (40+ prop bundle would hurt readability).
+
+## REFACTOR: extract the DraftOverlayLayer from FloorPlanEditor (v0.9.0.60)
+
+- De-monolith step 14: moved all the **in-progress drawing overlays** into one pure
+  `editor/layers/DraftOverlayLayer.tsx` (no state writes) via verbatim code-motion — the
+  scale/dimension draft line, the live wall draft (segment + snap markers, numeric-preview aware),
+  the room draft rect, the rubber-band multi-select marquee, the polygon-room + polyline markup
+  drafts, and the cursor-following length/size/angle readout. FloorPlanEditor 2865 → 2728 lines
+  (−1543 total from 4271).
+- Behaviour-preserving: tsc + full suite green; an **interactive** scenario picks the Wall tool,
+  drives a live draw gesture (pointerdown + move) on the canvas, and confirms the draft renders
+  (accent draft line + 2 snap dots + the length/angle readout).
+
+## REFACTOR: extract the WallHandlesLayer from FloorPlanEditor (v0.9.0.59)
+
+- De-monolith step 13: moved the **selected-wall reshape handles** (two endpoint grab dots + the
+  rotation ring & knob) into `editor/layers/WallHandlesLayer.tsx` via pure prop code-motion; the
+  parent still gates on edit mode + select tool + a selected wall. FloorPlanEditor 2949 → 2865 lines
+  (−1406 total from 4271).
+- Behaviour-preserving: tsc + full suite green; an **interactive** scenario selects a wall and
+  confirms its handles render (2 endpoint dots + 1 rotation ring).
+
+## REFACTOR: extract the FurnitureRotateHandle from FloorPlanEditor (v0.9.0.58)
+
+- De-monolith step 12: moved the **single-selected furniture rotate handle** (ring + facing knob
+  around the chosen footprint; drag to spin about its centre, 15°-snap) into
+  `editor/layers/FurnitureRotateHandle.tsx` via pure prop code-motion; the parent still gates on
+  Furniture toggle + edit mode + select tool + a live single selection. FloorPlanEditor 3019 → 2949
+  lines (−1322 total from 4271).
+- Behaviour-preserving: tsc + full suite green; an **interactive** scenario selects a footprint and
+  confirms the rotate handle (`data-rot-handle`) appears for that item.
+
+## REFACTOR: extract the FurnitureLayer render layer from FloorPlanEditor (v0.9.0.57)
+
+- De-monolith step 11 (the biggest render block): moved the whole active-storey **furniture** SVG
+  layer into `editor/layers/FurnitureLayer.tsx` via pure prop code-motion — top-down footprints
+  (category-tinted fill + centred glyph + out-of-plane tilt badge, click-to-select + drag), the
+  unified 2+-item multi-select bounding box with rotation ring + four corner scale handles, and the
+  name/price labels. The parent still gates the layer on the "Furniture" visibility toggle.
+  FloorPlanEditor 3299 → 3019 lines (−1252 total from 4271 — the monolith is now under 3100).
+- Behaviour-preserving: tsc + full suite green; an **interactive** scenario shows the Furniture
+  layer (81 footprints) and confirms clicking a footprint selects that item (`selectedItemId`).
+
+## REFACTOR: extract the TourStopsLayer render layer from FloorPlanEditor (v0.9.0.56)
+
+- De-monolith step 10: moved the 360° **tour stop markers** SVG layer (panoTour feature — numbered
+  eye-shaped pins; ground-level stops drag to reposition in edit mode, other-storey stops render
+  greyed + inert) into `editor/layers/TourStopsLayer.tsx` via pure prop code-motion; the parent
+  still gates the whole layer on the `panoTour` flag. FloorPlanEditor 3340 → 3299 lines
+  (−972 total from 4271).
+- Behaviour-preserving: tsc + full suite green; an **interactive** scenario (Pro mode) seeds two
+  tour stops and confirms both render as numbered pins (2 labels + 2 rings) on the plan.
+
+## REFACTOR: extract the NotesLayer + PolylinesLayer render layers from FloorPlanEditor (v0.9.0.55)
+
+- De-monolith step 9: moved two more active-storey annotation layers into their own components via
+  pure prop code-motion — `editor/layers/NotesLayer.tsx` (Text-tool labels: halo-outlined text,
+  click-to-select + drag) and `editor/layers/PolylinesLayer.tsx` (Polyline-tool open/closed paths:
+  optional dash + end arrowhead, fat hit target, click-to-select). FloorPlanEditor 3408 → 3340 lines
+  (−931 total from 4271).
+- Behaviour-preserving: tsc + full suite green (the only red was 4 unrelated load-timeout flakes —
+  collision/planShare/materials/appliances — all green re-run in isolation). An **interactive**
+  scenario adds a note and a polyline and confirms clicking each still selects it (`planSelection` →
+  that note / polyline id).
+
+## REFACTOR: extract the DimensionsLayer render layer from FloorPlanEditor (v0.9.0.54)
+
+- De-monolith step 8: moved the active-storey **dimension lines** SVG layer (each Dimension-tool
+  measurement — measured line + perpendicular end ticks + length label, fat hit target, and
+  draggable A/B endpoint handles in edit mode) into `editor/layers/DimensionsLayer.tsx` via pure
+  prop code-motion. FloorPlanEditor 3495 → 3408 lines (−863 total from 4271).
+- Behaviour-preserving: tsc + full suite (4435) green; an **interactive** scenario adds a dimension
+  and confirms clicking it still selects it (`planSelection` → that dim id).
+
+## REFACTOR: extract the OpeningsLayer render layer from FloorPlanEditor (v0.9.0.53)
+
+- De-monolith step 7: moved the active-storey **openings** SVG layer (each door/window as its
+  architectural symbol — door leaf + swing arc, or window double-line; arc-aware for curved walls;
+  wall mask, selection halo, fat hit target, along-wall drag) into `editor/layers/OpeningsLayer.tsx`
+  via pure prop code-motion. FloorPlanEditor 3619 → 3495 lines (−776 total from 4271).
+- Behaviour-preserving: tsc + full suite + floorplan tests green; the editor renders identically
+  (13 openings), and an **interactive** scenario confirms clicking an opening still selects it
+  (`planSelection` → that opening id).
+
+## REFACTOR: extract the RoomsLayer render layer from FloorPlanEditor (v0.9.0.52)
+
+- De-monolith step 6: moved the active-storey **rooms** SVG layer (rect / L-extension / free-polygon
+  fills, the polygon-vertex reshape + edge-insert handles, and the progressive-detail name/area label
+  with move-drag + rotation/font scale) into `editor/layers/RoomsLayer.tsx` via pure prop code-motion.
+  FloorPlanEditor 3825 → 3619 lines (−652 total from 4271).
+- Behaviour-preserving: tsc + full suite + floorplan tests green; the editor renders identically
+  (13 room fills + 12 labels), and an **interactive** scenario confirms clicking a room still selects
+  it (`planSelection` → that room id).
+
+## REFACTOR: extract the WallsLayer render layer from FloorPlanEditor (v0.9.0.51)
+
+- De-monolith step 5 (first render layer): moved the active-storey **walls** SVG layer (each wall's
+  selection/stray halos, fat hit target, curve-bulge handle + the `onWallDown` select/drag handler)
+  into `editor/layers/WallsLayer.tsx`, driven entirely by props (pure code-motion). FloorPlanEditor
+  3912 → 3825 lines; establishes the `editor/layers/` pattern for the remaining render sub-sections.
+- Behaviour-preserving: tsc + full suite + floorplan tests green; the editor renders identically
+  (322 wall/path elements, unchanged); and an **interactive** scenario confirms a real pointerdown on
+  a wall still selects it (`planSelection` → that wall id).
+
+## REFACTOR: extract usePlanLevel from the FloorPlanEditor monolith (v0.9.0.50)
+
+- De-monolith step 4: lifted the **active-storey resolution** (F13) into `editor/usePlanLevel.ts` —
+  the `activeLevelId` state + its reset-to-ground effect (on editor open / plan change), the
+  stale-id-degrades-to-ground `activeLevel`, the single-storey `levelPlan` (`levelAsPlan`, what every
+  tool/overlay/inspector edit operates on), `levelId`, and the level list. FloorPlanEditor
+  3927 → 3912 lines (−359 total across steps 1–4). Pure code-motion — tsc + full suite + floorplan
+  tests green. Added `usePlanLevel.test.tsx` (ground default + populated levelPlan, stale-id degrades
+  to ground, reset-on-reopen) — DOM-free so directly unit-testable.
+
+## REFACTOR: extract usePlanViewport from the FloorPlanEditor monolith (v0.9.0.49)
+
+- De-monolith step 3 (the big one): lifted the entire **viewport** concern — fit-to-screen base
+  scale (`basePX` from a measured `ResizeObserver` size), user zoom (wheel via a native non-passive
+  listener, pinch, ± buttons — all cursor/centre-anchored with the post-zoom scroll re-anchor), the
+  pannable scroll container, `centerPlan` fit, `resetView`, and the metre↔pixel scale (`PX`/`toPx`/
+  `W`/`H`) — into `editor/usePlanViewport.ts`. The pan/pinch **gestures stay in the editor's shared
+  pointer dispatch**, which reads the returned refs (`svgRef`/`canvasRef`/`panRef`/`panDidMove`/
+  `touchPts`/`pinch`/`zoomRef`). Introduced `resetView()` so the "100%" button no longer reaches into
+  `setZoom`/`pendingScroll`. **FloorPlanEditor 4109 → 3927 lines (−344 total across steps 1–3).**
+- Pure code-motion — behaviour-preserving: tsc green, full suite + 724 floorplan tests green, and a
+  live editor scenario confirms zoom (100% → 140% via the buttons), reset (→ 100%), and the plan
+  visibly re-rendering at the new scale. Added a `usePlanViewport.test.tsx` smoke test (initial
+  scale, the `toPx` metre→pixel mapping, and the returned refs/handlers).
+
+## DOCS: record the FloorPlanEditor de-monolith plan + remaining steps (v0.9.0.48)
+
+- Logged MOD-FPE-SPLIT progress + the remaining plan in `TASKS.md`: the two safely-isolated concerns
+  are extracted (`usePlanBackdrop`, `usePlanAiWalls`; −162 lines to ~4109). The remaining reductions
+  (viewport zoom/pan/pinch + `PX`/`toPx`; per-level `levelPlan` state; the pointer-tool dispatch;
+  the SVG render split) touch foundational/pervasive, correctness-critical interactive code that the
+  headless harness can't fully verify — flagged to do each with manual gesture verification.
+
+## REFACTOR: extract usePlanAiWalls from the FloorPlanEditor monolith (v0.9.0.47)
+
+- De-monolith step 2: lifted the experimental **AI wall-recognition** concern (`aiBusy` flag +
+  `runAiWalls` — the vision-key prompt, the insecure/untrusted-endpoint security gate, backdrop→PNG
+  capture, `recognizeFloorPlan`, and seeding a draft plan from the returned walls) into
+  `editor/usePlanAiWalls.ts`, taking the current `backdrop` as its only editor input. **FloorPlanEditor
+  4188 → 4109 lines** (−162 total across steps 1–2).
+- Pure code-motion — behaviour-preserving (tsc + full suite + 715 floorplan tests green; the 6
+  `floorPlanAi` imports moved out of the editor). Added `usePlanAiWalls.test.tsx` covering the cheap,
+  important guards: no-op with no backdrop, and the security gate refuses to send the API key to an
+  insecure endpoint.
+
+## REFACTOR: extract usePlanBackdrop from the FloorPlanEditor monolith (v0.9.0.46)
+
+- Started de-monolithing `FloorPlanEditor.tsx` (4271 lines — the "no monolithic files" hard-rule
+  violation). Lifted the **trace-backdrop** concern (the reference-photo underlay: `backdrop` state,
+  its object-URL lifecycle, and all IndexedDB persistence — rehydrate on open, debounced calibration
+  writes, blob store on load, delete on remove, plus `loadBackdrop`/`removeBackdrop`) into a cohesive
+  `editor/usePlanBackdrop.ts` hook. The editor keeps reading `backdrop`/`setBackdrop` (AI wall
+  recognition + Scale tool mutate `mPerPx`), so both are returned. **4271 → 4188 lines.**
+- Pure code-motion — behaviour-preserving: tsc green, the full suite green (incl. 715 floorplan
+  tests), the 2D editor renders + mounts identically (visual smoke-test). Added
+  `usePlanBackdrop.test.tsx` (7 cases: load/persist/select-tool, non-image ignored, debounced
+  calibration write, remove, rehydrate-on-open, no-rehydrate-when-closed) mocking the IDB + image/URL
+  APIs. Documented "custom hooks" as an extraction kind in the editor's `CLAUDE.md`.
+
+## FEATURE: manage accent walls from the per-room FinishPicker (v0.9.0.45)
+
+- Customizability/discoverability: accent walls (`finishes.wallAccents`, keyed `wallId:roomId`) could
+  only be created — and *only seen* — by clicking each wall face in 3D. The per-room `FinishPicker`
+  now has an **"Accent walls"** section that surfaces the selected room's accents in one place: each
+  accent shows a swatch + name (material name, or the hex) with a one-tap **remove** (match-room)
+  button, plus a hint to tap a wall in 3D to add one. Gated by the existing `wallAccentPicker` flag;
+  filters `wallAccents` to the selected room (`…:roomId`), so other rooms' accents never leak in.
+- **Design note:** *creating* an accent stays a 3D wall tap (opens `WallAccentPicker`) — the
+  wall→room mapping differs between the fixed apartment (`wallRoomSides`) and custom plans, so this
+  is the management/discovery view rather than re-enumerating a room's walls in the panel.
+- Tests: `FinishPicker.accent.test.tsx` — hint shown when empty, existing accent listed + cleared,
+  only the selected room's accents listed, hidden when the flag is off. Verified in the room editor.
+
+## DOCS: README currency — ceiling finishes + accent walls (v0.9.0.44)
+
+- The README's **Finish** highlight enumerated "floors & walls" but per-room **ceiling** finishes
+  (v0.9.0.22) and **accent walls** (v0.9.0.23, now flag-gated) are shipped core capabilities — updated
+  the row to "floors, walls & ceilings … and per-wall accent walls" so the overview no longer
+  undersells the finishing tools.
+
+## TESTS: validate every built-in starter plan + the default plan (v0.9.0.43)
+
+- The 18 built-in templates (`PLAN_TEMPLATES` — HDB 2-room→Maisonette, condo studio→penthouse,
+  landed terrace) + `buildDefaultPlan()` are the data users actually load, but had no validity test.
+  Added `templates.test.ts` (`describe.each` per plan, 121 cases): every plan has rooms/walls +
+  positive extent + ceiling height; every room has finite geometry + **positive floor area**
+  (`planRoomArea`); **room ids are unique** (the plan-unique invariant room-keyed consumers rely on);
+  every wall has finite endpoints + **positive length** (`wallLength`); every opening **references an
+  existing wall and fits within its length** (offset ≥ 0, offset+width ≤ wall length); and
+  `planBounds` is finite + positive. Also asserts all templates are categorised (drives the picker).
+- Composes the geometry helpers covered in v0.9.0.37. No bug found — the starter plans are all valid;
+  this guards against a malformed template shipping (a broken first-run experience).
+
+## DOCS: purge shipped items from the backlog/roadmap trackers (v0.9.0.42)
+
+- Per user request — shipped work belongs only in `CHANGELOG.md`, so the living backlog/roadmap docs
+  now list **open items only**:
+  - `TODO.md` — rewrote to open-only (removed every `~~struck~~`/"shipped vX"/"already shipped" entry
+    and the audit-batch framing; kept infra-blocked, asset-pipeline, risk, deferred, and open
+    core-interaction/UX/a11y items).
+  - `TASKS.md` — stripped the embedded "(Shipped: …)" parentheticals from the open items.
+  - `FEATURE_PARITY.md` — removed both "Already at parity (✅)" shipped summaries + the "(all
+    shipped)"/"(Shipped: …)" roadmap notes; kept the gap tables + method/legend/out-of-scope.
+  - `PHOTOREALISM.md` — removed the "## Shipped" section; kept the open roadmap.
+  - `docs/research/sweethome3djs-feature-analysis.md` — collapsed the ✅-heavy gap table + the phased
+    roadmap's shipped items to the remaining gaps only.
+- Left untouched: `CHANGELOG.md` (the source of truth for shipped) and `docs/superpowers/plans/*`
+  (historical implementation-plan artifacts whose checkbox history is their execution record, not a
+  living backlog).
+
+## FEATURE: wire up the asset-credits viewer (v0.9.0.41)
+
+- Closes the loose end from v0.9.0.34: `CreditsModal` was built + made accessible but **mounted
+  nowhere** (no way to open it). Added an "Asset credits" entry in the shared `AppearanceControls`
+  (so it appears in BOTH the desktop Appearance popover and the mobile menu, placed by the version
+  footer — outside the desktop-only Help block), a `creditsOpen` flag + `setCreditsOpen` action in
+  `featuresSlice`, and mounted `<CreditsModal>` in `App`. Surfaces bundled/downloaded CC-BY
+  attributions + CC0 sources in one place (licensing visibility) — per-item attribution in the
+  inspector is unchanged.
+- Flag: **`assetCredits`** (`simple`, default on — universal licensing surface; on in both modes).
+- Tests: `assetCredits.test.tsx` — flag both-mode, the button opens the modal, hidden when the flag
+  is off (plus the existing CreditsModal dialog/Escape tests). Verified in-app via DOM probe
+  (`role=dialog`, title "Asset credits" present on open).
+
+## TESTS: cover uploaded-material validation (v0.9.0.40)
+
+- `materials/upload/validate.ts` `validateImageFile` (the gate that rejects bad user uploads before
+  they hit IndexedDB) was untested. Added `validate.test.ts` (6 cases): rejects over-byte-limit
+  files, rejects unsupported type/extension, accepts GPU-compressed KTX2/DDS by bypassing the bitmap
+  probe (dims deferred to decode), accepts a decodable native image within the dimension cap, rejects
+  over-dimension images, and rejects an undecodable file. `createImageBitmap` is stubbed for the
+  decode paths; the reject branches need no browser.
+- No bug found — regression safety for a user-facing, input-validation (security-adjacent) path.
+
+## TESTS: cover obbMtv (soft push-apart MTV) (v0.9.0.39)
+
+- `collision/obb.ts` `obbMtv` — the minimum-translation-vector used by the soft push-apart nudge
+  (v0.9.0.17) — had no test. Added 7 cases: null when separated, null when boxes merely touch
+  (gap 0 ≠ penetration), pushes A along the shallow axis by the penetration depth, orients the push
+  away from B (both directions), picks the axis of least penetration when axes differ, returns a
+  unit separation axis, and handles fully-coincident boxes (max penetration, still non-null).
+- No bug found — regression safety for the push-apart geometry. (One initial fixture failure
+  actually confirmed the correct touch=null behaviour.)
+
+## TESTS: cover the door-aware collision wall builder (v0.9.0.38)
+
+- `collision/wallsFromState.ts` `buildCollisionWalls(doorState)` — shared by first-person camera +
+  placement collision to decide "what's solid right now" — was untested. Added `wallsFromState.test.ts`
+  (6 cases): produces segments for the built-in flat, every segment has positive length + thickness,
+  opening doors removes wall span (less solid length than all-closed, but walls don't vanish),
+  a single open door only shortens, output is deterministic, and an empty door-state falls back to
+  each door's `defaultOpen`.
+- No bug found — regression safety for core collision infrastructure.
+
+## TESTS: cover the plan geometry helpers in floorplan/types.ts (v0.9.0.37)
+
+- Robustness/coverage pass. `src/floorplan/types.ts` holds 10 pure geometry helpers used app-wide
+  (room detection, area labels, furniture-in-room, floor render, plan bounds) but had **no test
+  file**. Added `types.test.ts` — 21 cases covering `polygonArea` (degenerate/winding/triangle),
+  `pointInPolygon` (inside/outside/concave-notch), `roomPolygon` (explicit/rect), `planRoomArea`
+  (rect, non-overlapping L, and the **BUG-004 overlapping-extension invariant** — union 28, not
+  double-counted 32), `planRoomPerimeter`, `pointInRoom` (boundary-inclusive rect, extension,
+  explicit polygon), `planTotalArea`, `wallLength`, `planBounds` (walls + explicit polygon), and
+  `rectUnionOutline` (adjacent merge, overlap union, empty).
+- No bug found — the geometry is correct; this is regression safety for previously-untested,
+  app-critical pure functions.
+
+## A11Y: mobile menu sheet closes on Escape + guards hotkeys (v0.9.0.36)
+
+- Last item from the keyboard/SR audit: the `MobileToolbar` menu sheet was the only overlay with no
+  Escape handler and no `useModalGuard`. Added both — Escape closes it, and app-wide hotkeys are
+  suppressed while it's open, matching every other overlay. (Keyboard-on-mobile is rare, but this
+  closes the consistency gap.)
+- Test: new `MobileToolbar.test.tsx` — open via the Menu button, Escape closes the sheet.
+
+## A11Y: Popover returns focus to its trigger on Escape (v0.9.0.35)
+
+- The toolbar `Popover` (View / Scene / Arrange / File menus, and other anchored menus) closed on
+  Escape but never restored focus — a keyboard user who opened a menu and pressed Escape was left
+  with focus orphaned on `<body>`, having to re-tab to their place. Now Escape returns focus to the
+  trigger (`anchorRef`), the standard menu-button pattern. Only on Escape — an outside pointer-down
+  deliberately does not yank focus back.
+- Test: added a focus-restore case to `Popover.test.tsx` (Escape → `activeElement === trigger`).
+
+## A11Y/CHORE: rebuild CreditsModal on the shared Modal primitive (v0.9.0.34)
+
+- `CreditsModal` was a bare `.modal-overlay` with no Escape, no focus trap/restore, no
+  `role="dialog"`/`aria-modal`, and no `useModalGuard` — violating the `ui/CLAUDE.md` rule that any
+  modal-style overlay not built on `Modal` must at least call `useModalGuard`. Rebuilt on the shared
+  `Modal` primitive, which supplies all of the above for free; dropped the redundant footer Close
+  (Modal's header × + Escape + backdrop cover it). **Note:** the component is not currently mounted
+  anywhere (only a per-item attribution surface in the inspector is wired) — so this is code hygiene
+  + a11y-correctness + test coverage, latent until it's wired up (candidate recorded in TODO).
+- Tests: extended `CreditsModal.test.tsx` — dialog role + title present, closes on Escape, closes on
+  the header Close button (in addition to the existing fetch/display + closed-renders-null cases).
+
+## A11Y: consistent keyboard focus ring across all controls (v0.9.0.33)
+
+- New area — keyboard/screen-reader accessibility (chosen via a grep-verified audit). WCAG 2.4.7
+  Focus Visible: the app had themed focus styling only on text inputs (`.input`/`.num` box-shadow)
+  and catalog cards (`.cat-card` outline) — every other interactive control (`.btn`, `.icon-btn`,
+  `.tool-btn`, chips, inspector action tiles, segmented toggles, menu/context items, custom
+  Select/Color triggers, swatches, …) fell back to the inconsistent browser-default ring.
+- Added one low-specificity `:where(button, [role=button], [role=menuitem], [role=menuitemcheckbox],
+  [role=option], [role=tab], summary, [tabindex='0']):focus-visible` rule → a 2px accent outline
+  (offset 2px). `:where()` keeps specificity 0 so the richer input/card focus styles still win;
+  `:focus-visible` shows it for keyboard/AT focus only, never on mouse click. One rule covers the
+  whole control vocabulary + future controls.
+- Verified in-browser: Tab moves focus through `.tool-btn`s, each showing `outline: 2px solid`
+  in the accent colour. (CSS `:focus-visible` cascade isn't reproducible in happy-dom, so browser
+  verification is the check, as with the prior CSS a11y fixes.)
+
+## FIX: Layers-panel group hide/lock eyes unreachable on mobile (v0.9.0.32)
+
+- Same hover-reveal trap as v0.9.0.31, swept for across the CSS: the Layers panel's group-header
+  **hide-all** / **lock-all** eyes (`.lyr-geye`) are `opacity: 0` until `.lyr-ghead-row:hover`. On
+  touch (no hover) you can't turn a group hidden/locked in the first place — and only the resulting
+  `.on` state is visible, so it's a chicken-and-egg like the catalog heart. Shown always + enlarged
+  to 30px on mobile. Verified 30×30, `opacity: 1`, eyes visible on the group header at 390px.
+- Audit of the remaining `:hover`→`opacity:1` reveals: the per-item row actions (`.lyr-acts`) already
+  have a `.sel` (tap-to-select) fallback, and the rest (`.tip`, `.mi-help`, `.ci-help`) are
+  non-essential help hints appropriately hidden on touch — no further action.
+
+## FIX: catalog favourite/stamp buttons unreachable on mobile (v0.9.0.31)
+
+- Real mobile bug found during the deep-dive: the catalog card's **favourite ♥** and **stamp**
+  buttons (`.fav-btn`/`.stamp-btn`) are `opacity: 0`, revealed only on `.cat-card:hover` — but
+  touch has **no hover**, so on a phone the favourite button was invisible and you couldn't
+  favourite an item from the catalog at all (a chicken-and-egg: `.on` forces it visible, but you
+  can't reach the un-favourited state to toggle it on). Now shown always on mobile
+  (`body.mobile .fav-btn/.stamp-btn { opacity: 1 }`), enlarged 24 → 32px for touch, with the stamp
+  button dropped below the favourite so their hit areas don't overlap.
+- Verified in-browser: `.fav-btn` renders at 32×32 with `opacity: 1` at 390px; hearts appear on
+  every card, cleanly positioned. Desktop keeps the hover-reveal.
+
+## A11Y: larger, touch-friendly finish swatches on mobile (v0.9.0.30)
+
+- Follow-on to the mobile deep-dive (the candidate deferred in v0.9.0.29). The compact `.swatch`
+  tiles (finish-picker Floor/Walls/Ceiling groups + designer-picks rows + the accent-wall picker)
+  were 26px — awkward to tap and a small texture preview on a phone. Bumped to **40px on mobile
+  only** (`body.mobile .swatches .swatch`); desktop keeps 26px. These live in a dense wrap grid, so
+  the invisible-`::after` hit-area trick can't apply (adjacent hit areas would overlap) — enlarging
+  the tile itself is the correct fix. The large `.swatch-lg` finish grid was already touch-sized.
+- Verified in-browser: swatches measure 40×40, ~7 per row at 390px, no horizontal overflow; Floor /
+  Walls / Ceiling sections all read cleanly. Desktop unaffected (rule is `body.mobile`-scoped).
+
+## A11Y: 44px touch targets for modal, toast & bulk-tint close buttons (v0.9.0.28)
+
+- Mobile touch-target sweep (chosen focus: mobile/touch deep-dive). The existing MOBILE-TAP-TARGETS
+  system expands small 26px `.icon-btn`s to a 44px hit area (an invisible `::after`, inset −9px) —
+  but only for an *enumerated* set of docked-panel headers. That left three isolated, whole-app
+  surfaces below the 44px minimum on mobile:
+  - **Modal close/back buttons** (`.modal-overlay .panel-head .icon-btn`) — every modal (Swap, quote
+    template, pano tour, GLB designer, style quiz, notification details, …). 26 → 44px.
+  - **Toast dismiss ×** (`.toast .icon-btn`, a 22px control) → 44px (inset −11px).
+  - The **multi-select "Clear tint" ×** added in v0.9.0.25 (`.ms-appearance .icon-btn`) → 44px.
+  All three are isolated at a container edge, so the padded hit areas can't overlap a neighbour
+  (why the original rule was scoped rather than global). Verified in-browser via computed `::after`
+  geometry (toast 22 + 2×11, modal 26 + 2×9). No visual change; a wider mobile audit found the core
+  flows (overview, room editor, inspector, finish picker, multi-select, menu, catalog placement)
+  already render correctly at 390px and 320px with no horizontal overflow.
+
+## DOCS: correct stale TODO candidate — toast pause-on-hover already shipped (v0.9.0.27)
+
+- Verified `NotificationContainer` already implements WCAG 2.2.1 pause-on-hover/focus; marked the
+  stale TODO audit note as already-shipped so future iterations don't rebuild it.
+
+## POLISH: clear bulk tint even for mixed selections (v0.9.0.26)
+
+- Follow-up to v0.9.0.25 (found during a mobile-parity verification pass — the three new surfaces
+  this session all render correctly in the mobile bottom-sheets; no mobile bug). The multi-select
+  "Clear tint" button previously appeared only when the selection *shared* one tint, so a selection
+  with **mixed** tints had no way to reset. It now shows whenever **any** selected item is tinted
+  (new `anyTinted` check), clearing them all in one undo step.
+- Tests: added mixed-tint clear + nothing-tinted-hidden cases to `MultiSelectPanel.bulkTint.test.tsx`.
+
+## FEATURE: bulk recolour on multi-select (v0.9.0.25)
+
+- Customizability: the multi-select panel now has an **Appearance › Tint all** colour picker that
+  recolours **every selected item at once** ("make all these chairs burgundy") — one action, vs the
+  previous copy-one-item's-appearance → paste-to-rest dance. A reset button clears the tint from all
+  when the selection shares one. The picker's swatch reflects the selection's shared tint (or blank
+  when they differ). Matches the bulk material/colour editors in Coohom / Planner 5D / IKEA Kreativ.
+- Store: new **`updateManyItemProps(ids, props)`** batch action (`itemsSlice`) — merges props into
+  every listed item in ONE undo step (`pushHistory` once + a single `set`), the idiomatic batch
+  pattern (align/distribute push once then mutate many). Reusable for future bulk appearance edits.
+- Flag: **`bulkAppearance`** (`simple`, default on — a fast common re-skin; on in both modes).
+- Tests: `updateManyItemProps` unit tests (batch merge, single-undo, clear-with-'', empty-list
+  no-op) + `MultiSelectPanel.bulkTint.test.tsx` (section shows when on / hidden when off, both-mode
+  flag, clear affordance appears once the selection shares a tint). Visually verified the picker +
+  recolour in the room editor.
+
+## FIX: gate remaining ungated feature surfaces (v0.9.0.24)
+
+- Hard-rule compliance sweep (follow-up to v0.9.0.23; found via an audit of every surface mounted
+  in `App.tsx`). Three more user-facing feature surfaces rendered guarded only by internal state,
+  not by their feature flag — so a persisted/stray state could leak the surface after the feature
+  was disabled (notably a `pro` feature surfacing in Simple mode). Each now also checks its flag:
+  - **`BudgetHud`** (the spend pill) → `useFeature('budget')` (was: only `budgetTarget != null`).
+  - **`TapeModeToggle`** (tape line/area mode pill) → `useFeature('measure')` (was: only `tapeMode`).
+  - **`PresentationMode`** (full-screen saved-views slideshow, `pro`) → `useFeature('presentation')`
+    (was: only `presenting`). The menu entry that *opens* each was already gated; this closes the
+    render surface itself. Default on-states unchanged.
+- Audit outcome: every other App.tsx surface is either correctly gated (self- or mount-gated) or is
+  intrinsic chrome (toolbar, selection outline, drag HUD, nav cluster, error boundaries, …).
+- Tests: `BudgetHud.test.tsx`, `TapeModeToggle.test.tsx`, `PresentationMode.gate.test.tsx` — each
+  renders the surface with its flag on (present) and off (null), plus the `presentation` pro-tier
+  both-mode resolution (off in Simple, on in Pro).
+
+## FIX: gate the accent-wall picker behind a feature flag (v0.9.0.23)
+
+- Hard-rule compliance ("no feature ships ungated"): the `WallAccentPicker` — the panel that paints
+  one wall face a different finish from the rest of the room (a feature/accent wall), opened by
+  clicking a wall in the room editor — shipped with **no feature flag at all**. Added the
+  **`wallAccentPicker`** flag (`simple`, default on — a common casual design move) and gated both
+  ends: the panel mounts only when the flag is on, and the wall-face click that selects a wall is
+  a no-op when off (the face also drops its clickable cursor, so nothing hints at an unavailable
+  action). Behaviour is unchanged in the default on-state.
+- Tests: `WallAccentPicker.test.tsx` — flag is simple + on in BOTH modes; panel mounts on
+  wall-select when on, renders nothing when off (even with a wall selected) or when no wall is
+  selected.
+
+## FEATURE: ceiling finish in the per-room picker — wire a dead flag (v0.9.0.22)
+
+- Customizability: the per-room `FinishPicker` (shown when a room is selected) now has a **Ceiling**
+  section alongside Floor and Walls — a swatch grid (from the wall/paint pool, since a ceiling is
+  painted like a wall), an "Apply ceiling to all rooms" bulk button, a "Reset ceiling to white"
+  action (the default is plain white = unset), and a ceiling `MaterialComposer`. This makes the
+  FinishPicker the **unified per-room surface panel** (floor + wall + ceiling) — closing the
+  scattered-pickers gap without a parallel new panel.
+- **Dead-flag fix**: the `ceilingFinish` flag (`simple`, default *on*) has shipped since its
+  introduction with **no UI behind it** — `setCeilingFinish`/`clearCeilingFinish`/`setAllCeilingFinish`
+  actions and the `apartment/Ceiling.tsx` render path all existed, but nothing exposed them. The new
+  section is gated on `useFeature('ceilingFinish')`, so the flag now controls a real surface.
+- "Copy finishes to…" now also carries the ceiling (only when the source room actually has one, so it
+  never paints a ceiling the source lacked). Browse-online maps a ceiling context to the wall
+  material category.
+- Tests: `FinishPicker.ceiling.test.tsx` — flag is simple + on in BOTH modes; the section renders when
+  on and is hidden when off (Floor/Walls still render); apply persists + surfaces a reset; apply-all
+  disabled + reset hidden until a ceiling is chosen. (Mocks `proceduralThumbnailDataUrl` per the
+  established swatch-in-jsdom pattern.) Visually verified the section in the room editor.
+
+## FEATURE: live dimension readout while group-resizing (v0.9.0.21)
+
+- Customizability: the multi-select `ResizeGizmo` (2+ items, orbit + select) now shows a live
+  **width × depth** pill (bottom-centre `.hud-pill`) as you drag a corner handle, so a block of
+  furniture can be scaled to a target size — the group-resize gesture previously gave no numeric
+  size feedback (single items already show metres in the inspector's Size section, so this is
+  scoped to the group case). Respects the user's unit system (metric "3.60 × 3.40 m" / imperial
+  "11′ 10″ × 11′ 2″" via `formatDims`).
+- Plumbing: `scene/selection/resizeReadoutSignal.ts` — a module-level `useSyncExternalStore` signal
+  (same rationale as `finishDragSignal`: a resize fires many `pointermove` ticks/sec; routing each
+  through the store would wake the RenderPump per event). `ResizeGizmo` publishes the live box W×D
+  (unioning every selected member's footprint PARTS — matches the true-geometry gizmo box) on each
+  move and clears on release/unmount; `ui/ResizeHud.tsx` reads it.
+- Flag: **`itemDimensionReadout`** (`simple`, default on — a core sizing affordance; enabled in
+  BOTH Simple and Pro). Self-gated via `useFeature`.
+- Tests: signal unit test (publish/clear/notify/dedup) + `ResizeHud` render test (hidden when
+  idle, hidden when flag off, metric + imperial dims) + flag both-mode test. Visually verified the
+  pill (metric + imperial) via a temporary signal hook, then reverted the hook.
+
+## POLISH: shortcut hints on inspector action buttons (v0.9.0.20)
+
+- Discoverability: the inspector's action buttons (Rotate / Flip H / Flip V / Duplicate / Delete)
+  now carry `title` tooltips that spell out their keyboard shortcuts — "Rotate 90° (R · Shift for
+  15°)", "Flip left–right (F)", "Duplicate (Ctrl D)", etc. — sourced from `KEYBINDINGS` via
+  `shortcutLabel` so they never drift. Complements the v0.9.0.18 "?" overlay (surfacing shortcuts
+  right where the action is), and matches the existing descriptive tooltips already on Face-room /
+  Centre. An affordance enhancement to existing buttons (like their neighbours' titles) — no new
+  flag. Verified: DOM-probed every action button's rendered `title`.
+
+## FEATURE: reveal "search by room" with a results caption (v0.9.0.19)
+
+- Discoverability: catalog search already understood room/use intent (`searchSynonyms.ts` —
+  "bedroom" → bed/wardrobe/nightstand, "office" → desk/office chair/bookshelf), but that was
+  **invisible** — a user would never guess to type a room name. Now, when a query names a room/use,
+  a subtle caption reads **"Showing <room> furniture"** above the results, revealing the capability.
+- New pure `matchedIntents(query)` (the room/use intents a query expresses, longest-match-first,
+  de-duped) drives the caption in `CatalogDrawer` (`.catalog-search-hint`, themed `--text-2`/`--t-xs`).
+  Verified live: typing "bedroom"/"office" surfaces the caption + the right items (DOM-probed the
+  rendered caption text + bounding box — visible, themed).
+- Tests: +3 (`searchSynonyms.test.ts` — intent detection, empty for plain/blank queries, no
+  substring-shadowed duplicates). (Audit follow-up: the synonym search + "No matches" empty state
+  the audit flagged as "silent" were already shipped — this closes the remaining invisible-intent gap.)
+
+## FEATURE: keyboard-shortcuts help overlay (discoverability) (v0.9.0.18)
+
+- Closes the verified discoverability gap: shortcuts lived only in `KEYBINDINGS` + piecemeal ⌘K
+  hints/tooltips, with no single reference. A **"?" overlay** now lists every shortcut grouped by
+  task (Move & arrange / Edit / View / Panels & tools / Walk mode) with themed `<kbd>` chips.
+- Opens with **Shift+/** (`?`) or the ⌘K **"Keyboard shortcuts"** command (replacing the old
+  mislabelled "Appearance & help" entry that just opened Appearance). Feature-flagged
+  (`shortcutsHelp`, **pro**, default on — a power-user aid, hidden in Simple); the `?` handler +
+  the ⌘K command both gate on it.
+- Single-key labels are sourced from `KEYBINDINGS` via the pure `controls/shortcutHelp.ts`, so the
+  overlay can't drift from the real bindings; modifiers/Shift variants are in the descriptions.
+  Reuses the shared `.kbd-grid`/`<kbd>` token vocabulary — themed, light + dark verified.
+- Tests: +13 (`shortcutHelp.test.ts` list integrity + KEYBINDINGS sync; `shortcutsHelp.test.ts`
+  flag both-mode; `ShortcutsModal.test.tsx` render — dialog + every group + exact kbd-chip count).
+  Visually verified in light + dark (via a direct-import mount — see the new playbook note that
+  React.lazy modals don't resolve headlessly).
+
+## FEATURE: soft push-apart on drop (physics leg) (v0.9.0.17)
+
+- **Physics leg** (light touch). A single-item drag that ends on an *overlapping* spot no longer
+  hard-snaps back to where it started — it's **nudged out of the collision** to the nearest valid
+  spot (a gentle slide off the obstacle), the "soft collision nudge rather than hard block" behaviour
+  requested. **Bounded** (≤ 0.4 m), so a deep overlap with nowhere near to go still reverts, and it
+  stays predictable — the design tool never teleports a piece across the room.
+- New pure SAT `collision/obb.ts:obbMtv` (minimum translation vector — unit separation axis + depth)
+  + `collision/placement.ts:nudgeToValid`, which uses the MTV only to pick a *push direction* then
+  steps outward (with a small ± fan to round corners) verifying each candidate with **`canPlace`** —
+  so validity (height spans, group/rug/mounted exemptions, doors, walls) is always the real rule, not
+  a duplicated approximation. Wired into `DragController`'s invalid-release branch; a soft-land
+  resolves to a confirmable tick/cross edit. Group drags keep the hard-revert (resolving many at
+  once would fight the user).
+- Tests: +7 (`pushApart.test.ts` — MTV null-when-apart / shallow-axis separation / direction sign /
+  applying it clears the overlap; nudge already-valid passthrough / pushes an overlap to a valid
+  adjacent spot / returns null beyond `maxStep`). Verified end-to-end: a shallow overlap soft-lands
+  clear of its neighbour with a pending edit; a deep overlap reverts.
+
+## FEATURE: selection scale-in micro-interaction (v0.9.0.16)
+
+- **Animations leg.** Selecting an item now eases its outline + floor tint up from slightly smaller
+  (0.9→1 over 130 ms, ease-out) instead of popping in hard — a subtle focus cue (Coohom / Planner 5D
+  do similar). Plays once when the item enters the selection; a no-op thereafter.
+- Localized to `SelectionOutline`'s `ItemOutline` (only the handful of selected nodes get a
+  `useFrame`), driving the root group's scale from the pure `scene/selection/selectionAppear.ts`
+  (`appearEase` / `appearScale`). At rest the scale is exactly 1 — no change to the settled outline.
+  Short enough to finish inside the demand-mode settle tail; invalidates while ramping to be safe.
+- Tests: +4 (`selectionAppear.test.ts` — ease endpoints/clamp, scale starts at 0.9 and settles at
+  exactly 1, monotonic within bounds). Verified live: sampled the outline group's scale mid-appear
+  (observed sub-1 scaling easing to 1) and confirmed the outline renders cleanly, no glitch.
+
+## FEATURE: placement drop-in easing (v0.9.0.15)
+
+- **Animations leg.** A freshly placed piece now eases DOWN onto its resting spot from a small
+  height (~0.16 m, 300 ms, ease-out) — tactile feedback that reads as "placed", not teleported.
+- Respects the `Furniture` **no per-item `useFrame`** perf rule via a **central animator**:
+  `scene/placementDrop.ts` (pure timing: `dropEase` / `dropOffsetY`, + a small module registry) —
+  the commit calls `beginDrop(id)`, each item registers its root group (`registerDropGroup`), and
+  one mounted `<PlacementDropAnimator>` mutates only the dropping groups' Y each frame, holding the
+  demand-mode pump open (`registerAnimatedSource`) until the drop lands. Idle = one `Map.size` check.
+- Wired at the single-item placement commit (`usePlacementController`), so catalog click/drag drops
+  animate; window-bound fixtures (curtains/blinds) and bulk/boot adds don't drop-in (no jank).
+- Tests: +7 (`placementDrop.test.ts` — ease endpoints/clamp, offset monotonic + lands at 0, and the
+  full tick lifecycle: lifts a group Y = rest+offset, snaps to rest + releases the pump hold at the
+  end, and ends cleanly if the group unmounts mid-drop). Verified end-to-end in the room editor
+  (sampled the live group Y through a real placement: lifts to ~0.10 m, eases to rest).
+
+## FEATURE: selection / resize box is the true minimum spanning box (v0.9.0.14)
+
+- Follow-up to the granular-footprint work. The selection **bounding box + resize handles** used
+  the enclosing `itemFootprint` OBB, which for the L-sofa is the **depth-only 2.6×0.95 m** rectangle
+  — so the box cut straight through the chaise instead of spanning the true ~2.6×1.95 m geometry.
+  Now both the `SelectionOutline` brackets and the multi-select `ResizeGizmo` use the **minimum
+  spanning box of the footprint parts**, so the box tightly bounds the real shape.
+- New pure helper `collision/placement.ts:itemFootprintSpanLocal` (unions the convex parts in the
+  item's local frame, relative to the OBB centre); `ResizeGizmo` unions every part's `obbCorners`.
+  Single-part pieces are unchanged (the span equals the enclosing OBB). +4 tests.
+- **Placement-ghost green/red verified** (already correct, no change): the tint is driven by
+  `canPlace` → `ghostValid`, which uses the true-shape parts — confirmed headlessly that the ghost
+  is green on open floor and flips to red (invalid) when moved over an existing item.
+
+## FEATURE: selection + placement tint follows the granular collision polygon (v0.9.0.13)
+
+- Closes the consistency gap the granular-collision work opened: collision became shape-aware
+  (`footprintParts`) but the **selection floor-tint** (`SelectionOutline`) and the **placement
+  ghost** (`PlacementGhost`) still painted a single enclosing rectangle. An L-sofa / corner cabinet
+  now tints its **true L** — the concave notch reads as open floor, matching exactly where a piece
+  may actually go.
+- New pure helper `collision/placement.ts:itemFootprintPartsLocal` returns the footprint parts in
+  the item's **local** frame (offset + half-extents + part-rotation), so a renderer drops one plane
+  per part into a group already carrying the world position + yaw. A non-composite def yields a
+  single centred part — **pixel-identical** to the old rectangle, so plain pieces are unchanged.
+- The placement ghost's tint now also **rotates with the previewed orientation** (it previously
+  stayed axis-aligned — a latent bug for rotated non-square pieces), via an inner yaw group.
+- The **enclosing-box outline brackets + hover outline stay on the bbox** — they're the
+  selection/resize-handle affordance; it's the colored *fill* that should hug the shape.
+- Tests: +4 (`granularFootprint.test.ts` — local single-part = centred footprint, yaw-independence,
+  L-sofa 2-part offsets, scale applied). Visually verified (`scenarios/granular-tint.json`): the
+  L-sofa tints its L cleanly with no z-fighting; the notch is not filled.
+
+## FEATURE: eased camera transitions for focus / top / reset views (v0.9.0.12)
+
+- **Animations leg** of the deeper-interaction directive. Every camera retarget now *glides*
+  instead of teleporting: double-click **focus**, the **top-down** view and **reset/home** all
+  route through the same eased fly that saved-views already used, rather than an instant
+  `controls.update()` snap. (The focus path's comment always promised "smoothly re-target" — now
+  it actually does.)
+- New pure-math core `scene/cameras/cameraTween.ts` (no three/React → unit-testable): `smoothstep`
+  ease + `flyDurationFor`, a **distance-aware** duration (a short hop snaps at `FLY_MIN_SECONDS`,
+  a long jump across the flat glides up to `FLY_MAX_SECONDS`). `OrbitCamera` holds one `startFly`
+  helper that all four retargets call; the per-frame tween uses the fly's own `dur`.
+- The fly self-pumps the demand-mode renderer via OrbitControls' `change` event on each
+  `update()`, so no new RenderPump input was needed.
+- Tests: +10 (`cameraTween.test.ts` — smoothstep endpoints/clamp/monotonicity, duration bounds /
+  monotonic scaling / 3-D travel / non-finite fallback). Visually verified (`scenarios/eased-camera.json`):
+  start → mid-flight → settled frames confirm a genuine interpolation that lands on the correct pose.
+
+## FIX: granular-footprint broadphase superset + L-sofa preset wall clip (v0.9.0.11)
+
+- Two latent bugs from the v0.9.0.9 granular-collision work, both surfaced by the full test suite:
+  - **Broadphase AABB no longer enclosed the collision shape.** `itemAabbBox` boxed the single
+    `itemFootprint` OBB, but for the L-sofa that OBB is read from the `depth` prop (the main-run
+    depth only, ~0.95 m) while the true main-run+chaise shape is ~1.95 m deep. The broadphase grid
+    is required to be a **superset** of the narrowphase; a too-small box could prune a real
+    chaise-vs-neighbour overlap (missed by the clearance/score scans + auto-arrange). `itemAabbBox`
+    now **unions every part's AABB** (identical for single-part pieces). +3 regression tests.
+  - **`open-lounge` / `entertainer` presets clipped the west partition.** Authored against the old
+    *shallow* (depth-only) footprint, the L-sectional's true 1.95 m-deep back run poked ~0.12 m
+    through the wall at x≈9.05. Nudged both to x=10.2 so the back clears the wall (coffee table is
+    separated in Z, so the small east shift is safe). The `layoutPresets` collision test passes.
+- No render/feature change — collision correctness only.
+## FEATURE: eased camera transitions for focus / top / reset views (v0.9.0.11)
+
+- **Animations leg** of the deeper-interaction directive. Every camera retarget now *glides*
+  instead of teleporting: double-click **focus**, the **top-down** view and **reset/home** all
+  route through the same eased fly that saved-views already used, rather than an instant
+  `controls.update()` snap. (The focus path's comment always promised "smoothly re-target" — now
+  it actually does.)
+- New pure-math core `scene/cameras/cameraTween.ts` (no three/React → unit-testable): `smoothstep`
+  ease + `flyDurationFor`, a **distance-aware** duration (a short hop snaps at `FLY_MIN_SECONDS`,
+  a long jump across the flat glides up to `FLY_MAX_SECONDS`). `OrbitCamera` holds one `startFly`
+  helper that all four retargets call; the per-frame tween uses the fly's own `dur`.
+- The fly self-pumps the demand-mode renderer via OrbitControls' `change` event on each
+  `update()`, so no new RenderPump input was needed.
+- Tests: +10 (`cameraTween.test.ts` — smoothstep endpoints/clamp/monotonicity, duration bounds /
+  monotonic scaling / 3-D travel / non-finite fallback). Visually verified (`scenarios/eased-camera.json`):
+  start → mid-flight → settled frames confirm a genuine interpolation that lands on the correct pose.
+
+## FEATURE: granular footprint for the L-shaped corner base cabinet (v0.9.0.10)
+
+- Applied the v0.9.0.9 `footprintParts` infra to the **corner base cabinet** (`cabinet-corner`):
+  its two perpendicular runs (back along X + left along Z, minus the shared corner) are now the
+  collision shape, leaving the inner +X/+Z quadrant open. An adjacent base cabinet can butt against
+  a leg in a kitchen corner without the empty inner corner reading as solid. Param-driven from
+  `width`/`depth`, matching the `CabinetCorner` primitive geometry.
+- Tests: +3 (`granularFootprint.test.ts` — 2-run decomposition, inner-corner-free vs.
+  bounding-box-would-block, both legs still block); 13 in that file, full collision suite green.
+  Same collision path as v0.9.0.9 (visually verified there); render unchanged.
+
+## FEATURE: granular shape-aware furniture collision (composite footprints) (v0.9.0.9)
+
+- **Collision is no longer bounding-box-only.** A `FurnitureDef` can now declare `footprintParts`
+  — a convex decomposition of a non-rectangular plan shape (a list of local-space oriented
+  sub-rects), either static or a **function of the item's live props** for parametric pieces
+  whose shape varies. `collision/placement.ts` gained `itemFootprintParts(item, def)` which maps
+  each part into world space (item scale + rotation applied; honours a GLB's off-origin offset),
+  and `canPlace` (walls + furniture), `itemsCollide`, `findItemOverlaps` and `findWallClips` now
+  test **any-part-vs-any-part** (SAT). The broadphase still uses the single enclosing OBB
+  (`itemFootprint`) — a valid superset, so it stays O(n) with identical results. Absent
+  `footprintParts` → unchanged single-OBB behaviour (fully backward compatible).
+- **L-shaped sectional decomposed** into its main run + perpendicular chaise (param-driven from
+  `width`/`depth`/`chaise`/`chaiseSide`), so the concave notch reads as open floor: a side table,
+  stool, plant, etc. can now sit in the L instead of being falsely blocked by the 2.5×1.95 box.
+- Tests: 10 new (`collision/granularFootprint.test.ts` — single-OBB back-compat, L-sofa
+  decomposition, notch-is-free vs. chaise/main-run-blocked, left/right mirror, `findItemOverlaps`
+  in the notch, static-parts array, scale + rotation of parts) + the full 124-test collision suite
+  still green. Visually verified in-app: a bar-stool placed in the L-sofa's open notch coexists
+  cleanly (no clip), camera-framed at noon.
+- First step of the **deeper core-interaction** direction (granular collision → animations →
+  physics); the `footprintParts` infra is reusable for other non-rectangular pieces (corner
+  cabinets, U-sofas, corner desks) — tracked in `TODO.md`.
+
+## FEATURE: configurable price-rule library for the quote & estimate (v0.9.0.8)
+
+- **Contractor-editable rate card** (`priceRules`, pro flag) — the BOQ quote and the renovation
+  estimate previously priced everything from a fixed built-in table (`RENO_RATES` + a hardcoded
+  `CARPENTRY_RATE = 320`). They now read a user-configurable `PriceRules` card: per-bucket $/m²
+  floor rates (tiles / stone / timber / vinyl / other), per-bucket $/m² wall rates (paint / tiles /
+  wallpaper / other) and the carpentry $/linear-metre. Defaults reproduce the built-in SG table
+  exactly, so output is unchanged until a rate is edited. Closes the second half of parity gap
+  **M#2** (quote templates shipped earlier; this adds the price-rule library).
+- **One source of truth** — `analysis/renovationCost.ts` owns the model (`PriceRules`,
+  `DEFAULT_PRICE_RULES`, `mergePriceRules`/`isNonDefaultPriceRules`, `floorRateFor`/`wallRateFor`);
+  `estimateRenovation` takes an optional `rules` param (defaults to the built-in table — fully
+  backward compatible). The quote (`assembleBoqInput`), the printable report (`buildReportHtml`)
+  and the cost-breakdown CSV (`buildCostBreakdown`) all thread `store.priceRules` through, so the
+  three deliverables price identically.
+- **Editor** lives in the existing **Quote template** dialog under a new "Price rules (rates)"
+  section, gated by `useFeature('priceRules')` (the section, plus a "Reset rates" affordance).
+  Rate edits push a single undo step and are undoable (added `priceRules` to the history snapshot).
+- **Persistence** — the rate card travels with the design (Zod `PriceRulesZ` + autosave watch-list +
+  `serialize`/`applySerialized`), persisted only when non-default; `mergePriceRules` sanitises any
+  corrupt/negative/NaN rate back to the default on load.
+- Tests: rate-card helpers, `estimateRenovation` honouring a custom card, the slice (set/reset +
+  single-undo revert), schema round-trip (non-default persist + corrupt-clamp), and the `priceRules`
+  flag in **both** Simple (off) and Pro (on) modes. Visually verified the dialog via the
+  quote-template scenario (19/19; edit→undo round-trip 420→320).
+
+## QOL+FIX: Undo affordance on style apply + single-undo fix (v0.9.0.7)
+
+- **"Undo" button on the style-applied toast** (style transfer + style quiz) — applying a whole-home
+  style is a big change, so the success toast now carries an inline **Undo** action (reusing the
+  notification `actionLabel`/`onAction` from v0.9.0.1) and stays up 8s. One tap reverts it.
+- **Fixed a latent undo-granularity bug:** applying a style used to push **two** history entries
+  (`applyHomeStyle` + `setMasterPalette`), and since the master palette isn't in the history snapshot,
+  a single undo reverted *nothing visible* — the finishes stayed changed (it took two undos). Folded
+  the palette into `applyHomeStyle(floorId, wallId, palette?)`'s single `pushHistory` (palette set
+  inline, no second entry), so applying a style is now **one** undo step that cleanly reverts the
+  finishes. `cleanPalette` is now exported from `colorPaletteSlice` for reuse.
+- Tests: new `finishesSlice` test asserts applyHomeStyle pushes exactly one history entry, sets
+  floor+wall+palette, and that a single undo reverts it. `style-transfer-simple.json` extended to
+  click the toast's Undo and assert the floor finish round-trips to its original. Visually verified
+  the Undo toast.
+
+## FEATURE: style quiz — find & apply your interior style (v0.9.0.6)
+
+- **New `styleQuiz` (pro) feature** — a short 4-question personality quiz that recommends one of the
+  curated styles (Scandinavian/Japandi/Industrial/Coastal/Warm-minimal) and applies it whole-home in
+  one tap (reusing `applyHomeStyle` + `setMasterPalette`). Consumer onboarding parity
+  (Decor8/Havenly/Decoratly style quizzes), fully client-side.
+- **Modular + tested:** pure `ui/styling/styleQuiz.ts` — weighted `STYLE_QUIZ` data + `scoreQuiz`
+  (answers → winning style, deterministic tiebreak by preset order, always returns a valid id) with
+  7 unit tests including a guard that every option weights only real `STYLE_PRESETS` ids.
+  `ui/StyleQuizModal.tsx` is a presentational stepper (one question per screen, Back, then a result
+  card with palette swatches + Apply / Retake).
+- **Wired + gated:** `styleQuiz` flag (pro, prod-safe; hidden in Simple — both-mode test), store
+  `styleQuizOpen` + setter, Tools menu + mobile ToolsSection, ⌘K command, lazy-loaded modal. New
+  `style-quiz-simple.json` IXT scenario (gate → stepper → asserts the Scandinavian recommendation →
+  apply → finish + palette change). Visually verified: result card + restyled scene.
+
+## FEATURE: in-engine one-tap style transfer (v0.9.0.5)
+
+- **New `styleTransfer` (pro) feature** — a curated library of interior styles (Scandinavian, Japandi,
+  Industrial, Coastal, Warm minimal); one tap restyles **every room's** floor + wall finish and sets
+  the master colour palette. All finishes are builtin procedural/CC0 → no downloads, prod-safe. The
+  consumer front-of-funnel "instant restyle" (Decor8/Havenly/Spoak parity), fully client-side.
+- **Single-undo apply:** new `finishesSlice.applyHomeStyle(floorId, wallId)` sets floor + wall for
+  every interior room across all storeys in **one** history entry (vs the two `setAll*` would push),
+  honouring "one logical action = one undo." Palette via `setMasterPalette`.
+- **Modular + tested:** pure `ui/styling/styleTransfer.ts` (`STYLE_PRESETS` data + `planStyleApply`)
+  with 6 unit tests, including a guard that every preset's floor/wall id exists in
+  `BUILTIN_MATERIALS` (catches typo'd ids). `ui/StyleTransferModal.tsx` is a presentational card grid.
+- **Wired + gated:** `styleTransfer` flag (pro, prod-safe; hidden in Simple — both-mode test), store
+  `styleTransferOpen` + setter, Tools menu + mobile ToolsSection entries (useFeature gated), ⌘K
+  command, lazy-loaded modal. New `style-transfer-simple.json` IXT scenario (Simple-hidden →
+  Pro-shown gate, apply → finish + palette change). Visually verified: the card grid renders and the
+  scene restyles. (Fixed a render bug found in visual review — cards used `.panel` which is
+  `position:absolute`, collapsing the grid; replaced with token-based inline styles.)
+
+## FEATURE: before/after staging reveal (empty vs furnished) (v0.9.0.4)
+
+- **New `stagingReveal` (pro) feature** — a consumer-staging "before/after" reveal slider
+  (Decor8/Havenly/ReimagineHome front-of-funnel parity). Captures the room twice from the **same
+  camera** — the furnished design, then the empty room (all furniture transiently hidden via the
+  visual-only `hiddenItemIds` set, no persisted/undo impact) — and presents them on a draggable
+  vertical divider (mouse + touch).
+- **Modular + tested:** capture orchestration lives in the pure, injected-dependency
+  `ui/staging/stagingReveal.ts` (5 unit tests — capture order, hidden-set restore incl. on failure,
+  no-furniture + view-closed guards); `ui/StagingRevealModal.tsx` owns only React state + the drag UI
+  and reuses `renderCompare/compareState.ts` `clampDivider`.
+- **Fully wired + gated:** `stagingReveal` flag (pro, prod-safe pure code; hidden in Simple — both-mode
+  test added), store `stagingRevealOpen` + setter, File menu + mobile FileSection entries (useFeature
+  gated), ⌘K command (`COMMAND_FLAGS`), lazy-loaded modal. New `staging-reveal-simple.json` IXT scenario
+  (Simple-hidden → Pro-shown gate, capture, both frames present). Visually verified: empty-left /
+  furnished-right, pixel-aligned across the divider, theme-cohesive, no artifacts.
+
+## A11Y: toast auto-dismiss pauses on hover/focus (WCAG 2.2.1) (v0.9.0.3)
+
+- **Toasts no longer vanish mid-read.** `NotificationContainer` paused auto-dismiss while a toast is
+  hovered or keyboard-focused (`onMouseEnter`/`onFocus` pause, `onMouseLeave`/`onBlur` resume),
+  satisfying WCAG 2.2.1 ("Enough Time"). The dismiss timer was reworked from a naive
+  `createdAt`-derived countdown to a self-managed per-toast **remaining-ms budget**
+  (`remainingRef`/`startedAtRef`): each running interval banks only the time it actually consumed, so
+  while paused the budget freezes and resumes exactly where it left off — correct across pauses,
+  progress ticks, and new-toast re-renders. Appearance is unchanged. Verified with a fake-timer unit
+  test (hover freezes a 3 s timer through +5 s, then resumes and dismisses after the remaining ~2 s).
+- Logged a vetted set of client-feasible, headless-verifiable next-iteration candidates in `TODO.md`
+  (live-price IXT scenario, shareable design card, before/after staging reveal) to feed the loop.
+
+## RELIABILITY: live-price client coverage + parity-doc reconcile (v0.9.0.2)
+
+- **Hardened the live-price sidecar client** (`catalog/pricing/livePrice.ts`) with 8 new
+  deterministic tests for the previously-untested paths of this external-data client: successful-result
+  caching (same key never re-fetches), failed-lookup null-caching (no retry storms), network-throw →
+  cached null, per-retailer cache keying, concurrent in-flight dedup (one shared fetch), `/health`
+  probe caching + reset-forces-reprobe, sidecar-down on `/health` throw, and default-retailer fallback
+  when `/health` omits the list. All green — regression protection for the untrusted retailer-offer
+  path (offer URLs already render through `safeUrl` in `BudgetPanel`, SEC-001).
+- **Reconciled `FEATURE_PARITY.md` drift:** removed the stale "keyboard wall-length entry while
+  drawing" gap row — it shipped as `wallNumericEntry` (flag + `floorplan/wallNumericEntry.ts` +
+  editor overlay + tests) — folding it into the SH3D parity summary and dropping it from the roadmap.
+- Verified (and rejected) a flagged `formatLength` "banker's-rounding" bug — JS `Math.round` rounds
+  halves toward +∞, so the imperial formatter is correct; no change. Docs/tests-only (no app code).
+
+## PWA-UPDATE: confirm-to-update flow with progress feedback (v0.9.0.1)
+
+- **Checks on open + confirms before reloading.** Switched `vite-plugin-pwa` from `registerType:
+  'autoUpdate'` (which reloaded the page behind the user) to **`'prompt'`**. `swUpdate.ts` now checks
+  for a new build **on open** (plus the existing hourly + foreground checks); a found build installs
+  but **waits**, and `onNeedRefresh` surfaces a single de-duped **"Update available"** toast with an
+  **Update** button. `applyUpdate()` calls `updateSW(true)` (skipWaiting + reload) only on click —
+  no surprise reloads. On-open/background checks are silent unless an update exists; the manual
+  **"Check for updates"** still gives full feedback (checking spinner → up-to-date / Update prompt /
+  error).
+- **Fixed the static "Checking for updates…" bar.** Progress toasts now spin their icon and, when
+  `progress` is `null`, render an **indeterminate animated bar** instead of a frozen 0%
+  (`notificationsSlice` `progress?: number | null`; `@keyframes toastspin`/`toastindet` in
+  `features.css`, both honoured by the app-wide reduced-motion clamp).
+- **Notifications can carry an action + icon override.** New optional `actionLabel`/`onAction` (renders
+  the existing `.toast-act` button) and `icon` fields on the notifications slice; the update prompt uses
+  them (Update button + Versions glyph).
+- Tests: `swUpdate.test.ts` (check results, on-find prompt, de-dupe, up-to-date, error), slice + container
+  tests for indeterminate progress and the action button. New `update-check-toast.json` IXT scenario
+  (checking spinner → Update-available prompt → up-to-date). Full suite + tsc + biome green; visually
+  verified all three toast states.
+
 ## Release: clear-backlog-gpu → main (v0.9.0.0)
 
 Minor bump for the multi-feature backlog-clearing line (v0.8.0.25–.49): the full **SLOT product

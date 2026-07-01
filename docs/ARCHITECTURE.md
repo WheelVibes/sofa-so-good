@@ -159,6 +159,10 @@ same change that reshapes a system.
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
   CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice` /
   `favouritesSlice` — both persist to localStorage, both per-device convenience state).
+  Search is synonym- + intent-aware (`catalog/searchSynonyms.ts` `fuzzySearchSmart`:
+  couch→sofa, plurals, and **search-by-room** — "bedroom"→bed/wardrobe/…); when a query
+  names a room/use, a subtle caption (`matchedIntents`, `.catalog-search-hint`) reads
+  "Showing <room> furniture" so that otherwise-invisible capability is discoverable.
   Favourites (star/heart button on each card, Favourites tab) are gated by the
   `catalogFavourites` feature flag (tier: simple, default on). Browsable **remote CC0
   *models*** (Poly Haven `RemoteCard`s) are gated by the **`remoteFurniture`** flag (tier:
@@ -191,8 +195,10 @@ same change that reshapes a system.
   sampling with tangent yaw; Pro-only via `pathArray` flag), **scatter-fill room**
   (`inspector/ScatterFillSection.tsx` → pure `layout/scatterInRoom.ts` — evenly fills the
   selected item's room with N collision-safe copies on a packed grid, deterministic by seed;
-  Pro-only via `scatterFill` flag)), FinishPicker, WallAccentPicker, GraphicsSettings,
-  BudgetPanel, NavCluster,
+  Pro-only via `scatterFill` flag)), FinishPicker, WallAccentPicker (paint one wall face an accent
+  finish, opened by a wall-face click; `wallAccentPicker` flag), GraphicsSettings,
+  BudgetPanel, NavCluster, CreditsModal (asset attribution/licenses, opened from the Appearance
+  panel's "Asset credits" entry; `assetCredits` flag; built on the shared `Modal`),
   CommandPalette, **ContextMenu** (dynamic right-click menu — `featuresSlice.ContextTarget`
   carries what was right-clicked; `ContextMenu.tsx` rebuilds actions per target + selection:
   furniture rotate/flip/duplicate/**layer-order**/group/lock/hide/delete, plan walls
@@ -227,10 +233,15 @@ same change that reshapes a system.
 - **Multi-select transforms & layering** (Canva parity): a multi-selection (`selectedItemIds`)
   moves/rotates/flips/**resizes** as one unit in BOTH editors — 3D via `DragController` (rigid
   translate) + `RotateGizmo` (centroid pivot + `enclosingRadius` ring) + `ResizeGizmo` (floor corner
-  handles, uniform scale about the opposite corner) + keyboard F/R; 2D via the editor's
+  handles, uniform scale about the opposite corner; publishes the live selection **W×D** to
+  `scene/selection/resizeReadoutSignal.ts` — a module signal read by the bottom-centre `ui/ResizeHud`
+  pill, `itemDimensionReadout` flag, so the group scales to a target size) + keyboard F/R; 2D via the editor's
   `movingItem` group-drag + a unified dashed bounding box with a `rotatingMulti` rotation ring
   (reusing `scene/selection/rotateGizmoMath`) and `scalingMulti` corner resize handles (uniform
-  `props.scale` about the opposite corner). **Grouping** (`groupsSlice`, `furnitureGroups` flag)
+  `props.scale` about the opposite corner). The `MultiSelectPanel` also **bulk-recolours** the
+  selection (Appearance › Tint all → `itemsSlice.updateManyItemProps(ids, {tint})`, one undo step;
+  `bulkAppearance` flag) and can paste a copied appearance to all (`copyAppearance`).
+  **Grouping** (`groupsSlice`, `furnitureGroups` flag)
   binds members so a click selects the whole group. **Z-order / layering** (`layerOrder` flag): pure
   `state/zorder.ts` `reorderByIds` + `itemsSlice.reorderItems(ids, move)` give bring-forward /
   send-to-back (render order = array order), surfaced in the context menu. **Locked** items/walls are
@@ -253,6 +264,18 @@ same change that reshapes a system.
   camera **fits the whole room to the viewport** (`OrbitCamera` room branch → aspect-aware
   `fitDistance`, the same helper as the whole-plan dollhouse), so the room just fills the
   screen on any aspect ratio.
+- **Eased camera transitions** (`scene/cameras/cameraTween.ts`, pure + unit-tested): every
+  retarget — saved view, double-click focus, top-down, reset/home — flies through one shared
+  `startFly` in `OrbitCamera` (smoothstep ease, **distance-aware** `flyDurationFor` so a short
+  hop snaps and a long jump glides) rather than a hard `controls.update()` snap. The fly
+  self-pumps the demand-mode renderer via OrbitControls' `change` event each frame.
+- **Placement drop-in easing** (`scene/placementDrop.ts`, pure timing + unit-tested): a freshly
+  placed piece eases DOWN onto its resting spot from a small height (~0.16 m, 300 ms, ease-out).
+  `Furniture` keeps NO per-item `useFrame` (perf rule) — instead each item registers its root
+  group (`registerDropGroup`), the commit calls `beginDrop(id)`, and one mounted
+  `<PlacementDropAnimator>` (`useFrame`) mutates only the dropping groups' Y and holds the render
+  pump open (via `registerAnimatedSource`) until the drop lands. Idle cost is a single `Map.size`
+  check per frame.
 - **Design system & theming** (`appearanceSlice`, `appearancePrefs`): 5 themes
   (Clay/Kampong/Porcelain/Estate/Harbour) × light/dark = 10 OKLCH palettes via
   `[data-theme]`+`[data-mode]` (pre-paint inline script, `hdb_appearance`, Auto=OS).
@@ -307,7 +330,10 @@ same change that reshapes a system.
   Edit are hidden in the room editor (desktop `Toolbar` and the mobile sheet both gate them on
   `!roomEditorActive`), so they'd otherwise have no live target.
   **Location prompt suppressed while `onboardingOpen || tourOpen`** (no stacking) — so it always
-  surfaces last, after the tour. Replay via Help (?) or ⌘K.
+  surfaces last, after the tour. Replay the tour via the Appearance panel or ⌘K. (`?`
+  itself now opens the **keyboard-shortcuts overlay** — `ui/ShortcutsModal`, `shortcutsHelp`
+  flag; `controls/shortcutHelp.ts` sources single keys from `KEYBINDINGS`; also on the ⌘K
+  "Keyboard shortcuts" command.)
   **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`; on a
   **custom plan/template** it instead seeds a per-room kit + runs the plan arranger via pure
   `furniture/furnishPlan.ts` `furnishPlanItems`, so any template furnishes in one click).
@@ -593,9 +619,16 @@ same change that reshapes a system.
   actually placed, plus an always-present keys/meters/documents group). The report's **Move-in
   checklist** section (PARITY-MOVEIN-CHECKLIST); rides the existing `report` flag, always renders
   (an empty plan still yields the generic group).
-- **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas)`:
-  indicative SG supply+install $/m² per finish category, `RENO_RATES` table). The report's Renovation
-  estimate section (finishes subtotal + combined furniture+finishes total).
+- **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas,rules?)`:
+  SG supply+install $/m² per finish category). The default rate table (`RENO_RATES`) is the factory
+  default of a **configurable price-rule library** (`PriceRules`/`DEFAULT_PRICE_RULES`, with
+  `mergePriceRules`/`isNonDefaultPriceRules`/`floorRateFor`/`wallRateFor`): the user can override any
+  per-bucket floor/wall rate + the carpentry $/lin.m. The card lives in `priceRulesSlice` (`priceRules`,
+  `setPriceRules`/`resetPriceRules`, both push undo + in the history snapshot), persists in the save
+  schema when non-default, and is threaded into the quote (`assembleBoqInput`), the report
+  (`buildReportHtml`) and the cost CSV (`buildCostBreakdown`) so all three price identically. Editor:
+  the "Price rules (rates)" section of `QuoteTemplateModal` (`priceRules` flag, pro). The report's
+  Renovation estimate section shows the finishes subtotal + combined furniture+finishes total.
 - **Plan statistics** (`analysis/planStatistics.ts` pure → `buildPlanStatistics(plan)`: GFA summed
   across ALL storeys, room count + per-kind mix (`roomKindFromName` buckets, unknown→`other`),
   average room size, total room perimeter + total wall length, and the net-vs-circulation split
@@ -645,7 +678,33 @@ same change that reshapes a system.
   rule across the whole design (frame-scoped memo: same items/defs identities within
   one task reuse the result) and `findWallClips(items,defs,walls)` flags pieces
   embedded in a wall (both power the Clearance panel's checks); items
-  carry a vertical span + `mounted`/`noClip`. `placementWalls.ts`
+  carry a vertical span + `mounted`/`noClip`. **Granular (shape-aware) footprints**:
+  a def may declare `footprintParts` (a convex decomposition of a non-rectangular
+  shape — static, or a function of live props for parametric pieces), and
+  `itemFootprintParts(item,def)` maps each part to a world OBB (scale + rotation +
+  GLB offset applied). All collision tests are **any-part-vs-any-part** SAT, so e.g.
+  an L-sofa's concave notch is open floor; absent `footprintParts` → the single
+  `defaultFootprint` OBB (unchanged). The broadphase (`itemAabbBox`) **unions every
+  part's AABB** so the box always bounds the true shape (the L-sofa's enclosing OBB
+  is read from `depth` and is shallower than the main-run+chaise shape — boxing it
+  alone would break the superset invariant and prune a real overlap); single-part
+  pieces are identical to before. The **selection floor-tint + placement ghost**
+  paint the same shape: `itemFootprintPartsLocal(item,def)` returns the parts in the
+  item's local frame (one centred part = the old rectangle for plain pieces), and
+  each consumer renders one plane per part inside a group carrying the world pose —
+  so an L-sofa tints its true L (notch open). The selection **bounding box + resize
+  handles** use `itemFootprintSpanLocal` — the **minimum spanning box of the parts**
+  (`SelectionOutline` brackets; `ResizeGizmo` unions every part's `obbCorners`) — so
+  the box bounds the true geometry (the L-sofa's chaise included) instead of the
+  depth-only OBB that cut through it; single-part pieces are unchanged. The placement
+  ghost's green/red tint is driven by `canPlace` → `ghostValid` (true-shape parts, so
+  the tint reflects the real fit). (The L-shaped sectional + corner base cabinet ship
+  the first decompositions: main run + chaise / two runs.) **Soft push-apart on drop**:
+  a single-item drag that ends overlapping is nudged out to the nearest valid spot
+  instead of hard-reverting — `obbMtv` (SAT minimum translation vector) picks a push
+  direction and `nudgeToValid` steps outward (± fan) verifying each candidate with
+  `canPlace`, bounded to ~0.4 m (deep overlaps still revert); wired in `DragController`
+  as a confirmable edit. `placementWalls.ts`
   centralizes wall selection (room editor → solid perimeter; upper storeys → own
   walls). All cross-item/wall scans are **storey-scoped** (F13/ML3): `itemsCollide`
   + `findNarrowGaps` gate pairs on `levelId`, `levelWallClips.ts
@@ -684,8 +743,11 @@ same change that reshapes a system.
   — walls, rectangular/L-shape (`extension`)/free-`polygon` rooms (Polygon + Auto-room),
   doors/windows, ceiling height (global + per-room), grid+corner snap, per-room floor
   finishes, length labels, and a **furniture name/price label** toggle (`planLabels`
-  flag + pure `ui/floorplan/planLabels.ts`, SH3D parity). Per-room **floor + wall finishes** resolve through
-  `floorplan/roomFinishes.ts` (live `finishes` slice → `PlanRoom.floor`/`wall` → default);
+  flag + pure `ui/floorplan/planLabels.ts`, SH3D parity). Per-room **floor + wall + ceiling finishes** resolve through
+  `floorplan/roomFinishes.ts` (`resolvePlanRoomFloor`/`Wall`/`Ceiling`: live `finishes` slice →
+  `PlanRoom.floor`/`wall`/`ceilingFinish` → default; ceiling default = plain white/unset). The
+  per-room `FinishPicker` (opens on `selectedRoomId`) is the unified surface panel — Floor + Walls +
+  a **Ceiling** section (paints from the wall pool, `ceilingFinish` flag; apply-all + reset-to-white);
   the finish setters write through to the active plan and plan activation prunes stale
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split / Reverse / Join** (pure `wallOps.ts` — openings re-homed) + **exact length/angle** inspector
   fields (`wallOps.ts` `endForLength`/`endForAngle`/`wallAngleDeg` — PARITY-WALLDIM) + draggable endpoint handles (`moveWallVertex`) +
@@ -870,7 +932,9 @@ same change that reshapes a system.
   is part of `HistorySnapshot` so template edits are fully undoable; `boqToHtml`/`boqToCsv`/`boqRows`/
   `boqToXlsx` all accept an optional template and produce identical output when omitted; `openBoq.ts`
   and `downloadBoqXlsx.ts` read `quoteTemplate` from the store and apply it; `ui/QuoteTemplateModal.tsx`
-  modal with CSS-token-only styling; `quoteTemplate` flag, pro),
+  modal with CSS-token-only styling; `quoteTemplate` flag, pro. The same modal also hosts the
+  **price-rule library** editor (`priceRulesSlice` → `analysis/renovationCost.ts` `PriceRules`; see the
+  Renovation-estimate bullet above), gated by the separate `priceRules` flag, pro),
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
   even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
   snap-to-wall (`layout/faceWall.ts`) / arrange-as-run (`layout/arrangeRun.ts`, butt a kitchen
@@ -905,6 +969,17 @@ same change that reshapes a system.
   **Render preset A/B compare** (`ui/renderCompare/compareState.ts` pure logic — preset
   selection, swap, divider clamping; `ui/RenderCompareModal.tsx` two sequential captures +
   Lightroom-style before/after slider with touch parity; `renderCompare` flag, pro),
+  **Before/after staging reveal** (`ui/staging/stagingReveal.ts` pure capture orchestrator —
+  injected canvas-capture + hidden-set deps, unit-tested; `ui/StagingRevealModal.tsx` captures the
+  furnished view then transiently hides all furniture for the empty-room frame and shows the same
+  reveal slider; `stagingReveal` flag, pro),
+  **One-tap style transfer** (`ui/styling/styleTransfer.ts` pure `STYLE_PRESETS` + `planStyleApply`,
+  unit-tested incl. a builtin-finish-id guard; `ui/StyleTransferModal.tsx` style-card grid →
+  `finishesSlice.applyHomeStyle(floor, wall, palette?)` swaps every room's floor+wall + master palette
+  in one undo step; the applied toast carries an inline Undo; `styleTransfer` flag, pro),
+  **Style quiz** (`ui/styling/styleQuiz.ts` pure `STYLE_QUIZ` data + `scoreQuiz` weighted-answer
+  scoring, unit-tested incl. a preset-id guard; `ui/StyleQuizModal.tsx` stepper → recommends a
+  `STYLE_PRESETS` look and applies it via the same path; `styleQuiz` flag, pro),
   **360° tour** (P-720: `panoTourSlice` stop list `{label,position,[levelId]}`
   persisted per-device to localStorage + encoded in share/save links (C261, optional field →
   back-compat); pure `ui/panorama/panoTour.ts` DERIVES room-to-room hotspots (yaw/pitch via
@@ -952,12 +1027,18 @@ same change that reshapes a system.
   is `public/basis/` via `withBase('/basis/')`. A `vite-plugin-pwa` Workbox service worker
   (`vite.config.ts`) precaches the build so the app loads and runs offline after the first visit
   (build-only — `devOptions` off; opt out with `VITE_DISABLE_PWA=1`, which `disable`s the plugin
-  while keeping `virtual:pwa-register` resolvable). **Updates** (`registerType: 'autoUpdate'`):
-  registration is owned by `src/pwa/swUpdate.ts` (`injectRegister: null`) which polls
-  `registration.update()` hourly **and** on foreground (visibility/focus) so installed Home-Screen
-  PWAs — iOS standalone has no reload UI — pick up new builds; a found build installs + reloads
-  silently, and a manual **"Check for updates"** (`runUpdateCheck`, File menu / mobile Appearance &
-  help) gives toast feedback. Optional network-bound
+  while keeping `virtual:pwa-register` resolvable). **Updates** (`registerType: 'prompt'` — never
+  reloads behind the user): registration is owned by `src/pwa/swUpdate.ts` (`injectRegister: null`)
+  which checks `registration.update()` **on open**, hourly, **and** on foreground (visibility/focus)
+  so installed Home-Screen PWAs — iOS standalone has no reload UI — pick up new builds. A found build
+  installs but **waits**; `onNeedRefresh` then surfaces a single de-duped **"Update available"** toast
+  (info kind, no auto-dismiss) carrying an **Update** action button — `applyUpdate()` calls the
+  plugin's `updateSW(true)` (skipWaiting + reload) only on confirmation. The on-open/background checks
+  are silent unless they find an update; the manual **"Check for updates"** (`runUpdateCheck`, File
+  menu / mobile Appearance & help) shows a checking spinner then up-to-date / the same Update prompt /
+  error. Toast feedback rides the notifications slice (`kind:'progress'` toasts spin + show an
+  indeterminate bar when `progress` is `null`; toasts may carry an `actionLabel`/`onAction` +
+  `icon` override). Optional network-bound
   features (remote CC0 catalog, AI, geocoding) degrade gracefully when offline. The SPA
   navigation fallback is denylisted for `<base>/docs/` (`navigateFallbackDenylist`) so it can't
   serve the app shell in place of the separately-built VitePress **user guide**. The guide is

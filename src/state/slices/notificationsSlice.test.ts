@@ -25,6 +25,30 @@ describe('notificationsSlice', () => {
     expect(n?.message).toBe('halfway')
   })
 
+  it('update() accepts an indeterminate progress (null)', () => {
+    const { notify } = useStore.getState()
+    const id = notify.start({ title: 'Checking', kind: 'progress' })
+    notify.update(id, { progress: null })
+    const n = useStore.getState().notifications.find((x) => x.id === id)
+    expect(n?.progress).toBeNull()
+  })
+
+  it('start() carries an action + icon override through to the notification', () => {
+    const { notify } = useStore.getState()
+    const onAction = () => {}
+    const id = notify.start({
+      title: 'Update available',
+      kind: 'info',
+      actionLabel: 'Update',
+      onAction,
+      icon: 'Versions',
+    })
+    const n = useStore.getState().notifications.find((x) => x.id === id)
+    expect(n?.actionLabel).toBe('Update')
+    expect(n?.onAction).toBe(onAction)
+    expect(n?.icon).toBe('Versions')
+  })
+
   it('success() converts a progress notification', () => {
     const { notify } = useStore.getState()
     const id = notify.start({ title: 'X', kind: 'progress' })

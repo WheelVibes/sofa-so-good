@@ -9,13 +9,13 @@ import { type FloorPlan, planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
+import { flyDurationFor, smoothstep as smooth } from './cameraTween'
 import { VIEW_TOUR_LEG_SECONDS, type ViewTourFrame, viewTourFrames } from './viewTour'
 
 interface Framing {
   pos: Vector3
   tgt: Vector3
 }
-const smooth = (t: number) => t * t * (3 - 2 * t)
 
 /** Mirror the live camera pose into the shared singleton (read by saved views). */
 function writePose(pos: Vector3, tgt: Vector3): void {
@@ -140,24 +140,18 @@ export function OrbitCamera() {
   const topViewNonce = useStore((s) => s.topViewNonce)
   useEffect(() => {
     if (topViewNonce === 0) return
-    const c = controlsRef.current
-    if (!c || !(camera instanceof PerspectiveCamera)) return
+    if (!(camera instanceof PerspectiveCamera)) return
     const { pos, target } = topFraming(useStore.getState().floorPlan, camera)
-    c.target.set(...target)
-    camera.position.set(...pos)
-    c.update()
+    startFly.current(pos, target)
   }, [topViewNonce, camera])
 
   // "Reset view" → snap back to a 3/4 dollhouse overview that fits the viewport.
   const homeViewNonce = useStore((s) => s.homeViewNonce)
   useEffect(() => {
     if (homeViewNonce === 0) return
-    const c = controlsRef.current
-    if (!c || !(camera instanceof PerspectiveCamera)) return
+    if (!(camera instanceof PerspectiveCamera)) return
     const { pos, target } = dollhouseFraming(useStore.getState().floorPlan, camera)
-    c.target.set(...target)
-    camera.position.set(...pos)
-    c.update()
+    startFly.current(pos, target)
   }, [homeViewNonce, camera])
 
   // Double-click an item → smoothly re-target the orbit pivot onto it and
@@ -173,33 +167,46 @@ export function OrbitCamera() {
     const dist = offset.length()
     const targetDist = Math.min(dist, 4.5) // dolly in if far
     offset.setLength(targetDist)
-    c.target.copy(dest)
-    camera.position.copy(dest).add(offset)
-    c.update()
+    const destPos = dest.clone().add(offset)
+    // Eased re-target onto the item (keeps the current view angle) rather than a
+    // hard snap — the comment always promised "smoothly", now it actually glides.
+    startFly.current([destPos.x, destPos.y, destPos.z], [dest.x, dest.y, dest.z])
   }, [focusNonce, camera])
 
-  // Apply a saved view → smoothly fly the camera to its stored pose + target.
+  // Eased camera fly — shared by every retarget (saved view, focus, top, home)
+  // so the camera glides rather than teleporting. `dur` is distance-aware
+  // (`flyDurationFor`): a short hop snaps, a long jump across the flat glides.
   const fly = useRef<{
     fromPos: Vector3
     fromTgt: Vector3
     toPos: Vector3
     toTgt: Vector3
     t: number
+    dur: number
   } | null>(null)
-  const applyViewNonce = useStore((s) => s.applyViewNonce)
-  useEffect(() => {
-    if (applyViewNonce === 0) return
+  // Start an eased fly from the live pose to a destination pose+target. Reused by
+  // all the retarget effects below; keeps the per-frame tween in one place. Held
+  // in a ref and refreshed each render so effects/useFrame see the live closure.
+  const startFly = useRef<(toPos: Pose['pos'], toTgt: Pose['target']) => void>(() => {})
+  startFly.current = (toPos, toTgt) => {
     const c = controlsRef.current
-    const pose = useStore.getState().pendingViewPose
-    if (!c || !pose) return
+    if (!c) return
     fly.current = {
       fromPos: camera.position.clone(),
       fromTgt: c.target.clone(),
-      toPos: new Vector3(...pose.pos),
-      toTgt: new Vector3(...pose.target),
+      toPos: new Vector3(...toPos),
+      toTgt: new Vector3(...toTgt),
       t: 0,
+      dur: flyDurationFor([camera.position.x, camera.position.y, camera.position.z], toPos),
     }
-  }, [applyViewNonce, camera])
+  }
+  const applyViewNonce = useStore((s) => s.applyViewNonce)
+  useEffect(() => {
+    if (applyViewNonce === 0) return
+    const pose = useStore.getState().pendingViewPose
+    if (!pose) return
+    startFly.current(pose.pos, pose.target)
+  }, [applyViewNonce])
 
   // Automated walkthrough tour: fly the camera through a sequence of per-room
   // dollhouse framings (one loop), then stop + end any recording. Controls are
@@ -214,9 +221,10 @@ export function OrbitCamera() {
     const c = controlsRef.current
     if (!c) return
 
-    // A saved-view fly overrides manual control until it completes (~0.6 s).
+    // An eased fly (saved view / focus / top / home) overrides manual control
+    // until it completes; duration is distance-aware (flyDurationFor).
     if (fly.current) {
-      fly.current.t = Math.min(1, fly.current.t + dt / 0.6)
+      fly.current.t = Math.min(1, fly.current.t + dt / fly.current.dur)
       const f = smooth(fly.current.t)
       camera.position.lerpVectors(fly.current.fromPos, fly.current.toPos, f)
       c.target.lerpVectors(fly.current.fromTgt, fly.current.toTgt, f)

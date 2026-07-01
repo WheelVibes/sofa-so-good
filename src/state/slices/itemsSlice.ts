@@ -33,6 +33,9 @@ export interface ItemsSlice {
   setItemElevation: (id: string, elevation: number) => void
   deleteItem: (id: string) => void
   updateItemProps: (id: string, props: ParamProps) => void
+  /** Merge `props` into every listed item in ONE undo step (bulk recolour /
+   *  batch appearance edit). Unknown ids are ignored. */
+  updateManyItemProps: (ids: string[], props: ParamProps) => void
   /** Mirror-flip an item along its local X ('x') or Z ('z') axis. */
   flipItem: (id: string, axis: 'x' | 'z') => void
   /** Toggle the locked (pinned) state of an item. */
@@ -195,6 +198,16 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     get().pushHistoryCoalesced(`prop:${id}:${Object.keys(props).sort().join(',')}`)
     set((s) => ({
       items: s.items.map((it) => (it.id === id ? { ...it, props: { ...it.props, ...props } } : it)),
+    }))
+  },
+  updateManyItemProps: (ids, props) => {
+    if (ids.length === 0) return
+    const idSet = new Set(ids)
+    get().pushHistory()
+    set((s) => ({
+      items: s.items.map((it) =>
+        idSet.has(it.id) ? { ...it, props: { ...it.props, ...props } } : it,
+      ),
     }))
   },
   // History is pushed by callers (Inspector button / F key) so a multi-select

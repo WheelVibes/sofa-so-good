@@ -1,0 +1,54 @@
+{
+  "name": "style-quiz-simple",
+  "url": "http://localhost:5219/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "app-loaded", "waitFor": { "css": ".toolbar" }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1')"
+    },
+    {
+      "name": "assert-hidden-in-simple",
+      "eval": "if (window.__store.getState().featureFlags.styleQuiz !== false) throw new Error('styleQuiz must be OFF in Simple mode')"
+    },
+    { "name": "to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "assert-shown-in-pro",
+      "eval": "if (!window.__store.getState().featureFlags.styleQuiz) throw new Error('styleQuiz must be ON in Pro mode')"
+    },
+    { "name": "daytime", "eval": "window.__store.getState().setManualHour(13)" },
+    {
+      "name": "scene-ready",
+      "waitFor": { "store": "window.__store.getState().sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "open-quiz", "store": { "action": "setStyleQuizOpen", "args": [true] } },
+    { "name": "modal-open", "waitFor": { "css": "#style-quiz" }, "timeout": 15000 },
+    { "name": "q1", "waitFor": { "text": "Which palette feels most like home?" }, "timeout": 8000 },
+    { "name": "shot-question", "screenshot": "question-1" },
+    { "name": "a1", "click": { "text": "Bright whites & soft greys" } },
+    { "name": "a2", "click": { "text": "Pale ash & birch" } },
+    { "name": "a3", "click": { "text": "Calm & uncluttered" } },
+    { "name": "a4", "click": { "text": "Muted sage & stone" } },
+    {
+      "name": "result",
+      "waitFor": { "text": "Apply this style" },
+      "timeout": 8000,
+      "failMessage": "result screen did not show"
+    },
+    {
+      "name": "assert-scandi",
+      "eval": "if (!/Scandinavian/.test(document.querySelector('#style-quiz')?.textContent || '')) throw new Error('expected Scandinavian recommendation')"
+    },
+    { "name": "shot-result", "screenshot": "result" },
+    { "name": "apply", "click": { "text": "Apply this style" } },
+    {
+      "name": "applied",
+      "waitFor": { "store": "window.__store.getState().masterPalette.length > 0" },
+      "timeout": 10000
+    },
+    { "name": "settle", "wait": 1500 },
+    { "name": "shot-restyled", "screenshot": "restyled" }
+  ]
+}

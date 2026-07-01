@@ -12,7 +12,7 @@
 import { getCachedGltfFootprint } from '../furniture/GltfModel'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { type AabbItem, buildGrid, candidatePairs, queryRect } from './broadphase'
-import { type OBB, obbVsObb } from './obb'
+import { type OBB, obbMtv, obbVsObb } from './obb'
 import type { CollisionWall } from './walls'
 import { buildCollisionWalls } from './wallsFromState'
 
@@ -29,6 +29,17 @@ function wallToObb(w: CollisionWall): OBB {
     hz: w.thickness / 2,
     rot: Math.atan2(dz, dx),
   }
+}
+
+/** Resolve an item's effective per-axis scale: uniform `scale` (def scale for
+ *  non-parametric, prop `scale` override) with optional per-axis `scaleX`/`scaleZ`
+ *  (SweetHome3DJS resize parity). Shared by the single-OBB and per-part footprints. */
+function resolveScale(item: FurnitureItem, def: FurnitureDef): { scaleX: number; scaleZ: number } {
+  const defScale = def.kind === 'parametric' ? undefined : def.scale
+  const scale = (typeof item.props['scale'] === 'number' ? item.props['scale'] : defScale) ?? 1
+  const scaleX = typeof item.props['scaleX'] === 'number' ? (item.props['scaleX'] as number) : scale
+  const scaleZ = typeof item.props['scaleZ'] === 'number' ? (item.props['scaleZ'] as number) : scale
+  return { scaleX, scaleZ }
 }
 
 /** Returns the OBB footprint of an item using the def's defaultFootprint
@@ -66,12 +77,7 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
     }
   }
 
-  const defScale = def.kind === 'parametric' ? undefined : def.scale
-  const scale = (typeof item.props['scale'] === 'number' ? item.props['scale'] : defScale) ?? 1
-  // Per-axis (non-uniform) resize: width = local X, depth = local Z; each falls
-  // back to the uniform scale (SweetHome3DJS resize parity).
-  const scaleX = typeof item.props['scaleX'] === 'number' ? (item.props['scaleX'] as number) : scale
-  const scaleZ = typeof item.props['scaleZ'] === 'number' ? (item.props['scaleZ'] as number) : scale
+  const { scaleX, scaleZ } = resolveScale(item, def)
   const cos = Math.cos(item.rotation)
   const sin = Math.sin(item.rotation)
   const sx = ox * scaleX
@@ -84,6 +90,134 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
     hz: (d * scaleZ) / 2,
     rot: item.rotation,
   }
+}
+
+/**
+ * The item's footprint as one or more world-space OBBs. When the def declares
+ * `footprintParts` (a convex decomposition of a non-rectangular shape, static or
+ * props-driven), each part is mapped into world space — relative to the
+ * footprint bbox centre (so a GLB's authored off-origin offset is honoured),
+ * with the item's per-axis scale and rotation applied. Otherwise returns the
+ * single enclosing OBB. The result drives granular, shape-aware collision; the
+ * broadphase AABB ({@link itemAabbBox}) unions these parts so it bounds the true
+ * shape.
+ */
+export function itemFootprintParts(item: FurnitureItem, def: FurnitureDef): OBB[] {
+  const spec = def.footprintParts
+  const parts = typeof spec === 'function' ? spec(item.props) : spec
+  const base = itemFootprint(item, def)
+  if (!parts || parts.length === 0) return [base]
+
+  const { scaleX, scaleZ } = resolveScale(item, def)
+  const cos = Math.cos(item.rotation)
+  const sin = Math.sin(item.rotation)
+  // `base.cx/cz` is the footprint bbox centre in world space (item position +
+  // rotated GLB offset). Parts are authored relative to that centre.
+  return parts.map((p) => {
+    const sdx = p.dx * scaleX
+    const sdz = p.dz * scaleZ
+    return {
+      cx: base.cx + cos * sdx - sin * sdz,
+      cz: base.cz + sin * sdx + cos * sdz,
+      hx: (p.w * scaleX) / 2,
+      hz: (p.d * scaleZ) / 2,
+      rot: item.rotation + (p.rot ?? 0),
+    }
+  })
+}
+
+/** One footprint part in the item's LOCAL frame — relative to the footprint
+ *  centre, *before* the item's yaw. For rendering a shape-accurate footprint
+ *  overlay (selection tint / placement ghost) inside a group already positioned
+ *  at the footprint centre and rotated by the item's yaw. */
+export interface LocalFootprintPart {
+  /** Centre offset from the footprint centre, in metres (pre-yaw). */
+  ox: number
+  oz: number
+  /** Half-extents in metres. */
+  hx: number
+  hz: number
+  /** Extra in-plane rotation of this part (radians), on top of the item yaw. */
+  rot: number
+}
+
+/**
+ * The item's footprint as local parts (see {@link LocalFootprintPart}). Mirrors
+ * {@link itemFootprintParts} but keeps the parts in the item's local frame so a
+ * renderer can drop them into a group that already owns the world position + yaw.
+ * A composite def yields its convex parts (scaled); any other def yields a single
+ * centred part equal to the enclosing footprint — so the caller renders one plane
+ * either way, and the single-part case is pixel-identical to the old box overlay.
+ */
+export function itemFootprintPartsLocal(
+  item: FurnitureItem,
+  def: FurnitureDef,
+): LocalFootprintPart[] {
+  const spec = def.footprintParts
+  const parts = typeof spec === 'function' ? spec(item.props) : spec
+  const { scaleX, scaleZ } = resolveScale(item, def)
+  if (!parts || parts.length === 0) {
+    const obb = itemFootprint(item, def)
+    return [{ ox: 0, oz: 0, hx: obb.hx, hz: obb.hz, rot: 0 }]
+  }
+  return parts.map((p) => ({
+    ox: p.dx * scaleX,
+    oz: p.dz * scaleZ,
+    hx: (p.w * scaleX) / 2,
+    hz: (p.d * scaleZ) / 2,
+    rot: p.rot ?? 0,
+  }))
+}
+
+/**
+ * The minimum spanning box of the item's footprint, in the item's LOCAL frame
+ * *relative to the {@link itemFootprint} OBB centre* (so a caller with a group
+ * already at that centre + item yaw drops the box in with a plain offset). For a
+ * composite def this unions the convex parts (the L-sofa's true main-run+chaise
+ * shape, ~2× deeper than its depth-only enclosing OBB); for any other def it's
+ * the enclosing OBB itself (`{0, 0, hx, hz}`) — the resize/selection box then
+ * tightly bounds the real geometry instead of a too-shallow rectangle.
+ */
+export function itemFootprintSpanLocal(
+  item: FurnitureItem,
+  def: FurnitureDef,
+): { ox: number; oz: number; hx: number; hz: number } {
+  const obb = itemFootprint(item, def)
+  const spec = def.footprintParts
+  const parts = typeof spec === 'function' ? spec(item.props) : spec
+  if (!parts || parts.length === 0) return { ox: 0, oz: 0, hx: obb.hx, hz: obb.hz }
+
+  const { scaleX, scaleZ } = resolveScale(item, def)
+  let minX = Number.POSITIVE_INFINITY
+  let minZ = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let maxZ = Number.NEGATIVE_INFINITY
+  for (const p of parts) {
+    const ox = p.dx * scaleX
+    const oz = p.dz * scaleZ
+    const c = Math.abs(Math.cos(p.rot ?? 0))
+    const s = Math.abs(Math.sin(p.rot ?? 0))
+    const hx = (p.w * scaleX) / 2
+    const hz = (p.d * scaleZ) / 2
+    const ex = c * hx + s * hz
+    const ez = s * hx + c * hz
+    if (ox - ex < minX) minX = ox - ex
+    if (oz - ez < minZ) minZ = oz - ez
+    if (ox + ex > maxX) maxX = ox + ex
+    if (oz + ez > maxZ) maxZ = oz + ez
+  }
+  return {
+    ox: (minX + maxX) / 2,
+    oz: (minZ + maxZ) / 2,
+    hx: (maxX - minX) / 2,
+    hz: (maxZ - minZ) / 2,
+  }
+}
+
+/** True iff any OBB in `a` overlaps any OBB in `b` (granular part-vs-part SAT). */
+function partsOverlap(a: OBB[], b: OBB[]): boolean {
+  for (const oa of a) for (const ob of b) if (obbVsObb(oa, ob)) return true
+  return false
 }
 
 interface PlacementContext {
@@ -124,7 +258,7 @@ export function canPlace(item: FurnitureItem, def: FurnitureDef, ctx: PlacementC
   // Flat floor coverings (rugs) sit under everything and never collide.
   if (def.noClip) return true
 
-  const obb = itemFootprint(item, def)
+  const parts = itemFootprintParts(item, def)
 
   // Walls — tested as full-thickness OBBs so an item placed flush
   // against the visible interior face still has to clear the wall body.
@@ -132,7 +266,8 @@ export function canPlace(item: FurnitureItem, def: FurnitureDef, ctx: PlacementC
   if (!def.mounted) {
     const walls = ctx.walls ?? buildCollisionWalls(ctx.doors)
     for (const seg of walls) {
-      if (obbVsObb(obb, wallToObb(seg))) return false
+      const wobb = wallToObb(seg)
+      if (parts.some((p) => obbVsObb(p, wobb))) return false
     }
   }
 
@@ -146,6 +281,75 @@ export function canPlace(item: FurnitureItem, def: FurnitureDef, ctx: PlacementC
   }
 
   return true
+}
+
+/**
+ * Soft push-apart: when `item` is placed on an overlapping (invalid) spot, find
+ * the nearest valid resting position by nudging it OUT of the collision — a
+ * gentle slide off the obstacle instead of a hard block/revert. Uses the SAT
+ * {@link obbMtv} against nearby furniture parts + walls only to pick a *push
+ * direction*, then steps outward along it (with a small fan) verifying each
+ * candidate with {@link canPlace} — so validity (height spans, group/rug/mounted
+ * exemptions, doors) is always the real rule, never a duplicated approximation.
+ * Bounded by `maxStep` (m) so it settles beside the obstacle, never teleports.
+ * Returns the resolved `[x, z]`, the current position if already valid, or
+ * `null` if no valid spot is within reach (caller keeps its hard-revert).
+ */
+export function nudgeToValid(
+  item: FurnitureItem,
+  def: FurnitureDef,
+  ctx: PlacementContext,
+  maxStep = 0.4,
+  step = 0.03,
+): [number, number] | null {
+  if (canPlace(item, def, ctx)) return [item.position[0], item.position[1]]
+
+  // Obstacle OBBs — a direction heuristic only (canPlace is the truth), so we
+  // don't need canPlace's exact exemptions here; skip rugs + (for a mounted
+  // item) walls, which never block it.
+  const obstacles: OBB[] = []
+  for (const o of ctx.others) {
+    if (o.id === item.id) continue
+    const od = ctx.defs[o.defId]
+    if (!od || od.noClip) continue
+    for (const p of itemFootprintParts(o, od)) obstacles.push(p)
+  }
+  if (!def.mounted) {
+    const walls = ctx.walls ?? buildCollisionWalls(ctx.doors)
+    for (const w of walls) obstacles.push(wallToObb(w))
+  }
+
+  const parts = itemFootprintParts(item, def)
+  let dirX = 0
+  let dirZ = 0
+  let best = 0
+  for (const p of parts) {
+    for (const ob of obstacles) {
+      const m = obbMtv(p, ob)
+      if (m && m.depth > best) {
+        best = m.depth
+        dirX = m.nx
+        dirZ = m.nz
+      }
+    }
+  }
+  if (best === 0) return null // overlaps something canPlace flags but no OBB dir
+
+  // Step outward along the push direction, plus a small ± fan so it can round a
+  // corner, taking the first canPlace-valid spot within `maxStep`.
+  const fan = [0, 0.5, -0.5, 1.0, -1.0]
+  const [ox, oz] = item.position
+  for (let d = step; d <= maxStep + 1e-9; d += step) {
+    for (const a of fan) {
+      const ca = Math.cos(a)
+      const sa = Math.sin(a)
+      const nx = dirX * ca - dirZ * sa
+      const nz = dirX * sa + dirZ * ca
+      const pos: [number, number] = [ox + nx * d, oz + nz * d]
+      if (canPlace({ ...item, position: pos }, def, ctx)) return pos
+    }
+  }
+  return null
 }
 
 /** Shared furniture-vs-furniture overlap test (the exact rule `canPlace` uses
@@ -167,7 +371,7 @@ function itemsCollide(
   // its frame's OBB by design, and grouped pieces move as a unit.
   if (a.groupId && b.groupId === a.groupId) return false
   if (!spansOverlap(aSpan, verticalSpan(b, bDef))) return false
-  return obbVsObb(itemFootprint(a, aDef), itemFootprint(b, bDef))
+  return partsOverlap(itemFootprintParts(a, aDef), itemFootprintParts(b, bDef))
 }
 
 /** An unordered pair of placed-item ids whose footprints intersect. */
@@ -254,14 +458,27 @@ function computeItemOverlaps(
   return pairs
 }
 
-/** Axis-aligned bounding box of an item footprint OBB (for the broadphase). */
+/** Axis-aligned bounding box of an item footprint (for the broadphase). Unions
+ *  the AABBs of every footprint **part**, so a composite (L-shaped) piece's box
+ *  bounds its true collision shape — the broadphase must stay a *superset* of the
+ *  narrowphase or it would prune a real overlap. For a single-part piece this is
+ *  identical to boxing the lone `itemFootprint` OBB. */
 export function itemAabbBox(item: FurnitureItem, def: FurnitureDef): AabbItem {
-  const o = itemFootprint(item, def)
-  const c = Math.abs(Math.cos(o.rot))
-  const s = Math.abs(Math.sin(o.rot))
-  const hx = c * o.hx + s * o.hz
-  const hz = s * o.hx + c * o.hz
-  return { id: item.id, minX: o.cx - hx, minZ: o.cz - hz, maxX: o.cx + hx, maxZ: o.cz + hz }
+  let minX = Number.POSITIVE_INFINITY
+  let minZ = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let maxZ = Number.NEGATIVE_INFINITY
+  for (const o of itemFootprintParts(item, def)) {
+    const c = Math.abs(Math.cos(o.rot))
+    const s = Math.abs(Math.sin(o.rot))
+    const hx = c * o.hx + s * o.hz
+    const hz = s * o.hx + c * o.hz
+    if (o.cx - hx < minX) minX = o.cx - hx
+    if (o.cz - hz < minZ) minZ = o.cz - hz
+    if (o.cx + hx > maxX) maxX = o.cx + hx
+    if (o.cz + hz > maxZ) maxZ = o.cz + hz
+  }
+  return { id: item.id, minX, minZ, maxX, maxZ }
 }
 
 /**
@@ -319,8 +536,8 @@ export function findWallClips(
   for (const it of items) {
     const def = defs[it.defId]
     if (!def || def.mounted || def.noClip) continue
-    const obb = itemFootprint(it, def)
-    if (wallObbs.some((w) => obbVsObb(obb, w))) clipped.push(it.id)
+    const parts = itemFootprintParts(it, def)
+    if (wallObbs.some((w) => parts.some((p) => obbVsObb(p, w)))) clipped.push(it.id)
   }
   return clipped
 }

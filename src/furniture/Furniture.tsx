@@ -3,6 +3,7 @@ import { memo, Suspense, useCallback, useEffect, useRef } from 'react'
 import type { Group, Material, Mesh } from 'three'
 import { itemFootprint } from '../collision/placement'
 import { ContactShadow } from '../scene/ContactShadow'
+import { registerDropGroup } from '../scene/placementDrop'
 import { canEditScene } from '../state/editing'
 import { useStore } from '../state/store'
 import { GltfErrorBoundary } from './GltfErrorBoundary'
@@ -202,6 +203,16 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       restore()
     }
   }, [opacity, item.props, def])
+
+  // Register the root group for the placement drop-in animator (placementDrop.ts),
+  // which mutates its Y directly for the ~0.3 s drop — Furniture keeps no per-item
+  // useFrame. Ghost previews (passive) are excluded.
+  useEffect(() => {
+    if (passive) return
+    const g = opacityRootRef.current
+    if (!g) return
+    return registerDropGroup(item.id, g)
+  }, [item.id, passive])
 
   return (
     <group

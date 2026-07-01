@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { expandIntent, expandQuery, fuzzySearchSmart, singularize } from './searchSynonyms'
+import {
+  expandIntent,
+  expandQuery,
+  fuzzySearchSmart,
+  matchedIntents,
+  singularize,
+} from './searchSynonyms'
 
 describe('expandQuery', () => {
   it('returns the original (lower-cased) first and includes synonyms', () => {
@@ -116,6 +122,26 @@ describe('fuzzySearchSmart — room/use intent', () => {
     // "bed" matches the bed by name; the nightstand only comes via the bedroom
     // intent, which "bed" must not trigger.
     expect(fuzzySearchSmart('bed', items, text).map((i) => i.name)).toEqual(['Queen Bed'])
+  })
+})
+
+describe('matchedIntents', () => {
+  it('returns the room/use intent a query names', () => {
+    expect(matchedIntents('bedroom')).toEqual(['bedroom'])
+    expect(matchedIntents('home office setup')).toEqual(['office'])
+  })
+
+  it('is empty for a plain item query or blank input', () => {
+    expect(matchedIntents('sofa')).toEqual([])
+    expect(matchedIntents('   ')).toEqual([])
+  })
+
+  it('does not list an intent contained within a longer matched one', () => {
+    // 'living room' contains no other key here, but the de-dup guard must never
+    // return both a phrase and a substring of it.
+    const out = matchedIntents('living room')
+    expect(out).toContain('living room')
+    expect(out).not.toContain('lounge')
   })
 })
 

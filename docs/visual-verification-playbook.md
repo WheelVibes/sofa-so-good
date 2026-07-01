@@ -166,6 +166,15 @@ come out near-black.
 - **Geolocation is unavailable headless** — `navigator.geolocation.getCurrentPosition`
   calls the error callback silently. Use `store: dismissLocationPrompt` or
   `click: "Skip — use default location"` instead.
+- **`React.lazy` (dynamic-import) modals never resolve headlessly** (v0.9.0.18): the
+  post-load module fetch is gated (the console logs `goto networkidle2 timed out`), so a
+  lazily-mounted modal — e.g. everything routed through `ui/app/lazyComponents.tsx` like
+  `StyleQuizModal`, `ShortcutsModal` — stays on its `Suspense` fallback (`null`) forever
+  even after a multi-second wait; `.modal-overlay` never appears and the store flag is
+  irrelevant. To *visually* verify such a modal, temporarily swap its App mount for a
+  **direct import** (`import { X } from './ui/X'`, drop the `Suspense`), screenshot, then
+  revert — and/or assert its DOM via a `@testing-library/react` render test (see
+  `ShortcutsModal.test.tsx`). Non-lazy modals (the first-run location prompt) render fine.
 
 ### Scenario template
 
@@ -645,6 +654,17 @@ in `caches`, then goes offline and opens the editor — asserting no
 (`import.meta.env.DEV`), so drive the prod build through the UI (keys/clicks),
 not the store.
 
+### Verifying the update toast (PWA-UPDATE) without a live service worker
+The service worker is build-only, so the real "Update available" flow can't fire against
+`npm run dev` — but the toast is just a notification, so drive `__store.getState().notify`
+directly to render each state and screenshot it (`update-check-toast.json`): a `kind:'progress'`
+toast with `progress:null` for the **checking** spinner + indeterminate bar (`waitFor` on
+`.toast-host .bud-bar.indet`), then an `info` toast with `actionLabel:'Update'` + `icon:'Versions'`
+for the **Update available** prompt (`waitFor` on `.toast-host .toast-act`), then a plain `info`
+toast for up-to-date. Gate on `.toolbar` + a short `settle` first, or the toast renders over the
+boot splash. The SW wiring itself (`onNeedRefresh` → `showUpdatePrompt`, `applyUpdate` →
+`updateSW(true)`) is covered by `swUpdate.test.ts` with a faked `navigator.serviceWorker`.
+
 ### Editing source mid-session triggers HMR
 Vite hot-reloads your edits into the running server, so you usually don't need to
 restart after a code change — but a change to `main.tsx`'s startup block may need
@@ -693,7 +713,22 @@ clientY})`). Project a world position to screen px via the exposed camera
 p.project(cam)` → `cx = (p.x+1)/2*w`, `cy = (1-p.y)/2*h`.
 
 In **scenario mode**: use `{"viewport": {"width": 390, "height": 844}}` to
-switch to a mobile viewport mid-scenario.
+switch to a mobile viewport mid-scenario. Also handy for finding layout breaks:
+`document.documentElement.scrollWidth > clientWidth` flags horizontal overflow;
+re-run at 320px (iPhone SE) for the tightest phones.
+
+### Verifying mobile 44px tap targets (invisible `::after` hit-area padding)
+The MOBILE-TAP-TARGETS pattern keeps a control's *visual* size (e.g. a 26px
+`.icon-btn`) but pads its clickable area to 44px with an invisible
+`::after { position:absolute; inset:-9px }` (26 + 2×9 = 44; a 22px control needs
+inset −11px). happy-dom/jsdom have no layout, so assert this in a **browser
+scenario** via computed pseudo-element geometry rather than a unit test:
+`getComputedStyle(btn, '::after')` → check `position === 'absolute'` and
+`top === '-9px'` (or −11px). Trigger the surface first (fire a toast with
+`__store.notify.start({kind:'error'})`, open a modal via `confirmAction`, …),
+then read the `::after` on its `.icon-btn`. The rule is deliberately **scoped**
+(not a global `.icon-btn::after`) because padded hit areas overlap in
+densely-packed button rows — only expand controls isolated at a container edge.
 
 **Limitation — R3F won't raycast a *synthetic* mouse/contextmenu event headless.**
 A dispatched `contextmenu`/click reaches the canvas and your DOM handlers fire,

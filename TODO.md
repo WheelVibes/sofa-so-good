@@ -1,11 +1,13 @@
 # TODO
 
-Legacy deferred-work log. **`CHANGELOG.md` is the source of truth for what shipped** — when an
-item ships it is removed from here entirely. Only genuinely-open work remains below; the bulk of
-this file's historical audit-wave / reconciliation content has been pruned (it all shipped).
+Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth for what shipped;
+when an item ships it is **removed from this file entirely**. Maintainability refactors live in
+`TASKS.md`.
 
-> **Maintainability refactors** (MOD-PLANINSPECTOR-SPLIT, MOD-MOBILETOOLBAR-SPLIT) are tracked in
-> `TASKS.md` under "Open — client-doable".
+> Direction (user, 2026-07-01): prioritise the **core interior-design loop + its UX,
+> discoverability, customizability** (furnish, arrange, finish, view) on desktop **and** mobile,
+> researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
+> Avoid pricing/quotes/analytics deliverables unless asked.
 
 ## ⛔ Production-infra-blocked — need a DEPLOYED host/backend, not app code
 The dev paths already work (Vite reverse proxy, dev-gated providers); only the *production*
@@ -42,5 +44,43 @@ Auto-advancing in-world clock; window-glass tinting affecting shadow colour; loc
 probes; directional door-bleed weighting; real-time path-traced GI/RTX (revisit only with affordable
 WebGPU path tracing).
 
+## Deferred candidates
+- **`livePrices` IXT scenario** — deferred (user, 2026-06-30): dev-only + network/sidecar-bound
+  (lower value), and a headless scenario would need a new dev-only `window.__priceSidecarStub` lever
+  in `livePrice.ts` purely for the test. Unit coverage already exercises the client logic; revisit
+  only if the sidecar path regresses.
+- **Fast rasterized "preview render" tier** (Coohom parity) — a local analog to the 10-s cloud
+  render. Deferred as an analytics/deliverable, not core design UX.
+
+## Open — core interactions
+- **More composite footprints (round/oval tables).** `footprintParts` is a **union** of OBBs (can
+  only *add* area), so it can't carve corners off a square to make an octagon/disc. A round-table
+  approx needs either a new *intersection*/polygon footprint primitive, or a coarse cross of
+  inscribed rects (leaves diagonal gaps). Low priority + needs a design decision. (No U-sofa /
+  corner desk / peninsula in the catalog today.)
+- **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
+  would be a new interaction. Doors already animate (could ease the linear swing curve — low value).
+- **Live slide during drag** (optional, higher-risk) — item hugs walls/furniture in real time, not
+  just on release; more invasive in `DragController`'s per-move snapping. (Drag inertia: skip —
+  hurts placement precision.)
+
+## Open — customizability / UX
+- **Fold baseboard + accent-wall *creation* into the FinishPicker.** The FinishPicker now covers
+  floor + wall + ceiling and *manages* a room's existing accent walls (v0.9.0.45 — list + clear +
+  hint). Remaining: (a) *create* an accent from the panel by picking a wall (needs a room→walls
+  enumeration that works for both the fixed apartment `wallRoomSides` and custom plans); (b) fold
+  baseboard (2D-plan-inspector only, `wallBaseboard`, keyed per-wall → needs a per-room aggregation
+  decision). Medium effort, lower incremental value.
+- **2D-plan finish drag-and-drop** (S–M) — `finishDnd` drag-to-apply works in 3D
+  (`scene/FinishDropSurface`) but not the 2D plan editor. Add plan drop-zones reusing `finishDrop`
+  + `setRoomFinish`/`setWallFinish` (reuses the `finishDnd` flag). Lower reach (many users never
+  open the 2D editor); drag-drop is fiddly to verify headlessly. Note: 2D room polygons are SVG, so
+  the `ui/CLAUDE.md` "drop zones must be `<div>`" rule needs a workaround.
+
+## Open — accessibility (very low value, optional)
+- **Full focus-trap on the mobile menu sheet** (`MobileToolbar`) — Escape-close + `useModalGuard`
+  ship; a Tab focus-trap remains, but keyboard-on-touch is rare.
+
 ## Process
-- Update this file every time a plan is designed or work is implemented (MEMORY.md feedback rule).
+- Update this file whenever work is planned/deferred; remove items entirely once shipped (they live
+  in `CHANGELOG.md`).

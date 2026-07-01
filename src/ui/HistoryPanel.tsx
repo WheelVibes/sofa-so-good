@@ -26,6 +26,7 @@ export function HistoryPanel() {
   const comments = useStore((s) => s.comments)
   const drawingCallouts = useStore((s) => s.drawingCallouts)
   const quoteTemplate = useStore((s) => s.quoteTemplate)
+  const priceRules = useStore((s) => s.priceRules)
 
   // Built only while the panel is open: this component stays mounted, so without
   // the `open` guard the timeline + catalog merge would run on *every* furniture
@@ -35,7 +36,7 @@ export function HistoryPanel() {
     const catalog = buildMergedCatalog(useStore.getState())
     return buildHistoryTimeline(
       past,
-      { items, doors, finishes, floorPlan, comments, drawingCallouts, quoteTemplate },
+      { items, doors, finishes, floorPlan, comments, drawingCallouts, quoteTemplate, priceRules },
       future,
       catalog,
     )
@@ -50,6 +51,7 @@ export function HistoryPanel() {
     comments,
     drawingCallouts,
     quoteTemplate,
+    priceRules,
   ])
 
   if (!open) return null

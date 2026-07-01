@@ -132,6 +132,28 @@ export function expandIntent(query: string): string[] {
 }
 
 /**
+ * The room / use-case intents a query expresses (keys of {@link CATEGORY_INTENT}
+ * present as whole-query substrings), for a UI caption that reveals the otherwise
+ * invisible "search by room" capability — e.g. typing "bedroom" surfaces beds +
+ * wardrobes, and the caption explains why. Longest-match-first + de-duplicated;
+ * empty when the query names no room/use. Pure → unit-tested.
+ */
+export function matchedIntents(query: string): string[] {
+  const q = query.toLowerCase().trim()
+  if (!q) return []
+  const hits = Object.keys(CATEGORY_INTENT)
+    .filter((intent) => q.includes(intent))
+    .sort((a, b) => b.length - a.length)
+  // Drop an intent fully contained in a longer matched one ("study" ⊂ nothing here,
+  // but "living room" shouldn't also list "lounge" if both are substrings).
+  const out: string[] = []
+  for (const h of hits) {
+    if (!out.some((kept) => kept.includes(h))) out.push(h)
+  }
+  return out
+}
+
+/**
  * Synonym-aware fuzzy search. Scores each item's text fields against the query
  * (and a singularised form) at full weight PLUS synonym variants (discounted),
  * keeps the best, and returns matches sorted best-first (stable for ties). Empty

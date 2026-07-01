@@ -403,6 +403,73 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Before/after staging reveal — empty room vs furnished design on a draggable
+  // divider (consumer-staging parity). Prod-safe pure code (reuses the live
+  // canvas capture), but a presentation flourish, not the core loop → pro tier.
+  stagingReveal: {
+    label: 'Before / after reveal',
+    description: 'Compare the empty room with your furnished design on a draggable divider',
+    default: true,
+    tier: 'pro',
+  },
+  // One-tap style transfer — restyle every room's floor/wall finish + palette to
+  // a named look (Scandi/Japandi/Industrial/…). Pure data + builtin CC0 finishes,
+  // prod-safe, but an advanced design shortcut → pro tier.
+  styleTransfer: {
+    label: 'Style transfer',
+    description: 'One tap restyles every room’s floors, walls & palette to a curated look',
+    default: true,
+    tier: 'pro',
+  },
+  // Short personality quiz that recommends + applies a curated style. Pure data
+  // + builtin finishes, prod-safe; a guided design extra → pro tier.
+  styleQuiz: {
+    label: 'Style quiz',
+    description: 'Answer a few questions to find & apply your interior style',
+    default: true,
+    tier: 'pro',
+  },
+  shortcutsHelp: {
+    label: 'Keyboard shortcuts',
+    description: 'A "?" overlay listing every keyboard shortcut',
+    default: true,
+    tier: 'pro',
+  },
+  // Live width × depth pill while group-resizing a multi-selection (the resize
+  // gizmo otherwise gives no size feedback). Pure DOM overlay off a signal, no
+  // GPU/assets → prod-safe; a core sizing affordance → Simple tier.
+  itemDimensionReadout: {
+    label: 'Resize dimensions',
+    description: 'Show live width × depth while resizing a group of items',
+    default: true,
+    tier: 'simple',
+  },
+  // Paint a single wall face a different finish (a feature/accent wall) by
+  // clicking it in the room editor. Pure per-wall finish state, prod-safe; a
+  // common casual design move → Simple tier, default on.
+  wallAccentPicker: {
+    label: 'Accent walls',
+    description: 'Click a wall to paint it a different finish from the rest of the room',
+    default: true,
+    tier: 'simple',
+  },
+  // Recolour every selected piece at once from the multi-select panel (vs the
+  // copy-one-then-paste-appearance path). Pure `props.tint` state, prod-safe;
+  // a fast common re-skin → Simple tier, default on.
+  bulkAppearance: {
+    label: 'Bulk recolour',
+    description: 'Tint every selected item at once from the multi-select panel',
+    default: true,
+    tier: 'simple',
+  },
+  // Consolidated asset-credits / attribution viewer (CC-BY assets that require
+  // visible attribution + CC0 sources). Pure data, prod-safe; universal → simple.
+  assetCredits: {
+    label: 'Asset credits',
+    description: 'View attribution & licenses for bundled and downloaded assets',
+    default: true,
+    tier: 'simple',
+  },
   // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
   // assets → prod-safe. Crown molding is a core finish detail visible in casual
   // use, so it belongs in Simple tier.
@@ -728,6 +795,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   quoteTemplate: {
     label: 'Quote template',
     description: 'Customise the quote with company branding, notes, GST & markup',
+    default: true,
+    tier: 'pro',
+  },
+  // Configurable price-rule library (PARITY-PRICE-RULES). Contractor-editable
+  // $/m² floor + wall rates and the carpentry $/lin.m that drive the BOQ quote
+  // and the renovation estimate. Pure code, no external assets → prod-safe; a
+  // professional quoting tool → pro tier (hidden in Simple mode automatically).
+  priceRules: {
+    label: 'Price rules',
+    description: 'Edit the per-m² finish + carpentry rates used in the quote & estimate',
     default: true,
     tier: 'pro',
   },

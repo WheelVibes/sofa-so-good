@@ -17,6 +17,7 @@ import { DragController } from './DragController'
 import { deselectOnMiss } from './deselectOnMiss'
 import { FinishDropSurface } from './FinishDropSurface'
 import { GridOverlay } from './GridOverlay'
+import { PlacementDropAnimator } from './PlacementDropAnimator'
 import { PlacementGhost } from './PlacementGhost'
 import { getRoomEditorShell } from './roomEditorShell'
 import { ScreenshotController } from './ScreenshotController'
@@ -82,6 +83,7 @@ export function RoomEditorScene() {
       <ResizeGizmo />
       <HoverHighlight />
       <PlacementGhost />
+      <PlacementDropAnimator />
       <DragController />
       <FinishDropSurface />
       <MarqueeCameraTracker />

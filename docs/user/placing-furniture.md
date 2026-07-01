@@ -152,6 +152,8 @@ turns into a multi‑select panel with a full set of one‑click layout tools:
   also slides it flush against that wall.
 - **Arrange as run** lines the selection up as one run — backs to the nearest wall,
   butted edge‑to‑edge — the one‑click kitchen‑run / wardrobe‑wall move.
+- **Tint all** (under *Appearance*) recolours every selected piece at once — pick a colour
+  to re‑skin the whole selection in one step, or clear it to return them to their own finish.
 - **Group** so the pieces move and rotate as one (first click selects the group, a
   second click or <kbd>Alt</kbd>+click drills into a member); **Duplicate selection**
   and **Delete all** act on the whole set.

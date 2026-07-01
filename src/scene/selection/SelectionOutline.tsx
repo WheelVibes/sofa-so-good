@@ -1,11 +1,18 @@
-import { useMemo } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useMemo, useRef } from 'react'
+import type { Group } from 'three'
 import { useShallow } from 'zustand/react/shallow'
-import { itemFootprint } from '../../collision/placement'
+import {
+  itemFootprint,
+  itemFootprintPartsLocal,
+  itemFootprintSpanLocal,
+} from '../../collision/placement'
 import { noExportUserData } from '../../export/sceneGltf'
 import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { boxEdges, useDisposeGeometry } from '../geometryUtil'
+import { APPEAR_MS, appearScale } from './selectionAppear'
 
 /** Stable empty result so the selector returns the SAME reference when nothing is
  *  selected (useShallow no-op) and skips the per-change items scan (PERF-007). */
@@ -32,10 +39,15 @@ interface ItemOutlineProps {
 
 function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
   const obb = itemFootprint(item, def)
-  const w = obb.hx * 2 + OUTLINE_PAD
-  const d = obb.hz * 2 + OUTLINE_PAD
-  const wOuter = obb.hx * 2 + OUTLINE_PAD_OUTER
-  const dOuter = obb.hz * 2 + OUTLINE_PAD_OUTER
+  // The selection box + resize brackets bound the TRUE geometry: the minimum
+  // spanning box of the footprint parts (an L-sofa's 2× deeper main-run+chaise),
+  // not the depth-only enclosing OBB. `span` is relative to the OBB centre, so
+  // the brackets sit in an inner group offset by it.
+  const span = itemFootprintSpanLocal(item, def)
+  const w = span.hx * 2 + OUTLINE_PAD
+  const d = span.hz * 2 + OUTLINE_PAD
+  const wOuter = span.hx * 2 + OUTLINE_PAD_OUTER
+  const dOuter = span.hz * 2 + OUTLINE_PAD_OUTER
   const geom = useMemo(() => boxEdges(w, 0.001, d), [w, d])
   const geomOuter = useMemo(() => boxEdges(wOuter, 0.001, dOuter), [wOuter, dOuter])
   useDisposeGeometry(geom)
@@ -47,6 +59,10 @@ function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
       : OUTLINE_COLOR_INVALID
     : OUTLINE_COLOR_DEFAULT
   const tintColor = isDragging ? (dragValid ? TINT_VALID : TINT_INVALID) : TINT_DEFAULT
+  // Shape-accurate floor tint: one plane per collision-footprint part, so an
+  // L-sofa / corner cabinet tints its true L (matching what collision uses).
+  // Single-part pieces yield exactly the old centred rectangle.
+  const tintParts = itemFootprintPartsLocal(item, def)
 
   const cx = w / 2
   const cz = d / 2
@@ -57,47 +73,72 @@ function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
     [-cx, -cz, -1, -1],
   ] as const
 
+  // Gentle scale-in on select (selectionAppear.ts): the whole indicator eases up
+  // from slightly smaller instead of popping. Plays once on mount (the outline
+  // mounts when the item enters the selection); a no-op thereafter. Short enough
+  // to complete within the demand-mode settle tail, but we invalidate to be safe.
+  const appearRef = useRef<Group>(null)
+  const mountRef = useRef(performance.now())
+  const invalidate = useThree((s) => s.invalidate)
+  useFrame(() => {
+    const g = appearRef.current
+    if (!g) return
+    const elapsed = performance.now() - mountRef.current
+    g.scale.setScalar(appearScale(elapsed))
+    if (elapsed < APPEAR_MS) invalidate()
+  })
+
   return (
     <group
+      ref={appearRef}
       position={[obb.cx, OUTLINE_LIFT, obb.cz]}
       rotation={[0, obb.rot, 0]}
       userData={noExportUserData()}
     >
-      <mesh position={[0, 0.0005, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
-        <planeGeometry args={[obb.hx * 2, obb.hz * 2]} />
-        <meshBasicMaterial
-          color={tintColor}
-          transparent
-          opacity={isDragging ? 0.3 : 0.18}
-          depthWrite={false}
-        />
-      </mesh>
-      <lineSegments geometry={geomOuter} renderOrder={2}>
-        <lineBasicMaterial color={outlineColor} transparent opacity={0.5} depthTest={false} />
-      </lineSegments>
-      <lineSegments geometry={geom} renderOrder={3}>
-        <lineBasicMaterial color={outlineColor} depthTest={false} />
-      </lineSegments>
-      {corners.map(([x, z, sx, sz], i) => (
-        <group key={i} position={[x, 0.0015, z]}>
-          <mesh
-            position={[(-sx * CORNER_LEN) / 2, 0, 0]}
-            rotation={[-Math.PI / 2, 0, 0]}
-            renderOrder={4}
-          >
-            <planeGeometry args={[CORNER_LEN, CORNER_THICK]} />
-            <meshBasicMaterial color={outlineColor} depthTest={false} />
-          </mesh>
-          <mesh
-            position={[0, 0, (-sz * CORNER_LEN) / 2]}
-            rotation={[-Math.PI / 2, 0, 0]}
-            renderOrder={4}
-          >
-            <planeGeometry args={[CORNER_THICK, CORNER_LEN]} />
-            <meshBasicMaterial color={outlineColor} depthTest={false} />
-          </mesh>
-        </group>
+      {tintParts.map((p, i) => (
+        <mesh
+          key={i}
+          position={[p.ox, 0.0005, p.oz]}
+          rotation={[-Math.PI / 2, 0, p.rot]}
+          renderOrder={1}
+        >
+          <planeGeometry args={[p.hx * 2, p.hz * 2]} />
+          <meshBasicMaterial
+            color={tintColor}
+            transparent
+            opacity={isDragging ? 0.3 : 0.18}
+            depthWrite={false}
+          />
+        </mesh>
       ))}
+      <group position={[span.ox, 0, span.oz]}>
+        <lineSegments geometry={geomOuter} renderOrder={2}>
+          <lineBasicMaterial color={outlineColor} transparent opacity={0.5} depthTest={false} />
+        </lineSegments>
+        <lineSegments geometry={geom} renderOrder={3}>
+          <lineBasicMaterial color={outlineColor} depthTest={false} />
+        </lineSegments>
+        {corners.map(([x, z, sx, sz], i) => (
+          <group key={i} position={[x, 0.0015, z]}>
+            <mesh
+              position={[(-sx * CORNER_LEN) / 2, 0, 0]}
+              rotation={[-Math.PI / 2, 0, 0]}
+              renderOrder={4}
+            >
+              <planeGeometry args={[CORNER_LEN, CORNER_THICK]} />
+              <meshBasicMaterial color={outlineColor} depthTest={false} />
+            </mesh>
+            <mesh
+              position={[0, 0, (-sz * CORNER_LEN) / 2]}
+              rotation={[-Math.PI / 2, 0, 0]}
+              renderOrder={4}
+            >
+              <planeGeometry args={[CORNER_THICK, CORNER_LEN]} />
+              <meshBasicMaterial color={outlineColor} depthTest={false} />
+            </mesh>
+          </group>
+        ))}
+      </group>
     </group>
   )
 }

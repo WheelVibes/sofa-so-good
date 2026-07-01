@@ -19,23 +19,32 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   the inert WebXR entry + provider already ship.
 
 ## Open — client-doable
-- [ ] IO-006 only (`…import-export-pipeline-audit.md`): zip-bomb guard on the **decompressed**
-  usdz/3mf payload — needs a zip central-directory parser to bound the inflated size (a blunt lower
-  on-disk cap would regress legitimate large files), so deferred until that parser exists.
-  (Shipped: IO-001 + IO-003 v0.8.0.32; IO-009 + IO-010 v0.8.0.33; IO-008 v0.8.0.34; IO-004 + IO-005
-  v0.8.0.36; IO-002 v0.8.0.49; IO-007 NaN + IO-011 CSV injection already handled.)
+- [ ] MOD-FPE-SPLIT (optional tail): `FloorPlanEditor.tsx` is now **~2728 lines** (was 4271, −36%).
+  Done: state/effect hooks `usePlanBackdrop` (v.46), `usePlanAiWalls` (v.47), `usePlanViewport` (v.49),
+  `usePlanLevel` (v.50); and **all 11 SVG render layers** in `editor/layers/*` — `WallsLayer`,
+  `RoomsLayer`, `OpeningsLayer`, `DimensionsLayer`, `NotesLayer`, `PolylinesLayer`, `TourStopsLayer`,
+  `FurnitureLayer`, `FurnitureRotateHandle`, `WallHandlesLayer`, `DraftOverlayLayer` (v.51–.60), each
+  behaviour-preserving + interactively verified. Pure tool math/decisions were already modularised
+  (`toolDraftReducer`, `*Commit`, `snap*`, `floorPlanGeometry`, `marqueeSelect`). What remains is
+  **intentionally kept in the component** per `editor/CLAUDE.md`: the pointer-tool **dispatcher**
+  (`onDown/onMove/onUp`, ~730 lines) is a thin dispatch over those pure helpers + store writes and
+  should stay. The only further *shell* reduction available is lifting the toolbar/control JSX
+  fragments (`viewToggle`/`toolPalette`/`fileActions`/… ~620 lines) into a presentational
+  `PlanToolbar` — deferred because it needs a 40+ prop bundle (passing the whole store-action
+  snapshot), which would hurt readability more than the current named-fragment consts. Revisit only
+  if the toolbar grows its own logic.
+- [ ] IO-006: zip-bomb guard on the **decompressed** usdz/3mf payload — needs a zip
+  central-directory parser to bound the inflated size (a blunt on-disk cap would regress legitimate
+  large files), so deferred until that parser exists.
 - [ ] SLOT-203 (configurator GLB-sub-asset options): needs a **bundled CC0 GLB** asset + the load
   path (load → reparent at the slot anchor → per-slot `listFinishTargets` namespacing). The v1
   products are all-procedural, so this is gated on sourcing a suitable CC0 GLB option to bundle.
-  (Rest of SLOT shipped v0.8.0.43–.48: model/compose/products/build/bake/flag/dialog/docs +
-  re-editable products (204). See `src/furniture/configurator/CLAUDE.md`.)
 - [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces, GLB-designer
   re-rung, crown-molding, ceilingDesign (needs walk-mode look-up), livePrices, first-run re-rungs,
-  backdrop-upload + furnlight re-rungs. (Added this line: HDRI environment lighting, configurable products →
-  `hdri-environment-simple.json` / `configurator-simple.json`.)
+  backdrop-upload + furnlight re-rungs.
 - [ ] PARITY-VIDEO tail: MP4 transcode of the walkthrough `.webm` + a duration modal.
-- [ ] PARITY-TILT tail: a 3D tilt gizmo handle (the 2D-plan tilt indicator shipped v0.8.0.40; the
-  draggable 3D pitch/roll gizmo remains — tilt is otherwise editable via the inspector sliders).
+- [ ] PARITY-TILT tail: a draggable 3D pitch/roll tilt gizmo handle (tilt is otherwise editable via
+  the inspector sliders).
 - [ ] Q-3DEXPORT tail: worker-streamed whole-scene export for very large scenes.
 - [ ] C-PLANTS/DECOR tail: curated CC0 set-dressing bundles from Poly Haven / Poly Pizza.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).

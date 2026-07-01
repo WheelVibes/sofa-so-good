@@ -194,6 +194,25 @@ export type ParamField =
 export type ParamValue = number | string
 export type ParamProps = Record<string, ParamValue>
 
+/**
+ * One convex piece of a non-rectangular footprint, for granular (shape-aware)
+ * collision. A local-space oriented rectangle within the item's `defaultFootprint`
+ * bbox: centre offset (`dx` along local +X / width, `dz` along local +Z / depth)
+ * from the footprint origin, full size `w`×`d`, plus an optional extra local
+ * rotation. The union of an item's parts approximates its true plan shape so an
+ * L-sofa's concave notch, a corner desk's open corner, etc. no longer read as
+ * solid. The `defaultFootprint` bbox MUST still enclose every part (the broadphase
+ * relies on it). Item scale + rotation are applied on top by `itemFootprintParts`.
+ */
+export interface FootprintPart {
+  dx: number
+  dz: number
+  w: number
+  d: number
+  /** Extra local rotation (radians) added to the item rotation. */
+  rot?: number
+}
+
 interface FurnitureDefBase {
   id: FurnitureType
   name: string
@@ -227,6 +246,15 @@ interface FurnitureDefBase {
   windowBound?: boolean
   /** Clear floor (m) the layout must preserve in front of this piece; from IKEA design semantics. */
   frontClearance?: number
+  /**
+   * Optional convex decomposition of a non-rectangular footprint for granular,
+   * shape-aware collision (not just the `defaultFootprint` bounding box). Either
+   * a static list of local-space parts, or a function of the item's live `props`
+   * for parametric pieces whose shape varies (e.g. an L-sofa's chaise side/size).
+   * Absent → the single `defaultFootprint` OBB is used (unchanged behaviour). The
+   * `defaultFootprint` bbox must enclose every returned part. See {@link FootprintPart}.
+   */
+  footprintParts?: FootprintPart[] | ((props: ParamProps) => FootprintPart[])
 }
 
 export interface ParametricDef extends FurnitureDefBase {

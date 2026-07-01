@@ -1,0 +1,65 @@
+{
+  "name": "style-transfer-simple",
+  "url": "http://localhost:5219/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "app-loaded", "waitFor": { "css": ".toolbar" }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1')"
+    },
+    {
+      "name": "assert-hidden-in-simple",
+      "eval": "if (window.__store.getState().featureFlags.styleTransfer !== false) throw new Error('styleTransfer must be OFF in Simple mode')"
+    },
+    { "name": "to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "assert-shown-in-pro",
+      "eval": "if (!window.__store.getState().featureFlags.styleTransfer) throw new Error('styleTransfer must be ON in Pro mode')"
+    },
+    { "name": "daytime", "eval": "window.__store.getState().setManualHour(13)" },
+    {
+      "name": "scene-ready",
+      "waitFor": { "store": "window.__store.getState().sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "open-modal", "store": { "action": "setStyleTransferOpen", "args": [true] } },
+    { "name": "modal-open", "waitFor": { "css": "#style-transfer" }, "timeout": 15000 },
+    { "name": "shot-cards", "screenshot": "style-cards" },
+    {
+      "name": "record-orig-floor",
+      "eval": "window.__origFloor = window.__store.getState().finishes.floor.livingDining ?? null"
+    },
+    {
+      "name": "apply-first",
+      "eval": "(() => { const b = Array.from(document.querySelectorAll('#style-transfer button')).find(x => (x.textContent||'').trim() === 'Apply'); if (!b) throw new Error('no Apply button'); b.click(); })()"
+    },
+    {
+      "name": "style-applied",
+      "waitFor": { "store": "window.__store.getState().masterPalette.length > 0" },
+      "timeout": 10000,
+      "failMessage": "master palette did not update after applying a style"
+    },
+    {
+      "name": "assert-finish-changed",
+      "eval": "(() => { const f = window.__store.getState().finishes.floor.livingDining; if (!f || !String(f).startsWith('floor-')) throw new Error('floor finish not applied: ' + f); if (f === window.__origFloor) throw new Error('floor finish did not change from original'); })()"
+    },
+    {
+      "name": "undo-toast",
+      "waitFor": { "css": ".toast-host .toast-act" },
+      "timeout": 6000,
+      "failMessage": "Undo action button not shown on the applied toast"
+    },
+    { "name": "shot-restyled", "screenshot": "restyled-scene" },
+    {
+      "name": "click-undo",
+      "eval": "(() => { const b = Array.from(document.querySelectorAll('.toast-host .toast-act')).find(x => /Undo/.test(x.textContent||'')); if (!b) throw new Error('no Undo button'); b.click(); })()"
+    },
+    {
+      "name": "reverted",
+      "waitFor": { "store": "window.__store.getState().finishes.floor.livingDining === (window.__origFloor ?? undefined)" },
+      "timeout": 8000,
+      "failMessage": "Undo did not revert the floor finish to its original value"
+    }
+  ]
+}

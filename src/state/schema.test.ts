@@ -924,4 +924,30 @@ describe('multi-level plans (F13 / ML1)', () => {
     expect(def.id).toBe('ikea-evil')
     expect((def.variants as { url: string }[])[0].url).toBe('https://ikea.com/p/evil')
   })
+
+  it('price-rule library round-trips (persisted only when non-default, sanitised on load)', () => {
+    useStore.getState().__resetForTest()
+    // Default rate card is omitted from the payload (saves space).
+    expect(serialize(useStore.getState()).priceRules).toBeUndefined()
+
+    // A custom rate is persisted and restored intact.
+    useStore.getState().setPriceRules({
+      ...useStore.getState().priceRules,
+      floor: { ...useStore.getState().priceRules.floor, wood: 175 },
+      carpentryPerM: 410,
+    })
+    const saved = serialize(useStore.getState())
+    expect(saved.priceRules?.floor?.wood).toBe(175)
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.priceRules?.floor.wood).toBe(175)
+    expect(patch.priceRules?.carpentryPerM).toBe(410)
+    // Untouched buckets keep their defaults.
+    expect(patch.priceRules?.wall.paint).toBe(useStore.getState().priceRules.wall.paint)
+
+    // A corrupt persisted rate is clamped back to the default on load.
+    const corrupt = { ...saved, priceRules: { floor: { wood: -50 }, carpentryPerM: -1 } }
+    const safe = applySerialized(corrupt as typeof saved, new Set<string>())
+    expect(safe.priceRules?.floor.wood).toBeGreaterThan(0)
+    expect(safe.priceRules?.carpentryPerM).toBeGreaterThan(0)
+  })
 })

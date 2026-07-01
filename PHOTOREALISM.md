@@ -40,38 +40,10 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
   presets + user upload; orbit dollhouse stays clean) — the instanced 3D estates were removed. **No HDRI
   sky/IBL image yet.**
 
-## Shipped (pruned from the roadmap — see `CHANGELOG.md` for detail)
-- **PHOTO-HDRI** — CC0 HDRI environment lighting (v0.8.0.24): `scene/lighting/hdriCatalog.ts` (5 Poly
-  Haven `.hdr`, CORS-direct) + `SceneEnvironment` opt-in branch swaps the procedural probe for a captured
-  HDRI as `scene.environment`; default (`hdriId === null`) keeps the procedural look. `hdriEnvironment` pro
-  flag, Medium+. *Follow-up:* feed the same env into the path tracer + F4 HDRI-compare coupling.
-- **PHOTO-KTX2** — in-browser KTX2/UASTC encoder (v0.8.0.25): `lib/ktx2encode.ts` un-stubbed with the
-  `ktx2-encoder` Basis WASM build (self-hosted `public/basis/`); `optimizeGlb`'s `ktx2` opt-in emits real
-  KTX2 in prod. *Tail:* per-channel encode tuning (normal maps).
-- **PHOTO-PBR-MAPS (core)** — bundled CC0 PBR finishes (v0.8.0.27): the 12 bundled Poly Haven finishes are
-  now full-PBR (albedo+normal+roughness), and the runtime Poly Haven catalog fetches 2K PBR materials in
-  prod; procedural patterns remain the instant fallback. *Remaining (open):* more curated sets for the
-  fabric/leather/metal tokens + ambientCG (Tier 3 below).
-- **PHOTO-BACKDROP** — walk-mode equirectangular photo `scene.background` (procedural `city/dusk/park/hills`
-  presets + user upload via `storage/walkBackdrop.ts`; instanced 3D estates removed). Flags `backdrops` +
-  `customBackdrop`. *Follow-up still open:* bundle real CC0 equirectangular photos for the presets.
-- **PHOTO-EMISSIVE** — HDR emissive + bloom: lamps/sconces/cove/fan/TV/vanity ramp via
-  `scene/lighting/fixtureGlow.ts` (`fixtureEmissiveIntensity`), night peaks clear the Bloom threshold.
-  *G-tail:* tune the bloom amount on a real GPU.
-- **PHOTO-COLORSPACE** — texture colour-management: audited the procedural generators +
-  `furnitureMaterials.ts` + upload/GLB paths under three 0.184 (texture default `NoColorSpace`). All
-  albedo/colour maps are `SRGBColorSpace`, data maps (normal/rough/metal/AO) stay linear — **except a
-  wood-albedo miss now fixed** (it rendered grain with linear-instead-of-sRGB gamma). Locked with a
-  `furnitureMaterialColorSpace.test.ts` regression guard (albedo sRGB / data maps linear).
-- **PHOTO-PT-TUNE** — interior-tuned path tracer (`hqRenderSession.ts` applies `hqTracerConfig.ts`):
-  `bounces 10`, `transmissiveBounces 6` (glass no longer black/opaque), `filterGlossyFactor 0.75`
-  (kills sun-through-glass fireflies), `multipleImportanceSampling`. Config is unit-tested; the sample
-  count (`HqRenderModal` 64–1024) is the quality dial. *G-tail:* confirm the pixel improvement on a real GPU.
-
-> **Maintenance.** When a roadmap item ships, **delete it** from the bullet list below and add a
-> one-line entry here (and to `CHANGELOG.md`); when one is only *partially* done, trim its entry to the
-> remaining work — so the list stays an accurate to-do and we never re-audit shipped work. (The
-> `PHOTO-*` names are the stable identifiers; the list is unnumbered so nothing needs renumbering.)
+> **Maintenance.** When a roadmap item ships, **delete it** from the bullet list below (its record
+> lives in `CHANGELOG.md`); when one is only *partially* done, trim its entry to the remaining work —
+> so the list stays an accurate to-do and we never re-audit shipped work. (The `PHOTO-*` names are the
+> stable identifiers; the list is unnumbered so nothing needs renumbering.)
 
 ## Roadmap — prioritised by impact ÷ effort
 

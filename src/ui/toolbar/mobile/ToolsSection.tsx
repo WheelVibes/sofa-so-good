@@ -41,6 +41,8 @@ export function ToolsSection({
   const touring = useStore((st) => st.touring)
 
   const fShare = useFeature('shareExport')
+  const fStyleTransfer = useFeature('styleTransfer')
+  const fStyleQuiz = useFeature('styleQuiz')
   const fSun = useFeature('sunStudy')
   const fReport = useFeature('report')
   const fDxf = useFeature('dxfExport')
@@ -96,8 +98,19 @@ export function ToolsSection({
           </Fragment>
         ),
       )}
-      {fShare || (!roomEditorActive && fReport) || (!roomEditorActive && fDxf) ? (
+      {fShare ||
+      fStyleTransfer ||
+      fStyleQuiz ||
+      (!roomEditorActive && fReport) ||
+      (!roomEditorActive && fDxf) ? (
         <SubHeader>Export &amp; document</SubHeader>
+      ) : null}
+      {fStyleQuiz ? (
+        <Item
+          icon="Palette"
+          label="Style quiz"
+          onClick={act(() => s.getState().setStyleQuizOpen(true))}
+        />
       ) : null}
       {fShare ? (
         <Item
@@ -105,6 +118,13 @@ export function ToolsSection({
           label="Share & export"
           docs="shareExport"
           onClick={act(() => s.getState().setShareOpen(true))}
+        />
+      ) : null}
+      {fStyleTransfer ? (
+        <Item
+          icon="Palette"
+          label="Style transfer"
+          onClick={act(() => s.getState().setStyleTransferOpen(true))}
         />
       ) : null}
       {!roomEditorActive ? (

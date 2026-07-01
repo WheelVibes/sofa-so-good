@@ -45,6 +45,82 @@ export function wallRateKind(id: string): WallRateKind {
   return 'other'
 }
 
+// ---------------------------------------------------------------------------
+// Price-rule library — user-configurable overrides for the rate table above.
+//
+// `RENO_RATES` + the built-in carpentry rate are the *defaults*; a contractor
+// can override any per-kind $/m² rate (and the carpentry $/lin.m) so the quote
+// and the renovation estimate price against their own rate card. Pure and
+// serialisable — travels with the design (save schema) like the quote template.
+
+/** Built-in carpentry rate (SGD per linear metre) for cabinet/wardrobe runs. */
+export const DEFAULT_CARPENTRY_RATE = 320
+
+/** A complete, user-overridable rate card driving the quote + renovation estimate. */
+export interface PriceRules {
+  /** $/m² per floor-finish bucket. */
+  floor: Record<FloorRateKind, number>
+  /** $/m² per wall-finish bucket. */
+  wall: Record<WallRateKind, number>
+  /** Carpentry $/linear metre (cabinets / wardrobes / counters). */
+  carpentryPerM: number
+}
+
+/** Factory defaults — reproduce the built-in rate table exactly. */
+export const DEFAULT_PRICE_RULES: PriceRules = {
+  floor: { ...RENO_RATES.floor },
+  wall: { ...RENO_RATES.wall },
+  carpentryPerM: DEFAULT_CARPENTRY_RATE,
+}
+
+/** Clamp a single rate to a finite, non-negative number (fallback to the default). */
+function safeRate(v: unknown, fallback: number): number {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : fallback
+}
+
+/** A loosely-typed partial rate card (each bucket independently optional) —
+ *  the shape a deserialised save or a single-field UI edit produces. */
+export interface PartialPriceRules {
+  floor?: Partial<Record<FloorRateKind, number>>
+  wall?: Partial<Record<WallRateKind, number>>
+  carpentryPerM?: number
+}
+
+/** Merge a partial (e.g. deserialised) rate card onto the defaults, sanitising
+ *  every field so a corrupt save can never inject a negative / NaN rate. */
+export function mergePriceRules(partial?: PartialPriceRules | null): PriceRules {
+  const d = DEFAULT_PRICE_RULES
+  const floor = {} as Record<FloorRateKind, number>
+  for (const k of Object.keys(d.floor) as FloorRateKind[]) {
+    floor[k] = safeRate(partial?.floor?.[k], d.floor[k])
+  }
+  const wall = {} as Record<WallRateKind, number>
+  for (const k of Object.keys(d.wall) as WallRateKind[]) {
+    wall[k] = safeRate(partial?.wall?.[k], d.wall[k])
+  }
+  return { floor, wall, carpentryPerM: safeRate(partial?.carpentryPerM, d.carpentryPerM) }
+}
+
+/** True when any rate differs from the factory default (decides save-schema persistence). */
+export function isNonDefaultPriceRules(r: PriceRules): boolean {
+  const d = DEFAULT_PRICE_RULES
+  if (r.carpentryPerM !== d.carpentryPerM) return true
+  for (const k of Object.keys(d.floor) as FloorRateKind[])
+    if (r.floor[k] !== d.floor[k]) return true
+  for (const k of Object.keys(d.wall) as WallRateKind[]) if (r.wall[k] !== d.wall[k]) return true
+  return false
+}
+
+/** Resolve the $/m² rate for a floor finish id under a rate card. */
+export function floorRateFor(rules: PriceRules, id: string): number {
+  return rules.floor[floorRateKind(id)]
+}
+
+/** Resolve the $/m² rate for a wall finish id under a rate card. */
+export function wallRateFor(rules: PriceRules, id: string): number {
+  return rules.wall[wallRateKind(id)]
+}
+
 export interface RenoLine {
   /** Finish id (caller maps to a friendly name). */
   id: string
@@ -70,15 +146,19 @@ function round(n: number): number {
  * Build the renovation estimate from per-finish floor + wall areas. Lines are
  * sorted by descending cost so the biggest spend reads first.
  */
-export function estimateRenovation(floors: FinishArea[], walls: FinishArea[]): RenovationEstimate {
+export function estimateRenovation(
+  floors: FinishArea[],
+  walls: FinishArea[],
+  rules: PriceRules = DEFAULT_PRICE_RULES,
+): RenovationEstimate {
   const floorLines: RenoLine[] = floors.map((f) => {
     const kind = floorRateKind(f.id)
-    const rate = RENO_RATES.floor[kind]
+    const rate = rules.floor[kind]
     return { id: f.id, kind, area: f.area, rate, cost: round(f.area * rate) }
   })
   const wallLines: RenoLine[] = walls.map((w) => {
     const kind = wallRateKind(w.id)
-    const rate = RENO_RATES.wall[kind]
+    const rate = rules.wall[kind]
     return { id: w.id, kind, area: w.area, rate, cost: round(w.area * rate) }
   })
   const bycost = (a: RenoLine, b: RenoLine) => b.cost - a.cost

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resolveFlags } from '../../features/featureFlags'
 import {
   cheapestFirst,
+  fetchLivePrice,
   fetchLivePrices,
   type LivePrice,
   pingPriceSidecar,
@@ -69,6 +70,78 @@ describe('multi-retailer sidecar client', () => {
     const offers = await fetchLivePrices('fabric sofa')
     expect(offers.map((o) => o.retailer)).toEqual(['courts-sg', 'ikea-sg'])
     expect(offers[0].price).toBe(399)
+  })
+
+  it('caches a successful lookup — the same key never hits the network twice', async () => {
+    fetchMock.mockImplementation(() => json(offer('ikea-sg', 200)))
+    const first = await fetchLivePrice('lamp', 'ikea-sg')
+    expect(first?.price).toBe(200)
+    const second = await fetchLivePrice('lamp', 'ikea-sg')
+    expect(second).toEqual(first)
+    expect(fetchMock).toHaveBeenCalledTimes(1) // served from cache
+  })
+
+  it('caches a failed lookup as null — no retry storms on a miss', async () => {
+    fetchMock.mockImplementation(() => json({ error: 'no match' }, false))
+    expect(await fetchLivePrice('nope', 'ikea-sg')).toBeNull()
+    expect(await fetchLivePrice('nope', 'ikea-sg')).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns null (and caches it) when the network throws', async () => {
+    fetchMock.mockRejectedValue(new Error('offline'))
+    expect(await fetchLivePrice('x', 'ikea-sg')).toBeNull()
+    expect(await fetchLivePrice('x', 'ikea-sg')).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('keys the cache by retailer — same query, different retailer, fetches each', async () => {
+    fetchMock.mockImplementation((url: string) =>
+      json(offer(String(url).includes('courts-sg') ? 'courts-sg' : 'ikea-sg', 150)),
+    )
+    await fetchLivePrice('sofa', 'ikea-sg')
+    await fetchLivePrice('sofa', 'courts-sg')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('dedupes concurrent lookups of the same key into a single fetch', async () => {
+    let release: () => void = () => {}
+    const gate = new Promise<void>((r) => {
+      release = r
+    })
+    fetchMock.mockImplementation(async () => {
+      await gate
+      return { ok: true, json: () => Promise.resolve(offer('ikea-sg', 99)) }
+    })
+    const p1 = fetchLivePrice('dup', 'ikea-sg')
+    const p2 = fetchLivePrice('dup', 'ikea-sg')
+    release()
+    const [a, b] = await Promise.all([p1, p2])
+    expect(a).toEqual(b)
+    expect(fetchMock).toHaveBeenCalledTimes(1) // shared in-flight promise
+  })
+
+  it('caches the /health probe — no re-ping until the cache is reset', async () => {
+    fetchMock.mockImplementation(() => json({ ok: true, retailers: ['ikea-sg'] }))
+    expect(await pingPriceSidecar()).toBe(true)
+    const calls = fetchMock.mock.calls.length
+    expect(await pingPriceSidecar()).toBe(true)
+    expect(fetchMock.mock.calls.length).toBe(calls) // cached, no second probe
+    // …until a reset forces a fresh probe.
+    resetLivePriceCache()
+    await pingPriceSidecar()
+    expect(fetchMock.mock.calls.length).toBe(calls + 1)
+  })
+
+  it('reports the sidecar down (false) when /health throws', async () => {
+    fetchMock.mockRejectedValue(new Error('connection refused'))
+    expect(await pingPriceSidecar()).toBe(false)
+  })
+
+  it('keeps the default retailer when /health omits a retailer list', async () => {
+    fetchMock.mockImplementation(() => json({ ok: true }))
+    expect(await pingPriceSidecar()).toBe(true)
+    expect(sidecarRetailerIds()).toEqual(['ikea-sg'])
   })
 })
 

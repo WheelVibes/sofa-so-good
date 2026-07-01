@@ -17,6 +17,7 @@ import {
   snapSelectionToWall,
 } from '../../layout/selectionActions'
 import { useStore } from '../../state/store'
+import { ColorPicker } from '../controls/ColorPicker'
 import { Icon } from '../toolbar/icons'
 import { MinimizeButton, useInspectorMinimize } from './useInspectorMinimize'
 
@@ -30,7 +31,29 @@ export function MultiSelectPanel() {
   const ungroup = useStore((s) => s.ungroup)
   const catalog = useCatalog()
   const copyAppearanceOn = useFeature('copyAppearance')
+  const bulkAppearanceOn = useFeature('bulkAppearance')
   const groupsOn = useFeature('furnitureGroups')
+  // The tint shared by every selected (unlocked) item, or '' when they differ /
+  // are untinted — drives the bulk ColorPicker's displayed swatch.
+  const sharedTint = useStore((s) => {
+    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
+    if (sel.length === 0) return ''
+    const first = typeof sel[0].props.tint === 'string' ? (sel[0].props.tint as string) : ''
+    return sel.every((it) => (typeof it.props.tint === 'string' ? it.props.tint : '') === first)
+      ? first
+      : ''
+  })
+  // Whether ANY selected item carries a tint — so "Clear tint" is offered even
+  // when the selection's tints differ (sharedTint is '' but a reset still helps).
+  const anyTinted = useStore((s) =>
+    s.items.some(
+      (i) =>
+        s.selectedItemIds.includes(i.id) &&
+        !i.locked &&
+        typeof i.props.tint === 'string' &&
+        i.props.tint !== '',
+    ),
+  )
   // Price displays are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
   const appearanceClipboard = useStore((s) => s.appearanceClipboard)
@@ -58,6 +81,17 @@ export function MultiSelectPanel() {
       })
     )
       s.moveItem(id, pos)
+  }
+
+  // Bulk recolour: write `props.tint` on every selected (unlocked) item in one
+  // undo step (`updateManyItemProps`). A '' tint clears the override (back to
+  // the item's own materials).
+  const setTintAll = (hex: string) => {
+    const s = useStore.getState()
+    const ids = s.items
+      .filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
+      .map((i) => i.id)
+    s.updateManyItemProps(ids, { tint: hex })
   }
 
   const align = (axis: 0 | 1) => {
@@ -328,6 +362,35 @@ export function MultiSelectPanel() {
                 Arrange as run
               </button>
             </div>
+            {bulkAppearanceOn ? (
+              <div className="sec">
+                <div className="label">Appearance</div>
+                <div
+                  className="row ms-appearance"
+                  style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}
+                >
+                  <span className="flex-1">Tint all</span>
+                  <ColorPicker
+                    value={sharedTint || '#ffffff'}
+                    onChange={setTintAll}
+                    ariaLabel="Tint every selected item"
+                    title="Recolour every selected item"
+                    className={sharedTint ? 'on' : ''}
+                  />
+                  {anyTinted ? (
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      onClick={() => setTintAll('')}
+                      title="Clear the tint from every selected item"
+                      aria-label="Clear tint"
+                    >
+                      <Icon.Reset width={14} height={14} />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             <div className="sec">
               {groupsOn &&
                 (activeGroupId ? (

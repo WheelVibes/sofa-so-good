@@ -7,7 +7,11 @@ import { placementWalls } from '../collision/placementWalls'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { useFeature } from '../features/useFeature'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
-import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
+import {
+  resolvePlanRoomCeiling,
+  resolvePlanRoomFloor,
+  resolvePlanRoomWall,
+} from '../floorplan/roomFinishes'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { arrangePlanRoom, arrangeRoom } from '../layout/autoArrange'
@@ -44,15 +48,17 @@ function filterFinishes(mats: MaterialDef[], query: string): MaterialDef[] {
 }
 
 type View = 'swatch' | 'browse'
-type Surface = 'floor' | 'wall'
+type Surface = 'floor' | 'wall' | 'ceiling'
 
 const LAST_SURFACE_KEY = 'hdb_last_finish_surface'
 
 /**
- * Right-side panel shown when a room is selected. Floor / wall tabs
- * each present a swatch grid of available materials — built-ins, user
- * uploads (with an "Uploaded" badge), and any resolved remote materials
- * (with a provider tag).
+ * Right-side panel shown when a room is selected — the per-room surface
+ * customizer. Floor / wall / ceiling sections each present a swatch grid of
+ * available materials (built-ins, user uploads with an "Uploaded" badge, and
+ * any resolved remote materials with a provider tag). Ceiling paints from the
+ * wall/paint pool and defaults to plain white (gated by the `ceilingFinish`
+ * flag).
  *
  * From here the user can also `Browse online…` which mounts the remote
  * material browser inline; resolving applies the material to the
@@ -63,8 +69,12 @@ export function FinishPicker() {
   const finishes = useStore(useShallow((s) => s.finishes))
   const setFloorFinish = useStore((s) => s.setFloorFinish)
   const setWallFinish = useStore((s) => s.setWallFinish)
+  const setCeilingFinish = useStore((s) => s.setCeilingFinish)
+  const clearCeilingFinish = useStore((s) => s.clearCeilingFinish)
+  const clearWallAccent = useStore((s) => s.clearWallAccent)
   const setAllFloorFinish = useStore((s) => s.setAllFloorFinish)
   const setAllWallFinish = useStore((s) => s.setAllWallFinish)
+  const setAllCeilingFinish = useStore((s) => s.setAllCeilingFinish)
   const selectRoom = useStore((s) => s.selectRoom)
   const removeUserMaterial = useStore((s) => s.removeUserMaterial)
   const recentColors = useStore(useShallow((s) => s.recentColors))
@@ -114,9 +124,9 @@ export function FinishPicker() {
       kind: 'success',
     })
   }
-  // Copy this room's floor + wall finish to another specific room (vs the
-  // "apply to all rooms" bulk buttons) — match two bedrooms without touching the
-  // rest of the home.
+  // Copy this room's floor + wall (+ ceiling, when set) finish to another
+  // specific room (vs the "apply to all rooms" bulk buttons) — match two
+  // bedrooms without touching the rest of the home.
   const copyFinishesTo = (targetId: string) => {
     if (!roomId) return
     const st = useStore.getState()
@@ -128,8 +138,12 @@ export function FinishPicker() {
     const wall = src
       ? (resolvePlanRoomWall(st.finishes, src) ?? st.finishes.walls[roomId])
       : st.finishes.walls[roomId]
+    // Ceiling only when the source room actually has one (default is white =
+    // absent), so copying never paints a ceiling the source didn't have.
+    const ceiling = src ? resolvePlanRoomCeiling(st.finishes, src) : st.finishes.ceiling[roomId]
     if (floor) st.setFloorFinish(target.id as RoomId, floor)
     if (wall) st.setWallFinish(target.id as RoomId, wall)
+    if (ceiling) st.setCeilingFinish(target.id as RoomId, ceiling)
     st.notify.start({ title: `Finishes copied to ${target.name}`, kind: 'success' })
   }
   const mirrorRoom = () => {
@@ -247,6 +261,8 @@ export function FinishPicker() {
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   const fRemoteMaterials = useFeature('remoteMaterials')
+  const fCeiling = useFeature('ceilingFinish')
+  const fWallAccent = useFeature('wallAccentPicker')
   const fDesignerPicks = useFeature('designerPicks')
   const fComposer = useFeature('materialComposer')
   const fSaveMaterials = useFeature('saveMaterials')
@@ -326,18 +342,26 @@ export function FinishPicker() {
   const activeWall = planRoom
     ? (resolvePlanRoomWall(finishes, planRoom) ?? finishes.walls[roomId])
     : finishes.walls[roomId]
+  // Ceiling defaults to plain white (no key) — `null`/`undefined` means unset.
+  const activeCeiling = planRoom
+    ? (resolvePlanRoomCeiling(finishes, planRoom) ?? undefined)
+    : finishes.ceiling[roomId]
+
+  const applyFinish = (surface: Surface, id: string) => {
+    if (surface === 'floor') setFloorFinish(roomId, id)
+    else if (surface === 'wall') setWallFinish(roomId, id)
+    else setCeilingFinish(roomId, id)
+  }
 
   const handleSelect = (surface: Surface, id: string) => {
     setLastSurface(surface)
     if (id.startsWith('#')) pushRecentColor(id)
     else pushRecentFinish(id)
-    if (surface === 'floor') setFloorFinish(roomId, id)
-    else setWallFinish(roomId, id)
+    applyFinish(surface, id)
   }
 
   const handleResolved = (id: string) => {
-    if (lastSurface === 'floor') setFloorFinish(roomId, id)
-    else setWallFinish(roomId, id)
+    applyFinish(lastSurface, id)
     setView('swatch')
   }
 
@@ -466,10 +490,145 @@ export function FinishPicker() {
               savedNameOf={savedNameFor}
             />
           ) : null}
+          {/* Ceiling paints from the wall (paint/plaster) pool — a ceiling is
+              painted like a wall. Default is plain white (no finish), so a
+              "Reset to white" clears back to it. Gated by the ceilingFinish flag. */}
+          {fCeiling ? (
+            <>
+              <SwatchGroup
+                label="Ceiling"
+                items={filterFinishes(groups.wall, finishQuery)}
+                active={activeCeiling ?? ''}
+                onSelect={(id) => handleSelect('ceiling', id)}
+                onRemoveUser={removeUserOrSaved}
+                savedIds={savedIds}
+                onRename={renameUserOrSaved}
+                onCustom={(hex) => handleSelect('ceiling', hex)}
+                recent={recentColors}
+                recentFinishIds={recentFinishes}
+                curated={fDesignerPicks ? resolveDesignerPicks('wall', materials) : undefined}
+              />
+              <button
+                type="button"
+                className="finish-apply-all"
+                onClick={() => {
+                  if (!activeCeiling) return
+                  setAllCeilingFinish(activeCeiling)
+                  useStore.getState().notify.start({
+                    title: 'Ceiling finish applied to every room',
+                    kind: 'success',
+                  })
+                }}
+                title="Use this ceiling finish in every room"
+                disabled={!activeCeiling}
+              >
+                Apply ceiling to all rooms
+              </button>
+              {activeCeiling ? (
+                <button
+                  type="button"
+                  className="btn ghost btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                  onClick={() => clearCeilingFinish(roomId)}
+                  title="Reset this room's ceiling back to plain white"
+                >
+                  Reset ceiling to white
+                </button>
+              ) : null}
+              {fComposer ? (
+                <MaterialComposer
+                  label="Ceiling"
+                  active={activeCeiling ?? ''}
+                  materials={groups.wall}
+                  onApply={(id) => handleSelect('ceiling', id)}
+                  onSave={fSaveMaterials ? handleSaveMaterial('wall') : undefined}
+                  savedNameOf={savedNameFor}
+                />
+              ) : null}
+            </>
+          ) : null}
+          {/* Accent walls (per-`wallId:roomId`): surface + manage this room's
+              accents in one place. Creating one stays a 3D wall tap (opens the
+              WallAccentPicker) — the wall→room mapping differs by plan type, so
+              we don't re-enumerate it here; this is the management/discovery view. */}
+          {fWallAccent
+            ? (() => {
+                const accents = Object.entries(finishes.wallAccents).filter(
+                  ([k]) => k.slice(k.lastIndexOf(':') + 1) === roomId,
+                )
+                return (
+                  <div className="sec">
+                    <div className="label">Accent walls</div>
+                    {accents.length === 0 ? (
+                      <p
+                        className="panel-sub"
+                        style={{ textTransform: 'none', letterSpacing: 0, margin: '2px 0 0' }}
+                      >
+                        Tap any wall in the 3D view to paint it a different colour from the rest of
+                        the room.
+                      </p>
+                    ) : (
+                      <>
+                        {accents.map(([key, id]) => {
+                          const mat = materials[id]
+                          const swatchColor = id.startsWith('#') ? id : (mat?.swatch ?? '#ccc')
+                          const name = id.startsWith('#') ? id.toUpperCase() : (mat?.name ?? id)
+                          return (
+                            <div
+                              key={key}
+                              className="row"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--s-2)',
+                                marginTop: 'var(--s-1)',
+                              }}
+                            >
+                              <span
+                                className="swatch"
+                                style={{ backgroundColor: swatchColor }}
+                                aria-hidden="true"
+                              />
+                              <span
+                                className="flex-1"
+                                style={{
+                                  minWidth: 0,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  fontSize: 'var(--t-xs)',
+                                }}
+                              >
+                                {name}
+                              </span>
+                              <button
+                                type="button"
+                                className="icon-btn"
+                                onClick={() => clearWallAccent(key)}
+                                title="Match room finish (remove accent)"
+                                aria-label={`Remove accent wall (${name})`}
+                              >
+                                <Icon.Reset width={14} height={14} />
+                              </button>
+                            </div>
+                          )
+                        })}
+                        <p
+                          className="panel-sub"
+                          style={{ textTransform: 'none', letterSpacing: 0, margin: '6px 0 0' }}
+                        >
+                          Tap another wall in the 3D view to add one.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )
+              })()
+            : null}
           {otherRooms.length > 0 ? (
             <Select
               className="input"
-              ariaLabel="Copy this room's floor + wall finish to another room"
+              ariaLabel="Copy this room's floor, wall & ceiling finish to another room"
               value=""
               placeholder="Copy finishes to…"
               onChange={(v) => {
@@ -583,7 +742,7 @@ export function FinishPicker() {
           <RemoteBrowseTab
             kind="material"
             onResolved={handleResolved}
-            defaultCategory={lastSurface}
+            defaultCategory={lastSurface === 'floor' ? 'floor' : 'wall'}
           />
         </div>
       )}

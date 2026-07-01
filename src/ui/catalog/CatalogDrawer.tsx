@@ -12,7 +12,7 @@ import { LayersPanel } from './LayersPanel'
 import { RemoteCard } from './RemoteCard'
 import { clearRecent, loadRecent, pushRecent } from './recentSearches'
 import { StampBanner } from './StampBanner'
-import { fuzzySearchSmart } from './searchSynonyms'
+import { fuzzySearchSmart, matchedIntents } from './searchSynonyms'
 
 // Lazy-loaded: the packs tab (pack install pipeline + unzip + thumbnail
 // renderer) and the model upload dialog (format converters + optimize pass)
@@ -413,6 +413,11 @@ export function CatalogDrawer() {
                   <Icon.Close width={12} height={12} />
                 </button>
               ) : null}
+            </div>
+          ) : null}
+          {q && cards.length > 0 && matchedIntents(query).length > 0 ? (
+            <div className="catalog-search-hint">
+              Showing {matchedIntents(query).join(' & ')} furniture
             </div>
           ) : null}
           <div className="card-grid" onKeyDown={onGridKeyDown}>

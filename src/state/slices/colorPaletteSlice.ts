@@ -25,7 +25,7 @@ export interface ColorPaletteSlice {
 }
 
 /** Sanitise a palette: keep only valid hex, dedupe, cap at 5. */
-function cleanPalette(colors: string[]): string[] {
+export function cleanPalette(colors: string[]): string[] {
   const out: string[] = []
   const seen = new Set<string>()
   for (const c of colors) {

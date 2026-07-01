@@ -64,6 +64,8 @@ export interface FeaturesSlice {
   tourStep: number
   /** Help & shortcuts modal visibility. */
   helpOpen: boolean
+  /** Asset-credits (attribution) modal visibility. */
+  creditsOpen: boolean
   /** Swap-with-similar modal — the item id being replaced, or null. */
   swapItemId: string | null
   /** Share & export modal visibility. */
@@ -74,6 +76,14 @@ export interface FeaturesSlice {
   hqRenderOpen: boolean
   /** Render preset A/B compare modal visibility (F4 tail). */
   renderCompareOpen: boolean
+  /** Before/after staging-reveal modal visibility (empty room vs furnished). */
+  stagingRevealOpen: boolean
+  /** One-tap style-transfer modal visibility. */
+  styleTransferOpen: boolean
+  /** Style-quiz modal visibility. */
+  styleQuizOpen: boolean
+  /** Keyboard-shortcuts help overlay visibility. */
+  shortcutsHelpOpen: boolean
   /** An immersive-VR session is active/requested (mounts the XR provider). */
   vrActive: boolean
   /** Clearance & fit checks panel visibility. */
@@ -139,11 +149,16 @@ export interface FeaturesSlice {
   /** End the tour (Skip / Done) and mark it completed in localStorage. */
   endTour: () => void
   setHelpOpen: (open: boolean) => void
+  setCreditsOpen: (open: boolean) => void
   setSwapItemId: (id: string | null) => void
   setShareOpen: (open: boolean) => void
   setPanoramaOpen: (open: boolean) => void
   setHqRenderOpen: (open: boolean) => void
   setRenderCompareOpen: (open: boolean) => void
+  setStagingRevealOpen: (open: boolean) => void
+  setStyleTransferOpen: (open: boolean) => void
+  setStyleQuizOpen: (open: boolean) => void
+  setShortcutsHelpOpen: (open: boolean) => void
   setVrActive: (active: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
   setElevationsOpen: (open: boolean) => void
@@ -181,11 +196,16 @@ export const FEATURES_INITIAL = {
   tourOpen: false,
   tourStep: 0,
   helpOpen: false,
+  creditsOpen: false,
   swapItemId: null as string | null,
   shareOpen: false,
   panoramaOpen: false,
   hqRenderOpen: false,
   renderCompareOpen: false,
+  stagingRevealOpen: false,
+  styleTransferOpen: false,
+  styleQuizOpen: false,
+  shortcutsHelpOpen: false,
   vrActive: false,
   clearancePanelOpen: false,
   elevationsOpen: false,
@@ -235,11 +255,16 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
     set({ tourOpen: false, tourStep: 0 })
   },
   setHelpOpen: (helpOpen) => set({ helpOpen }),
+  setCreditsOpen: (creditsOpen) => set({ creditsOpen }),
   setSwapItemId: (swapItemId) => set({ swapItemId }),
   setShareOpen: (shareOpen) => set({ shareOpen }),
   setPanoramaOpen: (panoramaOpen) => set({ panoramaOpen }),
   setHqRenderOpen: (hqRenderOpen) => set({ hqRenderOpen }),
   setRenderCompareOpen: (renderCompareOpen) => set({ renderCompareOpen }),
+  setStagingRevealOpen: (stagingRevealOpen) => set({ stagingRevealOpen }),
+  setStyleTransferOpen: (styleTransferOpen) => set({ styleTransferOpen }),
+  setStyleQuizOpen: (styleQuizOpen) => set({ styleQuizOpen }),
+  setShortcutsHelpOpen: (shortcutsHelpOpen) => set({ shortcutsHelpOpen }),
   setVrActive: (vrActive) => set({ vrActive }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
   setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),

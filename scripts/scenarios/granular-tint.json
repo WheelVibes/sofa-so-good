@@ -1,0 +1,18 @@
+{
+  "name": "granular-tint",
+  "steps": [
+    {
+      "name": "boot",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 45000
+    },
+    { "name": "daylight", "eval": "window.__store.getState().setPresetTime('noon'); window.__store.getState().setLightsMode('on'); window.__store.getState().setCameraMode('orbit'); window.__store.getState().setItems([])" },
+    { "name": "add-lsofa", "eval": "window.__lsofa = window.__store.getState().addItem({ defId: 'sofa-lshape', position: [6.4, 4.7], rotation: 0, props: { width: 2.6, depth: 0.95, chaise: 1.3, chaiseSide: 'right', color: '#d94f2a' } }); window.__store.getState().selectItem(window.__lsofa)" },
+    { "name": "cam-top", "eval": "window.__three.camera.position.set(6.4, 7.0, 4.72); window.__three.controls.target.set(6.4, 0, 4.7); window.__three.camera.fov = 55; window.__three.camera.updateProjectionMatrix(); window.__three.controls.update()" },
+    { "name": "settle-top", "wait": 1400 },
+    { "name": "top-shot", "screenshot": "01-tint-top.png" },
+    { "name": "cam-angle", "eval": "window.__three.camera.position.set(8.6, 4.2, 7.2); window.__three.controls.target.set(6.4, 0.2, 4.7); window.__three.controls.update()" },
+    { "name": "settle-angle", "wait": 1400 },
+    { "name": "angle-shot", "screenshot": "02-tint-angle.png" }
+  ]
+}

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { obbCorners } from '../../collision/obb'
-import { canPlace, itemFootprint } from '../../collision/placement'
+import { canPlace, itemFootprintParts } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { noExportUserData } from '../../export/sceneGltf'
@@ -13,6 +13,7 @@ import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
 import { priorityRaycast } from '../raycastPriority'
 import { groupResizeFactor, resizedTransform } from './resizeGizmoMath'
+import { clearResizeReadout, setResizeReadout } from './resizeReadoutSignal'
 
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0)
 const LIFT = 0.02
@@ -86,11 +87,15 @@ export function ResizeGizmo() {
     for (const it of selected) {
       const def = catalogRef.current[it.defId]
       if (!def) continue
-      for (const [x, z] of obbCorners(itemFootprint(it, def))) {
-        if (x < minX) minX = x
-        if (z < minZ) minZ = z
-        if (x > maxX) maxX = x
-        if (z > maxZ) maxZ = z
+      // Union every footprint PART's corners so the box spans the true geometry
+      // (an L-sofa's chaise included), not just the shallow enclosing OBB.
+      for (const part of itemFootprintParts(it, def)) {
+        for (const [x, z] of obbCorners(part)) {
+          if (x < minX) minX = x
+          if (z < minZ) minZ = z
+          if (x > maxX) maxX = x
+          if (z > maxZ) maxZ = z
+        }
       }
     }
     if (!Number.isFinite(minX)) return null
@@ -136,6 +141,26 @@ export function ResizeGizmo() {
         }
       })
       state.setItems(cand)
+      // Publish the live selection W×D so the HUD tracks the drag. Union every
+      // selected member's footprint PARTS (true geometry, matches the box below).
+      let bx0 = Number.POSITIVE_INFINITY
+      let bz0 = Number.POSITIVE_INFINITY
+      let bx1 = Number.NEGATIVE_INFINITY
+      let bz1 = Number.NEGATIVE_INFINITY
+      for (const it of cand) {
+        if (!sel.has(it.id)) continue
+        const def = catalogRef.current[it.defId]
+        if (!def) continue
+        for (const part of itemFootprintParts(it, def)) {
+          for (const [x, z] of obbCorners(part)) {
+            if (x < bx0) bx0 = x
+            if (z < bz0) bz0 = z
+            if (x > bx1) bx1 = x
+            if (z > bz1) bz1 = z
+          }
+        }
+      }
+      if (Number.isFinite(bx0)) setResizeReadout({ w: bx1 - bx0, d: bz1 - bz0 })
       // Collision: each scaled member vs the rest + walls (group members excluded
       // from each other — they scale rigidly, so any intra overlap pre-existed).
       const others = cand.filter((i) => !sel.has(i.id))
@@ -154,6 +179,7 @@ export function ResizeGizmo() {
     }
 
     const onUp = () => {
+      clearResizeReadout()
       const g = gesture.current
       const cur = useStore.getState()
       if (g && !valid) {
@@ -197,6 +223,7 @@ export function ResizeGizmo() {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
+      clearResizeReadout()
     }
   }, [resizing, valid, camera, gl])
 

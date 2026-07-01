@@ -1,5 +1,5 @@
-import { act, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useStore } from '../../state/store'
 import { NotificationContainer } from './NotificationContainer'
 
@@ -26,6 +26,83 @@ describe('NotificationContainer', () => {
     const bar = document.querySelector('[role="progressbar"]') as HTMLElement
     expect(bar).not.toBeNull()
     expect(bar.getAttribute('aria-valuenow')).toBe('42')
+  })
+
+  it('spins the icon while a progress toast is in flight', () => {
+    render(<NotificationContainer />)
+    act(() => {
+      useStore.getState().notify.start({ title: 'Checking for updates…', kind: 'progress' })
+    })
+    const host = document.querySelector('.toast-host') as HTMLElement
+    expect(host.querySelector('.icn.spin')).not.toBeNull()
+  })
+
+  it('renders an indeterminate bar (no aria-valuenow) when progress is null', () => {
+    render(<NotificationContainer />)
+    act(() => {
+      const id = useStore.getState().notify.start({ title: 'Checking…', kind: 'progress' })
+      useStore.getState().notify.update(id, { progress: null })
+    })
+    const bar = document.querySelector('[role="progressbar"]') as HTMLElement
+    expect(bar).not.toBeNull()
+    expect(bar.classList.contains('indet')).toBe(true)
+    expect(bar.hasAttribute('aria-valuenow')).toBe(false)
+  })
+
+  it('pauses auto-dismiss while hovered, then resumes with the time that remained', () => {
+    vi.useFakeTimers()
+    try {
+      render(<NotificationContainer />)
+      act(() => {
+        useStore.getState().notify.start({ title: 'Hover me', kind: 'info', autoDismissMs: 3000 })
+      })
+      act(() => {
+        vi.advanceTimersByTime(1000)
+      })
+      const toast = document.querySelector('[data-notification]') as HTMLElement
+      expect(toast).not.toBeNull()
+      // Hover → pause: further time no longer dismisses it.
+      fireEvent.mouseEnter(toast)
+      act(() => {
+        vi.advanceTimersByTime(5000)
+      })
+      expect(document.querySelector('[data-notification]')).not.toBeNull()
+      // Unhover → resume with ~2000ms left.
+      fireEvent.mouseLeave(toast)
+      act(() => {
+        vi.advanceTimersByTime(1999)
+      })
+      expect(document.querySelector('[data-notification]')).not.toBeNull()
+      act(() => {
+        vi.advanceTimersByTime(2)
+      })
+      expect(document.querySelector('[data-notification]')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('renders an action button that runs onAction and dismisses', () => {
+    render(<NotificationContainer />)
+    let ran = false
+    let id = ''
+    act(() => {
+      id = useStore.getState().notify.start({
+        title: 'Update available',
+        kind: 'info',
+        actionLabel: 'Update',
+        onAction: () => {
+          ran = true
+        },
+      })
+    })
+    const btn = screen.getByRole('button', { name: 'Update' })
+    expect(btn).toBeInTheDocument()
+    act(() => {
+      btn.click()
+    })
+    expect(ran).toBe(true)
+    expect(useStore.getState().notifications.find((n) => n.id === id)).toBeUndefined()
   })
 
   it('renders an X button for dismissable notifications and dismisses on click', () => {

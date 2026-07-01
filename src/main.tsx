@@ -31,8 +31,9 @@ installIosZoomGuard()
 // cheap + synchronous, so it stays on the critical path.
 registerGltfDecoders()
 
-// Register the service worker + keep it fresh (foreground/periodic update checks
-// power the silent auto-update; a manual "Check for updates" lives in File menu).
+// Register the service worker + check for updates on open (then foreground /
+// periodic). A found update surfaces an "Update available" toast with an Update
+// button — never an auto-reload; a manual "Check for updates" lives in File menu.
 registerAppServiceWorker()
 
 // Render immediately — App shows the loading overlay and kicks off the async

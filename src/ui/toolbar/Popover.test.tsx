@@ -40,6 +40,16 @@ describe('Popover', () => {
     expect(closed).toBe(true)
   })
 
+  it('returns focus to the trigger on Escape (keyboard menu-button pattern)', () => {
+    render(<Harness open onClose={() => {}} />)
+    const trigger = screen.getByText('trigger')
+    // Focus starts elsewhere (inside the panel, say); Escape should land it back
+    // on the trigger so a keyboard user isn't stranded.
+    ;(document.body as HTMLElement).focus()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(document.activeElement).toBe(trigger)
+  })
+
   it('calls onClose on outside pointerdown', () => {
     let closed = false
     render(

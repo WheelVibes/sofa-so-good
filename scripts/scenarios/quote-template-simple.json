@@ -25,8 +25,22 @@
     { "name": "wait-fill", "wait": 500 },
     { "name": "screenshot-modal-filled", "screenshot": true },
     {
+      "name": "check-pricerules-flag",
+      "eval": "console.log('priceRules flag:', window.__store.getState().flags?.priceRules, 'default carpentry:', window.__store.getState().priceRules.carpentryPerM)"
+    },
+    {
+      "name": "edit-rates",
+      "eval": "window.__store.getState().setPriceRules({ ...window.__store.getState().priceRules, floor: { ...window.__store.getState().priceRules.floor, wood: 165, stone: 180 }, carpentryPerM: 420 })"
+    },
+    { "name": "wait-rates", "wait": 500 },
+    { "name": "screenshot-modal-rates", "screenshot": true },
+    {
+      "name": "verify-rate-undo",
+      "eval": "const before=window.__store.getState().priceRules.carpentryPerM; window.__store.getState().undo(); console.log('carpentry after edit then undo:', before, '->', window.__store.getState().priceRules.carpentryPerM)"
+    },
+    {
       "name": "verify-undo-stack",
-      "eval": "const s=window.__store.getState(); console.log('undo stack length:', s.past.length, 'quoteTemplate in last snapshot:', s.past.length > 0 ? s.past[s.past.length-1].quoteTemplate?.companyName : 'n/a')"
+      "eval": "console.log('undo stack length:', window.__store.getState().past.length)"
     },
     {
       "name": "close-modal",

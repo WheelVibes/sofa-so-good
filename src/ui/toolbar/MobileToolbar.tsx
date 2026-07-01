@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useModalGuard } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
 import { useSunStudy } from '../../scene/sunStudy'
 import { detectVrSupport } from '../../scene/xr/vrSupport'
@@ -60,6 +61,23 @@ export function MobileToolbar() {
   }, [fVr])
 
   const close = () => setMenuOpen(false)
+
+  // Suppress app-wide hotkeys while the sheet is open + close it on Escape, so
+  // the mobile menu matches every other overlay (A11Y — it previously had
+  // neither, the lone overlay without an Escape handler).
+  useModalGuard(menuOpen)
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        setMenuOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menuOpen])
+
   // Most actions dismiss the sheet; pass {keep:true} for in-place toggles.
   const act = (fn: () => void, opts?: { keep?: boolean }) => () => {
     fn()

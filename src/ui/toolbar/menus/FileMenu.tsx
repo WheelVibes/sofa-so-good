@@ -28,6 +28,7 @@ export function FileMenu() {
   const fPanoTour = useFeature('panoTour')
   const fHqRender = useFeature('hqRender')
   const fRenderCompare = useFeature('renderCompare')
+  const fStagingReveal = useFeature('stagingReveal')
   const resetToDefault = useStore((s) => s.resetToDefault)
   const resetToEmpty = useStore((s) => s.resetToEmpty)
   const fShopExport = useFeature('shopExport')
@@ -123,6 +124,14 @@ export function FileMenu() {
           sub="A/B compare two render presets"
           docs="renderCompare"
           onClick={() => useStore.getState().setRenderCompareOpen(true)}
+        />
+      ) : null}
+      {fStagingReveal ? (
+        <MenuItem
+          icon="Export"
+          label="Before / after"
+          sub="Reveal slider: empty room vs furnished"
+          onClick={() => useStore.getState().setStagingRevealOpen(true)}
         />
       ) : null}
       {fShopExport ? (

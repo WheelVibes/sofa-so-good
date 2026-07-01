@@ -229,6 +229,34 @@ describe('Simple/Pro tiering', () => {
     expect(FEATURE_FLAGS.wallNumericEntry.default).toBe(true)
   })
 
+  it('stagingReveal (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    // Before/after reveal is a presentation flourish, not the core design loop.
+    expect(resolveFlags(false, {}, false, 'simple').stagingReveal).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').stagingReveal).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').stagingReveal).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').stagingReveal).toBe(true)
+    expect(FEATURE_FLAGS.stagingReveal.tier).toBe('pro')
+    expect(FEATURE_FLAGS.stagingReveal.default).toBe(true)
+  })
+
+  it('styleTransfer (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').styleTransfer).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').styleTransfer).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').styleTransfer).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').styleTransfer).toBe(true)
+    expect(FEATURE_FLAGS.styleTransfer.tier).toBe('pro')
+    expect(FEATURE_FLAGS.styleTransfer.default).toBe(true)
+  })
+
+  it('styleQuiz (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').styleQuiz).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').styleQuiz).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').styleQuiz).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').styleQuiz).toBe(true)
+    expect(FEATURE_FLAGS.styleQuiz.tier).toBe('pro')
+    expect(FEATURE_FLAGS.styleQuiz.default).toBe(true)
+  })
+
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
     const simple = resolveFlags(true, { drawings: true }, false, 'simple')
     expect(simple.drawings).toBe(false)

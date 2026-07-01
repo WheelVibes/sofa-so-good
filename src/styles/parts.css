@@ -46,6 +46,8 @@
    wide content blow the track out past the panel) keeps both columns at an
    identical, fixed width on every page. */
 .card-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3); padding: var(--s-1) var(--s-4) var(--s-4); overflow-y: auto; }
+/* Reveals the hidden "search by room" capability — shown when a query names a room/use intent. */
+.catalog-search-hint { padding: 2px var(--s-4) var(--s-2); font-size: var(--t-xs); color: var(--text-2); text-transform: capitalize; }
 .cat-card {
   display: flex; flex-direction: column; gap: 6px; min-width: 0;
   padding: var(--s-3); border-radius: var(--r-2);
@@ -281,6 +283,10 @@
 .kbd-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); font-size: var(--t-sm); color: var(--text-2); font-weight: 500; min-width: 0; }
 .kbd-row > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .kbd-row kbd { flex: none; }
+/* Keyboard-shortcuts overlay (ShortcutsModal) — grouped kbd-grid sections. */
+.shortcuts-groups { display: flex; flex-direction: column; gap: var(--s-5); }
+.shortcuts-group-title { font-size: var(--t-sm); font-weight: 600; color: var(--text-1); margin: 0 0 var(--s-2); }
+.shortcuts-keys { display: inline-flex; gap: 4px; flex: none; }
 .help-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .help-list li { display: flex; align-items: flex-start; gap: var(--s-3); font-size: var(--t-sm); color: var(--text-2); line-height: 1.45; }
 .help-list li .icn { color: var(--accent-soft-text); margin-top: 1px; }

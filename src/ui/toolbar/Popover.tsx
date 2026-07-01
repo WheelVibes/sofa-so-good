@@ -36,7 +36,13 @@ export function Popover({ open, anchorRef, onClose, children, align = 'left' }: 
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        onClose()
+        // Return focus to the trigger so a keyboard user isn't stranded when the
+        // panel unmounts (standard menu-button pattern). Only on Escape — an
+        // outside pointer-down shouldn't yank focus back to the trigger.
+        anchorRef.current?.focus()
+      }
     }
     const onDown = (e: PointerEvent) => {
       const t = e.target as Node

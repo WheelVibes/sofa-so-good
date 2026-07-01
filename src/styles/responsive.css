@@ -261,13 +261,26 @@ body.mobile {
 
   /* Docked-sheet header close X: keep the compact 26px visual but pad the hit
      area to 44px (26 + 2×9) with an invisible pseudo-element, matching
-     .m-sheet-head so every bottom-sheet's close meets the touch target (UX-002). */
+     .m-sheet-head so every bottom-sheet's close meets the touch target (UX-002).
+     Modals (`.modal-overlay .panel-head`) get the same — their close/back are at
+     opposite ends of the header, so the padded hit areas can't overlap. */
   .catalog .panel-head .icon-btn, .inspector .panel-head .icon-btn,
   .er-finish .panel-head .icon-btn, .plan-props .panel-head .icon-btn,
-  .aux .panel-head .icon-btn { position: relative; }
+  .aux .panel-head .icon-btn, .modal-overlay .panel-head .icon-btn { position: relative; }
   .catalog .panel-head .icon-btn::after, .inspector .panel-head .icon-btn::after,
   .er-finish .panel-head .icon-btn::after, .plan-props .panel-head .icon-btn::after,
-  .aux .panel-head .icon-btn::after { content: ''; position: absolute; inset: -9px; }
+  .aux .panel-head .icon-btn::after,
+  .modal-overlay .panel-head .icon-btn::after { content: ''; position: absolute; inset: -9px; }
+
+  /* Toast dismiss X (22px visual, isolated at the toast's right edge) → 44px hit
+     area (22 + 2×11) so a notification can be closed with a thumb (MOBILE-TAP-TARGETS). */
+  .toast .icon-btn { position: relative; }
+  .toast .icon-btn::after { content: ''; position: absolute; inset: -11px; }
+
+  /* Multi-select "clear tint" X sits at the right end of its row (only the ~8px
+     gap to the colour swatch is on its left), so a padded 44px hit area is safe. */
+  .ms-appearance .icon-btn { position: relative; }
+  .ms-appearance .icon-btn::after { content: ''; position: absolute; inset: -9px; }
 
   /* card grid breathes a touch more on phones */
   .card-grid { gap: var(--s-3); }
@@ -325,6 +338,26 @@ body.mobile {
     animation: sheetUp var(--dur) var(--ease);
   }
   .finish-grid { grid-template-columns: 1fr 1fr 1fr; }
+
+  /* Bump the compact swatch tiles (finish-picker groups + accent picker) to a
+     comfortable ~40px touch target on phones — the small 26px desktop tile is
+     awkward to tap accurately. These live in a dense wrap grid, so the invisible
+     ::after hit-area trick can't apply (adjacent hit areas would overlap); we
+     enlarge the tile itself instead. Bigger tiles also preview the texture
+     better. The large `.swatch-lg` finish grid is already touch-sized. (MOBILE-TAP-TARGETS) */
+  .swatches .swatch { width: 40px; height: 40px; }
+
+  /* Catalog card action buttons (favourite ♥, stamp) reveal on `:hover` on
+     desktop — but touch has no hover, so on a phone they stay invisible and the
+     favourite is unreachable. Show them always on mobile, enlarged for touch;
+     the stamp drops below the favourite so the two hit areas don't overlap. */
+  .fav-btn, .stamp-btn { opacity: 1; width: 32px; height: 32px; }
+  .stamp-btn { top: 44px; }
+
+  /* Same hover-reveal trap on the Layers panel's group hide-all / lock-all eyes
+     (`.lyr-geye`): opacity:0 until `.lyr-ghead-row:hover`, so on touch you can't
+     turn a group hidden/locked in the first place. Show + enlarge them on mobile. */
+  .lyr-geye { opacity: 1; width: 30px; height: 30px; }
 
   /* ============================================================
      SCREEN: 2D Floor Plan

@@ -47,7 +47,11 @@ import {
   ProductTour,
   RenderCompareModal,
   ShareModal,
+  ShortcutsModal,
   SmartStartWizard,
+  StagingRevealModal,
+  StyleQuizModal,
+  StyleTransferModal,
   VersionsPanel,
 } from './ui/app/lazyComponents'
 import { preloadFeatureChunks } from './ui/app/preloadOnIdle'
@@ -58,6 +62,7 @@ import { resolveBootDecision } from './ui/bootDecision'
 import { CommandPalette } from './ui/CommandPalette'
 import { ConfirmModal } from './ui/ConfirmModal'
 import { ContextMenu } from './ui/ContextMenu'
+import { CreditsModal } from './ui/CreditsModal'
 import { Crosshair } from './ui/Crosshair'
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
 import { usePlacementController } from './ui/catalog/usePlacementController'
@@ -77,6 +82,7 @@ import { Onboarding } from './ui/Onboarding'
 import { PresentationMode } from './ui/PresentationMode'
 import { PromptModal } from './ui/PromptModal'
 import { QuoteTemplateModal } from './ui/QuoteTemplateModal'
+import { ResizeHud } from './ui/ResizeHud'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
 import { SwapModal } from './ui/SwapModal'
 import { TapeModeToggle } from './ui/TapeModeToggle'
@@ -97,6 +103,7 @@ export default function App() {
   const configuratorOpen = useStore((s) => s.configuratorOpen)
   const bootPhase = useStore((s) => s.bootPhase)
   const sceneReady = useStore((s) => s.sceneReady)
+  const creditsOpen = useStore((s) => s.creditsOpen)
   const loading = useStore((s) => s.loading)
   const hideLoading = useStore((s) => s.hideLoading)
   // Open flags for the lazy-loaded panels (PERF5) — gate their mount so each
@@ -107,6 +114,10 @@ export default function App() {
     panoTourOpen: useStore((s) => s.panoTourOpen),
     hqRenderOpen: useStore((s) => s.hqRenderOpen),
     renderCompareOpen: useStore((s) => s.renderCompareOpen),
+    stagingRevealOpen: useStore((s) => s.stagingRevealOpen),
+    styleTransferOpen: useStore((s) => s.styleTransferOpen),
+    styleQuizOpen: useStore((s) => s.styleQuizOpen),
+    shortcutsHelpOpen: useStore((s) => s.shortcutsHelpOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
     historyOpen: useStore((s) => s.historyOpen),
@@ -194,11 +205,14 @@ export default function App() {
         useStore.getState().redo()
         return
       }
-      // `?` toggles the Appearance panel (which now hosts the user guide + tour).
+      // `?` opens the keyboard-shortcuts overlay (the universal convention) when
+      // that feature is on; otherwise it falls back to toggling the Appearance
+      // panel (which hosts the user guide + tour), preserving the old behaviour.
       if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e)) {
         e.preventDefault()
         const s = useStore.getState()
-        s.setAppearanceOpen(!s.appearanceOpen)
+        if (isFeatureEnabled('shortcutsHelp')) s.setShortcutsHelpOpen(true)
+        else s.setAppearanceOpen(!s.appearanceOpen)
         return
       }
       // `B` toggles the Budget / shopping panel (an orbit-view .aux panel) when
@@ -877,6 +891,7 @@ export default function App() {
           <MarqueeSelector />
           <NavCluster />
           <DragHud />
+          <ResizeHud />
           <BudgetHud />
           <TapeModeToggle />
           <Crosshair />
@@ -897,6 +912,10 @@ export default function App() {
         <CommandPalette />
         <ContextMenu />
         <SwapModal />
+        <CreditsModal
+          open={creditsOpen}
+          onClose={() => useStore.getState().setCreditsOpen(false)}
+        />
         {/* Pro/analysis panels: chunk is idle-preloaded then mounts when opened (PERF-004). */}
         {lazyPanels.budgetOpen ? (
           <Suspense fallback={null}>
@@ -958,6 +977,26 @@ export default function App() {
         {lazyPanels.renderCompareOpen ? (
           <Suspense fallback={null}>
             <RenderCompareModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.stagingRevealOpen ? (
+          <Suspense fallback={null}>
+            <StagingRevealModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.styleTransferOpen ? (
+          <Suspense fallback={null}>
+            <StyleTransferModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.styleQuizOpen ? (
+          <Suspense fallback={null}>
+            <StyleQuizModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.shortcutsHelpOpen ? (
+          <Suspense fallback={null}>
+            <ShortcutsModal />
           </Suspense>
         ) : null}
         {lazyPanels.elevationsOpen ? (

@@ -1,0 +1,103 @@
+{
+  "name": "staging-reveal-simple",
+  "url": "http://localhost:5219/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "app-loaded",
+      "waitFor": {
+        "css": ".toolbar"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1')"
+    },
+    {
+      "name": "assert-hidden-in-simple",
+      "eval": "if (window.__store.getState().featureFlags.stagingReveal !== false) throw new Error('stagingReveal must be OFF in Simple mode')"
+    },
+    {
+      "name": "to-pro",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "assert-shown-in-pro",
+      "eval": "if (!window.__store.getState().featureFlags.stagingReveal) throw new Error('stagingReveal must be ON in Pro mode')"
+    },
+    {
+      "name": "daytime",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "window.__store.getState().sceneReady === true"
+      },
+      "timeout": 60000,
+      "failMessage": "scene never painted (sceneReady stayed false)"
+    },
+    {
+      "name": "assert-has-furniture",
+      "eval": "if (window.__store.getState().items.length === 0) throw new Error('default scene should boot furnished')"
+    },
+    {
+      "name": "open-reveal",
+      "store": {
+        "action": "setStagingRevealOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "modal-open",
+      "waitFor": {
+        "css": ".modal-overlay"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-empty",
+      "screenshot": "modal-empty"
+    },
+    {
+      "name": "click-capture",
+      "click": {
+        "text": "Capture reveal"
+      }
+    },
+    {
+      "name": "after-frame",
+      "waitFor": {
+        "css": "#staging-reveal img[alt=\"Furnished design\"]"
+      },
+      "timeout": 35000,
+      "failMessage": "furnished frame did not capture"
+    },
+    {
+      "name": "before-frame",
+      "waitFor": {
+        "css": "#staging-reveal img[alt=\"Empty room\"]"
+      },
+      "timeout": 35000,
+      "failMessage": "empty-room frame did not capture"
+    },
+    {
+      "name": "shot-reveal",
+      "screenshot": "reveal"
+    }
+  ]
+}

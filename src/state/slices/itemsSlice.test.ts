@@ -224,3 +224,49 @@ describe('addItem level stamping (F13/ML5)', () => {
     expect(useStore.getState().items.find((i) => i.id === dupId)?.levelId).toBe('lvl-2')
   })
 })
+
+describe('updateManyItemProps (bulk recolour, one undo step)', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('merges props into every listed item and leaves others untouched', () => {
+    const s = useStore.getState()
+    const a = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    const b = s.addItem({ defId: 'dining-chair', position: [1, 0], rotation: 0, props: {} })
+    const c = s.addItem({ defId: 'bed-double', position: [5, 5], rotation: 0, props: {} })
+    useStore.getState().updateManyItemProps([a, b], { tint: '#ff0000' })
+    const byId = new Map(useStore.getState().items.map((i) => [i.id, i]))
+    expect(byId.get(a)?.props.tint).toBe('#ff0000')
+    expect(byId.get(b)?.props.tint).toBe('#ff0000')
+    expect(byId.get(c)?.props.tint).toBeUndefined()
+  })
+
+  it('is a single undo step for the whole batch', () => {
+    const s = useStore.getState()
+    const a = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    const b = s.addItem({ defId: 'dining-chair', position: [1, 0], rotation: 0, props: {} })
+    useStore.getState().updateManyItemProps([a, b], { tint: '#00ff00' })
+    useStore.getState().undo()
+    const byId = new Map(useStore.getState().items.map((i) => [i.id, i]))
+    // One undo reverts BOTH items' tint.
+    expect(byId.get(a)?.props.tint).toBeUndefined()
+    expect(byId.get(b)?.props.tint).toBeUndefined()
+  })
+
+  it('clears a tint when passed an empty string', () => {
+    const s = useStore.getState()
+    const a = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    useStore.getState().updateManyItemProps([a], { tint: '#123456' })
+    useStore.getState().updateManyItemProps([a], { tint: '' })
+    expect(useStore.getState().items.find((i) => i.id === a)?.props.tint).toBe('')
+  })
+
+  it('is a no-op with an empty id list (no history entry)', () => {
+    const s = useStore.getState()
+    s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    const before = useStore.getState().items
+    useStore.getState().updateManyItemProps([], { tint: '#fff' })
+    expect(useStore.getState().items).toBe(before)
+  })
+})
