@@ -366,7 +366,7 @@ export function MultiSelectPanel() {
               <div className="sec">
                 <div className="label">Appearance</div>
                 <div
-                  className="row"
+                  className="row ms-appearance"
                   style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}
                 >
                   <span className="flex-1">Tint all</span>

@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## A11Y: 44px touch targets for modal, toast & bulk-tint close buttons (v0.9.0.28)
+
+- Mobile touch-target sweep (chosen focus: mobile/touch deep-dive). The existing MOBILE-TAP-TARGETS
+  system expands small 26px `.icon-btn`s to a 44px hit area (an invisible `::after`, inset −9px) —
+  but only for an *enumerated* set of docked-panel headers. That left three isolated, whole-app
+  surfaces below the 44px minimum on mobile:
+  - **Modal close/back buttons** (`.modal-overlay .panel-head .icon-btn`) — every modal (Swap, quote
+    template, pano tour, GLB designer, style quiz, notification details, …). 26 → 44px.
+  - **Toast dismiss ×** (`.toast .icon-btn`, a 22px control) → 44px (inset −11px).
+  - The **multi-select "Clear tint" ×** added in v0.9.0.25 (`.ms-appearance .icon-btn`) → 44px.
+  All three are isolated at a container edge, so the padded hit areas can't overlap a neighbour
+  (why the original rule was scoped rather than global). Verified in-browser via computed `::after`
+  geometry (toast 22 + 2×11, modal 26 + 2×9). No visual change; a wider mobile audit found the core
+  flows (overview, room editor, inspector, finish picker, multi-select, menu, catalog placement)
+  already render correctly at 390px and 320px with no horizontal overflow.
+
+## DOCS: correct stale TODO candidate — toast pause-on-hover already shipped (v0.9.0.27)
+
+- Verified `NotificationContainer` already implements WCAG 2.2.1 pause-on-hover/focus; marked the
+  stale TODO audit note as already-shipped so future iterations don't rebuild it.
+
 ## POLISH: clear bulk tint even for mixed selections (v0.9.0.26)
 
 - Follow-up to v0.9.0.25 (found during a mobile-parity verification pass — the three new surfaces

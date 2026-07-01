@@ -261,13 +261,26 @@ body.mobile {
 
   /* Docked-sheet header close X: keep the compact 26px visual but pad the hit
      area to 44px (26 + 2×9) with an invisible pseudo-element, matching
-     .m-sheet-head so every bottom-sheet's close meets the touch target (UX-002). */
+     .m-sheet-head so every bottom-sheet's close meets the touch target (UX-002).
+     Modals (`.modal-overlay .panel-head`) get the same — their close/back are at
+     opposite ends of the header, so the padded hit areas can't overlap. */
   .catalog .panel-head .icon-btn, .inspector .panel-head .icon-btn,
   .er-finish .panel-head .icon-btn, .plan-props .panel-head .icon-btn,
-  .aux .panel-head .icon-btn { position: relative; }
+  .aux .panel-head .icon-btn, .modal-overlay .panel-head .icon-btn { position: relative; }
   .catalog .panel-head .icon-btn::after, .inspector .panel-head .icon-btn::after,
   .er-finish .panel-head .icon-btn::after, .plan-props .panel-head .icon-btn::after,
-  .aux .panel-head .icon-btn::after { content: ''; position: absolute; inset: -9px; }
+  .aux .panel-head .icon-btn::after,
+  .modal-overlay .panel-head .icon-btn::after { content: ''; position: absolute; inset: -9px; }
+
+  /* Toast dismiss X (22px visual, isolated at the toast's right edge) → 44px hit
+     area (22 + 2×11) so a notification can be closed with a thumb (MOBILE-TAP-TARGETS). */
+  .toast .icon-btn { position: relative; }
+  .toast .icon-btn::after { content: ''; position: absolute; inset: -11px; }
+
+  /* Multi-select "clear tint" X sits at the right end of its row (only the ~8px
+     gap to the colour swatch is on its left), so a padded 44px hit area is safe. */
+  .ms-appearance .icon-btn { position: relative; }
+  .ms-appearance .icon-btn::after { content: ''; position: absolute; inset: -9px; }
 
   /* card grid breathes a touch more on phones */
   .card-grid { gap: var(--s-3); }

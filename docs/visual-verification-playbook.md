@@ -713,7 +713,22 @@ clientY})`). Project a world position to screen px via the exposed camera
 p.project(cam)` → `cx = (p.x+1)/2*w`, `cy = (1-p.y)/2*h`.
 
 In **scenario mode**: use `{"viewport": {"width": 390, "height": 844}}` to
-switch to a mobile viewport mid-scenario.
+switch to a mobile viewport mid-scenario. Also handy for finding layout breaks:
+`document.documentElement.scrollWidth > clientWidth` flags horizontal overflow;
+re-run at 320px (iPhone SE) for the tightest phones.
+
+### Verifying mobile 44px tap targets (invisible `::after` hit-area padding)
+The MOBILE-TAP-TARGETS pattern keeps a control's *visual* size (e.g. a 26px
+`.icon-btn`) but pads its clickable area to 44px with an invisible
+`::after { position:absolute; inset:-9px }` (26 + 2×9 = 44; a 22px control needs
+inset −11px). happy-dom/jsdom have no layout, so assert this in a **browser
+scenario** via computed pseudo-element geometry rather than a unit test:
+`getComputedStyle(btn, '::after')` → check `position === 'absolute'` and
+`top === '-9px'` (or −11px). Trigger the surface first (fire a toast with
+`__store.notify.start({kind:'error'})`, open a modal via `confirmAction`, …),
+then read the `::after` on its `.icon-btn`. The rule is deliberately **scoped**
+(not a global `.icon-btn::after`) because padded hit areas overlap in
+densely-packed button rows — only expand controls isolated at a container edge.
 
 **Limitation — R3F won't raycast a *synthetic* mouse/contextmenu event headless.**
 A dispatched `contextmenu`/click reaches the canvas and your DOM handlers fire,
