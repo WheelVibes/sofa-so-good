@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract the DraftOverlayLayer from FloorPlanEditor (v0.9.0.60)
+
+- De-monolith step 14: moved all the **in-progress drawing overlays** into one pure
+  `editor/layers/DraftOverlayLayer.tsx` (no state writes) via verbatim code-motion — the
+  scale/dimension draft line, the live wall draft (segment + snap markers, numeric-preview aware),
+  the room draft rect, the rubber-band multi-select marquee, the polygon-room + polyline markup
+  drafts, and the cursor-following length/size/angle readout. FloorPlanEditor 2865 → 2728 lines
+  (−1543 total from 4271).
+- Behaviour-preserving: tsc + full suite green; an **interactive** scenario picks the Wall tool,
+  drives a live draw gesture (pointerdown + move) on the canvas, and confirms the draft renders
+  (accent draft line + 2 snap dots + the length/angle readout).
+
 ## REFACTOR: extract the WallHandlesLayer from FloorPlanEditor (v0.9.0.59)
 
 - De-monolith step 13: moved the **selected-wall reshape handles** (two endpoint grab dots + the
