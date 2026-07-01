@@ -132,11 +132,14 @@ Each grep-confirmed missing; re-confirm before starting. Ranked value×feasibili
 - ~~Live dimension readout during multi-select resize~~ — **shipped v0.9.0.21**
   (`itemDimensionReadout` flag, simple; `scene/selection/resizeReadoutSignal.ts` module signal +
   `ui/ResizeHud.tsx` pill; `ResizeGizmo` publishes the live box W×D on drag). See `CHANGELOG.md`.
-- **Unified room-customization panel** (M–L) — ceiling / baseboard / wall-accent finishes exist but
-  are spread across separate pickers/modals (`ceilingFinish`, `wallBaseboard`, `wallAccentPicker`
-  flags all present). A compact per-room panel (floor+wall+ceiling+baseboard+accent) would cut
-  click-away friction. Needs a room-select signal on 3D wall/floor click (may not exist — verify).
-  Flag `roomCustomizationPanel` (simple). Higher effort + risk (new panel + selection wiring).
+- **Unified room-customization panel** — PARTLY DONE. Rather than a parallel new panel, the existing
+  per-room `FinishPicker` (already floor + wall, opens on room select — the `selectedRoomId` signal
+  DOES exist) became the unified surface panel by **adding a Ceiling section** (**shipped v0.9.0.22**,
+  wiring the previously-dead `ceilingFinish` flag; no new flag needed). Remaining, if pursued:
+  fold **baseboard** (today 2D-plan-inspector only, `wallBaseboard` flag) and a **per-room wall-accent**
+  editor (today only via clicking a single wall face, `WallAccentPicker`, unflagged) into the same
+  picker. Baseboard is keyed per-wall (not per-room) so it needs a per-room aggregation decision;
+  wall-accent is per-`wallId:roomId`. Medium effort, lower incremental value than the ceiling gap was.
 - **2D-plan finish drag-and-drop** (S–M) — `finishDnd` drag-to-apply works in 3D
   (`scene/FinishDropSurface`) but NOT in the 2D plan editor. Add plan drop-zones reusing
   `finishDrop` + `setRoomFinish`/`setWallFinish`. Reuses the `finishDnd` flag (no new flag). Lower

@@ -8,6 +8,9 @@
    used (handy for the same floor across bedrooms).
 3. Pick one — it applies instantly to that surface (floors are per‑room).
    **Apply floor / walls to all rooms** repeats it everywhere in one click.
+4. Scroll down for the **Ceiling** section — paint a room's ceiling from the same
+   palette, **Apply ceiling to all rooms**, or **Reset ceiling to white** to go
+   back to the plain default.
 
 This works the same on a **custom floor plan** (a template or one you drew
 yourself): each plan room takes its own floor and wall finish, live in 3D, and

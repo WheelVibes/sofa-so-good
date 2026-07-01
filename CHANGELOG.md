@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: ceiling finish in the per-room picker — wire a dead flag (v0.9.0.22)
+
+- Customizability: the per-room `FinishPicker` (shown when a room is selected) now has a **Ceiling**
+  section alongside Floor and Walls — a swatch grid (from the wall/paint pool, since a ceiling is
+  painted like a wall), an "Apply ceiling to all rooms" bulk button, a "Reset ceiling to white"
+  action (the default is plain white = unset), and a ceiling `MaterialComposer`. This makes the
+  FinishPicker the **unified per-room surface panel** (floor + wall + ceiling) — closing the
+  scattered-pickers gap without a parallel new panel.
+- **Dead-flag fix**: the `ceilingFinish` flag (`simple`, default *on*) has shipped since its
+  introduction with **no UI behind it** — `setCeilingFinish`/`clearCeilingFinish`/`setAllCeilingFinish`
+  actions and the `apartment/Ceiling.tsx` render path all existed, but nothing exposed them. The new
+  section is gated on `useFeature('ceilingFinish')`, so the flag now controls a real surface.
+- "Copy finishes to…" now also carries the ceiling (only when the source room actually has one, so it
+  never paints a ceiling the source lacked). Browse-online maps a ceiling context to the wall
+  material category.
+- Tests: `FinishPicker.ceiling.test.tsx` — flag is simple + on in BOTH modes; the section renders when
+  on and is hidden when off (Floor/Walls still render); apply persists + surfaces a reset; apply-all
+  disabled + reset hidden until a ceiling is chosen. (Mocks `proceduralThumbnailDataUrl` per the
+  established swatch-in-jsdom pattern.) Visually verified the section in the room editor.
+
 ## FEATURE: live dimension readout while group-resizing (v0.9.0.21)
 
 - Customizability: the multi-select `ResizeGizmo` (2+ items, orbit + select) now shows a live
