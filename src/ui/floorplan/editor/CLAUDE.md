@@ -12,7 +12,13 @@ stays a thin dispatcher. Two kinds of file live here:
   isolation.
 - **Sub-components** (`GridLines.tsx`, `WallDimension.tsx`,
   `WallNumericEntry.tsx`, `PlanMenu.tsx`, …): presentational overlays driven by
-  props from the editor.
+  props from the editor. The per-storey **SVG render layers** live under
+  `layers/` (`WallsLayer`, `RoomsLayer`, `OpeningsLayer`, `DimensionsLayer`,
+  `NotesLayer`, `PolylinesLayer`, `TourStopsLayer`, `FurnitureLayer`,
+  `FurnitureRotateHandle`, `WallHandlesLayer`, `DraftOverlayLayer`): each is one
+  cohesive slice of the plan `<svg>`, prop-driven, taking editor state + the
+  drag/selection handlers as props (the editor stays the dispatcher). Add a new
+  layer here rather than growing the render block in `FloorPlanEditor.tsx`.
 - **Custom hooks** (`usePlanBackdrop.ts`, …): a cohesive, self-contained slice of
   editor **state + effects** (not core drawing/interaction state) lifted into a
   `use*` hook so the component shrinks. The editor still reads the returned

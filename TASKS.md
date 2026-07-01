@@ -19,13 +19,20 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   the inert WebXR entry + provider already ship.
 
 ## Open — client-doable
-- [ ] MOD-FPE-SPLIT (continue): `FloorPlanEditor.tsx` is now ~3927 lines. Extracted so far:
-  `usePlanBackdrop` (v0.9.0.46), `usePlanAiWalls` (v0.9.0.47), `usePlanViewport` (zoom/pan/fit/coords,
-  v0.9.0.49); helpers already in `editor/*`. Remaining reductions touch foundational/pervasive state
-  + interactive code the headless harness can't fully verify: (a) **per-level plan**
-  (`activeLevelId`→`levelPlan`, threaded through every handler + the render); (b) the giant
-  **pointer-tool dispatch** (onPointerDown/Move/Up) → per-tool handlers; (c) splitting the SVG render
-  into sub-components. Do each as behaviour-preserving code-motion with manual gesture verification.
+- [ ] MOD-FPE-SPLIT (optional tail): `FloorPlanEditor.tsx` is now **~2728 lines** (was 4271, −36%).
+  Done: state/effect hooks `usePlanBackdrop` (v.46), `usePlanAiWalls` (v.47), `usePlanViewport` (v.49),
+  `usePlanLevel` (v.50); and **all 11 SVG render layers** in `editor/layers/*` — `WallsLayer`,
+  `RoomsLayer`, `OpeningsLayer`, `DimensionsLayer`, `NotesLayer`, `PolylinesLayer`, `TourStopsLayer`,
+  `FurnitureLayer`, `FurnitureRotateHandle`, `WallHandlesLayer`, `DraftOverlayLayer` (v.51–.60), each
+  behaviour-preserving + interactively verified. Pure tool math/decisions were already modularised
+  (`toolDraftReducer`, `*Commit`, `snap*`, `floorPlanGeometry`, `marqueeSelect`). What remains is
+  **intentionally kept in the component** per `editor/CLAUDE.md`: the pointer-tool **dispatcher**
+  (`onDown/onMove/onUp`, ~730 lines) is a thin dispatch over those pure helpers + store writes and
+  should stay. The only further *shell* reduction available is lifting the toolbar/control JSX
+  fragments (`viewToggle`/`toolPalette`/`fileActions`/… ~620 lines) into a presentational
+  `PlanToolbar` — deferred because it needs a 40+ prop bundle (passing the whole store-action
+  snapshot), which would hurt readability more than the current named-fragment consts. Revisit only
+  if the toolbar grows its own logic.
 - [ ] IO-006: zip-bomb guard on the **decompressed** usdz/3mf payload — needs a zip
   central-directory parser to bound the inflated size (a blunt on-disk cap would regress legitimate
   large files), so deferred until that parser exists.

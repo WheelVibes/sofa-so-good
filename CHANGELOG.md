@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: MOD-FPE-SPLIT status — render-layer decomposition complete (v0.9.0.61)
+
+- Recorded the FloorPlanEditor de-monolith outcome: **4271 → 2728 lines (−36%)** across 14 commits —
+  4 state/effect hooks + all 11 SVG render layers (`editor/layers/*`), with pure tool math already
+  modularised. Updated `TASKS.md` (MOD-FPE-SPLIT now an optional tail) and `editor/CLAUDE.md` (the
+  `layers/` render-layer convention). The pointer-tool **dispatcher** stays in the component by
+  design (thin dispatch over pure helpers + store writes, per `editor/CLAUDE.md`); the only further
+  reduction is a presentational `PlanToolbar` shell, deferred (40+ prop bundle would hurt readability).
+
 ## REFACTOR: extract the DraftOverlayLayer from FloorPlanEditor (v0.9.0.60)
 
 - De-monolith step 14: moved all the **in-progress drawing overlays** into one pure
