@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: catalog favourite/stamp buttons unreachable on mobile (v0.9.0.31)
+
+- Real mobile bug found during the deep-dive: the catalog card's **favourite ♥** and **stamp**
+  buttons (`.fav-btn`/`.stamp-btn`) are `opacity: 0`, revealed only on `.cat-card:hover` — but
+  touch has **no hover**, so on a phone the favourite button was invisible and you couldn't
+  favourite an item from the catalog at all (a chicken-and-egg: `.on` forces it visible, but you
+  can't reach the un-favourited state to toggle it on). Now shown always on mobile
+  (`body.mobile .fav-btn/.stamp-btn { opacity: 1 }`), enlarged 24 → 32px for touch, with the stamp
+  button dropped below the favourite so their hit areas don't overlap.
+- Verified in-browser: `.fav-btn` renders at 32×32 with `opacity: 1` at 390px; hearts appear on
+  every card, cleanly positioned. Desktop keeps the hover-reveal.
+
 ## A11Y: larger, touch-friendly finish swatches on mobile (v0.9.0.30)
 
 - Follow-on to the mobile deep-dive (the candidate deferred in v0.9.0.29). The compact `.swatch`
