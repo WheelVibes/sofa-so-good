@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: extract usePlanBackdrop from the FloorPlanEditor monolith (v0.9.0.46)
+
+- Started de-monolithing `FloorPlanEditor.tsx` (4271 lines — the "no monolithic files" hard-rule
+  violation). Lifted the **trace-backdrop** concern (the reference-photo underlay: `backdrop` state,
+  its object-URL lifecycle, and all IndexedDB persistence — rehydrate on open, debounced calibration
+  writes, blob store on load, delete on remove, plus `loadBackdrop`/`removeBackdrop`) into a cohesive
+  `editor/usePlanBackdrop.ts` hook. The editor keeps reading `backdrop`/`setBackdrop` (AI wall
+  recognition + Scale tool mutate `mPerPx`), so both are returned. **4271 → 4188 lines.**
+- Pure code-motion — behaviour-preserving: tsc green, the full suite green (incl. 715 floorplan
+  tests), the 2D editor renders + mounts identically (visual smoke-test). Added
+  `usePlanBackdrop.test.tsx` (7 cases: load/persist/select-tool, non-image ignored, debounced
+  calibration write, remove, rehydrate-on-open, no-rehydrate-when-closed) mocking the IDB + image/URL
+  APIs. Documented "custom hooks" as an extraction kind in the editor's `CLAUDE.md`.
+
 ## FEATURE: manage accent walls from the per-room FinishPicker (v0.9.0.45)
 
 - Customizability/discoverability: accent walls (`finishes.wallAccents`, keyed `wallId:roomId`) could

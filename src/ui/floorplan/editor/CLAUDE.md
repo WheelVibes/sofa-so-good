@@ -13,6 +13,10 @@ stays a thin dispatcher. Two kinds of file live here:
 - **Sub-components** (`GridLines.tsx`, `WallDimension.tsx`,
   `WallNumericEntry.tsx`, `PlanMenu.tsx`, …): presentational overlays driven by
   props from the editor.
+- **Custom hooks** (`usePlanBackdrop.ts`, …): a cohesive, self-contained slice of
+  editor **state + effects** (not core drawing/interaction state) lifted into a
+  `use*` hook so the component shrinks. The editor still reads the returned
+  state/handlers. Behaviour-preserving code-motion; gets its own `*.test.tsx`.
 
 ## Rules
 - **Keep the editor thin.** When `FloorPlanEditor.tsx` grows new tool/pointer

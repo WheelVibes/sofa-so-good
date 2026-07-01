@@ -69,13 +69,6 @@ import { evictPanoStop } from '../panorama/panoImageIdb'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import {
-  type BackdropMeta,
-  persistBackdrop,
-  readPersistedBackdrop,
-  removePersistedBackdrop,
-  updateBackdropMeta,
-} from './backdropPersist'
-import {
   alongWall as alongWallGeo,
   nearestWall as nearestWallGeo,
   planCenter as planCenterGeo,
@@ -87,7 +80,6 @@ import { PlanLibrary } from './editor/PlanLibrary'
 import { PlanMenu } from './editor/PlanMenu'
 import { PlanToolMenu } from './editor/PlanToolMenu'
 import {
-  type Backdrop,
   CATEGORY_FILL,
   EXPORT_PAD,
   FIT_PAD,
@@ -121,6 +113,7 @@ import {
   wallCommit,
   wallTapCommits,
 } from './editor/toolDraftReducer'
+import { usePlanBackdrop } from './editor/usePlanBackdrop'
 import { WallDimension } from './editor/WallDimension'
 import { WallNumericEntry } from './editor/WallNumericEntry'
 import { exportPlanPng } from './exportPlanPng'
@@ -326,7 +319,7 @@ export function FloorPlanEditor() {
   const fMirrorRegion = useFeature('planMirrorRegion')
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   // Persisted to IDB (blob + calibration) so it survives editor close + reload.
-  const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
+  const { backdrop, setBackdrop, loadBackdrop, removeBackdrop } = usePlanBackdrop(editing, setTool)
   const [aiBusy, setAiBusy] = useState(false)
   const aiWalls = useFeature('aiWalls')
   // Persistent wall-length labels (on by default; toggle in the editor header).
@@ -369,55 +362,9 @@ export function FloorPlanEditor() {
   // "placing the end / ending the chain".
   const wallTapHadAnchor = useRef(false)
 
-  // Rehydrate a previously-saved backdrop when the editor opens (the component
-  // is always mounted and only renders when `editing`, so this can't be a
-  // once-on-mount effect). Skips if one is already loaded so reopening doesn't
-  // create a duplicate object URL.
-  const backdropUrlRef = useRef<string | null>(null)
   // Last pointer position in plan metres — where a new ruler guide is dropped
   // (PARITY-PLAN-GUIDES). Updated on every pointer move over the canvas.
   const lastPlanPtRef = useRef<[number, number]>([0, 0])
-  useEffect(() => {
-    if (!editing) return
-    let cancelled = false
-    void readPersistedBackdrop().then((p) => {
-      if (cancelled || !p) return
-      setBackdrop((prev) => {
-        if (prev) return prev
-        const url = URL.createObjectURL(p.blob)
-        backdropUrlRef.current = url
-        return { url, ...p.meta }
-      })
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [editing])
-
-  // Revoke the live object URL only on a true unmount (not on editor close).
-  useEffect(
-    () => () => {
-      if (backdropUrlRef.current) URL.revokeObjectURL(backdropUrlRef.current)
-    },
-    [],
-  )
-
-  // Persist calibration changes (opacity/scale/offset) without rewriting the
-  // blob, debounced so a slider/drag doesn't hammer IDB.
-  useEffect(() => {
-    if (!backdrop) return
-    const meta: BackdropMeta = {
-      w: backdrop.w,
-      h: backdrop.h,
-      opacity: backdrop.opacity,
-      mPerPx: backdrop.mPerPx,
-      ox: backdrop.ox,
-      oz: backdrop.oz,
-    }
-    const t = setTimeout(() => void updateBackdropMeta(meta), 400)
-    return () => clearTimeout(t)
-  }, [backdrop])
-
   // Experimental AI wall recognition (Wave E): send the backdrop to a vision
   // model and seed an editable draft plan from the returned walls. Falls back
   // to manual tracing on any failure.
@@ -488,33 +435,6 @@ export function FloorPlanEditor() {
     } finally {
       setAiBusy(false)
     }
-  }
-
-  // Load a dropped/picked image as the trace backdrop (defaults to ~100 px/m;
-  // the user calibrates exactly with the Scale tool).
-  const loadBackdrop = (file: File) => {
-    if (!file.type.startsWith('image/')) return
-    const url = URL.createObjectURL(file)
-    const img = new Image()
-    img.onload = () => {
-      const meta: BackdropMeta = {
-        w: img.naturalWidth,
-        h: img.naturalHeight,
-        opacity: 0.5,
-        mPerPx: 0.01,
-        ox: 0,
-        oz: 0,
-      }
-      setBackdrop((prev) => {
-        if (prev) URL.revokeObjectURL(prev.url)
-        return { url, ...meta }
-      })
-      backdropUrlRef.current = url
-      // Persist the blob + calibration so the backdrop survives reload/reopen.
-      void persistBackdrop(file, meta)
-      setTool('select')
-    }
-    img.src = url
   }
 
   // Exiting back to 3D (Done button / Escape) frames the selected furniture via
@@ -2023,10 +1943,7 @@ export function FloorPlanEditor() {
           <button
             type="button"
             onClick={() => {
-              URL.revokeObjectURL(backdrop.url)
-              if (backdropUrlRef.current === backdrop.url) backdropUrlRef.current = null
-              setBackdrop(null)
-              void removePersistedBackdrop()
+              removeBackdrop()
               if (tool === 'scale') setTool('select')
             }}
             title="Remove reference photo"
