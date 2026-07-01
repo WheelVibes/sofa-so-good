@@ -339,6 +339,14 @@ body.mobile {
   }
   .finish-grid { grid-template-columns: 1fr 1fr 1fr; }
 
+  /* Bump the compact swatch tiles (finish-picker groups + accent picker) to a
+     comfortable ~40px touch target on phones — the small 26px desktop tile is
+     awkward to tap accurately. These live in a dense wrap grid, so the invisible
+     ::after hit-area trick can't apply (adjacent hit areas would overlap); we
+     enlarge the tile itself instead. Bigger tiles also preview the texture
+     better. The large `.swatch-lg` finish grid is already touch-sized. (MOBILE-TAP-TARGETS) */
+  .swatches .swatch { width: 40px; height: 40px; }
+
   /* ============================================================
      SCREEN: 2D Floor Plan
      ============================================================ */

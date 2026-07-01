@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## A11Y: larger, touch-friendly finish swatches on mobile (v0.9.0.30)
+
+- Follow-on to the mobile deep-dive (the candidate deferred in v0.9.0.29). The compact `.swatch`
+  tiles (finish-picker Floor/Walls/Ceiling groups + designer-picks rows + the accent-wall picker)
+  were 26px — awkward to tap and a small texture preview on a phone. Bumped to **40px on mobile
+  only** (`body.mobile .swatches .swatch`); desktop keeps 26px. These live in a dense wrap grid, so
+  the invisible-`::after` hit-area trick can't apply (adjacent hit areas would overlap) — enlarging
+  the tile itself is the correct fix. The large `.swatch-lg` finish grid was already touch-sized.
+- Verified in-browser: swatches measure 40×40, ~7 per row at 390px, no horizontal overflow; Floor /
+  Walls / Ceiling sections all read cleanly. Desktop unaffected (rule is `body.mobile`-scoped).
+
 ## A11Y: 44px touch targets for modal, toast & bulk-tint close buttons (v0.9.0.28)
 
 - Mobile touch-target sweep (chosen focus: mobile/touch deep-dive). The existing MOBILE-TAP-TARGETS

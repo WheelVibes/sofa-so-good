@@ -134,13 +134,9 @@ single/multi inspector (min+expanded), finish picker (floor/wall/ceiling), menu 
 catalog tap/long-press placement. Fixed: isolated small tap targets (modal close/back, toast
 dismiss, multi-select clear-tint) → 44px (**v0.9.0.28**). Remaining candidate (needs a design
 call, not forced):
-- **Enlarge finish swatches on mobile.** The main `.swatches` grid uses 26px `.swatch` tiles
-  (below the 44px touch ideal); the `::after` hit-area trick can't apply (dense grid → overlapping
-  hit areas). A real fix bumps swatch size on mobile — but it's a broad visual change (per-row /
-  scroll trade-off) across finish picker + accent picker + quick-finishes + colour theme rows, each
-  with its own current sizing (`.swatch` 26px, `.quick-finish-row .swatch` 30px). Scope carefully +
-  verify visually per grid before shipping; the large `.finish-grid`/`.swatch-lg` main grid is already
-  fine. Medium, subjective.
+- ~~Enlarge finish swatches on mobile~~ — **shipped v0.9.0.30** (`body.mobile .swatches .swatch`
+  26 → 40px; finish-picker groups + designer picks + accent picker; desktop unchanged; the large
+  `.swatch-lg` grid was already fine). Verified 40×40, ~7/row at 390px, no overflow. See `CHANGELOG.md`.
 
 ### Vetted customizability / UX candidates (2026-07-01 Explore audit, source-verified absent)
 Each grep-confirmed missing; re-confirm before starting. Ranked value×feasibility:
