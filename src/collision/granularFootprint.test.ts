@@ -9,6 +9,7 @@ import {
   itemFootprint,
   itemFootprintParts,
   itemFootprintPartsLocal,
+  itemFootprintSpanLocal,
 } from './placement'
 
 /**
@@ -231,6 +232,42 @@ describe('granular footprint — local parts (for selection / ghost tint overlay
     )
     expect(local.map((p) => p.ox).sort((a, b) => a - b)).toEqual([-1.5, 1.5])
     expect(local[0].hx * 2).toBeCloseTo(1, 6)
+  })
+})
+
+describe('granular footprint — minimum spanning box (selection / resize handles)', () => {
+  it('equals the enclosing footprint for a plain piece (centred)', () => {
+    const span = itemFootprintSpanLocal(probeAt(2, 2), probeDef)
+    expect(span).toEqual({ ox: 0, oz: 0, hx: 0.2, hz: 0.2 })
+  })
+
+  it('spans the L-sofa true depth (main run + chaise), deeper than its OBB', () => {
+    const sofa = lsofa({ width: 2.6, depth: 0.95, chaise: 1.0 })
+    const def = BUILTIN_CATALOG['sofa-lshape']
+    const span = itemFootprintSpanLocal(sofa, def)
+    const obb = itemFootprint(sofa, def)
+    // Full width preserved; depth is the true ~1.95 m, not the 0.95 m OBB.
+    expect(span.hx * 2).toBeCloseTo(2.6, 6)
+    expect(span.hz * 2).toBeCloseTo(1.95, 6)
+    expect(span.hz).toBeGreaterThan(obb.hz + 0.4)
+  })
+
+  it('bounds every footprint part (local)', () => {
+    const sofa = lsofa()
+    const def = BUILTIN_CATALOG['sofa-lshape']
+    const span = itemFootprintSpanLocal(sofa, def)
+    for (const p of itemFootprintPartsLocal(sofa, def)) {
+      expect(Math.abs(p.ox) + p.hx).toBeLessThanOrEqual(Math.abs(span.ox) + span.hx + 1e-9)
+      expect(p.oz + p.hz).toBeLessThanOrEqual(span.oz + span.hz + 1e-9)
+      expect(p.oz - p.hz).toBeGreaterThanOrEqual(span.oz - span.hz - 1e-9)
+    }
+  })
+
+  it('applies item scale', () => {
+    const def = BUILTIN_CATALOG['sofa-lshape']
+    const base = itemFootprintSpanLocal(lsofa(), def)
+    const scaled = itemFootprintSpanLocal({ ...lsofa(), props: { scaleX: 2 } }, def)
+    expect(scaled.hx).toBeCloseTo(base.hx * 2, 6)
   })
 })
 

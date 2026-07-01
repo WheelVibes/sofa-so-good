@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEATURE: selection / resize box is the true minimum spanning box (v0.9.0.14)
+
+- Follow-up to the granular-footprint work. The selection **bounding box + resize handles** used
+  the enclosing `itemFootprint` OBB, which for the L-sofa is the **depth-only 2.6×0.95 m** rectangle
+  — so the box cut straight through the chaise instead of spanning the true ~2.6×1.95 m geometry.
+  Now both the `SelectionOutline` brackets and the multi-select `ResizeGizmo` use the **minimum
+  spanning box of the footprint parts**, so the box tightly bounds the real shape.
+- New pure helper `collision/placement.ts:itemFootprintSpanLocal` (unions the convex parts in the
+  item's local frame, relative to the OBB centre); `ResizeGizmo` unions every part's `obbCorners`.
+  Single-part pieces are unchanged (the span equals the enclosing OBB). +4 tests.
+- **Placement-ghost green/red verified** (already correct, no change): the tint is driven by
+  `canPlace` → `ghostValid`, which uses the true-shape parts — confirmed headlessly that the ghost
+  is green on open floor and flips to red (invalid) when moved over an existing item.
+
 ## FEATURE: selection + placement tint follows the granular collision polygon (v0.9.0.13)
 
 - Closes the consistency gap the granular-collision work opened: collision became shape-aware

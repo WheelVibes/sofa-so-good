@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { obbCorners } from '../../collision/obb'
-import { canPlace, itemFootprint } from '../../collision/placement'
+import { canPlace, itemFootprintParts } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { noExportUserData } from '../../export/sceneGltf'
@@ -86,11 +86,15 @@ export function ResizeGizmo() {
     for (const it of selected) {
       const def = catalogRef.current[it.defId]
       if (!def) continue
-      for (const [x, z] of obbCorners(itemFootprint(it, def))) {
-        if (x < minX) minX = x
-        if (z < minZ) minZ = z
-        if (x > maxX) maxX = x
-        if (z > maxZ) maxZ = z
+      // Union every footprint PART's corners so the box spans the true geometry
+      // (an L-sofa's chaise included), not just the shallow enclosing OBB.
+      for (const part of itemFootprintParts(it, def)) {
+        for (const [x, z] of obbCorners(part)) {
+          if (x < minX) minX = x
+          if (z < minZ) minZ = z
+          if (x > maxX) maxX = x
+          if (z > maxZ) maxZ = z
+        }
       }
     }
     if (!Number.isFinite(minX)) return null

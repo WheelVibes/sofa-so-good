@@ -169,6 +169,51 @@ export function itemFootprintPartsLocal(
   }))
 }
 
+/**
+ * The minimum spanning box of the item's footprint, in the item's LOCAL frame
+ * *relative to the {@link itemFootprint} OBB centre* (so a caller with a group
+ * already at that centre + item yaw drops the box in with a plain offset). For a
+ * composite def this unions the convex parts (the L-sofa's true main-run+chaise
+ * shape, ~2× deeper than its depth-only enclosing OBB); for any other def it's
+ * the enclosing OBB itself (`{0, 0, hx, hz}`) — the resize/selection box then
+ * tightly bounds the real geometry instead of a too-shallow rectangle.
+ */
+export function itemFootprintSpanLocal(
+  item: FurnitureItem,
+  def: FurnitureDef,
+): { ox: number; oz: number; hx: number; hz: number } {
+  const obb = itemFootprint(item, def)
+  const spec = def.footprintParts
+  const parts = typeof spec === 'function' ? spec(item.props) : spec
+  if (!parts || parts.length === 0) return { ox: 0, oz: 0, hx: obb.hx, hz: obb.hz }
+
+  const { scaleX, scaleZ } = resolveScale(item, def)
+  let minX = Number.POSITIVE_INFINITY
+  let minZ = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let maxZ = Number.NEGATIVE_INFINITY
+  for (const p of parts) {
+    const ox = p.dx * scaleX
+    const oz = p.dz * scaleZ
+    const c = Math.abs(Math.cos(p.rot ?? 0))
+    const s = Math.abs(Math.sin(p.rot ?? 0))
+    const hx = (p.w * scaleX) / 2
+    const hz = (p.d * scaleZ) / 2
+    const ex = c * hx + s * hz
+    const ez = s * hx + c * hz
+    if (ox - ex < minX) minX = ox - ex
+    if (oz - ez < minZ) minZ = oz - ez
+    if (ox + ex > maxX) maxX = ox + ex
+    if (oz + ez > maxZ) maxZ = oz + ez
+  }
+  return {
+    ox: (minX + maxX) / 2,
+    oz: (minZ + maxZ) / 2,
+    hx: (maxX - minX) / 2,
+    hz: (maxZ - minZ) / 2,
+  }
+}
+
 /** True iff any OBB in `a` overlaps any OBB in `b` (granular part-vs-part SAT). */
 function partsOverlap(a: OBB[], b: OBB[]): boolean {
   for (const oa of a) for (const ob of b) if (obbVsObb(oa, ob)) return true

@@ -671,10 +671,14 @@ same change that reshapes a system.
   paint the same shape: `itemFootprintPartsLocal(item,def)` returns the parts in the
   item's local frame (one centred part = the old rectangle for plain pieces), and
   each consumer renders one plane per part inside a group carrying the world pose —
-  so an L-sofa tints its true L (notch open), while the bbox bracket outline + hover
-  outline stay on the enclosing box (the handle affordance). (The L-shaped sectional
-  + corner base cabinet ship the first decompositions: main run + chaise / two runs.)
-  `placementWalls.ts`
+  so an L-sofa tints its true L (notch open). The selection **bounding box + resize
+  handles** use `itemFootprintSpanLocal` — the **minimum spanning box of the parts**
+  (`SelectionOutline` brackets; `ResizeGizmo` unions every part's `obbCorners`) — so
+  the box bounds the true geometry (the L-sofa's chaise included) instead of the
+  depth-only OBB that cut through it; single-part pieces are unchanged. The placement
+  ghost's green/red tint is driven by `canPlace` → `ghostValid` (true-shape parts, so
+  the tint reflects the real fit). (The L-shaped sectional + corner base cabinet ship
+  the first decompositions: main run + chaise / two runs.) `placementWalls.ts`
   centralizes wall selection (room editor → solid perimeter; upper storeys → own
   walls). All cross-item/wall scans are **storey-scoped** (F13/ML3): `itemsCollide`
   + `findNarrowGaps` gate pairs on `levelId`, `levelWallClips.ts
