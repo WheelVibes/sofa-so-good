@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TESTS: cover uploaded-material validation (v0.9.0.40)
+
+- `materials/upload/validate.ts` `validateImageFile` (the gate that rejects bad user uploads before
+  they hit IndexedDB) was untested. Added `validate.test.ts` (6 cases): rejects over-byte-limit
+  files, rejects unsupported type/extension, accepts GPU-compressed KTX2/DDS by bypassing the bitmap
+  probe (dims deferred to decode), accepts a decodable native image within the dimension cap, rejects
+  over-dimension images, and rejects an undecodable file. `createImageBitmap` is stubbed for the
+  decode paths; the reject branches need no browser.
+- No bug found — regression safety for a user-facing, input-validation (security-adjacent) path.
+
 ## TESTS: cover obbMtv (soft push-apart MTV) (v0.9.0.39)
 
 - `collision/obb.ts` `obbMtv` — the minimum-translation-vector used by the soft push-apart nudge
