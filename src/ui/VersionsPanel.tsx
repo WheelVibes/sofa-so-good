@@ -135,6 +135,16 @@ export function VersionsPanel() {
   }
 
   const remove = async (slot: string) => {
+    // Deleting a saved version is irreversible (no undo) — gate on the themed
+    // confirm modal rather than silently deleting (P35 destructive-confirmation
+    // policy; see src/ui/CLAUDE.md).
+    const ok = await useStore.getState().confirmAction({
+      title: 'Delete this version?',
+      message: `“${slot}” will be permanently deleted. This can't be undone.`,
+      confirmLabel: 'Delete version',
+      danger: true,
+    })
+    if (!ok) return
     await LocalStorageAdapter.delete(slot)
     deleteThumb(slot)
     void refresh()

@@ -41,6 +41,19 @@ export function SavedViewsSection() {
     if (note !== null) setViewNote(id, note)
   }
 
+  const onDelete = async (id: string, name: string) => {
+    // Deleting a saved view is irreversible (no undo) — gate on the themed
+    // confirm modal rather than silently deleting (P35 destructive-confirmation
+    // policy; see src/ui/CLAUDE.md).
+    const ok = await useStore.getState().confirmAction({
+      title: 'Delete this view?',
+      message: `“${name}” will be permanently deleted. This can't be undone.`,
+      confirmLabel: 'Delete view',
+      danger: true,
+    })
+    if (ok) deleteView(id)
+  }
+
   const onSave = async () => {
     // Capture the preview now, while the camera is at the angle being saved and
     // before the prompt modal paints over the canvas.
@@ -168,7 +181,7 @@ export function SavedViewsSection() {
             onClick={(e) => {
               // Keep the menu open so several views can be managed in a row.
               e.stopPropagation()
-              deleteView(v.id)
+              void onDelete(v.id, v.name)
             }}
           >
             <Icon.Trash width={14} height={14} />

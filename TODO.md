@@ -38,8 +38,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 
 - [ ] **P34 Optimistic placement feedback** — immediate ghost placement + reconcile for drops/AI
   arrange.
-- [ ] **P35 Destructive confirmation policy** — reversible → Undo-toast; irreversible → confirm
-  modal; document + enforce.
 
 ### Batch 3 — larger (~1 week each)
 - [ ] **P6 Screen-transition crossfade** — 200–300ms fade between 3D view ↔ floor plan ↔ walk mode.

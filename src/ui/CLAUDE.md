@@ -42,6 +42,13 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
 - **Polished + pixel-perfect.** Use the standard spacing scale for margins/padding (no
   ad-hoc one-off gaps); align to existing components so layouts stay cohesive with the
   theme. Verify any new surface in light + dark across all 5 themes before shipping.
+- **Destructive-action policy.** Reversible destructive actions (delete a placed
+  item, clear the room's furniture) show an **Undo toast** (the action runs
+  immediately, `notify` offers Undo — see `itemsSlice`). Irreversible actions
+  (delete a saved version/slot, delete a saved view, reset/replace the whole
+  design) MUST gate on `confirmAction({ title, message, confirmLabel, danger })`
+  (`promptSlice`, rendered by `ConfirmModal`) and bail on `false`. Never a
+  blocking `window.confirm`; never silent irreversible deletion.
 - **Empty states use the shared `EmptyState`** (`src/ui/EmptyState.tsx`): icon (from the
   `Icon` set) + title + optional one-line description + optional CTA, on the `.empty-mini`
   token vocabulary. Any panel/list that can be empty must render it (don't hand-roll inline

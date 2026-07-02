@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: enforce destructive-confirmation policy (v0.10.0.23)
+
+- Saved-version slot delete (VersionsPanel) and saved-view delete (SavedViewsSection) now gate
+  on the themed `confirmAction({ title, message, confirmLabel, danger })` modal — both were
+  silently irreversible. Policy documented in src/ui/CLAUDE.md: reversible destructive ->
+  Undo-toast (itemsSlice deletes already conform); irreversible -> confirm modal; never
+  window.confirm, never silent deletion.
+
 ## FEAT: Button loading state — inline spinner + aria-busy (v0.10.0.22)
 
 - `Button.tsx` gains a `loading?: boolean` prop: swaps `icon` for an inline
