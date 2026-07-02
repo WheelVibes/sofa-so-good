@@ -101,6 +101,13 @@
   color: var(--accent-soft-text);
 }
 
+/* Right-aligned shortcut chip inside a menu row (P24). Reuses the bare <kbd>
+   element style (components.css); only adds row-level positioning. */
+.menu-item .mi-kbd {
+  margin-left: auto;
+  flex: none;
+}
+
 /* Floating HUD pill (drag clearance readout, door prompt). */
 .hud-pill {
   display: inline-flex;
@@ -224,9 +231,18 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+  /* .skeleton's shimmer is a background-position sweep — freezing the
+     animation-duration above (rather than disabling the animation) would
+     leave it parked mid-sweep, i.e. a static off-centre gradient band
+     instead of a calm placeholder. Force the flat mid-tone fill instead. */
+  .skeleton {
+    background: var(--surface-3) !important;
   }
 }
 
@@ -280,6 +296,7 @@
   min-width: 52px;
   text-align: right;
   flex: none;
+  font-variant-numeric: tabular-nums;
 }
 /* Editable numeric readout: a compact typed-entry box + a faint unit suffix,
    so a parametric dimension can be entered exactly, not only dragged. */
@@ -300,6 +317,7 @@
   font-family: var(--font-mono);
   font-size: var(--t-xs);
   color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 .fld .val-edit em {
   font-style: normal;

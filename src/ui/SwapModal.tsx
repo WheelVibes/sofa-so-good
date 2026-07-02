@@ -73,7 +73,7 @@ export function SwapModal() {
       onClose={() => setSwapItemId(null)}
       title="Replace with similar"
       sub={`${def.category} · keeps position`}
-      width={560}
+      width="var(--modal-md)"
       panelId="swapPanel"
     >
       <div className="swap-cur">
@@ -107,7 +107,7 @@ export function SwapModal() {
               <button
                 type="button"
                 key={alt.id}
-                className="swap-card"
+                className="swap-card liftable"
                 onClick={() => replace(alt.id)}
               >
                 <div className="card-thumb">

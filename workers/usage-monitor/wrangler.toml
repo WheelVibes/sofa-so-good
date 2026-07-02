@@ -1,0 +1,29 @@
+# Standalone circuit-breaker Worker. Pages Functions can't run cron/scheduled
+# handlers, so the usage monitor ships as its own Worker. It polls the Cloudflare
+# GraphQL Analytics API a few times a day and flips a kill-switch in the SHARED
+# FLAGS KV namespace that the Pages API reads before touching R2.
+#
+# Deploy:  wrangler deploy   (run inside workers/usage-monitor/)
+# Secrets: wrangler secret put CF_API_TOKEN   (needs Account Analytics: Read)
+#
+# Point the KV `id` below at the SAME namespace as the Pages FLAGS binding.
+
+name = "sofa-usage-monitor"
+main = "index.ts"
+compatibility_date = "2026-07-01"
+
+[triggers]
+crons = ["0 */4 * * *"]   # every 4 hours
+
+[[kv_namespaces]]
+binding = "FLAGS"
+id = "REPLACE_WITH_FLAGS_KV_ID"
+
+[vars]
+CF_ACCOUNT_ID = "REPLACE_WITH_ACCOUNT_ID"
+# Trip / clear thresholds as a fraction of the monthly free allowance.
+R2_CLASS_A_FREE = "1000000"
+R2_CLASS_B_FREE = "10000000"
+R2_STORAGE_FREE_GB = "10"
+TRIP_FRACTION = "0.95"
+WARN_FRACTION = "0.80"

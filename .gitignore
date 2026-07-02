@@ -51,6 +51,17 @@ docs/developer/.vitepress/dist
 __pycache__/
 *.pyc
 
+# Dev-only local asset drop-in folder (served by scripts/vite-local-assets.mjs)
+local-assets/
+
+# Scraped CC0/CC-BY/PD asset corpus (dev-only, not shipped)
+scraped_assets/
+
 # Desktop packaging output (electron-builder) + generated build resources (icon)
 release/
 build/
+
+# Cloudflare / Wrangler local state + secrets
+.wrangler/
+.dev.vars
+workers/**/.wrangler/

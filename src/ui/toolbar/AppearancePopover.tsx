@@ -33,6 +33,9 @@ export function AppearanceControls() {
   const setModePref = useStore((s) => s.setModePref)
   const uiMode = useStore((s) => s.uiMode)
   const setUiMode = useStore((s) => s.setUiMode)
+  const density = useStore((s) => s.density)
+  const setDensity = useStore((s) => s.setDensity)
+  const densityModeOn = useFeature('densityMode')
   const currentUser = useStore((s) => s.currentUser)
   const isMobile = useIsMobile()
 
@@ -118,6 +121,30 @@ export function AppearanceControls() {
           ? 'Essentials only — design tools, analysis & the floor-plan editor are hidden.'
           : 'Every feature, including analysis tools and the floor-plan editor.'}
       </p>
+
+      {densityModeOn ? (
+        <>
+          <div className="pop-label" style={{ marginTop: 10 }}>
+            Density
+          </div>
+          <div className="seg accent appe-mode">
+            <button
+              type="button"
+              className={density === 'comfortable' ? 'on' : ''}
+              onClick={() => setDensity('comfortable')}
+            >
+              Comfortable
+            </button>
+            <button
+              type="button"
+              className={density === 'compact' ? 'on' : ''}
+              onClick={() => setDensity('compact')}
+            >
+              Compact
+            </button>
+          </div>
+        </>
+      ) : null}
 
       {/* Walk-mode camera settings (field of view + eye height) — self-gates to
           first-person mode, so it only appears here while walking. */}

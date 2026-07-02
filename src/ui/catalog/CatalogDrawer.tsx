@@ -1,16 +1,20 @@
 import { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { hasBackend } from '../../features/api/client'
 import { useFeature } from '../../features/useFeature'
+import { FURNITURE_CATEGORIES } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { lazyWithRetry } from '../app/lazyWithRetry'
-import { Select } from '../controls/Select'
+import { Button } from '../controls/Button'
 import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
+import { useAmbientFx } from '../useAmbientFx'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalogBrowse'
 import { LayersPanel } from './LayersPanel'
 import { RemoteCard } from './RemoteCard'
 import { clearRecent, loadRecent, pushRecent } from './recentSearches'
+import { SharedCard } from './SharedCard'
 import { StampBanner } from './StampBanner'
 import { fuzzySearchSmart, matchedIntents } from './searchSynonyms'
 
@@ -34,9 +38,9 @@ const PAGE_SIZE = 12
 
 /** Text fields a card is searched over (local def vs. remote CC0 entry). */
 function gridItemText(it: GridItem): string[] {
-  return it.kind === 'local'
-    ? [it.def.name, ...(it.def.keywords ?? [])]
-    : [it.entry.name, it.entry.slug, ...(it.entry.tags ?? [])]
+  if (it.kind === 'local') return [it.def.name, ...(it.def.keywords ?? [])]
+  if (it.kind === 'remote') return [it.entry.name, it.entry.slug, ...(it.entry.tags ?? [])]
+  return [it.item.name, it.item.type, it.item.series]
 }
 
 // Remember the last browsed category + sort across reloads (per device), so a
@@ -93,9 +97,19 @@ export function CatalogDrawer() {
   // Materials browse (FinishPicker) shares the same provider index, so the drawer
   // still bootstraps it when only the material browser is enabled.
   const fRemoteMaterials = useFeature('remoteMaterials')
+  // Shared R2 library cards (signed-in users) merge into the grid behind the
+  // `sharedLibrary` (pro) flag; bootstrap fetches the manifest once on open.
+  const fSharedLibrary = useFeature('sharedLibrary')
+  const bootstrapShared = useStore((s) => s.bootstrapSharedLibrary)
   // Price displays/filters are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
-  const unified = useUnifiedCatalog(fRemoteFurniture)
+  const ambientFx = useAmbientFx()
+  const unified = useUnifiedCatalog(fRemoteFurniture, fSharedLibrary)
+  // The real category to land on from a "Browse all" CTA (favourites/recent/
+  // empty-category empty states) — the first real category that actually has
+  // cards, so the CTA never lands on another empty tab.
+  const firstBrowsableCategory =
+    FURNITURE_CATEGORIES.find((c) => (unified.counts[c] ?? 0) > 0) ?? 'seating'
   const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
   const [mode, setMode] = useState<Mode>('catalog')
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -131,6 +145,19 @@ export function CatalogDrawer() {
     [dq, unified, active, fFavourites, priceOn, sortBy],
   )
 
+  const sortOptions = useMemo(
+    () =>
+      (Object.keys(SORT_LABEL) as SortKey[])
+        .filter((k) => priceOn || k !== 'price')
+        .map((k) => ({ value: k, label: SORT_LABEL[k] })),
+    [priceOn],
+  )
+  const categorySortable =
+    !dq &&
+    active !== 'favourites' &&
+    active !== 'recent' &&
+    (unified.byCategory[active]?.length ?? 0) > 1
+
   useEffect(() => {
     // Don't fetch the remote model/material index when both browse surfaces are
     // off (e.g. Simple mode forces `remoteFurniture` off; with materials also off
@@ -138,6 +165,12 @@ export function CatalogDrawer() {
     if (open && phStatus === 'idle' && (fRemoteFurniture || fRemoteMaterials))
       void bootstrapRemote()
   }, [open, phStatus, bootstrapRemote, fRemoteFurniture, fRemoteMaterials])
+
+  // Fetch the shared R2 library manifest once when the catalog opens for a
+  // signed-in user with the flag on (the slice self-guards the actual fetch).
+  useEffect(() => {
+    if (open && fSharedLibrary && hasBackend()) void bootstrapShared()
+  }, [open, fSharedLibrary, bootstrapShared])
 
   // Persist the browse category + sort (best-effort) so the drawer reopens where
   // the user left off.
@@ -189,16 +222,34 @@ export function CatalogDrawer() {
     }
   }
 
-  const renderCard = (it: GridItem) =>
-    it.kind === 'local' ? (
-      <CatalogCard
+  const renderCard = (it: GridItem, staggerIndex: number) => {
+    if (it.kind === 'local')
+      return (
+        <CatalogCard
+          key={gridItemId(it)}
+          def={it.def}
+          staggerIndex={staggerIndex}
+          onDelete={() => removeUserFurniture(it.def.id)}
+        />
+      )
+    if (it.kind === 'remote')
+      return (
+        <RemoteCard
+          key={gridItemId(it)}
+          entry={it.entry}
+          staggerIndex={staggerIndex}
+          onResolved={(id) => setActiveDefId(id)}
+        />
+      )
+    return (
+      <SharedCard
         key={gridItemId(it)}
-        def={it.def}
-        onDelete={() => removeUserFurniture(it.def.id)}
+        item={it.item}
+        staggerIndex={staggerIndex}
+        onResolved={(id) => setActiveDefId(id)}
       />
-    ) : (
-      <RemoteCard key={gridItemId(it)} entry={it.entry} onResolved={(id) => setActiveDefId(id)} />
     )
+  }
 
   // Roving arrow-key navigation across the card grid. Column count is read from
   // the live layout (cards sharing the first row's offsetTop) so it adapts to
@@ -216,6 +267,20 @@ export function CatalogDrawer() {
       e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? cols : -cols
     const next = idx + delta
     if (next >= 0 && next < cells.length) cells[next].focus()
+  }
+
+  // Mouse-follow radial gradient on catalog cards (P7, gated by useAmbientFx).
+  // Event-driven — no continuous animation, so no IntersectionObserver needed:
+  // when the gate is off the vars are never written and the gradient stays at
+  // its inert `--mx/--my: 50%` default. The values are computed at runtime, so
+  // there are no inline px literals.
+  const onGridPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!ambientFx) return
+    const card = (e.target as HTMLElement).closest<HTMLElement>('.cat-card')
+    if (!card) return
+    const r = card.getBoundingClientRect()
+    card.style.setProperty('--mx', `${e.clientX - r.left}px`)
+    card.style.setProperty('--my', `${e.clientY - r.top}px`)
   }
 
   return (
@@ -350,55 +415,37 @@ export function CatalogDrawer() {
               favCount={unified.favourites.length}
               recentCount={unified.recent.length}
               favEnabled={fFavourites}
+              sort={
+                categorySortable
+                  ? {
+                      value: sortBy,
+                      onChange: (v) => {
+                        setSortBy(v)
+                        setPage(0)
+                      },
+                      options: sortOptions,
+                    }
+                  : undefined
+              }
             />
           )}
-          {!q &&
-          active !== 'favourites' &&
-          active !== 'recent' &&
-          (unified.byCategory[active]?.length ?? 0) > 1 ? (
-            <div
-              className="cat-sort"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '0 var(--s-4) var(--s-2)',
-                fontSize: 'var(--t-2xs)',
-                color: 'var(--text-3)',
-              }}
-            >
-              <span>Sort</span>
-              <Select
-                value={sortBy}
-                ariaLabel="Sort catalog"
-                onChange={(v) => {
-                  setSortBy(v as SortKey)
+          {!q && categorySortable && priceOn ? (
+            <div className="cat-sort">
+              <span className="cat-sort-label">Max&nbsp;$</span>
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={maxPrice}
+                aria-label="Maximum price (SGD)"
+                placeholder="any"
+                onChange={(e) => {
+                  setMaxPrice(e.target.value)
                   setPage(0)
                 }}
-                className="input"
-                style={{ flex: 1, height: 28, padding: '0 6px' }}
-                options={(Object.keys(SORT_LABEL) as SortKey[])
-                  .filter((k) => priceOn || k !== 'price')
-                  .map((k) => ({ value: k, label: SORT_LABEL[k] }))}
+                className="input mono cat-sort-price"
               />
-              {priceOn ? <span style={{ marginLeft: 4 }}>Max&nbsp;$</span> : null}
-              {priceOn ? (
-                <input
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={maxPrice}
-                  aria-label="Maximum price (SGD)"
-                  placeholder="any"
-                  onChange={(e) => {
-                    setMaxPrice(e.target.value)
-                    setPage(0)
-                  }}
-                  className="input mono"
-                  style={{ width: 64, height: 28, padding: '0 6px' }}
-                />
-              ) : null}
-              {priceOn && maxPrice.trim() !== '' ? (
+              {maxPrice.trim() !== '' ? (
                 <button
                   type="button"
                   aria-label="Clear max price"
@@ -407,8 +454,7 @@ export function CatalogDrawer() {
                     setMaxPrice('')
                     setPage(0)
                   }}
-                  className="icon-btn"
-                  style={{ width: 24, height: 24, flex: 'none' }}
+                  className="icon-btn cat-sort-clear"
                 >
                   <Icon.Close width={12} height={12} />
                 </button>
@@ -420,7 +466,11 @@ export function CatalogDrawer() {
               Showing {matchedIntents(query).join(' & ')} furniture
             </div>
           ) : null}
-          <div className="card-grid" onKeyDown={onGridKeyDown}>
+          <div
+            className={`card-grid stagger-in${ambientFx ? ' fx' : ''}`}
+            onKeyDown={onGridKeyDown}
+            onPointerMove={onGridPointerMove}
+          >
             {cards.length === 0 ? (
               q ? (
                 <EmptyState
@@ -436,6 +486,10 @@ export function CatalogDrawer() {
                   icon={Icon.Heart}
                   title="No favourites yet"
                   description="Tap the heart on any card to save it here for quick access."
+                  cta={{
+                    label: 'Browse all',
+                    onClick: () => selectCategory(firstBrowsableCategory),
+                  }}
                 />
               ) : active === 'recent' ? (
                 <EmptyState
@@ -443,6 +497,10 @@ export function CatalogDrawer() {
                   icon={Icon.Time}
                   title="Nothing placed yet"
                   description="Items you add appear here for quick reuse."
+                  cta={{
+                    label: 'Browse all',
+                    onClick: () => selectCategory(firstBrowsableCategory),
+                  }}
                 />
               ) : maxPrice.trim() && baseCards.length > 0 ? (
                 <EmptyState
@@ -464,10 +522,14 @@ export function CatalogDrawer() {
                   icon={Icon.Catalog}
                   title="No items here yet"
                   description="This category is empty — try another tab."
+                  cta={{
+                    label: 'Browse all',
+                    onClick: () => selectCategory(firstBrowsableCategory),
+                  }}
                 />
               )
             ) : (
-              cards.map(renderCard)
+              cards.map((it, i) => renderCard(it, i))
             )}
           </div>
           {pageCount > 1 ? (
@@ -495,36 +557,36 @@ export function CatalogDrawer() {
           <div className="cat-foot">
             <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
               {fParametric ? (
-                <button
-                  type="button"
+                <Button
+                  variant="soft"
+                  size="sm"
                   onClick={() => setParametricOpen(true)}
-                  className="btn btn-soft btn-sm"
                   title="Generate a shelf / wardrobe / sideboard to exact dimensions"
+                  icon={<Icon.Measure width={14} height={14} />}
                 >
-                  <Icon.Measure width={14} height={14} />
                   Custom size
-                </button>
+                </Button>
               ) : null}
               {isPro ? (
-                <button
-                  type="button"
+                <Button
+                  variant="soft"
+                  size="sm"
                   onClick={() => setGlbDesignerOpen(true)}
-                  className="btn btn-soft btn-sm"
                   title="Design or edit a custom 3D asset"
+                  icon={<Icon.Cube width={14} height={14} />}
                 >
-                  <Icon.Cube width={14} height={14} />
                   Design
-                </button>
+                </Button>
               ) : null}
               {fUpload ? (
-                <button
-                  type="button"
+                <Button
+                  variant="soft"
+                  size="sm"
                   onClick={() => setUploadOpen(true)}
-                  className="btn btn-soft btn-sm"
+                  icon={<Icon.Upload width={14} height={14} />}
                 >
-                  <Icon.Upload width={14} height={14} />
                   Upload
-                </button>
+                </Button>
               ) : null}
             </div>
           </div>

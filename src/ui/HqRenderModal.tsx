@@ -9,8 +9,10 @@ import {
 import type { HqRenderSession } from '../scene/pathtrace/hqRenderSession'
 import { getHqRenderSource } from '../scene/pathtrace/hqRenderSource'
 import { useStore } from '../state/store'
+import { Button } from './controls/Button'
 import { Select } from './controls/Select'
 import { Modal } from './Modal'
+import { useAmbientFx } from './useAmbientFx'
 
 const RESOLUTIONS = [
   // Dev-only tiny size so the headless software-GL harness can exercise the
@@ -72,6 +74,8 @@ export function HqRenderModal() {
   const [phase, setPhase] = useState<'idle' | 'building' | 'rendering' | 'done' | 'error'>('idle')
   const sessionRef = useRef<HqRenderSession | null>(null)
   const hostRef = useRef<HTMLDivElement>(null)
+  const beamRef = useRef<HTMLSpanElement>(null)
+  const ambientFx = useAmbientFx()
 
   const teardown = useCallback(() => {
     sessionRef.current?.dispose()
@@ -153,6 +157,19 @@ export function HqRenderModal() {
 
   const busy = phase === 'building' || phase === 'rendering'
   const dofOn = dofFStop > 0
+  // The border-beam animates continuously, so mount it only while busy + gated,
+  // and IntersectionObserver-pause it (`.paused`) whenever it scrolls off-screen
+  // (modal scroll / small viewport) so an off-screen decoration costs no frames.
+  const beamOn = busy && ambientFx
+  useEffect(() => {
+    const el = beamRef.current
+    if (!beamOn || !el || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(([entry]) => {
+      el.classList.toggle('paused', !entry.isIntersecting)
+    })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [beamOn])
 
   return (
     <Modal
@@ -263,9 +280,9 @@ export function HqRenderModal() {
                 Stop
               </button>
             ) : (
-              <button type="button" className="btn" onClick={start} disabled={phase === 'building'}>
+              <Button loading={phase === 'building'} onClick={start}>
                 {phase === 'done' || phase === 'error' ? 'Re-render' : 'Start render'}
-              </button>
+              </Button>
             )}
             <button
               type="button"
@@ -290,6 +307,7 @@ export function HqRenderModal() {
         }}
       >
         <div ref={hostRef} style={{ position: 'absolute', inset: 0 }} />
+        {beamOn ? <span ref={beamRef} className="beam" aria-hidden="true" /> : null}
         {phase !== 'rendering' && phase !== 'done' ? (
           <div
             className="panel-sub"

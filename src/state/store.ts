@@ -10,6 +10,8 @@ import {
   createAppearanceSlice,
 } from './slices/appearanceSlice'
 import { AUTH_INITIAL, type AuthSlice, createAuthSlice } from './slices/authSlice'
+import { BADGES_INITIAL, type BadgesSlice, createBadgesSlice } from './slices/badgesSlice'
+import { CALLOUTS_INITIAL, type CalloutsSlice, createCalloutsSlice } from './slices/calloutsSlice'
 import { CAMERA_INITIAL, type CameraSlice, createCameraSlice } from './slices/cameraSlice'
 import {
   CAMERA_VIEWS_INITIAL,
@@ -58,6 +60,11 @@ import {
   type InstalledPacksSlice,
 } from './slices/installedPacksSlice'
 import { createItemsSlice, ITEMS_INITIAL, type ItemsSlice } from './slices/itemsSlice'
+import {
+  createLocalAssetsSlice,
+  LOCAL_ASSETS_INITIAL,
+  type LocalAssetsSlice,
+} from './slices/localAssetsSlice'
 import { createLocationSlice, LOCATION_INITIAL, type LocationSlice } from './slices/locationSlice'
 import {
   createMeasurementsSlice,
@@ -110,6 +117,11 @@ import {
   type SelectionSlice,
 } from './slices/selectionSlice'
 import {
+  createSharedLibrarySlice,
+  SHARED_LIBRARY_INITIAL,
+  type SharedLibrarySlice,
+} from './slices/sharedLibrarySlice'
+import {
   createStyleClipboardSlice,
   STYLE_CLIPBOARD_INITIAL,
   type StyleClipboardSlice,
@@ -152,6 +164,8 @@ export interface RootState
     ClipboardSlice,
     HistorySlice,
     RemoteCatalogSlice,
+    SharedLibrarySlice,
+    LocalAssetsSlice,
     OrientationSlice,
     NotificationsSlice,
     InstalledPacksSlice,
@@ -162,6 +176,8 @@ export interface RootState
     UserSetsSlice,
     UserStylesSlice,
     RecentSlice,
+    CalloutsSlice,
+    BadgesSlice,
     FavouritesSlice,
     SavedMaterialsSlice,
     ColorPaletteSlice,
@@ -193,6 +209,8 @@ const INITIAL = {
   ...CLIPBOARD_INITIAL,
   ...HISTORY_INITIAL,
   ...REMOTE_CATALOG_INITIAL,
+  ...SHARED_LIBRARY_INITIAL,
+  ...LOCAL_ASSETS_INITIAL,
   ...ORIENTATION_INITIAL,
   ...NOTIFICATIONS_INITIAL,
   ...INSTALLED_PACKS_INITIAL,
@@ -203,6 +221,8 @@ const INITIAL = {
   ...AUTH_INITIAL,
   ...USER_STYLES_INITIAL,
   ...RECENT_INITIAL,
+  ...CALLOUTS_INITIAL,
+  ...BADGES_INITIAL,
   ...FAVOURITES_INITIAL,
   ...SAVED_MATERIALS_INITIAL,
   ...COLOR_PALETTE_INITIAL,
@@ -236,6 +256,8 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createClipboardSlice(set, get, api),
   ...createHistorySlice(set, get, api),
   ...createRemoteCatalogSlice(set, get, api),
+  ...createSharedLibrarySlice(set, get, api),
+  ...createLocalAssetsSlice(set, get, api),
   ...createOrientationSlice(set, get, api),
   ...createNotificationsSlice(set, get, api),
   ...createInstalledPacksSlice(set, get, api),
@@ -245,6 +267,8 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createFeatureFlagsSlice(set, get, api),
   ...createAuthSlice(set, get, api),
   ...createRecentSlice(set, get, api),
+  ...createCalloutsSlice(set, get, api),
+  ...createBadgesSlice(set, get, api),
   ...createFavouritesSlice(set, get, api),
   ...createSavedMaterialsSlice(set, get, api),
   ...createColorPaletteSlice(set, get, api),

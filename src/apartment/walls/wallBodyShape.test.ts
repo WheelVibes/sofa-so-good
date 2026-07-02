@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WallSpec } from '../types'
-import { buildWallBodyOutline } from './wallBodyShape'
+import { buildWallBodyOutline, OPENING_CLEARANCE, wallBodyOutlineFromSpans } from './wallBodyShape'
 
 const wall = (cutouts: WallSpec['cutouts']): WallSpec => ({
   id: 'w',
@@ -90,5 +90,89 @@ describe('buildWallBodyOutline', () => {
     )
     expect(holes).toHaveLength(1)
     expect(holes[0][2][1]).toBe(2.6) // top clamped to wall top
+  })
+})
+
+describe('wallBodyOutlineFromSpans', () => {
+  it('carves a door span as a bottom notch and a window span as a hole', () => {
+    const { outline, holes } = wallBodyOutlineFromSpans(
+      [
+        { a: -0.5, b: 0.5, bottom: 0, top: 2.1 }, // door (reaches floor)
+        { a: 1, b: 1.8, bottom: 0.9, top: 2.1 }, // window (floating)
+      ],
+      -2,
+      2,
+      2.6,
+    )
+    expect(outline).toEqual([
+      [-2, 0],
+      [-0.5, 0],
+      [-0.5, 2.1],
+      [0.5, 2.1],
+      [0.5, 0],
+      [2, 0],
+      [2, 2.6],
+      [-2, 2.6],
+    ])
+    expect(holes).toEqual([
+      [
+        [1, 0.9],
+        [1.8, 0.9],
+        [1.8, 2.1],
+        [1, 2.1],
+      ],
+    ])
+  })
+
+  it('shrinks each cutout inward by the clearance (kills leaf/jamb coplanarity)', () => {
+    const c = OPENING_CLEARANCE
+    const { outline, holes } = wallBodyOutlineFromSpans(
+      [
+        { a: -0.5, b: 0.5, bottom: 0, top: 2.1 }, // door: keeps floor at 0
+        { a: 1, b: 1.8, bottom: 0.9, top: 2.1 }, // window: sill pulls in too
+      ],
+      -2,
+      2,
+      2.6,
+      c,
+    )
+    // Door notch is narrower and shorter, but still reaches the floor (y=0).
+    expect(outline).toEqual([
+      [-2, 0],
+      [-0.5 + c, 0],
+      [-0.5 + c, 2.1 - c],
+      [0.5 - c, 2.1 - c],
+      [0.5 - c, 0],
+      [2, 0],
+      [2, 2.6],
+      [-2, 2.6],
+    ])
+    // Window hole inset on all four edges.
+    expect(holes).toEqual([
+      [
+        [1 + c, 0.9 + c],
+        [1.8 - c, 0.9 + c],
+        [1.8 - c, 2.1 - c],
+        [1 + c, 2.1 - c],
+      ],
+    ])
+  })
+
+  it('clamps spans to the outer edges and drops ones outside the clip', () => {
+    // A span entirely to the right of the clip (a shared wall's far-room opening)
+    // is clamped to b <= a and dropped, leaving a plain rectangle.
+    const { outline, holes } = wallBodyOutlineFromSpans(
+      [{ a: 3, b: 4, bottom: 0, top: 2.1 }],
+      -2,
+      2,
+      2.6,
+    )
+    expect(holes).toEqual([])
+    expect(outline).toEqual([
+      [-2, 0],
+      [2, 0],
+      [2, 2.6],
+      [-2, 2.6],
+    ])
   })
 })

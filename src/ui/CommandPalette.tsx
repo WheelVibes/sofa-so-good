@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { requestAutoLayout } from '../ai/autoLayoutAi'
 import {
@@ -36,6 +36,7 @@ import { downloadRoomScheduleCsv } from './openRoomScheduleCsv'
 import { exportScene3d } from './openSceneExport'
 import { openSh3dImport } from './openSh3dImport'
 import { openShoppingList } from './openShoplist'
+import { ProUpsellHint } from './ProUpsellHint'
 import { pickPaletteFromPhoto } from './paletteFromPhoto'
 import { Icon, type IconName } from './toolbar/icons'
 
@@ -793,8 +794,22 @@ export function CommandPalette() {
             <div className="cmdk-empty">No commands match “{query.trim()}”.</div>
           ) : (
             groups.map((g) => (
-              <div key={g.label}>
-                <div className="cmdk-glabel">{g.label}</div>
+              // `stagger-in` lives HERE (not on `.cmdk-results`) so each
+              // `.cmdk-glabel`/`.cmdk-item` below is a direct child: the
+              // `.stagger-in > *` rule (components.css) only animates direct
+              // children, and each item's inline `--i` (the flat index across
+              // all groups) then drives one continuous cascade across the whole
+              // list (labels included) instead of animating group wrappers.
+              <div key={g.label} className="stagger-in">
+                {/* The label takes the group's first flat index so it enters in
+                    sequence with the items around it (a bare glabel would fall
+                    back to nth-child --i:0 and race earlier groups' items). */}
+                <div
+                  className="cmdk-glabel"
+                  style={{ '--i': g.items[0]?.index ?? 0 } as CSSProperties}
+                >
+                  {g.label}
+                </div>
                 {g.items.map(({ cmd, index }) => {
                   const Glyph = Icon[cmd.icon]
                   // Contextual docs "?" (DOCS-DEEPLINK): map the command to a
@@ -812,6 +827,7 @@ export function CommandPalette() {
                       type="button"
                       key={cmd.id}
                       className={`cmdk-item${index === active ? ' active' : ''}`}
+                      style={{ '--i': index } as CSSProperties}
                       onMouseEnter={() => setActive(index)}
                       onClick={() => cmd.run()}
                     >
@@ -854,16 +870,19 @@ export function CommandPalette() {
           )}
         </div>
         <div className="cmdk-foot">
-          <span>
-            <kbd>↑</kbd>
-            <kbd>↓</kbd> navigate
-          </span>
-          <span>
-            <kbd>↵</kbd> run
-          </span>
-          <span>
-            <kbd>esc</kbd> close
-          </span>
+          <ProUpsellHint />
+          <div className="cmdk-foot-hints">
+            <span>
+              <kbd>↑</kbd>
+              <kbd>↓</kbd> navigate
+            </span>
+            <span>
+              <kbd>↵</kbd> run
+            </span>
+            <span>
+              <kbd>esc</kbd> close
+            </span>
+          </div>
         </div>
       </div>
     </div>,

@@ -14,6 +14,7 @@ import {
 import { proceduralThumbnailDataUrl } from '../../materials/procedural/generators'
 import type { MaterialDef, ProceduralPattern } from '../../materials/types'
 import { ColorPicker } from '../controls/ColorPicker'
+import { Disclosure } from '../controls/Disclosure'
 import { Select } from '../controls/Select'
 
 /**
@@ -126,8 +127,7 @@ export function MaterialComposer({
     : 'Save material'
 
   return (
-    <details className="compose">
-      <summary className="compose-summary">Compose your own…</summary>
+    <Disclosure summary="Compose your own…">
       <div
         style={{
           display: 'flex',
@@ -279,6 +279,6 @@ export function MaterialComposer({
           </button>
         </div>
       ) : null}
-    </details>
+    </Disclosure>
   )
 }

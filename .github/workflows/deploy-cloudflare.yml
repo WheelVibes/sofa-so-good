@@ -1,0 +1,53 @@
+name: Deploy to Cloudflare Pages
+
+# Builds the full-featured Cloudflare bundle (VITE_API_BASE=/api → accounts +
+# cloud sync) and deploys it to the `sofa-so-good` Pages project. Pushes to main
+# publish production (sofa-so-good.pages.dev); other branches get preview URLs.
+# The separate GitHub Pages workflow (deploy.yml) still ships the offline demo.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+# One Cloudflare deploy at a time; let an in-progress publish finish.
+concurrency:
+  group: cloudflare-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build + Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Match ci.yml / deploy.yml (node 24 / npm 11) so `npm ci` resolves
+          # the lockfile the same way it was authored.
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci
+
+      # VITE_API_BASE=/api turns on the backend (hasBackend()); VITE_BASE=/
+      # serves at the site root (GitHub Pages uses /sofa-so-good/).
+      - name: Build (Cloudflare — backend enabled)
+        run: npm run build
+        env:
+          VITE_API_BASE: /api
+          VITE_BASE: /
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
+
+      # --branch=main forces a production deploy (not a branch preview) so pushes
+      # land on sofa-so-good.pages.dev. functions/ + wrangler.toml bindings
+      # (D1/KV/R2) and project secrets are picked up by Cloudflare automatically.
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=sofa-so-good --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

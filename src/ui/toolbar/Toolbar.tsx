@@ -152,13 +152,17 @@ export function Toolbar() {
               label="Undo"
               shortcut={shortcutLabel('undo')}
               active={false}
-              onClick={canUndo ? undo : undefined}
+              disabled={!canUndo}
+              disabledReason="Nothing to undo"
+              onClick={undo}
             />
             <IconButton
               icon="Redo"
               label="Redo"
               shortcut={shortcutLabel('redo')}
-              onClick={canRedo ? redo : undefined}
+              disabled={!canRedo}
+              disabledReason="Nothing to redo"
+              onClick={redo}
             />
             <IconButton
               icon="Snap"

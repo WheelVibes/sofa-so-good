@@ -9,28 +9,29 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="description" content="A realistic, interactive 3D interior-design app for Singapore HDB flats and condominiums." />
+    <meta name="description" content="Plan your HDB or condo in 3D before renovation day — accurate Singapore floor plans, furnish &amp; finish every room, then walk through in first person. Free in your browser." />
     <!-- Browser/OS chrome tint — matches the Clay palette light/dark surfaces. -->
     <meta name="theme-color" content="#ecdfce" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#251f1b" media="(prefers-color-scheme: dark)" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Sofa So Good" />
     <!-- Social sharing previews (the app has a Share feature). -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Sofa So Good" />
-    <meta property="og:title" content="Sofa So Good — 3D Interior Designer for HDBs & Condos" />
+    <meta property="og:title" content="Sofa So Good — See Your Singapore Flat in 3D Before Renovation Day" />
     <meta
       property="og:description"
-      content="Design Singapore homes — HDB flats and condominiums — in 3D: furnish them, finish surfaces, light them across the day, and walk through the result."
+      content="Your HDB or condo, furnished and finished in 3D — before a single tile goes down. Pick a real floor plan, drag in furniture, set daylight, and walk through in first person. Free in your browser."
     />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Sofa So Good — 3D Interior Designer for HDBs & Condos" />
+    <meta name="twitter:title" content="Sofa So Good — See Your Singapore Flat in 3D Before Renovation Day" />
     <meta
       name="twitter:description"
-      content="Design Singapore HDB flats and condominiums in 3D — furnish, finish, light, and walk through it."
+      content="See your Singapore flat in 3D before reno day — real HDB &amp; condo floor plans, furnish every room, walk through in first person. Free in your browser."
     />
-    <title>Sofa So Good — 3D Interior Designer for HDBs & Condos</title>
+    <title>Sofa So Good — Free 3D Interior Design for Singapore HDB Flats &amp; Condos</title>
     <script>
       // Apply the persisted appearance before first paint to avoid a flash of
       // the default theme. Mirrors the store's appearance slice + storage key.
@@ -54,10 +55,12 @@
       })()
     </script>
     <!-- Static boot loader: paints on first HTML parse (before the JS bundle
-         loads) so there's never a blank/lagging gap. React's own LoadingOverlay
-         looks identical and takes over once it mounts (App removes this node).
-         Colours are hardcoded (the design-token CSS isn't loaded yet) to the
-         Clay palette, with a dark-mode variant. -->
+         loads). Animates through hydration AND Canvas warm-up, then fades out
+         on reveal. Every animated piece is an HTML div layer holding a static
+         SVG — never an animated SVG child — so the browser composites the
+         animation off the main thread and heavy boot work can't stutter it
+         (guarded by src/ui/loading/bootLoaderArt.test.ts; same rule as
+         LoadingOverlay.tsx). -->
     <style>
       #boot-loader {
         position: fixed;
@@ -75,7 +78,15 @@
         background: radial-gradient(120% 90% at 50% 30%, #36302a, #251f1b 75%);
       }
       #boot-loader .bl-art {
-        filter: drop-shadow(0 6px 14px rgba(120, 100, 70, 0.18));
+        position: relative;
+        width: 200px;
+        height: 160px;
+        will-change: transform;
+        animation: bl-bob 3.6s ease-in-out infinite;
+      }
+      #boot-loader .bl-layer {
+        position: absolute;
+        inset: 0;
       }
       #boot-loader .bl-stroke {
         stroke: #6f6453;
@@ -108,33 +119,49 @@
         font-size: 0.95rem;
         color: #8a7d68;
       }
+      #boot-loader .bl-sub .cycling-phrase {
+        display: inline-block;
+        min-height: 1.35em;
+      }
       [data-mode='dark'] #boot-loader .bl-title {
         color: #ece6dc;
       }
       [data-mode='dark'] #boot-loader .bl-sub {
         color: #9a8f7e;
       }
-      @keyframes bl-shell-cycle {
-        0% { stroke-dashoffset: var(--len); }
-        14% { stroke-dashoffset: 0; }
-        86% { stroke-dashoffset: 0; }
-        100% { stroke-dashoffset: var(--len); }
+      @keyframes bl-fade-cycle {
+        0% { opacity: 0; transform: scale(0.97); }
+        14% { opacity: 1; transform: scale(1); }
+        86% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(0.97); }
+      }
+      @keyframes bl-bob {
+        0%, 100% { transform: translateY(-5px); }
+        50% { transform: translateY(5px); }
       }
       @keyframes bl-pop-in {
         0%, 8% { opacity: 0; transform: translateY(6px) scale(0.92); }
         18%, 86% { opacity: 1; transform: translateY(0) scale(1); }
         100% { opacity: 0; transform: translateY(6px) scale(0.92); }
       }
-      #boot-loader .bl-draw { animation: bl-shell-cycle 4s ease-in-out infinite; }
-      #boot-loader .bl-shell { --len: 540; stroke-dasharray: var(--len); stroke-dashoffset: var(--len); }
-      #boot-loader .bl-floor { --len: 160; stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation-delay: 0.15s; }
-      #boot-loader .bl-pop { transform-box: fill-box; transform-origin: center; animation: bl-pop-in 4s ease-in-out infinite; }
+      #boot-loader .bl-draw {
+        will-change: opacity, transform;
+        animation: bl-fade-cycle 4s ease-in-out infinite;
+      }
+      #boot-loader .bl-floor { animation-delay: 0.15s; }
+      #boot-loader .bl-pop { will-change: opacity, transform; animation: bl-pop-in 4s ease-in-out infinite; }
       #boot-loader .bl-pop-1 { animation-delay: 0.6s; }
       #boot-loader .bl-pop-2 { animation-delay: 0.9s; }
       #boot-loader .bl-pop-3 { animation-delay: 1.2s; }
       #boot-loader .bl-pop-4 { animation-delay: 1.5s; }
+      #boot-loader.bl-fade-out {
+        transition: opacity 250ms ease;
+        opacity: 0;
+        pointer-events: none;
+      }
       @media (prefers-reduced-motion: reduce) {
-        #boot-loader .bl-draw { animation: none; stroke-dashoffset: 0; }
+        #boot-loader .bl-art { animation: none; transform: none; }
+        #boot-loader .bl-draw { animation: none; opacity: 1; transform: none; }
         #boot-loader .bl-pop { animation: none; opacity: 1; }
       }
     </style>
@@ -142,35 +169,60 @@
   <body>
     <div id="root"></div>
     <div id="boot-loader" role="status" aria-label="Loading Sofa So Good">
-      <svg class="bl-art" width="200" height="160" viewBox="0 0 200 160" fill="none" aria-hidden="true">
-        <g class="bl-stroke" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none">
-          <path class="bl-draw bl-shell" d="M20 30 H180 V140 H20 Z" />
-          <path class="bl-draw bl-floor" d="M20 110 H180" opacity="0.5" />
-        </g>
-        <g class="bl-fill" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <g class="bl-pop bl-pop-1">
-            <rect x="30" y="96" width="46" height="20" rx="4" />
-            <rect x="28" y="86" width="50" height="14" rx="4" />
-          </g>
-          <g class="bl-pop bl-pop-2">
-            <rect x="92" y="116" width="34" height="9" rx="2" />
-            <path d="M96 125 V132 M122 125 V132" fill="none" />
-          </g>
-          <g class="bl-pop bl-pop-3" fill="none">
-            <path d="M156 132 V70" />
-            <path class="bl-shade" d="M148 70 H164 L160 56 H152 Z" />
-          </g>
-          <g class="bl-pop bl-pop-4">
-            <path d="M127 96 h16 l-2 14 h-12 z" />
-            <path d="M135 96 C129 84 127 78 131 70 M135 96 C141 84 143 80 139 72 M135 96 V80" fill="none" />
-          </g>
-        </g>
-      </svg>
+      <div class="bl-art" aria-hidden="true">
+        <div class="bl-layer bl-draw bl-shell" style="transform-origin: 100px 85px">
+          <svg width="200" height="160" viewBox="0 0 200 160" fill="none">
+            <g class="bl-stroke" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <path d="M20 30 H180 V140 H20 Z" />
+            </g>
+          </svg>
+        </div>
+        <div class="bl-layer bl-draw bl-floor" style="transform-origin: 100px 110px">
+          <svg width="200" height="160" viewBox="0 0 200 160" fill="none">
+            <g class="bl-stroke" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <path d="M20 110 H180" opacity="0.5" />
+            </g>
+          </svg>
+        </div>
+        <div class="bl-layer bl-pop bl-pop-1" style="transform-origin: 53px 101px">
+          <svg width="200" height="160" viewBox="0 0 200 160" fill="none">
+            <g class="bl-fill" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="30" y="96" width="46" height="20" rx="4" />
+              <rect x="28" y="86" width="50" height="14" rx="4" />
+            </g>
+          </svg>
+        </div>
+        <div class="bl-layer bl-pop bl-pop-2" style="transform-origin: 109px 124px">
+          <svg width="200" height="160" viewBox="0 0 200 160" fill="none">
+            <g class="bl-fill" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="92" y="116" width="34" height="9" rx="2" />
+              <path d="M96 125 V132 M122 125 V132" fill="none" />
+            </g>
+          </svg>
+        </div>
+        <div class="bl-layer bl-pop bl-pop-3" style="transform-origin: 156px 94px">
+          <svg width="200" height="160" viewBox="0 0 200 160" fill="none">
+            <g class="bl-fill" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <path d="M156 132 V70" />
+              <path class="bl-shade" d="M148 70 H164 L160 56 H152 Z" />
+            </g>
+          </svg>
+        </div>
+        <div class="bl-layer bl-pop bl-pop-4" style="transform-origin: 135px 90px">
+          <svg width="200" height="160" viewBox="0 0 200 160" fill="none">
+            <g class="bl-fill" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M127 96 h16 l-2 14 h-12 z" />
+              <path d="M135 96 C129 84 127 78 131 70 M135 96 C141 84 143 80 139 72 M135 96 V80" fill="none" />
+            </g>
+          </svg>
+        </div>
+      </div>
       <div style="text-align: center; line-height: 1.5">
         <div class="bl-title">Sofa So Good</div>
-        <div class="bl-sub">Furnishing your flat…</div>
+        <div class="bl-sub"><span class="cycling-phrase">Building the walls…</span></div>
       </div>
     </div>
+    <!-- @boot-phrase-rotator@ -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

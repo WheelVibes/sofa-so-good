@@ -100,7 +100,7 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
 
   return (
     <div className="modal-overlay">
-      <div className="panel" style={{ width: 'min(420px, calc(100vw - 24px))' }}>
+      <div className="panel" style={{ width: 'var(--modal-sm)' }}>
         <div className="panel-head">
           <div>
             <div className="panel-title">Where are you?</div>
@@ -131,7 +131,7 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
             {geoBusy ? 'Locating…' : 'Use my location'}
           </button>
           {geoError ? (
-            <p style={{ fontSize: 'var(--t-xs)', color: 'var(--danger)', marginTop: 6 }}>
+            <p style={{ fontSize: 'var(--t-xs)', color: 'var(--danger)', marginTop: 'var(--s-2)' }}>
               {geoError}
             </p>
           ) : null}
@@ -151,12 +151,16 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
               />
             </div>
             {searching ? (
-              <p style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', marginTop: 6 }}>
+              <p
+                style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', marginTop: 'var(--s-2)' }}
+              >
                 Searching…
               </p>
             ) : null}
             {searchError ? (
-              <p style={{ fontSize: 'var(--t-xs)', color: 'var(--danger)', marginTop: 6 }}>
+              <p
+                style={{ fontSize: 'var(--t-xs)', color: 'var(--danger)', marginTop: 'var(--s-2)' }}
+              >
                 {searchError}
               </p>
             ) : null}
@@ -164,7 +168,7 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
               <ul
                 style={{
                   listStyle: 'none',
-                  margin: '8px 0 0',
+                  margin: 'var(--s-3) 0 0',
                   padding: 0,
                   maxHeight: 160,
                   overflowY: 'auto',
@@ -222,7 +226,9 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
               Save coordinates
             </button>
             {manualError ? (
-              <p style={{ fontSize: 'var(--t-xs)', color: 'var(--danger)', marginTop: 6 }}>
+              <p
+                style={{ fontSize: 'var(--t-xs)', color: 'var(--danger)', marginTop: 'var(--s-2)' }}
+              >
                 {manualError}
               </p>
             ) : null}

@@ -16,10 +16,10 @@
    TABLET  ≤1024
    ============================================================ */
 @media (max-width: 1024px) {
-  .catalog { width: 300px; }
-  .inspector { width: 284px; }
+  .catalog { width: var(--panel-w-compact); }
+  .inspector { width: var(--panel-w-compact); }
   .er-list { width: 224px; }
-  .er-finish { width: 296px; }
+  .er-finish { width: var(--panel-w-compact); }
   .plan-props { width: 252px; }
 
   /* shrink the nav cluster so it never crowds the inspector */
@@ -358,6 +358,10 @@ body.mobile {
      (`.lyr-geye`): opacity:0 until `.lyr-ghead-row:hover`, so on touch you can't
      turn a group hidden/locked in the first place. Show + enlarge them on mobile. */
   .lyr-geye { opacity: 1; width: 30px; height: 30px; }
+
+  /* Layers row actions (hide/lock/delete) reveal on hover/focus on desktop; touch
+     has no hover, so keep them visible on mobile (matches the .lyr-geye fix). */
+  .lyr-acts { opacity: 1; }
 
   /* ============================================================
      SCREEN: 2D Floor Plan

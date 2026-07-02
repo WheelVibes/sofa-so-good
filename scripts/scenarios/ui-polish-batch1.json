@@ -1,0 +1,62 @@
+{
+  "name": "ui-polish-batch1",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "app-loaded", "waitFor": { "css": ".toolbar" }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1') })()"
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "loading-overlay-gone", "waitFor": { "css": ".hdb-room", "visible": false }, "timeout": 60000 },
+    { "name": "settle", "wait": 2500 },
+
+    { "name": "open-edit-menu", "eval": "document.querySelector('button[aria-label=\"Edit\"]').click()" },
+    { "name": "edit-menu-open", "waitFor": { "css": ".mi-kbd" } },
+    { "name": "shot-menu-kbd-chip", "screenshot": "menu-kbd-chip" },
+    { "name": "close-edit-menu", "key": "Escape" },
+
+    { "name": "kbd-modality", "key": "Tab" },
+    { "name": "focus-a-tool-btn", "eval": "document.querySelector('.tool-btn').focus()" },
+    { "name": "focus-settle", "wait": 300 },
+    { "name": "shot-focus-ring", "screenshot": "focus-ring" },
+    { "name": "blur-tool-btn", "eval": "document.activeElement?.blur?.()" },
+
+    { "name": "enter-room-editor", "eval": "window.__store.getState().enterRoomEditor('livingDining')" },
+    {
+      "name": "seed-item-history",
+      "eval": "(() => { const s = window.__store.getState(); s.setItems([{ id: 'seed-sofa', defId: 'sofa-3seat', position: [3, 3], rotation: 0, props: {} }]); s.pushHistory() })()"
+    },
+    { "name": "undo-btn-enabled", "waitFor": { "css": "button[aria-label=\"Undo\"]:not([disabled])" } },
+
+    { "name": "kbd-modality-2", "key": "Tab" },
+    { "name": "focus-undo", "eval": "document.querySelector('button[aria-label=\"Undo\"]').focus()" },
+    { "name": "tooltip-visible", "waitFor": { "css": ".tip-box" } },
+    { "name": "shot-tooltip-shortcut", "screenshot": "tooltip-shortcut" },
+    { "name": "blur-undo", "eval": "document.activeElement?.blur?.()" },
+
+    { "name": "delete-item", "eval": "window.__store.getState().deleteItem('seed-sofa')" },
+    { "name": "toast-action-visible", "waitFor": { "css": ".toast-host .toast-act" } },
+    { "name": "shot-delete-undo-toast", "screenshot": "delete-undo-toast" },
+
+    {
+      "name": "start-progress",
+      "eval": "(() => { const s = window.__store.getState(); window.__pid = s.notify.start({ title: 'Importing…', kind: 'progress' }); s.notify.update(window.__pid, { progress: 0.42, message: '42 / 100' }) })()"
+    },
+    { "name": "progress-bar-visible", "waitFor": { "css": "[role=\"progressbar\"] .bud-seg" } },
+    { "name": "progress-settle", "wait": 400 },
+    { "name": "shot-upload-progress", "screenshot": "upload-progress" },
+    { "name": "log-progress-width", "eval": "(() => { const seg = document.querySelector('[role=\"progressbar\"] .bud-seg'); console.log('PROBE progress-width', seg && seg.style.width) })()" },
+
+    { "name": "clear-toasts", "eval": "window.__store.setState({ notifications: [] })" },
+    {
+      "name": "open-location-modal",
+      "eval": "window.__store.setState({ locationPromptDismissed: false, location: null, onboardingOpen: false, tourOpen: false })"
+    },
+    { "name": "modal-visible", "waitFor": { "css": ".modal-overlay > .panel" } },
+    { "name": "modal-settle", "wait": 400 },
+    { "name": "shot-modal-width", "screenshot": "modal-width" },
+    { "name": "log-modal-width", "eval": "(() => { const p = document.querySelector('.modal-overlay > .panel'); console.log('PROBE modal-width', p && getComputedStyle(p).width) })()" }
+  ]
+}

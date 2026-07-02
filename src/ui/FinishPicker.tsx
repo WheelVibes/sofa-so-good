@@ -27,6 +27,7 @@ import { formatArea } from '../utils/measurement'
 import { lazyWithRetry } from './app/lazyWithRetry'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
 import { MasterPaletteEditor } from './color/MasterPaletteEditor'
+import { Disclosure } from './controls/Disclosure'
 import { Select } from './controls/Select'
 import { MaterialComposer } from './finish/MaterialComposer'
 import { SwatchGroup } from './finish/swatches'
@@ -118,10 +119,15 @@ export function FinishPicker() {
     const st = useStore.getState()
     st.pushHistory()
     const n = roomItemIds.length
-    for (const id of roomItemIds) st.deleteItem(id)
+    // silent: true — the whole clear is one coalesced history step, so this
+    // single summary toast (with its own Undo) replaces the per-item "Item
+    // deleted" toasts rather than stacking alongside them.
+    for (const id of roomItemIds) st.deleteItem(id, { silent: true })
     st.notify.start({
       title: `Cleared ${n} item${n === 1 ? '' : 's'} from this room`,
       kind: 'success',
+      actionLabel: 'Undo',
+      onAction: () => useStore.getState().undo(),
     })
   }
   // Copy this room's floor + wall (+ ceiling, when set) finish to another
@@ -368,7 +374,7 @@ export function FinishPicker() {
   return (
     <aside className="panel inspector dock-panel">
       <div className="panel-head">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)', minWidth: 0 }}>
           {view === 'browse' && (
             <button
               type="button"
@@ -412,12 +418,11 @@ export function FinishPicker() {
           />
           {/* Apartment master palette + per-room override (CUSTOMIZE-MASTER-PALETTE).
               Drives the "Apartment theme" + "Recommended" rows on every picker. */}
-          <details className="compose" style={{ marginBottom: 'var(--s-3)' }}>
-            <summary className="compose-summary">Apartment colour palette…</summary>
+          <Disclosure summary="Apartment colour palette…">
             <div style={{ marginTop: 'var(--s-2)' }}>
               <MasterPaletteEditor roomId={roomId} />
             </div>
-          </details>
+          </Disclosure>
           <SwatchGroup
             label="Floor"
             items={filterFinishes(groups.floor, finishQuery)}
@@ -562,7 +567,11 @@ export function FinishPicker() {
                     {accents.length === 0 ? (
                       <p
                         className="panel-sub"
-                        style={{ textTransform: 'none', letterSpacing: 0, margin: '2px 0 0' }}
+                        style={{
+                          textTransform: 'none',
+                          letterSpacing: 0,
+                          margin: 'var(--s-1) 0 0',
+                        }}
                       >
                         Tap any wall in the 3D view to paint it a different colour from the rest of
                         the room.
@@ -615,7 +624,11 @@ export function FinishPicker() {
                         })}
                         <p
                           className="panel-sub"
-                          style={{ textTransform: 'none', letterSpacing: 0, margin: '6px 0 0' }}
+                          style={{
+                            textTransform: 'none',
+                            letterSpacing: 0,
+                            margin: 'var(--s-2) 0 0',
+                          }}
                         >
                           Tap another wall in the 3D view to add one.
                         </p>

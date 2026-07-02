@@ -1,6 +1,6 @@
-import { useRef } from 'react'
+import { type CSSProperties, useRef } from 'react'
 import { useFeature } from '../../features/useFeature'
-import { isUserDef } from '../../furniture/catalog'
+import { isIkeaDef, isUserDef } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { modelInfoText } from '../../furniture/modelInfo'
 import type { FurnitureDef } from '../../furniture/types'
@@ -8,8 +8,9 @@ import { useStore } from '../../state/store'
 import { formatDims } from '../../utils/measurement'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
+import { CatalogSourcePill } from './CatalogSourcePill'
 import { CategoryIcon } from './CategoryIcon'
-import { useBuiltinThumbnail } from './thumbnails'
+import { expectsBuiltinThumbnail, useBuiltinThumbnail } from './thumbnails'
 import { usePlacementDrag } from './usePlacementDrag'
 
 /** How long a stationary press must last to count as a "pick it up" long-press. */
@@ -20,10 +21,15 @@ const LONG_PRESS_MOVE_PX = 12
 interface CatalogCardProps {
   def: FurnitureDef
   onDelete?: () => void
+  /** Map index in the enclosing `.card-grid.stagger-in` — drives the entrance
+   *  cascade's `--i` custom property (unset falls back to the CSS nth-child
+   *  rules, which cover the first 12 cards). */
+  staggerIndex?: number
 }
 
-export function CatalogCard({ def, onDelete }: CatalogCardProps) {
+export function CatalogCard({ def, onDelete, staggerIndex }: CatalogCardProps) {
   const isUser = isUserDef(def)
+  const isIkea = isIkeaDef(def)
   const onClick = usePlacementDrag(def)
   const isMobile = useIsMobile()
   // Mobile long-press = "pick this up": arm placement, hide the catalog so the
@@ -117,7 +123,8 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
         // If the drop didn't land on the canvas (still armed), disarm.
         if (useStore.getState().activeDefId === def.id) useStore.getState().cancelPlacement()
       }}
-      className={`cat-card group${stampingThis ? ' stamping' : ''}`}
+      className={`cat-card group liftable${stampingThis ? ' stamping' : ''}`}
+      style={staggerIndex != null ? ({ '--i': staggerIndex } as CSSProperties) : undefined}
       aria-pressed={stampingThis || undefined}
     >
       {favOn ? (
@@ -153,11 +160,13 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
         </button>
       ) : null}
       <div className="card-thumb">
+        {isIkea ? <CatalogSourcePill label="IKEA" /> : null}
         {thumb ? (
           <img src={thumb} alt={def.name} />
         ) : (
           <CategoryIcon category={def.category} width={40} height={40} />
         )}
+        {!thumb && expectsBuiltinThumbnail(def) ? <span className="skeleton" aria-hidden /> : null}
       </div>
       <div className="nm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <CategoryIcon category={def.category} width={14} height={14} style={{ flex: 'none' }} />

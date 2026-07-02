@@ -183,6 +183,10 @@ export const createHistorySlice: SliceCreator<HistorySlice, RootState> = (set, g
         past: s.past.slice(0, -1),
         future: [...s.future, snapshot(s)],
         _lastPushKey: null,
+        // A pending "Apply change?" confirmation is transient view state, excluded
+        // from snapshots; clear it so undo/redo/jump don't strand its bar with data
+        // for an edit that no longer exists (INSPECTOR-EDIT-BAR).
+        pendingEdit: null,
       }
     }),
   redo: () =>
@@ -195,6 +199,7 @@ export const createHistorySlice: SliceCreator<HistorySlice, RootState> = (set, g
         past: [...s.past, snapshot(s)],
         future: s.future.slice(0, -1),
         _lastPushKey: null,
+        pendingEdit: null,
       }
     }),
   jumpHistory: (targetIndex) =>
@@ -212,6 +217,7 @@ export const createHistorySlice: SliceCreator<HistorySlice, RootState> = (set, g
         // Re-stack everything after the target as the redo stack (nearest last).
         future: [...flat.slice(targetIndex + 1)].reverse(),
         _lastPushKey: null,
+        pendingEdit: null,
       }
     }),
   clearHistory: () => set({ past: [], future: [], _lastPushKey: null, _lastPushAt: 0 }),

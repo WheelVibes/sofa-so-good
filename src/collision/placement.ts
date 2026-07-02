@@ -67,7 +67,7 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
     // prefer the cached real bounding box over the def's authored
     // defaultFootprint — uploads default to a 1×1×1 placeholder, and
     // remote/pack entries may be inaccurate too.
-    const url = def.source === 'builtin' ? def.url : def.runtimeUrl
+    const url = def.source === 'builtin' || def.source === 'local' ? def.url : def.runtimeUrl
     const cached = url ? getCachedGltfFootprint(url) : null
     if (cached) {
       w = cached.w
@@ -212,6 +212,32 @@ export function itemFootprintSpanLocal(
     hx: (maxX - minX) / 2,
     hz: (maxZ - minZ) / 2,
   }
+}
+
+/**
+ * True when a world-space floor point lies within the item's min-span footprint
+ * polygon — the enclosing rectangle of all footprint parts ({@link
+ * itemFootprintSpanLocal}), transformed into the item's local (pre-yaw) frame.
+ * Drives footprint-restricted hover (HOVER-FOOTPRINT): the piece highlights only
+ * when the cursor's floor projection is inside its footprint, so tall geometry
+ * that overhangs the base doesn't light it up. Pure + unit-tested.
+ */
+export function floorPointInFootprint(
+  fx: number,
+  fz: number,
+  item: FurnitureItem,
+  def: FurnitureDef,
+): boolean {
+  const base = itemFootprint(item, def)
+  const span = itemFootprintSpanLocal(item, def)
+  const rx = fx - base.cx
+  const rz = fz - base.cz
+  // Rotate the world-space delta into the item's local frame (inverse yaw).
+  const cos = Math.cos(item.rotation)
+  const sin = Math.sin(item.rotation)
+  const lx = cos * rx + sin * rz
+  const lz = -sin * rx + cos * rz
+  return Math.abs(lx - span.ox) <= span.hx && Math.abs(lz - span.oz) <= span.hz
 }
 
 /** True iff any OBB in `a` overlaps any OBB in `b` (granular part-vs-part SAT). */

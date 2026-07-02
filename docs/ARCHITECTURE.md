@@ -69,9 +69,22 @@ same change that reshapes a system.
   remoteCatalog, installedPacks, measurements (+`units`), orientation, notifications,
   **prompt** (`promptText`/`confirmAction`→themed modals), **project** (`designNote`),
   reset, **userAssets** (user GLBs + `IkeaGltfDef`s), **floorPlan**, **appearance**,
-  **features** (cmdk/layers/context-menu/onboarding/tour/budgetTarget), **userStyles**.
+  **features** (cmdk/layers/context-menu/onboarding/tour/budgetTarget + `layersCollapsed`), **userStyles**,
+  **callouts** (dismissed `InfoCallout` ids, self-persisted) and **badges** (seen "New"-dot flags, self-persisted).
   `storage/`: autosave + `qualityPrefs`/`editorPrefs`/`appearancePrefs`/`floorPlanStore`/
   `budgetPrefs`; `hydrate*.ts` re-resolve user/IKEA defs + IDB blobs. `schema.ts`=serializer.
+  `storage/adapter.ts` = the dynamic adapter: guests use `LocalStorageAdapter`, a signed-in user
+  on a backend build uses a cloud-mirror (local always + throttled cloud via `ServerAdapter`);
+  `cloudBoot.ts` reconciles the autosave latest-wins on boot.
+- **Cloudflare backend (opt-in, `VITE_API_BASE`/`hasBackend()`)** — `server/` (bindings-typed
+  helpers: `crypto` PBKDF2, `sessions` KV, `db` D1, `assets` R2+Cache API, `guardrails`
+  kill-switch/rate-limit, `turnstile`), `functions/api/[[route]].ts` (Hono API: login-only auth,
+  admin-created accounts, designs CRUD, favourites, auth-gated R2 proxy, flags), `workers/usage-monitor/`
+  (standalone cron circuit-breaker that trips `killswitch:r2` in KV). Client seam: `src/features/api/client.ts`
+  + `auth/backendProvider.ts` + `catalog/packs/sharedLibrary.ts`. Type-checked via `tsconfig.worker.json`
+  (`npm run typecheck:worker`). CI/CD: `.github/workflows/deploy-cloudflare.yml` builds the
+  backend-enabled bundle and deploys to Pages on push to `main` (wrangler-action; needs
+  `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` repo secrets). Full guide: `docs/deployment-cloudflare.md`.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
   windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`. `PlanShell.tsx`
   renders a user-authored plan (extruded walls + per-room floor/ceiling) when active.
@@ -144,7 +157,10 @@ same change that reshapes a system.
   `<assetId>:lod-<tier>` keys, routed by the `lod.ts` variant registry);
   `ikea/` (`metadata`/`translate`/`importGroup`/`compatibility`/`detectGroups`/`stacking`/
   `supportPlane`/`thumbnail`/`ikeaSets`); `upload/` (`bulkImport.ts` `prepareModelFile`=
-  convert+optimize+`persistUserGlb`, `hashFile.ts` dedupe, `readDrop.ts`, `runImport.ts`
+  convert+optimize+`persistUserGlb`, `hashFile.ts` dedupe, `readDrop.ts` (drag-drop walk),
+  `pickDirectory.ts` (**File System Access** folder pick on Chromium — no native "upload N files?"
+  prompt + live scan progress; falls back to the native `<input webkitdirectory>` elsewhere),
+  `coalesceProgress.ts` (rAF progress throttle), `runImport.ts`
   background job w/ **batched writes** to avoid O(n²) rebuilds); `cabinet/`.
 - `src/materials/` — `builtinCatalog.ts` (floors/walls), `procedural/generators.ts`
   (wood/parquet/tile/marble/carpet/concrete/terrazzo/plaster/wallpaper/checker/brick…),
@@ -181,15 +197,18 @@ same change that reshapes a system.
   `ContextLossGuard.tsx` recovers WebGL context loss.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
-  CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice` /
-  `favouritesSlice` — both persist to localStorage, both per-device convenience state).
+  CC0 + Poly Haven + the R2 shared library (signed-in, pro), one fuzzy search + browse Sort +
+  favourites/recent (`recentSlice` /
+  `favouritesSlice` — both persist to localStorage, both per-device convenience state; `calloutsSlice`/`badgesSlice` follow the same pattern for hint dismissals + "New"-badge seen state).
+  The grid is paginated (PAGE_SIZE=12); list virtualization was evaluated and deferred
+  (2026-07-03) — revisit with a lightweight scroll window only past ~200 live rows in one list.
   Search is synonym- + intent-aware (`catalog/searchSynonyms.ts` `fuzzySearchSmart`:
   couch→sofa, plurals, and **search-by-room** — "bedroom"→bed/wardrobe/…); when a query
   names a room/use, a subtle caption (`matchedIntents`, `.catalog-search-hint`) reads
   "Showing <room> furniture" so that otherwise-invisible capability is discoverable.
   Favourites (star/heart button on each card, Favourites tab) are gated by the
   `catalogFavourites` feature flag (tier: simple, default on). Browsable **remote CC0
-  *models*** (Poly Haven `RemoteCard`s) are gated by the **`remoteFurniture`** flag (tier:
+  *models*** (`RemoteCard`s) are gated by the **`remoteFurniture`** flag (tier:
   **pro**, default on — CORS-direct CC0, prod-safe; mirror of `remoteMaterials`): the flag is
   passed into `useUnifiedCatalog(includeRemote)`, so in Simple mode (where `resolveFlags` forces
   pro flags off) the grid shows only the curated builtin/uploaded loop and no un-downloaded remote
@@ -241,7 +260,7 @@ same change that reshapes a system.
   `toolActions.test.ts`). The export cluster + local-state Sun-study toggle stay hand-rendered.
   Aux panels that share the centred-top slot are closed as a group via `src/ui/auxPanels.ts`
   (`closeAllAuxPanels`); contextual user-guide deep-links resolve through `src/ui/docsUrl.ts`.
-  **Shared form controls** (`src/ui/controls/`): `Select` (themed dropdown — replaces every native
+  **Shared UI systems**: `InfoCallout` (flag-gated dismissible hint banners, per-id persisted) and `ui/newBadges.ts` (registry-driven "New" `.new-dot` on toolbar/menu entries, seen-state persisted). **Shared form controls** (`src/ui/controls/`): `Button` (typed composer over the `.btn-*` vocabulary — variant/size/block/icon/loading), `Select` (themed dropdown — replaces every native
   `<select>`; `Popover` on desktop / `Modal` sheet on mobile, listbox keyboard + ARIA) and
   `ColorPicker` (replaces every native `<input type=color>`; SV pad + hue bar + hex +
   `ThemeColorRows` + recents, HSV math in the pure `colorConvert.ts`). The native iOS focus-zoom on
@@ -306,6 +325,15 @@ same change that reshapes a system.
   Toolbar **Appearance** popover = theme + Light/Dark/Auto + **Simple/Pro** `uiMode`
   (Simple hides advanced clusters + collapses inspector sections; floor-plan always
   available). `useIsMobile.ts` ≤640px hook; `body.mobile` → bottom-sheets + minimal bar.
+  **Row density** (P38, `densityMode` flag, pro-tier): a Comfortable/Compact `seg` in the
+  same popover sets `uiSlice.density`, persisted via `editorPrefs` and applied as
+  `[data-density]` on `<html>`, which overrides `--row-pad-y` (vertical rhythm only) consumed
+  by `.menu-item` (`styles/tokens.css` + `styles/components.css`).
+  **Ambient FX** (P7, `ambientFx` flag, simple-tier): decorative accents behind the single
+  `useAmbientFx()` gate (flag AND `qualityTier !== 'performance'` AND no reduced-motion — dormant
+  by default) — the HQ-render border-beam (`.beam`, mounts only while rendering, IntersectionObserver-
+  paused off-screen) and the catalog/preset mouse-follow radial gradient (pointermove-driven `--mx`/
+  `--my`, `color-mix` accent, no continuous animation).
 - **GLB Asset Designer** (`furniture/glbEdit/`, `ui/glbEditor/GlbDesignerDialog.tsx`,
   `featuresSlice.glbDesignerOpen`): compose a custom asset from primitive shapes
   (box/cylinder/sphere/cone/pyramid/capsule/torus/wedge — pure tested `editSpec.ts` `SHAPE_KINDS`;
@@ -508,8 +536,26 @@ same change that reshapes a system.
   `'poly-pizza'` (prod), `'zip'` (Kenney dev), `'ikea-live'` (dev sidecar `scraper-server.mjs`
   → `public/assets/ikea/`, SSE), `'manual'`. **Remote material providers**
   (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG (proxy, dev), gated
-  by `activeProviderIds`/`PROD_PROVIDER_IDS`. Add a source: poly-pizza-style client
-  reusing `buildEntry`/`commit`, a `RemoteProvider`, or a `'manual'` entry.
+  by `activeProviderIds`/`PROD_PROVIDER_IDS`. **Poly Haven supplies materials/textures (+ HDRIs
+  via `scene/lighting/hdriCatalog.ts`) only — its furniture *models* are deliberately not an
+  asset source**, so no provider currently emits `kind:'furniture'` (the `remoteFurniture` browse
+  is dormant until one does). Add a source: poly-pizza-style client reusing `buildEntry`/`commit`,
+  a `RemoteProvider`, or a `'manual'` entry.
+- **Shared library (R2, prod)** (`state/slices/sharedLibrarySlice.ts`, `ui/catalog/SharedCard.tsx`,
+  `catalog/packs/sharedLibrary.ts`): the Cloudflare R2 library **auto-populates the catalog grid**
+  for signed-in users — `bootstrapSharedLibrary` fetches `library/index.json` once on catalog open
+  (guarded on backend + sign-in + the `sharedLibrary` pro flag), `useUnifiedCatalog(includeRemote,
+  includeShared)` merges items as a `shared` `GridItem` kind (category via `mapCategory`, deduped
+  against imported `ikea-<groupKey>` defs), and `SharedCard` lazy-loads its proxy thumbnail +
+  imports on click (`addSharedGroup` → `registerSharedGroup` → `importGroup`). Manifest built by
+  `scripts/build-library-index.mjs` (`entryFromMeta`, emits `groupKey`).
+- **Local asset DB (dev-only)** (`scripts/vite-local-assets.mjs`, `state/slices/localAssetsSlice.ts`):
+  GLBs dropped in `local-assets/` are served by a dev-only Vite plugin (`/@local-assets/index.json`
+  + `/file/<relPath>`) and loaded straight into the catalog as `LocalGltfDef`s (`source:'local'`) —
+  **no upload pipeline** (no convert/optimize/IndexedDB), for bulk datasets. `bootstrapLocalAssets`
+  populates `localFurniture` (5th `buildMergedCatalog` source); gated by the `localAssets` devOnly
+  flag + `import.meta.env.DEV` (empty in prod). Pairs with the CC0/CC-BY/PD scrapers in
+  `research/scrapers/` (run into `scraped_assets/`; both dirs gitignored + dev-only).
 - **Wall elevations** (`elevation/projectElevation.ts` pure → `WallElevation` per plan wall, reusing
   the collision OBB helpers; `ui/elevation/elevationSvg.ts` renders to a palette-injected SVG string
   shared by the `ElevationPanel` (token colours) + the report). The vertical counterpart to the plan.
@@ -1042,7 +1088,21 @@ same change that reshapes a system.
 - **Loading + fast boot** (`ui/loading/`, `storage/bootstrap.ts`, `bootPhase`/`loading`):
   `main.tsx` imports the self-hosted fonts, registers decoders, then renders immediately; async
   `runBootstrap()` (IDB + autosave restore + default seed *after* hydration) flips
-  `bootPhase`→`'ready'`. `LoadingOverlay` covers boot + orbit↔walk + room enter/exit.
+  `bootPhase`→`'ready'`. Static `#boot-loader` (index.html) cycles Singapore/HDB status lines
+  (`loadingPhrases.json` / `CyclingPhrase`) until scene warm-up pins "Almost ready…"; its art
+  **keeps animating through Canvas warm-up** — each animated piece is an HTML div layer holding a
+  static SVG (compositor-driven, same rule as `LoadingOverlay`; the old `.bl-static` freeze is
+  gone — guarded by `ui/loading/bootLoaderArt.test.ts`);
+  `LoadingOverlay` covers orbit↔walk + room enter/exit + floor-plan open/close (explicit labels;
+  cycles when empty). Its furnishing-room animation is **compositor-proof**: every animated piece
+  is an HTML `<div>` layer holding a static SVG (never an animated SVG child, which would starve
+  on the main thread while the swapped-in scene mounts — guarded by `LoadingOverlay.test.tsx`).
+  The overlay hides on **readiness, not a timer**: `RenderPump` grants throttled warm frames
+  (~10 fps, `OVERLAY_RENDER_MS`) while the overlay is up so the new scene compiles shaders behind
+  it, both Canvases publish rendered frames via `scene/frameRenderedSignal.ts`
+  (`FrameRenderedNotifier`), and `ui/loading/transitionHide.ts` `scheduleTransitionHide` waits
+  for the deferred swap to commit + `READY_FRAMES` real frames (safety `MAX_WAIT_MS` timeout)
+  before `hideLoading`; `useOverlayLifecycle` min-time + fade still shapes the visible duration.
 - **Fully offline / PWA**: the core app needs **no runtime network**. Fonts (Plus Jakarta Sans +
   JetBrains Mono) are self-hosted via `@fontsource` (imported in `main.tsx`, no Google Fonts CDN);
   the Draco decoder is self-hosted under `public/draco/` (copied from the installed `three` by

@@ -121,14 +121,16 @@ export function ViewMenu() {
           </div>
           <MenuItem
             icon="TopView"
-            label={`Top view${chip(shortcutLabel('topView'))}`}
+            label="Top view"
             sub="Fit the whole flat, top-down"
+            kbd={shortcutLabel('topView')}
             onClick={requestTopView}
           />
           <MenuItem
             icon="Reset"
-            label={`Reset view${chip(shortcutLabel('resetView'))}`}
+            label="Reset view"
             sub="Fit the 3D overview"
+            kbd={shortcutLabel('resetView')}
             onClick={requestHomeView}
           />
           <MenuItem
@@ -143,8 +145,4 @@ export function ViewMenu() {
       ) : null}
     </ToolbarMenu>
   )
-}
-
-function chip(s: string): string {
-  return s ? `  (${s})` : ''
 }

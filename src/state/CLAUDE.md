@@ -4,11 +4,31 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
 
 - **One concern per slice** (`slices/*`). Adding a slice = add it to the store
   composition + its initial state; keep it small and focused.
+- **`editorPrefs` also persists per-device UI convenience state** (out of the save schema):
+  the left-dock tab (`leftMode`), the collapsed layer-group map (`layersCollapsed`, lifted from
+  `LayersPanel` into `featuresSlice`), and `catalogOpen` — the last restored **desktop-only**
+  (`matchMedia('(min-width:641px)')`, SSR/jsdom-safe with a `false` fallback) so the mobile
+  bottom-sheet catalog never auto-reopens. All load with back-compat defaults (old JSON lacks them).
+- **`sharedLibrarySlice`** fetches the R2 shared-library manifest once
+  (`bootstrapSharedLibrary`, guarded on backend + sign-in + the `sharedLibrary` flag) and imports a
+  group on demand (`addSharedGroup`). Session-only — **not persisted** (imported IKEA defs persist
+  via the `hydrateIkea` path; the manifest is re-fetched each session), so it's out of the save
+  schema + autosave watch-list.
 - **Persistence lives in `storage/`**, not in the slice: `qualityPrefs`/`editorPrefs`/
-  `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave. Some
+  `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave. `editorPrefs`
+  also persists `density` (P38, `Density = 'comfortable' | 'compact'`, back-compat default
+  `'comfortable'` for pre-existing records); `applyDensity(density)` mirrors
+  `appearancePrefs.applyAppearance` — it writes `[data-density]` on `<html>` (driving the
+  `--row-pad-*` token overrides in `styles/tokens.css`) and is called from both
+  `loadEditorPrefs` and `watchEditorPrefs`, jsdom-safe (guards `document`). Density applies only
+  while the `densityMode` flag is enabled (pro): in Simple the persisted value is retained but
+  the DOM attribute falls back to `'comfortable'` (`applyDensity` reads
+  `useStore.getState().featureFlags.densityMode` at call time; `watchEditorPrefs` folds it into
+  its change-detection key — but not the persisted JSON — so a Simple↔Pro flip re-applies it).
+  Some
   state is deliberately session-only / out of the save schema (recent items, favourites,
   hidden ids, user styles in `localStorage`) — don't add those to autosave. `recentSlice`
-  and `favouritesSlice` both self-persist to localStorage (keys `hdb_recent_items`, `hdb_favourites`
+  and `favouritesSlice` both self-persist to localStorage (keys `hdb_recent_items`, `hdb_favourites`; `calloutsSlice`/`badgesSlice` likewise (`hdb_dismissed_callouts`, `hdb_seen_badges`)
   for furniture, and `hdb_fav_finishes` for finish/material favourites — a **separate** list so the
   catalog "Favourites" tab never shows un-renderable finish ids) — the pattern for per-device catalog
   convenience state.

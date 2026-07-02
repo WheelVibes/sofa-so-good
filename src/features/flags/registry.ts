@@ -174,6 +174,13 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     devOnly: true,
     tier: 'pro',
   },
+  localAssets: {
+    label: 'Local asset folder',
+    description: 'Auto-load GLBs from local-assets/ (dev only, no upload)',
+    default: true,
+    devOnly: true,
+    tier: 'simple',
+  },
   livePrices: {
     label: 'Live SG retailer prices',
     description: 'Live price lookup — IKEA/Courts/HipVan/Castlery (needs a sidecar)',
@@ -995,6 +1002,76 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   tileBreakup: {
     label: 'Tile repetition break-up',
     description: 'Rotate / offset each floor tile so a large tiled floor stops visibly repeating',
+    default: true,
+    tier: 'pro',
+  },
+  // Dismissible, localStorage-persisted first-run hint banners for the room
+  // editor / floor-plan editor / walk mode (P25). Pure UI, prod-safe. Aids
+  // beginners in the default experience → simple tier (shown in both modes).
+  infoCallouts: {
+    label: 'Info callouts',
+    description: 'Dismissible hint banners in the room, floor-plan and walk screens',
+    default: true,
+    tier: 'simple',
+  },
+  // Pulsing "New" dot on recently-shipped toolbar/menu entries, dismissed on
+  // first use, persisted per-flag (P27). Pure UI, prod-safe. Discoverability
+  // polish for all users (badges both simple- and pro-tier entries) → simple tier.
+  newBadges: {
+    label: 'New feature badges',
+    description: 'Pulsing dot marking newly-shipped features until first use',
+    default: true,
+    tier: 'simple',
+  },
+  // Comfortable/compact row density via [data-density] over --row-pad-*
+  // tokens (P38). Advanced layout control → pro tier (hidden in Simple).
+  // Prod-safe, pure CSS + a persisted per-device pref.
+  densityMode: {
+    label: 'Density mode',
+    description: 'Comfortable/compact row spacing',
+    default: true,
+    tier: 'pro',
+  },
+  // A single Simple-mode hint (in the ⌘K footer) that Pro tools exist, pointing
+  // to the Simple↔Pro toggle (P26). Must show IN Simple → simple tier; the
+  // component itself renders null in Pro. Prod-safe, pure UI.
+  proUpsell: {
+    label: 'Pro upsell hint',
+    description: 'A ⌘K hint (Simple mode) that Pro tools exist',
+    default: true,
+    tier: 'simple',
+  },
+  // Decorative, GPU-tier- + reduced-motion-gated ambient effects: a border-beam
+  // on the in-progress HQ-render card + a mouse-follow radial gradient on
+  // catalog/preset cards (P7). simple tier (polish for all users); the real GPU
+  // guard is runtime — useAmbientFx() renders nothing under the default
+  // Performance tier or reduced-motion, so it's dormant by default. Prod-safe.
+  ambientFx: {
+    label: 'Ambient effects',
+    description: 'Subtle motion accents on higher render tiers',
+    default: true,
+    tier: 'simple',
+  },
+  // User accounts + cloud sync (Cloudflare backend). Sign in with an email +
+  // password (accounts are admin-created — there is no public signup) to save
+  // designs and favourites to the cloud and sync them across devices. Gated by
+  // the backend being present (`hasBackend()`): the GitHub Pages / offline build
+  // leaves it inert. A casual-user convenience that belongs in the core loop →
+  // simple tier (shown in both modes). Default on; the flag is harmless without a
+  // backend (the login UI checks `authIsBackend`).
+  accounts: {
+    label: 'Accounts & cloud sync',
+    description: 'Sign in to save designs + favourites to the cloud (accounts are admin-created)',
+    default: true,
+    tier: 'simple',
+  },
+  // Shared, read-only asset library served from R2 through the auth-gated API.
+  // Lets a signed-in user browse the curated furniture library in production
+  // (the prod counterpart to the dev-only IKEA scrape). An advanced catalog
+  // source beyond the minimal furnish loop → pro tier (forced off in Simple).
+  sharedLibrary: {
+    label: 'Shared asset library',
+    description: 'Browse the cloud furniture library (signed-in users, served from R2)',
     default: true,
     tier: 'pro',
   },

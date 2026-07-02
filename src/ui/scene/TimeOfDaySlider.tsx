@@ -1,5 +1,6 @@
 import { hoursFromDate, useEffectiveHour } from '../../scene/lighting/useEffectiveHour'
 import { useStore } from '../../state/store'
+import { SliderField } from '../controls/SliderField'
 
 export function formatClock(hour: number): string {
   const h = ((hour % 24) + 24) % 24
@@ -33,19 +34,16 @@ export function TimeOfDaySlider() {
         <span>Time of day</span>
         <span className="scene-clock mono">{formatClock(effectiveHour)}</span>
       </div>
-      <div className="scene-slider">
-        <input
-          type="range"
-          min={0}
-          max={24}
-          step={0.25}
-          value={effectiveHour}
-          aria-label="Time of day"
-          onChange={(e) => setManualHour(Number(e.target.value))}
-          className="slider"
-          style={{ width: '100%' }}
-        />
-      </div>
+      <SliderField
+        label="Time of day"
+        min={0}
+        max={24}
+        step={0.25}
+        value={effectiveHour}
+        onChange={setManualHour}
+        format={formatClock}
+        hideReadout
+      />
       <button
         type="button"
         className={`tod-system${timeMode === 'system' ? ' on' : ''}`}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../state/store'
+import { Button } from './controls/Button'
 import { Modal } from './Modal'
 import { STYLE_QUIZ, scoreQuiz } from './styling/styleQuiz'
 import { planStyleApply, STYLE_PRESETS } from './styling/styleTransfer'
@@ -62,7 +63,7 @@ export function StyleQuizModal() {
       onClose={close}
       title="Find your style"
       sub={done ? 'Your match' : `Question ${step + 1} of ${total}`}
-      width={560}
+      width="var(--modal-md)"
       panelId="style-quiz"
     >
       {q ? (
@@ -72,26 +73,24 @@ export function StyleQuizModal() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {q.options.map((opt, i) => (
-              <button
+              <Button
                 key={opt.label}
-                type="button"
-                className="btn"
                 style={{ justifyContent: 'flex-start', textAlign: 'left', padding: '10px 12px' }}
                 onClick={() => choose(q.id, i)}
               >
                 {opt.label}
-              </button>
+              </Button>
             ))}
           </div>
           {step > 0 ? (
-            <button
-              type="button"
-              className="btn btn-soft btn-sm"
+            <Button
+              variant="soft"
+              size="sm"
               style={{ alignSelf: 'flex-start' }}
               onClick={() => setStep((s) => Math.max(0, s - 1))}
             >
               ← Back
-            </button>
+            </Button>
           ) : null}
         </div>
       ) : recommended ? (
@@ -120,12 +119,12 @@ export function StyleQuizModal() {
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            <button type="button" className="btn btn-accent" onClick={applyRecommended}>
+            <Button variant="accent" onClick={applyRecommended}>
               Apply this style
-            </button>
-            <button type="button" className="btn btn-soft" onClick={reset}>
+            </Button>
+            <Button variant="soft" onClick={reset}>
               Retake
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}

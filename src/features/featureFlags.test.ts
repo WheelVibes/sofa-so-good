@@ -468,6 +468,22 @@ describe('cameraDof flag (PC2-CAM-DOF-LENS)', () => {
   })
 })
 
+describe('infoCallouts flag (P25 progressive-disclosure hints)', () => {
+  it('is simple-tier: present in BOTH Simple and Pro modes (both build kinds)', () => {
+    // Dismissible first-run hint banners aid beginners in the default experience,
+    // so they show in both Simple and Pro (simple tier, prod-safe, default on).
+    expect(resolveFlags(false, {}, false, 'simple').infoCallouts).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').infoCallouts).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').infoCallouts).toBe(true)
+    expect(resolveFlags(true, {}, false, 'pro').infoCallouts).toBe(true)
+  })
+  it('ships in prod (pure UI, no devOnly gate) with the right tier + default', () => {
+    expect(FEATURE_FLAGS.infoCallouts.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.infoCallouts.default).toBe(true)
+    expect(FEATURE_FLAGS.infoCallouts.tier).toBe('simple')
+  })
+})
+
 describe('importSh3d flag (PARITY-SH3D)', () => {
   it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
     // Importing a Sweet Home 3D plan is a plan-interop / authoring surface beyond
@@ -481,5 +497,72 @@ describe('importSh3d flag (PARITY-SH3D)', () => {
     expect(FEATURE_FLAGS.importSh3d.devOnly).toBeUndefined()
     expect(FEATURE_FLAGS.importSh3d.default).toBe(true)
     expect(FEATURE_FLAGS.importSh3d.tier).toBe('pro')
+  })
+})
+
+describe('newBadges flag (P27 "New" feature badges)', () => {
+  it('is simple-tier: present in BOTH Simple and Pro modes (both build kinds)', () => {
+    // The pulsing "New" dot is a discoverability aid useful to everyone (it can
+    // badge both simple- and pro-tier target entries), so the flag itself shows
+    // in both Simple and Pro (simple tier, prod-safe, default on).
+    expect(resolveFlags(false, {}, false, 'simple').newBadges).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').newBadges).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').newBadges).toBe(true)
+    expect(resolveFlags(true, {}, false, 'pro').newBadges).toBe(true)
+  })
+  it('ships in prod (pure UI, no devOnly gate) with the right tier + default', () => {
+    expect(FEATURE_FLAGS.newBadges.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.newBadges.default).toBe(true)
+    expect(FEATURE_FLAGS.newBadges.tier).toBe('simple')
+  })
+})
+
+describe('densityMode flag (P38)', () => {
+  it('is pro-tier, ships in prod (no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.densityMode.default).toBe(true)
+    expect(FEATURE_FLAGS.densityMode.tier).toBe('pro')
+    expect(FEATURE_FLAGS.densityMode.devOnly).toBeUndefined()
+  })
+
+  it('is present in Pro mode and hidden in Simple mode (both build kinds)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').densityMode).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').densityMode).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').densityMode).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').densityMode).toBe(true)
+  })
+})
+
+describe('ambientFx flag (P7 decorative ambient effects)', () => {
+  it('is simple-tier, ships in prod, default on', () => {
+    expect(FEATURE_FLAGS.ambientFx.default).toBe(true)
+    expect(FEATURE_FLAGS.ambientFx.tier).toBe('simple')
+    expect(FEATURE_FLAGS.ambientFx.devOnly).toBeUndefined()
+  })
+
+  it('is present in BOTH Simple and Pro modes (both build kinds)', () => {
+    // Simple-tier polish for all users; the real GPU guard is runtime
+    // (useAmbientFx() renders nothing under the default Performance tier or
+    // reduced-motion), so the flag stays on regardless of uiMode.
+    expect(resolveFlags(false, {}, false, 'simple').ambientFx).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').ambientFx).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').ambientFx).toBe(true)
+    expect(resolveFlags(true, {}, false, 'pro').ambientFx).toBe(true)
+  })
+})
+
+describe('proUpsell flag (P26 Simple→Pro ⌘K footer hint)', () => {
+  it('is simple-tier, ships in prod, default on', () => {
+    expect(FEATURE_FLAGS.proUpsell.default).toBe(true)
+    expect(FEATURE_FLAGS.proUpsell.tier).toBe('simple')
+    expect(FEATURE_FLAGS.proUpsell.devOnly).toBeUndefined()
+  })
+
+  it('is present in BOTH Simple and Pro modes (both build kinds)', () => {
+    // A simple-tier flag stays on regardless of uiMode — the component itself
+    // (not the flag) decides to render null in Pro mode.
+    expect(resolveFlags(false, {}, false, 'simple').proUpsell).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').proUpsell).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').proUpsell).toBe(true)
+    expect(resolveFlags(true, {}, false, 'pro').proUpsell).toBe(true)
   })
 })

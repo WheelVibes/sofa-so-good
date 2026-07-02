@@ -1,0 +1,54 @@
+# Cloudflare Pages + Pages Functions config for Sofa So Good.
+#
+# The static Vite build (dist/) is served by Pages; the same-origin API lives in
+# functions/api/[[route]].ts (a Worker) and binds D1 + R2 + KV below. The usage
+# circuit-breaker cron is a SEPARATE standalone Worker (workers/usage-monitor/) —
+# Pages Functions cannot run scheduled/cron handlers, so it ships on its own.
+#
+# Provision the resources first (IDs are printed by each command), then paste the
+# returned ids here:
+#   wrangler d1 create sofa-db
+#   wrangler r2 bucket create sofa-assets
+#   wrangler kv namespace create SESSIONS
+#   wrangler kv namespace create CACHE
+#   wrangler kv namespace create FLAGS
+#
+# Docs: docs/deployment-cloudflare.md
+
+name = "sofa-so-good"
+compatibility_date = "2026-07-01"
+pages_build_output_dir = "dist"
+
+# --- D1 (accounts, saved layouts, favourites) --------------------------------
+[[d1_databases]]
+binding = "DB"
+database_name = "sofa-db"
+database_id = "fb58d018-740f-4428-b3af-a1b4be9b7bf9"
+migrations_dir = "migrations"
+
+# --- R2 (shared, read-only asset library) ------------------------------------
+[[r2_buckets]]
+binding = "sofa_assets"
+bucket_name = "sofa-assets"
+
+# --- KV (sessions, cache, feature-flag / kill-switch config) -----------------
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "528e103f05a0429693c509c2f3c07eb2"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "b38c897bbbbd412c8ecda17ec8ea2971"
+
+[[kv_namespaces]]
+binding = "FLAGS"
+id = "83ef4ce2cf964d3a8fb92f046e2bffad"
+
+# --- Non-secret tunables (secrets go via `wrangler pages secret put`) ---------
+# Secrets to set: ADMIN_EMAIL, ADMIN_PASSWORD (first-admin seed), TURNSTILE_SECRET.
+[vars]
+PBKDF2_ITERATIONS = "100000"
+SESSION_TTL_SECONDS = "1209600"   # 14 days
+MAX_ACCOUNTS = "200"
+MAX_SLOTS_PER_USER = "50"
+MAX_DESIGN_BYTES = "4194304"      # 4 MB per saved design

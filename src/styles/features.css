@@ -30,6 +30,22 @@
 }
 .tool-btn .nub.warn { background: oklch(0.72 0.15 70); color: oklch(0.18 0.02 60); }
 
+/* "New" feature badge (P27): a small pulsing dot on a toolbar/menu entry for
+ * a recently-shipped feature (`src/ui/newBadges.ts`), dismissed on first use.
+ * `.tool-btn` (IconButton, already `position: relative`) positions it absolute
+ * top/right like `.nub`; `.menu-item` (MenuItem) instead flows it as a
+ * trailing flex child alongside the row's other trailing content (kbd chip). */
+.new-dot {
+  width: 8px; height: 8px; border-radius: 999px; flex: none;
+  background: var(--accent);
+  animation: newPulse 1.6s ease-in-out infinite;
+}
+.tool-btn .new-dot { position: absolute; top: 4px; right: 4px; }
+@keyframes newPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--accent) 55%, transparent); }
+  70% { box-shadow: 0 0 0 6px transparent; }
+}
+
 /* ---- shared: compact empty state ----------------------------- */
 .empty-mini {
   display: flex; flex-direction: column; align-items: center; text-align: center;
@@ -41,9 +57,33 @@
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3);
 }
 .empty-mini b { font-size: var(--t-sm); font-weight: 700; color: var(--text-2); }
-.empty-mini span { font-size: var(--t-xs); line-height: 1.5; max-width: 30ch; }
+.empty-mini span { font-size: var(--t-xs); line-height: var(--lh-body); max-width: 30ch; }
 /* span an empty state across all columns of the catalog card grid */
 .empty-mini.catalog-empty { grid-column: 1 / -1; }
+
+/* ---- progressive-disclosure info callout (P25) --------------- */
+/* A dismissible one-line hint banner (InfoCallout.tsx): surface-2 card with an
+   accent left edge, an info glyph, bold title + muted body, and a close button. */
+.info-callout {
+  display: flex; align-items: flex-start; gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  box-shadow: inset 3px 0 0 var(--accent);
+  max-width: 40ch;
+}
+.info-callout .ic { flex: none; margin-top: 1px; color: var(--accent); }
+.info-callout .ic-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.info-callout .ic-body b { font-size: var(--t-sm); font-weight: 700; line-height: var(--lh-tight); color: var(--text-2); }
+.info-callout .ic-body span { font-size: var(--t-xs); line-height: var(--lh-body); color: var(--text-3); }
+.info-callout .ic-dismiss {
+  flex: none; display: grid; place-items: center;
+  width: 22px; height: 22px; margin: -2px -4px 0 auto; padding: 0;
+  background: none; border: 0; border-radius: var(--r-1);
+  color: var(--text-3); cursor: pointer;
+}
+.info-callout .ic-dismiss:hover { background: var(--surface-3); color: var(--text-2); }
 
 /* ============================================================
    RE-RENDER GUARD
@@ -75,7 +115,11 @@
 .lyr-ghead .chev { transition: transform var(--dur) var(--ease); }
 .lyr-ghead.collapsed .chev { transform: rotate(-90deg); }
 .lyr-ghead .gcount { margin-left: auto; font-family: var(--font-mono); font-weight: 600; }
-.lyr-ghead-row { display: flex; align-items: center; }
+.lyr-ghead-row {
+  display: flex; align-items: center;
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface); box-shadow: 0 1px 0 var(--border);
+}
 .lyr-ghead-row .lyr-ghead { flex: 1; width: auto; }
 .lyr-geye {
   width: 24px; height: 24px; flex: none; display: grid; place-items: center;
@@ -87,7 +131,10 @@
 .lyr-geye.on { color: var(--accent-soft-text); opacity: 1; }
 .lyr-row {
   display: flex; align-items: center; gap: var(--s-2);
-  padding: 6px 7px; border-radius: var(--r-2);
+  /* Slightly tighter than --row-pad-* (a denser sidebar list already), but
+     still tracks the density scale via the same override. Horizontal lands at
+     7px vs the pre-density 8px — deliberate 1px normalization (P38). */
+  padding: calc(var(--row-pad-y) - 2px) calc(var(--row-pad-x) - 2px); border-radius: var(--r-2);
   width: 100%; text-align: left; transition: var(--dur) var(--ease);
   color: var(--text-2); position: relative;
 }
@@ -103,7 +150,9 @@
 .lyr-flag { color: var(--danger); display: grid; place-items: center; flex: none; }
 .lyr-flag.warn { color: oklch(0.62 0.14 70); }
 .lyr-acts { display: flex; gap: 1px; flex: none; opacity: 0; transition: var(--dur) var(--ease); }
-.lyr-row:hover .lyr-acts, .lyr-row.sel .lyr-acts { opacity: 1; }
+.lyr-row:hover .lyr-acts,
+.lyr-row:focus-within .lyr-acts,
+.lyr-row.sel .lyr-acts { opacity: 1; }
 .lyr-acts button { width: 22px; height: 22px; display: grid; place-items: center; border-radius: var(--r-1); color: var(--text-3); }
 .lyr-acts button:hover { background: var(--surface-3); color: var(--text); }
 .lyr-acts button.on { color: var(--accent-soft-text); }
@@ -114,7 +163,7 @@
 /* ============================================================
    SWAP  — centered modal, alternatives grid
    ============================================================ */
-.modal-overlay > #swapPanel { width: min(560px, calc(100vw - 24px)); max-height: min(620px, calc(100vh - 48px)); }
+.modal-overlay > #swapPanel { width: var(--modal-md); max-height: min(620px, calc(100vh - 48px)); }
 .swap-cur {
   display: flex; align-items: center; gap: var(--s-3);
   padding: var(--s-3); margin: 0 0 var(--s-3);
@@ -130,7 +179,7 @@
   border-radius: var(--r-2); background: var(--surface-2); border: 1px solid var(--border);
   text-align: left; transition: var(--dur) var(--ease); position: relative;
 }
-.swap-card:hover { border-color: var(--accent); background: var(--surface-solid); transform: translateY(-1px); box-shadow: var(--shadow-panel); }
+.swap-card:hover { border-color: var(--accent); background: var(--surface-solid); }
 .swap-card.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .swap-card .card-thumb { aspect-ratio: 1.3/1; }
 .swap-card .nm { font-size: var(--t-xs); font-weight: 600; color: var(--text); line-height: 1.25; }
@@ -163,7 +212,7 @@
 .clr-item .ci-head { display: flex; align-items: flex-start; gap: var(--s-2); }
 .clr-item .ci-head .badge { margin-top: 1px; }
 .clr-item .ci-title { font-size: var(--t-sm); font-weight: 700; color: var(--text); line-height: 1.35; }
-.clr-item .ci-detail { font-size: var(--t-xs); color: var(--text-2); line-height: 1.5; margin-top: 5px; }
+.clr-item .ci-detail { font-size: var(--t-xs); color: var(--text-2); line-height: var(--lh-body); margin-top: 5px; }
 .clr-item .ci-fix { display: flex; align-items: center; gap: 5px; font-size: var(--t-2xs); color: var(--accent-soft-text); font-weight: 600; margin-top: 6px; }
 .clr-allclear { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 12px; text-align: center; }
 .clr-allclear .ring { width: 46px; height: 46px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-soft-text); display: grid; place-items: center; }
@@ -310,8 +359,22 @@
 .cmdk-item.active { background: var(--accent-soft); color: var(--accent-soft-text); }
 .cmdk-item.active .icn { color: var(--accent-soft-text); }
 .cmdk-empty { padding: 30px; text-align: center; color: var(--text-3); font-size: var(--t-sm); }
-.cmdk-foot { display: flex; gap: var(--s-5); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-2xs); color: var(--text-3); }
-.cmdk-foot span { display: flex; align-items: center; gap: 5px; }
+.cmdk-foot { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-2xs); color: var(--text-3); }
+.cmdk-foot-hints { display: flex; gap: var(--s-5); }
+.cmdk-foot-hints span { display: flex; align-items: center; gap: 5px; }
+/* Simple→Pro discoverability hint (P26) — a single row above the key hints,
+   only mounted (by ProUpsellHint) in Simple mode. Reuses the .cmdk-item/
+   .menu-item token vocabulary — no new colour. */
+.cmdk-upsell {
+  display: flex; align-items: center; gap: var(--s-2); width: 100%;
+  padding: var(--s-2); border-radius: var(--r-2); text-align: left;
+  color: var(--text-2); font-size: var(--t-xs);
+}
+.cmdk-upsell:hover { background: var(--surface-2); }
+.cmdk-upsell .icn { color: var(--accent-soft-text); flex: none; }
+.cmdk-upsell span:not(.badge) { flex: 1; }
+.cmdk-upsell b { color: var(--text); font-weight: 700; }
+.cmdk-upsell .badge { flex: none; }
 
 /* ============================================================
    CONTEXT MENU  (right-click)
@@ -348,6 +411,16 @@
 .toast.in { opacity: 1; transform: none; }
 .toast .icn { color: var(--accent-soft-text); flex: none; }
 .toast.err .icn { color: var(--danger); }
+/* Success toast checkmark pop — a quick overshoot-scale on the tick as the toast
+   lands. `backwards` (never `both`) so the pre-animation scale(0.4)/opacity:0 is
+   applied only before it starts, never clamped afterwards. The reduced-motion
+   block in app.css neutralises it for users who opt out. */
+@keyframes checkPop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.toast .icn.pop { animation: checkPop var(--dur-2) var(--ease-out) backwards; transform-origin: 50% 50%; }
 .toast .toast-msg { font-weight: 500; color: var(--text-2); }
 .toast .toast-msg b { color: var(--text); font-weight: 700; }
 .toast .toast-act { flex: none; padding: 5px 10px; border-radius: var(--r-1); background: var(--accent-soft); color: var(--accent-soft-text); font-size: var(--t-xs); font-weight: 700; }

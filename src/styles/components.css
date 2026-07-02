@@ -22,18 +22,37 @@ body {
 #root { height: 100dvh; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 input { font-family: inherit; }
-/* Consistent, on-theme keyboard focus ring across every interactive control
-   (WCAG 2.4.7). `:where()` keeps this at zero specificity so the richer,
-   control-specific focus styles below still win (`.input`/`.num` box-shadow,
-   `.cat-card` outline, etc.); `:focus-visible` shows it for keyboard/AT focus
-   only, never on mouse click. Replaces the inconsistent UA default ring. */
+/* --- Unified focus ring (P14) ------------------------------------
+   One accent halo across every interactive control (WCAG 2.4.7).
+   `:where()` keeps the semantic role/attribute group at zero specificity so
+   control-specific rings still win where a control wants a different
+   treatment; the classed controls are listed explicitly (low, single-class
+   specificity) so the ring also lands on non-semantic-button elements like
+   `.chip`/`.tab`/`.select-trigger`. `:focus-visible` shows it for
+   keyboard/AT focus only. */
 :where(button, [role='button'], [role='menuitem'], [role='menuitemcheckbox'],
-  [role='option'], [role='tab'], summary, [tabindex='0']):focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  [role='option'], [role='tab'], summary, [tabindex='0']):focus-visible,
+.btn:focus-visible, .icon-btn:focus-visible, .tool-btn:focus-visible,
+.chip:focus-visible, .tab:focus-visible, .select-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 .icn { display: block; flex: none; }
 .mono { font-family: var(--font-mono); font-feature-settings: 'tnum' 1; letter-spacing: -0.02em; }
+
+/* Hover-lift standard (P4). One treatment for interactive cards: a 2px rise
+   + pop-shadow on hover. Cards keep their own border/background hover accents;
+   this owns the lift so it never double-stacks. Reduced-motion neutralises the
+   transition via the global block in app.css. */
+.liftable,
+.preset-card {
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.liftable:hover,
+.preset-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-pop);
+}
 
 /* ---- Modal overlay ------------------------------------------- */
 .modal-overlay {
@@ -87,6 +106,7 @@ input { font-family: inherit; }
   left: var(--left-rail);
   right: var(--right-rail);
   overflow: hidden;
+  transition: left var(--dur-2) var(--ease-out), right var(--dur-2) var(--ease-out);
 }
 @media (min-width: 641px) {
   .app-shell:has(.dock-panel) {
@@ -102,6 +122,7 @@ input { font-family: inherit; }
     border-right: 0;
     border-bottom: 0;
     border-radius: 0;
+    animation: dockPanelIn var(--dur-2) var(--ease-out) backwards;
   }
   /* Left-docked panel (the catalog): mirrors the right dock so the canvas takes
      the remaining width and the centred toolbar re-centres over it. */
@@ -118,6 +139,32 @@ input { font-family: inherit; }
     border-left: 0;
     border-bottom: 0;
     border-radius: 0;
+    animation: dockPanelInLeft var(--dur-2) var(--ease-out) backwards;
+  }
+
+  /* Mount entrance for docked panels (desktop only — mobile keeps `sheetUp`).
+     `backwards` fill applies the `from` state only until the animation starts
+     and clears afterward; `both` would lock opacity/transform permanently and
+     break later hover transforms (see the 2a fix). */
+  @keyframes dockPanelIn {
+    from {
+      opacity: 0;
+      transform: translateX(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes dockPanelInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 }
 
@@ -174,6 +221,9 @@ input { font-family: inherit; }
 .btn-danger:hover { background: var(--danger-soft); filter: brightness(0.97); }
 .btn-block { width: 100%; }
 .btn-sm { padding: 5px 8px; font-size: var(--t-xs); }
+/* Inline button spinner (P16). Reuses @keyframes toastspin (features.css). */
+.btn .btn-spin { animation: toastspin 0.9s linear infinite; transform-origin: 50% 50%; flex: none; }
+.btn.is-loading { pointer-events: none; opacity: 0.7; }
 
 kbd {
   font-family: var(--font-mono); font-size: 10px; font-weight: 600;
@@ -271,9 +321,40 @@ body.mobile .tip::after { content: none; }
 }
 .menu.open { display: flex; animation: pop var(--dur) var(--ease); }
 @keyframes pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* Entrance stagger (P2). Children of a .stagger-in container fade+rise in
+   sequence. --i (the child's index) drives a 50ms cascade; mapped lists set it
+   inline, hand-authored menus fall back to the nth-child rules below.
+   `backwards` holds the from-state before the delay so nothing flashes at
+   full opacity, then releases opacity/transform once the animation ends
+   (unlike `both`, which pins the `to` values forever and blocks later
+   hover-lift transforms / hidden-row opacity changes on the same element).
+   Reduced-motion (app.css) zeroes the delay so all items land at once. */
+.stagger-in > * {
+  animation: staggerIn var(--dur-2) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+.stagger-in > *:nth-child(1) { --i: 0; }
+.stagger-in > *:nth-child(2) { --i: 1; }
+.stagger-in > *:nth-child(3) { --i: 2; }
+.stagger-in > *:nth-child(4) { --i: 3; }
+.stagger-in > *:nth-child(5) { --i: 4; }
+.stagger-in > *:nth-child(6) { --i: 5; }
+.stagger-in > *:nth-child(7) { --i: 6; }
+.stagger-in > *:nth-child(8) { --i: 7; }
+.stagger-in > *:nth-child(9) { --i: 8; }
+.stagger-in > *:nth-child(10) { --i: 9; }
+.stagger-in > *:nth-child(11) { --i: 10; }
+.stagger-in > *:nth-child(12) { --i: 11; }
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
 .menu-item {
   display: flex; align-items: center; gap: var(--s-3);
-  padding: 8px 9px; border-radius: var(--r-2);
+  /* --row-pad-x is 9px vs the pre-density 8px (--s-3) — a deliberate 1px
+     normalization when the density indirection landed (P38). */
+  padding: var(--row-pad-y) var(--row-pad-x); border-radius: var(--r-2);
   font-size: var(--t-base); font-weight: 500; color: var(--text-2);
   transition: var(--dur) var(--ease); text-align: left; width: 100%;
 }
@@ -310,7 +391,7 @@ body.mobile .tip::after { content: none; }
   flex: none; width: 30px; height: 30px; border-radius: var(--r-2);
   color: var(--text-3); transition: var(--dur) var(--ease);
 }
-.saved-view-del:hover { background: var(--surface-3); color: var(--danger, #c0392b); }
+.saved-view-del:hover { background: var(--surface-3); color: var(--danger); }
 
 /* ---- Segmented control --------------------------------------- */
 .seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border-radius: var(--r-2); }
@@ -343,7 +424,7 @@ body.mobile .tip::after { content: none; }
   transition: var(--dur) var(--ease);
 }
 .input::placeholder { color: var(--text-3); }
-.input:focus { outline: none; border-color: var(--accent); background: var(--surface-solid); box-shadow: 0 0 0 3px var(--accent-soft); }
+.input:focus, .input:focus-visible { outline: none; border-color: var(--accent); background: var(--surface-solid); box-shadow: var(--focus-ring); }
 .field .input { padding-left: 31px; }
 .label { font-size: var(--t-xs); font-weight: 600; color: var(--text-3); }
 
@@ -357,8 +438,9 @@ body.mobile .tip::after { content: none; }
   background: var(--surface-2); border: 1px solid var(--border);
   color: var(--text); font-size: var(--t-sm); text-align: left;
   transition: var(--dur) var(--ease);
+  font-variant-numeric: tabular-nums;
 }
-.num input:focus { outline: none; border-color: var(--accent); background: var(--surface-solid); box-shadow: 0 0 0 3px var(--accent-soft); }
+.num input:focus { outline: none; border-color: var(--accent); background: var(--surface-solid); box-shadow: var(--focus-ring); }
 .num .unit { position: absolute; right: 8px; bottom: 7px; font-size: var(--t-2xs); color: var(--text-3); font-family: var(--font-mono); }
 .num { position: relative; }
 
@@ -372,9 +454,10 @@ body.mobile .tip::after { content: none; }
 .slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 999px; background: var(--surface-3); outline: none; }
 .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 999px; background: var(--accent); border: 2px solid var(--surface-solid); box-shadow: 0 1px 3px oklch(0 0 0 / 0.25); cursor: pointer; }
 .slider::-moz-range-thumb { width: 13px; height: 13px; border-radius: 999px; background: var(--accent); border: 2px solid var(--surface-solid); cursor: pointer; }
+/* SliderField readout styling lives on `.fld .val` (app.css) — the input already carries `.val`. */
 
 /* generic list row */
-.row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: 8px 0; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) 0; }
 .row + .row { border-top: 1px solid var(--border); }
 .row .rk { display: flex; align-items: center; gap: var(--s-3); font-size: var(--t-base); font-weight: 500; color: var(--text-2); }
 .row .rk .icn { color: var(--text-3); }

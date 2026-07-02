@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { canPlace } from './collision/placement'
 import { placementWalls } from './collision/placementWalls'
 import {
@@ -73,9 +73,13 @@ import { EmptyRoomHint } from './ui/EmptyRoomHint'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
 import { FpsCounter } from './ui/FpsCounter'
+import { InfoCallout } from './ui/InfoCallout'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
+import { stopBootPhraseRotator } from './ui/loading/startBootPhraseRotator'
+import { scheduleTransitionHide } from './ui/loading/transitionHide'
+import { useDeferredSceneSwap } from './ui/loading/useDeferredSceneSwap'
 import { NavCluster } from './ui/NavCluster'
 import { NotificationContainer } from './ui/notifications/NotificationContainer'
 import { Onboarding } from './ui/Onboarding'
@@ -137,26 +141,48 @@ export default function App() {
   const catalog = useCatalog()
   usePlacementController()
 
-  // The boot loading screen is held until the bootstrap has resolved AND the
-  // scene has painted its first solid frames — so the front-facing 3D view is
-  // already nice when revealed. Non-front-facing UI (catalog, browse, packs)
-  // loads lazily/in the background and never gates this.
+  // Three-phase boot breaks the animation-vs-ready tradeoff:
+  //  1. Animated static loader + hydration (no Canvas) — smooth loop.
+  //  2. Canvas mounts + warms behind the opaque cover; the art keeps animating
+  //     (compositor-driven HTML layers — see index.html), only the cycling
+  //     phrase pins to "Almost ready…" (text swaps need the main thread).
+  //  3. Fade the cover once sceneReady — furnished view already painted.
   const booting = bootPhase !== 'ready' || !sceneReady
+  const visualScene = useDeferredSceneSwap(loading.active, roomEditorActive, floorPlanEditing)
+  const [sceneCanvasReady, setSceneCanvasReady] = useState(false)
 
   // Kick off the async boot bootstrap (hydration + default-layout seed) once.
-  // Runs after the first paint, so the loading overlay shows immediately
-  // instead of a blank screen. Flips bootPhase → 'ready' when done.
   useEffect(() => {
     void runBootstrap()
   }, [])
 
-  // Remove the static boot loader (baked into index.html so it paints before
-  // the JS bundle even loads) now that React has committed its first frame —
-  // the identical <LoadingOverlay> is on screen, so the handoff is seamless and
-  // there's no blank gap on a cold load.
+  // Phase 1→2: hydration done — pin the phrase, then mount Canvas. The loader
+  // art keeps animating (compositor layers survive main-thread warm-up work).
   useEffect(() => {
-    document.getElementById('boot-loader')?.remove()
-  }, [])
+    if (bootPhase !== 'ready') {
+      setSceneCanvasReady(false)
+      return
+    }
+    stopBootPhraseRotator('Almost ready…')
+    let id2 = 0
+    const id1 = requestAnimationFrame(() => {
+      id2 = requestAnimationFrame(() => setSceneCanvasReady(true))
+    })
+    return () => {
+      cancelAnimationFrame(id1)
+      if (id2) cancelAnimationFrame(id2)
+    }
+  }, [bootPhase])
+
+  // Phase 3: scene warmed — fade the static cover out, then remove it.
+  useEffect(() => {
+    if (booting) return
+    const el = document.getElementById('boot-loader')
+    if (!el) return
+    el.classList.add('bl-fade-out')
+    const id = window.setTimeout(() => el.remove(), 260)
+    return () => window.clearTimeout(id)
+  }, [booting])
 
   // `#/login` opens the sign-in screen (a shareable/bookmarkable entry), then
   // clears the hash. `#/plans/<code>` is handled by the boot bootstrap.
@@ -338,6 +364,9 @@ export default function App() {
       const warm = () => {
         const s = useStore.getState()
         if (s.remoteIndexes.polyhaven.status === 'idle') void s.bootstrapRemoteCatalog()
+        // Dev-only: pull GLBs from the local-assets/ folder into the catalog
+        // (no-op in prod — flag is devOnly + the plugin routes don't exist).
+        if (s.localAssetsStatus === 'idle') void s.bootstrapLocalAssets()
       }
       const w = window as typeof window & {
         requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number
@@ -377,17 +406,19 @@ export default function App() {
     }
   }, [booting])
 
-  // Transition overlays (orbit↔walk, room editor enter/exit) set loading.active
-  // true synchronously; clear it on the next frame after the swap commits, so
-  // the overlay's own min-time + fade handles the visible duration. Keying the
-  // effect on the changed state means each transition re-triggers the hide —
-  // the extra deps are intentional re-trigger keys, not effect inputs.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: loading.label/cameraMode/roomEditorActive re-trigger the hide per transition
+  // Transition overlays (orbit↔walk, room editor enter/exit, floor plan editor
+  // open/close) set loading.active true synchronously; hide on READINESS, not
+  // a timer: wait for the deferred swap to commit, then for real WebGL frames
+  // from the swapped-in scene (RenderPump warms it at ~10fps behind the
+  // overlay), with a safety timeout so the overlay can never strand. The
+  // overlay's own min-time + fade still shapes the visible duration. Keying
+  // the effect on the changed state means each transition re-triggers the
+  // hide — the extra deps are intentional re-trigger keys, not effect inputs.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: loading.label/cameraMode/roomEditorActive/floorPlanEditing re-trigger the hide per transition
   useEffect(() => {
     if (!loading.active) return
-    const id = requestAnimationFrame(() => hideLoading())
-    return () => cancelAnimationFrame(id)
-  }, [loading.active, loading.label, cameraMode, roomEditorActive, hideLoading])
+    return scheduleTransitionHide(hideLoading)
+  }, [loading.active, loading.label, cameraMode, roomEditorActive, floorPlanEditing, hideLoading])
 
   const pasteClipboard = useCallback(() => {
     const state = useStore.getState()
@@ -879,13 +910,25 @@ export default function App() {
         <div className="stage-area">
           <Toolbar />
           <ErrorBoundary scope="3D scene">
-            {roomEditorActive ? <RoomEditorScene /> : <Scene />}
+            {sceneCanvasReady ? visualScene.roomEditor ? <RoomEditorScene /> : <Scene /> : null}
           </ErrorBoundary>
           {/* Drop-target ring: shown while a finish drag is over the canvas
               (DOM overlay, outside R3F — works under frameloop="demand"). */}
           <FinishDragOverlay />
           <FpsCounter />
           <RoomEditorCaption />
+          {roomEditorActive && (
+            <div
+              className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2"
+              style={{ top: 'calc(env(safe-area-inset-top, 0px) + 104px)' }}
+            >
+              <div className="pointer-events-auto">
+                <InfoCallout id="room-editor" title="Designing one room">
+                  Click a piece to select it, then drag to move. Open the catalog to add more.
+                </InfoCallout>
+              </div>
+            </div>
+          )}
           <EmptyRoomHint />
           <MobileLongPress />
           <MarqueeSelector />
@@ -1050,15 +1093,12 @@ export default function App() {
         <LocationPrompt />
         <PromptModal />
         <ConfirmModal />
-        {floorPlanEditing ? (
+        {visualScene.floorPlan ? (
           <Suspense fallback={null}>
             <FloorPlanEditor />
           </Suspense>
         ) : null}
-        <LoadingOverlay
-          active={booting || loading.active}
-          label={booting ? 'Furnishing your flat…' : loading.label}
-        />
+        <LoadingOverlay active={loading.active} label={loading.label} />
       </div>
     </WebGLFallback>
   )

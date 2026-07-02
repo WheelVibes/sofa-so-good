@@ -49,6 +49,14 @@ export function BudgetPanel() {
   const budgetTarget = useStore((s) => s.budgetTarget)
   const setBudgetTarget = useStore((s) => s.setBudgetTarget)
   const plan = useStore((s) => s.floorPlan)
+  const setLeftMode = useStore((s) => s.setLeftMode)
+  const setCatalogOpen = useStore((s) => s.setCatalogOpen)
+  // Real catalog-open lever (same idiom as EmptyRoomHint's "Open catalog" CTA):
+  // switch the left dock to the catalog grid, then open it.
+  const browseCatalog = () => {
+    setLeftMode('catalog')
+    setCatalogOpen(true)
+  }
 
   const { groups, total, count } = useMemo(
     () => buildShoppingGroups(items, catalog),
@@ -118,6 +126,7 @@ export function BudgetPanel() {
               icon={Icon.Heart}
               title="No saved items"
               description="Tap the heart on any catalog card to save it here for later."
+              cta={{ label: 'Browse catalog', onClick: browseCatalog }}
             />
           ) : (
             <div className="coll-grid">
@@ -318,6 +327,7 @@ export function BudgetPanel() {
                 icon={Icon.Budget}
                 title="No furniture placed yet"
                 description="Add items from the catalog and a running cost estimate will build up here."
+                cta={{ label: 'Browse catalog', onClick: browseCatalog }}
               />
             ) : (
               groups.map((g) => (

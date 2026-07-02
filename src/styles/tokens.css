@@ -25,6 +25,12 @@
   --s-6: 20px;
   --s-7: 28px;
 
+  /* Side-panel widths (P10). --panel-w matches the docked rail (320px) so a
+     floating panel keeps its width when it docks; --panel-w-compact is the
+     tablet (≤1024) width. Replaces the hand-tuned 326/300/312 + 300/284/296. */
+  --panel-w: 320px;
+  --panel-w-compact: 288px;
+
   /* Type scale */
   --t-2xs: 10px;
   --t-xs: 11px;
@@ -34,9 +40,38 @@
   --t-lg: 16px;
   --t-xl: 20px;
 
+  /* Line-height tokens (P20). --lh-tight for headings + single-line labels;
+     --lh-body for multiline reading copy (descriptions, empty states, onboarding). */
+  --lh-tight: 1.25;
+  --lh-body: 1.5;
+  /* Row density (P38, `densityMode` flag): comfortable vertical/horizontal
+     padding for list-style rows (.menu-item + friends), seeded from the
+     current .menu-item padding. [data-density='compact'] below tightens the
+     vertical rhythm only — horizontal hit-targets stay put. */
+  --row-pad-y: 8px;
+  --row-pad-x: 9px;
+
   --blur: 16px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --dur: 0.16s;
+  /* Motion scale (P1). --dur (0.16s) stays the default micro-transition; this
+     scale is for larger entrance/exit choreography. --ease-out is easeOutExpo —
+     a fast-in / soft-settle curve for entrances (stagger, panel slide). */
+  --dur-1: 150ms;
+  --dur-2: 300ms;
+  --dur-3: 600ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Unified keyboard focus ring (P14): a 3px soft-accent halo, one token so
+     every control matches. color-mix keeps it on-theme in all 5 palettes. */
+  --focus-ring-w: 3px;
+  --focus-ring: 0 0 0 var(--focus-ring-w) color-mix(in oklch, var(--accent) 45%, transparent);
+
+  /* Modal panel widths (P11) — replaces ad-hoc min(560px…)/min(432px…). Each
+     clamps to the viewport so it never overflows a narrow phone. */
+  --modal-sm: min(432px, calc(100vw - 24px));
+  --modal-md: min(560px, calc(100vw - 24px));
+  --modal-lg: min(720px, calc(100vw - 24px));
 
   --z-hud: 10;
   --z-panel: 20;
@@ -49,6 +84,14 @@
      not theme-tinted; reads on light and dark surfaces. */
   --sun: oklch(0.84 0.16 85);
   --sun-edge: oklch(0.48 0.11 65);
+}
+
+/* Density mode (P38, Pro-tier `densityMode` flag): [data-density='compact'] on
+   <html> tightens the vertical rhythm of list-style rows only (--row-pad-y),
+   leaving --row-pad-x untouched so horizontal hit-targets don't shrink. Uses
+   the existing spacing scale, not a raw px literal. */
+[data-density='compact'] {
+  --row-pad-y: var(--s-2);
 }
 
 /* ============================================================

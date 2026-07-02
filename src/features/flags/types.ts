@@ -32,6 +32,7 @@ export type FeatureFlag =
   | 'aiPhotoreal'
   | 'aiWalls'
   | 'ikeaLive'
+  | 'localAssets'
   | 'livePrices'
   | 'drawings'
   | 'daylight'
@@ -126,6 +127,13 @@ export type FeatureFlag =
   | 'masterPalette'
   | 'layerOrder'
   | 'contextMenu'
+  | 'infoCallouts'
+  | 'newBadges'
+  | 'densityMode'
+  | 'proUpsell'
+  | 'ambientFx'
+  | 'accounts'
+  | 'sharedLibrary'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

@@ -54,8 +54,9 @@ export function ArrangeMenu() {
         )}
         <Action
           icon="Tidy"
-          label={`Tidy home${chip(shortcutLabel('tidyHome'))}`}
+          label="Tidy home"
           sub="Auto-arrange every room"
+          kbd={shortcutLabel('tidyHome')}
           onClick={tidyHome}
         />
 
@@ -257,12 +258,16 @@ function Action({
   label,
   sub,
   active,
+  kbd,
   onClick,
 }: {
   icon: IconName
   label: string
   sub?: string
   active?: boolean
+  /** Shortcut combo label (from `shortcuts.ts`), rendered as a right-aligned
+   *  `.mi-kbd` chip (P24) — never hardcode the key text inline in `label`. */
+  kbd?: string
   onClick: () => void
 }) {
   const Cmp = Icon[icon]
@@ -280,10 +285,7 @@ function Action({
         <span className="block text-[13px] text-[var(--text)]">{label}</span>
         {sub ? <span className="block text-[10px] text-[var(--text-3)]">{sub}</span> : null}
       </span>
+      {kbd ? <kbd className="mi-kbd">{kbd}</kbd> : null}
     </button>
   )
-}
-
-function chip(s: string): string {
-  return s ? `  (${s})` : ''
 }

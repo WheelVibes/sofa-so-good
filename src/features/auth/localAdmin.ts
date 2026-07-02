@@ -25,6 +25,7 @@ export function verifyAdminPassword(input: string, expected: string = EXPECTED_P
 export const localAdminProvider: AuthProvider = {
   id: 'local-admin',
   label: 'Admin',
+  backend: false,
   async signIn({ password }): Promise<SignInResult> {
     if (verifyAdminPassword(password)) return { ok: true, user: ADMIN_USER }
     return { ok: false, error: 'Incorrect password.' }

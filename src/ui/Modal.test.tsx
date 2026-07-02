@@ -76,6 +76,16 @@ describe('Modal accessibility', () => {
     expect(isAnyModalOpen()).toBe(false)
   })
 
+  it('accepts a token string width and applies it directly', () => {
+    render(
+      <Modal open onClose={() => {}} title="T" width="var(--modal-md)">
+        x
+      </Modal>,
+    )
+    const panel = document.querySelector('.modal-overlay > .panel') as HTMLElement
+    expect(panel.style.width).toBe('var(--modal-md)')
+  })
+
   it('closes on Escape', () => {
     let closed = false
     render(

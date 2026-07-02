@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useModalGuard } from '../../controls/modalGuard'
 import {
@@ -10,13 +10,25 @@ import { parseMetadata } from '../../furniture/ikea/metadata'
 import { mapCategory } from '../../furniture/ikea/translate'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { isModelFile, modelName, prepareModelFile } from '../../furniture/upload/bulkImport'
+import { coalesceProgress } from '../../furniture/upload/coalesceProgress'
 import { hashFile } from '../../furniture/upload/hashFile'
 import { inferCollisionFlags } from '../../furniture/upload/inferFlags'
 import { persistUserGlb } from '../../furniture/upload/persist'
+import { pickDirectoryFiles, supportsDirectoryPicker } from '../../furniture/upload/pickDirectory'
 import { readDroppedItems } from '../../furniture/upload/readDrop'
 import { startBackgroundImport } from '../../furniture/upload/runImport'
 import { Select } from '../controls/Select'
 import { ConfirmDialog } from './ConfirmDialog'
+import { pageWindow } from './pageWindow'
+
+// Detected groups render one <li> each; a folder of thousands would otherwise
+// mount thousands of DOM nodes and stall the main thread (janky spinner/counter).
+// Cap the rendered rows to one page — the rest are reachable via the pager.
+const GROUPS_PER_PAGE = 50
+
+// Stable empty array so the deferred-loose-models path keeps a constant
+// reference across re-renders (no spurious downstream churn).
+const EMPTY_FILES: File[] = []
 
 interface UploadModelDialogProps {
   open: boolean
@@ -171,7 +183,12 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   // Files that will actually be imported (folder picks include junk).
   const modelFiles = files.filter((f) => isModelFile(pathOf(f)))
   const hasGroups = ikeaGroups.length > 0
-  const looseModels = looseModelFiles(files, ikeaGroups)
+  // Classifying loose (non-group) models is O(files × groups). While detecting,
+  // ikeaGroups grows every frame, so recomputing this per frame is O(n²) on the
+  // main thread (the real spinner/counter killer on a big scan). The loose set
+  // isn't actionable mid-scan (Import is disabled), so defer it until the scan
+  // settles — the final setIkeaGroups triggers one authoritative compute.
+  const looseModels = detecting ? EMPTY_FILES : looseModelFiles(files, ikeaGroups)
   // The legacy single-file path: exactly one model, no groups, nothing else.
   const single = !hasGroups && looseModels.length === 1 && files.length === 1
   // Category applied to loose GLBs: a concrete pick, or the 'others' catch-all
@@ -205,9 +222,26 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     // Auto-detect every model-group folder (each has a metadata.json w/
     // group_key). Reads + parses each metadata.json — report progress for the UI.
     setDetectProgress({ parsed: 0, total: 0 })
-    void detectGroups(picked, (parsed, total) => setDetectProgress({ parsed, total }))
-      .then(setIkeaGroups)
-      .finally(() => setDetectProgress(null))
+    // Coalesce BOTH the progress counter and the live-growing group list to one
+    // repaint per animation frame: a big scan (thousands of groups) would
+    // otherwise fire a setState per file and thrash React (frozen-then-jumpy UI).
+    const progress = coalesceProgress<{ parsed: number; total: number }>((p) =>
+      setDetectProgress(p),
+    )
+    const groupList = coalesceProgress<DetectedGroup[]>((g) => setIkeaGroups(g))
+    void detectGroups(
+      picked,
+      (parsed, total) => progress.push({ parsed, total }),
+      (groupsSoFar) => groupList.push(groupsSoFar.slice()),
+    )
+      .then((g) => {
+        groupList.flush()
+        setIkeaGroups(g) // authoritative final list
+      })
+      .finally(() => {
+        progress.flush()
+        setDetectProgress(null)
+      })
   }
 
   const onPick = (list: FileList | null) => ingest(list ? Array.from(list) : [])
@@ -217,9 +251,40 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setDragOver(false)
     if (busy || scanCount !== null) return
     setScanCount(0)
+    // Coalesce the per-file scan count to one repaint per frame — the recursive
+    // walk fires onProgress thousands of times on a large folder.
+    const scan = coalesceProgress<number>((n) => setScanCount(n))
     try {
-      const picked = await readDroppedItems(e.dataTransfer, (n) => setScanCount(n))
+      const picked = await readDroppedItems(e.dataTransfer, (n) => scan.push(n))
+      scan.flush()
       if (picked.length > 0) ingest(picked)
+    } finally {
+      setScanCount(null)
+    }
+  }
+
+  // "Choose folder…" — on Chromium, use the File System Access picker (no native
+  // "Upload N files?" prompt; live scan progress from the first file). Elsewhere,
+  // or if the picker is blocked at call time, fall back to the native
+  // <input webkitdirectory>.
+  const chooseFolder = async () => {
+    if (busy || scanCount !== null) return
+    if (!supportsDirectoryPicker()) {
+      folderInput.current?.click()
+      return
+    }
+    setScanCount(0)
+    const scan = coalesceProgress<number>((n) => setScanCount(n))
+    try {
+      const picked = await pickDirectoryFiles((n) => scan.push(n))
+      scan.flush()
+      if (picked && picked.length > 0) ingest(picked)
+    } catch (e) {
+      // Picker unavailable/blocked (e.g. non-secure context) → native fallback;
+      // any other failure surfaces as an error.
+      const name = e instanceof DOMException ? e.name : ''
+      if (name === 'SecurityError' || name === 'NotAllowedError') folderInput.current?.click()
+      else setError(e instanceof Error ? e.message : String(e))
     } finally {
       setScanCount(null)
     }
@@ -310,7 +375,8 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
+          {/* Fixed upload area — stays put while the detected-groups list scrolls below. */}
           <p className="mb-4 text-xs text-[var(--text-3)]">
             Drag in <span className="font-mono">.glb</span>/<span className="font-mono">.gltf</span>{' '}
             or <span className="font-mono">.obj/.fbx/.stl/.ply/.dae/.3ds/.3mf/.usdz</span> files (or
@@ -354,12 +420,18 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                   <span className="text-xs text-[var(--text-3)]">or</span>
                   <button
                     type="button"
-                    onClick={() => folderInput.current?.click()}
+                    onClick={chooseFolder}
                     disabled={busy}
                     className="rounded bg-[var(--surface-solid)] px-3 py-1 text-xs font-medium text-[var(--text-2)] shadow-sm ring-1 ring-[var(--border-2)] hover:bg-[var(--surface-2)] disabled:opacity-50"
                   >
                     Choose folder…
                   </button>
+                  {!supportsDirectoryPicker() ? (
+                    <span className="mt-1 block text-[10px] text-[var(--text-3)]">
+                      Tip: drag a folder in for live progress (skips the browser’s “upload N files?”
+                      prompt).
+                    </span>
+                  ) : null}
                 </>
               )}
             </div>
@@ -391,7 +463,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                   <Spinner small />
                   {detectProgress.total > 0
                     ? `Detecting model groups… ${detectProgress.parsed} / ${detectProgress.total}`
-                    : 'Detecting model groups…'}
+                    : `Reading ${files.length} file${files.length === 1 ? '' : 's'}…`}
                 </p>
                 {detectProgress.total > 0 ? (
                   <div className="h-1 w-full overflow-hidden rounded bg-[var(--surface-3)]">
@@ -405,8 +477,17 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                 ) : null}
               </div>
             ) : null}
+          </div>
 
-            {hasGroups ? <GroupPanel groups={ikeaGroups} looseCount={looseModels.length} /> : null}
+          {/* Scrollable region: only the detected groups + import options scroll. */}
+          <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto">
+            {hasGroups ? (
+              <GroupPanel
+                groups={ikeaGroups}
+                looseCount={looseModels.length}
+                detecting={detecting}
+              />
+            ) : null}
 
             {/* Category/flags apply to loose (non-group) models. */}
             {looseModels.length > 0 ? (
@@ -523,9 +604,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
             disabled={busy || detecting || modelFiles.length === 0 || (single && !name.trim())}
             className="rounded bg-[var(--accent)] px-3 py-1 text-sm text-[var(--on-accent)] hover:bg-[var(--accent-2)] disabled:cursor-not-allowed disabled:bg-[var(--surface-3)]"
           >
-            {busy
-              ? 'Saving…'
-              : submitLabel(hasGroups, ikeaGroups.length, single, looseModels.length)}
+            {busy ? 'Saving…' : submitLabel(ikeaGroups.length, single, looseModels.length)}
           </button>
         </footer>
 
@@ -550,21 +629,37 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   return createPortal(dialog, document.body)
 }
 
-function submitLabel(
-  hasGroups: boolean,
-  groupCount: number,
-  single: boolean,
-  looseCount: number,
-): string {
-  if (hasGroups) {
-    const g = `${groupCount} model group${groupCount === 1 ? '' : 's'}`
-    return looseCount > 0 ? `Import ${g} + ${looseCount}` : `Import ${g}`
-  }
+export function submitLabel(groupCount: number, single: boolean, looseCount: number): string {
   if (single) return 'Save'
-  return `Import ${looseCount}`
+  // Only ever name counts that are ≥ 1 — never "Import 0" or a "+ 0" tail.
+  const parts: string[] = []
+  if (groupCount > 0) parts.push(`${groupCount} model group${groupCount === 1 ? '' : 's'}`)
+  if (looseCount > 0) parts.push(String(looseCount))
+  return parts.length > 0 ? `Import ${parts.join(' + ')}` : 'Import'
 }
 
-function GroupPanel({ groups, looseCount }: { groups: DetectedGroup[]; looseCount: number }) {
+export function GroupPanel({
+  groups,
+  looseCount,
+  detecting,
+}: {
+  groups: DetectedGroup[]
+  looseCount: number
+  detecting: boolean
+}) {
+  const [page, setPage] = useState(0)
+  // While the scan runs the list grows every frame; pin to the first page so
+  // rows never jump under the user and each frame only renders the stable first
+  // slice (bounded work → smooth spinner + counter). The pager comes alive once
+  // detection settles.
+  const win = pageWindow(groups.length, GROUPS_PER_PAGE, detecting ? 0 : page)
+  // If the settled list ended up smaller than the page we were sitting on, snap
+  // our stored page back into range (win already clamped this render).
+  useEffect(() => {
+    if (!detecting && page !== win.page) setPage(win.page)
+  }, [detecting, page, win.page])
+  const visible = groups.slice(win.start, win.end)
+  const showPager = !detecting && win.pageCount > 1
   return (
     <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--accent-soft)] px-3 py-2">
       <p className="text-xs font-semibold text-[var(--accent-soft-text)]">
@@ -572,15 +667,47 @@ function GroupPanel({ groups, looseCount }: { groups: DetectedGroup[]; looseCoun
         {looseCount > 0 ? ` + ${looseCount} loose model${looseCount === 1 ? '' : 's'}` : ''}
       </p>
       <ul className="space-y-1.5">
-        {groups.map((g, i) => (
-          <GroupRow key={i} group={g} />
+        {visible.map((g, i) => (
+          // Absolute index: groups are appended in order, so this is stable per
+          // group across page changes (lets React reuse memoized rows).
+          <GroupRow key={win.start + i} group={g} />
         ))}
       </ul>
+      {showPager ? (
+        <nav
+          className="flex items-center justify-between gap-2 pt-1"
+          aria-label="Detected groups pages"
+        >
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={win.page === 0}
+            className="rounded bg-[var(--surface-solid)] px-2 py-0.5 text-xs font-medium text-[var(--text-2)] shadow-sm ring-1 ring-[var(--border-2)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            ‹ Prev
+          </button>
+          <span className="text-[10px] text-[var(--text-3)]">
+            Showing {win.start + 1}–{win.end} of {groups.length} · page {win.page + 1} of{' '}
+            {win.pageCount}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(win.pageCount - 1, p + 1))}
+            disabled={win.page >= win.pageCount - 1}
+            className="rounded bg-[var(--surface-solid)] px-2 py-0.5 text-xs font-medium text-[var(--text-2)] shadow-sm ring-1 ring-[var(--border-2)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next ›
+          </button>
+        </nav>
+      ) : null}
     </div>
   )
 }
 
-function GroupRow({ group }: { group: DetectedGroup }) {
+// Memoized: incremental detection re-renders GroupPanel as the list grows, but
+// each existing row keeps a stable `group` reference, so the (zod-heavy) parse
+// only runs for newly added rows — keeping a thousands-strong scan responsive.
+const GroupRow = memo(function GroupRow({ group }: { group: DetectedGroup }) {
   const parsed = parseMetadata(group.meta)
   if (!parsed.ok) {
     return (
@@ -608,4 +735,4 @@ function GroupRow({ group }: { group: DetectedGroup }) {
       </div>
     </li>
   )
-}
+})

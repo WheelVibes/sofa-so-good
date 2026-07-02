@@ -1,5 +1,5 @@
 import { useStore } from '../state/store'
-import { isDragRelease } from './clickVsDrag'
+import { isDragRelease, pointerDownStartedOnItem } from './clickVsDrag'
 
 /**
  * Canvas `onPointerMissed` handler: a click/tap that lands on empty space (no
@@ -12,6 +12,10 @@ import { isDragRelease } from './clickVsDrag'
 export function deselectOnMiss(e: MouseEvent): void {
   if (e.button !== 0) return
   if (isDragRelease(e)) return
+  // Don't let the release of a gesture that just selected an item deselect it:
+  // the inspector opening resizes the canvas, so this release's raycast can miss
+  // the shifted item and fire onPointerMissed here (INSPECTOR-FLICKER).
+  if (pointerDownStartedOnItem()) return
   const s = useStore.getState()
   if (s.activeDefId) return
   // No-op when nothing is selected so we don't churn the store on every stray

@@ -1,0 +1,24 @@
+{
+  "name": "accounts-login-simple",
+  "url": "http://localhost:5233/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "assert-backend-provider",
+      "waitFor": { "store": "window.__store.getState().authIsBackend === true" },
+      "failMessage": "authIsBackend should be true when VITE_API_BASE is set"
+    },
+    { "name": "shot-scene", "screenshot": "scene" },
+    { "name": "open-login", "eval": "window.__store.getState().setLoginOpen(true)" },
+    {
+      "name": "login-form-visible",
+      "waitFor": { "css": "input[type=\"email\"]" },
+      "timeout": 20000
+    },
+    { "name": "shot-login", "screenshot": "login-form" }
+  ]
+}

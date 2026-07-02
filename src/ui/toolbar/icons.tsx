@@ -473,6 +473,12 @@ export const Icon = {
       <path d="M4 7h16M4 12h16M4 17h16" />
     </Svg>
   ),
+  Sort: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M4 7h10M4 12h14M4 17h6" />
+      <path d="M18 7v10M15 14l3 3 3-3" />
+    </Svg>
+  ),
   // Universal-access figure — distinct from the shield "Checks" glyph so the
   // Accessibility tool reads on its own.
   Accessibility: (p: SVGProps<SVGSVGElement>) => (

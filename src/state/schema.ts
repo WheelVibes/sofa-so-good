@@ -480,8 +480,11 @@ const LEGACY_TIME_HOUR: Record<string, number> = {
 }
 
 /** Accepts both new (`timeMode`/`manualHour`) and legacy (`timeOfDay`)
- *  payload shapes. Legacy values map: day→12, dusk→18, night→0, all
- *  in manual mode. */
+ *  payload shapes. Legacy hours map: day→12, dusk→18, night→0. The old
+ *  *default* was 'day', so users who never picked a time land there — it
+ *  migrates to `system` mode (follow the real clock, like a fresh design)
+ *  rather than being pinned to manual noon. 'dusk'/'night' were deliberate
+ *  off-default picks, so they stay `manual` at their hour. */
 export const SerializedStateZ = z.preprocess((input) => {
   if (input && typeof input === 'object' && !Array.isArray(input)) {
     let obj = input as Record<string, unknown>
@@ -494,9 +497,9 @@ export const SerializedStateZ = z.preprocess((input) => {
     if (!('timeMode' in obj) && typeof obj.timeOfDay === 'string') {
       const hour = LEGACY_TIME_HOUR[obj.timeOfDay]
       if (typeof hour === 'number') {
-        const { timeOfDay: _legacy, ...rest } = obj
-        void _legacy
-        return { ...rest, timeMode: 'manual', manualHour: hour }
+        const { timeOfDay: legacy, ...rest } = obj
+        const timeMode = legacy === 'day' ? 'system' : 'manual'
+        return { ...rest, timeMode, manualHour: hour }
       }
     }
     return obj

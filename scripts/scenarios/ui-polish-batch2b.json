@@ -1,0 +1,101 @@
+{
+  "name": "ui-polish-batch2b",
+  "url": "http://localhost:5240/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "app-loaded", "waitFor": { "css": ".toolbar" }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1') })()"
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "settle", "wait": 2500 },
+    { "name": "enter-room-editor", "eval": "window.__store.getState().enterRoomEditor('livingDining')" },
+    { "name": "editor-settle", "wait": 1200 },
+
+    { "name": "P3-open-catalog", "eval": "(() => { const s=window.__store.getState(); s.setLeftMode('catalog'); s.setCatalogOpen(true) })()" },
+    { "name": "P3-shot-panel-slide-mid", "screenshot": "panel-slide-mid" },
+    { "name": "P3-catalog-mounted", "waitFor": { "css": ".dock-panel-left" }, "timeout": 30000 },
+
+    { "name": "P17-skeleton-present", "waitFor": { "css": ".card-thumb .skeleton" }, "timeout": 30000 },
+    { "name": "P17-shot-skeleton", "screenshot": "skeleton-shimmer" },
+    { "name": "P17-probe-skeleton", "eval": "(() => { const sk=[...document.querySelectorAll('.card-thumb .skeleton')]; const one=sk[0]; const cs=one&&getComputedStyle(one); console.log('PROBE skeleton count', sk.length, 'anim', cs && cs.animationName, 'dur', cs && cs.animationDuration) })()" },
+
+    { "name": "P3-panel-settled", "wait": 700 },
+    { "name": "P3-shot-panel-settled", "screenshot": "panel-slide-settled" },
+    { "name": "P3-probe-stage", "eval": "(() => { const sa=document.querySelector('.stage-area'); const cs=sa&&getComputedStyle(sa); console.log('PROBE stage-area transition', cs && cs.transitionProperty, cs && cs.transitionDuration, 'left', cs && cs.left) })()" },
+
+    { "name": "P17-thumbs-resolve", "wait": 4000 },
+    { "name": "P17-shot-thumbs-resolved", "screenshot": "skeleton-resolved" },
+    { "name": "P17-probe-resolved", "eval": "(() => { const imgs=document.querySelectorAll('.card-thumb img'); const sk=document.querySelectorAll('.card-thumb .skeleton'); console.log('PROBE resolved thumbs imgs', imgs.length, 'remaining skeletons', sk.length) })()" },
+
+    { "name": "P16-open-hq-render", "eval": "window.__store.getState().setHqRenderOpen(true)" },
+    { "name": "P16-modal-mounted", "waitFor": { "text": "Start render" }, "timeout": 30000 },
+    { "name": "P16-shot-hq-idle", "screenshot": "hq-render-idle" },
+    {
+      "name": "P16-start-render",
+      "eval": "(() => { window.__hqLoadingSeen=''; const btns=[...document.querySelectorAll('button')]; const b=btns.find(x=>/Start render|Re-render/.test(x.textContent||'')); if(b) b.click(); let n=0; const tick=()=>{ const lb=document.querySelector('.btn.is-loading'); if(lb){ window.__hqLoadingSeen = lb.className+'|aria-busy='+lb.getAttribute('aria-busy')+'|disabled='+lb.disabled } if(++n<90) requestAnimationFrame(tick) }; requestAnimationFrame(tick) })()"
+    },
+    { "name": "P16-shot-hq-building", "screenshot": "hq-render-building" },
+    { "name": "P16-building2", "wait": 250 },
+    { "name": "P16-shot-hq-building2", "screenshot": "hq-render-building2" },
+    { "name": "P16-probe-loading", "eval": "console.log('PROBE hq loading class seen:', window.__hqLoadingSeen || '(none captured)')" },
+    { "name": "P16-close-hq", "eval": "window.__store.getState().setHqRenderOpen(false)" },
+    { "name": "P16-hq-closed", "wait": 400 },
+
+    { "name": "P5-toast-success", "eval": "window.__store.getState().notify.start({ title: 'Design saved', kind: 'success' })" },
+    { "name": "P5-toast-visible", "waitFor": { "css": ".toast-host .toast .icn.pop" }, "timeout": 10000 },
+    { "name": "P5-shot-toast-checkmark", "screenshot": "toast-checkmark" },
+    { "name": "P5-probe-toast", "eval": "(() => { const ic=document.querySelector('.toast .icn.pop'); const cs=ic&&getComputedStyle(ic); console.log('PROBE toast pop anim', cs && cs.animationName, 'dur', cs && cs.animationDuration) })()" },
+
+    {
+      "name": "P5-seed-items-and-pending",
+      "eval": "(() => { const s=window.__store.getState(); const r=s.floorPlan.rooms.find(x=>x.id==='livingDining')||s.floorPlan.rooms[0]; const cx=r.origin[0]+ (r.width||3)/2, cz=r.origin[1]+(r.depth||3)/2; const items=[{ id:'ec-seed-0', defId:'sofa-3seat', position:[cx,cz], rotation:0, props:{} }]; s.setItems(items); s.selectItem('ec-seed-0'); s.setPendingEdit({ kind:'transform', ids:['ec-seed-0'], originals:[{ id:'ec-seed-0', position:[cx-0.2,cz], rotation:0 }] }); console.log('PROBE seeded pending') })()"
+    },
+    { "name": "P5-editconfirm-visible", "waitFor": { "css": ".edit-confirm" }, "timeout": 10000 },
+    { "name": "P5-shot-editconfirm-enter", "screenshot": "editconfirm-enter" },
+    {
+      "name": "P5-click-confirm-capture-leave",
+      "eval": "(() => { window.__leaveSeen=''; const b=document.querySelector('.edit-confirm-btn.confirm'); b.click(); let n=0; const tick=()=>{ const el=document.querySelector('.edit-confirm'); if(el){ window.__leaveSeen = el.className } if(++n<20) requestAnimationFrame(tick) }; requestAnimationFrame(tick) })()"
+    },
+    { "name": "P5-shot-editconfirm-leaving", "screenshot": "editconfirm-leaving" },
+    { "name": "P5-probe-leaving", "eval": "console.log('PROBE editconfirm leave class seen:', window.__leaveSeen || '(none)')" },
+    { "name": "P5-leave-settle", "wait": 400 },
+
+    {
+      "name": "P5-seed-pending-again",
+      "eval": "(() => { const s=window.__store.getState(); const r=s.floorPlan.rooms.find(x=>x.id==='livingDining')||s.floorPlan.rooms[0]; const cx=r.origin[0]+(r.width||3)/2, cz=r.origin[1]+(r.depth||3)/2; s.setItems([{ id:'ec-seed-1', defId:'sofa-3seat', position:[cx,cz], rotation:0, props:{} }]); s.selectItem('ec-seed-1'); s.setPendingEdit({ kind:'transform', ids:['ec-seed-1'], originals:[{ id:'ec-seed-1', position:[cx-0.2,cz], rotation:0 }] }) })()"
+    },
+    { "name": "P5-editconfirm-visible-2", "waitFor": { "css": ".edit-confirm" }, "timeout": 10000 },
+    {
+      "name": "P5-click-cancel-capture-shake",
+      "eval": "(() => { window.__shakeSeen=''; const b=document.querySelector('.edit-confirm-btn.cancel'); b.click(); let n=0; const tick=()=>{ const el=document.querySelector('.edit-confirm'); if(el){ window.__shakeSeen = el.className } if(++n<20) requestAnimationFrame(tick) }; requestAnimationFrame(tick) })()"
+    },
+    { "name": "P5-shot-editconfirm-shake", "screenshot": "editconfirm-shake" },
+    { "name": "P5-probe-shake", "eval": "console.log('PROBE editconfirm reject class seen:', window.__shakeSeen || '(none)')" },
+    { "name": "P5-shake-settle", "wait": 400 },
+
+    { "name": "P28-empty-items", "eval": "window.__store.getState().setItems([])" },
+    { "name": "P28-to-layers", "eval": "window.__store.getState().setLeftMode('layers')" },
+    { "name": "P28-empty-cta-visible", "waitFor": { "text": "Nothing placed yet" }, "timeout": 20000 },
+    { "name": "P28-shot-empty-cta", "screenshot": "empty-cta-layers" },
+    { "name": "P28-probe-cta", "eval": "(() => { const b=[...document.querySelectorAll('.empty-mini button, .empty-cta, button')].find(x=>/Open catalog/.test(x.textContent||'')); console.log('PROBE empty CTA present:', !!b, b && b.textContent.trim()) })()" },
+    {
+      "name": "P28-click-cta",
+      "eval": "(() => { const b=[...document.querySelectorAll('button')].find(x=>/^\\s*Open catalog\\s*$/.test(x.textContent||'')); if(b) b.click() })()"
+    },
+    { "name": "P28-cta-navigates", "waitFor": { "store": "window.__store.getState().leftMode === 'catalog' && window.__store.getState().catalogOpen === true" }, "timeout": 10000 },
+    { "name": "P28-shot-cta-result", "screenshot": "empty-cta-navigated" },
+
+    {
+      "name": "RM-emulate-reduced-motion",
+      "eval": "(() => { const st=document.createElement('style'); st.id='rm-emulate'; st.textContent='*,*::before,*::after{animation-duration:0.01ms !important;animation-delay:0ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important;transition-delay:0ms !important;}'; document.head.appendChild(st) })()"
+    },
+    { "name": "RM-reopen-catalog", "eval": "(() => { const s=window.__store.getState(); s.setCatalogOpen(false); s.setLeftMode('catalog'); s.setCatalogOpen(true) })()" },
+    { "name": "RM-catalog-mounted", "waitFor": { "css": ".dock-panel-left" }, "timeout": 20000 },
+    { "name": "RM-toast", "eval": "window.__store.getState().notify.start({ title: 'Saved (reduced motion)', kind: 'success' })" },
+    { "name": "RM-toast-visible", "waitFor": { "css": ".toast-host .toast" }, "timeout": 10000 },
+    { "name": "RM-settle", "wait": 600 },
+    { "name": "RM-shot-reduced-motion", "screenshot": "reduced-motion-settled" }
+  ]
+}

@@ -1,15 +1,19 @@
+import { hasBackend } from '../../features/api/client'
+import { backendAuthProvider } from '../../features/auth/backendProvider'
 import { localAdminProvider } from '../../features/auth/localAdmin'
 import type { AuthProvider, AuthUser, Credentials } from '../../features/auth/types'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
 /**
- * Session state over the active {@link AuthProvider}. Today the provider is the
- * client-side `localAdminProvider`; swapping in a backend provider later only
- * changes this constant. The signed-in user is persisted to localStorage and
- * revived (validated) through the provider on boot.
+ * Session state over the active {@link AuthProvider}. The provider is chosen by
+ * build config: when a backend is configured (`VITE_API_BASE` set, i.e. the
+ * Cloudflare deployment) real email+password accounts with server sessions are
+ * used; otherwise (GitHub Pages / offline) the client-side admin gate applies.
+ * The signed-in user is persisted to localStorage and revived through the
+ * provider on boot; `refreshAuth` revalidates the server session.
  */
-const provider: AuthProvider = localAdminProvider
+const provider: AuthProvider = hasBackend() ? backendAuthProvider : localAdminProvider
 const LS_KEY = 'hdb_auth'
 
 function loadUser(): AuthUser | null {
@@ -27,14 +31,22 @@ export interface AuthSlice {
   authError: string | null
   /** The active provider's label (for the login screen). */
   authProviderLabel: string
+  /** Whether the active provider authenticates against a real backend. */
+  authIsBackend: boolean
   signIn: (credentials: Credentials) => Promise<boolean>
   signOut: () => void
+  /** Revalidate the persisted session against the server (backend only). */
+  refreshAuth: () => Promise<void>
 }
 
-export const AUTH_INITIAL: Pick<AuthSlice, 'currentUser' | 'authError' | 'authProviderLabel'> = {
+export const AUTH_INITIAL: Pick<
+  AuthSlice,
+  'currentUser' | 'authError' | 'authProviderLabel' | 'authIsBackend'
+> = {
   currentUser: loadUser(),
   authError: null,
   authProviderLabel: provider.label,
+  authIsBackend: provider.backend,
 }
 
 export const createAuthSlice: SliceCreator<AuthSlice, RootState> = (set, get) => ({
@@ -56,12 +68,25 @@ export const createAuthSlice: SliceCreator<AuthSlice, RootState> = (set, get) =>
     return false
   },
   signOut: () => {
+    void provider.signOut?.()
     try {
       globalThis.localStorage?.removeItem(LS_KEY)
     } catch {
       /* ignore */
     }
     set({ currentUser: null, authError: null })
+    get().reresolveFeatureFlags()
+  },
+  refreshAuth: async () => {
+    if (!provider.validate) return
+    const user = await provider.validate()
+    try {
+      if (user) globalThis.localStorage?.setItem(LS_KEY, JSON.stringify(user))
+      else globalThis.localStorage?.removeItem(LS_KEY)
+    } catch {
+      /* ignore persistence failure */
+    }
+    set({ currentUser: user })
     get().reresolveFeatureFlags()
   },
 })

@@ -3,7 +3,7 @@
    ============================================================ */
 
 /* ---- Catalog (left) ------------------------------------------ */
-.catalog { left: var(--s-4); top: var(--s-4); width: 326px; max-height: calc(100vh - 32px); }
+.catalog { left: var(--s-4); top: var(--s-4); width: var(--panel-w); max-height: calc(100vh - 32px); }
 .cat-tabsrow { display: flex; gap: 2px; padding: 0 var(--s-4) var(--s-2); }
 .cat-search { padding: var(--s-3) var(--s-4); }
 /* Clear (×) button inside the search field, shown only while a query is typed. */
@@ -25,16 +25,53 @@
 }
 .cat-recent-clear:hover { color: var(--text); text-decoration: underline; }
 
-/* category rail */
-.cat-rail { display: flex; gap: var(--s-1); overflow-x: auto; padding: 0 var(--s-4) var(--s-3); scrollbar-width: none; }
+/* category rail — ::before/::after spacers (not padding) so horizontal scroll keeps
+   the same inset at both edges; padding on overflow containers often clips flush. */
+.cat-rail {
+  display: flex; align-items: center; gap: var(--s-1); flex-shrink: 0;
+  overflow-x: auto; padding-bottom: var(--s-3); scrollbar-width: none;
+}
+.cat-rail::before,
+.cat-rail::after {
+  content: '';
+  flex: none;
+  width: var(--s-4);
+}
 .cat-rail::-webkit-scrollbar { display: none; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px; flex: none;
-  padding: 8px 12px; border-radius: var(--r-pill);
+  padding: var(--s-3) var(--s-4); border-radius: var(--r-pill);
   font-size: var(--t-xs); font-weight: 600; color: var(--text-2);
   background: var(--surface-2); border: 1px solid transparent;
   transition: var(--dur) var(--ease); line-height: 1.2;
 }
+/* Sort icon — first item in the category rail, before favourites. */
+.cat-rail-sort { flex: none; }
+.cat-rail-sort .select-icon-trigger { width: 34px; height: 34px; }
+/* Price filter row (optional, when budget is on). */
+.cat-sort {
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--s-2); flex-shrink: 0;
+  padding: 0 var(--s-4) var(--s-2);
+  font-size: var(--t-2xs); color: var(--text-3);
+}
+.cat-sort-label { flex: none; }
+.cat-sort-price {
+  width: 64px; height: 28px; padding: 0 6px; flex: none;
+}
+.cat-sort-clear { width: 24px; height: 24px; flex: none; }
+/* Catalog flex column: only the card grid scrolls — header chrome (search, rail,
+   sort, pager, footer) keeps its natural height so category chips don't squash
+   when a category has many rows. */
+.catalog > .panel-head,
+.catalog > .tabs,
+.catalog > .cat-search,
+.catalog > .cat-rail,
+.catalog > .cat-sort,
+.catalog > .catalog-search-hint,
+.catalog > .pager,
+.catalog > .stamp-banner,
+.catalog > .cat-foot { flex-shrink: 0; }
+.catalog > .card-grid { flex: 1; min-height: 0; }
 .chip:hover { background: var(--surface-3); }
 .chip.on { background: var(--accent-soft); color: var(--accent-soft-text); border-color: transparent; }
 .chip .icn { color: currentColor; }
@@ -45,18 +82,33 @@
 /* minmax(0, 1fr) (not bare 1fr, whose implicit auto minimum lets a long name or
    wide content blow the track out past the panel) keeps both columns at an
    identical, fixed width on every page. */
-.card-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3); padding: var(--s-1) var(--s-4) var(--s-4); overflow-y: auto; }
+.card-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3);
+  padding: var(--s-1) var(--s-4) var(--s-4); overflow-y: auto; min-height: 0;
+}
 /* Reveals the hidden "search by room" capability — shown when a query names a room/use intent. */
 .catalog-search-hint { padding: 2px var(--s-4) var(--s-2); font-size: var(--t-xs); color: var(--text-2); text-transform: capitalize; }
 .cat-card {
   display: flex; flex-direction: column; gap: 6px; min-width: 0;
   padding: var(--s-3); border-radius: var(--r-2);
-  background: var(--surface-2); border: 1px solid var(--border);
+  border: 1px solid var(--border);
   transition: var(--dur) var(--ease); text-align: left; position: relative;
+  /* Mouse-follow accent glow (P7 ambient FX) painted over the surface fill, under
+     content. --mx/--my are written by CatalogDrawer's gated pointermove handler.
+     The accent share defaults to 0% so the glow is INVISIBLE whenever the gate is
+     off (a hardcoded share painted a permanent brown bloom on every card in the
+     default Performance tier); the grid's .fx class + :hover arm it. */
+  background-color: var(--surface-2);
+  background-image: radial-gradient(
+    160px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in oklch, var(--accent) var(--glow-a, 0%), transparent),
+    transparent 60%
+  );
 }
-.cat-card:hover { border-color: var(--accent); background: var(--surface-solid); transform: translateY(-1px); box-shadow: var(--shadow-panel); }
+.fx .cat-card:hover { --glow-a: 12%; }
+.cat-card:hover { border-color: var(--accent); background-color: var(--surface-solid); }
 .cat-card { cursor: pointer; }
-.cat-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }
+.cat-card:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--accent); }
 .card-thumb {
   position: relative;
   aspect-ratio: 1 / 1; border-radius: var(--r-1);
@@ -79,6 +131,28 @@
   font-size: var(--t-2xs); font-weight: 700; white-space: nowrap;
 }
 .card-thumb .thumb-status.err { background: var(--danger); }
+/* Skeleton loader (P17). Token-only shimmer over a loading media box. The
+   shimmer keyframe's duration is zeroed under reduced-motion (app.css) so it
+   settles to a static --surface-3 fill. */
+.skeleton {
+  position: absolute; inset: 0;
+  background: linear-gradient(100deg, var(--surface-3) 30%, var(--surface-2) 50%, var(--surface-3) 70%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer calc(var(--dur-3) * 2) linear infinite;
+}
+@keyframes skeletonShimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+/* Retailer / license tag — inset on the thumbnail so card chrome stays clean. */
+.card-thumb .source-pill {
+  position: absolute; top: 4px; left: 4px; z-index: 1;
+  padding: 1px 6px; border-radius: var(--r-pill);
+  font-size: var(--t-2xs); font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; line-height: 1.35; white-space: nowrap;
+  background: var(--surface-solid); color: var(--text-2);
+  border: 1px solid var(--border);
+}
 /* min-width:0 on the flex row + its label so a long name truncates with the
    inline ellipsis instead of widening the card. */
 .cat-card .nm { font-size: var(--t-xs); font-weight: 600; color: var(--text); line-height: 1.25; min-width: 0; }
@@ -94,7 +168,7 @@
 .cat-foot .btn { flex: none; }
 
 /* ---- Inspector (right) --------------------------------------- */
-.inspector { right: var(--s-4); top: var(--s-4); width: 300px; max-height: calc(100vh - 32px); }
+.inspector { right: var(--s-4); top: var(--s-4); width: var(--panel-w); max-height: calc(100vh - 32px); }
 /* Minimize/close button cluster in the header. */
 .insp-head-btns { display: flex; align-items: center; gap: 2px; flex: none; }
 /* Minimized: just the header bar, so it stops blocking the furniture. */
@@ -119,8 +193,13 @@
 .select-trigger .select-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .select-trigger .icn { flex: none; opacity: 0.55; }
 .select-trigger:disabled { opacity: 0.5; cursor: default; }
+.select-trigger:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .select-trigger[aria-expanded='true'] {
   border-color: var(--accent); background: var(--surface-solid);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.select-icon-trigger[aria-expanded='true'] {
+  background: var(--surface-3); color: var(--text);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .select-panel { max-height: 60vh; overflow-y: auto; padding: var(--s-2); gap: 1px; }
@@ -195,10 +274,34 @@
 .edit-confirm-btn.confirm:hover { background: var(--accent-2); }
 .edit-confirm-btn.cancel { background: var(--danger-soft); color: var(--danger); }
 .edit-confirm-btn.cancel:hover { filter: brightness(0.97); }
+/* Dismiss micro-animations. The bar is horizontally centred by
+   `transform: translateX(-50%)`, so every keyframe step MUST re-apply it or the
+   bar would jump to the left edge mid-animation.
+   - `.leaving` (commit): slide down + fade. `forwards` holds the final hidden
+     state because the element unmounts immediately after.
+   - `.rejecting` (cancel): a small ±3px horizontal wobble around centre. */
+@keyframes editConfirmLeave {
+  to { opacity: 0; transform: translateX(-50%) translateY(12px); }
+}
+@keyframes editConfirmShake {
+  0%, 100% { transform: translateX(-50%); }
+  20% { transform: translateX(calc(-50% - 3px)); }
+  40% { transform: translateX(calc(-50% + 3px)); }
+  60% { transform: translateX(calc(-50% - 3px)); }
+  80% { transform: translateX(calc(-50% + 3px)); }
+}
+.edit-confirm.leaving { animation: editConfirmLeave var(--dur-2) var(--ease-out) forwards; }
+.edit-confirm.rejecting { animation: editConfirmShake var(--dur-2) var(--ease-out); }
 .transform-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3); }
 .sec { padding: var(--s-4) 0; border-top: 1px solid var(--border); }
 .sec:first-of-type { border-top: none; }
-.sec-h { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 700; margin-bottom: var(--s-3); display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.sec-h {
+  font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-3); font-weight: 700; margin-bottom: var(--s-3);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface); box-shadow: 0 1px 0 var(--border); padding-bottom: var(--s-2);
+}
 .sec-h span { white-space: nowrap; }
 
 /* swatches */
@@ -278,7 +381,7 @@
 .zoom .compass-cell .cc-n { font-size: 8px; font-weight: 800; letter-spacing: 0.04em; color: var(--accent-soft-text); line-height: 1; }
 
 /* ---- Help modal ---------------------------------------------- */
-.modal-overlay > #helpPanel { width: min(432px, calc(100vw - 24px)); }
+.modal-overlay > #helpPanel { width: var(--modal-sm); }
 .kbd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px 24px; }
 .kbd-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); font-size: var(--t-sm); color: var(--text-2); font-weight: 500; min-width: 0; }
 .kbd-row > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -385,9 +488,9 @@
 }
 .budget-hud:hover { border-color: var(--accent); box-shadow: var(--shadow-pop); }
 .budget-hud-row { display: flex; align-items: baseline; gap: 6px; font-size: var(--t-xs); }
-.budget-hud-spent { font-weight: 800; color: var(--text); }
-.budget-hud-target { color: var(--text-3); }
-.budget-hud-delta { margin-left: auto; font-weight: 700; font-size: var(--t-2xs); color: var(--accent-soft-text); }
+.budget-hud-spent { font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.budget-hud-target { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.budget-hud-delta { margin-left: auto; font-weight: 700; font-size: var(--t-2xs); color: var(--accent-soft-text); font-variant-numeric: tabular-nums; }
 .budget-hud.over .budget-hud-delta { color: var(--danger); }
 .budget-hud-bar { height: 5px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 5px; }
 .budget-hud-fill { height: 100%; background: var(--accent); transition: width var(--dur) var(--ease); }

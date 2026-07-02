@@ -4,6 +4,7 @@ import { importGroup } from '../ikea/importGroup'
 import { parseMetadata } from '../ikea/metadata'
 import type { FurnitureCategory, IkeaGltfDef } from '../types'
 import { type BulkImportResult, COMMIT_BATCH, importGlbFiles } from './bulkImport'
+import { coalesceProgress } from './coalesceProgress'
 
 export interface ImportPlan {
   files: File[]
@@ -136,28 +137,16 @@ export function startBackgroundImport(plan: ImportPlan): Promise<ImportOutcome> 
   // import fires onProgress thousands of times; one notify.update each would
   // re-render the notification (and its subscribers) per group, piling onto the
   // main thread we're trying to keep free.
-  let latest = { d: 0, t: planUnits(plan) }
-  let scheduled = false
-  const pushProgress = () => {
-    scheduled = false
+  const progress = coalesceProgress<{ d: number; t: number }>(({ d, t }) => {
     notify.update(id, {
-      progress: latest.t ? latest.d / latest.t : 0,
-      message: `${latest.d} / ${latest.t}`,
+      progress: t ? d / t : 0,
+      message: `${d} / ${t}`,
     })
-  }
-  const raf =
-    typeof requestAnimationFrame === 'function'
-      ? requestAnimationFrame
-      : (cb: () => void) => setTimeout(cb, 16) as unknown as number
-
-  return runImport(plan, (d, t) => {
-    latest = { d, t }
-    if (!scheduled) {
-      scheduled = true
-      raf(pushProgress)
-    }
   })
+
+  return runImport(plan, (d, t) => progress.push({ d, t }))
     .then((outcome) => {
+      progress.flush()
       const ok = outcome.groups.filter((g) => g.ok).length
       const failed = outcome.groups.filter((g) => !g.ok).length
       const looseN = outcome.loose?.imported ?? 0

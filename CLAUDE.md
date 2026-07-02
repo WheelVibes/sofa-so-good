@@ -60,6 +60,9 @@ Zustand (sliced store), Vite, Vitest, Biome.
   run the **full suite exactly once, right before the commit** — full-suite runs are ~2 min
   and dominate iteration time. Never run the full suite and a screenshot/scenario harness at the
   same time (sequence heavy phases).
+  **Never pipe a test/build run through `tail`/`head` or any truncating filter** — you lose the
+  failure names and force a full ~3 min rerun. Redirect the complete output to a log file
+  (`npx vitest --run > /tmp/…/vitest.log 2>&1`) and grep/tail the FILE afterwards.
   Commit/push only when asked; one focused change per commit; log shipped work in `CHANGELOG.md`.
 - **Versioning (`major.minor.patch.build`).** The running build lives in `src/version.ts`
   (`APP_VERSION`, the source of truth the "Check for updates" flow compares); `package.json`
@@ -83,6 +86,10 @@ Zustand (sliced store), Vite, Vitest, Biome.
 - `npm run docs:build`/`build:all` (user guide) · `docs:dev:developer` (dev docs).
 - Packaging: `docker build .` (nginx image, `VITE_BASE=/`) · `npm run dist:desktop` (Electron
   installers) — details in ARCHITECTURE.md. Node pinned **24.18.0** (`.nvmrc`).
+- Cloudflare backend (Pages + Workers + D1/R2/KV): `typecheck:worker` (tsc for `functions/`+
+  `server/`+`workers/`), `build-library-index` (R2 manifest). Full deploy + guardrails guide:
+  **[docs/deployment-cloudflare.md](docs/deployment-cloudflare.md)**. Backend features gate on
+  `VITE_API_BASE` (`hasBackend()`); accounts are admin-created (no public signup).
 
 ## Coding conventions
 - **Furniture primitives**: floor-anchored, footprint-centred, facing +Z, built in real metres.

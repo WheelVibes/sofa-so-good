@@ -1,0 +1,80 @@
+{
+  "name": "ui-polish-batch2a",
+  "url": "http://localhost:5232/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "app-loaded", "waitFor": { "css": ".toolbar" }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1') })()"
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "settle", "wait": 2500 },
+
+    { "name": "open-file-menu", "eval": "document.querySelector('button[aria-label=\"File\"]').click()" },
+    { "name": "file-menu-open", "waitFor": { "css": ".pop-panel.stagger-in .menu-item" } },
+    { "name": "shot-stagger-menu", "screenshot": "stagger-edit-menu" },
+    { "name": "close-file-menu", "key": "Escape" },
+    { "name": "menu-closed", "wait": 400 },
+
+    { "name": "open-cmdk", "eval": "window.__store.getState().setCmdkOpen(true)" },
+    { "name": "cmdk-items", "waitFor": { "css": ".stagger-in .cmdk-item" } },
+    { "name": "shot-cmdk-cascade", "screenshot": "cmdk-cascade" },
+    { "name": "cmdk-glabel-i", "eval": "(() => { const ls=[...document.querySelectorAll('.cmdk-glabel')].map(e=>e.style.getPropertyValue('--i')); const it=[...document.querySelectorAll('.cmdk-item')].slice(0,4).map(e=>e.style.getPropertyValue('--i')); console.log('PROBE cmdk --i labels', JSON.stringify(ls), 'items', JSON.stringify(it)) })()" },
+    { "name": "close-cmdk", "eval": "window.__store.getState().setCmdkOpen(false)" },
+    { "name": "cmdk-closed", "wait": 300 },
+
+    { "name": "enter-room-editor", "eval": "window.__store.getState().enterRoomEditor('livingDining')" },
+    { "name": "open-catalog", "eval": "(() => { const s=window.__store.getState(); s.setLeftMode('catalog'); s.setCatalogOpen(true) })()" },
+    { "name": "catalog-cards", "waitFor": { "css": ".card-grid.stagger-in .cat-card.liftable" }, "timeout": 30000 },
+    { "name": "catalog-settle", "wait": 900 },
+    { "name": "shot-catalog-open", "screenshot": "catalog-open" },
+    { "name": "probe-card-rect", "eval": "(() => { const c=document.querySelectorAll('.cat-card.liftable')[1]||document.querySelector('.cat-card.liftable'); const r=c.getBoundingClientRect(); console.log('PROBE cat-card center', Math.round(r.left+r.width/2), Math.round(r.top+r.height/2)) })()" },
+    { "name": "hover-card", "wheel": { "x": 235, "y": 296, "dy": 0 } },
+    { "name": "hover-card-settle", "wait": 500 },
+    { "name": "shot-card-hover-lift", "screenshot": "card-hover-lift" },
+
+    {
+      "name": "seed-items",
+      "eval": "(() => { const s=window.__store.getState(); const defs=['sofa-3seat','coffee-table','armchair','tv-console','bed-queen','dining-table','wardrobe','bookshelf','desk','nightstand']; const items=[]; let i=0; for (const r of s.floorPlan.rooms) { if (typeof r.width!=='number'||typeof r.depth!=='number') continue; const cx=r.origin[0]+r.width/2, cz=r.origin[1]+r.depth/2; for (let k=0;k<3;k++){ items.push({ id:`seed-${i}`, defId: defs[i%defs.length], position:[cx+(k-1)*0.05, cz+(k-1)*0.05], rotation:0, props:{} }); i++; } } s.setItems(items); console.log('PROBE seeded items', i) })()"
+    },
+    { "name": "to-layers", "eval": "window.__store.getState().setLeftMode('layers')" },
+    { "name": "layers-rows", "waitFor": { "css": ".lyr-group.stagger-in .lyr-row" }, "timeout": 30000 },
+    { "name": "shot-layers-open", "screenshot": "layers-open-sticky-header" },
+    { "name": "probe-layers-rects", "eval": "(() => { const b=document.querySelector('.lyr-body'); const rb=b.getBoundingClientRect(); const row=document.querySelector('.lyr-row'); const rr=row.getBoundingClientRect(); console.log('PROBE lyr-body center', Math.round(rb.left+rb.width/2), Math.round(rb.top+rb.height/2), 'scrollH', b.scrollHeight, 'clientH', b.clientHeight); console.log('PROBE lyr-row center', Math.round(rr.left+rr.width/2), Math.round(rr.top+rr.height/2)) })()" },
+
+    { "name": "hover-row", "wheel": { "x": 160, "y": 184, "dy": 0 } },
+    { "name": "hover-row-settle", "wait": 400 },
+    { "name": "shot-row-hover-acts", "screenshot": "layers-row-actions-hover" },
+
+    { "name": "focus-row-action", "eval": "(() => { const rows=[...document.querySelectorAll('.lyr-row')]; const target=rows[2]||rows[0]; const btn=target.querySelector('.lyr-acts button'); btn.focus() })()" },
+    { "name": "focus-settle", "wait": 400 },
+    { "name": "shot-row-focus-acts", "screenshot": "layers-row-actions-focus" },
+    { "name": "blur-action", "eval": "document.activeElement?.blur?.()" },
+
+    { "name": "scroll-layers", "wheel": { "x": 150, "y": 300, "dy": 600 } },
+    { "name": "scroll-settle", "wait": 600 },
+    { "name": "shot-sticky-midscroll", "screenshot": "layers-sticky-midscroll" },
+    { "name": "probe-scroll", "eval": "(() => { const b=document.querySelector('.lyr-body'); console.log('PROBE scrollTop', Math.round(b.scrollTop)) })()" },
+
+    { "name": "select-item-for-inspector", "eval": "window.__store.getState().selectItem('seed-0')" },
+    { "name": "inspector-visible", "waitFor": { "css": ".sec-h" }, "timeout": 20000 },
+    { "name": "inspector-settle", "wait": 600 },
+    { "name": "shot-inspector-sec-h", "screenshot": "inspector-sec-h-spacing" },
+
+    { "name": "clear-selection", "eval": "window.__store.getState().selectItem(null)" },
+    { "name": "empty-items", "eval": "window.__store.getState().setItems([])" },
+    { "name": "empty-state-visible", "waitFor": { "css": ".empty-mini" }, "timeout": 20000 },
+    { "name": "empty-settle", "wait": 500 },
+    { "name": "shot-empty-state", "screenshot": "empty-state-line-height" },
+    { "name": "probe-empty-lh", "eval": "(() => { const sp=document.querySelector('.empty-mini span'); console.log('PROBE empty-mini span line-height', sp && getComputedStyle(sp).lineHeight, 'font-size', sp && getComputedStyle(sp).fontSize) })()" },
+
+    {
+      "name": "emulate-reduced-motion",
+      "eval": "(() => { const st=document.createElement('style'); st.id='rm-emulate'; st.textContent='*,*::before,*::after{animation-duration:0.01ms !important;animation-delay:0ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important;transition-delay:0ms !important;}'; document.head.appendChild(st) })()"
+    },
+    { "name": "open-file-menu-rm", "eval": "document.querySelector('button[aria-label=\"File\"]').click()" },
+    { "name": "file-menu-open-rm", "waitFor": { "css": ".pop-panel.stagger-in .menu-item" } },
+    { "name": "shot-reduced-motion", "screenshot": "reduced-motion-menu" }
+  ]
+}

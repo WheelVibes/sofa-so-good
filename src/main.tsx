@@ -17,6 +17,7 @@ import { registerGltfDecoders } from './furniture/gltf/decoders'
 import { registerAppServiceWorker } from './pwa/swUpdate'
 import { installChunkErrorRecovery } from './ui/app/lazyWithRetry'
 import { ErrorBoundary } from './ui/ErrorBoundary'
+import { startBootPhraseRotator } from './ui/loading/startBootPhraseRotator'
 
 // Recover from stale post-deploy chunk loads (Vite `modulepreload` failures):
 // reload once to fetch the fresh build instead of crash-landing the app.
@@ -35,6 +36,10 @@ registerGltfDecoders()
 // periodic). A found update surfaces an "Update available" toast with an Update
 // button — never an auto-reload; a manual "Check for updates" lives in File menu.
 registerAppServiceWorker()
+
+// Cycle HDB-flavoured status lines on the static boot splash while the bundle
+// loads and React hydrates — before the transition overlay takes over.
+startBootPhraseRotator()
 
 // Render immediately — App shows the loading overlay and kicks off the async
 // boot bootstrap (IDB user assets, packs, autosave) from <BootHydrator>, so
