@@ -75,8 +75,8 @@
 }
 .info-callout .ic { flex: none; margin-top: 1px; color: var(--accent); }
 .info-callout .ic-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.info-callout .ic-body b { font-size: var(--t-sm); font-weight: 700; line-height: var(--lh-body); color: var(--text-2); }
-.info-callout .ic-body span { font-size: var(--t-xs); line-height: 1.5; color: var(--text-3); }
+.info-callout .ic-body b { font-size: var(--t-sm); font-weight: 700; line-height: var(--lh-tight); color: var(--text-2); }
+.info-callout .ic-body span { font-size: var(--t-xs); line-height: var(--lh-body); color: var(--text-3); }
 .info-callout .ic-dismiss {
   flex: none; display: grid; place-items: center;
   width: 22px; height: 22px; margin: -2px -4px 0 auto; padding: 0;

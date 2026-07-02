@@ -5,6 +5,11 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: info-callout line-height tokens per the type ladder (v0.10.0.35)
+
+- `.ic-body b` (single-line title) -> `--lh-tight`; `.ic-body span` (multiline copy) ->
+  `--lh-body` (the earlier swap had them flipped; T4 review nit).
+
 ## FEAT: "New" feature badges (v0.10.0.34)
 
 - New flag-gated (`newBadges`, simple tier, default on) pulsing `.new-dot` on a
