@@ -55,4 +55,7 @@ describe('isRecentlyIntroduced', () => {
     // The real infoCallouts entry (0.10.0.33) is recent right after it ships.
     expect(isRecentlyIntroduced('0.10.0.33')).toBe(true)
   })
+  it('treats a future introduced version (not yet shipped) as not recent', () => {
+    expect(isRecentlyIntroduced('0.10.0.99', '0.10.0.36')).toBe(false)
+  })
 })

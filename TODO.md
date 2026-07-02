@@ -30,6 +30,7 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 - [ ] **P31 Determinate upload progress bar** — deferred: blocked on the upload-progress branch
   merging; then add a regression test locking that startBackgroundImport feeds the toast's 0-1 bar
   and the "X / Y" text from one coalesced counter.
+- [ ] **NEW_BADGES follow-up** — register the next 0.10.0.x feature that ships a real toolbar/menu row (badges are dormant until then by design; see ui/newBadges.ts).
 
 ### Batch 2 — medium (1–3 days each)
 

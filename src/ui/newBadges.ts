@@ -44,7 +44,7 @@ export function isRecentlyIntroduced(
   const a: VersionParts = parseVersion(introduced)
   const b: VersionParts = parseVersion(current)
   if (a.major !== b.major || a.minor !== b.minor || a.patch !== b.patch) return false
-  return b.build - a.build <= window
+  return b.build >= a.build && b.build - a.build <= window
 }
 
 export interface UseNewBadgeResult {

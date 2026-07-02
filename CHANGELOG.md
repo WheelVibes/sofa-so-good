@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: Batch 3a wrap-up — recency guard, biome drift, badge follow-up note (v0.10.0.37)
+
+- `isRecentlyIntroduced` gains a lower-bound guard (a future introduced build is "not yet
+  shipped", not recent) + edge test (T5 review minor).
+- Biome format drift in `screenTransition.test.ts` fixed (slipped the staged-only hook).
+- TODO note: register the next real toolbar/menu feature in NEW_BADGES (dormant by design).
+
 ## CHORE: visual-verification scenario for UI polish batch 3a (v0.10.0.36)
 
 - New `scripts/scenarios/ui-polish-batch3a.json` (79 steps, 13 screenshots) drives + visually
