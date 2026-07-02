@@ -1,12 +1,15 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { ApiError, apiFetch } from '../../features/api/client'
+import { useStore } from '../../state/store'
 import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 
 /**
  * Admin-only account management. Accounts can ONLY be created here (there is no
- * public signup) — an admin adds people, lists them, and can delete them. Backed
- * by `/api/admin/users` (admin session required, enforced server-side too).
+ * public signup) — an admin adds people, lists them, resets their password /
+ * role, and deletes them. Editing your own row is how the admin credentials are
+ * rotated. Backed by `/api/admin/users` (admin session required, enforced
+ * server-side too).
  */
 
 interface AdminUser {
@@ -18,6 +21,8 @@ interface AdminUser {
 }
 
 export function UserManagementModal({ onClose }: { onClose: () => void }) {
+  const currentUser = useStore((s) => s.currentUser)
+  const refreshAuth = useStore((s) => s.refreshAuth)
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -26,6 +31,11 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<'user' | 'admin'>('user')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editPassword, setEditPassword] = useState('')
+  const [editRole, setEditRole] = useState<'user' | 'admin'>('user')
+
+  const adminCount = users.filter((u) => u.role === 'admin').length
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -73,6 +83,38 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
       await refresh()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to delete account.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const startEdit = (u: AdminUser) => {
+    setEditingId(u.id)
+    setEditPassword('')
+    setEditRole(u.role)
+    setError(null)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditPassword('')
+  }
+
+  const saveEdit = async (u: AdminUser) => {
+    const body: { password?: string; role?: 'user' | 'admin' } = {}
+    if (editPassword.length > 0) body.password = editPassword
+    if (editRole !== u.role) body.role = editRole
+    if (body.password === undefined && body.role === undefined) return
+    setBusy(true)
+    setError(null)
+    try {
+      await apiFetch(`/admin/users/${u.id}`, { method: 'PATCH', body: JSON.stringify(body) })
+      cancelEdit()
+      await refresh()
+      // Editing your own row re-mints your session server-side — resync currentUser.
+      if (currentUser && u.id === currentUser.id) await refreshAuth()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to update account.')
     } finally {
       setBusy(false)
     }
@@ -190,44 +232,118 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
             description="Create the first one above."
           />
         ) : (
-          <div style={{ display: 'grid', gap: 'var(--s-1)', maxHeight: 280, overflowY: 'auto' }}>
-            {users.map((u) => (
-              <div
-                key={u.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--s-2)',
-                  padding: 'var(--s-2)',
-                  borderRadius: 'var(--r-2)',
-                  background: 'var(--surface-2)',
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 'var(--t-2xs)',
-                      color: 'var(--text)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {u.name} {u.role === 'admin' ? '· admin' : ''}
-                  </div>
-                  <div style={{ fontSize: 'var(--t-3xs)', color: 'var(--text-3)' }}>{u.email}</div>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-danger btn-icon"
-                  style={{ marginLeft: 'auto' }}
-                  aria-label={`Delete ${u.email}`}
-                  disabled={busy}
-                  onClick={() => remove(u.id)}
+          <div style={{ display: 'grid', gap: 'var(--s-1)', maxHeight: 320, overflowY: 'auto' }}>
+            {users.map((u) => {
+              const isSelf = currentUser?.id === u.id
+              const isLastAdmin = u.role === 'admin' && adminCount <= 1
+              const editing = editingId === u.id
+              return (
+                <div
+                  key={u.id}
+                  style={{
+                    padding: 'var(--s-2)',
+                    borderRadius: 'var(--r-2)',
+                    background: 'var(--surface-2)',
+                  }}
                 >
-                  <Icon.Trash width={14} height={14} />
-                </button>
-              </div>
-            ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 'var(--t-2xs)',
+                          color: 'var(--text)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {u.name} {u.role === 'admin' ? '· admin' : ''}
+                        {isSelf ? ' · you' : ''}
+                      </div>
+                      <div style={{ fontSize: 'var(--t-3xs)', color: 'var(--text-3)' }}>
+                        {u.email}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-soft btn-icon"
+                      style={{ marginLeft: 'auto' }}
+                      aria-label={`Edit ${u.email}`}
+                      aria-expanded={editing}
+                      disabled={busy}
+                      onClick={() => (editing ? cancelEdit() : startEdit(u))}
+                    >
+                      <Icon.Edit width={14} height={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-icon"
+                      aria-label={`Delete ${u.email}`}
+                      title={
+                        isSelf
+                          ? 'You cannot delete your own account'
+                          : isLastAdmin
+                            ? 'Cannot delete the last admin'
+                            : undefined
+                      }
+                      disabled={busy || isSelf || isLastAdmin}
+                      onClick={() => remove(u.id)}
+                    >
+                      <Icon.Trash width={14} height={14} />
+                    </button>
+                  </div>
+                  {editing ? (
+                    <div style={{ display: 'grid', gap: 'var(--s-2)', marginTop: 'var(--s-2)' }}>
+                      <input
+                        className="input"
+                        type="password"
+                        value={editPassword}
+                        onChange={(e) => setEditPassword(e.target.value)}
+                        placeholder="New password (leave blank to keep)"
+                        aria-label={`New password for ${u.email}`}
+                        autoComplete="new-password"
+                      />
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 'var(--s-2)',
+                          fontSize: 'var(--t-2xs)',
+                          color: isLastAdmin ? 'var(--text-3)' : 'var(--text)',
+                        }}
+                        title={isLastAdmin ? 'Cannot demote the last admin' : undefined}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editRole === 'admin'}
+                          disabled={isLastAdmin}
+                          onChange={(e) => setEditRole(e.target.checked ? 'admin' : 'user')}
+                        />
+                        Admin (can manage other accounts)
+                      </label>
+                      <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+                        <button type="button" className="btn btn-soft" onClick={cancelEdit}>
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-accent"
+                          style={{ marginLeft: 'auto' }}
+                          disabled={
+                            busy ||
+                            (editPassword.length === 0 && editRole === u.role) ||
+                            (editPassword.length > 0 && editPassword.length < 8)
+                          }
+                          onClick={() => saveEdit(u)}
+                        >
+                          <Icon.Save width={14} height={14} />
+                          {busy ? 'Saving…' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

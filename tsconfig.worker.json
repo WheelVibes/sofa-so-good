@@ -14,5 +14,6 @@
     "isolatedModules": true,
     "moduleDetection": "force"
   },
-  "include": ["functions", "server", "workers"]
+  "include": ["functions", "server", "workers"],
+  "exclude": ["**/*.test.ts"]
 }

@@ -72,6 +72,27 @@ export async function deleteUser(env: Env, id: string): Promise<void> {
   await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id).run()
 }
 
+export async function countAdmins(env: Env): Promise<number> {
+  const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin'").first<{
+    n: number
+  }>()
+  return row?.n ?? 0
+}
+
+export async function updateUserPassword(env: Env, id: string, password: string): Promise<void> {
+  const iterations = intVar(env.PBKDF2_ITERATIONS, 100_000)
+  const { hash, salt } = await hashPassword(password, iterations)
+  await env.DB.prepare(
+    'UPDATE users SET password_hash = ?, password_salt = ?, iterations = ? WHERE id = ?',
+  )
+    .bind(hash, salt, iterations, id)
+    .run()
+}
+
+export async function updateUserRole(env: Env, id: string, role: 'user' | 'admin'): Promise<void> {
+  await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(role, id).run()
+}
+
 /** Seed the first admin from ADMIN_EMAIL/ADMIN_PASSWORD if no admin exists yet.
  *  Idempotent; safe to call on any request cheaply after the first run. */
 export async function ensureAdminSeed(env: Env): Promise<void> {

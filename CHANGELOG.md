@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: admin can reset any account's password + role in-app; sessions revoked on change (v0.10.0.1)
+
+- **Manage accounts → Edit** (admin only): reset any account's password (≥8 chars) and/or change
+  its role (user↔admin) inline. Editing your own row is how the admin credentials are rotated —
+  the `ADMIN_EMAIL`/`ADMIN_PASSWORD` seed only creates the *first* admin and is skipped thereafter.
+- **`PATCH /api/admin/users/:id`** (`{ password?, role? }`): validates, blocks demoting/deleting the
+  **last admin** (409), then **revokes all of the target's sessions** so any credential change forces
+  re-login. A self password change re-mints your own session (you stay signed in; your other
+  sessions still die).
+- **Session revocation** via a new per-user token index in KV (`usess:<userId>`); the read-heavy
+  hot path (`readSession`) still costs a single KV read (index writes only on login/logout/revoke).
+- Tests: session index/revoke, D1 password/role helpers, and the route (reset, role change,
+  last-admin guard, self re-mint) + the modal edit affordance. Docs updated in
+  `docs/deployment-cloudflare.md`.
+
 ## FEAT: Cloudflare backend — accounts, cloud sync, shared R2 library, $0 guardrails (v0.10.0.0)
 
 - **New optional backend for a Cloudflare Pages + Workers deployment**, wired through the existing

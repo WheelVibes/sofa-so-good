@@ -12,6 +12,7 @@ import { serveAsset } from '../../server/assets'
 import { verifyPassword } from '../../server/crypto'
 import {
   addFavourite,
+  countAdmins,
   countNamedSlots,
   createUser,
   deleteDesign,
@@ -26,6 +27,8 @@ import {
   countUsers,
   removeFavourite,
   saveDesign,
+  updateUserPassword,
+  updateUserRole,
 } from '../../server/db'
 import { type Env, intVar, type PublicUser, toPublicUser } from '../../server/env'
 import { clientIp, isTripped, KILL_ALL, rateLimit } from '../../server/guardrails'
@@ -35,6 +38,7 @@ import {
   destroySession,
   parseCookie,
   readSession,
+  revokeUserSessions,
   SESSION_COOKIE,
   sessionCookie,
 } from '../../server/sessions'
@@ -47,7 +51,8 @@ interface SessionCtx {
 
 type Variables = { session: SessionCtx | null; token: string | null }
 
-const app = new Hono<{ Bindings: Env; Variables: Variables }>().basePath('/api')
+// Exported for tests; production entry is `onRequest` at the bottom.
+export const app = new Hono<{ Bindings: Env; Variables: Variables }>().basePath('/api')
 
 // Seed the first admin once per isolate (idempotent; unique-email guards races).
 let seeded = false
@@ -160,13 +165,66 @@ app.post('/admin/users', async (c) => {
   return c.json({ user: toPublicUser(user) }, 201)
 })
 
+// Reset an account's password and/or change its role. Editing your own row is
+// how the admin credentials are rotated.
+app.patch('/admin/users/:id', async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json<{ password?: string; role?: string }>()
+  const password = typeof body.password === 'string' ? body.password : ''
+  const hasPassword = password.length > 0
+  const hasRole = body.role === 'user' || body.role === 'admin'
+  if (!hasPassword && !hasRole) {
+    return c.json({ error: 'Provide a new password or role to update.' }, 400)
+  }
+  if (hasPassword && password.length < 8) {
+    return c.json({ error: 'Password must be at least 8 characters.' }, 400)
+  }
+
+  const target = await getUserById(c.env, id)
+  if (!target) return c.json({ error: 'Account not found.' }, 404)
+
+  // Last-admin guard: never demote the final admin.
+  if (hasRole && body.role === 'user' && target.role === 'admin' && (await countAdmins(c.env)) <= 1) {
+    return c.json({ error: 'Cannot demote the last admin account.' }, 409)
+  }
+
+  if (hasRole && body.role !== target.role) {
+    await updateUserRole(c.env, id, body.role as 'user' | 'admin')
+  }
+  if (hasPassword) {
+    await updateUserPassword(c.env, id, password)
+  }
+
+  // Any credential change forces the target to re-authenticate everywhere.
+  await revokeUserSessions(c.env, id)
+
+  // Self-edit would kill the acting admin's own session — re-mint it so they
+  // stay signed in (all their OTHER sessions are still revoked above).
+  const session = requireAuth(c)
+  if (session && session.userId === id) {
+    const newRole = hasRole ? (body.role as 'user' | 'admin') : target.role
+    const token = await createSession(c.env, id, newRole)
+    const ttl = intVar(c.env.SESSION_TTL_SECONDS, 60 * 60 * 24 * 14)
+    c.header('Set-Cookie', sessionCookie(token, ttl))
+  }
+
+  const updated = await getUserById(c.env, id)
+  return c.json({ user: updated ? toPublicUser(updated) : null })
+})
+
 app.delete('/admin/users/:id', async (c) => {
   const id = c.req.param('id')
   const session = requireAuth(c)
   if (session && session.userId === id) {
     return c.json({ error: 'You cannot delete your own account.' }, 400)
   }
+  const target = await getUserById(c.env, id)
+  if (!target) return c.json({ error: 'Account not found.' }, 404)
+  if (target.role === 'admin' && (await countAdmins(c.env)) <= 1) {
+    return c.json({ error: 'Cannot delete the last admin account.' }, 409)
+  }
   await deleteUser(c.env, id)
+  await revokeUserSessions(c.env, id)
   return c.json({ ok: true })
 })
 

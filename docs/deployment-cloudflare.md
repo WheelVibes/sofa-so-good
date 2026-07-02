@@ -102,6 +102,15 @@ npx wrangler pages secret put ADMIN_PASSWORD
 npx wrangler pages secret put TURNSTILE_SECRET
 ```
 
+> **Rotating credentials after the first login.** `ADMIN_EMAIL` /
+> `ADMIN_PASSWORD` seed the very first admin **only** — the seed is skipped once
+> that account exists, so changing the secret later does nothing. To change the
+> admin password (or anyone's), sign in and use **Manage accounts** → **Edit** on
+> the row: set a new password and/or role. Editing your own row keeps you signed
+> in (a fresh session is issued); every other session for the edited account is
+> revoked immediately and must sign in again. The last remaining admin cannot be
+> demoted or deleted.
+
 Non-secret tunables live in `wrangler.toml` `[vars]` (iterations, session TTL,
 `MAX_ACCOUNTS`, `MAX_SLOTS_PER_USER`, `MAX_DESIGN_BYTES`) and can be changed
 without touching code.
