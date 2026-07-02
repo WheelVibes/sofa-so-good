@@ -354,6 +354,16 @@
 .toast.in { opacity: 1; transform: none; }
 .toast .icn { color: var(--accent-soft-text); flex: none; }
 .toast.err .icn { color: var(--danger); }
+/* Success toast checkmark pop — a quick overshoot-scale on the tick as the toast
+   lands. `backwards` (never `both`) so the pre-animation scale(0.4)/opacity:0 is
+   applied only before it starts, never clamped afterwards. The reduced-motion
+   block in app.css neutralises it for users who opt out. */
+@keyframes checkPop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.toast .icn.pop { animation: checkPop var(--dur-2) var(--ease-out) backwards; transform-origin: 50% 50%; }
 .toast .toast-msg { font-weight: 500; color: var(--text-2); }
 .toast .toast-msg b { color: var(--text); font-weight: 700; }
 .toast .toast-act { flex: none; padding: 5px 10px; border-radius: var(--r-1); background: var(--accent-soft); color: var(--accent-soft-text); font-size: var(--t-xs); font-weight: 700; }

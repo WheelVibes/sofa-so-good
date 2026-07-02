@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: success/confirm micro-animations (v0.10.0.17)
+
+- Success-toast checkmark pops in via a `checkPop` scale keyframe (`backwards` fill); the
+  EditConfirmBar dismiss animates — slide-down on confirm (`editConfirmLeave`, `forwards`),
+  +-3px shake on cancel — with `translateX(-50%)` preserved in every step. Keyboard
+  Enter/Escape route through the same wrapped handlers; reduced-motion skips the exit delay
+  and the global block neutralises the keyframes.
+
 ## FEAT: desktop dock-panel slide+fade entrance (v0.10.0.16)
 
 - `.dock-panel`/`.dock-panel-left` mount with a `--dur-2`/`--ease-out` slide+fade (fill-mode

@@ -196,6 +196,24 @@
 .edit-confirm-btn.confirm:hover { background: var(--accent-2); }
 .edit-confirm-btn.cancel { background: var(--danger-soft); color: var(--danger); }
 .edit-confirm-btn.cancel:hover { filter: brightness(0.97); }
+/* Dismiss micro-animations. The bar is horizontally centred by
+   `transform: translateX(-50%)`, so every keyframe step MUST re-apply it or the
+   bar would jump to the left edge mid-animation.
+   - `.leaving` (commit): slide down + fade. `forwards` holds the final hidden
+     state because the element unmounts immediately after.
+   - `.rejecting` (cancel): a small ±3px horizontal wobble around centre. */
+@keyframes editConfirmLeave {
+  to { opacity: 0; transform: translateX(-50%) translateY(12px); }
+}
+@keyframes editConfirmShake {
+  0%, 100% { transform: translateX(-50%); }
+  20% { transform: translateX(calc(-50% - 3px)); }
+  40% { transform: translateX(calc(-50% + 3px)); }
+  60% { transform: translateX(calc(-50% - 3px)); }
+  80% { transform: translateX(calc(-50% + 3px)); }
+}
+.edit-confirm.leaving { animation: editConfirmLeave var(--dur-2) var(--ease-out) forwards; }
+.edit-confirm.rejecting { animation: editConfirmShake var(--dur-2) var(--ease-out); }
 .transform-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3); }
 .sec { padding: var(--s-4) 0; border-top: 1px solid var(--border); }
 .sec:first-of-type { border-top: none; }

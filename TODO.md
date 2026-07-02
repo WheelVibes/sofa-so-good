@@ -46,8 +46,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 - [ ] **P28 Empty-state CTA sweep** — every empty state gets icon + title + description + one CTA
   (no dead ends).
 
-- [ ] **P5 Success/confirm micro-animations** — toast checkmark scale-in, EditConfirmBar dismiss
-  slide/shake, SVG stroke-draw checks.
 - [ ] **P34 Optimistic placement feedback** — immediate ghost placement + reconcile for drops/AI
   arrange.
 - [ ] **P35 Destructive confirmation policy** — reversible → Undo-toast; irreversible → confirm

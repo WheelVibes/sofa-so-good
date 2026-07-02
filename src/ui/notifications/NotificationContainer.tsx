@@ -181,7 +181,9 @@ export function NotificationContainer() {
                 onBlur={() => resume(n.id)}
               >
                 <Glyph
-                  className={`icn${n.kind === 'progress' ? ' spin' : ''}`}
+                  className={`icn${n.kind === 'progress' ? ' spin' : ''}${
+                    n.kind === 'success' ? ' pop' : ''
+                  }`}
                   width={16}
                   height={16}
                 />
