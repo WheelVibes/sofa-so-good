@@ -592,7 +592,7 @@ export function GlbDesignerDialog() {
                         className="swatch"
                         style={{ background: p.color, width: 16, height: 16, borderRadius: 3 }}
                       />
-                      <span className="lyr-nm">
+                      <span className="lyr-nm" title={`${p.kind} ${i + 1}`}>
                         {p.kind} {i + 1}
                       </span>
                       <button

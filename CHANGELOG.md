@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: truncation affordance — hover-recoverable full names (v0.9.0.75)
+
+- `title` attribute on truncated `.lyr-nm` rows (layers panel + GLB designer) and on the modal
+  `.panel-title` (string titles only), so ellipsized names are hover-recoverable. Catalog card
+  names already carried `title`. New regression test `LayersPanel.truncation.test.tsx` also
+  asserts the Modal title passthrough.
+
 ## REFACTOR: --modal-sm/-md/-lg width tokens (v0.9.0.74)
 
 - Added `--modal-sm`/`--modal-md`/`--modal-lg` (`src/styles/tokens.css`, after the

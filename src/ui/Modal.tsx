@@ -123,7 +123,9 @@ export function Modal({
             </button>
           ) : null}
           <div>
-            <div className="panel-title">{title}</div>
+            <div className="panel-title" title={typeof title === 'string' ? title : undefined}>
+              {title}
+            </div>
             {sub ? <div className="panel-sub">{sub}</div> : null}
           </div>
           {!showBack ? (

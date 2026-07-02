@@ -194,7 +194,9 @@ export function LayersPanel() {
                             <Icon.Cube width={14} height={14} />
                           )}
                         </span>
-                        <span className="lyr-nm">{itemLabel(it)}</span>
+                        <span className="lyr-nm" title={itemLabel(it)}>
+                          {itemLabel(it)}
+                        </span>
                         <span className="lyr-acts">
                           <button
                             type="button"
