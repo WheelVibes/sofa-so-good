@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: UI/UX polish Batch 1 — merge prep (v0.10.0.0)
+
+- Fixed the clearRoom double-toast (P30 follow-up): `deleteItem` now takes an
+  `opts?: { silent?: boolean }` param that suppresses its own "Item deleted" toast;
+  `FinishPicker`'s `clearRoom` passes `{ silent: true }` for its per-item deletes and shows
+  exactly one "Cleared N items…" toast with its own `Undo` action (the whole clear is one
+  coalesced history step, so a single `undo()` restores it). Audited the other multi-delete
+  callers (`App.tsx`, `ContextMenu.tsx`, `MultiSelectPanel.tsx`, `FloorPlanEditor.tsx`,
+  `LayersPanel.tsx`) — none fires a bespoke summary toast, so they're unaffected and keep
+  relying on the de-duped per-item "Item deleted" toast.
+- Renumbered the "UI/UX polish program backlog + Batch 1 plan" DOCS entry below from
+  v0.9.0.62 to v0.9.0.71 — it collided with v0.9.0.62 already used on the unmerged
+  pinch-zoom-flicker branch.
+- Added menu-shortcut / modal-width / focus-ring conventions to `src/ui/CLAUDE.md`.
+- PR-level version bump per the versioning rule (multi-feature Batch 1 PR → minor).
+
 ## CHORE: visual-verification scenario for UI polish batch 1 (v0.9.0.80)
 
 - New `scripts/scenarios/ui-polish-batch1.json` (37 steps, 6 screenshots) — an interaction-test
@@ -118,7 +134,7 @@ pruned from `main`; entries from C251 on (branch
 - Added `src/styles/focusRing.test.ts` asserting the token definition, the shared rule's
   coverage of every control class, and that the new focus block contains no hex literals.
 
-## DOCS: UI/UX polish program — TODO backlog + Batch 1 plan (v0.9.0.62)
+## DOCS: UI/UX polish program — TODO backlog + Batch 1 plan (v0.9.0.71)
 
 - Added the 39-item "UI/UX polish program" to `TODO.md` (three prioritized batches), distilled
   from a systematic comparative analysis of the Vi-develop frontend (motion/magicui vocabulary,

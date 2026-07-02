@@ -69,4 +69,40 @@ describe('P30 delete emits an Undo toast', () => {
     s().undo()
     expect(s().items).toHaveLength(2)
   })
+
+  it('deleteItem(id, { silent: true }) suppresses the per-item toast', () => {
+    const id = seedItem()
+    const before = s().notifications.length
+
+    s().deleteItem(id, { silent: true })
+
+    expect(s().items).toHaveLength(0)
+    expect(s().notifications.length).toBe(before)
+  })
+
+  it('clearRoom shows exactly one toast with a working Undo (no duplicate)', () => {
+    const a = seedItem()
+    const b = seedItem()
+    expect(s().items).toHaveLength(2)
+
+    // Emulate FinishPicker's clearRoom: one pushHistory, silent per-item
+    // deletes, then its own single summary toast with an Undo action.
+    s().pushHistory()
+    s().deleteItem(a, { silent: true })
+    s().deleteItem(b, { silent: true })
+    s().notify.start({
+      title: 'Cleared 2 items from this room',
+      kind: 'success',
+      actionLabel: 'Undo',
+      onAction: () => s().undo(),
+    })
+
+    expect(s().items).toHaveLength(0)
+    const summaryToasts = s().notifications.filter((n) => n.title.startsWith('Cleared'))
+    expect(summaryToasts).toHaveLength(1)
+    expect(summaryToasts[0]?.actionLabel).toBe('Undo')
+
+    summaryToasts[0]?.onAction?.()
+    expect(s().items).toHaveLength(2)
+  })
 })

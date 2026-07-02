@@ -55,6 +55,12 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never
   hardcode a key label. Tooltips + menus render through `Popover` (portal) so the
   scrollable toolbar can't clip them.
+- **Menu shortcut combos go through `MenuItem`'s `kbd` prop** (`toolbar/ToolbarMenu.tsx`),
+  which renders the right-aligned `.mi-kbd` chip — never inline the combo text in `label`.
+- **Modal widths use the `--modal-sm`/`-md`/`-lg` tokens**: pass the token string to
+  `Modal`'s `width` prop (`width="var(--modal-md)"`), not an ad-hoc `min(…px, …)` literal.
+- **Keyboard focus treatment is `var(--focus-ring)`** (`box-shadow` on `:focus-visible`) —
+  no ad-hoc focus rings/outlines on a new control.
 - **Untrusted URLs → `safeUrl` (`src/utils/safeUrl.ts`).** Any URL that originates from
   imported / user-supplied / scraped data (def `sourceUrl`, IKEA `productInfo` image/document
   URLs, retailer-offer links, …) MUST pass through `safeUrl()`/`safeHref()` before it reaches an

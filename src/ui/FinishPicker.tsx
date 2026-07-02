@@ -118,10 +118,15 @@ export function FinishPicker() {
     const st = useStore.getState()
     st.pushHistory()
     const n = roomItemIds.length
-    for (const id of roomItemIds) st.deleteItem(id)
+    // silent: true — the whole clear is one coalesced history step, so this
+    // single summary toast (with its own Undo) replaces the per-item "Item
+    // deleted" toasts rather than stacking alongside them.
+    for (const id of roomItemIds) st.deleteItem(id, { silent: true })
     st.notify.start({
       title: `Cleared ${n} item${n === 1 ? '' : 's'} from this room`,
       kind: 'success',
+      actionLabel: 'Undo',
+      onAction: () => useStore.getState().undo(),
     })
   }
   // Copy this room's floor + wall (+ ceiling, when set) finish to another

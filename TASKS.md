@@ -71,6 +71,18 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` toggle needs a context recreate (flash) +
   real-GPU verify.
 
+## UI polish Batch 1 follow-ups (logged minors)
+- [ ] `focusRing.test.ts` hex-scan marker→EOF fragility: the "no hex literals past this point"
+  assertion scans from a marker comment to end-of-file, so a later hex literal added below it
+  would silently escape the check — tighten to scan only the intended focus-ring block.
+- [ ] `.select-trigger` expanded-state ring is still a hand-tuned box-shadow rather than the
+  `--focus-ring` token — tokenise in Batch 2.
+- [ ] `<KbdChip>` extraction: `ArrangeMenu`'s `Action` shortcut rendering duplicates the
+  `.mi-kbd` chip markup already in `MenuItem` — pull it into a shared `<KbdChip>`.
+- [ ] `GlbDesignerDialog` title literal is duplicated in two places — dedupe to one constant.
+- [ ] `.mi-kbd` right-inset is 32px on docs rows vs 9px on non-docs rows — cosmetic
+  inconsistency, reconcile in Batch 2.
+
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
 - Keep this file pending-only; keep `TODO.md` (legacy deferred-work log) current.

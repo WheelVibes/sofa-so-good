@@ -31,7 +31,11 @@ export interface ItemsSlice {
   tiltItem: (id: string, tilt: { pitch?: number; roll?: number }) => void
   /** Raise/lower an item off the floor (metres; 0 clears). SweetHome3DJS parity. */
   setItemElevation: (id: string, elevation: number) => void
-  deleteItem: (id: string) => void
+  /** Delete a placed item (one coalesced undo step). Pass `{ silent: true }`
+   *  to suppress the per-item "Item deleted" toast — batch callers that show
+   *  their own single summary toast (e.g. FinishPicker's clearRoom) use this
+   *  so the user doesn't see two stacked toasts for one action. */
+  deleteItem: (id: string, opts?: { silent?: boolean }) => void
   updateItemProps: (id: string, props: ParamProps) => void
   /** Merge `props` into every listed item in ONE undo step (bulk recolour /
    *  batch appearance edit). Unknown ids are ignored. */
@@ -157,7 +161,7 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
       ),
     }))
   },
-  deleteItem: (id) => {
+  deleteItem: (id, opts) => {
     // Coalesced so a multi-select delete loop produces one undo step.
     get().pushHistoryCoalesced('delete')
     set((s) => {
@@ -195,14 +199,18 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     // confirm dialog (matches the shipped style-transfer Undo toast). The delete
     // was pushed as one coalesced history step, so a single undo() restores it —
     // and a multi-select delete loop fires N identical toasts that the notify
-    // de-dupe collapses to one, whose Undo reverts the whole batch.
-    get().notify.start({
-      title: 'Item deleted',
-      kind: 'success',
-      autoDismissMs: 6000,
-      actionLabel: 'Undo',
-      onAction: () => get().undo(),
-    })
+    // de-dupe collapses to one, whose Undo reverts the whole batch. Batch callers
+    // that show their own single summary toast (clearRoom) pass `silent: true`
+    // to suppress this one and avoid a stacked, contradictory pair.
+    if (!opts?.silent) {
+      get().notify.start({
+        title: 'Item deleted',
+        kind: 'success',
+        autoDismissMs: 6000,
+        actionLabel: 'Undo',
+        onAction: () => get().undo(),
+      })
+    }
   },
   updateItemProps: (id, props) => {
     // Coalesce per (item, prop-set) so a slider drag collapses into a

@@ -27,23 +27,9 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
 magicui, Tailwind spacing, readability, discoverability) mapped onto our token system. Strategy:
 graft Vi's motion vocabulary + micro-interaction polish + feedback patterns onto the existing
 OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they ship (→ CHANGELOG).
-
-### Batch 1 — quick wins (≤1 day each)
-- [ ] **P14 Unified focus ring** — one `--focus-ring` token (3px accent color-mix) applied to
-  `.btn/.icon-btn/.tool-btn/.input/.select-trigger/.chip/.tab` via shared `:focus-visible` rule.
-- [ ] **P21 Tabular numerals** — `font-variant-numeric: tabular-nums` on `.num`, `.fld .val`,
-  budget HUD, dimension readouts (kills digit jitter during drags).
-- [ ] **P22 Truncation affordance** — `title`/`.tip` on truncated `.cat-card .nm`, `.panel-title`,
-  `.lyr-nm` so full names are hover-recoverable.
-- [ ] **P24 Shortcut hints in tooltips/menus** — tooltips append the `.kbd` combo from
-  `shortcuts.ts` ("Undo · ⌘Z"); menus show combos right-aligned consistently.
-- [ ] **P30 Undo-in-toast for destructive actions** — deletions toast "Item deleted — Undo" wired
-  to `undo()` (toast action buttons already exist); centralized error→{message,intent,action} map.
-- [ ] **P31 Determinate upload progress bar** — render the toast's determinate bar from the same
-  coalesced X/Y progress (rAF coalescer already feeds text).
-- [ ] **P33 Disabled-with-reason tooltips** — greyed undo/redo/export/Pro-gated buttons explain why
-  on hover.
-- [ ] **P11 Modal width tokens** — `--modal-sm/-md/-lg` replacing ad-hoc `min(560px,…)`/`min(432px,…)`.
+- [ ] **P31 Determinate upload progress bar** — deferred: blocked on the upload-progress branch
+  merging; then add a regression test locking that startBackgroundImport feeds the toast's 0-1 bar
+  and the "X / Y" text from one coalesced counter.
 
 ### Batch 2 — medium (1–3 days each)
 - [ ] **P1 Motion scale tokens** — `--dur-1/-2/-3` (~150/300/600ms) + entrance easing
