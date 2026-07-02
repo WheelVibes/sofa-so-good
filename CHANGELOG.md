@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: Cloudflare backend — accounts, cloud sync, shared R2 library, $0 guardrails (v0.10.0.0)
+
+- **New optional backend for a Cloudflare Pages + Workers deployment**, wired through the existing
+  `AuthProvider` / `StorageAdapter` seams so guests and the GitHub Pages / offline build are
+  completely unchanged. Everything gates on `VITE_API_BASE` (`hasBackend()`): unset = local-only.
+- **API** (`functions/api/[[route]].ts`, Hono): email+password login with server-side KV sessions
+  (PBKDF2-HMAC-SHA256, HttpOnly cookies) + optional Turnstile; **admin-created accounts only — no
+  public signup** (`/api/admin/users`, first admin seeded from `ADMIN_EMAIL`/`ADMIN_PASSWORD`);
+  designs CRUD + favourites backed by **D1**; auth-gated **R2** asset proxy fronted by the Worker
+  Cache API; remote flag overrides. Shared server helpers live in `server/`; type-checked via
+  `tsconfig.worker.json` (`npm run typecheck:worker`).
+- **Client**: `src/features/api/client.ts`, `auth/backendProvider.ts` (provider auto-selected in
+  `authSlice`), a login-only `LoginScreen` (email/password + Turnstile) with an admin
+  account-management modal, `state/storage/ServerAdapter.ts` + a cloud-mirror `adapter.ts`
+  (local always, autosave throttled to ≤1 cloud write/60 s to respect D1 caps), `cloudBoot.ts`
+  (latest-wins autosave reconcile), favourites cloud sync, and a `PacksTab` shared-library browser.
+- **Cost safety**: private bucket + auth gate, immutable cache-first reads, a standalone cron Worker
+  (`workers/usage-monitor/`) that trips a `killswitch:r2` in KV near the R2 free cap (serve
+  cache-only + 503 on cold miss), a manual master kill-switch, per-user slot/size/account caps,
+  rate limiting, and graceful local fallback on any cloud write error.
+- Two new feature flags: `accounts` (simple tier) + `sharedLibrary` (pro tier), tested in both modes.
+- Docs: new `docs/deployment-cloudflare.md` (manual setup, provisioning, R2 upload, guardrails);
+  `CLAUDE.md` / `ARCHITECTURE.md` / `README.md` updated. `.env.example` + `wrangler.toml` added.
+
 ## FEAT: desktop shell hardening — run-as-node guard, icons, signing, GitHub-release update check (v0.9.1.1)
 
 - **`ELECTRON_RUN_AS_NODE` no longer silently breaks the shell.** VSCode/agent hosts export it,
@@ -50,6 +74,90 @@ pruned from `main`; entries from C251 on (branch
   **24.18.0** across `.nvmrc` (new), `ci.yml`, `deploy.yml`, Dockerfile, and `engines`.
 - Verified: Electron shell smoke-screenshot renders the full furnished scene over `app://`
   (SwiftShader under WSL); root-base build boots via `static-serve` with `BASE=/`.
+
+## FIX: floor-plan editor View-mode tap no longer select→deselect flickers (v0.9.0.71)
+
+- **Tapping a wall / door / opening / room / item in the editor's View interaction mode now
+  selects it cleanly and keeps it selected** (View mode = pan/zoom + tap-to-inspect). Previously the
+  tap flickered: the element's pointer-down selected it, then the same gesture bubbled to the canvas
+  as a zero-move pan whose release cleared the selection again (annoying select→instant-deselect).
+- **Root cause:** `onUp`'s pan-release branch cleared the selection on any no-move tap with the
+  `select` tool, without consulting whether the press had landed on a selectable element. The
+  existing `elementTapped` gesture flag (already used to suppress the empty-canvas marquee) was reset
+  at the top of `onUp` before that branch could read it. The fix snapshots the flag first and routes
+  the decision through a new pure `editor/tapDeselect.ts` (`clearsSelectionOnPanRelease`, unit-tested)
+  — an empty-canvas tap still deselects; a tap that landed on an element does not.
+- Verified with the new `scripts/scenarios/plan-tap-select-view.json` (mobile View-mode tap: exactly
+  one selection transition, selection sticks, inspector opens).
+
+## FEAT: File System Access folder picker on Chromium — no native "upload N files?" prompt (v0.9.0.70)
+
+- **"Choose folder…" now uses `window.showDirectoryPicker()` where supported (Chromium).** The new
+  `furniture/upload/pickDirectory.ts` (`supportsDirectoryPicker` + `pickDirectoryFiles`) opens the
+  File System Access directory picker and walks the chosen folder with a bounded worker pool
+  (`DIR_READ_CONCURRENCY = 24`, mirroring `readDrop.ts`), stamping each file's `webkitRelativePath`
+  so the existing detection/import flow is unchanged. The upshot: **no browser "Upload N files?"
+  confirm, and live "Scanning folder… N files" progress from the very first file** (routed through
+  the same rAF-coalesced scan UI as the drag path).
+- **Transparent native fallback.** On browsers without the API (Firefox/Safari) — or if the picker
+  is blocked at call time (`SecurityError`/`NotAllowedError`, e.g. a non-secure context) — the button
+  falls back to the native `<input webkitdirectory>` exactly as before. User cancel (`AbortError`) is
+  a silent no-op. No new feature flag (a capability upgrade inside the existing `modelUpload`
+  feature); the "drag a folder for live progress" tip is hidden when the picker is available (the
+  button now gives the same benefit).
+- Unit-tested: recursion + `webkitRelativePath`, per-file progress, bounded concurrency, cancel→null,
+  non-abort error propagation, capability detection.
+
+## FIX: Dev file-watcher inotify exhaustion — ignore `ikea_optimized/` + other non-app trees (v0.9.0.69)
+
+- **`npm run dev` was crashing with `ENOSPC` (inotify watch limit).** Vite recursively watches
+  the project root, and the watch-ignore list in `vite.config.ts` missed the biggest offender:
+  `ikea_optimized/` (3,563 dirs / ~14k scraped GLB+jpg+json files). The existing `**/ikea/**`
+  glob matches only the exact `ikea` segment, so the `ikea_optimized` sibling leaked through —
+  nearly half of everything watched. The inotify pool is per-user (shared with tsserver/editor),
+  so a second dev server tipped it over.
+- **Fix:** added `ikea_optimized`, `scraped_assets`, `research`, `design`, `dist`,
+  `docs/.vitepress` to `server.watch.ignored`. None feed the Vite module graph (they're static
+  assets / build+docs output), so ignoring them is safe. Watchable dirs drop from **7,357 → 175**,
+  which also speeds up dev startup.
+
+## FIX: Per-room editor — undo cancels the confirm bar, footprint-only hover, no inspector flicker (v0.9.0.68)
+
+Three fixes to per-room-editor furniture interaction:
+
+- **Undo now cancels a pending "Apply change?" / "Place item?" confirmation.** `pendingEdit`
+  is transient view state deliberately excluded from history snapshots, so `undo`/`redo`/
+  `jumpHistory` (`state/slices/historySlice.ts`) restored the item transform but stranded the
+  confirm bar with data for an edit that no longer existed. All three history-navigation actions
+  now clear `pendingEdit` alongside the restore. Unit-tested in `historySlice.test.ts`.
+- **Furniture highlights only when the cursor is over its footprint.** Hover was driven by the
+  whole group's `onPointerOver`, so R3F's raycast against any child mesh lit the piece up — even
+  when merely grazing tall geometry that overhangs the base. Hover now runs on the group's
+  pointer-over/-move and projects the cursor ray onto the floor, highlighting only when that point
+  is inside the item's min-span footprint (new pure `floorPointInFootprint` in `collision/placement.ts`,
+  unit-tested). Selection/click/drag stay on the visible mesh exactly as before — no invisible floor
+  geometry — so clicking empty floor within a piece's footprint no longer selects it.
+- **No more inspector-panel open/close flicker on select.** Selecting an item opens the inspector,
+  which shrinks the canvas (`:has(.dock-panel)`) and shifts the item off the cursor; the same
+  gesture's release then raycast-missed and fired `onPointerMissed` → `deselectOnMiss`, closing the
+  panel it just opened. A gesture that begins on a furniture item is now flagged
+  (`markPointerDownOnItem` in `scene/clickVsDrag.ts`, reset per gesture by the capture-phase
+  pointerdown listener) and `deselectOnMiss` skips deselection for that gesture's release.
+  Unit-tested in `deselectOnMiss.test.ts`.
+
+## FEAT: Floor plan editor open/close uses the loading overlay for a smooth transition (v0.9.0.67)
+
+- **Toggling the 2D floor plan editor now shows the transition overlay**, matching the room
+  editor. `setFloorPlanEditing`/`toggleFloorPlanEditing` (`state/slices/floorPlanSlice.ts`) set
+  `loading: { active: true, label }` in the same commit — `'Opening floor plan…'` on entry,
+  `'Closing floor plan…'` on exit — so the instant DOM/scene swap is masked behind the overlay's
+  600 ms min-visible + 250 ms fade instead of a hard jump. Every entry path (P hotkey, Edit menu,
+  mobile section, ⌘K) routes through these two actions, so all are covered.
+- **App.tsx hide effect gains `floorPlanEditing` as a re-trigger key** so each open/close
+  re-fires the next-frame `hideLoading()` (same mechanism as `roomEditorActive`).
+- Unit-tested: both actions set `loading.active` with the correct directional label (enter + exit,
+  set + toggle). New interaction scenario `floorplan-transition-overlay.json` captures the
+  Opening/Closing overlays and the round-trip scene→editor→scene.
 
 ## FIX/FEAT: Upload dialog — sticky upload area, scrolling group list, live detection, no "Import 0" (v0.9.0.66)
 

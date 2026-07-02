@@ -72,6 +72,16 @@ same change that reshapes a system.
   **features** (cmdk/layers/context-menu/onboarding/tour/budgetTarget), **userStyles**.
   `storage/`: autosave + `qualityPrefs`/`editorPrefs`/`appearancePrefs`/`floorPlanStore`/
   `budgetPrefs`; `hydrate*.ts` re-resolve user/IKEA defs + IDB blobs. `schema.ts`=serializer.
+  `storage/adapter.ts` = the dynamic adapter: guests use `LocalStorageAdapter`, a signed-in user
+  on a backend build uses a cloud-mirror (local always + throttled cloud via `ServerAdapter`);
+  `cloudBoot.ts` reconciles the autosave latest-wins on boot.
+- **Cloudflare backend (opt-in, `VITE_API_BASE`/`hasBackend()`)** — `server/` (bindings-typed
+  helpers: `crypto` PBKDF2, `sessions` KV, `db` D1, `assets` R2+Cache API, `guardrails`
+  kill-switch/rate-limit, `turnstile`), `functions/api/[[route]].ts` (Hono API: login-only auth,
+  admin-created accounts, designs CRUD, favourites, auth-gated R2 proxy, flags), `workers/usage-monitor/`
+  (standalone cron circuit-breaker that trips `killswitch:r2` in KV). Client seam: `src/features/api/client.ts`
+  + `auth/backendProvider.ts` + `catalog/packs/sharedLibrary.ts`. Type-checked via `tsconfig.worker.json`
+  (`npm run typecheck:worker`). Full guide: `docs/deployment-cloudflare.md`.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
   windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`. `PlanShell.tsx`
   renders a user-authored plan (extruded walls + per-room floor/ceiling) when active.
@@ -144,7 +154,10 @@ same change that reshapes a system.
   `<assetId>:lod-<tier>` keys, routed by the `lod.ts` variant registry);
   `ikea/` (`metadata`/`translate`/`importGroup`/`compatibility`/`detectGroups`/`stacking`/
   `supportPlane`/`thumbnail`/`ikeaSets`); `upload/` (`bulkImport.ts` `prepareModelFile`=
-  convert+optimize+`persistUserGlb`, `hashFile.ts` dedupe, `readDrop.ts`, `runImport.ts`
+  convert+optimize+`persistUserGlb`, `hashFile.ts` dedupe, `readDrop.ts` (drag-drop walk),
+  `pickDirectory.ts` (**File System Access** folder pick on Chromium — no native "upload N files?"
+  prompt + live scan progress; falls back to the native `<input webkitdirectory>` elsewhere),
+  `coalesceProgress.ts` (rAF progress throttle), `runImport.ts`
   background job w/ **batched writes** to avoid O(n²) rebuilds); `cabinet/`.
 - `src/materials/` — `builtinCatalog.ts` (floors/walls), `procedural/generators.ts`
   (wood/parquet/tile/marble/carpet/concrete/terrazzo/plaster/wallpaper/checker/brick…),

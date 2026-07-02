@@ -127,6 +127,8 @@ export type FeatureFlag =
   | 'masterPalette'
   | 'layerOrder'
   | 'contextMenu'
+  | 'accounts'
+  | 'sharedLibrary'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

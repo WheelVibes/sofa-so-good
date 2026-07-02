@@ -63,8 +63,27 @@ export default defineConfig(({ command }) => ({
         // `<base>/docs/` — without this denylist the SW returns the app
         // shell for the guide (wrong content, online and offline). Denied
         // navigations fall through to the `/docs/` runtime cache below.
-        navigateFallbackDenylist: [/\/docs\//],
+        navigateFallbackDenylist: [/\/docs\//, /^\/api\//],
         runtimeCaching: [
+          {
+            // Shared-library assets from the auth-gated API (Cloudflare build).
+            // Immutable (content-addressed keys) so CacheFirst is safe and keeps
+            // repeat loads off R2 (a cost guardrail). statuses:[0,200] allows the
+            // opaque/streamed model responses.
+            urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith('/api/assets/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'shared-library-assets',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            // All other API calls (auth, designs, favourites, admin) must always
+            // hit the network — never serve a stale session/design from cache.
+            urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
+          },
           {
             // User guide (separate VitePress build at `<base>/docs/`) — not
             // in the app precache, so cache it on first visit to make the
@@ -142,16 +161,25 @@ export default defineConfig(({ command }) => ({
     chunkSizeWarningLimit: 1000,
   },
   server: {
-    // Keep the dev file-watcher under the system inotify limit by ignoring large
-    // non-app trees (scraped IKEA models, datasets, graphify output, python tools).
-    // These never feed the Vite module graph, so ignoring them is safe + faster.
+    // Keep the dev file-watcher under the system inotify limit (per-user, shared
+    // with tsserver/editor) by ignoring large non-app trees: scraped IKEA models
+    // (both raw + optimized), datasets, build/docs output, graphify output, python
+    // tools. None feed the Vite module graph, so ignoring them is safe + faster.
+    // NB: globs match exact path segments — `**/ikea/**` does NOT cover the
+    // `ikea_optimized/` sibling, so both are listed explicitly.
     watch: {
       ignored: [
         '**/ikea/**',
+        '**/ikea_optimized/**',
+        '**/scraped_assets/**',
         '**/dataset/**',
         '**/local-assets/**',
         '**/graphify-out/**',
         '**/python/**',
+        '**/research/**',
+        '**/design/**',
+        '**/dist/**',
+        '**/docs/.vitepress/**',
         '**/public/draco/**',
         '**/.git/**',
       ],

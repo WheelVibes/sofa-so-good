@@ -72,6 +72,12 @@ npm run electron:start   # build + launch locally
 npm run dist:desktop     # package installers into release/
 ```
 
+**Cloudflare (full-featured):** deploy as a Pages site + same-origin Worker API with accounts
+(admin-created email/password), cloud-synced designs/favourites (D1), a shared asset library
+(R2), and sessions/cache (KV) — with extensive $0 cost guardrails. Backend features gate on
+`VITE_API_BASE`, so the GitHub Pages build stays a free, account-less, offline demo. Step-by-step
+guide: [docs/deployment-cloudflare.md](docs/deployment-cloudflare.md).
+
 ## Documentation
 
 - **User guide** — [`docs/user/`](docs/user/getting-started.md), a VitePress site deployed at

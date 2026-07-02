@@ -3,7 +3,7 @@ import { BUILTIN_CATALOG } from '../../../furniture/builtinCatalog'
 import { canRecord } from '../../../scene/RecordController'
 import { EXPORT_EVENT } from '../../../scene/ScreenshotController'
 import { applySerialized, serialize } from '../../../state/schema'
-import { LocalStorageAdapter } from '../../../state/storage/LocalStorageAdapter'
+import { storage } from '../../../state/storage/adapter'
 import type { SlotMeta } from '../../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
@@ -52,7 +52,7 @@ export function FileSection({
     const slot = name.trim().replace(/\s+/g, '-').toLowerCase()
     if (!slot) return
     try {
-      await LocalStorageAdapter.save(slot, serialize(s.getState()))
+      await storage.save(slot, serialize(s.getState()))
       saveThumb(slot, captureThumb())
       refreshSlots()
       s.getState().notify.start({ title: `Saved layout “${slot}”`, kind: 'success' })
@@ -61,7 +61,7 @@ export function FileSection({
     }
   }
   const loadLayout = async (slot: string) => {
-    const data = await LocalStorageAdapter.load(slot).catch(() => null)
+    const data = await storage.load(slot).catch(() => null)
     if (!data) {
       s.getState().notify.start({ title: `Could not load slot ${slot}`, kind: 'error' })
       return
@@ -76,7 +76,7 @@ export function FileSection({
     s.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
   }
   const deleteLayout = async (slot: string) => {
-    await LocalStorageAdapter.delete(slot)
+    await storage.delete(slot)
     deleteThumb(slot)
     refreshSlots()
   }

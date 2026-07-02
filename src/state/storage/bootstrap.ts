@@ -90,6 +90,15 @@ export async function runBootstrap(): Promise<void> {
       useStore.getState().clearHistory()
     })
 
+    // Cloud reconciliation (backend builds only): revalidate the session, merge
+    // cloud favourites, and reconcile the autosave slot latest-wins. Runs after
+    // the local seed so a returning user's cloud design can supersede it, and
+    // BEFORE share links so an explicit shared link still wins below.
+    await runStep('cloudBoot', async () => {
+      const { cloudBoot } = await import('./cloudBoot')
+      await cloudBoot()
+    })
+
     // A `#/plans/<code>` or `#/design/<code>` share link overrides the seeded/
     // restored design with the shared one (runs after the seed so it wins).
     // No-op without a link; the routes are disjoint so at most one fires.
@@ -239,4 +248,43 @@ async function exposeDevHelpers(): Promise<void> {
     bytes: Uint8Array,
     name = 'Imported plan',
   ) => applySh3dResult(parseSh3d(bytes, name), name)
+  // Expose the model-group detection path so the scenario harness can drive a
+  // full detect over a synthetic folder headlessly (the upload dialog itself is
+  // React.lazy and won't mount headless — see visual-verification-playbook.md).
+  // Given a list of `{ path, meta }` (meta = a metadata.json object, or a raw
+  // JSON string), it builds File objects with the right `webkitRelativePath`,
+  // runs detectGroups + looseModelFiles, and records the outcome on window.
+  const { detectGroups, looseModelFiles } = await import('../../furniture/ikea/detectGroups')
+  ;(window as unknown as { __detectGroups?: unknown }).__detectGroups = async (
+    entries: Array<{ path: string; meta?: unknown; body?: string }>,
+  ) => {
+    const files = entries.map((e) => {
+      const body = e.body ?? JSON.stringify(e.meta ?? {})
+      const f = new File([body], e.path.split('/').pop() ?? e.path, { type: 'application/json' })
+      Object.defineProperty(f, 'webkitRelativePath', { value: e.path })
+      return f
+    })
+    let lastParsed = 0
+    let total = 0
+    let groupUpdates = 0
+    const groups = await detectGroups(
+      files,
+      (parsed, t) => {
+        lastParsed = parsed
+        total = t
+      },
+      () => {
+        groupUpdates++
+      },
+    )
+    const result = {
+      groupCount: groups.length,
+      looseCount: looseModelFiles(files, groups).length,
+      parsed: lastParsed,
+      total,
+      groupUpdates,
+    }
+    ;(window as unknown as { __detectGroupsResult?: unknown }).__detectGroupsResult = result
+    return result
+  }
 }
