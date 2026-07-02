@@ -14,6 +14,7 @@ import { coalesceProgress } from '../../furniture/upload/coalesceProgress'
 import { hashFile } from '../../furniture/upload/hashFile'
 import { inferCollisionFlags } from '../../furniture/upload/inferFlags'
 import { persistUserGlb } from '../../furniture/upload/persist'
+import { pickDirectoryFiles, supportsDirectoryPicker } from '../../furniture/upload/pickDirectory'
 import { readDroppedItems } from '../../furniture/upload/readDrop'
 import { startBackgroundImport } from '../../furniture/upload/runImport'
 import { Select } from '../controls/Select'
@@ -247,6 +248,33 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     }
   }
 
+  // "Choose folder…" — on Chromium, use the File System Access picker (no native
+  // "Upload N files?" prompt; live scan progress from the first file). Elsewhere,
+  // or if the picker is blocked at call time, fall back to the native
+  // <input webkitdirectory>.
+  const chooseFolder = async () => {
+    if (busy || scanCount !== null) return
+    if (!supportsDirectoryPicker()) {
+      folderInput.current?.click()
+      return
+    }
+    setScanCount(0)
+    const scan = coalesceProgress<number>((n) => setScanCount(n))
+    try {
+      const picked = await pickDirectoryFiles((n) => scan.push(n))
+      scan.flush()
+      if (picked && picked.length > 0) ingest(picked)
+    } catch (e) {
+      // Picker unavailable/blocked (e.g. non-secure context) → native fallback;
+      // any other failure surfaces as an error.
+      const name = e instanceof DOMException ? e.name : ''
+      if (name === 'SecurityError' || name === 'NotAllowedError') folderInput.current?.click()
+      else setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setScanCount(null)
+    }
+  }
+
   const submit = async () => {
     if (modelFiles.length === 0) {
       setError('Pick at least one supported model file.')
@@ -377,16 +405,18 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                   <span className="text-xs text-[var(--text-3)]">or</span>
                   <button
                     type="button"
-                    onClick={() => folderInput.current?.click()}
+                    onClick={chooseFolder}
                     disabled={busy}
                     className="rounded bg-[var(--surface-solid)] px-3 py-1 text-xs font-medium text-[var(--text-2)] shadow-sm ring-1 ring-[var(--border-2)] hover:bg-[var(--surface-2)] disabled:opacity-50"
                   >
                     Choose folder…
                   </button>
-                  <span className="mt-1 block text-[10px] text-[var(--text-3)]">
-                    Tip: drag a folder in for live progress (skips the browser’s “upload N files?”
-                    prompt).
-                  </span>
+                  {!supportsDirectoryPicker() ? (
+                    <span className="mt-1 block text-[10px] text-[var(--text-3)]">
+                      Tip: drag a folder in for live progress (skips the browser’s “upload N files?”
+                      prompt).
+                    </span>
+                  ) : null}
                 </>
               )}
             </div>
