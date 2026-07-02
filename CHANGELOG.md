@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: test suite runs offline-deterministic — `VITE_API_BASE` pinned empty in vitest (v0.10.0.11)
+
+- `authSlice.test.ts` failed whenever the developer's `.env` set `VITE_API_BASE=/api` (added with
+  the Cloudflare backend): `hasBackend()` flipped the auth provider to the network path and sign-in
+  tests hit a dead `127.0.0.1` socket. `vitest.config.ts` now pins `VITE_API_BASE=''` for tests, so
+  the suite always exercises the offline/local provider; backend-path tests mock `hasBackend`
+  themselves (`sharedLibrarySlice.test.ts`).
+
 ## FEAT: shared R2 library auto-populates the catalog grid for signed-in users (v0.10.0.10)
 
 - **Every product in the Cloudflare R2 shared library now appears as a browsable catalog card**
