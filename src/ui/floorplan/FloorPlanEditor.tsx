@@ -40,6 +40,7 @@ import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Select } from '../controls/Select'
 import { openDocs } from '../docsUrl'
+import { InfoCallout } from '../InfoCallout'
 import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
 import { Icon } from '../toolbar/icons'
@@ -2006,6 +2007,12 @@ export function FloorPlanEditor() {
             </div>
           </>
         )}
+      </div>
+      <div className="px-4 pt-2">
+        <InfoCallout id="floor-plan" title="Editing your floor plan">
+          Switch to Edit to draw walls and rooms; View just pans and zooms. Your 3D home updates
+          live.
+        </InfoCallout>
       </div>
       {isMobile && (
         <Modal open={toolsMenuOpen} onClose={() => setToolsMenuOpen(false)} title="Plan tools">

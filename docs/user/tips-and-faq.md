@@ -12,6 +12,9 @@
   and light / dark.
 - **Start fast** — use **Smart Start** to furnish and finish the whole flat in one
   click, then tweak.
+- **Helpful hints** — the room editor, floor‑plan editor and Walk mode each show a
+  short hint banner the first time you open them. Read it, then click the ✕ ("Don't
+  show this again") to dismiss it for good — it won't come back.
 
 ## FAQ
 

@@ -468,6 +468,22 @@ describe('cameraDof flag (PC2-CAM-DOF-LENS)', () => {
   })
 })
 
+describe('infoCallouts flag (P25 progressive-disclosure hints)', () => {
+  it('is simple-tier: present in BOTH Simple and Pro modes (both build kinds)', () => {
+    // Dismissible first-run hint banners aid beginners in the default experience,
+    // so they show in both Simple and Pro (simple tier, prod-safe, default on).
+    expect(resolveFlags(false, {}, false, 'simple').infoCallouts).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').infoCallouts).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').infoCallouts).toBe(true)
+    expect(resolveFlags(true, {}, false, 'pro').infoCallouts).toBe(true)
+  })
+  it('ships in prod (pure UI, no devOnly gate) with the right tier + default', () => {
+    expect(FEATURE_FLAGS.infoCallouts.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.infoCallouts.default).toBe(true)
+    expect(FEATURE_FLAGS.infoCallouts.tier).toBe('simple')
+  })
+})
+
 describe('importSh3d flag (PARITY-SH3D)', () => {
   it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
     // Importing a Sweet Home 3D plan is a plan-interop / authoring surface beyond

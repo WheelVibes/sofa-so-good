@@ -45,6 +45,30 @@
 /* span an empty state across all columns of the catalog card grid */
 .empty-mini.catalog-empty { grid-column: 1 / -1; }
 
+/* ---- progressive-disclosure info callout (P25) --------------- */
+/* A dismissible one-line hint banner (InfoCallout.tsx): surface-2 card with an
+   accent left edge, an info glyph, bold title + muted body, and a close button. */
+.info-callout {
+  display: flex; align-items: flex-start; gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  box-shadow: inset 3px 0 0 var(--accent);
+  max-width: 40ch;
+}
+.info-callout .ic { flex: none; margin-top: 1px; color: var(--accent); }
+.info-callout .ic-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.info-callout .ic-body b { font-size: var(--t-sm); font-weight: 700; line-height: var(--lh-body); color: var(--text-2); }
+.info-callout .ic-body span { font-size: var(--t-xs); line-height: 1.5; color: var(--text-3); }
+.info-callout .ic-dismiss {
+  flex: none; display: grid; place-items: center;
+  width: 22px; height: 22px; margin: -2px -4px 0 auto; padding: 0;
+  background: none; border: 0; border-radius: var(--r-1);
+  color: var(--text-3); cursor: pointer;
+}
+.info-callout .ic-dismiss:hover { background: var(--surface-3); color: var(--text-2); }
+
 /* ============================================================
    RE-RENDER GUARD
    render() rebuilds the stage on every state change. Surfaces that

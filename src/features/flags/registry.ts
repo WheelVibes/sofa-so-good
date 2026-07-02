@@ -998,6 +998,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Dismissible, localStorage-persisted first-run hint banners for the room
+  // editor / floor-plan editor / walk mode (P25). Pure UI, prod-safe. Aids
+  // beginners in the default experience → simple tier (shown in both modes).
+  infoCallouts: {
+    label: 'Info callouts',
+    description: 'Dismissible hint banners in the room, floor-plan and walk screens',
+    default: true,
+    tier: 'simple',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

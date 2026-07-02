@@ -73,6 +73,7 @@ import { EmptyRoomHint } from './ui/EmptyRoomHint'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
 import { FpsCounter } from './ui/FpsCounter'
+import { InfoCallout } from './ui/InfoCallout'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
@@ -886,6 +887,18 @@ export default function App() {
           <FinishDragOverlay />
           <FpsCounter />
           <RoomEditorCaption />
+          {roomEditorActive && (
+            <div
+              className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2"
+              style={{ top: 'calc(env(safe-area-inset-top, 0px) + 104px)' }}
+            >
+              <div className="pointer-events-auto">
+                <InfoCallout id="room-editor" title="Designing one room">
+                  Click a piece to select it, then drag to move. Open the catalog to add more.
+                </InfoCallout>
+              </div>
+            </div>
+          )}
           <EmptyRoomHint />
           <MobileLongPress />
           <MarqueeSelector />

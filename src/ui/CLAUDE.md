@@ -65,6 +65,11 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   mount via `screenFadeIn` (`--dur-2`/`--ease-out`, fill `backwards`) against the persistent 3D
   canvas. Don't add a competing fade to walk/room transitions. Exit is an instant reveal — no
   leaving-state machine.
+- **Progressive-disclosure hints use `InfoCallout`** (`src/ui/InfoCallout.tsx`): a one-line,
+  flag-gated (`infoCallouts`) hint banner with a stable `id`, dismissed per-id + persisted to
+  localStorage (`calloutsSlice`) so it never re-appears. Never a modal — keep copy to one
+  concise, accurate line (verify against the screen's real controls) and mount it inside the
+  screen it hints at (room editor / floor-plan editor / walk mode).
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
   gate on `canEditScene`; leaving the editor clears the selection.
 - **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models* (Poly Haven

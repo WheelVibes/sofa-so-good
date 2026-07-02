@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: progressive-disclosure info callouts (v0.10.0.33)
+
+- New flag-gated (`infoCallouts`, simple tier — shown in both modes) `<InfoCallout>` hint
+  banners in the room editor, floor-plan editor and walk mode; copy verified against the real
+  controls. Dismissal is per-id and persisted (`calloutsSlice`, `hdb_dismissed_callouts`) so a
+  dismissed hint never returns. Token-only styling (accent left edge, `--lh-body` copy).
+
 ## FEAT: persist panel state — left-dock tab, collapsed layer groups, desktop catalog-open (v0.10.0.32)
 
 - `editorPrefs` (key `sofa.editor.v1`) now also persists `leftMode`, the Layers panel's

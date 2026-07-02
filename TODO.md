@@ -42,8 +42,7 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 - [ ] **P18 Missing primitives** — Accordion/Disclosure (unify layers groups + FinishPicker
   `<details>`), Slider-with-value, tonal/dot Badge variants, Breadcrumb (Room → Wall → Surface),
   ButtonGroup for modal footers.
-- [ ] **P25 Progressive-disclosure info callouts** — dismissible, localStorage-persisted hint
-  banners for edit-room / floor-plan editor / walk mode.
+
 - [ ] **P26 Simple→Pro upsell affordance** — flag-gated dimmed entries + Pro badge / ⌘K hint so
   casual users learn Pro exists (test both modes).
 - [ ] **P27 "New" feature badges** — `.nub` pulsing dot on newly shipped toolbar/menu entries,
