@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: R2 bucket binding renamed `sofa_assets` → `LIBRARY` — shared library was 500ing (v0.11.0.2)
+
+- **`wrangler.toml`'s R2 binding now matches the code.** v0.10.0.9 filled in the provisioned
+  resource ids but named the R2 binding `sofa_assets` (the *bucket's* name), while the Pages
+  Function reads `env.LIBRARY` (`server/env.ts` / `server/assets.ts`) — so `env.LIBRARY` was
+  `undefined` in production, every `/api/assets/*` request threw a 500, the shared-library
+  manifest fetch failed, and the R2 IKEA catalog never appeared (even for a signed-in admin).
+  One-line rename to `LIBRARY`; requires a redeploy to take effect.
+
 ## FIX: catalog/preset card glow is invisible when ambient FX is off — no more brown bloom (v0.11.0.1)
 
 - **Every catalog card carried a permanent brown-tinted radial bloom** (user report): the P7

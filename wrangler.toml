@@ -28,7 +28,7 @@ migrations_dir = "migrations"
 
 # --- R2 (shared, read-only asset library) ------------------------------------
 [[r2_buckets]]
-binding = "sofa_assets"
+binding = "LIBRARY"
 bucket_name = "sofa-assets"
 
 # --- KV (sessions, cache, feature-flag / kill-switch config) -----------------
