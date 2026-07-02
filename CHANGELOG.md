@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: visual-verification scenario for UI polish batch 3b (v0.10.0.47)
+
+- New `scripts/scenarios/ui-polish-batch3b.json` (134 steps, 20 screenshots) covering every
+  surface shipped in batch 3b (v0.10.0.40–.46) plus reduced-motion + Performance-tier degradation.
+  Ran green; every screenshot reviewed by eye.
+- **P18 (primitives):** FinishPicker `Disclosure` collapses (`+ Apartment colour palette…`) →
+  expands (reveals Apartment palette + "Override palette for this room"); walk-settings
+  `SliderField` readout tracks the store (Field of view 60° → 95°, thumb + `.val` readout move);
+  the fixed TimeOfDaySlider keeps its `.scene-row-head` header row matching sibling Scene headers.
+- **P32 (live cards):** progress toast "Rendering… / Path-tracing your view" renders the
+  progress bar + clickable body + "Jump to result →" hint; `notify.error(id,…,retry)` swaps in a
+  "Retry" action button.
+- **P38 (density):** Density seg present in Pro (Comfortable/Compact), absent in Simple;
+  `setDensity('compact')` sets `document.documentElement.dataset.density='compact'` and tightens
+  `.menu-item` padding 8px→6px (denser, not cramped).
+- **P26 (upsell):** ⌘K footer shows the ProUpsellHint row ("More tools in Pro …" + Pro chip) in
+  Simple, absent in Pro.
+- **P7 (ambient FX):** at `qualityTier:'high'` the catalog card gradient CSS is applied
+  (`radial-gradient` accent `oklch`) and the HQ border-beam CSS animates
+  (`beamTravel`/`offset-path:border-box`/3s/running); at `qualityTier:'performance'` and under
+  reduced-motion the gate is off (beam/gradient inert/static), and the Batch-3a `.new-dot` +
+  `screenFadeIn` crossfade settle statically.
+- **Verification note:** the real pointermove→`--mx/--my` writer can't be driven headless
+  (cat-cards are draggable → native DnD suppresses pointermove; synthetic events don't reach the
+  React-delegated handler; no plain mouse-move step) — verified via CSS-applied + gate-input
+  probes + injected-element computed style, backed by the batch-3b unit suites.
+
 ## CHORE: P37 ruling — defer list virtualization with a measured threshold (v0.10.0.46)
 
 - Not justified now: the catalog grid is already paginated (PAGE_SIZE=12) and history/layers

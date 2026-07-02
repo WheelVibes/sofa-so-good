@@ -184,6 +184,17 @@ come out near-black.
   '*,*::before,*::after{animation-duration:0.01ms !important;animation-delay:0ms !important;
   animation-iteration-count:1 !important;transition-duration:0.01ms !important;
   transition-delay:0ms !important;}' }))`.
+- **A pointermove-driven DOM handler (e.g. the P7 catalog `--mx/--my` radial-gradient writer) can't
+  be exercised headless.** Three walls stack up: (1) the harness has no plain "mouse-move" step;
+  (2) a *synthetic* `dispatchEvent(new PointerEvent('pointermove',{bubbles:true}))` fires native
+  listeners but does **not** reach React's root-delegated `onPointerMove` (same class as the R3F /
+  synthetic-`contextmenu` limitation); (3) a real-CDP `drag` over a `draggable` element (catalog
+  cards are draggable-to-place) starts native HTML5 drag-and-drop, which **suppresses** the
+  pointermove stream (replaced by `dragover`). Verify such an effect by (a) asserting the CSS is
+  applied — `getComputedStyle(el).backgroundImage` carries the expected `radial-gradient`/accent
+  `oklch`; (b) probing the *inputs* of its gate (flag + `qualityTier`) rather than the hook itself;
+  (c) driving the CSS var yourself via `el.style.setProperty('--mx', …)` for the visual; and lean on
+  the effect's unit suite for the handler→var wiring. Say which evidence you got.
 
 ### Scenario template
 
