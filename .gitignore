@@ -50,3 +50,9 @@ docs/developer/.vitepress/dist
 # Python bytecode cache (dev-only scraper scripts in research/scrapers)
 __pycache__/
 *.pyc
+
+# Dev-only local asset drop-in folder (served by scripts/vite-local-assets.mjs)
+local-assets/
+
+# Scraped CC0/CC-BY/PD asset corpus (dev-only, not shipped)
+scraped_assets/

@@ -67,7 +67,7 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
     // prefer the cached real bounding box over the def's authored
     // defaultFootprint — uploads default to a 1×1×1 placeholder, and
     // remote/pack entries may be inaccurate too.
-    const url = def.source === 'builtin' ? def.url : def.runtimeUrl
+    const url = def.source === 'builtin' || def.source === 'local' ? def.url : def.runtimeUrl
     const cached = url ? getCachedGltfFootprint(url) : null
     if (cached) {
       w = cached.w

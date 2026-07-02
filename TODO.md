@@ -9,6 +9,19 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
 > Avoid pricing/quotes/analytics deliverables unless asked.
 
+## Active — asset pipeline (2026-07-02, user goal)
+See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full design.
+- **Local dev asset DB (Part 1, in progress).** Drop GLBs in `local-assets/` → auto-loaded into
+  the catalog with NO upload pipeline (convert/optimize/IDB). Dev-only Vite plugin
+  (`scripts/vite-local-assets.mjs`) serving `/@local-assets/*`, `localAssets` devOnly flag,
+  `localAssetsSlice` (`bootstrapLocalAssets`), `LocalGltfDef` source, merged in `catalog.ts`.
+- **Upload parallelization (Part 1b).** Replace the single optimize Worker
+  (`optimize/runOptimize.ts`) with a worker POOL (biggest bulk-import win); then move `convertModel`
+  off the main thread; early GLB size-cap check before optimize (IO-002).
+- **Scrapers (Part 3).** `research/scrapers/` has 35 working scrapers with complete enumeration;
+  finalized tiering in the plan doc. Next: run Tier-1 CC0 scrapers into `local-assets/` (pairs with
+  Part 1), then surface Poly Haven models in prod (`remoteFurniture` flag).
+
 ## ⛔ Production-infra-blocked — need a DEPLOYED host/backend, not app code
 The dev paths already work (Vite reverse proxy, dev-gated providers); only the *production*
 proxy/mirror/host is missing, and standing one up is a deployment task, not a code change here:

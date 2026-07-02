@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { localAssetsPlugin } from './scripts/vite-local-assets.mjs'
 
 // Dev-only proxies for CC0 asset providers that don't ship CORS headers.
 // Production deployments need an equivalent proxy (Cloudflare Worker etc.) —
@@ -17,6 +18,9 @@ export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/sofa-so-good/' : '/',
   plugins: [
     react(),
+    // Dev-only: serve GLBs dropped into `local-assets/` straight into the catalog
+    // (no upload pipeline). `apply:'serve'` keeps it out of production builds.
+    localAssetsPlugin(),
     VitePWA({
       // `prompt` (not autoUpdate): a found update INSTALLS but waits — we never
       // reload behind the user's back. `src/pwa/swUpdate.ts` surfaces an
@@ -143,6 +147,7 @@ export default defineConfig(({ command }) => ({
       ignored: [
         '**/ikea/**',
         '**/dataset/**',
+        '**/local-assets/**',
         '**/graphify-out/**',
         '**/python/**',
         '**/public/draco/**',

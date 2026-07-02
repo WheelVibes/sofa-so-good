@@ -58,6 +58,11 @@ import {
   type InstalledPacksSlice,
 } from './slices/installedPacksSlice'
 import { createItemsSlice, ITEMS_INITIAL, type ItemsSlice } from './slices/itemsSlice'
+import {
+  createLocalAssetsSlice,
+  LOCAL_ASSETS_INITIAL,
+  type LocalAssetsSlice,
+} from './slices/localAssetsSlice'
 import { createLocationSlice, LOCATION_INITIAL, type LocationSlice } from './slices/locationSlice'
 import {
   createMeasurementsSlice,
@@ -152,6 +157,7 @@ export interface RootState
     ClipboardSlice,
     HistorySlice,
     RemoteCatalogSlice,
+    LocalAssetsSlice,
     OrientationSlice,
     NotificationsSlice,
     InstalledPacksSlice,
@@ -193,6 +199,7 @@ const INITIAL = {
   ...CLIPBOARD_INITIAL,
   ...HISTORY_INITIAL,
   ...REMOTE_CATALOG_INITIAL,
+  ...LOCAL_ASSETS_INITIAL,
   ...ORIENTATION_INITIAL,
   ...NOTIFICATIONS_INITIAL,
   ...INSTALLED_PACKS_INITIAL,
@@ -236,6 +243,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createClipboardSlice(set, get, api),
   ...createHistorySlice(set, get, api),
   ...createRemoteCatalogSlice(set, get, api),
+  ...createLocalAssetsSlice(set, get, api),
   ...createOrientationSlice(set, get, api),
   ...createNotificationsSlice(set, get, api),
   ...createInstalledPacksSlice(set, get, api),

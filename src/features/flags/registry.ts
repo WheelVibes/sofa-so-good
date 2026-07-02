@@ -174,6 +174,13 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     devOnly: true,
     tier: 'pro',
   },
+  localAssets: {
+    label: 'Local asset folder',
+    description: 'Auto-load GLBs from local-assets/ (dev only, no upload)',
+    default: true,
+    devOnly: true,
+    tier: 'simple',
+  },
   livePrices: {
     label: 'Live SG retailer prices',
     description: 'Live price lookup — IKEA/Courts/HipVan/Castlery (needs a sidecar)',

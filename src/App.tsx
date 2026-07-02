@@ -338,6 +338,9 @@ export default function App() {
       const warm = () => {
         const s = useStore.getState()
         if (s.remoteIndexes.polyhaven.status === 'idle') void s.bootstrapRemoteCatalog()
+        // Dev-only: pull GLBs from the local-assets/ folder into the catalog
+        // (no-op in prod — flag is devOnly + the plugin routes don't exist).
+        if (s.localAssetsStatus === 'idle') void s.bootstrapLocalAssets()
       }
       const w = window as typeof window & {
         requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number

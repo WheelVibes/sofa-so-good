@@ -44,9 +44,11 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   vs truly-empty; only wire a CTA to a real existing handler.
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
   gate on `canEditScene`; leaving the editor clears the selection.
-- **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models* (Poly Haven
-  `RemoteCard`s in the catalog grid) ride the **`remoteFurniture`** flag (pro, default on);
-  browsable remote *materials* (FinishPicker Browse tab) ride **`remoteMaterials`** (pro). Pass the
+- **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models*
+  (`RemoteCard`s in the catalog grid) ride the **`remoteFurniture`** flag (pro, default on) —
+  **no provider currently supplies furniture models (Poly Haven is materials/HDRIs only), so this
+  surfaces nothing today**; browsable remote *materials* (FinishPicker Browse tab, Poly Haven +
+  ambientCG) ride **`remoteMaterials`** (pro). Pass the
   flag into `useUnifiedCatalog(includeRemote)` (via `useFeature('remoteFurniture')`) — never merge
   remote entries ungated. Only bootstrap the provider index when at least one of the two is on
   (`bootstrapRemoteCatalog()` fetches both kinds), so Simple mode (both forced off) hits no network.

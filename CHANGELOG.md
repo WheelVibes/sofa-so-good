@@ -5,6 +5,76 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PERF: optimize worker pool scales dynamically to a hardware-aware max (v0.9.0.65)
+
+- The optimize pool now sizes to the device: `computePoolMax(cores, deviceMemory)` = `cores - 1`,
+  hard-capped at `HARD_POOL_MAX` (8), and **downshifted on low-RAM devices**
+  (`navigator.deviceMemory` ≤2 GB → 2, ≤4 GB → 4) so a phone/low-memory tab can't OOM on the heavy
+  @gltf-transform/Draco/Basis WASM each worker loads.
+- Workers are now spawned **on contention** (`pickWorker`): an idle worker is always reused; a new
+  one is only spun up when *every* existing worker is busy and we're under the max. So a light
+  import keeps a small pool and a heavy concurrent burst scales up to the tolerable maximum, then
+  stops. Pure `computePoolMax` unit-tested (Workers aren't constructible in jsdom).
+
+## CHORE: drop Poly Haven as a furniture/model source — materials/HDRIs kept (v0.9.0.64)
+
+- Poly Haven is no longer an asset source for **furniture/models**. The remote provider
+  (`catalog/remote/providers/polyhaven.ts`) `fetchIndex` now emits **materials only** (no
+  `kind:'furniture'`); the model `fetchAsset`/`fetchSize` branches are removed. Poly Haven was the
+  only furniture provider, so `useRemoteEntries('furniture')` is now empty and the `remoteFurniture`
+  browse is dormant (the flag/infra stay for a future provider). Deleted the now-dead
+  `catalog/remote/category-map.ts` (Poly Haven furniture category mapper) + its test.
+- **Kept**: Poly Haven CC0 **materials/textures** (remote provider + the bundled
+  `public/assets/materials/*` sets) and **HDRIs** (`scene/lighting/hdriCatalog.ts`) — unchanged.
+- Scraper side: removed the `polyhaven --type models` run from `scraped_assets/_run.sh` (its
+  material/HDRI runs stay) and deleted the ~19 GB of already-scraped Poly Haven furniture models.
+- Docs updated (ARCHITECTURE, `src/ui`+`src/furniture` CLAUDE.md, plan doc). `tsc` + remote/catalog
+  suites green.
+
+## FEATURE: dev-only local asset DB + optimize worker POOL (v0.9.0.63)
+
+- **Local asset DB (dev-only).** Drop GLB/GLTF files into `local-assets/` and they auto-load into
+  the furniture catalog with **no upload pipeline** (no convert/optimize/IndexedDB) — for bulk
+  datasets where per-file upload/optimize is too slow. A dev-only Vite plugin
+  (`scripts/vite-local-assets.mjs`, `apply:'serve'`) scans the folder and serves
+  `/@local-assets/index.json` + `/@local-assets/file/<relPath>` (path-traversal guarded); a new
+  `localAssetsSlice` (`bootstrapLocalAssets`) fetches the index and builds `LocalGltfDef`s
+  (`source:'local'`, category from a matching subfolder name or a keyword guess, collision flags
+  inferred from the path), merged as a 5th source in `buildMergedCatalog`. Gated by the new
+  `localAssets` **devOnly** flag (+ `import.meta.env.DEV`) — the plugin routes don't exist in a
+  GitHub Pages build and the flag is forced off, so prod simply has no local entries. Renders via
+  the same `useGLTF` path as bundled GLBs. Verified end-to-end (plugin endpoint + a scenario
+  asserting a dropped GLB reaches the catalog as a `seating` `source:'local'` def).
+- **Optimize worker POOL.** `optimize/runOptimize.ts` used a **single** module-level Worker, so a
+  bulk import (`bulkImport` runs ~4 files concurrently) serialized every file's Draco/texture-encode
+  + LOD pass through one thread. Replaced with a least-busy **pool** (sizing later made
+  hardware-aware + contention-driven in v0.9.0.65); each worker retires independently on `error`/`messageerror`
+  (falling its own in-flight calls back to the unoptimized GLB), and the no-Worker direct fallback is
+  unchanged. Meaningfully faster bulk imports; public API unchanged (tests green).
+- New `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` (design + a finalized,
+  tiered plan for the `research/scrapers/` corpus). `tsc` + full unit suite + `plan-*` scenarios green.
+
+## FIX: touch tap-to-select no longer self-clears in the 2D plan editor (v0.9.0.62)
+
+- **Root cause (touch-only):** tapping a wall/room/opening/furniture in the plan editor selected it,
+  then instantly deselected it — the inspector flashed on/off ("flicker") and the selection "broke".
+  On touch, an element's pointer-down calls `beginElementDrag`, which returns early
+  (`isMobile && !isSelectedNow`) **before** its `e.stopPropagation()`. The press therefore bubbled to
+  the canvas `onDown`, which (edit + select tool) began a **zero-area marquee**; on pointer-up that
+  marquee resolved to "no hits" and ran `setPlanSelection(null)` + `selectItem(null)`, wiping the
+  selection the element had just made. Desktop was unaffected (mouse path stops propagation).
+- **Fix:** track whether a press landed on a selectable element (`elementTapped` ref, set at the top
+  of `beginElementDrag`, reset each gesture in `onUp`) and **suppress the empty-canvas marquee** when
+  it did — so a tap on an element just selects it and sticks, while an empty-canvas tap still deselects
+  and a drag still marquees. Also guarded `startPan`'s `setPointerCapture` in a try/catch (matching the
+  other capture sites) so a stale/synthetic `pointerId` can't abort a pan.
+- **Pinch-zoom** was investigated in the same pass: driving a real two-finger pinch (one move per
+  paint) shows a clean, monotonic zoom/scroll trajectory (no frame-to-frame oscillation) — the
+  reported "pinch flickering" was the same select→deselect inspector flash, now fixed.
+- Added regression scenarios `scripts/scenarios/plan-tap-select.json` (asserts a tapped wall stays
+  selected on mobile touch) and `plan-pinch-zoom.mjs` (asserts the pinch trajectory doesn't reverse
+  direction mid-gesture). `tsc` + 146 floorplan unit tests + the `plan-*` scenario suite green.
+
 ## DOCS: MOD-FPE-SPLIT status — render-layer decomposition complete (v0.9.0.61)
 
 - Recorded the FloorPlanEditor de-monolith outcome: **4271 → 2728 lines (−36%)** across 14 commits —

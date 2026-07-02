@@ -32,6 +32,7 @@ export type FeatureFlag =
   | 'aiPhotoreal'
   | 'aiWalls'
   | 'ikeaLive'
+  | 'localAssets'
   | 'livePrices'
   | 'drawings'
   | 'daylight'

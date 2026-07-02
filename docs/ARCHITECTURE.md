@@ -165,7 +165,7 @@ same change that reshapes a system.
   "Showing <room> furniture" so that otherwise-invisible capability is discoverable.
   Favourites (star/heart button on each card, Favourites tab) are gated by the
   `catalogFavourites` feature flag (tier: simple, default on). Browsable **remote CC0
-  *models*** (Poly Haven `RemoteCard`s) are gated by the **`remoteFurniture`** flag (tier:
+  *models*** (`RemoteCard`s) are gated by the **`remoteFurniture`** flag (tier:
   **pro**, default on — CORS-direct CC0, prod-safe; mirror of `remoteMaterials`): the flag is
   passed into `useUnifiedCatalog(includeRemote)`, so in Simple mode (where `resolveFlags` forces
   pro flags off) the grid shows only the curated builtin/uploaded loop and no un-downloaded remote
@@ -484,8 +484,18 @@ same change that reshapes a system.
   `'poly-pizza'` (prod), `'zip'` (Kenney dev), `'ikea-live'` (dev sidecar `scraper-server.mjs`
   → `public/assets/ikea/`, SSE), `'manual'`. **Remote material providers**
   (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG (proxy, dev), gated
-  by `activeProviderIds`/`PROD_PROVIDER_IDS`. Add a source: poly-pizza-style client
-  reusing `buildEntry`/`commit`, a `RemoteProvider`, or a `'manual'` entry.
+  by `activeProviderIds`/`PROD_PROVIDER_IDS`. **Poly Haven supplies materials/textures (+ HDRIs
+  via `scene/lighting/hdriCatalog.ts`) only — its furniture *models* are deliberately not an
+  asset source**, so no provider currently emits `kind:'furniture'` (the `remoteFurniture` browse
+  is dormant until one does). Add a source: poly-pizza-style client reusing `buildEntry`/`commit`,
+  a `RemoteProvider`, or a `'manual'` entry.
+- **Local asset DB (dev-only)** (`scripts/vite-local-assets.mjs`, `state/slices/localAssetsSlice.ts`):
+  GLBs dropped in `local-assets/` are served by a dev-only Vite plugin (`/@local-assets/index.json`
+  + `/file/<relPath>`) and loaded straight into the catalog as `LocalGltfDef`s (`source:'local'`) —
+  **no upload pipeline** (no convert/optimize/IndexedDB), for bulk datasets. `bootstrapLocalAssets`
+  populates `localFurniture` (5th `buildMergedCatalog` source); gated by the `localAssets` devOnly
+  flag + `import.meta.env.DEV` (empty in prod). Pairs with the CC0/CC-BY/PD scrapers in
+  `research/scrapers/` (run into `scraped_assets/`; both dirs gitignored + dev-only).
 - **Wall elevations** (`elevation/projectElevation.ts` pure → `WallElevation` per plan wall, reusing
   the collision OBB helpers; `ui/elevation/elevationSvg.ts` renders to a palette-injected SVG string
   shared by the `ElevationPanel` (token colours) + the report). The vertical counterpart to the plan.

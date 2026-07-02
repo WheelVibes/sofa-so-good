@@ -450,7 +450,36 @@ export interface IkeaGltfDef extends FurnitureDefBase {
   runtimeUrl?: string
 }
 
-export type GltfDef = BuiltinGltfDef | UserGltfDef | RemoteGltfDef | PackGltfDef | IkeaGltfDef
+/**
+ * A GLB discovered by the **dev-only** local-assets Vite plugin (`localAssets`
+ * flag): a file dropped into `local-assets/` and served at `/@local-assets/…`,
+ * loaded straight into the catalog with NO upload pipeline (no convert/optimize/
+ * IndexedDB). Renders exactly like a `BuiltinGltfDef` — `url` is a same-origin
+ * dev URL — so `selectGltfRender` treats `local` like `builtin`. Never present
+ * in a production build (the plugin + routes are dev-only, the flag is
+ * `devOnly`). Footprint is seeded 1×1×1 and refined on first render by the
+ * shared `FOOTPRINT_CACHE`, same as any other GLB def.
+ */
+export interface LocalGltfDef extends FurnitureDefBase {
+  kind: 'gltf'
+  source: 'local'
+  /** Same-origin dev URL served by the local-assets plugin. */
+  url: string
+  scale?: number
+  /** Path relative to the `local-assets/` root — the stable id/key. */
+  relPath: string
+  /** GLB byte size for the catalog model-info tooltip. */
+  byteSize?: number
+  license: 'CC0'
+}
+
+export type GltfDef =
+  | BuiltinGltfDef
+  | UserGltfDef
+  | RemoteGltfDef
+  | PackGltfDef
+  | IkeaGltfDef
+  | LocalGltfDef
 export type FurnitureDef = ParametricDef | GltfDef
 
 export interface FurnitureItem {

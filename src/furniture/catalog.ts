@@ -17,6 +17,7 @@ import type {
   FurnitureDef,
   FurnitureType,
   IkeaGltfDef,
+  LocalGltfDef,
   UserGltfDef,
 } from './types'
 import { FURNITURE_CATEGORIES } from './types'
@@ -34,6 +35,18 @@ import { FURNITURE_CATEGORIES } from './types'
 function resolveUserDefFootprint(def: UserGltfDef): UserGltfDef {
   const url = def.runtimeUrl
   const cached = url ? getCachedGltfFootprint(url) : null
+  if (!cached) return def
+  const { defaultFootprint, verticalSpan } = spanFromFootprint(
+    cached,
+    def.mounted ? { baseY: def.verticalSpan?.base ?? 0 } : undefined,
+  )
+  return { ...def, defaultFootprint, verticalSpan: def.verticalSpan ?? verticalSpan }
+}
+
+/** Footprint refresh for a dev-only local-asset def — same as the user path but
+ *  the URL lives on `def.url` (a same-origin dev URL), not `runtimeUrl`. */
+function resolveLocalDefFootprint(def: LocalGltfDef): LocalGltfDef {
+  const cached = getCachedGltfFootprint(def.url)
   if (!cached) return def
   const { defaultFootprint, verticalSpan } = spanFromFootprint(
     cached,
@@ -70,6 +83,7 @@ export function buildMergedCatalog(slices: {
   userFurniture: (UserGltfDef | IkeaGltfDef)[]
   resolvedRemoteFurniture: Record<string, FurnitureDef>
   packFurniture: FurnitureDef[]
+  localFurniture?: LocalGltfDef[]
 }): Record<FurnitureType, FurnitureDef> {
   const merged: Record<FurnitureType, FurnitureDef> = { ...BUILTIN_CATALOG }
   for (const def of GENERATED_FURNITURE) merged[def.id] = def
@@ -77,6 +91,9 @@ export function buildMergedCatalog(slices: {
     merged[def.id] = isIkeaDef(def) ? resolveIkeaDefFootprint(def) : resolveUserDefFootprint(def)
   for (const def of Object.values(slices.resolvedRemoteFurniture)) merged[def.id] = def
   for (const def of slices.packFurniture) merged[def.id] = def
+  // Dev-only local-assets folder (empty in prod). Merged last so a dropped-in
+  // GLB can override any earlier def sharing its id.
+  for (const def of slices.localFurniture ?? []) merged[def.id] = resolveLocalDefFootprint(def)
   return merged
 }
 
@@ -88,14 +105,16 @@ export function useCatalog(): Record<FurnitureType, FurnitureDef> {
   const userFurniture = useStore(useShallow((s) => s.userFurniture))
   const remote = useStore(useShallow((s) => s.resolvedRemoteFurniture))
   const packFurniture = useStore(useShallow((s) => s.packFurniture))
+  const localFurniture = useStore(useShallow((s) => s.localFurniture))
   return useMemo(
     () =>
       buildMergedCatalog({
         userFurniture,
         resolvedRemoteFurniture: remote,
         packFurniture,
+        localFurniture,
       }),
-    [userFurniture, remote, packFurniture],
+    [userFurniture, remote, packFurniture, localFurniture],
   )
 }
 
@@ -104,6 +123,7 @@ export function useCatalogByCategory(): Record<FurnitureCategory, FurnitureDef[]
   const userFurniture = useStore(useShallow((s) => s.userFurniture))
   const remote = useStore(useShallow((s) => s.resolvedRemoteFurniture))
   const packFurniture = useStore(useShallow((s) => s.packFurniture))
+  const localFurniture = useStore(useShallow((s) => s.localFurniture))
   const out = Object.fromEntries(
     FURNITURE_CATEGORIES.map((c) => [c, [...(BUILTIN_BY_CATEGORY[c] ?? [])]]),
   ) as Record<FurnitureCategory, FurnitureDef[]>
@@ -123,6 +143,7 @@ export function useCatalogByCategory(): Record<FurnitureCategory, FurnitureDef[]
     )
   for (const def of Object.values(remote)) bucket(def.category).push(def)
   for (const def of packFurniture) bucket(def.category).push(def)
+  for (const def of localFurniture) bucket(def.category).push(resolveLocalDefFootprint(def))
   return out
 }
 
@@ -133,6 +154,7 @@ function snapshotCatalog(): Record<FurnitureType, FurnitureDef> {
     userFurniture: s.userFurniture,
     resolvedRemoteFurniture: s.resolvedRemoteFurniture,
     packFurniture: s.packFurniture,
+    localFurniture: s.localFurniture,
   })
 }
 
@@ -165,7 +187,8 @@ export function useCatalogGetter(): {
       if (
         s.userFurniture !== prev.userFurniture ||
         s.resolvedRemoteFurniture !== prev.resolvedRemoteFurniture ||
-        s.packFurniture !== prev.packFurniture
+        s.packFurniture !== prev.packFurniture ||
+        s.localFurniture !== prev.localFurniture
       )
         update()
     })

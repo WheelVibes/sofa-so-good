@@ -336,6 +336,14 @@ export function FloorPlanEditor() {
   // the current pointer went down, so onUp can tell "placing the start" from
   // "placing the end / ending the chain".
   const wallTapHadAnchor = useRef(false)
+  // Set by an element's pointer-down (via `beginElementDrag`) so the bubbled
+  // canvas `onDown` knows the press landed ON a selectable element and must NOT
+  // start an empty-canvas marquee. Without this, a touch tap on an unselected
+  // wall/room/opening/item (where `beginElementDrag` returns without stopping
+  // propagation) bubbles to the marquee path, whose zero-area (tap) resolution
+  // clears the selection the element just made — select→instant-deselect. Reset
+  // each gesture in `onUp`.
+  const elementTapped = useRef(false)
 
   // Last pointer position in plan metres — where a new ruler guide is dropped
   // (PARITY-PLAN-GUIDES). Updated on every pointer move over the canvas.
@@ -538,7 +546,11 @@ export function FloorPlanEditor() {
       st: canvasRef.current.scrollTop,
     }
     panDidMove.current = false
-    svgRef.current?.setPointerCapture(e.pointerId)
+    // Guard capture (a stale/synthetic pointerId throws InvalidPointerId on some
+    // browsers, which must not abort the pan) — matches the other capture sites.
+    try {
+      svgRef.current?.setPointerCapture(e.pointerId)
+    } catch {}
   }
 
   /**
@@ -549,6 +561,11 @@ export function FloorPlanEditor() {
    * to the canvas pan.
    */
   const beginElementDrag = (e: React.PointerEvent, isSelectedNow: boolean): boolean => {
+    // Mark that this press hit a selectable element — even on the paths that
+    // return `false` below (which don't stopPropagation), so the bubbled canvas
+    // `onDown` can suppress the empty-canvas marquee that would otherwise clear
+    // the selection this element makes.
+    elementTapped.current = true
     if (editMode !== 'edit') return false
     if (isMobile && !isSelectedNow) return false
     e.stopPropagation()
@@ -732,6 +749,12 @@ export function FloorPlanEditor() {
         st.setPlanSelection({ type: 'note', id })
       })()
     } else {
+      // The press landed on a selectable element (its handler already ran and
+      // set the selection, then let the event bubble here). Don't start a
+      // marquee — its zero-area (tap) resolution in `onUp` would clear that very
+      // selection. This is the touch tap-to-select path (desktop element presses
+      // stopPropagation in `beginElementDrag`, so they never reach here).
+      if (elementTapped.current) return
       // Empty-canvas press with the select tool: begin a rubber-band marquee
       // (PARITY-PLAN-MARQUEE). We don't clear the selection yet — that happens
       // on pointer-up only if the marquee stayed a click (zero-area), so a drag
@@ -1063,6 +1086,9 @@ export function FloorPlanEditor() {
   }
 
   const onUp = (e?: React.PointerEvent) => {
+    // Clear the per-gesture "landed on an element" flag so the next empty-canvas
+    // press can start a marquee again.
+    elementTapped.current = false
     if (e?.pointerType === 'touch') {
       const wasPinching = pinch.current !== null
       touchPts.current.delete(e.pointerId)

@@ -53,7 +53,9 @@ export function selectGltfRender(item: FurnitureItem, def: GltfDef): GltfRender 
     }
   }
 
-  const url = def.source === 'builtin' ? def.url : def.runtimeUrl
+  // `builtin` + dev-only `local` defs carry a plain `url`; the rest resolve a
+  // runtime blob/object URL.
+  const url = def.source === 'builtin' || def.source === 'local' ? def.url : def.runtimeUrl
   if (!url) return null
   // Merge the def's baked-in overrides (if any) with the per-item picks; the
   // item's choices win.
