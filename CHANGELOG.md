@@ -5,6 +5,11 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: biome format fix for rowPadding.test.ts (v0.10.0.12)
+
+- Formatter drift in `src/styles/rowPadding.test.ts` (landed via a cherry-pick whose staged-only
+  hook missed it) - repo-wide `npm run check` is green again.
+
 ## CHORE: visual-verification scenario for UI polish batch 2a (v0.10.0.11)
 
 - New `scripts/scenarios/ui-polish-batch2a.json` (55 steps, 11 screenshots) drives + visually

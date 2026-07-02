@@ -6,7 +6,9 @@ const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.met
 
 describe('P12 row-padding normalization', () => {
   it('.lyr-row uses the compact-row composition var(--s-2) var(--s-3)', () => {
-    expect(read('./features.css')).toMatch(/\.lyr-row\s*\{[^}]*padding:\s*var\(--s-2\)\s+var\(--s-3\)/s)
+    expect(read('./features.css')).toMatch(
+      /\.lyr-row\s*\{[^}]*padding:\s*var\(--s-2\)\s+var\(--s-3\)/s,
+    )
   })
   it('.menu-item and .row use the standard-row s-3 composition', () => {
     const c = read('./components.css')
