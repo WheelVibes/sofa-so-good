@@ -70,9 +70,12 @@ export function EditConfirmBar() {
 
   // Leaving the room editor abandons any half-finished edit: keep the change
   // (it's already applied) and just clear the confirmation so the bar doesn't
-  // linger over the overview. No exit animation — the editor is closing.
+  // linger over the overview. No exit animation — the editor is closing. If a
+  // dismiss timer is already in flight (user just clicked ✓/✗), let IT resolve
+  // the edit — calling confirm() here would race the deferred action and turn a
+  // just-clicked Cancel into a silent keep.
   useEffect(() => {
-    if (!roomEditorActive && pending) confirm()
+    if (!roomEditorActive && pending && timerRef.current == null) confirm()
   }, [roomEditorActive, pending, confirm])
 
   useEffect(() => {

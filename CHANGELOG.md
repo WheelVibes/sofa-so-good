@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: EditConfirmBar leave-effect respects an in-flight dismiss (v0.10.0.19)
+
+- The room-editor-leave effect no longer calls `confirm()` while a dismiss timer is pending —
+  previously a Cancel click followed by leaving the editor within the 150ms shake window
+  silently kept the edit instead of reverting it (wave-1 review finding).
+- TASKS.md: logged the pre-existing `#b8860b` heavy-download colour literal in RemoteCard for
+  the no-hardcoded-colour sweep.
+
 ## FEAT: .skeleton shimmer loader for catalog thumbnails (v0.10.0.18)
 
 - Token-only shimmer (`--surface-3`/`--surface-2` gradient sweep, reduced-motion -> static

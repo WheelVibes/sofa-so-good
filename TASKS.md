@@ -83,6 +83,7 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] `.mi-kbd` right-inset is 32px on docs rows vs 9px on non-docs rows — cosmetic
   inconsistency, reconcile in Batch 2.
 - clearRoom's explicit pushHistory + first silent deleteItem's coalesced push double up — dedupe to a true single history step (pre-existing; surfaced in merge-prep re-review)
+- RemoteCard heavy-download hint hardcodes `color: '#b8860b'` (pre-existing) — replace with a warning token (`--warn`/color-mix)
 
 ## UI polish Batch 2 follow-ups
 - [ ] 4 near-`--lh-body` multiline rules left unchanged (`.preset-desc`, `.ss-card-desc`,
