@@ -189,15 +189,21 @@ export function CatalogDrawer() {
     }
   }
 
-  const renderCard = (it: GridItem) =>
+  const renderCard = (it: GridItem, staggerIndex: number) =>
     it.kind === 'local' ? (
       <CatalogCard
         key={gridItemId(it)}
         def={it.def}
+        staggerIndex={staggerIndex}
         onDelete={() => removeUserFurniture(it.def.id)}
       />
     ) : (
-      <RemoteCard key={gridItemId(it)} entry={it.entry} onResolved={(id) => setActiveDefId(id)} />
+      <RemoteCard
+        key={gridItemId(it)}
+        entry={it.entry}
+        staggerIndex={staggerIndex}
+        onResolved={(id) => setActiveDefId(id)}
+      />
     )
 
   // Roving arrow-key navigation across the card grid. Column count is read from
@@ -420,7 +426,7 @@ export function CatalogDrawer() {
               Showing {matchedIntents(query).join(' & ')} furniture
             </div>
           ) : null}
-          <div className="card-grid" onKeyDown={onGridKeyDown}>
+          <div className="card-grid stagger-in" onKeyDown={onGridKeyDown}>
             {cards.length === 0 ? (
               q ? (
                 <EmptyState
@@ -467,7 +473,7 @@ export function CatalogDrawer() {
                 />
               )
             ) : (
-              cards.map(renderCard)
+              cards.map((it, i) => renderCard(it, i))
             )}
           </div>
           {pageCount > 1 ? (

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { useAssetSize, useResolveStatus, useThumbnail } from '../../catalog/remote/hooks'
 import type { RemoteEntry } from '../../catalog/remote/types'
 import { useFeature } from '../../features/useFeature'
@@ -13,12 +13,16 @@ interface Props {
   /** Called with the resolved def id (`provider:slug:resolution`) once the
    *  asset is downloaded — the drawer arms placement / switches to the grid. */
   onResolved: (id: string) => void
+  /** Map index in the enclosing `.card-grid.stagger-in` — drives the entrance
+   *  cascade's `--i` custom property (unset falls back to the CSS nth-child
+   *  rules, which cover the first 12 cards). */
+  staggerIndex?: number
 }
 
 /** A browsable CC0 model card, styled identically to {@link CatalogCard}.
  *  Clicking downloads the model (if needed) then hands the resolved id back so
  *  the drawer can arm placement. Carries the same heart favourite button. */
-export function RemoteCard({ entry, onResolved }: Props) {
+export function RemoteCard({ entry, onResolved, staggerIndex }: Props) {
   const [visible, setVisible] = useState(false)
   const cardRef = useRef<HTMLDivElement | null>(null)
   const thumb = useThumbnail(entry, visible)
@@ -81,6 +85,7 @@ export function RemoteCard({ entry, onResolved }: Props) {
         }
       }}
       className="cat-card group liftable"
+      style={staggerIndex != null ? ({ '--i': staggerIndex } as CSSProperties) : undefined}
     >
       {favOn ? (
         <button

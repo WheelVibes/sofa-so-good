@@ -290,6 +290,32 @@ body.mobile .tip::after { content: none; }
 }
 .menu.open { display: flex; animation: pop var(--dur) var(--ease); }
 @keyframes pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* Entrance stagger (P2). Children of a .stagger-in container fade+rise in
+   sequence. --i (the child's index) drives a 50ms cascade; mapped lists set it
+   inline, hand-authored menus fall back to the nth-child rules below. `both`
+   holds the from-state before the delay so nothing flashes at full opacity.
+   Reduced-motion (app.css) zeroes the delay so all items land at once. */
+.stagger-in > * {
+  animation: staggerIn var(--dur-2) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+.stagger-in > *:nth-child(1) { --i: 0; }
+.stagger-in > *:nth-child(2) { --i: 1; }
+.stagger-in > *:nth-child(3) { --i: 2; }
+.stagger-in > *:nth-child(4) { --i: 3; }
+.stagger-in > *:nth-child(5) { --i: 4; }
+.stagger-in > *:nth-child(6) { --i: 5; }
+.stagger-in > *:nth-child(7) { --i: 6; }
+.stagger-in > *:nth-child(8) { --i: 7; }
+.stagger-in > *:nth-child(9) { --i: 8; }
+.stagger-in > *:nth-child(10) { --i: 9; }
+.stagger-in > *:nth-child(11) { --i: 10; }
+.stagger-in > *:nth-child(12) { --i: 11; }
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
 .menu-item {
   display: flex; align-items: center; gap: var(--s-3);
   padding: var(--s-3); border-radius: var(--r-2);

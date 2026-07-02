@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { type CSSProperties, useMemo, useState } from 'react'
 import { ROOMS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
 import { useFeature } from '../../features/useFeature'
@@ -114,7 +114,7 @@ export function LayersPanel() {
             const groupHidden = g.items.length > 0 && g.items.every((it) => hiddenSet.has(it.id))
             const groupLocked = g.items.length > 0 && g.items.every((it) => it.locked)
             return (
-              <div className="lyr-group" key={g.key}>
+              <div className="lyr-group stagger-in" key={g.key}>
                 <div className="lyr-ghead-row">
                   <button
                     type="button"
@@ -163,13 +163,14 @@ export function LayersPanel() {
                   </button>
                 </div>
                 {!isCollapsed &&
-                  g.items.map((it) => {
+                  g.items.map((it, idx) => {
                     const def = catalog[it.defId]
                     const selected = selectedIds.includes(it.id)
                     return (
                       <div
                         key={it.id}
                         className={`lyr-row${selected ? ' sel' : ''}`}
+                        style={{ '--i': idx } as CSSProperties}
                         onClick={(e) =>
                           e.metaKey || e.ctrlKey ? toggleSelectedItem(it.id) : selectItem(it.id)
                         }

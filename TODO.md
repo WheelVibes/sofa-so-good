@@ -33,8 +33,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 
 ### Batch 2 — medium (1–3 days each)
 
-- [ ] **P2 Stagger capability** — CSS `animation-delay: calc(var(--i) * 50ms)` entrance stagger for
-  menu items, catalog card grid, layers rows, ⌘K results.
 - [ ] **P3 Desktop panel slide animation** — animate `--right-rail` width + panel slide-in
   (240–300ms easeOutExpo) to match mobile `sheetUp` parity.
 

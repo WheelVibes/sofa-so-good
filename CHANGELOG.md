@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: entrance stagger for menus, catalog grid, layers, cmdk results (v0.10.0.7)
+
+- Shared `.stagger-in` utility: children fade+rise in a 50ms cascade (`staggerIn` keyframe,
+  `--dur-2`/`--ease-out`; `both` fill holds the from-state through the delay). Mapped lists set
+  `--i` inline; hand-authored menus use an nth-child fallback (first 12). Applied to toolbar
+  menus, catalog card grid, layers rows, command-palette results.
+- Reduced-motion block now also zeroes `animation-delay`/`transition-delay`, so staggered items
+  land together instead of one-by-one.
+
 ## FEAT: sticky section headers in scrolling panels (v0.10.0.6)
 
 - `.lyr-ghead-row` group headers and `.sec-h` section headers pin to the top of their scroll

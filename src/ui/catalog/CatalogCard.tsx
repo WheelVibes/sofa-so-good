@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { type CSSProperties, useRef } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { isUserDef } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
@@ -20,9 +20,13 @@ const LONG_PRESS_MOVE_PX = 12
 interface CatalogCardProps {
   def: FurnitureDef
   onDelete?: () => void
+  /** Map index in the enclosing `.card-grid.stagger-in` — drives the entrance
+   *  cascade's `--i` custom property (unset falls back to the CSS nth-child
+   *  rules, which cover the first 12 cards). */
+  staggerIndex?: number
 }
 
-export function CatalogCard({ def, onDelete }: CatalogCardProps) {
+export function CatalogCard({ def, onDelete, staggerIndex }: CatalogCardProps) {
   const isUser = isUserDef(def)
   const onClick = usePlacementDrag(def)
   const isMobile = useIsMobile()
@@ -118,6 +122,7 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
         if (useStore.getState().activeDefId === def.id) useStore.getState().cancelPlacement()
       }}
       className={`cat-card group liftable${stampingThis ? ' stamping' : ''}`}
+      style={staggerIndex != null ? ({ '--i': staggerIndex } as CSSProperties) : undefined}
       aria-pressed={stampingThis || undefined}
     >
       {favOn ? (

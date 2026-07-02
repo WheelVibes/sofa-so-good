@@ -41,7 +41,7 @@ export function ToolbarMenu({
         <div
           role="menu"
           onClick={() => setOpen(false)}
-          className="pop-panel"
+          className="pop-panel stagger-in"
           style={{ width, maxHeight: '72vh', overflowY: 'auto' }}
         >
           {children}

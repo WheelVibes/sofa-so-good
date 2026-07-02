@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { requestAutoLayout } from '../ai/autoLayoutAi'
 import {
@@ -788,7 +788,7 @@ export function CommandPalette() {
           />
           <kbd>esc</kbd>
         </div>
-        <div className="cmdk-results" ref={listRef}>
+        <div className="cmdk-results stagger-in" ref={listRef}>
           {filtered.length === 0 ? (
             <div className="cmdk-empty">No commands match “{query.trim()}”.</div>
           ) : (
@@ -812,6 +812,7 @@ export function CommandPalette() {
                       type="button"
                       key={cmd.id}
                       className={`cmdk-item${index === active ? ' active' : ''}`}
+                      style={{ '--i': index } as CSSProperties}
                       onMouseEnter={() => setActive(index)}
                       onClick={() => cmd.run()}
                     >
