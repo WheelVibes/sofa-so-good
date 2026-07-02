@@ -39,8 +39,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 - [ ] **P9 Purge hardcoded px from React inline styles** — map `padding:'2px 6px'`, `fontSize:16`
   etc. (ElevationPanel, RenderCompareModal, LocationPrompt, FinishPicker, …) to `--s-N`/`--t-N`;
   add a grep/lint script to block regressions.
-- [ ] **P10 Panel width tokens** — `--panel-w`/`--panel-w-compact` replacing 326/300/312px +
-  hand-tuned tablet variants.
 
 - [ ] **P15 `<Button>` primitive** — typed component (variant/size/icon/loading) over the existing
   `.btn-*` vocabulary (CVA-style, kills padding/size drift).

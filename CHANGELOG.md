@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: --panel-w/--panel-w-compact panel-width tokens (v0.10.0.15)
+
+- Floating catalog/inspector/finish panel widths normalized onto `--panel-w` (320px, matching
+  the fixed docked rail so a panel keeps its width when it docks) with `--panel-w-compact`
+  (288px) on tablet <=1024, replacing the hand-tuned 326/300/312 + 300/284/296 values.
+  `.er-list`/`.plan-props` left as follow-up.
+
 ## DOCS: Batch 2b implementation plan (v0.10.0.14)
 
 - Authored `docs/superpowers/plans/2026-07-02-ui-polish-batch2b.md`: panel-width tokens, inline-px

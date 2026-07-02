@@ -16,10 +16,10 @@
    TABLET  ≤1024
    ============================================================ */
 @media (max-width: 1024px) {
-  .catalog { width: 300px; }
-  .inspector { width: 284px; }
+  .catalog { width: var(--panel-w-compact); }
+  .inspector { width: var(--panel-w-compact); }
   .er-list { width: 224px; }
-  .er-finish { width: 296px; }
+  .er-finish { width: var(--panel-w-compact); }
   .plan-props { width: 252px; }
 
   /* shrink the nav cluster so it never crowds the inspector */

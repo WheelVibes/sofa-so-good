@@ -25,6 +25,12 @@
   --s-6: 20px;
   --s-7: 28px;
 
+  /* Side-panel widths (P10). --panel-w matches the docked rail (320px) so a
+     floating panel keeps its width when it docks; --panel-w-compact is the
+     tablet (≤1024) width. Replaces the hand-tuned 326/300/312 + 300/284/296. */
+  --panel-w: 320px;
+  --panel-w-compact: 288px;
+
   /* Type scale */
   --t-2xs: 10px;
   --t-xs: 11px;

@@ -3,7 +3,7 @@
    ============================================================ */
 
 /* ---- Catalog (left) ------------------------------------------ */
-.catalog { left: var(--s-4); top: var(--s-4); width: 326px; max-height: calc(100vh - 32px); }
+.catalog { left: var(--s-4); top: var(--s-4); width: var(--panel-w); max-height: calc(100vh - 32px); }
 .cat-tabsrow { display: flex; gap: 2px; padding: 0 var(--s-4) var(--s-2); }
 .cat-search { padding: var(--s-3) var(--s-4); }
 /* Clear (×) button inside the search field, shown only while a query is typed. */
@@ -94,7 +94,7 @@
 .cat-foot .btn { flex: none; }
 
 /* ---- Inspector (right) --------------------------------------- */
-.inspector { right: var(--s-4); top: var(--s-4); width: 300px; max-height: calc(100vh - 32px); }
+.inspector { right: var(--s-4); top: var(--s-4); width: var(--panel-w); max-height: calc(100vh - 32px); }
 /* Minimize/close button cluster in the header. */
 .insp-head-btns { display: flex; align-items: center; gap: 2px; flex: none; }
 /* Minimized: just the header bar, so it stops blocking the furniture. */
