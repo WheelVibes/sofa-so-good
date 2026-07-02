@@ -28,7 +28,7 @@ jobs:
           # npm 11's peer-dependency strategy, which differs from npm 10
           # (shipped with node 20) for the @docsearch/react react<19 peer
           # conflict — npm 10's `npm ci` then rejects the lock as out of sync.
-          node-version: 24
+          node-version: 24.18.0
           cache: npm
       - run: npm ci
       - name: Build

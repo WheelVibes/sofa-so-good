@@ -1,0 +1,34 @@
+# Keep the Docker build context lean: only what `npm ci` + `npm run build`
+# need. The repo carries ~1 GB of scraped assets, datasets, and tooling trees
+# that never feed the Vite module graph (mirrors server.watch.ignored in
+# vite.config.ts).
+
+node_modules
+dist
+release
+.git
+.githooks
+.cache
+.claude
+
+# Non-app trees (never imported by the build)
+dataset
+graphify-out
+local-assets
+scraped_assets
+research
+design
+python
+docs/.vitepress/cache
+
+# Licensed / dev-only assets (must never ship — see CLAUDE.md dev-gating)
+public/assets/ikea
+public/assets/ikea_optimized
+
+# Desktop shell output (built separately, not part of the web image)
+electron/node_modules
+
+# Local env/editor noise
+.env*
+*.log
+.DS_Store

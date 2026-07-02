@@ -395,6 +395,23 @@ learned here:**
 
 ---
 
+## Packaged targets (Docker / Electron)
+
+- **Docker image**: `docker build -t sofa-so-good:test . && docker run -d --rm -p 8080:80
+  sofa-so-good:test`, then screenshot it with the legacy harness via
+  `SHOT_URL=http://localhost:8080/ node scripts/shot.mjs out.png 12000` (the image serves at
+  root, not `/sofa-so-good/`). Also probe: SPA fallback (`/some/route` → 200 html), wasm MIME
+  (`/draco/draco_decoder.wasm` → `application/wasm`), `/sw.js` → `Cache-Control: no-cache`,
+  and the `/acg`+`/kenney` proxies → 200.
+- **Electron shell**: `ELECTRON_SMOKE_SHOT=<out.png> npx electron . --no-sandbox` captures the
+  loaded window after `ELECTRON_SMOKE_WAIT_MS` (default 15000) and exits — build first with
+  `npm run build:desktop`. Gotchas: `ELECTRON_RUN_AS_NODE` (exported by VSCode/agent hosts)
+  makes Electron run main.mjs as plain Node — the shell detects this and **re-execs itself
+  without it** (logs `[shell] ELECTRON_RUN_AS_NODE was set…`), so it's handled, but note the
+  extra process if you're capturing exit codes. Under WSL add
+  `--disable-gpu --enable-unsafe-swiftshader` or WebGL init fails outright ("WebGL not
+  supported" guard screen instead of the scene).
+
 ## Legacy mode (one-shot, backward-compatible)
 
 `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]`

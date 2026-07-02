@@ -81,6 +81,8 @@ Zustand (sliced store), Vite, Vitest, Biome.
 - `node scripts/shot.mjs --scenario <file.json|file.mjs> [--out-dir <dir>]` — **scenario mode** (recommended): runs ordered named steps (eval/waitFor/click/screenshot/store/viewport/drag/wait…) in one browser session with structured per-step logging; see `docs/visual-verification-playbook.md`.
 - `npm run optimize:glb` · `compress:glb-textures` · `scraper-server`/`price-server` (dev).
 - `npm run docs:build`/`build:all` (user guide) · `docs:dev:developer` (dev docs).
+- Packaging: `docker build .` (nginx image, `VITE_BASE=/`) · `npm run dist:desktop` (Electron
+  installers) — details in ARCHITECTURE.md. Node pinned **24.18.0** (`.nvmrc`).
 
 ## Coding conventions
 - **Furniture primitives**: floor-anchored, footprint-centred, facing +Z, built in real metres.

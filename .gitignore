@@ -50,3 +50,7 @@ docs/developer/.vitepress/dist
 # Python bytecode cache (dev-only scraper scripts in research/scrapers)
 __pycache__/
 *.pyc
+
+# Desktop packaging output (electron-builder) + generated build resources (icon)
+release/
+build/
