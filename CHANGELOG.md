@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: Batch 2b merge prep — policy carve-out, code map, a11y label (v0.10.0.28)
+
+- Destructive-action policy: bulk clears (`clearRoom`) documented as confirm **+** Undo by
+  design (the policy's reversible example previously contradicted the shipped double-gate).
+- `docs/ARCHITECTURE.md` shared-controls map now lists the `Button` primitive; user docs note
+  the new delete confirmations (saved views, versions).
+- VersionsPanel's icon-only delete button gains `aria-label`; CommentsPanel's toggle uses
+  Button's `block` prop instead of an inline width.
+
 ## FIX: slow the skeleton shimmer to a calm 1.2s loop (v0.10.0.27)
 
 - `skeletonShimmer` now runs at `calc(var(--dur-3) * 2)` (~1.2s) — the 600ms loop read

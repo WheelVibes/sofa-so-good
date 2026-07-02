@@ -67,8 +67,9 @@ export function CommentsPanel() {
         <Button
           variant="soft"
           size="sm"
+          block
           className={commentMode ? 'on' : ''}
-          style={{ width: '100%', marginBottom: 'var(--s-2)' }}
+          style={{ marginBottom: 'var(--s-2)' }}
           aria-pressed={commentMode}
           onClick={() => useStore.getState().toggleCommentMode()}
         >

@@ -272,7 +272,12 @@ export function VersionsPanel() {
                   >
                     <Icon.Checks width={13} height={13} /> Compare
                   </button>
-                  <button type="button" className="del" onClick={() => void remove(r.slot)}>
+                  <button
+                    type="button"
+                    className="del"
+                    aria-label={`Delete version ${r.slot}`}
+                    onClick={() => void remove(r.slot)}
+                  >
                     <Icon.Trash width={13} height={13} />
                   </button>
                 </div>

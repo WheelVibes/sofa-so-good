@@ -160,7 +160,7 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
 ## Versions, share & report
 
 - **Versions** — save, restore, and delete named snapshots of your layout, each
-  with a thumbnail.
+  with a thumbnail (deleting asks you to confirm).
 - **Share & export** — copy a shareable link or export a real **PNG snapshot** of
   the current view. **Copy 3D link** makes a compact link (up to ~16 KB) that
   opens an editable copy of your design on any device; **Copy plan link** is the

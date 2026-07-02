@@ -47,8 +47,10 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   ad-hoc one-off gaps); align to existing components so layouts stay cohesive with the
   theme. Verify any new surface in light + dark across all 5 themes before shipping.
 - **Destructive-action policy.** Reversible destructive actions (delete a placed
-  item, clear the room's furniture) show an **Undo toast** (the action runs
-  immediately, `notify` offers Undo — see `itemsSlice`). Irreversible actions
+  item) show an **Undo toast** (the action runs immediately, `notify` offers
+  Undo — see `itemsSlice`). **Bulk clears** (`clearRoom`) are confirm **+** Undo
+  by design: a confirm gate against fat-finger wipes, then a summary toast with
+  Undo — don't "simplify" either away. Irreversible actions
   (delete a saved version/slot, delete a saved view, reset/replace the whole
   design) MUST gate on `confirmAction({ title, message, confirmLabel, danger })`
   (`promptSlice`, rendered by `ConfirmModal`) and bail on `false`. Never a

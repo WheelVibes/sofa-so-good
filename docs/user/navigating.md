@@ -92,7 +92,7 @@ saved view row has three small buttons:
 
 - **360°** — present this view as an interactive panorama slide (see below).
 - The **note** button — add a presenter note, shown as the slide's caption.
-- The **trash** button — delete the view.
+- The **trash** button — delete the view (asks you to confirm).
 
 **View → Render all views** flies through every saved view in turn and downloads
 a high-quality PNG of each — a one-click way to export a whole set of presentation
