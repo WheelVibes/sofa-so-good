@@ -60,6 +60,11 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   token vocabulary. Any panel/list that can be empty must render it (don't hand-roll inline
   "No … yet" text). Keep copy concise + friendly; use distinct copy for search-no-results
   vs truly-empty; only wire a CTA to a real existing handler.
+- **Screen transitions (P6):** orbit↔walk and room-editor enter/exit are already crossfaded by
+  `LoadingOverlay` (they fire `showLoading`); the floor-plan editor (`.plan-screen`) crossfades on
+  mount via `screenFadeIn` (`--dur-2`/`--ease-out`, fill `backwards`) against the persistent 3D
+  canvas. Don't add a competing fade to walk/room transitions. Exit is an instant reveal — no
+  leaving-state machine.
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
   gate on `canEditScene`; leaving the editor clears the selection.
 - **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models* (Poly Haven

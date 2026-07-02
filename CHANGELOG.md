@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: floor-plan-editor crossfade entrance (v0.10.0.30)
+
+- The 2D floor-plan editor now fades in over the persistent 3D canvas on mount
+  (`screenFadeIn`, `--dur-2`/`--ease-out`, fill `backwards`) — the one mode transition not
+  already masked by the LoadingOverlay (orbit<->walk and room enter/exit stay as-is). Exit is
+  an instant reveal of the painted scene; reduced-motion neutralised globally.
+
 ## DOCS: Batch 3a implementation plan (v0.10.0.29)
 
 - Authored `docs/superpowers/plans/2026-07-02-ui-polish-batch3a.md`: floor-plan-editor

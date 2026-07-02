@@ -34,7 +34,7 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 ### Batch 2 — medium (1–3 days each)
 
 ### Batch 3 — larger (~1 week each)
-- [ ] **P6 Screen-transition crossfade** — 200–300ms fade between 3D view ↔ floor plan ↔ walk mode.
+
 - [ ] **P7 Token-based magicui adaptations** (flag-gated, GPU-tier-gated, reduced-motion-safe):
   shine/border-beam on in-progress HQ-render card (CSS `offset-path`); mouse-follow radial
   gradient on catalog/preset cards (CSS vars + pointermove); richer staggered multi-circle pulse
