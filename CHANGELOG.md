@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## UX: boot splash cycles Singapore/HDB loading phrases (v0.10.0.5)
+
+- **The boot splash and generic loading overlay now rotate HDB-flavoured status lines**
+  (Building the walls…, Waiting for the lift…, Chope-ing the sofa spot…, etc.) with a
+  Claude Code–style crossfade, then pin "Almost ready…" during scene warm-up.
+- **Single source of truth:** `src/ui/loading/loadingPhrases.json` feeds the React
+  `CyclingPhrase` component and is injected into `index.html` at dev/build time via
+  `vite-boot-phrases.mjs` (no duplicated inline phrase list).
+
+
 ## CI: GitHub Actions deploy to Cloudflare Pages on push to main (v0.10.0.3)
 
 - **`.github/workflows/deploy-cloudflare.yml`** — builds with `VITE_API_BASE=/api` /

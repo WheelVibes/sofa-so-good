@@ -1067,7 +1067,9 @@ same change that reshapes a system.
 - **Loading + fast boot** (`ui/loading/`, `storage/bootstrap.ts`, `bootPhase`/`loading`):
   `main.tsx` imports the self-hosted fonts, registers decoders, then renders immediately; async
   `runBootstrap()` (IDB + autosave restore + default seed *after* hydration) flips
-  `bootPhase`→`'ready'`. `LoadingOverlay` covers boot + orbit↔walk + room enter/exit.
+  `bootPhase`→`'ready'`. Static `#boot-loader` (index.html) cycles Singapore/HDB status lines
+  (`loadingPhrases.json` / `CyclingPhrase`) until scene warm-up pins "Almost ready…";
+  `LoadingOverlay` covers orbit↔walk + room enter/exit (explicit labels; cycles when empty).
 - **Fully offline / PWA**: the core app needs **no runtime network**. Fonts (Plus Jakarta Sans +
   JetBrains Mono) are self-hosted via `@fontsource` (imported in `main.tsx`, no Google Fonts CDN);
   the Draco decoder is self-hosted under `public/draco/` (copied from the installed `three` by

@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { bootPhraseRotatorPlugin } from './scripts/vite-boot-phrases.mjs'
 import { localAssetsPlugin } from './scripts/vite-local-assets.mjs'
 
 // Dev-only proxies for CC0 asset providers that don't ship CORS headers.
@@ -20,6 +21,7 @@ export default defineConfig(({ command }) => ({
   base: process.env.VITE_BASE ?? (command === 'build' ? '/sofa-so-good/' : '/'),
   plugins: [
     react(),
+    bootPhraseRotatorPlugin(),
     // Dev-only: serve GLBs dropped into `local-assets/` straight into the catalog
     // (no upload pipeline). `apply:'serve'` keeps it out of production builds.
     localAssetsPlugin(),
