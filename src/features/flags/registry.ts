@@ -1016,6 +1016,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Comfortable/compact row density via [data-density] over --row-pad-*
+  // tokens (P38). Advanced layout control → pro tier (hidden in Simple).
+  // Prod-safe, pure CSS + a persisted per-device pref.
+  densityMode: {
+    label: 'Density mode',
+    description: 'Comfortable/compact row spacing',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

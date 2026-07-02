@@ -46,8 +46,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 
 - [ ] **P37 List virtualization** — history/layers/catalog results >100 items
   (`@tanstack/react-virtual`).
-- [ ] **P38 Density mode** — `data-density` comfortable/compact scaling row paddings via tokens
-  (Pro-tier flag).
 
 ## ⛔ Production-infra-blocked — need a DEPLOYED host/backend, not app code
 The dev paths already work (Vite reverse proxy, dev-gated providers); only the *production*

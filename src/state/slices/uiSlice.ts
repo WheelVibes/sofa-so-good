@@ -19,6 +19,12 @@ export type BackdropKind = 'city' | 'dusk' | 'park' | 'hills' | 'sky' | 'custom'
  *  the floor-plan editor) for a friendlier first experience; 'pro' shows all. */
 export type UiMode = 'simple' | 'pro'
 
+/** Row density (P38, Pro-tier `densityMode` flag). 'comfortable' is the default
+ *  vertical rhythm; 'compact' tightens vertical row padding only (via
+ *  `[data-density='compact']` over `--row-pad-y`) — hit-target width is
+ *  unaffected. Persisted via editorPrefs. */
+export type Density = 'comfortable' | 'compact'
+
 /** Boot lifecycle phase. `'hydrating'` until the async bootstrap (IDB user
  *  assets, packs, autosave) resolves; then `'ready'`. Drives the initial
  *  loading overlay. */
@@ -87,6 +93,9 @@ export interface UiSlice {
   /** Interface density (simple hides advanced clusters). Persisted via editorPrefs. */
   uiMode: UiMode
   setUiMode: (m: UiMode) => void
+  /** Row density (P38, `densityMode` flag, Pro-only UI). Persisted via editorPrefs. */
+  density: Density
+  setDensity: (d: Density) => void
   /** True while the full-screen client presentation (saved-views slideshow) runs. */
   presenting: boolean
   setPresenting: (v: boolean) => void
@@ -211,6 +220,7 @@ export const UI_INITIAL: Pick<
   | 'hdriId'
   | 'customBackdropUrl'
   | 'uiMode'
+  | 'density'
   | 'snapEnabled'
   | 'gridSize'
   | 'presenting'
@@ -248,6 +258,7 @@ export const UI_INITIAL: Pick<
   hdriId: null as string | null,
   customBackdropUrl: null,
   uiMode: 'simple' as UiMode,
+  density: 'comfortable' as Density,
   presenting: false,
   presentationIncludeTour: false,
   budgetOpen: false,
@@ -373,6 +384,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     // Pro features are gated on the mode, so re-resolve the flag map when it flips.
     get().reresolveFeatureFlags()
   },
+  setDensity: (density) => set({ density }),
   cycleGridSize: () =>
     set((s) => {
       const i = GRID_SIZES.indexOf(s.gridSize as (typeof GRID_SIZES)[number])

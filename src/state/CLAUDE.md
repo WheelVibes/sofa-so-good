@@ -10,7 +10,12 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   (`matchMedia('(min-width:641px)')`, SSR/jsdom-safe with a `false` fallback) so the mobile
   bottom-sheet catalog never auto-reopens. All load with back-compat defaults (old JSON lacks them).
 - **Persistence lives in `storage/`**, not in the slice: `qualityPrefs`/`editorPrefs`/
-  `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave. Some
+  `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave. `editorPrefs`
+  also persists `density` (P38, `Density = 'comfortable' | 'compact'`, back-compat default
+  `'comfortable'` for pre-existing records); `applyDensity(density)` mirrors
+  `appearancePrefs.applyAppearance` — it writes `[data-density]` on `<html>` (driving the
+  `--row-pad-*` token overrides in `styles/tokens.css`) and is called from both
+  `loadEditorPrefs` and `watchEditorPrefs`, jsdom-safe (guards `document`). Some
   state is deliberately session-only / out of the save schema (recent items, favourites,
   hidden ids, user styles in `localStorage`) — don't add those to autosave. `recentSlice`
   and `favouritesSlice` both self-persist to localStorage (keys `hdb_recent_items`, `hdb_favourites`; `calloutsSlice`/`badgesSlice` likewise (`hdb_dismissed_callouts`, `hdb_seen_badges`)

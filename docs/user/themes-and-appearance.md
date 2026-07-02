@@ -25,3 +25,11 @@ there's no flash of the wrong theme on load.
 > The theme changes only the **UI chrome** — panels, buttons, menus. The 3D flat
 > itself is lit by the [time‑of‑day simulation](/lighting-and-time), independent
 > of the theme. (Smart Start does pick a matching theme when you choose a style.)
+
+## Density (Pro)
+
+In **Pro** mode, the Appearance popover also shows a **Density** control with
+**Comfortable** and **Compact** options. Compact tightens the vertical spacing
+of list-style rows (like menu items) so more fits on screen — horizontal
+spacing and hit-targets stay the same. Your choice is remembered between
+visits.

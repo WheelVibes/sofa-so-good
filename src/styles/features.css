@@ -132,6 +132,9 @@
 .lyr-row {
   display: flex; align-items: center; gap: var(--s-2);
   padding: var(--s-2) var(--s-3); border-radius: var(--r-2);
+  /* Slightly tighter than --row-pad-* (a denser sidebar list already), but
+     still tracks the density scale via the same override. */
+  padding: calc(var(--row-pad-y) - 2px) calc(var(--row-pad-x) - 2px); border-radius: var(--r-2);
   width: 100%; text-align: left; transition: var(--dur) var(--ease);
   color: var(--text-2); position: relative;
 }

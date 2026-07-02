@@ -128,6 +128,7 @@ export type FeatureFlag =
   | 'contextMenu'
   | 'infoCallouts'
   | 'newBadges'
+  | 'densityMode'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

@@ -307,6 +307,10 @@ same change that reshapes a system.
   Toolbar **Appearance** popover = theme + Light/Dark/Auto + **Simple/Pro** `uiMode`
   (Simple hides advanced clusters + collapses inspector sections; floor-plan always
   available). `useIsMobile.ts` ≤640px hook; `body.mobile` → bottom-sheets + minimal bar.
+  **Row density** (P38, `densityMode` flag, pro-tier): a Comfortable/Compact `seg` in the
+  same popover sets `uiSlice.density`, persisted via `editorPrefs` and applied as
+  `[data-density]` on `<html>`, which overrides `--row-pad-y` (vertical rhythm only) consumed
+  by `.menu-item` (`styles/tokens.css` + `styles/components.css`).
 - **GLB Asset Designer** (`furniture/glbEdit/`, `ui/glbEditor/GlbDesignerDialog.tsx`,
   `featuresSlice.glbDesignerOpen`): compose a custom asset from primitive shapes
   (box/cylinder/sphere/cone/pyramid/capsule/torus/wedge — pure tested `editSpec.ts` `SHAPE_KINDS`;

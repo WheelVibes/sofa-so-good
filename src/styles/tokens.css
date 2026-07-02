@@ -44,6 +44,12 @@
      --lh-body for multiline reading copy (descriptions, empty states, onboarding). */
   --lh-tight: 1.25;
   --lh-body: 1.5;
+  /* Row density (P38, `densityMode` flag): comfortable vertical/horizontal
+     padding for list-style rows (.menu-item + friends), seeded from the
+     current .menu-item padding. [data-density='compact'] below tightens the
+     vertical rhythm only — horizontal hit-targets stay put. */
+  --row-pad-y: 8px;
+  --row-pad-x: 9px;
 
   --blur: 16px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -78,6 +84,14 @@
      not theme-tinted; reads on light and dark surfaces. */
   --sun: oklch(0.84 0.16 85);
   --sun-edge: oklch(0.48 0.11 65);
+}
+
+/* Density mode (P38, Pro-tier `densityMode` flag): [data-density='compact'] on
+   <html> tightens the vertical rhythm of list-style rows only (--row-pad-y),
+   leaving --row-pad-x untouched so horizontal hit-targets don't shrink. Uses
+   the existing spacing scale, not a raw px literal. */
+[data-density='compact'] {
+  --row-pad-y: var(--s-2);
 }
 
 /* ============================================================

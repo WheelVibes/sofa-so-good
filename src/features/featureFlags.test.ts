@@ -516,3 +516,18 @@ describe('newBadges flag (P27 "New" feature badges)', () => {
     expect(FEATURE_FLAGS.newBadges.tier).toBe('simple')
   })
 })
+
+describe('densityMode flag (P38)', () => {
+  it('is pro-tier, ships in prod (no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.densityMode.default).toBe(true)
+    expect(FEATURE_FLAGS.densityMode.tier).toBe('pro')
+    expect(FEATURE_FLAGS.densityMode.devOnly).toBeUndefined()
+  })
+
+  it('is present in Pro mode and hidden in Simple mode (both build kinds)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').densityMode).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').densityMode).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').densityMode).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').densityMode).toBe(true)
+  })
+})

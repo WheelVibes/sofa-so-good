@@ -9,16 +9,26 @@
  */
 import { clampWalkEyeHeight, clampWalkFov } from '../../scene/cameras/walkCameraSettings'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
-import type { BackdropKind } from '../slices/uiSlice'
+import type { BackdropKind, Density } from '../slices/uiSlice'
 import { useStore } from '../store'
 
 const KEY = 'sofa.editor.v1'
 const PLAN_LABEL_MODES: PlanLabelMode[] = ['off', 'name', 'price']
 
+/** Write the row density onto <html> as `[data-density]`, driving the
+ *  `--row-pad-*` token overrides (P38). jsdom-safe: no-op without `document`. */
+export function applyDensity(density: Density): void {
+  if (typeof document === 'undefined') return
+  document.documentElement.setAttribute('data-density', density)
+}
+
 export function loadEditorPrefs(): void {
   try {
     const raw = localStorage.getItem(KEY)
-    if (!raw) return
+    if (!raw) {
+      applyDensity(useStore.getState().density)
+      return
+    }
     const p = JSON.parse(raw) as {
       snapEnabled?: boolean
       gridSize?: number
@@ -32,6 +42,7 @@ export function loadEditorPrefs(): void {
       leftMode?: string
       layersCollapsed?: unknown
       catalogOpen?: boolean
+      density?: string
     }
     const backdrops: BackdropKind[] = ['city', 'dusk', 'park', 'hills', 'custom', 'none']
     // Restore the collapsed-layer map defensively — only string→boolean entries.
@@ -65,6 +76,7 @@ export function loadEditorPrefs(): void {
       leftMode: p.leftMode === 'layers' ? 'layers' : 'catalog',
       layersCollapsed,
       catalogOpen: isDesktop ? !!p.catalogOpen : false,
+      density: p.density === 'compact' ? 'compact' : 'comfortable',
     })
     // Pro features are gated on uiMode, so re-resolve the flag map now that the
     // saved mode is applied (the boot seed assumed the Simple default).
@@ -72,6 +84,7 @@ export function loadEditorPrefs(): void {
   } catch {
     /* ignore corrupt prefs */
   }
+  applyDensity(useStore.getState().density)
 }
 
 export function watchEditorPrefs(): void {
@@ -90,9 +103,11 @@ export function watchEditorPrefs(): void {
       leftMode: s.leftMode,
       layersCollapsed: s.layersCollapsed,
       catalogOpen: s.catalogOpen,
+      density: s.density,
     })
     if (snap === last) return
     last = snap
+    applyDensity(s.density)
     try {
       localStorage.setItem(KEY, snap)
     } catch {

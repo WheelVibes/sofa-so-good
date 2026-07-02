@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: density mode — compact/comfortable rows, Pro-tier, persisted (v0.10.0.43)
+
+- `[data-density]` on <html> drives `--row-pad-y/-x` token indirection over the normalized row
+  paddings (compact trims vertical rhythm only, keeping touch targets). Toggle lives in the
+  Appearance popover's Interface section, gated on the new pro-tier `densityMode` flag (hidden
+  in Simple — both modes tested); preference persists via editorPrefs with back-compat.
+
 ## FIX: TimeOfDaySlider keeps its section-header treatment; SliderField ariaLabel; prune no-op readout rule (v0.10.0.42)
 
 - Review fix on the P18 SliderField adoption (v0.10.0.41): TimeOfDaySlider's "Time of day" row
