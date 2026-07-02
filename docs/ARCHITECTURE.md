@@ -543,8 +543,8 @@ same change that reshapes a system.
   a `RemoteProvider`, or a `'manual'` entry.
 - **Shared library (R2, prod)** (`state/slices/sharedLibrarySlice.ts`, `ui/catalog/SharedCard.tsx`,
   `catalog/packs/sharedLibrary.ts`): the Cloudflare R2 library **auto-populates the catalog grid**
-  for signed-in users — `bootstrapSharedLibrary` fetches `library/index.json` once on catalog open
-  (guarded on backend + sign-in + the `sharedLibrary` pro flag), `useUnifiedCatalog(includeRemote,
+  for signed-in **admins** — `bootstrapSharedLibrary` fetches `library/index.json` once on catalog
+  open (guarded on backend + admin role + the `sharedLibrary` simple-tier flag), `useUnifiedCatalog(includeRemote,
   includeShared)` merges items as a `shared` `GridItem` kind (category via `mapCategory`, deduped
   against imported `ikea-<groupKey>` defs), and `SharedCard` lazy-loads its proxy thumbnail +
   imports on click (`addSharedGroup` → `registerSharedGroup` → `importGroup`). Manifest built by

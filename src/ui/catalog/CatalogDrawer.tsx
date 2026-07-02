@@ -1,5 +1,6 @@
 import { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { hasBackend } from '../../features/api/client'
+import { isAdminUser } from '../../features/auth/types'
 import { useFeature } from '../../features/useFeature'
 import { FURNITURE_CATEGORIES } from '../../furniture/types'
 import { useStore } from '../../state/store'
@@ -97,14 +98,17 @@ export function CatalogDrawer() {
   // Materials browse (FinishPicker) shares the same provider index, so the drawer
   // still bootstraps it when only the material browser is enabled.
   const fRemoteMaterials = useFeature('remoteMaterials')
-  // Shared R2 library cards (signed-in users) merge into the grid behind the
-  // `sharedLibrary` (pro) flag; bootstrap fetches the manifest once on open.
+  // Shared R2 library cards merge into the grid behind the `sharedLibrary`
+  // (simple-tier) flag AND an admin session — the role, not the Simple/Pro mode,
+  // is the gate; bootstrap fetches the manifest once on open.
   const fSharedLibrary = useFeature('sharedLibrary')
+  const isAdmin = useStore((s) => isAdminUser(s.currentUser))
+  const sharedOn = fSharedLibrary && isAdmin
   const bootstrapShared = useStore((s) => s.bootstrapSharedLibrary)
   // Price displays/filters are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
   const ambientFx = useAmbientFx()
-  const unified = useUnifiedCatalog(fRemoteFurniture, fSharedLibrary)
+  const unified = useUnifiedCatalog(fRemoteFurniture, sharedOn)
   // The real category to land on from a "Browse all" CTA (favourites/recent/
   // empty-category empty states) — the first real category that actually has
   // cards, so the CTA never lands on another empty tab.
@@ -167,10 +171,10 @@ export function CatalogDrawer() {
   }, [open, phStatus, bootstrapRemote, fRemoteFurniture, fRemoteMaterials])
 
   // Fetch the shared R2 library manifest once when the catalog opens for a
-  // signed-in user with the flag on (the slice self-guards the actual fetch).
+  // signed-in admin with the flag on (the slice self-guards the actual fetch).
   useEffect(() => {
-    if (open && fSharedLibrary && hasBackend()) void bootstrapShared()
-  }, [open, fSharedLibrary, bootstrapShared])
+    if (open && sharedOn && hasBackend()) void bootstrapShared()
+  }, [open, sharedOn, bootstrapShared])
 
   // Persist the browse category + sort (best-effort) so the drawer reopens where
   // the user left off.

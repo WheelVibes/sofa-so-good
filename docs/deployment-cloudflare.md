@@ -185,10 +185,10 @@ in the browser (IndexedDB), so R2 growth is entirely under your control.
 > bucket private.
 
 Once R2 is populated, the library **auto-populates the in-app catalog grid** for
-any signed-in user (no manual add step): opening the catalog fetches
+any signed-in **admin** (no manual add step): opening the catalog fetches
 `library/index.json` once and every product appears as a browsable card in its
 category tab, downloading its GLB only when placed. This is gated by the
-`sharedLibrary` feature flag (pro tier, on by default). The manifest is built by
+`sharedLibrary` feature flag (simple tier, on by default) plus the admin role. The manifest is built by
 `node scripts/build-library-index.mjs` and must include each product's
 `groupKey` (emitted automatically).
 

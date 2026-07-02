@@ -113,12 +113,12 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   (`bootstrapRemoteCatalog()` fetches both kinds), so Simple mode (both forced off) hits no network.
   Gating is **browse/add only**: a placed/resolved remote def still merges into `useCatalog`
   (`buildMergedCatalog`) and renders with the flag off — don't gate the render/merge path.
-- **Shared R2 library cards merge into the grid behind `sharedLibrary` (pro).** Signed-in users
-  see every R2 library product as a `shared` `GridItem` via `useUnifiedCatalog(includeRemote,
-  includeShared)` (pass `useFeature('sharedLibrary')`); `SharedCard` mirrors `RemoteCard` (lazy
-  `loading="lazy"` proxy thumbnail, import-on-click via `addSharedGroup`). Deduped against imported
-  `ikea-<groupKey>` defs. `CatalogDrawer` bootstraps the manifest once on open when signed-in +
-  flag on + `hasBackend()`.
+- **Shared R2 library cards merge into the grid behind `sharedLibrary` (simple tier) + the admin
+  role.** Signed-in **admins** (`isAdminUser`) see every R2 library product as a `shared` `GridItem`
+  via `useUnifiedCatalog(includeRemote, includeShared)` (pass `useFeature('sharedLibrary') &&
+  isAdmin`); `SharedCard` mirrors `RemoteCard` (lazy `loading="lazy"` proxy thumbnail,
+  import-on-click via `addSharedGroup`). Deduped against imported `ikea-<groupKey>` defs.
+  `CatalogDrawer` bootstraps the manifest once on open when admin + flag on + `hasBackend()`.
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never
   hardcode a key label. Tooltips + menus render through `Popover` (portal) so the
   scrollable toolbar can't clip them.

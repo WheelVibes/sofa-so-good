@@ -46,8 +46,24 @@ describe('sharedLibrarySlice', () => {
     expect(useStore.getState().sharedLibrary.status).toBe('idle')
   })
 
-  it('bootstrap is a no-op when the flag is off (Simple mode)', async () => {
-    setResolvedFlags(resolveFlags(false, {}, false, 'simple')) // sharedLibrary off
+  it('bootstrap is a no-op for a signed-in non-admin user', async () => {
+    useStore.setState({
+      currentUser: { id: 'u2', email: 'u@b.c', name: 'U', role: 'user' },
+    } as never)
+    await useStore.getState().bootstrapSharedLibrary()
+    expect(fetchIndex).not.toHaveBeenCalled()
+    expect(useStore.getState().sharedLibrary.status).toBe('idle')
+  })
+
+  it('bootstrap runs for an admin in Simple mode (simple-tier flag stays on)', async () => {
+    setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
+    fetchIndex.mockResolvedValue({ version: 1, generatedAt: '', count: 1, items: [item] })
+    await useStore.getState().bootstrapSharedLibrary()
+    expect(useStore.getState().sharedLibrary.status).toBe('ready')
+  })
+
+  it('bootstrap is a no-op when the flag is overridden off', async () => {
+    setResolvedFlags(resolveFlags(true, { sharedLibrary: false }, false, 'pro'))
     await useStore.getState().bootstrapSharedLibrary()
     expect(fetchIndex).not.toHaveBeenCalled()
   })

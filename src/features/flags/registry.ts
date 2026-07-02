@@ -1066,14 +1066,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     tier: 'simple',
   },
   // Shared, read-only asset library served from R2 through the auth-gated API.
-  // Lets a signed-in user browse the curated furniture library in production
-  // (the prod counterpart to the dev-only IKEA scrape). An advanced catalog
-  // source beyond the minimal furnish loop → pro tier (forced off in Simple).
+  // Lets a signed-in **admin** browse the curated furniture library in production
+  // (the prod counterpart to the dev-only IKEA scrape). Simple tier so it shows in
+  // both modes — the real gate is the admin role (checked at the bootstrap/merge
+  // call sites via `isAdminUser`), not the Simple/Pro toggle.
   sharedLibrary: {
     label: 'Shared asset library',
-    description: 'Browse the cloud furniture library (signed-in users, served from R2)',
+    description: 'Browse the cloud furniture library (admin accounts, served from R2)',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
 }
 

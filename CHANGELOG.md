@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHANGE: shared R2 library is admin-gated, not Pro-gated — `sharedLibrary` drops to simple tier (v0.11.0.3)
+
+- **The `sharedLibrary` flag moves `pro` → `simple` tier and the admin role becomes the real
+  gate.** Previously the flag's pro tier hid the R2 IKEA library in Simple mode (the app default)
+  for everyone — including admins. Now the flag stays on in both modes and the surface shows only
+  for a signed-in **admin** (`isAdminUser`): `bootstrapSharedLibrary` guards on the role, and
+  `CatalogDrawer` merges/bootstraps behind `useFeature('sharedLibrary') && isAdmin`. Slice + flag
+  tests updated for both modes + both roles; the `shared-library-simple` scenario now proves
+  admin-in-Simple sees cards, non-admin sees none in either mode. Docs (packs-and-remote-catalog,
+  ARCHITECTURE, deployment-cloudflare, path CLAUDE.md files) updated.
+
 ## FIX: R2 bucket binding renamed `sofa_assets` → `LIBRARY` — shared library was 500ing (v0.11.0.2)
 
 - **`wrangler.toml`'s R2 binding now matches the code.** v0.10.0.9 filled in the provisioned
