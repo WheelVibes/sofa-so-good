@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: .skeleton shimmer loader for catalog thumbnails (v0.10.0.18)
+
+- Token-only shimmer (`--surface-3`/`--surface-2` gradient sweep, reduced-motion -> static
+  fill) shown in `.card-thumb` while a rendered thumbnail is genuinely pending: CatalogCard
+  (defs that produce a builtin thumbnail) and RemoteCard (visible, not yet downloaded, not
+  errored). Icon-only defs keep their CategoryIcon without a skeleton; the inspector thumb is
+  synchronous and untouched.
+
 ## FEAT: success/confirm micro-animations (v0.10.0.17)
 
 - Success-toast checkmark pops in via a `checkPop` scale keyframe (`backwards` fill); the

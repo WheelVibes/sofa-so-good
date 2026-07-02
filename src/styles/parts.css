@@ -79,6 +79,19 @@
   font-size: var(--t-2xs); font-weight: 700; white-space: nowrap;
 }
 .card-thumb .thumb-status.err { background: var(--danger); }
+/* Skeleton loader (P17). Token-only shimmer over a loading media box. The
+   shimmer keyframe's duration is zeroed under reduced-motion (app.css) so it
+   settles to a static --surface-3 fill. */
+.skeleton {
+  position: absolute; inset: 0;
+  background: linear-gradient(100deg, var(--surface-3) 30%, var(--surface-2) 50%, var(--surface-3) 70%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer var(--dur-3, 1.4s) linear infinite;
+}
+@keyframes skeletonShimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
 /* min-width:0 on the flex row + its label so a long name truncates with the
    inline ellipsis instead of widening the card. */
 .cat-card .nm { font-size: var(--t-xs); font-weight: 600; color: var(--text); line-height: 1.25; min-width: 0; }

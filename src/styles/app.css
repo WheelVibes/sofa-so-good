@@ -237,6 +237,13 @@
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
+  /* .skeleton's shimmer is a background-position sweep — freezing the
+     animation-duration above (rather than disabling the animation) would
+     leave it parked mid-sweep, i.e. a static off-centre gradient band
+     instead of a calm placeholder. Force the flat mid-tone fill instead. */
+  .skeleton {
+    background: var(--surface-3) !important;
+  }
 }
 
 /* Walk-mode observer camera controls (FOV + eye-height sliders). Top-right,

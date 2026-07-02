@@ -40,8 +40,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 - [ ] **P15 `<Button>` primitive** — typed component (variant/size/icon/loading) over the existing
   `.btn-*` vocabulary (CVA-style, kills padding/size drift).
 - [ ] **P16 Button pending state** — `loading` prop: inline spinner, pointer-events none, dimmed.
-- [ ] **P17 Skeleton loader primitive** — `.skeleton` shimmer (reduced-motion → static pulse) that
-  mirrors final layout; catalog images, inspector thumbs, version/preset cards.
 
 - [ ] **P28 Empty-state CTA sweep** — every empty state gets icon + title + description + one CTA
   (no dead ends).

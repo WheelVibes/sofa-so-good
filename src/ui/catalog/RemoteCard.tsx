@@ -106,6 +106,7 @@ export function RemoteCard({ entry, onResolved, staggerIndex }: Props) {
         ) : (
           <CategoryIcon category={category} width={40} height={40} />
         )}
+        {visible && !thumb && status !== 'error' ? <span className="skeleton" aria-hidden /> : null}
         {status === 'fetching' ? (
           <span className="thumb-status">Downloading…</span>
         ) : status === 'error' ? (

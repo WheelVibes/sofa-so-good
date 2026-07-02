@@ -9,7 +9,7 @@ import { formatDims } from '../../utils/measurement'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { CategoryIcon } from './CategoryIcon'
-import { useBuiltinThumbnail } from './thumbnails'
+import { expectsBuiltinThumbnail, useBuiltinThumbnail } from './thumbnails'
 import { usePlacementDrag } from './usePlacementDrag'
 
 /** How long a stationary press must last to count as a "pick it up" long-press. */
@@ -163,6 +163,7 @@ export function CatalogCard({ def, onDelete, staggerIndex }: CatalogCardProps) {
         ) : (
           <CategoryIcon category={def.category} width={40} height={40} />
         )}
+        {!thumb && expectsBuiltinThumbnail(def) ? <span className="skeleton" aria-hidden /> : null}
       </div>
       <div className="nm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <CategoryIcon category={def.category} width={14} height={14} style={{ flex: 'none' }} />

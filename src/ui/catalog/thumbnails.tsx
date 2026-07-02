@@ -87,6 +87,18 @@ export function useBuiltinThumbnail(def: FurnitureDef): string | null {
   return rendered
 }
 
+/** True when `def` will eventually produce a *rendered* builtin thumbnail
+ *  (parametric primitives, or a GLB with a resolvable render source) — the
+ *  P17 "genuinely loading" signal for the `.skeleton` fill. False for defs
+ *  that carry their own synchronous image (IKEA product photo / pack install
+ *  thumbnail) or have no resolvable source: those never enqueue a render, so
+ *  a permanent `CategoryIcon` is correct and a skeleton would shimmer forever. */
+export function expectsBuiltinThumbnail(def: FurnitureDef): boolean {
+  if (def.kind === 'parametric') return true
+  if (def.kind === 'gltf') return gltfThumbSource(def) !== null
+  return false
+}
+
 interface SceneProps {
   active: FurnitureDef | null
   onReady: (id: string, dataUrl: string) => void
