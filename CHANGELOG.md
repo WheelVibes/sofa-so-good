@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: tabular numerals on numeric readouts (v0.9.0.73)
+
+- Added `font-variant-numeric: tabular-nums` to `.fld .val` and `.fld .val-edit input`
+  (`src/styles/app.css`), `.num input` (`src/styles/components.css`), and
+  `.budget-hud-spent`/`.budget-hud-target`/`.budget-hud-delta` (`src/styles/parts.css`) — kills
+  digit-width jitter on parametric dimension readouts, numeric text inputs, and the budget HUD
+  spend/target/delta figures while dragging or typing.
+- Dimension readouts already tabular via `.mono`'s `font-feature-settings: 'tnum' 1`
+  (`components.css`) are unchanged; verified by test.
+- New `src/styles/tabularNums.test.ts` grep-asserts the declarations on the affected selectors.
+
 ## FEAT: unified --focus-ring token across all controls (v0.9.0.72)
 
 - Added `--focus-ring`/`--focus-ring-w` tokens (`src/styles/tokens.css`): a single 3px

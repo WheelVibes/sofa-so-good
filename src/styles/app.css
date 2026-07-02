@@ -280,6 +280,7 @@
   min-width: 52px;
   text-align: right;
   flex: none;
+  font-variant-numeric: tabular-nums;
 }
 /* Editable numeric readout: a compact typed-entry box + a faint unit suffix,
    so a parametric dimension can be entered exactly, not only dragged. */
@@ -300,6 +301,7 @@
   font-family: var(--font-mono);
   font-size: var(--t-xs);
   color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 .fld .val-edit em {
   font-style: normal;

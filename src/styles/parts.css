@@ -386,9 +386,9 @@
 }
 .budget-hud:hover { border-color: var(--accent); box-shadow: var(--shadow-pop); }
 .budget-hud-row { display: flex; align-items: baseline; gap: 6px; font-size: var(--t-xs); }
-.budget-hud-spent { font-weight: 800; color: var(--text); }
-.budget-hud-target { color: var(--text-3); }
-.budget-hud-delta { margin-left: auto; font-weight: 700; font-size: var(--t-2xs); color: var(--accent-soft-text); }
+.budget-hud-spent { font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.budget-hud-target { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.budget-hud-delta { margin-left: auto; font-weight: 700; font-size: var(--t-2xs); color: var(--accent-soft-text); font-variant-numeric: tabular-nums; }
 .budget-hud.over .budget-hud-delta { color: var(--danger); }
 .budget-hud-bar { height: 5px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 5px; }
 .budget-hud-fill { height: 100%; background: var(--accent); transition: width var(--dur) var(--ease); }

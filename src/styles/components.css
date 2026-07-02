@@ -362,6 +362,7 @@ body.mobile .tip::after { content: none; }
   background: var(--surface-2); border: 1px solid var(--border);
   color: var(--text); font-size: var(--t-sm); text-align: left;
   transition: var(--dur) var(--ease);
+  font-variant-numeric: tabular-nums;
 }
 .num input:focus { outline: none; border-color: var(--accent); background: var(--surface-solid); box-shadow: var(--focus-ring); }
 .num .unit { position: absolute; right: 8px; bottom: 7px; font-size: var(--t-2xs); color: var(--text-3); font-family: var(--font-mono); }
