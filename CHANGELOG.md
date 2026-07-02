@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: Batch 2b implementation plan (v0.10.0.14)
+
+- Authored `docs/superpowers/plans/2026-07-02-ui-polish-batch2b.md`: panel-width tokens, inline-px
+  purge + regression guard, `<Button>` primitive + loading state, `.skeleton` loader, dock-panel
+  slide entrance, success/confirm micro-animations, empty-state CTA sweep, destructive-confirmation
+  policy, and a verified DROP ruling for P34 (placement already has ghost + confirm-bar
+  reconciliation). Program paused here at the user's request — Batches 1+2a fully landed and
+  reviewed; 2b ready to execute.
+
 ## FIX: stagger entrance uses fill-mode backwards — restores hover-lift + hidden-row dimming (v0.10.0.13)
 
 - Defect (batch-2a final review): `.stagger-in > * { animation: staggerIn var(--dur-2)
