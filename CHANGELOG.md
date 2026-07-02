@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PERF: RoomSwitcher drops per-room furniture counts (v0.10.0.16)
+
+- The room-editor dropdown no longer computes a furniture count per room: that subscribed the
+  component to `items`, re-rendering it (and re-running polygon `pointInRoom` for every item ×
+  room) on **every edit**. The dropdown now lists plain room names and only re-renders when the
+  plan or active room changes.
+
 ## FIX: WebGL2 support probe runs once — probing per render leaked GL contexts (v0.10.0.15)
 
 - `WebGLFallback` created a fresh probe canvas + WebGL2 context on **every render**; browsers cap
