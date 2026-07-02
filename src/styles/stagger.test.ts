@@ -16,6 +16,14 @@ describe('P2 entrance stagger', () => {
   it('provides an nth-child --i fallback for hand-authored menus', () => {
     expect(read('./components.css')).toMatch(/\.stagger-in > \*:nth-child\(1\)\s*\{\s*--i:\s*0/)
   })
+  it('uses fill-mode backwards (not both) so hover transforms and dimmed state are not locked', () => {
+    const c = read('./components.css')
+    expect(c).toMatch(
+      /\.stagger-in > \*\s*\{[^}]*animation:\s*staggerIn var\(--dur-2\) var\(--ease-out\) backwards/s,
+    )
+    const rule = c.match(/\.stagger-in > \*\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).not.toMatch(/animation:\s*staggerIn var\(--dur-2\) var\(--ease-out\) both/)
+  })
   it('reduced-motion zeroes animation-delay so items do not appear one-by-one', () => {
     const app = read('./app.css')
     const block = app.slice(app.indexOf('prefers-reduced-motion'))

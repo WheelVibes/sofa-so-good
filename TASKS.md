@@ -84,6 +84,15 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   inconsistency, reconcile in Batch 2.
 - clearRoom's explicit pushHistory + first silent deleteItem's coalesced push double up — dedupe to a true single history step (pre-existing; surfaced in merge-prep re-review)
 
+## UI polish Batch 2 follow-ups
+- [ ] 4 near-`--lh-body` multiline rules left unchanged (`.preset-desc`, `.ss-card-desc`,
+  `.help-list li`, `.stamp-banner-text`) — token swap changes rendered leading; revisit
+  deliberately.
+- [ ] `LayersPanel.tsx`'s per-item row never applies a `hidden` class from `hiddenItemIds` (found
+  while re-shooting the stagger fill-mode fix, v0.10.0.13) — `.lyr-row.hidden { opacity: 0.45 }`
+  in `features.css` has no wiring to actually trigger, so toggling an item's eye icon dims only
+  the icon, not the row. Separate bug from the fill-mode fix; needs its own change.
+
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
 - Keep this file pending-only; keep `TODO.md` (legacy deferred-work log) current.

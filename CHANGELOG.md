@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: stagger entrance uses fill-mode backwards — restores hover-lift + hidden-row dimming (v0.10.0.13)
+
+- Defect (batch-2a final review): `.stagger-in > * { animation: staggerIn var(--dur-2)
+  var(--ease-out) both; }` in `src/styles/components.css` used fill-mode `both`, which keeps
+  filling the animation's `to { opacity:1; transform:none }` forever after the entrance runs —
+  and animation-origin values beat later author declarations. Consequence: `.cat-card.liftable`
+  inside `.card-grid.stagger-in` never lifted on hover (`transform` pinned to `none`), and
+  `.lyr-row.hidden { opacity: 0.45 }` could never dim a row (opacity pinned to `1`).
+- Fix: `both` → `backwards`. `backwards` still holds the `from` state through the delay (no
+  flash), then releases the animated properties once the animation ends — since `to` equals the
+  natural resting state, later hover/state styles apply normally again.
+- TDD: added a failing assertion in `src/styles/stagger.test.ts` pinning
+  `animation: staggerIn var(--dur-2) var(--ease-out) backwards` (and asserting NOT `both`) before
+  applying the fix; confirmed RED, then GREEN. Regression-checked
+  `liftable.test.ts`/`CommandPalette.stagger.test.tsx`/`LayersPanel.stagger.test.tsx` — all pass.
+- Re-shoot (scratch scenario, dev@5232): catalog card hover now reports
+  `transform: matrix(1,0,0,1,0,-2)` (the 2px lift) vs. `none` pre-fix; manually toggling a
+  `.lyr-row` to `.hidden` now measures `opacity: 0.45` (was locked at `1`) — the CSS unlock is
+  confirmed live in the browser, not just via computed-style assertions.
+- Found in the same pass (logged to `TASKS.md`, not fixed here — out of scope for this CSS-only
+  fix): `LayersPanel.tsx`'s per-item row (`className={`lyr-row${selected ? ' sel' : ''}`}`) never
+  actually adds a `hidden` class from `hiddenSet`, so real eye-toggle dimming has no wiring yet
+  regardless of the CSS fix — only the group-level eye icon and the row's own button reflect
+  hidden state today.
+- Docs: `src/ui/CLAUDE.md` (Hover bullet) notes the `backwards` requirement + the 12-item
+  `--i` nth-child fallback limit; `docs/visual-verification-playbook.md` adds a "no CDP
+  media-emulation" note for reduced-motion verification (inject a mirroring `<style>`, as
+  `ui-polish-batch2a` does).
+
 ## CHORE: biome format fix for rowPadding.test.ts (v0.10.0.12)
 
 - Formatter drift in `src/styles/rowPadding.test.ts` (landed via a cherry-pick whose staged-only

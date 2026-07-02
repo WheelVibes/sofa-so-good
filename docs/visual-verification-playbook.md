@@ -175,6 +175,15 @@ come out near-black.
   **direct import** (`import { X } from './ui/X'`, drop the `Suspense`), screenshot, then
   revert — and/or assert its DOM via a `@testing-library/react` render test (see
   `ShortcutsModal.test.tsx`). Non-lazy modals (the first-run location prompt) render fine.
+- **Reduced-motion verification has no CDP media-emulation step.** The scenario harness
+  can't flip `prefers-reduced-motion` at the browser level. Instead inject a `<style>` tag
+  in an `eval` step that mirrors the app's own reduced-motion block (zero every
+  `animation-duration`/`-delay`/`transition-duration`/`-delay`), then screenshot — this is
+  the technique the `ui-polish-batch2a` scenario uses for its `emulate-reduced-motion` step:
+  `document.head.appendChild(Object.assign(document.createElement('style'), { textContent:
+  '*,*::before,*::after{animation-duration:0.01ms !important;animation-delay:0ms !important;
+  animation-iteration-count:1 !important;transition-duration:0.01ms !important;
+  transition-delay:0ms !important;}' }))`.
 
 ### Scenario template
 

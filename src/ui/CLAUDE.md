@@ -72,7 +72,12 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   `box-shadow`. **Row actions** that appear on hover (`.lyr-acts` pattern) MUST also reveal on
   `:focus-within` and stay always-visible under `body.mobile` (touch has no hover). Hover
   transitions use `var(--dur) var(--ease)`; larger entrances use the `--dur-1/-2/-3` +
-  `--ease-out` scale.
+  `--ease-out` scale. `.stagger-in` entrance containers (`components.css`) use fill-mode
+  `backwards` on the child animation — never `both`, which pins the animation's `to` values
+  (`opacity:1; transform:none`) forever and silently blocks later hover-lift transforms
+  (`.liftable`) or state-driven opacity changes (e.g. `.lyr-row.hidden`) on the same element.
+  The nth-child `--i` fallback only covers the first 12 children — lists that can render more
+  than 12 items must set `--i` inline per item rather than relying on the fallback.
 - **Type hierarchy** — one ladder, from the `--t-*` scale: page/hero title `--t-xl` (20px)
   weight 800 `--lh-tight`; panel title `--t-lg` (16px) weight 800 `--lh-tight`; section header
   (`.sec-h`, `.lyr-ghead`, `.menu-label`) `--t-2xs` (10px) weight 700 UPPERCASE +

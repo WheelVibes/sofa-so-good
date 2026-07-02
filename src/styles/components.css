@@ -293,11 +293,14 @@ body.mobile .tip::after { content: none; }
 
 /* Entrance stagger (P2). Children of a .stagger-in container fade+rise in
    sequence. --i (the child's index) drives a 50ms cascade; mapped lists set it
-   inline, hand-authored menus fall back to the nth-child rules below. `both`
-   holds the from-state before the delay so nothing flashes at full opacity.
+   inline, hand-authored menus fall back to the nth-child rules below.
+   `backwards` holds the from-state before the delay so nothing flashes at
+   full opacity, then releases opacity/transform once the animation ends
+   (unlike `both`, which pins the `to` values forever and blocks later
+   hover-lift transforms / hidden-row opacity changes on the same element).
    Reduced-motion (app.css) zeroes the delay so all items land at once. */
 .stagger-in > * {
-  animation: staggerIn var(--dur-2) var(--ease-out) both;
+  animation: staggerIn var(--dur-2) var(--ease-out) backwards;
   animation-delay: calc(var(--i, 0) * 50ms);
 }
 .stagger-in > *:nth-child(1) { --i: 0; }
