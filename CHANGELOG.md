@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: catalog/preset card glow is invisible when ambient FX is off — no more brown bloom (v0.11.0.1)
+
+- **Every catalog card carried a permanent brown-tinted radial bloom** (user report): the P7
+  mouse-follow accent glow hardcoded a 12% accent `color-mix`, so with the ambient-fx gate off
+  (the default — Performance tier) the gradient still painted statically at each card's centre;
+  the JS gate only stopped the *pointer-follow*, not the paint.
+- The accent share now reads `var(--glow-a, 0%)` — the gradient is literally invisible while
+  dormant — and is armed to 12% only via `.fx .cat-card:hover` / `.fx .preset-card:hover`, where
+  the grid's `.fx` class is set by `CatalogDrawer` when `useAmbientFx()` is true. Hover-scoping
+  also fixes the stale-glow residue a card kept after the cursor left it.
+- Contract pinned in `styles/ambientFx.test.ts` (dormant share must be `0%`, `.fx`+`:hover` arm
+  it in both stylesheets).
+
 ## RELEASE: v0.11.0.0 — UI/UX polish program merged with the interaction/loading/Cloudflare line
 
 - This version lands the merge of two parallel 2026-07 branches into one release:

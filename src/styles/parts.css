@@ -94,15 +94,18 @@
   border: 1px solid var(--border);
   transition: var(--dur) var(--ease); text-align: left; position: relative;
   /* Mouse-follow accent glow (P7 ambient FX) painted over the surface fill, under
-     content. --mx/--my are written by CatalogDrawer's gated pointermove handler;
-     inert (centred) when the gate is off. */
+     content. --mx/--my are written by CatalogDrawer's gated pointermove handler.
+     The accent share defaults to 0% so the glow is INVISIBLE whenever the gate is
+     off (a hardcoded share painted a permanent brown bloom on every card in the
+     default Performance tier); the grid's .fx class + :hover arm it. */
   background-color: var(--surface-2);
   background-image: radial-gradient(
     160px circle at var(--mx, 50%) var(--my, 50%),
-    color-mix(in oklch, var(--accent) 12%, transparent),
+    color-mix(in oklch, var(--accent) var(--glow-a, 0%), transparent),
     transparent 60%
   );
 }
+.fx .cat-card:hover { --glow-a: 12%; }
 .cat-card:hover { border-color: var(--accent); background-color: var(--surface-solid); }
 .cat-card { cursor: pointer; }
 .cat-card:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--accent); }

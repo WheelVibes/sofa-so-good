@@ -47,6 +47,20 @@ describe('ambient-fx CSS (P7)', () => {
     expect(card).toMatch(/color-mix\(in oklch, var\(--accent\)/)
   })
 
+  it('paints the card glow ONLY when armed — accent share defaults to 0% (dormant-invisible)', () => {
+    // The gradient must be invisible whenever the ambient-fx gate is off: the
+    // accent share reads var(--glow-a, 0%), raised on hover only under the
+    // grid's .fx class (set by CatalogDrawer when useAmbientFx() is true).
+    // A hardcoded share painted a permanent brown bloom on every card in the
+    // default Performance tier (user report, 2026-07-03).
+    for (const css of [parts, flows]) {
+      const card = css.slice(css.indexOf('-card'))
+      expect(card).toMatch(/color-mix\(in oklch, var\(--accent\) var\(--glow-a, 0%\)/)
+    }
+    expect(parts).toMatch(/\.fx [^{]*:hover[^}]*--glow-a:\s*12%/)
+    expect(flows).toMatch(/\.fx [^{]*:hover[^}]*--glow-a:\s*12%/)
+  })
+
   it('uses no raw hex/rgb colour literals in the beam rule', () => {
     const beam = flows.slice(flows.indexOf('.beam'), flows.indexOf('.beam') + 600)
     expect(beam).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)

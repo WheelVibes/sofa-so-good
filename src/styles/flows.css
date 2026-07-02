@@ -107,14 +107,16 @@
   border-radius: var(--r-2); border: 1px solid var(--border);
   transition: var(--dur) var(--ease); position: relative;
   /* Mouse-follow accent glow (P7 ambient FX) painted over the surface fill, under
-     content. Inert (centred) unless --mx/--my are set by the pointermove writer. */
+     content. Accent share defaults to 0% — invisible until a gated .fx container
+     + :hover arm it (mirrors .cat-card in parts.css; see that comment). */
   background-color: var(--surface-2);
   background-image: radial-gradient(
     160px circle at var(--mx, 50%) var(--my, 50%),
-    color-mix(in oklch, var(--accent) 12%, transparent),
+    color-mix(in oklch, var(--accent) var(--glow-a, 0%), transparent),
     transparent 60%
   );
 }
+.fx .preset-card:hover { --glow-a: 12%; }
 .preset-card:hover { border-color: var(--accent); background-color: var(--surface-solid); }
 .preset-card.on { border-color: var(--accent); background-color: var(--accent-soft); }
 .preset-thumbwrap { width: 92px; flex: none; border-radius: var(--r-1); background: var(--surface-3); border: 1px solid var(--border); overflow: hidden; display: grid; place-items: center; }

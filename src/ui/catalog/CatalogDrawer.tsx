@@ -467,7 +467,7 @@ export function CatalogDrawer() {
             </div>
           ) : null}
           <div
-            className="card-grid stagger-in"
+            className={`card-grid stagger-in${ambientFx ? ' fx' : ''}`}
             onKeyDown={onGridKeyDown}
             onPointerMove={onGridPointerMove}
           >
