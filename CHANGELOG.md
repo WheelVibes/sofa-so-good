@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: TimeOfDaySlider keeps its section-header treatment; SliderField ariaLabel; prune no-op readout rule (v0.10.0.42)
+
+- Review fix on the P18 SliderField adoption (v0.10.0.41): TimeOfDaySlider's "Time of day" row
+  had lost its `.scene-row-head` section-header treatment (uppercase, matching the SceneMenu
+  "Lights" header) when it moved to SliderField's plain `.fld .lbl` body-label rung. Restored
+  the header row (label + `.scene-clock` readout) above the SliderField, and added a
+  `hideReadout` prop to SliderField so the inline `.val` readout doesn't duplicate the header
+  clock.
+- `SliderField` gains an optional `ariaLabel` prop (defaults to `label`) so a call site's
+  accessible name can be more specific than its visible label; used at the walk-mode FOV slider
+  to restore "Field of view (degrees)".
+- Deleted the no-op `.fld .slider-readout` rule in `components.css` (fully shadowed by
+  `.fld .val` via CSS import order) and dropped the redundant class from the readout markup.
+- Logged remaining dead CSS from the SliderField migration (`.walk-cam-row`/`-lbl`/`-val`,
+  `.scene-slider`) in `TASKS.md` for a follow-up cleanup pass.
+
 ## FEAT: SliderField + Disclosure primitives; three P18 candidates dropped (v0.10.0.41)
 
 - `controls/SliderField` (label + `.slider` + tabular-nums readout, `format` prop) adopted in

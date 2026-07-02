@@ -30,6 +30,10 @@ export function TimeOfDaySlider() {
 
   return (
     <div className="tod" onClick={(e) => e.stopPropagation()}>
+      <div className="scene-row-head">
+        <span>Time of day</span>
+        <span className="scene-clock mono">{formatClock(effectiveHour)}</span>
+      </div>
       <SliderField
         label="Time of day"
         min={0}
@@ -38,6 +42,7 @@ export function TimeOfDaySlider() {
         value={effectiveHour}
         onChange={setManualHour}
         format={formatClock}
+        hideReadout
       />
       <button
         type="button"

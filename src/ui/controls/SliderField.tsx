@@ -9,6 +9,13 @@ export interface SliderFieldProps {
   format?: (v: number) => string
   disabled?: boolean
   id?: string
+  /** Overrides the input's aria-label (defaults to `label`) — for call sites where the visible
+   *  label is terser than the accessible name should be (e.g. "Field of view" vs "Field of view
+   *  (degrees)"). */
+  ariaLabel?: string
+  /** Suppresses the inline `.val` readout — for call sites that render their own readout
+   *  elsewhere (e.g. a section-header clock) and would otherwise show the value twice. */
+  hideReadout?: boolean
 }
 
 /**
@@ -28,6 +35,8 @@ export function SliderField({
   format,
   disabled,
   id,
+  ariaLabel,
+  hideReadout,
 }: SliderFieldProps) {
   const readout = format ? format(value) : String(value)
   return (
@@ -42,10 +51,10 @@ export function SliderField({
         step={step}
         value={value}
         disabled={disabled}
-        aria-label={label}
+        aria-label={ariaLabel ?? label}
         onChange={(e) => onChange(Number(e.target.value))}
       />
-      <span className="val slider-readout">{readout}</span>
+      {!hideReadout && <span className="val">{readout}</span>}
     </div>
   )
 }

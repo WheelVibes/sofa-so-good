@@ -35,6 +35,7 @@ export function WalkSettings() {
       </div>
       <SliderField
         label="Field of view"
+        ariaLabel="Field of view (degrees)"
         min={WALK_FOV_MIN}
         max={WALK_FOV_MAX}
         step={1}

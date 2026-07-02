@@ -38,6 +38,35 @@ describe('SliderField', () => {
     expect(screen.getByText('1.6')).toBeInTheDocument()
   })
 
+  it('uses ariaLabel over label for the input accessible name when given', () => {
+    render(
+      <SliderField
+        label="Field of view"
+        ariaLabel="Field of view (degrees)"
+        value={50}
+        min={0}
+        max={100}
+        onChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Field of view')).toBeInTheDocument()
+    expect(screen.getByRole('slider', { name: 'Field of view (degrees)' })).toBeInTheDocument()
+  })
+
+  it('hides the inline readout when hideReadout is set', () => {
+    render(
+      <SliderField
+        label="Time of day"
+        value={12}
+        min={0}
+        max={24}
+        onChange={vi.fn()}
+        hideReadout
+      />,
+    )
+    expect(screen.queryByText('12')).not.toBeInTheDocument()
+  })
+
   it('disables the input when disabled', () => {
     render(
       <SliderField

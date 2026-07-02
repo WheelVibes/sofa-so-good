@@ -106,6 +106,12 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   control needs an `aria-label` (e.g. "Delete saved version") so screen-reader users can identify
   it (found during batch-2b visual verification, v0.10.0.26).
 
+## UI polish Batch 3 follow-ups
+- [ ] Dead CSS left by the SliderField migration (P18, v0.10.0.41/.42): `.walk-cam-row`/`-lbl`/
+  `-val` (app.css) and `.scene-slider` (features.css) are now unreferenced by any component
+  (`.scene-clock` is still live — reused by TimeOfDaySlider's restored `.scene-row-head` clock
+  readout) — prune the truly-dead rules in a cleanup pass.
+
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
 - Keep this file pending-only; keep `TODO.md` (legacy deferred-work log) current.
