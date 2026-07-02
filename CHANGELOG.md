@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: Batch 3a implementation plan (v0.10.0.29)
+
+- Authored `docs/superpowers/plans/2026-07-02-ui-polish-batch3a.md`: floor-plan-editor
+  crossfade (the one unmasked mode transition), History-panel search (Layers shipped in 2b),
+  persisted panel state via editorPrefs, flag-gated `<InfoCallout>` hints, and flag-gated
+  "New" feature badges — with argued flag/tier decisions and both-mode test requirements.
+
 ## DOCS: Batch 2b merge prep — policy carve-out, code map, a11y label (v0.10.0.28)
 
 - Destructive-action policy: bulk clears (`clearRoom`) documented as confirm **+** Undo by
