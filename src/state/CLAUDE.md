@@ -9,6 +9,11 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   `LayersPanel` into `featuresSlice`), and `catalogOpen` — the last restored **desktop-only**
   (`matchMedia('(min-width:641px)')`, SSR/jsdom-safe with a `false` fallback) so the mobile
   bottom-sheet catalog never auto-reopens. All load with back-compat defaults (old JSON lacks them).
+- **`sharedLibrarySlice`** fetches the R2 shared-library manifest once
+  (`bootstrapSharedLibrary`, guarded on backend + sign-in + the `sharedLibrary` flag) and imports a
+  group on demand (`addSharedGroup`). Session-only — **not persisted** (imported IKEA defs persist
+  via the `hydrateIkea` path; the manifest is re-fetched each session), so it's out of the save
+  schema + autosave watch-list.
 - **Persistence lives in `storage/`**, not in the slice: `qualityPrefs`/`editorPrefs`/
   `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave. `editorPrefs`
   also persists `density` (P38, `Density = 'comfortable' | 'compact'`, back-compat default

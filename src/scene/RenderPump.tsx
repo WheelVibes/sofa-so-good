@@ -36,6 +36,7 @@ export function RenderPump() {
   showcaseRef.current = showcaseEnabled
 
   const dirtyUntil = useRef(0)
+  const lastOverlayRenderMs = useRef(0)
 
   useEffect(() => {
     // Any store change marks the scene dirty for a settle tail, so discrete
@@ -44,6 +45,10 @@ export function RenderPump() {
     // invalidates on its own `change` event.
     const markDirty = () => {
       dirtyUntil.current = performance.now() + settleTailMs(showcaseRef.current)
+      const s = useStore.getState()
+      // While the opaque loader is up, defer to the rAF pump (which freezes or
+      // throttles WebGL) — a direct invalidate here would bypass that gate.
+      if (s.loading.active || !s.sceneReady || s.bootPhase !== 'ready') return
       invalidate()
     }
     const unsub = useStore.subscribe(markDirty)
@@ -78,11 +83,17 @@ export function RenderPump() {
       animatedCount: 0,
       now: 0,
       dirtyUntil: 0,
+      overlayTransition: false,
+      overlayBoot: false,
+      lastOverlayRenderMs: 0,
     }
     const loop = () => {
       raf = requestAnimationFrame(loop)
       const s = useStore.getState()
       inputs.hidden = typeof document !== 'undefined' && document.hidden
+      inputs.overlayTransition = s.loading.active
+      inputs.overlayBoot = s.bootPhase === 'ready' && !s.sceneReady
+      inputs.lastOverlayRenderMs = lastOverlayRenderMs.current
       inputs.sceneReady = s.sceneReady
       inputs.assetsActive = assetsActiveRef.current
       inputs.walk = s.cameraMode === 'firstPerson'
@@ -95,7 +106,10 @@ export function RenderPump() {
       inputs.now = performance.now()
       inputs.dirtyUntil = dirtyUntil.current
       setRenderingContinuously(!inputs.hidden && isContinuous(inputs))
-      if (shouldRender(inputs)) invalidate()
+      if (shouldRender(inputs)) {
+        if (inputs.overlayBoot || inputs.overlayTransition) lastOverlayRenderMs.current = inputs.now
+        invalidate()
+      }
     }
     raf = requestAnimationFrame(loop)
 

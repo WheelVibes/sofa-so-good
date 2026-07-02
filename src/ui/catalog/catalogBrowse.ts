@@ -11,18 +11,24 @@ export const SORT_LABEL: Record<SortKey, string> = {
   price: 'Price (low→high)',
 }
 
-const cardName = (it: GridItem) => (it.kind === 'local' ? it.def.name : it.entry.name)
+const cardName = (it: GridItem) =>
+  it.kind === 'local' ? it.def.name : it.kind === 'remote' ? it.entry.name : it.item.name
 
-/** Footprint area (m²) for local defs; remote CC0 entries carry no footprint so
- *  they sort last under a size sort. */
+/** Footprint area (m²) for local defs; remote CC0 entries + un-imported shared
+ *  library items carry no footprint yet, so they sort last under a size sort. */
 const cardArea = (it: GridItem) =>
   it.kind === 'local'
     ? it.def.defaultFootprint.w * it.def.defaultFootprint.d
     : Number.POSITIVE_INFINITY
 
-/** Estimated price for local defs; un-downloaded CC0 entries are free, so they
- *  sort first under a price sort. */
-const cardPrice = (it: GridItem) => (it.kind === 'local' ? itemPrice(it.def, it.def.category) : 0)
+/** Estimated price: local defs from the price model, shared items from the
+ *  manifest price (0 when unknown), un-downloaded CC0 entries are free (0). */
+const cardPrice = (it: GridItem) =>
+  it.kind === 'local'
+    ? itemPrice(it.def, it.def.category)
+    : it.kind === 'shared'
+      ? (it.item.price ?? 0)
+      : 0
 
 /** Sort a category listing. `default` preserves the curated order (built-ins
  *  first, then CC0). Returns a new array; never mutates the input. */
@@ -35,11 +41,16 @@ export function sortCards(cards: GridItem[], key: SortKey): GridItem[] {
   return [...cards].sort((a, b) => cardArea(a) - cardArea(b) || byName(a, b))
 }
 
-/** Drop local items priced above `maxPrice` (a raw input string). Un-downloaded
- *  CC0 entries are free downloads, so they always pass. An empty/invalid/
- *  negative cap is a no-op (returns the input array). */
+/** Drop items priced above `maxPrice` (a raw input string). Un-downloaded CC0
+ *  entries are free downloads, so they always pass; shared library items filter
+ *  by their manifest price (a missing price passes). An empty/invalid/negative
+ *  cap is a no-op (returns the input array). */
 export function filterByMaxPrice(cards: GridItem[], maxPrice: string): GridItem[] {
   const cap = maxPrice.trim() === '' ? Number.NaN : Number(maxPrice)
   if (!Number.isFinite(cap) || cap < 0) return cards
-  return cards.filter((it) => it.kind === 'remote' || itemPrice(it.def, it.def.category) <= cap)
+  return cards.filter((it) => {
+    if (it.kind === 'remote') return true
+    if (it.kind === 'shared') return it.item.price == null || it.item.price <= cap
+    return itemPrice(it.def, it.def.category) <= cap
+  })
 }

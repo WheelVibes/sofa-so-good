@@ -625,7 +625,7 @@ describe('schema', () => {
     expect(serialize(useStore.getState()).comments).toBeUndefined()
   })
 
-  it('migrates legacy timeOfDay="day" to manual hour 12', () => {
+  it('migrates the legacy default timeOfDay="day" to system mode (follow the clock, not pinned noon)', () => {
     const legacy = {
       version: 1,
       apartmentId: 'serangoon-north-vista-4r',
@@ -639,7 +639,10 @@ describe('schema', () => {
       savedAt: '2026-04-01T00:00:00.000Z',
     }
     const parsed = SerializedStateZ.parse(legacy)
-    expect(parsed.timeMode).toBe('manual')
+    // 'day' was the old *default* (users who never picked a time landed here),
+    // so it migrates to 'system' so a migrated design follows the real clock
+    // like a fresh one — never stuck at 12:00 PM.
+    expect(parsed.timeMode).toBe('system')
     expect(parsed.manualHour).toBe(12)
   })
 

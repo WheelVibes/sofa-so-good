@@ -1,6 +1,7 @@
 import { serialize } from '../schema'
 import { useStore } from '../store'
-import { AUTOSAVE_SLOT, LocalStorageAdapter } from './LocalStorageAdapter'
+import { flushCloudAutosave, storage } from './adapter'
+import { AUTOSAVE_SLOT } from './LocalStorageAdapter'
 import { type StorageAdapter, StorageError } from './StorageAdapter'
 
 const DEBOUNCE_MS = 500
@@ -138,7 +139,7 @@ export interface AutosaveOptions {
 /** Subscribes to the store and writes the autosave slot at most once
  *  per `DEBOUNCE_MS`. Returns an unsubscribe + flush handle. */
 export function startAutosave({
-  adapter = LocalStorageAdapter,
+  adapter = storage,
   onError,
   onRecover,
 }: AutosaveOptions = {}): () => void {
@@ -179,6 +180,8 @@ export function startAutosave({
   // `pagehide` covers reload/close; `visibilitychange`→hidden covers mobile
   // backgrounding (where `pagehide`/`beforeunload` are unreliable).
   const flushPending = () => {
+    // Push any pending cloud autosave up before the page goes away.
+    flushCloudAutosave()
     if (!timer) return
     clearTimeout(timer)
     flush()

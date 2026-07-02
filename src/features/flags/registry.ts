@@ -174,6 +174,13 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     devOnly: true,
     tier: 'pro',
   },
+  localAssets: {
+    label: 'Local asset folder',
+    description: 'Auto-load GLBs from local-assets/ (dev only, no upload)',
+    default: true,
+    devOnly: true,
+    tier: 'simple',
+  },
   livePrices: {
     label: 'Live SG retailer prices',
     description: 'Live price lookup — IKEA/Courts/HipVan/Castlery (needs a sidecar)',
@@ -1044,6 +1051,29 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Subtle motion accents on higher render tiers',
     default: true,
     tier: 'simple',
+  },
+  // User accounts + cloud sync (Cloudflare backend). Sign in with an email +
+  // password (accounts are admin-created — there is no public signup) to save
+  // designs and favourites to the cloud and sync them across devices. Gated by
+  // the backend being present (`hasBackend()`): the GitHub Pages / offline build
+  // leaves it inert. A casual-user convenience that belongs in the core loop →
+  // simple tier (shown in both modes). Default on; the flag is harmless without a
+  // backend (the login UI checks `authIsBackend`).
+  accounts: {
+    label: 'Accounts & cloud sync',
+    description: 'Sign in to save designs + favourites to the cloud (accounts are admin-created)',
+    default: true,
+    tier: 'simple',
+  },
+  // Shared, read-only asset library served from R2 through the auth-gated API.
+  // Lets a signed-in user browse the curated furniture library in production
+  // (the prod counterpart to the dev-only IKEA scrape). An advanced catalog
+  // source beyond the minimal furnish loop → pro tier (forced off in Simple).
+  sharedLibrary: {
+    label: 'Shared asset library',
+    description: 'Browse the cloud furniture library (signed-in users, served from R2)',
+    default: true,
+    tier: 'pro',
   },
 }
 

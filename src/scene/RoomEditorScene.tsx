@@ -16,6 +16,7 @@ import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
 import { deselectOnMiss } from './deselectOnMiss'
 import { FinishDropSurface } from './FinishDropSurface'
+import { FrameRenderedNotifier } from './FrameRenderedNotifier'
 import { GridOverlay } from './GridOverlay'
 import { PlacementDropAnimator } from './PlacementDropAnimator'
 import { PlacementGhost } from './PlacementGhost'
@@ -92,6 +93,7 @@ export function RoomEditorScene() {
       <MeasurementOverlay />
       <AnnotationsOverlay />
       <ScreenshotController />
+      <FrameRenderedNotifier />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}
     </Canvas>
   )

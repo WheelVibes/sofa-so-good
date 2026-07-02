@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FEATURE_FLAG_KEYS } from '../features/featureFlags'
-import { parseVersion } from '../version'
+import { APP_VERSION, parseVersion } from '../version'
 import { isRecentlyIntroduced, NEW_BADGES } from './newBadges'
 
 describe('NEW_BADGES registry', () => {
@@ -52,8 +52,10 @@ describe('isRecentlyIntroduced', () => {
   })
 
   it('defaults to the live APP_VERSION and a 25-build window when unset', () => {
-    // The real infoCallouts entry (0.10.0.33) is recent right after it ships.
-    expect(isRecentlyIntroduced('0.10.0.33')).toBe(true)
+    // Version-drift-proof: an entry introduced in the running build is always
+    // recent (build delta 0), whatever APP_VERSION currently is. (A previous
+    // hardcoded '0.10.0.33' broke on every minor bump.)
+    expect(isRecentlyIntroduced(APP_VERSION)).toBe(true)
   })
   it('treats a future introduced version (not yet shipped) as not recent', () => {
     expect(isRecentlyIntroduced('0.10.0.99', '0.10.0.36')).toBe(false)

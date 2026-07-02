@@ -27,6 +27,10 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**', '.claude/**'],
     env: {
       TZ: 'Asia/Singapore',
+      // Tests run offline-deterministic: no backend, regardless of the developer's
+      // .env (which sets VITE_API_BASE=/api for the Cloudflare build). Backend-path
+      // tests mock `hasBackend` themselves (see sharedLibrarySlice.test.ts).
+      VITE_API_BASE: '',
     },
   },
 })

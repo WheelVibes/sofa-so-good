@@ -5,12 +5,12 @@ import type { FurnitureItem } from '../furniture/types'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import { roomDisplayName } from '../state/rooms'
 import { applySerialized, serialize } from '../state/schema'
+import { storage } from '../state/storage/adapter'
 import {
   DesignFileError,
   exportDesignToFile,
   importDesignFromFile,
 } from '../state/storage/designFile'
-import { LocalStorageAdapter } from '../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../state/storage/slotThumbs'
 import { useStore } from '../state/store'
@@ -49,10 +49,10 @@ function relativeTime(epoch: number): string {
 }
 
 async function loadRows(): Promise<VersionRow[]> {
-  const slots = await LocalStorageAdapter.list().catch(() => [] as SlotMeta[])
+  const slots = await storage.list().catch(() => [] as SlotMeta[])
   const withCounts = await Promise.all(
     slots.map(async (s) => {
-      const data = await LocalStorageAdapter.load(s.slot).catch(() => null)
+      const data = await storage.load(s.slot).catch(() => null)
       const count = (data as { items?: unknown[] } | null)?.items?.length ?? 0
       return { ...s, count }
     }),
@@ -95,14 +95,14 @@ export function VersionsPanel() {
     if (!name) return
     const slot = name.trim().replace(/\s+/g, '-').toLowerCase()
     if (!slot) return
-    await LocalStorageAdapter.save(slot, serialize(useStore.getState()))
+    await storage.save(slot, serialize(useStore.getState()))
     saveThumb(slot, captureThumb())
     void refresh()
     useStore.getState().notify.start({ title: `Saved version “${slot}”`, kind: 'success' })
   }
 
   const restore = async (slot: string) => {
-    const data = await LocalStorageAdapter.load(slot).catch(() => null)
+    const data = await storage.load(slot).catch(() => null)
     if (!data) return
     const userIds = useStore.getState().userFurniture.map((d) => d.id)
     const known = new Set([...Object.keys(BUILTIN_CATALOG), ...userIds])
@@ -120,7 +120,7 @@ export function VersionsPanel() {
       setCompareSlot(null) // toggle off
       return
     }
-    const data = await LocalStorageAdapter.load(slot).catch(() => null)
+    const data = await storage.load(slot).catch(() => null)
     const versionItems = (data as { items?: FurnitureItem[] } | null)?.items
     if (!Array.isArray(versionItems)) return
     const st = useStore.getState()
@@ -145,7 +145,7 @@ export function VersionsPanel() {
       danger: true,
     })
     if (!ok) return
-    await LocalStorageAdapter.delete(slot)
+    await storage.delete(slot)
     deleteThumb(slot)
     void refresh()
   }

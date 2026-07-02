@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { buildDefaultPlan } from './defaultPlan'
-import { planRoomRects, planRoomShell } from './planRoomShell'
-import type { FloorPlan } from './types'
+import {
+  type PlanClippedWall,
+  type PlanRoomOpening,
+  planOpeningCutout,
+  planRoomRects,
+  planRoomShell,
+} from './planRoomShell'
+import type { FloorPlan, PlanOpening } from './types'
 
 describe('planRoomShell', () => {
   it('returns null for an unknown room id', () => {
@@ -32,10 +38,10 @@ describe('planRoomShell', () => {
       extent: [8, 4],
       ceilingHeight: 2.6,
       walls: [
-        { id: 'north', start: [0, 0], end: [8, 0], thickness: 'interior' },
-        { id: 'mid', start: [4, 0], end: [4, 4], thickness: 'interior' },
-        { id: 'wA', start: [0, 0], end: [0, 4], thickness: 'interior' },
-        { id: 'south', start: [0, 4], end: [8, 4], thickness: 'interior' },
+        { id: 'north', start: [0, 0], end: [8, 0], thickness: 'internal' },
+        { id: 'mid', start: [4, 0], end: [4, 4], thickness: 'internal' },
+        { id: 'wA', start: [0, 0], end: [0, 4], thickness: 'internal' },
+        { id: 'south', start: [0, 4], end: [8, 4], thickness: 'internal' },
       ],
       openings: [
         { id: 'dA', kind: 'door', wallId: 'north', offset: 1, width: 0.9, sill: 0, head: 2.1 },
@@ -110,5 +116,46 @@ describe('planRoomRects', () => {
     } as never)
     expect(rects).toHaveLength(2)
     expect(rects[1]).toEqual({ x0: 4, z0: 1, x1: 6, z1: 3 })
+  })
+})
+
+describe('planOpeningCutout', () => {
+  const opening = (over: Partial<PlanOpening>): PlanOpening =>
+    ({
+      id: 'o',
+      kind: 'door',
+      wallId: 'w',
+      offset: 0,
+      width: 1,
+      sill: 0,
+      head: 2.1,
+      ...over,
+    }) as PlanOpening
+
+  it('projects a placed opening onto its clip axis, centred', () => {
+    // Clip [3,8] on the X axis → centre world x=5.5. Opening centred at world x=5.
+    const clip: PlanClippedWall = { wallId: 'w', start: [3, 0], end: [8, 0], thickness: 'internal' }
+    const entry: PlanRoomOpening = {
+      opening: opening({ width: 1.2, sill: 0, head: 2.05 }),
+      center: [5, 0],
+      angle: 0,
+    }
+    const cut = planOpeningCutout(entry, clip)
+    // clip-local centre = 5 - 5.5 = -0.5; half-width 0.6
+    expect(cut.a).toBeCloseTo(-1.1, 6)
+    expect(cut.b).toBeCloseTo(0.1, 6)
+    expect(cut).toMatchObject({ bottom: 0, top: 2.05 })
+  })
+
+  it('carries the window sill/head through so it becomes a floating hole', () => {
+    const clip: PlanClippedWall = { wallId: 'w', start: [0, 0], end: [4, 0], thickness: 'external' }
+    const entry: PlanRoomOpening = {
+      opening: opening({ kind: 'window', width: 1, sill: 0.9, head: 2.1 }),
+      center: [2, 0],
+      angle: 0,
+    }
+    const cut = planOpeningCutout(entry, clip)
+    expect(cut.bottom).toBe(0.9)
+    expect(cut.top).toBe(2.1)
   })
 })

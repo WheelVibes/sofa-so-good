@@ -1,3 +1,4 @@
+import type { WallCutoutSpan } from '../apartment/walls/wallBodyShape'
 import { levelAsPlan, levelOfRoom } from './levels'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
 import { pointInRoom, wallLength } from './types'
@@ -132,6 +133,26 @@ function pointOnSpan(p: [number, number], a: [number, number], b: [number, numbe
     p[1] >= Math.min(a[1], b[1]) - POINT_EPS &&
     p[1] <= Math.max(a[1], b[1]) + POINT_EPS
   )
+}
+
+/**
+ * A placed plan opening's cutout, projected into its clipped host wall's centred
+ * along-axis frame (metres) — so the per-room-editor plan wall body can carve
+ * the same hole the orbit scene does (else an opaque wall occludes the leaf /
+ * pane inside it). The opening's world centre is projected onto the clip axis
+ * and expanded by half its width. Pure.
+ */
+export function planOpeningCutout(entry: PlanRoomOpening, clip: PlanClippedWall): WallCutoutSpan {
+  const [sx, sz] = clip.start
+  const [ex, ez] = clip.end
+  const clipLen = Math.hypot(ex - sx, ez - sz) || 1
+  const vx = (ex - sx) / clipLen
+  const vz = (ez - sz) / clipLen
+  const mx = (sx + ex) / 2
+  const mz = (sz + ez) / 2
+  const c = (entry.center[0] - mx) * vx + (entry.center[1] - mz) * vz
+  const half = entry.opening.width / 2
+  return { a: c - half, b: c + half, bottom: entry.opening.sill, top: entry.opening.head }
 }
 
 /**

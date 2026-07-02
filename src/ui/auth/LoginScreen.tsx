@@ -3,11 +3,17 @@ import { isAdminUser } from '../../features/auth/types'
 import { useStore } from '../../state/store'
 import { BrandMark } from '../Logo'
 import { Icon } from '../toolbar/icons'
+import { Turnstile, turnstileEnabled } from './Turnstile'
+import { UserManagementModal } from './UserManagementModal'
 
 /**
- * Full-screen admin sign-in. Reached via `#/login` or the account entry in Help.
- * Optional (not a wall) — the app works signed out; admin only unlocks the
- * dev-only features + flags panel. Client-side gate, not a security boundary.
+ * Full-screen sign-in. Reached via `#/login` or the account entry in Help.
+ *
+ * Two modes, chosen by the active auth provider:
+ *  - Backend build (Cloudflare): real email + password accounts with server
+ *    sessions. Accounts are ADMIN-CREATED ONLY — there is no sign-up here.
+ *  - Offline / GitHub Pages build: the client-side admin password gate (unlocks
+ *    dev-only features + the flags panel; not a security boundary).
  */
 export function LoginScreen() {
   const open = useStore((s) => s.loginOpen)
@@ -15,22 +21,30 @@ export function LoginScreen() {
   const currentUser = useStore((s) => s.currentUser)
   const authError = useStore((s) => s.authError)
   const providerLabel = useStore((s) => s.authProviderLabel)
+  const isBackend = useStore((s) => s.authIsBackend)
   const signIn = useStore((s) => s.signIn)
   const signOut = useStore((s) => s.signOut)
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState('')
   const [busy, setBusy] = useState(false)
+  const [manageOpen, setManageOpen] = useState(false)
 
   if (!open) return null
 
   const close = () => {
+    setEmail('')
     setPassword('')
+    setTurnstileToken('')
     setOpen(false)
   }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true)
-    const ok = await signIn({ password })
+    const ok = isBackend
+      ? await signIn({ username: email, password, turnstileToken })
+      : await signIn({ password })
     setBusy(false)
     if (ok) close()
   }
@@ -74,11 +88,24 @@ export function LoginScreen() {
               {currentUser.role}
             </p>
             <p style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', lineHeight: 1.5 }}>
-              {isAdminUser(currentUser)
-                ? 'Admin unlocks dev-only features and the feature-flags panel.'
-                : ''}
+              {isBackend
+                ? 'Your designs and favourites sync to the cloud on this account.'
+                : isAdminUser(currentUser)
+                  ? 'Admin unlocks dev-only features and the feature-flags panel.'
+                  : ''}
             </p>
-            {isAdminUser(currentUser) ? (
+            {isBackend && isAdminUser(currentUser) ? (
+              <button
+                type="button"
+                className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+                onClick={() => setManageOpen(true)}
+              >
+                <Icon.Settings width={14} height={14} />
+                Manage accounts
+              </button>
+            ) : null}
+            {!isBackend && isAdminUser(currentUser) ? (
               <button
                 type="button"
                 className="btn btn-soft btn-block"
@@ -92,6 +119,7 @@ export function LoginScreen() {
                 Feature flags
               </button>
             ) : null}
+            {manageOpen ? <UserManagementModal onClose={() => setManageOpen(false)} /> : null}
             <div style={{ display: 'flex', gap: 'var(--s-2)', marginTop: 'var(--s-3)' }}>
               <button type="button" className="btn btn-danger" onClick={signOut}>
                 <Icon.ExitRoom width={14} height={14} />
@@ -120,8 +148,22 @@ export function LoginScreen() {
                 margin: '0 0 var(--s-3)',
               }}
             >
-              Unlocks dev-only features. This is a client-side gate, not a security boundary.
+              {isBackend
+                ? 'Sign in with your account. Accounts are created by an administrator.'
+                : 'Unlocks dev-only features. This is a client-side gate, not a security boundary.'}
             </p>
+            {isBackend ? (
+              <input
+                className="input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                aria-label="Email"
+                autoComplete="username"
+                style={{ width: '100%', marginBottom: 'var(--s-2)' }}
+              />
+            ) : null}
             <input
               className="input"
               type="password"
@@ -129,8 +171,10 @@ export function LoginScreen() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               aria-label="Password"
+              autoComplete={isBackend ? 'current-password' : 'off'}
               style={{ width: '100%' }}
             />
+            {isBackend ? <Turnstile onToken={setTurnstileToken} /> : null}
             {authError ? (
               <p
                 style={{
@@ -150,7 +194,12 @@ export function LoginScreen() {
                 type="submit"
                 className="btn btn-accent"
                 style={{ marginLeft: 'auto' }}
-                disabled={busy || password.length === 0}
+                disabled={
+                  busy ||
+                  password.length === 0 ||
+                  (isBackend && email.length === 0) ||
+                  (isBackend && turnstileEnabled() && turnstileToken.length === 0)
+                }
               >
                 {busy ? 'Signing in…' : 'Sign in'}
               </button>

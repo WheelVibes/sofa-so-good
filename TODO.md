@@ -22,20 +22,13 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
   finalized tiering in the plan doc. Next: run Tier-1 CC0 scrapers into `local-assets/` (pairs with
   Part 1), then surface Poly Haven models in prod (`remoteFurniture` flag).
 
-## Active — UI/UX polish program (2026-07-02, user goal; from Vi-develop comparative analysis)
-39 improvements identified by a systematic analysis of `~/projects/datature/Vi-develop` (motion,
-magicui, Tailwind spacing, readability, discoverability) mapped onto our token system. Strategy:
-graft Vi's motion vocabulary + micro-interaction polish + feedback patterns onto the existing
-OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they ship (→ CHANGELOG).
-- [ ] **P31 Determinate upload progress bar** — deferred: blocked on the upload-progress branch
-  merging; then add a regression test locking that startBackgroundImport feeds the toast's 0-1 bar
-  and the "X / Y" text from one coalesced counter.
-- [ ] **NEW_BADGES follow-up** — register the next 0.10.0.x feature that ships a real toolbar/menu row (badges are dormant until then by design; see ui/newBadges.ts).
-
-### Batch 2 — medium (1–3 days each)
-
-### Batch 3 — larger (~1 week each)
-
+## UI/UX polish program — remaining follow-ups (2026-07-02 program, completed 2026-07-03)
+The 39-item Vi-develop-derived program shipped (see CHANGELOG); only these follow-ups remain:
+- [ ] **P31 Determinate upload progress bar regression test** — UNBLOCKED (2026-07-03): the
+  upload-progress branch is merged. Add the test locking that startBackgroundImport feeds the
+  toast's 0-1 bar and the "X / Y" text from one coalesced counter.
+- [ ] **NEW_BADGES follow-up** — register the next feature that ships a real toolbar/menu row
+  (badges are dormant until then by design; see ui/newBadges.ts).
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the
   catalog is already paginated (`PAGE_SIZE=12`, never renders >12 cards); history/layers
   realistically render <100 rows. Revisit with a lightweight slice-on-scroll window (NOT a new
@@ -78,6 +71,12 @@ probes; directional door-bleed weighting; real-time path-traced GI/RTX (revisit 
 WebGPU path tracing).
 
 ## Deferred candidates
+- **Deeper transition-warmup: `renderer.compileAsync` + time-sliced mounts** (2026-07-03).
+  v0.10.0.7 shipped compositor-proof overlay animation + readiness-based hide (throttled ~10 fps
+  warm frames behind the overlay). The remaining lever if big scenes still block long: explicit
+  `renderer.compileAsync(scene, camera)` (KHR_parallel_shader_compile) + `initTexture` during the
+  overlay window, and batching FurnitureLayer mounts across frames so no single main-thread block
+  exceeds ~50 ms. Only worth it if profiling shows first-frame blocks surviving the warm frames.
 - **`livePrices` IXT scenario** — deferred (user, 2026-06-30): dev-only + network/sidecar-bound
   (lower value), and a headless scenario would need a new dev-only `window.__priceSidecarStub` lever
   in `livePrice.ts` purely for the test. Unit coverage already exercises the client logic; revisit

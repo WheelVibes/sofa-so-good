@@ -425,13 +425,24 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   // selection (and multi-selection) so re-entering never resurfaces a stale
   // inspector for something the user can no longer see.
   setFloorPlanEditing: (open) =>
-    set({ floorPlanEditing: open, planSelection: null, selectedWallIds: [] }),
-  toggleFloorPlanEditing: () =>
-    set((s) => ({
-      floorPlanEditing: !s.floorPlanEditing,
+    set({
+      floorPlanEditing: open,
       planSelection: null,
       selectedWallIds: [],
-    })),
+      // Show the transition overlay so the swap into/out of the 2D editor reads
+      // as a smooth load rather than an instant jump (mirrors the room editor).
+      loading: { active: true, label: open ? 'Opening floor plan…' : 'Closing floor plan…' },
+    }),
+  toggleFloorPlanEditing: () =>
+    set((s) => {
+      const open = !s.floorPlanEditing
+      return {
+        floorPlanEditing: open,
+        planSelection: null,
+        selectedWallIds: [],
+        loading: { active: true, label: open ? 'Opening floor plan…' : 'Closing floor plan…' },
+      }
+    }),
   setPlanLabels: (planLabels) => set({ planLabels }),
   cyclePlanLabels: () => set((s) => ({ planLabels: nextPlanLabelMode(s.planLabels) })),
   // A plain selection always replaces the multi-selection (clears the extras),

@@ -103,14 +103,22 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   need to wait for it to age out).
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
   gate on `canEditScene`; leaving the editor clears the selection.
-- **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models* (Poly Haven
-  `RemoteCard`s in the catalog grid) ride the **`remoteFurniture`** flag (pro, default on);
-  browsable remote *materials* (FinishPicker Browse tab) ride **`remoteMaterials`** (pro). Pass the
+- **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models*
+  (`RemoteCard`s in the catalog grid) ride the **`remoteFurniture`** flag (pro, default on) —
+  **no provider currently supplies furniture models (Poly Haven is materials/HDRIs only), so this
+  surfaces nothing today**; browsable remote *materials* (FinishPicker Browse tab, Poly Haven +
+  ambientCG) ride **`remoteMaterials`** (pro). Pass the
   flag into `useUnifiedCatalog(includeRemote)` (via `useFeature('remoteFurniture')`) — never merge
   remote entries ungated. Only bootstrap the provider index when at least one of the two is on
   (`bootstrapRemoteCatalog()` fetches both kinds), so Simple mode (both forced off) hits no network.
   Gating is **browse/add only**: a placed/resolved remote def still merges into `useCatalog`
   (`buildMergedCatalog`) and renders with the flag off — don't gate the render/merge path.
+- **Shared R2 library cards merge into the grid behind `sharedLibrary` (pro).** Signed-in users
+  see every R2 library product as a `shared` `GridItem` via `useUnifiedCatalog(includeRemote,
+  includeShared)` (pass `useFeature('sharedLibrary')`); `SharedCard` mirrors `RemoteCard` (lazy
+  `loading="lazy"` proxy thumbnail, import-on-click via `addSharedGroup`). Deduped against imported
+  `ikea-<groupKey>` defs. `CatalogDrawer` bootstraps the manifest once on open when signed-in +
+  flag on + `hasBackend()`.
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never
   hardcode a key label. Tooltips + menus render through `Popover` (portal) so the
   scrollable toolbar can't clip them.

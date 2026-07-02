@@ -56,7 +56,7 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   *before* first render needs a real seed, not a 1×1×1 guess. Two pure helpers do this from glTF
   POSITION accessor `min`/`max` (no render): `catalog/packs/footprint.ts:glbFootprint` (GLB *bytes*,
   used by the pack/upload path) and `catalog/remote/gltfBounds.ts:gltfJsonFootprint` (parsed glTF
-  *JSON*, used by `catalog/remote/resolver.ts:bundleToFurnitureDef` for remote/Poly Haven defs).
+  *JSON*, used by `catalog/remote/resolver.ts:bundleToFurnitureDef` for remote furniture defs).
   Both union multi-mesh bounds, clamp axes ≥0.05 m, reject absurd non-metre scales, and fall back
   to the caller's 1×1×1 placeholder when bounds are unavailable. The render-time cache stays
   authoritative — these only make the pre-render value honest.

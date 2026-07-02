@@ -18,12 +18,21 @@ function dirOf(path: string): string {
   return i === -1 ? '' : path.slice(0, i + 1)
 }
 
+/** Max concurrent metadata.json reads (read + JSON.parse) in flight. Parsing is
+ *  I/O-bound per file; reading a handful concurrently removes the serial stall on
+ *  a folder of thousands of groups, bounded so it can't flood the main thread. */
+export const DETECT_CONCURRENCY = 12
+
 /** Find every `metadata.json` among the picked files that looks like an IKEA
  *  group, scoped to the folder it lives in. A folder of several groups yields
  *  one DetectedGroup per group. */
 export async function detectGroups(
   files: File[],
   onProgress?: (parsed: number, totalMetadata: number) => void,
+  // Fires each time a new group is found, with the groups accumulated so far
+  // (same array reference each call) — lets the UI grow the list granularly
+  // instead of waiting for the whole scan. Copy it (`.slice()`) before storing.
+  onGroup?: (groupsSoFar: readonly DetectedGroup[]) => void,
 ): Promise<DetectedGroup[]> {
   const groups: DetectedGroup[] = []
   // Pre-count metadata.json candidates so progress has a denominator (parsing
@@ -33,17 +42,44 @@ export async function detectGroups(
     return (path.split('/').pop() ?? f.name).toLowerCase() === 'metadata.json'
   })
   onProgress?.(0, metaFiles.length)
+  // Read metadata concurrently (each read + parse is I/O-bound; a serial loop
+  // stalls for seconds on a folder of thousands of groups), but COMMIT results in
+  // original order via a drain cursor: `groups`, `onGroup`, and the returned list
+  // stay deterministic regardless of which read finishes first. A slot is
+  // `undefined` while pending; once read it holds the group or `null` (skip).
+  const slots: (DetectedGroup | null | undefined)[] = new Array(metaFiles.length)
+  let cursor = 0 // next metadata index to dispatch to a worker
+  let commit = 0 // next index to emit in order (drain cursor)
   let parsed = 0
-  for (const f of metaFiles) {
-    try {
-      const json = JSON.parse(await f.text())
-      if (looksLikeIkeaMetadata(json))
-        groups.push({ dir: dirOf(pathOf(f)), meta: json as Record<string, unknown> })
-    } catch {
-      // ignore unparseable metadata.json
+  const drain = () => {
+    while (commit < slots.length && slots[commit] !== undefined) {
+      const g = slots[commit]
+      if (g) {
+        groups.push(g)
+        onGroup?.(groups)
+      }
+      commit++
     }
-    onProgress?.(++parsed, metaFiles.length)
   }
+  const worker = async (): Promise<void> => {
+    while (cursor < metaFiles.length) {
+      const i = cursor++
+      const f = metaFiles[i]
+      try {
+        const json = JSON.parse(await f.text())
+        slots[i] = looksLikeIkeaMetadata(json)
+          ? { dir: dirOf(pathOf(f)), meta: json as Record<string, unknown> }
+          : null
+      } catch {
+        slots[i] = null // ignore unparseable metadata.json
+      }
+      onProgress?.(++parsed, metaFiles.length)
+      drain()
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(DETECT_CONCURRENCY, metaFiles.length) }, () => worker()),
+  )
   return groups
 }
 

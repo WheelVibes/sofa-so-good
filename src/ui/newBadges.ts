@@ -22,11 +22,12 @@ import { APP_VERSION, parseVersion, type VersionParts } from '../version'
 export const NEW_BADGES: Partial<Record<FeatureFlag, string>> = {
   // "Style quiz" — a real MenuItem in the Tools menu's "Export & document"
   // group (`src/ui/toolbar/menus/ToolsMenu.tsx`). Pro tier, so the badge also
-  // exercises "hidden when the target flag is off in Simple mode".
+  // exercises "hidden when the target flag is off in Simple mode". Long aged
+  // out (recency is derived from APP_VERSION), kept as the wiring example.
   styleQuiz: '0.9.0.6',
-  // Progressive-disclosure hint banners — the most recently introduced flag
-  // in the current `0.10.0.x` line (shown in both Simple and Pro).
-  infoCallouts: '0.10.0.33',
+  // infoCallouts ('0.10.0.33') was retired at the v0.11.0.0 minor bump — the
+  // version-derived recency window had already aged it out (see CLAUDE.md rule:
+  // retire entries instead of letting stale ones accumulate).
 }
 
 /** How many `build` numbers a badge stays "recent" for, once on the same

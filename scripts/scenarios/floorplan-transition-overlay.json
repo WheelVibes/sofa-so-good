@@ -1,0 +1,32 @@
+{
+  "name": "floorplan-transition-overlay",
+  "url": "http://localhost:5233/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1')" },
+    { "name": "scene-ready", "waitFor": { "css": ".toolbar" }, "timeout": 60000 },
+    { "name": "settle-boot", "wait": 1500 },
+    { "name": "shot-scene", "screenshot": "scene" },
+
+    { "name": "freeze-hide", "eval": "window.__origHide = window.__store.getState().hideLoading; window.__store.setState({ hideLoading: () => {} })" },
+    { "name": "open-editor", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "opening-overlay-visible", "waitFor": { "text": "Opening floor plan" }, "timeout": 10000 },
+    { "name": "shot-opening", "screenshot": "opening-overlay" },
+
+    { "name": "restore-hide", "eval": "window.__store.setState({ hideLoading: window.__origHide }); window.__store.getState().hideLoading()" },
+    { "name": "overlay-gone", "waitFor": { "text": "Opening floor plan", "visible": false }, "timeout": 10000 },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "settle-editor", "wait": 1500 },
+    { "name": "shot-editor", "screenshot": "plan-editor" },
+
+    { "name": "freeze-hide-2", "eval": "window.__store.setState({ hideLoading: () => {} })" },
+    { "name": "close-editor", "eval": "window.__store.getState().setFloorPlanEditing(false)" },
+    { "name": "closing-overlay-visible", "waitFor": { "text": "Closing floor plan" }, "timeout": 10000 },
+    { "name": "shot-closing", "screenshot": "closing-overlay" },
+
+    { "name": "restore-hide-2", "eval": "window.__store.setState({ hideLoading: window.__origHide }); window.__store.getState().hideLoading()" },
+    { "name": "back-to-scene", "waitFor": { "text": "Closing floor plan", "visible": false }, "timeout": 10000 },
+    { "name": "settle-final", "wait": 1500 },
+    { "name": "shot-final", "screenshot": "final-scene" }
+  ]
+}

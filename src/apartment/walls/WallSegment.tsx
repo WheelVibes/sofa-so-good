@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { memo, Suspense, useEffect, useMemo, useRef } from 'react'
-import { ExtrudeGeometry, type Group, Mesh, type MeshStandardMaterial, Path, Shape } from 'three'
+import { type Group, Mesh, type MeshStandardMaterial } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
 import { BeveledBox } from '../../furniture/primitives/BeveledBox'
@@ -32,6 +32,7 @@ import {
   wallEndAbutmentThickness,
   wallThicknessMetres,
 } from '../wallSegments'
+import { extrudeWallBody } from './wallBodyGeometry'
 import { buildWallBodyOutline } from './wallBodyShape'
 import { setWallOpacity } from './wallReveal'
 import {
@@ -422,26 +423,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // every opening once the wall faded translucent for the dollhouse reveal; a
   // single shape has no internal faces, so the translucent wall reads cleanly.
   const wallTop = wall.topHeight ?? ceilingHeight
-  const bodyGeometry = useMemo(() => {
-    const { outline, holes } = buildWallBodyOutline(wall, wallTop, length, startAbut, endAbut)
-    const shape = new Shape()
-    shape.moveTo(outline[0][0], outline[0][1])
-    for (let i = 1; i < outline.length; i++) shape.lineTo(outline[i][0], outline[i][1])
-    shape.closePath()
-    for (const h of holes) {
-      const p = new Path()
-      p.moveTo(h[0][0], h[0][1])
-      for (let i = 1; i < h.length; i++) p.lineTo(h[i][0], h[i][1])
-      p.closePath()
-      shape.holes.push(p)
-    }
-    const geo = new ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false, steps: 1 })
-    // ExtrudeGeometry runs the profile along +Z from 0..depth; centre it on the
-    // wall's thickness so the body straddles the centreline like the old boxes.
-    geo.translate(0, 0, -thickness / 2)
-    geo.computeVertexNormals()
-    return geo
-  }, [wall, wallTop, length, startAbut, endAbut, thickness])
+  const bodyGeometry = useMemo(
+    () =>
+      extrudeWallBody(buildWallBodyOutline(wall, wallTop, length, startAbut, endAbut), thickness),
+    [wall, wallTop, length, startAbut, endAbut, thickness],
+  )
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
 
   // Subdivide each render segment further by room boundary projections

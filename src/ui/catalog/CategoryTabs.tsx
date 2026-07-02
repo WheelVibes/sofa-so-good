@@ -1,7 +1,9 @@
 import { useRef } from 'react'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
+import { Select, type SelectOption } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
+import type { SortKey } from './catalogBrowse'
 
 /** The favourites + recent pseudo-categories sort before every real category. */
 export type CatalogCategory = FurnitureCategory | 'favourites' | 'recent'
@@ -17,6 +19,12 @@ interface CategoryTabsProps {
   recentCount: number
   /** Whether the catalogFavourites feature flag is on; hides the star chip when off. */
   favEnabled?: boolean
+  /** When set, renders a compact sort control before the favourites chip. */
+  sort?: {
+    value: SortKey
+    onChange: (value: SortKey) => void
+    options: SelectOption[]
+  }
 }
 
 const LABELS: Record<FurnitureCategory, string> = {
@@ -44,6 +52,7 @@ export function CategoryTabs({
   favCount,
   recentCount,
   favEnabled = true,
+  sort,
 }: CategoryTabsProps) {
   const railRef = useRef<HTMLElement>(null)
   // Desktop: a vertical mouse wheel can't scroll a horizontal-overflow row, so
@@ -60,6 +69,17 @@ export function CategoryTabs({
   }
   return (
     <nav className="cat-rail" ref={railRef} onWheel={onWheel}>
+      {sort ? (
+        <div className="cat-rail-sort">
+          <Select
+            value={sort.value}
+            onChange={(v) => sort.onChange(v as SortKey)}
+            ariaLabel="Sort catalog"
+            iconTrigger={<Icon.Sort width={16} height={16} />}
+            options={sort.options}
+          />
+        </div>
+      ) : null}
       {favEnabled ? (
         <button
           type="button"

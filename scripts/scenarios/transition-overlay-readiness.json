@@ -1,0 +1,42 @@
+{
+  "name": "transition-overlay-readiness",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1')" },
+    { "name": "scene-ready", "waitFor": { "css": ".toolbar" }, "timeout": 60000 },
+    { "name": "settle-boot", "wait": 1500 },
+
+    { "name": "walk-enter", "eval": "window.__store.getState().setCameraMode('firstPerson')" },
+    { "name": "walk-overlay-appears", "waitFor": { "text": "Entering walkthrough" }, "timeout": 5000 },
+    { "name": "walk-overlay-auto-hides", "waitFor": { "text": "Entering walkthrough", "visible": false }, "timeout": 10000 },
+    { "name": "settle-walk", "wait": 800 },
+    { "name": "shot-walk", "screenshot": "walk" },
+
+    { "name": "walk-exit", "eval": "window.__store.getState().setCameraMode('orbit')" },
+    { "name": "orbit-overlay-auto-hides", "waitFor": { "text": "Switching to overview", "visible": false }, "timeout": 10000 },
+    { "name": "settle-orbit", "wait": 800 },
+    { "name": "shot-orbit", "screenshot": "orbit" },
+
+    { "name": "room-enter", "eval": "(() => { const st = window.__store.getState(); st.enterRoomEditor(st.floorPlan.rooms[0].id) })()" },
+    { "name": "room-overlay-auto-hides", "waitFor": { "text": "Entering room", "visible": false }, "timeout": 10000 },
+    { "name": "settle-room", "wait": 1200 },
+    { "name": "shot-room-editor", "screenshot": "room-editor" },
+
+    { "name": "room-exit", "eval": "window.__store.getState().exitRoomEditor()" },
+    { "name": "exit-overlay-auto-hides", "waitFor": { "text": "Exiting room", "visible": false }, "timeout": 10000 },
+    { "name": "settle-exit", "wait": 1200 },
+    { "name": "shot-after-room", "screenshot": "after-room" },
+
+    { "name": "plan-open", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "plan-overlay-auto-hides", "waitFor": { "text": "Opening floor plan", "visible": false }, "timeout": 10000 },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "settle-plan", "wait": 800 },
+    { "name": "shot-plan", "screenshot": "plan-editor" },
+
+    { "name": "plan-close", "eval": "window.__store.getState().setFloorPlanEditing(false)" },
+    { "name": "close-overlay-auto-hides", "waitFor": { "text": "Closing floor plan", "visible": false }, "timeout": 10000 },
+    { "name": "settle-final", "wait": 1200 },
+    { "name": "shot-final", "screenshot": "final-scene" }
+  ]
+}

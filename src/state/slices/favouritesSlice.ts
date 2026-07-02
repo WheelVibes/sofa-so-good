@@ -1,8 +1,20 @@
+import { hasBackend } from '../../features/api/client'
+import {
+  fetchCloudFavourites,
+  pushFavourite,
+  removeCloudFavourite,
+} from '../../features/favouritesSync'
+import { isFeatureEnabled } from '../../features/featureFlags'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
 const LS_KEY = 'hdb_favourites'
 const LS_KEY_FINISH = 'hdb_fav_finishes'
+
+/** Cloud favourites sync is active only with a backend + signed-in + accounts on. */
+function cloudActive(currentUser: unknown): boolean {
+  return hasBackend() && !!currentUser && isFeatureEnabled('accounts')
+}
 
 /**
  * Tracks the catalog item ids the user has starred/favourited, persisted to
@@ -28,6 +40,9 @@ export interface FavouritesSlice {
   toggleFinishFavourite: (finishId: string) => void
   /** Whether a finish/material id is currently favourited. */
   isFinishFavourite: (finishId: string) => boolean
+  /** Pull cloud favourites and merge (union) with local, then push local-only up.
+   *  Called on sign-in when a backend is configured. No-op for guests. */
+  syncFavouritesFromCloud: () => Promise<void>
 }
 
 function loadFavourites(key: string): string[] {
@@ -59,11 +74,13 @@ export const createFavouritesSlice: SliceCreator<FavouritesSlice, RootState> = (
   toggleFavourite: (defId) => {
     if (!defId) return
     const current = get().favouriteDefIds
-    const next = current.includes(defId)
-      ? current.filter((id) => id !== defId)
-      : [...current, defId]
+    const adding = !current.includes(defId)
+    const next = adding ? [...current, defId] : current.filter((id) => id !== defId)
     persistFavourites(LS_KEY, next)
     set({ favouriteDefIds: next })
+    if (cloudActive(get().currentUser)) {
+      void (adding ? pushFavourite('furniture', defId) : removeCloudFavourite('furniture', defId))
+    }
   },
   isFavourite: (defId) => get().favouriteDefIds.includes(defId),
   clearFavourites: () => {
@@ -73,11 +90,30 @@ export const createFavouritesSlice: SliceCreator<FavouritesSlice, RootState> = (
   toggleFinishFavourite: (finishId) => {
     if (!finishId) return
     const current = get().favouriteFinishIds
-    const next = current.includes(finishId)
-      ? current.filter((id) => id !== finishId)
-      : [...current, finishId]
+    const adding = !current.includes(finishId)
+    const next = adding ? [...current, finishId] : current.filter((id) => id !== finishId)
     persistFavourites(LS_KEY_FINISH, next)
     set({ favouriteFinishIds: next })
+    if (cloudActive(get().currentUser)) {
+      void (adding ? pushFavourite('finish', finishId) : removeCloudFavourite('finish', finishId))
+    }
   },
   isFinishFavourite: (finishId) => get().favouriteFinishIds.includes(finishId),
+  syncFavouritesFromCloud: async () => {
+    if (!cloudActive(get().currentUser)) return
+    const cloud = await fetchCloudFavourites()
+    if (!cloud) return
+    const union = (local: string[], remote: string[]) => [...new Set([...remote, ...local])]
+    const localFurn = get().favouriteDefIds
+    const localFin = get().favouriteFinishIds
+    const furniture = union(localFurn, cloud.furniture)
+    const finish = union(localFin, cloud.finish)
+    persistFavourites(LS_KEY, furniture)
+    persistFavourites(LS_KEY_FINISH, finish)
+    set({ favouriteDefIds: furniture, favouriteFinishIds: finish })
+    // Push any local-only ids up so the two sides converge.
+    for (const id of localFurn)
+      if (!cloud.furniture.includes(id)) void pushFavourite('furniture', id)
+    for (const id of localFin) if (!cloud.finish.includes(id)) void pushFavourite('finish', id)
+  },
 })

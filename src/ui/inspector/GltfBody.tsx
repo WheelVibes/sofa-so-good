@@ -65,7 +65,7 @@ export function GltfBody({ item, def }: GltfBodyProps) {
   // Base (scale = 1) extents in metres, so the user can size by exact dimension
   // — the W/D footprint divides out the current axis scale; the height comes
   // from the cached GLB bbox (falling back to the def's authored footprint).
-  const url = def.source === 'builtin' ? def.url : def.runtimeUrl
+  const url = def.source === 'builtin' || def.source === 'local' ? def.url : def.runtimeUrl
   const baseH = (url ? getCachedGltfFootprint(url)?.h : null) ?? def.defaultFootprint.h
 
   // Per-part recolour: the GLB's named material/mesh groups, discovered once the

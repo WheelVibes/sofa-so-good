@@ -14,10 +14,11 @@ const mockFetch = (handlers: Record<string, unknown>) =>
 describe('polyhaven.fetchIndex', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('returns furniture and material entries', async () => {
+  it('returns ONLY material entries — Poly Haven furniture/models are not a source', async () => {
     vi.stubGlobal(
       'fetch',
       mockFetch({
+        // Even if the models endpoint is hit, no furniture entries must appear.
         't=models': {
           modern_arm_chair_01: {
             name: 'Modern Arm Chair 01',
@@ -36,8 +37,9 @@ describe('polyhaven.fetchIndex', () => {
     )
 
     const entries = await polyhaven.fetchIndex()
-    expect(entries.find((e) => e.kind === 'furniture')?.slug).toBe('modern_arm_chair_01')
+    expect(entries.some((e) => e.kind === 'furniture')).toBe(false)
     expect(entries.find((e) => e.kind === 'material')?.slug).toBe('wood_floor_diff')
+    expect(entries.every((e) => e.kind === 'material')).toBe(true)
     expect(entries[0].attribution).toContain('Poly Haven')
   })
 })

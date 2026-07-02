@@ -1,0 +1,17 @@
+{
+  "phrases": [
+    "Building the walls…",
+    "Checking the floor plan…",
+    "Laying the floor tiles…",
+    "Clearing the walkway…",
+    "Furnishing your flat…",
+    "Opening the windows…",
+    "Sweeping the common corridor…",
+    "Measuring the rooms…",
+    "Waiting for the lift…",
+    "Chope-ing the sofa spot…",
+    "Hanging the lights…"
+  ],
+  "cycleMs": 2800,
+  "fadeMs": 220
+}

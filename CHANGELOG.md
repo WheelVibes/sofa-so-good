@@ -5,7 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## FIX: density effect gates on the densityMode flag — compact pauses in Simple (v0.10.0.50)
+## RELEASE: v0.11.0.0 — UI/UX polish program merged with the interaction/loading/Cloudflare line
+
+- This version lands the merge of two parallel 2026-07 branches into one release:
+  the **39-item UI/UX polish program** (motion/token system, primitives, density, upsell,
+  ambient FX — entries below as **v0.10.1.x**, renumbered from their original 0.10.0.x build
+  numbers to resolve the collision; the branch's commit messages retain the old numbers) and the
+  **interaction/loading/Cloudflare line** (pinch-zoom + tap-select fixes, loading overlays,
+  Cloudflare backend + shared R2 library — entries below as **v0.10.0.x**).
+- Conflict-relevant merge decisions: `VersionsPanel` delete keeps the polish confirm-modal gate
+  and the cloud-aware `storage.delete` adapter; `SharedCard` gains the grid's
+  `staggerIndex`/`.liftable` treatment; the catalog Sort control lives in the category rail
+  (shared-library drawer rework) with the polish Button/EmptyState/stagger vocabulary on top;
+  flag registry carries both branches' flags (7 new total).
+- Merge fallout fixed in this commit: `SharedCard`'s copied `gap: 6` violated the polish P9
+  inline-px guard (→ `var(--s-2)`); the aged-out `infoCallouts` NEW_BADGES entry was retired at
+  the minor bump and the badge test's default-args case now uses `APP_VERSION` itself instead of
+  a hardcoded build (it broke on every minor bump).
+- Known cosmetic residue: both branches' *early* histories independently used **v0.9.0.71**
+  (polish "DOCS: TODO backlog + Batch 1 plan" vs the View-mode tap-flicker fix) — left as-is;
+  from v0.11.0.0 on, build numbers are single-lined again.
+
+## FIX: density effect gates on the densityMode flag — compact pauses in Simple (v0.10.1.50)
 
 - `applyDensity` wrote `[data-density]` unconditionally, so a Compact pref set in Pro stayed
   applied after switching to Simple even though the Appearance density control (and the
@@ -21,7 +42,7 @@ pruned from `main`; entries from C251 on (branch
   switch to Simple → `'comfortable'` while `localStorage` still holds `'compact'`; switch back
   to Pro → `'compact'` again.
 
-## FIX: rowPadding tests pin the density-token contract; dead .lyr-row line pruned (v0.10.0.49)
+## FIX: rowPadding tests pin the density-token contract; dead .lyr-row line pruned (v0.10.1.49)
 
 - The 2b row-padding tests still asserted the pre-density literal compositions and only stayed
   green via dead shadowed declarations; the .48 cleanup removed .menu-item's dead line and went
@@ -29,16 +50,16 @@ pruned from `main`; entries from C251 on (branch
   stay pinned by density.test.ts); .lyr-row's dead duplicate pruned with the 1px horizontal
   normalization documented.
 
-## CHORE: Batch 3b cosmetic cleanup (v0.10.0.48)
+## CHORE: Batch 3b cosmetic cleanup (v0.10.1.48)
 
 - Removed the dead shadowed `.menu-item` padding declaration and documented the deliberate 1px
   horizontal normalization from the density indirection; the P37 deferral note in
   ARCHITECTURE.md now stands as its own sentence (final-review minors).
 
-## CHORE: visual-verification scenario for UI polish batch 3b (v0.10.0.47)
+## CHORE: visual-verification scenario for UI polish batch 3b (v0.10.1.47)
 
 - New `scripts/scenarios/ui-polish-batch3b.json` (134 steps, 20 screenshots) covering every
-  surface shipped in batch 3b (v0.10.0.40–.46) plus reduced-motion + Performance-tier degradation.
+  surface shipped in batch 3b (v0.10.1.40–.46) plus reduced-motion + Performance-tier degradation.
   Ran green; every screenshot reviewed by eye.
 - **P18 (primitives):** FinishPicker `Disclosure` collapses (`+ Apartment colour palette…`) →
   expands (reveals Apartment palette + "Override palette for this room"); walk-settings
@@ -62,13 +83,13 @@ pruned from `main`; entries from C251 on (branch
   React-delegated handler; no plain mouse-move step) — verified via CSS-applied + gate-input
   probes + injected-element computed style, backed by the batch-3b unit suites.
 
-## CHORE: P37 ruling — defer list virtualization with a measured threshold (v0.10.0.46)
+## CHORE: P37 ruling — defer list virtualization with a measured threshold (v0.10.1.46)
 
 - Not justified now: the catalog grid is already paginated (PAGE_SIZE=12) and history/layers
   render well under 100 rows. TODO.md reworded to the deferral + ~200-live-row revisit
   threshold (lightweight scroll window before any dependency); ARCHITECTURE notes the ruling.
 
-## FEAT: ambient FX — HQ border-beam + catalog radial gradient, triple-gated (v0.10.0.45)
+## FEAT: ambient FX — HQ border-beam + catalog radial gradient, triple-gated (v0.10.1.45)
 
 - New `ambientFx` flag (simple-tier, prod default on) + `useAmbientFx()` — the single gate for
   decorative ambient effects: flag AND `qualityTier !== 'performance'` AND no `prefers-reduced-motion`.
@@ -88,7 +109,7 @@ pruned from `main`; entries from C251 on (branch
   YAGNI) and **toolbar dock magnification** (needs a continuous rAF spring integrator contradicting the
   Performance-tier/IO-pause mandate).
 
-## FEAT: Simple→Pro upsell hint in the ⌘K footer (v0.10.0.44)
+## FEAT: Simple→Pro upsell hint in the ⌘K footer (v0.10.1.44)
 
 - `ProUpsellHint` mounts a single "More tools in **Pro**" row in the ⌘K command palette footer,
   visible only in Simple mode (the Tools menu is Pro-only, so ⌘K is the one Simple-visible
@@ -100,16 +121,16 @@ pruned from `main`; entries from C251 on (branch
   navigate/run/close key hints) on the existing token vocabulary, reusing `.badge.neutral` for
   the "Pro" chip.
 
-## FEAT: density mode — compact/comfortable rows, Pro-tier, persisted (v0.10.0.43)
+## FEAT: density mode — compact/comfortable rows, Pro-tier, persisted (v0.10.1.43)
 
 - `[data-density]` on <html> drives `--row-pad-y/-x` token indirection over the normalized row
   paddings (compact trims vertical rhythm only, keeping touch targets). Toggle lives in the
   Appearance popover's Interface section, gated on the new pro-tier `densityMode` flag (hidden
   in Simple — both modes tested); preference persists via editorPrefs with back-compat.
 
-## FIX: TimeOfDaySlider keeps its section-header treatment; SliderField ariaLabel; prune no-op readout rule (v0.10.0.42)
+## FIX: TimeOfDaySlider keeps its section-header treatment; SliderField ariaLabel; prune no-op readout rule (v0.10.1.42)
 
-- Review fix on the P18 SliderField adoption (v0.10.0.41): TimeOfDaySlider's "Time of day" row
+- Review fix on the P18 SliderField adoption (v0.10.1.41): TimeOfDaySlider's "Time of day" row
   had lost its `.scene-row-head` section-header treatment (uppercase, matching the SceneMenu
   "Lights" header) when it moved to SliderField's plain `.fld .lbl` body-label rung. Restored
   the header row (label + `.scene-clock` readout) above the SliderField, and added a
@@ -123,7 +144,7 @@ pruned from `main`; entries from C251 on (branch
 - Logged remaining dead CSS from the SliderField migration (`.walk-cam-row`/`-lbl`/`-val`,
   `.scene-slider`) in `TASKS.md` for a follow-up cleanup pass.
 
-## FEAT: SliderField + Disclosure primitives; three P18 candidates dropped (v0.10.0.41)
+## FEAT: SliderField + Disclosure primitives; three P18 candidates dropped (v0.10.1.41)
 
 - `controls/SliderField` (label + `.slider` + tabular-nums readout, `format` prop) adopted in
   walk settings + time-of-day; `controls/Disclosure` (over the `.compose` `<details>` idiom)
@@ -131,7 +152,7 @@ pruned from `main`; entries from C251 on (branch
   (store-persisted + filter-expand). DROPPED with rationale: Badge dot/tonal variants (already
   exist), Breadcrumb (no navigated hierarchy), ButtonGroup (Modal footer prop suffices).
 
-## FEAT: live notification cards — body jump-to-result + error->Retry (v0.10.0.40)
+## FEAT: live notification cards — body jump-to-result + error->Retry (v0.10.1.40)
 
 - A progress/success toast can now carry `onActivate`: the whole card body becomes a
   "Jump to result ->" affordance (distinct from the trailing action button) and survives the
@@ -139,7 +160,7 @@ pruned from `main`; entries from C251 on (branch
   back-compatible 4th arg that swaps in the standard Retry action. All existing error()
   callers audited unaffected.
 
-## DOCS: Batch 3b implementation plan — the program's final tranche (v0.10.0.39)
+## DOCS: Batch 3b implementation plan — the program's final tranche (v0.10.1.39)
 
 - Authored `docs/superpowers/plans/2026-07-02-ui-polish-batch3b.md`: SliderField + Disclosure
   primitives (Badge-dot/Breadcrumb/ButtonGroup dropped as unconsumed), live notification cards
@@ -148,21 +169,21 @@ pruned from `main`; entries from C251 on (branch
   ambient FX (hotspot pulse + dock magnification dropped for cause), and a measured P37
   virtualization deferral (catalog already paginated; ~200-row revisit threshold).
 
-## DOCS: Batch 3a close-out — ARCHITECTURE map for new slices + UI systems (v0.10.0.38)
+## DOCS: Batch 3a close-out — ARCHITECTURE map for new slices + UI systems (v0.10.1.38)
 
 - `docs/ARCHITECTURE.md` now lists `calloutsSlice`/`badgesSlice` (self-persisting, alongside
   recent/favourites), the `layersCollapsed` features field, and the `InfoCallout`/`newBadges`
   UI systems; `src/state/CLAUDE.md`'s key list gains the two new `hdb_*` keys (final-review
   docs-currency ruling). BATCH 3A COMPLETE.
 
-## CHORE: Batch 3a wrap-up — recency guard, biome drift, badge follow-up note (v0.10.0.37)
+## CHORE: Batch 3a wrap-up — recency guard, biome drift, badge follow-up note (v0.10.1.37)
 
 - `isRecentlyIntroduced` gains a lower-bound guard (a future introduced build is "not yet
   shipped", not recent) + edge test (T5 review minor).
 - Biome format drift in `screenTransition.test.ts` fixed (slipped the staged-only hook).
 - TODO note: register the next real toolbar/menu feature in NEW_BADGES (dormant by design).
 
-## CHORE: visual-verification scenario for UI polish batch 3a (v0.10.0.36)
+## CHORE: visual-verification scenario for UI polish batch 3a (v0.10.1.36)
 
 - New `scripts/scenarios/ui-polish-batch3a.json` (79 steps, 13 screenshots) drives + visually
   verifies all five Batch 3a surfaces in one SwiftShader session; reviewed every PNG.
@@ -190,12 +211,12 @@ pruned from `main`; entries from C251 on (branch
   static (probe: `.plan-screen opacity 1`, near-zero anim duration) and the `.new-dot` pulse
   parks VISIBLE (probe: `opacity 1`, solid accent bg, `animation-iteration-count 1`).
 
-## FIX: info-callout line-height tokens per the type ladder (v0.10.0.35)
+## FIX: info-callout line-height tokens per the type ladder (v0.10.1.35)
 
 - `.ic-body b` (single-line title) -> `--lh-tight`; `.ic-body span` (multiline copy) ->
   `--lh-body` (the earlier swap had them flipped; T4 review nit).
 
-## FEAT: "New" feature badges (v0.10.0.34)
+## FEAT: "New" feature badges (v0.10.1.34)
 
 - New flag-gated (`newBadges`, simple tier, default on) pulsing `.new-dot` on a
   toolbar/menu entry for a recently-shipped feature, dismissed the first time
@@ -217,41 +238,41 @@ pruned from `main`; entries from C251 on (branch
   to its 0-radius end state while the dot's own background stays static, so no
   extra reduced-motion override was needed (unlike `.skeleton`'s shimmer).
 
-## FEAT: progressive-disclosure info callouts (v0.10.0.33)
+## FEAT: progressive-disclosure info callouts (v0.10.1.33)
 
 - New flag-gated (`infoCallouts`, simple tier — shown in both modes) `<InfoCallout>` hint
   banners in the room editor, floor-plan editor and walk mode; copy verified against the real
   controls. Dismissal is per-id and persisted (`calloutsSlice`, `hdb_dismissed_callouts`) so a
   dismissed hint never returns. Token-only styling (accent left edge, `--lh-body` copy).
 
-## FEAT: persist panel state — left-dock tab, collapsed layer groups, desktop catalog-open (v0.10.0.32)
+## FEAT: persist panel state — left-dock tab, collapsed layer groups, desktop catalog-open (v0.10.1.32)
 
 - `editorPrefs` (key `sofa.editor.v1`) now also persists `leftMode`, the Layers panel's
   group-collapse map (lifted into `featuresSlice`), and `catalogOpen` — the latter restored on
   desktop only (`matchMedia` gate, SSR-safe) so the mobile bottom-sheet never auto-reopens.
   Back-compat with older stored prefs; no dock-side state exists to persist.
 
-## FEAT: History panel in-panel search (v0.10.0.31)
+## FEAT: History panel in-panel search (v0.10.1.31)
 
 - Filter the history timeline by step label via the shared `.cat-search` field idiom; no
   matches shows the EmptyState with a "Clear filter" CTA. Undo/redo/clear act on true history
   regardless of the filter. Layers search shipped in 2b; catalog earlier — P29 complete.
 
-## FEAT: floor-plan-editor crossfade entrance (v0.10.0.30)
+## FEAT: floor-plan-editor crossfade entrance (v0.10.1.30)
 
 - The 2D floor-plan editor now fades in over the persistent 3D canvas on mount
   (`screenFadeIn`, `--dur-2`/`--ease-out`, fill `backwards`) — the one mode transition not
   already masked by the LoadingOverlay (orbit<->walk and room enter/exit stay as-is). Exit is
   an instant reveal of the painted scene; reduced-motion neutralised globally.
 
-## DOCS: Batch 3a implementation plan (v0.10.0.29)
+## DOCS: Batch 3a implementation plan (v0.10.1.29)
 
 - Authored `docs/superpowers/plans/2026-07-02-ui-polish-batch3a.md`: floor-plan-editor
   crossfade (the one unmasked mode transition), History-panel search (Layers shipped in 2b),
   persisted panel state via editorPrefs, flag-gated `<InfoCallout>` hints, and flag-gated
   "New" feature badges — with argued flag/tier decisions and both-mode test requirements.
 
-## DOCS: Batch 2b merge prep — policy carve-out, code map, a11y label (v0.10.0.28)
+## DOCS: Batch 2b merge prep — policy carve-out, code map, a11y label (v0.10.1.28)
 
 - Destructive-action policy: bulk clears (`clearRoom`) documented as confirm **+** Undo by
   design (the policy's reversible example previously contradicted the shipped double-gate).
@@ -260,13 +281,13 @@ pruned from `main`; entries from C251 on (branch
 - VersionsPanel's icon-only delete button gains `aria-label`; CommentsPanel's toggle uses
   Button's `block` prop instead of an inline width.
 
-## FIX: slow the skeleton shimmer to a calm 1.2s loop (v0.10.0.27)
+## FIX: slow the skeleton shimmer to a calm 1.2s loop (v0.10.1.27)
 
 - `skeletonShimmer` now runs at `calc(var(--dur-3) * 2)` (~1.2s) — the 600ms loop read
   frantic on-screen (T11 visual ruling, matches the 1.2-2s convention). Also prunes the dead
   `1.4s` fallback so a future token rename can't silently reactivate a stale duration.
 
-## CHORE: visual-verification scenario for UI polish batch 2b (v0.10.0.26)
+## CHORE: visual-verification scenario for UI polish batch 2b (v0.10.1.26)
 
 - New `scripts/scenarios/ui-polish-batch2b.json` (61 steps, 14 screenshots) drives + reviews the
   batch-2b polish surfaces headlessly; all steps pass.
@@ -293,7 +314,7 @@ pruned from `main`; entries from C251 on (branch
   - **Reduced-motion** — with the reduced-motion style injected, panel/skeleton/toast settle
     statically (skeleton falls back to a static fill, no frozen gradient).
 
-## FEAT: empty-state CTA sweep — no dead ends (v0.10.0.25)
+## FEAT: empty-state CTA sweep — no dead ends (v0.10.1.25)
 
 - 8 CTAs wired to verified real handlers: Versions "Save current version"; Budget saved/placed
   "Browse catalog"; catalog favourites/recent/empty "Browse all" (first populated category);
@@ -303,14 +324,14 @@ pruned from `main`; entries from C251 on (branch
   Note: versions/budget flags are simple-tier, so CTAs behave identically in both modes
   (tested).
 
-## DOCS: drop P34 — optimistic placement already covered by ghost + confirm-bar (v0.10.0.24)
+## DOCS: drop P34 — optimistic placement already covered by ghost + confirm-bar (v0.10.1.24)
 
 - Ruling recorded: drag arms the live `PlacementGhost` (cursor-following during `dragover`)
   and drop applies the item instantly into a `pendingEdit` reconciled by the ✓/✗
   `EditConfirmBar` — placement is synchronous and local, so an optimistic/reconcile layer
   would duplicate what ships today. Noted in src/ui/CLAUDE.md so the item isn't re-opened.
 
-## FIX: enforce destructive-confirmation policy (v0.10.0.23)
+## FIX: enforce destructive-confirmation policy (v0.10.1.23)
 
 - Saved-version slot delete (VersionsPanel) and saved-view delete (SavedViewsSection) now gate
   on the themed `confirmAction({ title, message, confirmLabel, danger })` modal — both were
@@ -318,7 +339,7 @@ pruned from `main`; entries from C251 on (branch
   Undo-toast (itemsSlice deletes already conform); irreversible -> confirm modal; never
   window.confirm, never silent deletion.
 
-## FEAT: Button loading state — inline spinner + aria-busy (v0.10.0.22)
+## FEAT: Button loading state — inline spinner + aria-busy (v0.10.1.22)
 
 - `Button.tsx` gains a `loading?: boolean` prop: swaps `icon` for an inline
   `Icon.Versions` spinner (`.btn-spin`, reusing the `toastspin` keyframe), sets
@@ -326,7 +347,7 @@ pruned from `main`; entries from C251 on (branch
   in `components.css`), and forces `disabled = disabled || loading`.
 - Wired to `HqRenderModal`'s "Start render"/"Re-render" button: `loading={phase === 'building'}`.
 
-## FEAT: typed <Button> primitive over the .btn-* vocabulary (v0.10.0.21)
+## FEAT: typed <Button> primitive over the .btn-* vocabulary (v0.10.1.21)
 
 - New `controls/Button.tsx`: `variant`/`size`/`block`/`icon` props compose the existing
   `.btn`/`.btn-accent|soft|danger`/`.btn-sm`/`.btn-block` classes (classes stay the source of
@@ -334,7 +355,7 @@ pruned from `main`; entries from C251 on (branch
   footer, StyleQuizModal, CommentsPanel; ~222 legacy call sites tracked as follow-up.
   Convention documented in src/ui/CLAUDE.md. `loading` lands next.
 
-## REFACTOR: purge hardcoded px from inline styles + regression guard (v0.10.0.20)
+## REFACTOR: purge hardcoded px from inline styles + regression guard (v0.10.1.20)
 
 - ElevationPanel/RenderCompareModal/LocationPrompt/FinishPicker inline paddings/margins/
   font-sizes/gaps mapped onto `--s-N`/`--t-N` tokens (<=1px density delta). New
@@ -342,7 +363,7 @@ pruned from `main`; entries from C251 on (branch
   `fontSize`/`gap` inline styles (widths/heights/computed values exempt); 60 pre-existing
   offender files grandfathered as tracked follow-up debt.
 
-## FIX: EditConfirmBar leave-effect respects an in-flight dismiss (v0.10.0.19)
+## FIX: EditConfirmBar leave-effect respects an in-flight dismiss (v0.10.1.19)
 
 - The room-editor-leave effect no longer calls `confirm()` while a dismiss timer is pending —
   previously a Cancel click followed by leaving the editor within the 150ms shake window
@@ -350,7 +371,7 @@ pruned from `main`; entries from C251 on (branch
 - TASKS.md: logged the pre-existing `#b8860b` heavy-download colour literal in RemoteCard for
   the no-hardcoded-colour sweep.
 
-## FEAT: .skeleton shimmer loader for catalog thumbnails (v0.10.0.18)
+## FEAT: .skeleton shimmer loader for catalog thumbnails (v0.10.1.18)
 
 - Token-only shimmer (`--surface-3`/`--surface-2` gradient sweep, reduced-motion -> static
   fill) shown in `.card-thumb` while a rendered thumbnail is genuinely pending: CatalogCard
@@ -358,7 +379,7 @@ pruned from `main`; entries from C251 on (branch
   errored). Icon-only defs keep their CategoryIcon without a skeleton; the inspector thumb is
   synchronous and untouched.
 
-## FEAT: success/confirm micro-animations (v0.10.0.17)
+## FEAT: success/confirm micro-animations (v0.10.1.17)
 
 - Success-toast checkmark pops in via a `checkPop` scale keyframe (`backwards` fill); the
   EditConfirmBar dismiss animates — slide-down on confirm (`editConfirmLeave`, `forwards`),
@@ -366,7 +387,7 @@ pruned from `main`; entries from C251 on (branch
   Enter/Escape route through the same wrapped handlers; reduced-motion skips the exit delay
   and the global block neutralises the keyframes.
 
-## FEAT: desktop dock-panel slide+fade entrance (v0.10.0.16)
+## FEAT: desktop dock-panel slide+fade entrance (v0.10.1.16)
 
 - `.dock-panel`/`.dock-panel-left` mount with a `--dur-2`/`--ease-out` slide+fade (fill-mode
   `backwards` per the motion convention) inside the >=641px dock block, and the canvas reflow
@@ -374,14 +395,14 @@ pruned from `main`; entries from C251 on (branch
   reduced-motion neutralised by the global block. Reflow smoothness to be confirmed in the
   batch visual pass (drop the transition if it janks).
 
-## REFACTOR: --panel-w/--panel-w-compact panel-width tokens (v0.10.0.15)
+## REFACTOR: --panel-w/--panel-w-compact panel-width tokens (v0.10.1.15)
 
 - Floating catalog/inspector/finish panel widths normalized onto `--panel-w` (320px, matching
   the fixed docked rail so a panel keeps its width when it docks) with `--panel-w-compact`
   (288px) on tablet <=1024, replacing the hand-tuned 326/300/312 + 300/284/296 values.
   `.er-list`/`.plan-props` left as follow-up.
 
-## DOCS: Batch 2b implementation plan (v0.10.0.14)
+## DOCS: Batch 2b implementation plan (v0.10.1.14)
 
 - Authored `docs/superpowers/plans/2026-07-02-ui-polish-batch2b.md`: panel-width tokens, inline-px
   purge + regression guard, `<Button>` primitive + loading state, `.skeleton` loader, dock-panel
@@ -390,7 +411,7 @@ pruned from `main`; entries from C251 on (branch
   reconciliation). Program paused here at the user's request — Batches 1+2a fully landed and
   reviewed; 2b ready to execute.
 
-## FIX: stagger entrance uses fill-mode backwards — restores hover-lift + hidden-row dimming (v0.10.0.13)
+## FIX: stagger entrance uses fill-mode backwards — restores hover-lift + hidden-row dimming (v0.10.1.13)
 
 - Defect (batch-2a final review): `.stagger-in > * { animation: staggerIn var(--dur-2)
   var(--ease-out) both; }` in `src/styles/components.css` used fill-mode `both`, which keeps
@@ -419,12 +440,12 @@ pruned from `main`; entries from C251 on (branch
   media-emulation" note for reduced-motion verification (inject a mirroring `<style>`, as
   `ui-polish-batch2a` does).
 
-## CHORE: biome format fix for rowPadding.test.ts (v0.10.0.12)
+## CHORE: biome format fix for rowPadding.test.ts (v0.10.1.12)
 
 - Formatter drift in `src/styles/rowPadding.test.ts` (landed via a cherry-pick whose staged-only
   hook missed it) - repo-wide `npm run check` is green again.
 
-## CHORE: visual-verification scenario for UI polish batch 2a (v0.10.0.11)
+## CHORE: visual-verification scenario for UI polish batch 2a (v0.10.1.11)
 
 - New `scripts/scenarios/ui-polish-batch2a.json` (55 steps, 11 screenshots) drives + visually
   verifies the Batch 2a polish surfaces. Reviewed each PNG by eye; observations per surface:
@@ -450,13 +471,13 @@ pruned from `main`; entries from C251 on (branch
     matching the global `prefers-reduced-motion` block.
 - No app code changed — scenario + docs + version bump only.
 
-## FIX: command-palette group labels join the entrance cascade (v0.10.0.10)
+## FIX: command-palette group labels join the entrance cascade (v0.10.1.10)
 
 - `.cmdk-glabel` now carries the group's first flat `--i` inline, so labels enter in sequence
   with the surrounding items instead of racing earlier groups (they previously fell back to the
-  nth-child `--i: 0`). Follow-up from the v0.10.0.9 re-review; comment wording aligned.
+  nth-child `--i: 0`). Follow-up from the v0.10.1.9 re-review; comment wording aligned.
 
-## FIX: command-palette entrance stagger targets items, not group wrappers (v0.10.0.9)
+## FIX: command-palette entrance stagger targets items, not group wrappers (v0.10.1.9)
 
 - `stagger-in` moved off `.cmdk-results` and onto each result-group wrapper `<div>` in
   `src/ui/CommandPalette.tsx`, so `.cmdk-glabel` + every `.cmdk-item` become DIRECT children
@@ -467,7 +488,7 @@ pruned from `main`; entries from C251 on (branch
   was dead. Regression test (`src/ui/CommandPalette.stagger.test.tsx`) asserts structurally
   that every `.cmdk-item`'s parent carries `stagger-in` and has a non-empty inline `--i`.
 
-## DOCS: border / hover / type-hierarchy conventions in src/ui/CLAUDE.md (v0.10.0.8)
+## DOCS: border / hover / type-hierarchy conventions in src/ui/CLAUDE.md (v0.10.1.8)
 
 - `src/ui/CLAUDE.md` conventions cluster extended with three bullets: `--border` (default
   hairline) vs `--border-2` (emphasis/hover-only, never a colour literal or ad-hoc alpha);
@@ -485,7 +506,7 @@ pruned from `main`; entries from C251 on (branch
   they're left as a follow-up rather than expanded in scope here.
 - `docs/superpowers/plans/2026-07-02-ui-polish-batch2a.md` (UI polish Batch 2a plan) committed.
 
-## FEAT: entrance stagger for menus, catalog grid, layers, ⌘K results (v0.10.0.7)
+## FEAT: entrance stagger for menus, catalog grid, layers, ⌘K results (v0.10.1.7)
 
 - Shared `.stagger-in` utility: children fade+rise in a 50ms cascade (`staggerIn` keyframe,
   `--dur-2`/`--ease-out`; `both` fill holds the from-state through the delay). Mapped lists set
@@ -494,26 +515,26 @@ pruned from `main`; entries from C251 on (branch
 - Reduced-motion block now also zeroes `animation-delay`/`transition-delay`, so staggered items
   land together instead of one-by-one.
 
-## FEAT: sticky section headers in scrolling panels (v0.10.0.6)
+## FEAT: sticky section headers in scrolling panels (v0.10.1.6)
 
 - `.lyr-ghead-row` group headers and `.sec-h` section headers pin to the top of their scroll
   body (`position: sticky` + surface fill + `--border` hairline), verified against the
   `.lyr-body`/`.panel-body` overflow hierarchy.
 
-## FIX: layers row actions reveal on keyboard focus + stay visible on touch (v0.10.0.5)
+## FIX: layers row actions reveal on keyboard focus + stay visible on touch (v0.10.1.5)
 
 - `.lyr-acts` (hide/lock/delete) now also reveals on `:focus-within` (keyboard access) and is
   always visible under `body.mobile` (touch has no hover), matching the `.lyr-geye` idiom.
   Audit: history rows have no per-row actions; version-card actions are always-visible by design.
 
-## REFACTOR: unified .liftable hover-lift across cards (v0.10.0.4)
+## REFACTOR: unified .liftable hover-lift across cards (v0.10.1.4)
 
 - One hover treatment for interactive cards: `translateY(-2px)` + `--shadow-pop` via the shared
   `.liftable` class (`.cat-card`, `.swap-card`, `.ver-card`; `.preset-card` via the CSS selector
   group). Per-card hover rules keep only their border/background accents - no stacked duplicate
   transforms. Reduced-motion neutralised by the global app.css block.
 
-## REFACTOR: row-padding normalized onto the --s scale (v0.10.0.3)
+## REFACTOR: row-padding normalized onto the --s scale (v0.10.1.3)
 
 - Three sanctioned row compositions replace ad-hoc px: compact `--s-2 --s-3` (.lyr-row),
   standard `--s-3` (.menu-item, .row), pill `--s-3 --s-4` (.chip). Each mapped to its nearest
@@ -521,19 +542,19 @@ pruned from `main`; entries from C251 on (branch
 - TASKS.md: logged clearRoom's doubled history snapshot (explicit pushHistory + first silent
   deleteItem's coalesced push) for a future dedupe.
 
-## FEAT: --lh-tight/--lh-body line-height tokens (v0.10.0.2)
+## FEAT: --lh-tight/--lh-body line-height tokens (v0.10.1.2)
 
 - `--lh-body` (1.5) now drives multiline reading copy: `.empty-mini` descriptions, clearance
   detail text, empty-state subs, onboarding lede/steps. `--lh-tight` (1.25) is the documented
   heading/label leading. Replaces per-selector hardcoded 1.45/1.5/1.55 values.
 
-## FEAT: motion scale tokens --dur-1/-2/-3 + --ease-out (v0.10.0.1)
+## FEAT: motion scale tokens --dur-1/-2/-3 + --ease-out (v0.10.1.1)
 
 - Motion scale for entrance/exit choreography: `--dur-1` 150ms / `--dur-2` 300ms / `--dur-3`
   600ms plus `--ease-out` (easeOutExpo `cubic-bezier(0.16,1,0.3,1)`) alongside the existing
   `--dur`/`--ease` micro-transition tokens. Consumed by the upcoming entrance stagger.
 
-## FEAT: UI/UX polish Batch 1 — merge prep (v0.10.0.0)
+## FEAT: UI/UX polish Batch 1 — merge prep (v0.10.1.0)
 
 - Fixed the clearRoom double-toast (P30 follow-up): `deleteItem` now takes an
   `opts?: { silent?: boolean }` param that suppresses its own "Item deleted" toast;
@@ -548,6 +569,259 @@ pruned from `main`; entries from C251 on (branch
   pinch-zoom-flicker branch.
 - Added menu-shortcut / modal-width / focus-ring conventions to `src/ui/CLAUDE.md`.
 - PR-level version bump per the versioning rule (multi-feature Batch 1 PR → minor).
+
+## FIX: per-room-editor walls carve real door/window openings — one watertight extruded body (v0.10.0.18)
+
+- **Room-editor walls no longer occlude the door leaf / window pane sitting inside them.** Every
+  wall (built-in shell and clipped plan walls) is now ONE watertight extruded body
+  (`walls/wallBodyGeometry.ts` `extrudeWallBody`) whose cross-section outline carves door notches
+  and window holes (`wallBodyOutlineFromSpans` in `wallBodyShape.ts`, pure + unit-tested) — shared
+  by the orbit scene's `WallSegment` and the per-room editor's `RoomShell`/`PlanRoomShell`.
+- Clipped plan walls project each opening from the full wall's frame into the clip's centred
+  along-axis frame (`clippedWallCutouts` in `roomShell.ts`, handles reversed/partial spans; pure +
+  unit-tested); openings outside the clip are clamp-dropped.
+- `OPENING_CLEARANCE` shrinks each carved hole a hair (per edge) so the leaf/pane overlaps the
+  wall instead of sitting coplanar with the jambs — kills the edge z-fighting flicker while
+  leaving no see-through gap.
+- `PlanWallFinishFace` is deleted: the resolved room finish (or plaster fallback) is applied on
+  the wall body directly, and plan walls keep the camera-facing translucent reveal.
+
+## CHORE: PWA manifest name/description rewritten for search/install surfaces (v0.10.0.17)
+
+- `manifest.webmanifest` copy now leads with the user benefit and keywords ("Free 3D Interior
+  Design for Singapore HDB Flats & Condos"; "plan before renovation day… walk through in first
+  person. Free in your browser") instead of the generic app blurb.
+
+## PERF: RoomSwitcher drops per-room furniture counts (v0.10.0.16)
+
+- The room-editor dropdown no longer computes a furniture count per room: that subscribed the
+  component to `items`, re-rendering it (and re-running polygon `pointInRoom` for every item ×
+  room) on **every edit**. The dropdown now lists plain room names and only re-renders when the
+  plan or active room changes.
+
+## FIX: WebGL2 support probe runs once — probing per render leaked GL contexts (v0.10.0.15)
+
+- `WebGLFallback` created a fresh probe canvas + WebGL2 context on **every render**; browsers cap
+  live contexts (~8–16) and evict the oldest, so enough re-renders could evict the *real* scene
+  renderer ("THREE.WebGLRenderer: Context Lost"). The probe result is now cached module-level and
+  the probe context is explicitly released via `WEBGL_lose_context.loseContext()`.
+
+## UX: 2D floor-plan swap shows the transition overlay; boot yields between hydrate steps (v0.10.0.14)
+
+- **Entering/leaving the 2D floor-plan editor now raises the loading overlay** ("Opening/Closing
+  floor plan…") instead of an instant jump-cut, mirroring the room editor's transition
+  (`setFloorPlanEditing`/`toggleFloorPlanEditing`, unit-tested; clears on scene-ready as usual).
+- **The boot sequence yields one animation frame after each hydrate step** (`bootstrap.ts`), so the
+  boot loader keeps compositing between storage reads instead of freezing through a long
+  synchronous run (follow-up to the v0.10.0.7/.8 loader work).
+- Playbook: documented the `enterRoomEditor` "Entering room…" overlay gotcha for catalog
+  screenshots (call `hideLoading()` before shooting) + the boot-splash settle behaviour under
+  SwiftShader; TODO logs the deferred deeper warm-up lever (`renderer.compileAsync` +
+  time-sliced mounts) with its adoption threshold.
+
+## UX: hover highlight is gated on the item's footprint, not its raw mesh (v0.10.0.13)
+
+- **Tall/overhanging geometry no longer lights a piece up from across the room** (HOVER-FOOTPRINT):
+  `Furniture` projects the hover cursor's ray onto the floor plane and only highlights when that
+  floor point lies inside the item's min-span footprint — so hovering the empty air under a table
+  overhang or a tall lamp's sweep doesn't flash the highlight. Runs on pointer-over *and* -move
+  (the cursor can cross the footprint boundary while still over the mesh); selection still works
+  anywhere on the visible mesh.
+- The containment test is a pure, unit-tested helper: `floorPointInFootprint` in
+  `collision/placement.ts` (inverse-yaw transform into the item's local frame, min-span rectangle).
+
+## FIX: tap-to-select no longer flickers straight back to deselected (2D plan editor + 3D scene) (v0.10.0.12)
+
+- **2D floor-plan editor (View mode / mobile)**: tapping a wall selected it and instantly
+  deselected it — the tap's bubbled pan-release cleared the selection it had just made. The
+  pan-release rule now lives in a pure, unit-tested helper (`ui/floorplan/editor/tapDeselect.ts`,
+  `clearsSelectionOnPanRelease`): a release only clears the selection when the gesture was a real
+  drag or its press landed on empty canvas. Reproduced + guarded by the
+  `plan-tap-select-view.json` scenario (one selection transition, selection sticks).
+- **3D scene**: selecting an item opens the inspector, which resizes the canvas and shifts the
+  item under the cursor — the same gesture's release then raycast-missed and `onPointerMissed`
+  deselected it (INSPECTOR-FLICKER). `clickVsDrag` now tracks whether the in-flight gesture began
+  on a furniture item (capture-phase reset + `markPointerDownOnItem()` from `Furniture`'s
+  pointerdown), and `deselectOnMiss` ignores that gesture's release (unit-tested).
+- **History**: a pending "Apply change?" confirmation is transient view state — snapshots now
+  exclude it and undo/redo/jump clear it, so the edit-confirm bar can't be stranded pointing at
+  an edit that no longer exists (INSPECTOR-EDIT-BAR, unit-tested).
+
+## FIX: test suite runs offline-deterministic — `VITE_API_BASE` pinned empty in vitest (v0.10.0.11)
+
+- `authSlice.test.ts` failed whenever the developer's `.env` set `VITE_API_BASE=/api` (added with
+  the Cloudflare backend): `hasBackend()` flipped the auth provider to the network path and sign-in
+  tests hit a dead `127.0.0.1` socket. `vitest.config.ts` now pins `VITE_API_BASE=''` for tests, so
+  the suite always exercises the offline/local provider; backend-path tests mock `hasBackend`
+  themselves (`sharedLibrarySlice.test.ts`).
+
+## FEAT: shared R2 library auto-populates the catalog grid for signed-in users (v0.10.0.10)
+
+- **Every product in the Cloudflare R2 shared library now appears as a browsable catalog card**
+  for signed-in users — no manual "add" step. `sharedLibrarySlice.bootstrapSharedLibrary` fetches
+  `library/index.json` once when the catalog opens (guarded on `hasBackend()` + sign-in + the
+  existing `sharedLibrary` pro flag); `useUnifiedCatalog(includeRemote, includeShared)` merges the
+  manifest as a `shared` `GridItem` kind, deduped against already-imported `ikea-<groupKey>` defs.
+  `SharedCard` mirrors `RemoteCard` (lazy proxy thumbnail, import-on-click via `addSharedGroup` →
+  `registerSharedGroup` → `importGroup`), and sort/price filters understand the new kind.
+- The manifest builder (`scripts/build-library-index.mjs`) now emits each product's `groupKey`
+  (the dedup key) via a pure, unit-tested `entryFromMeta`; `docs/deployment-cloudflare.md` +
+  `docs/developer/packs-and-remote-catalog.md` document the flow.
+- **Catalog drawer rework that carries it**: the redundant Packs "shared library" surface is gone;
+  the browse Sort select is now a compact icon trigger (`Select iconTrigger`, new `Icon.Sort`) in
+  the category rail (`.cat-rail` edge spacers keep scroll insets flush); local IKEA-derived defs
+  show a small "IKEA" `CatalogSourcePill` on their thumbnails.
+- Session-only by design — the manifest is re-fetched each session; imported defs persist through
+  the existing `hydrateIkea` path. Covered by slice/unified-catalog/SharedCard/browse unit tests in
+  both Simple and Pro modes, plus the `shared-library-simple.json` visual scenario.
+
+## CHORE: wrangler.toml points at the provisioned Cloudflare resources (v0.10.0.9)
+
+- The `REPLACE_WITH_*` placeholders in `wrangler.toml` are gone: the D1 database id, the three KV
+  namespace ids (sessions/cache/flags) and the R2 bucket binding (`sofa_assets`) now reference the
+  actually-provisioned Cloudflare resources, so the Pages build deploys against the real backend
+  without hand-editing. (Resource ids are account-scoped identifiers, not secrets.)
+
+## PERF: boot loader keeps animating through Canvas warm-up (no more frozen "Almost ready…" cover) (v0.10.0.8)
+
+- **The static `#boot-loader` no longer freezes to a static frame during scene warm-up.** Its
+  art now uses the same compositor-proof structure as the transition overlay (v0.10.0.7): every
+  animated piece is an HTML `<div>` layer holding a static SVG, so the browser animates it off
+  the main thread and the Canvas mount/shader compile can't stutter it. The `.bl-static` freeze
+  class (whose whole purpose was hiding that stutter) is removed from index.html + App.tsx —
+  boot phase 2 keeps the furnishing loop running; only the cycling *phrase* still pins to
+  "Almost ready…" (text swaps need the main thread). Reveal was already readiness-based
+  (`sceneReady`), so boot is now visually two stages: animated loader → fade into the warm scene.
+- Guarded by `ui/loading/bootLoaderArt.test.ts`: parses index.html and fails if any animation
+  class lands on an SVG node or the freeze path reappears.
+
+## PERF: transition loading overlay — compositor-proof animation + readiness-based hide (v0.10.0.7)
+
+- **The furnishing-room loader no longer stutters while the swapped-in scene mounts.** Every
+  animated piece is now an HTML `<div>` layer holding a static SVG (was: animated SVG children,
+  which browsers animate on the main thread — the same thread the heavy scene mount/shader
+  compile blocks). Transform-origins pinned per layer reproduce the old `transform-box: fill-box`
+  look exactly; guarded by `LoadingOverlay.test.tsx` (animation classes must sit on HTML nodes).
+- **The overlay hides on readiness, not a timer.** `RenderPump` now grants throttled ~10 fps warm
+  frames while the transition overlay is up (was: full WebGL freeze that stockpiled the whole
+  compile/upload cost into the fade window), both Canvases publish rendered frames via
+  `scene/frameRenderedSignal.ts` (`FrameRenderedNotifier`), and `scheduleTransitionHide`
+  (`ui/loading/transitionHide.ts`) waits for the deferred swap to commit + 2 real frames — with a
+  2 s safety timeout — before `hideLoading`. No more revealing an unloaded canvas; min-time +
+  fade still shape the visible duration.
+- New interaction ladder rung: `scripts/scenarios/transition-overlay-readiness.json` drives all
+  three transition types (orbit↔walk, room editor enter/exit, floor-plan open/close) and asserts
+  each overlay auto-dismisses without a manual `hideLoading` call.
+
+## FIX: legacy `timeOfDay:"day"` autosaves migrate to system time, not pinned noon (v0.10.0.6)
+
+- **Designs saved before the timeMode refactor no longer boot stuck at 12:00 PM.** The legacy
+  `timeOfDay` enum's *default* was `'day'`; the load migration in `state/schema.ts` converted it
+  to `manual` mode at hour 12, so long-time users opened every session pinned to noon with the
+  "System time" button un-highlighted. `'day'` now migrates to **`system`** mode (follow the real
+  clock, like a fresh design); `'dusk'`/`'night'` were deliberate picks and stay `manual` at 18/0.
+- Verified end-to-end: seeded a `version:1` `timeOfDay:'day'` autosave slot, reloaded, and the app
+  booted into `timeMode:'system'`.
+
+## UX: boot splash cycles Singapore/HDB loading phrases (v0.10.0.5)
+
+- **The boot splash and generic loading overlay now rotate HDB-flavoured status lines**
+  (Building the walls…, Waiting for the lift…, Chope-ing the sofa spot…, etc.) with a
+  Claude Code–style crossfade, then pin "Almost ready…" during scene warm-up.
+- **Single source of truth:** `src/ui/loading/loadingPhrases.json` feeds the React
+  `CyclingPhrase` component and is injected into `index.html` at dev/build time via
+  `vite-boot-phrases.mjs` (no duplicated inline phrase list).
+
+## FEAT: shared R2 library auto-populates the catalog grid for signed-in users (v0.10.0.4)
+
+- **The Cloudflare R2 shared library now surfaces directly in the main catalog grid** — no more
+  manual per-product "Add" in the Packs tab. When the catalog opens for a signed-in user with the
+  `sharedLibrary` (pro) flag on, `CatalogDrawer` bootstraps the manifest once and every library
+  product appears as a browsable card in its category tab, paginated by the existing grid pager.
+- **New `sharedLibrarySlice`** (`state/slices/sharedLibrarySlice.ts`) — fetches the R2 manifest
+  (`fetchSharedLibraryIndex`, guarded on backend + sign-in + flag) and imports a chosen group on
+  demand (`addSharedGroup` → `registerSharedGroup` → `importGroup`). Session-only; imported IKEA
+  defs persist via the existing hydrate path.
+- **New `SharedCard`** (`ui/catalog/SharedCard.tsx`) — mirrors `RemoteCard`; lazy-loads its
+  thumbnail through the auth-gated proxy (`loading="lazy"`, same-origin cookie) and downloads the
+  GLB only on click. Carries a "Library" badge + heart favourite keyed on the predicted def id.
+- **`useUnifiedCatalog(includeRemote, includeShared)`** merges library items as a new `shared`
+  `GridItem` kind, mapping category with the importer's `mapCategory` and deduping against any
+  already-imported `ikea-<groupKey>` def. Pro-only (forced off in Simple mode).
+- **`build-library-index.mjs`** now emits `groupKey` per entry (the dedup key) and exposes a pure,
+  unit-tested `entryFromMeta`. The redundant Packs-tab `SharedLibraryCard` was removed.
+
+## CI: GitHub Actions deploy to Cloudflare Pages on push to main (v0.10.0.3)
+
+- **`.github/workflows/deploy-cloudflare.yml`** — builds with `VITE_API_BASE=/api` /
+  `VITE_BASE=/` and deploys via `cloudflare/wrangler-action` (`--branch=main` →
+  `sofa-so-good.pages.dev`). Separate from `deploy.yml` (offline GitHub Pages demo).
+  Needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` repo secrets.
+- **`docs/deployment-cloudflare.md`** — CI/CD setup steps, Pages project prerequisite,
+  rclone `no_check_bucket` note for bucket-scoped R2 tokens.
+- **`docs/ARCHITECTURE.md`** — one-line pointer to the new workflow.
+
+## PERF: upload dialog paginates detected model groups — smooth spinner/counter on huge folders (v0.10.0.2)
+
+- **The "Detecting model groups…" dialog no longer stutters on a folder of thousands of groups.**
+  The counter + growing list already coalesced to one repaint per animation frame, but two things
+  still did *unbounded* per-frame work on the main thread and starved the spinner animation + the
+  counter's paint: (1) the detected-groups list rendered **one `<li>` per group** (1000+ DOM nodes to
+  reconcile + lay out every frame), and (2) `looseModelFiles(files, groups)` — an **O(files × groups)**
+  classification — ran on every dialog re-render, i.e. every frame as the group list grew (~millions of
+  `startsWith` calls/frame at scale).
+- **Fix 1 — pagination** (`ui/upload/UploadModelDialog.tsx` `GroupPanel`): render only one page of
+  `GROUPS_PER_PAGE = 50` rows with a Prev / "Showing X–Y of N · page P of T" / Next pager, so the DOM
+  node count stays flat regardless of scan size. While detection is still running the view **pins to
+  page 1** (rows never jump; the pager appears once the scan settles). Backed by the pure, unit-tested
+  `ui/upload/pageWindow.ts` (clamps out-of-range pages when the settled list is smaller than expected).
+- **Fix 2 — defer loose-model classification while detecting** (Import is disabled mid-scan, so the
+  exact loose count isn't actionable): the O(n²) hot path is skipped during detection and computed once
+  from the authoritative final list.
+- Tests: `pageWindow.test.ts` (8) + `GroupPanel.test.tsx` (5, `@testing-library/react` — 1050 groups
+  render exactly 50 `<li>`s, pager navigation, pinned/no-pager while detecting). Scenario
+  `model-upload-simple.json` drives detection over a synthetic 60-group folder via the new dev-only
+  `__detectGroups` hook (bootstrap.ts) and asserts 60 groups + 2 loose + progress 60/60; the paginated
+  render (React.lazy, unmountable headless) was pixel-verified via a temporary `main.tsx` mount.
+
+## FEAT: admin can reset any account's password + role in-app; sessions revoked on change (v0.10.0.1)
+
+- **Manage accounts → Edit** (admin only): reset any account's password (≥8 chars) and/or change
+  its role (user↔admin) inline. Editing your own row is how the admin credentials are rotated —
+  the `ADMIN_EMAIL`/`ADMIN_PASSWORD` seed only creates the *first* admin and is skipped thereafter.
+- **`PATCH /api/admin/users/:id`** (`{ password?, role? }`): validates, blocks demoting/deleting the
+  **last admin** (409), then **revokes all of the target's sessions** so any credential change forces
+  re-login. A self password change re-mints your own session (you stay signed in; your other
+  sessions still die).
+- **Session revocation** via a new per-user token index in KV (`usess:<userId>`); the read-heavy
+  hot path (`readSession`) still costs a single KV read (index writes only on login/logout/revoke).
+- Tests: session index/revoke, D1 password/role helpers, and the route (reset, role change,
+  last-admin guard, self re-mint) + the modal edit affordance. Docs updated in
+  `docs/deployment-cloudflare.md`.
+
+## FEAT: Cloudflare backend — accounts, cloud sync, shared R2 library, $0 guardrails (v0.10.0.0)
+
+- **New optional backend for a Cloudflare Pages + Workers deployment**, wired through the existing
+  `AuthProvider` / `StorageAdapter` seams so guests and the GitHub Pages / offline build are
+  completely unchanged. Everything gates on `VITE_API_BASE` (`hasBackend()`): unset = local-only.
+- **API** (`functions/api/[[route]].ts`, Hono): email+password login with server-side KV sessions
+  (PBKDF2-HMAC-SHA256, HttpOnly cookies) + optional Turnstile; **admin-created accounts only — no
+  public signup** (`/api/admin/users`, first admin seeded from `ADMIN_EMAIL`/`ADMIN_PASSWORD`);
+  designs CRUD + favourites backed by **D1**; auth-gated **R2** asset proxy fronted by the Worker
+  Cache API; remote flag overrides. Shared server helpers live in `server/`; type-checked via
+  `tsconfig.worker.json` (`npm run typecheck:worker`).
+- **Client**: `src/features/api/client.ts`, `auth/backendProvider.ts` (provider auto-selected in
+  `authSlice`), a login-only `LoginScreen` (email/password + Turnstile) with an admin
+  account-management modal, `state/storage/ServerAdapter.ts` + a cloud-mirror `adapter.ts`
+  (local always, autosave throttled to ≤1 cloud write/60 s to respect D1 caps), `cloudBoot.ts`
+  (latest-wins autosave reconcile), favourites cloud sync, and a `PacksTab` shared-library browser.
+- **Cost safety**: private bucket + auth gate, immutable cache-first reads, a standalone cron Worker
+  (`workers/usage-monitor/`) that trips a `killswitch:r2` in KV near the R2 free cap (serve
+  cache-only + 503 on cold miss), a manual master kill-switch, per-user slot/size/account caps,
+  rate limiting, and graceful local fallback on any cloud write error.
+- Two new feature flags: `accounts` (simple tier) + `sharedLibrary` (pro tier), tested in both modes.
+- Docs: new `docs/deployment-cloudflare.md` (manual setup, provisioning, R2 upload, guardrails);
+  `CLAUDE.md` / `ARCHITECTURE.md` / `README.md` updated. `.env.example` + `wrangler.toml` added.
 
 ## CHORE: visual-verification scenario for UI polish batch 1 (v0.9.0.80)
 
@@ -726,6 +1000,189 @@ pruned from `main`; entries from C251 on (branch
   **24.18.0** across `.nvmrc` (new), `ci.yml`, `deploy.yml`, Dockerfile, and `engines`.
 - Verified: Electron shell smoke-screenshot renders the full furnished scene over `app://`
   (SwiftShader under WSL); root-base build boots via `static-serve` with `BASE=/`.
+
+## FIX: floor-plan editor View-mode tap no longer select→deselect flickers (v0.9.0.71)
+
+- **Tapping a wall / door / opening / room / item in the editor's View interaction mode now
+  selects it cleanly and keeps it selected** (View mode = pan/zoom + tap-to-inspect). Previously the
+  tap flickered: the element's pointer-down selected it, then the same gesture bubbled to the canvas
+  as a zero-move pan whose release cleared the selection again (annoying select→instant-deselect).
+- **Root cause:** `onUp`'s pan-release branch cleared the selection on any no-move tap with the
+  `select` tool, without consulting whether the press had landed on a selectable element. The
+  existing `elementTapped` gesture flag (already used to suppress the empty-canvas marquee) was reset
+  at the top of `onUp` before that branch could read it. The fix snapshots the flag first and routes
+  the decision through a new pure `editor/tapDeselect.ts` (`clearsSelectionOnPanRelease`, unit-tested)
+  — an empty-canvas tap still deselects; a tap that landed on an element does not.
+- Verified with the new `scripts/scenarios/plan-tap-select-view.json` (mobile View-mode tap: exactly
+  one selection transition, selection sticks, inspector opens).
+
+## FEAT: File System Access folder picker on Chromium — no native "upload N files?" prompt (v0.9.0.70)
+
+- **"Choose folder…" now uses `window.showDirectoryPicker()` where supported (Chromium).** The new
+  `furniture/upload/pickDirectory.ts` (`supportsDirectoryPicker` + `pickDirectoryFiles`) opens the
+  File System Access directory picker and walks the chosen folder with a bounded worker pool
+  (`DIR_READ_CONCURRENCY = 24`, mirroring `readDrop.ts`), stamping each file's `webkitRelativePath`
+  so the existing detection/import flow is unchanged. The upshot: **no browser "Upload N files?"
+  confirm, and live "Scanning folder… N files" progress from the very first file** (routed through
+  the same rAF-coalesced scan UI as the drag path).
+- **Transparent native fallback.** On browsers without the API (Firefox/Safari) — or if the picker
+  is blocked at call time (`SecurityError`/`NotAllowedError`, e.g. a non-secure context) — the button
+  falls back to the native `<input webkitdirectory>` exactly as before. User cancel (`AbortError`) is
+  a silent no-op. No new feature flag (a capability upgrade inside the existing `modelUpload`
+  feature); the "drag a folder for live progress" tip is hidden when the picker is available (the
+  button now gives the same benefit).
+- Unit-tested: recursion + `webkitRelativePath`, per-file progress, bounded concurrency, cancel→null,
+  non-abort error propagation, capability detection.
+
+## FIX: Dev file-watcher inotify exhaustion — ignore `ikea_optimized/` + other non-app trees (v0.9.0.69)
+
+- **`npm run dev` was crashing with `ENOSPC` (inotify watch limit).** Vite recursively watches
+  the project root, and the watch-ignore list in `vite.config.ts` missed the biggest offender:
+  `ikea_optimized/` (3,563 dirs / ~14k scraped GLB+jpg+json files). The existing `**/ikea/**`
+  glob matches only the exact `ikea` segment, so the `ikea_optimized` sibling leaked through —
+  nearly half of everything watched. The inotify pool is per-user (shared with tsserver/editor),
+  so a second dev server tipped it over.
+- **Fix:** added `ikea_optimized`, `scraped_assets`, `research`, `design`, `dist`,
+  `docs/.vitepress` to `server.watch.ignored`. None feed the Vite module graph (they're static
+  assets / build+docs output), so ignoring them is safe. Watchable dirs drop from **7,357 → 175**,
+  which also speeds up dev startup.
+
+## FIX: Per-room editor — undo cancels the confirm bar, footprint-only hover, no inspector flicker (v0.9.0.68)
+
+Three fixes to per-room-editor furniture interaction:
+
+- **Undo now cancels a pending "Apply change?" / "Place item?" confirmation.** `pendingEdit`
+  is transient view state deliberately excluded from history snapshots, so `undo`/`redo`/
+  `jumpHistory` (`state/slices/historySlice.ts`) restored the item transform but stranded the
+  confirm bar with data for an edit that no longer existed. All three history-navigation actions
+  now clear `pendingEdit` alongside the restore. Unit-tested in `historySlice.test.ts`.
+- **Furniture highlights only when the cursor is over its footprint.** Hover was driven by the
+  whole group's `onPointerOver`, so R3F's raycast against any child mesh lit the piece up — even
+  when merely grazing tall geometry that overhangs the base. Hover now runs on the group's
+  pointer-over/-move and projects the cursor ray onto the floor, highlighting only when that point
+  is inside the item's min-span footprint (new pure `floorPointInFootprint` in `collision/placement.ts`,
+  unit-tested). Selection/click/drag stay on the visible mesh exactly as before — no invisible floor
+  geometry — so clicking empty floor within a piece's footprint no longer selects it.
+- **No more inspector-panel open/close flicker on select.** Selecting an item opens the inspector,
+  which shrinks the canvas (`:has(.dock-panel)`) and shifts the item off the cursor; the same
+  gesture's release then raycast-missed and fired `onPointerMissed` → `deselectOnMiss`, closing the
+  panel it just opened. A gesture that begins on a furniture item is now flagged
+  (`markPointerDownOnItem` in `scene/clickVsDrag.ts`, reset per gesture by the capture-phase
+  pointerdown listener) and `deselectOnMiss` skips deselection for that gesture's release.
+  Unit-tested in `deselectOnMiss.test.ts`.
+
+## FEAT: Floor plan editor open/close uses the loading overlay for a smooth transition (v0.9.0.67)
+
+- **Toggling the 2D floor plan editor now shows the transition overlay**, matching the room
+  editor. `setFloorPlanEditing`/`toggleFloorPlanEditing` (`state/slices/floorPlanSlice.ts`) set
+  `loading: { active: true, label }` in the same commit — `'Opening floor plan…'` on entry,
+  `'Closing floor plan…'` on exit — so the instant DOM/scene swap is masked behind the overlay's
+  600 ms min-visible + 250 ms fade instead of a hard jump. Every entry path (P hotkey, Edit menu,
+  mobile section, ⌘K) routes through these two actions, so all are covered.
+- **App.tsx hide effect gains `floorPlanEditing` as a re-trigger key** so each open/close
+  re-fires the next-frame `hideLoading()` (same mechanism as `roomEditorActive`).
+- Unit-tested: both actions set `loading.active` with the correct directional label (enter + exit,
+  set + toggle). New interaction scenario `floorplan-transition-overlay.json` captures the
+  Opening/Closing overlays and the round-trip scene→editor→scene.
+
+## FIX/FEAT: Upload dialog — sticky upload area, scrolling group list, live detection, no "Import 0" (v0.9.0.66)
+
+- **Only the detected-groups list scrolls now.** The upload dialog's content column is a flex
+  layout (`flex min-h-0 flex-1 flex-col`): the intro + drop zone stay pinned at the top and the
+  groups list + import options live in their own `min-h-0 flex-1 overflow-y-auto` region, so a
+  folder of thousands of groups no longer pushes the "Choose folder…" affordance out of reach.
+- **The list grows live as folders are parsed.** `detectGroups` gained an `onGroup(groupsSoFar)`
+  callback that fires per detected group; the dialog coalesces these to one `setIkeaGroups` per
+  animation frame (rAF-throttled) so a big scan updates granularly without thrashing React.
+  `GroupRow` is now `memo`ised so the growing list only runs its zod parse for newly added rows.
+- **Never show "Import 0".** `submitLabel` names only counts ≥ 1 — no "Import 0" and no "+ 0"
+  tail (e.g. loose-only reads "Import 5281", groups-only "Import 3562 model groups"); the bare
+  verb "Import" shows only when nothing is importable (button stays disabled then).
+- Unit-tested: `detectGroups` incremental `onGroup` firing + `submitLabel` zero-guard/singular.
+- **Granular, smooth folder-detection progress.** New reusable `coalesceProgress` helper
+  (`furniture/upload/coalesceProgress.ts`, rAF with a `setTimeout(16)` fallback) collapses a
+  high-frequency progress stream to one repaint per frame and always flushes the terminal value;
+  `runImport` now reuses it (dropping its inline copy). The drop-scan counter, the detect counter,
+  and the live group-list growth all route through it, so a large folder's "Scanning folder… N
+  files" and "Detecting model groups… P / T" climb smoothly instead of freezing then jumping.
+- **`detectGroups` reads metadata concurrently.** A bounded pool (`DETECT_CONCURRENCY = 12`) with an
+  ordered drain cursor removes the serial multi-second stall on a folder of thousands of groups,
+  while keeping the group order, progress, and `onGroup` firing deterministic. Unit-tested for
+  order-preservation and monotonic progress.
+- **Instant feedback on the folder-picker path** (`<input webkitdirectory>`): the moment `onChange`
+  fires we show "Reading N files…" from the file count, and a hint under "Choose folder…" nudges
+  users to drag a folder in for live progress (the native "Upload N files?" prompt and the
+  enumeration before it are browser-controlled and can't be instrumented or suppressed).
+
+## PERF: optimize worker pool scales dynamically to a hardware-aware max (v0.9.0.65)
+
+- The optimize pool now sizes to the device: `computePoolMax(cores, deviceMemory)` = `cores - 1`,
+  hard-capped at `HARD_POOL_MAX` (8), and **downshifted on low-RAM devices**
+  (`navigator.deviceMemory` ≤2 GB → 2, ≤4 GB → 4) so a phone/low-memory tab can't OOM on the heavy
+  @gltf-transform/Draco/Basis WASM each worker loads.
+- Workers are now spawned **on contention** (`pickWorker`): an idle worker is always reused; a new
+  one is only spun up when *every* existing worker is busy and we're under the max. So a light
+  import keeps a small pool and a heavy concurrent burst scales up to the tolerable maximum, then
+  stops. Pure `computePoolMax` unit-tested (Workers aren't constructible in jsdom).
+
+## CHORE: drop Poly Haven as a furniture/model source — materials/HDRIs kept (v0.9.0.64)
+
+- Poly Haven is no longer an asset source for **furniture/models**. The remote provider
+  (`catalog/remote/providers/polyhaven.ts`) `fetchIndex` now emits **materials only** (no
+  `kind:'furniture'`); the model `fetchAsset`/`fetchSize` branches are removed. Poly Haven was the
+  only furniture provider, so `useRemoteEntries('furniture')` is now empty and the `remoteFurniture`
+  browse is dormant (the flag/infra stay for a future provider). Deleted the now-dead
+  `catalog/remote/category-map.ts` (Poly Haven furniture category mapper) + its test.
+- **Kept**: Poly Haven CC0 **materials/textures** (remote provider + the bundled
+  `public/assets/materials/*` sets) and **HDRIs** (`scene/lighting/hdriCatalog.ts`) — unchanged.
+- Scraper side: removed the `polyhaven --type models` run from `scraped_assets/_run.sh` (its
+  material/HDRI runs stay) and deleted the ~19 GB of already-scraped Poly Haven furniture models.
+- Docs updated (ARCHITECTURE, `src/ui`+`src/furniture` CLAUDE.md, plan doc). `tsc` + remote/catalog
+  suites green.
+
+## FEATURE: dev-only local asset DB + optimize worker POOL (v0.9.0.63)
+
+- **Local asset DB (dev-only).** Drop GLB/GLTF files into `local-assets/` and they auto-load into
+  the furniture catalog with **no upload pipeline** (no convert/optimize/IndexedDB) — for bulk
+  datasets where per-file upload/optimize is too slow. A dev-only Vite plugin
+  (`scripts/vite-local-assets.mjs`, `apply:'serve'`) scans the folder and serves
+  `/@local-assets/index.json` + `/@local-assets/file/<relPath>` (path-traversal guarded); a new
+  `localAssetsSlice` (`bootstrapLocalAssets`) fetches the index and builds `LocalGltfDef`s
+  (`source:'local'`, category from a matching subfolder name or a keyword guess, collision flags
+  inferred from the path), merged as a 5th source in `buildMergedCatalog`. Gated by the new
+  `localAssets` **devOnly** flag (+ `import.meta.env.DEV`) — the plugin routes don't exist in a
+  GitHub Pages build and the flag is forced off, so prod simply has no local entries. Renders via
+  the same `useGLTF` path as bundled GLBs. Verified end-to-end (plugin endpoint + a scenario
+  asserting a dropped GLB reaches the catalog as a `seating` `source:'local'` def).
+- **Optimize worker POOL.** `optimize/runOptimize.ts` used a **single** module-level Worker, so a
+  bulk import (`bulkImport` runs ~4 files concurrently) serialized every file's Draco/texture-encode
+  + LOD pass through one thread. Replaced with a least-busy **pool** (sizing later made
+  hardware-aware + contention-driven in v0.9.0.65); each worker retires independently on `error`/`messageerror`
+  (falling its own in-flight calls back to the unoptimized GLB), and the no-Worker direct fallback is
+  unchanged. Meaningfully faster bulk imports; public API unchanged (tests green).
+- New `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` (design + a finalized,
+  tiered plan for the `research/scrapers/` corpus). `tsc` + full unit suite + `plan-*` scenarios green.
+
+## FIX: touch tap-to-select no longer self-clears in the 2D plan editor (v0.9.0.62)
+
+- **Root cause (touch-only):** tapping a wall/room/opening/furniture in the plan editor selected it,
+  then instantly deselected it — the inspector flashed on/off ("flicker") and the selection "broke".
+  On touch, an element's pointer-down calls `beginElementDrag`, which returns early
+  (`isMobile && !isSelectedNow`) **before** its `e.stopPropagation()`. The press therefore bubbled to
+  the canvas `onDown`, which (edit + select tool) began a **zero-area marquee**; on pointer-up that
+  marquee resolved to "no hits" and ran `setPlanSelection(null)` + `selectItem(null)`, wiping the
+  selection the element had just made. Desktop was unaffected (mouse path stops propagation).
+- **Fix:** track whether a press landed on a selectable element (`elementTapped` ref, set at the top
+  of `beginElementDrag`, reset each gesture in `onUp`) and **suppress the empty-canvas marquee** when
+  it did — so a tap on an element just selects it and sticks, while an empty-canvas tap still deselects
+  and a drag still marquees. Also guarded `startPan`'s `setPointerCapture` in a try/catch (matching the
+  other capture sites) so a stale/synthetic `pointerId` can't abort a pan.
+- **Pinch-zoom** was investigated in the same pass: driving a real two-finger pinch (one move per
+  paint) shows a clean, monotonic zoom/scroll trajectory (no frame-to-frame oscillation) — the
+  reported "pinch flickering" was the same select→deselect inspector flash, now fixed.
+- Added regression scenarios `scripts/scenarios/plan-tap-select.json` (asserts a tapped wall stays
+  selected on mobile touch) and `plan-pinch-zoom.mjs` (asserts the pinch trajectory doesn't reverse
+  direction mid-gesture). `tsc` + 146 floorplan unit tests + the `plan-*` scenario suite green.
 
 ## DOCS: MOD-FPE-SPLIT status — render-layer decomposition complete (v0.9.0.61)
 

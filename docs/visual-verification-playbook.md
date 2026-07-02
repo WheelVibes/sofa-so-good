@@ -91,6 +91,15 @@ click-the-skip-button fallback for prod builds) — so neither can cover the can
 in a screenshot. To screenshot those flows on purpose, set `SHOT_KEEP_FIRSTRUN=1`
 (the `first-run*.json` scenarios rely on this).
 
+**The `#boot-loader` cannot be captured in scenario mode** — the harness's own init
+waits out the boot and dismisses first-run overlays *before* step 1 runs, by which
+time the loader has been removed from the DOM (a `waitFor {css: "#boot-loader"}`
+first step just times out). To screenshot/verify the boot loader art, snapshot the
+served HTML with the app scripts stripped so the loader runs forever, then point a
+scenario at it via `file://`:
+`curl -s http://localhost:5173/ | sed 's|<script type="module"[^>]*src="[^"]*"></script>||g' > boot-static.html`
+(the inline phrase-rotator script survives, so the cycling phrases still work).
+
 ### Timing contract — why scenarios beat blind waits
 
 **Known pitfall (fixed in scenario mode):** the legacy harness fires `page.evaluate`
@@ -370,6 +379,14 @@ is 15°-snapped. **Key gotchas learned here:**
   Chromium under SwiftShader starves the first and the editor's `.plan-screen` `waitFor` times out
   spuriously. Run one scenario, wait for `EXIT`, then run the next.
 
+**Editor tap-to-inspect flicker** (`plan-tap-select-view.json`): reproduces the View-mode
+select→instant-deselect regression. Seed a mobile viewport (`390×844`) — the editor defaults to
+**View** interaction mode there (`isMobile ? 'view' : 'edit'`) — subscribe to `planSelection`
+transitions, then fire a synthetic `pointerdown`/`pointerup` (touch) on a `g[data-wall] path`. A
+correct build logs **one** transition (the select) and `assert-selection-sticks` (`planSelection !==
+null`) passes; the bug logged select→`null`. The paired edit-mode scenario is `plan-tap-select.json`.
+Root cause + fix live in the pure `ui/floorplan/editor/tapDeselect.ts` (`clearsSelectionOnPanRelease`).
+
 ### Worked example — Sweet Home 3D furniture import (PARITY-SH3D-FURN)
 
 **`sh3d-furn-import.json`** drives a full `.sh3d` parse → place: it base64-decodes a synthetic
@@ -390,6 +407,31 @@ inside the room, plus a door + a window opening on the plan. **Key gotchas learn
 - **Sync on the placement, not a fixed wait.** `applySh3dResult` mutates the store synchronously, so
   `{"waitFor": {"store": "window.__store.getState().items.length > 0"}}` is the reliable gate before
   probing/screenshotting; `requestHomeView()` then frames the new plan like a template load.
+### Worked example — model-upload group detection at scale (UPLOAD-DETECT-PAGINATION)
+
+**`model-upload-simple.json`** verifies the model-upload feature's Simple rung: the **Upload**
+entry point renders in the catalog in Simple mode (`modelUpload` is a `tier: 'simple'` flag, so it's
+present in both modes — the pro-only "Design" button stays hidden), then it drives the group-detection
+pipeline over a synthetic **60-group** folder (+ 2 root-level loose `.glb`s) and asserts
+`__detectGroupsResult` = `{ groupCount: 60, looseCount: 2, parsed: 60, total: 60 }`. 60 > the dialog's
+`GROUPS_PER_PAGE` (50), so this is the "handles a folder big enough to paginate" input that motivated
+the pagination fix. **Key gotchas learned here:**
+- **The upload dialog is `React.lazy`, so it never mounts headless** (the general lazy-modal
+  limitation above). You cannot screenshot the paginated detected-groups list through the real UI.
+  Two things cover it instead: the pure `ui/upload/pageWindow.ts` + `pageWindow.test.ts` (pagination
+  arithmetic) and `ui/upload/GroupPanel.test.tsx` (a `@testing-library/react` DOM assertion that 1050
+  groups render exactly 50 `<li>`s, the pager navigates, and it pins to page 1 with no pager while
+  `detecting`). For the actual pixels, temporarily mount `GroupPanel` directly via a dev-only block in
+  `main.tsx` gated on `?__pagerdemo` (revert before commit) and screenshot with the legacy harness.
+- **Detection runs through a dev hook, not the dialog.** `bootstrap.ts` exposes `__detectGroups`
+  (dev-only, mirroring `__persistUserMaterial`/`__importSh3dBytes`): pass `[{path, meta}|{path, body}]`,
+  it builds `File`s with the right `webkitRelativePath`, runs `detectGroups` + `looseModelFiles`, and
+  records the outcome on `window.__detectGroupsResult`. The scenario `waitFor`s on that (the eval fires
+  the async call fire-and-forget, same pattern as `texture-upload-simple.json`).
+- **A GLB *inside* a group folder is not loose**; only model files outside every detected group dir
+  count as loose. The fixture puts one `w.glb` under each `bulk/g<i>/` (not loose) and two at
+  `bulk/loose-*.glb` (loose) to exercise both branches of `looseModelFiles`.
+
 ### Worked example — 2D plan align/distribute/mirror (PARITY-PLAN-ALIGN)
 
 **`plan-align-distribute-mirror.json`** seeds 3 furniture items inside the largest room,
@@ -712,6 +754,21 @@ Don't try to parse Draco-compressed GLBs in Node (DRACOLoader wants a Worker;
 the stdlib `glb_analysis.py` can't decode Draco geometry, only the container).
 The browser already has Draco wired — do geometry probing in-page via an
 evalFile that loads through the app's own loader, not in a standalone script.
+
+### `enterRoomEditor` raises an "Entering room…" overlay that covers the catalog
+The catalog panel only mounts in the room editor (`open && cameraMode === 'orbit'
+&& roomEditor.active`), but `enterRoomEditor` sets `loading: { active: true, label:
+'Entering room…' }` — a full-screen overlay that clears on scene-ready. Under
+SwiftShader that ready signal is racy (a `THREE.WebGLRenderer: Context Lost.` can
+stall it), so a screenshot right after shows the overlay, not the catalog. Call
+`window.__store.getState().hideLoading()` after entering the room editor (and again
+after any mode switch that re-enters), then `wait` a beat, before screenshotting the
+catalog grid. Note the separate **boot** splash (cycles HDB-flavoured status lines on `#boot-loader .bl-sub`, then pins "Almost ready…" during scene warm-up) keys off
+`bootPhase`/`sceneReady`, not `loading` — if it's still up, the boot simply hasn't
+settled; give `store-ready` a generous timeout and add a settle wait. This was found
+verifying the shared-library catalog cards (`shared-library-simple.json`): the Pro
+leg (later, boot settled) shot the grid cleanly; an early Simple leg still showed the
+boot splash.
 
 ### An isolated room renders as a closed box you can't see into
 The per-room editor (`enterRoomEditor(roomId)`) renders only that room's walls.

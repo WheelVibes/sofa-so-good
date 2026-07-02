@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ROOMS } from './constants'
-import { roomRects, roomShell } from './roomShell'
+import { type ClippedWall, clippedWallCutouts, roomRects, roomShell } from './roomShell'
+import type { WallSpec } from './types'
 
 describe('roomRects', () => {
   it('returns one rect for a plain rectangular room', () => {
@@ -54,5 +55,43 @@ describe('roomShell', () => {
     const shell = roomShell('bedroom2')
     expect(shell.contains(4.5, 1.5)).toBe(true) // inside B2
     expect(shell.contains(11.0, 7.0)).toBe(false) // far away in kitchen/LD
+  })
+})
+
+describe('clippedWallCutouts', () => {
+  // A wall from (0,0)→(10,0) with a door at offset 4 and a window at offset 7.
+  const spec: WallSpec = {
+    id: 'w',
+    start: [0, 0],
+    end: [10, 0],
+    thickness: 'internal',
+    cutouts: [
+      { kind: 'door', offset: 4, width: 1, sill: 0, head: 2.1 },
+      { kind: 'window', offset: 7, width: 1.2, sill: 0.9, head: 2.1 },
+    ],
+  }
+
+  it('projects full-wall cutouts into a clip centred on the middle of the wall', () => {
+    // Clip covers [3, 8]; its centre is at world x=5.5, running +X.
+    const clip: ClippedWall = { wallId: 'w', start: [3, 0], end: [8, 0], spec }
+    const cuts = clippedWallCutouts(clip)
+    // door spans world [4,5] → clip-local [-1.5, -0.5]; window [7,8.2] → [1.5, 2.7]
+    expect(cuts).toHaveLength(2)
+    expect(cuts[0]).toMatchObject({ bottom: 0, top: 2.1 })
+    expect(cuts[0].a).toBeCloseTo(-1.5, 6)
+    expect(cuts[0].b).toBeCloseTo(-0.5, 6)
+    expect(cuts[1]).toMatchObject({ bottom: 0.9, top: 2.1 })
+    expect(cuts[1].a).toBeCloseTo(1.5, 6)
+    expect(cuts[1].b).toBeCloseTo(2.7, 6)
+  })
+
+  it('keeps openings ordered (a < b) even when the clip runs opposite the wall', () => {
+    // Clip endpoints reversed relative to the wall direction.
+    const clip: ClippedWall = { wallId: 'w', start: [8, 0], end: [3, 0], spec }
+    const cuts = clippedWallCutouts(clip)
+    for (const c of cuts) expect(c.b).toBeGreaterThan(c.a)
+    // Reversing the axis flips the sign: door centre world x=4.5 → clip-local +1
+    const doorMid = (cuts[0].a + cuts[0].b) / 2
+    expect(doorMid).toBeCloseTo(1, 6)
   })
 })

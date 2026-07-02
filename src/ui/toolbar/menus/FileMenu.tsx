@@ -5,7 +5,7 @@ import { runUpdateCheck } from '../../../pwa/swUpdate'
 import { canRecord } from '../../../scene/RecordController'
 import { EXPORT_EVENT } from '../../../scene/ScreenshotController'
 import { applySerialized, serialize } from '../../../state/schema'
-import { LocalStorageAdapter } from '../../../state/storage/LocalStorageAdapter'
+import { storage } from '../../../state/storage/adapter'
 import type { SlotMeta } from '../../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
@@ -37,9 +37,9 @@ export function FileMenu() {
 
   // Refresh the slot list whenever the menu mounts a panel render.
   useEffect(() => {
-    void LocalStorageAdapter.list().then(setSlots)
+    void storage.list().then(setSlots)
   }, [])
-  const refresh = () => void LocalStorageAdapter.list().then(setSlots)
+  const refresh = () => void storage.list().then(setSlots)
 
   const save = async () => {
     const name = await useStore.getState().promptText({
@@ -52,7 +52,7 @@ export function FileMenu() {
     const slot = name.trim().replace(/\s+/g, '-').toLowerCase()
     if (!slot) return
     try {
-      await LocalStorageAdapter.save(slot, serialize(useStore.getState()))
+      await storage.save(slot, serialize(useStore.getState()))
       saveThumb(slot, captureThumb())
       refresh()
       useStore.getState().notify.start({ title: `Saved layout “${slot}”`, kind: 'success' })
@@ -65,7 +65,7 @@ export function FileMenu() {
   }
 
   const load = async (slot: string) => {
-    const data = await LocalStorageAdapter.load(slot).catch(() => null)
+    const data = await storage.load(slot).catch(() => null)
     if (!data) {
       useStore.getState().notify.start({ title: `Could not load slot ${slot}`, kind: 'error' })
       return
@@ -258,7 +258,7 @@ export function FileMenu() {
                 </button>
                 <button
                   onClick={async () => {
-                    await LocalStorageAdapter.delete(s.slot)
+                    await storage.delete(s.slot)
                     deleteThumb(s.slot)
                     refresh()
                   }}

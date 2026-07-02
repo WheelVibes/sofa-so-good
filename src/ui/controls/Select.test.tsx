@@ -46,4 +46,18 @@ describe('Select', () => {
     fireEvent.keyDown(trigger, { key: 'Enter' })
     expect(onChange).toHaveBeenCalledWith('b')
   })
+
+  it('icon trigger exposes the current value in the accessible name', () => {
+    render(
+      <Select
+        value="b"
+        onChange={() => {}}
+        options={OPTS}
+        ariaLabel="Sort catalog"
+        iconTrigger={<span data-testid="sort-icon" />}
+      />,
+    )
+    expect(screen.getByRole('combobox', { name: 'Sort catalog: Banana' })).toBeInTheDocument()
+    expect(screen.getByTestId('sort-icon')).toBeInTheDocument()
+  })
 })

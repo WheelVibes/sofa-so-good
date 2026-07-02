@@ -4,7 +4,7 @@ import { useFeature } from '../../features/useFeature'
 import { useSunStudy } from '../../scene/sunStudy'
 import { detectVrSupport } from '../../scene/xr/vrSupport'
 import { getXrStore } from '../../scene/xr/xrStore'
-import { LocalStorageAdapter } from '../../state/storage/LocalStorageAdapter'
+import { storage } from '../../state/storage/adapter'
 import type { SlotMeta } from '../../state/storage/StorageAdapter'
 import { useStore } from '../../state/store'
 import { GraphicsSettings } from '../GraphicsSettings'
@@ -35,7 +35,7 @@ export function MobileToolbar() {
 
   // Refresh the saved-layout list whenever the sheet opens.
   useEffect(() => {
-    if (menuOpen) void LocalStorageAdapter.list().then(setSlots)
+    if (menuOpen) void storage.list().then(setSlots)
   }, [menuOpen])
 
   const s = useStore
@@ -84,7 +84,7 @@ export function MobileToolbar() {
     if (!opts?.keep) close()
   }
 
-  const refreshSlots = () => void LocalStorageAdapter.list().then(setSlots)
+  const refreshSlots = () => void storage.list().then(setSlots)
 
   // Left-rail sections for the current mode (icon-only master rail; the matching
   // <Section> renders its body in the detail pane). The ids/icons/titles must

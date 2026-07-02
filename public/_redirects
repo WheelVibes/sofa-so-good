@@ -1,0 +1,6 @@
+# Cloudflare Pages SPA fallback. Pages Functions (/api/*) and real static files
+# are matched BEFORE this rule, so the API is never shadowed; everything else
+# serves the app shell so client-side hash/routing works on hard refresh.
+# (Ignored by GitHub Pages, which uses 404.html — harmless to ship in dist/.)
+/api/*  /api/:splat  200
+/*      /index.html  200
