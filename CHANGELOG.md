@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: purge hardcoded px from inline styles + regression guard (v0.10.0.20)
+
+- ElevationPanel/RenderCompareModal/LocationPrompt/FinishPicker inline paddings/margins/
+  font-sizes/gaps mapped onto `--s-N`/`--t-N` tokens (<=1px density delta). New
+  `inlinePxGuard.test.ts` fails the suite on NEW literal px/number in `padding`/`margin`/
+  `fontSize`/`gap` inline styles (widths/heights/computed values exempt); 60 pre-existing
+  offender files grandfathered as tracked follow-up debt.
+
 ## FIX: EditConfirmBar leave-effect respects an in-flight dismiss (v0.10.0.19)
 
 - The room-editor-leave effect no longer calls `confirm()` while a dismiss timer is pending —

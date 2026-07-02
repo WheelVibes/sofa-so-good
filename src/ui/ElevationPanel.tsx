@@ -159,7 +159,7 @@ export function ElevationPanel() {
           ) : (
             <>
               {/* Wall picker */}
-              <div className="seg" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              <div className="seg" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s-1)' }}>
                 {elevations.map((e, i) => (
                   <button
                     key={e.wallId}
@@ -270,7 +270,7 @@ export function ElevationPanel() {
                         aria-label={luxPlaying ? 'Stop playback' : 'Play across the day'}
                         title={luxPlaying ? 'Stop' : 'Play across the day'}
                         onClick={() => setLuxPlaying(!luxPlaying)}
-                        style={{ padding: '2px 6px', fontSize: 'var(--t-2xs)' }}
+                        style={{ padding: 'var(--s-1) var(--s-2)', fontSize: 'var(--t-2xs)' }}
                       >
                         {luxPlaying ? '⏹' : '▶'}
                       </button>
@@ -325,7 +325,7 @@ export function ElevationPanel() {
                               gap: 'var(--s-2)',
                               fontSize: 'var(--t-2xs)',
                               cursor: 'pointer',
-                              padding: '2px 0',
+                              padding: 'var(--s-1) 0',
                               color: excluded ? 'var(--text-3)' : 'var(--text)',
                               textDecoration: excluded ? 'line-through' : 'none',
                             }}
@@ -425,7 +425,7 @@ export function ElevationPanel() {
                       alignItems: 'center',
                       gap: 'var(--s-2)',
                       fontSize: 'var(--t-xs)',
-                      padding: '3px 0',
+                      padding: 'var(--s-1) 0',
                       borderTop: '1px solid var(--border)',
                     }}
                   >

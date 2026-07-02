@@ -373,7 +373,7 @@ export function FinishPicker() {
   return (
     <aside className="panel inspector dock-panel">
       <div className="panel-head">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)', minWidth: 0 }}>
           {view === 'browse' && (
             <button
               type="button"
@@ -567,7 +567,11 @@ export function FinishPicker() {
                     {accents.length === 0 ? (
                       <p
                         className="panel-sub"
-                        style={{ textTransform: 'none', letterSpacing: 0, margin: '2px 0 0' }}
+                        style={{
+                          textTransform: 'none',
+                          letterSpacing: 0,
+                          margin: 'var(--s-1) 0 0',
+                        }}
                       >
                         Tap any wall in the 3D view to paint it a different colour from the rest of
                         the room.
@@ -620,7 +624,11 @@ export function FinishPicker() {
                         })}
                         <p
                           className="panel-sub"
-                          style={{ textTransform: 'none', letterSpacing: 0, margin: '6px 0 0' }}
+                          style={{
+                            textTransform: 'none',
+                            letterSpacing: 0,
+                            margin: 'var(--s-2) 0 0',
+                          }}
                         >
                           Tap another wall in the 3D view to add one.
                         </p>

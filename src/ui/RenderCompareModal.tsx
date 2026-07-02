@@ -204,15 +204,22 @@ export function RenderCompareModal() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 8,
+            gap: 'var(--s-3)',
             flexWrap: 'wrap',
           }}
         >
           {/* Preset selectors */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)', flexWrap: 'wrap' }}
+          >
             <label
               className="panel-sub"
-              style={{ textTransform: 'none', letterSpacing: 0, display: 'flex', gap: 6 }}
+              style={{
+                textTransform: 'none',
+                letterSpacing: 0,
+                display: 'flex',
+                gap: 'var(--s-2)',
+              }}
             >
               <span
                 className="rc-slot-badge rc-slot-a"
@@ -251,13 +258,18 @@ export function RenderCompareModal() {
               title="Swap A and B"
               disabled={busy}
               onClick={() => setState(swapAB)}
-              style={{ padding: '4px 8px', fontSize: 16 }}
+              style={{ padding: 'var(--s-1) var(--s-3)', fontSize: 'var(--t-lg)' }}
             >
               ⇄
             </button>
             <label
               className="panel-sub"
-              style={{ textTransform: 'none', letterSpacing: 0, display: 'flex', gap: 6 }}
+              style={{
+                textTransform: 'none',
+                letterSpacing: 0,
+                display: 'flex',
+                gap: 'var(--s-2)',
+              }}
             >
               <span
                 style={{
@@ -389,7 +401,7 @@ export function RenderCompareModal() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 pointerEvents: 'none',
-                fontSize: 14,
+                fontSize: 'var(--t-md)',
                 color: 'var(--surface-solid)',
               }}
               aria-hidden
@@ -410,11 +422,11 @@ export function RenderCompareModal() {
                 left: 10,
                 background: 'var(--accent)',
                 color: 'var(--on-accent)',
-                padding: '2px 7px',
+                padding: 'var(--s-1) var(--s-2)',
                 borderRadius: 4,
                 textTransform: 'none',
                 letterSpacing: 0,
-                fontSize: 11,
+                fontSize: 'var(--t-xs)',
                 fontWeight: 700,
                 pointerEvents: 'none',
               }}
@@ -429,11 +441,11 @@ export function RenderCompareModal() {
                 right: 10,
                 background: 'rgba(0,0,0,0.45)',
                 color: '#fff',
-                padding: '2px 7px',
+                padding: 'var(--s-1) var(--s-2)',
                 borderRadius: 4,
                 textTransform: 'none',
                 letterSpacing: 0,
-                fontSize: 11,
+                fontSize: 'var(--t-xs)',
                 fontWeight: 700,
                 pointerEvents: 'none',
               }}
@@ -457,11 +469,11 @@ export function RenderCompareModal() {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6,
+              gap: 'var(--s-2)',
               textTransform: 'none',
               letterSpacing: 0,
               textAlign: 'center',
-              padding: 24,
+              padding: 'var(--s-6)',
             }}
           >
             {errorMsg ? (
@@ -478,7 +490,7 @@ export function RenderCompareModal() {
       {/* Status line */}
       <div
         className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 8, minHeight: 16 }}
+        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 'var(--s-3)', minHeight: 16 }}
         aria-live="polite"
       >
         {phaseA === 'rendering'
