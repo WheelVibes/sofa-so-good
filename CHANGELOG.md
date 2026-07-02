@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: legacy `timeOfDay:"day"` autosaves migrate to system time, not pinned noon (v0.10.0.6)
+
+- **Designs saved before the timeMode refactor no longer boot stuck at 12:00 PM.** The legacy
+  `timeOfDay` enum's *default* was `'day'`; the load migration in `state/schema.ts` converted it
+  to `manual` mode at hour 12, so long-time users opened every session pinned to noon with the
+  "System time" button un-highlighted. `'day'` now migrates to **`system`** mode (follow the real
+  clock, like a fresh design); `'dusk'`/`'night'` were deliberate picks and stay `manual` at 18/0.
+- Verified end-to-end: seeded a `version:1` `timeOfDay:'day'` autosave slot, reloaded, and the app
+  booted into `timeMode:'system'`.
+
 ## UX: boot splash cycles Singapore/HDB loading phrases (v0.10.0.5)
 
 - **The boot splash and generic loading overlay now rotate HDB-flavoured status lines**
