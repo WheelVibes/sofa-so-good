@@ -44,8 +44,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 - [ ] **P10 Panel width tokens** — `--panel-w`/`--panel-w-compact` replacing 326/300/312px +
   hand-tuned tablet variants.
 
-- [ ] **P13 Hover-reveal row actions** — `.lyr-row:hover .lyr-acts` opacity transition pattern
-  across layers/history/version rows.
 - [ ] **P15 `<Button>` primitive** — typed component (variant/size/icon/loading) over the existing
   `.btn-*` vocabulary (CVA-style, kills padding/size drift).
 - [ ] **P16 Button pending state** — `loading` prop: inline spinner, pointer-events none, dimmed.

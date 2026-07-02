@@ -103,7 +103,9 @@
 .lyr-flag { color: var(--danger); display: grid; place-items: center; flex: none; }
 .lyr-flag.warn { color: oklch(0.62 0.14 70); }
 .lyr-acts { display: flex; gap: 1px; flex: none; opacity: 0; transition: var(--dur) var(--ease); }
-.lyr-row:hover .lyr-acts, .lyr-row.sel .lyr-acts { opacity: 1; }
+.lyr-row:hover .lyr-acts,
+.lyr-row:focus-within .lyr-acts,
+.lyr-row.sel .lyr-acts { opacity: 1; }
 .lyr-acts button { width: 22px; height: 22px; display: grid; place-items: center; border-radius: var(--r-1); color: var(--text-3); }
 .lyr-acts button:hover { background: var(--surface-3); color: var(--text); }
 .lyr-acts button.on { color: var(--accent-soft-text); }

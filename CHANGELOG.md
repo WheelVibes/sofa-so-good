@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: layers row actions reveal on keyboard focus + stay visible on touch (v0.10.0.5)
+
+- `.lyr-acts` (hide/lock/delete) now also reveals on `:focus-within` (keyboard access) and is
+  always visible under `body.mobile` (touch has no hover), matching the `.lyr-geye` idiom.
+  Audit: history rows have no per-row actions; version-card actions are always-visible by design.
+
 ## REFACTOR: unified .liftable hover-lift across cards (v0.10.0.4)
 
 - One hover treatment for interactive cards: `translateY(-2px)` + `--shadow-pop` via the shared
