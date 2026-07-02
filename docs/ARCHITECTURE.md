@@ -910,7 +910,11 @@ same change that reshapes a system.
   storeys by room id). **`P` toggles
   2D⇄3D** — the binding lives in `controls/planEditorHotkey.ts` (always mounted via App,
   modal-guarded), NOT in the lazy-mounted editor, so it opens from the 3D view too.
-  **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).
+  **Reference backdrop / ghost stencil** (`planTraceBackdrop` flag, pro): loads centered +
+  uniform-fit to the plan and renders above room fills but below walls/dims (pure math in
+  `editor/backdropPlacement.ts` — fit/centre/anchored-rescale + the 25 MB cap); Scale-tool
+  calibration (`mPerPx`) anchors on the drawn segment's midpoint; persisted to IDB
+  (`backdropPersist.ts`, `usePlanBackdrop.ts`) + **"AI walls"** (BYO-key).
   **Snap to grid** (Plan menu "Snap to grid", `planGridSnap` flag, pro; PARITY-GRID-SNAP): a
   whole-plan transform that rounds every wall endpoint / room polygon vertex / opening offset /
   note·dim·polyline coordinate (and every upper storey + the `extent`) to the editor's current

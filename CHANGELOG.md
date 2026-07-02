@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: ghost-stencil trace backdrop — centered fit-to-plan load, anchored calibration, visible over rooms (v0.11.1.0)
+
+- **The floor-plan trace backdrop ("Reference photo…") now behaves like a proper ghost stencil.**
+  A dropped/picked image loads **centered on the plan and uniform-fit** to 90% of its bounds
+  (pure `editor/backdropPlacement.ts` — `initialBackdropPlacement`/`rescaleBackdropAnchored`/
+  `centerBackdrop`, unit-tested) instead of pinning tiny at the world origin. **Scale-tool
+  calibration anchors on the drawn segment's midpoint**, so the wall you just measured stays
+  under your line instead of sliding away. The stencil **renders above the opaque room fills**
+  (previously invisible on any roomed plan, including the New-plan shell) but below furniture/
+  walls/openings/dimensions/drafts; `exportPlanPng` still strips it. New **Center** button
+  re-centres at the current scale; the raw opacity range is now a labelled **Trace opacity**
+  `SliderField` (5–100%, percent readout). Uploads are guarded (image-only, 25 MB cap —
+  `MAX_PLAN_BACKDROP_BYTES`) with an error toast instead of a silent no-op. The whole surface is
+  gated by the new **`planTraceBackdrop`** flag (pro tier, default on — button, canvas drop
+  target and `<image>` render all hide in Simple). Verified by unit tests + the
+  `plan-trace-stencil.json` scenario (centered load, opacity, Simple-mode hiding). Spec/plan:
+  `docs/superpowers/{specs,plans}/2026-07-03-floorplan-ghost-stencil*`.
+
 ## CHANGE: shared R2 library is admin-gated, not Pro-gated — `sharedLibrary` drops to simple tier (v0.11.0.3)
 
 - **The `sharedLibrary` flag moves `pro` → `simple` tier and the admin role becomes the real

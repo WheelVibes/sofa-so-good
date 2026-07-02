@@ -225,20 +225,28 @@ knob pointing the way it faces. Drag the ring (or knob) to spin it — it snaps 
 15° steps, and you can hold **Shift** for a free angle, exactly like the wall and
 3D furniture rotation. Leaving the editor frames the selected piece back in 3D.
 
-## Tracing from a photo
+## Tracing from a photo *(Pro)*
 
 Have a real floor‑plan image or a room scan? Trace over it:
 
-1. Click **Reference photo…** (or drag an image onto the canvas).
+1. Click **Reference photo…** in the **Plan** menu (or drag an image onto the
+   canvas). Images up to **25 MB** (PNG/JPG/WebP) are accepted. The image loads
+   **centered on your plan and sized to fit** as a translucent ghost stencil —
+   it floats above the room fills but under your walls, doors and dimensions,
+   so everything you draw stays crisp on top.
 2. Click **Set scale**, drag a line over a dimension you know, and type its real
-   length — the image rescales to match.
-3. Adjust **opacity**, then draw walls over the image.
+   length — the image rescales to match, anchored on the line you drew so the
+   wall you measured stays put.
+3. Adjust **Trace opacity** (5–100%), then draw walls over the image. **Center**
+   re‑centres the image on your plan at any time.
 4. *(Experimental, optional)* **AI walls** sends the photo to a vision model
    (your own API key) and drafts the walls for you to correct.
 
 Your reference photo and its calibration are **saved on your device** — close
 the editor or reload the app and it's still there when you come back. Remove it
-any time with the **✕** next to the photo controls.
+any time with the **✕** next to the photo controls. The trace image is never
+included in exported plan PNGs, and the whole feature is Pro‑mode only (flip
+the Simple/Pro toggle in Appearance).
 
 ## Scale the whole plan *(Pro)*
 

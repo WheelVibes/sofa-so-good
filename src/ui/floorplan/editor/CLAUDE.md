@@ -5,7 +5,7 @@ stays a thin dispatcher. Two kinds of file live here:
 
 - **Pure logic modules** (`floorPlanGeometry.ts`, `snapToWalls.ts`,
   `snapWallAngle.ts`, `planLabelDisplay.ts`, `planConstants.ts`,
-  `toolDraftReducer.ts`, …): side-effect-free, **free of React / DOM / store /
+  `toolDraftReducer.ts`, `backdropPlacement.ts`, …): side-effect-free, **free of React / DOM / store /
   three**. Every function is **parameterised on its inputs** (walls / rooms /
   points / a `snap` fn passed in explicitly) — never read editor or component
   state, never call `useStore`. This is what makes each one unit-testable in

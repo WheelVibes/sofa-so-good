@@ -9,18 +9,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
 > Avoid pricing/quotes/analytics deliverables unless asked.
 
-## Active — ghost stencil (trace backdrop) polish (2026-07-03, planned)
-Spec `docs/superpowers/specs/2026-07-03-floorplan-ghost-stencil-design.md`, plan
-`docs/superpowers/plans/2026-07-03-floorplan-ghost-stencil.md` (branch `feat/floorplan-ghost-stencil`).
-The trace backdrop already ships; the plan closes the gaps:
-- [ ] Centered fit-to-plan load (`editor/backdropPlacement.ts` pure module)
-- [ ] Scale calibration anchored on the measured segment (no image slide)
-- [ ] Center button + `SliderField` opacity control
-- [ ] 25 MB / image-only upload guard with error toast
-- [ ] `planTraceBackdrop` flag (pro, default on) — the surface currently ships ungated
-- [ ] Visual scenario `scripts/scenarios/plan-trace-stencil.mjs` + docs/CHANGELOG (PR v0.11.1.0)
-
-
 ## Active — asset pipeline (2026-07-02, user goal)
 See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full design.
 - **Local dev asset DB (Part 1, in progress).** Drop GLBs in `local-assets/` → auto-loaded into
