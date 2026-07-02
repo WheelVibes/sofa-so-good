@@ -14,8 +14,10 @@ const pwaEnabled = process.env.VITE_DISABLE_PWA !== '1'
 
 export default defineConfig(({ command }) => ({
   // GitHub Pages serves this project site under /sofa-so-good/. Only apply the
-  // sub-path for production builds; the dev server stays at root.
-  base: command === 'build' ? '/sofa-so-good/' : '/',
+  // sub-path for production builds; the dev server stays at root. Other deploy
+  // targets override it via VITE_BASE: `/` for the Docker/nginx image, `./`
+  // (relative) for the Electron desktop shell. Must end with `/`.
+  base: process.env.VITE_BASE ?? (command === 'build' ? '/sofa-so-good/' : '/'),
   plugins: [
     react(),
     // Dev-only: serve GLBs dropped into `local-assets/` straight into the catalog

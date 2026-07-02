@@ -56,3 +56,7 @@ local-assets/
 
 # Scraped CC0/CC-BY/PD asset corpus (dev-only, not shipped)
 scraped_assets/
+
+# Desktop packaging output (electron-builder) + generated build resources (icon)
+release/
+build/

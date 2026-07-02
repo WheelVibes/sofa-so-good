@@ -1,0 +1,41 @@
+# electron-builder config for the desktop shell (electron/main.mjs).
+# Build with `npm run dist:desktop`; CI publishes via .github/workflows/release.yml.
+appId: sg.sofasogood.app
+productName: Sofa So Good
+directories:
+  output: release
+
+# The web bundle is fully self-contained (Vite inlines/bundles every runtime
+# dependency), so ship ONLY the built app + the shell — never node_modules.
+files:
+  - dist/**
+  - electron/**
+  - package.json
+  - '!node_modules'
+npmRebuild: false
+
+# App icon: build/icon.png, generated from public/favicon.svg by
+# scripts/make-desktop-icon.mjs (runs inside `npm run build:desktop`);
+# electron-builder derives icns/ico from it via the default buildResources dir.
+
+mac:
+  target: [dmg, zip]
+  category: public.app-category.graphics-design
+  # Signing/notarization: hardened runtime is required for notarization. The
+  # build signs when CSC_LINK/CSC_KEY_PASSWORD are in the env and notarizes
+  # when APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID are present
+  # (electron-builder skips both, with a warning, when they're absent — so
+  # secretless/local builds still produce unsigned artifacts).
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: electron/entitlements.mac.plist
+  entitlementsInherit: electron/entitlements.mac.plist
+win:
+  target: [nsis]
+linux:
+  target: [AppImage, deb]
+  category: Graphics
+  maintainer: cwlroda
+
+publish:
+  provider: github
