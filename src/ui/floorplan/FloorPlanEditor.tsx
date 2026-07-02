@@ -2324,20 +2324,6 @@ export function FloorPlanEditor() {
               onPointerUp={onUp}
               onPointerCancel={onUp}
             >
-              {/* Reference photo/scan to trace over (behind the grid). */}
-              {fTraceBackdrop && backdrop && (
-                <image
-                  href={backdrop.url}
-                  x={toPx(backdrop.ox)}
-                  y={toPx(backdrop.oz)}
-                  width={backdrop.w * backdrop.mPerPx * PX}
-                  height={backdrop.h * backdrop.mPerPx * PX}
-                  opacity={backdrop.opacity}
-                  preserveAspectRatio="none"
-                  style={{ pointerEvents: 'none' }}
-                />
-              )}
-
               <GridLines
                 W={W}
                 H={H}
@@ -2442,6 +2428,22 @@ export function FloorPlanEditor() {
                 setMovingPolyVertex={setMovingPolyVertex}
                 setMovingRoomLabel={setMovingRoomLabel}
               />
+              {/* Ghost-stencil trace image: above the grid + room fills (opaque
+                  `--surface-2` fills would otherwise hide it on any roomed plan)
+                  but below furniture/walls/openings/dimensions/drafts, so traced
+                  geometry stays crisp on top of the translucent reference. */}
+              {fTraceBackdrop && backdrop && (
+                <image
+                  href={backdrop.url}
+                  x={toPx(backdrop.ox)}
+                  y={toPx(backdrop.oz)}
+                  width={backdrop.w * backdrop.mPerPx * PX}
+                  height={backdrop.h * backdrop.mPerPx * PX}
+                  opacity={backdrop.opacity}
+                  preserveAspectRatio="none"
+                  style={{ pointerEvents: 'none' }}
+                />
+              )}
               {/* Furniture footprints, multi-select box + rotate/scale ring, and
                 name/price labels — the live 3D layout, top-down, filtered to the
                 active storey. Hidden by default (the "Furniture" toggle); while
