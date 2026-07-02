@@ -48,15 +48,11 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 - [ ] **P17 Skeleton loader primitive** — `.skeleton` shimmer (reduced-motion → static pulse) that
   mirrors final layout; catalog images, inspector thumbs, version/preset cards.
 
-- [ ] **P23 Type hierarchy rules** — document page/panel/section/label/caption sizes+weights in
-  `src/ui/CLAUDE.md`.
 - [ ] **P28 Empty-state CTA sweep** — every empty state gets icon + title + description + one CTA
   (no dead ends).
 
 - [ ] **P5 Success/confirm micro-animations** — toast checkmark scale-in, EditConfirmBar dismiss
   slide/shake, SVG stroke-draw checks.
-- [ ] **P19 Border/hover consistency rules** — document `--border` vs `--border-2` and hover
-  conventions in `src/ui/CLAUDE.md`; sweep violations.
 - [ ] **P34 Optimistic placement feedback** — immediate ghost placement + reconcile for drops/AI
   arrange.
 - [ ] **P35 Destructive confirmation policy** — reversible → Undo-toast; irreversible → confirm

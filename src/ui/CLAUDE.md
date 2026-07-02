@@ -61,6 +61,26 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   `Modal`'s `width` prop (`width="var(--modal-md)"`), not an ad-hoc `min(…px, …)` literal.
 - **Keyboard focus treatment is `var(--focus-ring)`** (`box-shadow` on `:focus-visible`) —
   no ad-hoc focus rings/outlines on a new control.
+- **Borders.** `--border` is the default hairline (panels, rows, cards, dividers, inputs at
+  rest). `--border-2` is the *stronger* border — use it only to signal emphasis or
+  hover/active state (`.clr-item:hover { border-color: var(--border-2) }`, left accent bars,
+  hovered share options). Never a colour literal; never a third ad-hoc border alpha. Accent
+  borders (`border-color: var(--accent)`) mark selection/focus, not mere hover.
+- **Hover.** Fills step up one surface level: rest → `--surface-2`, hover → `--surface-3`
+  (rows, chips, ghost buttons). Interactive **cards** use the shared `.liftable` class
+  (`translateY(-2px)` + `--shadow-pop` rise) — don't hand-roll a per-card `transform`/
+  `box-shadow`. **Row actions** that appear on hover (`.lyr-acts` pattern) MUST also reveal on
+  `:focus-within` and stay always-visible under `body.mobile` (touch has no hover). Hover
+  transitions use `var(--dur) var(--ease)`; larger entrances use the `--dur-1/-2/-3` +
+  `--ease-out` scale.
+- **Type hierarchy** — one ladder, from the `--t-*` scale: page/hero title `--t-xl` (20px)
+  weight 800 `--lh-tight`; panel title `--t-lg` (16px) weight 800 `--lh-tight`; section header
+  (`.sec-h`, `.lyr-ghead`, `.menu-label`) `--t-2xs` (10px) weight 700 UPPERCASE +
+  `letter-spacing: 0.06–0.08em` + `--text-3`; body/item label `--t-base`/`--t-sm` weight
+  500–600 `--text`/`--text-2`; caption/meta `--t-xs`/`--t-2xs` weight 600 `--text-3`. Multiline
+  reading copy (descriptions, empty states, onboarding) uses `--lh-body` (1.5); single-line
+  titles/labels use `--lh-tight` (1.25). Numeric readouts add
+  `font-variant-numeric: tabular-nums` (or `.mono`).
 - **Untrusted URLs → `safeUrl` (`src/utils/safeUrl.ts`).** Any URL that originates from
   imported / user-supplied / scraped data (def `sourceUrl`, IKEA `productInfo` image/document
   URLs, retailer-offer links, …) MUST pass through `safeUrl()`/`safeHref()` before it reaches an

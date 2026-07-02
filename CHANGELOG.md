@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: border / hover / type-hierarchy conventions in src/ui/CLAUDE.md (v0.10.0.8)
+
+- `src/ui/CLAUDE.md` conventions cluster extended with three bullets: `--border` (default
+  hairline) vs `--border-2` (emphasis/hover-only, never a colour literal or ad-hoc alpha);
+  hover surface-stepping (`--surface-2` → `--surface-3`) + shared `.liftable` card lift +
+  `.lyr-acts`-style row actions (reveal on hover **and** `:focus-within`, always-visible under
+  `body.mobile`) + the `--dur-1/-2/-3`/`--ease-out` entrance scale; the `--t-*` type ladder
+  (page/panel titles, UPPERCASE section headers, body/caption sizes) with `--lh-tight` vs
+  `--lh-body` line-height rules. All claims verified against `src/styles/tokens.css` and
+  `components.css`/`features.css` before documenting — nothing new added to CSS.
+- Audit sweep (`grep -rn "line-height:\s*1\.[0-9]" src/styles/*.css`): all single-line
+  titles/labels/captions correctly keep hardcoded tight values (no fix needed, per the ladder).
+  Four multiline reading-copy rules (`.preset-desc`, `.ss-card-desc`, `.help-list li`,
+  `.stamp-banner-text`) use near-`--lh-body` literals (1.4/1.45/1.35) that aren't exact
+  token matches — changing them would alter rendered line spacing, not just swap tokens, so
+  they're left as a follow-up rather than expanded in scope here.
+- `docs/superpowers/plans/2026-07-02-ui-polish-batch2a.md` (UI polish Batch 2a plan) committed.
+
 ## FEAT: entrance stagger for menus, catalog grid, layers, cmdk results (v0.10.0.7)
 
 - Shared `.stagger-in` utility: children fade+rise in a 50ms cascade (`staggerIn` keyframe,
