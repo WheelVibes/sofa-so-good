@@ -36,7 +36,9 @@ describe('editorPrefs — density (P38)', () => {
     expect(useStore.getState().density).toBe('comfortable')
   })
 
-  it('applies [data-density] on <html> when the watcher fires after setDensity', () => {
+  it('applies [data-density] on <html> when the watcher fires after setDensity (Pro)', () => {
+    useStore.setState({ uiMode: 'pro' } as never)
+    useStore.getState().reresolveFeatureFlags()
     watchEditorPrefs()
     useStore.getState().setDensity('compact')
     expect(document.documentElement.getAttribute('data-density')).toBe('compact')
@@ -49,5 +51,41 @@ describe('editorPrefs — density (P38)', () => {
     expect(raw).toBeTruthy()
     const p = JSON.parse(raw as string)
     expect(p.density).toBe('compact')
+  })
+
+  describe('densityMode flag gates the effect, not the preference', () => {
+    it('Pro mode with a persisted compact pref applies data-density=compact', () => {
+      localStorage.setItem(KEY, JSON.stringify({ uiMode: 'pro', density: 'compact' }))
+      loadEditorPrefs()
+      expect(useStore.getState().featureFlags.densityMode).toBe(true)
+      expect(document.documentElement.getAttribute('data-density')).toBe('compact')
+    })
+
+    it('switching to Simple falls back to comfortable while the pref stays compact', () => {
+      localStorage.setItem(KEY, JSON.stringify({ uiMode: 'pro', density: 'compact' }))
+      loadEditorPrefs()
+      watchEditorPrefs()
+      expect(document.documentElement.getAttribute('data-density')).toBe('compact')
+
+      useStore.getState().setUiMode('simple')
+
+      expect(document.documentElement.getAttribute('data-density')).toBe('comfortable')
+      expect(useStore.getState().density).toBe('compact')
+      const raw = JSON.parse(localStorage.getItem(KEY) as string)
+      expect(raw.density).toBe('compact')
+    })
+
+    it('switching back to Pro restores data-density=compact', () => {
+      localStorage.setItem(KEY, JSON.stringify({ uiMode: 'pro', density: 'compact' }))
+      loadEditorPrefs()
+      watchEditorPrefs()
+      useStore.getState().setUiMode('simple')
+      expect(document.documentElement.getAttribute('data-density')).toBe('comfortable')
+
+      useStore.getState().setUiMode('pro')
+
+      expect(document.documentElement.getAttribute('data-density')).toBe('compact')
+      expect(useStore.getState().density).toBe('compact')
+    })
   })
 })

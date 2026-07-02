@@ -32,7 +32,8 @@ In **Pro** mode, the Appearance popover also shows a **Density** control with
 **Comfortable** and **Compact** options. Compact tightens the vertical spacing
 of list-style rows (like menu items) so more fits on screen — horizontal
 spacing and hit-targets stay the same. Your choice is remembered between
-visits.
+visits — but compact spacing pauses in Simple mode (the control is Pro-only)
+and comes back as soon as you switch to Pro again.
 
 ## Discovering Pro tools
 

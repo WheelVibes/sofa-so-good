@@ -16,10 +16,16 @@ const KEY = 'sofa.editor.v1'
 const PLAN_LABEL_MODES: PlanLabelMode[] = ['off', 'name', 'price']
 
 /** Write the row density onto <html> as `[data-density]`, driving the
- *  `--row-pad-*` token overrides (P38). jsdom-safe: no-op without `document`. */
+ *  `--row-pad-*` token overrides (P38). Density is a Pro-tier feature: the
+ *  `densityMode` flag gates the *effect*, not the *preference* — a persisted
+ *  `'compact'` is only applied while the flag resolves enabled (Pro); in
+ *  Simple the DOM attribute falls back to `'comfortable'` while the stored
+ *  value is left untouched, so switching back to Pro restores compact.
+ *  jsdom-safe: no-op without `document`. */
 export function applyDensity(density: Density): void {
   if (typeof document === 'undefined') return
-  document.documentElement.setAttribute('data-density', density)
+  const effective = useStore.getState().featureFlags.densityMode ? density : 'comfortable'
+  document.documentElement.setAttribute('data-density', effective)
 }
 
 export function loadEditorPrefs(): void {
@@ -90,7 +96,7 @@ export function loadEditorPrefs(): void {
 export function watchEditorPrefs(): void {
   let last = ''
   useStore.subscribe((s) => {
-    const snap = JSON.stringify({
+    const persisted = {
       snapEnabled: s.snapEnabled,
       gridSize: s.gridSize,
       units: s.units,
@@ -104,12 +110,18 @@ export function watchEditorPrefs(): void {
       layersCollapsed: s.layersCollapsed,
       catalogOpen: s.catalogOpen,
       density: s.density,
-    })
+    }
+    // Change-detection key only — NOT written to localStorage. A Simple↔Pro
+    // flip changes uiMode, then re-resolves featureFlags in a *separate*
+    // `set` call; folding densityMode into the compare key (without folding
+    // it into `persisted`) guarantees applyDensity re-runs once the flag
+    // settles, without the flag leaking into the saved prefs JSON.
+    const snap = JSON.stringify({ ...persisted, densityModeOn: s.featureFlags.densityMode })
     if (snap === last) return
     last = snap
     applyDensity(s.density)
     try {
-      localStorage.setItem(KEY, snap)
+      localStorage.setItem(KEY, JSON.stringify(persisted))
     } catch {
       /* storage full / unavailable */
     }

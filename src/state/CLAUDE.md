@@ -15,7 +15,12 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   `'comfortable'` for pre-existing records); `applyDensity(density)` mirrors
   `appearancePrefs.applyAppearance` — it writes `[data-density]` on `<html>` (driving the
   `--row-pad-*` token overrides in `styles/tokens.css`) and is called from both
-  `loadEditorPrefs` and `watchEditorPrefs`, jsdom-safe (guards `document`). Some
+  `loadEditorPrefs` and `watchEditorPrefs`, jsdom-safe (guards `document`). Density applies only
+  while the `densityMode` flag is enabled (pro): in Simple the persisted value is retained but
+  the DOM attribute falls back to `'comfortable'` (`applyDensity` reads
+  `useStore.getState().featureFlags.densityMode` at call time; `watchEditorPrefs` folds it into
+  its change-detection key — but not the persisted JSON — so a Simple↔Pro flip re-applies it).
+  Some
   state is deliberately session-only / out of the save schema (recent items, favourites,
   hidden ids, user styles in `localStorage`) — don't add those to autosave. `recentSlice`
   and `favouritesSlice` both self-persist to localStorage (keys `hdb_recent_items`, `hdb_favourites`; `calloutsSlice`/`badgesSlice` likewise (`hdb_dismissed_callouts`, `hdb_seen_badges`)

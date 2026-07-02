@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: density effect gates on the densityMode flag — compact pauses in Simple (v0.10.0.50)
+
+- `applyDensity` wrote `[data-density]` unconditionally, so a Compact pref set in Pro stayed
+  applied after switching to Simple even though the Appearance density control (and the
+  `densityMode` flag it's gated behind) disappears — a pro-tier effect escaping the Simple gate,
+  with no UI to revert (final-review Important finding).
+- `applyDensity` now reads `useStore.getState().featureFlags.densityMode` at call time: applies
+  the persisted density only while the flag resolves enabled, else falls back to `'comfortable'`.
+  The stored preference is untouched, so switching back to Pro restores compact.
+- `watchEditorPrefs` folds `featureFlags.densityMode` into its change-detection snapshot (not
+  into the persisted JSON) so a Simple↔Pro flip — which sets `uiMode` then re-resolves
+  `featureFlags` in a separate `set` call — reliably re-runs `applyDensity` once the flag settles.
+- `editorPrefs.density.test.ts` extended: Pro + persisted compact → `data-density='compact'`;
+  switch to Simple → `'comfortable'` while `localStorage` still holds `'compact'`; switch back
+  to Pro → `'compact'` again.
+
 ## FIX: rowPadding tests pin the density-token contract; dead .lyr-row line pruned (v0.10.0.49)
 
 - The 2b row-padding tests still asserted the pre-density literal compositions and only stayed
