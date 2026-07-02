@@ -32,8 +32,7 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
   and the "X / Y" text from one coalesced counter.
 
 ### Batch 2 — medium (1–3 days each)
-- [ ] **P1 Motion scale tokens** — `--dur-1/-2/-3` (~150/300/600ms) + entrance easing
-  `cubic-bezier(0.16,1,0.3,1)` (easeOutExpo) alongside existing `--dur`/`--ease` in tokens.css.
+
 - [ ] **P2 Stagger capability** — CSS `animation-delay: calc(var(--i) * 50ms)` entrance stagger for
   menu items, catalog card grid, layers rows, ⌘K results.
 - [ ] **P3 Desktop panel slide animation** — animate `--right-rail` width + panel slide-in

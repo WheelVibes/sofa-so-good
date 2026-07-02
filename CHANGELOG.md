@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: motion scale tokens --dur-1/-2/-3 + --ease-out (v0.10.0.1)
+
+- Motion scale for entrance/exit choreography: `--dur-1` 150ms / `--dur-2` 300ms / `--dur-3`
+  600ms plus `--ease-out` (easeOutExpo `cubic-bezier(0.16,1,0.3,1)`) alongside the existing
+  `--dur`/`--ease` micro-transition tokens. Consumed by the upcoming entrance stagger.
+
 ## FEAT: UI/UX polish Batch 1 — merge prep (v0.10.0.0)
 
 - Fixed the clearRoom double-toast (P30 follow-up): `deleteItem` now takes an

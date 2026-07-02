@@ -37,6 +37,13 @@
   --blur: 16px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --dur: 0.16s;
+  /* Motion scale (P1). --dur (0.16s) stays the default micro-transition; this
+     scale is for larger entrance/exit choreography. --ease-out is easeOutExpo —
+     a fast-in / soft-settle curve for entrances (stagger, panel slide). */
+  --dur-1: 150ms;
+  --dur-2: 300ms;
+  --dur-3: 600ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Unified keyboard focus ring (P14): a 3px soft-accent halo, one token so
      every control matches. color-mix keeps it on-theme in all 5 palettes. */
