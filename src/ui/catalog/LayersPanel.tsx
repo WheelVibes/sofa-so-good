@@ -32,6 +32,8 @@ export function LayersPanel() {
   const setItemsHidden = useStore((s) => s.setItemsHidden)
   const setItemsLocked = useStore((s) => s.setItemsLocked)
   const showAllItems = useStore((s) => s.showAllItems)
+  const setLeftMode = useStore((s) => s.setLeftMode)
+  const setCatalogOpen = useStore((s) => s.setCatalogOpen)
   const hiddenSet = new Set<string>(hiddenIds)
 
   const fFinishDnd = useFeature('finishDnd')
@@ -101,12 +103,20 @@ export function LayersPanel() {
             icon={Icon.Layers}
             title="Nothing placed yet"
             description="Switch to the catalog and drag items onto the floor — they'll show up here as a layer list."
+            cta={{
+              label: 'Open catalog',
+              onClick: () => {
+                setLeftMode('catalog')
+                setCatalogOpen(true)
+              },
+            }}
           />
         ) : visibleGroups.length === 0 ? (
           <EmptyState
             icon={Icon.Search}
             title="No objects match"
             description={`Nothing here matches “${filter.trim()}”. Try a different word.`}
+            cta={{ label: 'Clear filter', onClick: () => setFilter('') }}
           />
         ) : (
           visibleGroups.map((g) => {

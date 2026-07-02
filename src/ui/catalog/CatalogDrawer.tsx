@@ -1,5 +1,6 @@
 import { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
+import { FURNITURE_CATEGORIES } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { lazyWithRetry } from '../app/lazyWithRetry'
 import { Button } from '../controls/Button'
@@ -97,6 +98,11 @@ export function CatalogDrawer() {
   // Price displays/filters are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
   const unified = useUnifiedCatalog(fRemoteFurniture)
+  // The real category to land on from a "Browse all" CTA (favourites/recent/
+  // empty-category empty states) — the first real category that actually has
+  // cards, so the CTA never lands on another empty tab.
+  const firstBrowsableCategory =
+    FURNITURE_CATEGORIES.find((c) => (unified.counts[c] ?? 0) > 0) ?? 'seating'
   const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
   const [mode, setMode] = useState<Mode>('catalog')
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -443,6 +449,10 @@ export function CatalogDrawer() {
                   icon={Icon.Heart}
                   title="No favourites yet"
                   description="Tap the heart on any card to save it here for quick access."
+                  cta={{
+                    label: 'Browse all',
+                    onClick: () => selectCategory(firstBrowsableCategory),
+                  }}
                 />
               ) : active === 'recent' ? (
                 <EmptyState
@@ -450,6 +460,10 @@ export function CatalogDrawer() {
                   icon={Icon.Time}
                   title="Nothing placed yet"
                   description="Items you add appear here for quick reuse."
+                  cta={{
+                    label: 'Browse all',
+                    onClick: () => selectCategory(firstBrowsableCategory),
+                  }}
                 />
               ) : maxPrice.trim() && baseCards.length > 0 ? (
                 <EmptyState
@@ -471,6 +485,10 @@ export function CatalogDrawer() {
                   icon={Icon.Catalog}
                   title="No items here yet"
                   description="This category is empty — try another tab."
+                  cta={{
+                    label: 'Browse all',
+                    onClick: () => selectCategory(firstBrowsableCategory),
+                  }}
                 />
               )
             ) : (

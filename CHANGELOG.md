@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: empty-state CTA sweep — no dead ends (v0.10.0.25)
+
+- 8 CTAs wired to verified real handlers: Versions "Save current version"; Budget saved/placed
+  "Browse catalog"; catalog favourites/recent/empty "Browse all" (first populated category);
+  Layers "Open catalog" + "Clear filter" on search-no-results. Intentionally CTA-less (with
+  rationale): Accessibility/Daylight analysis panels (fix lives in the plan editor), Swap
+  no-alternatives (modal chrome closes), Comments/RemoteBrowse/no-matches (already have CTAs).
+  Note: versions/budget flags are simple-tier, so CTAs behave identically in both modes
+  (tested).
+
 ## DOCS: drop P34 — optimistic placement already covered by ghost + confirm-bar (v0.10.0.24)
 
 - Ruling recorded: drag arms the live `PlacementGhost` (cursor-following during `dragover`)

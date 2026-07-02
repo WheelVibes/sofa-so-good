@@ -240,6 +240,7 @@ export function VersionsPanel() {
               icon={Icon.Versions}
               title="No saved versions yet"
               description="Save the current layout as a named version above — you can restore or compare it any time."
+              cta={{ label: 'Save current version', onClick: () => void save() }}
             />
           ) : null}
 

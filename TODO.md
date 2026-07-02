@@ -33,9 +33,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 
 ### Batch 2 — medium (1–3 days each)
 
-- [ ] **P28 Empty-state CTA sweep** — every empty state gets icon + title + description + one CTA
-  (no dead ends).
-
 ### Batch 3 — larger (~1 week each)
 - [ ] **P6 Screen-transition crossfade** — 200–300ms fade between 3D view ↔ floor plan ↔ walk mode.
 - [ ] **P7 Token-based magicui adaptations** (flag-gated, GPU-tier-gated, reduced-motion-safe):
