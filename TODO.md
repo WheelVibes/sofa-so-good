@@ -36,8 +36,10 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 
 ### Batch 3 — larger (~1 week each)
 
-- [ ] **P37 List virtualization** — history/layers/catalog results >100 items
-  (`@tanstack/react-virtual`).
+- [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the
+  catalog is already paginated (`PAGE_SIZE=12`, never renders >12 cards); history/layers
+  realistically render <100 rows. Revisit with a lightweight slice-on-scroll window (NOT a new
+  dependency) only if a single list is observed to exceed ~200 live DOM rows.
 
 ## ⛔ Production-infra-blocked — need a DEPLOYED host/backend, not app code
 The dev paths already work (Vite reverse proxy, dev-gated providers); only the *production*

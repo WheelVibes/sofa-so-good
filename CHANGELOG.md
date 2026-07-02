@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: P37 ruling — defer list virtualization with a measured threshold (v0.10.0.46)
+
+- Not justified now: the catalog grid is already paginated (PAGE_SIZE=12) and history/layers
+  render well under 100 rows. TODO.md reworded to the deferral + ~200-live-row revisit
+  threshold (lightweight scroll window before any dependency); ARCHITECTURE notes the ruling.
+
 ## FEAT: ambient FX — HQ border-beam + catalog radial gradient, triple-gated (v0.10.0.45)
 
 - New `ambientFx` flag (simple-tier, prod default on) + `useAmbientFx()` — the single gate for

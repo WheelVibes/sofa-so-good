@@ -182,7 +182,7 @@ same change that reshapes a system.
   `ContextLossGuard.tsx` recovers WebGL context loss.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
-  CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice` /
+  CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent; the grid is paginated (PAGE_SIZE=12) — list virtualization was evaluated and deferred (2026-07-03): revisit with a lightweight scroll window only past ~200 live rows in one list (`recentSlice` /
   `favouritesSlice` — both persist to localStorage, both per-device convenience state; `calloutsSlice`/`badgesSlice` follow the same pattern for hint dismissals + "New"-badge seen state).
   Search is synonym- + intent-aware (`catalog/searchSynonyms.ts` `fuzzySearchSmart`:
   couch→sofa, plurals, and **search-by-room** — "bedroom"→bed/wardrobe/…); when a query
