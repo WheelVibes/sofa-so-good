@@ -23,26 +23,26 @@ pages_build_output_dir = "dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "sofa-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "fb58d018-740f-4428-b3af-a1b4be9b7bf9"
 migrations_dir = "migrations"
 
 # --- R2 (shared, read-only asset library) ------------------------------------
 [[r2_buckets]]
-binding = "LIBRARY"
+binding = "sofa_assets"
 bucket_name = "sofa-assets"
 
 # --- KV (sessions, cache, feature-flag / kill-switch config) -----------------
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "REPLACE_WITH_SESSIONS_KV_ID"
+id = "528e103f05a0429693c509c2f3c07eb2"
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_WITH_CACHE_KV_ID"
+id = "b38c897bbbbd412c8ecda17ec8ea2971"
 
 [[kv_namespaces]]
 binding = "FLAGS"
-id = "REPLACE_WITH_FLAGS_KV_ID"
+id = "83ef4ce2cf964d3a8fb92f046e2bffad"
 
 # --- Non-secret tunables (secrets go via `wrangler pages secret put`) ---------
 # Secrets to set: ADMIN_EMAIL, ADMIN_PASSWORD (first-admin seed), TURNSTILE_SECRET.

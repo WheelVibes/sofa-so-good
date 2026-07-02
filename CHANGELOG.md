@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: wrangler.toml points at the provisioned Cloudflare resources (v0.10.0.9)
+
+- The `REPLACE_WITH_*` placeholders in `wrangler.toml` are gone: the D1 database id, the three KV
+  namespace ids (sessions/cache/flags) and the R2 bucket binding (`sofa_assets`) now reference the
+  actually-provisioned Cloudflare resources, so the Pages build deploys against the real backend
+  without hand-editing. (Resource ids are account-scoped identifiers, not secrets.)
+
 ## PERF: boot loader keeps animating through Canvas warm-up (no more frozen "Almost ready…" cover) (v0.10.0.8)
 
 - **The static `#boot-loader` no longer freezes to a static frame during scene warm-up.** Its
