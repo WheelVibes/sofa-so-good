@@ -32,14 +32,19 @@ import { hydrateWalkBackdrop } from './walkBackdrop'
 
 let started = false
 
+const yieldFrame = (): Promise<void> =>
+  new Promise((resolve) => requestAnimationFrame(() => resolve()))
+
 /** Run one boot step, swallowing + logging any failure so it can't abort the
- *  rest of the bootstrap. Supports sync or async steps. */
+ *  rest of the bootstrap. Supports sync or async steps. Yields one animation
+ *  frame after each step so the static boot loader can keep compositing. */
 async function runStep(name: string, fn: () => void | Promise<void>): Promise<void> {
   try {
     await fn()
   } catch (e) {
     console.error(`[bootstrap] step "${name}" failed (continuing):`, e)
   }
+  await yieldFrame()
 }
 
 /** Run the boot bootstrap exactly once. Safe to call from React StrictMode

@@ -735,6 +735,21 @@ the stdlib `glb_analysis.py` can't decode Draco geometry, only the container).
 The browser already has Draco wired — do geometry probing in-page via an
 evalFile that loads through the app's own loader, not in a standalone script.
 
+### `enterRoomEditor` raises an "Entering room…" overlay that covers the catalog
+The catalog panel only mounts in the room editor (`open && cameraMode === 'orbit'
+&& roomEditor.active`), but `enterRoomEditor` sets `loading: { active: true, label:
+'Entering room…' }` — a full-screen overlay that clears on scene-ready. Under
+SwiftShader that ready signal is racy (a `THREE.WebGLRenderer: Context Lost.` can
+stall it), so a screenshot right after shows the overlay, not the catalog. Call
+`window.__store.getState().hideLoading()` after entering the room editor (and again
+after any mode switch that re-enters), then `wait` a beat, before screenshotting the
+catalog grid. Note the separate **boot** splash (cycles HDB-flavoured status lines on `#boot-loader .bl-sub`, then pins "Almost ready…" during scene warm-up) keys off
+`bootPhase`/`sceneReady`, not `loading` — if it's still up, the boot simply hasn't
+settled; give `store-ready` a generous timeout and add a settle wait. This was found
+verifying the shared-library catalog cards (`shared-library-simple.json`): the Pro
+leg (later, boot settled) shot the grid cleanly; an early Simple leg still showed the
+boot splash.
+
 ### An isolated room renders as a closed box you can't see into
 The per-room editor (`enterRoomEditor(roomId)`) renders only that room's walls.
 A naive "render the matched walls" gives a fully-enclosed box — from any orbit

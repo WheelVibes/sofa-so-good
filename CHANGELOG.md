@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## UX: 2D floor-plan swap shows the transition overlay; boot yields between hydrate steps (v0.10.0.14)
+
+- **Entering/leaving the 2D floor-plan editor now raises the loading overlay** ("Opening/Closing
+  floor plan…") instead of an instant jump-cut, mirroring the room editor's transition
+  (`setFloorPlanEditing`/`toggleFloorPlanEditing`, unit-tested; clears on scene-ready as usual).
+- **The boot sequence yields one animation frame after each hydrate step** (`bootstrap.ts`), so the
+  boot loader keeps compositing between storage reads instead of freezing through a long
+  synchronous run (follow-up to the v0.10.0.7/.8 loader work).
+- Playbook: documented the `enterRoomEditor` "Entering room…" overlay gotcha for catalog
+  screenshots (call `hideLoading()` before shooting) + the boot-splash settle behaviour under
+  SwiftShader; TODO logs the deferred deeper warm-up lever (`renderer.compileAsync` +
+  time-sliced mounts) with its adoption threshold.
+
 ## UX: hover highlight is gated on the item's footprint, not its raw mesh (v0.10.0.13)
 
 - **Tall/overhanging geometry no longer lights a piece up from across the room** (HOVER-FOOTPRINT):

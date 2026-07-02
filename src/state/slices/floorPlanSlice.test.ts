@@ -238,6 +238,26 @@ describe('floorPlanSlice', () => {
     expect(useStore.getState().selectedWallIds).toEqual([])
   })
 
+  it('toggling the floor plan editor shows the transition overlay with a directional label', () => {
+    // Opening triggers the loading overlay so the swap reads as a smooth load.
+    useStore.getState().setFloorPlanEditing(true)
+    expect(useStore.getState().floorPlanEditing).toBe(true)
+    expect(useStore.getState().loading).toEqual({ active: true, label: 'Opening floor plan…' })
+
+    // Closing shows the overlay too, with the exit-direction label.
+    useStore.getState().setFloorPlanEditing(false)
+    expect(useStore.getState().floorPlanEditing).toBe(false)
+    expect(useStore.getState().loading).toEqual({ active: true, label: 'Closing floor plan…' })
+
+    // toggleFloorPlanEditing picks the label from the resulting (new) state.
+    useStore.getState().toggleFloorPlanEditing()
+    expect(useStore.getState().floorPlanEditing).toBe(true)
+    expect(useStore.getState().loading).toEqual({ active: true, label: 'Opening floor plan…' })
+    useStore.getState().toggleFloorPlanEditing()
+    expect(useStore.getState().floorPlanEditing).toBe(false)
+    expect(useStore.getState().loading).toEqual({ active: true, label: 'Closing floor plan…' })
+  })
+
   it('splits a wall into two segments at the midpoint, re-homing openings', () => {
     const s = useStore.getState()
     s.newFloorPlan('Split test')

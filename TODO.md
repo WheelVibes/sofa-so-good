@@ -59,6 +59,12 @@ probes; directional door-bleed weighting; real-time path-traced GI/RTX (revisit 
 WebGPU path tracing).
 
 ## Deferred candidates
+- **Deeper transition-warmup: `renderer.compileAsync` + time-sliced mounts** (2026-07-03).
+  v0.10.0.7 shipped compositor-proof overlay animation + readiness-based hide (throttled ~10 fps
+  warm frames behind the overlay). The remaining lever if big scenes still block long: explicit
+  `renderer.compileAsync(scene, camera)` (KHR_parallel_shader_compile) + `initTexture` during the
+  overlay window, and batching FurnitureLayer mounts across frames so no single main-thread block
+  exceeds ~50 ms. Only worth it if profiling shows first-frame blocks surviving the warm frames.
 - **`livePrices` IXT scenario** — deferred (user, 2026-06-30): dev-only + network/sidecar-bound
   (lower value), and a headless scenario would need a new dev-only `window.__priceSidecarStub` lever
   in `livePrice.ts` purely for the test. Unit coverage already exercises the client logic; revisit
