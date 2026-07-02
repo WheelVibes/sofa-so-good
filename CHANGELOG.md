@@ -5,6 +5,60 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CI: release tag must match APP_VERSION (v0.9.1.2)
+
+- **`release.yml` now fails a `v*` tag run when the tag doesn't equal `APP_VERSION`**
+  (`src/version.ts`). The desktop update check compares the latest release tag against the
+  baked-in version, so a tag ahead of the code would show installed apps a perpetual
+  "update available" they already run. Guard runs before install (bash on all runners);
+  `workflow_dispatch` runs are unaffected.
+
+## FEAT: desktop shell hardening — run-as-node guard, icons, signing, GitHub-release update check (v0.9.1.1)
+
+- **`ELECTRON_RUN_AS_NODE` no longer silently breaks the shell.** VSCode/agent hosts export it,
+  making the Electron binary run `main.mjs` as plain Node (`app` undefined). The shell now
+  default-imports `electron` (named imports throw at parse time in that mode, before any guard
+  can run), detects the condition, and **re-execs itself without the variable**
+  (`process.execPath` is the Electron binary in run-as-node mode). Verified: launching with
+  `ELECTRON_RUN_AS_NODE=1` relaunches and renders the full scene.
+- **App icon**: `scripts/make-desktop-icon.mjs` (sharp) renders `public/favicon.svg` →
+  `build/icon.png` (1024²) inside `build:desktop`; electron-builder derives icns/ico from its
+  default buildResources dir. `build/` + `release/` gitignored (generated).
+- **macOS signing/notarization wired**: `hardenedRuntime` + `electron/entitlements.mac.plist`
+  (JIT + unsigned-exec-memory for V8/wasm) in `electron-builder.yml`; `release.yml` passes
+  `MAC_CSC_LINK`/`MAC_CSC_KEY_PASSWORD`, `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`,
+  and `WIN_CSC_LINK`/`WIN_CSC_KEY_PASSWORD` secrets — signing/notarization activate when the
+  secrets exist, secretless builds stay unsigned (keychain auto-discovery stays off).
+- **Desktop "Check for updates" now checks GitHub releases** (`src/desktop/updateCheck.ts`):
+  in the shell (detected via the `app:` protocol) `runUpdateCheck` queries
+  `releases/latest`, compares the tag against `APP_VERSION` (`releaseTagToVersion` +
+  `decideDesktopUpdate`, unit-tested), and offers a **Download** toast that opens the releases
+  page in the system browser. Web/PWA keeps the existing SW flow.
+
+## FEAT: Docker image + Electron desktop shell + parameterized deploy base (v0.9.1.0)
+
+- **`VITE_BASE` env now overrides the build's base path** (default unchanged: `/sofa-so-good/`
+  for prod builds, `/` in dev). All app code already resolved through `import.meta.env.BASE_URL`,
+  so this is config-only. `scripts/static-serve.mjs` gained matching `BASE`/`PORT` env overrides.
+- **Docker packaging**: multi-stage `Dockerfile` (node:24.18.0-alpine build → nginx:1.27-alpine
+  serve, `VITE_BASE=/`) + `docker/nginx.conf` + `.dockerignore`. The nginx config fixes the
+  wasm/glb/ktx2/webmanifest MIME types, adds SPA fallback (excluding `/docs/`, mirroring the SW
+  denylist), no-cache on `index.html`/`sw.js`, immutable caching for hashed assets, and
+  **replicates the dev-only CC0 proxies** (`/acg`, `/acg-cdn`, `/kenney`) — self-hosted deploys
+  now have the "production proxy" vite.config.ts called for.
+- **Electron desktop shell** (`electron/main.mjs`, electron 43.0.0): serves `dist/` over a
+  privileged `app://` scheme (fetch() is blocked on `file://`, and the app fetches GLBs/KTX2/wasm
+  at runtime), sandboxed renderer with no Node integration, external links open in the system
+  browser, and an `ELECTRON_SMOKE_SHOT` headless capture hook for CI/visual verification.
+  `npm run build:desktop` (cross-platform env wrapper: `VITE_BASE=./`, `VITE_DISABLE_PWA=1`),
+  `electron:start`, `dist:desktop` (electron-builder → dmg/zip, nsis, AppImage/deb; config in
+  `electron-builder.yml` — ships only `dist/` + `electron/`, never node_modules).
+- **CI**: new `.github/workflows/release.yml` — 3-OS matrix packaging on `v*` tags (publishes to
+  the GitHub release; unsigned for now) or manual dispatch (artifacts only). Node pinned to
+  **24.18.0** across `.nvmrc` (new), `ci.yml`, `deploy.yml`, Dockerfile, and `engines`.
+- Verified: Electron shell smoke-screenshot renders the full furnished scene over `app://`
+  (SwiftShader under WSL); root-base build boots via `static-serve` with `BASE=/`.
+
 ## DOCS: MOD-FPE-SPLIT status — render-layer decomposition complete (v0.9.0.61)
 
 - Recorded the FloorPlanEditor de-monolith outcome: **4271 → 2728 lines (−36%)** across 14 commits —

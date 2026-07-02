@@ -12,9 +12,10 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 ## ⛔ Production-infra-blocked — need a DEPLOYED host/backend, not app code
 The dev paths already work (Vite reverse proxy, dev-gated providers); only the *production*
 proxy/mirror/host is missing, and standing one up is a deployment task, not a code change here:
-- **Runtime catalog CORS proxy** (ambientCG prod) — ambientCG's API/CDN send no CORS headers; prod
-  needs a Cloudflare Worker / Vercel edge / hosted reverse-proxy. Until then ambientCG is dev-gated
-  (Poly Haven works direct in prod).
+- **Runtime catalog CORS proxy** (ambientCG prod) — ambientCG's API/CDN send no CORS headers.
+  The Docker image's nginx now ships `/acg`/`/acg-cdn`/`/kenney` proxies (self-hosted deploys
+  covered), but the **GitHub Pages** deployment still needs a Cloudflare Worker / Vercel edge /
+  hosted reverse-proxy. Until then ambientCG stays dev-gated there (Poly Haven works direct).
 - **Kenney / Quaternius mirrors** — no CORS-friendly API, ship single ZIPs; need a build-time mirror
   or proxy worker + format conversion (FBX/OBJ → GLB) before adding to the runtime catalog.
 - **Sketchfab** — REST + OAuth token + runtime fetch (auth/ToS friction).

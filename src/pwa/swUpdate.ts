@@ -1,4 +1,5 @@
 import { registerSW } from 'virtual:pwa-register'
+import { isDesktopShell, runDesktopUpdateCheck } from '../desktop/updateCheck'
 import { useStore } from '../state/store'
 import { APP_VERSION } from '../version'
 
@@ -122,6 +123,9 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
  * unsupported / error message. Safe to call from any UI surface.
  */
 export async function runUpdateCheck(): Promise<void> {
+  // Desktop shell: no SW to compare against — check GitHub releases instead.
+  if (isDesktopShell()) return runDesktopUpdateCheck()
+
   const { notify } = useStore.getState()
   const id = notify.start({ title: 'Checking for updates…', kind: 'progress' })
   notify.update(id, { progress: null }) // indeterminate spinner — no real % to report
