@@ -41,7 +41,7 @@
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3);
 }
 .empty-mini b { font-size: var(--t-sm); font-weight: 700; color: var(--text-2); }
-.empty-mini span { font-size: var(--t-xs); line-height: 1.5; max-width: 30ch; }
+.empty-mini span { font-size: var(--t-xs); line-height: var(--lh-body); max-width: 30ch; }
 /* span an empty state across all columns of the catalog card grid */
 .empty-mini.catalog-empty { grid-column: 1 / -1; }
 
@@ -163,7 +163,7 @@
 .clr-item .ci-head { display: flex; align-items: flex-start; gap: var(--s-2); }
 .clr-item .ci-head .badge { margin-top: 1px; }
 .clr-item .ci-title { font-size: var(--t-sm); font-weight: 700; color: var(--text); line-height: 1.35; }
-.clr-item .ci-detail { font-size: var(--t-xs); color: var(--text-2); line-height: 1.5; margin-top: 5px; }
+.clr-item .ci-detail { font-size: var(--t-xs); color: var(--text-2); line-height: var(--lh-body); margin-top: 5px; }
 .clr-item .ci-fix { display: flex; align-items: center; gap: 5px; font-size: var(--t-2xs); color: var(--accent-soft-text); font-weight: 600; margin-top: 6px; }
 .clr-allclear { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 12px; text-align: center; }
 .clr-allclear .ring { width: 46px; height: 46px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-soft-text); display: grid; place-items: center; }

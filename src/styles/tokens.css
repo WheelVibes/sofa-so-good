@@ -34,6 +34,11 @@
   --t-lg: 16px;
   --t-xl: 20px;
 
+  /* Line-height tokens (P20). --lh-tight for headings + single-line labels;
+     --lh-body for multiline reading copy (descriptions, empty states, onboarding). */
+  --lh-tight: 1.25;
+  --lh-body: 1.5;
+
   --blur: 16px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --dur: 0.16s;

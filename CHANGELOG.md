@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: --lh-tight/--lh-body line-height tokens (v0.10.0.2)
+
+- `--lh-body` (1.5) now drives multiline reading copy: `.empty-mini` descriptions, clearance
+  detail text, empty-state subs, onboarding lede/steps. `--lh-tight` (1.25) is the documented
+  heading/label leading. Replaces per-selector hardcoded 1.45/1.5/1.55 values.
+
 ## FEAT: motion scale tokens --dur-1/-2/-3 + --ease-out (v0.10.0.1)
 
 - Motion scale for entrance/exit choreography: `--dur-1` 150ms / `--dur-2` 300ms / `--dur-3`

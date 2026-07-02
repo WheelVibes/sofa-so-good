@@ -53,8 +53,7 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 - [ ] **P16 Button pending state** — `loading` prop: inline spinner, pointer-events none, dimmed.
 - [ ] **P17 Skeleton loader primitive** — `.skeleton` shimmer (reduced-motion → static pulse) that
   mirrors final layout; catalog images, inspector thumbs, version/preset cards.
-- [ ] **P20 Line-height tokens** — `--lh-tight:1.25`/`--lh-body:1.5`; body applied to multiline
-  descriptions, empty states, onboarding copy.
+
 - [ ] **P23 Type hierarchy rules** — document page/panel/section/label/caption sizes+weights in
   `src/ui/CLAUDE.md`.
 - [ ] **P28 Empty-state CTA sweep** — every empty state gets icon + title + description + one CTA
