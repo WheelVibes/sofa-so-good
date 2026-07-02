@@ -221,6 +221,8 @@ input { font-family: inherit; }
 .btn-danger:hover { background: var(--danger-soft); filter: brightness(0.97); }
 .btn-block { width: 100%; }
 .btn-sm { padding: 5px 8px; font-size: var(--t-xs); }
+/* Inline button spinner (P16). Reuses @keyframes toastspin (features.css). */
+.btn .btn-spin { animation: toastspin 0.9s linear infinite; transform-origin: 50% 50%; flex: none; }
 
 kbd {
   font-family: var(--font-mono); font-size: 10px; font-weight: 600;

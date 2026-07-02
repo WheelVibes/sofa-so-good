@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
 import { AuxPanelHead } from './AuxPanelHead'
+import { Button } from './controls/Button'
 import { EmptyState } from './EmptyState'
 import { buildHistoryTimeline } from './historyTimeline'
 import { Icon } from './toolbar/icons'
@@ -72,28 +73,28 @@ export function HistoryPanel() {
       <hr className="hr" />
       <div className="panel-body">
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <button
-            type="button"
-            className="btn btn-soft btn-sm"
+          <Button
+            variant="soft"
+            size="sm"
             style={{ flex: 1 }}
             disabled={!canUndo}
             title={canUndo ? undefined : 'Nothing to undo'}
             onClick={() => useStore.getState().undo()}
+            icon={<Icon.Undo width={14} height={14} />}
           >
-            <Icon.Undo width={14} height={14} />
             Undo
-          </button>
-          <button
-            type="button"
-            className="btn btn-soft btn-sm"
+          </Button>
+          <Button
+            variant="soft"
+            size="sm"
             style={{ flex: 1 }}
             disabled={!canRedo}
             title={canRedo ? undefined : 'Nothing to redo'}
             onClick={() => useStore.getState().redo()}
+            icon={<Icon.Redo width={14} height={14} />}
           >
-            <Icon.Redo width={14} height={14} />
             Redo
-          </button>
+          </Button>
         </div>
 
         {stepCount === 0 ? (
@@ -155,15 +156,16 @@ export function HistoryPanel() {
         )}
 
         {stepCount > 0 ? (
-          <button
-            type="button"
-            className="btn ghost btn-sm btn-block"
+          <Button
+            className="ghost"
+            size="sm"
+            block
             style={{ marginTop: 10 }}
             onClick={() => useStore.getState().clearHistory()}
+            icon={<Icon.Trash width={13} height={13} />}
           >
-            <Icon.Trash width={13} height={13} />
             Clear history
-          </button>
+          </Button>
         ) : null}
       </div>
     </aside>

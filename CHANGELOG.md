@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: typed <Button> primitive over the .btn-* vocabulary (v0.10.0.21)
+
+- New `controls/Button.tsx`: `variant`/`size`/`block`/`icon` props compose the existing
+  `.btn`/`.btn-accent|soft|danger`/`.btn-sm`/`.btn-block` classes (classes stay the source of
+  truth). 15 buttons migrated across EmptyState, PanoramaModal, HistoryPanel, CatalogDrawer
+  footer, StyleQuizModal, CommentsPanel; ~222 legacy call sites tracked as follow-up.
+  Convention documented in src/ui/CLAUDE.md. `loading` lands next.
+
 ## REFACTOR: purge hardcoded px from inline styles + regression guard (v0.10.0.20)
 
 - ElevationPanel/RenderCompareModal/LocationPrompt/FinishPicker inline paddings/margins/

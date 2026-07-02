@@ -2,6 +2,7 @@ import { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { lazyWithRetry } from '../app/lazyWithRetry'
+import { Button } from '../controls/Button'
 import { Select } from '../controls/Select'
 import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
@@ -501,36 +502,36 @@ export function CatalogDrawer() {
           <div className="cat-foot">
             <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
               {fParametric ? (
-                <button
-                  type="button"
+                <Button
+                  variant="soft"
+                  size="sm"
                   onClick={() => setParametricOpen(true)}
-                  className="btn btn-soft btn-sm"
                   title="Generate a shelf / wardrobe / sideboard to exact dimensions"
+                  icon={<Icon.Measure width={14} height={14} />}
                 >
-                  <Icon.Measure width={14} height={14} />
                   Custom size
-                </button>
+                </Button>
               ) : null}
               {isPro ? (
-                <button
-                  type="button"
+                <Button
+                  variant="soft"
+                  size="sm"
                   onClick={() => setGlbDesignerOpen(true)}
-                  className="btn btn-soft btn-sm"
                   title="Design or edit a custom 3D asset"
+                  icon={<Icon.Cube width={14} height={14} />}
                 >
-                  <Icon.Cube width={14} height={14} />
                   Design
-                </button>
+                </Button>
               ) : null}
               {fUpload ? (
-                <button
-                  type="button"
+                <Button
+                  variant="soft"
+                  size="sm"
                   onClick={() => setUploadOpen(true)}
-                  className="btn btn-soft btn-sm"
+                  icon={<Icon.Upload width={14} height={14} />}
                 >
-                  <Icon.Upload width={14} height={14} />
                   Upload
-                </button>
+                </Button>
               ) : null}
             </div>
           </div>

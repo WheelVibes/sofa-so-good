@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useFeature } from '../features/useFeature'
 import { capturePanorama } from '../scene/panorama/capturePanorama'
 import { useStore } from '../state/store'
+import { Button } from './controls/Button'
 import { Modal } from './Modal'
 import { PanoramaViewer } from './panorama/PanoramaViewer'
 
@@ -63,13 +64,11 @@ export function PanoramaModal() {
       footer={
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <button type="button" className="btn" onClick={capture} disabled={busy}>
+            <Button onClick={capture} disabled={busy}>
               Re-capture
-            </button>
+            </Button>
             {fPanoTour ? (
-              <button
-                type="button"
-                className="btn"
+              <Button
                 title="Save this viewpoint as a 360° tour stop (File → 360° tour)"
                 onClick={() => {
                   const st = useStore.getState()
@@ -83,12 +82,12 @@ export function PanoramaModal() {
                 }}
               >
                 Add to tour
-              </button>
+              </Button>
             ) : null}
           </div>
-          <button type="button" className="btn btn-accent" onClick={download} disabled={!pano}>
+          <Button variant="accent" onClick={download} disabled={!pano}>
             Download PNG
-          </button>
+          </Button>
         </div>
       }
     >

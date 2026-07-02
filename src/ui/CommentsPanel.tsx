@@ -2,6 +2,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { GROUND_LEVEL_ID, isMultiLevel, levelById } from '../floorplan/levels'
 import { useStore } from '../state/store'
 import { AuxPanelHead } from './AuxPanelHead'
+import { Button } from './controls/Button'
 import { EmptyState } from './EmptyState'
 import { Icon } from './toolbar/icons'
 
@@ -63,15 +64,16 @@ export function CommentsPanel() {
       />
       <hr className="hr" />
       <div className="panel-body">
-        <button
-          type="button"
-          className={`btn btn-soft btn-sm${commentMode ? ' on' : ''}`}
+        <Button
+          variant="soft"
+          size="sm"
+          className={commentMode ? 'on' : ''}
           style={{ width: '100%', marginBottom: 'var(--s-2)' }}
           aria-pressed={commentMode}
           onClick={() => useStore.getState().toggleCommentMode()}
         >
           {commentMode ? 'Tap the floor to pin… (click to cancel)' : '+ Add comment'}
-        </button>
+        </Button>
         {comments.length === 0 ? (
           <EmptyState
             icon={Icon.Pin}

@@ -15,6 +15,11 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   keep their normal small size on mobile — the iOS focus-zoom is suppressed by
   `controls/iosZoomGuard.ts` (toggles viewport `maximum-scale=1` only while a field is focused),
   installed once in `main.tsx`; do **not** re-add a blanket `font-size:16px` rule.
+- **Buttons use the `<Button>` primitive** (`controls/Button.tsx`): pass
+  `variant`/`size`/`block`/`icon`/`loading` instead of hand-writing `.btn-*`
+  class strings. The `.btn-*` classes stay the source of truth — `Button` only
+  composes them. New buttons use it; the raw classes remain valid for legacy
+  call sites being migrated.
 - **Docked side sidebars (desktop).** The scene, toolbar and canvas HUDs live inside `.stage-area`
   (in `App.tsx`); the inspector/finish panels carry a `dock-panel` class and the **catalog** a
   `dock-panel-left` class (it's a sibling of `.stage-area`, not a child, so the rail can shrink the

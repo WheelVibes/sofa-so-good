@@ -1,4 +1,5 @@
 import type { ReactNode, SVGProps } from 'react'
+import { Button } from './controls/Button'
 
 /** An entry from the shared `Icon` set (`toolbar/icons.tsx`). */
 type IconComponent = (p: SVGProps<SVGSVGElement>) => ReactNode
@@ -36,14 +37,9 @@ export function EmptyState({ icon: IconCmp, title, description, cta, className }
       <b>{title}</b>
       {description ? <span>{description}</span> : null}
       {cta ? (
-        <button
-          type="button"
-          className="btn btn-soft btn-sm"
-          style={{ marginTop: 'var(--s-2)' }}
-          onClick={cta.onClick}
-        >
+        <Button variant="soft" size="sm" style={{ marginTop: 'var(--s-2)' }} onClick={cta.onClick}>
           {cta.label}
-        </button>
+        </Button>
       ) : null}
     </div>
   )
