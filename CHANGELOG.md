@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: Batch 3b cosmetic cleanup (v0.10.0.48)
+
+- Removed the dead shadowed `.menu-item` padding declaration and documented the deliberate 1px
+  horizontal normalization from the density indirection; the P37 deferral note in
+  ARCHITECTURE.md now stands as its own sentence (final-review minors).
+
 ## CHORE: visual-verification scenario for UI polish batch 3b (v0.10.0.47)
 
 - New `scripts/scenarios/ui-polish-batch3b.json` (134 steps, 20 screenshots) covering every

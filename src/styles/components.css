@@ -352,7 +352,8 @@ body.mobile .tip::after { content: none; }
 }
 .menu-item {
   display: flex; align-items: center; gap: var(--s-3);
-  padding: var(--s-3); border-radius: var(--r-2);
+  /* --row-pad-x is 9px vs the pre-density 8px (--s-3) — a deliberate 1px
+     normalization when the density indirection landed (P38). */
   padding: var(--row-pad-y) var(--row-pad-x); border-radius: var(--r-2);
   font-size: var(--t-base); font-weight: 500; color: var(--text-2);
   transition: var(--dur) var(--ease); text-align: left; width: 100%;
