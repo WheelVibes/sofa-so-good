@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: drop P34 — optimistic placement already covered by ghost + confirm-bar (v0.10.0.24)
+
+- Ruling recorded: drag arms the live `PlacementGhost` (cursor-following during `dragover`)
+  and drop applies the item instantly into a `pendingEdit` reconciled by the ✓/✗
+  `EditConfirmBar` — placement is synchronous and local, so an optimistic/reconcile layer
+  would duplicate what ships today. Noted in src/ui/CLAUDE.md so the item isn't re-opened.
+
 ## FIX: enforce destructive-confirmation policy (v0.10.0.23)
 
 - Saved-version slot delete (VersionsPanel) and saved-view delete (SavedViewsSection) now gate

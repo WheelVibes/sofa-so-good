@@ -35,6 +35,10 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   (`src/ui/EditConfirmBar.tsx`): ✓ / Enter commits, ✗ / Esc reverts (restores the pre-edit `items`
   ref for a transform, removes the just-placed item for a placement). Stamp/Shift placement keeps the
   old rapid no-confirm path. A new gesture auto-commits any still-pending edit.
+  Placement already gives immediate optimistic feedback: drag arms the live `PlacementGhost`
+  (follows the cursor during `dragover`) and drop applies the item instantly into a
+  `pendingEdit` reconciled by the ✓/✗ bar — there is no separate optimistic/reconcile layer
+  to add.
 - **Viewport-responsive + touch parity.** Support desktop **and** mobile: `body.mobile`
   bottom-sheets at ≤640px (`useIsMobile`), controls inside `env(safe-area-inset-*)`, and
   mobile-toolbar/accordion parity for any new desktop action. Drag-and-drop drop zones must

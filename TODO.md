@@ -36,9 +36,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 - [ ] **P28 Empty-state CTA sweep** — every empty state gets icon + title + description + one CTA
   (no dead ends).
 
-- [ ] **P34 Optimistic placement feedback** — immediate ghost placement + reconcile for drops/AI
-  arrange.
-
 ### Batch 3 — larger (~1 week each)
 - [ ] **P6 Screen-transition crossfade** — 200–300ms fade between 3D view ↔ floor plan ↔ walk mode.
 - [ ] **P7 Token-based magicui adaptations** (flag-gated, GPU-tier-gated, reduced-motion-safe):
