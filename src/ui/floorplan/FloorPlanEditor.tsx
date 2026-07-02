@@ -16,6 +16,7 @@ import { snapToGuides } from '../../floorplan/snapToGuides'
 import type { PlanWall } from '../../floorplan/types'
 import {
   DEFAULT_PLAN_WALL_COLOR,
+  planBounds,
   planTotalArea,
   pointInRoom,
   wallLength,
@@ -39,13 +40,14 @@ import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Select } from '../controls/Select'
+import { SliderField } from '../controls/SliderField'
 import { openDocs } from '../docsUrl'
 import { InfoCallout } from '../InfoCallout'
 import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
-import { rescaleBackdropAnchored } from './editor/backdropPlacement'
+import { centerBackdrop, rescaleBackdropAnchored } from './editor/backdropPlacement'
 import {
   alongWall as alongWallGeo,
   nearestWall as nearestWallGeo,
@@ -1695,18 +1697,31 @@ export function FloorPlanEditor() {
           >
             Set scale
           </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={backdrop.opacity}
-            title="Reference opacity"
-            style={{ width: 70 }}
-            onChange={(e) =>
-              setBackdrop((b) => (b ? { ...b, opacity: Number(e.target.value) } : b))
+          <div style={{ width: 160 }}>
+            <SliderField
+              label="Trace opacity"
+              ariaLabel="Trace image opacity"
+              value={backdrop.opacity}
+              min={0.05}
+              max={1}
+              step={0.05}
+              format={(v) => `${Math.round(v * 100)}%`}
+              onChange={(v) => setBackdrop((b) => (b ? { ...b, opacity: v } : b))}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              setBackdrop((b) => {
+                if (!b) return b
+                const [ew, ed] = planBounds(plan)
+                return { ...b, ...centerBackdrop(b, ew, ed) }
+              })
             }
-          />
+            title="Center the trace image on the plan"
+          >
+            Center
+          </button>
           {aiWalls && (
             <button
               type="button"
