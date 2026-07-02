@@ -11,6 +11,9 @@ describe('shortcutLabel', () => {
   it('pins the labels used by menu shortcut chips', () => {
     expect(shortcutLabel('togglePlanEditor')).toBe('P')
     expect(shortcutLabel('undo')).toBe('Ctrl Z')
+    expect(shortcutLabel('topView')).toBe('O')
+    expect(shortcutLabel('resetView')).toBe('H')
+    expect(shortcutLabel('tidyHome')).toBe('L')
   })
   it('renders mod-key bindings with a Ctrl/Cmd prefix', () => {
     expect(shortcutLabel('undo')).toBe('Ctrl Z')

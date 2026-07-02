@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: convert remaining inline menu shortcut suffixes to .mi-kbd chips (v0.9.0.79)
+
+- ViewMenu's "Top view"/"Reset view" and ArrangeMenu's "Tidy home" rows still used the
+  old inline `Label  (X)` suffix pattern; converted both to the shared right-aligned
+  `.mi-kbd` chip (via `MenuItem`'s `kbd` prop and a new `kbd` prop on ArrangeMenu's local
+  `Action` row) so all toolbar menus render shortcuts consistently. Removed the now-dead
+  local `chip()` helpers in both files.
+
 ## FEAT: undo-in-toast for item deletion (v0.9.0.78)
 
 - Deleting an item now toasts "Item deleted" with an inline **Undo** action wired to the
