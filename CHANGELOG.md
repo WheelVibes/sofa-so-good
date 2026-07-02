@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: WebGL2 support probe runs once — probing per render leaked GL contexts (v0.10.0.15)
+
+- `WebGLFallback` created a fresh probe canvas + WebGL2 context on **every render**; browsers cap
+  live contexts (~8–16) and evict the oldest, so enough re-renders could evict the *real* scene
+  renderer ("THREE.WebGLRenderer: Context Lost"). The probe result is now cached module-level and
+  the probe context is explicitly released via `WEBGL_lose_context.loseContext()`.
+
 ## UX: 2D floor-plan swap shows the transition overlay; boot yields between hydrate steps (v0.10.0.14)
 
 - **Entering/leaving the 2D floor-plan editor now raises the loading overlay** ("Opening/Closing
