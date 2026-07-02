@@ -19,6 +19,16 @@ import { readDroppedItems } from '../../furniture/upload/readDrop'
 import { startBackgroundImport } from '../../furniture/upload/runImport'
 import { Select } from '../controls/Select'
 import { ConfirmDialog } from './ConfirmDialog'
+import { pageWindow } from './pageWindow'
+
+// Detected groups render one <li> each; a folder of thousands would otherwise
+// mount thousands of DOM nodes and stall the main thread (janky spinner/counter).
+// Cap the rendered rows to one page — the rest are reachable via the pager.
+const GROUPS_PER_PAGE = 50
+
+// Stable empty array so the deferred-loose-models path keeps a constant
+// reference across re-renders (no spurious downstream churn).
+const EMPTY_FILES: File[] = []
 
 interface UploadModelDialogProps {
   open: boolean
@@ -173,7 +183,12 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   // Files that will actually be imported (folder picks include junk).
   const modelFiles = files.filter((f) => isModelFile(pathOf(f)))
   const hasGroups = ikeaGroups.length > 0
-  const looseModels = looseModelFiles(files, ikeaGroups)
+  // Classifying loose (non-group) models is O(files × groups). While detecting,
+  // ikeaGroups grows every frame, so recomputing this per frame is O(n²) on the
+  // main thread (the real spinner/counter killer on a big scan). The loose set
+  // isn't actionable mid-scan (Import is disabled), so defer it until the scan
+  // settles — the final setIkeaGroups triggers one authoritative compute.
+  const looseModels = detecting ? EMPTY_FILES : looseModelFiles(files, ikeaGroups)
   // The legacy single-file path: exactly one model, no groups, nothing else.
   const single = !hasGroups && looseModels.length === 1 && files.length === 1
   // Category applied to loose GLBs: a concrete pick, or the 'others' catch-all
@@ -466,7 +481,13 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
 
           {/* Scrollable region: only the detected groups + import options scroll. */}
           <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto">
-            {hasGroups ? <GroupPanel groups={ikeaGroups} looseCount={looseModels.length} /> : null}
+            {hasGroups ? (
+              <GroupPanel
+                groups={ikeaGroups}
+                looseCount={looseModels.length}
+                detecting={detecting}
+              />
+            ) : null}
 
             {/* Category/flags apply to loose (non-group) models. */}
             {looseModels.length > 0 ? (
@@ -617,7 +638,28 @@ export function submitLabel(groupCount: number, single: boolean, looseCount: num
   return parts.length > 0 ? `Import ${parts.join(' + ')}` : 'Import'
 }
 
-function GroupPanel({ groups, looseCount }: { groups: DetectedGroup[]; looseCount: number }) {
+export function GroupPanel({
+  groups,
+  looseCount,
+  detecting,
+}: {
+  groups: DetectedGroup[]
+  looseCount: number
+  detecting: boolean
+}) {
+  const [page, setPage] = useState(0)
+  // While the scan runs the list grows every frame; pin to the first page so
+  // rows never jump under the user and each frame only renders the stable first
+  // slice (bounded work → smooth spinner + counter). The pager comes alive once
+  // detection settles.
+  const win = pageWindow(groups.length, GROUPS_PER_PAGE, detecting ? 0 : page)
+  // If the settled list ended up smaller than the page we were sitting on, snap
+  // our stored page back into range (win already clamped this render).
+  useEffect(() => {
+    if (!detecting && page !== win.page) setPage(win.page)
+  }, [detecting, page, win.page])
+  const visible = groups.slice(win.start, win.end)
+  const showPager = !detecting && win.pageCount > 1
   return (
     <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--accent-soft)] px-3 py-2">
       <p className="text-xs font-semibold text-[var(--accent-soft-text)]">
@@ -625,10 +667,39 @@ function GroupPanel({ groups, looseCount }: { groups: DetectedGroup[]; looseCoun
         {looseCount > 0 ? ` + ${looseCount} loose model${looseCount === 1 ? '' : 's'}` : ''}
       </p>
       <ul className="space-y-1.5">
-        {groups.map((g, i) => (
-          <GroupRow key={i} group={g} />
+        {visible.map((g, i) => (
+          // Absolute index: groups are appended in order, so this is stable per
+          // group across page changes (lets React reuse memoized rows).
+          <GroupRow key={win.start + i} group={g} />
         ))}
       </ul>
+      {showPager ? (
+        <nav
+          className="flex items-center justify-between gap-2 pt-1"
+          aria-label="Detected groups pages"
+        >
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={win.page === 0}
+            className="rounded bg-[var(--surface-solid)] px-2 py-0.5 text-xs font-medium text-[var(--text-2)] shadow-sm ring-1 ring-[var(--border-2)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            ‹ Prev
+          </button>
+          <span className="text-[10px] text-[var(--text-3)]">
+            Showing {win.start + 1}–{win.end} of {groups.length} · page {win.page + 1} of{' '}
+            {win.pageCount}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(win.pageCount - 1, p + 1))}
+            disabled={win.page >= win.pageCount - 1}
+            className="rounded bg-[var(--surface-solid)] px-2 py-0.5 text-xs font-medium text-[var(--text-2)] shadow-sm ring-1 ring-[var(--border-2)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next ›
+          </button>
+        </nav>
+      ) : null}
     </div>
   )
 }

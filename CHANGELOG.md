@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PERF: upload dialog paginates detected model groups — smooth spinner/counter on huge folders (v0.10.0.2)
+
+- **The "Detecting model groups…" dialog no longer stutters on a folder of thousands of groups.**
+  The counter + growing list already coalesced to one repaint per animation frame, but two things
+  still did *unbounded* per-frame work on the main thread and starved the spinner animation + the
+  counter's paint: (1) the detected-groups list rendered **one `<li>` per group** (1000+ DOM nodes to
+  reconcile + lay out every frame), and (2) `looseModelFiles(files, groups)` — an **O(files × groups)**
+  classification — ran on every dialog re-render, i.e. every frame as the group list grew (~millions of
+  `startsWith` calls/frame at scale).
+- **Fix 1 — pagination** (`ui/upload/UploadModelDialog.tsx` `GroupPanel`): render only one page of
+  `GROUPS_PER_PAGE = 50` rows with a Prev / "Showing X–Y of N · page P of T" / Next pager, so the DOM
+  node count stays flat regardless of scan size. While detection is still running the view **pins to
+  page 1** (rows never jump; the pager appears once the scan settles). Backed by the pure, unit-tested
+  `ui/upload/pageWindow.ts` (clamps out-of-range pages when the settled list is smaller than expected).
+- **Fix 2 — defer loose-model classification while detecting** (Import is disabled mid-scan, so the
+  exact loose count isn't actionable): the O(n²) hot path is skipped during detection and computed once
+  from the authoritative final list.
+- Tests: `pageWindow.test.ts` (8) + `GroupPanel.test.tsx` (5, `@testing-library/react` — 1050 groups
+  render exactly 50 `<li>`s, pager navigation, pinned/no-pager while detecting). Scenario
+  `model-upload-simple.json` drives detection over a synthetic 60-group folder via the new dev-only
+  `__detectGroups` hook (bootstrap.ts) and asserts 60 groups + 2 loose + progress 60/60; the paginated
+  render (React.lazy, unmountable headless) was pixel-verified via a temporary `main.tsx` mount.
+
 ## FEAT: admin can reset any account's password + role in-app; sessions revoked on change (v0.10.0.1)
 
 - **Manage accounts → Edit** (admin only): reset any account's password (≥8 chars) and/or change

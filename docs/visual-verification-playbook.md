@@ -370,6 +370,31 @@ inside the room, plus a door + a window opening on the plan. **Key gotchas learn
 - **Sync on the placement, not a fixed wait.** `applySh3dResult` mutates the store synchronously, so
   `{"waitFor": {"store": "window.__store.getState().items.length > 0"}}` is the reliable gate before
   probing/screenshotting; `requestHomeView()` then frames the new plan like a template load.
+### Worked example — model-upload group detection at scale (UPLOAD-DETECT-PAGINATION)
+
+**`model-upload-simple.json`** verifies the model-upload feature's Simple rung: the **Upload**
+entry point renders in the catalog in Simple mode (`modelUpload` is a `tier: 'simple'` flag, so it's
+present in both modes — the pro-only "Design" button stays hidden), then it drives the group-detection
+pipeline over a synthetic **60-group** folder (+ 2 root-level loose `.glb`s) and asserts
+`__detectGroupsResult` = `{ groupCount: 60, looseCount: 2, parsed: 60, total: 60 }`. 60 > the dialog's
+`GROUPS_PER_PAGE` (50), so this is the "handles a folder big enough to paginate" input that motivated
+the pagination fix. **Key gotchas learned here:**
+- **The upload dialog is `React.lazy`, so it never mounts headless** (the general lazy-modal
+  limitation above). You cannot screenshot the paginated detected-groups list through the real UI.
+  Two things cover it instead: the pure `ui/upload/pageWindow.ts` + `pageWindow.test.ts` (pagination
+  arithmetic) and `ui/upload/GroupPanel.test.tsx` (a `@testing-library/react` DOM assertion that 1050
+  groups render exactly 50 `<li>`s, the pager navigates, and it pins to page 1 with no pager while
+  `detecting`). For the actual pixels, temporarily mount `GroupPanel` directly via a dev-only block in
+  `main.tsx` gated on `?__pagerdemo` (revert before commit) and screenshot with the legacy harness.
+- **Detection runs through a dev hook, not the dialog.** `bootstrap.ts` exposes `__detectGroups`
+  (dev-only, mirroring `__persistUserMaterial`/`__importSh3dBytes`): pass `[{path, meta}|{path, body}]`,
+  it builds `File`s with the right `webkitRelativePath`, runs `detectGroups` + `looseModelFiles`, and
+  records the outcome on `window.__detectGroupsResult`. The scenario `waitFor`s on that (the eval fires
+  the async call fire-and-forget, same pattern as `texture-upload-simple.json`).
+- **A GLB *inside* a group folder is not loose**; only model files outside every detected group dir
+  count as loose. The fixture puts one `w.glb` under each `bulk/g<i>/` (not loose) and two at
+  `bulk/loose-*.glb` (loose) to exercise both branches of `looseModelFiles`.
+
 ### Worked example — 2D plan align/distribute/mirror (PARITY-PLAN-ALIGN)
 
 **`plan-align-distribute-mirror.json`** seeds 3 furniture items inside the largest room,

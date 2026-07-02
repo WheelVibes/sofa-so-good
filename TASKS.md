@@ -42,6 +42,10 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces, GLB-designer
   re-rung, crown-molding, ceilingDesign (needs walk-mode look-up), livePrices, first-run re-rungs,
   backdrop-upload + furnlight re-rungs.
+  - model-upload: **simple rung landed** (`model-upload-simple.json` — Upload entry gating + 60-group
+    detection via the `__detectGroups` dev hook). A full journey rung is blocked on the dialog being
+    `React.lazy` (won't mount headless); the paginated-list render is instead covered by
+    `GroupPanel.test.tsx` + `pageWindow.test.ts` and a temporary `?__pagerdemo` `main.tsx` mount.
 - [ ] PARITY-VIDEO tail: MP4 transcode of the walkthrough `.webm` + a duration modal.
 - [ ] PARITY-TILT tail: a draggable 3D pitch/roll tilt gizmo handle (tilt is otherwise editable via
   the inspector sliders).

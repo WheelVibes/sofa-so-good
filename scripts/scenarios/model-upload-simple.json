@@ -1,0 +1,95 @@
+{
+  "name": "model-upload-simple",
+  "description": "Simple ladder for the model-upload feature: verify the Upload entry point is present in the catalog in Simple mode (modelUpload is a simple-tier flag), then drive the group-detection pipeline over a synthetic 60-group folder via the dev-only __detectGroups hook and assert it detects 60 groups + 2 loose models with the progress callback reaching the total. The paginated dialog render itself (React.lazy, unmountable headless) is covered by GroupPanel.test.tsx + pageWindow.test.ts.",
+  "url": "http://localhost:5232/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode — expected uiMode=simple"
+    },
+    {
+      "name": "wait-detect-hook",
+      "waitFor": { "store": "typeof window.__detectGroups === 'function'" },
+      "timeout": 15000,
+      "failMessage": "__detectGroups not exposed — bootstrap.ts dev helpers did not run"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 10000
+    },
+    {
+      "name": "open-catalog",
+      "store": { "action": "setCatalogOpen", "args": [true] }
+    },
+    {
+      "name": "catalog-visible",
+      "waitFor": { "css": ".panel.catalog" },
+      "timeout": 10000,
+      "failMessage": "Catalog drawer did not appear after setCatalogOpen(true)"
+    },
+    {
+      "name": "upload-entry-present-simple",
+      "waitFor": { "text": "Upload" },
+      "timeout": 5000,
+      "failMessage": "Upload entry point missing in Simple mode — modelUpload is a simple-tier flag and should be visible"
+    },
+    {
+      "name": "shot-catalog-upload-entry",
+      "screenshot": "01-catalog-upload-entry-simple"
+    },
+    {
+      "name": "run-detection",
+      "eval": { "file": "scripts/scenarios/evals/detect-model-groups.mjs" }
+    },
+    {
+      "name": "wait-detection-done",
+      "waitFor": { "store": "!!window.__detectGroupsResult" },
+      "timeout": 20000,
+      "failMessage": "__detectGroups did not complete — no result recorded"
+    },
+    {
+      "name": "assert-60-groups-detected",
+      "waitFor": { "store": "window.__detectGroupsResult.groupCount === 60" },
+      "timeout": 5000,
+      "failMessage": "Expected 60 detected groups from the synthetic folder"
+    },
+    {
+      "name": "assert-2-loose-models",
+      "waitFor": { "store": "window.__detectGroupsResult.looseCount === 2" },
+      "timeout": 5000,
+      "failMessage": "Expected 2 loose models (the two root-level .glb files outside any group folder)"
+    },
+    {
+      "name": "assert-progress-reached-total",
+      "waitFor": {
+        "store": "window.__detectGroupsResult.parsed === window.__detectGroupsResult.total && window.__detectGroupsResult.total === 60"
+      },
+      "timeout": 5000,
+      "failMessage": "Progress callback did not reach total (60 metadata files parsed)"
+    },
+    {
+      "name": "shot-detection-done",
+      "screenshot": "02-detection-complete"
+    }
+  ]
+}
