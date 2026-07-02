@@ -7,6 +7,7 @@ import { Button } from '../controls/Button'
 import { Select } from '../controls/Select'
 import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
+import { useAmbientFx } from '../useAmbientFx'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalogBrowse'
@@ -97,6 +98,7 @@ export function CatalogDrawer() {
   const fRemoteMaterials = useFeature('remoteMaterials')
   // Price displays/filters are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
+  const ambientFx = useAmbientFx()
   const unified = useUnifiedCatalog(fRemoteFurniture)
   // The real category to land on from a "Browse all" CTA (favourites/recent/
   // empty-category empty states) — the first real category that actually has
@@ -229,6 +231,20 @@ export function CatalogDrawer() {
       e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? cols : -cols
     const next = idx + delta
     if (next >= 0 && next < cells.length) cells[next].focus()
+  }
+
+  // Mouse-follow radial gradient on catalog cards (P7, gated by useAmbientFx).
+  // Event-driven — no continuous animation, so no IntersectionObserver needed:
+  // when the gate is off the vars are never written and the gradient stays at
+  // its inert `--mx/--my: 50%` default. The values are computed at runtime, so
+  // there are no inline px literals.
+  const onGridPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!ambientFx) return
+    const card = (e.target as HTMLElement).closest<HTMLElement>('.cat-card')
+    if (!card) return
+    const r = card.getBoundingClientRect()
+    card.style.setProperty('--mx', `${e.clientX - r.left}px`)
+    card.style.setProperty('--my', `${e.clientY - r.top}px`)
   }
 
   return (
@@ -433,7 +449,11 @@ export function CatalogDrawer() {
               Showing {matchedIntents(query).join(' & ')} furniture
             </div>
           ) : null}
-          <div className="card-grid stagger-in" onKeyDown={onGridKeyDown}>
+          <div
+            className="card-grid stagger-in"
+            onKeyDown={onGridKeyDown}
+            onPointerMove={onGridPointerMove}
+          >
             {cards.length === 0 ? (
               q ? (
                 <EmptyState

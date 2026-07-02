@@ -130,6 +130,7 @@ export type FeatureFlag =
   | 'newBadges'
   | 'densityMode'
   | 'proUpsell'
+  | 'ambientFx'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

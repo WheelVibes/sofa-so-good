@@ -311,6 +311,11 @@ same change that reshapes a system.
   same popover sets `uiSlice.density`, persisted via `editorPrefs` and applied as
   `[data-density]` on `<html>`, which overrides `--row-pad-y` (vertical rhythm only) consumed
   by `.menu-item` (`styles/tokens.css` + `styles/components.css`).
+  **Ambient FX** (P7, `ambientFx` flag, simple-tier): decorative accents behind the single
+  `useAmbientFx()` gate (flag AND `qualityTier !== 'performance'` AND no reduced-motion — dormant
+  by default) — the HQ-render border-beam (`.beam`, mounts only while rendering, IntersectionObserver-
+  paused off-screen) and the catalog/preset mouse-follow radial gradient (pointermove-driven `--mx`/
+  `--my`, `color-mix` accent, no continuous animation).
 - **GLB Asset Designer** (`furniture/glbEdit/`, `ui/glbEditor/GlbDesignerDialog.tsx`,
   `featuresSlice.glbDesignerOpen`): compose a custom asset from primitive shapes
   (box/cylinder/sphere/cone/pyramid/capsule/torus/wedge — pure tested `editSpec.ts` `SHAPE_KINDS`;

@@ -51,10 +51,19 @@
 .cat-card {
   display: flex; flex-direction: column; gap: 6px; min-width: 0;
   padding: var(--s-3); border-radius: var(--r-2);
-  background: var(--surface-2); border: 1px solid var(--border);
+  border: 1px solid var(--border);
   transition: var(--dur) var(--ease); text-align: left; position: relative;
+  /* Mouse-follow accent glow (P7 ambient FX) painted over the surface fill, under
+     content. --mx/--my are written by CatalogDrawer's gated pointermove handler;
+     inert (centred) when the gate is off. */
+  background-color: var(--surface-2);
+  background-image: radial-gradient(
+    160px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in oklch, var(--accent) 12%, transparent),
+    transparent 60%
+  );
 }
-.cat-card:hover { border-color: var(--accent); background: var(--surface-solid); }
+.cat-card:hover { border-color: var(--accent); background-color: var(--surface-solid); }
 .cat-card { cursor: pointer; }
 .cat-card:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--accent); }
 .card-thumb {

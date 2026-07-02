@@ -532,6 +532,24 @@ describe('densityMode flag (P38)', () => {
   })
 })
 
+describe('ambientFx flag (P7 decorative ambient effects)', () => {
+  it('is simple-tier, ships in prod, default on', () => {
+    expect(FEATURE_FLAGS.ambientFx.default).toBe(true)
+    expect(FEATURE_FLAGS.ambientFx.tier).toBe('simple')
+    expect(FEATURE_FLAGS.ambientFx.devOnly).toBeUndefined()
+  })
+
+  it('is present in BOTH Simple and Pro modes (both build kinds)', () => {
+    // Simple-tier polish for all users; the real GPU guard is runtime
+    // (useAmbientFx() renders nothing under the default Performance tier or
+    // reduced-motion), so the flag stays on regardless of uiMode.
+    expect(resolveFlags(false, {}, false, 'simple').ambientFx).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').ambientFx).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').ambientFx).toBe(true)
+    expect(resolveFlags(true, {}, false, 'pro').ambientFx).toBe(true)
+  })
+})
+
 describe('proUpsell flag (P26 Simple→Pro ⌘K footer hint)', () => {
   it('is simple-tier, ships in prod, default on', () => {
     expect(FEATURE_FLAGS.proUpsell.default).toBe(true)

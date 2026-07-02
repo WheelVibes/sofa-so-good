@@ -74,6 +74,23 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   `proUpsell`, `simple` tier) — the Tools menu is Pro-only so it can't host a Simple
   affordance; the hint opens the Appearance popover where the Simple↔Pro toggle
   lives, and renders null in Pro.
+- **Ambient effects (P7) go through `useAmbientFx()`** (`src/ui/useAmbientFx.ts`) — the single
+  gate: flag `ambientFx` AND `qualityTier !== 'performance'` AND not reduced-motion; **dormant in
+  the default Performance tier** (so it costs nothing until a user opts into a heavier tier). Every
+  ambient effect consumes it and renders nothing when false. **Continuously-animating effects** (the
+  HQ border-beam `.beam`) mount only while the work is active *and* the gate is on, and
+  IntersectionObserver-pause off-screen (`.beam.paused { animation-play-state: paused }`). The
+  **catalog/preset radial gradient** (`.cat-card`/`.preset-card`, `--mx`/`--my`) is pointermove-driven
+  (CatalogDrawer's gated grid handler writes the vars via `setProperty`) — event-driven, no continuous
+  animation, so no IntersectionObserver; inert (centred) when the gate is off. Accent-only via
+  `color-mix(in oklch, var(--accent) …)` — no colour literals; animation fills `backwards`, never
+  `both`. **Two P7 effects were DROPPED** (recorded so they aren't re-proposed): the multi-circle
+  **hotspot pulse** (`.er-ring`/`.er-hot`/`@keyframes erpulse` in `flows.css`) has **zero TSX
+  consumers** — reviving orphaned CSS for an unconsumed effect violates YAGNI (the orphaned CSS is
+  left untouched, out of scope to delete here); and **toolbar dock magnification** needs a
+  continuously-running rAF spring integrator driven by every toolbar `pointermove`, contradicting the
+  Performance-tier/IO-pause mandate for low value on a productivity tool (the `.tool-btn:hover`
+  treatment stays).
 - **"New" badges on a recently-shipped entry use `newFlag` (P27), not a hand-rolled dot.**
   `MenuItem` (`toolbar/ToolbarMenu.tsx`) takes `newFlag?: FeatureFlag` — add the same prop to
   `IconButton` if the representative entry is a toolbar icon instead (one integration point per

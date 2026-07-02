@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: ambient FX — HQ border-beam + catalog radial gradient, triple-gated (v0.10.0.45)
+
+- New `ambientFx` flag (simple-tier, prod default on) + `useAmbientFx()` — the single gate for
+  decorative ambient effects: flag AND `qualityTier !== 'performance'` AND no `prefers-reduced-motion`.
+  **Dormant by default** since Performance is every device's default tier, so it costs nothing until a
+  user opts into a heavier render tier.
+- **HQ-render border-beam** (`HqRenderModal`): a decorative accent dash travels the preview-card border
+  via `offset-path`/`offset-distance` (`@keyframes beamTravel`) while a render is in progress. Mounts
+  only while busy + gated, and an IntersectionObserver toggles `.beam.paused`
+  (`animation-play-state: paused`) when it scrolls off-screen so an unseen continuous animation costs
+  no frames.
+- **Catalog/preset mouse-follow gradient** (`.cat-card`/`.preset-card`): a `radial-gradient` accent glow
+  follows the pointer via `--mx`/`--my`, written by a gated `onPointerMove` on the catalog card grid
+  (event-driven → no continuous animation, no IntersectionObserver). Inert (centred) when the gate is
+  off. Accent-only via `color-mix(in oklch, var(--accent) …)`; animations fill `backwards`, never `both`.
+- **Dropped two P7 sub-effects** (ruling recorded in `src/ui/CLAUDE.md`): the multi-circle **hotspot
+  pulse** (`.er-ring`/`.er-hot`/`erpulse` CSS has zero TSX consumers — reviving orphaned CSS violates
+  YAGNI) and **toolbar dock magnification** (needs a continuous rAF spring integrator contradicting the
+  Performance-tier/IO-pause mandate).
+
 ## FEAT: Simple→Pro upsell hint in the ⌘K footer (v0.10.0.44)
 
 - `ProUpsellHint` mounts a single "More tools in **Pro**" row in the ⌘K command palette footer,

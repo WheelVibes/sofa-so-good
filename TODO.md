@@ -36,11 +36,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 
 ### Batch 3 — larger (~1 week each)
 
-- [ ] **P7 Token-based magicui adaptations** (flag-gated, GPU-tier-gated, reduced-motion-safe):
-  shine/border-beam on in-progress HQ-render card (CSS `offset-path`); mouse-follow radial
-  gradient on catalog/preset cards (CSS vars + pointermove); richer staggered multi-circle pulse
-  for edit-room hotspot; toolbar dock magnification (spring mass .1 / stiffness 150 / damping 12).
-
 - [ ] **P37 List virtualization** — history/layers/catalog results >100 items
   (`@tanstack/react-virtual`).
 

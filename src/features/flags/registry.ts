@@ -1034,6 +1034,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Decorative, GPU-tier- + reduced-motion-gated ambient effects: a border-beam
+  // on the in-progress HQ-render card + a mouse-follow radial gradient on
+  // catalog/preset cards (P7). simple tier (polish for all users); the real GPU
+  // guard is runtime — useAmbientFx() renders nothing under the default
+  // Performance tier or reduced-motion, so it's dormant by default. Prod-safe.
+  ambientFx: {
+    label: 'Ambient effects',
+    description: 'Subtle motion accents on higher render tiers',
+    default: true,
+    tier: 'simple',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]
