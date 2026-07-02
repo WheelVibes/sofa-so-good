@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: sticky section headers in scrolling panels (v0.10.0.6)
+
+- `.lyr-ghead-row` group headers and `.sec-h` section headers pin to the top of their scroll
+  body (`position: sticky` + surface fill + `--border` hairline), verified against the
+  `.lyr-body`/`.panel-body` overflow hierarchy.
+
 ## FIX: layers row actions reveal on keyboard focus + stay visible on touch (v0.10.0.5)
 
 - `.lyr-acts` (hide/lock/delete) now also reveals on `:focus-within` (keyboard access) and is

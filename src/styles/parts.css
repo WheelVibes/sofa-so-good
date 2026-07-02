@@ -199,7 +199,13 @@
 .transform-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3); }
 .sec { padding: var(--s-4) 0; border-top: 1px solid var(--border); }
 .sec:first-of-type { border-top: none; }
-.sec-h { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 700; margin-bottom: var(--s-3); display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.sec-h {
+  font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-3); font-weight: 700; margin-bottom: var(--s-3);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface); box-shadow: 0 1px 0 var(--border); padding-bottom: var(--s-2);
+}
 .sec-h span { white-space: nowrap; }
 
 /* swatches */

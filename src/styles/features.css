@@ -75,7 +75,11 @@
 .lyr-ghead .chev { transition: transform var(--dur) var(--ease); }
 .lyr-ghead.collapsed .chev { transform: rotate(-90deg); }
 .lyr-ghead .gcount { margin-left: auto; font-family: var(--font-mono); font-weight: 600; }
-.lyr-ghead-row { display: flex; align-items: center; }
+.lyr-ghead-row {
+  display: flex; align-items: center;
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface); box-shadow: 0 1px 0 var(--border);
+}
 .lyr-ghead-row .lyr-ghead { flex: 1; width: auto; }
 .lyr-geye {
   width: 24px; height: 24px; flex: none; display: grid; place-items: center;

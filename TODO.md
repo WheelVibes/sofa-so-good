@@ -54,8 +54,7 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
   `src/ui/CLAUDE.md`.
 - [ ] **P28 Empty-state CTA sweep** — every empty state gets icon + title + description + one CTA
   (no dead ends).
-- [ ] **P36 Sticky section headers in scrolling panels** — `sticky top-0` + subtle shadow for
-  layers/history/catalog rail.
+
 - [ ] **P5 Success/confirm micro-animations** — toast checkmark scale-in, EditConfirmBar dismiss
   slide/shake, SVG stroke-draw checks.
 - [ ] **P19 Border/hover consistency rules** — document `--border` vs `--border-2` and hover
