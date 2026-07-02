@@ -61,6 +61,17 @@ Optional dev sidecars — `npm run scraper-server` (IKEA live-scrape pack) and
 `python/scripts/` are not part of the app build. Full command list and how to add content:
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+Node is pinned at **24.18.0** (`.nvmrc`). Other ways to run it:
+
+```bash
+# Docker (static nginx image served at /, CC0 asset proxies included)
+docker build -t sofa-so-good . && docker run --rm -p 8080:80 sofa-so-good
+
+# Desktop app (Electron shell; installers via electron-builder)
+npm run electron:start   # build + launch locally
+npm run dist:desktop     # package installers into release/
+```
+
 ## Documentation
 
 - **User guide** — [`docs/user/`](docs/user/getting-started.md), a VitePress site deployed at

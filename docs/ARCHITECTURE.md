@@ -37,6 +37,30 @@ same change that reshapes a system.
   (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) SG retailer price lookup
   (IKEA/Courts/HipVan/Castlery).
 - `python/scripts/` — offline IKEA scraper + asset tooling (not in the app build).
+- **Deploy base**: `VITE_BASE` env overrides the build's base path (default `/sofa-so-good/`
+  for GitHub Pages; the dev server stays `/`). Must end with `/`. `scripts/static-serve.mjs`
+  honours matching `BASE`/`PORT` envs for serving non-default-base builds locally.
+- **Docker**: `docker build -t sofa-so-good . && docker run -p 8080:80 sofa-so-good` —
+  multi-stage image (node:24.18.0-alpine build with `VITE_BASE=/` → nginx:1.27-alpine).
+  `docker/nginx.conf` adds the wasm/glb/ktx2 MIME types, SPA fallback (excluding `/docs/`),
+  cache headers, and same-origin `/acg`/`/acg-cdn`/`/kenney` proxies for the runtime CC0
+  catalog (the production equivalent of the dev-only Vite proxies). `.dockerignore` keeps
+  the ~1 GB asset/tooling trees out of the build context.
+- **Desktop (Electron)**: `npm run build:desktop` (web build with `VITE_BASE=./` +
+  `VITE_DISABLE_PWA=1`, via `scripts/build-desktop.mjs`); `npm run electron:start` (run the
+  shell); `npm run dist:desktop` (electron-builder installers → `release/`; config in
+  `electron-builder.yml`). Shell = `electron/main.mjs` — serves `dist/` over a privileged
+  `app://` scheme (fetch() is blocked on `file://`), sandboxed renderer, no Node integration;
+  `ELECTRON_SMOKE_SHOT=<png>` captures a headless smoke screenshot and exits; a leaked
+  `ELECTRON_RUN_AS_NODE` (VSCode/agent hosts) is detected and the shell re-execs without it.
+  App icon: `scripts/make-desktop-icon.mjs` renders `public/favicon.svg` → `build/icon.png`
+  (generated in `build:desktop`, gitignored). In the shell, "Check for updates" queries GitHub
+  releases (`src/desktop/updateCheck.ts`, `app:` protocol detection) instead of the SW flow.
+  `.github/workflows/release.yml` packages Win/mac/Linux on `v*` tags (publishes to the
+  release) or manual dispatch; signing/notarization activate via secrets (`MAC_CSC_LINK` +
+  password, `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`, `WIN_CSC_LINK` +
+  password) with hardened runtime + `electron/entitlements.mac.plist`; secretless builds are
+  unsigned. Node pinned at **24.18.0** (`.nvmrc`, CI, `engines`).
 
 ## Layout of the code
 - `src/state/` — Zustand store, `slices/*`: items, selection, finishes, doors, time,

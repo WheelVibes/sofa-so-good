@@ -8,8 +8,10 @@ import { createServer } from 'node:http'
 import { extname, join, normalize } from 'node:path'
 
 const ROOT = new URL('../dist/', import.meta.url).pathname
-const BASE = '/sofa-so-good/'
-const PORT = 4173
+// Override for builds made with a different VITE_BASE (e.g. BASE=/ for the
+// Docker image's root-path build). Must start and end with `/`.
+const BASE = process.env.BASE || '/sofa-so-good/'
+const PORT = Number(process.env.PORT || 4173)
 
 const TYPES = {
   '.html': 'text/html',
