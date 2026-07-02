@@ -452,6 +452,8 @@ body.mobile .tip::after { content: none; }
 .slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 999px; background: var(--surface-3); outline: none; }
 .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 999px; background: var(--accent); border: 2px solid var(--surface-solid); box-shadow: 0 1px 3px oklch(0 0 0 / 0.25); cursor: pointer; }
 .slider::-moz-range-thumb { width: 13px; height: 13px; border-radius: 999px; background: var(--accent); border: 2px solid var(--surface-solid); cursor: pointer; }
+/* SliderField readout: tabular-nums so digit width doesn't jitter while dragging. */
+.fld .slider-readout { font-variant-numeric: tabular-nums; color: var(--text-3); min-width: 52px; text-align: right; flex: none; }
 
 /* generic list row */
 .row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) 0; }

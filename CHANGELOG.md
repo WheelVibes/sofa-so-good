@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: SliderField + Disclosure primitives; three P18 candidates dropped (v0.10.0.41)
+
+- `controls/SliderField` (label + `.slider` + tabular-nums readout, `format` prop) adopted in
+  walk settings + time-of-day; `controls/Disclosure` (over the `.compose` `<details>` idiom)
+  adopted in FinishPicker + MaterialComposer. Layers group-collapse stays bespoke
+  (store-persisted + filter-expand). DROPPED with rationale: Badge dot/tonal variants (already
+  exist), Breadcrumb (no navigated hierarchy), ButtonGroup (Modal footer prop suffices).
+
 ## FEAT: live notification cards — body jump-to-result + error->Retry (v0.10.0.40)
 
 - A progress/success toast can now carry `onActivate`: the whole card body becomes a

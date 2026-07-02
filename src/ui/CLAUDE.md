@@ -124,6 +124,20 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   reading copy (descriptions, empty states, onboarding) uses `--lh-body` (1.5); single-line
   titles/labels use `--lh-tight` (1.25). Numeric readouts add
   `font-variant-numeric: tabular-nums` (or `.mono`).
+- Labelled sliders use `controls/SliderField` (label + `.slider` + a `tabular-nums` readout) —
+  don't hand-pair a bare `.slider` with a separate value span; raw `.slider` stays valid for
+  legacy call sites being migrated.
+- Self-managed collapsible sections use `controls/Disclosure` over the `.compose` `<details>`
+  idiom (FinishPicker/MaterialComposer). Layers group-collapse stays bespoke — it is
+  store-persisted (`layersCollapsed`) and force-expands under an active filter.
+- **P18 primitive audit — three candidates dropped as unconsumed abstractions** (recorded here
+  so they aren't re-proposed without a real consumer): **Badge dot/tonal variants** — `.badge`
+  already ships `.err`/`.warn`/`.ok`/`.neutral` tonal variants, and dot affordances already exist
+  as `.nub` (count) and `.new-dot` (P27); a new variant has no consumer. **Breadcrumb** — no
+  navigated Room→Wall→Surface trail exists; room switching is `RoomSwitcher`'s `Select`, and the
+  elevation view is a render target, not a nav surface. **ButtonGroup** — `Modal` already exposes
+  a `footer` prop; footers are 1–3 buttons in a flex row that differ per modal, so a `ButtonGroup`
+  over a plain flex row saves nothing.
 - **Untrusted URLs → `safeUrl` (`src/utils/safeUrl.ts`).** Any URL that originates from
   imported / user-supplied / scraped data (def `sourceUrl`, IKEA `productInfo` image/document
   URLs, retailer-offer links, …) MUST pass through `safeUrl()`/`safeHref()` before it reaches an

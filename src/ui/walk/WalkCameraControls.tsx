@@ -7,6 +7,7 @@ import {
 } from '../../scene/cameras/walkCameraSettings'
 import { useStore } from '../../state/store'
 import { formatLength } from '../../utils/measurement'
+import { SliderField } from '../controls/SliderField'
 
 /**
  * Walk-mode observer camera settings (Sweet Home 3D parity, PARITY-WALKCAM):
@@ -32,34 +33,24 @@ export function WalkSettings() {
       <div className="pop-label" style={{ marginTop: 10 }}>
         Walk settings
       </div>
-      <label className="walk-cam-row">
-        <span className="walk-cam-lbl">Field of view</span>
-        <input
-          type="range"
-          className="slider"
-          min={WALK_FOV_MIN}
-          max={WALK_FOV_MAX}
-          step={1}
-          value={walkFov}
-          aria-label="Field of view (degrees)"
-          onChange={(e) => setWalkFov(Number(e.target.value))}
-        />
-        <span className="walk-cam-val mono">{Math.round(walkFov)}°</span>
-      </label>
-      <label className="walk-cam-row" style={{ marginTop: 6 }}>
-        <span className="walk-cam-lbl">Eye height</span>
-        <input
-          type="range"
-          className="slider"
-          min={WALK_EYE_MIN}
-          max={WALK_EYE_MAX}
-          step={0.05}
-          value={walkEyeHeight}
-          aria-label="Eye height"
-          onChange={(e) => setWalkEyeHeight(Number(e.target.value))}
-        />
-        <span className="walk-cam-val mono">{formatLength(walkEyeHeight, units)}</span>
-      </label>
+      <SliderField
+        label="Field of view"
+        min={WALK_FOV_MIN}
+        max={WALK_FOV_MAX}
+        step={1}
+        value={walkFov}
+        onChange={setWalkFov}
+        format={(v) => `${Math.round(v)}°`}
+      />
+      <SliderField
+        label="Eye height"
+        min={WALK_EYE_MIN}
+        max={WALK_EYE_MAX}
+        step={0.05}
+        value={walkEyeHeight}
+        onChange={setWalkEyeHeight}
+        format={(v) => formatLength(v, units)}
+      />
     </>
   )
 }

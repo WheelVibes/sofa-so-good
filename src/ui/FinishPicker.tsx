@@ -27,6 +27,7 @@ import { formatArea } from '../utils/measurement'
 import { lazyWithRetry } from './app/lazyWithRetry'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
 import { MasterPaletteEditor } from './color/MasterPaletteEditor'
+import { Disclosure } from './controls/Disclosure'
 import { Select } from './controls/Select'
 import { MaterialComposer } from './finish/MaterialComposer'
 import { SwatchGroup } from './finish/swatches'
@@ -417,12 +418,11 @@ export function FinishPicker() {
           />
           {/* Apartment master palette + per-room override (CUSTOMIZE-MASTER-PALETTE).
               Drives the "Apartment theme" + "Recommended" rows on every picker. */}
-          <details className="compose" style={{ marginBottom: 'var(--s-3)' }}>
-            <summary className="compose-summary">Apartment colour palette…</summary>
+          <Disclosure summary="Apartment colour palette…">
             <div style={{ marginTop: 'var(--s-2)' }}>
               <MasterPaletteEditor roomId={roomId} />
             </div>
-          </details>
+          </Disclosure>
           <SwatchGroup
             label="Floor"
             items={filterFinishes(groups.floor, finishQuery)}

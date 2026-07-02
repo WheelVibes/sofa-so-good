@@ -40,9 +40,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
   shine/border-beam on in-progress HQ-render card (CSS `offset-path`); mouse-follow radial
   gradient on catalog/preset cards (CSS vars + pointermove); richer staggered multi-circle pulse
   for edit-room hotspot; toolbar dock magnification (spring mass .1 / stiffness 150 / damping 12).
-- [ ] **P18 Missing primitives** — Accordion/Disclosure (unify layers groups + FinishPicker
-  `<details>`), Slider-with-value, tonal/dot Badge variants, Breadcrumb (Room → Wall → Surface),
-  ButtonGroup for modal footers.
 
 - [ ] **P26 Simple→Pro upsell affordance** — flag-gated dimmed entries + Pro badge / ⌘K hint so
   casual users learn Pro exists (test both modes).
