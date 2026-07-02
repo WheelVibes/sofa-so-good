@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: unified --focus-ring token across all controls (v0.9.0.72)
+
+- Added `--focus-ring`/`--focus-ring-w` tokens (`src/styles/tokens.css`): a single 3px
+  soft-accent `color-mix(in oklch, var(--accent) 45%, transparent)` halo shared by every
+  interactive control, replacing the mix of ad-hoc `outline: 2px solid var(--accent)` and
+  `box-shadow: 0 0 0 3px var(--accent-soft)` rings that had drifted across components.
+- The shared `:focus-visible` rule in `components.css` now emits the token ring and explicitly
+  covers `.btn`/`.icon-btn`/`.tool-btn`/`.chip`/`.tab`/`.select-trigger` (classed controls that
+  render as `<button>` but weren't reliably caught before), alongside the existing semantic
+  role/attribute selector group.
+- `.input:focus`/`.num input:focus` (components.css) and `.cat-card:focus-visible`/
+  `.select-trigger:focus-visible` (parts.css) now reuse `var(--focus-ring)` instead of their own
+  hardcoded ring values, so every control matches in light + dark across all 5 themes.
+- Drive-by: dropped a stray hardcoded `#c0392b` fallback on `.saved-view-del:hover` (the
+  `--danger` token is always defined) to keep the file free of literal colour values.
+- Added `src/styles/focusRing.test.ts` asserting the token definition, the shared rule's
+  coverage of every control class, and that the new focus block contains no hex literals.
+
 ## DOCS: UI/UX polish program — TODO backlog + Batch 1 plan (v0.9.0.62)
 
 - Added the 39-item "UI/UX polish program" to `TODO.md` (three prioritized batches), distilled
