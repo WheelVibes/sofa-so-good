@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: desktop dock-panel slide+fade entrance (v0.10.0.16)
+
+- `.dock-panel`/`.dock-panel-left` mount with a `--dur-2`/`--ease-out` slide+fade (fill-mode
+  `backwards` per the motion convention) inside the >=641px dock block, and the canvas reflow
+  eases via a `.stage-area` left/right transition. Mobile bottom-sheets (`sheetUp`) untouched;
+  reduced-motion neutralised by the global block. Reflow smoothness to be confirmed in the
+  batch visual pass (drop the transition if it janks).
+
 ## REFACTOR: --panel-w/--panel-w-compact panel-width tokens (v0.10.0.15)
 
 - Floating catalog/inspector/finish panel widths normalized onto `--panel-w` (320px, matching

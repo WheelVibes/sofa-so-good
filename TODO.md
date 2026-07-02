@@ -33,9 +33,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 
 ### Batch 2 — medium (1–3 days each)
 
-- [ ] **P3 Desktop panel slide animation** — animate `--right-rail` width + panel slide-in
-  (240–300ms easeOutExpo) to match mobile `sheetUp` parity.
-
 - [ ] **P9 Purge hardcoded px from React inline styles** — map `padding:'2px 6px'`, `fontSize:16`
   etc. (ElevationPanel, RenderCompareModal, LocationPrompt, FinishPicker, …) to `--s-N`/`--t-N`;
   add a grep/lint script to block regressions.

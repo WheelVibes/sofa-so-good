@@ -106,6 +106,7 @@ input { font-family: inherit; }
   left: var(--left-rail);
   right: var(--right-rail);
   overflow: hidden;
+  transition: left var(--dur-2) var(--ease-out), right var(--dur-2) var(--ease-out);
 }
 @media (min-width: 641px) {
   .app-shell:has(.dock-panel) {
@@ -121,6 +122,7 @@ input { font-family: inherit; }
     border-right: 0;
     border-bottom: 0;
     border-radius: 0;
+    animation: dockPanelIn var(--dur-2) var(--ease-out) backwards;
   }
   /* Left-docked panel (the catalog): mirrors the right dock so the canvas takes
      the remaining width and the centred toolbar re-centres over it. */
@@ -137,6 +139,32 @@ input { font-family: inherit; }
     border-left: 0;
     border-bottom: 0;
     border-radius: 0;
+    animation: dockPanelInLeft var(--dur-2) var(--ease-out) backwards;
+  }
+
+  /* Mount entrance for docked panels (desktop only — mobile keeps `sheetUp`).
+     `backwards` fill applies the `from` state only until the animation starts
+     and clears afterward; `both` would lock opacity/transform permanently and
+     break later hover transforms (see the 2a fix). */
+  @keyframes dockPanelIn {
+    from {
+      opacity: 0;
+      transform: translateX(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes dockPanelInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 }
 
