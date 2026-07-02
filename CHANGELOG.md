@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: disabled-with-reason tooltips on undo/redo (v0.9.0.77)
+
+- `IconButton` gains `disabled`/`disabledReason` props: the button disables (`aria-disabled`,
+  onClick guarded), its tooltip label swaps to the reason, and a native `title` carries the
+  reason as the always-available surface (works on touch where `.tip` is suppressed). Toolbar
+  undo/redo wired ("Nothing to undo/redo"); HistoryPanel's disabled undo/redo buttons get the
+  same `title` reasons.
+
 ## FEAT: shortcut chips in menus, right-aligned via kbd (v0.9.0.76)
 
 - Menu rows now show their keyboard combo as a right-aligned semantic `<kbd class="mi-kbd">`

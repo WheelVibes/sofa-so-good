@@ -12,12 +12,19 @@ interface IconButtonProps {
   showLabel?: boolean
   /** Prominent filled-accent call-to-action styling (e.g. "Edit a room"). */
   cta?: boolean
+  /** Disables the button; pair with `disabledReason` to explain why. */
+  disabled?: boolean
+  /** Reason shown in the tooltip + native `title` when `disabled`. */
+  disabledReason?: string
   onClick?: () => void
 }
 
 /** A single icon control with a hover tooltip. Active state uses the accent
  *  soft highlight; optional chevron marks a dropdown; optional badge is a small
- *  accent count dot (`.nub`); `cta` makes it a filled-accent primary button. */
+ *  accent count dot (`.nub`); `cta` makes it a filled-accent primary button.
+ *  When `disabled`, the tooltip label swaps to `disabledReason` (if given) and
+ *  the reason is mirrored on the native `title` attribute so it's reachable on
+ *  touch, where the hover tooltip is suppressed. */
 export function IconButton({
   icon,
   label,
@@ -27,16 +34,22 @@ export function IconButton({
   badge,
   showLabel,
   cta,
+  disabled,
+  disabledReason,
   onClick,
 }: IconButtonProps) {
   const Cmp = Icon[icon]
   const hasBadge = badge != null && badge !== '' && badge !== 0
+  const tipLabel = disabled && disabledReason ? disabledReason : label
   return (
-    <Tooltip label={label} shortcut={shortcut}>
+    <Tooltip label={tipLabel} shortcut={disabled ? '' : shortcut}>
       <button
         type="button"
         aria-label={label}
-        onClick={onClick}
+        aria-disabled={disabled || undefined}
+        disabled={disabled}
+        title={disabled ? disabledReason : undefined}
+        onClick={disabled ? undefined : onClick}
         className={`tool-btn${active ? ' active' : ''}${cta ? ' cta' : ''}`}
       >
         <Cmp />

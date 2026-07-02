@@ -77,6 +77,7 @@ export function HistoryPanel() {
             className="btn btn-soft btn-sm"
             style={{ flex: 1 }}
             disabled={!canUndo}
+            title={canUndo ? undefined : 'Nothing to undo'}
             onClick={() => useStore.getState().undo()}
           >
             <Icon.Undo width={14} height={14} />
@@ -87,6 +88,7 @@ export function HistoryPanel() {
             className="btn btn-soft btn-sm"
             style={{ flex: 1 }}
             disabled={!canRedo}
+            title={canRedo ? undefined : 'Nothing to redo'}
             onClick={() => useStore.getState().redo()}
           >
             <Icon.Redo width={14} height={14} />
