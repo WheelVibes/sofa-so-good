@@ -131,6 +131,11 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   `javascript:`/`data:` URL would otherwise execute on click, SEC-001). It allows only
   `http:`/`https:`/`mailto:` + relative/protocol-relative URLs. The schema also neutralizes these
   fields on import, but the render sink is the defense-in-depth backstop.
+- **Live notification cards (P32).** A progress/success toast can carry `onActivate` (a body
+  click that jumps to the result — the whole card body is the affordance, distinct from the
+  trailing `actionLabel`/`onAction` button); a failed job uses `notify.error(id, msg, undefined,
+  retry)` to swap in the standard "Retry" action. Toasts update in place via `notify.update` and
+  de-dupe on `kind+title+message` (progress toasts never de-dupe).
 - Modals portal to `document.body`; reuse the shared `Modal` primitive. While any modal is
   open, global hotkeys are suppressed via `controls/modalGuard.ts` — `Modal` registers
   automatically; any modal-style overlay that does **not** build on `Modal` (custom

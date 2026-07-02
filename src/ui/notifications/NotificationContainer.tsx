@@ -168,6 +168,7 @@ export function NotificationContainer() {
           {notifications.slice(-5).map((n) => {
             const Glyph = Icon[n.icon ?? KIND_ICON[n.kind]]
             const hasDetails = !!n.details?.length
+            const canActivate = hasDetails || !!n.onActivate
             return (
               <div
                 key={n.id}
@@ -189,14 +190,17 @@ export function NotificationContainer() {
                 />
                 <button
                   type="button"
-                  disabled={!hasDetails}
-                  onClick={() => hasDetails && setOpenDetails(n.id)}
+                  disabled={!canActivate}
+                  onClick={() => {
+                    if (hasDetails) setOpenDetails(n.id)
+                    else n.onActivate?.()
+                  }}
                   className="toast-msg"
                   style={{
                     minWidth: 0,
                     flex: 1,
                     textAlign: 'left',
-                    cursor: hasDetails ? 'pointer' : 'default',
+                    cursor: canActivate ? 'pointer' : 'default',
                   }}
                 >
                   <b>{n.title}</b>
@@ -244,6 +248,17 @@ export function NotificationContainer() {
                       }}
                     >
                       View details →
+                    </div>
+                  ) : n.onActivate ? (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 'var(--t-2xs)',
+                        color: 'var(--accent-soft-text)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      Jump to result →
                     </div>
                   ) : null}
                 </button>

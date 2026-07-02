@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: live notification cards — body jump-to-result + error->Retry (v0.10.0.40)
+
+- A progress/success toast can now carry `onActivate`: the whole card body becomes a
+  "Jump to result ->" affordance (distinct from the trailing action button) and survives the
+  progress->success transition. `notify.error(id, msg, details?, retry?)` gains a
+  back-compatible 4th arg that swaps in the standard Retry action. All existing error()
+  callers audited unaffected.
+
 ## DOCS: Batch 3b implementation plan — the program's final tranche (v0.10.0.39)
 
 - Authored `docs/superpowers/plans/2026-07-02-ui-polish-batch3b.md`: SliderField + Disclosure

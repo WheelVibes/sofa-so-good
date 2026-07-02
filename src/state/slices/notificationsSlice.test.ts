@@ -117,4 +117,43 @@ describe('notificationsSlice', () => {
     expect(id2).not.toBe(id1)
     expect(useStore.getState().notifications).toHaveLength(2)
   })
+
+  it('start() stores onActivate on the notification', () => {
+    const { notify } = useStore.getState()
+    const onActivate = () => {}
+    const id = notify.start({ title: 'Rendering…', kind: 'progress', onActivate })
+    const n = useStore.getState().notifications.find((x) => x.id === id)
+    expect(n?.onActivate).toBe(onActivate)
+  })
+
+  it('onActivate survives success() resolution (spread semantics)', () => {
+    const { notify } = useStore.getState()
+    const onActivate = () => {}
+    const id = notify.start({ title: 'Rendering…', kind: 'progress', onActivate })
+    notify.success(id, 'Render ready')
+    const n = useStore.getState().notifications.find((x) => x.id === id)
+    expect(n?.kind).toBe('success')
+    expect(n?.onActivate).toBe(onActivate)
+  })
+
+  it('error() with a retry callback sets the standard error→Retry action', () => {
+    const { notify } = useStore.getState()
+    const retry = () => {}
+    const id = notify.start({ title: 'Render', kind: 'progress' })
+    notify.error(id, 'Render failed', undefined, retry)
+    const n = useStore.getState().notifications.find((x) => x.id === id)
+    expect(n?.kind).toBe('error')
+    expect(n?.actionLabel).toBe('Retry')
+    expect(n?.onAction).toBe(retry)
+    expect(n?.autoDismissMs).toBeNull()
+  })
+
+  it('error() without a retry callback leaves actionLabel unset (back-compat)', () => {
+    const { notify } = useStore.getState()
+    const id = notify.start({ title: 'Render', kind: 'progress' })
+    notify.error(id, 'Render failed')
+    const n = useStore.getState().notifications.find((x) => x.id === id)
+    expect(n?.actionLabel).toBeUndefined()
+    expect(n?.onAction).toBeUndefined()
+  })
 })

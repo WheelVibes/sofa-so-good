@@ -27,6 +27,12 @@ export interface Notification {
    *  update-available toast). When set, `onAction` runs on click. */
   actionLabel?: string
   onAction?: () => void
+  /** Optional body-level click handler — "jump to the result" (e.g. select the
+   *  rendered item, open the finished export). Distinct from the trailing
+   *  `actionLabel`/`onAction` button: this is the whole card body's affordance.
+   *  Survives a progress→success/error resolution via `...n` spreads, so a
+   *  "Rendering…" toast set with `onActivate` stays clickable once it resolves. */
+  onActivate?: () => void
   /** Override the kind-derived leading icon (e.g. a "Versions" glyph on an
    *  update-available info toast instead of the default info glyph). */
   icon?: IconName
@@ -45,6 +51,8 @@ export interface NotificationStartOpts {
   /** Primary action button + its handler (e.g. "Update"). */
   actionLabel?: string
   onAction?: () => void
+  /** Body-level "jump to result" click handler — see `Notification.onActivate`. */
+  onActivate?: () => void
   /** Override the kind-derived leading icon. */
   icon?: IconName
 }
@@ -58,7 +66,7 @@ export interface NotificationsSlice {
       patch: Partial<Pick<Notification, 'progress' | 'message' | 'title'>>,
     ) => void
     success: (id: string, message?: string) => void
-    error: (id: string, message: string, details?: NotificationDetail[]) => void
+    error: (id: string, message: string, details?: NotificationDetail[], retry?: () => void) => void
     dismiss: (id: string) => void
   }
 }
@@ -83,7 +91,16 @@ export const NOTIFICATIONS_INITIAL: Pick<NotificationsSlice, 'notifications'> = 
 export const createNotificationsSlice: SliceCreator<NotificationsSlice, RootState> = (set) => ({
   ...NOTIFICATIONS_INITIAL,
   notify: {
-    start: ({ title, kind = 'info', message, autoDismissMs, actionLabel, onAction, icon }) => {
+    start: ({
+      title,
+      kind = 'info',
+      message,
+      autoDismissMs,
+      actionLabel,
+      onAction,
+      onActivate,
+      icon,
+    }) => {
       const id = nextId()
       const n: Notification = {
         id,
@@ -93,6 +110,7 @@ export const createNotificationsSlice: SliceCreator<NotificationsSlice, RootStat
         progress: kind === 'progress' ? 0 : undefined,
         actionLabel,
         onAction,
+        onActivate,
         icon,
         dismissable: defaultDismissable(kind),
         autoDismissMs: autoDismissMs !== undefined ? autoDismissMs : defaultAutoDismissMs(kind),
@@ -145,7 +163,7 @@ export const createNotificationsSlice: SliceCreator<NotificationsSlice, RootStat
             : n,
         ),
       })),
-    error: (id, message, details) =>
+    error: (id, message, details, retry) =>
       set((s) => ({
         notifications: s.notifications.map((n) =>
           n.id === id
@@ -157,6 +175,7 @@ export const createNotificationsSlice: SliceCreator<NotificationsSlice, RootStat
                 dismissable: true,
                 autoDismissMs: null,
                 progress: undefined,
+                ...(retry ? { actionLabel: 'Retry', onAction: retry } : null),
               }
             : n,
         ),

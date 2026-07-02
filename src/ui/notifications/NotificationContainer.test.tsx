@@ -227,4 +227,52 @@ describe('NotificationContainer', () => {
     })
     expect(politeRegion()?.textContent).toContain('Pack ready')
   })
+
+  it('enables the body button and calls onActivate when a toast has onActivate but no details', () => {
+    render(<NotificationContainer />)
+    let ran = false
+    act(() => {
+      useStore.getState().notify.start({
+        title: 'Render ready',
+        kind: 'success',
+        onActivate: () => {
+          ran = true
+        },
+      })
+    })
+    const host = document.querySelector('.toast-host') as HTMLElement
+    const msgBtn = within(host).getByRole('button', { name: /Render ready/i })
+    expect(msgBtn).toBeEnabled()
+    act(() => {
+      msgBtn.click()
+    })
+    expect(ran).toBe(true)
+  })
+
+  it('disables the body button when a toast has neither details nor onActivate', () => {
+    render(<NotificationContainer />)
+    act(() => {
+      useStore.getState().notify.start({ title: 'Just info', kind: 'info' })
+    })
+    const host = document.querySelector('.toast-host') as HTMLElement
+    const msgBtn = within(host).getByRole('button', { name: /Just info/i })
+    expect(msgBtn).toBeDisabled()
+  })
+
+  it('renders a Retry action on an error toast and calls retry on click', () => {
+    render(<NotificationContainer />)
+    let retried = false
+    act(() => {
+      const id = useStore.getState().notify.start({ title: 'Render', kind: 'progress' })
+      useStore.getState().notify.error(id, 'Render failed', undefined, () => {
+        retried = true
+      })
+    })
+    const btn = screen.getByRole('button', { name: 'Retry' })
+    expect(btn).toBeInTheDocument()
+    act(() => {
+      btn.click()
+    })
+    expect(retried).toBe(true)
+  })
 })
