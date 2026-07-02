@@ -1,18 +1,36 @@
 import { useFrame } from '@react-three/fiber'
-import { useRef } from 'react'
-import { type Group, Mesh, type MeshStandardMaterial, Vector2 } from 'three'
-import type {
-  PlanClippedWall,
-  PlanRoomOpening,
-  PlanRoomShell as Shell,
+import { Suspense, useEffect, useMemo, useRef } from 'react'
+import { type Group, Mesh, MeshStandardMaterial, Vector2 } from 'three'
+import {
+  type PlanClippedWall,
+  type PlanRoomOpening,
+  planOpeningCutout,
+  type PlanRoomShell as Shell,
 } from '../floorplan/planRoomShell'
 import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
-import type { MaterialId } from '../materials/types'
+import type {
+  MaterialId,
+  ProceduralMaterialDef,
+  SolidMaterialDef,
+  TexturedMaterialDef,
+} from '../materials/types'
+import {
+  useMaterialDef,
+  useProceduralMaterial,
+  useSolidMaterial,
+  useTexturedMaterial,
+} from '../materials/useMaterial'
 import { finishSurfaceUserData } from '../scene/finishDropTarget'
+import { SilentErrorBoundary } from '../scene/SilentErrorBoundary'
 import { useStore } from '../state/store'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
-import { PlanWallFinishFace } from './walls/PlanWallFinishFace'
 import { useWallReveal } from './walls/useWallReveal'
+import { extrudeWallBody } from './walls/wallBodyGeometry'
+import {
+  OPENING_CLEARANCE,
+  type WallCutoutSpan,
+  wallBodyOutlineFromSpans,
+} from './walls/wallBodyShape'
 import { getWallOpacity } from './walls/wallReveal'
 
 const WALL_COLOR = '#ede9e2' // matches PlanShell's plaster walls
@@ -23,26 +41,31 @@ function clippedThickness(t: PlanClippedWall['thickness']): number {
   return t === 'external' ? 0.2 : 0.1
 }
 
-/** A clipped plan wall box that hides itself when the orbit camera is on its
- *  outward side — the IKEA-planner camera-facing reveal, mirroring
- *  `apartment/RoomShell`'s WallBox but for plan walls (plain plaster material,
- *  thickness from the plan wall kind). */
-function WallBox({
-  wall,
-  center,
-  height,
-  finishId,
-  roomId,
-}: {
+interface WallBoxProps {
   wall: PlanClippedWall
   center: [number, number]
   height: number
-  /** Room wall finish; renders a room-facing finish plane over the plaster. */
-  finishId: MaterialId | null
+  /** Door/window openings on this wall, in the clip's centred along-axis frame. */
+  cutouts: WallCutoutSpan[]
   /** The isolated room this clipped wall belongs to (finish-drop target tag). */
   roomId: string
-}) {
-  const ref = useRef<Group>(null)
+}
+
+/** A clipped plan wall that fades to translucent when the orbit camera fronts it
+ *  — the IKEA-planner camera-facing reveal, mirroring `apartment/RoomShell`'s
+ *  WallBox but for plan walls. Rendered as a single watertight extruded body
+ *  with its door/window openings carved out (matching the main orbit scene), so
+ *  an opaque wall no longer occludes the leaf/pane inside it. Carries the
+ *  resolved room finish (or plain plaster when unset) on the body directly. */
+function WallBoxBody({
+  wall,
+  center,
+  height,
+  cutouts,
+  roomId,
+  material,
+}: WallBoxProps & { material: MeshStandardMaterial }) {
+  const ref = useRef<Mesh>(null)
   const [sx, sz] = wall.start
   const [ex, ez] = wall.end
   const len = Math.hypot(ex - sx, ez - sz)
@@ -55,42 +78,75 @@ function WallBox({
   const normal = new Vector2(-(ez - sz), ex - sx).normalize()
   if (toMid.dot(normal) < 0) normal.negate()
 
-  // Fade the whole wall group (plaster body + finish face) to translucent when
-  // the orbit camera fronts it — matches the main orbit scene's wall reveal.
+  // Fade the wall to translucent when the orbit camera fronts it — matches the
+  // main orbit scene's wall reveal (also publishes opacity for its openings).
   useWallReveal(ref, { midX, midZ, nx: normal.x, nz: normal.y, center, wallId: wall.wallId })
 
-  if (len < 1e-6) return null
   const t = clippedThickness(wall.thickness)
   const h = wall.topHeight ?? height
+  const bodyGeometry = useMemo(
+    () =>
+      extrudeWallBody(
+        wallBodyOutlineFromSpans(cutouts, -len / 2, len / 2, h, OPENING_CLEARANCE),
+        t,
+      ),
+    [cutouts, len, h, t],
+  )
+  useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
+
+  if (len < 1e-6) return null
   const angle = Math.atan2(ez - sz, ex - sx)
-  // The group is rotated [0, -angle, 0], which maps local +Z to world
-  // (-sin angle, cos angle); the finish face goes on whichever local-Z side
-  // points back toward the room centre (opposite the outward normal).
-  const localZ = new Vector2(-Math.sin(angle), Math.cos(angle))
-  const interiorSign: 1 | -1 = localZ.dot(normal) >= 0 ? -1 : 1
   return (
-    <group
+    <mesh
       ref={ref}
-      position={[midX, h / 2, midZ]}
+      position={[midX, 0, midZ]}
       rotation={[0, -angle, 0]}
+      castShadow={false}
+      material={material}
+      geometry={bodyGeometry}
       // In the isolated room editor every clipped wall belongs to this room, so
-      // tag the whole group as a wall drop target (scene/finishDropTarget.ts).
+      // tag it as a wall drop target (scene/finishDropTarget.ts).
       userData={finishSurfaceUserData('wall', roomId)}
-    >
-      <mesh castShadow={false}>
-        <boxGeometry args={[len, h, t]} />
-        <meshStandardMaterial color={WALL_COLOR} roughness={0.9} />
-      </mesh>
-      {finishId ? (
-        <PlanWallFinishFace
-          materialId={finishId}
-          width={len}
-          height={h}
-          position={[0, 0, interiorSign * (t / 2 + 0.001)]}
-          yRot={interiorSign === 1 ? 0 : Math.PI}
-        />
-      ) : null}
-    </group>
+    />
+  )
+}
+
+// Resolve the room wall finish to a MeshStandardMaterial, branching by kind
+// (mirrors RoomShell's wall dispatch); a null finish falls back to plaster.
+function SolidWallBody(p: WallBoxProps & { def: SolidMaterialDef }) {
+  return <WallBoxBody {...p} material={useSolidMaterial(p.def)} />
+}
+function TexturedWallBody(p: WallBoxProps & { def: TexturedMaterialDef }) {
+  return <WallBoxBody {...p} material={useTexturedMaterial(p.def)} />
+}
+function ProceduralWallBody(p: WallBoxProps & { def: ProceduralMaterialDef }) {
+  return <WallBoxBody {...p} material={useProceduralMaterial(p.def)} />
+}
+
+function FinishWallBody({ finishId, ...p }: WallBoxProps & { finishId: MaterialId }) {
+  const def = useMaterialDef(finishId)
+  if (def.kind === 'textured') return <TexturedWallBody def={def} {...p} />
+  if (def.kind === 'procedural') return <ProceduralWallBody def={def} {...p} />
+  return <SolidWallBody def={def} {...p} />
+}
+
+function PlasterWallBody(p: WallBoxProps) {
+  const material = useMemo(
+    () => new MeshStandardMaterial({ color: WALL_COLOR, roughness: 0.9 }),
+    [],
+  )
+  useEffect(() => () => material.dispose(), [material])
+  return <WallBoxBody {...p} material={material} />
+}
+
+function WallBox({ finishId, ...p }: WallBoxProps & { finishId: MaterialId | null }) {
+  if (!finishId) return <PlasterWallBody {...p} />
+  return (
+    <SilentErrorBoundary resetKey={finishId}>
+      <Suspense fallback={<PlasterWallBody {...p} />}>
+        <FinishWallBody finishId={finishId} {...p} />
+      </Suspense>
+    </SilentErrorBoundary>
   )
 }
 
@@ -159,6 +215,17 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
   const floorMat = resolvePlanRoomFloor(finishes, room) as MaterialId
   const wallMat = resolvePlanRoomWall(finishes, room) as MaterialId | null
 
+  // Group each wall's openings so its body can carve them out as holes/notches.
+  const cutoutsByWall = new Map<string, WallCutoutSpan[]>()
+  const clipById = new Map(shell.walls.map((w) => [w.wallId, w]))
+  for (const entry of shell.openings) {
+    const clip = clipById.get(entry.opening.wallId)
+    if (!clip) continue
+    const list = cutoutsByWall.get(entry.opening.wallId) ?? []
+    list.push(planOpeningCutout(entry, clip))
+    cutoutsByWall.set(entry.opening.wallId, list)
+  }
+
   return (
     <group>
       {/* Floors: a polygon room renders one triangulated floor; otherwise the
@@ -191,6 +258,7 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
           wall={w}
           center={shell.center}
           height={height}
+          cutouts={cutoutsByWall.get(w.wallId) ?? []}
           finishId={wallMat}
           roomId={room.id}
         />

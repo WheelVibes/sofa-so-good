@@ -7,6 +7,78 @@ export interface WallBodyOutline {
   holes: [number, number][][]
 }
 
+/** A door/window cutout already expressed in the wall's centred along-axis frame
+ *  (metres): `[a, b]` is the along-axis span, `[bottom, top]` the height span. */
+export interface WallCutoutSpan {
+  a: number
+  b: number
+  bottom: number
+  top: number
+}
+
+/**
+ * How much smaller (per edge, metres) the per-room editor carves an opening than
+ * the door leaf / window pane that sits in it. The leaf/pane is placed flush to
+ * the opening spec, so an exact hole leaves the leaf's side/top faces COPLANAR
+ * with the opening's jambs/header — z-fighting that flickers the leaf's edge
+ * ("thickness") in and out as the camera orbits. Carving the hole a hair smaller
+ * makes the leaf overlap the wall so its edges are cleanly occluded (no coplanar
+ * faces); the tiny overlap is invisible and, unlike enlarging the hole, leaves
+ * no see-through gap around the leaf on an opaque wall.
+ */
+export const OPENING_CLEARANCE = 0.01
+
+/**
+ * Core outline builder shared by {@link buildWallBodyOutline} (built-in flats)
+ * and the per-room editor (which maps its clipped walls' openings into this
+ * centred frame). `x0`/`x1` are the outer contour's left/right edges (already
+ * including any abutment extension); cutouts are clamped to `[x0, x1]` × `[0,
+ * wallTop]` and dropped when degenerate. Floor-reaching cutouts (`bottom <= 0`,
+ * i.e. doors) become bottom notches; floating ones (windows) become interior
+ * holes. `clearance` (default 0) shrinks every cutout inward by that many metres
+ * per edge (see {@link OPENING_CLEARANCE}); a door keeps its floor edge at 0.
+ * Pure.
+ */
+export function wallBodyOutlineFromSpans(
+  spans: WallCutoutSpan[],
+  x0: number,
+  x1: number,
+  wallTop: number,
+  clearance = 0,
+): WallBodyOutline {
+  const cutouts = spans
+    .map((c) => ({
+      a: Math.max(x0, c.a + clearance),
+      b: Math.min(x1, c.b - clearance),
+      // Doors reach the floor (bottom ≤ 0) and must stay there; windows pull
+      // their sill in too.
+      bottom: c.bottom > 1e-6 ? c.bottom + clearance : 0,
+      top: Math.min(c.top, wallTop) - clearance,
+    }))
+    .filter((c) => c.top > c.bottom && c.b > c.a)
+    .sort((p, q) => p.a - q.a)
+
+  const bottomNotches = cutouts.filter((c) => c.bottom <= 1e-6)
+  const windows = cutouts.filter((c) => c.bottom > 1e-6)
+
+  // Outer contour: along the bottom edge (carving an up-over-down notch for each
+  // floor-reaching cutout), up the right edge, across the top, down the left.
+  const outline: [number, number][] = [[x0, 0]]
+  for (const c of bottomNotches) {
+    outline.push([c.a, 0], [c.a, c.top], [c.b, c.top], [c.b, 0])
+  }
+  outline.push([x1, 0], [x1, wallTop], [x0, wallTop])
+
+  const holes: [number, number][][] = windows.map((c) => [
+    [c.a, c.bottom],
+    [c.b, c.bottom],
+    [c.b, c.top],
+    [c.a, c.top],
+  ])
+
+  return { outline, holes }
+}
+
 /**
  * Build a wall body's cross-section (along-axis × height) as ONE watertight
  * outline plus interior holes, so the body can render as a single extruded
@@ -33,33 +105,12 @@ export function buildWallBodyOutline(
   const x1 = length / 2 + endAbut
   const half = length / 2
 
-  const cutouts = [...wall.cutouts]
-    .map((c) => ({
-      a: Math.max(x0, c.offset - half),
-      b: Math.min(x1, c.offset + c.width - half),
-      bottom: Math.max(0, c.sill),
-      top: Math.min(c.head, wallTop),
-    }))
-    .filter((c) => c.top > c.bottom && c.b > c.a)
-    .sort((p, q) => p.a - q.a)
+  const spans: WallCutoutSpan[] = wall.cutouts.map((c) => ({
+    a: c.offset - half,
+    b: c.offset + c.width - half,
+    bottom: c.sill,
+    top: c.head,
+  }))
 
-  const bottomNotches = cutouts.filter((c) => c.bottom <= 1e-6)
-  const windows = cutouts.filter((c) => c.bottom > 1e-6)
-
-  // Outer contour: along the bottom edge (carving an up-over-down notch for each
-  // floor-reaching cutout), up the right edge, across the top, down the left.
-  const outline: [number, number][] = [[x0, 0]]
-  for (const c of bottomNotches) {
-    outline.push([c.a, 0], [c.a, c.top], [c.b, c.top], [c.b, 0])
-  }
-  outline.push([x1, 0], [x1, wallTop], [x0, wallTop])
-
-  const holes: [number, number][][] = windows.map((c) => [
-    [c.a, c.bottom],
-    [c.b, c.bottom],
-    [c.b, c.top],
-    [c.a, c.top],
-  ])
-
-  return { outline, holes }
+  return wallBodyOutlineFromSpans(spans, x0, x1, wallTop)
 }

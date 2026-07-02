@@ -1,5 +1,6 @@
 import { DOORS, ROOMS, WALLS, WINDOWS } from './constants'
 import type { DoorSpec, RoomDef, RoomId, WallSpec, WindowSpec } from './types'
+import type { WallCutoutSpan } from './walls/wallBodyShape'
 
 export interface Rect {
   x0: number
@@ -93,6 +94,38 @@ function clipWallToRects(
     }
   }
   return best ? { start: best.start, end: best.end } : null
+}
+
+/**
+ * A clipped wall's door/window cutouts, projected into the CLIP's centred
+ * along-axis frame (metres) so the per-room-editor wall body can carve the same
+ * holes the orbit scene does. The source cutouts are offsets along the FULL
+ * wall, so each is mapped to a world point and re-projected onto the clipped
+ * span's axis (which may run the opposite direction and start partway along the
+ * wall). Openings outside the clip project beyond `±clipLen/2` and are dropped
+ * later by {@link wallBodyOutlineFromSpans}'s clamp. Pure.
+ */
+export function clippedWallCutouts(wall: ClippedWall): WallCutoutSpan[] {
+  const [sx, sz] = wall.start
+  const [ex, ez] = wall.end
+  const clipLen = Math.hypot(ex - sx, ez - sz)
+  if (clipLen < 1e-6 || wall.spec.cutouts.length === 0) return []
+  const vx = (ex - sx) / clipLen
+  const vz = (ez - sz) / clipLen
+  const mx = (sx + ex) / 2
+  const mz = (sz + ez) / 2
+  const [w0x, w0z] = wall.spec.start
+  const fullLen = Math.hypot(wall.spec.end[0] - w0x, wall.spec.end[1] - w0z) || 1
+  const ux = (wall.spec.end[0] - w0x) / fullLen
+  const uz = (wall.spec.end[1] - w0z) / fullLen
+  // Along-axis coordinate (in the clip's centred frame) of a point `dist` metres
+  // from the full wall's start.
+  const project = (dist: number) => (w0x + ux * dist - mx) * vx + (w0z + uz * dist - mz) * vz
+  return wall.spec.cutouts.map((c) => {
+    const p0 = project(c.offset)
+    const p1 = project(c.offset + c.width)
+    return { a: Math.min(p0, p1), b: Math.max(p0, p1), bottom: c.sill, top: c.head }
+  })
 }
 
 /** World [x, z] center of an opening (window/door) along its parent wall. */

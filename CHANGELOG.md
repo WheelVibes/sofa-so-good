@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: per-room-editor walls carve real door/window openings — one watertight extruded body (v0.10.0.18)
+
+- **Room-editor walls no longer occlude the door leaf / window pane sitting inside them.** Every
+  wall (built-in shell and clipped plan walls) is now ONE watertight extruded body
+  (`walls/wallBodyGeometry.ts` `extrudeWallBody`) whose cross-section outline carves door notches
+  and window holes (`wallBodyOutlineFromSpans` in `wallBodyShape.ts`, pure + unit-tested) — shared
+  by the orbit scene's `WallSegment` and the per-room editor's `RoomShell`/`PlanRoomShell`.
+- Clipped plan walls project each opening from the full wall's frame into the clip's centred
+  along-axis frame (`clippedWallCutouts` in `roomShell.ts`, handles reversed/partial spans; pure +
+  unit-tested); openings outside the clip are clamp-dropped.
+- `OPENING_CLEARANCE` shrinks each carved hole a hair (per edge) so the leaf/pane overlaps the
+  wall instead of sitting coplanar with the jambs — kills the edge z-fighting flicker while
+  leaving no see-through gap.
+- `PlanWallFinishFace` is deleted: the resolved room finish (or plaster fallback) is applied on
+  the wall body directly, and plan walls keep the camera-facing translucent reveal.
+
 ## CHORE: PWA manifest name/description rewritten for search/install surfaces (v0.10.0.17)
 
 - `manifest.webmanifest` copy now leads with the user benefit and keywords ("Free 3D Interior

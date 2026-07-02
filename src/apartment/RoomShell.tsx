@@ -1,4 +1,4 @@
-import { Suspense, useRef } from 'react'
+import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { type Mesh, type MeshStandardMaterial, Vector2 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import type {
@@ -19,10 +19,12 @@ import { useStore } from '../state/store'
 import { DOORS, WINDOWS } from './constants'
 import { DoorLeaf } from './Door'
 import { RoomFloor } from './floor/RoomFloor'
-import type { ClippedWall, RoomShell as RoomShellData } from './roomShell'
+import { type ClippedWall, clippedWallCutouts, type RoomShell as RoomShellData } from './roomShell'
 import { WindowPane } from './Window'
 import { wallThicknessMetres } from './wallSegments'
 import { useWallReveal } from './walls/useWallReveal'
+import { extrudeWallBody } from './walls/wallBodyGeometry'
+import { OPENING_CLEARANCE, wallBodyOutlineFromSpans } from './walls/wallBodyShape'
 
 /** A clipped wall box, painted with the room's wall finish, that fades to
  *  translucent when the orbit camera fronts it — so you always see into the
@@ -63,23 +65,37 @@ function WallBox({
   // orbit scene); publishes the wall's opacity so its windows/doors fade too.
   useWallReveal(ref, { midX, midZ, nx: normal.x, nz: normal.y, center, wallId: wall.wallId })
 
-  if (len < 1e-6) return null
   const t = wallThicknessMetres(wall.spec)
   const h = wall.spec.topHeight ?? ceilingHeight
+  // A single watertight extruded body with the wall's door/window openings
+  // carved out (matching the main orbit scene), so an opaque wall no longer
+  // occludes the door/window sitting inside it — the box had no cutouts, so the
+  // openings vanished the moment the wall stopped fading (only the fade let you
+  // see "through" it). Floor-anchored (y 0..h), so position sits at y=0.
+  const bodyGeometry = useMemo(
+    () =>
+      extrudeWallBody(
+        wallBodyOutlineFromSpans(clippedWallCutouts(wall), -len / 2, len / 2, h, OPENING_CLEARANCE),
+        t,
+      ),
+    [wall, len, h, t],
+  )
+  useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
+
+  if (len < 1e-6) return null
   const angle = Math.atan2(ez - sz, ex - sx)
   return (
     <mesh
       ref={ref}
-      position={[midX, h / 2, midZ]}
+      position={[midX, 0, midZ]}
       rotation={[0, -angle, 0]}
       castShadow={false}
       material={material}
+      geometry={bodyGeometry}
       // In the isolated room editor every clipped wall belongs to this room, so
       // tag it as a wall drop target (scene/finishDropTarget.ts).
       userData={finishSurfaceUserData('wall', roomId)}
-    >
-      <boxGeometry args={[len, h, t]} />
-    </mesh>
+    />
   )
 }
 
