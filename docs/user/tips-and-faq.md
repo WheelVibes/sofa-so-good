@@ -15,6 +15,9 @@
 - **Helpful hints** — the room editor, floor‑plan editor and Walk mode each show a
   short hint banner the first time you open them. Read it, then click the ✕ ("Don't
   show this again") to dismiss it for good — it won't come back.
+- **New feature markers** — a small pulsing dot next to a menu item means it shipped
+  recently. Open it once and the dot is gone for good; it also fades on its own after
+  a while even if you never click it.
 
 ## FAQ
 

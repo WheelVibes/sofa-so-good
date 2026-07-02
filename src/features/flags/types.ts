@@ -127,6 +127,7 @@ export type FeatureFlag =
   | 'layerOrder'
   | 'contextMenu'
   | 'infoCallouts'
+  | 'newBadges'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

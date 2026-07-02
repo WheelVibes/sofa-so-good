@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: "New" feature badges (v0.10.0.34)
+
+- New flag-gated (`newBadges`, simple tier, default on) pulsing `.new-dot` on a
+  toolbar/menu entry for a recently-shipped feature, dismissed the first time
+  the entry is actually used and persisted per-flag (`badgesSlice`,
+  `hdb_seen_badges`) so it never comes back. `src/ui/newBadges.ts` holds the
+  small `NEW_BADGES` registry (flag → introduced `APP_VERSION`) and
+  `isRecentlyIntroduced` (same `major.minor.patch` line + within a 25-build
+  window — a minor/patch bump or the window passing quietly retires it).
+  `useNewBadge(flag)` gates internally with a sentinel flag so callers can call
+  it unconditionally (rules-of-hooks safe).
+- The chosen representative entry is a `MenuItem` row, not an `IconButton` —
+  "Style quiz" in the Tools menu (`ToolsMenu.tsx`) — so `MenuItem` gained a
+  `newFlag?: FeatureFlag` prop (mirrors the `IconButton` design: renders the
+  dot, marks the badge seen on click) rather than duplicating the integration
+  on both components.
+- `.new-dot` (`src/styles/features.css`, near `.nub`): 8px accent dot with a
+  `newPulse` box-shadow ring animation. Verified it parks visible (not frozen
+  mid-pulse) under the global reduced-motion reset — the ring shadow settles
+  to its 0-radius end state while the dot's own background stays static, so no
+  extra reduced-motion override was needed (unlike `.skeleton`'s shimmer).
+
 ## FEAT: progressive-disclosure info callouts (v0.10.0.33)
 
 - New flag-gated (`infoCallouts`, simple tier — shown in both modes) `<InfoCallout>` hint

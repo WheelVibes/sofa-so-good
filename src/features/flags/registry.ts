@@ -1007,6 +1007,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Pulsing "New" dot on recently-shipped toolbar/menu entries, dismissed on
+  // first use, persisted per-flag (P27). Pure UI, prod-safe. Discoverability
+  // polish for all users (badges both simple- and pro-tier entries) → simple tier.
+  newBadges: {
+    label: 'New feature badges',
+    description: 'Pulsing dot marking newly-shipped features until first use',
+    default: true,
+    tier: 'simple',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

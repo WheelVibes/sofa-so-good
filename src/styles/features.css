@@ -30,6 +30,22 @@
 }
 .tool-btn .nub.warn { background: oklch(0.72 0.15 70); color: oklch(0.18 0.02 60); }
 
+/* "New" feature badge (P27): a small pulsing dot on a toolbar/menu entry for
+ * a recently-shipped feature (`src/ui/newBadges.ts`), dismissed on first use.
+ * `.tool-btn` (IconButton, already `position: relative`) positions it absolute
+ * top/right like `.nub`; `.menu-item` (MenuItem) instead flows it as a
+ * trailing flex child alongside the row's other trailing content (kbd chip). */
+.new-dot {
+  width: 8px; height: 8px; border-radius: 999px; flex: none;
+  background: var(--accent);
+  animation: newPulse 1.6s ease-in-out infinite;
+}
+.tool-btn .new-dot { position: absolute; top: 4px; right: 4px; }
+@keyframes newPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--accent) 55%, transparent); }
+  70% { box-shadow: 0 0 0 6px transparent; }
+}
+
 /* ---- shared: compact empty state ----------------------------- */
 .empty-mini {
   display: flex; flex-direction: column; align-items: center; text-align: center;

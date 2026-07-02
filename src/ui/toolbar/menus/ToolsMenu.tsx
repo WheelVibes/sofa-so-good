@@ -163,6 +163,7 @@ export function ToolsMenu() {
           icon="Palette"
           label="Style quiz"
           sub="Find your interior style in a few taps"
+          newFlag="styleQuiz"
           onClick={() => useStore.getState().setStyleQuizOpen(true)}
         />
       )}

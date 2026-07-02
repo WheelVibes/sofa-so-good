@@ -10,6 +10,7 @@ import {
   createAppearanceSlice,
 } from './slices/appearanceSlice'
 import { AUTH_INITIAL, type AuthSlice, createAuthSlice } from './slices/authSlice'
+import { BADGES_INITIAL, type BadgesSlice, createBadgesSlice } from './slices/badgesSlice'
 import { CALLOUTS_INITIAL, type CalloutsSlice, createCalloutsSlice } from './slices/calloutsSlice'
 import { CAMERA_INITIAL, type CameraSlice, createCameraSlice } from './slices/cameraSlice'
 import {
@@ -164,6 +165,7 @@ export interface RootState
     UserStylesSlice,
     RecentSlice,
     CalloutsSlice,
+    BadgesSlice,
     FavouritesSlice,
     SavedMaterialsSlice,
     ColorPaletteSlice,
@@ -206,6 +208,7 @@ const INITIAL = {
   ...USER_STYLES_INITIAL,
   ...RECENT_INITIAL,
   ...CALLOUTS_INITIAL,
+  ...BADGES_INITIAL,
   ...FAVOURITES_INITIAL,
   ...SAVED_MATERIALS_INITIAL,
   ...COLOR_PALETTE_INITIAL,
@@ -249,6 +252,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createAuthSlice(set, get, api),
   ...createRecentSlice(set, get, api),
   ...createCalloutsSlice(set, get, api),
+  ...createBadgesSlice(set, get, api),
   ...createFavouritesSlice(set, get, api),
   ...createSavedMaterialsSlice(set, get, api),
   ...createColorPaletteSlice(set, get, api),

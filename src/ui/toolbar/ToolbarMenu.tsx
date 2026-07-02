@@ -1,5 +1,7 @@
 import { type ReactNode, useRef, useState } from 'react'
+import type { FeatureFlag } from '../../features/featureFlags'
 import { type DocKey, openToolDocs } from '../docsUrl'
+import { useNewBadge } from '../newBadges'
 import { Icon, type IconName } from './icons'
 import { Popover } from './Popover'
 
@@ -62,6 +64,7 @@ export function MenuItem({
   ariaLabel,
   docs,
   kbd,
+  newFlag,
   onClick,
 }: {
   icon: IconName
@@ -76,15 +79,27 @@ export function MenuItem({
   /** Shortcut combo label (from `shortcuts.ts`), rendered as a right-aligned
    *  `.mi-kbd` chip (P24) — never hardcode the key text inline in `label`. */
   kbd?: string
+  /** When this row fronts a recently-shipped feature (`src/ui/newBadges.ts`),
+   *  pass its `FeatureFlag` to show a pulsing `.new-dot` until first use (P27).
+   *  Resolved via `useNewBadge`, which is a no-op (`show: false`) for any flag
+   *  with no `NEW_BADGES` entry — safe to pass unconditionally. */
+  newFlag?: FeatureFlag
   onClick: () => void
 }) {
   const Cmp = Icon[icon]
+  // `useNewBadge` always needs a flag argument to keep hook calls unconditional
+  // across renders; a row with no `newFlag` resolves against a flag that has no
+  // `NEW_BADGES` entry, so `show` is always false — a harmless sentinel.
+  const { show: showNewBadge, markSeen } = useNewBadge(newFlag ?? 'newBadges')
   const row = (
     <button
       type="button"
       role="menuitem"
       aria-label={ariaLabel}
-      onClick={onClick}
+      onClick={() => {
+        if (newFlag) markSeen()
+        onClick()
+      }}
       className={`menu-item${active ? ' active' : ''}`}
     >
       <Cmp width={16} height={16} className="icn" />
@@ -93,6 +108,7 @@ export function MenuItem({
         {sub ? <span className="mi-sub">{sub}</span> : null}
       </span>
       {kbd ? <kbd className="mi-kbd">{kbd}</kbd> : null}
+      {newFlag && showNewBadge ? <span className="new-dot" aria-hidden /> : null}
     </button>
   )
   if (!docs) return row

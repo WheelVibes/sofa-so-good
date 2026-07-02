@@ -70,6 +70,16 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   localStorage (`calloutsSlice`) so it never re-appears. Never a modal — keep copy to one
   concise, accurate line (verify against the screen's real controls) and mount it inside the
   screen it hints at (room editor / floor-plan editor / walk mode).
+- **"New" badges on a recently-shipped entry use `newFlag` (P27), not a hand-rolled dot.**
+  `MenuItem` (`toolbar/ToolbarMenu.tsx`) takes `newFlag?: FeatureFlag` — add the same prop to
+  `IconButton` if the representative entry is a toolbar icon instead (one integration point per
+  entry, not both). The pulsing `.new-dot` shows via `useNewBadge(flag)` (`src/ui/newBadges.ts`)
+  only while `newBadges` is on, the target flag is on, the flag has a `NEW_BADGES` entry, and
+  that entry is still within its recency window (same `major.minor.patch` as `APP_VERSION`, ≤25
+  builds) and unseen — dismissed on first click, persisted per-flag (`badgesSlice`,
+  `hdb_seen_badges`). Add an entry to `NEW_BADGES` only for a feature with a real, verified
+  toolbar/menu row; retire it by deleting the entry once it's no longer worth calling out (no
+  need to wait for it to age out).
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
   gate on `canEditScene`; leaving the editor clears the selection.
 - **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models* (Poly Haven

@@ -499,3 +499,20 @@ describe('importSh3d flag (PARITY-SH3D)', () => {
     expect(FEATURE_FLAGS.importSh3d.tier).toBe('pro')
   })
 })
+
+describe('newBadges flag (P27 "New" feature badges)', () => {
+  it('is simple-tier: present in BOTH Simple and Pro modes (both build kinds)', () => {
+    // The pulsing "New" dot is a discoverability aid useful to everyone (it can
+    // badge both simple- and pro-tier target entries), so the flag itself shows
+    // in both Simple and Pro (simple tier, prod-safe, default on).
+    expect(resolveFlags(false, {}, false, 'simple').newBadges).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').newBadges).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').newBadges).toBe(true)
+    expect(resolveFlags(true, {}, false, 'pro').newBadges).toBe(true)
+  })
+  it('ships in prod (pure UI, no devOnly gate) with the right tier + default', () => {
+    expect(FEATURE_FLAGS.newBadges.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.newBadges.default).toBe(true)
+    expect(FEATURE_FLAGS.newBadges.tier).toBe('simple')
+  })
+})
