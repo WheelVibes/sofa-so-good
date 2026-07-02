@@ -9,6 +9,7 @@ import {
 import type { HqRenderSession } from '../scene/pathtrace/hqRenderSession'
 import { getHqRenderSource } from '../scene/pathtrace/hqRenderSource'
 import { useStore } from '../state/store'
+import { Button } from './controls/Button'
 import { Select } from './controls/Select'
 import { Modal } from './Modal'
 
@@ -263,9 +264,9 @@ export function HqRenderModal() {
                 Stop
               </button>
             ) : (
-              <button type="button" className="btn" onClick={start} disabled={phase === 'building'}>
+              <Button loading={phase === 'building'} onClick={start}>
                 {phase === 'done' || phase === 'error' ? 'Re-render' : 'Start render'}
-              </button>
+              </Button>
             )}
             <button
               type="button"

@@ -223,6 +223,7 @@ input { font-family: inherit; }
 .btn-sm { padding: 5px 8px; font-size: var(--t-xs); }
 /* Inline button spinner (P16). Reuses @keyframes toastspin (features.css). */
 .btn .btn-spin { animation: toastspin 0.9s linear infinite; transform-origin: 50% 50%; flex: none; }
+.btn.is-loading { pointer-events: none; opacity: 0.7; }
 
 kbd {
   font-family: var(--font-mono); font-size: 10px; font-weight: 600;

@@ -1,5 +1,5 @@
 import { render } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { Button } from './Button'
 
 describe('P15 Button primitive', () => {
@@ -31,5 +31,17 @@ describe('P15 Button primitive', () => {
     const btn = getByRole('button')
     expect(btn.getAttribute('type')).toBe('submit')
     expect(btn.querySelector('[data-testid="ic"]')).not.toBeNull()
+  })
+  it('loading sets aria-busy, disables, and swaps in a spinner', () => {
+    const onClick = vi.fn()
+    const { getByRole } = render(
+      <Button loading onClick={onClick}>
+        Start
+      </Button>,
+    )
+    const btn = getByRole('button') as HTMLButtonElement
+    expect(btn.getAttribute('aria-busy')).toBe('true')
+    expect(btn.disabled).toBe(true)
+    expect(btn.querySelector('.btn-spin')).not.toBeNull()
   })
 })

@@ -33,8 +33,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
 
 ### Batch 2 — medium (1–3 days each)
 
-- [ ] **P16 Button pending state** — `loading` prop: inline spinner, pointer-events none, dimmed.
-
 - [ ] **P28 Empty-state CTA sweep** — every empty state gets icon + title + description + one CTA
   (no dead ends).
 

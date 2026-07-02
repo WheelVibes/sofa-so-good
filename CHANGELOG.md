@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: Button loading state — inline spinner + aria-busy (v0.10.0.22)
+
+- `Button.tsx` gains a `loading?: boolean` prop: swaps `icon` for an inline
+  `Icon.Versions` spinner (`.btn-spin`, reusing the `toastspin` keyframe), sets
+  `aria-busy`, adds the `is-loading` class (`pointer-events: none; opacity: 0.7`
+  in `components.css`), and forces `disabled = disabled || loading`.
+- Wired to `HqRenderModal`'s "Start render"/"Re-render" button: `loading={phase === 'building'}`.
+
 ## FEAT: typed <Button> primitive over the .btn-* vocabulary (v0.10.0.21)
 
 - New `controls/Button.tsx`: `variant`/`size`/`block`/`icon` props compose the existing
