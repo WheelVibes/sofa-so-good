@@ -9,6 +9,110 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
 > Avoid pricing/quotes/analytics deliverables unless asked.
 
+## Active — asset pipeline (2026-07-02, user goal)
+See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full design.
+- **Local dev asset DB (Part 1, in progress).** Drop GLBs in `local-assets/` → auto-loaded into
+  the catalog with NO upload pipeline (convert/optimize/IDB). Dev-only Vite plugin
+  (`scripts/vite-local-assets.mjs`) serving `/@local-assets/*`, `localAssets` devOnly flag,
+  `localAssetsSlice` (`bootstrapLocalAssets`), `LocalGltfDef` source, merged in `catalog.ts`.
+- **Upload parallelization (Part 1b).** Replace the single optimize Worker
+  (`optimize/runOptimize.ts`) with a worker POOL (biggest bulk-import win); then move `convertModel`
+  off the main thread; early GLB size-cap check before optimize (IO-002).
+- **Scrapers (Part 3).** `research/scrapers/` has 35 working scrapers with complete enumeration;
+  finalized tiering in the plan doc. Next: run Tier-1 CC0 scrapers into `local-assets/` (pairs with
+  Part 1), then surface Poly Haven models in prod (`remoteFurniture` flag).
+
+## Active — UI/UX polish program (2026-07-02, user goal; from Vi-develop comparative analysis)
+39 improvements identified by a systematic analysis of `~/projects/datature/Vi-develop` (motion,
+magicui, Tailwind spacing, readability, discoverability) mapped onto our token system. Strategy:
+graft Vi's motion vocabulary + micro-interaction polish + feedback patterns onto the existing
+OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they ship (→ CHANGELOG).
+
+### Batch 1 — quick wins (≤1 day each)
+- [ ] **P14 Unified focus ring** — one `--focus-ring` token (3px accent color-mix) applied to
+  `.btn/.icon-btn/.tool-btn/.input/.select-trigger/.chip/.tab` via shared `:focus-visible` rule.
+- [ ] **P21 Tabular numerals** — `font-variant-numeric: tabular-nums` on `.num`, `.fld .val`,
+  budget HUD, dimension readouts (kills digit jitter during drags).
+- [ ] **P22 Truncation affordance** — `title`/`.tip` on truncated `.cat-card .nm`, `.panel-title`,
+  `.lyr-nm` so full names are hover-recoverable.
+- [ ] **P24 Shortcut hints in tooltips/menus** — tooltips append the `.kbd` combo from
+  `shortcuts.ts` ("Undo · ⌘Z"); menus show combos right-aligned consistently.
+- [ ] **P30 Undo-in-toast for destructive actions** — deletions toast "Item deleted — Undo" wired
+  to `undo()` (toast action buttons already exist); centralized error→{message,intent,action} map.
+- [ ] **P31 Determinate upload progress bar** — render the toast's determinate bar from the same
+  coalesced X/Y progress (rAF coalescer already feeds text).
+- [ ] **P33 Disabled-with-reason tooltips** — greyed undo/redo/export/Pro-gated buttons explain why
+  on hover.
+- [ ] **P11 Modal width tokens** — `--modal-sm/-md/-lg` replacing ad-hoc `min(560px,…)`/`min(432px,…)`.
+
+### Batch 2 — medium (1–3 days each)
+- [ ] **P1 Motion scale tokens** — `--dur-1/-2/-3` (~150/300/600ms) + entrance easing
+  `cubic-bezier(0.16,1,0.3,1)` (easeOutExpo) alongside existing `--dur`/`--ease` in tokens.css.
+- [ ] **P2 Stagger capability** — CSS `animation-delay: calc(var(--i) * 50ms)` entrance stagger for
+  menu items, catalog card grid, layers rows, ⌘K results.
+- [ ] **P3 Desktop panel slide animation** — animate `--right-rail` width + panel slide-in
+  (240–300ms easeOutExpo) to match mobile `sheetUp` parity.
+- [ ] **P4 Hover-lift standard** — one `.liftable` treatment (translateY + `--shadow-pop`) applied
+  consistently to `.cat-card/.swap-card/.preset-card/.ver-card`.
+- [ ] **P9 Purge hardcoded px from React inline styles** — map `padding:'2px 6px'`, `fontSize:16`
+  etc. (ElevationPanel, RenderCompareModal, LocationPrompt, FinishPicker, …) to `--s-N`/`--t-N`;
+  add a grep/lint script to block regressions.
+- [ ] **P10 Panel width tokens** — `--panel-w`/`--panel-w-compact` replacing 326/300/312px +
+  hand-tuned tablet variants.
+- [ ] **P12 Row-padding normalization** — 2–3 sanctioned row paddings from the `--s` scale for
+  `.row/.lyr-row/.menu-item/.chip`.
+- [ ] **P13 Hover-reveal row actions** — `.lyr-row:hover .lyr-acts` opacity transition pattern
+  across layers/history/version rows.
+- [ ] **P15 `<Button>` primitive** — typed component (variant/size/icon/loading) over the existing
+  `.btn-*` vocabulary (CVA-style, kills padding/size drift).
+- [ ] **P16 Button pending state** — `loading` prop: inline spinner, pointer-events none, dimmed.
+- [ ] **P17 Skeleton loader primitive** — `.skeleton` shimmer (reduced-motion → static pulse) that
+  mirrors final layout; catalog images, inspector thumbs, version/preset cards.
+- [ ] **P20 Line-height tokens** — `--lh-tight:1.25`/`--lh-body:1.5`; body applied to multiline
+  descriptions, empty states, onboarding copy.
+- [ ] **P23 Type hierarchy rules** — document page/panel/section/label/caption sizes+weights in
+  `src/ui/CLAUDE.md`.
+- [ ] **P28 Empty-state CTA sweep** — every empty state gets icon + title + description + one CTA
+  (no dead ends).
+- [ ] **P36 Sticky section headers in scrolling panels** — `sticky top-0` + subtle shadow for
+  layers/history/catalog rail.
+- [ ] **P5 Success/confirm micro-animations** — toast checkmark scale-in, EditConfirmBar dismiss
+  slide/shake, SVG stroke-draw checks.
+- [ ] **P19 Border/hover consistency rules** — document `--border` vs `--border-2` and hover
+  conventions in `src/ui/CLAUDE.md`; sweep violations.
+- [ ] **P34 Optimistic placement feedback** — immediate ghost placement + reconcile for drops/AI
+  arrange.
+- [ ] **P35 Destructive confirmation policy** — reversible → Undo-toast; irreversible → confirm
+  modal; document + enforce.
+
+### Batch 3 — larger (~1 week each)
+- [ ] **P6 Screen-transition crossfade** — 200–300ms fade between 3D view ↔ floor plan ↔ walk mode.
+- [ ] **P7 Token-based magicui adaptations** (flag-gated, GPU-tier-gated, reduced-motion-safe):
+  shine/border-beam on in-progress HQ-render card (CSS `offset-path`); mouse-follow radial
+  gradient on catalog/preset cards (CSS vars + pointermove); richer staggered multi-circle pulse
+  for edit-room hotspot; toolbar dock magnification (spring mass .1 / stiffness 150 / damping 12).
+- [ ] **P18 Missing primitives** — Accordion/Disclosure (unify layers groups + FinishPicker
+  `<details>`), Slider-with-value, tonal/dot Badge variants, Breadcrumb (Room → Wall → Surface),
+  ButtonGroup for modal footers.
+- [ ] **P25 Progressive-disclosure info callouts** — dismissible, localStorage-persisted hint
+  banners for edit-room / floor-plan editor / walk mode.
+- [ ] **P26 Simple→Pro upsell affordance** — flag-gated dimmed entries + Pro badge / ⌘K hint so
+  casual users learn Pro exists (test both modes).
+- [ ] **P27 "New" feature badges** — `.nub` pulsing dot on newly shipped toolbar/menu entries,
+  dismissed on first use, per-flag.
+- [ ] **P29 In-panel search** — layers + history search fields (catalog already has one).
+- [ ] **P32 Live notification cards** — progress toast clickable to jump to result, updates
+  in place, error state swaps in with Retry.
+- [ ] **P37 List virtualization** — history/layers/catalog results >100 items
+  (`@tanstack/react-virtual`).
+- [ ] **P38 Density mode** — `data-density` comfortable/compact scaling row paddings via tokens
+  (Pro-tier flag).
+- [ ] **P39 Persisted panel state** — open panels/dock sides/collapsed layer groups survive reload.
+
+Rules: every user-facing feature above needs a `FEATURE_FLAGS` entry + tier + both-modes tests;
+pure-CSS polish (focus ring, spacing, typography) is not a feature. Ambient loops must be
+tier-gated/paused off-screen. No hardcoded colours — all effects rebuilt on tokens.
+
 ## ⛔ Production-infra-blocked — need a DEPLOYED host/backend, not app code
 The dev paths already work (Vite reverse proxy, dev-gated providers); only the *production*
 proxy/mirror/host is missing, and standing one up is a deployment task, not a code change here:

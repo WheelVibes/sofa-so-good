@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: UI/UX polish program — TODO backlog + Batch 1 plan (v0.9.0.62)
+
+- Added the 39-item "UI/UX polish program" to `TODO.md` (three prioritized batches), distilled
+  from a systematic comparative analysis of the Vi-develop frontend (motion/magicui vocabulary,
+  spacing discipline, readability, discoverability, feedback patterns) mapped onto our OKLch
+  token system — explicitly NOT a Tailwind/Blueprint migration.
+- Authored `docs/superpowers/plans/2026-07-02-ui-polish-batch1.md`: 8 quick wins (unified
+  `--focus-ring`, tabular numerals, modal width tokens, truncation affordance, menu shortcut
+  chips, disabled-with-reason tooltips, undo-in-toast delete) + one batch visual-verification
+  task; P31 deferred until the upload-progress branch merges.
+
 ## DOCS: MOD-FPE-SPLIT status — render-layer decomposition complete (v0.9.0.61)
 
 - Recorded the FloorPlanEditor de-monolith outcome: **4271 → 2728 lines (−36%)** across 14 commits —
