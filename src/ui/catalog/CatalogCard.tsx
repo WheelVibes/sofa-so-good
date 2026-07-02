@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { useFeature } from '../../features/useFeature'
-import { isUserDef } from '../../furniture/catalog'
+import { isIkeaDef, isUserDef } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { modelInfoText } from '../../furniture/modelInfo'
 import type { FurnitureDef } from '../../furniture/types'
@@ -8,6 +8,7 @@ import { useStore } from '../../state/store'
 import { formatDims } from '../../utils/measurement'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
+import { CatalogSourcePill } from './CatalogSourcePill'
 import { CategoryIcon } from './CategoryIcon'
 import { useBuiltinThumbnail } from './thumbnails'
 import { usePlacementDrag } from './usePlacementDrag'
@@ -24,6 +25,7 @@ interface CatalogCardProps {
 
 export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const isUser = isUserDef(def)
+  const isIkea = isIkeaDef(def)
   const onClick = usePlacementDrag(def)
   const isMobile = useIsMobile()
   // Mobile long-press = "pick this up": arm placement, hide the catalog so the
@@ -153,6 +155,7 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
         </button>
       ) : null}
       <div className="card-thumb">
+        {isIkea ? <CatalogSourcePill label="IKEA" /> : null}
         {thumb ? (
           <img src={thumb} alt={def.name} />
         ) : (

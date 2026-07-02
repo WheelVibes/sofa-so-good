@@ -37,7 +37,9 @@ describe('sortCards', () => {
     const z = remote('Zzz chair')
     const a = remote('Aaa chair')
     const out = sortCards([sofa, z, stool, a], 'name')
-    const names = out.map((c) => (c.kind === 'local' ? c.def.name : c.entry.name))
+    const names = out.map((c) =>
+      c.kind === 'local' ? c.def.name : c.kind === 'remote' ? c.entry.name : c.item.name,
+    )
     expect(names).toEqual([...names].sort((x, y) => x.localeCompare(y)))
   })
 

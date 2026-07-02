@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: shared R2 library auto-populates the catalog grid for signed-in users (v0.10.0.10)
+
+- **Every product in the Cloudflare R2 shared library now appears as a browsable catalog card**
+  for signed-in users — no manual "add" step. `sharedLibrarySlice.bootstrapSharedLibrary` fetches
+  `library/index.json` once when the catalog opens (guarded on `hasBackend()` + sign-in + the
+  existing `sharedLibrary` pro flag); `useUnifiedCatalog(includeRemote, includeShared)` merges the
+  manifest as a `shared` `GridItem` kind, deduped against already-imported `ikea-<groupKey>` defs.
+  `SharedCard` mirrors `RemoteCard` (lazy proxy thumbnail, import-on-click via `addSharedGroup` →
+  `registerSharedGroup` → `importGroup`), and sort/price filters understand the new kind.
+- The manifest builder (`scripts/build-library-index.mjs`) now emits each product's `groupKey`
+  (the dedup key) via a pure, unit-tested `entryFromMeta`; `docs/deployment-cloudflare.md` +
+  `docs/developer/packs-and-remote-catalog.md` document the flow.
+- **Catalog drawer rework that carries it**: the redundant Packs "shared library" surface is gone;
+  the browse Sort select is now a compact icon trigger (`Select iconTrigger`, new `Icon.Sort`) in
+  the category rail (`.cat-rail` edge spacers keep scroll insets flush); local IKEA-derived defs
+  show a small "IKEA" `CatalogSourcePill` on their thumbnails.
+- Session-only by design — the manifest is re-fetched each session; imported defs persist through
+  the existing `hydrateIkea` path. Covered by slice/unified-catalog/SharedCard/browse unit tests in
+  both Simple and Pro modes, plus the `shared-library-simple.json` visual scenario.
+
 ## CHORE: wrangler.toml points at the provisioned Cloudflare resources (v0.10.0.9)
 
 - The `REPLACE_WITH_*` placeholders in `wrangler.toml` are gone: the D1 database id, the three KV

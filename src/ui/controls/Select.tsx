@@ -25,6 +25,8 @@ interface SelectProps {
   style?: React.CSSProperties
   /** Shown when no option matches `value`. */
   placeholder?: string
+  /** Compact icon-only trigger (`.icon-btn`) — label/title carry the current value. */
+  iconTrigger?: ReactNode
 }
 
 /**
@@ -46,8 +48,10 @@ export function Select({
   title,
   style,
   placeholder,
+  iconTrigger,
 }: SelectProps) {
   const isMobile = useIsMobile()
+  const iconOnly = iconTrigger != null
   const [open, setOpen] = useState(false)
   const [activeIdx, setActiveIdx] = useState(-1)
   const [triggerW, setTriggerW] = useState<number | undefined>(undefined)
@@ -56,6 +60,9 @@ export function Select({
 
   const selected = options.find((o) => o.value === value)
   const label = selected?.label ?? placeholder ?? ''
+  const triggerName = ariaLabel ?? title ?? 'Select'
+  const a11yLabel = iconOnly && label ? `${triggerName}: ${label}` : triggerName
+  const panelMinW = iconOnly ? 168 : triggerW
 
   const close = () => {
     setOpen(false)
@@ -137,31 +144,39 @@ export function Select({
         type="button"
         ref={anchorRef}
         id={id}
-        title={title}
-        style={style}
+        title={title ?? (iconOnly && label ? `${triggerName}: ${label}` : undefined)}
+        style={iconOnly ? undefined : style}
         disabled={disabled}
-        className={`${className ?? 'input'} select-trigger`}
+        className={
+          iconOnly ? 'icon-btn select-icon-trigger' : `${className ?? 'input'} select-trigger`
+        }
         // biome-ignore lint/a11y/useSemanticElements: this IS the custom combobox replacing <select>.
         role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        aria-label={ariaLabel}
+        aria-label={iconOnly ? a11yLabel : ariaLabel}
         onClick={() => (open ? close() : openMenu())}
         onKeyDown={onTriggerKey}
       >
-        <span className="select-label">{label}</span>
-        <Icon.Chevron width={14} height={14} className="icn" />
+        {iconOnly ? (
+          iconTrigger
+        ) : (
+          <>
+            <span className="select-label">{label}</span>
+            <Icon.Chevron width={14} height={14} className="icn" />
+          </>
+        )}
       </button>
       {open && isMobile ? (
-        <Modal open onClose={close} title={ariaLabel ?? title ?? 'Select'}>
+        <Modal open onClose={close} title={a11yLabel}>
           <div className="select-sheet">{optionList}</div>
         </Modal>
       ) : open ? (
         <Popover open anchorRef={anchorRef} onClose={close}>
           <div
             className="pop-panel select-panel"
-            style={triggerW ? { minWidth: triggerW } : undefined}
+            style={panelMinW ? { minWidth: panelMinW } : undefined}
           >
             {optionList}
           </div>

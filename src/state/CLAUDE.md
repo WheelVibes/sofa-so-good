@@ -4,6 +4,11 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
 
 - **One concern per slice** (`slices/*`). Adding a slice = add it to the store
   composition + its initial state; keep it small and focused.
+- **`sharedLibrarySlice`** fetches the R2 shared-library manifest once
+  (`bootstrapSharedLibrary`, guarded on backend + sign-in + the `sharedLibrary` flag) and imports a
+  group on demand (`addSharedGroup`). Session-only — **not persisted** (imported IKEA defs persist
+  via the `hydrateIkea` path; the manifest is re-fetched each session), so it's out of the save
+  schema + autosave watch-list.
 - **Persistence lives in `storage/`**, not in the slice: `qualityPrefs`/`editorPrefs`/
   `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave. Some
   state is deliberately session-only / out of the save schema (recent items, favourites,

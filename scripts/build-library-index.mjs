@@ -15,6 +15,7 @@
 
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const srcDir = process.argv[2] ?? 'ikea_optimized'
 const outFile = process.argv[3] ?? path.join(srcDir, 'library-index.json')
@@ -34,8 +35,8 @@ async function readMetadata(dir) {
   }
 }
 
-async function buildEntry(group, dir) {
-  const meta = await readMetadata(dir)
+/** Shape one manifest entry from already-parsed metadata. Pure + testable. */
+export function entryFromMeta(group, meta) {
   if (!meta) return null
   const variants = Array.isArray(meta.variants) ? meta.variants : []
   const usable = variants.filter((v) => v && typeof v.glb === 'string')
@@ -43,6 +44,7 @@ async function buildEntry(group, dir) {
   const primary = primaryVariant(variants)
   return {
     group,
+    groupKey: meta.group_key ?? group,
     name: meta.product_name ?? group,
     type: meta.type_name ?? '',
     category: meta.design?.category ?? '',
@@ -53,6 +55,10 @@ async function buildEntry(group, dir) {
     price: primary?.price_numeral ?? null,
     currency: primary?.currency ?? null,
   }
+}
+
+async function buildEntry(group, dir) {
+  return entryFromMeta(group, await readMetadata(dir))
 }
 
 async function main() {
@@ -81,7 +87,9 @@ async function main() {
   )
 }
 
-main().catch((err) => {
-  console.error('[build-library-index] failed:', err)
-  process.exit(1)
-})
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((err) => {
+    console.error('[build-library-index] failed:', err)
+    process.exit(1)
+  })
+}

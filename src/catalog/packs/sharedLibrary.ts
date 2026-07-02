@@ -11,6 +11,7 @@ import { parseMetadata } from '../../furniture/ikea/metadata'
 
 export interface SharedLibraryItem {
   group: string
+  groupKey: string
   name: string
   type: string
   category: string

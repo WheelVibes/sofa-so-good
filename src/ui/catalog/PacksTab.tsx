@@ -8,14 +8,8 @@ import {
 } from '../../catalog/packs/ikeaLive'
 import { installPack, installPolyPizzaPack } from '../../catalog/packs/install'
 import { visiblePacks } from '../../catalog/packs/registry'
-import {
-  fetchSharedLibraryIndex,
-  registerSharedGroup,
-  type SharedLibraryIndex,
-} from '../../catalog/packs/sharedLibrary'
 import type { Pack } from '../../catalog/packs/types'
 import { uninstallPack } from '../../catalog/packs/uninstall'
-import { hasBackend } from '../../features/api/client'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 
@@ -318,113 +312,6 @@ function ManualCard({ pack }: { pack: Pack }) {
   )
 }
 
-/** Cloud shared-library browser (prod counterpart to the dev IKEA scrape).
- *  Fetches the R2-served manifest through the auth-gated proxy and adds a chosen
- *  product group to the catalog. Requires a signed-in user. */
-function SharedLibraryCard() {
-  const currentUser = useStore((s) => s.currentUser)
-  const setLoginOpen = useStore((s) => s.setLoginOpen)
-  const [index, setIndex] = useState<SharedLibraryIndex | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<Record<string, 'adding' | 'done' | 'error'>>({})
-
-  useEffect(() => {
-    if (!currentUser) return
-    setLoading(true)
-    fetchSharedLibraryIndex().then((idx) => {
-      setIndex(idx)
-      setLoading(false)
-    })
-  }, [currentUser])
-
-  const add = async (group: string) => {
-    setStatus((s) => ({ ...s, [group]: 'adding' }))
-    const ok = await registerSharedGroup(group).catch(() => false)
-    setStatus((s) => ({ ...s, [group]: ok ? 'done' : 'error' }))
-  }
-
-  const q = query.trim().toLowerCase()
-  const items = (index?.items ?? [])
-    .filter((it) => !q || `${it.name} ${it.type} ${it.series}`.toLowerCase().includes(q))
-    .slice(0, 60)
-
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold text-[var(--text)]">Shared library</span>
-        {index ? (
-          <span className="text-[10px] text-[var(--text-3)]">{index.count} products</span>
-        ) : null}
-      </div>
-      {!currentUser ? (
-        <>
-          <p className="text-[11px] text-[var(--text-3)]">
-            Sign in to browse the cloud furniture library.
-          </p>
-          <button
-            type="button"
-            className="rounded bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--accent-contrast)]"
-            onClick={() => setLoginOpen(true)}
-          >
-            Sign in
-          </button>
-        </>
-      ) : loading ? (
-        <p className="text-[11px] text-[var(--text-3)]">Loading library…</p>
-      ) : !index ? (
-        <p className="text-[11px] text-[var(--text-3)]">
-          Library is unavailable right now. Try again later.
-        </p>
-      ) : (
-        <>
-          <input
-            className="input"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search products…"
-            aria-label="Search shared library"
-          />
-          <div className="flex max-h-80 flex-col gap-1 overflow-y-auto">
-            {items.map((it) => {
-              const st = status[it.group]
-              return (
-                <div
-                  key={it.group}
-                  className="flex items-center gap-2 rounded border border-[var(--border)] p-1.5"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs text-[var(--text)]">{it.name}</div>
-                    <div className="truncate text-[10px] text-[var(--text-3)]">
-                      {it.type}
-                      {it.variants > 1 ? ` · ${it.variants} finishes` : ''}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="rounded border border-[var(--border)] px-2 py-1 text-[11px] font-medium text-[var(--text)] hover:bg-[var(--surface-2)] disabled:opacity-50"
-                    disabled={st === 'adding' || st === 'done'}
-                    onClick={() => add(it.group)}
-                  >
-                    {st === 'adding'
-                      ? 'Adding…'
-                      : st === 'done'
-                        ? 'Added'
-                        : st === 'error'
-                          ? 'Retry'
-                          : 'Add'}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
 function renderCard(pack: Pack) {
   if (pack.kind === 'ikea-live') return <IkeaLiveCard key={pack.id} pack={pack} />
   if (pack.kind === 'poly-pizza') return <PolyPizzaCard key={pack.id} pack={pack} />
@@ -437,7 +324,6 @@ export function PacksTab() {
   // the flag registry is the single gate even though `visiblePacks` already
   // dev-scopes it.
   const ikeaLiveOn = useFeature('ikeaLive')
-  const sharedLibraryOn = useFeature('sharedLibrary')
   const packs = visiblePacks(import.meta.env.DEV).filter(
     (p) => p.kind !== 'ikea-live' || ikeaLiveOn,
   )
@@ -446,7 +332,6 @@ export function PacksTab() {
   return (
     <div className="flex flex-col gap-3 overflow-y-auto p-3">
       <h2 className="text-xs font-semibold text-[var(--text-2)]">Furniture</h2>
-      {sharedLibraryOn && hasBackend() ? <SharedLibraryCard /> : null}
       {furniture.map(renderCard)}
       {materials.length > 0 && (
         <>

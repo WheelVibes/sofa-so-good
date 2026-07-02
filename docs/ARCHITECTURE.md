@@ -196,7 +196,8 @@ same change that reshapes a system.
   `ContextLossGuard.tsx` recovers WebGL context loss.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
-  CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice` /
+  CC0 + Poly Haven + the R2 shared library (signed-in, pro), one fuzzy search + browse Sort +
+  favourites/recent (`recentSlice` /
   `favouritesSlice` — both persist to localStorage, both per-device convenience state).
   Search is synonym- + intent-aware (`catalog/searchSynonyms.ts` `fuzzySearchSmart`:
   couch→sofa, plurals, and **search-by-room** — "bedroom"→bed/wardrobe/…); when a query
@@ -528,6 +529,14 @@ same change that reshapes a system.
   asset source**, so no provider currently emits `kind:'furniture'` (the `remoteFurniture` browse
   is dormant until one does). Add a source: poly-pizza-style client reusing `buildEntry`/`commit`,
   a `RemoteProvider`, or a `'manual'` entry.
+- **Shared library (R2, prod)** (`state/slices/sharedLibrarySlice.ts`, `ui/catalog/SharedCard.tsx`,
+  `catalog/packs/sharedLibrary.ts`): the Cloudflare R2 library **auto-populates the catalog grid**
+  for signed-in users — `bootstrapSharedLibrary` fetches `library/index.json` once on catalog open
+  (guarded on backend + sign-in + the `sharedLibrary` pro flag), `useUnifiedCatalog(includeRemote,
+  includeShared)` merges items as a `shared` `GridItem` kind (category via `mapCategory`, deduped
+  against imported `ikea-<groupKey>` defs), and `SharedCard` lazy-loads its proxy thumbnail +
+  imports on click (`addSharedGroup` → `registerSharedGroup` → `importGroup`). Manifest built by
+  `scripts/build-library-index.mjs` (`entryFromMeta`, emits `groupKey`).
 - **Local asset DB (dev-only)** (`scripts/vite-local-assets.mjs`, `state/slices/localAssetsSlice.ts`):
   GLBs dropped in `local-assets/` are served by a dev-only Vite plugin (`/@local-assets/index.json`
   + `/file/<relPath>`) and loaded straight into the catalog as `LocalGltfDef`s (`source:'local'`) —

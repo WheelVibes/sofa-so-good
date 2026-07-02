@@ -25,8 +25,18 @@
 }
 .cat-recent-clear:hover { color: var(--text); text-decoration: underline; }
 
-/* category rail */
-.cat-rail { display: flex; gap: var(--s-1); overflow-x: auto; padding: 0 var(--s-4) var(--s-3); scrollbar-width: none; }
+/* category rail — ::before/::after spacers (not padding) so horizontal scroll keeps
+   the same inset at both edges; padding on overflow containers often clips flush. */
+.cat-rail {
+  display: flex; align-items: center; gap: var(--s-1); flex-shrink: 0;
+  overflow-x: auto; padding-bottom: var(--s-3); scrollbar-width: none;
+}
+.cat-rail::before,
+.cat-rail::after {
+  content: '';
+  flex: none;
+  width: var(--s-4);
+}
 .cat-rail::-webkit-scrollbar { display: none; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px; flex: none;
@@ -35,6 +45,33 @@
   background: var(--surface-2); border: 1px solid transparent;
   transition: var(--dur) var(--ease); line-height: 1.2;
 }
+/* Sort icon — first item in the category rail, before favourites. */
+.cat-rail-sort { flex: none; }
+.cat-rail-sort .select-icon-trigger { width: 34px; height: 34px; }
+/* Price filter row (optional, when budget is on). */
+.cat-sort {
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--s-2); flex-shrink: 0;
+  padding: 0 var(--s-4) var(--s-2);
+  font-size: var(--t-2xs); color: var(--text-3);
+}
+.cat-sort-label { flex: none; }
+.cat-sort-price {
+  width: 64px; height: 28px; padding: 0 6px; flex: none;
+}
+.cat-sort-clear { width: 24px; height: 24px; flex: none; }
+/* Catalog flex column: only the card grid scrolls — header chrome (search, rail,
+   sort, pager, footer) keeps its natural height so category chips don't squash
+   when a category has many rows. */
+.catalog > .panel-head,
+.catalog > .tabs,
+.catalog > .cat-search,
+.catalog > .cat-rail,
+.catalog > .cat-sort,
+.catalog > .catalog-search-hint,
+.catalog > .pager,
+.catalog > .stamp-banner,
+.catalog > .cat-foot { flex-shrink: 0; }
+.catalog > .card-grid { flex: 1; min-height: 0; }
 .chip:hover { background: var(--surface-3); }
 .chip.on { background: var(--accent-soft); color: var(--accent-soft-text); border-color: transparent; }
 .chip .icn { color: currentColor; }
@@ -45,7 +82,10 @@
 /* minmax(0, 1fr) (not bare 1fr, whose implicit auto minimum lets a long name or
    wide content blow the track out past the panel) keeps both columns at an
    identical, fixed width on every page. */
-.card-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3); padding: var(--s-1) var(--s-4) var(--s-4); overflow-y: auto; }
+.card-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3);
+  padding: var(--s-1) var(--s-4) var(--s-4); overflow-y: auto; min-height: 0;
+}
 /* Reveals the hidden "search by room" capability — shown when a query names a room/use intent. */
 .catalog-search-hint { padding: 2px var(--s-4) var(--s-2); font-size: var(--t-xs); color: var(--text-2); text-transform: capitalize; }
 .cat-card {
@@ -79,6 +119,15 @@
   font-size: var(--t-2xs); font-weight: 700; white-space: nowrap;
 }
 .card-thumb .thumb-status.err { background: var(--danger); }
+/* Retailer / license tag — inset on the thumbnail so card chrome stays clean. */
+.card-thumb .source-pill {
+  position: absolute; top: 4px; left: 4px; z-index: 1;
+  padding: 1px 6px; border-radius: var(--r-pill);
+  font-size: var(--t-2xs); font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; line-height: 1.35; white-space: nowrap;
+  background: var(--surface-solid); color: var(--text-2);
+  border: 1px solid var(--border);
+}
 /* min-width:0 on the flex row + its label so a long name truncates with the
    inline ellipsis instead of widening the card. */
 .cat-card .nm { font-size: var(--t-xs); font-weight: 600; color: var(--text); line-height: 1.25; min-width: 0; }
@@ -121,6 +170,10 @@
 .select-trigger:disabled { opacity: 0.5; cursor: default; }
 .select-trigger[aria-expanded='true'] {
   border-color: var(--accent); background: var(--surface-solid);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.select-icon-trigger[aria-expanded='true'] {
+  background: var(--surface-3); color: var(--text);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .select-panel { max-height: 60vh; overflow-y: auto; padding: var(--s-2); gap: 1px; }

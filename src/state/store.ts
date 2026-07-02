@@ -115,6 +115,11 @@ import {
   type SelectionSlice,
 } from './slices/selectionSlice'
 import {
+  createSharedLibrarySlice,
+  SHARED_LIBRARY_INITIAL,
+  type SharedLibrarySlice,
+} from './slices/sharedLibrarySlice'
+import {
   createStyleClipboardSlice,
   STYLE_CLIPBOARD_INITIAL,
   type StyleClipboardSlice,
@@ -157,6 +162,7 @@ export interface RootState
     ClipboardSlice,
     HistorySlice,
     RemoteCatalogSlice,
+    SharedLibrarySlice,
     LocalAssetsSlice,
     OrientationSlice,
     NotificationsSlice,
@@ -199,6 +205,7 @@ const INITIAL = {
   ...CLIPBOARD_INITIAL,
   ...HISTORY_INITIAL,
   ...REMOTE_CATALOG_INITIAL,
+  ...SHARED_LIBRARY_INITIAL,
   ...LOCAL_ASSETS_INITIAL,
   ...ORIENTATION_INITIAL,
   ...NOTIFICATIONS_INITIAL,
@@ -243,6 +250,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createClipboardSlice(set, get, api),
   ...createHistorySlice(set, get, api),
   ...createRemoteCatalogSlice(set, get, api),
+  ...createSharedLibrarySlice(set, get, api),
   ...createLocalAssetsSlice(set, get, api),
   ...createOrientationSlice(set, get, api),
   ...createNotificationsSlice(set, get, api),
