@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: slow the skeleton shimmer to a calm 1.2s loop (v0.10.0.27)
+
+- `skeletonShimmer` now runs at `calc(var(--dur-3) * 2)` (~1.2s) — the 600ms loop read
+  frantic on-screen (T11 visual ruling, matches the 1.2-2s convention). Also prunes the dead
+  `1.4s` fallback so a future token rename can't silently reactivate a stale duration.
+
 ## CHORE: visual-verification scenario for UI polish batch 2b (v0.10.0.26)
 
 - New `scripts/scenarios/ui-polish-batch2b.json` (61 steps, 14 screenshots) drives + reviews the
