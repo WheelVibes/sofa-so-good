@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useModalGuard } from '../../controls/modalGuard'
 import {
@@ -10,6 +10,7 @@ import { parseMetadata } from '../../furniture/ikea/metadata'
 import { mapCategory } from '../../furniture/ikea/translate'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { isModelFile, modelName, prepareModelFile } from '../../furniture/upload/bulkImport'
+import { coalesceProgress } from '../../furniture/upload/coalesceProgress'
 import { hashFile } from '../../furniture/upload/hashFile'
 import { inferCollisionFlags } from '../../furniture/upload/inferFlags'
 import { persistUserGlb } from '../../furniture/upload/persist'
@@ -205,9 +206,26 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     // Auto-detect every model-group folder (each has a metadata.json w/
     // group_key). Reads + parses each metadata.json — report progress for the UI.
     setDetectProgress({ parsed: 0, total: 0 })
-    void detectGroups(picked, (parsed, total) => setDetectProgress({ parsed, total }))
-      .then(setIkeaGroups)
-      .finally(() => setDetectProgress(null))
+    // Coalesce BOTH the progress counter and the live-growing group list to one
+    // repaint per animation frame: a big scan (thousands of groups) would
+    // otherwise fire a setState per file and thrash React (frozen-then-jumpy UI).
+    const progress = coalesceProgress<{ parsed: number; total: number }>((p) =>
+      setDetectProgress(p),
+    )
+    const groupList = coalesceProgress<DetectedGroup[]>((g) => setIkeaGroups(g))
+    void detectGroups(
+      picked,
+      (parsed, total) => progress.push({ parsed, total }),
+      (groupsSoFar) => groupList.push(groupsSoFar.slice()),
+    )
+      .then((g) => {
+        groupList.flush()
+        setIkeaGroups(g) // authoritative final list
+      })
+      .finally(() => {
+        progress.flush()
+        setDetectProgress(null)
+      })
   }
 
   const onPick = (list: FileList | null) => ingest(list ? Array.from(list) : [])
@@ -217,8 +235,12 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setDragOver(false)
     if (busy || scanCount !== null) return
     setScanCount(0)
+    // Coalesce the per-file scan count to one repaint per frame — the recursive
+    // walk fires onProgress thousands of times on a large folder.
+    const scan = coalesceProgress<number>((n) => setScanCount(n))
     try {
-      const picked = await readDroppedItems(e.dataTransfer, (n) => setScanCount(n))
+      const picked = await readDroppedItems(e.dataTransfer, (n) => scan.push(n))
+      scan.flush()
       if (picked.length > 0) ingest(picked)
     } finally {
       setScanCount(null)
@@ -310,7 +332,8 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
+          {/* Fixed upload area — stays put while the detected-groups list scrolls below. */}
           <p className="mb-4 text-xs text-[var(--text-3)]">
             Drag in <span className="font-mono">.glb</span>/<span className="font-mono">.gltf</span>{' '}
             or <span className="font-mono">.obj/.fbx/.stl/.ply/.dae/.3ds/.3mf/.usdz</span> files (or
@@ -360,6 +383,10 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                   >
                     Choose folder…
                   </button>
+                  <span className="mt-1 block text-[10px] text-[var(--text-3)]">
+                    Tip: drag a folder in for live progress (skips the browser’s “upload N files?”
+                    prompt).
+                  </span>
                 </>
               )}
             </div>
@@ -391,7 +418,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                   <Spinner small />
                   {detectProgress.total > 0
                     ? `Detecting model groups… ${detectProgress.parsed} / ${detectProgress.total}`
-                    : 'Detecting model groups…'}
+                    : `Reading ${files.length} file${files.length === 1 ? '' : 's'}…`}
                 </p>
                 {detectProgress.total > 0 ? (
                   <div className="h-1 w-full overflow-hidden rounded bg-[var(--surface-3)]">
@@ -405,7 +432,10 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                 ) : null}
               </div>
             ) : null}
+          </div>
 
+          {/* Scrollable region: only the detected groups + import options scroll. */}
+          <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto">
             {hasGroups ? <GroupPanel groups={ikeaGroups} looseCount={looseModels.length} /> : null}
 
             {/* Category/flags apply to loose (non-group) models. */}
@@ -523,9 +553,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
             disabled={busy || detecting || modelFiles.length === 0 || (single && !name.trim())}
             className="rounded bg-[var(--accent)] px-3 py-1 text-sm text-[var(--on-accent)] hover:bg-[var(--accent-2)] disabled:cursor-not-allowed disabled:bg-[var(--surface-3)]"
           >
-            {busy
-              ? 'Saving…'
-              : submitLabel(hasGroups, ikeaGroups.length, single, looseModels.length)}
+            {busy ? 'Saving…' : submitLabel(ikeaGroups.length, single, looseModels.length)}
           </button>
         </footer>
 
@@ -550,18 +578,13 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   return createPortal(dialog, document.body)
 }
 
-function submitLabel(
-  hasGroups: boolean,
-  groupCount: number,
-  single: boolean,
-  looseCount: number,
-): string {
-  if (hasGroups) {
-    const g = `${groupCount} model group${groupCount === 1 ? '' : 's'}`
-    return looseCount > 0 ? `Import ${g} + ${looseCount}` : `Import ${g}`
-  }
+export function submitLabel(groupCount: number, single: boolean, looseCount: number): string {
   if (single) return 'Save'
-  return `Import ${looseCount}`
+  // Only ever name counts that are ≥ 1 — never "Import 0" or a "+ 0" tail.
+  const parts: string[] = []
+  if (groupCount > 0) parts.push(`${groupCount} model group${groupCount === 1 ? '' : 's'}`)
+  if (looseCount > 0) parts.push(String(looseCount))
+  return parts.length > 0 ? `Import ${parts.join(' + ')}` : 'Import'
 }
 
 function GroupPanel({ groups, looseCount }: { groups: DetectedGroup[]; looseCount: number }) {
@@ -580,7 +603,10 @@ function GroupPanel({ groups, looseCount }: { groups: DetectedGroup[]; looseCoun
   )
 }
 
-function GroupRow({ group }: { group: DetectedGroup }) {
+// Memoized: incremental detection re-renders GroupPanel as the list grows, but
+// each existing row keeps a stable `group` reference, so the (zod-heavy) parse
+// only runs for newly added rows — keeping a thousands-strong scan responsive.
+const GroupRow = memo(function GroupRow({ group }: { group: DetectedGroup }) {
   const parsed = parseMetadata(group.meta)
   if (!parsed.ok) {
     return (
@@ -608,4 +634,4 @@ function GroupRow({ group }: { group: DetectedGroup }) {
       </div>
     </li>
   )
-}
+})
