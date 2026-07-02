@@ -87,7 +87,7 @@
 .lyr-geye.on { color: var(--accent-soft-text); opacity: 1; }
 .lyr-row {
   display: flex; align-items: center; gap: var(--s-2);
-  padding: 6px 7px; border-radius: var(--r-2);
+  padding: var(--s-2) var(--s-3); border-radius: var(--r-2);
   width: 100%; text-align: left; transition: var(--dur) var(--ease);
   color: var(--text-2); position: relative;
 }

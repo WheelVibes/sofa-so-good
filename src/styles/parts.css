@@ -30,7 +30,7 @@
 .cat-rail::-webkit-scrollbar { display: none; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px; flex: none;
-  padding: 8px 12px; border-radius: var(--r-pill);
+  padding: var(--s-3) var(--s-4); border-radius: var(--r-pill);
   font-size: var(--t-xs); font-weight: 600; color: var(--text-2);
   background: var(--surface-2); border: 1px solid transparent;
   transition: var(--dur) var(--ease); line-height: 1.2;

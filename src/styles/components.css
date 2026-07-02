@@ -278,7 +278,7 @@ body.mobile .tip::after { content: none; }
 @keyframes pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .menu-item {
   display: flex; align-items: center; gap: var(--s-3);
-  padding: 8px 9px; border-radius: var(--r-2);
+  padding: var(--s-3); border-radius: var(--r-2);
   font-size: var(--t-base); font-weight: 500; color: var(--text-2);
   transition: var(--dur) var(--ease); text-align: left; width: 100%;
 }
@@ -380,7 +380,7 @@ body.mobile .tip::after { content: none; }
 .slider::-moz-range-thumb { width: 13px; height: 13px; border-radius: 999px; background: var(--accent); border: 2px solid var(--surface-solid); cursor: pointer; }
 
 /* generic list row */
-.row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: 8px 0; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) 0; }
 .row + .row { border-top: 1px solid var(--border); }
 .row .rk { display: flex; align-items: center; gap: var(--s-3); font-size: var(--t-base); font-weight: 500; color: var(--text-2); }
 .row .rk .icn { color: var(--text-3); }

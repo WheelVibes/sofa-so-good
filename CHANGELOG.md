@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: row-padding normalized onto the --s scale (v0.10.0.3)
+
+- Three sanctioned row compositions replace ad-hoc px: compact `--s-2 --s-3` (.lyr-row),
+  standard `--s-3` (.menu-item, .row), pill `--s-3 --s-4` (.chip). Each mapped to its nearest
+  scale step (<=1px visual delta - density preserved).
+- TASKS.md: logged clearRoom's doubled history snapshot (explicit pushHistory + first silent
+  deleteItem's coalesced push) for a future dedupe.
+
 ## FEAT: --lh-tight/--lh-body line-height tokens (v0.10.0.2)
 
 - `--lh-body` (1.5) now drives multiline reading copy: `.empty-mini` descriptions, clearance

@@ -82,6 +82,7 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] `GlbDesignerDialog` title literal is duplicated in two places — dedupe to one constant.
 - [ ] `.mi-kbd` right-inset is 32px on docs rows vs 9px on non-docs rows — cosmetic
   inconsistency, reconcile in Batch 2.
+- clearRoom's explicit pushHistory + first silent deleteItem's coalesced push double up — dedupe to a true single history step (pre-existing; surfaced in merge-prep re-review)
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
