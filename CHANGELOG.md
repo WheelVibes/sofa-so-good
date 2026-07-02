@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## UX: hover highlight is gated on the item's footprint, not its raw mesh (v0.10.0.13)
+
+- **Tall/overhanging geometry no longer lights a piece up from across the room** (HOVER-FOOTPRINT):
+  `Furniture` projects the hover cursor's ray onto the floor plane and only highlights when that
+  floor point lies inside the item's min-span footprint — so hovering the empty air under a table
+  overhang or a tall lamp's sweep doesn't flash the highlight. Runs on pointer-over *and* -move
+  (the cursor can cross the footprint boundary while still over the mesh); selection still works
+  anywhere on the visible mesh.
+- The containment test is a pure, unit-tested helper: `floorPointInFootprint` in
+  `collision/placement.ts` (inverse-yaw transform into the item's local frame, min-span rectangle).
+
 ## FIX: tap-to-select no longer flickers straight back to deselected (2D plan editor + 3D scene) (v0.10.0.12)
 
 - **2D floor-plan editor (View mode / mobile)**: tapping a wall selected it and instantly

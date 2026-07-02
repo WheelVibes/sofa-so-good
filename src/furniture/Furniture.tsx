@@ -1,7 +1,8 @@
 import type { ThreeEvent } from '@react-three/fiber'
 import { memo, Suspense, useCallback, useEffect, useRef } from 'react'
 import type { Group, Material, Mesh } from 'three'
-import { itemFootprint } from '../collision/placement'
+import { Plane, Vector3 } from 'three'
+import { floorPointInFootprint, itemFootprint } from '../collision/placement'
 import { ContactShadow } from '../scene/ContactShadow'
 import { markPointerDownOnItem } from '../scene/clickVsDrag'
 import { registerDropGroup } from '../scene/placementDrop'
@@ -14,6 +15,11 @@ import { PRIMITIVE_COMPONENTS } from './primitives'
 import { surfaceDecalSpec } from './surfaceDecal'
 import { isTilted, itemRotation } from './tiltRotation'
 import type { FurnitureDef, FurnitureItem, GltfDef } from './types'
+
+/** Ground plane (y=0) + a scratch vector for projecting the hover cursor ray onto
+ *  the floor, so hover can be gated on footprint containment (HOVER-FOOTPRINT). */
+const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0)
+const floorHit = new Vector3()
 
 interface FurnitureProps {
   item: FurnitureItem
@@ -94,6 +100,33 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       )
     },
     [item.id, item.position, item.rotation, passive, item.locked, def.windowBound],
+  )
+
+  // Hover is gated on the FOOTPRINT, not the raw mesh (HOVER-FOOTPRINT): project
+  // the cursor ray onto the floor and highlight only when that point is inside
+  // the item's min-span footprint, so tall geometry overhanging the base doesn't
+  // light the piece up. Runs on enter + move (the cursor can cross the footprint
+  // boundary while still over the mesh); pointer-out clears it. Selection stays on
+  // the visible mesh via the group's click/pointerdown handlers.
+  const updateHover = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      if (passive) return
+      const state = useStore.getState()
+      if (!canEditScene(state)) return
+      if (state.draggingItemId || state.activeDefId) return
+      // The cursor is over this item's mesh, so it owns the hover — never let the
+      // room floor behind it also register a hover.
+      e.stopPropagation()
+      const inside = e.ray.intersectPlane(FLOOR_PLANE, floorHit)
+        ? floorPointInFootprint(floorHit.x, floorHit.z, item, def)
+        : false
+      if (inside) {
+        if (state.hoveredItemId !== item.id) state.setHovered(item.id)
+      } else if (state.hoveredItemId === item.id) {
+        state.setHovered(null)
+      }
+    },
+    [item, def, passive],
   )
 
   const body =
@@ -231,19 +264,6 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       // drop — scene/finishDropTarget.ts) can map a hit back to the item.
       userData={{ itemId: item.id }}
       onClick={onClick}
-      onPointerOver={(e) => {
-        if (passive) return
-        const state = useStore.getState()
-        if (!canEditScene(state)) return
-        if (state.draggingItemId || state.activeDefId) return
-        e.stopPropagation()
-        state.setHovered(item.id)
-      }}
-      onPointerOut={() => {
-        if (passive) return
-        const state = useStore.getState()
-        if (state.hoveredItemId === item.id) state.setHovered(null)
-      }}
       onDoubleClick={(e) => {
         if (passive) return
         const state = useStore.getState()
@@ -266,6 +286,13 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
         })
       }}
       onPointerDown={onPointerDown}
+      onPointerOver={updateHover}
+      onPointerMove={updateHover}
+      onPointerOut={() => {
+        if (passive) return
+        const state = useStore.getState()
+        if (state.hoveredItemId === item.id) state.setHovered(null)
+      }}
     >
       {/* Soft contact shadow grounding floor-standing pieces. The outer group
           may be lifted by `liftY` for a stacked GLB (mattress on a frame), so
