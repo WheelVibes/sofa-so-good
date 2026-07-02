@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: rowPadding tests pin the density-token contract; dead .lyr-row line pruned (v0.10.0.49)
+
+- The 2b row-padding tests still asserted the pre-density literal compositions and only stayed
+  green via dead shadowed declarations; the .48 cleanup removed .menu-item's dead line and went
+  red (final-review Critical). Tests now pin the --row-pad-* contract (values/compact override
+  stay pinned by density.test.ts); .lyr-row's dead duplicate pruned with the 1px horizontal
+  normalization documented.
+
 ## CHORE: Batch 3b cosmetic cleanup (v0.10.0.48)
 
 - Removed the dead shadowed `.menu-item` padding declaration and documented the deliberate 1px
