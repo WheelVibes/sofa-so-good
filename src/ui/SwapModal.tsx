@@ -73,7 +73,7 @@ export function SwapModal() {
       onClose={() => setSwapItemId(null)}
       title="Replace with similar"
       sub={`${def.category} · keeps position`}
-      width={560}
+      width="var(--modal-md)"
       panelId="swapPanel"
     >
       <div className="swap-cur">

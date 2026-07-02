@@ -43,6 +43,12 @@
   --focus-ring-w: 3px;
   --focus-ring: 0 0 0 var(--focus-ring-w) color-mix(in oklch, var(--accent) 45%, transparent);
 
+  /* Modal panel widths (P11) — replaces ad-hoc min(560px…)/min(432px…). Each
+     clamps to the viewport so it never overflows a narrow phone. */
+  --modal-sm: min(432px, calc(100vw - 24px));
+  --modal-md: min(560px, calc(100vw - 24px));
+  --modal-lg: min(720px, calc(100vw - 24px));
+
   --z-hud: 10;
   --z-panel: 20;
   --z-pop: 40;

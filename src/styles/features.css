@@ -114,7 +114,7 @@
 /* ============================================================
    SWAP  — centered modal, alternatives grid
    ============================================================ */
-.modal-overlay > #swapPanel { width: min(560px, calc(100vw - 24px)); max-height: min(620px, calc(100vh - 48px)); }
+.modal-overlay > #swapPanel { width: var(--modal-md); max-height: min(620px, calc(100vh - 48px)); }
 .swap-cur {
   display: flex; align-items: center; gap: var(--s-3);
   padding: var(--s-3); margin: 0 0 var(--s-3);

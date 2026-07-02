@@ -58,7 +58,7 @@ export function PanoramaModal() {
       onClose={() => setOpen(false)}
       title="360° Panorama"
       sub="Captured from where you're looking — drag to look around, scroll to zoom"
-      width={720}
+      width="var(--modal-lg)"
       panelId="panorama"
       footer={
         <div className="flex items-center justify-between gap-2">

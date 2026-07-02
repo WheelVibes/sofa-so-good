@@ -300,7 +300,7 @@ function NotificationDetailsModal({
       open
       onClose={onClose}
       title={title}
-      width={480}
+      width="var(--modal-sm)"
       footer={
         <div
           style={{

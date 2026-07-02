@@ -9,8 +9,9 @@ interface ModalProps {
   title: string
   /** Small uppercase eyebrow under/above the title. */
   sub?: string
-  /** Panel width in px (defaults to the design's 360). */
-  width?: number
+  /** Panel width in px, or a CSS width token string (e.g. `var(--modal-md)`).
+   *  Defaults to the design's 360. */
+  width?: number | string
   /** id applied to the panel (drives a few per-modal width overrides in CSS). */
   panelId?: string
   children: ReactNode
@@ -99,9 +100,16 @@ export function Modal({
       <div
         className="panel"
         id={panelId}
-        // Clamp the inline width so it can't override the responsive CSS and
-        // overflow a narrow (mobile) viewport.
-        style={width ? { width, maxWidth: 'calc(100vw - 24px)' } : undefined}
+        // Numeric widths are clamped so they can't overflow a narrow (mobile)
+        // viewport; string widths are tokens (e.g. var(--modal-md)) that
+        // already self-clamp, so they're applied directly.
+        style={
+          width != null
+            ? typeof width === 'string'
+              ? { width }
+              : { width, maxWidth: 'calc(100vw - 24px)' }
+            : undefined
+        }
         ref={panelRef}
         role="dialog"
         aria-modal="true"

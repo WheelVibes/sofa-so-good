@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: --modal-sm/-md/-lg width tokens (v0.9.0.74)
+
+- Added `--modal-sm`/`--modal-md`/`--modal-lg` (`src/styles/tokens.css`, after the
+  `--focus-ring` block) — `min(432px|560px|720px, calc(100vw - 24px))` — each self-clamps to
+  the viewport so it never overflows a narrow phone.
+- `Modal`'s `width` prop now accepts `number | string` (`src/ui/Modal.tsx`): a string is
+  applied directly (it's a token that already clamps itself); a number keeps the existing
+  `maxWidth: calc(100vw - 24px)` safety clamp.
+- Replaced ad-hoc `min(…px, calc(100vw - 24px))`/numeric widths with tokens: `SwapModal`,
+  `StyleQuizModal` (`--modal-md`), `PanoramaModal`, `StyleTransferModal` (`--modal-lg`),
+  notification details (`NotificationContainer`, 480 rounds to `--modal-sm`), `LocationPrompt`
+  (inline `min(420px…)` → `--modal-sm`), and `#helpPanel` (`src/styles/parts.css` →
+  `--modal-sm`). `GraphicsSettings`'s `width: 320` inline popover stays numeric by design —
+  it's a narrow settings popover intentionally below the `--modal-sm` tier, not a `Modal`
+  caller. The default `.modal-overlay > .panel` width (360px, `components.css`) is unchanged —
+  no token needed for a single non-repeated value.
+- New `Modal.test.tsx` case asserts a string width (e.g. `var(--modal-md)`) is applied to the
+  panel's inline style unclamped.
+- Also tokenised the now-redundant `#swapPanel` width override (`src/styles/features.css`,
+  previously a duplicate `min(560px…)`) to `--modal-md` — the inline `Modal` style always won,
+  but the CSS was drifting out of sync with the token.
+
 ## FEAT: tabular numerals on numeric readouts (v0.9.0.73)
 
 - Added `font-variant-numeric: tabular-nums` to `.fld .val` and `.fld .val-edit input`

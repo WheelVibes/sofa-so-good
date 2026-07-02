@@ -100,7 +100,7 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
 
   return (
     <div className="modal-overlay">
-      <div className="panel" style={{ width: 'min(420px, calc(100vw - 24px))' }}>
+      <div className="panel" style={{ width: 'var(--modal-sm)' }}>
         <div className="panel-head">
           <div>
             <div className="panel-title">Where are you?</div>

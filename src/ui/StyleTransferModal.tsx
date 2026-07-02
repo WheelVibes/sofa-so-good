@@ -38,7 +38,7 @@ export function StyleTransferModal() {
       onClose={() => setOpen(false)}
       title="Style transfer"
       sub="One tap restyles every room's floors, walls & palette"
-      width={720}
+      width="var(--modal-lg)"
       panelId="style-transfer"
     >
       <div

@@ -62,7 +62,7 @@ export function StyleQuizModal() {
       onClose={close}
       title="Find your style"
       sub={done ? 'Your match' : `Question ${step + 1} of ${total}`}
-      width={560}
+      width="var(--modal-md)"
       panelId="style-quiz"
     >
       {q ? (

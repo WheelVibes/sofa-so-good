@@ -279,7 +279,7 @@
 .zoom .compass-cell .cc-n { font-size: 8px; font-weight: 800; letter-spacing: 0.04em; color: var(--accent-soft-text); line-height: 1; }
 
 /* ---- Help modal ---------------------------------------------- */
-.modal-overlay > #helpPanel { width: min(432px, calc(100vw - 24px)); }
+.modal-overlay > #helpPanel { width: var(--modal-sm); }
 .kbd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px 24px; }
 .kbd-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); font-size: var(--t-sm); color: var(--text-2); font-weight: 500; min-width: 0; }
 .kbd-row > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
