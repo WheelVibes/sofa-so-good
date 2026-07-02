@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: visual-verification scenario for UI polish batch 2a (v0.10.0.11)
+
+- New `scripts/scenarios/ui-polish-batch2a.json` (55 steps, 11 screenshots) drives + visually
+  verifies the Batch 2a polish surfaces. Reviewed each PNG by eye; observations per surface:
+  - **Entrance stagger (`.pop-panel.stagger-in`)** — File toolbar menu opens with all rows
+    rendering cleanly (no flash / offset); cascade settles fast under headless SwiftShader.
+  - **⌘K cascade** — palette opens with ACTIONS + TOOLS & PANELS groups; group labels AND items
+    read as one continuous sequence. DOM probe confirms `.cmdk-glabel` carries the group's first
+    flat `--i` (0, 7, 17, 25, 29 — interleaved with item indices), so no label pops ahead of
+    earlier items.
+  - **`.liftable` card hover** — hovering a catalog `.cat-card.liftable` (real CDP pointer via a
+    dy:0 wheel move) shows the accent border + heart reveal + raised `--shadow-pop` drop shadow.
+  - **`.lyr-acts` reveal** — revealed on row hover AND on keyboard `:focus-within` (focus ring on
+    the eye button, actions visible) in the Objects/Layers tree.
+  - **Sticky `.lyr-ghead-row`** — pinned group header renders flush at the top on open AND mid-
+    scroll (scrollTop 600) with no offset / jitter / wobble, despite being child-0 of a
+    `.stagger-in` container.
+  - **`.sec-h` spacing** — inspector section headers (Properties / Size) have comfortable
+    padding-bottom, neither cramped nor over-spaced.
+  - **Empty-state line-height** — LayersPanel `EmptyState` description wraps at `--lh-body`
+    (probe: 16.5px / 11px = 1.5), comfortable multiline reading.
+  - **Reduced-motion** — with the app's reduced-motion override injected (harness has no
+    CDP media-emulation step), the File menu renders every item together (delays zeroed),
+    matching the global `prefers-reduced-motion` block.
+- No app code changed — scenario + docs + version bump only.
+
 ## FIX: command-palette group labels join the entrance cascade (v0.10.0.10)
 
 - `.cmdk-glabel` now carries the group's first flat `--i` inline, so labels enter in sequence
