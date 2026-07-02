@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: PWA manifest name/description rewritten for search/install surfaces (v0.10.0.17)
+
+- `manifest.webmanifest` copy now leads with the user benefit and keywords ("Free 3D Interior
+  Design for Singapore HDB Flats & Condos"; "plan before renovation day… walk through in first
+  person. Free in your browser") instead of the generic app blurb.
+
 ## PERF: RoomSwitcher drops per-room furniture counts (v0.10.0.16)
 
 - The room-editor dropdown no longer computes a furniture count per room: that subscribed the

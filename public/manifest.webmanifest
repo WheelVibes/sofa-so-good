@@ -1,7 +1,7 @@
 {
-  "name": "Sofa So Good — 3D Interior Designer for HDBs & Condos",
+  "name": "Sofa So Good — Free 3D Interior Design for Singapore HDB Flats & Condos",
   "short_name": "Sofa So Good",
-  "description": "A realistic, interactive 3D interior-design app for Singapore homes — HDB flats and condominiums. Furnish them, finish surfaces, light them across the day, and walk through the result.",
+  "description": "Plan your HDB or condo in 3D before renovation day — accurate Singapore floor plans, furnish & finish every room, then walk through in first person. Free in your browser.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
