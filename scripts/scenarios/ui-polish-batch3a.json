@@ -1,0 +1,115 @@
+{
+  "name": "ui-polish-batch3a",
+  "url": "http://localhost:5251/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "app-loaded", "waitFor": { "css": ".toolbar" }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1'); localStorage.removeItem('hdb_dismissed_callouts') })()"
+    },
+    { "name": "boot-splash-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 60000 },
+    { "name": "settle", "wait": 2500 },
+    { "name": "daytime", "eval": "window.__store.getState().setManualHour(13)" },
+
+    { "name": "P6-open-plan", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "P6-plan-mounted", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "P6-shot-crossfade-mid", "screenshot": "p6-crossfade-mid" },
+    { "name": "P6-probe-fade", "eval": "(() => { const el=document.querySelector('.plan-screen'); const cs=el&&getComputedStyle(el); console.log('PROBE plan-screen anim', cs && cs.animationName, 'dur', cs && cs.animationDuration, 'fill', cs && cs.animationFillMode) })()" },
+    { "name": "P6-settle", "wait": 900 },
+    { "name": "P6-shot-crossfade-settled", "screenshot": "p6-crossfade-settled" },
+    { "name": "P6-back-to-3d", "eval": "window.__store.getState().setFloorPlanEditing(false)" },
+    { "name": "P6-plan-gone", "waitFor": { "css": ".plan-screen", "visible": false }, "timeout": 20000 },
+    { "name": "P6-shot-back-to-3d", "screenshot": "p6-back-to-3d" },
+
+    { "name": "P29-clear-items", "eval": "window.__store.getState().setItems([])" },
+    { "name": "P29-clear-history", "eval": "window.__store.getState().clearHistory()" },
+    { "name": "P29-step1", "eval": "window.__store.getState().setItems([{ id: 'b3-sofa', defId: 'sofa-3seat', position: [9, 3], rotation: 0, props: {} }])" },
+    { "name": "P29-push1", "eval": "window.__store.getState().pushHistory()" },
+    { "name": "P29-wait1", "waitFor": { "store": "window.__store.getState().past.length >= 1" }, "timeout": 10000 },
+    { "name": "P29-step2", "eval": "window.__store.getState().setItems([...window.__store.getState().items, { id: 'b3-chair', defId: 'armchair', position: [7, 3], rotation: 0, props: {} }])" },
+    { "name": "P29-push2", "eval": "window.__store.getState().pushHistory()" },
+    { "name": "P29-step3", "eval": "window.__store.getState().setItems([...window.__store.getState().items, { id: 'b3-table', defId: 'coffee-table', position: [8, 4], rotation: 0, props: {} }])" },
+    { "name": "P29-push3", "eval": "window.__store.getState().pushHistory()" },
+    { "name": "P29-wait-steps", "waitFor": { "store": "window.__store.getState().past.length >= 3" }, "timeout": 10000 },
+    { "name": "P29-open-history", "eval": "window.__store.getState().setHistoryOpen(true)" },
+    { "name": "P29-panel-mounted", "waitFor": { "css": "#historyPanel" }, "timeout": 30000 },
+    { "name": "P29-search-field", "waitFor": { "css": "#historyPanel .cat-search input" }, "timeout": 10000 },
+    { "name": "P29-shot-open", "screenshot": "p29-history-open" },
+    {
+      "name": "P29-type-filter",
+      "eval": "(() => { const el=document.querySelector('#historyPanel .cat-search input'); const set=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value').set; set.call(el,'add'); el.dispatchEvent(new Event('input',{bubbles:true})) })()"
+    },
+    { "name": "P29-filter-settle", "wait": 400 },
+    { "name": "P29-shot-filtered", "screenshot": "p29-history-filtered" },
+    { "name": "P29-probe-filtered", "eval": "(() => { const rows=document.querySelectorAll('#historyPanel .hist-row, #historyPanel button.row, #historyPanel [style*=\"flex-direction: column\"] > button'); console.log('PROBE filtered rows', rows.length) })()" },
+    {
+      "name": "P29-type-nonsense",
+      "eval": "(() => { const el=document.querySelector('#historyPanel .cat-search input'); const set=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value').set; set.call(el,'zqxjnope'); el.dispatchEvent(new Event('input',{bubbles:true})) })()"
+    },
+    { "name": "P29-empty-visible", "waitFor": { "text": "No matching steps" }, "timeout": 10000 },
+    { "name": "P29-clear-filter-present", "waitFor": { "text": "Clear filter" }, "timeout": 10000 },
+    { "name": "P29-shot-empty", "screenshot": "p29-history-empty-filter" },
+    { "name": "P29-close-history", "eval": "window.__store.getState().setHistoryOpen(false)" },
+
+    { "name": "P39-set-prefs", "eval": "(() => { const s=window.__store.getState(); s.setLeftMode('layers'); s.setLayersCollapsed({ livingDining: true, kitchen: false }) })()" },
+    { "name": "P39-persist-settle", "wait": 500 },
+    {
+      "name": "P39-probe-localstorage",
+      "eval": "(() => { const raw=localStorage.getItem('sofa.editor.v1'); if(!raw) throw new Error('sofa.editor.v1 not written'); const p=JSON.parse(raw); if(p.leftMode!=='layers') throw new Error('leftMode not persisted: '+p.leftMode); if(!p.layersCollapsed || p.layersCollapsed.livingDining!==true) throw new Error('layersCollapsed not persisted: '+JSON.stringify(p.layersCollapsed)); if(!('catalogOpen' in p)) throw new Error('catalogOpen field missing'); console.log('PROBE editorPrefs OK', JSON.stringify({ leftMode: p.leftMode, layersCollapsed: p.layersCollapsed, catalogOpen: p.catalogOpen })) })()"
+    },
+
+    { "name": "P25-enter-room", "eval": "window.__store.getState().enterRoomEditor('livingDining')" },
+    { "name": "P25-room-settle", "wait": 1200 },
+    { "name": "P25-callout-visible", "waitFor": { "css": ".info-callout" }, "timeout": 20000 },
+    { "name": "P25-shot-light", "screenshot": "p25-info-callout-light" },
+    { "name": "P25-dark", "eval": "window.__store.getState().setModePref('dark')" },
+    { "name": "P25-dark-settle", "wait": 600 },
+    { "name": "P25-shot-dark", "screenshot": "p25-info-callout-dark" },
+    { "name": "P25-light-back", "eval": "window.__store.getState().setModePref('light')" },
+    { "name": "P25-light-settle", "wait": 500 },
+    { "name": "P25-dismiss", "eval": "(() => { const b=document.querySelector('.info-callout .ic-dismiss'); if(!b) throw new Error('ic-dismiss not found'); b.click() })()" },
+    { "name": "P25-callout-gone", "waitFor": { "css": ".info-callout", "visible": false }, "timeout": 10000 },
+    { "name": "P25-shot-dismissed", "screenshot": "p25-info-callout-dismissed" },
+    { "name": "P25-open-plan", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "P25-plan-mounted", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "P25-plan-callout", "waitFor": { "css": ".plan-screen .info-callout" }, "timeout": 15000 },
+    { "name": "P25-settle-plan", "wait": 600 },
+    { "name": "P25-shot-plan-callout", "screenshot": "p25-info-callout-floorplan" },
+    { "name": "P25-close-plan", "eval": "window.__store.getState().setFloorPlanEditing(false)" },
+    { "name": "P25-exit-room", "eval": "window.__store.getState().exitRoomEditor()" },
+    { "name": "P25-exit-settle", "wait": 1000 },
+
+    { "name": "P27-open-menu", "eval": "(() => { const btns=[...document.querySelectorAll('button[aria-haspopup=\"menu\"]')]; const b=btns[0]; if(b) b.click(); console.log('PROBE menu triggers', btns.length) })()" },
+    { "name": "P27-menu-settle", "wait": 500 },
+    {
+      "name": "P27-inject-dot",
+      "eval": "(() => { const mi=document.querySelector('.menu-item'); const host=mi||document.querySelector('.tool-btn')||document.querySelector('.toolbar button'); if(!host) throw new Error('no host for new-dot'); host.style.position='relative'; host.insertAdjacentHTML('beforeend','<span class=\"new-dot\"></span>'); const dot=host.querySelector('.new-dot'); const cs=getComputedStyle(dot); console.log('PROBE new-dot host', host.className||host.tagName, 'anim', cs.animationName, 'dur', cs.animationDuration, 'bg', cs.backgroundColor) })()"
+    },
+    { "name": "P27-dot-settle", "wait": 400 },
+    { "name": "P27-shot-new-dot", "screenshot": "p27-new-badge-dot" },
+
+    {
+      "name": "RM-emulate-reduced-motion",
+      "eval": "(() => { const st=document.createElement('style'); st.id='rm-emulate'; st.textContent='*,*::before,*::after{animation-duration:0.01ms !important;animation-delay:0ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important;transition-delay:0ms !important;}'; document.head.appendChild(st) })()"
+    },
+    { "name": "RM-retrigger-plan", "eval": "(() => { const s=window.__store.getState(); s.setFloorPlanEditing(false); s.setFloorPlanEditing(true) })()" },
+    { "name": "RM-plan-mounted", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "RM-settle", "wait": 400 },
+    { "name": "RM-shot-crossfade-static", "screenshot": "rm-crossfade-static" },
+    {
+      "name": "RM-probe-crossfade",
+      "eval": "(() => { const el=document.querySelector('.plan-screen'); const cs=el&&getComputedStyle(el); console.log('PROBE RM plan-screen opacity', cs && cs.opacity, 'animDur', cs && cs.animationDuration) })()"
+    },
+    { "name": "RM-close-plan", "eval": "window.__store.getState().setFloorPlanEditing(false)" },
+    { "name": "RM-close-settle", "wait": 600 },
+    { "name": "RM-open-menu", "eval": "(() => { const b=document.querySelector('button[aria-haspopup=\"menu\"]'); if(b) b.click() })()" },
+    { "name": "RM-menu-settle", "wait": 400 },
+    {
+      "name": "RM-inject-dot",
+      "eval": "(() => { const mi=document.querySelector('.menu-item'); const host=mi||document.querySelector('.tool-btn')||document.querySelector('.toolbar button'); if(!host) throw new Error('no host'); host.style.position='relative'; host.insertAdjacentHTML('beforeend','<span class=\"new-dot\"></span>'); const dot=host.querySelector('.new-dot'); const cs=getComputedStyle(dot); console.log('PROBE RM new-dot opacity', cs.opacity, 'bg', cs.backgroundColor, 'animIter', cs.animationIterationCount) })()"
+    },
+    { "name": "RM-dot-settle", "wait": 300 },
+    { "name": "RM-shot-new-dot-static", "screenshot": "rm-new-dot-static" }
+  ]
+}

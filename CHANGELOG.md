@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: visual-verification scenario for UI polish batch 3a (v0.10.0.36)
+
+- New `scripts/scenarios/ui-polish-batch3a.json` (79 steps, 13 screenshots) drives + visually
+  verifies all five Batch 3a surfaces in one SwiftShader session; reviewed every PNG.
+- **P6 screen-crossfade:** `setFloorPlanEditing(true)` mounts `.plan-screen` with
+  `screenFadeIn` (probe: `dur 0.3s fill backwards`) — mid-fade frame shows the beige surface +
+  lazy-editor loading card over the persistent 3D canvas; settled frame is the full editor;
+  exit is an instant reveal of the painted scene beneath. No artifacts.
+- **P29 history-search:** History panel (`#historyPanel`) shows the `.cat-search` field once
+  steps exist; typing "add" filters 4 rows -> 2 ("Added Coffee table" / "Added Armchair"); a
+  nonsense query shows the `EmptyState` ("No matching steps" + "Clear filter" CTA). Clean.
+- **P39 persist-probe:** after `setLeftMode('layers')` + `setLayersCollapsed({...})`,
+  `localStorage['sofa.editor.v1']` reads back `leftMode:'layers'`,
+  `layersCollapsed:{livingDining:true,kitchen:false}`, `catalogOpen:false` (single-session
+  probe; a true reload is not possible in the harness).
+- **P25 info-callout:** room-editor `.info-callout` ("Designing one room") renders with the
+  accent left-edge + accent glyph in BOTH light and dark themes (tokens adapt correctly);
+  `.ic-dismiss` removes it; the floor-plan editor's own callout ("Editing your floor plan")
+  still shows (per-id dismissal).
+- **P27 new-badge:** NEW_BADGES registry is honestly dormant today (styleQuiz aged out,
+  infoCallouts has no menu entry) so no dot renders via real logic — by design. The scenario
+  injects `.new-dot` markup into a live `.menu-item` (View menu) to verify ONLY the CSS: probe
+  confirms `newPulse 1.6s`, accent bg; the dot renders as a small accent dot on the Orbit row.
+  The show/hide/seen logic is covered by the existing 91 unit tests.
+- **Reduced-motion re-check:** with the reduced-motion `<style>` injected, the crossfade settles
+  static (probe: `.plan-screen opacity 1`, near-zero anim duration) and the `.new-dot` pulse
+  parks VISIBLE (probe: `opacity 1`, solid accent bg, `animation-iteration-count 1`).
+
 ## FIX: info-callout line-height tokens per the type ladder (v0.10.0.35)
 
 - `.ic-body b` (single-line title) -> `--lh-tight`; `.ic-body span` (multiline copy) ->
