@@ -31,17 +31,14 @@ export function EditMenu() {
       {fFloorPlan ? (
         <MenuItem
           icon="FloorPlan"
-          label={`Floor plan editor${chip(shortcutLabel('togglePlanEditor'))}`}
+          label="Floor plan editor"
           sub={`Reshape ${planLabel}`}
           docs="floorPlanEditor"
           active={floorPlanEditing}
+          kbd={shortcutLabel('togglePlanEditor')}
           onClick={toggleFloorPlanEditing}
         />
       ) : null}
     </ToolbarMenu>
   )
-}
-
-function chip(s: string): string {
-  return s ? `  (${s})` : ''
 }

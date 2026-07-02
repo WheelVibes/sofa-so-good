@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: shortcut chips in menus, right-aligned via kbd (v0.9.0.76)
+
+- Menu rows now show their keyboard combo as a right-aligned semantic `<kbd class="mi-kbd">`
+  chip sourced from the `shortcuts.ts` registry (single source of truth, matches the toolbar
+  tooltip chip). EditMenu's inline "(P)" suffix replaced by the new `kbd` MenuItem prop; dead
+  `chip()` helper removed; `shortcuts.test.ts` pins registry labels. FileMenu audit: no File
+  action has a keybinding, so no rows wired. CSS adds only `margin-left:auto; flex:none` over
+  the existing `kbd {}` rule.
+
 ## FEAT: truncation affordance — hover-recoverable full names (v0.9.0.75)
 
 - `title` attribute on truncated `.lyr-nm` rows (layers panel + GLB designer) and on the modal

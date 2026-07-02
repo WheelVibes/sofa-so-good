@@ -61,6 +61,7 @@ export function MenuItem({
   active,
   ariaLabel,
   docs,
+  kbd,
   onClick,
 }: {
   icon: IconName
@@ -72,6 +73,9 @@ export function MenuItem({
    *  (DOCS-DEEPLINK). It's a sibling control (not nested in the row button) and
    *  stops propagation so it neither runs the item nor closes the menu. */
   docs?: DocKey
+  /** Shortcut combo label (from `shortcuts.ts`), rendered as a right-aligned
+   *  `.mi-kbd` chip (P24) — never hardcode the key text inline in `label`. */
+  kbd?: string
   onClick: () => void
 }) {
   const Cmp = Icon[icon]
@@ -88,6 +92,7 @@ export function MenuItem({
         <span className="mi-main">{label}</span>
         {sub ? <span className="mi-sub">{sub}</span> : null}
       </span>
+      {kbd ? <kbd className="mi-kbd">{kbd}</kbd> : null}
     </button>
   )
   if (!docs) return row

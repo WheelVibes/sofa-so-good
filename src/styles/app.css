@@ -101,6 +101,13 @@
   color: var(--accent-soft-text);
 }
 
+/* Right-aligned shortcut chip inside a menu row (P24). Reuses the bare <kbd>
+   element style (components.css); only adds row-level positioning. */
+.menu-item .mi-kbd {
+  margin-left: auto;
+  flex: none;
+}
+
 /* Floating HUD pill (drag clearance readout, door prompt). */
 .hud-pill {
   display: inline-flex;
