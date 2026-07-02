@@ -130,7 +130,7 @@
   border-radius: var(--r-2); background: var(--surface-2); border: 1px solid var(--border);
   text-align: left; transition: var(--dur) var(--ease); position: relative;
 }
-.swap-card:hover { border-color: var(--accent); background: var(--surface-solid); transform: translateY(-1px); box-shadow: var(--shadow-panel); }
+.swap-card:hover { border-color: var(--accent); background: var(--surface-solid); }
 .swap-card.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .swap-card .card-thumb { aspect-ratio: 1.3/1; }
 .swap-card .nm { font-size: var(--t-xs); font-weight: 600; color: var(--text); line-height: 1.25; }

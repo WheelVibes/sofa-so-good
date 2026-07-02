@@ -117,7 +117,7 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
         // If the drop didn't land on the canvas (still armed), disarm.
         if (useStore.getState().activeDefId === def.id) useStore.getState().cancelPlacement()
       }}
-      className={`cat-card group${stampingThis ? ' stamping' : ''}`}
+      className={`cat-card group liftable${stampingThis ? ' stamping' : ''}`}
       aria-pressed={stampingThis || undefined}
     >
       {favOn ? (

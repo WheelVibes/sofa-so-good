@@ -37,8 +37,7 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
   menu items, catalog card grid, layers rows, ⌘K results.
 - [ ] **P3 Desktop panel slide animation** — animate `--right-rail` width + panel slide-in
   (240–300ms easeOutExpo) to match mobile `sheetUp` parity.
-- [ ] **P4 Hover-lift standard** — one `.liftable` treatment (translateY + `--shadow-pop`) applied
-  consistently to `.cat-card/.swap-card/.preset-card/.ver-card`.
+
 - [ ] **P9 Purge hardcoded px from React inline styles** — map `padding:'2px 6px'`, `fontSize:16`
   etc. (ElevationPanel, RenderCompareModal, LocationPrompt, FinishPicker, …) to `--s-N`/`--t-N`;
   add a grep/lint script to block regressions.

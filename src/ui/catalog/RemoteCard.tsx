@@ -80,7 +80,7 @@ export function RemoteCard({ entry, onResolved }: Props) {
           void onClick()
         }
       }}
-      className="cat-card group"
+      className="cat-card group liftable"
     >
       {favOn ? (
         <button

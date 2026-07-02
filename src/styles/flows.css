@@ -107,7 +107,7 @@
   border-radius: var(--r-2); background: var(--surface-2); border: 1px solid var(--border);
   transition: var(--dur) var(--ease); position: relative;
 }
-.preset-card:hover { border-color: var(--accent); background: var(--surface-solid); transform: translateY(-1px); box-shadow: var(--shadow-panel); }
+.preset-card:hover { border-color: var(--accent); background: var(--surface-solid); }
 .preset-card.on { border-color: var(--accent); background: var(--accent-soft); }
 .preset-thumbwrap { width: 92px; flex: none; border-radius: var(--r-1); background: var(--surface-3); border: 1px solid var(--border); overflow: hidden; display: grid; place-items: center; }
 .preset-thumb { width: 100%; height: auto; display: block; }

@@ -54,7 +54,7 @@
   background: var(--surface-2); border: 1px solid var(--border);
   transition: var(--dur) var(--ease); text-align: left; position: relative;
 }
-.cat-card:hover { border-color: var(--accent); background: var(--surface-solid); transform: translateY(-1px); box-shadow: var(--shadow-panel); }
+.cat-card:hover { border-color: var(--accent); background: var(--surface-solid); }
 .cat-card { cursor: pointer; }
 .cat-card:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--accent); }
 .card-thumb {

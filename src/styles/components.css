@@ -40,6 +40,20 @@ input { font-family: inherit; }
 .icn { display: block; flex: none; }
 .mono { font-family: var(--font-mono); font-feature-settings: 'tnum' 1; letter-spacing: -0.02em; }
 
+/* Hover-lift standard (P4). One treatment for interactive cards: a 2px rise
+   + pop-shadow on hover. Cards keep their own border/background hover accents;
+   this owns the lift so it never double-stacks. Reduced-motion neutralises the
+   transition via the global block in app.css. */
+.liftable,
+.preset-card {
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.liftable:hover,
+.preset-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-pop);
+}
+
 /* ---- Modal overlay ------------------------------------------- */
 .modal-overlay {
   position: absolute; inset: 0; z-index: var(--z-overlay);

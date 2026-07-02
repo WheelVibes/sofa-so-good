@@ -234,7 +234,7 @@ export function VersionsPanel() {
           ) : null}
 
           {rows.map((r) => (
-            <div className="ver-card" key={r.slot}>
+            <div className="ver-card liftable" key={r.slot}>
               <div className="ver-thumb">
                 {getThumb(r.slot) ? <img src={getThumb(r.slot) ?? undefined} alt="" /> : null}
               </div>

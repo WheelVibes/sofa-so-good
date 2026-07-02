@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: unified .liftable hover-lift across cards (v0.10.0.4)
+
+- One hover treatment for interactive cards: `translateY(-2px)` + `--shadow-pop` via the shared
+  `.liftable` class (`.cat-card`, `.swap-card`, `.ver-card`; `.preset-card` via the CSS selector
+  group). Per-card hover rules keep only their border/background accents - no stacked duplicate
+  transforms. Reduced-motion neutralised by the global app.css block.
+
 ## REFACTOR: row-padding normalized onto the --s scale (v0.10.0.3)
 
 - Three sanctioned row compositions replace ad-hoc px: compact `--s-2 --s-3` (.lyr-row),

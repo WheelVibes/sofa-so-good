@@ -107,7 +107,7 @@ export function SwapModal() {
               <button
                 type="button"
                 key={alt.id}
-                className="swap-card"
+                className="swap-card liftable"
                 onClick={() => replace(alt.id)}
               >
                 <div className="card-thumb">
