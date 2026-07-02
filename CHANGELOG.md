@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CI: release tag must match APP_VERSION (v0.9.1.2)
+
+- **`release.yml` now fails a `v*` tag run when the tag doesn't equal `APP_VERSION`**
+  (`src/version.ts`). The desktop update check compares the latest release tag against the
+  baked-in version, so a tag ahead of the code would show installed apps a perpetual
+  "update available" they already run. Guard runs before install (bash on all runners);
+  `workflow_dispatch` runs are unaffected.
+
 ## FEAT: desktop shell hardening — run-as-node guard, icons, signing, GitHub-release update check (v0.9.1.1)
 
 - **`ELECTRON_RUN_AS_NODE` no longer silently breaks the shell.** VSCode/agent hosts export it,
