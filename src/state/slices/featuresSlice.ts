@@ -52,8 +52,11 @@ export interface FeaturesSlice {
   /** Command palette (⌘K) visibility. */
   cmdkOpen: boolean
   /** Left dock mode — the catalog drawer toggles between the catalog grid and
-   *  the Objects/Layers tree. */
+   *  the Objects/Layers tree. Persisted per-device (editorPrefs). */
   leftMode: 'catalog' | 'layers'
+  /** Per-room collapsed state of the Objects/Layers tree groups (room id →
+   *  collapsed). Lifted out of the panel so it persists per-device (editorPrefs). */
+  layersCollapsed: Record<string, boolean>
   /** Right-click context menu, or null when closed. */
   contextMenu: ContextMenuState | null
   /** Onboarding carousel visibility + step. */
@@ -137,6 +140,7 @@ export interface FeaturesSlice {
   setCmdkOpen: (open: boolean) => void
   toggleCmdk: () => void
   setLeftMode: (mode: 'catalog' | 'layers') => void
+  setLayersCollapsed: (collapsed: Record<string, boolean>) => void
   openContextMenu: (menu: ContextMenuState) => void
   closeContextMenu: () => void
   setOnboardingOpen: (open: boolean) => void
@@ -190,6 +194,7 @@ export interface FeaturesSlice {
 export const FEATURES_INITIAL = {
   cmdkOpen: false,
   leftMode: 'catalog' as const,
+  layersCollapsed: {} as Record<string, boolean>,
   contextMenu: null as ContextMenuState | null,
   onboardingOpen: false,
   onboardingStep: 0,
@@ -235,6 +240,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setCmdkOpen: (cmdkOpen) => set({ cmdkOpen }),
   toggleCmdk: () => set((s) => ({ cmdkOpen: !s.cmdkOpen })),
   setLeftMode: (leftMode) => set({ leftMode }),
+  setLayersCollapsed: (layersCollapsed) => set({ layersCollapsed }),
   openContextMenu: (contextMenu) => set({ contextMenu }),
   closeContextMenu: () => set({ contextMenu: null }),
   setOnboardingOpen: (onboardingOpen) => set({ onboardingOpen }),

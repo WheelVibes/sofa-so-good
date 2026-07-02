@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: persist panel state — left-dock tab, collapsed layer groups, desktop catalog-open (v0.10.0.32)
+
+- `editorPrefs` (key `sofa.editor.v1`) now also persists `leftMode`, the Layers panel's
+  group-collapse map (lifted into `featuresSlice`), and `catalogOpen` — the latter restored on
+  desktop only (`matchMedia` gate, SSR-safe) so the mobile bottom-sheet never auto-reopens.
+  Back-compat with older stored prefs; no dock-side state exists to persist.
+
 ## FEAT: History panel in-panel search (v0.10.0.31)
 
 - Filter the history timeline by step label via the shared `.cat-search` field idiom; no

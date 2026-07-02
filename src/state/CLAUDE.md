@@ -4,6 +4,11 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
 
 - **One concern per slice** (`slices/*`). Adding a slice = add it to the store
   composition + its initial state; keep it small and focused.
+- **`editorPrefs` also persists per-device UI convenience state** (out of the save schema):
+  the left-dock tab (`leftMode`), the collapsed layer-group map (`layersCollapsed`, lifted from
+  `LayersPanel` into `featuresSlice`), and `catalogOpen` — the last restored **desktop-only**
+  (`matchMedia('(min-width:641px)')`, SSR/jsdom-safe with a `false` fallback) so the mobile
+  bottom-sheet catalog never auto-reopens. All load with back-compat defaults (old JSON lacks them).
 - **Persistence lives in `storage/`**, not in the slice: `qualityPrefs`/`editorPrefs`/
   `appearancePrefs`/`floorPlanStore`/`budgetPrefs` (per-device prefs) + autosave. Some
   state is deliberately session-only / out of the save schema (recent items, favourites,

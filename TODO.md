@@ -55,11 +55,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
   (`@tanstack/react-virtual`).
 - [ ] **P38 Density mode** — `data-density` comfortable/compact scaling row paddings via tokens
   (Pro-tier flag).
-- [ ] **P39 Persisted panel state** — open panels/dock sides/collapsed layer groups survive reload.
-
-Rules: every user-facing feature above needs a `FEATURE_FLAGS` entry + tier + both-modes tests;
-pure-CSS polish (focus ring, spacing, typography) is not a feature. Ambient loops must be
-tier-gated/paused off-screen. No hardcoded colours — all effects rebuilt on tokens.
 
 ## ⛔ Production-infra-blocked — need a DEPLOYED host/backend, not app code
 The dev paths already work (Vite reverse proxy, dev-gated providers); only the *production*

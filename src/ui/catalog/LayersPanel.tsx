@@ -44,7 +44,10 @@ export function LayersPanel() {
     applyFinishDropAction(resolveFinishDrop({ kind: 'item', itemId }, readFinishDragPayload(dt)))
   }
   const catalog = useCatalog()
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  // Collapse state is lifted into the store (persisted per-device) so a
+  // collapsed group survives a reload (P39).
+  const collapsed = useStore((s) => s.layersCollapsed)
+  const setCollapsed = useStore((s) => s.setLayersCollapsed)
   const [filter, setFilter] = useState('')
   const q = filter.trim().toLowerCase()
   const itemLabel = (it: FurnitureItem) => it.label ?? catalog[it.defId]?.name ?? it.defId
@@ -129,7 +132,7 @@ export function LayersPanel() {
                   <button
                     type="button"
                     className={`lyr-ghead${isCollapsed ? ' collapsed' : ''}`}
-                    onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !c[g.key] }))}
+                    onClick={() => setCollapsed({ ...collapsed, [g.key]: !collapsed[g.key] })}
                   >
                     <Icon.Chevron className="chev" width={14} height={14} />
                     {g.name}
