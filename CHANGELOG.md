@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: Batch 3b implementation plan — the program's final tranche (v0.10.0.39)
+
+- Authored `docs/superpowers/plans/2026-07-02-ui-polish-batch3b.md`: SliderField + Disclosure
+  primitives (Badge-dot/Breadcrumb/ButtonGroup dropped as unconsumed), live notification cards
+  (body jump + error->Retry), Pro-tier density mode over `--row-pad-*` tokens, a Simple-mode
+  Pro-upsell hint in the ⌘K footer (ToolsMenu is Pro-only), GPU-tier/reduced-motion-gated
+  ambient FX (hotspot pulse + dock magnification dropped for cause), and a measured P37
+  virtualization deferral (catalog already paginated; ~200-row revisit threshold).
+
 ## DOCS: Batch 3a close-out — ARCHITECTURE map for new slices + UI systems (v0.10.0.38)
 
 - `docs/ARCHITECTURE.md` now lists `calloutsSlice`/`badgesSlice` (self-persisting, alongside
