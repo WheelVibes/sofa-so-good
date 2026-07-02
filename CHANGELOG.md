@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: History panel in-panel search (v0.10.0.31)
+
+- Filter the history timeline by step label via the shared `.cat-search` field idiom; no
+  matches shows the EmptyState with a "Clear filter" CTA. Undo/redo/clear act on true history
+  regardless of the filter. Layers search shipped in 2b; catalog earlier — P29 complete.
+
 ## FEAT: floor-plan-editor crossfade entrance (v0.10.0.30)
 
 - The 2D floor-plan editor now fades in over the persistent 3D canvas on mount

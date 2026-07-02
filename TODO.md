@@ -48,7 +48,7 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
   casual users learn Pro exists (test both modes).
 - [ ] **P27 "New" feature badges** — `.nub` pulsing dot on newly shipped toolbar/menu entries,
   dismissed on first use, per-flag.
-- [ ] **P29 In-panel search** — layers + history search fields (catalog already has one).
+
 - [ ] **P32 Live notification cards** — progress toast clickable to jump to result, updates
   in place, error state swaps in with Retry.
 - [ ] **P37 List virtualization** — history/layers/catalog results >100 items

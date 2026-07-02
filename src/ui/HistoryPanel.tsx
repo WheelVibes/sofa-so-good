@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
 import { AuxPanelHead } from './AuxPanelHead'
@@ -15,6 +15,7 @@ import { Icon } from './toolbar/icons'
  * (`historyTimeline.ts`), so no label has to be threaded through every edit.
  */
 export function HistoryPanel() {
+  const [filter, setFilter] = useState('')
   const open = useStore((s) => s.historyOpen)
   const setOpen = useStore((s) => s.setHistoryOpen)
   const past = useStore((s) => s.past)
@@ -61,6 +62,8 @@ export function HistoryPanel() {
   const canUndo = currentIndex > 0
   const canRedo = currentIndex < entries.length - 1
   const stepCount = entries.length - 1 // transitions, not states
+  const q = filter.trim().toLowerCase()
+  const shown = [...entries].reverse().filter((e) => e.label.toLowerCase().includes(q))
 
   return (
     <aside className="panel mini aux" id="historyPanel" style={{ width: 300 }}>
@@ -104,55 +107,81 @@ export function HistoryPanel() {
             description="Move, add or finish something — every change lands here so you can scrub back through your design's history."
           />
         ) : (
-          /* Newest first so the most recent edit is on top. */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {[...entries].reverse().map((e) => (
-              <button
-                key={e.index}
-                type="button"
-                onClick={() => jump(e.index)}
-                title={e.isCurrent ? 'Current state' : 'Jump to this step'}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '7px 9px',
-                  borderRadius: 'var(--r-2, 8px)',
-                  border: '1px solid',
-                  borderColor: e.isCurrent ? 'var(--accent)' : 'transparent',
-                  background: e.isCurrent ? 'var(--accent-soft, var(--surface-2))' : 'transparent',
-                  color: e.isCurrent ? 'var(--text)' : 'var(--text-2)',
-                  cursor: 'pointer',
-                  font: 'inherit',
-                  fontSize: 'var(--t-sm)',
-                }}
-              >
-                <span
-                  aria-hidden
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 999,
-                    flex: '0 0 auto',
-                    background: e.isCurrent ? 'var(--accent)' : 'var(--border-2)',
-                  }}
+          <>
+            <div className="cat-search" style={{ marginBottom: 'var(--s-2)' }}>
+              <div className="field">
+                <Icon.Search width={16} height={16} className="icn" />
+                <input
+                  type="search"
+                  className="input"
+                  aria-label="Filter history steps"
+                  placeholder={`Filter ${stepCount} steps…`}
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
                 />
-                <span
-                  style={{
-                    flex: 1,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {e.label}
-                </span>
-                {e.isCurrent ? <span className="badge ok">Now</span> : null}
-              </button>
-            ))}
-          </div>
+              </div>
+            </div>
+            {q && shown.length === 0 ? (
+              <EmptyState
+                icon={Icon.Versions}
+                title="No matching steps"
+                description={`Nothing matches "${filter.trim()}".`}
+                cta={{ label: 'Clear filter', onClick: () => setFilter('') }}
+              />
+            ) : (
+              /* Newest first so the most recent edit is on top. */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {shown.map((e) => (
+                  <button
+                    key={e.index}
+                    type="button"
+                    onClick={() => jump(e.index)}
+                    title={e.isCurrent ? 'Current state' : 'Jump to this step'}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '7px 9px',
+                      borderRadius: 'var(--r-2, 8px)',
+                      border: '1px solid',
+                      borderColor: e.isCurrent ? 'var(--accent)' : 'transparent',
+                      background: e.isCurrent
+                        ? 'var(--accent-soft, var(--surface-2))'
+                        : 'transparent',
+                      color: e.isCurrent ? 'var(--text)' : 'var(--text-2)',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      fontSize: 'var(--t-sm)',
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 999,
+                        flex: '0 0 auto',
+                        background: e.isCurrent ? 'var(--accent)' : 'var(--border-2)',
+                      }}
+                    />
+                    <span
+                      style={{
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {e.label}
+                    </span>
+                    {e.isCurrent ? <span className="badge ok">Now</span> : null}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {stepCount > 0 ? (
