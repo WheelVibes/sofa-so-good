@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX/FEAT: Upload dialog — sticky upload area, scrolling group list, live detection, no "Import 0" (v0.9.0.66)
+
+- **Only the detected-groups list scrolls now.** The upload dialog's content column is a flex
+  layout (`flex min-h-0 flex-1 flex-col`): the intro + drop zone stay pinned at the top and the
+  groups list + import options live in their own `min-h-0 flex-1 overflow-y-auto` region, so a
+  folder of thousands of groups no longer pushes the "Choose folder…" affordance out of reach.
+- **The list grows live as folders are parsed.** `detectGroups` gained an `onGroup(groupsSoFar)`
+  callback that fires per detected group; the dialog coalesces these to one `setIkeaGroups` per
+  animation frame (rAF-throttled) so a big scan updates granularly without thrashing React.
+  `GroupRow` is now `memo`ised so the growing list only runs its zod parse for newly added rows.
+- **Never show "Import 0".** `submitLabel` names only counts ≥ 1 — no "Import 0" and no "+ 0"
+  tail (e.g. loose-only reads "Import 5281", groups-only "Import 3562 model groups"); the bare
+  verb "Import" shows only when nothing is importable (button stays disabled then).
+- Unit-tested: `detectGroups` incremental `onGroup` firing + `submitLabel` zero-guard/singular.
+- **Granular, smooth folder-detection progress.** New reusable `coalesceProgress` helper
+  (`furniture/upload/coalesceProgress.ts`, rAF with a `setTimeout(16)` fallback) collapses a
+  high-frequency progress stream to one repaint per frame and always flushes the terminal value;
+  `runImport` now reuses it (dropping its inline copy). The drop-scan counter, the detect counter,
+  and the live group-list growth all route through it, so a large folder's "Scanning folder… N
+  files" and "Detecting model groups… P / T" climb smoothly instead of freezing then jumping.
+- **`detectGroups` reads metadata concurrently.** A bounded pool (`DETECT_CONCURRENCY = 12`) with an
+  ordered drain cursor removes the serial multi-second stall on a folder of thousands of groups,
+  while keeping the group order, progress, and `onGroup` firing deterministic. Unit-tested for
+  order-preservation and monotonic progress.
+- **Instant feedback on the folder-picker path** (`<input webkitdirectory>`): the moment `onChange`
+  fires we show "Reading N files…" from the file count, and a hint under "Choose folder…" nudges
+  users to drag a folder in for live progress (the native "Upload N files?" prompt and the
+  enumeration before it are browser-controlled and can't be instrumented or suppressed).
+
 ## PERF: optimize worker pool scales dynamically to a hardware-aware max (v0.9.0.65)
 
 - The optimize pool now sizes to the device: `computePoolMax(cores, deviceMemory)` = `cores - 1`,
