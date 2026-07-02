@@ -281,7 +281,11 @@ export function FloorPlanEditor() {
   const fMirrorRegion = useFeature('planMirrorRegion')
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   // Persisted to IDB (blob + calibration) so it survives editor close + reload.
-  const { backdrop, setBackdrop, loadBackdrop, removeBackdrop } = usePlanBackdrop(editing, setTool)
+  const { backdrop, setBackdrop, loadBackdrop, removeBackdrop } = usePlanBackdrop(
+    editing,
+    setTool,
+    plan,
+  )
   const { aiBusy, runAiWalls } = usePlanAiWalls(backdrop)
   const aiWalls = useFeature('aiWalls')
   // Persistent wall-length labels (on by default; toggle in the editor header).

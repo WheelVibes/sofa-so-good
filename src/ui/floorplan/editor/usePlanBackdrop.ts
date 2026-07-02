@@ -1,4 +1,6 @@
 import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from 'react'
+import { type FloorPlan, planBounds } from '../../../floorplan/types'
+import { useStore } from '../../../state/store'
 import {
   type BackdropMeta,
   persistBackdrop,
@@ -6,6 +8,7 @@ import {
   removePersistedBackdrop,
   updateBackdropMeta,
 } from '../backdropPersist'
+import { initialBackdropPlacement, MAX_PLAN_BACKDROP_BYTES } from './backdropPlacement'
 import type { Backdrop, Tool } from './planConstants'
 
 /**
@@ -24,6 +27,7 @@ import type { Backdrop, Tool } from './planConstants'
 export function usePlanBackdrop(
   editing: boolean,
   setTool: (t: Tool) => void,
+  plan: FloorPlan,
 ): {
   backdrop: Backdrop | null
   setBackdrop: Dispatch<SetStateAction<Backdrop | null>>
@@ -78,20 +82,29 @@ export function usePlanBackdrop(
     return () => clearTimeout(t)
   }, [backdrop])
 
-  // Load a dropped/picked image as the trace backdrop (defaults to ~100 px/m;
-  // the user calibrates exactly with the Scale tool).
+  // Load a dropped/picked image as the trace backdrop: rejected uploads get an
+  // error toast; an accepted image is uniform-fit inside the plan bounds and
+  // centred on the plan (the user then calibrates exactly with the Scale tool).
   const loadBackdrop = (file: File) => {
-    if (!file.type.startsWith('image/')) return
+    const fail = (message: string) =>
+      useStore.getState().notify.start({ kind: 'error', title: 'Trace image', message })
+    if (!file.type.startsWith('image/')) {
+      fail('That file is not an image — drop a floor-plan photo or scan (PNG/JPG/WebP).')
+      return
+    }
+    if (file.size > MAX_PLAN_BACKDROP_BYTES) {
+      fail('That image is too large (max 25 MB).')
+      return
+    }
     const url = URL.createObjectURL(file)
     const img = new Image()
     img.onload = () => {
+      const [ew, ed] = planBounds(plan)
       const meta: BackdropMeta = {
         w: img.naturalWidth,
         h: img.naturalHeight,
         opacity: 0.5,
-        mPerPx: 0.01,
-        ox: 0,
-        oz: 0,
+        ...initialBackdropPlacement(img.naturalWidth, img.naturalHeight, ew, ed),
       }
       setBackdrop((prev) => {
         if (prev) URL.revokeObjectURL(prev.url)
