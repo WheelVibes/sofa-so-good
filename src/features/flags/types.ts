@@ -81,6 +81,7 @@ export type FeatureFlag =
   | 'itemAsLight'
   | 'aiLayout'
   | 'planPolyline'
+  | 'planTraceBackdrop'
   | 'tiltFurniture'
   | 'catalogModelInfo'
   | 'curvedWalls'

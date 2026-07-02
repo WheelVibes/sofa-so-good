@@ -280,6 +280,8 @@ export function FloorPlanEditor() {
   const fPolyline = useFeature('planPolyline')
   const fWallNumericEntry = useFeature('wallNumericEntry')
   const fMirrorRegion = useFeature('planMirrorRegion')
+  // Ghost-stencil trace backdrop (button + drop target + underlay render).
+  const fTraceBackdrop = useFeature('planTraceBackdrop')
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   // Persisted to IDB (blob + calibration) so it survives editor close + reload.
   const { backdrop, setBackdrop, loadBackdrop, removeBackdrop } = usePlanBackdrop(
@@ -1659,19 +1661,22 @@ export function FloorPlanEditor() {
           </button>
         </>
       ) : null}
-      {/* Reference photo — trace walls over a floor-plan image / room scan. */}
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) loadBackdrop(f)
-          e.target.value = ''
-        }}
-      />
-      {!backdrop ? (
+      {/* Reference photo — trace walls over a floor-plan image / room scan.
+          Gated by the `planTraceBackdrop` pro flag (hidden in Simple mode). */}
+      {fTraceBackdrop && (
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) loadBackdrop(f)
+            e.target.value = ''
+          }}
+        />
+      )}
+      {!fTraceBackdrop ? null : !backdrop ? (
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -2278,6 +2283,7 @@ export function FloorPlanEditor() {
               if (e.dataTransfer.types.includes('Files')) e.preventDefault()
             }}
             onDrop={(e) => {
+              if (!fTraceBackdrop) return
               const f = e.dataTransfer.files?.[0]
               if (f?.type.startsWith('image/')) {
                 e.preventDefault()
@@ -2304,7 +2310,7 @@ export function FloorPlanEditor() {
               onPointerCancel={onUp}
             >
               {/* Reference photo/scan to trace over (behind the grid). */}
-              {backdrop && (
+              {fTraceBackdrop && backdrop && (
                 <image
                   href={backdrop.url}
                   x={toPx(backdrop.ox)}
