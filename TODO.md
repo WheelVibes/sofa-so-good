@@ -41,9 +41,6 @@ OKLch token system (NOT a Tailwind/Blueprint migration). Remove items as they sh
   gradient on catalog/preset cards (CSS vars + pointermove); richer staggered multi-circle pulse
   for edit-room hotspot; toolbar dock magnification (spring mass .1 / stiffness 150 / damping 12).
 
-- [ ] **P26 Simple→Pro upsell affordance** — flag-gated dimmed entries + Pro badge / ⌘K hint so
-  casual users learn Pro exists (test both modes).
-
 - [ ] **P37 List virtualization** — history/layers/catalog results >100 items
   (`@tanstack/react-virtual`).
 

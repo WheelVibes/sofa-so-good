@@ -531,3 +531,20 @@ describe('densityMode flag (P38)', () => {
     expect(resolveFlags(true, {}, false, 'pro').densityMode).toBe(true)
   })
 })
+
+describe('proUpsell flag (P26 Simple→Pro ⌘K footer hint)', () => {
+  it('is simple-tier, ships in prod, default on', () => {
+    expect(FEATURE_FLAGS.proUpsell.default).toBe(true)
+    expect(FEATURE_FLAGS.proUpsell.tier).toBe('simple')
+    expect(FEATURE_FLAGS.proUpsell.devOnly).toBeUndefined()
+  })
+
+  it('is present in BOTH Simple and Pro modes (both build kinds)', () => {
+    // A simple-tier flag stays on regardless of uiMode — the component itself
+    // (not the flag) decides to render null in Pro mode.
+    expect(resolveFlags(false, {}, false, 'simple').proUpsell).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').proUpsell).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').proUpsell).toBe(true)
+    expect(resolveFlags(true, {}, false, 'pro').proUpsell).toBe(true)
+  })
+})

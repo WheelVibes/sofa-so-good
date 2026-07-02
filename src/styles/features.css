@@ -359,8 +359,22 @@
 .cmdk-item.active { background: var(--accent-soft); color: var(--accent-soft-text); }
 .cmdk-item.active .icn { color: var(--accent-soft-text); }
 .cmdk-empty { padding: 30px; text-align: center; color: var(--text-3); font-size: var(--t-sm); }
-.cmdk-foot { display: flex; gap: var(--s-5); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-2xs); color: var(--text-3); }
-.cmdk-foot span { display: flex; align-items: center; gap: 5px; }
+.cmdk-foot { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-2xs); color: var(--text-3); }
+.cmdk-foot-hints { display: flex; gap: var(--s-5); }
+.cmdk-foot-hints span { display: flex; align-items: center; gap: 5px; }
+/* Simple→Pro discoverability hint (P26) — a single row above the key hints,
+   only mounted (by ProUpsellHint) in Simple mode. Reuses the .cmdk-item/
+   .menu-item token vocabulary — no new colour. */
+.cmdk-upsell {
+  display: flex; align-items: center; gap: var(--s-2); width: 100%;
+  padding: var(--s-2); border-radius: var(--r-2); text-align: left;
+  color: var(--text-2); font-size: var(--t-xs);
+}
+.cmdk-upsell:hover { background: var(--surface-2); }
+.cmdk-upsell .icn { color: var(--accent-soft-text); flex: none; }
+.cmdk-upsell span:not(.badge) { flex: 1; }
+.cmdk-upsell b { color: var(--text); font-weight: 700; }
+.cmdk-upsell .badge { flex: none; }
 
 /* ============================================================
    CONTEXT MENU  (right-click)

@@ -36,6 +36,7 @@ import { downloadRoomScheduleCsv } from './openRoomScheduleCsv'
 import { exportScene3d } from './openSceneExport'
 import { openSh3dImport } from './openSh3dImport'
 import { openShoppingList } from './openShoplist'
+import { ProUpsellHint } from './ProUpsellHint'
 import { pickPaletteFromPhoto } from './paletteFromPhoto'
 import { Icon, type IconName } from './toolbar/icons'
 
@@ -869,16 +870,19 @@ export function CommandPalette() {
           )}
         </div>
         <div className="cmdk-foot">
-          <span>
-            <kbd>↑</kbd>
-            <kbd>↓</kbd> navigate
-          </span>
-          <span>
-            <kbd>↵</kbd> run
-          </span>
-          <span>
-            <kbd>esc</kbd> close
-          </span>
+          <ProUpsellHint />
+          <div className="cmdk-foot-hints">
+            <span>
+              <kbd>↑</kbd>
+              <kbd>↓</kbd> navigate
+            </span>
+            <span>
+              <kbd>↵</kbd> run
+            </span>
+            <span>
+              <kbd>esc</kbd> close
+            </span>
+          </div>
         </div>
       </div>
     </div>,

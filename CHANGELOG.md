@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: Simple→Pro upsell hint in the ⌘K footer (v0.10.0.44)
+
+- `ProUpsellHint` mounts a single "More tools in **Pro**" row in the ⌘K command palette footer,
+  visible only in Simple mode (the Tools menu is Pro-only, so ⌘K is the one Simple-visible
+  discovery surface) — gated by the new `proUpsell` flag (simple tier, on in both modes; the
+  component itself renders null in Pro or when the flag is off).
+- Clicking the hint opens the Appearance popover, where the Simple↔Pro toggle lives — it points
+  at the switch rather than silently flipping the mode.
+- `.cmdk-upsell` row + reflowed `.cmdk-foot` (now a column: the hint row above the existing
+  navigate/run/close key hints) on the existing token vocabulary, reusing `.badge.neutral` for
+  the "Pro" chip.
+
 ## FEAT: density mode — compact/comfortable rows, Pro-tier, persisted (v0.10.0.43)
 
 - `[data-density]` on <html> drives `--row-pad-y/-x` token indirection over the normalized row

@@ -70,6 +70,10 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   localStorage (`calloutsSlice`) so it never re-appears. Never a modal — keep copy to one
   concise, accurate line (verify against the screen's real controls) and mount it inside the
   screen it hints at (room editor / floor-plan editor / walk mode).
+- **The Simple→Pro upsell is a single ⌘K-footer hint** (`ProUpsellHint`, flag
+  `proUpsell`, `simple` tier) — the Tools menu is Pro-only so it can't host a Simple
+  affordance; the hint opens the Appearance popover where the Simple↔Pro toggle
+  lives, and renders null in Pro.
 - **"New" badges on a recently-shipped entry use `newFlag` (P27), not a hand-rolled dot.**
   `MenuItem` (`toolbar/ToolbarMenu.tsx`) takes `newFlag?: FeatureFlag` — add the same prop to
   `IconButton` if the representative entry is a toolbar icon instead (one integration point per

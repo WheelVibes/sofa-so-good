@@ -1025,6 +1025,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // A single Simple-mode hint (in the ⌘K footer) that Pro tools exist, pointing
+  // to the Simple↔Pro toggle (P26). Must show IN Simple → simple tier; the
+  // component itself renders null in Pro. Prod-safe, pure UI.
+  proUpsell: {
+    label: 'Pro upsell hint',
+    description: 'A ⌘K hint (Simple mode) that Pro tools exist',
+    default: true,
+    tier: 'simple',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]
