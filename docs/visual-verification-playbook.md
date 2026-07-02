@@ -359,6 +359,14 @@ is 15°-snapped. **Key gotchas learned here:**
   Chromium under SwiftShader starves the first and the editor's `.plan-screen` `waitFor` times out
   spuriously. Run one scenario, wait for `EXIT`, then run the next.
 
+**Editor tap-to-inspect flicker** (`plan-tap-select-view.json`): reproduces the View-mode
+select→instant-deselect regression. Seed a mobile viewport (`390×844`) — the editor defaults to
+**View** interaction mode there (`isMobile ? 'view' : 'edit'`) — subscribe to `planSelection`
+transitions, then fire a synthetic `pointerdown`/`pointerup` (touch) on a `g[data-wall] path`. A
+correct build logs **one** transition (the select) and `assert-selection-sticks` (`planSelection !==
+null`) passes; the bug logged select→`null`. The paired edit-mode scenario is `plan-tap-select.json`.
+Root cause + fix live in the pure `ui/floorplan/editor/tapDeselect.ts` (`clearsSelectionOnPanRelease`).
+
 ### Worked example — Sweet Home 3D furniture import (PARITY-SH3D-FURN)
 
 **`sh3d-furn-import.json`** drives a full `.sh3d` parse → place: it base64-decodes a synthetic

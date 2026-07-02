@@ -3,6 +3,7 @@ import { memo, Suspense, useCallback, useEffect, useRef } from 'react'
 import type { Group, Material, Mesh } from 'three'
 import { itemFootprint } from '../collision/placement'
 import { ContactShadow } from '../scene/ContactShadow'
+import { markPointerDownOnItem } from '../scene/clickVsDrag'
 import { registerDropGroup } from '../scene/placementDrop'
 import { canEditScene } from '../state/editing'
 import { useStore } from '../state/store'
@@ -55,6 +56,9 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       if (!canEditScene(state)) return
       if (state.activeDefId) return
       e.stopPropagation()
+      // Mark the gesture as item-started so its release can't deselect via
+      // onPointerMissed after the inspector resizes the canvas (INSPECTOR-FLICKER).
+      markPointerDownOnItem()
       // Shift-pointerdown defers selection to the click handler (which
       // toggles). Plain click preserves an existing multi-selection if
       // the grabbed item is already part of it; only collapse otherwise.

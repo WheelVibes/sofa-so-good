@@ -215,6 +215,47 @@ describe('history slice', () => {
     })
   })
 
+  // A pending "Apply change?" confirmation is a transient view concern excluded
+  // from snapshots. History navigation must still clear it, or undoing a move
+  // leaves the confirm bar stranded with stale data (INSPECTOR-EDIT-BAR).
+  describe('pendingEdit is cleared by history navigation', () => {
+    it('undo cancels a pending edit and reverts the transform', () => {
+      s().clearHistory()
+      const id = s().addItem({ defId: 'bed-double', position: [0, 0], rotation: 0, props: {} })
+      const before = s().items.find((i) => i.id === id)!.position
+      // Simulate a drag: eager pre-move snapshot, live move, then a pending edit.
+      s().pushHistory()
+      s().moveItem(id, [1, 0])
+      s().setPendingEdit({
+        kind: 'transform',
+        ids: [id],
+        originals: [{ id, position: before, rotation: 0 }],
+      })
+      expect(s().pendingEdit).not.toBeNull()
+      s().undo()
+      expect(s().pendingEdit).toBeNull()
+      expect(s().items.find((i) => i.id === id)!.position).toEqual(before)
+    })
+
+    it('redo clears a pending edit', () => {
+      s().clearHistory()
+      s().addItem({ defId: 'bed-double', position: [0, 0], rotation: 0, props: {} })
+      s().undo()
+      s().setPendingEdit({ kind: 'transform', ids: [], originals: [] })
+      s().redo()
+      expect(s().pendingEdit).toBeNull()
+    })
+
+    it('jumpHistory clears a pending edit', () => {
+      s().clearHistory()
+      s().addItem({ defId: 'bed-double', position: [0, 0], rotation: 0, props: {} })
+      s().addItem({ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} })
+      s().setPendingEdit({ kind: 'transform', ids: [], originals: [] })
+      s().jumpHistory(0)
+      expect(s().pendingEdit).toBeNull()
+    })
+  })
+
   it('clearHistory drops both stacks', () => {
     s().addItem({ defId: 'bed-double', position: [0, 0], rotation: 0, props: {} })
     s().undo()

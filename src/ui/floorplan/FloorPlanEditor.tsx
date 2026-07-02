@@ -70,6 +70,7 @@ import { dimFontPx, roomFontPx, showOpeningDim, showWallDim } from './editor/pla
 import { chooseScaleBar } from './editor/scaleBar'
 import { snapToWalls } from './editor/snapToWalls'
 import { snapWallAngle, vertexDragTarget } from './editor/snapWallAngle'
+import { clearsSelectionOnPanRelease } from './editor/tapDeselect'
 import {
   dimensionCommit,
   polygonClick,
@@ -1086,8 +1087,12 @@ export function FloorPlanEditor() {
   }
 
   const onUp = (e?: React.PointerEvent) => {
-    // Clear the per-gesture "landed on an element" flag so the next empty-canvas
-    // press can start a marquee again.
+    // Snapshot whether this gesture's press landed on a selectable element, then
+    // clear the per-gesture flag so the next empty-canvas press can start a
+    // marquee again. The snapshot lets the pan-release branch below preserve a
+    // View-mode tap-to-inspect (the element already selected itself; the bubbled
+    // pan must not immediately deselect it — that was the select→deselect flicker).
+    const tappedElement = elementTapped.current
     elementTapped.current = false
     if (e?.pointerType === 'touch') {
       const wasPinching = pinch.current !== null
@@ -1106,10 +1111,12 @@ export function FloorPlanEditor() {
     if (panRef.current) {
       const moved = panDidMove.current
       panRef.current = null
-      // A tap (not a drag) on the empty canvas in select mode clears the
+      // A tap (not a drag) on the EMPTY canvas in select mode clears the
       // selection — the desktop edit path already deselects on pointer-down via
-      // the `else` in onDown; this covers view mode + touch, which pan instead.
-      if (!moved && tool === 'select') {
+      // the `else` in onDown; this covers view mode + touch, which pan instead. A
+      // tap that landed on an element is excluded (`tappedElement`) so View-mode
+      // tap-to-inspect keeps its selection instead of flickering it away.
+      if (clearsSelectionOnPanRelease({ moved, tool, tappedElement })) {
         // A tap on empty canvas clears every selection (plan element + placed
         // furniture), which closes the property panels keyed off them.
         const st = useStore.getState()

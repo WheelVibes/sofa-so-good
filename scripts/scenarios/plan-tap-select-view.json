@@ -1,0 +1,32 @@
+{
+  "name": "plan-tap-select-view",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "open", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "screen", "waitFor": { "css": ".plan-screen svg" }, "timeout": 30000 },
+    { "name": "settle", "wait": 600 },
+    { "name": "assert-view-mode", "waitFor": { "store": "(() => { const b=[...document.querySelectorAll('.plan-screen button')].find(x=>(x.textContent||'').trim()==='View'); return !!b && b.getAttribute('aria-pressed')==='true'; })()" }, "timeout": 10000, "failMessage": "editor did not default to View mode on mobile" },
+    {
+      "name": "install-tracker",
+      "eval": "(() => { window.__selLog = []; const st = window.__store; window.__unsub = st.subscribe((s, prev) => { if (s.planSelection !== prev.planSelection) { window.__selLog.push({ t: performance.now()|0, sel: s.planSelection ? (s.planSelection.type+':'+s.planSelection.id) : null }); } }); return 'installed'; })()"
+    },
+    {
+      "name": "tap-wall",
+      "eval": "(() => { const g = document.querySelector('svg.plan-paper g[data-wall]'); if (!g) return 'NO_WALL'; const hit = g.querySelector('path'); const r = hit.getBoundingClientRect(); const x = r.left + r.width/2; const y = r.top + r.height/2; window.__tapWall = g.getAttribute('data-wall'); const fire = (type, btns) => hit.dispatchEvent(new PointerEvent(type, { bubbles:true, cancelable:true, clientX:x, clientY:y, button:0, buttons:btns, pointerId:7, pointerType:'touch' })); fire('pointerdown', 1); return { wall: window.__tapWall, x:Math.round(x), y:Math.round(y) }; })()"
+    },
+    { "name": "wait-down", "wait": 120 },
+    { "name": "tap-wall-up", "eval": "(() => { const g = document.querySelector('svg.plan-paper g[data-wall=\"'+window.__tapWall+'\"]'); const hit = g.querySelector('path'); const r = hit.getBoundingClientRect(); const x = r.left + r.width/2; const y = r.top + r.height/2; const fire = (type, btns) => hit.dispatchEvent(new PointerEvent(type, { bubbles:true, cancelable:true, clientX:x, clientY:y, button:0, buttons:btns, pointerId:7, pointerType:'touch' })); fire('pointerup', 0); return 'up'; })()" },
+    { "name": "settle3", "wait": 500 },
+    {
+      "name": "report",
+      "eval": "(() => { const out = { finalSelection: window.__store.getState().planSelection, transitions: window.__selLog, inspectorPresent: !!document.querySelector('.plan-props') }; console.log('REPRO_REPORT ' + JSON.stringify(out)); return out; })()"
+    },
+    { "name": "shot", "screenshot": "after-tap-view" },
+    { "name": "assert-selection-sticks", "waitFor": { "store": "window.__store.getState().planSelection !== null" }, "timeout": 2000, "failMessage": "BUG REPRODUCED: wall selection was cleared after a View-mode tap (select -> instant deselect flicker)" }
+  ]
+}

@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: tap-to-select no longer flickers straight back to deselected (2D plan editor + 3D scene) (v0.10.0.12)
+
+- **2D floor-plan editor (View mode / mobile)**: tapping a wall selected it and instantly
+  deselected it — the tap's bubbled pan-release cleared the selection it had just made. The
+  pan-release rule now lives in a pure, unit-tested helper (`ui/floorplan/editor/tapDeselect.ts`,
+  `clearsSelectionOnPanRelease`): a release only clears the selection when the gesture was a real
+  drag or its press landed on empty canvas. Reproduced + guarded by the
+  `plan-tap-select-view.json` scenario (one selection transition, selection sticks).
+- **3D scene**: selecting an item opens the inspector, which resizes the canvas and shifts the
+  item under the cursor — the same gesture's release then raycast-missed and `onPointerMissed`
+  deselected it (INSPECTOR-FLICKER). `clickVsDrag` now tracks whether the in-flight gesture began
+  on a furniture item (capture-phase reset + `markPointerDownOnItem()` from `Furniture`'s
+  pointerdown), and `deselectOnMiss` ignores that gesture's release (unit-tested).
+- **History**: a pending "Apply change?" confirmation is transient view state — snapshots now
+  exclude it and undo/redo/jump clear it, so the edit-confirm bar can't be stranded pointing at
+  an edit that no longer exists (INSPECTOR-EDIT-BAR, unit-tested).
+
 ## FIX: test suite runs offline-deterministic — `VITE_API_BASE` pinned empty in vitest (v0.10.0.11)
 
 - `authSlice.test.ts` failed whenever the developer's `.env` set `VITE_API_BASE=/api` (added with
