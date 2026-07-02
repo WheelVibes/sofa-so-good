@@ -788,12 +788,18 @@ export function CommandPalette() {
           />
           <kbd>esc</kbd>
         </div>
-        <div className="cmdk-results stagger-in" ref={listRef}>
+        <div className="cmdk-results" ref={listRef}>
           {filtered.length === 0 ? (
             <div className="cmdk-empty">No commands match “{query.trim()}”.</div>
           ) : (
             groups.map((g) => (
-              <div key={g.label}>
+              // `stagger-in` lives HERE (not on `.cmdk-results`) so each
+              // `.cmdk-glabel`/`.cmdk-item` below is a direct child: the
+              // `.stagger-in > *` rule (components.css) only animates direct
+              // children, and each item's inline `--i` (the flat index across
+              // all groups) then drives one continuous cascade for the whole
+              // list instead of animating group wrappers as opaque blocks.
+              <div key={g.label} className="stagger-in">
                 <div className="cmdk-glabel">{g.label}</div>
                 {g.items.map(({ cmd, index }) => {
                   const Glyph = Icon[cmd.icon]

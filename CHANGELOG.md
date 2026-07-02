@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: command-palette entrance stagger targets items, not group wrappers (v0.10.0.9)
+
+- `stagger-in` moved off `.cmdk-results` and onto each result-group wrapper `<div>` in
+  `src/ui/CommandPalette.tsx`, so `.cmdk-glabel` + every `.cmdk-item` become DIRECT children
+  of the `stagger-in` element. `.stagger-in > *` (components.css) only animates direct
+  children — with the class on `.cmdk-results`, the group wrappers (one per group, containing
+  a label + N item buttons) animated as opaque blocks and each item's inline `--i` (already
+  the flat index across all groups) was never read by any CSS rule, so the per-item cascade
+  was dead. Regression test (`src/ui/CommandPalette.stagger.test.tsx`) asserts structurally
+  that every `.cmdk-item`'s parent carries `stagger-in` and has a non-empty inline `--i`.
+
 ## DOCS: border / hover / type-hierarchy conventions in src/ui/CLAUDE.md (v0.10.0.8)
 
 - `src/ui/CLAUDE.md` conventions cluster extended with three bullets: `--border` (default
@@ -23,7 +34,7 @@ pruned from `main`; entries from C251 on (branch
   they're left as a follow-up rather than expanded in scope here.
 - `docs/superpowers/plans/2026-07-02-ui-polish-batch2a.md` (UI polish Batch 2a plan) committed.
 
-## FEAT: entrance stagger for menus, catalog grid, layers, cmdk results (v0.10.0.7)
+## FEAT: entrance stagger for menus, catalog grid, layers, ⌘K results (v0.10.0.7)
 
 - Shared `.stagger-in` utility: children fade+rise in a 50ms cascade (`staggerIn` keyframe,
   `--dur-2`/`--ease-out`; `both` fill holds the from-state through the delay). Mapped lists set
