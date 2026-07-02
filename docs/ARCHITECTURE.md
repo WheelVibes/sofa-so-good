@@ -81,7 +81,9 @@ same change that reshapes a system.
   admin-created accounts, designs CRUD, favourites, auth-gated R2 proxy, flags), `workers/usage-monitor/`
   (standalone cron circuit-breaker that trips `killswitch:r2` in KV). Client seam: `src/features/api/client.ts`
   + `auth/backendProvider.ts` + `catalog/packs/sharedLibrary.ts`. Type-checked via `tsconfig.worker.json`
-  (`npm run typecheck:worker`). Full guide: `docs/deployment-cloudflare.md`.
+  (`npm run typecheck:worker`). CI/CD: `.github/workflows/deploy-cloudflare.yml` builds the
+  backend-enabled bundle and deploys to Pages on push to `main` (wrangler-action; needs
+  `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` repo secrets). Full guide: `docs/deployment-cloudflare.md`.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
   windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`. `PlanShell.tsx`
   renders a user-authored plan (extruded walls + per-room floor/ceiling) when active.

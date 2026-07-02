@@ -92,6 +92,18 @@ The R2 bucket is referenced by name, so no id is needed there.
 
 ## Configure secrets + bindings
 
+**Prerequisite — create the Pages project first.** `wrangler pages secret put`
+targets a project that must already exist in your Cloudflare account (an empty
+`wrangler pages project list` means you have not created one yet). Either create
+it explicitly:
+
+```bash
+npx wrangler pages project create sofa-so-good --production-branch main
+```
+
+or let the first deploy in [Build + deploy](#build--deploy-the-site) create it
+(`wrangler pages deploy --project-name sofa-so-good`).
+
 Secrets are set per-project and never committed:
 
 ```bash
@@ -144,12 +156,26 @@ in the browser (IndexedDB), so R2 growth is entirely under your control.
    npm run build-library-index          # scans ikea_optimized/ -> ikea_optimized/library-index.json
    ```
 2. Upload the tree + manifest. Configure an `rclone` remote for R2 (S3-compatible;
-   endpoint `https://<accountid>.r2.cloudflarestorage.com`) or use `aws s3`:
+   endpoint `https://<accountid>.r2.cloudflarestorage.com`). Bucket-scoped API
+   tokens cannot call `ListBuckets` or `CreateBucket`, so set `no_check_bucket =
+   true` and always address the bucket explicitly (`remote:sofa-assets/...`, not
+   `remote:` alone):
+   ```ini
+   # ~/.config/rclone/rclone.conf
+   [sofa-r2]
+   type = s3
+   provider = Cloudflare
+   access_key_id = <R2 access key>
+   secret_access_key = <R2 secret>
+   endpoint = https://<accountid>.r2.cloudflarestorage.com
+   acl = private
+   no_check_bucket = true
+   ```
    ```bash
    # objects land at ikea/<group>/... and library/index.json (the keys the proxy serves)
-   rclone copy ikea_optimized r2:sofa-assets/ikea --transfers=32 --checkers=32 \
+   rclone copy ikea_optimized sofa-r2:sofa-assets/ikea --transfers=32 --checkers=32 \
      --exclude 'library-index.json'
-   rclone copyto ikea_optimized/library-index.json r2:sofa-assets/library/index.json
+   rclone copyto ikea_optimized/library-index.json sofa-r2:sofa-assets/library/index.json
    ```
    The proxy maps `/api/assets/ikea/<group>/<file>` → the R2 key
    `ikea/<group>/<file>`, and `/api/assets/library/index.json` → `library/index.json`.
@@ -169,6 +195,27 @@ npx wrangler pages deploy dist --project-name sofa-so-good
 
 Or connect the Git repo in the Pages dashboard with build command
 `npm run build`, output `dist`, and the env vars above — every push deploys.
+
+### Automated CI/CD (GitHub Actions)
+
+`.github/workflows/deploy-cloudflare.yml` builds the backend-enabled bundle and
+deploys it via [`cloudflare/wrangler-action`](https://github.com/cloudflare/wrangler-action)
+on every push to `main` (and on manual dispatch), so `sofa-so-good.pages.dev`
+tracks `main` without manual `wrangler pages deploy` runs. This is separate from
+`deploy.yml`, which keeps shipping the offline GitHub Pages demo. To enable it:
+
+1. **Create a Cloudflare API token** (dashboard → My Profile → API Tokens) with
+   **Account → Cloudflare Pages: Edit** and **Account → Workers Scripts: Edit**.
+2. **Add repo secrets** (GitHub → Settings → Secrets and variables → Actions):
+   - `CLOUDFLARE_API_TOKEN` — the token above
+   - `CLOUDFLARE_ACCOUNT_ID` — your account id (`wrangler whoami`)
+   - `VITE_TURNSTILE_SITE_KEY` *(optional)* — the login CAPTCHA site key
+
+Project secrets (`ADMIN_EMAIL`/`ADMIN_PASSWORD`/`TURNSTILE_SECRET`) and the
+`wrangler.toml` bindings are read by Cloudflare at deploy time — the workflow does
+not re-set them. **Pick one path**: either this workflow *or* the dashboard Git
+connection above, not both, or every push deploys twice. Migrations, R2 uploads,
+and the cron Worker stay manual (see the sections below).
 
 ## Deploy the circuit-breaker cron Worker
 

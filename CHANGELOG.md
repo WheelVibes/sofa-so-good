@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CI: GitHub Actions deploy to Cloudflare Pages on push to main (v0.10.0.3)
+
+- **`.github/workflows/deploy-cloudflare.yml`** — builds with `VITE_API_BASE=/api` /
+  `VITE_BASE=/` and deploys via `cloudflare/wrangler-action` (`--branch=main` →
+  `sofa-so-good.pages.dev`). Separate from `deploy.yml` (offline GitHub Pages demo).
+  Needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` repo secrets.
+- **`docs/deployment-cloudflare.md`** — CI/CD setup steps, Pages project prerequisite,
+  rclone `no_check_bucket` note for bucket-scoped R2 tokens.
+- **`docs/ARCHITECTURE.md`** — one-line pointer to the new workflow.
+
 ## PERF: upload dialog paginates detected model groups — smooth spinner/counter on huge folders (v0.10.0.2)
 
 - **The "Detecting model groups…" dialog no longer stutters on a folder of thousands of groups.**
