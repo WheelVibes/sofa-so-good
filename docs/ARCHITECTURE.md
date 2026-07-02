@@ -69,7 +69,8 @@ same change that reshapes a system.
   remoteCatalog, installedPacks, measurements (+`units`), orientation, notifications,
   **prompt** (`promptText`/`confirmAction`→themed modals), **project** (`designNote`),
   reset, **userAssets** (user GLBs + `IkeaGltfDef`s), **floorPlan**, **appearance**,
-  **features** (cmdk/layers/context-menu/onboarding/tour/budgetTarget), **userStyles**.
+  **features** (cmdk/layers/context-menu/onboarding/tour/budgetTarget + `layersCollapsed`), **userStyles**,
+  **callouts** (dismissed `InfoCallout` ids, self-persisted) and **badges** (seen "New"-dot flags, self-persisted).
   `storage/`: autosave + `qualityPrefs`/`editorPrefs`/`appearancePrefs`/`floorPlanStore`/
   `budgetPrefs`; `hydrate*.ts` re-resolve user/IKEA defs + IDB blobs. `schema.ts`=serializer.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
@@ -182,7 +183,7 @@ same change that reshapes a system.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
   CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice` /
-  `favouritesSlice` — both persist to localStorage, both per-device convenience state).
+  `favouritesSlice` — both persist to localStorage, both per-device convenience state; `calloutsSlice`/`badgesSlice` follow the same pattern for hint dismissals + "New"-badge seen state).
   Search is synonym- + intent-aware (`catalog/searchSynonyms.ts` `fuzzySearchSmart`:
   couch→sofa, plurals, and **search-by-room** — "bedroom"→bed/wardrobe/…); when a query
   names a room/use, a subtle caption (`matchedIntents`, `.catalog-search-hint`) reads
@@ -241,7 +242,7 @@ same change that reshapes a system.
   `toolActions.test.ts`). The export cluster + local-state Sun-study toggle stay hand-rendered.
   Aux panels that share the centred-top slot are closed as a group via `src/ui/auxPanels.ts`
   (`closeAllAuxPanels`); contextual user-guide deep-links resolve through `src/ui/docsUrl.ts`.
-  **Shared form controls** (`src/ui/controls/`): `Button` (typed composer over the `.btn-*` vocabulary — variant/size/block/icon/loading), `Select` (themed dropdown — replaces every native
+  **Shared UI systems**: `InfoCallout` (flag-gated dismissible hint banners, per-id persisted) and `ui/newBadges.ts` (registry-driven "New" `.new-dot` on toolbar/menu entries, seen-state persisted). **Shared form controls** (`src/ui/controls/`): `Button` (typed composer over the `.btn-*` vocabulary — variant/size/block/icon/loading), `Select` (themed dropdown — replaces every native
   `<select>`; `Popover` on desktop / `Modal` sheet on mobile, listbox keyboard + ARIA) and
   `ColorPicker` (replaces every native `<input type=color>`; SV pad + hue bar + hex +
   `ThemeColorRows` + recents, HSV math in the pure `colorConvert.ts`). The native iOS focus-zoom on

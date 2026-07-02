@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: Batch 3a close-out — ARCHITECTURE map for new slices + UI systems (v0.10.0.38)
+
+- `docs/ARCHITECTURE.md` now lists `calloutsSlice`/`badgesSlice` (self-persisting, alongside
+  recent/favourites), the `layersCollapsed` features field, and the `InfoCallout`/`newBadges`
+  UI systems; `src/state/CLAUDE.md`'s key list gains the two new `hdb_*` keys (final-review
+  docs-currency ruling). BATCH 3A COMPLETE.
+
 ## CHORE: Batch 3a wrap-up — recency guard, biome drift, badge follow-up note (v0.10.0.37)
 
 - `isRecentlyIntroduced` gains a lower-bound guard (a future introduced build is "not yet
