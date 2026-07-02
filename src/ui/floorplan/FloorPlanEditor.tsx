@@ -45,6 +45,7 @@ import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
+import { rescaleBackdropAnchored } from './editor/backdropPlacement'
 import {
   alongWall as alongWallGeo,
   nearestWall as nearestWallGeo,
@@ -1232,8 +1233,12 @@ export function FloorPlanEditor() {
     const st = useStore.getState()
     if (tool === 'scale') {
       // Calibrate: the dragged span equals a real length the user types, so the
-      // backdrop rescales (mPerPx) to match. No walls created.
+      // backdrop rescales (mPerPx) to match. No walls created. The rescale is
+      // anchored on the drawn segment's midpoint so the image feature the user
+      // just measured stays under their line instead of sliding away.
       const worldDist = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
+      const anchorX = (draft.x0 + draft.x) / 2
+      const anchorZ = (draft.z0 + draft.z) / 2
       if (backdrop && scaleCommits(draft)) {
         void (async () => {
           const input = await useStore.getState().promptText({
@@ -1245,7 +1250,19 @@ export function FloorPlanEditor() {
           })
           const meters = input ? Number.parseFloat(input) : NaN
           if (Number.isFinite(meters) && meters > 0) {
-            setBackdrop((b) => (b ? { ...b, mPerPx: (b.mPerPx * meters) / worldDist } : b))
+            setBackdrop((b) =>
+              b
+                ? {
+                    ...b,
+                    ...rescaleBackdropAnchored(
+                      b,
+                      (b.mPerPx * meters) / worldDist,
+                      anchorX,
+                      anchorZ,
+                    ),
+                  }
+                : b,
+            )
           }
         })()
       }
