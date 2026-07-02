@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PERF: boot loader keeps animating through Canvas warm-up (no more frozen "Almost ready…" cover) (v0.10.0.8)
+
+- **The static `#boot-loader` no longer freezes to a static frame during scene warm-up.** Its
+  art now uses the same compositor-proof structure as the transition overlay (v0.10.0.7): every
+  animated piece is an HTML `<div>` layer holding a static SVG, so the browser animates it off
+  the main thread and the Canvas mount/shader compile can't stutter it. The `.bl-static` freeze
+  class (whose whole purpose was hiding that stutter) is removed from index.html + App.tsx —
+  boot phase 2 keeps the furnishing loop running; only the cycling *phrase* still pins to
+  "Almost ready…" (text swaps need the main thread). Reveal was already readiness-based
+  (`sceneReady`), so boot is now visually two stages: animated loader → fade into the warm scene.
+- Guarded by `ui/loading/bootLoaderArt.test.ts`: parses index.html and fails if any animation
+  class lands on an SVG node or the freeze path reappears.
+
+## PERF: transition loading overlay — compositor-proof animation + readiness-based hide (v0.10.0.7)
+
+- **The furnishing-room loader no longer stutters while the swapped-in scene mounts.** Every
+  animated piece is now an HTML `<div>` layer holding a static SVG (was: animated SVG children,
+  which browsers animate on the main thread — the same thread the heavy scene mount/shader
+  compile blocks). Transform-origins pinned per layer reproduce the old `transform-box: fill-box`
+  look exactly; guarded by `LoadingOverlay.test.tsx` (animation classes must sit on HTML nodes).
+- **The overlay hides on readiness, not a timer.** `RenderPump` now grants throttled ~10 fps warm
+  frames while the transition overlay is up (was: full WebGL freeze that stockpiled the whole
+  compile/upload cost into the fade window), both Canvases publish rendered frames via
+  `scene/frameRenderedSignal.ts` (`FrameRenderedNotifier`), and `scheduleTransitionHide`
+  (`ui/loading/transitionHide.ts`) waits for the deferred swap to commit + 2 real frames — with a
+  2 s safety timeout — before `hideLoading`. No more revealing an unloaded canvas; min-time +
+  fade still shape the visible duration.
+- New interaction ladder rung: `scripts/scenarios/transition-overlay-readiness.json` drives all
+  three transition types (orbit↔walk, room editor enter/exit, floor-plan open/close) and asserts
+  each overlay auto-dismisses without a manual `hideLoading` call.
+
 ## FIX: legacy `timeOfDay:"day"` autosaves migrate to system time, not pinned noon (v0.10.0.6)
 
 - **Designs saved before the timeMode refactor no longer boot stuck at 12:00 PM.** The legacy
@@ -24,6 +55,24 @@ pruned from `main`; entries from C251 on (branch
   `CyclingPhrase` component and is injected into `index.html` at dev/build time via
   `vite-boot-phrases.mjs` (no duplicated inline phrase list).
 
+## FEAT: shared R2 library auto-populates the catalog grid for signed-in users (v0.10.0.4)
+
+- **The Cloudflare R2 shared library now surfaces directly in the main catalog grid** — no more
+  manual per-product "Add" in the Packs tab. When the catalog opens for a signed-in user with the
+  `sharedLibrary` (pro) flag on, `CatalogDrawer` bootstraps the manifest once and every library
+  product appears as a browsable card in its category tab, paginated by the existing grid pager.
+- **New `sharedLibrarySlice`** (`state/slices/sharedLibrarySlice.ts`) — fetches the R2 manifest
+  (`fetchSharedLibraryIndex`, guarded on backend + sign-in + flag) and imports a chosen group on
+  demand (`addSharedGroup` → `registerSharedGroup` → `importGroup`). Session-only; imported IKEA
+  defs persist via the existing hydrate path.
+- **New `SharedCard`** (`ui/catalog/SharedCard.tsx`) — mirrors `RemoteCard`; lazy-loads its
+  thumbnail through the auth-gated proxy (`loading="lazy"`, same-origin cookie) and downloads the
+  GLB only on click. Carries a "Library" badge + heart favourite keyed on the predicted def id.
+- **`useUnifiedCatalog(includeRemote, includeShared)`** merges library items as a new `shared`
+  `GridItem` kind, mapping category with the importer's `mapCategory` and deduping against any
+  already-imported `ikea-<groupKey>` def. Pro-only (forced off in Simple mode).
+- **`build-library-index.mjs`** now emits `groupKey` per entry (the dedup key) and exposes a pure,
+  unit-tested `entryFromMeta`. The redundant Packs-tab `SharedLibraryCard` was removed.
 
 ## CI: GitHub Actions deploy to Cloudflare Pages on push to main (v0.10.0.3)
 

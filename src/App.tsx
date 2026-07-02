@@ -77,6 +77,7 @@ import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
 import { stopBootPhraseRotator } from './ui/loading/startBootPhraseRotator'
+import { scheduleTransitionHide } from './ui/loading/transitionHide'
 import { useDeferredSceneSwap } from './ui/loading/useDeferredSceneSwap'
 import { NavCluster } from './ui/NavCluster'
 import { NotificationContainer } from './ui/notifications/NotificationContainer'
@@ -141,7 +142,9 @@ export default function App() {
 
   // Three-phase boot breaks the animation-vs-ready tradeoff:
   //  1. Animated static loader + hydration (no Canvas) — smooth loop.
-  //  2. Loader freezes to a static opaque cover; Canvas warms behind it.
+  //  2. Canvas mounts + warms behind the opaque cover; the art keeps animating
+  //     (compositor-driven HTML layers — see index.html), only the cycling
+  //     phrase pins to "Almost ready…" (text swaps need the main thread).
   //  3. Fade the cover once sceneReady — furnished view already painted.
   const booting = bootPhase !== 'ready' || !sceneReady
   const visualScene = useDeferredSceneSwap(loading.active, roomEditorActive, floorPlanEditing)
@@ -152,14 +155,13 @@ export default function App() {
     void runBootstrap()
   }, [])
 
-  // Phase 1→2: hydration done — freeze the loader art, then mount Canvas.
+  // Phase 1→2: hydration done — pin the phrase, then mount Canvas. The loader
+  // art keeps animating (compositor layers survive main-thread warm-up work).
   useEffect(() => {
     if (bootPhase !== 'ready') {
       setSceneCanvasReady(false)
       return
     }
-    const el = document.getElementById('boot-loader')
-    el?.classList.add('bl-static')
     stopBootPhraseRotator('Almost ready…')
     let id2 = 0
     const id1 = requestAnimationFrame(() => {
@@ -404,16 +406,17 @@ export default function App() {
   }, [booting])
 
   // Transition overlays (orbit↔walk, room editor enter/exit, floor plan editor
-  // open/close) set loading.active true synchronously; clear it on the next
-  // frame after the swap commits, so the overlay's own min-time + fade handles
-  // the visible duration. Keying the effect on the changed state means each
-  // transition re-triggers the hide — the extra deps are intentional re-trigger
-  // keys, not effect inputs.
+  // open/close) set loading.active true synchronously; hide on READINESS, not
+  // a timer: wait for the deferred swap to commit, then for real WebGL frames
+  // from the swapped-in scene (RenderPump warms it at ~10fps behind the
+  // overlay), with a safety timeout so the overlay can never strand. The
+  // overlay's own min-time + fade still shapes the visible duration. Keying
+  // the effect on the changed state means each transition re-triggers the
+  // hide — the extra deps are intentional re-trigger keys, not effect inputs.
   // biome-ignore lint/correctness/useExhaustiveDependencies: loading.label/cameraMode/roomEditorActive/floorPlanEditing re-trigger the hide per transition
   useEffect(() => {
     if (!loading.active) return
-    const id = requestAnimationFrame(() => hideLoading())
-    return () => cancelAnimationFrame(id)
+    return scheduleTransitionHide(hideLoading)
   }, [loading.active, loading.label, cameraMode, roomEditorActive, floorPlanEditing, hideLoading])
 
   const pasteClipboard = useCallback(() => {

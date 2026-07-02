@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isContinuous, type PumpInputs, settleTailMs, shouldRender } from './renderDecision'
+import {
+  isContinuous,
+  OVERLAY_RENDER_MS,
+  type PumpInputs,
+  settleTailMs,
+  shouldRender,
+} from './renderDecision'
 
 const base: PumpInputs = {
   hidden: false,
@@ -14,6 +20,9 @@ const base: PumpInputs = {
   animatedCount: 0,
   now: 1000,
   dirtyUntil: 0,
+  overlayTransition: false,
+  overlayBoot: false,
+  lastOverlayRenderMs: 0,
 }
 
 describe('shouldRender', () => {
@@ -31,6 +40,34 @@ describe('shouldRender', () => {
   it('renders continuously during boot and while assets stream', () => {
     expect(shouldRender({ ...base, sceneReady: false })).toBe(true)
     expect(shouldRender({ ...base, assetsActive: true })).toBe(true)
+  })
+
+  it('warms the scene at a throttled rate while the transition overlay is up', () => {
+    const t = { ...base, overlayTransition: true, lastOverlayRenderMs: 1000 }
+    // Within the throttle window: no frame (loader animation keeps its budget).
+    expect(shouldRender({ ...t, now: 1030 })).toBe(false)
+    expect(shouldRender({ ...t, now: 1030, walk: true })).toBe(false)
+    // Past the window: a warm frame renders even for an idle, settled scene —
+    // this is the frame the readiness-based hide waits for.
+    expect(shouldRender({ ...t, now: 1000 + OVERLAY_RENDER_MS })).toBe(true)
+    expect(shouldRender({ ...t, now: 1000 + OVERLAY_RENDER_MS, sceneReady: false })).toBe(true)
+  })
+
+  it('never renders while hidden, even with the transition overlay up', () => {
+    expect(
+      shouldRender({
+        ...base,
+        hidden: true,
+        overlayTransition: true,
+        now: 1000 + OVERLAY_RENDER_MS,
+      }),
+    ).toBe(false)
+  })
+
+  it('throttles boot-time WebGL while the boot overlay is up', () => {
+    const boot = { ...base, sceneReady: false, overlayBoot: true, lastOverlayRenderMs: 1000 }
+    expect(shouldRender({ ...boot, now: 1030 })).toBe(false)
+    expect(shouldRender({ ...boot, now: 1000 + OVERLAY_RENDER_MS })).toBe(true)
   })
 
   it.each([

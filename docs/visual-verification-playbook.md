@@ -91,6 +91,15 @@ click-the-skip-button fallback for prod builds) — so neither can cover the can
 in a screenshot. To screenshot those flows on purpose, set `SHOT_KEEP_FIRSTRUN=1`
 (the `first-run*.json` scenarios rely on this).
 
+**The `#boot-loader` cannot be captured in scenario mode** — the harness's own init
+waits out the boot and dismisses first-run overlays *before* step 1 runs, by which
+time the loader has been removed from the DOM (a `waitFor {css: "#boot-loader"}`
+first step just times out). To screenshot/verify the boot loader art, snapshot the
+served HTML with the app scripts stripped so the loader runs forever, then point a
+scenario at it via `file://`:
+`curl -s http://localhost:5173/ | sed 's|<script type="module"[^>]*src="[^"]*"></script>||g' > boot-static.html`
+(the inline phrase-rotator script survives, so the cycling phrases still work).
+
 ### Timing contract — why scenarios beat blind waits
 
 **Known pitfall (fixed in scenario mode):** the legacy harness fires `page.evaluate`

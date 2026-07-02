@@ -1068,8 +1068,20 @@ same change that reshapes a system.
   `main.tsx` imports the self-hosted fonts, registers decoders, then renders immediately; async
   `runBootstrap()` (IDB + autosave restore + default seed *after* hydration) flips
   `bootPhase`→`'ready'`. Static `#boot-loader` (index.html) cycles Singapore/HDB status lines
-  (`loadingPhrases.json` / `CyclingPhrase`) until scene warm-up pins "Almost ready…";
-  `LoadingOverlay` covers orbit↔walk + room enter/exit (explicit labels; cycles when empty).
+  (`loadingPhrases.json` / `CyclingPhrase`) until scene warm-up pins "Almost ready…"; its art
+  **keeps animating through Canvas warm-up** — each animated piece is an HTML div layer holding a
+  static SVG (compositor-driven, same rule as `LoadingOverlay`; the old `.bl-static` freeze is
+  gone — guarded by `ui/loading/bootLoaderArt.test.ts`);
+  `LoadingOverlay` covers orbit↔walk + room enter/exit + floor-plan open/close (explicit labels;
+  cycles when empty). Its furnishing-room animation is **compositor-proof**: every animated piece
+  is an HTML `<div>` layer holding a static SVG (never an animated SVG child, which would starve
+  on the main thread while the swapped-in scene mounts — guarded by `LoadingOverlay.test.tsx`).
+  The overlay hides on **readiness, not a timer**: `RenderPump` grants throttled warm frames
+  (~10 fps, `OVERLAY_RENDER_MS`) while the overlay is up so the new scene compiles shaders behind
+  it, both Canvases publish rendered frames via `scene/frameRenderedSignal.ts`
+  (`FrameRenderedNotifier`), and `ui/loading/transitionHide.ts` `scheduleTransitionHide` waits
+  for the deferred swap to commit + `READY_FRAMES` real frames (safety `MAX_WAIT_MS` timeout)
+  before `hideLoading`; `useOverlayLifecycle` min-time + fade still shapes the visible duration.
 - **Fully offline / PWA**: the core app needs **no runtime network**. Fonts (Plus Jakarta Sans +
   JetBrains Mono) are self-hosted via `@fontsource` (imported in `main.tsx`, no Google Fonts CDN);
   the Draco decoder is self-hosted under `public/draco/` (copied from the installed `three` by

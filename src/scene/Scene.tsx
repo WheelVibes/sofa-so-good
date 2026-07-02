@@ -23,6 +23,7 @@ import { DragController } from './DragController'
 import { deselectOnMiss } from './deselectOnMiss'
 import { Effects } from './Effects'
 import { FinishDropSurface } from './FinishDropSurface'
+import { FrameRenderedNotifier } from './FrameRenderedNotifier'
 import { GridOverlay } from './GridOverlay'
 import { HqRenderController } from './HqRenderController'
 import { LuxOverlay } from './LuxOverlay'
@@ -140,6 +141,7 @@ export function Scene() {
         <HqRenderController />
         <RecordController />
         <SceneReadySignal />
+        <FrameRenderedNotifier />
         {import.meta.env.DEV ? <DevCameraExpose /> : null}
       </MaybeXr>
     </Canvas>

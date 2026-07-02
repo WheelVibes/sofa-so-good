@@ -34,7 +34,21 @@ export interface PumpInputs {
   now: number
   /** Keep rendering until this clock value — the post-change "settle tail". */
   dirtyUntil: number
+  /** Transition loading overlay is opaque — warm the swapped-in scene with
+   *  throttled frames so shaders compile / textures upload behind the loader,
+   *  and the readiness-based hide (scheduleTransitionHide) gets its frames. */
+  overlayTransition: boolean
+  /** Boot loading overlay is up — throttle WebGL so loader CSS stays smooth. */
+  overlayBoot: boolean
+  /** Monotonic clock of the last overlay-throttled invalidate (owned by RenderPump). */
+  lastOverlayRenderMs: number
 }
+
+/** Min ms between WebGL frames while a loading overlay (boot or transition) is
+ *  visible. ~10 fps warms shaders/textures + keeps SceneReadySignal and asset
+ *  streaming alive without hogging the main-thread/GPU budget the loader
+ *  animation needs. */
+export const OVERLAY_RENDER_MS = 100
 
 /** True while a continuous animation source wants every frame (independent of
  *  the settle tail). Used to know whether the scene is in continuous mode. */
@@ -49,6 +63,12 @@ export function isContinuous(i: PumpInputs): boolean {
 /** Should the pump request a render this rAF tick? */
 export function shouldRender(i: PumpInputs): boolean {
   if (i.hidden) return false
+  // Either overlay up: unconditionally grant throttled warm frames — even an
+  // idle scene must produce the first frame the transition hide waits for.
+  // (Boot always has !sceneReady → isContinuous anyway, so this is a pure
+  // throttle there.)
+  if (i.overlayTransition || i.overlayBoot)
+    return i.now - i.lastOverlayRenderMs >= OVERLAY_RENDER_MS
   if (isContinuous(i)) return true
   return i.now < i.dirtyUntil
 }
