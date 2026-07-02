@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: command-palette group labels join the entrance cascade (v0.10.0.10)
+
+- `.cmdk-glabel` now carries the group's first flat `--i` inline, so labels enter in sequence
+  with the surrounding items instead of racing earlier groups (they previously fell back to the
+  nth-child `--i: 0`). Follow-up from the v0.10.0.9 re-review; comment wording aligned.
+
 ## FIX: command-palette entrance stagger targets items, not group wrappers (v0.10.0.9)
 
 - `stagger-in` moved off `.cmdk-results` and onto each result-group wrapper `<div>` in

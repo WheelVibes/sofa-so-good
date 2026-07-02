@@ -797,10 +797,18 @@ export function CommandPalette() {
               // `.cmdk-glabel`/`.cmdk-item` below is a direct child: the
               // `.stagger-in > *` rule (components.css) only animates direct
               // children, and each item's inline `--i` (the flat index across
-              // all groups) then drives one continuous cascade for the whole
-              // list instead of animating group wrappers as opaque blocks.
+              // all groups) then drives one continuous cascade across the whole
+              // list (labels included) instead of animating group wrappers.
               <div key={g.label} className="stagger-in">
-                <div className="cmdk-glabel">{g.label}</div>
+                {/* The label takes the group's first flat index so it enters in
+                    sequence with the items around it (a bare glabel would fall
+                    back to nth-child --i:0 and race earlier groups' items). */}
+                <div
+                  className="cmdk-glabel"
+                  style={{ '--i': g.items[0]?.index ?? 0 } as CSSProperties}
+                >
+                  {g.label}
+                </div>
                 {g.items.map(({ cmd, index }) => {
                   const Glyph = Icon[cmd.icon]
                   // Contextual docs "?" (DOCS-DEEPLINK): map the command to a
