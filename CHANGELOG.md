@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: visual-verification scenario for UI polish batch 1 (v0.9.0.80)
+
+- New `scripts/scenarios/ui-polish-batch1.json` (37 steps, 6 screenshots) — an interaction-test
+  ladder rung covering the UI-polish batch-1 surfaces (v0.9.0.72–.79): the unified `--focus-ring`
+  accent halo, the tooltip shortcut chip, right-aligned `.mi-kbd` menu chips, the delete→Undo toast,
+  the determinate progress toast, and a token-width modal.
+- Surfaces + what was observed (SwiftShader headless, reviewed by eye):
+  - **menu-kbd-chip** — opens the Edit menu; the "Floor plan editor" row shows its shortcut as a
+    right-aligned `.mi-kbd` "P" chip (no inline `(P)` suffix); Edit trigger accent-highlighted.
+  - **focus-ring** — keyboard-focused a `.tool-btn` (View); a crisp 3px accent color-mix halo
+    renders around the control, on-theme, not clipped.
+  - **tooltip-shortcut** — focusing the Undo `.tool-btn` shows the `.tip-box` with label "Undo" and
+    the "Ctrl Z" shortcut chip; the focus ring is also visible on the button.
+  - **delete-undo-toast** — deleting an item raises the "Item deleted" success toast with an accent
+    "Undo" action button and a dismiss ×; room count drops to 0 items.
+  - **upload-progress** — a `progress` toast driven via `notify.start`/`notify.update({progress:0.42})`
+    renders "Importing… 42 / 100" with the accent bar filled ~42% (`.bud-seg` width probe = 42%).
+  - **modal-width** — the "Where are you?" modal renders at `--modal-sm` (computed width probe = 432px),
+    centred and clean.
+- No artifacts, clipping, overlap, or off-theme colour observed. `tsc` clean, Biome clean
+  (pre-existing Select.tsx warnings only), full suite green.
+
 ## FIX: convert remaining inline menu shortcut suffixes to .mi-kbd chips (v0.9.0.79)
 
 - ViewMenu's "Top view"/"Reset view" and ArrangeMenu's "Tidy home" rows still used the
