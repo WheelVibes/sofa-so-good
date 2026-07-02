@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: undo-in-toast for item deletion (v0.9.0.78)
+
+- Deleting an item now toasts "Item deleted" with an inline **Undo** action wired to the
+  coalesced history step (single undo restores the whole delete, including multi-select
+  batches — notify's de-dupe collapses per-item toasts). Reversible destructive action ->
+  inline Undo instead of a confirm dialog, matching the shipped style-transfer Undo toast;
+  un-flagged, works in Simple and Pro (both tested).
+
 ## FEAT: disabled-with-reason tooltips on undo/redo (v0.9.0.77)
 
 - `IconButton` gains `disabled`/`disabledReason` props: the button disables (`aria-disabled`,

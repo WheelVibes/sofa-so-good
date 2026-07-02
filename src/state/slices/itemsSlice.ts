@@ -191,6 +191,18 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
           : {}),
       }
     })
+    // Reversible destructive action → offer an inline Undo toast instead of a
+    // confirm dialog (matches the shipped style-transfer Undo toast). The delete
+    // was pushed as one coalesced history step, so a single undo() restores it —
+    // and a multi-select delete loop fires N identical toasts that the notify
+    // de-dupe collapses to one, whose Undo reverts the whole batch.
+    get().notify.start({
+      title: 'Item deleted',
+      kind: 'success',
+      autoDismissMs: 6000,
+      actionLabel: 'Undo',
+      onAction: () => get().undo(),
+    })
   },
   updateItemProps: (id, props) => {
     // Coalesce per (item, prop-set) so a slider drag collapses into a
