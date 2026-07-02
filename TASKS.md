@@ -93,6 +93,18 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   while re-shooting the stagger fill-mode fix, v0.10.0.13) — `.lyr-row.hidden { opacity: 0.45 }`
   in `features.css` has no wiring to actually trigger, so toggling an item's eye icon dims only
   the icon, not the row. Separate bug from the fill-mode fix; needs its own change.
+- [ ] `versions` feature flag tier vs CLAUDE.md policy contradiction — reconcile the tier. The
+  CLAUDE.md hard rule puts analytical/professional/authoring surfaces (incl. versions) in `pro`,
+  but the flag's `tier` should be confirmed against that policy. Needs a product decision on
+  whether saved-version management belongs in Simple; align `FEATURE_FLAGS.versions.tier`
+  accordingly (found during batch-2b visual verification, v0.10.0.26).
+- [ ] `LayersPanel` empty-state CTA copy: "Open catalog" is correct for the truly-empty case, but
+  audit the "Browse all" CTA copy vs the first-category behaviour elsewhere in the catalog empty
+  states — the label should match what the click actually does (does it browse all, or land on
+  the first category?). Reconcile copy with behaviour (batch-2b visual verification, v0.10.0.26).
+- [ ] `VersionsPanel` delete (slot remove) button lacks an accessible name — the icon-only delete
+  control needs an `aria-label` (e.g. "Delete saved version") so screen-reader users can identify
+  it (found during batch-2b visual verification, v0.10.0.26).
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

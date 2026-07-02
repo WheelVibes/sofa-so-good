@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: visual-verification scenario for UI polish batch 2b (v0.10.0.26)
+
+- New `scripts/scenarios/ui-polish-batch2b.json` (61 steps, 14 screenshots) drives + reviews the
+  batch-2b polish surfaces headlessly; all steps pass.
+- Per-surface observations (SwiftShader headless, reviewed by eye):
+  - **P3 panel-slide** — catalog docks cleanly as `dock-panel-left`; `.stage-area` reflows via
+    the `left/right 0.3s ease-out` transition (probe: `left 320px`), canvas resizes + toolbar
+    re-centres with **no reflow jank or artifact**. Ruling: keep the `.stage-area` transition.
+  - **P16 button-loading** — the HQ-render modal opens fine, but the path tracer cannot init
+    under software-GL ("device may not support WebGL2" → immediate error phase), so the
+    `building` phase (and its Button spinner) is not capturable in this harness. Headless
+    limitation, not an app defect; the loading markup (`.btn.is-loading` + `.btn-spin` +
+    `aria-busy`) is covered by `Button.test.tsx`/`HqRenderModal.test.tsx`.
+  - **P17 skeleton-shimmer** — captured mid-load (blank `.card-thumb .skeleton` cards) then
+    resolved (9 thumbs, skeletons cleared); probe confirms `animation: skeletonShimmer 0.6s`.
+    **Shimmer-pacing ruling:** 600ms (`--dur-3`) linear-infinite reads brisk/frantic vs the
+    ~1–2s industry norm — endorse the planned follow-up to `calc(var(--dur-3) * 2)` (1.2s). Minor
+    polish nit, not a defect; no app CSS changed here.
+  - **P5 toast-checkmark** — success toast renders with the popped `.icn.pop` checkmark.
+  - **P5 editconfirm-dismiss** — "Apply change?" bar enters cleanly; ✓ applies the `.leaving`
+    (slide-down) class and ✗ the `.rejecting` (shake) class (confirmed via rAF DOM probes; the
+    150ms exit completes before the PNG in this harness — same evidence basis as the 2a run).
+  - **P28 empty-cta** — Layers empty state shows "Nothing placed yet" + "Open catalog" CTA;
+    clicking it navigates to the catalog (`leftMode==='catalog' && catalogOpen===true`).
+  - **Reduced-motion** — with the reduced-motion style injected, panel/skeleton/toast settle
+    statically (skeleton falls back to a static fill, no frozen gradient).
+
 ## FEAT: empty-state CTA sweep — no dead ends (v0.10.0.25)
 
 - 8 CTAs wired to verified real handlers: Versions "Save current version"; Budget saved/placed
