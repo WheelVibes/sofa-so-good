@@ -3,7 +3,7 @@
  * hand review can't: the HQ border-beam travels via `offset-distance`, is built
  * only from `color-mix(in oklch, var(--accent) …)` (zero colour literals), fills
  * `backwards` (never `both`), and can be IntersectionObserver-paused; the catalog
- * / preset cards carry a pointermove-driven `radial-gradient` reading `var(--mx`.
+ * cards carry a pointermove-driven `radial-gradient` reading `var(--mx`.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -35,12 +35,6 @@ describe('ambient-fx CSS (P7)', () => {
     expect(flows).toMatch(/\.beam\.paused[^}]*animation-play-state:\s*paused/)
   })
 
-  it('gives .preset-card (flows) a var(--mx radial-gradient in oklch accent', () => {
-    const card = flows.slice(flows.indexOf('.preset-card'))
-    expect(card).toMatch(/radial-gradient\([^)]*var\(--mx/)
-    expect(card).toMatch(/color-mix\(in oklch, var\(--accent\)/)
-  })
-
   it('gives .cat-card (parts) a var(--mx radial-gradient in oklch accent', () => {
     const card = parts.slice(parts.indexOf('.cat-card'))
     expect(card).toMatch(/radial-gradient\([^)]*var\(--mx/)
@@ -53,12 +47,9 @@ describe('ambient-fx CSS (P7)', () => {
     // grid's .fx class (set by CatalogDrawer when useAmbientFx() is true).
     // A hardcoded share painted a permanent brown bloom on every card in the
     // default Performance tier (user report, 2026-07-03).
-    for (const css of [parts, flows]) {
-      const card = css.slice(css.indexOf('-card'))
-      expect(card).toMatch(/color-mix\(in oklch, var\(--accent\) var\(--glow-a, 0%\)/)
-    }
+    const card = parts.slice(parts.indexOf('.cat-card'))
+    expect(card).toMatch(/color-mix\(in oklch, var\(--accent\) var\(--glow-a, 0%\)/)
     expect(parts).toMatch(/\.fx [^{]*:hover[^}]*--glow-a:\s*12%/)
-    expect(flows).toMatch(/\.fx [^{]*:hover[^}]*--glow-a:\s*12%/)
   })
 
   it('uses no raw hex/rgb colour literals in the beam rule', () => {

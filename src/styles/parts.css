@@ -159,10 +159,6 @@
 .cat-card .nm > span { min-width: 0; }
 .cat-card .pr { font-size: var(--t-2xs); color: var(--text-3); }
 .cat-card .pr b { color: var(--accent-soft-text); font-weight: 700; }
-/* Heavy-download hint (RemoteCard, ≥30MB at the chosen resolution) — same warn
-   treatment as `.badge.warn`/`.lyr-flag.warn`, never a literal hex. */
-.cat-card .pr.warn { color: oklch(0.52 0.13 65); }
-[data-mode='dark'] .cat-card .pr.warn { color: oklch(0.82 0.12 78); }
 
 .pager { display: flex; align-items: center; justify-content: space-between; padding: var(--s-2) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-xs); color: var(--text-3); font-weight: 600; }
 .pager button { padding: 4px 8px; border-radius: var(--r-2); color: var(--text-2); }
@@ -198,16 +194,13 @@
 .select-trigger .icn { flex: none; opacity: 0.55; }
 .select-trigger:disabled { opacity: 0.5; cursor: default; }
 .select-trigger:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-/* Expanded state reuses the same --focus-ring treatment as :focus-visible
-   above (P14) instead of a hand-tuned box-shadow — "open" should read
-   exactly like "focused", not a separate ad-hoc ring value. */
 .select-trigger[aria-expanded='true'] {
   border-color: var(--accent); background: var(--surface-solid);
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .select-icon-trigger[aria-expanded='true'] {
   background: var(--surface-3); color: var(--text);
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .select-panel { max-height: 60vh; overflow-y: auto; padding: var(--s-2); gap: 1px; }
 .select-list { display: flex; flex-direction: column; gap: 1px; }
@@ -397,9 +390,6 @@
 .shortcuts-groups { display: flex; flex-direction: column; gap: var(--s-5); }
 .shortcuts-group-title { font-size: var(--t-sm); font-weight: 600; color: var(--text-1); margin: 0 0 var(--s-2); }
 .shortcuts-keys { display: inline-flex; gap: 4px; flex: none; }
-.help-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.help-list li { display: flex; align-items: flex-start; gap: var(--s-3); font-size: var(--t-sm); color: var(--text-2); line-height: var(--lh-body); }
-.help-list li .icn { color: var(--accent-soft-text); margin-top: 1px; }
 
 /* ---- Generic small panel (budget / graphics / finishes) ------ */
 .mini { width: 290px; }
