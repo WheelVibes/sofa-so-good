@@ -69,6 +69,21 @@ input { font-family: inherit; }
   position: static; width: 360px; max-height: min(560px, calc(100vh - 64px));
   box-shadow: var(--shadow-pop);
   animation: modalpop var(--dur) var(--ease);
+  /* Blocking dialogs already float over their own dedicated blurred scrim
+     (`.modal-overlay`'s backdrop-filter) — unlike the anchored dock panels
+     (catalog/inspector/budget), they don't need to show the live 3D scene
+     through the card itself. Go opaque here (`--surface-solid`, same hue as
+     `--surface`, alpha 1) so a `.sec-h` sticky section header — which paints
+     its own `var(--surface)` layer on top to occlude scrolled rows — composites
+     to the exact same colour as the card behind it (blending a translucent
+     colour over an *opaque* layer of the identical hue reproduces that hue
+     exactly, regardless of the translucent layer's own alpha). On the
+     anchored glass panels this container stays translucent, so the same
+     sticky header still double-composites against the blurred scene and can
+     read slightly lighter than its surroundings — an accepted trade-off to
+     keep those panels' glass-over-scene look; not reported/fixed here. */
+  background: var(--surface-solid);
+  --sec-h-bg: var(--surface-solid);
 }
 /* The dialog container receives programmatic focus on open (a11y) — suppress its
    own focus ring; interactive children keep their own focus styles. */
@@ -188,6 +203,21 @@ input { font-family: inherit; }
   padding: var(--s-4) var(--s-4) var(--s-3);
   gap: var(--s-3);
 }
+/* Back-button variant (mobile "return to menu" flow): the back arrow is the
+   first child instead of the trailing close-X, so `justify-content:
+   space-between` would shove the title to the far edge, away from the arrow.
+   Switch to flex-start and let the title block claim the remaining space via
+   `margin-right: auto` — visually identical to space-between when the title
+   is the LAST element (the plain close-X header, unaffected), but keeps the
+   title flush against the back button when it's the FIRST. */
+.panel-head.panel-head-back { justify-content: flex-start; }
+.panel-head-title { min-width: 0; }
+.panel-head.panel-head-back .panel-head-title { margin-right: auto; }
+/* One-line title for the back-button header: title + sub sit side by side
+   (baseline-aligned) instead of stacking, ellipsizing rather than wrapping. */
+.panel-head-title-inline { display: flex; align-items: baseline; gap: var(--s-2); overflow: hidden; }
+.panel-head-title-inline .panel-title { overflow: hidden; text-overflow: ellipsis; }
+.panel-head-title-inline .panel-sub { white-space: nowrap; flex: none; }
 .panel-head-actions { display: inline-flex; align-items: center; gap: var(--s-1); flex: none; }
 .panel-title { font-size: var(--t-base); font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; line-height: 1.3; }
 .panel-sub { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 600; }

@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useModalGuard } from '../controls/modalGuard'
-import { Icon } from './toolbar/icons'
+import { AuxPanelHead } from './AuxPanelHead'
 
 interface ModalProps {
   open: boolean
@@ -116,24 +116,7 @@ export function Modal({
         aria-label={title}
         tabIndex={-1}
       >
-        <div className="panel-head">
-          {showBack ? (
-            <button type="button" className="icon-btn" aria-label="Back" onClick={onClose}>
-              <Icon.ExitRoom width={16} height={16} />
-            </button>
-          ) : null}
-          <div>
-            <div className="panel-title" title={typeof title === 'string' ? title : undefined}>
-              {title}
-            </div>
-            {sub ? <div className="panel-sub">{sub}</div> : null}
-          </div>
-          {!showBack ? (
-            <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
-              <Icon.Close width={16} height={16} />
-            </button>
-          ) : null}
-        </div>
+        <AuxPanelHead title={title} sub={sub} onClose={onClose} showBack={showBack} />
         <hr className="hr" />
         <div className="panel-body">{children}</div>
         {footer}
