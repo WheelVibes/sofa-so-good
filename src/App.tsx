@@ -89,6 +89,7 @@ import { PromptModal } from './ui/PromptModal'
 import { QuoteTemplateModal } from './ui/QuoteTemplateModal'
 import { ResizeHud } from './ui/ResizeHud'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
+import { ScreenPrompt } from './ui/ScreenPrompt'
 import { SwapModal } from './ui/SwapModal'
 import { TapeModeToggle } from './ui/TapeModeToggle'
 import { Toolbar } from './ui/Toolbar'
@@ -576,15 +577,19 @@ export default function App() {
       }
       if (code === KEYBINDINGS.interact) {
         // Walk-mode only (VIEW-EDIT-SPLIT/WINDOW-FIXTURE-INTERACT): orbit
-        // mode never toggles a door/fixture on E. `nearbyDoorId`/
-        // `nearbyFixtureId` are only ever set by FirstPersonCamera's aim
-        // loop, but `dispatchWalkInteract` is still the single gate every
-        // interact entry point (this, `Door.tsx`, `Furniture.tsx`) shares.
+        // mode never toggles a door/fixture/screen on E. `nearbyDoorId`/
+        // `nearbyFixtureId`/`nearbyScreenId` are only ever set by
+        // FirstPersonCamera's aim loop, but `dispatchWalkInteract` is still
+        // the single gate every interact entry point (this, `Door.tsx`,
+        // `Furniture.tsx`) shares. Fixed priority order — door, then curtain/
+        // blind fixture, then screen (WALK-SCREEN-INTERACT).
         const state = useStore.getState()
         if (state.nearbyDoorId) {
           dispatchWalkInteract(state, state.nearbyDoorId, state.toggleDoor)
         } else if (state.nearbyFixtureId && isFeatureEnabled('walkWindowFixtures')) {
           dispatchWalkInteract(state, state.nearbyFixtureId, state.toggleWindowFixture)
+        } else if (state.nearbyScreenId && isFeatureEnabled('walkScreens')) {
+          dispatchWalkInteract(state, state.nearbyScreenId, state.cycleScreenContent)
         }
       }
       if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements()
@@ -952,6 +957,7 @@ export default function App() {
           <WalkHud />
           <DoorPrompt />
           <FixturePrompt />
+          <ScreenPrompt />
         </div>
         {/* Catalog docks as a persistent LEFT sidebar on desktop (mirrors the
             right-docked inspector): a sibling of `.stage-area` so `--left-rail`

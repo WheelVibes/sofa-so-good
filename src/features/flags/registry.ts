@@ -526,6 +526,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Screens (monitor/TV) cycle their wallpaper on click/tap/E in walk mode
+  // (WALK-SCREEN-INTERACT) — a sibling flag to `walkWindowFixtures` rather
+  // than widening it: each walk-mode interact affordance gets its own flag
+  // (matching `remoteFurniture`/`remoteMaterials`'s precedent of granular,
+  // independently-toggleable siblings over one umbrella flag), so this new,
+  // unrelated furniture-capability interaction can't accidentally piggyback
+  // on — or force a rename of — the already-shipped curtain/blind flag. Pure
+  // code, no external assets → prod-safe; a core walk-mode "explore the
+  // space" delight like the door swing/curtain toggle → simple tier.
+  walkScreens: {
+    label: 'Interactive screens',
+    description: 'Click/tap or press E to cycle a monitor/TV’s wallpaper in walk mode',
+    default: true,
+    tier: 'simple',
+  },
   // Replace-with-similar (PARITY-REPLACE): swap a placed item for a nearest-size
   // catalog sibling in one click, keeping its position/rotation/level. Pure code,
   // no external assets → prod-safe. Surfaced in the default experience → simple tier.

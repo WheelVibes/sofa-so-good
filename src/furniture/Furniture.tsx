@@ -13,6 +13,7 @@ import { GltfErrorBoundary } from './GltfErrorBoundary'
 import { GltfModel } from './GltfModel'
 import { selectGltfRender } from './gltfRender'
 import { PRIMITIVE_COMPONENTS } from './primitives'
+import { isInteractableScreen } from './screenInteract'
 import { surfaceDecalSpec } from './surfaceDecal'
 import { isTilted, itemRotation } from './tiltRotation'
 import type { FurnitureDef, FurnitureItem, GltfDef } from './types'
@@ -49,6 +50,14 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       // semantics below (`canEditScene`, orbit-only).
       if (isFeatureEnabled('walkWindowFixtures') && isInteractableWindowFixture(def)) {
         if (dispatchWalkInteract(state, item.id, state.toggleWindowFixture)) {
+          e.stopPropagation()
+          return
+        }
+      }
+      // Walk-mode interact (WALK-SCREEN-INTERACT): click/tap a monitor/TV to
+      // cycle its wallpaper — same gate shape as the fixture branch above.
+      if (isFeatureEnabled('walkScreens') && isInteractableScreen(def)) {
+        if (dispatchWalkInteract(state, item.id, state.cycleScreenContent)) {
           e.stopPropagation()
           return
         }

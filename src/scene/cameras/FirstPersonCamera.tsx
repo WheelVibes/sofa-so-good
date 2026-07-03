@@ -29,6 +29,7 @@ import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { planRoomShell } from '../../floorplan/planRoomShell'
 import { planBounds, planRoomArea } from '../../floorplan/types'
 import { useCatalogGetter } from '../../furniture/catalog'
+import { screenAimSegments } from '../../furniture/screenInteract'
 import { windowFixtureAimSegments } from '../../furniture/windowFixtureInteract'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
@@ -125,6 +126,13 @@ export function FirstPersonCamera() {
     fixtureSegments.current = isFeatureEnabled('walkWindowFixtures')
       ? windowFixtureAimSegments(items, getDef)
       : []
+  }, [items, getDef])
+  // Screen aim segments (WALK-SCREEN-INTERACT) — same rebuild-on-items
+  // pattern as the fixture segments above, gated at registration (empty,
+  // never aimed at, while the flag is off).
+  const screenSegments = useRef<AimSegment[]>([])
+  useEffect(() => {
+    screenSegments.current = isFeatureEnabled('walkScreens') ? screenAimSegments(items, getDef) : []
   }, [items, getDef])
 
   useEffect(() => {
@@ -462,6 +470,19 @@ export function FirstPersonCamera() {
       blocked,
     )
     useStore.getState().setNearbyFixture(aimedFixtureId)
+    // Screen aim (WALK-SCREEN-INTERACT) shares the exact ray/segment math with
+    // the door/fixture aim above — a separate id space (`nearbyScreenId`) so a
+    // screen never competes with a door/curtain for the same "nearby" slot.
+    const aimedScreenId = nearestAimedSegment(
+      ox,
+      oz,
+      dir.x,
+      dir.z,
+      screenSegments.current,
+      INTERACT_RADIUS,
+      blocked,
+    )
+    useStore.getState().setNearbyScreen(aimedScreenId)
   })
 
   return null

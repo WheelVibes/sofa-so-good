@@ -53,4 +53,20 @@ describe('dispatchWalkInteract — the single door/fixture interact gate', () =>
     expect(fired).toBe(false)
     expect(toggle).not.toHaveBeenCalled()
   })
+
+  it('is the same gate the screen interact shares (WALK-SCREEN-INTERACT) — orbit-inert', () => {
+    // `cycleScreenContent` routes through this exact same function
+    // (Furniture.tsx's onClick, App.tsx's E-key handler) rather than
+    // re-deriving `cameraMode === 'firstPerson'` — this asserts the shared
+    // gate itself stays orbit-inert regardless of which toggle it wraps.
+    const cycleScreenContent = vi.fn()
+    expect(dispatchWalkInteract({ cameraMode: 'orbit' }, 'monitor-1', cycleScreenContent)).toBe(
+      false,
+    )
+    expect(cycleScreenContent).not.toHaveBeenCalled()
+    expect(
+      dispatchWalkInteract({ cameraMode: 'firstPerson' }, 'monitor-1', cycleScreenContent),
+    ).toBe(true)
+    expect(cycleScreenContent).toHaveBeenCalledWith('monitor-1')
+  })
 })

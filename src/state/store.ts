@@ -112,6 +112,11 @@ import {
   type SavedMaterialsSlice,
 } from './slices/savedMaterialsSlice'
 import {
+  createScreenInteractSlice,
+  SCREEN_INTERACT_INITIAL,
+  type ScreenInteractSlice,
+} from './slices/screenInteractSlice'
+import {
   createSelectionSlice,
   SELECTION_INITIAL,
   type SelectionSlice,
@@ -159,6 +164,7 @@ export interface RootState
     DrawingCalloutsSlice,
     DoorsSlice,
     WindowFixtureSlice,
+    ScreenInteractSlice,
     ItemsSlice,
     SelectionSlice,
     GroupsSlice,
@@ -207,6 +213,7 @@ const INITIAL = {
   ...DRAWING_CALLOUTS_INITIAL,
   ...DOORS_INITIAL,
   ...WINDOW_FIXTURE_INITIAL,
+  ...SCREEN_INTERACT_INITIAL,
   ...ITEMS_INITIAL,
   ...SELECTION_INITIAL,
   ...USER_ASSETS_INITIAL,
@@ -252,6 +259,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createDrawingCalloutsSlice(set, get, api),
   ...createDoorsSlice(set, get, api),
   ...createWindowFixtureSlice(set, get, api),
+  ...createScreenInteractSlice(set, get, api),
   ...createItemsSlice(set, get, api),
   ...createSelectionSlice(set, get, api),
   ...createGroupsSlice(set, get, api),
