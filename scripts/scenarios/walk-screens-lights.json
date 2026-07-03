@@ -1,0 +1,127 @@
+{
+  "name": "walk-screens-lights",
+  "url": "http://localhost:5229/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(21); s.setLightsMode?.('on'); s.setWalkEyeHeight?.(1.2)"
+    },
+    {
+      "name": "assert-flags-on-simple",
+      "waitFor": {
+        "store": "state.featureFlags.walkScreens === true && state.featureFlags.walkLights === true"
+      },
+      "failMessage": "walkScreens/walkLights should both be ON in default Simple mode (simple tier, default true)"
+    },
+    {
+      "name": "orbit-e-key-is-inert-screen",
+      "eval": "window.__store.getState().setNearbyScreen('default-b2-monitor')"
+    },
+    { "name": "orbit-press-e-screen", "key": "KeyE" },
+    { "name": "orbit-inert-settle-screen", "wait": 500 },
+    {
+      "name": "assert-orbit-inert-screen",
+      "waitFor": {
+        "store": "(() => { const it = state.items.find(i => i.id === 'default-b2-monitor'); return it && (it.props.screenContent ?? 'landscape') === 'landscape' })()",
+        "timeout": 3000
+      },
+      "failMessage": "Pressing E in ORBIT mode must NOT cycle the monitor's wallpaper (walk-only interact gate)"
+    },
+    {
+      "name": "orbit-e-key-is-inert-light",
+      "eval": "window.__store.getState().setNearbyLight('default-b2-pendant')"
+    },
+    { "name": "orbit-press-e-light", "key": "KeyE" },
+    { "name": "orbit-inert-settle-light", "wait": 500 },
+    {
+      "name": "assert-orbit-inert-light",
+      "waitFor": {
+        "store": "(() => { const it = state.items.find(i => i.id === 'default-b2-pendant'); return it && it.props.lightOn !== 'no' })()",
+        "timeout": 3000
+      },
+      "failMessage": "Pressing E in ORBIT mode must NOT toggle the pendant light (walk-only interact gate)"
+    },
+    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
+    { "name": "walk-active", "waitFor": { "store": "state.cameraMode === 'firstPerson'" } },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    {
+      "name": "dismiss-walk-callout",
+      "eval": "window.__store.getState().dismissCallout?.('walk-mode')"
+    },
+    { "name": "settle-walk", "wait": 1500 },
+
+    {
+      "name": "teleport-near-monitor",
+      "eval": "window.__three.camera.position.x = 4.55; window.__three.camera.position.z = 3.48"
+    },
+    {
+      "name": "aim-loop-detects-monitor",
+      "waitFor": { "store": "state.nearbyScreenId === 'default-b2-monitor'" },
+      "timeout": 20000,
+      "failMessage": "FirstPersonCamera's real aim loop should set nearbyScreenId to the bedroom-2 desk monitor"
+    },
+    { "name": "prompt-visible-screen", "waitFor": { "css": ".hud-pill" } },
+    {
+      "name": "prompt-says-change-wallpaper",
+      "waitFor": { "text": "Change wallpaper" },
+      "failMessage": "ScreenPrompt should read 'Change wallpaper'"
+    },
+    { "name": "shot-walk-before-cycle", "screenshot": "walk-monitor-before-cycle" },
+    { "name": "press-e-cycle-screen", "key": "KeyE" },
+    {
+      "name": "screen-content-cycled",
+      "waitFor": {
+        "store": "(() => { const it = state.items.find(i => i.id === 'default-b2-monitor'); return it && it.props.screenContent === 'sunset' })()"
+      },
+      "failMessage": "The real E-key handler should advance the aimed monitor's screenContent to 'sunset'"
+    },
+    { "name": "shot-walk-after-cycle", "screenshot": "walk-monitor-after-cycle" },
+
+    {
+      "name": "teleport-near-pendant",
+      "eval": "window.__three.camera.position.x = 4.55; window.__three.camera.position.z = 2.6"
+    },
+    {
+      "name": "aim-loop-detects-pendant",
+      "waitFor": { "store": "state.nearbyLightId === 'default-b2-pendant'" },
+      "timeout": 20000,
+      "failMessage": "FirstPersonCamera's real aim loop should set nearbyLightId to the bedroom-2 ceiling pendant"
+    },
+    { "name": "prompt-visible-light", "waitFor": { "css": ".hud-pill" } },
+    {
+      "name": "prompt-says-turn-off",
+      "waitFor": { "text": "Turn off ceiling light" },
+      "failMessage": "LightPrompt should read 'Turn off ceiling light' while it is lit"
+    },
+    { "name": "shot-walk-before-light-toggle", "screenshot": "walk-pendant-before-toggle" },
+    { "name": "press-e-toggle-light", "key": "KeyE" },
+    {
+      "name": "light-toggled-off",
+      "waitFor": {
+        "store": "(() => { const it = state.items.find(i => i.id === 'default-b2-pendant'); return it && it.props.lightOn === 'no' })()"
+      },
+      "failMessage": "The real E-key handler should flip the aimed pendant's lightOn to 'no'"
+    },
+    { "name": "animation-settle-light", "wait": 800 },
+    {
+      "name": "prompt-says-turn-on",
+      "waitFor": { "text": "Turn on ceiling light" },
+      "failMessage": "LightPrompt should flip to 'Turn on ceiling light' once off"
+    },
+    { "name": "shot-walk-after-light-toggle", "screenshot": "walk-pendant-after-toggle" },
+
+    {
+      "name": "toggle-light-back-via-action",
+      "store": { "action": "toggleLightPower", "args": ["default-b2-pendant"] }
+    },
+    {
+      "name": "light-toggled-back-on",
+      "waitFor": {
+        "store": "(() => { const it = state.items.find(i => i.id === 'default-b2-pendant'); return it && it.props.lightOn === 'yes' })()"
+      }
+    },
+    { "name": "animation-settle-light-2", "wait": 800 },
+    { "name": "shot-walk-light-re-on", "screenshot": "walk-pendant-re-on" }
+  ]
+}

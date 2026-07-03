@@ -11,6 +11,19 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   to either. Only `nearbyFixtureId` (which item the walk-mode reticle is aimed at) is slice-local
   session state, mirroring `doorsSlice.nearbyDoorId` — never persisted. Contrast with `doorsSlice`,
   which DOES need its own persisted `doors: Record<id, {open}>` because doors aren't `PlacedItem`s.
+- **`screenInteractSlice`/`lightInteractSlice`** (WALK-SCREEN-INTERACT/WALK-LIGHT-INTERACT) follow
+  the exact same `windowFixtureSlice` shape — each just `nearby*Id` (session-only, set by
+  `FirstPersonCamera`'s aim loop, cleared on leaving walk mode) + a single toggle action
+  (`cycleScreenContent`/`toggleLightPower`) that patches an existing item-props field
+  (`screenContent`/`lightOn`) already covered by `items` persistence — no new persisted field for
+  either. Unlike `windowFixtureSlice` (builtin-only lookup via `BUILTIN_CATALOG`, justified since
+  `windowBound` fixtures are builtin parametric-only), `screenInteractSlice.cycleScreenContent`
+  ALSO only needs `BUILTIN_CATALOG` — `isInteractableScreen` requires a *parametric* def (a
+  `paramSchema` field), and GLB/IKEA/user/remote defs never carry a `paramSchema`, so a screen can
+  only ever be builtin. `lightInteractSlice.toggleLightPower` needs no def lookup at all — the
+  eligibility/toggle logic in `furniture/lightInteract.ts` only reads `defId` + `props`, since an
+  interactable light can be ANY item kind (a registered builtin fixture OR a GLB/IKEA/user import
+  the player already flagged via the `itemAsLight` override).
 - **`editorPrefs` also persists per-device UI convenience state** (out of the save schema):
   the left-dock tab (`leftMode`), the collapsed layer-group map (`layersCollapsed`, lifted from
   `LayersPanel` into `featuresSlice`), and `catalogOpen` — the last restored **desktop-only**

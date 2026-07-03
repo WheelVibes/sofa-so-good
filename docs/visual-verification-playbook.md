@@ -481,6 +481,35 @@ to "Close curtains" → store-action toggle back. **Key gotchas learned here:**
   against the filled default, not absence. Toggles are synchronous, so asserting the value
   right after a keypress is a valid inertness proof.
 
+### Worked example — walk-mode screen wallpaper + light on/off (WALK-SCREEN-INTERACT / WALK-LIGHT-INTERACT)
+
+**`walk-screens-lights.json`** proves both new walk-mode interacts end-to-end against the
+default flat's Bedroom-2: orbit E-press inert (both) → enter walk → REAL aim loop flags the
+desk monitor (`nearbyScreenId`) → ScreenPrompt ("Change wallpaper") → REAL `KeyE` advances
+`screenContent` landscape→sunset → teleport to the ceiling pendant → LightPrompt ("Turn off
+ceiling light") → REAL `KeyE` sets `lightOn:'no'` → prompt flips to "Turn on ceiling light" →
+store-action toggle back on. **New gotcha found here, beyond the curtain worked-example above:**
+- **A directional item's face can point AWAY from the only reachable teleport spot.** The
+  curtain gotcha above already covers *positioning* the walker so the fixed spawn look-direction
+  (`≈(-0.17,-0.99)` for the default flat) hits the target within the interact radius — but it
+  doesn't cover *which side* of the item you end up looking at. A wall/desk item with a real
+  front/back (a monitor screen, a TV) only shows its face from specific approach angles; since
+  you can't re-aim (no headless pointer-lock/mouse-look), you may only be able to reach the
+  item's BACK from the room's geometry (e.g. Bedroom-2's monitor faces the chair to the north,
+  but the only interact-radius standoff space is the ~0.5 m gap to the south wall BEHIND the
+  screen). The aim/E-key/store assertions still prove the interaction fires correctly — screen
+  content changes as it should — but the screenshot won't visually show the wallpaper. **Assert
+  the state change in-store as the primary evidence** (`props.screenContent === 'sunset'`, per
+  CLAUDE.md's guidance for "too subtle to see headlessly") and note which side of the item the
+  frame shows; don't burn time hunting for a teleport spot that doesn't exist within a small
+  room. `setWalkEyeHeight(1.2)` (min per `WALK_EYE_MIN`) helps bring a desk-height item into the
+  horizontal FOV band at close range, but doesn't fix a wrong-side approach.
+- **Toggling a ceiling-mounted light IS clearly visible even though the fixture mesh itself is
+  out of frame** (it's overhead, above the horizontal look). The emissive glow/bloom it casts on
+  the ceiling and upper walls reads as an obvious warm-vs-dark difference in the screenshot —
+  good evidence even when the literal mesh isn't visible. Force `setLightsMode('on')` +
+  a night `setManualHour` first so the "on" state is unambiguously bright before toggling off.
+
 ---
 
 ## Packaged targets (Docker / Electron)

@@ -46,6 +46,36 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   mode never toggles a door/fixture, only walk mode does (VIEW-EDIT-SPLIT). Venetian-blind slats
   render as individual (non-instanced) meshes today (see TASKS.md P3 tail) — fine for the
   raise/lower toggle since it only moves the whole cassette, not per-slat tilt.
+- **Screen wallpaper cycle (WALK-SCREEN-INTERACT)**: click/tap or press E on a placed screen to
+  advance `props.screenContent` to the next option, wrapping around. "Screen" is a **capability**,
+  not a def-id list: `isInteractableScreen(def)` (`furniture/screenInteract.ts`) is true for any
+  *parametric* def whose `paramSchema` carries a `screenContent` enum field — today that's
+  `monitor`/`flatscreen-tv`/`tv-wall`, which all share the `Monitor`/`FlatscreenTV` primitives and
+  the same 3-option enum (`landscape`/`sunset`/`abstract`, rendered by
+  `primitives/screenContent.ts:getScreenContent`) — so a future screen def that reuses the same
+  field is automatically covered with no eligibility-list edit. Gated by the `walkScreens` flag
+  (simple tier); state in `state/slices/screenInteractSlice.ts` (`nearbyScreenId` +
+  `cycleScreenContent`, no new schema field — `screenContent` already round-trips via `items`).
+  Prompt copy is fixed ("Change wallpaper") since every screen def shares the same cycle
+  semantics; a future screen kind with genuinely different content can branch in
+  `screenInteract.ts:screenLabel` the way `windowFixtureLabel` branches on Curtain/RollerBlind.
+- **Light on/off toggle (WALK-LIGHT-INTERACT)**: click/tap or press E on a light-capable item to
+  flip it on/off — a registered `lightEmitters.ts` fixture (table/floor lamp, wall sconce,
+  ceiling light/fan, cove light, vanity, aquarium) OR any item already flagged via the
+  `itemAsLight` inspector override, keyed on `isInteractableLight(defId, props)`
+  (`furniture/lightInteract.ts`), not a hardcoded list. The toggle is a discrete flip of
+  `props.lightOn` between on (`'yes'`/absent) and off (`'no'`) — mirroring curtains/blinds'
+  binary `drawAmount`/`lower` flip, not a dimmer. See `lightEmitters.ts` for how this composes
+  with the scene-wide `lightsMode` brightness multiplier (per-item toggle always wins — a
+  switched-off item is excluded from the active-lights set in every `lightsMode`, not merely
+  dimmed). Gated by the `walkLights` flag (simple tier); state in
+  `state/slices/lightInteractSlice.ts` (`nearbyLightId` + `toggleLightPower`, no new schema
+  field). Prompt copy is "Turn on/off {def.name, lowercased}" — generic across every registered
+  fixture, no per-primitive noun table needed. Screens and lights are the first pair of
+  walk-mode interactables to use genuine **nearest-wins** disambiguation instead of the fixed
+  door>fixture priority order: `FirstPersonCamera` merges their aim segments into a single
+  `nearestAimedSegment` call (id-prefixed `screen:`/`light:`) so whichever is physically closer
+  claims the "nearby" slot.
 - **Categories**: 15 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected

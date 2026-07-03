@@ -152,9 +152,11 @@ same change that reshapes a system.
   `PrimitiveKind`), `GltfModel.tsx`/`gltfRender.ts` (all GLB items), `defaults/` (per-room layout
   files assembled by `defaultLayout.ts`; each room file owns its own decor props so the styled flat
   is self-contained; all set-dressing props carry `noClip: true` so they pass collision checks),
-  `lightEmitters.ts` (fixture registry + `resolveEmitterSpec`; any item with `props.lightOn`
-  emits via the `OVERRIDE_EMITTER` fallback — `itemAsLight` flag; `props.iesProfile` swaps the
-  omni point light for an IES `SpotLight` — see `src/lighting/ies/`). Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
+  `lightEmitters.ts` (fixture registry + `resolveEmitterSpec`; any item with `props.lightOn ===
+  'yes'` emits via the `OVERRIDE_EMITTER` fallback — `itemAsLight` flag; `props.lightOn ===
+  'no'` is a hard per-item off override checked FIRST, winning over a registered fixture's own
+  `enabled` gate too — the walk-mode light toggle, WALK-LIGHT-INTERACT above; `props.iesProfile`
+  swaps the omni point light for an IES `SpotLight` — see `src/lighting/ies/`). Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
   `textureBudget.ts`, `finishTargets.ts`, `mirrorPlane.ts`); `convert/` (any-format→GLB:
   `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`; `zipGuard.ts` bounds the
   DECLARED decompressed size of usdz/3mf via fflate central-directory reads before the
@@ -314,7 +316,29 @@ same change that reshapes a system.
   the E-key aim reuses the door aim's ray/segment math (`collision/aimRay.ts:nearestAimedSegment`)
   against live per-item segments (`windowFixtureAimSegments`), surfaced as `nearbyFixtureId` +
   `ui/FixturePrompt` ("Open curtains" / "Lower blind"). Scenario:
-  `scripts/scenarios/walk-curtain-interact.json`.
+  `scripts/scenarios/walk-curtain-interact.json`. **Screens** (WALK-SCREEN-INTERACT,
+  `walkScreens` flag, simple): click/tap or E on any parametric def whose `paramSchema`
+  exposes a `screenContent` enum field (`monitor`/`flatscreen-tv`/`tv-wall`, all sharing the
+  `Monitor`/`FlatscreenTV` primitives — eligibility is keyed on that schema **capability**, not
+  a def-id list) advances `props.screenContent` to the next enum option, wrapping around.
+  Pure logic in `furniture/screenInteract.ts`; state in `screenInteractSlice`
+  (`nearbyScreenId` + `cycleScreenContent`, no new schema field); prompt `ui/ScreenPrompt`
+  ("Change wallpaper"). **Lights** (WALK-LIGHT-INTERACT, `walkLights` flag, simple): click/tap
+  or E on any light-capable item (a registered `lightEmitters.ts` fixture — lamp/sconce/ceiling
+  light-fan/cove light/vanity/aquarium — or any item already flagged via the `itemAsLight`
+  override) flips `props.lightOn` between on (`'yes'`/absent) and off (`'no'`) — a discrete
+  switch flip, like curtains' draw toggle. `lightOn === 'no'` is evaluated FIRST in
+  `isItemEmitter`/`resolveEmitterSpec` and wins over a fixture's own `enabled` gate (e.g. the
+  vanity's Hollywood-bulb condition): the item-level gate runs upstream of the scene-wide
+  `lightsMode` ('auto'/'on'/'off') brightness multiplier in `FurnitureLights.tsx`, so a
+  switched-off item never enters the active-lights set in any mode — **per-item toggle always
+  wins**. Pure logic in `furniture/lightInteract.ts`; state in `lightInteractSlice`
+  (`nearbyLightId` + `toggleLightPower`); prompt `ui/LightPrompt` ("Turn off table lamp").
+  Screens and lights are the first pair to use genuine **nearest-wins** disambiguation (not the
+  fixed door>fixture priority order): `FirstPersonCamera` merges their aim segments into one
+  `nearestAimedSegment` call with `screen:`/`light:` id prefixes, so whichever is physically
+  closer sets its own `nearby*Id` (the other cleared). Scenario:
+  `scripts/scenarios/walk-screens-lights.json`.
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts`+
   `RoomShell.tsx`, `uiSlice.roomEditor`): the **sole editing surface**. Separate
   lightweight `<Canvas>` (flat light, DPR 1, no shadows/IBL/post), pinned to Performance
