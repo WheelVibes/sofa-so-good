@@ -685,13 +685,63 @@ same change that reshapes a system.
   locked items and Staircase. Serialized (optional) in `schema.ts`. Collision stays yaw-OBB (tilt
   doesn't change the plan footprint).
 - **3D scene export** (`sceneExport3d` flag, pro; Q-3DEXPORT): `ui/openSceneExport.ts` `exportScene3d`
-  downloads the whole furnished home as `.glb` (reusing `furniture/convert/toGlb.ts` `exportGlb`) or
-  `.obj` (`export/sceneObj.ts`, dynamic `OBJExporter`). The live scene root is reached from DOM code via
-  `scene/SceneExportController` + the `scene/sceneExportAccess.ts` singleton (mirrors
-  `ScreenshotController`/`captureCanvas.ts`). Pure `export/sceneGltf.ts` `buildExportRoot` clones the
-  scene and strips editor-only helpers — anything tagged `userData.noExport` via `noExportUserData`/
-  `markNoExport` (selection/gizmo/overlays/sky/pins/ghost), plus a structural fallback for three helper
-  types + cameras. In Tools + Share modal + mobile + ⌘K.
+  downloads the whole furnished home as `.glb` (reusing `furniture/convert/toGlb.ts` `exportGlb`), `.obj`
+  (`export/sceneObj.ts`, dynamic `OBJExporter`), `.stl` (`export/sceneStl.ts`), or `.usdz`
+  (`export/sceneUsdz.ts`). The live scene root is reached from DOM code via `scene/SceneExportController`
+  + the `scene/sceneExportAccess.ts` singleton (mirrors `ScreenshotController`/`captureCanvas.ts`). Pure
+  `export/sceneGltf.ts` `buildExportRoot` clones the scene and strips editor-only helpers — anything
+  tagged `userData.noExport` via `noExportUserData`/`markNoExport` (selection/gizmo/overlays/sky/pins/
+  ghost), plus a structural fallback for three helper types + cameras — **before either export path
+  below**, so the exclusion holds regardless of scene size. In Tools + Share modal + mobile + ⌘K.
+  - **Worker-streamed export for very large scenes (Q-3DEXPORT tail).** `GLTFExporter.parse()` (and
+    OBJ/STL/USDZ's exporters) is a single, un-yielding synchronous call — fine for a furnished room, but
+    it can visibly stall the UI for a very large scene (a whole multi-room home, or an import-heavy
+    design). `export/exportThreshold.ts` (`computeExportStats` + `shouldUseWorkerExport`, pure + unit
+    tested) walks the *pruned* export root and decides: over `WORKER_EXPORT_MESH_THRESHOLD` (400) mesh
+    nodes OR `WORKER_EXPORT_TRIANGLE_THRESHOLD` (250k) estimated triangles routes to a Worker; otherwise
+    `exportScene3d` keeps the exact prior direct main-thread call (unchanged behaviour, no progress
+    toast — it's fast enough not to need one).
+    - **Why not `postMessage` the live scene directly**: three's `Object3D`/`Mesh`/`Material`/`Texture`
+      instances are class instances (methods, prototypes) and aren't structured-cloneable.
+      `export/sceneMarshal.ts` reuses three's own JSON round-trip (`Object3D.toJSON()` + `ObjectLoader`)
+      to bridge the gap, with one change: `BufferGeometry.toJSON()` boxes every attribute/index typed
+      array into a plain `Array` (`Array.from`) — the one part of that round-trip whose cost actually
+      scales with scene size. `marshalSceneForWorker` monkey-patches `BufferGeometry.prototype.toJSON`
+      (only for the duration of the call) to keep arrays as native typed arrays instead — a typed array
+      survives `postMessage`'s structured clone as a fast memcpy; a boxed number array costs O(n) twice
+      over. Primitive geometries (`BoxGeometry`, etc.) already short-circuit via `.parameters` and are
+      untouched; an `InterleavedBufferAttribute` (rare for placed furniture) falls back to the original
+      boxing path for correctness. **Trade-off**: texture embedding (`Texture.toJSON` → canvas → data
+      URL) still runs on the main thread — unavoidable (only the main thread has a live canvas/Image to
+      read pixels from) but bounded by unique-texture count, not item count (furniture materials are
+      shared/cached, see `furniture/CLAUDE.md`), so it doesn't scale with "very large scene" the way
+      node/geometry count does.
+    - `export/exportWorker.worker.ts` receives the marshaled payload, calls
+      `sceneMarshal.ts:reconstructSceneFromMarshal` to rebuild a REAL three.js `Object3D` tree — geometry/
+      material/object parsing goes through `ObjectLoader`'s DOM-independent instance methods
+      (`parseShapes`/`parseGeometries`/`parseTextures`/`parseMaterials`/`parseObject`; the shapes table
+      is REQUIRED — a `ShapeGeometry`/`ExtrudeGeometry` resolves its `parameters.shapes` uuids against
+      it and the parse crashes without it), while embedded image data URLs are decoded via
+      `atob`+`Blob`+`createImageBitmap` (Worker-safe; `ObjectLoader`'s own `parseImagesAsync` needs
+      `document` and can't run in a Worker) — then calls `updateMatrixWorld(true)`
+      (never rendered, so matrices are never auto-synced) and runs the **exact same** per-format
+      `exportGlb`/`exportSceneObj`/`exportSceneStl`/`exportSceneUsdz` the main-thread path uses — no
+      export-logic duplication.
+    - `export/runSceneExport.ts` `runWorkerSceneExport` spawns the worker (lazy, one-shot, injectable
+      factory for tests — mirrors `furniture/optimize/runOptimize.ts`), marshals, and rejects (never
+      hangs) on worker-unavailable / crash / malformed reply / a `WORKER_EXPORT_TIMEOUT_MS` (60s)
+      timeout. `exportScene3d` shows an indeterminate progress toast for the worker path
+      (`notify.start({kind:'progress', ...})` → `notify.success`/`notify.error` on the same id, the P32
+      live-notification pattern) and, on ANY worker failure, transparently falls back to the direct
+      synchronous path (updating the toast, never a silent hang) — small-scene behaviour is untouched.
+    - **Real-browser verification**: `scripts/scenarios/scene-export-worker.json` proves REAL
+      `new Worker(new URL(...))` construction under the bundler (the unit tests inject a fake Worker,
+      so broken worker wiring would otherwise be silently masked by the fallback) via the dev-only
+      seams in `openSceneExport.ts` (`window.__forceWorkerExport` forces the worker path;
+      `window.__lastSceneExport` records `{path: 'worker'|'direct'|'worker-fallback-direct', bytes,
+      format}` — both `import.meta.env.DEV`-gated, inert in prod). The **default furnished 4-room HDB
+      scene measures ~1273 meshes / ~311k estimated triangles — over BOTH thresholds — so the default
+      export takes the worker path**; measured worker GLB output ≈53 MB.
 - **Shoppable buy-list** (`ui/shoplist.ts` pure `buildShopList`+`buildShopListHtml` →
   per-retailer-grouped buy-list HTML: qty/unit/line totals per (def,variant,room), grand + per-retailer
   totals, budget under/over; `openShoplist.ts` opens the window synchronously then dynamic-imports the

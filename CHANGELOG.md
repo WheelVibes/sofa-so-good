@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PERF: whole-scene 3D export runs on a Worker for very large scenes (v0.12.0.6)
+
+Q-3DEXPORT tail — `GLTFExporter.parse()` is a single un-yielding synchronous
+pass that stalled the UI on a large scene. Scenes over 400 meshes / 250k
+estimated triangles (`export/exportThreshold.ts`; the default furnished 4-room
+HDB measures ~1273 / ~311k, so default whole-home exports qualify) now marshal
+(`export/sceneMarshal.ts` — three's own JSON round-trip with a typed-array
+fast path so attribute buffers structured-clone as memcpy) and export
+(GLB/OBJ/STL/USDZ, the same exporter functions as the direct path) on a
+dedicated Worker (`export/exportWorker.worker.ts`, orchestrated by
+`export/runSceneExport.ts` with a 60s timeout), with a progress toast and
+transparent fallback to the direct path on any worker failure. Small scenes
+keep the exact prior direct behaviour. Real-browser verified
+(`scene-export-worker.json`): worker path (asserted `path === 'worker'`)
+produced a 53 MB GLB; the verification also caught + fixed an
+`ObjectLoader.parseGeometries` shapes-table bug the fallback had been
+silently masking (ShapeGeometry regression test added). Dev-only
+observability seams: `__forceWorkerExport`, `__lastSceneExport`.
+
 ## PERF/IO-002: optimize-pool idle teardown + hopeless-size early gate (v0.12.0.5)
 
 - Optimize pool workers idle-teardown (terminate + drop) after 30s with no pending

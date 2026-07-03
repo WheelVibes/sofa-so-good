@@ -1,0 +1,43 @@
+{
+  "name": "scene-export-worker",
+  "description": "Worker-path rung for whole-scene 3D export (Q-3DEXPORT tail). Proves REAL `new Worker(new URL('./exportWorker.worker.ts', ...))` construction works under the bundler (unit tests inject a fake Worker, so broken worker wiring would otherwise be silently masked by the direct fallback): forces the worker path via the dev-only `__forceWorkerExport` seam, runs a GLB export, and asserts `__lastSceneExport.path === 'worker'` (NOT 'worker-fallback-direct') with a plausible byte length. Also records whether the DEFAULT furnished scene would exceed the worker threshold naturally (`__defaultExportStats`).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "compute-default-scene-stats",
+      "eval": "(async () => { const acc = await import('/src/scene/sceneExportAccess.ts'); for (let i = 0; i < 150 && !acc.getSceneRoot(); i++) await new Promise(r => setTimeout(r, 200)); const root = acc.getSceneRoot(); if (!root) { console.log('[verify] scene root never became ready'); return; } const { buildExportRoot } = await import('/src/export/sceneGltf.ts'); const { computeExportStats, shouldUseWorkerExport } = await import('/src/export/exportThreshold.ts'); const stats = computeExportStats(buildExportRoot(root)); window.__defaultExportStats = { ...stats, workerPath: shouldUseWorkerExport(stats) }; console.log('[verify] default-scene export stats: ' + JSON.stringify(window.__defaultExportStats)) })()",
+      "timeout": 45000
+    },
+    {
+      "name": "verify-stats-recorded",
+      "waitFor": { "store": "window.__defaultExportStats != null" },
+      "timeout": 10000,
+      "failMessage": "default-scene export stats were never computed (scene root not ready?)"
+    },
+    {
+      "name": "force-worker-and-export-glb",
+      "eval": "window.__forceWorkerExport = true; import('/src/ui/openSceneExport.ts').then(m => m.exportScene3d('glb'))",
+      "timeout": 30000
+    },
+    {
+      "name": "verify-worker-path-ran",
+      "waitFor": { "store": "window.__lastSceneExport && window.__lastSceneExport.path === 'worker' && window.__lastSceneExport.format === 'glb' && window.__lastSceneExport.bytes > 1000" },
+      "timeout": 90000,
+      "failMessage": "Worker export path did not run (path !== 'worker' — a fallback here means real Worker construction/bundler wiring is broken, or bytes were implausibly small)"
+    },
+    {
+      "name": "log-worker-result",
+      "eval": "console.log('[verify] worker export result: ' + JSON.stringify(window.__lastSceneExport))"
+    },
+    {
+      "name": "verify-success-toast",
+      "waitFor": { "text": "3D model saved" },
+      "timeout": 20000,
+      "failMessage": "Worker export did not resolve the progress toast to success"
+    },
+    { "name": "shot-worker-export-success", "screenshot": "01-worker-export-success" }
+  ]
+}
