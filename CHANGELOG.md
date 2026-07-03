@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: walk-mode curtains/blinds interact like doors + orbit mode is now interaction-inert (v0.11.2.9)
+
+- **Curtains and blinds toggle in walk mode** via click, tap, or E (aim within 2 m, LOS-checked)
+  — the same affordance stack as doors: prompt pill ("E · Open/Close curtains"), eased
+  animation, undoable, per-item state on the existing `item.props` (`drawAmount`/`lower`), so it
+  persists through the items schema with zero new schema work. New `walkWindowFixtures` flag
+  (simple tier, default on — mirrors the ungated door swing), gating registration not render;
+  pure eligibility/aim logic in `furniture/windowFixtureInteract.ts` + shared `collision/aimRay.ts`
+  (doors migrated onto it). 39 new tests; scenario `walk-curtain-interact.json` exercises the
+  REAL aim loop + KeyE handler.
+- **Orbit mode is interaction-inert (user report — was a live bug)**: clicking a door while
+  orbiting swung it open. All interact entry points (door leaf clicks, fixture clicks, the E
+  dispatch) now route through one walk-only gate (`editing.dispatchWalkInteract`), unit-tested
+  inert-in-orbit / active-in-walk.
+
 ## UX: time-of-day row collapses to one line — live time as the slider label (v0.11.2.8)
 
 - The Scene sheet's time section rendered the time twice ("TIME OF DAY  6:28 PM" header + a
