@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { itemPrice } from '../../furniture/furniturePrices'
-import { filterByMaxPrice, sortCards } from './catalogBrowse'
+import { filterByFits, filterByMaxPrice, sortCards } from './catalogBrowse'
 import type { GridItem } from './useUnifiedCatalog'
 
 const local = (id: string): GridItem => ({ kind: 'local', def: BUILTIN_CATALOG[id]! })
@@ -92,5 +92,33 @@ describe('filterByMaxPrice', () => {
     const input = [stool, sofa]
     expect(filterByMaxPrice(input, 'abc')).toBe(input)
     expect(filterByMaxPrice(input, '-5')).toBe(input)
+  })
+})
+
+describe('filterByFits (CATALOG-FITS "Fits only" filter)', () => {
+  // sofa-3seat: 2.1 x 0.9m — too big for a 1 x 1m rect. bar-stool: 0.42 x
+  // 0.42m — fits comfortably.
+  const tinyRoom = [{ w: 1, d: 1 }]
+
+  it('a null rects (no room being edited) is a no-op', () => {
+    const input = [stool, sofa]
+    expect(filterByFits(input, null)).toBe(input)
+  })
+
+  it('drops a local item that won’t fit, keeps one that does', () => {
+    const out = filterByFits([stool, sofa], tinyRoom)
+    expect(out).toEqual([stool])
+  })
+
+  it('never drops remote/shared entries (unresolved footprint stays "unknown")', () => {
+    const r = remote('CC0 thing')
+    const out = filterByFits([sofa, r], tinyRoom)
+    expect(out).toContain(r)
+    expect(out).not.toContain(sofa)
+  })
+
+  it('keeps everything in a spacious room', () => {
+    const input = [stool, sofa]
+    expect(filterByFits(input, [{ w: 5, d: 5 }])).toEqual(input)
   })
 })

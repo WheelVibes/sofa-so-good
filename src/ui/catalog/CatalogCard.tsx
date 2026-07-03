@@ -1,4 +1,5 @@
-import { type CSSProperties, useRef } from 'react'
+import { type CSSProperties, useMemo, useRef } from 'react'
+import { itemFitsRoom, type RoomFreeRect } from '../../catalog/roomFit'
 import { useFeature } from '../../features/useFeature'
 import { isIkeaDef, isUserDef } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
@@ -25,9 +26,16 @@ interface CatalogCardProps {
    *  cascade's `--i` custom property (unset falls back to the CSS nth-child
    *  rules, which cover the first 12 cards). */
   staggerIndex?: number
+  /**
+   * Free-space rects of the room currently being edited (CATALOG-FITS,
+   * `ui/catalog/useCatalogRoomFit.ts`), or `null` when no room is being
+   * edited. Drives the "fits this room" size cue — `undefined`/`null` renders
+   * no cue at all (never a false "won't fit").
+   */
+  roomRects?: RoomFreeRect[] | null
 }
 
-export function CatalogCard({ def, onDelete, staggerIndex }: CatalogCardProps) {
+export function CatalogCard({ def, onDelete, staggerIndex, roomRects }: CatalogCardProps) {
   const isUser = isUserDef(def)
   const isIkea = isIkeaDef(def)
   const onClick = usePlacementDrag(def)
@@ -86,6 +94,17 @@ export function CatalogCard({ def, onDelete, staggerIndex }: CatalogCardProps) {
   const modelInfoOn = useFeature('catalogModelInfo')
   // Price displays are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
+  // "Fits this room" size cue (CATALOG-FITS) — badges/dims the card when the
+  // item's footprint can't reasonably fit the room being edited. `roomRects`
+  // is `null`/`undefined` when no room is active, which the pure predicate
+  // already resolves to 'unknown' (no cue).
+  const fitsOn = useFeature('catalogFits')
+  const fitLevel = useMemo(
+    () => (fitsOn ? itemFitsRoom(def.defaultFootprint, roomRects) : 'unknown'),
+    [fitsOn, def.defaultFootprint, roomRects],
+  )
+  const wontFit = fitLevel === 'wont-fit'
+  const tightFit = fitLevel === 'tight'
   // Sticky "stamp" placement (PARITY-STAMP-PLACE) — a pro power-tool: arm this def
   // and click-place it repeatedly without re-selecting.
   const stampOn = useFeature('stampPlace')
@@ -126,7 +145,7 @@ export function CatalogCard({ def, onDelete, staggerIndex }: CatalogCardProps) {
         // If the drop didn't land on the canvas (still armed), disarm.
         if (useStore.getState().activeDefId === def.id) useStore.getState().cancelPlacement()
       }}
-      className={`cat-card group liftable${stampingThis ? ' stamping' : ''}`}
+      className={`cat-card group liftable${stampingThis ? ' stamping' : ''}${wontFit ? ' no-fit' : ''}`}
       style={staggerIndex != null ? ({ '--i': staggerIndex } as CSSProperties) : undefined}
       aria-pressed={stampingThis || undefined}
     >
@@ -180,8 +199,9 @@ export function CatalogCard({ def, onDelete, staggerIndex }: CatalogCardProps) {
           {def.name}
         </span>
       </div>
-      <span className="pr mono">
+      <span className={`pr mono${wontFit ? ' warn' : ''}`}>
         {formatDims(def.defaultFootprint.w, def.defaultFootprint.d, units)}
+        {wontFit ? <b> · Won’t fit</b> : tightFit ? ' · Tight fit' : null}
         {priceOn ? (
           <>
             {' · '}

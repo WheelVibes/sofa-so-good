@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: core-loop parity — catalog room-fit cue + minimap tap-to-teleport (v0.12.0.15)
+
+Two client-doable core-loop parity features from the 2026-07-03 audit:
+
+- **CATALOG-FITS** — catalog cards now flag an item against the room being
+  edited: a dimmed card + warn-toned "Won't fit" / "Tight fit" note, from a pure
+  `catalog/roomFit.ts:itemFitsRoom` predicate that reuses `def.defaultFootprint`
+  + `layout/designRules.ts` CLEARANCE and the existing `getRoomEditorShell`
+  room rects (checks both orientations, handles L-shaped rooms; missing data →
+  "unknown", never a false "won't fit"). Honours the HDB small-space premise no
+  competitor nails. Flags: `catalogFits` (simple, the passive cue) +
+  `catalogFitsFilter` (pro, a "Fits only" browse toggle). No cue in the
+  whole-flat view (no room active).
+- **MINIMAP-JUMP** — tap/click a spot on the walk-mode minimap to teleport there,
+  clamped inside the room clear of its walls (`ui/walk/minimapTeleport.ts` pure
+  coord-inversion + polygon clamp), facing the room centre. DOM→R3F plumbing via
+  a `cameras/walkTeleport.ts` module signal (mirrors `cameraForward.ts`), applied
+  in `FirstPersonCamera` before orientation re-assert then nudged off furniture.
+  Big mobile navigation win. Flag: `minimapTeleport` (simple).
+
+Both flag-tested in Simple + Pro; verified in a small room / walk mode via the
+scenario harness, desktop + mobile, light + dark.
+
 ## DOCS: PLAN-FURNISH implementation plan + risk assessment (v0.12.0.14)
 
 Architectural design doc (`docs/research/2026-07-03-plan-furnish-implementation-plan.md`)

@@ -96,3 +96,11 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `transparent`), keep parts from intersecting, and orbit to a side/profile angle to confirm
   contact (top-down hides float/sink). Visually verify per the playbook — green tests are
   not proof the render is right.
+- **A plain-object module signal is the sanctioned way for DOM UI outside the R3F tree to talk
+  to a per-frame controller inside it**, in either direction — `cameraForward.ts`
+  (`cameraForwardXZ`/`cameraPosXZ`) publishes OUT (written every frame, read by the minimap/
+  arrow-key nudge); `cameras/walkTeleport.ts` (MINIMAP-JUMP) is the mirror-image IN: the minimap
+  calls `requestWalkTeleport(x,z,yaw)` on tap, `FirstPersonCamera` polls
+  `consumeWalkTeleport()` once per frame and clears it. Never round-trip a once-per-event signal
+  like this through Zustand (a `subscribe(markDirty)` firing on every pointer event is wasted
+  churn) — reserve the store for state that actually needs to persist/react beyond one frame.

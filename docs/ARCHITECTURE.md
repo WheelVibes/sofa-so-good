@@ -266,6 +266,23 @@ same change that reshapes a system.
   stale `stampMode` can't persist a click once the flag is off (Simple mode forces it off → the
   stamp button + banner hide and each click commits once as before). ⌘K **"Stamp — place an item
   repeatedly"** (`stamp-mode`, gated in `COMMAND_FLAGS`) arms the held/selected def.
+  **"Fits this room" size cue** (CATALOG-FITS, `catalogFits` flag, tier: **simple**, default on):
+  the pure predicate `catalog/roomFit.ts:itemFitsRoom(footprint, rects)` compares a def's
+  `defaultFootprint` (same seed used by placement/collision) against the free-space rects of the
+  room being edited (`ui/catalog/useCatalogRoomFit.ts:useActiveRoomFreeRects` → resolves via the
+  existing `scene/roomEditorShell.ts:getRoomEditorShell` — the same shell the camera framing and
+  furniture room-filter already use, unified across the built-in-apartment `RoomShell` and
+  custom-plan `PlanRoomShell`) and returns `'fits' | 'tight' | 'wont-fit' | 'unknown'`, using the
+  shared `layout/designRules.ts` `CLEARANCE` constants for the margin (a bare skirting gap for
+  "won't fit" vs. a full walkway margin for "fits"). Missing/degenerate footprint or room data
+  always resolves to `'unknown'` — a data gap is never reported as a false "won't fit". `CatalogCard`
+  renders `'wont-fit'` as a `.pr.warn`-toned "Won't fit" note plus a dimmed `.no-fit` card (both
+  cues; no cue at all outside the room editor or when the flag is off) and `'tight'` as a plain
+  "Tight fit" note (no dimming). The pro-tier **"Fits only" browse filter** (`catalogFitsFilter`
+  flag, default on, hidden in Simple) is a checkbox in the catalog's sort row
+  (`catalogBrowse.ts:filterByFits`) that hides `'wont-fit'` local items (never remote/shared
+  entries, whose footprint is unresolved pre-import) from the grid; browse-only, a no-op during
+  search (mirrors the existing Max $ filter).
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,
@@ -1093,7 +1110,23 @@ same change that reshapes a system.
   camera (own effect, restored on exit), eye-height ref'd so a drag re-heights without re-spawn. Multi-storey (ML6c): the walker's storey follows
   `viewLevelId` (`walkLevel`/`levelSpawnPoint` in `floorplan/levels.ts`) — picking a level in
   View→Levels while walking teleports to its first room centre at `elevation + eye`, and
-  collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Mobile viewport** (`index.html`, `responsive.css`,
+  collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Minimap
+  tap-to-teleport** (MINIMAP-JUMP, `minimapTeleport` flag, simple): clicking/tapping
+  `ui/Minimap.tsx` converts the pointer to world XZ (`ui/walk/minimapTeleport.ts`, pure —
+  `svgSquareViewBoxPoint` inverts the letterboxed square-viewBox-in-a-wider-box SVG mapping,
+  `minimapPointToWorld` inverts the component's own world→svg transform) and clamps it inside
+  the tapped (or nearest) room's polygon clear of every wall by `WALK_PLAYER_RADIUS`
+  (`clampPointToPolygon`, probes the inward normal via `pointInPolygon` so it works for
+  rectangular/L-shaped/free-drawn rooms alike), facing the room's centre
+  (`roomLabelPoint`/`computeFacingYaw`) rather than preserving the walker's prior heading — it
+  matches how every other walk-mode (re)spawn already orients into the space. The resolved
+  `{x,z,yaw}` crosses into the R3F tree via the `scene/cameras/walkTeleport.ts` module signal
+  (mirrors `cameraForward.ts`'s plain-object pattern — a tap is a once-per-click event, not
+  per-frame state); `FirstPersonCamera` polls it each frame BEFORE re-asserting the camera
+  orientation from its `yaw`/`pitch` refs, relocates the camera, and nudges off any furniture
+  footprint at the landing point (`resolveCircleVsObbs`) — deliberately NOT `resolveMovement`'s
+  wall-slide, which assumes an incremental step and would clamp a cross-room jump back against
+  the first wall in between. **Mobile viewport** (`index.html`, `responsive.css`,
   `MobileLongPress.tsx`): `viewport-fit=cover`+`100dvh` full-bleed canvas (controls in
   `env(safe-area-inset-*)`); `body.mobile` kills text-select/callout/double-tap-zoom;
   long-press → `contextmenu`. **Dynamic status-bar tint** (`scene/lighting/statusBarTint.ts`):

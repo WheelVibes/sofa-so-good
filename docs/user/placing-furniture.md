@@ -22,6 +22,12 @@ the list).
 
 ![The unified furniture catalog](/screenshots/catalog.png)
 
+**Does it fit this room?** While a room is open, any card whose size clearly
+can't fit the free floor space gets a **"Won't fit"** note and a dimmed card;
+a piece that only just squeezes in shows a plainer **"Tight fit"** note instead
+— both are just a heads‑up, you can still place it. (Pro) Tick **Fits only** at
+the top of the grid to hide the pieces flagged "Won't fit" while you browse.
+
 ## Placing a piece
 
 Two ways, whichever feels natural:

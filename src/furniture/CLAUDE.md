@@ -122,7 +122,11 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   *JSON*, used by `catalog/remote/resolver.ts:bundleToFurnitureDef` for remote furniture defs).
   Both union multi-mesh bounds, clamp axes ≥0.05 m, reject absurd non-metre scales, and fall back
   to the caller's 1×1×1 placeholder when bounds are unavailable. The render-time cache stays
-  authoritative — these only make the pre-render value honest.
+  authoritative — these only make the pre-render value honest. The same `def.defaultFootprint`
+  this seeds is also the input to the catalog's "fits this room" size cue
+  (`catalog/roomFit.ts:itemFitsRoom`, CATALOG-FITS, see `src/ui/CLAUDE.md`) — one more reason a
+  placeholder 1×1×1 must never be reported as confidently "fits"/"won't fit" (the predicate treats
+  a degenerate footprint as `'unknown'`, not a guess).
 - **GLTF cache eviction on removal (PERF-001/008).** When a GLB asset is removed/replaced/
   uninstalled, call `evictGltfAsset(url)` (`GltfModel.tsx`) so its parsed GPU geometry/textures
   leave the drei `useGLTF` cache and are disposed, and its `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`

@@ -106,6 +106,8 @@ export type FeatureFlag =
   | 'quoteTemplate'
   | 'priceRules'
   | 'catalogFavourites'
+  | 'catalogFits'
+  | 'catalogFitsFilter'
   | 'wallNumericEntry'
   | 'radialArray'
   | 'pathArray'
@@ -139,6 +141,7 @@ export type FeatureFlag =
   | 'walkWindowFixtures'
   | 'walkScreens'
   | 'walkLights'
+  | 'minimapTeleport'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

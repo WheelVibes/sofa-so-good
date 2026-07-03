@@ -46,6 +46,9 @@ with the right hints for your device, then fades away after a few seconds.
 
 ![Walking through the flat in first person](/screenshots/walk.png)
 
+**Tap or click a spot on the minimap** (bottom‑right) to jump straight there — handy
+for crossing the whole flat without walking the distance, especially on a phone.
+
 ### On a computer (mouse + keyboard)
 
 1. Press <kbd>V</kbd> to enter walk mode.

@@ -106,6 +106,18 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   need to wait for it to age out).
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
   gate on `canEditScene`; leaving the editor clears the selection.
+- **"Fits this room" catalog cue (CATALOG-FITS)** reuses the room's real geometry, never a
+  parallel one: `ui/catalog/useCatalogRoomFit.ts` resolves the active room's free-space rects via
+  `scene/roomEditorShell.ts:getRoomEditorShell` (the same shell the camera + room-filter already
+  use), and the pure `catalog/roomFit.ts:itemFitsRoom` compares those against a def's
+  `defaultFootprint` using the shared `CLEARANCE` margins. `CatalogCard` shows the result as a
+  `.pr.warn` "Won't fit"/"Tight fit" note (+ a `.no-fit` dim for won't-fit) gated by the `catalogFits`
+  flag (simple tier — a passive help cue is core-loop, not analytical); the `catalogFitsFilter`
+  flag (pro tier) adds a "Fits only" browse checkbox (`catalogBrowse.ts:filterByFits`). A `null`
+  rects (no room being edited, or an unresolved room id) or a degenerate footprint always resolves
+  to `'unknown'` — never a false "won't fit". Scoped to `CatalogCard` only, not `RemoteCard`/
+  `SharedCard` (unresolved remote/shared footprints stay un-flagged and are never hidden by the
+  filter).
 - **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models*
   (`RemoteCard`s in the catalog grid) ride the **`remoteFurniture`** flag (pro, default on) —
   **no provider currently supplies furniture models (Poly Haven is materials/HDRIs only), so this

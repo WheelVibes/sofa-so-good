@@ -11,13 +11,20 @@ import { Icon } from '../toolbar/icons'
 import { useAmbientFx } from '../useAmbientFx'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
-import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalogBrowse'
+import {
+  filterByFits,
+  filterByMaxPrice,
+  SORT_LABEL,
+  type SortKey,
+  sortCards,
+} from './catalogBrowse'
 import { LayersPanel } from './LayersPanel'
 import { RemoteCard } from './RemoteCard'
 import { clearRecent, loadRecent, pushRecent } from './recentSearches'
 import { SharedCard } from './SharedCard'
 import { StampBanner } from './StampBanner'
 import { fuzzySearchSmart, matchedIntents } from './searchSynonyms'
+import { useActiveRoomFreeRects } from './useCatalogRoomFit'
 
 // Lazy-loaded: the packs tab (pack install pipeline + unzip + thumbnail
 // renderer) and the model upload dialog (format converters + optimize pass)
@@ -107,6 +114,13 @@ export function CatalogDrawer() {
   const bootstrapShared = useStore((s) => s.bootstrapSharedLibrary)
   // Price displays/filters are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
+  // "Fits this room" size cue (CATALOG-FITS) — free-space rects of the room
+  // being edited (null when no room is active), the passive per-card badge
+  // flag, and the pro-tier "Fits only" browse filter built on top of it.
+  const roomFreeRects = useActiveRoomFreeRects()
+  const fFits = useFeature('catalogFits')
+  const fFitsFilter = useFeature('catalogFitsFilter')
+  const [fitsOnly, setFitsOnly] = useState(false)
   const ambientFx = useAmbientFx()
   const unified = useUnifiedCatalog(fRemoteFurniture, sharedOn)
   // The real category to land on from a "Browse furniture" CTA (favourites/
@@ -204,9 +218,14 @@ export function CatalogDrawer() {
   // `q` reflects the deferred query (matches the ranked results shown below); the
   // search input itself still binds to the live `query` so typing feels instant.
   const q = dq
-  // Optional max-price filter — browse-only (its control lives in the browse
-  // sort row), so a stale cap can never silently filter search results.
-  const allCards = q ? baseCards : filterByMaxPrice(baseCards, maxPrice)
+  // Optional max-price + "fits only" filters — browse-only (their controls
+  // live in the browse sort row), so a stale cap/toggle can never silently
+  // filter search results.
+  const fitsOnlyActive = fFitsFilter && fitsOnly
+  const priceFiltered = q ? baseCards : filterByMaxPrice(baseCards, maxPrice)
+  const allCards = q
+    ? baseCards
+    : filterByFits(priceFiltered, fitsOnlyActive ? roomFreeRects : null)
 
   // Paginate so a big category/search doesn't render hundreds of cards at once.
   const pageCount = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE))
@@ -236,6 +255,7 @@ export function CatalogDrawer() {
           def={it.def}
           staggerIndex={staggerIndex}
           onDelete={() => removeUserFurniture(it.def.id)}
+          roomRects={fFits ? roomFreeRects : null}
         />
       )
     if (it.kind === 'remote')
@@ -467,6 +487,22 @@ export function CatalogDrawer() {
               ) : null}
             </div>
           ) : null}
+          {!q && fFitsFilter && roomFreeRects ? (
+            <div className="cat-sort">
+              <label className="cat-fits-only">
+                <input
+                  type="checkbox"
+                  checked={fitsOnly}
+                  aria-label="Show only items that fit this room"
+                  onChange={(e) => {
+                    setFitsOnly(e.target.checked)
+                    setPage(0)
+                  }}
+                />
+                <span>Fits only</span>
+              </label>
+            </div>
+          ) : null}
           {q && cards.length > 0 && matchedIntents(query).length > 0 ? (
             <div className="catalog-search-hint">
               Showing {matchedIntents(query).join(' & ')} furniture
@@ -518,6 +554,20 @@ export function CatalogDrawer() {
                     label: 'Clear max price',
                     onClick: () => {
                       setMaxPrice('')
+                      setPage(0)
+                    },
+                  }}
+                />
+              ) : fitsOnlyActive && priceFiltered.length > 0 ? (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Measure}
+                  title="Nothing fits this room"
+                  description="Every item here is flagged too big for the free space. Turn off “Fits only” to see them anyway."
+                  cta={{
+                    label: 'Show everything',
+                    onClick: () => {
+                      setFitsOnly(false)
                       setPage(0)
                     },
                   }}

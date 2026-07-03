@@ -1,0 +1,59 @@
+{
+  "name": "catalog-fits-simple",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "enter-bath1-editor",
+      "store": { "action": "enterRoomEditor", "args": ["bath1"] }
+    },
+    {
+      "name": "wait-bath1-active",
+      "waitFor": { "store": "state.roomEditor.active === true && state.roomEditor.roomId === 'bath1'" }
+    },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "wait-catalog", "waitFor": { "css": ".panel.catalog" } },
+    { "name": "wait-cards", "waitFor": { "css": ".cat-card" } },
+    {
+      "name": "shot-seating-default-light-desktop",
+      "screenshot": "seating-default-light-desktop"
+    },
+    {
+      "name": "click-search",
+      "click": { "selector": "input[aria-label='Search the furniture catalog']" }
+    },
+    { "name": "type-queen-bed", "type": "type", "text": "queen bed" },
+    { "name": "wait-queen-bed-card", "waitFor": { "text": "Queen bed" } },
+    {
+      "name": "shot-queen-bed-flagged-light-desktop",
+      "screenshot": "queen-bed-flagged-light-desktop"
+    },
+    {
+      "name": "assert-wont-fit-text",
+      "waitFor": { "text": "Won’t fit" }
+    },
+    { "name": "switch-dark", "store": { "action": "setModePref", "args": ["dark"] } },
+    { "name": "wait-dark-mode", "waitFor": { "store": "document.documentElement.getAttribute('data-mode') === 'dark'" } },
+    {
+      "name": "shot-queen-bed-flagged-dark-desktop",
+      "screenshot": "queen-bed-flagged-dark-desktop"
+    },
+    { "name": "switch-light", "store": { "action": "setModePref", "args": ["light"] } },
+    { "name": "viewport-mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "wait-cards-mobile", "waitFor": { "css": ".cat-card" } },
+    {
+      "name": "shot-queen-bed-flagged-light-mobile",
+      "screenshot": "queen-bed-flagged-light-mobile"
+    },
+    { "name": "switch-dark-mobile", "store": { "action": "setModePref", "args": ["dark"] } },
+    { "name": "wait-dark-mode-mobile", "waitFor": { "store": "document.documentElement.getAttribute('data-mode') === 'dark'" } },
+    {
+      "name": "shot-queen-bed-flagged-dark-mobile",
+      "screenshot": "queen-bed-flagged-dark-mobile"
+    }
+  ]
+}

@@ -554,6 +554,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Minimap tap-to-teleport (MINIMAP-JUMP): click/tap a spot on the walk-mode
+  // minimap to jump the walker there, clamped inside the tapped (or nearest)
+  // room's walls. A navigation aid for the core walk loop, not an advanced
+  // tool — biggest win on mobile where WASD/drag-walking across a whole flat
+  // is slow (RoomSketcher/Coohom tour parity). Pure code, no external assets
+  // → prod-safe; simple tier like its `walkScreens`/`walkLights` siblings.
+  minimapTeleport: {
+    label: 'Minimap tap-to-teleport',
+    description: 'Click or tap a spot on the walk-mode minimap to move there instantly',
+    default: true,
+    tier: 'simple',
+  },
   // Replace-with-similar (PARITY-REPLACE): swap a placed item for a nearest-size
   // catalog sibling in one click, keeping its position/rotation/level. Pure code,
   // no external assets → prod-safe. Surfaced in the default experience → simple tier.
@@ -814,6 +826,29 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Star catalog items to save them in a persistent Favourites tab',
     default: true,
     tier: 'simple',
+  },
+  // "Fits this room" size cue (CATALOG-FITS, 2026-07-03 core-loop parity audit).
+  // Badges/dims a catalog card when the item's footprint can't reasonably fit
+  // the room currently being edited — reuses `def.defaultFootprint` + the shared
+  // `CLEARANCE` constants (`catalog/roomFit.ts`), no new geometry. Pure
+  // client-side, no external assets → prod-safe. A passive read-only cue that
+  // helps a casual user avoid an oversized pick in the core furnish loop
+  // (the HDB small-space premise) → simple tier, present in both modes.
+  catalogFits: {
+    label: 'Room-fit cue',
+    description: "Badge/dim catalog items that won't fit the room being edited",
+    default: true,
+    tier: 'simple',
+  },
+  // The "Fits only" browse filter that hides catalog items flagged `wont-fit`
+  // by the same room-fit check. An analytical/filtering refinement over the
+  // passive cue above (which stays visible without this flag) → pro tier,
+  // hidden in Simple mode so the simple browse UI stays uncluttered.
+  catalogFitsFilter: {
+    label: 'Fits-only filter',
+    description: "Catalog toggle to hide items that won't fit the room being edited",
+    default: true,
+    tier: 'pro',
   },
   // Soft contact-shadow blobs that ground every piece of furniture against the
   // floor (RZ1). One shared radial-gradient texture + a transparent plane per

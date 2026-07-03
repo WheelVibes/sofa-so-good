@@ -59,6 +59,10 @@
   width: 64px; height: 28px; padding: 0 6px; flex: none;
 }
 .cat-sort-clear { width: 24px; height: 24px; flex: none; }
+/* CATALOG-FITS "Fits only" browse toggle — shares the .cat-sort row's
+   right-aligned, muted-caption treatment as the Max $ filter above it. */
+.cat-fits-only { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.cat-fits-only input { accent-color: var(--accent); cursor: pointer; }
 /* Catalog flex column: only the card grid scrolls — header chrome (search, rail,
    sort, pager, footer) keeps its natural height so category chips don't squash
    when a category has many rows. */
@@ -175,6 +179,13 @@
    inert (plain `.pr` grey, no cue that the download is large). */
 .cat-card .pr.warn { color: oklch(0.62 0.14 70); font-weight: 700; }
 [data-mode='dark'] .cat-card .pr.warn { color: oklch(0.75 0.13 72); }
+/* CATALOG-FITS: an item whose footprint can't reasonably fit the room being
+   edited dims the whole card (subtle — thumbnail + name stay legible so the
+   user can still identify/choose it) on top of the `.pr.warn` "Won't fit" text
+   above. Hover/focus lift back toward full opacity so it never feels inert. */
+.cat-card.no-fit { opacity: 0.55; }
+.cat-card.no-fit:hover,
+.cat-card.no-fit:focus-visible { opacity: 0.85; }
 
 .pager { display: flex; align-items: center; justify-content: space-between; padding: var(--s-2) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-xs); color: var(--text-3); font-weight: 600; }
 .pager button { padding: 4px 8px; border-radius: var(--r-2); color: var(--text-2); }
@@ -405,6 +416,7 @@
   -webkit-backdrop-filter: blur(var(--blur)); position: relative;
 }
 .minimap svg { width: 100%; height: 100%; }
+.minimap svg.mm-tap { cursor: pointer; }
 .mm-room { fill: var(--surface-2); stroke: var(--border-2); stroke-width: 1.5; }
 .mm-room.lit { fill: var(--accent-soft); stroke: var(--accent); }
 .mm-label { fill: var(--text); font-size: 6px; font-weight: 800; font-family: var(--font-ui); text-transform: uppercase; letter-spacing: 0.02em; paint-order: stroke; stroke: var(--surface); stroke-width: 1.6px; stroke-linejoin: round; }
