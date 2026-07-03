@@ -1,0 +1,48 @@
+{
+  "name": "top-view-smooth",
+  "url": "http://localhost:5227/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded', '1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "settle", "wait": 800 },
+    { "name": "shot-start", "screenshot": "01-start" },
+    { "name": "clear-probe", "eval": "window.__flyProbe = []" },
+    { "name": "trigger-top-view", "store": { "action": "requestTopView", "args": [] } },
+    { "name": "mid-transition", "wait": 350 },
+    { "name": "shot-mid", "screenshot": "02-mid-transition" },
+    { "name": "wait-transition-done", "wait": 900 },
+    { "name": "shot-end", "screenshot": "03-end" },
+    {
+      "name": "analyze-top-probe",
+      "eval": "(() => { const samples = window.__flyProbe || []; const angleBetween = (a, b) => { let dot = a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; if (dot < 0) dot = -dot; dot = Math.min(1, dot); return 2 * Math.acos(dot); }; const deltas = []; for (let i = 1; i < samples.length; i++) deltas.push(angleBetween(samples[i-1], samples[i])); const avg = deltas.reduce((a,b)=>a+b,0) / (deltas.length || 1); const max = Math.max(0, ...deltas); const lastStep = deltas[deltas.length - 1] || 0; const cam = window.__three.camera; const fwd = cam.getWorldDirection(new (Object.getPrototypeOf(cam.position).constructor)()); window.__probeResult = { sampleCount: samples.length, deltaCount: deltas.length, deltasDeg: deltas.map(d => +(d * 180 / Math.PI).toFixed(3)), avgStepRad: avg, maxStepRad: max, lastStepRad: lastStep, ratio: avg > 0 ? max / avg : 0, finalForward: { x: fwd.x, y: fwd.y, z: fwd.z } }; })()"
+    },
+    {
+      "name": "log-probe-result",
+      "eval": "console.log('PROBE_RESULT_TOP', JSON.stringify(window.__probeResult))"
+    },
+    {
+      "name": "assert-no-terminal-spike",
+      "eval": "(() => { const r = window.__probeResult; if (r.deltaCount < 5) throw new Error('too few samples to judge smoothness: ' + JSON.stringify(r)); if (!(r.maxStepRad < r.avgStepRad * 2 + 1e-4)) throw new Error('terminal spike detected: ' + JSON.stringify(r)); if (!(r.finalForward.y < -0.999)) throw new Error('final view is not straight down: ' + JSON.stringify(r.finalForward)); })()"
+    },
+    { "name": "shot-still-topdown", "screenshot": "04-still-topdown" },
+    { "name": "clear-probe-2", "eval": "window.__flyProbe = []" },
+    { "name": "trigger-home-view", "store": { "action": "requestHomeView", "args": [] } },
+    { "name": "wait-home-transition", "wait": 1300 },
+    {
+      "name": "analyze-home-probe",
+      "eval": "(() => { const samples = window.__flyProbe || []; const angleBetween = (a, b) => { let dot = a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; if (dot < 0) dot = -dot; dot = Math.min(1, dot); return 2 * Math.acos(dot); }; const deltas = []; for (let i = 1; i < samples.length; i++) deltas.push(angleBetween(samples[i-1], samples[i])); const avg = deltas.reduce((a,b)=>a+b,0) / (deltas.length || 1); const max = Math.max(0, ...deltas); window.__probeResult2 = { sampleCount: samples.length, deltaCount: deltas.length, avgStepRad: avg, maxStepRad: max, ratio: avg > 0 ? max / avg : 0 }; })()"
+    },
+    {
+      "name": "log-probe-result-2",
+      "eval": "console.log('PROBE_RESULT_HOME', JSON.stringify(window.__probeResult2))"
+    },
+    {
+      "name": "assert-home-no-terminal-spike",
+      "eval": "(() => { const r = window.__probeResult2; if (r.deltaCount < 5) throw new Error('too few samples to judge smoothness: ' + JSON.stringify(r)); if (!(r.maxStepRad < r.avgStepRad * 2 + 1e-4)) throw new Error('terminal spike detected on home view: ' + JSON.stringify(r)); })()"
+    },
+    { "name": "shot-home", "screenshot": "05-home-view" }
+  ]
+}
