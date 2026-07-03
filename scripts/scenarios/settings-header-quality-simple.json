@@ -1,0 +1,55 @@
+{
+  "name": "settings-header-quality-simple",
+  "url": "http://localhost:5223/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13) })()"
+    },
+
+    { "name": "settle-desktop", "wait": 800 },
+    { "name": "shot-desktop-scene", "screenshot": "desktop-scene" },
+
+    { "name": "open-graphics-desktop", "eval": "Array.from(document.querySelectorAll('button')).find(b => /^Graphics/.test(b.getAttribute('aria-label')||'')).click()" },
+    { "name": "graphics-open", "waitFor": { "css": ".modal-overlay" } },
+    { "name": "settle-graphics", "wait": 400 },
+    { "name": "shot-desktop-graphics-closex", "screenshot": "desktop-graphics-close-x" },
+
+    {
+      "name": "click-maximum",
+      "eval": "Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Maximum').click()"
+    },
+    { "name": "shot-overlay-should-be-up", "screenshot": "desktop-quality-overlay-up" },
+    { "name": "overlay-gone", "waitFor": { "store": "window.__store.getState().loading.active === false", "timeout": 5000 } },
+    { "name": "settle-after-hide", "wait": 300 },
+    { "name": "shot-overlay-hidden-maximum-selected", "screenshot": "desktop-quality-overlay-hidden" },
+
+    {
+      "name": "reclick-maximum-no-flash",
+      "eval": "window.__noFlash = true; Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Maximum').click(); window.__noFlashResult = window.__store.getState().loading.active"
+    },
+    { "name": "assert-no-flash", "waitFor": { "store": "window.__noFlashResult === false" } },
+
+    { "name": "close-graphics", "eval": "document.querySelector('.modal-overlay .icon-btn[aria-label=\"Close\"]').click()" },
+
+    {
+      "name": "reset-tier-for-mobile-leg",
+      "eval": "(() => { const s = window.__store.getState(); s.setQualityTier('performance'); s.hideLoading() })()"
+    },
+    { "name": "viewport-mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 1200 },
+    { "name": "mobile-toolbar-mounted", "waitFor": { "css": ".m-menu-btn" }, "timeout": 30000 },
+    { "name": "open-menu", "click": ".m-menu-btn" },
+    { "name": "menu-open", "waitFor": { "css": ".m-sheet" } },
+    { "name": "open-appearance-rail", "click": "button[aria-label='Appearance & help']" },
+    { "name": "appearance-shown", "wait": 400 },
+    {
+      "name": "open-graphics-mobile",
+      "eval": "Array.from(document.querySelectorAll('button')).find(b => /Graphics/.test(b.textContent||'')).click()"
+    },
+    { "name": "graphics-open-mobile", "waitFor": { "css": ".modal-overlay" } },
+    { "name": "settle-graphics-mobile", "wait": 500 },
+    { "name": "shot-mobile-graphics-header", "screenshot": "mobile-graphics-header-back" }
+  ]
+}
