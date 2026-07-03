@@ -156,6 +156,16 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
 - Labelled sliders use `controls/SliderField` (label + `.slider` + a `tabular-nums` readout) —
   don't hand-pair a bare `.slider` with a separate value span; raw `.slider` stays valid for
   legacy call sites being migrated.
+- **A live value can BE the slider's label instead of a separate readout** — don't render the
+  same concept/value twice on one control. `TimeOfDaySlider` (`ui/scene/TimeOfDaySlider.tsx`,
+  shared by the desktop Scene menu + mobile sheet) sits under a `.scene-row-head` that already
+  names the section ("Time of day"), so the `SliderField` below it passes the live formatted
+  clock as `label` (with `ariaLabel="Time of day"` to keep the accessible name stable) and
+  `hideReadout` to suppress the normal `.val` — one line: `[time] [slider]`. The header keeps
+  only its section label (no separate clock span — that was a duplicate of the row's own label).
+  `.tod .fld .lbl` (`features.css`) sizes the label to its content (`flex: none`, `white-space:
+  nowrap`, mono/tabular-nums) so the slider (`.fld .slider`, `flex: 1.2`) takes the rest of the
+  row and the widest time string ("12:58 PM") never wraps or pushes the slider off-row.
 - Self-managed collapsible sections use `controls/Disclosure` over the `.compose` `<details>`
   idiom (FinishPicker/MaterialComposer). Layers group-collapse stays bespoke — it is
   store-persisted (`layersCollapsed`) and force-expands under an active filter.
