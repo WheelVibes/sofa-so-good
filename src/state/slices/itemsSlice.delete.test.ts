@@ -86,10 +86,11 @@ describe('P30 delete emits an Undo toast', () => {
     expect(s().items).toHaveLength(2)
 
     // Emulate FinishPicker's clearRoom: one pushHistory, silent per-item
-    // deletes, then its own single summary toast with an Undo action.
+    // deletes (skipping their own history push), then its own single
+    // summary toast with an Undo action.
     s().pushHistory()
-    s().deleteItem(a, { silent: true })
-    s().deleteItem(b, { silent: true })
+    s().deleteItem(a, { silent: true, skipHistoryPush: true })
+    s().deleteItem(b, { silent: true, skipHistoryPush: true })
     s().notify.start({
       title: 'Cleared 2 items from this room',
       kind: 'success',
@@ -103,6 +104,26 @@ describe('P30 delete emits an Undo toast', () => {
     expect(summaryToasts[0]?.actionLabel).toBe('Undo')
 
     summaryToasts[0]?.onAction?.()
+    expect(s().items).toHaveLength(2)
+  })
+
+  it('clearRoom pushes exactly one history step (no double-push)', () => {
+    const a = seedItem()
+    const b = seedItem()
+    const pastBefore = s().past.length
+
+    // Emulate FinishPicker's clearRoom sequence: one explicit pushHistory()
+    // followed by a silent, history-skipping per-item delete loop. The loop
+    // must NOT add a second entry on top of the explicit pushHistory() call.
+    s().pushHistory()
+    s().deleteItem(a, { silent: true, skipHistoryPush: true })
+    s().deleteItem(b, { silent: true, skipHistoryPush: true })
+
+    expect(s().items).toHaveLength(0)
+    expect(s().past.length).toBe(pastBefore + 1)
+
+    // A single undo() reverts the whole clear in one step.
+    s().undo()
     expect(s().items).toHaveLength(2)
   })
 })

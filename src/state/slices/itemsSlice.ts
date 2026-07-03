@@ -34,8 +34,11 @@ export interface ItemsSlice {
   /** Delete a placed item (one coalesced undo step). Pass `{ silent: true }`
    *  to suppress the per-item "Item deleted" toast — batch callers that show
    *  their own single summary toast (e.g. FinishPicker's clearRoom) use this
-   *  so the user doesn't see two stacked toasts for one action. */
-  deleteItem: (id: string, opts?: { silent?: boolean }) => void
+   *  so the user doesn't see two stacked toasts for one action. Pass
+   *  `{ skipHistoryPush: true }` when the caller already pushed a single
+   *  history step of its own immediately before the delete loop (clearRoom),
+   *  so the loop's first iteration doesn't add a second, redundant entry. */
+  deleteItem: (id: string, opts?: { silent?: boolean; skipHistoryPush?: boolean }) => void
   updateItemProps: (id: string, props: ParamProps) => void
   /** Merge `props` into every listed item in ONE undo step (bulk recolour /
    *  batch appearance edit). Unknown ids are ignored. */
@@ -163,7 +166,10 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
   },
   deleteItem: (id, opts) => {
     // Coalesced so a multi-select delete loop produces one undo step.
-    get().pushHistoryCoalesced('delete')
+    // `skipHistoryPush` lets a caller that already pushed its own single
+    // history step (clearRoom) skip this — otherwise the first loop
+    // iteration would push a second, redundant entry (BUG: double history).
+    if (!opts?.skipHistoryPush) get().pushHistoryCoalesced('delete')
     set((s) => {
       const ids = s.selectedItemIds.filter((x) => x !== id)
       const deleted = s.items.find((it) => it.id === id)
