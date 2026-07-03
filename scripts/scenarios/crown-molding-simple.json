@@ -1,91 +1,58 @@
 {
   "name": "crown-molding-simple",
-  "url": "http://localhost:5209/",
+  "description": "IXT-SUITES back-fill for the crownMolding feature (tier:simple, default:true — a core finish detail baked into every full-height wall face, not a user-facing panel toggle). Verifies the flag defaults ON in both Simple and Pro (tier:simple is never forced off by resolveFlags), then renders the trim at a full-height wall-ceiling seam (livingDining east wall, wall-ext-E, which has no window/door cutouts so its whole span sits at ceiling height). Paints the wall a bold navy so the fixed off-white crown colour (#eeece6, same regardless of wall finish) has contrast against the paint, then toggles the flag off/on/off-cleanup via setFeatureFlag to prove the strip is flag-driven (on/off/restored screenshots at the same fixed camera). Each store-only mutation is followed by a tiny setManualHour nudge to force a new render burst — see the 'demand-frameloop presentation can lag one render burst behind' gotcha in the visual-verification playbook.",
+  "url": "http://localhost:5230/",
   "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
     {
-      "name": "store-ready",
-      "waitFor": { "storeExists": true },
-      "timeout": 30000
+      "name": "verify-flag-on-in-simple",
+      "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags && state.featureFlags.crownMolding === true" },
+      "timeout": 10000,
+      "failMessage": "crownMolding should default ON in Simple mode (tier: simple, default: true)"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags-pro", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "verify-flag-on-in-pro",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.crownMolding === true" },
+      "timeout": 10000,
+      "failMessage": "crownMolding is tier:simple, so it must stay ON in Pro mode too (not forced off like a pro-tier flag)"
+    },
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "reresolve-flags-simple", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "paint-wall-navy",
+      "eval": "window.__store.getState().setWallFinish('livingDining', 'wall-paint-navy')",
+      "failMessage": "setWallFinish should exist on the store — used to give the off-white crown strip contrast against a bold wall for the screenshot"
     },
     {
-      "name": "dismiss-overlays",
-      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+      "name": "cam-wall-seam",
+      "eval": "(() => { const t = window.__three; const cam = t.camera; const c = t.controls; cam.position.set(9.0, 2.0, 2.5); if (c) { c.target.set(12.6, 2.2, 4.5); c.update(); } cam.lookAt(12.6, 2.2, 4.5); })()"
     },
     {
-      "name": "pro-mode",
-      "store": { "action": "setUiMode", "args": ["pro"] }
+      "name": "nudge-after-paint",
+      "eval": "window.__store.getState().setManualHour(13.01)",
+      "failMessage": "demand-frameloop lag workaround (playbook): a finish-only store change may not surface in captured pixels until another store change triggers the next render burst"
     },
+    { "name": "settle-on", "wait": 2000 },
+    { "name": "shot-crown-on", "screenshot": "crown-molding-on" },
+    { "name": "disable-flag", "eval": "window.__store.getState().setFeatureFlag('crownMolding', false)" },
     {
-      "name": "set-daytime",
-      "eval": "window.__store.getState().setManualHour?.(12)"
+      "name": "verify-flag-off",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.crownMolding === false" },
+      "timeout": 5000,
+      "failMessage": "setFeatureFlag('crownMolding', false) did not update state.featureFlags"
     },
-    {
-      "name": "set-quality-medium",
-      "eval": "window.__store.getState().setRenderTier?.('Medium')"
-    },
-    {
-      "name": "wait-scene",
-      "wait": 3000
-    },
-    {
-      "name": "shot-overview",
-      "screenshot": "01-overview"
-    },
-    {
-      "name": "verify-crown-molding-flag",
-      "eval": "const flags = window.__store.getState().featureFlags; if (!flags.crownMolding) throw new Error('crownMolding flag is OFF — expected ON')"
-    },
-    {
-      "name": "tilt-to-profile",
-      "drag": { "from": [800, 200], "to": [800, 450] }
-    },
-    {
-      "name": "zoom-to-wall",
-      "wheel": { "x": 800, "y": 400, "dy": -600 }
-    },
-    {
-      "name": "wait-settle",
-      "wait": 800
-    },
-    {
-      "name": "shot-profile-with-crown",
-      "screenshot": "02-profile-crown-visible"
-    },
-    {
-      "name": "orbit-to-corner",
-      "drag": { "from": [600, 400], "to": [800, 400] }
-    },
-    {
-      "name": "wait-settle-2",
-      "wait": 600
-    },
-    {
-      "name": "shot-corner",
-      "screenshot": "03-corner-miter"
-    },
-    {
-      "name": "disable-crown",
-      "eval": "window.__store.getState().setFeatureFlag?.('crownMolding', false)"
-    },
-    {
-      "name": "wait-rerender",
-      "wait": 600
-    },
-    {
-      "name": "shot-no-crown",
-      "screenshot": "04-no-crown-control"
-    },
-    {
-      "name": "re-enable-crown",
-      "eval": "window.__store.getState().setFeatureFlag?.('crownMolding', true)"
-    },
-    {
-      "name": "wait-rerender-2",
-      "wait": 600
-    },
-    {
-      "name": "shot-crown-restored",
-      "screenshot": "05-crown-restored"
-    }
+    { "name": "nudge-after-disable", "eval": "window.__store.getState().setManualHour(13.02)" },
+    { "name": "settle-off", "wait": 1500 },
+    { "name": "shot-crown-off", "screenshot": "crown-molding-off" },
+    { "name": "restore-flag", "eval": "window.__store.getState().setFeatureFlag('crownMolding', true)" },
+    { "name": "nudge-after-restore", "eval": "window.__store.getState().setManualHour(13.03)" },
+    { "name": "settle-restored", "wait": 1500 },
+    { "name": "shot-crown-restored", "screenshot": "crown-molding-restored" }
   ]
 }

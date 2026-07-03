@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { SerializedState } from '../schema'
 import { AUTOSAVE_SLOT, evictOldest, LocalStorageAdapter } from './LocalStorageAdapter'

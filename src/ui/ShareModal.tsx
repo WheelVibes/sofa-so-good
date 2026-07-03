@@ -87,7 +87,7 @@ export function ShareModal() {
       width={440}
       panelId="sharePanel"
     >
-      <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
+      <div className="sec">
         <div className="sec-h">
           <span>Share this design</span>
         </div>

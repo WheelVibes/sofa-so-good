@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * "New" feature badge (P27) on `MenuItem` — the representative wired entry is
  * the "Style quiz" row in the Tools menu (`ToolsMenu.tsx`, `newFlag="styleQuiz"`),

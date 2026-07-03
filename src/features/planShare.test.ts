@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { deflateSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { applySerialized } from '../state/schema'
@@ -35,7 +36,12 @@ describe('encodePlan / decodePlan', () => {
     expect(() => decodePlan('aGVsbG8')).toThrow(PlanShareError) // valid b64, not deflate
   })
 
-  it('refuses a decompression bomb instead of inflating it into memory', () => {
+  // The 64 MB deflate + base64 build is CPU-heavy and shares the box with 11
+  // other worker forks in a full run — the 5 s default timeout is marginal
+  // under that load (flaked in full runs while passing standalone).
+  it('refuses a decompression bomb instead of inflating it into memory', {
+    timeout: 20_000,
+  }, () => {
     // ~64 MB of zeros compresses to a tiny code that passes MAX_CODE_LENGTH but
     // would blow past the decompressed cap — the bounded inflate must reject it.
     const bomb = new Uint8Array(64 * 1024 * 1024)

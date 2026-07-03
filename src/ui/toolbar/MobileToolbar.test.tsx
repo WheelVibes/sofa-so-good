@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * A11Y test for `MobileToolbar` (v0.9.0.36): the mobile menu sheet closes on
  * Escape (it was previously the lone overlay without an Escape handler).

@@ -96,45 +96,6 @@
 .er-foot .btn { flex: none; }
 
 /* ============================================================
-   LAYOUT PRESETS
-   ============================================================ */
-.modal-overlay > .preset-panel { position: static; width: 560px; max-width: calc(100vw - 48px); max-height: min(640px, calc(100vh - 64px)); box-shadow: var(--shadow-pop); animation: modalpop var(--dur) var(--ease); }
-.preset-filters { display: flex; gap: var(--s-1); padding: 0 var(--s-4) var(--s-3); flex-wrap: wrap; }
-.preset-body { padding-top: var(--s-4); }
-.preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
-.preset-card {
-  display: flex; gap: var(--s-3); text-align: left; padding: var(--s-3);
-  border-radius: var(--r-2); border: 1px solid var(--border);
-  transition: var(--dur) var(--ease); position: relative;
-  /* Mouse-follow accent glow (P7 ambient FX) painted over the surface fill, under
-     content. Accent share defaults to 0% — invisible until a gated .fx container
-     + :hover arm it (mirrors .cat-card in parts.css; see that comment). */
-  background-color: var(--surface-2);
-  background-image: radial-gradient(
-    160px circle at var(--mx, 50%) var(--my, 50%),
-    color-mix(in oklch, var(--accent) var(--glow-a, 0%), transparent),
-    transparent 60%
-  );
-}
-.fx .preset-card:hover { --glow-a: 12%; }
-.preset-card:hover { border-color: var(--accent); background-color: var(--surface-solid); }
-.preset-card.on { border-color: var(--accent); background-color: var(--accent-soft); }
-.preset-thumbwrap { width: 92px; flex: none; border-radius: var(--r-1); background: var(--surface-3); border: 1px solid var(--border); overflow: hidden; display: grid; place-items: center; }
-.preset-thumb { width: 100%; height: auto; display: block; }
-.preset-room { fill: var(--surface-solid); stroke: var(--border-2); stroke-width: 1.5; }
-.preset-door { fill: var(--accent); opacity: 0.5; }
-.preset-meta { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.preset-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.preset-top b { font-size: var(--t-base); font-weight: 700; color: var(--text); }
-.preset-check { color: var(--accent-soft-text); opacity: 0; transition: var(--dur) var(--ease); }
-.preset-card.on .preset-check { opacity: 1; }
-.preset-desc { font-size: var(--t-xs); color: var(--text-2); line-height: 1.4; margin: 0; }
-.preset-stats { display: flex; align-items: center; gap: 6px; font-size: var(--t-2xs); color: var(--text-3); font-weight: 600; margin-top: auto; }
-.preset-stats .dot { width: 3px; height: 3px; border-radius: 999px; background: var(--text-3); }
-.preset-stats .mono { color: var(--accent-soft-text); }
-.preset-foot { border-top: 1px solid var(--border); padding: var(--s-3) var(--s-4); display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
-
-/* ============================================================
    ONBOARDING
    ============================================================ */
 .onb-overlay { z-index: var(--z-overlay); }
@@ -200,7 +161,7 @@
 .ss-card:hover { border-color: var(--border-2); }
 .ss-card.on { border-color: var(--accent); background: var(--accent-soft); }
 .ss-card-name { font-size: var(--t-sm); font-weight: 700; color: var(--text); }
-.ss-card-desc { font-size: var(--t-xs); color: var(--text-2); line-height: 1.4; }
+.ss-card-desc { font-size: var(--t-xs); color: var(--text-2); line-height: var(--lh-body); }
 .ss-card-swatches { display: flex; gap: 4px; margin-top: var(--s-2); }
 .ss-card-swatches i { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border); }
 

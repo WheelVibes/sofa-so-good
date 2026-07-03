@@ -95,4 +95,41 @@ describe('LIGHT_EMITTERS', () => {
       expect(OVERRIDE_EMITTER.height({ height: 0.5 })).toBeCloseTo(0.6)
     })
   })
+
+  describe('per-item power override (WALK-LIGHT-INTERACT)', () => {
+    it('lightOn:"no" forces a registered fixture off, overriding its own enabled gate', () => {
+      // table-lamp has no `enabled` gate at all (always on by default)…
+      expect(isItemEmitter('table-lamp' as FurnitureType, {})).toBe(true)
+      expect(isItemEmitter('table-lamp' as FurnitureType, { lightOn: 'no' })).toBe(false)
+      expect(resolveEmitterSpec('table-lamp' as FurnitureType, { lightOn: 'no' })).toBeNull()
+      // …and a gated fixture that WOULD otherwise pass its own enabled() gate
+      // is still forced off by the explicit per-item override.
+      expect(
+        isItemEmitter('vanity' as FurnitureType, { lights: 'yes', mirror: 'rect', lightOn: 'no' }),
+      ).toBe(false)
+      expect(
+        resolveEmitterSpec('vanity' as FurnitureType, {
+          lights: 'yes',
+          mirror: 'rect',
+          lightOn: 'no',
+        }),
+      ).toBeNull()
+    })
+
+    it('lightOn:"no" also forces off a user-override (non-registered) light source', () => {
+      const sofa = 'sofa-3seat' as FurnitureType
+      expect(isItemEmitter(sofa, { lightOn: 'yes' })).toBe(true)
+      expect(isItemEmitter(sofa, { lightOn: 'no' })).toBe(false)
+      expect(resolveEmitterSpec(sofa, { lightOn: 'no' })).toBeNull()
+    })
+
+    it('per-item OFF is independent of the scene-wide lightsMode multiplier', () => {
+      // `isItemEmitter`/`resolveEmitterSpec` never read `lightsMode` — the
+      // item-level gate is evaluated upstream of that brightness multiplier
+      // (applied separately in `FurnitureLights.tsx`), so the composition
+      // rule holds in every mode ('auto'/'on'/'off'): an item switched off
+      // here is excluded from the active-lights set entirely, not merely dimmed.
+      expect(resolveEmitterSpec('table-lamp' as FurnitureType, { lightOn: 'no' })).toBeNull()
+    })
+  })
 })

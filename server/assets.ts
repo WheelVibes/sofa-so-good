@@ -31,6 +31,17 @@ function contentType(key: string): string {
 }
 
 /**
+ * Mutable, re-uploadable keys (the `library/index.json` manifest). Everything
+ * else in the bucket is content-addressed per product folder and safe to cache
+ * immutably — but the manifest is REPLACED in place when the library is
+ * re-published, so it must never enter the edge/browser cache (a poisoned
+ * immutable manifest can otherwise outlive its fix by up to a year).
+ */
+function isMutableKey(key: string): boolean {
+  return key.startsWith('library/')
+}
+
+/**
  * Serve an object from the R2 library. `key` is the object key inside the
  * bucket (e.g. `ikea/alex-desk-100x48/white.glb`). Caller must have already
  * verified the session.
@@ -38,9 +49,12 @@ function contentType(key: string): string {
 export async function serveAsset(env: Env, req: Request, key: string): Promise<Response> {
   const cache = caches.default
   const cacheKey = new Request(new URL(req.url).toString(), { method: 'GET' })
+  const mutable = isMutableKey(key)
 
-  const cached = await cache.match(cacheKey)
-  if (cached) return cached
+  if (!mutable) {
+    const cached = await cache.match(cacheKey)
+    if (cached) return cached
+  }
 
   // Cold miss: if the R2 kill-switch is tripped, refuse to read R2.
   if (await isTripped(env, KILL_R2)) {
@@ -56,10 +70,11 @@ export async function serveAsset(env: Env, req: Request, key: string): Promise<R
   const headers = new Headers()
   object.writeHttpMetadata(headers)
   headers.set('Content-Type', object.httpMetadata?.contentType ?? contentType(key))
-  headers.set('Cache-Control', IMMUTABLE)
+  headers.set('Cache-Control', mutable ? 'no-store' : IMMUTABLE)
   headers.set('ETag', object.httpEtag)
 
   const res = new Response(object.body, { headers })
+  if (mutable) return res
   // Store a clone in the edge cache for subsequent requests (best-effort).
   await cache.put(cacheKey, res.clone())
   return res

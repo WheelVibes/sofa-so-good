@@ -9,7 +9,13 @@ same change that reshapes a system.
 > a system, add a line and trim/merge elsewhere; push deep detail to the path-scoped files.
 
 ## Commands (full)
-- `npm run dev` (localhost:5173; store on `window.__store`); `npm test`/`test:watch`;
+- `npm run dev` (localhost:5173; store on `window.__store`); `npm test`/`test:watch`.
+  **Test environments**: Vitest defaults to `node` (fast, no DOM); any test file that touches
+  the DOM (render/`@testing-library`/`window`/`document`/canvas/IndexedDB) must start with a
+  `// @vitest-environment happy-dom` line — a missing pragma fails with
+  `window/document is not defined`. CSS regex guards are consolidated in
+  `src/styles/styleGuards.test.ts` (one node-env file) — add new style guards there, not as
+  new per-feature files;
   `npm run build` (= `tsc` + Vite prod build). `predev`/`prebuild` run `copy-decoders`
   (self-hosts the Draco decoder into `public/draco/`); `npm run copy-decoders` runs it manually.
 - `npm run deadcode` — **knip** (unused files/exports/deps report; `knip.json`).
@@ -146,11 +152,15 @@ same change that reshapes a system.
   `PrimitiveKind`), `GltfModel.tsx`/`gltfRender.ts` (all GLB items), `defaults/` (per-room layout
   files assembled by `defaultLayout.ts`; each room file owns its own decor props so the styled flat
   is self-contained; all set-dressing props carry `noClip: true` so they pass collision checks),
-  `lightEmitters.ts` (fixture registry + `resolveEmitterSpec`; any item with `props.lightOn`
-  emits via the `OVERRIDE_EMITTER` fallback — `itemAsLight` flag; `props.iesProfile` swaps the
-  omni point light for an IES `SpotLight` — see `src/lighting/ies/`). Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
+  `lightEmitters.ts` (fixture registry + `resolveEmitterSpec`; any item with `props.lightOn ===
+  'yes'` emits via the `OVERRIDE_EMITTER` fallback — `itemAsLight` flag; `props.lightOn ===
+  'no'` is a hard per-item off override checked FIRST, winning over a registered fixture's own
+  `enabled` gate too — the walk-mode light toggle, WALK-LIGHT-INTERACT above; `props.iesProfile`
+  swaps the omni point light for an IES `SpotLight` — see `src/lighting/ies/`). Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
   `textureBudget.ts`, `finishTargets.ts`, `mirrorPlane.ts`); `convert/` (any-format→GLB:
-  `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`); `optimize/` (`optimizeGlb.ts`
+  `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`; `zipGuard.ts` bounds the
+  DECLARED decompressed size of usdz/3mf via fflate central-directory reads before the
+  loader inflates — IO-006 zip-bomb guard); `optimize/` (`optimizeGlb.ts`
   pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`;
   `lodVariants.ts` in-browser `-low`/`-medium` tier generation for uploads — meshopt simplify
   + tier texture caps from `gltf/lod.ts` `TIER_BUDGETS`, stored in IDB under
@@ -297,6 +307,38 @@ same change that reshapes a system.
   select-vs-rotate tool; orbit freezes only during a drag/gizmo (`rotatingGizmo`+
   `draggingItemId`). Enter via toolbar "Edit a room" or a room-floor click (→ "Enter
   <room>?" confirm, `enterRoomConfirm.ts`).
+- **Walk-mode interact** (`state/editing.ts:dispatchWalkInteract` — the single gate; walk-only,
+  inert in orbit): doors (`doorsSlice` `toggleDoor`, aim → `nearbyDoorId`, `ui/DoorPrompt`) and
+  **curtains/blinds** (WINDOW-FIXTURE-INTERACT, `walkWindowFixtures` flag, simple): click/tap or
+  E flips the fixture's own `props.drawAmount`/`lower` 0↔1 via `windowFixtureSlice`
+  `toggleWindowFixture` (undoable; persists through the existing `items` schema field — no new
+  schema work). Eligibility + prop mapping are pure in `furniture/windowFixtureInteract.ts`;
+  the E-key aim reuses the door aim's ray/segment math (`collision/aimRay.ts:nearestAimedSegment`)
+  against live per-item segments (`windowFixtureAimSegments`), surfaced as `nearbyFixtureId` +
+  `ui/FixturePrompt` ("Open curtains" / "Lower blind"). Scenario:
+  `scripts/scenarios/walk-curtain-interact.json`. **Screens** (WALK-SCREEN-INTERACT,
+  `walkScreens` flag, simple): click/tap or E on any parametric def whose `paramSchema`
+  exposes a `screenContent` enum field (`monitor`/`flatscreen-tv`/`tv-wall`, all sharing the
+  `Monitor`/`FlatscreenTV` primitives — eligibility is keyed on that schema **capability**, not
+  a def-id list) advances `props.screenContent` to the next enum option, wrapping around.
+  Pure logic in `furniture/screenInteract.ts`; state in `screenInteractSlice`
+  (`nearbyScreenId` + `cycleScreenContent`, no new schema field); prompt `ui/ScreenPrompt`
+  ("Change wallpaper"). **Lights** (WALK-LIGHT-INTERACT, `walkLights` flag, simple): click/tap
+  or E on any light-capable item (a registered `lightEmitters.ts` fixture — lamp/sconce/ceiling
+  light-fan/cove light/vanity/aquarium — or any item already flagged via the `itemAsLight`
+  override) flips `props.lightOn` between on (`'yes'`/absent) and off (`'no'`) — a discrete
+  switch flip, like curtains' draw toggle. `lightOn === 'no'` is evaluated FIRST in
+  `isItemEmitter`/`resolveEmitterSpec` and wins over a fixture's own `enabled` gate (e.g. the
+  vanity's Hollywood-bulb condition): the item-level gate runs upstream of the scene-wide
+  `lightsMode` ('auto'/'on'/'off') brightness multiplier in `FurnitureLights.tsx`, so a
+  switched-off item never enters the active-lights set in any mode — **per-item toggle always
+  wins**. Pure logic in `furniture/lightInteract.ts`; state in `lightInteractSlice`
+  (`nearbyLightId` + `toggleLightPower`); prompt `ui/LightPrompt` ("Turn off table lamp").
+  Screens and lights are the first pair to use genuine **nearest-wins** disambiguation (not the
+  fixed door>fixture priority order): `FirstPersonCamera` merges their aim segments into one
+  `nearestAimedSegment` call with `screen:`/`light:` id prefixes, so whichever is physically
+  closer sets its own `nearby*Id` (the other cleared). Scenario:
+  `scripts/scenarios/walk-screens-lights.json`.
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts`+
   `RoomShell.tsx`, `uiSlice.roomEditor`): the **sole editing surface**. Separate
   lightweight `<Canvas>` (flat light, DPR 1, no shadows/IBL/post), pinned to Performance

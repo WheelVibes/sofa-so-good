@@ -61,6 +61,11 @@ import {
 } from './slices/installedPacksSlice'
 import { createItemsSlice, ITEMS_INITIAL, type ItemsSlice } from './slices/itemsSlice'
 import {
+  createLightInteractSlice,
+  LIGHT_INTERACT_INITIAL,
+  type LightInteractSlice,
+} from './slices/lightInteractSlice'
+import {
   createLocalAssetsSlice,
   LOCAL_ASSETS_INITIAL,
   type LocalAssetsSlice,
@@ -112,6 +117,11 @@ import {
   type SavedMaterialsSlice,
 } from './slices/savedMaterialsSlice'
 import {
+  createScreenInteractSlice,
+  SCREEN_INTERACT_INITIAL,
+  type ScreenInteractSlice,
+} from './slices/screenInteractSlice'
+import {
   createSelectionSlice,
   SELECTION_INITIAL,
   type SelectionSlice,
@@ -139,6 +149,11 @@ import {
   USER_STYLES_INITIAL,
   type UserStylesSlice,
 } from './slices/userStylesSlice'
+import {
+  createWindowFixtureSlice,
+  WINDOW_FIXTURE_INITIAL,
+  type WindowFixtureSlice,
+} from './slices/windowFixtureSlice'
 
 export type { CameraMode } from './slices/cameraSlice'
 export type { Location } from './slices/locationSlice'
@@ -153,6 +168,9 @@ export interface RootState
     CommentsSlice,
     DrawingCalloutsSlice,
     DoorsSlice,
+    WindowFixtureSlice,
+    ScreenInteractSlice,
+    LightInteractSlice,
     ItemsSlice,
     SelectionSlice,
     GroupsSlice,
@@ -200,6 +218,9 @@ const INITIAL = {
   ...COMMENTS_INITIAL,
   ...DRAWING_CALLOUTS_INITIAL,
   ...DOORS_INITIAL,
+  ...WINDOW_FIXTURE_INITIAL,
+  ...SCREEN_INTERACT_INITIAL,
+  ...LIGHT_INTERACT_INITIAL,
   ...ITEMS_INITIAL,
   ...SELECTION_INITIAL,
   ...USER_ASSETS_INITIAL,
@@ -244,6 +265,9 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createCommentsSlice(set, get, api),
   ...createDrawingCalloutsSlice(set, get, api),
   ...createDoorsSlice(set, get, api),
+  ...createWindowFixtureSlice(set, get, api),
+  ...createScreenInteractSlice(set, get, api),
+  ...createLightInteractSlice(set, get, api),
   ...createItemsSlice(set, get, api),
   ...createSelectionSlice(set, get, api),
   ...createGroupsSlice(set, get, api),

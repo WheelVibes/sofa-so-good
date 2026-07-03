@@ -65,8 +65,6 @@ export interface FeaturesSlice {
   /** Guided product tour (spotlight walkthrough): open + current step index. */
   tourOpen: boolean
   tourStep: number
-  /** Help & shortcuts modal visibility. */
-  helpOpen: boolean
   /** Asset-credits (attribution) modal visibility. */
   creditsOpen: boolean
   /** Swap-with-similar modal — the item id being replaced, or null. */
@@ -152,7 +150,6 @@ export interface FeaturesSlice {
   tourPrev: () => void
   /** End the tour (Skip / Done) and mark it completed in localStorage. */
   endTour: () => void
-  setHelpOpen: (open: boolean) => void
   setCreditsOpen: (open: boolean) => void
   setSwapItemId: (id: string | null) => void
   setShareOpen: (open: boolean) => void
@@ -200,7 +197,6 @@ export const FEATURES_INITIAL = {
   onboardingStep: 0,
   tourOpen: false,
   tourStep: 0,
-  helpOpen: false,
   creditsOpen: false,
   swapItemId: null as string | null,
   shareOpen: false,
@@ -260,7 +256,6 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
     markTourDone()
     set({ tourOpen: false, tourStep: 0 })
   },
-  setHelpOpen: (helpOpen) => set({ helpOpen }),
   setCreditsOpen: (creditsOpen) => set({ creditsOpen }),
   setSwapItemId: (swapItemId) => set({ swapItemId }),
   setShareOpen: (shareOpen) => set({ shareOpen }),

@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 /**

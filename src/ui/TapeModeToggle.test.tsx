@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for the `TapeModeToggle` feature gate (v0.9.0.24). The tape-mode pill
  * is shown only while the tape tool is active AND the `measure` feature is on —

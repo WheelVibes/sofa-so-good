@@ -455,6 +455,100 @@ learned here:**
 - The panel surfaces purely on `selectedItemIds.length > 1` — drive it with `setSelectedItemIds`
   (or `setPlanMarqueeSelection` once the marquee lands) rather than synthesising a canvas drag.
 
+### Worked example — walk-mode curtain/blind interact (WINDOW-FIXTURE-INTERACT)
+
+**`walk-curtain-interact.json`** proves the walk-mode fixture toggle end-to-end: orbit E-press
+inert → enter walk → the REAL aim loop flags the living/dining curtain (`nearbyFixtureId`) →
+FixturePrompt pill ("Open curtains") → REAL `KeyE` press flips `drawAmount` 1→0 → prompt flips
+to "Close curtains" → store-action toggle back. **Key gotchas learned here:**
+- **Teleporting the walk camera works via `window.__three.camera.position.x/.z`** — the
+  FirstPersonCamera frame loop only writes x/z on movement input (y is owned by `yPos`+bob, and
+  the *orientation* is re-asserted every frame from internal yaw/pitch refs seeded at spawn).
+  So you can move the walker anywhere, but you CANNOT re-aim it — pick a teleport spot such
+  that the spawn look direction (≈`(-0.17, -0.99)` for the default flat) already points at your
+  target within the 2 m interact radius. Walk mode is `isContinuous`, so the aim loop ticks
+  headlessly without store nudges.
+- **The R3F mesh-click limitation applies to the fixture/door click path** — verify the click
+  branch through its store action (`toggleWindowFixture` / `toggleDoor`) and let unit tests
+  cover the `onClick` gate; the E-key path is fully drivable headless (`{"key": "KeyE"}` reaches
+  the real `App.tsx` handler).
+- **The first-run "Walking through" InfoCallout covers bottom-center HUD pills** (DoorPrompt /
+  FixturePrompt render at the same `bottom-24` slot). Call
+  `dismissCallout('walk-mode')` after entering walk or the prompt is invisible in screenshots
+  (it still exists in the DOM — text `waitFor`s pass either way).
+- **Default items get their param-schema defaults filled at boot** — the default curtain boots
+  with `props.drawAmount === 1` (not `undefined`), so "unchanged" assertions must compare
+  against the filled default, not absence. Toggles are synchronous, so asserting the value
+  right after a keypress is a valid inertness proof.
+
+### Worked example — walk-mode screen wallpaper + light on/off (WALK-SCREEN-INTERACT / WALK-LIGHT-INTERACT)
+
+**`walk-screens-lights.json`** proves both new walk-mode interacts end-to-end against the
+default flat's Bedroom-2: orbit E-press inert (both) → enter walk → REAL aim loop flags the
+desk monitor (`nearbyScreenId`) → ScreenPrompt ("Change wallpaper") → REAL `KeyE` advances
+`screenContent` landscape→sunset → teleport to the ceiling pendant → LightPrompt ("Turn off
+ceiling light") → REAL `KeyE` sets `lightOn:'no'` → prompt flips to "Turn on ceiling light" →
+store-action toggle back on. **New gotcha found here, beyond the curtain worked-example above:**
+- **A directional item's face can point AWAY from the only reachable teleport spot.** The
+  curtain gotcha above already covers *positioning* the walker so the fixed spawn look-direction
+  (`≈(-0.17,-0.99)` for the default flat) hits the target within the interact radius — but it
+  doesn't cover *which side* of the item you end up looking at. A wall/desk item with a real
+  front/back (a monitor screen, a TV) only shows its face from specific approach angles; since
+  you can't re-aim (no headless pointer-lock/mouse-look), you may only be able to reach the
+  item's BACK from the room's geometry (e.g. Bedroom-2's monitor faces the chair to the north,
+  but the only interact-radius standoff space is the ~0.5 m gap to the south wall BEHIND the
+  screen). The aim/E-key/store assertions still prove the interaction fires correctly — screen
+  content changes as it should — but the screenshot won't visually show the wallpaper. **Assert
+  the state change in-store as the primary evidence** (`props.screenContent === 'sunset'`, per
+  CLAUDE.md's guidance for "too subtle to see headlessly") and note which side of the item the
+  frame shows; don't burn time hunting for a teleport spot that doesn't exist within a small
+  room. `setWalkEyeHeight(1.2)` (min per `WALK_EYE_MIN`) helps bring a desk-height item into the
+  horizontal FOV band at close range, but doesn't fix a wrong-side approach.
+- **Toggling a ceiling-mounted light IS clearly visible even though the fixture mesh itself is
+  out of frame** (it's overhead, above the horizontal look). The emissive glow/bloom it casts on
+  the ceiling and upper walls reads as an obvious warm-vs-dark difference in the screenshot —
+  good evidence even when the literal mesh isn't visible. Force `setLightsMode('on')` +
+  a night `setManualHour` first so the "on" state is unambiguously bright before toggling off.
+### Worked example — walk-mode backdrop upload + item-as-light-source (IXT-SUITES re-rungs)
+
+**`backdrop-upload-simple.json`** (47 steps, 10 shots) and **`furnlight-simple.json`** (49 steps,
+5 shots) back-fill the `backdrops`/`customBackdrop` and `itemAsLight` simple rungs. Both surfaced
+real product bugs (documented in their commits/PR, not fixed there) plus two reusable harness
+gotchas:
+
+- **A custom `Select` (`ui/controls/Select.tsx`) nested inside a `ToolbarMenu` closes the WHOLE
+  parent menu when you click an option, dropping the pick.** `Popover`'s outside-pointerdown
+  listener (`ui/toolbar/Popover.tsx`) closes on any pointerdown whose target isn't contained in
+  its own portaled panel DOM subtree. A `Select` opened from inside another `Popover`-based menu
+  portals its OWN option list to a **sibling** `document.body` node — not inside the parent
+  menu's panel — so the parent's listener sees the click as "outside" and closes first (on
+  `pointerdown`, before the option's `click` handler ever runs), unmounting the option before the
+  click lands. Net effect: selecting an option silently does nothing and the whole menu vanishes.
+  Work around it in a scenario by driving the value with the underlying **store action** instead
+  (`{"store": {"action": "setBackdrop", "args": ["dusk"]}}`) — click the Select's own **trigger**
+  button (not a portaled option) if you only need to open/screenshot/close it cleanly, since
+  clicking the same anchor again just calls the trigger's own `onClick` toggle rather than hitting
+  the parent's outside-click path.
+- **The default HDB flat's curtains are drawn (`drawAmount: 1`) out of the box**, which hides a
+  walk-mode window backdrop entirely — every "look out the window" shot is a plain gray panel
+  until you open them: `state.items.filter(i => i.defId === 'curtains').forEach(i =>
+  updateItemProps(i.id, { drawAmount: 0 }))`. Do this as one of the first eval steps, before any
+  walk-mode screenshot that needs the view to actually be visible.
+- **The per-room editor's `Canvas` (`scene/RoomEditorScene.tsx`) is a completely separate lighting
+  rig from the main `Scene`** — a fixed `hemisphereLight` + `ambientLight` for a flat, always-lit
+  authoring view, and it does **not** render `<FurnitureLights />` at all. Any light-emitter effect
+  (a registered fixture, or an `itemAsLight`-flagged item) is invisible while `roomEditor.active`
+  is true, regardless of the hour/`lightsMode` — this isn't a bug, it's deliberate (PERF, a stable
+  view to place items by), but it means you must `exitRoomEditor()` before probing/screenshotting
+  any lighting effect. The Inspector (needed to click the real per-item light toggle) is only
+  reachable inside the room editor, so the pattern is: enter editor → select item → click toggle →
+  **exit editor** → re-focus → probe/screenshot in the real Scene.
+- **A near-pitch-black "unlit" comparison shot proves nothing.** Picking a very late manual hour
+  (23:00) for the "before/after" light-toggle pair renders the whole room fully black in both
+  states under `lightsMode: 'auto'`-independent darkness — the point light's absence has no visual
+  contrast to show. Use dusk (~19:30) instead: dark enough for the point light's warm pool to read
+  clearly, bright enough that the "unlit" shot still shows the room's silhouette instead of a void.
+
 ---
 
 ## Packaged targets (Docker / Electron)

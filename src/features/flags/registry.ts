@@ -52,7 +52,11 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Versions',
     description: 'Save / restore / compare snapshots',
     default: true,
-    tier: 'simple',
+    // Snapshot save/restore/compare is an analytical/professional surface —
+    // CLAUDE.md hard rule explicitly lists "versions" among the pro-tier
+    // examples (alongside measure/checks/drawings/scores/AI), so it's hidden
+    // in Simple mode.
+    tier: 'pro',
   },
   history: {
     label: 'Edit history',
@@ -509,6 +513,41 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   walkCameraControls: {
     label: 'Walk camera controls',
     description: 'Adjust field-of-view + eye-height in first-person walk mode',
+    default: true,
+    tier: 'simple',
+  },
+  // Curtains/blinds toggle open-closed in walk mode (click/tap/E), mirroring the
+  // existing door interact affordance (WINDOW-FIXTURE-INTERACT). Pure code, no
+  // external assets → prod-safe; a core walk-mode "explore the space" delight
+  // like the door swing → simple tier.
+  walkWindowFixtures: {
+    label: 'Interactive curtains & blinds',
+    description: 'Click/tap or press E to open curtains and raise/lower blinds in walk mode',
+    default: true,
+    tier: 'simple',
+  },
+  // Screens (monitor/TV) cycle their wallpaper on click/tap/E in walk mode
+  // (WALK-SCREEN-INTERACT) — a sibling flag to `walkWindowFixtures` rather
+  // than widening it: each walk-mode interact affordance gets its own flag
+  // (matching `remoteFurniture`/`remoteMaterials`'s precedent of granular,
+  // independently-toggleable siblings over one umbrella flag), so this new,
+  // unrelated furniture-capability interaction can't accidentally piggyback
+  // on — or force a rename of — the already-shipped curtain/blind flag. Pure
+  // code, no external assets → prod-safe; a core walk-mode "explore the
+  // space" delight like the door swing/curtain toggle → simple tier.
+  walkScreens: {
+    label: 'Interactive screens',
+    description: 'Click/tap or press E to cycle a monitor/TV’s wallpaper in walk mode',
+    default: true,
+    tier: 'simple',
+  },
+  // Light fixtures (+ any item flagged via `itemAsLight`) toggle on/off on
+  // click/tap/E in walk mode (WALK-LIGHT-INTERACT) — same sibling-flag
+  // rationale as `walkScreens` above. Pure code, no external assets →
+  // prod-safe; simple tier for the same "explore the space" reason.
+  walkLights: {
+    label: 'Interactive lights',
+    description: 'Click/tap or press E to turn a lamp/fixture on or off in walk mode',
     default: true,
     tier: 'simple',
   },

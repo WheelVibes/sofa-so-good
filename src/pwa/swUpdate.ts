@@ -97,30 +97,114 @@ export async function applyUpdate(): Promise<void> {
   }
 }
 
-export type UpdateCheckResult = 'updating' | 'uptodate' | 'unsupported'
+export type UpdateCheckResult = 'downloading' | 'waiting' | 'uptodate' | 'unsupported'
 
-/**
- * Force an update check now. A freshly-found worker shows up as
- * `installing`/`waiting` here; under `prompt` mode it waits for confirmation, so
- * we report `'updating'` (a prompt follows) without reloading.
- */
-export async function checkForUpdates(): Promise<UpdateCheckResult> {
-  if (!('serviceWorker' in navigator)) return 'unsupported'
-  const reg = swReg ?? (await navigator.serviceWorker.getRegistration())
-  if (!reg) return 'unsupported'
+/** How long the manual check waits for the browser to DETECT a new worker
+ *  before reporting "up to date". The detection itself (sw.js fetch +
+ *  byte-compare) is fast; 10s only elapses on a stalled network. If a worker
+ *  does turn up after the timeout, the plugin's `onNeedRefresh` still surfaces
+ *  the prompt, so nothing is lost — we just stop the spinner honestly. */
+const DETECT_TIMEOUT_MS = 10_000
+
+async function resolveRegistration(): Promise<ServiceWorkerRegistration | undefined> {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return undefined
   try {
-    await reg.update()
+    return swReg ?? (await navigator.serviceWorker.getRegistration())
   } catch {
-    return 'unsupported'
+    return undefined
   }
-  return reg.installing || reg.waiting ? 'updating' : 'uptodate'
 }
 
 /**
- * Manual "Check for updates" with toast feedback — for Home-Screen PWAs that
- * lack a browser reload button. Shows a checking spinner, then either the
- * "Update available" confirm prompt (new worker found) or an up-to-date /
- * unsupported / error message. Safe to call from any UI surface.
+ * DETECTION phase — fast. Kicks off `reg.update()` but does NOT wait for it to
+ * settle when a new worker exists: in Chromium `update()` only resolves after
+ * the new worker finishes INSTALLING, and install = Workbox precaching the
+ * whole build (tens of MB) — that's the DOWNLOAD phase, not the check. Instead
+ * we race:
+ *
+ *  - `reg.waiting` already set  → `'waiting'` (downloaded earlier, ready now)
+ *  - `updatefound` / `reg.installing` → `'downloading'` (new worker found;
+ *    fires as soon as the byte-compare sees a different sw.js)
+ *  - `update()` resolving with no new worker → `'uptodate'`
+ *  - `update()` rejecting → `'unsupported'` (offline / SW disabled)
+ *  - `DETECT_TIMEOUT_MS` with none of the above → `'uptodate'` (see above)
+ */
+async function detectUpdate(reg: ServiceWorkerRegistration): Promise<UpdateCheckResult> {
+  if (reg.waiting) return 'waiting'
+  if (reg.installing) return 'downloading'
+  return new Promise((resolve) => {
+    let done = false
+    const finish = (r: UpdateCheckResult) => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      reg.removeEventListener('updatefound', onFound)
+      resolve(r)
+    }
+    const onFound = () => finish('downloading')
+    reg.addEventListener('updatefound', onFound)
+    const timer = setTimeout(
+      () => finish(reg.installing ? 'downloading' : 'uptodate'),
+      DETECT_TIMEOUT_MS,
+    )
+    reg.update().then(
+      // No new worker → the check settled fast; a new worker resolves this
+      // long after `updatefound` already finished the race (ignored via `done`).
+      () => finish(reg.waiting ? 'waiting' : reg.installing ? 'downloading' : 'uptodate'),
+      () => finish('unsupported'),
+    )
+  })
+}
+
+/**
+ * DOWNLOAD phase — waits for the found worker's install to reach a terminal
+ * state. `'waiting'` = installed and ready to prompt (never offer the Update
+ * button before this); `'failed'` = the browser marked it redundant (install
+ * error / failed precache). The browser guarantees one of the two eventually
+ * fires, so the caller's progress toast can't wedge.
+ */
+function waitForInstallOutcome(reg: ServiceWorkerRegistration): Promise<'waiting' | 'failed'> {
+  return new Promise((resolve) => {
+    const worker = reg.installing
+    if (!worker) {
+      resolve(reg.waiting ? 'waiting' : 'failed')
+      return
+    }
+    const onState = () => {
+      // 'installed' = reached waiting; 'activated' covers a first-ever install
+      // taking over directly (no prior active worker) — prompt either way.
+      if (worker.state === 'installed' || worker.state === 'activated') {
+        worker.removeEventListener('statechange', onState)
+        resolve('waiting')
+      } else if (worker.state === 'redundant') {
+        worker.removeEventListener('statechange', onState)
+        resolve('failed')
+      }
+    }
+    worker.addEventListener('statechange', onState)
+    onState() // the worker may already be past installing
+  })
+}
+
+/**
+ * Force an update check now — DETECTION only, resolves fast. `'downloading'`
+ * means a new worker was found and is installing (a prompt follows once it's
+ * waiting); `'waiting'` means one is already installed and ready.
+ */
+export async function checkForUpdates(): Promise<UpdateCheckResult> {
+  const reg = await resolveRegistration()
+  if (!reg) return 'unsupported'
+  return detectUpdate(reg)
+}
+
+/**
+ * Manual "Check for updates" with PHASED toast feedback — for Home-Screen PWAs
+ * that lack a browser reload button. Shows a checking spinner; on fast
+ * detection it either reports up-to-date / unsupported, jumps straight to the
+ * "Update available" prompt (worker already waiting), or upgrades the spinner
+ * to "Update available — downloading…" while the new worker precaches, then
+ * prompts when it reaches waiting (or errors if the install fails). Every path
+ * ends the progress toast. Safe to call from any UI surface.
  */
 export async function runUpdateCheck(): Promise<void> {
   // Desktop shell: no SW to compare against — check GitHub releases instead.
@@ -130,13 +214,29 @@ export async function runUpdateCheck(): Promise<void> {
   const id = notify.start({ title: 'Checking for updates…', kind: 'progress' })
   notify.update(id, { progress: null }) // indeterminate spinner — no real % to report
 
-  const res = await checkForUpdates()
-  notify.dismiss(id)
-  if (res === 'updating') {
+  const reg = await resolveRegistration()
+  const res = reg ? await detectUpdate(reg) : 'unsupported'
+
+  if (res !== 'downloading') {
+    notify.dismiss(id)
+    if (res === 'waiting') {
+      showUpdatePrompt() // downloaded earlier — ready to apply now
+    } else if (res === 'uptodate') {
+      notify.start({ title: `You’re on the latest version (v${APP_VERSION})`, kind: 'info' })
+    } else {
+      notify.start({ title: 'Updates aren’t available in this environment', kind: 'info' })
+    }
+    return
+  }
+
+  // New worker found fast — keep the one progress toast, upgraded to the
+  // download phase, while Workbox precaches the new build.
+  notify.update(id, { title: 'Update available — downloading…' })
+  const outcome = reg ? await waitForInstallOutcome(reg) : 'failed'
+  if (outcome === 'waiting') {
+    notify.dismiss(id)
     showUpdatePrompt()
-  } else if (res === 'uptodate') {
-    notify.start({ title: `You’re on the latest version (v${APP_VERSION})`, kind: 'info' })
   } else {
-    notify.start({ title: 'Updates aren’t available in this environment', kind: 'info' })
+    notify.error(id, 'The update failed to download — check your connection and try again.')
   }
 }

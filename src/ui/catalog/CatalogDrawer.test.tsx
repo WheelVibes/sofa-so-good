@@ -1,7 +1,8 @@
+// @vitest-environment happy-dom
 /**
  * Empty-state CTA coverage for CatalogDrawer (P28 — empty-state CTA sweep).
  * "No favourites yet" / "Nothing placed yet" (recent) / "No items here yet"
- * (a real category with zero cards) all get a "Browse all" CTA wired to the
+ * (a real category with zero cards) all get a "Browse furniture" CTA wired to the
  * panel's own real `selectCategory` tab-switch handler, landing on the first
  * category that actually has cards (never inventing state).
  *
@@ -57,28 +58,28 @@ afterEach(() => {
 })
 
 describe('CatalogDrawer empty states', () => {
-  it('renders + fires "Browse all" from the empty favourites tab', () => {
+  it('renders + fires "Browse furniture" from the empty favourites tab', () => {
     setBrowsePrefs('favourites')
     render(<CatalogDrawer />)
     expect(screen.getByText('No favourites yet')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Browse all' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Browse furniture' }))
     // Lands on 'beds' (first category with cards; 'seating' is zeroed in the mock).
     expect(screen.queryByText('No favourites yet')).toBeNull()
   })
 
-  it('renders + fires "Browse all" from the empty recent tab', () => {
+  it('renders + fires "Browse furniture" from the empty recent tab', () => {
     setBrowsePrefs('recent')
     render(<CatalogDrawer />)
     expect(screen.getByText('Nothing placed yet')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Browse all' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Browse furniture' }))
     expect(screen.queryByText('Nothing placed yet')).toBeNull()
   })
 
-  it('renders + fires "Browse all" when the active category has no cards', () => {
+  it('renders + fires "Browse furniture" when the active category has no cards', () => {
     setBrowsePrefs('seating')
     render(<CatalogDrawer />)
     expect(screen.getByText('No items here yet')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Browse all' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Browse furniture' }))
     expect(screen.queryByText('No items here yet')).toBeNull()
   })
 })

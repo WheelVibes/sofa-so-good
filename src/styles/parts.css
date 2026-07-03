@@ -300,9 +300,21 @@
   color: var(--text-3); font-weight: 700; margin-bottom: var(--s-3);
   display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
   position: sticky; top: 0; z-index: 1;
-  background: var(--surface); box-shadow: 0 1px 0 var(--border); padding-bottom: var(--s-2);
+  /* `--sec-h-bg` lets a container declare the exact opaque tone its sticky
+     header should match (see `.modal-overlay > .panel` in components.css) —
+     defaults to the translucent `--surface` for the anchored glass panels
+     (catalog/inspector/budget), unchanged from before. */
+  background: var(--sec-h-bg, var(--surface));
+  box-shadow: 0 1px 0 var(--border); padding-bottom: var(--s-2);
 }
 .sec-h span { white-space: nowrap; }
+/* Muted description copy under a section's controls — the standard replaces
+   per-instance inline <p style> blocks (GraphicsSettings et al.). Bottom margin
+   is 0: the enclosing `.sec`'s padding owns the section-to-section rhythm. */
+.sec-desc {
+  font-size: var(--t-2xs); line-height: 1.45; color: var(--text-3);
+  margin: var(--s-2) 0 0;
+}
 
 /* swatches */
 .swatches { display: flex; flex-wrap: wrap; gap: var(--s-2); padding-block: var(--s-4); }
@@ -390,9 +402,6 @@
 .shortcuts-groups { display: flex; flex-direction: column; gap: var(--s-5); }
 .shortcuts-group-title { font-size: var(--t-sm); font-weight: 600; color: var(--text-1); margin: 0 0 var(--s-2); }
 .shortcuts-keys { display: inline-flex; gap: 4px; flex: none; }
-.help-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.help-list li { display: flex; align-items: flex-start; gap: var(--s-3); font-size: var(--t-sm); color: var(--text-2); line-height: 1.45; }
-.help-list li .icn { color: var(--accent-soft-text); margin-top: 1px; }
 
 /* ---- Generic small panel (budget / graphics / finishes) ------ */
 .mini { width: 290px; }

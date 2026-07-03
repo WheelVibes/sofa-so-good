@@ -22,7 +22,7 @@ import { RoomEditorScene } from './scene/RoomEditorScene'
 import { getRoomEditorShell } from './scene/roomEditorShell'
 import { Scene } from './scene/Scene'
 import { MarqueeSelector } from './scene/selection/MarqueeSelector'
-import { canEditScene } from './state/editing'
+import { canEditScene, dispatchWalkInteract } from './state/editing'
 import { editableRoomIds } from './state/rooms'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
@@ -72,9 +72,11 @@ import { EditConfirmBar } from './ui/EditConfirmBar'
 import { EmptyRoomHint } from './ui/EmptyRoomHint'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
+import { FixturePrompt } from './ui/FixturePrompt'
 import { FpsCounter } from './ui/FpsCounter'
 import { InfoCallout } from './ui/InfoCallout'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
+import { LightPrompt } from './ui/LightPrompt'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
 import { stopBootPhraseRotator } from './ui/loading/startBootPhraseRotator'
@@ -88,6 +90,7 @@ import { PromptModal } from './ui/PromptModal'
 import { QuoteTemplateModal } from './ui/QuoteTemplateModal'
 import { ResizeHud } from './ui/ResizeHud'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
+import { ScreenPrompt } from './ui/ScreenPrompt'
 import { SwapModal } from './ui/SwapModal'
 import { TapeModeToggle } from './ui/TapeModeToggle'
 import { Toolbar } from './ui/Toolbar'
@@ -574,8 +577,25 @@ export default function App() {
         useStore.getState().cyclePresetTime()
       }
       if (code === KEYBINDINGS.interact) {
-        const { nearbyDoorId, toggleDoor } = useStore.getState()
-        if (nearbyDoorId) toggleDoor(nearbyDoorId)
+        // Walk-mode only (VIEW-EDIT-SPLIT/WINDOW-FIXTURE-INTERACT): orbit
+        // mode never toggles a door/fixture/screen/light on E. `nearbyDoorId`/
+        // `nearbyFixtureId`/`nearbyScreenId`/`nearbyLightId` are only ever set
+        // by FirstPersonCamera's aim loop, but `dispatchWalkInteract` is still
+        // the single gate every interact entry point (this, `Door.tsx`,
+        // `Furniture.tsx`) shares. Fixed priority order — door, then curtain/
+        // blind fixture, then whichever of screen/light the aim loop already
+        // picked as nearest (WALK-SCREEN-INTERACT/WALK-LIGHT-INTERACT: the two
+        // are mutually exclusive by the time they reach here).
+        const state = useStore.getState()
+        if (state.nearbyDoorId) {
+          dispatchWalkInteract(state, state.nearbyDoorId, state.toggleDoor)
+        } else if (state.nearbyFixtureId && isFeatureEnabled('walkWindowFixtures')) {
+          dispatchWalkInteract(state, state.nearbyFixtureId, state.toggleWindowFixture)
+        } else if (state.nearbyScreenId && isFeatureEnabled('walkScreens')) {
+          dispatchWalkInteract(state, state.nearbyScreenId, state.cycleScreenContent)
+        } else if (state.nearbyLightId && isFeatureEnabled('walkLights')) {
+          dispatchWalkInteract(state, state.nearbyLightId, state.toggleLightPower)
+        }
       }
       if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements()
 
@@ -941,6 +961,9 @@ export default function App() {
           <WalkJoystick />
           <WalkHud />
           <DoorPrompt />
+          <FixturePrompt />
+          <ScreenPrompt />
+          <LightPrompt />
         </div>
         {/* Catalog docks as a persistent LEFT sidebar on desktop (mirrors the
             right-docked inspector): a sibling of `.stage-area` so `--left-rail`

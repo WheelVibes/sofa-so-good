@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { FEATURE_FLAGS, resolveFlags } from '../features/featureFlags'

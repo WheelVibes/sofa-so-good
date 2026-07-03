@@ -80,11 +80,14 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   ambient effect consumes it and renders nothing when false. **Continuously-animating effects** (the
   HQ border-beam `.beam`) mount only while the work is active *and* the gate is on, and
   IntersectionObserver-pause off-screen (`.beam.paused { animation-play-state: paused }`). The
-  **catalog/preset radial gradient** (`.cat-card`/`.preset-card`, `--mx`/`--my`) is pointermove-driven
+  **catalog radial gradient** (`.cat-card`, `--mx`/`--my`) is pointermove-driven
   (CatalogDrawer's gated grid handler writes the vars via `setProperty`) — event-driven, no continuous
   animation, so no IntersectionObserver; inert (centred) when the gate is off. Accent-only via
   `color-mix(in oklch, var(--accent) …)` — no colour literals; animation fills `backwards`, never
-  `both`. **Two P7 effects were DROPPED** (recorded so they aren't re-proposed): the multi-circle
+  `both`. (A parallel `.preset-card` mirror in `flows.css` for a "Layout presets" picker that was
+  never built this way — the picker shipped as `SmartStartWizard`'s `.ss-card` grid instead — was
+  pruned as dead in the 2026-07-03 cycle-2 audit; don't re-add it without a real consumer.)
+  **Two P7 effects were DROPPED** (recorded so they aren't re-proposed): the multi-circle
   **hotspot pulse** (`.er-ring`/`.er-hot`/`@keyframes erpulse` in `flows.css`) has **zero TSX
   consumers** — reviving orphaned CSS for an unconsumed effect violates YAGNI (the orphaned CSS is
   left untouched, out of scope to delete here); and **toolbar dock magnification** needs a
@@ -156,6 +159,16 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
 - Labelled sliders use `controls/SliderField` (label + `.slider` + a `tabular-nums` readout) —
   don't hand-pair a bare `.slider` with a separate value span; raw `.slider` stays valid for
   legacy call sites being migrated.
+- **A live value can BE the slider's label instead of a separate readout** — don't render the
+  same concept/value twice on one control. `TimeOfDaySlider` (`ui/scene/TimeOfDaySlider.tsx`,
+  shared by the desktop Scene menu + mobile sheet) sits under a `.scene-row-head` that already
+  names the section ("Time of day"), so the `SliderField` below it passes the live formatted
+  clock as `label` (with `ariaLabel="Time of day"` to keep the accessible name stable) and
+  `hideReadout` to suppress the normal `.val` — one line: `[time] [slider]`. The header keeps
+  only its section label (no separate clock span — that was a duplicate of the row's own label).
+  `.tod .fld .lbl` (`features.css`) sizes the label to its content (`flex: none`, `white-space:
+  nowrap`, mono/tabular-nums) so the slider (`.fld .slider`, `flex: 1.2`) takes the rest of the
+  row and the widest time string ("12:58 PM") never wraps or pushes the slider off-row.
 - Self-managed collapsible sections use `controls/Disclosure` over the `.compose` `<details>`
   idiom (FinishPicker/MaterialComposer). Layers group-collapse stays bespoke — it is
   store-persisted (`layersCollapsed`) and force-expands under an active filter.

@@ -1,0 +1,156 @@
+{
+  "name": "settings-header-spacing",
+  "description": "Graphics settings sec-h top breathing room + rhythm, desktop and mobile, at-rest and scrolled/stuck.",
+  "url": "http://localhost:5219/",
+  "steps": [
+    {
+      "name": "skip-onboarding",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}"
+    },
+    {
+      "name": "reload",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-ready",
+      "waitFor": {
+        "store": "state.bootPhase === 'ready'"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "force-scene-ready",
+      "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}"
+    },
+    {
+      "name": "dismiss-location",
+      "eval": "window.__store.getState().dismissLocationPrompt()"
+    },
+    {
+      "name": "pro-mode",
+      "eval": "try{ window.__store.getState().setUiMode && window.__store.getState().setUiMode('pro') }catch(e){}"
+    },
+    {
+      "name": "desktop-viewport",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "settle-toolbar",
+      "wait": 1500
+    },
+    {
+      "name": "open-graphics-desktop",
+      "click": {
+        "selector": "button[aria-label^='Graphics']",
+        "timeout": 60000
+      }
+    },
+    {
+      "name": "settle-desktop",
+      "wait": 600
+    },
+    {
+      "name": "shot-desktop-top",
+      "screenshot": "desktop-graphics-top"
+    },
+    {
+      "name": "scroll-desktop",
+      "eval": "document.querySelector('.modal-overlay .panel-body').scrollTop = 260"
+    },
+    {
+      "name": "settle-desktop-scroll",
+      "wait": 300
+    },
+    {
+      "name": "shot-desktop-scrolled",
+      "screenshot": "desktop-graphics-scrolled"
+    },
+    {
+      "name": "close-graphics-desktop",
+      "eval": "document.querySelector('.modal-overlay .panel-head button[aria-label=\"Close\"]').click()"
+    },
+    {
+      "name": "mobile-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "settle-mobile-viewport",
+      "wait": 300
+    },
+    {
+      "name": "open-menu-mobile",
+      "click": {
+        "selector": "button[aria-label='Menu']"
+      }
+    },
+    {
+      "name": "settle-menu",
+      "wait": 300
+    },
+    {
+      "name": "open-appearance-rail",
+      "click": {
+        "selector": "button[aria-label='Appearance & help']"
+      }
+    },
+    {
+      "name": "settle-rail",
+      "wait": 300
+    },
+    {
+      "name": "open-graphics-mobile",
+      "click": {
+        "text": "Graphics \u2014"
+      }
+    },
+    {
+      "name": "settle-mobile",
+      "wait": 600
+    },
+    {
+      "name": "shot-mobile-top",
+      "screenshot": "mobile-graphics-top"
+    },
+    {
+      "name": "scroll-mobile",
+      "eval": "document.querySelector('.modal-overlay .panel-body').scrollTop = 260"
+    },
+    {
+      "name": "settle-mobile-scroll",
+      "wait": 300
+    },
+    {
+      "name": "shot-mobile-scrolled",
+      "screenshot": "mobile-graphics-scrolled"
+    },
+    {
+      "name": "close-graphics-mobile",
+      "eval": "document.querySelector('.modal-overlay .panel-head button[aria-label=\"Back\"], .modal-overlay .panel-head button[aria-label=\"Close\"]').click()"
+    },
+    {
+      "name": "open-share",
+      "eval": "window.__store.getState().setShareOpen(true)"
+    },
+    {
+      "name": "settle-share",
+      "wait": 500
+    },
+    {
+      "name": "shot-share-top",
+      "screenshot": "mobile-share-top"
+    }
+  ]
+}

@@ -5,6 +5,226 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: backdrop-upload + furnlight IXT simple rungs back-filled — 2 real bugs flushed out (v0.11.2.14)
+
+- `backdrop-upload-simple.json` (47 steps): backdrop flags/tiers, preset cycle visible through
+  the window, custom-photo upload through the REAL file-input path, non-image + oversize
+  rejection toasts, remove-reverts. `furnlight-simple.json` (49 steps): `itemAsLight` gating,
+  inspector make-a-light toggle, live PointLight in the scene, lit-vs-unlit shots.
+- The rungs did their job — two live bugs documented in TASKS.md: a nested Select inside a
+  toolbar Popover closes the parent menu on option click (portal containment miss), and the
+  inspector's "Turn off light source" can never clear `lightOn` (delete-key vs merge semantics).
+
+## TEST: crown-molding IXT simple rung back-filled (v0.11.2.13)
+
+- `crown-molding-simple.json` (25 steps): flag defaults ON in both modes, navy-wall contrast
+  shot of the strip at the wall-ceiling seam (mitred corner, no z-fighting), and an off/on
+  flag round-trip proving the render is flag-driven. Replaces a defective draft scenario
+  (hardcoded port, no mode assertions, camera clipping through the ceiling fan).
+
+## FEAT: walk-mode screens cycle wallpaper + lights toggle on interact (v0.11.2.11)
+
+- **Screens** (Monitor/FlatscreenTV — any def whose paramSchema carries the `screenContent`
+  enum, capability-keyed not id-listed) cycle their wallpaper on walk-mode click/tap/E, wrapping
+  through the field's own options. **Lights** (lamps, sconces, ceiling fixtures, any
+  `itemAsLight`/emitter furniture) toggle on/off the same way — the per-item `lightOn` prop is
+  checked ahead of every other gate, so a switched-off lamp stays dark in every `lightsMode`
+  (auto/on/off) and the toggle always wins; undoable, persists via the items schema like
+  curtains. New sibling flags `walkScreens`/`walkLights` (simple tier, default on, both-modes
+  tested). Screens/lights use the framework's first true nearest-wins aim merge (doors/curtains
+  keep their fixed priority ahead). Scenario `walk-screens-lights.json` (38 steps); light-toggle
+  screenshots verified (room fully lit ↔ near-dark, no artifacts); screen cycling
+  store-asserted through the real aim + KeyE path (headless camera can't face the monitor —
+  gotcha recorded in the playbook).
+
+## FIX: "Check for updates" reports in phases — detection is instant, download is honest (v0.11.2.10)
+
+- The manual check awaited `reg.update()`, which in Chromium doesn't settle until the found
+  worker finishes INSTALLING — i.e. Workbox precaching the entire new build (tens of MB) — so
+  the indeterminate "Checking…" spinner sat motionless for the whole download (user report).
+  Now phased: detection races `updatefound`/`reg.installing` (≈ the fast sw.js byte-compare)
+  against `update()` and a 10s timeout; a found worker upgrades the same toast to
+  "Update available — downloading…", then the actionable Update prompt once the worker reaches
+  `waiting` (a `redundant` install becomes an error toast; an already-waiting worker prompts
+  immediately with no spinner). Every path ends the progress toast. Background/silent checks
+  unchanged. 13 unit tests over mocked registrations cover all phases.
+
+## FEAT: walk-mode curtains/blinds interact like doors + orbit mode is now interaction-inert (v0.11.2.9)
+
+- **Curtains and blinds toggle in walk mode** via click, tap, or E (aim within 2 m, LOS-checked)
+  — the same affordance stack as doors: prompt pill ("E · Open/Close curtains"), eased
+  animation, undoable, per-item state on the existing `item.props` (`drawAmount`/`lower`), so it
+  persists through the items schema with zero new schema work. New `walkWindowFixtures` flag
+  (simple tier, default on — mirrors the ungated door swing), gating registration not render;
+  pure eligibility/aim logic in `furniture/windowFixtureInteract.ts` + shared `collision/aimRay.ts`
+  (doors migrated onto it). 39 new tests; scenario `walk-curtain-interact.json` exercises the
+  REAL aim loop + KeyE handler.
+- **Orbit mode is interaction-inert (user report — was a live bug)**: clicking a door while
+  orbiting swung it open. All interact entry points (door leaf clicks, fixture clicks, the E
+  dispatch) now route through one walk-only gate (`editing.dispatchWalkInteract`), unit-tested
+  inert-in-orbit / active-in-walk.
+
+## UX: time-of-day row collapses to one line — live time as the slider label (v0.11.2.8)
+
+- The Scene sheet's time section rendered the time twice ("TIME OF DAY  6:28 PM" header + a
+  "Time of day [slider]" row). Per user request the row is now one line `[time] [slider]`
+  (SliderField's label IS the live clock, mono/tabular, never wraps at the widest "12:58 PM"),
+  and the header keeps only its label — the time appears exactly once. Desktop popover + mobile
+  sheet share the one component; both screenshot-verified. Scenario: `time-slider-inline.json`.
+
+## FIX: top-view camera fly no longer snaps rotation at the end (v0.11.2.7)
+
+- The shared eased fly lerped position/target in **Cartesian** space while orientation was
+  re-derived per frame — near the straight-overhead pole the implied azimuth swings violently in
+  the final frames (probe: 26.66°/frame terminal spike, 14x the average step). New pure
+  `cameraTween.flyPose()` interpolates the orbital parameters instead (target/radius/polar lerp,
+  **shortest-arc azimuth**), exact at both endpoints: max step now 1.85°/frame (1.5x avg), final
+  frame 0.06°, true top-down landing. Same fly tick serves home/reset, saved views and
+  double-click focus — home/reset re-verified in-app; endpoints unit-locked (19 tests).
+  Scenario: `top-view-smooth.json` (+ DEV-only `window.__flyProbe` curve sampler).
+
+## UX: "Location set" success toast on completing the location prompt (v0.11.2.6)
+
+- Completing the location prompt (geolocation, city search, or manual coordinates) now fires a
+  success toast from the single `setLocation` store seam — geocoded label when available
+  ("Singapore"), formatted coordinates otherwise ("1.35°N, 103.82°E" via the pure
+  `formatLocation`). Boot/deserialize restores bypass the action, so no toast on load.
+  Geolocation-denied already shows an inline error in the prompt (no duplicate toast added).
+  Scenario: `location-toast-simple.json`.
+
+## UX: modal-body section spacing standardized — breathing room + per-section sticky release (v0.11.2.5)
+
+- **First section header no longer hugs the panel head** (user report): a modal body's first
+  `.sec` keeps its own `padding-top` (the gap scrolls away with content, so sticky headers
+  still pin flush — body padding was tried and rejected: it leaves a see-through strip above
+  the stuck header). Bodies opening with plain copy get `margin-top` via one components.css rule.
+- **Sticky headers now release per-section**: GraphicsSettings' bare `.sec-h`s piled up stacked
+  at the top when scrolled; wrapping each section in `.sec` bounds each sticky header to its
+  section (exactly one stuck at a time). New `.sec-desc` standardizes the muted copy under
+  controls; inline margin/padding one-offs removed from GraphicsSettings, ShareModal,
+  GlbDesignerDialog, LocationPrompt. Scenarios: `settings-header-spacing.json`,
+  `share-header-spacing.json`; re-verified on the integrated branch (desktop + mobile,
+  at rest + stuck).
+
+## CI: workflow now runs the full test suite (two parallel shards) (v0.11.2.4)
+
+- The CI workflow only ran format/typecheck/lint — the 4.8k-test suite never gated merges. New
+  `test` job runs `vitest run --shard=1/2|2/2` as a two-job matrix (`fail-fast: false`), using
+  the just-landed suite speedups so each shard stays around a minute.
+
+## PERF: test suite ~2x faster (4m07s → ~2m03s) with zero coverage lost (v0.11.2.3)
+
+- **Default test environment is now `node`** — only the ~120 DOM test files opt in via a
+  `// @vitest-environment happy-dom` pragma (environment phase 889s → ~140s). New DOM tests
+  must carry the pragma (documented in CLAUDE.md).
+- **`pool: 'threads'`** + **setup gating** (`jest-dom` loads only when `document` exists).
+  `isolate: false` was measured (~87s) but REJECTED: 93 cross-file state leaks — documented
+  in the config so it isn't retried blind.
+- **16 `src/styles/*.test.ts` micro-files consolidated** into `styleGuards.test.ts` — every
+  assertion preserved verbatim (49/49, identical describe/it names). The consolidation also
+  CAUGHT a real regression: an earlier merge resolution had reverted `.ss-card-desc` to
+  `line-height: 1.4`; re-fixed to `var(--lh-body)`.
+- `planShare` decompression-bomb test given an explicit 20s timeout (flaked under 12-worker
+  load). No tests pruned beyond consolidation — knip/tsc/skip audit found nothing dead.
+- CI recommendation (not implemented): `vitest run --shard=1/2|2/2` across two jobs.
+
+## FIX/UX: modal headers un-broken (title alignment + white sticky bars) + quality-switch overlay (v0.11.2.2)
+
+- **Back-button modal headers left-align the title on one line** (user report, mobile Graphics
+  sheet): `.panel-head`'s space-between pushed the title to the right edge whenever a back arrow
+  led the row. New shared `AuxPanelHead` owns both header variants (`.panel-head-back` +
+  `.panel-head-title-inline`); `Modal` + `GraphicsSettings` render through it, fixing every
+  back-variant modal at once. Desktop close-X variant pixel-identical (screenshot-verified).
+- **Sticky section-header "white bars" eliminated**: `--surface` is a translucent token, so the
+  sticky `.sec-h` composited it a second time over the modal's already-translucent body — the
+  double-composite read as a white bar (desktop AND mobile). Modals now use an opaque
+  `--surface-solid` body and set `--sec-h-bg` to match (`.sec-h` reads
+  `var(--sec-h-bg, var(--surface))`); seamless across light/dark + all themes, sticky kept.
+  Dock panels keep their glass translucency.
+- **Quality-preset switches mask the renderer rebuild** (user report: whole-screen jank switching
+  to Maximum): `setQualityTier` raises the loading overlay ("Applying <tier> quality…") only on a
+  real tier change; the existing readiness machinery (2 rAF + 2 warm frames via
+  `frameRenderedSignal`, 2 s timeout fallback) hides it once the scene presents under the new
+  settings — landing back on the settings panel with the new preset selected. Desktop + mobile
+  (shared store action). Scenario: `settings-header-quality-simple.json`.
+
+## CHORE: dead-code audits — orphaned help modal remnants + stillborn .preset-* CSS pruned (v0.11.2.1)
+
+- **`.help-list` CSS + `helpOpen`/`setHelpOpen` state deleted**: the standalone Help modal was
+  folded into the Appearance panel long ago (`59ba994b`); the live shortcuts surface is
+  `ShortcutsModal` on the separate `shortcutsHelpOpen` state. Nothing dangled.
+- **The 22-rule `.preset-*` block in `flows.css` deleted**: born in "Design system v1" for a
+  layout-preset picker that actually shipped as `SmartStartWizard` (`.ss-card*`); no TSX ever
+  referenced it (verified across full git history). The `src/ui/CLAUDE.md` claim that
+  `.preset-card` carries the ambient glow was stale — the pointer handler only ever targets
+  `.cat-card`; docs corrected + `ambientFx.test.ts` simplified to the real system.
+
+## SEC(IO-006): zip-bomb guard on decompressed usdz/3mf payloads (v0.11.2.0)
+
+- **usdz/3mf archives are bounded BEFORE inflation.** Both formats are ZIP containers inflated
+  inside their three.js loaders (`fflate.unzipSync`, no bound) — a small on-disk file could
+  declare gigabytes. New pure `convert/zipGuard.ts` reads the central directory's declared
+  sizes via fflate's `filter` callback (zero bytes inflated; no new dependency) and refuses:
+  >4096 entries, >512 MB total declared uncompressed (well above the 80 MB on-disk cap so
+  legitimate texture-heavy models pass), or a >200:1 per-entry ratio above a 1 MB floor.
+  Enforced in `convertModel` after the on-disk cap, covering bulk + single-file ingest;
+  rejection rides the existing `ConvertError` → skipped-file → `notify.error` path. Plan:
+  `docs/superpowers/plans/2026-07-03-io006-zip-bomb-guard.md`.
+
+## FIX/TEST/UX: improvement cycle 2 — versions goes pro-tier, P31 progress test, CTA copy, lh-body tokens (v0.11.1.3)
+
+- **`versions` flag reclassified `simple` → `pro`** per the CLAUDE.md hard rule (analytical/
+  professional surfaces live in Pro): the Versions panel now hides in Simple mode. Both-modes
+  test added (`versions.test.ts`); user docs mark Versions *(Pro)*.
+- **P31 regression test**: `startBackgroundImport`'s toast bar (0–1 `progress`) and its "X / Y"
+  message are locked to ONE coalesced counter — a gated-group mid-import assertion plus a
+  spy proving every delivered (progress, message) pair is internally consistent
+  (`runImport.test.ts`, drives the real notificationsSlice with fake timers).
+- **Catalog empty-state CTA copy matches behaviour**: the three "Browse all" CTAs (favourites/
+  recent/empty-category) land on the first non-empty category, never an all-items view —
+  relabelled "Browse furniture". LayersPanel's "Open catalog" audited accurate as-is.
+- **Dev server ENOSPC guard**: Vite's watcher now ignores `**/.claude/**` — agent worktrees are
+  full repo checkouts and watching them exhausted the inotify limit, crashing `npm run dev`.
+- **4 hand-tuned line-heights → `--lh-body`** (`.preset-desc`, `.ss-card-desc`,
+  `.stamp-banner-text`, `.help-list li`) per the type-hierarchy rule; guarded by
+  `lineHeight.test.ts`.
+## FIX/CHORE: improvement cycle 1 — LayersPanel dimming, clearRoom history, a11y/token/CSS minors (v0.11.1.2)
+
+Parallel-worktree batch clearing UI-polish follow-ups from TASKS.md:
+
+- **LayersPanel hidden-row dimming never applied**: the row className never included `hidden`
+  from `hiddenItemIds`, so `.lyr-row.hidden { opacity: 0.45 }` was dead — toggling the eye
+  dimmed only the icon. Wired + unit-tested.
+- **clearRoom double history push**: `deleteItem`'s unconditional `pushHistoryCoalesced('delete')`
+  stacked a second, redundant snapshot on top of clearRoom's explicit `pushHistory()` (the
+  `silent` opt only suppressed the toast). New `skipHistoryPush` option on `deleteItem`;
+  clearRoom is now exactly one undo step (regression test in `itemsSlice.delete.test.ts`).
+- **RemoteCard heavy-download hint** drops the literal `#b8860b` for a `.pr.warn` class reusing
+  the `.badge.warn` oklch vocabulary (light + dark).
+- **`focusRing.test.ts`** hex-scan is bounded by explicit start/end markers instead of
+  marker→EOF, so later hex literals in the file can't silently escape the guard.
+- **Dead CSS pruned** from the SliderField migration (`.walk-cam-row/-lbl/-val`, `.scene-slider`).
+- **`<KbdChip>` extracted** (`ui/toolbar/KbdChip.tsx`) — `MenuItem` and `ArrangeMenu`'s `Action`
+  now share one chip component (markup-identical, tested).
+- **`.mi-kbd` right-inset difference documented** as intentional (docs rows reserve space for the
+  hover `.mi-help` button) rather than "fixed" into an overlap.
+- **`.select-trigger`/`.select-icon-trigger` expanded-state ring tokenised** to `var(--focus-ring)`.
+- Stale TASKS.md items dropped: VersionsPanel delete a11y label (already shipped in `af1a4d65`)
+  and the GlbDesignerDialog duplicated title (no duplication exists).
+## FIX: shared-library manifest was cache-poisoned + groupKey-less — R2 catalog now populates (v0.11.1.1)
+
+- **Why the admin catalog stayed empty even after the binding fix:** the deployed
+  `library/index.json` predated `groupKey` emission, so the unified-grid dedup collapsed all
+  3562 items to one `ikea-undefined` card — and `serveAsset` had cached that stale manifest at
+  the edge as `immutable, max-age=1y` (with the SW's 30-day CacheFirst on top), so re-uploading
+  alone could never reach clients. Three fixes: **(1)** `serveAsset` treats `library/*` keys as
+  mutable — edge-cache bypassed, served `no-store` (product assets stay immutable-cached);
+  **(2)** the SW CacheFirst route now excludes `/api/assets/library/` (falls through to
+  NetworkOnly); **(3)** `fetchSharedLibraryIndex` backfills a missing `groupKey` from the
+  `group` slug and drops malformed items, so even a stale manifest renders every card. The
+  manifest itself must be re-uploaded (`npm run build-library-index` + rclone copyto — see
+  docs/deployment-cloudflare.md).
+
 ## FEAT: ghost-stencil trace backdrop — centered fit-to-plan load, anchored calibration, visible over rooms (v0.11.1.0)
 
 - **The floor-plan trace backdrop ("Reference photo…") now behaves like a proper ghost stencil.**

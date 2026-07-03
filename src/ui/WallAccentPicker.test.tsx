@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for the `WallAccentPicker` feature gate (v0.9.0.23). The accent-wall
  * panel previously shipped with NO feature flag (a hard-rule violation — "no

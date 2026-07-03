@@ -1,0 +1,78 @@
+{
+  "name": "share-header-spacing",
+  "description": "ShareModal first sec-h breathing room (generalization of the modal-body spacing standard).",
+  "url": "http://localhost:5219/",
+  "steps": [
+    {
+      "name": "skip-onboarding",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}"
+    },
+    {
+      "name": "reload",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-ready",
+      "waitFor": {
+        "store": "state.bootPhase === 'ready'"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "force-scene-ready",
+      "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}"
+    },
+    {
+      "name": "dismiss-location",
+      "eval": "window.__store.getState().dismissLocationPrompt()"
+    },
+    {
+      "name": "mobile-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "open-share",
+      "eval": "window.__store.getState().setShareOpen(true)"
+    },
+    {
+      "name": "wait-share-modal",
+      "waitFor": {
+        "css": "#sharePanel"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "settle-share",
+      "wait": 800
+    },
+    {
+      "name": "shot-share-top",
+      "screenshot": "share-top-mobile"
+    },
+    {
+      "name": "desktop-viewport",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "settle-desktop",
+      "wait": 400
+    },
+    {
+      "name": "shot-share-desktop",
+      "screenshot": "share-top-desktop"
+    }
+  ]
+}

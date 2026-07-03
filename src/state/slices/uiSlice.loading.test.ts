@@ -52,4 +52,22 @@ describe('loading overlay state', () => {
     useStore.getState().exitRoomEditor()
     expect(useStore.getState().loading).toEqual({ active: true, label: 'Exiting room…' })
   })
+
+  it('setQualityTier shows the overlay only on a real tier change', () => {
+    useStore.setState({ qualityTier: 'performance', qualityUserSet: false })
+    useStore.getState().setQualityTier('performance') // no change
+    expect(useStore.getState().loading.active).toBe(false)
+
+    useStore.getState().setQualityTier('maximum')
+    expect(useStore.getState().qualityTier).toBe('maximum')
+    expect(useStore.getState().loading.active).toBe(true)
+    expect(useStore.getState().loading.label).toMatch(/maximum/i)
+  })
+
+  it('re-selecting the already-active quality tier never flashes the overlay', () => {
+    useStore.getState().setQualityTier('medium')
+    useStore.getState().hideLoading()
+    useStore.getState().setQualityTier('medium') // already active — must be a no-op
+    expect(useStore.getState().loading.active).toBe(false)
+  })
 })

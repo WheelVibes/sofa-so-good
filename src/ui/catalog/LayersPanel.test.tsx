@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Empty-state CTA coverage for LayersPanel (P28 — empty-state CTA sweep).
  * "Nothing placed yet" gets an "Open catalog" CTA wired to the real
@@ -45,5 +46,17 @@ describe('LayersPanel empty states', () => {
     expect(screen.getByText('No objects match')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }))
     expect((input as HTMLInputElement).value).toBe('')
+  })
+})
+
+describe('LayersPanel hidden-row dimming', () => {
+  it('applies the "hidden" class to a row whose item is in hiddenItemIds, not to a visible row', () => {
+    const item2: FurnitureItem = { ...ITEM, id: 'i2' }
+    useStore.setState({ items: [ITEM, item2], hiddenItemIds: [ITEM.id] })
+    render(<LayersPanel />)
+    const hiddenRow = screen.getByTitle('Show').closest('.lyr-row')
+    const visibleRow = screen.getByTitle('Hide').closest('.lyr-row')
+    expect(hiddenRow).toHaveClass('hidden')
+    expect(visibleRow).not.toHaveClass('hidden')
   })
 })

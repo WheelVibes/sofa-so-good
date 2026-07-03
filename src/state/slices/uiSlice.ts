@@ -1,6 +1,6 @@
 import { clampExposure, DEFAULT_EXPOSURE } from '../../scene/look'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
-import { RENDER_TIERS } from '../../scene/quality'
+import { QUALITY_LABEL, RENDER_TIERS } from '../../scene/quality'
 import { DEFAULT_TONE_MAPPING_SETTING, type ToneMappingSetting } from '../../scene/toneContext'
 import type { DrawingLayer, DrawingLayerVisibility } from '../../ui/drawingLayers'
 import type { RootState } from '../store'
@@ -330,8 +330,18 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   toggleShowFps: () => set((s) => ({ showFps: !s.showFps })),
   bumpMaterialEpoch: () => set((s) => ({ materialEpoch: s.materialEpoch + 1 })),
   setShowcaseAccumulating: (v) => set({ showcaseAccumulating: v }),
-  setQualityTier: (t) =>
-    set({ qualityTier: t, qualityUserSet: true, qualityOverrides: {}, autoShadowsOff: false }),
+  setQualityTier: (t) => {
+    const changed = get().qualityTier !== t
+    set({ qualityTier: t, qualityUserSet: true, qualityOverrides: {}, autoShadowsOff: false })
+    // Rebuilding the renderer under a new tier (new shadow maps, post effects,
+    // asset swaps…) can visibly freeze the frame for a beat, especially
+    // stepping up to Maximum — mask it with the transition overlay so the
+    // user sees feedback instead of a stuck settings panel. Only on an actual
+    // change (re-clicking the active tier is a no-op, no flash); readiness-based
+    // hide (App.tsx's scheduleTransitionHide effect, keyed on loading.active)
+    // reveals again once the scene has rendered a few frames under the new tier.
+    if (changed) get().showLoading(`Applying ${QUALITY_LABEL[t]} quality…`)
+  },
   cycleQuality: () =>
     set((s) => ({
       qualityTier: CYCLE[(CYCLE.indexOf(s.qualityTier) + 1) % CYCLE.length],

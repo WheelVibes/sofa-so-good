@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for the Ceiling section of the per-room `FinishPicker` (v0.9.0.22).
  * The `ceilingFinish` flag (simple, default on) previously had no UI — this

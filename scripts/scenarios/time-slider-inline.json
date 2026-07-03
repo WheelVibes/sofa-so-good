@@ -1,0 +1,24 @@
+{
+  "name": "time-slider-inline",
+  "description": "Verifies the TIME OF DAY section collapsed to one line: the section header keeps just its label (no clock), and the slider row's own label is the live formatted time (no redundant 'Time of day' text, no duplicate readout). Checks both the desktop Scene menu popover and the mobile Scene sheet.",
+  "url": "http://localhost:5228/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-time", "eval": "window.__store.getState().setManualHour?.(18.4667)" },
+    { "name": "toolbar-ready", "waitFor": { "css": ".toolbar" }, "timeout": 20000 },
+    { "name": "open-scene-menu", "click": "button[aria-label=\"Scene\"]" },
+    { "name": "menu-open", "waitFor": { "css": ".tod" }, "timeout": 8000 },
+    { "name": "settle-desktop", "wait": 300 },
+    { "name": "shot-desktop-scene-menu", "screenshot": "01-desktop-scene-menu" },
+    { "name": "close-menu", "key": "Escape" },
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile-viewport", "wait": 500 },
+    { "name": "open-mobile-menu", "click": "button[aria-label=\"Menu\"]" },
+    { "name": "mobile-sheet-open", "waitFor": { "css": ".m-sheet" }, "timeout": 8000 },
+    { "name": "open-scene-section", "click": "button[aria-label=\"Scene\"]" },
+    { "name": "scene-section-open", "waitFor": { "css": ".tod" }, "timeout": 8000 },
+    { "name": "settle-mobile", "wait": 300 },
+    { "name": "shot-mobile-scene-section", "screenshot": "02-mobile-scene-section" }
+  ]
+}

@@ -4,6 +4,7 @@ import { Euler, PerspectiveCamera, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { DOORS, WALLS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
+import { type AimSegment, nearestAimedSegment } from '../../collision/aimRay'
 import { buildWalkBlockers, resolveCircleVsObbs } from '../../collision/furnitureBlock'
 import type { OBB } from '../../collision/obb'
 import {
@@ -15,6 +16,7 @@ import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { KEYBINDINGS } from '../../controls/keybindings'
 import { isAnyModalOpen } from '../../controls/modalGuard'
 import { isEditableTarget } from '../../controls/useKeyboard'
+import { isFeatureEnabled } from '../../features/featureFlags'
 import {
   GROUND_LEVEL_ID,
   levelAsPlan,
@@ -27,21 +29,16 @@ import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { planRoomShell } from '../../floorplan/planRoomShell'
 import { planBounds, planRoomArea } from '../../floorplan/types'
 import { useCatalogGetter } from '../../furniture/catalog'
+import { lightAimSegments } from '../../furniture/lightInteract'
+import { screenAimSegments } from '../../furniture/screenInteract'
+import { windowFixtureAimSegments } from '../../furniture/windowFixtureInteract'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { resetWalkMove, walkInput } from '../walkInput'
 import { clampWalkEyeHeight } from './walkCameraSettings'
 
-interface DoorSegment {
-  id: string
-  sx: number
-  sz: number
-  segDx: number
-  segDz: number
-}
-
-const DOOR_SEGMENTS: DoorSegment[] = (() => {
-  const out: DoorSegment[] = []
+const DOOR_SEGMENTS: AimSegment[] = (() => {
+  const out: AimSegment[] = []
   for (const d of DOORS) {
     const wall = WALLS.find((w) => w.id === d.wallId)
     if (!wall) continue
@@ -59,6 +56,19 @@ const DOOR_SEGMENTS: DoorSegment[] = (() => {
   }
   return out
 })()
+
+/** Reused scratch array for the merged screen+light aim pass — avoids a
+ *  per-`AIM_CHECK_INTERVAL` allocation. Cleared and refilled each check. */
+const COMBINED_SCRATCH: AimSegment[] = []
+
+/** Namespaces a segment's id so `nearestAimedSegment` can rank two
+ *  interactable categories (screens, lights) in a single pass while still
+ *  recovering which category — and the real item id — the winner belongs to.
+ *  Exported for `aimCategoryMerge.test.ts`, which verifies the nearest-wins
+ *  merge in isolation from the full R3F frame loop. */
+export function prefixSegment(prefix: string, seg: AimSegment): AimSegment {
+  return { ...seg, id: prefix + seg.id }
+}
 
 /** Fallback standing eye-height (m) before the live store value is read. The
  *  user-adjustable height (`walkEyeHeight`, default 1.6) overrides this. */
@@ -122,6 +132,26 @@ export function FirstPersonCamera() {
   useEffect(() => {
     blockers.current = buildWalkBlockers(items, getDef, walkerLevelId)
   }, [items, getDef, walkerLevelId])
+  // Curtain/blind aim segments (WINDOW-FIXTURE-INTERACT) — rebuilt whenever
+  // items change, like `blockers` above; empty (and never aimed at) while the
+  // flag is off, so the interaction is gated at registration, not render.
+  const fixtureSegments = useRef<AimSegment[]>([])
+  useEffect(() => {
+    fixtureSegments.current = isFeatureEnabled('walkWindowFixtures')
+      ? windowFixtureAimSegments(items, getDef)
+      : []
+  }, [items, getDef])
+  // Screen (WALK-SCREEN-INTERACT) and light (WALK-LIGHT-INTERACT) aim
+  // segments — same rebuild-on-items pattern as the fixture segments above,
+  // gated at registration (empty, never aimed at, while its flag is off).
+  const screenSegments = useRef<AimSegment[]>([])
+  useEffect(() => {
+    screenSegments.current = isFeatureEnabled('walkScreens') ? screenAimSegments(items, getDef) : []
+  }, [items, getDef])
+  const lightSegments = useRef<AimSegment[]>([])
+  useEffect(() => {
+    lightSegments.current = isFeatureEnabled('walkLights') ? lightAimSegments(items, getDef) : []
+  }, [items, getDef])
 
   useEffect(() => {
     // In the per-room editor, bound the player to the isolated room's clipped
@@ -302,6 +332,7 @@ export function FirstPersonCamera() {
     groundY.current = floorElevRef.current + eyeHeightRef.current
     return () => {
       useStore.getState().setNearbyDoor(null)
+      useStore.getState().setNearbyFixture(null)
       resetWalkMove()
     }
     // viewLevelId is a dep on purpose: picking a storey in View → Levels while
@@ -430,27 +461,63 @@ export function FirstPersonCamera() {
     if (aimAccum.current < AIM_CHECK_INTERVAL) return
     aimAccum.current = 0
 
-    const setNearbyDoor = useStore.getState().setNearbyDoor
-    let aimedId: string | null = null
-    let bestHitDist = INTERACT_RADIUS
     const ox = camera.position.x
     const oz = camera.position.z
-    for (const seg of DOOR_SEGMENTS) {
-      const denom = dir.x * seg.segDz - dir.z * seg.segDx
-      if (Math.abs(denom) < 1e-6) continue
-      const relX = seg.sx - ox
-      const relZ = seg.sz - oz
-      const t = (relX * seg.segDz - relZ * seg.segDx) / denom
-      const u = (relX * dir.z - relZ * dir.x) / denom
-      if (t <= 0 || t > bestHitDist) continue
-      if (u < 0 || u > 1) continue
-      const hitX = ox + dir.x * t
-      const hitZ = oz + dir.z * t
-      if (isLineOfSightBlocked(ox, oz, hitX, hitZ, collisionWalls.current)) continue
-      bestHitDist = t
-      aimedId = seg.id
+    const blocked = (hitX: number, hitZ: number) =>
+      isLineOfSightBlocked(ox, oz, hitX, hitZ, collisionWalls.current)
+    const aimedDoorId = nearestAimedSegment(
+      ox,
+      oz,
+      dir.x,
+      dir.z,
+      DOOR_SEGMENTS,
+      INTERACT_RADIUS,
+      blocked,
+    )
+    useStore.getState().setNearbyDoor(aimedDoorId)
+    // Fixture aim shares the exact ray/segment math (`nearestAimedSegment`)
+    // with the door aim above — a separate id space (`nearbyFixtureId`) so a
+    // door and a curtain never compete for the same "nearby" slot.
+    const aimedFixtureId = nearestAimedSegment(
+      ox,
+      oz,
+      dir.x,
+      dir.z,
+      fixtureSegments.current,
+      INTERACT_RADIUS,
+      blocked,
+    )
+    useStore.getState().setNearbyFixture(aimedFixtureId)
+    // Screens and lights compete for the SAME "nearby" slot on genuine
+    // nearest-wins (WALK-SCREEN-INTERACT/WALK-LIGHT-INTERACT), unlike
+    // doors-vs-fixtures above (a fixed priority order, door first). Segment
+    // ids are namespaced with a `screen:`/`light:` prefix so one
+    // `nearestAimedSegment` call can rank both categories together and the
+    // winner's real item id + category are recovered from the prefix.
+    const screenLightSegments = COMBINED_SCRATCH
+    screenLightSegments.length = 0
+    for (const seg of screenSegments.current)
+      screenLightSegments.push(prefixSegment('screen:', seg))
+    for (const seg of lightSegments.current) screenLightSegments.push(prefixSegment('light:', seg))
+    const aimedScreenOrLightId = nearestAimedSegment(
+      ox,
+      oz,
+      dir.x,
+      dir.z,
+      screenLightSegments,
+      INTERACT_RADIUS,
+      blocked,
+    )
+    if (aimedScreenOrLightId?.startsWith('screen:')) {
+      useStore.getState().setNearbyScreen(aimedScreenOrLightId.slice('screen:'.length))
+      useStore.getState().setNearbyLight(null)
+    } else if (aimedScreenOrLightId?.startsWith('light:')) {
+      useStore.getState().setNearbyLight(aimedScreenOrLightId.slice('light:'.length))
+      useStore.getState().setNearbyScreen(null)
+    } else {
+      useStore.getState().setNearbyScreen(null)
+      useStore.getState().setNearbyLight(null)
     }
-    setNearbyDoor(aimedId)
   })
 
   return null

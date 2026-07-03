@@ -109,9 +109,11 @@ export function CatalogDrawer() {
   const priceOn = useFeature('budget')
   const ambientFx = useAmbientFx()
   const unified = useUnifiedCatalog(fRemoteFurniture, sharedOn)
-  // The real category to land on from a "Browse all" CTA (favourites/recent/
-  // empty-category empty states) — the first real category that actually has
-  // cards, so the CTA never lands on another empty tab.
+  // The real category to land on from a "Browse furniture" CTA (favourites/
+  // recent/empty-category empty states) — the first real category that
+  // actually has cards, so the CTA never lands on another empty tab. Labelled
+  // "Browse furniture" rather than "Browse all" because it always lands on
+  // one specific category, not an "all items" view.
   const firstBrowsableCategory =
     FURNITURE_CATEGORIES.find((c) => (unified.counts[c] ?? 0) > 0) ?? 'seating'
   const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
@@ -491,7 +493,7 @@ export function CatalogDrawer() {
                   title="No favourites yet"
                   description="Tap the heart on any card to save it here for quick access."
                   cta={{
-                    label: 'Browse all',
+                    label: 'Browse furniture',
                     onClick: () => selectCategory(firstBrowsableCategory),
                   }}
                 />
@@ -502,7 +504,7 @@ export function CatalogDrawer() {
                   title="Nothing placed yet"
                   description="Items you add appear here for quick reuse."
                   cta={{
-                    label: 'Browse all',
+                    label: 'Browse furniture',
                     onClick: () => selectCategory(firstBrowsableCategory),
                   }}
                 />
@@ -527,7 +529,7 @@ export function CatalogDrawer() {
                   title="No items here yet"
                   description="This category is empty — try another tab."
                   cta={{
-                    label: 'Browse all',
+                    label: 'Browse furniture',
                     onClick: () => selectCategory(firstBrowsableCategory),
                   }}
                 />

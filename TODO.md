@@ -24,9 +24,6 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
 
 ## UI/UX polish program — remaining follow-ups (2026-07-02 program, completed 2026-07-03)
 The 39-item Vi-develop-derived program shipped (see CHANGELOG); only these follow-ups remain:
-- [ ] **P31 Determinate upload progress bar regression test** — UNBLOCKED (2026-07-03): the
-  upload-progress branch is merged. Add the test locking that startBackgroundImport feeds the
-  toast's 0-1 bar and the "X / Y" text from one coalesced counter.
 - [ ] **NEW_BADGES follow-up** — register the next feature that ships a real toolbar/menu row
   (badges are dormant until then by design; see ui/newBadges.ts).
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the

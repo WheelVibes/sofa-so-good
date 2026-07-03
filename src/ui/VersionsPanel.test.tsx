@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Empty-state CTA coverage for VersionsPanel (P28 — empty-state CTA sweep).
  * "No saved versions yet" gets a "Save current version" CTA wired to the
@@ -33,7 +34,7 @@ describe('VersionsPanel empty state', () => {
     expect(useStore.getState().textPrompt?.title).toBe('Save version')
   })
 
-  it('behaves identically in Simple and Pro mode (versions is a simple-tier flag)', () => {
+  it('behaves identically in Simple and Pro mode (component has no tier-conditional logic — the pro-tier gate lives upstream in toolActions/menu visibility)', () => {
     for (const mode of ['simple', 'pro'] as const) {
       useStore.getState().setUiMode(mode)
       useStore.getState().reresolveFeatureFlags()

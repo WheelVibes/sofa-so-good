@@ -94,7 +94,6 @@
    ============================================================ */
 .no-anim,
 .no-anim > .panel,
-.no-anim > .preset-panel,
 .no-anim > .onb-card,
 .no-anim > .cmdk { animation: none !important; }
 
@@ -269,7 +268,7 @@
 /* Active-stamp banner above the catalog footer — a clear "you are stamping X" cue
    with a Done escape hatch. Token classes only (accent-soft surface). */
 .stamp-banner { display: flex; align-items: center; gap: var(--s-2); margin: 0 var(--s-4); padding: var(--s-2) var(--s-3); border-radius: var(--r-2); background: var(--accent-soft); color: var(--accent-soft-text); border: 1px solid var(--accent); font-size: var(--t-2xs); }
-.stamp-banner .stamp-banner-text { flex: 1; min-width: 0; line-height: 1.35; }
+.stamp-banner .stamp-banner-text { flex: 1; min-width: 0; line-height: var(--lh-body); }
 .stamp-banner .btn { flex: none; }
 
 /* ============================================================
@@ -463,7 +462,16 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
   padding: 4px 6px 2px; font-size: var(--t-2xs); font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3);
 }
-.scene-clock { font-size: var(--t-xs); font-weight: 600; color: var(--text-2); text-transform: none; letter-spacing: 0; }
+/* The slider row's own label is the live clock readout (see TimeOfDaySlider) —
+   keep it on one line, mono/tabular so digits don't jiggle, and unstretched so
+   the slider (`.fld .slider`, flex: 1.2) takes the rest of the row. */
+.tod .fld .lbl {
+  flex: none;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
 .scene-slider { position: relative; padding: 6px 8px 10px; }
 .scene-ticks { position: absolute; left: 8px; right: 8px; bottom: 4px; height: 6px; pointer-events: none; }
 .scene-tick { position: absolute; top: 0; width: 2px; height: 6px; border-radius: 1px; background: var(--border-2); transform: translateX(-1px); }

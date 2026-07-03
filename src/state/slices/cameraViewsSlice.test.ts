@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest'
 import { cameraPose } from '../../scene/cameras/cameraForward'
 import { useStore } from '../store'

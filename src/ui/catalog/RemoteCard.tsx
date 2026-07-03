@@ -123,15 +123,14 @@ export function RemoteCard({ entry, onResolved, staggerIndex }: Props) {
         </span>
       </div>
       <span
-        className="pr"
+        // Flag a heavy download (≥30 MB at the chosen resolution) so users
+        // don't blindly pull a large asset — reuses the shared `.warn` token
+        // treatment (see `.badge.warn` / `.lyr-flag.warn`), never a literal hex.
+        className={`pr${status !== 'ready' && size != null && size >= 30 * 1024 * 1024 ? ' warn' : ''}`}
         style={{
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
-          // Flag a heavy download (≥30 MB at the chosen resolution) so users
-          // don't blindly pull a large asset.
-          color:
-            status !== 'ready' && size != null && size >= 30 * 1024 * 1024 ? '#b8860b' : undefined,
         }}
         title={
           size != null

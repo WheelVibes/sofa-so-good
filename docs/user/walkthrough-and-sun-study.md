@@ -7,7 +7,9 @@ best way to judge real scale and sightlines.
 
 - Move with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, look with the
   mouse.
-- Press <kbd>E</kbd> at a door to open or close it.
+- Press <kbd>E</kbd> (or click/tap) at a door to open or close it — and the same for
+  curtains and blinds (draw open/closed, raise/lower), a monitor or TV (cycles its
+  on-screen wallpaper), and any lamp or light fixture (turns it on or off).
 - You're bounded by the walls; <kbd>V</kbd> returns you to orbit.
 - On a multi‑storey home (a maisonette, terrace or loft), pick a storey under
   **View → Levels** while walking to **teleport upstairs or back down** — you

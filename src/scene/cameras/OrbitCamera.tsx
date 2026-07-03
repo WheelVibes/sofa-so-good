@@ -9,7 +9,7 @@ import { type FloorPlan, planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
-import { flyDurationFor, smoothstep as smooth } from './cameraTween'
+import { flyDurationFor, flyPose, smoothstep as smooth } from './cameraTween'
 import { VIEW_TOUR_LEG_SECONDS, type ViewTourFrame, viewTourFrames } from './viewTour'
 
 interface Framing {
@@ -199,6 +199,30 @@ export function OrbitCamera() {
       t: 0,
       dur: flyDurationFor([camera.position.x, camera.position.y, camera.position.z], toPos),
     }
+    // Dev-only fly probe: sweep the fly's actual interpolation curve (the same
+    // flyPose + lookAt semantics the per-frame tick uses) at a fixed 120-sample
+    // resolution and publish the swept quaternions on `window.__flyProbe`, so
+    // the smoothness scenario (scripts/scenarios/top-view-smooth.json) can
+    // assert the per-step angular delta deterministically — a headless
+    // software-rendered browser may paint so few real frames that a single
+    // tick's dt covers the whole fly. Tree-shaken from prod by the DEV guard.
+    if (import.meta.env.DEV) {
+      const from: Pose['pos'] = [camera.position.x, camera.position.y, camera.position.z]
+      const fromT: Pose['target'] = [c.target.x, c.target.y, c.target.z]
+      const scratch = camera.clone()
+      const samples: { t: number; x: number; y: number; z: number; w: number }[] = []
+      const steps = 120
+      for (let i = 0; i <= steps; i++) {
+        const f = smooth(i / steps)
+        const { pos, target } = flyPose(from, fromT, toPos, toTgt, f)
+        scratch.position.set(pos[0], pos[1], pos[2])
+        scratch.up.copy(camera.up)
+        scratch.lookAt(target[0], target[1], target[2])
+        const q = scratch.quaternion
+        samples.push({ t: i / steps, x: q.x, y: q.y, z: q.z, w: q.w })
+      }
+      ;(window as unknown as { __flyProbe?: unknown[] }).__flyProbe = samples
+    }
   }
   const applyViewNonce = useStore((s) => s.applyViewNonce)
   useEffect(() => {
@@ -226,8 +250,20 @@ export function OrbitCamera() {
     if (fly.current) {
       fly.current.t = Math.min(1, fly.current.t + dt / fly.current.dur)
       const f = smooth(fly.current.t)
-      camera.position.lerpVectors(fly.current.fromPos, fly.current.toPos, f)
-      c.target.lerpVectors(fly.current.fromTgt, fly.current.toTgt, f)
+      // Spherical (orbit-relative) interpolation, not a raw Cartesian lerp —
+      // see TV-SNAP in cameraTween.ts. A straight-line position/target lerp
+      // implies an unstable, discontinuous azimuth right as the destination
+      // approaches straight-overhead (top view), which OrbitControls' internal
+      // lookAt then renders as a violent rotational snap on the final frame(s).
+      const { pos, target } = flyPose(
+        [fly.current.fromPos.x, fly.current.fromPos.y, fly.current.fromPos.z],
+        [fly.current.fromTgt.x, fly.current.fromTgt.y, fly.current.fromTgt.z],
+        [fly.current.toPos.x, fly.current.toPos.y, fly.current.toPos.z],
+        [fly.current.toTgt.x, fly.current.toTgt.y, fly.current.toTgt.z],
+        f,
+      )
+      camera.position.set(pos[0], pos[1], pos[2])
+      c.target.set(target[0], target[1], target[2])
       c.update()
       if (fly.current.t >= 1) fly.current = null
       // Keep the live pose singleton current even mid-fly.

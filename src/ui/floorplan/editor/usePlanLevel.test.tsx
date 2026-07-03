@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for the `usePlanLevel` hook extracted from FloorPlanEditor (v0.9.0.50):
  * resolves the active storey + its single-level `levelPlan`. Pure state + plan

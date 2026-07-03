@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Task 7 (P2 entrance stagger): the LayersPanel object rows are a mapped list,
  * so each `.lyr-row` must carry a numeric `--i` custom property (the map

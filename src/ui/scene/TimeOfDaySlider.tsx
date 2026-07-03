@@ -19,6 +19,11 @@ export function formatClock(hour: number): string {
  * today's date at the selected hour, so dusk/sunset land at the place's real
  * time. The System label always shows the actual wall-clock time, never the
  * currently-selected manual time.
+ *
+ * The slider row's own label doubles as the live clock readout — the section
+ * header above already names the section ("Time of day"), so a second literal
+ * "Time of day" row label plus a separate header clock span would show the
+ * concept/value twice. See the `.tod .fld .lbl` note in `src/ui/CLAUDE.md`.
  */
 export function TimeOfDaySlider() {
   const timeMode = useStore((s) => s.timeMode)
@@ -32,10 +37,10 @@ export function TimeOfDaySlider() {
     <div className="tod" onClick={(e) => e.stopPropagation()}>
       <div className="scene-row-head">
         <span>Time of day</span>
-        <span className="scene-clock mono">{formatClock(effectiveHour)}</span>
       </div>
       <SliderField
-        label="Time of day"
+        label={formatClock(effectiveHour)}
+        ariaLabel="Time of day"
         min={0}
         max={24}
         step={0.25}

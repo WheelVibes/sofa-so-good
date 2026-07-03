@@ -33,15 +33,14 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   `PlanToolbar` — deferred because it needs a 40+ prop bundle (passing the whole store-action
   snapshot), which would hurt readability more than the current named-fragment consts. Revisit only
   if the toolbar grows its own logic.
-- [ ] IO-006: zip-bomb guard on the **decompressed** usdz/3mf payload — needs a zip
-  central-directory parser to bound the inflated size (a blunt on-disk cap would regress legitimate
-  large files), so deferred until that parser exists.
 - [ ] SLOT-203 (configurator GLB-sub-asset options): needs a **bundled CC0 GLB** asset + the load
   path (load → reparent at the slot anchor → per-slot `listFinishTargets` namespacing). The v1
   products are all-procedural, so this is gated on sourcing a suitable CC0 GLB option to bundle.
 - [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces, GLB-designer
-  re-rung, crown-molding, ceilingDesign (needs walk-mode look-up), livePrices, first-run re-rungs,
-  backdrop-upload + furnlight re-rungs.
+  re-rung, ceilingDesign (needs walk-mode look-up), livePrices, first-run re-rungs,
+  first-run re-rungs. (crown-molding, backdrop-upload and furnlight simple rungs landed —
+  `crown-molding-simple.json` v0.11.2.13, `backdrop-upload-simple.json` +
+  `furnlight-simple.json` v0.11.2.14.)
   - model-upload: **simple rung landed** (`model-upload-simple.json` — Upload entry gating + 60-group
     detection via the `__detectGroups` dev hook). A full journey rung is blocked on the dialog being
     `React.lazy` (won't mount headless); the paginated-list render is instead covered by
@@ -75,46 +74,31 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` toggle needs a context recreate (flash) +
   real-GPU verify.
 
-## UI polish Batch 1 follow-ups (logged minors)
-- [ ] `focusRing.test.ts` hex-scan marker→EOF fragility: the "no hex literals past this point"
-  assertion scans from a marker comment to end-of-file, so a later hex literal added below it
-  would silently escape the check — tighten to scan only the intended focus-ring block.
-- [ ] `.select-trigger` expanded-state ring is still a hand-tuned box-shadow rather than the
-  `--focus-ring` token — tokenise in Batch 2.
-- [ ] `<KbdChip>` extraction: `ArrangeMenu`'s `Action` shortcut rendering duplicates the
-  `.mi-kbd` chip markup already in `MenuItem` — pull it into a shared `<KbdChip>`.
-- [ ] `GlbDesignerDialog` title literal is duplicated in two places — dedupe to one constant.
-- [ ] `.mi-kbd` right-inset is 32px on docs rows vs 9px on non-docs rows — cosmetic
-  inconsistency, reconcile in Batch 2.
-- clearRoom's explicit pushHistory + first silent deleteItem's coalesced push double up — dedupe to a true single history step (pre-existing; surfaced in merge-prep re-review)
-- RemoteCard heavy-download hint hardcodes `color: '#b8860b'` (pre-existing) — replace with a warning token (`--warn`/color-mix)
+## Dead-export prune plan (from docs/research/2026-07-03-dead-export-audit.md, verified per-symbol)
+- [ ] **DE-1**: delete the 19 truly-dead exports (18 files — lists in the audit doc §Task 1).
+- [ ] **DE-2/DE-3**: drop the unneeded `export` keyword on the 86 internal-only helpers (two
+  mechanical batches by folder — audit doc §Tasks 2-3). Unblocks a noise-free `npm run deadcode`.
+- [ ] **DE-4a (BUG candidate)**: `materials/cache.ts:201` `disposeCachedMaterial` is never called
+  by the user-material delete path (`FinishPicker.tsx:290` → `userAssetsSlice.ts:153` only revokes
+  object URLs) — possible cached-GPU-texture leak on delete. Investigate + fix or document why not.
+- [ ] **DE-4b**: `openSh3dImport.ts:115` `importSh3dFile` is dormant with no backlog item — decide
+  wire-up or removal.
+- [ ] **DE-5**: extend `knip.json` entry/project to `functions/**`, `workers/**`, `electron/*.mjs`
+  (currently invisible to knip), verify clean after DE-2/3, then add `npm run deadcode` to CI.
 
-## UI polish Batch 2 follow-ups
-- [ ] 4 near-`--lh-body` multiline rules left unchanged (`.preset-desc`, `.ss-card-desc`,
-  `.help-list li`, `.stamp-banner-text`) — token swap changes rendered leading; revisit
-  deliberately.
-- [ ] `LayersPanel.tsx`'s per-item row never applies a `hidden` class from `hiddenItemIds` (found
-  while re-shooting the stagger fill-mode fix, v0.10.0.13) — `.lyr-row.hidden { opacity: 0.45 }`
-  in `features.css` has no wiring to actually trigger, so toggling an item's eye icon dims only
-  the icon, not the row. Separate bug from the fill-mode fix; needs its own change.
-- [ ] `versions` feature flag tier vs CLAUDE.md policy contradiction — reconcile the tier. The
-  CLAUDE.md hard rule puts analytical/professional/authoring surfaces (incl. versions) in `pro`,
-  but the flag's `tier` should be confirmed against that policy. Needs a product decision on
-  whether saved-version management belongs in Simple; align `FEATURE_FLAGS.versions.tier`
-  accordingly (found during batch-2b visual verification, v0.10.0.26).
-- [ ] `LayersPanel` empty-state CTA copy: "Open catalog" is correct for the truly-empty case, but
-  audit the "Browse all" CTA copy vs the first-category behaviour elsewhere in the catalog empty
-  states — the label should match what the click actually does (does it browse all, or land on
-  the first category?). Reconcile copy with behaviour (batch-2b visual verification, v0.10.0.26).
-- [ ] `VersionsPanel` delete (slot remove) button lacks an accessible name — the icon-only delete
-  control needs an `aria-label` (e.g. "Delete saved version") so screen-reader users can identify
-  it (found during batch-2b visual verification, v0.10.0.26).
-
-## UI polish Batch 3 follow-ups
-- [ ] Dead CSS left by the SliderField migration (P18, v0.10.0.41/.42): `.walk-cam-row`/`-lbl`/
-  `-val` (app.css) and `.scene-slider` (features.css) are now unreferenced by any component
-  (`.scene-clock` is still live — reused by TimeOfDaySlider's restored `.scene-row-head` clock
-  readout) — prune the truly-dead rules in a cleanup pass.
+## Bugs found by IXT back-fill (2026-07-03, evidence in scenario run logs/screenshots)
+- [ ] **BUG: nested Select inside a toolbar Popover closes the parent menu on option click** —
+  `ui/toolbar/Popover.tsx`'s outside-pointerdown containment checks only its own portaled panel;
+  a nested `controls/Select.tsx` option list portals to a SIBLING body node, so the click reads
+  as "outside" and the whole menu closes before the option lands (repro: SceneMenu "Window view"
+  select; screenshot `failed-backdrop-is-dusk.png`). Fix idea: containment should also accept
+  clicks inside any descendant portal (e.g. shared data-attr or a portal registry).
+- [ ] **BUG: "Turn off light source" never works** — `ui/inspector/InspectorPanel.tsx:429` does
+  `delete next.lightOn` then passes the whole props bag, but `itemsSlice.updateItemProps` merges
+  (`{...it.props, ...props}`) so a deleted key can't clear; once lit, an item can't be unlit via
+  the inspector (walk-mode E-toggle works — it flips `'yes'`/`'no'` explicitly). Fix: pass
+  `{ lightOn: undefined }` (spread overwrites with undefined) or make the inspector use the
+  `'no'` convention consistent with `lightEmitters`.
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

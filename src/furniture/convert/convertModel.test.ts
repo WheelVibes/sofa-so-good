@@ -1,5 +1,6 @@
+import { zipSync } from 'fflate'
 import { describe, expect, it, vi } from 'vitest'
-import { convertModel, disposeObject3D } from './convertModel'
+import { ConvertError, convertModel, disposeObject3D } from './convertModel'
 
 // Minimal ASCII STL: a single triangle. STL parsing + GLTF export are pure JS
 // (no WebGL / DOM), so this round-trips under jsdom.
@@ -63,5 +64,21 @@ describe('convertModel', () => {
     expect(matDispose).toHaveBeenCalledTimes(1)
     // The same texture is referenced by two slots (map + normalMap) → disposed twice.
     expect(texDispose).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('convertModel zip-bomb guard (IO-006)', () => {
+  it('rejects a 3mf whose single entry declares a huge, tiny-compressed payload', async () => {
+    // 8 MB of zeros → deflates to a few KB → ratio far over the ceiling.
+    const bomb = zipSync({ '3D/3dmodel.model': new Uint8Array(8 * 1024 * 1024) })
+    const file = new File([bomb], 'evil.3mf', { type: 'application/octet-stream' })
+    await expect(convertModel(file, [])).rejects.toBeInstanceOf(ConvertError)
+    await expect(convertModel(file, [])).rejects.toThrow(/zip bomb/i)
+  })
+
+  it('rejects a usdz with the same bomb shape', async () => {
+    const bomb = zipSync({ 'model.usda': new Uint8Array(8 * 1024 * 1024) })
+    const file = new File([bomb], 'evil.usdz', { type: 'application/octet-stream' })
+    await expect(convertModel(file, [])).rejects.toThrow(/zip bomb/i)
   })
 })
