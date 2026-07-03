@@ -3,10 +3,11 @@ import { memo, Suspense, useCallback, useEffect, useRef } from 'react'
 import type { Group, Material, Mesh } from 'three'
 import { Plane, Vector3 } from 'three'
 import { floorPointInFootprint, itemFootprint } from '../collision/placement'
+import { isFeatureEnabled } from '../features/featureFlags'
 import { ContactShadow } from '../scene/ContactShadow'
 import { markPointerDownOnItem } from '../scene/clickVsDrag'
 import { registerDropGroup } from '../scene/placementDrop'
-import { canEditScene } from '../state/editing'
+import { canEditScene, dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { GltfErrorBoundary } from './GltfErrorBoundary'
 import { GltfModel } from './GltfModel'
@@ -15,6 +16,7 @@ import { PRIMITIVE_COMPONENTS } from './primitives'
 import { surfaceDecalSpec } from './surfaceDecal'
 import { isTilted, itemRotation } from './tiltRotation'
 import type { FurnitureDef, FurnitureItem, GltfDef } from './types'
+import { isInteractableWindowFixture } from './windowFixtureInteract'
 
 /** Ground plane (y=0) + a scratch vector for projecting the hover cursor ray onto
  *  the floor, so hover can be gated on footprint containment (HOVER-FOOTPRINT). */
@@ -39,6 +41,18 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
     (e: ThreeEvent<MouseEvent>) => {
       if (passive) return
       const state = useStore.getState()
+      // Walk-mode interact (WINDOW-FIXTURE-INTERACT): click/tap a curtain or
+      // roller blind to toggle it open/closed, mirroring the door interact
+      // affordance (E-key handled separately in App.tsx via nearbyFixtureId).
+      // `dispatchWalkInteract` is the single gate on camera mode — orbit
+      // never toggles it, clicking there keeps its existing selection
+      // semantics below (`canEditScene`, orbit-only).
+      if (isFeatureEnabled('walkWindowFixtures') && isInteractableWindowFixture(def)) {
+        if (dispatchWalkInteract(state, item.id, state.toggleWindowFixture)) {
+          e.stopPropagation()
+          return
+        }
+      }
       // Selection happens only inside the per-room editor; orbit/walk are view-only.
       if (!canEditScene(state)) return
       e.stopPropagation()
@@ -48,7 +62,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       if (e.shiftKey) state.toggleSelectedItem(item.id)
       else state.selectItemGrouped(item.id, { alt: e.altKey })
     },
-    [item.id, passive],
+    [item.id, passive, def],
   )
 
   // Pointer-down begins a drag in select mode. We capture the original
