@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: "Check for updates" reports in phases — detection is instant, download is honest (v0.11.2.10)
+
+- The manual check awaited `reg.update()`, which in Chromium doesn't settle until the found
+  worker finishes INSTALLING — i.e. Workbox precaching the entire new build (tens of MB) — so
+  the indeterminate "Checking…" spinner sat motionless for the whole download (user report).
+  Now phased: detection races `updatefound`/`reg.installing` (≈ the fast sw.js byte-compare)
+  against `update()` and a 10s timeout; a found worker upgrades the same toast to
+  "Update available — downloading…", then the actionable Update prompt once the worker reaches
+  `waiting` (a `redundant` install becomes an error toast; an already-waiting worker prompts
+  immediately with no spinner). Every path ends the progress toast. Background/silent checks
+  unchanged. 13 unit tests over mocked registrations cover all phases.
+
 ## FEAT: walk-mode curtains/blinds interact like doors + orbit mode is now interaction-inert (v0.11.2.9)
 
 - **Curtains and blinds toggle in walk mode** via click, tap, or E (aim within 2 m, LOS-checked)

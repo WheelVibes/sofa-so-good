@@ -1,11 +1,25 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useStore } from '../state/store'
 import * as sw from './swUpdate'
 
 beforeEach(() => {
   useStore.setState({ notifications: [] })
 })
+
+/** Minimal event-capable stand-in for a ServiceWorker mid-install. */
+function fakeWorker(initial: string) {
+  const listeners = new Set<() => void>()
+  return {
+    state: initial,
+    addEventListener: (_: string, fn: () => void) => listeners.add(fn),
+    removeEventListener: (_: string, fn: () => void) => listeners.delete(fn),
+    setState(next: string) {
+      this.state = next
+      for (const fn of [...listeners]) fn()
+    },
+  }
+}
 
 function setServiceWorker(value: unknown) {
   Object.defineProperty(navigator, 'serviceWorker', { value, configurable: true })
@@ -47,16 +61,33 @@ describe('checkForUpdates', () => {
 
   it('returns uptodate when no new worker is found', async () => {
     setServiceWorker({
-      getRegistration: async () => ({ update: async () => {}, installing: null, waiting: null }),
+      getRegistration: async () => ({
+        update: async () => {},
+        installing: null,
+        waiting: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
     })
     await expect(sw.checkForUpdates()).resolves.toBe('uptodate')
   })
 
-  it('returns updating when a worker is waiting', async () => {
+  it('returns waiting when a worker is already installed and ready', async () => {
     setServiceWorker({
       getRegistration: async () => ({ update: async () => {}, installing: null, waiting: {} }),
     })
-    await expect(sw.checkForUpdates()).resolves.toBe('updating')
+    await expect(sw.checkForUpdates()).resolves.toBe('waiting')
+  })
+
+  it('returns downloading as soon as an installing worker appears', async () => {
+    setServiceWorker({
+      getRegistration: async () => ({
+        update: () => new Promise(() => {}), // never settles (precache in flight)
+        installing: fakeWorker('installing'),
+        waiting: null,
+      }),
+    })
+    await expect(sw.checkForUpdates()).resolves.toBe('downloading')
   })
 })
 
@@ -73,7 +104,13 @@ describe('runUpdateCheck', () => {
 
   it('reports up-to-date (no update prompt) when no new worker is found', async () => {
     setServiceWorker({
-      getRegistration: async () => ({ update: async () => {}, installing: null, waiting: null }),
+      getRegistration: async () => ({
+        update: async () => {},
+        installing: null,
+        waiting: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
     })
     await sw.runUpdateCheck()
     const list = useStore.getState().notifications
@@ -82,15 +119,81 @@ describe('runUpdateCheck', () => {
     expect(list.filter((x) => x.kind === 'progress')).toHaveLength(0)
   })
 
-  it('surfaces the Update prompt when a new worker is found', async () => {
+  it('jumps straight to the Update prompt when a worker is already waiting (no spinner)', async () => {
     setServiceWorker({
-      getRegistration: async () => ({ update: async () => {}, installing: {}, waiting: null }),
+      getRegistration: async () => ({ update: async () => {}, installing: null, waiting: {} }),
     })
     await sw.runUpdateCheck()
+    const list = useStore.getState().notifications
+    expect(list.at(-1)?.title).toBe('Update available')
+    expect(list.at(-1)?.actionLabel).toBe('Update')
+    expect(list.filter((x) => x.kind === 'progress')).toHaveLength(0)
+  })
+
+  it('found worker: downloading toast upgrades to the prompt once the worker is installed', async () => {
+    const worker = fakeWorker('installing')
+    setServiceWorker({
+      getRegistration: async () => ({
+        update: () => new Promise(() => {}), // stays pending while precaching
+        installing: worker,
+        waiting: null,
+      }),
+    })
+    const run = sw.runUpdateCheck()
+    await Promise.resolve() // let detection settle on the installing worker
+    await vi.waitFor(() => {
+      const dl = useStore.getState().notifications.find((n) => n.kind === 'progress')
+      expect(dl?.title).toMatch(/downloading/i)
+    })
+    worker.setState('installed') // precache finished → worker reaches waiting
+    await run
+    const list = useStore.getState().notifications
+    expect(list.at(-1)?.title).toBe('Update available')
+    expect(list.at(-1)?.actionLabel).toBe('Update')
+    expect(list.filter((x) => x.kind === 'progress')).toHaveLength(0)
+  })
+
+  it('found worker: a redundant install turns the toast into an error', async () => {
+    const worker = fakeWorker('installing')
+    setServiceWorker({
+      getRegistration: async () => ({
+        update: () => new Promise(() => {}),
+        installing: worker,
+        waiting: null,
+      }),
+    })
+    const run = sw.runUpdateCheck()
+    await vi.waitFor(() => {
+      expect(useStore.getState().notifications.some((n) => n.kind === 'progress')).toBe(true)
+    })
+    worker.setState('redundant') // install/precache failed
+    await run
     const n = useStore.getState().notifications.at(-1)
-    expect(n?.title).toBe('Update available')
-    expect(n?.actionLabel).toBe('Update')
-    expect(useStore.getState().notifications.filter((x) => x.kind === 'progress')).toHaveLength(0)
+    expect(n?.kind).toBe('error')
+    expect(n?.message).toMatch(/failed to download/)
+  })
+
+  it('detection timeout reports up-to-date instead of wedging the spinner', async () => {
+    vi.useFakeTimers()
+    try {
+      setServiceWorker({
+        getRegistration: async () => ({
+          update: () => new Promise(() => {}), // stalled network — never settles
+          installing: null,
+          waiting: null,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }),
+      })
+      const run = sw.runUpdateCheck()
+      await vi.advanceTimersByTimeAsync(10_000)
+      await run
+      const list = useStore.getState().notifications
+      expect(list.at(-1)?.title).toMatch(/latest version/)
+      expect(list.filter((x) => x.kind === 'progress')).toHaveLength(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('surfaces an error when the update check throws', async () => {
@@ -99,6 +202,10 @@ describe('runUpdateCheck', () => {
         update: async () => {
           throw new Error('offline')
         },
+        installing: null,
+        waiting: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
       }),
     })
     await sw.runUpdateCheck()
