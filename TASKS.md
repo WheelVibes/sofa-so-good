@@ -33,9 +33,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   `PlanToolbar` — deferred because it needs a 40+ prop bundle (passing the whole store-action
   snapshot), which would hurt readability more than the current named-fragment consts. Revisit only
   if the toolbar grows its own logic.
-- [ ] IO-006: zip-bomb guard on the **decompressed** usdz/3mf payload — needs a zip
-  central-directory parser to bound the inflated size (a blunt on-disk cap would regress legitimate
-  large files), so deferred until that parser exists.
 - [ ] SLOT-203 (configurator GLB-sub-asset options): needs a **bundled CC0 GLB** asset + the load
   path (load → reparent at the slot anchor → per-slot `listFinishTargets` namespacing). The v1
   products are all-procedural, so this is gated on sourcing a suitable CC0 GLB option to bundle.

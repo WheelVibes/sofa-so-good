@@ -150,7 +150,9 @@ same change that reshapes a system.
   emits via the `OVERRIDE_EMITTER` fallback — `itemAsLight` flag; `props.iesProfile` swaps the
   omni point light for an IES `SpotLight` — see `src/lighting/ies/`). Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
   `textureBudget.ts`, `finishTargets.ts`, `mirrorPlane.ts`); `convert/` (any-format→GLB:
-  `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`); `optimize/` (`optimizeGlb.ts`
+  `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`; `zipGuard.ts` bounds the
+  DECLARED decompressed size of usdz/3mf via fflate central-directory reads before the
+  loader inflates — IO-006 zip-bomb guard); `optimize/` (`optimizeGlb.ts`
   pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`;
   `lodVariants.ts` in-browser `-low`/`-medium` tier generation for uploads — meshopt simplify
   + tier texture caps from `gltf/lod.ts` `TIER_BUDGETS`, stored in IDB under

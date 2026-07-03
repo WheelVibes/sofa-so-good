@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## SEC(IO-006): zip-bomb guard on decompressed usdz/3mf payloads (v0.11.2.0)
+
+- **usdz/3mf archives are bounded BEFORE inflation.** Both formats are ZIP containers inflated
+  inside their three.js loaders (`fflate.unzipSync`, no bound) — a small on-disk file could
+  declare gigabytes. New pure `convert/zipGuard.ts` reads the central directory's declared
+  sizes via fflate's `filter` callback (zero bytes inflated; no new dependency) and refuses:
+  >4096 entries, >512 MB total declared uncompressed (well above the 80 MB on-disk cap so
+  legitimate texture-heavy models pass), or a >200:1 per-entry ratio above a 1 MB floor.
+  Enforced in `convertModel` after the on-disk cap, covering bulk + single-file ingest;
+  rejection rides the existing `ConvertError` → skipped-file → `notify.error` path. Plan:
+  `docs/superpowers/plans/2026-07-03-io006-zip-bomb-guard.md`.
+
 ## FIX/TEST/UX: improvement cycle 2 — versions goes pro-tier, P31 progress test, CTA copy, lh-body tokens (v0.11.1.3)
 
 - **`versions` flag reclassified `simple` → `pro`** per the CLAUDE.md hard rule (analytical/
