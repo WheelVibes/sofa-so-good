@@ -6,5 +6,5 @@ import 'fake-indexeddb/auto'
 // import cost) in the default node environment where there is no DOM. Load it
 // only for files running under happy-dom (`// @vitest-environment happy-dom`).
 if (typeof document !== 'undefined') {
-  await import('@testing-library/jest-dom')
+  await import('@testing-library/jest-dom/vitest')
 }
