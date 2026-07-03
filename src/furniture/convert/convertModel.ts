@@ -1,9 +1,13 @@
 import type { Material, Object3D, Texture } from 'three'
 import { detectModelFormat, MAX_BYTES_BY_FORMAT, type ModelFormat } from './formats'
 import type { SiblingPool } from './loadToObject'
+import { assertSafeZip, ZipGuardError } from './zipGuard'
 
 /** Thrown when a model can't be converted; carries a user-facing message. */
 export class ConvertError extends Error {}
+
+/** Formats that are ZIP containers (inflated inside their three.js loader). */
+const ZIP_FORMATS = new Set<ModelFormat>(['3mf', 'usdz'])
 
 /** Dispose one material plus every Texture it references (IO-005). */
 function disposeMaterial(m: Material): void {
@@ -69,6 +73,19 @@ export async function convertModel(
     throw new ConvertError(
       `${entry.name} too large (${(entry.size / 1_048_576).toFixed(1)} MB > ${MAX_BYTES_BY_FORMAT[format]} MB).`,
     )
+  }
+  // IO-006: bound the DECOMPRESSED size of ZIP-container formats before the
+  // three.js loader inflates them unconditionally (`fflate.unzipSync` with no
+  // bound). The on-disk cap above can't catch a bomb that declares a small
+  // archive but gigabytes of uncompressed content. We read the declared
+  // central-directory sizes (no inflation) and refuse an implausible expansion.
+  if (ZIP_FORMATS.has(format)) {
+    try {
+      assertSafeZip(new Uint8Array(await entry.arrayBuffer()), entry.name)
+    } catch (e) {
+      if (e instanceof ZipGuardError) throw new ConvertError(e.message)
+      throw e
+    }
   }
   const pool = buildPool(entry, [entry, ...siblings])
   let object: Object3D | null = null
