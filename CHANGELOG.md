@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## UX: time-of-day row collapses to one line — live time as the slider label (v0.11.2.8)
+
+- The Scene sheet's time section rendered the time twice ("TIME OF DAY  6:28 PM" header + a
+  "Time of day [slider]" row). Per user request the row is now one line `[time] [slider]`
+  (SliderField's label IS the live clock, mono/tabular, never wraps at the widest "12:58 PM"),
+  and the header keeps only its label — the time appears exactly once. Desktop popover + mobile
+  sheet share the one component; both screenshot-verified. Scenario: `time-slider-inline.json`.
+
 ## FIX: top-view camera fly no longer snaps rotation at the end (v0.11.2.7)
 
 - The shared eased fly lerped position/target in **Cartesian** space while orientation was
