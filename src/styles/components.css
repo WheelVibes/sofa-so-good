@@ -90,6 +90,19 @@ input { font-family: inherit; }
    own focus ring; interactive children keep their own focus styles. */
 .modal-overlay > .panel[role='dialog']:focus { outline: none; }
 @keyframes modalpop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+/* Breathing room under the panel-head/hr before the body content. `.panel-body`
+   has zero top padding by default (dock panels — catalog/inspector — rely on
+   flush content there), so a modal body's first element sat flush against the
+   `hr`. NOT fixed with padding-top on the scrollport: a sticky `.sec-h` pins at
+   the scrollport's *padding edge*, which would leave a strip above the stuck
+   header where scrolled content shows through. The standard instead: a modal
+   body starts with a `.sec`, whose own `padding-top: var(--s-4)` provides the
+   at-rest gap and scrolls away naturally (the header pins flush at top: 0 when
+   stuck) — so don't zero the first `.sec`'s padding-top inline. This margin
+   rule covers the remaining case of a first child that is NOT a `.sec` (plain
+   intro copy); a margin scrolls with the content, so sticky headers below it
+   are unaffected. */
+.modal-overlay .panel-body > :first-child:not(.sec) { margin-top: var(--s-4); }
 
 /* ---- Thin, aesthetic scrollbars ------------------------------ */
 * { scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }

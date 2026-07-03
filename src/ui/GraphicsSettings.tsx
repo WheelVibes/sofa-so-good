@@ -101,118 +101,105 @@ export function GraphicsSettings({
         <hr className="hr" />
         <div className="panel-body">
           {/* Measurement units — display preference for all read-outs. Metric
-              stays the editing unit; imperial reformats labels/HUDs. */}
-          <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
-            <span>Measurement units</span>
+              stays the editing unit; imperial reformats labels/HUDs. Each block
+              below is a `.sec` so its sticky `.sec-h` releases when the section
+              scrolls past (a bare `.sec-h` would stay pinned and stack under
+              the next one), and the first `.sec`'s top padding gives the body
+              its breathing room under the panel head. */}
+          <div className="sec">
+            <div className="sec-h">
+              <span>Measurement units</span>
+            </div>
+            <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
+              {(['metric', 'imperial'] as const).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setUnits(u)}
+                  className={`capitalize${unitSystem === u ? ' on' : ''}`}
+                  style={{ flex: 1 }}
+                >
+                  {u === 'metric' ? 'Metric (m)' : 'Imperial (ft)'}
+                </button>
+              ))}
+            </div>
+            <p className="sec-desc">
+              Affects dimension read-outs (room sizes, tape, clearance). Plan-editor input fields
+              stay in metres.
+            </p>
           </div>
-          <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
-            {(['metric', 'imperial'] as const).map((u) => (
-              <button
-                key={u}
-                type="button"
-                onClick={() => setUnits(u)}
-                className={`capitalize${unitSystem === u ? ' on' : ''}`}
-                style={{ flex: 1 }}
-              >
-                {u === 'metric' ? 'Metric (m)' : 'Imperial (ft)'}
-              </button>
-            ))}
-          </div>
-          <p
-            style={{
-              fontSize: 'var(--t-2xs)',
-              lineHeight: 1.45,
-              color: 'var(--text-3)',
-              margin: 'var(--s-2) 0 var(--s-3)',
-            }}
-          >
-            Affects dimension read-outs (room sizes, tape, clearance). Plan-editor input fields stay
-            in metres.
-          </p>
 
           {/* Tier presets — 2×2 grid. */}
-          <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
-            <span>Quality preset</span>
+          <div className="sec">
+            <div className="sec-h">
+              <span>Quality preset</span>
+            </div>
+            <div className="action-grid two">
+              {TIERS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTier(t)}
+                  className={`act${tier === t && !hasOverrides ? ' on' : ''}`}
+                >
+                  {QUALITY_LABEL[t]}
+                </button>
+              ))}
+            </div>
+            <p className="sec-desc">
+              {QUALITY_DESCRIPTION[tier]}{' '}
+              {userSet
+                ? hasOverrides
+                  ? 'Custom settings (overriding the preset).'
+                  : 'Manual — auto fps-adjust is off.'
+                : 'Auto-adjusts to hold 30+ fps. Changing anything pins it.'}
+            </p>
           </div>
-          <div className="action-grid two">
-            {TIERS.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTier(t)}
-                className={`act${tier === t && !hasOverrides ? ' on' : ''}`}
-              >
-                {QUALITY_LABEL[t]}
-              </button>
-            ))}
-          </div>
-          <p
-            style={{
-              fontSize: 'var(--t-2xs)',
-              lineHeight: 1.45,
-              color: 'var(--text-3)',
-              margin: 'var(--s-2) 0 var(--s-3)',
-            }}
-          >
-            {QUALITY_DESCRIPTION[tier]}{' '}
-            {userSet
-              ? hasOverrides
-                ? 'Custom settings (overriding the preset).'
-                : 'Manual — auto fps-adjust is off.'
-              : 'Auto-adjusts to hold 30+ fps. Changing anything pins it.'}
-          </p>
 
           {/* Tone-mapping "look" (view transform) — applies on every tier,
               so it lives outside the Pro-only advanced block. */}
-          <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
-            <span>Look (tone mapping)</span>
-          </div>
-          <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
-            {TONE_MAPPING_SETTINGS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setToneMapping(m)}
-                className={toneMapping === m ? 'on' : ''}
-                style={{ flex: 1 }}
-              >
-                {TONE_MAPPING_SETTING_LABEL[m]}
-              </button>
-            ))}
-          </div>
-          <p
-            style={{
-              fontSize: 'var(--t-2xs)',
-              lineHeight: 1.45,
-              color: 'var(--text-3)',
-              margin: 'var(--s-2) 0 var(--s-3)',
-            }}
-          >
-            {TONE_MAPPING_HINT[toneMapping]}
-          </p>
-
-          {/* Exposure (brightness) — applies on every tier alongside the Look. */}
-          <div className="row">
-            <div
-              className="rk"
-              style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}
-            >
-              <div>Exposure</div>
-              <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}>
-                Overall brightness · {exposure.toFixed(2)}×
-              </div>
+          <div className="sec">
+            <div className="sec-h">
+              <span>Look (tone mapping)</span>
             </div>
-            <input
-              type="range"
-              min={EXPOSURE_MIN}
-              max={EXPOSURE_MAX}
-              step={0.05}
-              value={exposure}
-              aria-label="Exposure"
-              onChange={(e) => setExposure(Number(e.target.value))}
-              className="slider"
-              style={{ width: 112 }}
-            />
+            <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
+              {TONE_MAPPING_SETTINGS.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setToneMapping(m)}
+                  className={toneMapping === m ? 'on' : ''}
+                  style={{ flex: 1 }}
+                >
+                  {TONE_MAPPING_SETTING_LABEL[m]}
+                </button>
+              ))}
+            </div>
+            <p className="sec-desc">{TONE_MAPPING_HINT[toneMapping]}</p>
+
+            {/* Exposure (brightness) — applies on every tier alongside the Look. */}
+            <div className="row">
+              <div
+                className="rk"
+                style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}
+              >
+                <div>Exposure</div>
+                <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}>
+                  Overall brightness · {exposure.toFixed(2)}×
+                </div>
+              </div>
+              <input
+                type="range"
+                min={EXPOSURE_MIN}
+                max={EXPOSURE_MAX}
+                step={0.05}
+                value={exposure}
+                aria-label="Exposure"
+                onChange={(e) => setExposure(Number(e.target.value))}
+                className="slider"
+                style={{ width: 112 }}
+              />
+            </div>
           </div>
 
           {/* Advanced graphics (asset detail + per-effect overrides + FPS) —
@@ -220,33 +207,28 @@ export function GraphicsSettings({
           {proMode ? (
             <>
               {/* Asset quality. */}
-              <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
-                <span>Asset quality</span>
+              <div className="sec">
+                <div className="sec-h">
+                  <span>Asset quality</span>
+                </div>
+                <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
+                  {ASSET_OPTIONS.map((o) => (
+                    <button
+                      key={o.label}
+                      type="button"
+                      onClick={() => setAssetTier(o.value)}
+                      className={assetTier === o.value ? 'on' : ''}
+                      style={{ flex: 1 }}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="sec-desc">
+                  Model + texture detail, separate from render quality. “Original” loads
+                  full-resolution assets even on Low.
+                </p>
               </div>
-              <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
-                {ASSET_OPTIONS.map((o) => (
-                  <button
-                    key={o.label}
-                    type="button"
-                    onClick={() => setAssetTier(o.value)}
-                    className={assetTier === o.value ? 'on' : ''}
-                    style={{ flex: 1 }}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-              <p
-                style={{
-                  fontSize: 'var(--t-2xs)',
-                  lineHeight: 1.45,
-                  color: 'var(--text-3)',
-                  margin: 'var(--s-2) 0 0',
-                }}
-              >
-                Model + texture detail, separate from render quality. “Original” loads
-                full-resolution assets even on Low.
-              </p>
 
               <div className="sec">
                 <Row label="Sun shadows" hint="Resolution; off is fastest">
