@@ -194,13 +194,16 @@
 .select-trigger .icn { flex: none; opacity: 0.55; }
 .select-trigger:disabled { opacity: 0.5; cursor: default; }
 .select-trigger:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* Expanded state reuses the same --focus-ring treatment as :focus-visible
+   above (P14) instead of a hand-tuned box-shadow — "open" should read
+   exactly like "focused", not a separate ad-hoc ring value. */
 .select-trigger[aria-expanded='true'] {
   border-color: var(--accent); background: var(--surface-solid);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: var(--focus-ring);
 }
 .select-icon-trigger[aria-expanded='true'] {
   background: var(--surface-3); color: var(--text);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: var(--focus-ring);
 }
 .select-panel { max-height: 60vh; overflow-y: auto; padding: var(--s-2); gap: 1px; }
 .select-list { display: flex; flex-direction: column; gap: 1px; }
