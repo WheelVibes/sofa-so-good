@@ -4,6 +4,13 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
 
 - **One concern per slice** (`slices/*`). Adding a slice = add it to the store
   composition + its initial state; keep it small and focused.
+- **`windowFixtureSlice`** (WINDOW-FIXTURE-INTERACT) is the door-adjacent example of a slice that
+  needs **no new persisted field**: a curtain/blind's open/closed value already lives on the placed
+  item's own `props` (`drawAmount`/`lower`), so `toggleWindowFixture` just patches `items` — that
+  already round-trips through `serialize()`/the autosave watch-list, so there's nothing new to add
+  to either. Only `nearbyFixtureId` (which item the walk-mode reticle is aimed at) is slice-local
+  session state, mirroring `doorsSlice.nearbyDoorId` — never persisted. Contrast with `doorsSlice`,
+  which DOES need its own persisted `doors: Record<id, {open}>` because doors aren't `PlacedItem`s.
 - **`editorPrefs` also persists per-device UI convenience state** (out of the save schema):
   the left-dock tab (`leftMode`), the collapsed layer-group map (`layersCollapsed`, lifted from
   `LayersPanel` into `featuresSlice`), and `catalogOpen` — the last restored **desktop-only**
