@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CHORE: dead-code audits — orphaned help modal remnants + stillborn .preset-* CSS pruned (v0.11.2.1)
+
+- **`.help-list` CSS + `helpOpen`/`setHelpOpen` state deleted**: the standalone Help modal was
+  folded into the Appearance panel long ago (`59ba994b`); the live shortcuts surface is
+  `ShortcutsModal` on the separate `shortcutsHelpOpen` state. Nothing dangled.
+- **The 22-rule `.preset-*` block in `flows.css` deleted**: born in "Design system v1" for a
+  layout-preset picker that actually shipped as `SmartStartWizard` (`.ss-card*`); no TSX ever
+  referenced it (verified across full git history). The `src/ui/CLAUDE.md` claim that
+  `.preset-card` carries the ambient glow was stale — the pointer handler only ever targets
+  `.cat-card`; docs corrected + `ambientFx.test.ts` simplified to the real system.
+
 ## SEC(IO-006): zip-bomb guard on decompressed usdz/3mf payloads (v0.11.2.0)
 
 - **usdz/3mf archives are bounded BEFORE inflation.** Both formats are ZIP containers inflated

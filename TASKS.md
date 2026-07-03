@@ -72,17 +72,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` toggle needs a context recreate (flash) +
   real-GPU verify.
 
-## Discovered — dead-code audits (2026-07-03 cycle 2)
-- [ ] **`.help-list` CSS block + `helpOpen` state are orphaned**: `parts.css` `.help-list`/
-  `.help-list li`/`.help-list li .icn` have zero TSX consumers, and `featuresSlice.helpOpen`/
-  `setHelpOpen` have no renderer — the help/shortcuts modal they served appears removed. Verify
-  nothing constructs the class dynamically, then prune CSS + state + the `lineHeight.test.ts`
-  guard line for `.help-list li`.
-- [ ] **`.preset-*` family in `flows.css` (22 rules) has no direct TSX consumer** — but
-  `src/ui/CLAUDE.md` references `.preset-card` as live (ambient pointer-glow). Determine whether
-  the classes are built dynamically or the docs are stale; prune or fix docs accordingly
-  (`.preset-desc` is one of the four rules just switched to `--lh-body`).
-
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
 - Keep this file pending-only; keep `TODO.md` (legacy deferred-work log) current.
