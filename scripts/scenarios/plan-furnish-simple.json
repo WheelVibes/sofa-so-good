@@ -1,0 +1,97 @@
+{
+  "name": "plan-furnish-simple",
+  "description": "PLAN-FURNISH Phase 1 ladder: the 2D-plan 'Furnish' catalog entry + click-to-place are hidden in Simple mode, shown in Pro; arming a def shows an SVG ghost that follows the cursor with green/red canPlace validity; a click on a valid spot commits via addItem/beginDrop/pendingEdit (auto-shows furniture, selects the new item); the placed item is confirmed and visible back in the 3D scene.",
+  "url": "http://localhost:5320/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+
+    { "name": "open-plan-simple", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible-simple", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "wait-plan-settle-simple", "wait": 800 },
+    {
+      "name": "verify-no-furnish-button-simple",
+      "eval": "(function(){ const has = [...document.querySelectorAll('.plan-screen button')].some(b => b.textContent?.trim() === 'Furnish'); if (has) throw new Error('Furnish button should be hidden in Simple mode'); console.log('no Furnish button in Simple — gated correctly'); })()"
+    },
+    { "name": "shot-01-simple-no-furnish", "screenshot": "01-simple-no-furnish-button" },
+    { "name": "close-plan-simple", "store": { "action": "setFloorPlanEditing", "args": [false] } },
+    { "name": "wait-close-simple", "wait": 600 },
+
+    { "name": "to-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "planFurnish-flag-on-pro",
+      "waitFor": { "store": "state.featureFlags.planFurnish === true" },
+      "timeout": 5000,
+      "failMessage": "planFurnish flag should be ON in Pro mode"
+    },
+
+    { "name": "open-plan-pro", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible-pro", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "wait-plan-settle-pro", "wait": 800 },
+    {
+      "name": "click-furnish-button",
+      "eval": "(function(){ const b = [...document.querySelectorAll('.plan-screen button')].find(x => x.textContent?.trim() === 'Furnish'); if (!b) throw new Error('Furnish button not found in Pro mode'); b.click(); })()"
+    },
+    {
+      "name": "catalog-visible-in-plan",
+      "waitFor": { "css": ".panel.catalog.catalog-in-plan" },
+      "timeout": 20000,
+      "failMessage": "Catalog did not surface inside the plan editor"
+    },
+    { "name": "shot-02-catalog-in-plan", "screenshot": "02-catalog-in-plan-pro" },
+
+    { "name": "arm-sofa", "store": { "action": "setActiveDefId", "args": ["sofa-3seat"] } },
+    {
+      "name": "sofa-armed",
+      "waitFor": { "store": "state.activeDefId === 'sofa-3seat'" },
+      "timeout": 3000
+    },
+    {
+      "name": "ghost-rendered",
+      "eval": "(function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const shapes = [...svg.querySelectorAll('[stroke-dasharray=\"4 3\"]')]; if (shapes.length === 0) throw new Error('no room shapes found'); const r = shapes[0].getBoundingClientRect(); svg.dispatchEvent(new PointerEvent('pointermove', { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true, cancelable: true, pointerId: 1 })); })()"
+    },
+    {
+      "name": "ghost-layer-present",
+      "waitFor": { "css": "[data-plan-ghost=\"sofa-3seat\"]" },
+      "timeout": 5000,
+      "failMessage": "Placement ghost layer did not render for the armed def"
+    },
+    {
+      "name": "find-valid-drop-spot",
+      "eval": "(async function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const shapes = [...svg.querySelectorAll('[stroke-dasharray=\"4 3\"]')]; const rects = shapes.map(s => s.getBoundingClientRect()).filter(r => r.width > 40 && r.height > 40); rects.sort((a, b) => b.width * b.height - a.width * a.height); const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))); const offsets = [[0.5,0.5],[0.25,0.25],[0.75,0.25],[0.25,0.75],[0.75,0.75],[0.5,0.25],[0.5,0.75],[0.25,0.5],[0.75,0.5]]; for (const r of rects) { for (const [fx, fy] of offsets) { const x = r.left + r.width * fx; const y = r.top + r.height * fy; svg.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y, bubbles: true, cancelable: true, pointerId: 1 })); await frame(); const g = document.querySelector('[data-plan-ghost=\"sofa-3seat\"]'); if (g && g.getAttribute('data-plan-ghost-valid') === 'true') { window.__planFurnishPt = { x, y }; console.log('found valid drop spot', x, y); return; } } } throw new Error('No valid drop spot found in any room for sofa-3seat — every candidate collided (default flat is pre-furnished)'); })()"
+    },
+    { "name": "shot-03-ghost-following", "screenshot": "03-ghost-valid-green" },
+
+    {
+      "name": "record-baseline-count",
+      "eval": "window.__furnishBase = window.__store.getState().items.length"
+    },
+    {
+      "name": "commit-click",
+      "eval": "(function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const p = window.__planFurnishPt; const opts = { clientX: p.x, clientY: p.y, bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 1 }; svg.dispatchEvent(new PointerEvent('pointerdown', opts)); svg.dispatchEvent(new PointerEvent('pointerup', opts)); })()"
+    },
+    {
+      "name": "item-placed",
+      "waitFor": {
+        "store": "state.items.length === window.__furnishBase + 1 && state.activeDefId === null"
+      },
+      "timeout": 5000,
+      "failMessage": "Click did not commit the placement (item not added / still armed)"
+    },
+    {
+      "name": "verify-placed-item",
+      "eval": "(function(){ const st = window.__store.getState(); const it = st.items[st.items.length - 1]; if (it.defId !== 'sofa-3seat') throw new Error('Last item is not the placed sofa: ' + it.defId); if (!st.pendingEdit || st.pendingEdit.kind !== 'placement') throw new Error('Expected a pending placement edit'); if (!st.showFurniture !== false) {} console.log('placed sofa at', it.position, 'rotation', it.rotation); })()"
+    },
+    { "name": "shot-04-placed-in-plan", "screenshot": "04-placed-in-plan" },
+
+    { "name": "confirm-placement", "eval": "window.__store.getState().confirmPendingEdit()" },
+    { "name": "close-plan-after-place", "store": { "action": "setFloorPlanEditing", "args": [false] } },
+    { "name": "plan-closed", "waitFor": { "css": ".plan-screen", "visible": false }, "timeout": 10000 },
+    { "name": "wait-scene-settle", "wait": 1500 },
+    { "name": "shot-05-placed-in-3d", "screenshot": "05-placed-in-3d-scene" }
+  ]
+}

@@ -1027,7 +1027,39 @@ same change that reshapes a system.
   Item- vs plan-element selection is **mutually exclusive** (`selectItem` clears
   `planSelection`; `setPlanSelection` clears `selectedItemId`) so the two inspectors never
   co-render. Available in **both Simple and Pro** (plan editing is a core loop — no extra flag;
-  rides the editor's `floorPlanEditor` gate). **Rubber-band marquee** (PARITY-PLAN-MARQUEE):
+  rides the editor's `floorPlanEditor` gate).
+  **Click-to-place furniture in the plan** (PLAN-FURNISH Phase 1, `planFurnish` flag, **pro**,
+  default on — desktop only): move/rotate/scale of already-placed items works in 2D as above; this
+  adds the missing **add** verb, reusing the same `canPlace`/`addItem`/`placementSlice` pipeline as
+  the 3D catalog rather than a parallel implementation. `CatalogDrawer` surfaces inside the plan
+  editor too — its gate becomes `roomEditorActive || (floorPlanEditing && planFurnish && !isMobile)`
+  (a `.catalog-in-plan` modifier bumps its z-index above the plan's full-screen overlay); a desktop
+  "Furnish" toolbar button opens it and force-shows furniture footprints. Arming a card
+  (`setActiveDefId`, shared `placementSlice` state with the 3D flow) drives a new SVG
+  **`editor/layers/PlacementGhostLayer.tsx`** — a footprint polygon tinted `--ok`/`--danger` by
+  `canPlace` validity — instead of reactivating the canvas-bound 3D `scene/PlacementGhost.tsx`/
+  `usePlacementController.ts` (both stay inert behind the plan overlay: `canEditScene` is
+  structurally independent of `floorPlanEditing`, and every 3D commit path is gated on
+  `ev.target instanceof HTMLCanvasElement`, which a click on the plan's SVG never satisfies — see
+  `state/editing.test.ts`'s PLAN-FURNISH regression case). The ghost build / `canPlace` validity /
+  commit decision are pure, unit-tested in `ui/floorplan/editor/planFurnishPlacement.ts`
+  (`buildPlanGhostItem`/`planGhostValid`/`decidePlanCommit`); `FloorPlanEditor`'s `onDown` computes
+  the click's own world point fresh and commits through the identical `addItem` → `beginDrop` →
+  `pendingEdit` path the 3D controller uses, passing the active storey's `levelId` explicitly
+  (`addItem` can't infer it outside the room editor). R rotates the ghost and Escape/right-click
+  cancel for free via the existing global `usePlacementController` keydown/contextmenu listeners
+  (shared `activeDefId`/`ghostRotation` state) — the plan editor's own Escape handler special-cases
+  an armed placement first so it cancels the placement instead of exiting the editor. Window-bound
+  fixtures (curtains/blinds/grilles) are excluded from Phase 1 (`isPlanPlaceable`) with an
+  explanatory toast + auto-disarm — no window-snap branch here yet. New-item defaults are a single
+  shared `furniture/placement/defaultItemProps.ts` (factored out of the 3D ghost/controller, which
+  used to each define their own copy). **`EditConfirmBar`'s "abandon a pending edit on leaving the
+  editor" effect keys off `!roomEditor.active && !floorPlanEditing`** (not `roomEditor.active`
+  alone) so a plan-origin placement's tick/cross bar isn't auto-confirmed the instant it appears
+  merely because the room editor was never entered. Phases 2–4 (mobile tap-to-place, window-bound
+  fixtures, HTML5 drag-from-catalog) are deferred — see
+  `docs/research/2026-07-03-plan-furnish-implementation-plan.md`.
+  **Rubber-band marquee** (PARITY-PLAN-MARQUEE):
   a drag on **empty canvas** with the select tool draws a dashed accent rect (pure
   `ui/floorplan/editor/marqueeSelect.ts` — SAT **intersection** test reusing `collision/obb.ts`
   `obbVsObb`/`obbVsSegment`, so a footprint/wall counts when it *touches or overlaps* the box, not

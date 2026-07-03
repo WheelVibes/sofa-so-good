@@ -1,6 +1,8 @@
 # PLAN-FURNISH — add & drag furniture in the 2D plan editor
 
-**Status:** implementation plan / risk assessment (no code written).
+**Status:** Phase 1 (desktop click-to-place) **shipped** — see the "Phase 1 — implemented"
+addendum at the end of this doc for what landed vs. what's still open. Phases 2–4 remain
+implementation plan / risk assessment only (no code written for them yet).
 **Date:** 2026-07-03 · **Baseline build:** `APP_VERSION` `0.12.0.13`.
 **Source item:** `TODO.md` → "Core-loop parity gaps (2026-07-03 audit)" → **PLAN-FURNISH** (L, architectural, risk: high).
 
@@ -223,3 +225,55 @@ loosening `canEditScene` instead of adding a `visualScene.floorPlan` gate; (2) `
 **Defer:** Phase 4 (HTML5 drag-from-catalog) until Phases 1–2 are proven — the SVG drop-zone
 friction (`ui/CLAUDE.md`) and cross-browser/touch cost outweigh its marginal reach over
 click-to-place.
+
+---
+
+## Phase 1 — implemented (this cycle)
+
+Shipped as scoped: desktop click-to-place, `planFurnish` flag (pro tier, default on). Matches
+the plan above closely, with a few implementation notes worth recording:
+
+- **Catalog surfacing (§2, option a)** — `CatalogDrawer`'s gate became `!open || cameraMode !==
+  'orbit' || !(roomEditorActive || (floorPlanEditing && planFurnish && !isMobile))`. Docked via
+  the existing `dock-panel-left` CSS, plus a new `.catalog-in-plan` modifier class bumping its
+  z-index (31) above the plan's full-screen overlay (`.plan-screen`, z-30) — the two live in
+  different stacking contexts and the catalog would otherwise render invisibly underneath. A
+  desktop-only **"Furnish"** toolbar button opens it (and force-shows furniture footprints).
+  **Known simplification, not fixed this phase:** the catalog floats *over* the plan rather than
+  shrinking its viewport the way `.stage-area` does in 3D (`--left-rail` isn't wired into
+  `.plan-screen`'s layout) — logged in `TODO.md` as low-risk polish.
+- **Ghost + commit** — a new pure module `ui/floorplan/editor/planFurnishPlacement.ts`
+  (`buildPlanGhostItem`/`isPlanPlaceable`/`planGhostValid`/`decidePlanCommit`) plus a new SVG
+  layer `editor/layers/PlacementGhostLayer.tsx`, exactly per §2.2. `FloorPlanEditor`'s `onDown`
+  gained a placement-commit branch (checked before the existing tool dispatch) and `onMove` gained
+  a ghost-tracking branch — both early-return, so no existing tool/drag state can be active
+  simultaneously. Local component state (`planGhostWorld`) holds the ghost's world point rather
+  than writing into the shared 3D `ghostWorld`/`ghostValid` fields — a deliberate extra
+  de-risking of §3 risk #1 (those 3D fields stay untouched by the plan editor; only
+  `activeDefId`/`ghostRotation` are shared, matching the plan's reuse table).
+  `furniture/placement/defaultItemProps.ts` factors out the previously-duplicated `defaultProps`
+  from the 3D ghost + controller, per §2, item 4.
+- **R-rotate / Escape / right-click-cancel came free** — the existing global
+  `usePlacementController` `window` keydown/contextmenu listeners already key off the shared
+  `activeDefId`/`ghostRotation` state and aren't canvas-gated for those paths, so no new key
+  handling was needed in the plan editor. One fix was needed: the plan editor's OWN Escape handler
+  (registered earlier, since it mounts before a def gets armed) would otherwise run first on the
+  same keydown and exit the whole editor — it now checks for an armed placement first and cancels
+  that instead (`FloorPlanEditor.tsx`'s `onKey` effect).
+- **A real §3 risk #2 instance, found via visual verification, not foreseen in the plan:**
+  `EditConfirmBar`'s "abandon a pending edit on leaving the room editor" effect
+  (`!roomEditorActive && pending → confirm()`) auto-confirmed a plan-origin `pendingEdit` the
+  instant it appeared, because `roomEditorActive` is never true during a plan placement — the tick/
+  cross bar never had a chance to show. Fixed by keying that effect off
+  `!roomEditorActive && !floorPlanEditing` instead, so it only fires on leaving *both* editing
+  surfaces (regression test: `EditConfirmBar.planFurnish.test.tsx`).
+- **Window-bound fixtures (curtains/blinds/grilles)** are excluded via `isPlanPlaceable` — arming
+  one in the plan shows a toast ("can only be placed from the 3D room editor for now") and
+  auto-disarms, rather than showing a ghost that could never validly commit. Deferred to Phase 3.
+- **Visual verification**: `scripts/scenarios/plan-furnish-simple.json` — Simple-mode gate (no
+  "Furnish" button) → Pro mode → open catalog in plan → arm `sofa-3seat` → ghost follows cursor,
+  green over open floor / probed for a collision-free spot in the pre-furnished default flat →
+  click commits → item selected with the "Place item?" confirm bar showing → confirm → close plan
+  → item confirmed present and correctly sized/named in the 3D scene.
+- **Not done this phase** (see the phase table above, unchanged): mobile tap-to-place (Phase 2),
+  window-bound fixtures in the plan (Phase 3), HTML5 drag-from-catalog (Phase 4).

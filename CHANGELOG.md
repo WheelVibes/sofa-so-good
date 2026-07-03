@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: click-to-place furniture in the 2D plan editor — PLAN-FURNISH Phase 1 (v0.12.0.16)
+
+The signature Sweet Home 3D / Planner 5D "plan-first" loop, Phase 1 (desktop
+click-to-place). In the 2D plan editor (Pro), a "Furnish" tool surfaces the
+catalog over the plan; arming a def shows an SVG ghost that follows the cursor
+with `canPlace` validity (green/red), left-click commits via the existing
+`addItem`→`beginDrop`→`pendingEdit` path (R rotates, Esc/right-click cancels),
+auto-shows furniture, and selects the new item — which then round-trips into
+the 3D scene at the same coordinates. Flag `planFurnish` (pro).
+
+Architecture (per `docs/research/2026-07-03-plan-furnish-implementation-plan.md`):
+the catalog is surfaced via a new `floorPlanEditing && planFurnish && !isMobile`
+OR-branch — `canEditScene` / the VIEW-EDIT-SPLIT invariant is UNTOUCHED (verified
+by a regression test), and the canvas-bound 3D `PlacementGhost`/
+`usePlacementController` stay inert behind the plan's SVG overlay (a fresh
+`PlacementGhostLayer` + local `planGhostWorld`, never the 3D `ghostWorld`).
+Pure ghost/validity/commit logic in `editor/planFurnishPlacement.ts` + tests;
+shared `defaultItemProps` extracted from the duplicated 3D copies. Also fixed a
+real bug found in verification: `EditConfirmBar` was auto-confirming a
+plan-origin `pendingEdit` (its abandon-effect keyed only on `roomEditorActive`).
+Phases 2 (mobile), 3 (window-bound fixtures), 4 (HTML5 drag) deferred.
+
 ## FEAT: core-loop parity — catalog room-fit cue + minimap tap-to-teleport (v0.12.0.15)
 
 Two client-doable core-loop parity features from the 2026-07-03 audit:

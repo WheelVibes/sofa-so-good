@@ -7,23 +7,14 @@ import { placementWalls } from '../collision/placementWalls'
 import { noExportUserData } from '../export/sceneGltf'
 import { useCatalogGetter } from '../furniture/catalog'
 import { Furniture } from '../furniture/Furniture'
+import { defaultItemProps as defaultProps } from '../furniture/placement/defaultItemProps'
 import { snapToNearestWindow } from '../furniture/placement/windowSnap'
-import {
-  defaultParamProps,
-  type FurnitureDef,
-  type FurnitureItem,
-  type ParamProps,
-} from '../furniture/types'
+import type { FurnitureItem } from '../furniture/types'
 import { canEditScene } from '../state/editing'
 import { useStore } from '../state/store'
 import { snapToGrid } from './snap'
 
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0)
-
-function defaultProps(def: FurnitureDef): ParamProps {
-  if (def.kind === 'parametric') return defaultParamProps(def)
-  return def.scale != null ? { scale: def.scale } : {}
-}
 
 /**
  * Live preview that follows the cursor while a catalog card is being

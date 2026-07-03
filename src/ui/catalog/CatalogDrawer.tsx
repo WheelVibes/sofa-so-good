@@ -9,6 +9,7 @@ import { Button } from '../controls/Button'
 import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 import { useAmbientFx } from '../useAmbientFx'
+import { useIsMobile } from '../useIsMobile'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import {
@@ -78,6 +79,16 @@ export function CatalogDrawer() {
   const open = useStore((s) => s.catalogOpen)
   const cameraMode = useStore((s) => s.cameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
+  // PLAN-FURNISH Phase 1: the catalog also surfaces inside the 2D floor-plan
+  // editor (desktop only — Phase 1 is desktop click-to-place; mobile stays
+  // hidden here rather than opening a bottom sheet on top of the plan's own
+  // mobile "Tools" sheet), behind the pro-tier `planFurnish` flag. This is the
+  // ONLY new gate — `canEditScene`/`roomEditorActive`'s existing meaning is
+  // untouched; see `state/editing.ts` / the PLAN-FURNISH implementation plan.
+  const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  const fPlanFurnish = useFeature('planFurnish')
+  const isMobile = useIsMobile()
+  const planFurnishActive = floorPlanEditing && fPlanFurnish && !isMobile
   const setOpen = useStore((s) => s.setCatalogOpen)
   const leftMode = useStore((s) => s.leftMode)
   const setLeftMode = useStore((s) => s.setLeftMode)
@@ -212,9 +223,11 @@ export function CatalogDrawer() {
     setPage(0)
   }
 
-  // Placing/customising furniture is editing, so the catalog only shows inside
-  // the per-room editor (orbit). Orbit-over-the-flat and walk are view-only.
-  if (!open || cameraMode !== 'orbit' || !roomEditorActive) return null
+  // Placing/customising furniture is editing, so the catalog shows inside the
+  // per-room editor (orbit) — and, behind `planFurnishActive` above, inside
+  // the 2D floor-plan editor too. Orbit-over-the-flat and walk otherwise stay
+  // view-only with no catalog.
+  if (!open || cameraMode !== 'orbit' || !(roomEditorActive || planFurnishActive)) return null
   // `q` reflects the deferred query (matches the ranked results shown below); the
   // search input itself still binds to the live `query` so typing feels instant.
   const q = dq
@@ -310,7 +323,9 @@ export function CatalogDrawer() {
   }
 
   return (
-    <aside className="panel catalog dock-panel-left">
+    <aside
+      className={`panel catalog dock-panel-left${planFurnishActive ? ' catalog-in-plan' : ''}`}
+    >
       <div className="panel-head">
         <div className="panel-title">
           {view === 'layers' ? 'Objects' : view === 'packs' ? 'Packs' : 'Catalog'}

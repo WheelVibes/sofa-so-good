@@ -5,20 +5,31 @@ stays a thin dispatcher. Two kinds of file live here:
 
 - **Pure logic modules** (`floorPlanGeometry.ts`, `snapToWalls.ts`,
   `snapWallAngle.ts`, `planLabelDisplay.ts`, `planConstants.ts`,
-  `toolDraftReducer.ts`, `backdropPlacement.ts`, …): side-effect-free, **free of React / DOM / store /
+  `toolDraftReducer.ts`, `backdropPlacement.ts`, `planFurnishPlacement.ts`, …): side-effect-free, **free of React / DOM / store /
   three**. Every function is **parameterised on its inputs** (walls / rooms /
   points / a `snap` fn passed in explicitly) — never read editor or component
   state, never call `useStore`. This is what makes each one unit-testable in
-  isolation.
+  isolation. `planFurnishPlacement.ts` (PLAN-FURNISH) is the pattern for a
+  placement-adjacent module: it builds the synthetic ghost item, decides
+  `canPlace` validity (excluding window-bound defs from Phase 1) and the
+  commit decision — `FloorPlanEditor`'s `onDown`/`onMove` own the screen→world
+  mapping (reusing the existing `pointerWorld`/`toPx`) and the store
+  reads/writes, this module only decides what the ghost looks like and what a
+  click should do with it.
 - **Sub-components** (`GridLines.tsx`, `WallDimension.tsx`,
   `WallNumericEntry.tsx`, `PlanMenu.tsx`, …): presentational overlays driven by
   props from the editor. The per-storey **SVG render layers** live under
   `layers/` (`WallsLayer`, `RoomsLayer`, `OpeningsLayer`, `DimensionsLayer`,
   `NotesLayer`, `PolylinesLayer`, `TourStopsLayer`, `FurnitureLayer`,
-  `FurnitureRotateHandle`, `WallHandlesLayer`, `DraftOverlayLayer`): each is one
+  `FurnitureRotateHandle`, `WallHandlesLayer`, `DraftOverlayLayer`,
+  `PlacementGhostLayer`): each is one
   cohesive slice of the plan `<svg>`, prop-driven, taking editor state + the
   drag/selection handlers as props (the editor stays the dispatcher). Add a new
   layer here rather than growing the render block in `FloorPlanEditor.tsx`.
+  `PlacementGhostLayer` (PLAN-FURNISH) is mounted **last** (topmost, after
+  `DraftOverlayLayer`) so the armed-def preview is never obscured; it's
+  `pointer-events: none` throughout since the plan `<svg>`'s own
+  `onPointerDown`/`onPointerMove` (not the layer) own the click that commits it.
 - **Custom hooks** (`usePlanBackdrop.ts`, …): a cohesive, self-contained slice of
   editor **state + effects** (not core drawing/interaction state) lifted into a
   `use*` hook so the component shrinks. The editor still reads the returned

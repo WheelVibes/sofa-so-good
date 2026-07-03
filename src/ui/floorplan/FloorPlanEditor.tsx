@@ -28,6 +28,7 @@ import {
   wallArcLength,
 } from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
+import { beginDrop } from '../../scene/placementDrop'
 import { groupResizeFactor, resizedTransform } from '../../scene/selection/resizeGizmoMath'
 import {
   computeRotation,
@@ -60,6 +61,7 @@ import { FurnitureLayer } from './editor/layers/FurnitureLayer'
 import { FurnitureRotateHandle } from './editor/layers/FurnitureRotateHandle'
 import { NotesLayer } from './editor/layers/NotesLayer'
 import { OpeningsLayer } from './editor/layers/OpeningsLayer'
+import { PlacementGhostLayer } from './editor/layers/PlacementGhostLayer'
 import { PolylinesLayer } from './editor/layers/PolylinesLayer'
 import { RoomsLayer } from './editor/layers/RoomsLayer'
 import { TourStopsLayer } from './editor/layers/TourStopsLayer'
@@ -70,6 +72,12 @@ import { PlanLibrary } from './editor/PlanLibrary'
 import { PlanMenu } from './editor/PlanMenu'
 import { PlanToolMenu } from './editor/PlanToolMenu'
 import { EXPORT_PAD, GRID_MARGIN, type Tool, ZOOM_BTN_STEP } from './editor/planConstants'
+import {
+  buildPlanGhostItem,
+  decidePlanCommit,
+  isPlanPlaceable,
+  planGhostValid,
+} from './editor/planFurnishPlacement'
 import { dimFontPx, roomFontPx, showOpeningDim, showWallDim } from './editor/planLabelDisplay'
 import { chooseScaleBar } from './editor/scaleBar'
 import { snapToWalls } from './editor/snapToWalls'
@@ -139,6 +147,22 @@ export function FloorPlanEditor() {
   const fCornerFillet = useFeature('cornerFillet')
   const fTilt = useFeature('tiltFurniture')
   const orientationDeg = useStore((s) => s.orientationDeg)
+  // PLAN-FURNISH Phase 1 — click-to-place furniture straight onto the plan.
+  // Desktop only (mobile tap-to-place is a later phase); the catalog itself is
+  // only surfaced here under the same condition (`CatalogDrawer`'s
+  // `planFurnishActive`), so this just mirrors that gate for the pointer
+  // dispatch + ghost render.
+  const fPlanFurnish = useFeature('planFurnish') && !isMobile
+  const activeDefId = useStore((s) => s.activeDefId)
+  const ghostRotation = useStore((s) => s.ghostRotation)
+  const catalogOpen = useStore((s) => s.catalogOpen)
+  const doors = useStore((s) => s.doors)
+  // Latest world point the armed ghost previewed at (set by `onMove`); the
+  // ghost item + its `canPlace` validity are derived from it each render
+  // rather than written into the shared 3D `ghostWorld`/`ghostValid` fields —
+  // those stay untouched by the plan editor (PLAN-FURNISH risk #1: never wire
+  // this into the canvas-bound 3D placement stack).
+  const [planGhostWorld, setPlanGhostWorld] = useState<[number, number] | null>(null)
   // Tour stops are only shown/editable on the ground level (stops have a
   // levelId field but the plan editor operates per-level; ground is the
   // common case and keeps the UI simple).
@@ -418,6 +442,17 @@ export function FloorPlanEditor() {
       // A modal on top of the 2D editor owns the keyboard (incl. its own
       // Escape) — don't exit the editor / delete elements behind it.
       if (isAnyModalOpen()) return
+      // A PLAN-FURNISH placement in progress owns Escape (cancel the armed
+      // def, not the editor). The global `usePlacementController` listener
+      // (App.tsx, shared with the 3D catalog) also calls `cancelPlacement()`
+      // on the same keydown — calling it here too is a harmless no-op the
+      // second time — but WITHOUT this early return, this effect's own
+      // Escape branch (registered earlier, since the editor mounts before a
+      // def gets armed) would run first and exit the whole plan editor.
+      if (e.key === 'Escape' && fPlanFurnish && useStore.getState().activeDefId) {
+        useStore.getState().cancelPlacement()
+        return
+      }
       if (e.key === 'Enter' && polylineDraft.length >= 2) {
         // Finish an in-progress polyline as an OPEN path.
         commitPolyline(polylineDraft, false)
@@ -491,7 +526,76 @@ export function FloorPlanEditor() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editing, sel, polyDraft, polylineDraft, commitPolyRoom, commitPolyline, levelId])
+  }, [
+    editing,
+    sel,
+    polyDraft,
+    polylineDraft,
+    commitPolyRoom,
+    commitPolyline,
+    levelId,
+    fPlanFurnish,
+  ])
+
+  // PLAN-FURNISH Phase 1 — the armed def + its ghost. `itemLevelId` mirrors the
+  // `addItem`/note/polyline convention in this file: an explicit id for an
+  // upper storey, omitted (defaults to ground) for the ground level.
+  const planDef = fPlanFurnish && activeDefId ? getDef(activeDefId) : undefined
+  const itemLevelId = levelId !== GROUND_LEVEL_ID ? levelId : undefined
+  const planGhostItem = useMemo(
+    () =>
+      planDef && planGhostWorld
+        ? buildPlanGhostItem(planDef, planGhostWorld, ghostRotation, itemLevelId)
+        : null,
+    [planDef, planGhostWorld, ghostRotation, itemLevelId],
+  )
+  const planGhostIsValid = useMemo(() => {
+    if (!planGhostItem || !planDef) return false
+    return planGhostValid(planGhostItem, planDef, {
+      others: items,
+      defs: catalogRef.current,
+      doors,
+      walls: placementWalls(useStore.getState(), levelId),
+    })
+  }, [planGhostItem, planDef, items, doors, levelId, catalogRef])
+
+  // Window-bound fixtures (curtains/blinds/grilles) aren't supported by the
+  // Phase-1 plan ghost/commit (no window-snap branch here yet — see
+  // `planFurnishPlacement.ts:isPlanPlaceable`); disarm immediately with an
+  // explanatory toast instead of showing a ghost that can never commit.
+  useEffect(() => {
+    if (!fPlanFurnish || !planDef) return
+    if (isPlanPlaceable(planDef)) return
+    useStore.getState().notify.start({
+      kind: 'info',
+      title: 'Not supported in the plan yet',
+      message: `${planDef.name} can only be placed from the 3D room editor for now.`,
+    })
+    useStore.getState().cancelPlacement()
+    // planDef itself is derived from activeDefId — this effect intentionally
+    // re-runs only when the armed def (or the flag) changes, not on every
+    // unrelated re-render.
+  }, [planDef, fPlanFurnish])
+
+  // Arming a placement always shows furniture footprints (otherwise the just
+  // placed piece would be invisible/unselectable — `showFurniture` defaults
+  // off so editing walls/rooms isn't cluttered).
+  useEffect(() => {
+    if (fPlanFurnish && activeDefId) setShowFurniture(true)
+  }, [fPlanFurnish, activeDefId])
+
+  // Leaving Edit mode (View is pan/inspect-only) cancels an in-progress
+  // placement rather than stranding an armed ghost nothing can commit.
+  useEffect(() => {
+    if (fPlanFurnish && activeDefId && editMode !== 'edit') useStore.getState().cancelPlacement()
+  }, [fPlanFurnish, activeDefId, editMode])
+
+  // Disarming (commit / cancel / escape / switching surfaces) drops the stale
+  // preview point so a later re-arm never flashes the ghost at the last spot
+  // before the next pointer move.
+  useEffect(() => {
+    if (!activeDefId) setPlanGhostWorld(null)
+  }, [activeDefId])
 
   if (!editing) return null
 
@@ -627,6 +731,45 @@ export function FloorPlanEditor() {
       return
     }
     if (e.button !== 0) return
+    // PLAN-FURNISH Phase 1: a left click while a catalog def is armed commits
+    // (or rejects) the ghost at THIS click's own pointer position — mirrors
+    // the 3D `usePlacementController`'s canvas-click commit, reusing the same
+    // `addItem` → `beginDrop` → `pendingEdit` path with the active storey's
+    // `levelId` passed explicitly (addItem can't infer it outside the room
+    // editor). The click is swallowed either way so it never also starts a
+    // marquee/pan/tool underneath the placement.
+    if (fPlanFurnish && activeDefId) {
+      const def = getDef(activeDefId)
+      if (def) {
+        const [wx, wz] = pointerWorld(e)
+        const ghost = buildPlanGhostItem(def, [wx, wz], ghostRotation, itemLevelId)
+        const st = useStore.getState()
+        const valid = planGhostValid(ghost, def, {
+          others: st.items,
+          defs: catalogRef.current,
+          doors: st.doors,
+          walls: placementWalls(st, levelId),
+        })
+        if (decidePlanCommit(def, valid) === 'commit') {
+          const priorItems = st.items
+          const newId = st.addItem({
+            defId: def.id,
+            position: ghost.position,
+            rotation: ghost.rotation,
+            props: ghost.props,
+            ...(itemLevelId ? { levelId: itemLevelId } : {}),
+          })
+          // Tactile drop-in, same as the 3D commit path.
+          beginDrop(newId, performance.now())
+          st.setActiveDefId(null)
+          setPlanGhostWorld(null)
+          st.setPendingEdit({ kind: 'placement', ids: [newId], originals: [], priorItems })
+        }
+        // 'invalid' (red ghost) / 'ineligible' (window-bound, already toasted
+        // + disarmed by the effect above): swallow the click, nothing to do.
+      }
+      return
+    }
     // View mode: any drag pans (touch + mouse). In edit mode the select tool
     // instead rubber-band marquee-selects on empty canvas (handled in the tool
     // dispatch below) — desktop AND mobile; mobile navigation uses two-finger
@@ -801,6 +944,14 @@ export function FloorPlanEditor() {
       panDidMove.current = true
       canvasRef.current.scrollLeft = panRef.current.sl - (e.clientX - panRef.current.x)
       canvasRef.current.scrollTop = panRef.current.st - (e.clientY - panRef.current.y)
+      return
+    }
+    // PLAN-FURNISH Phase 1: while a def is armed, track the ghost instead of
+    // any other drag/tool state (none can be active at once — arming took
+    // over `onDown` above). Grid-snapped, same as every other plan-space
+    // placement/move.
+    if (fPlanFurnish && activeDefId) {
+      setPlanGhostWorld(pointerWorld(e))
       return
     }
     if (movingStop) {
@@ -2051,6 +2202,21 @@ export function FloorPlanEditor() {
             {viewToggle}
             {editMode === 'edit' && toolPalette}
             {editMode === 'edit' && wallTypeSeg}
+            {editMode === 'edit' && fPlanFurnish && (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !catalogOpen
+                  a.setCatalogOpen(next)
+                  if (next) setShowFurniture(true)
+                }}
+                className={`btn btn-sm${catalogOpen ? ' btn-accent' : ''}`}
+                title="Browse furniture to add directly to the plan"
+                aria-pressed={catalogOpen}
+              >
+                Furnish
+              </button>
+            )}
             {drawHint}
             {templateLibrary}
             <PlanMenu label="Plan">{fileActions}</PlanMenu>
@@ -2269,6 +2435,13 @@ export function FloorPlanEditor() {
             onContextMenu={(e) => {
               // Always override the browser menu inside the editor.
               e.preventDefault()
+              // PLAN-FURNISH: right-click cancels an armed placement (mirrors
+              // the 3D `usePlacementController`'s right-click cancel) instead
+              // of opening a context menu for whatever's already selected.
+              if (fPlanFurnish && activeDefId) {
+                useStore.getState().cancelPlacement()
+                return
+              }
               // A right-drag pan that actually moved swallows the menu.
               if (panDidMove.current) {
                 panDidMove.current = false
@@ -2753,6 +2926,16 @@ export function FloorPlanEditor() {
                 isMobile={isMobile}
                 units={units}
               />
+              {/* PLAN-FURNISH Phase 1 — the armed catalog def's placement
+                  ghost, topmost so it's never obscured by any other layer. */}
+              {fPlanFurnish && (
+                <PlacementGhostLayer
+                  ghostItem={planGhostItem}
+                  def={planDef ?? null}
+                  valid={planGhostIsValid}
+                  toPx={toPx}
+                />
+              )}
             </svg>
           </div>
 

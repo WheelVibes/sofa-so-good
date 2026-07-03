@@ -3,15 +3,10 @@ import { isAnyModalOpen } from '../../controls/modalGuard'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { useCatalog } from '../../furniture/catalog'
+import { defaultItemProps as defaultProps } from '../../furniture/placement/defaultItemProps'
 import { snapToNearestWindow, windowFixtureProps } from '../../furniture/placement/windowSnap'
-import { defaultParamProps, type FurnitureDef, type ParamProps } from '../../furniture/types'
 import { beginDrop } from '../../scene/placementDrop'
 import { useStore } from '../../state/store'
-
-function defaultProps(def: FurnitureDef): ParamProps {
-  if (def.kind === 'parametric') return defaultParamProps(def)
-  return def.scale != null ? { scale: def.scale } : {}
-}
 
 /** A touch commit fires a synthetic `click` just after `pointerup` — but by then
  *  the armed-placement effect may have torn down (committing disarms it), so its

@@ -141,11 +141,17 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
   the inspector. Add a compact swatch row / quick-look popover on `CatalogCard` (IKEA `variants`,
   tintable procedural pieces) carried into placement as initial `props.variant`/`tint`. Risk: card
   clutter on mobile — use a quick-look, not inline swatches.
-- [ ] **PLAN-FURNISH — add/drag furniture in the 2D plan editor (L, architectural).** The signature
-  SH3D / Planner5D / Floorplanner plan-first loop: drop catalog items straight onto the 2D plan.
-  Today placement requires entering the 3D per-room editor (`canEditScene` excludes the plan editor;
-  no catalog mounts there — furniture only *moves*/rotates in 2D once placed in 3D). High value but
-  touches the editing-gate architecture + a 2D placement/ghost path → **risk: high**; scope carefully.
+- [ ] **PLAN-FURNISH Phases 2–4 — plan-editor furniture placement follow-ups.** Phase 1
+  (desktop click-to-place; `planFurnish` flag) has shipped — see `CHANGELOG.md` and
+  `docs/research/2026-07-03-plan-furnish-implementation-plan.md` (marked done there). Remaining:
+  - [ ] **Phase 2** — mobile tap-to-place + long-press-from-card, stamp-mode reuse for repeat drops.
+  - [ ] **Phase 3** — window-bound fixtures (curtains/blinds/grilles) via `snapToNearestWindow` in
+    the plan (Phase 1 excludes them with a toast pointing to the 3D room editor).
+  - [ ] **Phase 4** — HTML5 drag-from-catalog onto the plan SVG (deferred pending the logged
+    `<div>`-vs-SVG drop-zone friction).
+  - [ ] *(Polish, not phase-gated)* the docked catalog currently floats over the plan rather than
+    shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
+    `.plan-screen`) — low-risk follow-up.
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live

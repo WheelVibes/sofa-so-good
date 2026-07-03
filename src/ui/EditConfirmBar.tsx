@@ -28,6 +28,12 @@ const prefersReducedMotion = () =>
 export function EditConfirmBar() {
   const pending = useStore((s) => s.pendingEdit)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
+  // PLAN-FURNISH: a placement made in the 2D plan editor also resolves to a
+  // `pendingEdit` (same tick/cross flow as the 3D room-editor path) — the
+  // "abandon on leaving the editor" effect below must not treat "never was in
+  // the room editor" (i.e. `roomEditorActive` false the whole time because
+  // this edit came from the plan) as "just left it".
+  const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const confirm = useStore((s) => s.confirmPendingEdit)
   const cancel = useStore((s) => s.cancelPendingEdit)
 
@@ -68,15 +74,16 @@ export function EditConfirmBar() {
   const onConfirm = useCallback(() => dismiss('leaving', confirm), [dismiss, confirm])
   const onCancel = useCallback(() => dismiss('rejecting', cancel), [dismiss, cancel])
 
-  // Leaving the room editor abandons any half-finished edit: keep the change
-  // (it's already applied) and just clear the confirmation so the bar doesn't
-  // linger over the overview. No exit animation — the editor is closing. If a
-  // dismiss timer is already in flight (user just clicked ✓/✗), let IT resolve
-  // the edit — calling confirm() here would race the deferred action and turn a
+  // Leaving BOTH editing surfaces (the room editor and the plan editor)
+  // abandons any half-finished edit: keep the change (it's already applied)
+  // and just clear the confirmation so the bar doesn't linger over the
+  // overview. No exit animation — the editor is closing. If a dismiss timer
+  // is already in flight (user just clicked ✓/✗), let IT resolve the edit —
+  // calling confirm() here would race the deferred action and turn a
   // just-clicked Cancel into a silent keep.
   useEffect(() => {
-    if (!roomEditorActive && pending && timerRef.current == null) confirm()
-  }, [roomEditorActive, pending, confirm])
+    if (!roomEditorActive && !floorPlanEditing && pending && timerRef.current == null) confirm()
+  }, [roomEditorActive, floorPlanEditing, pending, confirm])
 
   useEffect(() => {
     if (!pending) return

@@ -1176,6 +1176,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Click-to-place furniture straight onto the 2D floor plan (PLAN-FURNISH
+  // Phase 1): arm a catalog def, an SVG ghost previews the drop with
+  // green/red `canPlace` validity, a click commits via the existing
+  // `addItem`/`beginDrop`/`pendingEdit` path. Reuses the same placement
+  // pipeline as the 3D catalog (no new collision/commit code, no relaxation
+  // of `canEditScene`) — pure client-side, prod-safe. An advanced
+  // plan-authoring surface beyond the core furnish-in-3D loop → pro tier
+  // (hidden in Simple, where furnishing stays the 3D catalog-drag flow).
+  planFurnish: {
+    label: 'Furnish in plan',
+    description: 'Add furniture directly on the 2D floor plan',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

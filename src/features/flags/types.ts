@@ -142,6 +142,7 @@ export type FeatureFlag =
   | 'walkScreens'
   | 'walkLights'
   | 'minimapTeleport'
+  | 'planFurnish'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
