@@ -1014,14 +1014,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     tier: 'pro',
   },
   // Manual room ordering for the per-room editor switcher (the list is
-  // alphabetical by default). Reordering the room list is an organisational
-  // power-tool beyond the Simple core loop → pro tier. Pure per-device
-  // preference data (editorPrefs) → prod-safe.
+  // alphabetical by default). A lightweight organisational convenience useful to
+  // any user → simple tier (shown in both modes). Pure per-device preference
+  // data (editorPrefs) → prod-safe.
   roomReorder: {
     label: 'Reorder rooms',
     description: 'Manually reorder the room list (defaults to A–Z)',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Per-element colour overrides in the 2D plan inspector (CUSTOMIZE-COLOUR): a
   // per-wall paint colour (overriding the plan-wide wall colour), a door-leaf

@@ -5,7 +5,10 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## FEAT + FIX: mobile editor polish, room dimension markers, room reorder, update UX (v0.12.0.0)
+## FEAT + FIX: mobile editor polish, room dimension markers, room reorder, update UX (v0.12.0.1)
+
+- **`roomReorder` is simple-tier** (was pro) — the reorder dialog shows in both Simple and Pro.
+
 
 Mobile per-room editor + catalog:
 - **Mobile "pick up a piece" long-press now snaps to top-down.** The catalog long-press arms
@@ -32,10 +35,10 @@ Measurements (MEASURE-DIMENSION-MARKERS):
   now shows just `Area: <X.Y m²>` and only when measurements are toggled on, with more top spacing
   from the toolbar and no piece count.
 
-Room switcher (roomReorder, pro):
+Room switcher (roomReorder, simple):
 - **Rooms are ordered alphabetically by default** in the per-room editor switcher (and "Edit a room"
-  entry / cycle), with a new **`roomReorder`** pro flag adding a reorder dialog (up/down + reset to
-  A–Z). Order persists per-device (`editorPrefs.roomOrder`).
+  entry / cycle), with a new **`roomReorder`** simple-tier flag adding a reorder dialog (up/down +
+  reset to A–Z). Order persists per-device (`editorPrefs.roomOrder`).
 
 Navigation:
 - **The brand mark returns you to orbit.** Off the orbit overview (walk / room editor / floor-plan
