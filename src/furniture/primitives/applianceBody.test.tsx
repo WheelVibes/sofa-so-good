@@ -73,7 +73,9 @@ describe('applianceBody (MAT-004b steel-body wiring)', () => {
 })
 
 describe('appliance primitives render to a valid element tree', () => {
-  it('all 8 steel-bodied appliances return an element (smoke)', async () => {
+  // 20s: eight dynamic imports of three-heavy primitive modules — well under a
+  // second alone, but the 5s default flakes under full-suite 12-thread load.
+  it('all 8 steel-bodied appliances return an element (smoke)', { timeout: 20_000 }, async () => {
     // Render-call the primitive functions directly (no R3F canvas needed — they
     // return a React element tree). Exercises the `applianceBody` wiring + JSX.
     await load(true)
