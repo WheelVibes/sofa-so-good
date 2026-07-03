@@ -80,11 +80,14 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   ambient effect consumes it and renders nothing when false. **Continuously-animating effects** (the
   HQ border-beam `.beam`) mount only while the work is active *and* the gate is on, and
   IntersectionObserver-pause off-screen (`.beam.paused { animation-play-state: paused }`). The
-  **catalog/preset radial gradient** (`.cat-card`/`.preset-card`, `--mx`/`--my`) is pointermove-driven
+  **catalog radial gradient** (`.cat-card`, `--mx`/`--my`) is pointermove-driven
   (CatalogDrawer's gated grid handler writes the vars via `setProperty`) — event-driven, no continuous
   animation, so no IntersectionObserver; inert (centred) when the gate is off. Accent-only via
   `color-mix(in oklch, var(--accent) …)` — no colour literals; animation fills `backwards`, never
-  `both`. **Two P7 effects were DROPPED** (recorded so they aren't re-proposed): the multi-circle
+  `both`. (A parallel `.preset-card` mirror in `flows.css` for a "Layout presets" picker that was
+  never built this way — the picker shipped as `SmartStartWizard`'s `.ss-card` grid instead — was
+  pruned as dead in the 2026-07-03 cycle-2 audit; don't re-add it without a real consumer.)
+  **Two P7 effects were DROPPED** (recorded so they aren't re-proposed): the multi-circle
   **hotspot pulse** (`.er-ring`/`.er-hot`/`@keyframes erpulse` in `flows.css`) has **zero TSX
   consumers** — reviving orphaned CSS for an unconsumed effect violates YAGNI (the orphaned CSS is
   left untouched, out of scope to delete here); and **toolbar dock magnification** needs a

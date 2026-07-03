@@ -94,7 +94,6 @@
    ============================================================ */
 .no-anim,
 .no-anim > .panel,
-.no-anim > .preset-panel,
 .no-anim > .onb-card,
 .no-anim > .cmdk { animation: none !important; }
 
