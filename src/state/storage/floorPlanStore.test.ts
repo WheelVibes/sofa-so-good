@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
 import type { FloorPlan } from '../../floorplan/types'

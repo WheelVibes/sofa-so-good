@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest'
 import { cameraPose, cameraPosXZ } from '../../scene/cameras/cameraForward'
 import { MAX_TOUR_STOPS } from '../../ui/panorama/panoTour'

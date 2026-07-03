@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { MeshPhysicalMaterial, MeshStandardMaterial } from 'three'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 

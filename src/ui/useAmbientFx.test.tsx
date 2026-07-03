@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for `useAmbientFx` (P7) — the single gate for decorative ambient
  * effects: the `ambientFx` flag AND a non-`performance` `qualityTier` AND no

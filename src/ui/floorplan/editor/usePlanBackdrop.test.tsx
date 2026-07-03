@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for the `usePlanBackdrop` hook extracted from FloorPlanEditor (v0.9.0.46).
  * Mocks the IDB persistence + browser image/URL APIs so the load / rehydrate /

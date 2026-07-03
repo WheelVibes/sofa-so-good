@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { deflateSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'

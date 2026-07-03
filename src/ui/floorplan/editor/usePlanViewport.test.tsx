@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Smoke test for the `usePlanViewport` hook extracted from FloorPlanEditor
  * (v0.9.0.49). The hook's zoom/pan/fit mechanics are DOM-layout-bound (scroll,

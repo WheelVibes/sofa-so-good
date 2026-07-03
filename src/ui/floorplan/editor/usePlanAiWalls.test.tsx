@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Guard-path tests for the `usePlanAiWalls` hook extracted from FloorPlanEditor
  * (v0.9.0.47). The happy path is network+canvas heavy; these cover the cheap,

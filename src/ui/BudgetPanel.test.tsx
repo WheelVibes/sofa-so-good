@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Empty-state CTA coverage for BudgetPanel (P28 — empty-state CTA sweep).
  * Both "No saved items" (Saved tab) and "No furniture placed yet" (List tab)

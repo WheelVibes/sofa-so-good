@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for the progressive-disclosure `InfoCallout` (P25). A dismissible,
  * localStorage-persisted first-run hint banner: it renders only when the

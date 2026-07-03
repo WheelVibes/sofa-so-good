@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Integration test for the SH3D import wiring (`applySh3dResult`, PARITY-SH3D-FURN).
  *

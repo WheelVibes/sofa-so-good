@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Empty-state CTA coverage for VersionsPanel (P28 — empty-state CTA sweep).
  * "No saved versions yet" gets a "Save current version" CTA wired to the

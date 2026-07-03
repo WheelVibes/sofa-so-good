@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Empty-state CTA coverage for CatalogDrawer (P28 — empty-state CTA sweep).
  * "No favourites yet" / "Nothing placed yet" (recent) / "No items here yet"

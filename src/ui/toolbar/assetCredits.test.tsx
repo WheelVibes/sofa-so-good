@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for the asset-credits entry (v0.9.0.41): a "View asset credits" button
  * in the shared AppearanceControls (desktop popover + mobile menu) opens the

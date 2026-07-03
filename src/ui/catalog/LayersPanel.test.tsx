@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Empty-state CTA coverage for LayersPanel (P28 — empty-state CTA sweep).
  * "Nothing placed yet" gets an "Open catalog" CTA wired to the real

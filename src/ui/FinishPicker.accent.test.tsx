@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for the FinishPicker's "Accent walls" management section (v0.9.0.45) —
  * surfaces + clears a room's per-wall accent finishes (`finishes.wallAccents`,

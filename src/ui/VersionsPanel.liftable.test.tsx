@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { serialize } from '../state/schema'
