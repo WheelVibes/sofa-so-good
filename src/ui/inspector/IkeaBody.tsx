@@ -42,7 +42,7 @@ function IkeaProductInfoDetails({ info }: { info: IkeaProductInfo }) {
       </summary>
       <div className="mt-1.5 space-y-1.5">
         {info.categoryConfidence === 'low' ? (
-          <p className="text-[10px] text-amber-600">⚠ Category auto-detected — review.</p>
+          <p className="insp-warn-text text-[10px]">⚠ Category auto-detected — review.</p>
         ) : null}
         {mainImageUrl ? (
           <img

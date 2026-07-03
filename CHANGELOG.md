@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: inspector header/array-field/warn-colour cohesion (v0.12.0.12)
+
+Cohesion pass on the furniture Inspector (core-loop surface; continues the
+catalog v0.12.0.3 + finish-picker v0.12.0.9 program). Three real bugs:
+- **Multi-select / wall-accent header truncation** — the shared `.inspector`
+  class made an unqualified `.panel-head > div` row-layout rule squeeze
+  `MultiSelectPanel`/`WallAccentPicker`'s title-over-sub header ("3 items
+  sele…" + a wrapped subtitle). Scoped the row layout to
+  `.panel-head:has(.insp-thumb)` so only the true single-item header gets it.
+- **Array-section inputs clipped their value** ("360" → "36C"): fixed 48px
+  width was too narrow for Sweep/Start-angle/gap values → `width: 100%` to
+  fill the grid cell.
+- **Hardcoded `text-amber-600`** on IkeaBody's auto-detect caption → new
+  token-based `.insp-warn-text` (shared warn oklch + dark override).
+Verified desktop/mobile × light/dark × {parametric, GLB, multi-select}.
+
 ## PERF: bulk-import concurrency default is hardware-aware (v0.12.0.11)
 
 Plan Part 2 #4 — bulk import fanned files out at a fixed default of 4. It now

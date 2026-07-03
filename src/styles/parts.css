@@ -197,9 +197,19 @@
 /* Minimized: just the header bar, so it stops blocking the furniture. */
 .inspector.minimized { max-height: none; }
 .inspector.minimized .panel-head { padding-bottom: var(--s-3); }
-.inspector .panel-head > div:first-child { min-width: 0; flex: 1; display: flex; gap: 10px; }
-.inspector .panel-head > div:first-child > div:last-child { min-width: 0; }
-.inspector .panel-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The icon-thumb + title/sub row layout below is specific to the single-item
+   InspectorPanel header (icon square on the left, text stack on the right) —
+   scoped via `:has(.insp-thumb)` so it doesn't also match MultiSelectPanel's
+   and WallAccentPicker's plain title+sub header, which share the `.inspector`
+   class for panel positioning/sizing but keep a normal title-over-sub stack.
+   Before this scoping, the unqualified selector turned that stack into a flex
+   ROW (`display:flex; gap:10px`), pushing the title and sub onto one line and
+   — combined with the ellipsis rule below — visibly truncating a short title
+   like "3 items selected" to "3 items sele…" while the sub-line wrapped to a
+   second line (found in the inspector cohesion audit, 2026-07-03). */
+.inspector .panel-head:has(.insp-thumb) > div:first-child { min-width: 0; flex: 1; display: flex; gap: 10px; }
+.inspector .panel-head:has(.insp-thumb) > div:first-child > div:last-child { min-width: 0; }
+.inspector .panel-head:has(.insp-thumb) .panel-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inspector .panel-sub { margin-top: 3px; }
 .insp-thumb {
   width: 40px; height: 40px; border-radius: var(--r-2); flex: none;
@@ -207,6 +217,13 @@
   display: grid; place-items: center; color: var(--text-3);
 }
 .dims { font-size: var(--t-2xs); color: var(--text-3); margin-top: 2px; }
+/* IKEA product-info "low-confidence category" caption (IkeaBody.tsx) — same warn
+   tone as `.badge.warn`/`.pr.warn`/`.pack-notice` so a "you should check this"
+   note reads consistently wherever it shows up. Was a raw Tailwind
+   `text-amber-600` literal, the hardcoded-colour the token vocabulary rule
+   bans (fixed shade, doesn't adapt across the 5 themes or dark mode). */
+.insp-warn-text { color: oklch(0.62 0.14 70); }
+[data-mode='dark'] .insp-warn-text { color: oklch(0.75 0.13 72); }
 
 /* ---- Custom Select (themed replacement for native <select>) ------------- */
 .select-trigger {
@@ -474,8 +491,17 @@
    consistent with the array inputs/labels (not the inherited base size). */
 .act-array > span,
 .act-array > div:first-child > span { font-size: var(--t-xs); font-weight: 600; color: var(--text-2); }
+/* `width: 100%` (not a fixed px) so each input fills its `.fld` grid cell —
+   a fixed 48px was too narrow for the 3-4 char values these fields actually
+   hold (the radial array's default Sweep "360°", Start angle down to "-360",
+   Linear array gap values like "1.19"), clipping the trailing character
+   (found in the inspector cohesion audit, 2026-07-03: "360" rendered as a
+   clipped "36" + a sliver, misreading as "36C"). The array sections always
+   wrap their inputs in a `.fld` grid cell (see PathArraySection/
+   ScatterFillSection/InspectorPanel's linear+radial array UI), so 100% has
+   real room to fill rather than colliding with a sibling. */
 .act-array input {
-  width: 48px; padding: 3px 6px; border-radius: var(--r-2);
+  width: 100%; padding: 3px 6px; border-radius: var(--r-2);
   border: 1px solid var(--border); background: var(--surface-solid); color: var(--text);
   font-size: var(--t-xs); text-align: center;
 }

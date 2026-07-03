@@ -1,0 +1,82 @@
+{
+  "name": "inspector-cohesion-audit",
+  "description": "Audit pass for the furniture Inspector panel (InspectorPanel + GltfBody/ParametricBody/TiltControls/PathArraySection/etc.): screenshots a GLB item and a parametric item, single-select and multi-select, in Pro mode, across desktop/mobile and light/dark, including scrolled-down sections and expanded mobile sheets.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "set-pro-mode", "eval": "(() => { const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); s.setFeatureFlag('budget', true); })()" },
+    { "name": "pro-mode-active", "waitFor": { "store": "state.uiMode === 'pro'" }, "timeout": 5000 },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-editor-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "wait-room-load", "wait": 2000 },
+    {
+      "name": "place-items",
+      "eval": "window.__store.getState().setItems([{id:'aud-sofa-1',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}},{id:'aud-sofa-2',defId:'sofa-3seat',position:[9.6,4.6],rotation:1.5708,props:{}},{id:'aud-pool',defId:'pool-table-6ft',position:[11.6,1.6],rotation:0,props:{}}])"
+    },
+    { "name": "verify-items", "waitFor": { "store": "state.items.length >= 3" }, "timeout": 5000 },
+    { "name": "wait-glb-settle", "wait": 3000 },
+
+    { "name": "select-parametric", "eval": "window.__store.getState().selectItem('aud-sofa-1')" },
+    { "name": "wait-inspector-parametric", "waitFor": { "css": ".panel.inspector" }, "timeout": 10000 },
+    { "name": "shot-desktop-light-parametric", "screenshot": "01-desktop-light-parametric" },
+    { "name": "scroll-parametric", "eval": "document.querySelector('.panel.inspector .panel-body').scrollTop = 99999" },
+    { "name": "shot-desktop-light-parametric-scrolled", "screenshot": "01b-desktop-light-parametric-scrolled" },
+
+    { "name": "select-gltf", "eval": "window.__store.getState().selectItem('aud-pool')" },
+    { "name": "wait-inspector-gltf", "waitFor": { "css": ".panel.inspector" }, "timeout": 10000 },
+    { "name": "wait-source-line", "wait": 500 },
+    { "name": "shot-desktop-light-gltf", "screenshot": "02-desktop-light-gltf" },
+    { "name": "scroll-gltf", "eval": "document.querySelector('.panel.inspector .panel-body').scrollTop = 99999" },
+    { "name": "shot-desktop-light-gltf-scrolled", "screenshot": "02b-desktop-light-gltf-scrolled" },
+
+    { "name": "select-multi", "eval": "window.__store.getState().setSelectedItemIds(['aud-sofa-1','aud-sofa-2','aud-pool'])" },
+    { "name": "wait-multiselect", "waitFor": { "text": "items selected" }, "timeout": 10000 },
+    { "name": "shot-desktop-light-multiselect", "screenshot": "03-desktop-light-multiselect" },
+
+    { "name": "set-dark-mode", "eval": "window.__store.getState().setModePref('dark')" },
+    { "name": "wait-dark", "wait": 400 },
+    { "name": "select-parametric-dark", "eval": "window.__store.getState().selectItem('aud-sofa-1')" },
+    { "name": "wait-inspector-parametric-dark", "waitFor": { "css": ".panel.inspector" }, "timeout": 10000 },
+    { "name": "shot-desktop-dark-parametric", "screenshot": "04-desktop-dark-parametric" },
+    { "name": "scroll-parametric-dark", "eval": "document.querySelector('.panel.inspector .panel-body').scrollTop = 99999" },
+    { "name": "shot-desktop-dark-parametric-scrolled", "screenshot": "04b-desktop-dark-parametric-scrolled" },
+
+    { "name": "select-gltf-dark", "eval": "window.__store.getState().selectItem('aud-pool')" },
+    { "name": "wait-inspector-gltf-dark", "waitFor": { "css": ".panel.inspector" }, "timeout": 10000 },
+    { "name": "shot-desktop-dark-gltf", "screenshot": "05-desktop-dark-gltf" },
+
+    { "name": "set-light-mode", "eval": "window.__store.getState().setModePref('light')" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "select-parametric-mobile", "eval": "window.__store.getState().selectItem('aud-sofa-1')" },
+    { "name": "wait-inspector-parametric-mobile", "waitFor": { "css": ".panel.inspector" }, "timeout": 10000 },
+    { "name": "shot-mobile-light-parametric-collapsed", "screenshot": "06a-mobile-light-parametric-collapsed" },
+    { "name": "expand-parametric-mobile", "eval": "document.querySelector('[aria-label=\"Expand inspector\"]')?.click()" },
+    { "name": "wait-expand-parametric-mobile", "wait": 300 },
+    { "name": "shot-mobile-light-parametric", "screenshot": "06-mobile-light-parametric" },
+    { "name": "scroll-parametric-mobile", "eval": "document.querySelector('.panel.inspector .panel-body').scrollTop = 99999" },
+    { "name": "shot-mobile-light-parametric-scrolled", "screenshot": "06b-mobile-light-parametric-scrolled" },
+
+    { "name": "select-gltf-mobile", "eval": "window.__store.getState().selectItem('aud-pool')" },
+    { "name": "wait-inspector-gltf-mobile", "waitFor": { "css": ".panel.inspector" }, "timeout": 10000 },
+    { "name": "expand-gltf-mobile", "eval": "document.querySelector('[aria-label=\"Expand inspector\"]')?.click()" },
+    { "name": "wait-expand-gltf-mobile", "wait": 300 },
+    { "name": "shot-mobile-light-gltf", "screenshot": "07-mobile-light-gltf" },
+
+    { "name": "set-dark-mobile", "eval": "window.__store.getState().setModePref('dark')" },
+    { "name": "wait-dark-mobile", "wait": 400 },
+    { "name": "select-parametric-mobile-dark", "eval": "window.__store.getState().selectItem('aud-sofa-1')" },
+    { "name": "wait-inspector-parametric-mobile-dark", "waitFor": { "css": ".panel.inspector" }, "timeout": 10000 },
+    { "name": "expand-parametric-mobile-dark", "eval": "document.querySelector('[aria-label=\"Expand inspector\"]')?.click()" },
+    { "name": "wait-expand-parametric-mobile-dark", "wait": 300 },
+    { "name": "shot-mobile-dark-parametric", "screenshot": "08-mobile-dark-parametric" },
+
+    { "name": "select-multi-mobile", "eval": "window.__store.getState().setSelectedItemIds(['aud-sofa-1','aud-sofa-2','aud-pool'])" },
+    { "name": "wait-multiselect-mobile", "waitFor": { "text": "items selected" }, "timeout": 10000 },
+    { "name": "shot-mobile-dark-multiselect-collapsed", "screenshot": "09a-mobile-dark-multiselect-collapsed" },
+    { "name": "expand-multiselect-mobile", "eval": "document.querySelector('[aria-label=\"Expand inspector\"]')?.click()" },
+    { "name": "wait-expand-multiselect-mobile", "wait": 300 },
+    { "name": "shot-mobile-dark-multiselect", "screenshot": "09-mobile-dark-multiselect" }
+  ]
+}
