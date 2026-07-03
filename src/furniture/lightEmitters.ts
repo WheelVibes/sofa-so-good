@@ -107,19 +107,39 @@ export const OVERRIDE_EMITTER: EmitterSpec = {
   distance: 4,
 }
 
-/** Whether a *placed item* currently emits: a registered fixture whose per-item
- *  `enabled` gate (if any) passes, OR any item the user flagged as a light
- *  source (`props.lightOn === 'yes'`). */
+/**
+ * Whether a *placed item* currently emits, composing the per-item power
+ * override with each spec's own gate (WALK-LIGHT-INTERACT):
+ * `props.lightOn === 'no'` is a hard, explicit "switched off" that wins over
+ * EVERYTHING else — including a registered fixture's own `enabled` gate (e.g.
+ * the vanity's Hollywood-bulb condition) — because it's the walk-mode
+ * "flip this one switch" action, a deliberate per-item override, not a
+ * fallback. Absent that override: a registered fixture whose `enabled` gate
+ * (if any) passes emits by default; otherwise a non-registered item only
+ * emits when the user flagged it as a light source (`props.lightOn ===
+ * 'yes'`, the `itemAsLight` inspector toggle / walk-mode toggle-on). This
+ * item-level gate is evaluated once, upstream of the scene-wide `lightsMode`
+ * ('auto' | 'on' | 'off') brightness multiplier applied in
+ * `FurnitureLights.tsx` — so an item switched off here never appears in the
+ * active-lights set at all, regardless of what `lightsMode` says (composition
+ * rule: **per-item toggle wins**, in every mode, not just 'auto'). `lightsMode`
+ * only scales the brightness/timing of whichever items already passed this
+ * per-item gate; it never re-adds an item this gate excluded.
+ */
 export function isItemEmitter(defId: FurnitureType, props: ParamProps): boolean {
+  if (props.lightOn === 'no') return false
   const spec = LIGHT_EMITTERS[defId]
   if (spec) return spec.enabled?.(props) ?? true
   return props.lightOn === 'yes'
 }
 
 /** The emitter spec to drive a placed item's light, or `null` if it doesn't
- *  emit. A registered fixture (gate-passing) wins; otherwise a user override
- *  (`lightOn`) falls back to `OVERRIDE_EMITTER`. */
+ *  emit. `props.lightOn === 'no'` short-circuits to `null` first (see
+ *  {@link isItemEmitter}); otherwise a registered fixture (gate-passing) wins,
+ *  else a user override (`lightOn === 'yes'`) falls back to
+ *  `OVERRIDE_EMITTER`. */
 export function resolveEmitterSpec(defId: FurnitureType, props: ParamProps): EmitterSpec | null {
+  if (props.lightOn === 'no') return null
   const spec = LIGHT_EMITTERS[defId]
   if (spec && (spec.enabled?.(props) ?? true)) return spec
   if (props.lightOn === 'yes') return OVERRIDE_EMITTER

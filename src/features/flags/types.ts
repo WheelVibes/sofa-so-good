@@ -137,6 +137,7 @@ export type FeatureFlag =
   | 'sharedLibrary'
   | 'walkWindowFixtures'
   | 'walkScreens'
+  | 'walkLights'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

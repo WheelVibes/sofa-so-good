@@ -12,6 +12,7 @@ import { useStore } from '../state/store'
 import { GltfErrorBoundary } from './GltfErrorBoundary'
 import { GltfModel } from './GltfModel'
 import { selectGltfRender } from './gltfRender'
+import { isInteractableLight } from './lightInteract'
 import { PRIMITIVE_COMPONENTS } from './primitives'
 import { isInteractableScreen } from './screenInteract'
 import { surfaceDecalSpec } from './surfaceDecal'
@@ -62,6 +63,14 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
           return
         }
       }
+      // Walk-mode interact (WALK-LIGHT-INTERACT): click/tap a light-capable
+      // item to flip it on/off — same gate shape as the branches above.
+      if (isFeatureEnabled('walkLights') && isInteractableLight(item.defId, item.props)) {
+        if (dispatchWalkInteract(state, item.id, state.toggleLightPower)) {
+          e.stopPropagation()
+          return
+        }
+      }
       // Selection happens only inside the per-room editor; orbit/walk are view-only.
       if (!canEditScene(state)) return
       e.stopPropagation()
@@ -71,7 +80,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       if (e.shiftKey) state.toggleSelectedItem(item.id)
       else state.selectItemGrouped(item.id, { alt: e.altKey })
     },
-    [item.id, passive, def],
+    [item.id, passive, def, item.defId, item.props],
   )
 
   // Pointer-down begins a drag in select mode. We capture the original

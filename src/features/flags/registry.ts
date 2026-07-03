@@ -541,6 +541,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Light fixtures (+ any item flagged via `itemAsLight`) toggle on/off on
+  // click/tap/E in walk mode (WALK-LIGHT-INTERACT) — same sibling-flag
+  // rationale as `walkScreens` above. Pure code, no external assets →
+  // prod-safe; simple tier for the same "explore the space" reason.
+  walkLights: {
+    label: 'Interactive lights',
+    description: 'Click/tap or press E to turn a lamp/fixture on or off in walk mode',
+    default: true,
+    tier: 'simple',
+  },
   // Replace-with-similar (PARITY-REPLACE): swap a placed item for a nearest-size
   // catalog sibling in one click, keeping its position/rotation/level. Pure code,
   // no external assets → prod-safe. Surfaced in the default experience → simple tier.

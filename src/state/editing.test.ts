@@ -69,4 +69,15 @@ describe('dispatchWalkInteract — the single door/fixture interact gate', () =>
     ).toBe(true)
     expect(cycleScreenContent).toHaveBeenCalledWith('monitor-1')
   })
+
+  it('is the same gate the light interact shares (WALK-LIGHT-INTERACT) — orbit-inert', () => {
+    // `toggleLightPower` routes through this exact same function too.
+    const toggleLightPower = vi.fn()
+    expect(dispatchWalkInteract({ cameraMode: 'orbit' }, 'lamp-1', toggleLightPower)).toBe(false)
+    expect(toggleLightPower).not.toHaveBeenCalled()
+    expect(dispatchWalkInteract({ cameraMode: 'firstPerson' }, 'lamp-1', toggleLightPower)).toBe(
+      true,
+    )
+    expect(toggleLightPower).toHaveBeenCalledWith('lamp-1')
+  })
 })

@@ -29,6 +29,7 @@ import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { planRoomShell } from '../../floorplan/planRoomShell'
 import { planBounds, planRoomArea } from '../../floorplan/types'
 import { useCatalogGetter } from '../../furniture/catalog'
+import { lightAimSegments } from '../../furniture/lightInteract'
 import { screenAimSegments } from '../../furniture/screenInteract'
 import { windowFixtureAimSegments } from '../../furniture/windowFixtureInteract'
 import { useStore } from '../../state/store'
@@ -55,6 +56,19 @@ const DOOR_SEGMENTS: AimSegment[] = (() => {
   }
   return out
 })()
+
+/** Reused scratch array for the merged screen+light aim pass — avoids a
+ *  per-`AIM_CHECK_INTERVAL` allocation. Cleared and refilled each check. */
+const COMBINED_SCRATCH: AimSegment[] = []
+
+/** Namespaces a segment's id so `nearestAimedSegment` can rank two
+ *  interactable categories (screens, lights) in a single pass while still
+ *  recovering which category — and the real item id — the winner belongs to.
+ *  Exported for `aimCategoryMerge.test.ts`, which verifies the nearest-wins
+ *  merge in isolation from the full R3F frame loop. */
+export function prefixSegment(prefix: string, seg: AimSegment): AimSegment {
+  return { ...seg, id: prefix + seg.id }
+}
 
 /** Fallback standing eye-height (m) before the live store value is read. The
  *  user-adjustable height (`walkEyeHeight`, default 1.6) overrides this. */
@@ -127,12 +141,16 @@ export function FirstPersonCamera() {
       ? windowFixtureAimSegments(items, getDef)
       : []
   }, [items, getDef])
-  // Screen aim segments (WALK-SCREEN-INTERACT) — same rebuild-on-items
-  // pattern as the fixture segments above, gated at registration (empty,
-  // never aimed at, while the flag is off).
+  // Screen (WALK-SCREEN-INTERACT) and light (WALK-LIGHT-INTERACT) aim
+  // segments — same rebuild-on-items pattern as the fixture segments above,
+  // gated at registration (empty, never aimed at, while its flag is off).
   const screenSegments = useRef<AimSegment[]>([])
   useEffect(() => {
     screenSegments.current = isFeatureEnabled('walkScreens') ? screenAimSegments(items, getDef) : []
+  }, [items, getDef])
+  const lightSegments = useRef<AimSegment[]>([])
+  useEffect(() => {
+    lightSegments.current = isFeatureEnabled('walkLights') ? lightAimSegments(items, getDef) : []
   }, [items, getDef])
 
   useEffect(() => {
@@ -470,19 +488,36 @@ export function FirstPersonCamera() {
       blocked,
     )
     useStore.getState().setNearbyFixture(aimedFixtureId)
-    // Screen aim (WALK-SCREEN-INTERACT) shares the exact ray/segment math with
-    // the door/fixture aim above — a separate id space (`nearbyScreenId`) so a
-    // screen never competes with a door/curtain for the same "nearby" slot.
-    const aimedScreenId = nearestAimedSegment(
+    // Screens and lights compete for the SAME "nearby" slot on genuine
+    // nearest-wins (WALK-SCREEN-INTERACT/WALK-LIGHT-INTERACT), unlike
+    // doors-vs-fixtures above (a fixed priority order, door first). Segment
+    // ids are namespaced with a `screen:`/`light:` prefix so one
+    // `nearestAimedSegment` call can rank both categories together and the
+    // winner's real item id + category are recovered from the prefix.
+    const screenLightSegments = COMBINED_SCRATCH
+    screenLightSegments.length = 0
+    for (const seg of screenSegments.current)
+      screenLightSegments.push(prefixSegment('screen:', seg))
+    for (const seg of lightSegments.current) screenLightSegments.push(prefixSegment('light:', seg))
+    const aimedScreenOrLightId = nearestAimedSegment(
       ox,
       oz,
       dir.x,
       dir.z,
-      screenSegments.current,
+      screenLightSegments,
       INTERACT_RADIUS,
       blocked,
     )
-    useStore.getState().setNearbyScreen(aimedScreenId)
+    if (aimedScreenOrLightId?.startsWith('screen:')) {
+      useStore.getState().setNearbyScreen(aimedScreenOrLightId.slice('screen:'.length))
+      useStore.getState().setNearbyLight(null)
+    } else if (aimedScreenOrLightId?.startsWith('light:')) {
+      useStore.getState().setNearbyLight(aimedScreenOrLightId.slice('light:'.length))
+      useStore.getState().setNearbyScreen(null)
+    } else {
+      useStore.getState().setNearbyScreen(null)
+      useStore.getState().setNearbyLight(null)
+    }
   })
 
   return null

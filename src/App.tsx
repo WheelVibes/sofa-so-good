@@ -76,6 +76,7 @@ import { FixturePrompt } from './ui/FixturePrompt'
 import { FpsCounter } from './ui/FpsCounter'
 import { InfoCallout } from './ui/InfoCallout'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
+import { LightPrompt } from './ui/LightPrompt'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
 import { stopBootPhraseRotator } from './ui/loading/startBootPhraseRotator'
@@ -577,12 +578,14 @@ export default function App() {
       }
       if (code === KEYBINDINGS.interact) {
         // Walk-mode only (VIEW-EDIT-SPLIT/WINDOW-FIXTURE-INTERACT): orbit
-        // mode never toggles a door/fixture/screen on E. `nearbyDoorId`/
-        // `nearbyFixtureId`/`nearbyScreenId` are only ever set by
-        // FirstPersonCamera's aim loop, but `dispatchWalkInteract` is still
+        // mode never toggles a door/fixture/screen/light on E. `nearbyDoorId`/
+        // `nearbyFixtureId`/`nearbyScreenId`/`nearbyLightId` are only ever set
+        // by FirstPersonCamera's aim loop, but `dispatchWalkInteract` is still
         // the single gate every interact entry point (this, `Door.tsx`,
         // `Furniture.tsx`) shares. Fixed priority order — door, then curtain/
-        // blind fixture, then screen (WALK-SCREEN-INTERACT).
+        // blind fixture, then whichever of screen/light the aim loop already
+        // picked as nearest (WALK-SCREEN-INTERACT/WALK-LIGHT-INTERACT: the two
+        // are mutually exclusive by the time they reach here).
         const state = useStore.getState()
         if (state.nearbyDoorId) {
           dispatchWalkInteract(state, state.nearbyDoorId, state.toggleDoor)
@@ -590,6 +593,8 @@ export default function App() {
           dispatchWalkInteract(state, state.nearbyFixtureId, state.toggleWindowFixture)
         } else if (state.nearbyScreenId && isFeatureEnabled('walkScreens')) {
           dispatchWalkInteract(state, state.nearbyScreenId, state.cycleScreenContent)
+        } else if (state.nearbyLightId && isFeatureEnabled('walkLights')) {
+          dispatchWalkInteract(state, state.nearbyLightId, state.toggleLightPower)
         }
       }
       if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements()
@@ -958,6 +963,7 @@ export default function App() {
           <DoorPrompt />
           <FixturePrompt />
           <ScreenPrompt />
+          <LightPrompt />
         </div>
         {/* Catalog docks as a persistent LEFT sidebar on desktop (mirrors the
             right-docked inspector): a sibling of `.stage-area` so `--left-rail`

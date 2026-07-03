@@ -61,6 +61,11 @@ import {
 } from './slices/installedPacksSlice'
 import { createItemsSlice, ITEMS_INITIAL, type ItemsSlice } from './slices/itemsSlice'
 import {
+  createLightInteractSlice,
+  LIGHT_INTERACT_INITIAL,
+  type LightInteractSlice,
+} from './slices/lightInteractSlice'
+import {
   createLocalAssetsSlice,
   LOCAL_ASSETS_INITIAL,
   type LocalAssetsSlice,
@@ -165,6 +170,7 @@ export interface RootState
     DoorsSlice,
     WindowFixtureSlice,
     ScreenInteractSlice,
+    LightInteractSlice,
     ItemsSlice,
     SelectionSlice,
     GroupsSlice,
@@ -214,6 +220,7 @@ const INITIAL = {
   ...DOORS_INITIAL,
   ...WINDOW_FIXTURE_INITIAL,
   ...SCREEN_INTERACT_INITIAL,
+  ...LIGHT_INTERACT_INITIAL,
   ...ITEMS_INITIAL,
   ...SELECTION_INITIAL,
   ...USER_ASSETS_INITIAL,
@@ -260,6 +267,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createDoorsSlice(set, get, api),
   ...createWindowFixtureSlice(set, get, api),
   ...createScreenInteractSlice(set, get, api),
+  ...createLightInteractSlice(set, get, api),
   ...createItemsSlice(set, get, api),
   ...createSelectionSlice(set, get, api),
   ...createGroupsSlice(set, get, api),
