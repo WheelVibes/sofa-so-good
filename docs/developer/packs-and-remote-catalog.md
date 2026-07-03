@@ -25,8 +25,9 @@ proxy/sidecar/hand-download is `devOnly`.
 
 ## Shared library (R2, prod)
 
-The Cloudflare R2 asset library **auto-populates the main catalog grid** for any
-signed-in user when the `sharedLibrary` flag (pro tier, default on) is on — the
+The Cloudflare R2 asset library **auto-populates the main catalog grid** for a
+signed-in **admin** when the `sharedLibrary` flag (simple tier, default on) is on
+— the admin role is the real gate (`isAdminUser`), not the Simple/Pro mode; the
 prod counterpart to the dev-only `ikea-live` scrape. Flow:
 
 - `scripts/build-library-index.mjs` scans `ikea_optimized/`, emits a flat
@@ -34,8 +35,8 @@ prod counterpart to the dev-only `ikea-live` scrape. Flow:
   carries a `groupKey` (the product's `group_key`) — the dedup key. The
   entry-shaping is the pure, unit-tested `entryFromMeta`.
 - `sharedLibrarySlice` (`state/slices/`) fetches the manifest **once** when the
-  catalog opens (`bootstrapSharedLibrary`, guarded on `hasBackend()` + signed-in
-  + flag), and imports a group on demand (`addSharedGroup` →
+  catalog opens (`bootstrapSharedLibrary`, guarded on `hasBackend()` + an admin
+  session + flag), and imports a group on demand (`addSharedGroup` →
   `registerSharedGroup` → `importGroup`, producing a real `IkeaGltfDef`).
 - `useUnifiedCatalog(includeRemote, includeShared)` merges items as a `shared`
   `GridItem` kind, mapping category via the importer's `mapCategory` and hiding

@@ -16,6 +16,7 @@ import { snapToGuides } from '../../floorplan/snapToGuides'
 import type { PlanWall } from '../../floorplan/types'
 import {
   DEFAULT_PLAN_WALL_COLOR,
+  planBounds,
   planTotalArea,
   pointInRoom,
   wallLength,
@@ -39,12 +40,14 @@ import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Select } from '../controls/Select'
+import { SliderField } from '../controls/SliderField'
 import { openDocs } from '../docsUrl'
 import { InfoCallout } from '../InfoCallout'
 import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
+import { centerBackdrop, rescaleBackdropAnchored } from './editor/backdropPlacement'
 import {
   alongWall as alongWallGeo,
   nearestWall as nearestWallGeo,
@@ -279,9 +282,15 @@ export function FloorPlanEditor() {
   const fPolyline = useFeature('planPolyline')
   const fWallNumericEntry = useFeature('wallNumericEntry')
   const fMirrorRegion = useFeature('planMirrorRegion')
+  // Ghost-stencil trace backdrop (button + drop target + underlay render).
+  const fTraceBackdrop = useFeature('planTraceBackdrop')
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   // Persisted to IDB (blob + calibration) so it survives editor close + reload.
-  const { backdrop, setBackdrop, loadBackdrop, removeBackdrop } = usePlanBackdrop(editing, setTool)
+  const { backdrop, setBackdrop, loadBackdrop, removeBackdrop } = usePlanBackdrop(
+    editing,
+    setTool,
+    plan,
+  )
   const { aiBusy, runAiWalls } = usePlanAiWalls(backdrop)
   const aiWalls = useFeature('aiWalls')
   // Persistent wall-length labels (on by default; toggle in the editor header).
@@ -1228,8 +1237,12 @@ export function FloorPlanEditor() {
     const st = useStore.getState()
     if (tool === 'scale') {
       // Calibrate: the dragged span equals a real length the user types, so the
-      // backdrop rescales (mPerPx) to match. No walls created.
+      // backdrop rescales (mPerPx) to match. No walls created. The rescale is
+      // anchored on the drawn segment's midpoint so the image feature the user
+      // just measured stays under their line instead of sliding away.
       const worldDist = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
+      const anchorX = (draft.x0 + draft.x) / 2
+      const anchorZ = (draft.z0 + draft.z) / 2
       if (backdrop && scaleCommits(draft)) {
         void (async () => {
           const input = await useStore.getState().promptText({
@@ -1241,7 +1254,19 @@ export function FloorPlanEditor() {
           })
           const meters = input ? Number.parseFloat(input) : NaN
           if (Number.isFinite(meters) && meters > 0) {
-            setBackdrop((b) => (b ? { ...b, mPerPx: (b.mPerPx * meters) / worldDist } : b))
+            setBackdrop((b) =>
+              b
+                ? {
+                    ...b,
+                    ...rescaleBackdropAnchored(
+                      b,
+                      (b.mPerPx * meters) / worldDist,
+                      anchorX,
+                      anchorZ,
+                    ),
+                  }
+                : b,
+            )
           }
         })()
       }
@@ -1638,19 +1663,22 @@ export function FloorPlanEditor() {
           </button>
         </>
       ) : null}
-      {/* Reference photo — trace walls over a floor-plan image / room scan. */}
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) loadBackdrop(f)
-          e.target.value = ''
-        }}
-      />
-      {!backdrop ? (
+      {/* Reference photo — trace walls over a floor-plan image / room scan.
+          Gated by the `planTraceBackdrop` pro flag (hidden in Simple mode). */}
+      {fTraceBackdrop && (
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) loadBackdrop(f)
+            e.target.value = ''
+          }}
+        />
+      )}
+      {!fTraceBackdrop ? null : !backdrop ? (
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -1669,18 +1697,31 @@ export function FloorPlanEditor() {
           >
             Set scale
           </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={backdrop.opacity}
-            title="Reference opacity"
-            style={{ width: 70 }}
-            onChange={(e) =>
-              setBackdrop((b) => (b ? { ...b, opacity: Number(e.target.value) } : b))
+          <div style={{ width: 160 }}>
+            <SliderField
+              label="Trace opacity"
+              ariaLabel="Trace image opacity"
+              value={backdrop.opacity}
+              min={0.05}
+              max={1}
+              step={0.05}
+              format={(v) => `${Math.round(v * 100)}%`}
+              onChange={(v) => setBackdrop((b) => (b ? { ...b, opacity: v } : b))}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              setBackdrop((b) => {
+                if (!b) return b
+                const [ew, ed] = planBounds(plan)
+                return { ...b, ...centerBackdrop(b, ew, ed) }
+              })
             }
-          />
+            title="Center the trace image on the plan"
+          >
+            Center
+          </button>
           {aiWalls && (
             <button
               type="button"
@@ -2257,6 +2298,7 @@ export function FloorPlanEditor() {
               if (e.dataTransfer.types.includes('Files')) e.preventDefault()
             }}
             onDrop={(e) => {
+              if (!fTraceBackdrop) return
               const f = e.dataTransfer.files?.[0]
               if (f?.type.startsWith('image/')) {
                 e.preventDefault()
@@ -2282,20 +2324,6 @@ export function FloorPlanEditor() {
               onPointerUp={onUp}
               onPointerCancel={onUp}
             >
-              {/* Reference photo/scan to trace over (behind the grid). */}
-              {backdrop && (
-                <image
-                  href={backdrop.url}
-                  x={toPx(backdrop.ox)}
-                  y={toPx(backdrop.oz)}
-                  width={backdrop.w * backdrop.mPerPx * PX}
-                  height={backdrop.h * backdrop.mPerPx * PX}
-                  opacity={backdrop.opacity}
-                  preserveAspectRatio="none"
-                  style={{ pointerEvents: 'none' }}
-                />
-              )}
-
               <GridLines
                 W={W}
                 H={H}
@@ -2400,6 +2428,22 @@ export function FloorPlanEditor() {
                 setMovingPolyVertex={setMovingPolyVertex}
                 setMovingRoomLabel={setMovingRoomLabel}
               />
+              {/* Ghost-stencil trace image: above the grid + room fills (opaque
+                  `--surface-2` fills would otherwise hide it on any roomed plan)
+                  but below furniture/walls/openings/dimensions/drafts, so traced
+                  geometry stays crisp on top of the translucent reference. */}
+              {fTraceBackdrop && backdrop && (
+                <image
+                  href={backdrop.url}
+                  x={toPx(backdrop.ox)}
+                  y={toPx(backdrop.oz)}
+                  width={backdrop.w * backdrop.mPerPx * PX}
+                  height={backdrop.h * backdrop.mPerPx * PX}
+                  opacity={backdrop.opacity}
+                  preserveAspectRatio="none"
+                  style={{ pointerEvents: 'none' }}
+                />
+              )}
               {/* Furniture footprints, multi-select box + rotate/scale ring, and
                 name/price labels — the live 3D layout, top-down, filtered to the
                 active storey. Hidden by default (the "Furniture" toggle); while

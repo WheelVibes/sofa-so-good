@@ -570,6 +570,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Trace backdrop (ghost stencil): upload a floor-plan photo/scan as a
+  // translucent, calibratable underlay to trace walls over. Plan-authoring aid
+  // beyond the Simple core loop → pro tier (matches planScale).
+  planTraceBackdrop: {
+    label: 'Plan trace image',
+    description: 'Upload a floor-plan image as a translucent underlay to trace over',
+    default: true,
+    tier: 'pro',
+  },
   // Multi-axis furniture tilt (SweetHome3DJS parity): pitch/roll an item off
   // vertical (angle a picture, recline a backrest, bank a decor piece). Pure
   // code, no external assets → prod-safe. An advanced placement control beyond
@@ -1066,14 +1075,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     tier: 'simple',
   },
   // Shared, read-only asset library served from R2 through the auth-gated API.
-  // Lets a signed-in user browse the curated furniture library in production
-  // (the prod counterpart to the dev-only IKEA scrape). An advanced catalog
-  // source beyond the minimal furnish loop → pro tier (forced off in Simple).
+  // Lets a signed-in **admin** browse the curated furniture library in production
+  // (the prod counterpart to the dev-only IKEA scrape). Simple tier so it shows in
+  // both modes — the real gate is the admin role (checked at the bootstrap/merge
+  // call sites via `isAdminUser`), not the Simple/Pro toggle.
   sharedLibrary: {
     label: 'Shared asset library',
-    description: 'Browse the cloud furniture library (signed-in users, served from R2)',
+    description: 'Browse the cloud furniture library (admin accounts, served from R2)',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
 }
 

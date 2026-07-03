@@ -4,6 +4,7 @@ import {
   type SharedLibraryItem,
 } from '../../catalog/packs/sharedLibrary'
 import { hasBackend } from '../../features/api/client'
+import { isAdminUser } from '../../features/auth/types'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
@@ -17,7 +18,7 @@ export interface SharedLibraryState {
 
 export interface SharedLibrarySlice {
   sharedLibrary: SharedLibraryState
-  /** Fetch the R2 manifest once. No-op unless backend + signed-in + flag on. */
+  /** Fetch the R2 manifest once. No-op unless backend + admin session + flag on. */
   bootstrapSharedLibrary(): Promise<void>
   /** Import one library group; returns its def id (`ikea-<groupKey>`) or null. */
   addSharedGroup(group: string): Promise<string | null>
@@ -35,7 +36,8 @@ export const createSharedLibrarySlice: SliceCreator<SharedLibrarySlice, RootStat
 
   async bootstrapSharedLibrary() {
     if (get().sharedLibrary.status !== 'idle') return
-    if (!hasBackend() || !get().currentUser || !isFeatureEnabled('sharedLibrary')) return
+    if (!hasBackend() || !isAdminUser(get().currentUser) || !isFeatureEnabled('sharedLibrary'))
+      return
     set((s) => ({ sharedLibrary: { ...s.sharedLibrary, status: 'loading' } }))
     const index = await fetchSharedLibraryIndex().catch(() => null)
     set((s) => ({

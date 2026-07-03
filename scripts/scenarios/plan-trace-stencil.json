@@ -1,0 +1,48 @@
+{
+  "name": "plan-trace-stencil",
+  "url": "http://localhost:5219/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1'); })()"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "open-plan-editor", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "wait-editor", "waitFor": { "css": ".plan-paper" }, "timeout": 30000 },
+    { "name": "clear-loading", "eval": "window.__store.getState().hideLoading()" },
+    {
+      "name": "fresh-blank-plan",
+      "eval": "window.__store.getState().newFloorPlan('Traced plan')"
+    },
+    {
+      "name": "drop-image",
+      "eval": "(async () => { const c = document.createElement('canvas'); c.width = 800; c.height = 400; const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, 800, 400); g.strokeStyle = '#333333'; g.lineWidth = 8; g.strokeRect(40, 40, 720, 320); g.strokeRect(40, 40, 360, 160); g.strokeRect(400, 40, 360, 160); const blob = await new Promise((r) => c.toBlob(r, 'image/png')); const file = new File([blob], 'plan.png', { type: 'image/png' }); const dt = new DataTransfer(); dt.items.add(file); const target = document.querySelector('.plan-canvas'); target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt })); })()"
+    },
+    { "name": "wait-image", "waitFor": { "store": "!!document.querySelector('.plan-paper image')" }, "timeout": 15000 },
+    { "name": "settle", "wait": 800 },
+    { "name": "shot-centered", "screenshot": "stencil-centered" },
+    { "name": "open-plan-menu", "click": { "text": "Plan" } },
+    {
+      "name": "wait-opacity-slider",
+      "waitFor": { "store": "!![...document.querySelectorAll('input[type=range]')].find((i) => (i.getAttribute('aria-label') || '').includes('Trace'))" },
+      "timeout": 10000,
+      "failMessage": "Plan menu should reveal the Trace opacity SliderField"
+    },
+    {
+      "name": "opacity-low",
+      "eval": "(() => { const input = [...document.querySelectorAll('input[type=range]')].find((i) => (i.getAttribute('aria-label') || '').includes('Trace')); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(input, '0.15'); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); })()"
+    },
+    { "name": "settle-faint", "wait": 500 },
+    { "name": "shot-faint", "screenshot": "stencil-faint" },
+    { "name": "simple-mode", "store": { "action": "setUiMode", "args": ["simple"] } },
+    {
+      "name": "hidden-in-simple",
+      "waitFor": { "store": "!document.querySelector('.plan-paper image')" },
+      "timeout": 15000,
+      "failMessage": "planTraceBackdrop is pro-tier: the stencil must hide in Simple mode"
+    },
+    { "name": "settle-simple", "wait": 500 },
+    { "name": "shot-simple-hidden", "screenshot": "stencil-simple-hidden" }
+  ]
+}

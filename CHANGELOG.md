@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: ghost-stencil trace backdrop — centered fit-to-plan load, anchored calibration, visible over rooms (v0.11.1.0)
+
+- **The floor-plan trace backdrop ("Reference photo…") now behaves like a proper ghost stencil.**
+  A dropped/picked image loads **centered on the plan and uniform-fit** to 90% of its bounds
+  (pure `editor/backdropPlacement.ts` — `initialBackdropPlacement`/`rescaleBackdropAnchored`/
+  `centerBackdrop`, unit-tested) instead of pinning tiny at the world origin. **Scale-tool
+  calibration anchors on the drawn segment's midpoint**, so the wall you just measured stays
+  under your line instead of sliding away. The stencil **renders above the opaque room fills**
+  (previously invisible on any roomed plan, including the New-plan shell) but below furniture/
+  walls/openings/dimensions/drafts; `exportPlanPng` still strips it. New **Center** button
+  re-centres at the current scale; the raw opacity range is now a labelled **Trace opacity**
+  `SliderField` (5–100%, percent readout). Uploads are guarded (image-only, 25 MB cap —
+  `MAX_PLAN_BACKDROP_BYTES`) with an error toast instead of a silent no-op. The whole surface is
+  gated by the new **`planTraceBackdrop`** flag (pro tier, default on — button, canvas drop
+  target and `<image>` render all hide in Simple). Verified by unit tests + the
+  `plan-trace-stencil.json` scenario (centered load, opacity, Simple-mode hiding). Spec/plan:
+  `docs/superpowers/{specs,plans}/2026-07-03-floorplan-ghost-stencil*`.
+
+## CHANGE: shared R2 library is admin-gated, not Pro-gated — `sharedLibrary` drops to simple tier (v0.11.0.3)
+
+- **The `sharedLibrary` flag moves `pro` → `simple` tier and the admin role becomes the real
+  gate.** Previously the flag's pro tier hid the R2 IKEA library in Simple mode (the app default)
+  for everyone — including admins. Now the flag stays on in both modes and the surface shows only
+  for a signed-in **admin** (`isAdminUser`): `bootstrapSharedLibrary` guards on the role, and
+  `CatalogDrawer` merges/bootstraps behind `useFeature('sharedLibrary') && isAdmin`. Slice + flag
+  tests updated for both modes + both roles; the `shared-library-simple` scenario now proves
+  admin-in-Simple sees cards, non-admin sees none in either mode. Docs (packs-and-remote-catalog,
+  ARCHITECTURE, deployment-cloudflare, path CLAUDE.md files) updated.
+
+## FIX: R2 bucket binding renamed `sofa_assets` → `LIBRARY` — shared library was 500ing (v0.11.0.2)
+
+- **`wrangler.toml`'s R2 binding now matches the code.** v0.10.0.9 filled in the provisioned
+  resource ids but named the R2 binding `sofa_assets` (the *bucket's* name), while the Pages
+  Function reads `env.LIBRARY` (`server/env.ts` / `server/assets.ts`) — so `env.LIBRARY` was
+  `undefined` in production, every `/api/assets/*` request threw a 500, the shared-library
+  manifest fetch failed, and the R2 IKEA catalog never appeared (even for a signed-in admin).
+  One-line rename to `LIBRARY`; requires a redeploy to take effect.
+
 ## FIX: catalog/preset card glow is invisible when ambient FX is off — no more brown bloom (v0.11.0.1)
 
 - **Every catalog card carried a permanent brown-tinted radial bloom** (user report): the P7

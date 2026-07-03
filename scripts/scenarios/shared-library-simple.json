@@ -4,24 +4,55 @@
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
     {
-      "name": "setup",
-      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1'); s.setManualHour?.(13); s.enterRoomEditor?.(s.floorPlan.rooms[0].id); const items = [ {group:'zza',groupKey:'zza',name:'ZZLIB Lounge Sofa',type:'Sofa',category:'seating',size:'',series:'ZZLIB',variants:3,thumbnail:null,price:499,currency:'SGD'}, {group:'zzb',groupKey:'zzb',name:'ZZLIB Accent Chair',type:'Armchair',category:'seating',size:'',series:'ZZLIB',variants:2,thumbnail:null,price:199,currency:'SGD'}, {group:'zzc',groupKey:'zzc',name:'ZZLIB Ottoman',type:'Ottoman',category:'seating',size:'',series:'ZZLIB',variants:1,thumbnail:null,price:99,currency:'SGD'} ]; window.__store.setState((st) => ({ sharedLibrary: { ...st.sharedLibrary, status: 'ready', items } })); })()"
+      "name": "setup-admin",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1'); s.setManualHour?.(13); s.enterRoomEditor?.(s.floorPlan.rooms[0].id); const items = [ {group:'zza',groupKey:'zza',name:'ZZLIB Lounge Sofa',type:'Sofa',category:'seating',size:'',series:'ZZLIB',variants:3,thumbnail:null,price:499,currency:'SGD'}, {group:'zzb',groupKey:'zzb',name:'ZZLIB Accent Chair',type:'Armchair',category:'seating',size:'',series:'ZZLIB',variants:2,thumbnail:null,price:199,currency:'SGD'}, {group:'zzc',groupKey:'zzc',name:'ZZLIB Ottoman',type:'Ottoman',category:'seating',size:'',series:'ZZLIB',variants:1,thumbnail:null,price:99,currency:'SGD'} ]; window.__store.setState((st) => ({ currentUser: { id: 'admin', name: 'Admin', role: 'admin' }, sharedLibrary: { ...st.sharedLibrary, status: 'ready', items } })); })()"
     },
-    { "name": "simple-mode-active", "waitFor": { "store": "window.__store.getState().uiMode === 'simple'" } },
-    { "name": "open-catalog-simple", "eval": "window.__store.getState().setCatalogOpen(true)" },
-    { "name": "catalog-visible-simple", "waitFor": { "css": ".panel.catalog" }, "timeout": 20000 },
+    { "name": "simple-mode-active", "waitFor": { "store": "state.uiMode === 'simple'" } },
+    { "name": "open-catalog", "eval": "window.__store.getState().setCatalogOpen(true)" },
+    { "name": "catalog-visible", "waitFor": { "css": ".panel.catalog" }, "timeout": 20000 },
     {
-      "name": "search-shared-simple",
+      "name": "search-shared",
       "eval": "(() => { const el = document.querySelector('input[aria-label=\"Search the furniture catalog\"]'); const set = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value').set; set.call(el, 'ZZLIB'); el.dispatchEvent(new Event('input', { bubbles: true })); })()"
     },
-    { "name": "clear-loading-simple", "eval": "window.__store.getState().hideLoading()" },
-    { "name": "settle-simple", "wait": 1000 },
-    { "name": "shot-simple-hidden", "screenshot": "simple-no-shared" },
+    { "name": "clear-loading", "eval": "window.__store.getState().hideLoading()" },
+    { "name": "settle-admin-simple", "wait": 1000 },
+    {
+      "name": "admin-sees-shared-in-simple",
+      "waitFor": { "text": "ZZLIB Lounge Sofa" },
+      "timeout": 15000,
+      "failMessage": "admin in Simple mode should see shared-library cards (simple-tier flag)"
+    },
+    { "name": "shot-admin-simple", "screenshot": "admin-simple-shared" },
+    {
+      "name": "swap-to-nonadmin",
+      "eval": "window.__store.setState({ currentUser: { id: 'u2', email: 'u@example.com', name: 'User', role: 'user' } })"
+    },
+    {
+      "name": "nonadmin-hidden-simple",
+      "waitFor": { "store": "!document.body.textContent.includes('ZZLIB Lounge Sofa')" },
+      "timeout": 15000,
+      "failMessage": "a non-admin user must not see shared-library cards"
+    },
+    { "name": "shot-nonadmin-simple", "screenshot": "nonadmin-simple-hidden" },
     { "name": "to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
-    { "name": "pro-mode-active", "waitFor": { "store": "window.__store.getState().uiMode === 'pro'" } },
-    { "name": "clear-loading-overlay", "eval": "window.__store.getState().hideLoading()" },
-    { "name": "settle-pro", "wait": 1000 },
-    { "name": "shared-cards-present", "waitFor": { "text": "ZZLIB Lounge Sofa" }, "timeout": 15000 },
-    { "name": "shot-pro-shared", "screenshot": "pro-shared-cards" }
+    { "name": "pro-mode-active", "waitFor": { "store": "state.uiMode === 'pro'" } },
+    { "name": "clear-loading-pro", "eval": "window.__store.getState().hideLoading()" },
+    { "name": "settle-nonadmin-pro", "wait": 1000 },
+    {
+      "name": "nonadmin-hidden-in-pro",
+      "waitFor": { "store": "!document.body.textContent.includes('ZZLIB Lounge Sofa')" },
+      "timeout": 15000,
+      "failMessage": "the gate is the admin role, not Pro mode — non-admin must stay hidden in Pro"
+    },
+    {
+      "name": "swap-back-to-admin",
+      "eval": "window.__store.setState({ currentUser: { id: 'admin', name: 'Admin', role: 'admin' } })"
+    },
+    {
+      "name": "admin-sees-shared-in-pro",
+      "waitFor": { "text": "ZZLIB Lounge Sofa" },
+      "timeout": 15000
+    },
+    { "name": "shot-admin-pro", "screenshot": "admin-pro-shared" }
   ]
 }
