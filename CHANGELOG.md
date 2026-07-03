@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX/TEST/UX: improvement cycle 2 — versions goes pro-tier, P31 progress test, CTA copy, lh-body tokens (v0.11.1.3)
+
+- **`versions` flag reclassified `simple` → `pro`** per the CLAUDE.md hard rule (analytical/
+  professional surfaces live in Pro): the Versions panel now hides in Simple mode. Both-modes
+  test added (`versions.test.ts`); user docs mark Versions *(Pro)*.
+- **P31 regression test**: `startBackgroundImport`'s toast bar (0–1 `progress`) and its "X / Y"
+  message are locked to ONE coalesced counter — a gated-group mid-import assertion plus a
+  spy proving every delivered (progress, message) pair is internally consistent
+  (`runImport.test.ts`, drives the real notificationsSlice with fake timers).
+- **Catalog empty-state CTA copy matches behaviour**: the three "Browse all" CTAs (favourites/
+  recent/empty-category) land on the first non-empty category, never an all-items view —
+  relabelled "Browse furniture". LayersPanel's "Open catalog" audited accurate as-is.
+- **Dev server ENOSPC guard**: Vite's watcher now ignores `**/.claude/**` — agent worktrees are
+  full repo checkouts and watching them exhausted the inotify limit, crashing `npm run dev`.
+- **4 hand-tuned line-heights → `--lh-body`** (`.preset-desc`, `.ss-card-desc`,
+  `.stamp-banner-text`, `.help-list li`) per the type-hierarchy rule; guarded by
+  `lineHeight.test.ts`.
+
 ## FEAT: ghost-stencil trace backdrop — centered fit-to-plan load, anchored calibration, visible over rooms (v0.11.1.0)
 
 - **The floor-plan trace backdrop ("Reference photo…") now behaves like a proper ghost stencil.**

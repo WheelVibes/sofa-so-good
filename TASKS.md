@@ -89,32 +89,16 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - clearRoom's explicit pushHistory + first silent deleteItem's coalesced push double up — dedupe to a true single history step (pre-existing; surfaced in merge-prep re-review)
 - RemoteCard heavy-download hint hardcodes `color: '#b8860b'` (pre-existing) — replace with a warning token (`--warn`/color-mix)
 
-## UI polish Batch 2 follow-ups
-- [ ] 4 near-`--lh-body` multiline rules left unchanged (`.preset-desc`, `.ss-card-desc`,
-  `.help-list li`, `.stamp-banner-text`) — token swap changes rendered leading; revisit
-  deliberately.
-- [ ] `LayersPanel.tsx`'s per-item row never applies a `hidden` class from `hiddenItemIds` (found
-  while re-shooting the stagger fill-mode fix, v0.10.0.13) — `.lyr-row.hidden { opacity: 0.45 }`
-  in `features.css` has no wiring to actually trigger, so toggling an item's eye icon dims only
-  the icon, not the row. Separate bug from the fill-mode fix; needs its own change.
-- [ ] `versions` feature flag tier vs CLAUDE.md policy contradiction — reconcile the tier. The
-  CLAUDE.md hard rule puts analytical/professional/authoring surfaces (incl. versions) in `pro`,
-  but the flag's `tier` should be confirmed against that policy. Needs a product decision on
-  whether saved-version management belongs in Simple; align `FEATURE_FLAGS.versions.tier`
-  accordingly (found during batch-2b visual verification, v0.10.0.26).
-- [ ] `LayersPanel` empty-state CTA copy: "Open catalog" is correct for the truly-empty case, but
-  audit the "Browse all" CTA copy vs the first-category behaviour elsewhere in the catalog empty
-  states — the label should match what the click actually does (does it browse all, or land on
-  the first category?). Reconcile copy with behaviour (batch-2b visual verification, v0.10.0.26).
-- [ ] `VersionsPanel` delete (slot remove) button lacks an accessible name — the icon-only delete
-  control needs an `aria-label` (e.g. "Delete saved version") so screen-reader users can identify
-  it (found during batch-2b visual verification, v0.10.0.26).
-
-## UI polish Batch 3 follow-ups
-- [ ] Dead CSS left by the SliderField migration (P18, v0.10.0.41/.42): `.walk-cam-row`/`-lbl`/
-  `-val` (app.css) and `.scene-slider` (features.css) are now unreferenced by any component
-  (`.scene-clock` is still live — reused by TimeOfDaySlider's restored `.scene-row-head` clock
-  readout) — prune the truly-dead rules in a cleanup pass.
+## Discovered — dead-code audits (2026-07-03 cycle 2)
+- [ ] **`.help-list` CSS block + `helpOpen` state are orphaned**: `parts.css` `.help-list`/
+  `.help-list li`/`.help-list li .icn` have zero TSX consumers, and `featuresSlice.helpOpen`/
+  `setHelpOpen` have no renderer — the help/shortcuts modal they served appears removed. Verify
+  nothing constructs the class dynamically, then prune CSS + state + the `lineHeight.test.ts`
+  guard line for `.help-list li`.
+- [ ] **`.preset-*` family in `flows.css` (22 rules) has no direct TSX consumer** — but
+  `src/ui/CLAUDE.md` references `.preset-card` as live (ambient pointer-glow). Determine whether
+  the classes are built dynamically or the docs are stale; prune or fix docs accordingly
+  (`.preset-desc` is one of the four rules just switched to `--lh-body`).
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

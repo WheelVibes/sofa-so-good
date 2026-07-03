@@ -184,6 +184,9 @@ export default defineConfig(({ command }) => ({
         '**/docs/.vitepress/**',
         '**/public/draco/**',
         '**/.git/**',
+        // Agent worktrees are full repo checkouts — watching them exhausts the
+        // inotify watcher limit (ENOSPC) and crashes the dev server.
+        '**/.claude/**',
       ],
     },
     proxy: {

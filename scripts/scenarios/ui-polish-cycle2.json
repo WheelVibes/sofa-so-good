@@ -1,0 +1,103 @@
+{
+  "name": "ui-polish-cycle2",
+  "url": "http://localhost:5219/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1'); })()"
+    },
+    {
+      "name": "simple-mode",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "simple"
+        ]
+      }
+    },
+    {
+      "name": "clear-loading",
+      "eval": "window.__store.getState().hideLoading()"
+    },
+    {
+      "name": "versions-hidden-simple",
+      "waitFor": {
+        "store": "state.featureFlags.versions === false"
+      },
+      "timeout": 10000,
+      "failMessage": "versions must resolve OFF in Simple mode"
+    },
+    {
+      "name": "pro-mode",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "versions-on-pro",
+      "waitFor": {
+        "store": "state.featureFlags.versions === true"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "open-catalog-favourites",
+      "eval": "(() => { const s = window.__store.getState(); s.enterRoomEditor?.(s.floorPlan.rooms[0].id); s.setCatalogOpen(true); s.setLeftMode('catalog'); })()"
+    },
+    {
+      "name": "wait-catalog",
+      "waitFor": {
+        "css": ".panel.catalog"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "goto-favourites-tab",
+      "eval": "(() => { const el = [...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') || '').startsWith('Favourites')); el?.click(); })()"
+    },
+    {
+      "name": "wait-cta",
+      "waitFor": {
+        "text": "Browse furniture"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle-a",
+      "wait": 500
+    },
+    {
+      "name": "shot-cta",
+      "screenshot": "browse-furniture-cta"
+    },
+    {
+      "name": "open-smart-start",
+      "eval": "(() => { const s = window.__store.getState(); s.setCatalogOpen(false); const b = [...document.querySelectorAll('button')].find((x) => (x.textContent || '').trim() === 'Arrange'); b?.click(); setTimeout(() => { const m = [...document.querySelectorAll('button,[role=menuitem]')].find((x) => (x.textContent || '').includes('Smart Start')); m?.click(); }, 300); })()"
+    },
+    {
+      "name": "wait-wizard",
+      "waitFor": {
+        "css": ".ss-card-desc"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle-b",
+      "wait": 400
+    },
+    {
+      "name": "shot-wizard-lh",
+      "screenshot": "smart-start-lh"
+    }
+  ]
+}

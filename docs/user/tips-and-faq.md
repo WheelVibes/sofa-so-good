@@ -23,7 +23,7 @@
 
 **Where are my designs saved?**
 In your browser. Your layout autosaves as you work, and you can keep named
-snapshots with **Versions** (Tools menu). Nothing is stored on a server.
+snapshots with **Versions** (Tools menu, Pro mode). Nothing is stored on a server.
 
 **Is my data uploaded anywhere?**
 No. Model and texture imports — including format conversion and optimization —
