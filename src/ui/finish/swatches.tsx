@@ -234,6 +234,13 @@ export function SwatchGroup({
             onChange={(v) => onSelect(v)}
             options={[
               ...(customActive ? [{ value: '', label: 'Custom colour' }] : []),
+              // A surface can be unset (only Ceiling defaults this way — plain
+              // white with no explicit finish, `active === ''`): without a
+              // matching option the trigger renders blank, giving no clue
+              // what's currently applied. Distinct from "active id exists but
+              // is filtered out of `items` by a search query" (activeMat also
+              // undefined there) — that case must NOT be relabelled "Default".
+              ...(!customActive && active === '' ? [{ value: '', label: 'Default' }] : []),
               ...sorted.map((m) => {
                 const tag = providerTag(m)
                 return {

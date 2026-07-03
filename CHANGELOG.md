@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: finish-picker mobile blank-dropdown + touch-target/hover/spacing polish (v0.12.0.9)
+
+Cohesion pass on the finish/material picking surface (core "finish" loop):
+- Mobile Ceiling `Select` now shows "Default" instead of a blank trigger when
+  no ceiling finish is set (Ceiling is the only surface whose active id can be
+  `''`) — gated on `active === ''` so it can't misfire on a filtered-out id.
+- `QuickFinishes`/`MountHeightPresets` swatches bumped to 40px on mobile (were
+  missed by the existing `.swatches .swatch` tap-target bump — different parent).
+- `CachePane`'s "Clear" hover was a no-op (rest == hover surface) → rest fixed
+  to `--surface-2`.
+- Normalized several ad-hoc px literals to spacing tokens in FinishPicker CSS +
+  MasterPaletteEditor/ColorPicker.
+- Harness fix found while auditing: `clickByText` (`scripts/lib/interact.mjs`)
+  didn't recognize `<summary>` and silently mis-clicked the 3D canvas instead
+  of a Disclosure row; now allowlisted + a missed click is a real miss.
+
 ## PERF: model conversion runs in a pooled Worker off the main thread (v0.12.0.8)
 
 TODO Part 1b (final item) — model conversion (OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/

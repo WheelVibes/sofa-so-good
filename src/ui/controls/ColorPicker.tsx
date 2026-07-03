@@ -187,7 +187,7 @@ function ColorEditor({
       </div>
       {recent.length > 0 ? (
         <div style={{ marginTop: 'var(--s-2)' }}>
-          <div className="label" style={{ fontSize: 'var(--t-2xs)', marginBottom: 2 }}>
+          <div className="label" style={{ fontSize: 'var(--t-2xs)', marginBottom: 'var(--s-1)' }}>
             Recent
           </div>
           <div className="swatches" style={{ paddingBlock: 0 }}>

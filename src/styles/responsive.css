@@ -369,6 +369,12 @@ body.mobile {
      enlarge the tile itself instead. Bigger tiles also preview the texture
      better. The large `.swatch-lg` finish grid is already touch-sized. (MOBILE-TAP-TARGETS) */
   .swatches .swatch { width: 40px; height: 40px; }
+  /* Same dense-wrap-grid touch bump for the curated one-tap "quick finish" /
+     "standard heights" chip rows (QuickFinishes, MountHeightPresets) — these
+     stayed at the 30px desktop size on phones (missed by the `.swatches .swatch`
+     rule above, a different parent class), an easy-to-miss target under a
+     furniture piece's finish dropdown. (MOBILE-TAP-TARGETS) */
+  .quick-finish-row .swatch { width: 40px; height: 40px; }
 
   /* Catalog card action buttons (favourite ♥, stamp) reveal on `:hover` on
      desktop — but touch has no hover, so on a phone they stay invisible and the
