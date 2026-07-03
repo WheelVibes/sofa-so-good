@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: walk-mode screens cycle wallpaper + lights toggle on interact (v0.11.2.11)
+
+- **Screens** (Monitor/FlatscreenTV — any def whose paramSchema carries the `screenContent`
+  enum, capability-keyed not id-listed) cycle their wallpaper on walk-mode click/tap/E, wrapping
+  through the field's own options. **Lights** (lamps, sconces, ceiling fixtures, any
+  `itemAsLight`/emitter furniture) toggle on/off the same way — the per-item `lightOn` prop is
+  checked ahead of every other gate, so a switched-off lamp stays dark in every `lightsMode`
+  (auto/on/off) and the toggle always wins; undoable, persists via the items schema like
+  curtains. New sibling flags `walkScreens`/`walkLights` (simple tier, default on, both-modes
+  tested). Screens/lights use the framework's first true nearest-wins aim merge (doors/curtains
+  keep their fixed priority ahead). Scenario `walk-screens-lights.json` (38 steps); light-toggle
+  screenshots verified (room fully lit ↔ near-dark, no artifacts); screen cycling
+  store-asserted through the real aim + KeyE path (headless camera can't face the monitor —
+  gotcha recorded in the playbook).
+
 ## FIX: "Check for updates" reports in phases — detection is instant, download is honest (v0.11.2.10)
 
 - The manual check awaited `reg.update()`, which in Chromium doesn't settle until the found

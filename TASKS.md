@@ -72,14 +72,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` toggle needs a context recreate (flash) +
   real-GPU verify.
 
-## Queued — walk-mode interactions wave 2 (user, 2026-07-03; dispatch after walk-curtain-blind-interact merges)
-- [ ] **Interactable screens**: monitors/TVs (any furniture with a screen surface — see the existing
-  `getScreenContent` machinery on the Monitor primitive) toggle via the same walk-mode
-  click/tap/E handler — each interaction cycles the screen wallpaper/content.
-- [ ] **Interactable lights**: light fixtures AND any furniture with lighting capability (incl.
-  `itemAsLight` / IES emitters) toggle their light on/off via the same interaction. Per-item
-  on/off state follows the same persistence pattern as doors/curtains.
-
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
 - Keep this file pending-only; keep `TODO.md` (legacy deferred-work log) current.
