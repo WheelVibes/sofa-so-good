@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: share/export cohesion audit scenario (v0.12.0.18)
+
+Audited the share/export surface (ShareModal + AI-photoreal, File/Tools export
+menus, panorama, AR, BOQ/shopping-list, export toasts) for theme/spacing/
+responsive cohesion — found it already token-clean, cohesive, and responsive
+across desktop/mobile × light/dark × Simple/Pro, so NO product changes. Added
+`share-export-audit.json` as regression coverage for the previously-untested
+combos (dark, Pro AI-photoreal, mobile File/Tools export sections). Logged one
+out-of-scope observation to TODO.md (TOOLBAR-MENU-VOID: a vertical gap in the
+shared `ToolbarMenu` primitive affecting all toolbar dropdowns).
+
 ## FIX: walk-mode reticle legible over any background (v0.12.0.17)
 
 The walk-mode aiming crosshair used `bg-white/80 mix-blend-difference` — a

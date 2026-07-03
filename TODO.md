@@ -152,6 +152,11 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
   - [ ] *(Polish, not phase-gated)* the docked catalog currently floats over the plan rather than
     shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
     `.plan-screen`) — low-risk follow-up.
+- [ ] **TOOLBAR-MENU-VOID — dropdown vertical gap (S, cohesion).** The desktop `File`/`Tools`
+  dropdowns show a large vertical void between their top and bottom item clusters — originates in
+  the shared `ToolbarMenu` primitive / `toolActions` registry (affects all toolbar menus, not just
+  exports). Found during the v0.12.0.18 share/export audit (out of that task's scope). Low risk;
+  tighten the menu layout / grouping in the shared primitive.
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live
