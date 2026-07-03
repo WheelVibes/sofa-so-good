@@ -3,7 +3,7 @@ import { needsConversion } from '../convert/convertModel'
 import { detectModelFormat, isModelEntryFile } from '../convert/formats'
 import { runConvert } from '../convert/runConvert'
 import type { LodVariantSet } from '../optimize/lodVariants'
-import { runOptimize } from '../optimize/runOptimize'
+import { computePoolMax, runOptimize } from '../optimize/runOptimize'
 import type { FurnitureCategory, UserGltfDef } from '../types'
 import { hashFile } from './hashFile'
 import { inferCollisionFlags } from './inferFlags'
@@ -30,6 +30,45 @@ export const COMMIT_BATCH = 25
  * enforced post-optimize on the actual bytes that would be stored.
  */
 export const EARLY_REJECT_MULTIPLIER = 3
+
+/**
+ * Default number of files whose convert→optimize→persist pipeline runs in
+ * parallel in {@link importGlbFiles}, when the caller doesn't pass an
+ * explicit `concurrency`. Previously a flat `4` regardless of hardware.
+ *
+ * `prepareGlb` runs each file through the convert pool THEN the optimize
+ * pool, one after the other — both pools are sized by the same
+ * `computePoolMax(cores, deviceMemory)` ceiling (`optimize/runOptimize.ts`,
+ * reused by `convert/runConvert.ts`). Since at any instant during a batch
+ * those two pools are busy on DIFFERENT in-flight files (never both stages
+ * of the same one), matching the *import* concurrency to that same ceiling
+ * keeps every pool worker fed without over-queueing: a flat 4 either starved
+ * a many-core desktop's ~7-8 worker pool, or queued 4 files deep against a
+ * 1-2 worker pool on a low-end/mobile device (each extra queued file just
+ * waits behind an already-busy worker with no throughput gain, only more
+ * Files/ArrayBuffers held in memory at once). Reusing `computePoolMax`
+ * directly (rather than re-deriving the same clamp/downshift math) keeps the
+ * two decisions from drifting apart.
+ *
+ * Pure + exported for unit testing (mirrors `computePoolMax`'s shape).
+ */
+export function defaultImportConcurrency(cores: number, deviceMemoryGB?: number): number {
+  return computePoolMax(cores, deviceMemoryGB)
+}
+
+/** Reads live hardware signals to resolve the default import concurrency —
+ *  same no-`navigator` (SSR/older-browser/test-environment) fallback to the
+ *  legacy flat default of `4` as `runOptimize.ts`'s `POOL_MAX` / `runConvert
+ *  .ts`'s `poolMax()`. Called fresh per `importGlbFiles` invocation rather
+ *  than cached at module load, so it stays a plain function (not a frozen
+ *  module-level constant) — simpler to drive in tests via `vi.stubGlobal`.
+ *  Exported for unit testing the navigator-reading/SSR-fallback branch. */
+export function readDefaultConcurrency(): number {
+  if (typeof navigator === 'undefined') return 4
+  const nav = navigator as Navigator & { deviceMemory?: number }
+  const cores = typeof nav.hardwareConcurrency === 'number' ? nav.hardwareConcurrency : 4
+  return defaultImportConcurrency(cores, nav.deviceMemory)
+}
 
 export interface BulkImportOptions {
   category: FurnitureCategory
@@ -207,7 +246,9 @@ export async function importGlbFiles(
 
   let imported = 0
   let duplicates = 0
-  const concurrency = Math.max(1, opts.concurrency ?? 4)
+  // An explicit caller-supplied concurrency always wins; only the DEFAULT is
+  // hardware-aware (see `defaultImportConcurrency`/`readDefaultConcurrency`).
+  const concurrency = Math.max(1, opts.concurrency ?? readDefaultConcurrency())
   let cursor = 0
   // Hashes already imported THIS batch — guards the concurrent race where two
   // identical files both pass persist's not-yet-committed existence check.

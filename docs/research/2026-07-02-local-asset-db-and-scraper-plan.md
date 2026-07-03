@@ -118,11 +118,20 @@ The pipeline is already well-built (bounded worker pool in `bulkImport.ts`,
    file (e.g. 30 MB → 8 MB) keeps its optimize chance, and the **post-optimize** check remains the
    real cap, enforced on the actual bytes that would be stored. Texture decode gating on
    `file.size` before `decodeImage` (IO-001) was already done separately (v0.8.0.32).
-4. **Tune `concurrency`** default from 4 → `hardwareConcurrency`-aware — open (the pool itself is
-   now hardware-aware; `bulkImport`'s own `concurrency` option, which bounds convert+persist
-   fan-out ahead of the pool, is still a flat default of 4).
+4. **Tune `concurrency`** default from 4 → `hardwareConcurrency`-aware — DONE (2026-07-03).
+   `bulkImport.ts`'s DEFAULT `concurrency` (still overridable by an explicit caller value) now
+   calls `defaultImportConcurrency(cores, deviceMemoryGB)`, a pure wrapper over the same
+   `computePoolMax` the optimize/convert pools use — since `prepareGlb` runs each file through
+   the convert pool then the optimize pool one after another, matching the *import* fan-out to
+   that same ceiling keeps every pool worker fed without over-queueing a low-end 1-2 worker pool
+   or under-using a many-core desktop's ~7-8 worker pool. `readDefaultConcurrency()` reads live
+   `navigator.hardwareConcurrency`/`deviceMemory`, falling back to the legacy flat `4` with no
+   `navigator` (SSR/older browser), matching `runOptimize.ts`'s `POOL_MAX` / `runConvert.ts`'s
+   `poolMax()` fallback. Unit-tested in `bulkImport.test.ts` (clamps/downshift/SSR-fallback +
+   explicit-override-still-wins + 0-items edge case).
 
-Remaining: #2 (convert off main thread) and #4 (tune `concurrency`).
+Remaining: none — #1-#4 are all done (item #3's "GLB half" caveat is the only open
+sub-thread, for a possible non-GLB early-gate pass).
 
 ---
 

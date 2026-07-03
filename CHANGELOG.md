@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PERF: bulk-import concurrency default is hardware-aware (v0.12.0.11)
+
+Plan Part 2 #4 — bulk import fanned files out at a fixed default of 4. It now
+derives from device capability via `defaultImportConcurrency` (reuses the same
+`computePoolMax` ceiling as the convert + optimize pools), so a batch doesn't
+over-queue a low-end 1–2-worker pool nor cap at 4 on a many-core desktop.
+SSR/no-`navigator` falls back to the legacy 4; an explicit caller-supplied
+`concurrency` still wins. Pure helper + unit tests (core/memory values,
+stubbed-navigator fallback, override precedence). Completes the asset-pipeline
+Part 2 work (all four items now done).
+
 ## TEST: GLB-designer IXT re-rung (v0.12.0.10)
 
 IXT-SUITES GLB-designer rung — `glb-designer-simple.json` (34 steps): Simple/Pro

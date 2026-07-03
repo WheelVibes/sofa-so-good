@@ -1,16 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import 'fake-indexeddb/auto'
 import { IdbAssetStore } from '../../state/storage/IdbAssetStore'
 import { useStore } from '../../state/store'
 import * as runOptimizeModule from '../optimize/runOptimize'
 import {
   dedupeName,
+  defaultImportConcurrency,
   EARLY_REJECT_MULTIPLIER,
   importGlbFiles,
   isModelFile,
   modelName,
+  readDefaultConcurrency,
 } from './bulkImport'
 import { MAX_GLB_BYTES } from './validate'
 
@@ -98,6 +100,48 @@ describe('bulkImport name dedupe', () => {
     expect(dedupeName('Chair', used)).toBe('Chair (2)')
     expect(dedupeName('Chair', used)).toBe('Chair (3)')
     expect(dedupeName('Sofa', used)).toBe('Sofa')
+  })
+})
+
+describe('defaultImportConcurrency (hardware-aware import default)', () => {
+  it('mirrors computePoolMax: leaves a core free, hard-capped', () => {
+    expect(defaultImportConcurrency(4)).toBe(3)
+    expect(defaultImportConcurrency(8)).toBe(7)
+    expect(defaultImportConcurrency(16)).toBe(8) // HARD_POOL_MAX
+    expect(defaultImportConcurrency(64)).toBe(8)
+  })
+
+  it('clamps to at least 1 on a single-core / bogus core count', () => {
+    expect(defaultImportConcurrency(1)).toBe(1)
+    expect(defaultImportConcurrency(0)).toBe(3) // invalid → falls back to 4 cores → 3
+    expect(defaultImportConcurrency(Number.NaN)).toBe(3)
+  })
+
+  it('downshifts on low-memory devices', () => {
+    expect(defaultImportConcurrency(8, 2)).toBe(2)
+    expect(defaultImportConcurrency(8, 4)).toBe(4)
+    expect(defaultImportConcurrency(16, 1)).toBe(2)
+  })
+})
+
+describe('readDefaultConcurrency (navigator-reading wrapper)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('falls back to the legacy default of 4 when navigator is unavailable (SSR)', () => {
+    vi.stubGlobal('navigator', undefined)
+    expect(readDefaultConcurrency()).toBe(4)
+  })
+
+  it('derives from navigator.hardwareConcurrency + deviceMemory when present', () => {
+    vi.stubGlobal('navigator', { hardwareConcurrency: 8, deviceMemory: 2 })
+    expect(readDefaultConcurrency()).toBe(2)
+  })
+
+  it('falls back to 4 cores when hardwareConcurrency is missing/non-numeric', () => {
+    vi.stubGlobal('navigator', {})
+    expect(readDefaultConcurrency()).toBe(3) // computePoolMax(4) = 3
   })
 })
 

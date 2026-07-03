@@ -15,7 +15,11 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   texture decode, used by every texture-bearing convert format) is bridged by
   `convert/imageLoaderWorkerPatch.ts` (decodes via `createImageBitmap` instead — `GLTFExporter`
   already accepts an `ImageBitmap` for `texture.image`) — don't reintroduce a DOM-only image path
-  in a new convert-adjacent worker without checking that file first.
+  in a new convert-adjacent worker without checking that file first. `upload/bulkImport.ts`'s own
+  `concurrency` knob (how many files' convert→optimize→persist pipeline run in parallel, ahead of
+  the two pools above) is likewise hardware-aware by DEFAULT — `defaultImportConcurrency` reuses
+  the same `computePoolMax` ceiling so a batch doesn't over-queue a low-end pool or under-use a
+  many-core one; an explicit caller-supplied `concurrency` always wins over the default.
 - **New parametric item** = `primitives/<Name>.tsx` (a fn taking `{ props }`) + register in
   `primitives/index.ts` + the `PrimitiveKind` union + a `ParametricDef` in the matching
   `defs/<category>.ts` (assembled into `BUILTIN_CATALOG` by `builtinCatalog.ts`).
