@@ -61,6 +61,36 @@
 /* span an empty state across all columns of the catalog card grid */
 .empty-mini.catalog-empty { grid-column: 1 / -1; }
 
+/* Dimension-marker number pill (MeasurementOverlay, per-room editor). A small
+   themed chip anchored at each dimension line's midpoint via drei <Html>. */
+.dim-label {
+  padding: 1px 6px; border-radius: var(--r-pill);
+  background: var(--surface-solid); color: var(--text);
+  border: 1px solid var(--border); box-shadow: var(--shadow-panel);
+  font-size: var(--t-2xs); font-weight: 700; font-variant-numeric: tabular-nums;
+  white-space: nowrap; pointer-events: none;
+}
+/* Whole-plan orbit: the centre room label — name over area, two lines. */
+.dim-room-label {
+  padding: 3px 8px; border-radius: var(--r-2);
+  background: color-mix(in oklab, var(--surface-solid) 90%, transparent);
+  color: var(--text); box-shadow: var(--shadow-panel);
+  text-align: center; white-space: nowrap; pointer-events: none; line-height: 1.25;
+}
+.dim-room-name { font-size: var(--t-xs); font-weight: 700; }
+.dim-room-area { font-size: var(--t-2xs); font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* Room reorder dialog (roomReorder pro flag): a simple up/down ordered list. */
+.room-reorder { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.room-reorder-row {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-2) var(--s-3); border-radius: var(--r-2);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.room-reorder-idx { flex: none; width: 1.4em; text-align: right; color: var(--text-3); font-size: var(--t-xs); font-variant-numeric: tabular-nums; }
+.room-reorder-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-sm); font-weight: 600; color: var(--text); }
+.room-reorder-acts { flex: none; display: flex; gap: var(--s-1); }
+
 /* ---- progressive-disclosure info callout (P25) --------------- */
 /* A dismissible one-line hint banner (InfoCallout.tsx): surface-2 card with an
    accent left edge, an info glyph, bold title + muted body, and a close button. */
@@ -462,6 +492,10 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
   padding: 4px 6px 2px; font-size: var(--t-2xs); font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3);
 }
+/* Align the slider row's horizontal insets with the section header + System-time
+   button (both 6px), so the clock label lines up under "TIME OF DAY" and the
+   slider ends where the button does instead of running to the panel edge. */
+.tod .fld { padding-left: var(--s-2); padding-right: var(--s-2); }
 /* The slider row's own label is the live clock readout (see TimeOfDaySlider) —
    keep it on one line, mono/tabular so digits don't jiggle, and unstretched so
    the slider (`.fld .slider`, flex: 1.2) takes the rest of the row. */

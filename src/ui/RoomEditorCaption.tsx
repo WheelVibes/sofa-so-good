@@ -1,41 +1,33 @@
-import { useFeature } from '../features/useFeature'
-import { planRoomArea, pointInRoom } from '../floorplan/types'
-import { useCatalog } from '../furniture/catalog'
-import { itemsCost } from '../furniture/itemsCost'
+import { planRoomArea } from '../floorplan/types'
 import { useStore } from '../state/store'
-import { formatRoomSize } from '../utils/measurement'
+import { formatArea } from '../utils/measurement'
 import { useIsMobile } from './useIsMobile'
 
 /**
- * A small top-centre caption shown while the per-room editor is active, naming
- * the isolated room, its size, and how many pieces are in it (e.g. "Main
- * Bedroom · 2.85 × 3.40 m · 9.7 m² · 4 items"). Reads the room from the active
- * plan, so it works for the built-in apartment and custom plans alike. Pure DOM
- * overlay; hidden outside the room editor.
+ * The measurement pill shown while the per-room editor is active: a compact
+ * top-centre readout of the room's total floor area ("Area: 24.3 m²"). It only
+ * appears when the measurements option is toggled on — the per-edge length /
+ * width / height numbers live on the in-scene dimension markers
+ * (`MeasurementOverlay`), so this pill is just the area summary. Pure DOM
+ * overlay; hidden outside the room editor or when measurements are off.
  */
 export function RoomEditorCaption() {
   const active = useStore((s) => s.roomEditor.active)
   const roomId = useStore((s) => s.roomEditor.roomId)
   const rooms = useStore((s) => s.floorPlan.rooms)
-  const items = useStore((s) => s.items)
   const units = useStore((s) => s.units)
-  const catalog = useCatalog()
-  // Price displays are gated behind the budget/price feature (off by default).
-  const priceOn = useFeature('budget')
-  // On mobile the room NAME is already in the collapsed top bar's dropdown, so
-  // the caption drops it there and shows only the size (avoids redundancy).
+  const showMeasurements = useStore((s) => s.showMeasurements)
   const isMobile = useIsMobile()
-  if (!active || !roomId) return null
+  if (!active || !roomId || !showMeasurements) return null
   const room = rooms.find((r) => r.id === roomId)
   if (!room) return null
-  const inRoom = items.filter((it) => pointInRoom(room, it.position[0], it.position[1]))
-  const count = inRoom.length
-  const roomCost = itemsCost(inRoom, catalog)
   return (
     <div
       className="room-editor-caption pointer-events-none absolute z-20"
       style={{
-        top: 'calc(env(safe-area-inset-top, 0px) + 64px)',
+        // Sit clear of the top toolbar — more headroom on mobile, where the bar
+        // is taller, so the pill never crowds against it.
+        top: `calc(env(safe-area-inset-top, 0px) + ${isMobile ? 84 : 68}px)`,
         left: '50%',
         transform: 'translateX(-50%)',
         padding: '5px 12px',
@@ -51,12 +43,8 @@ export function RoomEditorCaption() {
       }}
       aria-hidden="true"
     >
-      {!isMobile && <span style={{ fontWeight: 700, color: 'var(--text)' }}>{room.name}</span>}
-      <span style={{ color: isMobile ? 'var(--text-2)' : 'var(--text-3)' }}>
-        {!isMobile && '  ·  '}
-        {formatRoomSize(room.width, room.depth, planRoomArea(room), units)}
-        {`  ·  ${count} ${count === 1 ? 'item' : 'items'}`}
-        {priceOn && roomCost > 0 ? `  ·  ~$${roomCost.toLocaleString('en-SG')}` : ''}
+      <span style={{ color: 'var(--text-2)' }}>
+        Area: <b style={{ color: 'var(--text)' }}>{formatArea(planRoomArea(room), units)}</b>
       </span>
     </div>
   )

@@ -60,9 +60,16 @@ function downsampleToTargetPng(largeCanvas: HTMLCanvasElement, factor: number): 
 export function ScreenshotController() {
   const { gl, scene, camera } = useThree()
   useEffect(() => {
-    // Render one frame at the highest fidelity (regardless of the live tier),
-    // read it back as a PNG data URL, then restore the exact prior quality
-    // state. Shared by the PNG download and the AI photoreal capture.
+    // Capture the current frame as a supersampled PNG. We deliberately DON'T
+    // touch the quality tier here: the read-back is a synchronous
+    // `gl.render(scene, camera)` in a single tick, so a React-driven tier change
+    // (post-processing, shadow maps, asset LOD swaps) can't take effect before
+    // the read, and `gl.render` bypasses the post-processing composer anyway —
+    // bumping the tier changed nothing in the captured pixels while firing the
+    // "Applying … quality" transition overlay and churning the quality store,
+    // which stranded the overlay and left the time-of-day lighting mid-transition
+    // (SS-EXPORT-SIDE-EFFECTS). The export is now WYSIWYG (the live scene), just
+    // anti-aliased. Shared by the PNG download and the AI photoreal capture.
     //
     // Supersampling (SSAA): temporarily raise the renderer's drawing-buffer
     // resolution by SSAA_FACTOR, render, then box-downsample back to the target
@@ -70,13 +77,6 @@ export function ScreenshotController() {
     // the screen — the resize/render/restore is synchronous (no rAF between),
     // and the exact prior size + pixelRatio are restored in `finally`.
     const renderHiFiPng = (): string | null => {
-      const store = useStore.getState()
-      const prev = {
-        qualityTier: store.qualityTier,
-        qualityUserSet: store.qualityUserSet,
-        qualityOverrides: store.qualityOverrides,
-        autoShadowsOff: store.autoShadowsOff,
-      }
       // Snapshot the exact prior renderer size + pixel ratio so we restore them
       // byte-for-byte (getSize writes into the passed Vector2).
       const prevSize = gl.getSize(new Vector2())
@@ -86,9 +86,6 @@ export function ScreenshotController() {
       const targetH = prevSize.height
       let ssaaApplied = false
       try {
-        store.setQualityTier('high')
-        store.setQualityOverride('postprocessing', true)
-
         // Raise the drawing buffer by the SSAA factor without touching CSS size
         // (updateStyle = false), so the on-screen canvas element is unaffected.
         if (SSAA_FACTOR > 1 && targetW > 0 && targetH > 0) {
@@ -109,13 +106,12 @@ export function ScreenshotController() {
       } catch {
         return null
       } finally {
-        // Restore the exact prior drawing-buffer size + pixel ratio first, then
-        // the quality state. Synchronous: the big buffer is never presented.
+        // Restore the exact prior drawing-buffer size + pixel ratio. Synchronous:
+        // the big buffer is never presented.
         if (ssaaApplied) {
           gl.setPixelRatio(prevPixelRatio)
           gl.setSize(targetW, targetH, false)
         }
-        useStore.setState(prev)
       }
     }
 

@@ -192,12 +192,15 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(false, {}, false, 'pro').finishDnd).toBe(true)
   })
 
-  it('panoTour (simple tier, prod default on) is present in BOTH Simple and Pro', () => {
-    // Both modes, both build kinds — the linked 360° tour is a simple feature.
-    expect(resolveFlags(false, {}, false, 'simple').panoTour).toBe(true)
-    expect(resolveFlags(false, {}, false, 'pro').panoTour).toBe(true)
-    expect(resolveFlags(true, {}, false, 'simple').panoTour).toBe(true)
-    expect(resolveFlags(true, {}, false, 'pro').panoTour).toBe(true)
+  it('panoTour (simple tier, prod default OFF) is opt-in but present in BOTH modes when enabled', () => {
+    // The linked 360° tour is an advanced presentation surface — off by default.
+    expect(resolveFlags(false, {}, false, 'simple').panoTour).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').panoTour).toBe(false)
+    expect(resolveFlags(true, {}, false, 'simple').panoTour).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').panoTour).toBe(false)
+    // Simple-tier: when explicitly enabled it shows in both modes (not pro-gated).
+    expect(resolveFlags(true, { panoTour: true }, false, 'simple').panoTour).toBe(true)
+    expect(resolveFlags(true, { panoTour: true }, false, 'pro').panoTour).toBe(true)
     // Tiered consistently with the single-shot panorama it builds on.
     expect(FEATURE_FLAGS.panoTour.tier).toBe(FEATURE_FLAGS.panorama.tier)
   })
@@ -350,9 +353,12 @@ describe('textBrief flag (Smart Start describe-it box)', () => {
 })
 
 describe('panorama flag (360° capture)', () => {
-  it('is simple-tier: present in both Simple and Pro by default', () => {
-    expect(resolveFlags(false, {}, false, 'simple').panorama).toBe(true)
-    expect(resolveFlags(false, {}, false, 'pro').panorama).toBe(true)
+  it('is OFF by default (opt-in) but simple-tier — present in both modes when enabled', () => {
+    expect(resolveFlags(false, {}, false, 'simple').panorama).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').panorama).toBe(false)
+    // Overrides only apply to a privileged session (dev build / admin).
+    expect(resolveFlags(true, { panorama: true }, false, 'simple').panorama).toBe(true)
+    expect(resolveFlags(true, { panorama: true }, false, 'pro').panorama).toBe(true)
   })
 })
 

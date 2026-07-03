@@ -318,6 +318,12 @@ kbd {
   background: var(--accent); color: var(--on-accent);
   font-weight: 800; font-size: 15px; letter-spacing: -0.04em;
 }
+/* Off the orbit overview the brand mark becomes a "return to orbit" button —
+   reset the native button chrome and add a subtle press affordance. */
+button.brand-dot { border: 0; padding: 0; cursor: pointer; transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease); }
+button.brand-dot:hover { filter: brightness(1.06); }
+button.brand-dot:active { transform: scale(0.94); }
+button.brand-dot:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* tooltip */
 .tip { position: relative; }

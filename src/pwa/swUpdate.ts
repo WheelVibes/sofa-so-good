@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register'
 import { isDesktopShell, runDesktopUpdateCheck } from '../desktop/updateCheck'
 import { useStore } from '../state/store'
-import { APP_VERSION } from '../version'
+import { APP_VERSION, isNewerVersion } from '../version'
 
 /**
  * Service-worker registration + update strategy.
@@ -77,24 +77,70 @@ export function registerAppServiceWorker(): void {
  */
 export function showUpdatePrompt(): void {
   const { notify } = useStore.getState()
-  notify.start({
-    title: 'Update available',
-    message: 'A new version of Sofa So Good is ready.',
+  const id = notify.start({
+    title: 'New version available',
     kind: 'info',
     icon: 'Versions',
     autoDismissMs: null,
     actionLabel: 'Update',
     onAction: () => void applyUpdate(),
   })
+  // The running bundle only knows its own (older) APP_VERSION; fetch the freshly
+  // deployed version.json over the network to show the version the waiting worker
+  // will install. Fire-and-forget — the toast is already useful without it.
+  void fetchDeployedVersion().then((v) => {
+    if (v && isNewerVersion(v, APP_VERSION)) notify.update(id, { message: `(v${v})` })
+  })
 }
 
-/** Apply the waiting update: skip waiting + reload to the new version. */
+/** Fetch the deployed build's version from `version.json`, bypassing the SW
+ *  precache (cache-busting query + `no-store`) so it reflects the NEW build on
+ *  the server, not the stale copy the active worker still serves. Returns null
+ *  on any failure — the prompt then simply shows no version line. */
+async function fetchDeployedVersion(): Promise<string | null> {
+  if (typeof fetch !== 'function') return null
+  try {
+    const base = import.meta.env.BASE_URL || '/'
+    const res = await fetch(`${base}version.json?ts=${Date.now()}`, { cache: 'no-store' })
+    if (!res.ok) return null
+    const data = (await res.json()) as { version?: unknown }
+    return typeof data.version === 'string' ? data.version : null
+  } catch {
+    return null
+  }
+}
+
+/** localStorage flag: set just before an update reload so the freshly-booted
+ *  build knows to surface a "you're now updated" success toast. */
+const JUST_UPDATED_KEY = 'sofa.justUpdated'
+
+/** Apply the waiting update: skip waiting + reload to the new version. Marks the
+ *  reload so the new build can confirm the update once it finishes loading. */
 export async function applyUpdate(): Promise<void> {
+  try {
+    localStorage.setItem(JUST_UPDATED_KEY, '1')
+  } catch {
+    /* storage unavailable — the confirmation toast just won't show */
+  }
   if (updateSW) {
     await updateSW(true)
   } else if (typeof window !== 'undefined') {
     window.location.reload()
   }
+}
+
+/** True exactly once after an update reload (clears the flag). The caller shows
+ *  a "Updated to v<version>" success toast when the fresh build is on screen. */
+export function consumeJustUpdated(): boolean {
+  try {
+    if (localStorage.getItem(JUST_UPDATED_KEY) === '1') {
+      localStorage.removeItem(JUST_UPDATED_KEY)
+      return true
+    }
+  } catch {
+    /* storage unavailable */
+  }
+  return false
 }
 
 export type UpdateCheckResult = 'downloading' | 'waiting' | 'uptodate' | 'unsupported'
@@ -231,7 +277,7 @@ export async function runUpdateCheck(): Promise<void> {
 
   // New worker found fast — keep the one progress toast, upgraded to the
   // download phase, while Workbox precaches the new build.
-  notify.update(id, { title: 'Update available — downloading…' })
+  notify.update(id, { title: 'New version — downloading…' })
   const outcome = reg ? await waitForInstallOutcome(reg) : 'failed'
   if (outcome === 'waiting') {
     notify.dismiss(id)

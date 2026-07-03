@@ -84,6 +84,14 @@
      not theme-tinted; reads on light and dark surfaces. */
   --sun: oklch(0.84 0.16 85);
   --sun-edge: oklch(0.48 0.11 65);
+
+  /* Product-photo tile (IKEA + shared library). Catalog product shots ship on a
+     baked pure-white studio background; a `mix-blend-mode: multiply` blends that
+     white into this soft, mode-independent warm off-white so the thumbnail reads
+     as a framed product photo instead of a harsh full-bleed white rectangle that
+     clashes with warm/dark themes. Light enough that multiply never crushes a
+     dark product to black. */
+  --photo-tile: oklch(0.95 0.006 75);
 }
 
 /* Density mode (P38, Pro-tier `densityMode` flag): [data-density='compact'] on

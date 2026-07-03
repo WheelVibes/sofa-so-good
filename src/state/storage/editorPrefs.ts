@@ -49,6 +49,7 @@ export function loadEditorPrefs(): void {
       layersCollapsed?: unknown
       catalogOpen?: boolean
       density?: string
+      roomOrder?: unknown
     }
     const backdrops: BackdropKind[] = ['city', 'dusk', 'park', 'hills', 'custom', 'none']
     // Restore the collapsed-layer map defensively — only string→boolean entries.
@@ -83,6 +84,10 @@ export function loadEditorPrefs(): void {
       layersCollapsed,
       catalogOpen: isDesktop ? !!p.catalogOpen : false,
       density: p.density === 'compact' ? 'compact' : 'comfortable',
+      // Manual room order — keep only string ids defensively.
+      roomOrder: Array.isArray(p.roomOrder)
+        ? (p.roomOrder.filter((x) => typeof x === 'string') as string[])
+        : [],
     })
     // Pro features are gated on uiMode, so re-resolve the flag map now that the
     // saved mode is applied (the boot seed assumed the Simple default).
@@ -110,6 +115,7 @@ export function watchEditorPrefs(): void {
       layersCollapsed: s.layersCollapsed,
       catalogOpen: s.catalogOpen,
       density: s.density,
+      roomOrder: s.roomOrder,
     }
     // Change-detection key only — NOT written to localStorage. A Simple↔Pro
     // flip changes uiMode, then re-resolves featureFlags in a *separate*

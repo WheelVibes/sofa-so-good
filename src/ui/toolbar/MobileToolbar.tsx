@@ -11,6 +11,7 @@ import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
 import { AppearanceControls } from './AppearancePopover'
+import { BrandDot } from './BrandDot'
 import { CompassModal } from './CompassModal'
 import { Icon, type IconName } from './icons'
 import { AppearanceSection } from './mobile/AppearanceSection'
@@ -119,9 +120,7 @@ export function MobileToolbar() {
   return (
     <>
       <div className={`toolbar mobilebar${roomEditorActive ? ' editing-room' : ''}`}>
-        <div className="brand-dot" title="Sofa So Good">
-          <BrandMark size={20} />
-        </div>
+        <BrandDot size={20} />
         {roomEditorActive ? (
           <>
             <RoomSwitcher className="input m-room-select" />

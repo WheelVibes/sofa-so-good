@@ -92,13 +92,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   panorama: {
     label: '360° panorama',
     description: 'Equirect 360° capture with drag-to-look viewer + PNG export',
-    default: true,
+    // Off by default — an advanced capture surface, opt-in.
+    default: false,
     tier: 'simple',
   },
   panoTour: {
     label: '360° tour',
     description: 'Linked multi-room panorama tour with clickable room-to-room hotspots',
-    default: true,
+    // Off by default — an advanced presentation surface, opt-in.
+    default: false,
     tier: 'simple',
   },
   renderPresets: {
@@ -411,7 +413,8 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   renderCompare: {
     label: 'Render preset compare',
     description: 'A/B compare two render presets with a draggable before/after divider',
-    default: true,
+    // Off by default — an advanced presentation surface, opt-in.
+    default: false,
     tier: 'simple',
   },
   // Before/after staging reveal — empty room vs furnished design on a draggable
@@ -1007,6 +1010,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   roomInset: {
     label: 'Inset room',
     description: 'Inset (shrink) or outset (grow) a room outline by a signed distance',
+    default: true,
+    tier: 'pro',
+  },
+  // Manual room ordering for the per-room editor switcher (the list is
+  // alphabetical by default). Reordering the room list is an organisational
+  // power-tool beyond the Simple core loop → pro tier. Pure per-device
+  // preference data (editorPrefs) → prod-safe.
+  roomReorder: {
+    label: 'Reorder rooms',
+    description: 'Manually reorder the room list (defaults to A–Z)',
     default: true,
     tier: 'pro',
   },

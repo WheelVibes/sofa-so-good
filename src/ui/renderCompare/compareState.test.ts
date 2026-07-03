@@ -131,19 +131,21 @@ describe('renderCompare feature flag — Simple/Pro tiering', () => {
     useStore.getState().setUiMode('pro')
   })
 
-  it('renderCompare is present in BOTH Simple and Pro mode (resolveFlags)', () => {
-    const simple = resolveFlags(true, {}, false, 'simple')
-    const pro = resolveFlags(true, {}, false, 'pro')
-    expect(simple.renderCompare).toBe(true)
-    expect(pro.renderCompare).toBe(true)
+  it('renderCompare is OFF by default (opt-in) but simple-tier when enabled in both modes', () => {
+    // Default off now — an advanced presentation surface, opt-in.
+    expect(resolveFlags(true, {}, false, 'simple').renderCompare).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').renderCompare).toBe(false)
+    // When explicitly enabled it is simple-tier, so it shows in BOTH modes.
+    expect(resolveFlags(true, { renderCompare: true }, false, 'simple').renderCompare).toBe(true)
+    expect(resolveFlags(true, { renderCompare: true }, false, 'pro').renderCompare).toBe(true)
   })
 
-  it('renderCompare tier is "simple" in the store (present in both modes end-to-end)', () => {
-    // setUiMode calls reresolveFeatureFlags internally.
+  it('renderCompare stays off across a Simple↔Pro flip until explicitly enabled', () => {
+    // setUiMode calls reresolveFeatureFlags internally; a default-off flag stays off.
     useStore.getState().setUiMode('simple')
-    expect(useStore.getState().featureFlags.renderCompare).toBe(true)
+    expect(useStore.getState().featureFlags.renderCompare).toBe(false)
 
     useStore.getState().setUiMode('pro')
-    expect(useStore.getState().featureFlags.renderCompare).toBe(true)
+    expect(useStore.getState().featureFlags.renderCompare).toBe(false)
   })
 })

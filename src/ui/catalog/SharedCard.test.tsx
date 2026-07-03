@@ -29,9 +29,10 @@ describe('SharedCard', () => {
     expect(img.src).toContain('/assets/ikea/alex/white.jpg')
   })
 
-  it('shows Library badge and an IKEA source pill on the thumbnail', () => {
+  it('shows an IKEA source pill on the thumbnail and no Library badge', () => {
     render(<SharedCard item={item} onResolved={() => {}} />)
-    expect(screen.getByText('Library')).toBeTruthy()
+    // The redundant "Library" badge was removed — the IKEA pill alone marks the source.
+    expect(screen.queryByText('Library')).toBeNull()
     const pill = screen.getByText('IKEA')
     expect(pill.className).toContain('source-pill')
     expect(pill.closest('.card-thumb')).toBeTruthy()

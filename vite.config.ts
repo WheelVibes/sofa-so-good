@@ -1,8 +1,28 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { bootPhraseRotatorPlugin } from './scripts/vite-boot-phrases.mjs'
 import { localAssetsPlugin } from './scripts/vite-local-assets.mjs'
+import { APP_VERSION } from './src/version'
+
+/** Emit a tiny `version.json` into the build. It's fetched (cache-busted, over
+ *  the network) by the "New version available" update prompt so it can show the
+ *  version the waiting service worker will install — the running bundle only
+ *  knows its OWN (older) APP_VERSION, so the deployed file is the source of the
+ *  incoming version. */
+function versionManifestPlugin(): Plugin {
+  return {
+    name: 'version-manifest',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: `${JSON.stringify({ version: APP_VERSION })}\n`,
+      })
+    },
+  }
+}
 
 // Dev-only proxies for CC0 asset providers that don't ship CORS headers.
 // Production deployments need an equivalent proxy (Cloudflare Worker etc.) —
@@ -21,6 +41,7 @@ export default defineConfig(({ command }) => ({
   base: process.env.VITE_BASE ?? (command === 'build' ? '/sofa-so-good/' : '/'),
   plugins: [
     react(),
+    versionManifestPlugin(),
     bootPhraseRotatorPlugin(),
     // Dev-only: serve GLBs dropped into `local-assets/` straight into the catalog
     // (no upload pipeline). `apply:'serve'` keeps it out of production builds.

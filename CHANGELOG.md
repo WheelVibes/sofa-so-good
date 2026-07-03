@@ -5,6 +5,64 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT + FIX: mobile editor polish, room dimension markers, room reorder, update UX (v0.12.0.0)
+
+Mobile per-room editor + catalog:
+- **Mobile "pick up a piece" long-press now snaps to top-down.** The catalog long-press arms
+  placement and calls `requestTopView()`; `OrbitCamera`'s top-view fly is now room-aware in the
+  editor (frames the isolated room from straight overhead), so a piece drops onto a clean plan view.
+- **Orbit is frozen while a placement is armed** (`activeDefId` in `controlsEnabled`), so dragging
+  a freshly-picked piece — especially a one-finger touch drag — never doubles as an orbit gesture.
+- **Catalog swipes stay in the catalog** — `overscroll-behavior: contain` on `.card-grid` + the
+  mobile bottom-sheets so a flick can't chain through to the canvas underneath.
+
+Catalog cards:
+- **Removed the redundant "LIBRARY" badge** from shared-library cards; the IKEA pill alone marks it.
+- **Product-photo thumbnails no longer blare white.** IKEA + shared-library cards get a `photo`
+  modifier → soft mode-independent `--photo-tile` background + `mix-blend-mode: multiply`, so the
+  baked white studio background merges into the tile in every theme while the product stays crisp.
+- **Fixed the warped favourite heart icon** — the old path's top-middle valley sat at x=10 (not the
+  x=12 centre), squashing the right lobe; replaced with a symmetric heart.
+
+Measurements (MEASURE-DIMENSION-MARKERS):
+- **Dimension markers replace the floating text overlay.** `MeasurementOverlay` now draws ticked
+  width / depth / height dimension lines (drei `<Line>` + `.dim-label` number pills) on each room's
+  borders when measurements are on — in the per-room editor AND the whole-plan orbit overview. Orbit
+  keeps a minimal centre label per room (name over area). The room-editor **pill** (`RoomEditorCaption`)
+  now shows just `Area: <X.Y m²>` and only when measurements are toggled on, with more top spacing
+  from the toolbar and no piece count.
+
+Room switcher (roomReorder, pro):
+- **Rooms are ordered alphabetically by default** in the per-room editor switcher (and "Edit a room"
+  entry / cycle), with a new **`roomReorder`** pro flag adding a reorder dialog (up/down + reset to
+  A–Z). Order persists per-device (`editorPrefs.roomOrder`).
+
+Navigation:
+- **The brand mark returns you to orbit.** Off the orbit overview (walk / room editor / floor-plan
+  editor) the Sofa So Good mark becomes a button that confirms "Return to orbit mode?" and flies back.
+
+Update flow:
+- **Concise update toast** — "New version available (v<incoming>)" + Update button; the incoming
+  version is read from a build-emitted `version.json` (the running bundle only knows its own older
+  version). Toasts go near-full-width on mobile.
+- **Post-update confirmation** — after the update reloads and the scene paints, a success toast
+  confirms "Updated to v<version>".
+
+Feature gating:
+- **360° panorama, 360° tour, and render-preset compare now default OFF** (opt-in advanced
+  presentation surfaces), still simple-tier when enabled.
+
+Fixes:
+- **Export PNG no longer strands the loading overlay or breaks time-of-day lighting.** The capture
+  stopped bumping the quality tier (a synchronous `gl.render` can't pick up the React-driven tier
+  change and bypasses the post composer anyway) — it was only firing the "Applying … quality"
+  overlay and churning the quality store. Export is now WYSIWYG + supersampled.
+- **Toolbar bottom-sheet section header** (`.m-detail-h`) no longer reads as a bright white band —
+  transparent + frosted backdrop so it matches the sheet surface.
+- **Time-of-day row aligned** — the clock label + slider now share the section's 6px inset instead
+  of running to the panel edge.
+- **InfoCallout hints widen on mobile** so help copy wraps to ~2 lines instead of 4+.
+
 ## TEST: backdrop-upload + furnlight IXT simple rungs back-filled — 2 real bugs flushed out (v0.11.2.14)
 
 - `backdrop-upload-simple.json` (47 steps): backdrop flags/tiers, preset cycle visible through

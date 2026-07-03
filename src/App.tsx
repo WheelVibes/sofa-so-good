@@ -15,6 +15,7 @@ import { isFeatureEnabled } from './features/featureFlags'
 import { useCatalog } from './furniture/catalog'
 import { planDuplicates } from './furniture/duplicatePlacement'
 import { tidyHome } from './layout/tidyHome'
+import { consumeJustUpdated } from './pwa/swUpdate'
 import { cameraForwardXZ } from './scene/cameras/cameraForward'
 import { FinishDragOverlay } from './scene/FinishDragOverlay'
 import { MobileLongPress } from './scene/MobileLongPress'
@@ -98,6 +99,7 @@ import { WalkHud } from './ui/WalkHud'
 import { WallAccentPicker } from './ui/WallAccentPicker'
 import { WebGLFallback } from './ui/WebGLFallback'
 import { WalkJoystick } from './ui/walk/WalkJoystick'
+import { APP_VERSION } from './version'
 
 export default function App() {
   const toggleMeasurements = useStore((s) => s.toggleMeasurements)
@@ -176,6 +178,19 @@ export default function App() {
       if (id2) cancelAnimationFrame(id2)
     }
   }, [bootPhase])
+
+  // After an update reload: once the scene is on screen (boot finished), confirm
+  // the new version with a success toast. `consumeJustUpdated` self-clears so it
+  // fires exactly once per update.
+  useEffect(() => {
+    if (booting) return
+    if (!consumeJustUpdated()) return
+    useStore.getState().notify.start({
+      kind: 'success',
+      title: `Updated to v${APP_VERSION}`,
+      autoDismissMs: 6000,
+    })
+  }, [booting])
 
   // Phase 3: scene warmed — fade the static cover out, then remove it.
   useEffect(() => {
