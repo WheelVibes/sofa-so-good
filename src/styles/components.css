@@ -362,6 +362,12 @@ body.mobile .tip::after { content: none; }
 .menu-item:hover { background: var(--surface-3); color: var(--text); }
 /* Contextual docs "?" affordance on a menu row (DOCS-DEEPLINK). */
 .menu-item-wrap { position: relative; }
+/* 32px vs the plain row's 9px (--row-pad-x) is intentional, not drift: this
+   reserves room for the absolutely-positioned 22px .mi-help button (right:
+   6px), which fades in on hover/focus rather than shifting layout. A .mi-kbd
+   chip in a docs row therefore sits at a wider right-inset than in a plain
+   row — both insets are correct for their row, just different because only
+   docs rows carry the help affordance. */
 .menu-item-wrap .menu-item { padding-right: 32px; }
 .mi-help {
   position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
