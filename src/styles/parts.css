@@ -159,6 +159,10 @@
 .cat-card .nm > span { min-width: 0; }
 .cat-card .pr { font-size: var(--t-2xs); color: var(--text-3); }
 .cat-card .pr b { color: var(--accent-soft-text); font-weight: 700; }
+/* Heavy-download hint (RemoteCard, ≥30MB at the chosen resolution) — same warn
+   treatment as `.badge.warn`/`.lyr-flag.warn`, never a literal hex. */
+.cat-card .pr.warn { color: oklch(0.52 0.13 65); }
+[data-mode='dark'] .cat-card .pr.warn { color: oklch(0.82 0.12 78); }
 
 .pager { display: flex; align-items: center; justify-content: space-between; padding: var(--s-2) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-xs); color: var(--text-3); font-weight: 600; }
 .pager button { padding: 4px 8px; border-radius: var(--r-2); color: var(--text-2); }
