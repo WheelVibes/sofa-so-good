@@ -9,7 +9,7 @@ import { type FloorPlan, planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
-import { flyDurationFor, smoothstep as smooth } from './cameraTween'
+import { flyDurationFor, flyPose, smoothstep as smooth } from './cameraTween'
 import { VIEW_TOUR_LEG_SECONDS, type ViewTourFrame, viewTourFrames } from './viewTour'
 
 interface Framing {
@@ -226,8 +226,20 @@ export function OrbitCamera() {
     if (fly.current) {
       fly.current.t = Math.min(1, fly.current.t + dt / fly.current.dur)
       const f = smooth(fly.current.t)
-      camera.position.lerpVectors(fly.current.fromPos, fly.current.toPos, f)
-      c.target.lerpVectors(fly.current.fromTgt, fly.current.toTgt, f)
+      // Spherical (orbit-relative) interpolation, not a raw Cartesian lerp —
+      // see TV-SNAP in cameraTween.ts. A straight-line position/target lerp
+      // implies an unstable, discontinuous azimuth right as the destination
+      // approaches straight-overhead (top view), which OrbitControls' internal
+      // lookAt then renders as a violent rotational snap on the final frame(s).
+      const { pos, target } = flyPose(
+        [fly.current.fromPos.x, fly.current.fromPos.y, fly.current.fromPos.z],
+        [fly.current.fromTgt.x, fly.current.fromTgt.y, fly.current.fromTgt.z],
+        [fly.current.toPos.x, fly.current.toPos.y, fly.current.toPos.z],
+        [fly.current.toTgt.x, fly.current.toTgt.y, fly.current.toTgt.z],
+        f,
+      )
+      camera.position.set(pos[0], pos[1], pos[2])
+      c.target.set(target[0], target[1], target[2])
       c.update()
       if (fly.current.t >= 1) fly.current = null
       // Keep the live pose singleton current even mid-fly.
