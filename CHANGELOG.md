@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: PLAN-FURNISH implementation plan + risk assessment (v0.12.0.14)
+
+Architectural design doc (`docs/research/2026-07-03-plan-furnish-implementation-plan.md`)
+for adding furniture placement in the 2D plan editor (PLAN-FURNISH gap). Key
+de-risking finding, verified against source: the 2D plan editor already mutates
+`store.items` via the same pure `canPlace`/`addItem` path (`addItem` is NOT
+`canEditScene`-gated; move/rotate/scale already work in 2D; `FurnitureLayer`
+already renders footprints), so the feature only adds the missing "add" verb and
+does NOT need to touch the `canEditScene` / VIEW-EDIT-SPLIT invariant. Staged
+into 4 independently-shippable flag-gated phases; recommends proceeding with
+Phase 1 (desktop click-to-place, ~4–6 dev-days, `pro`-tier `planFurnish` flag),
+deferring Phase 4 (HTML5 drag-from-catalog).
+
 ## DOCS: core-loop parity gap audit → backlog (v0.12.0.13)
 
 Competitive audit of the core design loop (furnish/arrange/finish/view) against
