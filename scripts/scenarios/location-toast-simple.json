@@ -1,0 +1,34 @@
+{
+  "name": "location-toast-simple",
+  "description": "Completing the location prompt via geolocation fires a success toast carrying the parsed location.",
+  "url": "http://localhost:5225/",
+  "keepFirstRun": true,
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "stub-geolocation-and-reverse-geocode",
+      "eval": "(() => { Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition: (ok) => ok({ coords: { latitude: 1.3521, longitude: 103.8198 } }) }, configurable: true }); const realFetch = window.fetch.bind(window); window.fetch = async (input, init) => { const url = typeof input === 'string' ? input : input.url; if (url.includes('nominatim.openstreetmap.org/reverse')) { return new Response(JSON.stringify({ display_name: 'Singapore' }), { status: 200, headers: { 'Content-Type': 'application/json' } }); } return realFetch(input, init); }; })()"
+    },
+    {
+      "name": "dismiss-onboarding-only",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false)"
+    },
+    { "name": "prompt-visible", "waitFor": { "text": "Where are you?" }, "timeout": 8000, "failMessage": "Location prompt did not open" },
+    { "name": "shot-prompt", "screenshot": "location-prompt" },
+    { "name": "click-use-my-location", "click": { "text": "Use my location" } },
+    {
+      "name": "location-resolved",
+      "waitFor": { "store": "state.location !== null" },
+      "timeout": 8000,
+      "failMessage": "location did not get set after geolocation completed"
+    },
+    {
+      "name": "toast-visible",
+      "waitFor": { "text": "Location set" },
+      "timeout": 8000,
+      "failMessage": "success toast did not appear"
+    },
+    { "name": "settle", "wait": 300 },
+    { "name": "shot-toast", "screenshot": "location-toast" }
+  ]
+}
