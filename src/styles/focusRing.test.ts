@@ -29,7 +29,11 @@ describe('P14 unified focus ring', () => {
   })
   it('hardcodes no colour literals in the new focus block', () => {
     const components = read('./components.css')
-    const block = components.slice(components.indexOf('--- Unified focus ring'))
+    const start = components.indexOf('--- Unified focus ring')
+    const end = components.indexOf('--- end unified focus ring', start)
+    expect(start).toBeGreaterThanOrEqual(0)
+    expect(end).toBeGreaterThan(start)
+    const block = components.slice(start, end)
     expect(block).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
   })
 })

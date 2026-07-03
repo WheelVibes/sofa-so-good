@@ -37,6 +37,7 @@ input { font-family: inherit; }
   outline: none;
   box-shadow: var(--focus-ring);
 }
+/* --- end unified focus ring ---------------------------------------- */
 .icn { display: block; flex: none; }
 .mono { font-family: var(--font-mono); font-feature-settings: 'tnum' 1; letter-spacing: -0.02em; }
 
