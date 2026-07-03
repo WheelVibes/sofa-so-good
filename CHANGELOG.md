@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## CI: workflow now runs the full test suite (two parallel shards) (v0.11.2.4)
+
+- The CI workflow only ran format/typecheck/lint — the 4.8k-test suite never gated merges. New
+  `test` job runs `vitest run --shard=1/2|2/2` as a two-job matrix (`fail-fast: false`), using
+  the just-landed suite speedups so each shard stays around a minute.
+
 ## PERF: test suite ~2x faster (4m07s → ~2m03s) with zero coverage lost (v0.11.2.3)
 
 - **Default test environment is now `node`** — only the ~120 DOM test files opt in via a

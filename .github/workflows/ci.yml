@@ -30,3 +30,23 @@ jobs:
       # test files remain, which Biome does not fail on by default).
       - name: Lint
         run: npm run lint
+
+  test:
+    name: Tests (shard ${{ matrix.shard }}/2)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci
+
+      # Full unit/integration suite, split across two parallel shards
+      # (~4.8k tests; node-default env + threads pool keep each shard ~1 min).
+      - name: Run test suite
+        run: npx vitest run --shard=${{ matrix.shard }}/2
