@@ -526,10 +526,11 @@ to "Close curtains" → store-action toggle back. **Key gotchas learned here:**
 - **Teleporting the walk camera works via `window.__three.camera.position.x/.z`** — the
   FirstPersonCamera frame loop only writes x/z on movement input (y is owned by `yPos`+bob, and
   the *orientation* is re-asserted every frame from internal yaw/pitch refs seeded at spawn).
-  So you can move the walker anywhere, but you CANNOT re-aim it — pick a teleport spot such
-  that the spawn look direction (≈`(-0.17, -0.99)` for the default flat) already points at your
-  target within the 2 m interact radius. Walk mode is `isContinuous`, so the aim loop ticks
-  headlessly without store nudges.
+  So you can move the walker anywhere, but you CANNOT re-aim its *yaw* — pick a teleport spot
+  such that the spawn look direction (≈`(-0.17, -0.99)` for the default flat) already points at
+  your target within the 2 m interact radius. Walk mode is `isContinuous`, so the aim loop ticks
+  headlessly without store nudges. (*Pitch* — but only pitch — became drivable later via the
+  dev-only `window.__walkLook` lever; see the ceiling-design worked example below.)
 - **The R3F mesh-click limitation applies to the fixture/door click path** — verify the click
   branch through its store action (`toggleWindowFixture` / `toggleDoor`) and let unit tests
   cover the `onClick` gate; the E-key path is fully drivable headless (`{"key": "KeyE"}` reaches
@@ -610,6 +611,44 @@ gotchas:
   states under `lightsMode: 'auto'`-independent darkness — the point light's absence has no visual
   contrast to show. Use dusk (~19:30) instead: dark enough for the point light's warm pool to read
   clearly, bright enough that the "unlit" shot still shows the room's silhouette instead of a void.
+
+### Worked example — walk-mode ceiling-design look-up (IXT-SUITES ceilingDesign rung)
+
+**`ceilingdesign-walk-simple.json`** proves the pro-tier `ceilingDesign` treatments render from
+below: Simple-mode flag-off assert → Pro → tray (drop 0.3, margin 0.6, orange cove) on
+`livingDining` → walk mode → look-up screenshot → switch to coffered 3×3 → second look-up →
+back to orbit (config persists). Gotchas learned here:
+
+- **Pitching the walk camera headlessly needs the dev `__walkLook` lever.** Both real look
+  inputs are undrivable: desktop mouse-look requires OS Pointer Lock (unavailable headless) and
+  touch-look requires a coarse-pointer profile + synthetic multi-touch streams. The teleport
+  gotcha above (position writes stick, orientation can't be re-aimed) covers *where you stand*
+  but not *pitch*. `FirstPersonCamera` therefore exposes a permanent dev-only
+  `window.__walkLook = { setPitch(rad), getPitch() }` (mounted only while walk mode is active,
+  removed on exit) that writes the same clamped `pitch` ref the frame loop re-asserts the camera
+  quaternion from every frame — so a scenario pitch sticks exactly like a real look-up.
+  `setPitch(1.0)` ≈ 57° up; the ±1.5 rad `MAX_PITCH` clamp applies.
+- **A near-vertical pitch from the room centre produces a featureless frame that proves
+  nothing.** At pitch ≥1.3 under a 2.6 m ceiling the FOV covers only ~±1 m of ceiling directly
+  overhead — for a tray treatment that's the flat centre panel, a uniform grey rectangle
+  indistinguishable from "no feature at all" (a first cut of this scenario passed every store
+  assert and failed visual review exactly this way). Compose the shot instead: teleport to
+  ~1 m horizontal from a recess/beam edge (elevation ≈ 42° at eye height 1.6) and pitch ~1.0 so
+  the frame step, riser, and cove strip are all IN frame with the centre panel behind them.
+- **Don't turn ceiling lights on for a pitched-up shot.** The point light sits straight ahead of
+  a look-up camera; on High tier the bloom blows the entire frame to white and the geometry
+  vanishes. Daylight ambient (hour 13) already shades the two ceiling levels distinctly — the
+  lighter dropped frame/beams read clearly against the darker recessed base panel.
+- `setQualityTier('high')` first (risers + cove strips are High/Maximum-only in `RoomCeiling`),
+  then `hideLoading()` — the tier switch raises the transition overlay, which under SwiftShader
+  can outlive its readiness signal and cover the canvas.
+- **`setRoomCeiling` on the default flat forks the plan** (`forkIfDefault`), flipping rendering
+  to the custom-plan path (`PlanRoomCeiling`) and the walk spawn to the custom-plan
+  largest-room rule — for the default flat that's still `livingDining`, spawning mid-room
+  looking north (−z). Also note `buildCeiling` falls back to a FLAT ceiling for non-rectangular
+  polygons: if you design a ceiling on a custom L-shaped/free-form room and see no treatment,
+  that fallback (not a render bug) is why — `livingDining` works because the default plan keeps
+  its main rect and `extension` as separate rectangles.
 
 ---
 

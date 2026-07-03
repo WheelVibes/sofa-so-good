@@ -275,6 +275,30 @@ export function FirstPersonCamera() {
     }
   }, [gl])
 
+  // Dev-only: scenario-harness lever to set/read the walk-mode look pitch
+  // directly (IXT-SUITES ceilingDesign rung — "look up to see the ceiling").
+  // Real mouse-look needs OS-level Pointer Lock (unavailable headless) and
+  // touch-look needs a synthetic multi-touch drag stream on a coarse-pointer
+  // profile; both are impractical to drive deterministically from a scenario.
+  // This is the minimal, narrowly-scoped lever: it writes the SAME `pitch` ref
+  // the frame loop already re-asserts the camera orientation from every frame
+  // (see the curtain-interact gotcha in the playbook), so it sticks exactly
+  // like a real look-up would, with no other behaviour change.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const clampPitch = (p: number) => Math.max(-MAX_PITCH, Math.min(MAX_PITCH, p))
+    const lever = {
+      setPitch: (p: number) => {
+        pitch.current = clampPitch(p)
+      },
+      getPitch: () => pitch.current,
+    }
+    ;(window as unknown as { __walkLook?: typeof lever }).__walkLook = lever
+    return () => {
+      delete (window as unknown as { __walkLook?: typeof lever }).__walkLook
+    }
+  }, [])
+
   useEffect(() => {
     if (roomEditorId) {
       // Spawn in the centre of the isolated room, looking toward its far edge

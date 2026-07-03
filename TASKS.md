@@ -37,9 +37,12 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   path (load → reparent at the slot anchor → per-slot `listFinishTargets` namespacing). The v1
   products are all-procedural, so this is gated on sourcing a suitable CC0 GLB option to bundle.
 - [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces, GLB-designer
-  re-rung, ceilingDesign (needs walk-mode look-up), livePrices. (crown-molding, backdrop-upload and
+  re-rung, livePrices. (crown-molding, backdrop-upload and
   furnlight simple rungs landed — `crown-molding-simple.json` v0.11.2.13,
-  `backdrop-upload-simple.json` + `furnlight-simple.json` v0.11.2.14.)
+  `backdrop-upload-simple.json` + `furnlight-simple.json` v0.11.2.14; **ceilingDesign simple rung
+  landed** — `ceilingdesign-walk-simple.json`: Simple/Pro flag gate, tray+cove then coffered 3×3
+  applied to livingDining, walk-mode look-up via the dev-only `__walkLook` pitch lever proves both
+  treatments render from below.)
   - first-run re-rungs: **persistence re-rung landed** (`first-run-returning-user.json`) — clean-profile
     carousel → top-nav "Skip" (the third dismissal path, beyond the tour / Enter-sandbox choices the
     other first-run scenarios cover) persists `hdb_onboarded='1'` → a real `location.reload()` proves

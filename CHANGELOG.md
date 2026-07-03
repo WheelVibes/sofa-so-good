@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: ceilingDesign walk-mode look-up IXT scenario (v0.12.0.7)
+
+IXT-SUITES ceilingDesign rung — `ceilingdesign-walk-simple.json` (32 steps,
+4 screenshots): Simple-mode gate assert (`ceilingDesign` flag off), tray+cove
+then coffered 3×3 applied to livingDining in Pro, walk-mode look-up via the new
+dev-only `__walkLook` pitch lever (`FirstPersonCamera.tsx` — mouse-look needs
+OS Pointer Lock, unavailable headless; the lever writes the same clamped pitch
+ref as a real look-up, DEV-gated + unmounted with walk mode), config
+persistence asserted across mode switches. Screenshots visually confirmed:
+tray recess + perimeter band + corner risers + glowing cove strip; coffered
+beam grid in perspective; orbit view unaffected. Playbook: worked example +
+5 new gotchas (+ a pitch-note fix in the curtain example).
+
 ## PERF: whole-scene 3D export runs on a Worker for very large scenes (v0.12.0.6)
 
 Q-3DEXPORT tail — `GLTFExporter.parse()` is a single un-yielding synchronous
