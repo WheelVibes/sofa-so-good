@@ -14,6 +14,22 @@ import { MAX_GLB_BYTES } from './validate'
  *  responsive so a huge import can't starve the render loop / WebGL context. */
 export const COMMIT_BATCH = 25
 
+/**
+ * IO-002 early-gate headroom: a pre-optimize GLB is only rejected up front
+ * when it exceeds `EARLY_REJECT_MULTIPLIER × MAX_GLB_BYTES`. The multiplier
+ * exists because the optimize pass routinely shrinks a model 5-10× (Draco
+ * geometry re-pack + WebP texture re-encode), so a strict pre-optimize check
+ * at `MAX_GLB_BYTES` would wrongly reject legitimately compressible uploads
+ * (e.g. a 30 MB source that optimizes to 8 MB) — the post-optimize gate exists
+ * precisely so those succeed. 3× keeps that chance open for any plausibly
+ * compressible file (25-75 MB at the current 25 MB cap) while still cutting
+ * off the hopeless case the early gate targets — a dense CAD-exported convert
+ * lands in the hundreds of MB, far past this line, and would only burn an
+ * optimize-pool slot to be rejected afterward anyway. The real cap is always
+ * enforced post-optimize on the actual bytes that would be stored.
+ */
+export const EARLY_REJECT_MULTIPLIER = 3
+
 export interface BulkImportOptions {
   category: FurnitureCategory
   mounted?: boolean
@@ -92,12 +108,29 @@ async function prepareGlb(
     glb = (await convertModel(entry, siblings)).glb
   }
   const buf = new Uint8Array(await glb.arrayBuffer())
+  // IO-002 (early gate): reject a HOPELESSLY oversized converted/raw GLB
+  // BEFORE the optimize/LOD pass — Draco re-pack + texture re-encode is the
+  // most expensive step in the pipeline (runs in a pooled Worker, but still
+  // costs a slot + CPU), so a file that can't plausibly fit under the cap
+  // even after optimizing shouldn't burn a slot only to be rejected
+  // afterward anyway. "Hopeless" = over EARLY_REJECT_MULTIPLIER × the cap
+  // (see that constant for the rationale) — a merely over-cap but plausibly
+  // compressible file (e.g. 30 MB → 8 MB) is NOT rejected here; it proceeds
+  // to optimize and the post-optimize gate below enforces the real limit.
+  if (buf.byteLength > EARLY_REJECT_MULTIPLIER * MAX_GLB_BYTES) {
+    const mb = (buf.byteLength / 1_048_576).toFixed(1)
+    const cap = MAX_GLB_BYTES / 1_048_576
+    throw new Error(
+      `Converted model is ${mb} MB — even after optimization this can't fit under the ${cap} MB limit. Try a simpler model or fewer/smaller textures.`,
+    )
+  }
   const { data, lods } = await runOptimize(buf, { ktx2: opts.ktx2 }, { lodTiers: opts.lodTiers })
-  // IO-002: reject an over-limit result against the GLB ceiling with a CLEAR,
-  // conversion-aware message — instead of letting `persistUserGlb`'s generic
-  // "file too large" fire after the full pipeline. We check the POST-optimize
-  // size (the real size that would be stored), so a compressible model that
-  // shrinks under the cap is never wrongly rejected.
+  // IO-002 (post-optimize gate): the REAL cap, enforced on the actual bytes
+  // that would be stored, with a CLEAR, conversion-aware message — instead of
+  // letting `persistUserGlb`'s generic "file too large" fire after the full
+  // pipeline. Checking the final (post-shrink) size means a compressible
+  // model that optimizes under the cap is never wrongly rejected — only a
+  // model that stayed over the cap even after its optimize chance fails here.
   if (data.byteLength > MAX_GLB_BYTES) {
     const mb = (data.byteLength / 1_048_576).toFixed(1)
     const cap = MAX_GLB_BYTES / 1_048_576

@@ -292,4 +292,26 @@ async function exposeDevHelpers(): Promise<void> {
     ;(window as unknown as { __detectGroupsResult?: unknown }).__detectGroupsResult = result
     return result
   }
+  // Expose the bulk GLB import path (convert → optimize-pool → LOD → persist)
+  // so the scenario harness can drive a REAL import with REAL `Worker`
+  // construction — unlike the Node/happy-dom unit tests, a real browser can
+  // actually spin up the optimize worker POOL (`runOptimize.ts`), so this is
+  // the only way to exercise it end-to-end outside a live upload. `filesB64`
+  // are base64-encoded GLB bytes with a display name; `opts` is passed through
+  // to `importGlbFiles` (category, concurrency, ktx2, lodTiers, …).
+  const { importGlbFiles } = await import('../../furniture/upload/bulkImport')
+  ;(window as unknown as { __importGlbFiles?: unknown }).__importGlbFiles = async (
+    filesB64: Array<{ name: string; b64: string }>,
+    opts: Parameters<typeof importGlbFiles>[1],
+  ) => {
+    const files = filesB64.map((f) => {
+      const bin = atob(f.b64)
+      const bytes = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      return new File([bytes], f.name, { type: 'model/gltf-binary' })
+    })
+    const result = await importGlbFiles(files, opts)
+    ;(window as unknown as { __importGlbFilesResult?: unknown }).__importGlbFilesResult = result
+    return result
+  }
 }

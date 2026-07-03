@@ -15,9 +15,17 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
   the catalog with NO upload pipeline (convert/optimize/IDB). Dev-only Vite plugin
   (`scripts/vite-local-assets.mjs`) serving `/@local-assets/*`, `localAssets` devOnly flag,
   `localAssetsSlice` (`bootstrapLocalAssets`), `LocalGltfDef` source, merged in `catalog.ts`.
-- **Upload parallelization (Part 1b).** Replace the single optimize Worker
-  (`optimize/runOptimize.ts`) with a worker POOL (biggest bulk-import win); then move `convertModel`
-  off the main thread; early GLB size-cap check before optimize (IO-002).
+- **Upload parallelization (Part 1b) — pool + early size-cap done, one item left.** The optimize
+  worker POOL (`optimize/runOptimize.ts`, hardware-aware `computePoolMax`, spawn-on-contention,
+  per-worker error retirement) shipped in v0.9.0.65; it now also idle-tears-down a worker (terminates
+  + drops it from the pool) after 30s with no pending calls, so a bulk-import burst doesn't hold its
+  peak worker count (each holds a heavy Draco/Basis WASM stack) for the rest of the session. The
+  IO-002 early GLB size-cap gate (`bulkImport.ts:prepareGlb`) rejects a *hopelessly* oversized
+  converted/raw GLB — pre-optimize size > `EARLY_REJECT_MULTIPLIER` (3) × `MAX_GLB_BYTES` (>75 MB
+  at the 25 MB cap) — **before** the optimize/LOD pass, so a dense CAD convert doesn't burn a pool
+  slot. The multiplier headroom matters: optimize routinely shrinks 5-10×, so a between-cap-and-3×cap
+  file (30 MB → 8 MB) keeps its optimize chance and the post-optimize check stays the real cap.
+  Remaining: move `convertModel` off the main thread (medium effort/risk — sequence as a follow-up).
 - **Scrapers (Part 3).** `research/scrapers/` has 35 working scrapers with complete enumeration;
   finalized tiering in the plan doc. Next: run Tier-1 CC0 scrapers into `local-assets/` (pairs with
   Part 1), then surface Poly Haven models in prod (`remoteFurniture` flag).

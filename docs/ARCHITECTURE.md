@@ -164,10 +164,24 @@ same change that reshapes a system.
   pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`;
   `lodVariants.ts` in-browser `-low`/`-medium` tier generation for uploads — meshopt simplify
   + tier texture caps from `gltf/lod.ts` `TIER_BUDGETS`, stored in IDB under
-  `<assetId>:lod-<tier>` keys, routed by the `lod.ts` variant registry);
+  `<assetId>:lod-<tier>` keys, routed by the `lod.ts` variant registry; `runOptimize.ts` is the
+  main-thread entry — a **worker POOL**, not a single worker: `computePoolMax(cores,
+  deviceMemory)` = `cores - 1` (hard-capped `HARD_POOL_MAX`=8, downshifted on low-RAM devices),
+  workers spawn lazily **on contention** (`pickWorker` reuses an idle worker before growing the
+  pool) and **idle-teardown** (terminate + drop) after `IDLE_TEARDOWN_MS` once a worker's queue
+  empties — each holds a heavy Draco/Basis WASM stack, so the pool sheds back down after a bulk
+  burst instead of holding its peak size all session. A worker `error`/`messageerror` retires
+  only that worker (its queued calls fall back to the unoptimized original; the rest of the pool
+  is unaffected); no Worker available at all (e.g. tests) falls back to a direct in-thread call.
+  Mock-`Worker` pool tests: `runOptimize.pool.test.ts`);
   `ikea/` (`metadata`/`translate`/`importGroup`/`compatibility`/`detectGroups`/`stacking`/
   `supportPlane`/`thumbnail`/`ikeaSets`); `upload/` (`bulkImport.ts` `prepareModelFile`=
-  convert+optimize+`persistUserGlb`, `hashFile.ts` dedupe, `readDrop.ts` (drag-drop walk),
+  convert+optimize+`persistUserGlb` — `prepareGlb` runs the IO-002 early size-cap gate **before**
+  `runOptimize`: only a HOPELESSLY oversized converted/raw GLB (> `EARLY_REJECT_MULTIPLIER`(3) ×
+  `MAX_GLB_BYTES`) is rejected up front (never burns a pool slot); a merely over-cap file keeps
+  its optimize chance (Draco+WebP routinely shrink 5-10×) and the post-optimize check enforces
+  the real `MAX_GLB_BYTES` cap on the actual stored bytes, `hashFile.ts`
+  dedupe, `readDrop.ts` (drag-drop walk),
   `pickDirectory.ts` (**File System Access** folder pick on Chromium — no native "upload N files?"
   prompt + live scan progress; falls back to the native `<input webkitdirectory>` elsewhere),
   `coalesceProgress.ts` (rAF progress throttle), `runImport.ts`

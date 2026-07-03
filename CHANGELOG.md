@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PERF/IO-002: optimize-pool idle teardown + hopeless-size early gate (v0.12.0.5)
+
+- Optimize pool workers idle-teardown (terminate + drop) after 30s with no pending
+  calls, and an errored (retired) worker is now actually terminated, not just
+  dropped — each worker holds a heavy Draco/Basis WASM stack, so a bulk-import
+  burst no longer holds its peak worker count for the rest of the session.
+- New `EARLY_REJECT_MULTIPLIER` (3): a converted GLB > 3× `MAX_GLB_BYTES` (75 MB)
+  is rejected BEFORE burning an optimize-pool slot ("even after optimization this
+  can't fit"), while a merely over-cap 25–75 MB compressible file keeps its
+  optimize chance and the post-optimize check still enforces the real 25 MB cap.
+- Mock-Worker pool lifecycle tests (`runOptimize.pool.test.ts`) + both-sides gate
+  tests; real-browser verified end-to-end via the new dev-only `__importGlbFiles`
+  hook (2 imported, hopeless file skipped, in a live Chromium with real Workers).
+
 ## TEST: first-run persistence IXT scenario (v0.12.0.4)
 
 IXT-SUITES first-run re-rung — `first-run-returning-user.json` (23 steps): clean

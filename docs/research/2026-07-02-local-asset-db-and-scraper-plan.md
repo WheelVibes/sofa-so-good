@@ -69,23 +69,36 @@ extra process. (A sidecar remains the right pattern for the *scraper* work in Pa
 The pipeline is already well-built (bounded worker pool in `bulkImport.ts`,
 `COMMIT_BATCH=25`, source-hash dedup, best-effort optimize/LOD). Concrete wins found:
 
-1. **Optimize worker POOL (highest value).** `optimize/runOptimize.ts:36` uses a **single
-   module-level `Worker`**. So `bulkImport`'s `concurrency=4` files all funnel their
-   optimize+LOD through **one** worker thread → serialized. Replace with a small pool of
-   `min(navigator.hardwareConcurrency-1, 4..8)` workers, round-robin, with the same
-   `messageerror`/failAll fallback per worker. This is the single biggest throughput win
-   for bulk imports.
-2. **Move conversion off the main thread (medium).** `convert/convertModel.ts` runs three.js
-   loaders + `GLTFExporter` on the **main thread**, competing with the render loop and
+1. **Optimize worker POOL (highest value) — DONE.** `optimize/runOptimize.ts` used a single
+   module-level `Worker`, serializing every file's optimize+LOD through one thread regardless
+   of `bulkImport`'s `concurrency`. Replaced with a pool sized by `computePoolMax(cores,
+   deviceMemory)` = `cores - 1`, hard-capped at `HARD_POOL_MAX` (8) and downshifted on
+   low-RAM devices (shipped v0.9.0.65). Workers spawn **on contention** (`pickWorker`) and
+   idle-teardown (terminate + drop from the pool) after `IDLE_TEARDOWN_MS` (30s) with no
+   pending calls, so a burst doesn't hold its peak worker count for the rest of the session
+   (2026-07-03). A worker `error`/`messageerror` retires only that worker — its own queued
+   calls fall back to the unoptimized original, the rest of the pool is unaffected. Unit-tested
+   with a mock `Worker` (`runOptimize.pool.test.ts`): burst > pool size, mid-task error, and
+   idle teardown/timer-cancel-on-reclaim.
+2. **Move conversion off the main thread (medium) — open.** `convert/convertModel.ts` runs
+   three.js loaders + `GLTFExporter` on the **main thread**, competing with the render loop and
    serialized across files. Most loaders (OBJ/FBX/STL/PLY) don't need the DOM → run in a
-   worker. Higher effort/risk; sequence after the optimize pool.
-3. **Early size-cap checks (correctness+speed, from IO-002).** Check the *converted* GLB
-   byte length against `MAX_GLB_BYTES` **before** the optimize/LOD pass so an over-limit
-   convert doesn't burn full optimize CPU only to be rejected. Also gate texture decode on
-   `file.size` before `decodeImage` (IO-001).
-4. **Tune `concurrency`** default from 4 → `hardwareConcurrency`-aware once the pool exists.
+   worker. Higher effort/risk; the natural follow-up now that the optimize pool is done.
+3. **Early size-cap checks (correctness+speed, from IO-002) — DONE (GLB half).** `bulkImport.ts:
+   prepareGlb` now rejects a *hopelessly* oversized converted/raw GLB **before** the optimize/LOD
+   pass (2026-07-03): pre-optimize size > `EARLY_REJECT_MULTIPLIER` (3) × `MAX_GLB_BYTES` — i.e.
+   >75 MB at the current 25 MB cap — is refused up front instead of burning a worker-pool slot on
+   Draco/texture re-encoding it would fail anyway (a dense CAD-exported convert lands in the
+   hundreds of MB, far past this line). Crucially the early gate is **not** the strict cap:
+   optimize routinely shrinks 5-10× (Draco geometry + WebP textures), so a between-cap-and-3×cap
+   file (e.g. 30 MB → 8 MB) keeps its optimize chance, and the **post-optimize** check remains the
+   real cap, enforced on the actual bytes that would be stored. Texture decode gating on
+   `file.size` before `decodeImage` (IO-001) was already done separately (v0.8.0.32).
+4. **Tune `concurrency`** default from 4 → `hardwareConcurrency`-aware — open (the pool itself is
+   now hardware-aware; `bulkImport`'s own `concurrency` option, which bounds convert+persist
+   fan-out ahead of the pool, is still a flat default of 4).
 
-Start with #1 (self-contained, big win, low risk); #3 folds in cheaply; #2 is a follow-up.
+Remaining: #2 (convert off main thread) and #4 (tune `concurrency`).
 
 ---
 

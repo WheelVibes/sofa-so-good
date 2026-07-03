@@ -457,6 +457,43 @@ the pagination fix. **Key gotchas learned here:**
   count as loose. The fixture puts one `w.glb` under each `bulk/g<i>/` (not loose) and two at
   `bulk/loose-*.glb` (loose) to exercise both branches of `looseModelFiles`.
 
+### Worked example — optimize worker pool + IO-002 early size-cap gate (2026-07-03)
+
+Verifying the **optimize worker POOL** (`optimize/runOptimize.ts`) end-to-end needs a REAL
+`Worker` — the default node test environment can't construct one (`pickWorker` returns `null`
+and `runOptimize` always takes its direct-call fallback there), so unit tests exercise the pool's
+queueing/lifecycle with a **mock `Worker`** (`runOptimize.pool.test.ts`, `vi.stubGlobal('Worker',
+FakeWorker)` + `vi.resetModules()` per test for a clean pool) — that covers the logic, but not
+"does a real browser actually spin up N workers and route jobs through them." For that, a
+dev-only hook + an ad-hoc (not checked in) scenario:
+- **`bootstrap.ts` exposes `__importGlbFiles`** (dev-only, mirroring `__persistUserMaterial`/
+  `__detectGroups`): pass `[{name, b64}]` (base64 GLB bytes) + `BulkImportOptions`, it rebuilds
+  `File`s and runs the real `importGlbFiles` (convert → optimize-pool → LOD → persist), recording
+  the `BulkImportResult` on `window.__importGlbFilesResult`. This is now permanent (like the other
+  dev hooks) so a future scenario can reuse it without re-adding the lever.
+- **Build an oversized GLB client-side, don't embed a huge base64 blob in the eval script.**
+  Embed one small valid fixture (e.g. `duck.glb`, ~120KB → ~160KB base64) and in the page pad a
+  fresh `Uint8Array(EARLY_REJECT_MULTIPLIER * MAX_GLB_BYTES + slack)` (>75 MB — the early gate
+  only rejects HOPELESS files past the 3× multiplier, not merely over-cap ones) with its bytes
+  (the glTF magic header is all that needs to be valid — the IO-002 early gate fires on raw byte
+  length before any real GLB parsing). A 3-file batch (2 distinct-content normal GLBs + 1
+  synthetic hopeless one) through `__importGlbFiles(files, {category:'decor'})`, gated the same
+  fire-and-forget way as `__detectGroups` (`waitFor: {store: "!!window.__importGlbFilesResult"}`),
+  confirmed: `imported === 2`, `skipped.length === 1`, and the skip reason contains "even after
+  optimization this can't fit" (the early, pre-optimize gate — distinct from the post-optimize
+  gate's "over the N MB limit even after optimization" message) — i.e. the hopeless file was
+  rejected without ever reaching the expensive optimize pass. ~15-25s wall time in SwiftShader
+  headless Chromium (dominated by the two real optimize passes + hashing the 75 MB fixture,
+  wasm-permitting — see next point). Worker pool + IO-002 code lives in
+  `furniture/upload/bulkImport.ts` + `furniture/optimize/runOptimize.ts`.
+- **This sandbox's headless Chromium fails to compile the Draco/Basis wasm** (`wasm streaming
+  compile failed … Incorrect response MIME type`, then `CompileError: … expected magic word …
+  found 3c 21 64 6f` — that's `<!do`, i.e. the wasm request got an HTML error page). This is a
+  pre-existing sandbox/proxy quirk, not a regression: `optimizeGlb`'s `getIO()` treats a failed
+  Draco registration as best-effort (falls back to un-Draco'd output) and any doc-transform
+  failure returns the input unchanged — so the import still succeeds, just without compression.
+  Don't chase this wasm error when verifying optimize-pipeline changes here; it's environmental.
+
 ### Worked example — 2D plan align/distribute/mirror (PARITY-PLAN-ALIGN)
 
 **`plan-align-distribute-mirror.json`** seeds 3 furniture items inside the largest room,

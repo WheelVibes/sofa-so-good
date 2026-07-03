@@ -4,7 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import 'fake-indexeddb/auto'
 import { IdbAssetStore } from '../../state/storage/IdbAssetStore'
 import { useStore } from '../../state/store'
-import { dedupeName, importGlbFiles, isModelFile, modelName } from './bulkImport'
+import * as runOptimizeModule from '../optimize/runOptimize'
+import {
+  dedupeName,
+  EARLY_REJECT_MULTIPLIER,
+  importGlbFiles,
+  isModelFile,
+  modelName,
+} from './bulkImport'
+import { MAX_GLB_BYTES } from './validate'
 
 const duckBytes = readFileSync(
   resolve(__dirname, '../../../scripts/asset-pipeline/__tests__/fixtures/duck.glb'),
@@ -31,6 +39,24 @@ function textFile(name: string): File {
 }
 function badGlb(name: string): File {
   return new File([new Uint8Array(12)], name, { type: 'model/gltf-binary' }) // 12 bytes, no glTF magic header → validateGlbFile rejects
+}
+/** A file with a valid glTF magic header (borrowed from the duck fixture)
+ *  padded to `bytesLen` — used to exercise the IO-002 early size-cap gate,
+ *  which fires on the raw byte length before any optimize/parse work happens
+ *  (so the padding never needs to be valid GLB structure past the header). */
+function paddedGlb(name: string, bytesLen: number): File {
+  const bytes = new Uint8Array(bytesLen)
+  bytes.set(duckBytes.subarray(0, Math.min(duckBytes.length, bytes.length)))
+  return new File([bytes], name, { type: 'model/gltf-binary' })
+}
+/** Hopelessly oversized: past the EARLY gate line (multiplier × cap). */
+function hopelessGlb(name: string): File {
+  return paddedGlb(name, EARLY_REJECT_MULTIPLIER * MAX_GLB_BYTES + 1024)
+}
+/** Over the cap but plausibly compressible: between cap and multiplier × cap —
+ *  must NOT be early-rejected (it keeps its optimize chance). */
+function compressibleCandidateGlb(name: string): File {
+  return paddedGlb(name, MAX_GLB_BYTES + 1024)
 }
 
 describe('bulkImport file filtering', () => {
@@ -80,6 +106,12 @@ describe('importGlbFiles', () => {
     for (const a of await IdbAssetStore.list()) await IdbAssetStore.delete(a.assetId)
     useStore.getState().setUserFurniture([])
     vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:test' })
+  })
+
+  it('handles an empty batch (0 items) without spawning any pool workers', async () => {
+    const res = await importGlbFiles([], { category: 'decor' })
+    expect(res).toEqual({ total: 0, imported: 0, duplicates: 0, skipped: [] })
+    expect(useStore.getState().userFurniture).toHaveLength(0)
   })
 
   it('imports every valid model and registers it in the store', async () => {
@@ -168,5 +200,84 @@ describe('importGlbFiles', () => {
     expect(again.imported).toBe(0)
     expect(again.duplicates).toBe(1)
     expect(useStore.getState().userFurniture).toHaveLength(1)
+  })
+})
+
+describe('bulkImport early size-cap gate (IO-002)', () => {
+  beforeEach(async () => {
+    for (const a of await IdbAssetStore.list()) await IdbAssetStore.delete(a.assetId)
+    useStore.getState().setUserFurniture([])
+    vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:test' })
+  })
+
+  it('rejects a hopeless GLB (> multiplier × cap) before optimize runs (no worker/CPU spent)', async () => {
+    const spy = vi.spyOn(runOptimizeModule, 'runOptimize')
+    const res = await importGlbFiles([hopelessGlb('huge.glb')], { category: 'decor' })
+    expect(res.imported).toBe(0)
+    expect(res.skipped).toHaveLength(1)
+    expect(res.skipped[0].name).toBe('huge.glb')
+    expect(res.skipped[0].reason).toMatch(/even after optimization this can't fit/i)
+    // The whole point of the early gate: optimize is never invoked for a file
+    // that can't plausibly fit under the cap even after compressing.
+    expect(spy).not.toHaveBeenCalled()
+    expect(useStore.getState().userFurniture).toHaveLength(0)
+    spy.mockRestore()
+  })
+
+  it('a between-cap-and-multiplier file is NOT early-rejected — it keeps its optimize chance', async () => {
+    // The scenario the multiplier headroom exists for: a source over the cap
+    // that optimize could shrink under it (Draco+WebP routinely 5-10×). Mock
+    // the optimize pass to return a small result and assert the file imports —
+    // i.e. the early gate let it through to runOptimize instead of rejecting.
+    const small = new Uint8Array(duckBytes)
+    const spy = vi.spyOn(runOptimizeModule, 'runOptimize').mockResolvedValue({
+      data: small,
+      report: { beforeBytes: MAX_GLB_BYTES + 1024, afterBytes: small.byteLength },
+    })
+    const res = await importGlbFiles([compressibleCandidateGlb('borderline.glb')], {
+      category: 'decor',
+    })
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(res.imported).toBe(1)
+    expect(res.skipped).toEqual([])
+    expect(useStore.getState().userFurniture).toHaveLength(1)
+    spy.mockRestore()
+  })
+
+  it('a between-cap-and-multiplier file that does NOT compress under the cap fails at the post-optimize gate', async () => {
+    // Same input band, but optimize couldn't shrink it (mock returns the input
+    // unchanged — matching optimizeGlb's best-effort fallback). The real cap is
+    // enforced post-optimize with the "even after optimization" message.
+    const stillBig = new Uint8Array(MAX_GLB_BYTES + 1024)
+    stillBig.set(duckBytes.subarray(0, duckBytes.length))
+    const spy = vi.spyOn(runOptimizeModule, 'runOptimize').mockResolvedValue({
+      data: stillBig,
+      report: { beforeBytes: stillBig.byteLength, afterBytes: stillBig.byteLength },
+    })
+    const res = await importGlbFiles([compressibleCandidateGlb('incompressible.glb')], {
+      category: 'decor',
+    })
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(res.imported).toBe(0)
+    expect(res.skipped).toHaveLength(1)
+    expect(res.skipped[0].reason).toMatch(/over the .* limit even after optimization/i)
+    spy.mockRestore()
+  })
+
+  it('does not reject a normal, under-cap file', async () => {
+    const res = await importGlbFiles([glbFile('normal.glb')], { category: 'decor' })
+    expect(res.imported).toBe(1)
+    expect(res.skipped).toEqual([])
+  })
+
+  it('one hopeless file in a batch does not block the others', async () => {
+    const res = await importGlbFiles(
+      [glbFile('ok-a.glb'), hopelessGlb('too-big.glb'), glbFile('ok-b.glb')],
+      { category: 'decor' },
+    )
+    expect(res.imported).toBe(2)
+    expect(res.skipped).toHaveLength(1)
+    expect(res.skipped[0].name).toBe('too-big.glb')
+    expect(useStore.getState().userFurniture).toHaveLength(2)
   })
 })
