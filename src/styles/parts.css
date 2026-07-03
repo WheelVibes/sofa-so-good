@@ -303,6 +303,13 @@
   background: var(--surface); box-shadow: 0 1px 0 var(--border); padding-bottom: var(--s-2);
 }
 .sec-h span { white-space: nowrap; }
+/* Muted description copy under a section's controls — the standard replaces
+   per-instance inline <p style> blocks (GraphicsSettings et al.). Bottom margin
+   is 0: the enclosing `.sec`'s padding owns the section-to-section rhythm. */
+.sec-desc {
+  font-size: var(--t-2xs); line-height: 1.45; color: var(--text-3);
+  margin: var(--s-2) 0 0;
+}
 
 /* swatches */
 .swatches { display: flex; flex-wrap: wrap; gap: var(--s-2); padding-block: var(--s-4); }

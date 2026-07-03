@@ -114,7 +114,10 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
               fontSize: 'var(--t-xs)',
               color: 'var(--text-2)',
               lineHeight: 1.5,
-              margin: '0 0 var(--s-4)',
+              // Top margin matches the standard modal-body first-child gap
+              // (.modal-overlay .panel-body > :first-child — inline margin
+              // shorthand would otherwise zero it).
+              margin: 'var(--s-4) 0',
             }}
           >
             We use your location to position the sun realistically. The app stores this only on your

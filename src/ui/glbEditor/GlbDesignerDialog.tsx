@@ -471,7 +471,7 @@ export function GlbDesignerDialog() {
               paddingRight: 4,
             }}
           >
-            <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
+            <div className="sec">
               <div className="sec-h">
                 <span>Start from</span>
               </div>
