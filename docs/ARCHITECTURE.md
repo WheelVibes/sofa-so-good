@@ -160,7 +160,10 @@ same change that reshapes a system.
   `textureBudget.ts`, `finishTargets.ts`, `mirrorPlane.ts`); `convert/` (any-format→GLB:
   `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`; `zipGuard.ts` bounds the
   DECLARED decompressed size of usdz/3mf via fflate central-directory reads before the
-  loader inflates — IO-006 zip-bomb guard); `optimize/` (`optimizeGlb.ts`
+  loader inflates — IO-006 zip-bomb guard; `runConvert.ts`/`convert.worker.ts` run `convertModel`
+  in a pooled Worker off the main thread — see the `optimize/` pool paragraph below for the shared
+  `WorkerPool` primitive both use, and `imageLoaderWorkerPatch.ts` for how texture-bearing formats
+  work in a Worker with no `document`); `optimize/` (`optimizeGlb.ts`
   pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`;
   `lodVariants.ts` in-browser `-low`/`-medium` tier generation for uploads — meshopt simplify
   + tier texture caps from `gltf/lod.ts` `TIER_BUDGETS`, stored in IDB under
@@ -173,7 +176,18 @@ same change that reshapes a system.
   burst instead of holding its peak size all session. A worker `error`/`messageerror` retires
   only that worker (its queued calls fall back to the unoptimized original; the rest of the pool
   is unaffected); no Worker available at all (e.g. tests) falls back to a direct in-thread call.
-  Mock-`Worker` pool tests: `runOptimize.pool.test.ts`);
+  Mock-`Worker` pool tests: `runOptimize.pool.test.ts`. This pool predates and keeps its own
+  from-scratch implementation — NOT refactored onto `furniture/worker/workerPool.ts` (the generic
+  `WorkerPool` class factored out for the convert pool below), to avoid destabilizing it right
+  after it shipped; a future third pool should build on the generic version instead of copying
+  either); `convert/runConvert.ts` runs the SAME lifecycle (spawn-on-contention, per-worker error
+  retirement, idle-teardown) via that generic `WorkerPool`, sized with the same
+  `computePoolMax` heuristic — its worker (`convert.worker.ts`) calls `convertModel` unchanged
+  (see `convert/` above); a worker crash or unexpected in-worker failure falls that ONE file back
+  to a direct main-thread `convertModel` call, a genuine `ConvertError` (bad format/over-size/
+  zip-bomb) is re-thrown as-is with no pointless retry. Mock-`Worker` tests:
+  `furniture/worker/workerPool.test.ts` (generic pool) + `convert/runConvert.test.ts`
+  (success/expected-error/unexpected-error/crash fallback branches);
   `ikea/` (`metadata`/`translate`/`importGroup`/`compatibility`/`detectGroups`/`stacking`/
   `supportPlane`/`thumbnail`/`ikeaSets`); `upload/` (`bulkImport.ts` `prepareModelFile`=
   convert+optimize+`persistUserGlb` — `prepareGlb` runs the IO-002 early size-cap gate **before**

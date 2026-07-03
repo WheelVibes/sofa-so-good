@@ -1130,3 +1130,62 @@ world position to client px via the dev `__three` camera (`matrixWorldInverse` +
 item is selected — a left-drag marquee-selects and clobbers the selection; reposition via
 `__three.controls` (`camera.position` + `controls.update()`) instead. (Found building
 `tilt-gizmo-simple.json`.)
+
+### `click: {text: …}` on a `<summary>` (Disclosure) used to mis-click the 3D canvas
+
+`clickByText` (`scripts/lib/interact.mjs`) climbs from the matched text node looking for a
+"clickable" ancestor (`button`/`a`/`input`/`label`/`role=button`/`tabindex`) before computing a
+click point. The app's `Disclosure` control (`ui/controls/Disclosure.tsx` — FinishPicker's
+"Apartment colour palette…", MaterialComposer's "Compose your own…") is a native `<details>` +
+`<summary>`, and `<summary>` wasn't in that allowlist even though it's natively clickable (toggles
+its parent `<details>` in every real browser). The climb fell all the way to `document.body`
+without finding a match, and the old code then used **body's own bounding rect** as the click
+target — silently clicking the centre of the page instead of the summary row. In a scenario with
+the 3D canvas centred there, this landed a real pointer click on whatever was in-scene (observed:
+selecting a placed sofa and swapping the whole right panel to the Inspector instead of expanding
+the disclosure) — a passing-looking step that actually did the wrong thing, one screenshot later
+the sofa's Inspector was open where the palette editor was expected. Fixed in `interact.mjs`:
+`summary` is now in the clickable-tag allowlist, and climbing all the way to `document.body`
+without a match is now treated as "no match" (retries/times out) rather than silently clicking
+body's centre. If you add another native-interactive element type the harness doesn't know about,
+extend the same allowlist rather than clicking by raw coordinates.
+
+### Worked example — model-convert worker pool (2026-07-03)
+
+Verifying `convert/runConvert.ts` (moves OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/gltf → GLB conversion
+off the main thread into a pooled Worker, `convert.worker.ts`) has the exact same problem as the
+optimize pool did: a real `Worker` can't be constructed in the Node/happy-dom test environment, so
+unit tests (`furniture/worker/workerPool.test.ts`, `convert/runConvert.test.ts`) exercise the pool
+logic + fallback branches with a mock `Worker` — that proves the queueing/retry logic, not "does a
+real browser actually run the OBJLoader→GLTFExporter round-trip inside a real Worker with no
+`document`." For that:
+- **`__importGlbFiles` (bootstrap.ts) already works for non-GLB formats with zero changes.**
+  Despite the name, `detectModelFormat`/`isModelEntryFile` key off the file's NAME extension, not
+  its declared MIME type, and the hook rebuilds a `File` from `{name, b64}` verbatim — passing
+  `{name: 'tri.obj', b64}` routes it through the real `bulkImport.prepareGlb` →
+  `needsConversion('obj')` → `runConvert`, exactly like a real drag-drop upload. No new dev hook
+  needed for this task.
+- **New observability seam: `window.__lastConvertRun`** (`runConvert.ts`, mirrors
+  `ui/openSceneExport.ts`'s `__lastSceneExport` — `import.meta.env.DEV`-gated, records
+  `{name, format, usedWorker}` on every conversion). Without it, a scenario asserting only
+  `imported === 1` can't tell a real worker conversion from the main-thread fallback silently
+  covering for a broken worker — the exact failure mode this whole task exists to catch.
+- **Scenario:** `scripts/scenarios/convert-off-main-thread.json` +
+  `evals/convert-worker-obj.mjs` — posts a tiny textureless single-triangle OBJ (deliberately no
+  `mtllib`, so the result doesn't depend on the `ImageLoader`→`createImageBitmap` texture patch,
+  which is unit-tested directly in `imageLoaderWorkerPatch.test.ts` instead) through
+  `__importGlbFiles`, waits on the result, then asserts `__lastConvertRun.usedWorker === true &&
+  __lastConvertRun.format === 'obj'`. All 7 steps passed in ~13s (dominated by the real OBJLoader
+  parse + GLTFExporter pack + optimize pass) in SwiftShader headless Chromium — confirming a real
+  `new Worker(new URL('./convert.worker.ts', import.meta.url))` constructed under the bundler and
+  the conversion completed inside it (`usedWorker: true`), not the main-thread fallback.
+- **Real conversion round-trips stay browser-only, same as `convertModel.test.ts`'s existing
+  skip.** Three's loaders fetch the sibling pool via `blob:` URLs; jsdom/happy-dom's `fetch`
+  doesn't resolve them ("URL scheme 'blob' is not supported" — confirmed empirically: `data:` URL
+  fetch DOES work under happy-dom, `blob:` does not). This is a pre-existing limitation, not
+  something this task introduced — don't spend time trying to route the worker's sibling-pool
+  construction through `data:` URLs to work around it; the scenario above is the real proof.
+- **Same environmental wasm-compile warnings as the optimize-pool worked example above** (Draco/
+  Basis wasm fails to compile in this sandbox's headless Chromium — "Incorrect response MIME
+  type" / bad magic word). Not a regression: `optimizeGlb` treats a failed Draco registration as
+  best-effort, so the import still succeeds without geometry compression. Don't chase it here.

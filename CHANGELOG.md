@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PERF: model conversion runs in a pooled Worker off the main thread (v0.12.0.8)
+
+TODO Part 1b (final item) — model conversion (OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/
+gltf → GLB via `convertModel`) previously blocked the main thread during bulk
+imports. It now runs in a pooled Worker (`furniture/convert/runConvert.ts` +
+`convert.worker.ts`) built on a new **generic** `furniture/worker/workerPool.ts`
+(extracted from the optimize pool's lifecycle — spawn-on-contention, per-worker
+error retirement with terminate, 30s idle teardown; the shipped optimize pool is
+left untouched, new pools build on this). The one DOM gap (`ImageLoader`'s
+`document.createElementNS('img')` texture decode) is bridged by
+`convert/imageLoaderWorkerPatch.ts` (decodes via `createImageBitmap`), so every
+texture-bearing format moves to the worker with `convertModel` unchanged.
+Graceful **per-file** fallback to a direct main-thread convert — a single bad
+file never aborts the batch. Real-browser verified (`convert-off-main-thread.json`
++ the `__lastConvertRun` seam): a real OBJ→GLB ran on the pooled Worker
+(`usedWorker === true`). Mock-Worker pool tests + fallback tests.
+
 ## TEST: ceilingDesign walk-mode look-up IXT scenario (v0.12.0.7)
 
 IXT-SUITES ceilingDesign rung — `ceilingdesign-walk-simple.json` (32 steps,

@@ -80,10 +80,34 @@ The pipeline is already well-built (bounded worker pool in `bulkImport.ts`,
    calls fall back to the unoptimized original, the rest of the pool is unaffected. Unit-tested
    with a mock `Worker` (`runOptimize.pool.test.ts`): burst > pool size, mid-task error, and
    idle teardown/timer-cancel-on-reclaim.
-2. **Move conversion off the main thread (medium) — open.** `convert/convertModel.ts` runs
-   three.js loaders + `GLTFExporter` on the **main thread**, competing with the render loop and
-   serialized across files. Most loaders (OBJ/FBX/STL/PLY) don't need the DOM → run in a
-   worker. Higher effort/risk; the natural follow-up now that the optimize pool is done.
+2. **Move conversion off the main thread (medium) — DONE (2026-07-03).** `convert/runConvert.ts`
+   now runs `convertModel` (three.js loaders + `GLTFExporter`) in a pooled Worker
+   (`convert.worker.ts`) instead of the main thread. Full per-format DOM audit (every loader used
+   by `loadToObject.ts` — OBJLoader/MTLLoader/FBXLoader/STLLoader/PLYLoader/ColladaLoader/
+   TDSLoader/ThreeMFLoader/USDZLoader/GLTFLoader): the ONLY genuine DOM dependency in the whole
+   pipeline is `THREE.TextureLoader`→`ImageLoader`'s `document.createElementNS('img')` texture
+   decode (every texture-bearing format routes through it; STL/PLY never load a texture at all;
+   Collada/3MF's `DOMParser` usage IS available in a Worker global scope, unlike `document`). That
+   one gap is bridged by `imageLoaderWorkerPatch.ts`, which swaps the DOM `<img>` decode for
+   `createImageBitmap` — `GLTFExporter.processImage` already explicitly accepts an `ImageBitmap`
+   for `texture.image` (it has its own pre-existing `typeof document === 'undefined'`
+   `OffscreenCanvas` branch, i.e. three.js already anticipated a document-less exporter). Net
+   result: **no format needs to stay on the main thread** — OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/gltf
+   all convert in the worker. The worker reuses `convertModel` unchanged (no duplicated conversion
+   logic) — only `document`-dependent texture decode differs between the two realms. A per-file
+   worker failure (crash, or an unexpected in-worker error that isn't a genuine `ConvertError`)
+   falls back to a direct main-thread `convertModel` call for that file only, never the batch; a
+   real `ConvertError` (bad format/over-size/zip-bomb) is surfaced as-is with no pointless retry.
+   The pool bookkeeping (spawn-on-contention, per-worker error retirement, idle teardown) was
+   factored into a generic `furniture/worker/workerPool.ts` for this new pool to build on —
+   `runOptimize.ts`'s own pool is left as its own implementation (it shipped the same day this
+   item started, with its own locked-down test suite) rather than retroactively refactored onto
+   it. Real-conversion round-trip testing is browser-only (three's loaders fetch the sibling pool
+   via `blob:` URLs, which jsdom/happy-dom can't resolve — the same limitation
+   `convertModel.test.ts` already documents for its own skipped round-trip test); verified instead
+   via a scenario (`scripts/scenarios/convert-off-main-thread.json`) driving a real OBJ→GLB
+   convert through the dev-only `__importGlbFiles` hook and a new `__lastConvertRun` observability
+   seam confirming `usedWorker: true`.
 3. **Early size-cap checks (correctness+speed, from IO-002) — DONE (GLB half).** `bulkImport.ts:
    prepareGlb` now rejects a *hopelessly* oversized converted/raw GLB **before** the optimize/LOD
    pass (2026-07-03): pre-optimize size > `EARLY_REJECT_MULTIPLIER` (3) × `MAX_GLB_BYTES` — i.e.

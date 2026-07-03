@@ -1,6 +1,7 @@
 import { useStore } from '../../state/store'
-import { convertModel, needsConversion } from '../convert/convertModel'
+import { needsConversion } from '../convert/convertModel'
 import { detectModelFormat, isModelEntryFile } from '../convert/formats'
+import { runConvert } from '../convert/runConvert'
 import type { LodVariantSet } from '../optimize/lodVariants'
 import { runOptimize } from '../optimize/runOptimize'
 import type { FurnitureCategory, UserGltfDef } from '../types'
@@ -105,7 +106,10 @@ async function prepareGlb(
   let glb = entry
   if (format && needsConversion(format)) {
     const siblings = allFiles.filter((f) => f !== entry && dirOfPath(pathOfFile(f)) === dir)
-    glb = (await convertModel(entry, siblings)).glb
+    // Off the main thread when possible (pooled Worker) — see runConvert.ts.
+    // Per-file fallback to a direct main-thread convert is handled inside it,
+    // so a single bad/unsupported-environment file never aborts the batch.
+    glb = (await runConvert(entry, siblings)).glb
   }
   const buf = new Uint8Array(await glb.arrayBuffer())
   // IO-002 (early gate): reject a HOPELESSLY oversized converted/raw GLB

@@ -2,6 +2,20 @@
 
 Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 
+- **CPU-heavy upload-pipeline steps run in a pooled Worker, never the main thread.** Two
+  instances today: `optimize/runOptimize.ts` (Draco/WebP re-encode — its own from-scratch pool,
+  don't refactor it) and `convert/runConvert.ts` (OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/gltf → GLB via
+  `convertModel`, built on the generic `furniture/worker/workerPool.ts`). Both: spawn-on-contention
+  (reuse an idle worker before growing the pool), a worker `error`/`messageerror` retires only
+  that worker (its own queued calls fall back, the rest of the pool is unaffected), idle-teardown
+  after 30s so a burst doesn't hold its peak size all session, and a graceful **per-file** fallback
+  to a direct main-thread call — never the whole batch — when no Worker is available at all. A
+  THIRD such pool should build on `workerPool.ts` rather than copy the pattern again. The one
+  DOM gap a Worker has for model conversion (`ImageLoader`'s `document.createElementNS('img')`
+  texture decode, used by every texture-bearing convert format) is bridged by
+  `convert/imageLoaderWorkerPatch.ts` (decodes via `createImageBitmap` instead — `GLTFExporter`
+  already accepts an `ImageBitmap` for `texture.image`) — don't reintroduce a DOM-only image path
+  in a new convert-adjacent worker without checking that file first.
 - **New parametric item** = `primitives/<Name>.tsx` (a fn taking `{ props }`) + register in
   `primitives/index.ts` + the `PrimitiveKind` union + a `ParametricDef` in the matching
   `defs/<category>.ts` (assembled into `BUILTIN_CATALOG` by `builtinCatalog.ts`).
