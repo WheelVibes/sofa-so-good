@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## UX: "Location set" success toast on completing the location prompt (v0.11.2.6)
+
+- Completing the location prompt (geolocation, city search, or manual coordinates) now fires a
+  success toast from the single `setLocation` store seam — geocoded label when available
+  ("Singapore"), formatted coordinates otherwise ("1.35°N, 103.82°E" via the pure
+  `formatLocation`). Boot/deserialize restores bypass the action, so no toast on load.
+  Geolocation-denied already shows an inline error in the prompt (no duplicate toast added).
+  Scenario: `location-toast-simple.json`.
+
 ## UX: modal-body section spacing standardized — breathing room + per-section sticky release (v0.11.2.5)
 
 - **First section header no longer hugs the panel head** (user report): a modal body's first
