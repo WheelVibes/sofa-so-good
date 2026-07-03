@@ -1,7 +1,7 @@
 {
   "name": "settings-header-spacing",
   "description": "Graphics settings sec-h top breathing room + rhythm, desktop and mobile, at-rest and scrolled/stuck.",
-  "url": "http://localhost:5173/",
+  "url": "http://localhost:5219/",
   "steps": [
     {
       "name": "skip-onboarding",
@@ -113,7 +113,7 @@
     {
       "name": "open-graphics-mobile",
       "click": {
-        "text": "Graphics —"
+        "text": "Graphics \u2014"
       }
     },
     {

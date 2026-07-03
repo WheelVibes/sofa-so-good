@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## UX: modal-body section spacing standardized — breathing room + per-section sticky release (v0.11.2.5)
+
+- **First section header no longer hugs the panel head** (user report): a modal body's first
+  `.sec` keeps its own `padding-top` (the gap scrolls away with content, so sticky headers
+  still pin flush — body padding was tried and rejected: it leaves a see-through strip above
+  the stuck header). Bodies opening with plain copy get `margin-top` via one components.css rule.
+- **Sticky headers now release per-section**: GraphicsSettings' bare `.sec-h`s piled up stacked
+  at the top when scrolled; wrapping each section in `.sec` bounds each sticky header to its
+  section (exactly one stuck at a time). New `.sec-desc` standardizes the muted copy under
+  controls; inline margin/padding one-offs removed from GraphicsSettings, ShareModal,
+  GlbDesignerDialog, LocationPrompt. Scenarios: `settings-header-spacing.json`,
+  `share-header-spacing.json`; re-verified on the integrated branch (desktop + mobile,
+  at rest + stuck).
+
 ## CI: workflow now runs the full test suite (two parallel shards) (v0.11.2.4)
 
 - The CI workflow only ran format/typecheck/lint — the 4.8k-test suite never gated merges. New
