@@ -161,7 +161,7 @@
 .ss-card:hover { border-color: var(--border-2); }
 .ss-card.on { border-color: var(--accent); background: var(--accent-soft); }
 .ss-card-name { font-size: var(--t-sm); font-weight: 700; color: var(--text); }
-.ss-card-desc { font-size: var(--t-xs); color: var(--text-2); line-height: 1.4; }
+.ss-card-desc { font-size: var(--t-xs); color: var(--text-2); line-height: var(--lh-body); }
 .ss-card-swatches { display: flex; gap: 4px; margin-top: var(--s-2); }
 .ss-card-swatches i { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border); }
 

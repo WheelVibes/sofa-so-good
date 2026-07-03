@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest'
 import { isAdminUser } from '../../features/auth/types'
 import { useStore } from '../store'

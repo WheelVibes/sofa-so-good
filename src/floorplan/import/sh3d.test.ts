@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import {

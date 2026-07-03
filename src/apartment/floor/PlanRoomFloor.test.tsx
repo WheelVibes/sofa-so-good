@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { render } from '@testing-library/react'
 import type { BufferGeometry } from 'three'
 import { MeshStandardMaterial } from 'three'

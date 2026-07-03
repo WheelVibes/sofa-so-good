@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Regression test for a design regression found in review: the SliderField
  * adoption of TimeOfDaySlider (v0.10.0.41) dropped the `.scene-row-head`

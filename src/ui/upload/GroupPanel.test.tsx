@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { fireEvent, render, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { DetectedGroup } from '../../furniture/ikea/detectGroups'

@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for the bulk-recolour ("Tint all") section of `MultiSelectPanel`
  * (v0.9.0.25) — a direct multi-select tint picker (vs the copy-then-paste

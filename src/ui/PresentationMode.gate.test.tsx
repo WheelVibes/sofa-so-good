@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Feature-gate tests for `PresentationMode` (v0.9.0.24). The full-screen
  * slideshow rendered unconditionally, guarded only by internal `presenting`

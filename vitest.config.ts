@@ -20,7 +20,17 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'happy-dom',
+    // Most test files are pure logic (no DOM) — default to the cheap 'node'
+    // environment and opt individual files into 'happy-dom' via a
+    // `// @vitest-environment happy-dom` pragma at the top of the file.
+    // This avoids paying happy-dom's per-file setup cost (~1.5s * ~400 files)
+    // for tests that never touch window/document/render().
+    environment: 'node',
+    // 'threads' beats the default 'forks' here (~128s vs ~156s full run).
+    // Do NOT set `isolate: false`: it cuts the run to ~87s but leaks store/
+    // module state across files (93 failures when tried — many files rely on
+    // a fresh module graph around `__resetForTest`/`vi.doMock`).
+    pool: 'threads',
     setupFiles: ['./src/setupTests.ts'],
     globals: true,
     // Never pick up test files under .claude/ or other vendored dirs.

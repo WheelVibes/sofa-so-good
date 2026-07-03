@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for `ProUpsellHint` (P26) — the single Simple-mode discoverability
  * hint (⌘K footer) that Pro tools exist. Renders only when the `proUpsell`

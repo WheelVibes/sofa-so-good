@@ -9,7 +9,13 @@ same change that reshapes a system.
 > a system, add a line and trim/merge elsewhere; push deep detail to the path-scoped files.
 
 ## Commands (full)
-- `npm run dev` (localhost:5173; store on `window.__store`); `npm test`/`test:watch`;
+- `npm run dev` (localhost:5173; store on `window.__store`); `npm test`/`test:watch`.
+  **Test environments**: Vitest defaults to `node` (fast, no DOM); any test file that touches
+  the DOM (render/`@testing-library`/`window`/`document`/canvas/IndexedDB) must start with a
+  `// @vitest-environment happy-dom` line — a missing pragma fails with
+  `window/document is not defined`. CSS regex guards are consolidated in
+  `src/styles/styleGuards.test.ts` (one node-env file) — add new style guards there, not as
+  new per-feature files;
   `npm run build` (= `tsc` + Vite prod build). `predev`/`prebuild` run `copy-decoders`
   (self-hosts the Draco decoder into `public/draco/`); `npm run copy-decoders` runs it manually.
 - `npm run deadcode` — **knip** (unused files/exports/deps report; `knip.json`).

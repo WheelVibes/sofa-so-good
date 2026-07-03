@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * P35 destructive-confirmation policy: deleting a saved camera view is
  * irreversible (no undo), so it must gate on `confirmAction` (the themed

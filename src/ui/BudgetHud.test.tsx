@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Tests for the `BudgetHud` feature gate (v0.9.0.23). The spend pill is shown
  * only when the `budget` feature is on, a target is set, and we're in orbit —
