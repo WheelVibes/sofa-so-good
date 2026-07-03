@@ -53,9 +53,13 @@ describe('P-720 tail — presentation + panoTour flag gating', () => {
     expect(simple.presentation).toBe(false)
   })
 
-  it('panoTour is ON in Simple mode (simple-tier)', () => {
-    const simple = resolveFlags(true, {}, false, 'simple')
-    expect(simple.panoTour).toBe(true)
+  it('panoTour is OFF by default (opt-in) but simple-tier when enabled in both modes', () => {
+    // Default off in both modes now (an advanced presentation surface, opt-in).
+    expect(resolveFlags(true, {}, false, 'simple').panoTour).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').panoTour).toBe(false)
+    // When explicitly enabled it is simple-tier, so it shows in BOTH modes.
+    expect(resolveFlags(true, { panoTour: true }, false, 'simple').panoTour).toBe(true)
+    expect(resolveFlags(true, { panoTour: true }, false, 'pro').panoTour).toBe(true)
   })
 
   it('presentation is ON in Pro mode (default)', () => {
@@ -63,24 +67,19 @@ describe('P-720 tail — presentation + panoTour flag gating', () => {
     expect(pro.presentation).toBe(true)
   })
 
-  it('panoTour is ON in Pro mode (default)', () => {
-    const pro = resolveFlags(true, {}, false, 'pro')
-    expect(pro.panoTour).toBe(true)
-  })
-
-  it('the tour-inclusion toggle requires BOTH flags — toggle is only available when both are on', () => {
-    // Simulate: presentation=on, panoTour=off → toggle hidden
-    const noTour = resolveFlags(true, { panoTour: false }, false, 'pro')
+  it('the tour-inclusion toggle requires BOTH flags — only available when both are on', () => {
+    // presentation=on, panoTour=off (default) → toggle hidden
+    const noTour = resolveFlags(true, {}, false, 'pro')
     expect(noTour.presentation).toBe(true)
     expect(noTour.panoTour).toBe(false)
 
-    // Simulate: panoTour=on, presentation=off → toggle hidden
-    const noPresentation = resolveFlags(true, { presentation: false }, false, 'pro')
+    // panoTour=on, presentation=off → toggle hidden
+    const noPresentation = resolveFlags(true, { panoTour: true, presentation: false }, false, 'pro')
     expect(noPresentation.panoTour).toBe(true)
     expect(noPresentation.presentation).toBe(false)
 
     // Both on → toggle visible
-    const both = resolveFlags(true, {}, false, 'pro')
+    const both = resolveFlags(true, { panoTour: true }, false, 'pro')
     expect(both.presentation).toBe(true)
     expect(both.panoTour).toBe(true)
   })

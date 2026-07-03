@@ -26,9 +26,11 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   the player already flagged via the `itemAsLight` override).
 - **`editorPrefs` also persists per-device UI convenience state** (out of the save schema):
   the left-dock tab (`leftMode`), the collapsed layer-group map (`layersCollapsed`, lifted from
-  `LayersPanel` into `featuresSlice`), and `catalogOpen` — the last restored **desktop-only**
+  `LayersPanel` into `featuresSlice`), `catalogOpen` — the last restored **desktop-only**
   (`matchMedia('(min-width:641px)')`, SSR/jsdom-safe with a `false` fallback) so the mobile
-  bottom-sheet catalog never auto-reopens. All load with back-compat defaults (old JSON lacks them).
+  bottom-sheet catalog never auto-reopens — and `roomOrder` (manual per-room-editor room order;
+  `[]` = alphabetical, applied by `state/rooms.ts` `editableRooms`; the simple-tier `roomReorder`
+  flag gates only the reorder UI, the saved order always applies). All load with back-compat defaults.
 - **`sharedLibrarySlice`** fetches the R2 shared-library manifest once
   (`bootstrapSharedLibrary`, guarded on backend + **admin session** (`isAdminUser`) + the
   `sharedLibrary` flag — simple tier, so the role is the gate, not Simple/Pro) and imports a

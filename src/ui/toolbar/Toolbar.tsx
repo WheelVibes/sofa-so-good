@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { useStore } from '../../state/store'
 import { GraphicsSettings } from '../GraphicsSettings'
-import { BrandMark } from '../Logo'
 import { useIsMobile } from '../useIsMobile'
 import { AppearancePopover } from './AppearancePopover'
+import { BrandDot } from './BrandDot'
 import { IconButton } from './IconButton'
 import { MobileToolbar } from './MobileToolbar'
 import { ArrangeMenu } from './menus/ArrangeMenu'
@@ -118,10 +118,8 @@ export function Toolbar() {
   return (
     <>
       <div ref={scrollRef} className="toolbar toolbar-scroll">
-        {/* Brand mark */}
-        <div className="brand-dot" title="Sofa So Good">
-          <BrandMark size={22} />
-        </div>
+        {/* Brand mark — doubles as "return to orbit mode" off the overview. */}
+        <BrandDot size={22} />
         <Divider />
 
         {/* Exit + room switcher — leftmost while the room editor is active. */}

@@ -85,6 +85,9 @@
 .card-grid {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3);
   padding: var(--s-1) var(--s-4) var(--s-4); overflow-y: auto; min-height: 0;
+  /* Keep a scroll/flick inside the grid: no chaining out to the page (or, on
+     mobile where the catalog floats over the 3D canvas, the view behind it). */
+  overscroll-behavior: contain;
 }
 /* Reveals the hidden "search by room" capability — shown when a query names a room/use intent. */
 .catalog-search-hint { padding: 2px var(--s-4) var(--s-2); font-size: var(--t-xs); color: var(--text-2); text-transform: capitalize; }
@@ -123,6 +126,13 @@
   position: absolute; inset: 0;
   width: 100%; height: 100%; object-fit: contain; display: block;
 }
+/* Product-photo thumbnails (IKEA + shared library) ship on a baked pure-white
+   studio background. Sit them on the soft --photo-tile and multiply-blend the
+   image so the white merges into the tile — the thumbnail reads as a framed
+   product shot in every theme instead of a harsh full-bleed white rectangle.
+   Built-in / rendered thumbnails have alpha, so they keep the plain surface. */
+.card-thumb.photo { background: var(--photo-tile); }
+.card-thumb.photo img { mix-blend-mode: multiply; }
 /* Download / retry pill overlaid on a browsable CC0 card's thumbnail. */
 .card-thumb .thumb-status {
   position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);

@@ -38,4 +38,11 @@ describe('CatalogCard', () => {
     expect(pill.className).toContain('source-pill')
     expect(pill.closest('.card-thumb')).toBeTruthy()
   })
+
+  it('flags an IKEA thumbnail as a photo so the white studio background gets the soft tile', () => {
+    render(<CatalogCard def={IKEA_DEF} />)
+    // The IKEA product photo ships on a baked white background — the `photo`
+    // modifier drives the --photo-tile background + multiply blend (parts.css).
+    expect(screen.getByText('IKEA').closest('.card-thumb')?.className).toContain('photo')
+  })
 })

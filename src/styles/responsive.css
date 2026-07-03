@@ -170,7 +170,13 @@ body.mobile {
   .m-detail-h {
     position: sticky; top: 0; z-index: 1;
     font-size: var(--t-md); font-weight: 800; color: var(--text);
-    padding: 10px 9px 7px; background: var(--elevated);
+    padding: 10px 9px 7px;
+    /* Transparent so the header reads as the sheet's own surface (not a brighter
+       band from stacking --elevated over the already-elevated sheet). A frosted
+       backdrop keeps the title legible over items that scroll beneath it. */
+    background: transparent;
+    backdrop-filter: blur(var(--blur)) saturate(1.3);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
   }
   .m-detail select.input, .m-detail .select-trigger { min-height: 44px; }
   .m-detail .slider { height: 44px; background: transparent; }
@@ -245,7 +251,15 @@ body.mobile {
     transform: none; border-radius: var(--r-3);
     border: 1px solid var(--border); box-shadow: var(--shadow-pop);
     animation: sheetUp var(--dur) var(--ease);
+    /* The sheet floats over the live 3D canvas — a swipe/flick that reaches the
+       sheet edge must not chain through and pan/orbit the view behind it. */
+    overscroll-behavior: contain;
   }
+  /* Every scroll region inside a bottom-sheet keeps its scroll to itself, so a
+     flick on the catalog/inspector never bleeds onto the canvas underneath.
+     (The horizontal category rail keeps its own touch-action for left/right.) */
+  .catalog .card-grid, .catalog .panel-body, .catalog .cat-rail,
+  .inspector .panel-body { overscroll-behavior: contain; }
 
   /* grab handle on every bottom-docked sheet */
   .catalog::before, .inspector::before,
@@ -276,6 +290,15 @@ body.mobile {
      area (22 + 2×11) so a notification can be closed with a thumb (MOBILE-TAP-TARGETS). */
   .toast .icon-btn { position: relative; }
   .toast .icon-btn::after { content: ''; position: absolute; inset: -11px; }
+  /* Give toasts near-full width on phones (snackbar style) so a two-line message
+     — e.g. "New version available" + the version — reads comfortably instead of
+     cramping the text column to 4+ lines next to the action button. */
+  .toast { width: calc(100vw - 2 * var(--s-4)); max-width: none; }
+
+  /* Progressive-disclosure hints (InfoCallout) default to a readable 40ch, which
+     is only ~half a phone's width → the copy wraps to 4+ lines and eats vertical
+     space. Widen to near-full width on mobile so it wraps to ~2 lines. */
+  .info-callout { max-width: calc(100vw - 2 * var(--s-5)); }
 
   /* Multi-select "clear tint" X sits at the right end of its row (only the ~8px
      gap to the colour swatch is on its left), so a padded 44px hit area is safe. */

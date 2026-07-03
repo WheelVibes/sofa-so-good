@@ -92,7 +92,11 @@ export function OrbitCamera() {
   // Click-drag on empty space always orbits; nothing is "select mode" anymore.
   const draggingItemId = useStore((s) => s.draggingItemId)
   const rotatingGizmo = useStore((s) => s.rotatingGizmo)
-  const controlsEnabled = !draggingItemId && !rotatingGizmo
+  // Also frozen while a catalog placement is armed (`activeDefId`) so dragging a
+  // freshly-picked piece around to position it — especially a one-finger drag on
+  // touch — never doubles as an orbit gesture that spins the view.
+  const placingActive = useStore((s) => s.activeDefId != null)
+  const controlsEnabled = !draggingItemId && !rotatingGizmo && !placingActive
   const autoRotate = useStore((s) => s.autoRotate)
   const { camera, gl } = useThree()
   const controlsRef = useRef<OrbitControlsImpl>(null)
@@ -137,13 +141,28 @@ export function OrbitCamera() {
   }, [camera, roomEditorId])
 
   // Snap to a top-down plan view when requested from the toolbar (fit to viewport).
+  // In the per-room editor, frame the isolated room from straight overhead (its
+  // centre + a fit height sized to the room) rather than the whole plan — this is
+  // also what the mobile "pick up a piece" long-press triggers so placement drops
+  // onto a clean plan view.
   const topViewNonce = useStore((s) => s.topViewNonce)
   useEffect(() => {
     if (topViewNonce === 0) return
     if (!(camera instanceof PerspectiveCamera)) return
-    const { pos, target } = topFraming(useStore.getState().floorPlan, camera)
+    const plan = useStore.getState().floorPlan
+    if (roomEditorId) {
+      const editorShell = getRoomEditorShell(plan, roomEditorId)
+      if (editorShell) {
+        const [cx, cz] = editorShell.shell.center
+        const r = Math.max(editorShell.shell.radius, 1.5)
+        const h = Math.max(fitDistance(r * 1.12, camera), 4)
+        startFly.current([cx, h, cz + 0.01], [cx, 0, cz])
+        return
+      }
+    }
+    const { pos, target } = topFraming(plan, camera)
     startFly.current(pos, target)
-  }, [topViewNonce, camera])
+  }, [topViewNonce, camera, roomEditorId])
 
   // "Reset view" → snap back to a 3/4 dollhouse overview that fits the viewport.
   const homeViewNonce = useStore((s) => s.homeViewNonce)

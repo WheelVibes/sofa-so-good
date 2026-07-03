@@ -119,6 +119,7 @@ export type FeatureFlag =
   | 'planMirrorRegion'
   | 'planGridSnap'
   | 'roomInset'
+  | 'roomReorder'
   | 'tileBreakup'
   | 'elementColors'
   | 'openingStyles'

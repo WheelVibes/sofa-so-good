@@ -34,11 +34,11 @@ afterEach(() => {
 })
 
 describe('showUpdatePrompt', () => {
-  it('surfaces a non-dismissing "Update available" toast with an Update action', async () => {
+  it('surfaces a non-dismissing "New version available" toast with an Update action', async () => {
     sw.showUpdatePrompt()
     const n = useStore.getState().notifications.at(-1)
     expect(n?.kind).toBe('info')
-    expect(n?.title).toBe('Update available')
+    expect(n?.title).toBe('New version available')
     expect(n?.actionLabel).toBe('Update')
     expect(typeof n?.onAction).toBe('function')
     expect(n?.autoDismissMs).toBeNull() // stays until the user acts
@@ -115,7 +115,7 @@ describe('runUpdateCheck', () => {
     await sw.runUpdateCheck()
     const list = useStore.getState().notifications
     expect(list.at(-1)?.title).toMatch(/latest version/)
-    expect(list.some((n) => n.title === 'Update available')).toBe(false)
+    expect(list.some((n) => n.title === 'New version available')).toBe(false)
     expect(list.filter((x) => x.kind === 'progress')).toHaveLength(0)
   })
 
@@ -125,7 +125,7 @@ describe('runUpdateCheck', () => {
     })
     await sw.runUpdateCheck()
     const list = useStore.getState().notifications
-    expect(list.at(-1)?.title).toBe('Update available')
+    expect(list.at(-1)?.title).toBe('New version available')
     expect(list.at(-1)?.actionLabel).toBe('Update')
     expect(list.filter((x) => x.kind === 'progress')).toHaveLength(0)
   })
@@ -148,7 +148,7 @@ describe('runUpdateCheck', () => {
     worker.setState('installed') // precache finished → worker reaches waiting
     await run
     const list = useStore.getState().notifications
-    expect(list.at(-1)?.title).toBe('Update available')
+    expect(list.at(-1)?.title).toBe('New version available')
     expect(list.at(-1)?.actionLabel).toBe('Update')
     expect(list.filter((x) => x.kind === 'progress')).toHaveLength(0)
   })

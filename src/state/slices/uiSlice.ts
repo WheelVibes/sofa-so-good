@@ -157,6 +157,12 @@ export interface UiSlice {
   /** Per-room editor: isolates a single room (IKEA-planner style). Ephemeral.
    *  `roomId` is a default-apartment RoomId or, on a custom plan, a plan room id. */
   roomEditor: { active: boolean; roomId: string | null }
+  /** Manual room order for the per-room editor switcher — a list of room ids.
+   *  Empty (the default) means "alphabetical by name". Ids not present fall
+   *  back to alphabetical after the ordered ones. Per-device (editorPrefs). */
+  roomOrder: string[]
+  /** Replace the manual room order (pass [] to reset to alphabetical). */
+  setRoomOrder: (order: string[]) => void
   /** Enter the room editor for `roomId`: pins Performance + Original assets
    *  (remembering prior tiers), resets camera to orbit. */
   enterRoomEditor: (roomId: string) => void
@@ -233,6 +239,7 @@ export const UI_INITIAL: Pick<
   | 'materialEpoch'
   | 'showcaseAccumulating'
   | 'roomEditor'
+  | 'roomOrder'
   | 'bootPhase'
   | 'sceneReady'
   | 'loading'
@@ -269,6 +276,7 @@ export const UI_INITIAL: Pick<
   materialEpoch: 0,
   showcaseAccumulating: false,
   roomEditor: { active: false, roomId: null },
+  roomOrder: [],
   bootPhase: 'hydrating',
   sceneReady: false,
   loading: { active: false, label: '' },
@@ -292,6 +300,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setLastSavedAt: (lastSavedAt) => set({ lastSavedAt }),
   showLoading: (label) => set({ loading: { active: true, label } }),
   hideLoading: () => set((s) => ({ loading: { ...s.loading, active: false } })),
+  setRoomOrder: (order) => set({ roomOrder: [...order] }),
   enterRoomEditor: (roomId) => {
     const s = get()
     priorTiers = { tier: s.qualityTier, userSet: s.qualityUserSet, asset: s.assetTier }

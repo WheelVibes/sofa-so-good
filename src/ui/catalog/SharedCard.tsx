@@ -67,7 +67,7 @@ export function SharedCard({ item, onResolved, staggerIndex }: Props) {
           <Icon.Heart width={14} height={14} />
         </button>
       ) : null}
-      <div className="card-thumb">
+      <div className="card-thumb photo">
         <CatalogSourcePill label="IKEA" />
         {thumb ? (
           <img src={thumb} alt={item.name} loading="lazy" />
@@ -95,9 +95,6 @@ export function SharedCard({ item, onResolved, staggerIndex }: Props) {
         title={item.type}
       >
         {item.variants > 1 ? `${item.variants} finishes · tap` : 'tap to add'}
-      </span>
-      <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>
-        Library
       </span>
     </div>
   )

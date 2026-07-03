@@ -1161,9 +1161,13 @@ same change that reshapes a system.
   reloads behind the user): registration is owned by `src/pwa/swUpdate.ts` (`injectRegister: null`)
   which checks `registration.update()` **on open**, hourly, **and** on foreground (visibility/focus)
   so installed Home-Screen PWAs — iOS standalone has no reload UI — pick up new builds. A found build
-  installs but **waits**; `onNeedRefresh` then surfaces a single de-duped **"Update available"** toast
-  (info kind, no auto-dismiss) carrying an **Update** action button — `applyUpdate()` calls the
-  plugin's `updateSW(true)` (skipWaiting + reload) only on confirmation. The on-open/background checks
+  installs but **waits**; `onNeedRefresh` then surfaces a single de-duped **"New version available"**
+  toast (info kind, no auto-dismiss) carrying an **Update** action button — the version line
+  (`(v<incoming>)`) is fetched from a build-emitted **`version.json`** (a `vite.config` plugin;
+  cache-busted network fetch, since the running bundle only knows its own older `APP_VERSION`).
+  `applyUpdate()` sets a `sofa.justUpdated` flag then calls the plugin's `updateSW(true)` (skipWaiting +
+  reload) only on confirmation; after the reload paints, App.tsx (`consumeJustUpdated`) shows an
+  **"Updated to v<version>"** success toast. The on-open/background checks
   are silent unless they find an update; the manual **"Check for updates"** (`runUpdateCheck`, File
   menu / mobile Appearance & help) shows a checking spinner then up-to-date / the same Update prompt /
   error. Toast feedback rides the notifications slice (`kind:'progress'` toasts spin + show an

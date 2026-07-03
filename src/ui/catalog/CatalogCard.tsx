@@ -49,6 +49,9 @@ export function CatalogCard({ def, onDelete, staggerIndex }: CatalogCardProps) {
       s.setActiveDefId(def.id)
       s.setCursor({ x, y })
       s.setCatalogOpen(false)
+      // Snap to a top-down view so the piece drops onto a clean plan — dragging it
+      // around then reads as pure 2D positioning (orbit is frozen while armed).
+      s.requestTopView()
     }, LONG_PRESS_MS)
     press.current = { x, y, timer, fired: false }
   }
@@ -159,7 +162,7 @@ export function CatalogCard({ def, onDelete, staggerIndex }: CatalogCardProps) {
           <Icon.Copy width={14} height={14} />
         </button>
       ) : null}
-      <div className="card-thumb">
+      <div className={`card-thumb${isIkea ? ' photo' : ''}`}>
         {isIkea ? <CatalogSourcePill label="IKEA" /> : null}
         {thumb ? (
           <img src={thumb} alt={def.name} />
