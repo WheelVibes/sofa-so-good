@@ -36,8 +36,28 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] SLOT-203 (configurator GLB-sub-asset options): needs a **bundled CC0 GLB** asset + the load
   path (load → reparent at the slot anchor → per-slot `listFinishTargets` namespacing). The v1
   products are all-procedural, so this is gated on sourcing a suitable CC0 GLB option to bundle.
-- [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces, GLB-designer
-  re-rung, livePrices. (crown-molding, backdrop-upload and
+- [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces,
+  livePrices. (**GLB-designer re-rung landed** — `glb-designer-simple.json`: the pro-only 3D asset
+  designer (`ui/glbEditor/GlbDesignerDialog.tsx`, gated directly on `uiMode==='pro'`, not a
+  `FEATURE_FLAGS` entry). Asserts the Simple/Pro gate (dialog stays UNMOUNTED in Simple even with
+  `glbDesignerOpen` forced true, present in Pro), a REAL edit round-trip (add box → change size X to
+  1 m + raise Y to 0.8 m → the controlled inputs AND the live 3D preview both reflect the elongated
+  raised box), and a REAL **save round-trip to the store** (name it → Save asset → a `UserGltfDef`
+  named "IXT Simple Box" lands in `state.userFurniture` via the real `buildEditedObject → exportGlb →
+  persistUserGlb → addUserFurniture` path, toast + dialog-close confirm), then back-to-Simple +
+  mobile legs re-assert it's hidden. The dialog is `React.lazy` but is idle-preloaded
+  (`preloadOnIdle.ts` `PRELOAD_ORDER`), so it mounts headless fine — the model-upload note's
+  "lazy dialogs won't mount headless" does NOT apply here (that dialog isn't preloaded).
+  **NEW HARNESS GOTCHA found here — and it retro-explains why the pre-existing
+  `glb-csg-textures-simple.json` save step was silently failing:** the harness's `clickByText`
+  (`scripts/lib/interact.mjs`) clicks the element's bounding-rect centre with `page.mouse.click`
+  **without scrolling it into view**, so a button below the fold in a scrolling panel is missed and
+  its onClick never fires — silent no-op, no error. The designer's "Save asset" lives at the bottom
+  of the scrolling right panel, below the fold at every viewport. Fix in-scenario: click Save via a
+  DOM `.click()` eval (viewport-independent), NOT the text-click. Verified: import + parse of
+  GLTFExporter and `persistUserGlb` all work headless — the ONLY blocker was the missed click.
+  `glb-csg-textures-simple.json` should get the same one-line fix when next touched.)
+  (crown-molding, backdrop-upload and
   furnlight simple rungs landed — `crown-molding-simple.json` v0.11.2.13,
   `backdrop-upload-simple.json` + `furnlight-simple.json` v0.11.2.14; **ceilingDesign simple rung
   landed** — `ceilingdesign-walk-simple.json`: Simple/Pro flag gate, tray+cove then coffered 3×3

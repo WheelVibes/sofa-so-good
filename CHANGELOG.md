@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: GLB-designer IXT re-rung (v0.12.0.10)
+
+IXT-SUITES GLB-designer rung — `glb-designer-simple.json` (34 steps): Simple/Pro
+gate (dialog stays unmounted in Simple even with `glbDesignerOpen` forced,
+mounts in Pro), a real edit round-trip (add box → size X=1 m + raise Y=0.8 m,
+reflected in controlled inputs AND the live 3D preview), and a real **save**
+round-trip — Save asset persists a `UserGltfDef "IXT Simple Box"` into
+`state.userFurniture` via the actual `buildEditedObject → exportGlb →
+persistUserGlb → addUserFurniture` path (asserted via `__store`, visually
+confirmed by the success toast). No dev lever needed (the dialog idle-preloads).
+Playbook: worked example + a general gotcha — `clickByText` doesn't scroll a
+below-the-fold control into view, which also retro-explains the pre-existing
+`glb-csg-textures-simple.json` save-step timeout.
+
 ## FIX: finish-picker mobile blank-dropdown + touch-target/hover/spacing polish (v0.12.0.9)
 
 Cohesion pass on the finish/material picking surface (core "finish" loop):

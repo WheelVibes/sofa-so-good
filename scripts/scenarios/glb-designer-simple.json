@@ -1,0 +1,100 @@
+{
+  "name": "glb-designer-simple",
+  "description": "IXT-SUITES simple rung for the GLB asset designer (`ui/glbEditor/GlbDesignerDialog.tsx`, catalog footer 'Design' button / ⌘K, pro-only — gated directly on `uiMode === 'pro'`, not a FEATURE_FLAGS entry). Confirms the dialog stays unmounted in Simple mode even when `glbDesignerOpen` is forced true, then in Pro mode drives a REAL edit (not just 'dialog opened'): add a box, change its size + position through the controlled numeric inputs, name it, Save, and assert the save round-trips into the actual Zustand store (`state.userFurniture` gains a `UserGltfDef` with the given name/category, length increments past a recorded baseline) — the same commit path a real upload uses (`persistUserGlb` -> `addUserFurniture`). Gated on the store round-trip (not the auto-dismissing success toast), which is the definitive proof. NOTE the Save click uses a DOM `.click()` eval, not the harness text-click, because the 'Save to catalog' button is below the fold in the scrolling right panel and the coordinate-based text-click would miss it — see the scenario's click-save comment + the playbook gotcha. Finishes by switching back to Simple and re-confirming the dialog stays hidden. The dialog is `React.lazy` (`ui/app/lazyComponents.tsx`) but is also in `preloadOnIdle.ts`'s `PRELOAD_ORDER`, so by the time this scenario's `waitFor: {text: '3D asset designer'}` step runs (after several earlier steps' worth of idle time), the chunk is already resident and Suspense resolves immediately — see the playbook's 'Lazy panels mount seconds after their store flag flips' gotcha; no dev-only mounting lever was needed. The complementary complex rung (`glb-csg-textures-simple.json`) covers per-part finishes + CSG boolean combine + reopen-resets; this rung intentionally stays to the tier-gate + minimal edit + store round-trip so the two don't duplicate coverage.",
+  "url": "http://localhost:5301/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "verify-simple-default",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "app should boot in Simple mode"
+    },
+    { "name": "open-in-simple", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    {
+      "name": "settle-simple-open-attempt",
+      "comment": "Give the (idle-preloaded) lazy chunk every chance to mount, so 'nothing rendered' is a real assertion about the isPro gate, not a race.",
+      "wait": 1500
+    },
+    {
+      "name": "assert-hidden-in-simple",
+      "eval": "(function(){ if (document.body.textContent.includes('3D asset designer')) throw new Error('GLB designer rendered in Simple mode — it is a Pro-only tool (isPro gate in GlbDesignerDialog)'); if (window.__store.getState().glbDesignerOpen !== true) throw new Error('expected glbDesignerOpen to stay true even though nothing rendered — the component itself gates on isPro, the flag is untouched'); })()"
+    },
+    { "name": "shot-simple-hidden", "screenshot": "01-simple-mode-no-designer" },
+    { "name": "close-in-simple", "store": { "action": "setGlbDesignerOpen", "args": [false] } },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reopen-in-pro", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    {
+      "name": "wait-designer",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 15000,
+      "failMessage": "designer dialog should mount in Pro mode — it is lazy but idle-preloaded (preloadOnIdle.ts PRELOAD_ORDER), so it should be resident well before this timeout"
+    },
+    { "name": "shot-designer-open", "screenshot": "02-designer-open-pro" },
+    { "name": "add-box", "click": { "text": "Box" } },
+    {
+      "name": "wait-box-fields",
+      "waitFor": { "css": "input[aria-label='box position X']" },
+      "timeout": 5000
+    },
+    { "name": "shot-box-default", "screenshot": "03-box-default-040-cube" },
+    {
+      "name": "edit-box-size-x",
+      "eval": "(function(){ const inp = document.querySelector('input[aria-label=\"box size X\"]'); if (!inp) throw new Error('size X input missing'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '1'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "edit-box-position-y",
+      "eval": "(function(){ const inp = document.querySelector('input[aria-label=\"box position Y\"]'); if (!inp) throw new Error('position Y input missing'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '0.8'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "assert-edits-stuck",
+      "eval": "(function(){ const sizeX = document.querySelector('input[aria-label=\"box size X\"]'); const posY = document.querySelector('input[aria-label=\"box position Y\"]'); if (Number(sizeX.value) !== 1) throw new Error('size X did not round-trip through the controlled input, got ' + sizeX.value); if (Number(posY.value) !== 0.8) throw new Error('position Y did not round-trip, got ' + posY.value); })()"
+    },
+    { "name": "wait-render-settle", "wait": 1500 },
+    { "name": "shot-box-edited", "screenshot": "04-box-elongated-and-raised" },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('input[aria-label=\"Asset name\"]'); if (!inp) throw new Error('asset name input missing'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'IXT Simple Box'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-userfurniture-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "comment": "Click 'Save asset' via a DOM .click(), NOT the harness text-click. The button lives in the 'Save to catalog' section at the very BOTTOM of the scrolling right panel (overflowY:auto) — below the fold at every viewport. clickByText (scripts/lib/interact.mjs) clicks the element's bounding-rect centre with page.mouse.click WITHOUT scrolling it into view, so a below-the-fold button is silently missed and save() never fires (this is exactly why the existing glb-csg-textures-simple.json save step also times out). A programmatic .click() dispatches a real click event that React's onClick honours regardless of scroll position. The export/persist path itself is fully headless-drivable (GLTFExporter import + parse verified working; persistUserGlb is exercised headless by the bulk-import scenarios).",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-userfurniture-roundtrip",
+      "comment": "The REAL round-trip proof: the save path (buildEditedObject -> exportGlb -> persistUserGlb -> addUserFurniture) must add a UserGltfDef with our name/category to the actual Zustand store. Generous timeout — GLTFExporter serialisation + IDB write take a moment in SwiftShader headless.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'IXT Simple Box' && d.category === 'others' && d.source === 'user')"
+      },
+      "timeout": 20000,
+      "failMessage": "saving the designer asset should add a UserGltfDef to state.userFurniture — the real catalog round trip (persistUserGlb -> addUserFurniture)"
+    },
+    {
+      "name": "assert-designer-closed",
+      "waitFor": { "store": "state.glbDesignerOpen === false" },
+      "timeout": 5000,
+      "failMessage": "a successful save should close the dialog"
+    },
+    { "name": "shot-after-save", "screenshot": "05-after-save-closed" },
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "reopen-attempt-in-simple", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "settle-second-simple-check", "wait": 1500 },
+    {
+      "name": "assert-hidden-again-in-simple",
+      "eval": "(function(){ if (document.body.textContent.includes('3D asset designer')) throw new Error('designer should stay hidden in Simple mode even after a prior Pro-mode save'); })()"
+    },
+    { "name": "shot-simple-again", "screenshot": "06-simple-mode-again-hidden" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 800 },
+    { "name": "shot-mobile-hidden", "screenshot": "07-mobile-simple-hidden" }
+  ]
+}

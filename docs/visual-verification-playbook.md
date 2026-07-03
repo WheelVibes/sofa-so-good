@@ -432,6 +432,45 @@ inside the room, plus a door + a window opening on the plan. **Key gotchas learn
 - **Sync on the placement, not a fixed wait.** `applySh3dResult` mutates the store synchronously, so
   `{"waitFor": {"store": "window.__store.getState().items.length > 0"}}` is the reliable gate before
   probing/screenshotting; `requestHomeView()` then frames the new plan like a template load.
+### Worked example — GLB asset designer simple rung (IXT-SUITES GLB-designer re-rung)
+
+**`glb-designer-simple.json`** covers the pro-only 3D asset designer
+(`ui/glbEditor/GlbDesignerDialog.tsx`, gated directly on `uiMode==='pro'` — NOT a `FEATURE_FLAGS`
+entry, so drive it with `setUiMode('pro')`, no `reresolveFeatureFlags`): Simple/Pro gate (dialog
+stays UNMOUNTED in Simple even with `glbDesignerOpen` forced true, present in Pro) → a real edit
+round-trip (add box → set size X to 1 m + raise position Y to 0.8 m; the controlled numeric inputs
+AND the live 3D preview both reflect the elongated raised box) → a real **save round-trip to the
+store** (name → Save asset → a `UserGltfDef` lands in `state.userFurniture`) → back-to-Simple +
+mobile legs re-assert hidden. **Key gotchas learned here:**
+- **The designer dialog is `React.lazy` but mounts fine headless** — unlike the model-upload dialog
+  (next section). It's in `preloadOnIdle.ts`'s `PRELOAD_ORDER`, so its chunk is idle-warmed after
+  boot and Suspense resolves immediately when opened. The "lazy dialogs never mount headless"
+  limitation only bites dialogs that are NOT preloaded (they pay a first-open fetch that hangs).
+- **`clickByText` does NOT scroll the target into view — a button below the fold is silently
+  missed.** `scripts/lib/interact.mjs`'s `clickByText` computes the match's `getBoundingClientRect()`
+  centre and fires `page.mouse.click(x,y)` at it; if that point is off-screen (e.g. the designer's
+  "Save asset" button, which lives in the "Save to catalog" section at the very bottom of the
+  scrolling right panel, below the fold at every viewport), the click lands nowhere and the button's
+  React `onClick` never runs — a **silent no-op with no error**. This is exactly why the pre-existing
+  `glb-csg-textures-simple.json` save step (`waitFor {text:"Saved"}`) was timing out. Fix: click such
+  a control via a DOM `.click()` in an `eval` (viewport-independent — a real click event React
+  honours regardless of scroll), NOT the harness text-click:
+  `[...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Save asset' &&
+  !b.disabled)?.click()`. Do NOT misdiagnose this as a headless export limitation: the GLB export
+  path is fully drivable headless — `GLTFExporter`'s dynamic import resolves, `GLTFExporter.parse` of
+  a solid-material box completes in ~6 ms, and `persistUserGlb` is exercised headless by the
+  bulk-import scenarios. The only blocker was the missed click; once Save actually fires, the
+  `buildEditedObject → exportGlb → persistUserGlb → addUserFurniture` round-trip completes and
+  `state.userFurniture` gains the def.
+- **The designer keeps its edit spec in component-local `useState`, not the store** — it commits to
+  the global store ONLY on Save. So a mid-edit "round-trip" is asserted against the controlled
+  inputs (which reflect the local spec) + the live preview mesh, not `window.__store`; the store
+  round-trip is available only after Save.
+- **Success toasts auto-dismiss after 3 s** (`notificationsSlice.ts` `SUCCESS_DEFAULT_MS`) and live
+  in `state.notifications` (an array), not `notify.current`. Gate a save assertion on the durable
+  store change (`userFurniture` length/entry), not a `waitFor {text:"Saved"}` that can miss the
+  toast's 3 s window.
+
 ### Worked example — model-upload group detection at scale (UPLOAD-DETECT-PAGINATION)
 
 **`model-upload-simple.json`** verifies the model-upload feature's Simple rung: the **Upload**
@@ -902,6 +941,23 @@ ticks get throttled while the page is busy compiling shaders — log
 
 In **scenario mode**: use `{"waitFor": {"css": ".modal-overlay"}}` instead of
 a fixed `wait`.
+
+### A text-`click` on a below-the-fold control is a silent no-op
+`clickByText` (`scripts/lib/interact.mjs`) resolves the match, computes its
+`getBoundingClientRect()` centre, and fires `page.mouse.click(x, y)` at that
+point **without scrolling it into view**. If the control is scrolled out of the
+viewport — e.g. a button at the bottom of a tall panel with `overflowY:auto`,
+or below the fold on a short viewport — the click lands off-screen (or on
+whatever is at that clamped coordinate) and the control's React `onClick` never
+runs. There's **no error** — the step reports OK, the action just didn't happen,
+and you chase a phantom "the handler is broken / the feature can't be driven
+headless" bug downstream. (This silently broke the GLB designer's "Save asset"
+step in two scenarios.) Fix: for any control that may be below the fold, click it
+via a DOM `.click()` in an `eval` (`[...document.querySelectorAll('button')]
+.find(b => b.textContent.trim() === 'Label' && !b.disabled)?.click()`) — a real
+click event React honours regardless of scroll position — or `scrollIntoView()`
+it first. Reserve the coordinate-based text-`click` for controls you know are
+on-screen.
 
 ### Verifying offline / service-worker behaviour
 The PWA service worker is **build-only** (`devOptions` off), so offline behaviour
