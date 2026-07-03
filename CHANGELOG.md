@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: core-loop parity gap audit → backlog (v0.12.0.13)
+
+Competitive audit of the core design loop (furnish/arrange/finish/view) against
+market leaders (Coohom/Planner 5D/IKEA Kreativ/Sweet Home 3D/HomeByMe). The app
+is broadly feature-complete; logged the top 5 client-doable, untracked parity
+gaps to `TODO.md` to feed future cycles: CATALOG-FITS (footprint "fits this
+room" cue — HDB small-space premise), CATALOG-ROOMAWARE (room-aware catalog
+default), CATALOG-VARIANT (pick finish before placing), MINIMAP-JUMP (walk-mode
+tap-to-teleport), PLAN-FURNISH (2D-plan furniture placement — high value/high
+risk). HomeByMe noted as a new reference.
+
 ## FIX: inspector header/array-field/warn-colour cohesion (v0.12.0.12)
 
 Cohesion pass on the furniture Inspector (core-loop surface; continues the

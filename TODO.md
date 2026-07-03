@@ -128,6 +128,33 @@ WebGPU path tracing).
 - **Full focus-trap on the mobile menu sheet** (`MobileToolbar`) — Escape-close + `useModalGuard`
   ship; a Tab focus-trap remains, but keyboard-on-touch is rare.
 
+## Core-loop parity gaps (2026-07-03 audit)
+Ranked by value/effort. All pure-client, core-loop (furnish→arrange→finish→view→share) +
+discoverability/customizability, desktop **and** mobile; none shipped or tracked above. (Verified
+absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARITY.md`.)
+- [ ] **CATALOG-FITS — "fits this room" size cue + filter (S–M).** Badge/dim catalog items whose
+  footprint won't fit the room being edited, + an optional "fits only" toggle — the HDB small-space
+  premise no competitor nails. Cards already show dims (`CatalogCard`); add a pure helper (def
+  `defaultFootprint` vs the room's free-rect/bounds) surfaced in `CatalogDrawer` + a card badge. Low risk.
+- [ ] **CATALOG-ROOMAWARE — room-aware catalog default (S–M).** On entering a room, surface / pre-sort
+  the relevant categories (bedroom→beds/wardrobes/nightstands) instead of a flat A–Z. Planner5D/Coohom
+  surface room-relevant items; our search is intent-aware but the *default* view isn't. Key the default
+  `CatalogDrawer` category/sort on the `roomEditor` room kind (`roomKindFromName`). Low risk.
+- [ ] **CATALOG-VARIANT — pick colour/variant before placing (M).** IKEA Kreativ / Coohom / Roomstyler
+  let you choose a finish on the browse card; here variant/tint is only editable *after* placement via
+  the inspector. Add a compact swatch row / quick-look popover on `CatalogCard` (IKEA `variants`,
+  tintable procedural pieces) carried into placement as initial `props.variant`/`tint`. Risk: card
+  clutter on mobile — use a quick-look, not inline swatches.
+- [ ] **MINIMAP-JUMP — walk-mode minimap tap-to-teleport (S).** The `Minimap` already draws room shapes
+  + live position but is inert; add click/tap a room → move the walker to its centroid (RoomSketcher /
+  Coohom 720° tours jump room-to-room). `Minimap.tsx` + a first-person reposition. Low risk; big
+  navigation win on mobile where WASD/drag walking is slow.
+- [ ] **PLAN-FURNISH — add/drag furniture in the 2D plan editor (L, architectural).** The signature
+  SH3D / Planner5D / Floorplanner plan-first loop: drop catalog items straight onto the 2D plan.
+  Today placement requires entering the 3D per-room editor (`canEditScene` excludes the plan editor;
+  no catalog mounts there — furniture only *moves*/rotates in 2D once placed in 3D). High value but
+  touches the editing-gate architecture + a 2D placement/ghost path → **risk: high**; scope carefully.
+
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live
   in `CHANGELOG.md`).
