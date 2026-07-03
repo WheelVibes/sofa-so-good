@@ -37,10 +37,15 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   path (load → reparent at the slot anchor → per-slot `listFinishTargets` namespacing). The v1
   products are all-procedural, so this is gated on sourcing a suitable CC0 GLB option to bundle.
 - [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces, GLB-designer
-  re-rung, ceilingDesign (needs walk-mode look-up), livePrices, first-run re-rungs,
-  first-run re-rungs. (crown-molding, backdrop-upload and furnlight simple rungs landed —
-  `crown-molding-simple.json` v0.11.2.13, `backdrop-upload-simple.json` +
-  `furnlight-simple.json` v0.11.2.14.)
+  re-rung, ceilingDesign (needs walk-mode look-up), livePrices. (crown-molding, backdrop-upload and
+  furnlight simple rungs landed — `crown-molding-simple.json` v0.11.2.13,
+  `backdrop-upload-simple.json` + `furnlight-simple.json` v0.11.2.14.)
+  - first-run re-rungs: **persistence re-rung landed** (`first-run-returning-user.json`) — clean-profile
+    carousel → top-nav "Skip" (the third dismissal path, beyond the tour / Enter-sandbox choices the
+    other first-run scenarios cover) persists `hdb_onboarded='1'` → a real `location.reload()` proves
+    the returning user re-sees NEITHER the carousel (end-to-end `resolveBootDecision` persistence,
+    beyond the pure-function `bootDecision.test.ts` coverage) NOR the location prompt
+    (`locationPromptDismissed` autosave round-trip).
   - model-upload: **simple rung landed** (`model-upload-simple.json` — Upload entry gating + 60-group
     detection via the `__detectGroups` dev hook). A full journey rung is blocked on the dialog being
     `React.lazy` (won't mount headless); the paginated-list render is instead covered by

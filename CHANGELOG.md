@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: first-run persistence IXT scenario (v0.12.0.4)
+
+IXT-SUITES first-run re-rung — `first-run-returning-user.json` (23 steps): clean
+profile boots the onboarding carousel, the top-nav "Skip" (the third dismissal
+path, beyond the tour / Enter-sandbox choices the other first-run scenarios
+cover) persists `hdb_onboarded='1'`, then a **real `location.reload()`** proves
+a returning user re-sees NO first-run overlay (carousel or location prompt) —
+end-to-end `resolveBootDecision` + autosave persistence beyond the pure-function
+`bootDecision.test.ts` coverage. Playbook: documented the scenario + the
+persistence-needs-a-real-reload and location-prompt-is-autosaved gotchas.
+
 ## FIX: catalog Packs-tab warn colours onto the token vocabulary (v0.12.0.3)
 
 - Packs-tab "Sidecar not detected" notice moved off literal Tailwind amber

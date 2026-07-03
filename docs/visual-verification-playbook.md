@@ -234,6 +234,7 @@ npm run dev -- --port 5212 --strictPort &
 for i in $(seq 1 30); do sleep 1; curl -sf http://localhost:5212/ >/dev/null && break; done
 node scripts/shot.mjs --scenario scripts/scenarios/first-run.json --out-dir /tmp/first-run
 node scripts/shot.mjs --scenario scripts/scenarios/first-run-no-tour.json --out-dir /tmp/first-run-no-tour
+node scripts/shot.mjs --scenario scripts/scenarios/first-run-returning-user.json --out-dir /tmp/first-run-returning
 ```
 
 Steps of `first-run.json` (30 total, 8 screenshots):
@@ -248,6 +249,30 @@ Steps of `first-run.json` (30 total, 8 screenshots):
 
 **`first-run-no-tour.json`** — carousel → "Enter sandbox" → assert tour never opens → location prompt → scene.
 Asserts `tourOpen === false` immediately after the carousel closes.
+
+**`first-run-returning-user.json`** — the *persistence* re-rung: clean profile boots the carousel,
+the top-nav **"Skip"** button (the third dismissal path, not covered by the other two scenarios)
+closes it and persists `hdb_onboarded='1'`, then a **real `location.reload()`** must NOT re-show
+**any** first-run overlay — neither the carousel nor the location prompt. This is the end-to-end
+proof of the `resolveBootDecision` contract that `bootDecision.test.ts` only covers at the
+pure-function level, plus the autosave round-trip of the location-prompt dismissal. Gotchas baked
+into the scenario:
+- **Persistence needs a real reload, not a store reset.** `hdb_onboarded` lives in `localStorage`
+  and is read by `hasOnboarded()` only at boot (inside the `booting` effect). Assert the returning
+  path by driving `location.reload()` and re-waiting for `bootPhase === 'ready' && sceneReady`, not
+  by calling a store reset (which never re-runs the boot decision).
+- **The location-prompt dismissal IS persisted — via the design autosave, not localStorage.**
+  Don't assume "store flag" = session-only: `locationPromptDismissed` is in `serialize()`
+  (`state/schema.ts`) and the autosave watch-list (`PERSISTENT_WATCH_KEYS`,
+  `state/storage/autosave.ts`), so after a reload it is restored `true` and the "Where are you?"
+  modal must NOT reappear (a first draft of this scenario asserted the opposite and failed).
+  The 500 ms debounce is covered by the `pagehide` flush, but the scenario still waits for
+  `lastSavedAt` to advance past a pre-dismissal baseline before reloading, making the round-trip
+  explicit. (`waitFor.store` predicates run in page scope, so they can compare against a
+  `window.__…` baseline captured by an earlier `eval` step.)
+- **A late/re-fired boot decision is a real risk.** The decision runs in a `booting`-gated effect, so
+  the assertion waits for `onboardingOpen === false` AND then re-checks after a ~1.5 s buffer to catch
+  a carousel (or modal overlay) that opens a beat late.
 
 ### Worked example — Simple-mode core design loop (IXT-SUITES batch 1, C269)
 
