@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: AI-surfaces IXT rung — flag-gating + pre-inference UI (v0.12.0.19)
+
+IXT-SUITES AI-surfaces rung — `ai-surfaces-simple.json` (50 steps) covers
+`aiPhotoreal`/`aiLayout`/`aiWalls` tier-gating (Simple hidden / Pro shown, at
+both the store-flag and real-UI-mount level) and the tractable pre-inference UI
+WITHOUT any network/key: the Share-modal "Make photoreal" button goes
+disabled→enabled purely from key entry (never clicked, no result image), and the
+Command-Palette "AI auto-furnish (BYO key)" opens its brief-prompt modal and
+cancels cleanly (returns before any network). The real inference calls
+(Replicate img2img, vision wall-trace, LLM layout) genuinely need a live key and
+stay out of scope; `featureFlags.test.ts` gains a durable AI-flags describe block
+pinning tier/devOnly/default. `aiWalls`' post-upload button (in FloorPlanEditor)
+noted as a follow-up rung. Playbook: cmdk empty-state + `type`-action gotchas.
+
 ## TEST: share/export cohesion audit scenario (v0.12.0.18)
 
 Audited the share/export surface (ShareModal + AI-photoreal, File/Tools export

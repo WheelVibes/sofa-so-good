@@ -1,0 +1,153 @@
+{
+  "name": "ai-surfaces-simple",
+  "description": "IXT-SUITES simple rung for the three AI surfaces (all pro-tier, prod-safe, BYO-key, NOT devOnly): aiPhotoreal (Share modal's 'Make photoreal' section, ui/ai/AiPhotorealSection.tsx), aiLayout (Command Palette 'AI auto-furnish (BYO key)', ui/CommandPalette.tsx), and aiWalls (FloorPlanEditor's 'AI walls' trace button). Verifies ONLY the tractable pre-inference surface — flag/tier gating (hidden in Simple, present in Pro) and pre-inference UI state — never the real AI call (no key is ever supplied, no network request is allowed to fire; see TASKS.md IXT-SUITES for why the actual inference is out of scope headless). Part A: opens the Share modal (idle-preloaded lazy chunk, ui/app/preloadOnIdle.ts PRELOAD_ORDER, so it mounts headless like glb-designer-simple's dialog) in Simple mode and asserts the AI section text is entirely absent, then in Pro mode asserts it renders with the 'Make photoreal' button disabled with no key, and enables purely from typing a (fake, never-submitted) key into the password field via a native-setter eval — the button is never clicked, so no fetch to Replicate ever fires. Part B: opens the (non-lazy) Command Palette, confirms 'AI auto-furnish (BYO key)' is entirely absent from search results in Simple, then in Pro runs it and shows the real pre-inference PromptModal ('Describe the home…'), cancels it via the Cancel button, and asserts no vision-key follow-up prompt and no 'Auto-furnish' notification ever appeared (proving the cancel path returns before touching ai/autoLayoutAi.ts's requestAutoLayout, so nothing hit the network). Part C is a lighter store-level check only: aiWalls' tier/default is asserted via state.featureFlags (Simple false / Pro true) without driving the FloorPlanEditor UI — that surface lives behind a plan-trace-backdrop image upload inside src/ui/floorplan/**, out of scope for this rung (see TASKS.md note); a future ladder can add the full backdrop-upload + button-mount rung there.",
+  "url": "http://localhost:5471/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "verify-simple-default",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "app should boot in Simple mode"
+    },
+    {
+      "name": "verify-flags-pro-tier-off-in-simple",
+      "waitFor": {
+        "store": "state.featureFlags.aiPhotoreal === false && state.featureFlags.aiLayout === false && state.featureFlags.aiWalls === false"
+      },
+      "timeout": 5000,
+      "failMessage": "aiPhotoreal / aiLayout / aiWalls are registered pro-tier — expected all three false in Simple mode (registry.ts)"
+    },
+    { "name": "open-share-simple", "store": { "action": "setShareOpen", "args": [true] } },
+    {
+      "name": "wait-share-modal-simple",
+      "waitFor": { "text": "Share design" },
+      "timeout": 15000,
+      "failMessage": "Share modal should mount in Simple mode too (shareExport is simple-tier) — it's lazy but idle-preloaded (preloadOnIdle.ts PRELOAD_ORDER), so it should be resident well before this timeout"
+    },
+    { "name": "settle-share-simple", "wait": 500 },
+    { "name": "shot-share-simple", "screenshot": "01-share-modal-simple-no-ai-section" },
+    {
+      "name": "assert-ai-section-absent-in-simple",
+      "eval": "(function(){ if (document.body.textContent.includes('Make photoreal (AI')) throw new Error('AiPhotorealSection rendered in Simple mode — aiPhotoreal is pro-tier and should be hidden'); })()"
+    },
+    { "name": "close-share-simple", "store": { "action": "setShareOpen", "args": [false] } },
+    {
+      "name": "open-cmdk-simple",
+      "store": { "action": "setCmdkOpen", "args": [true] }
+    },
+    {
+      "name": "wait-cmdk-simple",
+      "waitFor": { "css": ".cmdk-item" },
+      "timeout": 10000,
+      "failMessage": "Command Palette should render its (non-lazy) results list"
+    },
+    { "name": "search-ai-furnish-simple", "type": "type", "text": "AI auto-furnish" },
+    { "name": "settle-search-simple", "wait": 300 },
+    { "name": "shot-cmdk-simple-no-ai-furnish", "screenshot": "02-cmdk-simple-no-ai-furnish" },
+    {
+      "name": "assert-ai-furnish-absent-in-simple",
+      "comment": "Check for the command's full label + the empty-state, NOT a bare 'AI auto-furnish' substring — the cmdk-empty message echoes the typed query back ('No commands match \"AI auto-furnish\".'), which would false-positive a naive substring check against the query text itself.",
+      "eval": "(function(){ if (document.querySelector('.cmdk-item') || !document.querySelector('.cmdk-empty')) throw new Error('expected the empty state (no .cmdk-item rows) once aiLayout is hidden in Simple mode'); if (document.body.textContent.includes('AI auto-furnish (BYO key)')) throw new Error('AI auto-furnish command visible in Simple mode — aiLayout is pro-tier (COMMAND_FLAGS ai-furnish -> aiLayout) and should be filtered out of the palette'); })()"
+    },
+    { "name": "close-cmdk-simple", "store": { "action": "setCmdkOpen", "args": [false] } },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "verify-flags-pro-tier-on-in-pro",
+      "waitFor": {
+        "store": "state.featureFlags.aiPhotoreal === true && state.featureFlags.aiLayout === true && state.featureFlags.aiWalls === true"
+      },
+      "timeout": 5000,
+      "failMessage": "setUiMode('pro') calls reresolveFeatureFlags() — expected all three AI flags true in Pro mode"
+    },
+    { "name": "open-share-pro", "store": { "action": "setShareOpen", "args": [true] } },
+    {
+      "name": "wait-ai-section-pro",
+      "waitFor": { "text": "Make photoreal (AI · beta)" },
+      "timeout": 15000,
+      "failMessage": "AiPhotorealSection should render inside the Share modal in Pro mode"
+    },
+    { "name": "settle-share-pro", "wait": 500 },
+    {
+      "name": "scroll-to-ai-section",
+      "comment": "The AI section sits below the fold of the scrolling .panel-body — scroll it into view so the screenshot actually shows it (the assertions below use DOM queries so they don't need this, but a genuine visual check does).",
+      "eval": "(() => { const h = [...document.querySelectorAll('.sec-h')].find((el) => el.textContent.includes('Make photoreal')); h?.scrollIntoView({ block: 'start' }); })()"
+    },
+    { "name": "settle-scroll", "wait": 300 },
+    { "name": "shot-share-pro-ai-section", "screenshot": "03-share-modal-pro-ai-section" },
+    {
+      "name": "assert-run-button-disabled-no-key",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Make photoreal'); if (!btn) throw new Error('Make photoreal button not found'); if (!btn.disabled) throw new Error('Make photoreal button should start disabled — no API key entered yet (run() would hit the network otherwise)'); })()"
+    },
+    {
+      "name": "type-fake-key",
+      "comment": "Types into the password field via a native-setter eval (never clicked/submitted) purely to prove the pre-inference UI reacts — this key is fabricated and the run button is never pressed, so no fetch to Replicate ever fires.",
+      "eval": "(() => { const input = document.querySelector('input[type=\"password\"]'); const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; set.call(input, 'r8_fake_never_submitted'); input.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    { "name": "settle-key-typed", "wait": 200 },
+    { "name": "shot-share-pro-key-entered", "screenshot": "04-share-modal-pro-key-entered-btn-enabled" },
+    {
+      "name": "assert-run-button-enabled-with-key",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Make photoreal'); if (btn.disabled) throw new Error('Make photoreal button should enable once a key is typed (status===\\'idle\\' && key.trim())'); })()"
+    },
+    {
+      "name": "assert-no-image-rendered-yet",
+      "eval": "(function(){ if (document.querySelector('.sec img')) throw new Error('No AI call was ever made — an <img> result should not exist yet'); })()"
+    },
+    { "name": "close-share-pro", "store": { "action": "setShareOpen", "args": [false] } },
+    { "name": "open-cmdk-pro", "store": { "action": "setCmdkOpen", "args": [true] } },
+    {
+      "name": "wait-cmdk-pro",
+      "waitFor": { "css": ".cmdk-item" },
+      "timeout": 10000
+    },
+    { "name": "search-ai-furnish-pro", "type": "type", "text": "AI auto-furnish" },
+    {
+      "name": "wait-ai-furnish-visible",
+      "waitFor": { "text": "AI auto-furnish (BYO key)" },
+      "timeout": 5000,
+      "failMessage": "AI auto-furnish command should be visible once in Pro mode (aiLayout is now true)"
+    },
+    { "name": "shot-cmdk-pro-ai-furnish", "screenshot": "05-cmdk-pro-ai-furnish-visible" },
+    { "name": "run-ai-furnish", "click": { "text": "AI auto-furnish (BYO key)" } },
+    {
+      "name": "wait-brief-prompt",
+      "waitFor": { "text": "Describe the home" },
+      "timeout": 8000,
+      "failMessage": "Running the command should call promptText({title:'AI auto-furnish', label:'Describe the home...'}) — the real pre-inference UI, before any key/network involvement"
+    },
+    { "name": "settle-prompt-open", "wait": 300 },
+    { "name": "shot-ai-furnish-brief-prompt", "screenshot": "06-ai-furnish-brief-prompt" },
+    {
+      "name": "assert-prompt-title-and-label",
+      "eval": "(function(){ if (!document.body.textContent.includes('AI auto-furnish')) throw new Error('PromptModal title missing'); if (!document.body.textContent.includes('Describe the home')) throw new Error('PromptModal label missing'); const submit = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Furnish'); if (!submit) throw new Error('Furnish submit button missing'); })()"
+    },
+    { "name": "cancel-brief-prompt", "click": { "text": "Cancel" } },
+    {
+      "name": "prompt-closed",
+      "waitFor": { "store": "state.textPrompt === null" },
+      "timeout": 5000,
+      "failMessage": "Cancel should resolvePrompt(null), clearing state.textPrompt"
+    },
+    { "name": "settle-after-cancel", "wait": 500 },
+    {
+      "name": "assert-no-followup-key-prompt-or-network-attempt",
+      "eval": "(function(){ const s = window.__store.getState(); if (s.textPrompt !== null) throw new Error('a second prompt (vision-model API key) opened after cancelling the brief — the code should return early on brief==null, never reaching getVisionKey()'); const badNotif = (s.notifications || []).some((n) => /auto-furnish|AI placed|no items could/i.test(n.title || '') || /auto-furnish|AI placed|no items could/i.test(n.message || '')); if (badNotif) throw new Error('an AI auto-furnish result/error notification appeared even though the brief prompt was cancelled before any request — requestAutoLayout must not have been reached'); })()"
+    },
+    { "name": "shot-cmdk-after-cancel", "screenshot": "07-ai-furnish-cancelled-clean" },
+    { "name": "close-cmdk-pro", "store": { "action": "setCmdkOpen", "args": [false] } },
+    { "name": "switch-back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    {
+      "name": "verify-flags-back-to-simple",
+      "waitFor": {
+        "store": "state.featureFlags.aiPhotoreal === false && state.featureFlags.aiLayout === false && state.featureFlags.aiWalls === false"
+      },
+      "timeout": 5000,
+      "failMessage": "switching back to Simple should force all three AI flags off again"
+    }
+  ]
+}

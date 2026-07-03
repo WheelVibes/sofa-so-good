@@ -158,6 +158,26 @@ come out near-black.
 
 ### Known headless limitations for scenario steps
 
+- **The `type` action's keyed JSON form is `{"type": "type", "text": "..."}` — not
+  `{"type": "the text itself"}`** (found writing `ai-surfaces-simple.json`). Every other action
+  has a friendly keyed shorthand (`{"click": {"text": "..."}}`, `{"waitFor": {"css": "..."}}`)
+  because its type name differs from its own payload key. The `type` (keyboard-typing) action's
+  type name IS the literal string `"type"`, so there's no shorthand to collapse into — write it
+  in explicit typed form with a separate `"text"` field, or `validate.mjs`'s `resolveStepType`
+  will treat your intended text as the discriminator, find no `text` field, and throw
+  `(type action): must have "text"`. The `type` step also needs the target already focused
+  (it only clicks first if you pass `x`/`y`) — Command Palette's search input autofocuses on
+  open via `requestAnimationFrame`, so a `waitFor {css: ".cmdk-item"}` step before typing is
+  enough; don't add an explicit focus click.
+- **A `waitFor`/`eval` text-substring check against the Command Palette can false-positive on
+  its own empty-state echo.** `CommandPalette`'s "no results" row renders
+  `No commands match "{query.trim()}".` — if your assertion checks
+  `document.body.textContent.includes(<your search query>)` to prove a command is filtered OUT,
+  it will find its own typed query quoted back inside that message and wrongly pass (or, as in
+  `ai-surfaces-simple.json`'s first draft, fail an "absent" assertion that should have passed).
+  Assert against the command's fuller, more specific label text instead (a substring the
+  empty-state message can't accidentally contain), and/or assert `.cmdk-item` doesn't exist /
+  `.cmdk-empty` does.
 - **Demand-frameloop presentation can lag one render burst behind** (SwiftShader):
   a store change that only alters light parameters (e.g. C275 curtain attenuation —
   sun intensity provably updates to 0.62 instantly when probed via the scene graph)

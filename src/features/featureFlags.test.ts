@@ -558,6 +558,29 @@ describe('ambientFx flag (P7 decorative ambient effects)', () => {
   })
 })
 
+describe('AI surfaces (aiPhotoreal / aiWalls / aiLayout — IXT-SUITES AI-surfaces rung)', () => {
+  // All three are experimental BYO-key AI features (no bundled key, no
+  // sidecar): pure client code that fails soft with no key, so — unlike
+  // ikeaLive/livePrices — they are NOT devOnly and ship in prod, but are
+  // pro-tier (hidden in Simple, where the UI stays the minimal core loop).
+  it('are pro-tier, ship in prod (no devOnly gate), default on', () => {
+    for (const key of ['aiPhotoreal', 'aiWalls', 'aiLayout'] as const) {
+      expect(FEATURE_FLAGS[key].tier).toBe('pro')
+      expect(FEATURE_FLAGS[key].devOnly).toBeUndefined()
+      expect(FEATURE_FLAGS[key].default).toBe(true)
+    }
+  })
+
+  it('are hidden in Simple mode and present in Pro mode (both build kinds)', () => {
+    for (const key of ['aiPhotoreal', 'aiWalls', 'aiLayout'] as const) {
+      expect(resolveFlags(false, {}, false, 'simple')[key]).toBe(false)
+      expect(resolveFlags(false, {}, false, 'pro')[key]).toBe(true)
+      expect(resolveFlags(true, {}, false, 'simple')[key]).toBe(false)
+      expect(resolveFlags(true, {}, false, 'pro')[key]).toBe(true)
+    }
+  })
+})
+
 describe('proUpsell flag (P26 Simple→Pro ⌘K footer hint)', () => {
   it('is simple-tier, ships in prod, default on', () => {
     expect(FEATURE_FLAGS.proUpsell.default).toBe(true)

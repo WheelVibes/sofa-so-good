@@ -36,8 +36,45 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] SLOT-203 (configurator GLB-sub-asset options): needs a **bundled CC0 GLB** asset + the load
   path (load → reparent at the slot anchor → per-slot `listFinishTargets` namespacing). The v1
   products are all-procedural, so this is gated on sourcing a suitable CC0 GLB option to bundle.
-- [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces,
-  livePrices. (**GLB-designer re-rung landed** — `glb-designer-simple.json`: the pro-only 3D asset
+- [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — livePrices.
+  (**AI-surfaces simple rung landed** — `ai-surfaces-simple.json` (50 steps, all green): covers
+  the three AI features, all pro-tier + prod-safe + BYO-key (NOT devOnly, unlike
+  `ikeaLive`/`livePrices` — pure client code that fails soft with no key/sidecar):
+  `aiPhotoreal` (Share modal's "Make photoreal" section, `ui/ai/AiPhotorealSection.tsx`),
+  `aiLayout` (Command Palette "AI auto-furnish (BYO key)", `ui/CommandPalette.tsx`), and
+  `aiWalls` (FloorPlanEditor's "AI walls" trace button). **Headless-testable without a
+  network/key**: flag/tier gating (hidden in Simple, present in Pro — asserted at both the
+  store-flag level AND the real UI-mount level) and pre-inference UI state. For `aiPhotoreal`,
+  the scenario opens the Share modal (an idle-preloaded lazy chunk — mounts headless like
+  `glb-designer-simple`'s dialog, see the playbook), asserts the AI section is completely
+  absent in Simple, then in Pro asserts the "Make photoreal" button starts **disabled** with no
+  key and **enables** purely from typing a fake key into the password field via a native-setter
+  eval — the button is never clicked, so no `fetch` to Replicate ever fires (verified: no
+  `<img>` result ever appears). For `aiLayout`, the scenario opens the (non-lazy) Command
+  Palette, confirms "AI auto-furnish (BYO key)" is entirely absent from Simple's results
+  (`COMMAND_FLAGS['ai-furnish'] = 'aiLayout'`, pro-tier), then in Pro runs it and shows the
+  real pre-inference `PromptModal` ("Describe the home…"), cancels via the Cancel button, and
+  asserts no vision-key follow-up prompt and no auto-furnish notification ever appeared —
+  proving the cancel path returns before `ai/autoLayoutAi.ts`'s `requestAutoLayout` is ever
+  reached, so nothing hit the network. **`aiWalls` is checked at the store-flag level only**
+  (Simple `false` / Pro `true`) — its "AI walls" button only renders once a floor-plan trace
+  backdrop image is uploaded inside `FloorPlanEditor.tsx` (`src/ui/floorplan/**`), which this
+  cycle's IXT-SUITES pass deliberately left untouched (another agent's area this cycle); a
+  future ladder can add the full backdrop-upload + button-mount rung there, mirroring
+  `backdrop-upload-simple.json`'s window-backdrop upload pattern but for the 2D plan-trace
+  backdrop instead. **The real AI inference itself is out of scope for ALL THREE surfaces** —
+  every path needs either a live Replicate/vision-model API key or an actual network call,
+  neither of which the headless harness can supply without faking a provider response (which
+  the task explicitly rules out); `ai/aiClient.ts`, `ai/floorPlanAi.ts`, and
+  `ai/autoLayoutAi.ts`'s request/response builders are pinned by their own unit tests
+  (`aiClient` has no dedicated test file yet — its pure helpers `buildReplicateImg2ImgBody`/
+  `parseReplicateOutput`/`safePollUrl` are good candidates for a future unit-test pass, out of
+  scope here) so the wire contract stays covered even though the live round-trip isn't. Added
+  a dedicated `describe('AI surfaces …')` block to `featureFlags.test.ts` pinning all three
+  flags' tier/devOnly/default in one place (mirrors the existing per-flag describe pattern).
+  No stub lever was needed — unlike `livePrices`/model-upload, none of the three AI surfaces
+  needed faking a sidecar or a network response to reach their tractable pre-inference UI.)
+  (**GLB-designer re-rung landed** — `glb-designer-simple.json`: the pro-only 3D asset
   designer (`ui/glbEditor/GlbDesignerDialog.tsx`, gated directly on `uiMode==='pro'`, not a
   `FEATURE_FLAGS` entry). Asserts the Simple/Pro gate (dialog stays UNMOUNTED in Simple even with
   `glbDesignerOpen` forced true, present in Pro), a REAL edit round-trip (add box → change size X to
