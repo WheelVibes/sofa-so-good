@@ -180,6 +180,47 @@
   pointer-events: none;
 }
 
+/* Walk-mode aiming reticle (Crosshair.tsx). Must read over ANY 3D background —
+   a bright wall, a dark night scene, or the mid-grey surfaces where a
+   mix-blend-difference mark collapses to invisibility — so it pairs a light mark
+   with a dark halo (a functional contrast pair, like `.walk-cross` /
+   `.spacing-badge`, not a themed surface). Non-interactive. */
+.walk-reticle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: var(--z-hud);
+}
+.walk-reticle .rt {
+  position: relative;
+  width: 14px;
+  height: 14px;
+}
+.walk-reticle .rt::before,
+.walk-reticle .rt::after {
+  content: '';
+  position: absolute;
+  background: oklch(1 0 0 / 0.92);
+  box-shadow: 0 0 2px oklch(0 0 0 / 0.85);
+}
+.walk-reticle .rt::before {
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+.walk-reticle .rt::after {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
 /* Walk-mode controls banner (auto-fading, themed). */
 .walk-hud {
   display: inline-flex;

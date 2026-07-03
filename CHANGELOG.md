@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: walk-mode reticle legible over any background (v0.12.0.17)
+
+The walk-mode aiming crosshair used `bg-white/80 mix-blend-difference` — a
+Tailwind colour literal that, difference-blended over a mid-grey wall (~0.5
+luminance), resolved back to mid-grey and vanished on exactly the surfaces walk
+mode aims at most. Replaced with a token-based `.walk-reticle` (light mark +
+dark halo, `oklch` + `box-shadow`, same functional-contrast pattern as
+`.walk-cross`), legible over any 3D background. Verified walk mode across
+desktop + mobile portrait/landscape × day/night. (The rest of the walk-mode HUD
+— prompts, banner, joystick — audited clean, no changes.)
+
 ## FEAT: click-to-place furniture in the 2D plan editor — PLAN-FURNISH Phase 1 (v0.12.0.16)
 
 The signature Sweet Home 3D / Planner 5D "plan-first" loop, Phase 1 (desktop
