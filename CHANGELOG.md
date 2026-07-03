@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PERF: test suite ~2x faster (4m07s → ~2m03s) with zero coverage lost (v0.11.2.3)
+
+- **Default test environment is now `node`** — only the ~120 DOM test files opt in via a
+  `// @vitest-environment happy-dom` pragma (environment phase 889s → ~140s). New DOM tests
+  must carry the pragma (documented in CLAUDE.md).
+- **`pool: 'threads'`** + **setup gating** (`jest-dom` loads only when `document` exists).
+  `isolate: false` was measured (~87s) but REJECTED: 93 cross-file state leaks — documented
+  in the config so it isn't retried blind.
+- **16 `src/styles/*.test.ts` micro-files consolidated** into `styleGuards.test.ts` — every
+  assertion preserved verbatim (49/49, identical describe/it names). The consolidation also
+  CAUGHT a real regression: an earlier merge resolution had reverted `.ss-card-desc` to
+  `line-height: 1.4`; re-fixed to `var(--lh-body)`.
+- `planShare` decompression-bomb test given an explicit 20s timeout (flaked under 12-worker
+  load). No tests pruned beyond consolidation — knip/tsc/skip audit found nothing dead.
+- CI recommendation (not implemented): `vitest run --shard=1/2|2/2` across two jobs.
+
 ## FIX/UX: modal headers un-broken (title alignment + white sticky bars) + quality-switch overlay (v0.11.2.2)
 
 - **Back-button modal headers left-align the title on one line** (user report, mobile Graphics
