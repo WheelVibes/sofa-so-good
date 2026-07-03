@@ -4,6 +4,7 @@ import { Color, type Group } from 'three'
 import type { PlanOpening, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
+import { dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { FLAT } from './constants'
 import { cameraFacingNormal, orientOutward, wallRevealFactor } from './walls/wallRevealMath'
@@ -153,8 +154,9 @@ export function PlanDoorLeaf({
         <group position={[(direction * opening.width) / 2, height / 2, 0]}>
           <mesh
             onClick={(e) => {
+              // Orbit mode is view-only (VIEW-EDIT-SPLIT) — see Door.tsx.
+              if (!dispatchWalkInteract(useStore.getState(), opening.id, toggle)) return
               e.stopPropagation()
-              toggle(opening.id)
             }}
             castShadow
           >

@@ -305,6 +305,16 @@ same change that reshapes a system.
   select-vs-rotate tool; orbit freezes only during a drag/gizmo (`rotatingGizmo`+
   `draggingItemId`). Enter via toolbar "Edit a room" or a room-floor click (→ "Enter
   <room>?" confirm, `enterRoomConfirm.ts`).
+- **Walk-mode interact** (`state/editing.ts:dispatchWalkInteract` — the single gate; walk-only,
+  inert in orbit): doors (`doorsSlice` `toggleDoor`, aim → `nearbyDoorId`, `ui/DoorPrompt`) and
+  **curtains/blinds** (WINDOW-FIXTURE-INTERACT, `walkWindowFixtures` flag, simple): click/tap or
+  E flips the fixture's own `props.drawAmount`/`lower` 0↔1 via `windowFixtureSlice`
+  `toggleWindowFixture` (undoable; persists through the existing `items` schema field — no new
+  schema work). Eligibility + prop mapping are pure in `furniture/windowFixtureInteract.ts`;
+  the E-key aim reuses the door aim's ray/segment math (`collision/aimRay.ts:nearestAimedSegment`)
+  against live per-item segments (`windowFixtureAimSegments`), surfaced as `nearbyFixtureId` +
+  `ui/FixturePrompt` ("Open curtains" / "Lower blind"). Scenario:
+  `scripts/scenarios/walk-curtain-interact.json`.
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts`+
   `RoomShell.tsx`, `uiSlice.roomEditor`): the **sole editing surface**. Separate
   lightweight `<Canvas>` (flat light, DPR 1, no shadows/IBL/post), pinned to Performance

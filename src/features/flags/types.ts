@@ -135,6 +135,7 @@ export type FeatureFlag =
   | 'ambientFx'
   | 'accounts'
   | 'sharedLibrary'
+  | 'walkWindowFixtures'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

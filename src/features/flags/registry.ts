@@ -516,6 +516,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Curtains/blinds toggle open-closed in walk mode (click/tap/E), mirroring the
+  // existing door interact affordance (WINDOW-FIXTURE-INTERACT). Pure code, no
+  // external assets → prod-safe; a core walk-mode "explore the space" delight
+  // like the door swing → simple tier.
+  walkWindowFixtures: {
+    label: 'Interactive curtains & blinds',
+    description: 'Click/tap or press E to open curtains and raise/lower blinds in walk mode',
+    default: true,
+    tier: 'simple',
+  },
   // Replace-with-similar (PARITY-REPLACE): swap a placed item for a nearest-size
   // catalog sibling in one click, keeping its position/rotation/level. Pure code,
   // no external assets → prod-safe. Surfaced in the default experience → simple tier.

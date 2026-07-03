@@ -455,6 +455,32 @@ learned here:**
 - The panel surfaces purely on `selectedItemIds.length > 1` — drive it with `setSelectedItemIds`
   (or `setPlanMarqueeSelection` once the marquee lands) rather than synthesising a canvas drag.
 
+### Worked example — walk-mode curtain/blind interact (WINDOW-FIXTURE-INTERACT)
+
+**`walk-curtain-interact.json`** proves the walk-mode fixture toggle end-to-end: orbit E-press
+inert → enter walk → the REAL aim loop flags the living/dining curtain (`nearbyFixtureId`) →
+FixturePrompt pill ("Open curtains") → REAL `KeyE` press flips `drawAmount` 1→0 → prompt flips
+to "Close curtains" → store-action toggle back. **Key gotchas learned here:**
+- **Teleporting the walk camera works via `window.__three.camera.position.x/.z`** — the
+  FirstPersonCamera frame loop only writes x/z on movement input (y is owned by `yPos`+bob, and
+  the *orientation* is re-asserted every frame from internal yaw/pitch refs seeded at spawn).
+  So you can move the walker anywhere, but you CANNOT re-aim it — pick a teleport spot such
+  that the spawn look direction (≈`(-0.17, -0.99)` for the default flat) already points at your
+  target within the 2 m interact radius. Walk mode is `isContinuous`, so the aim loop ticks
+  headlessly without store nudges.
+- **The R3F mesh-click limitation applies to the fixture/door click path** — verify the click
+  branch through its store action (`toggleWindowFixture` / `toggleDoor`) and let unit tests
+  cover the `onClick` gate; the E-key path is fully drivable headless (`{"key": "KeyE"}` reaches
+  the real `App.tsx` handler).
+- **The first-run "Walking through" InfoCallout covers bottom-center HUD pills** (DoorPrompt /
+  FixturePrompt render at the same `bottom-24` slot). Call
+  `dismissCallout('walk-mode')` after entering walk or the prompt is invisible in screenshots
+  (it still exists in the DOM — text `waitFor`s pass either way).
+- **Default items get their param-schema defaults filled at boot** — the default curtain boots
+  with `props.drawAmount === 1` (not `undefined`), so "unchanged" assertions must compare
+  against the filled default, not absence. Toggles are synchronous, so asserting the value
+  right after a keypress is a valid inertness proof.
+
 ---
 
 ## Packaged targets (Docker / Electron)

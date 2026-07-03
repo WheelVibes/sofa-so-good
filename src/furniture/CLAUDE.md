@@ -30,7 +30,22 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   → blackout, CURTAIN-OPACITY / `materials/draperyOpacity.ts`) drives BOTH the rendered transparency
   (passed as `getDraperyMaterial`'s `opacity`) AND the daylight blocked (`windowLightModifiers`
   `curtainTransmission` — blackout blocks nearly all). Legacy `material: 'sheer'` maps to the sheer
-  opacity.
+  opacity. **Walk-mode toggle (WINDOW-FIXTURE-INTERACT)**: click/tap or press E on a placed
+  curtain/blind to flip its `drawAmount`/`lower` between 0 and 1 (a discrete step, like a door's
+  fixed swing — not a partial drag), gated behind the `walkWindowFixtures` flag (simple tier) and
+  `isInteractableWindowFixture(def)` (`furniture/windowFixtureInteract.ts` — true only for a
+  `windowBound` def whose primitive is `Curtain`/`RollerBlind`). Unlike doors (a fixed
+  `DoorSpec`/`PlanOpening` table + a separate `doors` store slice), a fixture's open/closed value
+  already lives on the placed item's own `props`, so the toggle (`toggleWindowFixture`,
+  `state/slices/windowFixtureSlice.ts`) just patches `items` — no new schema field, it round-trips
+  via the existing `items` persistence. `FirstPersonCamera`'s E-key aim reuses the door aim's exact
+  ray/segment math (`collision/aimRay.ts:nearestAimedSegment`) against per-item segments built by
+  `windowFixtureAimSegments` (recomputed from live `items`, unlike doors' precomputed table, since a
+  fixture can be placed/moved). Every interact entry point (this click, the door click, the E-key
+  handler in `App.tsx`) is gated through the single `state/editing.ts:dispatchWalkInteract` — orbit
+  mode never toggles a door/fixture, only walk mode does (VIEW-EDIT-SPLIT). Venetian-blind slats
+  render as individual (non-instanced) meshes today (see TASKS.md P3 tail) — fine for the
+  raise/lower toggle since it only moves the whole cassette, not per-slat tilt.
 - **Categories**: 15 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected

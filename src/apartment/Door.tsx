@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import { type Group, Mesh, type MeshStandardMaterial } from 'three'
+import { dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { DOORS, FLAT, WALLS } from './constants'
 import type { DoorSpec, WallSpec } from './types'
@@ -78,8 +79,11 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
         <group position={[(direction * spec.width) / 2, FLAT.doorHeight / 2, 0]}>
           <mesh
             onClick={(e) => {
+              // Orbit mode is view-only (VIEW-EDIT-SPLIT) — a door click only
+              // toggles the swing in walk mode; in orbit it falls through to
+              // whatever's behind (no selection semantics on a door leaf).
+              if (!dispatchWalkInteract(useStore.getState(), spec.id, toggle)) return
               e.stopPropagation()
-              toggle(spec.id)
             }}
             castShadow
           >

@@ -139,6 +139,11 @@ import {
   USER_STYLES_INITIAL,
   type UserStylesSlice,
 } from './slices/userStylesSlice'
+import {
+  createWindowFixtureSlice,
+  WINDOW_FIXTURE_INITIAL,
+  type WindowFixtureSlice,
+} from './slices/windowFixtureSlice'
 
 export type { CameraMode } from './slices/cameraSlice'
 export type { Location } from './slices/locationSlice'
@@ -153,6 +158,7 @@ export interface RootState
     CommentsSlice,
     DrawingCalloutsSlice,
     DoorsSlice,
+    WindowFixtureSlice,
     ItemsSlice,
     SelectionSlice,
     GroupsSlice,
@@ -200,6 +206,7 @@ const INITIAL = {
   ...COMMENTS_INITIAL,
   ...DRAWING_CALLOUTS_INITIAL,
   ...DOORS_INITIAL,
+  ...WINDOW_FIXTURE_INITIAL,
   ...ITEMS_INITIAL,
   ...SELECTION_INITIAL,
   ...USER_ASSETS_INITIAL,
@@ -244,6 +251,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createCommentsSlice(set, get, api),
   ...createDrawingCalloutsSlice(set, get, api),
   ...createDoorsSlice(set, get, api),
+  ...createWindowFixtureSlice(set, get, api),
   ...createItemsSlice(set, get, api),
   ...createSelectionSlice(set, get, api),
   ...createGroupsSlice(set, get, api),
