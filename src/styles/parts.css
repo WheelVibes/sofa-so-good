@@ -300,7 +300,12 @@
   color: var(--text-3); font-weight: 700; margin-bottom: var(--s-3);
   display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
   position: sticky; top: 0; z-index: 1;
-  background: var(--surface); box-shadow: 0 1px 0 var(--border); padding-bottom: var(--s-2);
+  /* `--sec-h-bg` lets a container declare the exact opaque tone its sticky
+     header should match (see `.modal-overlay > .panel` in components.css) —
+     defaults to the translucent `--surface` for the anchored glass panels
+     (catalog/inspector/budget), unchanged from before. */
+  background: var(--sec-h-bg, var(--surface));
+  box-shadow: 0 1px 0 var(--border); padding-bottom: var(--s-2);
 }
 .sec-h span { white-space: nowrap; }
 

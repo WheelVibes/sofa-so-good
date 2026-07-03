@@ -12,8 +12,8 @@ import {
 } from '../scene/quality'
 import { TONE_MAPPING_SETTINGS, type ToneMappingSetting } from '../scene/toneContext'
 import { useStore } from '../state/store'
+import { AuxPanelHead } from './AuxPanelHead'
 import { Select } from './controls/Select'
-import { Icon } from './toolbar/icons'
 
 const TIERS = RENDER_TIERS
 /** Segment label per setting — extends the look labels with the 'auto' option. */
@@ -92,22 +92,12 @@ export function GraphicsSettings({
         style={{ width: 320, maxHeight: 'min(640px, calc(100vh - 48px))' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="panel-head">
-          {showBack ? (
-            <button type="button" onClick={onClose} className="icon-btn" aria-label="Back">
-              <Icon.ExitRoom width={16} height={16} />
-            </button>
-          ) : null}
-          <div>
-            <div className="panel-title">Graphics</div>
-            <div className="panel-sub">Render & assets</div>
-          </div>
-          {!showBack ? (
-            <button type="button" onClick={onClose} className="icon-btn" aria-label="Close">
-              <Icon.Close width={16} height={16} />
-            </button>
-          ) : null}
-        </div>
+        <AuxPanelHead
+          title="Graphics"
+          sub="Render & assets"
+          onClose={onClose}
+          showBack={showBack}
+        />
         <hr className="hr" />
         <div className="panel-body">
           {/* Measurement units — display preference for all read-outs. Metric
