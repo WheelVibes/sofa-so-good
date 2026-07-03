@@ -45,6 +45,19 @@ Parallel-worktree batch clearing UI-polish follow-ups from TASKS.md:
 - **`.select-trigger`/`.select-icon-trigger` expanded-state ring tokenised** to `var(--focus-ring)`.
 - Stale TASKS.md items dropped: VersionsPanel delete a11y label (already shipped in `af1a4d65`)
   and the GlbDesignerDialog duplicated title (no duplication exists).
+## FIX: shared-library manifest was cache-poisoned + groupKey-less — R2 catalog now populates (v0.11.1.1)
+
+- **Why the admin catalog stayed empty even after the binding fix:** the deployed
+  `library/index.json` predated `groupKey` emission, so the unified-grid dedup collapsed all
+  3562 items to one `ikea-undefined` card — and `serveAsset` had cached that stale manifest at
+  the edge as `immutable, max-age=1y` (with the SW's 30-day CacheFirst on top), so re-uploading
+  alone could never reach clients. Three fixes: **(1)** `serveAsset` treats `library/*` keys as
+  mutable — edge-cache bypassed, served `no-store` (product assets stay immutable-cached);
+  **(2)** the SW CacheFirst route now excludes `/api/assets/library/` (falls through to
+  NetworkOnly); **(3)** `fetchSharedLibraryIndex` backfills a missing `groupKey` from the
+  `group` slug and drops malformed items, so even a stale manifest renders every card. The
+  manifest itself must be re-uploaded (`npm run build-library-index` + rclone copyto — see
+  docs/deployment-cloudflare.md).
 
 ## FEAT: ghost-stencil trace backdrop — centered fit-to-plan load, anchored calibration, visible over rooms (v0.11.1.0)
 

@@ -190,7 +190,12 @@ any signed-in **admin** (no manual add step): opening the catalog fetches
 category tab, downloading its GLB only when placed. This is gated by the
 `sharedLibrary` feature flag (simple tier, on by default) plus the admin role. The manifest is built by
 `node scripts/build-library-index.mjs` and must include each product's
-`groupKey` (emitted automatically).
+`groupKey` (emitted automatically — a manifest built before groupKey existed
+collapses the grid to a single card; the client backfills it from `group` as a
+safety net, but re-upload a current manifest). The manifest is served
+**no-store** (never edge/SW-cached, unlike the immutable product assets), so a
+re-uploaded `library/index.json` is picked up on the next catalog open with no
+cache purge or redeploy.
 
 ## Build + deploy the site
 

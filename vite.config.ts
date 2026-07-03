@@ -71,8 +71,13 @@ export default defineConfig(({ command }) => ({
             // Shared-library assets from the auth-gated API (Cloudflare build).
             // Immutable (content-addressed keys) so CacheFirst is safe and keeps
             // repeat loads off R2 (a cost guardrail). statuses:[0,200] allows the
-            // opaque/streamed model responses.
-            urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith('/api/assets/'),
+            // opaque/streamed model responses. The `library/` manifest is
+            // EXCLUDED: it is re-uploaded in place when the library republishes,
+            // so it falls through to the NetworkOnly /api/ rule below (the
+            // server serves it no-store for the same reason).
+            urlPattern: ({ url }: { url: URL }) =>
+              url.pathname.startsWith('/api/assets/') &&
+              !url.pathname.startsWith('/api/assets/library/'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'shared-library-assets',
