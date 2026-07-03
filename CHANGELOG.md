@@ -22,6 +22,29 @@ pruned from `main`; entries from C251 on (branch
 - **4 hand-tuned line-heights → `--lh-body`** (`.preset-desc`, `.ss-card-desc`,
   `.stamp-banner-text`, `.help-list li`) per the type-hierarchy rule; guarded by
   `lineHeight.test.ts`.
+## FIX/CHORE: improvement cycle 1 — LayersPanel dimming, clearRoom history, a11y/token/CSS minors (v0.11.1.2)
+
+Parallel-worktree batch clearing UI-polish follow-ups from TASKS.md:
+
+- **LayersPanel hidden-row dimming never applied**: the row className never included `hidden`
+  from `hiddenItemIds`, so `.lyr-row.hidden { opacity: 0.45 }` was dead — toggling the eye
+  dimmed only the icon. Wired + unit-tested.
+- **clearRoom double history push**: `deleteItem`'s unconditional `pushHistoryCoalesced('delete')`
+  stacked a second, redundant snapshot on top of clearRoom's explicit `pushHistory()` (the
+  `silent` opt only suppressed the toast). New `skipHistoryPush` option on `deleteItem`;
+  clearRoom is now exactly one undo step (regression test in `itemsSlice.delete.test.ts`).
+- **RemoteCard heavy-download hint** drops the literal `#b8860b` for a `.pr.warn` class reusing
+  the `.badge.warn` oklch vocabulary (light + dark).
+- **`focusRing.test.ts`** hex-scan is bounded by explicit start/end markers instead of
+  marker→EOF, so later hex literals in the file can't silently escape the guard.
+- **Dead CSS pruned** from the SliderField migration (`.walk-cam-row/-lbl/-val`, `.scene-slider`).
+- **`<KbdChip>` extracted** (`ui/toolbar/KbdChip.tsx`) — `MenuItem` and `ArrangeMenu`'s `Action`
+  now share one chip component (markup-identical, tested).
+- **`.mi-kbd` right-inset difference documented** as intentional (docs rows reserve space for the
+  hover `.mi-help` button) rather than "fixed" into an overlap.
+- **`.select-trigger`/`.select-icon-trigger` expanded-state ring tokenised** to `var(--focus-ring)`.
+- Stale TASKS.md items dropped: VersionsPanel delete a11y label (already shipped in `af1a4d65`)
+  and the GlbDesignerDialog duplicated title (no duplication exists).
 
 ## FEAT: ghost-stencil trace backdrop — centered fit-to-plan load, anchored calibration, visible over rooms (v0.11.1.0)
 

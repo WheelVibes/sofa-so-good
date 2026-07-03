@@ -9,6 +9,7 @@ import { applyStyle, STYLE_PRESETS } from '../../../materials/stylePresets'
 import { useStore } from '../../../state/store'
 import { Select } from '../../controls/Select'
 import { Icon, type IconName } from '../icons'
+import { KbdChip } from '../KbdChip'
 import { shortcutLabel } from '../shortcuts'
 import { ToolbarMenu } from '../ToolbarMenu'
 
@@ -285,7 +286,7 @@ function Action({
         <span className="block text-[13px] text-[var(--text)]">{label}</span>
         {sub ? <span className="block text-[10px] text-[var(--text-3)]">{sub}</span> : null}
       </span>
-      {kbd ? <kbd className="mi-kbd">{kbd}</kbd> : null}
+      {kbd ? <KbdChip>{kbd}</KbdChip> : null}
     </button>
   )
 }

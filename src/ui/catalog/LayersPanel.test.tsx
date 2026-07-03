@@ -47,3 +47,15 @@ describe('LayersPanel empty states', () => {
     expect((input as HTMLInputElement).value).toBe('')
   })
 })
+
+describe('LayersPanel hidden-row dimming', () => {
+  it('applies the "hidden" class to a row whose item is in hiddenItemIds, not to a visible row', () => {
+    const item2: FurnitureItem = { ...ITEM, id: 'i2' }
+    useStore.setState({ items: [ITEM, item2], hiddenItemIds: [ITEM.id] })
+    render(<LayersPanel />)
+    const hiddenRow = screen.getByTitle('Show').closest('.lyr-row')
+    const visibleRow = screen.getByTitle('Hide').closest('.lyr-row')
+    expect(hiddenRow).toHaveClass('hidden')
+    expect(visibleRow).not.toHaveClass('hidden')
+  })
+})

@@ -3,6 +3,7 @@ import type { FeatureFlag } from '../../features/featureFlags'
 import { type DocKey, openToolDocs } from '../docsUrl'
 import { useNewBadge } from '../newBadges'
 import { Icon, type IconName } from './icons'
+import { KbdChip } from './KbdChip'
 import { Popover } from './Popover'
 
 /** A labelled dropdown trigger (icon + text + chevron) whose panel is portaled
@@ -107,7 +108,7 @@ export function MenuItem({
         <span className="mi-main">{label}</span>
         {sub ? <span className="mi-sub">{sub}</span> : null}
       </span>
-      {kbd ? <kbd className="mi-kbd">{kbd}</kbd> : null}
+      {kbd ? <KbdChip>{kbd}</KbdChip> : null}
       {newFlag && showNewBadge ? <span className="new-dot" aria-hidden /> : null}
     </button>
   )

@@ -1,0 +1,43 @@
+{
+  "name": "ui-polish-cycle1",
+  "url": "http://localhost:5219/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1'); s.enterRoomEditor?.(s.floorPlan.rooms[0].id); s.setCatalogOpen(true); s.setLeftMode('layers'); })()"
+    },
+    { "name": "wait-layers", "waitFor": { "css": ".lyr-row" }, "timeout": 20000 },
+    { "name": "clear-loading", "eval": "window.__store.getState().hideLoading()" },
+    {
+      "name": "hide-first-item",
+      "eval": "(() => { const s = window.__store.getState(); const roomId = s.roomEditor.activeRoomId ?? s.floorPlan.rooms[0].id; const item = s.items.find((i) => true); s.toggleItemHidden(item.id); })()"
+    },
+    {
+      "name": "row-dimmed",
+      "waitFor": { "store": "!!document.querySelector('.lyr-row.hidden')" },
+      "timeout": 10000,
+      "failMessage": "hidden item row should carry .hidden and dim"
+    },
+    { "name": "settle-a", "wait": 600 },
+    { "name": "shot-layers-dimmed", "screenshot": "layers-dimmed" },
+    {
+      "name": "open-arrange-menu",
+      "eval": "(() => { const btns = [...document.querySelectorAll('button')]; const b = btns.find((x) => (x.textContent || '').trim() === 'Arrange'); b?.click(); })()"
+    },
+    { "name": "wait-menu", "waitFor": { "css": ".mi-kbd" }, "timeout": 10000 },
+    { "name": "shot-arrange-chips", "screenshot": "arrange-kbd-chips" },
+    { "name": "close-menu", "eval": "document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))" },
+    {
+      "name": "expand-room-select",
+      "eval": "(() => { const t = document.querySelector('.select-trigger'); t?.click(); })()"
+    },
+    {
+      "name": "wait-expanded",
+      "waitFor": { "store": "!!document.querySelector('.select-trigger[aria-expanded=\"true\"]')" },
+      "timeout": 10000
+    },
+    { "name": "settle-b", "wait": 400 },
+    { "name": "shot-select-ring", "screenshot": "select-expanded-ring" }
+  ]
+}

@@ -119,10 +119,13 @@ export function FinishPicker() {
     const st = useStore.getState()
     st.pushHistory()
     const n = roomItemIds.length
-    // silent: true — the whole clear is one coalesced history step, so this
-    // single summary toast (with its own Undo) replaces the per-item "Item
-    // deleted" toasts rather than stacking alongside them.
-    for (const id of roomItemIds) st.deleteItem(id, { silent: true })
+    // silent: true — the whole clear is one history step (pushed once above
+    // via pushHistory()), so this single summary toast (with its own Undo)
+    // replaces the per-item "Item deleted" toasts rather than stacking
+    // alongside them. skipHistoryPush: true — deleteItem's own coalesced
+    // push would otherwise add a second, redundant history entry on top of
+    // the explicit pushHistory() above.
+    for (const id of roomItemIds) st.deleteItem(id, { silent: true, skipHistoryPush: true })
     st.notify.start({
       title: `Cleared ${n} item${n === 1 ? '' : 's'} from this room`,
       kind: 'success',
