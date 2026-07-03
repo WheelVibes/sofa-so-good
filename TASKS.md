@@ -38,8 +38,9 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   products are all-procedural, so this is gated on sourcing a suitable CC0 GLB option to bundle.
 - [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — AI surfaces, GLB-designer
   re-rung, ceilingDesign (needs walk-mode look-up), livePrices, first-run re-rungs,
-  backdrop-upload + furnlight re-rungs. (crown-molding simple rung landed —
-  `crown-molding-simple.json`, v0.11.2.13.)
+  first-run re-rungs. (crown-molding, backdrop-upload and furnlight simple rungs landed —
+  `crown-molding-simple.json` v0.11.2.13, `backdrop-upload-simple.json` +
+  `furnlight-simple.json` v0.11.2.14.)
   - model-upload: **simple rung landed** (`model-upload-simple.json` — Upload entry gating + 60-group
     detection via the `__detectGroups` dev hook). A full journey rung is blocked on the dialog being
     `React.lazy` (won't mount headless); the paginated-list render is instead covered by
@@ -84,6 +85,20 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   wire-up or removal.
 - [ ] **DE-5**: extend `knip.json` entry/project to `functions/**`, `workers/**`, `electron/*.mjs`
   (currently invisible to knip), verify clean after DE-2/3, then add `npm run deadcode` to CI.
+
+## Bugs found by IXT back-fill (2026-07-03, evidence in scenario run logs/screenshots)
+- [ ] **BUG: nested Select inside a toolbar Popover closes the parent menu on option click** —
+  `ui/toolbar/Popover.tsx`'s outside-pointerdown containment checks only its own portaled panel;
+  a nested `controls/Select.tsx` option list portals to a SIBLING body node, so the click reads
+  as "outside" and the whole menu closes before the option lands (repro: SceneMenu "Window view"
+  select; screenshot `failed-backdrop-is-dusk.png`). Fix idea: containment should also accept
+  clicks inside any descendant portal (e.g. shared data-attr or a portal registry).
+- [ ] **BUG: "Turn off light source" never works** — `ui/inspector/InspectorPanel.tsx:429` does
+  `delete next.lightOn` then passes the whole props bag, but `itemsSlice.updateItemProps` merges
+  (`{...it.props, ...props}`) so a deleted key can't clear; once lit, an item can't be unlit via
+  the inspector (walk-mode E-toggle works — it flips `'yes'`/`'no'` explicitly). Fix: pass
+  `{ lightOn: undefined }` (spread overwrites with undefined) or make the inspector use the
+  `'no'` convention consistent with `lightEmitters`.
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

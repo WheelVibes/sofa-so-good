@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: backdrop-upload + furnlight IXT simple rungs back-filled — 2 real bugs flushed out (v0.11.2.14)
+
+- `backdrop-upload-simple.json` (47 steps): backdrop flags/tiers, preset cycle visible through
+  the window, custom-photo upload through the REAL file-input path, non-image + oversize
+  rejection toasts, remove-reverts. `furnlight-simple.json` (49 steps): `itemAsLight` gating,
+  inspector make-a-light toggle, live PointLight in the scene, lit-vs-unlit shots.
+- The rungs did their job — two live bugs documented in TASKS.md: a nested Select inside a
+  toolbar Popover closes the parent menu on option click (portal containment miss), and the
+  inspector's "Turn off light source" can never clear `lightOn` (delete-key vs merge semantics).
+
 ## TEST: crown-molding IXT simple rung back-filled (v0.11.2.13)
 
 - `crown-molding-simple.json` (25 steps): flag defaults ON in both modes, navy-wall contrast

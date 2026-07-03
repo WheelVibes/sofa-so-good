@@ -509,6 +509,45 @@ store-action toggle back on. **New gotcha found here, beyond the curtain worked-
   the ceiling and upper walls reads as an obvious warm-vs-dark difference in the screenshot —
   good evidence even when the literal mesh isn't visible. Force `setLightsMode('on')` +
   a night `setManualHour` first so the "on" state is unambiguously bright before toggling off.
+### Worked example — walk-mode backdrop upload + item-as-light-source (IXT-SUITES re-rungs)
+
+**`backdrop-upload-simple.json`** (47 steps, 10 shots) and **`furnlight-simple.json`** (49 steps,
+5 shots) back-fill the `backdrops`/`customBackdrop` and `itemAsLight` simple rungs. Both surfaced
+real product bugs (documented in their commits/PR, not fixed there) plus two reusable harness
+gotchas:
+
+- **A custom `Select` (`ui/controls/Select.tsx`) nested inside a `ToolbarMenu` closes the WHOLE
+  parent menu when you click an option, dropping the pick.** `Popover`'s outside-pointerdown
+  listener (`ui/toolbar/Popover.tsx`) closes on any pointerdown whose target isn't contained in
+  its own portaled panel DOM subtree. A `Select` opened from inside another `Popover`-based menu
+  portals its OWN option list to a **sibling** `document.body` node — not inside the parent
+  menu's panel — so the parent's listener sees the click as "outside" and closes first (on
+  `pointerdown`, before the option's `click` handler ever runs), unmounting the option before the
+  click lands. Net effect: selecting an option silently does nothing and the whole menu vanishes.
+  Work around it in a scenario by driving the value with the underlying **store action** instead
+  (`{"store": {"action": "setBackdrop", "args": ["dusk"]}}`) — click the Select's own **trigger**
+  button (not a portaled option) if you only need to open/screenshot/close it cleanly, since
+  clicking the same anchor again just calls the trigger's own `onClick` toggle rather than hitting
+  the parent's outside-click path.
+- **The default HDB flat's curtains are drawn (`drawAmount: 1`) out of the box**, which hides a
+  walk-mode window backdrop entirely — every "look out the window" shot is a plain gray panel
+  until you open them: `state.items.filter(i => i.defId === 'curtains').forEach(i =>
+  updateItemProps(i.id, { drawAmount: 0 }))`. Do this as one of the first eval steps, before any
+  walk-mode screenshot that needs the view to actually be visible.
+- **The per-room editor's `Canvas` (`scene/RoomEditorScene.tsx`) is a completely separate lighting
+  rig from the main `Scene`** — a fixed `hemisphereLight` + `ambientLight` for a flat, always-lit
+  authoring view, and it does **not** render `<FurnitureLights />` at all. Any light-emitter effect
+  (a registered fixture, or an `itemAsLight`-flagged item) is invisible while `roomEditor.active`
+  is true, regardless of the hour/`lightsMode` — this isn't a bug, it's deliberate (PERF, a stable
+  view to place items by), but it means you must `exitRoomEditor()` before probing/screenshotting
+  any lighting effect. The Inspector (needed to click the real per-item light toggle) is only
+  reachable inside the room editor, so the pattern is: enter editor → select item → click toggle →
+  **exit editor** → re-focus → probe/screenshot in the real Scene.
+- **A near-pitch-black "unlit" comparison shot proves nothing.** Picking a very late manual hour
+  (23:00) for the "before/after" light-toggle pair renders the whole room fully black in both
+  states under `lightsMode: 'auto'`-independent darkness — the point light's absence has no visual
+  contrast to show. Use dusk (~19:30) instead: dark enough for the point light's warm pool to read
+  clearly, bright enough that the "unlit" shot still shows the room's silhouette instead of a void.
 
 ---
 
