@@ -462,7 +462,17 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
   padding: 4px 6px 2px; font-size: var(--t-2xs); font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3);
 }
-.scene-clock { font-size: var(--t-xs); font-weight: 600; color: var(--text-2); text-transform: none; letter-spacing: 0; }
+/* The slider row's own label is the live clock readout (see TimeOfDaySlider) —
+   keep it on one line, mono/tabular so digits don't jiggle, and unstretched so
+   the slider (`.fld .slider`, flex: 1.2) takes the rest of the row. */
+.tod .fld .lbl {
+  flex: none;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+.scene-slider { position: relative; padding: 6px 8px 10px; }
 .scene-ticks { position: absolute; left: 8px; right: 8px; bottom: 4px; height: 6px; pointer-events: none; }
 .scene-tick { position: absolute; top: 0; width: 2px; height: 6px; border-radius: 1px; background: var(--border-2); transform: translateX(-1px); }
 .scene-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 2px 6px 4px; }
