@@ -199,6 +199,30 @@ export function OrbitCamera() {
       t: 0,
       dur: flyDurationFor([camera.position.x, camera.position.y, camera.position.z], toPos),
     }
+    // Dev-only fly probe: sweep the fly's actual interpolation curve (the same
+    // flyPose + lookAt semantics the per-frame tick uses) at a fixed 120-sample
+    // resolution and publish the swept quaternions on `window.__flyProbe`, so
+    // the smoothness scenario (scripts/scenarios/top-view-smooth.json) can
+    // assert the per-step angular delta deterministically — a headless
+    // software-rendered browser may paint so few real frames that a single
+    // tick's dt covers the whole fly. Tree-shaken from prod by the DEV guard.
+    if (import.meta.env.DEV) {
+      const from: Pose['pos'] = [camera.position.x, camera.position.y, camera.position.z]
+      const fromT: Pose['target'] = [c.target.x, c.target.y, c.target.z]
+      const scratch = camera.clone()
+      const samples: { t: number; x: number; y: number; z: number; w: number }[] = []
+      const steps = 120
+      for (let i = 0; i <= steps; i++) {
+        const f = smooth(i / steps)
+        const { pos, target } = flyPose(from, fromT, toPos, toTgt, f)
+        scratch.position.set(pos[0], pos[1], pos[2])
+        scratch.up.copy(camera.up)
+        scratch.lookAt(target[0], target[1], target[2])
+        const q = scratch.quaternion
+        samples.push({ t: i / steps, x: q.x, y: q.y, z: q.z, w: q.w })
+      }
+      ;(window as unknown as { __flyProbe?: unknown[] }).__flyProbe = samples
+    }
   }
   const applyViewNonce = useStore((s) => s.applyViewNonce)
   useEffect(() => {
