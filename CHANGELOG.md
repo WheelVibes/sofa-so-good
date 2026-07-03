@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: top-view camera fly no longer snaps rotation at the end (v0.11.2.7)
+
+- The shared eased fly lerped position/target in **Cartesian** space while orientation was
+  re-derived per frame — near the straight-overhead pole the implied azimuth swings violently in
+  the final frames (probe: 26.66°/frame terminal spike, 14x the average step). New pure
+  `cameraTween.flyPose()` interpolates the orbital parameters instead (target/radius/polar lerp,
+  **shortest-arc azimuth**), exact at both endpoints: max step now 1.85°/frame (1.5x avg), final
+  frame 0.06°, true top-down landing. Same fly tick serves home/reset, saved views and
+  double-click focus — home/reset re-verified in-app; endpoints unit-locked (19 tests).
+  Scenario: `top-view-smooth.json` (+ DEV-only `window.__flyProbe` curve sampler).
+
 ## UX: "Location set" success toast on completing the location prompt (v0.11.2.6)
 
 - Completing the location prompt (geolocation, city search, or manual coordinates) now fires a
