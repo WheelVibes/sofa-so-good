@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX/UX: modal headers un-broken (title alignment + white sticky bars) + quality-switch overlay (v0.11.2.2)
+
+- **Back-button modal headers left-align the title on one line** (user report, mobile Graphics
+  sheet): `.panel-head`'s space-between pushed the title to the right edge whenever a back arrow
+  led the row. New shared `AuxPanelHead` owns both header variants (`.panel-head-back` +
+  `.panel-head-title-inline`); `Modal` + `GraphicsSettings` render through it, fixing every
+  back-variant modal at once. Desktop close-X variant pixel-identical (screenshot-verified).
+- **Sticky section-header "white bars" eliminated**: `--surface` is a translucent token, so the
+  sticky `.sec-h` composited it a second time over the modal's already-translucent body — the
+  double-composite read as a white bar (desktop AND mobile). Modals now use an opaque
+  `--surface-solid` body and set `--sec-h-bg` to match (`.sec-h` reads
+  `var(--sec-h-bg, var(--surface))`); seamless across light/dark + all themes, sticky kept.
+  Dock panels keep their glass translucency.
+- **Quality-preset switches mask the renderer rebuild** (user report: whole-screen jank switching
+  to Maximum): `setQualityTier` raises the loading overlay ("Applying <tier> quality…") only on a
+  real tier change; the existing readiness machinery (2 rAF + 2 warm frames via
+  `frameRenderedSignal`, 2 s timeout fallback) hides it once the scene presents under the new
+  settings — landing back on the settings panel with the new preset selected. Desktop + mobile
+  (shared store action). Scenario: `settings-header-quality-simple.json`.
+
 ## CHORE: dead-code audits — orphaned help modal remnants + stillborn .preset-* CSS pruned (v0.11.2.1)
 
 - **`.help-list` CSS + `helpOpen`/`setHelpOpen` state deleted**: the standalone Help modal was
