@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: crown-molding IXT simple rung back-filled (v0.11.2.13)
+
+- `crown-molding-simple.json` (25 steps): flag defaults ON in both modes, navy-wall contrast
+  shot of the strip at the wall-ceiling seam (mitred corner, no z-fighting), and an off/on
+  flag round-trip proving the render is flag-driven. Replaces a defective draft scenario
+  (hardcoded port, no mode assertions, camera clipping through the ceiling fan).
+
 ## FEAT: walk-mode screens cycle wallpaper + lights toggle on interact (v0.11.2.11)
 
 - **Screens** (Monitor/FlatscreenTV — any def whose paramSchema carries the `screenContent`
