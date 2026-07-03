@@ -18,4 +18,13 @@ describe('P20 line-height tokens', () => {
     expect(flows).toMatch(/\.empty-sub\b[^}]*line-height:\s*var\(--lh-body\)/s)
     expect(flows).toMatch(/\.onb-lede\b[^}]*line-height:\s*var\(--lh-body\)/s)
   })
+  it('uses --lh-body (not a hand-tuned near-value) on other multiline reading copy', () => {
+    const features = read('./features.css')
+    const flows = read('./flows.css')
+    const parts = read('./parts.css')
+    expect(flows).toMatch(/\.preset-desc\b[^}]*line-height:\s*var\(--lh-body\)/s)
+    expect(flows).toMatch(/\.ss-card-desc\b[^}]*line-height:\s*var\(--lh-body\)/s)
+    expect(features).toMatch(/\.stamp-banner-text\b[^}]*line-height:\s*var\(--lh-body\)/s)
+    expect(parts).toMatch(/\.help-list li\b[^}]*line-height:\s*var\(--lh-body\)/s)
+  })
 })
