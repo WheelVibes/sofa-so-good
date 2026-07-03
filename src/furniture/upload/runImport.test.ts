@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the heavy collaborators so we test runImport's orchestration, not IDB.
 vi.mock('../ikea/importGroup', () => ({
@@ -22,7 +22,7 @@ vi.mock('./bulkImport', async (orig) => {
   }
 })
 
-import { GROUP_CONCURRENCY, planUnits, runImport } from './runImport'
+import { GROUP_CONCURRENCY, planUnits, runImport, startBackgroundImport } from './runImport'
 
 function metaFor(key: string) {
   return {
@@ -117,5 +117,119 @@ describe('runImport', () => {
     // …but in a handful of writes, NOT one per group (the white-flicker fix).
     expect(writes).toBeLessThanOrEqual(Math.ceil(n / COMMIT_BATCH) + 1)
     expect(writes).toBeLessThan(n)
+  })
+})
+
+// P31: lock that the progress toast's 0..1 bar and its "X / Y" text are always
+// derived from the SAME coalesced { d, t } counter, so they can never disagree
+// (one read mid-import, one at completion). Drives startBackgroundImport for
+// real against the real notificationsSlice — only the heavy IKEA/GLB work
+// above is mocked — with requestAnimationFrame stubbed away so coalesceProgress
+// falls back to its ~16ms setTimeout path, which fake timers can step through
+// deterministically.
+describe('startBackgroundImport — progress toast bar/text coupling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('requestAnimationFrame', undefined)
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('mid-import toast progress equals d/t and message is "d / t" from one counter', async () => {
+    const { useStore } = await import('../../state/store')
+    const { importGroup } = await import('../ikea/importGroup')
+    useStore.setState({ notifications: [] })
+
+    // Gate one group so the other GROUP_CONCURRENCY-1 finish first, giving us
+    // a genuine mid-import point to inspect before the import completes.
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    ;(importGroup as ReturnType<typeof vi.fn>).mockImplementation(
+      async (meta: { group_key: string; product_name: string }) => {
+        if (meta.product_name === 'GATED') await gate
+        return { ok: true, def: { id: `ikea-${meta.group_key}`, name: meta.product_name } }
+      },
+    )
+
+    const p = plan(['a', 'gated', 'b', 'c']) // sized to GROUP_CONCURRENCY (4)
+    expect(GROUP_CONCURRENCY).toBe(4)
+    const outcomePromise = startBackgroundImport(p)
+
+    // Let the microtask queue drain: a/b/c resolve immediately, 'gated' is
+    // still blocked, so runImport's shared counter sits at 3/4 but hasn't
+    // been flushed to the store yet (coalesceProgress schedules, doesn't
+    // deliver synchronously).
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    let toast = useStore.getState().notifications.find((n) => n.kind === 'progress')
+    expect(toast).toBeDefined()
+    const id = toast?.id as string
+
+    // Fire the coalesced setTimeout fallback — exactly one delivery for
+    // however many pushes queued up.
+    await vi.advanceTimersByTimeAsync(16)
+
+    toast = useStore.getState().notifications.find((n) => n.id === id)
+    expect(toast?.progress).toBeCloseTo(3 / 4)
+    expect(toast?.message).toBe('3 / 4')
+
+    release()
+    await vi.advanceTimersByTimeAsync(16)
+    const outcome = await outcomePromise
+    expect(outcome.groups.filter((g) => g.ok)).toHaveLength(4)
+
+    const final = useStore.getState().notifications.find((n) => n.id === id)
+    expect(final?.kind).toBe('success')
+  })
+
+  it('final flush lands the bar at 1 and the text at "t / t" together', async () => {
+    const { useStore } = await import('../../state/store')
+    useStore.setState({ notifications: [] })
+
+    const p = plan(['x', 'y'], ['z'])
+    const total = planUnits(p)
+    expect(total).toBe(3)
+
+    // Spy on notify.update (the notify object is a stable reference on the
+    // slice, so spying on its method intercepts the real calls too) to
+    // capture every (progress, message) pair the adapter ever sends — the
+    // invariant is that EVERY delivered pair is internally consistent
+    // (message encodes the same d/t the bar reports), not just the last one.
+    const seen: Array<{ progress?: number | null; message?: string }> = []
+    const real = useStore.getState().notify.update.bind(useStore.getState().notify)
+    const updateSpy = vi
+      .spyOn(useStore.getState().notify, 'update')
+      .mockImplementation((id, patch) => {
+        seen.push({ progress: patch.progress, message: patch.message })
+        return real(id, patch)
+      })
+
+    try {
+      const outcomePromise = startBackgroundImport(p)
+      await vi.runAllTimersAsync()
+      const outcome = await outcomePromise
+      expect(outcome.loose?.imported).toBe(1)
+
+      expect(seen.length).toBeGreaterThan(0)
+      for (const { progress, message } of seen) {
+        const match = message?.match(/^(\d+) \/ (\d+)$/)
+        expect(match).not.toBeNull()
+        const [, d, t] = match as RegExpMatchArray
+        expect(progress).toBeCloseTo(Number(d) / Number(t))
+      }
+      // The last coalesced delivery before completion must be the terminal count.
+      const last = seen.at(-1)
+      expect(last?.message).toBe(`${total} / ${total}`)
+      expect(last?.progress).toBeCloseTo(1)
+    } finally {
+      updateSpy.mockRestore()
+    }
   })
 })
