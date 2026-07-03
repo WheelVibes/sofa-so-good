@@ -39,7 +39,15 @@ export async function fetchSharedLibraryIndex(): Promise<SharedLibraryIndex | nu
   try {
     const res = await fetch(`${assetsBase()}/library/index.json`, { credentials: 'include' })
     if (!res.ok) return null
-    return (await res.json()) as SharedLibraryIndex
+    const index = (await res.json()) as SharedLibraryIndex
+    if (!Array.isArray(index.items)) return null
+    // Back-compat: manifests built before `groupKey` was emitted lack it, and a
+    // missing key would collapse every card to one `ikea-undefined` id in the
+    // grid dedup. The `group` folder slug is the stable fallback identity.
+    index.items = index.items
+      .filter((it) => typeof it?.group === 'string' && it.group)
+      .map((it) => (it.groupKey ? it : { ...it, groupKey: it.group }))
+    return index
   } catch {
     return null
   }
