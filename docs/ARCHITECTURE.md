@@ -659,9 +659,17 @@ same change that reshapes a system.
   mobile File + ⌘K (`import-sh3d`).
 - **Multi-axis furniture tilt** (`tiltFurniture` flag, pro; PARITY-TILT): `FurnitureItem` gains optional
   `pitch`/`roll` (radians); `furniture/tiltRotation.ts` `itemRotation` returns the intrinsic Euler tuple
-  `[pitch, yaw, roll, 'YXZ']` the `Furniture` root group uses (reduces to pure yaw when untilted).
-  Inspector **Tilt** sliders via `itemsSlice.tiltItem`; serialized (optional) in `schema.ts`. Collision
-  stays yaw-OBB (tilt doesn't change the plan footprint).
+  `[pitch, yaw, roll, 'YXZ']` the `Furniture` root group uses (reduces to pure yaw when untilted). The
+  shared range lives there too (`TILT_LIMIT_DEG`/`TILT_LIMIT_RAD`/`clampTilt`, ±45°). Two affordances,
+  one flag, one action (`itemsSlice.tiltItem`): the inspector's **Tilt** sliders
+  (`ui/inspector/TiltControls.tsx`) and the in-viewport **`TiltGizmo`** drag handle
+  (`scene/selection/TiltGizmo.tsx` + pure `tiltGizmoMath.ts`, PARITY-TILT tail) — a "joystick" (rod +
+  ball) anchored above the selected item and tilted with its own live Euler tuple so it always points
+  the way the piece leans; drag the ball via pointer events (mouse + touch): vertical screen delta →
+  pitch, horizontal → roll, clamped to the shared range (no floor-plane raycast — pitch/roll have no
+  world-space plane to project onto, unlike `RotateGizmo`/`ResizeGizmo`). Single-item only, hidden for
+  locked items and Staircase. Serialized (optional) in `schema.ts`. Collision stays yaw-OBB (tilt
+  doesn't change the plan footprint).
 - **3D scene export** (`sceneExport3d` flag, pro; Q-3DEXPORT): `ui/openSceneExport.ts` `exportScene3d`
   downloads the whole furnished home as `.glb` (reusing `furniture/convert/toGlb.ts` `exportGlb`) or
   `.obj` (`export/sceneObj.ts`, dynamic `OBJExporter`). The live scene root is reached from DOM code via

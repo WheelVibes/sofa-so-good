@@ -125,7 +125,9 @@ describe('Simple/Pro tiering', () => {
   })
 
   it('tiltFurniture (pro tier) is hidden in Simple mode and present in Pro mode', () => {
-    // Multi-axis tilt is an advanced placement control → pro tier.
+    // Multi-axis tilt is an advanced placement control → pro tier. Gates BOTH
+    // the inspector's TiltControls sliders AND the in-viewport TiltGizmo drag
+    // handle (PARITY-TILT tail) — one capability, one flag.
     expect(resolveFlags(true, {}, false, 'simple').tiltFurniture).toBe(false)
     expect(resolveFlags(true, {}, false, 'pro').tiltFurniture).toBe(true)
   })

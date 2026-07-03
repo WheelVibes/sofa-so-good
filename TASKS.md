@@ -46,8 +46,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
     `React.lazy` (won't mount headless); the paginated-list render is instead covered by
     `GroupPanel.test.tsx` + `pageWindow.test.ts` and a temporary `?__pagerdemo` `main.tsx` mount.
 - [ ] PARITY-VIDEO tail: MP4 transcode of the walkthrough `.webm` + a duration modal.
-- [ ] PARITY-TILT tail: a draggable 3D pitch/roll tilt gizmo handle (tilt is otherwise editable via
-  the inspector sliders).
 - [ ] Q-3DEXPORT tail: worker-streamed whole-scene export for very large scenes.
 - [ ] C-PLANTS/DECOR tail: curated CC0 set-dressing bundles from Poly Haven / Poly Pizza.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).

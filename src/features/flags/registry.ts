@@ -622,12 +622,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     tier: 'pro',
   },
   // Multi-axis furniture tilt (SweetHome3DJS parity): pitch/roll an item off
-  // vertical (angle a picture, recline a backrest, bank a decor piece). Pure
-  // code, no external assets → prod-safe. An advanced placement control beyond
-  // the core furnish loop → pro tier.
+  // vertical (angle a picture, recline a backrest, bank a decor piece), editable
+  // via the inspector's TiltControls sliders AND the in-viewport TiltGizmo drag
+  // handle (PARITY-TILT tail, scene/selection/TiltGizmo.tsx — same flag gates
+  // both affordances, they're one capability, not two). Pure code, no external
+  // assets → prod-safe. An advanced placement control beyond the core furnish
+  // loop → pro tier.
   tiltFurniture: {
     label: 'Tilt furniture',
-    description: 'Pitch / roll an item off vertical (angle art, recline, bank) in the inspector',
+    description:
+      'Pitch / roll an item off vertical (angle art, recline, bank) — slider + 3D handle',
     default: true,
     tier: 'pro',
   },

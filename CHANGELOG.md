@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: draggable 3D tilt gizmo handle (v0.12.0.2)
+
+PARITY-TILT tail — pitch/roll was previously editable only via the inspector's
+`TiltControls` sliders; now a direct-manipulation handle in the 3D viewport does
+the same job.
+
+- **`TiltGizmo`** (`scene/selection/TiltGizmo.tsx`): a "joystick" (rod + ball)
+  anchored just above the selected item, tilted with the item's own live
+  `[pitch, yaw, roll]` Euler tuple (`furniture/tiltRotation.ts:itemRotation`) so
+  it always visually points the way the piece is actually leaning. Drag the ball
+  — vertical screen movement sets pitch, horizontal sets roll — via pointer
+  events (mouse + touch), same as `RotateGizmo`/`ResizeGizmo`. Single-item only
+  (tilt is a per-item transform); hidden for locked items and for Staircase
+  (matches the inspector's own exclusion). Mounted beside `RotateGizmo`/
+  `ResizeGizmo` in both the main and room-editor scenes.
+- **Pure math extracted** to `scene/selection/tiltGizmoMath.ts`
+  (`computeTiltDrag`, `tiltGizmoAnchorHeight`) — screen-pixel delta → clamped
+  pitch/roll, unit-tested in isolation (`tiltGizmoMath.test.ts`).
+- **Shared tilt range**: `TILT_LIMIT_DEG`/`TILT_LIMIT_RAD`/`clampTilt` moved from
+  a `TiltControls`-local constant into `furniture/tiltRotation.ts` so the slider
+  and the gizmo can never disagree on how far a piece can lean (±45°).
+  `TiltControls.tsx` now imports the shared constant instead of duplicating it.
+- **Feature flag**: reuses the existing `tiltFurniture` flag (pro tier, default
+  on) — the gizmo is an alternate affordance for the same capability the
+  sliders already gate, not a separate feature. Updated the registry
+  description + comment to note both affordances share the flag.
+- Undo/redo: the gesture pushes history on grab and, on release, resolves to
+  the same `pendingEdit`/`EditConfirmBar` tick-cross flow as every other
+  in-scene transform (`priorItems` snapshot restores pitch/roll on ✗/Esc).
+- Scenario: `scripts/scenarios/tilt-gizmo-simple.json` (select an item, confirm
+  the flag-gated handle mounts, drag it, screenshot).
+
 ## FEAT + FIX: mobile editor polish, room dimension markers, room reorder, update UX (v0.12.0.1)
 
 - **`roomReorder` is simple-tier** (was pro) — the reorder dialog shows in both Simple and Pro.

@@ -94,6 +94,17 @@ uniformly about the opposite corner (a single piece is resized from the inspecto
 instead). The same unified bounding box, rotation ring and corner handles appear
 in the 2D floor‑plan editor too.
 
+### Tilt a piece (Pro)
+
+In **Pro mode** you can lean a piece off vertical — angle a wall print, recline
+a lounger, bank a decor piece. Select it and either use the **Tilt** section in
+the inspector (**Pitch (forward / back)** and **Roll (left / right)** sliders,
+±45°, with a **Reset**), or grab the small **tilt handle** floating just above
+the piece in the 3D view: **drag the ball** — up/down leans it forward or back,
+left/right banks it sideways — and a live pitch/roll read‑out follows the drag.
+The handle leans with the piece, so it always shows which way it's tilted.
+(Staircases can't be tilted.)
+
 **Right‑click** any placed piece for a **context menu** with the most common
 actions right where you need them — **replace with similar**, rotate, **straighten**
 (snap a freely-turned piece back square to the walls; shown only when it's

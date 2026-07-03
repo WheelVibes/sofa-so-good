@@ -1014,3 +1014,18 @@ floor beam* in orbit headless is unreliable (OrbitControls snaps back a manual `
 the dollhouse angle hides the floor), so the scene-graph probe is the reliable proof here.
 Give the rebuild a nudge (`setManualHour(h + 0.01)`) after `updateItemProps` so the
 nearest-light recompute fires before you probe.
+
+### Selection gizmos never mount in the whole-flat orbit view
+
+`RotateGizmo`/`ResizeGizmo`/`TiltGizmo` all gate on `canEditScene` =
+`roomEditor.active && cameraMode === 'orbit'`. A scenario that seeds + selects an item in the
+top-level orbit view will show the selection outline and inspector but **no gizmo** — that's
+correct view-only gating, not a rendering bug. `enterRoomEditor('<roomId>')` first (and seed the
+item at a position inside that room). To drive a gizmo drag headlessly: project the handle's
+world position to client px via the dev `__three` camera (`matrixWorldInverse` +
+`projectionMatrix`), dispatch a synthetic `pointerdown` on `__three.gl.domElement` at that point
+(R3F raycasts it; assert `state.rotatingGizmo === true` to confirm the grab), then
+`pointermove`/`pointerup` on `window`. Don't use a `drag` step for a second camera angle while an
+item is selected — a left-drag marquee-selects and clobbers the selection; reposition via
+`__three.controls` (`camera.position` + `controls.update()`) instead. (Found building
+`tilt-gizmo-simple.json`.)
