@@ -169,6 +169,12 @@
 .cat-card .nm > span { min-width: 0; }
 .cat-card .pr { font-size: var(--t-2xs); color: var(--text-3); }
 .cat-card .pr b { color: var(--accent-soft-text); font-weight: 700; }
+/* Heavy-download flag (RemoteCard, ≥30 MB at the chosen resolution) — same warn
+   tone as `.badge.warn`/`.lyr-flag.warn`. The class was already applied in
+   RemoteCard.tsx but had no matching rule here, so the warning was silently
+   inert (plain `.pr` grey, no cue that the download is large). */
+.cat-card .pr.warn { color: oklch(0.62 0.14 70); font-weight: 700; }
+[data-mode='dark'] .cat-card .pr.warn { color: oklch(0.75 0.13 72); }
 
 .pager { display: flex; align-items: center; justify-content: space-between; padding: var(--s-2) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-xs); color: var(--text-3); font-weight: 600; }
 .pager button { padding: 4px 8px; border-radius: var(--r-2); color: var(--text-2); }
@@ -176,6 +182,13 @@
 .cat-foot { display: flex; align-items: center; justify-content: flex-end; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); }
 .cat-foot .hint { font-size: var(--t-2xs); color: var(--text-3); line-height: 1.4; min-width: 0; }
 .cat-foot .btn { flex: none; }
+/* Packs tab: sidecar-not-detected notice. Same warn tone as `.badge.warn`
+   (features.css) so a "you need to do X" note reads consistently wherever it
+   shows up — was a raw Tailwind `bg-amber-50`/`text-amber-800` pair, which is
+   the literal hardcoded-colour the token vocabulary rule bans (fixed shade,
+   invisible/illegible against a dark-theme surface). */
+.pack-notice { background: oklch(0.75 0.13 75 / 0.18); color: oklch(0.52 0.13 65); border-radius: var(--r-2); padding: var(--s-2) var(--s-3); font-size: var(--t-xs); line-height: var(--lh-body); }
+[data-mode='dark'] .pack-notice { color: oklch(0.82 0.12 78); }
 
 /* ---- Inspector (right) --------------------------------------- */
 .inspector { right: var(--s-4); top: var(--s-4); width: var(--panel-w); max-height: calc(100vh - 32px); }

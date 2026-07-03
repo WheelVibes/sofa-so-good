@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: catalog Packs-tab warn colours onto the token vocabulary (v0.12.0.3)
+
+- Packs-tab "Sidecar not detected" notice moved off literal Tailwind amber
+  (`bg-amber-50 text-amber-800` — a baked light-theme shade, illegible in dark)
+  onto a new `.pack-notice` class using the shared warn tone (same `oklch` pair
+  as `.badge.warn`, `[data-mode='dark']` text lift) + spacing/type tokens.
+- Added the missing `.cat-card .pr.warn` rule so `RemoteCard`'s ≥30 MB
+  heavy-download flag actually renders its warn tone (was silently inert).
+- Verified desktop+mobile × light+dark × Simple/Pro (Packs is Pro-only) via the
+  scenario harness; the rest of the catalog surface audited clean — no churn.
+
 ## FEAT: draggable 3D tilt gizmo handle (v0.12.0.2)
 
 PARITY-TILT tail — pitch/roll was previously editable only via the inspector's
