@@ -62,7 +62,7 @@ describe('tool-action registry — visibility resolution (both modes)', () => {
   const simple = resolveFlags(true, {}, false, 'simple')
 
   it('pro-tier analysis tools show in Pro and hide in Simple', () => {
-    for (const id of ['drawings', 'daylight', 'design-score', 'accessibility']) {
+    for (const id of ['drawings', 'daylight', 'design-score', 'accessibility', 'versions']) {
       const a = TOOL_ACTIONS.find((x) => x.id === id)!
       expect(pro[a.flag]).toBe(true)
       expect(simple[a.flag]).toBe(false)

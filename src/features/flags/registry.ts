@@ -52,7 +52,11 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Versions',
     description: 'Save / restore / compare snapshots',
     default: true,
-    tier: 'simple',
+    // Snapshot save/restore/compare is an analytical/professional surface —
+    // CLAUDE.md hard rule explicitly lists "versions" among the pro-tier
+    // examples (alongside measure/checks/drawings/scores/AI), so it's hidden
+    // in Simple mode.
+    tier: 'pro',
   },
   history: {
     label: 'Edit history',
