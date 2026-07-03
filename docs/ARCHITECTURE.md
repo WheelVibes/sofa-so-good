@@ -283,6 +283,26 @@ same change that reshapes a system.
   (`catalogBrowse.ts:filterByFits`) that hides `'wont-fit'` local items (never remote/shared
   entries, whose footprint is unresolved pre-import) from the grid; browse-only, a no-op during
   search (mirrors the existing Max $ filter).
+  **Pick a finish before placing** (CATALOG-VARIANT, `catalogVariantPick` flag, tier: **simple**,
+  default on — 2026-07-03 core-loop parity audit): a compact quick-look **swatch popover**
+  (`ui/catalog/CatalogVariantPopover.tsx`, `Icon.Palette` trigger — anchored `Popover` on desktop /
+  `Modal` sheet on mobile, mirroring `ColorPicker`) lets a shopper choose a colour/finish/variant on
+  the card BEFORE placing, instead of only after via the inspector. The pure resolution lives in
+  `furniture/placement/catalogVariants.ts`: `catalogVariantOptions(def)` reuses the existing
+  vocabulary rather than inventing one — IKEA `def.variants` (mirroring the inspector's
+  `IkeaBody`/`variantProps`, disabled for a stubbed `assetId: null` finish) for a multi-variant IKEA
+  product, or a curated hex-swatch row (`CURATED_COLOR_SWATCHES`) for a parametric def's primary
+  `color`-kind `paramSchema` field (found via `appearanceProps.ts:appearanceKeys`, same detection
+  copy-appearance/bulk-recolour use) — empty (no popover) for a single-finish IKEA product, a
+  parametric def with no colour field, or a plain GLB (builtin/user/remote/pack/local, which has no
+  def-level finish concept beyond the inspector's post-placement `tint`). Picking a swatch calls
+  `initialVariantProps(def, optionId)` for the resolved patch (`{ variant }` or `{ [colorKey]: hex
+  }`) and arms placement via a new `placementSlice.armWithVariant(defId, props)` action, which stows
+  the patch in `armedVariantProps` (cleared by a plain `setActiveDefId`/`cancelPlacement`/
+  `startStamp`, survives a `keepArmed` stamp/shift re-commit). `usePlacementController`'s `doCommit`
+  merges `{ ...defaultItemProps(def), ...armedVariantProps }` (variant wins) into the new item's
+  props on commit — both the normal floor-collision path and the window-bound fixture path (variant
+  merged before `windowFixtureProps`' sizing overrides, since they never share a key).
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,

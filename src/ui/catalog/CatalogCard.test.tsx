@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { FurnitureDef, IkeaGltfDef } from '../../furniture/types'
+import type { FurnitureDef, IkeaGltfDef, ParametricDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { CatalogCard } from './CatalogCard'
 
@@ -98,6 +98,83 @@ describe('CatalogCard', () => {
       render(<CatalogCard def={SOFA_DEF} roomRects={[{ w: 1, d: 1 }]} />)
       expect(screen.queryByText(/Won.t fit/)).toBeNull()
       expect(document.querySelector('.cat-card')?.className).not.toContain('no-fit')
+    })
+  })
+
+  describe('quick-look finish popover (CATALOG-VARIANT)', () => {
+    const IKEA_MULTI: IkeaGltfDef = {
+      ...IKEA_DEF,
+      variants: [
+        ...IKEA_DEF.variants,
+        {
+          finish: 'black-brown',
+          label: 'Black-brown',
+          articleNumber: '002.495.56',
+          url: 'https://www.ikea.com/sg/en/p/malm/',
+          assetId: 'ikea-asset-2',
+          glbMaterials: [],
+        },
+      ],
+    }
+
+    const SOFA_PARAMETRIC: ParametricDef = {
+      id: 'test-parametric-sofa',
+      name: 'Test parametric sofa',
+      category: 'seating',
+      kind: 'parametric',
+      primitive: 'Sofa',
+      defaultFootprint: { w: 2.1, d: 0.9, h: 0.85 },
+      paramSchema: [{ kind: 'color', key: 'color', label: 'Upholstery', default: '#8aa1a8' }],
+    }
+
+    const trigger = () => screen.queryByRole('button', { name: /Choose a finish/i })
+
+    it('shows the trigger for a multi-variant IKEA product', () => {
+      render(<CatalogCard def={IKEA_MULTI} />)
+      expect(trigger()).toBeInTheDocument()
+    })
+
+    it('hides the trigger for a single-variant IKEA product', () => {
+      render(<CatalogCard def={IKEA_DEF} />)
+      expect(trigger()).toBeNull()
+    })
+
+    it('hides the trigger for a plain GLB def (nothing distinct to pre-place pick)', () => {
+      render(<CatalogCard def={SOFA_DEF} />)
+      expect(trigger()).toBeNull()
+    })
+
+    it('shows the trigger for a tintable parametric def', () => {
+      render(<CatalogCard def={SOFA_PARAMETRIC} />)
+      expect(trigger()).toBeInTheDocument()
+    })
+
+    it('is hidden when the catalogVariantPick flag is off', () => {
+      useStore.setState((s) => ({ featureFlags: { ...s.featureFlags, catalogVariantPick: false } }))
+      render(<CatalogCard def={IKEA_MULTI} />)
+      expect(trigger()).toBeNull()
+    })
+
+    it('picking a swatch arms placement with the resolved variant props', () => {
+      render(<CatalogCard def={IKEA_MULTI} />)
+      const t = trigger()
+      if (!t) throw new Error('trigger not found')
+      fireEvent.click(t)
+      const swatch = screen.getByRole('button', { name: /Place in Black-brown/i })
+      fireEvent.click(swatch)
+      const s = useStore.getState()
+      expect(s.activeDefId).toBe(IKEA_MULTI.id)
+      expect(s.armedVariantProps).toEqual({ variant: 'black-brown' })
+    })
+
+    it('is present in BOTH Simple and Pro mode (simple-tier flag)', () => {
+      useStore.getState().setUiMode('simple')
+      const r1 = render(<CatalogCard def={SOFA_PARAMETRIC} />)
+      expect(screen.queryByRole('button', { name: /Choose a finish/i })).toBeInTheDocument()
+      r1.unmount()
+      useStore.getState().setUiMode('pro')
+      render(<CatalogCard def={SOFA_PARAMETRIC} />)
+      expect(screen.queryByRole('button', { name: /Choose a finish/i })).toBeInTheDocument()
     })
   })
 })

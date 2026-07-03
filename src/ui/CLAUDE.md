@@ -123,6 +123,16 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   to `'unknown'` — never a false "won't fit". Scoped to `CatalogCard` only, not `RemoteCard`/
   `SharedCard` (unresolved remote/shared footprints stay un-flagged and are never hidden by the
   filter).
+- **Pick a finish before placing (CATALOG-VARIANT)** is a quick-look **popover**, never inline card
+  swatches (mobile clutter): `CatalogVariantPopover` (`Icon.Palette` trigger, `Popover` desktop /
+  `Modal` mobile sheet, same split as `ColorPicker`) renders only when
+  `furniture/placement/catalogVariants.ts:catalogVariantOptions(def)` returns options — IKEA
+  multi-variant products or a parametric def's primary colour field, reusing the existing
+  variant/tint vocabulary (never a new one). Picking a swatch calls
+  `useStore.getState().armWithVariant(defId, initialVariantProps(def, optionId))` — the
+  `placementSlice` stows the patch in `armedVariantProps`, which `usePlacementController`'s
+  `doCommit` merges over `defaultItemProps(def)` at commit. Gated by the `catalogVariantPick` flag
+  (simple tier — pre-place finish picking is core-loop, not analytical).
 - **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models*
   (`RemoteCard`s in the catalog grid) ride the **`remoteFurniture`** flag (pro, default on) —
   **no provider currently supplies furniture models (Poly Haven is materials/HDRIs only), so this

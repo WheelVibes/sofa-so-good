@@ -136,11 +136,6 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
   the relevant categories (bedroom→beds/wardrobes/nightstands) instead of a flat A–Z. Planner5D/Coohom
   surface room-relevant items; our search is intent-aware but the *default* view isn't. Key the default
   `CatalogDrawer` category/sort on the `roomEditor` room kind (`roomKindFromName`). Low risk.
-- [ ] **CATALOG-VARIANT — pick colour/variant before placing (M).** IKEA Kreativ / Coohom / Roomstyler
-  let you choose a finish on the browse card; here variant/tint is only editable *after* placement via
-  the inspector. Add a compact swatch row / quick-look popover on `CatalogCard` (IKEA `variants`,
-  tintable procedural pieces) carried into placement as initial `props.variant`/`tint`. Risk: card
-  clutter on mobile — use a quick-look, not inline swatches.
 - [ ] **PLAN-FURNISH Phases 2–4 — plan-editor furniture placement follow-ups.** Phase 1
   (desktop click-to-place; `planFurnish` flag) has shipped — see `CHANGELOG.md` and
   `docs/research/2026-07-03-plan-furnish-implementation-plan.md` (marked done there). Remaining:

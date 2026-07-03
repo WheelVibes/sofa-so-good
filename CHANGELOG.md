@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: pick a finish/variant on the catalog card before placing — CATALOG-VARIANT (v0.12.0.20)
+
+Core-loop parity gap (2026-07-03 audit): variant/tint was only editable AFTER
+placement via the inspector; now a compact quick-look **"Choose a finish"**
+swatch popover on the catalog card lets you pick before placing, carried into
+placement as the item's initial props. IKEA multi-variant products use
+`def.variants`; tintable parametric pieces use their primary `color`-kind
+`paramSchema` field (curated 8-swatch palette). Plain GLB / single-variant IKEA
+defs get no popover. Pure resolution (`furniture/placement/catalogVariants.ts`);
+the pick threads through a new session-only `armedVariantProps` placement-slice
+field, merged `{...defaultItemProps(def), ...armedVariantProps}` in both the
+normal and window-bound commit paths. Popover = desktop Popover / mobile Modal,
+touch-sized swatches. Flag `catalogVariantPick` (simple). Verified: navy + sage
+sofas placed in the chosen colour, desktop + mobile, light + dark.
+
 ## TEST: AI-surfaces IXT rung — flag-gating + pre-inference UI (v0.12.0.19)
 
 IXT-SUITES AI-surfaces rung — `ai-surfaces-simple.json` (50 steps) covers

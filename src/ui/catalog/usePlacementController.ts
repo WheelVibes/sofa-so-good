@@ -63,7 +63,7 @@ export function usePlacementController() {
     // on the window facing the room side dropped toward, and a plan with no window
     // rejects the placement (toast). Returns whether the commit succeeded.
     const commitWindowBound = (dropPos: [number, number]): boolean => {
-      const { floorPlan, addItem, notify } = useStore.getState()
+      const { floorPlan, addItem, notify, armedVariantProps } = useStore.getState()
       const snap = snapToNearestWindow(floorPlan.walls, floorPlan.openings, dropPos)
       if (!snap) {
         notify.start({
@@ -78,9 +78,12 @@ export function usePlacementController() {
         position: snap.position,
         rotation: snap.rotation,
         // Size the fixture to the window it snapped onto (wider than the glass;
-        // curtains floor-to-ceiling, blinds covering the opening).
+        // curtains floor-to-ceiling, blinds covering the opening) — after any
+        // catalog quick-look variant/tint (CATALOG-VARIANT) so a chosen fabric
+        // colour survives, but sizing still wins for the props they actually share.
         props: {
           ...defaultProps(def),
+          ...(armedVariantProps ?? {}),
           ...windowFixtureProps(def.id, snap.window, floorPlan.ceilingHeight),
         },
       })
@@ -104,11 +107,15 @@ export function usePlacementController() {
       // Capture the items array before the add so a cross (cancel) can revert the
       // placement wholesale.
       const priorItems = useStore.getState().items
+      // A catalog quick-look swatch (CATALOG-VARIANT) armed this placement with an
+      // extra finish/variant patch — merge it over the def's plain defaults so
+      // every other schema default (size, form, weave, …) is untouched.
+      const variantProps = useStore.getState().armedVariantProps
       const newId = addItem({
         defId: def.id,
         position: ghostWorld,
         rotation: (def.defaultRotation ?? 0) + useStore.getState().ghostRotation,
-        props: defaultProps(def),
+        props: variantProps ? { ...defaultProps(def), ...variantProps } : defaultProps(def),
       })
       // Tactile drop-in: ease the piece down onto the floor from a small height.
       beginDrop(newId, performance.now())

@@ -28,6 +28,16 @@ a piece that only just squeezes in shows a plainer **"Tight fit"** note instead
 — both are just a heads‑up, you can still place it. (Pro) Tick **Fits only** at
 the top of the grid to hide the pieces flagged "Won't fit" while you browse.
 
+### Choosing a finish before you place it
+
+Some cards show a small **palette button** in the corner — tap it to open a
+**quick-look popover** of that piece's colours/finishes before it ever lands in
+the room. It appears for anything with more than one finish to offer: IKEA
+products with multiple finishes, and colourable built‑ins (sofas, beds, rugs and
+more). Pick a swatch and placement is loaded with that finish already applied —
+drop it in as usual. A piece with only one look (or none to choose) shows no
+button at all. You can still change the finish afterwards from the inspector.
+
 ## Placing a piece
 
 Two ways, whichever feels natural:
