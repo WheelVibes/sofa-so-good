@@ -182,7 +182,9 @@ export function LayersPanel() {
                     return (
                       <div
                         key={it.id}
-                        className={`lyr-row${selected ? ' sel' : ''}`}
+                        className={`lyr-row${selected ? ' sel' : ''}${
+                          hiddenSet.has(it.id) ? ' hidden' : ''
+                        }`}
                         style={{ '--i': idx } as CSSProperties}
                         onClick={(e) =>
                           e.metaKey || e.ctrlKey ? toggleSelectedItem(it.id) : selectItem(it.id)
