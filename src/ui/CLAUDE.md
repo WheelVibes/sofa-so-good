@@ -46,11 +46,18 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
 - **Polished + pixel-perfect.** Use the standard spacing scale for margins/padding (no
   ad-hoc one-off gaps); align to existing components so layouts stay cohesive with the
   theme. Verify any new surface in light + dark across all 5 themes before shipping.
-- **Destructive-action policy.** Reversible destructive actions (delete a placed
-  item) show an **Undo toast** (the action runs immediately, `notify` offers
-  Undo — see `itemsSlice`). **Bulk clears** (`clearRoom`) are confirm **+** Undo
-  by design: a confirm gate against fat-finger wipes, then a summary toast with
-  Undo — don't "simplify" either away. Irreversible actions
+- **Destructive-action policy.** Deleting a placed item is **confirm + Undo**
+  (bug report #2): it routes through `inspector/itemTransforms.ts:confirmDeleteItem`
+  → `confirmAction({ danger: true })` (a clear "Delete item?" prompt, deliberately
+  distinct from the transform "Apply change?" `EditConfirmBar` pill), then
+  `deleteItem` (which still offers an Undo toast as a backstop). Reachable from the
+  inspector's red `.act.danger` Delete button AND a red `.icon-btn.danger` trash in
+  the `InspectorHeader` icon row, so a mobile bottom-sheet user can delete without
+  expanding the panel. Locked items never delete (never even prompt). (Earlier this
+  was immediate-delete + Undo toast with no confirm; users asked for the explicit
+  prompt.) **Bulk clears** (`clearRoom`) stay confirm **+** Undo by design: a
+  confirm gate against fat-finger wipes, then a summary toast with Undo — don't
+  "simplify" either away. Irreversible actions
   (delete a saved version/slot, delete a saved view, reset/replace the whole
   design) MUST gate on `confirmAction({ title, message, confirmLabel, danger })`
   (`promptSlice`, rendered by `ConfirmModal`) and bail on `false`. Never a

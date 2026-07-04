@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: delete UX — red button, mobile-reachable, confirm prompt (bug #2) (v0.13.0.19)
+
+Three delete issues from the bug report:
+- **Confirm prompt before delete** (not the transform "Apply change?" pill): a
+  single delete now routes through `inspector/itemTransforms.ts:confirmDeleteItem`
+  → `confirmAction({ danger: true })` showing a clear "Delete item?" dialog;
+  `deleteItem` (with its Undo toast) runs only on confirm. Locked items never
+  prompt/delete.
+- **Delete reads red at rest** (`.act.danger` was red only on hover) — the Delete
+  button in the rotate/flip cluster is now `var(--danger)` at rest, deepening on
+  hover, greyed when disabled (locked).
+- **Mobile-reachable delete**: a red `.icon-btn.danger` trash was added to the
+  `InspectorHeader` icon row (always rendered, even in the minimized mobile
+  bottom-sheet) so you can delete without expanding the panel.
+Updated the `src/ui/CLAUDE.md` destructive-action policy to match. +3 unit tests
+(confirm→delete, cancel→keep, locked→no-op-no-prompt) + a visual scenario
+(red button, confirm dialog, item survives until confirmed).
+
 ## FEAT: persistent / cross-plan clipboard (R3-FEAT-1) (v0.13.0.18)
 
 Round-3 audit: `clipboardSlice` was session-only, so a copied item was lost on

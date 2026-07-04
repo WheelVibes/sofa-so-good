@@ -6,6 +6,7 @@ import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
 import { Icon } from '../toolbar/icons'
+import { confirmDeleteItem } from './itemTransforms'
 import { MinimizeButton } from './useInspectorMinimize'
 
 /**
@@ -110,6 +111,18 @@ export function InspectorHeader({
           ) : (
             <Icon.Unlock width={16} height={16} />
           )}
+        </button>
+        {/* Delete reachable even from the minimized (mobile bottom-sheet) header —
+            confirm-gated, red for visibility (bug report #2). */}
+        <button
+          type="button"
+          onClick={() => !item.locked && void confirmDeleteItem(item.id, def.name)}
+          className="icon-btn danger"
+          disabled={item.locked}
+          aria-label="Delete item"
+          title="Delete this item (Del)"
+        >
+          <Icon.Trash width={16} height={16} />
         </button>
         <MinimizeButton minimized={minimized} toggle={toggle} />
         <button

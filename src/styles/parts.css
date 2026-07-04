@@ -385,7 +385,15 @@
 }
 .act:hover { background: var(--surface-3); color: var(--text); }
 .act.on { background: var(--accent-soft); color: var(--accent-soft-text); }
+/* Destructive action (Delete) reads red at REST for visibility, not only on
+   hover (bug report #2) — hover deepens the tint. */
+.act.danger { color: var(--danger); }
 .act.danger:hover { background: var(--danger-soft); color: var(--danger); }
+.act.danger:disabled { color: var(--text-3); opacity: 0.6; }
+/* Red trash icon in the inspector header row (minimized-bar delete, bug #2). */
+.icon-btn.danger { color: var(--danger); }
+.icon-btn.danger:hover { background: var(--danger-soft); color: var(--danger); }
+.icon-btn.danger:disabled { color: var(--text-3); opacity: 0.6; }
 
 /* ---- Minimap + compass + zoom (bottom-right) ----------------- */
 /* compass is fused into the top of the zoom rail as one cohesive control */
