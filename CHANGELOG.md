@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## A11Y: keyboard-operable finish picker + inspector swatches (v0.12.0.25)
+
+Accessibility hardening of the finish picker + inspector (next surfaces after the
+v0.12.0.24 modal/menu pass): the colour picker's saturation/hue sliders were
+`role="slider"` + focusable but had NO keydown handler — keyboard/screen-reader
+users could not change colour at all (WCAG 2.1.1); added arrow-key (Shift = ×5)
++ Home/End. Every toggle-like swatch/chip now announces its selected state via
+`aria-pressed` (finish cells, DesignerPicks/Recent swatches, ThemeColorRows,
+QuickFinishes chips, MountHeightPresets chips, IkeaBody variant buttons); swatch
+rows gained `role="group"` accessible names; a custom `role="button"` finish
+cell now `preventDefault()`s Space (was scrolling the page). Roving arrow-nav
+deliberately not added (no such pattern elsewhere; would fight native sliders).
+Already-accessible controls (native inputs, focus-visible ring) unchanged.
+
 ## A11Y: focus-trap toolbar menus + upload ConfirmDialog, label FileMenu delete (v0.12.0.24)
 
 Accessibility hardening (user-direction priority) on the dialog/menu primitives:

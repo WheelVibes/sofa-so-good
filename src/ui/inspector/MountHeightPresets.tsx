@@ -28,19 +28,27 @@ export function MountHeightPresets({
   return (
     <div className="quick-finish">
       <span className="quick-finish-h">Standard heights</span>
-      <div className="quick-finish-row">
-        {presets.map((p) => (
-          <button
-            key={p.label}
-            type="button"
-            // Within a few mm counts as "on" — float slider values won't be exact.
-            className={`chip${Math.abs(value - p.height) < 0.005 ? ' on' : ''}`}
-            title={`Set mount height to ${formatLength(p.height, units)}`}
-            onClick={() => onPick(p.height)}
-          >
-            {p.label}
-          </button>
-        ))}
+      {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> needs a
+          <legend> and adds default browser border/padding, changing the look
+          of this compact chip row — role="group" + aria-label is the
+          non-visual equivalent. */}
+      <div className="quick-finish-row" role="group" aria-label="Standard heights">
+        {presets.map((p) => {
+          // Within a few mm counts as "on" — float slider values won't be exact.
+          const isActive = Math.abs(value - p.height) < 0.005
+          return (
+            <button
+              key={p.label}
+              type="button"
+              className={`chip${isActive ? ' on' : ''}`}
+              title={`Set mount height to ${formatLength(p.height, units)}`}
+              aria-pressed={isActive}
+              onClick={() => onPick(p.height)}
+            >
+              {p.label}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

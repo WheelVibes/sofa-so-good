@@ -46,16 +46,22 @@ export function QuickFinishes({
   return (
     <div className="quick-finish">
       <span className="quick-finish-h">Quick finishes</span>
-      <div className="quick-finish-row">
+      {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> needs a
+          <legend> and adds default browser border/padding, changing the look
+          of this compact chip row — role="group" + aria-label is the
+          non-visual equivalent. */}
+      <div className="quick-finish-row" role="group" aria-label="Quick finishes">
         {items.map((c) => {
           const v = `mat:${c.id}`
+          const isActive = value === v
           return (
             <button
               key={c.id}
               type="button"
-              className={`swatch${value === v ? ' on' : ''}`}
+              className={`swatch${isActive ? ' on' : ''}`}
               title={c.label}
               aria-label={`Finish: ${c.label}`}
+              aria-pressed={isActive}
               style={{ backgroundImage: swatchImage(c.mat), backgroundSize: 'cover' }}
               onClick={() => onPick(v)}
             />

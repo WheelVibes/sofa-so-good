@@ -64,18 +64,26 @@ function Row({
       <div className="label" style={{ fontSize: 'var(--t-2xs)', marginBottom: 2 }}>
         {label}
       </div>
-      <div className="swatches" style={{ paddingBlock: 0 }}>
-        {colors.map((hex) => (
-          <button
-            type="button"
-            key={hex}
-            className={`swatch${active === hex.toLowerCase() ? ' on' : ''}`}
-            style={{ backgroundColor: hex }}
-            title={hex}
-            aria-label={`${label} colour ${hex}`}
-            onClick={() => onPick(hex)}
-          />
-        ))}
+      {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> needs a
+          <legend> and adds default browser border/padding, changing the look
+          of a plain swatch row — role="group" + aria-label is the non-visual
+          equivalent. */}
+      <div className="swatches" style={{ paddingBlock: 0 }} role="group" aria-label={label}>
+        {colors.map((hex) => {
+          const isActive = active === hex.toLowerCase()
+          return (
+            <button
+              type="button"
+              key={hex}
+              className={`swatch${isActive ? ' on' : ''}`}
+              style={{ backgroundColor: hex }}
+              title={hex}
+              aria-label={`${label} colour ${hex}`}
+              aria-pressed={isActive}
+              onClick={() => onPick(hex)}
+            />
+          )
+        })}
       </div>
     </div>
   )

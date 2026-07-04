@@ -108,6 +108,7 @@ function ColorEditor({
     setHexText(hex)
     onChange(hex)
   }
+  const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
 
   const padPointer = (e: React.PointerEvent) => {
     const el = padRef.current
@@ -133,13 +134,42 @@ function ColorEditor({
 
   return (
     <div className="color-editor">
-      {/* Saturation (x) / value (y) pad for the current hue. */}
+      {/* Saturation (x) / value (y) pad for the current hue. Keyboard: arrow
+          keys nudge saturation (←/→) and brightness (↑/↓); Shift steps ×5;
+          Home/End jump saturation to its min/max — the pad has no native
+          keyboard affordance otherwise (pointer-only would fail WCAG 2.1.1). */}
       <div
         ref={padRef}
         className="color-pad"
         style={{ backgroundColor: `hsl(${hsv.h}, 100%, 50%)` }}
         onPointerDown={padPointer}
         onPointerMove={(e) => dragging(e, padPointer)}
+        onKeyDown={(e) => {
+          const step = e.shiftKey ? 0.1 : 0.02
+          switch (e.key) {
+            case 'ArrowRight':
+              emit(hsv.h, clamp01(hsv.s + step), hsv.v)
+              break
+            case 'ArrowLeft':
+              emit(hsv.h, clamp01(hsv.s - step), hsv.v)
+              break
+            case 'ArrowUp':
+              emit(hsv.h, hsv.s, clamp01(hsv.v + step))
+              break
+            case 'ArrowDown':
+              emit(hsv.h, hsv.s, clamp01(hsv.v - step))
+              break
+            case 'Home':
+              emit(hsv.h, 0, hsv.v)
+              break
+            case 'End':
+              emit(hsv.h, 1, hsv.v)
+              break
+            default:
+              return
+          }
+          e.preventDefault()
+        }}
         role="slider"
         aria-label="Saturation and brightness"
         aria-valuenow={Math.round(hsv.s * 100)}
@@ -153,12 +183,35 @@ function ColorEditor({
           style={{ left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%` }}
         />
       </div>
-      {/* Hue bar. */}
+      {/* Hue bar. Keyboard: ←/↓ and →/↑ step hue (Shift ×5); Home/End jump to
+          0°/359°. */}
       <div
         ref={hueRef}
         className="color-hue"
         onPointerDown={huePointer}
         onPointerMove={(e) => dragging(e, huePointer)}
+        onKeyDown={(e) => {
+          const step = e.shiftKey ? 15 : 3
+          switch (e.key) {
+            case 'ArrowRight':
+            case 'ArrowUp':
+              emit((hsv.h + step) % 360, hsv.s, hsv.v)
+              break
+            case 'ArrowLeft':
+            case 'ArrowDown':
+              emit((hsv.h - step + 360) % 360, hsv.s, hsv.v)
+              break
+            case 'Home':
+              emit(0, hsv.s, hsv.v)
+              break
+            case 'End':
+              emit(359, hsv.s, hsv.v)
+              break
+            default:
+              return
+          }
+          e.preventDefault()
+        }}
         role="slider"
         aria-label="Hue"
         aria-valuenow={Math.round(hsv.h)}
@@ -190,21 +243,34 @@ function ColorEditor({
           <div className="label" style={{ fontSize: 'var(--t-2xs)', marginBottom: 'var(--s-1)' }}>
             Recent
           </div>
-          <div className="swatches" style={{ paddingBlock: 0 }}>
-            {recent.map((hex) => (
-              <button
-                type="button"
-                key={hex}
-                className={`swatch${hex.toLowerCase() === value.toLowerCase() ? ' on' : ''}`}
-                style={{ backgroundColor: hex }}
-                title={hex}
-                aria-label={`Recent colour ${hex}`}
-                onClick={() => {
-                  setHexText(hex)
-                  onChange(hex)
-                }}
-              />
-            ))}
+          {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> needs a
+              <legend> and adds default browser border/padding, changing the
+              look of a plain swatch row — role="group" + aria-label is the
+              non-visual equivalent. */}
+          <div
+            className="swatches"
+            style={{ paddingBlock: 0 }}
+            role="group"
+            aria-label="Recent colours"
+          >
+            {recent.map((hex) => {
+              const isActive = hex.toLowerCase() === value.toLowerCase()
+              return (
+                <button
+                  type="button"
+                  key={hex}
+                  className={`swatch${isActive ? ' on' : ''}`}
+                  style={{ backgroundColor: hex }}
+                  title={hex}
+                  aria-label={`Recent colour ${hex}`}
+                  aria-pressed={isActive}
+                  onClick={() => {
+                    setHexText(hex)
+                    onChange(hex)
+                  }}
+                />
+              )
+            })}
           </div>
         </div>
       ) : null}
