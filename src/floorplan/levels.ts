@@ -7,7 +7,7 @@
  */
 
 import type { FurnitureItem } from '../furniture/types'
-import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
+import type { FloorPlan, PlanOpening, PlanRoom, PlanUpperLevel, PlanWall } from './types'
 
 /** The ground floor's well-known level id (items/rooms with no explicit level). */
 export const GROUND_LEVEL_ID = 'ground'
@@ -215,4 +215,35 @@ export function withLevelGeometry(
         : l,
     ),
   }
+}
+
+/** Default floor-to-floor gap between two stacked storeys (m) — the concrete
+ *  slab thickness added atop a storey's ceiling before the next floor starts. */
+export const LEVEL_SLAB_HEIGHT = 0.3
+
+/**
+ * Recompute every upper level's `elevation` from a (possibly reordered) array
+ * so each storey's floor sits directly above the storey BELOW it: level i's
+ * elevation is `(elevation of level i-1) + (ceiling height of level i-1) +
+ * slab` — the ground floor (elevation 0) stands in as "level 0" for the first
+ * upper storey, using the plan's ground `ceilingHeight`. A level's OWN ceiling
+ * height only ever affects the storey ABOVE it, never its own elevation.
+ * Pure — returns fresh level objects; the input array/objects are untouched.
+ * Used by `moveLevel` after a reorder (BUG-6: the previous implementation
+ * kept each level's own ceiling height for its own elevation, which uses the
+ * wrong storey's height and mis-stacks the whole array above the first edit).
+ */
+export function restackLevelElevations(
+  levels: PlanUpperLevel[],
+  groundCeilingHeight: number,
+  slab: number = LEVEL_SLAB_HEIGHT,
+): PlanUpperLevel[] {
+  let top = 0
+  let belowCeiling = groundCeilingHeight
+  return levels.map((l) => {
+    const elevation = top + belowCeiling + slab
+    top = elevation
+    belowCeiling = l.ceilingHeight ?? groundCeilingHeight
+    return { ...l, elevation }
+  })
 }

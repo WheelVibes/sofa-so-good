@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: multi-level duplicate/reorder correctness — BUG-5 + BUG-6 (v0.12.0.31)
+
+From the 2026-07-04 audit, two storey-operation bugs:
+- **BUG-5**: `duplicateLevel` left copied furniture's `groupId` unchanged, so a
+  group bridged both storeys — rotating/editing the group on one level moved the
+  copies on the other (groups are keyed on `groupId`, not level-gated). Fixed
+  with a per-source-group id remap so copies stay grouped with each other under
+  a fresh id but decouple from the source.
+- **BUG-6**: `moveLevel` restacked elevations using each level's OWN ceiling
+  height to place its own floor (a slab actually sits atop the level below), so
+  reordering mis-stacked storeys. Extracted the correct recurrence into
+  `floorplan/levels.ts:restackLevelElevations`
+  (`elevation_i = elevation_{i-1} + ceilingHeight_{i-1} + slab`).
+Fail-before/pass-after regression tests for both.
+
 ## FIX: IDB blob eviction no longer silently deletes placed furniture — BUG-2 (v0.12.0.30)
 
 From the 2026-07-04 audit: on boot, `hydrateUserAssets` rebuilds `userFurniture`

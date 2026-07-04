@@ -12,6 +12,7 @@ import {
   levelById,
   levelOfRoom,
   planLevels,
+  restackLevelElevations,
   withLevelGeometry,
 } from '../../floorplan/levels'
 import { mirrorPlanRegion } from '../../floorplan/mirrorPlanRegion'
@@ -44,6 +45,7 @@ import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
 import { nextPlanLabelMode } from '../../ui/floorplan/planLabels'
 import type { RootState } from '../store'
 import { pruneFinishesForPlan } from './finishesSlice'
+import { newGroupId } from './groupsSlice'
 import type { SliceCreator } from './types'
 
 /** Selected element in the floor-plan editor (for the inspector panel). */
@@ -1212,12 +1214,23 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       openings: cloned.openings,
       rooms: cloned.rooms,
     }
-    // Clone the source storey's furniture onto the new level (fresh ids).
-    const newItems = itemsOnLevel(s0.items, sourceId).map((it) => ({
-      ...(JSON.parse(JSON.stringify(it)) as typeof it),
-      id: planId('item'),
-      levelId: newId,
-    }))
+    // Clone the source storey's furniture onto the new level (fresh ids). Also
+    // remap each copy's groupId to a fresh one (per distinct source group) so
+    // the copies stay grouped WITH EACH OTHER but never bridge back to the
+    // source storey's group (BUG-5) — un-grouped items keep no groupId.
+    const groupIdMap: Record<string, string> = {}
+    const newItems = itemsOnLevel(s0.items, sourceId).map((it) => {
+      const clone = JSON.parse(JSON.stringify(it)) as typeof it
+      if (clone.groupId) {
+        groupIdMap[clone.groupId] ??= newGroupId()
+        clone.groupId = groupIdMap[clone.groupId]
+      }
+      return {
+        ...clone,
+        id: planId('item'),
+        levelId: newId,
+      }
+    })
     set((s) => {
       const f = s.finishes
       // Room ids are plan-unique strings; the finish maps are typed by the
@@ -1301,15 +1314,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     set((s) => {
       const arr = [...(s.floorPlan.upperLevels ?? [])]
       ;[arr[idx], arr[swapWith]] = [arr[swapWith], arr[idx]]
-      // Re-stack elevations from the (now reordered) array so each storey sits a
-      // floor-to-floor height above the one below (ground = base, y=0).
-      const slab = 0.3
-      let top = 0
-      const restacked = arr.map((l) => {
-        const elevation = top + (l.ceilingHeight ?? s.floorPlan.ceilingHeight) + slab
-        top = elevation
-        return { ...l, elevation }
-      })
+      // Re-stack elevations from the (now reordered) array so each storey sits
+      // a floor-to-floor height above the one below (ground = base, y=0) —
+      // BUG-6: elevation must key off the level BELOW's ceiling height, never
+      // a level's own (see restackLevelElevations).
+      const restacked = restackLevelElevations(arr, s.floorPlan.ceilingHeight)
       return { floorPlan: { ...s.floorPlan, upperLevels: restacked } }
     })
   },
