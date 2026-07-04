@@ -19,6 +19,21 @@ import { CategoryIcon } from './CategoryIcon'
 import { expectsBuiltinThumbnail, useBuiltinThumbnail } from './thumbnails'
 import { usePlacementDrag } from './usePlacementDrag'
 
+/** A 1×1 transparent drag image so the browser's default drag preview (a
+ *  snapshot of the card, thumbnail included) doesn't follow the cursor and
+ *  overlap the live 3D `PlacementGhost` (bug #4). Created lazily + cached; the
+ *  data-URI GIF works across browsers without needing to be in the DOM. */
+let transparentDragImage: HTMLImageElement | null = null
+function emptyDragImage(): HTMLImageElement | null {
+  if (typeof Image === 'undefined') return null
+  if (!transparentDragImage) {
+    transparentDragImage = new Image()
+    transparentDragImage.src =
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+  }
+  return transparentDragImage
+}
+
 /** How long a stationary press must last to count as a "pick it up" long-press. */
 const LONG_PRESS_MS = 420
 /** Finger travel that cancels a pending long-press (it's a scroll, not a hold). */
@@ -159,6 +174,10 @@ export function CatalogCard({ def, onDelete, staggerIndex, roomRects }: CatalogC
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = 'copy'
         e.dataTransfer.setData('text/plain', def.id)
+        // Suppress the native card-snapshot drag preview so only the live 3D
+        // ghost tracks the cursor (bug #4). Guarded — jsdom/older browsers.
+        const img = emptyDragImage()
+        if (img) e.dataTransfer.setDragImage(img, 0, 0)
         const s = useStore.getState()
         s.setActiveDefId(def.id)
         s.setCursor({ x: e.clientX, y: e.clientY })

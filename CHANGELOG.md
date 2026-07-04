@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: suppress the native card drag-preview overlapping the ghost (bug #4) (v0.13.0.21)
+
+Dragging a catalog card from the drawer onto the scene showed the browser's
+default drag image (a snapshot of the card, thumbnail included) tracking the
+cursor on TOP of the live 3D `PlacementGhost` — two overlapping previews.
+`CatalogCard.onDragStart` now calls `dataTransfer.setDragImage` with a cached 1×1
+transparent image, so only the 3D ghost follows the cursor. Guarded for
+jsdom/older browsers (`typeof Image`).
+
 ## FIX: reorder rooms by dragging a handle, not up/down buttons (bug #10) (v0.13.0.20)
 
 The `RoomReorderModal` (pro `roomReorder` flag) replaced its per-row up/down
