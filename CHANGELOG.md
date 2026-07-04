@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: paletteFromPhoto nearest-finish mapping — TEST-8 (v0.13.0.7)
+
+Round-2 audit coverage for the palette-from-photo finish matching. Extracted the
+pure glue (`finishCandidates()` + the palette→nearest-builtin-finish mapping)
+out of the canvas/DOM-bound `ui/paletteFromPhoto.ts` into a new pure
+`ui/paletteFromPhotoMatch.ts` (`mapPaletteToFinishes`, candidates injectable for
+tests) — behaviour-identical, the canvas path calls the same logic. New
+`paletteFromPhotoMatch.test.ts` covers: `finishCandidates()` yields the floor+wall
+builtin candidates with correct `hexToRgb` swatch RGB (skipping swatchless
+entries); the mapping picks the nearest finish for a colour near a known swatch;
+and the no-candidates fallback labels/swatches with the palette colour's own hex.
+Canvas decode (`imageToPixels`) stays out of scope. +8 tests.
+
 ## TEST: remoteCatalogSlice orchestration — TEST-5 (v0.13.0.6)
 
 Round-2 audit coverage for `state/slices/remoteCatalogSlice.ts` (184 lines, was
