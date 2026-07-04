@@ -15,10 +15,13 @@ function snap(over: Partial<HistorySnapshot> = {}): HistorySnapshot {
     doors: {},
     finishes: {} as never,
     floorPlan: {} as never,
+    baselinePlan: {} as never,
     comments: [],
     drawingCallouts: [],
     quoteTemplate: DEFAULT_QUOTE_TEMPLATE,
     priceRules: DEFAULT_PRICE_RULES,
+    masterPalette: [],
+    roomPalettes: {},
     ...over,
   }
 }

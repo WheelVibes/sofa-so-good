@@ -49,4 +49,28 @@ describe('colorPaletteSlice', () => {
     useStore.getState().setRoomPalette('living', ['nope', 'bad'])
     expect(useStore.getState().roomPalettes.living).toBeUndefined()
   })
+
+  // Same root cause as BUG-3: the slice's own doc comment says this "is
+  // undoable", and `setMasterPalette`/`setRoomPalette` both call
+  // `pushHistory()` — so the palette must be captured in `HistorySnapshot` and
+  // round-trip through undo/redo, not just persist forward.
+  it('undo/redo round-trips the master palette (same root cause as BUG-3)', () => {
+    const before = useStore.getState().masterPalette
+    useStore.getState().setMasterPalette(['#111111', '#222222'])
+    const after = useStore.getState().masterPalette
+    expect(after).toEqual(['#111111', '#222222'])
+    useStore.getState().undo()
+    expect(useStore.getState().masterPalette).toEqual(before)
+    useStore.getState().redo()
+    expect(useStore.getState().masterPalette).toEqual(after)
+  })
+
+  it('undo/redo round-trips a room palette override (same root cause as BUG-3)', () => {
+    useStore.getState().setRoomPalette('living', ['#ff0000', '#00ff00'])
+    expect(useStore.getState().roomPalettes.living).toEqual(['#ff0000', '#00ff00'])
+    useStore.getState().undo()
+    expect(useStore.getState().roomPalettes.living).toBeUndefined()
+    useStore.getState().redo()
+    expect(useStore.getState().roomPalettes.living).toEqual(['#ff0000', '#00ff00'])
+  })
 })

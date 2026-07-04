@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { diffWalls } from '../../floorplan/demolitionPlan'
 import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../store'
 import { HISTORY_LIMIT, HISTORY_TRIM_HEADROOM } from './historySlice'
@@ -167,6 +168,78 @@ describe('history slice', () => {
     const snap = s().items
     s().undo()
     expect(s().items).toBe(snap)
+  })
+
+  // BUG-3: `baselinePlan` (the as-loaded plan the hacking/demolition plan and
+  // reno-cost report diff against) must travel with `floorPlan` across history
+  // navigation — a load-type action (loadSavedPlan/newFloorPlan/resetFloorPlan)
+  // changes both together, so undoing/redoing it must revert/replay both
+  // together too. Before the fix, `HistorySnapshot` omitted `baselinePlan`, so
+  // undoing a plan load reverted `floorPlan` but left `baselinePlan` stuck on
+  // the just-undone plan — `diffWalls` then compared two unrelated plans and
+  // reported phantom demolished/added walls.
+  describe('baselinePlan stays in lockstep with floorPlan across history nav (BUG-3)', () => {
+    it('undo after loading a new plan reverts baselinePlan along with floorPlan', () => {
+      s().clearHistory()
+      const planA = s().floorPlan
+      // Right after a load, baseline == the active plan.
+      expect(s().baselinePlan).toEqual(planA)
+
+      s().newFloorPlan('Plan B')
+      const planB = s().floorPlan
+      expect(planB.walls).not.toEqual(planA.walls) // genuinely different geometry
+      expect(s().baselinePlan).toEqual(planB)
+
+      s().undo()
+      // floorPlan reverts to A...
+      expect(s().floorPlan).toEqual(planA)
+      // ...and baselinePlan MUST follow it back to A, not stay stuck on B.
+      expect(s().baselinePlan).toEqual(planA)
+      expect(s().baselinePlan).toEqual(s().floorPlan)
+
+      // The hacking/reno-cost diff must therefore report nothing touched.
+      const diff = diffWalls(s().baselinePlan, s().floorPlan)
+      expect(diff.demolished).toHaveLength(0)
+      expect(diff.added).toHaveLength(0)
+    })
+
+    it('redo re-applies the later baselinePlan along with floorPlan', () => {
+      s().clearHistory()
+      const planA = s().floorPlan
+      s().newFloorPlan('Plan B')
+      const planB = s().floorPlan
+      s().undo()
+      s().redo()
+      expect(s().floorPlan).toEqual(planB)
+      expect(s().baselinePlan).toEqual(planB)
+      expect(s().baselinePlan).not.toEqual(planA)
+    })
+
+    it('undoing a plain wall edit leaves baselinePlan untouched (no regression)', () => {
+      s().clearHistory()
+      const baselineBefore = s().baselinePlan
+      s().addWall({ start: [0, 0], end: [3, 0], thickness: 'internal' })
+      // A wall edit must never move the baseline off the loaded plan.
+      expect(s().baselinePlan).toBe(baselineBefore)
+      s().undo()
+      expect(s().baselinePlan).toBe(baselineBefore)
+    })
+
+    it('multiple loads in a row undo back through each prior baseline correctly', () => {
+      s().clearHistory()
+      const planA = s().floorPlan
+      s().newFloorPlan('Plan B')
+      const planB = s().floorPlan
+      s().newFloorPlan('Plan C')
+      const planC = s().floorPlan
+      expect(s().baselinePlan).toEqual(planC)
+      s().undo() // back to B
+      expect(s().floorPlan).toEqual(planB)
+      expect(s().baselinePlan).toEqual(planB)
+      s().undo() // back to A
+      expect(s().floorPlan).toEqual(planA)
+      expect(s().baselinePlan).toEqual(planA)
+    })
   })
 
   it('toggleDoor is undoable', () => {

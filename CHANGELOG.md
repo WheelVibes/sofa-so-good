@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: undo/redo now round-trips the reno baseline + colour palette — BUG-3 (v0.12.0.26)
+
+From the 2026-07-04 deep audit: `historySlice`'s `HistorySnapshot`/`snapshot()`
+omitted `baselinePlan`, so undoing a plan-load reverted `floorPlan` but left
+`baselinePlan` on the just-undone plan — the hacking/demolition plan and
+renovation-cost report (`ui/report.ts`, `ui/drawingSet.ts`) then diffed two
+unrelated plans, producing a wrong real-money HDB estimate. Fixed by capturing
+`baselinePlan` in the snapshot (it only changes in lockstep with `floorPlan` on
+load, so plain edit-undo is a no-op for it; load-undo reverses both together).
+The audit's second finding — `masterPalette`/`roomPalettes` had the identical
+gap despite being documented undoable design data (and the "one undo reverts a
+whole home-style" promise) — is fixed the same way. Regression tests reproduce
+the exact load→load→undo scenario (fail before / pass after).
+
 ## A11Y: keyboard-operable finish picker + inspector swatches (v0.12.0.25)
 
 Accessibility hardening of the finish picker + inspector (next surfaces after the

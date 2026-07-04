@@ -65,6 +65,21 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   `serialize()`, add it to the watch-list too — and ensure its slice replaces the
   array/object on each mutation so the reference compare detects the change. The guard test in
   `storage/autosave.test.ts` derives serialize()'s emitted keys and fails if any isn't watched.
+- **`HistorySnapshot` (`historySlice.ts`) ⊇ every field an action pushes history for.** If a
+  slice's action calls `pushHistory()`/`pushHistoryCoalesced()` while mutating a field — or
+  changes that field in the SAME push as an already-snapshotted field (e.g. `applyHomeStyle`
+  changing `finishes`+`floorPlan`+`masterPalette` under one `pushHistory()`, on the promise
+  that "one undo reverts the whole style") — that field MUST be in `snapshot()` /
+  `HistorySnapshot` / `snapshotMatchesState()`, or `undo`/`redo`/`jumpHistory` silently leave it
+  out of sync with the fields that DID get restored (BUG-3: `baselinePlan` changed in lockstep
+  with `floorPlan` only on a plan load, but was missing from the snapshot — undoing a load
+  reverted `floorPlan` while `baselinePlan` stayed on the just-undone plan, so the
+  hacking/demolition-plan `diffWalls` compared two unrelated plans and reported phantom
+  demolished/added walls; `masterPalette`/`roomPalettes` had the identical gap). Selection
+  (`selectedItemId(s)`) and `pendingEdit` are the deliberate exceptions — view-only state,
+  explicitly excluded and cleared by history nav instead. There's no `HistorySnapshot`-derived
+  guard test analogous to `autosave.test.ts`'s (a `pushHistory()` call site doesn't name its
+  fields the way `serialize()` does) — audit by hand when adding a new `pushHistory()` call.
   Do **not** add transient/non-persisted state (selection, open flags, hover ids) to the
   watch-list.
 - **`hydrate*.ts` re-resolve user/IKEA defs + their IDB blobs on boot** — a new persisted
