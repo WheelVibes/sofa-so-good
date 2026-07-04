@@ -128,17 +128,33 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
 
 ## Open — deep-audit backlog (2026-07-04)
 Open, client-doable items from `docs/research/2026-07-04-deep-audit-and-opportunities.md`
-(full detail + code refs there). Shipped items from that audit — BUG-1/2/3/4/5/6, PERF-A/B/D,
-REAL-1, SEC-1 — are in `CHANGELOG.md`. Still open:
-- [ ] **BUG-7 — opening-width edit doesn't re-clamp offset (S).** Widening an opening via the
-  inspector can push it past the wall end (offset not re-clamped). Add the clamp on width change.
-- [ ] **PERF-C — synchronous procedural bake blocks the main thread on finish apply/scrub (M).**
-  Move the procedural material bake off-thread (OffscreenCanvas worker) or time-slice it.
+(full detail + code refs there). Shipped items from that audit — BUG-1..7, PERF-A/B/D,
+REAL-1, SEC-1, FEAT-1 — are in `CHANGELOG.md`. Still open:
 - [ ] **REFAC-2 — `FloorPlanEditor.tsx` ~3186 lines (note, tracked as MOD-FPE-SPLIT).** Grew with
   PLAN-FURNISH; revisit the toolbar-fragment/dispatcher extraction if it keeps growing.
 - [ ] **FEAT-2 — mirror/reflect a selection across a room axis (S–M).** Arrange-tool addition;
-  reuse the array/placement commit path.
-(REFAC-1 InspectorPanel decomposition + FEAT-1 time-of-day compare are in progress this cycle.)
+  reuse the array/placement commit path. (Waits for the REFAC-1 inspector decomposition to land.)
+(In progress this cycle: REFAC-1 InspectorPanel decomposition, PERF-C procedural-bake defer.)
+
+## Open — round-2 audit backlog (2026-07-04)
+Open, client-doable items from `docs/research/2026-07-04-audit-round2-tests-mobile-features.md`
+(full detail + code refs there). Ranked; MOBILE-1 in progress this cycle.
+- **Mobile/touch robustness**
+  - [ ] **MOBILE-2/3 — `MarqueeSelector` + catalog placement drag lack `pointerId` gating** (lower
+    severity than the gizmos). Apply the BUG-1 `isActiveDragPointer` pattern (S).
+- **Test-coverage hardening** (user-direction priority)
+  - [ ] **TEST-1 — `state/storage/hydrateAssets.ts` (0 tests).** Boot-time restore of user
+    uploads/materials from IDB; silent-data-loss surface. Test via `fake-indexeddb` (S–M).
+  - [ ] **TEST-2 — `apartment/floor/floorRects.ts` `computeRoomFloorRects`/`rectMinus` (0 tests).**
+    Pure rectangle-subtraction deciding per-region floor finishes (S).
+  - [ ] Ranked further test gaps in the round-2 doc (geometry/collision/pricing/undo pure fns).
+- **Value-add features** (client-doable, grounded in existing REFERENCES apps)
+  - [ ] **FEAT-A — frame/zoom-to-selection camera** (the universal "F"); `resetView` only resets to
+    overview today (S).
+  - [ ] **FEAT-B — Alt/Option-drag to duplicate a placed item** (SketchUp/Figma/Coohom staple) (M).
+  - [ ] FEAT-C/D in the round-2 doc; FEAT-E (3D grid-snap) deprioritized (alignment guides cover it).
+- New reference: **Home Planner** (backend/licensed-asset-led — informs the tracked catalog-expansion/
+  F11 work, not a client-doable feature). Added to `REFERENCES.md`.
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live

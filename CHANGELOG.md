@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: round-2 audit (tests/mobile/features) + backlog refresh (v0.12.0.37)
+
+Recorded the 2026-07-04 second-pass audit as
+`docs/research/2026-07-04-audit-round2-tests-mobile-features.md` — ranked
+findings across test-coverage gaps, mobile/touch robustness, and fresh
+client-doable feature research. Top find: **MOBILE-1** (confirmed) — the
+Rotate/Resize/Tilt gizmos lack the `pointerId` gating BUG-1 established, the same
+multi-touch class on the arrange step (now in progress). Folded open items
+(MOBILE-2/3, TEST-1/2, FEAT-A/B) into `TODO.md`; marked BUG-7 + FEAT-1 shipped
+there. Added **Home Planner** to `REFERENCES.md`.
+
 ## FEAT: time-of-day comparison reveal slider — FEAT-1 (v0.12.0.36)
 
 Researched value-add from the 2026-07-04 audit: a `TimeCompareModal` shows the
