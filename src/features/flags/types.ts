@@ -150,6 +150,7 @@ export type FeatureFlag =
   | 'altDragDuplicate'
   | 'isolateSelection'
   | 'mirrorSelection'
+  | 'twoPointPerspective'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

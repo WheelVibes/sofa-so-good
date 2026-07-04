@@ -460,6 +460,19 @@ same change that reshapes a system.
   selected. Bare `F` was already `flip` in the same orbit+selection context (`controls/
   keybindings.ts`), so the binding is `Z` (mnemonic: Zoom). Scenario:
   `scripts/scenarios/frame-selection-simple.json`.
+- **Two-point-perspective / vertical-line-lock (FEAT-D, `twoPointPerspective` flag, pro):**
+  `scene/cameras/verticalLock.ts` (`computeVerticalLock`, pure + unit-tested, no three.js import)
+  takes the orbit camera's pose + FOV and returns a leveled look-at target (same yaw, zero pitch)
+  plus a vertical projection-window shift (`camera.view.offsetY`, assigned directly rather than via
+  `setViewOffset` so `camera.aspect` is never touched) that re-centres the original framing — the
+  architectural-photographer's shift-lens trick, so wall corners/door frames render exactly
+  parallel instead of converging when the view is pitched. `OrbitCamera.tsx` applies it in a
+  dedicated `useFrame` registered (and thus run) after both drei's own `OrbitControls.update()`
+  (priority -1) and the fly/tour `useFrame` above, so it always corrects the frame's final pose; it
+  only touches orientation + projection, never `camera.position`/`controls.target`, so
+  OrbitControls' own spherical state is unaffected. Toggle lives in the `ViewMenu`/`ViewSection`
+  "Framing" cluster (desktop + mobile parity) next to Turntable; persisted per-device via
+  `qualityPrefs` (`verticalLock`, back-compat default off).
 - **Placement drop-in easing** (`scene/placementDrop.ts`, pure timing + unit-tested): a freshly
   placed piece eases DOWN onto its resting spot from a small height (~0.16 m, 300 ms, ease-out).
   `Furniture` keeps NO per-item `useFrame` (perf rule) — instead each item registers its root

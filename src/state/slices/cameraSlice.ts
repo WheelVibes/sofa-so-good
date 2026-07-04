@@ -78,6 +78,12 @@ export interface CameraSlice {
   setDofFStop: (v: number) => void
   setDofFocusDistance: (m: number) => void
   setDofAuto: (v: boolean) => void
+  /** Two-point-perspective / vertical-line-lock (FEAT-D): levels the orbit
+   *  camera's pitch + applies a vertical lens-shift so verticals stay
+   *  parallel instead of converging. Off by default (normal perspective). */
+  verticalLock: boolean
+  setVerticalLock: (v: boolean) => void
+  toggleVerticalLock: () => void
 }
 
 export const CAMERA_INITIAL: Pick<
@@ -99,6 +105,7 @@ export const CAMERA_INITIAL: Pick<
   | 'dofFStop'
   | 'dofFocusDistance'
   | 'dofAuto'
+  | 'verticalLock'
 > = {
   cameraMode: 'orbit',
   topViewNonce: 0,
@@ -117,6 +124,7 @@ export const CAMERA_INITIAL: Pick<
   dofFStop: FSTOP_DEFAULT,
   dofFocusDistance: FOCUS_DEFAULT_M,
   dofAuto: true,
+  verticalLock: false,
 }
 
 export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get) => ({
@@ -145,4 +153,6 @@ export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get
   setDofFStop: (v) => set({ dofFStop: clampFStop(v) }),
   setDofFocusDistance: (m) => set({ dofFocusDistance: clampFocusDistance(m) }),
   setDofAuto: (v) => set({ dofAuto: !!v }),
+  setVerticalLock: (v) => set({ verticalLock: !!v }),
+  toggleVerticalLock: () => set((s) => ({ verticalLock: !s.verticalLock })),
 })

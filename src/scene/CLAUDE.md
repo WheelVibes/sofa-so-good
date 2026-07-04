@@ -81,6 +81,22 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   changes. The night-dim `environmentIntensity` ramp applies to both. (This is the sanctioned way to
   set `scene.environment` — distinct from the backdrop rule above, which forbids *backdrop* code from
   touching it.)
+- **The orbit camera's projection/orientation may be corrected post-`OrbitControls.update()`,
+  never fought with it (FEAT-D).** `cameras/verticalLock.ts` (`computeVerticalLock`, pure,
+  no three.js import — dependency-free like `cameraLensSettings.ts`) computes a leveled look-at
+  target + a vertical `camera.view.offsetY` shift from the live pose + FOV; `OrbitCamera.tsx`
+  applies it in its OWN `useFrame` (default priority), registered textually *after* the component's
+  existing fly/tour `useFrame`, so — because drei's `<OrbitControls>` runs its internal `update()`
+  at priority **-1** and same-priority (0) subscribers fire in registration order — the correction
+  always sees this frame's final pitched pose and applies last. It mutates only
+  `camera.up`/`camera.quaternion` (via `lookAt`) + `camera.view`/projection matrix, **never**
+  `camera.position` or `controls.target` — OrbitControls recomputes its own quaternion from
+  spherical state + `object.up` each frame regardless of what a later callback did to
+  `camera.quaternion`, so this can't feed back or drift. Assign `camera.view` directly (not
+  `PerspectiveCamera.setViewOffset`, which also stomps `camera.aspect` via its `fullWidth/
+  fullHeight` args) when you need a projection shift without touching the live aspect ratio R3F
+  already maintains. Any future per-frame camera correction on the orbit camera should follow this
+  exact pattern (pure math module + post-controls `useFrame`, position/target untouched).
 - **Materials**: pass a real three `Material` to `material=`, never a props object.
 - **Mount expensive controllers once**; collapse repeat geometry via `InstancedBoxes`.
   `ContextLossGuard` must stay mounted in **both** Canvases (main + room editor).

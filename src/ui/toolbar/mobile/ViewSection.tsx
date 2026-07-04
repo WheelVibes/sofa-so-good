@@ -24,6 +24,7 @@ export function ViewSection({
   const viewLevelId = useStore((st) => st.viewLevelId)
   const mobilePlan = useStore((st) => st.floorPlan)
   const autoRotate = useStore((st) => st.autoRotate)
+  const verticalLock = useStore((st) => st.verticalLock)
   const roomEditorActive = useStore((st) => st.roomEditor.active)
   const savedViews = useStore((st) => st.savedViews)
 
@@ -31,6 +32,7 @@ export function ViewSection({
   const fSavedViews = useFeature('savedViews')
   const fPresentation = useFeature('presentation')
   const fPanoTour = useFeature('panoTour')
+  const fTwoPointPerspective = useFeature('twoPointPerspective')
 
   return (
     <Section id="view" title="View" icon="Orbit" activeId={activeId}>
@@ -104,6 +106,15 @@ export function ViewSection({
             on={autoRotate}
             onClick={act(() => s.getState().toggleAutoRotate(), { keep: true })}
           />
+          {fTwoPointPerspective ? (
+            <Item
+              icon="AlignX"
+              label="Vertical lock"
+              sub="Keep wall corners parallel"
+              on={verticalLock}
+              onClick={act(() => s.getState().toggleVerticalLock(), { keep: true })}
+            />
+          ) : null}
           {fSavedViews ? (
             <Item
               icon="Plus"

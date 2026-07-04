@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: two-point-perspective / vertical-line-lock camera (FEAT-D) (v0.13.0.11)
+
+D5 Render / Enscape "keep verticals vertical" parity — a shareable-hero-shot
+lever. Toggling **Two-point perspective** (ViewMenu "Framing" cluster + mobile
+ViewSection, ⌘K) levels the orbit camera's pitch and applies a vertical
+projection-window shift so wall corners and door frames render exactly parallel
+instead of converging when the view is pitched (the architectural-photographer's
+shift-lens trick). Pure, dependency-free, unit-tested math in
+`scene/cameras/verticalLock.ts` (`computeVerticalLock`: leveled look-at target +
+`camera.view.offsetY`, clamped past ±75° pitch where the shift blows up);
+`OrbitCamera.tsx` applies it in a dedicated `useFrame` registered AFTER drei's
+`OrbitControls.update()` (priority −1) and the fly/tour frame, so it always
+corrects the final pose and touches only orientation + projection (never
+`camera.position`/`controls.target`, so OrbitControls' spherical state is
+untouched). Persisted per-device via `qualityPrefs` (`verticalLock`, back-compat
+default off). Flag-gated `twoPointPerspective` (pro tier, default on; forced off
+in Simple). +110 tests (pure math + slice + both-mode gating desktop & mobile)
+and a visual scenario proving verticals straighten on the pitched dollhouse view
+with no warping (before/after screenshots reviewed).
+
 ## TEST/REFACTOR: DragController BUG-1 wiring integration test + handler extraction (TEST-7) (v0.13.0.10)
 
 Round-2 audit coverage for the mobile core-loop drag gesture, which had no

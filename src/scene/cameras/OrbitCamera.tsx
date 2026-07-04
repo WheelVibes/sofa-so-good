@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { MOUSE, PerspectiveCamera, TOUCH, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../../apartment/constants'
+import { useFeature } from '../../features/useFeature'
 import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { type FloorPlan, planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
@@ -11,6 +12,7 @@ import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
 import { flyDurationFor, flyPose, smoothstep as smooth } from './cameraTween'
 import { clampOrbitDistance, FRAME_MARGIN, fitDistanceForFov } from './frameSelection'
+import { computeVerticalLock } from './verticalLock'
 import { VIEW_TOUR_LEG_SECONDS, type ViewTourFrame, viewTourFrames } from './viewTour'
 
 interface Framing {
@@ -409,6 +411,56 @@ export function OrbitCamera() {
     }
     // Publish the live pose every frame so saveCurrentView() can snapshot it.
     writePose(camera.position, c.target)
+  })
+
+  // Two-point-perspective / vertical-line-lock (FEAT-D): while on, level the
+  // camera's pitch (keep yaw + the OrbitControls target's height reasoning
+  // untouched, only the look-at direction is levelled) and apply a vertical
+  // projection-matrix shift (`verticalLock.ts`, pure + unit-tested) so wall
+  // corners/door frames stay parallel instead of converging — the real-estate-
+  // photo "amateur tell" — for shareable hero shots. A separate default-
+  // priority `useFrame`, registered after the fly/tour one above, so it always
+  // sees this frame's FINAL camera pose (drei's `<OrbitControls>` itself runs
+  // its own `update()` at priority -1, before every priority-0 callback).
+  // Never touches `camera.position` or `c.target` — only the camera's
+  // orientation + projection — so OrbitControls' own spherical bookkeeping
+  // (which drives next frame's `update()`) is completely unaffected; the
+  // correction simply re-applies, cheaply, every frame it's on.
+  const verticalLockOn = useStore((s) => s.verticalLock)
+  const fTwoPointPerspective = useFeature('twoPointPerspective')
+  useFrame(() => {
+    const c = controlsRef.current
+    if (!c || !(camera instanceof PerspectiveCamera)) return
+    const lockActive = verticalLockOn && fTwoPointPerspective
+    const result = lockActive
+      ? computeVerticalLock({
+          pos: [camera.position.x, camera.position.y, camera.position.z],
+          target: [c.target.x, c.target.y, c.target.z],
+          fovDeg: camera.fov,
+        })
+      : null
+    if (!result?.active) {
+      // Off (or the near-top-down gimbal edge, where there's nothing useful
+      // to correct) — fall back cleanly to the normal, unshifted perspective.
+      if (camera.view?.enabled) camera.clearViewOffset()
+      return
+    }
+    camera.up.set(0, 1, 0)
+    camera.lookAt(result.leveledTarget[0], result.leveledTarget[1], result.leveledTarget[2])
+    // Assign the view window directly (rather than `setViewOffset`, which
+    // would also stomp `camera.aspect` with `fullWidth/fullHeight` — see
+    // `verticalLock.ts`'s doc comment) so the live viewport aspect ratio
+    // R3F already maintains on `camera` is left completely alone.
+    camera.view = {
+      enabled: true,
+      fullWidth: 1,
+      fullHeight: 1,
+      offsetX: 0,
+      offsetY: result.offsetY,
+      width: 1,
+      height: 1,
+    }
+    camera.updateProjectionMatrix()
   })
 
   // Shift + two-finger trackpad scroll → pan. Wheel events fire in capture

@@ -96,3 +96,29 @@ describe('cameraSlice — requestFrameSelection (FEAT-A)', () => {
     expect(s.frameBounds).toEqual({ center: [1, 0.5, 2], radius: 1.2 }) // unchanged
   })
 })
+
+describe('cameraSlice — two-point perspective / vertical lock (FEAT-D)', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('initialises off (normal perspective)', () => {
+    expect(useStore.getState().verticalLock).toBe(false)
+  })
+
+  it('setVerticalLock coerces to a boolean', () => {
+    useStore.getState().setVerticalLock(true)
+    expect(useStore.getState().verticalLock).toBe(true)
+    // biome-ignore lint/suspicious/noExplicitAny: testing truthy coercion
+    useStore.getState().setVerticalLock(0 as any)
+    expect(useStore.getState().verticalLock).toBe(false)
+  })
+
+  it('toggleVerticalLock flips the current value', () => {
+    expect(useStore.getState().verticalLock).toBe(false)
+    useStore.getState().toggleVerticalLock()
+    expect(useStore.getState().verticalLock).toBe(true)
+    useStore.getState().toggleVerticalLock()
+    expect(useStore.getState().verticalLock).toBe(false)
+  })
+})

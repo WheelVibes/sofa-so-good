@@ -39,6 +39,7 @@ export function loadQualityPrefs(): void {
       dofFStop?: number
       dofFocusDistance?: number
       dofAuto?: boolean
+      verticalLock?: boolean
     }
     // Migrate the old flat tier name. Other names map 1:1 onto the new
     // RenderTier union (medium/high unchanged; maximum is new).
@@ -69,6 +70,9 @@ export function loadQualityPrefs(): void {
           ? clampFocusDistance(p.dofFocusDistance)
           : FOCUS_DEFAULT_M,
       dofAuto: typeof p.dofAuto === 'boolean' ? p.dofAuto : true,
+      // Two-point-perspective / vertical-line-lock (FEAT-D) — back-compat
+      // default off (normal perspective) for legacy prefs.
+      verticalLock: typeof p.verticalLock === 'boolean' ? p.verticalLock : false,
     })
   } catch {
     /* ignore corrupt prefs */
@@ -89,6 +93,7 @@ export function watchQualityPrefs(): void {
       dofFStop: s.dofFStop,
       dofFocusDistance: s.dofFocusDistance,
       dofAuto: s.dofAuto,
+      verticalLock: s.verticalLock,
     })
     if (snap === last) return
     last = snap

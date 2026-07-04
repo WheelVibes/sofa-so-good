@@ -1283,6 +1283,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Two-point-perspective / vertical-line-lock orbit camera (FEAT-D): levels
+  // the camera's pitch + applies a vertical projection-matrix lens-shift
+  // (`scene/cameras/verticalLock.ts`, pure + unit-tested) so wall corners and
+  // door frames stay parallel instead of converging when the view is pitched
+  // — the D5 Render/Enscape "keep verticals vertical" toggle (REFERENCES.md),
+  // an architectural-photo quality lever for shareable HDB hero shots. Pure
+  // client-side camera/projection math, no external assets → prod-safe. An
+  // advanced photographic control beyond the core view loop → pro tier
+  // (hidden in Simple mode automatically).
+  twoPointPerspective: {
+    label: 'Two-point perspective',
+    description: 'Keep vertical building lines parallel when the camera is pitched',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]
