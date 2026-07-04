@@ -234,7 +234,23 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   click that jumps to the result — the whole card body is the affordance, distinct from the
   trailing `actionLabel`/`onAction` button); a failed job uses `notify.error(id, msg, undefined,
   retry)` to swap in the standard "Retry" action. Toasts update in place via `notify.update` and
-  de-dupe on `kind+title+message` (progress toasts never de-dupe).
+  de-dupe on `kind+title+message` (progress toasts never de-dupe). **De-dupe drops the incoming
+  call's `onAction` closure**, keeping only the FIRST toast's — fine when every de-duped call's
+  action is equivalent (e.g. re-surfacing "This area is already a room" repeatedly), but wrong for
+  an Undo whose target moves each time it fires (BUG-4: `itemsSlice.deleteItem`'s "Item deleted"
+  toast — two deletes ≥500ms apart each push their OWN undo-able history entry yet still de-dupe
+  into one visible toast, so a plain `() => get().undo()` only popped the newest one). A toast
+  whose action must fire once per de-duped call passes `undoRepeat: <count>` to `notify.start`
+  (computed by the caller as the cumulative count, NOT a delta): `start()` wraps `onAction` to
+  re-read the count off the LIVE notification (by id) at click time and invoke the underlying
+  action that many times, and a later de-dupe overwrites the stored count with the new call's
+  value. `itemsSlice.deleteItem` only passes an incremented count when this delete's push both (a)
+  landed as a genuinely NEW history entry (not merged into the prior one within the 500ms
+  coalesce window) and (b) immediately followed another `'delete'`-keyed push with nothing else
+  in between — so an unrelated action sitting between two deletes starts a fresh chain of 1
+  instead of reaching past it, and a chain whose earlier toast already auto-dismissed can't be
+  reached either. Reuse this mechanism for any future toast with the same "de-dupe must not drop
+  an earlier action" shape, rather than special-casing dedupe again.
 - Modals portal to `document.body`; reuse the shared `Modal` primitive. While any modal is
   open, global hotkeys are suppressed via `controls/modalGuard.ts` — `Modal` registers
   automatically; any modal-style overlay that does **not** build on `Modal` (custom

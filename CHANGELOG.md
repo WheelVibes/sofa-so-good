@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: de-duped delete toast's Undo restores every coalesced delete — BUG-4 (v0.12.0.33)
+
+From the 2026-07-04 audit: deleting two items ≥500ms apart (past the history-
+coalesce window) pushed two separate `past` entries, but the two "Item deleted"
+toasts de-duped into one whose Undo ran `undo()` only once — restoring the
+second delete and silently leaving the first gone. The de-duped toast now
+carries an `undoRepeat` count (incremented only when a delete immediately
+follows another delete-keyed push with nothing between); its Undo re-reads the
+live count at click time and undoes that many steps. An unrelated action between
+deletes, or an already-dismissed toast, starts a fresh chain (no over-undo).
+Fail-before/pass-after tests incl. 3-delete, interleaved-action, post-dismiss,
+redo, and grouped-item cases.
+
 ## SECURITY: runtime GLB loaders block foreign resource URLs — SEC-1 (v0.12.0.32)
 
 From the 2026-07-04 audit: the model-convert path blocked external URLs via a

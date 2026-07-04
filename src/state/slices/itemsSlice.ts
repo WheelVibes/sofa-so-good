@@ -169,6 +169,13 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     // `skipHistoryPush` lets a caller that already pushed its own single
     // history step (clearRoom) skip this — otherwise the first loop
     // iteration would push a second, redundant entry (BUG: double history).
+    // BUG-4: capture the history state BEFORE this delete's push so we can
+    // tell, right after, whether it landed as a genuinely NEW `past` entry
+    // (a delete ≥`COALESCE_MS` after the last one) or merged into the
+    // existing top entry (a delete within the window, e.g. a same-tick
+    // multi-select loop) — see the toast block below for why that matters.
+    const pastLenBeforePush = get().past.length
+    const lastPushKeyBeforePush = get()._lastPushKey
     if (!opts?.skipHistoryPush) get().pushHistoryCoalesced('delete')
     set((s) => {
       const ids = s.selectedItemIds.filter((x) => x !== id)
@@ -205,16 +212,38 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     // confirm dialog (matches the shipped style-transfer Undo toast). The delete
     // was pushed as one coalesced history step, so a single undo() restores it —
     // and a multi-select delete loop fires N identical toasts that the notify
-    // de-dupe collapses to one, whose Undo reverts the whole batch. Batch callers
-    // that show their own single summary toast (clearRoom) pass `silent: true`
-    // to suppress this one and avoid a stacked, contradictory pair.
+    // de-dupe collapses to one, whose Undo reverts the whole batch.
+    //
+    // BUG-4: that's only true when the loop's deletes landed in the SAME
+    // history entry (within `COALESCE_MS` of each other). Two deletes ~1s+
+    // apart each push their OWN `past` entry, but still de-dupe into the same
+    // visible "Item deleted" toast (identical kind+title+message) — and a
+    // plain single `undo()` only pops the newest entry, silently leaving the
+    // earlier delete un-restored. Fix: track how many *separate* history
+    // entries this toast now needs to cover (`undoRepeat`) and have the toast
+    // call `undo()` that many times.
+    //
+    // A delete only extends the SAME chain when it's a fresh `past` push (not
+    // merged into the prior one) AND nothing else pushed history in between
+    // (`_lastPushKey` was still `'delete'` going in) — otherwise this starts
+    // a new chain of 1, so an unrelated action sitting between two deletes
+    // never gets silently undone along with them, and a chain that already
+    // lost its toast (auto-dismissed) doesn't try to reach past it either.
     if (!opts?.silent) {
+      const freshPush = !opts?.skipHistoryPush && get().past.length > pastLenBeforePush
+      const chainable = freshPush && lastPushKeyBeforePush === 'delete'
+      const priorToast = chainable
+        ? get().notifications.find(
+            (n) => n.kind === 'success' && n.title === 'Item deleted' && n.undoRepeat !== undefined,
+          )
+        : undefined
       get().notify.start({
         title: 'Item deleted',
         kind: 'success',
         autoDismissMs: 6000,
         actionLabel: 'Undo',
         onAction: () => get().undo(),
+        undoRepeat: (priorToast?.undoRepeat ?? 0) + 1,
       })
     }
   },

@@ -120,6 +120,21 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   long hold form one step; `refreshCoalesce(key)` keeps that window alive across a hold→re-tap
   without snapshotting and is a no-op for any other key (so a nudge can't merge with another
   action). A deliberate pause past `COALESCE_MS` starts a fresh step.
+- **A per-action Undo toast is a SEPARATE concern from history-step granularity (BUG-4).**
+  `deleteItem`'s "Item deleted" toast de-dupes with any other same-kind+title+message toast
+  (`notify.start`'s generic de-dupe, `src/ui/CLAUDE.md`'s P32 note) — but a delete more than
+  `COALESCE_MS` after the previous one still pushes its OWN fresh `past` entry even though its
+  toast merges into the still-showing one. A plain `onAction: () => get().undo()` on that merged
+  toast would only pop the newest entry, silently stranding the earlier delete. `deleteItem`
+  instead passes `notify.start({ ..., undoRepeat })`, computing `undoRepeat` itself by checking,
+  right after its own `pushHistoryCoalesced('delete')` call, whether this push (a) actually
+  created a new entry (vs. merging into the last one) AND (b) immediately followed another
+  `'delete'`-keyed push (`get()._lastPushKey === 'delete'` going in) with nothing else in between
+  — only then does it read the still-live toast's current `undoRepeat` and add one; otherwise it
+  starts a fresh count of 1. This keeps the chain from reaching across an unrelated action sitting
+  between two deletes, or across a toast that already auto-dismissed. Any future action with the
+  same "one undo-toast, but N independently-undoable history steps behind it" shape should reuse
+  `undoRepeat` rather than inventing its own chain-tracking.
 - **`schema.ts` is the import trust boundary — sanitize untrusted URLs here.** A `.sofa.json`
   import keeps `userFurniture` (incl. `source:'ikea'` defs + their URLs), so any URL field that
   later renders into an `href`/`src` (def `sourceUrl`, IKEA `productInfo.mainImageUrl` /
