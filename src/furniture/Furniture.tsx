@@ -124,10 +124,21 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
                 rotation: it.rotation,
               }))
           : undefined
+      // Record the initiating pointerId so DragController's window-level
+      // pointermove/up/cancel listeners can ignore a second finger's
+      // independent pointer stream (BUG-1) — only this pointer may drive or
+      // end the drag. Also capture it on the canvas so the gesture keeps
+      // tracking even if this finger slides off the item's mesh mid-drag;
+      // guarded (a stale/synthetic pointerId throws InvalidPointerId on some
+      // browsers, matching the other capture sites in the codebase).
+      try {
+        ;(e.nativeEvent.target as Element | null)?.setPointerCapture?.(e.nativeEvent.pointerId)
+      } catch {}
       state.startDrag(
         item.id,
         { position: [item.position[0], item.position[1]], rotation: item.rotation },
         offset,
+        e.nativeEvent.pointerId,
         groupOriginals,
       )
     },

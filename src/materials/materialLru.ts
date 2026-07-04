@@ -86,6 +86,17 @@ export class LruCache<V> {
     }
   }
 
+  /** Remove a key immediately (no deferred dispose, no eviction bookkeeping)
+   *  and return its value, or `undefined` if absent. The caller owns disposal
+   *  — use this for an explicit, caller-initiated removal (e.g. a user deletes
+   *  a saved material) where the caller already knows it's safe to free, as
+   *  opposed to size-based eviction which defers a frame for mount safety. */
+  delete(key: string): V | undefined {
+    const value = this.map.get(key)
+    this.map.delete(key)
+    return value
+  }
+
   /** Test-only: clear all entries (disposing each immediately/synchronously). */
   clearForTest(): void {
     for (const value of this.map.values()) this.disposeValue(value)

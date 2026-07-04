@@ -79,6 +79,8 @@ export interface FeaturesSlice {
   renderCompareOpen: boolean
   /** Before/after staging-reveal modal visibility (empty room vs furnished). */
   stagingRevealOpen: boolean
+  /** Time-of-day comparison reveal modal visibility (same scene, two times). */
+  timeCompareOpen: boolean
   /** One-tap style-transfer modal visibility. */
   styleTransferOpen: boolean
   /** Style-quiz modal visibility. */
@@ -157,6 +159,7 @@ export interface FeaturesSlice {
   setHqRenderOpen: (open: boolean) => void
   setRenderCompareOpen: (open: boolean) => void
   setStagingRevealOpen: (open: boolean) => void
+  setTimeCompareOpen: (open: boolean) => void
   setStyleTransferOpen: (open: boolean) => void
   setStyleQuizOpen: (open: boolean) => void
   setShortcutsHelpOpen: (open: boolean) => void
@@ -204,6 +207,7 @@ export const FEATURES_INITIAL = {
   hqRenderOpen: false,
   renderCompareOpen: false,
   stagingRevealOpen: false,
+  timeCompareOpen: false,
   styleTransferOpen: false,
   styleQuizOpen: false,
   shortcutsHelpOpen: false,
@@ -263,6 +267,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setHqRenderOpen: (hqRenderOpen) => set({ hqRenderOpen }),
   setRenderCompareOpen: (renderCompareOpen) => set({ renderCompareOpen }),
   setStagingRevealOpen: (stagingRevealOpen) => set({ stagingRevealOpen }),
+  setTimeCompareOpen: (timeCompareOpen) => set({ timeCompareOpen }),
   setStyleTransferOpen: (styleTransferOpen) => set({ styleTransferOpen }),
   setStyleQuizOpen: (styleQuizOpen) => set({ styleQuizOpen }),
   setShortcutsHelpOpen: (shortcutsHelpOpen) => set({ shortcutsHelpOpen }),

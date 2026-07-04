@@ -112,6 +112,16 @@ of guessing a delay.
 **Rule:** prefer `waitFor` over `wait` wherever possible. `wait` is only for
 unavoidable render-settle delays after a confirmed state change.
 
+**A settle `wait` HIDES entrance-animation bugs — to catch them, screenshot at open with NO
+settle.** TOOLBAR-MENU-VOID was a transient stagger-cascade void in the File/Tools dropdowns that
+was visible only ~0–600ms after the menu opened; every prior review used a 700ms+ settle before the
+screenshot and saw a clean, contiguous menu, so the bug survived a whole audit. The reproduction was
+to screenshot the instant the panel mounts (`waitFor {css:".menu-item"}` → `screenshot`, no `wait`)
+and assert every panel child is fully opaque at that moment
+(`Array.from(panel.children).filter(c => parseFloat(getComputedStyle(c).opacity) < 0.99)` must be
+empty). Guard scenario: `scripts/scenarios/toolbar-menu-void.json`. When verifying anything with a
+per-row/staggered entrance, take a no-settle "at-open" shot in addition to the settled one.
+
 ### Step types reference
 
 All steps accept optional `name` (default `<type>-<index>`) and `timeout` (default 15 000 ms).
@@ -158,6 +168,26 @@ come out near-black.
 
 ### Known headless limitations for scenario steps
 
+- **The `type` action's keyed JSON form is `{"type": "type", "text": "..."}` — not
+  `{"type": "the text itself"}`** (found writing `ai-surfaces-simple.json`). Every other action
+  has a friendly keyed shorthand (`{"click": {"text": "..."}}`, `{"waitFor": {"css": "..."}}`)
+  because its type name differs from its own payload key. The `type` (keyboard-typing) action's
+  type name IS the literal string `"type"`, so there's no shorthand to collapse into — write it
+  in explicit typed form with a separate `"text"` field, or `validate.mjs`'s `resolveStepType`
+  will treat your intended text as the discriminator, find no `text` field, and throw
+  `(type action): must have "text"`. The `type` step also needs the target already focused
+  (it only clicks first if you pass `x`/`y`) — Command Palette's search input autofocuses on
+  open via `requestAnimationFrame`, so a `waitFor {css: ".cmdk-item"}` step before typing is
+  enough; don't add an explicit focus click.
+- **A `waitFor`/`eval` text-substring check against the Command Palette can false-positive on
+  its own empty-state echo.** `CommandPalette`'s "no results" row renders
+  `No commands match "{query.trim()}".` — if your assertion checks
+  `document.body.textContent.includes(<your search query>)` to prove a command is filtered OUT,
+  it will find its own typed query quoted back inside that message and wrongly pass (or, as in
+  `ai-surfaces-simple.json`'s first draft, fail an "absent" assertion that should have passed).
+  Assert against the command's fuller, more specific label text instead (a substring the
+  empty-state message can't accidentally contain), and/or assert `.cmdk-item` doesn't exist /
+  `.cmdk-empty` does.
 - **Demand-frameloop presentation can lag one render burst behind** (SwiftShader):
   a store change that only alters light parameters (e.g. C275 curtain attenuation —
   sun intensity provably updates to 0.62 instantly when probed via the scene graph)
@@ -234,6 +264,7 @@ npm run dev -- --port 5212 --strictPort &
 for i in $(seq 1 30); do sleep 1; curl -sf http://localhost:5212/ >/dev/null && break; done
 node scripts/shot.mjs --scenario scripts/scenarios/first-run.json --out-dir /tmp/first-run
 node scripts/shot.mjs --scenario scripts/scenarios/first-run-no-tour.json --out-dir /tmp/first-run-no-tour
+node scripts/shot.mjs --scenario scripts/scenarios/first-run-returning-user.json --out-dir /tmp/first-run-returning
 ```
 
 Steps of `first-run.json` (30 total, 8 screenshots):
@@ -248,6 +279,30 @@ Steps of `first-run.json` (30 total, 8 screenshots):
 
 **`first-run-no-tour.json`** — carousel → "Enter sandbox" → assert tour never opens → location prompt → scene.
 Asserts `tourOpen === false` immediately after the carousel closes.
+
+**`first-run-returning-user.json`** — the *persistence* re-rung: clean profile boots the carousel,
+the top-nav **"Skip"** button (the third dismissal path, not covered by the other two scenarios)
+closes it and persists `hdb_onboarded='1'`, then a **real `location.reload()`** must NOT re-show
+**any** first-run overlay — neither the carousel nor the location prompt. This is the end-to-end
+proof of the `resolveBootDecision` contract that `bootDecision.test.ts` only covers at the
+pure-function level, plus the autosave round-trip of the location-prompt dismissal. Gotchas baked
+into the scenario:
+- **Persistence needs a real reload, not a store reset.** `hdb_onboarded` lives in `localStorage`
+  and is read by `hasOnboarded()` only at boot (inside the `booting` effect). Assert the returning
+  path by driving `location.reload()` and re-waiting for `bootPhase === 'ready' && sceneReady`, not
+  by calling a store reset (which never re-runs the boot decision).
+- **The location-prompt dismissal IS persisted — via the design autosave, not localStorage.**
+  Don't assume "store flag" = session-only: `locationPromptDismissed` is in `serialize()`
+  (`state/schema.ts`) and the autosave watch-list (`PERSISTENT_WATCH_KEYS`,
+  `state/storage/autosave.ts`), so after a reload it is restored `true` and the "Where are you?"
+  modal must NOT reappear (a first draft of this scenario asserted the opposite and failed).
+  The 500 ms debounce is covered by the `pagehide` flush, but the scenario still waits for
+  `lastSavedAt` to advance past a pre-dismissal baseline before reloading, making the round-trip
+  explicit. (`waitFor.store` predicates run in page scope, so they can compare against a
+  `window.__…` baseline captured by an earlier `eval` step.)
+- **A late/re-fired boot decision is a real risk.** The decision runs in a `booting`-gated effect, so
+  the assertion waits for `onboardingOpen === false` AND then re-checks after a ~1.5 s buffer to catch
+  a carousel (or modal overlay) that opens a beat late.
 
 ### Worked example — Simple-mode core design loop (IXT-SUITES batch 1, C269)
 
@@ -407,6 +462,45 @@ inside the room, plus a door + a window opening on the plan. **Key gotchas learn
 - **Sync on the placement, not a fixed wait.** `applySh3dResult` mutates the store synchronously, so
   `{"waitFor": {"store": "window.__store.getState().items.length > 0"}}` is the reliable gate before
   probing/screenshotting; `requestHomeView()` then frames the new plan like a template load.
+### Worked example — GLB asset designer simple rung (IXT-SUITES GLB-designer re-rung)
+
+**`glb-designer-simple.json`** covers the pro-only 3D asset designer
+(`ui/glbEditor/GlbDesignerDialog.tsx`, gated directly on `uiMode==='pro'` — NOT a `FEATURE_FLAGS`
+entry, so drive it with `setUiMode('pro')`, no `reresolveFeatureFlags`): Simple/Pro gate (dialog
+stays UNMOUNTED in Simple even with `glbDesignerOpen` forced true, present in Pro) → a real edit
+round-trip (add box → set size X to 1 m + raise position Y to 0.8 m; the controlled numeric inputs
+AND the live 3D preview both reflect the elongated raised box) → a real **save round-trip to the
+store** (name → Save asset → a `UserGltfDef` lands in `state.userFurniture`) → back-to-Simple +
+mobile legs re-assert hidden. **Key gotchas learned here:**
+- **The designer dialog is `React.lazy` but mounts fine headless** — unlike the model-upload dialog
+  (next section). It's in `preloadOnIdle.ts`'s `PRELOAD_ORDER`, so its chunk is idle-warmed after
+  boot and Suspense resolves immediately when opened. The "lazy dialogs never mount headless"
+  limitation only bites dialogs that are NOT preloaded (they pay a first-open fetch that hangs).
+- **`clickByText` does NOT scroll the target into view — a button below the fold is silently
+  missed.** `scripts/lib/interact.mjs`'s `clickByText` computes the match's `getBoundingClientRect()`
+  centre and fires `page.mouse.click(x,y)` at it; if that point is off-screen (e.g. the designer's
+  "Save asset" button, which lives in the "Save to catalog" section at the very bottom of the
+  scrolling right panel, below the fold at every viewport), the click lands nowhere and the button's
+  React `onClick` never runs — a **silent no-op with no error**. This is exactly why the pre-existing
+  `glb-csg-textures-simple.json` save step (`waitFor {text:"Saved"}`) was timing out. Fix: click such
+  a control via a DOM `.click()` in an `eval` (viewport-independent — a real click event React
+  honours regardless of scroll), NOT the harness text-click:
+  `[...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Save asset' &&
+  !b.disabled)?.click()`. Do NOT misdiagnose this as a headless export limitation: the GLB export
+  path is fully drivable headless — `GLTFExporter`'s dynamic import resolves, `GLTFExporter.parse` of
+  a solid-material box completes in ~6 ms, and `persistUserGlb` is exercised headless by the
+  bulk-import scenarios. The only blocker was the missed click; once Save actually fires, the
+  `buildEditedObject → exportGlb → persistUserGlb → addUserFurniture` round-trip completes and
+  `state.userFurniture` gains the def.
+- **The designer keeps its edit spec in component-local `useState`, not the store** — it commits to
+  the global store ONLY on Save. So a mid-edit "round-trip" is asserted against the controlled
+  inputs (which reflect the local spec) + the live preview mesh, not `window.__store`; the store
+  round-trip is available only after Save.
+- **Success toasts auto-dismiss after 3 s** (`notificationsSlice.ts` `SUCCESS_DEFAULT_MS`) and live
+  in `state.notifications` (an array), not `notify.current`. Gate a save assertion on the durable
+  store change (`userFurniture` length/entry), not a `waitFor {text:"Saved"}` that can miss the
+  toast's 3 s window.
+
 ### Worked example — model-upload group detection at scale (UPLOAD-DETECT-PAGINATION)
 
 **`model-upload-simple.json`** verifies the model-upload feature's Simple rung: the **Upload**
@@ -431,6 +525,43 @@ the pagination fix. **Key gotchas learned here:**
 - **A GLB *inside* a group folder is not loose**; only model files outside every detected group dir
   count as loose. The fixture puts one `w.glb` under each `bulk/g<i>/` (not loose) and two at
   `bulk/loose-*.glb` (loose) to exercise both branches of `looseModelFiles`.
+
+### Worked example — optimize worker pool + IO-002 early size-cap gate (2026-07-03)
+
+Verifying the **optimize worker POOL** (`optimize/runOptimize.ts`) end-to-end needs a REAL
+`Worker` — the default node test environment can't construct one (`pickWorker` returns `null`
+and `runOptimize` always takes its direct-call fallback there), so unit tests exercise the pool's
+queueing/lifecycle with a **mock `Worker`** (`runOptimize.pool.test.ts`, `vi.stubGlobal('Worker',
+FakeWorker)` + `vi.resetModules()` per test for a clean pool) — that covers the logic, but not
+"does a real browser actually spin up N workers and route jobs through them." For that, a
+dev-only hook + an ad-hoc (not checked in) scenario:
+- **`bootstrap.ts` exposes `__importGlbFiles`** (dev-only, mirroring `__persistUserMaterial`/
+  `__detectGroups`): pass `[{name, b64}]` (base64 GLB bytes) + `BulkImportOptions`, it rebuilds
+  `File`s and runs the real `importGlbFiles` (convert → optimize-pool → LOD → persist), recording
+  the `BulkImportResult` on `window.__importGlbFilesResult`. This is now permanent (like the other
+  dev hooks) so a future scenario can reuse it without re-adding the lever.
+- **Build an oversized GLB client-side, don't embed a huge base64 blob in the eval script.**
+  Embed one small valid fixture (e.g. `duck.glb`, ~120KB → ~160KB base64) and in the page pad a
+  fresh `Uint8Array(EARLY_REJECT_MULTIPLIER * MAX_GLB_BYTES + slack)` (>75 MB — the early gate
+  only rejects HOPELESS files past the 3× multiplier, not merely over-cap ones) with its bytes
+  (the glTF magic header is all that needs to be valid — the IO-002 early gate fires on raw byte
+  length before any real GLB parsing). A 3-file batch (2 distinct-content normal GLBs + 1
+  synthetic hopeless one) through `__importGlbFiles(files, {category:'decor'})`, gated the same
+  fire-and-forget way as `__detectGroups` (`waitFor: {store: "!!window.__importGlbFilesResult"}`),
+  confirmed: `imported === 2`, `skipped.length === 1`, and the skip reason contains "even after
+  optimization this can't fit" (the early, pre-optimize gate — distinct from the post-optimize
+  gate's "over the N MB limit even after optimization" message) — i.e. the hopeless file was
+  rejected without ever reaching the expensive optimize pass. ~15-25s wall time in SwiftShader
+  headless Chromium (dominated by the two real optimize passes + hashing the 75 MB fixture,
+  wasm-permitting — see next point). Worker pool + IO-002 code lives in
+  `furniture/upload/bulkImport.ts` + `furniture/optimize/runOptimize.ts`.
+- **This sandbox's headless Chromium fails to compile the Draco/Basis wasm** (`wasm streaming
+  compile failed … Incorrect response MIME type`, then `CompileError: … expected magic word …
+  found 3c 21 64 6f` — that's `<!do`, i.e. the wasm request got an HTML error page). This is a
+  pre-existing sandbox/proxy quirk, not a regression: `optimizeGlb`'s `getIO()` treats a failed
+  Draco registration as best-effort (falls back to un-Draco'd output) and any doc-transform
+  failure returns the input unchanged — so the import still succeeds, just without compression.
+  Don't chase this wasm error when verifying optimize-pipeline changes here; it's environmental.
 
 ### Worked example — 2D plan align/distribute/mirror (PARITY-PLAN-ALIGN)
 
@@ -464,10 +595,11 @@ to "Close curtains" → store-action toggle back. **Key gotchas learned here:**
 - **Teleporting the walk camera works via `window.__three.camera.position.x/.z`** — the
   FirstPersonCamera frame loop only writes x/z on movement input (y is owned by `yPos`+bob, and
   the *orientation* is re-asserted every frame from internal yaw/pitch refs seeded at spawn).
-  So you can move the walker anywhere, but you CANNOT re-aim it — pick a teleport spot such
-  that the spawn look direction (≈`(-0.17, -0.99)` for the default flat) already points at your
-  target within the 2 m interact radius. Walk mode is `isContinuous`, so the aim loop ticks
-  headlessly without store nudges.
+  So you can move the walker anywhere, but you CANNOT re-aim its *yaw* — pick a teleport spot
+  such that the spawn look direction (≈`(-0.17, -0.99)` for the default flat) already points at
+  your target within the 2 m interact radius. Walk mode is `isContinuous`, so the aim loop ticks
+  headlessly without store nudges. (*Pitch* — but only pitch — became drivable later via the
+  dev-only `window.__walkLook` lever; see the ceiling-design worked example below.)
 - **The R3F mesh-click limitation applies to the fixture/door click path** — verify the click
   branch through its store action (`toggleWindowFixture` / `toggleDoor`) and let unit tests
   cover the `onClick` gate; the E-key path is fully drivable headless (`{"key": "KeyE"}` reaches
@@ -548,6 +680,44 @@ gotchas:
   states under `lightsMode: 'auto'`-independent darkness — the point light's absence has no visual
   contrast to show. Use dusk (~19:30) instead: dark enough for the point light's warm pool to read
   clearly, bright enough that the "unlit" shot still shows the room's silhouette instead of a void.
+
+### Worked example — walk-mode ceiling-design look-up (IXT-SUITES ceilingDesign rung)
+
+**`ceilingdesign-walk-simple.json`** proves the pro-tier `ceilingDesign` treatments render from
+below: Simple-mode flag-off assert → Pro → tray (drop 0.3, margin 0.6, orange cove) on
+`livingDining` → walk mode → look-up screenshot → switch to coffered 3×3 → second look-up →
+back to orbit (config persists). Gotchas learned here:
+
+- **Pitching the walk camera headlessly needs the dev `__walkLook` lever.** Both real look
+  inputs are undrivable: desktop mouse-look requires OS Pointer Lock (unavailable headless) and
+  touch-look requires a coarse-pointer profile + synthetic multi-touch streams. The teleport
+  gotcha above (position writes stick, orientation can't be re-aimed) covers *where you stand*
+  but not *pitch*. `FirstPersonCamera` therefore exposes a permanent dev-only
+  `window.__walkLook = { setPitch(rad), getPitch() }` (mounted only while walk mode is active,
+  removed on exit) that writes the same clamped `pitch` ref the frame loop re-asserts the camera
+  quaternion from every frame — so a scenario pitch sticks exactly like a real look-up.
+  `setPitch(1.0)` ≈ 57° up; the ±1.5 rad `MAX_PITCH` clamp applies.
+- **A near-vertical pitch from the room centre produces a featureless frame that proves
+  nothing.** At pitch ≥1.3 under a 2.6 m ceiling the FOV covers only ~±1 m of ceiling directly
+  overhead — for a tray treatment that's the flat centre panel, a uniform grey rectangle
+  indistinguishable from "no feature at all" (a first cut of this scenario passed every store
+  assert and failed visual review exactly this way). Compose the shot instead: teleport to
+  ~1 m horizontal from a recess/beam edge (elevation ≈ 42° at eye height 1.6) and pitch ~1.0 so
+  the frame step, riser, and cove strip are all IN frame with the centre panel behind them.
+- **Don't turn ceiling lights on for a pitched-up shot.** The point light sits straight ahead of
+  a look-up camera; on High tier the bloom blows the entire frame to white and the geometry
+  vanishes. Daylight ambient (hour 13) already shades the two ceiling levels distinctly — the
+  lighter dropped frame/beams read clearly against the darker recessed base panel.
+- `setQualityTier('high')` first (risers + cove strips are High/Maximum-only in `RoomCeiling`),
+  then `hideLoading()` — the tier switch raises the transition overlay, which under SwiftShader
+  can outlive its readiness signal and cover the canvas.
+- **`setRoomCeiling` on the default flat forks the plan** (`forkIfDefault`), flipping rendering
+  to the custom-plan path (`PlanRoomCeiling`) and the walk spawn to the custom-plan
+  largest-room rule — for the default flat that's still `livingDining`, spawning mid-room
+  looking north (−z). Also note `buildCeiling` falls back to a FLAT ceiling for non-rectangular
+  polygons: if you design a ceiling on a custom L-shaped/free-form room and see no treatment,
+  that fallback (not a render bug) is why — `livingDining` works because the default plan keeps
+  its main rect and `extension` as separate rectangles.
 
 ---
 
@@ -802,6 +972,23 @@ ticks get throttled while the page is busy compiling shaders — log
 In **scenario mode**: use `{"waitFor": {"css": ".modal-overlay"}}` instead of
 a fixed `wait`.
 
+### A text-`click` on a below-the-fold control is a silent no-op
+`clickByText` (`scripts/lib/interact.mjs`) resolves the match, computes its
+`getBoundingClientRect()` centre, and fires `page.mouse.click(x, y)` at that
+point **without scrolling it into view**. If the control is scrolled out of the
+viewport — e.g. a button at the bottom of a tall panel with `overflowY:auto`,
+or below the fold on a short viewport — the click lands off-screen (or on
+whatever is at that clamped coordinate) and the control's React `onClick` never
+runs. There's **no error** — the step reports OK, the action just didn't happen,
+and you chase a phantom "the handler is broken / the feature can't be driven
+headless" bug downstream. (This silently broke the GLB designer's "Save asset"
+step in two scenarios.) Fix: for any control that may be below the fold, click it
+via a DOM `.click()` in an `eval` (`[...document.querySelectorAll('button')]
+.find(b => b.textContent.trim() === 'Label' && !b.disabled)?.click()`) — a real
+click event React honours regardless of scroll position — or `scrollIntoView()`
+it first. Reserve the coordinate-based text-`click` for controls you know are
+on-screen.
+
 ### Verifying offline / service-worker behaviour
 The PWA service worker is **build-only** (`devOptions` off), so offline behaviour
 can't be checked against `npm run dev`. It also can't be checked against
@@ -1014,3 +1201,77 @@ floor beam* in orbit headless is unreliable (OrbitControls snaps back a manual `
 the dollhouse angle hides the floor), so the scene-graph probe is the reliable proof here.
 Give the rebuild a nudge (`setManualHour(h + 0.01)`) after `updateItemProps` so the
 nearest-light recompute fires before you probe.
+
+### Selection gizmos never mount in the whole-flat orbit view
+
+`RotateGizmo`/`ResizeGizmo`/`TiltGizmo` all gate on `canEditScene` =
+`roomEditor.active && cameraMode === 'orbit'`. A scenario that seeds + selects an item in the
+top-level orbit view will show the selection outline and inspector but **no gizmo** — that's
+correct view-only gating, not a rendering bug. `enterRoomEditor('<roomId>')` first (and seed the
+item at a position inside that room). To drive a gizmo drag headlessly: project the handle's
+world position to client px via the dev `__three` camera (`matrixWorldInverse` +
+`projectionMatrix`), dispatch a synthetic `pointerdown` on `__three.gl.domElement` at that point
+(R3F raycasts it; assert `state.rotatingGizmo === true` to confirm the grab), then
+`pointermove`/`pointerup` on `window`. Don't use a `drag` step for a second camera angle while an
+item is selected — a left-drag marquee-selects and clobbers the selection; reposition via
+`__three.controls` (`camera.position` + `controls.update()`) instead. (Found building
+`tilt-gizmo-simple.json`.)
+
+### `click: {text: …}` on a `<summary>` (Disclosure) used to mis-click the 3D canvas
+
+`clickByText` (`scripts/lib/interact.mjs`) climbs from the matched text node looking for a
+"clickable" ancestor (`button`/`a`/`input`/`label`/`role=button`/`tabindex`) before computing a
+click point. The app's `Disclosure` control (`ui/controls/Disclosure.tsx` — FinishPicker's
+"Apartment colour palette…", MaterialComposer's "Compose your own…") is a native `<details>` +
+`<summary>`, and `<summary>` wasn't in that allowlist even though it's natively clickable (toggles
+its parent `<details>` in every real browser). The climb fell all the way to `document.body`
+without finding a match, and the old code then used **body's own bounding rect** as the click
+target — silently clicking the centre of the page instead of the summary row. In a scenario with
+the 3D canvas centred there, this landed a real pointer click on whatever was in-scene (observed:
+selecting a placed sofa and swapping the whole right panel to the Inspector instead of expanding
+the disclosure) — a passing-looking step that actually did the wrong thing, one screenshot later
+the sofa's Inspector was open where the palette editor was expected. Fixed in `interact.mjs`:
+`summary` is now in the clickable-tag allowlist, and climbing all the way to `document.body`
+without a match is now treated as "no match" (retries/times out) rather than silently clicking
+body's centre. If you add another native-interactive element type the harness doesn't know about,
+extend the same allowlist rather than clicking by raw coordinates.
+
+### Worked example — model-convert worker pool (2026-07-03)
+
+Verifying `convert/runConvert.ts` (moves OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/gltf → GLB conversion
+off the main thread into a pooled Worker, `convert.worker.ts`) has the exact same problem as the
+optimize pool did: a real `Worker` can't be constructed in the Node/happy-dom test environment, so
+unit tests (`furniture/worker/workerPool.test.ts`, `convert/runConvert.test.ts`) exercise the pool
+logic + fallback branches with a mock `Worker` — that proves the queueing/retry logic, not "does a
+real browser actually run the OBJLoader→GLTFExporter round-trip inside a real Worker with no
+`document`." For that:
+- **`__importGlbFiles` (bootstrap.ts) already works for non-GLB formats with zero changes.**
+  Despite the name, `detectModelFormat`/`isModelEntryFile` key off the file's NAME extension, not
+  its declared MIME type, and the hook rebuilds a `File` from `{name, b64}` verbatim — passing
+  `{name: 'tri.obj', b64}` routes it through the real `bulkImport.prepareGlb` →
+  `needsConversion('obj')` → `runConvert`, exactly like a real drag-drop upload. No new dev hook
+  needed for this task.
+- **New observability seam: `window.__lastConvertRun`** (`runConvert.ts`, mirrors
+  `ui/openSceneExport.ts`'s `__lastSceneExport` — `import.meta.env.DEV`-gated, records
+  `{name, format, usedWorker}` on every conversion). Without it, a scenario asserting only
+  `imported === 1` can't tell a real worker conversion from the main-thread fallback silently
+  covering for a broken worker — the exact failure mode this whole task exists to catch.
+- **Scenario:** `scripts/scenarios/convert-off-main-thread.json` +
+  `evals/convert-worker-obj.mjs` — posts a tiny textureless single-triangle OBJ (deliberately no
+  `mtllib`, so the result doesn't depend on the `ImageLoader`→`createImageBitmap` texture patch,
+  which is unit-tested directly in `imageLoaderWorkerPatch.test.ts` instead) through
+  `__importGlbFiles`, waits on the result, then asserts `__lastConvertRun.usedWorker === true &&
+  __lastConvertRun.format === 'obj'`. All 7 steps passed in ~13s (dominated by the real OBJLoader
+  parse + GLTFExporter pack + optimize pass) in SwiftShader headless Chromium — confirming a real
+  `new Worker(new URL('./convert.worker.ts', import.meta.url))` constructed under the bundler and
+  the conversion completed inside it (`usedWorker: true`), not the main-thread fallback.
+- **Real conversion round-trips stay browser-only, same as `convertModel.test.ts`'s existing
+  skip.** Three's loaders fetch the sibling pool via `blob:` URLs; jsdom/happy-dom's `fetch`
+  doesn't resolve them ("URL scheme 'blob' is not supported" — confirmed empirically: `data:` URL
+  fetch DOES work under happy-dom, `blob:` does not). This is a pre-existing limitation, not
+  something this task introduced — don't spend time trying to route the worker's sibling-pool
+  construction through `data:` URLs to work around it; the scenario above is the real proof.
+- **Same environmental wasm-compile warnings as the optimize-pool worked example above** (Draco/
+  Basis wasm fails to compile in this sandbox's headless Chromium — "Incorrect response MIME
+  type" / bad magic word). Not a regression: `optimizeGlb` treats a failed Draco registration as
+  best-effort, so the import still succeeds without geometry compression. Don't chase it here.

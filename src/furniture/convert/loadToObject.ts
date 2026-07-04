@@ -9,6 +9,7 @@ import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { TDSLoader } from 'three/examples/jsm/loaders/TDSLoader.js'
 import { USDZLoader } from 'three/examples/jsm/loaders/USDZLoader.js'
+import { BLOCKED_RESOURCE_FALLBACK, isEmbeddedOrBlobUrl } from '../gltf/loaderSecurity'
 import type { ModelFormat } from './formats'
 
 /**
@@ -23,19 +24,18 @@ export interface SiblingPool {
   entryUrl: string
 }
 
-/** 1×1 transparent PNG — stands in for any missing referenced texture so a
- *  broken/absent map never blocks the whole conversion. */
-const BLANK_PNG =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
-
 /** A LoadingManager that rewrites requested URLs to sibling blob URLs by
- *  basename; unknown refs fall back to a blank texture. */
+ *  basename; unknown refs fall back to a blank texture (SEC-1 — this is a
+ *  closed allowlist: a dropped model can only ever resolve to a file also
+ *  dropped alongside it, never an arbitrary network URL, foreign or not —
+ *  `isEmbeddedOrBlobUrl`/`BLOCKED_RESOURCE_FALLBACK` are the same primitives
+ *  the runtime render-loader policy in `gltf/loaderSecurity.ts` shares). */
 function managerFor(pool: SiblingPool): THREE.LoadingManager {
   const mgr = new THREE.LoadingManager()
   mgr.setURLModifier((url) => {
-    if (url.startsWith('data:') || url.startsWith('blob:')) return url
+    if (isEmbeddedOrBlobUrl(url)) return url
     const base = (url.split('/').pop() ?? url).toLowerCase()
-    return pool.urls.get(base) ?? BLANK_PNG
+    return pool.urls.get(base) ?? BLOCKED_RESOURCE_FALLBACK
   })
   return mgr
 }

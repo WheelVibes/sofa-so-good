@@ -91,7 +91,7 @@ function IkeaLiveCard({ pack }: { pack: Pack }) {
       <div className="flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface-solid)] p-3">
         <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
         <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
-        <div className="rounded bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
+        <div className="pack-notice">
           Sidecar not detected. Run <code className="font-mono">npm run scraper-server</code> to
           enable live IKEA scraping.
         </div>

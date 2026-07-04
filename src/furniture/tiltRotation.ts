@@ -18,6 +18,17 @@ import type { FurnitureItem } from './types'
  */
 const TILT_ORDER: EulerOrder = 'YXZ'
 
+/** Shared tilt range (±°) — enough to angle art / recline / bank. Used by both
+ *  the inspector's `TiltControls` sliders and the in-viewport `TiltGizmo`
+ *  handle so the two affordances never disagree on how far a piece can lean. */
+export const TILT_LIMIT_DEG = 45
+export const TILT_LIMIT_RAD = (TILT_LIMIT_DEG * Math.PI) / 180
+
+/** Clamp a tilt angle (radians) to the shared ±45° range. */
+export function clampTilt(rad: number): number {
+  return Math.max(-TILT_LIMIT_RAD, Math.min(TILT_LIMIT_RAD, rad))
+}
+
 export type RotationTuple = [number, number, number, EulerOrder]
 
 /** Euler rotation tuple for a furniture item's full orientation (yaw + tilt). */

@@ -160,14 +160,42 @@ same change that reshapes a system.
   `textureBudget.ts`, `finishTargets.ts`, `mirrorPlane.ts`); `convert/` (any-format→GLB:
   `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`; `zipGuard.ts` bounds the
   DECLARED decompressed size of usdz/3mf via fflate central-directory reads before the
-  loader inflates — IO-006 zip-bomb guard); `optimize/` (`optimizeGlb.ts`
+  loader inflates — IO-006 zip-bomb guard; `runConvert.ts`/`convert.worker.ts` run `convertModel`
+  in a pooled Worker off the main thread — see the `optimize/` pool paragraph below for the shared
+  `WorkerPool` primitive both use, and `imageLoaderWorkerPatch.ts` for how texture-bearing formats
+  work in a Worker with no `document`); `optimize/` (`optimizeGlb.ts`
   pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`;
   `lodVariants.ts` in-browser `-low`/`-medium` tier generation for uploads — meshopt simplify
   + tier texture caps from `gltf/lod.ts` `TIER_BUDGETS`, stored in IDB under
-  `<assetId>:lod-<tier>` keys, routed by the `lod.ts` variant registry);
+  `<assetId>:lod-<tier>` keys, routed by the `lod.ts` variant registry; `runOptimize.ts` is the
+  main-thread entry — a **worker POOL**, not a single worker: `computePoolMax(cores,
+  deviceMemory)` = `cores - 1` (hard-capped `HARD_POOL_MAX`=8, downshifted on low-RAM devices),
+  workers spawn lazily **on contention** (`pickWorker` reuses an idle worker before growing the
+  pool) and **idle-teardown** (terminate + drop) after `IDLE_TEARDOWN_MS` once a worker's queue
+  empties — each holds a heavy Draco/Basis WASM stack, so the pool sheds back down after a bulk
+  burst instead of holding its peak size all session. A worker `error`/`messageerror` retires
+  only that worker (its queued calls fall back to the unoptimized original; the rest of the pool
+  is unaffected); no Worker available at all (e.g. tests) falls back to a direct in-thread call.
+  Mock-`Worker` pool tests: `runOptimize.pool.test.ts`. This pool predates and keeps its own
+  from-scratch implementation — NOT refactored onto `furniture/worker/workerPool.ts` (the generic
+  `WorkerPool` class factored out for the convert pool below), to avoid destabilizing it right
+  after it shipped; a future third pool should build on the generic version instead of copying
+  either); `convert/runConvert.ts` runs the SAME lifecycle (spawn-on-contention, per-worker error
+  retirement, idle-teardown) via that generic `WorkerPool`, sized with the same
+  `computePoolMax` heuristic — its worker (`convert.worker.ts`) calls `convertModel` unchanged
+  (see `convert/` above); a worker crash or unexpected in-worker failure falls that ONE file back
+  to a direct main-thread `convertModel` call, a genuine `ConvertError` (bad format/over-size/
+  zip-bomb) is re-thrown as-is with no pointless retry. Mock-`Worker` tests:
+  `furniture/worker/workerPool.test.ts` (generic pool) + `convert/runConvert.test.ts`
+  (success/expected-error/unexpected-error/crash fallback branches);
   `ikea/` (`metadata`/`translate`/`importGroup`/`compatibility`/`detectGroups`/`stacking`/
   `supportPlane`/`thumbnail`/`ikeaSets`); `upload/` (`bulkImport.ts` `prepareModelFile`=
-  convert+optimize+`persistUserGlb`, `hashFile.ts` dedupe, `readDrop.ts` (drag-drop walk),
+  convert+optimize+`persistUserGlb` — `prepareGlb` runs the IO-002 early size-cap gate **before**
+  `runOptimize`: only a HOPELESSLY oversized converted/raw GLB (> `EARLY_REJECT_MULTIPLIER`(3) ×
+  `MAX_GLB_BYTES`) is rejected up front (never burns a pool slot); a merely over-cap file keeps
+  its optimize chance (Draco+WebP routinely shrink 5-10×) and the post-optimize check enforces
+  the real `MAX_GLB_BYTES` cap on the actual stored bytes, `hashFile.ts`
+  dedupe, `readDrop.ts` (drag-drop walk),
   `pickDirectory.ts` (**File System Access** folder pick on Chromium — no native "upload N files?"
   prompt + live scan progress; falls back to the native `<input webkitdirectory>` elsewhere),
   `coalesceProgress.ts` (rAF progress throttle), `runImport.ts`
@@ -238,9 +266,70 @@ same change that reshapes a system.
   stale `stampMode` can't persist a click once the flag is off (Simple mode forces it off → the
   stamp button + banner hide and each click commits once as before). ⌘K **"Stamp — place an item
   repeatedly"** (`stamp-mode`, gated in `COMMAND_FLAGS`) arms the held/selected def.
+  **"Fits this room" size cue** (CATALOG-FITS, `catalogFits` flag, tier: **simple**, default on):
+  the pure predicate `catalog/roomFit.ts:itemFitsRoom(footprint, rects)` compares a def's
+  `defaultFootprint` (same seed used by placement/collision) against the free-space rects of the
+  room being edited (`ui/catalog/useCatalogRoomFit.ts:useActiveRoomFreeRects` → resolves via the
+  existing `scene/roomEditorShell.ts:getRoomEditorShell` — the same shell the camera framing and
+  furniture room-filter already use, unified across the built-in-apartment `RoomShell` and
+  custom-plan `PlanRoomShell`) and returns `'fits' | 'tight' | 'wont-fit' | 'unknown'`, using the
+  shared `layout/designRules.ts` `CLEARANCE` constants for the margin (a bare skirting gap for
+  "won't fit" vs. a full walkway margin for "fits"). Missing/degenerate footprint or room data
+  always resolves to `'unknown'` — a data gap is never reported as a false "won't fit". `CatalogCard`
+  renders `'wont-fit'` as a `.pr.warn`-toned "Won't fit" note plus a dimmed `.no-fit` card (both
+  cues; no cue at all outside the room editor or when the flag is off) and `'tight'` as a plain
+  "Tight fit" note (no dimming). The pro-tier **"Fits only" browse filter** (`catalogFitsFilter`
+  flag, default on, hidden in Simple) is a checkbox in the catalog's sort row
+  (`catalogBrowse.ts:filterByFits`) that hides `'wont-fit'` local items (never remote/shared
+  entries, whose footprint is unresolved pre-import) from the grid; browse-only, a no-op during
+  search (mirrors the existing Max $ filter).
+  **Pick a finish before placing** (CATALOG-VARIANT, `catalogVariantPick` flag, tier: **simple**,
+  default on — 2026-07-03 core-loop parity audit): a compact quick-look **swatch popover**
+  (`ui/catalog/CatalogVariantPopover.tsx`, `Icon.Palette` trigger — anchored `Popover` on desktop /
+  `Modal` sheet on mobile, mirroring `ColorPicker`) lets a shopper choose a colour/finish/variant on
+  the card BEFORE placing, instead of only after via the inspector. The pure resolution lives in
+  `furniture/placement/catalogVariants.ts`: `catalogVariantOptions(def)` reuses the existing
+  vocabulary rather than inventing one — IKEA `def.variants` (mirroring the inspector's
+  `IkeaBody`/`variantProps`, disabled for a stubbed `assetId: null` finish) for a multi-variant IKEA
+  product, or a curated hex-swatch row (`CURATED_COLOR_SWATCHES`) for a parametric def's primary
+  `color`-kind `paramSchema` field (found via `appearanceProps.ts:appearanceKeys`, same detection
+  copy-appearance/bulk-recolour use) — empty (no popover) for a single-finish IKEA product, a
+  parametric def with no colour field, or a plain GLB (builtin/user/remote/pack/local, which has no
+  def-level finish concept beyond the inspector's post-placement `tint`). Picking a swatch calls
+  `initialVariantProps(def, optionId)` for the resolved patch (`{ variant }` or `{ [colorKey]: hex
+  }`) and arms placement via a new `placementSlice.armWithVariant(defId, props)` action, which stows
+  the patch in `armedVariantProps` (cleared by a plain `setActiveDefId`/`cancelPlacement`/
+  `startStamp`, survives a `keepArmed` stamp/shift re-commit). `usePlacementController`'s `doCommit`
+  merges `{ ...defaultItemProps(def), ...armedVariantProps }` (variant wins) into the new item's
+  props on commit — both the normal floor-collision path and the window-bound fixture path (variant
+  merged before `windowFixtureProps`' sizing overrides, since they never share a key).
+  **Room-aware catalog default** (CATALOG-ROOMAWARE, `catalogRoomAware` flag, tier: **simple**,
+  default on — 2026-07-03 core-loop parity audit): on **entering a room to edit**, the catalog
+  lands on the category most relevant to that room's kind (bedroom→beds, kitchen→appliances,
+  bath→bathroom, living→seating) instead of always the persisted/curated default. The pure,
+  unit-tested mapping lives in `ui/catalog/roomAwareCategories.ts`: `relevantCategoriesForRoomKind`
+  (RoomKind → ordered `FurnitureCategory[]`, reusing the existing `analysis/suggestions.ts`
+  `RoomKind` + `furniture/types.ts` `FurnitureCategory` vocab — no new types),
+  `orderCategoriesForRoomKind` (relevant-first, then the untouched `FURNITURE_CATEGORIES` tail —
+  falls back to the plain curated order for an unmapped/`null` kind), and
+  `defaultCategoryForRoomKind` (the first relevant category that actually has cards per
+  `unified.counts`, else the caller's `firstBrowsableCategory` fallback so it never lands on a
+  dead tab). `CatalogDrawer` classifies the active room via
+  `roomKindFromName(roomDisplayName(roomId, plan))` and applies the landing category in a
+  `useEffect` keyed on the `roomEditor.roomId` (via a `roomEntryKeyRef`), so it only fires on the
+  room-**entry** transition — a subsequent manual tab pick during the same room-editing session is
+  never overridden (the effect body is a no-op unless the room id itself changes), and an
+  unmapped/whole-flat view leaves today's persisted default untouched. This only changes the
+  DEFAULT landing tab — the CategoryTabs order, search, filters, and favourites/recent are
+  unchanged. Flag off → today's behaviour exactly.
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
-  (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,
+  (`inspector/InspectorPanel.tsx` is now a thin ~180-line composition shell — REFAC-1 extracted
+  its inline sections into sibling files: `InspectorHeader`, `ItemActionButtons`
+  (`ItemBasicActions`/`ItemOrientActions`), `ItemBulkActions` (multi-select), `ItemLightControls`,
+  `ItemPhysicalControls`, `LinearArraySection`, `RadialArraySection`, and pure `itemTransforms.ts`;
+  behaviour-preserving):
+  `label` rename, minimize, price/total, Quick finishes, Apply-to-all,
   Straighten, **linear array** (`furniture/arrayPlacement.ts` — pure, unit-tested),
   **radial/polar array** (`furniture/radialArray.ts` — pure, unit-tested, Pro-only via
   `radialArray` flag), **path/polyline array** (`furniture/pathArray.ts` — pure, unit-tested;
@@ -468,7 +557,18 @@ same change that reshapes a system.
   which stamps a cached cap (default 8) and tracks the texture. `scene/AnisotropyController`
   (mounted in both Canvases) calls `setMaxAnisotropy(gl.capabilities.getMaxAnisotropy())` on
   first render → clamps to `max(1, deviceMax)` (commonly 16) and re-applies to all already-built
-  textures so module-load singletons + worker hot-swap maps sharpen at grazing angles.
+  textures so module-load singletons + worker hot-swap maps sharpen at grazing angles. **DLC/
+  uploaded (`textured`) maps get the same treatment (REAL-1)** — `cache.ts:buildMaterial`'s
+  `textured` branch calls `applyAnisotropy` on every loaded albedo/normal/roughness/ao map, so a
+  photo-textured floor/wall no longer renders blurrier than a procedural finish at grazing angles.
+  **Wall/floor/ceiling material cache is a bounded LRU (PERF-A)**: `cache.ts`'s `CACHE` (also
+  backs furniture `mat:<id>` DLC finishes, `furn:`-prefixed) is `materials/materialLru.ts`'s
+  `LruCache` — the same bounded + dispose-on-evict shape the furniture material cache uses
+  (AUD-002), capped at 256. Disposal only frees textures a material owns exclusively (the
+  procedural branch's per-material canvas bakes, tagged via a file-local `own()`/
+  `OWNED_TEXTURES`) — never the shared plaster normal/roughness singletons or `textured`-branch
+  maps (loaded through drei's `useTexture`/`useLoader` URL cache, so a `tint:<baseId>:#hex`
+  variant shares the same `Texture` instances as its base).
   **C271 worker**: `buildMaterial` immediately generates a sync texture (no first-paint delay),
   then `runProceduralWorker.ts` fires a single shared `Worker`
   (`procedural.worker.ts`) that re-renders via `OffscreenCanvas` and returns three
@@ -659,17 +759,75 @@ same change that reshapes a system.
   mobile File + ⌘K (`import-sh3d`).
 - **Multi-axis furniture tilt** (`tiltFurniture` flag, pro; PARITY-TILT): `FurnitureItem` gains optional
   `pitch`/`roll` (radians); `furniture/tiltRotation.ts` `itemRotation` returns the intrinsic Euler tuple
-  `[pitch, yaw, roll, 'YXZ']` the `Furniture` root group uses (reduces to pure yaw when untilted).
-  Inspector **Tilt** sliders via `itemsSlice.tiltItem`; serialized (optional) in `schema.ts`. Collision
-  stays yaw-OBB (tilt doesn't change the plan footprint).
+  `[pitch, yaw, roll, 'YXZ']` the `Furniture` root group uses (reduces to pure yaw when untilted). The
+  shared range lives there too (`TILT_LIMIT_DEG`/`TILT_LIMIT_RAD`/`clampTilt`, ±45°). Two affordances,
+  one flag, one action (`itemsSlice.tiltItem`): the inspector's **Tilt** sliders
+  (`ui/inspector/TiltControls.tsx`) and the in-viewport **`TiltGizmo`** drag handle
+  (`scene/selection/TiltGizmo.tsx` + pure `tiltGizmoMath.ts`, PARITY-TILT tail) — a "joystick" (rod +
+  ball) anchored above the selected item and tilted with its own live Euler tuple so it always points
+  the way the piece leans; drag the ball via pointer events (mouse + touch): vertical screen delta →
+  pitch, horizontal → roll, clamped to the shared range (no floor-plane raycast — pitch/roll have no
+  world-space plane to project onto, unlike `RotateGizmo`/`ResizeGizmo`). Single-item only, hidden for
+  locked items and Staircase. Serialized (optional) in `schema.ts`. Collision stays yaw-OBB (tilt
+  doesn't change the plan footprint).
 - **3D scene export** (`sceneExport3d` flag, pro; Q-3DEXPORT): `ui/openSceneExport.ts` `exportScene3d`
-  downloads the whole furnished home as `.glb` (reusing `furniture/convert/toGlb.ts` `exportGlb`) or
-  `.obj` (`export/sceneObj.ts`, dynamic `OBJExporter`). The live scene root is reached from DOM code via
-  `scene/SceneExportController` + the `scene/sceneExportAccess.ts` singleton (mirrors
-  `ScreenshotController`/`captureCanvas.ts`). Pure `export/sceneGltf.ts` `buildExportRoot` clones the
-  scene and strips editor-only helpers — anything tagged `userData.noExport` via `noExportUserData`/
-  `markNoExport` (selection/gizmo/overlays/sky/pins/ghost), plus a structural fallback for three helper
-  types + cameras. In Tools + Share modal + mobile + ⌘K.
+  downloads the whole furnished home as `.glb` (reusing `furniture/convert/toGlb.ts` `exportGlb`), `.obj`
+  (`export/sceneObj.ts`, dynamic `OBJExporter`), `.stl` (`export/sceneStl.ts`), or `.usdz`
+  (`export/sceneUsdz.ts`). The live scene root is reached from DOM code via `scene/SceneExportController`
+  + the `scene/sceneExportAccess.ts` singleton (mirrors `ScreenshotController`/`captureCanvas.ts`). Pure
+  `export/sceneGltf.ts` `buildExportRoot` clones the scene and strips editor-only helpers — anything
+  tagged `userData.noExport` via `noExportUserData`/`markNoExport` (selection/gizmo/overlays/sky/pins/
+  ghost), plus a structural fallback for three helper types + cameras — **before either export path
+  below**, so the exclusion holds regardless of scene size. In Tools + Share modal + mobile + ⌘K.
+  - **Worker-streamed export for very large scenes (Q-3DEXPORT tail).** `GLTFExporter.parse()` (and
+    OBJ/STL/USDZ's exporters) is a single, un-yielding synchronous call — fine for a furnished room, but
+    it can visibly stall the UI for a very large scene (a whole multi-room home, or an import-heavy
+    design). `export/exportThreshold.ts` (`computeExportStats` + `shouldUseWorkerExport`, pure + unit
+    tested) walks the *pruned* export root and decides: over `WORKER_EXPORT_MESH_THRESHOLD` (400) mesh
+    nodes OR `WORKER_EXPORT_TRIANGLE_THRESHOLD` (250k) estimated triangles routes to a Worker; otherwise
+    `exportScene3d` keeps the exact prior direct main-thread call (unchanged behaviour, no progress
+    toast — it's fast enough not to need one).
+    - **Why not `postMessage` the live scene directly**: three's `Object3D`/`Mesh`/`Material`/`Texture`
+      instances are class instances (methods, prototypes) and aren't structured-cloneable.
+      `export/sceneMarshal.ts` reuses three's own JSON round-trip (`Object3D.toJSON()` + `ObjectLoader`)
+      to bridge the gap, with one change: `BufferGeometry.toJSON()` boxes every attribute/index typed
+      array into a plain `Array` (`Array.from`) — the one part of that round-trip whose cost actually
+      scales with scene size. `marshalSceneForWorker` monkey-patches `BufferGeometry.prototype.toJSON`
+      (only for the duration of the call) to keep arrays as native typed arrays instead — a typed array
+      survives `postMessage`'s structured clone as a fast memcpy; a boxed number array costs O(n) twice
+      over. Primitive geometries (`BoxGeometry`, etc.) already short-circuit via `.parameters` and are
+      untouched; an `InterleavedBufferAttribute` (rare for placed furniture) falls back to the original
+      boxing path for correctness. **Trade-off**: texture embedding (`Texture.toJSON` → canvas → data
+      URL) still runs on the main thread — unavoidable (only the main thread has a live canvas/Image to
+      read pixels from) but bounded by unique-texture count, not item count (furniture materials are
+      shared/cached, see `furniture/CLAUDE.md`), so it doesn't scale with "very large scene" the way
+      node/geometry count does.
+    - `export/exportWorker.worker.ts` receives the marshaled payload, calls
+      `sceneMarshal.ts:reconstructSceneFromMarshal` to rebuild a REAL three.js `Object3D` tree — geometry/
+      material/object parsing goes through `ObjectLoader`'s DOM-independent instance methods
+      (`parseShapes`/`parseGeometries`/`parseTextures`/`parseMaterials`/`parseObject`; the shapes table
+      is REQUIRED — a `ShapeGeometry`/`ExtrudeGeometry` resolves its `parameters.shapes` uuids against
+      it and the parse crashes without it), while embedded image data URLs are decoded via
+      `atob`+`Blob`+`createImageBitmap` (Worker-safe; `ObjectLoader`'s own `parseImagesAsync` needs
+      `document` and can't run in a Worker) — then calls `updateMatrixWorld(true)`
+      (never rendered, so matrices are never auto-synced) and runs the **exact same** per-format
+      `exportGlb`/`exportSceneObj`/`exportSceneStl`/`exportSceneUsdz` the main-thread path uses — no
+      export-logic duplication.
+    - `export/runSceneExport.ts` `runWorkerSceneExport` spawns the worker (lazy, one-shot, injectable
+      factory for tests — mirrors `furniture/optimize/runOptimize.ts`), marshals, and rejects (never
+      hangs) on worker-unavailable / crash / malformed reply / a `WORKER_EXPORT_TIMEOUT_MS` (60s)
+      timeout. `exportScene3d` shows an indeterminate progress toast for the worker path
+      (`notify.start({kind:'progress', ...})` → `notify.success`/`notify.error` on the same id, the P32
+      live-notification pattern) and, on ANY worker failure, transparently falls back to the direct
+      synchronous path (updating the toast, never a silent hang) — small-scene behaviour is untouched.
+    - **Real-browser verification**: `scripts/scenarios/scene-export-worker.json` proves REAL
+      `new Worker(new URL(...))` construction under the bundler (the unit tests inject a fake Worker,
+      so broken worker wiring would otherwise be silently masked by the fallback) via the dev-only
+      seams in `openSceneExport.ts` (`window.__forceWorkerExport` forces the worker path;
+      `window.__lastSceneExport` records `{path: 'worker'|'direct'|'worker-fallback-direct', bytes,
+      format}` — both `import.meta.env.DEV`-gated, inert in prod). The **default furnished 4-room HDB
+      scene measures ~1273 meshes / ~311k estimated triangles — over BOTH thresholds — so the default
+      export takes the worker path**; measured worker GLB output ≈53 MB.
 - **Shoppable buy-list** (`ui/shoplist.ts` pure `buildShopList`+`buildShopListHtml` →
   per-retailer-grouped buy-list HTML: qty/unit/line totals per (def,variant,room), grand + per-retailer
   totals, budget under/over; `openShoplist.ts` opens the window synchronously then dynamic-imports the
@@ -811,7 +969,15 @@ same change that reshapes a system.
   depth-only OBB that cut through it; single-part pieces are unchanged. The placement
   ghost's green/red tint is driven by `canPlace` → `ghostValid` (true-shape parts, so
   the tint reflects the real fit). (The L-shaped sectional + corner base cabinet ship
-  the first decompositions: main run + chaise / two runs.) **Soft push-apart on drop**:
+  the first decompositions: main run + chaise / two runs.) **Round/oval tables**
+  (`furniture/footprintShapes.ts:ellipseFootprintParts(width, depth, steps=4)`) approximate a
+  disc/ellipse the same way, since a union of OBBs can't carve a rectangle down to a circle: a
+  symmetric "staircase" of axis-aligned boxes inscribed in the ellipse (5 boxes at the default
+  `steps=4`), each box's far corner landing exactly on the curve so the whole union is a subset of
+  both the ellipse and the enclosing bbox — frees the bbox corners a round/oval top never actually
+  reaches without an intersection/polygon footprint primitive. Wired into `dining-table-4`/
+  `coffee-table` (`shape: 'round'|'oval'`) and `side-table` (`'round'`/`'drum'`); `'rect'`/`'square'`
+  return `[]` (unchanged single-box behaviour). **Soft push-apart on drop**:
   a single-item drag that ends overlapping is nudged out to the nearest valid spot
   instead of hard-reverting — `obbMtv` (SAT minimum translation vector) picks a push
   direction and `nudgeToValid` steps outward (± fan) verifying each candidate with
@@ -924,7 +1090,39 @@ same change that reshapes a system.
   Item- vs plan-element selection is **mutually exclusive** (`selectItem` clears
   `planSelection`; `setPlanSelection` clears `selectedItemId`) so the two inspectors never
   co-render. Available in **both Simple and Pro** (plan editing is a core loop — no extra flag;
-  rides the editor's `floorPlanEditor` gate). **Rubber-band marquee** (PARITY-PLAN-MARQUEE):
+  rides the editor's `floorPlanEditor` gate).
+  **Click-to-place furniture in the plan** (PLAN-FURNISH Phase 1, `planFurnish` flag, **pro**,
+  default on — desktop only): move/rotate/scale of already-placed items works in 2D as above; this
+  adds the missing **add** verb, reusing the same `canPlace`/`addItem`/`placementSlice` pipeline as
+  the 3D catalog rather than a parallel implementation. `CatalogDrawer` surfaces inside the plan
+  editor too — its gate becomes `roomEditorActive || (floorPlanEditing && planFurnish && !isMobile)`
+  (a `.catalog-in-plan` modifier bumps its z-index above the plan's full-screen overlay); a desktop
+  "Furnish" toolbar button opens it and force-shows furniture footprints. Arming a card
+  (`setActiveDefId`, shared `placementSlice` state with the 3D flow) drives a new SVG
+  **`editor/layers/PlacementGhostLayer.tsx`** — a footprint polygon tinted `--ok`/`--danger` by
+  `canPlace` validity — instead of reactivating the canvas-bound 3D `scene/PlacementGhost.tsx`/
+  `usePlacementController.ts` (both stay inert behind the plan overlay: `canEditScene` is
+  structurally independent of `floorPlanEditing`, and every 3D commit path is gated on
+  `ev.target instanceof HTMLCanvasElement`, which a click on the plan's SVG never satisfies — see
+  `state/editing.test.ts`'s PLAN-FURNISH regression case). The ghost build / `canPlace` validity /
+  commit decision are pure, unit-tested in `ui/floorplan/editor/planFurnishPlacement.ts`
+  (`buildPlanGhostItem`/`planGhostValid`/`decidePlanCommit`); `FloorPlanEditor`'s `onDown` computes
+  the click's own world point fresh and commits through the identical `addItem` → `beginDrop` →
+  `pendingEdit` path the 3D controller uses, passing the active storey's `levelId` explicitly
+  (`addItem` can't infer it outside the room editor). R rotates the ghost and Escape/right-click
+  cancel for free via the existing global `usePlacementController` keydown/contextmenu listeners
+  (shared `activeDefId`/`ghostRotation` state) — the plan editor's own Escape handler special-cases
+  an armed placement first so it cancels the placement instead of exiting the editor. Window-bound
+  fixtures (curtains/blinds/grilles) are excluded from Phase 1 (`isPlanPlaceable`) with an
+  explanatory toast + auto-disarm — no window-snap branch here yet. New-item defaults are a single
+  shared `furniture/placement/defaultItemProps.ts` (factored out of the 3D ghost/controller, which
+  used to each define their own copy). **`EditConfirmBar`'s "abandon a pending edit on leaving the
+  editor" effect keys off `!roomEditor.active && !floorPlanEditing`** (not `roomEditor.active`
+  alone) so a plan-origin placement's tick/cross bar isn't auto-confirmed the instant it appears
+  merely because the room editor was never entered. Phases 2–4 (mobile tap-to-place, window-bound
+  fixtures, HTML5 drag-from-catalog) are deferred — see
+  `docs/research/2026-07-03-plan-furnish-implementation-plan.md`.
+  **Rubber-band marquee** (PARITY-PLAN-MARQUEE):
   a drag on **empty canvas** with the select tool draws a dashed accent rect (pure
   `ui/floorplan/editor/marqueeSelect.ts` — SAT **intersection** test reusing `collision/obb.ts`
   `obbVsObb`/`obbVsSegment`, so a footprint/wall counts when it *touches or overlaps* the box, not
@@ -1007,7 +1205,23 @@ same change that reshapes a system.
   camera (own effect, restored on exit), eye-height ref'd so a drag re-heights without re-spawn. Multi-storey (ML6c): the walker's storey follows
   `viewLevelId` (`walkLevel`/`levelSpawnPoint` in `floorplan/levels.ts`) — picking a level in
   View→Levels while walking teleports to its first room centre at `elevation + eye`, and
-  collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Mobile viewport** (`index.html`, `responsive.css`,
+  collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Minimap
+  tap-to-teleport** (MINIMAP-JUMP, `minimapTeleport` flag, simple): clicking/tapping
+  `ui/Minimap.tsx` converts the pointer to world XZ (`ui/walk/minimapTeleport.ts`, pure —
+  `svgSquareViewBoxPoint` inverts the letterboxed square-viewBox-in-a-wider-box SVG mapping,
+  `minimapPointToWorld` inverts the component's own world→svg transform) and clamps it inside
+  the tapped (or nearest) room's polygon clear of every wall by `WALK_PLAYER_RADIUS`
+  (`clampPointToPolygon`, probes the inward normal via `pointInPolygon` so it works for
+  rectangular/L-shaped/free-drawn rooms alike), facing the room's centre
+  (`roomLabelPoint`/`computeFacingYaw`) rather than preserving the walker's prior heading — it
+  matches how every other walk-mode (re)spawn already orients into the space. The resolved
+  `{x,z,yaw}` crosses into the R3F tree via the `scene/cameras/walkTeleport.ts` module signal
+  (mirrors `cameraForward.ts`'s plain-object pattern — a tap is a once-per-click event, not
+  per-frame state); `FirstPersonCamera` polls it each frame BEFORE re-asserting the camera
+  orientation from its `yaw`/`pitch` refs, relocates the camera, and nudges off any furniture
+  footprint at the landing point (`resolveCircleVsObbs`) — deliberately NOT `resolveMovement`'s
+  wall-slide, which assumes an incremental step and would clamp a cross-room jump back against
+  the first wall in between. **Mobile viewport** (`index.html`, `responsive.css`,
   `MobileLongPress.tsx`): `viewport-fit=cover`+`100dvh` full-bleed canvas (controls in
   `env(safe-area-inset-*)`); `body.mobile` kills text-select/callout/double-tap-zoom;
   long-press → `contextmenu`. **Dynamic status-bar tint** (`scene/lighting/statusBarTint.ts`):
@@ -1089,6 +1303,12 @@ same change that reshapes a system.
   injected canvas-capture + hidden-set deps, unit-tested; `ui/StagingRevealModal.tsx` captures the
   furnished view then transiently hides all furniture for the empty-room frame and shows the same
   reveal slider; `stagingReveal` flag, pro),
+  **Time-of-day compare** (FEAT-1: `ui/timeCompare/timeCompare.ts` pure capture orchestrator —
+  injected canvas-capture + `timeSlice` time-mode/hour deps, unit-tested; `ui/TimeCompareModal.tsx`
+  reuses the same reveal-slider chrome as the staging reveal above, but jumps the sun/time rig
+  (`setPresetTime`) between two `TimePreset`s (default Midday vs Night) to capture the SAME camera
+  at two times of day — tone mapping/exposure/lights/HDRI are left untouched so only time differs;
+  the user's exact time-mode/hour is restored afterwards; `timeCompare` flag, pro),
   **One-tap style transfer** (`ui/styling/styleTransfer.ts` pure `STYLE_PRESETS` + `planStyleApply`,
   unit-tested incl. a builtin-finish-id guard; `ui/StyleTransferModal.tsx` style-card grid →
   `finishesSlice.applyHomeStyle(floor, wall, palette?)` swaps every room's floor+wall + master palette

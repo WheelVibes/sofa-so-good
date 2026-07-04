@@ -11,6 +11,7 @@ import { isFeatureEnabled } from '../../features/featureFlags'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
+import { isActiveDragPointer } from '../dragHelpers'
 import { priorityRaycast } from '../raycastPriority'
 import {
   enclosingRadius,
@@ -58,6 +59,13 @@ interface Gesture {
    *  once at grab (neighbours don't move during the gesture). Empty when smart
    *  snap is off (Simple mode / flag off) so the gizmo falls back to 15° only. */
   refs: number[]
+  /** The `pointerId` that grabbed the ring/knob (BUG-1 class, MOBILE-1) — window
+   *  `onMove`/`onUp` gate on this via `isActiveDragPointer` so a second finger's
+   *  independent pointer stream can't drive or end the gesture. A per-gesture
+   *  field (not the store's `dragPointerId`, which is specific to the
+   *  furniture-item drag in `DragController`) since this gizmo's gesture is a
+   *  distinct pointer stream, mutually exclusive with an item drag. */
+  pointerId: number
 }
 
 /**
@@ -198,6 +206,9 @@ export function RotateGizmo() {
     const onMove = (ev: PointerEvent) => {
       const g = gesture.current
       if (!g) return
+      // MOBILE-1 (BUG-1 class): a second finger's own pointermove stream must
+      // not drive this rotation — only the pointer that grabbed the ring/knob.
+      if (!isActiveDragPointer(g.pointerId, ev.pointerId)) return
       const hit = project(ev.clientX, ev.clientY)
       if (!hit) return
       const angle = pointerAngle(g.pivot[0], g.pivot[1], hit[0], hit[1])
@@ -219,9 +230,13 @@ export function RotateGizmo() {
       setValid(checkValid(g))
     }
 
-    const onUp = () => {
+    const onUp = (ev: PointerEvent) => {
       const g = gesture.current
-      const originals = g ? g.originals.map((o) => ({ ...o })) : []
+      if (!g) return
+      // MOBILE-1: only the initiating pointer may end the gesture — a second
+      // finger's independent pointerup must not commit/revert someone else's drag.
+      if (!isActiveDragPointer(g.pointerId, ev.pointerId)) return
+      const originals = g.originals.map((o) => ({ ...o }))
       if (g && !valid) {
         // Invalid landing — restore every member's pre-gesture transform.
         const state = useStore.getState()
@@ -295,6 +310,15 @@ export function RotateGizmo() {
       const walls = placementWalls(st) ?? buildCollisionWalls(st.doors)
       refs = neighbourAxes(targets[0].id, st.items, walls)
     }
+    // Record the initiating pointerId (MOBILE-1, BUG-1 class) so the window
+    // listeners can ignore a second finger's independent pointer stream — only
+    // this pointer may drive or end the gesture. Best-effort capture on the
+    // grab mesh so the gesture keeps tracking even if this finger slides off
+    // the (thin) grab band mid-drag; guarded, matching Furniture.tsx's capture
+    // (a stale/synthetic pointerId throws InvalidPointerId on some browsers).
+    try {
+      ;(e.nativeEvent.target as Element | null)?.setPointerCapture?.(e.nativeEvent.pointerId)
+    } catch {}
     gesture.current = {
       single,
       pivot,
@@ -302,6 +326,7 @@ export function RotateGizmo() {
       startRot: single ? targets[0].rotation : 0,
       originals: targets.map((t) => ({ id: t.id, position: t.position, rotation: t.rotation })),
       refs,
+      pointerId: e.nativeEvent.pointerId,
     }
     useStore.getState().pushHistory()
     setValid(true)

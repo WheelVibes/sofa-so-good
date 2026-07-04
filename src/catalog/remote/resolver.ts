@@ -67,7 +67,11 @@ export function bundleToFurnitureDef(
     textureUrls[base] = u
   }
 
-  // Rewrite images[].uri to point at object URLs.
+  // Rewrite images[].uri to point at object URLs. If a texture wasn't fetched
+  // into `bundle.textures` (should not happen for a well-formed bundle) this
+  // falls back to the source glTF's original `uri` — if that were ever a
+  // foreign absolute URL, the runtime render loader's shared SEC-1 policy
+  // (`furniture/gltf/loaderSecurity.ts`) still blocks the fetch at render time.
   for (const img of json.images ?? []) {
     if (!img.uri) continue
     const original = img.uri

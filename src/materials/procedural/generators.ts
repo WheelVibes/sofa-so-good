@@ -233,13 +233,20 @@ export function generateProceduralRaw(
 }
 
 /** Generate the three PBR maps for a procedural material. Browser-only
- *  (uses canvas / ImageData). */
+ *  (uses canvas / ImageData).
+ *
+ *  `sizeOverride` (PERF-C) lets a caller request a cheaper-than-usual
+ *  generation size — e.g. an instant low-cost placeholder while the real
+ *  quality bake happens off-thread (see `cache.ts:buildMaterial` +
+ *  `PROCEDURAL_QUICK_PREVIEW_SIZE`). Omitted → the normal quality-aware
+ *  `effectivePatternSize(pattern)`, byte-identical to before. */
 export function generateProcedural(
   id: string,
   pattern: ProceduralPattern,
   swatch: string,
+  sizeOverride?: number,
 ): ProceduralResult {
-  S = effectivePatternSize(pattern)
+  S = sizeOverride ?? effectivePatternSize(pattern)
   const seed = hashSeed(`${id}:${pattern}`)
   const base = hexToRgb(swatch)
   const f = PATTERN_FN[pattern](base, seed, S)
@@ -257,6 +264,13 @@ export function generateProcedural(
   const roughness = toTexture(roughData, false)
   return { albedo, normal, roughness, metalness: f.metalness }
 }
+
+/** PERF-C — edge size of the instant synchronous placeholder bake used when the
+ *  off-thread worker is available to deliver the real quality texture moments
+ *  later. Small enough to be effectively free on the main thread (a fraction of
+ *  a millisecond) while still reading as the right pattern/colour, not a flat
+ *  swatch, for the brief window before the worker swap lands. */
+export const PROCEDURAL_QUICK_PREVIEW_SIZE = 64
 
 // Shared orange-peel normal for ALL plaster (wall-paint) materials. Plaster
 // is near-flat and varies only by tint, so every wall colour reuses this one

@@ -107,6 +107,48 @@ describe('floorPlanSlice', () => {
     expect((useStore.getState().floorPlan.upperLevels ?? []).map((l) => l.id)).toEqual([b, a])
   })
 
+  it('moveLevel re-stacks elevations off the level BELOW, not each level’s own ceiling (BUG-6)', () => {
+    useStore.getState().newFloorPlan('Restack test')
+    // Ground ceiling defaults to 2.6 (blankPlan). Three upper storeys with
+    // distinct ceiling heights, none equal to the ground's — a bug that swaps
+    // "own ceiling" for "ceiling of the level below" changes every elevation.
+    const a = useStore.getState().addLevel()
+    const b = useStore.getState().addLevel()
+    const c = useStore.getState().addLevel()
+    useStore.setState((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        upperLevels: (s.floorPlan.upperLevels ?? []).map((l) => {
+          if (l.id === a) return { ...l, ceilingHeight: 4.0 }
+          if (l.id === b) return { ...l, ceilingHeight: 3.5 }
+          if (l.id === c) return { ...l, ceilingHeight: 3.2 }
+          return l
+        }),
+      },
+    }))
+    // Order is [a, b, c]. Move b up: swaps with c -> [a, c, b].
+    useStore.getState().moveLevel(b, 'up')
+    const upper = useStore.getState().floorPlan.upperLevels ?? []
+    expect(upper.map((l) => l.id)).toEqual([a, c, b])
+
+    const slab = 0.3
+    const groundCeiling = 2.6
+    const A = upper.find((l) => l.id === a)!
+    const C = upper.find((l) => l.id === c)!
+    const B = upper.find((l) => l.id === b)!
+    // Correct stacking: a level's elevation = (elevation of the level below)
+    // + (ceiling height of the level below) + slab; ground stands in as
+    // "below A". A's own ceiling (4.0) only affects C (the level above it),
+    // never A's own elevation.
+    expect(A.elevation).toBeCloseTo(groundCeiling + slab, 6) // 2.9
+    expect(C.elevation).toBeCloseTo(A.elevation + 4.0 + slab, 6) // 7.2
+    expect(B.elevation).toBeCloseTo(C.elevation + 3.2 + slab, 6) // 10.7
+    // Every level still sits strictly above the one below it.
+    expect(A.elevation).toBeGreaterThan(0)
+    expect(C.elevation).toBeGreaterThan(A.elevation)
+    expect(B.elevation).toBeGreaterThan(C.elevation)
+  })
+
   it('duplicates a wall as a new, unlocked, unnamed copy offset from the source', () => {
     useStore.getState().newFloorPlan('Dup wall test')
     const id = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
@@ -133,6 +175,38 @@ describe('floorPlanSlice', () => {
     expect(copy.offset).toBeCloseTo(1.4, 5) // 0.5 + width 0.9
     expect(copy.name).toBeUndefined()
     expect(useStore.getState().planSelection).toEqual({ type: 'opening', id: newId })
+  })
+
+  it('BUG-7: widening an opening near a wall end re-clamps its offset to stay on the wall', () => {
+    useStore.getState().newFloorPlan('Widen opening test')
+    // Wall is 2 m; door starts at 1.5 with width 0.4 — ends flush at 1.9.
+    const wid = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    const oid = useStore
+      .getState()
+      .addOpening({ kind: 'door', wallId: wid, offset: 1.5, width: 0.4, sill: 0, head: 2.1 })
+
+    // Widening to 0.9 would span 1.5–2.4 (0.4 m past the wall end) unless the
+    // offset is re-clamped.
+    useStore.getState().updateOpening(oid, { width: 0.9 })
+    const widened = useStore.getState().floorPlan.openings.find((o) => o.id === oid)!
+    expect(widened.width).toBe(0.9)
+    expect(widened.offset + widened.width).toBeLessThanOrEqual(2)
+    expect(widened.offset).toBeCloseTo(1.1, 5) // pinned so it ends flush at the wall
+
+    // A width larger than the wall itself is capped to the wall length, and the
+    // offset pinned to 0.
+    useStore.getState().updateOpening(oid, { width: 5 })
+    const capped = useStore.getState().floorPlan.openings.find((o) => o.id === oid)!
+    expect(capped.width).toBe(2)
+    expect(capped.offset).toBe(0)
+
+    // A normal mid-wall widen (plenty of room on both sides) leaves the offset
+    // untouched — the fix must not perturb the common case.
+    useStore.getState().updateOpening(oid, { offset: 0.5, width: 0.4 })
+    useStore.getState().updateOpening(oid, { width: 0.6 })
+    const midWall = useStore.getState().floorPlan.openings.find((o) => o.id === oid)!
+    expect(midWall.width).toBe(0.6)
+    expect(midWall.offset).toBe(0.5)
   })
 
   it('auto-names boundary walls on room allocation, never overriding a custom name', () => {
@@ -450,6 +524,46 @@ describe('multi-storey level editing (F13/ML4a)', () => {
 
   it('duplicateLevel returns null for an unknown source', () => {
     expect(useStore.getState().duplicateLevel('nope')).toBeNull()
+  })
+
+  it('duplicateLevel gives the copies a fresh groupId, decoupled from the source group (BUG-5)', () => {
+    const lvl = useStore.getState().addLevel()
+    useStore.getState().addItem({ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} })
+    useStore.getState().addItem({ defId: 'bed-double', position: [1.5, 1], rotation: 0, props: {} })
+    const [id1, id2] = useStore
+      .getState()
+      .items.slice(-2)
+      .map((it) => it.id)
+    // Move both onto the upper level and group them there.
+    useStore.setState((s) => ({
+      items: s.items.map((it) => (it.id === id1 || it.id === id2 ? { ...it, levelId: lvl } : it)),
+    }))
+    const gid = useStore.getState().groupItems([id1, id2])
+    expect(gid).toBeTruthy()
+
+    const newId = useStore.getState().duplicateLevel(lvl)
+    expect(newId).toBeTruthy()
+    const copies = useStore.getState().items.filter((it) => it.levelId === newId)
+    expect(copies).toHaveLength(2)
+    // The copies stay grouped WITH EACH OTHER under one fresh id...
+    const copyGid = copies[0].groupId
+    expect(copyGid).toBeTruthy()
+    expect(copies[1].groupId).toBe(copyGid)
+    // ...but that id must be brand-new, not the source storey's group id.
+    expect(copyGid).not.toBe(gid)
+
+    // Operating on the SOURCE group must not reach the copies on the other
+    // storey — before the fix, both shared `gid` and a source-group edit
+    // would move/rotate the upper-level copies too.
+    useStore.getState().groupRotate(gid, Math.PI / 2)
+    const after = useStore.getState().items
+    const copiesAfter = after.filter((it) => it.levelId === newId)
+    expect(copiesAfter.find((it) => it.id === copies[0].id)?.rotation).toBe(copies[0].rotation)
+    expect(copiesAfter.find((it) => it.id === copies[1].id)?.rotation).toBe(copies[1].rotation)
+    // Sanity: the source group DID rotate (so the assertion above is
+    // meaningful, not just "nothing rotates").
+    const sourceAfter = after.filter((it) => it.id === id1 || it.id === id2)
+    expect(sourceAfter.every((it) => it.rotation !== 0)).toBe(true)
   })
 
   it('adds, edits, drags and removes plan notes (PARITY-DIMTEXT)', () => {

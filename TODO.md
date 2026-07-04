@@ -15,9 +15,6 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
   the catalog with NO upload pipeline (convert/optimize/IDB). Dev-only Vite plugin
   (`scripts/vite-local-assets.mjs`) serving `/@local-assets/*`, `localAssets` devOnly flag,
   `localAssetsSlice` (`bootstrapLocalAssets`), `LocalGltfDef` source, merged in `catalog.ts`.
-- **Upload parallelization (Part 1b).** Replace the single optimize Worker
-  (`optimize/runOptimize.ts`) with a worker POOL (biggest bulk-import win); then move `convertModel`
-  off the main thread; early GLB size-cap check before optimize (IO-002).
 - **Scrapers (Part 3).** `research/scrapers/` has 35 working scrapers with complete enumeration;
   finalized tiering in the plan doc. Next: run Tier-1 CC0 scrapers into `local-assets/` (pairs with
   Part 1), then surface Poly Haven models in prod (`remoteFurniture` flag).
@@ -82,11 +79,6 @@ WebGPU path tracing).
   render. Deferred as an analytics/deliverable, not core design UX.
 
 ## Open — core interactions
-- **More composite footprints (round/oval tables).** `footprintParts` is a **union** of OBBs (can
-  only *add* area), so it can't carve corners off a square to make an octagon/disc. A round-table
-  approx needs either a new *intersection*/polygon footprint primitive, or a coarse cross of
-  inscribed rects (leaves diagonal gaps). Low priority + needs a design decision. (No U-sofa /
-  corner desk / peninsula in the catalog today.)
 - **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
   would be a new interaction. Doors already animate (could ease the linear swing curve — low value).
 - **Live slide during drag** (optional, higher-risk) — item hugs walls/furniture in real time, not
@@ -109,6 +101,60 @@ WebGPU path tracing).
 ## Open — accessibility (very low value, optional)
 - **Full focus-trap on the mobile menu sheet** (`MobileToolbar`) — Escape-close + `useModalGuard`
   ship; a Tab focus-trap remains, but keyboard-on-touch is rare.
+
+## Core-loop parity gaps (2026-07-03 audit)
+Ranked by value/effort. All pure-client, core-loop (furnish→arrange→finish→view→share) +
+discoverability/customizability, desktop **and** mobile; none shipped or tracked above. (Verified
+absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARITY.md`.)
+- [ ] **PLAN-FURNISH Phases 2–4 — plan-editor furniture placement follow-ups.** Phase 1
+  (desktop click-to-place; `planFurnish` flag) has shipped — see `CHANGELOG.md` and
+  `docs/research/2026-07-03-plan-furnish-implementation-plan.md` (marked done there). Remaining:
+  - [ ] **Phase 2** — mobile tap-to-place + long-press-from-card, stamp-mode reuse for repeat drops.
+    **ATTEMPTED + DEFERRED (2026-07-04)** — reached 54/64 scenario steps green (catalog sheet
+    surfaces on mobile, tap-to-place + long-press-drag commit both work) but not shipped. Work
+    archived on branch `wip/plan-furnish-mobile-phase2` (resume from there). Blockers for a future
+    focused effort: (a) the mobile catalog bottom-sheet covers ~72% of a 390×844 viewport, so
+    tap-to-place needs the sheet to **auto-collapse on arm** (or dock smaller) — decide the
+    catalog-vs-plan mobile layout first; (b) verify the stamp-in-plan touch-commit (scenario step 55)
+    + drop the unverified desktop stamp-in-plan tweak that snuck into that WIP; (c) SwiftShader
+    harness flakiness (Page.captureScreenshot timeouts) needs the lazy-plan-editor-mount waits.
+  - [ ] **Phase 3** — window-bound fixtures (curtains/blinds/grilles) via `snapToNearestWindow` in
+    the plan (Phase 1 excludes them with a toast pointing to the 3D room editor).
+  - [ ] **Phase 4** — HTML5 drag-from-catalog onto the plan SVG (deferred pending the logged
+    `<div>`-vs-SVG drop-zone friction).
+  - [ ] *(Polish, not phase-gated)* the docked catalog currently floats over the plan rather than
+    shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
+    `.plan-screen`) — low-risk follow-up.
+
+## Open — deep-audit backlog (2026-07-04)
+Open, client-doable items from `docs/research/2026-07-04-deep-audit-and-opportunities.md`
+(full detail + code refs there). Shipped items from that audit — BUG-1..7, PERF-A/B/D,
+REAL-1, SEC-1, FEAT-1 — are in `CHANGELOG.md`. Still open:
+- [ ] **REFAC-2 — `FloorPlanEditor.tsx` ~3186 lines (note, tracked as MOD-FPE-SPLIT).** Grew with
+  PLAN-FURNISH; revisit the toolbar-fragment/dispatcher extraction if it keeps growing.
+- [ ] **FEAT-2 — mirror/reflect a selection across a room axis (S–M).** Arrange-tool addition;
+  reuse the array/placement commit path. (Waits for the REFAC-1 inspector decomposition to land.)
+(In progress this cycle: REFAC-1 InspectorPanel decomposition, PERF-C procedural-bake defer.)
+
+## Open — round-2 audit backlog (2026-07-04)
+Open, client-doable items from `docs/research/2026-07-04-audit-round2-tests-mobile-features.md`
+(full detail + code refs there). Ranked; MOBILE-1 in progress this cycle.
+- **Mobile/touch robustness**
+  - [ ] **MOBILE-2/3 — `MarqueeSelector` + catalog placement drag lack `pointerId` gating** (lower
+    severity than the gizmos). Apply the BUG-1 `isActiveDragPointer` pattern (S).
+- **Test-coverage hardening** (user-direction priority)
+  - [ ] **TEST-1 — `state/storage/hydrateAssets.ts` (0 tests).** Boot-time restore of user
+    uploads/materials from IDB; silent-data-loss surface. Test via `fake-indexeddb` (S–M).
+  - [ ] **TEST-2 — `apartment/floor/floorRects.ts` `computeRoomFloorRects`/`rectMinus` (0 tests).**
+    Pure rectangle-subtraction deciding per-region floor finishes (S).
+  - [ ] Ranked further test gaps in the round-2 doc (geometry/collision/pricing/undo pure fns).
+- **Value-add features** (client-doable, grounded in existing REFERENCES apps)
+  - [ ] **FEAT-A — frame/zoom-to-selection camera** (the universal "F"); `resetView` only resets to
+    overview today (S).
+  - [ ] **FEAT-B — Alt/Option-drag to duplicate a placed item** (SketchUp/Figma/Coohom staple) (M).
+  - [ ] FEAT-C/D in the round-2 doc; FEAT-E (3D grid-snap) deprioritized (alignment guides cover it).
+- New reference: **Home Planner** (backend/licensed-asset-led — informs the tracked catalog-expansion/
+  F11 work, not a client-doable feature). Added to `REFERENCES.md`.
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live

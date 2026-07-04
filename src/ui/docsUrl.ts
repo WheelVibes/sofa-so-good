@@ -90,6 +90,7 @@ export const FEATURE_DOCS: Partial<Record<DocKey, DocEntry>> = {
   panorama: { page: 'design-tools', anchor: '_360°-panorama-pro' },
   panoTour: { page: 'design-tools', anchor: '_360°-tour-pro' },
   renderCompare: { page: 'design-tools', anchor: 'render-compare-pro' },
+  timeCompare: { page: 'design-tools', anchor: 'time-of-day-compare-pro' },
 
   // ── floor-plan-editor page ──────────────────────────────────────────────
   floorPlanEditor: { page: 'floor-plan-editor' },

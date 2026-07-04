@@ -1,0 +1,46 @@
+{
+  "name": "convert-off-main-thread",
+  "description": "Verify the model-convert pool (furniture/convert/runConvert.ts + convert.worker.ts): drive a real OBJ→GLB conversion through __importGlbFiles and assert (a) the import succeeded and (b) the dev-only __lastConvertRun seam recorded usedWorker:true — i.e. a real pooled Worker ran the conversion, not the main-thread fallback.",
+  "url": "http://localhost:5314/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "wait-import-hook",
+      "waitFor": { "store": "typeof window.__importGlbFiles === 'function'" },
+      "timeout": 15000,
+      "failMessage": "__importGlbFiles not exposed — bootstrap.ts dev helpers did not run"
+    },
+    {
+      "name": "run-obj-convert",
+      "eval": { "file": "scripts/scenarios/evals/convert-worker-obj.mjs" }
+    },
+    {
+      "name": "wait-import-done",
+      "waitFor": { "store": "!!window.__convertWorkerObjResult" },
+      "timeout": 20000,
+      "failMessage": "__importGlbFiles did not complete for the OBJ fixture"
+    },
+    {
+      "name": "assert-imported",
+      "waitFor": { "store": "window.__convertWorkerObjResult.imported === 1" },
+      "timeout": 5000,
+      "failMessage": "Expected the OBJ fixture to import (converted to GLB, then optimized/persisted)"
+    },
+    {
+      "name": "assert-convert-worker-ran",
+      "waitFor": {
+        "store": "!!window.__lastConvertRun && window.__lastConvertRun.usedWorker === true && window.__lastConvertRun.format === 'obj'"
+      },
+      "timeout": 5000,
+      "failMessage": "__lastConvertRun did not report usedWorker:true for the OBJ conversion — the pooled Worker did not run (fell back to the main thread, or the observability seam is broken)"
+    }
+  ]
+}

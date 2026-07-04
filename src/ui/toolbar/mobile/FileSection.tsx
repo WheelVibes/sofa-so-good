@@ -37,6 +37,7 @@ export function FileSection({
   const fHqRender = useFeature('hqRender')
   const fRenderCompare = useFeature('renderCompare')
   const fStagingReveal = useFeature('stagingReveal')
+  const fTimeCompare = useFeature('timeCompare')
   const fShopExport = useFeature('shopExport')
   const fSceneExport = useFeature('sceneExport3d')
   const fImportSh3d = useFeature('importSh3d')
@@ -130,6 +131,15 @@ export function FileSection({
           label="Before / after"
           sub="Reveal slider: empty room vs furnished"
           onClick={act(() => s.getState().setStagingRevealOpen(true))}
+        />
+      ) : null}
+      {fTimeCompare ? (
+        <Item
+          icon="Time"
+          label="Time-of-day compare"
+          sub="Reveal slider: your design at two times of day"
+          docs="timeCompare"
+          onClick={act(() => s.getState().setTimeCompareOpen(true))}
         />
       ) : null}
       {fShopExport ? (

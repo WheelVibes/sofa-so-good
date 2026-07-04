@@ -1,0 +1,89 @@
+{
+  "name": "first-run-returning-user",
+  "description": "IXT-SUITES first-run re-rung: proves BOTH first-run persistence contracts end-to-end across a real browser reload, not just at unit level. (1) Boot decision (src/ui/bootDecision.ts): a clean profile boots the onboarding carousel; clicking the top-nav 'Skip' button (untested by the other first-run-*.json scenarios, which only exercise 'Take the guided tour' / 'Enter sandbox') closes it without picking a starting point and persists hdb_onboarded='1' to real localStorage — a real page reload (not a store reset) must NOT reopen the carousel. (2) Location-prompt dismissal: locationPromptDismissed is persisted via the design AUTOSAVE (serialize() in state/schema.ts + PERSISTENT_WATCH_KEYS in state/storage/autosave.ts; the pagehide flush covers a reload inside the 500ms debounce window), so after the reload the 'Where are you?' modal must NOT reappear either. The regression this guards is a returning user re-seeing any first-run overlay.",
+  "url": "http://localhost:5212/",
+  "keepFirstRun": true,
+  "steps": [
+    { "name": "clear-storage", "eval": "try { localStorage.clear() } catch {}" },
+    { "name": "reload-clean", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "onboarding-open-first-visit",
+      "waitFor": { "store": "state.onboardingOpen === true" },
+      "timeout": 60000,
+      "failMessage": "onboarding carousel did not open on a clean profile (hdb_onboarded unset)"
+    },
+    { "name": "shot-onboarding-first-visit", "screenshot": "onboarding-first-visit" },
+    {
+      "name": "click-skip",
+      "click": { "text": "Skip" },
+      "failMessage": "could not find the top-nav 'Skip' button on the onboarding welcome step"
+    },
+    {
+      "name": "onboarding-closed-by-skip",
+      "waitFor": { "store": "state.onboardingOpen === false" },
+      "timeout": 5000,
+      "failMessage": "'Skip' should close the carousel via finish() without picking a starting point"
+    },
+    {
+      "name": "tour-not-started-by-skip",
+      "waitFor": { "store": "state.tourOpen === false" },
+      "timeout": 2000,
+      "failMessage": "'Skip' must not auto-start the product tour — only the carousel's 'Take the guided tour' choice does"
+    },
+    {
+      "name": "assert-persisted-onboarded",
+      "eval": "if (localStorage.getItem('hdb_onboarded') !== '1') throw new Error('markOnboarded() should have set hdb_onboarded=1 in real localStorage on Skip')"
+    },
+    {
+      "name": "location-prompt-visible-first-visit",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 8000,
+      "failMessage": "location prompt should surface once the carousel (and tour) are both dismissed"
+    },
+    { "name": "shot-location-prompt-first-visit", "screenshot": "location-prompt-first-visit" },
+    {
+      "name": "baseline-last-saved",
+      "eval": "window.__ixtSavedBaseline = window.__store.getState().lastSavedAt ?? 0"
+    },
+    { "name": "dismiss-location-first-visit", "click": { "text": "Skip — use default location" } },
+    {
+      "name": "location-dismissed-first-visit",
+      "waitFor": { "css": ".modal-overlay", "visible": false },
+      "timeout": 5000
+    },
+    {
+      "name": "autosave-flushed-dismissal",
+      "waitFor": { "store": "typeof state.lastSavedAt === 'number' && state.lastSavedAt > (window.__ixtSavedBaseline ?? 0)" },
+      "timeout": 8000,
+      "failMessage": "autosave (500ms debounce) should have flushed the locationPromptDismissed change before we reload — PERSISTENT_WATCH_KEYS watches it (the pagehide flush would also cover it, but waiting makes the round-trip explicit)"
+    },
+
+    { "name": "reload-as-returning-user", "eval": "location.reload()" },
+    {
+      "name": "boot-ready-again",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000,
+      "failMessage": "app did not finish booting on the second (returning-user) load"
+    },
+    { "name": "settle-after-boot", "wait": 800 },
+    {
+      "name": "assert-onboarding-stays-closed",
+      "waitFor": { "store": "state.onboardingOpen === false" },
+      "timeout": 3000,
+      "failMessage": "returning user (hdb_onboarded persisted from real localStorage) must not see the onboarding carousel again — regression for resolveBootDecision persistence"
+    },
+    {
+      "name": "assert-location-dismissal-restored",
+      "waitFor": { "store": "state.locationPromptDismissed === true" },
+      "timeout": 5000,
+      "failMessage": "locationPromptDismissed should be restored true from the autosave round-trip (serialize()/applySerialized) — the 'Where are you?' modal must not re-nag a returning user"
+    },
+    { "name": "extra-settle-for-late-overlays", "wait": 1500 },
+    {
+      "name": "assert-no-first-run-overlay-after-buffer",
+      "eval": "(() => { const s = window.__store.getState(); if (s.onboardingOpen !== false) throw new Error('onboarding carousel reopened after a buffer wait — boot decision fired late or re-fired'); if (document.querySelector('.modal-overlay')) throw new Error('a modal overlay (location prompt?) surfaced for a returning user'); })()"
+    },
+    { "name": "shot-returning-user-clean", "screenshot": "returning-user-no-first-run-overlays" }
+  ]
+}

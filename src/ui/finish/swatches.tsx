@@ -58,7 +58,16 @@ function DesignerPicks({
       <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
         <span>Designer picks</span>
       </div>
-      <div className="swatches" style={{ paddingBlock: 0 }}>
+      {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> would need a
+          <legend> and adds default browser border/padding, changing the
+          look of a plain swatch row — role="group" + aria-label is the
+          non-visual equivalent. */}
+      <div
+        className="swatches"
+        style={{ paddingBlock: 0 }}
+        role="group"
+        aria-label="Designer picks"
+      >
         {mats.map((m) => (
           <button
             key={m.id}
@@ -66,6 +75,7 @@ function DesignerPicks({
             className={`swatch${m.id === active ? ' on' : ''}`}
             title={m.name}
             aria-label={`Designer pick: ${m.name}`}
+            aria-pressed={m.id === active}
             onClick={() => onSelect(m.id)}
             style={{
               backgroundColor: m.swatch,
@@ -97,7 +107,8 @@ function RecentFinishes({
       <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
         <span>Recently used</span>
       </div>
-      <div className="swatches" style={{ paddingBlock: 0 }}>
+      {/* biome-ignore lint/a11y/useSemanticElements: see DesignerPicks above. */}
+      <div className="swatches" style={{ paddingBlock: 0 }} role="group" aria-label="Recently used">
         {mats.map((m) => (
           <button
             key={m.id}
@@ -105,6 +116,7 @@ function RecentFinishes({
             className={`swatch${m.id === active ? ' on' : ''}`}
             title={m.name}
             aria-label={`Recently used: ${m.name}`}
+            aria-pressed={m.id === active}
             onClick={() => onSelect(m.id)}
             style={{
               backgroundColor: m.swatch,
@@ -142,7 +154,8 @@ function RecentColors({
       <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
         <span>Recent</span>
       </div>
-      <div className="swatches">
+      {/* biome-ignore lint/a11y/useSemanticElements: see DesignerPicks above. */}
+      <div className="swatches" role="group" aria-label="Recent colours">
         {recent.map((hex) => (
           <button
             type="button"
@@ -150,6 +163,7 @@ function RecentColors({
             onClick={() => onCustom(hex)}
             title={hex}
             aria-label={`Recent colour ${hex}`}
+            aria-pressed={active === hex}
             className={`swatch${active === hex ? ' on' : ''}`}
             style={{ backgroundColor: hex }}
           />
@@ -234,6 +248,13 @@ export function SwatchGroup({
             onChange={(v) => onSelect(v)}
             options={[
               ...(customActive ? [{ value: '', label: 'Custom colour' }] : []),
+              // A surface can be unset (only Ceiling defaults this way — plain
+              // white with no explicit finish, `active === ''`): without a
+              // matching option the trigger renders blank, giving no clue
+              // what's currently applied. Distinct from "active id exists but
+              // is filtered out of `items` by a search query" (activeMat also
+              // undefined there) — that case must NOT be relabelled "Default".
+              ...(!customActive && active === '' ? [{ value: '', label: 'Default' }] : []),
               ...sorted.map((m) => {
                 const tag = providerTag(m)
                 return {
@@ -279,7 +300,8 @@ export function SwatchGroup({
       </div>
       {curated ? <DesignerPicks mats={curated} active={active} onSelect={onSelect} /> : null}
       <RecentFinishes mats={recentMats} active={active} onSelect={onSelect} />
-      <div className="finish-grid">
+      {/* biome-ignore lint/a11y/useSemanticElements: see DesignerPicks above. */}
+      <div className="finish-grid" role="group" aria-label={`${label} finishes`}>
         {sorted.map((m) => {
           const isSaved = savedIds?.has(m.id) ?? false
           // Uploaded textures and saved custom materials are both the user's own
@@ -294,6 +316,7 @@ export function SwatchGroup({
               key={m.id}
               role="button"
               tabIndex={0}
+              aria-pressed={isActive}
               draggable={fFinishDnd}
               onDragStart={
                 fFinishDnd
@@ -308,7 +331,13 @@ export function SwatchGroup({
               }
               onClick={() => onSelect(m.id)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') onSelect(m.id)
+                // Space also scrolls the page on a non-native-button element by
+                // default — suppress it so the key only activates the swatch
+                // (a native <button> does this automatically; this div can't).
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelect(m.id)
+                }
               }}
               className={`finish-cell group${isActive ? ' on' : ''}`}
               style={{ position: 'relative', cursor: 'pointer' }}

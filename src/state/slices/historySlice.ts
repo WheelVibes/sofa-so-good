@@ -28,6 +28,20 @@ export interface HistorySnapshot {
   finishes: FinishesSlice['finishes']
   /** The apartment shell, so drawing/editing the plan is undoable too. */
   floorPlan: FloorPlan
+  /** The as-loaded baseline `floorPlan` is diffed against (BUG-3). `baselinePlan`
+   *  only ever changes in lockstep with `floorPlan` on a load-type action
+   *  (`loadSavedPlan`/`resetFloorPlan`/`newFloorPlan`/`setFloorPlan`) — a plain
+   *  wall edit touches `floorPlan` but not `baselinePlan`. Snapshotting it here
+   *  (rather than recomputing it on undo/redo) keeps that invariant across
+   *  history navigation for free: an edit's pre-edit snapshot carries the SAME
+   *  `baselinePlan` reference as the live state, so undoing/redoing an edit is a
+   *  no-op for it, while undoing/redoing a load restores the pre-load baseline
+   *  right along with the pre-load `floorPlan` — exactly reversing what the load
+   *  action changed. Omitting it (the bug) let `floorPlan` and `baselinePlan` go
+   *  out of sync across a load's undo, so the hacking/demolition plan and
+   *  renovation-cost report (`diffWalls`) compared the wrong two plans.
+   */
+  baselinePlan: FloorPlan
   /** Pinned design comments (F24) — add/edit/resolve/delete are undoable. */
   comments: DesignComment[]
   /** Drawing-set sheet callouts — add/edit/delete are undoable. */
@@ -36,6 +50,15 @@ export interface HistorySnapshot {
   quoteTemplate: QuoteTemplate
   /** Price-rule library — finish + carpentry rate changes are undoable. */
   priceRules: PriceRules
+  /** Apartment master colour palette — explicitly documented as undoable design
+   *  data (`colorPaletteSlice.ts`); `applyHomeStyle` changes it in the SAME
+   *  `pushHistory()` call as `finishes`/`floorPlan` on the promise that "a
+   *  single undo reverts the whole style" — the same omitted-field shape as
+   *  BUG-3, so it's captured here too. */
+  masterPalette: string[]
+  /** Per-room palette overrides — same undoable-design-data contract as
+   *  `masterPalette`, see above. */
+  roomPalettes: Record<string, string[]>
 }
 
 export interface HistorySlice {
@@ -81,10 +104,13 @@ function snapshot(s: RootState): HistorySnapshot {
     doors: s.doors,
     finishes: s.finishes,
     floorPlan: s.floorPlan,
+    baselinePlan: s.baselinePlan,
     comments: s.comments,
     drawingCallouts: s.drawingCallouts,
     quoteTemplate: s.quoteTemplate,
     priceRules: s.priceRules,
+    masterPalette: s.masterPalette,
+    roomPalettes: s.roomPalettes,
   }
 }
 
@@ -97,10 +123,13 @@ function snapshotMatchesState(snap: HistorySnapshot, s: RootState): boolean {
     snap.doors === s.doors &&
     snap.finishes === s.finishes &&
     snap.floorPlan === s.floorPlan &&
+    snap.baselinePlan === s.baselinePlan &&
     snap.comments === s.comments &&
     snap.drawingCallouts === s.drawingCallouts &&
     snap.quoteTemplate === s.quoteTemplate &&
-    snap.priceRules === s.priceRules
+    snap.priceRules === s.priceRules &&
+    snap.masterPalette === s.masterPalette &&
+    snap.roomPalettes === s.roomPalettes
   )
 }
 

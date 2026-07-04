@@ -452,6 +452,42 @@ export function wallLength(w: PlanWall): number {
   return Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1])
 }
 
+/** The smallest an opening is ever allowed to be (m) — matches the inspector's
+ *  numeric-field floor (`OpeningInspector`'s `Num min={0.1}`). */
+export const MIN_PLAN_OPENING_WIDTH = 0.1
+
+/**
+ * Clamp an opening's width to fit within a wall of length `wallLen`, given an
+ * inset `margin` reserved at each end (default 0 — flush with both jambs,
+ * matching every existing offset-clamp site: `gridSnap.ts`'s `snapOpening`,
+ * `OpeningInspector`'s offset field, `sh3dPlacement.ts`'s import clamp).
+ * Never returns less than `MIN_PLAN_OPENING_WIDTH`, even on a wall shorter
+ * than that (the opening then necessarily overhangs — same as those sites).
+ */
+export function clampOpeningWidth(width: number, wallLen: number, margin = 0): number {
+  const maxWidth = Math.max(MIN_PLAN_OPENING_WIDTH, wallLen - 2 * margin)
+  return Math.max(MIN_PLAN_OPENING_WIDTH, Math.min(width, maxWidth))
+}
+
+/**
+ * Clamp an opening's offset so `[offset, offset + width]` stays within a wall
+ * of length `wallLen`, given an inset `margin` reserved at each end (default
+ * 0). This is the single clamp every offset-affecting edit must route
+ * through: editing the offset directly, editing the width (BUG-7 — a
+ * widened opening must re-clamp its now-stale offset), duplication, grid-snap
+ * re-threading, and import placement. When the (margin-adjusted) width alone
+ * exceeds the wall, pins to `margin` rather than going negative.
+ */
+export function clampOpeningOffset(
+  offset: number,
+  width: number,
+  wallLen: number,
+  margin = 0,
+): number {
+  const maxOffset = Math.max(margin, wallLen - width - margin)
+  return Math.min(Math.max(margin, offset), maxOffset)
+}
+
 /**
  * Effective footprint that covers everything in the plan — the max of the
  * declared `extent` and the bounding box of all walls and rooms. Used for the

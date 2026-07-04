@@ -1,0 +1,84 @@
+{
+  "name": "furniture-drag-multitouch",
+  "description": "BUG-1: a second finger's independent pointer stream must not hijack/teleport an in-progress furniture drag in the 3D scene. Starts a drag (recording pointerId 101, mirroring Furniture.tsx's onPointerDown), drives it with real pointermove/pointerup DOM events dispatched on window (the exact listeners DragController registers), and asserts a second pointer (id 202) moving/releasing is completely ignored: the item follows ONLY pointer 101, and only pointer 101's pointerup ends the drag.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13)"
+    },
+    {
+      "name": "place-test-item",
+      "eval": "window.__store.getState().setItems([{id:'bug1-sofa',defId:'sofa-3seat',position:[10.0,4.5],rotation:0,props:{}}])"
+    },
+    { "name": "frame", "store": { "action": "focusOn", "args": [[10.0, 4.5]] } },
+    { "name": "tilt-down", "drag": { "from": [800, 230], "to": [800, 540] } },
+    { "name": "zoom-in", "wheel": { "x": 800, "y": 500, "dy": -360 } },
+    { "name": "settle-cam", "wait": 1000 },
+    {
+      "name": "shot-before-drag",
+      "screenshot": "before-drag"
+    },
+    {
+      "name": "start-drag-pointer-101",
+      "eval": "(()=>{const s=window.__store.getState();window.__bug1_pos0=[...s.items.find(i=>i.id==='bug1-sofa').position];s.startDrag('bug1-sofa',{position:s.items.find(i=>i.id==='bug1-sofa').position,rotation:0},[0,0],101)})()"
+    },
+    {
+      "name": "assert-drag-armed",
+      "eval": "(()=>{const s=window.__store.getState();if(s.draggingItemId!=='bug1-sofa')throw new Error('drag did not start');if(s.dragPointerId!==101)throw new Error('dragPointerId not recorded, got '+s.dragPointerId)})()"
+    },
+    {
+      "name": "finger-1-pointermove",
+      "eval": "(()=>{const mk=(type,x,y,pid)=>new PointerEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,pointerId:pid,pointerType:'touch'});window.dispatchEvent(mk('pointermove',700,560,101))})()"
+    },
+    { "name": "settle-move-1", "wait": 200 },
+    {
+      "name": "capture-after-finger-1",
+      "eval": "(()=>{const s=window.__store.getState();const p=s.items.find(i=>i.id==='bug1-sofa').position;window.__bug1_afterFinger1=[...p];if(p[0]===window.__bug1_pos0[0]&&p[1]===window.__bug1_pos0[1])throw new Error('item did not move for the initiating pointer (101) — floor raycast may have missed; check camera framing')})()"
+    },
+    {
+      "name": "finger-2-pointerdown-and-move-far-away",
+      "eval": "(()=>{const mk=(type,x,y,pid)=>new PointerEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,pointerId:pid,pointerType:'touch'});window.dispatchEvent(mk('pointerdown',1300,150,202));window.dispatchEvent(mk('pointermove',1300,150,202))})()"
+    },
+    { "name": "settle-move-2", "wait": 200 },
+    {
+      "name": "assert-second-finger-ignored",
+      "eval": "(()=>{const s=window.__store.getState();const p=s.items.find(i=>i.id==='bug1-sofa').position;const a=window.__bug1_afterFinger1;if(p[0]!==a[0]||p[1]!==a[1])throw new Error('BUG-1 REGRESSION: item followed the second finger (pointerId 202) — expected it to stay at '+JSON.stringify(a)+' but got '+JSON.stringify(p));if(s.draggingItemId!=='bug1-sofa')throw new Error('drag was cleared by the second finger')})()"
+    },
+    {
+      "name": "shot-mid-drag-second-finger-ignored",
+      "screenshot": "mid-drag-second-finger-ignored"
+    },
+    {
+      "name": "finger-2-pointerup-must-not-end-drag",
+      "eval": "(()=>{const mk=(type,x,y,pid)=>new PointerEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,pointerId:pid,pointerType:'touch'});window.dispatchEvent(mk('pointerup',1300,150,202))})()"
+    },
+    {
+      "name": "assert-drag-still-active-after-finger-2-up",
+      "eval": "(()=>{const s=window.__store.getState();if(s.draggingItemId!=='bug1-sofa')throw new Error('BUG-1 REGRESSION: the second finger (pointerId 202) releasing ended the drag — only the initiating pointer (101) may end it');if(s.dragPointerId!==101)throw new Error('dragPointerId was clobbered, got '+s.dragPointerId)})()"
+    },
+    {
+      "name": "finger-1-pointermove-again-still-driving",
+      "eval": "(()=>{const mk=(type,x,y,pid)=>new PointerEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,pointerId:pid,pointerType:'touch'});window.dispatchEvent(mk('pointermove',760,600,101))})()"
+    },
+    { "name": "settle-move-3", "wait": 200 },
+    {
+      "name": "assert-finger-1-still-drives",
+      "eval": "(()=>{const s=window.__store.getState();const p=s.items.find(i=>i.id==='bug1-sofa').position;const a=window.__bug1_afterFinger1;if(p[0]===a[0]&&p[1]===a[1])throw new Error('finger 1 (pointerId 101) stopped driving the drag after finger 2 touched down — pointer 101 should still be live');window.__bug1_afterFinger1Again=[...p]})()"
+    },
+    {
+      "name": "finger-1-pointerup-ends-drag",
+      "eval": "(()=>{const mk=(type,x,y,pid)=>new PointerEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,pointerId:pid,pointerType:'touch'});window.dispatchEvent(mk('pointerup',760,600,101))})()"
+    },
+    { "name": "settle-end", "wait": 300 },
+    {
+      "name": "assert-drag-ended-by-initiating-pointer",
+      "eval": "(()=>{const s=window.__store.getState();if(s.draggingItemId!==null)throw new Error('drag did not end on the initiating pointer (101) releasing, draggingItemId='+s.draggingItemId);if(s.dragPointerId!==null)throw new Error('dragPointerId was not cleared on endDrag, got '+s.dragPointerId)})()"
+    },
+    {
+      "name": "shot-after-drag",
+      "screenshot": "after-drag"
+    }
+  ]
+}

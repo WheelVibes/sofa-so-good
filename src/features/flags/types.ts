@@ -63,6 +63,7 @@ export type FeatureFlag =
   | 'productConfigurator'
   | 'renderCompare'
   | 'stagingReveal'
+  | 'timeCompare'
   | 'styleTransfer'
   | 'styleQuiz'
   | 'shortcutsHelp'
@@ -106,6 +107,10 @@ export type FeatureFlag =
   | 'quoteTemplate'
   | 'priceRules'
   | 'catalogFavourites'
+  | 'catalogFits'
+  | 'catalogFitsFilter'
+  | 'catalogVariantPick'
+  | 'catalogRoomAware'
   | 'wallNumericEntry'
   | 'radialArray'
   | 'pathArray'
@@ -139,6 +144,8 @@ export type FeatureFlag =
   | 'walkWindowFixtures'
   | 'walkScreens'
   | 'walkLights'
+  | 'minimapTeleport'
+  | 'planFurnish'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

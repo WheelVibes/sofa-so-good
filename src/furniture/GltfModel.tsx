@@ -7,6 +7,7 @@ import { getSurfaceMaterial } from '../materials/furnitureMaterials'
 import { effectiveAssetTier } from '../scene/quality'
 import { useStore } from '../state/store'
 import { type FinishTarget, listFinishTargets, meshMatchesTarget } from './gltf/finishTargets'
+import { secureGltfLoader } from './gltf/loaderSecurity'
 import { baseUrl, lodUrlsForBase, prewarmLod, resolveLodUrlSync } from './gltf/lod'
 import { detectMirrorPlane, hideMirrorMesh, type MirrorPlane } from './gltf/mirrorPlane'
 import { applyTextureBudget } from './gltf/textureBudget'
@@ -227,7 +228,13 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides, reflective }:
   }, [url, qualityTier])
   const resolvedUrl = resolveLodUrlSync(url, qualityTier)
   const servingOriginal = resolvedUrl === url
-  const gltf = useGLTF(resolvedUrl)
+  // SEC-1: install the shared foreign-URL-blocking LoadingManager on drei's
+  // memoized GLTFLoader (see `gltf/loaderSecurity.ts`) so a crafted model's
+  // embedded buffer/image `uri` can't trigger a fetch to an attacker host at
+  // render time — the same policy the convert path already applies. `true,
+  // true` preserve useGLTF's own DRACO/meshopt defaults (its default params
+  // only apply when the args are omitted entirely).
+  const gltf = useGLTF(resolvedUrl, true, true, secureGltfLoader)
   // Record the original scene under its base url so a later removal can
   // dispose its GPU geometry/textures (drei's useGLTF.clear only drops the
   // loader cache entry). Keyed by base so all tier variants share one bucket.

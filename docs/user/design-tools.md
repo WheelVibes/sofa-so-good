@@ -256,3 +256,22 @@ judge which lighting mood works best for your design.
 5. Click **Re-render** any time you change the presets or settings.
 
 On mobile, touch-drag the divider to compare. The feature requires Pro mode.
+
+## Time-of-day compare (Pro)
+
+**File → Time-of-day compare** (or the ⌘K command *Time-of-day compare*) shows
+the exact same view at two times of day on a draggable reveal slider — the
+same mechanism as *Before / after* above, but comparing lighting instead of
+furnishing. It's a quick way to check how a room reads in the morning versus
+at night, or which rooms catch evening sun.
+
+1. Pick **Time A** and **Time B** from the drop-downs at the bottom of the
+   modal — defaults to Midday vs Night, the strongest contrast.
+2. Click **Capture compare** — the app jumps to time A, captures the frame,
+   then time B, then restores your own time-of-day setting exactly as it was.
+3. **Drag the divider** to reveal more of A or B. Only the time of day
+   changes between the two frames — your tone mapping, exposure, lights and
+   environment stay exactly as you left them, so the comparison is fair.
+4. Click **Re-capture** any time you change the two times or your design.
+
+On mobile, touch-drag the divider to compare. The feature requires Pro mode.

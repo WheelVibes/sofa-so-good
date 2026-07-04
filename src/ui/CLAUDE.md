@@ -105,7 +105,44 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   toolbar/menu row; retire it by deleting the entry once it's no longer worth calling out (no
   need to wait for it to age out).
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
-  gate on `canEditScene`; leaving the editor clears the selection.
+  gate on `canEditScene`; leaving the editor clears the selection. **One documented exception:**
+  `CatalogDrawer` also mounts inside the 2D floor-plan editor, behind `roomEditorActive ||
+  (floorPlanEditing && planFurnish && !isMobile)` (PLAN-FURNISH) — the plan editor is its own
+  parallel editing surface that was already mutating `items` directly (move/rotate/scale) before
+  this, so surfacing the catalog there doesn't touch `canEditScene`/the VIEW-EDIT-SPLIT invariant.
+  Don't extend this pattern to Inspector/FinishPicker without the same justification.
+- **"Fits this room" catalog cue (CATALOG-FITS)** reuses the room's real geometry, never a
+  parallel one: `ui/catalog/useCatalogRoomFit.ts` resolves the active room's free-space rects via
+  `scene/roomEditorShell.ts:getRoomEditorShell` (the same shell the camera + room-filter already
+  use), and the pure `catalog/roomFit.ts:itemFitsRoom` compares those against a def's
+  `defaultFootprint` using the shared `CLEARANCE` margins. `CatalogCard` shows the result as a
+  `.pr.warn` "Won't fit"/"Tight fit" note (+ a `.no-fit` dim for won't-fit) gated by the `catalogFits`
+  flag (simple tier — a passive help cue is core-loop, not analytical); the `catalogFitsFilter`
+  flag (pro tier) adds a "Fits only" browse checkbox (`catalogBrowse.ts:filterByFits`). A `null`
+  rects (no room being edited, or an unresolved room id) or a degenerate footprint always resolves
+  to `'unknown'` — never a false "won't fit". Scoped to `CatalogCard` only, not `RemoteCard`/
+  `SharedCard` (unresolved remote/shared footprints stay un-flagged and are never hidden by the
+  filter).
+- **Pick a finish before placing (CATALOG-VARIANT)** is a quick-look **popover**, never inline card
+  swatches (mobile clutter): `CatalogVariantPopover` (`Icon.Palette` trigger, `Popover` desktop /
+  `Modal` mobile sheet, same split as `ColorPicker`) renders only when
+  `furniture/placement/catalogVariants.ts:catalogVariantOptions(def)` returns options — IKEA
+  multi-variant products or a parametric def's primary colour field, reusing the existing
+  variant/tint vocabulary (never a new one). Picking a swatch calls
+  `useStore.getState().armWithVariant(defId, initialVariantProps(def, optionId))` — the
+  `placementSlice` stows the patch in `armedVariantProps`, which `usePlacementController`'s
+  `doCommit` merges over `defaultItemProps(def)` at commit. Gated by the `catalogVariantPick` flag
+  (simple tier — pre-place finish picking is core-loop, not analytical).
+- **Room-aware catalog default (CATALOG-ROOMAWARE)** keys only the **initial landing category** on
+  the room being edited, never the tab order or a subsequent pick. The pure mapping is
+  `ui/catalog/roomAwareCategories.ts` (`relevantCategoriesForRoomKind` / `orderCategoriesForRoomKind`
+  / `defaultCategoryForRoomKind`), reusing the existing `analysis/suggestions.ts` `RoomKind` +
+  `furniture/types.ts` `FurnitureCategory` (do **not** invent new room-kind/category types).
+  `CatalogDrawer` applies it in a `useEffect` keyed on `roomEditor.roomId` via a `roomEntryKeyRef`,
+  so it fires ONLY on the room-entry transition — a manual category pick mid-session must stick
+  (don't fight the user), and an unmapped kind / whole-flat view keeps the persisted default.
+  Gated by the `catalogRoomAware` flag (simple tier — a default-landing convenience is core-loop,
+  not analytical); flag off restores today's behaviour. Unit-test the mapping + BOTH modes.
 - **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models*
   (`RemoteCard`s in the catalog grid) ride the **`remoteFurniture`** flag (pro, default on) —
   **no provider currently supplies furniture models (Poly Haven is materials/HDRIs only), so this
@@ -147,7 +184,13 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   (`opacity:1; transform:none`) forever and silently blocks later hover-lift transforms
   (`.liftable`) or state-driven opacity changes (e.g. `.lyr-row.hidden`) on the same element.
   The nth-child `--i` fallback only covers the first 12 children — lists that can render more
-  than 12 items must set `--i` inline per item rather than relying on the fallback.
+  than 12 items must set `--i` inline per item rather than relying on the fallback. A container
+  that renders an **arbitrary, variable** number of direct children it doesn't control (e.g. the
+  `ToolbarMenu` `.pop-panel`, whose rows come from each menu) must **not** use `.stagger-in` at all:
+  it can't set `--i` inline, so >12-row menus (File/Tools in Pro) gave every row past the 12th a
+  `--i` of 0 → zero delay → those rows appeared instantly at the bottom while rows 6–12 were still
+  mid-cascade, leaving a transient vertical VOID between the clusters (TOOLBAR-MENU-VOID). Such
+  panels rely on their own whole-panel entrance (`.pop-panel`'s `pop` keyframe) instead.
 - **Type hierarchy** — one ladder, from the `--t-*` scale: page/hero title `--t-xl` (20px)
   weight 800 `--lh-tight`; panel title `--t-lg` (16px) weight 800 `--lh-tight`; section header
   (`.sec-h`, `.lyr-ghead`, `.menu-label`) `--t-2xs` (10px) weight 700 UPPERCASE +
@@ -191,10 +234,44 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   click that jumps to the result — the whole card body is the affordance, distinct from the
   trailing `actionLabel`/`onAction` button); a failed job uses `notify.error(id, msg, undefined,
   retry)` to swap in the standard "Retry" action. Toasts update in place via `notify.update` and
-  de-dupe on `kind+title+message` (progress toasts never de-dupe).
+  de-dupe on `kind+title+message` (progress toasts never de-dupe). **De-dupe drops the incoming
+  call's `onAction` closure**, keeping only the FIRST toast's — fine when every de-duped call's
+  action is equivalent (e.g. re-surfacing "This area is already a room" repeatedly), but wrong for
+  an Undo whose target moves each time it fires (BUG-4: `itemsSlice.deleteItem`'s "Item deleted"
+  toast — two deletes ≥500ms apart each push their OWN undo-able history entry yet still de-dupe
+  into one visible toast, so a plain `() => get().undo()` only popped the newest one). A toast
+  whose action must fire once per de-duped call passes `undoRepeat: <count>` to `notify.start`
+  (computed by the caller as the cumulative count, NOT a delta): `start()` wraps `onAction` to
+  re-read the count off the LIVE notification (by id) at click time and invoke the underlying
+  action that many times, and a later de-dupe overwrites the stored count with the new call's
+  value. `itemsSlice.deleteItem` only passes an incremented count when this delete's push both (a)
+  landed as a genuinely NEW history entry (not merged into the prior one within the 500ms
+  coalesce window) and (b) immediately followed another `'delete'`-keyed push with nothing else
+  in between — so an unrelated action sitting between two deletes starts a fresh chain of 1
+  instead of reaching past it, and a chain whose earlier toast already auto-dismissed can't be
+  reached either. Reuse this mechanism for any future toast with the same "de-dupe must not drop
+  an earlier action" shape, rather than special-casing dedupe again.
 - Modals portal to `document.body`; reuse the shared `Modal` primitive. While any modal is
   open, global hotkeys are suppressed via `controls/modalGuard.ts` — `Modal` registers
   automatically; any modal-style overlay that does **not** build on `Modal` (custom
   `.modal-overlay`, upload dialogs, …) must call `useModalGuard(open)` itself. Escape is
   each modal's own listener; ⌘K/undo are suppressed while a modal is open (the ⌘K palette
   is not a `Modal` and keeps its own keyboard handling).
+- **Focus management (A11Y-MODAL-MENU).** `Modal` moves focus into the dialog on open, traps
+  Tab within it, and restores focus to whatever was previously focused on close/unmount — the
+  shared selector + wrap logic live in `controls/focusTrap.ts` (`FOCUSABLE_SELECTOR`,
+  `trapTabKey`); reuse them rather than hand-rolling another copy. `ToolbarMenu`'s dropdown
+  panel does the same (move-focus-on-open + Tab-trap) because `Popover` portals the panel to
+  `document.body`, putting it outside the trigger button's natural tab order — without this a
+  keyboard user who opens a menu with Enter/Space had no way to Tab into its rows at all.
+  Escape-closes-and-restores-focus-to-the-trigger is `Popover`'s own job (already covers every
+  `Popover` consumer, including `ToolbarMenu`). Deliberately NOT added: arrow-key/Home-End/
+  type-ahead roving focus on `ToolbarMenu` rows — its panels mix real `menuitem` buttons with
+  native range sliders (`TimeOfDaySlider`) and `Select` combobox triggers (which own their own
+  Up/Down handling), so a panel-wide arrow-key interceptor would fight a focused slider's
+  native Left/Right value-adjustment; Tab-based navigation is the correct, lower-risk fit for
+  that heterogeneous content. `Popover` itself stays free of any generic focus-move/trap — some
+  consumers (`Select`, the combobox pattern) deliberately keep DOM focus on the trigger and
+  drive a *virtual* active option via their own keydown handler, so a generic trap there would
+  fight that pattern; add trapping consumer-side (as `ToolbarMenu` and `upload/ConfirmDialog`
+  do) when a specific `Popover` payload is real Tab-navigable content.

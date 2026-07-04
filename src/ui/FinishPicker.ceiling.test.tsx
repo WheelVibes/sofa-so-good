@@ -20,6 +20,20 @@ vi.mock('../materials/procedural/generators', async (importOriginal) => ({
 
 const ROOM = 'livingDining'
 
+/** Drive `useIsMobile` (which reads `window.matchMedia('(max-width: 640px)')`). */
+function setViewport(mobile: boolean) {
+  window.matchMedia = ((query: string) => ({
+    matches: mobile && query.includes('max-width'),
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as unknown as typeof window.matchMedia
+}
+
 beforeEach(() => {
   useStore.getState().__resetForTest?.()
   useStore.getState().selectRoom(ROOM)
@@ -27,6 +41,7 @@ beforeEach(() => {
 
 afterEach(() => {
   useStore.getState().selectRoom(null)
+  setViewport(false)
 })
 
 describe('ceilingFinish flag', () => {
@@ -82,5 +97,26 @@ describe('FinishPicker ceiling section', () => {
     // No ceiling set (default white) → apply-all disabled, no reset button.
     expect(screen.getByTitle('Use this ceiling finish in every room')).toBeDisabled()
     expect(screen.queryByTitle("Reset this room's ceiling back to plain white")).toBeNull()
+  })
+
+  // On mobile the swatch grid collapses to a `Select` dropdown (SwatchGroup's
+  // isMobile branch). Ceiling is the only surface whose `active` id can be the
+  // empty string (unset = plain white default — floor/wall always resolve to a
+  // real id at boot). Before the fix, an empty `active` matched no option and
+  // the Select's `label` fell through to `''`, rendering a blank trigger with
+  // no clue a "plain white" default was in effect.
+  it('mobile Ceiling dropdown shows a "Default" label instead of blank when unset', () => {
+    setViewport(true)
+    render(<FinishPicker />)
+    const trigger = screen.getByLabelText('Ceiling finish')
+    expect(trigger).toHaveTextContent('Default')
+  })
+
+  it('mobile Ceiling dropdown shows the real finish name once one is applied', () => {
+    setViewport(true)
+    useStore.getState().setCeilingFinish(ROOM, 'wall-white')
+    render(<FinishPicker />)
+    const trigger = screen.getByLabelText('Ceiling finish')
+    expect(trigger).not.toHaveTextContent('Default')
   })
 })

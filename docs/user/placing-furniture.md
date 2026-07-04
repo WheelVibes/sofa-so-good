@@ -20,7 +20,30 @@ decor, and more), the **search box** to fuzzy‑search across everything, and th
 **heart** on any card to save it to your **favourites** (the star tab, first in
 the list).
 
+**It opens on what the room needs.** When you open a room to furnish it, the
+catalog lands on the category that fits best — **Beds** in a bedroom,
+**Appliances** in a kitchen, **Bathroom** in a bath, **Seating** in the living
+room — so the relevant pieces are one glance away instead of buried under an
+alphabetical list. Pick any other tab and it stays put; the catalog never
+switches out from under you.
+
 ![The unified furniture catalog](/screenshots/catalog.png)
+
+**Does it fit this room?** While a room is open, any card whose size clearly
+can't fit the free floor space gets a **"Won't fit"** note and a dimmed card;
+a piece that only just squeezes in shows a plainer **"Tight fit"** note instead
+— both are just a heads‑up, you can still place it. (Pro) Tick **Fits only** at
+the top of the grid to hide the pieces flagged "Won't fit" while you browse.
+
+### Choosing a finish before you place it
+
+Some cards show a small **palette button** in the corner — tap it to open a
+**quick-look popover** of that piece's colours/finishes before it ever lands in
+the room. It appears for anything with more than one finish to offer: IKEA
+products with multiple finishes, and colourable built‑ins (sofas, beds, rugs and
+more). Pick a swatch and placement is loaded with that finish already applied —
+drop it in as usual. A piece with only one look (or none to choose) shows no
+button at all. You can still change the finish afterwards from the inspector.
 
 ## Placing a piece
 
@@ -93,6 +116,17 @@ resize handles** on its bounding box — drag a corner to scale the whole group
 uniformly about the opposite corner (a single piece is resized from the inspector
 instead). The same unified bounding box, rotation ring and corner handles appear
 in the 2D floor‑plan editor too.
+
+### Tilt a piece (Pro)
+
+In **Pro mode** you can lean a piece off vertical — angle a wall print, recline
+a lounger, bank a decor piece. Select it and either use the **Tilt** section in
+the inspector (**Pitch (forward / back)** and **Roll (left / right)** sliders,
+±45°, with a **Reset**), or grab the small **tilt handle** floating just above
+the piece in the 3D view: **drag the ball** — up/down leans it forward or back,
+left/right banks it sideways — and a live pitch/roll read‑out follows the drag.
+The handle leans with the piece, so it always shows which way it's tilted.
+(Staircases can't be tilted.)
 
 **Right‑click** any placed piece for a **context menu** with the most common
 actions right where you need them — **replace with similar**, rotate, **straighten**

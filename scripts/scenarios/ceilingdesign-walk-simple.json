@@ -1,0 +1,114 @@
+{
+  "name": "ceilingdesign-walk-simple",
+  "description": "Simple ladder for per-room ceiling design (CUSTOMIZE-CEILING, `ceilingDesign` flag — pro tier). Confirms the flag is OFF in Simple mode, switches to Pro, applies a tray ceiling with a cove light to the Living/Dining room, enters walk mode, teleports the walker near the tray's north edge and pitches the FirstPersonCamera up via the dev-only `__walkLook` lever (mouse-look needs Pointer Lock and touch-look needs synthetic multi-touch, both impractical headless) to prove the recess/riser/cove geometry actually renders from below. A second look-up covers the coffered 3x3 variant under dusk + lights-on so the beam grid reads in relief. GOTCHA: a near-vertical pitch (>1.2 rad) from the room centre fills the whole FOV with the tray's flat centre panel — a featureless frame that proves nothing. Stand ~1 m from a recess edge and pitch ~1.0 rad so the frame step + riser + cove strip are IN frame.",
+  "url": "http://localhost:5312/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "verify-simple-default",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "app should boot in Simple mode"
+    },
+    {
+      "name": "verify-ceilingdesign-off-in-simple",
+      "waitFor": { "store": "state.featureFlags.ceilingDesign === false" },
+      "timeout": 5000,
+      "failMessage": "ceilingDesign is a pro-tier flag and must be OFF in Simple mode"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "verify-ceilingdesign-on-in-pro",
+      "waitFor": { "store": "state.featureFlags.ceilingDesign === true" },
+      "timeout": 8000,
+      "failMessage": "ceilingDesign should be ON in Pro mode"
+    },
+    {
+      "name": "bump-quality-tier",
+      "comment": "High+ unlocks the riser/box-wall strips + cove-light glow (RoomCeiling gates them on qualityTier) so the walk-mode screenshot shows the full designed look, not just the bare flat-per-height planes Performance renders.",
+      "store": { "action": "setQualityTier", "args": ["high"] }
+    },
+    {
+      "name": "hide-quality-transition-overlay",
+      "eval": "window.__store.getState().hideLoading()"
+    },
+    { "name": "settle-quality", "wait": 800 },
+    {
+      "name": "apply-tray-ceiling",
+      "comment": "Deep drop + wide margin so the recess step is unmistakable; saturated warm cove colour so the emissive strips read even under flat headless lighting.",
+      "eval": "window.__store.getState().setRoomCeiling('livingDining', { style: 'tray', drop: 0.3, margin: 0.6, coveLight: true, coveColor: '#ffb870' })"
+    },
+    {
+      "name": "verify-ceiling-config-persisted",
+      "waitFor": {
+        "store": "(() => { const r = state.floorPlan.rooms.find(r => r.id === 'livingDining'); return !!r && r.ceiling && r.ceiling.style === 'tray' && r.ceiling.drop === 0.3 && r.ceiling.coveLight === true; })()"
+      },
+      "timeout": 5000,
+      "failMessage": "tray ceiling config did not persist on the livingDining room"
+    },
+    { "name": "wait-ceiling-mount", "wait": 800 },
+    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
+    { "name": "settle-walk", "wait": 2000 },
+    {
+      "name": "verify-walk-mode-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson'" },
+      "timeout": 5000
+    },
+    {
+      "name": "dismiss-walk-callout",
+      "eval": "window.__store.getState().dismissCallout?.('walk-mode')"
+    },
+    {
+      "name": "teleport-near-north-recess",
+      "comment": "livingDining spans x 8.55-12.55, z 1.4-6.8; margin 0.6 puts the tray's inner (recess) north edge at z=2.0. Standing at z=3.1 looking north (the spawn yaw) puts that edge ~1.1 m ahead — at eye 1.6 under a 2.6 m ceiling the riser + cove strip sit ~42 deg up, inside a pitched-up FOV. Position-only teleport per the playbook (the frame loop re-asserts orientation but only writes x/z on movement input).",
+      "eval": "(() => { const c = window.__three.camera; c.position.x = 10.55; c.position.z = 3.1; })()"
+    },
+    { "name": "settle-teleport", "wait": 600 },
+    { "name": "shot-walk-level-look", "screenshot": "01-walk-level-look" },
+    {
+      "name": "pitch-camera-up",
+      "eval": "window.__walkLook.setPitch(1.0)"
+    },
+    { "name": "settle-pitch", "wait": 600 },
+    {
+      "name": "verify-pitch-applied",
+      "waitFor": { "store": "window.__walkLook.getPitch() > 0.9" },
+      "timeout": 3000,
+      "failMessage": "the dev __walkLook lever did not persist the pitch onto the frame loop's ref"
+    },
+    { "name": "shot-tray-look-up", "screenshot": "02-tray-cove-look-up" },
+    {
+      "name": "switch-to-coffered",
+      "comment": "Second variant: a 3x3 coffered beam grid, still at daylight hour 13. Do NOT turn ceiling lights on for a pitched-up shot: a point light straight ahead of the look-up camera + high-tier bloom blows the whole frame out to white (found the hard way). Daylight ambient already shades the two ceiling heights distinctly (the tray shot proves it).",
+      "eval": "window.__store.getState().setRoomCeiling('livingDining', { style: 'coffered', drop: 0.3, grid: [3, 3] })"
+    },
+    {
+      "name": "verify-coffered-config",
+      "waitFor": {
+        "store": "(() => { const r = state.floorPlan.rooms.find(r => r.id === 'livingDining'); return !!r && r.ceiling && r.ceiling.style === 'coffered' && r.ceiling.grid && r.ceiling.grid[0] === 3; })()"
+      },
+      "timeout": 5000,
+      "failMessage": "coffered ceiling config did not persist on the livingDining room"
+    },
+    { "name": "settle-coffered", "wait": 1500 },
+    { "name": "shot-coffered-look-up", "screenshot": "03-coffered-look-up" },
+    {
+      "name": "back-to-orbit",
+      "store": { "action": "setCameraMode", "args": ["orbit"] }
+    },
+    { "name": "settle-orbit", "wait": 1500 },
+    {
+      "name": "verify-config-survives-mode-switch",
+      "waitFor": {
+        "store": "(() => { const r = state.floorPlan.rooms.find(r => r.id === 'livingDining'); return !!r && r.ceiling && r.ceiling.style === 'coffered'; })()"
+      },
+      "timeout": 3000
+    },
+    { "name": "shot-orbit-after", "screenshot": "04-orbit-after-walk" }
+  ]
+}

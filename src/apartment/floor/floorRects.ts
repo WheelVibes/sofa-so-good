@@ -30,8 +30,10 @@ function rectArea(r: FloorRect): number {
 }
 
 /** Splits `a` into the sub-rects covering `a \ b`. Up to 4 axis-aligned
- *  sub-rects (returns `[a]` when there's no overlap). */
-function rectMinus(a: FloorRect, b: FloorRect): FloorRect[] {
+ *  sub-rects (returns `[a]` when there's no overlap). Exported (visibility
+ *  only, same implementation) so it can be unit-tested directly — see
+ *  `floorRects.test.ts`. */
+export function rectMinus(a: FloorRect, b: FloorRect): FloorRect[] {
   const ix0 = Math.max(a.x0, b.x0)
   const iz0 = Math.max(a.z0, b.z0)
   const ix1 = Math.min(a.x1, b.x1)

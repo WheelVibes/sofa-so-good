@@ -48,6 +48,7 @@ import { MarqueeCameraTracker } from './selection/MarqueeSelector'
 import { ResizeGizmo } from './selection/ResizeGizmo'
 import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
+import { TiltGizmo } from './selection/TiltGizmo'
 import { TapeMeasure } from './TapeMeasure'
 import { TONE_MAPPING_THREE } from './toneMappingThree'
 import { useQuality } from './useQuality'
@@ -119,6 +120,7 @@ export function Scene() {
         <SelectionOutline />
         <RotateGizmo />
         <ResizeGizmo />
+        <TiltGizmo />
         <HoverHighlight />
         <PlacementGhost />
         <PlacementDropAnimator />

@@ -225,6 +225,29 @@ knob pointing the way it faces. Drag the ring (or knob) to spin it — it snaps 
 15° steps, and you can hold **Shift** for a free angle, exactly like the wall and
 3D furniture rotation. Leaving the editor frames the selected piece back in 3D.
 
+## Adding furniture from the plan *(Pro, desktop)*
+
+You don't have to leave the plan to add a new piece. In **Pro** mode, on desktop,
+the **Furnish** button in the header (next to the drawing tools) opens the same
+catalog you use in 3D, docked to the left of the plan:
+
+1. Click **Furnish** to open the catalog, then click a card to arm it — a
+   footprint‑shaped **ghost** appears and follows your cursor, tinted **green**
+   where it fits and **red** where it would overlap a wall or another piece.
+2. Press <kbd>R</kbd> to rotate the ghost before you drop it (hold **Shift** for
+   a fine 15° step, otherwise it turns in quarter‑turns).
+3. Click anywhere the ghost is green to drop it — furniture footprints switch on
+   automatically so you can see (and keep working with) what you just placed,
+   and the new piece is selected in the Properties panel just like a 3D drop.
+   A red spot swallows the click (nothing is placed) so you can keep aiming.
+4. **Escape** or right‑click cancels the armed piece without placing it.
+
+Curtains, blinds and window grilles aren't supported here yet — arm one and
+you'll get a message pointing you to the 3D per‑room editor, where they snap
+onto a window automatically. Placing furniture from the plan is a **Pro**,
+**desktop** feature for now; on mobile, add furniture from the 3D catalog as
+usual and come back to the plan to nudge it into place.
+
 ## Tracing from a photo *(Pro)*
 
 Have a real floor‑plan image or a room scan? Trace over it:

@@ -426,6 +426,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Time-of-day comparison reveal — the SAME camera/scene at two chosen times
+  // of day (e.g. midday vs night) on the same reveal-divider mechanism as
+  // stagingReveal above, just driving the sun/time rig instead of visibility.
+  // Prod-safe pure code (reuses the live canvas capture), but an analytical
+  // "how does this room read across the day" view → pro tier.
+  timeCompare: {
+    label: 'Time-of-day compare',
+    description: 'Compare your design at two times of day on a draggable divider',
+    default: true,
+    tier: 'pro',
+  },
   // One-tap style transfer — restyle every room's floor/wall finish + palette to
   // a named look (Scandi/Japandi/Industrial/…). Pure data + builtin CC0 finishes,
   // prod-safe, but an advanced design shortcut → pro tier.
@@ -554,6 +565,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Minimap tap-to-teleport (MINIMAP-JUMP): click/tap a spot on the walk-mode
+  // minimap to jump the walker there, clamped inside the tapped (or nearest)
+  // room's walls. A navigation aid for the core walk loop, not an advanced
+  // tool — biggest win on mobile where WASD/drag-walking across a whole flat
+  // is slow (RoomSketcher/Coohom tour parity). Pure code, no external assets
+  // → prod-safe; simple tier like its `walkScreens`/`walkLights` siblings.
+  minimapTeleport: {
+    label: 'Minimap tap-to-teleport',
+    description: 'Click or tap a spot on the walk-mode minimap to move there instantly',
+    default: true,
+    tier: 'simple',
+  },
   // Replace-with-similar (PARITY-REPLACE): swap a placed item for a nearest-size
   // catalog sibling in one click, keeping its position/rotation/level. Pure code,
   // no external assets → prod-safe. Surfaced in the default experience → simple tier.
@@ -622,12 +645,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     tier: 'pro',
   },
   // Multi-axis furniture tilt (SweetHome3DJS parity): pitch/roll an item off
-  // vertical (angle a picture, recline a backrest, bank a decor piece). Pure
-  // code, no external assets → prod-safe. An advanced placement control beyond
-  // the core furnish loop → pro tier.
+  // vertical (angle a picture, recline a backrest, bank a decor piece), editable
+  // via the inspector's TiltControls sliders AND the in-viewport TiltGizmo drag
+  // handle (PARITY-TILT tail, scene/selection/TiltGizmo.tsx — same flag gates
+  // both affordances, they're one capability, not two). Pure code, no external
+  // assets → prod-safe. An advanced placement control beyond the core furnish
+  // loop → pro tier.
   tiltFurniture: {
     label: 'Tilt furniture',
-    description: 'Pitch / roll an item off vertical (angle art, recline, bank) in the inspector',
+    description:
+      'Pitch / roll an item off vertical (angle art, recline, bank) — slider + 3D handle',
     default: true,
     tier: 'pro',
   },
@@ -808,6 +835,58 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   catalogFavourites: {
     label: 'Catalog favourites',
     description: 'Star catalog items to save them in a persistent Favourites tab',
+    default: true,
+    tier: 'simple',
+  },
+  // "Fits this room" size cue (CATALOG-FITS, 2026-07-03 core-loop parity audit).
+  // Badges/dims a catalog card when the item's footprint can't reasonably fit
+  // the room currently being edited — reuses `def.defaultFootprint` + the shared
+  // `CLEARANCE` constants (`catalog/roomFit.ts`), no new geometry. Pure
+  // client-side, no external assets → prod-safe. A passive read-only cue that
+  // helps a casual user avoid an oversized pick in the core furnish loop
+  // (the HDB small-space premise) → simple tier, present in both modes.
+  catalogFits: {
+    label: 'Room-fit cue',
+    description: "Badge/dim catalog items that won't fit the room being edited",
+    default: true,
+    tier: 'simple',
+  },
+  // The "Fits only" browse filter that hides catalog items flagged `wont-fit`
+  // by the same room-fit check. An analytical/filtering refinement over the
+  // passive cue above (which stays visible without this flag) → pro tier,
+  // hidden in Simple mode so the simple browse UI stays uncluttered.
+  catalogFitsFilter: {
+    label: 'Fits-only filter',
+    description: "Catalog toggle to hide items that won't fit the room being edited",
+    default: true,
+    tier: 'pro',
+  },
+  // Pick a colour/finish/variant on the browse card BEFORE placing it
+  // (CATALOG-VARIANT, 2026-07-03 core-loop parity audit) — a compact quick-look
+  // swatch popover (`ui/catalog/CatalogVariantPopover.tsx`), not inline card
+  // swatches (mobile clutter). Reuses the existing variant/tint vocabulary
+  // (IKEA `variants`, parametric colour fields) so the picked finish is carried
+  // straight into placement as the item's initial props — no new persisted
+  // schema. Pure client-side, no external assets → prod-safe. Matches IKEA
+  // Kreativ/Coohom/Roomstyler's basic browse behaviour, not an analytical
+  // refinement → simple tier, present in both modes.
+  catalogVariantPick: {
+    label: 'Pick finish before placing',
+    description: 'Choose a colour/variant on the catalog card before it lands in the room',
+    default: true,
+    tier: 'simple',
+  },
+  // Room-aware catalog default (CATALOG-ROOMAWARE, 2026-07-03 core-loop parity
+  // audit): on entering a room to edit, the catalog lands on the category
+  // most relevant to that room's kind (bedroom→beds, kitchen→appliances,
+  // bath→bathroom, living→seating) instead of always the same curated
+  // default — pure client-side reordering of `FURNITURE_CATEGORIES`, no new
+  // data. A passive, always-safe default-landing behaviour that helps a
+  // casual shopper in the core furnish loop → simple tier, present in both
+  // modes; never changes search/filter/favourites, only the initial tab.
+  catalogRoomAware: {
+    label: 'Room-aware catalog default',
+    description: 'Land the catalog on the category most relevant to the room being edited',
     default: true,
     tier: 'simple',
   },
@@ -1136,6 +1215,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Browse the cloud furniture library (admin accounts, served from R2)',
     default: true,
     tier: 'simple',
+  },
+  // Click-to-place furniture straight onto the 2D floor plan (PLAN-FURNISH
+  // Phase 1): arm a catalog def, an SVG ghost previews the drop with
+  // green/red `canPlace` validity, a click commits via the existing
+  // `addItem`/`beginDrop`/`pendingEdit` path. Reuses the same placement
+  // pipeline as the 3D catalog (no new collision/commit code, no relaxation
+  // of `canEditScene`) — pure client-side, prod-safe. An advanced
+  // plan-authoring surface beyond the core furnish-in-3D loop → pro tier
+  // (hidden in Simple, where furnishing stays the 3D catalog-drag flow).
+  planFurnish: {
+    label: 'Furnish in plan',
+    description: 'Add furniture directly on the 2D floor plan',
+    default: true,
+    tier: 'pro',
   },
 }
 

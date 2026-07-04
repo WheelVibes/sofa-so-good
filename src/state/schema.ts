@@ -609,9 +609,38 @@ export function serialize(state: RootState): SerializedState {
   }
 }
 
+/** True when an item's transform is safe to feed into the Three.js matrices
+ *  (no NaN/Infinity — `z.number()` admits both, so a corrupt or hand-edited
+ *  save could otherwise crash-loop the renderer). Exported so a caller that
+ *  needs to reason about *why* `applySerialized` dropped a given item (e.g.
+ *  `hydrate.ts`/`cloudBoot.ts` distinguishing "corrupt" from "def temporarily
+ *  unresolvable", BUG-2) can reuse the exact same check instead of drifting a
+ *  second copy of it. */
+export function hasFiniteItemTransform(it: SerializedState['items'][number]): boolean {
+  return (
+    Number.isFinite(it.position[0]) &&
+    Number.isFinite(it.position[1]) &&
+    Number.isFinite(it.rotation)
+  )
+}
+
 /** Applies a parsed save to the live store. Skips items whose def is
  *  unresolvable (e.g. user-uploaded asset missing from IDB) — caller
- *  should toast the dropped ids. */
+ *  should toast the dropped ids.
+ *
+ *  This drop-unknown-defId behaviour is correct for a load that is
+ *  explicitly about a DIFFERENT design than what's currently persisted
+ *  (file import, a saved version/slot, a plan/design share link) — the def
+ *  genuinely doesn't exist here, and each of those callers already tells the
+ *  user a count was skipped. It is the WRONG behaviour for restoring the
+ *  user's OWN autosave (`hydrate.ts`/`cloudBoot.ts`): there, a def can be
+ *  unresolvable only because its IndexedDB blob is temporarily/permanently
+ *  gone (browser storage eviction, private-mode wipe, quota pressure) —
+ *  dropping the item here and then letting the very next autosave fire would
+ *  silently and permanently delete placed furniture the user never asked to
+ *  remove (BUG-2). Those two callers re-merge the dropped-for-unknown-def
+ *  items back into this function's `items` output (using
+ *  `hasFiniteItemTransform` to keep genuinely corrupt items dropped). */
 export function applySerialized(
   state: SerializedState,
   knownDefIds: Set<string>,
@@ -637,15 +666,12 @@ export function applySerialized(
   for (const [k, v] of Object.entries(state.finishes.ceiling ?? {})) {
     if (validRoom(k)) ceiling[k] = v
   }
-  // Drop items whose transform isn't finite — `z.number()` admits NaN/Infinity,
-  // so a corrupt or hand-edited save could otherwise feed NaN into the Three.js
-  // matrices and break (or crash-loop) the whole renderer.
-  const finiteTransform = (it: SerializedState['items'][number]) =>
-    Number.isFinite(it.position[0]) &&
-    Number.isFinite(it.position[1]) &&
-    Number.isFinite(it.rotation)
   return {
-    items: state.items.filter((it) => knownDefIds.has(it.defId) && finiteTransform(it)),
+    // Drop items whose transform isn't finite (see `hasFiniteItemTransform`) —
+    // `z.number()` admits NaN/Infinity, so a corrupt or hand-edited save could
+    // otherwise feed NaN into the Three.js matrices and break (or crash-loop)
+    // the whole renderer.
+    items: state.items.filter((it) => knownDefIds.has(it.defId) && hasFiniteItemTransform(it)),
     // A loaded/restored design has no relation to the current session's
     // selection or hidden set — reset both so the inspector and the Layers
     // "(N hidden)" count never reference items that are no longer present.
@@ -683,4 +709,30 @@ export function applySerialized(
     // Restore the price-rule library (absent / partial → sanitised defaults).
     priceRules: mergePriceRules(state.priceRules),
   }
+}
+
+/** BUG-2 fix. Call this right after `applySerialized` when the load is
+ *  restoring the user's OWN autosave (`hydrate.ts`/`cloudBoot.ts`) rather
+ *  than an explicit cross-instance import — puts back, in place on `patch`,
+ *  any item `applySerialized` dropped purely because its `defId` wasn't in
+ *  `knownDefIds` (an item dropped for a genuinely non-finite/corrupt
+ *  transform stays dropped). The restored items render as nothing until
+ *  their def resolves again — `FurnitureLayer`/`LayersPanel` already treat
+ *  an unknown `defId` as inert rather than crashing — so retaining them
+ *  costs nothing but a few bytes of save size, while dropping them here would
+ *  let the very next autosave make a transient IndexedDB blob eviction (or a
+ *  private-mode wipe, or quota pressure) permanent. Returns the ids restored
+ *  this way, e.g. for a future "N items are missing their model" notice. */
+export function preserveUnresolvedItems(
+  state: SerializedState,
+  knownDefIds: Set<string>,
+  patch: Partial<RootState>,
+): string[] {
+  const unresolved = state.items.filter(
+    (it) => !knownDefIds.has(it.defId) && hasFiniteItemTransform(it),
+  )
+  if (unresolved.length > 0) {
+    patch.items = [...(patch.items ?? []), ...unresolved]
+  }
+  return unresolved.map((it) => it.id)
 }

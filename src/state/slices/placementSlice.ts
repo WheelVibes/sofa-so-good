@@ -1,6 +1,6 @@
 import type { WallGaps } from '../../collision/clearanceGap'
 import type { EqualSpacing } from '../../collision/equalSpacing'
-import type { FurnitureItem } from '../../furniture/types'
+import type { FurnitureItem, ParamProps } from '../../furniture/types'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -24,6 +24,19 @@ export interface PendingEdit {
  *  Not persisted; not surfaced to the autosave subscriber. */
 export interface PlacementSlice {
   activeDefId: string | null
+  /** Extra initial props merged OVER `defaultItemProps(def)` for the currently
+   *  armed placement (CATALOG-VARIANT) — set when a catalog card's quick-look
+   *  swatch popover chose a non-default finish/variant before arming. Session
+   *  state only (not persisted); cleared whenever placement is (re)armed via
+   *  `setActiveDefId` or dropped via `cancelPlacement` so a stale variant can
+   *  never leak onto a later, unrelated placement. Survives a `keepArmed`
+   *  stamp/shift re-commit (the whole point of "stamp this finish"). */
+  armedVariantProps: ParamProps | null
+  setArmedVariantProps: (props: ParamProps | null) => void
+  /** Arm placement for `defId` carrying `props` as the extra initial props
+   *  (CATALOG-VARIANT) — the swatch-popover equivalent of `setActiveDefId`,
+   *  arming in one atomic update instead of two separate store writes. */
+  armWithVariant: (defId: string, props: ParamProps) => void
   /** Sticky "stamp" placement (PARITY-STAMP-PLACE, `stampPlace` flag): when true,
    *  a plain commit click keeps the placement armed (same def + orientation) so the
    *  user can drop a row of identical items without re-selecting. Off ⇒ a click
@@ -53,6 +66,12 @@ export interface PlacementSlice {
   /** Pointer offset from the item centre at drag start (XZ in metres).
    *  Subtracted each frame so the item doesn't snap-jump to the cursor. */
   dragOffset: [number, number]
+  /** The `pointerId` of the pointer that started the current drag, or null when
+   *  no drag is active (BUG-1). `DragController`'s window-level pointermove/up/
+   *  cancel listeners gate on this (via `isActiveDragPointer`) so a second
+   *  finger's independent pointer stream can never hijack/teleport the item the
+   *  first finger is dragging — only the initiating pointer drives + ends it. */
+  dragPointerId: number | null
   /** When the drag started on an item that's part of a multi-selection,
    *  this snapshots every member's original transform so the whole group
    *  can be translated in lock-step (and reverted if the release lands
@@ -108,6 +127,7 @@ export interface PlacementSlice {
     id: string,
     original: { position: [number, number]; rotation: number },
     offset: [number, number],
+    pointerId: number | null,
     groupOriginals?: Array<{ id: string; position: [number, number]; rotation: number }>,
   ) => void
   setDragValid: (valid: boolean) => void
@@ -117,6 +137,7 @@ export interface PlacementSlice {
 export const PLACEMENT_INITIAL: Pick<
   PlacementSlice,
   | 'activeDefId'
+  | 'armedVariantProps'
   | 'stampMode'
   | 'cursor'
   | 'ghostWorld'
@@ -126,6 +147,7 @@ export const PLACEMENT_INITIAL: Pick<
   | 'dragOriginal'
   | 'dragValid'
   | 'dragOffset'
+  | 'dragPointerId'
   | 'dragGroupOriginals'
   | 'dragGuides'
   | 'dragSpacings'
@@ -136,6 +158,7 @@ export const PLACEMENT_INITIAL: Pick<
   | 'reopenCatalogAfterPlace'
 > = {
   activeDefId: null,
+  armedVariantProps: null,
   stampMode: false,
   pendingEdit: null,
   reopenCatalogAfterPlace: false,
@@ -147,6 +170,7 @@ export const PLACEMENT_INITIAL: Pick<
   dragOriginal: null,
   dragValid: true,
   dragOffset: [0, 0],
+  dragPointerId: null,
   dragGroupOriginals: [],
   dragGuides: [],
   dragSpacings: [],
@@ -158,8 +182,15 @@ export const PLACEMENT_INITIAL: Pick<
 export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (set, get) => ({
   ...PLACEMENT_INITIAL,
   // Arming a new placement resets any dialed-in ghost rotation. A plain single-add
-  // arm also clears stamp mode (only `startStamp` opts into sticky placement).
-  setActiveDefId: (id) => set({ activeDefId: id, ghostRotation: 0, stampMode: false }),
+  // arm also clears stamp mode (only `startStamp` opts into sticky placement) AND
+  // any variant chosen for a previous armed def (CATALOG-VARIANT) — a fresh arm
+  // always starts from the def's plain defaults unless `armWithVariant` says
+  // otherwise.
+  setActiveDefId: (id) =>
+    set({ activeDefId: id, ghostRotation: 0, stampMode: false, armedVariantProps: null }),
+  setArmedVariantProps: (armedVariantProps) => set({ armedVariantProps }),
+  armWithVariant: (defId, props) =>
+    set({ activeDefId: defId, ghostRotation: 0, stampMode: false, armedVariantProps: props }),
   startStamp: (defId) =>
     set((s) =>
       // Toggling the same already-armed stamp off is a cancel.
@@ -171,8 +202,9 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
             ghostWorld: null,
             ghostValid: false,
             ghostRotation: 0,
+            armedVariantProps: null,
           }
-        : { activeDefId: defId, stampMode: true, ghostRotation: 0 },
+        : { activeDefId: defId, stampMode: true, ghostRotation: 0, armedVariantProps: null },
     ),
   setStampMode: (on) => set({ stampMode: on }),
   setCursor: (cursor) => set({ cursor }),
@@ -221,12 +253,13 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       ghostValid: false,
       ghostRotation: 0,
       reopenCatalogAfterPlace: false,
+      armedVariantProps: null,
     })
     // An aborted long-press placement (Escape / right-click / drag end off-canvas)
     // should restore the catalog the long-press hid.
     if (reopen) get().setCatalogOpen(true)
   },
-  startDrag: (id, original, offset, groupOriginals) => {
+  startDrag: (id, original, offset, pointerId, groupOriginals) => {
     // Starting a fresh gesture commits any edit still awaiting confirmation
     // (the user moved on) so we never stack two pending edits.
     if (get().pendingEdit) get().confirmPendingEdit()
@@ -237,6 +270,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       draggingItemId: id,
       dragOriginal: original,
       dragOffset: offset,
+      dragPointerId: pointerId,
       dragValid: true,
       dragGroupOriginals: groupOriginals ?? [],
     })
@@ -252,6 +286,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       draggingItemId: null,
       dragOriginal: null,
       dragOffset: [0, 0],
+      dragPointerId: null,
       dragValid: true,
       dragGroupOriginals: [],
       dragGuides: [],

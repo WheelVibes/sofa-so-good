@@ -277,12 +277,24 @@ async function clickByText(page, text, timeout) {
             tag === 'a' ||
             tag === 'input' ||
             tag === 'label' ||
+            // <summary> is natively clickable (toggles its parent <details>) —
+            // the app's Disclosure control (ui/controls/Disclosure.tsx) is built
+            // on it. Without this, climbing falls through to document.body and
+            // the click below lands on body's full-page rect (its centre) —
+            // silently clicking whatever is there (e.g. the 3D canvas) instead
+            // of the intended summary row.
+            tag === 'summary' ||
             el.getAttribute('role') === 'button' ||
             el.getAttribute('tabindex') != null
           if (clickable) break
           el = el.parentElement
         }
-        if (!el) continue
+        // Climbing to document.body without finding a clickable ancestor means
+        // this text match isn't inside anything interactive — using body's
+        // full-page rect would click whatever happens to be at its centre
+        // (previously mis-clicked the 3D canvas for a <summary> match, before
+        // 'summary' was added above). Skip rather than silently mis-click.
+        if (!el || el === document.body) continue
         // Check visibility
         const style = window.getComputedStyle(el)
         if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {

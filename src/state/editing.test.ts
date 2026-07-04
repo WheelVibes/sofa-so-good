@@ -20,6 +20,17 @@ describe('canEditScene', () => {
   it('is false in walk mode, even inside the room editor', () => {
     expect(canEditScene(scene(true, 'firstPerson'))).toBe(false)
   })
+
+  it('PLAN-FURNISH regression: stays false while the 2D plan editor is open', () => {
+    // The 2D plan editor (`floorPlanEditing`) is a separate editing surface
+    // that does NOT run through `canEditScene` — PLAN-FURNISH (click-to-place
+    // furniture in the plan) must not relax this gate or reactivate the
+    // canvas-bound 3D placement stack (`scene/PlacementGhost.tsx` / `ui/
+    // catalog/usePlacementController.ts`) behind the plan overlay. Since
+    // `canEditScene`'s signature doesn't even accept `floorPlanEditing`, this
+    // pins the invariant so a future refactor can't quietly widen it.
+    expect(canEditScene(scene(false, 'orbit'))).toBe(false)
+  })
 })
 
 describe('isWalkMode', () => {

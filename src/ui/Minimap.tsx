@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useFeature } from '../features/useFeature'
 import { roomLabelPoint } from '../floorplan/roomCentroid'
 import { pointInRoom, wallLength } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { cameraForwardXZ, cameraPosXZ } from '../scene/cameras/cameraForward'
+import { WALK_PLAYER_RADIUS } from '../scene/cameras/walkCameraSettings'
+import { requestWalkTeleport } from '../scene/cameras/walkTeleport'
 import { useStore } from '../state/store'
 import { openingSegments, planContentBounds, roomPathD } from './walk/minimapGeometry'
+import {
+  minimapPointToWorld,
+  resolveMinimapTeleport,
+  svgSquareViewBoxPoint,
+} from './walk/minimapTeleport'
 
 const SIZE = 168
 const PAD = 0.4
@@ -98,11 +106,38 @@ export function Minimap() {
   // Re-render dots when the layout changes (force is a no-op dependency hook).
   useEffect(() => force((n) => n + 1), [])
 
+  // Minimap tap-to-teleport (MINIMAP-JUMP): a click/tap converts the pointer's
+  // client coords to world XZ (inverting the SAME toX/toY transform this
+  // component draws with, accounting for the `.minimap` box's letterboxed
+  // non-square aspect against the square viewBox — see
+  // `svgSquareViewBoxPoint`), clamps it inside the tapped (or nearest) room
+  // clear of its walls by the walker's own collision radius, and hands the
+  // landing spot + facing to `FirstPersonCamera` via the `walkTeleport`
+  // module signal (it owns the live camera + furniture blockers; this
+  // component only resolves WHERE to go).
+  const teleportEnabled = useFeature('minimapTeleport')
+  const handleTap = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!teleportEnabled) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const [svgX, svgY] = svgSquareViewBoxPoint(e.clientX, e.clientY, rect, SIZE)
+    const [wx, wz] = minimapPointToWorld(svgX, svgY, b, scale, offX, offY, PAD)
+    const target = resolveMinimapTeleport(plan, wx, wz, WALK_PLAYER_RADIUS)
+    if (target) requestWalkTeleport(target.x, target.z, target.yaw)
+  }
+
   if (cameraMode !== 'firstPerson') return null
 
   return (
     <div className="minimap">
-      <svg width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`}>
+      <svg
+        width="100%"
+        height="100%"
+        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        className={teleportEnabled ? 'mm-tap' : undefined}
+        onClick={handleTap}
+        aria-label={teleportEnabled ? 'Walk-mode minimap. Tap a spot to move there.' : undefined}
+        role={teleportEnabled ? 'img' : undefined}
+      >
         {/* Rooms — world-metre paths placed by the shared world→svg transform so
             L-shaped / polygon rooms render (and highlight) accurately. */}
         <g transform={`translate(${offRoomX} ${offRoomY}) scale(${scale})`}>

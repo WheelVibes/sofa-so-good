@@ -11,7 +11,7 @@ export function CachePane() {
       <span>Cache: {fmt(bytes)}</span>
       <button
         onClick={() => void clear()}
-        className="rounded bg-[var(--surface-3)] px-2 py-0.5 hover:bg-[var(--surface-3)]"
+        className="rounded bg-[var(--surface-2)] px-2 py-0.5 hover:bg-[var(--surface-3)]"
       >
         Clear
       </button>

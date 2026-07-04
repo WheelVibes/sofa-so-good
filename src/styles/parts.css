@@ -59,6 +59,10 @@
   width: 64px; height: 28px; padding: 0 6px; flex: none;
 }
 .cat-sort-clear { width: 24px; height: 24px; flex: none; }
+/* CATALOG-FITS "Fits only" browse toggle — shares the .cat-sort row's
+   right-aligned, muted-caption treatment as the Max $ filter above it. */
+.cat-fits-only { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.cat-fits-only input { accent-color: var(--accent); cursor: pointer; }
 /* Catalog flex column: only the card grid scrolls — header chrome (search, rail,
    sort, pager, footer) keeps its natural height so category chips don't squash
    when a category has many rows. */
@@ -169,6 +173,19 @@
 .cat-card .nm > span { min-width: 0; }
 .cat-card .pr { font-size: var(--t-2xs); color: var(--text-3); }
 .cat-card .pr b { color: var(--accent-soft-text); font-weight: 700; }
+/* Heavy-download flag (RemoteCard, ≥30 MB at the chosen resolution) — same warn
+   tone as `.badge.warn`/`.lyr-flag.warn`. The class was already applied in
+   RemoteCard.tsx but had no matching rule here, so the warning was silently
+   inert (plain `.pr` grey, no cue that the download is large). */
+.cat-card .pr.warn { color: oklch(0.62 0.14 70); font-weight: 700; }
+[data-mode='dark'] .cat-card .pr.warn { color: oklch(0.75 0.13 72); }
+/* CATALOG-FITS: an item whose footprint can't reasonably fit the room being
+   edited dims the whole card (subtle — thumbnail + name stay legible so the
+   user can still identify/choose it) on top of the `.pr.warn` "Won't fit" text
+   above. Hover/focus lift back toward full opacity so it never feels inert. */
+.cat-card.no-fit { opacity: 0.55; }
+.cat-card.no-fit:hover,
+.cat-card.no-fit:focus-visible { opacity: 0.85; }
 
 .pager { display: flex; align-items: center; justify-content: space-between; padding: var(--s-2) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-xs); color: var(--text-3); font-weight: 600; }
 .pager button { padding: 4px 8px; border-radius: var(--r-2); color: var(--text-2); }
@@ -176,6 +193,13 @@
 .cat-foot { display: flex; align-items: center; justify-content: flex-end; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); }
 .cat-foot .hint { font-size: var(--t-2xs); color: var(--text-3); line-height: 1.4; min-width: 0; }
 .cat-foot .btn { flex: none; }
+/* Packs tab: sidecar-not-detected notice. Same warn tone as `.badge.warn`
+   (features.css) so a "you need to do X" note reads consistently wherever it
+   shows up — was a raw Tailwind `bg-amber-50`/`text-amber-800` pair, which is
+   the literal hardcoded-colour the token vocabulary rule bans (fixed shade,
+   invisible/illegible against a dark-theme surface). */
+.pack-notice { background: oklch(0.75 0.13 75 / 0.18); color: oklch(0.52 0.13 65); border-radius: var(--r-2); padding: var(--s-2) var(--s-3); font-size: var(--t-xs); line-height: var(--lh-body); }
+[data-mode='dark'] .pack-notice { color: oklch(0.82 0.12 78); }
 
 /* ---- Inspector (right) --------------------------------------- */
 .inspector { right: var(--s-4); top: var(--s-4); width: var(--panel-w); max-height: calc(100vh - 32px); }
@@ -184,9 +208,19 @@
 /* Minimized: just the header bar, so it stops blocking the furniture. */
 .inspector.minimized { max-height: none; }
 .inspector.minimized .panel-head { padding-bottom: var(--s-3); }
-.inspector .panel-head > div:first-child { min-width: 0; flex: 1; display: flex; gap: 10px; }
-.inspector .panel-head > div:first-child > div:last-child { min-width: 0; }
-.inspector .panel-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The icon-thumb + title/sub row layout below is specific to the single-item
+   InspectorPanel header (icon square on the left, text stack on the right) —
+   scoped via `:has(.insp-thumb)` so it doesn't also match MultiSelectPanel's
+   and WallAccentPicker's plain title+sub header, which share the `.inspector`
+   class for panel positioning/sizing but keep a normal title-over-sub stack.
+   Before this scoping, the unqualified selector turned that stack into a flex
+   ROW (`display:flex; gap:10px`), pushing the title and sub onto one line and
+   — combined with the ellipsis rule below — visibly truncating a short title
+   like "3 items selected" to "3 items sele…" while the sub-line wrapped to a
+   second line (found in the inspector cohesion audit, 2026-07-03). */
+.inspector .panel-head:has(.insp-thumb) > div:first-child { min-width: 0; flex: 1; display: flex; gap: 10px; }
+.inspector .panel-head:has(.insp-thumb) > div:first-child > div:last-child { min-width: 0; }
+.inspector .panel-head:has(.insp-thumb) .panel-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inspector .panel-sub { margin-top: 3px; }
 .insp-thumb {
   width: 40px; height: 40px; border-radius: var(--r-2); flex: none;
@@ -194,6 +228,13 @@
   display: grid; place-items: center; color: var(--text-3);
 }
 .dims { font-size: var(--t-2xs); color: var(--text-3); margin-top: 2px; }
+/* IKEA product-info "low-confidence category" caption (IkeaBody.tsx) — same warn
+   tone as `.badge.warn`/`.pr.warn`/`.pack-notice` so a "you should check this"
+   note reads consistently wherever it shows up. Was a raw Tailwind
+   `text-amber-600` literal, the hardcoded-colour the token vocabulary rule
+   bans (fixed shade, doesn't adapt across the 5 themes or dark mode). */
+.insp-warn-text { color: oklch(0.62 0.14 70); }
+[data-mode='dark'] .insp-warn-text { color: oklch(0.75 0.13 72); }
 
 /* ---- Custom Select (themed replacement for native <select>) ------------- */
 .select-trigger {
@@ -375,6 +416,7 @@
   -webkit-backdrop-filter: blur(var(--blur)); position: relative;
 }
 .minimap svg { width: 100%; height: 100%; }
+.minimap svg.mm-tap { cursor: pointer; }
 .mm-room { fill: var(--surface-2); stroke: var(--border-2); stroke-width: 1.5; }
 .mm-room.lit { fill: var(--accent-soft); stroke: var(--accent); }
 .mm-label { fill: var(--text); font-size: 6px; font-weight: 800; font-family: var(--font-ui); text-transform: uppercase; letter-spacing: 0.02em; paint-order: stroke; stroke: var(--surface); stroke-width: 1.6px; stroke-linejoin: round; }
@@ -423,11 +465,11 @@
    were ignored, collapsing every swatch to a thin strip. Square thumbnails. */
 .swatch-lg { display: block; width: 100%; aspect-ratio: 1/1; border-radius: var(--r-2); border: 1px solid var(--border-2); cursor: pointer; position: relative; overflow: hidden; }
 .finish-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3); }
-.finish-grid .name { font-size: var(--t-2xs); font-weight: 600; color: var(--text-2); margin-top: 4px; }
+.finish-grid .name { font-size: var(--t-2xs); font-weight: 600; color: var(--text-2); margin-top: var(--s-1); }
 .finish-cell.on .swatch-lg { box-shadow: 0 0 0 2px var(--surface-solid), 0 0 0 4px var(--accent); }
 .finish-apply-all {
-  display: block; width: 100%; margin: 4px 0 var(--s-3);
-  padding: 6px 8px; border-radius: var(--r-2);
+  display: block; width: 100%; margin: var(--s-1) 0 var(--s-3);
+  padding: var(--s-2) var(--s-3); border-radius: var(--r-2);
   font-size: var(--t-2xs); font-weight: 600; color: var(--text-2);
   background: var(--surface-2); border: 1px solid var(--border);
   transition: var(--dur) var(--ease);
@@ -461,8 +503,17 @@
    consistent with the array inputs/labels (not the inherited base size). */
 .act-array > span,
 .act-array > div:first-child > span { font-size: var(--t-xs); font-weight: 600; color: var(--text-2); }
+/* `width: 100%` (not a fixed px) so each input fills its `.fld` grid cell —
+   a fixed 48px was too narrow for the 3-4 char values these fields actually
+   hold (the radial array's default Sweep "360°", Start angle down to "-360",
+   Linear array gap values like "1.19"), clipping the trailing character
+   (found in the inspector cohesion audit, 2026-07-03: "360" rendered as a
+   clipped "36" + a sliver, misreading as "36C"). The array sections always
+   wrap their inputs in a `.fld` grid cell (see PathArraySection/
+   ScatterFillSection/InspectorPanel's linear+radial array UI), so 100% has
+   real room to fill rather than colliding with a sibling. */
 .act-array input {
-  width: 48px; padding: 3px 6px; border-radius: var(--r-2);
+  width: 100%; padding: 3px 6px; border-radius: var(--r-2);
   border: 1px solid var(--border); background: var(--surface-solid); color: var(--text);
   font-size: var(--t-xs); text-align: center;
 }
@@ -486,7 +537,7 @@
 
 /* Curated one-tap furniture finishes (under the wood/surface dropdown) */
 .quick-finish { margin-top: var(--s-2); }
-.quick-finish-h { display: block; font-size: var(--t-2xs); font-weight: 600; color: var(--text-3); margin-bottom: 4px; }
+.quick-finish-h { display: block; font-size: var(--t-2xs); font-weight: 600; color: var(--text-3); margin-bottom: var(--s-1); }
 .quick-finish-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .quick-finish-row .swatch { width: 30px; height: 30px; }
 

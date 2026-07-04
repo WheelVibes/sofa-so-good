@@ -6,21 +6,79 @@ import {
   type Texture,
 } from 'three'
 import { applyAnisotropy } from './anisotropy'
+import { LruCache } from './materialLru'
 import {
   effectivePatternSize,
   generateProcedural,
   getPlasterNormal,
   getPlasterRoughness,
   getProceduralBaseSize,
+  PROCEDURAL_QUICK_PREVIEW_SIZE,
 } from './procedural/generators'
-import { proceduralWorkerKey, requestProceduralWorker } from './procedural/runProceduralWorker'
+import {
+  isProceduralWorkerAvailable,
+  proceduralWorkerKey,
+  requestProceduralWorker,
+} from './procedural/runProceduralWorker'
 import { notifyProceduralSwap } from './proceduralSwapSignal'
 import type { MaterialDef, ProceduralPattern } from './types'
 
-/** Module-level material cache keyed by MaterialId. Each cached
- *  MeshStandardMaterial is reused across every mesh that applies the
- *  same finish so the GPU uploads textures once. */
-const CACHE = new Map<string, MeshStandardMaterial>()
+// Textures a single cached material owns EXCLUSIVELY — the per-material
+// CanvasTextures baked by the procedural branch (sync fallback bake AND the
+// worker-upgraded swap) — vs. textures it merely references:
+//   - the shared plaster normal/roughness singletons (`getPlasterNormal`/
+//     `getPlasterRoughness`) that every tinted wall reuses;
+//   - `textured`-branch maps, which come from drei's `useTexture` (a
+//     `useLoader` cache keyed by URL) — a `tint:<baseId>:#hex` of a DLC
+//     material loads the SAME texture list as its base, so the returned
+//     `Texture` *instances* are shared across every tint variant of that base.
+// Disposing a shared/loader-cached texture would corrupt every other live
+// material referencing it, so eviction must only free OWNED textures (mirrors
+// `furnitureMaterials.ts`'s `OWNED_TEXTURES`/`own`/AUD-002 pattern).
+const OWNED_TEXTURES = new WeakSet<Texture>()
+
+/** Tag a freshly-created, exclusively-owned texture so it's safe to dispose
+ *  on cache eviction. Returns the texture for inline use. */
+function own<T extends Texture>(tex: T): T {
+  OWNED_TEXTURES.add(tex)
+  return tex
+}
+
+/** Dispose an evicted cached material plus the textures it OWNS exclusively —
+ *  never the shared plaster singletons or loader-cached `textured` maps.
+ *  Called one frame after eviction by the LRU (see `materialLru.ts`), so any
+ *  still-mounted mesh has unmounted first. */
+function disposeOwnedMaterial(m: MeshStandardMaterial): void {
+  for (const tex of [m.map, m.normalMap, m.roughnessMap, m.aoMap]) {
+    if (tex && OWNED_TEXTURES.has(tex)) tex.dispose()
+  }
+  m.dispose()
+}
+
+// PERF-A — bounded LRU + dispose-on-evict (was an unbounded `Map`, leaking a
+// material + up to 3 GPU textures per distinct finish value — every colour/
+// scale scrub on a wall/floor/ceiling ratcheted VRAM toward context loss).
+// This cache also backs furniture DLC (`mat:<id>`) finishes — scoped under a
+// `furn:` prefix by `furnitureMaterials.ts:furnitureMaterialCacheId` — on top
+// of every wall/floor/ceiling finish, so the bound mirrors the furniture
+// material cache's own `MATERIAL_CACHE_MAX` (256): far above any realistic
+// count of *simultaneously on-screen* distinct materials across both surfaces
+// and furniture DLC finishes combined. Reads happen inline during React
+// render (`getCachedMaterial`/`getBuiltMaterial` in a mesh's render path), so
+// a mounted mesh keeps its material's recency fresh every frame — an evicted
+// (least-recently-used) entry is almost certainly orphaned, and the LRU
+// defers the actual GPU disposal one frame so any still-mounted instance has
+// unmounted first (see `materialLru.ts`).
+const MATERIAL_CACHE_MAX = 256
+const CACHE = new LruCache<MeshStandardMaterial>({
+  max: MATERIAL_CACHE_MAX,
+  dispose: disposeOwnedMaterial,
+})
+
+/** Test-only: current entry count of the wall/floor/ceiling material cache. */
+export function __getSurfaceMaterialCacheSizeForTest(): number {
+  return CACHE.size
+}
 
 /** Returns the cached material for a MaterialId, or undefined. */
 export function getCachedMaterial(id: string): MeshStandardMaterial | undefined {
@@ -62,13 +120,22 @@ function imageBitmapToTexture(
   applyAnisotropy(tex)
   tex.repeat.set(1 / uvScale[0], 1 / uvScale[1])
   tex.needsUpdate = true
-  return tex
+  // Always a fresh per-call canvas texture — exclusively owned by whichever
+  // material it gets assigned to, safe to dispose on cache eviction.
+  return own(tex)
 }
 
 /**
  * Request off-thread generation of a procedural texture set and hot-swap the
- * material's maps when the worker resolves. If the worker is unavailable or
- * errors, the sync fallback textures already in place are kept.
+ * material's maps when the worker resolves.
+ *
+ * `quickPreview` (PERF-C) marks that the material currently holds the cheap
+ * `PROCEDURAL_QUICK_PREVIEW_SIZE` synchronous placeholder (not a full-quality
+ * fallback) — if the worker is unavailable/errors/breaks mid-flight, this
+ * function falls back to baking the real size synchronously right here so the
+ * material never gets stuck at preview quality. When `quickPreview` is false
+ * (the pre-PERF-C shape: the sync bake was already full quality), a failed
+ * worker call is a true no-op — the existing correct textures are kept.
  *
  * After swapping, `notifyProceduralSwap()` fires the global signal so the
  * scene (demand-mode canvas) renders a fresh frame to show the new textures.
@@ -82,9 +149,34 @@ async function scheduleWorkerUpgrade(
   size: number,
   uvScale: [number, number],
   _key: string,
+  quickPreview: boolean,
 ): Promise<void> {
   const result = await requestProceduralWorker(matId, pattern, swatch, size)
-  if (!result) return // worker unavailable / errored — keep sync fallback
+  if (!result) {
+    if (!quickPreview) return // pre-existing sync texture is already full quality
+    // Worker unavailable/broken after we already committed to the cheap
+    // placeholder — bake the real quality synchronously now so the material
+    // doesn't stay stuck at preview resolution. Rare path (worker failure),
+    // so the one-off synchronous cost here is an acceptable correctness net.
+    try {
+      const maps = generateProcedural(matId, pattern, swatch)
+      mat.map?.dispose()
+      mat.normalMap?.dispose()
+      mat.roughnessMap?.dispose()
+      for (const t of [maps.albedo, maps.normal, maps.roughness]) {
+        t.repeat.set(1 / uvScale[0], 1 / uvScale[1])
+      }
+      mat.map = maps.albedo
+      mat.normalMap = maps.normal
+      mat.roughnessMap = maps.roughness
+      mat.metalness = maps.metalness
+      mat.needsUpdate = true
+      notifyProceduralSwap()
+    } catch {
+      // Give up — the quick placeholder remains rather than crashing.
+    }
+    return
+  }
 
   // Materialise all three textures. If anything throws the existing sync
   // textures are untouched.
@@ -157,11 +249,29 @@ export function buildMaterial(
   }
   if (def.kind === 'procedural') {
     const size = effectivePatternSize(def.pattern)
-    const maps = generateProcedural(def.id, def.pattern, def.swatch)
+    // PERF-C — the full-size bake (256²-512²: pattern fields + height→normal +
+    // roughness, one canvas draw each) is expensive enough to hitch a frame
+    // when it runs synchronously on apply/scrub. When the off-thread worker is
+    // available it will deliver the real quality texture moments later (see
+    // below), so the synchronous placeholder only needs to look right for that
+    // brief window — bake it at `PROCEDURAL_QUICK_PREVIEW_SIZE` instead
+    // (~64x-256x fewer pixels), keeping the main thread free. Only skip the
+    // cheap path when there's no worker to follow up: then the placeholder
+    // IS the final texture, so it must be full quality (byte-identical to the
+    // pre-PERF-C behaviour).
+    const workerAvailable = isProceduralWorkerAvailable()
+    const maps = generateProcedural(
+      def.id,
+      def.pattern,
+      def.swatch,
+      workerAvailable ? PROCEDURAL_QUICK_PREVIEW_SIZE : undefined,
+    )
     m.color.set('#ffffff') // tint baked into albedo
-    m.map = maps.albedo
-    m.normalMap = maps.normal
-    m.roughnessMap = maps.roughness
+    // Fresh per-material canvas textures (unique per id:pattern:swatch hash,
+    // no internal sharing) — owned, so eviction frees them.
+    m.map = own(maps.albedo)
+    m.normalMap = own(maps.normal)
+    m.roughnessMap = own(maps.roughness)
     m.metalness = maps.metalness
     for (const t of [maps.albedo, maps.normal, maps.roughness]) {
       t.repeat.set(1 / def.uvScale[0], 1 / def.uvScale[1])
@@ -169,12 +279,23 @@ export function buildMaterial(
     if (roughOverride != null) m.roughness = roughOverride
     CACHE.set(cacheKey, m)
 
-    // Request higher-quality generation off the main thread. The sync
-    // textures above provide an immediate fallback; when the worker
-    // finishes we hot-swap the maps and kick a frame via the swap signal.
-    // Key matches `proceduralWorkerKey` so in-flight requests coalesce.
-    const workerKey = proceduralWorkerKey(def.id, def.pattern, def.swatch, size)
-    void scheduleWorkerUpgrade(m, def.id, def.pattern, def.swatch, size, def.uvScale, workerKey)
+    if (workerAvailable) {
+      // Request the real quality generation off the main thread. The quick
+      // placeholder above is already showing; when the worker finishes we
+      // hot-swap the maps and kick a frame via the swap signal. Key matches
+      // `proceduralWorkerKey` so in-flight requests coalesce.
+      const workerKey = proceduralWorkerKey(def.id, def.pattern, def.swatch, size)
+      void scheduleWorkerUpgrade(
+        m,
+        def.id,
+        def.pattern,
+        def.swatch,
+        size,
+        def.uvScale,
+        workerKey,
+        /* quickPreview */ true,
+      )
+    }
 
     return m
   }
@@ -185,10 +306,18 @@ export function buildMaterial(
     if (textures.ao) m.aoMap = textures.ao
     // Apply UV repeat so the picker thumbnail and the rendered surface
     // tile at the metres-per-tile rate declared in the def.
+    // REAL-1 — also apply the same anisotropic filtering the procedural path
+    // gets (`imageBitmapToTexture` above / `generators.ts`), or these DLC/
+    // uploaded photo textures render blurry at grazing angles while every
+    // procedural fallback stays sharp. NOT owned: these come from drei's
+    // `useTexture` (URL-keyed `useLoader` cache) and may be the SAME `Texture`
+    // instance a sibling `tint:<baseId>:#hex` variant of this material also
+    // references — never dispose them on cache eviction.
     for (const t of [textures.albedo, textures.normal, textures.roughness, textures.ao]) {
       if (!t) continue
       t.wrapS = t.wrapT = 1000 // RepeatWrapping
       t.repeat.set(1 / def.uvScale[0], 1 / def.uvScale[1])
+      applyAnisotropy(t)
     }
   }
   if (roughOverride != null) m.roughness = roughOverride
@@ -197,14 +326,12 @@ export function buildMaterial(
 }
 
 /** Drops the cached material for a MaterialId — used when a user
- *  material is deleted so its GPU resources are reclaimed. */
+ *  material is deleted so its GPU resources are reclaimed. Removes it from
+ *  the LRU immediately (no deferred frame — the caller is explicitly deleting
+ *  it, not the size-based eviction path) and disposes only the textures it
+ *  owns exclusively, same contract as an LRU-evicted entry. */
 export function disposeCachedMaterial(id: string): void {
-  const m = CACHE.get(id)
+  const m = CACHE.delete(id)
   if (!m) return
-  m.dispose()
-  if (m.map) m.map.dispose()
-  if (m.normalMap) m.normalMap.dispose()
-  if (m.roughnessMap) m.roughnessMap.dispose()
-  if (m.aoMap) m.aoMap.dispose()
-  CACHE.delete(id)
+  disposeOwnedMaterial(m)
 }

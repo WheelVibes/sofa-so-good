@@ -1,23 +1,34 @@
-import { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { roomKindFromName } from '../../analysis/suggestions'
 import { hasBackend } from '../../features/api/client'
 import { isAdminUser } from '../../features/auth/types'
 import { useFeature } from '../../features/useFeature'
 import { FURNITURE_CATEGORIES } from '../../furniture/types'
+import { roomDisplayName } from '../../state/rooms'
 import { useStore } from '../../state/store'
 import { lazyWithRetry } from '../app/lazyWithRetry'
 import { Button } from '../controls/Button'
 import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 import { useAmbientFx } from '../useAmbientFx'
+import { useIsMobile } from '../useIsMobile'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
-import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalogBrowse'
+import {
+  filterByFits,
+  filterByMaxPrice,
+  SORT_LABEL,
+  type SortKey,
+  sortCards,
+} from './catalogBrowse'
 import { LayersPanel } from './LayersPanel'
 import { RemoteCard } from './RemoteCard'
 import { clearRecent, loadRecent, pushRecent } from './recentSearches'
+import { defaultCategoryForRoomKind, relevantCategoriesForRoomKind } from './roomAwareCategories'
 import { SharedCard } from './SharedCard'
 import { StampBanner } from './StampBanner'
 import { fuzzySearchSmart, matchedIntents } from './searchSynonyms'
+import { useActiveRoomFreeRects } from './useCatalogRoomFit'
 
 // Lazy-loaded: the packs tab (pack install pipeline + unzip + thumbnail
 // renderer) and the model upload dialog (format converters + optimize pass)
@@ -71,6 +82,18 @@ export function CatalogDrawer() {
   const open = useStore((s) => s.catalogOpen)
   const cameraMode = useStore((s) => s.cameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
+  const roomEditorRoomId = useStore((s) => s.roomEditor.roomId)
+  const floorPlan = useStore((s) => s.floorPlan)
+  // PLAN-FURNISH Phase 1: the catalog also surfaces inside the 2D floor-plan
+  // editor (desktop only — Phase 1 is desktop click-to-place; mobile stays
+  // hidden here rather than opening a bottom sheet on top of the plan's own
+  // mobile "Tools" sheet), behind the pro-tier `planFurnish` flag. This is the
+  // ONLY new gate — `canEditScene`/`roomEditorActive`'s existing meaning is
+  // untouched; see `state/editing.ts` / the PLAN-FURNISH implementation plan.
+  const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  const fPlanFurnish = useFeature('planFurnish')
+  const isMobile = useIsMobile()
+  const planFurnishActive = floorPlanEditing && fPlanFurnish && !isMobile
   const setOpen = useStore((s) => s.setCatalogOpen)
   const leftMode = useStore((s) => s.leftMode)
   const setLeftMode = useStore((s) => s.setLeftMode)
@@ -107,6 +130,16 @@ export function CatalogDrawer() {
   const bootstrapShared = useStore((s) => s.bootstrapSharedLibrary)
   // Price displays/filters are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
+  // "Fits this room" size cue (CATALOG-FITS) — free-space rects of the room
+  // being edited (null when no room is active), the passive per-card badge
+  // flag, and the pro-tier "Fits only" browse filter built on top of it.
+  const roomFreeRects = useActiveRoomFreeRects()
+  const fFits = useFeature('catalogFits')
+  const fFitsFilter = useFeature('catalogFitsFilter')
+  // Room-aware default landing category (CATALOG-ROOMAWARE) — see the effect
+  // below that applies it on room ENTRY only.
+  const fRoomAware = useFeature('catalogRoomAware')
+  const [fitsOnly, setFitsOnly] = useState(false)
   const ambientFx = useAmbientFx()
   const unified = useUnifiedCatalog(fRemoteFurniture, sharedOn)
   // The real category to land on from a "Browse furniture" CTA (favourites/
@@ -188,6 +221,36 @@ export function CatalogDrawer() {
     }
   }, [active, sortBy])
 
+  // CATALOG-ROOMAWARE: on ENTERING a room to edit, land the catalog on the
+  // category most relevant to that room's kind (bedroom→beds, kitchen→
+  // appliances, ...) instead of always the same curated/persisted default.
+  // Keyed on the room id (not just "a room is active") so switching rooms
+  // re-applies the pick — but only on that transition: once landed, a manual
+  // tab pick during the same room-editing session is never overridden (the
+  // effect body is a no-op unless the room-id key itself changed). An
+  // unmapped/unknown room kind (`relevantCategoriesForRoomKind` empty) or the
+  // whole-flat view (no room active) intentionally leaves `active` untouched
+  // — today's persisted-default behaviour, unchanged.
+  const roomEntryKeyRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!fRoomAware) return
+    const key = roomEditorActive && roomEditorRoomId ? roomEditorRoomId : null
+    if (key === roomEntryKeyRef.current) return
+    roomEntryKeyRef.current = key
+    if (!key) return
+    const kind = roomKindFromName(roomDisplayName(key, floorPlan))
+    if (relevantCategoriesForRoomKind(kind).length === 0) return
+    setActive(defaultCategoryForRoomKind(kind, unified.counts, firstBrowsableCategory))
+    setPage(0)
+  }, [
+    fRoomAware,
+    roomEditorActive,
+    roomEditorRoomId,
+    floorPlan,
+    unified.counts,
+    firstBrowsableCategory,
+  ])
+
   // Reset to page 1 when the visible list changes; the render also clamps.
   const selectCategory = (c: CatalogCategory) => {
     setActive(c)
@@ -198,15 +261,22 @@ export function CatalogDrawer() {
     setPage(0)
   }
 
-  // Placing/customising furniture is editing, so the catalog only shows inside
-  // the per-room editor (orbit). Orbit-over-the-flat and walk are view-only.
-  if (!open || cameraMode !== 'orbit' || !roomEditorActive) return null
+  // Placing/customising furniture is editing, so the catalog shows inside the
+  // per-room editor (orbit) — and, behind `planFurnishActive` above, inside
+  // the 2D floor-plan editor too. Orbit-over-the-flat and walk otherwise stay
+  // view-only with no catalog.
+  if (!open || cameraMode !== 'orbit' || !(roomEditorActive || planFurnishActive)) return null
   // `q` reflects the deferred query (matches the ranked results shown below); the
   // search input itself still binds to the live `query` so typing feels instant.
   const q = dq
-  // Optional max-price filter — browse-only (its control lives in the browse
-  // sort row), so a stale cap can never silently filter search results.
-  const allCards = q ? baseCards : filterByMaxPrice(baseCards, maxPrice)
+  // Optional max-price + "fits only" filters — browse-only (their controls
+  // live in the browse sort row), so a stale cap/toggle can never silently
+  // filter search results.
+  const fitsOnlyActive = fFitsFilter && fitsOnly
+  const priceFiltered = q ? baseCards : filterByMaxPrice(baseCards, maxPrice)
+  const allCards = q
+    ? baseCards
+    : filterByFits(priceFiltered, fitsOnlyActive ? roomFreeRects : null)
 
   // Paginate so a big category/search doesn't render hundreds of cards at once.
   const pageCount = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE))
@@ -236,6 +306,7 @@ export function CatalogDrawer() {
           def={it.def}
           staggerIndex={staggerIndex}
           onDelete={() => removeUserFurniture(it.def.id)}
+          roomRects={fFits ? roomFreeRects : null}
         />
       )
     if (it.kind === 'remote')
@@ -290,7 +361,9 @@ export function CatalogDrawer() {
   }
 
   return (
-    <aside className="panel catalog dock-panel-left">
+    <aside
+      className={`panel catalog dock-panel-left${planFurnishActive ? ' catalog-in-plan' : ''}`}
+    >
       <div className="panel-head">
         <div className="panel-title">
           {view === 'layers' ? 'Objects' : view === 'packs' ? 'Packs' : 'Catalog'}
@@ -467,6 +540,22 @@ export function CatalogDrawer() {
               ) : null}
             </div>
           ) : null}
+          {!q && fFitsFilter && roomFreeRects ? (
+            <div className="cat-sort">
+              <label className="cat-fits-only">
+                <input
+                  type="checkbox"
+                  checked={fitsOnly}
+                  aria-label="Show only items that fit this room"
+                  onChange={(e) => {
+                    setFitsOnly(e.target.checked)
+                    setPage(0)
+                  }}
+                />
+                <span>Fits only</span>
+              </label>
+            </div>
+          ) : null}
           {q && cards.length > 0 && matchedIntents(query).length > 0 ? (
             <div className="catalog-search-hint">
               Showing {matchedIntents(query).join(' & ')} furniture
@@ -518,6 +607,20 @@ export function CatalogDrawer() {
                     label: 'Clear max price',
                     onClick: () => {
                       setMaxPrice('')
+                      setPage(0)
+                    },
+                  }}
+                />
+              ) : fitsOnlyActive && priceFiltered.length > 0 ? (
+                <EmptyState
+                  className="catalog-empty"
+                  icon={Icon.Measure}
+                  title="Nothing fits this room"
+                  description="Every item here is flagged too big for the free space. Turn off “Fits only” to see them anyway."
+                  cta={{
+                    label: 'Show everything',
+                    onClick: () => {
+                      setFitsOnly(false)
                       setPage(0)
                     },
                   }}

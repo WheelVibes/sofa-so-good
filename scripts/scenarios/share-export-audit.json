@@ -1,0 +1,89 @@
+{
+  "name": "share-export-audit",
+  "description": "Cohesion/responsiveness audit of the share/export surface (ShareModal, File/Tools export menus, BOQ, panorama) across desktop/mobile, light/dark, Simple/Pro — gaps not covered by share-simple.json/share-header-spacing.json/scene-export-simple.json.",
+  "url": "http://localhost:5301/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "place-a-sofa", "eval": "window.__store.getState().setItems([{id:'aud-sofa',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}}])" },
+    { "name": "wait-item-place", "wait": 500 },
+
+    { "name": "desktop-viewport", "viewport": { "width": 1600, "height": 1000 } },
+
+    { "name": "open-share-simple-light", "store": { "action": "setShareOpen", "args": [true] } },
+    { "name": "share-visible-1", "waitFor": { "css": "#sharePanel" }, "timeout": 10000 },
+    { "name": "shot-share-simple-light-desktop", "screenshot": "01-share-simple-light-desktop" },
+    { "name": "close-share-1", "key": "Escape" },
+    { "name": "share-closed-1", "waitFor": { "css": ".modal-overlay", "visible": false }, "timeout": 5000 },
+
+    { "name": "dark-mode", "store": { "action": "setModePref", "args": ["dark"] } },
+    { "name": "settle-dark", "wait": 300 },
+    { "name": "open-share-simple-dark", "store": { "action": "setShareOpen", "args": [true] } },
+    { "name": "share-visible-2", "waitFor": { "css": "#sharePanel" }, "timeout": 10000 },
+    { "name": "shot-share-simple-dark-desktop", "screenshot": "02-share-simple-dark-desktop" },
+    { "name": "close-share-2", "key": "Escape" },
+    { "name": "share-closed-2", "waitFor": { "css": ".modal-overlay", "visible": false }, "timeout": 5000 },
+
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags-1", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-share-pro-dark", "store": { "action": "setShareOpen", "args": [true] } },
+    { "name": "share-visible-3", "waitFor": { "css": "#sharePanel" }, "timeout": 10000 },
+    {
+      "name": "verify-ai-photoreal-section-in-pro",
+      "waitFor": { "text": "Make photoreal" },
+      "timeout": 5000,
+      "failMessage": "AiPhotorealSection ('Make photoreal') not found in Pro-mode Share modal (aiPhotoreal is pro-tier, default on)"
+    },
+    { "name": "shot-share-pro-dark-desktop", "screenshot": "03-share-pro-dark-desktop-with-ai" },
+    { "name": "close-share-3", "key": "Escape" },
+    { "name": "share-closed-3", "waitFor": { "css": ".modal-overlay", "visible": false }, "timeout": 5000 },
+
+    { "name": "light-mode", "store": { "action": "setModePref", "args": ["light"] } },
+    { "name": "settle-light", "wait": 300 },
+
+    { "name": "open-file-menu", "click": "button[aria-label=\"File\"]" },
+    { "name": "file-menu-open", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "shot-file-menu-pro-light", "screenshot": "04-file-menu-pro-light-desktop" },
+    { "name": "close-file-menu", "key": "Escape" },
+
+    { "name": "force-boq-on", "store": { "action": "setFeatureFlag", "args": ["boq", true] } },
+    { "name": "force-shop-export-on", "store": { "action": "setFeatureFlag", "args": ["shopExport", true] } },
+    { "name": "force-panorama-on", "store": { "action": "setFeatureFlag", "args": ["panorama", true] } },
+    { "name": "force-pano-tour-on", "store": { "action": "setFeatureFlag", "args": ["panoTour", true] } },
+    { "name": "open-tools-menu", "click": "button[aria-label=\"Tools\"]" },
+    { "name": "tools-menu-open", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "verify-boq-text", "waitFor": { "text": "Quote (BOQ)" }, "timeout": 5000, "failMessage": "Quote (BOQ) menu item not found with boq flag forced on" },
+    { "name": "shot-tools-export-section-pro-light", "screenshot": "05-tools-export-section-pro-light-desktop" },
+
+    { "name": "open-boq-from-menu", "click": { "text": "Quote (BOQ)" } },
+    { "name": "settle-boq-window", "wait": 800 },
+    { "name": "shot-after-boq-open", "screenshot": "06-after-boq-open-desktop" },
+
+    { "name": "close-any-menu", "key": "Escape" },
+
+    { "name": "open-panorama-modal", "store": { "action": "setPanoramaOpen", "args": [true] } },
+    { "name": "panorama-modal-visible", "waitFor": { "css": "#panorama" }, "timeout": 10000 },
+    { "name": "settle-panorama-capture", "wait": 1200 },
+    { "name": "shot-panorama-modal-light-desktop", "screenshot": "07-panorama-modal-light-desktop" },
+    { "name": "close-panorama", "store": { "action": "setPanoramaOpen", "args": [false] } },
+
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 400 },
+
+    { "name": "open-share-pro-mobile", "store": { "action": "setShareOpen", "args": [true] } },
+    { "name": "share-visible-4", "waitFor": { "css": "#sharePanel" }, "timeout": 10000 },
+    { "name": "shot-share-pro-light-mobile", "screenshot": "08-share-pro-light-mobile" },
+    { "name": "close-share-4", "key": "Escape" },
+    { "name": "share-closed-4", "waitFor": { "css": ".modal-overlay", "visible": false }, "timeout": 5000 },
+
+    { "name": "open-mobile-menu", "click": "button[aria-label=\"Menu\"]" },
+    { "name": "mobile-sheet-open", "waitFor": { "css": ".m-sheet" }, "timeout": 8000 },
+    { "name": "click-file-rail", "click": "button[aria-label=\"File\"]" },
+    { "name": "settle-file-rail", "wait": 300 },
+    { "name": "shot-mobile-file-section-pro-light", "screenshot": "09-mobile-file-section-pro-light" },
+    { "name": "click-tools-rail", "click": "button[aria-label=\"Tools\"]" },
+    { "name": "settle-tools-rail", "wait": 300 },
+    { "name": "shot-mobile-tools-section-pro-light", "screenshot": "10-mobile-tools-export-section-pro-light" }
+  ]
+}

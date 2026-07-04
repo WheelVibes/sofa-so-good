@@ -12,6 +12,7 @@ import {
   levelById,
   levelOfRoom,
   planLevels,
+  restackLevelElevations,
   withLevelGeometry,
 } from '../../floorplan/levels'
 import { mirrorPlanRegion } from '../../floorplan/mirrorPlanRegion'
@@ -26,6 +27,8 @@ import {
 import { addGuide } from '../../floorplan/snapToGuides'
 import {
   type CeilingConfig,
+  clampOpeningOffset,
+  clampOpeningWidth,
   type FloorPlan,
   type PlanDimension,
   type PlanGuide,
@@ -38,12 +41,14 @@ import {
   type PlanWall,
   planBounds,
   roomPolygon,
+  wallLength,
 } from '../../floorplan/types'
 import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
 import { nextPlanLabelMode } from '../../ui/floorplan/planLabels'
 import type { RootState } from '../store'
 import { pruneFinishesForPlan } from './finishesSlice'
+import { newGroupId } from './groupsSlice'
 import type { SliceCreator } from './types'
 
 /** Selected element in the floor-plan editor (for the inspector panel). */
@@ -937,7 +942,22 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     get().pushHistoryCoalesced(`plan-open-${id}`)
     set((s) => ({
       floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
-        openings: g.openings.map((o) => (o.id === id ? { ...o, ...patch } : o)),
+        openings: g.openings.map((o) => {
+          if (o.id !== id) return o
+          const next = { ...o, ...patch }
+          // Re-clamp width+offset against the host wall whenever either one
+          // changed (BUG-7) — a width increase alone left a stale offset that
+          // could push the opening past the wall's far end; route both the
+          // width-edit and offset-edit paths through the same pure clamp so
+          // neither can leave the opening hanging off the wall.
+          if (patch.width === undefined && patch.offset === undefined) return next
+          const wall = g.walls.find((w) => w.id === o.wallId)
+          if (!wall) return next
+          const wlen = wallLength(wall)
+          const width = clampOpeningWidth(next.width, wlen)
+          const offset = clampOpeningOffset(next.offset, width, wlen)
+          return { ...next, width, offset }
+        }),
       })),
     }))
   },
@@ -957,11 +977,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     if (!src) return undefined
     const wall = g.walls.find((w) => w.id === src.wallId)
     if (!wall) return undefined
-    const wlen = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
+    const wlen = wallLength(wall)
     // Nudge the copy along the wall by ~one width, clamped within the wall span.
-    const maxOff = Math.max(0, wlen - src.width)
     const nudged = src.offset + src.width
-    const offset = nudged <= maxOff ? nudged : Math.max(0, src.offset - src.width)
+    const rawOffset = nudged <= wlen - src.width ? nudged : src.offset - src.width
+    const offset = clampOpeningOffset(rawOffset, src.width, wlen)
     const newId = planId(src.kind === 'door' ? 'door' : 'win')
     const { name: _n, nameAuto: _na, locked: _l, ...rest } = src
     const copy: PlanOpening = { ...rest, id: newId, offset }
@@ -1212,12 +1232,23 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       openings: cloned.openings,
       rooms: cloned.rooms,
     }
-    // Clone the source storey's furniture onto the new level (fresh ids).
-    const newItems = itemsOnLevel(s0.items, sourceId).map((it) => ({
-      ...(JSON.parse(JSON.stringify(it)) as typeof it),
-      id: planId('item'),
-      levelId: newId,
-    }))
+    // Clone the source storey's furniture onto the new level (fresh ids). Also
+    // remap each copy's groupId to a fresh one (per distinct source group) so
+    // the copies stay grouped WITH EACH OTHER but never bridge back to the
+    // source storey's group (BUG-5) — un-grouped items keep no groupId.
+    const groupIdMap: Record<string, string> = {}
+    const newItems = itemsOnLevel(s0.items, sourceId).map((it) => {
+      const clone = JSON.parse(JSON.stringify(it)) as typeof it
+      if (clone.groupId) {
+        groupIdMap[clone.groupId] ??= newGroupId()
+        clone.groupId = groupIdMap[clone.groupId]
+      }
+      return {
+        ...clone,
+        id: planId('item'),
+        levelId: newId,
+      }
+    })
     set((s) => {
       const f = s.finishes
       // Room ids are plan-unique strings; the finish maps are typed by the
@@ -1301,15 +1332,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     set((s) => {
       const arr = [...(s.floorPlan.upperLevels ?? [])]
       ;[arr[idx], arr[swapWith]] = [arr[swapWith], arr[idx]]
-      // Re-stack elevations from the (now reordered) array so each storey sits a
-      // floor-to-floor height above the one below (ground = base, y=0).
-      const slab = 0.3
-      let top = 0
-      const restacked = arr.map((l) => {
-        const elevation = top + (l.ceilingHeight ?? s.floorPlan.ceilingHeight) + slab
-        top = elevation
-        return { ...l, elevation }
-      })
+      // Re-stack elevations from the (now reordered) array so each storey sits
+      // a floor-to-floor height above the one below (ground = base, y=0) —
+      // BUG-6: elevation must key off the level BELOW's ceiling height, never
+      // a level's own (see restackLevelElevations).
+      const restacked = restackLevelElevations(arr, s.floorPlan.ceilingHeight)
       return { floorPlan: { ...s.floorPlan, upperLevels: restacked } }
     })
   },

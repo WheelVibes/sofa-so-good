@@ -27,6 +27,7 @@ import { MarqueeCameraTracker } from './selection/MarqueeSelector'
 import { ResizeGizmo } from './selection/ResizeGizmo'
 import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
+import { TiltGizmo } from './selection/TiltGizmo'
 
 /** Lightweight per-room editor scene. Renders one isolated room with a flat,
  *  Performance-tier look (no sun/IBL/post). Reuses every store-driven
@@ -82,6 +83,7 @@ export function RoomEditorScene() {
       <SelectionOutline />
       <RotateGizmo />
       <ResizeGizmo />
+      <TiltGizmo />
       <HoverHighlight />
       <PlacementGhost />
       <PlacementDropAnimator />

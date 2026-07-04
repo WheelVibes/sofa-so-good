@@ -1,3 +1,4 @@
+import { ellipseFootprintParts } from '../footprintShapes'
 import type { FurnitureDef } from '../types'
 
 /** tables furniture definitions. Part of the built-in catalog (see ../builtinCatalog.ts). */
@@ -11,6 +12,17 @@ export const TABLES_DEFS = {
     category: 'tables',
     primitive: 'DiningTable',
     defaultFootprint: { w: 1.5, d: 0.9, h: 0.74 },
+    // Round/oval tops: approximate the disc/ellipse as a small union of
+    // inscribed OBBs (see footprintShapes.ts) so the bbox corners a round/oval
+    // top never reaches read as open floor. 'rect' keeps the single full box
+    // (empty array → itemFootprintParts falls back to the enclosing OBB).
+    footprintParts: (props) => {
+      const shape = props.shape
+      if (shape !== 'round' && shape !== 'oval') return []
+      const w = typeof props.width === 'number' ? props.width : 1.5
+      const d = typeof props.depth === 'number' ? props.depth : 0.9
+      return ellipseFootprintParts(w, d)
+    },
     paramSchema: [
       {
         kind: 'enum',
@@ -116,6 +128,15 @@ export const TABLES_DEFS = {
     category: 'tables',
     primitive: 'CoffeeTable',
     defaultFootprint: { w: 1.1, d: 0.55, h: 0.42 },
+    // Round/oval tops: same inscribed-OBB-union approximation as the dining
+    // table (see footprintShapes.ts); 'rect' is unchanged (single full box).
+    footprintParts: (props) => {
+      const shape = props.shape
+      if (shape !== 'round' && shape !== 'oval') return []
+      const w = typeof props.width === 'number' ? props.width : 1.1
+      const d = typeof props.depth === 'number' ? props.depth : 0.55
+      return ellipseFootprintParts(w, d)
+    },
     paramSchema: [
       {
         kind: 'number',
@@ -285,6 +306,14 @@ export const TABLES_DEFS = {
     primitive: 'SideTable',
     defaultFootprint: { w: 0.45, d: 0.45, h: 0.5 },
     footprintParams: { w: 'diameter', d: 'diameter' },
+    // 'round' (3-leg) and 'drum' (cylindrical pedestal) are true circles — the
+    // diameter×diameter bbox is already square, so the inscribed-OBB ellipse
+    // union is a proper circle here. 'square' keeps the single full box.
+    footprintParts: (props) => {
+      if (props.shape === 'square') return []
+      const dia = typeof props.diameter === 'number' ? props.diameter : 0.45
+      return ellipseFootprintParts(dia, dia)
+    },
     paramSchema: [
       {
         kind: 'number',

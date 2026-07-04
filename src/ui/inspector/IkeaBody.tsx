@@ -42,7 +42,7 @@ function IkeaProductInfoDetails({ info }: { info: IkeaProductInfo }) {
       </summary>
       <div className="mt-1.5 space-y-1.5">
         {info.categoryConfidence === 'low' ? (
-          <p className="text-[10px] text-amber-600">⚠ Category auto-detected — review.</p>
+          <p className="insp-warn-text text-[10px]">⚠ Category auto-detected — review.</p>
         ) : null}
         {mainImageUrl ? (
           <img
@@ -192,15 +192,21 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
           <div className="mb-1 text-[10px] uppercase tracking-wide text-[var(--text-3)]">
             Finish
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> needs a
+              <legend> and adds default browser border/padding, changing the
+              look of this compact chip row — role="group" + aria-label is
+              the non-visual equivalent. */}
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Finish">
             {def.variants.map((v) => {
               const disabled = v.assetId === null
               const isActive = v.finish === current
               return (
                 <button
                   key={v.finish}
+                  type="button"
                   disabled={disabled}
                   title={disabled ? 'not available' : v.label}
+                  aria-pressed={isActive}
                   onClick={() => !disabled && selectVariant(v)}
                   className={`flex items-center gap-1 rounded border px-1.5 py-1 text-[10px] ${
                     isActive
@@ -210,6 +216,7 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
                 >
                   <span
                     className="h-3 w-3 rounded-sm border border-[var(--border-2)]"
+                    aria-hidden="true"
                     style={{ backgroundColor: v.swatchHex ?? 'var(--surface-3)' }}
                   />
                   {v.label}

@@ -35,7 +35,8 @@ import { windowFixtureAimSegments } from '../../furniture/windowFixtureInteract'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { resetWalkMove, walkInput } from '../walkInput'
-import { clampWalkEyeHeight } from './walkCameraSettings'
+import { clampWalkEyeHeight, WALK_PLAYER_RADIUS } from './walkCameraSettings'
+import { _resetWalkTeleport, consumeWalkTeleport } from './walkTeleport'
 
 const DOOR_SEGMENTS: AimSegment[] = (() => {
   const out: AimSegment[] = []
@@ -90,7 +91,6 @@ const IS_COARSE_POINTER =
   typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
 /** Pitch clamp so you can't roll past straight up/down. */
 const MAX_PITCH = 1.5
-const PLAYER_RADIUS = 0.25
 const INTERACT_RADIUS = 2.0
 const AIM_CHECK_INTERVAL = 0.1
 
@@ -275,6 +275,30 @@ export function FirstPersonCamera() {
     }
   }, [gl])
 
+  // Dev-only: scenario-harness lever to set/read the walk-mode look pitch
+  // directly (IXT-SUITES ceilingDesign rung — "look up to see the ceiling").
+  // Real mouse-look needs OS-level Pointer Lock (unavailable headless) and
+  // touch-look needs a synthetic multi-touch drag stream on a coarse-pointer
+  // profile; both are impractical to drive deterministically from a scenario.
+  // This is the minimal, narrowly-scoped lever: it writes the SAME `pitch` ref
+  // the frame loop already re-asserts the camera orientation from every frame
+  // (see the curtain-interact gotcha in the playbook), so it sticks exactly
+  // like a real look-up would, with no other behaviour change.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const clampPitch = (p: number) => Math.max(-MAX_PITCH, Math.min(MAX_PITCH, p))
+    const lever = {
+      setPitch: (p: number) => {
+        pitch.current = clampPitch(p)
+      },
+      getPitch: () => pitch.current,
+    }
+    ;(window as unknown as { __walkLook?: typeof lever }).__walkLook = lever
+    return () => {
+      delete (window as unknown as { __walkLook?: typeof lever }).__walkLook
+    }
+  }, [])
+
   useEffect(() => {
     if (roomEditorId) {
       // Spawn in the centre of the isolated room, looking toward its far edge
@@ -334,6 +358,7 @@ export function FirstPersonCamera() {
       useStore.getState().setNearbyDoor(null)
       useStore.getState().setNearbyFixture(null)
       resetWalkMove()
+      _resetWalkTeleport()
     }
     // viewLevelId is a dep on purpose: picking a storey in View → Levels while
     // walking teleports the walker onto that storey (ML6c).
@@ -364,6 +389,25 @@ export function FirstPersonCamera() {
   const bobAmp = useRef(0)
 
   useFrame((_, dt) => {
+    // Minimap tap-to-teleport (MINIMAP-JUMP): a pending request is a world XZ
+    // already clamped clear of walls by the minimap's own room-polygon logic
+    // (`ui/walk/minimapTeleport.ts`) — this only needs to relocate the camera
+    // + face the target room, and nudge off any furniture footprint exactly
+    // like a normal step would (`resolveCircleVsObbs`, not a path sweep: a
+    // teleport has no "path" to sweep, unlike `resolveMovement` below). Read
+    // before the quaternion is set from yaw/pitch so the new facing applies
+    // this same frame.
+    const teleport = consumeWalkTeleport()
+    if (teleport) {
+      let landing: [number, number] = [teleport.x, teleport.z]
+      if (blockers.current.length > 0) {
+        landing = resolveCircleVsObbs(landing[0], landing[1], WALK_PLAYER_RADIUS, blockers.current)
+      }
+      camera.position.x = landing[0]
+      camera.position.z = landing[1]
+      yaw.current = teleport.yaw
+      pitch.current = 0
+    }
     // Apply the drag-to-look orientation, then derive movement from where the
     // camera now points (so strafing/forward track the current heading).
     camera.quaternion.setFromEuler(lookEuler.current.set(pitch.current, yaw.current, 0, 'YXZ'))
@@ -428,12 +472,17 @@ export function FirstPersonCamera() {
       dz = (dz / len) * speed * stepDt
       const from: [number, number] = [camera.position.x, camera.position.z]
       const to: [number, number] = [from[0] + dx, from[1] + dz]
-      let next = resolveMovement(from, to, PLAYER_RADIUS, collisionWalls.current)
+      let next = resolveMovement(from, to, WALK_PLAYER_RADIUS, collisionWalls.current)
       // Block walking through furniture: push out of any footprint, then
       // re-resolve walls so a piece can't shove the walker through a wall.
       if (blockers.current.length > 0) {
-        const pushed = resolveCircleVsObbs(next[0], next[1], PLAYER_RADIUS, blockers.current)
-        next = resolveMovement([next[0], next[1]], pushed, PLAYER_RADIUS, collisionWalls.current)
+        const pushed = resolveCircleVsObbs(next[0], next[1], WALK_PLAYER_RADIUS, blockers.current)
+        next = resolveMovement(
+          [next[0], next[1]],
+          pushed,
+          WALK_PLAYER_RADIUS,
+          collisionWalls.current,
+        )
       }
       camera.position.x = next[0]
       camera.position.z = next[1]

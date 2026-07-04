@@ -2,12 +2,43 @@
 
 Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 
+- **CPU-heavy upload-pipeline steps run in a pooled Worker, never the main thread.** Two
+  instances today: `optimize/runOptimize.ts` (Draco/WebP re-encode — its own from-scratch pool,
+  don't refactor it) and `convert/runConvert.ts` (OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/gltf → GLB via
+  `convertModel`, built on the generic `furniture/worker/workerPool.ts`). Both: spawn-on-contention
+  (reuse an idle worker before growing the pool), a worker `error`/`messageerror` retires only
+  that worker (its own queued calls fall back, the rest of the pool is unaffected), idle-teardown
+  after 30s so a burst doesn't hold its peak size all session, and a graceful **per-file** fallback
+  to a direct main-thread call — never the whole batch — when no Worker is available at all. A
+  THIRD such pool should build on `workerPool.ts` rather than copy the pattern again. The one
+  DOM gap a Worker has for model conversion (`ImageLoader`'s `document.createElementNS('img')`
+  texture decode, used by every texture-bearing convert format) is bridged by
+  `convert/imageLoaderWorkerPatch.ts` (decodes via `createImageBitmap` instead — `GLTFExporter`
+  already accepts an `ImageBitmap` for `texture.image`) — don't reintroduce a DOM-only image path
+  in a new convert-adjacent worker without checking that file first. `upload/bulkImport.ts`'s own
+  `concurrency` knob (how many files' convert→optimize→persist pipeline run in parallel, ahead of
+  the two pools above) is likewise hardware-aware by DEFAULT — `defaultImportConcurrency` reuses
+  the same `computePoolMax` ceiling so a batch doesn't over-queue a low-end pool or under-use a
+  many-core one; an explicit caller-supplied `concurrency` always wins over the default.
 - **New parametric item** = `primitives/<Name>.tsx` (a fn taking `{ props }`) + register in
   `primitives/index.ts` + the `PrimitiveKind` union + a `ParametricDef` in the matching
   `defs/<category>.ts` (assembled into `BUILTIN_CATALOG` by `builtinCatalog.ts`).
   Set `verticalSpan`/`mounted`/`noClip` for non-floor items; `lightEmitters.ts` to emit light
   at night; add to `defaults/` to ship in the move-in flat (collision-checked by
   `defaultLayout.test.ts`).
+- **Round/oval footprints (`footprintShapes.ts:ellipseFootprintParts`).** `footprintParts` is a
+  UNION of OBBs — it can only add area, never carve a rectangle down to a disc — so a true
+  circle/ellipse isn't representable exactly. `ellipseFootprintParts(width, depth, steps=4)`
+  approximates one as a small "staircase" of axis-aligned boxes inscribed in the ellipse (each
+  box's far corner sits exactly on the curve, so the whole union is a provable subset of the
+  ellipse and therefore of the bbox); default `steps=4` yields 5 boxes. Wired into
+  `defs/tables.ts`'s `footprintParts` for `dining-table-4` / `coffee-table` (round **and** oval
+  both call it with the item's live `width`/`depth`, `[]` for `'rect'` → falls back to the single
+  enclosing OBB, unchanged) and `side-table` (`'round'`/`'drum'` — the `diameter`×`diameter` bbox
+  is already square, so the union is a true circle; `'square'` stays a single box). Pure geometry,
+  render-agnostic, unit-tested in `footprintShapes.test.ts` (subset-of-ellipse + subset-of-bbox
+  invariants, part count, degenerate/scale edge cases) with `canPlace`-level integration coverage
+  in `collision/roundOvalFootprint.test.ts` (corner freed vs centre still blocked, scale/rotation).
 - **Window-bound fixtures (`def.windowBound`, WINDOW-FIXTURE)** — curtains, roller blinds, and any
   other fixture that lives ON a window — place ONLY on windows and are static once placed. Setting
   `windowBound: true` does three things: the inspector hides the Transform section + Rotate/Flip
@@ -92,10 +123,37 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `subscribeFinishTargets` so the panel shows the per-part colour/material pickers as soon as the model
   is ready. (LOD note: material/mesh names can differ between tier variants, so the cached targets
   reflect whichever variant rendered.)
+- **Pre-placement finish/variant resolution (CATALOG-VARIANT)** — `placement/catalogVariants.ts`
+  is the pure "what can I choose before placing this, and what does choosing it mean" logic behind
+  the catalog card's quick-look popover (`src/ui/CLAUDE.md`): `catalogVariantOptions(def)` /
+  `hasCatalogVariants(def)` / `initialVariantProps(def, optionId)`. Reuses `appearanceProps.ts:
+  appearanceKeys` to find a parametric def's primary `color`-kind field (never re-derives its own
+  appearance-key notion) and the IKEA `variants`/`assetId` vocabulary `ikeaBodyProps.ts`/`IkeaBody`
+  already use for the post-placement finish picker — so pre- and post-placement finish selection
+  stay on one shared vocabulary. `usePlacementController.ts` merges the resolved patch over
+  `defaultItemProps(def)` at commit via `placementSlice.armedVariantProps`.
 - **All GLB items** (bundled CC0 / user uploads / IKEA) render through `GltfModel`/`gltfRender.ts`
   — set the same collision flags; run `npm run optimize:glb` for `-low`/`-medium` LOD variants
   (uploads generate theirs in-browser via `optimize/lodVariants.ts`, routed by the `gltf/lod.ts`
   variant registry).
+- **Every GLB loader — convert or render — must block foreign fetches (SEC-1).** A model's own
+  embedded `buffer[].uri`/`image[].uri` can be an absolute URL; without a guard, three.js fetches
+  it verbatim at parse/render time — a crafted/shared model could beacon out to an attacker host
+  just by being opened. `gltf/loaderSecurity.ts` is the **one** shared allow/block policy: allow
+  `data:`/`blob:` (every user/IKEA/remote asset is pre-fetched to a `blob:` `runtimeUrl` before it
+  ever reaches a loader) and same-origin absolute URLs (the app's own bundled/served GLBs +
+  sibling `.bin`/texture files); block everything else, resolving to a blank fallback rather than
+  throwing. `secureGltfLoader` is drei `useGLTF`'s `extendLoader` injection point — pass it as the
+  4th arg (`useGLTF(url, true, true, secureGltfLoader)`, keeping `true, true` so DRACO/meshopt
+  defaults aren't dropped) on every runtime `useGLTF` call site (`GltfModel.tsx`,
+  `ui/catalog/thumbnails.tsx`, `ui/glbEditor/GlbDesignerDialog.tsx`); it mutates only the single
+  `GLTFLoader` instance drei memoizes for `useGLTF` (never `THREE.DefaultLoadingManager`), so
+  material/HDRI loaders elsewhere are untouched. A raw `GLTFLoader` (not via `useGLTF`) —
+  `catalog/packs/thumbnail.ts`'s `ThumbnailRenderer` — takes `getSecureGltfManager()` straight into
+  its constructor. `convert/loadToObject.ts`'s drag-drop-conversion manager is stricter (a closed
+  sibling-file allowlist, since local drops have no real "origin") but shares the same
+  `isEmbeddedOrBlobUrl`/`BLOCKED_RESOURCE_FALLBACK` primitives — don't fork a second copy of the
+  policy; any new GLB loader (convert or render) must route through this module.
 - **Pre-render footprint seed for GLB defs.** A GLB's true footprint is only learned after
   `GltfModel` renders + caches its bbox (`FOOTPRINT_CACHE`), so anything placed/sized/collided
   *before* first render needs a real seed, not a 1×1×1 guess. Two pure helpers do this from glTF
@@ -104,7 +162,11 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   *JSON*, used by `catalog/remote/resolver.ts:bundleToFurnitureDef` for remote furniture defs).
   Both union multi-mesh bounds, clamp axes ≥0.05 m, reject absurd non-metre scales, and fall back
   to the caller's 1×1×1 placeholder when bounds are unavailable. The render-time cache stays
-  authoritative — these only make the pre-render value honest.
+  authoritative — these only make the pre-render value honest. The same `def.defaultFootprint`
+  this seeds is also the input to the catalog's "fits this room" size cue
+  (`catalog/roomFit.ts:itemFitsRoom`, CATALOG-FITS, see `src/ui/CLAUDE.md`) — one more reason a
+  placeholder 1×1×1 must never be reported as confidently "fits"/"won't fit" (the predicate treats
+  a degenerate footprint as `'unknown'`, not a guess).
 - **GLTF cache eviction on removal (PERF-001/008).** When a GLB asset is removed/replaced/
   uninstalled, call `evictGltfAsset(url)` (`GltfModel.tsx`) so its parsed GPU geometry/textures
   leave the drei `useGLTF` cache and are disposed, and its `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`

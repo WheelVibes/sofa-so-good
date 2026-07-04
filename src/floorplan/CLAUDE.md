@@ -18,6 +18,19 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
 - Plan-mutating slice actions route through `withLevelGeometry(plan, levelId, fn)`
   (ground default). Schema: `upperLevels` + `levelId` are optional + additive —
   no version bump needed for level features that follow that shape.
+- **An opening's `[offset, offset+width]` must always stay inside its host wall's
+  span — route every offset/width-affecting edit through `types.ts`'s
+  `clampOpeningWidth(width, wallLen, margin?)` / `clampOpeningOffset(offset, width,
+  wallLen, margin?)`** (pure, default `margin=0`, floor `MIN_PLAN_OPENING_WIDTH`).
+  `floorPlanSlice.updateOpening` re-derives BOTH from the current wall on every
+  patch that touches `width` or `offset` (not just the field that changed) — a
+  width increase alone used to leave a stale offset that pushed the opening past
+  the wall's far end (BUG-7); clamping in the slice action (rather than only in
+  the `OpeningInspector` control) covers every entry point, including
+  `duplicateOpening`'s nudge-along-wall math. `gridSnap.ts`'s `snapOpening` and
+  `sh3dPlacement.ts`'s import placement predate this helper and re-implement the
+  same `margin=0` formula inline — reuse `clampOpeningOffset`/`clampOpeningWidth`
+  there on next touch rather than hand-rolling a third copy.
 - **Per-element colour (`elementColors`):** `PlanWall.color` overrides the plan-wide `wallColor` for
   one wall; `PlanOpening.color` paints a door leaf (panels derive a darker shade) or tints window glass.
   Both are optional hex strings, edited in `PlanInspector`, round-tripped via `schema.ts`

@@ -1,0 +1,129 @@
+{
+  "name": "catalog-roomaware-simple",
+  "description": "CATALOG-ROOMAWARE: entering a bedroom lands the catalog on Beds, entering the kitchen lands it on Appliances, a manual tab pick is respected (not fought), and the flag-off path falls back to today's default. Desktop + mobile, light + dark.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode"
+    },
+    {
+      "name": "verify-flag-on",
+      "waitFor": { "store": "state.featureFlags.catalogRoomAware === true" },
+      "timeout": 5000,
+      "failMessage": "catalogRoomAware flag should default ON in Simple mode"
+    },
+    {
+      "name": "enter-bedroom",
+      "store": { "action": "enterRoomEditor", "args": ["mainBedroom"] }
+    },
+    {
+      "name": "bedroom-active",
+      "waitFor": { "store": "state.roomEditor.active === true && state.roomEditor.roomId === 'mainBedroom'" },
+      "timeout": 5000
+    },
+    { "name": "wait-room-load", "wait": 1500 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    {
+      "name": "catalog-visible",
+      "waitFor": { "css": ".panel.catalog" },
+      "timeout": 20000,
+      "failMessage": "Catalog drawer did not appear after setCatalogOpen(true)"
+    },
+    {
+      "name": "assert-bedroom-lands-on-beds",
+      "eval": "(function(){ const on = document.querySelector('.cat-rail .chip.on'); const label = on && on.textContent.trim(); if (!label || !label.startsWith('Beds')) throw new Error('expected the Beds tab active on entering the bedroom, got: ' + label); })()"
+    },
+    { "name": "shot-bedroom-beds-desktop-light", "screenshot": "01-bedroom-beds-desktop-light" },
+    {
+      "name": "manual-override-pick-storage",
+      "eval": "(function(){ const chip = [...document.querySelectorAll('.cat-rail .chip')].find(c => c.textContent.trim().startsWith('Storage')); if (!chip) throw new Error('Storage chip not found in the rail'); chip.click(); })()"
+    },
+    { "name": "settle-manual-pick", "wait": 400 },
+    {
+      "name": "verify-manual-pick-sticks",
+      "eval": "(function(){ const on = document.querySelector('.cat-rail .chip.on'); const label = on && on.textContent.trim(); if (!label || !label.startsWith('Storage')) throw new Error('expected the manually-picked Storage tab to stay active (room-aware default must not fight a user pick mid-session), got: ' + label); })()"
+    },
+    { "name": "shot-manual-override-storage", "screenshot": "02-manual-override-storage" },
+    {
+      "name": "leave-bedroom",
+      "store": { "action": "exitRoomEditor" }
+    },
+    {
+      "name": "enter-kitchen",
+      "store": { "action": "enterRoomEditor", "args": ["kitchen"] }
+    },
+    {
+      "name": "kitchen-active",
+      "waitFor": { "store": "state.roomEditor.active === true && state.roomEditor.roomId === 'kitchen'" },
+      "timeout": 5000
+    },
+    { "name": "wait-room-load-2", "wait": 1500 },
+    { "name": "open-catalog-2", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-visible-2", "waitFor": { "css": ".panel.catalog" }, "timeout": 20000 },
+    {
+      "name": "assert-kitchen-lands-on-appliances",
+      "eval": "(function(){ const on = document.querySelector('.cat-rail .chip.on'); const label = on && on.textContent.trim(); if (!label || !label.startsWith('Appliances')) throw new Error('expected the Appliances tab active on entering the kitchen, got: ' + label); })()"
+    },
+    { "name": "shot-kitchen-appliances-desktop-light", "screenshot": "03-kitchen-appliances-desktop-light" },
+    {
+      "name": "switch-dark-mode",
+      "store": { "action": "setModePref", "args": ["dark"] }
+    },
+    { "name": "wait-theme", "wait": 400 },
+    { "name": "shot-kitchen-appliances-desktop-dark", "screenshot": "04-kitchen-appliances-desktop-dark" },
+    {
+      "name": "back-to-light",
+      "store": { "action": "setModePref", "args": ["light"] }
+    },
+    { "name": "wait-theme-2", "wait": 300 },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "wait-viewport", "wait": 400 },
+    { "name": "shot-kitchen-appliances-mobile", "screenshot": "05-kitchen-appliances-mobile-light" },
+    {
+      "name": "mobile-dark",
+      "store": { "action": "setModePref", "args": ["dark"] }
+    },
+    { "name": "wait-mobile-dark", "wait": 400 },
+    { "name": "shot-kitchen-appliances-mobile-dark", "screenshot": "06-kitchen-appliances-mobile-dark" },
+    { "name": "back-to-light-2", "store": { "action": "setModePref", "args": ["light"] } },
+    { "name": "desktop-viewport", "viewport": { "width": 1400, "height": 900 } },
+    {
+      "name": "leave-kitchen",
+      "store": { "action": "exitRoomEditor" }
+    },
+    {
+      "name": "disable-flag",
+      "store": { "action": "setFeatureFlag", "args": ["catalogRoomAware", false] }
+    },
+    {
+      "name": "verify-flag-off",
+      "waitFor": { "store": "state.featureFlags.catalogRoomAware === false" },
+      "timeout": 5000,
+      "failMessage": "setFeatureFlag('catalogRoomAware', false) did not take"
+    },
+    {
+      "name": "enter-bedroom-flag-off",
+      "store": { "action": "enterRoomEditor", "args": ["mainBedroom"] }
+    },
+    {
+      "name": "bedroom-active-flag-off",
+      "waitFor": { "store": "state.roomEditor.active === true && state.roomEditor.roomId === 'mainBedroom'" },
+      "timeout": 5000
+    },
+    { "name": "wait-room-load-3", "wait": 1000 },
+    {
+      "name": "assert-flag-off-keeps-prior-category",
+      "eval": "(function(){ const on = document.querySelector('.cat-rail .chip.on'); const label = on && on.textContent.trim(); if (!label || !label.startsWith('Appliances')) throw new Error('with catalogRoomAware OFF, entering the bedroom must NOT switch to Beds — the prior (Appliances) selection should stay untouched, got: ' + label); })()"
+    },
+    { "name": "shot-flag-off-no-reorder", "screenshot": "07-flag-off-no-reorder" }
+  ]
+}

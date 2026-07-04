@@ -1,0 +1,44 @@
+{
+  "name": "catalog-fits-journey",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "enter-bath1-editor", "store": { "action": "enterRoomEditor", "args": ["bath1"] } },
+    {
+      "name": "wait-bath1-active",
+      "waitFor": { "store": "state.roomEditor.active === true && state.roomEditor.roomId === 'bath1'" }
+    },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "wait-catalog", "waitFor": { "css": ".panel.catalog" } },
+    { "name": "wait-cards-simple", "waitFor": { "css": ".cat-card" } },
+    {
+      "name": "assert-fits-only-hidden-in-simple",
+      "waitFor": { "text": "Won’t fit" }
+    },
+    { "name": "shot-simple-no-filter", "screenshot": "simple-mode-no-fits-only-toggle" },
+    { "name": "set-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "wait-fits-toggle", "waitFor": { "text": "Fits only" } },
+    { "name": "shot-pro-toggle-visible", "screenshot": "pro-fits-only-toggle-visible" },
+    {
+      "name": "click-fits-only",
+      "click": { "selector": ".cat-fits-only input" }
+    },
+    {
+      "name": "assert-wont-fit-card-gone",
+      "waitFor": { "store": "!Array.from(document.querySelectorAll('.cat-card .pr')).some(el => el.textContent.includes('Won’t fit'))" }
+    },
+    { "name": "shot-pro-toggle-filtered", "screenshot": "pro-fits-only-filtered" },
+    { "name": "uncheck-fits-only", "click": { "selector": ".cat-fits-only input" } },
+    { "name": "assert-wont-fit-card-back", "waitFor": { "text": "Won’t fit" } },
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    {
+      "name": "assert-fits-only-hidden-again",
+      "waitFor": { "store": "!document.querySelector('.cat-fits-only')" }
+    },
+    { "name": "shot-back-to-simple", "screenshot": "back-to-simple-no-toggle" }
+  ]
+}

@@ -1,9 +1,11 @@
 /** Pitch + roll sliders for multi-axis furniture tilt (SweetHome3DJS parity). */
 
-const TILT_DEG = 45 // tilt slider range (±°) — enough to angle art / recline / bank
+import { TILT_LIMIT_DEG } from '../../furniture/tiltRotation'
 
 /** Pitch + roll sliders for multi-axis furniture tilt (SweetHome3DJS parity).
- *  Values are stored in radians; the UI works in whole degrees. */
+ *  Values are stored in radians; the UI works in whole degrees. The range
+ *  (`TILT_LIMIT_DEG`) is shared with the in-viewport `TiltGizmo` handle so
+ *  neither affordance can push a piece further than the other allows. */
 export function TiltControls({
   pitch,
   roll,
@@ -46,8 +48,8 @@ export function TiltControls({
         type="range"
         className="slider"
         aria-label={`${label} (degrees)`}
-        min={-TILT_DEG}
-        max={TILT_DEG}
+        min={-TILT_LIMIT_DEG}
+        max={TILT_LIMIT_DEG}
         step={1}
         value={toDeg(value)}
         onChange={(e) => onChange(toRad(Number(e.target.value)))}

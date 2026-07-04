@@ -15,6 +15,12 @@ export const WALK_EYE_MIN = 1.2
 export const WALK_EYE_MAX = 1.9
 export const WALK_EYE_DEFAULT = 1.6
 
+/** Player collision-circle radius (m) — shared by `FirstPersonCamera`'s
+ *  wall/furniture collision AND the minimap tap-to-teleport clamp
+ *  (MINIMAP-JUMP), so a teleport lands exactly as clear of a wall as normal
+ *  walking already keeps you (one source of truth, not a re-guessed margin). */
+export const WALK_PLAYER_RADIUS = 0.25
+
 /** Clamp a field-of-view to the sane walk range. Non-finite → the default. */
 export function clampWalkFov(deg: number): number {
   if (!Number.isFinite(deg)) return WALK_FOV_DEFAULT

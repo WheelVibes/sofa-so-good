@@ -6,6 +6,7 @@ import { itemFootprint } from '../../collision/placement'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
+import { isActiveDragPointer } from '../dragHelpers'
 import { marqueeHitsScreenPoints } from './marqueeHit'
 
 const DRAG_THRESHOLD_PX = 4
@@ -57,10 +58,16 @@ export function MarqueeSelector() {
     let pending: { x: number; y: number; shift: boolean } | null = null
     let active: MarqueeRect | null = null
     let suppressClickUntil = 0
+    // MOBILE-2 (BUG-1/MOBILE-1 class): the pointerId that started the marquee
+    // (mousedown or first finger) — onMove/onUp/onCancel gate on this via
+    // `isActiveDragPointer` so a second finger's independent pointer stream
+    // can't retarget the rect or close it early.
+    let activePointerId: number | null = null
 
     const reset = () => {
       pending = null
       active = null
+      activePointerId = null
       setRect(null)
     }
 
@@ -70,10 +77,12 @@ export function MarqueeSelector() {
       if (!canEditScene(state)) return
       if (state.activeDefId) return
       pending = { x: e.clientX, y: e.clientY, shift: e.shiftKey }
+      activePointerId = e.pointerId
     }
 
     const onMove = (e: PointerEvent) => {
       if (!pending && !active) return
+      if (!isActiveDragPointer(activePointerId, e.pointerId)) return
       const state = useStore.getState()
       if (state.draggingItemId) {
         reset()
@@ -93,15 +102,18 @@ export function MarqueeSelector() {
       }
     }
 
-    const onUp = () => {
+    const onUp = (e: PointerEvent) => {
+      if (!isActiveDragPointer(activePointerId, e.pointerId)) return
       if (!active) {
         pending = null
+        activePointerId = null
         return
       }
       const finished = active
       const wasShift = pending?.shift ?? false
       pending = null
       active = null
+      activePointerId = null
 
       const xMin = Math.min(finished.x0, finished.x1)
       const xMax = Math.max(finished.x0, finished.x1)
@@ -161,7 +173,10 @@ export function MarqueeSelector() {
       }
     }
 
-    const onCancel = () => reset()
+    const onCancel = (e: PointerEvent) => {
+      if (!isActiveDragPointer(activePointerId, e.pointerId)) return
+      reset()
+    }
 
     canvas.addEventListener('pointerdown', onDown)
     window.addEventListener('pointermove', onMove)

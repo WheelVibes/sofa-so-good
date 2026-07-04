@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { FOCUSABLE_SELECTOR, trapTabKey } from '../controls/focusTrap'
 import { useModalGuard } from '../controls/modalGuard'
 import { AuxPanelHead } from './AuxPanelHead'
 
@@ -55,24 +56,12 @@ export function Modal({
       if (e.key === 'Tab') {
         const panel = panelRef.current
         if (!panel) return
-        const focusable = panel.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        )
-        if (focusable.length === 0) {
+        if (panel.querySelectorAll(FOCUSABLE_SELECTOR).length === 0) {
           e.preventDefault()
           panel.focus()
           return
         }
-        const first = focusable[0]
-        const last = focusable[focusable.length - 1]
-        const active = document.activeElement
-        if (e.shiftKey && (active === first || active === panel)) {
-          e.preventDefault()
-          last.focus()
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault()
-          first.focus()
-        }
+        if (trapTabKey(panel, e)) e.preventDefault()
       }
     }
     window.addEventListener('keydown', onKey)

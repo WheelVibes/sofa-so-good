@@ -11,6 +11,7 @@ import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureItem } from '../../furniture/types'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
+import { isActiveDragPointer } from '../dragHelpers'
 import { priorityRaycast } from '../raycastPriority'
 import { groupResizeFactor, resizedTransform } from './resizeGizmoMath'
 import { clearResizeReadout, setResizeReadout } from './resizeReadoutSignal'
@@ -33,6 +34,11 @@ interface Gesture {
   pivot: [number, number]
   grabDist: number
   originals: ResizeOriginal[]
+  /** The `pointerId` that grabbed this corner handle (MOBILE-1, BUG-1 class) —
+   *  window `onMove`/`onUp` gate on this via `isActiveDragPointer` so a second
+   *  finger's independent pointer stream can't drive or end the resize. A
+   *  per-gesture field, not the store's item-drag `dragPointerId`. */
+  pointerId: number
 }
 
 /** The selection's effective uniform scale of one item (props → def → 1). */
@@ -123,6 +129,9 @@ export function ResizeGizmo() {
     const onMove = (ev: PointerEvent) => {
       const g = gesture.current
       if (!g) return
+      // MOBILE-1 (BUG-1 class): a second finger's own pointermove stream must
+      // not drive this resize — only the pointer that grabbed the corner handle.
+      if (!isActiveDragPointer(g.pointerId, ev.pointerId)) return
       const hit = project(ev.clientX, ev.clientY)
       if (!hit) return
       const dist = Math.hypot(hit[0] - g.pivot[0], hit[1] - g.pivot[1])
@@ -178,11 +187,14 @@ export function ResizeGizmo() {
       setValid(ok)
     }
 
-    const onUp = () => {
-      clearResizeReadout()
+    const onUp = (ev: PointerEvent) => {
       const g = gesture.current
+      if (!g) return
+      // MOBILE-1: only the initiating pointer may end the gesture.
+      if (!isActiveDragPointer(g.pointerId, ev.pointerId)) return
+      clearResizeReadout()
       const cur = useStore.getState()
-      if (g && !valid) {
+      if (!valid) {
         // Invalid landing — restore the pre-gesture snapshot (positions + scales).
         const prior = cur.past[cur.past.length - 1]?.items
         if (prior) cur.setItems(prior)
@@ -248,10 +260,17 @@ export function ResizeGizmo() {
       position: [it.position[0], it.position[1]],
       scale: effectiveScale(it, catalogRef.current[it.defId] ?? { kind: 'parametric' }),
     }))
+    // Record the initiating pointerId (MOBILE-1, BUG-1 class) + best-effort
+    // capture on the corner handle mesh, same guarded pattern as
+    // Furniture.tsx/RotateGizmo — only this pointer may drive/end the resize.
+    try {
+      ;(e.nativeEvent.target as Element | null)?.setPointerCapture?.(e.nativeEvent.pointerId)
+    } catch {}
     gesture.current = {
       pivot,
       grabDist: Math.max(0.05, Math.hypot(e.point.x - pivot[0], e.point.z - pivot[1])),
       originals,
+      pointerId: e.nativeEvent.pointerId,
     }
     st.pushHistory()
     setValid(true)

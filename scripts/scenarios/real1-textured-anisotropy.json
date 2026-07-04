@@ -1,0 +1,30 @@
+{
+  "name": "real1-textured-anisotropy",
+  "description": "REAL-1: applies a synthetic high-frequency photo-textured (kind:'textured', the DLC/uploaded material path via userMaterials) finish to the living/dining floor, tilts to a close grazing angle toward the horizon, and screenshots it alongside a procedural wood floor at the SAME angle (no-regression control). Run once with cache.ts's textured-branch `applyAnisotropy` call removed (BEFORE — expect blurry/aliased at the horizon) and once with it present (AFTER — expect sharp to the horizon, procedural shot unchanged either way).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setItems?.([])" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "build-synthetic-texture",
+      "eval": "(() => { const N = 512; const c = document.createElement('canvas'); c.width = N; c.height = N; const ctx = c.getContext('2d'); ctx.fillStyle = '#b08968'; ctx.fillRect(0, 0, N, N); const cell = 32; for (let y = 0; y < N; y += cell) { for (let x = 0; x < N; x += cell) { const shade = ((x / cell + y / cell) % 2 === 0) ? '#8a6647' : '#c9a27c'; ctx.fillStyle = shade; ctx.fillRect(x, y, cell, cell); } } ctx.strokeStyle = 'rgba(40,25,10,0.9)'; ctx.lineWidth = 1; for (let x = 0; x <= N; x += cell) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, N); ctx.stroke(); } for (let y = 0; y <= N; y += cell) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(N, y); ctx.stroke(); } window.__syntheticAlbedo = c.toDataURL('image/png'); })()"
+    },
+    {
+      "name": "add-user-material",
+      "eval": "(() => { const st = window.__store.getState(); st.addUserMaterial({ id: 'user-real1-plank', name: 'REAL-1 test plank', category: 'floor', kind: 'textured', source: 'user', swatch: '#a9835c', textures: { albedo: window.__syntheticAlbedo }, runtimeUrls: { albedo: window.__syntheticAlbedo }, uvScale: [1, 1] }); return st.userMaterials.length; })()"
+    },
+    { "name": "apply-textured-floor", "store": { "action": "setFloorFinish", "args": ["livingDining", "user-real1-plank"] } },
+    { "name": "verify-textured", "waitFor": { "store": "state.finishes.floor['livingDining'] === 'user-real1-plank'" }, "timeout": 5000 },
+    {
+      "name": "camera-grazing",
+      "eval": "(() => { const cam = window.__three.camera; const controls = window.__three.controls; cam.position.set(10.55, 0.3, 2.0); controls.target.set(10.55, 0.15, 6.4); controls.update(); })()"
+    },
+    { "name": "settle", "wait": 2500 },
+    { "name": "shot-textured-grazing", "screenshot": "textured-grazing" },
+    { "name": "apply-procedural-floor", "store": { "action": "setFloorFinish", "args": ["livingDining", "floor-wood-oak"] } },
+    { "name": "verify-procedural", "waitFor": { "store": "state.finishes.floor['livingDining'] === 'floor-wood-oak'" }, "timeout": 5000 },
+    { "name": "settle2", "wait": 2500 },
+    { "name": "shot-procedural-grazing", "screenshot": "procedural-grazing-control" }
+  ]
+}

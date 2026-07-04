@@ -1,3 +1,4 @@
+import { itemFitsRoom, type RoomFreeRect } from '../../catalog/roomFit'
 import { itemPrice } from '../../furniture/furniturePrices'
 import type { GridItem } from './useUnifiedCatalog'
 
@@ -53,4 +54,16 @@ export function filterByMaxPrice(cards: GridItem[], maxPrice: string): GridItem[
     if (it.kind === 'shared') return it.item.price == null || it.item.price <= cap
     return itemPrice(it.def, it.def.category) <= cap
   })
+}
+
+/** Drop items flagged `'wont-fit'` for the room being edited (CATALOG-FITS
+ *  "Fits only" filter). Remote/shared entries carry no resolved footprint
+ *  before import, so they're never hidden (a missing-data "unknown" always
+ *  passes, matching `itemFitsRoom`'s "never a false won't-fit" contract). A
+ *  `null` `rects` (no room being edited) is a no-op — returns the input array. */
+export function filterByFits(cards: GridItem[], rects: RoomFreeRect[] | null): GridItem[] {
+  if (!rects || rects.length === 0) return cards
+  return cards.filter(
+    (it) => it.kind !== 'local' || itemFitsRoom(it.def.defaultFootprint, rects) !== 'wont-fit',
+  )
 }

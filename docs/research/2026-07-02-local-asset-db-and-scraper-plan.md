@@ -69,23 +69,69 @@ extra process. (A sidecar remains the right pattern for the *scraper* work in Pa
 The pipeline is already well-built (bounded worker pool in `bulkImport.ts`,
 `COMMIT_BATCH=25`, source-hash dedup, best-effort optimize/LOD). Concrete wins found:
 
-1. **Optimize worker POOL (highest value).** `optimize/runOptimize.ts:36` uses a **single
-   module-level `Worker`**. So `bulkImport`'s `concurrency=4` files all funnel their
-   optimize+LOD through **one** worker thread → serialized. Replace with a small pool of
-   `min(navigator.hardwareConcurrency-1, 4..8)` workers, round-robin, with the same
-   `messageerror`/failAll fallback per worker. This is the single biggest throughput win
-   for bulk imports.
-2. **Move conversion off the main thread (medium).** `convert/convertModel.ts` runs three.js
-   loaders + `GLTFExporter` on the **main thread**, competing with the render loop and
-   serialized across files. Most loaders (OBJ/FBX/STL/PLY) don't need the DOM → run in a
-   worker. Higher effort/risk; sequence after the optimize pool.
-3. **Early size-cap checks (correctness+speed, from IO-002).** Check the *converted* GLB
-   byte length against `MAX_GLB_BYTES` **before** the optimize/LOD pass so an over-limit
-   convert doesn't burn full optimize CPU only to be rejected. Also gate texture decode on
-   `file.size` before `decodeImage` (IO-001).
-4. **Tune `concurrency`** default from 4 → `hardwareConcurrency`-aware once the pool exists.
+1. **Optimize worker POOL (highest value) — DONE.** `optimize/runOptimize.ts` used a single
+   module-level `Worker`, serializing every file's optimize+LOD through one thread regardless
+   of `bulkImport`'s `concurrency`. Replaced with a pool sized by `computePoolMax(cores,
+   deviceMemory)` = `cores - 1`, hard-capped at `HARD_POOL_MAX` (8) and downshifted on
+   low-RAM devices (shipped v0.9.0.65). Workers spawn **on contention** (`pickWorker`) and
+   idle-teardown (terminate + drop from the pool) after `IDLE_TEARDOWN_MS` (30s) with no
+   pending calls, so a burst doesn't hold its peak worker count for the rest of the session
+   (2026-07-03). A worker `error`/`messageerror` retires only that worker — its own queued
+   calls fall back to the unoptimized original, the rest of the pool is unaffected. Unit-tested
+   with a mock `Worker` (`runOptimize.pool.test.ts`): burst > pool size, mid-task error, and
+   idle teardown/timer-cancel-on-reclaim.
+2. **Move conversion off the main thread (medium) — DONE (2026-07-03).** `convert/runConvert.ts`
+   now runs `convertModel` (three.js loaders + `GLTFExporter`) in a pooled Worker
+   (`convert.worker.ts`) instead of the main thread. Full per-format DOM audit (every loader used
+   by `loadToObject.ts` — OBJLoader/MTLLoader/FBXLoader/STLLoader/PLYLoader/ColladaLoader/
+   TDSLoader/ThreeMFLoader/USDZLoader/GLTFLoader): the ONLY genuine DOM dependency in the whole
+   pipeline is `THREE.TextureLoader`→`ImageLoader`'s `document.createElementNS('img')` texture
+   decode (every texture-bearing format routes through it; STL/PLY never load a texture at all;
+   Collada/3MF's `DOMParser` usage IS available in a Worker global scope, unlike `document`). That
+   one gap is bridged by `imageLoaderWorkerPatch.ts`, which swaps the DOM `<img>` decode for
+   `createImageBitmap` — `GLTFExporter.processImage` already explicitly accepts an `ImageBitmap`
+   for `texture.image` (it has its own pre-existing `typeof document === 'undefined'`
+   `OffscreenCanvas` branch, i.e. three.js already anticipated a document-less exporter). Net
+   result: **no format needs to stay on the main thread** — OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/gltf
+   all convert in the worker. The worker reuses `convertModel` unchanged (no duplicated conversion
+   logic) — only `document`-dependent texture decode differs between the two realms. A per-file
+   worker failure (crash, or an unexpected in-worker error that isn't a genuine `ConvertError`)
+   falls back to a direct main-thread `convertModel` call for that file only, never the batch; a
+   real `ConvertError` (bad format/over-size/zip-bomb) is surfaced as-is with no pointless retry.
+   The pool bookkeeping (spawn-on-contention, per-worker error retirement, idle teardown) was
+   factored into a generic `furniture/worker/workerPool.ts` for this new pool to build on —
+   `runOptimize.ts`'s own pool is left as its own implementation (it shipped the same day this
+   item started, with its own locked-down test suite) rather than retroactively refactored onto
+   it. Real-conversion round-trip testing is browser-only (three's loaders fetch the sibling pool
+   via `blob:` URLs, which jsdom/happy-dom can't resolve — the same limitation
+   `convertModel.test.ts` already documents for its own skipped round-trip test); verified instead
+   via a scenario (`scripts/scenarios/convert-off-main-thread.json`) driving a real OBJ→GLB
+   convert through the dev-only `__importGlbFiles` hook and a new `__lastConvertRun` observability
+   seam confirming `usedWorker: true`.
+3. **Early size-cap checks (correctness+speed, from IO-002) — DONE (GLB half).** `bulkImport.ts:
+   prepareGlb` now rejects a *hopelessly* oversized converted/raw GLB **before** the optimize/LOD
+   pass (2026-07-03): pre-optimize size > `EARLY_REJECT_MULTIPLIER` (3) × `MAX_GLB_BYTES` — i.e.
+   >75 MB at the current 25 MB cap — is refused up front instead of burning a worker-pool slot on
+   Draco/texture re-encoding it would fail anyway (a dense CAD-exported convert lands in the
+   hundreds of MB, far past this line). Crucially the early gate is **not** the strict cap:
+   optimize routinely shrinks 5-10× (Draco geometry + WebP textures), so a between-cap-and-3×cap
+   file (e.g. 30 MB → 8 MB) keeps its optimize chance, and the **post-optimize** check remains the
+   real cap, enforced on the actual bytes that would be stored. Texture decode gating on
+   `file.size` before `decodeImage` (IO-001) was already done separately (v0.8.0.32).
+4. **Tune `concurrency`** default from 4 → `hardwareConcurrency`-aware — DONE (2026-07-03).
+   `bulkImport.ts`'s DEFAULT `concurrency` (still overridable by an explicit caller value) now
+   calls `defaultImportConcurrency(cores, deviceMemoryGB)`, a pure wrapper over the same
+   `computePoolMax` the optimize/convert pools use — since `prepareGlb` runs each file through
+   the convert pool then the optimize pool one after another, matching the *import* fan-out to
+   that same ceiling keeps every pool worker fed without over-queueing a low-end 1-2 worker pool
+   or under-using a many-core desktop's ~7-8 worker pool. `readDefaultConcurrency()` reads live
+   `navigator.hardwareConcurrency`/`deviceMemory`, falling back to the legacy flat `4` with no
+   `navigator` (SSR/older browser), matching `runOptimize.ts`'s `POOL_MAX` / `runConvert.ts`'s
+   `poolMax()` fallback. Unit-tested in `bulkImport.test.ts` (clamps/downshift/SSR-fallback +
+   explicit-override-still-wins + 0-items edge case).
 
-Start with #1 (self-contained, big win, low risk); #3 folds in cheaply; #2 is a follow-up.
+Remaining: none — #1-#4 are all done (item #3's "GLB half" caveat is the only open
+sub-thread, for a possible non-GLB early-gate pass).
 
 ---
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
-import { applySerialized, SerializedStateZ, serialize } from './schema'
+import { applySerialized, preserveUnresolvedItems, SerializedStateZ, serialize } from './schema'
 import { useStore } from './store'
 
 describe('schema', () => {
@@ -311,6 +311,64 @@ describe('schema', () => {
     const patch = applySerialized(saved, known)
     expect(patch.items?.every((it) => known.has(it.defId))).toBe(true)
     expect(patch.items?.length).toBe(1)
+  })
+
+  it('preserveUnresolvedItems puts back items applySerialized dropped for an unknown defId (BUG-2)', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().addItem({ defId: 'unknown-def', position: [1, 1], rotation: 0, props: {} })
+    useStore.getState().addItem({ defId: 'bed-double', position: [2, 2], rotation: 0, props: {} })
+    const saved = serialize(useStore.getState())
+    const known = new Set(Object.keys(BUILTIN_CATALOG))
+    const patch = applySerialized(saved, known)
+    // Baseline: applySerialized alone still drops the unresolved item.
+    expect(patch.items?.length).toBe(1)
+
+    const unresolvedIds = preserveUnresolvedItems(saved, known, patch)
+
+    expect(unresolvedIds.length).toBe(1)
+    expect(patch.items?.length).toBe(2)
+    expect(patch.items?.some((it) => it.defId === 'unknown-def')).toBe(true)
+  })
+
+  it('preserveUnresolvedItems does NOT resurrect an item dropped for a corrupt (non-finite) transform', () => {
+    const known = new Set(['bed-double'])
+    const saved = {
+      version: 2,
+      items: [
+        { id: 'ok', defId: 'unknown-def', position: [1, 1], rotation: 0, props: {} },
+        {
+          id: 'corrupt',
+          defId: 'unknown-def',
+          position: [Number.NaN, 0],
+          rotation: 0,
+          props: {},
+        },
+      ],
+      doors: {},
+      finishes: { floor: {}, walls: {}, wallAccents: {} },
+      timeMode: 'system',
+    } as unknown as Parameters<typeof applySerialized>[0]
+    const patch = applySerialized(saved, known)
+    expect(patch.items?.length).toBe(0)
+
+    const unresolvedIds = preserveUnresolvedItems(saved, known, patch)
+
+    expect(unresolvedIds).toEqual(['ok'])
+    expect(patch.items?.map((it) => it.id)).toEqual(['ok'])
+  })
+
+  it('preserveUnresolvedItems is a no-op when every def is already known', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().addItem({ defId: 'bed-double', position: [2, 2], rotation: 0, props: {} })
+    const saved = serialize(useStore.getState())
+    const known = new Set(Object.keys(BUILTIN_CATALOG))
+    const patch = applySerialized(saved, known)
+    const before = patch.items
+
+    const unresolvedIds = preserveUnresolvedItems(saved, known, patch)
+
+    expect(unresolvedIds).toEqual([])
+    expect(patch.items).toBe(before)
   })
 
   it('round-trips a custom per-item label', () => {

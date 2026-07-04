@@ -5,6 +5,598 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RELEASE: v0.13.0.0 — PR to main
+
+Minor release bundling this branch's work (v0.12.0.2 → .41): PLAN-FURNISH Phase 1
+(2D-plan click-to-place), catalog room-fit / room-aware / pre-place variant cues,
+walk-mode minimap tap-to-teleport, 3D tilt gizmo, time-of-day compare slider;
+seven correctness bugs (BUG-1–7) + a client-side security fix (SEC-1); materials
+realism + perf (anisotropy on DLC textures, bounded LRU cache, instant
+placeholder bake), 3D-export/convert/optimize workers; accessibility hardening
+(modals, menus, finish picker, inspector — keyboard + ARIA); the InspectorPanel
+monolith decomposition; and IXT/test-coverage + docs. See entries below.
+
+## REFACTOR: decompose the 1205-line InspectorPanel monolith — REFAC-1 (v0.12.0.41)
+
+From the 2026-07-04 audit (the root `CLAUDE.md` "strictly avoid monolithic files"
+mandate): `inspector/InspectorPanel.tsx` (1205 lines) is now a thin ~179-line
+composition shell, with its inline sections extracted into cohesive sibling
+files — `InspectorHeader`, `ItemActionButtons` (`ItemBasicActions`/
+`ItemOrientActions`), `ItemBulkActions` (multi-select), `ItemLightControls`,
+`ItemPhysicalControls`, `LinearArraySection`, `RadialArraySection`, and pure
+`itemTransforms.ts`. Behaviour-preserving (no functional/visual change): existing
+inspector tests pass unchanged, and the inspector was visually re-verified for
+GLB, parametric, and multi-select items (all sections render identically). The
+new files inherit the grandfathered inline-px allowance. Salvaged + verified from
+a worktree that had been branched off a stale base.
+
+## TEST: coverage for hydrateAssets + floorRects (round-2 TEST-1/2) (v0.12.0.40)
+
+Closed two 0-test gaps flagged in the round-2 audit. `hydrateAssets.test.ts`
+(22 tests): boot-time restore of user GLB/material assets from IndexedDB — full
+`UserGltfDef` round-trip, footprint fallbacks (missing/zero/negative/non-finite/
+corrupt-JSON), category defaulting, pack/ikea/unknown-role skips, an unresolvable
+blob skipped WITHOUT aborting sibling records, and the fail-soft paths (no
+`indexedDB`, `list()` throws, empty store). `floorRects.test.ts` (14 tests):
+`rectMinus` subtraction cases + `computeRoomFloorRects` against the real `ROOMS`
+dataset incl. a ~12k-point grid invariant proving the default 4-room HDB floor
+tiles with no overlaps/gaps. `rectMinus` exported for direct testing
+(visibility-only). No bugs found.
+
+## FIX: gate Rotate/Resize/Tilt gizmo + marquee drags by pointerId — MOBILE-1/2 (v0.12.0.39)
+
+From the round-2 audit: the in-scene manipulation gizmos (`RotateGizmo`/
+`ResizeGizmo`/`TiltGizmo`) and `MarqueeSelector` had the exact BUG-1 multi-touch
+class on the arrange step — their window `pointermove`/`pointerup` listeners
+gated on nothing, so on touch a second finger drove the wrong transform and
+either finger's release committed it. Applied the shipped BUG-1 pattern: each
+`onGrab` records `e.nativeEvent.pointerId` (per-gizmo ref, + guarded
+`setPointerCapture`) and every window handler early-returns via
+`dragHelpers.ts:isActiveDragPointer` — a non-matching pointer is a no-op.
+Verified with a real two-pointer scenario (rotate held at 15° through
+second-finger interference). MOBILE-3 (catalog placement drag, cosmetic) noted
+as deferred.
+
+## PERF: instant procedural finish apply via cheap placeholder bake — PERF-C (v0.12.0.38)
+
+From the 2026-07-04 audit: `buildMaterial`'s procedural branch ran the FULL
+256²–512² pattern+normal+roughness bake synchronously on the main thread on every
+new finish id — AND then kicked the existing off-thread worker to redo the same
+full bake, so the sync "fallback" defeated the worker entirely (hundreds of ms of
+jank on apply). Now, when the worker is available, the sync path bakes only a
+cheap `PROCEDURAL_QUICK_PREVIEW_SIZE=64` placeholder (~6–22 ms) and the worker
+hot-swaps in full quality moments later (existing path); a recovery bake covers a
+worker failure so a material can't get stuck at preview quality. Worker-absent
+behaviour is byte-identical to before. ~14–56× faster synchronous commit
+(measured), final rendered result pixel-identical; LRU cache key + anisotropy +
+tint-sibling sharing untouched. 4 new edge-case tests.
+
+## DOCS: round-2 audit (tests/mobile/features) + backlog refresh (v0.12.0.37)
+
+Recorded the 2026-07-04 second-pass audit as
+`docs/research/2026-07-04-audit-round2-tests-mobile-features.md` — ranked
+findings across test-coverage gaps, mobile/touch robustness, and fresh
+client-doable feature research. Top find: **MOBILE-1** (confirmed) — the
+Rotate/Resize/Tilt gizmos lack the `pointerId` gating BUG-1 established, the same
+multi-touch class on the arrange step (now in progress). Folded open items
+(MOBILE-2/3, TEST-1/2, FEAT-A/B) into `TODO.md`; marked BUG-7 + FEAT-1 shipped
+there. Added **Home Planner** to `REFERENCES.md`.
+
+## FEAT: time-of-day comparison reveal slider — FEAT-1 (v0.12.0.36)
+
+Researched value-add from the 2026-07-04 audit: a `TimeCompareModal` shows the
+SAME view/camera at two times of day (default Midday vs Night) split by a
+draggable reveal divider, so you can judge how a design reads across lighting.
+Reuses the existing `RenderCompareModal` divider/clip/drag mechanism +
+`compareState.ts:clampDivider` (no new interaction pattern); captures the pair
+via the existing `timeSlice` `setPresetTime` presets and RESTORES the user's
+exact prior time-of-day on close (only time differs between frames — tone/
+exposure/lights/HDRI untouched). Flag `timeCompare` (pro), File menu + ⌘K +
+mobile. Verified: identical geometry, day|night split, divider crisp over both
+halves, time restored on close; full suite green.
+
+## FIX: opening width edit re-clamps offset so it can't overflow the wall — BUG-7 (v0.12.0.35)
+
+From the 2026-07-04 audit: `updateOpening` blind-merged its patch with no clamp,
+so widening a door/window near a wall end pushed it past the wall (offset never
+re-clamped). Extracted the inline clamp used by the offset field / gridSnap /
+duplicate / SH3D import into shared pure `floorplan/types.ts:clampOpeningWidth` +
+`clampOpeningOffset`; `updateOpening` (and `duplicateOpening`) now re-derive both
+width and offset from the live wall on every patch, covering all entry points.
+Fail-before/pass-after regression test.
+
+## DOCS: TODO housekeeping — remove shipped items, defer PLAN-FURNISH Phase 2 mobile, fold audit backlog (v0.12.0.34)
+
+Removed all completed entries from `TODO.md` per the "ships → removed entirely"
+convention (their records live in `CHANGELOG.md`): upload-parallelization Part 1b,
+composite footprints, CATALOG-ROOMAWARE, TOOLBAR-MENU-VOID. Recorded
+**PLAN-FURNISH Phase 2 (mobile) as ATTEMPTED + DEFERRED** — reached 54/64 green
+but blocked on a mobile catalog-vs-plan layout decision (bottom sheet covers
+~72% of the viewport) + an unverified stamp-in-plan tweak + harness flakiness;
+work archived on branch `wip/plan-furnish-mobile-phase2` for a future focused
+effort. Folded the still-open items from the 2026-07-04 deep audit into a tracked
+backlog section (BUG-7, PERF-C, REFAC-2, FEAT-2).
+
+## FIX: de-duped delete toast's Undo restores every coalesced delete — BUG-4 (v0.12.0.33)
+
+From the 2026-07-04 audit: deleting two items ≥500ms apart (past the history-
+coalesce window) pushed two separate `past` entries, but the two "Item deleted"
+toasts de-duped into one whose Undo ran `undo()` only once — restoring the
+second delete and silently leaving the first gone. The de-duped toast now
+carries an `undoRepeat` count (incremented only when a delete immediately
+follows another delete-keyed push with nothing between); its Undo re-reads the
+live count at click time and undoes that many steps. An unrelated action between
+deletes, or an already-dismissed toast, starts a fresh chain (no over-undo).
+Fail-before/pass-after tests incl. 3-delete, interleaved-action, post-dismiss,
+redo, and grouped-item cases.
+
+## SECURITY: runtime GLB loaders block foreign resource URLs — SEC-1 (v0.12.0.32)
+
+From the 2026-07-04 audit: the model-convert path blocked external URLs via a
+`LoadingManager`, but the RUNTIME GLB render loaders (drei `useGLTF` → shared
+`GLTFLoader`, catalog + GLB-designer thumbnails, pack thumbnail) did not — a
+crafted GLB whose buffer/image `uri` pointed at `http(s)://attacker/…` could
+trigger a fetch at render time (tracking-beacon / SSRF-lite). New shared
+`furniture/gltf/loaderSecurity.ts` policy — allow `data:`/`blob:` (every
+upload/IKEA/remote asset is pre-fetched to a `blob:` before loading) +
+same-origin; block any other absolute URL to a blank fallback — is injected via
+drei's `extendLoader` hook onto that one loader's `.manager` (never
+`DefaultLoadingManager`, so material/HDRI loaders are untouched). Default-scene
+GLBs confirmed still rendering. 13 policy tests.
+
+## FIX: multi-level duplicate/reorder correctness — BUG-5 + BUG-6 (v0.12.0.31)
+
+From the 2026-07-04 audit, two storey-operation bugs:
+- **BUG-5**: `duplicateLevel` left copied furniture's `groupId` unchanged, so a
+  group bridged both storeys — rotating/editing the group on one level moved the
+  copies on the other (groups are keyed on `groupId`, not level-gated). Fixed
+  with a per-source-group id remap so copies stay grouped with each other under
+  a fresh id but decouple from the source.
+- **BUG-6**: `moveLevel` restacked elevations using each level's OWN ceiling
+  height to place its own floor (a slab actually sits atop the level below), so
+  reordering mis-stacked storeys. Extracted the correct recurrence into
+  `floorplan/levels.ts:restackLevelElevations`
+  (`elevation_i = elevation_{i-1} + ceilingHeight_{i-1} + slab`).
+Fail-before/pass-after regression tests for both.
+
+## FIX: IDB blob eviction no longer silently deletes placed furniture — BUG-2 (v0.12.0.30)
+
+From the 2026-07-04 audit: on boot, `hydrateUserAssets` rebuilds `userFurniture`
+purely from an IndexedDB scan — if the browser evicted the IDB blob store
+(storage pressure / private-mode wipe / a corrupt record), items referencing
+those defs were filtered out by `applySerialized` (unknown `defId`), and the
+next debounced autosave overwrote the previous good save → **permanent, silent**
+furniture loss (the computed `droppedItemIds` was never surfaced). Fix: new
+`schema.ts:preserveUnresolvedItems`, called after `applySerialized` in both
+`hydrate.ts` and `cloudBoot.ts`, RETAINS items dropped purely for an unknown
+def when restoring your own save (they render as nothing until the def resolves
+— every `catalog[defId]` consumer already guards undefined); genuinely corrupt
+transforms still drop. The intentional drop+toast on file-import / saved-version
+/ share-link restore is unchanged. Integration-tested against real
+`hydrate()`/`localStorage`/`IdbAssetStore`.
+
+## DOCS: deep audit + opportunities backlog (v0.12.0.29)
+
+Recorded the 2026-07-04 deep codebase audit + value research as
+`docs/research/2026-07-04-deep-audit-and-opportunities.md` — 16 ranked,
+source-cited findings across optimization, refactoring, latent bugs, security,
+realism, and researched value-add features, seeding the improvement backlog.
+Several of its top findings already shipped (BUG-1/2/3, PERF-A/B, REAL-1,
+PERF-D). Added **Mattoboard** to `REFERENCES.md`.
+
+## FIX: furniture drag gated by pointerId — no multi-touch hijack — BUG-1 (v0.12.0.28)
+
+From the 2026-07-04 deep audit: `DragController`'s window `pointermove`/`pointerup`
+listeners filtered only on `draggingItemId`, never on `pointerId`, so on a touch
+device a SECOND finger's independent pointer stream drove the drag → teleported
+the item (and either finger's `pointerup` could end it at the wrong spot). The
+initiating `pointerId` is now recorded in the store (`dragPointerId`, via
+`startDrag`) + `setPointerCapture`d, and every `pointermove`/`pointerup`/
+`pointercancel` is gated through `dragHelpers.ts:isActiveDragPointer` — a
+second finger is a complete no-op. Verified with a real distinct-pointerId
+two-finger scenario (item followed only the first pointer). (Implemented in an
+isolated git worktree; merged to the stable branch.)
+
+## FIX/PERF: DLC-texture anisotropy + bounded surface-material cache (v0.12.0.27)
+
+From the 2026-07-04 deep audit:
+- **REAL-1**: DLC/uploaded (`textured`) floor/wall maps skipped anisotropic
+  filtering (only the procedural path applied it), so photo-textured surfaces
+  rendered blurry at grazing angles. `cache.ts`'s `textured` branch now stamps
+  the device-capped anisotropy (`anisotropy.ts`, matching the procedural path)
+  on every albedo/normal/roughness/ao map — verified crisp-to-horizon on real
+  GPU, procedural control pixel-identical.
+- **PERF-A**: the wall/floor/ceiling material `CACHE` was an unbounded `Map`,
+  leaking a material + GPU textures per distinct finish value during colour/
+  scale scrubbing → VRAM ratchet toward context-loss. Now the existing
+  `LruCache` (capacity 256, dispose-on-evict, same as the furniture cache).
+  Disposal is ownership-aware (`OWNED_TEXTURES` WeakSet): it never frees the
+  shared plaster singletons nor the loader-cached `textured` maps a `tint:`
+  sibling still references (drei's `useTexture` is URL-keyed → shared instances).
+- **PERF-B**: `useMaterials()` memoizes its merged-catalog rebuild.
+
+## FIX: undo/redo now round-trips the reno baseline + colour palette — BUG-3 (v0.12.0.26)
+
+From the 2026-07-04 deep audit: `historySlice`'s `HistorySnapshot`/`snapshot()`
+omitted `baselinePlan`, so undoing a plan-load reverted `floorPlan` but left
+`baselinePlan` on the just-undone plan — the hacking/demolition plan and
+renovation-cost report (`ui/report.ts`, `ui/drawingSet.ts`) then diffed two
+unrelated plans, producing a wrong real-money HDB estimate. Fixed by capturing
+`baselinePlan` in the snapshot (it only changes in lockstep with `floorPlan` on
+load, so plain edit-undo is a no-op for it; load-undo reverses both together).
+The audit's second finding — `masterPalette`/`roomPalettes` had the identical
+gap despite being documented undoable design data (and the "one undo reverts a
+whole home-style" promise) — is fixed the same way. Regression tests reproduce
+the exact load→load→undo scenario (fail before / pass after).
+
+## A11Y: keyboard-operable finish picker + inspector swatches (v0.12.0.25)
+
+Accessibility hardening of the finish picker + inspector (next surfaces after the
+v0.12.0.24 modal/menu pass): the colour picker's saturation/hue sliders were
+`role="slider"` + focusable but had NO keydown handler — keyboard/screen-reader
+users could not change colour at all (WCAG 2.1.1); added arrow-key (Shift = ×5)
++ Home/End. Every toggle-like swatch/chip now announces its selected state via
+`aria-pressed` (finish cells, DesignerPicks/Recent swatches, ThemeColorRows,
+QuickFinishes chips, MountHeightPresets chips, IkeaBody variant buttons); swatch
+rows gained `role="group"` accessible names; a custom `role="button"` finish
+cell now `preventDefault()`s Space (was scrolling the page). Roving arrow-nav
+deliberately not added (no such pattern elsewhere; would fight native sliders).
+Already-accessible controls (native inputs, focus-visible ring) unchanged.
+
+## A11Y: focus-trap toolbar menus + upload ConfirmDialog, label FileMenu delete (v0.12.0.24)
+
+Accessibility hardening (user-direction priority) on the dialog/menu primitives:
+- Extracted a shared `controls/focusTrap.ts` (`FOCUSABLE_SELECTOR` + `trapTabKey`)
+  from `Modal`'s inline logic so all consumers reuse one implementation.
+- **ToolbarMenu** (File/Tools/View/Arrange/Edit/Scene): the `Popover`-portaled
+  panel sat outside the trigger's tab order, so opening a menu by keyboard left
+  focus stranded with no way to Tab into the rows. It now moves focus to the
+  first row on open and traps Tab within the panel (Escape-close-and-restore was
+  already Popover's job). Add-only — the v0.12.0.21 stagger/layout is untouched.
+- **upload/ConfirmDialog** (an `alertdialog`): added focus-restore-on-close +
+  Tab-trap (it can stack on another dialog).
+- **FileMenu**: the saved-layout delete button now has `aria-label="Delete
+  layout \"<name>\""` (was an ambiguous "×").
+Deliberately NOT added: roving arrow-key/type-ahead nav on ToolbarMenu — its
+panels mix `menuitem` buttons with native sliders/comboboxes that own Up/Down,
+so a panel-wide arrow interceptor would fight them (documented in ui/CLAUDE.md).
+Already-accessible surfaces (Modal/ShareModal/PromptModal) unchanged.
+
+## FIX: shape-accurate collision footprints for round/oval tables (v0.12.0.23)
+
+TODO "Open — core interactions": `footprintParts` is a union of OBBs, so a round/
+oval table's true disc/ellipse wasn't representable and it collided as a loose
+rectangular bbox — blocking floor at the corners the top never reaches. New pure
+`furniture/footprintShapes.ts:ellipseFootprintParts(width, depth, steps=4)`
+approximates the ellipse with a symmetric "staircase" of axis-aligned boxes
+inscribed in it (5 boxes by default; each band sized to the ellipse's extent at
+its outer angle so every far corner lands ON the curve — a provable subset of
+both the ellipse and the bbox, keeping it a plain OBB union with bounded
+collision cost). Wired into `dining-table-4`/`coffee-table` (round/oval) and
+`side-table` (round/drum). Scales with the item; rect/square unchanged. 54
+targeted tests incl. `canPlace` integration against the real catalog defs.
+
+## FEAT: room-aware catalog default — CATALOG-ROOMAWARE (v0.12.0.22)
+
+Core-loop parity gap (2026-07-03 audit): entering a room to edit now lands the
+catalog on the category most relevant to that room (bedroom→beds, kitchen→
+appliances, bath→bathroom, living→seating/tables) instead of a flat A–Z, via a
+pure unit-tested `ui/catalog/roomAwareCategories.ts` mapping keyed on the room
+kind. It keys ONLY the initial landing category on entering a room — a
+subsequent manual category pick is respected and never overridden mid-session;
+whole-flat view (no room active) and unknown room kinds fall back to today's
+default. Flag `catalogRoomAware` (simple, default on). Verified bedroom→beds,
+kitchen→appliances, manual-override-sticks, and flag-off fallback across
+desktop/mobile × light/dark.
+
+## FIX: transient dropdown void — drop per-row stagger from ToolbarMenu (v0.12.0.21)
+
+TOOLBAR-MENU-VOID — the File/Tools dropdowns flashed a vertical void between
+their top and bottom item clusters for ~0–600ms on open (invisible to settled
+screenshots, which is why it eluded review). The shared `ToolbarMenu` panel used
+the `.stagger-in` per-row cascade, whose `--i` nth-child fallback only covers 12
+children; menus with more rows (File = 13, Tools ≈ 20 in Pro) gave every row past
+the 12th zero delay → they popped in at the bottom while rows 6–12 were still
+mid-cascade. The panel now animates in as a whole via `.pop-panel`'s own `pop`
+keyframe (a primitive rendering arbitrary children can't set the per-row `--i`).
+View (<12 rows) and Arrange (all rows in one scroll child) were never affected.
+Regression scenario `toolbar-menu-void.json` asserts every panel child is opaque
+at open. One-class change in the shared primitive — all toolbar menus benefit.
+
+## FEAT: pick a finish/variant on the catalog card before placing — CATALOG-VARIANT (v0.12.0.20)
+
+Core-loop parity gap (2026-07-03 audit): variant/tint was only editable AFTER
+placement via the inspector; now a compact quick-look **"Choose a finish"**
+swatch popover on the catalog card lets you pick before placing, carried into
+placement as the item's initial props. IKEA multi-variant products use
+`def.variants`; tintable parametric pieces use their primary `color`-kind
+`paramSchema` field (curated 8-swatch palette). Plain GLB / single-variant IKEA
+defs get no popover. Pure resolution (`furniture/placement/catalogVariants.ts`);
+the pick threads through a new session-only `armedVariantProps` placement-slice
+field, merged `{...defaultItemProps(def), ...armedVariantProps}` in both the
+normal and window-bound commit paths. Popover = desktop Popover / mobile Modal,
+touch-sized swatches. Flag `catalogVariantPick` (simple). Verified: navy + sage
+sofas placed in the chosen colour, desktop + mobile, light + dark.
+
+## TEST: AI-surfaces IXT rung — flag-gating + pre-inference UI (v0.12.0.19)
+
+IXT-SUITES AI-surfaces rung — `ai-surfaces-simple.json` (50 steps) covers
+`aiPhotoreal`/`aiLayout`/`aiWalls` tier-gating (Simple hidden / Pro shown, at
+both the store-flag and real-UI-mount level) and the tractable pre-inference UI
+WITHOUT any network/key: the Share-modal "Make photoreal" button goes
+disabled→enabled purely from key entry (never clicked, no result image), and the
+Command-Palette "AI auto-furnish (BYO key)" opens its brief-prompt modal and
+cancels cleanly (returns before any network). The real inference calls
+(Replicate img2img, vision wall-trace, LLM layout) genuinely need a live key and
+stay out of scope; `featureFlags.test.ts` gains a durable AI-flags describe block
+pinning tier/devOnly/default. `aiWalls`' post-upload button (in FloorPlanEditor)
+noted as a follow-up rung. Playbook: cmdk empty-state + `type`-action gotchas.
+
+## TEST: share/export cohesion audit scenario (v0.12.0.18)
+
+Audited the share/export surface (ShareModal + AI-photoreal, File/Tools export
+menus, panorama, AR, BOQ/shopping-list, export toasts) for theme/spacing/
+responsive cohesion — found it already token-clean, cohesive, and responsive
+across desktop/mobile × light/dark × Simple/Pro, so NO product changes. Added
+`share-export-audit.json` as regression coverage for the previously-untested
+combos (dark, Pro AI-photoreal, mobile File/Tools export sections). Logged one
+out-of-scope observation to TODO.md (TOOLBAR-MENU-VOID: a vertical gap in the
+shared `ToolbarMenu` primitive affecting all toolbar dropdowns).
+
+## FIX: walk-mode reticle legible over any background (v0.12.0.17)
+
+The walk-mode aiming crosshair used `bg-white/80 mix-blend-difference` — a
+Tailwind colour literal that, difference-blended over a mid-grey wall (~0.5
+luminance), resolved back to mid-grey and vanished on exactly the surfaces walk
+mode aims at most. Replaced with a token-based `.walk-reticle` (light mark +
+dark halo, `oklch` + `box-shadow`, same functional-contrast pattern as
+`.walk-cross`), legible over any 3D background. Verified walk mode across
+desktop + mobile portrait/landscape × day/night. (The rest of the walk-mode HUD
+— prompts, banner, joystick — audited clean, no changes.)
+
+## FEAT: click-to-place furniture in the 2D plan editor — PLAN-FURNISH Phase 1 (v0.12.0.16)
+
+The signature Sweet Home 3D / Planner 5D "plan-first" loop, Phase 1 (desktop
+click-to-place). In the 2D plan editor (Pro), a "Furnish" tool surfaces the
+catalog over the plan; arming a def shows an SVG ghost that follows the cursor
+with `canPlace` validity (green/red), left-click commits via the existing
+`addItem`→`beginDrop`→`pendingEdit` path (R rotates, Esc/right-click cancels),
+auto-shows furniture, and selects the new item — which then round-trips into
+the 3D scene at the same coordinates. Flag `planFurnish` (pro).
+
+Architecture (per `docs/research/2026-07-03-plan-furnish-implementation-plan.md`):
+the catalog is surfaced via a new `floorPlanEditing && planFurnish && !isMobile`
+OR-branch — `canEditScene` / the VIEW-EDIT-SPLIT invariant is UNTOUCHED (verified
+by a regression test), and the canvas-bound 3D `PlacementGhost`/
+`usePlacementController` stay inert behind the plan's SVG overlay (a fresh
+`PlacementGhostLayer` + local `planGhostWorld`, never the 3D `ghostWorld`).
+Pure ghost/validity/commit logic in `editor/planFurnishPlacement.ts` + tests;
+shared `defaultItemProps` extracted from the duplicated 3D copies. Also fixed a
+real bug found in verification: `EditConfirmBar` was auto-confirming a
+plan-origin `pendingEdit` (its abandon-effect keyed only on `roomEditorActive`).
+Phases 2 (mobile), 3 (window-bound fixtures), 4 (HTML5 drag) deferred.
+
+## FEAT: core-loop parity — catalog room-fit cue + minimap tap-to-teleport (v0.12.0.15)
+
+Two client-doable core-loop parity features from the 2026-07-03 audit:
+
+- **CATALOG-FITS** — catalog cards now flag an item against the room being
+  edited: a dimmed card + warn-toned "Won't fit" / "Tight fit" note, from a pure
+  `catalog/roomFit.ts:itemFitsRoom` predicate that reuses `def.defaultFootprint`
+  + `layout/designRules.ts` CLEARANCE and the existing `getRoomEditorShell`
+  room rects (checks both orientations, handles L-shaped rooms; missing data →
+  "unknown", never a false "won't fit"). Honours the HDB small-space premise no
+  competitor nails. Flags: `catalogFits` (simple, the passive cue) +
+  `catalogFitsFilter` (pro, a "Fits only" browse toggle). No cue in the
+  whole-flat view (no room active).
+- **MINIMAP-JUMP** — tap/click a spot on the walk-mode minimap to teleport there,
+  clamped inside the room clear of its walls (`ui/walk/minimapTeleport.ts` pure
+  coord-inversion + polygon clamp), facing the room centre. DOM→R3F plumbing via
+  a `cameras/walkTeleport.ts` module signal (mirrors `cameraForward.ts`), applied
+  in `FirstPersonCamera` before orientation re-assert then nudged off furniture.
+  Big mobile navigation win. Flag: `minimapTeleport` (simple).
+
+Both flag-tested in Simple + Pro; verified in a small room / walk mode via the
+scenario harness, desktop + mobile, light + dark.
+
+## DOCS: PLAN-FURNISH implementation plan + risk assessment (v0.12.0.14)
+
+Architectural design doc (`docs/research/2026-07-03-plan-furnish-implementation-plan.md`)
+for adding furniture placement in the 2D plan editor (PLAN-FURNISH gap). Key
+de-risking finding, verified against source: the 2D plan editor already mutates
+`store.items` via the same pure `canPlace`/`addItem` path (`addItem` is NOT
+`canEditScene`-gated; move/rotate/scale already work in 2D; `FurnitureLayer`
+already renders footprints), so the feature only adds the missing "add" verb and
+does NOT need to touch the `canEditScene` / VIEW-EDIT-SPLIT invariant. Staged
+into 4 independently-shippable flag-gated phases; recommends proceeding with
+Phase 1 (desktop click-to-place, ~4–6 dev-days, `pro`-tier `planFurnish` flag),
+deferring Phase 4 (HTML5 drag-from-catalog).
+
+## DOCS: core-loop parity gap audit → backlog (v0.12.0.13)
+
+Competitive audit of the core design loop (furnish/arrange/finish/view) against
+market leaders (Coohom/Planner 5D/IKEA Kreativ/Sweet Home 3D/HomeByMe). The app
+is broadly feature-complete; logged the top 5 client-doable, untracked parity
+gaps to `TODO.md` to feed future cycles: CATALOG-FITS (footprint "fits this
+room" cue — HDB small-space premise), CATALOG-ROOMAWARE (room-aware catalog
+default), CATALOG-VARIANT (pick finish before placing), MINIMAP-JUMP (walk-mode
+tap-to-teleport), PLAN-FURNISH (2D-plan furniture placement — high value/high
+risk). HomeByMe noted as a new reference.
+
+## FIX: inspector header/array-field/warn-colour cohesion (v0.12.0.12)
+
+Cohesion pass on the furniture Inspector (core-loop surface; continues the
+catalog v0.12.0.3 + finish-picker v0.12.0.9 program). Three real bugs:
+- **Multi-select / wall-accent header truncation** — the shared `.inspector`
+  class made an unqualified `.panel-head > div` row-layout rule squeeze
+  `MultiSelectPanel`/`WallAccentPicker`'s title-over-sub header ("3 items
+  sele…" + a wrapped subtitle). Scoped the row layout to
+  `.panel-head:has(.insp-thumb)` so only the true single-item header gets it.
+- **Array-section inputs clipped their value** ("360" → "36C"): fixed 48px
+  width was too narrow for Sweep/Start-angle/gap values → `width: 100%` to
+  fill the grid cell.
+- **Hardcoded `text-amber-600`** on IkeaBody's auto-detect caption → new
+  token-based `.insp-warn-text` (shared warn oklch + dark override).
+Verified desktop/mobile × light/dark × {parametric, GLB, multi-select}.
+
+## PERF: bulk-import concurrency default is hardware-aware (v0.12.0.11)
+
+Plan Part 2 #4 — bulk import fanned files out at a fixed default of 4. It now
+derives from device capability via `defaultImportConcurrency` (reuses the same
+`computePoolMax` ceiling as the convert + optimize pools), so a batch doesn't
+over-queue a low-end 1–2-worker pool nor cap at 4 on a many-core desktop.
+SSR/no-`navigator` falls back to the legacy 4; an explicit caller-supplied
+`concurrency` still wins. Pure helper + unit tests (core/memory values,
+stubbed-navigator fallback, override precedence). Completes the asset-pipeline
+Part 2 work (all four items now done).
+
+## TEST: GLB-designer IXT re-rung (v0.12.0.10)
+
+IXT-SUITES GLB-designer rung — `glb-designer-simple.json` (34 steps): Simple/Pro
+gate (dialog stays unmounted in Simple even with `glbDesignerOpen` forced,
+mounts in Pro), a real edit round-trip (add box → size X=1 m + raise Y=0.8 m,
+reflected in controlled inputs AND the live 3D preview), and a real **save**
+round-trip — Save asset persists a `UserGltfDef "IXT Simple Box"` into
+`state.userFurniture` via the actual `buildEditedObject → exportGlb →
+persistUserGlb → addUserFurniture` path (asserted via `__store`, visually
+confirmed by the success toast). No dev lever needed (the dialog idle-preloads).
+Playbook: worked example + a general gotcha — `clickByText` doesn't scroll a
+below-the-fold control into view, which also retro-explains the pre-existing
+`glb-csg-textures-simple.json` save-step timeout.
+
+## FIX: finish-picker mobile blank-dropdown + touch-target/hover/spacing polish (v0.12.0.9)
+
+Cohesion pass on the finish/material picking surface (core "finish" loop):
+- Mobile Ceiling `Select` now shows "Default" instead of a blank trigger when
+  no ceiling finish is set (Ceiling is the only surface whose active id can be
+  `''`) — gated on `active === ''` so it can't misfire on a filtered-out id.
+- `QuickFinishes`/`MountHeightPresets` swatches bumped to 40px on mobile (were
+  missed by the existing `.swatches .swatch` tap-target bump — different parent).
+- `CachePane`'s "Clear" hover was a no-op (rest == hover surface) → rest fixed
+  to `--surface-2`.
+- Normalized several ad-hoc px literals to spacing tokens in FinishPicker CSS +
+  MasterPaletteEditor/ColorPicker.
+- Harness fix found while auditing: `clickByText` (`scripts/lib/interact.mjs`)
+  didn't recognize `<summary>` and silently mis-clicked the 3D canvas instead
+  of a Disclosure row; now allowlisted + a missed click is a real miss.
+
+## PERF: model conversion runs in a pooled Worker off the main thread (v0.12.0.8)
+
+TODO Part 1b (final item) — model conversion (OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/
+gltf → GLB via `convertModel`) previously blocked the main thread during bulk
+imports. It now runs in a pooled Worker (`furniture/convert/runConvert.ts` +
+`convert.worker.ts`) built on a new **generic** `furniture/worker/workerPool.ts`
+(extracted from the optimize pool's lifecycle — spawn-on-contention, per-worker
+error retirement with terminate, 30s idle teardown; the shipped optimize pool is
+left untouched, new pools build on this). The one DOM gap (`ImageLoader`'s
+`document.createElementNS('img')` texture decode) is bridged by
+`convert/imageLoaderWorkerPatch.ts` (decodes via `createImageBitmap`), so every
+texture-bearing format moves to the worker with `convertModel` unchanged.
+Graceful **per-file** fallback to a direct main-thread convert — a single bad
+file never aborts the batch. Real-browser verified (`convert-off-main-thread.json`
++ the `__lastConvertRun` seam): a real OBJ→GLB ran on the pooled Worker
+(`usedWorker === true`). Mock-Worker pool tests + fallback tests.
+
+## TEST: ceilingDesign walk-mode look-up IXT scenario (v0.12.0.7)
+
+IXT-SUITES ceilingDesign rung — `ceilingdesign-walk-simple.json` (32 steps,
+4 screenshots): Simple-mode gate assert (`ceilingDesign` flag off), tray+cove
+then coffered 3×3 applied to livingDining in Pro, walk-mode look-up via the new
+dev-only `__walkLook` pitch lever (`FirstPersonCamera.tsx` — mouse-look needs
+OS Pointer Lock, unavailable headless; the lever writes the same clamped pitch
+ref as a real look-up, DEV-gated + unmounted with walk mode), config
+persistence asserted across mode switches. Screenshots visually confirmed:
+tray recess + perimeter band + corner risers + glowing cove strip; coffered
+beam grid in perspective; orbit view unaffected. Playbook: worked example +
+5 new gotchas (+ a pitch-note fix in the curtain example).
+
+## PERF: whole-scene 3D export runs on a Worker for very large scenes (v0.12.0.6)
+
+Q-3DEXPORT tail — `GLTFExporter.parse()` is a single un-yielding synchronous
+pass that stalled the UI on a large scene. Scenes over 400 meshes / 250k
+estimated triangles (`export/exportThreshold.ts`; the default furnished 4-room
+HDB measures ~1273 / ~311k, so default whole-home exports qualify) now marshal
+(`export/sceneMarshal.ts` — three's own JSON round-trip with a typed-array
+fast path so attribute buffers structured-clone as memcpy) and export
+(GLB/OBJ/STL/USDZ, the same exporter functions as the direct path) on a
+dedicated Worker (`export/exportWorker.worker.ts`, orchestrated by
+`export/runSceneExport.ts` with a 60s timeout), with a progress toast and
+transparent fallback to the direct path on any worker failure. Small scenes
+keep the exact prior direct behaviour. Real-browser verified
+(`scene-export-worker.json`): worker path (asserted `path === 'worker'`)
+produced a 53 MB GLB; the verification also caught + fixed an
+`ObjectLoader.parseGeometries` shapes-table bug the fallback had been
+silently masking (ShapeGeometry regression test added). Dev-only
+observability seams: `__forceWorkerExport`, `__lastSceneExport`.
+
+## PERF/IO-002: optimize-pool idle teardown + hopeless-size early gate (v0.12.0.5)
+
+- Optimize pool workers idle-teardown (terminate + drop) after 30s with no pending
+  calls, and an errored (retired) worker is now actually terminated, not just
+  dropped — each worker holds a heavy Draco/Basis WASM stack, so a bulk-import
+  burst no longer holds its peak worker count for the rest of the session.
+- New `EARLY_REJECT_MULTIPLIER` (3): a converted GLB > 3× `MAX_GLB_BYTES` (75 MB)
+  is rejected BEFORE burning an optimize-pool slot ("even after optimization this
+  can't fit"), while a merely over-cap 25–75 MB compressible file keeps its
+  optimize chance and the post-optimize check still enforces the real 25 MB cap.
+- Mock-Worker pool lifecycle tests (`runOptimize.pool.test.ts`) + both-sides gate
+  tests; real-browser verified end-to-end via the new dev-only `__importGlbFiles`
+  hook (2 imported, hopeless file skipped, in a live Chromium with real Workers).
+
+## TEST: first-run persistence IXT scenario (v0.12.0.4)
+
+IXT-SUITES first-run re-rung — `first-run-returning-user.json` (23 steps): clean
+profile boots the onboarding carousel, the top-nav "Skip" (the third dismissal
+path, beyond the tour / Enter-sandbox choices the other first-run scenarios
+cover) persists `hdb_onboarded='1'`, then a **real `location.reload()`** proves
+a returning user re-sees NO first-run overlay (carousel or location prompt) —
+end-to-end `resolveBootDecision` + autosave persistence beyond the pure-function
+`bootDecision.test.ts` coverage. Playbook: documented the scenario + the
+persistence-needs-a-real-reload and location-prompt-is-autosaved gotchas.
+
+## FIX: catalog Packs-tab warn colours onto the token vocabulary (v0.12.0.3)
+
+- Packs-tab "Sidecar not detected" notice moved off literal Tailwind amber
+  (`bg-amber-50 text-amber-800` — a baked light-theme shade, illegible in dark)
+  onto a new `.pack-notice` class using the shared warn tone (same `oklch` pair
+  as `.badge.warn`, `[data-mode='dark']` text lift) + spacing/type tokens.
+- Added the missing `.cat-card .pr.warn` rule so `RemoteCard`'s ≥30 MB
+  heavy-download flag actually renders its warn tone (was silently inert).
+- Verified desktop+mobile × light+dark × Simple/Pro (Packs is Pro-only) via the
+  scenario harness; the rest of the catalog surface audited clean — no churn.
+
+## FEAT: draggable 3D tilt gizmo handle (v0.12.0.2)
+
+PARITY-TILT tail — pitch/roll was previously editable only via the inspector's
+`TiltControls` sliders; now a direct-manipulation handle in the 3D viewport does
+the same job.
+
+- **`TiltGizmo`** (`scene/selection/TiltGizmo.tsx`): a "joystick" (rod + ball)
+  anchored just above the selected item, tilted with the item's own live
+  `[pitch, yaw, roll]` Euler tuple (`furniture/tiltRotation.ts:itemRotation`) so
+  it always visually points the way the piece is actually leaning. Drag the ball
+  — vertical screen movement sets pitch, horizontal sets roll — via pointer
+  events (mouse + touch), same as `RotateGizmo`/`ResizeGizmo`. Single-item only
+  (tilt is a per-item transform); hidden for locked items and for Staircase
+  (matches the inspector's own exclusion). Mounted beside `RotateGizmo`/
+  `ResizeGizmo` in both the main and room-editor scenes.
+- **Pure math extracted** to `scene/selection/tiltGizmoMath.ts`
+  (`computeTiltDrag`, `tiltGizmoAnchorHeight`) — screen-pixel delta → clamped
+  pitch/roll, unit-tested in isolation (`tiltGizmoMath.test.ts`).
+- **Shared tilt range**: `TILT_LIMIT_DEG`/`TILT_LIMIT_RAD`/`clampTilt` moved from
+  a `TiltControls`-local constant into `furniture/tiltRotation.ts` so the slider
+  and the gizmo can never disagree on how far a piece can lean (±45°).
+  `TiltControls.tsx` now imports the shared constant instead of duplicating it.
+- **Feature flag**: reuses the existing `tiltFurniture` flag (pro tier, default
+  on) — the gizmo is an alternate affordance for the same capability the
+  sliders already gate, not a separate feature. Updated the registry
+  description + comment to note both affordances share the flag.
+- Undo/redo: the gesture pushes history on grab and, on release, resolves to
+  the same `pendingEdit`/`EditConfirmBar` tick-cross flow as every other
+  in-scene transform (`priorItems` snapshot restores pitch/roll on ✗/Esc).
+- Scenario: `scripts/scenarios/tilt-gizmo-simple.json` (select an item, confirm
+  the flag-gated handle mounts, drag it, screenshot).
+
 ## FEAT + FIX: mobile editor polish, room dimension markers, room reorder, update UX (v0.12.0.1)
 
 - **`roomReorder` is simple-tier** (was pro) — the reorder dialog shows in both Simple and Pro.

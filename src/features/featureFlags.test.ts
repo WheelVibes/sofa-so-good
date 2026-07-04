@@ -125,7 +125,9 @@ describe('Simple/Pro tiering', () => {
   })
 
   it('tiltFurniture (pro tier) is hidden in Simple mode and present in Pro mode', () => {
-    // Multi-axis tilt is an advanced placement control → pro tier.
+    // Multi-axis tilt is an advanced placement control → pro tier. Gates BOTH
+    // the inspector's TiltControls sliders AND the in-viewport TiltGizmo drag
+    // handle (PARITY-TILT tail) — one capability, one flag.
     expect(resolveFlags(true, {}, false, 'simple').tiltFurniture).toBe(false)
     expect(resolveFlags(true, {}, false, 'pro').tiltFurniture).toBe(true)
   })
@@ -240,6 +242,17 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').stagingReveal).toBe(true)
     expect(FEATURE_FLAGS.stagingReveal.tier).toBe('pro')
     expect(FEATURE_FLAGS.stagingReveal.default).toBe(true)
+  })
+
+  it('timeCompare (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    // Time-of-day comparison reveal (FEAT-1) is an analytical "how does this
+    // room read across the day" view, not the core furnish/finish loop.
+    expect(resolveFlags(false, {}, false, 'simple').timeCompare).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').timeCompare).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').timeCompare).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').timeCompare).toBe(true)
+    expect(FEATURE_FLAGS.timeCompare.tier).toBe('pro')
+    expect(FEATURE_FLAGS.timeCompare.default).toBe(true)
   })
 
   it('styleTransfer (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
@@ -553,6 +566,29 @@ describe('ambientFx flag (P7 decorative ambient effects)', () => {
     expect(resolveFlags(false, {}, false, 'pro').ambientFx).toBe(true)
     expect(resolveFlags(true, {}, false, 'simple').ambientFx).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').ambientFx).toBe(true)
+  })
+})
+
+describe('AI surfaces (aiPhotoreal / aiWalls / aiLayout — IXT-SUITES AI-surfaces rung)', () => {
+  // All three are experimental BYO-key AI features (no bundled key, no
+  // sidecar): pure client code that fails soft with no key, so — unlike
+  // ikeaLive/livePrices — they are NOT devOnly and ship in prod, but are
+  // pro-tier (hidden in Simple, where the UI stays the minimal core loop).
+  it('are pro-tier, ship in prod (no devOnly gate), default on', () => {
+    for (const key of ['aiPhotoreal', 'aiWalls', 'aiLayout'] as const) {
+      expect(FEATURE_FLAGS[key].tier).toBe('pro')
+      expect(FEATURE_FLAGS[key].devOnly).toBeUndefined()
+      expect(FEATURE_FLAGS[key].default).toBe(true)
+    }
+  })
+
+  it('are hidden in Simple mode and present in Pro mode (both build kinds)', () => {
+    for (const key of ['aiPhotoreal', 'aiWalls', 'aiLayout'] as const) {
+      expect(resolveFlags(false, {}, false, 'simple')[key]).toBe(false)
+      expect(resolveFlags(false, {}, false, 'pro')[key]).toBe(true)
+      expect(resolveFlags(true, {}, false, 'simple')[key]).toBe(false)
+      expect(resolveFlags(true, {}, false, 'pro')[key]).toBe(true)
+    }
   })
 })
 

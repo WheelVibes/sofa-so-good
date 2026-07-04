@@ -33,6 +33,7 @@ import {
   gizmoPatch,
 } from '../../furniture/glbEdit/gizmoWriteBack'
 import { exportAndSaveAsset, placementFlags } from '../../furniture/glbEdit/saveAsset'
+import { secureGltfLoader } from '../../furniture/gltf/loaderSecurity'
 import type { UserGltfDef } from '../../furniture/types'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { parseFurnitureMaterialFinish } from '../../materials/furnitureMaterials'
@@ -53,7 +54,10 @@ function SourceModel({
   scale: number
   onScene: (o: Object3D | null) => void
 }) {
-  const gltf = useGLTF(url)
+  // SEC-1: same shared foreign-URL-blocking manager as GltfModel — a model
+  // opened for editing here can be an uploaded/IKEA-imported GLB, so it must
+  // not be able to fetch a foreign host via its own embedded uris either.
+  const gltf = useGLTF(url, true, true, secureGltfLoader)
   useEffect(() => {
     onScene(gltf.scene)
     return () => onScene(null)

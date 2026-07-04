@@ -37,7 +37,22 @@ interface PoolWorker {
   worker: Worker
   /** In-flight call resolvers keyed by message id (worker processes serially). */
   pending: Map<number, (r: RunOptimizeResult | null) => void>
+  /** Pending idle-teardown timer, armed once `pending` empties; cleared if a
+   *  new job claims this worker before the timer fires. */
+  idleTimer?: ReturnType<typeof setTimeout>
 }
+
+/**
+ * How long a worker sits idle (0 pending calls) before it's terminated and
+ * dropped from the pool. Each worker keeps the heavy @gltf-transform/Draco/
+ * Basis WASM stack resident (hundreds of MB) for as long as it's alive, so
+ * once a bulk-import burst subsides the pool should shed workers back down
+ * instead of holding the peak allocation for the rest of the session. A new
+ * job re-spawns a worker on demand (`pickWorker`), so this only costs a little
+ * re-init latency on the next burst. Exported so tests can drive it with fake
+ * timers instead of a real 30s wait.
+ */
+export const IDLE_TEARDOWN_MS = 30_000
 
 /**
  * Upper bound on the optimize-worker pool, derived from the device's capability
@@ -90,6 +105,34 @@ function replyToResult(r: WorkerReply): RunOptimizeResult | null {
   }
 }
 
+/** Best-effort worker termination — never throw out of a teardown path. */
+function terminate(pw: PoolWorker): void {
+  try {
+    pw.worker.terminate()
+  } catch {
+    // already gone / unsupported — nothing more to do
+  }
+}
+
+/** Clear (if armed) this worker's idle-teardown timer — called both when a
+ *  new job claims an idle worker and when it's torn down some other way
+ *  (error/messageerror), so a stale timer can never fire twice. */
+function clearIdleTimer(pw: PoolWorker): void {
+  if (pw.idleTimer === undefined) return
+  clearTimeout(pw.idleTimer)
+  pw.idleTimer = undefined
+}
+
+/** Arm the idle-teardown timer once a worker's queue empties. */
+function scheduleIdleTeardown(pw: PoolWorker): void {
+  pw.idleTimer = setTimeout(() => {
+    pw.idleTimer = undefined
+    if (pw.pending.size > 0) return // claimed again in the meantime
+    pool = pool.filter((p) => p !== pw)
+    terminate(pw)
+  }, IDLE_TEARDOWN_MS)
+}
+
 function spawn(): PoolWorker | null {
   try {
     const pw: PoolWorker = {
@@ -101,6 +144,7 @@ function spawn(): PoolWorker | null {
       if (!resolve) return
       pw.pending.delete(e.data.id)
       resolve(replyToResult(e.data))
+      if (pw.pending.size === 0) scheduleIdleTeardown(pw)
     }
     // Retire only THIS worker on failure: fall its own in-flight calls back to
     // the direct/unoptimized path and drop it from the pool (a fresh one is
@@ -109,9 +153,11 @@ function spawn(): PoolWorker | null {
     // wedge a bulk-import slot (IO-008); we can't tell which id, so fail this
     // worker's whole queue.
     const retire = () => {
+      clearIdleTimer(pw)
       for (const [, resolve] of pw.pending) resolve(null)
       pw.pending.clear()
       pool = pool.filter((p) => p !== pw)
+      terminate(pw)
     }
     pw.worker.onerror = retire
     pw.worker.onmessageerror = retire
@@ -146,6 +192,9 @@ function pickWorker(): PoolWorker | null {
       return null
     }
   }
+  // Claiming this worker for a new job — cancel any pending idle-teardown so
+  // it isn't terminated out from under the in-flight call.
+  if (best) clearIdleTimer(best)
   return best
 }
 

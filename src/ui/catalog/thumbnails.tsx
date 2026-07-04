@@ -3,6 +3,7 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { Suspense, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { Box3, type Object3D, Vector3 } from 'three'
 import { SkeletonUtils } from 'three-stdlib'
+import { secureGltfLoader } from '../../furniture/gltf/loaderSecurity'
 import { selectGltfRender } from '../../furniture/gltfRender'
 import { PRIMITIVE_COMPONENTS } from '../../furniture/primitives'
 import {
@@ -178,7 +179,10 @@ function GltfThumbnailCapture({
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
   const camera = useThree((s) => s.camera)
-  const gltf = useGLTF(url)
+  // SEC-1: same shared foreign-URL-blocking manager as GltfModel (a crafted
+  // GLB's embedded buffer/image `uri` must not be able to fetch a foreign host
+  // while rendering a catalog thumbnail either).
+  const gltf = useGLTF(url, true, true, secureGltfLoader)
   const obj = useMemo(() => SkeletonUtils.clone(gltf.scene as unknown as Object3D), [gltf.scene])
 
   useEffect(() => {

@@ -96,3 +96,35 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `transparent`), keep parts from intersecting, and orbit to a side/profile angle to confirm
   contact (top-down hides float/sink). Visually verify per the playbook — green tests are
   not proof the render is right.
+- **A plain-object module signal is the sanctioned way for DOM UI outside the R3F tree to talk
+  to a per-frame controller inside it**, in either direction — `cameraForward.ts`
+  (`cameraForwardXZ`/`cameraPosXZ`) publishes OUT (written every frame, read by the minimap/
+  arrow-key nudge); `cameras/walkTeleport.ts` (MINIMAP-JUMP) is the mirror-image IN: the minimap
+  calls `requestWalkTeleport(x,z,yaw)` on tap, `FirstPersonCamera` polls
+  `consumeWalkTeleport()` once per frame and clears it. Never round-trip a once-per-event signal
+  like this through Zustand (a `subscribe(markDirty)` firing on every pointer event is wasted
+  churn) — reserve the store for state that actually needs to persist/react beyond one frame.
+- **A furniture drag is gated by `pointerId` (BUG-1).** `Furniture.tsx`'s `onPointerDown`
+  records the initiating `e.nativeEvent.pointerId` into `placementSlice.startDrag(...,
+  pointerId, ...)` (stored as `dragPointerId`) and best-effort `setPointerCapture`s it on the
+  canvas (guarded — a stale/synthetic id throws `InvalidPointerId` on some browsers).
+  `DragController`'s window-level `pointermove`/`pointerup`/`pointercancel` listeners gate every
+  event through `dragHelpers.ts:isActiveDragPointer(state.dragPointerId, ev.pointerId)` before
+  touching the drag — a second finger's independent pointer stream (its own `pointerId`) is a
+  complete no-op: it can't move the item and it can't end the drag. Only the pointer that
+  started the gesture drives `onMove` and commits/reverts on `onUp`. `endDrag` clears
+  `dragPointerId`. Any new in-canvas drag/gizmo gesture that adds its own window-level
+  pointermove/up listeners should follow the same pattern. **`RotateGizmo`/`ResizeGizmo`/
+  `TiltGizmo` now comply (MOBILE-1)** — each records the initiating `e.nativeEvent.pointerId`
+  into its own `gesture` ref (a per-gizmo field, not the store's `dragPointerId`, since a gizmo
+  gesture is a distinct pointer stream from an item drag — the two are mutually exclusive via
+  `!draggingItemId`/`!activeDefId` in each gizmo's `visible` check) + best-effort
+  `setPointerCapture` (same guarded try/catch as `Furniture.tsx`), and gate their window
+  `pointermove`/`pointerup`/`pointercancel` through `dragHelpers.ts:isActiveDragPointer`. Verified
+  with a real two-pointer scenario (`scripts/scenarios/gizmo-rotate-multitouch.json`): grabbing the
+  rotate ring with one pointer then driving a second pointer far away leaves the rotation
+  untouched and the second pointer's `pointerup` doesn't end the gesture. `MarqueeSelector`
+  (MOBILE-2) is gated the same way (a closure-local `activePointerId`, since it lives outside the
+  Canvas with no per-gesture ref). Catalog placement-drag ghost (`usePlacementController.ts`,
+  MOBILE-3) is lower severity (cosmetic jitter, no mis-commit) and intentionally left ungated here
+  — it's outside `src/scene/` and a UI-owned surface.

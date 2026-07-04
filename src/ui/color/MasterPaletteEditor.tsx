@@ -72,7 +72,7 @@ function PaletteSlots({
   const add = () => onChange([...palette, '#cccccc'])
   return (
     <div>
-      <div className="label" style={{ fontSize: 'var(--t-2xs)', marginBottom: 2 }}>
+      <div className="label" style={{ fontSize: 'var(--t-2xs)', marginBottom: 'var(--s-1)' }}>
         {label}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-1)', flexWrap: 'wrap' }}>
@@ -120,7 +120,7 @@ function RecommendedPreview({ palette }: { palette: string[] }) {
   if (blends.length === 0) return null
   return (
     <div>
-      <div className="label" style={{ fontSize: 'var(--t-2xs)', marginBottom: 2 }}>
+      <div className="label" style={{ fontSize: 'var(--t-2xs)', marginBottom: 'var(--s-1)' }}>
         Recommended blends
       </div>
       <div className="swatches" style={{ paddingBlock: 0 }}>
