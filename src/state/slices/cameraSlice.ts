@@ -46,6 +46,18 @@ export interface CameraSlice {
   setViewLevel: (id: string) => void
   /** Re-target the orbit camera onto a world point (double-click an item). */
   focusOn: (point: [number, number]) => void
+  /** Bumped to request the orbit camera dolly/retarget to fit `frameBounds`
+   *  (FEAT-A, "F"rame — see `controls/keybindings.ts` `frameSelection`). */
+  frameNonce: number
+  /** World bounds (centre + bounding-sphere radius, pre-margin) the orbit
+   *  camera should fit on the next frame request. Resolved by the caller
+   *  (`scene/cameras/frameSelection.ts`) from the live selection. */
+  frameBounds: { center: [number, number, number]; radius: number } | null
+  /** Request the orbit camera frame `bounds`. A `null` bounds (nothing
+   *  selected) is a deliberate no-op — the caller already resolved that. */
+  requestFrameSelection: (
+    bounds: { center: [number, number, number]; radius: number } | null,
+  ) => void
   setTouring: (v: boolean | 'rooms' | 'views') => void
   /** First-person observer field-of-view (degrees, clamped 50–100). */
   walkFov: number
@@ -77,6 +89,8 @@ export const CAMERA_INITIAL: Pick<
   | 'viewLevelId'
   | 'focusNonce'
   | 'focusPoint'
+  | 'frameNonce'
+  | 'frameBounds'
   | 'touring'
   | 'viewTourLegSeconds'
   | 'walkFov'
@@ -94,6 +108,8 @@ export const CAMERA_INITIAL: Pick<
   viewLevelId: 'all',
   focusNonce: 0,
   focusPoint: null,
+  frameNonce: 0,
+  frameBounds: null,
   touring: false,
   walkFov: WALK_FOV_DEFAULT,
   walkEyeHeight: WALK_EYE_DEFAULT,
@@ -119,6 +135,8 @@ export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get
   toggleAutoRotate: () => set((s) => ({ autoRotate: !s.autoRotate })),
   setViewLevel: (viewLevelId) => set({ viewLevelId }),
   focusOn: (point) => set((s) => ({ focusPoint: point, focusNonce: s.focusNonce + 1 })),
+  requestFrameSelection: (bounds) =>
+    set((s) => (bounds ? { frameBounds: bounds, frameNonce: s.frameNonce + 1 } : {})),
   setTouring: (v) => set({ touring: v === true ? 'rooms' : v }),
   setViewTourLegSeconds: (s) => set({ viewTourLegSeconds: Math.max(0.5, Math.min(12, s)) }),
   setWalkFov: (deg) => set({ walkFov: clampWalkFov(deg) }),

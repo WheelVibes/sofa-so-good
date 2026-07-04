@@ -63,3 +63,36 @@ describe('cameraSlice — lens + DoF (PC2-CAM-DOF-LENS)', () => {
     expect(useStore.getState().dofAuto).toBe(true)
   })
 })
+
+describe('cameraSlice — requestFrameSelection (FEAT-A)', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('initialises with no pending frame request', () => {
+    const s = useStore.getState()
+    expect(s.frameNonce).toBe(0)
+    expect(s.frameBounds).toBeNull()
+  })
+
+  it('bumps the nonce + stores the bounds when given a real bounds', () => {
+    useStore.getState().requestFrameSelection({ center: [1, 0.5, 2], radius: 1.2 })
+    const s = useStore.getState()
+    expect(s.frameNonce).toBe(1)
+    expect(s.frameBounds).toEqual({ center: [1, 0.5, 2], radius: 1.2 })
+    // A second request bumps again so OrbitCamera's effect re-fires even if
+    // the target/radius happen to repeat (nonce is the trigger, not a value
+    // diff — mirrors focusOn/requestHomeView/requestTopView).
+    useStore.getState().requestFrameSelection({ center: [1, 0.5, 2], radius: 1.2 })
+    expect(useStore.getState().frameNonce).toBe(2)
+  })
+
+  it('is a no-op with a null bounds (nothing selected)', () => {
+    useStore.getState().requestFrameSelection({ center: [1, 0.5, 2], radius: 1.2 })
+    expect(useStore.getState().frameNonce).toBe(1)
+    useStore.getState().requestFrameSelection(null)
+    const s = useStore.getState()
+    expect(s.frameNonce).toBe(1) // unchanged
+    expect(s.frameBounds).toEqual({ center: [1, 0.5, 2], radius: 1.2 }) // unchanged
+  })
+})

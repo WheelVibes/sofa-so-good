@@ -96,6 +96,17 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `transparent`), keep parts from intersecting, and orbit to a side/profile angle to confirm
   contact (top-down hides float/sink). Visually verify per the playbook — green tests are
   not proof the render is right.
+- **Every new orbit-camera retarget reuses the shared `startFly` tween, never a raw
+  `camera.position.set`/`controls.update()` snap.** `OrbitCamera.tsx` funnels saved view,
+  double-click focus, top-down, reset/home, and frame-selection (FEAT-A, `Z` — `scene/cameras/
+  frameSelection.ts`) through one `fly` ref + `startFly.current(pos, target)`, so every retarget
+  gets the same smoothstep ease, distance-aware duration (`cameraTween.ts` `flyDurationFor`), and
+  spherical (not Cartesian) interpolation that avoids the TV-SNAP pole-instability bug. A new
+  camera-framing feature adds a nonce + payload field to `cameraSlice` (mirror `frameNonce`/
+  `frameBounds`) and a `useEffect` that calls `startFly.current(...)` — never a new ad-hoc tween.
+  Keep bounds→distance math in a pure, three.js-free module (`fitDistanceForFov`/
+  `clampOrbitDistance` in `frameSelection.ts`) so it stays unit-testable; `OrbitCamera.tsx` only
+  supplies the live `camera.fov`/`aspect` and the current view angle.
 - **A plain-object module signal is the sanctioned way for DOM UI outside the R3F tree to talk
   to a per-frame controller inside it**, in either direction — `cameraForward.ts`
   (`cameraForwardXZ`/`cameraPosXZ`) publishes OUT (written every frame, read by the minimap/

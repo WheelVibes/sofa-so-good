@@ -439,10 +439,27 @@ same change that reshapes a system.
   `fitDistance`, the same helper as the whole-plan dollhouse), so the room just fills the
   screen on any aspect ratio.
 - **Eased camera transitions** (`scene/cameras/cameraTween.ts`, pure + unit-tested): every
-  retarget — saved view, double-click focus, top-down, reset/home — flies through one shared
-  `startFly` in `OrbitCamera` (smoothstep ease, **distance-aware** `flyDurationFor` so a short
-  hop snaps and a long jump glides) rather than a hard `controls.update()` snap. The fly
-  self-pumps the demand-mode renderer via OrbitControls' `change` event each frame.
+  retarget — saved view, double-click focus, top-down, reset/home, frame-selection — flies
+  through one shared `startFly` in `OrbitCamera` (smoothstep ease, **distance-aware**
+  `flyDurationFor` so a short hop snaps and a long jump glides) rather than a hard
+  `controls.update()` snap. The fly self-pumps the demand-mode renderer via OrbitControls'
+  `change` event each frame.
+- **Frame selection (FEAT-A, `Z` or the NavCluster button, `frameSelection` flag, simple tier)**:
+  dolly/retarget the orbit camera so the current selection fills the view — the universal
+  SketchUp/Blender/Figma "zoom to selection". Pure bounds→camera math in
+  `scene/cameras/frameSelection.ts` (unit-tested): `resolveSelectionExtents` turns each selected
+  item into a world-space `itemFootprint` OBB + vertical span (`def.verticalSpan ?? [0, h]`),
+  `selectionBounds` unions them (via `layout/alignDistribute.ts` `obbAxisHalf`) into one bounding
+  sphere, and `fitDistanceForFov` (the same formula `OrbitCamera`'s whole-plan `fitDistance` uses)
+  turns the radius into a camera distance, clamped to the `<OrbitControls>` min/max
+  (`clampOrbitDistance`). `App.tsx`'s key handler resolves the bounds (needs `catalog`, only
+  available outside the Canvas) and calls `cameraSlice.requestFrameSelection`, which bumps
+  `frameNonce`; `OrbitCamera`'s effect reads `frameBounds` and flies to it through the shared
+  `startFly`, **keeping the current orbit angle** (same "re-target without resetting the view"
+  feel as double-click focus) rather than a fixed 3/4 dollhouse angle. No-op with nothing
+  selected. Bare `F` was already `flip` in the same orbit+selection context (`controls/
+  keybindings.ts`), so the binding is `Z` (mnemonic: Zoom). Scenario:
+  `scripts/scenarios/frame-selection-simple.json`.
 - **Placement drop-in easing** (`scene/placementDrop.ts`, pure timing + unit-tested): a freshly
   placed piece eases DOWN onto its resting spot from a small height (~0.16 m, 300 ms, ease-out).
   `Furniture` keeps NO per-item `useFrame` (perf rule) — instead each item registers its root

@@ -78,6 +78,15 @@ export const Icon = {
       <path d="M3 3v5h5" />
     </Svg>
   ),
+  /** Corner-bracket viewfinder — "frame/zoom to selection" (FEAT-A). */
+  Frame: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M4 8V5a1 1 0 0 1 1-1h3" />
+      <path d="M16 4h3a1 1 0 0 1 1 1v3" />
+      <path d="M20 16v3a1 1 0 0 1-1 1h-3" />
+      <path d="M8 20H5a1 1 0 0 1-1-1v-3" />
+    </Svg>
+  ),
   Turntable: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <path d="M5 19h14" />

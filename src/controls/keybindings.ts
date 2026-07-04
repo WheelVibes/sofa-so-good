@@ -22,6 +22,12 @@ export const KEYBINDINGS = {
   topView: 'KeyO', // O: top-down plan view
   togglePlanEditor: 'KeyP', // P: 2D floor-plan editor ⇄ 3D (always mounted — see planEditorHotkey)
   resetView: 'KeyH', // H: reset to the 3D overview (Home)
+  // Z: dolly/frame the camera to fit the current selection (FEAT-A — the
+  // SketchUp/Blender/Figma "zoom to selection" convenience). The obvious
+  // mnemonic "F" is already `flip` (bare F flips the selected item, same
+  // orbit+selection context) — Z is free and mirrors "Zoom" (SketchUp's own
+  // Shift+Z "Zoom Extents" uses the same letter for the same idea).
+  frameSelection: 'KeyZ',
   tidyHome: 'KeyL', // L: auto-arrange every room (cLeanup)
   nudgeUp: 'ArrowUp',
   nudgeDown: 'ArrowDown',

@@ -10,6 +10,7 @@ import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
 import { flyDurationFor, flyPose, smoothstep as smooth } from './cameraTween'
+import { clampOrbitDistance, FRAME_MARGIN, fitDistanceForFov } from './frameSelection'
 import { VIEW_TOUR_LEG_SECONDS, type ViewTourFrame, viewTourFrames } from './viewTour'
 
 interface Framing {
@@ -39,13 +40,12 @@ function planExtents(plan: FloorPlan): [number, number] {
 
 /** Camera distance at which a sphere of `radius` exactly fills the smaller of the
  *  vertical / horizontal field of view — so the framing fits any viewport aspect
- *  ratio (portrait phones included). */
+ *  ratio (portrait phones included). Thin per-camera wrapper over the shared,
+ *  unit-tested `fitDistanceForFov` (frameSelection.ts) so the whole-plan
+ *  dollhouse/room/top framings below and the FEAT-A selection framing share
+ *  one formula. */
 function fitDistance(radius: number, camera: PerspectiveCamera): number {
-  const vFov = (camera.fov * Math.PI) / 180
-  const aspect = camera.aspect || 1
-  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect)
-  const fov = Math.min(vFov, hFov)
-  return radius / Math.max(0.1, Math.sin(fov / 2))
+  return fitDistanceForFov(radius, (camera.fov * Math.PI) / 180, camera.aspect || 1)
 }
 
 /** 3/4 dollhouse framing for the active plan, sized to the viewport so the whole
@@ -191,6 +191,33 @@ export function OrbitCamera() {
     // hard snap — the comment always promised "smoothly", now it actually glides.
     startFly.current([destPos.x, destPos.y, destPos.z], [dest.x, dest.y, dest.z])
   }, [focusNonce, camera])
+
+  // Frame selection (FEAT-A, "Z" or the NavCluster button) → dolly/retarget so
+  // the selection's world bounds fill the view. Keeps the current orbit angle
+  // (the offset direction from target to camera), only changing target +
+  // distance — same "re-target without resetting the view" feel as the
+  // double-click focus above, but distance is FIT to the selection's real
+  // bounding sphere (via the shared fitDistanceForFov) rather than a fixed
+  // dolly-in clamp, so a big wardrobe frames wider than a side table.
+  const frameNonce = useStore((s) => s.frameNonce)
+  useEffect(() => {
+    if (frameNonce === 0) return
+    const c = controlsRef.current
+    const bounds = useStore.getState().frameBounds
+    if (!c || !bounds || !(camera instanceof PerspectiveCamera)) return
+    const vFov = (camera.fov * Math.PI) / 180
+    const distance = clampOrbitDistance(
+      fitDistanceForFov(bounds.radius * FRAME_MARGIN, vFov, camera.aspect || 1),
+    )
+    const dest = new Vector3(...bounds.center)
+    const offset = camera.position.clone().sub(c.target)
+    // Degenerate offset (camera sitting exactly on the target) → fall back to
+    // the same 3/4 dollhouse direction used everywhere else in this file.
+    if (offset.lengthSq() < 1e-6) offset.set(0.82, 0.6, 0.82)
+    offset.setLength(distance)
+    const destPos = dest.clone().add(offset)
+    startFly.current([destPos.x, destPos.y, destPos.z], [dest.x, dest.y, dest.z])
+  }, [frameNonce, camera])
 
   // Eased camera fly — shared by every retarget (saved view, focus, top, home)
   // so the camera glides rather than teleporting. `dur` is distance-aware

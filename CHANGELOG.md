@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: frame/zoom-to-selection camera — FEAT-A (v0.13.0.1)
+
+From the round-2 audit: with an item (or multi-selection) selected, press **Z**
+or the NavCluster "Frame selection" button to dolly the orbit camera so the
+selection fills the view (the universal "F" from SketchUp/Blender — rebound to
+**Z** because bare `KeyF` is already `flip` in the same orbit+selection context,
+a real collision the audit missed). Pure `scene/cameras/frameSelection.ts`
+(selection OBB union → bounding sphere → fit distance, clamped to the
+OrbitControls min/max) drives the existing `startFly` tween (keeps the current
+orbit angle, `frameloop="demand"`-safe); no-op with nothing selected. Flag
+`frameSelection` (simple). Verified: both entry points land the target on the
+item and dolly in (~14→4.3 m).
+
 ## RELEASE: v0.13.0.0 — PR to main
 
 Minor release bundling this branch's work (v0.12.0.2 → .41): PLAN-FURNISH Phase 1

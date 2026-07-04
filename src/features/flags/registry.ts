@@ -1230,6 +1230,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Frame / zoom-to-selection camera (FEAT-A) — dolly + retarget the orbit
+  // camera so the current selection's bounds fill the view, keyed to Z (bare
+  // "F" is already `flip` in the same orbit+selection context — see
+  // `controls/keybindings.ts`) + a NavCluster button. Pure camera-only math,
+  // no mutation, no licensed asset — a universal 3D-tool navigation
+  // convenience (SketchUp/Blender/Figma "zoom to selection") that belongs in
+  // the core design loop → simple tier, present in both modes.
+  frameSelection: {
+    label: 'Frame selection',
+    description: 'Dolly the camera to fit the selected item(s) (Z)',
+    default: true,
+    tier: 'simple',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

@@ -1,0 +1,103 @@
+{
+  "name": "frame-selection-simple",
+  "description": "FEAT-A: select an item, trigger frame-selection via the NavCluster button then the Z shortcut, and confirm the orbit camera dollies/retargets onto the selection. Simple mode (frameSelection is a simple-tier flag, on by default).",
+  "url": "http://localhost:5241/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode — expected uiMode=simple"
+    },
+    {
+      "name": "verify-flag-on",
+      "eval": "(() => { const on = window.__store.getState().featureFlags.frameSelection; if (!on) throw new Error('frameSelection flag expected ON by default in Simple'); })()"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "wait-room-frame-settle", "wait": 1000 },
+    {
+      "name": "seed-item",
+      "eval": "window.__store.getState().setItems([{ id: 'frame-test-sofa', defId: 'sofa-3seat', position: [9.2, 2.2], rotation: 0, props: {} }])"
+    },
+    {
+      "name": "select-item",
+      "store": { "action": "setSelectedItemIds", "args": [["frame-test-sofa"]] }
+    },
+    { "name": "wait-selection", "wait": 300 },
+    {
+      "name": "navcluster-button-visible",
+      "waitFor": { "css": ".navcluster button[aria-label=\"Frame selection\"]" },
+      "failMessage": "NavCluster 'Frame selection' button did not mount with an active selection"
+    },
+    { "name": "shot-before", "screenshot": "01-before-frame-whole-room" },
+    {
+      "name": "capture-before-state",
+      "eval": "(() => { const c = window.__three.camera; const ct = window.__three.controls; const ip = { x: 9.2, y: 0.425, z: 2.2 }; window.__before = { camPos: [c.position.x, c.position.y, c.position.z], target: [ct.target.x, ct.target.y, ct.target.z], distToItem: Math.hypot(c.position.x-ip.x, c.position.y-ip.y, c.position.z-ip.z), targetDistToItem: Math.hypot(ct.target.x-ip.x, ct.target.y-ip.y, ct.target.z-ip.z) }; })()"
+    },
+    {
+      "name": "click-frame-button",
+      "click": { "selector": ".navcluster button[aria-label=\"Frame selection\"]" }
+    },
+    {
+      "name": "wait-frame-nonce",
+      "waitFor": { "store": "state.frameNonce > 0" },
+      "timeout": 3000,
+      "failMessage": "Clicking the NavCluster button never bumped frameNonce"
+    },
+    { "name": "wait-fly-complete", "wait": 1200 },
+    { "name": "shot-after-button", "screenshot": "02-after-frame-button" },
+    {
+      "name": "capture-after-button-state",
+      "eval": "(() => { const c = window.__three.camera; const ct = window.__three.controls; const ip = { x: 9.2, y: 0.425, z: 2.2 }; window.__afterButton = { camPos: [c.position.x, c.position.y, c.position.z], target: [ct.target.x, ct.target.y, ct.target.z], distToItem: Math.hypot(c.position.x-ip.x, c.position.y-ip.y, c.position.z-ip.z), targetDistToItem: Math.hypot(ct.target.x-ip.x, ct.target.y-ip.y, ct.target.z-ip.z) }; })()"
+    },
+    {
+      "name": "log-button-probe",
+      "eval": "console.log('FRAME_PROBE_BUTTON', JSON.stringify({ before: window.__before, after: window.__afterButton }))"
+    },
+    {
+      "name": "assert-target-landed-on-item",
+      "eval": "(() => { if (!(window.__afterButton.targetDistToItem < 0.6)) throw new Error('orbit target did not land on the selected item: ' + JSON.stringify(window.__afterButton)); })()"
+    },
+    {
+      "name": "assert-camera-dollied-in",
+      "eval": "(() => { const b = window.__before, a = window.__afterButton; if (!(a.distToItem < b.distToItem)) throw new Error('camera did not move closer to the (small) selection: ' + JSON.stringify({ before: b, after: a })); if (!(a.distToItem < 6)) throw new Error('post-frame camera distance looks too far for a single sofa: ' + a.distToItem); })()"
+    },
+    {
+      "name": "reset-view",
+      "store": { "action": "requestHomeView", "args": [] }
+    },
+    { "name": "wait-reset-complete", "wait": 1200 },
+    { "name": "shot-reset", "screenshot": "03-reset-whole-room" },
+    {
+      "name": "capture-before-keyboard-state",
+      "eval": "(() => { const c = window.__three.camera; const ip = { x: 9.2, y: 0.425, z: 2.2 }; window.__beforeKey = { distToItem: Math.hypot(c.position.x-ip.x, c.position.y-ip.y, c.position.z-ip.z), nonce: window.__store.getState().frameNonce }; })()"
+    },
+    { "name": "trigger-frame-keyboard", "key": "KeyZ" },
+    {
+      "name": "wait-frame-nonce-2",
+      "waitFor": { "store": "state.frameNonce > window.__beforeKey.nonce" },
+      "timeout": 3000,
+      "failMessage": "Pressing Z never bumped frameNonce a second time"
+    },
+    { "name": "wait-fly-complete-2", "wait": 1200 },
+    { "name": "shot-after-keyboard", "screenshot": "04-after-frame-keyboard" },
+    {
+      "name": "assert-keyboard-also-dollied-in",
+      "eval": "(() => { const c = window.__three.camera; const ip = { x: 9.2, y: 0.425, z: 2.2 }; const dist = Math.hypot(c.position.x-ip.x, c.position.y-ip.y, c.position.z-ip.z); console.log('FRAME_PROBE_KEYBOARD', JSON.stringify({ beforeKeyDist: window.__beforeKey.distToItem, afterKeyDist: dist })); if (!(dist < window.__beforeKey.distToItem)) throw new Error('Z shortcut did not dolly the camera closer: ' + JSON.stringify({ before: window.__beforeKey.distToItem, after: dist })); if (!(dist < 6)) throw new Error('post-frame (keyboard) camera distance looks too far: ' + dist); })()"
+    }
+  ]
+}

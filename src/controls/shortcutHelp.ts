@@ -54,6 +54,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: [bindKey('toggleCameraMode')], desc: 'Orbit ↔ Walk camera' },
       { keys: [bindKey('topView')], desc: 'Top-down plan view' },
       { keys: [bindKey('resetView')], desc: 'Reset to 3D overview' },
+      { keys: [bindKey('frameSelection')], desc: 'Frame the selection' },
       { keys: [bindKey('cyclePresetTime')], desc: 'Cycle time of day' },
       { keys: [bindKey('toggleMeasurements')], desc: 'Toggle measurements' },
     ],

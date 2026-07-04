@@ -24,6 +24,7 @@
 | Walk / orbit | <kbd>V</kbd> |
 | Top‑down view | <kbd>O</kbd> |
 | Reset view | <kbd>H</kbd> |
+| Frame selection | <kbd>Z</kbd> |
 | Time of day | <kbd>T</kbd> |
 | Measurements | <kbd>M</kbd> |
 | Tidy room | <kbd>L</kbd> |

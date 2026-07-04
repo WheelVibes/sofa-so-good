@@ -17,6 +17,7 @@ import { planDuplicates } from './furniture/duplicatePlacement'
 import { tidyHome } from './layout/tidyHome'
 import { consumeJustUpdated } from './pwa/swUpdate'
 import { cameraForwardXZ } from './scene/cameras/cameraForward'
+import { resolveSelectionExtents, selectionBounds } from './scene/cameras/frameSelection'
 import { FinishDragOverlay } from './scene/FinishDragOverlay'
 import { MobileLongPress } from './scene/MobileLongPress'
 import { RoomEditorScene } from './scene/RoomEditorScene'
@@ -646,6 +647,18 @@ export default function App() {
       if (cameraMode === 'orbit') {
         if (!mod && code === KEYBINDINGS.topView) useStore.getState().requestTopView()
         if (!mod && code === KEYBINDINGS.resetView) useStore.getState().requestHomeView()
+        // FEAT-A: dolly/frame the camera to fit the current selection (Z — see
+        // keybindings.ts for why not bare F). No-op with nothing selected;
+        // selection only ever exists inside the room editor (canEditScene),
+        // which is already orbit-mode, so no extra editing-scope check needed.
+        if (!mod && code === KEYBINDINGS.frameSelection && isFeatureEnabled('frameSelection')) {
+          const st = useStore.getState()
+          if (st.selectedItemIds.length > 0) {
+            const extents = resolveSelectionExtents(st.items, st.selectedItemIds, catalog)
+            const bounds = selectionBounds(extents)
+            if (bounds) st.requestFrameSelection(bounds)
+          }
+        }
       }
 
       // --- Editing keys: only inside the per-room editor (orbit camera). The
