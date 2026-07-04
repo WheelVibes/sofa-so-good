@@ -101,6 +101,22 @@ describe('LruCache (AUD-002)', () => {
     expect(dispose).toHaveBeenCalledWith('A')
   })
 
+  it('delete() removes a key immediately without disposing (caller owns disposal)', () => {
+    const dispose = vi.fn()
+    const c = new LruCache<string>({ max: 4, dispose })
+    c.set('a', 'A')
+    c.set('b', 'B')
+
+    expect(c.delete('a')).toBe('A')
+    expect(c.size).toBe(1)
+    flush()
+    expect(dispose).not.toHaveBeenCalled()
+
+    // Removing an absent key is a no-op that returns undefined.
+    expect(c.delete('missing')).toBeUndefined()
+    expect(c.size).toBe(1)
+  })
+
   it('clearForTest disposes every entry synchronously', () => {
     const dispose = vi.fn()
     const c = new LruCache<string>({ max: 4, dispose })

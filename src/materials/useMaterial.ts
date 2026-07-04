@@ -1,4 +1,5 @@
 import { useTexture } from '@react-three/drei'
+import { useMemo } from 'react'
 import type { MeshStandardMaterial } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../state/store'
@@ -21,24 +22,32 @@ import type {
   TexturedMaterialDef,
 } from './types'
 
-/** Reactive hook returning the merged material catalog. */
+/** Reactive hook returning the merged material catalog.
+ *
+ * PERF-B: the merge is rebuilt via `useMemo`, keyed on the three input slice
+ * *references* (already stable across unrelated store updates thanks to the
+ * `useShallow` selectors above), so every wall/floor/ceiling/furniture
+ * consumer of `useMaterialDef` shares one rebuild per commit instead of each
+ * re-deriving the whole merged catalog on every render. */
 export function useMaterials(): Record<MaterialId, MaterialDef> {
   const userMaterials = useStore(useShallow((s) => s.userMaterials))
   const remoteMaterials = useStore(useShallow((s) => s.resolvedRemoteMaterials))
   const savedMaterials = useStore(useShallow((s) => s.savedMaterials))
-  const merged: Record<MaterialId, MaterialDef> = { ...BUILTIN_MATERIALS }
-  for (const m of GENERATED_MATERIALS) merged[m.id] = m
-  for (const m of userMaterials) merged[m.id] = m
-  for (const m of Object.values(remoteMaterials)) merged[m.id] = m
-  // User-saved custom materials (CUSTOMIZE-SAVE-MATERIAL): a saved entry is a
-  // self-describing finish id (`compose:…` / `tint:…` / `#hex`) + a name. Resolve
-  // each to a def (the base for a tint comes from the catalog built above) and
-  // give it the user's name so it shows as a named tile in the picker.
-  for (const s of savedMaterials) {
-    const def = resolveFinishDef(s.finishId, merged, s.category)
-    if (def) merged[s.finishId] = { ...def, id: s.finishId, name: s.name }
-  }
-  return merged
+  return useMemo(() => {
+    const merged: Record<MaterialId, MaterialDef> = { ...BUILTIN_MATERIALS }
+    for (const m of GENERATED_MATERIALS) merged[m.id] = m
+    for (const m of userMaterials) merged[m.id] = m
+    for (const m of Object.values(remoteMaterials)) merged[m.id] = m
+    // User-saved custom materials (CUSTOMIZE-SAVE-MATERIAL): a saved entry is a
+    // self-describing finish id (`compose:…` / `tint:…` / `#hex`) + a name. Resolve
+    // each to a def (the base for a tint comes from the catalog built above) and
+    // give it the user's name so it shows as a named tile in the picker.
+    for (const s of savedMaterials) {
+      const def = resolveFinishDef(s.finishId, merged, s.category)
+      if (def) merged[s.finishId] = { ...def, id: s.finishId, name: s.name }
+    }
+    return merged
+  }, [userMaterials, remoteMaterials, savedMaterials])
 }
 
 /** Resolve any self-describing finish id (`#hex` / `compose:…` / `tint:…`) or a

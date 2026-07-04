@@ -552,7 +552,18 @@ same change that reshapes a system.
   which stamps a cached cap (default 8) and tracks the texture. `scene/AnisotropyController`
   (mounted in both Canvases) calls `setMaxAnisotropy(gl.capabilities.getMaxAnisotropy())` on
   first render → clamps to `max(1, deviceMax)` (commonly 16) and re-applies to all already-built
-  textures so module-load singletons + worker hot-swap maps sharpen at grazing angles.
+  textures so module-load singletons + worker hot-swap maps sharpen at grazing angles. **DLC/
+  uploaded (`textured`) maps get the same treatment (REAL-1)** — `cache.ts:buildMaterial`'s
+  `textured` branch calls `applyAnisotropy` on every loaded albedo/normal/roughness/ao map, so a
+  photo-textured floor/wall no longer renders blurrier than a procedural finish at grazing angles.
+  **Wall/floor/ceiling material cache is a bounded LRU (PERF-A)**: `cache.ts`'s `CACHE` (also
+  backs furniture `mat:<id>` DLC finishes, `furn:`-prefixed) is `materials/materialLru.ts`'s
+  `LruCache` — the same bounded + dispose-on-evict shape the furniture material cache uses
+  (AUD-002), capped at 256. Disposal only frees textures a material owns exclusively (the
+  procedural branch's per-material canvas bakes, tagged via a file-local `own()`/
+  `OWNED_TEXTURES`) — never the shared plaster normal/roughness singletons or `textured`-branch
+  maps (loaded through drei's `useTexture`/`useLoader` URL cache, so a `tint:<baseId>:#hex`
+  variant shares the same `Texture` instances as its base).
   **C271 worker**: `buildMaterial` immediately generates a sync texture (no first-paint delay),
   then `runProceduralWorker.ts` fires a single shared `Worker`
   (`procedural.worker.ts`) that re-renders via `OffscreenCanvas` and returns three

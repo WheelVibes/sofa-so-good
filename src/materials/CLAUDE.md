@@ -60,7 +60,25 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   .getMaxAnisotropy())` (from `scene/AnisotropyController`, mounted in both Canvases), which
   clamps to `max(1, deviceMax)` and re-applies to all already-created textures. Anisotropy needs
   mipmaps — CanvasTextures have them by default; if you build a texture without mipmaps it's a
-  no-op.
+  no-op. **`textured` (DLC/uploaded) maps get it too (REAL-1):** `cache.ts:buildMaterial`'s
+  `textured` branch calls `applyAnisotropy` on every loaded albedo/normal/roughness/ao map,
+  matching the procedural path — without it, photo-textured floors/walls (the surfaces meant to
+  look best) rendered blurrier than the procedural fallback at grazing angles.
+- **Wall/floor/ceiling material cache is a bounded LRU (PERF-A).** `cache.ts`'s module-level
+  `CACHE` (also backs furniture DLC `mat:<id>` finishes via the `furn:`-prefixed ids from
+  `furnitureMaterials.ts:furnitureMaterialCacheId`) is `materialLru.ts`'s `LruCache` — same
+  bounded + dispose-on-evict shape as the furniture material cache (AUD-002), capped at 256.
+  Reads (`getCachedMaterial`/`getBuiltMaterial`) happen inline during a mesh's render, so a
+  mounted surface keeps its entry's recency fresh every frame; an evicted (LRU) entry is
+  disposed one frame later. Disposal only frees textures a material **owns exclusively** —
+  the procedural branch's per-material canvas bakes (sync fallback + worker-upgraded swap,
+  tagged via the file-local `own()`/`OWNED_TEXTURES`) — never the shared plaster
+  normal/roughness singletons or `textured`-branch maps (those come from drei's `useTexture`,
+  a `useLoader` cache keyed by URL, so a `tint:<baseId>:#hex` of a DLC material shares the
+  same `Texture` *instances* as its base and any other tint sibling). `disposeCachedMaterial`
+  (explicit user-material deletion) uses the same ownership-aware disposal via `LruCache.delete`.
+  When adding a new texture-producing branch to `buildMaterial`, tag its per-material textures
+  with `own()` if and only if they are never shared with another cache entry.
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
   **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the

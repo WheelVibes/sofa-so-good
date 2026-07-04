@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX/PERF: DLC-texture anisotropy + bounded surface-material cache (v0.12.0.27)
+
+From the 2026-07-04 deep audit:
+- **REAL-1**: DLC/uploaded (`textured`) floor/wall maps skipped anisotropic
+  filtering (only the procedural path applied it), so photo-textured surfaces
+  rendered blurry at grazing angles. `cache.ts`'s `textured` branch now stamps
+  the device-capped anisotropy (`anisotropy.ts`, matching the procedural path)
+  on every albedo/normal/roughness/ao map — verified crisp-to-horizon on real
+  GPU, procedural control pixel-identical.
+- **PERF-A**: the wall/floor/ceiling material `CACHE` was an unbounded `Map`,
+  leaking a material + GPU textures per distinct finish value during colour/
+  scale scrubbing → VRAM ratchet toward context-loss. Now the existing
+  `LruCache` (capacity 256, dispose-on-evict, same as the furniture cache).
+  Disposal is ownership-aware (`OWNED_TEXTURES` WeakSet): it never frees the
+  shared plaster singletons nor the loader-cached `textured` maps a `tint:`
+  sibling still references (drei's `useTexture` is URL-keyed → shared instances).
+- **PERF-B**: `useMaterials()` memoizes its merged-catalog rebuild.
+
 ## FIX: undo/redo now round-trips the reno baseline + colour palette — BUG-3 (v0.12.0.26)
 
 From the 2026-07-04 deep audit: `historySlice`'s `HistorySnapshot`/`snapshot()`
