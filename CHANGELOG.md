@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: coverage for hydrateAssets + floorRects (round-2 TEST-1/2) (v0.12.0.40)
+
+Closed two 0-test gaps flagged in the round-2 audit. `hydrateAssets.test.ts`
+(22 tests): boot-time restore of user GLB/material assets from IndexedDB — full
+`UserGltfDef` round-trip, footprint fallbacks (missing/zero/negative/non-finite/
+corrupt-JSON), category defaulting, pack/ikea/unknown-role skips, an unresolvable
+blob skipped WITHOUT aborting sibling records, and the fail-soft paths (no
+`indexedDB`, `list()` throws, empty store). `floorRects.test.ts` (14 tests):
+`rectMinus` subtraction cases + `computeRoomFloorRects` against the real `ROOMS`
+dataset incl. a ~12k-point grid invariant proving the default 4-room HDB floor
+tiles with no overlaps/gaps. `rectMinus` exported for direct testing
+(visibility-only). No bugs found.
+
 ## FIX: gate Rotate/Resize/Tilt gizmo + marquee drags by pointerId — MOBILE-1/2 (v0.12.0.39)
 
 From the round-2 audit: the in-scene manipulation gizmos (`RotateGizmo`/
