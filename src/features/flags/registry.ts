@@ -861,21 +861,6 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
-  // Pick a colour/finish/variant on the browse card BEFORE placing it
-  // (CATALOG-VARIANT, 2026-07-03 core-loop parity audit) — a compact quick-look
-  // swatch popover (`ui/catalog/CatalogVariantPopover.tsx`), not inline card
-  // swatches (mobile clutter). Reuses the existing variant/tint vocabulary
-  // (IKEA `variants`, parametric colour fields) so the picked finish is carried
-  // straight into placement as the item's initial props — no new persisted
-  // schema. Pure client-side, no external assets → prod-safe. Matches IKEA
-  // Kreativ/Coohom/Roomstyler's basic browse behaviour, not an analytical
-  // refinement → simple tier, present in both modes.
-  catalogVariantPick: {
-    label: 'Pick finish before placing',
-    description: 'Choose a colour/variant on the catalog card before it lands in the room',
-    default: true,
-    tier: 'simple',
-  },
   // Room-aware catalog default (CATALOG-ROOMAWARE, 2026-07-03 core-loop parity
   // audit): on entering a room to edit, the catalog lands on the category
   // most relevant to that room's kind (bedroom→beds, kitchen→appliances,

@@ -255,17 +255,18 @@ same change that reshapes a system.
   Gating affects the browse/add path only — a placed/resolved remote def still merges into
   `useCatalog` (`buildMergedCatalog`) and renders regardless of the flag.
   **Sticky stamp placement** (`stampPlace` flag, tier: **pro**, default on — Floorplanner parity,
-  PARITY-STAMP-PLACE): a per-card **stamp button** (`.stamp-btn`, `Icon.Copy`) arms a def via
-  `startStamp(defId)`, which sets `placementSlice.stampMode` + `activeDefId`. While `stampMode` is
-  on, `usePlacementController`'s commit click (and the `addItem` it fires — one undo step each) keeps
-  the placement **armed** instead of disarming, so the same item drops repeatedly with one click
-  each (chairs, downlights, plants) until **Escape** / the **Done** button / a different item
-  (`cancelPlacement` clears it). The active-stamp **`StampBanner`** above the catalog footer is the
-  on-cue; the armed card gets a `.stamping` accent ring. A plain single-add arm (`setActiveDefId`)
-  always clears `stampMode`, and the controller defends with `isFeatureEnabled('stampPlace')` so a
-  stale `stampMode` can't persist a click once the flag is off (Simple mode forces it off → the
-  stamp button + banner hide and each click commits once as before). ⌘K **"Stamp — place an item
-  repeatedly"** (`stamp-mode`, gated in `COMMAND_FLAGS`) arms the held/selected def.
+  PARITY-STAMP-PLACE): armed from ⌘K **"Stamp — place an item repeatedly"** (`stamp-mode`, gated in
+  `COMMAND_FLAGS`, arms the held/selected def) → `startStamp(defId)`, which sets
+  `placementSlice.stampMode` + `activeDefId` (no per-card button — the earlier `.stamp-btn` on every
+  catalog card was removed, it was mobile-broken and duplicated the inspector's Duplicate). While
+  `stampMode` is on, `usePlacementController`'s commit click (and the `addItem` it fires — one undo
+  step each) keeps the placement **armed** instead of disarming, so the same item drops repeatedly
+  with one click each (chairs, downlights, plants) until **Escape** / the **Done** button / a
+  different item (`cancelPlacement` clears it). The active-stamp **`StampBanner`** above the catalog
+  footer is the on-cue. A plain single-add arm (`setActiveDefId`) always clears `stampMode`, and the
+  controller defends with `isFeatureEnabled('stampPlace')` so a stale `stampMode` can't persist a
+  click once the flag is off (Simple mode forces it off → the banner hides and each click commits
+  once as before).
   **"Fits this room" size cue** (CATALOG-FITS, `catalogFits` flag, tier: **simple**, default on):
   the pure predicate `catalog/roomFit.ts:itemFitsRoom(footprint, rects)` compares a def's
   `defaultFootprint` (same seed used by placement/collision) against the free-space rects of the
@@ -283,26 +284,12 @@ same change that reshapes a system.
   (`catalogBrowse.ts:filterByFits`) that hides `'wont-fit'` local items (never remote/shared
   entries, whose footprint is unresolved pre-import) from the grid; browse-only, a no-op during
   search (mirrors the existing Max $ filter).
-  **Pick a finish before placing** (CATALOG-VARIANT, `catalogVariantPick` flag, tier: **simple**,
-  default on — 2026-07-03 core-loop parity audit): a compact quick-look **swatch popover**
-  (`ui/catalog/CatalogVariantPopover.tsx`, `Icon.Palette` trigger — anchored `Popover` on desktop /
-  `Modal` sheet on mobile, mirroring `ColorPicker`) lets a shopper choose a colour/finish/variant on
-  the card BEFORE placing, instead of only after via the inspector. The pure resolution lives in
-  `furniture/placement/catalogVariants.ts`: `catalogVariantOptions(def)` reuses the existing
-  vocabulary rather than inventing one — IKEA `def.variants` (mirroring the inspector's
-  `IkeaBody`/`variantProps`, disabled for a stubbed `assetId: null` finish) for a multi-variant IKEA
-  product, or a curated hex-swatch row (`CURATED_COLOR_SWATCHES`) for a parametric def's primary
-  `color`-kind `paramSchema` field (found via `appearanceProps.ts:appearanceKeys`, same detection
-  copy-appearance/bulk-recolour use) — empty (no popover) for a single-finish IKEA product, a
-  parametric def with no colour field, or a plain GLB (builtin/user/remote/pack/local, which has no
-  def-level finish concept beyond the inspector's post-placement `tint`). Picking a swatch calls
-  `initialVariantProps(def, optionId)` for the resolved patch (`{ variant }` or `{ [colorKey]: hex
-  }`) and arms placement via a new `placementSlice.armWithVariant(defId, props)` action, which stows
-  the patch in `armedVariantProps` (cleared by a plain `setActiveDefId`/`cancelPlacement`/
-  `startStamp`, survives a `keepArmed` stamp/shift re-commit). `usePlacementController`'s `doCommit`
-  merges `{ ...defaultItemProps(def), ...armedVariantProps }` (variant wins) into the new item's
-  props on commit — both the normal floor-collision path and the window-bound fixture path (variant
-  merged before `windowFixtureProps`' sizing overrides, since they never share a key).
+  (An earlier **pick-a-finish-before-placing** card popover — `Icon.Palette` trigger,
+  `catalogVariantPick` flag, `CatalogVariantPopover` + `furniture/placement/catalogVariants.ts` —
+  was **removed**: it was broken on mobile and redundant with the inspector's post-placement finish
+  controls. The generic `placementSlice.armWithVariant`/`armedVariantProps` plumbing that
+  `usePlacementController`'s `doCommit` merges over `defaultItemProps(def)` remains, unused by the
+  UI but tested, in case a variant-arming entry point returns.)
   **Room-aware catalog default** (CATALOG-ROOMAWARE, `catalogRoomAware` flag, tier: **simple**,
   default on — 2026-07-03 core-loop parity audit): on **entering a room to edit**, the catalog
   lands on the category most relevant to that room's kind (bedroom→beds, kitchen→appliances,

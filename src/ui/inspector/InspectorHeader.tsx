@@ -7,7 +7,7 @@ import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
 import { expectsBuiltinThumbnail, useBuiltinThumbnail } from '../catalog/thumbnails'
 import { Icon } from '../toolbar/icons'
-import { confirmDeleteItem } from './itemTransforms'
+import { confirmDeleteItem, duplicateItemNearby } from './itemTransforms'
 import { MinimizeButton } from './useInspectorMinimize'
 
 /**
@@ -20,11 +20,13 @@ import { MinimizeButton } from './useInspectorMinimize'
 export function InspectorHeader({
   item,
   def,
+  catalog,
   minimized,
   toggle,
 }: {
   item: FurnitureItem
   def: FurnitureDef
+  catalog: Record<string, FurnitureDef>
   minimized: boolean
   toggle: () => void
 }) {
@@ -115,6 +117,18 @@ export function InspectorHeader({
           ) : (
             <Icon.Unlock width={16} height={16} />
           )}
+        </button>
+        {/* Duplicate sits between lock and delete so a copy is one tap away even
+            from the minimized (mobile bottom-sheet) header — no need to expand
+            the panel to reach the Duplicate action button. */}
+        <button
+          type="button"
+          onClick={() => duplicateItemNearby(item, def, catalog)}
+          className="icon-btn"
+          aria-label="Duplicate item"
+          title="Duplicate this item"
+        >
+          <Icon.Copy width={16} height={16} />
         </button>
         {/* Delete reachable even from the minimized (mobile bottom-sheet) header —
             confirm-gated, red for visibility (bug report #2). */}

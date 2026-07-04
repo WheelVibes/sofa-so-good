@@ -144,16 +144,14 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   to `'unknown'` — never a false "won't fit". Scoped to `CatalogCard` only, not `RemoteCard`/
   `SharedCard` (unresolved remote/shared footprints stay un-flagged and are never hidden by the
   filter).
-- **Pick a finish before placing (CATALOG-VARIANT)** is a quick-look **popover**, never inline card
-  swatches (mobile clutter): `CatalogVariantPopover` (`Icon.Palette` trigger, `Popover` desktop /
-  `Modal` mobile sheet, same split as `ColorPicker`) renders only when
-  `furniture/placement/catalogVariants.ts:catalogVariantOptions(def)` returns options — IKEA
-  multi-variant products or a parametric def's primary colour field, reusing the existing
-  variant/tint vocabulary (never a new one). Picking a swatch calls
-  `useStore.getState().armWithVariant(defId, initialVariantProps(def, optionId))` — the
-  `placementSlice` stows the patch in `armedVariantProps`, which `usePlacementController`'s
-  `doCommit` merges over `defaultItemProps(def)` at commit. Gated by the `catalogVariantPick` flag
-  (simple tier — pre-place finish picking is core-loop, not analytical).
+- **Catalog cards carry no per-card action buttons except the favourite ♥.** The earlier per-card
+  finish-picker popover (CATALOG-VARIANT, `Icon.Palette`) and sticky-**stamp** button (`Icon.Copy`)
+  were **removed** — both were broken on touch and duplicated the inspector (finish → inspector
+  FinishPicker/QuickFinishes; duplicate → inspector Duplicate action + the minimized-header copy
+  icon). Do **not** re-add card action buttons; changing the finish and duplicating are inspector
+  jobs. Stamp mode still exists behind `stampPlace` but is armed only from ⌘K. The favourite button
+  (`.fav-btn`) shows a solid **red** heart (`Icon.HeartFilled`, `.fav-btn.on { color: var(--danger) }`)
+  when saved and the outline `Icon.Heart` otherwise.
 - **Room-aware catalog default (CATALOG-ROOMAWARE)** keys only the **initial landing category** on
   the room being edited, never the tab order or a subsequent pick. The pure mapping is
   `ui/catalog/roomAwareCategories.ts` (`relevantCategoriesForRoomKind` / `orderCategoriesForRoomKind`

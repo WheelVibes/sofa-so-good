@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.14.2.1 — mobile catalog/inspector fixes + iOS full-bleed canvas
+
+Batch of mobile UX fixes:
+
+- **Sheet/toolbar chrome no longer scrolls the canvas.** A vertical drag on a
+  bottom-sheet's non-scrolling chrome (catalog header/tabs/search/sort/pager/
+  footer, inspector header, the top toolbar, and the toolbar menu backdrop +
+  header/foot) used to fall through and pan the 3D canvas / scroll the page.
+  Those regions now claim the gesture with `touch-action: none`; the asset grid
+  keeps vertical scroll, the category rail keeps horizontal scroll, and the menu
+  detail/rail keep `pan-y` + `overscroll-behavior: contain` (`responsive.css`).
+- **Catalog paging scrolls the list back to the top** on Prev/Next
+  (`CatalogDrawer` grid ref) so a page turn never lands mid-list.
+- **Favourite heart fills solid red when saved** (`Icon.HeartFilled`,
+  `.fav-btn.on { color: var(--danger) }`) and reverts to the outline heart when
+  unfavourited; the button now reports `aria-pressed`.
+- **Duplicate icon added to the inspector header** between lock and delete, so a
+  copy is one tap away even from the minimized mobile bottom-sheet.
+- **Removed the per-card finish (palette) + stamp buttons** from every catalog
+  card (desktop + mobile) — both were touch-broken and duplicate the inspector
+  (finish → FinishPicker/QuickFinishes; duplicate → inspector Duplicate). Deleted
+  `CatalogVariantPopover` + `catalogVariants.ts` + the `catalogVariantPick` flag;
+  stamp mode stays behind `stampPlace`, armed only from ⌘K.
+- **Themed native checkboxes/radios** to the active accent (`accent-color`), so
+  the inspector's "Keep proportions" / "Face centre" / "Hide in 3D view" ticks
+  are harmonious across themes instead of browser-blue.
+- **Reset/Top view on mobile now close the menu first, then fly** — the camera
+  move is deferred until the sheet is gone, so the animation plays in full view
+  instead of starting hidden behind the still-open menu.
+- **iOS home-screen web app is now full-bleed**: `apple-mobile-web-app-status-bar-style`
+  → `black-translucent` extends the 3D canvas under the status bar to the top
+  edge; the desktop toolbar gains `env(safe-area-inset-top)` (0 elsewhere) so top
+  chrome clears the notch/status bar.
+
 ## v0.14.2.0 — PR rollup: mobile UX follow-ups (v0.14.1.1–v0.14.1.5)
 
 Patch bump for the PR to `main` gathering the post-v0.14.1.0 mobile follow-ups:

@@ -22,6 +22,10 @@ body {
 #root { height: 100dvh; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 input { font-family: inherit; }
+/* Native checkboxes/radios tint to the active theme accent (not the browser's
+   default blue), so ticks stay harmonious across all 5 themes + light/dark
+   (inspector "Keep proportions" / "Face centre" / "Hide in 3D view", …). */
+input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 /* --- Unified focus ring (P14) ------------------------------------
    One accent halo across every interactive control (WCAG 2.4.7).
    `:where()` keeps the semantic role/attribute group at zero specificity so
@@ -311,7 +315,11 @@ kbd {
 
 /* ---- Toolbar (icon island) ----------------------------------- */
 .toolbar {
-  position: absolute; top: var(--s-4); left: 50%; transform: translateX(-50%);
+  /* `safe-area-inset-top` is 0 on non-notched displays (no visual change on
+     desktop), and clears the status bar when the app runs full-bleed as an
+     iPad/iPhone home-screen web app (status-bar-style black-translucent). */
+  position: absolute; top: calc(var(--s-4) + env(safe-area-inset-top)); left: 50%;
+  transform: translateX(-50%);
   display: flex; align-items: center; gap: var(--s-1);
   padding: var(--s-2);
   background: var(--surface);

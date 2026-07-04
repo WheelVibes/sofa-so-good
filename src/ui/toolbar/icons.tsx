@@ -285,6 +285,13 @@ export const Icon = {
       <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z" />
     </Svg>
   ),
+  // Filled variant — a favourited card shows a solid heart (coloured red via
+  // `.fav-btn.on` in features.css). `fill` overrides the shared `Svg`'s `none`.
+  HeartFilled: (p: SVGProps<SVGSVGElement>) => (
+    <Svg fill="currentColor" {...p}>
+      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z" />
+    </Svg>
+  ),
   Star: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <path d="M12 3.5l2.6 5.27 5.82.85-4.21 4.1.99 5.78L12 16.77 6.8 19.5l.99-5.78-4.21-4.1 5.82-.85z" />

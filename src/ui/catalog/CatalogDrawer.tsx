@@ -265,6 +265,14 @@ export function CatalogDrawer() {
     firstBrowsableCategory,
   ])
 
+  // The scrollable card grid — paging scrolls it back to the top so a Next/Prev
+  // never lands mid-list (the previous page's scroll offset carried over).
+  const gridRef = useRef<HTMLDivElement>(null)
+  const goToPage = (updater: (p: number) => number) => {
+    setPage(updater)
+    if (gridRef.current) gridRef.current.scrollTop = 0
+  }
+
   // Reset to page 1 when the visible list changes; the render also clamps.
   const selectCategory = (c: CatalogCategory) => {
     setActive(c)
@@ -599,6 +607,7 @@ export function CatalogDrawer() {
                   </div>
                 ) : null}
                 <div
+                  ref={gridRef}
                   className={`card-grid stagger-in${ambientFx ? ' fx' : ''}`}
                   onKeyDown={onGridKeyDown}
                   onPointerMove={onGridPointerMove}
@@ -682,7 +691,7 @@ export function CatalogDrawer() {
                   <div className="pager">
                     <button
                       type="button"
-                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      onClick={() => goToPage((p) => Math.max(0, p - 1))}
                       disabled={safePage === 0}
                     >
                       ← Prev
@@ -692,7 +701,7 @@ export function CatalogDrawer() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                      onClick={() => goToPage((p) => Math.min(pageCount - 1, p + 1))}
                       disabled={safePage >= pageCount - 1}
                     >
                       Next →

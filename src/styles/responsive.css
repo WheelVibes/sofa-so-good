@@ -266,6 +266,25 @@ body.mobile {
      (`.act-array`); this guarantees the sheet width is never exceeded. */
   .inspector .panel-body { overflow-x: hidden; }
 
+  /* MOBILE-SHEET-SCROLL: a vertical drag on a sheet's / toolbar's NON-scrolling
+     chrome (headers, tab row, search + sort rows, pager, footer, the menu
+     backdrop, the top toolbar) must NOT fall through and pan the 3D canvas /
+     scroll the page behind it. `touch-action: none` claims the gesture so it
+     does nothing (taps + typing still fire — it governs pan/zoom, not taps).
+     The asset grid + inspector/detail bodies keep their own vertical scroll;
+     the horizontal category rail keeps horizontal scroll (`pan-x`). Inspector
+     drag-to-minimize stays on its own `.sheet-grab` handle (already touch-action
+     none), so the header no longer minimizes NOR scrolls the canvas. */
+  .catalog .panel-head, .catalog .tabs, .catalog .cat-search,
+  .catalog .cat-sort, .catalog .catalog-search-hint, .catalog .pager,
+  .catalog .stamp-banner, .catalog .cat-foot,
+  .inspector .panel-head,
+  .toolbar.mobilebar,
+  .m-menu-overlay, .m-sheet-grab, .m-sheet-head, .m-sheet-brand,
+  .m-sheet-foot { touch-action: none; }
+  .catalog .cat-rail { touch-action: pan-x; }
+  .m-detail, .m-rail { touch-action: pan-y; overscroll-behavior: contain; }
+
   /* Lift the drag/resize readout above the minimized inspector bottom-sheet so
      the wall-gap / size pill is never hidden behind it (bug #9). The minimized
      sheet is ~header-height (thumb + padding) above the safe-area inset; clear
@@ -419,19 +438,11 @@ body.mobile {
      rule above, a different parent class), an easy-to-miss target under a
      furniture piece's finish dropdown. (MOBILE-TAP-TARGETS) */
   .quick-finish-row .swatch { width: 40px; height: 40px; }
-  /* Same dense-wrap-grid touch bump for the catalog quick-look variant/finish
-     popover (CATALOG-VARIANT) — it opens in a `Modal` sheet on mobile (not the
-     desktop `Popover`), so this only affects the sheet's own swatch grid.
-     (MOBILE-TAP-TARGETS) */
-  .variant-pop-list .swatch { width: 40px; height: 40px; }
 
-  /* Catalog card action buttons (favourite ♥, stamp) reveal on `:hover` on
-     desktop — but touch has no hover, so on a phone they stay invisible and the
-     favourite is unreachable. Show them always on mobile, enlarged for touch;
-     the stamp drops below the favourite so the two hit areas don't overlap. */
-  .fav-btn, .stamp-btn, .variant-btn { opacity: 1; width: 32px; height: 32px; }
-  .stamp-btn { top: 44px; }
-  .variant-btn { top: 82px; }
+  /* The catalog card's favourite ♥ reveals on `:hover` on desktop — but touch has
+     no hover, so on a phone it stays invisible and unreachable. Show it always on
+     mobile, enlarged for touch. */
+  .fav-btn { opacity: 1; width: 32px; height: 32px; }
 
   /* Same hover-reveal trap on the Layers panel's group hide-all / lock-all eyes
      (`.lyr-geye`): opacity:0 until `.lyr-ghead-row:hover`, so on touch you can't
