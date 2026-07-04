@@ -58,6 +58,17 @@ export async function hydrate(): Promise<HydrateResult> {
   const ikeaDefs = saved.userFurniture.filter(
     (d) => d.source === 'ikea',
   ) as unknown as IkeaGltfDef[]
+  if (import.meta.env.DEV) {
+    // Bug #4 diagnostic: how many IKEA/shared defs survived into the save. Zero
+    // here (with shared assets you'd downloaded) means the def itself wasn't
+    // persisted — a different failure than the photo-blob check in
+    // `resolveIkeaRuntimeUrls`. Together they localize where a missing thumbnail
+    // on reopen actually breaks.
+    console.warn(
+      `[hydrate] restored ${ikeaDefs.length} IKEA/shared def(s) from the save: ` +
+        `[${ikeaDefs.map((d) => d.id).join(', ')}]`,
+    )
+  }
   if (ikeaDefs.length > 0) {
     const resolved = await resolveIkeaRuntimeUrls(ikeaDefs).catch(() => ikeaDefs)
     const existing = useStore.getState().userFurniture

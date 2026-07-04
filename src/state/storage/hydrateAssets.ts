@@ -36,6 +36,15 @@ function safeParse<T>(s: unknown): T | undefined {
 export async function resolveIkeaRuntimeUrls(defs: IkeaGltfDef[]): Promise<IkeaGltfDef[]> {
   if (typeof indexedDB === 'undefined') return defs
   const out: IkeaGltfDef[] = []
+  // Dev-only thumbnail-persistence diagnostic (bug #4): for each IKEA/shared def
+  // report whether the product photo was persisted (`imageAssetId` present in the
+  // save) and whether its IndexedDB blob actually resolves on reopen. A def with
+  // `photoMissing` (no imageAssetId) means the image was never persisted; one with
+  // `blobMissing` (has id, no blob) means IDB eviction/wipe. Either explains a
+  // thumbnail that falls back to the rendered GLB. Never logs in prod.
+  const diag = import.meta.env.DEV
+    ? { photoMissing: [] as string[], blobMissing: [] as string[], ok: 0 }
+    : null
   for (const def of defs) {
     const variants = await Promise.all(
       def.variants.map(async (v) => {
@@ -46,7 +55,14 @@ export async function resolveIkeaRuntimeUrls(defs: IkeaGltfDef[]): Promise<IkeaG
         }
         if (v.imageAssetId) {
           const imgRec = await IdbAssetStore.get(v.imageAssetId).catch(() => null)
-          if (imgRec) next = { ...next, runtimeImageUrl: URL.createObjectURL(imgRec.blob) }
+          if (imgRec) {
+            next = { ...next, runtimeImageUrl: URL.createObjectURL(imgRec.blob) }
+            if (diag) diag.ok += 1
+          } else if (diag) {
+            diag.blobMissing.push(`${def.id}:${v.finish}`)
+          }
+        } else if (diag) {
+          diag.photoMissing.push(`${def.id}:${v.finish}`)
         }
         return next
       }),
@@ -57,6 +73,15 @@ export async function resolveIkeaRuntimeUrls(defs: IkeaGltfDef[]): Promise<IkeaG
     if (active?.runtimeUrl && active.footprint)
       seedGltfFootprint(active.runtimeUrl, active.footprint)
     out.push(resolved)
+  }
+  if (diag && (diag.blobMissing.length || diag.photoMissing.length)) {
+    console.warn(
+      `[hydrate] IKEA/shared thumbnails: ${diag.ok} rebuilt from IDB, ` +
+        `${diag.blobMissing.length} with a persisted id but MISSING blob ` +
+        `(IDB evicted/wiped → GLB-render fallback): [${diag.blobMissing.join(', ')}], ` +
+        `${diag.photoMissing.length} with NO persisted photo id ` +
+        `(never persisted at import): [${diag.photoMissing.join(', ')}]`,
+    )
   }
   return out
 }
