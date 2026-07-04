@@ -865,6 +865,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Room-aware catalog default (CATALOG-ROOMAWARE, 2026-07-03 core-loop parity
+  // audit): on entering a room to edit, the catalog lands on the category
+  // most relevant to that room's kind (bedroom→beds, kitchen→appliances,
+  // bath→bathroom, living→seating) instead of always the same curated
+  // default — pure client-side reordering of `FURNITURE_CATEGORIES`, no new
+  // data. A passive, always-safe default-landing behaviour that helps a
+  // casual shopper in the core furnish loop → simple tier, present in both
+  // modes; never changes search/filter/favourites, only the initial tab.
+  catalogRoomAware: {
+    label: 'Room-aware catalog default',
+    description: 'Land the catalog on the category most relevant to the room being edited',
+    default: true,
+    tier: 'simple',
+  },
   // Soft contact-shadow blobs that ground every piece of furniture against the
   // floor (RZ1). One shared radial-gradient texture + a transparent plane per
   // item — cheap fill-rate overdraw, no shadow map — so it reads even on the

@@ -109,6 +109,7 @@ export type FeatureFlag =
   | 'catalogFits'
   | 'catalogFitsFilter'
   | 'catalogVariantPick'
+  | 'catalogRoomAware'
   | 'wallNumericEntry'
   | 'radialArray'
   | 'pathArray'

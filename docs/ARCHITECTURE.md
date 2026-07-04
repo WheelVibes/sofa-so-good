@@ -303,6 +303,25 @@ same change that reshapes a system.
   merges `{ ...defaultItemProps(def), ...armedVariantProps }` (variant wins) into the new item's
   props on commit — both the normal floor-collision path and the window-bound fixture path (variant
   merged before `windowFixtureProps`' sizing overrides, since they never share a key).
+  **Room-aware catalog default** (CATALOG-ROOMAWARE, `catalogRoomAware` flag, tier: **simple**,
+  default on — 2026-07-03 core-loop parity audit): on **entering a room to edit**, the catalog
+  lands on the category most relevant to that room's kind (bedroom→beds, kitchen→appliances,
+  bath→bathroom, living→seating) instead of always the persisted/curated default. The pure,
+  unit-tested mapping lives in `ui/catalog/roomAwareCategories.ts`: `relevantCategoriesForRoomKind`
+  (RoomKind → ordered `FurnitureCategory[]`, reusing the existing `analysis/suggestions.ts`
+  `RoomKind` + `furniture/types.ts` `FurnitureCategory` vocab — no new types),
+  `orderCategoriesForRoomKind` (relevant-first, then the untouched `FURNITURE_CATEGORIES` tail —
+  falls back to the plain curated order for an unmapped/`null` kind), and
+  `defaultCategoryForRoomKind` (the first relevant category that actually has cards per
+  `unified.counts`, else the caller's `firstBrowsableCategory` fallback so it never lands on a
+  dead tab). `CatalogDrawer` classifies the active room via
+  `roomKindFromName(roomDisplayName(roomId, plan))` and applies the landing category in a
+  `useEffect` keyed on the `roomEditor.roomId` (via a `roomEntryKeyRef`), so it only fires on the
+  room-**entry** transition — a subsequent manual tab pick during the same room-editing session is
+  never overridden (the effect body is a no-op unless the room id itself changes), and an
+  unmapped/whole-flat view leaves today's persisted default untouched. This only changes the
+  DEFAULT landing tab — the CategoryTabs order, search, filters, and favourites/recent are
+  unchanged. Flag off → today's behaviour exactly.
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,

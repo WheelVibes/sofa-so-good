@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: room-aware catalog default — CATALOG-ROOMAWARE (v0.12.0.22)
+
+Core-loop parity gap (2026-07-03 audit): entering a room to edit now lands the
+catalog on the category most relevant to that room (bedroom→beds, kitchen→
+appliances, bath→bathroom, living→seating/tables) instead of a flat A–Z, via a
+pure unit-tested `ui/catalog/roomAwareCategories.ts` mapping keyed on the room
+kind. It keys ONLY the initial landing category on entering a room — a
+subsequent manual category pick is respected and never overridden mid-session;
+whole-flat view (no room active) and unknown room kinds fall back to today's
+default. Flag `catalogRoomAware` (simple, default on). Verified bedroom→beds,
+kitchen→appliances, manual-override-sticks, and flag-off fallback across
+desktop/mobile × light/dark.
+
 ## FIX: transient dropdown void — drop per-row stagger from ToolbarMenu (v0.12.0.21)
 
 TOOLBAR-MENU-VOID — the File/Tools dropdowns flashed a vertical void between

@@ -1,8 +1,10 @@
-import { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { roomKindFromName } from '../../analysis/suggestions'
 import { hasBackend } from '../../features/api/client'
 import { isAdminUser } from '../../features/auth/types'
 import { useFeature } from '../../features/useFeature'
 import { FURNITURE_CATEGORIES } from '../../furniture/types'
+import { roomDisplayName } from '../../state/rooms'
 import { useStore } from '../../state/store'
 import { lazyWithRetry } from '../app/lazyWithRetry'
 import { Button } from '../controls/Button'
@@ -22,6 +24,7 @@ import {
 import { LayersPanel } from './LayersPanel'
 import { RemoteCard } from './RemoteCard'
 import { clearRecent, loadRecent, pushRecent } from './recentSearches'
+import { defaultCategoryForRoomKind, relevantCategoriesForRoomKind } from './roomAwareCategories'
 import { SharedCard } from './SharedCard'
 import { StampBanner } from './StampBanner'
 import { fuzzySearchSmart, matchedIntents } from './searchSynonyms'
@@ -79,6 +82,8 @@ export function CatalogDrawer() {
   const open = useStore((s) => s.catalogOpen)
   const cameraMode = useStore((s) => s.cameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
+  const roomEditorRoomId = useStore((s) => s.roomEditor.roomId)
+  const floorPlan = useStore((s) => s.floorPlan)
   // PLAN-FURNISH Phase 1: the catalog also surfaces inside the 2D floor-plan
   // editor (desktop only — Phase 1 is desktop click-to-place; mobile stays
   // hidden here rather than opening a bottom sheet on top of the plan's own
@@ -131,6 +136,9 @@ export function CatalogDrawer() {
   const roomFreeRects = useActiveRoomFreeRects()
   const fFits = useFeature('catalogFits')
   const fFitsFilter = useFeature('catalogFitsFilter')
+  // Room-aware default landing category (CATALOG-ROOMAWARE) — see the effect
+  // below that applies it on room ENTRY only.
+  const fRoomAware = useFeature('catalogRoomAware')
   const [fitsOnly, setFitsOnly] = useState(false)
   const ambientFx = useAmbientFx()
   const unified = useUnifiedCatalog(fRemoteFurniture, sharedOn)
@@ -212,6 +220,36 @@ export function CatalogDrawer() {
       /* storage full / unavailable — non-critical */
     }
   }, [active, sortBy])
+
+  // CATALOG-ROOMAWARE: on ENTERING a room to edit, land the catalog on the
+  // category most relevant to that room's kind (bedroom→beds, kitchen→
+  // appliances, ...) instead of always the same curated/persisted default.
+  // Keyed on the room id (not just "a room is active") so switching rooms
+  // re-applies the pick — but only on that transition: once landed, a manual
+  // tab pick during the same room-editing session is never overridden (the
+  // effect body is a no-op unless the room-id key itself changed). An
+  // unmapped/unknown room kind (`relevantCategoriesForRoomKind` empty) or the
+  // whole-flat view (no room active) intentionally leaves `active` untouched
+  // — today's persisted-default behaviour, unchanged.
+  const roomEntryKeyRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!fRoomAware) return
+    const key = roomEditorActive && roomEditorRoomId ? roomEditorRoomId : null
+    if (key === roomEntryKeyRef.current) return
+    roomEntryKeyRef.current = key
+    if (!key) return
+    const kind = roomKindFromName(roomDisplayName(key, floorPlan))
+    if (relevantCategoriesForRoomKind(kind).length === 0) return
+    setActive(defaultCategoryForRoomKind(kind, unified.counts, firstBrowsableCategory))
+    setPage(0)
+  }, [
+    fRoomAware,
+    roomEditorActive,
+    roomEditorRoomId,
+    floorPlan,
+    unified.counts,
+    firstBrowsableCategory,
+  ])
 
   // Reset to page 1 when the visible list changes; the render also clamps.
   const selectCategory = (c: CatalogCategory) => {

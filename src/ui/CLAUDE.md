@@ -133,6 +133,16 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   `placementSlice` stows the patch in `armedVariantProps`, which `usePlacementController`'s
   `doCommit` merges over `defaultItemProps(def)` at commit. Gated by the `catalogVariantPick` flag
   (simple tier — pre-place finish picking is core-loop, not analytical).
+- **Room-aware catalog default (CATALOG-ROOMAWARE)** keys only the **initial landing category** on
+  the room being edited, never the tab order or a subsequent pick. The pure mapping is
+  `ui/catalog/roomAwareCategories.ts` (`relevantCategoriesForRoomKind` / `orderCategoriesForRoomKind`
+  / `defaultCategoryForRoomKind`), reusing the existing `analysis/suggestions.ts` `RoomKind` +
+  `furniture/types.ts` `FurnitureCategory` (do **not** invent new room-kind/category types).
+  `CatalogDrawer` applies it in a `useEffect` keyed on `roomEditor.roomId` via a `roomEntryKeyRef`,
+  so it fires ONLY on the room-entry transition — a manual category pick mid-session must stick
+  (don't fight the user), and an unmapped kind / whole-flat view keeps the persisted default.
+  Gated by the `catalogRoomAware` flag (simple tier — a default-landing convenience is core-loop,
+  not analytical); flag off restores today's behaviour. Unit-test the mapping + BOTH modes.
 - **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models*
   (`RemoteCard`s in the catalog grid) ride the **`remoteFurniture`** flag (pro, default on) —
   **no provider currently supplies furniture models (Poly Haven is materials/HDRIs only), so this

@@ -132,10 +132,17 @@ WebGPU path tracing).
 Ranked by value/effort. All pure-client, core-loop (furnish→arrange→finish→view→share) +
 discoverability/customizability, desktop **and** mobile; none shipped or tracked above. (Verified
 absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARITY.md`.)
-- [ ] **CATALOG-ROOMAWARE — room-aware catalog default (S–M).** On entering a room, surface / pre-sort
-  the relevant categories (bedroom→beds/wardrobes/nightstands) instead of a flat A–Z. Planner5D/Coohom
-  surface room-relevant items; our search is intent-aware but the *default* view isn't. Key the default
-  `CatalogDrawer` category/sort on the `roomEditor` room kind (`roomKindFromName`). Low risk.
+- [x] **CATALOG-ROOMAWARE — room-aware catalog default (S–M).** DONE. On entering a room to edit, the
+  catalog lands on the category most relevant to that room's kind (bedroom→beds, kitchen→appliances,
+  bath→bathroom, living→seating) instead of the persisted/curated default. Pure, unit-tested mapping in
+  `src/ui/catalog/roomAwareCategories.ts` (`relevantCategoriesForRoomKind` / `orderCategoriesForRoomKind`
+  / `defaultCategoryForRoomKind`), reusing the existing `analysis/suggestions.ts` `RoomKind` +
+  `furniture/types.ts` `FurnitureCategory` vocab. `CatalogDrawer` classifies via
+  `roomKindFromName(roomDisplayName(roomId, plan))` and applies the landing category in a `useEffect`
+  keyed on `roomEditor.roomId` (`roomEntryKeyRef`), so it fires ONLY on room entry — a manual tab pick
+  mid-session is respected, and an unmapped/whole-flat view keeps today's default. Behind the
+  `catalogRoomAware` flag (tier: simple, default on); only the DEFAULT landing tab changes — tab order,
+  search, filters, favourites/recent untouched. Scenario `scripts/scenarios/catalog-roomaware-simple.json`.
 - [ ] **PLAN-FURNISH Phases 2–4 — plan-editor furniture placement follow-ups.** Phase 1
   (desktop click-to-place; `planFurnish` flag) has shipped — see `CHANGELOG.md` and
   `docs/research/2026-07-03-plan-furnish-implementation-plan.md` (marked done there). Remaining:

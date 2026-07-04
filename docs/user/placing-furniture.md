@@ -20,6 +20,13 @@ decor, and more), the **search box** to fuzzy‑search across everything, and th
 **heart** on any card to save it to your **favourites** (the star tab, first in
 the list).
 
+**It opens on what the room needs.** When you open a room to furnish it, the
+catalog lands on the category that fits best — **Beds** in a bedroom,
+**Appliances** in a kitchen, **Bathroom** in a bath, **Seating** in the living
+room — so the relevant pieces are one glance away instead of buried under an
+alphabetical list. Pick any other tab and it stays put; the catalog never
+switches out from under you.
+
 ![The unified furniture catalog](/screenshots/catalog.png)
 
 **Does it fit this room?** While a room is open, any card whose size clearly
