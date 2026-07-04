@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { DEFAULT_PRICE_RULES } from '../../analysis/renovationCost'
+import { DEFAULT_QUOTE_TEMPLATE } from '../../export/quoteTemplate'
 import { diffWalls } from '../../floorplan/demolitionPlan'
 import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../store'
@@ -419,6 +421,159 @@ describe('history slice', () => {
       s().undo()
       expect(s().items).not.toBe(afterAdd)
       expect(s().items.some((i) => i.id === id)).toBe(false)
+    })
+  })
+})
+
+// TEST-4 (BUG-3-class prevention): `state/CLAUDE.md` explicitly records there is
+// no guard test analogous to `storage/autosave.test.ts`'s derived
+// serialize()-vs-watch-list guard, ensuring `HistorySnapshot`/`snapshot()`
+// captures every field a `pushHistory()`-backed action mutates. BUG-3
+// (`baselinePlan`, `masterPalette`, `roomPalettes`) was exactly a
+// field-omitted-from-snapshot bug: undo/redo silently left the omitted field
+// out of sync with the fields that DID restore. This suite turns the hand-audit
+// rule into a failing test: it asserts the exact key set `snapshot()` produces
+// (so an added/removed `HistorySnapshot` field must be reflected here), and
+// round-trips a real mutation of every one of those fields through undo.
+describe('HistorySnapshot completeness guard (TEST-4)', () => {
+  beforeEach(() => {
+    s().__resetForTest()
+  })
+
+  // Mirrors `HistorySnapshot`'s field set in historySlice.ts. Update this list
+  // in lockstep with that interface — that's the point of the guard.
+  const HISTORY_SNAPSHOT_KEYS = [
+    'items',
+    'doors',
+    'finishes',
+    'floorPlan',
+    'baselinePlan',
+    'comments',
+    'drawingCallouts',
+    'quoteTemplate',
+    'priceRules',
+    'masterPalette',
+    'roomPalettes',
+  ].sort()
+
+  function latestSnapshot(): Record<string, unknown> {
+    s().pushHistory()
+    return s().past[s().past.length - 1] as unknown as Record<string, unknown>
+  }
+
+  it('snapshot() captures exactly the documented allow-list of top-level keys', () => {
+    s().clearHistory()
+    const snap = latestSnapshot()
+    expect(Object.keys(snap).sort()).toEqual(HISTORY_SNAPSHOT_KEYS)
+  })
+
+  it('excludes selectedItemId(s) and pendingEdit — view-only state, by design', () => {
+    s().clearHistory()
+    const snap = latestSnapshot()
+    expect(snap).not.toHaveProperty('selectedItemId')
+    expect(snap).not.toHaveProperty('selectedItemIds')
+    expect(snap).not.toHaveProperty('pendingEdit')
+  })
+
+  // One round-trip case per snapshotted field: mutate it, undo, assert it
+  // reverted. Each proves snapshot()/snapshotMatchesState() are wired for that
+  // field — the exact class of gap BUG-3 exploited for baselinePlan/
+  // masterPalette/roomPalettes.
+  describe('undo reverts a real mutation of every snapshotted field', () => {
+    it('items', () => {
+      s().clearHistory()
+      const before = s().items
+      s().addItem({ defId: 'bed-double', position: [0, 0], rotation: 0, props: {} })
+      expect(s().items).not.toBe(before)
+      s().undo()
+      expect(s().items).toBe(before)
+    })
+
+    it('doors', () => {
+      s().clearHistory()
+      const before = s().doors
+      s().toggleDoor('door-bedroom1')
+      expect(s().doors).not.toBe(before)
+      expect(s().doors['door-bedroom1']?.open).toBe(true)
+      s().undo()
+      expect(s().doors).toBe(before)
+      expect(s().doors['door-bedroom1']?.open ?? false).toBe(false)
+    })
+
+    it('finishes', () => {
+      s().clearHistory()
+      const before = s().finishes
+      s().setFloorFinish('mainBedroom', 'floor-tile-marble')
+      expect(s().finishes).not.toBe(before)
+      expect(s().finishes.floor.mainBedroom).toBe('floor-tile-marble')
+      s().undo()
+      expect(s().finishes).toBe(before)
+    })
+
+    it('floorPlan + baselinePlan (travel together — BUG-3)', () => {
+      s().clearHistory()
+      const beforePlan = s().floorPlan
+      const beforeBaseline = s().baselinePlan
+      s().newFloorPlan('Plan B')
+      expect(s().floorPlan).not.toEqual(beforePlan)
+      expect(s().baselinePlan).toEqual(s().floorPlan)
+      s().undo()
+      expect(s().floorPlan).toEqual(beforePlan)
+      expect(s().baselinePlan).toEqual(beforeBaseline)
+    })
+
+    it('comments', () => {
+      s().clearHistory()
+      expect(s().comments).toEqual([])
+      s().addComment({ position: [1, 2], text: 'Move sofa left' })
+      expect(s().comments).toHaveLength(1)
+      s().undo()
+      expect(s().comments).toEqual([])
+    })
+
+    it('drawingCallouts', () => {
+      s().clearHistory()
+      expect(s().drawingCallouts).toEqual([])
+      s().addDrawingCallout({ sheet: 'floor-plan', text: 'Power point here', x: 0.4, y: 0.6 })
+      expect(s().drawingCallouts).toHaveLength(1)
+      s().undo()
+      expect(s().drawingCallouts).toEqual([])
+    })
+
+    it('quoteTemplate', () => {
+      s().clearHistory()
+      const before = s().quoteTemplate
+      s().setQuoteTemplate({ ...DEFAULT_QUOTE_TEMPLATE, companyName: 'Acme Interiors' })
+      expect(s().quoteTemplate.companyName).toBe('Acme Interiors')
+      s().undo()
+      expect(s().quoteTemplate).toEqual(before)
+    })
+
+    it('priceRules', () => {
+      s().clearHistory()
+      const before = s().priceRules
+      s().setPriceRules({ ...DEFAULT_PRICE_RULES, carpentryPerM: 999 })
+      expect(s().priceRules.carpentryPerM).toBe(999)
+      s().undo()
+      expect(s().priceRules).toEqual(before)
+    })
+
+    it('masterPalette', () => {
+      s().clearHistory()
+      expect(s().masterPalette).toEqual([])
+      s().setMasterPalette(['#ff0000'])
+      expect(s().masterPalette).toEqual(['#ff0000'])
+      s().undo()
+      expect(s().masterPalette).toEqual([])
+    })
+
+    it('roomPalettes', () => {
+      s().clearHistory()
+      expect(s().roomPalettes).toEqual({})
+      s().setRoomPalette('mainBedroom', ['#00ff00'])
+      expect(s().roomPalettes.mainBedroom).toEqual(['#00ff00'])
+      s().undo()
+      expect(s().roomPalettes).toEqual({})
     })
   })
 })

@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: IdbAssetStore round-trip + HistorySnapshot completeness guard — TEST-3/4 (v0.13.0.5)
+
+Two coverage suites from the round-2 audit, no app-behaviour change. **TEST-3**
+(`state/storage/IdbAssetStore.test.ts`, new): the foundation of all user-asset
+persistence (`put`/`get`/`list`/`delete`/`usage`) had zero tests — now a
+`fake-indexeddb` round-trip asserts blob+meta fidelity, missing-id → `null`,
+`list` omits the blob payload, `delete` targets only its id, and `usage` sums
+bytes+counts. **TEST-4** (`historySlice.test.ts`, added): converts the
+hand-audit rule in `state/CLAUDE.md` into a failing guard — asserts `snapshot()`
+emits exactly the documented `HistorySnapshot` key allow-list (so adding a field
+to the interface without wiring `snapshot()` fails loudly, the BUG-3 class),
+confirms `selectedItemId(s)`/`pendingEdit` stay excluded by design, and
+round-trips a real mutation→undo of every snapshotted field
+(items/doors/finishes/floorPlan+baselinePlan/comments/drawingCallouts/
+quoteTemplate/priceRules/masterPalette/roomPalettes). +55 tests.
+
 ## FEAT: Alt/Option-drag duplicate — FEAT-B (v0.13.0.3)
 
 SketchUp/Figma/Coohom parity: hold **Alt/Option** and drag an already-selected
