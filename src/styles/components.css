@@ -154,21 +154,54 @@ input { font-family: inherit; }
     animation: dockPanelIn var(--dur-2) var(--ease-out) backwards;
   }
   /* Left-docked panel (the catalog): mirrors the right dock so the canvas takes
-     the remaining width and the centred toolbar re-centres over it. */
+     the remaining width and the centred toolbar re-centres over it. The width is
+     user-resizable (`--catalog-w`, set on the root by the drag handle + persisted
+     per-device); it defaults to 320px and is clamped in JS to a sane range. */
   .app-shell:has(.dock-panel-left) {
-    --left-rail: 320px;
+    --left-rail: var(--catalog-w, 320px);
   }
   .app-shell:has(.dock-panel-left) .dock-panel-left {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 320px;
+    width: var(--catalog-w, 320px);
     max-height: none;
     border-top: 0;
     border-left: 0;
     border-bottom: 0;
     border-radius: 0;
     animation: dockPanelInLeft var(--dur-2) var(--ease-out) backwards;
+  }
+  /* Drag handle on the catalog's right edge to resize the dock. Sits on the
+     seam; widens its hit area without shifting layout. Desktop only (the media
+     query) — mobile keeps the bottom-sheet. */
+  .catalog-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 2;
+    touch-action: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+  .catalog-resize-handle::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 2px;
+    background: transparent;
+    transition: background var(--dur) var(--ease);
+  }
+  .catalog-resize-handle:hover::after,
+  .catalog-resize-handle:focus-visible::after,
+  .catalog-resize-handle.dragging::after {
+    background: var(--accent);
   }
 
   /* Mount entrance for docked panels (desktop only — mobile keeps `sheetUp`).

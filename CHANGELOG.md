@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: resizable catalog dock on desktop (v0.13.0.24)
+
+The docked catalog rail is now drag-resizable on desktop/wide screens. A
+`col-resize` handle (`CatalogResizeHandle`) on the panel's right edge pointer-
+drags to set a `--catalog-w` CSS var on the root, which drives both `--left-rail`
+(so the canvas reflows + the centred toolbar re-centres) and the panel width —
+default 320px, clamped 260–560px. Width persists per-device to localStorage
+(`hdb_catalog_width`, guarded, restored on mount) and ←/→ nudge it by 16px.
+Flag-gated `catalogResize` (simple tier, default on); the handle isn't rendered
+under `body.mobile` (mobile keeps the bottom-sheet). +5 tests (both-mode flag
+gate, drag clamp/persist, foreign-pointer no-op, keyboard nudge) + a visual
+scenario confirming the canvas reflows.
+
 ## FIX: recolour a floor/wall finish while keeping its texture (bug #1) (v0.13.0.23)
 
 Picking a textured floor/wall finish then opening "Compose your own…" defaulted

@@ -1298,6 +1298,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Drag-to-resize the docked catalog rail on desktop/wide screens (a col-resize
+  // handle on its right edge; width persisted per-device). A core-loop UX
+  // convenience available to everyone → simple tier. Mobile keeps the bottom
+  // sheet (the handle isn't rendered there).
+  catalogResize: {
+    label: 'Resizable catalog',
+    description: 'Drag the catalog panel edge to resize it (desktop)',
+    default: true,
+    tier: 'simple',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

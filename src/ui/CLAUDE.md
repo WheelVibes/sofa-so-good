@@ -29,7 +29,12 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   CSS keyed on the panel's *presence* (panels mount only when open) — no JS open-state. A new panel
   that should reflow the canvas just needs the right `dock-panel`/`dock-panel-left` class; mobile
   (≤640px) keeps bottom-sheets (the dock rules are gated to ≥641px). (The 2D floor-plan editor has
-  its own layout — not docked yet.)
+  its own layout — not docked yet.) **The catalog dock is user-resizable** (`catalogResize` flag,
+  simple tier, desktop only): `CatalogResizeHandle` (a `col-resize` grab handle on the panel's right
+  edge) pointer-drags to set `--catalog-w` on the root, which drives BOTH `--left-rail` and the
+  panel `width` (default 320px, clamped 260–560px). Width persists per-device to localStorage
+  (`hdb_catalog_width`, guarded — like favourites, not the save schema) and restores on mount;
+  ←/→ nudge by 16px. The handle isn't rendered under `body.mobile`.
 - **Edits confirm before they commit (`EditConfirmBar`).** A furniture move / rotate / placement
   resolves to a `placementSlice.pendingEdit` and the floating tick/cross **Apply change?** bar
   (`src/ui/EditConfirmBar.tsx`): ✓ / Enter commits, ✗ / Esc reverts (restores the pre-edit `items`
