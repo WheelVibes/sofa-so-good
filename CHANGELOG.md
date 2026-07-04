@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: TODO housekeeping — remove shipped items, defer PLAN-FURNISH Phase 2 mobile, fold audit backlog (v0.12.0.34)
+
+Removed all completed entries from `TODO.md` per the "ships → removed entirely"
+convention (their records live in `CHANGELOG.md`): upload-parallelization Part 1b,
+composite footprints, CATALOG-ROOMAWARE, TOOLBAR-MENU-VOID. Recorded
+**PLAN-FURNISH Phase 2 (mobile) as ATTEMPTED + DEFERRED** — reached 54/64 green
+but blocked on a mobile catalog-vs-plan layout decision (bottom sheet covers
+~72% of the viewport) + an unverified stamp-in-plan tweak + harness flakiness;
+work archived on branch `wip/plan-furnish-mobile-phase2` for a future focused
+effort. Folded the still-open items from the 2026-07-04 deep audit into a tracked
+backlog section (BUG-7, PERF-C, REFAC-2, FEAT-2).
+
 ## FIX: de-duped delete toast's Undo restores every coalesced delete — BUG-4 (v0.12.0.33)
 
 From the 2026-07-04 audit: deleting two items ≥500ms apart (past the history-

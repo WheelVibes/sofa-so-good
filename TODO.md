@@ -15,27 +15,6 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
   the catalog with NO upload pipeline (convert/optimize/IDB). Dev-only Vite plugin
   (`scripts/vite-local-assets.mjs`) serving `/@local-assets/*`, `localAssets` devOnly flag,
   `localAssetsSlice` (`bootstrapLocalAssets`), `LocalGltfDef` source, merged in `catalog.ts`.
-- **Upload parallelization (Part 1b) — DONE, all items shipped.** The optimize worker POOL
-  (`optimize/runOptimize.ts`, hardware-aware `computePoolMax`, spawn-on-contention, per-worker
-  error retirement) shipped in v0.9.0.65; it now also idle-tears-down a worker (terminates + drops
-  it from the pool) after 30s with no pending calls, so a bulk-import burst doesn't hold its peak
-  worker count (each holds a heavy Draco/Basis WASM stack) for the rest of the session. The IO-002
-  early GLB size-cap gate (`bulkImport.ts:prepareGlb`) rejects a *hopelessly* oversized
-  converted/raw GLB — pre-optimize size > `EARLY_REJECT_MULTIPLIER` (3) × `MAX_GLB_BYTES` (>75 MB
-  at the 25 MB cap) — **before** the optimize/LOD pass, so a dense CAD convert doesn't burn a pool
-  slot. The multiplier headroom matters: optimize routinely shrinks 5-10×, so a between-cap-and-3×cap
-  file (30 MB → 8 MB) keeps its optimize chance and the post-optimize check stays the real cap.
-  **Model conversion off the main thread — DONE (2026-07-03).** `convert/runConvert.ts` runs
-  `convertModel` (OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/gltf → GLB) in a pooled Worker
-  (`convert.worker.ts`) instead of the main thread — every convert-pipeline loader routes texture
-  decode through `THREE.TextureLoader`→`ImageLoader`, whose one DOM dependency
-  (`document.createElementNS('img')`) is bridged by `imageLoaderWorkerPatch.ts` (swaps the DOM
-  `<img>` decode for `createImageBitmap`, which `GLTFExporter` already accepts); no format needed
-  to stay on the main thread. The pool logic itself was extracted into a generic
-  `furniture/worker/workerPool.ts` (used by the new convert pool; `runOptimize.ts`'s own pool is
-  left as-is, not refactored onto it, to avoid destabilizing the just-shipped optimize pool). A
-  per-file worker failure (crash, or convertModel throwing something other than a `ConvertError`)
-  falls back to a direct main-thread `convertModel` call for that file only — never the batch.
 - **Scrapers (Part 3).** `research/scrapers/` has 35 working scrapers with complete enumeration;
   finalized tiering in the plan doc. Next: run Tier-1 CC0 scrapers into `local-assets/` (pairs with
   Part 1), then surface Poly Haven models in prod (`remoteFurniture` flag).
@@ -100,16 +79,6 @@ WebGPU path tracing).
   render. Deferred as an analytics/deliverable, not core design UX.
 
 ## Open — core interactions
-- ~~**More composite footprints (round/oval tables).**~~ **Done (2026-07-04).** Shipped the
-  "coarse inscribed rects" approach flagged below: `furniture/footprintShapes.ts:
-  ellipseFootprintParts(width, depth, steps=4)` — a symmetric staircase of axis-aligned boxes
-  inscribed in the ellipse (5 boxes by default; a provable subset of both the ellipse and the
-  bbox, so it stays a plain OBB union — no new intersection/polygon footprint primitive needed).
-  Wired into `dining-table-4`/`coffee-table` (`shape: 'round'|'oval'`) and `side-table`
-  (`'round'`/`'drum'`); rectangular/square shapes are unchanged. It does leave the diagonal
-  corner-to-circle gap uncovered as anticipated (a curved sliver, not carved out) — acceptable
-  since the goal was freeing the bbox corners, not exact coverage. No U-sofa / corner desk /
-  peninsula in the catalog yet, so those still fall back to a single OBB if added later.
 - **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
   would be a new interaction. Doors already animate (could ease the linear swing curve — low value).
 - **Live slide during drag** (optional, higher-risk) — item hugs walls/furniture in real time, not
@@ -137,21 +106,18 @@ WebGPU path tracing).
 Ranked by value/effort. All pure-client, core-loop (furnish→arrange→finish→view→share) +
 discoverability/customizability, desktop **and** mobile; none shipped or tracked above. (Verified
 absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARITY.md`.)
-- [x] **CATALOG-ROOMAWARE — room-aware catalog default (S–M).** DONE. On entering a room to edit, the
-  catalog lands on the category most relevant to that room's kind (bedroom→beds, kitchen→appliances,
-  bath→bathroom, living→seating) instead of the persisted/curated default. Pure, unit-tested mapping in
-  `src/ui/catalog/roomAwareCategories.ts` (`relevantCategoriesForRoomKind` / `orderCategoriesForRoomKind`
-  / `defaultCategoryForRoomKind`), reusing the existing `analysis/suggestions.ts` `RoomKind` +
-  `furniture/types.ts` `FurnitureCategory` vocab. `CatalogDrawer` classifies via
-  `roomKindFromName(roomDisplayName(roomId, plan))` and applies the landing category in a `useEffect`
-  keyed on `roomEditor.roomId` (`roomEntryKeyRef`), so it fires ONLY on room entry — a manual tab pick
-  mid-session is respected, and an unmapped/whole-flat view keeps today's default. Behind the
-  `catalogRoomAware` flag (tier: simple, default on); only the DEFAULT landing tab changes — tab order,
-  search, filters, favourites/recent untouched. Scenario `scripts/scenarios/catalog-roomaware-simple.json`.
 - [ ] **PLAN-FURNISH Phases 2–4 — plan-editor furniture placement follow-ups.** Phase 1
   (desktop click-to-place; `planFurnish` flag) has shipped — see `CHANGELOG.md` and
   `docs/research/2026-07-03-plan-furnish-implementation-plan.md` (marked done there). Remaining:
   - [ ] **Phase 2** — mobile tap-to-place + long-press-from-card, stamp-mode reuse for repeat drops.
+    **ATTEMPTED + DEFERRED (2026-07-04)** — reached 54/64 scenario steps green (catalog sheet
+    surfaces on mobile, tap-to-place + long-press-drag commit both work) but not shipped. Work
+    archived on branch `wip/plan-furnish-mobile-phase2` (resume from there). Blockers for a future
+    focused effort: (a) the mobile catalog bottom-sheet covers ~72% of a 390×844 viewport, so
+    tap-to-place needs the sheet to **auto-collapse on arm** (or dock smaller) — decide the
+    catalog-vs-plan mobile layout first; (b) verify the stamp-in-plan touch-commit (scenario step 55)
+    + drop the unverified desktop stamp-in-plan tweak that snuck into that WIP; (c) SwiftShader
+    harness flakiness (Page.captureScreenshot timeouts) needs the lazy-plan-editor-mount waits.
   - [ ] **Phase 3** — window-bound fixtures (curtains/blinds/grilles) via `snapToNearestWindow` in
     the plan (Phase 1 excludes them with a toast pointing to the 3D room editor).
   - [ ] **Phase 4** — HTML5 drag-from-catalog onto the plan SVG (deferred pending the logged
@@ -159,17 +125,20 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
   - [ ] *(Polish, not phase-gated)* the docked catalog currently floats over the plan rather than
     shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
     `.plan-screen`) — low-risk follow-up.
-- [x] **TOOLBAR-MENU-VOID — dropdown vertical gap (S, cohesion).** DONE. Root cause was NOT a static
-  layout gap (which is why settled screenshots looked clean): the shared `ToolbarMenu` panel carried
-  `.stagger-in`, whose `--i` nth-child cascade fallback only covers the first 12 children. File/Tools
-  in Pro render >12 rows as direct children, so every row past the 12th got `--i:0` → zero delay →
-  popped in instantly at the bottom while rows 6–12 were still mid-cascade, leaving a transient
-  vertical VOID between the top and bottom clusters (~0–600ms on every open). View has fewer rows and
-  Arrange wraps all rows in one scroll `<div>` (1 direct child), so neither showed it — matching the
-  report. Fix: dropped `.stagger-in` from the `.pop-panel` in `ToolbarMenu.tsx` (the primitive renders
-  arbitrary children so it can't set `--i` inline); the panel still animates in via its own `pop`
-  keyframe. Verified File/Tools/View/Arrange (desktop light+dark) + mobile sections; regression
-  scenario `scripts/scenarios/toolbar-menu-void.json`.
+
+## Open — deep-audit backlog (2026-07-04)
+Open, client-doable items from `docs/research/2026-07-04-deep-audit-and-opportunities.md`
+(full detail + code refs there). Shipped items from that audit — BUG-1/2/3/4/5/6, PERF-A/B/D,
+REAL-1, SEC-1 — are in `CHANGELOG.md`. Still open:
+- [ ] **BUG-7 — opening-width edit doesn't re-clamp offset (S).** Widening an opening via the
+  inspector can push it past the wall end (offset not re-clamped). Add the clamp on width change.
+- [ ] **PERF-C — synchronous procedural bake blocks the main thread on finish apply/scrub (M).**
+  Move the procedural material bake off-thread (OffscreenCanvas worker) or time-slice it.
+- [ ] **REFAC-2 — `FloorPlanEditor.tsx` ~3186 lines (note, tracked as MOD-FPE-SPLIT).** Grew with
+  PLAN-FURNISH; revisit the toolbar-fragment/dispatcher extraction if it keeps growing.
+- [ ] **FEAT-2 — mirror/reflect a selection across a room axis (S–M).** Arrange-tool addition;
+  reuse the array/placement commit path.
+(REFAC-1 InspectorPanel decomposition + FEAT-1 time-of-day compare are in progress this cycle.)
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live
