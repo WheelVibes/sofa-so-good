@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: remoteCatalogSlice orchestration — TEST-5 (v0.13.0.6)
+
+Round-2 audit coverage for `state/slices/remoteCatalogSlice.ts` (184 lines, was
+0 tests referencing it), no app-behaviour change. New `remoteCatalogSlice.test.ts`
+with stubbed providers/cache exercises the slice's own orchestration edge cases
+the underlying cache tests don't: **in-flight de-dupe** (two concurrent
+`resolveRemoteAsset` for one key share a single `fetchAsset`; a later
+non-overlapping call re-fetches), the **7-day `STALE_AFTER`** refresh decision
+(skip when the cached index is fresh, refresh when stale or absent), the
+**already-resolved short-circuit** (both furniture + materials maps), and the
+**error status transitions** (`fetchIndex`/`fetchAsset` throwing lands
+`status:'error'` / a `remoteFetches` error entry with no unhandled rejection, and
+recovers on a later call). +10 tests.
+
 ## TEST: IdbAssetStore round-trip + HistorySnapshot completeness guard — TEST-3/4 (v0.13.0.5)
 
 Two coverage suites from the round-2 audit, no app-behaviour change. **TEST-3**
