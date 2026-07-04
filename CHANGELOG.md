@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## A11Y: focus-trap toolbar menus + upload ConfirmDialog, label FileMenu delete (v0.12.0.24)
+
+Accessibility hardening (user-direction priority) on the dialog/menu primitives:
+- Extracted a shared `controls/focusTrap.ts` (`FOCUSABLE_SELECTOR` + `trapTabKey`)
+  from `Modal`'s inline logic so all consumers reuse one implementation.
+- **ToolbarMenu** (File/Tools/View/Arrange/Edit/Scene): the `Popover`-portaled
+  panel sat outside the trigger's tab order, so opening a menu by keyboard left
+  focus stranded with no way to Tab into the rows. It now moves focus to the
+  first row on open and traps Tab within the panel (Escape-close-and-restore was
+  already Popover's job). Add-only — the v0.12.0.21 stagger/layout is untouched.
+- **upload/ConfirmDialog** (an `alertdialog`): added focus-restore-on-close +
+  Tab-trap (it can stack on another dialog).
+- **FileMenu**: the saved-layout delete button now has `aria-label="Delete
+  layout \"<name>\""` (was an ambiguous "×").
+Deliberately NOT added: roving arrow-key/type-ahead nav on ToolbarMenu — its
+panels mix `menuitem` buttons with native sliders/comboboxes that own Up/Down,
+so a panel-wide arrow interceptor would fight them (documented in ui/CLAUDE.md).
+Already-accessible surfaces (Modal/ShareModal/PromptModal) unchanged.
+
 ## FIX: shape-accurate collision footprints for round/oval tables (v0.12.0.23)
 
 TODO "Open — core interactions": `footprintParts` is a union of OBBs, so a round/

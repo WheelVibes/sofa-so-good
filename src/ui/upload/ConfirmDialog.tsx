@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { trapTabKey } from '../../controls/focusTrap'
 import { useModalGuard } from '../../controls/modalGuard'
 
 interface ConfirmDialogProps {
@@ -30,12 +31,17 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   // Modal-style overlay: suppress global shortcuts while open.
   useModalGuard(open)
 
   useEffect(() => {
     if (!open) return
+    // Restore focus to whatever had it (the action that opened this nested
+    // confirm — e.g. a row inside the parent upload dialog) once this dialog
+    // closes, mirroring the shared `Modal` primitive's focus-restore contract.
+    const prev = document.activeElement as HTMLElement | null
     cancelRef.current?.focus()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -45,11 +51,19 @@ export function ConfirmDialog({
       } else if (e.key === 'Enter') {
         e.preventDefault()
         onConfirm()
+      } else if (e.key === 'Tab') {
+        // Focus trap: this dialog stacks on top of another open dialog, so Tab
+        // must cycle within it rather than escaping to the surface behind.
+        const panel = panelRef.current
+        if (panel && trapTabKey(panel, e)) e.preventDefault()
       }
     }
     // Capture so this nested dialog's Esc wins over the parent modal's handler.
     window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      prev?.focus?.()
+    }
   }, [open, onCancel, onConfirm])
 
   if (!open) return null
@@ -63,6 +77,7 @@ export function ConfirmDialog({
       style={{ zIndex: 10 }}
     >
       <div
+        ref={panelRef}
         className="w-full max-w-xs rounded-xl px-5 py-4 text-center"
         style={{
           background:

@@ -241,3 +241,21 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   `.modal-overlay`, upload dialogs, …) must call `useModalGuard(open)` itself. Escape is
   each modal's own listener; ⌘K/undo are suppressed while a modal is open (the ⌘K palette
   is not a `Modal` and keeps its own keyboard handling).
+- **Focus management (A11Y-MODAL-MENU).** `Modal` moves focus into the dialog on open, traps
+  Tab within it, and restores focus to whatever was previously focused on close/unmount — the
+  shared selector + wrap logic live in `controls/focusTrap.ts` (`FOCUSABLE_SELECTOR`,
+  `trapTabKey`); reuse them rather than hand-rolling another copy. `ToolbarMenu`'s dropdown
+  panel does the same (move-focus-on-open + Tab-trap) because `Popover` portals the panel to
+  `document.body`, putting it outside the trigger button's natural tab order — without this a
+  keyboard user who opens a menu with Enter/Space had no way to Tab into its rows at all.
+  Escape-closes-and-restores-focus-to-the-trigger is `Popover`'s own job (already covers every
+  `Popover` consumer, including `ToolbarMenu`). Deliberately NOT added: arrow-key/Home-End/
+  type-ahead roving focus on `ToolbarMenu` rows — its panels mix real `menuitem` buttons with
+  native range sliders (`TimeOfDaySlider`) and `Select` combobox triggers (which own their own
+  Up/Down handling), so a panel-wide arrow-key interceptor would fight a focused slider's
+  native Left/Right value-adjustment; Tab-based navigation is the correct, lower-risk fit for
+  that heterogeneous content. `Popover` itself stays free of any generic focus-move/trap — some
+  consumers (`Select`, the combobox pattern) deliberately keep DOM focus on the trigger and
+  drive a *virtual* active option via their own keydown handler, so a generic trap there would
+  fight that pattern; add trapping consumer-side (as `ToolbarMenu` and `upload/ConfirmDialog`
+  do) when a specific `Popover` payload is real Tab-navigable content.

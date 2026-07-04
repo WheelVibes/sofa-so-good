@@ -257,12 +257,14 @@ export function FileMenu() {
                   </span>
                 </button>
                 <button
+                  type="button"
                   onClick={async () => {
                     await storage.delete(s.slot)
                     deleteThumb(s.slot)
                     refresh()
                   }}
                   className="rounded px-1 text-[var(--danger)] hover:bg-[var(--danger-soft)]"
+                  aria-label={`Delete layout "${s.slot}"`}
                   title="Delete"
                 >
                   ×

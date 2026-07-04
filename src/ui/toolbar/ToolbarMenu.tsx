@@ -1,4 +1,5 @@
-import { type ReactNode, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { FOCUSABLE_SELECTOR, trapTabKey } from '../../controls/focusTrap'
 import type { FeatureFlag } from '../../features/featureFlags'
 import { type DocKey, openToolDocs } from '../docsUrl'
 import { useNewBadge } from '../newBadges'
@@ -23,8 +24,29 @@ export function ToolbarMenu({
   width?: number
 }) {
   const ref = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const Cmp = Icon[icon]
+
+  // A11Y: the panel is portaled elsewhere in the DOM (Popover renders it via
+  // createPortal to document.body), so it sits OUTSIDE the trigger's tab
+  // order — without this, a keyboard user who opens the menu with Enter/Space
+  // has no way to Tab into its rows at all. Move focus onto the first
+  // focusable row as soon as the panel mounts, mirroring the same pattern
+  // `Modal` already uses for its dialog. Escape already returns focus to the
+  // trigger (Popover's own handler) regardless of where focus lands inside.
+  useEffect(() => {
+    if (!open) return
+    const first = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+    first?.focus()
+  }, [open])
+
+  const onPanelKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab') return
+    const panel = panelRef.current
+    if (panel && trapTabKey(panel, e)) e.preventDefault()
+  }
+
   return (
     <>
       <button
@@ -42,8 +64,10 @@ export function ToolbarMenu({
       </button>
       <Popover open={open} anchorRef={ref} onClose={() => setOpen(false)}>
         <div
+          ref={panelRef}
           role="menu"
           onClick={() => setOpen(false)}
+          onKeyDown={onPanelKeyDown}
           // The panel animates in as a whole via `.pop-panel`'s own `pop`
           // keyframe. It deliberately does NOT use the per-row `.stagger-in`
           // cascade: a ToolbarMenu renders an arbitrary, variable number of
