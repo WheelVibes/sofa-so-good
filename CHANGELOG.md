@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: recolour a floor/wall finish while keeping its texture (bug #1) (v0.13.0.23)
+
+Picking a textured floor/wall finish then opening "Compose your own…" defaulted
+the tint source to a procedural pattern, so changing the colour lost the texture.
+`MaterialComposer` now seeds a plain catalog material (the one you just picked) as
+its OWN tint base — starting at white (an identity tint, texture shown unchanged)
+— so choosing a colour produces `tint:<thatMaterial>:<#hex>`, keeping the texture
+maps and only multiplying the albedo. The tint render path (cache.ts textured
+branch, anisotropy-correct per REAL-1) is unchanged. +a component test.
+
 ## FIX: out-of-room placement is red + invalid, no snap-back, greyed tick (bugs #5/#6) (v0.13.0.22)
 
 Two related per-room-editor placement fixes:
