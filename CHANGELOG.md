@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: invisible GLB/IKEA furniture is now a visible, diagnosable placeholder (bug #3, partial) (v0.13.0.26)
+
+A placed IKEA/GLB item that fails to render used to be either a silent
+placeholder box (a thrown GLB load, via `GltfErrorBoundary`) or — when the def
+had no renderable `runtimeUrl` (e.g. a blob that didn't rehydrate after reload) —
+truly invisible (rendered `null`). Both now render the shared `GltfPlaceholderBox`
+(extracted) so the piece stays visible/selectable, AND log the reason:
+`GltfErrorBoundary.componentDidCatch` logs the def id + model url + the actual
+error, and the no-url path logs a warning naming the def. This surfaces WHY a
+model didn't load instead of leaving guessers with invisible furniture — the
+diagnostic needed to pin down the underlying asset-load failure (which is
+environment/backend-specific and couldn't be reproduced in the sandbox). Not a
+full root-cause fix: the exact throw (multi-file glTF, blocked embedded resource,
+or a dead post-reload blob URL) will show in the console now for a targeted fix.
+
 ## FEAT: catalog grid gains columns as the panel widens (v0.13.0.25)
 
 Pairs with the resizable dock: the `.card-grid` switched from a fixed 2-column

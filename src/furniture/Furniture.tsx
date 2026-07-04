@@ -10,7 +10,7 @@ import { shouldDuplicateOnDragStart } from '../scene/dragHelpers'
 import { registerDropGroup } from '../scene/placementDrop'
 import { canEditScene, dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
-import { GltfErrorBoundary } from './GltfErrorBoundary'
+import { GltfErrorBoundary, GltfPlaceholderBox } from './GltfErrorBoundary'
 import { GltfModel } from './GltfModel'
 import { selectGltfRender } from './gltfRender'
 import { isInteractableLight } from './lightInteract'
@@ -233,11 +233,27 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
         width={def.defaultFootprint.w}
         depth={def.defaultFootprint.d}
         height={Math.min(def.defaultFootprint.w, def.defaultFootprint.d, 0.9)}
+        defId={def.id}
+        url={selectGltfRender(item, def as GltfDef)?.url}
       >
         <Suspense fallback={null}>
           {(() => {
             const r = selectGltfRender(item, def as GltfDef)
-            if (!r) return null
+            if (!r) {
+              // No renderable url (e.g. an IKEA/user blob that didn't rehydrate
+              // after reload). Show the placeholder box + log, so the piece is
+              // still visible/selectable rather than silently invisible (bug #3).
+              console.warn(
+                `[Furniture] no renderable model url for "${def.id}" — showing placeholder box (unresolved runtimeUrl?)`,
+              )
+              return (
+                <GltfPlaceholderBox
+                  width={def.defaultFootprint.w}
+                  depth={def.defaultFootprint.d}
+                  height={Math.min(def.defaultFootprint.w, def.defaultFootprint.d, 0.9)}
+                />
+              )
+            }
             return (
               <GltfModel
                 url={r.url}
