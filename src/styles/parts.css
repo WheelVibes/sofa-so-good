@@ -227,6 +227,20 @@
 /* Catalog bottom-sheet minimize (bug #7) — same collapse-to-header treatment. */
 .catalog.minimized { max-height: none; }
 .catalog.minimized .panel-head { padding-bottom: var(--s-3); }
+
+/* Smooth collapse/expand for the minimizable bottom-sheets (inspector + catalog).
+   The grid-template-rows 1fr↔0fr trick animates an auto-height region: the header
+   stays put while everything below it slides open/closed. `flex: 1; min-height: 0`
+   keeps it in the panel's flex column so an expanded body's `.panel-body` still
+   bounds + scrolls; the inner wrapper clips during the animation. Paired with the
+   `useCollapseTransition` hook, which unmounts the body once fully collapsed. */
+.sheet-collapse {
+  display: grid; grid-template-rows: 1fr; flex: 1 1 auto; min-height: 0;
+  transition: grid-template-rows var(--dur-2) var(--ease-out);
+}
+.sheet-collapse.collapsed { grid-template-rows: 0fr; }
+.sheet-collapse-inner { overflow: hidden; min-height: 0; display: flex; flex-direction: column; }
+@media (prefers-reduced-motion: reduce) { .sheet-collapse { transition: none; } }
 /* The icon-thumb + title/sub row layout below is specific to the single-item
    InspectorPanel header (icon square on the left, text stack on the right) —
    scoped via `:has(.insp-thumb)` so it doesn't also match MultiSelectPanel's

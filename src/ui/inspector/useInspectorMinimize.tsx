@@ -69,6 +69,40 @@ export function useInspectorMinimize(itemId?: string): {
   }
 }
 
+/**
+ * The mobile bottom-sheet drag handle. Renders ONLY on mobile (the `.sheet-grab`
+ * hit area sits over the decorative `::before` pill), and it is the *only* place
+ * the collapse swipe is armed — `touch-action: none` on it claims the vertical
+ * gesture so a swipe here minimizes/expands the sheet while a swipe anywhere else
+ * (header buttons, body, canvas) is left to scroll/pan as normal. Returns null on
+ * desktop, where the panel is a full-height dock with no swipe affordance.
+ */
+export function SheetGrab({
+  minimized,
+  swipeHandlers,
+  label,
+}: {
+  minimized: boolean
+  swipeHandlers: {
+    onTouchStart: (e: React.TouchEvent) => void
+    onTouchEnd: (e: React.TouchEvent) => void
+  }
+  label: string
+}) {
+  const isMobile = useIsMobile()
+  if (!isMobile) return null
+  return (
+    <button
+      type="button"
+      className="sheet-grab"
+      onTouchStart={swipeHandlers.onTouchStart}
+      onTouchEnd={swipeHandlers.onTouchEnd}
+      aria-label={minimized ? `Expand ${label}` : `Minimize ${label}`}
+      title={minimized ? 'Swipe up to expand' : 'Swipe down to minimize'}
+    />
+  )
+}
+
 /** The minimize / expand toggle shown in an inspector panel header. */
 export function MinimizeButton({ minimized, toggle }: { minimized: boolean; toggle: () => void }) {
   return (

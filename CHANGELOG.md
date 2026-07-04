@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.14.1.5 — mobile sheet: animated collapse + handle-only swipe; fewer drag guides
+
+Three mobile polish fixes:
+
+- **Animated minimize/maximize.** The inspector and catalog bottom sheets used to
+  pop between full-height and header-only. New `useCollapseTransition` hook +
+  `.sheet-collapse` CSS (a `grid-template-rows: 1fr↔0fr` transition) animate the
+  body open/closed over `--dur-2`, then unmount it once fully collapsed (so a
+  minimized sheet still renders none of its per-frame contents during a drag).
+  Respects `prefers-reduced-motion` (resolves instantly).
+- **Handle-only swipe.** The collapse swipe was armed on the whole `.panel-head`,
+  so a swipe that happened to start on a header button (or bleed onto the canvas)
+  could minimize the sheet. It now lives on a dedicated `SheetGrab` element (the
+  grab pill, `touch-action: none`, mobile-only) — swiping the handle toggles the
+  sheet, swiping anywhere else pans/scrolls as normal, and swiping the handle no
+  longer pans the canvas behind it.
+- **Fewer furniture-move guides.** During a drag, alignment/spacing guides were
+  generated against every item including `noClip` decor (cushions, bowls, books,
+  plants, wall art), producing a cluster of redundant 2"/3" readouts. The obstacle
+  set now excludes `noClip` decor, matching how they're already ignored for
+  collision.
+
 ## v0.14.1.4 — mobile bottom-HUD overlap (root-cause: broken --hud-bottom)
 
 The `--hud-bottom` custom property (which lifts bottom-centre HUDs above the
