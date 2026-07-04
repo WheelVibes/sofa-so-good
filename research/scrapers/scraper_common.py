@@ -155,7 +155,7 @@ class HttpClient:
                 if e.code in (429, 500, 502, 503, 504) and attempt < self.retries:
                     retry_after = e.headers.get("Retry-After") if e.headers else None
                     delay = _retry_delay(attempt, retry_after)
-                    _log(f"  HTTP {e.code} on {url} → backoff {delay:.1f}s "
+                    _log(f"  HTTP {e.code} on {_redact(url)} → backoff {delay:.1f}s "
                          f"(attempt {attempt + 1}/{self.retries})")
                     time.sleep(delay)
                     attempt += 1
@@ -164,7 +164,7 @@ class HttpClient:
             except (urllib.error.URLError, TimeoutError) as e:
                 if attempt < self.retries:
                     delay = _retry_delay(attempt, None)
-                    _log(f"  net error {e} on {url} → backoff {delay:.1f}s "
+                    _log(f"  net error {e} on {_redact(url)} → backoff {delay:.1f}s "
                          f"(attempt {attempt + 1}/{self.retries})")
                     time.sleep(delay)
                     attempt += 1
@@ -212,7 +212,7 @@ class HttpClient:
                 part.unlink(missing_ok=True)
                 if attempt < self.retries:
                     delay = _retry_delay(attempt, None)
-                    _log(f"  stream error {e} on {url} → retry {delay:.1f}s "
+                    _log(f"  stream error {e} on {_redact(url)} → retry {delay:.1f}s "
                          f"(attempt {attempt + 1}/{self.retries})")
                     time.sleep(delay)
                     attempt += 1
@@ -228,6 +228,18 @@ def _retry_delay(attempt: int, retry_after: Optional[str]) -> float:
             pass
     # 2,4,8,16s + jitter
     return (2 ** (attempt + 1)) + random.uniform(0, 1.0)
+
+
+def _redact(url: str) -> str:
+    """Mask secret-bearing query params (key/token/api_key/secret/…) before a URL
+    is logged, so an API key passed to a source never lands in clear text in the
+    logs (CodeQL py/clear-text-logging-sensitive-data)."""
+    return _re.sub(
+        r"([?&](?:api[_-]?key|access[_-]?token|key|token|secret|password|auth)=)[^&#\s]*",
+        r"\1***",
+        str(url),
+        flags=_re.IGNORECASE,
+    )
 
 
 def _log(msg: str) -> None:

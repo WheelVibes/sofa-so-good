@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.1.0 — security: dependency vulnerabilities + CodeQL hardening
+
+Cleared the GitHub-surfaced security findings.
+
+**Dependency vulnerabilities (4 Dependabot alerts, all dev-only docs tooling).**
+`vitepress@1.6.4` pinned the vulnerable `vite@5` line (esbuild dev-server request
+exposure `GHSA-67mh-4wv8-2f99`; vite `server.fs.deny` bypass + optimized-deps
+`.map` path traversal; launch-editor NTLMv2 disclosure) — none affect the shipped
+app (its top-level `vite@8`/`esbuild@0.28` were already patched). The vite fixes
+have no vite-5 backport, so upgraded `vitepress` → `2.0.0-alpha.17` (built on the
+patched `vite@7`). `npm audit` is now **0 vulnerabilities**; both docs builds and
+the app build/tests verified.
+
+**Code scanning (CodeQL) — fixed the shipped-code + config + tooling alerts:**
+
+- **Workflow permissions** (Medium ×2): added a least-privilege
+  `permissions: contents: read` to `.github/workflows/ci.yml`.
+- **Unvalidated dynamic method call** (High): `materials/procedural/generators.ts`
+  now validates the pattern is a known own-key before the `PATTERN_FN[…]` dispatch.
+- **DOM text as HTML** (High): the plan-editor trace-image `<image href>` runs
+  through a new `utils/safeUrl.ts:safeImageSrc` (allows `blob:`/`data:image`/
+  http(s)/relative, rejects `javascript:`/`data:text/html`).
+- **Clear-text storage of a secret** (High): the Poly Pizza API key in `PacksTab`
+  is kept in memory for the session only, no longer written to `localStorage`.
+- **Stack-trace / info exposure** (Medium): the dev `price-server.mjs` logs the
+  error server-side and returns a generic message instead of the exception text.
+- **Clear-text logging** (High): the offline `research/scrapers/scraper_common.py`
+  masks secret-bearing query params before logging a URL.
+
+Two CodeQL "clear-text storage" alerts on `authSlice.ts` are **false positives**
+— the persisted object is the non-secret `{id, name, role}` profile (the session
+lives server-side), so persistence is unchanged; recommend dismissing in the
+Security tab. Two "DOM text as HTML" alerts in `design/assets/app.js` are in the
+**non-shipped design prototype** (excluded from the Vite build; static internal
+templates, no user input) — left as-is.
+
 ## v0.15.0.1 — iOS full-bleed: canvas reaches the bottom edge too
 
 Follow-up to the v0.15.0.0 iOS full-bleed work: the 3D canvas reached the top

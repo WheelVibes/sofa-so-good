@@ -59,6 +59,32 @@ export function safeUrl(url: string | null | undefined): string | undefined {
  *  so the attribute is omitted (and the element falls back to inert text). */
 export const safeHref = safeUrl
 
+/** Schemes safe to bind to an image `src` / SVG `<image href>`: the local
+ *  object/data-image URLs an upload produces, plus remote http(s) and relative.
+ *  Notably allows `blob:` and `data:` (needed for user-uploaded/generated
+ *  images) but still rejects `javascript:`/`vbscript:` and other script-capable
+ *  schemes, and — for `data:` — anything that isn't an image MIME. */
+const SAFE_IMAGE_SCHEMES = ['http:', 'https:', 'blob:']
+
+/**
+ * Returns the URL when it is safe to bind to an image source (`<img src>` /
+ * SVG `<image href>`), else `undefined`. Accepts http(s), `blob:` object URLs,
+ * relative/protocol-relative URLs, and `data:image/*` — but rejects
+ * `javascript:`, `data:text/html`, and any other script-capable scheme, so a
+ * tainted URL can never be reinterpreted as HTML/script (CodeQL js/xss).
+ */
+export function safeImageSrc(url: string | null | undefined): string | undefined {
+  if (typeof url !== 'string') return undefined
+  const normalized = normalize(url)
+  if (normalized === '') return undefined
+  const scheme = schemeOf(normalized)
+  if (scheme === undefined) return url // relative / protocol-relative
+  if (SAFE_IMAGE_SCHEMES.includes(scheme)) return url
+  // Allow only image data URIs (`data:image/png;…`), never `data:text/html`.
+  if (scheme === 'data:' && /^data:image\//i.test(normalized)) return url
+  return undefined
+}
+
 /** Sanitize a URL field for storage: returns the URL when safe, else
  *  `undefined` so the field is dropped from state (keeps imports
  *  back-compatible — the rest of the record is preserved). */
