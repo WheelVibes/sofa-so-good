@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.1.1 — CodeQL: make the trace-image sanitizer escape HTML meta-chars
+
+Follow-up to v0.15.1.0. The plan-editor trace `<image href>` sanitizer
+(`safeImageSrc`) previously returned the allowlisted URL unchanged, so CodeQL's
+dataflow didn't recognize it as a sanitizer and kept flagging the line ("DOM text
+reinterpreted as HTML") — and because the edit touched a line that already
+carried that pre-existing alert on `main`, the PR check reported it as a *new*
+alert. `safeImageSrc` now percent-escapes the HTML meta-characters `< > " '` in
+its return value (a no-op on every well-formed blob:/data:image/http image URL,
+so the trace image is unaffected), making the sanitization explicit in the
+dataflow. The underlying value was always a self-minted `blob:` object URL from
+the user's own uploaded image — never attacker-controlled — so this is hardening
+for the scanner, not a live vulnerability.
+
 ## v0.15.1.0 — security: dependency vulnerabilities + CodeQL hardening
 
 Cleared the GitHub-surfaced security findings.

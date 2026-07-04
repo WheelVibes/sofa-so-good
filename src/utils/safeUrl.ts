@@ -78,11 +78,18 @@ export function safeImageSrc(url: string | null | undefined): string | undefined
   const normalized = normalize(url)
   if (normalized === '') return undefined
   const scheme = schemeOf(normalized)
-  if (scheme === undefined) return url // relative / protocol-relative
-  if (SAFE_IMAGE_SCHEMES.includes(scheme)) return url
-  // Allow only image data URIs (`data:image/png;…`), never `data:text/html`.
-  if (scheme === 'data:' && /^data:image\//i.test(normalized)) return url
-  return undefined
+  const allowed =
+    scheme === undefined || // relative / protocol-relative
+    SAFE_IMAGE_SCHEMES.includes(scheme) ||
+    // Allow only image data URIs (`data:image/png;…`), never `data:text/html`.
+    (scheme === 'data:' && /^data:image\//i.test(normalized))
+  if (!allowed) return undefined
+  // Escape the HTML meta-characters so the value can never break out of an
+  // attribute or be reinterpreted as markup (CodeQL js/xss). A well-formed
+  // blob:/data:image/http(s) image URL contains none of these, so this is a
+  // no-op on every real trace image — but it makes the sanitization explicit
+  // in the returned value's dataflow.
+  return url.replace(/[<>"']/g, (c) => encodeURIComponent(c))
 }
 
 /** Sanitize a URL field for storage: returns the URL when safe, else
