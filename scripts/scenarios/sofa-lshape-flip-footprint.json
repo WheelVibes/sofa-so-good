@@ -1,0 +1,29 @@
+{
+  "name": "sofa-lshape-flip-footprint",
+  "description": "BUG fix verify: flipping/mirroring sofa-lshape must move the visual chaise AND the selection/collision footprint to the same mirrored side (placement.ts resolveFootprintParts now honours item.flipX/flipZ).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-editor-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 10000 },
+    { "name": "wait-room-load", "wait": 2000 },
+    { "name": "place-lsofa", "eval": "window.__store.getState().setItems([{id:'lsofa1',defId:'sofa-lshape',position:[10,3],rotation:0,props:{}}])" },
+    { "name": "wait-items-mount", "wait": 1500 },
+    { "name": "select-lsofa", "store": { "action": "selectItemGrouped", "args": ["lsofa1", {}] } },
+    { "name": "camera-3q", "eval": "(()=>{const t=window.__three,cam=t.camera,c=t.controls;cam.position.set(10.2,4.5,-1.5);if(c){c.target.set(10,0,3);c.update();}cam.lookAt(10,0,3);})()" },
+    { "name": "settle-1", "wait": 1200 },
+    { "name": "shot-unflipped-3q", "screenshot": "01-unflipped-chaise-right-3q" },
+    { "name": "camera-top", "eval": "(()=>{const t=window.__three,cam=t.camera,c=t.controls;cam.position.set(10,8,3.001);if(c){c.target.set(10,0,3);c.update();}cam.lookAt(10,0,3);})()" },
+    { "name": "settle-2", "wait": 1200 },
+    { "name": "shot-unflipped-top", "screenshot": "02-unflipped-chaise-right-top-with-outline" },
+    { "name": "flip-lsofa-x", "store": { "action": "flipItem", "args": ["lsofa1", "x"] } },
+    { "name": "verify-flip-flag", "waitFor": { "store": "state.items.find(i => i.id === 'lsofa1')?.flipX === true" }, "timeout": 5000, "failMessage": "flipX did not get set to true on the item" },
+    { "name": "settle-3", "wait": 1200 },
+    { "name": "shot-flipped-top", "screenshot": "03-flipped-chaise-should-be-left-top-with-outline" },
+    { "name": "camera-3q-2", "eval": "(()=>{const t=window.__three,cam=t.camera,c=t.controls;cam.position.set(10.2,4.5,-1.5);if(c){c.target.set(10,0,3);c.update();}cam.lookAt(10,0,3);})()" },
+    { "name": "settle-4", "wait": 1200 },
+    { "name": "shot-flipped-3q", "screenshot": "04-flipped-chaise-should-be-left-3q" }
+  ]
+}

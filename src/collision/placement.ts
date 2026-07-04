@@ -10,7 +10,7 @@
  */
 
 import { getCachedGltfFootprint } from '../furniture/GltfModel'
-import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import type { FootprintPart, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { type AabbItem, buildGrid, candidatePairs, queryRect } from './broadphase'
 import { type OBB, obbMtv, obbVsObb } from './obb'
 import type { CollisionWall } from './walls'
@@ -40,6 +40,32 @@ function resolveScale(item: FurnitureItem, def: FurnitureDef): { scaleX: number;
   const scaleX = typeof item.props['scaleX'] === 'number' ? (item.props['scaleX'] as number) : scale
   const scaleZ = typeof item.props['scaleZ'] === 'number' ? (item.props['scaleZ'] as number) : scale
   return { scaleX, scaleZ }
+}
+
+/**
+ * Resolves a def's raw `footprintParts` spec for an item and mirrors each
+ * part's offset across the axes the item is flipped on. `Furniture.tsx`
+ * renders a flip as a `scale={[flipX?-1:1, 1, flipZ?-1:1]}` wrapper around the
+ * whole primitive (in the item's local, pre-yaw frame) — so an asymmetric
+ * shape driven by a def-specific prop (e.g. `sofa-lshape`'s `chaiseSide`,
+ * `cabinet-corner`'s fixed L) visually swaps sides on flip even though the
+ * prop itself never changes. The footprint must mirror the same way or
+ * collision/selection keeps testing the un-flipped shape (BUG:
+ * sofa-lshape-chaiseSide-flip). Symmetric parts (round/oval, centred barbell)
+ * are unaffected since negating a zero or matching offset is a no-op.
+ */
+function resolveFootprintParts(
+  item: FurnitureItem,
+  def: FurnitureDef,
+): FootprintPart[] | undefined {
+  const spec = def.footprintParts
+  const parts = typeof spec === 'function' ? spec(item.props) : spec
+  if (!parts || parts.length === 0 || (!item.flipX && !item.flipZ)) return parts
+  return parts.map((p) => ({
+    ...p,
+    dx: item.flipX ? -p.dx : p.dx,
+    dz: item.flipZ ? -p.dz : p.dz,
+  }))
 }
 
 /** Returns the OBB footprint of an item using the def's defaultFootprint
@@ -103,8 +129,7 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
  * shape.
  */
 export function itemFootprintParts(item: FurnitureItem, def: FurnitureDef): OBB[] {
-  const spec = def.footprintParts
-  const parts = typeof spec === 'function' ? spec(item.props) : spec
+  const parts = resolveFootprintParts(item, def)
   const base = itemFootprint(item, def)
   if (!parts || parts.length === 0) return [base]
 
@@ -153,8 +178,7 @@ export function itemFootprintPartsLocal(
   item: FurnitureItem,
   def: FurnitureDef,
 ): LocalFootprintPart[] {
-  const spec = def.footprintParts
-  const parts = typeof spec === 'function' ? spec(item.props) : spec
+  const parts = resolveFootprintParts(item, def)
   const { scaleX, scaleZ } = resolveScale(item, def)
   if (!parts || parts.length === 0) {
     const obb = itemFootprint(item, def)
@@ -183,8 +207,7 @@ export function itemFootprintSpanLocal(
   def: FurnitureDef,
 ): { ox: number; oz: number; hx: number; hz: number } {
   const obb = itemFootprint(item, def)
-  const spec = def.footprintParts
-  const parts = typeof spec === 'function' ? spec(item.props) : spec
+  const parts = resolveFootprintParts(item, def)
   if (!parts || parts.length === 0) return { ox: 0, oz: 0, hx: obb.hx, hz: obb.hz }
 
   const { scaleX, scaleZ } = resolveScale(item, def)

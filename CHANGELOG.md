@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: footprint parts now flip with flipX/flipZ (asymmetric defs) (v0.13.0.13)
+
+Surfaced by FEAT-2: flipping/mirroring an item with an **asymmetric footprint**
+(the `sofa-lshape` chaise side, corner cabinets) reflected the *visual* geometry
+(`Furniture.tsx` renders a flip as a `scale=[-1,1,-1]` wrapper) but the collision
++ selection footprint kept testing the un-flipped shape, so the hit-test and the
+render disagreed. Fixed centrally in `collision/placement.ts`: a new
+`resolveFootprintParts` mirrors each `footprintParts` offset (`dx`/`dz`) by the
+item's `flipX`/`flipZ` before the three footprint-parts consumers
+(`itemFootprintParts`/`…Local`/`…SpanLocal`) build their OBBs — so the footprint
+tracks the same flip the mesh does. Symmetric parts are unaffected (negating a
+zero/centred offset is a no-op), and the base bounding OBB was already
+flip-symmetric. General fix for any asymmetric `footprintParts` def, not just the
+L-sofa. Unit tests for the flipped-footprint math + a visual scenario
+(`sofa-lshape-flip-footprint.json`) confirming the chaise + its footprint both
+move to the mirrored side.
+
 ## TEST: pointerId gating for Rotate/Resize/Tilt gizmos (TEST-6) (v0.13.0.12)
 
 Round-2 audit coverage pairing with MOBILE-1 (which added the gating): the gizmo
