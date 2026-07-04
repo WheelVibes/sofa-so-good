@@ -104,12 +104,25 @@ export function DragController() {
     }
 
     const onMove = (ev: PointerEvent) => {
-      const state = useStore.getState()
-      const id = state.draggingItemId
-      if (!id) return
+      let state = useStore.getState()
+      const activeId = state.draggingItemId
+      if (!activeId) return
       // BUG-1: a second finger's own pointermove stream must not drive this
       // drag — only the pointer that started it (state.dragPointerId) may.
       if (!isActiveDragPointer(state.dragPointerId, ev.pointerId)) return
+      // FEAT-B (Alt-drag duplicate): the clone is created lazily, on this
+      // FIRST real pointermove of the gesture — not at pointerdown — so a
+      // plain Alt+click that never moves duplicates nothing (see
+      // Furniture.onPointerDown / dragHelpers.shouldDuplicateOnDragStart).
+      // Once resolved, draggingItemId/dragGroupOriginals point at the fresh
+      // clone(s); re-read state so everything below (and every later
+      // pointermove) drags the copy, leaving the original untouched.
+      if (state.dragDuplicatePending) {
+        state.resolveDragDuplicate()
+        state = useStore.getState()
+      }
+      const id = state.draggingItemId
+      if (!id) return
       const hit = project(ev.clientX, ev.clientY)
       if (!hit) return
       // Index items once per move so the repeated lookups below are O(1) rather
@@ -527,6 +540,11 @@ export function DragController() {
           }
         }
       }
+      // FEAT-B: captured BEFORE endDrag clears them — decides the cleanup
+      // branch below for a duplicate whose copy never ends up anywhere
+      // different from the original it was cloned from.
+      const wasDuplicate = state.dragIsDuplicate
+      const duplicateSources = state.dragDuplicateSourceIds
       state.endDrag()
       // Decide between a pending confirmation and a dead no-op:
       // - a valid drag that actually moved/rotated an item → tick/cross edit.
@@ -556,6 +574,22 @@ export function DragController() {
           originals,
           priorItems,
         })
+      } else if (wasDuplicate) {
+        // FEAT-B: a clone WAS created this gesture (dragDuplicatePending
+        // resolved) but it landed nowhere different from the source — an
+        // invalid drop reverted it above, or the release was a net-zero
+        // move. Discard the copy entirely (restore the exact pre-duplicate
+        // items/selection snapshot startDrag pushed) rather than leaving an
+        // orphaned, un-undoable duplicate stacked on the original.
+        const snap = cur.past[cur.past.length - 1]
+        if (snap) {
+          useStore.setState({
+            items: snap.items,
+            selectedItemIds: duplicateSources,
+            selectedItemId: duplicateSources[duplicateSources.length - 1] ?? null,
+          })
+        }
+        cur.dropRedundantHistory()
       } else {
         cur.dropRedundantHistory()
       }

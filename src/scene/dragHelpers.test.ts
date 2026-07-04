@@ -6,6 +6,7 @@ import {
   halfExtents,
   isActiveDragPointer,
   pointInFootprint,
+  shouldDuplicateOnDragStart,
   snapAxis,
   snapBase,
   staticAabbs,
@@ -113,6 +114,29 @@ describe('isActiveDragPointer (BUG-1: multi-touch drag hijack gate)', () => {
   it('accepts pointerId 0 (a valid id, not falsy-nullish)', () => {
     expect(isActiveDragPointer(0, 0)).toBe(true)
     expect(isActiveDragPointer(0, 1)).toBe(false)
+  })
+})
+
+describe('shouldDuplicateOnDragStart (FEAT-B: Alt-drag duplicate decision)', () => {
+  const base = { altKey: true, alreadySelected: true, featureEnabled: true }
+
+  it('duplicates on an already-selected item with Alt held and the feature on', () => {
+    expect(shouldDuplicateOnDragStart(base)).toBe(true)
+  })
+  it('does not duplicate without Alt (a plain drag)', () => {
+    expect(shouldDuplicateOnDragStart({ ...base, altKey: false })).toBe(false)
+  })
+  it('does not duplicate when the item was not already selected (Alt+click drill-in instead)', () => {
+    expect(shouldDuplicateOnDragStart({ ...base, alreadySelected: false })).toBe(false)
+  })
+  it('does not duplicate when the feature flag is off', () => {
+    expect(shouldDuplicateOnDragStart({ ...base, featureEnabled: false })).toBe(false)
+  })
+  it('does not duplicate a locked item', () => {
+    expect(shouldDuplicateOnDragStart({ ...base, locked: true })).toBe(false)
+  })
+  it('does not duplicate a window-bound fixture (curtains/blinds never drag)', () => {
+    expect(shouldDuplicateOnDragStart({ ...base, windowBound: true })).toBe(false)
   })
 })
 

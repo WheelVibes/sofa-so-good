@@ -6,6 +6,7 @@ import { floorPointInFootprint, itemFootprint } from '../collision/placement'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { ContactShadow } from '../scene/ContactShadow'
 import { markPointerDownOnItem } from '../scene/clickVsDrag'
+import { shouldDuplicateOnDragStart } from '../scene/dragHelpers'
 import { registerDropGroup } from '../scene/placementDrop'
 import { canEditScene, dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
@@ -97,10 +98,14 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       // Mark the gesture as item-started so its release can't deselect via
       // onPointerMissed after the inspector resizes the canvas (INSPECTOR-FLICKER).
       markPointerDownOnItem()
+      // Captured BEFORE any selection change below — FEAT-B's Alt-drag-duplicate
+      // decision hinges on whether the item was ALREADY selected going into this
+      // gesture (see shouldDuplicateOnDragStart).
+      const alreadySelected = state.selectedItemIds.includes(item.id)
       // Shift-pointerdown defers selection to the click handler (which
       // toggles). Plain click preserves an existing multi-selection if
       // the grabbed item is already part of it; only collapse otherwise.
-      if (!e.shiftKey && !state.selectedItemIds.includes(item.id)) {
+      if (!e.shiftKey && !alreadySelected) {
         state.selectItemGrouped(item.id, { alt: e.altKey })
       }
       // Locked items can be selected (to unlock) but not dragged. Window-bound
@@ -134,12 +139,30 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       try {
         ;(e.nativeEvent.target as Element | null)?.setPointerCapture?.(e.nativeEvent.pointerId)
       } catch {}
+      // FEAT-B: Alt/Option-drag duplicate. The decision is locked in HERE, at
+      // drag start — releasing Alt mid-drag does NOT un-clone (matches Figma/
+      // SketchUp). `shouldDuplicateOnDragStart` requires `alreadySelected`, so
+      // this never fires on the SAME gesture as the `selectItemGrouped` alt
+      // drill-in above (that only runs when the item ISN'T already selected) —
+      // Alt+click-to-select and Alt+drag-to-duplicate can't collide. The actual
+      // clone isn't created yet; `startDrag` just records the intent
+      // (`duplicateSourceIds`) so a plain Alt+click that never moves — no
+      // pointermove ever fires — duplicates nothing (DragController resolves it
+      // lazily on the drag's first real move).
+      const duplicate = shouldDuplicateOnDragStart({
+        altKey: e.altKey,
+        alreadySelected,
+        locked: item.locked,
+        windowBound: def.windowBound,
+        featureEnabled: isFeatureEnabled('altDragDuplicate'),
+      })
       state.startDrag(
         item.id,
         { position: [item.position[0], item.position[1]], rotation: item.rotation },
         offset,
         e.nativeEvent.pointerId,
         groupOriginals,
+        duplicate ? ids : undefined,
       )
     },
     [item.id, item.position, item.rotation, passive, item.locked, def.windowBound],

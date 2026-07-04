@@ -169,6 +169,16 @@ points instead — that takes over from wall snapping.
 Toggle the snap grid and cycle its size (10 / 25 / 50 cm, 1 m) from the toolbar.
 The floor shows the active grid while you drag.
 
+## Duplicate while dragging (Pro)
+
+Hold <kbd>Alt</kbd> (<kbd>Option</kbd> on Mac) and drag a piece you've already
+selected — a copy is created on the spot and follows your cursor, leaving the
+original exactly where it was. Releasing Alt partway through the drag doesn't
+change anything (the copy keeps moving); dropping it somewhere invalid, or
+letting go without actually moving, discards the copy instead of leaving a
+stray duplicate behind. Alt-dragging a multi-selection duplicates the whole
+set at once, re-grouped if they were already a group.
+
 ## Multi‑select, align & group
 
 **Marquee‑drag** on empty floor (in Select mode) — or <kbd>Shift</kbd>+click pieces,

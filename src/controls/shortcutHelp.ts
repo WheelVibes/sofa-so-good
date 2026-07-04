@@ -34,6 +34,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: [bindKey('rotate')], desc: 'Rotate 90° (Shift: 15°)' },
       { keys: [bindKey('flip')], desc: 'Flip left↔right (Shift: front↔back)' },
       { keys: [MOD, bindKey('duplicateSelected')], desc: 'Duplicate' },
+      { keys: ['Alt', 'drag'], desc: 'Duplicate while dragging (Pro)' },
       { keys: [bindKey('deleteSelected')], desc: 'Delete selection' },
       { keys: [bindKey('tidyHome')], desc: 'Tidy — auto-arrange every room' },
     ],

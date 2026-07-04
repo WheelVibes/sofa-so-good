@@ -1243,6 +1243,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Alt/Option-drag duplicate (FEAT-B, SketchUp/Figma/Coohom parity): starting a
+  // drag on an already-selected item while holding Alt/Option clones it and
+  // drags the copy, leaving the original in place — the fastest way to lay out
+  // repeated pieces (dining chairs, a row of cabinets) short of the array tools.
+  // Pure code, no external assets → prod-safe. A power-user shortcut on top of
+  // the existing Duplicate button/⌘D → pro tier (hidden in Simple mode, where
+  // the core loop's own catalog-drag + Duplicate action stay the only ways in).
+  altDragDuplicate: {
+    label: 'Alt-drag duplicate',
+    description: 'Alt/Option-drag a selected item to duplicate it and drag the copy',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

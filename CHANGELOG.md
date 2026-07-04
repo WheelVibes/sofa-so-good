@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: Alt/Option-drag duplicate — FEAT-B (v0.13.0.3)
+
+SketchUp/Figma/Coohom parity: hold **Alt/Option** and drag an already-selected
+item to clone it and drag the copy, leaving the original in place — the fastest
+way to lay out repeated pieces (a row of dining chairs, matching cabinets) short
+of the array tools. The decision is pure + unit-tested
+(`dragHelpers.ts:shouldDuplicateOnDragStart`) and locked in at
+`Furniture.onPointerDown`; it can't collide with `selectItemGrouped`'s existing
+Alt-click drill-in (that fires only when the item ISN'T already selected). The
+clone is created **lazily on the drag's first real pointermove**
+(`placementSlice.resolveDragDuplicate` via `DragController`, cloning in place with
+`duplicatePlacement.ts:cloneItemsInPlace`), so a plain Alt+click that never moves
+duplicates nothing; every later drag branch (collision, snug-stack, guides, the
+BUG-1 pointerId gate) then runs unmodified against the copy. `startDrag`'s single
+`pushHistory()` makes one undo revert both the duplicate and its move; a copy that
+lands nowhere different from its source (invalid/net-zero drop) is discarded
+rather than orphaned on the original. A multi-select drag clones the whole
+selection, re-grouping the copies only when every source shared one group.
+Flag-gated `altDragDuplicate` (pro tier — a power-user shortcut atop the existing
+Duplicate button/⌘D; forced off in Simple). 41 unit tests + a real
+DragController pointer-event scenario (`alt-drag-duplicate-simple.json`, run
+inside the room editor) proving lazy clone, untouched original, valid committed
+drop, and single-undo.
+
 ## FIX: gate catalog placement-drag by pointerId — MOBILE-3 (v0.13.0.2)
 
 The last of the pointerId-gating family, and it was a real bug (not cosmetic):

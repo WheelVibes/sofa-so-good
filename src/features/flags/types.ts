@@ -147,6 +147,7 @@ export type FeatureFlag =
   | 'minimapTeleport'
   | 'planFurnish'
   | 'frameSelection'
+  | 'altDragDuplicate'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

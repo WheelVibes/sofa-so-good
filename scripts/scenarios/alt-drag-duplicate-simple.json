@@ -1,0 +1,110 @@
+{
+  "name": "alt-drag-duplicate-simple",
+  "description": "FEAT-B: Alt/Option-drag a selected item to duplicate it and drag the copy, leaving the original in place. Flag-gated pro-tier check (off in Simple, on in Pro), then drives the real DragController onMove/onUp with REAL pointermove/pointerup DOM events dispatched on window (the exact listeners DragController registers) after seeding `dragDuplicatePending` via `startDrag(..., duplicateSourceIds)` — mirroring what Furniture.tsx's onPointerDown computes once `shouldDuplicateOnDragStart` returns true (the real mesh pointerdown can't be triggered headlessly, per the playbook's R3F-raycast limitation; this is the same pattern furniture-drag-multitouch.json uses for BUG-1). Asserts the clone is created lazily on the first real move (not at drag-start), the original never moves, one undo step covers both, and a plain click that never moves duplicates nothing.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13)"
+    },
+    {
+      "name": "assert-flag-off-in-simple",
+      "eval": "(()=>{const s=window.__store.getState();if(s.uiMode!=='simple')throw new Error('expected default Simple mode, got '+s.uiMode);if(s.featureFlags.altDragDuplicate!==false)throw new Error('altDragDuplicate should be forced OFF in Simple mode')})()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "assert-flag-on-in-pro",
+      "eval": "(()=>{const s=window.__store.getState();if(s.featureFlags.altDragDuplicate!==true)throw new Error('altDragDuplicate should be ON in Pro mode')})()"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "wait-room-frame-settle", "wait": 1200 },
+    {
+      "name": "place-test-item",
+      "eval": "window.__store.getState().setItems([{id:'feat-b-sofa',defId:'sofa-3seat',position:[10.0,4.5],rotation:0,props:{}}])"
+    },
+    { "name": "select-item", "store": { "action": "selectItem", "args": ["feat-b-sofa"] } },
+    { "name": "frame", "store": { "action": "focusOn", "args": [[10.0, 4.5]] } },
+    { "name": "tilt-down", "drag": { "from": [800, 230], "to": [800, 540] } },
+    { "name": "zoom-in", "wheel": { "x": 800, "y": 500, "dy": -360 } },
+    { "name": "settle-cam", "wait": 1000 },
+    { "name": "shot-before-drag", "screenshot": "before-drag-one-item" },
+    {
+      "name": "assert-one-item-before",
+      "eval": "(()=>{const s=window.__store.getState();if(s.items.length!==1)throw new Error('expected 1 item before the alt-drag, got '+s.items.length)})()"
+    },
+    {
+      "name": "plain-click-no-move-duplicates-nothing",
+      "eval": "(()=>{const s=window.__store.getState();const it=s.items.find(i=>i.id==='feat-b-sofa');s.startDrag('feat-b-sofa',{position:it.position,rotation:it.rotation},[0,0],888,undefined,['feat-b-sofa'])})()"
+    },
+    {
+      "name": "assert-pending-armed-not-resolved",
+      "eval": "(()=>{const s=window.__store.getState();if(s.dragDuplicatePending!==true)throw new Error('dragDuplicatePending should be armed');if(s.dragIsDuplicate!==false)throw new Error('should not be resolved yet — no pointermove fired');if(s.items.length!==1)throw new Error('a click that never moves must not clone anything yet')})()"
+    },
+    {
+      "name": "plain-click-release-no-move",
+      "eval": "(()=>{const ev=new PointerEvent('pointerup',{bubbles:true,cancelable:true,clientX:800,clientY:400,pointerId:888,pointerType:'mouse'});window.dispatchEvent(ev)})()"
+    },
+    { "name": "settle-click", "wait": 200 },
+    {
+      "name": "assert-plain-click-duplicated-nothing",
+      "eval": "(()=>{const s=window.__store.getState();if(s.items.length!==1)throw new Error('FEAT-B REGRESSION: a plain Alt+click that never moved duplicated an item — items.length='+s.items.length);if(s.draggingItemId!==null)throw new Error('drag did not end on the no-move release')})()"
+    },
+    {
+      "name": "start-alt-drag-duplicate-pointer-777",
+      "eval": "(()=>{const s=window.__store.getState();const it=s.items.find(i=>i.id==='feat-b-sofa');window.__featB_pos0=[...it.position];s.startDrag('feat-b-sofa',{position:it.position,rotation:it.rotation},[0,0],777,undefined,['feat-b-sofa'])})()"
+    },
+    {
+      "name": "assert-duplicate-pending-armed",
+      "eval": "(()=>{const s=window.__store.getState();if(s.dragDuplicatePending!==true)throw new Error('dragDuplicatePending should be armed after startDrag with duplicateSourceIds');if(s.items.length!==1)throw new Error('the clone must not exist before the first real move')})()"
+    },
+    {
+      "name": "first-real-move-resolves-the-clone",
+      "eval": "(()=>{const ev=new PointerEvent('pointermove',{bubbles:true,cancelable:true,clientX:700,clientY:560,pointerId:777,pointerType:'mouse'});window.dispatchEvent(ev)})()"
+    },
+    { "name": "settle-move-1", "wait": 200 },
+    {
+      "name": "assert-clone-created-original-untouched",
+      "eval": "(()=>{const s=window.__store.getState();if(s.items.length!==2)throw new Error('expected the clone to exist after the first real pointermove, got '+s.items.length+' items');const original=s.items.find(i=>i.id==='feat-b-sofa');if(!original)throw new Error('the original item vanished');if(original.position[0]!==window.__featB_pos0[0]||original.position[1]!==window.__featB_pos0[1])throw new Error('FEAT-B REGRESSION: the ORIGINAL moved — expected it to stay at '+JSON.stringify(window.__featB_pos0)+' but got '+JSON.stringify(original.position));if(!s.dragIsDuplicate)throw new Error('dragIsDuplicate should be true once resolved');if(s.draggingItemId==='feat-b-sofa')throw new Error('the drag should now target the CLONE, not the original');const clone=s.items.find(i=>i.id===s.draggingItemId);if(!clone)throw new Error('could not find the clone being dragged');if(clone.position[0]===window.__featB_pos0[0]&&clone.position[1]===window.__featB_pos0[1])throw new Error('the clone did not move away from the spawn point yet')})()"
+    },
+    {
+      "name": "second-move-further-away",
+      "eval": "(()=>{const ev=new PointerEvent('pointermove',{bubbles:true,cancelable:true,clientX:320,clientY:870,pointerId:777,pointerType:'mouse'});window.dispatchEvent(ev)})()"
+    },
+    { "name": "settle-move-2", "wait": 200 },
+    {
+      "name": "assert-drop-is-valid",
+      "eval": "(()=>{const s=window.__store.getState();if(s.dragValid!==true)throw new Error('the alt-drag copy landed on an invalid spot — pick a different move target so the demo shows a real committed duplicate')})()"
+    },
+    { "name": "shot-mid-drag-two-items", "screenshot": "mid-drag-two-items" },
+    {
+      "name": "release-pointer-777",
+      "eval": "(()=>{const ev=new PointerEvent('pointerup',{bubbles:true,cancelable:true,clientX:320,clientY:870,pointerId:777,pointerType:'mouse'});window.dispatchEvent(ev)})()"
+    },
+    { "name": "settle-release", "wait": 200 },
+    {
+      "name": "assert-pending-edit-two-items",
+      "eval": "(()=>{const s=window.__store.getState();if(s.items.length!==2)throw new Error('expected 2 items after the alt-drag-duplicate release, got '+s.items.length);if(!s.pendingEdit)throw new Error('expected a pendingEdit (tick/cross confirm) for the successful duplicate+move')})()"
+    },
+    { "name": "confirm-edit", "store": { "action": "confirmPendingEdit", "args": [] } },
+    { "name": "shot-after-confirm-two-items", "screenshot": "after-confirm-two-items" },
+    {
+      "name": "assert-final-two-items-one-undo-away",
+      "eval": "(()=>{const s=window.__store.getState();if(s.items.length!==2)throw new Error('expected 2 items committed, got '+s.items.length);if(s.pendingEdit)throw new Error('pendingEdit should be cleared after confirm');const original=s.items.find(i=>i.id==='feat-b-sofa');if(original.position[0]!==window.__featB_pos0[0]||original.position[1]!==window.__featB_pos0[1])throw new Error('the original moved during confirm')})()"
+    },
+    { "name": "undo-once", "store": { "action": "undo", "args": [] } },
+    {
+      "name": "assert-one-undo-removes-duplicate-and-move",
+      "eval": "(()=>{const s=window.__store.getState();if(s.items.length!==1)throw new Error('FEAT-B REGRESSION: one undo should remove BOTH the duplicate and the move, got '+s.items.length+' items');if(s.items[0].id!=='feat-b-sofa')throw new Error('the surviving item should be the original')})()"
+    },
+    { "name": "shot-after-one-undo", "screenshot": "after-one-undo-back-to-one-item" }
+  ]
+}

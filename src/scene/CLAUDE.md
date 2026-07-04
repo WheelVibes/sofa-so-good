@@ -144,3 +144,30 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   on every concluding touch up/cancel (so a stamp/shift drop that keeps the same `activeDefId`
   armed re-latches per drop). Same `isActiveDragPointer` reuse, adapted for a hook that can't see
   the gesture's actual start.
+- **Alt/Option-drag duplicate (FEAT-B, `altDragDuplicate` flag, pro tier).** Starting a drag on
+  an ALREADY-selected item while holding Alt clones it and drags the copy, leaving the original
+  in place — the decision (`dragHelpers.ts:shouldDuplicateOnDragStart`, pure + unit-tested) is
+  locked in at `Furniture.onPointerDown`, which passes the selection's ids as `startDrag`'s
+  optional `duplicateSourceIds` instead of creating anything yet. That only arms
+  `placementSlice.dragDuplicatePending` — the clone is created lazily, on the drag's FIRST real
+  `pointermove`, via `resolveDragDuplicate()` (`DragController`'s `onMove`, before every other
+  branch): it clones the source item(s) **in place** (`furniture/duplicatePlacement.ts:
+  cloneItemsInPlace` — same clone shape as `planDuplicates`, no offset search since the copy is
+  about to be dragged away) and repoints `draggingItemId`/`dragGroupOriginals` at the fresh
+  clone(s), so every later `onMove`/`onUp` branch (collision, snug-stack, alignment guides, the
+  BUG-1 pointerId gate) runs unmodified against the copy while the original sits as an ordinary
+  static obstacle. This is why a plain Alt+click that never moves duplicates nothing (no
+  pointermove ever fires) and can't collide with `selectItemGrouped`'s existing Alt-drill-in
+  (that only runs when the pressed item ISN'T already selected — `shouldDuplicateOnDragStart`
+  requires the opposite). A multi-selected drag clones the whole selection, re-grouping the
+  copies under a fresh id only when every source shared one group (mirrors `duplicateAll`/
+  `duplicateSelection`'s groupId rule) — a lone item's clone always drops the group, matching the
+  single-item Duplicate button. `startDrag`'s one `pushHistory()` already covers "undo the
+  duplicate + the move" in a single step (the clone itself is added via a plain `set`, no second
+  push) — the one wrinkle is `dragIsDuplicate`/`dragDuplicateSourceIds` (set by
+  `resolveDragDuplicate`, read + cleared by `onUp`): if the resolved copy ends up nowhere
+  different from its source (an invalid drop auto-reverted, or a net-zero move), `onUp` restores
+  the exact pre-duplicate items/selection snapshot instead of falling into the generic "no-op
+  click" `dropRedundantHistory()` path, which would otherwise leave an orphaned, un-undoable
+  duplicate stacked on the original (item-COUNT changes aren't visible to that path's
+  position-only `changed` check).

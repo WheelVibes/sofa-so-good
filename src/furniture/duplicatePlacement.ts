@@ -22,6 +22,16 @@ interface PlanCtx {
   doors: Record<string, { open: boolean }>
 }
 
+/** Clone one source item under a fresh id, with its own props copy and the
+ *  shared groupId patch (present when `groupId` is given, cleared otherwise —
+ *  a duplicate never silently inherits the source's group unless the caller
+ *  explicitly re-groups the copies). The one clone "shape" every duplicate
+ *  path (offset placement, spiral fallback, in-place drag-clone) shares. */
+function cloneItem(src: FurnitureItem, id: string, groupId?: string): FurnitureItem {
+  const item: FurnitureItem = { ...src, id, props: { ...src.props } }
+  return groupId ? { ...item, groupId } : { ...item, groupId: undefined }
+}
+
 /**
  * Plan collision-free copies of `sources`. Pure (no store writes): first tries
  * a single shared offset (preserving the relative arrangement) and returns the
@@ -37,8 +47,6 @@ export function planDuplicates(
   groupId?: string,
 ): FurnitureItem[] {
   if (sources.length === 0) return []
-  const groupPatch = (i: FurnitureItem): FurnitureItem =>
-    groupId ? { ...i, groupId } : { ...i, groupId: undefined }
 
   // 1. Shared offset — arrangement preserved.
   for (const [dx, dz] of SHARED_DELTAS) {
@@ -56,12 +64,7 @@ export function planDuplicates(
         allFit = false
         break
       }
-      const ni = groupPatch({
-        ...src,
-        id: mkId(trial.length),
-        position: pos,
-        props: { ...src.props },
-      })
+      const ni = cloneItem({ ...src, position: pos }, mkId(trial.length), groupId)
       trial.push(ni)
       others = [...others, ni]
     }
@@ -87,14 +90,26 @@ export function planDuplicates(
       }
     }
     if (!placed) continue
-    const ni = groupPatch({
-      ...src,
-      id: mkId(copies.length),
-      position: placed,
-      props: { ...src.props },
-    })
+    const ni = cloneItem({ ...src, position: placed }, mkId(copies.length), groupId)
     copies.push(ni)
     others = [...others, ni]
   }
   return copies
+}
+
+/**
+ * Clone `sources` IN PLACE — same position/rotation/props, only a fresh id
+ * (+ the same shared-groupId patch `planDuplicates` applies). No offset
+ * search and no collision check: used by Alt-drag-duplicate (FEAT-B), whose
+ * caller immediately starts dragging the copy away from the source, so
+ * spawning it exactly where the source sits (then letting the normal drag
+ * collision/snap pipeline take over) is correct — unlike `planDuplicates`'
+ * nearby-placement use case (Duplicate button / ⌘D), which never gets a
+ * follow-up drag and so must land collision-free right away. */
+export function cloneItemsInPlace(
+  sources: FurnitureItem[],
+  mkId: (index: number) => string,
+  groupId?: string,
+): FurnitureItem[] {
+  return sources.map((src, i) => cloneItem(src, mkId(i), groupId))
 }
