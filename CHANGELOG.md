@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST/REFACTOR: DragController BUG-1 wiring integration test + handler extraction (TEST-7) (v0.13.0.10)
+
+Round-2 audit coverage for the mobile core-loop drag gesture, which had no
+integration test. To make the window-listener orchestration testable without
+mounting an R3F `<Canvas>` (headless raycasting isn't reproducible), the
+`onMove`/`onUp` bodies were extracted verbatim from `DragController.tsx` into a
+`scene/dragControllerHandlers.ts:createDragHandlers(deps)` factory that takes an
+injectable `project` (screen→floor) fn plus the drag refs — `DragController` now
+just supplies the real camera-backed `project` and registers the returned
+handlers (same window events + cleanup; behaviour identical, and FEAT-B's
+Alt-drag-duplicate lazy-resolve + discard branch are preserved inside the
+extracted handlers — reconciled during the merge and re-verified with the
+FEAT-B scenario, all 39 steps green). New `dragControllerHandlers.test.ts` (+6
+tests): BUG-1 pointerId gating (a foreign pointer's move doesn't drive the drag,
+its up/cancel doesn't end it, the initiating pointer does), invalid-release
+hard-revert to the pre-drag transform, and `setDragGuides` alignment-guide
+publishing. Full suite 5388 passing.
+
 ## FEAT: mirror/reflect selection across a room axis (FEAT-2) (v0.13.0.9)
 
 Arrange-tool addition: mirror the selection across a chosen room axis — **X**

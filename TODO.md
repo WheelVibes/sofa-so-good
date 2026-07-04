@@ -78,6 +78,15 @@ WebGPU path tracing).
 - **Fast rasterized "preview render" tier** (Coohom parity) — a local analog to the 10-s cloud
   render. Deferred as an analytics/deliverable, not core design UX.
 
+## Open — correctness / edge cases
+- **BUG — `sofa-lshape` `chaiseSide` isn't driven by `flipX`/`flipZ` (surfaced by FEAT-2).**
+  Mirroring/flipping an L-sofa reflects its transform + toggles `flipX`/`flipZ`, but the footprint
+  SHAPE is set by the independent `chaiseSide` prop — so a mirrored L-sofa's visual flip can
+  mismatch its hit-tested footprint (collision + selection pick the un-mirrored shape). Fix by
+  either deriving `chaiseSide` from the flip flags at build/footprint time, or flipping
+  `chaiseSide` alongside `flipX` in the mirror/flip actions. Latent in the existing flip system,
+  not introduced by FEAT-2 (which side-stepped it by seeding plain furniture in its scenario). (S)
+
 ## Open — core interactions
 - **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
   would be a new interaction. Doors already animate (could ease the linear swing curve — low value).
