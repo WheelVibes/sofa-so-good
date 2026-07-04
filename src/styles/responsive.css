@@ -132,6 +132,22 @@ body.mobile {
   .toolbar.mobilebar.editing-room .brand-dot { width: 36px; height: 36px; font-size: 14px; }
   .toolbar.mobilebar .m-room-select { flex: 1 1 auto; min-width: 0; max-width: 56vw; height: 44px; font-size: var(--t-sm); font-weight: 600; }
 
+  /* ---- Floor-plan editor header → same pill as the room-editor toolbar ----
+     Drop the flat full-width bar and float a rounded card with the room-editor
+     toolbar's surface/border/shadow treatment, clearing the notch via
+     `env(safe-area-inset-top)`. In-flow (margin, not absolute) so the canvas +
+     draw-hint still sit BELOW it (no content hidden behind the bar). */
+  .plan-header {
+    margin: calc(var(--s-3) + env(safe-area-inset-top)) var(--s-3) 0;
+    padding: var(--s-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-3);
+    box-shadow: var(--shadow-panel);
+    row-gap: var(--s-2);
+  }
+  /* Match the brand chip sizing used in the room-editor bar. */
+  .plan-header .brand-dot { width: 32px; height: 32px; font-size: 14px; flex: none; }
+
   /* ---- Mobile menu sheet ----------------------------------- */
   .m-menu-overlay {
     position: absolute; inset: 0; z-index: var(--z-overlay);

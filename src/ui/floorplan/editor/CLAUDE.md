@@ -29,7 +29,13 @@ stays a thin dispatcher. Several kinds of file live here:
   `WallTypeToggle.tsx`, `UndoRedoButtons.tsx`, `GridZoomControls.tsx`,
   `PlanTotalLabel.tsx`, `PlanViewMenuActions.tsx`, `PlanDefaultsFields.tsx`, …):
   presentational overlays/toolbar fragments driven by props from the editor.
-  `PlanEditorHeader`/`PlanToolsSheet` (REFAC-2) are layout **shells**: most of
+  `PlanEditorHeader` carries a `.plan-header` class: a flat full-width bar on
+  desktop, and on mobile a rounded floating pill (surface/border/shadow +
+  `BrandDot` + `env(safe-area-inset-top)`) matching the room-editor `.toolbar.mobilebar`
+  so both editing surfaces read as one app (styling in `parts.css` +
+  `responsive.css`, not inline). The canvas HUD offsets (compass / scale bar /
+  `LevelMenu`) add `env(safe-area-inset-bottom|left)` so they clear the iOS home
+  indicator. `PlanEditorHeader`/`PlanToolsSheet` (REFAC-2) are layout **shells**: most of
   their props are already-built `ReactNode` fragments the editor assembles
   from its own state (`viewToggle`, `toolPalette`, `fileActionsMenu`, …), not
   raw store values, so they stay a handful of primitives + node props rather

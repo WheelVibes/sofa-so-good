@@ -2,6 +2,16 @@
    HDB Sandbox — Compound components
    ============================================================ */
 
+/* ---- Floor-plan editor header/toolbar ------------------------ */
+/* Desktop: a flat full-width bar above the canvas (the mobile pill treatment +
+   safe-area insets live in responsive.css). */
+.plan-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+}
+
 /* ---- Catalog (left) ------------------------------------------ */
 .catalog { left: var(--s-4); top: var(--s-4); width: var(--panel-w); max-height: calc(100vh - 32px); }
 .cat-tabsrow { display: flex; gap: 2px; padding: 0 var(--s-4) var(--s-2); }

@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.0 — floor-plan editor: safe-area insets + room-editor toolbar style
+
+Mobile floor-plan editor polish for full-bleed iOS:
+
+- **Top toolbar restyled to match the room-editor mobile toolbar** — the flat
+  full-width bar is now a rounded floating pill (surface / border / shadow, via a
+  new `.plan-header` class) with a `BrandDot`, and clears the notch/status bar
+  with `env(safe-area-inset-top)`. Desktop keeps the flat bar.
+- **Bottom controls clear the home indicator** — the compass, dynamic scale bar,
+  and floor (level) selector now add `env(safe-area-inset-bottom)` /
+  `safe-area-inset-left` to their offsets (0 on non-notched displays, so desktop
+  is unchanged).
+
+Note on the 3D full-bleed bottom edge: the `position: fixed; inset: 0` app-shell
+fix from v0.15.0.1 is correct and shipped; if a device still shows the bottom
+strip after reinstalling, the service worker is serving the old cached CSS
+(`registerType: 'prompt'` waits for the in-app "Update available" prompt) —
+accept the update or clear the site's website data, then re-add to Home Screen.
+
 ## v0.15.1.2 — remove the design prototype
 
 Deleted the `design/` directory — a standalone HTML/JSX design mockup (114 files,
