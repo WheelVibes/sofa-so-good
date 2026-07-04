@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.14.2.2 — per-room editor follows orbit graphics
+
+The per-room editor Canvas (`RoomEditorScene.tsx`) previously used a deliberately
+flat renderer (hemisphere + ambient light only, no shadows/IBL/post), so glossy
+and metallic finishes rendered flat regardless of the quality tier because there
+was no environment map to reflect. It now mounts the **same rendering stack as
+the main orbit Canvas** — `frameloop="demand"` + `RenderPump`, `PCFSoftShadowMap`
+shadows, `Sky`/`SceneBackdrop`, `SceneEnvironment` (procedural/HDRI IBL), the
+graded `Lighting` sun + tone mapping, `FurnitureLights`, and the tier-gated
+`Effects` post stack + `QualityController`. Materials/finishes in the room editor
+now look identical to orbit at the user's quality tier (it already inherited the
+tier; now it also renders with it). The room editor still omits the whole-flat-only
+feature controllers (hover-to-edit highlight, comment pins, tape measure, lux
+overlay, panorama/record/HQ/export) — those aren't rendering systems. Docs updated
+(`scene`/`state` CLAUDE.md, ARCHITECTURE.md, developer docs) since this reverses the
+old "keep the room editor flat / don't leak heavy systems into it" boundary.
+
 ## v0.14.2.1 — mobile catalog/inspector fixes + iOS full-bleed canvas
 
 Batch of mobile UX fixes:

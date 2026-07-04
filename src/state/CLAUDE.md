@@ -48,7 +48,9 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   exit) — that clobbered the persisted `qualityPrefs` tier (the autosave watch persists whatever
   `qualityTier` is, so entering the editor wrote `performance`) and lost the user's setting on a
   reload-in-editor. The room editor now inherits the current tier; `RoomEditorScene` honours the
-  same `dprMax`. Don't reintroduce a per-mode/per-editor tier override.
+  same `dprMax` AND mounts the full orbit render stack (shadows/IBL/Lighting/Effects/
+  `QualityController`), so it renders at the user's tier just like orbit. Don't reintroduce a
+  per-mode/per-editor tier override.
 - **`motionEnabled`** (uiSlice, default true, bug #15) is a per-device pref persisted via
   `editorPrefs` (not the save schema) that toggles continuously-animated furniture (ceiling /
   standing fan blades via `useAnimatedSource(enabled)` — off ⇒ the demand loop can idle). It's a

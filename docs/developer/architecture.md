@@ -54,8 +54,9 @@ Condensed from `CLAUDE.md`'s "Layout of the code":
 ## Two canvases
 
 The main scene (`scene/Scene.tsx`) renders the full flat. The **per-room
-editor** mounts a separate lightweight `<Canvas>` (`scene/RoomEditorScene.tsx`)
-in its place while active. The main canvas runs `frameloop="demand"` (see
-[Rendering & scene](./rendering-and-scene.md)).
+editor** mounts a separate `<Canvas>` (`scene/RoomEditorScene.tsx`) in its place
+while active, mirroring the main canvas's render stack (shadows, IBL, graded
+lighting, tier-gated post) so materials look identical to orbit. Both canvases
+run `frameloop="demand"` (see [Rendering & scene](./rendering-and-scene.md)).
 
 See `CLAUDE.md` for the always-current condensed index.

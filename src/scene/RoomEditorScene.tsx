@@ -1,4 +1,5 @@
 import { Canvas } from '@react-three/fiber'
+import { PCFSoftShadowMap } from 'three'
 import { PlanRoomShell } from '../apartment/PlanRoomShell'
 import { RoomShell } from '../apartment/RoomShell'
 import { FurnitureLayer } from '../furniture/FurnitureLayer'
@@ -15,12 +16,22 @@ import { CameraForwardTracker } from './cameras/cameraForward'
 import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
 import { deselectOnMiss } from './deselectOnMiss'
+import { Effects } from './Effects'
 import { FinishDropSurface } from './FinishDropSurface'
 import { FrameRenderedNotifier } from './FrameRenderedNotifier'
 import { GridOverlay } from './GridOverlay'
+import { CurtainLightController } from './lighting/CurtainLightController'
+import { FurnitureLights } from './lighting/FurnitureLights'
+import { Lighting } from './lighting/Lighting'
+import { SceneEnvironment } from './lighting/SceneEnvironment'
+import { Sky } from './lighting/Sky'
+import { DEFAULT_TONE_MAPPING } from './look'
 import { PlacementDropAnimator } from './PlacementDropAnimator'
 import { PlacementGhost } from './PlacementGhost'
+import { QualityController } from './QualityController'
+import { RenderPump } from './RenderPump'
 import { getRoomEditorShell } from './roomEditorShell'
+import { SceneBackdrop } from './SceneBackdrop'
 import { ScreenshotController } from './ScreenshotController'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
@@ -28,17 +39,22 @@ import { ResizeGizmo } from './selection/ResizeGizmo'
 import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
 import { TiltGizmo } from './selection/TiltGizmo'
+import { TONE_MAPPING_THREE } from './toneMappingThree'
 import { useQuality } from './useQuality'
 
-/** Lightweight per-room editor scene. Renders one isolated room with a flat,
- *  Performance-tier look (no sun/IBL/post). Reuses every store-driven
- *  interaction controller so catalog/placement/measurement work unchanged. */
+/** Per-room editor scene. Renders one isolated room but with the SAME rendering
+ *  stack as the main orbit `<Canvas>` (shadows, procedural/HDRI IBL via
+ *  `SceneEnvironment`, the graded `Lighting` sun + tone mapping, real fixture
+ *  lights, the tier-gated `Effects` post stack, and demand-mode `RenderPump`),
+ *  so materials/finishes look identical to orbit at every quality tier — a
+ *  glossy or metallic surface reflects the environment instead of rendering
+ *  flat. Reuses every store-driven interaction controller so catalog/placement/
+ *  measurement work unchanged. */
 export function RoomEditorScene() {
   const roomId = useStore((s) => s.roomEditor.roomId)
   const plan = useStore((s) => s.floorPlan)
-  // Honour the user's global quality tier for pixel-ratio sharpness (bug #13):
-  // the room editor stays a flat, no-sun/Effects scene, but a High/Maximum user
-  // shouldn't be forced back to DPR 1 here when orbit renders crisp.
+  // Honour the user's global quality tier for the pixel-ratio ceiling, matching
+  // the main orbit Canvas (High/Maximum renders crisp; Performance caps at 1).
   const dprMax = useQuality().dprMax
   if (!roomId) return null
   const editorShell = getRoomEditorShell(plan, roomId)
@@ -55,26 +71,40 @@ export function RoomEditorScene() {
   const gridRects = shell.rects
   return (
     <Canvas
+      // Demand mode + RenderPump, exactly like the main orbit Canvas: the scene
+      // draws 0 frames when idle and continuously only while something animates.
+      frameloop="demand"
       dpr={[1, dprMax]}
-      shadows={false}
+      shadows={{ type: PCFSoftShadowMap }}
       camera={{
         position: [cx + r * 1.6, r * 1.8, cz + r * 1.6],
         fov: 45,
         near: 0.05,
-        far: 100,
+        far: 400,
       }}
       gl={{
         antialias: true,
         powerPreference: 'high-performance',
         stencil: false,
         preserveDrawingBuffer: true,
+        // Initial only — Lighting.tsx drives the operator + per-frame exposure
+        // from grade(altitude), same as the main scene.
+        toneMapping: TONE_MAPPING_THREE[DEFAULT_TONE_MAPPING],
+        toneMappingExposure: 1.05,
       }}
       onPointerMissed={deselectOnMiss}
     >
       <ContextLossGuard />
+      <RenderPump />
       <AnisotropyController />
-      <hemisphereLight args={['#ffffff', '#b9b4aa', 2.2]} />
-      <ambientLight intensity={0.6} />
+      {/* Full orbit render stack — the room now lights, reflects (IBL) and posts
+          identically to the whole-flat orbit view at the user's quality tier. */}
+      <Sky />
+      <SceneBackdrop />
+      <SceneEnvironment />
+      <Lighting />
+      <CurtainLightController />
+      <FurnitureLights />
       {editorShell.kind === 'default' ? (
         <RoomShell shell={editorShell.shell} />
       ) : (
@@ -99,6 +129,8 @@ export function RoomEditorScene() {
       <CameraForwardTracker />
       <MeasurementOverlay />
       <AnnotationsOverlay />
+      <Effects />
+      <QualityController />
       <ScreenshotController />
       <FrameRenderedNotifier />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}

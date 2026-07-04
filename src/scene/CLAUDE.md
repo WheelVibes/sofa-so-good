@@ -100,8 +100,16 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **Materials**: pass a real three `Material` to `material=`, never a props object.
 - **Mount expensive controllers once**; collapse repeat geometry via `InstancedBoxes`.
   `ContextLossGuard` must stay mounted in **both** Canvases (main + room editor).
-- The room editor uses a **separate lightweight Canvas** with none of the sun/Effects
-  systems — keep that boundary; don't leak heavy systems into it. Its walls fade with the
+- The room editor uses a **separate Canvas that mirrors the main orbit render stack**
+  (`RoomEditorScene.tsx`): `frameloop="demand"` + `RenderPump`, `PCFSoftShadowMap` shadows,
+  `Sky`/`SceneBackdrop`/`SceneEnvironment` (IBL), the graded `Lighting`, `FurnitureLights`, and the
+  tier-gated `Effects` post stack + `QualityController` — so materials/finishes look identical to
+  orbit at the user's quality tier (a glossy/metallic surface reflects the environment instead of
+  rendering flat). It is NOT the old "flat, no-sun/Effects" lightweight canvas anymore; keep it in
+  lock-step with `Scene.tsx`'s render systems (add a new lighting/post system to BOTH). It still
+  omits the whole-flat-only feature controllers (`RoomHoverHighlight`/`CommentPins`/`TapeMeasure`/
+  `LuxOverlay`/`Panorama`/`Record`/`HqRender`/`SceneExport`) — those aren't rendering systems.
+  Its walls fade with the
   **same camera-facing reveal as orbit** (ROOM-EDITOR-WALL-REVEAL): `RoomShell`/`PlanRoomShell`
   call the shared `apartment/walls/useWallReveal` hook, which reuses the pure `wallRevealFactor`
   + the `wallRevealMode`/`wallReveal` settings (translucent by default) and fades a wall via a

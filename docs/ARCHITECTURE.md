@@ -416,10 +416,15 @@ same change that reshapes a system.
   closer sets its own `nearby*Id` (the other cleared). Scenario:
   `scripts/scenarios/walk-screens-lights.json`.
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts`+
-  `RoomShell.tsx`, `uiSlice.roomEditor`): the **sole editing surface**. Separate
-  lightweight `<Canvas>` (flat light, DPR 1, no shadows/IBL/post), pinned to Performance
-  + Original assets (restored on exit); reuses every controller on the **same live
-  `store.items`**. `roomShell(roomId)` clips shared walls to the footprint; `<RoomShell>`
+  `RoomShell.tsx`, `uiSlice.roomEditor`): the **sole editing surface**. A separate
+  `<Canvas>` that now mounts the **same rendering stack as the main orbit Canvas** —
+  `frameloop="demand"` + `RenderPump`, `PCFSoftShadowMap` shadows, `Sky`/`SceneBackdrop`,
+  `SceneEnvironment` (procedural/HDRI IBL), the graded `Lighting` sun + tone mapping,
+  `FurnitureLights`, and the tier-gated `Effects` post stack + `QualityController` — so a
+  glossy/metallic finish reflects the environment and looks identical to orbit at every
+  quality tier (it inherits the user's global tier, never pins Performance). Reuses every
+  controller on the **same live `store.items`**. `roomShell(roomId)` clips shared walls to
+  the footprint; `<RoomShell>`
   hides walls on the camera's outward side. Toolbar = exit + room-switcher `<select>`,
   Esc exits. **Walk bounded to the room** (`buildRoomCollisionWalls`). On entry the orbit
   camera **fits the whole room to the viewport** (`OrbitCamera` room branch → aspect-aware
