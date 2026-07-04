@@ -173,6 +173,9 @@
 .cat-card .nm > span { min-width: 0; }
 .cat-card .pr { font-size: var(--t-2xs); color: var(--text-3); }
 .cat-card .pr b { color: var(--accent-soft-text); font-weight: 700; }
+/* Shared-library "Download" affordance (SharedCard) — accent-toned so the
+   import action reads as a clear call-to-action instead of the old "tap to add". */
+.cat-card .pr.dl-hint { color: var(--accent-soft-text); font-weight: 700; margin-top: var(--s-1); }
 /* Heavy-download flag (RemoteCard, ≥30 MB at the chosen resolution) — same warn
    tone as `.badge.warn`/`.lyr-flag.warn`. The class was already applied in
    RemoteCard.tsx but had no matching rule here, so the warning was silently

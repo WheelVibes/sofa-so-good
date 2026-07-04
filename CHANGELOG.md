@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: catalog + IKEA-finish UX cleanup (bug report) (v0.13.0.17)
+
+Three user-reported catalog/finish issues:
+- **Unavailable IKEA finishes no longer shown** (#7). A stubbed variant with no
+  scraped GLB (`assetId === null`) rendered as a greyed, disabled swatch the user
+  couldn't pick ("why are they there?"). `IkeaBody`'s inspector finish picker and
+  the pre-place `catalogVariantOptions` now filter to renderable variants only —
+  the finish picker shows nothing when ≤1 real finish remains.
+- **Shared-library card says "Download" with an icon** (#8), not the unintuitive
+  "tap to add" / "N finishes · tap" — an accent-toned `Icon.Download` affordance
+  that reflects Downloading…/Retry state; aria-label is now "Download {name}".
+- **Furniture card meta drops the finishes count** (#9): the shared card shows the
+  item dimensions (`size`) instead of "N finishes".
+
 ## TEST: floorplan/templates/shared geometry helpers (R3-TEST-1) (v0.13.0.16)
 
 Round-3 audit coverage: `floorplan/templates/shared.ts` seeds the shell of every
