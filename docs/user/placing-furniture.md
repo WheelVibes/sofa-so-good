@@ -190,8 +190,9 @@ turns into a multi‑select panel with a full set of one‑click layout tools:
   piece to the selection's outermost edge (footprint‑aware, so mixed sizes stay flush).
 - **Distribute evenly** — *Across X* / *Across Z* space the pieces so the **gaps**
   between them are equal (not just their centres), keeping the end pieces put.
-- **Rotate −90° / +90°** turn every piece in place; **Mirror** reflects the whole
-  arrangement left↔right (positions, headings and asymmetric shapes all flip).
+- **Rotate −90° / +90°** turn every piece in place; **Mirror** (**Mirror X** in Pro
+  mode) reflects the whole arrangement left↔right (positions, headings and asymmetric
+  shapes all flip). **Mirror Z (Pro)** does the same front↔back.
 - **Face into room** turns each piece's back to its nearest wall; **Snap to wall**
   also slides it flush against that wall.
 - **Arrange as run** lines the selection up as one run — backs to the nearest wall,

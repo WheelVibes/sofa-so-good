@@ -1,0 +1,71 @@
+{
+  "name": "mirror-selection-axis-simple",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s=window.__store.getState(); s.endTour&&s.endTour(); s.setOnboardingOpen&&s.setOnboardingOpen(false); s.dismissLocationPrompt&&s.dismissLocationPrompt(); localStorage.setItem('hdb_onboarded','1');"
+    },
+    {
+      "name": "enter-room-editor-and-seed",
+      "eval": "(function(){const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags(); s.enterRoomEditor('livingDining'); s.setItems([]); const room=s.floorPlan.rooms.find(r=>r.id==='livingDining'); const ax=room.origin[0]+1.0; const az=room.origin[1]+1.2; const bx=room.origin[0]+2.6; const bz=room.origin[1]+3.0; const a=s.addItem({defId:'armchair', position:[ax,az], rotation:0, props:{}}); const b=s.addItem({defId:'armchair', position:[bx,bz], rotation:Math.PI/2, props:{}}); window.__ids=[a,b]; s.setSelectedItemIds([a,b]);})()"
+    },
+    { "name": "room-editor-visible", "waitFor": { "store": "window.__store.getState().roomEditor.active === true" } },
+    {
+      "name": "multiselect-panel-visible",
+      "waitFor": { "css": ".panel.inspector" }
+    },
+    { "name": "shot-simple-before", "screenshot": "01-simple-before" },
+    {
+      "name": "assert-simple-mirror-only-x",
+      "eval": "(function(){const s=window.__store.getState(); if (s.featureFlags.mirrorSelection) throw new Error('mirrorSelection should be OFF in Simple'); const btns=[...document.querySelectorAll('.panel.inspector button')].map(b=>b.textContent.trim()); if (!btns.includes('Mirror')) throw new Error('expected plain Mirror button in Simple'); if (btns.includes('Mirror Z')) throw new Error('Mirror Z must be hidden in Simple');})()"
+    },
+    {
+      "name": "switch-to-pro",
+      "eval": "(function(){const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "assert-pro-shows-both",
+      "waitFor": { "store": "(function(){const btns=[...document.querySelectorAll('.panel.inspector button')].map(b=>b.textContent.trim()); return btns.includes('Mirror X') && btns.includes('Mirror Z');})()" }
+    },
+    { "name": "shot-pro-before", "screenshot": "02-pro-before" },
+    {
+      "name": "record-before-x",
+      "eval": "(function(){const its=window.__store.getState().items.filter(i=>window.__ids.includes(i.id)); window.__beforeX = its.map(i=>({id:i.id,pos:[...i.position],rot:i.rotation,flipX:!!i.flipX})); const xs=its.map(i=>i.position[0]); window.__cx = xs.reduce((a,b)=>a+b,0)/xs.length;})()"
+    },
+    {
+      "name": "click-mirror-x",
+      "eval": "(function(){const b=[...document.querySelectorAll('.panel.inspector button')].find(x=>x.textContent.trim()==='Mirror X'); if(!b) throw new Error('no Mirror X button'); b.click();})()"
+    },
+    {
+      "name": "assert-mirrored-x",
+      "waitFor": { "store": "(function(){const its=window.__store.getState().items.filter(i=>window.__ids.includes(i.id)); return its.every((it,i)=>{const before=window.__beforeX.find(b=>b.id===it.id); return Math.abs(it.position[0]-(2*window.__cx-before.pos[0]))<1e-3 && Math.abs(it.position[1]-before.pos[1])<1e-6 && !!it.flipX !== before.flipX;});})()" },
+      "timeout": 45000
+    },
+    { "name": "shot-mirrored-x", "screenshot": "03-mirrored-x" },
+    { "name": "undo-mirror-x", "eval": "window.__store.getState().undo()" },
+    {
+      "name": "assert-undo-restored-x",
+      "waitFor": { "store": "(function(){const its=window.__store.getState().items.filter(i=>window.__ids.includes(i.id)); return its.every(it=>{const before=window.__beforeX.find(b=>b.id===it.id); return Math.abs(it.position[0]-before.pos[0])<1e-9 && Math.abs(it.position[1]-before.pos[1])<1e-9 && !!it.flipX===before.flipX;});})()" }
+    },
+    {
+      "name": "record-before-z",
+      "eval": "(function(){const its=window.__store.getState().items.filter(i=>window.__ids.includes(i.id)); window.__beforeZ = its.map(i=>({id:i.id,pos:[...i.position],rot:i.rotation,flipZ:!!i.flipZ})); const zs=its.map(i=>i.position[1]); window.__cz = zs.reduce((a,b)=>a+b,0)/zs.length;})()"
+    },
+    {
+      "name": "click-mirror-z",
+      "eval": "(function(){const b=[...document.querySelectorAll('.panel.inspector button')].find(x=>x.textContent.trim()==='Mirror Z'); if(!b) throw new Error('no Mirror Z button'); b.click();})()"
+    },
+    {
+      "name": "assert-mirrored-z",
+      "waitFor": { "store": "(function(){const its=window.__store.getState().items.filter(i=>window.__ids.includes(i.id)); return its.every((it,i)=>{const before=window.__beforeZ.find(b=>b.id===it.id); return Math.abs(it.position[1]-(2*window.__cz-before.pos[1]))<1e-3 && Math.abs(it.position[0]-before.pos[0])<1e-6 && !!it.flipZ !== before.flipZ;});})()" },
+      "timeout": 45000
+    },
+    { "name": "shot-mirrored-z", "screenshot": "04-mirrored-z" },
+    { "name": "undo-mirror-z", "eval": "window.__store.getState().undo()" },
+    { "name": "shot-restored", "screenshot": "05-restored" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "shot-mobile-pro", "screenshot": "06-mobile-pro" }
+  ]
+}

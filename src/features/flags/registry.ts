@@ -1269,6 +1269,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Mirror the selection across a chosen room axis (X = left↔right, Z =
+  // front↔back), reflecting position + heading and toggling flipX/flipZ so an
+  // asymmetric group (an L-sofa + chaise) reads as its true mirror image — a
+  // rigid group reflection about the selection's own centroid, all-or-nothing
+  // collision-checked (FEAT-2). The pre-existing left↔right-only "Mirror"
+  // action (X axis) stays ungated as a core align/distribute op; this flag
+  // gates the newer explicit axis picker (adds the Z option) as the more
+  // advanced control. An arrange-tool refinement, not core-loop → pro tier.
+  mirrorSelection: {
+    label: 'Mirror across axis',
+    description: 'Mirror the selection across a chosen room axis (X or Z)',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

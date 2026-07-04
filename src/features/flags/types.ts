@@ -149,6 +149,7 @@ export type FeatureFlag =
   | 'frameSelection'
   | 'altDragDuplicate'
   | 'isolateSelection'
+  | 'mirrorSelection'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

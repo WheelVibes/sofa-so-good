@@ -129,11 +129,9 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
 ## Open — deep-audit backlog (2026-07-04)
 Open, client-doable items from `docs/research/2026-07-04-deep-audit-and-opportunities.md`
 (full detail + code refs there). Shipped items from that audit — BUG-1..7, PERF-A/B/D,
-REAL-1, SEC-1, FEAT-1 — are in `CHANGELOG.md`. Still open:
+REAL-1, SEC-1, FEAT-1, FEAT-2 — are in `CHANGELOG.md`. Still open:
 - [ ] **REFAC-2 — `FloorPlanEditor.tsx` ~3186 lines (note, tracked as MOD-FPE-SPLIT).** Grew with
   PLAN-FURNISH; revisit the toolbar-fragment/dispatcher extraction if it keeps growing.
-- [ ] **FEAT-2 — mirror/reflect a selection across a room axis (S–M).** Arrange-tool addition;
-  reuse the array/placement commit path. **(In progress this cycle — REFAC-1 has landed.)**
 
 ## Open — round-2 audit backlog (2026-07-04)
 Open, client-doable items from `docs/research/2026-07-04-audit-round2-tests-mobile-features.md`

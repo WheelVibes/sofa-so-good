@@ -1285,9 +1285,19 @@ same change that reshapes a system.
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
   even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
   snap-to-wall (`layout/faceWall.ts`) / arrange-as-run (`layout/arrangeRun.ts`, butt a kitchen
-  run flush along a wall) / mirror (`layout/mirrorRoom.ts` `mirrorItemX`). The wall/orient/
-  mirror actions live in `layout/selectionActions.ts`, shared by the inspector + ⌘K. Lock;
-  double-click focus.
+  run flush along a wall) / mirror. The wall/orient/mirror actions live in
+  `layout/selectionActions.ts`, shared by the inspector + ⌘K. **Mirror across a room axis
+  (FEAT-2)**: `furniture/mirrorSelection.ts` is the pure, unit-tested reflection math
+  (`mirrorSelection(items, axis)` mirrors the whole selection as a rigid group about its own
+  centroid on axis `'x'`/`'z'`, flipping position + heading + the matching `flipX`/`flipZ`);
+  `selectionActions.ts:mirrorSelectionAxis(catalog, axis)` collision-checks + commits
+  all-or-nothing, one undo step. The pre-existing ungated left↔right-only `mirrorSelectionX`
+  (used by the ⌘K `sel-mirror` command + the 2D plan editor's ungated core mirror,
+  `layout/mirrorRoom.ts`'s unrelated whole-room `mirrorItemX` is untouched) is now a thin
+  `mirrorSelectionAxis(catalog, 'x')` wrapper. The **Z axis** option — "Mirror Z" in
+  `MultiSelectPanel.tsx` (shown alongside "Mirror X" once the flag is on) + the `sel-mirror-z`
+  ⌘K command — is gated by the `mirrorSelection` Pro flag (an arrange-tool refinement, not
+  core-loop). Lock; double-click focus.
 - **Measurement units** (`utils/measurement.ts`, `measurementsSlice.units`): metric/
   imperial display toggle (`editorPrefs`); metric canonical, `formatLength`/`formatArea`/…
   the single source. **Groups** (`groupsSlice.ts`): shared `groupId` = emergent group

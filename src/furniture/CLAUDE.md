@@ -216,6 +216,23 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
     by the `pathArray` Pro flag (+ `proMode`); the UI lives in a sibling
     `ui/inspector/PathArraySection.tsx` (not InspectorPanel) which collision-checks each copy
     (skip-and-report blocked slots, like radial) and commits via `setItems` in a single undo step.
+- **Selection axis-mirror (FEAT-2)** — `mirrorSelection.ts`: pure, unit-tested, no store
+  imports. `mirrorSelection(items, axis)` reflects a whole selection as a **rigid group** about
+  its own centroid line (`selectionCentroid`) on a room axis — `'x'` reflects X (left↔right,
+  keeps Z), `'z'` reflects Z (front↔back, keeps X) — preserving the spacing between pieces. Per
+  item: `mirrorPosition` flips the perpendicular coordinate; `mirrorRotation` flips the Y-yaw
+  heading consistent with `layout/faceWall.ts`'s `(sin θ, cos θ)` forward convention (`-rotation`
+  for axis `'x'`, `π - rotation` for axis `'z'`); `mirrorItem` also toggles the matching
+  `flipX`/`flipZ` in-place mirror flag so an asymmetric piece (an L-sofa, a chaise) reads as its
+  true mirror image. `layout/selectionActions.ts:mirrorSelectionAxis(catalog, axis)` wires it to
+  the store — collision-checks every mirrored placement and commits **all-or-nothing** (a piece
+  that would clip a wall on the far side never leaves the layout half-mirrored), one undo step via
+  `moveItem`/`rotateItem`/`flipItem` (never per-item pushes). The pre-existing left↔right-only
+  `mirrorSelectionX` (used by the command palette + 2D plan editor, both ungated) is now a thin
+  `mirrorSelectionAxis(catalog, 'x')` wrapper — unchanged behavior/call sites. The **Z-axis**
+  option (+ the explicit "Mirror X"/"Mirror Z" pair of buttons replacing the single ungated
+  "Mirror" label) is gated by the `mirrorSelection` Pro flag in `MultiSelectPanel.tsx` (3D room
+  editor, shared desktop/mobile) and the `sel-mirror-z` ⌘K command (`sel-mirror` stays ungated).
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).

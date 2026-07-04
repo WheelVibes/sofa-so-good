@@ -15,6 +15,7 @@ import { aiLayoutToItems, placeNonOverlapping } from '../layout/aiLayoutApply'
 import {
   arrangeSelectionAsRun,
   faceSelectionIntoRoom,
+  mirrorSelectionAxis,
   mirrorSelectionX,
   snapSelectionToWall,
 } from '../layout/selectionActions'
@@ -84,6 +85,10 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'backdrop:sky': 'proceduralSky',
   // Isolate/solo the selection (FEAT-C).
   'sel-isolate': 'isolateSelection',
+  // Front↔back axis-mirror is the newer explicit axis-picker companion to the
+  // always-on left↔right "sel-mirror" (FEAT-2) — pro-tier, so it's hidden in
+  // Simple along with the rest of `mirrorSelection`.
+  'sel-mirror-z': 'mirrorSelection',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -657,6 +662,15 @@ export function CommandPalette() {
               label: 'Mirror selection (left ↔ right)',
               icon: 'FlipH',
               run: () => mirrorSelectionX(catalog),
+            },
+            // Front↔back axis mirror (FEAT-2), gated by `mirrorSelection` via
+            // COMMAND_FLAGS — the axis-choice companion to the ungated X mirror above.
+            {
+              id: 'sel-mirror-z',
+              group: 'Selection',
+              label: 'Mirror selection (front ↔ back)',
+              icon: 'FlipV',
+              run: () => mirrorSelectionAxis(catalog, 'z'),
             },
             // Group/Ungroup the multi-selection (gated by `furnitureGroups` via
             // COMMAND_FLAGS). Ungroup shows when the selection is one group.

@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: mirror/reflect selection across a room axis (FEAT-2) (v0.13.0.9)
+
+Arrange-tool addition: mirror the selection across a chosen room axis — **X**
+(left↔right) or **Z** (front↔back) — reflecting each item's position + heading
+about the selection's own centroid and toggling `flipX`/`flipZ` so an asymmetric
+group reads as its true mirror image. Pure, unit-tested reflection math
+(`furniture/mirrorSelection.ts`: `mirrorPosition`/`mirrorRotation`/`mirrorItem`/
+`selectionCentroid`, verified against `layout/faceWall.ts`'s `(sinθ, cosθ)`
+heading convention); the store action `selectionActions.ts:mirrorSelectionAxis`
+collision-checks all-or-nothing and commits in one undo step (pushHistory once,
+then `moveItem`/`rotateItem`/`flipItem`). The pre-existing left↔right-only
+"Mirror" (X) stays ungated as a core align op; the new flag gates the explicit
+axis picker (adds the Z option) — `MultiSelectPanel` shows "Mirror X"/"Mirror Z"
+side by side (shared desktop/mobile), plus a ⌘K "Mirror Z" command. Flag-gated
+`mirrorSelection` (pro tier, default on; forced off in Simple). +31 tests
+(pure math + both-mode gating + undo granularity + a click-through geometry
+assertion) and a 24-step visual scenario in both modes + mobile. (Known latent
+limitation, pre-existing: `sofa-lshape`'s `chaiseSide` footprint isn't driven by
+`flipX`/`flipZ`, so mirroring an L-sofa can mismatch the hit-tested footprint —
+a quirk of the existing flip system, not introduced here.)
+
 ## FEAT: isolate / solo the selection — focus mode (FEAT-C) (v0.13.0.8)
 
 Blender local-view / SketchUp-isolate parity: a one-tap **Isolate** toggle dims
