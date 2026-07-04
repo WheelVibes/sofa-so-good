@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.1.2 — remove the design prototype
+
+Deleted the `design/` directory — a standalone HTML/JSX design mockup (114 files,
+~4 MB) that was never part of the shipped app (already excluded from the Vite
+build). This resolves the last two CodeQL "DOM text reinterpreted as HTML" alerts
+(`design/assets/app.js`), which were static internal templates in the prototype
+with no user input. Also dropped its now-dead `**/design/**` dev-server
+watch-ignore in `vite.config.ts` and the repo-tree mention in `ARCHITECTURE.md`.
+
 ## v0.15.1.1 — CodeQL: make the trace-image sanitizer escape HTML meta-chars
 
 Follow-up to v0.15.1.0. The plan-editor trace `<image href>` sanitizer

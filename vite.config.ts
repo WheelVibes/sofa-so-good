@@ -205,7 +205,6 @@ export default defineConfig(({ command }) => ({
         '**/graphify-out/**',
         '**/python/**',
         '**/research/**',
-        '**/design/**',
         '**/dist/**',
         '**/docs/.vitepress/**',
         '**/public/draco/**',
