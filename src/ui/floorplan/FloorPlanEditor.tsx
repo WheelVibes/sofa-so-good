@@ -24,6 +24,7 @@ import {
 } from '../../scene/selection/rotateGizmoMath'
 import type { ContextTarget } from '../../state/slices/featuresSlice'
 import { useStore } from '../../state/store'
+import { safeImageSrc } from '../../utils/safeUrl'
 import { SliderField } from '../controls/SliderField'
 import { openDocs } from '../docsUrl'
 import { InfoCallout } from '../InfoCallout'
@@ -2168,7 +2169,7 @@ export function FloorPlanEditor() {
                   geometry stays crisp on top of the translucent reference. */}
               {fTraceBackdrop && backdrop && (
                 <image
-                  href={backdrop.url}
+                  href={safeImageSrc(backdrop.url)}
                   x={toPx(backdrop.ox)}
                   y={toPx(backdrop.oz)}
                   width={backdrop.w * backdrop.mPerPx * PX}

@@ -59,6 +59,39 @@ export function safeUrl(url: string | null | undefined): string | undefined {
  *  so the attribute is omitted (and the element falls back to inert text). */
 export const safeHref = safeUrl
 
+/** Schemes safe to bind to an image `src` / SVG `<image href>`: the local
+ *  object/data-image URLs an upload produces, plus remote http(s) and relative.
+ *  Notably allows `blob:` and `data:` (needed for user-uploaded/generated
+ *  images) but still rejects `javascript:`/`vbscript:` and other script-capable
+ *  schemes, and — for `data:` — anything that isn't an image MIME. */
+const SAFE_IMAGE_SCHEMES = ['http:', 'https:', 'blob:']
+
+/**
+ * Returns the URL when it is safe to bind to an image source (`<img src>` /
+ * SVG `<image href>`), else `undefined`. Accepts http(s), `blob:` object URLs,
+ * relative/protocol-relative URLs, and `data:image/*` — but rejects
+ * `javascript:`, `data:text/html`, and any other script-capable scheme, so a
+ * tainted URL can never be reinterpreted as HTML/script (CodeQL js/xss).
+ */
+export function safeImageSrc(url: string | null | undefined): string | undefined {
+  if (typeof url !== 'string') return undefined
+  const normalized = normalize(url)
+  if (normalized === '') return undefined
+  const scheme = schemeOf(normalized)
+  const allowed =
+    scheme === undefined || // relative / protocol-relative
+    SAFE_IMAGE_SCHEMES.includes(scheme) ||
+    // Allow only image data URIs (`data:image/png;…`), never `data:text/html`.
+    (scheme === 'data:' && /^data:image\//i.test(normalized))
+  if (!allowed) return undefined
+  // Escape the HTML meta-characters so the value can never break out of an
+  // attribute or be reinterpreted as markup (CodeQL js/xss). A well-formed
+  // blob:/data:image/http(s) image URL contains none of these, so this is a
+  // no-op on every real trace image — but it makes the sanitization explicit
+  // in the returned value's dataflow.
+  return url.replace(/[<>"']/g, (c) => encodeURIComponent(c))
+}
+
 /** Sanitize a URL field for storage: returns the URL when safe, else
  *  `undefined` so the field is dropped from state (keeps imports
  *  back-compatible — the rest of the record is preserved). */

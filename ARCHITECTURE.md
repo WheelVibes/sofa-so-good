@@ -49,7 +49,7 @@ sofa-so-good/
 ├── scripts/              # Tooling: shot.mjs screenshot harness + scenarios/, asset/price sidecars
 ├── docs/                 # ARCHITECTURE.md (full map), user/ + developer/ VitePress guides, research/
 ├── public/               # Static served assets (models, textures, fixtures) — mostly .claudeignore'd
-├── assets/ · design/     # Manifests/screenshots; standalone HTML design mockups (not the app)
+├── assets/               # Manifests / screenshots (not the app)
 ├── python/               # Offline IKEA scraper + asset optimisation (not in app build)
 ├── CLAUDE.md             # Agent entry point: hard rules + conventions
 ├── .clauderules          # Quick-reference guardrails (companion to CLAUDE.md)

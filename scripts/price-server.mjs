@@ -315,7 +315,10 @@ const server = http.createServer(async (req, res) => {
     saveCacheSoon()
     return send(res, 200, { ...value, retailerLabel: provider.label, source: 'live' })
   } catch (e) {
-    return send(res, 502, { error: String(e?.message || e), retailer })
+    // Log the detail server-side; return a generic message so an internal error
+    // (exception/stack text) is never exposed to the caller (CodeQL js/stack-trace-exposure).
+    console.error('[price-server] lookup failed:', e)
+    return send(res, 502, { error: 'price lookup failed', retailer })
   }
 })
 

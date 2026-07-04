@@ -5,6 +5,91 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.1.2 — remove the design prototype
+
+Deleted the `design/` directory — a standalone HTML/JSX design mockup (114 files,
+~4 MB) that was never part of the shipped app (already excluded from the Vite
+build). This resolves the last two CodeQL "DOM text reinterpreted as HTML" alerts
+(`design/assets/app.js`), which were static internal templates in the prototype
+with no user input. Also dropped its now-dead `**/design/**` dev-server
+watch-ignore in `vite.config.ts` and the repo-tree mention in `ARCHITECTURE.md`.
+
+## v0.15.1.1 — CodeQL: make the trace-image sanitizer escape HTML meta-chars
+
+Follow-up to v0.15.1.0. The plan-editor trace `<image href>` sanitizer
+(`safeImageSrc`) previously returned the allowlisted URL unchanged, so CodeQL's
+dataflow didn't recognize it as a sanitizer and kept flagging the line ("DOM text
+reinterpreted as HTML") — and because the edit touched a line that already
+carried that pre-existing alert on `main`, the PR check reported it as a *new*
+alert. `safeImageSrc` now percent-escapes the HTML meta-characters `< > " '` in
+its return value (a no-op on every well-formed blob:/data:image/http image URL,
+so the trace image is unaffected), making the sanitization explicit in the
+dataflow. The underlying value was always a self-minted `blob:` object URL from
+the user's own uploaded image — never attacker-controlled — so this is hardening
+for the scanner, not a live vulnerability.
+
+## v0.15.1.0 — security: dependency vulnerabilities + CodeQL hardening
+
+Cleared the GitHub-surfaced security findings.
+
+**Dependency vulnerabilities (4 Dependabot alerts, all dev-only docs tooling).**
+`vitepress@1.6.4` pinned the vulnerable `vite@5` line (esbuild dev-server request
+exposure `GHSA-67mh-4wv8-2f99`; vite `server.fs.deny` bypass + optimized-deps
+`.map` path traversal; launch-editor NTLMv2 disclosure) — none affect the shipped
+app (its top-level `vite@8`/`esbuild@0.28` were already patched). The vite fixes
+have no vite-5 backport, so upgraded `vitepress` → `2.0.0-alpha.17` (built on the
+patched `vite@7`). `npm audit` is now **0 vulnerabilities**; both docs builds and
+the app build/tests verified.
+
+**Code scanning (CodeQL) — fixed the shipped-code + config + tooling alerts:**
+
+- **Workflow permissions** (Medium ×2): added a least-privilege
+  `permissions: contents: read` to `.github/workflows/ci.yml`.
+- **Unvalidated dynamic method call** (High): `materials/procedural/generators.ts`
+  now validates the pattern is a known own-key before the `PATTERN_FN[…]` dispatch.
+- **DOM text as HTML** (High): the plan-editor trace-image `<image href>` runs
+  through a new `utils/safeUrl.ts:safeImageSrc` (allows `blob:`/`data:image`/
+  http(s)/relative, rejects `javascript:`/`data:text/html`).
+- **Clear-text storage of a secret** (High): the Poly Pizza API key in `PacksTab`
+  is kept in memory for the session only, no longer written to `localStorage`.
+- **Stack-trace / info exposure** (Medium): the dev `price-server.mjs` logs the
+  error server-side and returns a generic message instead of the exception text.
+- **Clear-text logging** (High): the offline `research/scrapers/scraper_common.py`
+  masks secret-bearing query params before logging a URL.
+
+Two CodeQL "clear-text storage" alerts on `authSlice.ts` are **false positives**
+— the persisted object is the non-secret `{id, name, role}` profile (the session
+lives server-side), so persistence is unchanged; recommend dismissing in the
+Security tab. Two "DOM text as HTML" alerts in `design/assets/app.js` are in the
+**non-shipped design prototype** (excluded from the Vite build; static internal
+templates, no user input) — left as-is.
+
+## v0.15.0.1 — iOS full-bleed: canvas reaches the bottom edge too
+
+Follow-up to the v0.15.0.0 iOS full-bleed work: the 3D canvas reached the top
+edge under the status bar, but a tan strip of the `body` background showed at the
+BOTTOM behind the home indicator, because iOS standalone (home-screen) web apps
+report `100dvh` short of the home-indicator strip. `body.mobile .app-shell` is now
+pinned to the visual viewport with `position: fixed; inset: 0` (height/width auto,
+so the four insets define the box instead of the under-reporting `dvh`), so the
+canvas covers the entire screen — under the status bar AND under the home
+indicator. Bottom-docked sheets/HUDs already clear the indicator via
+`env(safe-area-inset-bottom)`, so they're unaffected. CSS-only, mobile-only.
+
+## v0.15.0.0 — PR rollup: mobile catalog/inspector fixes, iOS full-bleed, room-editor orbit graphics
+
+Minor bump for the PR to `main` gathering the prior branch's work (v0.14.2.1–v0.14.2.2):
+
+- **Mobile catalog/inspector fixes + iOS full-bleed canvas** (`.2.1`): stop sheet/
+  toolbar chrome from scrolling the canvas; catalog paging scrolls to top; solid-red
+  favourite heart; inspector-header Duplicate icon; removed the per-card palette/stamp
+  buttons; theme-accent checkbox ticks; Reset/Top view close the menu before flying;
+  iOS home-screen web app extends the canvas under the status bar.
+- **Per-room editor follows orbit graphics** (`.2.2`): the room-editor Canvas now mounts
+  the full orbit render stack (shadows, IBL, graded lighting, fixture lights, tier-gated
+  post) so glossy/metallic finishes render with real material response at the user's
+  quality tier instead of flat.
+
 ## v0.14.2.2 — per-room editor follows orbit graphics
 
 The per-room editor Canvas (`RoomEditorScene.tsx`) previously used a deliberately
@@ -21,22 +106,6 @@ feature controllers (hover-to-edit highlight, comment pins, tape measure, lux
 overlay, panorama/record/HQ/export) — those aren't rendering systems. Docs updated
 (`scene`/`state` CLAUDE.md, ARCHITECTURE.md, developer docs) since this reverses the
 old "keep the room editor flat / don't leak heavy systems into it" boundary.
-
-## v0.15.0.0 — PR rollup: mobile catalog/inspector fixes, iOS full-bleed, room-editor orbit graphics
-
-Minor bump for the PR to `main` gathering this branch's work (v0.14.2.1–v0.14.2.2):
-
-- **Mobile catalog/inspector fixes + iOS full-bleed canvas** (`.2.1`): stop sheet/
-  toolbar chrome from scrolling the canvas; catalog paging scrolls to top; solid-red
-  favourite heart; inspector-header Duplicate icon; removed the per-card palette/stamp
-  buttons; theme-accent checkbox ticks; Reset/Top view close the menu before flying;
-  iOS home-screen web app extends the canvas under the status bar.
-- **Per-room editor follows orbit graphics** (`.2.2`): the room-editor Canvas now mounts
-  the full orbit render stack (shadows, IBL, graded lighting, fixture lights, tier-gated
-  post) so glossy/metallic finishes render with real material response at the user's
-  quality tier instead of flat.
-
-No behaviour change in this commit beyond the version bump.
 
 ## v0.14.2.1 — mobile catalog/inspector fixes + iOS full-bleed canvas
 

@@ -15,10 +15,6 @@ import { useStore } from '../../state/store'
 
 const fmtMB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
-/** Per-pack localStorage key for a user-supplied API key. Pack-id-derived so
- *  any future keyed API source reuses the same convention. */
-const apiKeyStorageKey = (packId: string) => `hdb_pack_key_${packId}`
-
 /** Live-scrape IKEA pack: drives the local sidecar, shows per-product progress. */
 function IkeaLiveCard({ pack }: { pack: Pack }) {
   const [sidecarUp, setSidecarUp] = useState<boolean | null>(null)
@@ -200,7 +196,9 @@ function ZipPackCard({ pack }: { pack: Pack }) {
 function PolyPizzaCard({ pack }: { pack: Pack }) {
   const installed = useStore((s) => s.installedPacks)
   const entryCount = installed[pack.id]?.entries.length ?? 0
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem(apiKeyStorageKey(pack.id)) ?? '')
+  // The Poly Pizza API key is a user secret — keep it in memory for this session
+  // only, never persisted to localStorage (CodeQL js/clear-text-storage-of-sensitive-data).
+  const [apiKey, setApiKey] = useState('')
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -211,7 +209,6 @@ function PolyPizzaCard({ pack }: { pack: Pack }) {
       setError('Enter your Poly Pizza API key first.')
       return
     }
-    localStorage.setItem(apiKeyStorageKey(pack.id), key)
     setBusy(true)
     setError(null)
     try {

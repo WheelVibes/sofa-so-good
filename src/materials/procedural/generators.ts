@@ -209,7 +209,12 @@ export function generateProceduralRaw(
   try {
     const seed = hashSeed(`${id}:${pattern}`)
     const base = hexToRgb(swatch)
-    const f = PATTERN_FN[pattern](base, seed, S)
+    // Validate the pattern is a known own-key before the dynamic dispatch, so a
+    // stray/untyped value can't invoke an unexpected property (CodeQL
+    // js/unvalidated-dynamic-method-call) and fails loud instead of `undefined(...)`.
+    const paint = Object.hasOwn(PATTERN_FN, pattern) ? PATTERN_FN[pattern] : undefined
+    if (typeof paint !== 'function') throw new Error(`Unknown procedural pattern: ${pattern}`)
+    const f = paint(base, seed, S)
 
     const normalData = heightToNormalRGBA(f.height, S, f.normalStrength)
     const roughData = new Uint8ClampedArray(S * S * 4)

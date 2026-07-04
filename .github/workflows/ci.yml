@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Least-privilege default for every job — CI only reads the checked-out code
+# (no writes to contents/PRs/checks). Overridable per-job if a future job needs more.
+permissions:
+  contents: read
+
 jobs:
   quality:
     name: Format / Lint / Typecheck
