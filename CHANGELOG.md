@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: persistent / cross-plan clipboard (R3-FEAT-1) (v0.13.0.18)
+
+Round-3 audit: `clipboardSlice` was session-only, so a copied item was lost on
+reload and didn't carry across designs. It now self-persists to `localStorage`
+(`hdb_clipboard`), mirroring `favouritesSlice`/`recentSlice` — hydrated at module
+init, written on every copy, removed on clear; a guarded `JSON.parse` +
+per-entry `isClipboardEntry` validator drops malformed records (defaults to empty,
+never throws), and it stays OUT of the design save schema/autosave (per-device
+convenience state). Cross-design paste already reconstructs items with fresh ids
+via `App.tsx`'s `pasteClipboard` and skips defs unresolvable in the target design
+— unchanged. No new flag (copy/paste was never flagged; it's gated by
+`canEditScene` like delete/duplicate). +13 tests (persist/hydrate round-trip via
+module re-init, corrupt/missing/non-array guards, survives an items reset) + a
+31-step reload+cross-plan scenario.
+
 ## FIX: catalog + IKEA-finish UX cleanup (bug report) (v0.13.0.17)
 
 Three user-reported catalog/finish issues:

@@ -1,0 +1,127 @@
+{
+  "name": "clipboard-persist-simple",
+  "description": "R3-FEAT-1: verify the item clipboard (copy/paste) persists to localStorage (hdb_clipboard) across a real page reload, and that paste after switching to a different design re-resolves against the current catalog with a fresh id, skipping an unresolvable copied def gracefully.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; try { localStorage.removeItem('hdb_clipboard') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "wait-room-load", "wait": 1500 },
+    {
+      "name": "add-item",
+      "eval": "(function(){ const id = window.__store.getState().addItem({ defId:'armchair', position:[0.5,0.5], rotation:0, props:{} }); window.__armchairId = id; window.__store.getState().setSelectedItemIds([id]); })()"
+    },
+    {
+      "name": "verify-selected",
+      "waitFor": { "store": "state.selectedItemIds.length === 1" },
+      "timeout": 3000
+    },
+    {
+      "name": "copy-item",
+      "eval": "window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyC', ctrlKey: true, bubbles: true }))"
+    },
+    {
+      "name": "verify-clipboard-set",
+      "waitFor": {
+        "store": "state.clipboard && state.clipboard.length === 1 && state.clipboard[0].defId === 'armchair'"
+      },
+      "timeout": 3000,
+      "failMessage": "Ctrl+C did not populate state.clipboard"
+    },
+    {
+      "name": "verify-persisted-to-localstorage",
+      "eval": "(function(){ const raw = localStorage.getItem('hdb_clipboard'); if (!raw) throw new Error('hdb_clipboard was not written on copy'); const parsed = JSON.parse(raw); if (!Array.isArray(parsed) || parsed[0]?.defId !== 'armchair') throw new Error('unexpected persisted clipboard: ' + raw); console.log('hdb_clipboard persisted:', raw); })()"
+    },
+    { "name": "screenshot-before-reload", "screenshot": "01-copied-before-reload" },
+    {
+      "name": "reload",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready-after-reload",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays-after-reload",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "verify-clipboard-survived-reload",
+      "waitFor": {
+        "store": "state.clipboard && state.clipboard.length === 1 && state.clipboard[0].defId === 'armchair'"
+      },
+      "timeout": 10000,
+      "failMessage": "Clipboard did not survive a real reload (R3-FEAT-1 regression) — expected localStorage hydration on boot"
+    },
+    { "name": "screenshot-after-reload", "screenshot": "02-clipboard-restored-after-reload" },
+    {
+      "name": "simulate-switch-to-different-design",
+      "eval": "window.__store.getState().resetToEmpty()"
+    },
+    {
+      "name": "verify-different-design-is-empty",
+      "waitFor": { "store": "state.items.length === 0" },
+      "timeout": 3000,
+      "failMessage": "resetToEmpty did not clear items — cannot simulate a different (empty) design"
+    },
+    {
+      "name": "enter-room-editor-2",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active-2",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "wait-room-load-2", "wait": 1500 },
+    {
+      "name": "paste-cross-plan",
+      "eval": "window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV', ctrlKey: true, bubbles: true }))"
+    },
+    {
+      "name": "verify-pasted-fresh-id-cross-plan",
+      "waitFor": {
+        "store": "state.items.length === 1 && state.items[0].defId === 'armchair' && state.items[0].id !== window.__armchairId"
+      },
+      "timeout": 5000,
+      "failMessage": "Cross-plan paste did not reconstruct the armchair with a fresh id in the new (different) design"
+    },
+    { "name": "screenshot-pasted-cross-plan", "screenshot": "03-pasted-into-different-design-fresh-id" },
+    {
+      "name": "set-unresolvable-clipboard-entry",
+      "eval": "window.__store.getState().setClipboard([{ defId: 'totally-bogus-def-xyz', rotation: 0, props: {}, sourcePosition: [0, 0] }])"
+    },
+    {
+      "name": "count-before-bad-paste",
+      "eval": "window.__preBadPasteCount = window.__store.getState().items.length"
+    },
+    {
+      "name": "paste-unresolvable",
+      "eval": "window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV', ctrlKey: true, bubbles: true }))"
+    },
+    { "name": "wait-noop", "wait": 500 },
+    {
+      "name": "verify-unresolvable-def-skipped-gracefully",
+      "eval": "(function(){ const n = window.__store.getState().items.length; if (n !== window.__preBadPasteCount) throw new Error('Pasting an unresolvable defId should no-op, but item count changed from ' + window.__preBadPasteCount + ' to ' + n); })()"
+    },
+    { "name": "screenshot-noop-paste", "screenshot": "04-unresolvable-def-noop" }
+  ]
+}

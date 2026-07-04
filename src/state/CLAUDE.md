@@ -73,7 +73,16 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   and `favouritesSlice` both self-persist to localStorage (keys `hdb_recent_items`, `hdb_favourites`; `calloutsSlice`/`badgesSlice` likewise (`hdb_dismissed_callouts`, `hdb_seen_badges`)
   for furniture, and `hdb_fav_finishes` for finish/material favourites — a **separate** list so the
   catalog "Favourites" tab never shows un-renderable finish ids) — the pattern for per-device catalog
-  convenience state.
+  convenience state. **`clipboardSlice`** (R3-FEAT-1) follows the exact same self-persist pattern
+  (key `hdb_clipboard`, loaded once into `CLIPBOARD_INITIAL` at module init, written on every
+  `setClipboard`, guarded JSON.parse defaulting to `null`) so a copy survives a reload and pastes
+  across designs — unlike `recentSlice`/`favouritesSlice`, an entry here also carries a `defId`
+  that may not exist in whatever design/session it's later pasted into, so the validator
+  (`isClipboardEntry`) filters malformed *entries* individually (an all-invalid array still
+  degrades to `null`, never an empty array masquerading as "nothing copied" vs. "corrupt"). Cross-
+  design resolution itself is unchanged: `App.tsx`'s `pasteClipboard` already re-resolves each
+  entry's `defId` against the *current* catalog and silently skips anything unresolvable, so a
+  stale persisted entry degrades gracefully instead of reviving a dead reference.
 - **`schema.ts` is the save/load serializer.** Any new *persisted* item/design field must
   round-trip there — keep it optional + back-compat; bump the version + add a migration for
   a breaking change (the v1→v2 `groupId` migration is the pattern).
