@@ -26,6 +26,12 @@ import { isInteractableWindowFixture } from './windowFixtureInteract'
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0)
 const floorHit = new Vector3()
 
+/** Opacity applied to a non-selected item while isolate/solo mode is active
+ *  (FEAT-C) — low enough to clearly recede, high enough that the room's
+ *  context (walls, neighbouring pieces) stays legible/readable behind the
+ *  selection, per the "dim, don't hide" brief. */
+const SOLO_DIM_OPACITY = 0.15
+
 interface FurnitureProps {
   item: FurnitureItem
   def: FurnitureDef
@@ -37,9 +43,16 @@ interface FurnitureProps {
   /** Bumped when a DLC/catalog material is (re)built; forces a re-render so
    *  the primitive's synchronous material lookup finds the new material. */
   materialEpoch?: number
+  /** Isolate/solo mode (FEAT-C): true when this item is OUTSIDE the current
+   *  selection while isolate is active, so it should render dimmed. Purely a
+   *  render-time opacity override — never written to `item.props`, so it
+   *  can't leak into the persisted/autosaved item like the CUSTOMIZE-OPACITY
+   *  ghost slider does. Composes with that per-item opacity (whichever is
+   *  more transparent wins). */
+  dimmed?: boolean
 }
 
-function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
+function FurnitureInner({ item, def, passive, contactShadow, dimmed }: FurnitureProps) {
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       if (passive) return
@@ -252,7 +265,13 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
   // mutated for every other item) and setting transparent + opacity; the original
   // is captured per-mesh and restored when opacity returns to 1 / on unmount. A
   // short rAF window re-applies to async-loaded GLB meshes. No work at opacity 1.
-  const opacity = typeof item.props['opacity'] === 'number' ? (item.props['opacity'] as number) : 1
+  const itemOpacity =
+    typeof item.props['opacity'] === 'number' ? (item.props['opacity'] as number) : 1
+  // Isolate/solo dimming (FEAT-C) composes with the persisted per-item ghost
+  // opacity above — whichever is more transparent wins — WITHOUT writing
+  // `dimmed` into `item.props`, so turning isolate off can't leave a stray
+  // persisted opacity behind and an item mid-ghost keeps its own setting.
+  const opacity = dimmed ? Math.min(itemOpacity, SOLO_DIM_OPACITY) : itemOpacity
   const opacityRootRef = useRef<Group>(null)
   const opacityClonesRef = useRef<Material[]>([])
   // biome-ignore lint/correctness/useExhaustiveDependencies: item.props identity drives re-apply (tint/finish changes); def re-keys on swap.
@@ -412,6 +431,7 @@ export const Furniture = memo(FurnitureInner, (prev, next) => {
     prev.def === next.def &&
     prev.passive === next.passive &&
     prev.contactShadow === next.contactShadow &&
-    prev.materialEpoch === next.materialEpoch
+    prev.materialEpoch === next.materialEpoch &&
+    prev.dimmed === next.dimmed
   )
 })

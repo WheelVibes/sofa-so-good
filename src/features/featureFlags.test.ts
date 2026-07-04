@@ -608,3 +608,18 @@ describe('proUpsell flag (P26 Simple→Pro ⌘K footer hint)', () => {
     expect(resolveFlags(true, {}, false, 'pro').proUpsell).toBe(true)
   })
 })
+
+describe('isolateSelection flag (FEAT-C isolate/solo focus mode)', () => {
+  it('is pro-tier, ships in prod, default on', () => {
+    expect(FEATURE_FLAGS.isolateSelection.default).toBe(true)
+    expect(FEATURE_FLAGS.isolateSelection.tier).toBe('pro')
+    expect(FEATURE_FLAGS.isolateSelection.devOnly).toBeUndefined()
+  })
+
+  it('is hidden in Simple mode and present in Pro mode (both build kinds)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').isolateSelection).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').isolateSelection).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').isolateSelection).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').isolateSelection).toBe(true)
+  })
+})

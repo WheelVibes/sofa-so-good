@@ -1,5 +1,7 @@
 import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { Button } from '../controls/Button'
+import { Icon } from '../toolbar/icons'
 
 /**
  * Per-item elevation (off-floor height, SweetHome3DJS parity) slider + numeric
@@ -105,5 +107,34 @@ export function OpacityControl({ item }: { item: FurnitureItem }) {
         <span>Hide in 3D view</span>
       </label>
     </div>
+  )
+}
+
+/**
+ * Isolate/solo toggle (FEAT-C): one-tap button that dims every OTHER placed
+ * item so this piece stands out — Blender local-view / SketchUp isolate
+ * parity for a dense furnished room. Gated by the `isolateSelection` flag in
+ * `InspectorPanel.tsx`. Session-only (`isolateSlice.isolateActive`); the
+ * button reflects live state and auto-clears (handled centrally in
+ * `state/store.ts`) the moment the selection changes.
+ */
+export function IsolateControl() {
+  const isolateActive = useStore((s) => s.isolateActive)
+  const toggleIsolateSelection = useStore((s) => s.toggleIsolateSelection)
+  return (
+    <Button
+      variant={isolateActive ? 'accent' : 'soft'}
+      block
+      icon={<Icon.Focus width={14} height={14} />}
+      onClick={toggleIsolateSelection}
+      title={
+        isolateActive
+          ? 'Exit isolate — show every item normally'
+          : 'Isolate — dim everything else to focus on this item'
+      }
+      style={{ marginTop: 'var(--s-2)' }}
+    >
+      {isolateActive ? 'Exit isolate' : 'Isolate'}
+    </Button>
   )
 }

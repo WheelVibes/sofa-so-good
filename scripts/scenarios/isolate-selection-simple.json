@@ -1,0 +1,61 @@
+{
+  "name": "isolate-selection-simple",
+  "description": "FEAT-C: isolate/solo the selection (focus mode). Pro-tier flag Simple/Pro gate, dim-not-hide rendering, auto-clear on selection change, mobile parity leg.",
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+
+    { "name": "assert-simple-flag-off", "waitFor": { "store": "state.featureFlags.isolateSelection === false" }, "failMessage": "isolateSelection flag should be off in Simple mode" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "assert-pro-flag-on", "waitFor": { "store": "state.featureFlags.isolateSelection === true" }, "failMessage": "isolateSelection flag should be on in Pro mode" },
+
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "assert-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "seed-items", "eval": "window.__store.getState().setItems([{id:'iso-sofa',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}},{id:'iso-tv',defId:'tv-console',position:[12.1,2.45],rotation:-1.5708,props:{width:1.6}},{id:'iso-table',defId:'dining-table-4',position:[10.55,5.2],rotation:0,props:{seats:'4'}},{id:'iso-chair',defId:'dining-chair',position:[10.2,4.45],rotation:0,props:{}}])" },
+    { "name": "assert-seeded", "waitFor": { "store": "state.items.length === 4" }, "timeout": 5000 },
+    { "name": "select-sofa", "store": { "action": "selectItem", "args": ["iso-sofa"] } },
+    { "name": "settle-selected", "wait": 1500 },
+    { "name": "shot-selected", "screenshot": "01-selected-no-isolate" },
+
+    { "name": "toggle-isolate-on", "store": { "action": "toggleIsolateSelection", "args": [] } },
+    { "name": "assert-isolate-on", "waitFor": { "store": "state.isolateActive === true" }, "timeout": 5000, "failMessage": "isolateActive should flip on" },
+    { "name": "settle-isolated", "wait": 1500 },
+    { "name": "shot-isolated", "screenshot": "02-isolated-sofa" },
+
+    { "name": "select-tv", "store": { "action": "selectItem", "args": ["iso-tv"] } },
+    { "name": "assert-autoclear", "waitFor": { "store": "state.isolateActive === false" }, "timeout": 5000, "failMessage": "changing the selection must auto-clear isolate" },
+    { "name": "settle-autoclear", "wait": 1500 },
+    { "name": "shot-autoclear", "screenshot": "03-autocleared-after-select-change" },
+
+    { "name": "toggle-isolate-tv", "store": { "action": "toggleIsolateSelection", "args": [] } },
+    { "name": "assert-isolate-tv-on", "waitFor": { "store": "state.isolateActive === true" }, "timeout": 5000 },
+    { "name": "settle-isolated-tv", "wait": 1500 },
+    { "name": "shot-isolated-tv", "screenshot": "04-isolated-tv" },
+
+    { "name": "toggle-isolate-off", "store": { "action": "toggleIsolateSelection", "args": [] } },
+    { "name": "assert-isolate-off", "waitFor": { "store": "state.isolateActive === false" }, "timeout": 5000 },
+    { "name": "settle-restored", "wait": 1500 },
+    { "name": "shot-restored", "screenshot": "05-restored" },
+
+    { "name": "exit-room", "store": { "action": "exitRoomEditor", "args": [] } },
+    { "name": "reenter-and-isolate", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "select-sofa-again", "store": { "action": "selectItem", "args": ["iso-sofa"] } },
+    { "name": "toggle-isolate-again", "store": { "action": "toggleIsolateSelection", "args": [] } },
+    { "name": "assert-isolate-again-on", "waitFor": { "store": "state.isolateActive === true" }, "timeout": 5000 },
+    { "name": "exit-room-clears", "store": { "action": "exitRoomEditor", "args": [] } },
+    { "name": "assert-exit-clears-isolate", "waitFor": { "store": "state.isolateActive === false" }, "timeout": 5000, "failMessage": "exiting the room editor must auto-clear isolate" },
+
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "enter-room-mobile", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "select-sofa-mobile", "store": { "action": "selectItem", "args": ["iso-sofa"] } },
+    { "name": "toggle-isolate-mobile", "store": { "action": "toggleIsolateSelection", "args": [] } },
+    { "name": "assert-isolate-mobile-on", "waitFor": { "store": "state.isolateActive === true" }, "timeout": 5000 },
+    { "name": "settle-mobile", "wait": 1500 },
+    { "name": "shot-mobile", "screenshot": "06-isolated-mobile" }
+  ]
+}

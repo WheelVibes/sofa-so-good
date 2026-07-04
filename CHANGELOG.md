@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: isolate / solo the selection — focus mode (FEAT-C) (v0.13.0.8)
+
+Blender local-view / SketchUp-isolate parity: a one-tap **Isolate** toggle dims
+every OTHER placed item to a near-invisible ghost so the selected piece(s) stand
+out in a dense furnished HDB, while the room shell (walls/floor/window) stays
+fully legible. Reachable from the inspector (single + multi-select), the
+right-click context menu, and ⌘K. **Session-only, nothing persisted:** a
+one-field `isolateSlice` (`isolateActive`) drives a pure render-time opacity
+override in `Furniture.tsx` (`FurnitureLayer` computes the dimmed set via the
+pure `furniture/isolateSelection.ts:computeDimmedItemIds`) — it deliberately does
+NOT reuse the persisted per-item `props.opacity`, so isolate can never leak a
+stray value into autosave; the two compose at render as `Math.min(itemOpacity,
+SOLO_DIM_OPACITY)`. "Which items are dimmed" is re-derived live from
+`selectedItemIds` every render, so isolate always tracks the current selection.
+**Auto-clears** on any selection change via a single content-diffed
+`useStore.subscribe` in `store.ts` (room-editor exit clears selection, so one
+watcher covers both triggers) — mirroring the existing wall-thickness subscription
+pattern. Flag-gated `isolateSelection` (pro tier, default on; forced off in
+Simple). 22 new tests (slice + pure selector + both-mode gating) + a 46-step
+visual scenario confirming dim/restore, selection-change auto-clear, re-isolate,
+room-exit auto-clear, and mobile parity.
+
 ## TEST: paletteFromPhoto nearest-finish mapping — TEST-8 (v0.13.0.7)
 
 Round-2 audit coverage for the palette-from-photo finish matching. Extracted the

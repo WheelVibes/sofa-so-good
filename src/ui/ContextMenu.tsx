@@ -47,6 +47,7 @@ export function ContextMenu() {
   const replaceSimilarOn = useFeature('replaceSimilar')
   const groupsOn = useFeature('furnitureGroups')
   const layerOrderOn = useFeature('layerOrder')
+  const isolateOn = useFeature('isolateSelection')
 
   useEffect(() => {
     if (!menu) return
@@ -75,6 +76,7 @@ export function ContextMenu() {
     replaceSimilarOn,
     groupsOn,
     layerOrderOn,
+    isolateOn,
   })
   if (!built) return null
   const { heading, headingIcon, rows } = built
@@ -126,6 +128,7 @@ interface MenuCtx {
   replaceSimilarOn: boolean
   groupsOn: boolean
   layerOrderOn: boolean
+  isolateOn: boolean
 }
 
 type MenuRow = RowSpec | 'sep'
@@ -336,6 +339,20 @@ function buildItemMenu(
       icon: 'Eye',
       label: `Show all (${s.hiddenItemIds.length} hidden)`,
       onClick: () => useStore.getState().showAllItems(),
+    })
+
+  // Isolate/solo (FEAT-C): dim everything except this item (or the current
+  // multi-selection). A right-click on a not-yet-selected item selects it
+  // first so isolate always frames the item the menu was opened on.
+  if (ctx.isolateOn)
+    rows.push({
+      icon: 'Focus',
+      label: s.isolateActive ? 'Exit isolate' : multi ? 'Isolate selection' : 'Isolate',
+      onClick: () => {
+        const st = useStore.getState()
+        if (!st.selectedItemIds.includes(item.id)) st.selectItemGrouped(item.id, {})
+        useStore.getState().toggleIsolateSelection()
+      },
     })
 
   // Group / ungroup.

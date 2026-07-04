@@ -1256,6 +1256,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Isolate / solo the selection (FEAT-C): one-tap focus mode that dims every
+  // OTHER placed item so the selected piece(s) stand out in a dense furnished
+  // HDB (Blender local-view / SketchUp isolate parity). Session-only state
+  // (`isolateSlice.isolateActive`, not persisted) — purely a render-time
+  // opacity override, no item props are touched. Auto-clears on any selection
+  // change (including the room-editor exit, which itself clears selection).
+  // An advanced 3D-editor viewing aid beyond the core furnish loop → pro tier.
+  isolateSelection: {
+    label: 'Isolate selection',
+    description: 'Dim everything except the selected item(s) to focus on one piece',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

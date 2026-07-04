@@ -331,6 +331,13 @@ export const Icon = {
       <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
     </Svg>
   ),
+  /** Isolate/solo focus mode (FEAT-C) — a camera-reticle crosshair. */
+  Focus: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <circle cx="12" cy="12" r="4.5" />
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+    </Svg>
+  ),
   Trash: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13" />

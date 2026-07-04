@@ -148,6 +148,7 @@ export type FeatureFlag =
   | 'planFurnish'
   | 'frameSelection'
   | 'altDragDuplicate'
+  | 'isolateSelection'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

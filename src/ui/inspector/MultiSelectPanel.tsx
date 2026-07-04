@@ -19,6 +19,7 @@ import {
 import { useStore } from '../../state/store'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Icon } from '../toolbar/icons'
+import { IsolateControl } from './ItemPhysicalControls'
 import { MinimizeButton, useInspectorMinimize } from './useInspectorMinimize'
 
 /** Panel shown when 2+ items are selected: count + align / distribute / bulk
@@ -33,6 +34,7 @@ export function MultiSelectPanel() {
   const copyAppearanceOn = useFeature('copyAppearance')
   const bulkAppearanceOn = useFeature('bulkAppearance')
   const groupsOn = useFeature('furnitureGroups')
+  const isolateOn = useFeature('isolateSelection')
   // The tint shared by every selected (unlocked) item, or '' when they differ /
   // are untinted — drives the bulk ColorPicker's displayed swatch.
   const sharedTint = useStore((s) => {
@@ -433,6 +435,7 @@ export function MultiSelectPanel() {
                   Paste appearance
                 </button>
               ) : null}
+              {isolateOn ? <IsolateControl /> : null}
               <button
                 type="button"
                 onClick={duplicateAll}

@@ -24,6 +24,25 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   eligibility/toggle logic in `furniture/lightInteract.ts` only reads `defId` + `props`, since an
   interactable light can be ANY item kind (a registered builtin fixture OR a GLB/IKEA/user import
   the player already flagged via the `itemAsLight` override).
+- **`isolateSlice`** (FEAT-C, isolate/solo the selection) is a one-field session-only slice:
+  `isolateActive: boolean` + `toggleIsolateSelection`/`setIsolateActive`. Unlike the
+  `windowFixtureSlice`-family sessions above, it stores no per-item state at all (no
+  `Record<id, …>`, not even a snapshot of which ids were isolated) — "which items are dimmed"
+  is re-derived on every render from the LIVE `selectedItemIds` via the pure
+  `furniture/isolateSelection.ts:computeDimmedItemIds`, so isolate always tracks the current
+  selection instead of a stale one. Rendering is a pure opacity override in `Furniture.tsx`
+  (`FurnitureLayer` computes the dimmed set once, passes `dimmed` down) — it deliberately does
+  **not** reuse the persisted per-item `item.props.opacity` (CUSTOMIZE-OPACITY) field; that one
+  is user-authored and round-trips through `serialize()`, so writing a temporary solo-dim value
+  into it would risk autosaving a stray opacity if the timing ever raced a save. The two compose
+  at render time instead (`Math.min(itemOpacity, SOLO_DIM_OPACITY)` when dimmed). **Auto-clear**
+  (selection change OR room-editor exit must drop isolate) is wired as a single `useStore.subscribe`
+  in `store.ts` watching `selectedItemIds` by CONTENT (not reference, so a re-click of the same
+  selected item doesn't spuriously clear it) — exiting/entering the room editor already clears
+  selection itself (`uiSlice`), so one watcher covers both triggers without coupling
+  `selectionSlice`/`uiSlice` to isolate state. Mirrors this file's wall-thickness module-level
+  `useStore.subscribe` a few lines below it in `store.ts` — that's the established pattern for a
+  cross-slice reactive side effect that doesn't belong inside either slice's own actions.
 - **`editorPrefs` also persists per-device UI convenience state** (out of the save schema):
   the left-dock tab (`leftMode`), the collapsed layer-group map (`layersCollapsed`, lifted from
   `LayersPanel` into `featuresSlice`), `catalogOpen` — the last restored **desktop-only**
