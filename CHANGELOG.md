@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: reorder rooms by dragging a handle, not up/down buttons (bug #10) (v0.13.0.20)
+
+The `RoomReorderModal` (pro `roomReorder` flag) replaced its per-row up/down
+chevron buttons with a **hamburger drag handle** — a pointer-based reorder that
+works with mouse AND touch (`onPointerDown`/`Move`/`Up` on the handle, pointer
+captured; the hovered row index is derived from `clientY` against each row's
+midpoint, splicing the working list live and persisting the final order via
+`setRoomOrder`). The handle sets `touch-action: none` so a touch-drag reorders
+instead of scrolling the sheet; the row lifts (`--shadow-pop` + accent border)
+while dragging. Verified: modal renders the handles, no `Move …` buttons remain.
+
 ## FIX: delete UX — red button, mobile-reachable, confirm prompt (bug #2) (v0.13.0.19)
 
 Three delete issues from the bug report:
