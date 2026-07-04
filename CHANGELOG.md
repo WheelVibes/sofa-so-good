@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.14.1.2 — room-editor default framing
+
+- **Entering the per-room editor always lands on a centred dollhouse view.** The
+  framing effect read the imperative `controlsRef`, which could still be null on
+  the first mount run — so the *first* room entered (tap-in-orbit / switch) often
+  kept the raw initial camera + a floor-level orbit pivot, only later switches
+  framed. It now also reacts to the `makeDefault` controls attaching
+  (`useThree(s => s.controls)`), so every entry re-frames.
+- **Orbit pivots about the room's true 3D centre** (footprint centre at mid-wall
+  height, not a floor-level point), so the room sits centred on screen and the
+  turntable spins around it.
+- **Tighter fit** (margin 1.12 → 1.04) so the room fills the screen width instead
+  of floating small with wide margins — aspect-aware (portrait phones fit to
+  width).
+
 ## v0.14.1.1 — mobile catalog scroll + panel-swipe touch fixes
 
 Follow-up to the v0.14.1.0 sweep, from further mobile testing:
