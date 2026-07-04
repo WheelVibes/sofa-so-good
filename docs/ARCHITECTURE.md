@@ -324,7 +324,12 @@ same change that reshapes a system.
   unchanged. Flag off → today's behaviour exactly.
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
-  (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,
+  (`inspector/InspectorPanel.tsx` is now a thin ~180-line composition shell — REFAC-1 extracted
+  its inline sections into sibling files: `InspectorHeader`, `ItemActionButtons`
+  (`ItemBasicActions`/`ItemOrientActions`), `ItemBulkActions` (multi-select), `ItemLightControls`,
+  `ItemPhysicalControls`, `LinearArraySection`, `RadialArraySection`, and pure `itemTransforms.ts`;
+  behaviour-preserving):
+  `label` rename, minimize, price/total, Quick finishes, Apply-to-all,
   Straighten, **linear array** (`furniture/arrayPlacement.ts` — pure, unit-tested),
   **radial/polar array** (`furniture/radialArray.ts` — pure, unit-tested, Pro-only via
   `radialArray` flag), **path/polyline array** (`furniture/pathArray.ts` — pure, unit-tested;

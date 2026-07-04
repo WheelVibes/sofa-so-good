@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: decompose the 1205-line InspectorPanel monolith — REFAC-1 (v0.12.0.41)
+
+From the 2026-07-04 audit (the root `CLAUDE.md` "strictly avoid monolithic files"
+mandate): `inspector/InspectorPanel.tsx` (1205 lines) is now a thin ~179-line
+composition shell, with its inline sections extracted into cohesive sibling
+files — `InspectorHeader`, `ItemActionButtons` (`ItemBasicActions`/
+`ItemOrientActions`), `ItemBulkActions` (multi-select), `ItemLightControls`,
+`ItemPhysicalControls`, `LinearArraySection`, `RadialArraySection`, and pure
+`itemTransforms.ts`. Behaviour-preserving (no functional/visual change): existing
+inspector tests pass unchanged, and the inspector was visually re-verified for
+GLB, parametric, and multi-select items (all sections render identically). The
+new files inherit the grandfathered inline-px allowance. Salvaged + verified from
+a worktree that had been branched off a stale base.
+
 ## TEST: coverage for hydrateAssets + floorRects (round-2 TEST-1/2) (v0.12.0.40)
 
 Closed two 0-test gaps flagged in the round-2 audit. `hydrateAssets.test.ts`

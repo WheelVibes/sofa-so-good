@@ -1,0 +1,126 @@
+import { useFeature } from '../../features/useFeature'
+import { itemPrice } from '../../furniture/furniturePrices'
+import { isEmitter } from '../../furniture/lightEmitters'
+import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
+import { useStore } from '../../state/store'
+import { formatDimsShort } from '../../utils/measurement'
+import { CategoryIcon } from '../catalog/CategoryIcon'
+import { Icon } from '../toolbar/icons'
+import { MinimizeButton } from './useInspectorMinimize'
+
+/**
+ * Inspector panel header: thumbnail + title, with category/dims/price collapsing
+ * away while minimized, plus the light-source / lock / minimize / close icon
+ * buttons. Always rendered (even minimized — the mobile bottom-sheet drag handle
+ * lives on this row via `swipeHandlers`).
+ */
+export function InspectorHeader({
+  item,
+  def,
+  minimized,
+  toggle,
+  swipeHandlers,
+}: {
+  item: FurnitureItem
+  def: FurnitureDef
+  minimized: boolean
+  toggle: () => void
+  swipeHandlers: {
+    onTouchStart: (e: React.TouchEvent) => void
+    onTouchEnd: (e: React.TouchEvent) => void
+  }
+}) {
+  const priceOn = useFeature('budget')
+  const itemAsLightOn = useFeature('itemAsLight')
+  const units = useStore((s) => s.units)
+
+  let w = def.defaultFootprint.w
+  let d = def.defaultFootprint.d
+  if (def.kind === 'parametric') {
+    const map = def.footprintParams ?? {}
+    const wv = item.props[map.w ?? 'width']
+    const dv = item.props[map.d ?? 'depth']
+    if (typeof wv === 'number') w = wv
+    if (typeof dv === 'number') d = dv
+  }
+
+  return (
+    <div
+      className="panel-head"
+      onTouchStart={swipeHandlers.onTouchStart}
+      onTouchEnd={swipeHandlers.onTouchEnd}
+    >
+      <div>
+        <div className="insp-thumb">
+          <CategoryIcon category={def.category} width={22} height={22} />
+        </div>
+        <div>
+          <div className="panel-title">{item.label ?? def.name}</div>
+          {minimized ? null : (
+            <>
+              <div className="panel-sub">{def.category}</div>
+              <div className="dims mono" title="Width × Depth × Height">
+                {formatDimsShort([w, d, def.defaultFootprint.h], units)}
+              </div>
+              {priceOn ? (
+                <div
+                  className="insp-price mono"
+                  title="Estimated price (see the Budget panel for the full list)"
+                >
+                  ~$
+                  {itemPrice(
+                    def,
+                    def.category,
+                    typeof item.props.variant === 'string' ? item.props.variant : undefined,
+                  ).toLocaleString('en-SG')}
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      </div>
+      <div className="insp-head-btns">
+        {itemAsLightOn && !isEmitter(item.defId) && (
+          <button
+            type="button"
+            onClick={() => {
+              const next = { ...item.props }
+              if (item.props.lightOn === 'yes') delete next.lightOn
+              else next.lightOn = 'yes'
+              useStore.getState().updateItemProps(item.id, next)
+            }}
+            className={`icon-btn${item.props.lightOn === 'yes' ? ' on' : ''}`}
+            aria-label={
+              item.props.lightOn === 'yes' ? 'Turn off light source' : 'Make a light source'
+            }
+            title="Emit light at night from this item"
+          >
+            <Icon.Lights width={16} height={16} />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => useStore.getState().toggleLock(item.id)}
+          className={`icon-btn${item.locked ? ' on' : ''}`}
+          aria-label={item.locked ? 'Unlock item' : 'Lock item in place'}
+          title={item.locked ? 'Unlock — allow moving/editing' : 'Lock in place'}
+        >
+          {item.locked ? (
+            <Icon.Lock width={16} height={16} />
+          ) : (
+            <Icon.Unlock width={16} height={16} />
+          )}
+        </button>
+        <MinimizeButton minimized={minimized} toggle={toggle} />
+        <button
+          type="button"
+          onClick={() => useStore.getState().selectItem(null)}
+          className="icon-btn"
+          aria-label="Close inspector"
+        >
+          <Icon.Close width={16} height={16} />
+        </button>
+      </div>
+    </div>
+  )
+}
