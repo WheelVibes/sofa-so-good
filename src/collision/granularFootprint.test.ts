@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import type { BuiltinGltfDef, FurnitureDef, FurnitureItem } from '../furniture/types'
+import { mirrorItemX } from '../layout/mirrorRoom'
 import { obbVsObb } from './obb'
 import {
   canPlace,
@@ -328,5 +329,95 @@ describe('granular footprint — static parts + transforms', () => {
     const parts = itemFootprintParts(bAt(0, 0, Math.PI / 2), barbell)
     expect(parts.map((p) => p.cz).sort((a, b) => a - b)).toEqual([-0.75, 0.75])
     for (const p of parts) expect(p.cx).toBeCloseTo(0, 6)
+  })
+})
+
+describe('granular footprint — flip mirrors an asymmetric footprint (BUG: sofa-lshape-chaiseSide-flip)', () => {
+  const Ldef = BUILTIN_CATALOG['sofa-lshape']
+
+  it('flipping the default (right-chaise) sofa matches the un-flipped left-chaise footprint', () => {
+    // `Furniture.tsx` renders a flip as a scale mirror around the primitive, so
+    // the visual chaise swaps sides on flipX without `chaiseSide` changing. The
+    // footprint must land on the same side the render now shows it.
+    const flipped = itemFootprintParts({ ...lsofa(), flipX: true }, Ldef)
+    const mirroredProp = itemFootprintParts(lsofa({ chaiseSide: 'left' }), Ldef)
+    const byHx = (a: { hx: number }, b: { hx: number }) => a.hx - b.hx
+    const flippedSorted = [...flipped].sort(byHx)
+    const mirroredSorted = [...mirroredProp].sort(byHx)
+    for (let i = 0; i < flippedSorted.length; i++) {
+      expect(flippedSorted[i].cx).toBeCloseTo(mirroredSorted[i].cx, 6)
+      expect(flippedSorted[i].cz).toBeCloseTo(mirroredSorted[i].cz, 6)
+      expect(flippedSorted[i].hx).toBeCloseTo(mirroredSorted[i].hx, 6)
+      expect(flippedSorted[i].hz).toBeCloseTo(mirroredSorted[i].hz, 6)
+    }
+  })
+
+  it('collision follows the flip: the notch moves to the mirrored side', () => {
+    const flipped = { ...lsofa(), flipX: true }
+    // Un-flipped (chaise right): notch is forward-LEFT, chaise blocks forward-RIGHT.
+    // Flipped: the chaise is now forward-LEFT, so forward-RIGHT opens up instead.
+    expect(canPlace(probeAt(0.7, 0.5), probeDef, ctx([flipped]))).toBe(true)
+    expect(canPlace(probeAt(-0.8, 0.5), probeDef, ctx([flipped]))).toBe(false)
+  })
+
+  it('flipZ mirrors the main-run/chaise split front-to-back', () => {
+    const flipped = itemFootprintParts({ ...lsofa(), flipZ: true }, Ldef)
+    const base = itemFootprintParts(lsofa(), Ldef)
+    const byHx = (a: { hx: number }, b: { hx: number }) => a.hx - b.hx
+    const flippedSorted = [...flipped].sort(byHx)
+    const baseSorted = [...base].sort(byHx)
+    for (let i = 0; i < flippedSorted.length; i++) {
+      expect(flippedSorted[i].cz).toBeCloseTo(-baseSorted[i].cz, 6)
+      expect(flippedSorted[i].cx).toBeCloseTo(baseSorted[i].cx, 6)
+    }
+  })
+
+  it('a double mirror (flip twice) is the identity — footprint returns to the original', () => {
+    const original = lsofa()
+    const twice = mirrorItemX(mirrorItemX(original, 0), 0)
+    expect(twice.flipX).toBe(original.flipX ?? false)
+    const originalParts = itemFootprintParts(original, Ldef)
+    const twiceParts = itemFootprintParts(twice, Ldef)
+    const byHx = (a: { hx: number }, b: { hx: number }) => a.hx - b.hx
+    const o = [...originalParts].sort(byHx)
+    const t = [...twiceParts].sort(byHx)
+    for (let i = 0; i < o.length; i++) {
+      expect(t[i].cx).toBeCloseTo(o[i].cx, 6)
+      expect(t[i].cz).toBeCloseTo(o[i].cz, 6)
+    }
+  })
+
+  it('flipping the corner base cabinet mirrors its L the same way', () => {
+    const cornerAt = (flipX: boolean): FurnitureItem => ({
+      id: 'cc',
+      defId: 'cabinet-corner',
+      position: [0, 0],
+      rotation: 0,
+      props: {},
+      flipX,
+    })
+    const CornerDef = BUILTIN_CATALOG['cabinet-corner']
+    // Un-flipped: run B (index 1 — the left leg) sits on the LEFT (negative cx).
+    const base = itemFootprintParts(cornerAt(false), CornerDef)
+    expect(base[1].cx).toBeLessThan(0)
+    // Flipped: the same run now sits on the RIGHT (positive cx), mirroring the visual.
+    const flipped = itemFootprintParts(cornerAt(true), CornerDef)
+    expect(flipped[1].cx).toBeGreaterThan(0)
+  })
+
+  it('a symmetric (round) footprint is unaffected by flip', () => {
+    const table: FurnitureItem = {
+      id: 't1',
+      defId: 'dining-table-4',
+      position: [0, 0],
+      rotation: 0,
+      props: { shape: 'round', width: 1.2, depth: 1.2 },
+    }
+    const def = BUILTIN_CATALOG['dining-table-4']
+    const base = itemFootprintParts(table, def)
+    const flipped = itemFootprintParts({ ...table, flipX: true, flipZ: true }, def)
+    expect(flipped.length).toBe(base.length)
+    const sumHx = (arr: { hx: number }[]) => arr.reduce((a, p) => a + p.hx, 0)
+    expect(sumHx(flipped)).toBeCloseTo(sumHx(base), 6)
   })
 })

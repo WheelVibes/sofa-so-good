@@ -90,6 +90,16 @@
 .room-reorder-idx { flex: none; width: 1.4em; text-align: right; color: var(--text-3); font-size: var(--t-xs); font-variant-numeric: tabular-nums; }
 .room-reorder-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-sm); font-weight: 600; color: var(--text); }
 .room-reorder-acts { flex: none; display: flex; gap: var(--s-1); }
+/* Drag-to-reorder handle (bug #10) — a grab affordance; `touch-action: none`
+   so a touch-drag reorders instead of scrolling the sheet. */
+.room-reorder-handle {
+  flex: none; display: flex; align-items: center; justify-content: center;
+  padding: var(--s-1); border: 0; background: transparent; color: var(--text-3);
+  cursor: grab; touch-action: none; border-radius: var(--r-1);
+}
+.room-reorder-handle:hover { color: var(--text); background: var(--surface-3); }
+.room-reorder-handle:active { cursor: grabbing; }
+.room-reorder-row.dragging { border-color: var(--accent); box-shadow: var(--shadow-pop); opacity: 0.92; }
 
 /* ---- progressive-disclosure info callout (P25) --------------- */
 /* A dismissible one-line hint banner (InfoCallout.tsx): surface-2 card with an

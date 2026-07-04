@@ -147,6 +147,10 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
   const tint = typeof item.props['tint'] === 'string' ? item.props['tint'] : ''
   const current = activeFinish(item, def)
   const variant = findVariant(def, current)
+  // Only offer finishes we can actually render — variants without a scraped GLB
+  // (`assetId === null`) were shown greyed/disabled, which just confused users
+  // ("why are they there if I can't pick them?"). Hide them entirely.
+  const finishVariants = def.variants.filter((v) => v.assetId !== null)
 
   const selectVariant = (v: IkeaVariant) => {
     updateItemProps(item.id, variantProps(v.finish))
@@ -187,7 +191,7 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
   return (
     <div className="space-y-2">
       {/* (a) Finish picker */}
-      {def.variants.length > 1 ? (
+      {finishVariants.length > 1 ? (
         <div>
           <div className="mb-1 text-[10px] uppercase tracking-wide text-[var(--text-3)]">
             Finish
@@ -197,22 +201,20 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
               look of this compact chip row — role="group" + aria-label is
               the non-visual equivalent. */}
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Finish">
-            {def.variants.map((v) => {
-              const disabled = v.assetId === null
+            {finishVariants.map((v) => {
               const isActive = v.finish === current
               return (
                 <button
                   key={v.finish}
                   type="button"
-                  disabled={disabled}
-                  title={disabled ? 'not available' : v.label}
+                  title={v.label}
                   aria-pressed={isActive}
-                  onClick={() => !disabled && selectVariant(v)}
+                  onClick={() => selectVariant(v)}
                   className={`flex items-center gap-1 rounded border px-1.5 py-1 text-[10px] ${
                     isActive
                       ? 'border-[var(--accent)] ring-1 ring-[var(--accent)]'
                       : 'border-[var(--border)]'
-                  } ${disabled ? 'cursor-not-allowed opacity-40' : 'hover:border-[var(--accent)]'}`}
+                  } hover:border-[var(--accent)]`}
                 >
                   <span
                     className="h-3 w-3 rounded-sm border border-[var(--border-2)]"

@@ -77,6 +77,24 @@ describe('qualityPrefs persistence', () => {
     expect(s.dofAuto).toBe(true)
   })
 
+  it('round-trips the two-point-perspective / vertical-lock toggle (FEAT-D)', () => {
+    localStorage.setItem(
+      'sofa.graphics.v1',
+      JSON.stringify({ tier: 'high', overrides: {}, userSet: true, verticalLock: true }),
+    )
+    loadQualityPrefs()
+    expect(useStore.getState().verticalLock).toBe(true)
+  })
+
+  it('back-compat: legacy prefs without verticalLock default to off', () => {
+    localStorage.setItem(
+      'sofa.graphics.v1',
+      JSON.stringify({ tier: 'medium', overrides: {}, userSet: false }),
+    )
+    loadQualityPrefs()
+    expect(useStore.getState().verticalLock).toBe(false)
+  })
+
   it('clamps out-of-range persisted lens/DoF values on load', () => {
     localStorage.setItem(
       'sofa.graphics.v1',

@@ -59,6 +59,7 @@ import {
   INSTALLED_PACKS_INITIAL,
   type InstalledPacksSlice,
 } from './slices/installedPacksSlice'
+import { createIsolateSlice, ISOLATE_INITIAL, type IsolateSlice } from './slices/isolateSlice'
 import { createItemsSlice, ITEMS_INITIAL, type ItemsSlice } from './slices/itemsSlice'
 import {
   createLightInteractSlice,
@@ -206,7 +207,8 @@ export interface RootState
     PriceRulesSlice,
     QuoteTemplateSlice,
     FeatureFlagsSlice,
-    AuthSlice {
+    AuthSlice,
+    IsolateSlice {
   __resetForTest: () => void
 }
 
@@ -255,6 +257,7 @@ const INITIAL = {
   ...PRICE_RULES_INITIAL,
   ...STYLE_CLIPBOARD_INITIAL,
   ...USER_SETS_INITIAL,
+  ...ISOLATE_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -304,6 +307,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createPriceRulesSlice(set, get, api),
   ...createStyleClipboardSlice(set, get, api),
   ...createUserSetsSlice(set, get, api),
+  ...createIsolateSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))
 
@@ -326,3 +330,22 @@ const applyFlatWallThickness = (plan: FloorPlan) => {
 }
 applyFlatWallThickness(useStore.getState().floorPlan)
 useStore.subscribe((s) => applyFlatWallThickness(s.floorPlan))
+
+// Isolate/solo (FEAT-C) auto-clear: a stale solo view must never outlive the
+// item it was framing, so `isolateActive` clears itself the moment the
+// selection actually changes. This single watcher covers BOTH triggers the
+// spec calls for — a plain selection change AND exiting the room editor
+// (`uiSlice.exitRoomEditor` clears selection via `selectItem(null)`;
+// `enterRoomEditor` clears it too on the way in) — without coupling
+// `selectionSlice`/`uiSlice` to isolate state. Compares content, not
+// reference, so a re-click of the same already-selected item (a fresh `[id]`
+// array, same contents) doesn't spuriously drop isolate.
+let lastSelectedItemIds: string[] = useStore.getState().selectedItemIds
+const sameIds = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((id, i) => id === b[i])
+useStore.subscribe((s) => {
+  if (s.isolateActive && !sameIds(s.selectedItemIds, lastSelectedItemIds)) {
+    s.setIsolateActive(false)
+  }
+  lastSelectedItemIds = s.selectedItemIds
+})

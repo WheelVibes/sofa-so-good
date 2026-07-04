@@ -1,0 +1,20 @@
+{
+  "name": "inspector-delete-confirm",
+  "description": "Bug #2: the inspector Delete button reads red at rest; a red trash icon sits in the (minimized-capable) header row; clicking Delete shows a confirmation prompt (not the Apply-change pill).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13)" },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "wait-settle", "wait": 1200 },
+    { "name": "seed-item", "eval": "window.__store.getState().setItems([{id:'del-sofa',defId:'sofa-3seat',position:[9.2,2.2],rotation:0,props:{}}])" },
+    { "name": "select-item", "store": { "action": "setSelectedItemIds", "args": [["del-sofa"]] } },
+    { "name": "wait-inspector", "wait": 500 },
+    { "name": "shot-inspector", "screenshot": "inspector-red-delete" },
+    { "name": "click-delete", "click": "button.act.danger" },
+    { "name": "wait-confirm", "waitFor": { "text": "Delete item?" }, "timeout": 4000, "failMessage": "confirmation prompt did not appear on Delete" },
+    { "name": "shot-confirm", "screenshot": "delete-confirm-prompt" },
+    { "name": "assert-not-deleted-yet", "eval": "(()=>{const s=window.__store.getState();if(!s.items.find(i=>i.id==='del-sofa'))throw new Error('item deleted BEFORE confirming')})()" }
+  ]
+}

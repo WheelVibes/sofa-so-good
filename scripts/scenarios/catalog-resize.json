@@ -1,0 +1,19 @@
+{
+  "name": "catalog-resize",
+  "description": "Resizable catalog: a col-resize handle on the docked catalog's right edge widens/narrows it (--catalog-w drives --left-rail so the canvas reflows). Desktop only.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1'); localStorage.removeItem('hdb_catalog_width') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13)" },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "open-catalog", "eval": "window.__store.getState().setCatalogOpen(true)" },
+    { "name": "wait-handle", "waitFor": { "css": ".catalog-resize-handle" }, "timeout": 5000, "failMessage": "resize handle not rendered on desktop" },
+    { "name": "settle", "wait": 800 },
+    { "name": "shot-default", "screenshot": "catalog-default-width" },
+    { "name": "drag-wider", "eval": "(()=>{const h=document.querySelector('.catalog-resize-handle');const r=h.getBoundingClientRect();const down=new PointerEvent('pointerdown',{bubbles:true,pointerId:9,clientX:r.left+3,clientY:r.top+200});h.dispatchEvent(down);const mv=new PointerEvent('pointermove',{bubbles:true,pointerId:9,clientX:520,clientY:r.top+200});h.dispatchEvent(mv);const up=new PointerEvent('pointerup',{bubbles:true,pointerId:9,clientX:520,clientY:r.top+200});h.dispatchEvent(up)})()" },
+    { "name": "settle-wide", "wait": 600 },
+    { "name": "assert-wider", "eval": "(()=>{const w=getComputedStyle(document.documentElement).getPropertyValue('--catalog-w').trim();if(w!=='520px')throw new Error('expected --catalog-w=520px, got '+w);const rail=getComputedStyle(document.querySelector('.app-shell')).getPropertyValue('--left-rail').trim();if(rail!=='520px')throw new Error('left-rail did not follow catalog width, got '+rail);if(localStorage.getItem('hdb_catalog_width')!=='520')throw new Error('width not persisted')})()" },
+    { "name": "shot-wide", "screenshot": "catalog-widened" }
+  ]
+}

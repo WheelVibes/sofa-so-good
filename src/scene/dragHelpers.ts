@@ -173,6 +173,32 @@ export function isActiveDragPointer(
   return activePointerId == null || activePointerId === eventPointerId
 }
 
+/**
+ * FEAT-B (Alt/Option-drag duplicate): should starting a drag on `item` clone
+ * it instead of moving it? True only when the feature is on, Alt/Option was
+ * held at pointerdown, AND the item was ALREADY part of the selection before
+ * this pointerdown — that last condition is what disambiguates from plain
+ * Alt+click (`selectItemGrouped`'s group drill-in): `Furniture.onPointerDown`
+ * only re-runs `selectItemGrouped` when the pressed item ISN'T already
+ * selected, so the two behaviours can never both fire for the same gesture.
+ * Locked / window-bound items never drag at all (checked here too so the
+ * helper is correct standalone, independent of the caller's own early
+ * returns). The actual clone is created lazily on the drag's first real
+ * pointermove, not here — a plain click that never moves must duplicate
+ * nothing, see `DragController`'s `dragDuplicatePending` handling.
+ */
+export function shouldDuplicateOnDragStart(opts: {
+  altKey: boolean
+  alreadySelected: boolean
+  locked?: boolean
+  windowBound?: boolean
+  featureEnabled: boolean
+}): boolean {
+  return (
+    opts.featureEnabled && opts.altKey && opts.alreadySelected && !opts.locked && !opts.windowBound
+  )
+}
+
 /** Snug-stack candidate: the dragged item is the TOP, the hovered item the
  *  BASE — engages only when the base IKEA def accepts the dragged IKEA def's
  *  category (a confirmed compatibility match). Returns the base item or null. */

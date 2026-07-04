@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { useFeature } from '../features/useFeature'
+import { useCatalog } from '../furniture/catalog'
 import { cameraForwardXZ } from '../scene/cameras/cameraForward'
+import { resolveSelectionExtents, selectionBounds } from '../scene/cameras/frameSelection'
 import { useStore } from '../state/store'
 import { compassNeedleDeg, forwardToHeadingDeg } from './compassHeading'
 import { Minimap } from './Minimap'
@@ -20,6 +23,19 @@ function dolly(deltaY: number) {
 export function NavCluster() {
   const cameraMode = useStore((s) => s.cameraMode)
   const requestHomeView = useStore((s) => s.requestHomeView)
+  // FEAT-A: frame/zoom-to-selection — only meaningful with something selected
+  // (selection only ever exists in the room editor's orbit camera).
+  const frameSelectionEnabled = useFeature('frameSelection')
+  const selectedItemIds = useStore((s) => s.selectedItemIds)
+  const requestFrameSelection = useStore((s) => s.requestFrameSelection)
+  const catalog = useCatalog()
+  const hasSelection = selectedItemIds.length > 0
+  const onFrameSelection = () => {
+    const st = useStore.getState()
+    const extents = resolveSelectionExtents(st.items, st.selectedItemIds, catalog)
+    const bounds = selectionBounds(extents)
+    if (bounds) requestFrameSelection(bounds)
+  }
   // Scene North orientation — the needle must point to true North, not just the
   // camera heading, so it agrees with the 2D plan compass when North is rotated.
   const orientationDeg = useStore((s) => s.orientationDeg)
@@ -72,6 +88,16 @@ export function NavCluster() {
                 <Icon.Minus width={18} height={18} />
               </button>
             </Tooltip>
+            {frameSelectionEnabled && hasSelection ? (
+              <>
+                <div className="div" />
+                <Tooltip label="Frame selection" shortcut="Z">
+                  <button type="button" aria-label="Frame selection" onClick={onFrameSelection}>
+                    <Icon.Frame width={18} height={18} />
+                  </button>
+                </Tooltip>
+              </>
+            ) : null}
             <div className="div" />
             <Tooltip label="Reset view" shortcut="H">
               <button type="button" aria-label="Reset view" onClick={() => requestHomeView()}>

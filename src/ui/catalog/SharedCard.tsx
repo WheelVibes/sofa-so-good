@@ -43,7 +43,7 @@ export function SharedCard({ item, onResolved, staggerIndex }: Props) {
     <div
       role="button"
       tabIndex={0}
-      aria-label={`Add ${item.name}`}
+      aria-label={`Download ${item.name}`}
       onClick={() => void onClick()}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -92,9 +92,17 @@ export function SharedCard({ item, onResolved, staggerIndex }: Props) {
       <span
         className="pr"
         style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-        title={item.type}
+        title={item.size || item.type}
       >
-        {item.variants > 1 ? `${item.variants} finishes · tap` : 'tap to add'}
+        {item.size || item.type}
+      </span>
+      <span
+        className="pr dl-hint"
+        style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-1)' }}
+        aria-hidden
+      >
+        <Icon.Download width={12} height={12} style={{ flex: 'none' }} />
+        {state === 'adding' ? 'Downloading…' : state === 'error' ? 'Retry download' : 'Download'}
       </span>
     </div>
   )

@@ -169,6 +169,16 @@ points instead — that takes over from wall snapping.
 Toggle the snap grid and cycle its size (10 / 25 / 50 cm, 1 m) from the toolbar.
 The floor shows the active grid while you drag.
 
+## Duplicate while dragging (Pro)
+
+Hold <kbd>Alt</kbd> (<kbd>Option</kbd> on Mac) and drag a piece you've already
+selected — a copy is created on the spot and follows your cursor, leaving the
+original exactly where it was. Releasing Alt partway through the drag doesn't
+change anything (the copy keeps moving); dropping it somewhere invalid, or
+letting go without actually moving, discards the copy instead of leaving a
+stray duplicate behind. Alt-dragging a multi-selection duplicates the whole
+set at once, re-grouped if they were already a group.
+
 ## Multi‑select, align & group
 
 **Marquee‑drag** on empty floor (in Select mode) — or <kbd>Shift</kbd>+click pieces,
@@ -180,8 +190,9 @@ turns into a multi‑select panel with a full set of one‑click layout tools:
   piece to the selection's outermost edge (footprint‑aware, so mixed sizes stay flush).
 - **Distribute evenly** — *Across X* / *Across Z* space the pieces so the **gaps**
   between them are equal (not just their centres), keeping the end pieces put.
-- **Rotate −90° / +90°** turn every piece in place; **Mirror** reflects the whole
-  arrangement left↔right (positions, headings and asymmetric shapes all flip).
+- **Rotate −90° / +90°** turn every piece in place; **Mirror** (**Mirror X** in Pro
+  mode) reflects the whole arrangement left↔right (positions, headings and asymmetric
+  shapes all flip). **Mirror Z (Pro)** does the same front↔back.
 - **Face into room** turns each piece's back to its nearest wall; **Snap to wall**
   also slides it flush against that wall.
 - **Arrange as run** lines the selection up as one run — backs to the nearest wall,

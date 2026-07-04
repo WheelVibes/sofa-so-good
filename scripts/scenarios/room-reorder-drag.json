@@ -1,0 +1,17 @@
+{
+  "name": "room-reorder-drag",
+  "description": "Bug #10: the Reorder-rooms modal uses a hamburger drag handle per row instead of up/down buttons.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13)" },
+    { "name": "to-pro", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()" },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "wait-settle", "wait": 1200 },
+    { "name": "open-reorder", "click": "button[aria-label=\"Reorder rooms\"]" },
+    { "name": "wait-modal", "waitFor": { "text": "Reorder rooms" }, "timeout": 4000, "failMessage": "reorder modal did not open" },
+    { "name": "assert-handles-present", "eval": "(()=>{const h=document.querySelectorAll('.room-reorder-handle');if(h.length===0)throw new Error('no drag handles rendered');const up=[...document.querySelectorAll('[aria-label^=\"Move \"]')];if(up.length>0)throw new Error('old up/down move buttons still present: '+up.length)})()" },
+    { "name": "shot-modal", "screenshot": "room-reorder-handles" }
+  ]
+}

@@ -42,3 +42,21 @@ export function clampCentreToRects(
   }
   return best ?? [cx, cz]
 }
+
+/**
+ * True when a footprint centre already sits inside the room's placeable area
+ * (the union of `rects`, inset by the item's half-extents) — i.e. clamping
+ * wouldn't move it. Used to flag an out-of-room drag as invalid (red) instead
+ * of silently clamping it back in (bug #5). No rects → no room constraint → true.
+ */
+export function isCentreInsideRects(
+  cx: number,
+  cz: number,
+  hx: number,
+  hz: number,
+  rects: Rect[],
+): boolean {
+  if (rects.length === 0) return true
+  const [px, pz] = clampCentreToRects(cx, cz, hx, hz, rects)
+  return Math.abs(px - cx) < 1e-4 && Math.abs(pz - cz) < 1e-4
+}

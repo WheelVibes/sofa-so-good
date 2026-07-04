@@ -87,7 +87,10 @@
    wide content blow the track out past the panel) keeps both columns at an
    identical, fixed width on every page. */
 .card-grid {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3);
+  /* Responsive columns: fill as many ~132px cards as the panel width allows, so
+     a resized (wider) catalog shows 3+ columns while the 320px default stays 2.
+     `auto-fill` + `minmax(…, 1fr)` keeps cards from stretching absurdly wide. */
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--s-3);
   padding: var(--s-1) var(--s-4) var(--s-4); overflow-y: auto; min-height: 0;
   /* Keep a scroll/flick inside the grid: no chaining out to the page (or, on
      mobile where the catalog floats over the 3D canvas, the view behind it). */
@@ -173,6 +176,9 @@
 .cat-card .nm > span { min-width: 0; }
 .cat-card .pr { font-size: var(--t-2xs); color: var(--text-3); }
 .cat-card .pr b { color: var(--accent-soft-text); font-weight: 700; }
+/* Shared-library "Download" affordance (SharedCard) — accent-toned so the
+   import action reads as a clear call-to-action instead of the old "tap to add". */
+.cat-card .pr.dl-hint { color: var(--accent-soft-text); font-weight: 700; margin-top: var(--s-1); }
 /* Heavy-download flag (RemoteCard, ≥30 MB at the chosen resolution) — same warn
    tone as `.badge.warn`/`.lyr-flag.warn`. The class was already applied in
    RemoteCard.tsx but had no matching rule here, so the warning was silently
@@ -325,6 +331,12 @@
 .edit-confirm-btn.confirm:hover { background: var(--accent-2); }
 .edit-confirm-btn.cancel { background: var(--danger-soft); color: var(--danger); }
 .edit-confirm-btn.cancel:hover { filter: brightness(0.97); }
+/* Blocked (invalid) placement: the confirm tick is greyed + non-interactive
+   until the item is valid; the label warns why (bug #6). */
+.edit-confirm-btn.confirm:disabled {
+  background: var(--surface-3); color: var(--text-3); cursor: not-allowed; filter: none;
+}
+.edit-confirm.blocked .edit-confirm-label { color: var(--danger); }
 /* Dismiss micro-animations. The bar is horizontally centred by
    `transform: translateX(-50%)`, so every keyframe step MUST re-apply it or the
    bar would jump to the left edge mid-animation.
@@ -382,7 +394,15 @@
 }
 .act:hover { background: var(--surface-3); color: var(--text); }
 .act.on { background: var(--accent-soft); color: var(--accent-soft-text); }
+/* Destructive action (Delete) reads red at REST for visibility, not only on
+   hover (bug report #2) — hover deepens the tint. */
+.act.danger { color: var(--danger); }
 .act.danger:hover { background: var(--danger-soft); color: var(--danger); }
+.act.danger:disabled { color: var(--text-3); opacity: 0.6; }
+/* Red trash icon in the inspector header row (minimized-bar delete, bug #2). */
+.icon-btn.danger { color: var(--danger); }
+.icon-btn.danger:hover { background: var(--danger-soft); color: var(--danger); }
+.icon-btn.danger:disabled { color: var(--text-3); opacity: 0.6; }
 
 /* ---- Minimap + compass + zoom (bottom-right) ----------------- */
 /* compass is fused into the top of the zoom rail as one cohesive control */

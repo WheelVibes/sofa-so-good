@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { IkeaGltfDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { usePlacementController } from './usePlacementController'
@@ -12,6 +12,21 @@ function clickCanvas(canvas: HTMLCanvasElement, init: MouseEventInit = {}) {
   act(() => {
     canvas.dispatchEvent(
       new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, ...init }),
+    )
+  })
+}
+
+/** Dispatch a touch-type window pointer event (the controller's placement-drag
+ *  listeners are window-level, not canvas-level, so `elementFromPoint` at the
+ *  event's coordinates is what decides "on the canvas" — see `mockElementFromPoint`). */
+function firePointer(
+  type: 'pointermove' | 'pointerup' | 'pointercancel',
+  pointerId: number,
+  init: PointerEventInit = {},
+) {
+  act(() => {
+    window.dispatchEvent(
+      new PointerEvent(type, { pointerId, pointerType: 'touch', bubbles: true, ...init }),
     )
   })
 }
@@ -117,6 +132,98 @@ describe('usePlacementController — CATALOG-VARIANT commit merge', () => {
     act(() => useStore.getState().cancelPlacement())
     expect(useStore.getState().armedVariantProps).toBeNull()
     expect(useStore.getState().activeDefId).toBeNull()
+    hook.unmount()
+  })
+})
+
+/** MOBILE-3: the touch-drag placement ghost is driven by window `pointermove`/
+ *  `pointerup`/`pointercancel` (see `usePlacementController.ts`). Placement
+ *  arms off-window (a catalog-card long-press timer that already fired), so
+ *  the controller latches its `dragPointerId` onto the first pointer event it
+ *  observes rather than a `pointerdown` — these tests drive that latch/gate
+ *  directly with synthetic touch PointerEvents, mirroring the BUG-1/MOBILE-1/
+ *  MOBILE-2 two-pointer scenarios (`dragHelpers.ts:isActiveDragPointer`). */
+describe('usePlacementController — MOBILE-3 placement-drag pointerId gating', () => {
+  let canvas: HTMLCanvasElement
+
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+    canvas = document.createElement('canvas')
+    document.body.appendChild(canvas)
+    useStore.getState().setGhostWorld([1, 1], true)
+    // The controller resolves "is this touch lifting over the canvas?" via
+    // `document.elementFromPoint` (a window-level listener has no target of
+    // its own to test) — happy-dom doesn't implement real hit-testing, so
+    // stub it to the canvas for these tests.
+    vi.spyOn(document, 'elementFromPoint').mockReturnValue(canvas)
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    canvas.remove()
+    // Restore Simple mode so a stamp-specific test opting into Pro can't leak
+    // the pro-tier flag set into later tests/files.
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+  })
+
+  it('a second finger touching down mid-drag does not move the ghost cursor', () => {
+    const hook = renderHook(() => usePlacementController())
+    act(() => useStore.getState().setActiveDefId('sofa-3seat'))
+    firePointer('pointermove', 1, { clientX: 10, clientY: 10 })
+    expect(useStore.getState().cursor).toEqual({ x: 10, y: 10 })
+    // A different finger's move is a no-op — it never latched the drag.
+    firePointer('pointermove', 2, { clientX: 500, clientY: 500 })
+    expect(useStore.getState().cursor).toEqual({ x: 10, y: 10 })
+    // The originating finger can still keep driving the ghost.
+    firePointer('pointermove', 1, { clientX: 20, clientY: 20 })
+    expect(useStore.getState().cursor).toEqual({ x: 20, y: 20 })
+    hook.unmount()
+  })
+
+  it("a second finger's pointerup does not commit or cancel the drag; the initiating finger's does", () => {
+    const hook = renderHook(() => usePlacementController())
+    act(() => useStore.getState().setActiveDefId('sofa-3seat'))
+    firePointer('pointermove', 1, { clientX: 10, clientY: 10 })
+    // A stray second finger lifting off the canvas must not end the gesture.
+    firePointer('pointerup', 2, { clientX: 10, clientY: 10 })
+    expect(useStore.getState().activeDefId).toBe('sofa-3seat')
+    expect(useStore.getState().items).toHaveLength(0)
+    // The finger that's actually dragging commits on its own lift.
+    firePointer('pointerup', 1, { clientX: 10, clientY: 10 })
+    expect(useStore.getState().items).toHaveLength(1)
+    hook.unmount()
+  })
+
+  it("a second finger's pointercancel does not abort the drag; the initiating finger's does", () => {
+    const hook = renderHook(() => usePlacementController())
+    act(() => useStore.getState().setActiveDefId('sofa-3seat'))
+    firePointer('pointermove', 1, { clientX: 10, clientY: 10 })
+    firePointer('pointercancel', 2)
+    expect(useStore.getState().activeDefId).toBe('sofa-3seat')
+    firePointer('pointercancel', 1)
+    expect(useStore.getState().activeDefId).toBeNull()
+    hook.unmount()
+  })
+
+  it('a stamp commit re-latches for whichever finger drives the next drop', () => {
+    // stampPlace is pro-tier — the module boots in Simple mode (CLAUDE.md
+    // "Test BOTH modes"), so opt into Pro for this stamp-specific scenario.
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    const hook = renderHook(() => usePlacementController())
+    act(() => useStore.getState().startStamp('sofa-3seat'))
+    // First drop, driven by finger 1.
+    firePointer('pointermove', 1, { clientX: 10, clientY: 10 })
+    firePointer('pointerup', 1, { clientX: 10, clientY: 10 })
+    expect(useStore.getState().items).toHaveLength(1)
+    // Stamp mode keeps the same activeDefId armed (no effect remount) — a
+    // completely different finger driving the next drop must not be gated
+    // out by a stale latch from finger 1.
+    useStore.getState().setGhostWorld([2, 2], true)
+    firePointer('pointermove', 7, { clientX: 30, clientY: 30 })
+    expect(useStore.getState().cursor).toEqual({ x: 30, y: 30 })
+    firePointer('pointerup', 7, { clientX: 30, clientY: 30 })
+    expect(useStore.getState().items).toHaveLength(2)
     hook.unmount()
   })
 })

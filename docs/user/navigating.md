@@ -24,18 +24,23 @@ dollhouse view for getting your bearings and presenting the design.
   always see inside.
 
 The **nav cluster** at the bottom‑right combines a compass (click to reorient),
-a zoom rail, and a minimap.
+a zoom rail, and a minimap. While inside the per‑room editor with something
+selected, the zoom rail also grows a **Frame selection** button — click it (or
+press <kbd>Z</kbd>) to dolly the camera in so the selected piece(s) fill the
+view, keeping your current viewing angle.
 
 ## Quick view shortcuts
 
 **Top view** and **Reset view** (in the **View** menu, or the shortcuts below)
 automatically zoom to fit — they centre the flat and frame it so the whole home
-just fills the screen, adapting to your window size.
+just fills the screen, adapting to your window size. **Frame selection** does
+the same for just the item(s) you've selected.
 
 | Action | Shortcut |
 | --- | --- |
 | Top‑down plan view (fit) | <kbd>O</kbd> |
 | Reset to the 3/4 overview (fit) | <kbd>H</kbd> |
+| Frame the current selection | <kbd>Z</kbd> |
 | Switch orbit ⇄ walk | <kbd>V</kbd> |
 
 ## Walk mode

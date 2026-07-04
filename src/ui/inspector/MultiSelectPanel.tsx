@@ -13,12 +13,14 @@ import {
 import {
   arrangeSelectionAsRun,
   faceSelectionIntoRoom,
+  mirrorSelectionAxis,
   mirrorSelectionX,
   snapSelectionToWall,
 } from '../../layout/selectionActions'
 import { useStore } from '../../state/store'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Icon } from '../toolbar/icons'
+import { IsolateControl } from './ItemPhysicalControls'
 import { MinimizeButton, useInspectorMinimize } from './useInspectorMinimize'
 
 /** Panel shown when 2+ items are selected: count + align / distribute / bulk
@@ -33,6 +35,8 @@ export function MultiSelectPanel() {
   const copyAppearanceOn = useFeature('copyAppearance')
   const bulkAppearanceOn = useFeature('bulkAppearance')
   const groupsOn = useFeature('furnitureGroups')
+  const isolateOn = useFeature('isolateSelection')
+  const mirrorAxisOn = useFeature('mirrorSelection')
   // The tint shared by every selected (unlocked) item, or '' when they differ /
   // are untinted — drives the bulk ColorPicker's displayed swatch.
   const sharedTint = useStore((s) => {
@@ -191,6 +195,9 @@ export function MultiSelectPanel() {
   const snapToWall = () => snapSelectionToWall(catalog)
   const arrangeAsRun = () => arrangeSelectionAsRun(catalog)
   const mirror = () => mirrorSelectionX(catalog)
+  // Mirror across the room's Z axis (front↔back) — the axis-choice companion to
+  // the always-on X mirror above, gated behind `mirrorSelection` (FEAT-2).
+  const mirrorZ = () => mirrorSelectionAxis(catalog, 'z')
 
   const deleteAll = () => {
     const s = useStore.getState()
@@ -328,8 +335,19 @@ export function MultiSelectPanel() {
                   title="Mirror the selection left↔right across its centre"
                 >
                   <Icon.FlipH width={16} height={16} />
-                  Mirror
+                  {mirrorAxisOn ? 'Mirror X' : 'Mirror'}
                 </button>
+                {mirrorAxisOn ? (
+                  <button
+                    type="button"
+                    className="act"
+                    onClick={mirrorZ}
+                    title="Mirror the selection front↔back across its centre"
+                  >
+                    <Icon.FlipV width={16} height={16} />
+                    Mirror Z
+                  </button>
+                ) : null}
               </div>
               <button
                 type="button"
@@ -433,6 +451,7 @@ export function MultiSelectPanel() {
                   Paste appearance
                 </button>
               ) : null}
+              {isolateOn ? <IsolateControl /> : null}
               <button
                 type="button"
                 onClick={duplicateAll}

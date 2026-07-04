@@ -13,6 +13,7 @@ import { Icon } from '../toolbar/icons'
 import { useAmbientFx } from '../useAmbientFx'
 import { useIsMobile } from '../useIsMobile'
 import { CatalogCard } from './CatalogCard'
+import { CatalogResizeHandle } from './CatalogResizeHandle'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import {
   filterByFits,
@@ -118,6 +119,7 @@ export function CatalogDrawer() {
   // shows only the curated builtin loop. Drives both the grid merge and the index
   // bootstrap (don't fetch the model index when off).
   const fRemoteFurniture = useFeature('remoteFurniture')
+  const fCatalogResize = useFeature('catalogResize')
   // Materials browse (FinishPicker) shares the same provider index, so the drawer
   // still bootstraps it when only the material browser is enabled.
   const fRemoteMaterials = useFeature('remoteMaterials')
@@ -364,6 +366,8 @@ export function CatalogDrawer() {
     <aside
       className={`panel catalog dock-panel-left${planFurnishActive ? ' catalog-in-plan' : ''}`}
     >
+      {/* Resizable dock on desktop/wide screens (mobile keeps the bottom-sheet). */}
+      {fCatalogResize && !isMobile ? <CatalogResizeHandle /> : null}
       <div className="panel-head">
         <div className="panel-title">
           {view === 'layers' ? 'Objects' : view === 'packs' ? 'Packs' : 'Catalog'}

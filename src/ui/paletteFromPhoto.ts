@@ -1,20 +1,6 @@
-import { extractPalette, nearestColor, type Rgb } from '../analysis/imagePalette'
-import { BUILTIN_MATERIALS_BY_CATEGORY } from '../materials/builtinCatalog'
-import { hexToRgb } from '../materials/procedural/noise'
+import { extractPalette } from '../analysis/imagePalette'
 import { useStore } from '../state/store'
-
-/** Candidate finishes (floor + wall) with a resolved RGB swatch, for nearest-match. */
-function finishCandidates(): Array<Rgb & { name: string; swatch: string }> {
-  const out: Array<Rgb & { name: string; swatch: string }> = []
-  for (const cat of ['floor', 'wall'] as const) {
-    for (const m of BUILTIN_MATERIALS_BY_CATEGORY[cat] ?? []) {
-      if (!m.swatch) continue
-      const [r, g, b] = hexToRgb(m.swatch)
-      out.push({ r, g, b, name: m.name, swatch: m.swatch })
-    }
-  }
-  return out
-}
+import { mapPaletteToFinishes } from './paletteFromPhotoMatch'
 
 /** Decode a user-picked image to RGBA pixels via an offscreen canvas. */
 async function imageToPixels(
@@ -71,11 +57,7 @@ export function pickPaletteFromPhoto(): void {
       // (P-CHUNK); we're already past an await here, and the window opens
       // after a file-picker round-trip anyway.
       const { buildMoodboardHtml } = await import('./moodboard')
-      const candidates = finishCandidates()
-      const materials = palette.map((p) => {
-        const near = candidates.length ? nearestColor(p, candidates) : undefined
-        return { name: near ? `${near.name} (≈ ${p.hex})` : p.hex, swatch: near?.swatch ?? p.hex }
-      })
+      const materials = mapPaletteToFinishes(palette)
       const html = buildMoodboardHtml({
         title: 'Palette from photo',
         subtitle: 'Extracted colours + nearest catalog finishes',

@@ -1,0 +1,19 @@
+{
+  "name": "blocked-placement-pill",
+  "description": "Bug #6: a blocked (invalid) pending edit shows the Apply pill with a greyed-out, non-clickable confirm tick + a can't-apply tooltip; confirm is a no-op while blocked.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13)" },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "wait-settle", "wait": 1200 },
+    { "name": "seed-item", "eval": "window.__store.getState().setItems([{id:'blk-sofa',defId:'sofa-3seat',position:[9.2,2.2],rotation:0,props:{}}])" },
+    { "name": "select-item", "store": { "action": "setSelectedItemIds", "args": [["blk-sofa"]] } },
+    { "name": "arm-blocked-edit", "eval": "window.__store.getState().setPendingEdit({ kind:'transform', ids:['blk-sofa'], originals:[{id:'blk-sofa',position:[9.2,2.2],rotation:0}], priorItems: window.__store.getState().items, blocked:true })" },
+    { "name": "wait-pill", "waitFor": { "text": "Can't place here" }, "timeout": 4000, "failMessage": "blocked pill label did not render" },
+    { "name": "assert-tick-disabled", "eval": "(()=>{const b=document.querySelector('.edit-confirm-btn.confirm');if(!b)throw new Error('no confirm tick');if(!(b instanceof HTMLButtonElement)||!b.disabled)throw new Error('confirm tick should be disabled while blocked');if(!/can.t apply/i.test(b.getAttribute('title')||''))throw new Error('missing cant-apply tooltip')})()" },
+    { "name": "shot-blocked", "screenshot": "blocked-pill-disabled-tick" },
+    { "name": "click-disabled-tick-noop", "eval": "(()=>{const b=document.querySelector('.edit-confirm-btn.confirm');b.click();if(!window.__store.getState().pendingEdit)throw new Error('blocked edit was committed on tick click — should be a no-op');if(!window.__store.getState().pendingEdit.blocked)throw new Error('pending edit lost its blocked flag')})()" }
+  ]
+}

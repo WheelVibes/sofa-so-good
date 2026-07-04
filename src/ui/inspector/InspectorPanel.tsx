@@ -10,7 +10,7 @@ import { InspectorSection } from './InspectorSection'
 import { ItemBasicActions, ItemOrientActions } from './ItemActionButtons'
 import { ItemBulkActions } from './ItemBulkActions'
 import { ItemLightControls } from './ItemLightControls'
-import { ElevationControl, OpacityControl } from './ItemPhysicalControls'
+import { ElevationControl, IsolateControl, OpacityControl } from './ItemPhysicalControls'
 import { tryMoveItem, trySetRotItem } from './itemTransforms'
 import { LinearArraySection } from './LinearArraySection'
 import { MultiSelectPanel } from './MultiSelectPanel'
@@ -54,6 +54,8 @@ export function InspectorPanel() {
   const elevationOn = useFeature('mountHeights')
   // Per-item opacity (ghost) + hide in 3D.
   const itemOpacityOn = useFeature('itemOpacity')
+  // Isolate/solo focus mode (FEAT-C): dim everything else to focus on this item.
+  const isolateOn = useFeature('isolateSelection')
   const renameItem = useStore((s) => s.renameItem)
   const { minimized, toggle } = useInspectorMinimize(item?.id)
   const swipe = useSwipeToCollapse(minimized, toggle)
@@ -166,6 +168,7 @@ export function InspectorPanel() {
               ) : null}
               {elevationOn && !item.locked ? <ElevationControl item={item} /> : null}
               {itemOpacityOn ? <OpacityControl item={item} /> : null}
+              {isolateOn ? <IsolateControl /> : null}
               {itemAsLightOn && isItemEmitter(item.defId, item.props) ? (
                 <ItemLightControls item={item} />
               ) : null}

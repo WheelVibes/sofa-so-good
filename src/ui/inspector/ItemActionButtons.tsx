@@ -5,6 +5,7 @@ import { Icon } from '../toolbar/icons'
 import { shortcutLabel } from '../toolbar/shortcuts'
 import {
   centreItemInRoom,
+  confirmDeleteItem,
   duplicateItemNearby,
   faceItemIntoRoom,
   flipItemAxis,
@@ -86,7 +87,7 @@ export function ItemBasicActions({ item, def, catalog }: ItemActionProps) {
       <button
         type="button"
         className="act danger"
-        onClick={() => !item.locked && useStore.getState().deleteItem(item.id)}
+        onClick={() => !item.locked && void confirmDeleteItem(item.id, def.name)}
         disabled={item.locked}
         title="Delete this item (Del)"
       >

@@ -81,6 +81,22 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   changes. The night-dim `environmentIntensity` ramp applies to both. (This is the sanctioned way to
   set `scene.environment` — distinct from the backdrop rule above, which forbids *backdrop* code from
   touching it.)
+- **The orbit camera's projection/orientation may be corrected post-`OrbitControls.update()`,
+  never fought with it (FEAT-D).** `cameras/verticalLock.ts` (`computeVerticalLock`, pure,
+  no three.js import — dependency-free like `cameraLensSettings.ts`) computes a leveled look-at
+  target + a vertical `camera.view.offsetY` shift from the live pose + FOV; `OrbitCamera.tsx`
+  applies it in its OWN `useFrame` (default priority), registered textually *after* the component's
+  existing fly/tour `useFrame`, so — because drei's `<OrbitControls>` runs its internal `update()`
+  at priority **-1** and same-priority (0) subscribers fire in registration order — the correction
+  always sees this frame's final pitched pose and applies last. It mutates only
+  `camera.up`/`camera.quaternion` (via `lookAt`) + `camera.view`/projection matrix, **never**
+  `camera.position` or `controls.target` — OrbitControls recomputes its own quaternion from
+  spherical state + `object.up` each frame regardless of what a later callback did to
+  `camera.quaternion`, so this can't feed back or drift. Assign `camera.view` directly (not
+  `PerspectiveCamera.setViewOffset`, which also stomps `camera.aspect` via its `fullWidth/
+  fullHeight` args) when you need a projection shift without touching the live aspect ratio R3F
+  already maintains. Any future per-frame camera correction on the orbit camera should follow this
+  exact pattern (pure math module + post-controls `useFrame`, position/target untouched).
 - **Materials**: pass a real three `Material` to `material=`, never a props object.
 - **Mount expensive controllers once**; collapse repeat geometry via `InstancedBoxes`.
   `ContextLossGuard` must stay mounted in **both** Canvases (main + room editor).
@@ -96,6 +112,17 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `transparent`), keep parts from intersecting, and orbit to a side/profile angle to confirm
   contact (top-down hides float/sink). Visually verify per the playbook — green tests are
   not proof the render is right.
+- **Every new orbit-camera retarget reuses the shared `startFly` tween, never a raw
+  `camera.position.set`/`controls.update()` snap.** `OrbitCamera.tsx` funnels saved view,
+  double-click focus, top-down, reset/home, and frame-selection (FEAT-A, `Z` — `scene/cameras/
+  frameSelection.ts`) through one `fly` ref + `startFly.current(pos, target)`, so every retarget
+  gets the same smoothstep ease, distance-aware duration (`cameraTween.ts` `flyDurationFor`), and
+  spherical (not Cartesian) interpolation that avoids the TV-SNAP pole-instability bug. A new
+  camera-framing feature adds a nonce + payload field to `cameraSlice` (mirror `frameNonce`/
+  `frameBounds`) and a `useEffect` that calls `startFly.current(...)` — never a new ad-hoc tween.
+  Keep bounds→distance math in a pure, three.js-free module (`fitDistanceForFov`/
+  `clampOrbitDistance` in `frameSelection.ts`) so it stays unit-testable; `OrbitCamera.tsx` only
+  supplies the live `camera.fov`/`aspect` and the current view angle.
 - **A plain-object module signal is the sanctioned way for DOM UI outside the R3F tree to talk
   to a per-frame controller inside it**, in either direction — `cameraForward.ts`
   (`cameraForwardXZ`/`cameraPosXZ`) publishes OUT (written every frame, read by the minimap/
@@ -125,6 +152,38 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   rotate ring with one pointer then driving a second pointer far away leaves the rotation
   untouched and the second pointer's `pointerup` doesn't end the gesture. `MarqueeSelector`
   (MOBILE-2) is gated the same way (a closure-local `activePointerId`, since it lives outside the
-  Canvas with no per-gesture ref). Catalog placement-drag ghost (`usePlacementController.ts`,
-  MOBILE-3) is lower severity (cosmetic jitter, no mis-commit) and intentionally left ungated here
-  — it's outside `src/scene/` and a UI-owned surface.
+  Canvas with no per-gesture ref). Catalog placement-drag ghost (`src/ui/catalog/
+  usePlacementController.ts`, MOBILE-3) is gated too, though it's outside `src/scene/` and a
+  UI-owned surface: placement arms off-window (a catalog-card long-press timer fires before this
+  hook's listeners exist), so there's no `pointerdown` to record the initiating id from — its
+  `dragPointerId` is instead latched lazily onto the first pointer event the effect observes, reset
+  on every concluding touch up/cancel (so a stamp/shift drop that keeps the same `activeDefId`
+  armed re-latches per drop). Same `isActiveDragPointer` reuse, adapted for a hook that can't see
+  the gesture's actual start.
+- **Alt/Option-drag duplicate (FEAT-B, `altDragDuplicate` flag, pro tier).** Starting a drag on
+  an ALREADY-selected item while holding Alt clones it and drags the copy, leaving the original
+  in place — the decision (`dragHelpers.ts:shouldDuplicateOnDragStart`, pure + unit-tested) is
+  locked in at `Furniture.onPointerDown`, which passes the selection's ids as `startDrag`'s
+  optional `duplicateSourceIds` instead of creating anything yet. That only arms
+  `placementSlice.dragDuplicatePending` — the clone is created lazily, on the drag's FIRST real
+  `pointermove`, via `resolveDragDuplicate()` (`DragController`'s `onMove`, before every other
+  branch): it clones the source item(s) **in place** (`furniture/duplicatePlacement.ts:
+  cloneItemsInPlace` — same clone shape as `planDuplicates`, no offset search since the copy is
+  about to be dragged away) and repoints `draggingItemId`/`dragGroupOriginals` at the fresh
+  clone(s), so every later `onMove`/`onUp` branch (collision, snug-stack, alignment guides, the
+  BUG-1 pointerId gate) runs unmodified against the copy while the original sits as an ordinary
+  static obstacle. This is why a plain Alt+click that never moves duplicates nothing (no
+  pointermove ever fires) and can't collide with `selectItemGrouped`'s existing Alt-drill-in
+  (that only runs when the pressed item ISN'T already selected — `shouldDuplicateOnDragStart`
+  requires the opposite). A multi-selected drag clones the whole selection, re-grouping the
+  copies under a fresh id only when every source shared one group (mirrors `duplicateAll`/
+  `duplicateSelection`'s groupId rule) — a lone item's clone always drops the group, matching the
+  single-item Duplicate button. `startDrag`'s one `pushHistory()` already covers "undo the
+  duplicate + the move" in a single step (the clone itself is added via a plain `set`, no second
+  push) — the one wrinkle is `dragIsDuplicate`/`dragDuplicateSourceIds` (set by
+  `resolveDragDuplicate`, read + cleared by `onUp`): if the resolved copy ends up nowhere
+  different from its source (an invalid drop auto-reverted, or a net-zero move), `onUp` restores
+  the exact pre-duplicate items/selection snapshot instead of falling into the generic "no-op
+  click" `dropRedundantHistory()` path, which would otherwise leave an orphaned, un-undoable
+  duplicate stacked on the original (item-COUNT changes aren't visible to that path's
+  position-only `changed` check).

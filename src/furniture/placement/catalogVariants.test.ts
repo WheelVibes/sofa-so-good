@@ -135,11 +135,15 @@ const PLAIN_GLB: FurnitureDef = {
 }
 
 describe('catalogVariantOptions / hasCatalogVariants', () => {
-  it('offers every IKEA variant (incl. a disabled stub) for a multi-variant product', () => {
+  it('offers only the RENDERABLE IKEA variants — a stub with no GLB (assetId null) is hidden', () => {
+    // bug #7: unavailable variants were shown as disabled/greyed swatches the
+    // user couldn't pick. They're now filtered out entirely, so only finishes
+    // with a real asset (white, black-brown) are offered; the 'oak-veneer' stub
+    // (assetId === null) is dropped.
     const opts = catalogVariantOptions(IKEA_MULTI)
-    expect(opts.map((o) => o.id)).toEqual(['white', 'black-brown', 'oak-veneer'])
+    expect(opts.map((o) => o.id)).toEqual(['white', 'black-brown'])
     expect(opts[0]).toMatchObject({ label: 'White', swatchHex: '#f2f2f2', disabled: false })
-    expect(opts[2]).toMatchObject({ label: 'Oak veneer', disabled: true })
+    expect(opts.some((o) => o.disabled)).toBe(false)
     expect(hasCatalogVariants(IKEA_MULTI)).toBe(true)
   })
 

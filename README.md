@@ -42,7 +42,7 @@ versions, comments, AI export, live prices, …).
 `drag` orbit · `scroll` zoom · `click` select / open doors · `⌘K` command palette ·
 `right-click` context menu · `R` rotate · `Del` delete · `⌃Z`/`⇧⌃Z` undo/redo ·
 `⌃C`/`⌃V`/`⌃D` copy/paste/duplicate · `⌃A` select all · `C` catalog · `M` measure ·
-`T` cycle time · `O` top view · `H` reset view · `L` tidy · `P` 2D⇄3D · `V` orbit/walk ·
+`T` cycle time · `O` top view · `H` reset view · `Z` frame selection · `L` tidy · `P` 2D⇄3D · `V` orbit/walk ·
 in walk: `WASD` move, `E` doors · `?` help. → [All shortcuts](docs/user/keyboard-shortcuts.md)
 
 ## Develop

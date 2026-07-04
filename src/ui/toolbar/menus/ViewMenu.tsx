@@ -22,6 +22,8 @@ export function ViewMenu() {
   const requestHomeView = useStore((s) => s.requestHomeView)
   const autoRotate = useStore((s) => s.autoRotate)
   const toggleAutoRotate = useStore((s) => s.toggleAutoRotate)
+  const verticalLock = useStore((s) => s.verticalLock)
+  const toggleVerticalLock = useStore((s) => s.toggleVerticalLock)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
@@ -29,6 +31,7 @@ export function ViewMenu() {
   const units = useStore((s) => s.units)
   const savedViews = useFeature('savedViews')
   const fVr = useFeature('vrWalkthrough')
+  const fTwoPointPerspective = useFeature('twoPointPerspective')
   const [vrSupported, setVrSupported] = useState(false)
   useEffect(() => {
     if (!fVr) return
@@ -140,6 +143,15 @@ export function ViewMenu() {
             active={autoRotate}
             onClick={toggleAutoRotate}
           />
+          {fTwoPointPerspective ? (
+            <MenuItem
+              icon="AlignX"
+              label="Vertical lock"
+              sub="Keep wall corners parallel instead of converging"
+              active={verticalLock}
+              onClick={toggleVerticalLock}
+            />
+          ) : null}
           {proMode && savedViews ? <SavedViewsSection /> : null}
         </>
       ) : null}

@@ -24,6 +24,25 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   eligibility/toggle logic in `furniture/lightInteract.ts` only reads `defId` + `props`, since an
   interactable light can be ANY item kind (a registered builtin fixture OR a GLB/IKEA/user import
   the player already flagged via the `itemAsLight` override).
+- **`isolateSlice`** (FEAT-C, isolate/solo the selection) is a one-field session-only slice:
+  `isolateActive: boolean` + `toggleIsolateSelection`/`setIsolateActive`. Unlike the
+  `windowFixtureSlice`-family sessions above, it stores no per-item state at all (no
+  `Record<id, …>`, not even a snapshot of which ids were isolated) — "which items are dimmed"
+  is re-derived on every render from the LIVE `selectedItemIds` via the pure
+  `furniture/isolateSelection.ts:computeDimmedItemIds`, so isolate always tracks the current
+  selection instead of a stale one. Rendering is a pure opacity override in `Furniture.tsx`
+  (`FurnitureLayer` computes the dimmed set once, passes `dimmed` down) — it deliberately does
+  **not** reuse the persisted per-item `item.props.opacity` (CUSTOMIZE-OPACITY) field; that one
+  is user-authored and round-trips through `serialize()`, so writing a temporary solo-dim value
+  into it would risk autosaving a stray opacity if the timing ever raced a save. The two compose
+  at render time instead (`Math.min(itemOpacity, SOLO_DIM_OPACITY)` when dimmed). **Auto-clear**
+  (selection change OR room-editor exit must drop isolate) is wired as a single `useStore.subscribe`
+  in `store.ts` watching `selectedItemIds` by CONTENT (not reference, so a re-click of the same
+  selected item doesn't spuriously clear it) — exiting/entering the room editor already clears
+  selection itself (`uiSlice`), so one watcher covers both triggers without coupling
+  `selectionSlice`/`uiSlice` to isolate state. Mirrors this file's wall-thickness module-level
+  `useStore.subscribe` a few lines below it in `store.ts` — that's the established pattern for a
+  cross-slice reactive side effect that doesn't belong inside either slice's own actions.
 - **`editorPrefs` also persists per-device UI convenience state** (out of the save schema):
   the left-dock tab (`leftMode`), the collapsed layer-group map (`layersCollapsed`, lifted from
   `LayersPanel` into `featuresSlice`), `catalogOpen` — the last restored **desktop-only**
@@ -54,7 +73,16 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   and `favouritesSlice` both self-persist to localStorage (keys `hdb_recent_items`, `hdb_favourites`; `calloutsSlice`/`badgesSlice` likewise (`hdb_dismissed_callouts`, `hdb_seen_badges`)
   for furniture, and `hdb_fav_finishes` for finish/material favourites — a **separate** list so the
   catalog "Favourites" tab never shows un-renderable finish ids) — the pattern for per-device catalog
-  convenience state.
+  convenience state. **`clipboardSlice`** (R3-FEAT-1) follows the exact same self-persist pattern
+  (key `hdb_clipboard`, loaded once into `CLIPBOARD_INITIAL` at module init, written on every
+  `setClipboard`, guarded JSON.parse defaulting to `null`) so a copy survives a reload and pastes
+  across designs — unlike `recentSlice`/`favouritesSlice`, an entry here also carries a `defId`
+  that may not exist in whatever design/session it's later pasted into, so the validator
+  (`isClipboardEntry`) filters malformed *entries* individually (an all-invalid array still
+  degrades to `null`, never an empty array masquerading as "nothing copied" vs. "corrupt"). Cross-
+  design resolution itself is unchanged: `App.tsx`'s `pasteClipboard` already re-resolves each
+  entry's `defId` against the *current* catalog and silently skips anything unresolvable, so a
+  stale persisted entry degrades gracefully instead of reviving a dead reference.
 - **`schema.ts` is the save/load serializer.** Any new *persisted* item/design field must
   round-trip there — keep it optional + back-compat; bump the version + add a migration for
   a breaking change (the v1→v2 `groupId` migration is the pattern).

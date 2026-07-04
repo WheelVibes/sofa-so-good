@@ -439,10 +439,40 @@ same change that reshapes a system.
   `fitDistance`, the same helper as the whole-plan dollhouse), so the room just fills the
   screen on any aspect ratio.
 - **Eased camera transitions** (`scene/cameras/cameraTween.ts`, pure + unit-tested): every
-  retarget — saved view, double-click focus, top-down, reset/home — flies through one shared
-  `startFly` in `OrbitCamera` (smoothstep ease, **distance-aware** `flyDurationFor` so a short
-  hop snaps and a long jump glides) rather than a hard `controls.update()` snap. The fly
-  self-pumps the demand-mode renderer via OrbitControls' `change` event each frame.
+  retarget — saved view, double-click focus, top-down, reset/home, frame-selection — flies
+  through one shared `startFly` in `OrbitCamera` (smoothstep ease, **distance-aware**
+  `flyDurationFor` so a short hop snaps and a long jump glides) rather than a hard
+  `controls.update()` snap. The fly self-pumps the demand-mode renderer via OrbitControls'
+  `change` event each frame.
+- **Frame selection (FEAT-A, `Z` or the NavCluster button, `frameSelection` flag, simple tier)**:
+  dolly/retarget the orbit camera so the current selection fills the view — the universal
+  SketchUp/Blender/Figma "zoom to selection". Pure bounds→camera math in
+  `scene/cameras/frameSelection.ts` (unit-tested): `resolveSelectionExtents` turns each selected
+  item into a world-space `itemFootprint` OBB + vertical span (`def.verticalSpan ?? [0, h]`),
+  `selectionBounds` unions them (via `layout/alignDistribute.ts` `obbAxisHalf`) into one bounding
+  sphere, and `fitDistanceForFov` (the same formula `OrbitCamera`'s whole-plan `fitDistance` uses)
+  turns the radius into a camera distance, clamped to the `<OrbitControls>` min/max
+  (`clampOrbitDistance`). `App.tsx`'s key handler resolves the bounds (needs `catalog`, only
+  available outside the Canvas) and calls `cameraSlice.requestFrameSelection`, which bumps
+  `frameNonce`; `OrbitCamera`'s effect reads `frameBounds` and flies to it through the shared
+  `startFly`, **keeping the current orbit angle** (same "re-target without resetting the view"
+  feel as double-click focus) rather than a fixed 3/4 dollhouse angle. No-op with nothing
+  selected. Bare `F` was already `flip` in the same orbit+selection context (`controls/
+  keybindings.ts`), so the binding is `Z` (mnemonic: Zoom). Scenario:
+  `scripts/scenarios/frame-selection-simple.json`.
+- **Two-point-perspective / vertical-line-lock (FEAT-D, `twoPointPerspective` flag, pro):**
+  `scene/cameras/verticalLock.ts` (`computeVerticalLock`, pure + unit-tested, no three.js import)
+  takes the orbit camera's pose + FOV and returns a leveled look-at target (same yaw, zero pitch)
+  plus a vertical projection-window shift (`camera.view.offsetY`, assigned directly rather than via
+  `setViewOffset` so `camera.aspect` is never touched) that re-centres the original framing — the
+  architectural-photographer's shift-lens trick, so wall corners/door frames render exactly
+  parallel instead of converging when the view is pitched. `OrbitCamera.tsx` applies it in a
+  dedicated `useFrame` registered (and thus run) after both drei's own `OrbitControls.update()`
+  (priority -1) and the fly/tour `useFrame` above, so it always corrects the frame's final pose; it
+  only touches orientation + projection, never `camera.position`/`controls.target`, so
+  OrbitControls' own spherical state is unaffected. Toggle lives in the `ViewMenu`/`ViewSection`
+  "Framing" cluster (desktop + mobile parity) next to Turntable; persisted per-device via
+  `qualityPrefs` (`verticalLock`, back-compat default off).
 - **Placement drop-in easing** (`scene/placementDrop.ts`, pure timing + unit-tested): a freshly
   placed piece eases DOWN onto its resting spot from a small height (~0.16 m, 300 ms, ease-out).
   `Furniture` keeps NO per-item `useFrame` (perf rule) — instead each item registers its root
@@ -1044,6 +1074,22 @@ same change that reshapes a system.
   `dimensionCommit`/`scaleCommits`/`wallTapCommits`/`polygonClick`/`rectFromVerts`/`rectFromDraft`/
   `rotateWallTransform`); `FloorPlanEditor`'s `onDown`/`onMove`/`onUp` are thin dispatchers that own the
   React draft state + store writes and delegate the math (MOD-FPE-SPLIT, behaviour-preserving extraction).
+  The screen→world coordinate mapping those dispatchers call into (grid/guide snap, wall magnetism, the
+  wall-draw angle-then-wall-snap pipeline) is itself factored into `ui/floorplan/editor/planPointerMapping.ts`
+  (`createPlanPointerMapping`, REFAC-2) — not a pure module (reads the live SVG rect off `svgRef`), so
+  it composes the pure `floorPlanGeometry`/`snapToWalls`/`snapWallAngle` primitives rather than being
+  unit-tested itself. REFAC-2 also lifted the toolbar/header JSX out of the component: small
+  presentational controls (`EditModeToggle`, `DrawToolPalette`, `WallTypeToggle`, `UndoRedoButtons`,
+  `GridZoomControls`, `PlanTotalLabel`, `PlanViewMenuActions`, `PlanDefaultsFields`) plus two layout
+  shells (`PlanEditorHeader` — the mobile/desktop toolbar row, `PlanToolsSheet` — the mobile ☰ Menu
+  bottom-sheet) that take already-built fragments as `ReactNode` props rather than raw store state, and
+  four more SVG **render layers** alongside the eleven from MOD-FPE-SPLIT (`PlanGuidesLayer`,
+  `OtherLevelsUnderlay`, `PersistentDimensionsLayer`, `AnnotationsLayer`). The "Plan ▾" menu's file/
+  reference-photo actions (~230 lines, many independent feature-flagged pieces) were deliberately
+  **left inline** — a prior audit (TASKS.md MOD-FPE-SPLIT) judged that bundling them into one
+  component needs a 40+ prop surface that would hurt readability more than the named-fragment consts;
+  the same reasoning kept `onDown`/`onMove`/`onUp` themselves in the component (moving ~30 pieces of
+  gesture `useState` into an external hook was judged higher-risk than the line-count win).
   **Numeric wall entry** (`wallNumericEntry` flag, pro, default on): while a desktop wall draft is active
   a floating overlay (`ui/floorplan/editor/WallNumericEntry.tsx`) appears near the cursor endpoint with
   Length and Angle ° text fields; typing drives a live preview; Enter commits at the exact values; Tab
@@ -1268,9 +1314,19 @@ same change that reshapes a system.
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
   even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
   snap-to-wall (`layout/faceWall.ts`) / arrange-as-run (`layout/arrangeRun.ts`, butt a kitchen
-  run flush along a wall) / mirror (`layout/mirrorRoom.ts` `mirrorItemX`). The wall/orient/
-  mirror actions live in `layout/selectionActions.ts`, shared by the inspector + ⌘K. Lock;
-  double-click focus.
+  run flush along a wall) / mirror. The wall/orient/mirror actions live in
+  `layout/selectionActions.ts`, shared by the inspector + ⌘K. **Mirror across a room axis
+  (FEAT-2)**: `furniture/mirrorSelection.ts` is the pure, unit-tested reflection math
+  (`mirrorSelection(items, axis)` mirrors the whole selection as a rigid group about its own
+  centroid on axis `'x'`/`'z'`, flipping position + heading + the matching `flipX`/`flipZ`);
+  `selectionActions.ts:mirrorSelectionAxis(catalog, axis)` collision-checks + commits
+  all-or-nothing, one undo step. The pre-existing ungated left↔right-only `mirrorSelectionX`
+  (used by the ⌘K `sel-mirror` command + the 2D plan editor's ungated core mirror,
+  `layout/mirrorRoom.ts`'s unrelated whole-room `mirrorItemX` is untouched) is now a thin
+  `mirrorSelectionAxis(catalog, 'x')` wrapper. The **Z axis** option — "Mirror Z" in
+  `MultiSelectPanel.tsx` (shown alongside "Mirror X" once the flag is on) + the `sel-mirror-z`
+  ⌘K command — is gated by the `mirrorSelection` Pro flag (an arrange-tool refinement, not
+  core-loop). Lock; double-click focus.
 - **Measurement units** (`utils/measurement.ts`, `measurementsSlice.units`): metric/
   imperial display toggle (`editorPrefs`); metric canonical, `formatLength`/`formatArea`/…
   the single source. **Groups** (`groupsSlice.ts`): shared `groupId` = emergent group

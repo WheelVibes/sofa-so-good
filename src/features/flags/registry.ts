@@ -1230,6 +1230,84 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Frame / zoom-to-selection camera (FEAT-A) — dolly + retarget the orbit
+  // camera so the current selection's bounds fill the view, keyed to Z (bare
+  // "F" is already `flip` in the same orbit+selection context — see
+  // `controls/keybindings.ts`) + a NavCluster button. Pure camera-only math,
+  // no mutation, no licensed asset — a universal 3D-tool navigation
+  // convenience (SketchUp/Blender/Figma "zoom to selection") that belongs in
+  // the core design loop → simple tier, present in both modes.
+  frameSelection: {
+    label: 'Frame selection',
+    description: 'Dolly the camera to fit the selected item(s) (Z)',
+    default: true,
+    tier: 'simple',
+  },
+  // Alt/Option-drag duplicate (FEAT-B, SketchUp/Figma/Coohom parity): starting a
+  // drag on an already-selected item while holding Alt/Option clones it and
+  // drags the copy, leaving the original in place — the fastest way to lay out
+  // repeated pieces (dining chairs, a row of cabinets) short of the array tools.
+  // Pure code, no external assets → prod-safe. A power-user shortcut on top of
+  // the existing Duplicate button/⌘D → pro tier (hidden in Simple mode, where
+  // the core loop's own catalog-drag + Duplicate action stay the only ways in).
+  altDragDuplicate: {
+    label: 'Alt-drag duplicate',
+    description: 'Alt/Option-drag a selected item to duplicate it and drag the copy',
+    default: true,
+    tier: 'pro',
+  },
+  // Isolate / solo the selection (FEAT-C): one-tap focus mode that dims every
+  // OTHER placed item so the selected piece(s) stand out in a dense furnished
+  // HDB (Blender local-view / SketchUp isolate parity). Session-only state
+  // (`isolateSlice.isolateActive`, not persisted) — purely a render-time
+  // opacity override, no item props are touched. Auto-clears on any selection
+  // change (including the room-editor exit, which itself clears selection).
+  // An advanced 3D-editor viewing aid beyond the core furnish loop → pro tier.
+  isolateSelection: {
+    label: 'Isolate selection',
+    description: 'Dim everything except the selected item(s) to focus on one piece',
+    default: true,
+    tier: 'pro',
+  },
+  // Mirror the selection across a chosen room axis (X = left↔right, Z =
+  // front↔back), reflecting position + heading and toggling flipX/flipZ so an
+  // asymmetric group (an L-sofa + chaise) reads as its true mirror image — a
+  // rigid group reflection about the selection's own centroid, all-or-nothing
+  // collision-checked (FEAT-2). The pre-existing left↔right-only "Mirror"
+  // action (X axis) stays ungated as a core align/distribute op; this flag
+  // gates the newer explicit axis picker (adds the Z option) as the more
+  // advanced control. An arrange-tool refinement, not core-loop → pro tier.
+  mirrorSelection: {
+    label: 'Mirror across axis',
+    description: 'Mirror the selection across a chosen room axis (X or Z)',
+    default: true,
+    tier: 'pro',
+  },
+  // Two-point-perspective / vertical-line-lock orbit camera (FEAT-D): levels
+  // the camera's pitch + applies a vertical projection-matrix lens-shift
+  // (`scene/cameras/verticalLock.ts`, pure + unit-tested) so wall corners and
+  // door frames stay parallel instead of converging when the view is pitched
+  // — the D5 Render/Enscape "keep verticals vertical" toggle (REFERENCES.md),
+  // an architectural-photo quality lever for shareable HDB hero shots. Pure
+  // client-side camera/projection math, no external assets → prod-safe. An
+  // advanced photographic control beyond the core view loop → pro tier
+  // (hidden in Simple mode automatically).
+  twoPointPerspective: {
+    label: 'Two-point perspective',
+    description: 'Keep vertical building lines parallel when the camera is pitched',
+    default: true,
+    tier: 'pro',
+  },
+  // Drag-to-resize the docked catalog rail on desktop/wide screens (a col-resize
+  // handle on its right edge; width persisted per-device). A core-loop UX
+  // convenience available to everyone → simple tier. Mobile keeps the bottom
+  // sheet (the handle isn't rendered there).
+  catalogResize: {
+    label: 'Resizable catalog',
+    description: 'Drag the catalog panel edge to resize it (desktop)',
+    default: true,
+    tier: 'simple',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

@@ -15,6 +15,7 @@ import { aiLayoutToItems, placeNonOverlapping } from '../layout/aiLayoutApply'
 import {
   arrangeSelectionAsRun,
   faceSelectionIntoRoom,
+  mirrorSelectionAxis,
   mirrorSelectionX,
   snapSelectionToWall,
 } from '../layout/selectionActions'
@@ -82,6 +83,12 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'grow-room': 'roomInset',
   // The sun-driven sky backdrop command is gated by its feature flag (RD-412).
   'backdrop:sky': 'proceduralSky',
+  // Isolate/solo the selection (FEAT-C).
+  'sel-isolate': 'isolateSelection',
+  // Front↔back axis-mirror is the newer explicit axis-picker companion to the
+  // always-on left↔right "sel-mirror" (FEAT-2) — pro-tier, so it's hidden in
+  // Simple along with the rest of `mirrorSelection`.
+  'sel-mirror-z': 'mirrorSelection',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -117,6 +124,9 @@ export function CommandPalette() {
   const activeGroupId = useStore((s) => s.activeGroupId)
   // The selected plan room (id) gates the inset / grow room commands.
   const selRoomId = useStore((s) => (s.planSelection?.type === 'room' ? s.planSelection.id : null))
+  // Isolate/solo (FEAT-C): live so the command label flips between
+  // Isolate/Exit isolate without needing to reopen the palette.
+  const isolateActive = useStore((s) => s.isolateActive)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -653,6 +663,15 @@ export function CommandPalette() {
               icon: 'FlipH',
               run: () => mirrorSelectionX(catalog),
             },
+            // Front↔back axis mirror (FEAT-2), gated by `mirrorSelection` via
+            // COMMAND_FLAGS — the axis-choice companion to the ungated X mirror above.
+            {
+              id: 'sel-mirror-z',
+              group: 'Selection',
+              label: 'Mirror selection (front ↔ back)',
+              icon: 'FlipV',
+              run: () => mirrorSelectionAxis(catalog, 'z'),
+            },
             // Group/Ungroup the multi-selection (gated by `furnitureGroups` via
             // COMMAND_FLAGS). Ungroup shows when the selection is one group.
             activeGroupId
@@ -705,14 +724,29 @@ export function CommandPalette() {
           },
         ]
       : []
-    return [...base, ...layout, ...single, ...room, ...furniture].map((c) => ({
+    // Isolate/solo the current selection (FEAT-C, gated by `isolateSelection`
+    // via COMMAND_FLAGS): dim everything else. Shown whenever anything is
+    // selected — including while already isolating, so ⌘K can exit it too.
+    const isolate: Command[] =
+      selCount >= 1
+        ? [
+            {
+              id: 'sel-isolate',
+              group: 'Selection',
+              label: isolateActive ? 'Exit isolate' : 'Isolate selection',
+              icon: 'Focus',
+              run: () => s().toggleIsolateSelection(),
+            },
+          ]
+        : []
+    return [...base, ...layout, ...single, ...room, ...isolate, ...furniture].map((c) => ({
       ...c,
       run: () => {
         c.run()
         close()
       },
     }))
-  }, [byCategory, catalog, selCount, selOneId, activeGroupId, selRoomId])
+  }, [byCategory, catalog, selCount, selOneId, activeGroupId, selRoomId, isolateActive])
 
   // Drop commands whose feature flag is off (saved-view commands gate on the
   // savedViews flag) so the palette can't launch a disabled feature. Pro-only

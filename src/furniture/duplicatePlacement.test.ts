@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 // Isolate the planning logic from real collision geometry.
 vi.mock('../collision/placement', () => ({ canPlace: () => true }))
 
-const { planDuplicates } = await import('./duplicatePlacement')
+const { planDuplicates, cloneItemsInPlace } = await import('./duplicatePlacement')
 
 import type { FurnitureDef, FurnitureItem } from './types'
 
@@ -40,5 +40,33 @@ describe('planDuplicates', () => {
 
   it('returns [] for no sources', () => {
     expect(planDuplicates([], ctx, ids())).toEqual([])
+  })
+})
+
+describe('cloneItemsInPlace (FEAT-B alt-drag duplicate)', () => {
+  it('clones each source at the SAME position with a fresh id', () => {
+    const sources = [item('a', 1, 2), item('b', 3, 4)]
+    const clones = cloneItemsInPlace(sources, ids())
+    expect(clones).toHaveLength(2)
+    expect(clones.map((c) => c.id)).toEqual(['copy-0', 'copy-1'])
+    expect(clones[0].position).toEqual([1, 2])
+    expect(clones[1].position).toEqual([3, 4])
+  })
+
+  it('copies props by value, not by reference', () => {
+    const src = { ...item('a', 0, 0), props: { color: 'red' } }
+    const [clone] = cloneItemsInPlace([src], ids())
+    expect(clone.props).toEqual({ color: 'red' })
+    expect(clone.props).not.toBe(src.props)
+  })
+
+  it('applies a shared groupId when provided, else clears it', () => {
+    const grouped = { ...item('a', 1, 1), groupId: 'old-group' }
+    expect(cloneItemsInPlace([grouped], ids(), 'G')[0].groupId).toBe('G')
+    expect(cloneItemsInPlace([grouped], ids())[0].groupId).toBeUndefined()
+  })
+
+  it('returns [] for no sources', () => {
+    expect(cloneItemsInPlace([], ids())).toEqual([])
   })
 })

@@ -1,8 +1,17 @@
 import type { WallGaps } from '../../collision/clearanceGap'
 import type { EqualSpacing } from '../../collision/equalSpacing'
+import { cloneItemsInPlace } from '../../furniture/duplicatePlacement'
 import type { FurnitureItem, ParamProps } from '../../furniture/types'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
+
+/** Fresh id for a drag-duplicate clone — mirrors the fallback pattern already
+ *  used at the other duplicate call sites (`duplicateAll`/`duplicateSelection`). */
+function newDragCloneId(index: number): string {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `dup-drag-${Date.now()}-${index}`
+}
 
 /** A move / rotate / placement awaiting an explicit tick (commit) or cross
  *  (cancel) confirmation before it's final. `transform` edits already wrote their
@@ -15,6 +24,11 @@ export interface PendingEdit {
   originals: Array<{ id: string; position: [number, number]; rotation: number }>
   /** placement only: the items array reference captured before the add. */
   priorItems?: FurnitureItem[]
+  /** The dropped placement is invalid (collision / outside the room). The item
+   *  stays where it was dropped (no snap-back), but `EditConfirmBar` disables the
+   *  confirm tick with a "can't be applied" tooltip until it's valid — and
+   *  `confirmPendingEdit` refuses to commit it (bug #6). ✗ / Esc still reverts. */
+  blocked?: boolean
 }
 
 /** Ephemeral drag-place state — tracks the def the user is dragging
@@ -78,6 +92,27 @@ export interface PlacementSlice {
    *  invalid). The anchor (= `draggingItemId`) is included. Empty array
    *  for single-item drags. */
   dragGroupOriginals: Array<{ id: string; position: [number, number]; rotation: number }>
+  /** FEAT-B (Alt-drag duplicate): true from `startDrag` when the gesture began
+   *  with Alt held on an already-selected item, until the drag's first real
+   *  pointermove resolves it via `resolveDragDuplicate`. Kept separate from
+   *  `dragIsDuplicate` so a plain click that never moves — no pointermove ever
+   *  fires — leaves this permanently pending and never clones anything. */
+  dragDuplicatePending: boolean
+  /** FEAT-B: true once `resolveDragDuplicate` has cloned the source item(s) —
+   *  `draggingItemId`/`dragGroupOriginals` now point at the copy. Read by
+   *  `DragController`'s pointerup so a drop that lands invalid (or a resolved
+   *  drag that ends up with zero net movement) discards the copy entirely
+   *  instead of leaving an orphaned duplicate stacked on the original. */
+  dragIsDuplicate: boolean
+  /** FEAT-B: the ORIGINAL item id(s) `resolveDragDuplicate` cloned from —
+   *  kept so a discarded duplicate can re-select the source(s) it came from
+   *  (after the clone's own ids stop existing). */
+  dragDuplicateSourceIds: string[]
+  /** FEAT-B: clone the source item(s) captured at drag-start and repoint the
+   *  live drag at the copy — called once, by `DragController`'s first
+   *  pointermove of a gesture that started with `dragDuplicatePending`. A
+   *  no-op if the pending flag isn't set or the dragged item vanished. */
+  resolveDragDuplicate: () => void
   /** Active alignment guides (world lines) shown while dragging — each is a
    *  constant-X or constant-Z line the dragged item snapped to. */
   dragGuides: Array<{ axis: 'x' | 'z'; value: number }>
@@ -129,6 +164,9 @@ export interface PlacementSlice {
     offset: [number, number],
     pointerId: number | null,
     groupOriginals?: Array<{ id: string; position: [number, number]; rotation: number }>,
+    /** FEAT-B: the selected item id(s) to clone on first move, or omitted/empty
+     *  for a normal (non-duplicating) drag. */
+    duplicateSourceIds?: string[],
   ) => void
   setDragValid: (valid: boolean) => void
   endDrag: () => void
@@ -149,6 +187,9 @@ export const PLACEMENT_INITIAL: Pick<
   | 'dragOffset'
   | 'dragPointerId'
   | 'dragGroupOriginals'
+  | 'dragDuplicatePending'
+  | 'dragIsDuplicate'
+  | 'dragDuplicateSourceIds'
   | 'dragGuides'
   | 'dragSpacings'
   | 'dragClearance'
@@ -172,6 +213,9 @@ export const PLACEMENT_INITIAL: Pick<
   dragOffset: [0, 0],
   dragPointerId: null,
   dragGroupOriginals: [],
+  dragDuplicatePending: false,
+  dragIsDuplicate: false,
+  dragDuplicateSourceIds: [],
   dragGuides: [],
   dragSpacings: [],
   dragClearance: null,
@@ -213,6 +257,9 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
   setReopenCatalogAfterPlace: (reopenCatalogAfterPlace) => set({ reopenCatalogAfterPlace }),
   setPendingEdit: (pendingEdit) => set({ pendingEdit }),
   confirmPendingEdit: () => {
+    // A blocked (invalid) placement can never be committed — the item stays put
+    // with the tick disabled until it's dragged valid or cancelled (bug #6).
+    if (get().pendingEdit?.blocked) return
     const reopen = get().reopenCatalogAfterPlace
     set({ pendingEdit: null, reopenCatalogAfterPlace: false })
     // A mobile long-press placement hid the catalog; bring it back now that the
@@ -259,12 +306,19 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
     // should restore the catalog the long-press hid.
     if (reopen) get().setCatalogOpen(true)
   },
-  startDrag: (id, original, offset, pointerId, groupOriginals) => {
-    // Starting a fresh gesture commits any edit still awaiting confirmation
-    // (the user moved on) so we never stack two pending edits.
-    if (get().pendingEdit) get().confirmPendingEdit()
+  startDrag: (id, original, offset, pointerId, groupOriginals, duplicateSourceIds) => {
+    // Starting a fresh gesture resolves any edit still awaiting confirmation so
+    // we never stack two pending edits: a valid one commits (the user moved on),
+    // a blocked (invalid) one CANCELS — reverting to the last valid transform —
+    // since it can never be committed and must not linger as a stale pill (#6).
+    const pending = get().pendingEdit
+    if (pending?.blocked) get().cancelPendingEdit()
+    else if (pending) get().confirmPendingEdit()
     // Snapshot before any per-frame moveItem fires so undo restores the
-    // pre-drag transform of every dragged item in one step.
+    // pre-drag transform of every dragged item in one step. This ALSO covers
+    // FEAT-B's duplicate: `resolveDragDuplicate` adds the clone via a plain
+    // `set` (no extra pushHistory), so this one snapshot is both "undo the
+    // move" and "undo the duplicate" in a single step.
     get().pushHistory()
     set({
       draggingItemId: id,
@@ -273,6 +327,60 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       dragPointerId: pointerId,
       dragValid: true,
       dragGroupOriginals: groupOriginals ?? [],
+      dragDuplicatePending: !!duplicateSourceIds && duplicateSourceIds.length > 0,
+      dragIsDuplicate: false,
+      dragDuplicateSourceIds: duplicateSourceIds ?? [],
+    })
+  },
+  resolveDragDuplicate: () => {
+    const s = get()
+    if (!s.dragDuplicatePending || !s.draggingItemId) return
+    const originals =
+      s.dragGroupOriginals.length > 1
+        ? s.dragGroupOriginals
+        : s.dragOriginal
+          ? [
+              {
+                id: s.draggingItemId,
+                position: s.dragOriginal.position,
+                rotation: s.dragOriginal.rotation,
+              },
+            ]
+          : []
+    const sources = originals
+      .map((o) => s.items.find((it) => it.id === o.id))
+      .filter((it): it is FurnitureItem => it != null)
+    if (sources.length === 0) {
+      // The dragged item(s) vanished from under us (shouldn't happen) —
+      // clear the pending flag so onMove stops trying every frame.
+      set({ dragDuplicatePending: false })
+      return
+    }
+    // Mirror duplicateAll/duplicateSelection: a multi-item drag whose members
+    // all share one group re-groups the copies under a fresh id; anything
+    // else (a lone item, or a mixed/ungrouped set) drops the group entirely —
+    // matching the single-item Duplicate button's semantics.
+    const groupIds = new Set(sources.map((it) => it.groupId))
+    const sharedGroup = sources.length > 1 && groupIds.size === 1 && !groupIds.has(undefined)
+    const gid =
+      sharedGroup && typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : undefined
+    const clones = cloneItemsInPlace(sources, newDragCloneId, gid)
+    const idMap = new Map(sources.map((src, i) => [src.id, clones[i].id]))
+    const newDraggingItemId = idMap.get(s.draggingItemId) ?? s.draggingItemId
+    const newGroupOriginals =
+      s.dragGroupOriginals.length > 1
+        ? s.dragGroupOriginals.map((o) => ({ ...o, id: idMap.get(o.id) ?? o.id }))
+        : []
+    set({
+      items: [...s.items, ...clones],
+      draggingItemId: newDraggingItemId,
+      dragGroupOriginals: newGroupOriginals,
+      dragDuplicatePending: false,
+      dragIsDuplicate: true,
+      selectedItemIds: clones.map((c) => c.id),
+      selectedItemId: newDraggingItemId,
     })
   },
   setDragValid: (valid) => set({ dragValid: valid }),
@@ -289,6 +397,9 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       dragPointerId: null,
       dragValid: true,
       dragGroupOriginals: [],
+      dragDuplicatePending: false,
+      dragIsDuplicate: false,
+      dragDuplicateSourceIds: [],
       dragGuides: [],
       dragSpacings: [],
       dragClearance: null,

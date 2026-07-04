@@ -156,3 +156,24 @@ export function duplicateItemNearby(item: FurnitureItem, def: FurnitureDef, cata
     }
   }
 }
+
+/**
+ * Delete a placed item behind a confirmation prompt (bug report #2). A single
+ * delete used to fire immediately (with an Undo toast), but users asked for an
+ * explicit confirm — and a clear one, distinct from the transform "Apply
+ * change?" pill. Locked items never delete. Reused by the inspector's Delete
+ * button and the minimized-header trash icon (so a mobile bottom-sheet user can
+ * delete without expanding the panel). The Undo toast still fires as a backstop.
+ */
+export async function confirmDeleteItem(itemId: string, name?: string): Promise<void> {
+  const st = useStore.getState()
+  const item = st.items.find((i) => i.id === itemId)
+  if (!item || item.locked) return
+  const ok = await st.confirmAction({
+    title: 'Delete item?',
+    message: `Remove ${name ?? 'this item'} from the design? You can still undo this.`,
+    confirmLabel: 'Delete',
+    danger: true,
+  })
+  if (ok) useStore.getState().deleteItem(itemId)
+}

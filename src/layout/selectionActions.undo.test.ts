@@ -12,6 +12,7 @@ import { useStore } from '../state/store'
 import {
   arrangeSelectionAsRun,
   faceSelectionIntoRoom,
+  mirrorSelectionAxis,
   mirrorSelectionX,
   snapSelectionToWall,
 } from './selectionActions'
@@ -53,6 +54,7 @@ function placeAndSelect(n: number): string[] {
 
 const ACTIONS: Array<[string, () => void]> = [
   ['mirrorSelectionX', () => mirrorSelectionX(BUILTIN_CATALOG)],
+  ['mirrorSelectionAxis(z)', () => mirrorSelectionAxis(BUILTIN_CATALOG, 'z')],
   ['arrangeSelectionAsRun', () => arrangeSelectionAsRun(BUILTIN_CATALOG)],
   ['snapSelectionToWall', () => snapSelectionToWall(BUILTIN_CATALOG)],
   ['faceSelectionIntoRoom', () => faceSelectionIntoRoom(BUILTIN_CATALOG)],
@@ -108,5 +110,21 @@ describe('selection actions — single clean undo entry', () => {
     s().clearHistory()
     arrangeSelectionAsRun(BUILTIN_CATALOG)
     expect(s().past.length).toBe(0)
+  })
+
+  it('mirrorSelectionAxis(z) reflects Z (keeps X) and flips heading + flipZ', () => {
+    const ids = placeAndSelect(3)
+    const before = s().items.map((i) => ({ pos: [...i.position] as [number, number] }))
+    const cz = before.reduce((a, b) => a + b.pos[1], 0) / before.length
+    mirrorSelectionAxis(BUILTIN_CATALOG, 'z')
+    if (s().past.length === 1) {
+      ids.forEach((id, i) => {
+        const it = s().items.find((x) => x.id === id)!
+        expect(it.position[0]).toBeCloseTo(before[i].pos[0]) // X unchanged
+        expect(it.position[1]).toBeCloseTo(2 * cz - before[i].pos[1]) // Z reflected
+        expect(it.rotation).toBeCloseTo(Math.PI) // was facing +Z (rot 0) -> now -Z
+        expect(!!it.flipZ).toBe(true)
+      })
+    }
   })
 })

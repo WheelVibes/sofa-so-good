@@ -487,6 +487,22 @@ describe('cameraDof flag (PC2-CAM-DOF-LENS)', () => {
   })
 })
 
+describe('twoPointPerspective flag (FEAT-D)', () => {
+  it('is pro-tier: hidden in Simple mode, present in Pro mode (both build kinds)', () => {
+    // Vertical-line-lock is an advanced photographic camera control → hidden
+    // in Simple where the camera UI keeps only the core view loop.
+    expect(resolveFlags(false, {}, false, 'simple').twoPointPerspective).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').twoPointPerspective).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').twoPointPerspective).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').twoPointPerspective).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.twoPointPerspective.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.twoPointPerspective.default).toBe(true)
+    expect(FEATURE_FLAGS.twoPointPerspective.tier).toBe('pro')
+  })
+})
+
 describe('infoCallouts flag (P25 progressive-disclosure hints)', () => {
   it('is simple-tier: present in BOTH Simple and Pro modes (both build kinds)', () => {
     // Dismissible first-run hint banners aid beginners in the default experience,
@@ -606,5 +622,20 @@ describe('proUpsell flag (P26 Simple→Pro ⌘K footer hint)', () => {
     expect(resolveFlags(false, {}, false, 'pro').proUpsell).toBe(true)
     expect(resolveFlags(true, {}, false, 'simple').proUpsell).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').proUpsell).toBe(true)
+  })
+})
+
+describe('isolateSelection flag (FEAT-C isolate/solo focus mode)', () => {
+  it('is pro-tier, ships in prod, default on', () => {
+    expect(FEATURE_FLAGS.isolateSelection.default).toBe(true)
+    expect(FEATURE_FLAGS.isolateSelection.tier).toBe('pro')
+    expect(FEATURE_FLAGS.isolateSelection.devOnly).toBeUndefined()
+  })
+
+  it('is hidden in Simple mode and present in Pro mode (both build kinds)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').isolateSelection).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').isolateSelection).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').isolateSelection).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').isolateSelection).toBe(true)
   })
 })

@@ -126,35 +126,51 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
     shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
     `.plan-screen`) — low-risk follow-up.
 
-## Open — deep-audit backlog (2026-07-04)
-Open, client-doable items from `docs/research/2026-07-04-deep-audit-and-opportunities.md`
-(full detail + code refs there). Shipped items from that audit — BUG-1..7, PERF-A/B/D,
-REAL-1, SEC-1, FEAT-1 — are in `CHANGELOG.md`. Still open:
-- [ ] **REFAC-2 — `FloorPlanEditor.tsx` ~3186 lines (note, tracked as MOD-FPE-SPLIT).** Grew with
-  PLAN-FURNISH; revisit the toolbar-fragment/dispatcher extraction if it keeps growing.
-- [ ] **FEAT-2 — mirror/reflect a selection across a room axis (S–M).** Arrange-tool addition;
-  reuse the array/placement commit path. (Waits for the REFAC-1 inspector decomposition to land.)
-(In progress this cycle: REFAC-1 InspectorPanel decomposition, PERF-C procedural-bake defer.)
+## Deep-audit backlog (2026-07-04) — fully shipped
+All client-doable items from `docs/research/2026-07-04-deep-audit-and-opportunities.md` have
+shipped (see `CHANGELOG.md`): BUG-1..7, PERF-A/B/D, REAL-1, SEC-1, FEAT-1, FEAT-2, REFAC-1
+(InspectorPanel decomposition), and REFAC-2 (FloorPlanEditor decomposition — a pass landed 8
+toolbar controls + 2 layout shells + 4 SVG layers + `planPointerMapping.ts`, ~3186→2432 lines;
+`onDown/onMove/onUp` + the "Plan ▾" `fileActions` are intentionally left inline per TASKS.md —
+revisit only if either grows further).
 
 ## Open — round-2 audit backlog (2026-07-04)
 Open, client-doable items from `docs/research/2026-07-04-audit-round2-tests-mobile-features.md`
-(full detail + code refs there). Ranked; MOBILE-1 in progress this cycle.
-- **Mobile/touch robustness**
-  - [ ] **MOBILE-2/3 — `MarqueeSelector` + catalog placement drag lack `pointerId` gating** (lower
-    severity than the gizmos). Apply the BUG-1 `isActiveDragPointer` pattern (S).
-- **Test-coverage hardening** (user-direction priority)
-  - [ ] **TEST-1 — `state/storage/hydrateAssets.ts` (0 tests).** Boot-time restore of user
-    uploads/materials from IDB; silent-data-loss surface. Test via `fake-indexeddb` (S–M).
-  - [ ] **TEST-2 — `apartment/floor/floorRects.ts` `computeRoomFloorRects`/`rectMinus` (0 tests).**
-    Pure rectangle-subtraction deciding per-region floor finishes (S).
-  - [ ] Ranked further test gaps in the round-2 doc (geometry/collision/pricing/undo pure fns).
-- **Value-add features** (client-doable, grounded in existing REFERENCES apps)
-  - [ ] **FEAT-A — frame/zoom-to-selection camera** (the universal "F"); `resetView` only resets to
-    overview today (S).
-  - [ ] **FEAT-B — Alt/Option-drag to duplicate a placed item** (SketchUp/Figma/Coohom staple) (M).
-  - [ ] FEAT-C/D in the round-2 doc; FEAT-E (3D grid-snap) deprioritized (alignment guides cover it).
+(full detail + code refs there). Shipped from this audit — MOBILE-1/2/3, TEST-3/4/5/6/7/8,
+FEAT-A/B/C/D — are in `CHANGELOG.md`. Still open:
+- [ ] **FEAT-E — grid-snap for furniture placement in 3D** (S–M, low risk). Deprioritized: the
+  alignment guides + neighbour snap already deliver most of the "tidy placement" value; revisit as
+  complementary polish (a `gridSnap3d` toggle quantizing `dragControllerHandlers.onMove`, reusing
+  `floorplan/gridSnap.ts`, neighbour-snap wins within threshold else grid). Pro tier.
 - New reference: **Home Planner** (backend/licensed-asset-led — informs the tracked catalog-expansion/
   F11 work, not a client-doable feature). Added to `REFERENCES.md`.
+
+## Open — round-3 audit backlog (2026-07-04)
+Open, client-doable items from `docs/research/2026-07-04-audit-round3-backlog-refill.md`
+(full detail + code refs there). This pass confirmed the app is near-saturated — a wide
+competitor sweep found history-panel/shortcut-help/room-area/favourites/copy-paste/nudge/
+room-palette/lock/align-distribute all already shipped — so the list is short + evidence-based,
+ranked by value ÷ effort:
+- [ ] **R3-TEST-1 — `floorplan/templates/shared.ts` geometry helpers (0 tests).** `perimeter`/
+  `room`/`door`/`window`/`parapet`/`iwall` seed the shell of **every** starter plan (18+ HDB/condo
+  templates); area `CLAUDE.md` mandates "Geometry stays pure + unit-tested here." (S · HIGH)
+- [ ] **R3-TEST-2 — `state/slices/orientationSlice.ts` `normalize`/`setOrientationDeg` (0 tests).**
+  Home compass rotation driving sun/sky orientation + compass HUD; a bad wrap silently mis-rotates
+  the sun. Assert `-90→270`, `450→90`, `360→0`. (S · MED-HIGH)
+- [ ] **R3-FEAT-1 — Persistent / cross-plan clipboard paste.** `clipboardSlice` is session-only;
+  self-persist to localStorage (mirror `favouritesSlice`) so paste survives reload + works across
+  designs. Coohom/Planner 5D "my items". Pro tier. (S · MED)
+- [ ] **R3-FEAT-2 — Curated colour-palette preset gallery.** Palette *mechanism* exists
+  (`colorPaletteSlice`) but no one-click curated theme; add a static preset list + picker calling
+  `setMasterPalette`/`setRoomPalette`. Coohom/Planner 5D themes. Pro tier. (S · MED)
+- [ ] **R3-REFAC-1 — `App.tsx` (1163 lines) has ~487 lines of inline keyboard orchestration.**
+  Extract the three blocks (`:225-362` global ⌘K/undo, `:586-800` editor `onKey`, `:811-947` nudge)
+  into `controls/useAppHotkeys.ts` + `useNudge.ts`; makes hotkeys unit-testable. (M · MED)
+- [ ] **R3-FEAT-3 — Orthographic / isometric camera view.** `OrbitCamera.tsx:491` has an unused
+  ortho fallback; expose a parallel-projection/iso "dollhouse" toggle (SketchUp/Sweet Home 3D/
+  Planner 5D). Pro tier; needs a visual-verification pass (raycast/shadow/zoom differ). (M · MED)
+- [ ] **R3-TEST-3 — `calloutsSlice.ts`/`badgesSlice.ts` localStorage guards (0 tests).** Corrupt-
+  storage parse + dedup resilience for onboarding callouts / NEW badges. (S · MED-LOW)
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live

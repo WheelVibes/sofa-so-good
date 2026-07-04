@@ -6,6 +6,7 @@ import { useQuality } from '../scene/useQuality'
 import { useStore } from '../state/store'
 import { useCatalog } from './catalog'
 import { Furniture } from './Furniture'
+import { computeDimmedItemIds } from './isolateSelection'
 import { isItemInRoom, type RoomContainment } from './roomFilter'
 
 /**
@@ -37,6 +38,23 @@ export function FurnitureLayer({ room }: { room?: RoomContainment } = {}) {
   // Memoised so a drag (which re-renders this layer every pointermove via the
   // items change) doesn't reallocate the Set when the hidden set is unchanged.
   const hiddenSet = useMemo(() => (hidden.length > 0 ? new Set(hidden) : null), [hidden])
+  // Isolate/solo mode (FEAT-C): items outside the current selection render
+  // dimmed (not hidden) while active, so the room stays legible. Gated by the
+  // `isolateSelection` flag as well as the session-only `isolateActive` state
+  // — flipping the flag off (e.g. Simple mode forcing a pro flag off) can't
+  // strand a dimmed scene, since the flag simply forces the derived set empty.
+  const isolateOn = useFeature('isolateSelection')
+  const isolateActive = useStore((s) => s.isolateActive)
+  const selectedItemIds = useStore(useShallow((s) => s.selectedItemIds))
+  const dimmedSet = useMemo(
+    () =>
+      computeDimmedItemIds(
+        items.map((i) => i.id),
+        selectedItemIds,
+        isolateOn && isolateActive,
+      ),
+    [items, selectedItemIds, isolateOn, isolateActive],
+  )
   // Multi-storey plans (F13/ML3): items render at their level's elevation and
   // unmount with a hidden level. Single-level plans skip all of this (null map).
   const plan = useStore((s) => s.floorPlan)
@@ -64,6 +82,7 @@ export function FurnitureLayer({ room }: { room?: RoomContainment } = {}) {
             def={def}
             contactShadow={contactShadow}
             materialEpoch={materialEpoch}
+            dimmed={dimmedSet.has(item.id)}
           />
         )
         return elevation > 0 ? (

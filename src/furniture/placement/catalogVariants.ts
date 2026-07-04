@@ -78,8 +78,11 @@ function ikeaOption(v: IkeaVariant): CatalogVariantOption {
  */
 export function catalogVariantOptions(def: FurnitureDef): CatalogVariantOption[] {
   if (def.kind === 'gltf' && def.source === 'ikea') {
-    if (def.variants.length < 2) return []
-    return def.variants.map(ikeaOption)
+    // Only offer finishes with a real GLB — a stubbed variant (`assetId === null`)
+    // can't be placed, so showing it as a disabled swatch just confuses (bug #7).
+    const available = def.variants.filter((v) => v.assetId !== null)
+    if (available.length < 2) return []
+    return available.map(ikeaOption)
   }
   const field = primaryColorField(def)
   if (!field) return []

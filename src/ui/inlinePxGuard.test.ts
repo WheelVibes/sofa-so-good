@@ -7,6 +7,9 @@ const uiRoot = dirname(fileURLToPath(import.meta.url))
 const FLAGGED =
   /\b(padding|paddingTop|paddingBottom|paddingLeft|paddingRight|margin|marginTop|marginBottom|marginLeft|marginRight|fontSize|gap|rowGap|columnGap)\s*:\s*('[^']*\d[^']*'|"[^"]*\d[^"]*"|\d[\d.]*)/g
 // Files with pre-existing literals, grandfathered as follow-up (NEW files must be clean).
+// The floorplan/editor/* REFAC-2 entries below are verbatim behaviour-preserving code-motion out
+// of the already-grandfathered `floorplan/FloorPlanEditor.tsx` — same follow-up as the MOD-FPE-SPLIT
+// layer extractions (DimensionsLayer/FurnitureLayer/NotesLayer/TourStopsLayer) already listed here.
 const GRANDFATHERED = new Set<string>([
   'BudgetPanel.tsx',
   'ClearancePanel.tsx',
@@ -40,11 +43,15 @@ const GRANDFATHERED = new Set<string>([
   'floorplan/FloorPlanEditor.tsx',
   'floorplan/PlanFurnitureInspector.tsx',
   'floorplan/PlanInspector.tsx',
+  'floorplan/editor/DrawToolPalette.tsx',
+  'floorplan/editor/GridZoomControls.tsx',
   'floorplan/editor/LevelMenu.tsx',
   'floorplan/editor/PlanToolMenu.tsx',
+  'floorplan/editor/PlanTotalLabel.tsx',
   'floorplan/editor/WallNumericEntry.tsx',
   'floorplan/editor/inspector/OpeningInspector.tsx',
   'floorplan/editor/inspector/RoomInspector.tsx',
+  'floorplan/editor/layers/AnnotationsLayer.tsx',
   'floorplan/editor/layers/DimensionsLayer.tsx',
   'floorplan/editor/layers/FurnitureLayer.tsx',
   'floorplan/editor/layers/NotesLayer.tsx',

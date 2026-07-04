@@ -56,12 +56,19 @@ export function MaterialComposer({
     if (composed) return `p:${composed.pattern}`
     const tint = parseTintMaterialId(active)
     if (tint && materials.some((m) => m.id === tint.baseId)) return `m:${tint.baseId}`
+    // A plain catalog material picked from the grid → seed IT as the tint base,
+    // so opening "Compose your own…" recolours that exact texture instead of a
+    // default procedural pattern. This is what lets a user change a floor/wall's
+    // colour while KEEPING its texture (bug #1).
+    if (materials.some((m) => m.id === active)) return `m:${active}`
     return `p:${DEFAULT_COMPOSE_PATTERN}`
   }
   const seedColor = (): string =>
     parseComposedMaterialId(active)?.color ??
     parseTintMaterialId(active)?.color ??
-    DEFAULT_COMPOSE_COLOR
+    // Seeding a plain material as the base starts at white — an identity tint, so
+    // its texture shows unchanged until the user actually picks a colour (bug #1).
+    (materials.some((m) => m.id === active) ? '#ffffff' : DEFAULT_COMPOSE_COLOR)
   const seedScale = (): number =>
     parseComposedMaterialId(active)?.scale ??
     parseTintMaterialId(active)?.scale ??

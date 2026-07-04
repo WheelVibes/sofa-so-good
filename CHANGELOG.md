@@ -5,6 +5,384 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RELEASE: v0.14.0.0 — PR to main
+
+Second big cycle on top of v0.13.0.0. Ships **5 new features** (frame-selection
+camera, Alt-drag duplicate, isolate/solo focus mode, mirror-across-axis,
+two-point-perspective camera), a **resizable + responsive catalog dock**,
+**persistent cross-plan clipboard**, the **FloorPlanEditor decomposition**
+(REFAC-2, ~2995→2432 lines + 14 extracted modules) and the **DragController
+handler extraction** (TEST-7), **six new test suites** (TEST-3/4/5/6/7/8 +
+round-3 templates/shared), and a **10-item user bug-report sweep** (finish
+recolour-keeps-texture, mobile/red/confirm delete, catalog drag-ghost,
+out-of-room red-invalid placement with a blocked Apply pill, IKEA-finish +
+shared-card + card-meta cleanup, drag-to-reorder rooms) plus GLB-load
+diagnostics. Full suite green (5468 passing) throughout. Per-item detail below.
+
+## FIX: invisible GLB/IKEA furniture is now a visible, diagnosable placeholder (bug #3, partial) (v0.13.0.26)
+
+A placed IKEA/GLB item that fails to render used to be either a silent
+placeholder box (a thrown GLB load, via `GltfErrorBoundary`) or — when the def
+had no renderable `runtimeUrl` (e.g. a blob that didn't rehydrate after reload) —
+truly invisible (rendered `null`). Both now render the shared `GltfPlaceholderBox`
+(extracted) so the piece stays visible/selectable, AND log the reason:
+`GltfErrorBoundary.componentDidCatch` logs the def id + model url + the actual
+error, and the no-url path logs a warning naming the def. This surfaces WHY a
+model didn't load instead of leaving guessers with invisible furniture — the
+diagnostic needed to pin down the underlying asset-load failure (which is
+environment/backend-specific and couldn't be reproduced in the sandbox). Not a
+full root-cause fix: the exact throw (multi-file glTF, blocked embedded resource,
+or a dead post-reload blob URL) will show in the console now for a targeted fix.
+
+## FEAT: catalog grid gains columns as the panel widens (v0.13.0.25)
+
+Pairs with the resizable dock: the `.card-grid` switched from a fixed 2-column
+layout to `repeat(auto-fill, minmax(132px, 1fr))`, so widening the catalog shows
+3+ columns of furniture cards (verified: 2 cols at the 320px default, 3 at
+520px) while the mobile bottom-sheet stays 2. CSS-only.
+
+## FEAT: resizable catalog dock on desktop (v0.13.0.24)
+
+The docked catalog rail is now drag-resizable on desktop/wide screens. A
+`col-resize` handle (`CatalogResizeHandle`) on the panel's right edge pointer-
+drags to set a `--catalog-w` CSS var on the root, which drives both `--left-rail`
+(so the canvas reflows + the centred toolbar re-centres) and the panel width —
+default 320px, clamped 260–560px. Width persists per-device to localStorage
+(`hdb_catalog_width`, guarded, restored on mount) and ←/→ nudge it by 16px.
+Flag-gated `catalogResize` (simple tier, default on); the handle isn't rendered
+under `body.mobile` (mobile keeps the bottom-sheet). +5 tests (both-mode flag
+gate, drag clamp/persist, foreign-pointer no-op, keyboard nudge) + a visual
+scenario confirming the canvas reflows.
+
+## FIX: recolour a floor/wall finish while keeping its texture (bug #1) (v0.13.0.23)
+
+Picking a textured floor/wall finish then opening "Compose your own…" defaulted
+the tint source to a procedural pattern, so changing the colour lost the texture.
+`MaterialComposer` now seeds a plain catalog material (the one you just picked) as
+its OWN tint base — starting at white (an identity tint, texture shown unchanged)
+— so choosing a colour produces `tint:<thatMaterial>:<#hex>`, keeping the texture
+maps and only multiplying the albedo. The tint render path (cache.ts textured
+branch, anisotropy-correct per REAL-1) is unchanged. +a component test.
+
+## FIX: out-of-room placement is red + invalid, no snap-back, greyed tick (bugs #5/#6) (v0.13.0.22)
+
+Two related per-room-editor placement fixes:
+- **#5 — dragging a piece outside the room is now invalid (red)**, not silently
+  clamped back in. `dragControllerHandlers` dropped the `clampCentreToRects`
+  clamp; the validity pass now also checks `roomClamp.ts:isCentreInsideRects`
+  (pure, unit-tested) against the room shell rects, so a footprint poking past
+  the room boundary flags `dragValid=false` (the red highlight) just like a
+  collision.
+- **#6 — an invalid drop no longer snaps back.** The item stays exactly where it
+  was dropped and resolves to a **`blocked`** `pendingEdit`: the Apply pill shows
+  but its confirm tick is **greyed out + non-interactive** with a "Can't apply —
+  move it inside the room, off other furniture" tooltip (label reads "Can't place
+  here"). `confirmPendingEdit` refuses a blocked edit; ✗/Esc still reverts;
+  starting a new drag cancels a blocked edit (revert to last valid), and leaving
+  the editor with one reverts rather than keeping it. The soft-nudge/hard-revert
+  on invalid drops was removed in favour of this. +unit tests (blocked stays +
+  can't-commit + cancel-reverts; `isCentreInsideRects`) + a visual blocked-pill
+  scenario. FEAT-B / BUG-1 drag scenarios re-verified (the alt-drag demo now
+  drops an armchair at an in-room spot, since out-of-room is correctly invalid).
+
+## FIX: suppress the native card drag-preview overlapping the ghost (bug #4) (v0.13.0.21)
+
+Dragging a catalog card from the drawer onto the scene showed the browser's
+default drag image (a snapshot of the card, thumbnail included) tracking the
+cursor on TOP of the live 3D `PlacementGhost` — two overlapping previews.
+`CatalogCard.onDragStart` now calls `dataTransfer.setDragImage` with a cached 1×1
+transparent image, so only the 3D ghost follows the cursor. Guarded for
+jsdom/older browsers (`typeof Image`).
+
+## FIX: reorder rooms by dragging a handle, not up/down buttons (bug #10) (v0.13.0.20)
+
+The `RoomReorderModal` (pro `roomReorder` flag) replaced its per-row up/down
+chevron buttons with a **hamburger drag handle** — a pointer-based reorder that
+works with mouse AND touch (`onPointerDown`/`Move`/`Up` on the handle, pointer
+captured; the hovered row index is derived from `clientY` against each row's
+midpoint, splicing the working list live and persisting the final order via
+`setRoomOrder`). The handle sets `touch-action: none` so a touch-drag reorders
+instead of scrolling the sheet; the row lifts (`--shadow-pop` + accent border)
+while dragging. Verified: modal renders the handles, no `Move …` buttons remain.
+
+## FIX: delete UX — red button, mobile-reachable, confirm prompt (bug #2) (v0.13.0.19)
+
+Three delete issues from the bug report:
+- **Confirm prompt before delete** (not the transform "Apply change?" pill): a
+  single delete now routes through `inspector/itemTransforms.ts:confirmDeleteItem`
+  → `confirmAction({ danger: true })` showing a clear "Delete item?" dialog;
+  `deleteItem` (with its Undo toast) runs only on confirm. Locked items never
+  prompt/delete.
+- **Delete reads red at rest** (`.act.danger` was red only on hover) — the Delete
+  button in the rotate/flip cluster is now `var(--danger)` at rest, deepening on
+  hover, greyed when disabled (locked).
+- **Mobile-reachable delete**: a red `.icon-btn.danger` trash was added to the
+  `InspectorHeader` icon row (always rendered, even in the minimized mobile
+  bottom-sheet) so you can delete without expanding the panel.
+Updated the `src/ui/CLAUDE.md` destructive-action policy to match. +3 unit tests
+(confirm→delete, cancel→keep, locked→no-op-no-prompt) + a visual scenario
+(red button, confirm dialog, item survives until confirmed).
+
+## FEAT: persistent / cross-plan clipboard (R3-FEAT-1) (v0.13.0.18)
+
+Round-3 audit: `clipboardSlice` was session-only, so a copied item was lost on
+reload and didn't carry across designs. It now self-persists to `localStorage`
+(`hdb_clipboard`), mirroring `favouritesSlice`/`recentSlice` — hydrated at module
+init, written on every copy, removed on clear; a guarded `JSON.parse` +
+per-entry `isClipboardEntry` validator drops malformed records (defaults to empty,
+never throws), and it stays OUT of the design save schema/autosave (per-device
+convenience state). Cross-design paste already reconstructs items with fresh ids
+via `App.tsx`'s `pasteClipboard` and skips defs unresolvable in the target design
+— unchanged. No new flag (copy/paste was never flagged; it's gated by
+`canEditScene` like delete/duplicate). +13 tests (persist/hydrate round-trip via
+module re-init, corrupt/missing/non-array guards, survives an items reset) + a
+31-step reload+cross-plan scenario.
+
+## FIX: catalog + IKEA-finish UX cleanup (bug report) (v0.13.0.17)
+
+Three user-reported catalog/finish issues:
+- **Unavailable IKEA finishes no longer shown** (#7). A stubbed variant with no
+  scraped GLB (`assetId === null`) rendered as a greyed, disabled swatch the user
+  couldn't pick ("why are they there?"). `IkeaBody`'s inspector finish picker and
+  the pre-place `catalogVariantOptions` now filter to renderable variants only —
+  the finish picker shows nothing when ≤1 real finish remains.
+- **Shared-library card says "Download" with an icon** (#8), not the unintuitive
+  "tap to add" / "N finishes · tap" — an accent-toned `Icon.Download` affordance
+  that reflects Downloading…/Retry state; aria-label is now "Download {name}".
+- **Furniture card meta drops the finishes count** (#9): the shared card shows the
+  item dimensions (`size`) instead of "N finishes".
+
+## TEST: floorplan/templates/shared geometry helpers (R3-TEST-1) (v0.13.0.16)
+
+Round-3 audit coverage: `floorplan/templates/shared.ts` seeds the shell of every
+starter plan (18+ HDB/condo templates) yet had 0 tests despite the area rule
+"Geometry stays pure + unit-tested here." New `shared.test.ts` (+14 tests) covers
+every exported helper — `perimeter` (id/order `n/e/s/w`, exact inset corners,
+closed-loop invariant that each wall end === next start), `iwall`/`door`/`window`
+record shapes (+ width/sill/head defaults + override; confirmed they're pure
+record builders with no offset clamping), `room`, `parapet` (`topHeight: 1.0`),
+`cat` (non-mutating category attach), and the `T` inset constant. No bug found.
+
+## REFACTOR: decompose the FloorPlanEditor monolith (REFAC-2) (v0.13.0.15)
+
+Behaviour-preserving decomposition of `ui/floorplan/FloorPlanEditor.tsx`
+(~2995→2432 lines, −563). Extracted 14 modules under `ui/floorplan/editor/`: 8
+presentational toolbar controls (`EditModeToggle`, `DrawToolPalette`,
+`WallTypeToggle`, `UndoRedoButtons`, `GridZoomControls`, `PlanTotalLabel`,
+`PlanViewMenuActions`, `PlanDefaultsFields`), 2 layout shells that take built
+`ReactNode` fragments as props (`PlanEditorHeader`, `PlanToolsSheet`), 4 more SVG
+render layers (`PlanGuidesLayer`, `OtherLevelsUnderlay`, `PersistentDimensionsLayer`,
+`AnnotationsLayer`, alongside the 11 from the earlier MOD-FPE-SPLIT), and the
+screen→world pointer coordinate mapping (`planPointerMapping.ts`). The
+`onDown/onMove/onUp` pointer dispatcher and the "Plan ▾" `fileActions` block are
+intentionally left inline (per TASKS.md's prior assessment — extracting them needs
+a 40+ prop surface that hurts readability more than it helps). No behaviour change:
+full suite (5428) + 769 floorplan tests green, tsc + biome clean, toolbar/menus
+render pixel-identical.
+
+## FIX: footprint parts now flip with flipX/flipZ (asymmetric defs) (v0.13.0.13)
+
+Surfaced by FEAT-2: flipping/mirroring an item with an **asymmetric footprint**
+(the `sofa-lshape` chaise side, corner cabinets) reflected the *visual* geometry
+(`Furniture.tsx` renders a flip as a `scale=[-1,1,-1]` wrapper) but the collision
++ selection footprint kept testing the un-flipped shape, so the hit-test and the
+render disagreed. Fixed centrally in `collision/placement.ts`: a new
+`resolveFootprintParts` mirrors each `footprintParts` offset (`dx`/`dz`) by the
+item's `flipX`/`flipZ` before the three footprint-parts consumers
+(`itemFootprintParts`/`…Local`/`…SpanLocal`) build their OBBs — so the footprint
+tracks the same flip the mesh does. Symmetric parts are unaffected (negating a
+zero/centred offset is a no-op), and the base bounding OBB was already
+flip-symmetric. General fix for any asymmetric `footprintParts` def, not just the
+L-sofa. Unit tests for the flipped-footprint math + a visual scenario
+(`sofa-lshape-flip-footprint.json`) confirming the chaise + its footprint both
+move to the mirrored side.
+
+## TEST: pointerId gating for Rotate/Resize/Tilt gizmos (TEST-6) (v0.13.0.12)
+
+Round-2 audit coverage pairing with MOBILE-1 (which added the gating): the gizmo
+math was tested but the pointer-stream gating wasn't. New
+`scene/selection/gizmoPointerGating.test.ts` — a `describe.each` over
+RotateGizmo/ResizeGizmo/TiltGizmo × 4 cases (a foreign pointerId's move is a
+no-op, its release doesn't end the gesture, the initiating pointer's move drives
+it, its release ends it) at the `dragHelpers.ts:isActiveDragPointer` seam as each
+gizmo wires it — no gizmo refactor. +12 tests.
+
+## FEAT: two-point-perspective / vertical-line-lock camera (FEAT-D) (v0.13.0.11)
+
+D5 Render / Enscape "keep verticals vertical" parity — a shareable-hero-shot
+lever. Toggling **Two-point perspective** (ViewMenu "Framing" cluster + mobile
+ViewSection, ⌘K) levels the orbit camera's pitch and applies a vertical
+projection-window shift so wall corners and door frames render exactly parallel
+instead of converging when the view is pitched (the architectural-photographer's
+shift-lens trick). Pure, dependency-free, unit-tested math in
+`scene/cameras/verticalLock.ts` (`computeVerticalLock`: leveled look-at target +
+`camera.view.offsetY`, clamped past ±75° pitch where the shift blows up);
+`OrbitCamera.tsx` applies it in a dedicated `useFrame` registered AFTER drei's
+`OrbitControls.update()` (priority −1) and the fly/tour frame, so it always
+corrects the final pose and touches only orientation + projection (never
+`camera.position`/`controls.target`, so OrbitControls' spherical state is
+untouched). Persisted per-device via `qualityPrefs` (`verticalLock`, back-compat
+default off). Flag-gated `twoPointPerspective` (pro tier, default on; forced off
+in Simple). +110 tests (pure math + slice + both-mode gating desktop & mobile)
+and a visual scenario proving verticals straighten on the pitched dollhouse view
+with no warping (before/after screenshots reviewed).
+
+## TEST/REFACTOR: DragController BUG-1 wiring integration test + handler extraction (TEST-7) (v0.13.0.10)
+
+Round-2 audit coverage for the mobile core-loop drag gesture, which had no
+integration test. To make the window-listener orchestration testable without
+mounting an R3F `<Canvas>` (headless raycasting isn't reproducible), the
+`onMove`/`onUp` bodies were extracted verbatim from `DragController.tsx` into a
+`scene/dragControllerHandlers.ts:createDragHandlers(deps)` factory that takes an
+injectable `project` (screen→floor) fn plus the drag refs — `DragController` now
+just supplies the real camera-backed `project` and registers the returned
+handlers (same window events + cleanup; behaviour identical, and FEAT-B's
+Alt-drag-duplicate lazy-resolve + discard branch are preserved inside the
+extracted handlers — reconciled during the merge and re-verified with the
+FEAT-B scenario, all 39 steps green). New `dragControllerHandlers.test.ts` (+6
+tests): BUG-1 pointerId gating (a foreign pointer's move doesn't drive the drag,
+its up/cancel doesn't end it, the initiating pointer does), invalid-release
+hard-revert to the pre-drag transform, and `setDragGuides` alignment-guide
+publishing. Full suite 5388 passing.
+
+## FEAT: mirror/reflect selection across a room axis (FEAT-2) (v0.13.0.9)
+
+Arrange-tool addition: mirror the selection across a chosen room axis — **X**
+(left↔right) or **Z** (front↔back) — reflecting each item's position + heading
+about the selection's own centroid and toggling `flipX`/`flipZ` so an asymmetric
+group reads as its true mirror image. Pure, unit-tested reflection math
+(`furniture/mirrorSelection.ts`: `mirrorPosition`/`mirrorRotation`/`mirrorItem`/
+`selectionCentroid`, verified against `layout/faceWall.ts`'s `(sinθ, cosθ)`
+heading convention); the store action `selectionActions.ts:mirrorSelectionAxis`
+collision-checks all-or-nothing and commits in one undo step (pushHistory once,
+then `moveItem`/`rotateItem`/`flipItem`). The pre-existing left↔right-only
+"Mirror" (X) stays ungated as a core align op; the new flag gates the explicit
+axis picker (adds the Z option) — `MultiSelectPanel` shows "Mirror X"/"Mirror Z"
+side by side (shared desktop/mobile), plus a ⌘K "Mirror Z" command. Flag-gated
+`mirrorSelection` (pro tier, default on; forced off in Simple). +31 tests
+(pure math + both-mode gating + undo granularity + a click-through geometry
+assertion) and a 24-step visual scenario in both modes + mobile. (Known latent
+limitation, pre-existing: `sofa-lshape`'s `chaiseSide` footprint isn't driven by
+`flipX`/`flipZ`, so mirroring an L-sofa can mismatch the hit-tested footprint —
+a quirk of the existing flip system, not introduced here.)
+
+## FEAT: isolate / solo the selection — focus mode (FEAT-C) (v0.13.0.8)
+
+Blender local-view / SketchUp-isolate parity: a one-tap **Isolate** toggle dims
+every OTHER placed item to a near-invisible ghost so the selected piece(s) stand
+out in a dense furnished HDB, while the room shell (walls/floor/window) stays
+fully legible. Reachable from the inspector (single + multi-select), the
+right-click context menu, and ⌘K. **Session-only, nothing persisted:** a
+one-field `isolateSlice` (`isolateActive`) drives a pure render-time opacity
+override in `Furniture.tsx` (`FurnitureLayer` computes the dimmed set via the
+pure `furniture/isolateSelection.ts:computeDimmedItemIds`) — it deliberately does
+NOT reuse the persisted per-item `props.opacity`, so isolate can never leak a
+stray value into autosave; the two compose at render as `Math.min(itemOpacity,
+SOLO_DIM_OPACITY)`. "Which items are dimmed" is re-derived live from
+`selectedItemIds` every render, so isolate always tracks the current selection.
+**Auto-clears** on any selection change via a single content-diffed
+`useStore.subscribe` in `store.ts` (room-editor exit clears selection, so one
+watcher covers both triggers) — mirroring the existing wall-thickness subscription
+pattern. Flag-gated `isolateSelection` (pro tier, default on; forced off in
+Simple). 22 new tests (slice + pure selector + both-mode gating) + a 46-step
+visual scenario confirming dim/restore, selection-change auto-clear, re-isolate,
+room-exit auto-clear, and mobile parity.
+
+## TEST: paletteFromPhoto nearest-finish mapping — TEST-8 (v0.13.0.7)
+
+Round-2 audit coverage for the palette-from-photo finish matching. Extracted the
+pure glue (`finishCandidates()` + the palette→nearest-builtin-finish mapping)
+out of the canvas/DOM-bound `ui/paletteFromPhoto.ts` into a new pure
+`ui/paletteFromPhotoMatch.ts` (`mapPaletteToFinishes`, candidates injectable for
+tests) — behaviour-identical, the canvas path calls the same logic. New
+`paletteFromPhotoMatch.test.ts` covers: `finishCandidates()` yields the floor+wall
+builtin candidates with correct `hexToRgb` swatch RGB (skipping swatchless
+entries); the mapping picks the nearest finish for a colour near a known swatch;
+and the no-candidates fallback labels/swatches with the palette colour's own hex.
+Canvas decode (`imageToPixels`) stays out of scope. +8 tests.
+
+## TEST: remoteCatalogSlice orchestration — TEST-5 (v0.13.0.6)
+
+Round-2 audit coverage for `state/slices/remoteCatalogSlice.ts` (184 lines, was
+0 tests referencing it), no app-behaviour change. New `remoteCatalogSlice.test.ts`
+with stubbed providers/cache exercises the slice's own orchestration edge cases
+the underlying cache tests don't: **in-flight de-dupe** (two concurrent
+`resolveRemoteAsset` for one key share a single `fetchAsset`; a later
+non-overlapping call re-fetches), the **7-day `STALE_AFTER`** refresh decision
+(skip when the cached index is fresh, refresh when stale or absent), the
+**already-resolved short-circuit** (both furniture + materials maps), and the
+**error status transitions** (`fetchIndex`/`fetchAsset` throwing lands
+`status:'error'` / a `remoteFetches` error entry with no unhandled rejection, and
+recovers on a later call). +10 tests.
+
+## TEST: IdbAssetStore round-trip + HistorySnapshot completeness guard — TEST-3/4 (v0.13.0.5)
+
+Two coverage suites from the round-2 audit, no app-behaviour change. **TEST-3**
+(`state/storage/IdbAssetStore.test.ts`, new): the foundation of all user-asset
+persistence (`put`/`get`/`list`/`delete`/`usage`) had zero tests — now a
+`fake-indexeddb` round-trip asserts blob+meta fidelity, missing-id → `null`,
+`list` omits the blob payload, `delete` targets only its id, and `usage` sums
+bytes+counts. **TEST-4** (`historySlice.test.ts`, added): converts the
+hand-audit rule in `state/CLAUDE.md` into a failing guard — asserts `snapshot()`
+emits exactly the documented `HistorySnapshot` key allow-list (so adding a field
+to the interface without wiring `snapshot()` fails loudly, the BUG-3 class),
+confirms `selectedItemId(s)`/`pendingEdit` stay excluded by design, and
+round-trips a real mutation→undo of every snapshotted field
+(items/doors/finishes/floorPlan+baselinePlan/comments/drawingCallouts/
+quoteTemplate/priceRules/masterPalette/roomPalettes). +55 tests.
+
+## FEAT: Alt/Option-drag duplicate — FEAT-B (v0.13.0.3)
+
+SketchUp/Figma/Coohom parity: hold **Alt/Option** and drag an already-selected
+item to clone it and drag the copy, leaving the original in place — the fastest
+way to lay out repeated pieces (a row of dining chairs, matching cabinets) short
+of the array tools. The decision is pure + unit-tested
+(`dragHelpers.ts:shouldDuplicateOnDragStart`) and locked in at
+`Furniture.onPointerDown`; it can't collide with `selectItemGrouped`'s existing
+Alt-click drill-in (that fires only when the item ISN'T already selected). The
+clone is created **lazily on the drag's first real pointermove**
+(`placementSlice.resolveDragDuplicate` via `DragController`, cloning in place with
+`duplicatePlacement.ts:cloneItemsInPlace`), so a plain Alt+click that never moves
+duplicates nothing; every later drag branch (collision, snug-stack, guides, the
+BUG-1 pointerId gate) then runs unmodified against the copy. `startDrag`'s single
+`pushHistory()` makes one undo revert both the duplicate and its move; a copy that
+lands nowhere different from its source (invalid/net-zero drop) is discarded
+rather than orphaned on the original. A multi-select drag clones the whole
+selection, re-grouping the copies only when every source shared one group.
+Flag-gated `altDragDuplicate` (pro tier — a power-user shortcut atop the existing
+Duplicate button/⌘D; forced off in Simple). 41 unit tests + a real
+DragController pointer-event scenario (`alt-drag-duplicate-simple.json`, run
+inside the room editor) proving lazy clone, untouched original, valid committed
+drop, and single-undo.
+
+## FIX: gate catalog placement-drag by pointerId — MOBILE-3 (v0.13.0.2)
+
+The last of the pointerId-gating family, and it was a real bug (not cosmetic):
+`usePlacementController`'s window `pointermove`/`pointerup` for the long-press
+drag-to-place ghost had NO pointerId check — a second finger's `pointerup` could
+prematurely commit/cancel an in-progress drop, and its `pointermove` jittered the
+ghost throughout. Placement arms off-window (a catalog-card long-press timer), so
+there's no `pointerdown` to capture from; the initiating id is now lazily latched
+onto the first observed pointer event and every other pointer is a no-op via the
+shared `dragHelpers.ts:isActiveDragPointer`, reset on each concluding up/cancel
+(so stamp/shift re-latches per drop). Also added the previously-missing
+`pointercancel` handler (an OS-interrupted touch had left placement armed
+forever) — it aborts rather than commits a possibly-stale ghost. Desktop mouse +
+native HTML5 DnD untouched. 84 tests + a real two-pointer scenario.
+
+## FEAT: frame/zoom-to-selection camera — FEAT-A (v0.13.0.1)
+
+From the round-2 audit: with an item (or multi-selection) selected, press **Z**
+or the NavCluster "Frame selection" button to dolly the orbit camera so the
+selection fills the view (the universal "F" from SketchUp/Blender — rebound to
+**Z** because bare `KeyF` is already `flip` in the same orbit+selection context,
+a real collision the audit missed). Pure `scene/cameras/frameSelection.ts`
+(selection OBB union → bounding sphere → fit distance, clamped to the
+OrbitControls min/max) drives the existing `startFly` tween (keeps the current
+orbit angle, `frameloop="demand"`-safe); no-op with nothing selected. Flag
+`frameSelection` (simple). Verified: both entry points land the target on the
+item and dolly in (~14→4.3 m).
+
 ## RELEASE: v0.13.0.0 — PR to main
 
 Minor release bundling this branch's work (v0.12.0.2 → .41): PLAN-FURNISH Phase 1
