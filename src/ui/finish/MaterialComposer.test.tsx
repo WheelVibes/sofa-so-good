@@ -23,14 +23,23 @@ describe('MaterialComposer — recolour keeps the picked texture (bug #1)', () =
     // Some ColorPicker internals touch matchMedia; stub it for happy-dom.
     if (!window.matchMedia) {
       // @ts-expect-error test stub
-      window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} })
+      window.matchMedia = () => ({
+        matches: false,
+        addEventListener() {},
+        removeEventListener() {},
+      })
     }
   })
 
   it('seeds a plain catalog material as the tint base, so Apply yields a tint of THAT material', () => {
     const onApply = vi.fn()
     render(
-      <MaterialComposer label="Floor" active="floor-wood-oak" materials={[WOOD]} onApply={onApply} />,
+      <MaterialComposer
+        label="Floor"
+        active="floor-wood-oak"
+        materials={[WOOD]}
+        onApply={onApply}
+      />,
     )
     // Open the "Compose your own…" disclosure.
     fireEvent.click(screen.getByText('Compose your own…'))
