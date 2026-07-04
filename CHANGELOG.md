@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.14.1.3 — smooth wall-reveal fade (no more 2D↔3D door/window pop)
+
+The camera-facing wall reveal fades a wall's opacity smoothly, but the fading
+surfaces flipped `depthWrite` at a **0.6** opacity step while the wall itself only
+flips at ~0.985 — so mid-fade a door/window/skirting snapped from a see-through
+blend (faces don't self-occlude → reads flat "2D") to solid self-occluding "3D",
+"popping" as the camera orbited. Aligned every fading surface's `depthWrite` to
+the near-opaque boundary so they fade as one with the wall:
+
+- `Door` (default flat) — the reported case; fixed in both orbit and the room
+  editor (same component serves both).
+- `Window` frame (default flat), `Skirting`/baseboard.
+- `PlanShell` custom-plan walls **and** their trim (these popped their own
+  thickness too), and `PlanRoomShell`'s door leaf (custom-plan room editor).
+- `PlanDoorLeaf` (custom-plan orbit door) no longer HARD-hides at a 0.5 reveal
+  threshold — it now smoothly fades its opacity in lockstep with the host wall
+  (preserving the glazed vision-panel's authored transparency).
+
 ## v0.14.1.2 — room-editor default framing
 
 - **Entering the per-room editor always lands on a centred dollhouse view.** The
