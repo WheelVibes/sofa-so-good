@@ -144,25 +144,12 @@ REAL-1, SEC-1, FEAT-1, FEAT-2 — are in `CHANGELOG.md`. Still open:
 
 ## Open — round-2 audit backlog (2026-07-04)
 Open, client-doable items from `docs/research/2026-07-04-audit-round2-tests-mobile-features.md`
-(full detail + code refs there). Ranked.
-- **Test-coverage hardening** (user-direction priority)
-  - [ ] **TEST-3 — `state/storage/IdbAssetStore.ts` (0 tests).** The foundation of all user-asset
-    persistence (`put`/`get`/`list`/`delete`/`usage`); round-trip via `fake-indexeddb` (S).
-    **(In progress this cycle.)**
-  - [ ] **TEST-4 — `HistorySnapshot`-completeness guard test (BUG-3-class prevention).** Convert the
-    hand-audit rule in `state/CLAUDE.md` into a failing test — assert `snapshot()` captures the full
-    allow-list of history-relevant keys + a mutate→undo round-trip per field (S–M).
-    **(In progress this cycle.)**
-  - [ ] **TEST-5** — `remoteCatalogSlice.ts` orchestration (STALE_AFTER re-fetch, in-flight de-dupe,
-    error transitions) (S–M, MED value — remote furniture surfaces nothing in prod today).
-  - [ ] **TEST-7** — `DragController.tsx` BUG-1 wiring integration test (M).
-  - [ ] **TEST-8** — `ui/paletteFromPhoto.ts` nearest-finish mapping (M, MED-LOW).
-- **Value-add features** (client-doable, grounded in existing REFERENCES apps)
-  - [ ] **FEAT-C — isolate/solo the selection (focus mode)** (S–M, low risk). Derived inverse of
-    `hiddenItemIds` / low-opacity via `itemOpacity`; session-only, pro tier. **(In progress this cycle.)**
-  - [ ] **FEAT-D — two-point-perspective / vertical-line-lock camera** (M, med risk). Projection
-    vertical-shift alongside the lens/DoF controls; pro tier; needs a real-GPU visual pass.
-  - [ ] FEAT-E (3D grid-snap) deprioritized (alignment guides cover most of the value).
+(full detail + code refs there). Shipped from this audit — MOBILE-1/2/3, TEST-3/4/5/6/7/8,
+FEAT-A/B/C/D — are in `CHANGELOG.md`. Still open:
+- [ ] **FEAT-E — grid-snap for furniture placement in 3D** (S–M, low risk). Deprioritized: the
+  alignment guides + neighbour snap already deliver most of the "tidy placement" value; revisit as
+  complementary polish (a `gridSnap3d` toggle quantizing `dragControllerHandlers.onMove`, reusing
+  `floorplan/gridSnap.ts`, neighbour-snap wins within threshold else grid). Pro tier.
 - New reference: **Home Planner** (backend/licensed-asset-led — informs the tracked catalog-expansion/
   F11 work, not a client-doable feature). Added to `REFERENCES.md`.
 

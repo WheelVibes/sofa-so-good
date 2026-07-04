@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: pointerId gating for Rotate/Resize/Tilt gizmos (TEST-6) (v0.13.0.12)
+
+Round-2 audit coverage pairing with MOBILE-1 (which added the gating): the gizmo
+math was tested but the pointer-stream gating wasn't. New
+`scene/selection/gizmoPointerGating.test.ts` — a `describe.each` over
+RotateGizmo/ResizeGizmo/TiltGizmo × 4 cases (a foreign pointerId's move is a
+no-op, its release doesn't end the gesture, the initiating pointer's move drives
+it, its release ends it) at the `dragHelpers.ts:isActiveDragPointer` seam as each
+gizmo wires it — no gizmo refactor. +12 tests.
+
 ## FEAT: two-point-perspective / vertical-line-lock camera (FEAT-D) (v0.13.0.11)
 
 D5 Render / Enscape "keep verticals vertical" parity — a shareable-hero-shot
