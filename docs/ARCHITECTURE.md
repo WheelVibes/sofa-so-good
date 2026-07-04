@@ -1074,6 +1074,22 @@ same change that reshapes a system.
   `dimensionCommit`/`scaleCommits`/`wallTapCommits`/`polygonClick`/`rectFromVerts`/`rectFromDraft`/
   `rotateWallTransform`); `FloorPlanEditor`'s `onDown`/`onMove`/`onUp` are thin dispatchers that own the
   React draft state + store writes and delegate the math (MOD-FPE-SPLIT, behaviour-preserving extraction).
+  The screen→world coordinate mapping those dispatchers call into (grid/guide snap, wall magnetism, the
+  wall-draw angle-then-wall-snap pipeline) is itself factored into `ui/floorplan/editor/planPointerMapping.ts`
+  (`createPlanPointerMapping`, REFAC-2) — not a pure module (reads the live SVG rect off `svgRef`), so
+  it composes the pure `floorPlanGeometry`/`snapToWalls`/`snapWallAngle` primitives rather than being
+  unit-tested itself. REFAC-2 also lifted the toolbar/header JSX out of the component: small
+  presentational controls (`EditModeToggle`, `DrawToolPalette`, `WallTypeToggle`, `UndoRedoButtons`,
+  `GridZoomControls`, `PlanTotalLabel`, `PlanViewMenuActions`, `PlanDefaultsFields`) plus two layout
+  shells (`PlanEditorHeader` — the mobile/desktop toolbar row, `PlanToolsSheet` — the mobile ☰ Menu
+  bottom-sheet) that take already-built fragments as `ReactNode` props rather than raw store state, and
+  four more SVG **render layers** alongside the eleven from MOD-FPE-SPLIT (`PlanGuidesLayer`,
+  `OtherLevelsUnderlay`, `PersistentDimensionsLayer`, `AnnotationsLayer`). The "Plan ▾" menu's file/
+  reference-photo actions (~230 lines, many independent feature-flagged pieces) were deliberately
+  **left inline** — a prior audit (TASKS.md MOD-FPE-SPLIT) judged that bundling them into one
+  component needs a 40+ prop surface that would hurt readability more than the named-fragment consts;
+  the same reasoning kept `onDown`/`onMove`/`onUp` themselves in the component (moving ~30 pieces of
+  gesture `useState` into an external hook was judged higher-risk than the line-count win).
   **Numeric wall entry** (`wallNumericEntry` flag, pro, default on): while a desktop wall draft is active
   a floating overlay (`ui/floorplan/editor/WallNumericEntry.tsx`) appears near the cursor endpoint with
   Length and Angle ° text fields; typing drives a live preview; Enter commits at the exact values; Tab

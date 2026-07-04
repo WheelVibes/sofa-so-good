@@ -5,28 +5,15 @@ import { isAnyModalOpen } from '../../controls/modalGuard'
 import { exitPlanEditorToScene } from '../../controls/planEditorHotkey'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { useFeature } from '../../features/useFeature'
-import { defaultDoorSwing, doorSwing } from '../../floorplan/doorSwing'
+import { defaultDoorSwing } from '../../floorplan/doorSwing'
 import { traceBuildingOutline } from '../../floorplan/footprint'
 import { GROUND_LEVEL_ID, levelAsPlan, levelById, levelOfItem } from '../../floorplan/levels'
 import { planIntegrityFlags } from '../../floorplan/planIntegrity'
 import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { isSlopedWall, slopedWallHeights } from '../../floorplan/slopedWall'
-import { snapToGuides } from '../../floorplan/snapToGuides'
-import type { PlanWall } from '../../floorplan/types'
-import {
-  DEFAULT_PLAN_WALL_COLOR,
-  planBounds,
-  planTotalArea,
-  pointInRoom,
-  wallLength,
-} from '../../floorplan/types'
-import {
-  arcFromMidpoint,
-  isCurvedWall,
-  pointAtArcLength,
-  wallArcLength,
-} from '../../floorplan/wallArc'
+import { planBounds, planTotalArea, pointInRoom, wallLength } from '../../floorplan/types'
+import { arcFromMidpoint, isCurvedWall, wallArcLength } from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { beginDrop } from '../../scene/placementDrop'
 import { groupResizeFactor, resizedTransform } from '../../scene/selection/resizeGizmoMath'
@@ -36,41 +23,42 @@ import {
   rotatePointAround,
 } from '../../scene/selection/rotateGizmoMath'
 import type { ContextTarget } from '../../state/slices/featuresSlice'
-import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
-import { formatArea, formatDims, formatLength } from '../../utils/measurement'
-import { ColorPicker } from '../controls/ColorPicker'
-import { Select } from '../controls/Select'
 import { SliderField } from '../controls/SliderField'
 import { openDocs } from '../docsUrl'
 import { InfoCallout } from '../InfoCallout'
-import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
-import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { centerBackdrop, rescaleBackdropAnchored } from './editor/backdropPlacement'
-import {
-  alongWall as alongWallGeo,
-  nearestWall as nearestWallGeo,
-} from './editor/floorPlanGeometry'
+import { DrawToolPalette } from './editor/DrawToolPalette'
+import { EditModeToggle } from './editor/EditModeToggle'
 import { GridLines } from './editor/GridLines'
+import { GridZoomControls } from './editor/GridZoomControls'
 import { LevelMenu } from './editor/LevelMenu'
+import { AnnotationsLayer } from './editor/layers/AnnotationsLayer'
 import { DimensionsLayer } from './editor/layers/DimensionsLayer'
 import { DraftOverlayLayer } from './editor/layers/DraftOverlayLayer'
 import { FurnitureLayer } from './editor/layers/FurnitureLayer'
 import { FurnitureRotateHandle } from './editor/layers/FurnitureRotateHandle'
 import { NotesLayer } from './editor/layers/NotesLayer'
 import { OpeningsLayer } from './editor/layers/OpeningsLayer'
+import { OtherLevelsUnderlay } from './editor/layers/OtherLevelsUnderlay'
+import { PersistentDimensionsLayer } from './editor/layers/PersistentDimensionsLayer'
 import { PlacementGhostLayer } from './editor/layers/PlacementGhostLayer'
+import { PlanGuidesLayer } from './editor/layers/PlanGuidesLayer'
 import { PolylinesLayer } from './editor/layers/PolylinesLayer'
 import { RoomsLayer } from './editor/layers/RoomsLayer'
 import { TourStopsLayer } from './editor/layers/TourStopsLayer'
 import { WallHandlesLayer } from './editor/layers/WallHandlesLayer'
 import { WallsLayer } from './editor/layers/WallsLayer'
 import { type MarqueeItem, type MarqueeRect, marqueeSelect } from './editor/marqueeSelect'
+import { PlanDefaultsFields } from './editor/PlanDefaultsFields'
+import { PlanEditorHeader } from './editor/PlanEditorHeader'
 import { PlanLibrary } from './editor/PlanLibrary'
 import { PlanMenu } from './editor/PlanMenu'
-import { PlanToolMenu } from './editor/PlanToolMenu'
+import { PlanToolsSheet } from './editor/PlanToolsSheet'
+import { PlanTotalLabel } from './editor/PlanTotalLabel'
+import { PlanViewMenuActions } from './editor/PlanViewMenuActions'
 import { EXPORT_PAD, GRID_MARGIN, type Tool, ZOOM_BTN_STEP } from './editor/planConstants'
 import {
   buildPlanGhostItem,
@@ -78,10 +66,10 @@ import {
   isPlanPlaceable,
   planGhostValid,
 } from './editor/planFurnishPlacement'
-import { dimFontPx, roomFontPx, showOpeningDim, showWallDim } from './editor/planLabelDisplay'
+import { dimFontPx, roomFontPx } from './editor/planLabelDisplay'
+import { createPlanPointerMapping } from './editor/planPointerMapping'
 import { chooseScaleBar } from './editor/scaleBar'
-import { snapToWalls } from './editor/snapToWalls'
-import { snapWallAngle, vertexDragTarget } from './editor/snapWallAngle'
+import { vertexDragTarget } from './editor/snapWallAngle'
 import { clearsSelectionOnPanRelease } from './editor/tapDeselect'
 import {
   dimensionCommit,
@@ -93,15 +81,15 @@ import {
   wallCommit,
   wallTapCommits,
 } from './editor/toolDraftReducer'
+import { UndoRedoButtons } from './editor/UndoRedoButtons'
 import { usePlanAiWalls } from './editor/usePlanAiWalls'
 import { usePlanBackdrop } from './editor/usePlanBackdrop'
 import { usePlanLevel } from './editor/usePlanLevel'
 import { usePlanViewport } from './editor/usePlanViewport'
-import { WallDimension } from './editor/WallDimension'
 import { WallNumericEntry } from './editor/WallNumericEntry'
+import { WallTypeToggle } from './editor/WallTypeToggle'
 import { exportPlanPng } from './exportPlanPng'
 import { PlanInspector } from './PlanInspector'
-import { PLAN_LABEL_TEXT } from './planLabels'
 import { ScalePlanModal } from './ScalePlanModal'
 import { TemplatePicker } from './TemplatePicker'
 
@@ -599,56 +587,21 @@ export function FloorPlanEditor() {
 
   if (!editing) return null
 
-  // Raw pointer → grid-snapped world point (no wall magnetism). Split out so the
-  // wall-draw path can aim the grid point onto an angle increment *before* the
-  // wall snap gets the final say (grid → angle → wall-snap).
-  const pointerGrid = (e: React.PointerEvent): [number, number] => {
-    const rect = svgRef.current!.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * W
-    const y = ((e.clientY - rect.top) / rect.height) * H
-    const gridded: [number, number] = [snap(x / PX - GRID_MARGIN), snap(y / PX - GRID_MARGIN)]
-    // Persistent ruler guides take precedence over the grid within a small
-    // metric threshold (PARITY-PLAN-GUIDES), so a point lands exactly on a guide.
-    if (fGuides && plan.guides?.length) return snapToGuides(gridded, plan.guides, 0.15)
-    return gridded
-  }
-
-  // Raw (unsnapped) pointer → plan metres. The marquee rect tracks the cursor
-  // smoothly without grid quantisation (snapping would make the selection box
-  // jump in grid steps).
-  const pointerPlanRaw = (e: React.PointerEvent): [number, number] => {
-    const rect = svgRef.current!.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * W
-    const y = ((e.clientY - rect.top) / rect.height) * H
-    return [x / PX - GRID_MARGIN, y / PX - GRID_MARGIN]
-  }
-
-  const pointerWorld = (
-    e: React.PointerEvent,
-    excludeWallId?: string,
-    snapEdges?: boolean,
-  ): [number, number] => {
-    // Vertex snap (always) + edge snap (wall drawing only): connect walls cleanly
-    // at corners, and let a new wall tee mid-span into an existing one. Skip the
-    // wall being vertex-dragged so its own endpoints don't capture the cursor.
-    return snapToWalls(pointerGrid(e), levelPlan.walls, { excludeWallId, edges: snapEdges })
-  }
-
-  // Wall-draw endpoint: grid → angle-snap (15° increments, hold Shift to bypass)
-  // → wall-snap, so freehand walls land on clean directions while a join to a real
-  // corner/edge still wins near existing geometry.
-  const wallDrawEnd = (e: React.PointerEvent, anchor: [number, number]): [number, number] => {
-    const grid = pointerGrid(e)
-    const aimed = e.shiftKey ? grid : snapWallAngle(anchor, grid)
-    return snapToWalls(aimed, levelPlan.walls, { edges: true })
-  }
-
-  /** Nearest active-storey wall to a world point, with the projected offset. */
-  const nearestWall = (wx: number, wz: number) => nearestWallGeo(levelPlan.walls, wx, wz)
-
-  // Along-wall distance of a world point: arc-length on a curved wall, chord
-  // projection on a straight one. Used to drag an opening along its wall.
-  const alongWall = (wall: PlanWall, x: number, z: number): number => alongWallGeo(wall, x, z)
+  // Screen↔world coordinate mapping (grid/guide snap, wall magnetism, the
+  // wall-draw angle-then-wall-snap pipeline) — see `editor/planPointerMapping.ts`.
+  // Recreated every render (as the inline closures it replaces were) so it
+  // always closes over the current W/H/PX/snap/walls.
+  const { pointerPlanRaw, pointerWorld, wallDrawEnd, nearestWall, alongWall } =
+    createPlanPointerMapping({
+      svgRef,
+      W,
+      H,
+      PX,
+      snap,
+      fGuides,
+      guides: plan.guides,
+      walls: levelPlan.walls,
+    })
 
   // Start a canvas pan from a pointer-down (used by middle/right-drag, view mode,
   // and mobile-edit drags that aren't moving the selected item).
@@ -1513,140 +1466,24 @@ export function FloorPlanEditor() {
   // View ⇄ Edit toggle. View = pan/zoom + tap-to-inspect (safe one-finger pan on
   // touch); Edit reveals the tools + lets you move/draw.
   const viewToggle = (
-    <div className="seg accent">
-      <button
-        type="button"
-        className={editMode === 'view' ? 'on' : ''}
-        aria-pressed={editMode === 'view'}
-        onClick={() => {
-          setEditMode('view')
-          setTool('select')
-          setPolyDraft([])
-          setPolylineDraft([])
-          setDraft(null)
-        }}
-        title="View — pan & zoom only; dragging never moves anything"
-      >
-        View
-      </button>
-      <button
-        type="button"
-        className={editMode === 'edit' ? 'on' : ''}
-        aria-pressed={editMode === 'edit'}
-        onClick={() => setEditMode('edit')}
-        title="Edit — draw + move items (on touch, tap an item before dragging it)"
-      >
-        Edit
-      </button>
-    </div>
+    <EditModeToggle
+      editMode={editMode}
+      onView={() => {
+        setEditMode('view')
+        setTool('select')
+        setPolyDraft([])
+        setPolylineDraft([])
+        setDraft(null)
+      }}
+      onEdit={() => setEditMode('edit')}
+    />
   )
 
   // The drawing-tool palette. Condensed so the whole bar stays ONE row: Select is
   // a pointer icon, Wall/Split are direct buttons, and the related tools collapse
   // into labelled dropdowns (Room / Opening / Markup). The mobile bar keeps its
   // single `PlanToolMenu` picker.
-  const toolGroups: { label: string; tools: { t: Tool; label: string; title: string }[] }[] = [
-    {
-      label: 'Room',
-      tools: [
-        {
-          t: 'room',
-          label: 'Rectangle',
-          title: 'Rectangular room — drag a rectangle (area is computed)',
-        },
-        {
-          t: 'polyroom',
-          label: 'Polygon',
-          title:
-            'Polygon room — draw an L-shaped / non-rectangular room: click each corner, then click the first corner (or press Enter) to close it. Esc cancels.',
-        },
-        {
-          t: 'autoroom',
-          label: 'Auto',
-          title: 'Auto room — click inside a wall-enclosed area to make a room from it',
-        },
-      ],
-    },
-    {
-      label: 'Opening',
-      tools: [
-        { t: 'door', label: 'Door', title: 'Door — click on a wall to add a door' },
-        { t: 'window', label: 'Window', title: 'Window — click on a wall to add a window' },
-      ],
-    },
-    {
-      label: 'Markup',
-      tools: [
-        { t: 'text', label: 'Text', title: 'Text note — click to place a label' },
-        { t: 'dimension', label: 'Dimension', title: 'Dimension line — drag between two points' },
-        ...(fPolyline
-          ? [
-              {
-                t: 'polyline' as Tool,
-                label: 'Polyline',
-                title:
-                  'Polyline markup — click vertices, Enter to finish (open), click the first to close',
-              },
-            ]
-          : []),
-      ],
-    },
-  ]
-  const toolPalette = (
-    <div className="flex items-center gap-1" style={{ marginLeft: 4 }}>
-      <div className="seg accent">
-        <button
-          type="button"
-          onClick={() => pickTool('select')}
-          className={tool === 'select' || tool === 'scale' ? 'on' : ''}
-          title="Select / move — click an element to select it, drag to move"
-          aria-label="Select"
-          aria-pressed={tool === 'select'}
-        >
-          <Icon.Select width={16} height={16} />
-        </button>
-        <button
-          type="button"
-          onClick={() => pickTool('wall')}
-          className={tool === 'wall' ? 'on' : ''}
-          title="Wall — drag to draw; snaps to 15° angles (hold Shift for any angle)"
-        >
-          Wall
-        </button>
-        <button
-          type="button"
-          onClick={() => pickTool('split')}
-          className={tool === 'split' ? 'on' : ''}
-          title="Split — click a wall to split it in two"
-        >
-          Split
-        </button>
-      </div>
-      {toolGroups.map((g) => (
-        <PlanMenu
-          key={g.label}
-          label={g.label}
-          width={200}
-          active={g.tools.some((x) => x.t === tool)}
-        >
-          <div className="action-grid">
-            {g.tools.map((x) => (
-              <button
-                key={x.t}
-                type="button"
-                className={`act${tool === x.t ? ' on' : ''}`}
-                aria-current={tool === x.t}
-                title={x.title}
-                onClick={() => pickTool(x.t)}
-              >
-                {x.label}
-              </button>
-            ))}
-          </div>
-        </PlanMenu>
-      ))}
-    </div>
-  )
+  const toolPalette = <DrawToolPalette tool={tool} onPick={pickTool} fPolyline={fPolyline} />
 
   // Live how-to-finish hint for the multi-click drawing tools (the "how do I
   // close it?" gap) — shown while the Polygon-room / Polyline tool is active.
@@ -1661,19 +1498,7 @@ export function FloorPlanEditor() {
 
   // External/internal thickness for newly-drawn walls (only meaningful for Wall).
   const wallTypeSeg = tool === 'wall' && (
-    <div className="seg">
-      {(['external', 'internal'] as const).map((t) => (
-        <button
-          key={t}
-          type="button"
-          onClick={() => setWallType(t)}
-          title="Thickness of newly-drawn walls"
-          className={`capitalize${wallType === t ? ' on' : ''}`}
-        >
-          {t}
-        </button>
-      ))}
-    </div>
+    <WallTypeToggle wallType={wallType} onChange={setWallType} />
   )
 
   // Template + saved-plan library — primary plan entry points, kept inline.
@@ -1927,69 +1752,25 @@ export function FloorPlanEditor() {
   // Undo / redo (also ⌘Z / ⇧⌘Z) — visible buttons for touch, where there's no
   // keyboard. Important enough to sit in the mobile top bar, not just the menu.
   const undoRedo = (
-    <div className="seg" style={{ alignItems: 'center' }}>
-      <button
-        type="button"
-        title="Undo (⌘Z)"
-        aria-label="Undo"
-        disabled={!canUndo}
-        onClick={() => useStore.getState().undo()}
-      >
-        <Icon.Undo width={16} height={16} />
-      </button>
-      <button
-        type="button"
-        title="Redo (⇧⌘Z)"
-        aria-label="Redo"
-        disabled={!canRedo}
-        onClick={() => useStore.getState().redo()}
-      >
-        <Icon.Redo width={16} height={16} />
-      </button>
-    </div>
+    <UndoRedoButtons
+      canUndo={canUndo}
+      canRedo={canRedo}
+      onUndo={() => useStore.getState().undo()}
+      onRedo={() => useStore.getState().redo()}
+    />
   )
 
   // Snap-grid size + zoom — frequent but lower-priority than undo/redo.
   const gridZoom = (
-    <>
-      {/* Snap-grid size — finer = more precise placement. */}
-      <div className="seg" style={{ alignItems: 'center', gap: 6, paddingLeft: 8 }}>
-        <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
-          Grid
-        </span>
-        <Select
-          ariaLabel="Snap grid size"
-          className="input"
-          value={String(gridSize)}
-          onChange={(v) => setGridSize(Number(v))}
-          options={GRID_SIZES.map((g) => ({ value: String(g), label: formatLength(g, units) }))}
-        />
-      </div>
-      <div className="seg" style={{ alignItems: 'center' }}>
-        <button
-          type="button"
-          title="Zoom out"
-          onClick={() => zoomAroundCentre((z) => z - ZOOM_BTN_STEP)}
-        >
-          −
-        </button>
-        <button
-          type="button"
-          title="Reset zoom & centre"
-          onClick={resetView}
-          style={{ minWidth: 44, fontVariantNumeric: 'tabular-nums' }}
-        >
-          {Math.round(zoom * 100)}%
-        </button>
-        <button
-          type="button"
-          title="Zoom in"
-          onClick={() => zoomAroundCentre((z) => z + ZOOM_BTN_STEP)}
-        >
-          +
-        </button>
-      </div>
-    </>
+    <GridZoomControls
+      gridSize={gridSize}
+      onGridSizeChange={setGridSize}
+      units={units}
+      zoom={zoom}
+      onZoomOut={() => zoomAroundCentre((z) => z - ZOOM_BTN_STEP)}
+      onZoomIn={() => zoomAroundCentre((z) => z + ZOOM_BTN_STEP)}
+      onResetView={resetView}
+    />
   )
 
   // Frequent, compact controls kept inline on desktop: undo/redo + grid + zoom.
@@ -2003,143 +1784,61 @@ export function FloorPlanEditor() {
   // Occasional view toggles + export — grouped behind the desktop "View ▾" menu
   // (and shown flat in the mobile Tools modal).
   const viewMenuActions = (
-    <>
-      {fPlanLabels && (
-        <button
-          type="button"
-          onClick={() => useStore.getState().cyclePlanLabels()}
-          className={`btn btn-sm${labelsOn ? ' btn-accent' : ''}`}
-          title="Cycle furniture labels on the plan: off → name → name + price"
-          aria-pressed={labelsOn}
-        >
-          {PLAN_LABEL_TEXT[planLabels]}
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={() => setShowRoomLabels((v) => !v)}
-        className={`btn btn-sm${showRoomLabels ? ' btn-accent' : ''}`}
-        title="Toggle room name + dimension labels"
-        aria-pressed={showRoomLabels}
-      >
-        Labels
-      </button>
-      <button
-        type="button"
-        onClick={() => setShowWallDims((v) => !v)}
-        className={`btn btn-sm${showWallDims ? ' btn-accent' : ''}`}
-        title="Toggle wall-length labels"
-        aria-pressed={showWallDims}
-      >
-        Dims
-      </button>
-      <button
-        type="button"
-        onClick={() => setShowFurniture((v) => !v)}
-        className={`btn btn-sm${showFurniture ? ' btn-accent' : ''}`}
-        title="Show furniture footprints (hidden by default so they don't get in the way of editing; hidden furniture can't be selected or moved)"
-        aria-pressed={showFurniture}
-      >
-        Furniture
-      </button>
-      <button
-        type="button"
-        onClick={() => setSkeleton((v) => !v)}
-        className={`btn btn-sm${skeleton ? ' btn-accent' : ''}`}
-        title="Skeleton view — draw all walls uniformly thin to check whether they meet to enclose rooms"
-        aria-pressed={skeleton}
-      >
-        Skeleton
-      </button>
-      {isMultiLevel && (
-        <button
-          type="button"
-          onClick={() => setShowOtherLevels((v) => !v)}
-          className={`btn btn-sm${showOtherLevels ? ' btn-accent' : ''}`}
-          title="Show the other storeys' walls as a dimmed underlay (to line up floors)"
-          aria-pressed={showOtherLevels}
-        >
-          All levels
-        </button>
-      )}
-      <button
-        type="button"
-        className="btn btn-sm"
-        title="Download the floor plan as a PNG image"
-        onClick={() => {
-          if (!svgRef.current) return
-          const safe =
-            (plan.name || 'floor-plan').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '') ||
-            'floor-plan'
-          // Crop to the plan's bounding box + padding (not the whole open
-          // canvas) so the exported image is just the plan.
-          const crop = {
-            x: (GRID_MARGIN - EXPORT_PAD) * PX,
-            y: (GRID_MARGIN - EXPORT_PAD) * PX,
-            w: (ew + EXPORT_PAD * 2) * PX,
-            h: (ed + EXPORT_PAD * 2) * PX,
-          }
-          exportPlanPng(svgRef.current, safe, crop).catch(() =>
-            a.notify.start({ title: "Couldn't export the plan image", kind: 'error' }),
-          )
-        }}
-      >
-        Export PNG
-      </button>
-    </>
+    <PlanViewMenuActions
+      fPlanLabels={fPlanLabels}
+      labelsOn={labelsOn}
+      planLabels={planLabels}
+      onCycleLabels={() => useStore.getState().cyclePlanLabels()}
+      showRoomLabels={showRoomLabels}
+      onToggleRoomLabels={() => setShowRoomLabels((v) => !v)}
+      showWallDims={showWallDims}
+      onToggleWallDims={() => setShowWallDims((v) => !v)}
+      showFurniture={showFurniture}
+      onToggleFurniture={() => setShowFurniture((v) => !v)}
+      skeleton={skeleton}
+      onToggleSkeleton={() => setSkeleton((v) => !v)}
+      isMultiLevel={isMultiLevel}
+      showOtherLevels={showOtherLevels}
+      onToggleOtherLevels={() => setShowOtherLevels((v) => !v)}
+      onExportPng={() => {
+        if (!svgRef.current) return
+        const safe =
+          (plan.name || 'floor-plan').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '') ||
+          'floor-plan'
+        // Crop to the plan's bounding box + padding (not the whole open
+        // canvas) so the exported image is just the plan.
+        const crop = {
+          x: (GRID_MARGIN - EXPORT_PAD) * PX,
+          y: (GRID_MARGIN - EXPORT_PAD) * PX,
+          w: (ew + EXPORT_PAD * 2) * PX,
+          h: (ed + EXPORT_PAD * 2) * PX,
+        }
+        exportPlanPng(svgRef.current, safe, crop).catch(() =>
+          a.notify.start({ title: "Couldn't export the plan image", kind: 'error' }),
+        )
+      }}
+    />
   )
 
   const totalLabel = (
-    <span
-      className="panel-sub"
-      style={{ textTransform: 'none', letterSpacing: 0, whiteSpace: 'nowrap', flexShrink: 0 }}
-    >
-      Total{' '}
-      <b className="mono" style={{ color: 'var(--text)' }}>
-        {formatArea(total, units)}
-      </b>{' '}
-      · {levelPlan.rooms.length} rooms
-      {fIntegrity && strayCount > 0 ? (
-        <b
-          style={{ color: 'var(--danger)', marginLeft: 6, whiteSpace: 'nowrap' }}
-          title="Stray elements (in red): a wall joined to no other wall, a room touching no other room, or a door/window off any wall. Connect them to make the apartment whole."
-        >
-          ⚠ {strayCount} stray
-        </b>
-      ) : null}
-    </span>
+    <PlanTotalLabel
+      total={total}
+      units={units}
+      roomCount={levelPlan.rooms.length}
+      showStrayWarning={fIntegrity}
+      strayCount={strayCount}
+    />
   )
 
   // Plan-wide defaults (ceiling height + wall colour) — surfaced in the mobile
   // Tools modal (on desktop they live in the right-hand PlanInspector).
   const planDefaults = (
-    <>
-      <label className="flex items-center justify-between gap-2 text-xs">
-        <span className="label">Ceiling height (m)</span>
-        <input
-          type="number"
-          step={0.05}
-          min={2.2}
-          value={plan.ceilingHeight}
-          onChange={(e) => {
-            const v = Number.parseFloat(e.target.value)
-            if (Number.isFinite(v))
-              a.updateFloorPlanMeta({ ceilingHeight: Math.min(4, Math.max(2.2, v)) })
-          }}
-          className="input mono"
-          style={{ width: 96, textAlign: 'right' }}
-        />
-      </label>
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="label">Wall colour</span>
-        <ColorPicker
-          ariaLabel="Wall colour"
-          value={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
-          onChange={(hex) => a.updateFloorPlanMeta({ wallColor: hex })}
-          paletteRoomId={null}
-        />
-      </div>
-    </>
+    <PlanDefaultsFields
+      ceilingHeight={plan.ceilingHeight}
+      wallColor={plan.wallColor}
+      onCeilingHeightChange={(v) => a.updateFloorPlanMeta({ ceilingHeight: v })}
+      onWallColorChange={(hex) => a.updateFloorPlanMeta({ wallColor: hex })}
+    />
   )
 
   return (
@@ -2147,107 +1846,51 @@ export function FloorPlanEditor() {
       {/* Header / toolbar. Desktop stays a SINGLE row (`flex-nowrap` + horizontal
           scroll fallback so it can never spill to two rows); mobile keeps its
           short wrapping bar. */}
-      <div
-        className={`flex items-center gap-2 px-4 py-2 ${
-          isMobile ? 'flex-wrap' : 'flex-nowrap overflow-x-auto'
-        }`}
-        style={{
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--surface)',
-          backdropFilter: 'blur(var(--blur))',
+      <PlanEditorHeader
+        isMobile={isMobile}
+        toolsMenuOpen={toolsMenuOpen}
+        onOpenToolsMenu={() => setToolsMenuOpen(true)}
+        editMode={editMode}
+        toolList={toolList}
+        tool={tool}
+        toolLabel={toolLabel}
+        onPickTool={pickTool}
+        viewToggle={viewToggle}
+        drawHint={drawHint}
+        undoRedo={undoRedo}
+        onExit={exitPlanEditorToScene}
+        planName={plan.name}
+        onPlanNameChange={(v) => a.updateFloorPlanMeta({ name: v })}
+        toolPalette={toolPalette}
+        wallTypeSeg={wallTypeSeg}
+        fPlanFurnish={fPlanFurnish}
+        catalogOpen={catalogOpen}
+        onToggleCatalog={() => {
+          const next = !catalogOpen
+          a.setCatalogOpen(next)
+          if (next) setShowFurniture(true)
         }}
-      >
-        {isMobile ? (
-          <>
-            {viewToggle}
-            {/* The ☰ menu holds furniture/undo/grid/labels/export/etc., useful in
-                both modes — so show it always (the drawing-tool picker stays
-                Edit-only). */}
-            <button
-              type="button"
-              className={`btn btn-sm${toolsMenuOpen ? ' btn-accent' : ''}`}
-              aria-haspopup="dialog"
-              aria-expanded={toolsMenuOpen}
-              onClick={() => setToolsMenuOpen(true)}
-            >
-              ☰ Menu
-            </button>
-            {editMode === 'edit' && (
-              <PlanToolMenu tools={toolList} tool={tool} label={toolLabel} onPick={pickTool} />
-            )}
-            {drawHint}
-            {/* Undo/redo are important enough to stay in the top bar (not buried
-                in the ☰ Menu). `ml-auto` pushes them + Done to the right. */}
-            <div className="ml-auto flex items-center gap-2">
-              {undoRedo}
-              <button
-                type="button"
-                onClick={exitPlanEditorToScene}
-                className="btn btn-accent btn-sm"
-              >
-                Done
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <input
-              value={plan.name}
-              onChange={(e) => a.updateFloorPlanMeta({ name: e.target.value })}
-              className="input"
-              style={{ width: 148, flexShrink: 0 }}
-              aria-label="Plan name"
-              title="Plan name"
-            />
-            {viewToggle}
-            {editMode === 'edit' && toolPalette}
-            {editMode === 'edit' && wallTypeSeg}
-            {editMode === 'edit' && fPlanFurnish && (
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !catalogOpen
-                  a.setCatalogOpen(next)
-                  if (next) setShowFurniture(true)
-                }}
-                className={`btn btn-sm${catalogOpen ? ' btn-accent' : ''}`}
-                title="Browse furniture to add directly to the plan"
-                aria-pressed={catalogOpen}
-              >
-                Furnish
-              </button>
-            )}
-            {drawHint}
-            {templateLibrary}
-            <PlanMenu label="Plan">{fileActions}</PlanMenu>
-            <div className="ml-auto flex items-center gap-2">
-              {multiSelectToggle}
-              {quickActions}
-              <PlanMenu
-                label="View"
-                active={
-                  showWallDims ||
-                  showFurniture ||
-                  skeleton ||
-                  labelsOn ||
-                  showOtherLevels ||
-                  !showRoomLabels
-                }
-              >
-                {viewMenuActions}
-              </PlanMenu>
-              {totalLabel}
-              <button
-                type="button"
-                onClick={exitPlanEditorToScene}
-                className="btn btn-accent btn-sm"
-              >
-                Done
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+        templateLibrary={templateLibrary}
+        fileActionsMenu={<PlanMenu label="Plan">{fileActions}</PlanMenu>}
+        multiSelectToggle={multiSelectToggle}
+        quickActions={quickActions}
+        viewMenu={
+          <PlanMenu
+            label="View"
+            active={
+              showWallDims ||
+              showFurniture ||
+              skeleton ||
+              labelsOn ||
+              showOtherLevels ||
+              !showRoomLabels
+            }
+          >
+            {viewMenuActions}
+          </PlanMenu>
+        }
+        totalLabel={totalLabel}
+      />
       <div className="px-4 pt-2">
         <InfoCallout id="floor-plan" title="Editing your floor plan">
           Switch to Edit to draw walls and rooms; View just pans and zooms. Your 3D home updates
@@ -2255,61 +1898,24 @@ export function FloorPlanEditor() {
         </InfoCallout>
       </div>
       {isMobile && (
-        <Modal open={toolsMenuOpen} onClose={() => setToolsMenuOpen(false)} title="Plan tools">
-          {/* Grouped into labelled sections so the sheet reads as tidy settings
-              rather than one dense wall of buttons. */}
-          <div className="plan-tools-sheet">
-            <section className="plan-tools-group">
-              <div className="menu-label">Plan</div>
-              <input
-                value={plan.name}
-                onChange={(e) => a.updateFloorPlanMeta({ name: e.target.value })}
-                className="input"
-                aria-label="Plan name"
-              />
-              {/* Floors are managed from the bottom-left LevelMenu dropdown. */}
-              <div className="flex flex-wrap items-center gap-2">
-                {templateLibrary}
-                {fileActions}
-              </div>
-            </section>
-
-            <section className="plan-tools-group">
-              <div className="menu-label">View</div>
-              <div className="flex flex-wrap items-center gap-2">{viewMenuActions}</div>
-              {/* undo/redo live in the top bar on mobile, so only grid + zoom here. */}
-              <div className="flex flex-wrap items-center gap-2">{gridZoom}</div>
-            </section>
-
-            {(wallTypeSeg || multiSelectToggle) && (
-              <section className="plan-tools-group">
-                <div className="menu-label">Edit</div>
-                {wallTypeSeg ? (
-                  <div className="flex flex-wrap items-center gap-2">{wallTypeSeg}</div>
-                ) : null}
-                {multiSelectToggle}
-              </section>
-            )}
-
-            <section className="plan-tools-group">
-              <div className="menu-label">Defaults</div>
-              {planDefaults}
-              {totalLabel}
-            </section>
-
-            <button
-              type="button"
-              className="btn btn-sm btn-block"
-              onClick={() => {
-                setToolsMenuOpen(false)
-                openDocs()
-              }}
-              title="Open the user guide in a new tab"
-            >
-              Help — user guide ↗
-            </button>
-          </div>
-        </Modal>
+        <PlanToolsSheet
+          open={toolsMenuOpen}
+          onClose={() => setToolsMenuOpen(false)}
+          planName={plan.name}
+          onPlanNameChange={(v) => a.updateFloorPlanMeta({ name: v })}
+          templateLibrary={templateLibrary}
+          fileActions={fileActions}
+          viewMenuActions={viewMenuActions}
+          gridZoom={gridZoom}
+          wallTypeSeg={wallTypeSeg}
+          multiSelectToggle={multiSelectToggle}
+          planDefaults={planDefaults}
+          totalLabel={totalLabel}
+          onHelp={() => {
+            setToolsMenuOpen(false)
+            openDocs()
+          }}
+        />
       )}
 
       {/* Scale-plan dialog (PARITY-PLAN-SCALE) — opened from the "Scale plan…"
@@ -2509,64 +2115,19 @@ export function FloorPlanEditor() {
 
               {/* Persistent ruler guides (PARITY-PLAN-GUIDES) — dashed accent
                   lines that points snap to. Click one to remove it. */}
-              {fGuides &&
-                (plan.guides ?? []).map((g, i) => {
-                  const p = toPx(g.pos)
-                  const x1 = g.axis === 'x' ? p : 0
-                  const x2 = g.axis === 'x' ? p : W
-                  const y1 = g.axis === 'x' ? 0 : p
-                  const y2 = g.axis === 'x' ? H : p
-                  return (
-                    <g key={`guide-${g.axis}-${i}`} style={{ cursor: 'pointer' }}>
-                      <line
-                        x1={x1}
-                        y1={y1}
-                        x2={x2}
-                        y2={y2}
-                        stroke="transparent"
-                        strokeWidth={10}
-                        onPointerDown={(e) => {
-                          e.stopPropagation()
-                          a.removePlanGuide(i)
-                        }}
-                      >
-                        <title>Click to remove guide</title>
-                      </line>
-                      <line
-                        x1={x1}
-                        y1={y1}
-                        x2={x2}
-                        y2={y2}
-                        stroke="var(--accent)"
-                        strokeWidth={1}
-                        strokeDasharray="6 4"
-                        style={{ pointerEvents: 'none' }}
-                      />
-                    </g>
-                  )
-                })}
+              {fGuides && (
+                <PlanGuidesLayer
+                  guides={plan.guides ?? []}
+                  toPx={toPx}
+                  W={W}
+                  H={H}
+                  onRemoveGuide={a.removePlanGuide}
+                />
+              )}
 
               {/* Other storeys' walls as a dimmed underlay (SH3D "all levels"),
                 so walls/stairs can be lined up between floors. Non-interactive. */}
-              {showOtherLevels &&
-                otherLevels.flatMap((lvl) =>
-                  lvl.walls
-                    .filter((w) => wallLength(w) > 0)
-                    .map((w) => (
-                      <line
-                        key={`ghost-${lvl.id}-${w.id}`}
-                        x1={toPx(w.start[0])}
-                        y1={toPx(w.start[1])}
-                        x2={toPx(w.end[0])}
-                        y2={toPx(w.end[1])}
-                        stroke="var(--text-3)"
-                        strokeWidth={w.thickness === 'external' ? 4 : 2.5}
-                        strokeLinecap="round"
-                        opacity={0.16}
-                        style={{ pointerEvents: 'none' }}
-                      />
-                    )),
-                )}
+              {showOtherLevels && <OtherLevelsUnderlay levels={otherLevels} toPx={toPx} />}
 
               {/* Un-roomed flag: the exact wall-enclosed outline filled red, drawn
                 BENEATH the rooms so only walled-in floor with no room shows red
@@ -2723,146 +2284,24 @@ export function FloorPlanEditor() {
                 setMovingBulge={setMovingBulge}
               />
 
-              {/* Persistent wall-length dimensions (a staple of pro floor
-                planners): a proper dimension line with extension lines +
-                arrowheads spanning each wall, oriented to the plan's outside.
-                Culled to walls long enough on screen to fit the callout, and the
-                text font scales with zoom — so they stay legible without
-                cluttering when zoomed out. */}
-              {showWallDims &&
-                levelPlan.walls.map((w) => {
-                  const len = wallLength(w)
-                  if (!showWallDim(len, PX)) return null
-                  return (
-                    <WallDimension
-                      key={`dim-${w.id}`}
-                      a={w.start}
-                      b={w.end}
-                      label={formatLength(len, units)}
-                      toPx={toPx}
-                      centre={planCentrePx}
-                      fontPx={dimFont}
-                      selected={sel?.type === 'wall' && sel.id === w.id}
-                    />
-                  )
-                })}
-
-              {/* Opening (door/window) width dimensions — same "Dims" toggle.
-                Rendered as a dimension marker spanning the opening along its
-                wall, matching the wall callouts. Curved walls keep a plain label
-                (a straight marker can't follow the arc). */}
-              {showWallDims &&
-                levelPlan.openings.map((o) => {
-                  const wall = levelPlan.walls.find((w) => w.id === o.wallId)
-                  if (!wall) return null
-                  const len = wallLength(wall)
-                  if (len === 0) return null
-                  // Least-important, most-numerous labels — drop when they can't
-                  // fit (and sooner on mobile) to keep the plan readable.
-                  if (!showOpeningDim(o.width, PX, isMobile)) return null
-                  const isSel = sel?.type === 'opening' && sel.id === o.id
-                  if (isCurvedWall(wall)) {
-                    const p = pointAtArcLength(wall, o.offset + o.width / 2)
-                    const ux = Math.sin(p.angle)
-                    const uz = Math.cos(p.angle)
-                    const off = o.kind === 'door' && doorSwing(o) === 'right' ? -0.32 : 0.32
-                    return (
-                      <text
-                        key={`odim-${o.id}`}
-                        x={toPx(p.x - uz * off)}
-                        y={toPx(p.z + ux * off)}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        className="plan-dim-label"
-                        fill={isSel ? 'var(--accent)' : 'var(--accent-soft-text)'}
-                        style={{ pointerEvents: 'none', fontSize: dimFont, fontWeight: 600 }}
-                      >
-                        {formatLength(o.width, units)}
-                      </text>
-                    )
-                  }
-                  const ux = (wall.end[0] - wall.start[0]) / len
-                  const uz = (wall.end[1] - wall.start[1]) / len
-                  return (
-                    <WallDimension
-                      key={`odim-${o.id}`}
-                      a={[wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]}
-                      b={[
-                        wall.start[0] + ux * (o.offset + o.width),
-                        wall.start[1] + uz * (o.offset + o.width),
-                      ]}
-                      label={formatLength(o.width, units)}
-                      toPx={toPx}
-                      centre={planCentrePx}
-                      fontPx={dimFont}
-                      selected={isSel}
-                    />
-                  )
-                })}
+              {/* Persistent wall-length + opening-width dimensions (a staple of
+                pro floor planners), gated by the "Dims" toggle. */}
+              <PersistentDimensionsLayer
+                show={showWallDims}
+                walls={levelPlan.walls}
+                openings={levelPlan.openings}
+                sel={sel}
+                toPx={toPx}
+                PX={PX}
+                units={units}
+                isMobile={isMobile}
+                centre={planCentrePx}
+                fontPx={dimFont}
+              />
 
               {/* Pinned dimension annotations — the same callouts shown in 3D and
                 the report, so a measurement traced in either view appears here. */}
-              {annotations.map((an) => {
-                const [ax, az] = an.a
-                const [bx, bz] = an.b
-                if (an.shape === 'rect') {
-                  const x = Math.min(ax, bx)
-                  const z = Math.min(az, bz)
-                  const w = Math.abs(bx - ax)
-                  const h = Math.abs(bz - az)
-                  if (w < 1e-3 || h < 1e-3) return null
-                  return (
-                    <g key={an.id} style={{ pointerEvents: 'none' }}>
-                      <rect
-                        x={toPx(x)}
-                        y={toPx(z)}
-                        width={w * PX}
-                        height={h * PX}
-                        fill="var(--plan-annot)"
-                        fillOpacity={0.1}
-                        stroke="var(--plan-annot)"
-                        strokeWidth={1.5}
-                        strokeDasharray="5 3"
-                      />
-                      <text
-                        x={toPx(x + w / 2)}
-                        y={toPx(z + h / 2)}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fill="var(--plan-annot)"
-                        style={{ fontSize: 11, fontWeight: 600 }}
-                      >
-                        {`${formatDims(w, h, units)} · ${formatArea(w * h, units)}`}
-                      </text>
-                    </g>
-                  )
-                }
-                const len = Math.hypot(bx - ax, bz - az)
-                if (len < 1e-3) return null
-                return (
-                  <g key={an.id} style={{ pointerEvents: 'none' }}>
-                    <line
-                      x1={toPx(ax)}
-                      y1={toPx(az)}
-                      x2={toPx(bx)}
-                      y2={toPx(bz)}
-                      stroke="var(--plan-annot)"
-                      strokeWidth={2}
-                      strokeDasharray="5 3"
-                    />
-                    <text
-                      x={toPx((ax + bx) / 2)}
-                      y={toPx((az + bz) / 2) - 6}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fill="var(--plan-annot)"
-                      style={{ fontSize: 11, fontWeight: 600 }}
-                    >
-                      {formatLength(len, units)}
-                    </text>
-                  </g>
-                )
-              })}
+              <AnnotationsLayer annotations={annotations} toPx={toPx} PX={PX} units={units} />
 
               {/* 360° tour stop markers (panoTour feature, plan-based placement).
                 Shown as numbered eye-shaped pins on the ground level only.
@@ -2991,5 +2430,3 @@ export function FloorPlanEditor() {
     </div>
   )
 }
-
-/** Save / load / delete named apartments (the plan library). */

@@ -19,20 +19,23 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   the inert WebXR entry + provider already ship.
 
 ## Open — client-doable
-- [ ] MOD-FPE-SPLIT (optional tail): `FloorPlanEditor.tsx` is now **~2728 lines** (was 4271, −36%).
-  Done: state/effect hooks `usePlanBackdrop` (v.46), `usePlanAiWalls` (v.47), `usePlanViewport` (v.49),
-  `usePlanLevel` (v.50); and **all 11 SVG render layers** in `editor/layers/*` — `WallsLayer`,
-  `RoomsLayer`, `OpeningsLayer`, `DimensionsLayer`, `NotesLayer`, `PolylinesLayer`, `TourStopsLayer`,
-  `FurnitureLayer`, `FurnitureRotateHandle`, `WallHandlesLayer`, `DraftOverlayLayer` (v.51–.60), each
-  behaviour-preserving + interactively verified. Pure tool math/decisions were already modularised
-  (`toolDraftReducer`, `*Commit`, `snap*`, `floorPlanGeometry`, `marqueeSelect`). What remains is
-  **intentionally kept in the component** per `editor/CLAUDE.md`: the pointer-tool **dispatcher**
-  (`onDown/onMove/onUp`, ~730 lines) is a thin dispatch over those pure helpers + store writes and
-  should stay. The only further *shell* reduction available is lifting the toolbar/control JSX
-  fragments (`viewToggle`/`toolPalette`/`fileActions`/… ~620 lines) into a presentational
-  `PlanToolbar` — deferred because it needs a 40+ prop bundle (passing the whole store-action
-  snapshot), which would hurt readability more than the current named-fragment consts. Revisit only
-  if the toolbar grows its own logic.
+- [ ] MOD-FPE-SPLIT (optional tail, REFAC-2 landed a further cut): `FloorPlanEditor.tsx` is now
+  **~2432 lines** (was 4271, −43%). Done: state/effect hooks `usePlanBackdrop` (v.46), `usePlanAiWalls`
+  (v.47), `usePlanViewport` (v.49), `usePlanLevel` (v.50); **all 11 SVG render layers** in
+  `editor/layers/*` — `WallsLayer`, `RoomsLayer`, `OpeningsLayer`, `DimensionsLayer`, `NotesLayer`,
+  `PolylinesLayer`, `TourStopsLayer`, `FurnitureLayer`, `FurnitureRotateHandle`, `WallHandlesLayer`,
+  `DraftOverlayLayer` (v.51–.60); and (REFAC-2) **4 more layers** (`PlanGuidesLayer`,
+  `OtherLevelsUnderlay`, `PersistentDimensionsLayer`, `AnnotationsLayer`), the screen→world coordinate
+  mapping (`editor/planPointerMapping.ts`), and 8 small presentational toolbar controls +
+  2 layout shells (`PlanEditorHeader`, `PlanToolsSheet`) that take already-built fragments as props —
+  each behaviour-preserving + interactively verified. Pure tool math/decisions were already
+  modularised (`toolDraftReducer`, `*Commit`, `snap*`, `floorPlanGeometry`, `marqueeSelect`). What
+  remains is **intentionally kept in the component** per `editor/CLAUDE.md`: the pointer-tool
+  **dispatcher** (`onDown/onMove/onUp`, ~550 lines) is a thin dispatch over those pure helpers + store
+  writes and should stay; the "Plan ▾" menu's file/reference-photo actions (`fileActions`, ~230 lines,
+  many independent feature-flagged pieces) were also left inline — bundling them needs a 40+ prop
+  surface (passing the whole store-action snapshot), which would hurt readability more than the
+  current named-fragment const. Revisit only if either grows further.
 - [ ] SLOT-203 (configurator GLB-sub-asset options): needs a **bundled CC0 GLB** asset + the load
   path (load → reparent at the slot anchor → per-slot `listFinishTargets` namespacing). The v1
   products are all-procedural, so this is gated on sourcing a suitable CC0 GLB option to bundle.

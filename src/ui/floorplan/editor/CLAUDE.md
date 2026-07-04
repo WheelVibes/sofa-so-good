@@ -1,7 +1,7 @@
 # src/ui/floorplan/editor — 2D plan-editor support modules
 
 Helpers and sub-components factored out of the large `FloorPlanEditor.tsx` so it
-stays a thin dispatcher. Two kinds of file live here:
+stays a thin dispatcher. Several kinds of file live here:
 
 - **Pure logic modules** (`floorPlanGeometry.ts`, `snapToWalls.ts`,
   `snapWallAngle.ts`, `planLabelDisplay.ts`, `planConstants.ts`,
@@ -16,13 +16,36 @@ stays a thin dispatcher. Two kinds of file live here:
   mapping (reusing the existing `pointerWorld`/`toPx`) and the store
   reads/writes, this module only decides what the ghost looks like and what a
   click should do with it.
+- **`planPointerMapping.ts`** (REFAC-2) sits one level up from the pure modules:
+  `createPlanPointerMapping()` composes `floorPlanGeometry`/`snapToWalls`/
+  `snapWallAngle` into the screen→world coordinate pipeline (grid/guide snap,
+  wall magnetism, wall-draw angle-then-wall-snap) the pointer dispatcher calls
+  into. It reads the live SVG rect off a passed-in `svgRef`, so it is **not**
+  pure and has no `*.test.ts` — it's plain code-motion out of the component,
+  recreated fresh every render exactly like the inline closures it replaced.
 - **Sub-components** (`GridLines.tsx`, `WallDimension.tsx`,
-  `WallNumericEntry.tsx`, `PlanMenu.tsx`, …): presentational overlays driven by
-  props from the editor. The per-storey **SVG render layers** live under
+  `WallNumericEntry.tsx`, `PlanMenu.tsx`, `PlanEditorHeader.tsx`,
+  `PlanToolsSheet.tsx`, `EditModeToggle.tsx`, `DrawToolPalette.tsx`,
+  `WallTypeToggle.tsx`, `UndoRedoButtons.tsx`, `GridZoomControls.tsx`,
+  `PlanTotalLabel.tsx`, `PlanViewMenuActions.tsx`, `PlanDefaultsFields.tsx`, …):
+  presentational overlays/toolbar fragments driven by props from the editor.
+  `PlanEditorHeader`/`PlanToolsSheet` (REFAC-2) are layout **shells**: most of
+  their props are already-built `ReactNode` fragments the editor assembles
+  from its own state (`viewToggle`, `toolPalette`, `fileActionsMenu`, …), not
+  raw store values, so they stay a handful of primitives + node props rather
+  than a "God component" bundling the editor's whole state surface. The "Plan
+  ▾" menu's file/reference-photo actions (`fileActions`, ~230 lines of
+  independent feature-flagged pieces) are deliberately **kept inline** in
+  `FloorPlanEditor.tsx` rather than extracted the same way — bundling them
+  needs a 40+ prop surface that a prior audit judged would hurt readability
+  more than the current named-fragment const (see TASKS.md MOD-FPE-SPLIT
+  history); don't re-attempt that specific extraction without solving the
+  prop-surface problem first. The per-storey **SVG render layers** live under
   `layers/` (`WallsLayer`, `RoomsLayer`, `OpeningsLayer`, `DimensionsLayer`,
   `NotesLayer`, `PolylinesLayer`, `TourStopsLayer`, `FurnitureLayer`,
   `FurnitureRotateHandle`, `WallHandlesLayer`, `DraftOverlayLayer`,
-  `PlacementGhostLayer`): each is one
+  `PlacementGhostLayer`, `PlanGuidesLayer`, `OtherLevelsUnderlay`,
+  `PersistentDimensionsLayer`, `AnnotationsLayer`): each is one
   cohesive slice of the plan `<svg>`, prop-driven, taking editor state + the
   drag/selection handlers as props (the editor stays the dispatcher). Add a new
   layer here rather than growing the render block in `FloorPlanEditor.tsx`.

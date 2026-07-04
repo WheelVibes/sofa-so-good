@@ -126,12 +126,13 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
     shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
     `.plan-screen`) — low-risk follow-up.
 
-## Open — deep-audit backlog (2026-07-04)
-Open, client-doable items from `docs/research/2026-07-04-deep-audit-and-opportunities.md`
-(full detail + code refs there). Shipped items from that audit — BUG-1..7, PERF-A/B/D,
-REAL-1, SEC-1, FEAT-1, FEAT-2 — are in `CHANGELOG.md`. Still open:
-- [ ] **REFAC-2 — `FloorPlanEditor.tsx` ~3186 lines (note, tracked as MOD-FPE-SPLIT).** Grew with
-  PLAN-FURNISH; revisit the toolbar-fragment/dispatcher extraction if it keeps growing.
+## Deep-audit backlog (2026-07-04) — fully shipped
+All client-doable items from `docs/research/2026-07-04-deep-audit-and-opportunities.md` have
+shipped (see `CHANGELOG.md`): BUG-1..7, PERF-A/B/D, REAL-1, SEC-1, FEAT-1, FEAT-2, REFAC-1
+(InspectorPanel decomposition), and REFAC-2 (FloorPlanEditor decomposition — a pass landed 8
+toolbar controls + 2 layout shells + 4 SVG layers + `planPointerMapping.ts`, ~3186→2432 lines;
+`onDown/onMove/onUp` + the "Plan ▾" `fileActions` are intentionally left inline per TASKS.md —
+revisit only if either grows further).
 
 ## Open — round-2 audit backlog (2026-07-04)
 Open, client-doable items from `docs/research/2026-07-04-audit-round2-tests-mobile-features.md`

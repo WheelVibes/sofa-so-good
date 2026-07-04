@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## REFACTOR: decompose the FloorPlanEditor monolith (REFAC-2) (v0.13.0.15)
+
+Behaviour-preserving decomposition of `ui/floorplan/FloorPlanEditor.tsx`
+(~2995→2432 lines, −563). Extracted 14 modules under `ui/floorplan/editor/`: 8
+presentational toolbar controls (`EditModeToggle`, `DrawToolPalette`,
+`WallTypeToggle`, `UndoRedoButtons`, `GridZoomControls`, `PlanTotalLabel`,
+`PlanViewMenuActions`, `PlanDefaultsFields`), 2 layout shells that take built
+`ReactNode` fragments as props (`PlanEditorHeader`, `PlanToolsSheet`), 4 more SVG
+render layers (`PlanGuidesLayer`, `OtherLevelsUnderlay`, `PersistentDimensionsLayer`,
+`AnnotationsLayer`, alongside the 11 from the earlier MOD-FPE-SPLIT), and the
+screen→world pointer coordinate mapping (`planPointerMapping.ts`). The
+`onDown/onMove/onUp` pointer dispatcher and the "Plan ▾" `fileActions` block are
+intentionally left inline (per TASKS.md's prior assessment — extracting them needs
+a 40+ prop surface that hurts readability more than it helps). No behaviour change:
+full suite (5428) + 769 floorplan tests green, tsc + biome clean, toolbar/menus
+render pixel-identical.
+
 ## FIX: footprint parts now flip with flipX/flipZ (asymmetric defs) (v0.13.0.13)
 
 Surfaced by FEAT-2: flipping/mirroring an item with an **asymmetric footprint**
