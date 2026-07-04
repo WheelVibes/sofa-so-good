@@ -271,7 +271,28 @@ body.mobile {
      sheet is ~header-height (thumb + padding) above the safe-area inset; clear
      it plus a small gap. Only a selected item can be dragged/resized, so the
      inspector sheet is always present when this HUD shows. */
-  :root { --hud-bottom: calc(env(safe-area-inset-bottom, 0px) + 104px); }
+  /* Set on `body.mobile` itself (NOT `:root` — this whole block is nested under
+     `body.mobile {}`, so `:root` would resolve to `body.mobile :root`, which
+     never matches since <html> isn't a descendant of <body>; that left the var
+     empty and every `bottom: var(--hud-bottom)` fell back / broke). Custom
+     properties inherit, so all descendants pick it up. */
+  & { --hud-bottom: calc(env(safe-area-inset-bottom, 0px) + 104px); }
+
+  /* Every bottom-centre HUD must clear the minimized inspector sheet, not hide
+     behind it — the drag/resize readout (`.drag-readout`, above), the
+     Apply-change / Place-item pill (`.edit-confirm`) and the budget spend
+     readout (`.budget-hud`). Gated on the inspector actually being present via
+     `:has(.inspector)` so each still sits low when nothing's below it (e.g. the
+     placeConfirm pill with no selection, or the budget HUD in an empty view). */
+  .app-shell:has(.inspector) .edit-confirm,
+  .app-shell:has(.inspector) .budget-hud { bottom: var(--hud-bottom); }
+  /* When a transient pill is ALSO up (Apply-change after a move, or the drag
+     readout mid-drag), lift the budget readout above it so the two bottom-centre
+     pills don't stack on the same line. */
+  .app-shell:has(.inspector):has(.edit-confirm) .budget-hud,
+  .app-shell:has(.inspector):has(.drag-readout) .budget-hud {
+    bottom: calc(var(--hud-bottom) + 3rem);
+  }
 
   /* grab handle on every bottom-docked sheet */
   .catalog::before, .inspector::before,

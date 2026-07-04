@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.14.1.4 — mobile bottom-HUD overlap (root-cause: broken --hud-bottom)
+
+The `--hud-bottom` custom property (which lifts bottom-centre HUDs above the
+minimized inspector sheet) was defined as `:root { --hud-bottom }` **inside the
+nested `body.mobile {}` block**, so it resolved to `body.mobile :root` — which
+never matches (<html> isn't a descendant of <body>). The variable was therefore
+always empty, which meant:
+
+- the **drag/resize readout** lift (bug #9) never actually took effect;
+- and any new `bottom: var(--hud-bottom)` fell back to `auto`, flinging the pill
+  to the top of the screen.
+
+Set it on `body.mobile` itself (custom properties inherit) so it applies. Then
+lifted the **Apply-change / Place-item pill** (`.edit-confirm`) and the **budget
+spend HUD** (`.budget-hud`) above the minimized inspector too (gated on
+`:has(.inspector)` so they still sit low when nothing's below them), and stacked
+the budget readout above a transient pill so the two bottom-centre pills never
+overlap each other. Verified: pill at 688–740, inspector at 768 — clean gap.
+
 ## v0.14.1.3 — smooth wall-reveal fade (no more 2D↔3D door/window pop)
 
 The camera-facing wall reveal fades a wall's opacity smoothly, but the fading
