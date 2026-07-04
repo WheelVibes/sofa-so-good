@@ -1,0 +1,62 @@
+{
+  "name": "toolbar-menu-void",
+  "description": "TOOLBAR-MENU-VOID regression guard: File/Tools/View/Arrange dropdowns must have NO transient vertical void on open. Screenshots each menu the instant it opens (no settle) in Pro mode, light + dark, and asserts every direct child of the panel is fully opaque at open (op=1) — the stagger cascade that produced the void is gone.",
+  "url": "http://localhost:5301/",
+  "steps": [
+    { "name": "skip-onboarding", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}" },
+    { "name": "reload", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready'" }, "timeout": 120000 },
+    { "name": "force-scene-ready", "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}" },
+    { "name": "dismiss-location", "eval": "window.__store.getState().dismissLocationPrompt()" },
+    { "name": "pro-mode", "eval": "try{ var s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags&&s.reresolveFeatureFlags() }catch(e){}" },
+    { "name": "settle", "wait": 1500 },
+
+    { "name": "open-file", "click": "button[aria-label=\"File\"]" },
+    { "name": "file-appears", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "shot-file-open-light", "screenshot": "01-file-open-light" },
+    { "name": "assert-file-opaque", "eval": "(function(){var p=document.querySelector('.pop-panel');var bad=Array.from(p.children).filter(function(c){return parseFloat(getComputedStyle(c).opacity)<0.99});if(bad.length)throw new Error('File: '+bad.length+' children not fully opaque at open');return 'file-ok:'+p.children.length+' rows opaque'})()" },
+    { "name": "close-file", "key": "Escape" },
+
+    { "name": "open-tools", "click": "button[aria-label=\"Tools\"]" },
+    { "name": "tools-appears", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "shot-tools-open-light", "screenshot": "02-tools-open-light" },
+    { "name": "assert-tools-opaque", "eval": "(function(){var p=document.querySelector('.pop-panel');var bad=Array.from(p.children).filter(function(c){return parseFloat(getComputedStyle(c).opacity)<0.99});if(bad.length)throw new Error('Tools: '+bad.length+' children not fully opaque at open');return 'tools-ok:'+p.children.length+' rows opaque'})()" },
+    { "name": "close-tools", "key": "Escape" },
+
+    { "name": "open-view", "click": "button[aria-label=\"View\"]" },
+    { "name": "view-appears", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "shot-view-open-light", "screenshot": "03-view-open-light" },
+    { "name": "close-view", "key": "Escape" },
+
+    { "name": "open-arrange", "click": "button[aria-label=\"Arrange\"]" },
+    { "name": "arrange-appears", "waitFor": { "css": ".pop-panel" }, "timeout": 8000 },
+    { "name": "shot-arrange-open-light", "screenshot": "04-arrange-open-light" },
+    { "name": "close-arrange", "key": "Escape" },
+
+    { "name": "dark-mode", "eval": "window.__store.getState().setModePref('dark')" },
+    { "name": "settle-dark", "wait": 400 },
+
+    { "name": "open-file-d", "click": "button[aria-label=\"File\"]" },
+    { "name": "file-appears-d", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "shot-file-open-dark", "screenshot": "05-file-open-dark" },
+    { "name": "close-file-d", "key": "Escape" },
+
+    { "name": "open-tools-d", "click": "button[aria-label=\"Tools\"]" },
+    { "name": "tools-appears-d", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "shot-tools-open-dark", "screenshot": "06-tools-open-dark" },
+    { "name": "close-tools-d", "key": "Escape" },
+
+    { "name": "light-mode", "eval": "window.__store.getState().setModePref('light')" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 500 },
+    { "name": "open-mobile-menu", "click": "button[aria-label=\"Menu\"]" },
+    { "name": "mobile-sheet-open", "waitFor": { "css": ".m-sheet" }, "timeout": 8000 },
+    { "name": "click-file-rail", "click": "button[aria-label=\"File\"]" },
+    { "name": "settle-file-rail", "wait": 400 },
+    { "name": "shot-mobile-file", "screenshot": "07-mobile-file-section" },
+    { "name": "click-tools-rail", "click": "button[aria-label=\"Tools\"]" },
+    { "name": "settle-tools-rail", "wait": 400 },
+    { "name": "shot-mobile-tools", "screenshot": "08-mobile-tools-section" }
+  ]
+}

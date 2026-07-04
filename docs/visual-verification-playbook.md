@@ -112,6 +112,16 @@ of guessing a delay.
 **Rule:** prefer `waitFor` over `wait` wherever possible. `wait` is only for
 unavoidable render-settle delays after a confirmed state change.
 
+**A settle `wait` HIDES entrance-animation bugs — to catch them, screenshot at open with NO
+settle.** TOOLBAR-MENU-VOID was a transient stagger-cascade void in the File/Tools dropdowns that
+was visible only ~0–600ms after the menu opened; every prior review used a 700ms+ settle before the
+screenshot and saw a clean, contiguous menu, so the bug survived a whole audit. The reproduction was
+to screenshot the instant the panel mounts (`waitFor {css:".menu-item"}` → `screenshot`, no `wait`)
+and assert every panel child is fully opaque at that moment
+(`Array.from(panel.children).filter(c => parseFloat(getComputedStyle(c).opacity) < 0.99)` must be
+empty). Guard scenario: `scripts/scenarios/toolbar-menu-void.json`. When verifying anything with a
+per-row/staggered entrance, take a no-settle "at-open" shot in addition to the settled one.
+
 ### Step types reference
 
 All steps accept optional `name` (default `<type>-<index>`) and `timeout` (default 15 000 ms).

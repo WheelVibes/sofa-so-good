@@ -147,11 +147,17 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
   - [ ] *(Polish, not phase-gated)* the docked catalog currently floats over the plan rather than
     shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
     `.plan-screen`) — low-risk follow-up.
-- [ ] **TOOLBAR-MENU-VOID — dropdown vertical gap (S, cohesion).** The desktop `File`/`Tools`
-  dropdowns show a large vertical void between their top and bottom item clusters — originates in
-  the shared `ToolbarMenu` primitive / `toolActions` registry (affects all toolbar menus, not just
-  exports). Found during the v0.12.0.18 share/export audit (out of that task's scope). Low risk;
-  tighten the menu layout / grouping in the shared primitive.
+- [x] **TOOLBAR-MENU-VOID — dropdown vertical gap (S, cohesion).** DONE. Root cause was NOT a static
+  layout gap (which is why settled screenshots looked clean): the shared `ToolbarMenu` panel carried
+  `.stagger-in`, whose `--i` nth-child cascade fallback only covers the first 12 children. File/Tools
+  in Pro render >12 rows as direct children, so every row past the 12th got `--i:0` → zero delay →
+  popped in instantly at the bottom while rows 6–12 were still mid-cascade, leaving a transient
+  vertical VOID between the top and bottom clusters (~0–600ms on every open). View has fewer rows and
+  Arrange wraps all rows in one scroll `<div>` (1 direct child), so neither showed it — matching the
+  report. Fix: dropped `.stagger-in` from the `.pop-panel` in `ToolbarMenu.tsx` (the primitive renders
+  arbitrary children so it can't set `--i` inline); the panel still animates in via its own `pop`
+  keyframe. Verified File/Tools/View/Arrange (desktop light+dark) + mobile sections; regression
+  scenario `scripts/scenarios/toolbar-menu-void.json`.
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live

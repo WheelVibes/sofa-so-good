@@ -44,7 +44,18 @@ export function ToolbarMenu({
         <div
           role="menu"
           onClick={() => setOpen(false)}
-          className="pop-panel stagger-in"
+          // The panel animates in as a whole via `.pop-panel`'s own `pop`
+          // keyframe. It deliberately does NOT use the per-row `.stagger-in`
+          // cascade: a ToolbarMenu renders an arbitrary, variable number of
+          // rows as direct children, and the `--i` nth-child fallback only
+          // covers the first 12 (see src/ui/CLAUDE.md). Menus with >12 rows
+          // (File/Tools in Pro) gave every row past the 12th a `--i` of 0 →
+          // zero delay → those rows popped in instantly at the bottom while
+          // rows 6–12 were still mid-cascade, leaving a transient vertical
+          // VOID between the top and bottom clusters (TOOLBAR-MENU-VOID). The
+          // primitive can't set `--i` inline (children come from each menu),
+          // so it forgoes the row stagger entirely.
+          className="pop-panel"
           style={{ width, maxHeight: '72vh', overflowY: 'auto' }}
         >
           {children}

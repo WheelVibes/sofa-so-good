@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: transient dropdown void — drop per-row stagger from ToolbarMenu (v0.12.0.21)
+
+TOOLBAR-MENU-VOID — the File/Tools dropdowns flashed a vertical void between
+their top and bottom item clusters for ~0–600ms on open (invisible to settled
+screenshots, which is why it eluded review). The shared `ToolbarMenu` panel used
+the `.stagger-in` per-row cascade, whose `--i` nth-child fallback only covers 12
+children; menus with more rows (File = 13, Tools ≈ 20 in Pro) gave every row past
+the 12th zero delay → they popped in at the bottom while rows 6–12 were still
+mid-cascade. The panel now animates in as a whole via `.pop-panel`'s own `pop`
+keyframe (a primitive rendering arbitrary children can't set the per-row `--i`).
+View (<12 rows) and Arrange (all rows in one scroll child) were never affected.
+Regression scenario `toolbar-menu-void.json` asserts every panel child is opaque
+at open. One-class change in the shared primitive — all toolbar menus benefit.
+
 ## FEAT: pick a finish/variant on the catalog card before placing — CATALOG-VARIANT (v0.12.0.20)
 
 Core-loop parity gap (2026-07-03 audit): variant/tint was only editable AFTER

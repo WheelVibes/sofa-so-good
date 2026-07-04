@@ -174,7 +174,13 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   (`opacity:1; transform:none`) forever and silently blocks later hover-lift transforms
   (`.liftable`) or state-driven opacity changes (e.g. `.lyr-row.hidden`) on the same element.
   The nth-child `--i` fallback only covers the first 12 children — lists that can render more
-  than 12 items must set `--i` inline per item rather than relying on the fallback.
+  than 12 items must set `--i` inline per item rather than relying on the fallback. A container
+  that renders an **arbitrary, variable** number of direct children it doesn't control (e.g. the
+  `ToolbarMenu` `.pop-panel`, whose rows come from each menu) must **not** use `.stagger-in` at all:
+  it can't set `--i` inline, so >12-row menus (File/Tools in Pro) gave every row past the 12th a
+  `--i` of 0 → zero delay → those rows appeared instantly at the bottom while rows 6–12 were still
+  mid-cascade, leaving a transient vertical VOID between the clusters (TOOLBAR-MENU-VOID). Such
+  panels rely on their own whole-panel entrance (`.pop-panel`'s `pop` keyframe) instead.
 - **Type hierarchy** — one ladder, from the `--t-*` scale: page/hero title `--t-xl` (20px)
   weight 800 `--lh-tight`; panel title `--t-lg` (16px) weight 800 `--lh-tight`; section header
   (`.sec-h`, `.lyr-ghead`, `.menu-label`) `--t-2xs` (10px) weight 700 UPPERCASE +
