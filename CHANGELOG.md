@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: catalog grid gains columns as the panel widens (v0.13.0.25)
+
+Pairs with the resizable dock: the `.card-grid` switched from a fixed 2-column
+layout to `repeat(auto-fill, minmax(132px, 1fr))`, so widening the catalog shows
+3+ columns of furniture cards (verified: 2 cols at the 320px default, 3 at
+520px) while the mobile bottom-sheet stays 2. CSS-only.
+
 ## FEAT: resizable catalog dock on desktop (v0.13.0.24)
 
 The docked catalog rail is now drag-resizable on desktop/wide screens. A

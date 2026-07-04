@@ -87,7 +87,10 @@
    wide content blow the track out past the panel) keeps both columns at an
    identical, fixed width on every page. */
 .card-grid {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3);
+  /* Responsive columns: fill as many ~132px cards as the panel width allows, so
+     a resized (wider) catalog shows 3+ columns while the 320px default stays 2.
+     `auto-fill` + `minmax(…, 1fr)` keeps cards from stretching absurdly wide. */
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--s-3);
   padding: var(--s-1) var(--s-4) var(--s-4); overflow-y: auto; min-height: 0;
   /* Keep a scroll/flick inside the grid: no chaining out to the page (or, on
      mobile where the catalog floats over the 3D canvas, the view behind it). */
