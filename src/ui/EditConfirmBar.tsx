@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { isAnyModalOpen } from '../controls/modalGuard'
 import { isEditableTarget } from '../controls/useKeyboard'
 import { useStore } from '../state/store'
+import { commitArmedPlacement } from './catalog/placementConfirmCommit'
 import { Icon } from './toolbar/icons'
 
 /** Transient exit animation length (ms) — matches the `.leaving`/`.rejecting`
@@ -36,6 +37,13 @@ export function EditConfirmBar() {
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const confirm = useStore((s) => s.confirmPendingEdit)
   const cancel = useStore((s) => s.cancelPendingEdit)
+  // Mobile explicit-confirm placement (bugs #2/#5): a ghost armed via a catalog
+  // tap/long-press shows its own "Place item?" pill BEFORE anything is placed —
+  // ✓ commits the ghost, ✗ discards it (and reopens the catalog).
+  const placeConfirm = useStore((s) => s.placeConfirm)
+  const armedDefId = useStore((s) => s.activeDefId)
+  const ghostValid = useStore((s) => s.ghostValid)
+  const cancelPlacement = useStore((s) => s.cancelPlacement)
 
   // Transient exit state — the class applied while the bar animates out, before
   // the store action resolves and the bar unmounts.
@@ -109,6 +117,44 @@ export function EditConfirmBar() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [pending, onConfirm, onCancel])
+
+  // Explicit-confirm placement pill (bugs #2/#5) — takes precedence over the
+  // pending-edit pill (a placeConfirm placement hasn't been committed yet, so no
+  // pendingEdit exists). ✓ is disabled while the ghost sits on an invalid spot.
+  if (placeConfirm && armedDefId && !pending) {
+    const ghostBlocked = !ghostValid
+    return (
+      <div
+        className={`edit-confirm${ghostBlocked ? ' blocked' : ''}`}
+        role="dialog"
+        aria-label="Place item?"
+      >
+        <span className="edit-confirm-label">
+          {ghostBlocked ? "Can't place here" : 'Place item?'}
+        </span>
+        <button
+          type="button"
+          className="edit-confirm-btn cancel"
+          onClick={() => cancelPlacement()}
+          aria-label="Cancel placement"
+          title="Cancel (Esc)"
+        >
+          <Icon.Close width={18} height={18} />
+        </button>
+        <button
+          type="button"
+          className="edit-confirm-btn confirm"
+          onClick={() => commitArmedPlacement()}
+          disabled={ghostBlocked}
+          aria-label="Place item"
+          aria-disabled={ghostBlocked}
+          title={ghostBlocked ? "Can't place here — move it inside the room" : 'Place (Enter)'}
+        >
+          <Icon.Check width={18} height={18} />
+        </button>
+      </div>
+    )
+  }
 
   if (!pending) return null
   const label = pending.kind === 'placement' ? 'Place item?' : 'Apply change?'

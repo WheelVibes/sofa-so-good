@@ -214,6 +214,9 @@
 /* Minimized: just the header bar, so it stops blocking the furniture. */
 .inspector.minimized { max-height: none; }
 .inspector.minimized .panel-head { padding-bottom: var(--s-3); }
+/* Catalog bottom-sheet minimize (bug #7) — same collapse-to-header treatment. */
+.catalog.minimized { max-height: none; }
+.catalog.minimized .panel-head { padding-bottom: var(--s-3); }
 /* The icon-thumb + title/sub row layout below is specific to the single-item
    InspectorPanel header (icon square on the left, text stack on the right) —
    scoped via `:has(.insp-thumb)` so it doesn't also match MultiSelectPanel's
@@ -224,15 +227,20 @@
    — combined with the ellipsis rule below — visibly truncating a short title
    like "3 items selected" to "3 items sele…" while the sub-line wrapped to a
    second line (found in the inspector cohesion audit, 2026-07-03). */
-.inspector .panel-head:has(.insp-thumb) > div:first-child { min-width: 0; flex: 1; display: flex; gap: 10px; }
+.inspector .panel-head:has(.insp-thumb) > div:first-child { min-width: 0; flex: 1; display: flex; align-items: center; gap: 10px; }
 .inspector .panel-head:has(.insp-thumb) > div:first-child > div:last-child { min-width: 0; }
 .inspector .panel-head:has(.insp-thumb) .panel-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inspector .panel-sub { margin-top: 3px; }
 .insp-thumb {
+  position: relative; overflow: hidden;
   width: 40px; height: 40px; border-radius: var(--r-2); flex: none;
   background: var(--surface-3);
   display: grid; place-items: center; color: var(--text-3);
 }
+/* Rendered/photo thumbnail fills the square (mirrors the catalog card's
+   `.card-thumb img`); the category glyph still centres via place-items. */
+.insp-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.insp-thumb .skeleton { position: absolute; inset: 0; border-radius: inherit; }
 .dims { font-size: var(--t-2xs); color: var(--text-3); margin-top: 2px; }
 /* IKEA product-info "low-confidence category" caption (IkeaBody.tsx) — same warn
    tone as `.badge.warn`/`.pr.warn`/`.pack-notice` so a "you should check this"
@@ -517,7 +525,15 @@
   display: flex; align-items: center; gap: 8px; margin-top: var(--s-2);
   padding: 6px 10px; border-radius: var(--r-2);
   background: var(--surface-2); border: 1px solid var(--border);
+  /* Bound to the panel width on narrow (mobile) sheets so the section — and
+     its inner grids/labels — can never push the inspector into horizontal
+     scroll. `min-width: 0` lets flex/grid children shrink below content. */
+  min-width: 0; max-width: 100%; box-sizing: border-box;
 }
+.act-array > div { min-width: 0; }
+/* Row labels/help text wrap instead of forcing the row wider than the panel. */
+.act-array label > span,
+.act-array > span { min-width: 0; overflow-wrap: anywhere; }
 /* The section title is the span in the header's flex row (a grandchild), so match
    both shapes — direct child and the first-row span — to keep titles small +
    consistent with the array inputs/labels (not the inherited base size). */
@@ -532,11 +548,17 @@
    wrap their inputs in a `.fld` grid cell (see PathArraySection/
    ScatterFillSection/InspectorPanel's linear+radial array UI), so 100% has
    real room to fill rather than colliding with a sibling. */
-.act-array input {
-  width: 100%; padding: 3px 6px; border-radius: var(--r-2);
+.act-array input:not([type='checkbox']) {
+  width: 100%; min-width: 0; box-sizing: border-box;
+  padding: 3px 6px; border-radius: var(--r-2);
   border: 1px solid var(--border); background: var(--surface-solid); color: var(--text);
   font-size: var(--t-xs); text-align: center;
 }
+/* A checkbox must keep its intrinsic size — the `width: 100%` above (scoped to
+   exclude it) would otherwise blow a "Face centre" / "Face along path" toggle
+   out to the full row width, pushing its label off the panel edge and forcing
+   horizontal scroll on the mobile inspector sheet. */
+.act-array input[type='checkbox'] { flex: none; width: auto; margin: 0; }
 .act-array-go {
   display: inline-flex; align-items: center; gap: 4px;
   margin-left: auto; padding: 4px 12px; border-radius: var(--r-pill);

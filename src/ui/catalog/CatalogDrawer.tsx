@@ -9,6 +9,7 @@ import { useStore } from '../../state/store'
 import { lazyWithRetry } from '../app/lazyWithRetry'
 import { Button } from '../controls/Button'
 import { EmptyState } from '../EmptyState'
+import { useSwipeToCollapse } from '../inspector/useInspectorMinimize'
 import { Icon } from '../toolbar/icons'
 import { useAmbientFx } from '../useAmbientFx'
 import { useIsMobile } from '../useIsMobile'
@@ -41,7 +42,6 @@ const UploadModelDialog = lazyWithRetry(() =>
   import('../upload/UploadModelDialog').then((m) => ({ default: m.UploadModelDialog })),
 )
 
-import { ThumbnailHost } from './thumbnails'
 import { type GridItem, gridItemId, useUnifiedCatalog } from './useUnifiedCatalog'
 
 type Mode = 'catalog' | 'packs'
@@ -95,6 +95,12 @@ export function CatalogDrawer() {
   const fPlanFurnish = useFeature('planFurnish')
   const isMobile = useIsMobile()
   const planFurnishActive = floorPlanEditing && fPlanFurnish && !isMobile
+  // Mobile bottom-sheet minimize (bug #7): collapse the catalog to just its
+  // header (swipe the handle down, or tap the −/+ button) so it stops covering
+  // the room while a piece is being positioned, then swipe up / tap + to expand.
+  // Session-local (resets when the catalog closes); desktop keeps the full dock.
+  const [catalogMinimized, setCatalogMinimized] = useState(false)
+  const catalogSwipe = useSwipeToCollapse(catalogMinimized, () => setCatalogMinimized((v) => !v))
   const setOpen = useStore((s) => s.setCatalogOpen)
   const leftMode = useStore((s) => s.leftMode)
   const setLeftMode = useStore((s) => s.setLeftMode)
@@ -362,347 +368,375 @@ export function CatalogDrawer() {
     card.style.setProperty('--my', `${e.clientY - r.top}px`)
   }
 
+  // On mobile the sheet can collapse to its header; desktop dock never minimizes.
+  const minimized = isMobile && catalogMinimized
+
   return (
     <aside
-      className={`panel catalog dock-panel-left${planFurnishActive ? ' catalog-in-plan' : ''}`}
+      className={`panel catalog dock-panel-left${planFurnishActive ? ' catalog-in-plan' : ''}${minimized ? ' minimized' : ''}`}
     >
       {/* Resizable dock on desktop/wide screens (mobile keeps the bottom-sheet). */}
       {fCatalogResize && !isMobile ? <CatalogResizeHandle /> : null}
-      <div className="panel-head">
+      <div
+        className="panel-head"
+        onTouchStart={catalogSwipe.onTouchStart}
+        onTouchEnd={catalogSwipe.onTouchEnd}
+      >
         <div className="panel-title">
           {view === 'layers' ? 'Objects' : view === 'packs' ? 'Packs' : 'Catalog'}
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="icon-btn"
-          aria-label="Close catalog"
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
-      <div className="tabs">
-        {(
-          [
-            ['catalog', 'Catalog'],
-            ['layers', 'Layers'],
-            ...(proMode && fPacks ? ([['packs', 'Packs']] as const) : []),
-          ] as const
-        ).map(([v, label]) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => selectView(v)}
-            className={`tab${view === v ? ' on' : ''}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {view === 'layers' ? (
-        <LayersPanel />
-      ) : view === 'packs' ? (
-        <div
-          className="panel-body"
-          style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
-        >
-          <Suspense fallback={null}>
-            <PacksTab />
-          </Suspense>
-        </div>
-      ) : (
-        <>
-          <div className="cat-search">
-            <div className="field">
-              <Icon.Search width={16} height={16} className="icn" />
-              <input
-                type="search"
-                aria-label="Search the furniture catalog"
-                value={query}
-                onChange={(e) => onSearch(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => {
-                  setSearchFocused(false)
-                  // Remember the term on click-away too (not just Enter), so a
-                  // search you ran then clicked a result for is captured. Skip
-                  // 1-char fragments; pushRecent de-dupes, so it's idempotent.
-                  if (query.trim().length >= 2) setRecent(pushRecent(query))
-                }}
-                onKeyDown={(e) => {
-                  // Esc clears a non-empty query (keeping focus to keep typing),
-                  // else blurs the field — a quick way out of search.
-                  if (e.key === 'Escape') {
-                    e.stopPropagation()
-                    if (query) onSearch('')
-                    else e.currentTarget.blur()
-                  } else if (e.key === 'Enter' && query.trim()) {
-                    // Commit the term to recent searches (most-recent-first).
-                    setRecent(pushRecent(query))
-                  }
-                }}
-                placeholder={`Search ${totalCount} items…`}
-                className={q ? 'input has-clear' : 'input'}
-              />
-              {q ? (
-                <button
-                  type="button"
-                  className="icon-btn field-clear"
-                  aria-label="Clear search"
-                  onClick={() => onSearch('')}
-                >
-                  <Icon.Close width={14} height={14} />
-                </button>
-              ) : null}
-            </div>
-            {q && allCards.length > 0 ? (
-              <div className="cat-count" aria-live="polite">
-                {allCards.length} {allCards.length === 1 ? 'match' : 'matches'}
-              </div>
-            ) : null}
-            {searchFocused && !q && recent.length > 0 ? (
-              <div className="cat-recent">
-                {recent.map((term) => (
-                  <button
-                    key={term}
-                    type="button"
-                    className="cat-recent-chip"
-                    // Keep input focus through the click so the chip doesn't
-                    // unmount on blur before the click registers.
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => onSearch(term)}
-                  >
-                    <Icon.Search width={11} height={11} />
-                    {term}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="cat-recent-clear"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    clearRecent()
-                    setRecent([])
-                  }}
-                >
-                  Clear
-                </button>
-              </div>
-            ) : null}
-          </div>
-          {q ? null : (
-            <CategoryTabs
-              active={active}
-              onSelect={selectCategory}
-              counts={unified.counts}
-              favCount={unified.favourites.length}
-              recentCount={unified.recent.length}
-              favEnabled={fFavourites}
-              sort={
-                categorySortable
-                  ? {
-                      value: sortBy,
-                      onChange: (v) => {
-                        setSortBy(v)
-                        setPage(0)
-                      },
-                      options: sortOptions,
-                    }
-                  : undefined
-              }
-            />
-          )}
-          {!q && categorySortable && priceOn ? (
-            <div className="cat-sort">
-              <span className="cat-sort-label">Max&nbsp;$</span>
-              <input
-                type="number"
-                min={0}
-                inputMode="numeric"
-                value={maxPrice}
-                aria-label="Maximum price (SGD)"
-                placeholder="any"
-                onChange={(e) => {
-                  setMaxPrice(e.target.value)
-                  setPage(0)
-                }}
-                className="input mono cat-sort-price"
-              />
-              {maxPrice.trim() !== '' ? (
-                <button
-                  type="button"
-                  aria-label="Clear max price"
-                  title="Clear max price"
-                  onClick={() => {
-                    setMaxPrice('')
-                    setPage(0)
-                  }}
-                  className="icon-btn cat-sort-clear"
-                >
-                  <Icon.Close width={12} height={12} />
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-          {!q && fFitsFilter && roomFreeRects ? (
-            <div className="cat-sort">
-              <label className="cat-fits-only">
-                <input
-                  type="checkbox"
-                  checked={fitsOnly}
-                  aria-label="Show only items that fit this room"
-                  onChange={(e) => {
-                    setFitsOnly(e.target.checked)
-                    setPage(0)
-                  }}
-                />
-                <span>Fits only</span>
-              </label>
-            </div>
-          ) : null}
-          {q && cards.length > 0 && matchedIntents(query).length > 0 ? (
-            <div className="catalog-search-hint">
-              Showing {matchedIntents(query).join(' & ')} furniture
-            </div>
-          ) : null}
-          <div
-            className={`card-grid stagger-in${ambientFx ? ' fx' : ''}`}
-            onKeyDown={onGridKeyDown}
-            onPointerMove={onGridPointerMove}
-          >
-            {cards.length === 0 ? (
-              q ? (
-                <EmptyState
-                  className="catalog-empty"
-                  icon={Icon.Search}
-                  title="No matches found"
-                  description={`Nothing in the catalog matches “${query.trim()}”.`}
-                  cta={{ label: 'Clear search', onClick: () => onSearch('') }}
-                />
-              ) : active === 'favourites' ? (
-                <EmptyState
-                  className="catalog-empty"
-                  icon={Icon.Heart}
-                  title="No favourites yet"
-                  description="Tap the heart on any card to save it here for quick access."
-                  cta={{
-                    label: 'Browse furniture',
-                    onClick: () => selectCategory(firstBrowsableCategory),
-                  }}
-                />
-              ) : active === 'recent' ? (
-                <EmptyState
-                  className="catalog-empty"
-                  icon={Icon.Time}
-                  title="Nothing placed yet"
-                  description="Items you add appear here for quick reuse."
-                  cta={{
-                    label: 'Browse furniture',
-                    onClick: () => selectCategory(firstBrowsableCategory),
-                  }}
-                />
-              ) : maxPrice.trim() && baseCards.length > 0 ? (
-                <EmptyState
-                  className="catalog-empty"
-                  icon={Icon.Budget}
-                  title="Nothing in budget"
-                  description={`No items here under $${maxPrice.trim()}. Raise the Max $ filter to see more.`}
-                  cta={{
-                    label: 'Clear max price',
-                    onClick: () => {
-                      setMaxPrice('')
-                      setPage(0)
-                    },
-                  }}
-                />
-              ) : fitsOnlyActive && priceFiltered.length > 0 ? (
-                <EmptyState
-                  className="catalog-empty"
-                  icon={Icon.Measure}
-                  title="Nothing fits this room"
-                  description="Every item here is flagged too big for the free space. Turn off “Fits only” to see them anyway."
-                  cta={{
-                    label: 'Show everything',
-                    onClick: () => {
-                      setFitsOnly(false)
-                      setPage(0)
-                    },
-                  }}
-                />
+        <div className="insp-head-btns">
+          {isMobile ? (
+            <button
+              type="button"
+              onClick={() => setCatalogMinimized((v) => !v)}
+              className="icon-btn"
+              aria-label={minimized ? 'Expand catalog' : 'Minimize catalog'}
+              title={minimized ? 'Expand' : 'Minimize'}
+            >
+              {minimized ? (
+                <Icon.Plus width={16} height={16} />
               ) : (
-                <EmptyState
-                  className="catalog-empty"
-                  icon={Icon.Catalog}
-                  title="No items here yet"
-                  description="This category is empty — try another tab."
-                  cta={{
-                    label: 'Browse furniture',
-                    onClick: () => selectCategory(firstBrowsableCategory),
-                  }}
-                />
-              )
-            ) : (
-              cards.map((it, i) => renderCard(it, i))
-            )}
-          </div>
-          {pageCount > 1 ? (
-            <div className="pager">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={safePage === 0}
-              >
-                ← Prev
-              </button>
-              <span>
-                Page {safePage + 1} of {pageCount}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                disabled={safePage >= pageCount - 1}
-              >
-                Next →
-              </button>
-            </div>
+                <Icon.Minus width={16} height={16} />
+              )}
+            </button>
           ) : null}
-          <StampBanner />
-          <div className="cat-foot">
-            <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
-              {fParametric ? (
-                <Button
-                  variant="soft"
-                  size="sm"
-                  onClick={() => setParametricOpen(true)}
-                  title="Generate a shelf / wardrobe / sideboard to exact dimensions"
-                  icon={<Icon.Measure width={14} height={14} />}
-                >
-                  Custom size
-                </Button>
-              ) : null}
-              {isPro ? (
-                <Button
-                  variant="soft"
-                  size="sm"
-                  onClick={() => setGlbDesignerOpen(true)}
-                  title="Design or edit a custom 3D asset"
-                  icon={<Icon.Cube width={14} height={14} />}
-                >
-                  Design
-                </Button>
-              ) : null}
-              {fUpload ? (
-                <Button
-                  variant="soft"
-                  size="sm"
-                  onClick={() => setUploadOpen(true)}
-                  icon={<Icon.Upload width={14} height={14} />}
-                >
-                  Upload
-                </Button>
-              ) : null}
-            </div>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="icon-btn"
+            aria-label="Close catalog"
+          >
+            <Icon.Close width={16} height={16} />
+          </button>
+        </div>
+      </div>
+      {minimized ? null : (
+        <>
+          <div className="tabs">
+            {(
+              [
+                ['catalog', 'Catalog'],
+                ['layers', 'Layers'],
+                ...(proMode && fPacks ? ([['packs', 'Packs']] as const) : []),
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => selectView(v)}
+                className={`tab${view === v ? ' on' : ''}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
+
+          {view === 'layers' ? (
+            <LayersPanel />
+          ) : view === 'packs' ? (
+            <div
+              className="panel-body"
+              style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
+            >
+              <Suspense fallback={null}>
+                <PacksTab />
+              </Suspense>
+            </div>
+          ) : (
+            <>
+              <div className="cat-search">
+                <div className="field">
+                  <Icon.Search width={16} height={16} className="icn" />
+                  <input
+                    type="search"
+                    aria-label="Search the furniture catalog"
+                    value={query}
+                    onChange={(e) => onSearch(e.target.value)}
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => {
+                      setSearchFocused(false)
+                      // Remember the term on click-away too (not just Enter), so a
+                      // search you ran then clicked a result for is captured. Skip
+                      // 1-char fragments; pushRecent de-dupes, so it's idempotent.
+                      if (query.trim().length >= 2) setRecent(pushRecent(query))
+                    }}
+                    onKeyDown={(e) => {
+                      // Esc clears a non-empty query (keeping focus to keep typing),
+                      // else blurs the field — a quick way out of search.
+                      if (e.key === 'Escape') {
+                        e.stopPropagation()
+                        if (query) onSearch('')
+                        else e.currentTarget.blur()
+                      } else if (e.key === 'Enter' && query.trim()) {
+                        // Commit the term to recent searches (most-recent-first).
+                        setRecent(pushRecent(query))
+                      }
+                    }}
+                    placeholder={`Search ${totalCount} items…`}
+                    className={q ? 'input has-clear' : 'input'}
+                  />
+                  {q ? (
+                    <button
+                      type="button"
+                      className="icon-btn field-clear"
+                      aria-label="Clear search"
+                      onClick={() => onSearch('')}
+                    >
+                      <Icon.Close width={14} height={14} />
+                    </button>
+                  ) : null}
+                </div>
+                {q && allCards.length > 0 ? (
+                  <div className="cat-count" aria-live="polite">
+                    {allCards.length} {allCards.length === 1 ? 'match' : 'matches'}
+                  </div>
+                ) : null}
+                {searchFocused && !q && recent.length > 0 ? (
+                  <div className="cat-recent">
+                    {recent.map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        className="cat-recent-chip"
+                        // Keep input focus through the click so the chip doesn't
+                        // unmount on blur before the click registers.
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => onSearch(term)}
+                      >
+                        <Icon.Search width={11} height={11} />
+                        {term}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="cat-recent-clear"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        clearRecent()
+                        setRecent([])
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              {q ? null : (
+                <CategoryTabs
+                  active={active}
+                  onSelect={selectCategory}
+                  counts={unified.counts}
+                  favCount={unified.favourites.length}
+                  recentCount={unified.recent.length}
+                  favEnabled={fFavourites}
+                  sort={
+                    categorySortable
+                      ? {
+                          value: sortBy,
+                          onChange: (v) => {
+                            setSortBy(v)
+                            setPage(0)
+                          },
+                          options: sortOptions,
+                        }
+                      : undefined
+                  }
+                />
+              )}
+              {!q && categorySortable && priceOn ? (
+                <div className="cat-sort">
+                  <span className="cat-sort-label">Max&nbsp;$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    value={maxPrice}
+                    aria-label="Maximum price (SGD)"
+                    placeholder="any"
+                    onChange={(e) => {
+                      setMaxPrice(e.target.value)
+                      setPage(0)
+                    }}
+                    className="input mono cat-sort-price"
+                  />
+                  {maxPrice.trim() !== '' ? (
+                    <button
+                      type="button"
+                      aria-label="Clear max price"
+                      title="Clear max price"
+                      onClick={() => {
+                        setMaxPrice('')
+                        setPage(0)
+                      }}
+                      className="icon-btn cat-sort-clear"
+                    >
+                      <Icon.Close width={12} height={12} />
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              {!q && fFitsFilter && roomFreeRects ? (
+                <div className="cat-sort">
+                  <label className="cat-fits-only">
+                    <input
+                      type="checkbox"
+                      checked={fitsOnly}
+                      aria-label="Show only items that fit this room"
+                      onChange={(e) => {
+                        setFitsOnly(e.target.checked)
+                        setPage(0)
+                      }}
+                    />
+                    <span>Fits only</span>
+                  </label>
+                </div>
+              ) : null}
+              {q && cards.length > 0 && matchedIntents(query).length > 0 ? (
+                <div className="catalog-search-hint">
+                  Showing {matchedIntents(query).join(' & ')} furniture
+                </div>
+              ) : null}
+              <div
+                className={`card-grid stagger-in${ambientFx ? ' fx' : ''}`}
+                onKeyDown={onGridKeyDown}
+                onPointerMove={onGridPointerMove}
+              >
+                {cards.length === 0 ? (
+                  q ? (
+                    <EmptyState
+                      className="catalog-empty"
+                      icon={Icon.Search}
+                      title="No matches found"
+                      description={`Nothing in the catalog matches “${query.trim()}”.`}
+                      cta={{ label: 'Clear search', onClick: () => onSearch('') }}
+                    />
+                  ) : active === 'favourites' ? (
+                    <EmptyState
+                      className="catalog-empty"
+                      icon={Icon.Heart}
+                      title="No favourites yet"
+                      description="Tap the heart on any card to save it here for quick access."
+                      cta={{
+                        label: 'Browse furniture',
+                        onClick: () => selectCategory(firstBrowsableCategory),
+                      }}
+                    />
+                  ) : active === 'recent' ? (
+                    <EmptyState
+                      className="catalog-empty"
+                      icon={Icon.Time}
+                      title="Nothing placed yet"
+                      description="Items you add appear here for quick reuse."
+                      cta={{
+                        label: 'Browse furniture',
+                        onClick: () => selectCategory(firstBrowsableCategory),
+                      }}
+                    />
+                  ) : maxPrice.trim() && baseCards.length > 0 ? (
+                    <EmptyState
+                      className="catalog-empty"
+                      icon={Icon.Budget}
+                      title="Nothing in budget"
+                      description={`No items here under $${maxPrice.trim()}. Raise the Max $ filter to see more.`}
+                      cta={{
+                        label: 'Clear max price',
+                        onClick: () => {
+                          setMaxPrice('')
+                          setPage(0)
+                        },
+                      }}
+                    />
+                  ) : fitsOnlyActive && priceFiltered.length > 0 ? (
+                    <EmptyState
+                      className="catalog-empty"
+                      icon={Icon.Measure}
+                      title="Nothing fits this room"
+                      description="Every item here is flagged too big for the free space. Turn off “Fits only” to see them anyway."
+                      cta={{
+                        label: 'Show everything',
+                        onClick: () => {
+                          setFitsOnly(false)
+                          setPage(0)
+                        },
+                      }}
+                    />
+                  ) : (
+                    <EmptyState
+                      className="catalog-empty"
+                      icon={Icon.Catalog}
+                      title="No items here yet"
+                      description="This category is empty — try another tab."
+                      cta={{
+                        label: 'Browse furniture',
+                        onClick: () => selectCategory(firstBrowsableCategory),
+                      }}
+                    />
+                  )
+                ) : (
+                  cards.map((it, i) => renderCard(it, i))
+                )}
+              </div>
+              {pageCount > 1 ? (
+                <div className="pager">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={safePage === 0}
+                  >
+                    ← Prev
+                  </button>
+                  <span>
+                    Page {safePage + 1} of {pageCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                    disabled={safePage >= pageCount - 1}
+                  >
+                    Next →
+                  </button>
+                </div>
+              ) : null}
+              <StampBanner />
+              <div className="cat-foot">
+                <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+                  {fParametric ? (
+                    <Button
+                      variant="soft"
+                      size="sm"
+                      onClick={() => setParametricOpen(true)}
+                      title="Generate a shelf / wardrobe / sideboard to exact dimensions"
+                      icon={<Icon.Measure width={14} height={14} />}
+                    >
+                      Custom size
+                    </Button>
+                  ) : null}
+                  {isPro ? (
+                    <Button
+                      variant="soft"
+                      size="sm"
+                      onClick={() => setGlbDesignerOpen(true)}
+                      title="Design or edit a custom 3D asset"
+                      icon={<Icon.Cube width={14} height={14} />}
+                    >
+                      Design
+                    </Button>
+                  ) : null}
+                  {fUpload ? (
+                    <Button
+                      variant="soft"
+                      size="sm"
+                      onClick={() => setUploadOpen(true)}
+                      icon={<Icon.Upload width={14} height={14} />}
+                    >
+                      Upload
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
       {uploadOpen && (
@@ -710,7 +744,9 @@ export function CatalogDrawer() {
           <UploadModelDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
         </Suspense>
       )}
-      <ThumbnailHost />
+      {/* ThumbnailHost is mounted app-wide (App.tsx) so the inspector's own
+          thumbnail (bug #3) resolves even when the catalog is closed/minimized —
+          a single host drains the shared render queue for both surfaces. */}
     </aside>
   )
 }

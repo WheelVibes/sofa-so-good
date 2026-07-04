@@ -121,19 +121,10 @@ export function MobileToolbar() {
     <>
       <div className={`toolbar mobilebar${roomEditorActive ? ' editing-room' : ''}`}>
         <BrandDot size={20} />
-        {roomEditorActive ? (
-          <>
-            <RoomSwitcher className="input m-room-select" />
-            <button
-              type="button"
-              className="tool-btn"
-              aria-label="Exit room editor"
-              onClick={() => s.getState().exitRoomEditor()}
-            >
-              <Icon.Close width={18} height={18} />
-            </button>
-          </>
-        ) : null}
+        {roomEditorActive ? <RoomSwitcher className="input m-room-select" /> : null}
+        {/* Hamburger and Exit swapped (menu now sits left of the exit X in the
+            room editor): the hamburger always renders; the exit only while
+            editing a room, kept as the last (right-most) control. */}
         <button
           type="button"
           className="tool-btn m-menu-btn"
@@ -143,6 +134,16 @@ export function MobileToolbar() {
         >
           <Icon.Menu />
         </button>
+        {roomEditorActive ? (
+          <button
+            type="button"
+            className="tool-btn"
+            aria-label="Exit room editor"
+            onClick={() => s.getState().exitRoomEditor()}
+          >
+            <Icon.Close width={18} height={18} />
+          </button>
+        ) : null}
       </div>
 
       {menuOpen ? (

@@ -147,6 +147,13 @@ export interface PlacementSlice {
    *  (committed, cancelled or aborted). */
   reopenCatalogAfterPlace: boolean
   setReopenCatalogAfterPlace: (v: boolean) => void
+  /** Mobile explicit-confirm placement (bugs #2/#5): a catalog tap/long-press
+   *  arms the ghost, closes the catalog, and shows the "Place item?" pill. The
+   *  ghost stays freely draggable (a finger lift never commits/aborts) until the
+   *  user confirms (✓) or cancels (✗). Off ⇒ the classic desktop click-to-arm /
+   *  drag-from-card flow. Cleared whenever placement is (re)armed or cancelled. */
+  placeConfirm: boolean
+  setPlaceConfirm: (v: boolean) => void
   setActiveDefId: (id: string | null) => void
   /** Arm sticky stamp placement for `defId`: arms the def AND turns on stamp mode
    *  so each commit re-arms instead of disarming. Toggles off (cancels placement)
@@ -170,6 +177,11 @@ export interface PlacementSlice {
   ) => void
   setDragValid: (valid: boolean) => void
   endDrag: () => void
+  /** Abandon an in-progress drag WITHOUT committing: revert to the pre-drag
+   *  items snapshot (undoing any live moves + a drag-duplicate clone), end the
+   *  drag, and drop the now-dead history step. Used when a second finger turns a
+   *  one-finger item drag into a pinch/zoom (bug #11) so the camera can take it. */
+  cancelDrag: () => void
 }
 
 export const PLACEMENT_INITIAL: Pick<
@@ -197,12 +209,14 @@ export const PLACEMENT_INITIAL: Pick<
   | 'rotatingGizmo'
   | 'pendingEdit'
   | 'reopenCatalogAfterPlace'
+  | 'placeConfirm'
 > = {
   activeDefId: null,
   armedVariantProps: null,
   stampMode: false,
   pendingEdit: null,
   reopenCatalogAfterPlace: false,
+  placeConfirm: false,
   cursor: null,
   ghostWorld: null,
   ghostValid: false,
@@ -231,7 +245,13 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
   // always starts from the def's plain defaults unless `armWithVariant` says
   // otherwise.
   setActiveDefId: (id) =>
-    set({ activeDefId: id, ghostRotation: 0, stampMode: false, armedVariantProps: null }),
+    set({
+      activeDefId: id,
+      ghostRotation: 0,
+      stampMode: false,
+      placeConfirm: false,
+      armedVariantProps: null,
+    }),
   setArmedVariantProps: (armedVariantProps) => set({ armedVariantProps }),
   armWithVariant: (defId, props) =>
     set({ activeDefId: defId, ghostRotation: 0, stampMode: false, armedVariantProps: props }),
@@ -251,6 +271,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
         : { activeDefId: defId, stampMode: true, ghostRotation: 0, armedVariantProps: null },
     ),
   setStampMode: (on) => set({ stampMode: on }),
+  setPlaceConfirm: (placeConfirm) => set({ placeConfirm }),
   setCursor: (cursor) => set({ cursor }),
   setGhostWorld: (ghostWorld, ghostValid) => set({ ghostWorld, ghostValid }),
   rotateGhost: (deltaRad) => set((s) => ({ ghostRotation: s.ghostRotation + deltaRad })),
@@ -295,6 +316,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
     set({
       activeDefId: null,
       stampMode: false,
+      placeConfirm: false,
       cursor: null,
       ghostWorld: null,
       ghostValid: false,
@@ -405,4 +427,14 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       dragClearance: null,
       dragWallGaps: null,
     }),
+  cancelDrag: () => {
+    const s = get()
+    if (!s.draggingItemId) return
+    // startDrag pushed one snapshot of the pre-drag items; restoring it undoes
+    // every live move this gesture applied (and removes a drag-duplicate clone).
+    const snap = s.past[s.past.length - 1]
+    if (snap) set({ items: snap.items })
+    get().endDrag()
+    get().dropRedundantHistory()
+  },
 })

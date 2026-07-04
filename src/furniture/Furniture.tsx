@@ -8,6 +8,7 @@ import { ContactShadow } from '../scene/ContactShadow'
 import { markPointerDownOnItem } from '../scene/clickVsDrag'
 import { shouldDuplicateOnDragStart } from '../scene/dragHelpers'
 import { registerDropGroup } from '../scene/placementDrop'
+import { activeTouchCount, gestureIsMultiTouch } from '../scene/touchGestures'
 import { canEditScene, dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { GltfErrorBoundary, GltfPlaceholderBox } from './GltfErrorBoundary'
@@ -87,6 +88,9 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
       }
       // Selection happens only inside the per-room editor; orbit/walk are view-only.
       if (!canEditScene(state)) return
+      // Bug #11: a tap that rode a multi-finger gesture (pinch/zoom/pan) must not
+      // select — the gesture belonged to the camera, not this item.
+      if (gestureIsMultiTouch()) return
       e.stopPropagation()
       // Shift-click extends/toggles the multi-selection; plain click
       // selects the item's group (or the item, if ungrouped) with drill-in
@@ -107,6 +111,11 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
       const state = useStore.getState()
       if (!canEditScene(state)) return
       if (state.activeDefId) return
+      const isTouch = e.nativeEvent.pointerType === 'touch'
+      // Bug #11: a multi-finger gesture (pinch-zoom / two-finger pan) must never
+      // select or move furniture — bail before touching selection/drag so the
+      // gesture flows to the camera controls (which read the same DOM event).
+      if (isTouch && activeTouchCount() > 1) return
       e.stopPropagation()
       // Mark the gesture as item-started so its release can't deselect via
       // onPointerMissed after the inspector resizes the canvas (INSPECTOR-FLICKER).
@@ -120,6 +129,11 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
       // the grabbed item is already part of it; only collapse otherwise.
       if (!e.shiftKey && !alreadySelected) {
         state.selectItemGrouped(item.id, { alt: e.altKey })
+        // Bug #12: on TOUCH, a first tap only SELECTS — it never starts a move in
+        // the same gesture. Dragging to move requires the item to already be
+        // selected (a fresh finger-down on the now-selected piece). Desktop
+        // keeps its click-drag-to-move (a precise pointer, no accidental drags).
+        if (isTouch) return
       }
       // Locked items can be selected (to unlock) but not dragged. Window-bound
       // fixtures (curtains/blinds) are static on their window — selectable but

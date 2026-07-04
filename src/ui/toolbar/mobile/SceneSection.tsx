@@ -36,6 +36,8 @@ export function SceneSection({
   const fBackdrops = useFeature('backdrops')
   const fProceduralSky = useFeature('proceduralSky')
   const fHdri = useFeature('hdriEnvironment')
+  const fMotion = useFeature('furnitureMotion')
+  const motionEnabled = useStore((st) => st.motionEnabled)
 
   // Detect which render preset (if any) matches current state for the dropdown.
   const activePresetId = (() => {
@@ -74,6 +76,15 @@ export function SceneSection({
           keep: true,
         })}
       />
+      {fMotion && (
+        <Item
+          icon="Time"
+          label={`Motion: ${motionEnabled ? 'On' : 'Paused'}`}
+          sub="Animate fan blades and other moving furniture"
+          on={motionEnabled}
+          onClick={act(() => s.getState().toggleMotion(), { keep: true })}
+        />
+      )}
       {fRenderPresets && (
         <label className="scene-field" onClick={(e) => e.stopPropagation()}>
           <span>Render preset</span>

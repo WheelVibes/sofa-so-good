@@ -43,6 +43,16 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   `selectionSlice`/`uiSlice` to isolate state. Mirrors this file's wall-thickness module-level
   `useStore.subscribe` a few lines below it in `store.ts` — that's the established pattern for a
   cross-slice reactive side effect that doesn't belong inside either slice's own actions.
+- **Graphics settings are GLOBAL + persistent (bugs #13/#16).** `enterRoomEditor` no longer
+  force-sets `qualityTier: 'performance'`/`assetTier: 'high'` (with a module-level restore on
+  exit) — that clobbered the persisted `qualityPrefs` tier (the autosave watch persists whatever
+  `qualityTier` is, so entering the editor wrote `performance`) and lost the user's setting on a
+  reload-in-editor. The room editor now inherits the current tier; `RoomEditorScene` honours the
+  same `dprMax`. Don't reintroduce a per-mode/per-editor tier override.
+- **`motionEnabled`** (uiSlice, default true, bug #15) is a per-device pref persisted via
+  `editorPrefs` (not the save schema) that toggles continuously-animated furniture (ceiling /
+  standing fan blades via `useAnimatedSource(enabled)` — off ⇒ the demand loop can idle). It's a
+  view pref, not design state, so it's out of `serialize()`/history.
 - **`editorPrefs` also persists per-device UI convenience state** (out of the save schema):
   the left-dock tab (`leftMode`), the collapsed layer-group map (`layersCollapsed`, lifted from
   `LayersPanel` into `featuresSlice`), `catalogOpen` — the last restored **desktop-only**

@@ -22,7 +22,7 @@ export function ResizeHud() {
   if (!enabled || !readout) return null
 
   return (
-    <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
+    <div className="drag-readout pointer-events-none absolute left-1/2 z-20 -translate-x-1/2">
       <div className="hud-pill">
         <span className="drag-gaps-label">Size</span>{' '}
         <span className="mono">{formatDims(readout.w, readout.d, units)}</span>

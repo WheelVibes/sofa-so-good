@@ -1192,6 +1192,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Motion toggle for animated furniture (ceiling / standing fan blades). A
+  // scene-viewing convenience (pause the spinning for a still look, or to save
+  // battery), so simple tier + on by default; drives the `motionEnabled` store
+  // pref, gated in each fan primitive.
+  furnitureMotion: {
+    label: 'Furniture motion',
+    description: 'Animate moving furniture like ceiling-fan blades',
+    default: true,
+    tier: 'simple',
+  },
   // User accounts + cloud sync (Cloudflare backend). Sign in with an email +
   // password (accounts are admin-created — there is no public signup) to save
   // designs and favourites to the cloud and sync them across devices. Gated by

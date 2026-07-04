@@ -160,6 +160,24 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   on every concluding touch up/cancel (so a stamp/shift drop that keeps the same `activeDefId`
   armed re-latches per drop). Same `isActiveDragPointer` reuse, adapted for a hook that can't see
   the gesture's actual start.
+- **Touch selection/drag model (bugs #11/#12).** `scene/touchGestures.ts` (installed once from
+  `App.tsx`) counts active touch pointers on the window (capture phase, so it's current inside
+  R3F handlers). `Furniture.onPointerDown` bails on a multi-finger touch (`activeTouchCount() > 1`)
+  so a pinch/zoom never selects or moves a piece, and on touch a first tap on an UNSELECTED item
+  only selects — it does NOT start a drag in the same gesture (dragging to move requires the item
+  to already be selected; desktop mouse keeps click-drag-to-move). `Furniture.onClick` skips
+  selection when `gestureIsMultiTouch()`. A SECOND touch finger arriving mid-drag calls
+  `placementSlice.cancelDrag()` (from `DragController`'s window `pointerdown`) — reverts the
+  in-progress drag to its pre-drag snapshot + ends it — so a pinch that starts on an
+  already-selected piece hands off to the (re-enabled) camera instead of dragging + swallowing
+  the zoom.
+- **The orbit camera freezes under any mobile overlay (bug #6).** `OrbitCamera`'s `controlsEnabled`
+  adds `!(isMobile && (anyModalOpen || overlayOpen))` — a bottom-sheet (catalog / inspector /
+  finish / wall-accent) or modal floating over the canvas must not let a swipe pan/orbit the scene
+  behind it. `modalGuard` gained a reactive `useAnyModalOpen()` (`useSyncExternalStore`) for this;
+  `overlayOpen` is `catalogOpen || selectedItem(s) || selectedRoomId || selectedWall`. Desktop is
+  unaffected (docked side panels don't cover the canvas). This is in addition to the existing
+  drag/rotate/placement freezes.
 - **Alt/Option-drag duplicate (FEAT-B, `altDragDuplicate` flag, pro tier).** Starting a drag on
   an ALREADY-selected item while holding Alt clones it and drags the copy, leaving the original
   in place — the decision (`dragHelpers.ts:shouldDuplicateOnDragStart`, pure + unit-tested) is

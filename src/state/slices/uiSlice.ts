@@ -34,6 +34,12 @@ export type BootPhase = 'hydrating' | 'ready'
 export interface UiSlice {
   catalogOpen: boolean
   showFps: boolean
+  /** Furniture motion toggle (bug #15): when false, continuously-animated pieces
+   *  (ceiling / standing fan blades) hold still — for a calmer still view or to
+   *  save battery. Persisted per-device via editorPrefs. Default on. */
+  motionEnabled: boolean
+  setMotionEnabled: (on: boolean) => void
+  toggleMotion: () => void
   /** Graphics quality tier. Auto-detected on boot, auto-downgraded by the
    *  adaptive performance monitor, and user-overridable from the toolbar. */
   qualityTier: RenderTier
@@ -210,6 +216,7 @@ export const UI_INITIAL: Pick<
   UiSlice,
   | 'catalogOpen'
   | 'showFps'
+  | 'motionEnabled'
   | 'qualityTier'
   | 'qualityUserSet'
   | 'qualityOverrides'
@@ -247,6 +254,7 @@ export const UI_INITIAL: Pick<
 > = {
   catalogOpen: false,
   showFps: false,
+  motionEnabled: true,
   qualityTier: 'performance',
   qualityUserSet: false,
   qualityOverrides: {},
@@ -290,9 +298,6 @@ export const GRID_SIZES = [0.025, 0.05, 0.1, 0.25, 0.5, 1] as const
 const CYCLE: RenderTier[] = RENDER_TIERS
 const LIGHTS_CYCLE: LightsMode[] = ['auto', 'on', 'off']
 
-/** Render/asset tiers in effect when the room editor was entered, restored on exit. */
-let priorTiers: { tier: RenderTier; userSet: boolean; asset: AssetTier | null } | null = null
-
 export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   ...UI_INITIAL,
   setBootReady: () => set({ bootPhase: 'ready' }),
@@ -302,14 +307,14 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   hideLoading: () => set((s) => ({ loading: { ...s.loading, active: false } })),
   setRoomOrder: (order) => set({ roomOrder: [...order] }),
   enterRoomEditor: (roomId) => {
-    const s = get()
-    priorTiers = { tier: s.qualityTier, userSet: s.qualityUserSet, asset: s.assetTier }
+    // Graphics settings are GLOBAL + persistent (bugs #13/#16): the per-room
+    // editor no longer forces its own quality/asset tier — it inherits whatever
+    // tier the user set for orbit, and never clobbers the persisted value. (It
+    // previously pinned `performance`/`high` and restored on exit via a
+    // module-level snapshot, which lost the user's setting on reload and could
+    // strand the walkthrough transition when tiers churned on every enter/exit.)
     set({
       roomEditor: { active: true, roomId },
-      qualityTier: 'performance',
-      qualityUserSet: true,
-      qualityOverrides: {},
-      assetTier: 'high',
       cameraMode: 'orbit',
       loading: { active: true, label: 'Entering room…' },
       // Enter a fresh room with nothing pre-selected — a selection carried in
@@ -319,8 +324,6 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     })
   },
   exitRoomEditor: () => {
-    const restore = priorTiers
-    priorTiers = null
     // Orbit/walk over the whole flat are view-only, so any selection made in
     // the editor must clear — otherwise a stale Inspector/Finish picker would
     // linger with no way to dismiss it (nothing is selectable outside the editor).
@@ -328,15 +331,14 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     set({
       roomEditor: { active: false, roomId: null },
       loading: { active: true, label: 'Exiting room…' },
-      ...(restore
-        ? { qualityTier: restore.tier, qualityUserSet: restore.userSet, assetTier: restore.asset }
-        : {}),
     })
   },
   setCatalogOpen: (open) => set({ catalogOpen: open }),
   toggleCatalogOpen: () => set((s) => ({ catalogOpen: !s.catalogOpen })),
   setShowFps: (show) => set({ showFps: show }),
   toggleShowFps: () => set((s) => ({ showFps: !s.showFps })),
+  setMotionEnabled: (motionEnabled) => set({ motionEnabled }),
+  toggleMotion: () => set((s) => ({ motionEnabled: !s.motionEnabled })),
   bumpMaterialEpoch: () => set((s) => ({ materialEpoch: s.materialEpoch + 1 })),
   setShowcaseAccumulating: (v) => set({ showcaseAccumulating: v }),
   setQualityTier: (t) => {

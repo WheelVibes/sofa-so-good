@@ -72,14 +72,17 @@ export function CatalogCard({ def, onDelete, staggerIndex, roomRects }: CatalogC
     const y = t.clientY
     const timer = window.setTimeout(() => {
       if (press.current) press.current.fired = true
+      // Explicit-confirm placement (bugs #2/#5): arm the ghost at the finger,
+      // close the catalog, and show the "Place item?" pill. The ghost then
+      // follows the finger and stays freely draggable — a lift never commits or
+      // aborts — until the user taps ✓/✗. We do NOT snap the camera (requestTopView
+      // was removed): a camera move mid-drag read as "the canvas moving on me".
       const s = useStore.getState()
       s.setReopenCatalogAfterPlace(true)
       s.setActiveDefId(def.id)
+      s.setPlaceConfirm(true)
       s.setCursor({ x, y })
       s.setCatalogOpen(false)
-      // Snap to a top-down view so the piece drops onto a clean plan — dragging it
-      // around then reads as pure 2D positioning (orbit is frozen while armed).
-      s.requestTopView()
     }, LONG_PRESS_MS)
     press.current = { x, y, timer, fired: false }
   }
@@ -104,6 +107,23 @@ export function CatalogCard({ def, onDelete, staggerIndex, roomRects }: CatalogC
     // A long-press already armed placement — swallow the trailing tap so it
     // doesn't toggle placement back off.
     if (press.current?.fired) return
+    if (isMobile) {
+      // Bug #5: a plain tap closes the catalog and drops the ghost hovering at
+      // the canvas centre with the "Place item?" pill, freely draggable until
+      // ✓/✗ (same explicit-confirm flow as the long-press, just centred). Tapping
+      // the same armed card again toggles the placement off.
+      const s = useStore.getState()
+      if (s.activeDefId === def.id && s.placeConfirm) {
+        s.cancelPlacement()
+        return
+      }
+      s.setReopenCatalogAfterPlace(true)
+      s.setActiveDefId(def.id)
+      s.setPlaceConfirm(true)
+      s.setCursor({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
+      s.setCatalogOpen(false)
+      return
+    }
     onClick(e)
   }
   const thumb = useBuiltinThumbnail(def)

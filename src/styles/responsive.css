@@ -260,6 +260,18 @@ body.mobile {
      (The horizontal category rail keeps its own touch-action for left/right.) */
   .catalog .card-grid, .catalog .panel-body, .catalog .cat-rail,
   .inspector .panel-body { overscroll-behavior: contain; }
+  /* Backstop: the inspector body scrolls only vertically on a phone — no inner
+     control (array grids, wide labels, number fields) may push it into a
+     horizontal scroll off the panel edge. Root causes are bounded in parts.css
+     (`.act-array`); this guarantees the sheet width is never exceeded. */
+  .inspector .panel-body { overflow-x: hidden; }
+
+  /* Lift the drag/resize readout above the minimized inspector bottom-sheet so
+     the wall-gap / size pill is never hidden behind it (bug #9). The minimized
+     sheet is ~header-height (thumb + padding) above the safe-area inset; clear
+     it plus a small gap. Only a selected item can be dragged/resized, so the
+     inspector sheet is always present when this HUD shows. */
+  :root { --hud-bottom: calc(env(safe-area-inset-bottom, 0px) + 104px); }
 
   /* grab handle on every bottom-docked sheet */
   .catalog::before, .inspector::before,

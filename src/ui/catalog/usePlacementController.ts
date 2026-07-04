@@ -8,6 +8,7 @@ import { snapToNearestWindow, windowFixtureProps } from '../../furniture/placeme
 import { isActiveDragPointer } from '../../scene/dragHelpers'
 import { beginDrop } from '../../scene/placementDrop'
 import { useStore } from '../../state/store'
+import { registerPlacementCommit } from './placementConfirmCommit'
 
 /** A touch commit fires a synthetic `click` just after `pointerup` — but by then
  *  the armed-placement effect may have torn down (committing disarms it), so its
@@ -74,6 +75,11 @@ export function usePlacementController() {
     const onMove = (ev: PointerEvent) => {
       if (dragPointerId == null) dragPointerId = ev.pointerId
       if (!isActiveDragPointer(dragPointerId, ev.pointerId)) return
+      // In explicit-confirm mode (bug #5) only track the ghost while the pointer
+      // is over the canvas — so a finger that lands on the "Place item?" pill to
+      // tap ✓/✗ doesn't yank the ghost onto the button first. (The classic
+      // click-to-arm / drag-from-card flows keep tracking anywhere, as before.)
+      if (useStore.getState().placeConfirm && !(ev.target instanceof HTMLCanvasElement)) return
       useStore.getState().setCursor({ x: ev.clientX, y: ev.clientY })
     }
     // Window-bound fixtures (curtains/blinds/grilles, WINDOW-FIXTURE) snap onto the
@@ -154,6 +160,37 @@ export function usePlacementController() {
       return 'committed'
     }
 
+    // Bugs #2/#5: finalize a mobile explicit-confirm placement (the ✓ on the
+    // "Place item?" pill). Commits the ghost into a real placed+selected item and
+    // fully disarms — the pill IS the confirmation, so there's no follow-up
+    // pending edit. A blocked (invalid/red) ghost never reaches here (the pill's
+    // ✓ is disabled). Reuses the same add/variant/drop path as `doCommit`.
+    const commitFinal = () => {
+      const { ghostWorld, ghostValid, placeConfirm } = useStore.getState()
+      if (!placeConfirm || !ghostWorld) return
+      if (def.windowBound) {
+        if (commitWindowBound(ghostWorld)) useStore.getState().cancelPlacement()
+        return
+      }
+      if (!ghostValid) return
+      const variantProps = useStore.getState().armedVariantProps
+      const newId = useStore.getState().addItem({
+        defId: def.id,
+        position: ghostWorld,
+        rotation: (def.defaultRotation ?? 0) + useStore.getState().ghostRotation,
+        props: variantProps ? { ...defaultProps(def), ...variantProps } : defaultProps(def),
+      })
+      beginDrop(newId, performance.now())
+      // Disarm the placement. `addItem` already selected the new piece, so the
+      // inspector opens on it — we deliberately DON'T reopen the catalog here
+      // (that would stack a second bottom-sheet over the inspector on mobile);
+      // ✗/cancel is the path that returns to the catalog. Clear the reopen flag
+      // so a later cancel of an unrelated placement doesn't resurrect it.
+      useStore.getState().setActiveDefId(null)
+      useStore.getState().setGhostWorld(null, false)
+      useStore.getState().setReopenCatalogAfterPlace(false)
+    }
+
     const onClick = (ev: MouseEvent) => {
       if (ev.button !== 0) return
       if (!(ev.target instanceof HTMLCanvasElement)) return
@@ -165,10 +202,14 @@ export function usePlacementController() {
         ev.stopPropagation()
         return
       }
-      // Swallow every armed-placement click on the canvas (committed, red-ghost
-      // or empty) so it can't also deselect / fall through.
+      // Swallow every armed-placement click on the canvas so it can't also
+      // deselect / fall through.
       ev.preventDefault()
       ev.stopPropagation()
+      // In explicit-confirm mode (mobile tap/long-press) a canvas tap only
+      // repositions the ghost (via the preceding pointermove) — it never commits.
+      // The user commits/cancels only through the "Place item?" pill (bugs #2/#5).
+      if (useStore.getState().placeConfirm) return
       doCommit(ev.shiftKey || stampActive())
     }
 
@@ -185,6 +226,17 @@ export function usePlacementController() {
       // stamp/shift drop that keeps placement armed re-latches on whichever
       // finger drives the next one.
       dragPointerId = null
+      // Explicit-confirm mode (bugs #2/#5): a finger lift NEVER commits or aborts
+      // — the ghost stays exactly where it was dragged, freely re-draggable, until
+      // the user taps ✓/✗ on the pill. This is what makes the drag persist through
+      // the catalog card unmounting / an OS gesture without losing the selection.
+      if (useStore.getState().placeConfirm) {
+        swallowNextCanvasClick = true
+        window.setTimeout(() => {
+          swallowNextCanvasClick = false
+        }, 400)
+        return
+      }
       const el = document.elementFromPoint(ev.clientX, ev.clientY)
       if (!(el instanceof HTMLCanvasElement)) {
         useStore.getState().cancelPlacement()
@@ -206,6 +258,10 @@ export function usePlacementController() {
       if (ev.pointerType !== 'touch') return
       if (!isActiveDragPointer(dragPointerId, ev.pointerId)) return
       dragPointerId = null
+      // Explicit-confirm mode: an OS-interrupted touch must NOT abort the
+      // placement — the ghost persists until the user resolves it via the pill
+      // (bug #2: dragging previously lost the ghost + reopened the catalog here).
+      if (useStore.getState().placeConfirm) return
       useStore.getState().cancelPlacement()
     }
     const onContext = (ev: MouseEvent) => {
@@ -218,6 +274,13 @@ export function usePlacementController() {
       if (isEditableTarget(ev)) return
       if (ev.code === 'Escape') {
         useStore.getState().cancelPlacement()
+        return
+      }
+      // In explicit-confirm mode, Enter commits the armed ghost (mirrors the
+      // pill's ✓ + the EditConfirmBar Enter binding for a pending edit).
+      if ((ev.code === 'Enter' || ev.code === 'NumpadEnter') && useStore.getState().placeConfirm) {
+        ev.preventDefault()
+        commitFinal()
         return
       }
       // R rotates the ghost before committing, so a piece lands facing the right
@@ -250,6 +313,10 @@ export function usePlacementController() {
       if (doCommit(false) !== 'committed') useStore.getState().cancelPlacement()
     }
 
+    // Expose the commit to the DOM "Place item?" pill (bugs #2/#5) for as long as
+    // this def is armed; the pill's ✓ calls `commitArmedPlacement()`.
+    registerPlacementCommit(commitFinal)
+
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onPointerUp)
     window.addEventListener('pointercancel', onPointerCancel)
@@ -259,6 +326,7 @@ export function usePlacementController() {
     window.addEventListener('dragover', onDragOver)
     window.addEventListener('drop', onDrop)
     return () => {
+      registerPlacementCommit(null)
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerCancel)

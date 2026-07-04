@@ -24,6 +24,7 @@ import { RoomEditorScene } from './scene/RoomEditorScene'
 import { getRoomEditorShell } from './scene/roomEditorShell'
 import { Scene } from './scene/Scene'
 import { MarqueeSelector } from './scene/selection/MarqueeSelector'
+import { installTouchGestureTracker } from './scene/touchGestures'
 import { canEditScene, dispatchWalkInteract } from './state/editing'
 import { editableRoomIds } from './state/rooms'
 import { runBootstrap } from './state/storage/bootstrap'
@@ -68,6 +69,7 @@ import { ContextMenu } from './ui/ContextMenu'
 import { CreditsModal } from './ui/CreditsModal'
 import { Crosshair } from './ui/Crosshair'
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
+import { ThumbnailHost } from './ui/catalog/thumbnails'
 import { usePlacementController } from './ui/catalog/usePlacementController'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
@@ -163,6 +165,10 @@ export default function App() {
   useEffect(() => {
     void runBootstrap()
   }, [])
+
+  // Track active touch pointers so scene handlers can distinguish a single-finger
+  // tap/drag from a multi-finger pinch/pan (bugs #11/#12). Installed once.
+  useEffect(() => installTouchGestureTracker(), [])
 
   // Phase 1→2: hydration done — pin the phrase, then mount Canvas. The loader
   // art keeps animating (compositor layers survive main-thread warm-up work).
@@ -1000,6 +1006,12 @@ export default function App() {
             shrinks the canvas and the centred toolbar re-centres over it. On
             mobile it stays a bottom sheet. */}
         <CatalogDrawer />
+        {/* Off-screen thumbnail render queue — mounted app-wide (not inside the
+            catalog) so the inspector's item thumbnail (bug #3) resolves even
+            when the catalog is closed/minimized. Gated to the editing surfaces
+            (the only place catalog + inspector appear) so it costs nothing in
+            the overview/walk. A single host owns the shared queue. */}
+        {roomEditorActive || floorPlanEditing ? <ThumbnailHost /> : null}
         <EditConfirmBar />
         <InspectorPanel />
         <FinishPicker />

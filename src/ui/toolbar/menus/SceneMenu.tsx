@@ -73,6 +73,9 @@ export function SceneMenu() {
   const hdriId = useStore((s) => s.hdriId)
   const setHdri = useStore((s) => s.setHdri)
   const fRenderPresets = useFeature('renderPresets')
+  const fMotion = useFeature('furnitureMotion')
+  const motionEnabled = useStore((s) => s.motionEnabled)
+  const toggleMotion = useStore((s) => s.toggleMotion)
   const [compassOpen, setCompassOpen] = useState(false)
   const activePresetId = useActivePresetId()
 
@@ -114,6 +117,25 @@ export function SceneMenu() {
             {showCeilingFixtures ? 'Visible' : 'Hidden'}
           </button>
         </label>
+
+        {/* ---- Furniture motion (fan blades) — bug #15 ---- */}
+        {fMotion && (
+          <>
+            <div className="scene-sep" />
+            <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+              <span>Motion</span>
+              <button
+                type="button"
+                className={`seg-btn${motionEnabled ? ' on' : ''}`}
+                onClick={() => toggleMotion()}
+                title="Animate moving furniture like ceiling-fan blades"
+                style={{ fontSize: 'var(--t-xs)', padding: '3px 10px' }}
+              >
+                {motionEnabled ? 'On' : 'Paused'}
+              </button>
+            </label>
+          </>
+        )}
 
         {/* ---- Render presets (F4): one-tap sun + tone + exposure modes ---- */}
         {fRenderPresets && (

@@ -1,0 +1,38 @@
+{
+  "name": "mobile-inspector-fixes",
+  "description": "Mobile: inspector thumbnail + no horizontal overflow (Pro radial array), catalog minimize, toolbar swap, tap-to-place ghost+pill.",
+  "url": "http://localhost:5173/",
+  "viewport": { "width": 390, "height": 844, "isMobile": true, "hasTouch": true, "deviceScaleFactor": 2 },
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "go-pro", "eval": "const st=window.__store.getState(); st.setUiMode?.('pro'); st.reresolveFeatureFlags?.()" },
+    { "name": "wait-scene", "wait": 1500 },
+    {
+      "name": "enter-room",
+      "eval": "(()=>{const st=window.__store.getState(); const r=(st.floorPlan.rooms||[]).find(r=>r.id==='livingDining')||st.floorPlan.rooms[0]; st.enterRoomEditor(r.id);})()"
+    },
+    { "name": "wait-editor", "wait": 2500 },
+    { "name": "shot-editor", "screenshot": "00-room-editor-toolbar" },
+    {
+      "name": "select-item",
+      "eval": "(()=>{const st=window.__store.getState(); const rid=st.roomEditor.roomId; const it=st.items.find(i=>true); if(it){ st.setSelectedItemIds([it.id]); }})()"
+    },
+    { "name": "wait-insp", "wait": 800 },
+    { "name": "shot-inspector-min", "screenshot": "01-inspector-minimized" },
+    {
+      "name": "expand-inspector",
+      "eval": "(()=>{const btns=[...document.querySelectorAll('.inspector .panel-head .icon-btn')]; const exp=btns.find(b=>/Expand/i.test(b.getAttribute('aria-label')||'')); exp&&exp.click();})()"
+    },
+    { "name": "wait-expand", "wait": 900 },
+    { "name": "shot-inspector-expanded", "screenshot": "02-inspector-expanded" },
+    {
+      "name": "measure-overflow",
+      "eval": "(()=>{const b=document.querySelector('.inspector .panel-body'); console.log('OVERFLOW_CHECK '+JSON.stringify({scrollW:b?b.scrollWidth:null, clientW:b?b.clientWidth:null, overflows: b? b.scrollWidth>b.clientWidth+1 : null}))})()"
+    },
+    { "name": "shot-inspector-scroll-right", "screenshot": "03-inspector" }
+  ]
+}

@@ -50,7 +50,7 @@ export function DragHud() {
     if (gap == null) return null
     const tight = gap < CLEARANCE.walkwayMin
     return (
-      <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
+      <div className="drag-readout pointer-events-none absolute left-1/2 z-20 -translate-x-1/2">
         <div className={`hud-pill${tight ? ' warn' : ''}`}>
           ↔ Wall clearance: <span className="mono">{formatLength(gap, units)}</span>
           {tight ? ' · tight' : ''}
