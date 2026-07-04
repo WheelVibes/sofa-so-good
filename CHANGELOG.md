@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: out-of-room placement is red + invalid, no snap-back, greyed tick (bugs #5/#6) (v0.13.0.22)
+
+Two related per-room-editor placement fixes:
+- **#5 — dragging a piece outside the room is now invalid (red)**, not silently
+  clamped back in. `dragControllerHandlers` dropped the `clampCentreToRects`
+  clamp; the validity pass now also checks `roomClamp.ts:isCentreInsideRects`
+  (pure, unit-tested) against the room shell rects, so a footprint poking past
+  the room boundary flags `dragValid=false` (the red highlight) just like a
+  collision.
+- **#6 — an invalid drop no longer snaps back.** The item stays exactly where it
+  was dropped and resolves to a **`blocked`** `pendingEdit`: the Apply pill shows
+  but its confirm tick is **greyed out + non-interactive** with a "Can't apply —
+  move it inside the room, off other furniture" tooltip (label reads "Can't place
+  here"). `confirmPendingEdit` refuses a blocked edit; ✗/Esc still reverts;
+  starting a new drag cancels a blocked edit (revert to last valid), and leaving
+  the editor with one reverts rather than keeping it. The soft-nudge/hard-revert
+  on invalid drops was removed in favour of this. +unit tests (blocked stays +
+  can't-commit + cancel-reverts; `isCentreInsideRects`) + a visual blocked-pill
+  scenario. FEAT-B / BUG-1 drag scenarios re-verified (the alt-drag demo now
+  drops an armchair at an in-room spot, since out-of-room is correctly invalid).
+
 ## FIX: suppress the native card drag-preview overlapping the ghost (bug #4) (v0.13.0.21)
 
 Dragging a catalog card from the drawer onto the scene showed the browser's

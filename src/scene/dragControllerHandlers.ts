@@ -16,7 +16,7 @@ import {
   relevantWallFaces,
   type Span,
 } from '../collision/equalSpacing'
-import { canPlace, nudgeToValid } from '../collision/placement'
+import { canPlace } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
 import { resolveSurfaceDropHeight } from '../collision/surfaceDrop'
 import { wallSnapOffset } from '../collision/wallSnap'
@@ -35,7 +35,7 @@ import {
   staticAabbs,
   wallFaces,
 } from './dragHelpers'
-import { clampCentreToRects } from './roomClamp'
+import { isCentreInsideRects } from './roomClamp'
 import { getRoomEditorShell } from './roomEditorShell'
 import { snapToGrid } from './snap'
 
@@ -206,22 +206,9 @@ export function createDragHandlers(deps: DragHandlerDeps) {
           })
           if (s?.snapCenter != null) next = [next[0], s.snapCenter]
         }
-        // Per-room editor: keep the piece inside the room. Clamp the footprint
-        // centre to the room's rects (inset by the item's half-extents) so it
-        // can't be dragged out past the walls / boundary — even for a polygon
-        // room with no surrounding walls. Done after all snapping so the snap
-        // can't push it back outside.
-        if (state.roomEditor.active && state.roomEditor.roomId) {
-          const rid = state.roomEditor.roomId
-          if (roomBoundsRef.current?.roomId !== rid) {
-            const sh = getRoomEditorShell(state.floorPlan, rid)
-            roomBoundsRef.current = sh ? { roomId: rid, rects: sh.shell.rects } : null
-          }
-          const rects = roomBoundsRef.current?.rects
-          if (rects && rects.length > 0) {
-            next = clampCentreToRects(next[0], next[1], dh[0], dh[1], rects)
-          }
-        }
+        // Per-room editor: the piece may be dragged anywhere (no silent clamp
+        // back inside) — leaving the room's placeable area instead marks the drag
+        // invalid (red), handled in the validity pass below (bug #5/#6).
         const esx = detectEqualSpacingAxis('x', next[0], dh[0], xOthers, wf.x, {
           tol: SPACING_TH,
         })
@@ -309,18 +296,32 @@ export function createDragHandlers(deps: DragHandlerDeps) {
     // piece can't be dragged past the walls into adjacent rooms); elsewhere a
     // custom plan's own walls / the fixed flat's door-aware walls.
     const planWalls = placementWalls(after, afterById.get(id)?.levelId)
+    // Per-room editor: a piece dragged outside the room's placeable rects is
+    // invalid (bug #5) — cache the room shell rects here (keyed on room id) so
+    // this runs cheaply every move. Empty/absent → no room-bounds constraint.
+    let roomRects: Array<{ x0: number; z0: number; x1: number; z1: number }> = []
+    if (after.roomEditor.active && after.roomEditor.roomId) {
+      const rid = after.roomEditor.roomId
+      if (roomBoundsRef.current?.roomId !== rid) {
+        const sh = getRoomEditorShell(after.floorPlan, rid)
+        roomBoundsRef.current = sh ? { roomId: rid, rects: sh.shell.rects } : null
+      }
+      roomRects = roomBoundsRef.current?.rects ?? []
+    }
     let valid = true
     for (const mid of movedIds) {
       const item = afterById.get(mid)
       const def = item ? catalogRef.current[item.defId] : null
       if (!item || !def) continue
+      const dh = halfExtents(item, def)
       if (
         !canPlace(item, def, {
           others,
           defs: catalogRef.current,
           doors: after.doors,
           walls: planWalls,
-        })
+        }) ||
+        !isCentreInsideRects(item.position[0], item.position[1], dh[0], dh[1], roomRects)
       ) {
         valid = false
         break
@@ -446,66 +447,34 @@ export function createDragHandlers(deps: DragHandlerDeps) {
             ]
           : []
 
-    // Soft push-apart (single-item drag): a drop that lands overlapping doesn't
-    // hard-snap back to where it started — nudge it OUT of the collision to the
-    // nearest valid spot (a gentle slide off the obstacle). Bounded, so a deep
-    // overlap with nowhere near to go still reverts. Group drags keep the
-    // hard-revert (resolving many pieces at once would fight the user).
-    let softLanded = false
-    if (!state.dragValid && state.dragGroupOriginals.length <= 1) {
-      const dropped = state.items.find((i) => i.id === id)
-      const def = dropped ? catalogRef.current[dropped.defId] : undefined
-      if (dropped && def) {
-        const resolved = nudgeToValid(dropped, def, {
-          others: state.items,
-          defs: catalogRef.current,
-          doors: state.doors,
-          walls: placementWalls(state, dropped.levelId),
-        })
-        if (resolved) {
-          state.moveItem(id, resolved)
-          softLanded = true
-        }
-      }
-    }
-    const effectiveValid = wasValid || softLanded
-
-    if (!effectiveValid) {
-      const group = state.dragGroupOriginals
-      if (group.length > 1) {
-        for (const orig of group) {
-          state.moveItem(orig.id, orig.position)
-          state.rotateItem(orig.id, orig.rotation)
-        }
-      } else if (state.dragOriginal) {
-        state.moveItem(id, state.dragOriginal.position)
-        state.rotateItem(id, state.dragOriginal.rotation)
-      }
-    } else if (softLanded) {
-      // Nudged into place — no surface-drop pass (that's for valid free drops).
-    } else if (state.dragGroupOriginals.length <= 1) {
+    // Bug #6: an invalid drop (collision / outside the room) NO LONGER snaps
+    // back or auto-nudges — the item stays exactly where it was dropped and
+    // resolves to a `blocked` pending edit (the tick/cross pill shows, but the
+    // tick is disabled with a "can't be applied" tooltip until the user drags
+    // it valid or cancels). Only a VALID free drop gets surface-drop magnetism.
+    if (wasValid && state.dragGroupOriginals.length <= 1) {
       // Surface-drop magnetism (PC2-SURFACE-DROP): a single surface item (one
       // that rests on a surface — carries a numeric `surfaceHeight`) dropped
       // over a table/shelf snaps its rest height onto that surface's top, so
       // decor sits on whatever you drop it on. No support under it → leave the
       // height as-is. Committed via setItems (no extra history push) so it rides
       // the drag's single startDrag snapshot.
-      const cur = useStore.getState()
-      const dropped = cur.items.find((i) => i.id === id)
+      const cur0 = useStore.getState()
+      const dropped = cur0.items.find((i) => i.id === id)
       const def = dropped ? catalogRef.current[dropped.defId] : undefined
       const sh = dropped?.props['surfaceHeight']
       if (dropped && def && typeof sh === 'number') {
         const top = resolveSurfaceDropHeight(
           dropped.position[0],
           dropped.position[1],
-          cur.items,
+          cur0.items,
           catalogRef.current,
           id,
           dropped.levelId,
         )
         if (top != null && Math.abs(top - sh) > 1e-3) {
-          cur.setItems(
-            cur.items.map((it) =>
+          cur0.setItems(
+            cur0.items.map((it) =>
               it.id === id ? { ...it, props: { ...it.props, surfaceHeight: top } } : it,
             ),
           )
@@ -518,33 +487,31 @@ export function createDragHandlers(deps: DragHandlerDeps) {
     const wasDuplicate = state.dragIsDuplicate
     const duplicateSources = state.dragDuplicateSourceIds
     state.endDrag()
-    // Decide between a pending confirmation and a dead no-op:
-    // - a valid drag that actually moved/rotated an item → tick/cross edit.
-    // - a click that didn't move anything (BUG-016) → drop the dead snapshot
-    //   pushed in startDrag so the user's first undo isn't a no-op step.
+    // Did anything actually move/rotate this gesture? Checked regardless of
+    // validity now — an invalid drop that MOVED still resolves to a (blocked)
+    // pill (bug #6); only a true no-op click (BUG-016) drops the dead snapshot.
     const cur = useStore.getState()
-    let changed = false
-    if (effectiveValid) {
-      const byId = new Map(cur.items.map((i) => [i.id, i]))
-      changed = originals.some((o) => {
-        const it = byId.get(o.id)
-        return (
-          !!it &&
-          (it.position[0] !== o.position[0] ||
-            it.position[1] !== o.position[1] ||
-            it.rotation !== o.rotation)
-        )
-      })
-    }
+    const byId = new Map(cur.items.map((i) => [i.id, i]))
+    const changed = originals.some((o) => {
+      const it = byId.get(o.id)
+      return (
+        !!it &&
+        (it.position[0] !== o.position[0] ||
+          it.position[1] !== o.position[1] ||
+          it.rotation !== o.rotation)
+      )
+    })
     if (changed) {
       // The gesture's pre-drag items array (top history snapshot) lets a cancel
-      // restore every item by reference in one step.
+      // restore every item by reference in one step. `blocked` (an invalid
+      // drop) disables the confirm tick in `EditConfirmBar` until it's valid.
       const priorItems = cur.past[cur.past.length - 1]?.items
       cur.setPendingEdit({
         kind: 'transform',
         ids: originals.map((o) => o.id),
         originals,
         priorItems,
+        blocked: !wasValid,
       })
     } else if (wasDuplicate) {
       // FEAT-B: a clone WAS created this gesture (dragDuplicatePending

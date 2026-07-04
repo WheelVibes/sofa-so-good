@@ -24,6 +24,11 @@ export interface PendingEdit {
   originals: Array<{ id: string; position: [number, number]; rotation: number }>
   /** placement only: the items array reference captured before the add. */
   priorItems?: FurnitureItem[]
+  /** The dropped placement is invalid (collision / outside the room). The item
+   *  stays where it was dropped (no snap-back), but `EditConfirmBar` disables the
+   *  confirm tick with a "can't be applied" tooltip until it's valid — and
+   *  `confirmPendingEdit` refuses to commit it (bug #6). ✗ / Esc still reverts. */
+  blocked?: boolean
 }
 
 /** Ephemeral drag-place state — tracks the def the user is dragging
@@ -252,6 +257,9 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
   setReopenCatalogAfterPlace: (reopenCatalogAfterPlace) => set({ reopenCatalogAfterPlace }),
   setPendingEdit: (pendingEdit) => set({ pendingEdit }),
   confirmPendingEdit: () => {
+    // A blocked (invalid) placement can never be committed — the item stays put
+    // with the tick disabled until it's dragged valid or cancelled (bug #6).
+    if (get().pendingEdit?.blocked) return
     const reopen = get().reopenCatalogAfterPlace
     set({ pendingEdit: null, reopenCatalogAfterPlace: false })
     // A mobile long-press placement hid the catalog; bring it back now that the
@@ -299,9 +307,13 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
     if (reopen) get().setCatalogOpen(true)
   },
   startDrag: (id, original, offset, pointerId, groupOriginals, duplicateSourceIds) => {
-    // Starting a fresh gesture commits any edit still awaiting confirmation
-    // (the user moved on) so we never stack two pending edits.
-    if (get().pendingEdit) get().confirmPendingEdit()
+    // Starting a fresh gesture resolves any edit still awaiting confirmation so
+    // we never stack two pending edits: a valid one commits (the user moved on),
+    // a blocked (invalid) one CANCELS — reverting to the last valid transform —
+    // since it can never be committed and must not linger as a stale pill (#6).
+    const pending = get().pendingEdit
+    if (pending?.blocked) get().cancelPendingEdit()
+    else if (pending) get().confirmPendingEdit()
     // Snapshot before any per-frame moveItem fires so undo restores the
     // pre-drag transform of every dragged item in one step. This ALSO covers
     // FEAT-B's duplicate: `resolveDragDuplicate` adds the clone via a plain

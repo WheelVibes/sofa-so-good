@@ -142,18 +142,19 @@ describe('DragController handlers — BUG-1 pointerId gating (TEST-7)', () => {
   })
 })
 
-describe('DragController handlers — invalid-release revert', () => {
+describe('DragController handlers — invalid release keeps position + blocked pill (bug #6)', () => {
   beforeEach(() => {
     useStore.getState().__resetForTest()
     useStore.setState({ floorPlan: EMPTY_WALL_PLAN })
   })
 
-  it('reverts to the pre-drag transform when the release lands on an unresolvable collision', () => {
+  it('an invalid drop STAYS at the dropped spot and resolves to a blocked pending edit (no snap-back)', () => {
     const { onMove, onUp } = setupHandlers()
-    // 'b' is a fixed obstacle. Dragging 'a' (same def/footprint) onto the
-    // exact same spot fully overlaps it — an overlap depth (0.9 m on the
-    // shallow axis) far beyond `nudgeToValid`'s push-apart reach (0.4 m), so
-    // there's nowhere valid nearby to soft-land: onUp must hard-revert.
+    // 'b' is a fixed obstacle. Dragging 'a' (same def/footprint) fully onto it
+    // is an invalid (colliding) drop. Bug #6: the item no longer snaps back —
+    // it stays where dropped and the pending edit is `blocked` (EditConfirmBar
+    // disables the tick), so it can never be committed but the user can still
+    // drag it valid or cancel.
     useStore.getState().setItems([item('a', 'sofa-3seat', 0, 0), item('b', 'sofa-3seat', 10, 0)])
     useStore.getState().startDrag('a', { position: [0, 0], rotation: 0 }, [0, 0], 5)
 
@@ -161,23 +162,31 @@ describe('DragController handlers — invalid-release revert', () => {
     window.addEventListener('pointerup', onUp)
     try {
       window.dispatchEvent(pointerEvent('pointermove', 10, 0, 5))
-      // Confirmed invalid mid-drag (full overlap with 'b').
       expect(useStore.getState().dragValid).toBe(false)
       expect(useStore.getState().items.find((i) => i.id === 'a')?.position).toEqual([10, 0])
 
       window.dispatchEvent(pointerEvent('pointerup', 10, 0, 5))
 
       expect(useStore.getState().draggingItemId).toBeNull()
-      const a = useStore.getState().items.find((i) => i.id === 'a')
-      expect(a?.position).toEqual([0, 0])
-      expect(a?.rotation).toBe(0)
+      // No snap-back: the item stays exactly where it was dropped.
+      expect(useStore.getState().items.find((i) => i.id === 'a')?.position).toEqual([10, 0])
+      // A blocked pending edit shows the pill with a disabled tick.
+      const pe = useStore.getState().pendingEdit
+      expect(pe?.blocked).toBe(true)
+      // And it can't be committed — confirm is a no-op while blocked.
+      useStore.getState().confirmPendingEdit()
+      expect(useStore.getState().pendingEdit?.blocked).toBe(true)
+      // Cancel reverts to the pre-drag transform.
+      useStore.getState().cancelPendingEdit()
+      expect(useStore.getState().pendingEdit).toBeNull()
+      expect(useStore.getState().items.find((i) => i.id === 'a')?.position).toEqual([0, 0])
     } finally {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
   })
 
-  it('keeps the moved position on a release that lands somewhere valid (control case)', () => {
+  it('keeps the moved position on a valid release, with a non-blocked pending edit (control case)', () => {
     const { onMove, onUp } = setupHandlers()
     useStore.getState().setItems([item('a', 'sofa-3seat', 0, 0)])
     useStore.getState().startDrag('a', { position: [0, 0], rotation: 0 }, [0, 0], 5)
@@ -190,6 +199,7 @@ describe('DragController handlers — invalid-release revert', () => {
       window.dispatchEvent(pointerEvent('pointerup', 8, 8, 5))
       expect(useStore.getState().draggingItemId).toBeNull()
       expect(useStore.getState().items.find((i) => i.id === 'a')?.position).toEqual([8, 8])
+      expect(useStore.getState().pendingEdit?.blocked).toBeFalsy()
     } finally {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)

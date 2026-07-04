@@ -29,7 +29,7 @@
     { "name": "wait-room-frame-settle", "wait": 1200 },
     {
       "name": "place-test-item",
-      "eval": "window.__store.getState().setItems([{id:'feat-b-sofa',defId:'sofa-3seat',position:[10.0,4.5],rotation:0,props:{}}])"
+      "eval": "window.__store.getState().setItems([{id:'feat-b-sofa',defId:'armchair',position:[10.0,4.5],rotation:0,props:{}}])"
     },
     { "name": "select-item", "store": { "action": "selectItem", "args": ["feat-b-sofa"] } },
     { "name": "frame", "store": { "action": "focusOn", "args": [[10.0, 4.5]] } },
@@ -77,7 +77,7 @@
     },
     {
       "name": "second-move-further-away",
-      "eval": "(()=>{const ev=new PointerEvent('pointermove',{bubbles:true,cancelable:true,clientX:320,clientY:870,pointerId:777,pointerType:'mouse'});window.dispatchEvent(ev)})()"
+      "eval": "(()=>{const ev=new PointerEvent('pointermove',{bubbles:true,cancelable:true,clientX:960,clientY:740,pointerId:777,pointerType:'mouse'});window.dispatchEvent(ev)})()"
     },
     { "name": "settle-move-2", "wait": 200 },
     {
@@ -87,7 +87,7 @@
     { "name": "shot-mid-drag-two-items", "screenshot": "mid-drag-two-items" },
     {
       "name": "release-pointer-777",
-      "eval": "(()=>{const ev=new PointerEvent('pointerup',{bubbles:true,cancelable:true,clientX:320,clientY:870,pointerId:777,pointerType:'mouse'});window.dispatchEvent(ev)})()"
+      "eval": "(()=>{const ev=new PointerEvent('pointerup',{bubbles:true,cancelable:true,clientX:960,clientY:740,pointerId:777,pointerType:'mouse'});window.dispatchEvent(ev)})()"
     },
     { "name": "settle-release", "wait": 200 },
     {

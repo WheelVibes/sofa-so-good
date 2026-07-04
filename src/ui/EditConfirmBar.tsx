@@ -71,7 +71,13 @@ export function EditConfirmBar() {
     }, EXIT_MS)
   }, [])
 
-  const onConfirm = useCallback(() => dismiss('leaving', confirm), [dismiss, confirm])
+  // A blocked (invalid) placement can't be confirmed — the tick is disabled and
+  // Enter is a no-op until the item is dragged valid or cancelled (bug #6).
+  const blocked = !!pending?.blocked
+  const onConfirm = useCallback(() => {
+    if (blocked) return
+    dismiss('leaving', confirm)
+  }, [dismiss, confirm, blocked])
   const onCancel = useCallback(() => dismiss('rejecting', cancel), [dismiss, cancel])
 
   // Leaving BOTH editing surfaces (the room editor and the plan editor)
@@ -82,8 +88,11 @@ export function EditConfirmBar() {
   // calling confirm() here would race the deferred action and turn a
   // just-clicked Cancel into a silent keep.
   useEffect(() => {
-    if (!roomEditorActive && !floorPlanEditing && pending && timerRef.current == null) confirm()
-  }, [roomEditorActive, floorPlanEditing, pending, confirm])
+    if (roomEditorActive || floorPlanEditing || !pending || timerRef.current != null) return
+    // A blocked (invalid) edit can't be kept — revert it; a valid one is kept.
+    if (pending.blocked) cancel()
+    else confirm()
+  }, [roomEditorActive, floorPlanEditing, pending, confirm, cancel])
 
   useEffect(() => {
     if (!pending) return
@@ -103,9 +112,14 @@ export function EditConfirmBar() {
 
   if (!pending) return null
   const label = pending.kind === 'placement' ? 'Place item?' : 'Apply change?'
+  const blockedTip = "Can't apply — move it inside the room, off other furniture"
   return (
-    <div className={`edit-confirm${exit ? ` ${exit}` : ''}`} role="dialog" aria-label={label}>
-      <span className="edit-confirm-label">{label}</span>
+    <div
+      className={`edit-confirm${exit ? ` ${exit}` : ''}${blocked ? ' blocked' : ''}`}
+      role="dialog"
+      aria-label={label}
+    >
+      <span className="edit-confirm-label">{blocked ? "Can't place here" : label}</span>
       <button
         type="button"
         className="edit-confirm-btn cancel"
@@ -119,8 +133,10 @@ export function EditConfirmBar() {
         type="button"
         className="edit-confirm-btn confirm"
         onClick={onConfirm}
+        disabled={blocked}
         aria-label="Confirm change"
-        title="Confirm (Enter)"
+        aria-disabled={blocked}
+        title={blocked ? blockedTip : 'Confirm (Enter)'}
       >
         <Icon.Check width={18} height={18} />
       </button>

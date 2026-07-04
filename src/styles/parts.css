@@ -328,6 +328,12 @@
 .edit-confirm-btn.confirm:hover { background: var(--accent-2); }
 .edit-confirm-btn.cancel { background: var(--danger-soft); color: var(--danger); }
 .edit-confirm-btn.cancel:hover { filter: brightness(0.97); }
+/* Blocked (invalid) placement: the confirm tick is greyed + non-interactive
+   until the item is valid; the label warns why (bug #6). */
+.edit-confirm-btn.confirm:disabled {
+  background: var(--surface-3); color: var(--text-3); cursor: not-allowed; filter: none;
+}
+.edit-confirm.blocked .edit-confirm-label { color: var(--danger); }
 /* Dismiss micro-animations. The bar is horizontally centred by
    `transform: translateX(-50%)`, so every keyframe step MUST re-apply it or the
    bar would jump to the left edge mid-animation.
