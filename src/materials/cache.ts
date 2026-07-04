@@ -13,8 +13,13 @@ import {
   getPlasterNormal,
   getPlasterRoughness,
   getProceduralBaseSize,
+  PROCEDURAL_QUICK_PREVIEW_SIZE,
 } from './procedural/generators'
-import { proceduralWorkerKey, requestProceduralWorker } from './procedural/runProceduralWorker'
+import {
+  isProceduralWorkerAvailable,
+  proceduralWorkerKey,
+  requestProceduralWorker,
+} from './procedural/runProceduralWorker'
 import { notifyProceduralSwap } from './proceduralSwapSignal'
 import type { MaterialDef, ProceduralPattern } from './types'
 
@@ -122,8 +127,15 @@ function imageBitmapToTexture(
 
 /**
  * Request off-thread generation of a procedural texture set and hot-swap the
- * material's maps when the worker resolves. If the worker is unavailable or
- * errors, the sync fallback textures already in place are kept.
+ * material's maps when the worker resolves.
+ *
+ * `quickPreview` (PERF-C) marks that the material currently holds the cheap
+ * `PROCEDURAL_QUICK_PREVIEW_SIZE` synchronous placeholder (not a full-quality
+ * fallback) — if the worker is unavailable/errors/breaks mid-flight, this
+ * function falls back to baking the real size synchronously right here so the
+ * material never gets stuck at preview quality. When `quickPreview` is false
+ * (the pre-PERF-C shape: the sync bake was already full quality), a failed
+ * worker call is a true no-op — the existing correct textures are kept.
  *
  * After swapping, `notifyProceduralSwap()` fires the global signal so the
  * scene (demand-mode canvas) renders a fresh frame to show the new textures.
@@ -137,9 +149,34 @@ async function scheduleWorkerUpgrade(
   size: number,
   uvScale: [number, number],
   _key: string,
+  quickPreview: boolean,
 ): Promise<void> {
   const result = await requestProceduralWorker(matId, pattern, swatch, size)
-  if (!result) return // worker unavailable / errored — keep sync fallback
+  if (!result) {
+    if (!quickPreview) return // pre-existing sync texture is already full quality
+    // Worker unavailable/broken after we already committed to the cheap
+    // placeholder — bake the real quality synchronously now so the material
+    // doesn't stay stuck at preview resolution. Rare path (worker failure),
+    // so the one-off synchronous cost here is an acceptable correctness net.
+    try {
+      const maps = generateProcedural(matId, pattern, swatch)
+      mat.map?.dispose()
+      mat.normalMap?.dispose()
+      mat.roughnessMap?.dispose()
+      for (const t of [maps.albedo, maps.normal, maps.roughness]) {
+        t.repeat.set(1 / uvScale[0], 1 / uvScale[1])
+      }
+      mat.map = maps.albedo
+      mat.normalMap = maps.normal
+      mat.roughnessMap = maps.roughness
+      mat.metalness = maps.metalness
+      mat.needsUpdate = true
+      notifyProceduralSwap()
+    } catch {
+      // Give up — the quick placeholder remains rather than crashing.
+    }
+    return
+  }
 
   // Materialise all three textures. If anything throws the existing sync
   // textures are untouched.
@@ -212,7 +249,23 @@ export function buildMaterial(
   }
   if (def.kind === 'procedural') {
     const size = effectivePatternSize(def.pattern)
-    const maps = generateProcedural(def.id, def.pattern, def.swatch)
+    // PERF-C — the full-size bake (256²-512²: pattern fields + height→normal +
+    // roughness, one canvas draw each) is expensive enough to hitch a frame
+    // when it runs synchronously on apply/scrub. When the off-thread worker is
+    // available it will deliver the real quality texture moments later (see
+    // below), so the synchronous placeholder only needs to look right for that
+    // brief window — bake it at `PROCEDURAL_QUICK_PREVIEW_SIZE` instead
+    // (~64x-256x fewer pixels), keeping the main thread free. Only skip the
+    // cheap path when there's no worker to follow up: then the placeholder
+    // IS the final texture, so it must be full quality (byte-identical to the
+    // pre-PERF-C behaviour).
+    const workerAvailable = isProceduralWorkerAvailable()
+    const maps = generateProcedural(
+      def.id,
+      def.pattern,
+      def.swatch,
+      workerAvailable ? PROCEDURAL_QUICK_PREVIEW_SIZE : undefined,
+    )
     m.color.set('#ffffff') // tint baked into albedo
     // Fresh per-material canvas textures (unique per id:pattern:swatch hash,
     // no internal sharing) — owned, so eviction frees them.
@@ -226,12 +279,23 @@ export function buildMaterial(
     if (roughOverride != null) m.roughness = roughOverride
     CACHE.set(cacheKey, m)
 
-    // Request higher-quality generation off the main thread. The sync
-    // textures above provide an immediate fallback; when the worker
-    // finishes we hot-swap the maps and kick a frame via the swap signal.
-    // Key matches `proceduralWorkerKey` so in-flight requests coalesce.
-    const workerKey = proceduralWorkerKey(def.id, def.pattern, def.swatch, size)
-    void scheduleWorkerUpgrade(m, def.id, def.pattern, def.swatch, size, def.uvScale, workerKey)
+    if (workerAvailable) {
+      // Request the real quality generation off the main thread. The quick
+      // placeholder above is already showing; when the worker finishes we
+      // hot-swap the maps and kick a frame via the swap signal. Key matches
+      // `proceduralWorkerKey` so in-flight requests coalesce.
+      const workerKey = proceduralWorkerKey(def.id, def.pattern, def.swatch, size)
+      void scheduleWorkerUpgrade(
+        m,
+        def.id,
+        def.pattern,
+        def.swatch,
+        size,
+        def.uvScale,
+        workerKey,
+        /* quickPreview */ true,
+      )
+    }
 
     return m
   }

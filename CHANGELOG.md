@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PERF: instant procedural finish apply via cheap placeholder bake — PERF-C (v0.12.0.38)
+
+From the 2026-07-04 audit: `buildMaterial`'s procedural branch ran the FULL
+256²–512² pattern+normal+roughness bake synchronously on the main thread on every
+new finish id — AND then kicked the existing off-thread worker to redo the same
+full bake, so the sync "fallback" defeated the worker entirely (hundreds of ms of
+jank on apply). Now, when the worker is available, the sync path bakes only a
+cheap `PROCEDURAL_QUICK_PREVIEW_SIZE=64` placeholder (~6–22 ms) and the worker
+hot-swaps in full quality moments later (existing path); a recovery bake covers a
+worker failure so a material can't get stuck at preview quality. Worker-absent
+behaviour is byte-identical to before. ~14–56× faster synchronous commit
+(measured), final rendered result pixel-identical; LRU cache key + anisotropy +
+tint-sibling sharing untouched. 4 new edge-case tests.
+
 ## DOCS: round-2 audit (tests/mobile/features) + backlog refresh (v0.12.0.37)
 
 Recorded the 2026-07-04 second-pass audit as
