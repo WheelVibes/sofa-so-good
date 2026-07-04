@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.14.2.0 — PR rollup: mobile UX follow-ups (v0.14.1.1–v0.14.1.5)
+
+Patch bump for the PR to `main` gathering the post-v0.14.1.0 mobile follow-ups:
+catalog touch-scroll + panel-swipe + pinch-select (`.1.1`), centred dollhouse
+framing on room-editor entry (`.1.2`), smooth wall-reveal fade with no 2D/3D
+door/window pop (`.1.3`), the broken `--hud-bottom` fix for bottom-HUD overlap
+(`.1.4`), and animated sheet collapse + handle-only swipe + fewer drag guides
+(`.1.5`, below). No behaviour change in this commit beyond the version bump.
+
 ## v0.14.1.5 — mobile sheet: animated collapse + handle-only swipe; fewer drag guides
 
 Three mobile polish fixes:
