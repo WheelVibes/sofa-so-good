@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 
 /**
  * Open-modal registry: while ANY modal dialog is open, global app shortcuts
@@ -21,15 +21,21 @@ import { useEffect } from 'react'
  *   arrows / Enter / Escape — is unaffected by this guard.
  */
 let openModalCount = 0
+const listeners = new Set<() => void>()
+function emit() {
+  for (const fn of listeners) fn()
+}
 
 /** Register one open modal. Returns a release fn (safe to call once). */
 export function registerOpenModal(): () => void {
   openModalCount++
+  emit()
   let released = false
   return () => {
     if (released) return
     released = true
     openModalCount = Math.max(0, openModalCount - 1)
+    emit()
   }
 }
 
@@ -38,9 +44,24 @@ export function isAnyModalOpen(): boolean {
   return openModalCount > 0
 }
 
+/** Reactive subscription to the "any modal open" flag (for components that must
+ *  re-render on change — e.g. freezing the orbit camera while a modal covers the
+ *  canvas, bug #6). Non-React callers keep using `isAnyModalOpen()`. */
+export function useAnyModalOpen(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      listeners.add(cb)
+      return () => listeners.delete(cb)
+    },
+    () => openModalCount > 0,
+    () => false,
+  )
+}
+
 /** Test-only: reset the counter so one test's leak can't fail the next. */
 export function resetModalGuardForTests(): void {
   openModalCount = 0
+  emit()
 }
 
 /**

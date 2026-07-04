@@ -43,7 +43,16 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   Placement already gives immediate optimistic feedback: drag arms the live `PlacementGhost`
   (follows the cursor during `dragover`) and drop applies the item instantly into a
   `pendingEdit` reconciled by the ✓/✗ bar — there is no separate optimistic/reconcile layer
-  to add.
+  to add. **Mobile placement is explicit-confirm (`placeConfirm`, bugs #2/#5):** a catalog
+  tap/long-press arms the ghost, closes the catalog, and shows a "Place item?" `EditConfirmBar`
+  pill BEFORE anything is placed — the ghost stays freely draggable and a finger lift /
+  `pointercancel` NEVER commits or aborts (that's what stops the old lost-selection + reopened-
+  catalog bug). ✓ commits via the `placementConfirmCommit` module signal (registered by
+  `usePlacementController`, so the pill runs the same add/variant/drop-in path); ✗ =
+  `cancelPlacement`. ✓ is disabled while the ghost is invalid (red). Commit keeps the just-placed
+  item selected (inspector opens) and does NOT reopen the catalog — cancel is the path back to it.
+  A **rotate** gesture that lands invalid now resolves to the same `blocked` pending pill instead
+  of snapping back (bug #10), matching the item-drag invalid-drop.
 - **Viewport-responsive + touch parity.** Support desktop **and** mobile: `body.mobile`
   bottom-sheets at ≤640px (`useIsMobile`), controls inside `env(safe-area-inset-*)`, and
   mobile-toolbar/accordion parity for any new desktop action. Drag-and-drop drop zones must

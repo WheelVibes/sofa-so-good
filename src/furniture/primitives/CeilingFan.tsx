@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import type { Group, MeshStandardMaterial } from 'three'
 import { fixtureEmissiveIntensity } from '../../scene/lighting/fixtureGlow'
 import { useAnimatedSource } from '../../scene/useAnimatedSource'
+import { useStore } from '../../state/store'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
@@ -17,10 +18,13 @@ export function CeilingFan({ props }: { props: ParamProps }) {
   const bladeColor = readStr(props, 'bladeColor', '#6b4f34')
   const bladesRef = useRef<Group>(null)
   const lightRef = useRef<MeshStandardMaterial>(null)
-  useAnimatedSource() // blades spin every frame — keep the demand loop alive
+  // Furniture-motion toggle (bug #15): only spin (and keep the demand loop alive)
+  // while motion is enabled; the integrated light's glow still updates.
+  const motion = useStore((s) => s.motionEnabled)
+  useAnimatedSource(motion)
 
   useFrame((_, dt) => {
-    if (bladesRef.current) bladesRef.current.rotation.y += dt * 3.2
+    if (motion && bladesRef.current) bladesRef.current.rotation.y += dt * 3.2
     if (lightRef.current) lightRef.current.emissiveIntensity = fixtureEmissiveIntensity('shade')
   })
 

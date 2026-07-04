@@ -108,6 +108,11 @@
   flex: none;
 }
 
+/* Drag / resize readout wrapper. `--hud-bottom` lets the mobile layer lift it
+   clear of the minimized inspector bottom-sheet (bug #9) without a Tailwind
+   specificity fight; desktop keeps the standard 1.5rem offset. */
+.drag-readout { bottom: var(--hud-bottom, 1.5rem); }
+
 /* Floating HUD pill (drag clearance readout, door prompt). */
 .hud-pill {
   display: inline-flex;

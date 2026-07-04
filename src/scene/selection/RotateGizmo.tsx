@@ -237,37 +237,32 @@ export function RotateGizmo() {
       // finger's independent pointerup must not commit/revert someone else's drag.
       if (!isActiveDragPointer(g.pointerId, ev.pointerId)) return
       const originals = g.originals.map((o) => ({ ...o }))
-      if (g && !valid) {
-        // Invalid landing — restore every member's pre-gesture transform.
-        const state = useStore.getState()
-        for (const o of g.originals) {
-          state.moveItem(o.id, o.position)
-          state.rotateItem(o.id, o.rotation)
-        }
-      }
+      // Bug #10: an invalid landing NO LONGER snaps back to the original
+      // orientation — the piece stays turned where it was released and resolves
+      // to a `blocked` pending edit (the tick/cross pill shows, tick disabled
+      // with a "can't be applied" tooltip until it's rotated/dragged valid or
+      // cancelled), mirroring the item-drag invalid-drop UX (dragControllerHandlers).
+      const wasValid = valid
       gesture.current = null
       setRotating(false)
       useStore.getState().setRotatingGizmo(false)
       setValid(true)
       setLive(null)
       setAlignYaw(null)
-      // A valid rotation that actually turned something becomes a pending
-      // tick/cross edit; a grab that rotated nothing drops the dead snapshot
-      // pushed in onGrab so the first undo isn't a no-op step (BUG-016).
+      // A rotation that actually turned something becomes a pending tick/cross
+      // edit regardless of validity; a grab that rotated nothing drops the dead
+      // snapshot pushed in onGrab so the first undo isn't a no-op step (BUG-016).
       const cur = useStore.getState()
-      let changed = false
-      if (g && valid) {
-        const byId = new Map(cur.items.map((i) => [i.id, i]))
-        changed = originals.some((o) => {
-          const it = byId.get(o.id)
-          return (
-            !!it &&
-            (it.position[0] !== o.position[0] ||
-              it.position[1] !== o.position[1] ||
-              it.rotation !== o.rotation)
-          )
-        })
-      }
+      const byId = new Map(cur.items.map((i) => [i.id, i]))
+      const changed = originals.some((o) => {
+        const it = byId.get(o.id)
+        return (
+          !!it &&
+          (it.position[0] !== o.position[0] ||
+            it.position[1] !== o.position[1] ||
+            it.rotation !== o.rotation)
+        )
+      })
       if (changed) {
         const priorItems = cur.past[cur.past.length - 1]?.items
         cur.setPendingEdit({
@@ -275,6 +270,7 @@ export function RotateGizmo() {
           ids: originals.map((o) => o.id),
           originals,
           priorItems,
+          blocked: !wasValid,
         })
       } else {
         cur.dropRedundantHistory()

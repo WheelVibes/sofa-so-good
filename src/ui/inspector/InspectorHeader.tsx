@@ -5,6 +5,7 @@ import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
+import { expectsBuiltinThumbnail, useBuiltinThumbnail } from '../catalog/thumbnails'
 import { Icon } from '../toolbar/icons'
 import { confirmDeleteItem } from './itemTransforms'
 import { MinimizeButton } from './useInspectorMinimize'
@@ -34,6 +35,10 @@ export function InspectorHeader({
   const priceOn = useFeature('budget')
   const itemAsLightOn = useFeature('itemAsLight')
   const units = useStore((s) => s.units)
+  // Show the piece's real thumbnail (same source as the catalog card) instead of
+  // a generic category glyph; fall back to the icon while a render is pending or
+  // for defs that never produce one.
+  const thumb = useBuiltinThumbnail(def)
 
   let w = def.defaultFootprint.w
   let d = def.defaultFootprint.d
@@ -53,7 +58,14 @@ export function InspectorHeader({
     >
       <div>
         <div className="insp-thumb">
-          <CategoryIcon category={def.category} width={22} height={22} />
+          {thumb ? (
+            <img src={thumb} alt={def.name} />
+          ) : (
+            <CategoryIcon category={def.category} width={22} height={22} />
+          )}
+          {!thumb && expectsBuiltinThumbnail(def) ? (
+            <span className="skeleton" aria-hidden />
+          ) : null}
         </div>
         <div>
           <div className="panel-title">{item.label ?? def.name}</div>

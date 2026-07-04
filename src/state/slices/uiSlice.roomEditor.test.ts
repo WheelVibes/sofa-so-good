@@ -6,22 +6,24 @@ describe('roomEditor state', () => {
     useStore.setState({
       roomEditor: { active: false, roomId: null },
       qualityTier: 'high',
-      qualityUserSet: false,
+      qualityUserSet: true,
       assetTier: null,
       cameraMode: 'firstPerson',
     })
   })
 
-  it('enter pins performance + Original assets and sets orbit', () => {
+  // Bugs #13/#16: graphics settings are global + persistent — the room editor
+  // must NOT force its own tier; it inherits (and never clobbers) the user's.
+  it('enter keeps the user graphics tier + asset tier and sets orbit', () => {
     useStore.getState().enterRoomEditor('bedroom2')
     const s = useStore.getState()
     expect(s.roomEditor).toEqual({ active: true, roomId: 'bedroom2' })
-    expect(s.qualityTier).toBe('performance')
-    expect(s.assetTier).toBe('high')
+    expect(s.qualityTier).toBe('high')
+    expect(s.assetTier).toBe(null)
     expect(s.cameraMode).toBe('orbit')
   })
 
-  it('exit restores the prior render + asset tier', () => {
+  it('exit leaves the (unchanged) graphics tier intact', () => {
     useStore.getState().enterRoomEditor('bedroom2')
     useStore.getState().exitRoomEditor()
     const s = useStore.getState()

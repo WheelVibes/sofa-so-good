@@ -5,6 +5,53 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.14.1.0 — mobile furniture-inspector fixes (16-item sweep)
+
+A large user-reported mobile UX + correctness sweep:
+
+- **Inspector no longer scrolls horizontally on mobile (bug #1).** The array
+  sections' over-broad `.act-array input { width:100% }` was blowing the
+  "Face centre"/"Face along path" checkboxes out to full width and pushing labels
+  off the sheet; scoped the rule to non-checkbox inputs, switched the 2-col array
+  grids to `minmax(0,1fr)`, and added an `overflow-x:hidden` backstop on the mobile
+  inspector body.
+- **Inspector header shows the real furniture thumbnail (bug #3)** instead of a
+  category glyph, vertically centred next to the name — reuses `useBuiltinThumbnail`.
+  `ThumbnailHost` moved app-wide (gated to the editing surfaces) so it renders even
+  when the catalog is closed.
+- **Shared/IKEA thumbnails survive a reopen (bug #4).** When the non-persisted
+  product-photo object URL is gone, the thumbnail now falls back to rendering the
+  cached GLB instead of a bare icon.
+- **Mobile placement reworked to explicit-confirm (bugs #2/#5).** Tapping (or
+  long-pressing) a catalog card closes the catalog and drops the ghost — centred on
+  tap, at the finger on long-press — with a "Place item?" pill. The ghost is freely
+  draggable and a finger lift / OS gesture never commits or aborts it (no more lost
+  selection + reopened catalog); only ✓/✗ resolves it. Removed the camera top-view
+  snap that read as "the canvas moving on me".
+- **Canvas camera freezes under any mobile overlay (bug #6):** an open catalog /
+  inspector / finish / wall-accent sheet or modal no longer lets a swipe pan/orbit
+  the scene behind it (`modalGuard` is now reactive).
+- **Catalog is minimizable on mobile (bug #7)** — swipe the handle or tap −/+ to
+  collapse to its header, mirroring the inspector.
+- **Room-editor mobile toolbar:** exit ✕ and hamburger swapped (bug #8).
+- **Drag/resize HUD lifts above the minimized inspector sheet on mobile (bug #9).**
+- **An uncommittable rotation shows the "can't place here" pill (bug #10)** instead
+  of snapping back, mirroring the item-drag invalid-drop behaviour.
+- **Touch selection/drag model (bugs #11/#12):** a multi-finger gesture (pinch/zoom)
+  never selects or moves furniture (a second finger mid-drag abandons the drag so the
+  pinch takes over), and on touch a first tap only selects — dragging to move requires
+  the piece to be already selected.
+- **Graphics settings are global + persistent (bugs #13/#16):** the per-room editor
+  no longer force-downgrades to Performance (which clobbered the persisted tier); it
+  inherits the user's quality tier + pixel-ratio, and the setting survives mode/editor
+  switches.
+- **Furniture-motion toggle (bug #15, `furnitureMotion` flag):** a Scene-menu On/Paused
+  switch (desktop + mobile) halts ceiling/standing-fan blade spin (and lets the demand
+  loop idle); persisted per-device.
+- **Walk mode (bug #14):** could not reproduce a hard crash across software + real-GPU
+  renderers / overview + room editor / Performance + Maximum tiers; the graphics-tier
+  coupling above (the most likely destabiliser) was fixed regardless.
+
 ## RELEASE: v0.14.0.0 — PR to main
 
 Second big cycle on top of v0.13.0.0. Ships **5 new features** (frame-selection

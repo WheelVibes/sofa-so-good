@@ -139,6 +139,7 @@ export type FeatureFlag =
   | 'densityMode'
   | 'proUpsell'
   | 'ambientFx'
+  | 'furnitureMotion'
   | 'accounts'
   | 'sharedLibrary'
   | 'walkWindowFixtures'

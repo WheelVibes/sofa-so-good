@@ -4,10 +4,12 @@ import { useEffect, useRef } from 'react'
 import { MOUSE, PerspectiveCamera, TOUCH, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../../apartment/constants'
+import { useAnyModalOpen } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
 import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { type FloorPlan, planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
+import { useIsMobile } from '../../ui/useIsMobile'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
 import { flyDurationFor, flyPose, smoothstep as smooth } from './cameraTween'
@@ -98,7 +100,23 @@ export function OrbitCamera() {
   // freshly-picked piece around to position it — especially a one-finger drag on
   // touch — never doubles as an orbit gesture that spins the view.
   const placingActive = useStore((s) => s.activeDefId != null)
-  const controlsEnabled = !draggingItemId && !rotatingGizmo && !placingActive
+  // Bug #6: on mobile, any open overlay (catalog / inspector / finish / wall
+  // accent bottom-sheet) or modal floats OVER the canvas — a swipe on it must
+  // not also pan/orbit the view behind it. Freeze the camera while one is up so
+  // interacting with a component never leaks to the scene. (Desktop keeps
+  // orbiting with a docked side panel open — those don't cover the canvas.)
+  const isMobile = useIsMobile()
+  const anyModalOpen = useAnyModalOpen()
+  const overlayOpen = useStore(
+    (s) =>
+      s.catalogOpen ||
+      s.selectedItemId != null ||
+      s.selectedItemIds.length > 0 ||
+      s.selectedRoomId != null ||
+      s.selectedWall != null,
+  )
+  const uiBlockingCamera = isMobile && (anyModalOpen || overlayOpen)
+  const controlsEnabled = !draggingItemId && !rotatingGizmo && !placingActive && !uiBlockingCamera
   const autoRotate = useStore((s) => s.autoRotate)
   const { camera, gl } = useThree()
   const controlsRef = useRef<OrbitControlsImpl>(null)

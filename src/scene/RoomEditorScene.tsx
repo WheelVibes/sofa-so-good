@@ -28,6 +28,7 @@ import { ResizeGizmo } from './selection/ResizeGizmo'
 import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
 import { TiltGizmo } from './selection/TiltGizmo'
+import { useQuality } from './useQuality'
 
 /** Lightweight per-room editor scene. Renders one isolated room with a flat,
  *  Performance-tier look (no sun/IBL/post). Reuses every store-driven
@@ -35,6 +36,10 @@ import { TiltGizmo } from './selection/TiltGizmo'
 export function RoomEditorScene() {
   const roomId = useStore((s) => s.roomEditor.roomId)
   const plan = useStore((s) => s.floorPlan)
+  // Honour the user's global quality tier for pixel-ratio sharpness (bug #13):
+  // the room editor stays a flat, no-sun/Effects scene, but a High/Maximum user
+  // shouldn't be forced back to DPR 1 here when orbit renders crisp.
+  const dprMax = useQuality().dprMax
   if (!roomId) return null
   const editorShell = getRoomEditorShell(plan, roomId)
   if (!editorShell) return null
@@ -50,7 +55,7 @@ export function RoomEditorScene() {
   const gridRects = shell.rects
   return (
     <Canvas
-      dpr={1}
+      dpr={[1, dprMax]}
       shadows={false}
       camera={{
         position: [cx + r * 1.6, r * 1.8, cz + r * 1.6],

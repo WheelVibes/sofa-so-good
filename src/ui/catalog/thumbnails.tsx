@@ -18,8 +18,17 @@ import {
  *  yet (e.g. an un-hydrated user upload). */
 function gltfThumbSource(def: FurnitureDef): { url: string; scale: number } | null {
   if (def.kind !== 'gltf') return null
-  if (def.source === 'ikea') return null // uses the scraped product photo
   if (def.source === 'pack' && def.thumbUrl) return null // captured at install
+  if (def.source === 'ikea') {
+    // Normally an IKEA/shared def shows its scraped product photo. But that photo
+    // is served through an in-memory `runtimeImageUrl` (object URL) that is NOT
+    // persisted — on reopen it's only rebuilt if the thumbnail blob survived in
+    // IndexedDB. When it didn't (bug #4: model cached, photo gone), fall back to
+    // rendering the cached GLB so a downloaded item still gets a thumbnail
+    // instead of a bare category icon. Photo present ⇒ skip the render.
+    const active = def.variants.find((v) => v.finish === def.activeVariant)
+    if (active?.runtimeImageUrl) return null
+  }
   const probe = { id: '', defId: def.id, position: [0, 0], rotation: 0, props: {} } as FurnitureItem
   const r = selectGltfRender(probe, def as GltfDef)
   return r ? { url: r.url, scale: r.scale } : null

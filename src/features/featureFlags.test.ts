@@ -585,6 +585,21 @@ describe('ambientFx flag (P7 decorative ambient effects)', () => {
   })
 })
 
+describe('furnitureMotion flag (bug #15 — animate fan blades toggle)', () => {
+  it('is simple-tier, ships in prod, default on', () => {
+    expect(FEATURE_FLAGS.furnitureMotion.default).toBe(true)
+    expect(FEATURE_FLAGS.furnitureMotion.tier).toBe('simple')
+    expect(FEATURE_FLAGS.furnitureMotion.devOnly).toBeUndefined()
+  })
+
+  it('is present in BOTH Simple and Pro modes', () => {
+    expect(resolveFlags(false, {}, false, 'simple').furnitureMotion).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').furnitureMotion).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').furnitureMotion).toBe(true)
+    expect(resolveFlags(true, {}, false, 'pro').furnitureMotion).toBe(true)
+  })
+})
+
 describe('AI surfaces (aiPhotoreal / aiWalls / aiLayout — IXT-SUITES AI-surfaces rung)', () => {
   // All three are experimental BYO-key AI features (no bundled key, no
   // sidecar): pure client code that fails soft with no key, so — unlike

@@ -86,13 +86,27 @@ export function DragController() {
       setSnap,
     })
 
+    // Bug #11: a SECOND touch finger arriving mid-drag means the user is
+    // starting a pinch/zoom — abandon the one-finger item drag (revert it) so
+    // OrbitControls (frozen while dragging) re-enables and the camera gesture
+    // takes over, instead of the piece jumping + the pinch being swallowed.
+    const onSecondPointer = (ev: PointerEvent) => {
+      if (ev.pointerType !== 'touch') return
+      const s = useStore.getState()
+      if (s.draggingItemId && s.dragPointerId != null && ev.pointerId !== s.dragPointerId) {
+        s.cancelDrag()
+      }
+    }
+
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onUp)
+    window.addEventListener('pointerdown', onSecondPointer)
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('pointerdown', onSecondPointer)
     }
   }, [camera, gl, ndc, raycaster, target])
 

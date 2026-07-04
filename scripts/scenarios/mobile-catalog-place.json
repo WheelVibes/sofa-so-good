@@ -1,0 +1,39 @@
+{
+  "name": "mobile-catalog-place",
+  "description": "Mobile: catalog opens as sheet, minimize toggles, tap a card closes catalog + arms ghost with Place item? pill.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "wait-scene", "wait": 1500 },
+    {
+      "name": "enter-room-open-catalog",
+      "eval": "(()=>{const st=window.__store.getState(); const r=(st.floorPlan.rooms||[]).find(r=>r.id==='livingDining')||st.floorPlan.rooms[0]; st.enterRoomEditor(r.id); st.setCatalogOpen(true);})()"
+    },
+    { "name": "wait-catalog", "wait": 1800 },
+    { "name": "shot-catalog", "screenshot": "00-catalog-open" },
+    {
+      "name": "minimize-catalog",
+      "eval": "(()=>{const b=[...document.querySelectorAll('.catalog .panel-head .icon-btn')].find(x=>/Minimize/i.test(x.getAttribute('aria-label')||'')); console.log('MIN_BTN '+!!b); b&&b.click();})()"
+    },
+    { "name": "wait-min", "wait": 600 },
+    {
+      "name": "check-min",
+      "eval": "(()=>{const c=document.querySelector('.catalog'); console.log('CATALOG_MIN '+JSON.stringify({minimized: c?c.classList.contains('minimized'):null, hasGrid: !!document.querySelector('.catalog .card-grid')}))})()"
+    },
+    { "name": "shot-min", "screenshot": "01-catalog-minimized" },
+    {
+      "name": "expand-and-tap",
+      "eval": "(()=>{const st=window.__store.getState(); const exp=[...document.querySelectorAll('.catalog .panel-head .icon-btn')].find(x=>/Expand/i.test(x.getAttribute('aria-label')||'')); exp&&exp.click(); setTimeout(()=>{ const card=document.querySelector('.cat-card'); if(card) card.click(); }, 300);})()"
+    },
+    { "name": "wait-tap", "wait": 1000 },
+    {
+      "name": "check-place",
+      "eval": "(()=>{const st=window.__store.getState(); console.log('PLACE_STATE '+JSON.stringify({activeDefId: st.activeDefId, placeConfirm: st.placeConfirm, catalogOpen: st.catalogOpen, pill: !!document.querySelector('.edit-confirm')}))})()"
+    },
+    { "name": "shot-place", "screenshot": "02-tap-place-ghost-pill" }
+  ]
+}
