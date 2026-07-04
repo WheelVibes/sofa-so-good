@@ -128,12 +128,15 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
       // toggles). Plain click preserves an existing multi-selection if
       // the grabbed item is already part of it; only collapse otherwise.
       if (!e.shiftKey && !alreadySelected) {
-        state.selectItemGrouped(item.id, { alt: e.altKey })
-        // Bug #12: on TOUCH, a first tap only SELECTS — it never starts a move in
-        // the same gesture. Dragging to move requires the item to already be
-        // selected (a fresh finger-down on the now-selected piece). Desktop
-        // keeps its click-drag-to-move (a precise pointer, no accidental drags).
+        // Bug #11/#12: on TOUCH, DON'T select on pointer-down. The first finger of
+        // a pinch lands on a piece while only one finger is down yet — selecting
+        // here (before the second finger arrives) is exactly the "pinch selected
+        // it" bug. Defer selection to `onClick`, which fires only on a clean tap
+        // and is skipped once the gesture turns multi-touch (`gestureIsMultiTouch`).
+        // A move still needs the piece to be already selected, so a first touch is
+        // never a drag either. Desktop selects here so click-drag-to-move works.
         if (isTouch) return
+        state.selectItemGrouped(item.id, { alt: e.altKey })
       }
       // Locked items can be selected (to unlock) but not dragged. Window-bound
       // fixtures (curtains/blinds) are static on their window — selectable but

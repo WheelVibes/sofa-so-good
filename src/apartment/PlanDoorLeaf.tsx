@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useRef } from 'react'
-import { Color, type Group } from 'three'
+import { Color, type Group, Mesh, type MeshStandardMaterial } from 'three'
 import type { PlanOpening, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
@@ -53,6 +53,8 @@ export function PlanDoorLeaf({
   const rootRef = useRef<Group>(null)
   const swingRef = useRef<Group>(null!)
   const angleRef = useRef(0)
+  const opacityRef = useRef(1)
+  const transparentRef = useRef(false)
   const { camera } = useThree()
 
   const len = wallLength(wall)
@@ -99,14 +101,15 @@ export function PlanDoorLeaf({
     // relative to centre — so a door in a long near wall hides together with its
     // wall instead of only when it happens to sit on the view axis.
     if (rootRef.current) {
-      let hide = false
       const st = useStore.getState()
       const revealMode = st.wallRevealMode ?? 'translucent'
       const revealScope = st.wallRevealScope ?? 'exterior'
+      const revealEnabled = st.qualityOverrides.wallReveal ?? true
       const isExterior = wall.thickness === 'external'
-      // Exterior doors hide with their wall; interior doors only in 'all' scope.
+      // Exterior doors fade with their wall; interior doors only in 'all' scope.
       const participates = isExterior || revealScope === 'all'
-      if (participates && revealMode !== 'opaque' && st.cameraMode === 'orbit') {
+      let target = 1
+      if (participates && revealEnabled && revealMode !== 'opaque' && st.cameraMode === 'orbit') {
         let nx = -Math.sin(angle)
         let nz = Math.cos(angle)
         if (isExterior) {
@@ -122,17 +125,50 @@ export function PlanDoorLeaf({
           }
         } else {
           // Interior partition door: orient the normal toward the camera so it
-          // hides when the camera faces the partition (revealing the room behind).
+          // fades when the camera faces the partition (revealing the room behind).
           const f = cameraFacingNormal(doorX, doorZ, nx, nz, camera.position.x, camera.position.z)
           nx = f.nx
           nz = f.nz
         }
-        // Hide once the host wall is at least half-faded for this view — same
-        // criterion as the wall's own reveal factor, so leaf + wall stay in sync.
-        hide =
-          wallRevealFactor(camera.position.x, camera.position.z, doorX, doorZ, nx, nz, cx, cz) < 0.5
+        // Fade in lockstep with the host wall's own reveal (translucent floors at
+        // 0.15, auto-hide can vanish) — the leaf no longer HARD-hides at a 0.5
+        // threshold (a visible pop), it smoothly fades its opacity like the wall.
+        const factor = wallRevealFactor(
+          camera.position.x,
+          camera.position.z,
+          doorX,
+          doorZ,
+          nx,
+          nz,
+          cx,
+          cz,
+        )
+        target = revealMode === 'auto-hide' ? factor : Math.max(0.15, factor)
       }
-      rootRef.current.visible = !hide
+      opacityRef.current += (target - opacityRef.current) * 0.18
+      const cur = opacityRef.current
+      const root = rootRef.current
+      root.visible = cur > 0.02
+      const fading = cur < 0.985
+      const changed = fading !== transparentRef.current
+      transparentRef.current = fading
+      root.traverse((o) => {
+        if (!(o instanceof Mesh)) return
+        const m = o.material as MeshStandardMaterial
+        // Capture each material's authored base opacity once (1 for the solid
+        // leaf/handle, 0.55 for the glazed vision panel) so the fade scales it
+        // rather than flattening the glass to opaque.
+        if (m.userData.__baseOpacity == null) m.userData.__baseOpacity = m.opacity
+        const base = m.userData.__baseOpacity as number
+        const glass = base < 1
+        m.transparent = glass || fading
+        m.opacity = base * cur
+        // Depth only when essentially opaque + solid (glass never writes depth),
+        // matching the host wall's boundary so the leaf fades as one surface with
+        // it instead of popping from a see-through blend to solid 3D mid-fade.
+        m.depthWrite = !glass && !fading
+        if (changed) m.needsUpdate = true
+      })
     }
     const target = isOpen ? SWING_RAD : 0
     if (angleRef.current !== target) {

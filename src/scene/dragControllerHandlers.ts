@@ -135,8 +135,16 @@ export function createDragHandlers(deps: DragHandlerDeps) {
         // equal-spacing passes need the same set — resolve it ONCE per move
         // instead of building it twice (PERF-003).
         const dragWalls = placementWalls(state) ?? buildCollisionWalls(state.doors)
+        // Alignment + equal-spacing partners are REAL furniture only — exclude
+        // `noClip` decor (cushions, bowls, books, plants, wall art). Those small
+        // props sit in dense little clusters, so including them spammed the view
+        // with dozens of tiny 2–3" equal-gap badges (and meaningless edge snaps)
+        // while dragging. You align a table to the sofa/wall, not to a fruit bowl.
         const others = state.items
-          .filter((i) => i.id !== id && catalogRef.current[i.defId])
+          .filter((i) => {
+            const d = catalogRef.current[i.defId]
+            return i.id !== id && d && !d.noClip
+          })
           .map((i) => ({ c: i.position, h: halfExtents(i, catalogRef.current[i.defId]) }))
         const sx = snapAxis(
           next[0],

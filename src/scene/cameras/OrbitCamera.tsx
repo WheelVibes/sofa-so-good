@@ -122,29 +122,42 @@ export function OrbitCamera() {
   const controlsRef = useRef<OrbitControlsImpl>(null)
 
   const roomEditorId = useStore((s) => s.roomEditor.roomId)
+  // The `makeDefault` OrbitControls registers itself on the R3F store once
+  // mounted; this reactive read (unlike the imperative `controlsRef`) lets the
+  // framing effect below RE-RUN the moment the controls attach — so the FIRST
+  // room entered is framed too, not just later room switches (the controls ref
+  // can still be null on the effect's initial mount run, which silently skipped
+  // the default framing before).
+  const attachedControls = useThree((s) => s.controls) as OrbitControlsImpl | null
 
   useEffect(() => {
-    // In the per-room editor, frame the isolated room (centre + a 3/4 offset
-    // sized to the room) instead of the whole-apartment default. Re-runs on
-    // room switch so each room loads framed. Works on custom plans too. The plan
-    // is read fresh (not a dep) so a plain plan edit never yanks the camera.
+    // In the per-room editor, frame the isolated room (its centre + a 3/4 offset
+    // sized to the room) instead of the whole-apartment default. Re-runs on room
+    // switch AND when the controls first attach, so entering the editor — by
+    // tapping a room in orbit or switching rooms — ALWAYS lands on a centred
+    // dollhouse view. The plan is read fresh (not a dep) so a plain plan edit
+    // never yanks the camera.
     const plan = useStore.getState().floorPlan
+    const c = controlsRef.current ?? attachedControls
     if (roomEditorId) {
-      const c = controlsRef.current
       if (!c) return
       const editorShell = getRoomEditorShell(plan, roomEditorId)
       if (!editorShell) return
       const [cx, cz] = editorShell.shell.center
       const r = Math.max(editorShell.shell.radius, 1.5)
-      c.target.set(cx, 1.0, cz)
+      // Orbit pivots about the room's true 3D centre (footprint centre at
+      // mid-wall height), so the room sits centred on screen and the turntable
+      // spins around it rather than a floor-level point that biases it high.
+      const midH = APPROX_WALL_H / 2
+      c.target.set(cx, midH, cz)
       if (camera instanceof PerspectiveCamera) {
-        // Fit the whole room (footprint + wall height) to the viewport so it just
-        // fills the dollhouse view on load — aspect-aware (portrait phones too),
-        // mirroring the whole-plan dollhouse framing rather than a fixed multiple.
-        const radius = Math.hypot(r, APPROX_WALL_H / 2) * 1.12
+        // Fit the whole room (footprint + wall height) to the viewport so it
+        // fills the dollhouse view on load — aspect-aware (portrait phones fit to
+        // width), with a small margin so it isn't edge-to-edge.
+        const radius = Math.hypot(r, midH) * 1.04
         const dist = fitDistance(radius, camera)
         const inv = 1 / Math.hypot(0.82, 0.6, 0.82)
-        camera.position.set(cx + 0.82 * inv * dist, 0.6 * inv * dist, cz + 0.82 * inv * dist)
+        camera.position.set(cx + 0.82 * inv * dist, midH + 0.6 * inv * dist, cz + 0.82 * inv * dist)
       } else {
         camera.position.set(cx + r * 1.5, r * 1.7, cz + r * 1.5)
       }
@@ -155,10 +168,10 @@ export function OrbitCamera() {
     if (camera instanceof PerspectiveCamera) {
       const { pos, target } = dollhouseFraming(plan, camera)
       camera.position.set(...pos)
-      controlsRef.current?.target.set(...target)
-      controlsRef.current?.update()
+      c?.target.set(...target)
+      c?.update()
     }
-  }, [camera, roomEditorId])
+  }, [camera, roomEditorId, attachedControls])
 
   // Snap to a top-down plan view when requested from the toolbar (fit to viewport).
   // In the per-room editor, frame the isolated room from straight overhead (its

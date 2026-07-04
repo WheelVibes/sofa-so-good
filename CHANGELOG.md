@@ -5,6 +5,112 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.14.2.0 — PR rollup: mobile UX follow-ups (v0.14.1.1–v0.14.1.5)
+
+Patch bump for the PR to `main` gathering the post-v0.14.1.0 mobile follow-ups:
+catalog touch-scroll + panel-swipe + pinch-select (`.1.1`), centred dollhouse
+framing on room-editor entry (`.1.2`), smooth wall-reveal fade with no 2D/3D
+door/window pop (`.1.3`), the broken `--hud-bottom` fix for bottom-HUD overlap
+(`.1.4`), and animated sheet collapse + handle-only swipe + fewer drag guides
+(`.1.5`, below). No behaviour change in this commit beyond the version bump.
+
+## v0.14.1.5 — mobile sheet: animated collapse + handle-only swipe; fewer drag guides
+
+Three mobile polish fixes:
+
+- **Animated minimize/maximize.** The inspector and catalog bottom sheets used to
+  pop between full-height and header-only. New `useCollapseTransition` hook +
+  `.sheet-collapse` CSS (a `grid-template-rows: 1fr↔0fr` transition) animate the
+  body open/closed over `--dur-2`, then unmount it once fully collapsed (so a
+  minimized sheet still renders none of its per-frame contents during a drag).
+  Respects `prefers-reduced-motion` (resolves instantly).
+- **Handle-only swipe.** The collapse swipe was armed on the whole `.panel-head`,
+  so a swipe that happened to start on a header button (or bleed onto the canvas)
+  could minimize the sheet. It now lives on a dedicated `SheetGrab` element (the
+  grab pill, `touch-action: none`, mobile-only) — swiping the handle toggles the
+  sheet, swiping anywhere else pans/scrolls as normal, and swiping the handle no
+  longer pans the canvas behind it.
+- **Fewer furniture-move guides.** During a drag, alignment/spacing guides were
+  generated against every item including `noClip` decor (cushions, bowls, books,
+  plants, wall art), producing a cluster of redundant 2"/3" readouts. The obstacle
+  set now excludes `noClip` decor, matching how they're already ignored for
+  collision.
+
+## v0.14.1.4 — mobile bottom-HUD overlap (root-cause: broken --hud-bottom)
+
+The `--hud-bottom` custom property (which lifts bottom-centre HUDs above the
+minimized inspector sheet) was defined as `:root { --hud-bottom }` **inside the
+nested `body.mobile {}` block**, so it resolved to `body.mobile :root` — which
+never matches (<html> isn't a descendant of <body>). The variable was therefore
+always empty, which meant:
+
+- the **drag/resize readout** lift (bug #9) never actually took effect;
+- and any new `bottom: var(--hud-bottom)` fell back to `auto`, flinging the pill
+  to the top of the screen.
+
+Set it on `body.mobile` itself (custom properties inherit) so it applies. Then
+lifted the **Apply-change / Place-item pill** (`.edit-confirm`) and the **budget
+spend HUD** (`.budget-hud`) above the minimized inspector too (gated on
+`:has(.inspector)` so they still sit low when nothing's below them), and stacked
+the budget readout above a transient pill so the two bottom-centre pills never
+overlap each other. Verified: pill at 688–740, inspector at 768 — clean gap.
+
+## v0.14.1.3 — smooth wall-reveal fade (no more 2D↔3D door/window pop)
+
+The camera-facing wall reveal fades a wall's opacity smoothly, but the fading
+surfaces flipped `depthWrite` at a **0.6** opacity step while the wall itself only
+flips at ~0.985 — so mid-fade a door/window/skirting snapped from a see-through
+blend (faces don't self-occlude → reads flat "2D") to solid self-occluding "3D",
+"popping" as the camera orbited. Aligned every fading surface's `depthWrite` to
+the near-opaque boundary so they fade as one with the wall:
+
+- `Door` (default flat) — the reported case; fixed in both orbit and the room
+  editor (same component serves both).
+- `Window` frame (default flat), `Skirting`/baseboard.
+- `PlanShell` custom-plan walls **and** their trim (these popped their own
+  thickness too), and `PlanRoomShell`'s door leaf (custom-plan room editor).
+- `PlanDoorLeaf` (custom-plan orbit door) no longer HARD-hides at a 0.5 reveal
+  threshold — it now smoothly fades its opacity in lockstep with the host wall
+  (preserving the glazed vision-panel's authored transparency).
+
+## v0.14.1.2 — room-editor default framing
+
+- **Entering the per-room editor always lands on a centred dollhouse view.** The
+  framing effect read the imperative `controlsRef`, which could still be null on
+  the first mount run — so the *first* room entered (tap-in-orbit / switch) often
+  kept the raw initial camera + a floor-level orbit pivot, only later switches
+  framed. It now also reacts to the `makeDefault` controls attaching
+  (`useThree(s => s.controls)`), so every entry re-frames.
+- **Orbit pivots about the room's true 3D centre** (footprint centre at mid-wall
+  height, not a floor-level point), so the room sits centred on screen and the
+  turntable spins around it.
+- **Tighter fit** (margin 1.12 → 1.04) so the room fills the screen width instead
+  of floating small with wide margins — aspect-aware (portrait phones fit to
+  width).
+
+## v0.14.1.1 — mobile catalog scroll + panel-swipe touch fixes
+
+Follow-up to the v0.14.1.0 sweep, from further mobile testing:
+
+- **Catalog list scrolls smoothly on touch again.** The card's `draggable`
+  attribute hijacked the touch-drag on iOS (the gesture escaped to the page, so
+  the whole app scrolled and the toolbar slid up instead of the grid scrolling);
+  `draggable` is now desktop-only (mobile places via tap/long-press, never native
+  HTML5 drag). Added `touch-action: pan-y` + `-webkit-overflow-scrolling: touch`
+  to `.card-grid` so vertical flicks are committed to the grid's own scroll.
+- **No more stuck card highlight on touch.** The `.cat-card` accent border/glow
+  hover treatment (and the fav/stamp/variant reveal) is now gated behind
+  `@media (hover: hover)`; on touch (`hover: none`) the card actions stay
+  permanently visible instead of relying on a sticky tap-hover.
+- **Swiping a bottom-sheet header minimizes/expands instead of scrolling the
+  page.** The mobile catalog/inspector `.panel-head` (the swipe-to-collapse
+  handle) now has `touch-action: none`, so a vertical swipe there is consumed by
+  `useSwipeToCollapse` rather than panning the page + canvas behind it.
+- **Pinch-to-zoom no longer selects a piece the finger lands on.** Touch selection
+  is deferred from pointer-down to the (multi-touch-guarded) tap, and the
+  multi-touch flag now persists through a pinch's trailing click — so a pinch
+  whose first/last finger touches furniture never selects it.
+
 ## v0.14.1.0 — mobile furniture-inspector fixes (16-item sweep)
 
 A large user-reported mobile UX + correctness sweep:

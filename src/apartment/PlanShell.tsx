@@ -168,7 +168,11 @@ function FadeWall({
     // engage (see WallSegment); flip needsUpdate only on the transition.
     if (next !== mat.transparent) mat.needsUpdate = true
     mat.transparent = next
-    mat.depthWrite = mat.opacity > 0.6
+    // Depth only when essentially opaque (align with the `transparent` boundary),
+    // not a 0.6 step — otherwise the wall's own thickness (and the door/window
+    // openings carved in it) snap from a see-through blend to solid 3D mid-fade,
+    // "popping between 2D and 3D" as the camera orbits.
+    mat.depthWrite = !next
     // frameloop="demand": keep rendering until the fade settles (else it freezes
     // mid-fade when the camera stops).
     if (Math.abs(mat.opacity - target) > 0.005) invalidate()
@@ -211,7 +215,9 @@ function useTrimFade(
     const next = mat.opacity < 0.98
     if (next !== mat.transparent) mat.needsUpdate = true
     mat.transparent = next
-    mat.depthWrite = mat.opacity > 0.6
+    // Match the wall body's depthWrite boundary (opaque only) so trim fades as
+    // one surface with its wall rather than popping solid at a 0.6 step.
+    mat.depthWrite = !next
     mesh.visible = mat.opacity > 0.02
     if (Math.abs(mat.opacity - target) > 0.005) invalidate()
   })

@@ -189,8 +189,11 @@ export function CatalogCard({ def, onDelete, staggerIndex, roomRects }: CatalogC
       }}
       // Desktop drag-and-drop placement: dragging arms placement (the ghost then
       // follows the cursor onto the scene) and the drop commits. Click-to-arm
-      // stays as the touch/fallback path.
-      draggable
+      // stays as the touch/fallback path. NON-mobile only: a `draggable` element
+      // on iOS hijacks the touch-drag and blocks the catalog list from scrolling
+      // (the gesture escapes to the page instead) — mobile places via tap/long-
+      // press, so it never needs native drag.
+      draggable={!isMobile}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = 'copy'
         e.dataTransfer.setData('text/plain', def.id)

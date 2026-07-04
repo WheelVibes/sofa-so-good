@@ -271,7 +271,28 @@ body.mobile {
      sheet is ~header-height (thumb + padding) above the safe-area inset; clear
      it plus a small gap. Only a selected item can be dragged/resized, so the
      inspector sheet is always present when this HUD shows. */
-  :root { --hud-bottom: calc(env(safe-area-inset-bottom, 0px) + 104px); }
+  /* Set on `body.mobile` itself (NOT `:root` — this whole block is nested under
+     `body.mobile {}`, so `:root` would resolve to `body.mobile :root`, which
+     never matches since <html> isn't a descendant of <body>; that left the var
+     empty and every `bottom: var(--hud-bottom)` fell back / broke). Custom
+     properties inherit, so all descendants pick it up. */
+  & { --hud-bottom: calc(env(safe-area-inset-bottom, 0px) + 104px); }
+
+  /* Every bottom-centre HUD must clear the minimized inspector sheet, not hide
+     behind it — the drag/resize readout (`.drag-readout`, above), the
+     Apply-change / Place-item pill (`.edit-confirm`) and the budget spend
+     readout (`.budget-hud`). Gated on the inspector actually being present via
+     `:has(.inspector)` so each still sits low when nothing's below it (e.g. the
+     placeConfirm pill with no selection, or the budget HUD in an empty view). */
+  .app-shell:has(.inspector) .edit-confirm,
+  .app-shell:has(.inspector) .budget-hud { bottom: var(--hud-bottom); }
+  /* When a transient pill is ALSO up (Apply-change after a move, or the drag
+     readout mid-drag), lift the budget readout above it so the two bottom-centre
+     pills don't stack on the same line. */
+  .app-shell:has(.inspector):has(.edit-confirm) .budget-hud,
+  .app-shell:has(.inspector):has(.drag-readout) .budget-hud {
+    bottom: calc(var(--hud-bottom) + 3rem);
+  }
 
   /* grab handle on every bottom-docked sheet */
   .catalog::before, .inspector::before,
@@ -284,6 +305,17 @@ body.mobile {
   .catalog .panel-head, .inspector .panel-head,
   .er-finish .panel-head, .plan-props .panel-head,
   .aux .panel-head { padding-top: calc(var(--s-4) + 6px); }
+
+  /* ONLY the grab-handle pill (`.sheet-grab`) toggles minimize/expand — a swipe
+     on the rest of the header, the body, or the canvas must NOT (and a swipe on
+     the handle must NOT pan the canvas). `touch-action: none` claims the vertical
+     gesture for `useSwipeToCollapse` there; taps still fire (it governs
+     panning/zoom, not taps). The handle sits over the decorative `::before` pill. */
+  .sheet-grab {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 26px; z-index: 4;
+    background: none; border: 0; padding: 0; cursor: grab; touch-action: none;
+  }
 
   /* Docked-sheet header close X: keep the compact 26px visual but pad the hit
      area to 44px (26 + 2×9) with an invisible pseudo-element, matching

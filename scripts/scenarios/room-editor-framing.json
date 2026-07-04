@@ -1,0 +1,33 @@
+{
+  "name": "room-editor-framing",
+  "description": "Room editor default framing: orbit target should be room center, view should fit the room.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "wait-scene", "wait": 1500 },
+    {
+      "name": "enter-bedroom2",
+      "eval": "(()=>{const st=window.__store.getState(); st.enterRoomEditor('bedroom2');})()"
+    },
+    { "name": "wait-editor", "wait": 2800 },
+    {
+      "name": "probe-bedroom2",
+      "eval": "(()=>{const t=window.__three; const st=window.__store.getState(); const c=t&&t.camera, ctl=t&&t.controls; console.log('FRAME_B2 '+JSON.stringify({camPos:c?[+c.position.x.toFixed(2),+c.position.y.toFixed(2),+c.position.z.toFixed(2)]:null, target:ctl&&ctl.target?[+ctl.target.x.toFixed(2),+ctl.target.y.toFixed(2),+ctl.target.z.toFixed(2)]:null, roomId:st.roomEditor.roomId}))})()"
+    },
+    { "name": "shot-b2", "screenshot": "00-bedroom2" },
+    {
+      "name": "switch-livingDining",
+      "eval": "(()=>{window.__store.getState().enterRoomEditor('livingDining');})()"
+    },
+    { "name": "wait-switch", "wait": 2800 },
+    {
+      "name": "probe-ld",
+      "eval": "(()=>{const t=window.__three; const st=window.__store.getState(); const c=t&&t.camera, ctl=t&&t.controls; console.log('FRAME_LD '+JSON.stringify({camPos:c?[+c.position.x.toFixed(2),+c.position.y.toFixed(2),+c.position.z.toFixed(2)]:null, target:ctl&&ctl.target?[+ctl.target.x.toFixed(2),+ctl.target.y.toFixed(2),+ctl.target.z.toFixed(2)]:null, roomId:st.roomEditor.roomId}))})()"
+    },
+    { "name": "shot-ld", "screenshot": "01-livingDining" }
+  ]
+}

@@ -95,7 +95,11 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       const base = isGlass ? glassBase : 1
       m.transparent = isGlass || fading
       m.opacity = base * wallOp
-      m.depthWrite = !isGlass && wallOp > 0.6
+      // Write depth only once the frame is essentially opaque (matches its own
+      // `transparent`/`fading` boundary + the host wall's), not at a separate 0.6
+      // step — otherwise the frame's thickness snapped from a see-through blend
+      // to solid 3D mid-fade (the "pops between 2D and 3D" bug, same as the door).
+      m.depthWrite = !isGlass && !fading
       // Non-glass parts flip transparent on/off with the wall fade; recompile
       // on the transition so the blend actually engages (glass is always
       // transparent, so it never needs this).

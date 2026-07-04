@@ -13,24 +13,20 @@ import { MinimizeButton } from './useInspectorMinimize'
 /**
  * Inspector panel header: thumbnail + title, with category/dims/price collapsing
  * away while minimized, plus the light-source / lock / minimize / close icon
- * buttons. Always rendered (even minimized — the mobile bottom-sheet drag handle
- * lives on this row via `swipeHandlers`).
+ * buttons. Always rendered (even minimized). The mobile bottom-sheet drag handle
+ * is a separate `SheetGrab` sibling above this row, so a swipe on the header's
+ * buttons/thumbnail no longer minimizes the sheet.
  */
 export function InspectorHeader({
   item,
   def,
   minimized,
   toggle,
-  swipeHandlers,
 }: {
   item: FurnitureItem
   def: FurnitureDef
   minimized: boolean
   toggle: () => void
-  swipeHandlers: {
-    onTouchStart: (e: React.TouchEvent) => void
-    onTouchEnd: (e: React.TouchEvent) => void
-  }
 }) {
   const priceOn = useFeature('budget')
   const itemAsLightOn = useFeature('itemAsLight')
@@ -51,11 +47,7 @@ export function InspectorHeader({
   }
 
   return (
-    <div
-      className="panel-head"
-      onTouchStart={swipeHandlers.onTouchStart}
-      onTouchEnd={swipeHandlers.onTouchEnd}
-    >
+    <div className="panel-head">
       <div>
         <div className="insp-thumb">
           {thumb ? (
