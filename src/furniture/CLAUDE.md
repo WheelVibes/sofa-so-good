@@ -136,6 +136,24 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   — set the same collision flags; run `npm run optimize:glb` for `-low`/`-medium` LOD variants
   (uploads generate theirs in-browser via `optimize/lodVariants.ts`, routed by the `gltf/lod.ts`
   variant registry).
+- **Every GLB loader — convert or render — must block foreign fetches (SEC-1).** A model's own
+  embedded `buffer[].uri`/`image[].uri` can be an absolute URL; without a guard, three.js fetches
+  it verbatim at parse/render time — a crafted/shared model could beacon out to an attacker host
+  just by being opened. `gltf/loaderSecurity.ts` is the **one** shared allow/block policy: allow
+  `data:`/`blob:` (every user/IKEA/remote asset is pre-fetched to a `blob:` `runtimeUrl` before it
+  ever reaches a loader) and same-origin absolute URLs (the app's own bundled/served GLBs +
+  sibling `.bin`/texture files); block everything else, resolving to a blank fallback rather than
+  throwing. `secureGltfLoader` is drei `useGLTF`'s `extendLoader` injection point — pass it as the
+  4th arg (`useGLTF(url, true, true, secureGltfLoader)`, keeping `true, true` so DRACO/meshopt
+  defaults aren't dropped) on every runtime `useGLTF` call site (`GltfModel.tsx`,
+  `ui/catalog/thumbnails.tsx`, `ui/glbEditor/GlbDesignerDialog.tsx`); it mutates only the single
+  `GLTFLoader` instance drei memoizes for `useGLTF` (never `THREE.DefaultLoadingManager`), so
+  material/HDRI loaders elsewhere are untouched. A raw `GLTFLoader` (not via `useGLTF`) —
+  `catalog/packs/thumbnail.ts`'s `ThumbnailRenderer` — takes `getSecureGltfManager()` straight into
+  its constructor. `convert/loadToObject.ts`'s drag-drop-conversion manager is stricter (a closed
+  sibling-file allowlist, since local drops have no real "origin") but shares the same
+  `isEmbeddedOrBlobUrl`/`BLOCKED_RESOURCE_FALLBACK` primitives — don't fork a second copy of the
+  policy; any new GLB loader (convert or render) must route through this module.
 - **Pre-render footprint seed for GLB defs.** A GLB's true footprint is only learned after
   `GltfModel` renders + caches its bbox (`FOOTPRINT_CACHE`), so anything placed/sized/collided
   *before* first render needs a real seed, not a 1×1×1 guess. Two pure helpers do this from glTF

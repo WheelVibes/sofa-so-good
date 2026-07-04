@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## SECURITY: runtime GLB loaders block foreign resource URLs — SEC-1 (v0.12.0.32)
+
+From the 2026-07-04 audit: the model-convert path blocked external URLs via a
+`LoadingManager`, but the RUNTIME GLB render loaders (drei `useGLTF` → shared
+`GLTFLoader`, catalog + GLB-designer thumbnails, pack thumbnail) did not — a
+crafted GLB whose buffer/image `uri` pointed at `http(s)://attacker/…` could
+trigger a fetch at render time (tracking-beacon / SSRF-lite). New shared
+`furniture/gltf/loaderSecurity.ts` policy — allow `data:`/`blob:` (every
+upload/IKEA/remote asset is pre-fetched to a `blob:` before loading) +
+same-origin; block any other absolute URL to a blank fallback — is injected via
+drei's `extendLoader` hook onto that one loader's `.manager` (never
+`DefaultLoadingManager`, so material/HDRI loaders are untouched). Default-scene
+GLBs confirmed still rendering. 13 policy tests.
+
 ## FIX: multi-level duplicate/reorder correctness — BUG-5 + BUG-6 (v0.12.0.31)
 
 From the 2026-07-04 audit, two storey-operation bugs:

@@ -8,6 +8,7 @@ import {
   WebGLRenderer,
 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { getSecureGltfManager } from '../../furniture/gltf/loaderSecurity'
 
 const SIZE = 256
 
@@ -20,7 +21,11 @@ const FALLBACK_BLOB = (): Blob => new Blob([new Uint8Array([0])], { type: 'image
  */
 export class ThumbnailRenderer {
   private renderer: WebGLRenderer | null = null
-  private loader = new GLTFLoader()
+  // SEC-1: install the shared foreign-URL-blocking LoadingManager (see
+  // `furniture/gltf/loaderSecurity.ts`) — installed pack/IKEA-scraped GLB
+  // bytes are parsed here to render a card thumbnail, so an embedded
+  // buffer/image `uri` pointing at a foreign host must not be fetched.
+  private loader = new GLTFLoader(getSecureGltfManager())
 
   private ensure(): WebGLRenderer | null {
     if (this.renderer) return this.renderer
