@@ -81,3 +81,59 @@ export function decidePlanCommit(def: FurnitureDef, valid: boolean): PlanCommitD
   if (!isPlanPlaceable(def)) return 'ineligible'
   return valid ? 'commit' : 'invalid'
 }
+
+/**
+ * PLAN-FURNISH Phase 2 — screen px → grid-snapped plan-space metres,
+ * replicating `FloorPlanEditor`'s own `pointerGrid` arithmetic but from raw
+ * client coordinates + an explicit rect/geometry bag instead of a React
+ * `PointerEvent` bound to the plan `<svg>`. Needed for mobile
+ * long-press-from-card: that touch's move/lift land on the catalog card
+ * (native touch capture), never on the plan `<svg>`, so no React pointer
+ * event carrying the SVG's own bounding rect is ever available for the
+ * gesture — the caller (a window-level listener) supplies the rect + viewport
+ * geometry it already tracks instead. Pure so it's unit-testable without a
+ * real DOM element; the caller still applies wall/guide snapping afterwards
+ * with the existing `snapToWalls`/`snapToGuides` helpers, same as the mouse/
+ * tap path (`pointerWorld`).
+ */
+export function screenToGridPoint(
+  clientX: number,
+  clientY: number,
+  rect: { left: number; top: number; width: number; height: number },
+  geom: { W: number; H: number; PX: number; gridSize: number; gridMargin: number },
+): [number, number] {
+  const x = ((clientX - rect.left) / rect.width) * geom.W
+  const y = ((clientY - rect.top) / rect.height) * geom.H
+  const snap = (m: number) =>
+    geom.gridSize > 0 ? Math.round(m / geom.gridSize) * geom.gridSize : m
+  return [snap(x / geom.PX - geom.gridMargin), snap(y / geom.PX - geom.gridMargin)]
+}
+
+export type PlanTouchLiftDecision = PlanCommitDecision | 'off-plan'
+
+/**
+ * The mobile long-press-drag analog of `decidePlanCommit`: a lift OFF the
+ * plan `<svg>` always cancels regardless of def/validity (`'off-plan'`,
+ * distinct from `'invalid'` — the caller cancels the whole placement rather
+ * than leaving it armed, matching a drag-and-drop "bad drop" convention
+ * instead of click-to-place's "stay armed, try again"); a lift ON the plan
+ * defers to the same `decidePlanCommit` rule the tap/click path uses.
+ *
+ * `onPlan` must be computed via real hit-testing (`document.elementFromPoint`
+ * + `svg.contains(el)`), NOT a raw bounding-rect containment check — the
+ * plan `<svg>` is the scrollable CONTENT of a pannable/zoomable viewport, so
+ * its `getBoundingClientRect()` can be far larger than (and offset outside)
+ * the visible, clipped viewport, and other UI (the toolbar, a reopened
+ * catalog sheet) can paint on top of it. A rect check would wrongly call a
+ * tap on the toolbar "on-plan" whenever the SVG's raw rect happens to
+ * geometrically overlap that screen point (found via the mobile visual
+ * verification scenario, `plan-furnish-mobile.json`'s off-plan-cancel leg).
+ */
+export function decidePlanTouchLift(
+  def: FurnitureDef | undefined,
+  onPlan: boolean,
+  valid: boolean,
+): PlanTouchLiftDecision {
+  if (!onPlan || !def) return 'off-plan'
+  return decidePlanCommit(def, valid)
+}

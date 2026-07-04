@@ -11,7 +11,6 @@ import { Button } from '../controls/Button'
 import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 import { useAmbientFx } from '../useAmbientFx'
-import { useIsMobile } from '../useIsMobile'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import {
@@ -84,16 +83,19 @@ export function CatalogDrawer() {
   const roomEditorActive = useStore((s) => s.roomEditor.active)
   const roomEditorRoomId = useStore((s) => s.roomEditor.roomId)
   const floorPlan = useStore((s) => s.floorPlan)
-  // PLAN-FURNISH Phase 1: the catalog also surfaces inside the 2D floor-plan
-  // editor (desktop only — Phase 1 is desktop click-to-place; mobile stays
-  // hidden here rather than opening a bottom sheet on top of the plan's own
-  // mobile "Tools" sheet), behind the pro-tier `planFurnish` flag. This is the
-  // ONLY new gate — `canEditScene`/`roomEditorActive`'s existing meaning is
-  // untouched; see `state/editing.ts` / the PLAN-FURNISH implementation plan.
+  // PLAN-FURNISH: the catalog also surfaces inside the 2D floor-plan editor,
+  // behind the pro-tier `planFurnish` flag. Phase 1 shipped desktop
+  // click-to-place only; Phase 2 (this cycle) extends the same gate to
+  // mobile — the drawer becomes the standard `body.mobile` bottom sheet
+  // (`.catalog` in `responsive.css`), lifted above the plan's full-screen
+  // overlay by the `.dock-panel-left.catalog-in-plan` z-index bump below
+  // (that rule already applies regardless of viewport, so no new CSS was
+  // needed for the mobile case). This is the ONLY new gate —
+  // `canEditScene`/`roomEditorActive`'s existing meaning is untouched; see
+  // `state/editing.ts` / the PLAN-FURNISH implementation plan.
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const fPlanFurnish = useFeature('planFurnish')
-  const isMobile = useIsMobile()
-  const planFurnishActive = floorPlanEditing && fPlanFurnish && !isMobile
+  const planFurnishActive = floorPlanEditing && fPlanFurnish
   const setOpen = useStore((s) => s.setCatalogOpen)
   const leftMode = useStore((s) => s.leftMode)
   const setLeftMode = useStore((s) => s.setLeftMode)

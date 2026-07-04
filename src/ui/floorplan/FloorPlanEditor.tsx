@@ -4,6 +4,7 @@ import { placementWalls } from '../../collision/placementWalls'
 import { isAnyModalOpen } from '../../controls/modalGuard'
 import { exitPlanEditorToScene } from '../../controls/planEditorHotkey'
 import { isEditableTarget } from '../../controls/useKeyboard'
+import { isFeatureEnabled } from '../../features/featureFlags'
 import { useFeature } from '../../features/useFeature'
 import { defaultDoorSwing, doorSwing } from '../../floorplan/doorSwing'
 import { traceBuildingOutline } from '../../floorplan/footprint'
@@ -28,6 +29,7 @@ import {
   wallArcLength,
 } from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
+import type { FurnitureItem } from '../../furniture/types'
 import { beginDrop } from '../../scene/placementDrop'
 import { groupResizeFactor, resizedTransform } from '../../scene/selection/resizeGizmoMath'
 import {
@@ -75,8 +77,10 @@ import { EXPORT_PAD, GRID_MARGIN, type Tool, ZOOM_BTN_STEP } from './editor/plan
 import {
   buildPlanGhostItem,
   decidePlanCommit,
+  decidePlanTouchLift,
   isPlanPlaceable,
   planGhostValid,
+  screenToGridPoint,
 } from './editor/planFurnishPlacement'
 import { dimFontPx, roomFontPx, showOpeningDim, showWallDim } from './editor/planLabelDisplay'
 import { chooseScaleBar } from './editor/scaleBar'
@@ -104,6 +108,15 @@ import { PlanInspector } from './PlanInspector'
 import { PLAN_LABEL_TEXT } from './planLabels'
 import { ScalePlanModal } from './ScalePlanModal'
 import { TemplatePicker } from './TemplatePicker'
+
+/** Sticky "stamp" placement (PARITY-STAMP-PLACE, `stampPlace` flag) reused for
+ *  repeat drops in the plan editor (PLAN-FURNISH Phase 2) — mirrors
+ *  `usePlacementController.ts`'s own (module-private) `stampActive` gate: a
+ *  defence-in-depth check so a stale `stampMode` can never keep a plan commit
+ *  armed once the flag is off (e.g. switched to Simple mode mid-session). */
+function planStampActive(): boolean {
+  return useStore.getState().stampMode && isFeatureEnabled('stampPlace')
+}
 
 export function FloorPlanEditor() {
   const editing = useStore((s) => s.floorPlanEditing)
@@ -147,12 +160,23 @@ export function FloorPlanEditor() {
   const fCornerFillet = useFeature('cornerFillet')
   const fTilt = useFeature('tiltFurniture')
   const orientationDeg = useStore((s) => s.orientationDeg)
-  // PLAN-FURNISH Phase 1 — click-to-place furniture straight onto the plan.
-  // Desktop only (mobile tap-to-place is a later phase); the catalog itself is
-  // only surfaced here under the same condition (`CatalogDrawer`'s
-  // `planFurnishActive`), so this just mirrors that gate for the pointer
-  // dispatch + ghost render.
-  const fPlanFurnish = useFeature('planFurnish') && !isMobile
+  // PLAN-FURNISH — click-to-place furniture straight onto the plan. Phase 1
+  // shipped desktop click-to-place. Phase 2 (this cycle) extends the SAME
+  // pure ghost/commit logic (`planFurnishPlacement.ts`) to touch:
+  //  - mobile TAP-to-place: a tap on a catalog card arms it (unchanged —
+  //    `usePlacementDrag`), then a plain tap on the plan SVG fires the exact
+  //    `onDown` commit branch below (a touch pointerdown reports `button: 0`
+  //    just like a mouse click) — no touch-specific code needed for this path.
+  //  - mobile LONG-PRESS-from-card: `CatalogCard`'s long-press (unchanged)
+  //    arms placement + hides the catalog for a continuous drag, but that
+  //    touch's subsequent move/lift stay captured to the CARD (native touch
+  //    capture), never reaching this SVG's own onPointerMove/onPointerUp — a
+  //    dedicated window-level effect further down drives the ghost + commit
+  //    for that gesture instead.
+  // The catalog itself is surfaced here under the same condition
+  // (`CatalogDrawer`'s `planFurnishActive`), so this mirrors that gate for
+  // the pointer dispatch + ghost render.
+  const fPlanFurnish = useFeature('planFurnish')
   const activeDefId = useStore((s) => s.activeDefId)
   const ghostRotation = useStore((s) => s.ghostRotation)
   const catalogOpen = useStore((s) => s.catalogOpen)
@@ -379,6 +403,15 @@ export function FloorPlanEditor() {
   // clears the selection the element just made — select→instant-deselect. Reset
   // each gesture in `onUp`.
   const elementTapped = useRef(false)
+  // PLAN-FURNISH Phase 2 — touch pointerIds whose pointerdown landed on the plan
+  // `<svg>` (added in `onDown`, cleared in `onUp`). The window-level long-press
+  // touch-lift effect skips these: a plain tap-to-place is already committed by
+  // `onDown` on pointerdown, so if the window lift ALSO handled the matching
+  // pointerup it would double-fire (harmless when it disarmed, but in STAMP mode
+  // it would try to re-place at the same spot → collide → cancel the stamp). The
+  // window lift therefore owns ONLY the long-press-from-card gesture, whose
+  // pointerdown was on the catalog card and so never entered this set.
+  const svgTouchPointers = useRef<Set<number>>(new Set())
 
   // Last pointer position in plan metres — where a new ruler guide is dropped
   // (PARITY-PLAN-GUIDES). Updated on every pointer move over the canvas.
@@ -542,6 +575,32 @@ export function FloorPlanEditor() {
   // upper storey, omitted (defaults to ground) for the ground level.
   const planDef = fPlanFurnish && activeDefId ? getDef(activeDefId) : undefined
   const itemLevelId = levelId !== GROUND_LEVEL_ID ? levelId : undefined
+  // PLAN-FURNISH Phase 2 — mirrors the latest viewport geometry + active
+  // storey + wall/guide snapping inputs for the mobile long-press touch
+  // effect below. That effect is registered once per `editing`/`fPlanFurnish`
+  // change (not every render, to avoid tearing down its window listeners on
+  // every ghost-tracking re-render), so it reads fresh values through this
+  // ref instead of closing over a stale render's locals.
+  const planTouchCtxRef = useRef({
+    W,
+    H,
+    PX,
+    gridSize,
+    levelId,
+    itemLevelId,
+    walls: levelPlan.walls,
+    guides: fGuides ? plan.guides : undefined,
+  })
+  planTouchCtxRef.current = {
+    W,
+    H,
+    PX,
+    gridSize,
+    levelId,
+    itemLevelId,
+    walls: levelPlan.walls,
+    guides: fGuides ? plan.guides : undefined,
+  }
   const planGhostItem = useMemo(
     () =>
       planDef && planGhostWorld
@@ -585,10 +644,18 @@ export function FloorPlanEditor() {
   }, [fPlanFurnish, activeDefId])
 
   // Leaving Edit mode (View is pan/inspect-only) cancels an in-progress
-  // placement rather than stranding an armed ghost nothing can commit.
+  // placement rather than stranding an armed ghost nothing can commit — on
+  // DESKTOP, where Edit is the default and switching to View mid-placement is
+  // a deliberate mode change. Mobile defaults to View, so arming a placement
+  // there (via a catalog card tap/long-press) must NOT be immediately undone
+  // by this same rule; it's exempted. (The mobile "Furnish" entry point only
+  // appears once Edit mode is already active — mirroring desktop — so this
+  // mostly matters for a manual View/Edit toggle while a mobile placement is
+  // already armed, which also shouldn't silently cancel it.)
   useEffect(() => {
-    if (fPlanFurnish && activeDefId && editMode !== 'edit') useStore.getState().cancelPlacement()
-  }, [fPlanFurnish, activeDefId, editMode])
+    if (fPlanFurnish && activeDefId && !isMobile && editMode !== 'edit')
+      useStore.getState().cancelPlacement()
+  }, [fPlanFurnish, activeDefId, editMode, isMobile])
 
   // Disarming (commit / cancel / escape / switching surfaces) drops the stale
   // preview point so a later re-arm never flashes the ghost at the last spot
@@ -596,6 +663,135 @@ export function FloorPlanEditor() {
   useEffect(() => {
     if (!activeDefId) setPlanGhostWorld(null)
   }, [activeDefId])
+
+  // PLAN-FURNISH Phase 2 — mobile long-press-from-card. `CatalogCard`'s touch
+  // long-press (unchanged — `ui/catalog/CatalogCard.tsx`) arms the SAME
+  // `activeDefId`/`reopenCatalogAfterPlace` state the 3D flow uses, but the
+  // touch that started on the card keeps its subsequent touchmove/touchend
+  // captured to the CARD (native touch-capture semantics) — they never reach
+  // this SVG's own onPointerMove/onPointerUp. Window-level listeners still
+  // see every event (capture only changes the event's *target*, not whether
+  // it bubbles to window), so this effect drives the ghost from the raw
+  // client coordinates and commits on lift — the plan-space analog of
+  // `usePlacementController.ts`'s own touch drag-lift (`onPointerUp`), which
+  // targets the 3D `<canvas>` instead. The lift listener is registered on the
+  // CAPTURE phase and calls `stopImmediatePropagation()` once it owns the
+  // gesture, so that always-mounted 3D controller (which would otherwise see
+  // "not an HTMLCanvasElement" under the lift point — the plan SVG sits on
+  // top — and call `cancelPlacement()` before this effect gets a turn) never
+  // double-handles the same lift.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: svgRef is a stable ref returned by usePlanViewport (only its .current DOM node is read, inside event-handler closures, never a reactive value); re-running this effect per render would tear down/re-add the window listeners on every ghost-tracking re-render.
+  useEffect(() => {
+    if (!editing || !fPlanFurnish) return
+    // Real hit-testing for "is this screen point actually ON the plan" — the
+    // plan `<svg>` is the scrollable CONTENT of a pannable/zoomable viewport,
+    // so its own `getBoundingClientRect()` can be far larger than (and offset
+    // outside) the visible, clipped viewport, and other UI (toolbar, a
+    // reopened catalog sheet) can paint on top of it; a raw rect-containment
+    // check would wrongly call a tap on the toolbar "on-plan" whenever the
+    // SVG's oversized rect happens to geometrically overlap that point.
+    // `document.elementFromPoint` respects real stacking/clipping, mirroring
+    // the 3D `usePlacementController`'s own touch-lift "is this a canvas"
+    // check (see `planFurnishPlacement.ts:decidePlanTouchLift`'s doc).
+    const isOnPlan = (svg: SVGSVGElement, clientX: number, clientY: number): boolean =>
+      svg.contains(document.elementFromPoint(clientX, clientY))
+    // Screen px → snapped world metres, reusing the same grid/guide/wall-snap
+    // pipeline `pointerWorld` uses for the mouse/tap path (`screenToGridPoint`
+    // + `snapToGuides` + `snapToWalls`, all pure) — but computed from raw
+    // client coordinates via the live ref above, since no React PointerEvent
+    // bound to the plan `<svg>` is ever available for a touch captured to the
+    // catalog card's DOM subtree.
+    const clientToWorld = (
+      svg: SVGSVGElement,
+      clientX: number,
+      clientY: number,
+    ): [number, number] => {
+      const ctx = planTouchCtxRef.current
+      const rect = svg.getBoundingClientRect()
+      let gridded = screenToGridPoint(clientX, clientY, rect, {
+        W: ctx.W,
+        H: ctx.H,
+        PX: ctx.PX,
+        gridSize: ctx.gridSize,
+        gridMargin: GRID_MARGIN,
+      })
+      if (ctx.guides?.length) gridded = snapToGuides(gridded, ctx.guides, 0.15)
+      return snapToWalls(gridded, ctx.walls)
+    }
+    const onTouchGhostMove = (ev: PointerEvent) => {
+      if (ev.pointerType !== 'touch') return
+      // A touch whose down landed on the plan `<svg>` is the tap-to-place path
+      // (its move/commit are the SVG's own onMove/onDown) — the ghost is already
+      // tracked there; don't double-drive it from here.
+      if (svgTouchPointers.current.has(ev.pointerId)) return
+      if (!useStore.getState().activeDefId) return
+      const svg = svgRef.current
+      setPlanGhostWorld(
+        svg && isOnPlan(svg, ev.clientX, ev.clientY)
+          ? clientToWorld(svg, ev.clientX, ev.clientY)
+          : null,
+      )
+    }
+    const onTouchLift = (ev: PointerEvent) => {
+      if (ev.pointerType !== 'touch') return
+      // Only own the long-press-from-card gesture (its pointerdown was on the
+      // catalog card, so it never entered `svgTouchPointers`). A tap-to-place
+      // whose down was on the plan `<svg>` was already committed by `onDown`;
+      // handling its lift here too would double-fire (and cancel a stamp).
+      if (svgTouchPointers.current.has(ev.pointerId)) return
+      const st = useStore.getState()
+      const defId = st.activeDefId
+      if (!defId) return
+      const def = getDef(defId)
+      // Own this lift end-to-end (commit / invalid-reject / off-plan cancel)
+      // so the 3D controller's own touch-lift handler never also fires for it.
+      ev.stopImmediatePropagation()
+      const svg = svgRef.current
+      const onPlan = !!svg && isOnPlan(svg, ev.clientX, ev.clientY)
+      const world = svg && onPlan ? clientToWorld(svg, ev.clientX, ev.clientY) : null
+      const { levelId: liveLevelId, itemLevelId: liveItemLevelId } = planTouchCtxRef.current
+      let ghost: FurnitureItem | null = null
+      let valid = false
+      if (def && world) {
+        ghost = buildPlanGhostItem(def, world, st.ghostRotation, liveItemLevelId)
+        valid = planGhostValid(ghost, def, {
+          others: st.items,
+          defs: catalogRef.current,
+          doors: st.doors,
+          walls: placementWalls(st, liveLevelId),
+        })
+      }
+      if (decidePlanTouchLift(def, onPlan, valid) !== 'commit' || !ghost || !def) {
+        st.cancelPlacement()
+        return
+      }
+      const priorItems = st.items
+      const newId = st.addItem({
+        defId: def.id,
+        position: ghost.position,
+        rotation: ghost.rotation,
+        props: ghost.props,
+        ...(liveItemLevelId ? { levelId: liveItemLevelId } : {}),
+      })
+      // Tactile drop-in, same as the mouse/tap commit path.
+      beginDrop(newId, performance.now())
+      setPlanGhostWorld(null)
+      if (planStampActive()) {
+        // PLAN-FURNISH Phase 2: stamp mode stays armed for the next drop and
+        // skips the confirm bar entirely — the same "rapid no-confirm" path
+        // Stamp/Shift already gets in 3D (`ui/CLAUDE.md`).
+        return
+      }
+      st.setActiveDefId(null)
+      st.setPendingEdit({ kind: 'placement', ids: [newId], originals: [], priorItems })
+    }
+    window.addEventListener('pointermove', onTouchGhostMove)
+    window.addEventListener('pointerup', onTouchLift, true)
+    return () => {
+      window.removeEventListener('pointermove', onTouchGhostMove)
+      window.removeEventListener('pointerup', onTouchLift, true)
+    }
+  }, [editing, fPlanFurnish, getDef, catalogRef])
 
   if (!editing) return null
 
@@ -695,6 +891,10 @@ export function FloorPlanEditor() {
 
   const onDown = (e: React.PointerEvent) => {
     if (e.pointerType === 'touch') {
+      // Mark this touch as SVG-originated so the window-level long-press lift
+      // effect leaves it alone (a tap-to-place is committed here on pointerdown;
+      // the window lift owns only the card-long-press gesture — see the ref).
+      svgTouchPointers.current.add(e.pointerId)
       touchPts.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
       if (touchPts.current.size >= 2) {
         // Second finger down → pinch-zoom. Abandon whatever single-finger gesture
@@ -731,13 +931,19 @@ export function FloorPlanEditor() {
       return
     }
     if (e.button !== 0) return
-    // PLAN-FURNISH Phase 1: a left click while a catalog def is armed commits
-    // (or rejects) the ghost at THIS click's own pointer position — mirrors
-    // the 3D `usePlacementController`'s canvas-click commit, reusing the same
+    // PLAN-FURNISH: a left click OR a touch tap while a catalog def is armed
+    // commits (or rejects) the ghost at THIS pointerdown's own position — a
+    // touch tap reports `button: 0` exactly like a mouse click, so this same
+    // branch already IS the Phase 2 mobile "tap-to-place" gesture (arm via a
+    // plain tap on a catalog card, then tap the plan). It mirrors the 3D
+    // `usePlacementController`'s canvas-click commit, reusing the same
     // `addItem` → `beginDrop` → `pendingEdit` path with the active storey's
     // `levelId` passed explicitly (addItem can't infer it outside the room
-    // editor). The click is swallowed either way so it never also starts a
-    // marquee/pan/tool underneath the placement.
+    // editor). The click/tap is swallowed either way so it never also starts
+    // a marquee/pan/tool underneath the placement. (The OTHER mobile
+    // gesture — long-press-from-card's continuous drag — never reaches this
+    // handler at all, since that touch is captured to the catalog card; see
+    // the window-level effect above.)
     if (fPlanFurnish && activeDefId) {
       const def = getDef(activeDefId)
       if (def) {
@@ -761,9 +967,15 @@ export function FloorPlanEditor() {
           })
           // Tactile drop-in, same as the 3D commit path.
           beginDrop(newId, performance.now())
-          st.setActiveDefId(null)
           setPlanGhostWorld(null)
-          st.setPendingEdit({ kind: 'placement', ids: [newId], originals: [], priorItems })
+          if (planStampActive()) {
+            // PLAN-FURNISH Phase 2: stamp mode stays armed for the next drop
+            // and skips the confirm bar entirely — the same "rapid
+            // no-confirm" path Stamp/Shift already gets in 3D (`ui/CLAUDE.md`).
+          } else {
+            st.setActiveDefId(null)
+            st.setPendingEdit({ kind: 'placement', ids: [newId], originals: [], priorItems })
+          }
         }
         // 'invalid' (red ghost) / 'ineligible' (window-bound, already toasted
         // + disarmed by the effect above): swallow the click, nothing to do.
@@ -1258,6 +1470,9 @@ export function FloorPlanEditor() {
     if (e?.pointerType === 'touch') {
       const wasPinching = pinch.current !== null
       touchPts.current.delete(e.pointerId)
+      // This SVG-originated touch is ending — the window long-press lift already
+      // skipped it (it fires on the capture phase, before this bubble handler).
+      svgTouchPointers.current.delete(e.pointerId)
       if (touchPts.current.size < 2) pinch.current = null
       // A lift during/after a pinch must not commit a draft or selection drag
       // (those were cancelled when the second finger landed); while a finger is
@@ -2174,6 +2389,26 @@ export function FloorPlanEditor() {
             </button>
             {editMode === 'edit' && (
               <PlanToolMenu tools={toolList} tool={tool} label={toolLabel} onPick={pickTool} />
+            )}
+            {/* PLAN-FURNISH Phase 2 — mobile entry point for the same catalog
+                the desktop "Furnish" button opens (see the desktop branch
+                below); gated the same way (Edit mode only) for parity. Tap
+                a card to arm (tap-to-place) or long-press it (drag-to-place)
+                once the catalog is open. */}
+            {editMode === 'edit' && fPlanFurnish && (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !catalogOpen
+                  a.setCatalogOpen(next)
+                  if (next) setShowFurniture(true)
+                }}
+                className={`btn btn-sm${catalogOpen ? ' btn-accent' : ''}`}
+                title="Browse furniture to add directly to the plan"
+                aria-pressed={catalogOpen}
+              >
+                Furnish
+              </button>
             )}
             {drawHint}
             {/* Undo/redo are important enough to stay in the top bar (not buried

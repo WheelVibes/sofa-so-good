@@ -1,0 +1,206 @@
+{
+  "name": "plan-furnish-mobile",
+  "description": "PLAN-FURNISH Phase 2 ladder (mobile/touch): the 2D-plan 'Furnish' entry is hidden on mobile in Simple mode, shown in Pro; mobile TAP-TO-PLACE (tap a catalog card to arm, tap the plan to commit — the same onDown branch as desktop, since a touch pointerdown reports button:0); mobile LONG-PRESS-FROM-CARD (simulated: arm + hide catalog like CatalogCard's real long-press timer does, then drive the ghost/commit purely via window-level touch PointerEvents — the code path FloorPlanEditor's own long-press effect uses, since that gesture's real touchmove/touchend are captured to the catalog card, never to the plan <svg>); an off-plan lift cancels instead of committing; stamp-mode reuse skips the confirm bar and stays armed for repeat drops; every placement round-trips into the 3D scene. Run at 390x844 with SHOT_TOUCH=1.",
+  "url": "http://localhost:5320/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+
+    { "name": "open-plan-simple", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible-simple", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "wait-plan-settle-simple", "wait": 800 },
+    {
+      "name": "verify-no-furnish-button-mobile-simple",
+      "eval": "(function(){ const has = [...document.querySelectorAll('.plan-screen button')].some(b => b.textContent?.trim() === 'Furnish'); if (has) throw new Error('Furnish button should be hidden on mobile in Simple mode'); console.log('no mobile Furnish button in Simple — gated correctly'); })()"
+    },
+    { "name": "shot-01-simple-no-furnish-mobile", "screenshot": "01-simple-no-furnish-mobile" },
+    { "name": "close-plan-simple", "store": { "action": "setFloorPlanEditing", "args": [false] } },
+    { "name": "wait-close-simple", "wait": 600 },
+
+    { "name": "to-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "planFurnish-flag-on-pro",
+      "waitFor": { "store": "state.featureFlags.planFurnish === true" },
+      "timeout": 5000,
+      "failMessage": "planFurnish flag should be ON in Pro mode"
+    },
+
+    { "name": "open-plan-pro", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible-pro", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "wait-plan-settle-pro", "wait": 800 },
+    {
+      "name": "clear-pre-furnished-items",
+      "store": { "action": "setItems", "args": [[]] }
+    },
+    {
+      "name": "tap-edit-mode",
+      "eval": "(function(){ const b = [...document.querySelectorAll('.plan-screen .seg.accent button')].find(x => x.textContent?.trim() === 'Edit'); if (!b) throw new Error('Edit toggle not found'); b.click(); })()"
+    },
+    { "name": "edit-mode-settle", "wait": 300 },
+    {
+      "name": "tap-furnish-button-mobile",
+      "eval": "(function(){ const b = [...document.querySelectorAll('.plan-screen button')].find(x => x.textContent?.trim() === 'Furnish'); if (!b) throw new Error('mobile Furnish button not found in Pro + Edit mode'); b.click(); })()"
+    },
+    {
+      "name": "catalog-visible-in-plan-mobile",
+      "waitFor": { "css": ".panel.catalog.catalog-in-plan" },
+      "timeout": 20000,
+      "failMessage": "Catalog did not surface as a mobile bottom sheet inside the plan editor"
+    },
+    { "name": "shot-02-catalog-sheet-in-plan-mobile", "screenshot": "02-catalog-sheet-in-plan-mobile" },
+
+    { "name": "record-baseline-count-tap", "eval": "window.__base = window.__store.getState().items.length" },
+    {
+      "name": "tap-card-to-arm",
+      "eval": "(function(){ const el = document.querySelector('[aria-label=\"Place 3-seat sofa\"]'); if (!el) throw new Error('sofa card not found'); el.click(); })()"
+    },
+    {
+      "name": "sofa-armed-via-tap",
+      "waitFor": { "store": "state.activeDefId === 'sofa-3seat'" },
+      "timeout": 3000,
+      "failMessage": "Tapping the catalog card should arm the same activeDefId the desktop click-to-arm path uses"
+    },
+    {
+      "name": "collapse-catalog-for-tap",
+      "store": { "action": "setCatalogOpen", "args": [false] }
+    },
+    { "name": "still-armed-after-collapse", "waitFor": { "store": "state.activeDefId === 'sofa-3seat'" }, "timeout": 3000, "failMessage": "Collapsing the catalog sheet must NOT cancel the armed placement (only cancelPlacement/Escape/right-click disarm)" },
+    {
+      "name": "find-valid-drop-spot-tap",
+      "eval": "(async function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const shapes = [...svg.querySelectorAll('[stroke-dasharray=\"4 3\"]')]; const rects = shapes.map(s => s.getBoundingClientRect()).filter(r => r.width > 40 && r.height > 40); rects.sort((a, b) => b.width * b.height - a.width * a.height); const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))); const offsets = [[0.5,0.5],[0.25,0.25],[0.75,0.25],[0.25,0.75],[0.75,0.75],[0.5,0.25],[0.5,0.75],[0.25,0.5],[0.75,0.5]]; for (const r of rects) { for (const [fx, fy] of offsets) { const x = r.left + r.width * fx; const y = r.top + r.height * fy; svg.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'touch' })); await frame(); const g = document.querySelector('[data-plan-ghost=\"sofa-3seat\"]'); if (g && g.getAttribute('data-plan-ghost-valid') === 'true') { window.__pt = { x, y }; return; } } } throw new Error('No valid drop spot found for the tap leg'); })()"
+    },
+    { "name": "shot-03-ghost-following-tap", "screenshot": "03-ghost-tap-to-place-green" },
+    {
+      "name": "tap-plan-to-commit",
+      "eval": "(function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const p = window.__pt; const opts = { clientX: p.x, clientY: p.y, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'touch', button: 0, buttons: 1 }; svg.dispatchEvent(new PointerEvent('pointerdown', opts)); svg.dispatchEvent(new PointerEvent('pointerup', opts)); })()"
+    },
+    {
+      "name": "tap-place-committed",
+      "waitFor": { "store": "state.items.length === window.__base + 1 && state.activeDefId === null && state.pendingEdit && state.pendingEdit.kind === 'placement'" },
+      "timeout": 5000,
+      "failMessage": "A touch tap on the plan (button:0, pointerType:touch) should commit via the same onDown branch as a mouse click"
+    },
+    { "name": "shot-04-placed-via-tap", "screenshot": "04-placed-via-tap-to-place" },
+    { "name": "confirm-tap-placement", "eval": "window.__store.getState().confirmPendingEdit()" },
+
+    {
+      "name": "arm-via-long-press-simulation",
+      "eval": "(function(){ const s = window.__store.getState(); s.setReopenCatalogAfterPlace(true); s.setActiveDefId('sofa-3seat'); s.setCatalogOpen(false); })()"
+    },
+    {
+      "name": "long-press-armed-catalog-hidden",
+      "waitFor": { "store": "state.activeDefId === 'sofa-3seat' && state.catalogOpen === false && state.reopenCatalogAfterPlace === true" },
+      "timeout": 3000,
+      "failMessage": "Long-press-from-card arms the same activeDefId + hides the catalog + sets reopenCatalogAfterPlace, exactly like CatalogCard's real touch long-press"
+    },
+    { "name": "shot-05-longpress-armed-catalog-hidden", "screenshot": "05-longpress-armed-catalog-hidden" },
+    {
+      "name": "drag-ghost-via-window-touch-events",
+      "eval": "(async function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const shapes = [...svg.querySelectorAll('[stroke-dasharray=\"4 3\"]')]; const rects = shapes.map(s => s.getBoundingClientRect()).filter(r => r.width > 40 && r.height > 40); rects.sort((a, b) => b.width * b.height - a.width * a.height); const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))); const offsets = [[0.5,0.5],[0.25,0.25],[0.75,0.25],[0.25,0.75],[0.75,0.75],[0.5,0.25],[0.5,0.75],[0.25,0.5],[0.75,0.5]]; for (const r of rects) { for (const [fx, fy] of offsets) { const x = r.left + r.width * fx; const y = r.top + r.height * fy; window.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y, pointerId: 7, pointerType: 'touch' })); await frame(); const g = document.querySelector('[data-plan-ghost=\"sofa-3seat\"]'); if (g && g.getAttribute('data-plan-ghost-valid') === 'true') { window.__pt = { x, y }; return; } } } throw new Error('No valid drop spot found for the long-press-drag leg — the window pointermove effect may not be tracking the ghost'); })()"
+    },
+    {
+      "name": "ghost-tracks-window-touch-move",
+      "waitFor": { "css": "[data-plan-ghost=\"sofa-3seat\"][data-plan-ghost-valid=\"true\"]" },
+      "timeout": 5000,
+      "failMessage": "The window-level touch pointermove effect should drive the ghost even though this event never touched the plan <svg>'s own onPointerMove"
+    },
+    { "name": "shot-06-longpress-ghost-green-via-window-events", "screenshot": "06-longpress-ghost-green-via-window-events" },
+    {
+      "name": "record-baseline-count-longpress",
+      "eval": "window.__base2 = window.__store.getState().items.length"
+    },
+    {
+      "name": "lift-to-commit-via-window-touch-pointerup",
+      "eval": "(function(){ const p = window.__pt; window.dispatchEvent(new PointerEvent('pointerup', { clientX: p.x, clientY: p.y, pointerId: 7, pointerType: 'touch' })); })()"
+    },
+    {
+      "name": "longpress-committed",
+      "waitFor": { "store": "state.items.length === window.__base2 + 1 && state.activeDefId === null && state.pendingEdit && state.pendingEdit.kind === 'placement'" },
+      "timeout": 5000,
+      "failMessage": "A window-level touch pointerup lift over the plan svg should commit exactly like the 3D long-press-drag lift does over the canvas"
+    },
+    { "name": "shot-07-placed-via-longpress", "screenshot": "07-placed-via-longpress-drag" },
+    { "name": "confirm-longpress-placement", "eval": "window.__store.getState().confirmPendingEdit()" },
+    {
+      "name": "catalog-reopened-after-longpress",
+      "waitFor": { "store": "state.catalogOpen === true && state.reopenCatalogAfterPlace === false" },
+      "timeout": 3000,
+      "failMessage": "Confirming a long-press placement should reopen the catalog the long-press hid (reopenCatalogAfterPlace)"
+    },
+
+    {
+      "name": "arm-again-for-offplan-cancel",
+      "eval": "(function(){ const s = window.__store.getState(); s.setReopenCatalogAfterPlace(true); s.setActiveDefId('sofa-3seat'); s.setCatalogOpen(false); })()"
+    },
+    {
+      "name": "record-baseline-count-offplan",
+      "eval": "window.__base3 = window.__store.getState().items.length"
+    },
+    {
+      "name": "lift-off-plan-cancels",
+      "eval": "(function(){ window.dispatchEvent(new PointerEvent('pointerup', { clientX: 5, clientY: 5, pointerId: 9, pointerType: 'touch' })); })()"
+    },
+    {
+      "name": "offplan-lift-cancelled",
+      "waitFor": { "store": "state.activeDefId === null && state.items.length === window.__base3 && state.catalogOpen === true" },
+      "timeout": 3000,
+      "failMessage": "A touch lift OFF the plan svg (over the toolbar) should cancel the whole placement (mirrors the 3D controller's not-a-canvas abort) and reopen the catalog it hid"
+    },
+
+    {
+      "name": "arm-stamp-mode",
+      "eval": "window.__store.getState().startStamp('sofa-3seat')"
+    },
+    {
+      "name": "stamp-armed",
+      "waitFor": { "store": "state.activeDefId === 'sofa-3seat' && state.stampMode === true" },
+      "timeout": 3000
+    },
+    {
+      "name": "collapse-catalog-for-stamp",
+      "store": { "action": "setCatalogOpen", "args": [false] }
+    },
+    {
+      "name": "find-spot-stamp-1",
+      "eval": "(async function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const shapes = [...svg.querySelectorAll('[stroke-dasharray=\"4 3\"]')]; const rects = shapes.map(s => s.getBoundingClientRect()).filter(r => r.width > 40 && r.height > 40); rects.sort((a, b) => b.width * b.height - a.width * a.height); const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))); const offsets = [[0.5,0.5],[0.25,0.25],[0.75,0.25],[0.25,0.75],[0.75,0.75],[0.5,0.25],[0.5,0.75],[0.25,0.5],[0.75,0.5]]; for (const r of rects) { for (const [fx, fy] of offsets) { const x = r.left + r.width * fx; const y = r.top + r.height * fy; svg.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'touch' })); await frame(); const g = document.querySelector('[data-plan-ghost=\"sofa-3seat\"]'); if (g && g.getAttribute('data-plan-ghost-valid') === 'true') { window.__pt = { x, y }; return; } } } throw new Error('No valid drop spot found for stamp drop 1'); })()"
+    },
+    {
+      "name": "record-baseline-stamp",
+      "eval": "window.__baseStamp = window.__store.getState().items.length"
+    },
+    {
+      "name": "stamp-tap-1",
+      "eval": "(function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const p = window.__pt; const opts = { clientX: p.x, clientY: p.y, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'touch', button: 0, buttons: 1 }; svg.dispatchEvent(new PointerEvent('pointerdown', opts)); svg.dispatchEvent(new PointerEvent('pointerup', opts)); })()"
+    },
+    {
+      "name": "stamp-1-committed-and-stays-armed",
+      "waitFor": { "store": "state.items.length === window.__baseStamp + 1 && state.activeDefId === 'sofa-3seat' && state.pendingEdit === null" },
+      "timeout": 5000,
+      "failMessage": "Stamp mode should commit without disarming AND without opening the confirm bar (the rapid no-confirm path)"
+    },
+    { "name": "shot-08-stamp-stays-armed", "screenshot": "08-stamp-mode-stays-armed" },
+    {
+      "name": "find-spot-stamp-2",
+      "eval": "(async function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const shapes = [...svg.querySelectorAll('[stroke-dasharray=\"4 3\"]')]; const rects = shapes.map(s => s.getBoundingClientRect()).filter(r => r.width > 40 && r.height > 40); rects.sort((a, b) => b.width * b.height - a.width * a.height); const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))); const offsets = [[0.5,0.5],[0.25,0.25],[0.75,0.25],[0.25,0.75],[0.75,0.75],[0.5,0.25],[0.5,0.75],[0.25,0.5],[0.75,0.5]]; for (const r of rects) { for (const [fx, fy] of offsets) { const x = r.left + r.width * fx; const y = r.top + r.height * fy; svg.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'touch' })); await frame(); const g = document.querySelector('[data-plan-ghost=\"sofa-3seat\"]'); if (g && g.getAttribute('data-plan-ghost-valid') === 'true') { window.__pt = { x, y }; return; } } } throw new Error('No valid drop spot found for stamp drop 2'); })()"
+    },
+    {
+      "name": "stamp-tap-2",
+      "eval": "(function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const p = window.__pt; const opts = { clientX: p.x, clientY: p.y, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'touch', button: 0, buttons: 1 }; svg.dispatchEvent(new PointerEvent('pointerdown', opts)); svg.dispatchEvent(new PointerEvent('pointerup', opts)); })()"
+    },
+    {
+      "name": "stamp-2-committed",
+      "waitFor": { "store": "state.items.length === window.__baseStamp + 2 && state.activeDefId === 'sofa-3seat'" },
+      "timeout": 5000
+    },
+    { "name": "stop-stamping", "eval": "window.__store.getState().cancelPlacement()" },
+
+    { "name": "close-plan-after-place", "store": { "action": "setFloorPlanEditing", "args": [false] } },
+    { "name": "plan-closed", "waitFor": { "css": ".plan-screen", "visible": false }, "timeout": 10000 },
+    { "name": "wait-scene-settle", "wait": 1500 },
+    { "name": "shot-09-round-trip-3d-scene", "screenshot": "09-round-trip-3d-scene" }
+  ]
+}
