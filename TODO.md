@@ -100,11 +100,16 @@ WebGPU path tracing).
   render. Deferred as an analytics/deliverable, not core design UX.
 
 ## Open — core interactions
-- **More composite footprints (round/oval tables).** `footprintParts` is a **union** of OBBs (can
-  only *add* area), so it can't carve corners off a square to make an octagon/disc. A round-table
-  approx needs either a new *intersection*/polygon footprint primitive, or a coarse cross of
-  inscribed rects (leaves diagonal gaps). Low priority + needs a design decision. (No U-sofa /
-  corner desk / peninsula in the catalog today.)
+- ~~**More composite footprints (round/oval tables).**~~ **Done (2026-07-04).** Shipped the
+  "coarse inscribed rects" approach flagged below: `furniture/footprintShapes.ts:
+  ellipseFootprintParts(width, depth, steps=4)` — a symmetric staircase of axis-aligned boxes
+  inscribed in the ellipse (5 boxes by default; a provable subset of both the ellipse and the
+  bbox, so it stays a plain OBB union — no new intersection/polygon footprint primitive needed).
+  Wired into `dining-table-4`/`coffee-table` (`shape: 'round'|'oval'`) and `side-table`
+  (`'round'`/`'drum'`); rectangular/square shapes are unchanged. It does leave the diagonal
+  corner-to-circle gap uncovered as anticipated (a curved sliver, not carved out) — acceptable
+  since the goal was freeing the bbox corners, not exact coverage. No U-sofa / corner desk /
+  peninsula in the catalog yet, so those still fall back to a single OBB if added later.
 - **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
   would be a new interaction. Doors already animate (could ease the linear swing curve — low value).
 - **Live slide during drag** (optional, higher-risk) — item hugs walls/furniture in real time, not

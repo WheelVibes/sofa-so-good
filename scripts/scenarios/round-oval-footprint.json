@@ -1,0 +1,31 @@
+{
+  "name": "round-oval-footprint",
+  "description": "Verifies the round/oval table composite footprint (inscribed-OBB-union approximation): a round dining table's selection tint reflects the disc shape, and a canPlace probe run against the live collision module confirms the bbox corner is freed while the disc interior still blocks.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "scene-ready", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 45000 },
+    {
+      "name": "place-round-and-oval-tables",
+      "eval": "const st=window.__store.getState(); st.setPresetTime('noon'); st.setLightsMode && st.setLightsMode('on'); st.setItems([{id:'round-dining',defId:'dining-table-4',position:[10,4],rotation:0,props:{shape:'round',width:1.5,depth:0.9}},{id:'oval-coffee',defId:'coffee-table',position:[13,4],rotation:0,props:{shape:'oval',width:1.4,depth:0.7}}]); st.selectItem('round-dining'); st.setCameraMode && st.setCameraMode('orbit'); st.focusOn([10,4])"
+    },
+    { "name": "cam-top-round", "eval": "window.__three.camera.position.set(10, 6.5, 4.02); window.__three.controls.target.set(10, 0, 4); window.__three.camera.fov = 50; window.__three.camera.updateProjectionMatrix(); window.__three.controls.update()" },
+    { "name": "settle-round", "wait": 1400 },
+    { "name": "shot-round-tint-top", "screenshot": "01-round-dining-tint-top.png" },
+    {
+      "name": "select-oval",
+      "eval": "window.__store.getState().selectItem('oval-coffee')"
+    },
+    { "name": "cam-top-oval", "eval": "window.__three.camera.position.set(13, 5.2, 4.02); window.__three.controls.target.set(13, 0, 4); window.__three.controls.update()" },
+    { "name": "settle-oval", "wait": 1000 },
+    { "name": "shot-oval-tint-top", "screenshot": "02-oval-coffee-tint-top.png" },
+    {
+      "name": "canplace-probe",
+      "eval": "window.__probe = { done: false }; (async () => { try { const P = await import('/src/collision/placement.ts'); const C = await import('/src/furniture/builtinCatalog.ts'); const defs = C.BUILTIN_CATALOG; const tinyDef = { id: 'tiny', name: 'tiny', category: 'decor', kind: 'gltf', source: 'builtin', url: '/none.glb', license: 'CC0', defaultFootprint: { w: 0.02, d: 0.02, h: 0.02 } }; const allDefs = { ...defs, tiny: tinyDef }; const mkCtx = (table) => ({ others: [table], defs: allDefs, doors: {}, walls: [] }); const roundTable = { id: 't1', defId: 'dining-table-4', position: [0, 0], rotation: 0, props: { shape: 'round', width: 1.5, depth: 0.9 } }; const rectTable = { id: 't2', defId: 'dining-table-4', position: [0, 0], rotation: 0, props: { shape: 'rect', width: 1.5, depth: 0.9 } }; const ovalCoffee = { id: 't3', defId: 'coffee-table', position: [0, 0], rotation: 0, props: { shape: 'oval', width: 1.4, depth: 0.7 } }; const sideRound = { id: 't4', defId: 'side-table', position: [0, 0], rotation: 0, props: { shape: 'round', diameter: 0.6 } }; const sideSquare = { id: 't5', defId: 'side-table', position: [0, 0], rotation: 0, props: { shape: 'square', diameter: 0.6 } }; const probeAt = (x, z) => ({ id: 'p', defId: 'tiny', position: [x, z], rotation: 0, props: {} }); const results = { roundCornerFree: P.canPlace(probeAt(0.74, 0.4), tinyDef, mkCtx(roundTable)), roundCentreBlocked: P.canPlace(probeAt(0, 0), tinyDef, mkCtx(roundTable)), rectCornerBlocked: P.canPlace(probeAt(0.74, 0.4), tinyDef, mkCtx(rectTable)), ovalCornerFree: P.canPlace(probeAt(0.66, 0.3), tinyDef, mkCtx(ovalCoffee)), ovalCentreBlocked: P.canPlace(probeAt(0, 0), tinyDef, mkCtx(ovalCoffee)), sideRoundCornerFree: P.canPlace(probeAt(0.29, 0.29), tinyDef, mkCtx(sideRound)), sideSquareCornerBlocked: P.canPlace(probeAt(0.26, 0.26), tinyDef, mkCtx(sideSquare)), roundPartCount: P.itemFootprintParts(roundTable, defs['dining-table-4']).length, rectPartCount: P.itemFootprintParts(rectTable, defs['dining-table-4']).length }; const expected = { roundCornerFree: true, roundCentreBlocked: false, rectCornerBlocked: false, ovalCornerFree: true, ovalCentreBlocked: false, sideRoundCornerFree: true, sideSquareCornerBlocked: false }; const mismatches = Object.entries(expected).filter(([k, v]) => results[k] !== v); window.__probe = { done: true, results, mismatches, ok: mismatches.length === 0 && results.roundPartCount > 1 && results.rectPartCount === 1 }; console.log('ROUND_OVAL_PROBE', JSON.stringify(window.__probe)); } catch (e) { window.__probe = { done: true, ok: false, error: String(e && e.stack || e) }; console.log('ROUND_OVAL_PROBE_ERROR', window.__probe.error) } })()"
+    },
+    { "name": "wait-probe", "wait": 500 },
+    {
+      "name": "assert-probe-ok",
+      "eval": "if (!window.__probe || window.__probe.done !== true) throw new Error('probe did not complete'); if (window.__probe.ok !== true) throw new Error('round/oval footprint probe FAILED: ' + JSON.stringify(window.__probe));"
+    }
+  ]
+}

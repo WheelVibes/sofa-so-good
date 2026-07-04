@@ -953,7 +953,15 @@ same change that reshapes a system.
   depth-only OBB that cut through it; single-part pieces are unchanged. The placement
   ghost's green/red tint is driven by `canPlace` → `ghostValid` (true-shape parts, so
   the tint reflects the real fit). (The L-shaped sectional + corner base cabinet ship
-  the first decompositions: main run + chaise / two runs.) **Soft push-apart on drop**:
+  the first decompositions: main run + chaise / two runs.) **Round/oval tables**
+  (`furniture/footprintShapes.ts:ellipseFootprintParts(width, depth, steps=4)`) approximate a
+  disc/ellipse the same way, since a union of OBBs can't carve a rectangle down to a circle: a
+  symmetric "staircase" of axis-aligned boxes inscribed in the ellipse (5 boxes at the default
+  `steps=4`), each box's far corner landing exactly on the curve so the whole union is a subset of
+  both the ellipse and the enclosing bbox — frees the bbox corners a round/oval top never actually
+  reaches without an intersection/polygon footprint primitive. Wired into `dining-table-4`/
+  `coffee-table` (`shape: 'round'|'oval'`) and `side-table` (`'round'`/`'drum'`); `'rect'`/`'square'`
+  return `[]` (unchanged single-box behaviour). **Soft push-apart on drop**:
   a single-item drag that ends overlapping is nudged out to the nearest valid spot
   instead of hard-reverting — `obbMtv` (SAT minimum translation vector) picks a push
   direction and `nudgeToValid` steps outward (± fan) verifying each candidate with

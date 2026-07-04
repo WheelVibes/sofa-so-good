@@ -26,6 +26,19 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   Set `verticalSpan`/`mounted`/`noClip` for non-floor items; `lightEmitters.ts` to emit light
   at night; add to `defaults/` to ship in the move-in flat (collision-checked by
   `defaultLayout.test.ts`).
+- **Round/oval footprints (`footprintShapes.ts:ellipseFootprintParts`).** `footprintParts` is a
+  UNION of OBBs — it can only add area, never carve a rectangle down to a disc — so a true
+  circle/ellipse isn't representable exactly. `ellipseFootprintParts(width, depth, steps=4)`
+  approximates one as a small "staircase" of axis-aligned boxes inscribed in the ellipse (each
+  box's far corner sits exactly on the curve, so the whole union is a provable subset of the
+  ellipse and therefore of the bbox); default `steps=4` yields 5 boxes. Wired into
+  `defs/tables.ts`'s `footprintParts` for `dining-table-4` / `coffee-table` (round **and** oval
+  both call it with the item's live `width`/`depth`, `[]` for `'rect'` → falls back to the single
+  enclosing OBB, unchanged) and `side-table` (`'round'`/`'drum'` — the `diameter`×`diameter` bbox
+  is already square, so the union is a true circle; `'square'` stays a single box). Pure geometry,
+  render-agnostic, unit-tested in `footprintShapes.test.ts` (subset-of-ellipse + subset-of-bbox
+  invariants, part count, degenerate/scale edge cases) with `canPlace`-level integration coverage
+  in `collision/roundOvalFootprint.test.ts` (corner freed vs centre still blocked, scale/rotation).
 - **Window-bound fixtures (`def.windowBound`, WINDOW-FIXTURE)** — curtains, roller blinds, and any
   other fixture that lives ON a window — place ONLY on windows and are static once placed. Setting
   `windowBound: true` does three things: the inspector hides the Transform section + Rotate/Flip

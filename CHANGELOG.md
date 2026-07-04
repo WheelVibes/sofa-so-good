@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: shape-accurate collision footprints for round/oval tables (v0.12.0.23)
+
+TODO "Open — core interactions": `footprintParts` is a union of OBBs, so a round/
+oval table's true disc/ellipse wasn't representable and it collided as a loose
+rectangular bbox — blocking floor at the corners the top never reaches. New pure
+`furniture/footprintShapes.ts:ellipseFootprintParts(width, depth, steps=4)`
+approximates the ellipse with a symmetric "staircase" of axis-aligned boxes
+inscribed in it (5 boxes by default; each band sized to the ellipse's extent at
+its outer angle so every far corner lands ON the curve — a provable subset of
+both the ellipse and the bbox, keeping it a plain OBB union with bounded
+collision cost). Wired into `dining-table-4`/`coffee-table` (round/oval) and
+`side-table` (round/drum). Scales with the item; rect/square unchanged. 54
+targeted tests incl. `canPlace` integration against the real catalog defs.
+
 ## FEAT: room-aware catalog default — CATALOG-ROOMAWARE (v0.12.0.22)
 
 Core-loop parity gap (2026-07-03 audit): entering a room to edit now lands the
