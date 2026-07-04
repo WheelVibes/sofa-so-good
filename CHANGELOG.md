@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RELEASE: v0.14.0.0 — PR to main
+
+Second big cycle on top of v0.13.0.0. Ships **5 new features** (frame-selection
+camera, Alt-drag duplicate, isolate/solo focus mode, mirror-across-axis,
+two-point-perspective camera), a **resizable + responsive catalog dock**,
+**persistent cross-plan clipboard**, the **FloorPlanEditor decomposition**
+(REFAC-2, ~2995→2432 lines + 14 extracted modules) and the **DragController
+handler extraction** (TEST-7), **six new test suites** (TEST-3/4/5/6/7/8 +
+round-3 templates/shared), and a **10-item user bug-report sweep** (finish
+recolour-keeps-texture, mobile/red/confirm delete, catalog drag-ghost,
+out-of-room red-invalid placement with a blocked Apply pill, IKEA-finish +
+shared-card + card-meta cleanup, drag-to-reorder rooms) plus GLB-load
+diagnostics. Full suite green (5468 passing) throughout. Per-item detail below.
+
 ## FIX: invisible GLB/IKEA furniture is now a visible, diagnosable placeholder (bug #3, partial) (v0.13.0.26)
 
 A placed IKEA/GLB item that fails to render used to be either a silent
