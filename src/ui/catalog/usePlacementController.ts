@@ -5,6 +5,7 @@ import { isFeatureEnabled } from '../../features/featureFlags'
 import { useCatalog } from '../../furniture/catalog'
 import { defaultItemProps as defaultProps } from '../../furniture/placement/defaultItemProps'
 import { snapToNearestWindow, windowFixtureProps } from '../../furniture/placement/windowSnap'
+import { isActiveDragPointer } from '../../scene/dragHelpers'
 import { beginDrop } from '../../scene/placementDrop'
 import { useStore } from '../../state/store'
 
@@ -55,7 +56,24 @@ export function usePlacementController() {
     const def = catalog[activeDefId]
     if (!def) return
 
+    // MOBILE-3 (BUG-1/MOBILE-1 class): the pointerId driving this placement
+    // drag. Unlike a canvas drag (BUG-1) or a gizmo/marquee gesture
+    // (MOBILE-1/2), placement is armed off-window — a catalog-card long-press
+    // timer that already fired before this effect's listeners exist — so
+    // there's no `pointerdown` here to record the initiating id from. Instead
+    // it's latched lazily onto the FIRST pointer event this effect observes
+    // (normally the continuation of the same finger that armed it); every
+    // later event from a *different* pointerId is a no-op via
+    // `isActiveDragPointer`, so a second finger touching the canvas mid-drag
+    // can't jitter the ghost or steal the commit/cancel. Reset to `null` once
+    // a gesture concludes (touch up/cancel) so a stamp/shift placement that
+    // keeps `activeDefId` armed for the next drop (no effect remount) lets
+    // the following drop re-latch onto whichever finger drives it.
+    let dragPointerId: number | null = null
+
     const onMove = (ev: PointerEvent) => {
+      if (dragPointerId == null) dragPointerId = ev.pointerId
+      if (!isActiveDragPointer(dragPointerId, ev.pointerId)) return
       useStore.getState().setCursor({ x: ev.clientX, y: ev.clientY })
     }
     // Window-bound fixtures (curtains/blinds/grilles, WINDOW-FIXTURE) snap onto the
@@ -160,6 +178,13 @@ export function usePlacementController() {
     // canvas or on an invalid spot aborts (which reopens a hidden catalog).
     const onPointerUp = (ev: PointerEvent) => {
       if (ev.pointerType !== 'touch') return
+      // A second finger's independent release must not end/commit THIS drag —
+      // only the finger latched by `onMove` above may (MOBILE-3).
+      if (!isActiveDragPointer(dragPointerId, ev.pointerId)) return
+      // This gesture is concluding either way — forget the latch so a
+      // stamp/shift drop that keeps placement armed re-latches on whichever
+      // finger drives the next one.
+      dragPointerId = null
       const el = document.elementFromPoint(ev.clientX, ev.clientY)
       if (!(el instanceof HTMLCanvasElement)) {
         useStore.getState().cancelPlacement()
@@ -171,6 +196,17 @@ export function usePlacementController() {
       window.setTimeout(() => {
         swallowNextCanvasClick = false
       }, 400)
+    }
+    // A touch interrupted by the OS/browser (e.g. an incoming system gesture)
+    // fires `pointercancel` instead of `pointerup` — previously unhandled,
+    // which left the placement armed indefinitely. Treat it as an abort
+    // (never a commit, since the last-known ghost position may be stale) and
+    // gate it the same way as the lift above.
+    const onPointerCancel = (ev: PointerEvent) => {
+      if (ev.pointerType !== 'touch') return
+      if (!isActiveDragPointer(dragPointerId, ev.pointerId)) return
+      dragPointerId = null
+      useStore.getState().cancelPlacement()
     }
     const onContext = (ev: MouseEvent) => {
       ev.preventDefault()
@@ -216,6 +252,7 @@ export function usePlacementController() {
 
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerCancel)
     window.addEventListener('click', onClick, true)
     window.addEventListener('contextmenu', onContext)
     window.addEventListener('keydown', onKey)
@@ -224,6 +261,7 @@ export function usePlacementController() {
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerCancel)
       window.removeEventListener('click', onClick, true)
       window.removeEventListener('contextmenu', onContext)
       window.removeEventListener('keydown', onKey)

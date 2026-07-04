@@ -1,0 +1,119 @@
+{
+  "name": "catalog-placement-multitouch",
+  "description": "MOBILE-3: a second finger's independent pointer stream must not hijack an in-progress catalog placement drag (the same BUG-1/MOBILE-1/MOBILE-2 class already fixed for furniture drag, gizmos, and marquee-select). Arms a catalog placement (as a long-press would), grabs it with pointerId 9 (mirroring the finger that would have long-pressed the card), drives the ghost with a real pointermove, then asserts a second pointer (id 202) moving/lifting on the canvas is completely ignored: the ghost cursor follows ONLY pointer 9, a second finger's lift neither commits nor cancels the placement, and only pointer 9's lift commits it.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true && state.roomEditor.roomId === 'livingDining'"
+      },
+      "timeout": 5000,
+      "failMessage": "Room editor did not activate for livingDining"
+    },
+    {
+      "name": "wait-room-load",
+      "wait": 1500
+    },
+    {
+      "name": "seed-one-item-away-from-target-so-room-isnt-empty",
+      "eval": "window.__store.getState().setItems([{ id: 'mobile3-seed-decor', defId: 'potted-plant', position: [10.5, 4.1], rotation: 0, props: {} }])"
+    },
+    {
+      "name": "shot-before",
+      "screenshot": "01-before-arm"
+    },
+    {
+      "name": "arm-placement",
+      "eval": "(() => { const s = window.__store.getState(); window.__itemsBefore = s.items.length; s.setGhostWorld([10.5, 4.1], true); s.setActiveDefId('sofa-3seat'); })()"
+    },
+    {
+      "name": "placement-armed",
+      "waitFor": {
+        "store": "state.activeDefId === 'sofa-3seat'"
+      },
+      "timeout": 5000,
+      "failMessage": "setActiveDefId did not arm the placement"
+    },
+    {
+      "name": "compute-target-screen-pos",
+      "eval": "(() => { function applyM4(x,y,z,e){ const w=1/(e[3]*x+e[7]*y+e[11]*z+e[15]); return [ (e[0]*x+e[4]*y+e[8]*z+e[12])*w, (e[1]*x+e[5]*y+e[9]*z+e[13])*w, (e[2]*x+e[6]*y+e[10]*z+e[14])*w ]; } function worldToClient(wx,wy,wz){ const cam=window.__three.camera; cam.updateMatrixWorld(); const dom=window.__three.gl.domElement; const v1=applyM4(wx,wy,wz,cam.matrixWorldInverse.elements); const v2=applyM4(v1[0],v1[1],v1[2],cam.projectionMatrix.elements); const rect=dom.getBoundingClientRect(); return { x: rect.left+(v2[0]*0.5+0.5)*rect.width, y: rect.top+(1-(v2[1]*0.5+0.5))*rect.height }; } window.__tgt = worldToClient(10.5, 0.02, 6.1); })()"
+    },
+    {
+      "name": "finger-1-pointermove",
+      "eval": "(() => { const opt=(x,y)=>({bubbles:true,cancelable:true,composed:true,pointerId:9,pointerType:'touch',isPrimary:true,button:0,buttons:1,clientX:x,clientY:y}); window.dispatchEvent(new PointerEvent('pointermove', opt(window.__tgt.x, window.__tgt.y))); })()"
+    },
+    {
+      "name": "cursor-follows-finger-1",
+      "waitFor": {
+        "store": "(() => { const c = state.cursor; const t = window.__tgt; return !!c && Math.abs(c.x - t.x) < 1 && Math.abs(c.y - t.y) < 1; })()"
+      },
+      "timeout": 5000,
+      "failMessage": "the ghost cursor did not follow the initiating pointer (9)'s move"
+    },
+    {
+      "name": "finger-2-pointerdown-and-move-far-away",
+      "eval": "(() => { const opt=(x,y)=>({bubbles:true,cancelable:true,composed:true,pointerId:202,pointerType:'touch',isPrimary:false,button:0,buttons:1,clientX:x,clientY:y}); window.dispatchEvent(new PointerEvent('pointerdown', opt(20, 20))); window.dispatchEvent(new PointerEvent('pointermove', opt(20, 20))); })()"
+    },
+    {
+      "name": "settle-move-2",
+      "wait": 200
+    },
+    {
+      "name": "assert-second-finger-did-not-move-ghost",
+      "eval": "(() => { const s = window.__store.getState(); const c = s.cursor; const t = window.__tgt; if (Math.abs(c.x - t.x) > 1 || Math.abs(c.y - t.y) > 1) throw new Error('MOBILE-3 REGRESSION: placement ghost followed the second finger (pointerId 202) — cursor is '+JSON.stringify(c)+' expected '+JSON.stringify(t)); if (s.activeDefId !== 'sofa-3seat') throw new Error('placement was disarmed by the second finger') })()"
+    },
+    {
+      "name": "shot-mid-drag-second-finger-ignored",
+      "screenshot": "02-mid-drag-second-finger-ignored"
+    },
+    {
+      "name": "finger-2-pointerup-on-canvas-must-not-commit-or-cancel",
+      "eval": "(() => { const opt=(x,y)=>({bubbles:true,cancelable:true,composed:true,pointerId:202,pointerType:'touch',isPrimary:false,button:0,buttons:0,clientX:x,clientY:y}); window.dispatchEvent(new PointerEvent('pointerup', opt(window.__tgt.x, window.__tgt.y))); })()"
+    },
+    {
+      "name": "settle-up-2",
+      "wait": 200
+    },
+    {
+      "name": "assert-still-armed-and-no-item-added",
+      "eval": "(() => { const s = window.__store.getState(); if (s.activeDefId !== 'sofa-3seat') throw new Error('MOBILE-3 REGRESSION: the second finger (pointerId 202) releasing on the canvas disarmed/committed the placement — only the initiating pointer (9) may end it'); if (s.items.length !== window.__itemsBefore) throw new Error('MOBILE-3 REGRESSION: the second finger committed an item (count went from '+window.__itemsBefore+' to '+s.items.length+')') })()"
+    },
+    {
+      "name": "finger-1-pointerup-commits",
+      "eval": "(() => { const opt=(x,y)=>({bubbles:true,cancelable:true,composed:true,pointerId:9,pointerType:'touch',isPrimary:true,button:0,buttons:0,clientX:x,clientY:y}); window.dispatchEvent(new PointerEvent('pointerup', opt(window.__tgt.x, window.__tgt.y))); })()"
+    },
+    {
+      "name": "assert-committed-by-initiating-pointer",
+      "waitFor": {
+        "store": "state.items.length === window.__itemsBefore + 1 && state.activeDefId === null"
+      },
+      "timeout": 5000,
+      "failMessage": "the initiating pointer (9)'s lift did not commit the placement"
+    },
+    {
+      "name": "shot-after-commit",
+      "screenshot": "03-after-commit"
+    }
+  ]
+}

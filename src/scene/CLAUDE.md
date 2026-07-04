@@ -136,6 +136,11 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   rotate ring with one pointer then driving a second pointer far away leaves the rotation
   untouched and the second pointer's `pointerup` doesn't end the gesture. `MarqueeSelector`
   (MOBILE-2) is gated the same way (a closure-local `activePointerId`, since it lives outside the
-  Canvas with no per-gesture ref). Catalog placement-drag ghost (`usePlacementController.ts`,
-  MOBILE-3) is lower severity (cosmetic jitter, no mis-commit) and intentionally left ungated here
-  — it's outside `src/scene/` and a UI-owned surface.
+  Canvas with no per-gesture ref). Catalog placement-drag ghost (`src/ui/catalog/
+  usePlacementController.ts`, MOBILE-3) is gated too, though it's outside `src/scene/` and a
+  UI-owned surface: placement arms off-window (a catalog-card long-press timer fires before this
+  hook's listeners exist), so there's no `pointerdown` to record the initiating id from — its
+  `dragPointerId` is instead latched lazily onto the first pointer event the effect observes, reset
+  on every concluding touch up/cancel (so a stamp/shift drop that keeps the same `activeDefId`
+  armed re-latches per drop). Same `isActiveDragPointer` reuse, adapted for a hook that can't see
+  the gesture's actual start.

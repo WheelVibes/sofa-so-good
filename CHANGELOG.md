@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: gate catalog placement-drag by pointerId — MOBILE-3 (v0.13.0.2)
+
+The last of the pointerId-gating family, and it was a real bug (not cosmetic):
+`usePlacementController`'s window `pointermove`/`pointerup` for the long-press
+drag-to-place ghost had NO pointerId check — a second finger's `pointerup` could
+prematurely commit/cancel an in-progress drop, and its `pointermove` jittered the
+ghost throughout. Placement arms off-window (a catalog-card long-press timer), so
+there's no `pointerdown` to capture from; the initiating id is now lazily latched
+onto the first observed pointer event and every other pointer is a no-op via the
+shared `dragHelpers.ts:isActiveDragPointer`, reset on each concluding up/cancel
+(so stamp/shift re-latches per drop). Also added the previously-missing
+`pointercancel` handler (an OS-interrupted touch had left placement armed
+forever) — it aborts rather than commits a possibly-stale ghost. Desktop mouse +
+native HTML5 DnD untouched. 84 tests + a real two-pointer scenario.
+
 ## FEAT: frame/zoom-to-selection camera — FEAT-A (v0.13.0.1)
 
 From the round-2 audit: with an item (or multi-selection) selected, press **Z**
