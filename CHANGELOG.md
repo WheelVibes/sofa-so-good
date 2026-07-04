@@ -22,6 +22,22 @@ overlay, panorama/record/HQ/export) — those aren't rendering systems. Docs upd
 (`scene`/`state` CLAUDE.md, ARCHITECTURE.md, developer docs) since this reverses the
 old "keep the room editor flat / don't leak heavy systems into it" boundary.
 
+## v0.15.0.0 — PR rollup: mobile catalog/inspector fixes, iOS full-bleed, room-editor orbit graphics
+
+Minor bump for the PR to `main` gathering this branch's work (v0.14.2.1–v0.14.2.2):
+
+- **Mobile catalog/inspector fixes + iOS full-bleed canvas** (`.2.1`): stop sheet/
+  toolbar chrome from scrolling the canvas; catalog paging scrolls to top; solid-red
+  favourite heart; inspector-header Duplicate icon; removed the per-card palette/stamp
+  buttons; theme-accent checkbox ticks; Reset/Top view close the menu before flying;
+  iOS home-screen web app extends the canvas under the status bar.
+- **Per-room editor follows orbit graphics** (`.2.2`): the room-editor Canvas now mounts
+  the full orbit render stack (shadows, IBL, graded lighting, fixture lights, tier-gated
+  post) so glossy/metallic finishes render with real material response at the user's
+  quality tier instead of flat.
+
+No behaviour change in this commit beyond the version bump.
+
 ## v0.14.2.1 — mobile catalog/inspector fixes + iOS full-bleed canvas
 
 Batch of mobile UX fixes:
