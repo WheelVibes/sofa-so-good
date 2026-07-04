@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## TEST: floorplan/templates/shared geometry helpers (R3-TEST-1) (v0.13.0.16)
+
+Round-3 audit coverage: `floorplan/templates/shared.ts` seeds the shell of every
+starter plan (18+ HDB/condo templates) yet had 0 tests despite the area rule
+"Geometry stays pure + unit-tested here." New `shared.test.ts` (+14 tests) covers
+every exported helper — `perimeter` (id/order `n/e/s/w`, exact inset corners,
+closed-loop invariant that each wall end === next start), `iwall`/`door`/`window`
+record shapes (+ width/sill/head defaults + override; confirmed they're pure
+record builders with no offset clamping), `room`, `parapet` (`topHeight: 1.0`),
+`cat` (non-mutating category attach), and the `T` inset constant. No bug found.
+
 ## REFACTOR: decompose the FloorPlanEditor monolith (REFAC-2) (v0.13.0.15)
 
 Behaviour-preserving decomposition of `ui/floorplan/FloorPlanEditor.tsx`
