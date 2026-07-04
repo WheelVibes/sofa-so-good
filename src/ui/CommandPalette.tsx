@@ -56,6 +56,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'hq-render': 'hqRender',
   'render-compare': 'renderCompare',
   'staging-reveal': 'stagingReveal',
+  'time-compare': 'timeCompare',
   'style-transfer': 'styleTransfer',
   'style-quiz': 'styleQuiz',
   shortcuts: 'shortcutsHelp',
@@ -302,6 +303,13 @@ export function CommandPalette() {
         label: 'Before / after reveal — empty vs furnished',
         icon: 'Export',
         run: () => s().setStagingRevealOpen(true),
+      },
+      {
+        id: 'time-compare',
+        group: 'Tools & panels',
+        label: 'Time-of-day compare — reveal slider across two times',
+        icon: 'Time',
+        run: () => s().setTimeCompareOpen(true),
       },
       {
         id: 'style-transfer',

@@ -426,6 +426,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Time-of-day comparison reveal — the SAME camera/scene at two chosen times
+  // of day (e.g. midday vs night) on the same reveal-divider mechanism as
+  // stagingReveal above, just driving the sun/time rig instead of visibility.
+  // Prod-safe pure code (reuses the live canvas capture), but an analytical
+  // "how does this room read across the day" view → pro tier.
+  timeCompare: {
+    label: 'Time-of-day compare',
+    description: 'Compare your design at two times of day on a draggable divider',
+    default: true,
+    tier: 'pro',
+  },
   // One-tap style transfer — restyle every room's floor/wall finish + palette to
   // a named look (Scandi/Japandi/Industrial/…). Pure data + builtin CC0 finishes,
   // prod-safe, but an advanced design shortcut → pro tier.

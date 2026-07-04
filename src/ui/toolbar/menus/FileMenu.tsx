@@ -29,6 +29,7 @@ export function FileMenu() {
   const fHqRender = useFeature('hqRender')
   const fRenderCompare = useFeature('renderCompare')
   const fStagingReveal = useFeature('stagingReveal')
+  const fTimeCompare = useFeature('timeCompare')
   const resetToDefault = useStore((s) => s.resetToDefault)
   const resetToEmpty = useStore((s) => s.resetToEmpty)
   const fShopExport = useFeature('shopExport')
@@ -132,6 +133,15 @@ export function FileMenu() {
           label="Before / after"
           sub="Reveal slider: empty room vs furnished"
           onClick={() => useStore.getState().setStagingRevealOpen(true)}
+        />
+      ) : null}
+      {fTimeCompare ? (
+        <MenuItem
+          icon="Time"
+          label="Time-of-day compare"
+          sub="Reveal slider: your design at two times of day"
+          docs="timeCompare"
+          onClick={() => useStore.getState().setTimeCompareOpen(true)}
         />
       ) : null}
       {fShopExport ? (

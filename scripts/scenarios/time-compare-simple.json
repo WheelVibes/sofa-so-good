@@ -1,0 +1,139 @@
+{
+  "name": "time-compare-simple",
+  "url": "http://localhost:5301/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "app-loaded",
+      "waitFor": { "css": ".toolbar" },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1')"
+    },
+    {
+      "name": "assert-hidden-in-simple",
+      "eval": "if (window.__store.getState().featureFlags.timeCompare !== false) throw new Error('timeCompare must be OFF in Simple mode')"
+    },
+    {
+      "name": "assert-modal-closed-in-simple",
+      "eval": "if (window.__store.getState().timeCompareOpen) throw new Error('timeCompareOpen should be false in Simple mode')"
+    },
+    {
+      "name": "shot-simple-mode",
+      "screenshot": "01-simple-mode-no-time-compare"
+    },
+    {
+      "name": "to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "assert-shown-in-pro",
+      "eval": "if (!window.__store.getState().featureFlags.timeCompare) throw new Error('timeCompare must be ON in Pro mode')"
+    },
+    {
+      "name": "daytime",
+      "eval": "window.__store.getState().setPresetTime('noon')"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": { "store": "window.__store.getState().sceneReady === true" },
+      "timeout": 60000,
+      "failMessage": "scene never painted (sceneReady stayed false)"
+    },
+    {
+      "name": "note-prior-time",
+      "eval": "window.__priorTimeMode = window.__store.getState().timeMode; window.__priorManualHour = window.__store.getState().manualHour"
+    },
+    {
+      "name": "open-time-compare",
+      "store": { "action": "setTimeCompareOpen", "args": [true] }
+    },
+    {
+      "name": "modal-open",
+      "waitFor": { "css": "#time-compare" },
+      "timeout": 30000
+    },
+    {
+      "name": "shot-modal-empty",
+      "screenshot": "02-modal-empty"
+    },
+    {
+      "name": "click-capture",
+      "click": { "text": "Capture compare" }
+    },
+    {
+      "name": "frame-a-ready",
+      "waitFor": { "css": "#time-compare img[alt=\"Scene at Midday\"]" },
+      "timeout": 35000,
+      "failMessage": "midday frame did not capture"
+    },
+    {
+      "name": "frame-b-ready",
+      "waitFor": { "css": "#time-compare img[alt=\"Scene at Night\"]" },
+      "timeout": 35000,
+      "failMessage": "night frame did not capture"
+    },
+    {
+      "name": "assert-time-restored-after-capture",
+      "eval": "(() => { const s=window.__store.getState(); if (s.timeMode !== window.__priorTimeMode || (s.timeMode==='manual' && s.manualHour !== window.__priorManualHour)) throw new Error('time state was not restored after capture: ' + JSON.stringify({timeMode:s.timeMode, manualHour:s.manualHour, prior:{mode:window.__priorTimeMode,hour:window.__priorManualHour}})) })()"
+    },
+    {
+      "name": "shot-split-desktop",
+      "screenshot": "03-split-desktop-divider-centre"
+    },
+    {
+      "name": "drag-divider",
+      "drag": { "from": [800, 496], "to": [500, 496] }
+    },
+    {
+      "name": "shot-split-dragged-desktop",
+      "screenshot": "04-split-desktop-divider-dragged"
+    },
+    {
+      "name": "mobile-viewport",
+      "viewport": { "width": 390, "height": 844 }
+    },
+    {
+      "name": "shot-split-mobile",
+      "screenshot": "05-split-mobile"
+    },
+    {
+      "name": "touch-drag-divider-mobile",
+      "drag": { "from": [100, 400], "to": [280, 400] }
+    },
+    {
+      "name": "shot-split-dragged-mobile",
+      "screenshot": "06-split-dragged-mobile"
+    },
+    {
+      "name": "close-modal",
+      "store": { "action": "setTimeCompareOpen", "args": [false] }
+    },
+    {
+      "name": "wait-modal-closed",
+      "waitFor": { "css": "#time-compare", "visible": false }
+    },
+    {
+      "name": "assert-time-still-restored-after-close",
+      "eval": "(() => { const s=window.__store.getState(); if (s.timeMode !== window.__priorTimeMode || (s.timeMode==='manual' && s.manualHour !== window.__priorManualHour)) throw new Error('time state drifted after closing the modal') })()"
+    },
+    {
+      "name": "switch-back-to-simple",
+      "store": { "action": "setUiMode", "args": ["simple"] }
+    },
+    {
+      "name": "assert-hidden-again",
+      "eval": "if (window.__store.getState().featureFlags.timeCompare !== false) throw new Error('timeCompare should be OFF again in Simple mode')"
+    },
+    {
+      "name": "shot-simple-final",
+      "screenshot": "07-simple-mode-restored"
+    }
+  ]
+}

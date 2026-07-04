@@ -1298,6 +1298,12 @@ same change that reshapes a system.
   injected canvas-capture + hidden-set deps, unit-tested; `ui/StagingRevealModal.tsx` captures the
   furnished view then transiently hides all furniture for the empty-room frame and shows the same
   reveal slider; `stagingReveal` flag, pro),
+  **Time-of-day compare** (FEAT-1: `ui/timeCompare/timeCompare.ts` pure capture orchestrator —
+  injected canvas-capture + `timeSlice` time-mode/hour deps, unit-tested; `ui/TimeCompareModal.tsx`
+  reuses the same reveal-slider chrome as the staging reveal above, but jumps the sun/time rig
+  (`setPresetTime`) between two `TimePreset`s (default Midday vs Night) to capture the SAME camera
+  at two times of day — tone mapping/exposure/lights/HDRI are left untouched so only time differs;
+  the user's exact time-mode/hour is restored afterwards; `timeCompare` flag, pro),
   **One-tap style transfer** (`ui/styling/styleTransfer.ts` pure `STYLE_PRESETS` + `planStyleApply`,
   unit-tested incl. a builtin-finish-id guard; `ui/StyleTransferModal.tsx` style-card grid →
   `finishesSlice.applyHomeStyle(floor, wall, palette?)` swaps every room's floor+wall + master palette

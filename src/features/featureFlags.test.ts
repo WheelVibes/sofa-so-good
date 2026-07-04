@@ -244,6 +244,17 @@ describe('Simple/Pro tiering', () => {
     expect(FEATURE_FLAGS.stagingReveal.default).toBe(true)
   })
 
+  it('timeCompare (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    // Time-of-day comparison reveal (FEAT-1) is an analytical "how does this
+    // room read across the day" view, not the core furnish/finish loop.
+    expect(resolveFlags(false, {}, false, 'simple').timeCompare).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').timeCompare).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').timeCompare).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').timeCompare).toBe(true)
+    expect(FEATURE_FLAGS.timeCompare.tier).toBe('pro')
+    expect(FEATURE_FLAGS.timeCompare.default).toBe(true)
+  })
+
   it('styleTransfer (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
     expect(resolveFlags(false, {}, false, 'simple').styleTransfer).toBe(false)
     expect(resolveFlags(false, {}, false, 'pro').styleTransfer).toBe(true)

@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FEAT: time-of-day comparison reveal slider — FEAT-1 (v0.12.0.36)
+
+Researched value-add from the 2026-07-04 audit: a `TimeCompareModal` shows the
+SAME view/camera at two times of day (default Midday vs Night) split by a
+draggable reveal divider, so you can judge how a design reads across lighting.
+Reuses the existing `RenderCompareModal` divider/clip/drag mechanism +
+`compareState.ts:clampDivider` (no new interaction pattern); captures the pair
+via the existing `timeSlice` `setPresetTime` presets and RESTORES the user's
+exact prior time-of-day on close (only time differs between frames — tone/
+exposure/lights/HDRI untouched). Flag `timeCompare` (pro), File menu + ⌘K +
+mobile. Verified: identical geometry, day|night split, divider crisp over both
+halves, time restored on close; full suite green.
+
 ## FIX: opening width edit re-clamps offset so it can't overflow the wall — BUG-7 (v0.12.0.35)
 
 From the 2026-07-04 audit: `updateOpening` blind-merged its patch with no clamp,

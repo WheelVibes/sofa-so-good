@@ -63,6 +63,7 @@ export type FeatureFlag =
   | 'productConfigurator'
   | 'renderCompare'
   | 'stagingReveal'
+  | 'timeCompare'
   | 'styleTransfer'
   | 'styleQuiz'
   | 'shortcutsHelp'
