@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: IDB blob eviction no longer silently deletes placed furniture — BUG-2 (v0.12.0.30)
+
+From the 2026-07-04 audit: on boot, `hydrateUserAssets` rebuilds `userFurniture`
+purely from an IndexedDB scan — if the browser evicted the IDB blob store
+(storage pressure / private-mode wipe / a corrupt record), items referencing
+those defs were filtered out by `applySerialized` (unknown `defId`), and the
+next debounced autosave overwrote the previous good save → **permanent, silent**
+furniture loss (the computed `droppedItemIds` was never surfaced). Fix: new
+`schema.ts:preserveUnresolvedItems`, called after `applySerialized` in both
+`hydrate.ts` and `cloudBoot.ts`, RETAINS items dropped purely for an unknown
+def when restoring your own save (they render as nothing until the def resolves
+— every `catalog[defId]` consumer already guards undefined); genuinely corrupt
+transforms still drop. The intentional drop+toast on file-import / saved-version
+/ share-link restore is unchanged. Integration-tested against real
+`hydrate()`/`localStorage`/`IdbAssetStore`.
+
 ## DOCS: deep audit + opportunities backlog (v0.12.0.29)
 
 Recorded the 2026-07-04 deep codebase audit + value research as

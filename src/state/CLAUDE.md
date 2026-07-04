@@ -89,6 +89,28 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   new such field must be persisted there AND restored here **with a back-compat default** so
   legacy records that predate the field still load — the IDB `meta` bag is open-ended, so this
   needs no schema/version bump (BUG-003).
+- **An unresolvable `defId` on restore must never silently become a permanent deletion
+  (BUG-2).** `applySerialized` (`schema.ts`) drops any item whose `defId` isn't in the caller's
+  `knownDefIds` — correct for a load that's explicitly about a DIFFERENT design (file import,
+  a saved version/slot, a plan/design share link: the def genuinely doesn't exist here, and
+  each of those callers already toasts a dropped count). It is **wrong** for restoring the
+  user's OWN autosave (`hydrate.ts`, `cloudBoot.ts`): there, an unresolvable def can only mean
+  its IndexedDB blob is temporarily/permanently gone (browser storage eviction under pressure,
+  a private-mode wipe, a corrupt/missing IDB record, or — for `cloudBoot.ts` — the documented
+  cross-device limit that uploaded blobs never leave this browser's IDB), never that the user
+  asked for the furniture to be deleted. If that dropped state were applied as-is, the very
+  next debounced autosave (`storage/autosave.ts`) would persist it and make the loss permanent
+  without the user ever consenting. Both callers call `preserveUnresolvedItems(saved, known,
+  patch)` right after `applySerialized` to put those items back into `patch.items` (using
+  `hasFiniteItemTransform` so a genuinely corrupt NaN/Infinity transform stays dropped). A
+  restored-but-unresolved item renders as nothing until its def resolves again —
+  `FurnitureLayer`/`LayersPanel`/etc. already treat an unknown `defId` as inert rather than
+  crashing (every consumer that reads `catalog[defId]` guards the `undefined` case) — so this
+  costs a little save-file size, never correctness. There is no in-app code path that evicts an
+  IDB blob still referenced by a live item on quota pressure (only `removeUserFurniture`'s
+  explicit user-triggered delete frees a def's blob, and it drops the def's items in the SAME
+  action) — the eviction this guards against is the browser's own storage-pressure/private-mode
+  behaviour, outside app control.
 - In handlers read fresh state with `useStore.getState()`; push undo via `pushHistory` /
   `pushHistoryCoalesced` (coalesce streaming edits like slider drags into one step).
   **Undo granularity:** one logical action = one entry. Batch actions (array / align /

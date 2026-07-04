@@ -11,7 +11,7 @@ import { hasBackend } from '../../features/api/client'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import type { IkeaGltfDef } from '../../furniture/types'
-import { applySerialized, type SerializedState } from '../schema'
+import { applySerialized, preserveUnresolvedItems, type SerializedState } from '../schema'
 import { useStore } from '../store'
 import { resolveIkeaRuntimeUrls } from './hydrateAssets'
 import { AUTOSAVE_SLOT, LocalStorageAdapter } from './LocalStorageAdapter'
@@ -19,8 +19,8 @@ import { ServerAdapter } from './ServerAdapter'
 
 async function applyCloudDesign(saved: SerializedState): Promise<void> {
   // Re-resolve IKEA def runtime blob URLs from this device's IDB (matches hydrate);
-  // user-uploaded defs whose blobs aren't on this device resolve to nothing and
-  // their items are dropped by the `known` set below (documented cross-device limit).
+  // user-uploaded defs whose blobs aren't on this device resolve to nothing
+  // (documented cross-device limit — blobs are IDB-only, never cloud-synced).
   const ikeaDefs = saved.userFurniture.filter(
     (d) => d.source === 'ikea',
   ) as unknown as IkeaGltfDef[]
@@ -33,7 +33,16 @@ async function applyCloudDesign(saved: SerializedState): Promise<void> {
   const userIds = useStore.getState().userFurniture.map((d) => d.id)
   const packIds = useStore.getState().packFurniture.map((d) => d.id)
   const known = new Set<string>([...Object.keys(BUILTIN_CATALOG), ...userIds, ...packIds])
-  useStore.setState(applySerialized(saved, known))
+  const patch = applySerialized(saved, known)
+  // BUG-2: this reconciles the user's OWN cloud-saved design, not a
+  // cross-instance import — an unresolvable def here means this device
+  // simply doesn't have the blob (cross-device limit above), not that the
+  // user wants the furniture gone. Retaining the item keeps its placement
+  // data alive in the save (it'll render correctly again on a device that
+  // does have the blob) instead of the next autosave permanently wiping it
+  // everywhere, including the cloud copy this device just adopted.
+  preserveUnresolvedItems(saved, known, patch)
+  useStore.setState(patch)
   useStore.getState().clearHistory?.()
 }
 

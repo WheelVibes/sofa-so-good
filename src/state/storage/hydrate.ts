@@ -9,7 +9,7 @@
 
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import type { IkeaGltfDef } from '../../furniture/types'
-import { applySerialized } from '../schema'
+import { applySerialized, preserveUnresolvedItems } from '../schema'
 import { useStore } from '../store'
 import { hydrateUserAssets, resolveIkeaRuntimeUrls } from './hydrateAssets'
 import { hydratePacks } from './hydratePacks'
@@ -18,7 +18,13 @@ import { StorageError } from './StorageAdapter'
 
 export interface HydrateResult {
   hydratedFromAutosave: boolean
-  droppedItemIds: string[]
+  /** Ids of items whose def couldn't be resolved this boot (e.g. their
+   *  IndexedDB blob was evicted under storage pressure, or a private-mode
+   *  wipe). These are NOT dropped (BUG-2) — they're retained inert in
+   *  `items` so a later autosave can't make the loss permanent — this list
+   *  is only informational, e.g. for a future "N items need their model
+   *  re-attached" notice. */
+  unresolvedItemIds: string[]
   errors: StorageError[]
 }
 
@@ -40,7 +46,7 @@ export async function hydrate(): Promise<HydrateResult> {
   }
 
   if (!saved) {
-    return { hydratedFromAutosave: false, droppedItemIds: [], errors }
+    return { hydratedFromAutosave: false, unresolvedItemIds: [], errors }
   }
 
   // IKEA defs are NOT rebuildable from IDB blob meta alone — their rich
@@ -60,13 +66,21 @@ export async function hydrate(): Promise<HydrateResult> {
   }
 
   // Build the set of resolvable def ids (built-ins + already-hydrated
-  // user uploads + restored IKEA defs). Items referencing missing defs are dropped.
+  // user uploads + restored IKEA defs). `applySerialized` drops items
+  // referencing anything outside this set.
   const userIds = useStore.getState().userFurniture.map((d) => d.id)
   const packIds = useStore.getState().packFurniture.map((d) => d.id)
   const known = new Set<string>([...Object.keys(BUILTIN_CATALOG), ...userIds, ...packIds])
-  const droppedItemIds = saved.items.filter((it) => !known.has(it.defId)).map((it) => it.id)
 
   const patch = applySerialized(saved, known)
+  // BUG-2: this is restoring the user's OWN autosave, not an explicit
+  // cross-instance import — a def that's unresolvable here can only be so
+  // because its IndexedDB blob is temporarily/permanently gone (storage
+  // eviction, private-mode wipe, a corrupt/missing record), not because the
+  // user asked for the furniture to be deleted. Put those items back so the
+  // very next autosave can't turn a transient blob loss into a permanent,
+  // silent one.
+  const unresolvedItemIds = preserveUnresolvedItems(saved, known, patch)
   useStore.setState(patch)
-  return { hydratedFromAutosave: true, droppedItemIds, errors }
+  return { hydratedFromAutosave: true, unresolvedItemIds, errors }
 }
