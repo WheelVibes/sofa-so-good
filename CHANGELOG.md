@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: furniture drag gated by pointerId — no multi-touch hijack — BUG-1 (v0.12.0.28)
+
+From the 2026-07-04 deep audit: `DragController`'s window `pointermove`/`pointerup`
+listeners filtered only on `draggingItemId`, never on `pointerId`, so on a touch
+device a SECOND finger's independent pointer stream drove the drag → teleported
+the item (and either finger's `pointerup` could end it at the wrong spot). The
+initiating `pointerId` is now recorded in the store (`dragPointerId`, via
+`startDrag`) + `setPointerCapture`d, and every `pointermove`/`pointerup`/
+`pointercancel` is gated through `dragHelpers.ts:isActiveDragPointer` — a
+second finger is a complete no-op. Verified with a real distinct-pointerId
+two-finger scenario (item followed only the first pointer). (Implemented in an
+isolated git worktree; merged to the stable branch.)
+
 ## FIX/PERF: DLC-texture anisotropy + bounded surface-material cache (v0.12.0.27)
 
 From the 2026-07-04 deep audit:

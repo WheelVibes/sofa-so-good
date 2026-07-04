@@ -104,3 +104,14 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `consumeWalkTeleport()` once per frame and clears it. Never round-trip a once-per-event signal
   like this through Zustand (a `subscribe(markDirty)` firing on every pointer event is wasted
   churn) — reserve the store for state that actually needs to persist/react beyond one frame.
+- **A furniture drag is gated by `pointerId` (BUG-1).** `Furniture.tsx`'s `onPointerDown`
+  records the initiating `e.nativeEvent.pointerId` into `placementSlice.startDrag(...,
+  pointerId, ...)` (stored as `dragPointerId`) and best-effort `setPointerCapture`s it on the
+  canvas (guarded — a stale/synthetic id throws `InvalidPointerId` on some browsers).
+  `DragController`'s window-level `pointermove`/`pointerup`/`pointercancel` listeners gate every
+  event through `dragHelpers.ts:isActiveDragPointer(state.dragPointerId, ev.pointerId)` before
+  touching the drag — a second finger's independent pointer stream (its own `pointerId`) is a
+  complete no-op: it can't move the item and it can't end the drag. Only the pointer that
+  started the gesture drives `onMove` and commits/reverts on `onUp`. `endDrag` clears
+  `dragPointerId`. Any new in-canvas drag/gizmo gesture that adds its own window-level
+  pointermove/up listeners (see `RotateGizmo`/`ResizeGizmo`) should follow the same pattern.

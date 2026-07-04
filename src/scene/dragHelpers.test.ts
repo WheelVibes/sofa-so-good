@@ -4,6 +4,7 @@ import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import type { FurnitureItem } from '../furniture/types'
 import {
   halfExtents,
+  isActiveDragPointer,
   pointInFootprint,
   snapAxis,
   snapBase,
@@ -96,6 +97,22 @@ describe('staticAabbs', () => {
     const items = [item('a', 'coffee-table', 1, 1), item('ghost', 'nonexistent-def', 2, 2)]
     const { staticItems } = staticAabbs(items, new Set(), catalog)
     expect(staticItems.map((i) => i.id)).toEqual(['a'])
+  })
+})
+
+describe('isActiveDragPointer (BUG-1: multi-touch drag hijack gate)', () => {
+  it('accepts the pointer that started the drag', () => {
+    expect(isActiveDragPointer(1, 1)).toBe(true)
+  })
+  it('rejects a second finger with a different pointerId', () => {
+    expect(isActiveDragPointer(1, 2)).toBe(false)
+  })
+  it('is permissive when no pointerId was recorded (defensive, should not occur post-fix)', () => {
+    expect(isActiveDragPointer(null, 7)).toBe(true)
+  })
+  it('accepts pointerId 0 (a valid id, not falsy-nullish)', () => {
+    expect(isActiveDragPointer(0, 0)).toBe(true)
+    expect(isActiveDragPointer(0, 1)).toBe(false)
   })
 })
 

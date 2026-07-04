@@ -21,6 +21,7 @@ import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { useStore } from '../state/store'
 import {
   halfExtents,
+  isActiveDragPointer,
   pointInFootprint,
   snapAxis,
   snapBase,
@@ -106,6 +107,9 @@ export function DragController() {
       const state = useStore.getState()
       const id = state.draggingItemId
       if (!id) return
+      // BUG-1: a second finger's own pointermove stream must not drive this
+      // drag — only the pointer that started it (state.dragPointerId) may.
+      if (!isActiveDragPointer(state.dragPointerId, ev.pointerId)) return
       const hit = project(ev.clientX, ev.clientY)
       if (!hit) return
       // Index items once per move so the repeated lookups below are O(1) rather
@@ -358,16 +362,20 @@ export function DragController() {
       }
     }
 
-    const onUp = () => {
-      // Drop ends the gesture — invalidate the broadphase cache so the next drag
-      // (or a between-drags edit elsewhere) rebuilds the grid from fresh state.
-      dragGridRef.current = null
+    const onUp = (ev: PointerEvent) => {
       const state = useStore.getState()
       const id = state.draggingItemId
       if (!id) {
         setSnap(null)
         return
       }
+      // BUG-1: a second finger's release (or cancel) must not end THIS drag —
+      // only the initiating pointer's up/cancel commits/reverts it. The first
+      // finger is still down and dragging; ignore the other pointer entirely.
+      if (!isActiveDragPointer(state.dragPointerId, ev.pointerId)) return
+      // Drop ends the gesture — invalidate the broadphase cache so the next drag
+      // (or a between-drags edit elsewhere) rebuilds the grid from fresh state.
+      dragGridRef.current = null
 
       // Snug-stack commit: a compatible base is under the dragged item — snap
       // it onto the base (support height, centred, grouped) instead of writing

@@ -66,6 +66,12 @@ export interface PlacementSlice {
   /** Pointer offset from the item centre at drag start (XZ in metres).
    *  Subtracted each frame so the item doesn't snap-jump to the cursor. */
   dragOffset: [number, number]
+  /** The `pointerId` of the pointer that started the current drag, or null when
+   *  no drag is active (BUG-1). `DragController`'s window-level pointermove/up/
+   *  cancel listeners gate on this (via `isActiveDragPointer`) so a second
+   *  finger's independent pointer stream can never hijack/teleport the item the
+   *  first finger is dragging — only the initiating pointer drives + ends it. */
+  dragPointerId: number | null
   /** When the drag started on an item that's part of a multi-selection,
    *  this snapshots every member's original transform so the whole group
    *  can be translated in lock-step (and reverted if the release lands
@@ -121,6 +127,7 @@ export interface PlacementSlice {
     id: string,
     original: { position: [number, number]; rotation: number },
     offset: [number, number],
+    pointerId: number | null,
     groupOriginals?: Array<{ id: string; position: [number, number]; rotation: number }>,
   ) => void
   setDragValid: (valid: boolean) => void
@@ -140,6 +147,7 @@ export const PLACEMENT_INITIAL: Pick<
   | 'dragOriginal'
   | 'dragValid'
   | 'dragOffset'
+  | 'dragPointerId'
   | 'dragGroupOriginals'
   | 'dragGuides'
   | 'dragSpacings'
@@ -162,6 +170,7 @@ export const PLACEMENT_INITIAL: Pick<
   dragOriginal: null,
   dragValid: true,
   dragOffset: [0, 0],
+  dragPointerId: null,
   dragGroupOriginals: [],
   dragGuides: [],
   dragSpacings: [],
@@ -250,7 +259,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
     // should restore the catalog the long-press hid.
     if (reopen) get().setCatalogOpen(true)
   },
-  startDrag: (id, original, offset, groupOriginals) => {
+  startDrag: (id, original, offset, pointerId, groupOriginals) => {
     // Starting a fresh gesture commits any edit still awaiting confirmation
     // (the user moved on) so we never stack two pending edits.
     if (get().pendingEdit) get().confirmPendingEdit()
@@ -261,6 +270,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       draggingItemId: id,
       dragOriginal: original,
       dragOffset: offset,
+      dragPointerId: pointerId,
       dragValid: true,
       dragGroupOriginals: groupOriginals ?? [],
     })
@@ -276,6 +286,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       draggingItemId: null,
       dragOriginal: null,
       dragOffset: [0, 0],
+      dragPointerId: null,
       dragValid: true,
       dragGroupOriginals: [],
       dragGuides: [],

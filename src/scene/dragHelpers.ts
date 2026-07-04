@@ -156,6 +156,23 @@ export function pointInFootprint(
   return Math.abs(lx) <= obb.hx && Math.abs(lz) <= obb.hz
 }
 
+/**
+ * BUG-1 (multi-touch drag hijack): true when a pointermove/up/cancel event's
+ * `pointerId` belongs to the drag that's currently active. On a touch device a
+ * second finger fires its own independent pointer stream (its own pointerId)
+ * while the first finger is still dragging an item — without this gate that
+ * second stream's coordinates would drive the same drag and the item would
+ * teleport to/oscillate with the second finger. `activePointerId == null` means
+ * no drag is active (or, defensively, a drag was started without recording a
+ * pointerId) — permissive so it never dead-locks a gesture.
+ */
+export function isActiveDragPointer(
+  activePointerId: number | null,
+  eventPointerId: number,
+): boolean {
+  return activePointerId == null || activePointerId === eventPointerId
+}
+
 /** Snug-stack candidate: the dragged item is the TOP, the hovered item the
  *  BASE — engages only when the base IKEA def accepts the dragged IKEA def's
  *  category (a confirmed compatibility match). Returns the base item or null. */
