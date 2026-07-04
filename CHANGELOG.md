@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RELEASE: v0.13.0.0 — PR to main
+
+Minor release bundling this branch's work (v0.12.0.2 → .41): PLAN-FURNISH Phase 1
+(2D-plan click-to-place), catalog room-fit / room-aware / pre-place variant cues,
+walk-mode minimap tap-to-teleport, 3D tilt gizmo, time-of-day compare slider;
+seven correctness bugs (BUG-1–7) + a client-side security fix (SEC-1); materials
+realism + perf (anisotropy on DLC textures, bounded LRU cache, instant
+placeholder bake), 3D-export/convert/optimize workers; accessibility hardening
+(modals, menus, finish picker, inspector — keyboard + ARIA); the InspectorPanel
+monolith decomposition; and IXT/test-coverage + docs. See entries below.
+
 ## REFACTOR: decompose the 1205-line InspectorPanel monolith — REFAC-1 (v0.12.0.41)
 
 From the 2026-07-04 audit (the root `CLAUDE.md` "strictly avoid monolithic files"
