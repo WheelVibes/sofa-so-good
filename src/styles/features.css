@@ -291,7 +291,9 @@
 
 /* save-to-collection heart, used on catalog cards + inspector */
 .fav-btn { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; color: var(--text-3); background: var(--surface-solid); border: 1px solid var(--border); opacity: 0; transition: var(--dur) var(--ease); z-index: 2; }
-.cat-card:hover .fav-btn { opacity: 1; }
+@media (hover: hover) { .cat-card:hover .fav-btn { opacity: 1; } }
+/* Touch has no hover to reveal on — keep the card actions always visible. */
+@media (hover: none) { .fav-btn, .stamp-btn, .variant-btn { opacity: 1; } }
 .fav-btn:hover { color: var(--accent-soft-text); }
 .fav-btn.on { opacity: 1; color: var(--accent); }
 
@@ -299,7 +301,7 @@
    card's top-right; shares the heart's pill treatment. Always visible while armed
    (.on) so the active stamp is obvious; reveals on hover otherwise. */
 .stamp-btn { position: absolute; top: 34px; right: 6px; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; color: var(--text-3); background: var(--surface-solid); border: 1px solid var(--border); opacity: 0; transition: var(--dur) var(--ease); z-index: 2; }
-.cat-card:hover .stamp-btn { opacity: 1; }
+@media (hover: hover) { .cat-card:hover .stamp-btn { opacity: 1; } }
 .stamp-btn:hover { color: var(--accent-soft-text); }
 .stamp-btn.on { opacity: 1; color: var(--accent); border-color: var(--accent); }
 /* The card whose stamp is armed reads as selected so the active tool is unmistakable. */
@@ -308,7 +310,7 @@
 /* Quick-look variant/finish popover trigger (CATALOG-VARIANT) — sits just under
    the stamp button, sharing the same pill treatment + hover-reveal behaviour. */
 .variant-btn { position: absolute; top: 62px; right: 6px; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; color: var(--text-3); background: var(--surface-solid); border: 1px solid var(--border); opacity: 0; transition: var(--dur) var(--ease); z-index: 2; }
-.cat-card:hover .variant-btn { opacity: 1; }
+@media (hover: hover) { .cat-card:hover .variant-btn { opacity: 1; } }
 .variant-btn:hover, .variant-btn[aria-expanded='true'] { color: var(--accent-soft-text); border-color: var(--accent); }
 
 /* Quick-look popover content: a short heading + a wrapped swatch grid, sized to

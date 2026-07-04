@@ -285,6 +285,13 @@ body.mobile {
   .er-finish .panel-head, .plan-props .panel-head,
   .aux .panel-head { padding-top: calc(var(--s-4) + 6px); }
 
+  /* The bottom-sheet header IS the swipe-to-minimize/expand handle
+     (`useSwipeToCollapse`, which reads touchstart/end without preventDefault).
+     Claim vertical gestures here so a swipe collapses/expands the sheet instead
+     of scrolling the page + the 3D canvas behind it. Taps on the header's
+     buttons still fire (touch-action only governs panning/zoom, not taps). */
+  .catalog > .panel-head, .inspector > .panel-head { touch-action: none; }
+
   /* Docked-sheet header close X: keep the compact 26px visual but pad the hit
      area to 44px (26 + 2×9) with an invisible pseudo-element, matching
      .m-sheet-head so every bottom-sheet's close meets the touch target (UX-002).

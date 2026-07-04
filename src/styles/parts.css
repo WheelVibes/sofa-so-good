@@ -95,6 +95,11 @@
   /* Keep a scroll/flick inside the grid: no chaining out to the page (or, on
      mobile where the catalog floats over the 3D canvas, the view behind it). */
   overscroll-behavior: contain;
+  /* Commit vertical drags to the grid's own scroll (not a page pan / native card
+     drag), so a finger that lands on a card still flicks the list smoothly on
+     touch — the reported "hard to scroll, page scrolls instead" bug. */
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 /* Reveals the hidden "search by room" capability — shown when a query names a room/use intent. */
 .catalog-search-hint { padding: 2px var(--s-4) var(--s-2); font-size: var(--t-xs); color: var(--text-2); text-transform: capitalize; }
@@ -115,8 +120,13 @@
     transparent 60%
   );
 }
-.fx .cat-card:hover { --glow-a: 12%; }
-.cat-card:hover { border-color: var(--accent); background-color: var(--surface-solid); }
+/* Hover treatment only on real hover (pointer) devices — on touch, tapping a
+   card would otherwise stick the accent border/glow ("the hover effect
+   activated") until the user tapped elsewhere. */
+@media (hover: hover) {
+  .fx .cat-card:hover { --glow-a: 12%; }
+  .cat-card:hover { border-color: var(--accent); background-color: var(--surface-solid); }
+}
 .cat-card { cursor: pointer; }
 .cat-card:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--accent); }
 .card-thumb {

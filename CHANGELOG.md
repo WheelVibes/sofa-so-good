@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.14.1.1 — mobile catalog scroll + panel-swipe touch fixes
+
+Follow-up to the v0.14.1.0 sweep, from further mobile testing:
+
+- **Catalog list scrolls smoothly on touch again.** The card's `draggable`
+  attribute hijacked the touch-drag on iOS (the gesture escaped to the page, so
+  the whole app scrolled and the toolbar slid up instead of the grid scrolling);
+  `draggable` is now desktop-only (mobile places via tap/long-press, never native
+  HTML5 drag). Added `touch-action: pan-y` + `-webkit-overflow-scrolling: touch`
+  to `.card-grid` so vertical flicks are committed to the grid's own scroll.
+- **No more stuck card highlight on touch.** The `.cat-card` accent border/glow
+  hover treatment (and the fav/stamp/variant reveal) is now gated behind
+  `@media (hover: hover)`; on touch (`hover: none`) the card actions stay
+  permanently visible instead of relying on a sticky tap-hover.
+- **Swiping a bottom-sheet header minimizes/expands instead of scrolling the
+  page.** The mobile catalog/inspector `.panel-head` (the swipe-to-collapse
+  handle) now has `touch-action: none`, so a vertical swipe there is consumed by
+  `useSwipeToCollapse` rather than panning the page + canvas behind it.
+- **Pinch-to-zoom no longer selects a piece the finger lands on.** Touch selection
+  is deferred from pointer-down to the (multi-touch-guarded) tap, and the
+  multi-touch flag now persists through a pinch's trailing click — so a pinch
+  whose first/last finger touches furniture never selects it.
+
 ## v0.14.1.0 — mobile furniture-inspector fixes (16-item sweep)
 
 A large user-reported mobile UX + correctness sweep:

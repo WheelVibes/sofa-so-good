@@ -24,15 +24,17 @@ export function installTouchGestureTracker(): () => void {
   installed = true
   const onDown = (e: PointerEvent) => {
     if (e.pointerType !== 'touch') return
+    // A brand-new gesture (no fingers were down) starts clean. Resetting HERE —
+    // not on the last finger up — keeps the flag true through a pinch's trailing
+    // `pointerup`/synthetic `click`, so the release of a pinch whose last finger
+    // was on a piece can't be mistaken for a tap-to-select (bug #11).
+    if (activePointers.size === 0) gestureMultiTouch = false
     activePointers.add(e.pointerId)
     if (activePointers.size > 1) gestureMultiTouch = true
   }
   const onUp = (e: PointerEvent) => {
     if (e.pointerType !== 'touch') return
     activePointers.delete(e.pointerId)
-    // The gesture's "was multi-touch" flag clears only once every finger lifts,
-    // so a trailing single finger after a pinch can't be mistaken for a tap.
-    if (activePointers.size === 0) gestureMultiTouch = false
   }
   window.addEventListener('pointerdown', onDown, { capture: true })
   window.addEventListener('pointerup', onUp, { capture: true })
