@@ -177,6 +177,38 @@ describe('floorPlanSlice', () => {
     expect(useStore.getState().planSelection).toEqual({ type: 'opening', id: newId })
   })
 
+  it('BUG-7: widening an opening near a wall end re-clamps its offset to stay on the wall', () => {
+    useStore.getState().newFloorPlan('Widen opening test')
+    // Wall is 2 m; door starts at 1.5 with width 0.4 — ends flush at 1.9.
+    const wid = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    const oid = useStore
+      .getState()
+      .addOpening({ kind: 'door', wallId: wid, offset: 1.5, width: 0.4, sill: 0, head: 2.1 })
+
+    // Widening to 0.9 would span 1.5–2.4 (0.4 m past the wall end) unless the
+    // offset is re-clamped.
+    useStore.getState().updateOpening(oid, { width: 0.9 })
+    const widened = useStore.getState().floorPlan.openings.find((o) => o.id === oid)!
+    expect(widened.width).toBe(0.9)
+    expect(widened.offset + widened.width).toBeLessThanOrEqual(2)
+    expect(widened.offset).toBeCloseTo(1.1, 5) // pinned so it ends flush at the wall
+
+    // A width larger than the wall itself is capped to the wall length, and the
+    // offset pinned to 0.
+    useStore.getState().updateOpening(oid, { width: 5 })
+    const capped = useStore.getState().floorPlan.openings.find((o) => o.id === oid)!
+    expect(capped.width).toBe(2)
+    expect(capped.offset).toBe(0)
+
+    // A normal mid-wall widen (plenty of room on both sides) leaves the offset
+    // untouched — the fix must not perturb the common case.
+    useStore.getState().updateOpening(oid, { offset: 0.5, width: 0.4 })
+    useStore.getState().updateOpening(oid, { width: 0.6 })
+    const midWall = useStore.getState().floorPlan.openings.find((o) => o.id === oid)!
+    expect(midWall.width).toBe(0.6)
+    expect(midWall.offset).toBe(0.5)
+  })
+
   it('auto-names boundary walls on room allocation, never overriding a custom name', () => {
     useStore.getState().newFloorPlan('Naming test')
     for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  clampOpeningOffset,
+  clampOpeningWidth,
   type FloorPlan,
   type PlanRoom,
   type PlanWall,
@@ -215,6 +217,40 @@ describe('wallLength', () => {
   it('is the Euclidean distance between endpoints', () => {
     expect(wallLength(mkWall([0, 0], [3, 4]))).toBeCloseTo(5)
     expect(wallLength(mkWall([1, 1], [1, 1]))).toBe(0)
+  })
+})
+
+describe('clampOpeningWidth', () => {
+  it('leaves a width that already fits untouched', () => {
+    expect(clampOpeningWidth(0.9, 2)).toBe(0.9)
+  })
+  it('caps a width larger than the wall to the wall length', () => {
+    expect(clampOpeningWidth(5, 2)).toBe(2)
+  })
+  it('never goes below the minimum opening width, even on a tiny wall', () => {
+    expect(clampOpeningWidth(0.9, 0.05)).toBe(0.1)
+  })
+  it('respects an inset margin at each end', () => {
+    expect(clampOpeningWidth(1.9, 2, 0.1)).toBe(1.8)
+  })
+})
+
+describe('clampOpeningOffset', () => {
+  it('leaves an offset that already fits untouched', () => {
+    expect(clampOpeningOffset(0.5, 0.4, 2)).toBe(0.5)
+  })
+  it('pulls an offset back so the opening ends flush with the wall (BUG-7)', () => {
+    // Wall 2 m; a door widened to 0.9 at the old offset 1.5 would end at 2.4.
+    expect(clampOpeningOffset(1.5, 0.9, 2)).toBeCloseTo(1.1, 5)
+  })
+  it('pins to 0 when the width alone exceeds the wall', () => {
+    expect(clampOpeningOffset(1.5, 5, 2)).toBe(0)
+  })
+  it('never returns a negative offset', () => {
+    expect(clampOpeningOffset(-1, 0.4, 2)).toBe(0)
+  })
+  it('respects an inset margin at each end', () => {
+    expect(clampOpeningOffset(1.95, 0.4, 2, 0.1)).toBeCloseTo(1.5, 5)
   })
 })
 

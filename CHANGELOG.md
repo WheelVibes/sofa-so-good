@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: opening width edit re-clamps offset so it can't overflow the wall — BUG-7 (v0.12.0.35)
+
+From the 2026-07-04 audit: `updateOpening` blind-merged its patch with no clamp,
+so widening a door/window near a wall end pushed it past the wall (offset never
+re-clamped). Extracted the inline clamp used by the offset field / gridSnap /
+duplicate / SH3D import into shared pure `floorplan/types.ts:clampOpeningWidth` +
+`clampOpeningOffset`; `updateOpening` (and `duplicateOpening`) now re-derive both
+width and offset from the live wall on every patch, covering all entry points.
+Fail-before/pass-after regression test.
+
 ## DOCS: TODO housekeeping — remove shipped items, defer PLAN-FURNISH Phase 2 mobile, fold audit backlog (v0.12.0.34)
 
 Removed all completed entries from `TODO.md` per the "ships → removed entirely"

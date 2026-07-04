@@ -27,6 +27,8 @@ import {
 import { addGuide } from '../../floorplan/snapToGuides'
 import {
   type CeilingConfig,
+  clampOpeningOffset,
+  clampOpeningWidth,
   type FloorPlan,
   type PlanDimension,
   type PlanGuide,
@@ -39,6 +41,7 @@ import {
   type PlanWall,
   planBounds,
   roomPolygon,
+  wallLength,
 } from '../../floorplan/types'
 import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
@@ -939,7 +942,22 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     get().pushHistoryCoalesced(`plan-open-${id}`)
     set((s) => ({
       floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
-        openings: g.openings.map((o) => (o.id === id ? { ...o, ...patch } : o)),
+        openings: g.openings.map((o) => {
+          if (o.id !== id) return o
+          const next = { ...o, ...patch }
+          // Re-clamp width+offset against the host wall whenever either one
+          // changed (BUG-7) — a width increase alone left a stale offset that
+          // could push the opening past the wall's far end; route both the
+          // width-edit and offset-edit paths through the same pure clamp so
+          // neither can leave the opening hanging off the wall.
+          if (patch.width === undefined && patch.offset === undefined) return next
+          const wall = g.walls.find((w) => w.id === o.wallId)
+          if (!wall) return next
+          const wlen = wallLength(wall)
+          const width = clampOpeningWidth(next.width, wlen)
+          const offset = clampOpeningOffset(next.offset, width, wlen)
+          return { ...next, width, offset }
+        }),
       })),
     }))
   },
@@ -959,11 +977,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     if (!src) return undefined
     const wall = g.walls.find((w) => w.id === src.wallId)
     if (!wall) return undefined
-    const wlen = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
+    const wlen = wallLength(wall)
     // Nudge the copy along the wall by ~one width, clamped within the wall span.
-    const maxOff = Math.max(0, wlen - src.width)
     const nudged = src.offset + src.width
-    const offset = nudged <= maxOff ? nudged : Math.max(0, src.offset - src.width)
+    const rawOffset = nudged <= wlen - src.width ? nudged : src.offset - src.width
+    const offset = clampOpeningOffset(rawOffset, src.width, wlen)
     const newId = planId(src.kind === 'door' ? 'door' : 'win')
     const { name: _n, nameAuto: _na, locked: _l, ...rest } = src
     const copy: PlanOpening = { ...rest, id: newId, offset }
