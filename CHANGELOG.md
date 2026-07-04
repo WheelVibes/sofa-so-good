@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## DOCS: deep audit + opportunities backlog (v0.12.0.29)
+
+Recorded the 2026-07-04 deep codebase audit + value research as
+`docs/research/2026-07-04-deep-audit-and-opportunities.md` — 16 ranked,
+source-cited findings across optimization, refactoring, latent bugs, security,
+realism, and researched value-add features, seeding the improvement backlog.
+Several of its top findings already shipped (BUG-1/2/3, PERF-A/B, REAL-1,
+PERF-D). Added **Mattoboard** to `REFERENCES.md`.
+
 ## FIX: furniture drag gated by pointerId — no multi-touch hijack — BUG-1 (v0.12.0.28)
 
 From the 2026-07-04 deep audit: `DragController`'s window `pointermove`/`pointerup`
