@@ -5,6 +5,73 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.14.2.2 — per-room editor follows orbit graphics
+
+The per-room editor Canvas (`RoomEditorScene.tsx`) previously used a deliberately
+flat renderer (hemisphere + ambient light only, no shadows/IBL/post), so glossy
+and metallic finishes rendered flat regardless of the quality tier because there
+was no environment map to reflect. It now mounts the **same rendering stack as
+the main orbit Canvas** — `frameloop="demand"` + `RenderPump`, `PCFSoftShadowMap`
+shadows, `Sky`/`SceneBackdrop`, `SceneEnvironment` (procedural/HDRI IBL), the
+graded `Lighting` sun + tone mapping, `FurnitureLights`, and the tier-gated
+`Effects` post stack + `QualityController`. Materials/finishes in the room editor
+now look identical to orbit at the user's quality tier (it already inherited the
+tier; now it also renders with it). The room editor still omits the whole-flat-only
+feature controllers (hover-to-edit highlight, comment pins, tape measure, lux
+overlay, panorama/record/HQ/export) — those aren't rendering systems. Docs updated
+(`scene`/`state` CLAUDE.md, ARCHITECTURE.md, developer docs) since this reverses the
+old "keep the room editor flat / don't leak heavy systems into it" boundary.
+
+## v0.15.0.0 — PR rollup: mobile catalog/inspector fixes, iOS full-bleed, room-editor orbit graphics
+
+Minor bump for the PR to `main` gathering this branch's work (v0.14.2.1–v0.14.2.2):
+
+- **Mobile catalog/inspector fixes + iOS full-bleed canvas** (`.2.1`): stop sheet/
+  toolbar chrome from scrolling the canvas; catalog paging scrolls to top; solid-red
+  favourite heart; inspector-header Duplicate icon; removed the per-card palette/stamp
+  buttons; theme-accent checkbox ticks; Reset/Top view close the menu before flying;
+  iOS home-screen web app extends the canvas under the status bar.
+- **Per-room editor follows orbit graphics** (`.2.2`): the room-editor Canvas now mounts
+  the full orbit render stack (shadows, IBL, graded lighting, fixture lights, tier-gated
+  post) so glossy/metallic finishes render with real material response at the user's
+  quality tier instead of flat.
+
+No behaviour change in this commit beyond the version bump.
+
+## v0.14.2.1 — mobile catalog/inspector fixes + iOS full-bleed canvas
+
+Batch of mobile UX fixes:
+
+- **Sheet/toolbar chrome no longer scrolls the canvas.** A vertical drag on a
+  bottom-sheet's non-scrolling chrome (catalog header/tabs/search/sort/pager/
+  footer, inspector header, the top toolbar, and the toolbar menu backdrop +
+  header/foot) used to fall through and pan the 3D canvas / scroll the page.
+  Those regions now claim the gesture with `touch-action: none`; the asset grid
+  keeps vertical scroll, the category rail keeps horizontal scroll, and the menu
+  detail/rail keep `pan-y` + `overscroll-behavior: contain` (`responsive.css`).
+- **Catalog paging scrolls the list back to the top** on Prev/Next
+  (`CatalogDrawer` grid ref) so a page turn never lands mid-list.
+- **Favourite heart fills solid red when saved** (`Icon.HeartFilled`,
+  `.fav-btn.on { color: var(--danger) }`) and reverts to the outline heart when
+  unfavourited; the button now reports `aria-pressed`.
+- **Duplicate icon added to the inspector header** between lock and delete, so a
+  copy is one tap away even from the minimized mobile bottom-sheet.
+- **Removed the per-card finish (palette) + stamp buttons** from every catalog
+  card (desktop + mobile) — both were touch-broken and duplicate the inspector
+  (finish → FinishPicker/QuickFinishes; duplicate → inspector Duplicate). Deleted
+  `CatalogVariantPopover` + `catalogVariants.ts` + the `catalogVariantPick` flag;
+  stamp mode stays behind `stampPlace`, armed only from ⌘K.
+- **Themed native checkboxes/radios** to the active accent (`accent-color`), so
+  the inspector's "Keep proportions" / "Face centre" / "Hide in 3D view" ticks
+  are harmonious across themes instead of browser-blue.
+- **Reset/Top view on mobile now close the menu first, then fly** — the camera
+  move is deferred until the sheet is gone, so the animation plays in full view
+  instead of starting hidden behind the still-open menu.
+- **iOS home-screen web app is now full-bleed**: `apple-mobile-web-app-status-bar-style`
+  → `black-translucent` extends the 3D canvas under the status bar to the top
+  edge; the desktop toolbar gains `env(safe-area-inset-top)` (0 elsewhere) so top
+  chrome clears the notch/status bar.
+
 ## v0.14.2.0 — PR rollup: mobile UX follow-ups (v0.14.1.1–v0.14.1.5)
 
 Patch bump for the PR to `main` gathering the post-v0.14.1.0 mobile follow-ups:

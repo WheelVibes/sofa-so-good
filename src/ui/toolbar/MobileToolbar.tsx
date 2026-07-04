@@ -80,7 +80,15 @@ export function MobileToolbar() {
   }, [menuOpen])
 
   // Most actions dismiss the sheet; pass {keep:true} for in-place toggles.
-  const act = (fn: () => void, opts?: { keep?: boolean }) => () => {
+  // {defer:true} closes the sheet FIRST and only then runs the action — used by
+  // camera moves (reset / top view) so the fly plays in full view instead of
+  // starting hidden behind the still-open menu and ending before it clears.
+  const act = (fn: () => void, opts?: { keep?: boolean; defer?: boolean }) => () => {
+    if (opts?.defer) {
+      close()
+      window.setTimeout(fn, 220)
+      return
+    }
     fn()
     if (!opts?.keep) close()
   }

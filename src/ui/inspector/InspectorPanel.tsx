@@ -75,7 +75,13 @@ export function InspectorPanel() {
   return (
     <aside className={`panel inspector dock-panel${minimized ? ' minimized' : ''}`}>
       <SheetGrab minimized={minimized} swipeHandlers={swipe} label="inspector" />
-      <InspectorHeader item={item} def={def} minimized={minimized} toggle={toggle} />
+      <InspectorHeader
+        item={item}
+        def={def}
+        catalog={catalog}
+        minimized={minimized}
+        toggle={toggle}
+      />
       {body.mounted ? (
         <div className={`sheet-collapse${body.collapsed ? ' collapsed' : ''}`}>
           <div className="sheet-collapse-inner">

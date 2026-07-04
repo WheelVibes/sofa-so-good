@@ -4,17 +4,12 @@ import { useFeature } from '../../features/useFeature'
 import { isIkeaDef, isUserDef } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { modelInfoText } from '../../furniture/modelInfo'
-import {
-  catalogVariantOptions,
-  initialVariantProps,
-} from '../../furniture/placement/catalogVariants'
 import type { FurnitureDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatDims } from '../../utils/measurement'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { CatalogSourcePill } from './CatalogSourcePill'
-import { CatalogVariantPopover } from './CatalogVariantPopover'
 import { CategoryIcon } from './CategoryIcon'
 import { expectsBuiltinThumbnail, useBuiltinThumbnail } from './thumbnails'
 import { usePlacementDrag } from './usePlacementDrag'
@@ -145,28 +140,6 @@ export function CatalogCard({ def, onDelete, staggerIndex, roomRects }: CatalogC
   )
   const wontFit = fitLevel === 'wont-fit'
   const tightFit = fitLevel === 'tight'
-  // Sticky "stamp" placement (PARITY-STAMP-PLACE) — a pro power-tool: arm this def
-  // and click-place it repeatedly without re-selecting.
-  const stampOn = useFeature('stampPlace')
-  const startStamp = useStore((s) => s.startStamp)
-  const stampingThis = useStore((s) => s.stampMode && s.activeDefId === def.id)
-  // Pick a colour/finish/variant on the card BEFORE placing (CATALOG-VARIANT) —
-  // a quick-look popover, not inline swatches (mobile card clutter). Empty for a
-  // def with nothing to choose (single-finish IKEA, a plain GLB, a parametric
-  // def with no colour field) — no popover in that case, never a disabled one.
-  const variantPickOn = useFeature('catalogVariantPick')
-  const variantOptions = useMemo(
-    () => (variantPickOn ? catalogVariantOptions(def) : []),
-    [variantPickOn, def],
-  )
-  const pickVariant = (optionId: string, e?: React.MouseEvent) => {
-    const s = useStore.getState()
-    s.armWithVariant(def.id, initialVariantProps(def, optionId))
-    s.setCursor({
-      x: e?.clientX ?? window.innerWidth / 2,
-      y: e?.clientY ?? window.innerHeight / 2,
-    })
-  }
   // Model size + creator/licence for the card tooltip (SweetHome3DJS parity).
   const modelInfo = modelInfoOn ? modelInfoText(def) : null
   return (
@@ -209,44 +182,26 @@ export function CatalogCard({ def, onDelete, staggerIndex, roomRects }: CatalogC
         // If the drop didn't land on the canvas (still armed), disarm.
         if (useStore.getState().activeDefId === def.id) useStore.getState().cancelPlacement()
       }}
-      className={`cat-card group liftable${stampingThis ? ' stamping' : ''}${wontFit ? ' no-fit' : ''}`}
+      className={`cat-card group liftable${wontFit ? ' no-fit' : ''}`}
       style={staggerIndex != null ? ({ '--i': staggerIndex } as CSSProperties) : undefined}
-      aria-pressed={stampingThis || undefined}
     >
       {favOn ? (
         <button
           type="button"
           className={`fav-btn${saved ? ' on' : ''}`}
           aria-label={saved ? 'Remove from favourites' : 'Add to favourites'}
+          aria-pressed={saved}
           onClick={(e) => {
             e.stopPropagation()
             toggleFavourite(def.id)
           }}
         >
-          <Icon.Heart width={14} height={14} />
+          {saved ? (
+            <Icon.HeartFilled width={14} height={14} />
+          ) : (
+            <Icon.Heart width={14} height={14} />
+          )}
         </button>
-      ) : null}
-      {stampOn ? (
-        <button
-          type="button"
-          className={`stamp-btn${stampingThis ? ' on' : ''}`}
-          aria-label={stampingThis ? `Stop stamping ${def.name}` : `Stamp ${def.name} repeatedly`}
-          aria-pressed={stampingThis}
-          title={
-            stampingThis
-              ? 'Stamping — click the floor to drop copies, Esc to stop'
-              : 'Stamp: place this item repeatedly with one click each'
-          }
-          onClick={(e) => {
-            e.stopPropagation()
-            startStamp(def.id)
-          }}
-        >
-          <Icon.Copy width={14} height={14} />
-        </button>
-      ) : null}
-      {variantOptions.length > 0 ? (
-        <CatalogVariantPopover defName={def.name} options={variantOptions} onPick={pickVariant} />
       ) : null}
       <div className={`card-thumb${isIkea ? ' photo' : ''}`}>
         {isIkea ? <CatalogSourcePill label="IKEA" /> : null}

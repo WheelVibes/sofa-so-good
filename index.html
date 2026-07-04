@@ -15,7 +15,12 @@
     <meta name="theme-color" content="#251f1b" media="(prefers-color-scheme: dark)" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- `black-translucent` makes the iOS home-screen web app full-bleed: the 3D
+         canvas extends under the status bar to the very top edge. UI chrome stays
+         clear of the notch/status bar via `env(safe-area-inset-top)` (mobile
+         toolbar + top HUDs in responsive.css). No effect in regular Safari —
+         only when launched from the Home Screen. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Sofa So Good" />
     <!-- Social sharing previews (the app has a Share feature). -->
     <meta property="og:type" content="website" />

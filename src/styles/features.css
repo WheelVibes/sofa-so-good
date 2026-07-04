@@ -292,33 +292,12 @@
 /* save-to-collection heart, used on catalog cards + inspector */
 .fav-btn { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; color: var(--text-3); background: var(--surface-solid); border: 1px solid var(--border); opacity: 0; transition: var(--dur) var(--ease); z-index: 2; }
 @media (hover: hover) { .cat-card:hover .fav-btn { opacity: 1; } }
-/* Touch has no hover to reveal on — keep the card actions always visible. */
-@media (hover: none) { .fav-btn, .stamp-btn, .variant-btn { opacity: 1; } }
+/* Touch has no hover to reveal on — keep the favourite heart always visible. */
+@media (hover: none) { .fav-btn { opacity: 1; } }
 .fav-btn:hover { color: var(--accent-soft-text); }
-.fav-btn.on { opacity: 1; color: var(--accent); }
-
-/* Stamp (sticky repeat-place) button — sits just under the favourite heart at the
-   card's top-right; shares the heart's pill treatment. Always visible while armed
-   (.on) so the active stamp is obvious; reveals on hover otherwise. */
-.stamp-btn { position: absolute; top: 34px; right: 6px; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; color: var(--text-3); background: var(--surface-solid); border: 1px solid var(--border); opacity: 0; transition: var(--dur) var(--ease); z-index: 2; }
-@media (hover: hover) { .cat-card:hover .stamp-btn { opacity: 1; } }
-.stamp-btn:hover { color: var(--accent-soft-text); }
-.stamp-btn.on { opacity: 1; color: var(--accent); border-color: var(--accent); }
-/* The card whose stamp is armed reads as selected so the active tool is unmistakable. */
-.cat-card.stamping { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-
-/* Quick-look variant/finish popover trigger (CATALOG-VARIANT) — sits just under
-   the stamp button, sharing the same pill treatment + hover-reveal behaviour. */
-.variant-btn { position: absolute; top: 62px; right: 6px; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; color: var(--text-3); background: var(--surface-solid); border: 1px solid var(--border); opacity: 0; transition: var(--dur) var(--ease); z-index: 2; }
-@media (hover: hover) { .cat-card:hover .variant-btn { opacity: 1; } }
-.variant-btn:hover, .variant-btn[aria-expanded='true'] { color: var(--accent-soft-text); border-color: var(--accent); }
-
-/* Quick-look popover content: a short heading + a wrapped swatch grid, sized to
-   stay well inside a 390px card without overflow. */
-.variant-panel { width: 208px; padding: var(--s-3); }
-.variant-pop-head { font-size: var(--t-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin-bottom: var(--s-2); }
-.variant-pop-list { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-.variant-pop-body .variant-pop-list { padding-block: var(--s-2); }
+/* Favourited: a solid red heart (the HeartFilled icon paints its fill from
+   currentColor). Red reads as "liked" and stays harmonious across all 5 themes. */
+.fav-btn.on { opacity: 1; color: var(--danger); }
 
 /* Active-stamp banner above the catalog footer — a clear "you are stamping X" cue
    with a Done escape hatch. Token classes only (accent-soft surface). */

@@ -123,15 +123,13 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `subscribeFinishTargets` so the panel shows the per-part colour/material pickers as soon as the model
   is ready. (LOD note: material/mesh names can differ between tier variants, so the cached targets
   reflect whichever variant rendered.)
-- **Pre-placement finish/variant resolution (CATALOG-VARIANT)** — `placement/catalogVariants.ts`
-  is the pure "what can I choose before placing this, and what does choosing it mean" logic behind
-  the catalog card's quick-look popover (`src/ui/CLAUDE.md`): `catalogVariantOptions(def)` /
-  `hasCatalogVariants(def)` / `initialVariantProps(def, optionId)`. Reuses `appearanceProps.ts:
-  appearanceKeys` to find a parametric def's primary `color`-kind field (never re-derives its own
-  appearance-key notion) and the IKEA `variants`/`assetId` vocabulary `ikeaBodyProps.ts`/`IkeaBody`
-  already use for the post-placement finish picker — so pre- and post-placement finish selection
-  stay on one shared vocabulary. `usePlacementController.ts` merges the resolved patch over
-  `defaultItemProps(def)` at commit via `placementSlice.armedVariantProps`.
+- **Pre-placement finish/variant resolution (CATALOG-VARIANT) was removed.** The pure
+  `placement/catalogVariants.ts` module + its `CatalogVariantPopover` card popover are gone (the
+  card finish-picker was mobile-broken and redundant with the inspector). The generic
+  `placementSlice.armWithVariant`/`armedVariantProps` plumbing — merged over `defaultItemProps(def)`
+  at commit by `usePlacementController.ts` — remains (tested, UI-unused) for a future variant-arming
+  entry point. Post-placement finish selection is the inspector's `IkeaBody`/`ikeaBodyProps.ts` +
+  FinishPicker/QuickFinishes.
 - **All GLB items** (bundled CC0 / user uploads / IKEA) render through `GltfModel`/`gltfRender.ts`
   — set the same collision flags; run `npm run optimize:glb` for `-low`/`-medium` LOD variants
   (uploads generate theirs in-browser via `optimize/lodVariants.ts`, routed by the `gltf/lod.ts`

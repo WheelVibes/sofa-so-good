@@ -16,7 +16,7 @@ export function ViewSection({
   vrSupported,
 }: {
   activeId: string
-  act: (fn: () => void, opts?: { keep?: boolean }) => () => void
+  act: (fn: () => void, opts?: { keep?: boolean; defer?: boolean }) => () => void
   vrSupported: boolean
 }) {
   const s = useStore
@@ -91,13 +91,13 @@ export function ViewSection({
             icon="TopView"
             label="Top view"
             sub="Fit the whole flat, top-down"
-            onClick={act(() => s.getState().requestTopView())}
+            onClick={act(() => s.getState().requestTopView(), { defer: true })}
           />
           <Item
             icon="Home"
             label="Reset view"
             sub="Fit the 3D overview"
-            onClick={act(() => s.getState().requestHomeView())}
+            onClick={act(() => s.getState().requestHomeView(), { defer: true })}
           />
           <Item
             icon="Turntable"
