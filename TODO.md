@@ -133,26 +133,29 @@ REAL-1, SEC-1, FEAT-1 — are in `CHANGELOG.md`. Still open:
 - [ ] **REFAC-2 — `FloorPlanEditor.tsx` ~3186 lines (note, tracked as MOD-FPE-SPLIT).** Grew with
   PLAN-FURNISH; revisit the toolbar-fragment/dispatcher extraction if it keeps growing.
 - [ ] **FEAT-2 — mirror/reflect a selection across a room axis (S–M).** Arrange-tool addition;
-  reuse the array/placement commit path. (Waits for the REFAC-1 inspector decomposition to land.)
-(In progress this cycle: REFAC-1 InspectorPanel decomposition, PERF-C procedural-bake defer.)
+  reuse the array/placement commit path. **(In progress this cycle — REFAC-1 has landed.)**
 
 ## Open — round-2 audit backlog (2026-07-04)
 Open, client-doable items from `docs/research/2026-07-04-audit-round2-tests-mobile-features.md`
-(full detail + code refs there). Ranked; MOBILE-1 in progress this cycle.
-- **Mobile/touch robustness**
-  - [ ] **MOBILE-2/3 — `MarqueeSelector` + catalog placement drag lack `pointerId` gating** (lower
-    severity than the gizmos). Apply the BUG-1 `isActiveDragPointer` pattern (S).
+(full detail + code refs there). Ranked.
 - **Test-coverage hardening** (user-direction priority)
-  - [ ] **TEST-1 — `state/storage/hydrateAssets.ts` (0 tests).** Boot-time restore of user
-    uploads/materials from IDB; silent-data-loss surface. Test via `fake-indexeddb` (S–M).
-  - [ ] **TEST-2 — `apartment/floor/floorRects.ts` `computeRoomFloorRects`/`rectMinus` (0 tests).**
-    Pure rectangle-subtraction deciding per-region floor finishes (S).
-  - [ ] Ranked further test gaps in the round-2 doc (geometry/collision/pricing/undo pure fns).
+  - [ ] **TEST-3 — `state/storage/IdbAssetStore.ts` (0 tests).** The foundation of all user-asset
+    persistence (`put`/`get`/`list`/`delete`/`usage`); round-trip via `fake-indexeddb` (S).
+    **(In progress this cycle.)**
+  - [ ] **TEST-4 — `HistorySnapshot`-completeness guard test (BUG-3-class prevention).** Convert the
+    hand-audit rule in `state/CLAUDE.md` into a failing test — assert `snapshot()` captures the full
+    allow-list of history-relevant keys + a mutate→undo round-trip per field (S–M).
+    **(In progress this cycle.)**
+  - [ ] **TEST-5** — `remoteCatalogSlice.ts` orchestration (STALE_AFTER re-fetch, in-flight de-dupe,
+    error transitions) (S–M, MED value — remote furniture surfaces nothing in prod today).
+  - [ ] **TEST-7** — `DragController.tsx` BUG-1 wiring integration test (M).
+  - [ ] **TEST-8** — `ui/paletteFromPhoto.ts` nearest-finish mapping (M, MED-LOW).
 - **Value-add features** (client-doable, grounded in existing REFERENCES apps)
-  - [ ] **FEAT-A — frame/zoom-to-selection camera** (the universal "F"); `resetView` only resets to
-    overview today (S).
-  - [ ] **FEAT-B — Alt/Option-drag to duplicate a placed item** (SketchUp/Figma/Coohom staple) (M).
-  - [ ] FEAT-C/D in the round-2 doc; FEAT-E (3D grid-snap) deprioritized (alignment guides cover it).
+  - [ ] **FEAT-C — isolate/solo the selection (focus mode)** (S–M, low risk). Derived inverse of
+    `hiddenItemIds` / low-opacity via `itemOpacity`; session-only, pro tier. **(In progress this cycle.)**
+  - [ ] **FEAT-D — two-point-perspective / vertical-line-lock camera** (M, med risk). Projection
+    vertical-shift alongside the lens/DoF controls; pro tier; needs a real-GPU visual pass.
+  - [ ] FEAT-E (3D grid-snap) deprioritized (alignment guides cover most of the value).
 - New reference: **Home Planner** (backend/licensed-asset-led — informs the tracked catalog-expansion/
   F11 work, not a client-doable feature). Added to `REFERENCES.md`.
 
