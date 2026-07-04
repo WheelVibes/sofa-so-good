@@ -114,4 +114,17 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   complete no-op: it can't move the item and it can't end the drag. Only the pointer that
   started the gesture drives `onMove` and commits/reverts on `onUp`. `endDrag` clears
   `dragPointerId`. Any new in-canvas drag/gizmo gesture that adds its own window-level
-  pointermove/up listeners (see `RotateGizmo`/`ResizeGizmo`) should follow the same pattern.
+  pointermove/up listeners should follow the same pattern. **`RotateGizmo`/`ResizeGizmo`/
+  `TiltGizmo` now comply (MOBILE-1)** — each records the initiating `e.nativeEvent.pointerId`
+  into its own `gesture` ref (a per-gizmo field, not the store's `dragPointerId`, since a gizmo
+  gesture is a distinct pointer stream from an item drag — the two are mutually exclusive via
+  `!draggingItemId`/`!activeDefId` in each gizmo's `visible` check) + best-effort
+  `setPointerCapture` (same guarded try/catch as `Furniture.tsx`), and gate their window
+  `pointermove`/`pointerup`/`pointercancel` through `dragHelpers.ts:isActiveDragPointer`. Verified
+  with a real two-pointer scenario (`scripts/scenarios/gizmo-rotate-multitouch.json`): grabbing the
+  rotate ring with one pointer then driving a second pointer far away leaves the rotation
+  untouched and the second pointer's `pointerup` doesn't end the gesture. `MarqueeSelector`
+  (MOBILE-2) is gated the same way (a closure-local `activePointerId`, since it lives outside the
+  Canvas with no per-gesture ref). Catalog placement-drag ghost (`usePlacementController.ts`,
+  MOBILE-3) is lower severity (cosmetic jitter, no mis-commit) and intentionally left ungated here
+  — it's outside `src/scene/` and a UI-owned surface.

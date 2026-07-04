@@ -7,6 +7,7 @@ import { useCatalogGetter } from '../../furniture/catalog'
 import { itemRotation } from '../../furniture/tiltRotation'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
+import { isActiveDragPointer } from '../dragHelpers'
 import { priorityRaycast } from '../raycastPriority'
 import {
   computeTiltDrag,
@@ -24,6 +25,11 @@ interface Gesture {
   startRoll: number
   startX: number
   startY: number
+  /** The `pointerId` that grabbed the tilt ball (MOBILE-1, BUG-1 class) — window
+   *  `onMove`/`onUp` gate on this via `isActiveDragPointer` so a second finger's
+   *  independent pointer stream can't drive or end the tilt. A per-gesture
+   *  field, not the store's item-drag `dragPointerId`. */
+  pointerId: number
 }
 
 const toDeg = (rad: number) => Math.round((rad * 180) / Math.PI)
@@ -87,6 +93,9 @@ export function TiltGizmo() {
     const onMove = (ev: PointerEvent) => {
       const g = gesture.current
       if (!g) return
+      // MOBILE-1 (BUG-1 class): a second finger's own pointermove stream must
+      // not drive this tilt — only the pointer that grabbed the ball.
+      if (!isActiveDragPointer(g.pointerId, ev.pointerId)) return
       const { pitch, roll } = computeTiltDrag(
         g.startPitch,
         g.startRoll,
@@ -97,13 +106,15 @@ export function TiltGizmo() {
       setLive({ pitch, roll })
     }
 
-    const onUp = () => {
+    const onUp = (ev: PointerEvent) => {
       const g = gesture.current
+      if (!g) return
+      // MOBILE-1: only the initiating pointer may end the gesture.
+      if (!isActiveDragPointer(g.pointerId, ev.pointerId)) return
       gesture.current = null
       setDragging(false)
       setLive(null)
       useStore.getState().setRotatingGizmo(false)
-      if (!g) return
       const cur = useStore.getState()
       const it = cur.items.find((i) => i.id === g.id)
       const changed = !!it && ((it.pitch ?? 0) !== g.startPitch || (it.roll ?? 0) !== g.startRoll)
@@ -148,12 +159,20 @@ export function TiltGizmo() {
     const st = useStore.getState()
     if (st.pendingEdit) st.confirmPendingEdit()
     st.pushHistory()
+    // Record the initiating pointerId (MOBILE-1, BUG-1 class) + best-effort
+    // capture on the grab ball mesh, same guarded pattern as
+    // Furniture.tsx/RotateGizmo/ResizeGizmo — only this pointer may drive/end
+    // the tilt.
+    try {
+      ;(e.nativeEvent.target as Element | null)?.setPointerCapture?.(e.nativeEvent.pointerId)
+    } catch {}
     gesture.current = {
       id: item.id,
       startPitch: item.pitch ?? 0,
       startRoll: item.roll ?? 0,
       startX: e.nativeEvent.clientX,
       startY: e.nativeEvent.clientY,
+      pointerId: e.nativeEvent.pointerId,
     }
     setLive({ pitch: item.pitch ?? 0, roll: item.roll ?? 0 })
     setDragging(true)

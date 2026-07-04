@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## FIX: gate Rotate/Resize/Tilt gizmo + marquee drags by pointerId — MOBILE-1/2 (v0.12.0.39)
+
+From the round-2 audit: the in-scene manipulation gizmos (`RotateGizmo`/
+`ResizeGizmo`/`TiltGizmo`) and `MarqueeSelector` had the exact BUG-1 multi-touch
+class on the arrange step — their window `pointermove`/`pointerup` listeners
+gated on nothing, so on touch a second finger drove the wrong transform and
+either finger's release committed it. Applied the shipped BUG-1 pattern: each
+`onGrab` records `e.nativeEvent.pointerId` (per-gizmo ref, + guarded
+`setPointerCapture`) and every window handler early-returns via
+`dragHelpers.ts:isActiveDragPointer` — a non-matching pointer is a no-op.
+Verified with a real two-pointer scenario (rotate held at 15° through
+second-finger interference). MOBILE-3 (catalog placement drag, cosmetic) noted
+as deferred.
+
 ## PERF: instant procedural finish apply via cheap placeholder bake — PERF-C (v0.12.0.38)
 
 From the 2026-07-04 audit: `buildMaterial`'s procedural branch ran the FULL
