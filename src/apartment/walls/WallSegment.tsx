@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { memo, Suspense, useEffect, useMemo, useRef } from 'react'
-import { type Group, Mesh, type MeshStandardMaterial, Vector3 } from 'three'
+import { Color, type Group, Mesh, type MeshStandardMaterial, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
 import { BeveledBox } from '../../furniture/primitives/BeveledBox'
@@ -267,6 +267,9 @@ const CENTER_X = APARTMENT_EXT_W / 2
 const CENTER_Z = APARTMENT_EXT_D / 2
 // Scratch for the camera forward direction (avoids per-frame allocation).
 const FWD = new Vector3()
+// Light neutral a faded wall is lifted toward so it doesn't dim the rooms seen
+// through it (REVEAL-THROUGH-TINT). Shared, read-only.
+const REVEAL_EMISSIVE = new Color('#eceae4')
 
 function WallSegmentInner({ wall }: WallSegmentProps) {
   const dx = wall.end[0] - wall.start[0]
@@ -388,6 +391,22 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         // occludes its back (no double-blend) and it sorts cleanly against every
         // other transparent surface — smooth, artifact-free translucency.
         m.depthWrite = true
+        // Lift the faded pane toward a light neutral so seeing THROUGH it doesn't
+        // dim/tint the room behind (REVEAL-THROUGH-TINT, matching useWallReveal):
+        // a translucent wall composites over everything behind it, and its unlit
+        // camera-facing side is a dark-ish grey that cast a murky veil on the
+        // rooms + any glass seen through it. Strongest when most faded; cleared
+        // when opaque. Guarded to standard materials (the selection FaceHighlight
+        // is a MeshBasicMaterial with no `emissive`).
+        if (m.emissive) {
+          if (transparent) {
+            m.emissive.copy(REVEAL_EMISSIVE)
+            m.emissiveIntensity = (1 - cur) * 0.7
+          } else {
+            m.emissive.setRGB(0, 0, 0)
+            m.emissiveIntensity = 1
+          }
+        }
         if (transparentChanged) m.needsUpdate = true
       }
       if (Array.isArray(mat)) mat.forEach(apply)

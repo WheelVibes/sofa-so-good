@@ -51,11 +51,20 @@ export function orientOutward(
 
 /**
  * Reveal opacity from the camera's look DIRECTION only (ORIENTATION-ONLY reveal):
- * fade a wall when the camera is looking THROUGH it (its outward normal opposes
- * the camera's forward direction — a near wall between the camera and the room),
- * keep it opaque when it faces away (a far/back wall). `(fwdX, fwdZ)` is the
- * camera forward vector's horizontal (XZ) part; `(outNx, outNz)` the wall's unit
- * outward normal.
+ * fade a wall ONLY when it clearly faces AWAY from the view — i.e. the camera is
+ * looking at its BACK / through it (its outward normal turned toward the camera,
+ * `dot` well below 0). `(fwdX, fwdZ)` is the camera forward vector's horizontal
+ * (XZ) part; `(outNx, outNz)` the wall's unit outward normal; `dot` is their
+ * cosine.
+ *
+ *  - `dot > 0` (outward normal points away with the view → a FAR/back wall): opaque.
+ *  - `dot ≈ 0` (outward normal ⟂ the view → a SIDE wall you're skimming): opaque.
+ *    Critically NOT half-faded: a rectangular room's two side walls both sit near
+ *    `dot ≈ 0`, so a `(-0.4, 0.4)` band left them ~50% translucent and, as you
+ *    orbited past the axis, flipped which side read "bluer" (opaque) vs "whiter"
+ *    (faded). Fading only clearly-back-facing walls keeps side walls solid.
+ *  - `dot << 0` (outward normal toward the camera → a NEAR/front wall between you
+ *    and the room): fades, so the dollhouse isn't blocked.
  *
  * Crucially this depends ONLY on the camera's orientation — NOT its distance
  * (zoom/dolly moves along the look direction, leaving it unchanged) nor a pan
@@ -68,8 +77,9 @@ export function wallRevealFacing(fwdX: number, fwdZ: number, outNx: number, outN
   const len = Math.hypot(fwdX, fwdZ)
   if (len < 0.15) return 1 // looking (nearly) straight down/up → keep walls solid
   const dot = (outNx * fwdX + outNz * fwdZ) / len
-  // dot < 0: normal faces the camera (near wall) → fade; dot > 0: far wall → opaque.
-  return smoothstep(-0.4, 0.4, dot)
+  // Only walls clearly turned away from the view fade (dot ≤ −0.75 → 0); side
+  // walls (dot ≈ 0) and far walls (dot > 0) stay opaque (≥ −0.25 → 1).
+  return smoothstep(-0.75, -0.25, dot)
 }
 
 /** A rectangle (+ optional L-shaped extension) in plan metres — the shape both

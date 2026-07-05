@@ -50,6 +50,9 @@ const GLASS_DAY = new Color('#bcd4e6')
 const GLASS_NIGHT = new Color('#20272f')
 // Scratch for the camera forward direction (avoids per-frame allocation).
 const FWD = new Vector3()
+// Light neutral a faded wall is lifted toward so it doesn't dim the room seen
+// through it (REVEAL-THROUGH-TINT). Shared, read-only.
+const REVEAL_EMISSIVE = new Color('#eceae4')
 
 /**
  * One plan wall, fading out in orbit mode when it sits between the camera and
@@ -203,6 +206,15 @@ function FadeWall({
     // against glass/openings (backdrop bleed). Constant depth-write = smooth,
     // clean single-surface translucency.
     mat.depthWrite = true
+    // Lift the faded pane toward a light neutral so it doesn't dim/tint the room
+    // seen through it (REVEAL-THROUGH-TINT, matching useWallReveal/WallSegment).
+    if (next) {
+      mat.emissive.copy(REVEAL_EMISSIVE)
+      mat.emissiveIntensity = (1 - mat.opacity) * 0.7
+    } else {
+      mat.emissive.setRGB(0, 0, 0)
+      mat.emissiveIntensity = 1
+    }
     // frameloop="demand": keep rendering until the fade settles (else it freezes
     // mid-fade when the camera stops).
     if (Math.abs(mat.opacity - target) > 0.005) invalidate()

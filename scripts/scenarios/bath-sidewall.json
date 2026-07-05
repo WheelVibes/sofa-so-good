@@ -1,0 +1,17 @@
+{
+  "name": "bath-sidewall",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour&&s.endTour(); s.setOnboardingOpen&&s.setOnboardingOpen(false); s.dismissLocationPrompt&&s.dismissLocationPrompt(); s.dismissCallout&&s.dismissCallout('empty-room-hint')" },
+    { "name": "high-tier", "store": { "action": "setQualityTier", "args": ["high"] } },
+    { "name": "enter-bath", "store": { "action": "enterRoomEditor", "args": ["bath1"] } },
+    { "name": "room-active", "waitFor": { "store": "window.__store.getState().roomEditor.active === true" } },
+    { "name": "three-ready", "waitFor": { "store": "!!window.__three && !!window.__three.controls" }, "timeout": 30000 },
+    { "name": "hide-loading", "eval": "const st1=window.__store.getState(); st1.hideLoading&&st1.hideLoading(); const el1=document.getElementById('boot-loader'); if(el1) el1.remove(); 'ok'" },
+    { "name": "boot-settle", "wait": 2500 },
+    { "name": "near-axis-view", "eval": "const c=window.__three.controls;const cam=window.__three.camera;const t=[c.target.x,c.target.y,c.target.z];const r=Math.hypot(cam.position.x-t[0],cam.position.z-t[2]);const rr=r*0.95;cam.position.set(t[0]+rr*Math.cos(1.35),t[1]+r*0.55,t[2]+rr*Math.sin(1.35));c.target.set(t[0],t[1],t[2]);c.update();'ok'" },
+    { "name": "settle", "wait": 2500 },
+    { "name": "shot", "screenshot": "bath-near-axis-sidewalls-opaque" }
+  ]
+}

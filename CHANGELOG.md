@@ -5,6 +5,53 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.0 — dollhouse reveal polish (side-wall fade + through-wall tint)
+
+Patch rollup for two reveal fixes (v0.16.0.1 → .2):
+
+- **Side/back walls no longer half-fade.** `wallRevealFacing`'s band was widened
+  the wrong way — a wall perpendicular to the view (a side wall) sat at 0.5, and a
+  small orbit flipped the two side walls between "bluer" (opaque) and "whiter"
+  (faded). Now `smoothstep(-0.75, -0.25, dot)`: a wall fades only when it clearly
+  faces away; edge-on side walls and far walls stay solid.
+- **Faded walls no longer dim the room seen through them.** A translucent wall's
+  unlit side rendered dark-grey and cast a murky veil over the room + glass behind
+  it. Faded panes are now lifted toward a light neutral (scaled by how faded), so
+  the see-through reads as a clean light haze; opacity floor unchanged (0.10).
+
+Both stay orientation-only (zoom/pan-invariant).
+
+## v0.16.0.2 — faded walls no longer dim the room seen through them
+
+A translucent (revealed) wall composites over everything behind it, and its unlit
+camera-facing side rendered a dark-ish grey — so looking THROUGH a faded wall cast
+a murky veil over the room and any glass (e.g. a shower screen) behind it, and the
+veil shifted as you orbited. Faded wall panes are now lifted toward a light neutral
+(`emissive` toward `#eceae4`, scaled by how faded — strongest when most see-through,
+cleared when opaque), so the ~10% the wall contributes reads as a clean light haze
+instead of a dark tint. The room behind stays bright and reflective/glass surfaces
+read clearly. Applied to every reveal site — room editor (`useWallReveal`), orbit
+`WallSegment`, and custom-plan `PlanShell` walls; opacity floor unchanged (still
+0.10), so see-through amount is the same. (The shower glass itself is unchanged —
+it's physically-accurate reflective glass; this only stops a faded wall from
+dimming what's seen through it.)
+
+## v0.16.0.1 — reveal no longer half-fades side walls
+
+Fixes side/back walls going partly translucent (and flipping "bluer" vs "whiter"
+as you orbit past an axis) in both the room editor and orbit view. The cause was
+`wallRevealFacing`'s `smoothstep(-0.4, 0.4, dot)` band: a wall perpendicular to the
+view (a side wall, `dot ≈ 0`) landed at 0.5 — half-faded — and a small orbit tipped
+the two side walls to opposite sides of the band. A rectangular room (e.g. Bath/WC)
+showed this clearly: one side wall solid, the opposite one washed-out, swapping as
+you rotated.
+
+The band is now `smoothstep(-0.75, -0.25, dot)`: a wall fades **only when it clearly
+faces away from the view** (its outward normal turned toward the camera — a near/
+front wall between you and the room). Edge-on side walls (`dot ≈ 0`) and far walls
+(`dot > 0`) stay fully opaque. Still orientation-only, so zoom/pan invariance is
+preserved. Doors/windows track their host wall, so they follow suit.
+
 ## v0.16.0.0 — wall-rendering pass (dollhouse reveal, seamless corners, finish faces)
 
 Release bump for the wall-rendering PR — a coherent pass over how walls render,
