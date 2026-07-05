@@ -72,22 +72,24 @@ body.mobile {
   }
 
   /* Full-bleed to BOTH edges of the screen (iOS home-screen web app,
-     status-bar-style black-translucent). The canvas already reaches the top
-     under the status bar; the bottom is the hard part: on iOS a `position:
-     fixed` element's `bottom: 0` (and `100dvh`) are CLAMPED to the safe-area
-     bottom, so the home-indicator strip keeps showing the tan `body` background.
-     Pin the shell to the viewport (covers the top under the status bar). */
+     status-bar-style black-translucent). The canvas reaches the top under the
+     status bar; the bottom is the hard part: on iOS a `position: fixed`
+     element's `bottom: 0` (and `100dvh` / `100vh`) get CLAMPED to the safe-area
+     bottom, so the home-indicator strip keeps showing the `body` background.
+     Counter the clamp directly: pin top/left/right to the viewport, then push
+     the bottom edge BELOW the safe area by the inset amount so the shell reaches
+     the true physical bottom (edge-to-edge canvas). `env(...)` is 0 on
+     non-notched displays / non-iOS, so `bottom` resolves to 0 there — no change.
+     Not gated on `@media (display-mode: standalone)` because iOS doesn't reliably
+     report that mode for an `apple-mobile-web-app-capable` home-screen app. */
   .app-shell {
-    position: fixed; inset: 0; height: auto; width: auto;
-  }
-  /* Only the INSTALLED PWA runs full-bleed (black-translucent has no effect in
-     regular Safari, whose dynamic address bar still needs the `inset`/dvh box).
-     There, force an explicit full-screen height: with `viewport-fit=cover`,
-     `100vh` spans the entire physical screen INCLUDING the home-indicator strip,
-     unlike a clamped `bottom: 0`/`dvh`. Overriding `height` makes it win over
-     `inset`'s `bottom: 0`, so the canvas finally reaches the very bottom edge. */
-  @media (display-mode: standalone) {
-    .app-shell { height: 100vh; bottom: auto; }
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+    height: auto;
+    width: auto;
   }
 
   /* (iOS Safari focus-zoom on < 16px fields is handled by the dynamic viewport

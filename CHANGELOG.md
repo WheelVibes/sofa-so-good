@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.2 — iOS full-bleed: push the app-shell below the safe area
+
+The v0.15.2.1 `@media (display-mode: standalone) { height: 100vh }` attempt still
+left the tan home-indicator bar on-device (confirmed on v0.15.2.1): iOS clamps
+`100vh`/`bottom: 0` to the safe-area bottom too, and it doesn't reliably report
+`display-mode: standalone` for an `apple-mobile-web-app-capable` home-screen app,
+so the media query likely never matched. New approach — counter the clamp
+directly and ungated: pin `.app-shell` top/left/right to the viewport and set
+`bottom: calc(-1 * env(safe-area-inset-bottom, 0px))`, pushing the bottom edge
+BELOW the safe area so the shell reaches the true physical bottom (edge-to-edge
+canvas under the home indicator). `env(...)` is 0 on non-notched/non-iOS, so
+`bottom` resolves to 0 there — no change for desktop or non-notched devices.
+
 ## v0.15.2.1 — iOS full-bleed: force full-screen height in the installed PWA
 
 The v0.15.0.1 `position: fixed; inset: 0` app-shell fix still left the tan
