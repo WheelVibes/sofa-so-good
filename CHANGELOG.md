@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.11 — empty-room hint is dismissable
+
+The per-room-editor "This room is empty" nudge (`EmptyRoomHint`) now has a close
+(✕) button. It had only an "Open catalog" CTA, so a user who just wanted to look
+at the empty room couldn't get rid of it. Dismissing persists per-device via the
+existing `calloutsSlice` (id `empty-room-hint`), matching how other one-off hints
+are dismissed. Unit-tested (shows → dismiss → stays hidden; hidden with catalog open).
+
 ## v0.15.2.10 — room-editor reveal: nearest-walls fade, neutral dollhouse backdrop, orbit opening clearance
 
 Three fixes to the wall reveal, from continued room-editor feedback:
