@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.1 — iOS full-bleed: force full-screen height in the installed PWA
+
+The v0.15.0.1 `position: fixed; inset: 0` app-shell fix still left the tan
+home-indicator "bottom bar" on-device: switching to `black-translucent` makes the
+web view edge-to-edge, but iOS **clamps a fixed element's `bottom: 0` (and
+`100dvh`) to the safe-area bottom**, so the app never covered the home-indicator
+strip. Now, scoped to the installed PWA via `@media (display-mode: standalone)`,
+`.app-shell` gets an explicit `height: 100vh` (`bottom: auto`) — with
+`viewport-fit=cover`, `100vh` spans the entire physical screen including the home
+indicator, so the canvas finally reaches the bottom edge. Regular mobile Safari
+(dynamic address bar) keeps the previous `inset: 0` box — the media query leaves
+it untouched.
+
 ## v0.15.2.0 — floor-plan editor: safe-area insets + room-editor toolbar style
 
 Mobile floor-plan editor polish for full-bleed iOS:

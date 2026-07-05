@@ -73,16 +73,21 @@ body.mobile {
 
   /* Full-bleed to BOTH edges of the screen (iOS home-screen web app,
      status-bar-style black-translucent). The canvas already reaches the top
-     under the status bar; the bottom needs help because iOS standalone reports
-     `100dvh` SHORT of the home-indicator strip, leaving `screenHeight − 100dvh`
-     of the tan `body` background showing below the canvas. Pinning the shell to
-     the visual viewport with `position: fixed; inset: 0` (height/width auto so
-     the four insets define the box, not the under-reporting `dvh`) makes the 3D
-     canvas cover the entire screen — under the status bar AND under the home
-     indicator. Bottom-docked sheets/HUDs already clear the indicator via
-     `env(safe-area-inset-bottom)`. */
+     under the status bar; the bottom is the hard part: on iOS a `position:
+     fixed` element's `bottom: 0` (and `100dvh`) are CLAMPED to the safe-area
+     bottom, so the home-indicator strip keeps showing the tan `body` background.
+     Pin the shell to the viewport (covers the top under the status bar). */
   .app-shell {
     position: fixed; inset: 0; height: auto; width: auto;
+  }
+  /* Only the INSTALLED PWA runs full-bleed (black-translucent has no effect in
+     regular Safari, whose dynamic address bar still needs the `inset`/dvh box).
+     There, force an explicit full-screen height: with `viewport-fit=cover`,
+     `100vh` spans the entire physical screen INCLUDING the home-indicator strip,
+     unlike a clamped `bottom: 0`/`dvh`. Overriding `height` makes it win over
+     `inset`'s `bottom: 0`, so the canvas finally reaches the very bottom edge. */
+  @media (display-mode: standalone) {
+    .app-shell { height: 100vh; bottom: auto; }
   }
 
   /* (iOS Safari focus-zoom on < 16px fields is handled by the dynamic viewport
