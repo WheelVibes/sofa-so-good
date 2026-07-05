@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.7 — plan editor: full-bleed grid with floating toolbar + help
+
+On mobile the 2D floor-plan editor's grid canvas now extends all the way to the
+top edge, with the toolbar and the "Editing your floor plan" help callout
+FLOATING over it (like the floor switcher / compass / scale bar already do),
+instead of being in-flow flex rows that pushed the grid down below a cream band.
+The header + callout are wrapped in a `.plan-top` container that's pulled out of
+the flex column and overlaid at the top (`position: absolute`, `pointer-events:
+none` so a pan reaches the grid through the gaps; the pill + callout stay
+interactive); the canvas row then fills the whole screen. Desktop is unchanged
+(they stay in-flow above the canvas). Verified with a mobile screenshot.
+
 ## v0.15.2.6 — docs: search-first rule for platform-specific quirks
 
 Adds a hard rule to `CLAUDE.md`: for any mobile- or desktop-specific quirk/bug
