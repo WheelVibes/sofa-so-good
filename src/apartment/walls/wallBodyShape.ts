@@ -112,5 +112,10 @@ export function buildWallBodyOutline(
     top: c.head,
   }))
 
-  return wallBodyOutlineFromSpans(spans, x0, x1, wallTop)
+  // Carve the opening a hair smaller than the leaf/pane (same `OPENING_CLEARANCE`
+  // the per-room editor uses) so the door/window overlaps the jamb instead of
+  // sitting COPLANAR with it — coplanar faces z-fight and flicker the opening's
+  // edges as the camera orbits (worse now that faded walls write depth). The
+  // overlap is invisible and leaves no see-through gap on an opaque wall.
+  return wallBodyOutlineFromSpans(spans, x0, x1, wallTop, OPENING_CLEARANCE)
 }

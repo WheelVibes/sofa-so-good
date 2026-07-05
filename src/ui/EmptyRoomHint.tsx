@@ -18,8 +18,12 @@ export function EmptyRoomHint() {
   const catalogOpen = useStore((s) => s.catalogOpen)
   const setCatalogOpen = useStore((s) => s.setCatalogOpen)
   const setLeftMode = useStore((s) => s.setLeftMode)
+  // Closeable: once dismissed it stays hidden (per-device), like other hints —
+  // so a user who just wants to see the empty room isn't stuck with it.
+  const dismissed = useStore((s) => s.dismissedCallouts.includes('empty-room-hint'))
+  const dismissCallout = useStore((s) => s.dismissCallout)
 
-  if (!active || !roomId || cameraMode !== 'orbit' || catalogOpen) return null
+  if (!active || !roomId || cameraMode !== 'orbit' || catalogOpen || dismissed) return null
   const room = rooms.find((r) => r.id === roomId)
   if (!room) return null
   const empty = !items.some((it) => pointInRoom(room, it.position[0], it.position[1]))
@@ -34,6 +38,7 @@ export function EmptyRoomHint() {
         className="panel"
         style={{
           pointerEvents: 'auto',
+          position: 'relative',
           textAlign: 'center',
           padding: '20px 24px',
           maxWidth: 320,
@@ -41,6 +46,16 @@ export function EmptyRoomHint() {
           boxShadow: 'var(--shadow-panel)',
         }}
       >
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Dismiss"
+          title="Dismiss"
+          onClick={() => dismissCallout('empty-room-hint')}
+          style={{ position: 'absolute', top: 8, right: 8 }}
+        >
+          <Icon.Close width={16} height={16} />
+        </button>
         <span style={{ color: 'var(--text-3)', display: 'inline-flex' }}>
           <Icon.Catalog width={26} height={26} />
         </span>

@@ -1,9 +1,12 @@
 import { useFrame } from '@react-three/fiber'
 import { type RefObject, useEffect, useRef } from 'react'
-import type { Material, Mesh, MeshStandardMaterial, Object3D } from 'three'
+import { type Material, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from 'three'
 import { useStore } from '../../state/store'
 import { setWallOpacity } from './wallReveal'
-import { wallRevealFactor } from './wallRevealMath'
+import { WALL_TRANSLUCENT_MIN, wallRevealFacing } from './wallRevealMath'
+
+// Scratch vector for the camera forward direction (avoids per-frame allocation).
+const FWD = new Vector3()
 
 export interface WallRevealArgs {
   /** Wall midpoint (world XZ). */
@@ -16,6 +19,12 @@ export interface WallRevealArgs {
   center: [number, number]
   /** Host wall id — published so the room's windows/doors on it fade too. */
   wallId: string
+  /** A small per-wall depth bias (polygonOffsetUnits) applied to the faded clone
+   *  so two DIFFERENT translucent walls that OVERLAP at a corner (each extended by
+   *  the abutment to close it) don't z-fight on their now-coplanar top/side faces.
+   *  Distinct per wall ⇒ a deterministic winner ⇒ a stable, seamless corner
+   *  instead of a flickering one. Unused (0) leaves depth unbiased. */
+  bias?: number
 }
 
 /** Lerp speed toward the target opacity (matches orbit `WallSegment`). */
@@ -23,10 +32,11 @@ const LERP = 0.18
 
 /**
  * Per-room-editor wall reveal (ROOM-EDITOR-WALL-REVEAL): fades a clipped wall to
- * **translucent** when the orbit camera fronts it (the wall sits between the
- * camera and the room), exactly like the main orbit scene's `WallSegment` —
- * reusing the same pure `wallRevealFactor` + the `wallRevealMode`/`wallReveal`
- * settings, so the editor behaves like orbit by default (translucent).
+ * **translucent** when the orbit camera looks THROUGH it (its outward normal
+ * opposes the camera forward), exactly like the main orbit scene's `WallSegment`
+ * — reusing the same pure `wallRevealFacing` + the `wallRevealMode`/`wallReveal`
+ * settings, so the editor behaves like orbit by default (translucent). The fade
+ * is orientation-only (camera look direction), so zoom/pan never change it.
  *
  * Applied to an Object3D (the wall mesh or its group). Because every wall of an
  * isolated room shares ONE finish material, fading it in place would fade the
@@ -36,7 +46,7 @@ const LERP = 0.18
  * frames via `invalidate()` only while the fade is settling.
  */
 export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallRevealArgs): void {
-  const { midX, midZ, nx, nz, center, wallId } = args
+  const { nx, nz, wallId, bias = 0 } = args
   const opacityRef = useRef(1)
   const transparentRef = useRef(false)
   const clonesRef = useRef<Material[]>([])
@@ -70,12 +80,17 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     const orbit = st.cameraMode === 'orbit'
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
     const revealMode = st.wallRevealMode ?? 'translucent'
-    const cam = state.camera.position
     let target = 1
     if (orbit && revealEnabled && revealMode !== 'opaque') {
-      const faded = wallRevealFactor(cam.x, cam.z, midX, midZ, nx, nz, center[0], center[1])
-      // translucent: never fully disappear (min 0.15); auto-hide: can vanish.
-      target = revealMode === 'auto-hide' ? faded : Math.max(0.15, faded)
+      // ORIENTATION-ONLY reveal (ROOM-EDITOR-FADE): fade the walls the camera is
+      // looking THROUGH (outward normal opposes the camera forward), keep the
+      // far/back walls opaque — driven purely by the camera's look direction, so
+      // zooming (dolly) and panning never change the fade, only orbiting does.
+      state.camera.getWorldDirection(FWD)
+      const faded = wallRevealFacing(FWD.x, FWD.z, nx, nz)
+      // translucent: never fully disappear (strongly see-through floor);
+      // auto-hide: can vanish.
+      target = revealMode === 'auto-hide' ? faded : Math.max(WALL_TRANSLUCENT_MIN, faded)
     }
     // Settled, fully opaque, nothing cloned → the common case, skip.
     if (
@@ -112,6 +127,13 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
           const cm = c as MeshStandardMaterial
           cm.transparent = true
           cm.opacity = cur
+          // Per-wall depth bias so overlapping translucent corner walls resolve
+          // to a deterministic winner instead of z-fighting (see `bias`).
+          if (bias) {
+            cm.polygonOffset = true
+            cm.polygonOffsetFactor = 0
+            cm.polygonOffsetUnits = bias
+          }
           // depthWrite stays ON through the fade (WALL-FADE-DEPTHWRITE, matching
           // WallSegment) — flipping it off popped the wall between solid and
           // see-through at the ~0.985 threshold and made faded walls sort

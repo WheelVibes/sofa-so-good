@@ -1,0 +1,28 @@
+{
+  "name": "wall-reveal-orientation",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour&&s.endTour(); s.setOnboardingOpen&&s.setOnboardingOpen(false); s.dismissLocationPrompt&&s.dismissLocationPrompt(); s.dismissCallout&&s.dismissCallout('empty-room-hint')" },
+    { "name": "high-tier", "store": { "action": "setQualityTier", "args": ["high"] } },
+    { "name": "three-ready", "waitFor": { "store": "!!window.__three && !!window.__three.controls" }, "timeout": 30000 },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading && window.__store.getState().hideLoading()" },
+    { "name": "setup", "eval": "const c=window.__three.controls;window.__cam=window.__three.camera;window.__t=[c.target.x,c.target.y,c.target.z];window.__r=Math.hypot(window.__cam.position.x-window.__t[0],window.__cam.position.z-window.__t[2]);window.__setView=(ang,elev,zoom)=>{const rr=window.__r*zoom;window.__cam.position.set(window.__t[0]+rr*Math.cos(ang),window.__t[1]+window.__r*elev,window.__t[2]+rr*Math.sin(ang));c.target.set(window.__t[0],window.__t[1],window.__t[2]);c.update();};window.__panBy=(dx,dz)=>{window.__cam.position.x+=dx;window.__cam.position.z+=dz;c.target.x+=dx;c.target.z+=dz;c.update();};'ok'" },
+    { "name": "base-view", "eval": "window.__setView(0.6,0.7,1.0);'ok'" },
+    { "name": "settle-base", "wait": 1400 },
+    { "name": "shot-base", "screenshot": "01-base" },
+    { "name": "zoom-in", "eval": "window.__setView(0.6,0.7,0.55);'ok'" },
+    { "name": "settle-zoom", "wait": 1400 },
+    { "name": "shot-zoom", "screenshot": "02-zoom-same-walls-faded" },
+    { "name": "reset-before-pan", "eval": "window.__setView(0.6,0.7,1.0);'ok'" },
+    { "name": "settle-reset", "wait": 800 },
+    { "name": "pan", "eval": "window.__panBy(2.2,1.2);'ok'" },
+    { "name": "settle-pan", "wait": 1400 },
+    { "name": "shot-pan", "screenshot": "03-pan-same-walls-faded" },
+    { "name": "reset-before-orbit", "eval": "window.__setView(0.6,0.7,1.0);'ok'" },
+    { "name": "settle-reset2", "wait": 800 },
+    { "name": "orbit", "eval": "window.__setView(2.17,0.7,1.0);'ok'" },
+    { "name": "settle-orbit", "wait": 1400 },
+    { "name": "shot-orbit", "screenshot": "04-orbit-different-walls-faded" }
+  ]
+}

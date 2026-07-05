@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { memo, Suspense, useEffect, useMemo, useRef } from 'react'
-import { type Group, Mesh, type MeshStandardMaterial } from 'three'
+import { type Group, Mesh, type MeshStandardMaterial, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
 import { BeveledBox } from '../../furniture/primitives/BeveledBox'
@@ -32,15 +32,15 @@ import {
   wallEndAbutmentThickness,
   wallThicknessMetres,
 } from '../wallSegments'
-import { extrudeWallBody } from './wallBodyGeometry'
+import { extrudeWallBody, WALL_STRUCTURE_COLOR } from './wallBodyGeometry'
 import { buildWallBodyOutline } from './wallBodyShape'
 import { setWallOpacity } from './wallReveal'
 import {
-  cameraFacingNormal,
   orientOutward,
   pointInRooms,
   type RoomRect,
-  wallRevealFactor,
+  WALL_TRANSLUCENT_MIN,
+  wallRevealFacing,
 } from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
 
@@ -265,6 +265,8 @@ interface WallSegmentProps {
  *  External faces (no adjacent interior room) skip rendering. */
 const CENTER_X = APARTMENT_EXT_W / 2
 const CENTER_Z = APARTMENT_EXT_D / 2
+// Scratch for the camera forward direction (avoids per-frame allocation).
+const FWD = new Vector3()
 
 function WallSegmentInner({ wall }: WallSegmentProps) {
   const dx = wall.end[0] - wall.start[0]
@@ -335,37 +337,22 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     const participates = isExterior || revealScope === 'all'
     let target = 1
     if (participates && orbit && revealEnabled && revealMode !== 'opaque') {
-      // Exterior: fade when the camera is on the wall's OUTWARD side (the wall is
-      // between the camera and the rooms). Interior partition: it has rooms on
-      // both sides, so fade when the camera FACES it (revealing the room behind);
-      // orient the normal toward the camera for that.
+      // ORIENTATION-ONLY reveal: fade based purely on the camera's look direction,
+      // so zoom (dolly) and pan never change the fade — only orbiting does.
+      // Exterior: fade when the camera looks THROUGH the wall (its outward normal
+      // opposes the forward direction). Interior partition (rooms on both sides):
+      // orient its normal toward the camera so it fades when looked at head-on.
+      camera.getWorldDirection(FWD)
       let nx = reveal.nx
       let nz = reveal.nz
-      if (!isExterior) {
-        const f = cameraFacingNormal(
-          reveal.mx,
-          reveal.mz,
-          nx,
-          nz,
-          camera.position.x,
-          camera.position.z,
-        )
-        nx = f.nx
-        nz = f.nz
+      if (!isExterior && nx * FWD.x + nz * FWD.z > 0) {
+        nx = -nx
+        nz = -nz
       }
-      const faded = wallRevealFactor(
-        camera.position.x,
-        camera.position.z,
-        reveal.mx,
-        reveal.mz,
-        nx,
-        nz,
-        CENTER_X,
-        CENTER_Z,
-      )
-      // translucent: walls never fully disappear (min 0.15 opacity).
+      const faded = wallRevealFacing(FWD.x, FWD.z, nx, nz)
+      // translucent: walls never fully disappear (strongly see-through floor).
       // auto-hide: walls can fully disappear (current legacy behaviour).
-      target = revealMode === 'auto-hide' ? faded : Math.max(0.15, faded)
+      target = revealMode === 'auto-hide' ? faded : Math.max(WALL_TRANSLUCENT_MIN, faded)
     }
     // Settled and fully opaque: nothing to do (the common case).
     if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return
@@ -422,6 +409,12 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // textures stop exactly at the inner corner with no overlap into the body.
   const startAbut = wallEndAbutmentThickness(wall, WALLS, true) / 2
   const endAbut = wallEndAbutmentThickness(wall, WALLS, false) / 2
+  // Distinct per-wall depth bias (its index in WALLS) applied to the body's
+  // polygonOffset, so where two walls OVERLAP at a corner (each extended to the
+  // other by the abutment) their now-coplanar faces resolve to a deterministic
+  // winner instead of z-fighting — a stable corner instead of a flickering one
+  // once faded walls write depth (WALL-CORNER-BIAS, mirrors the room editor).
+  const bodyBias = WALLS.findIndex((w) => w.id === wall.id)
   const segments = buildWallSegments(wall, ceilingHeight)
   const midX = (wall.start[0] + wall.end[0]) / 2
   const midZ = (wall.start[1] + wall.end[1]) / 2
@@ -496,7 +489,13 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
           half-thickness so outside corners close flush. One mesh = no internal
           seams when the wall fades translucent for the dollhouse reveal. */}
       <mesh geometry={bodyGeometry} castShadow receiveShadow>
-        <meshStandardMaterial color="#dcd8d2" roughness={0.95} />
+        <meshStandardMaterial
+          color={WALL_STRUCTURE_COLOR}
+          roughness={0.95}
+          polygonOffset
+          polygonOffsetFactor={0}
+          polygonOffsetUnits={bodyBias}
+        />
       </mesh>
       {/* Interior face planes — one per (face-span, side), each painted
           with the room actually backing that span. Spans that touch the

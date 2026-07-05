@@ -5,6 +5,142 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.0.0 — wall-rendering pass (dollhouse reveal, seamless corners, finish faces)
+
+Release bump for the wall-rendering PR — a coherent pass over how walls render,
+fade, and join in both the orbit dollhouse view and the per-room editor
+(v0.15.2.10 → .16, summarised):
+
+- **Orientation-only dollhouse reveal.** Walls now fade from the camera's LOOK
+  DIRECTION only — zoom (dolly) and pan never change which walls fade, only
+  orbiting does; back walls stay opaque; a top-down view keeps all walls solid.
+- **Nearest-walls fade + neutral backdrop.** The room editor fades the walls the
+  camera looks through (not by fit-distance) against a neutral dollhouse backdrop,
+  so the bright sky no longer bleeds through glass into a bright band.
+- **Seamless corners.** Two intersecting walls now produce a single sharp corner
+  (span/butt tiling in the room editor + a per-wall depth bias in orbit) instead of
+  z-fighting disjoint faces.
+- **Finish only on the interior face.** Wall paint/material applies only to the
+  interior room-facing surface; wall tops and apartment-exterior faces stay a clean
+  off-white.
+- **Stronger, steadier translucence.** The revealed-wall opacity floor is much more
+  see-through (`WALL_TRANSLUCENT_MIN` 0.15 → 0.10), with doors and windows fading in
+  step with their host wall.
+- **Dismissable empty-room hint.**
+
+## v0.15.2.16 — orientation-only wall reveal (zoom/pan no longer change the fade)
+
+The dollhouse wall reveal is now driven purely by the camera's **look direction**,
+not its position: the new pure `wallRevealFacing(fwdX, fwdZ, outNx, outNz)` compares
+each wall's outward normal against `camera.getWorldDirection()`, so a wall the camera
+looks THROUGH goes translucent while a far/back wall stays opaque.
+
+- **Zoom (dolly) and pan no longer change which walls fade** — only orbiting does.
+  Dollying moves along the look direction and panning translates camera+target
+  together, both leaving the look direction (and therefore the fade) unchanged.
+  A near-vertical top-down view keeps every wall solid (you read the plan from above).
+- This replaces the old position/fit-distance metric (removed: `wallRevealFactor`,
+  `nearWallRevealFactor`, `cameraFacingNormal`) that made the back walls flip between
+  faded and opaque as the camera dollied. Applied consistently across every reveal
+  site: orbit `WallSegment`, the per-room editor (`useWallReveal`), and custom plans
+  (`PlanShell` walls + windows, `PlanDoorLeaf`) — so doors and windows fade in step
+  with their host walls from orientation alone.
+- The translucent floor nudges 0.07 → **0.10** (`WALL_TRANSLUCENT_MIN`) — still
+  strongly see-through, a touch more of the wall retained.
+
+## v0.15.2.15 — stronger wall translucence when revealed
+
+The translucent reveal floor drops from 0.15 → **0.07** (`WALL_TRANSLUCENT_MIN`,
+shared by orbit `WallSegment` and the per-room editor), so a revealed wall is much
+more see-through — you look right into the room. Doors and windows already track
+their host wall's opacity (verified: on a faded wall they reach the same ~0.07 /
+glass ~0.12), so they fade in step; in orbit only exterior walls fade by default
+(the "exterior only" reveal scope), so interior doors stay opaque with their
+non-fading interior walls.
+
+## v0.15.2.14 — wall finish only paints the interior face; tops + exterior stay white
+
+The wall FINISH (paint/material) now applies only to the interior room-facing
+surface; the wall's top edge and structural faces stay a clean off-white
+(`WALL_STRUCTURE_COLOR`):
+
+- **Orbit** already painted finishes via per-side interior face planes over a
+  neutral body — the body colour is now white instead of grey, so wall TOPS and
+  the apartment's EXTERIOR-facing faces read white, while interior partition faces
+  keep the adjacent room's finish (a partition's "outer" side is another room's
+  wall, so it's correctly not white).
+- **Room editor** previously painted the whole extruded body with the finish
+  (top + outer + inner all coloured). The body is now split into two material
+  groups — the interior room-facing cap gets the finish, the top / outer face /
+  ends / opening jambs get structural white (`extrudeWallBody(..., innerFaceZSign)`
+  → `groupInnerFace`). In an isolated room the outer face is never another room,
+  so it's always white.
+
+GPU-verified in both scenes: tops white, interior painted, exterior white
+(orbit: only truly-exterior faces; interior partitions keep their finish).
+
+## v0.15.2.13 — corners: single sharp join (span/butt tiling) + orbit body bias
+
+Follow-up on the corner work from continued feedback ("two walls should form one
+clean sharp corner, not visibly intersect"):
+
+- **Room editor** now tiles corners instead of overlapping both walls: at each
+  corner exactly ONE wall SPANS it (extends by the other's full thickness) and the
+  other BUTTS flush (chosen deterministically by wall id), so the corner is a
+  single-density, clean L-join rather than two translucent walls crossing. The
+  coplanar butt seam is kept from z-fighting by the per-wall depth bias.
+- **Orbit whole-flat** wall bodies now carry the same per-wall depth bias
+  (`polygonOffsetUnits` = the wall's index) so overlapping corner walls resolve to
+  a deterministic winner — no corner z-fight flicker as the camera orbits.
+
+GPU-verified (High tier) in both scenes: corners read as clean, stable joins.
+
+## v0.15.2.12 — room-editor corners: seamless (abutment) + no z-fight (per-wall depth bias)
+
+The isolated room editor drew each wall clipped to the interior edge with no
+corner fill, so two walls met as **two disjoint translucent panels** at a corner.
+`RoomShell` now extends each clipped wall body past the corner by the abutting
+(perpendicular) wall's half-thickness — the same way the whole-flat orbit scene
+closes corners — so the corner reads as one seamless surface. Because that makes
+the two translucent corner walls OVERLAP (coplanar top/side faces that would
+z-fight now that faded walls write depth), each wall's faded material clone gets a
+distinct `polygonOffsetUnits` (its index in the room) via `useWallReveal`'s new
+`bias`, so the overlap resolves to a deterministic winner — a stable, seamless
+corner instead of a flickering one. Verified on GPU (High tier) from multiple
+angles: corners are filled and stable.
+
+## v0.15.2.11 — empty-room hint is dismissable
+
+The per-room-editor "This room is empty" nudge (`EmptyRoomHint`) now has a close
+(✕) button. It had only an "Open catalog" CTA, so a user who just wanted to look
+at the empty room couldn't get rid of it. Dismissing persists per-device via the
+existing `calloutsSlice` (id `empty-room-hint`), matching how other one-off hints
+are dismissed. Unit-tested (shows → dismiss → stays hidden; hidden with catalog open).
+
+## v0.15.2.10 — room-editor reveal: nearest-walls fade, neutral dollhouse backdrop, orbit opening clearance
+
+Three fixes to the wall reveal, from continued room-editor feedback:
+
+- **Fade logic (ROOM-EDITOR-FADE):** the room editor now fades the walls **closest
+  to the camera** and keeps the far/back walls opaque. The old path reused
+  `wallRevealFactor`'s proximity term, which normalises by the camera's fit-distance
+  — nearly identical for every wall in a small isolated room framed to fill the
+  viewport, so even the back walls drifted translucent and flip-flopped on tiny
+  camera moves. New pure `nearWallRevealFactor` measures nearness against the room's
+  own size instead, so only the front walls reveal. (`useWallReveal`, unit-tested.)
+- **Neutral dollhouse backdrop (ROOM-EDITOR-BACKDROP):** the isolated room no longer
+  paints the time-of-day `<Sky/>` as its background — a faded exterior wall in an
+  isolated room reveals the background directly, so the bright sky bled through the
+  fade (a blown-out band) and the shower glass's transmission sampled it and lit up
+  cyan. A flat neutral background can't do either, matching the "dollhouse — the sky
+  shouldn't affect the room" intent; IBL for material reflections still comes from
+  `SceneEnvironment`, daytime lighting is already the flat dollhouse fill.
+- **Orbit opening clearance:** the whole-flat orbit scene now carves door/window
+  openings a hair smaller than the leaf/pane (the same `OPENING_CLEARANCE` the room
+  editor already used), so the leaf/frame overlaps the jamb instead of sitting
+  coplanar with it — no more z-fighting flicker at door/window edges as the camera
+  orbits.
+
 ## v0.15.2.9 — wall/door/window fade: constant depthWrite kills popping + sorting artifacts
 
 Fixes the dollhouse wall-reveal popping and the bright-band / seam artifacts on

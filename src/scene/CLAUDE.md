@@ -111,7 +111,7 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `LuxOverlay`/`Panorama`/`Record`/`HqRender`/`SceneExport`) — those aren't rendering systems.
   Its walls fade with the
   **same camera-facing reveal as orbit** (ROOM-EDITOR-WALL-REVEAL): `RoomShell`/`PlanRoomShell`
-  call the shared `apartment/walls/useWallReveal` hook, which reuses the pure `wallRevealFactor`
+  call the shared `apartment/walls/useWallReveal` hook, which reuses the pure `wallRevealFacing`
   + the `wallRevealMode`/`wallReveal` settings (translucent by default) and fades a wall via a
   **per-mesh material clone** (the room's walls share one finish material, so mutating it in place
   would fade them all) + publishes `setWallOpacity` so the wall's windows/doors fade too.

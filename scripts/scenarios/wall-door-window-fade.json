@@ -1,0 +1,20 @@
+{
+  "name": "wall-door-window-fade",
+  "url": "http://localhost:5242/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour&&s.endTour(); s.setOnboardingOpen&&s.setOnboardingOpen(false); s.dismissLocationPrompt&&s.dismissLocationPrompt()" },
+    { "name": "high-tier", "store": { "action": "setQualityTier", "args": ["high"] } },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading && window.__store.getState().hideLoading()" },
+    { "name": "three-ready", "waitFor": { "store": "!!window.__three && !!window.__three.controls" }, "timeout": 30000 },
+    { "name": "probe-fn", "eval": "window.__probe=()=>{const sc=window.__three.scene;const door=[];const glass=[];const wall=[];sc.traverse(o=>{if(!o.isMesh||!o.material)return;const mats=Array.isArray(o.material)?o.material:[o.material];for(const m of mats){const col=m.color&&m.color.getHexString?m.color.getHexString():'';const rec=+m.opacity.toFixed(2);if(col==='9d7c54'||col==='8a6c48')door.push(rec);else if(col==='bcd4e6'||/^b[cd]/.test(col))glass.push(rec);else if(col==='f1f0ec')wall.push(rec);}});const u=a=>[...new Set(a)].sort((x,y)=>x-y);return {wall:u(wall),door:u(door),glass:u(glass)};};const c=window.__three.controls;window.__t=[c.target.x,c.target.y,c.target.z];window.__cam=window.__three.camera;window.__r=Math.hypot(window.__cam.position.x-window.__t[0],window.__cam.position.z-window.__t[2]);window.__setView=(ang,elev,zoom)=>{const rr=window.__r*zoom;window.__cam.position.set(window.__t[0]+rr*Math.cos(ang),window.__t[1]+window.__r*elev,window.__t[2]+rr*Math.sin(ang));window.__three.controls.update();};'ok'" },
+    { "name": "view-1", "eval": "window.__setView(0.4, 0.35, 0.95);'ok'" },
+    { "name": "settle-1", "wait": 1000 },
+    { "name": "probe-1", "eval": "console.log('P1 '+JSON.stringify(window.__probe()));'ok'" },
+    { "name": "shot-1", "screenshot": "orbit-fade-1" },
+    { "name": "view-2", "eval": "window.__setView(3.3, 0.35, 0.95);'ok'" },
+    { "name": "settle-2", "wait": 1000 },
+    { "name": "probe-2", "eval": "console.log('P2 '+JSON.stringify(window.__probe()));'ok'" },
+    { "name": "shot-2", "screenshot": "orbit-fade-2" }
+  ]
+}

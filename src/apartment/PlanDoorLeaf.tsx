@@ -1,17 +1,19 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useRef } from 'react'
-import { Color, type Group, Mesh, type MeshStandardMaterial } from 'three'
+import { Color, type Group, Mesh, type MeshStandardMaterial, Vector3 } from 'three'
 import type { PlanOpening, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import { dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { FLAT } from './constants'
-import { cameraFacingNormal, orientOutward, wallRevealFactor } from './walls/wallRevealMath'
+import { orientOutward, WALL_TRANSLUCENT_MIN, wallRevealFacing } from './walls/wallRevealMath'
 
 const SWING_RAD = Math.PI / 2
 const SWING_SECONDS = 0.2
 const LEAF_THICK = FLAT.doorThickness
+// Scratch for the camera forward direction (avoids per-frame allocation).
+const FWD = new Vector3()
 const DEFAULT_LEAF = '#9d7c54'
 const DEFAULT_PANEL = '#8a6c48'
 
@@ -110,6 +112,7 @@ export function PlanDoorLeaf({
       const participates = isExterior || revealScope === 'all'
       let target = 1
       if (participates && revealEnabled && revealMode !== 'opaque' && st.cameraMode === 'orbit') {
+        camera.getWorldDirection(FWD)
         let nx = -Math.sin(angle)
         let nz = Math.cos(angle)
         if (isExterior) {
@@ -123,27 +126,17 @@ export function PlanDoorLeaf({
             nx = -nx
             nz = -nz
           }
-        } else {
+        } else if (nx * FWD.x + nz * FWD.z > 0) {
           // Interior partition door: orient the normal toward the camera so it
           // fades when the camera faces the partition (revealing the room behind).
-          const f = cameraFacingNormal(doorX, doorZ, nx, nz, camera.position.x, camera.position.z)
-          nx = f.nx
-          nz = f.nz
+          nx = -nx
+          nz = -nz
         }
-        // Fade in lockstep with the host wall's own reveal (translucent floors at
-        // 0.15, auto-hide can vanish) — the leaf no longer HARD-hides at a 0.5
-        // threshold (a visible pop), it smoothly fades its opacity like the wall.
-        const factor = wallRevealFactor(
-          camera.position.x,
-          camera.position.z,
-          doorX,
-          doorZ,
-          nx,
-          nz,
-          cx,
-          cz,
-        )
-        target = revealMode === 'auto-hide' ? factor : Math.max(0.15, factor)
+        // Fade in lockstep with the host wall's own reveal, from the camera's look
+        // direction only (ORIENTATION-ONLY — unaffected by zoom / pan) — the leaf
+        // smoothly fades its opacity like the wall rather than hard-hiding.
+        const factor = wallRevealFacing(FWD.x, FWD.z, nx, nz)
+        target = revealMode === 'auto-hide' ? factor : Math.max(WALL_TRANSLUCENT_MIN, factor)
       }
       opacityRef.current += (target - opacityRef.current) * 0.18
       const cur = opacityRef.current
