@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   cameraFacingNormal,
+  nearWallRevealFactor,
   orientOutward,
   pointInRooms,
   type RoomRect,
@@ -138,5 +139,43 @@ describe('smoothstep', () => {
     expect(smoothstep(0, 1, -1)).toBe(0)
     expect(smoothstep(0, 1, 2)).toBe(1)
     expect(smoothstep(0, 1, 0.5)).toBeCloseTo(0.5)
+  })
+})
+
+describe('nearWallRevealFactor (isolated-room dollhouse)', () => {
+  // A 4×4 room centred at the origin: walls' midpoints at (±2,0) and (0,±2).
+  const C: [number, number] = [0, 0]
+
+  it('fades the walls nearest the camera, keeps the far/back walls opaque', () => {
+    // Camera to the +X/+Z (NE) side: the east + south walls are the near ones.
+    const near1 = nearWallRevealFactor(5, 5, 2, 0, C[0], C[1]) // east wall mid
+    const near2 = nearWallRevealFactor(5, 5, 0, 2, C[0], C[1]) // south wall mid
+    const far1 = nearWallRevealFactor(5, 5, -2, 0, C[0], C[1]) // west wall mid
+    const far2 = nearWallRevealFactor(5, 5, 0, -2, C[0], C[1]) // north wall mid
+    expect(near1).toBeLessThan(0.2)
+    expect(near2).toBeLessThan(0.2)
+    expect(far1).toBeGreaterThan(0.95)
+    expect(far2).toBeGreaterThan(0.95)
+  })
+
+  it('keeps every wall opaque from directly overhead (no near/far split)', () => {
+    // Camera above the centre → equal XZ distance to every wall → none "in front".
+    for (const [mx, mz] of [
+      [2, 0],
+      [-2, 0],
+      [0, 2],
+      [0, -2],
+    ] as const) {
+      expect(nearWallRevealFactor(0, 0, mx, mz, C[0], C[1])).toBeGreaterThan(0.95)
+    }
+  })
+
+  it('does NOT depend on the camera fit-distance (the old proximity bug)', () => {
+    // Same geometry, camera 3× farther on the same ray: near walls still fade,
+    // far walls stay opaque (unlike the /camToCenter proximity term).
+    const nearClose = nearWallRevealFactor(5, 5, 2, 0, C[0], C[1])
+    const nearFarCam = nearWallRevealFactor(15, 15, 2, 0, C[0], C[1])
+    expect(nearClose).toBeLessThan(0.3)
+    expect(nearFarCam).toBeLessThan(0.3)
   })
 })

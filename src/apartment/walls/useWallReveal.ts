@@ -3,7 +3,7 @@ import { type RefObject, useEffect, useRef } from 'react'
 import type { Material, Mesh, MeshStandardMaterial, Object3D } from 'three'
 import { useStore } from '../../state/store'
 import { setWallOpacity } from './wallReveal'
-import { wallRevealFactor } from './wallRevealMath'
+import { nearWallRevealFactor } from './wallRevealMath'
 
 export interface WallRevealArgs {
   /** Wall midpoint (world XZ). */
@@ -36,7 +36,7 @@ const LERP = 0.18
  * frames via `invalidate()` only while the fade is settling.
  */
 export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallRevealArgs): void {
-  const { midX, midZ, nx, nz, center, wallId } = args
+  const { midX, midZ, center, wallId } = args
   const opacityRef = useRef(1)
   const transparentRef = useRef(false)
   const clonesRef = useRef<Material[]>([])
@@ -73,7 +73,13 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     const cam = state.camera.position
     let target = 1
     if (orbit && revealEnabled && revealMode !== 'opaque') {
-      const faded = wallRevealFactor(cam.x, cam.z, midX, midZ, nx, nz, center[0], center[1])
+      // NEAREST-WALLS reveal (ROOM-EDITOR-FADE): fade the walls closest to the
+      // camera (in front of the room centre), keep the far/back walls opaque.
+      // Measured by nearness normalised to the ROOM's own size — NOT the camera's
+      // fit-distance, which is nearly equal for every wall in a small isolated
+      // room and made even the back walls drift translucent + flip on tiny camera
+      // moves. See `nearWallRevealFactor`.
+      const faded = nearWallRevealFactor(cam.x, cam.z, midX, midZ, center[0], center[1])
       // translucent: never fully disappear (min 0.15); auto-hide: can vanish.
       target = revealMode === 'auto-hide' ? faded : Math.max(0.15, faded)
     }

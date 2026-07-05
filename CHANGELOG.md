@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.10 — room-editor reveal: nearest-walls fade, neutral dollhouse backdrop, orbit opening clearance
+
+Three fixes to the wall reveal, from continued room-editor feedback:
+
+- **Fade logic (ROOM-EDITOR-FADE):** the room editor now fades the walls **closest
+  to the camera** and keeps the far/back walls opaque. The old path reused
+  `wallRevealFactor`'s proximity term, which normalises by the camera's fit-distance
+  — nearly identical for every wall in a small isolated room framed to fill the
+  viewport, so even the back walls drifted translucent and flip-flopped on tiny
+  camera moves. New pure `nearWallRevealFactor` measures nearness against the room's
+  own size instead, so only the front walls reveal. (`useWallReveal`, unit-tested.)
+- **Neutral dollhouse backdrop (ROOM-EDITOR-BACKDROP):** the isolated room no longer
+  paints the time-of-day `<Sky/>` as its background — a faded exterior wall in an
+  isolated room reveals the background directly, so the bright sky bled through the
+  fade (a blown-out band) and the shower glass's transmission sampled it and lit up
+  cyan. A flat neutral background can't do either, matching the "dollhouse — the sky
+  shouldn't affect the room" intent; IBL for material reflections still comes from
+  `SceneEnvironment`, daytime lighting is already the flat dollhouse fill.
+- **Orbit opening clearance:** the whole-flat orbit scene now carves door/window
+  openings a hair smaller than the leaf/pane (the same `OPENING_CLEARANCE` the room
+  editor already used), so the leaf/frame overlaps the jamb instead of sitting
+  coplanar with it — no more z-fighting flicker at door/window edges as the camera
+  orbits.
+
 ## v0.15.2.9 — wall/door/window fade: constant depthWrite kills popping + sorting artifacts
 
 Fixes the dollhouse wall-reveal popping and the bright-band / seam artifacts on

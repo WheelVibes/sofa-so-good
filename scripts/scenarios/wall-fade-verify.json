@@ -1,6 +1,6 @@
 {
   "name": "wall-fade-verify",
-  "url": "http://localhost:5234/",
+  "url": "http://localhost:5236/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
     { "name": "dismiss-overlays", "eval": "const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour&&s.endTour(); s.setOnboardingOpen&&s.setOnboardingOpen(false); s.dismissLocationPrompt&&s.dismissLocationPrompt()" },
@@ -9,16 +9,17 @@
     { "name": "room-active", "waitFor": { "store": "window.__store.getState().roomEditor.active === true" } },
     { "name": "three-ready", "waitFor": { "store": "!!window.__three && !!window.__three.controls" }, "timeout": 30000 },
     { "name": "hide-loading", "eval": "window.__store.getState().hideLoading && window.__store.getState().hideLoading()" },
-    { "name": "setup", "eval": "window.__setAz=(ang)=>{const c=window.__three.controls,cam=window.__three.camera,t=c.target;const r=Math.hypot(cam.position.x-t.x,cam.position.z-t.z);cam.position.set(t.x+r*Math.cos(ang),cam.position.y,t.z+r*Math.sin(ang));c.update();};const st=window.__three.controls.getAzimuthalAngle();window.__setAz(st-0.7);'ok'" },
+    { "name": "setup", "eval": "window.__setAz=(ang)=>{const c=window.__three.controls,cam=window.__three.camera,t=c.target;const r=Math.hypot(cam.position.x-t.x,cam.position.z-t.z);cam.position.set(t.x+r*Math.cos(ang),cam.position.y,t.z+r*Math.sin(ang));c.update();};window.__probeWalls=()=>{const sc=window.__three.scene;const walls=[];sc.traverse(o=>{if(!o.isMesh||!o.material)return;const ft=o.userData&&o.userData.finishTarget;if(ft&&ft.kind==='wall'){const m=Array.isArray(o.material)?o.material[0]:o.material;walls.push(+m.opacity.toFixed(2));}});return walls.sort((a,b)=>a-b);};'ok'" },
     { "name": "settle-a", "wait": 900 },
-    { "name": "shot-faded-a", "screenshot": "roomedit-faded-a" },
-    { "name": "rotate-b", "eval": "const st=window.__three.controls.getAzimuthalAngle();window.__setAz(st+0.35);'ok'" },
+    { "name": "probe-a", "eval": "console.log('WALLS-A '+JSON.stringify(window.__probeWalls()));'ok'" },
+    { "name": "shot-a", "screenshot": "roomedit-a" },
+    { "name": "rotate-b", "eval": "const st=window.__three.controls.getAzimuthalAngle();window.__setAz(st+0.6);'ok'" },
     { "name": "settle-b", "wait": 900 },
-    { "name": "shot-faded-b", "screenshot": "roomedit-faded-b" },
-    { "name": "exit-editor", "store": { "action": "exitRoomEditor", "args": [] } },
-    { "name": "orbit-ready", "waitFor": { "store": "window.__store.getState().roomEditor.active === false" } },
-    { "name": "hide-loading-2", "eval": "window.__store.getState().hideLoading && window.__store.getState().hideLoading()" },
-    { "name": "settle-orbit", "wait": 1200 },
-    { "name": "shot-orbit-flat", "screenshot": "orbit-whole-flat" }
+    { "name": "probe-b", "eval": "console.log('WALLS-B '+JSON.stringify(window.__probeWalls()));'ok'" },
+    { "name": "shot-b", "screenshot": "roomedit-b" },
+    { "name": "rotate-c", "eval": "const st=window.__three.controls.getAzimuthalAngle();window.__setAz(st-1.2);'ok'" },
+    { "name": "settle-c", "wait": 900 },
+    { "name": "probe-c", "eval": "console.log('WALLS-C '+JSON.stringify(window.__probeWalls()));'ok'" },
+    { "name": "shot-c", "screenshot": "roomedit-c" }
   ]
 }

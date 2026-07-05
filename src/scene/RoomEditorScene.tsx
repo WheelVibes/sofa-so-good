@@ -24,14 +24,12 @@ import { CurtainLightController } from './lighting/CurtainLightController'
 import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
-import { Sky } from './lighting/Sky'
 import { DEFAULT_TONE_MAPPING } from './look'
 import { PlacementDropAnimator } from './PlacementDropAnimator'
 import { PlacementGhost } from './PlacementGhost'
 import { QualityController } from './QualityController'
 import { RenderPump } from './RenderPump'
 import { getRoomEditorShell } from './roomEditorShell'
-import { SceneBackdrop } from './SceneBackdrop'
 import { ScreenshotController } from './ScreenshotController'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
@@ -97,10 +95,17 @@ export function RoomEditorScene() {
       <ContextLossGuard />
       <RenderPump />
       <AnisotropyController />
-      {/* Full orbit render stack — the room now lights, reflects (IBL) and posts
-          identically to the whole-flat orbit view at the user's quality tier. */}
-      <Sky />
-      <SceneBackdrop />
+      {/* Neutral dollhouse backdrop (ROOM-EDITOR-BACKDROP): the isolated room is
+          an authoring "dollhouse", so we do NOT paint the time-of-day <Sky/> as
+          the background here. A faded exterior wall in an isolated room reveals
+          the background DIRECTLY (nothing else is behind it), so a bright sky bled
+          through the fade — a blown-out band on the wall and, worse, the shower
+          glass's transmission sampled that bright sky and lit up cyan. A flat
+          neutral background can't do either, and keeps the room reading as a
+          dollhouse whose look isn't driven by the exterior sky. IBL for material
+          reflections still comes from <SceneEnvironment/>; daytime lighting is
+          already the flat neutral dollhouse fill (orbit + day). */}
+      <color attach="background" args={['#e6eaef']} />
       <SceneEnvironment />
       <Lighting />
       <CurtainLightController />

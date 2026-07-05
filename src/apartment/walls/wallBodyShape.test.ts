@@ -38,13 +38,15 @@ describe('buildWallBodyOutline', () => {
       0,
     )
     expect(holes).toEqual([]) // not an interior hole
-    // notch: door spans local x [1.5-2, 2.5-2] = [-0.5, 0.5], up to head 2.1
+    // notch: door spans local x [1.5-2, 2.5-2] = [-0.5, 0.5], up to head 2.1,
+    // each edge pulled in by OPENING_CLEARANCE (floor edge stays at 0).
+    const c = OPENING_CLEARANCE
     expect(outline).toEqual([
       [-2, 0],
-      [-0.5, 0],
-      [-0.5, 2.1],
-      [0.5, 2.1],
-      [0.5, 0],
+      [-0.5 + c, 0],
+      [-0.5 + c, 2.1 - c],
+      [0.5 - c, 2.1 - c],
+      [0.5 - c, 0],
       [2, 0],
       [2, 2.6],
       [-2, 2.6],
@@ -66,14 +68,16 @@ describe('buildWallBodyOutline', () => {
       [2, 2.6],
       [-2, 2.6],
     ])
-    // one hole spanning local x [1-2, 2.4-2] = [-1, 0.4], y [0.95, 2.1]
+    // one hole spanning local x [1-2, 2.4-2] = [-1, 0.4], y [0.95, 2.1],
+    // inset on all four edges by OPENING_CLEARANCE.
+    const c = OPENING_CLEARANCE
     expect(holes).toHaveLength(1)
     const rounded = holes[0].map(([x, y]) => [Math.round(x * 1e6) / 1e6, y])
     expect(rounded).toEqual([
-      [-1, 0.95],
-      [0.4, 0.95],
-      [0.4, 2.1],
-      [-1, 2.1],
+      [-0.99, 0.95 + c],
+      [0.39, 0.95 + c],
+      [0.39, 2.1 - c],
+      [-0.99, 2.1 - c],
     ])
   })
 
@@ -89,7 +93,8 @@ describe('buildWallBodyOutline', () => {
       0,
     )
     expect(holes).toHaveLength(1)
-    expect(holes[0][2][1]).toBe(2.6) // top clamped to wall top
+    // top clamped to the wall top, then pulled in by the clearance.
+    expect(holes[0][2][1]).toBe(2.6 - OPENING_CLEARANCE)
   })
 })
 

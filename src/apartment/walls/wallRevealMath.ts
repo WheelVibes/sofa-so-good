@@ -85,6 +85,39 @@ export function wallRevealFactor(
 }
 
 /**
+ * Reveal opacity for an **isolated room** (the per-room editor dollhouse), based
+ * on how much CLOSER a wall is to the camera than the room centre — normalised by
+ * the room's own size, NOT the camera distance. `wallRevealFactor`'s proximity
+ * term divides by `camToCenter`, which is fine for the whole flat but wrong for a
+ * single small room framed to fill the viewport: there every wall sits at nearly
+ * the same (large) fit-distance, so that ratio is ~0 for all of them and even the
+ * far/back walls drift translucent (and flip on tiny camera moves). Here we
+ * measure nearness against the wall's own offset from centre (≈ the room's half-
+ * extent toward it), so the walls actually closest to the camera fade while the
+ * far walls stay solidly opaque.
+ *
+ * Returns 1 (opaque) for a wall at/behind the centre, ramping to 0 (faded) as it
+ * moves in front of the centre toward the camera. Pure.
+ */
+export function nearWallRevealFactor(
+  camX: number,
+  camZ: number,
+  midX: number,
+  midZ: number,
+  centerX: number,
+  centerZ: number,
+): number {
+  const camToWall = Math.hypot(camX - midX, camZ - midZ)
+  const camToCenter = Math.hypot(camX - centerX, camZ - centerZ)
+  const halfExtent = Math.hypot(midX - centerX, midZ - centerZ) || 1
+  // >0 when the wall is between the camera and the centre (a near wall), in units
+  // of the room's half-extent toward that wall; <0 when it's on the far side.
+  const nearness = (camToCenter - camToWall) / halfExtent
+  // Near (nearness → 1) fades to 0; a side wall (~0) or far wall (<0) stays opaque.
+  return 1 - smoothstep(0.1, 0.7, nearness)
+}
+
+/**
  * Orient a wall's face normal `(nx, nz)` so it points **toward the camera**.
  * Used for interior partitions (which have rooms on both sides, so there is no
  * single "outward"): in the all-walls reveal scope a partition fades when the
