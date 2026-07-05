@@ -32,7 +32,7 @@ import {
   wallEndAbutmentThickness,
   wallThicknessMetres,
 } from '../wallSegments'
-import { extrudeWallBody } from './wallBodyGeometry'
+import { extrudeWallBody, WALL_STRUCTURE_COLOR } from './wallBodyGeometry'
 import { buildWallBodyOutline } from './wallBodyShape'
 import { setWallOpacity } from './wallReveal'
 import {
@@ -503,7 +503,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
           seams when the wall fades translucent for the dollhouse reveal. */}
       <mesh geometry={bodyGeometry} castShadow receiveShadow>
         <meshStandardMaterial
-          color="#dcd8d2"
+          color={WALL_STRUCTURE_COLOR}
           roughness={0.95}
           polygonOffset
           polygonOffsetFactor={0}

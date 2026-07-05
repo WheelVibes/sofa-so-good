@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.14 — wall finish only paints the interior face; tops + exterior stay white
+
+The wall FINISH (paint/material) now applies only to the interior room-facing
+surface; the wall's top edge and structural faces stay a clean off-white
+(`WALL_STRUCTURE_COLOR`):
+
+- **Orbit** already painted finishes via per-side interior face planes over a
+  neutral body — the body colour is now white instead of grey, so wall TOPS and
+  the apartment's EXTERIOR-facing faces read white, while interior partition faces
+  keep the adjacent room's finish (a partition's "outer" side is another room's
+  wall, so it's correctly not white).
+- **Room editor** previously painted the whole extruded body with the finish
+  (top + outer + inner all coloured). The body is now split into two material
+  groups — the interior room-facing cap gets the finish, the top / outer face /
+  ends / opening jambs get structural white (`extrudeWallBody(..., innerFaceZSign)`
+  → `groupInnerFace`). In an isolated room the outer face is never another room,
+  so it's always white.
+
+GPU-verified in both scenes: tops white, interior painted, exterior white
+(orbit: only truly-exterior faces; interior partitions keep their finish).
+
 ## v0.15.2.13 — corners: single sharp join (span/butt tiling) + orbit body bias
 
 Follow-up on the corner work from continued feedback ("two walls should form one

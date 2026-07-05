@@ -23,7 +23,7 @@ import { type ClippedWall, clippedWallCutouts, type RoomShell as RoomShellData }
 import { WindowPane } from './Window'
 import { wallThicknessMetres } from './wallSegments'
 import { useWallReveal } from './walls/useWallReveal'
-import { extrudeWallBody } from './walls/wallBodyGeometry'
+import { extrudeWallBody, getWallStructureMaterial } from './walls/wallBodyGeometry'
 import { OPENING_CLEARANCE, wallBodyOutlineFromSpans } from './walls/wallBodyShape'
 
 /** A clipped wall box, painted with the room's wall finish, that fades to
@@ -87,11 +87,21 @@ function WallBox({
 
   const t = wallThicknessMetres(wall.spec)
   const h = wall.spec.topHeight ?? ceilingHeight
+  // Which of the body's two thickness caps faces the room INTERIOR — so the
+  // extruded body can paint only that cap with the wall finish (group 0) and keep
+  // the outer cap + top + ends structural white (group 1). The body is rotated by
+  // [0, -angle, 0], under which its local +Z maps to world (-dzn, dxn); the inner
+  // cap is the one whose outward normal points opposite the room-outward normal.
+  const dxn = (ex - sx) / (len || 1)
+  const dzn = (ez - sz) / (len || 1)
+  const localZOutwardDot = -dzn * normal.x + dxn * normal.y
+  const innerFaceZSign = localZOutwardDot > 0 ? -1 : 1
   // A single watertight extruded body with the wall's door/window openings
   // carved out (matching the main orbit scene), so an opaque wall no longer
   // occludes the door/window sitting inside it — the box had no cutouts, so the
   // openings vanished the moment the wall stopped fading (only the fade let you
-  // see "through" it). Floor-anchored (y 0..h), so position sits at y=0.
+  // see "through" it). Floor-anchored (y 0..h), so position sits at y=0. Split
+  // into finish (inner face) + white (rest) material groups.
   const bodyGeometry = useMemo(
     () =>
       extrudeWallBody(
@@ -103,8 +113,9 @@ function WallBox({
           OPENING_CLEARANCE,
         ),
         t,
+        innerFaceZSign,
       ),
-    [wall, len, h, t, startAbut, endAbut],
+    [wall, len, h, t, startAbut, endAbut, innerFaceZSign],
   )
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
 
@@ -116,7 +127,9 @@ function WallBox({
       position={[midX, 0, midZ]}
       rotation={[0, -angle, 0]}
       castShadow={false}
-      material={material}
+      // [finish, structural-white]: the grouped body paints only the interior
+      // room-facing cap with the finish; the top/outer/ends stay white.
+      material={[material, getWallStructureMaterial()]}
       geometry={bodyGeometry}
       // In the isolated room editor every clipped wall belongs to this room, so
       // tag it as a wall drop target (scene/finishDropTarget.ts).
