@@ -74,10 +74,27 @@ describe('wallRevealFacing (orientation-only)', () => {
     expect(wallRevealFacing(0.02, 0.02, 1, 0)).toBe(1)
   })
 
-  it('half-fades an edge-on side wall (normal perpendicular to the view)', () => {
-    const f = wallRevealFacing(0, 1, 1, 0) // normal +X, forward +Z → dot 0
-    expect(f).toBeGreaterThan(0.3)
-    expect(f).toBeLessThan(0.7)
+  it('keeps an edge-on SIDE wall opaque (normal perpendicular to the view)', () => {
+    // A rectangular room's two side walls sit near dot ≈ 0; they must NOT
+    // half-fade (the old bug: they read ~50% translucent and flipped bluer vs
+    // whiter as you orbited past the axis). Only clearly back-facing walls fade.
+    expect(wallRevealFacing(0, 1, 1, 0)).toBe(1) // normal +X ⟂ forward +Z → opaque
+    expect(wallRevealFacing(0, 1, -1, 0)).toBe(1) // normal −X ⟂ forward +Z → opaque
+  })
+
+  it('keeps a slightly-off-perpendicular side wall opaque', () => {
+    // Off-axis view (forward mostly +Z, a little ±X) tips a side wall a few
+    // degrees; within the opaque margin it must still read fully solid, not begin
+    // fading — this is the exact bath case (the east wall sat at dot ≈ −0.22).
+    expect(wallRevealFacing(0.19, 0.98, 1, 0)).toBe(1) // dot ≈ +0.19 → opaque
+    expect(wallRevealFacing(-0.22, 0.98, 1, 0)).toBe(1) // dot ≈ −0.22 → still opaque
+  })
+
+  it('fades only once a wall is clearly back-facing (dot ≤ −0.75)', () => {
+    expect(wallRevealFacing(0, 1, 0, -1)).toBe(0) // dot −1 → fully faded (front wall)
+    const partial = wallRevealFacing(-0.5, 0.87, 1, 0) // dot ≈ −0.5 → mid-transition
+    expect(partial).toBeGreaterThan(0)
+    expect(partial).toBeLessThan(1)
   })
 })
 
