@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.5 — iOS full-bleed: keep bottom overlays inside the safe area
+
+Follow-up to v0.15.2.4 (full-bleed now works). Because `.app-shell` is extended
+below the viewport by the status-bar inset, its `position: absolute` bottom-
+anchored HUDs (`.toast-host`, `.budget-hud`, `.drag-readout`) were dragged past
+the bottom edge (the "latest version" toast overflowed into the home indicator).
+Per the documented iOS-PWA pattern (bottom elements use `position: fixed` +
+`env(safe-area-inset-bottom)` — same as the already-correct `.catalog`/
+`.inspector` sheets), those HUDs are now `position: fixed` so they anchor to the
+visual viewport and clear the home indicator. The 2D plan editor's canvas-pinned
+controls (compass / scale bar / floor selector) get the same relief via
+`.plan-screen { padding-bottom: env(safe-area-inset-top) }` (its `--surface-2`
+background still fills the region, so no gap). `env()` is 0 on desktop — no change.
+
 ## v0.15.2.4 — iOS full-bleed: extend the document by the status-bar height
 
 The actual, community-documented cause of the tan "bottom bar" (found by web

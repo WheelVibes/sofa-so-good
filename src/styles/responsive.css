@@ -82,6 +82,25 @@ body.mobile {
   #root { height: 100%; }
   .app-shell { height: 100%; min-height: calc(100% + env(safe-area-inset-top)); }
 
+  /* Because `.app-shell` is now taller than the visual viewport (by the status-
+     bar inset), its `position: absolute` bottom-anchored HUD overlays would be
+     dragged BELOW the screen (the toast/spend/drag readouts overflowed past the
+     bottom edge). Anchor them to the VISUAL VIEWPORT with `position: fixed`
+     instead — exactly what the bottom sheets (`.catalog`/`.inspector`, already
+     fixed) do — so their `env(safe-area-inset-bottom)` offset clears the home
+     indicator correctly regardless of the shell's extra height. */
+  .toast-host,
+  .budget-hud,
+  .drag-readout { position: fixed; }
+
+  /* The 2D plan editor (`.plan-screen`, `absolute inset:0` inside the extended
+     shell) also runs past the bottom, so its canvas-pinned controls (compass /
+     scale bar / floor selector) would be dragged below the screen. Shrink its
+     content box by the same top inset so those controls clear the home
+     indicator; its `--surface-2` background still fills the padding region, so
+     there's no gap. `env()` is 0 on desktop → no change. */
+  .plan-screen { padding-bottom: env(safe-area-inset-top); }
+
   /* (iOS Safari focus-zoom on < 16px fields is handled by the dynamic viewport
      `maximum-scale` toggle in src/controls/iosZoomGuard.ts — no font-size bump,
      so mobile fields keep their normal small size while pinch-zoom is preserved
