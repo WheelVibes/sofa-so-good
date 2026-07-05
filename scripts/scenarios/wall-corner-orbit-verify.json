@@ -1,0 +1,18 @@
+{
+  "name": "wall-corner-orbit-verify",
+  "url": "http://localhost:5240/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour&&s.endTour(); s.setOnboardingOpen&&s.setOnboardingOpen(false); s.dismissLocationPrompt&&s.dismissLocationPrompt()" },
+    { "name": "high-tier", "store": { "action": "setQualityTier", "args": ["high"] } },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading && window.__store.getState().hideLoading()" },
+    { "name": "three-ready", "waitFor": { "store": "!!window.__three && !!window.__three.controls" }, "timeout": 30000 },
+    { "name": "setup", "eval": "const c=window.__three.controls;window.__t=[c.target.x,c.target.y,c.target.z];window.__cam=window.__three.camera;window.__r=Math.hypot(window.__cam.position.x-window.__t[0],window.__cam.position.z-window.__t[2]);window.__setView=(ang,elev,zoom)=>{const rr=window.__r*zoom;window.__cam.position.set(window.__t[0]+rr*Math.cos(ang),window.__t[1]+window.__r*elev,window.__t[2]+rr*Math.sin(ang));window.__three.controls.update();};'ok'" },
+    { "name": "view-1", "eval": "window.__setView(0.9, 0.7, 0.55);'ok'" },
+    { "name": "settle-1", "wait": 1000 },
+    { "name": "shot-1", "screenshot": "orbit-corner-a" },
+    { "name": "view-2", "eval": "window.__setView(0.95, 0.7, 0.55);'ok'" },
+    { "name": "settle-2", "wait": 700 },
+    { "name": "shot-2", "screenshot": "orbit-corner-b" }
+  ]
+}

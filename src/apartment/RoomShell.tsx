@@ -162,9 +162,14 @@ function RoomWall({ materialId, ...p }: WallDispatchProps & { materialId: Materi
   )
 }
 
-/** Half-thickness of the perpendicular clipped wall that meets this wall at each
- *  end (0 if the end is free) — used to extend the wall body past the interior
- *  corner so the corner closes flush instead of showing two disjoint walls. */
+/** How far to extend a clipped wall body past each end so corners read as ONE
+ *  clean, sharp join instead of two overlapping/disjoint translucent panels.
+ *  At each corner exactly ONE of the two meeting walls SPANS it — extends by the
+ *  other wall's FULL thickness to fill the corner square — and the other BUTTS
+ *  flush against it (extends 0, its clip already ends at the spanner's face). The
+ *  spanner is chosen deterministically by wall id so the two walls agree, so
+ *  there's no overlap (single-density corner) — just a clean L. (The remaining
+ *  coplanar butt seam is kept from z-fighting by the per-wall `bias`.) */
 function cornerAbutments(
   wall: ClippedWall,
   walls: ClippedWall[],
@@ -174,7 +179,10 @@ function cornerAbutments(
   const abutAt = (pt: [number, number]) => {
     for (const o of walls) {
       if (o === wall) continue
-      if (near(o.start, pt) || near(o.end, pt)) return wallThicknessMetres(o.spec) / 2
+      if (near(o.start, pt) || near(o.end, pt)) {
+        // Span the corner only if we win the id tie-break; else butt flush (0).
+        return wall.wallId < o.wallId ? wallThicknessMetres(o.spec) : 0
+      }
     }
     return 0
   }

@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.13 — corners: single sharp join (span/butt tiling) + orbit body bias
+
+Follow-up on the corner work from continued feedback ("two walls should form one
+clean sharp corner, not visibly intersect"):
+
+- **Room editor** now tiles corners instead of overlapping both walls: at each
+  corner exactly ONE wall SPANS it (extends by the other's full thickness) and the
+  other BUTTS flush (chosen deterministically by wall id), so the corner is a
+  single-density, clean L-join rather than two translucent walls crossing. The
+  coplanar butt seam is kept from z-fighting by the per-wall depth bias.
+- **Orbit whole-flat** wall bodies now carry the same per-wall depth bias
+  (`polygonOffsetUnits` = the wall's index) so overlapping corner walls resolve to
+  a deterministic winner — no corner z-fight flicker as the camera orbits.
+
+GPU-verified (High tier) in both scenes: corners read as clean, stable joins.
+
 ## v0.15.2.12 — room-editor corners: seamless (abutment) + no z-fight (per-wall depth bias)
 
 The isolated room editor drew each wall clipped to the interior edge with no

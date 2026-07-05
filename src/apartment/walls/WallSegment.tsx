@@ -422,6 +422,12 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // textures stop exactly at the inner corner with no overlap into the body.
   const startAbut = wallEndAbutmentThickness(wall, WALLS, true) / 2
   const endAbut = wallEndAbutmentThickness(wall, WALLS, false) / 2
+  // Distinct per-wall depth bias (its index in WALLS) applied to the body's
+  // polygonOffset, so where two walls OVERLAP at a corner (each extended to the
+  // other by the abutment) their now-coplanar faces resolve to a deterministic
+  // winner instead of z-fighting — a stable corner instead of a flickering one
+  // once faded walls write depth (WALL-CORNER-BIAS, mirrors the room editor).
+  const bodyBias = WALLS.findIndex((w) => w.id === wall.id)
   const segments = buildWallSegments(wall, ceilingHeight)
   const midX = (wall.start[0] + wall.end[0]) / 2
   const midZ = (wall.start[1] + wall.end[1]) / 2
@@ -496,7 +502,13 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
           half-thickness so outside corners close flush. One mesh = no internal
           seams when the wall fades translucent for the dollhouse reveal. */}
       <mesh geometry={bodyGeometry} castShadow receiveShadow>
-        <meshStandardMaterial color="#dcd8d2" roughness={0.95} />
+        <meshStandardMaterial
+          color="#dcd8d2"
+          roughness={0.95}
+          polygonOffset
+          polygonOffsetFactor={0}
+          polygonOffsetUnits={bodyBias}
+        />
       </mesh>
       {/* Interior face planes — one per (face-span, side), each painted
           with the room actually backing that span. Spans that touch the
