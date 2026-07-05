@@ -40,14 +40,15 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
         const m = o.material as MeshStandardMaterial
         m.transparent = fading
         m.opacity = wallOp
-        // Keep the leaf's depthWrite in LOCKSTEP with the host wall's (which
-        // writes depth only once essentially opaque, cur ≥ 0.985) — NOT at a
-        // separate 0.6 threshold. At 0.6 the leaf snapped from a see-through
-        // blend (its own front/back/panel faces don't self-occlude → reads flat
-        // "2D") to solid self-occluding "3D" while the wall was still mid-fade,
-        // so the door thickness visibly popped as you orbited. Flipping together
-        // with the wall makes the leaf fade as one surface with it (smooth).
-        m.depthWrite = !fading
+        // Keep depthWrite ON at all times (WALL-FADE-DEPTHWRITE, matching the
+        // host wall + WallSegment). Any threshold that flips it — the old 0.6, or
+        // even the wall's own ~0.985 — snapped the leaf between a see-through
+        // blend (front/back/panel faces don't self-occlude → flat "2D") and solid
+        // self-occluding "3D" mid-fade, popping the door thickness as you orbited.
+        // Writing depth constantly keeps the leaf a clean self-occluding surface
+        // that just gets more transparent, and sorts consistently with the wall
+        // (no bright bleed through their overlap).
+        m.depthWrite = true
         if (changed) m.needsUpdate = true
       })
     }

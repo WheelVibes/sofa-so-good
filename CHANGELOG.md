@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.9 — wall/door/window fade: constant depthWrite kills popping + sorting artifacts
+
+Fixes the dollhouse wall-reveal popping and the bright-band / seam artifacts on
+walls, doors and windows (reported with room-editor screenshots).
+
+**Root cause (reproduced + probed, not assumed):** every reveal-fade site flipped
+`material.depthWrite` in lock-step with `transparent` (`depthWrite = !transparent`
+/ `!fading`). A scene-graph probe of the bath room editor caught walls at opacity
+0.83 *already* `depthWrite:false`, and glass at `depthWrite:true` alongside walls at
+`depthWrite:false`. Two consequences: (1) as the camera orbits, a wall crossing the
+~0.985 threshold flips `depthWrite true→false`, snapping between a solid occluder and
+a see-through pane — the **popping** (plus a 2D↔3D snap on door/window thickness);
+(2) **inconsistent `depthWrite` across overlapping transparent surfaces** breaks
+transparency sorting, so the backdrop bleeds through the wall/door/glass overlap into
+the **bright band / hard seams**.
+
+**Fix (WALL-FADE-DEPTHWRITE):** keep `depthWrite = true` stably through the entire
+fade at every reveal site — `WallSegment`, `useWallReveal`, `PlanShell` (wall + trim),
+`PlanRoomShell`, `Skirting`, `Door`, `PlanDoorLeaf`, `Window` (incl. glass). Only
+`transparent`/`opacity` animate now. Constant depth-write means no occlusion pop, each
+watertight surface self-occludes as one clean pane (no front/back double-blend, no
+2D↔3D door snap), and every transparent reveal surface sorts consistently (no backdrop
+bleed). Verified: scene-graph probe shows `depthWrite:true` across all walls/door/glass;
+GPU (High-tier, bloom on) room-editor + whole-flat orbit renders are clean with no
+bright band; the door fades as a uniform translucent surface. Guard scenarios:
+`wall-fade-verify.json`, `wall-fade-orbit.json`. Corroborated against three.js docs on
+transparent-material `depthWrite` sorting.
+
 ## v0.15.2.8 — room-switcher inline reorder, mobile catalog button, favourite hearts, iOS zoom flicker
 
 Four room-editor / mobile refinements:

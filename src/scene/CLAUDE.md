@@ -115,6 +115,16 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   + the `wallRevealMode`/`wallReveal` settings (translucent by default) and fades a wall via a
   **per-mesh material clone** (the room's walls share one finish material, so mutating it in place
   would fade them all) + publishes `setWallOpacity` so the wall's windows/doors fade too.
+- **`depthWrite` stays ON through the whole wall/door/window fade (WALL-FADE-DEPTHWRITE).** Every
+  reveal-fade site — `WallSegment`, `useWallReveal`, `PlanShell` (wall + trim), `PlanRoomShell`,
+  `Skirting`, `Door`, `PlanDoorLeaf`, `Window` (incl. glass) — sets `material.depthWrite = true`
+  regardless of opacity; only `transparent`/`opacity` change as it fades. Do **NOT** flip
+  `depthWrite` with `transparent` (the old `!transparent` / `!fading` pattern): flipping it made a
+  surface snap between a solid occluder and a see-through pane the instant it crossed the ~0.985
+  threshold (visible *popping* while orbiting, + a 2D↔3D door/frame snap), and left faded surfaces
+  (dw off) sorting inconsistently against glass/openings (dw on) so the backdrop bled through their
+  overlap into a bright band. Constant depth-write = no occlusion pop, single-surface self-occlusion
+  (no front/back double-blend), and consistent transparency sorting across every reveal surface.
 - **Zero artifacts.** Realism work must introduce **no z-fighting or clipping**: offset
   coplanar overlays off the surface (e.g. floor decals at +~0.005 m, `depthWrite` off,
   `transparent`), keep parts from intersecting, and orbit to a side/profile angle to confirm

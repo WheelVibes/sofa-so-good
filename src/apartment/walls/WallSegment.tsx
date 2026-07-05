@@ -391,7 +391,16 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       const apply = (m: MeshStandardMaterial) => {
         m.transparent = transparent
         m.opacity = cur
-        m.depthWrite = !transparent
+        // Keep depthWrite ON through the whole fade (WALL-FADE-DEPTHWRITE) — do
+        // NOT flip it with `transparent`. Flipping it made a wall snap between a
+        // solid occluder and a see-through pane the instant it crossed the ~0.985
+        // threshold (visible popping while orbiting), and left faded walls (dw
+        // off) sorting inconsistently against glass/openings (dw on) so the
+        // backdrop bled through their overlap and bloomed into a bright band. A
+        // watertight wall body writes depth as one surface, so its front face
+        // occludes its back (no double-blend) and it sorts cleanly against every
+        // other transparent surface — smooth, artifact-free translucency.
+        m.depthWrite = true
         if (transparentChanged) m.needsUpdate = true
       }
       if (Array.isArray(mat)) mat.forEach(apply)

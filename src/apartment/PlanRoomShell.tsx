@@ -179,10 +179,11 @@ function PlanOpeningMesh({ entry }: { entry: PlanRoomOpening }) {
       const mat = m.material as MeshStandardMaterial
       mat.transparent = !isDoor || fading
       mat.opacity = baseOpacity * wallOp
-      // Match the host wall's depthWrite boundary (opaque ≥ 0.985) instead of a
-      // separate 0.6 step, so a door leaf fades as one surface with the wall
-      // rather than popping from a flat see-through blend to solid 3D mid-fade.
-      mat.depthWrite = isDoor && !fading
+      // depthWrite stays ON at all times (WALL-FADE-DEPTHWRITE, matching the host
+      // wall) so the opening fades as one clean self-occluding surface and sorts
+      // consistently with the wall, instead of popping 2D↔3D mid-fade or bleeding
+      // the backdrop through the wall/opening overlap.
+      mat.depthWrite = true
       if (changed) mat.needsUpdate = true
     })
   })

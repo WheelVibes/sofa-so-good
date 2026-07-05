@@ -1,0 +1,12 @@
+{
+  "name": "wall-fade-orbit",
+  "url": "http://localhost:5234/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour&&s.endTour(); s.setOnboardingOpen&&s.setOnboardingOpen(false); s.dismissLocationPrompt&&s.dismissLocationPrompt()" },
+    { "name": "high-tier", "store": { "action": "setQualityTier", "args": ["high"] } },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading && window.__store.getState().hideLoading()" },
+    { "name": "settle", "wait": 1500 },
+    { "name": "shot-orbit", "screenshot": "orbit-dollhouse" }
+  ]
+}

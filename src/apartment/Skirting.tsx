@@ -93,9 +93,9 @@ export function Skirting() {
       if (next !== mat.transparent) mat.needsUpdate = true
       mat.transparent = next
       mat.opacity = op
-      // Depth only when essentially opaque (match the `transparent` boundary +
-      // the host wall), not a 0.6 step that pops the skirting solid mid-fade.
-      mat.depthWrite = !next
+      // depthWrite stays ON (WALL-FADE-DEPTHWRITE) so the skirting fades as one
+      // clean surface with its wall instead of popping / sorting inconsistently.
+      mat.depthWrite = true
     }
   })
 
