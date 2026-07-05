@@ -57,4 +57,16 @@ describe('SharedCard', () => {
     await waitFor(() => expect(add).toHaveBeenCalled())
     expect(onResolved).not.toHaveBeenCalled()
   })
+
+  it('marks the favourite button pressed once saved (filled red heart)', () => {
+    render(<SharedCard item={item} onResolved={() => {}} />)
+    const heart = screen.getByRole('button', { name: /add to favourites/i })
+    expect(heart).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(heart)
+    expect(useStore.getState().favouriteDefIds).toContain('ikea-alex')
+    const saved = screen.getByRole('button', { name: /remove from favourites/i })
+    expect(saved).toHaveAttribute('aria-pressed', 'true')
+    // The `.on` class is what colours the heart red (see src/ui/CLAUDE.md).
+    expect(saved.className).toContain('on')
+  })
 })

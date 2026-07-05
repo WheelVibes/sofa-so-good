@@ -48,6 +48,23 @@ describe('Select', () => {
     expect(onChange).toHaveBeenCalledWith('b')
   })
 
+  it('renders optionTrailing content beside each option as a sibling (not nested)', () => {
+    render(
+      <Select
+        value="a"
+        onChange={() => {}}
+        options={OPTS}
+        ariaLabel="Fruit"
+        optionTrailing={(o) => <span data-testid={`trail-${o.value}`}>≡</span>}
+      />,
+    )
+    fireEvent.click(screen.getByRole('combobox', { name: 'Fruit' }))
+    const trail = screen.getByTestId('trail-a')
+    // Wrapped in a row alongside the option button, never inside it.
+    expect(trail.closest('.select-option-row')).toBeTruthy()
+    expect(trail.closest('[role="option"]')).toBeNull()
+  })
+
   it('icon trigger exposes the current value in the accessible name', () => {
     render(
       <Select

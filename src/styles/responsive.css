@@ -101,10 +101,13 @@ body.mobile {
      there's no gap. `env()` is 0 on desktop → no change. */
   .plan-screen { padding-bottom: env(safe-area-inset-top); }
 
-  /* (iOS Safari focus-zoom on < 16px fields is handled by the dynamic viewport
-     `maximum-scale` toggle in src/controls/iosZoomGuard.ts — no font-size bump,
-     so mobile fields keep their normal small size while pinch-zoom is preserved
-     except while a field is focused.) */
+  /* (iOS Safari focus-zoom on < 16px fields is suppressed by a permanent,
+     iOS-only `maximum-scale=1` viewport set once at boot in
+     src/controls/iosZoomGuard.ts — no font-size bump, so mobile fields keep
+     their normal small size, and since iOS 10 Safari ignores `maximum-scale`
+     for user pinch-zoom so that still works. The earlier per-focus viewport
+     toggle was dropped because rewriting the meta on focus caused a
+     zoom-in-then-out flicker on every tap.) */
 
   /* ---- Collapsed toolbar (single menu icon) ---------------- */
   .toolbar.mobilebar {

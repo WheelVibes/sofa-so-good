@@ -92,12 +92,17 @@ export function RemoteCard({ entry, onResolved, staggerIndex }: Props) {
           type="button"
           className={`fav-btn${saved ? ' on' : ''}`}
           aria-label={saved ? 'Remove from favourites' : 'Add to favourites'}
+          aria-pressed={saved}
           onClick={(e) => {
             e.stopPropagation()
             toggleFavourite(favId)
           }}
         >
-          <Icon.Heart width={14} height={14} />
+          {saved ? (
+            <Icon.HeartFilled width={14} height={14} />
+          ) : (
+            <Icon.Heart width={14} height={14} />
+          )}
         </button>
       ) : null}
       <div className="card-thumb">

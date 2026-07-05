@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.8 — room-switcher inline reorder, mobile catalog button, favourite hearts, iOS zoom flicker
+
+Four room-editor / mobile refinements:
+
+- **Room-switcher reorder is now inline, not a separate button.** The standalone
+  "Reorder rooms" toolbar button + `RoomReorderModal` are gone; instead each entry
+  in the room dropdown carries a drag handle on its right edge (behind the same
+  `roomReorder` flag). Dragging it by pointer (mouse or touch) reorders the list in
+  place and pins the manual order (persists to `roomOrder`). Implemented via a new
+  generic `optionTrailing` render slot on `ui/controls/Select` (the handle is a
+  sibling of each option button — nesting a `<button>` inside the option button is
+  invalid HTML), wrapped in a `.select-option-row` flex row.
+- **Mobile toolbar catalog button.** Inside the room editor the mobile toolbar now
+  shows a Catalog button immediately to the LEFT of the hamburger (mirrors the
+  desktop toolbar's catalog button + the Design menu's Catalog item); it toggles the
+  catalog bottom-sheet. Hidden outside the room editor.
+- **Shared-library + remote card favourite hearts fill red when saved.** `SharedCard`
+  and `RemoteCard` now swap to the solid `Icon.HeartFilled` (red, via `.fav-btn.on`)
+  when favourited, matching `CatalogCard` — previously only the default catalog cards
+  did, the shared/remote ones stayed an outline heart.
+- **iOS input focus-zoom flicker fixed.** Tapping a text field on iOS zoomed in then
+  back out before the caret landed. Root cause: `iosZoomGuard` rewrote the viewport
+  meta (`maximum-scale=1`) on `focusin` and restored it on `focusout`; rewriting the
+  meta *after* focus makes iOS start its auto-zoom and then snap back when the meta
+  re-parses. Fix (web-documented, not guessed): set a **permanent, iOS-only**
+  `maximum-scale=1` once at boot — since iOS 10 Safari ignores `maximum-scale` for
+  user pinch-zoom (accessibility), so pinch still works; no dynamic rewrite ⇒ no
+  flicker. Other platforms are left freely zoomable. Sources cited in the file.
+
+Verified with two new interaction scenarios (`room-switcher-reorder-simple.json`,
+`mobile-catalog-btn-simple.json`) + unit tests; full suite green.
+
 ## v0.15.2.7 — plan editor: full-bleed grid with floating toolbar + help
 
 On mobile the 2D floor-plan editor's grid canvas now extends all the way to the

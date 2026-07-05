@@ -1,0 +1,19 @@
+{
+  "name": "mobile-catalog-btn-simple",
+  "url": "http://localhost:5233/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour&&s.endTour(); s.setOnboardingOpen&&s.setOnboardingOpen(false); s.dismissLocationPrompt&&s.dismissLocationPrompt()" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "assert-no-catalog-btn-overview", "eval": "if(document.querySelector('.m-catalog-btn')) throw new Error('catalog btn should be hidden outside room editor'); 'ok'" },
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-active", "waitFor": { "store": "window.__store.getState().roomEditor.active === true" } },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading && window.__store.getState().hideLoading()" },
+    { "name": "catalog-btn-present", "waitFor": { "css": ".mobilebar .m-catalog-btn" } },
+    { "name": "assert-left-of-hamburger", "eval": "const bar=document.querySelector('.toolbar.mobilebar'); const kids=[...bar.children]; const cat=kids.findIndex(k=>k.classList.contains('m-catalog-btn')); const ham=kids.findIndex(k=>k.classList.contains('m-menu-btn')); if(cat<0||ham<0) throw new Error('missing btn cat='+cat+' ham='+ham); if(cat>=ham) throw new Error('catalog not left of hamburger cat='+cat+' ham='+ham); 'ok cat='+cat+' ham='+ham" },
+    { "name": "shot-toolbar", "screenshot": "mobile-toolbar" },
+    { "name": "tap-catalog", "click": ".m-catalog-btn" },
+    { "name": "catalog-opened", "waitFor": { "store": "window.__store.getState().catalogOpen === true && window.__store.getState().leftMode === 'catalog'" } },
+    { "name": "shot-catalog-open", "screenshot": "mobile-catalog-open" }
+  ]
+}

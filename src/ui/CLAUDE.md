@@ -13,8 +13,12 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   `ui/controls/colorConvert.ts`, hex via `materials/colorHarmony` `normalizeHex`). Native phone
   dropdown/colour UIs are off-brand and small native fields trigger the iOS focus-zoom. Text inputs
   keep their normal small size on mobile — the iOS focus-zoom is suppressed by
-  `controls/iosZoomGuard.ts` (toggles viewport `maximum-scale=1` only while a field is focused),
-  installed once in `main.tsx`; do **not** re-add a blanket `font-size:16px` rule.
+  `controls/iosZoomGuard.ts`, which sets a **permanent, iOS-only** viewport
+  `maximum-scale=1` once at boot (iOS ≥10 still allows user pinch-zoom because Safari
+  ignores `maximum-scale` for pinch; other platforms are left untouched). Installed
+  once in `main.tsx`; do **not** re-add a blanket `font-size:16px` rule, and do **not**
+  revert to toggling the viewport on `focusin`/`focusout` — rewriting the meta after
+  focus caused a zoom-in-then-out flicker on every tap.
 - **Buttons use the `<Button>` primitive** (`controls/Button.tsx`): pass
   `variant`/`size`/`block`/`icon`/`loading` instead of hand-writing `.btn-*`
   class strings. The `.btn-*` classes stay the source of truth — `Button` only
