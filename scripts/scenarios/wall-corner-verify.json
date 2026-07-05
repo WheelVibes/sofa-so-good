@@ -1,0 +1,23 @@
+{
+  "name": "wall-corner-verify",
+  "url": "http://localhost:5238/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour&&s.endTour(); s.setOnboardingOpen&&s.setOnboardingOpen(false); s.dismissLocationPrompt&&s.dismissLocationPrompt(); s.dismissCallout&&s.dismissCallout('empty-room-hint')" },
+    { "name": "high-tier", "store": { "action": "setQualityTier", "args": ["high"] } },
+    { "name": "enter-bath1", "store": { "action": "enterRoomEditor", "args": ["bath1"] } },
+    { "name": "room-active", "waitFor": { "store": "window.__store.getState().roomEditor.active === true" } },
+    { "name": "three-ready", "waitFor": { "store": "!!window.__three && !!window.__three.controls" }, "timeout": 30000 },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading && window.__store.getState().hideLoading()" },
+    { "name": "setup", "eval": "const c=window.__three.controls;window.__t=[c.target.x,c.target.y,c.target.z];window.__cam=window.__three.camera;window.__r=Math.hypot(window.__cam.position.x-window.__t[0],window.__cam.position.z-window.__t[2]);window.__setView=(ang,elev,zoom)=>{const rr=window.__r*zoom;window.__cam.position.set(window.__t[0]+rr*Math.cos(ang),window.__t[1]+window.__r*elev,window.__t[2]+rr*Math.sin(ang));window.__three.controls.update();};'ok'" },
+    { "name": "view-1", "eval": "window.__setView(0.6, 1.1, 0.85);'ok'" },
+    { "name": "settle-1", "wait": 900 },
+    { "name": "shot-1", "screenshot": "corner-a" },
+    { "name": "view-2", "eval": "window.__setView(0.66, 1.1, 0.85);'ok'" },
+    { "name": "settle-2", "wait": 700 },
+    { "name": "shot-2", "screenshot": "corner-b" },
+    { "name": "view-3", "eval": "window.__setView(2.3, 1.0, 0.8);'ok'" },
+    { "name": "settle-3", "wait": 700 },
+    { "name": "shot-3", "screenshot": "corner-c" }
+  ]
+}

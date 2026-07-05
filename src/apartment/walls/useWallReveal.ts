@@ -16,6 +16,12 @@ export interface WallRevealArgs {
   center: [number, number]
   /** Host wall id — published so the room's windows/doors on it fade too. */
   wallId: string
+  /** A small per-wall depth bias (polygonOffsetUnits) applied to the faded clone
+   *  so two DIFFERENT translucent walls that OVERLAP at a corner (each extended by
+   *  the abutment to close it) don't z-fight on their now-coplanar top/side faces.
+   *  Distinct per wall ⇒ a deterministic winner ⇒ a stable, seamless corner
+   *  instead of a flickering one. Unused (0) leaves depth unbiased. */
+  bias?: number
 }
 
 /** Lerp speed toward the target opacity (matches orbit `WallSegment`). */
@@ -36,7 +42,7 @@ const LERP = 0.18
  * frames via `invalidate()` only while the fade is settling.
  */
 export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallRevealArgs): void {
-  const { midX, midZ, center, wallId } = args
+  const { midX, midZ, center, wallId, bias = 0 } = args
   const opacityRef = useRef(1)
   const transparentRef = useRef(false)
   const clonesRef = useRef<Material[]>([])
@@ -118,6 +124,13 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
           const cm = c as MeshStandardMaterial
           cm.transparent = true
           cm.opacity = cur
+          // Per-wall depth bias so overlapping translucent corner walls resolve
+          // to a deterministic winner instead of z-fighting (see `bias`).
+          if (bias) {
+            cm.polygonOffset = true
+            cm.polygonOffsetFactor = 0
+            cm.polygonOffsetUnits = bias
+          }
           // depthWrite stays ON through the fade (WALL-FADE-DEPTHWRITE, matching
           // WallSegment) — flipping it off popped the wall between solid and
           // see-through at the ~0.985 threshold and made faded walls sort

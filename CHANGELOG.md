@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.12 — room-editor corners: seamless (abutment) + no z-fight (per-wall depth bias)
+
+The isolated room editor drew each wall clipped to the interior edge with no
+corner fill, so two walls met as **two disjoint translucent panels** at a corner.
+`RoomShell` now extends each clipped wall body past the corner by the abutting
+(perpendicular) wall's half-thickness — the same way the whole-flat orbit scene
+closes corners — so the corner reads as one seamless surface. Because that makes
+the two translucent corner walls OVERLAP (coplanar top/side faces that would
+z-fight now that faded walls write depth), each wall's faded material clone gets a
+distinct `polygonOffsetUnits` (its index in the room) via `useWallReveal`'s new
+`bias`, so the overlap resolves to a deterministic winner — a stable, seamless
+corner instead of a flickering one. Verified on GPU (High tier) from multiple
+angles: corners are filled and stable.
+
 ## v0.15.2.11 — empty-room hint is dismissable
 
 The per-room-editor "This room is empty" nudge (`EmptyRoomHint`) now has a close

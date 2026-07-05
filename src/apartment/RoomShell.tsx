@@ -34,12 +34,24 @@ function WallBox({
   center,
   material,
   roomId,
+  startAbut,
+  endAbut,
+  bias,
 }: {
   wall: ClippedWall
   center: [number, number]
   material: MeshStandardMaterial
   /** The isolated room this clipped wall belongs to (finish-drop target tag). */
   roomId: string
+  /** Half-thickness of the perpendicular wall this clip abuts at each end, so the
+   *  body extends past the interior corner to CLOSE it flush (matching the orbit
+   *  scene) instead of ending at the interior edge — the "two disjoint walls at a
+   *  corner" look. 0 for a free end. */
+  startAbut: number
+  endAbut: number
+  /** Distinct per-wall depth bias (its index in the room) → passed to the reveal
+   *  so overlapping translucent corner walls don't z-fight (deterministic winner). */
+  bias: number
 }) {
   const ref = useRef<Mesh>(null)
   const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
@@ -63,7 +75,15 @@ function WallBox({
 
   // Fade to translucent when the orbit camera fronts this wall (matches the main
   // orbit scene); publishes the wall's opacity so its windows/doors fade too.
-  useWallReveal(ref, { midX, midZ, nx: normal.x, nz: normal.y, center, wallId: wall.wallId })
+  useWallReveal(ref, {
+    midX,
+    midZ,
+    nx: normal.x,
+    nz: normal.y,
+    center,
+    wallId: wall.wallId,
+    bias,
+  })
 
   const t = wallThicknessMetres(wall.spec)
   const h = wall.spec.topHeight ?? ceilingHeight
@@ -75,10 +95,16 @@ function WallBox({
   const bodyGeometry = useMemo(
     () =>
       extrudeWallBody(
-        wallBodyOutlineFromSpans(clippedWallCutouts(wall), -len / 2, len / 2, h, OPENING_CLEARANCE),
+        wallBodyOutlineFromSpans(
+          clippedWallCutouts(wall),
+          -len / 2 - startAbut,
+          len / 2 + endAbut,
+          h,
+          OPENING_CLEARANCE,
+        ),
         t,
       ),
-    [wall, len, h, t],
+    [wall, len, h, t, startAbut, endAbut],
   )
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
 
@@ -105,6 +131,9 @@ interface WallDispatchProps {
   wall: ClippedWall
   center: [number, number]
   roomId: string
+  startAbut: number
+  endAbut: number
+  bias: number
 }
 function SolidWall(p: WallDispatchProps & { def: SolidMaterialDef }) {
   return <WallBox {...p} material={useSolidMaterial(p.def)} />
@@ -116,26 +145,40 @@ function ProceduralWall(p: WallDispatchProps & { def: ProceduralMaterialDef }) {
   return <WallBox {...p} material={useProceduralMaterial(p.def)} />
 }
 
-function RoomWall({
-  materialId,
-  wall,
-  center,
-  roomId,
-}: WallDispatchProps & { materialId: MaterialId }) {
+function RoomWall({ materialId, ...p }: WallDispatchProps & { materialId: MaterialId }) {
   const def = useMaterialDef(materialId)
   const inner =
     def.kind === 'textured' ? (
-      <TexturedWall def={def} wall={wall} center={center} roomId={roomId} />
+      <TexturedWall def={def} {...p} />
     ) : def.kind === 'procedural' ? (
-      <ProceduralWall def={def} wall={wall} center={center} roomId={roomId} />
+      <ProceduralWall def={def} {...p} />
     ) : (
-      <SolidWall def={def} wall={wall} center={center} roomId={roomId} />
+      <SolidWall def={def} {...p} />
     )
   return (
     <SilentErrorBoundary resetKey={def.id}>
       <Suspense fallback={null}>{inner}</Suspense>
     </SilentErrorBoundary>
   )
+}
+
+/** Half-thickness of the perpendicular clipped wall that meets this wall at each
+ *  end (0 if the end is free) — used to extend the wall body past the interior
+ *  corner so the corner closes flush instead of showing two disjoint walls. */
+function cornerAbutments(
+  wall: ClippedWall,
+  walls: ClippedWall[],
+): { startAbut: number; endAbut: number } {
+  const near = (p: [number, number], q: [number, number]) =>
+    Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.25
+  const abutAt = (pt: [number, number]) => {
+    for (const o of walls) {
+      if (o === wall) continue
+      if (near(o.start, pt) || near(o.end, pt)) return wallThicknessMetres(o.spec) / 2
+    }
+    return 0
+  }
+  return { startAbut: abutAt(wall.start), endAbut: abutAt(wall.end) }
 }
 
 /** Renders only the walls of an isolated room (clipped to its footprint) plus
@@ -161,17 +204,23 @@ export function RoomShell({ shell }: { shell: RoomShellData }) {
           materialId={floorFinish}
         />
       ))}
-      {shell.walls.map((w, i) => (
-        <RoomWall
-          key={`${w.wallId}-${i}`}
-          // An accent override for this wall in this room wins over the room
-          // wall finish, matching WallSegment's resolution.
-          materialId={wallAccents[`${w.wallId}:${roomId}`] ?? wallFinish}
-          wall={w}
-          center={shell.center}
-          roomId={roomId}
-        />
-      ))}
+      {shell.walls.map((w, i) => {
+        const { startAbut, endAbut } = cornerAbutments(w, shell.walls)
+        return (
+          <RoomWall
+            key={`${w.wallId}-${i}`}
+            // An accent override for this wall in this room wins over the room
+            // wall finish, matching WallSegment's resolution.
+            materialId={wallAccents[`${w.wallId}:${roomId}`] ?? wallFinish}
+            wall={w}
+            center={shell.center}
+            roomId={roomId}
+            startAbut={startAbut}
+            endAbut={endAbut}
+            bias={i}
+          />
+        )
+      })}
       {WINDOWS.filter((w) => windowSet.has(w.id)).map((w) => (
         <WindowPane key={w.id} spec={w} />
       ))}
