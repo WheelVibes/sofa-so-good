@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.0.0 — wall-rendering pass (dollhouse reveal, seamless corners, finish faces)
+
+Release bump for the wall-rendering PR — a coherent pass over how walls render,
+fade, and join in both the orbit dollhouse view and the per-room editor
+(v0.15.2.10 → .16, summarised):
+
+- **Orientation-only dollhouse reveal.** Walls now fade from the camera's LOOK
+  DIRECTION only — zoom (dolly) and pan never change which walls fade, only
+  orbiting does; back walls stay opaque; a top-down view keeps all walls solid.
+- **Nearest-walls fade + neutral backdrop.** The room editor fades the walls the
+  camera looks through (not by fit-distance) against a neutral dollhouse backdrop,
+  so the bright sky no longer bleeds through glass into a bright band.
+- **Seamless corners.** Two intersecting walls now produce a single sharp corner
+  (span/butt tiling in the room editor + a per-wall depth bias in orbit) instead of
+  z-fighting disjoint faces.
+- **Finish only on the interior face.** Wall paint/material applies only to the
+  interior room-facing surface; wall tops and apartment-exterior faces stay a clean
+  off-white.
+- **Stronger, steadier translucence.** The revealed-wall opacity floor is much more
+  see-through (`WALL_TRANSLUCENT_MIN` 0.15 → 0.10), with doors and windows fading in
+  step with their host wall.
+- **Dismissable empty-room hint.**
+
 ## v0.15.2.16 — orientation-only wall reveal (zoom/pan no longer change the fade)
 
 The dollhouse wall reveal is now driven purely by the camera's **look direction**,
