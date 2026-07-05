@@ -9,6 +9,7 @@ import {
   type MeshStandardMaterial,
   ShapeUtils,
   Vector2,
+  Vector3,
 } from 'three'
 import { useFeature } from '../features/useFeature'
 import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
@@ -36,17 +37,19 @@ import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
 import {
-  cameraFacingNormal,
   orientOutward,
   pointInRooms,
   type RoomRect,
-  wallRevealFactor,
+  WALL_TRANSLUCENT_MIN,
+  wallRevealFacing,
 } from './walls/wallRevealMath'
 
 // Window glass day/night tint — clear cool pane by day, dark reflective at night
 // (matches the fixed apartment's Window.tsx so custom + default plans look alike).
 const GLASS_DAY = new Color('#bcd4e6')
 const GLASS_NIGHT = new Color('#20272f')
+// Scratch for the camera forward direction (avoids per-frame allocation).
+const FWD = new Vector3()
 
 /**
  * One plan wall, fading out in orbit mode when it sits between the camera and
@@ -61,7 +64,8 @@ const GLASS_NIGHT = new Color('#20272f')
  *  the probe is ambiguous. `angle` is the box's Y-rotation; the box's broad faces
  *  (the wall surfaces) have the XZ normal (cos a, −sin a). */
 function revealFactor(
-  camera: { position: { x: number; z: number } },
+  fwdX: number,
+  fwdZ: number,
   px: number,
   pz: number,
   angle: number,
@@ -76,10 +80,12 @@ function revealFactor(
   let nx = candNx
   let nz = candNz
   if (interior) {
-    // Interior partition (rooms on both sides): fade when the camera faces it.
-    const f = cameraFacingNormal(px, pz, candNx, candNz, camera.position.x, camera.position.z)
-    nx = f.nx
-    nz = f.nz
+    // Interior partition (rooms on both sides): orient its normal toward the
+    // camera so it fades when looked at head-on (ORIENTATION-ONLY).
+    if (nx * fwdX + nz * fwdZ > 0) {
+      nx = -nx
+      nz = -nz
+    }
   } else {
     const out = orientOutward(px, pz, candNx, candNz, isInterior, probe)
     if (out) {
@@ -90,7 +96,8 @@ function revealFactor(
       nz = -nz
     }
   }
-  return wallRevealFactor(camera.position.x, camera.position.z, px, pz, nx, nz, cx, cz)
+  // Fade purely from the camera's look direction — independent of zoom / pan.
+  return wallRevealFacing(fwdX, fwdZ, nx, nz)
 }
 
 /** Interior room rectangles (+ L-extensions) for a level, for the point-in-room
@@ -116,7 +123,8 @@ function levelRoomRects(rooms: readonly PlanRoom[]): RoomRect[] {
  *  reveal mode + scope — shared by the wall body and its skirting so they fade
  *  together. Returns 1 when the wall doesn't participate / mode is opaque. */
 function planWallRevealTarget(
-  camera: { position: { x: number; z: number } },
+  fwdX: number,
+  fwdZ: number,
   cameraMode: string,
   box: WallBox,
   isExterior: boolean,
@@ -132,8 +140,19 @@ function planWallRevealTarget(
   if (!(participates && cameraMode === 'orbit' && revealEnabled && revealMode !== 'opaque'))
     return 1
   const probe = box.thickness / 2 + 0.3
-  const f = revealFactor(camera, box.cx, box.cz, box.angle, isInterior, probe, cx, cz, !isExterior)
-  return revealMode === 'auto-hide' ? f : Math.max(0.15, f)
+  const f = revealFactor(
+    fwdX,
+    fwdZ,
+    box.cx,
+    box.cz,
+    box.angle,
+    isInterior,
+    probe,
+    cx,
+    cz,
+    !isExterior,
+  )
+  return revealMode === 'auto-hide' ? f : Math.max(WALL_TRANSLUCENT_MIN, f)
 }
 
 function FadeWall({
@@ -161,7 +180,17 @@ function FadeWall({
     const mesh = ref.current
     if (!mesh) return
     const mat = mesh.material as MeshStandardMaterial
-    const target = planWallRevealTarget(camera, cameraMode, box, isExterior, isInterior, cx, cz)
+    camera.getWorldDirection(FWD)
+    const target = planWallRevealTarget(
+      FWD.x,
+      FWD.z,
+      cameraMode,
+      box,
+      isExterior,
+      isInterior,
+      cx,
+      cz,
+    )
     mat.opacity += (target - mat.opacity) * 0.18
     const next = mat.opacity < 0.98
     // Toggling `transparent` at runtime needs a recompile for the blend to
@@ -211,7 +240,17 @@ function useTrimFade(
     if (!mesh) return
     const mat = mesh.material as MeshStandardMaterial
     if (!mat) return
-    const target = planWallRevealTarget(camera, cameraMode, box, isExterior, isInterior, cx, cz)
+    camera.getWorldDirection(FWD)
+    const target = planWallRevealTarget(
+      FWD.x,
+      FWD.z,
+      cameraMode,
+      box,
+      isExterior,
+      isInterior,
+      cx,
+      cz,
+    )
     mat.opacity += (target - mat.opacity) * 0.18
     const next = mat.opacity < 0.98
     if (next !== mat.transparent) mat.needsUpdate = true
@@ -693,8 +732,12 @@ function FadeWindow({
     if (participates && cameraMode === 'orbit' && revealEnabled && revealMode !== 'opaque') {
       // 0.3 m probe past the pane centre — the host wall's thickness isn't carried
       // on the window box, but a fixed reach clears the wall into the room.
+      // Fade from the camera's look direction only (ORIENTATION-ONLY — zoom/pan
+      // never change it), matching the host wall's own reveal.
+      camera.getWorldDirection(FWD)
       const f = revealFactor(
-        camera,
+        FWD.x,
+        FWD.z,
         win.cx,
         win.cz,
         win.angle,
@@ -704,7 +747,7 @@ function FadeWindow({
         cz,
         !win.revealable,
       )
-      factor = revealMode === 'auto-hide' ? f : Math.max(0.15, f)
+      factor = revealMode === 'auto-hide' ? f : Math.max(WALL_TRANSLUCENT_MIN, f)
     }
     const target = base * factor
     mat.opacity += (target - mat.opacity) * 0.18

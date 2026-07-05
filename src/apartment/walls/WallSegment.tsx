@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { memo, Suspense, useEffect, useMemo, useRef } from 'react'
-import { type Group, Mesh, type MeshStandardMaterial } from 'three'
+import { type Group, Mesh, type MeshStandardMaterial, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
 import { BeveledBox } from '../../furniture/primitives/BeveledBox'
@@ -36,12 +36,11 @@ import { extrudeWallBody, WALL_STRUCTURE_COLOR } from './wallBodyGeometry'
 import { buildWallBodyOutline } from './wallBodyShape'
 import { setWallOpacity } from './wallReveal'
 import {
-  cameraFacingNormal,
   orientOutward,
   pointInRooms,
   type RoomRect,
   WALL_TRANSLUCENT_MIN,
-  wallRevealFactor,
+  wallRevealFacing,
 } from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
 
@@ -266,6 +265,8 @@ interface WallSegmentProps {
  *  External faces (no adjacent interior room) skip rendering. */
 const CENTER_X = APARTMENT_EXT_W / 2
 const CENTER_Z = APARTMENT_EXT_D / 2
+// Scratch for the camera forward direction (avoids per-frame allocation).
+const FWD = new Vector3()
 
 function WallSegmentInner({ wall }: WallSegmentProps) {
   const dx = wall.end[0] - wall.start[0]
@@ -336,34 +337,19 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     const participates = isExterior || revealScope === 'all'
     let target = 1
     if (participates && orbit && revealEnabled && revealMode !== 'opaque') {
-      // Exterior: fade when the camera is on the wall's OUTWARD side (the wall is
-      // between the camera and the rooms). Interior partition: it has rooms on
-      // both sides, so fade when the camera FACES it (revealing the room behind);
-      // orient the normal toward the camera for that.
+      // ORIENTATION-ONLY reveal: fade based purely on the camera's look direction,
+      // so zoom (dolly) and pan never change the fade — only orbiting does.
+      // Exterior: fade when the camera looks THROUGH the wall (its outward normal
+      // opposes the forward direction). Interior partition (rooms on both sides):
+      // orient its normal toward the camera so it fades when looked at head-on.
+      camera.getWorldDirection(FWD)
       let nx = reveal.nx
       let nz = reveal.nz
-      if (!isExterior) {
-        const f = cameraFacingNormal(
-          reveal.mx,
-          reveal.mz,
-          nx,
-          nz,
-          camera.position.x,
-          camera.position.z,
-        )
-        nx = f.nx
-        nz = f.nz
+      if (!isExterior && nx * FWD.x + nz * FWD.z > 0) {
+        nx = -nx
+        nz = -nz
       }
-      const faded = wallRevealFactor(
-        camera.position.x,
-        camera.position.z,
-        reveal.mx,
-        reveal.mz,
-        nx,
-        nz,
-        CENTER_X,
-        CENTER_Z,
-      )
+      const faded = wallRevealFacing(FWD.x, FWD.z, nx, nz)
       // translucent: walls never fully disappear (strongly see-through floor).
       // auto-hide: walls can fully disappear (current legacy behaviour).
       target = revealMode === 'auto-hide' ? faded : Math.max(WALL_TRANSLUCENT_MIN, faded)

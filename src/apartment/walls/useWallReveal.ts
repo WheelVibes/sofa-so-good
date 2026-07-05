@@ -1,9 +1,12 @@
 import { useFrame } from '@react-three/fiber'
 import { type RefObject, useEffect, useRef } from 'react'
-import type { Material, Mesh, MeshStandardMaterial, Object3D } from 'three'
+import { type Material, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from 'three'
 import { useStore } from '../../state/store'
 import { setWallOpacity } from './wallReveal'
-import { nearWallRevealFactor, WALL_TRANSLUCENT_MIN } from './wallRevealMath'
+import { WALL_TRANSLUCENT_MIN, wallRevealFacing } from './wallRevealMath'
+
+// Scratch vector for the camera forward direction (avoids per-frame allocation).
+const FWD = new Vector3()
 
 export interface WallRevealArgs {
   /** Wall midpoint (world XZ). */
@@ -29,10 +32,11 @@ const LERP = 0.18
 
 /**
  * Per-room-editor wall reveal (ROOM-EDITOR-WALL-REVEAL): fades a clipped wall to
- * **translucent** when the orbit camera fronts it (the wall sits between the
- * camera and the room), exactly like the main orbit scene's `WallSegment` —
- * reusing the same pure `wallRevealFactor` + the `wallRevealMode`/`wallReveal`
- * settings, so the editor behaves like orbit by default (translucent).
+ * **translucent** when the orbit camera looks THROUGH it (its outward normal
+ * opposes the camera forward), exactly like the main orbit scene's `WallSegment`
+ * — reusing the same pure `wallRevealFacing` + the `wallRevealMode`/`wallReveal`
+ * settings, so the editor behaves like orbit by default (translucent). The fade
+ * is orientation-only (camera look direction), so zoom/pan never change it.
  *
  * Applied to an Object3D (the wall mesh or its group). Because every wall of an
  * isolated room shares ONE finish material, fading it in place would fade the
@@ -42,7 +46,7 @@ const LERP = 0.18
  * frames via `invalidate()` only while the fade is settling.
  */
 export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallRevealArgs): void {
-  const { midX, midZ, center, wallId, bias = 0 } = args
+  const { nx, nz, wallId, bias = 0 } = args
   const opacityRef = useRef(1)
   const transparentRef = useRef(false)
   const clonesRef = useRef<Material[]>([])
@@ -76,16 +80,14 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     const orbit = st.cameraMode === 'orbit'
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
     const revealMode = st.wallRevealMode ?? 'translucent'
-    const cam = state.camera.position
     let target = 1
     if (orbit && revealEnabled && revealMode !== 'opaque') {
-      // NEAREST-WALLS reveal (ROOM-EDITOR-FADE): fade the walls closest to the
-      // camera (in front of the room centre), keep the far/back walls opaque.
-      // Measured by nearness normalised to the ROOM's own size — NOT the camera's
-      // fit-distance, which is nearly equal for every wall in a small isolated
-      // room and made even the back walls drift translucent + flip on tiny camera
-      // moves. See `nearWallRevealFactor`.
-      const faded = nearWallRevealFactor(cam.x, cam.z, midX, midZ, center[0], center[1])
+      // ORIENTATION-ONLY reveal (ROOM-EDITOR-FADE): fade the walls the camera is
+      // looking THROUGH (outward normal opposes the camera forward), keep the
+      // far/back walls opaque — driven purely by the camera's look direction, so
+      // zooming (dolly) and panning never change the fade, only orbiting does.
+      state.camera.getWorldDirection(FWD)
+      const faded = wallRevealFacing(FWD.x, FWD.z, nx, nz)
       // translucent: never fully disappear (strongly see-through floor);
       // auto-hide: can vanish.
       target = revealMode === 'auto-hide' ? faded : Math.max(WALL_TRANSLUCENT_MIN, faded)

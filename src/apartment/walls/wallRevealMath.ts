@@ -1,18 +1,13 @@
 /**
  * Pure geometry for the camera-facing "dollhouse" wall reveal.
  *
- * The old heuristic faded a wall by comparing its outward normal to the
- * direction of the plan's **bounding-box centre**. That breaks on
- * non-rectangular plans (L/U/notched shapes, and the default HDB flat): the
- * bbox centre can land in a notch or sit far off the room mass, so a wall's
- * "outward" side is mis-judged and it never fades when you orbit to face it.
- *
- * This module decides everything **per wall**, with no global centre:
  *  - `orientOutward` finds which way is "out" by probing a short step off each
- *    face of the wall midpoint against an `isInterior(x, z)` test (point-in-room).
- *  - `wallRevealFactor` fades a wall when the camera sits on that outward side
- *    (i.e. the wall is between the camera and the rooms), using the wall's own
- *    midpoint as the reference — correct for any plan shape.
+ *    face of the wall midpoint against an `isInterior(x, z)` test (point-in-room),
+ *    correct on non-rectangular plans where a bbox-centre heuristic would fail.
+ *  - `wallRevealFacing` fades a wall from the camera's LOOK DIRECTION only (its
+ *    outward normal vs the camera forward), so a wall the camera looks through
+ *    goes translucent while a far/back wall stays solid — and, crucially, zoom
+ *    and pan never change the fade (only orbiting does).
  *
  * Dependency-free so it is fully unit-tested without the R3F/scene stack.
  */
@@ -24,7 +19,7 @@
  * is strongly see-through, letting you look right into the room. (`auto-hide`
  * ignores this and can fade to 0.)
  */
-export const WALL_TRANSLUCENT_MIN = 0.07
+export const WALL_TRANSLUCENT_MIN = 0.1
 
 export function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)))
@@ -55,94 +50,26 @@ export function orientOutward(
 }
 
 /**
- * Reveal opacity factor for a wall: `1` (opaque) when the camera is on the
- * interior side, ramping to `0` (faded) as the camera moves to the wall's
- * outward side — so a wall between the camera and the rooms goes translucent.
- * Per-wall (uses the wall midpoint), independent of plan shape. The ramp keeps
- * grazing/side walls partially faded (opening the dollhouse) while walls clearly
- * on the far/interior side stay solid.
- */
-export function wallRevealFactor(
-  camX: number,
-  camZ: number,
-  midX: number,
-  midZ: number,
-  outNx: number,
-  outNz: number,
-  centerX?: number,
-  centerZ?: number,
-): number {
-  const tx = camX - midX
-  const tz = camZ - midZ
-  const len = Math.hypot(tx, tz) || 1
-  const dot = (outNx * tx + outNz * tz) / len // >0 → camera on the outward side → fade
-  // Facing term: a wall fades once it's perpendicular-or-facing the camera
-  // (dot ≥ 0); walls whose outward normal points clearly AWAY (dot ≤ −0.4, the
-  // far "back" of the dollhouse) stay solid so the model still reads as a box.
-  const facing = 1 - smoothstep(-0.4, 0, dot)
-  if (centerX === undefined || centerZ === undefined) return facing
-  // Proximity term: a near SIDE wall (a room's perpendicular wall, edge-on to
-  // the view) has no camera-facing outward normal, so the facing term alone
-  // leaves it as an awkward opaque fin. Fade any wall that sits clearly NEARER
-  // the camera than the plan centre does; walls past the centre (the far half)
-  // keep their facing-based opacity. Taking the min means a wall fades if it
-  // EITHER faces the camera OR is a near wall — opening up the near rooms fully.
-  const camToCenter = Math.hypot(camX - centerX, camZ - centerZ) || 1
-  const ratio = (len - camToCenter) / camToCenter // <0 nearer than centre, >0 farther
-  const proximity = smoothstep(-0.2, 0.05, ratio) // near → 0 (faded), far → 1 (opaque)
-  return Math.min(facing, proximity)
-}
-
-/**
- * Reveal opacity for an **isolated room** (the per-room editor dollhouse), based
- * on how much CLOSER a wall is to the camera than the room centre — normalised by
- * the room's own size, NOT the camera distance. `wallRevealFactor`'s proximity
- * term divides by `camToCenter`, which is fine for the whole flat but wrong for a
- * single small room framed to fill the viewport: there every wall sits at nearly
- * the same (large) fit-distance, so that ratio is ~0 for all of them and even the
- * far/back walls drift translucent (and flip on tiny camera moves). Here we
- * measure nearness against the wall's own offset from centre (≈ the room's half-
- * extent toward it), so the walls actually closest to the camera fade while the
- * far walls stay solidly opaque.
+ * Reveal opacity from the camera's look DIRECTION only (ORIENTATION-ONLY reveal):
+ * fade a wall when the camera is looking THROUGH it (its outward normal opposes
+ * the camera's forward direction — a near wall between the camera and the room),
+ * keep it opaque when it faces away (a far/back wall). `(fwdX, fwdZ)` is the
+ * camera forward vector's horizontal (XZ) part; `(outNx, outNz)` the wall's unit
+ * outward normal.
  *
- * Returns 1 (opaque) for a wall at/behind the centre, ramping to 0 (faded) as it
- * moves in front of the centre toward the camera. Pure.
+ * Crucially this depends ONLY on the camera's orientation — NOT its distance
+ * (zoom/dolly moves along the look direction, leaving it unchanged) nor a pan
+ * (translating camera+target leaves the look direction unchanged). Only orbiting
+ * rotates the camera, so only orbiting changes the fade. A near-vertical (top-
+ * down) view has no meaningful horizontal facing, so every wall stays opaque
+ * (you read the plan from above). Pure.
  */
-export function nearWallRevealFactor(
-  camX: number,
-  camZ: number,
-  midX: number,
-  midZ: number,
-  centerX: number,
-  centerZ: number,
-): number {
-  const camToWall = Math.hypot(camX - midX, camZ - midZ)
-  const camToCenter = Math.hypot(camX - centerX, camZ - centerZ)
-  const halfExtent = Math.hypot(midX - centerX, midZ - centerZ) || 1
-  // >0 when the wall is between the camera and the centre (a near wall), in units
-  // of the room's half-extent toward that wall; <0 when it's on the far side.
-  const nearness = (camToCenter - camToWall) / halfExtent
-  // Near (nearness → 1) fades to 0; a side wall (~0) or far wall (<0) stays opaque.
-  return 1 - smoothstep(0.1, 0.7, nearness)
-}
-
-/**
- * Orient a wall's face normal `(nx, nz)` so it points **toward the camera**.
- * Used for interior partitions (which have rooms on both sides, so there is no
- * single "outward"): in the all-walls reveal scope a partition fades when the
- * camera faces it, revealing the room behind. Feeding this into
- * `wallRevealFactor` makes a head-on partition fade and an edge-on one stay.
- */
-export function cameraFacingNormal(
-  midX: number,
-  midZ: number,
-  nx: number,
-  nz: number,
-  camX: number,
-  camZ: number,
-): { nx: number; nz: number } {
-  const towardCam = nx * (camX - midX) + nz * (camZ - midZ)
-  return towardCam < 0 ? { nx: -nx, nz: -nz } : { nx, nz }
+export function wallRevealFacing(fwdX: number, fwdZ: number, outNx: number, outNz: number): number {
+  const len = Math.hypot(fwdX, fwdZ)
+  if (len < 0.15) return 1 // looking (nearly) straight down/up → keep walls solid
+  const dot = (outNx * fwdX + outNz * fwdZ) / len
+  // dot < 0: normal faces the camera (near wall) → fade; dot > 0: far wall → opaque.
+  return smoothstep(-0.4, 0.4, dot)
 }
 
 /** A rectangle (+ optional L-shaped extension) in plan metres — the shape both

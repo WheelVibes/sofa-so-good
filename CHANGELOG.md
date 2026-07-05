@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.16 — orientation-only wall reveal (zoom/pan no longer change the fade)
+
+The dollhouse wall reveal is now driven purely by the camera's **look direction**,
+not its position: the new pure `wallRevealFacing(fwdX, fwdZ, outNx, outNz)` compares
+each wall's outward normal against `camera.getWorldDirection()`, so a wall the camera
+looks THROUGH goes translucent while a far/back wall stays opaque.
+
+- **Zoom (dolly) and pan no longer change which walls fade** — only orbiting does.
+  Dollying moves along the look direction and panning translates camera+target
+  together, both leaving the look direction (and therefore the fade) unchanged.
+  A near-vertical top-down view keeps every wall solid (you read the plan from above).
+- This replaces the old position/fit-distance metric (removed: `wallRevealFactor`,
+  `nearWallRevealFactor`, `cameraFacingNormal`) that made the back walls flip between
+  faded and opaque as the camera dollied. Applied consistently across every reveal
+  site: orbit `WallSegment`, the per-room editor (`useWallReveal`), and custom plans
+  (`PlanShell` walls + windows, `PlanDoorLeaf`) — so doors and windows fade in step
+  with their host walls from orientation alone.
+- The translucent floor nudges 0.07 → **0.10** (`WALL_TRANSLUCENT_MIN`) — still
+  strongly see-through, a touch more of the wall retained.
+
 ## v0.15.2.15 — stronger wall translucence when revealed
 
 The translucent reveal floor drops from 0.15 → **0.07** (`WALL_TRANSLUCENT_MIN`,

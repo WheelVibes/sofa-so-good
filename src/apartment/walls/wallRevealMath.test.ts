@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  cameraFacingNormal,
-  nearWallRevealFactor,
   orientOutward,
   pointInRooms,
   type RoomRect,
   smoothstep,
-  wallRevealFactor,
+  wallRevealFacing,
 } from './wallRevealMath'
 
 // A single 4×4 room with its NW interior corner at the origin.
@@ -52,71 +50,34 @@ describe('orientOutward', () => {
   })
 })
 
-describe('wallRevealFactor', () => {
-  // North wall: mid (2,0), outward −Z.
-  it('fades (→0) when the camera is on the outward side', () => {
-    expect(wallRevealFactor(2, -5, 2, 0, 0, -1)).toBeCloseTo(0)
+describe('wallRevealFacing (orientation-only)', () => {
+  // Outward normal −Z (a wall whose outside faces −Z).
+  it('fades (→0) when the camera looks THROUGH the wall (normal opposes forward)', () => {
+    // Camera looking toward +Z (forward +Z); a −Z-facing wall in front of it is
+    // being looked through → fades.
+    expect(wallRevealFacing(0, 1, 0, -1)).toBeCloseTo(0)
   })
 
-  it('stays opaque (→1) when the camera is on the interior side', () => {
-    expect(wallRevealFactor(2, 5, 2, 0, 0, -1)).toBeCloseTo(1)
+  it('stays opaque (→1) for a far/back wall (normal along forward)', () => {
+    // Forward +Z, a wall whose outward normal is +Z (facing away) stays solid.
+    expect(wallRevealFacing(0, 1, 0, 1)).toBeCloseTo(1)
   })
 
-  it('fully fades a perpendicular/edge-on near wall (no awkward fins)', () => {
-    // Camera due-east of a north-facing wall: the wall is edge-on (dot ≈ 0).
-    // It should fully fade rather than stick at a partial opacity.
-    expect(wallRevealFactor(7, 0, 2, 0, 0, -1)).toBeCloseTo(0)
+  it('is independent of camera distance (only the forward direction matters)', () => {
+    // Same forward direction, any magnitude → same result (zoom-invariant).
+    expect(wallRevealFacing(0, 1, 0, -1)).toBeCloseTo(wallRevealFacing(0, 5, 0, -1))
   })
 
-  it('partially fades a wall whose normal points somewhat away', () => {
-    // dot ≈ −0.2 (camera mostly on the interior side, slightly off): mid-ramp.
-    const f = wallRevealFactor(6.9, 1, 2, 0, 0, -1)
-    expect(f).toBeGreaterThan(0.2)
-    expect(f).toBeLessThan(0.8)
+  it('keeps walls opaque for a near-vertical (top-down) view', () => {
+    // Forward almost straight down → negligible horizontal component → all opaque.
+    expect(wallRevealFacing(0.02, 0.02, 0, -1)).toBe(1)
+    expect(wallRevealFacing(0.02, 0.02, 1, 0)).toBe(1)
   })
 
-  it('is independent of distance when no centre is given (facing only)', () => {
-    expect(wallRevealFactor(2, -3, 2, 0, 0, -1)).toBeCloseTo(wallRevealFactor(2, -30, 2, 0, 0, -1))
-  })
-
-  it('fades a near side wall (edge-on) when a plan centre is given', () => {
-    // A side wall at (9, 0.7) whose outward normal points +X (east), camera to
-    // the north-west at (5.5, -9), plan centre at (6.4, 4.6). The facing term
-    // alone keeps it opaque (camera on its interior side), but it sits nearer the
-    // camera than the centre, so the proximity term fades it.
-    const facingOnly = wallRevealFactor(5.5, -9, 9, 0.7, 1, 0)
-    expect(facingOnly).toBeGreaterThan(0.8) // edge-on, would stay opaque
-    const withCentre = wallRevealFactor(5.5, -9, 9, 0.7, 1, 0, 6.4, 4.6)
-    expect(withCentre).toBeLessThan(0.2) // near wall → fades
-  })
-
-  it('keeps a far wall opaque even with a plan centre', () => {
-    // Wall on the far side of the centre from the camera stays solid (the
-    // dollhouse "back"): camera north, wall far south.
-    const f = wallRevealFactor(6.4, -9, 7, 9.25, 0, 1, 6.4, 4.6)
-    expect(f).toBeCloseTo(1)
-  })
-})
-
-describe('cameraFacingNormal', () => {
-  // Interior partition along X at z=2 (normal ±Z).
-  it('keeps the normal when it already points toward the camera', () => {
-    // Camera south of the wall (z=10): +Z points toward it.
-    expect(cameraFacingNormal(2, 2, 0, 1, 2, 10)).toEqual({ nx: 0, nz: 1 })
-  })
-
-  it('flips the normal to point toward the camera', () => {
-    // Camera north of the wall (z=-10): +Z points away → flip to −Z.
-    expect(cameraFacingNormal(2, 2, 0, 1, 2, -10)).toEqual({ nx: -0, nz: -1 })
-  })
-
-  it('makes a faced partition fade via wallRevealFactor (either side)', () => {
-    // From either side, orienting toward the camera then feeding wallRevealFactor
-    // yields a low factor (fades) when the camera looks at the partition head-on.
-    const south = cameraFacingNormal(2, 2, 0, 1, 2, 9)
-    expect(wallRevealFactor(2, 9, 2, 2, south.nx, south.nz)).toBeCloseTo(0)
-    const north = cameraFacingNormal(2, 2, 0, 1, 2, -9)
-    expect(wallRevealFactor(2, -9, 2, 2, north.nx, north.nz)).toBeCloseTo(0)
+  it('half-fades an edge-on side wall (normal perpendicular to the view)', () => {
+    const f = wallRevealFacing(0, 1, 1, 0) // normal +X, forward +Z → dot 0
+    expect(f).toBeGreaterThan(0.3)
+    expect(f).toBeLessThan(0.7)
   })
 })
 
@@ -139,43 +100,5 @@ describe('smoothstep', () => {
     expect(smoothstep(0, 1, -1)).toBe(0)
     expect(smoothstep(0, 1, 2)).toBe(1)
     expect(smoothstep(0, 1, 0.5)).toBeCloseTo(0.5)
-  })
-})
-
-describe('nearWallRevealFactor (isolated-room dollhouse)', () => {
-  // A 4×4 room centred at the origin: walls' midpoints at (±2,0) and (0,±2).
-  const C: [number, number] = [0, 0]
-
-  it('fades the walls nearest the camera, keeps the far/back walls opaque', () => {
-    // Camera to the +X/+Z (NE) side: the east + south walls are the near ones.
-    const near1 = nearWallRevealFactor(5, 5, 2, 0, C[0], C[1]) // east wall mid
-    const near2 = nearWallRevealFactor(5, 5, 0, 2, C[0], C[1]) // south wall mid
-    const far1 = nearWallRevealFactor(5, 5, -2, 0, C[0], C[1]) // west wall mid
-    const far2 = nearWallRevealFactor(5, 5, 0, -2, C[0], C[1]) // north wall mid
-    expect(near1).toBeLessThan(0.2)
-    expect(near2).toBeLessThan(0.2)
-    expect(far1).toBeGreaterThan(0.95)
-    expect(far2).toBeGreaterThan(0.95)
-  })
-
-  it('keeps every wall opaque from directly overhead (no near/far split)', () => {
-    // Camera above the centre → equal XZ distance to every wall → none "in front".
-    for (const [mx, mz] of [
-      [2, 0],
-      [-2, 0],
-      [0, 2],
-      [0, -2],
-    ] as const) {
-      expect(nearWallRevealFactor(0, 0, mx, mz, C[0], C[1])).toBeGreaterThan(0.95)
-    }
-  })
-
-  it('does NOT depend on the camera fit-distance (the old proximity bug)', () => {
-    // Same geometry, camera 3× farther on the same ray: near walls still fade,
-    // far walls stay opaque (unlike the /camToCenter proximity term).
-    const nearClose = nearWallRevealFactor(5, 5, 2, 0, C[0], C[1])
-    const nearFarCam = nearWallRevealFactor(15, 15, 2, 0, C[0], C[1])
-    expect(nearClose).toBeLessThan(0.3)
-    expect(nearFarCam).toBeLessThan(0.3)
   })
 })
