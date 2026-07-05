@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.4 — iOS full-bleed: extend the document by the status-bar height
+
+The actual, community-documented cause of the tan "bottom bar" (found by web
+research after several wrong guesses): with `status-bar-style: black-translucent`,
+iOS shifts the **whole document UP** under the status bar, so the blank strip at
+the BOTTOM equals the **status-bar height** (~59px on Dynamic Island phones —
+which is why it was bigger than the 34px home indicator, and why every
+fixed/`dvh`/`100%` height attempt missed it). Fix: extend the document by that top
+inset — `html { min-height: calc(100% + env(safe-area-inset-top)) }` — and stretch
+the in-flow `#root → .app-shell` chain to the same (`.app-shell` gains the matching
+`min-height`) so the 3D canvas fills the whole screen, top edge to bottom edge.
+`env()` is 0 on desktop / non-notched, so it's a no-op there. Refs:
+danielpietzsch.com "blurry status bar for PWAs on iOS" + Apple developer forums.
+
 ## v0.15.2.3 — iOS full-bleed: keep the app-shell in flow (100% height chain)
 
 A full-screen device screenshot on v0.15.2.2 pinned the root cause: the tan

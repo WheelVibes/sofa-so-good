@@ -71,20 +71,16 @@ body.mobile {
     -webkit-user-select: text; user-select: text;
   }
 
-  /* Full-bleed to BOTH edges of the screen (iOS home-screen web app,
-     status-bar-style black-translucent). The top already bleeds under the status
-     bar; the bottom kept showing the `body` background in the home-indicator
-     strip. Root cause (finally): iOS CLAMPS a `position: fixed` element (and
-     `100dvh`/`100vh`) to the safe-area bottom — it won't render under the home
-     indicator. But normal in-flow content DOES reach the physical bottom (that
-     strip we saw is the `body`, and `html, body { height: 100% }` span the full
-     `viewport-fit=cover` viewport incl. both safe areas). So the fix is NOT more
-     fixed-positioning tricks — it's to keep the app-shell IN FLOW and complete
-     the `html → body → #root → .app-shell` 100% height chain. The chain was
-     broken by `#root { height: 100dvh }` (dvh excludes the home-indicator inset);
-     restore it to `100%` so the canvas fills the true full screen, top to bottom. */
+  /* Full-bleed on iOS (home-screen PWA, status-bar-style black-translucent).
+     The real mechanism (community-documented — see components.css `html`):
+     black-translucent shifts the whole document UP under the status bar, so a
+     blank bar equal to the STATUS-BAR height (~59px, not the 34px home indicator)
+     shows at the BOTTOM. The document is extended by `env(safe-area-inset-top)`
+     on `html`; here we make the in-flow height chain (`#root` → `.app-shell`)
+     stretch to that extended height so the 3D canvas fills the whole screen,
+     top edge to bottom edge. `env()` is 0 on desktop / non-notched → no change. */
   #root { height: 100%; }
-  .app-shell { height: 100%; }
+  .app-shell { height: 100%; min-height: calc(100% + env(safe-area-inset-top)); }
 
   /* (iOS Safari focus-zoom on < 16px fields is handled by the dynamic viewport
      `maximum-scale` toggle in src/controls/iosZoomGuard.ts — no font-size bump,
