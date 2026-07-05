@@ -5,6 +5,14 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
+/* iOS full-bleed (home-screen PWA, status-bar-style black-translucent): iOS
+   shifts the whole document UP under the status bar, leaving a blank bar at the
+   BOTTOM equal to the STATUS-BAR height (~59px on Dynamic Island phones, which is
+   why the gap was bigger than the 34px home indicator). Extend the document by
+   that top inset so it fills back down to the physical bottom. `env()` is 0 on
+   desktop / non-notched → `calc(100% + 0)` = `100%`, a no-op. (Community-known
+   iOS PWA fix — see danielpietzsch.com / the Apple developer forums.) */
+html { min-height: calc(100% + env(safe-area-inset-top)); }
 body {
   font-family: var(--font-ui);
   color: var(--text);
