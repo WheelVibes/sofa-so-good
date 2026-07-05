@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.0 — dollhouse reveal polish (side-wall fade + through-wall tint)
+
+Patch rollup for two reveal fixes (v0.16.0.1 → .2):
+
+- **Side/back walls no longer half-fade.** `wallRevealFacing`'s band was widened
+  the wrong way — a wall perpendicular to the view (a side wall) sat at 0.5, and a
+  small orbit flipped the two side walls between "bluer" (opaque) and "whiter"
+  (faded). Now `smoothstep(-0.75, -0.25, dot)`: a wall fades only when it clearly
+  faces away; edge-on side walls and far walls stay solid.
+- **Faded walls no longer dim the room seen through them.** A translucent wall's
+  unlit side rendered dark-grey and cast a murky veil over the room + glass behind
+  it. Faded panes are now lifted toward a light neutral (scaled by how faded), so
+  the see-through reads as a clean light haze; opacity floor unchanged (0.10).
+
+Both stay orientation-only (zoom/pan-invariant).
+
 ## v0.16.0.2 — faded walls no longer dim the room seen through them
 
 A translucent (revealed) wall composites over everything behind it, and its unlit
