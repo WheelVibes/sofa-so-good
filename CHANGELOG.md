@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.3 — iOS full-bleed: keep the app-shell in flow (100% height chain)
+
+A full-screen device screenshot on v0.15.2.2 pinned the root cause: the tan
+bottom "bar" is the **`body` background** showing in the home-indicator strip —
+and the `body` DOES reach the physical bottom (`html, body { height: 100% }` span
+the full `viewport-fit=cover` viewport including both safe areas). The problem was
+never the `body`; it was that iOS **clamps a `position: fixed` element (and
+`100dvh`/`100vh`) to the safe-area bottom** — so every prior fix, all
+fixed/dvh-based, couldn't reach under the home indicator. Fix: stop fighting with
+fixed-positioning. Keep `.app-shell` in normal flow and complete the
+`html → body → #root → .app-shell` **`height: 100%`** chain — the link was broken
+only by `#root { height: 100dvh }` (dvh drops the home-indicator inset), now
+`100%` on mobile. The canvas fills the true full screen, top and bottom. Reverts
+the v0.15.0.1–v0.15.2.2 fixed-position attempts.
+
 ## v0.15.2.2 — iOS full-bleed: push the app-shell below the safe area
 
 The v0.15.2.1 `@media (display-mode: standalone) { height: 100vh }` attempt still

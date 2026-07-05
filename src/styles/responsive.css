@@ -72,25 +72,19 @@ body.mobile {
   }
 
   /* Full-bleed to BOTH edges of the screen (iOS home-screen web app,
-     status-bar-style black-translucent). The canvas reaches the top under the
-     status bar; the bottom is the hard part: on iOS a `position: fixed`
-     element's `bottom: 0` (and `100dvh` / `100vh`) get CLAMPED to the safe-area
-     bottom, so the home-indicator strip keeps showing the `body` background.
-     Counter the clamp directly: pin top/left/right to the viewport, then push
-     the bottom edge BELOW the safe area by the inset amount so the shell reaches
-     the true physical bottom (edge-to-edge canvas). `env(...)` is 0 on
-     non-notched displays / non-iOS, so `bottom` resolves to 0 there — no change.
-     Not gated on `@media (display-mode: standalone)` because iOS doesn't reliably
-     report that mode for an `apple-mobile-web-app-capable` home-screen app. */
-  .app-shell {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
-    height: auto;
-    width: auto;
-  }
+     status-bar-style black-translucent). The top already bleeds under the status
+     bar; the bottom kept showing the `body` background in the home-indicator
+     strip. Root cause (finally): iOS CLAMPS a `position: fixed` element (and
+     `100dvh`/`100vh`) to the safe-area bottom — it won't render under the home
+     indicator. But normal in-flow content DOES reach the physical bottom (that
+     strip we saw is the `body`, and `html, body { height: 100% }` span the full
+     `viewport-fit=cover` viewport incl. both safe areas). So the fix is NOT more
+     fixed-positioning tricks — it's to keep the app-shell IN FLOW and complete
+     the `html → body → #root → .app-shell` 100% height chain. The chain was
+     broken by `#root { height: 100dvh }` (dvh excludes the home-indicator inset);
+     restore it to `100%` so the canvas fills the true full screen, top to bottom. */
+  #root { height: 100%; }
+  .app-shell { height: 100%; }
 
   /* (iOS Safari focus-zoom on < 16px fields is handled by the dynamic viewport
      `maximum-scale` toggle in src/controls/iosZoomGuard.ts — no font-size bump,
