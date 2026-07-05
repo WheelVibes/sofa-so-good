@@ -3,7 +3,7 @@ import { type RefObject, useEffect, useRef } from 'react'
 import type { Material, Mesh, MeshStandardMaterial, Object3D } from 'three'
 import { useStore } from '../../state/store'
 import { setWallOpacity } from './wallReveal'
-import { nearWallRevealFactor } from './wallRevealMath'
+import { nearWallRevealFactor, WALL_TRANSLUCENT_MIN } from './wallRevealMath'
 
 export interface WallRevealArgs {
   /** Wall midpoint (world XZ). */
@@ -86,8 +86,9 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
       // room and made even the back walls drift translucent + flip on tiny camera
       // moves. See `nearWallRevealFactor`.
       const faded = nearWallRevealFactor(cam.x, cam.z, midX, midZ, center[0], center[1])
-      // translucent: never fully disappear (min 0.15); auto-hide: can vanish.
-      target = revealMode === 'auto-hide' ? faded : Math.max(0.15, faded)
+      // translucent: never fully disappear (strongly see-through floor);
+      // auto-hide: can vanish.
+      target = revealMode === 'auto-hide' ? faded : Math.max(WALL_TRANSLUCENT_MIN, faded)
     }
     // Settled, fully opaque, nothing cloned → the common case, skip.
     if (

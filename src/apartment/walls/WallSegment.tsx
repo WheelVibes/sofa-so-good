@@ -40,6 +40,7 @@ import {
   orientOutward,
   pointInRooms,
   type RoomRect,
+  WALL_TRANSLUCENT_MIN,
   wallRevealFactor,
 } from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
@@ -363,9 +364,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         CENTER_X,
         CENTER_Z,
       )
-      // translucent: walls never fully disappear (min 0.15 opacity).
+      // translucent: walls never fully disappear (strongly see-through floor).
       // auto-hide: walls can fully disappear (current legacy behaviour).
-      target = revealMode === 'auto-hide' ? faded : Math.max(0.15, faded)
+      target = revealMode === 'auto-hide' ? faded : Math.max(WALL_TRANSLUCENT_MIN, faded)
     }
     // Settled and fully opaque: nothing to do (the common case).
     if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return

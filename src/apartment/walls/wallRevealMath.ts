@@ -17,6 +17,15 @@
  * Dependency-free so it is fully unit-tested without the R3F/scene stack.
  */
 
+/**
+ * Minimum opacity a faded wall keeps in the default **translucent** reveal mode
+ * (both orbit `WallSegment` and the per-room editor). It never fully disappears
+ * (that's the separate `auto-hide` mode) — but it's kept low so a revealed wall
+ * is strongly see-through, letting you look right into the room. (`auto-hide`
+ * ignores this and can fade to 0.)
+ */
+export const WALL_TRANSLUCENT_MIN = 0.07
+
 export function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)))
   return t * t * (3 - 2 * t)

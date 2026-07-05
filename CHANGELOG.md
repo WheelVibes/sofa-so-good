@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.15 — stronger wall translucence when revealed
+
+The translucent reveal floor drops from 0.15 → **0.07** (`WALL_TRANSLUCENT_MIN`,
+shared by orbit `WallSegment` and the per-room editor), so a revealed wall is much
+more see-through — you look right into the room. Doors and windows already track
+their host wall's opacity (verified: on a faded wall they reach the same ~0.07 /
+glass ~0.12), so they fade in step; in orbit only exterior walls fade by default
+(the "exterior only" reveal scope), so interior doors stay opaque with their
+non-fading interior walls.
+
 ## v0.15.2.14 — wall finish only paints the interior face; tops + exterior stay white
 
 The wall FINISH (paint/material) now applies only to the interior room-facing
