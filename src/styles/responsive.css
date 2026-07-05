@@ -148,11 +148,26 @@ body.mobile {
   .toolbar.mobilebar.editing-room .brand-dot { width: 36px; height: 36px; font-size: 14px; }
   .toolbar.mobilebar .m-room-select { flex: 1 1 auto; min-width: 0; max-width: 56vw; height: 44px; font-size: var(--t-sm); font-weight: 600; }
 
-  /* ---- Floor-plan editor header → same pill as the room-editor toolbar ----
-     Drop the flat full-width bar and float a rounded card with the room-editor
-     toolbar's surface/border/shadow treatment, clearing the notch via
-     `env(safe-area-inset-top)`. In-flow (margin, not absolute) so the canvas +
-     draw-hint still sit BELOW it (no content hidden behind the bar). */
+  /* ---- Floor-plan editor: full-bleed grid + floating toolbar/help ----------
+     The toolbar + help callout FLOAT over the grid (like the floor switcher /
+     compass), so the grid canvas reaches the top edge. `.plan-top` is pulled out
+     of the flex column and overlaid at the top; the canvas row then fills the
+     whole screen. `pointer-events: none` on the wrapper lets a pan reach the grid
+     through the gaps, while the pill + callout stay interactive. */
+  .plan-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    pointer-events: none;
+  }
+  .plan-top .plan-header,
+  .plan-top .info-callout { pointer-events: auto; }
+
+  /* The toolbar is a rounded floating pill with the room-editor toolbar's
+     surface/border/shadow treatment, clearing the notch via
+     `env(safe-area-inset-top)`. */
   .plan-header {
     margin: calc(var(--s-3) + env(safe-area-inset-top)) var(--s-3) 0;
     padding: var(--s-2);

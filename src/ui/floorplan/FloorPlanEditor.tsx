@@ -1844,59 +1844,65 @@ export function FloorPlanEditor() {
 
   return (
     <div className="plan-screen absolute inset-0 z-30 flex flex-col">
-      {/* Header / toolbar. Desktop stays a SINGLE row (`flex-nowrap` + horizontal
+      {/* Header/toolbar + help callout. On MOBILE `.plan-top` is pulled out of the
+          flex column and FLOATS over the full-bleed grid (like the floor switcher /
+          compass) so the canvas reaches the top edge; desktop keeps them in-flow
+          above the canvas. Styling in responsive.css. */}
+      <div className="plan-top">
+        {/* Header / toolbar. Desktop stays a SINGLE row (`flex-nowrap` + horizontal
           scroll fallback so it can never spill to two rows); mobile keeps its
           short wrapping bar. */}
-      <PlanEditorHeader
-        isMobile={isMobile}
-        toolsMenuOpen={toolsMenuOpen}
-        onOpenToolsMenu={() => setToolsMenuOpen(true)}
-        editMode={editMode}
-        toolList={toolList}
-        tool={tool}
-        toolLabel={toolLabel}
-        onPickTool={pickTool}
-        viewToggle={viewToggle}
-        drawHint={drawHint}
-        undoRedo={undoRedo}
-        onExit={exitPlanEditorToScene}
-        planName={plan.name}
-        onPlanNameChange={(v) => a.updateFloorPlanMeta({ name: v })}
-        toolPalette={toolPalette}
-        wallTypeSeg={wallTypeSeg}
-        fPlanFurnish={fPlanFurnish}
-        catalogOpen={catalogOpen}
-        onToggleCatalog={() => {
-          const next = !catalogOpen
-          a.setCatalogOpen(next)
-          if (next) setShowFurniture(true)
-        }}
-        templateLibrary={templateLibrary}
-        fileActionsMenu={<PlanMenu label="Plan">{fileActions}</PlanMenu>}
-        multiSelectToggle={multiSelectToggle}
-        quickActions={quickActions}
-        viewMenu={
-          <PlanMenu
-            label="View"
-            active={
-              showWallDims ||
-              showFurniture ||
-              skeleton ||
-              labelsOn ||
-              showOtherLevels ||
-              !showRoomLabels
-            }
-          >
-            {viewMenuActions}
-          </PlanMenu>
-        }
-        totalLabel={totalLabel}
-      />
-      <div className="px-4 pt-2">
-        <InfoCallout id="floor-plan" title="Editing your floor plan">
-          Switch to Edit to draw walls and rooms; View just pans and zooms. Your 3D home updates
-          live.
-        </InfoCallout>
+        <PlanEditorHeader
+          isMobile={isMobile}
+          toolsMenuOpen={toolsMenuOpen}
+          onOpenToolsMenu={() => setToolsMenuOpen(true)}
+          editMode={editMode}
+          toolList={toolList}
+          tool={tool}
+          toolLabel={toolLabel}
+          onPickTool={pickTool}
+          viewToggle={viewToggle}
+          drawHint={drawHint}
+          undoRedo={undoRedo}
+          onExit={exitPlanEditorToScene}
+          planName={plan.name}
+          onPlanNameChange={(v) => a.updateFloorPlanMeta({ name: v })}
+          toolPalette={toolPalette}
+          wallTypeSeg={wallTypeSeg}
+          fPlanFurnish={fPlanFurnish}
+          catalogOpen={catalogOpen}
+          onToggleCatalog={() => {
+            const next = !catalogOpen
+            a.setCatalogOpen(next)
+            if (next) setShowFurniture(true)
+          }}
+          templateLibrary={templateLibrary}
+          fileActionsMenu={<PlanMenu label="Plan">{fileActions}</PlanMenu>}
+          multiSelectToggle={multiSelectToggle}
+          quickActions={quickActions}
+          viewMenu={
+            <PlanMenu
+              label="View"
+              active={
+                showWallDims ||
+                showFurniture ||
+                skeleton ||
+                labelsOn ||
+                showOtherLevels ||
+                !showRoomLabels
+              }
+            >
+              {viewMenuActions}
+            </PlanMenu>
+          }
+          totalLabel={totalLabel}
+        />
+        <div className="px-4 pt-2">
+          <InfoCallout id="floor-plan" title="Editing your floor plan">
+            Switch to Edit to draw walls and rooms; View just pans and zooms. Your 3D home updates
+            live.
+          </InfoCallout>
+        </div>
       </div>
       {isMobile && (
         <PlanToolsSheet
