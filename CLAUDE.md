@@ -32,6 +32,18 @@ Zustand (sliced store), Vite, Vitest, Biome.
   artifacts, and report what you saw. Green `tsc`+tests is NOT proof the render is right.
   Read `docs/visual-verification-playbook.md` first (harness rules, gotchas, template); add
   new fixes back to it.
+- **Platform-specific quirks/bugs → search the web first, don't trust memory or assume.**
+  For any mobile- or desktop-specific behaviour (iOS/Safari PWA safe-area & `env()` insets,
+  `black-translucent` status bar, `100dvh`/viewport units, `position: fixed` clamping,
+  home-indicator/notch, Android/Chrome or Firefox rendering quirks, touch/pointer-event
+  differences, WebGL/GPU-driver bugs, …), **`WebSearch` for the documented cause + canonical
+  fix before writing code** — these are exactly the areas where model knowledge is stale,
+  vendor-specific, and easy to guess wrong (an iOS full-bleed bottom-bar bug took *five*
+  reasoned-from-memory attempts before a web search found the real mechanism). Cite the source
+  in the commit/PR, and prefer the community-documented pattern over a first-principles guess.
+  This matters most when the sandbox can't reproduce the environment (no real device / GPU /
+  safe-area insets), so a screenshot can't confirm the fix — reason from documented behaviour,
+  not from headless output that omits the quirk.
 - **Dev-gating.** Licensed/non-redistributable additions (IKEA scrape, Kenney zip, proxied
   providers) ship **dev-only** (`devOnly` flag / `visiblePacks(isDev)` / `PROD_PROVIDER_IDS`);
   CORS-friendly CC0/CC-BY additions ship in prod too.
