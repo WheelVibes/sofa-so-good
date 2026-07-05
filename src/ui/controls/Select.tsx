@@ -27,6 +27,14 @@ interface SelectProps {
   placeholder?: string
   /** Compact icon-only trigger (`.icon-btn`) — label/title carry the current value. */
   iconTrigger?: ReactNode
+  /**
+   * Optional trailing content rendered to the RIGHT of each option, as a sibling
+   * of the option button (never nested — a `<button>` inside the option button
+   * would be invalid HTML). Lets a consumer hang a per-row affordance (e.g. the
+   * room-switcher's drag-to-reorder handle) off each entry without forking a
+   * bespoke list.
+   */
+  optionTrailing?: (option: SelectOption, index: number) => ReactNode
 }
 
 /**
@@ -49,6 +57,7 @@ export function Select({
   style,
   placeholder,
   iconTrigger,
+  optionTrailing,
 }: SelectProps) {
   const isMobile = useIsMobile()
   const iconOnly = iconTrigger != null
@@ -135,6 +144,7 @@ export function Select({
       activeIdx={activeIdx}
       onHover={setActiveIdx}
       onPick={commit}
+      optionTrailing={optionTrailing}
     />
   )
 
@@ -193,6 +203,7 @@ function OptionList({
   activeIdx,
   onHover,
   onPick,
+  optionTrailing,
 }: {
   listId: string
   options: SelectOption[]
@@ -200,6 +211,7 @@ function OptionList({
   activeIdx: number
   onHover: (i: number) => void
   onPick: (v: string) => void
+  optionTrailing?: (option: SelectOption, index: number) => ReactNode
 }): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
   // Keep the active option scrolled into view as the user arrows through.
@@ -211,7 +223,7 @@ function OptionList({
     <div ref={ref} id={listId} role="listbox" className="select-list">
       {options.map((o, i) => {
         const sel = o.value === value
-        return (
+        const option = (
           <button
             key={o.value}
             type="button"
@@ -228,6 +240,15 @@ function OptionList({
             <span className="select-option-label">{o.label}</span>
             {sel ? <Icon.Check width={15} height={15} className="icn select-check" /> : null}
           </button>
+        )
+        // Trailing content is a SIBLING of the option button (nesting a button
+        // inside the option button is invalid HTML), wrapped in a flex row.
+        if (!optionTrailing) return option
+        return (
+          <div key={o.value} className="select-option-row">
+            {option}
+            {optionTrailing(o, i)}
+          </div>
         )
       })}
     </div>

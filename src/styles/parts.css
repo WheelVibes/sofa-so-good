@@ -309,8 +309,14 @@
 .select-option .select-check { flex: none; color: var(--accent); }
 .select-option.active .select-check { color: var(--accent-soft-text); }
 .select-option:disabled { opacity: 0.4; cursor: default; }
+/* Row wrapper when a consumer supplies `optionTrailing` (e.g. the room-switcher's
+   drag-to-reorder handle): the option button flexes to fill, the trailing
+   affordance sits at the right edge. */
+.select-option-row { display: flex; align-items: center; }
+.select-option-row .select-option { flex: 1; min-width: 0; }
 /* Mobile sheet: roomy 44px option rows. */
 .select-sheet .select-option { min-height: 44px; }
+.select-sheet .select-option-row .select-option { min-height: 44px; }
 
 /* ---- Custom ColorPicker (themed replacement for <input type=color>) ----- */
 .color-trigger {

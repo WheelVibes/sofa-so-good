@@ -42,6 +42,8 @@ export function MobileToolbar() {
   const s = useStore
   const proMode = useStore((st) => st.uiMode === 'pro')
   const roomEditorActive = useStore((st) => st.roomEditor.active)
+  const catalogOpen = useStore((st) => st.catalogOpen)
+  const leftMode = useStore((st) => st.leftMode)
   const appearanceOpen = useStore((st) => st.appearanceOpen)
   const setAppearanceOpen = useStore((st) => st.setAppearanceOpen)
   const currentUser = useStore((st) => st.currentUser)
@@ -130,6 +132,27 @@ export function MobileToolbar() {
       <div className={`toolbar mobilebar${roomEditorActive ? ' editing-room' : ''}`}>
         <BrandDot size={20} />
         {roomEditorActive ? <RoomSwitcher className="input m-room-select" /> : null}
+        {/* Catalog — only inside the room editor (mirrors the desktop toolbar's
+            catalog button + the Design menu's Catalog item), sitting to the LEFT
+            of the hamburger. Toggles the left dock's catalog bottom-sheet. */}
+        {roomEditorActive ? (
+          <button
+            type="button"
+            className={`tool-btn m-catalog-btn${catalogOpen && leftMode === 'catalog' ? ' active' : ''}`}
+            aria-label="Catalog"
+            aria-pressed={catalogOpen && leftMode === 'catalog'}
+            onClick={() => {
+              const st = s.getState()
+              if (st.catalogOpen && st.leftMode === 'catalog') st.setCatalogOpen(false)
+              else {
+                st.setLeftMode('catalog')
+                st.setCatalogOpen(true)
+              }
+            }}
+          >
+            <Icon.Catalog width={20} height={20} />
+          </button>
+        ) : null}
         {/* Hamburger and Exit swapped (menu now sits left of the exit X in the
             room editor): the hamburger always renders; the exit only while
             editing a room, kept as the last (right-most) control. */}

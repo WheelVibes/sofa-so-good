@@ -80,26 +80,19 @@
 .dim-room-name { font-size: var(--t-xs); font-weight: 700; }
 .dim-room-area { font-size: var(--t-2xs); font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
 
-/* Room reorder dialog (roomReorder pro flag): a simple up/down ordered list. */
-.room-reorder { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
-.room-reorder-row {
-  display: flex; align-items: center; gap: var(--s-3);
-  padding: var(--s-2) var(--s-3); border-radius: var(--r-2);
-  background: var(--surface-2); border: 1px solid var(--border);
-}
-.room-reorder-idx { flex: none; width: 1.4em; text-align: right; color: var(--text-3); font-size: var(--t-xs); font-variant-numeric: tabular-nums; }
-.room-reorder-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-sm); font-weight: 600; color: var(--text); }
-.room-reorder-acts { flex: none; display: flex; gap: var(--s-1); }
-/* Drag-to-reorder handle (bug #10) — a grab affordance; `touch-action: none`
-   so a touch-drag reorders instead of scrolling the sheet. */
+/* Room reorder (roomReorder flag): a drag handle on the RIGHT of each entry in
+   the room-switcher dropdown (RoomSwitcher → Select `optionTrailing`). The
+   handle is a sibling of the option button inside a flex row (`.select-option-row`
+   is defined in the Select styles); `touch-action: none` so a touch-drag reorders
+   instead of scrolling the list. */
 .room-reorder-handle {
   flex: none; display: flex; align-items: center; justify-content: center;
-  padding: var(--s-1); border: 0; background: transparent; color: var(--text-3);
-  cursor: grab; touch-action: none; border-radius: var(--r-1);
+  padding: var(--s-1); margin-left: var(--s-1); border: 0; background: transparent;
+  color: var(--text-3); cursor: grab; touch-action: none; border-radius: var(--r-1);
 }
 .room-reorder-handle:hover { color: var(--text); background: var(--surface-3); }
-.room-reorder-handle:active { cursor: grabbing; }
-.room-reorder-row.dragging { border-color: var(--accent); box-shadow: var(--shadow-pop); opacity: 0.92; }
+.room-reorder-handle:active,
+.room-reorder-handle.dragging { color: var(--accent); cursor: grabbing; }
 
 /* ---- progressive-disclosure info callout (P25) --------------- */
 /* A dismissible one-line hint banner (InfoCallout.tsx): surface-2 card with an

@@ -1,0 +1,17 @@
+{
+  "name": "room-switcher-reorder-simple",
+  "url": "http://localhost:5233/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour&&s.endTour(); s.setOnboardingOpen&&s.setOnboardingOpen(false); s.dismissLocationPrompt&&s.dismissLocationPrompt()" },
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-active", "waitFor": { "store": "window.__store.getState().roomEditor.active === true" } },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading && window.__store.getState().hideLoading()" },
+    { "name": "wait-settle", "wait": 500 },
+    { "name": "open-dropdown", "click": "[aria-label=\"Room to edit\"]" },
+    { "name": "list-open", "waitFor": { "css": ".select-list" } },
+    { "name": "shot-dropdown", "screenshot": "dropdown-with-handles" },
+    { "name": "assert-handle-per-row", "eval": "const rows=document.querySelectorAll('.select-option-row'); const handles=document.querySelectorAll('.select-option-row .room-reorder-handle'); if(rows.length===0) throw new Error('no option rows'); if(handles.length!==rows.length) throw new Error('handles '+handles.length+' != rows '+rows.length); 'ok:'+rows.length" },
+    { "name": "assert-handle-not-nested", "eval": "const h=document.querySelector('.room-reorder-handle'); if(!h) throw new Error('no handle'); if(h.closest('[role=\"option\"]')) throw new Error('handle nested inside option button'); 'ok'" }
+  ]
+}

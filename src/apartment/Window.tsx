@@ -95,11 +95,14 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       const base = isGlass ? glassBase : 1
       m.transparent = isGlass || fading
       m.opacity = base * wallOp
-      // Write depth only once the frame is essentially opaque (matches its own
-      // `transparent`/`fading` boundary + the host wall's), not at a separate 0.6
-      // step — otherwise the frame's thickness snapped from a see-through blend
-      // to solid 3D mid-fade (the "pops between 2D and 3D" bug, same as the door).
-      m.depthWrite = !isGlass && !fading
+      // depthWrite stays ON at all times (WALL-FADE-DEPTHWRITE, matching the host
+      // wall + WallSegment + door) — including the glass, so every transparent
+      // surface writes depth and sorts consistently. Flipping it (the old
+      // `!isGlass && !fading`) snapped the frame's thickness from a see-through
+      // blend to solid 3D mid-fade (the "pops between 2D and 3D" bug) and left the
+      // frame (dw off while fading) sorting inconsistently against the glass and
+      // the host wall, bleeding the backdrop through their overlap.
+      m.depthWrite = true
       // Non-glass parts flip transparent on/off with the wall fade; recompile
       // on the transition so the blend actually engages (glass is always
       // transparent, so it never needs this).

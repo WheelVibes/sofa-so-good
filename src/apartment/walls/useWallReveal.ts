@@ -112,7 +112,13 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
           const cm = c as MeshStandardMaterial
           cm.transparent = true
           cm.opacity = cur
-          cm.depthWrite = false
+          // depthWrite stays ON through the fade (WALL-FADE-DEPTHWRITE, matching
+          // WallSegment) — flipping it off popped the wall between solid and
+          // see-through at the ~0.985 threshold and made faded walls sort
+          // inconsistently against glass/openings (bright bleed). With it on the
+          // clone reads as one clean translucent surface and the 0.985 clone swap
+          // becomes visually negligible (no dw change across it).
+          cm.depthWrite = true
           if (changed) cm.needsUpdate = true
         }
       } else {

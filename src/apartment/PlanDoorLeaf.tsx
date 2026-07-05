@@ -163,10 +163,10 @@ export function PlanDoorLeaf({
         const glass = base < 1
         m.transparent = glass || fading
         m.opacity = base * cur
-        // Depth only when essentially opaque + solid (glass never writes depth),
-        // matching the host wall's boundary so the leaf fades as one surface with
-        // it instead of popping from a see-through blend to solid 3D mid-fade.
-        m.depthWrite = !glass && !fading
+        // depthWrite stays ON at all times (WALL-FADE-DEPTHWRITE, incl. glass) so
+        // the leaf fades as one clean self-occluding surface that sorts
+        // consistently with the wall, instead of popping 2D↔3D mid-fade.
+        m.depthWrite = true
         if (changed) m.needsUpdate = true
       })
     }
