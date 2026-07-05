@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { BrandDot } from '../../toolbar/BrandDot'
 import { PlanToolMenu } from './PlanToolMenu'
 import type { Tool } from './planConstants'
 
@@ -66,17 +67,15 @@ export function PlanEditorHeader({
 }) {
   return (
     <div
-      className={`flex items-center gap-2 px-4 py-2 ${
+      className={`plan-header flex items-center gap-2 px-4 py-2 ${
         isMobile ? 'flex-wrap' : 'flex-nowrap overflow-x-auto'
       }`}
-      style={{
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--surface)',
-        backdropFilter: 'blur(var(--blur))',
-      }}
     >
       {isMobile ? (
         <>
+          {/* Brand dot mirrors the room-editor mobile toolbar so the two editing
+              surfaces read as the same app. */}
+          <BrandDot size={20} />
           {viewToggle}
           {/* The ☰ menu holds furniture/undo/grid/labels/export/etc., useful in
               both modes — so show it always (the drawing-tool picker stays

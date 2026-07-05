@@ -77,7 +77,13 @@ export function LevelMenu({
     <div
       ref={rootRef}
       className="level-menu"
-      style={{ position: 'absolute', left: 12, bottom: 12, zIndex: 6 }}
+      style={{
+        position: 'absolute',
+        // Clear the iOS safe area (0 on non-notched displays).
+        left: 'calc(12px + env(safe-area-inset-left, 0px))',
+        bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+        zIndex: 6,
+      }}
     >
       {open && (
         <div

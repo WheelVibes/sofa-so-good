@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.15.2.1 — iOS full-bleed: force full-screen height in the installed PWA
+
+The v0.15.0.1 `position: fixed; inset: 0` app-shell fix still left the tan
+home-indicator "bottom bar" on-device: switching to `black-translucent` makes the
+web view edge-to-edge, but iOS **clamps a fixed element's `bottom: 0` (and
+`100dvh`) to the safe-area bottom**, so the app never covered the home-indicator
+strip. Now, scoped to the installed PWA via `@media (display-mode: standalone)`,
+`.app-shell` gets an explicit `height: 100vh` (`bottom: auto`) — with
+`viewport-fit=cover`, `100vh` spans the entire physical screen including the home
+indicator, so the canvas finally reaches the bottom edge. Regular mobile Safari
+(dynamic address bar) keeps the previous `inset: 0` box — the media query leaves
+it untouched.
+
+## v0.15.2.0 — floor-plan editor: safe-area insets + room-editor toolbar style
+
+Mobile floor-plan editor polish for full-bleed iOS:
+
+- **Top toolbar restyled to match the room-editor mobile toolbar** — the flat
+  full-width bar is now a rounded floating pill (surface / border / shadow, via a
+  new `.plan-header` class) with a `BrandDot`, and clears the notch/status bar
+  with `env(safe-area-inset-top)`. Desktop keeps the flat bar.
+- **Bottom controls clear the home indicator** — the compass, dynamic scale bar,
+  and floor (level) selector now add `env(safe-area-inset-bottom)` /
+  `safe-area-inset-left` to their offsets (0 on non-notched displays, so desktop
+  is unchanged).
+
+Note on the 3D full-bleed bottom edge: the `position: fixed; inset: 0` app-shell
+fix from v0.15.0.1 is correct and shipped; if a device still shows the bottom
+strip after reinstalling, the service worker is serving the old cached CSS
+(`registerType: 'prompt'` waits for the in-app "Update available" prompt) —
+accept the update or clear the site's website data, then re-add to Home Screen.
+
 ## v0.15.1.2 — remove the design prototype
 
 Deleted the `design/` directory — a standalone HTML/JSX design mockup (114 files,

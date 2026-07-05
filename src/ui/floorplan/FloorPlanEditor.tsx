@@ -1949,7 +1949,8 @@ export function FloorPlanEditor() {
                 style={{
                   position: 'absolute',
                   right: 12,
-                  bottom: 56,
+                  // Clear the iOS home indicator (0 on non-notched displays).
+                  bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
                   zIndex: 5,
                   width: 52,
                   height: 52,
@@ -1994,7 +1995,8 @@ export function FloorPlanEditor() {
                     style={{
                       position: 'absolute',
                       right: 12,
-                      bottom: 12,
+                      // Clear the iOS home indicator (0 on non-notched displays).
+                      bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
                       zIndex: 5,
                       padding: '4px 8px',
                       display: 'flex',
