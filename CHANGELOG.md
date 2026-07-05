@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.0.2 — faded walls no longer dim the room seen through them
+
+A translucent (revealed) wall composites over everything behind it, and its unlit
+camera-facing side rendered a dark-ish grey — so looking THROUGH a faded wall cast
+a murky veil over the room and any glass (e.g. a shower screen) behind it, and the
+veil shifted as you orbited. Faded wall panes are now lifted toward a light neutral
+(`emissive` toward `#eceae4`, scaled by how faded — strongest when most see-through,
+cleared when opaque), so the ~10% the wall contributes reads as a clean light haze
+instead of a dark tint. The room behind stays bright and reflective/glass surfaces
+read clearly. Applied to every reveal site — room editor (`useWallReveal`), orbit
+`WallSegment`, and custom-plan `PlanShell` walls; opacity floor unchanged (still
+0.10), so see-through amount is the same. (The shower glass itself is unchanged —
+it's physically-accurate reflective glass; this only stops a faded wall from
+dimming what's seen through it.)
+
 ## v0.16.0.1 — reveal no longer half-fades side walls
 
 Fixes side/back walls going partly translucent (and flipping "bluer" vs "whiter"

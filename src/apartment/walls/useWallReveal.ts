@@ -1,12 +1,22 @@
 import { useFrame } from '@react-three/fiber'
 import { type RefObject, useEffect, useRef } from 'react'
-import { type Material, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from 'three'
+import {
+  Color,
+  type Material,
+  type Mesh,
+  type MeshStandardMaterial,
+  type Object3D,
+  Vector3,
+} from 'three'
 import { useStore } from '../../state/store'
 import { setWallOpacity } from './wallReveal'
 import { WALL_TRANSLUCENT_MIN, wallRevealFacing } from './wallRevealMath'
 
 // Scratch vector for the camera forward direction (avoids per-frame allocation).
 const FWD = new Vector3()
+// Light neutral the faded pane is lifted toward so seeing THROUGH it doesn't cast
+// a dark tint on the room behind (REVEAL-THROUGH-TINT). Shared, read-only.
+const REVEAL_EMISSIVE = new Color('#eceae4')
 
 export interface WallRevealArgs {
   /** Wall midpoint (world XZ). */
@@ -141,6 +151,15 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
           // clone reads as one clean translucent surface and the 0.985 clone swap
           // becomes visually negligible (no dw change across it).
           cm.depthWrite = true
+          // Lift the faded pane toward a light neutral so seeing THROUGH it doesn't
+          // dim/tint the room (REVEAL-THROUGH-TINT): a translucent wall composites
+          // over everything behind it, and its unlit camera-facing (exterior) side
+          // is a dark-ish grey that cast a murky tint on the scene + any glass seen
+          // through it. Strongest when most faded (scaled by 1−opacity), so a
+          // near-opaque wall is untouched — the 10% contribution reads as a clean
+          // light haze, not a dark veil.
+          cm.emissive.copy(REVEAL_EMISSIVE)
+          cm.emissiveIntensity = (1 - cur) * 0.7
           if (changed) cm.needsUpdate = true
         }
       } else {
