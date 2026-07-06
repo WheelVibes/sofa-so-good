@@ -1,5 +1,8 @@
 import { Canvas } from '@react-three/fiber'
+import { useMemo } from 'react'
 import { PCFSoftShadowMap } from 'three'
+import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
+import { occluderRectsForPlan } from '../apartment/ceiling/ceilingOccluder'
 import { PlanRoomShell } from '../apartment/PlanRoomShell'
 import { RoomShell } from '../apartment/RoomShell'
 import { FurnitureLayer } from '../furniture/FurnitureLayer'
@@ -51,6 +54,10 @@ import { useQuality } from './useQuality'
 export function RoomEditorScene() {
   const roomId = useStore((s) => s.roomEditor.roomId)
   const plan = useStore((s) => s.floorPlan)
+  const occluderRects = useMemo(
+    () => occluderRectsForPlan(plan).filter((r) => r.id === roomId),
+    [plan, roomId],
+  )
   // Honour the user's global quality tier for the pixel-ratio ceiling, matching
   // the main orbit Canvas (High/Maximum renders crisp; Performance caps at 1).
   const dprMax = useQuality().dprMax
@@ -115,6 +122,7 @@ export function RoomEditorScene() {
       ) : (
         <PlanRoomShell shell={editorShell.shell} />
       )}
+      <CeilingOccluder rects={occluderRects} />
       <GridOverlay rects={gridRects} polygon={gridPolygon} />
       <AlignmentGuides />
       <ClearanceOverlay />
