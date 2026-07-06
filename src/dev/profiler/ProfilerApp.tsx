@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { EffectCost, MetricsSnapshot, ObjectCost, ProfilerApi } from './profilerTypes'
 
+// The popup UI is rendered by the parent's React root into the child window's
+// DOM (see openProfilerWindow.ts), so this code runs in the MAIN window's
+// realm — read the parent's own `window.__profiler`, not `window.opener`
+// (which is null for the main tab).
 function api(): ProfilerApi | null {
-  return (window.opener as unknown as { __profiler?: ProfilerApi })?.__profiler ?? null
+  return (window as unknown as { __profiler?: ProfilerApi }).__profiler ?? null
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) {

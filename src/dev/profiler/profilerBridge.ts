@@ -14,7 +14,8 @@ export const HISTORY_LIMIT = 120
 
 /**
  * Dev-only singleton connecting the in-Canvas probe (main window) to the
- * detached profiler window (which reads it via `window.opener.__profiler`).
+ * detached profiler window's UI (rendered by the parent's React root into the
+ * child DOM, so it runs in the same realm and reads it via `window.__profiler`).
  * Holds live renderer/scene refs, a bounded metrics history, and a pub/sub.
  * Cost-sweep / object-breakdown methods are attached in `profilerEngine.ts`.
  */

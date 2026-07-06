@@ -6,6 +6,13 @@ import profilerCss from './profiler.css?inline'
 let win: Window | null = null
 let root: Root | null = null
 
+// Close the child if the parent unloads so it never orphans. Registered once
+// at module scope (not per-open) so re-opening the window doesn't accumulate
+// listeners on the parent window.
+window.addEventListener('beforeunload', () => {
+  if (win && !win.closed) win.close()
+})
+
 /** Copy the parent's stylesheets + theme attributes into the child document so
  *  token classes resolve. Cloned styles do NOT hot-reload (dev-tool limitation). */
 function cloneStyles(doc: Document): void {
@@ -54,8 +61,4 @@ export function openProfilerWindow(): void {
     win = null
   }
   w.addEventListener('beforeunload', cleanup)
-  // Close the child if the parent unloads so it never orphans.
-  window.addEventListener('beforeunload', () => {
-    if (win && !win.closed) win.close()
-  })
 }

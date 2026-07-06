@@ -95,15 +95,17 @@ of a production build even if the flag resolution logic is ever wrong:
    `installProfilerApi`/`profilerBridge`/`ProfilerApp` (task 10 verification;
    also worth re-checking after any change to the wiring).
 
-## Cross-realm architecture note
+## Same-realm architecture note
 
-The popup window is a **separate module realm** — importing `profilerBridge`
-directly from inside `ProfilerApp.tsx` would get a different singleton
-instance than the one the main window's Canvas is feeding. Instead, the main
-window installs its live API on `window.__profiler`
-(`installProfiler.ts`), and the popup reaches back across the window
-boundary via `window.opener.__profiler`. See
-`src/dev/profiler/CLAUDE.md` for this and other path-scoped rules.
+`openProfilerWindow` renders the parent window's React root into the popup's
+DOM, so `ProfilerApp` actually executes in the MAIN window's realm, not a
+separate one. Importing `profilerBridge` directly from inside
+`ProfilerApp.tsx` would still work today, but the convention is to go through
+the facade: the main window installs its live API on `window.__profiler`
+(`installProfiler.ts`), and `ProfilerApp` reads it directly via
+`window.__profiler` — `window.opener` is null for the main tab and must not
+be used. See `src/dev/profiler/CLAUDE.md` for this and other path-scoped
+rules.
 
 ## Related tests
 
