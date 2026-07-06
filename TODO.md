@@ -15,14 +15,16 @@ Spec: `docs/superpowers/specs/2026-07-07-dev-profiler-design.md` · plan: TBD.
 - [ ] Live metrics dashboard (FPS, frame time, draw calls, triangles, GPU mem, JS heap, lights).
 - [ ] On-demand effect-cost sweep (toggle each render effect, rank ms/frame) + per-object GPU breakdown.
 
-## Active — orbit/editor lighting parity (2026-07-07, user goal)
+## Active — orbit/editor lighting parity (2026-07-07, user goal) — IMPLEMENTED on fix/070726 (v0.16.1.5)
 Spec: `docs/superpowers/specs/2026-07-07-orbit-lighting-parity-design.md` ·
-Plan: `docs/superpowers/plans/2026-07-07-orbit-lighting-parity.md` (v0.16.1.4).
-- [ ] Retire the orbit daytime "dollhouse" flat-fill so orbit + the room editor run the full
+Plan: `docs/superpowers/plans/2026-07-07-orbit-lighting-parity.md` (v0.16.1.5). All tasks done + final review passed.
+- [x] Retire the orbit daytime "dollhouse" flat-fill so orbit + the room editor run the full
   walk-mode simulation (graded sun, PCF shadows, exposure grading, bloom) at every tier.
-- [ ] Add an invisible shadow-casting virtual ceiling (`CeilingOccluder`) so the open-top orbit
+- [x] Add an invisible shadow-casting virtual ceiling (`CeilingOccluder`) so the open-top orbit
   view is lit through windows/openings only, not flooded from above. Both modes, mobile + desktop.
-- [ ] Lock in that the "Original" asset tier is truly lossless (regression tests + audit).
+- [x] Lock in that the "Original" asset tier is truly lossless (regression tests + audit).
+- [ ] Follow-up: eyeball walk-mode + mobile live once (headless harness couldn't capture them;
+  same lighting code path as the verified orbit view, so expected fine). Remove this block on merge.
 
 ## Active — asset pipeline (2026-07-02, user goal)
 See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full design.
