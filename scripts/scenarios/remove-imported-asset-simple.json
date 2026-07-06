@@ -1,0 +1,49 @@
+{
+  "name": "remove-imported-asset-simple",
+  "url": "http://localhost:5199/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(()=>{localStorage.setItem('hdb_onboarded','1');const s=window.__store.getState();s.setOnboardingOpen&&s.setOnboardingOpen(false);s.endTour&&s.endTour();s.dismissLocationPrompt&&s.dismissLocationPrompt();s.setManualHour&&s.setManualHour(13);})()"
+    },
+    {
+      "name": "seed-and-enter",
+      "eval": "(()=>{const s=window.__store.getState();const def={id:'ikea-zqxtest',name:'Zqxtest Armchair',category:'seating',kind:'gltf',source:'ikea',groupKey:'zqxtest',activeVariant:'natural',variants:[{finish:'natural',label:'Natural',articleNumber:'1',url:'https://example.com',assetId:'zqx-a',runtimeUrl:'blob:zqx',glbMaterials:[]}],defaultFootprint:{w:0.8,d:0.8,h:0.9},uploadedAt:'2026-07-07',license:'IKEA',attribution:'IKEA'};s.addUserFurniture(def);s.setItems([{id:'zqx-item',defId:'ikea-zqxtest',position:[3,3],rotation:0,props:{}}]);s.enterRoomEditor('livingDining');s.setCatalogOpen(true);})()"
+    },
+    { "name": "room-active", "waitFor": { "store": "state.roomEditor.active === true" } },
+    { "name": "catalog-open", "waitFor": { "css": ".panel.catalog" }, "timeout": 20000 },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading()" },
+    { "name": "overlay-gone", "waitFor": { "css": ".hdb-room", "visible": false }, "timeout": 10000 },
+    { "name": "focus-search", "eval": "document.querySelector('.cat-search input[type=search]').focus()" },
+    { "name": "type-search", "type": "type", "text": "Zqxtest" },
+    {
+      "name": "card-remove-btn-visible",
+      "waitFor": { "css": "[aria-label='Remove downloaded asset']" },
+      "timeout": 15000,
+      "failMessage": "The remove '×' did not render on the imported IKEA card"
+    },
+    { "name": "shot-card", "screenshot": "card-with-remove" },
+    { "name": "click-remove", "eval": "document.querySelector('[aria-label=\"Remove downloaded asset\"]').click()" },
+    {
+      "name": "confirm-modal",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 10000,
+      "failMessage": "Confirm prompt did not appear for a placed imported asset"
+    },
+    { "name": "shot-confirm", "screenshot": "confirm-prompt" },
+    {
+      "name": "click-confirm",
+      "eval": "[...document.querySelectorAll('.modal-overlay button')].find(b=>b.textContent.trim()==='Remove').click()"
+    },
+    {
+      "name": "removed",
+      "waitFor": {
+        "store": "!window.__store.getState().userFurniture.some(d=>d.id==='ikea-zqxtest') && !window.__store.getState().items.some(i=>i.defId==='ikea-zqxtest')"
+      },
+      "timeout": 10000,
+      "failMessage": "The def or its placed item was not removed after confirming"
+    },
+    { "name": "shot-after", "screenshot": "after-removal" }
+  ]
+}

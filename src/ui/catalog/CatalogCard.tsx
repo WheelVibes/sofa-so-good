@@ -236,7 +236,7 @@ export function CatalogCard({ def, onDelete, staggerIndex, roomRects }: CatalogC
           Uploaded
         </span>
       ) : null}
-      {isUser && onDelete ? (
+      {(isUser || isIkea) && onDelete ? (
         <button
           type="button"
           onClick={(e) => {
@@ -244,7 +244,7 @@ export function CatalogCard({ def, onDelete, staggerIndex, roomRects }: CatalogC
             onDelete()
           }}
           className="coll-x"
-          aria-label="Remove uploaded asset"
+          aria-label={isIkea ? 'Remove downloaded asset' : 'Remove uploaded asset'}
         >
           <Icon.Close width={12} height={12} />
         </button>

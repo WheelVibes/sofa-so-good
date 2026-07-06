@@ -71,6 +71,55 @@ describe('removeUserFurniture — GLTF + module cache eviction (PERF-001/008)', 
     useStore.getState().addUserFurniture(ikeaDef())
     expect(() => useStore.getState().removeUserFurniture('ikea-malm')).not.toThrow()
   })
+
+  it('deletes every variant blob, drops its placed items (keeps others), and clears selection', () => {
+    const twoVariant = ikeaDef({
+      variants: [
+        {
+          finish: 'black-brown',
+          label: 'Black-brown',
+          articleNumber: '1',
+          url: 'u',
+          assetId: 'asset-a',
+          runtimeUrl: 'blob:a',
+          glbMaterials: [],
+        },
+        {
+          finish: 'white',
+          label: 'White',
+          articleNumber: '2',
+          url: 'u',
+          assetId: 'asset-b',
+          runtimeUrl: 'blob:b',
+          glbMaterials: [],
+        },
+      ],
+    })
+    useStore.getState().addUserFurniture(twoVariant)
+    useStore
+      .getState()
+      .setItems([
+        placed('i1', 'ikea-malm'),
+        placed('i2', 'ikea-malm'),
+        placed('keep', 'dining-chair'),
+      ])
+    useStore.setState({ selectedItemId: 'i1', selectedItemIds: ['i1', 'i2'] })
+
+    useStore.getState().removeUserFurniture('ikea-malm')
+
+    const after = useStore.getState()
+    expect(after.userFurniture.find((d) => d.id === 'ikea-malm')).toBeUndefined()
+    // Its placed instances are dropped; the unrelated item survives.
+    expect(after.items.map((i) => i.id)).toEqual(['keep'])
+    // Selection no longer references the removed items.
+    expect(after.selectedItemId).toBeNull()
+    expect(after.selectedItemIds).toEqual([])
+    // Both variants' IDB records + blob URLs are freed.
+    expect(idbDelete).toHaveBeenCalledWith('asset-a')
+    expect(idbDelete).toHaveBeenCalledWith('asset-b')
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:a')
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:b')
+  })
 })
 
 describe('replaceUserFurniture', () => {

@@ -57,6 +57,16 @@ describe('CatalogCard', () => {
     expect(screen.getByText('IKEA').closest('.card-thumb')?.className).toContain('photo')
   })
 
+  it('shows a remove button for an imported IKEA def when onDelete is given', () => {
+    render(<CatalogCard def={IKEA_DEF} onDelete={() => {}} />)
+    expect(screen.getByLabelText('Remove downloaded asset')).toBeTruthy()
+  })
+
+  it('shows no remove button for a builtin def', () => {
+    render(<CatalogCard def={SOFA_DEF} onDelete={() => {}} />)
+    expect(screen.queryByLabelText(/Remove .* asset/)).toBeNull()
+  })
+
   describe('"fits this room" size cue (CATALOG-FITS)', () => {
     it('shows no cue when no room is being edited (roomRects is null)', () => {
       render(<CatalogCard def={SOFA_DEF} roomRects={null} />)

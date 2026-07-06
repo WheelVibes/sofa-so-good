@@ -27,6 +27,7 @@ import {
 import { LayersPanel } from './LayersPanel'
 import { RemoteCard } from './RemoteCard'
 import { clearRecent, loadRecent, pushRecent } from './recentSearches'
+import { confirmAndRemoveDef } from './removeImportedDef'
 import { defaultCategoryForRoomKind, relevantCategoriesForRoomKind } from './roomAwareCategories'
 import { SharedCard } from './SharedCard'
 import { StampBanner } from './StampBanner'
@@ -111,6 +112,7 @@ export function CatalogDrawer() {
   const leftMode = useStore((s) => s.leftMode)
   const setLeftMode = useStore((s) => s.setLeftMode)
   const removeUserFurniture = useStore((s) => s.removeUserFurniture)
+  const confirmAction = useStore((s) => s.confirmAction)
   const setActiveDefId = useStore((s) => s.setActiveDefId)
   const isPro = useStore((s) => s.uiMode === 'pro')
   const setGlbDesignerOpen = useStore((s) => s.setGlbDesignerOpen)
@@ -327,7 +329,13 @@ export function CatalogDrawer() {
           key={gridItemId(it)}
           def={it.def}
           staggerIndex={staggerIndex}
-          onDelete={() => removeUserFurniture(it.def.id)}
+          onDelete={() =>
+            void confirmAndRemoveDef(it.def, {
+              placedCount: useStore.getState().items.filter((i) => i.defId === it.def.id).length,
+              confirmAction,
+              removeUserFurniture,
+            })
+          }
           roomRects={fFits ? roomFreeRects : null}
         />
       )
