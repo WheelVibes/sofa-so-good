@@ -9,6 +9,12 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
 > Avoid pricing/quotes/analytics deliverables unless asked.
 
+## Active — dev profiler (2026-07-07, user goal)
+Spec: `docs/superpowers/specs/2026-07-07-dev-profiler-design.md` · plan: TBD.
+- [ ] Dev-only (`import.meta.env.DEV` + `profiler` devOnly/pro flag) detached-window profiler.
+- [ ] Live metrics dashboard (FPS, frame time, draw calls, triangles, GPU mem, JS heap, lights).
+- [ ] On-demand effect-cost sweep (toggle each render effect, rank ms/frame) + per-object GPU breakdown.
+
 ## Active — orbit/editor lighting parity (2026-07-07, user goal)
 Spec: `docs/superpowers/specs/2026-07-07-orbit-lighting-parity-design.md` ·
 Plan: `docs/superpowers/plans/2026-07-07-orbit-lighting-parity.md` (v0.16.1.4).
