@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.9 — room-editor wall reveal: complete the fade, drop the whitewash
+
+Fixed the room editor's "super-white, slightly-translucent walls" — the
+camera-facing walls that should fade to a clean see-through were instead parking
+half-faded (~0.6–0.84 opacity) with a bright white glow, and the fade wouldn't
+flip to the new near walls when you swivelled. Two causes, both in the
+editor-only `apartment/walls/useWallReveal` hook:
+
+- **Fade starvation.** The editor `<Canvas>` is `frameloop="demand"` and gates
+  rendering through `RenderPump`, which stays continuous only while an *animated
+  source* is registered (the same mechanism that keeps spinning fans alive).
+  `useWallReveal` relied on R3F's native `invalidate()`, which the pump ignores —
+  so after the ~300ms settle tail the fade stalled one lerp step in, and never
+  completed or re-flipped on swivel. Now it registers an animated source while the
+  fade is lerping and releases it the instant it settles.
+- **Whitewash.** The REVEAL-THROUGH-TINT emissive lift (a light-neutral glow that
+  stops a *dark* pane veiling the scene over orbit's night sky) glared bright over
+  the room editor's flat *pale* backdrop. Dropped it in the editor path — faded
+  panes now read as clean glass you see the room through, not frosted white.
+
+Net effect: back/far walls stay fully solid (real finish), the camera-facing walls
+fade cleanly to transparent, and the faded pair follows the camera as you swivel.
+Orbit's `WallSegment` is untouched.
+
 ## v0.16.1.8 — dev-only performance profiler
 
 A detached-window ("DevTools-style") performance profiler for the 3D

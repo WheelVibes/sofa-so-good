@@ -1,22 +1,13 @@
 import { useFrame } from '@react-three/fiber'
 import { type RefObject, useEffect, useRef } from 'react'
-import {
-  Color,
-  type Material,
-  type Mesh,
-  type MeshStandardMaterial,
-  type Object3D,
-  Vector3,
-} from 'three'
+import { type Material, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from 'three'
+import { registerAnimatedSource } from '../../scene/animatedSources'
 import { useStore } from '../../state/store'
 import { setWallOpacity } from './wallReveal'
 import { WALL_TRANSLUCENT_MIN, wallRevealFacing } from './wallRevealMath'
 
 // Scratch vector for the camera forward direction (avoids per-frame allocation).
 const FWD = new Vector3()
-// Light neutral the faded pane is lifted toward so seeing THROUGH it doesn't cast
-// a dark tint on the room behind (REVEAL-THROUGH-TINT). Shared, read-only.
-const REVEAL_EMISSIVE = new Color('#eceae4')
 
 export interface WallRevealArgs {
   /** Wall midpoint (world XZ). */
@@ -52,14 +43,19 @@ const LERP = 0.18
  * isolated room shares ONE finish material, fading it in place would fade the
  * whole room; so while a wall is faded we swap each mesh onto a **per-mesh clone**
  * (captured original restored when it returns to opaque), and re-assert the clone
- * each frame so a React re-render can't reset it. Demand-loop friendly: holds
- * frames via `invalidate()` only while the fade is settling.
+ * each frame so a React re-render can't reset it. Demand-loop friendly: registers
+ * a RenderPump animated source only while the fade is settling (see below), so the
+ * fade runs to completion instead of starving after the settle tail.
  */
 export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallRevealArgs): void {
   const { nx, nz, wallId, bias = 0 } = args
   const opacityRef = useRef(1)
   const transparentRef = useRef(false)
   const clonesRef = useRef<Material[]>([])
+  // Handle for the RenderPump "animated source" registration held WHILE the fade
+  // is lerping (see the note at the settling check below). Released the instant
+  // the fade settles, and on unmount.
+  const pumpReleaseRef = useRef<null | (() => void)>(null)
 
   // Clear any stale opacity this wall id carried over from the main orbit scene
   // when the editor opens; restore originals + dispose clones on unmount.
@@ -80,6 +76,8 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
       })
       for (const c of clonesRef.current) c.dispose()
       clonesRef.current = []
+      pumpReleaseRef.current?.()
+      pumpReleaseRef.current = null
     }
   }, [wallId])
 
@@ -92,15 +90,32 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     const revealMode = st.wallRevealMode ?? 'translucent'
     let target = 1
     if (orbit && revealEnabled && revealMode !== 'opaque') {
-      // ORIENTATION-ONLY reveal (ROOM-EDITOR-FADE): fade the walls the camera is
-      // looking THROUGH (outward normal opposes the camera forward), keep the
-      // far/back walls opaque — driven purely by the camera's look direction, so
-      // zooming (dolly) and panning never change the fade, only orbiting does.
+      // The editor isolates ONE room, so EVERY wall is treated as an exterior
+      // (perimeter) wall of that room (WALL-REVEAL-EXTERIOR): fade only the walls
+      // the camera looks THROUGH (outward normal opposes the camera forward) and
+      // keep the far/back walls fully opaque — back walls never fade. Orientation-
+      // only (camera look direction), so zoom/pan never change the fade; swivelling
+      // flips which walls are "near", so the faded pair follows the camera.
       state.camera.getWorldDirection(FWD)
       const faded = wallRevealFacing(FWD.x, FWD.z, nx, nz)
       // translucent: never fully disappear (strongly see-through floor);
       // auto-hide: can vanish.
       target = revealMode === 'auto-hide' ? faded : Math.max(WALL_TRANSLUCENT_MIN, faded)
+    }
+    // Keep the demand-mode RenderPump rendering WHILE the fade is lerping. This
+    // Canvas is `frameloop="demand"` and gates rendering through RenderPump, which
+    // only stays continuous while an animated source is registered — R3F's native
+    // `invalidate()` (called below) does NOT sustain it. Without this the fade
+    // starved after the ~300ms settle tail on a static camera (entering the editor),
+    // freezing a front wall PART-WAY (~0.6–0.84) as a washed, emissive-lifted
+    // translucent pane instead of reaching its target — the "super-white slightly
+    // translucent wall" bug. Registered exactly like a spinning fan / placement drop
+    // and released the instant it settles (and on unmount).
+    const settling = Math.abs(target - opacityRef.current) > 0.005
+    if (settling && !pumpReleaseRef.current) pumpReleaseRef.current = registerAnimatedSource()
+    else if (!settling && pumpReleaseRef.current) {
+      pumpReleaseRef.current()
+      pumpReleaseRef.current = null
     }
     // Settled, fully opaque, nothing cloned → the common case, skip.
     if (
@@ -151,15 +166,17 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
           // clone reads as one clean translucent surface and the 0.985 clone swap
           // becomes visually negligible (no dw change across it).
           cm.depthWrite = true
-          // Lift the faded pane toward a light neutral so seeing THROUGH it doesn't
-          // dim/tint the room (REVEAL-THROUGH-TINT): a translucent wall composites
-          // over everything behind it, and its unlit camera-facing (exterior) side
-          // is a dark-ish grey that cast a murky tint on the scene + any glass seen
-          // through it. Strongest when most faded (scaled by 1−opacity), so a
-          // near-opaque wall is untouched — the 10% contribution reads as a clean
-          // light haze, not a dark veil.
-          cm.emissive.copy(REVEAL_EMISSIVE)
-          cm.emissiveIntensity = (1 - cur) * 0.7
+          // NO reveal-through-tint lift in the room editor (WALL-REVEAL-EDITOR-NOTINT).
+          // Orbit's `WallSegment` lifts a faded pane toward a light neutral to stop its
+          // dark unlit exterior side from casting a murky veil when seen over the *dark*
+          // outdoors/sky. The room editor deliberately uses a flat, LIGHT backdrop
+          // (`#e6eaef`, RoomEditorScene) — there is no dark scene to compensate for, so
+          // that same lift instead glared as a bright "whitewash" on exactly the two
+          // camera-facing walls (they fade; the far two stay opaque). Keep the faded
+          // pane's own material emissive (black for plaster) so it reads as clean glass
+          // you see the room through, not a frosted-white panel.
+          cm.emissive.setRGB(0, 0, 0)
+          cm.emissiveIntensity = 1
           if (changed) cm.needsUpdate = true
         }
       } else {
