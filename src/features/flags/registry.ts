@@ -1303,6 +1303,13 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  profiler: {
+    label: 'Profiler',
+    description: 'Dev-only detached-window performance profiler (live metrics + cost breakdown)',
+    default: false,
+    devOnly: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

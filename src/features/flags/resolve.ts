@@ -53,6 +53,9 @@ export function resolveFlags(
       out[key] = false
     } else if (privileged && key in overrides) {
       out[key] = overrides[key]!
+    } else if (def.devOnly && isDev && def.tier === uiMode) {
+      // In dev mode, devOnly flags are on if tier matches (and not overridden above).
+      out[key] = true
     } else {
       out[key] = def.default
     }
