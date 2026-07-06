@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.11 — fix room-editor mitre gaps (reference the centre-line corner, not the endpoint)
+
+The v0.16.1.10 mitre left triangular gaps at every corner in the **room editor**
+(most visible top-down). Cause: the editor's clipped walls END at the room's
+INTERIOR footprint corner, but the perpendicular neighbour's centre-line sits half
+a thickness OUTSIDE that — so the true corner is beyond the endpoint. The mitre was
+referenced to the endpoint, so the interior edge retracted ~t/2 short of the inner
+corner and the two walls' interior faces never met. (Orbit walls share the actual
+centre-line corner as their endpoint, so orbit was already correct.)
+
+Fix: the mitre clamp now takes an absolute reference `at` (the along-axis coord of
+the corner's centre-line vertex) instead of `±halfLen`. `cornerMiters` computes it
+as the intersection of the two walls' centre-lines and extends the outline to reach
+the outer corner, so the interior edges meet exactly and the corner closes.
+`WallMiter` is now `{ startAt?, startSlope?, endAt?, endSlope? }`; orbit passes
+`±length/2` (unchanged behaviour), the editor passes the computed centre-line
+corner. Verified: Bath/WC1 corners are closed and seamless from 3/4 and top-down.
+
 ## v0.16.1.10 — mitred wall corners (each wall shares half; correct for concave + unequal thickness)
 
 Wall corners are now **mitred** — the two walls are cut to the corner's angle-

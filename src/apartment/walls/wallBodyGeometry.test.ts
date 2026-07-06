@@ -44,14 +44,14 @@ describe('extrudeWallBody — mitred end', () => {
     return mx
   }
 
-  it('endSlope +1: +z edge reaches halfLen+t/2 (long side), −z retracts to halfLen−t/2', () => {
-    const geo = extrudeWallBody(outline, T, undefined, { halfLen: HALF, endSlope: 1 })
+  it('endSlope +1: +z edge reaches endAt+t/2 (long side), −z retracts to endAt−t/2', () => {
+    const geo = extrudeWallBody(outline, T, undefined, { endAt: HALF, endSlope: 1 })
     expect(maxXNear(geo, 1)).toBeCloseTo(HALF + T / 2) // long side extends
     expect(maxXNear(geo, -1)).toBeCloseTo(HALF - T / 2) // short side retracts
   })
 
   it('endSlope −1 flips the diagonal (−z is now the long side)', () => {
-    const geo = extrudeWallBody(outline, T, undefined, { halfLen: HALF, endSlope: -1 })
+    const geo = extrudeWallBody(outline, T, undefined, { endAt: HALF, endSlope: -1 })
     expect(maxXNear(geo, -1)).toBeCloseTo(HALF + T / 2)
     expect(maxXNear(geo, 1)).toBeCloseTo(HALF - T / 2)
   })

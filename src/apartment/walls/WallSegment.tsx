@@ -462,8 +462,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         undefined, // orbit paints the interior via separate face planes (no group)
         startSlope !== null || endSlope !== null
           ? {
-              halfLen: length / 2,
+              // Orbit walls share the corner endpoint, so the centre-line corner
+              // is the wall end itself (±length/2).
+              startAt: startSlope !== null ? -length / 2 : undefined,
               startSlope: startSlope ?? undefined,
+              endAt: endSlope !== null ? length / 2 : undefined,
               endSlope: endSlope ?? undefined,
             }
           : undefined,
