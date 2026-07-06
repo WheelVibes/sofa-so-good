@@ -52,6 +52,11 @@ same change that reshapes a system.
   (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) SG retailer price lookup
   (IKEA/Courts/HipVan/Castlery).
 - `python/scripts/` — offline IKEA scraper + asset tooling (not in the app build).
+- **Performance profiler (dev-only)**: `src/dev/profiler/` — detached-window
+  (`window.open`) live metrics dashboard + on-demand effect-cost sweep + per-object
+  GPU breakdown; ⌘K → "Open profiler (dev)" (`profiler` flag, `devOnly`+`pro`, plus
+  `import.meta.env.DEV` at every wiring point so it tree-shakes out of prod). Full
+  guide: `docs/developer/profiler.md`; path-scoped rules: `src/dev/profiler/CLAUDE.md`.
 - **Deploy base**: `VITE_BASE` env overrides the build's base path (default `/sofa-so-good/`
   for GitHub Pages; the dev server stays `/`). Must end with `/`. `scripts/static-serve.mjs`
   honours matching `BASE`/`PORT` envs for serving non-default-base builds locally.

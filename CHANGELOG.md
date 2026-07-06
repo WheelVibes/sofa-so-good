@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.8 — dev-only performance profiler
+
+A detached-window ("DevTools-style") performance profiler for the 3D
+viewport, for diagnosing render cost during development. `⌘K` → "Open
+profiler (dev)" opens a themed popup with three tabs: **Live** (rolling FPS/
+frame-time/draw-call/triangle/GPU-memory/JS-heap/light-count dashboard fed by
+a probe inside the R3F canvas), **Cost** (an on-demand sweep that toggles each
+render-quality effect off/on and ranks them by measured ms/frame cost, useful
+at High tier to see what post-processing/shadows/SSAO actually cost), and
+**Objects** (a per-furniture-item triangle/mesh/material breakdown, ranked,
+with click-through selection in the main window). The popup is a separate
+module realm, so it reaches the parent's live singletons via
+`window.opener.__profiler` rather than importing them directly.
+
+Strictly **dev-only**: the `profiler` feature flag (`devOnly`+`pro`) plus an
+`import.meta.env.DEV` guard at every wiring point keep the entire
+`src/dev/profiler/` module graph out of the production bundle (verified by
+grepping `dist/` for the profiler's entry points). See
+`docs/developer/profiler.md` for the full guide and
+`src/dev/profiler/CLAUDE.md` for path-scoped implementation rules.
+
 ## v0.16.1.7 — clean translucent wall corners (no doubled opacity, no z-fight)
 
 Faded wall corners in orbit mode and the room editor no longer show a darker
