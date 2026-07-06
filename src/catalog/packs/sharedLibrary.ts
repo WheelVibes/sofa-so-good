@@ -72,12 +72,15 @@ export async function registerSharedGroup(group: string): Promise<boolean> {
         files.push(new File([blob], v.glb, { type: 'model/gltf-binary' }))
       }
     }
-    for (const name of [v.main_image, v.context_image]) {
-      if (!name) continue
-      const imgRes = await fetch(`${baseUrl}/${name}`, { credentials: 'include' })
-      if (!imgRes.ok) continue
-      const imgBlob = await imgRes.blob()
-      files.push(new File([imgBlob], name, { type: imgBlob.type || 'image/jpeg' }))
+    // Only the main image is consumed (buildVariant downscales it into the card
+    // thumbnail); the context/lifestyle image is never read, and many groups
+    // list one that was never uploaded — so fetching it just 404s. Skip it.
+    if (v.main_image) {
+      const imgRes = await fetch(`${baseUrl}/${v.main_image}`, { credentials: 'include' })
+      if (imgRes.ok) {
+        const imgBlob = await imgRes.blob()
+        files.push(new File([imgBlob], v.main_image, { type: imgBlob.type || 'image/jpeg' }))
+      }
     }
   }
   if (files.length === 0) return false

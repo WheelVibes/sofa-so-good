@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.1 — skip unused IKEA context-image fetch (kill 404s)
+
+IKEA group registration fetched both `main_image` and `context_image` per variant,
+but `buildVariant` only ever consumes `main_image` (downscaled into the card
+thumbnail) — the context/lifestyle image was downloaded, wrapped in a `File`, and
+never read. Many groups also list a `context_image` that was never uploaded to R2,
+so the fetch just 404'd (`…/ikea/ektorp-armchair/hakebo-dark-grey-context.jpg`).
+Dropped the context-image fetch in both `sharedLibrary.ts` (proxy path) and
+`ikeaLive.ts` (dev sidecar path); only `main_image` is fetched now. No behavioural
+change to imports or thumbnails — just one fewer request and no console 404.
+
 ## v0.16.1.0 — dollhouse reveal polish (side-wall fade + through-wall tint)
 
 Patch rollup for two reveal fixes (v0.16.0.1 → .2):

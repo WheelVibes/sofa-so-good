@@ -72,14 +72,16 @@ export async function registerGroup(group: string): Promise<boolean> {
         files.push(new File([blob], v.glb, { type: 'model/gltf-binary' }))
       }
     }
-    // Fetch the product images too so the served-asset path produces the same
-    // self-contained File[] as the Upload dialog (importGroup ignores unused files).
-    for (const name of [v.main_image, v.context_image]) {
-      if (!name) continue
-      const imgRes = await fetch(`${baseUrl}/${name}`)
-      if (!imgRes.ok) continue
-      const imgBlob = await imgRes.blob()
-      files.push(new File([imgBlob], name, { type: imgBlob.type || 'image/jpeg' }))
+    // Fetch the main product image so the served-asset path produces the same
+    // self-contained File[] as the Upload dialog. Only the main image is consumed
+    // (buildVariant downscales it into the card thumbnail); the context/lifestyle
+    // image is never read and is often missing on disk, so fetching it just 404s.
+    if (v.main_image) {
+      const imgRes = await fetch(`${baseUrl}/${v.main_image}`)
+      if (imgRes.ok) {
+        const imgBlob = await imgRes.blob()
+        files.push(new File([imgBlob], v.main_image, { type: imgBlob.type || 'image/jpeg' }))
+      }
     }
   }
   if (files.length === 0) return false
