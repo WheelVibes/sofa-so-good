@@ -11,10 +11,8 @@ import {
 } from '@react-three/postprocessing'
 import { type ReactElement, useMemo } from 'react'
 import { Vector2 } from 'three'
-import { useStore } from '../state/store'
 import { rasterDofParams } from './cameras/cameraLensSettings'
 import { lightingFromAltitude } from './lighting/altitudeCurve'
-import { isDollhouseLighting } from './lighting/dollhouse'
 import { useSunPosition } from './lighting/useSunPosition'
 import { AO, BLOOM, bloomIntensityForDay } from './look'
 
@@ -70,13 +68,10 @@ export default function EffectsImpl({
   // fixtureGlow lock-step + night glow are preserved.
   const sun = useSunPosition()
   const dayLevel = lightingFromAltitude(sun.altitude).sun
-  // Orbit daytime dollhouse (ORBIT-DOLLHOUSE): no bloom — it's a flat, uniform
-  // view, not the exterior-sun simulation. Walk + night orbit keep the day-ramped
-  // bloom (genuinely-emissive fixtures glow at night, →0 at midday).
-  const cameraMode = useStore((s) => s.cameraMode)
-  const lightsMode = useStore((s) => s.lightsMode ?? 'auto')
-  const dollhouse = isDollhouseLighting({ cameraMode, sunAltitude: sun.altitude, lightsMode })
-  const bloomIntensity = dollhouse ? 0 : bloomIntensityForDay(dayLevel)
+  // Bloom follows the day-ramped path in every mode (ORBIT-CEILING): full at
+  // night so genuinely-emissive fixtures glow, →0 at midday so sunlit surfaces
+  // don't smear. Orbit/editor no longer suppress it.
+  const bloomIntensity = bloomIntensityForDay(dayLevel)
 
   const effects: ReactElement[] = [
     <N8AO
