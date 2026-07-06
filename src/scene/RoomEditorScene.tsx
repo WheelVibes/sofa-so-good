@@ -111,7 +111,8 @@ export function RoomEditorScene() {
           neutral background can't do either, and keeps the room reading as a
           dollhouse whose look isn't driven by the exterior sky. IBL for material
           reflections still comes from <SceneEnvironment/>; daytime lighting is
-          already the flat neutral dollhouse fill (orbit + day). */}
+          the full graded sun simulation, roofed by the virtual ceiling occluder
+          (ORBIT-CEILING). */}
       <color attach="background" args={['#e6eaef']} />
       <SceneEnvironment />
       <Lighting />

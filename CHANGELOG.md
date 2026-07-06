@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.5 — orbit & room-editor lighting parity
+
+Orbit and the room editor now run the full walk-mode lighting simulation (graded sun, PCF
+shadows, exposure grading, bloom) at every tier, replacing the flat daytime "dollhouse" fill.
+An invisible shadow-casting virtual ceiling keeps the open-top orbit view lit through
+windows/openings only. Identical on mobile and desktop.
+
 ## v0.16.1.4 — refresh an imported IKEA/shared asset from the catalog card
 
 Companion to v0.16.1.2's remove control: an imported `source:'ikea'` card now

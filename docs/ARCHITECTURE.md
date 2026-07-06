@@ -661,7 +661,12 @@ same change that reshapes a system.
   free-scrub 24h slider + a "System time" toggle (always shows the real clock, never the
   selected time). **Lights** (`lightsMode` off/on/auto) is an independent fixture toggle — not
   tied to the sun (lights can be on in daytime). Fixtures emit capped night point lights; shades
-  glow via `fixtureGlow`.
+  glow via `fixtureGlow`. **Orbit and the room editor run this exact same graded simulation**
+  (ORBIT-CEILING) rather than a flat daytime fill — since orbit culls the real ceiling to see
+  inside, an invisible shadow-casting virtual ceiling occluder (`apartment/ceiling/
+  CeilingOccluder.tsx`, mounted in both `Scene.tsx` and `RoomEditorScene.tsx`) blocks the sun
+  from flooding straight in through the open top, so interiors stay lit only through windows and
+  open doors, matching walk mode.
 - **Parametric furniture generator** (`furniture/parametric/`, PF2): dimension-driven
   bookshelf / wardrobe / sideboard / desk / **kitchen-cabinet run**. Pure tested core —
   `spec.ts` (`ParametricType` union, `clampSpec` envelopes, `defaultSpec`, never throws),
