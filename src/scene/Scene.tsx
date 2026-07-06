@@ -7,6 +7,8 @@ import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
 import { occluderRectsForPlan } from '../apartment/ceiling/ceilingOccluder'
 import { RoomHoverHighlight } from '../apartment/floor/RoomHoverHighlight'
 import { PlanShell } from '../apartment/PlanShell'
+import { ProfilerProbe } from '../dev/profiler/ProfilerProbe'
+import { useFeature } from '../features/useFeature'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { FurnitureLayer } from '../furniture/FurnitureLayer'
 import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
@@ -72,6 +74,7 @@ function SceneReadySignal() {
 }
 
 export function Scene() {
+  const profilerEnabled = useFeature('profiler')
   const customPlan = useStore((s) => !isDefaultPlan(s.floorPlan))
   const floorPlan = useStore((s) => s.floorPlan)
   const occluderRects = useMemo(() => occluderRectsForPlan(floorPlan), [floorPlan])
@@ -141,6 +144,7 @@ export function Scene() {
         <Effects />
         <ShowcaseController />
         <QualityController />
+        {import.meta.env.DEV && profilerEnabled ? <ProfilerProbe /> : null}
         <AnisotropyController />
         <ScreenshotController />
         <SceneExportController />
