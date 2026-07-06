@@ -12,6 +12,7 @@ import { isAnyModalOpen } from './controls/modalGuard'
 import { usePlanEditorHotkey } from './controls/planEditorHotkey'
 import { isEditableTarget, useKeyboard } from './controls/useKeyboard'
 import { isFeatureEnabled } from './features/featureFlags'
+import { useFeature } from './features/useFeature'
 import { useCatalog } from './furniture/catalog'
 import { planDuplicates } from './furniture/duplicatePlacement'
 import { tidyHome } from './layout/tidyHome'
@@ -150,6 +151,15 @@ export default function App() {
   }
   const catalog = useCatalog()
   usePlacementController()
+
+  // Dev-only: expose window.__profiler so a detached profiler window (a
+  // separate module realm) can reach this window's singletons. Dynamic import
+  // keeps the profiler modules out of the prod bundle.
+  const profilerOn = useFeature('profiler')
+  useEffect(() => {
+    if (!import.meta.env.DEV || !profilerOn) return
+    void import('./dev/profiler/installProfiler').then((m) => m.installProfilerApi())
+  }, [profilerOn])
 
   // Three-phase boot breaks the animation-vs-ready tradeoff:
   //  1. Animated static loader + hydration (no Canvas) — smooth loop.

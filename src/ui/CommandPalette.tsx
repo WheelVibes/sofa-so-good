@@ -89,6 +89,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   // always-on left↔right "sel-mirror" (FEAT-2) — pro-tier, so it's hidden in
   // Simple along with the rest of `mirrorSelection`.
   'sel-mirror-z': 'mirrorSelection',
+  'open-profiler': 'profiler',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -608,6 +609,21 @@ export function CommandPalette() {
           run: () => s().setBackdrop(b.id),
         }),
       ),
+      ...(import.meta.env.DEV
+        ? [
+            {
+              id: 'open-profiler',
+              group: 'Tools & panels',
+              label: 'Open profiler (dev)',
+              icon: 'Cube' as IconName,
+              run: () => {
+                void import('../dev/profiler/openProfilerWindow').then((m) =>
+                  m.openProfilerWindow(),
+                )
+              },
+            } satisfies Command,
+          ]
+        : []),
     ]
     // Add-furniture commands from the merged catalog.
     const furniture: Command[] = Object.values(byCategory)
