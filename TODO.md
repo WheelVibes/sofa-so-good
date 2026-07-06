@@ -9,6 +9,15 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
 > Avoid pricing/quotes/analytics deliverables unless asked.
 
+## Active — orbit/editor lighting parity (2026-07-07, user goal)
+Spec: `docs/superpowers/specs/2026-07-07-orbit-lighting-parity-design.md` ·
+Plan: `docs/superpowers/plans/2026-07-07-orbit-lighting-parity.md` (v0.16.1.4).
+- [ ] Retire the orbit daytime "dollhouse" flat-fill so orbit + the room editor run the full
+  walk-mode simulation (graded sun, PCF shadows, exposure grading, bloom) at every tier.
+- [ ] Add an invisible shadow-casting virtual ceiling (`CeilingOccluder`) so the open-top orbit
+  view is lit through windows/openings only, not flooded from above. Both modes, mobile + desktop.
+- [ ] Lock in that the "Original" asset tier is truly lossless (regression tests + audit).
+
 ## Active — asset pipeline (2026-07-02, user goal)
 See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full design.
 - **Local dev asset DB (Part 1, in progress).** Drop GLBs in `local-assets/` → auto-loaded into
