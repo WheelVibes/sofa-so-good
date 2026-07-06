@@ -1,0 +1,15 @@
+# Local dev backend secrets (Worker-side), read by `scripts/dev-api.ts` when you
+# run `npm run dev`. Copy this file to `.dev.vars` (gitignored) and adjust.
+#
+# These mirror the Cloudflare Pages secrets set in production via
+# `wrangler pages secret put ...` — see docs/deployment-cloudflare.md. They are
+# NOT Vite env vars (those live in `.env` and must be VITE_-prefixed).
+
+# Seeds the first admin account on the first API request (idempotent). Sign in
+# with these on the login screen once `npm run dev` is running.
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
+
+# Cloudflare Turnstile secret. Leave empty in dev to disable the CAPTCHA (the
+# login form skips Turnstile when VITE_TURNSTILE_SITE_KEY is also unset).
+TURNSTILE_SECRET=

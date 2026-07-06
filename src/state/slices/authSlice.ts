@@ -1,22 +1,24 @@
 import { hasBackend } from '../../features/api/client'
 import { backendAuthProvider } from '../../features/auth/backendProvider'
-import { localAdminProvider } from '../../features/auth/localAdmin'
 import type { AuthProvider, AuthUser, Credentials } from '../../features/auth/types'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
 /**
- * Session state over the active {@link AuthProvider}. The provider is chosen by
- * build config: when a backend is configured (`VITE_API_BASE` set, i.e. the
- * Cloudflare deployment) real email+password accounts with server sessions are
- * used; otherwise (GitHub Pages / offline) the client-side admin gate applies.
- * The signed-in user is persisted to localStorage and revived through the
- * provider on boot; `refreshAuth` revalidates the server session.
+ * Session state over the active {@link AuthProvider}. Auth requires a real
+ * backend: when one is configured (`VITE_API_BASE` set — the Cloudflare
+ * deployment, or the local dev backend started by `npm run dev`) real
+ * email+password accounts with server sessions are used. Without a backend
+ * (GitHub Pages / offline build) there is no provider and no sign-in at all —
+ * the app stays fully guest/local. The signed-in user is persisted to
+ * localStorage and revived through the provider on boot; `refreshAuth`
+ * revalidates the server session.
  */
-const provider: AuthProvider = hasBackend() ? backendAuthProvider : localAdminProvider
+const provider: AuthProvider | null = hasBackend() ? backendAuthProvider : null
 const LS_KEY = 'hdb_auth'
 
 function loadUser(): AuthUser | null {
+  if (!provider) return null
   try {
     const raw = globalThis.localStorage?.getItem(LS_KEY)
     return raw ? provider.restore(JSON.parse(raw)) : null
@@ -45,13 +47,17 @@ export const AUTH_INITIAL: Pick<
 > = {
   currentUser: loadUser(),
   authError: null,
-  authProviderLabel: provider.label,
-  authIsBackend: provider.backend,
+  authProviderLabel: provider?.label ?? '',
+  authIsBackend: provider?.backend ?? false,
 }
 
 export const createAuthSlice: SliceCreator<AuthSlice, RootState> = (set, get) => ({
   ...AUTH_INITIAL,
   signIn: async (credentials) => {
+    if (!provider) {
+      set({ authError: 'Sign-in is unavailable in this build.' })
+      return false
+    }
     const res = await provider.signIn(credentials)
     if (res.ok) {
       try {
@@ -68,7 +74,7 @@ export const createAuthSlice: SliceCreator<AuthSlice, RootState> = (set, get) =>
     return false
   },
   signOut: () => {
-    void provider.signOut?.()
+    void provider?.signOut?.()
     try {
       globalThis.localStorage?.removeItem(LS_KEY)
     } catch {
@@ -78,7 +84,7 @@ export const createAuthSlice: SliceCreator<AuthSlice, RootState> = (set, get) =>
     get().reresolveFeatureFlags()
   },
   refreshAuth: async () => {
-    if (!provider.validate) return
+    if (!provider?.validate) return
     const user = await provider.validate()
     try {
       if (user) globalThis.localStorage?.setItem(LS_KEY, JSON.stringify(user))

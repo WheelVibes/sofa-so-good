@@ -92,7 +92,10 @@ Zustand (sliced store), Vite, Vitest, Biome.
   new relevant app/tool you discover while researching must be **added to `REFERENCES.md`**.
 
 ## Commands (essentials — full list in ARCHITECTURE.md)
-- `npm run dev` (5173; `window.__store`) · `npm test` · `npm run build` (`tsc` + Vite).
+- `npm run dev` (5173; `window.__store`) — runs Vite **+ the local backend** (`scripts/dev.mjs`:
+  Vite + `scripts/dev-api.ts`, the Cloudflare Worker app hosted on Node so real admin login +
+  cloud sync work in dev; needs Node ≥ 22 + a `.dev.vars`). `dev:web`/`dev:api` run either half. ·
+  `npm test` · `npm run build` (`tsc` + Vite).
 - `npm run check`/`check:fix` — Biome (2-space/100-col/single-quote/no-semicolons).
 - `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — legacy one-shot screenshot harness.
 - `node scripts/shot.mjs --scenario <file.json|file.mjs> [--out-dir <dir>]` — **scenario mode** (recommended): runs ordered named steps (eval/waitFor/click/screenshot/store/viewport/drag/wait…) in one browser session with structured per-step logging; see `docs/visual-verification-playbook.md`.

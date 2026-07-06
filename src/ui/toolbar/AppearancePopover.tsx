@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { hasBackend } from '../../features/api/client'
 import { useFeature } from '../../features/useFeature'
 import {
   type ModePref,
@@ -37,6 +38,9 @@ export function AppearanceControls() {
   const setDensity = useStore((s) => s.setDensity)
   const densityModeOn = useFeature('densityMode')
   const currentUser = useStore((s) => s.currentUser)
+  // Sign-in requires a real backend (no client-side gate any more), gated by the
+  // `accounts` feature. Offline / GitHub Pages builds hide the entry entirely.
+  const accountsOn = useFeature('accounts') && hasBackend()
   const isMobile = useIsMobile()
 
   return (
@@ -154,19 +158,21 @@ export function AppearanceControls() {
           has its own footer for sign-in and a dedicated section for help items. */}
       {!isMobile ? (
         <>
-          <button
-            type="button"
-            className="btn btn-soft btn-block"
-            style={{ marginTop: 10 }}
-            onClick={() => {
-              const s = useStore.getState()
-              s.setAppearanceOpen(false)
-              s.setLoginOpen(true)
-            }}
-          >
-            <Icon.Eye width={14} height={14} />
-            {currentUser ? `Account · ${currentUser.name}` : 'Sign in'}
-          </button>
+          {accountsOn ? (
+            <button
+              type="button"
+              className="btn btn-soft btn-block"
+              style={{ marginTop: 10 }}
+              onClick={() => {
+                const s = useStore.getState()
+                s.setAppearanceOpen(false)
+                s.setLoginOpen(true)
+              }}
+            >
+              <Icon.Eye width={14} height={14} />
+              {currentUser ? `Account · ${currentUser.name}` : 'Sign in'}
+            </button>
+          ) : null}
           <div className="pop-label" style={{ marginTop: 10 }}>
             Help
           </div>

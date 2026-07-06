@@ -215,6 +215,13 @@ export default defineConfig(({ command }) => ({
       ],
     },
     proxy: {
+      // Local dev backend (`scripts/dev-api.ts`, started by `npm run dev`). Keeps
+      // the API same-origin so session cookies work; the app calls `/api/*`
+      // (VITE_API_BASE=/api). Only resolves while the dev backend is running.
+      '/api': {
+        target: 'http://localhost:8788',
+        changeOrigin: true,
+      },
       '/acg': {
         target: 'https://ambientcg.com',
         changeOrigin: true,

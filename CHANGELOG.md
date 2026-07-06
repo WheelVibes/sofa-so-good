@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.6 — real admin login in `npm run dev`; drop the client-side admin gate
+
+`npm run dev` now runs the Vite app **and** a local backend together
+(`scripts/dev.mjs` → `scripts/dev-api.ts`), so real email+password admin login +
+cloud sync work in dev exactly like production. The dev backend hosts the actual
+Cloudflare Worker app (`functions/api/[[route]].ts`) on Node with shimmed bindings
+(`node:sqlite` for D1, in-memory KV, R2 stubbed) — chosen over `wrangler pages dev`
+because `workerd` needs glibc ≥ 2.32, which some dev boxes (Ubuntu 20.04 / WSL)
+lack. Vite proxies `/api` → the backend on :8788; the admin is seeded from
+`.dev.vars` (`ADMIN_EMAIL`/`ADMIN_PASSWORD`). `dev:web`/`dev:api` run either half.
+
+The client-side "admin/admin" gate (`localAdminProvider`, `VITE_ADMIN_PASSWORD`)
+is **removed**: auth now requires a real backend. Offline / GitHub Pages builds
+have no sign-in at all (the entry points are hidden). A signed-in backend admin
+gets both **Manage accounts** and the **Feature flags** panel from the login
+screen (the flags panel was previously only reachable via the offline gate).
+
 ## v0.16.1.5 — orbit & room-editor lighting parity
 
 Orbit and the room editor now run the full walk-mode lighting simulation (graded sun, PCF

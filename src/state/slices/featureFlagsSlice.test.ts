@@ -34,12 +34,16 @@ describe('featureFlagsSlice', () => {
     expect(isFeatureEnabled('report')).toBe(true)
   })
 
-  it('signing in as admin re-resolves flags (re-resolution wiring)', async () => {
+  it('re-resolving flags after an admin session change keeps the map coherent (re-resolution wiring)', () => {
     useStore.getState().signOut()
     useStore.getState().resetFeatureFlags()
-    await useStore.getState().signIn({ password: 'admin' })
-    // The re-resolution ran on sign-in; flags still cover every key + report on (Pro).
+    // A backend admin session sets currentUser; sign-in/out both call
+    // reresolveFeatureFlags. Set it directly (no client-side gate any more) and
+    // confirm re-resolution still yields a coherent map + report on (Pro).
+    useStore.setState({ currentUser: { id: 'admin', name: 'Admin', role: 'admin' } })
+    useStore.getState().reresolveFeatureFlags()
     expect(useStore.getState().featureFlags.report).toBe(true)
     useStore.getState().signOut()
+    expect(useStore.getState().currentUser).toBeNull()
   })
 })

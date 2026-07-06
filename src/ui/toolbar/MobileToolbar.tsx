@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useModalGuard } from '../../controls/modalGuard'
+import { hasBackend } from '../../features/api/client'
 import { useFeature } from '../../features/useFeature'
 import { useSunStudy } from '../../scene/sunStudy'
 import { detectVrSupport } from '../../scene/xr/vrSupport'
@@ -47,6 +48,8 @@ export function MobileToolbar() {
   const appearanceOpen = useStore((st) => st.appearanceOpen)
   const setAppearanceOpen = useStore((st) => st.setAppearanceOpen)
   const currentUser = useStore((st) => st.currentUser)
+  // Sign-in requires a real backend; hidden in offline / GitHub Pages builds.
+  const accountsOn = useFeature('accounts') && hasBackend()
 
   const fVr = useFeature('vrWalkthrough')
   const [vrSupported, setVrSupported] = useState(false)
@@ -271,19 +274,21 @@ export function MobileToolbar() {
               </div>
             </div>
             {/* Persistent footer: sign in / account, always at the bottom of the
-                main menu regardless of the selected section. */}
-            <div className="m-sheet-foot">
-              <button
-                type="button"
-                className="m-foot-btn"
-                onClick={act(() => s.getState().setLoginOpen(true))}
-              >
-                <Icon.Eye className="icn" width={18} height={18} />
-                <span className="m-foot-tx">
-                  {currentUser ? `Account · ${currentUser.name}` : 'Sign in'}
-                </span>
-              </button>
-            </div>
+                main menu regardless of the selected section. Backend builds only. */}
+            {accountsOn ? (
+              <div className="m-sheet-foot">
+                <button
+                  type="button"
+                  className="m-foot-btn"
+                  onClick={act(() => s.getState().setLoginOpen(true))}
+                >
+                  <Icon.Eye className="icn" width={18} height={18} />
+                  <span className="m-foot-tx">
+                    {currentUser ? `Account · ${currentUser.name}` : 'Sign in'}
+                  </span>
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
