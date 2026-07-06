@@ -1,5 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
+import { isProfilerBenchmarkActive } from '../dev/profiler/benchmarkSignal'
 import { setProceduralBaseSize } from '../materials/procedural/generators'
 import { useStore } from '../state/store'
 import { detectDefaultTier, RENDER_TIERS } from './quality'
@@ -51,7 +52,9 @@ export function QualityController() {
     // Only measure FPS while the pump is rendering continuously. In demand mode
     // idle frames are seconds apart, which would read as ~0 FPS and trigger a
     // spurious tier downgrade — reset the window instead.
-    if (!isRenderingContinuously()) {
+    // Skip while idle (demand mode) OR while the profiler sweep is toggling
+    // quality overrides — the sweep must not trigger a spurious tier downgrade.
+    if (!isRenderingContinuously() || isProfilerBenchmarkActive()) {
       a.t = 0
       a.frames = 0
       return
