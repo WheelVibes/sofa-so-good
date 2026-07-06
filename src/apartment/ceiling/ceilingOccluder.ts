@@ -1,6 +1,6 @@
-import type { RoomId } from '../types'
-import { ROOMS } from '../constants'
 import { type FloorPlan, roomPolygon } from '../../floorplan/types'
+import { ROOMS } from '../constants'
+import type { RoomId } from '../types'
 
 /** One horizontal occluder plane spec, footprint-centred at ceiling height. */
 export interface OccluderRect {
