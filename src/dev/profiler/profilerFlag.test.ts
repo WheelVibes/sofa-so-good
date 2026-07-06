@@ -3,12 +3,12 @@ import { FEATURE_FLAGS } from '../../features/flags/registry'
 import { resolveFlags } from '../../features/flags/resolve'
 
 describe('profiler feature flag', () => {
-  it('is registered as a dev-only pro-tier flag, off by default', () => {
+  it('is registered as a dev-only pro-tier flag, on in dev by default (off in prod via devOnly)', () => {
     const def = FEATURE_FLAGS.profiler
     expect(def).toBeDefined()
     expect(def.devOnly).toBe(true)
     expect(def.tier).toBe('pro')
-    expect(def.default).toBe(false)
+    expect(def.default).toBe(true)
   })
 
   it('is OFF in a production build regardless of mode', () => {

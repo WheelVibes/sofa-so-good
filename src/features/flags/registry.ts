@@ -1306,7 +1306,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   profiler: {
     label: 'Profiler',
     description: 'Dev-only detached-window performance profiler (live metrics + cost breakdown)',
-    default: false,
+    default: true,
     devOnly: true,
     tier: 'pro',
   },
