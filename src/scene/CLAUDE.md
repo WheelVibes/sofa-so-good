@@ -178,13 +178,18 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   on every concluding touch up/cancel (so a stamp/shift drop that keeps the same `activeDefId`
   armed re-latches per drop). Same `isActiveDragPointer` reuse, adapted for a hook that can't see
   the gesture's actual start.
-- **Touch selection/drag model (bugs #11/#12).** `scene/touchGestures.ts` (installed once from
-  `App.tsx`) counts active touch pointers on the window (capture phase, so it's current inside
-  R3F handlers). `Furniture.onPointerDown` bails on a multi-finger touch (`activeTouchCount() > 1`)
-  so a pinch/zoom never selects or moves a piece, and on touch a first tap on an UNSELECTED item
-  only selects — it does NOT start a drag in the same gesture (dragging to move requires the item
-  to already be selected; desktop mouse keeps click-drag-to-move). `Furniture.onClick` skips
-  selection when `gestureIsMultiTouch()`. A SECOND touch finger arriving mid-drag calls
+- **Select-then-drag model (DRAG-SELECT-FIRST + bugs #11/#12).** `scene/touchGestures.ts`
+  (installed once from `App.tsx`) counts active touch pointers on the window (capture phase, so
+  it's current inside R3F handlers). `Furniture.onPointerDown` bails on a multi-finger touch
+  (`activeTouchCount() > 1`) so a pinch/zoom never selects or moves a piece. A pointer-down begins
+  a MOVE drag ONLY when the pressed piece was ALREADY selected before the gesture
+  (`dragHelpers.ts:shouldBeginItemDrag`, pure + unit-tested) — on **both desktop and touch**. The
+  FIRST press on an unselected piece never drags: selection is deferred to `onClick` (a clean
+  click selects; a press-drag falls through to the orbit camera, so `draggingItemId` stays null
+  and an immediate drag rotates the room view instead of moving the piece). This unifies desktop
+  with the old touch-only rule (desktop previously selected AND started a drag on one
+  pointer-down, so a first grab moved the piece). `Furniture.onClick` skips selection when
+  `gestureIsMultiTouch()`, so a pinch's first finger landing on a piece still never selects it. A SECOND touch finger arriving mid-drag calls
   `placementSlice.cancelDrag()` (from `DragController`'s window `pointerdown`) — reverts the
   in-progress drag to its pre-drag snapshot + ends it — so a pinch that starts on an
   already-selected piece hands off to the (re-enabled) camera instead of dragging + swallowing

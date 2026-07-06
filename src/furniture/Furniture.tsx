@@ -5,8 +5,8 @@ import { Plane, Vector3 } from 'three'
 import { floorPointInFootprint, itemFootprint } from '../collision/placement'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { ContactShadow } from '../scene/ContactShadow'
-import { markPointerDownOnItem } from '../scene/clickVsDrag'
-import { shouldDuplicateOnDragStart } from '../scene/dragHelpers'
+import { isDragRelease, markPointerDownOnItem } from '../scene/clickVsDrag'
+import { shouldBeginItemDrag, shouldDuplicateOnDragStart } from '../scene/dragHelpers'
 import { registerDropGroup } from '../scene/placementDrop'
 import { activeTouchCount, gestureIsMultiTouch } from '../scene/touchGestures'
 import { canEditScene, dispatchWalkInteract } from '../state/editing'
@@ -91,6 +91,12 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
       // Bug #11: a tap that rode a multi-finger gesture (pinch/zoom/pan) must not
       // select — the gesture belonged to the camera, not this item.
       if (gestureIsMultiTouch()) return
+      // DRAG-SELECT-FIRST: a release that travelled far enough to be a drag (an
+      // orbit-rotate that started + ended over this piece — three.js still reports
+      // it as a `click`) is NOT a selection. Without this, an immediate press-drag
+      // on an unselected piece would rotate the view yet still select it on
+      // release; the piece must be selected only by a clean click.
+      if (isDragRelease(e.nativeEvent)) return
       e.stopPropagation()
       // Shift-click extends/toggles the multi-selection; plain click
       // selects the item's group (or the item, if ungrouped) with drill-in
@@ -101,10 +107,11 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
     [item.id, passive, def, item.defId, item.props],
   )
 
-  // Pointer-down begins a drag in select mode. We capture the original
-  // transform here so DragController can revert if the release lands on
-  // an invalid spot. The hit point on the floor is used to compute an
-  // offset so the item doesn't snap-jump to the cursor.
+  // Pointer-down begins a MOVE drag only for an ALREADY-selected piece (see the
+  // DRAG-SELECT-FIRST gate below). We capture the original transform here so
+  // DragController can revert if the release lands on an invalid spot. The hit
+  // point on the floor is used to compute an offset so the item doesn't
+  // snap-jump to the cursor.
   const onPointerDown = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
       if (passive) return
@@ -120,28 +127,28 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
       // Mark the gesture as item-started so its release can't deselect via
       // onPointerMissed after the inspector resizes the canvas (INSPECTOR-FLICKER).
       markPointerDownOnItem()
-      // Captured BEFORE any selection change below — FEAT-B's Alt-drag-duplicate
+      // Captured BEFORE any selection change — FEAT-B's Alt-drag-duplicate
       // decision hinges on whether the item was ALREADY selected going into this
       // gesture (see shouldDuplicateOnDragStart).
       const alreadySelected = state.selectedItemIds.includes(item.id)
-      // Shift-pointerdown defers selection to the click handler (which
-      // toggles). Plain click preserves an existing multi-selection if
-      // the grabbed item is already part of it; only collapse otherwise.
-      if (!e.shiftKey && !alreadySelected) {
-        // Bug #11/#12: on TOUCH, DON'T select on pointer-down. The first finger of
-        // a pinch lands on a piece while only one finger is down yet — selecting
-        // here (before the second finger arrives) is exactly the "pinch selected
-        // it" bug. Defer selection to `onClick`, which fires only on a clean tap
-        // and is skipped once the gesture turns multi-touch (`gestureIsMultiTouch`).
-        // A move still needs the piece to be already selected, so a first touch is
-        // never a drag either. Desktop selects here so click-drag-to-move works.
-        if (isTouch) return
-        state.selectItemGrouped(item.id, { alt: e.altKey })
-      }
-      // Locked items can be selected (to unlock) but not dragged. Window-bound
-      // fixtures (curtains/blinds) are static on their window — selectable but
-      // never dragged (WINDOW-FIXTURE).
-      if (item.locked || def.windowBound) return
+      // Select-then-drag (DRAG-SELECT-FIRST): a pointer-down begins a MOVE drag
+      // ONLY when the piece was already selected before this gesture. A press on
+      // an UNSELECTED piece selects it via `onClick` (on a clean click), and any
+      // drag on that same press falls through to the orbit camera — we return
+      // here before `startDrag`, so `draggingItemId` stays null and OrbitCamera's
+      // controls stay live, and an immediate drag rotates the room view instead of
+      // yanking the piece to the cursor. This unifies desktop with the
+      // long-standing touch rule (a first finger never dragged a piece); desktop
+      // previously selected AND started a drag on one pointer-down, so a first
+      // grab moved the piece. Bug #11/#12 (touch): deferring selection to `onClick`
+      // — which is skipped once the gesture turns multi-touch — also means a
+      // pinch's first finger landing on a piece never selects/moves it. Locked /
+      // window-bound (curtains/blinds) pieces are selectable (to unlock) but never
+      // draggable, so they never begin a drag either.
+      if (
+        !shouldBeginItemDrag({ alreadySelected, locked: item.locked, windowBound: def.windowBound })
+      )
+        return
       const offset: [number, number] = [e.point.x - item.position[0], e.point.z - item.position[1]]
       // If the grabbed item is part of a multi-selection, snapshot every
       // member's transform so DragController can translate the whole
@@ -171,10 +178,11 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
       } catch {}
       // FEAT-B: Alt/Option-drag duplicate. The decision is locked in HERE, at
       // drag start — releasing Alt mid-drag does NOT un-clone (matches Figma/
-      // SketchUp). `shouldDuplicateOnDragStart` requires `alreadySelected`, so
-      // this never fires on the SAME gesture as the `selectItemGrouped` alt
-      // drill-in above (that only runs when the item ISN'T already selected) —
-      // Alt+click-to-select and Alt+drag-to-duplicate can't collide. The actual
+      // SketchUp). We only reach this line when `alreadySelected` (the
+      // DRAG-SELECT-FIRST gate above returned otherwise), which is exactly what
+      // `shouldDuplicateOnDragStart` requires — so Alt+drag-to-duplicate never
+      // collides with `onClick`'s Alt+click group drill-in (that runs on an
+      // UNSELECTED piece, on a different gesture). The actual
       // clone isn't created yet; `startDrag` just records the intent
       // (`duplicateSourceIds`) so a plain Alt+click that never moves — no
       // pointermove ever fires — duplicates nothing (DragController resolves it
