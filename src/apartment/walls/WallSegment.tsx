@@ -28,8 +28,9 @@ import { APARTMENT_EXT_D, APARTMENT_EXT_W, FLAT, ROOMS, WALLS } from '../constan
 import type { RoomId, WallSpec } from '../types'
 import {
   buildWallSegments,
+  localOuterZSign,
   type WallSegment as WallSegmentSpan,
-  wallCornerAbut,
+  wallCornerMiter,
   wallThicknessMetres,
 } from '../wallSegments'
 import { extrudeWallBody, WALL_STRUCTURE_COLOR } from './wallBodyGeometry'
@@ -422,20 +423,26 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       : wall.thickness === 'external'
         ? (wallThicknessDefault?.external ?? FLAT.externalWallThickness)
         : (wallThicknessDefault?.internal ?? FLAT.internalWallThickness)
-  // Signed corner abutment at each end (WALL-CORNER-TILE). At a corner exactly
-  // ONE wall SPANS it (+neighbour half-thickness, fills the corner square) and the
-  // other BUTTS — it retracts to the spanner's near face MINUS a hair
-  // (OPENING_CLEARANCE) so its end-cap is buried INSIDE the spanner. This replaces
-  // the old "extend BOTH by half" corner, which overlapped two translucent walls
-  // (doubled opacity — a darker band at the corner) AND left coplanar faces that
-  // z-fought. Zero overlap + a buried (non-coplanar) seam = one clean corner
-  // surface, single-density and flicker-free. Body + finish faces both use these.
-  const startAbut = wallCornerAbut(wall, WALLS, true)
-  const endAbut = wallCornerAbut(wall, WALLS, false)
+  // Corner joins (WALL-CORNER-MITER). At a true L-corner the two walls are MITRED
+  // to the corner's angle-bisector so each takes half. Their diagonal end-faces are
+  // then EXACTLY coincident with OPPOSITE normals, so backface culling draws only
+  // one from any viewpoint — a seamless join with no z-fighting and no doubled
+  // translucency. `wallCornerMiter` derives the exact diagonal slope from the
+  // NEIGHBOUR's outward normal (so it points correctly at convex AND concave/
+  // inward corners) and the thickness ratio (so different-thickness walls meet with
+  // no gap); it extends by the neighbour's half-thickness so the long side reaches
+  // the outer corner. T-junctions fall back to buried span/butt tiling.
+  const outerZSign = localOuterZSign(dx, dz, reveal.nx, reveal.nz)
+  const startCM = wallCornerMiter(wall, WALLS, true, outerZSign, isInteriorPoint)
+  const endCM = wallCornerMiter(wall, WALLS, false, outerZSign, isInteriorPoint)
+  const startAbut = startCM.abut
+  const endAbut = endCM.abut
+  const startSlope = startCM.slope
+  const endSlope = endCM.slope
   // Distinct per-wall depth bias (its index in WALLS) applied to the body's
-  // polygonOffset — belt-and-suspenders for any residual coplanarity (e.g. the
-  // tiny buried-seam overlap above) so a corner resolves to a deterministic winner
-  // instead of flickering once faded walls write depth.
+  // polygonOffset — belt-and-suspenders for any residual coplanarity at non-mitred
+  // (buried) joins so a corner resolves to a deterministic winner once faded walls
+  // write depth. Mitred corners self-resolve via backface culling and don't need it.
   const bodyBias = WALLS.findIndex((w) => w.id === wall.id)
   const segments = buildWallSegments(wall, ceilingHeight)
   const midX = (wall.start[0] + wall.end[0]) / 2
@@ -449,8 +456,19 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const wallTop = wall.topHeight ?? ceilingHeight
   const bodyGeometry = useMemo(
     () =>
-      extrudeWallBody(buildWallBodyOutline(wall, wallTop, length, startAbut, endAbut), thickness),
-    [wall, wallTop, length, startAbut, endAbut, thickness],
+      extrudeWallBody(
+        buildWallBodyOutline(wall, wallTop, length, startAbut, endAbut),
+        thickness,
+        undefined, // orbit paints the interior via separate face planes (no group)
+        startSlope !== null || endSlope !== null
+          ? {
+              halfLen: length / 2,
+              startSlope: startSlope ?? undefined,
+              endSlope: endSlope ?? undefined,
+            }
+          : undefined,
+      ),
+    [wall, wallTop, length, startAbut, endAbut, thickness, startSlope, endSlope],
   )
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
 
@@ -527,14 +545,31 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
           the perpendicular wall's body and is hidden from view; visible
           finishes from adjacent walls now meet flush at the outer corner. */}
       {faceSpans.map((span, i) => {
-        const extStart = span.start < 1e-6 ? startAbut : 0
-        const extEnd = span.end > length - 1e-6 ? endAbut : 0
-        const a = span.start - extStart
-        const b = span.end + extEnd
-        const segLen = b - a
-        const segMid = (a + b) / 2 - length / 2
         const segHeight = span.top - span.bottom
         const segMidY = span.bottom + segHeight / 2
+        // Per-SIDE along-axis extent. A mitred end cuts the two sides along the
+        // diagonal `a = ±halfLen + slope·z`, so each face plane's end lands exactly
+        // on the body's mitred edge at that face's z (= side·thickness/2): the long
+        // side extends, the other retracts. Correct for convex, concave and unequal
+        // thickness alike (the slope carries all of it). Non-mitred ends use the
+        // body's buried abut for both sides.
+        const endExt = (atStartEnd: boolean, side: 1 | -1): number => {
+          const touches = atStartEnd ? span.start < 1e-6 : span.end > length - 1e-6
+          if (!touches) return 0
+          const cm = atStartEnd ? startCM : endCM
+          if (cm.slope !== null) {
+            const half = cm.slope * side * (thickness / 2)
+            return atStartEnd ? -half : half
+          }
+          return cm.abut
+        }
+        const sideSeg = (side: 1 | -1) => {
+          const a = span.start - endExt(true, side)
+          const b = span.end + endExt(false, side)
+          return { segLen: b - a, segMid: (a + b) / 2 - length / 2 }
+        }
+        const posSeg = sideSeg(1)
+        const negSeg = sideSeg(-1)
         const positiveMat = span.positive ? wallFinishes[span.positive] : null
         const negativeMat = span.negative ? wallFinishes[span.negative] : null
         // Skirting boards only on spans that reach the floor.
@@ -549,19 +584,29 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                 side — independent of whether a wall finish is set, so the
                 grounding cue is present on bare plaster too (RD-403). */}
             {cornerAoOn && onFloor && span.positive && (
-              <WallFloorAO segLen={segLen} segMid={segMid} thickness={thickness} sign={1} />
+              <WallFloorAO
+                segLen={posSeg.segLen}
+                segMid={posSeg.segMid}
+                thickness={thickness}
+                sign={1}
+              />
             )}
             {cornerAoOn && onFloor && span.negative && (
-              <WallFloorAO segLen={segLen} segMid={segMid} thickness={thickness} sign={-1} />
+              <WallFloorAO
+                segLen={negSeg.segLen}
+                segMid={negSeg.segMid}
+                thickness={thickness}
+                sign={-1}
+              />
             )}
             {positiveMat ? (
               <>
                 <SilentErrorBoundary resetKey={positiveMat}>
                   <Suspense fallback={null}>
                     <SegmentFace
-                      segLen={segLen}
+                      segLen={posSeg.segLen}
                       segHeight={segHeight}
-                      segMid={segMid}
+                      segMid={posSeg.segMid}
                       segMidY={segMidY}
                       thickness={thickness}
                       sign={1}
@@ -576,12 +621,17 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                   </Suspense>
                 </SilentErrorBoundary>
                 {onFloor && (
-                  <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={1} />
+                  <Baseboard
+                    segLen={posSeg.segLen}
+                    segMid={posSeg.segMid}
+                    thickness={thickness}
+                    sign={1}
+                  />
                 )}
                 {atCeiling && (
                   <CrownMolding
-                    segLen={segLen}
-                    segMid={segMid}
+                    segLen={posSeg.segLen}
+                    segMid={posSeg.segMid}
                     segTop={span.top}
                     thickness={thickness}
                     sign={1}
@@ -589,9 +639,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                 )}
                 {selectedWall?.wallId === wall.id && selectedWall.roomId === span.positive && (
                   <FaceHighlight
-                    segLen={segLen}
+                    segLen={posSeg.segLen}
                     segHeight={segHeight}
-                    segMid={segMid}
+                    segMid={posSeg.segMid}
                     segMidY={segMidY}
                     thickness={thickness}
                     sign={1}
@@ -604,9 +654,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                 <SilentErrorBoundary resetKey={negativeMat}>
                   <Suspense fallback={null}>
                     <SegmentFace
-                      segLen={segLen}
+                      segLen={negSeg.segLen}
                       segHeight={segHeight}
-                      segMid={segMid}
+                      segMid={negSeg.segMid}
                       segMidY={segMidY}
                       thickness={thickness}
                       sign={-1}
@@ -621,12 +671,17 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                   </Suspense>
                 </SilentErrorBoundary>
                 {onFloor && (
-                  <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={-1} />
+                  <Baseboard
+                    segLen={negSeg.segLen}
+                    segMid={negSeg.segMid}
+                    thickness={thickness}
+                    sign={-1}
+                  />
                 )}
                 {atCeiling && (
                   <CrownMolding
-                    segLen={segLen}
-                    segMid={segMid}
+                    segLen={negSeg.segLen}
+                    segMid={negSeg.segMid}
                     segTop={span.top}
                     thickness={thickness}
                     sign={-1}
@@ -634,9 +689,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                 )}
                 {selectedWall?.wallId === wall.id && selectedWall.roomId === span.negative && (
                   <FaceHighlight
-                    segLen={segLen}
+                    segLen={negSeg.segLen}
                     segHeight={segHeight}
-                    segMid={segMid}
+                    segMid={negSeg.segMid}
                     segMidY={segMidY}
                     thickness={thickness}
                     sign={-1}

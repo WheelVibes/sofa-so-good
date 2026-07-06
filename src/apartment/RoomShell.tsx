@@ -21,7 +21,7 @@ import { DoorLeaf } from './Door'
 import { RoomFloor } from './floor/RoomFloor'
 import { type ClippedWall, clippedWallCutouts, type RoomShell as RoomShellData } from './roomShell'
 import { WindowPane } from './Window'
-import { wallThicknessMetres } from './wallSegments'
+import { localOuterZSign, wallThicknessMetres } from './wallSegments'
 import { useWallReveal } from './walls/useWallReveal'
 import { extrudeWallBody, getWallStructureMaterial } from './walls/wallBodyGeometry'
 import { OPENING_CLEARANCE, wallBodyOutlineFromSpans } from './walls/wallBodyShape'
@@ -36,6 +36,8 @@ function WallBox({
   roomId,
   startAbut,
   endAbut,
+  startSlope,
+  endSlope,
   bias,
 }: {
   wall: ClippedWall
@@ -49,8 +51,12 @@ function WallBox({
    *  corner" look. 0 for a free end. */
   startAbut: number
   endAbut: number
+  /** Mitre-cut slope for each end (`a = ±halfLen + slope·z`), or null for a buried
+   *  butt join. Encodes convex/concave direction + thickness ratio. */
+  startSlope: number | null
+  endSlope: number | null
   /** Distinct per-wall depth bias (its index in the room) → passed to the reveal
-   *  so overlapping translucent corner walls don't z-fight (deterministic winner). */
+   *  so any non-mitred (buried) corner walls don't z-fight (deterministic winner). */
   bias: number
 }) {
   const ref = useRef<Mesh>(null)
@@ -114,8 +120,15 @@ function WallBox({
         ),
         t,
         innerFaceZSign,
+        startSlope !== null || endSlope !== null
+          ? {
+              halfLen: len / 2,
+              startSlope: startSlope ?? undefined,
+              endSlope: endSlope ?? undefined,
+            }
+          : undefined,
       ),
-    [wall, len, h, t, startAbut, endAbut, innerFaceZSign],
+    [wall, len, h, t, startAbut, endAbut, innerFaceZSign, startSlope, endSlope],
   )
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
 
@@ -146,6 +159,8 @@ interface WallDispatchProps {
   roomId: string
   startAbut: number
   endAbut: number
+  startSlope: number | null
+  endSlope: number | null
   bias: number
 }
 function SolidWall(p: WallDispatchProps & { def: SolidMaterialDef }) {
@@ -175,35 +190,53 @@ function RoomWall({ materialId, ...p }: WallDispatchProps & { materialId: Materi
   )
 }
 
-/** How far to extend a clipped wall body past each end so corners read as ONE
- *  clean, sharp join instead of two overlapping/disjoint translucent panels.
- *  At each corner exactly ONE of the two meeting walls SPANS it — extends by the
- *  other wall's FULL thickness to fill the corner square — and the other BUTTS.
- *  The spanner is chosen deterministically by wall id so the two walls agree, so
- *  there's no doubled overlap (single-density corner). The butter extends by a
- *  hair (`OPENING_CLEARANCE`) rather than ending exactly ON the spanner's face:
- *  ending flush left its end-cap COPLANAR with the spanner (z-fighting flicker
- *  that the per-wall `bias` only masked); burying the end-cap ~1 cm inside the
- *  spanner removes the coplanar face entirely — the same trick doors/windows use
- *  to overlap their jambs. The 1 cm overlap is invisible and single-density. */
-function cornerAbutments(
+/** A clipped wall's outward (away-from-room-centre) unit normal, axis-aligned. */
+function clippedOutward(w: ClippedWall, center: [number, number]): { nx: number; nz: number } {
+  const midX = (w.start[0] + w.end[0]) / 2
+  const midZ = (w.start[1] + w.end[1]) / 2
+  const horizontal = Math.abs(w.end[1] - w.start[1]) < 1e-3
+  return horizontal
+    ? { nx: 0, nz: Math.sign(midZ - center[1]) || 1 }
+    : { nx: Math.sign(midX - center[0]) || 1, nz: 0 }
+}
+
+/** How each end of a clipped wall meets its neighbour so corners read as ONE clean
+ *  surface. A true corner is MITRED to the angle-bisector (each wall takes half),
+ *  with the diagonal slope derived from the neighbour's outward normal (correct at
+ *  convex AND concave corners) and the thickness ratio (so different-thickness
+ *  walls meet with no gap). Both mitred end-faces are exactly coincident with
+ *  opposite normals → backface culling draws only one → seamless (no doubled
+ *  translucency, no z-fight). `abut` extends by the neighbour's half-thickness so
+ *  the long side reaches the outer corner; `slope` (null → no mitre) is the cut
+ *  `a = ±halfLen + slope·z` for `extrudeWallBody`. */
+function cornerMiters(
   wall: ClippedWall,
   walls: ClippedWall[],
-): { startAbut: number; endAbut: number } {
+  center: [number, number],
+): { startAbut: number; endAbut: number; startSlope: number | null; endSlope: number | null } {
   const near = (p: [number, number], q: [number, number]) =>
     Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.25
-  const abutAt = (pt: [number, number]) => {
+  const dxW = wall.end[0] - wall.start[0]
+  const dzW = wall.end[1] - wall.start[1]
+  const lenW = Math.hypot(dxW, dzW) || 1
+  const thisOut = clippedOutward(wall, center)
+  const s = localOuterZSign(dxW, dzW, thisOut.nx, thisOut.nz)
+  const tThis = wallThicknessMetres(wall.spec)
+  const joinAt = (pt: [number, number]): { abut: number; slope: number | null } => {
     for (const o of walls) {
       if (o === wall) continue
       if (near(o.start, pt) || near(o.end, pt)) {
-        // Span the corner if we win the id tie-break; else butt, buried by ε so
-        // the end-cap isn't coplanar with the spanner's face (no z-fight).
-        return wall.wallId < o.wallId ? wallThicknessMetres(o.spec) : OPENING_CLEARANCE
+        const nb = clippedOutward(o, center)
+        const eB = nb.nx * (dxW / lenW) + nb.nz * (dzW / lenW) >= 0 ? 1 : -1
+        const tNb = wallThicknessMetres(o.spec)
+        return { abut: tNb / 2, slope: (eB * s * tNb) / tThis }
       }
     }
-    return 0
+    return { abut: 0, slope: null }
   }
-  return { startAbut: abutAt(wall.start), endAbut: abutAt(wall.end) }
+  const sJ = joinAt(wall.start)
+  const eJ = joinAt(wall.end)
+  return { startAbut: sJ.abut, endAbut: eJ.abut, startSlope: sJ.slope, endSlope: eJ.slope }
 }
 
 /** Renders only the walls of an isolated room (clipped to its footprint) plus
@@ -230,7 +263,11 @@ export function RoomShell({ shell }: { shell: RoomShellData }) {
         />
       ))}
       {shell.walls.map((w, i) => {
-        const { startAbut, endAbut } = cornerAbutments(w, shell.walls)
+        const { startAbut, endAbut, startSlope, endSlope } = cornerMiters(
+          w,
+          shell.walls,
+          shell.center,
+        )
         return (
           <RoomWall
             key={`${w.wallId}-${i}`}
@@ -242,6 +279,8 @@ export function RoomShell({ shell }: { shell: RoomShellData }) {
             roomId={roomId}
             startAbut={startAbut}
             endAbut={endAbut}
+            startSlope={startSlope}
+            endSlope={endSlope}
             bias={i}
           />
         )

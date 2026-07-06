@@ -2,9 +2,12 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { WallSpec } from './types'
 import {
   buildWallSegments,
+  localOuterZSign,
   setFlatWallThicknessDefaults,
   setFlatWallThicknessOverrides,
   wallCornerAbut,
+  wallCornerJoin,
+  wallCornerMiter,
   wallEndAbutmentNeighbor,
   wallThicknessMetres,
 } from './wallSegments'
@@ -88,6 +91,125 @@ describe('wallCornerAbut — zero-overlap corner tiling (no double translucency,
 
   it('returns 0 for a free end', () => {
     expect(wallCornerAbut(wallA, walls, true)).toBe(0)
+  })
+})
+
+describe('wallCornerJoin — mitre at true L-corners (any thickness)', () => {
+  const wallA: WallSpec = {
+    id: 'a',
+    start: [0, 0],
+    end: [3, 0],
+    thickness: 'internal',
+    cutouts: [],
+  }
+  const wallB: WallSpec = {
+    id: 'b',
+    start: [3, 0],
+    end: [3, 3],
+    thickness: 'internal',
+    cutouts: [],
+  }
+  // A T-junction: `stem` ends mid-span of wallA (not at a shared corner).
+  const stem: WallSpec = { id: 'c', start: [1, 0], end: [1, 2], thickness: 'internal', cutouts: [] }
+  const thick: WallSpec = {
+    id: 'd',
+    start: [3, 0],
+    end: [3, 3],
+    thickness: 'external',
+    cutouts: [],
+  }
+
+  it('mitres a mutual L-corner, extending by the NEIGHBOUR half-thickness', () => {
+    const j = wallCornerJoin(wallA, [wallA, wallB], false)
+    expect(j.kind).toBe('miter')
+    expect(j.abut).toBeCloseTo(wallThicknessMetres(wallB) / 2)
+  })
+
+  it('mitres an UNEQUAL-thickness corner too (extend by the thick neighbour half)', () => {
+    const j = wallCornerJoin(wallA, [wallA, thick], false)
+    expect(j.kind).toBe('miter')
+    expect(j.abut).toBeCloseTo(wallThicknessMetres(thick) / 2) // 0.1, not wallA's 0.05
+  })
+
+  it('does NOT mitre a T-junction (end lands mid-span) — falls back to butt', () => {
+    const j = wallCornerJoin(stem, [wallA, stem], true)
+    expect(j.kind).toBe('butt')
+  })
+
+  it('returns free for an open end', () => {
+    expect(wallCornerJoin(wallA, [wallA, wallB], true)).toEqual({ kind: 'free', abut: 0 })
+  })
+})
+
+describe('wallCornerMiter — exact diagonal (concave-aware, thickness-aware)', () => {
+  // Convex L: room interior is the [0,3]² square; wallA is the bottom edge, wallB
+  // the right edge, meeting at the outer corner (3,0).
+  const wallA: WallSpec = {
+    id: 'a',
+    start: [0, 0],
+    end: [3, 0],
+    thickness: 'internal',
+    cutouts: [],
+  }
+  const wallB: WallSpec = {
+    id: 'b',
+    start: [3, 0],
+    end: [3, 3],
+    thickness: 'internal',
+    cutouts: [],
+  }
+  const wallBthick: WallSpec = {
+    id: 'b',
+    start: [3, 0],
+    end: [3, 3],
+    thickness: 'external',
+    cutouts: [],
+  }
+  const insideSquare = (x: number, z: number) => x >= 0 && x <= 3 && z >= 0 && z <= 3
+  const outerZSignA = localOuterZSign(3, 0, 0, -1) // wallA outward = (0,-1) → -1
+
+  it('convex equal-thickness corner: slope −1, extend by neighbour half', () => {
+    const m = wallCornerMiter(wallA, [wallA, wallB], false, outerZSignA, insideSquare)
+    expect(m.slope).toBeCloseTo(-1)
+    expect(m.abut).toBeCloseTo(wallThicknessMetres(wallB) / 2)
+  })
+
+  it('thickness ratio scales the slope (thin wall meeting a 2× neighbour → slope −2)', () => {
+    const m = wallCornerMiter(wallA, [wallA, wallBthick], false, outerZSignA, insideSquare)
+    // tNb/tThis = 0.2/0.1 = 2 → |slope| doubles; abut = thick neighbour half (0.1).
+    expect(m.slope).toBeCloseTo(-2)
+    expect(m.abut).toBeCloseTo(wallThicknessMetres(wallBthick) / 2)
+  })
+
+  it('flips sign for the mirror corner (neighbour on the other along-axis side)', () => {
+    // A left-edge wall wallC meeting wallA at (0,0): neighbour is now on wallA's
+    // −axis side, so the slope flips vs the +axis (right) corner.
+    const wallC: WallSpec = {
+      id: 'c',
+      start: [0, 0],
+      end: [0, 3],
+      thickness: 'internal',
+      cutouts: [],
+    }
+    const mEnd = wallCornerMiter(wallA, [wallA, wallB], false, outerZSignA, insideSquare) // right
+    const mStart = wallCornerMiter(wallA, [wallA, wallC], true, outerZSignA, insideSquare) // left
+    expect(Math.sign(mStart.slope ?? 0)).toBe(-Math.sign(mEnd.slope ?? 0))
+  })
+
+  it('falls back to butt (slope null) when the neighbour outward is ambiguous', () => {
+    const allInterior = () => true // both sides interior → no defined outward
+    const m = wallCornerMiter(wallA, [wallA, wallB], false, outerZSignA, allInterior)
+    expect(m.slope).toBeNull()
+  })
+})
+
+describe('localOuterZSign', () => {
+  it('is the sign of the outward normal projected onto local +Z (= (-dz, dx)/len)', () => {
+    // Wall along +X (dx=2, dz=0): local +Z world = (0, 1). Outward (0,-1) → −1; (0,1) → +1.
+    expect(localOuterZSign(2, 0, 0, -1)).toBe(-1)
+    expect(localOuterZSign(2, 0, 0, 1)).toBe(1)
+    // Wall along +Z (dx=0, dz=2): local +Z world = (-1, 0). Outward (1,0) → −1.
+    expect(localOuterZSign(0, 2, 1, 0)).toBe(-1)
   })
 })
 

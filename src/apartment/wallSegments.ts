@@ -1,6 +1,7 @@
 import { FLAT } from './constants'
 import type { WallSpec } from './types'
 import { OPENING_CLEARANCE } from './walls/wallBodyShape'
+import { orientOutward } from './walls/wallRevealMath'
 
 export interface WallSegment {
   /** X-position along the wall axis (start). */
@@ -156,4 +157,119 @@ export function wallCornerAbut(
   const half = wallThicknessMetres(other) / 2
   // Spanner (id wins) extends to fill the corner; butter retracts, buried by ε.
   return wall.id < other.id ? half : -(half - clearance)
+}
+
+const CORNER_EPS = 0.02 // m: endpoints within this are "the same corner"
+
+/** How this wall's end joins its neighbour. `miter` = a true L-corner (both walls
+ *  END at the shared point) — the walls are cut to the corner's angle-bisector so
+ *  each takes half with a seamless (backface-culled) diagonal seam. `butt` = a
+ *  T-junction (this end lands mid-span of a through-wall) — the buried span/butt
+ *  tiling, whose `abut` buries the end so it neither doubles nor z-fights.
+ *  `free` = open end. */
+export type CornerJoin =
+  | { kind: 'free'; abut: 0 }
+  | { kind: 'miter'; abut: number }
+  | { kind: 'butt'; abut: number }
+
+/** Classify (and size) how this wall's start/end joins whatever it meets. A true
+ *  L-corner mitres (ANY thickness — the slope, computed in `wallCornerMiter`,
+ *  carries the thickness ratio); its `abut` extends by the NEIGHBOUR's half-
+ *  thickness so the mitre's long side reaches the shared outer corner. */
+export function wallCornerJoin(
+  wall: WallSpec,
+  allWalls: readonly WallSpec[],
+  atStart: boolean,
+): CornerJoin {
+  const other = wallEndAbutmentNeighbor(wall, allWalls, atStart)
+  if (!other) return { kind: 'free', abut: 0 }
+  const point = atStart ? wall.start : wall.end
+  const nearPt = (p: readonly [number, number]) =>
+    Math.hypot(p[0] - point[0], p[1] - point[1]) < CORNER_EPS
+  // A true L-corner: the neighbour also ENDS here (mutual), not a T where this
+  // end lands mid-span of a through-wall.
+  const mutual = nearPt(other.start) || nearPt(other.end)
+  if (mutual) {
+    // Extend by the NEIGHBOUR's half-thickness so the mitre's long (outer) side
+    // reaches the shared outer corner even when the two walls differ in thickness.
+    return { kind: 'miter', abut: wallThicknessMetres(other) / 2 }
+  }
+  return { kind: 'butt', abut: wallCornerAbut(wall, allWalls, atStart) }
+}
+
+/** Sign of the wall's LOCAL +Z (its `[0,-angle,0]`-rotated thickness axis) that
+ *  points toward the given world-space OUTWARD normal — i.e. which thickness cap
+ *  is the building exterior. Drives the mitre's diagonal direction (the exterior
+ *  edge is the long side). `+1` when local +Z faces outward, else `−1`. */
+export function localOuterZSign(dx: number, dz: number, outNx: number, outNz: number): number {
+  const len = Math.hypot(dx, dz) || 1
+  // local +Z in world = (-dz, dx)/len (see WallSegment's [0,-angle,0] rotation).
+  const dot = outNx * (-dz / len) + outNz * (dx / len)
+  return dot >= 0 ? 1 : -1
+}
+
+/** This wall's outward (away-from-interior) unit normal, found by probing which
+ *  side of its midpoint is inside a room. Returns null when neither/both sides are
+ *  interior (an ambiguous interior partition) — the caller then avoids mitring. */
+export function wallOutwardNormal(
+  wall: WallSpec,
+  isInterior: (x: number, z: number) => boolean,
+): { nx: number; nz: number } | null {
+  const mx = (wall.start[0] + wall.end[0]) / 2
+  const mz = (wall.start[1] + wall.end[1]) / 2
+  const dx = wall.end[0] - wall.start[0]
+  const dz = wall.end[1] - wall.start[1]
+  const len = Math.hypot(dx, dz) || 1
+  const probe = wallThicknessMetres(wall) / 2 + 0.3
+  return orientOutward(mx, mz, -dz / len, dx / len, isInterior, probe)
+}
+
+export interface CornerMiter {
+  /** Along-axis extension of the outline at this end (metres). */
+  abut: number
+  /** Signed mitre slope `s` for `a = ±halfLen + s·z`, or null to NOT mitre (butt /
+   *  free / ambiguous) — then `abut` is the buried span/butt extension. */
+  slope: number | null
+}
+
+/**
+ * Resolve how this wall's start/end should be built: a proper mitre (with the
+ * exact diagonal slope) at a true L-corner, else a buried butt.
+ *
+ * The mitre seam runs from the corner's EXTERIOR∩EXTERIOR vertex to its
+ * INTERIOR∩INTERIOR vertex. In this wall's local frame that line is
+ * `a = ±halfLen + slope·z` with
+ *
+ *     slope = sign(neighbourOutward · thisAxis) · thisOuterZSign · (tNeighbour / tThis)
+ *
+ * The `sign(neighbourOutward · thisAxis)` term picks which along-axis side the
+ * neighbour's exterior lies on, so the diagonal points the right way at BOTH
+ * convex and concave (inward-pointing) corners; the `tNeighbour/tThis` ratio makes
+ * two DIFFERENT-thickness walls cut to the SAME world diagonal (no gap, no
+ * overlap). `abut` = tNeighbour/2 (the long side reaches the outer corner).
+ * Ambiguous (no defined outward normal) or non-corner joins fall back to butt.
+ */
+export function wallCornerMiter(
+  wall: WallSpec,
+  allWalls: readonly WallSpec[],
+  atStart: boolean,
+  thisOuterZSign: number,
+  isInterior: (x: number, z: number) => boolean,
+): CornerMiter {
+  const join = wallCornerJoin(wall, allWalls, atStart)
+  if (join.kind !== 'miter') return { abut: join.abut, slope: null }
+  const other = wallEndAbutmentNeighbor(wall, allWalls, atStart)
+  if (!other) return { abut: join.abut, slope: null }
+  const nb = wallOutwardNormal(other, isInterior)
+  // Ambiguous neighbour (interior partition) → safe buried butt instead of a
+  // mis-oriented mitre.
+  if (!nb) return { abut: wallCornerAbut(wall, allWalls, atStart), slope: null }
+  const dx = wall.end[0] - wall.start[0]
+  const dz = wall.end[1] - wall.start[1]
+  const len = Math.hypot(dx, dz) || 1
+  const eB = nb.nx * (dx / len) + nb.nz * (dz / len) >= 0 ? 1 : -1
+  const tThis = wallThicknessMetres(wall)
+  const tNb = wallThicknessMetres(other)
+  const slope = (eB * thisOuterZSign * tNb) / tThis
+  return { abut: join.abut, slope }
 }

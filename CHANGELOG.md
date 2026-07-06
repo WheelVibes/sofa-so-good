@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.10 — mitred wall corners (each wall shares half; correct for concave + unequal thickness)
+
+Wall corners are now **mitred** — the two walls are cut to the corner's angle-
+bisector so each takes half, meeting along a diagonal seam (like skirting/crown
+moulding). The two mitred end-faces end up EXACTLY coincident with OPPOSITE
+normals, so backface culling draws only one from any viewpoint: a genuinely
+seamless join with **no z-fighting and no doubled translucency** (no pixel ever
+overlaps two coplanar faces) — and no ε-overlap or depth-bias fudge.
+
+Supersedes the v0.16.1.7 span/butt tiling for true L-corners. Two earlier bugs in
+the first mitre cut are fixed here:
+
+- **Concave / inward-pointing corners** were cut the wrong way (the diagonal
+  assumed a convex outer corner). The slope is now derived from the NEIGHBOUR's
+  outward normal — `slope = sign(nbOutward·thisAxis) · outerZSign · (tNb/tThis)` —
+  so it points from the true exterior∩exterior vertex to the interior∩interior
+  vertex at convex AND concave corners alike.
+- **Different-thickness corners left gaps**: a fixed 45° cut + own-half extension
+  don't line up when the walls differ in thickness. The slope now carries the
+  `tNeighbour/tThis` ratio and the end extends by the NEIGHBOUR's half-thickness,
+  so a thin wall meeting a thick one (and vice-versa) cut to the SAME world
+  diagonal — no gap, no overlap.
+
+`extrudeWallBody` takes a `WallMiter { halfLen, startSlope?, endSlope? }` and shears
+each mitred end to `x = ±halfLen + slope·z`; `wallCornerMiter` resolves the slope
+(+ neighbour-half `abut`) per end, falling back to the buried butt at T-junctions
+or where a neighbour's outward normal is ambiguous. Orbit (`WallSegment`) mitres
+the body and cuts its separate finish planes per-side to match; the room editor
+(`RoomShell`) mitres its single grouped body so the finish follows for free.
+Covered by `wallSegments.test.ts` + `wallBodyGeometry.test.ts`; visually verified
+(convex, concave-perimeter, unequal-thickness, and bathroom corners all seamless).
+
 ## v0.16.1.9 — room-editor wall reveal: complete the fade, drop the whitewash
 
 Fixed the room editor's "super-white, slightly-translucent walls" — the
