@@ -37,6 +37,13 @@ const LONG_PRESS_MOVE_PX = 12
 interface CatalogCardProps {
   def: FurnitureDef
   onDelete?: () => void
+  /** Re-download an imported ikea/shared def from R2 in place (rebuilds its GLB +
+   *  thumbnail, keeps placed instances). Provided by the drawer ONLY when the def
+   *  is re-downloadable (admin + `sharedLibrary` + backend + a matching manifest
+   *  item); the button is absent otherwise. */
+  onRefresh?: () => void
+  /** True while a refresh for this def is in flight (shows a spinner + disables). */
+  refreshing?: boolean
   /** Map index in the enclosing `.card-grid.stagger-in` — drives the entrance
    *  cascade's `--i` custom property (unset falls back to the CSS nth-child
    *  rules, which cover the first 12 cards). */
@@ -50,7 +57,14 @@ interface CatalogCardProps {
   roomRects?: RoomFreeRect[] | null
 }
 
-export function CatalogCard({ def, onDelete, staggerIndex, roomRects }: CatalogCardProps) {
+export function CatalogCard({
+  def,
+  onDelete,
+  onRefresh,
+  refreshing,
+  staggerIndex,
+  roomRects,
+}: CatalogCardProps) {
   const isUser = isUserDef(def)
   const isIkea = isIkeaDef(def)
   const onClick = usePlacementDrag(def)
@@ -247,6 +261,21 @@ export function CatalogCard({ def, onDelete, staggerIndex, roomRects }: CatalogC
           aria-label={isIkea ? 'Remove downloaded asset' : 'Remove uploaded asset'}
         >
           <Icon.Close width={12} height={12} />
+        </button>
+      ) : null}
+      {onRefresh ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onRefresh()
+          }}
+          className="coll-refresh"
+          aria-label="Re-download asset from library"
+          aria-busy={refreshing || undefined}
+          disabled={refreshing}
+        >
+          <Icon.Refresh width={12} height={12} />
         </button>
       ) : null}
     </div>

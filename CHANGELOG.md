@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.4 — refresh an imported IKEA/shared asset from the catalog card
+
+Companion to v0.16.1.2's remove control: an imported `source:'ikea'` card now
+also carries a **refresh** (re-download) button. When a placed item's thumbnail
+or model can't be rebuilt from IndexedDB, refresh re-fetches the group's
+metadata + GLB + thumbnail from R2 and rebuilds the def **in place** via
+`replaceUserFurniture` — keeping every placed instance — instead of forcing a
+remove-and-re-add.
+
+Mechanics: the button calls the existing `addSharedGroup(group)` path (spinner +
+success/error toast). Because `registerSharedGroup` keys on the manifest folder
+slug while a def only stores its `groupKey`, a new pure `sharedGroupForDef` maps
+`groupKey → group` against the loaded manifest. The control is shown **only when
+re-downloadable** — admin + `sharedLibrary` flag + backend + a matching manifest
+item — so a dev-scrape or non-admin session never sees a dead button. No new
+feature flag (reuses the `sharedLibrary` gate).
+
 ## v0.16.1.3 — Esc no longer exits the room / floor-plan editor
 
 Pressing <kbd>Esc</kbd> inside the per-room editor or the 2D floor-plan editor

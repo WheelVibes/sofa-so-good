@@ -1,0 +1,37 @@
+{
+  "name": "refresh-imported-asset-simple",
+  "url": "http://localhost:5198/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(()=>{localStorage.setItem('hdb_onboarded','1');const s=window.__store.getState();s.setOnboardingOpen&&s.setOnboardingOpen(false);s.endTour&&s.endTour();s.dismissLocationPrompt&&s.dismissLocationPrompt();s.setManualHour&&s.setManualHour(13);})()"
+    },
+    {
+      "name": "seed-admin-shared-and-import",
+      "eval": "(()=>{const s=window.__store.getState();const def={id:'ikea-zqxtest',name:'Zqxtest Armchair',category:'seating',kind:'gltf',source:'ikea',groupKey:'zqxtest',activeVariant:'natural',variants:[{finish:'natural',label:'Natural',articleNumber:'1',url:'https://example.com',assetId:'zqx-a',runtimeUrl:'blob:zqx',glbMaterials:[]}],defaultFootprint:{w:0.8,d:0.8,h:0.9},uploadedAt:'2026-07-07',license:'IKEA',attribution:'IKEA'};s.addUserFurniture(def);s.setItems([{id:'zqx-item',defId:'ikea-zqxtest',position:[3,3],rotation:0,props:{}}]);window.__store.setState((st)=>({currentUser:{id:'a',name:'Admin',role:'admin'},featureFlags:{...st.featureFlags,sharedLibrary:true},sharedLibrary:{...st.sharedLibrary,items:[{group:'zqxtest-folder',groupKey:'zqxtest',name:'Zqxtest Armchair',type:'',category:'seating',size:'',series:'',variants:1,thumbnail:null,price:null,currency:null}]}}));s.enterRoomEditor('livingDining');s.setCatalogOpen(true);})()"
+    },
+    { "name": "room-active", "waitFor": { "store": "state.roomEditor.active === true" } },
+    { "name": "catalog-open", "waitFor": { "css": ".panel.catalog" }, "timeout": 20000 },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading()" },
+    { "name": "overlay-gone", "waitFor": { "css": ".hdb-room", "visible": false }, "timeout": 10000 },
+    { "name": "focus-search", "eval": "document.querySelector('.cat-search input[type=search]').focus()" },
+    { "name": "type-search", "type": "type", "text": "Zqxtest" },
+    { "name": "settle", "wait": 400 },
+    {
+      "name": "refresh-btn-visible",
+      "waitFor": { "css": "[aria-label='Re-download asset from library']" },
+      "timeout": 15000,
+      "failMessage": "The refresh control did not render on the imported IKEA card"
+    },
+    {
+      "name": "remove-btn-also-visible",
+      "waitFor": { "css": "[aria-label='Remove downloaded asset']" },
+      "timeout": 5000,
+      "failMessage": "The remove control is missing alongside refresh"
+    },
+    { "name": "shot-card", "screenshot": "card-with-refresh" },
+    { "name": "click-refresh", "eval": "document.querySelector('[aria-label=\"Re-download asset from library\"]').click()" },
+    { "name": "shot-after-click", "screenshot": "after-refresh-click" }
+  ]
+}

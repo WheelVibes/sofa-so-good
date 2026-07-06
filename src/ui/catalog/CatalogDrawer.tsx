@@ -1,4 +1,5 @@
 import { Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { roomKindFromName } from '../../analysis/suggestions'
 import { hasBackend } from '../../features/api/client'
 import { isAdminUser } from '../../features/auth/types'
@@ -32,6 +33,7 @@ import { defaultCategoryForRoomKind, relevantCategoriesForRoomKind } from './roo
 import { SharedCard } from './SharedCard'
 import { StampBanner } from './StampBanner'
 import { fuzzySearchSmart, matchedIntents } from './searchSynonyms'
+import { sharedGroupForDef } from './sharedGroupForDef'
 import { useActiveRoomFreeRects } from './useCatalogRoomFit'
 
 // Lazy-loaded: the packs tab (pack install pipeline + unzip + thumbnail
@@ -113,6 +115,9 @@ export function CatalogDrawer() {
   const setLeftMode = useStore((s) => s.setLeftMode)
   const removeUserFurniture = useStore((s) => s.removeUserFurniture)
   const confirmAction = useStore((s) => s.confirmAction)
+  const addSharedGroup = useStore((s) => s.addSharedGroup)
+  const sharedItems = useStore(useShallow((s) => s.sharedLibrary.items))
+  const sharedResolving = useStore(useShallow((s) => s.sharedLibrary.resolving))
   const setActiveDefId = useStore((s) => s.setActiveDefId)
   const isPro = useStore((s) => s.uiMode === 'pro')
   const setGlbDesignerOpen = useStore((s) => s.setGlbDesignerOpen)
@@ -322,8 +327,20 @@ export function CatalogDrawer() {
     }
   }
 
+  // Re-download an imported shared/ikea def from R2 in place (keeps placements +
+  // rebuilds its GLB/thumbnail blobs via replaceUserFurniture). Only wired when the
+  // def maps to a loaded manifest item (admin + `sharedLibrary` + backend), so a
+  // dev-scrape/non-admin def never shows the control.
+  const handleRefresh = async (slug: string, name: string) => {
+    const id = await addSharedGroup(slug)
+    const notify = useStore.getState().notify
+    if (id) notify.start({ title: `Refreshed ${name}`, kind: 'success' })
+    else notify.start({ title: `Couldn't refresh ${name} — check your connection`, kind: 'error' })
+  }
+
   const renderCard = (it: GridItem, staggerIndex: number) => {
-    if (it.kind === 'local')
+    if (it.kind === 'local') {
+      const refreshSlug = sharedOn && hasBackend() ? sharedGroupForDef(it.def, sharedItems) : null
       return (
         <CatalogCard
           key={gridItemId(it)}
@@ -336,9 +353,12 @@ export function CatalogDrawer() {
               removeUserFurniture,
             })
           }
+          onRefresh={refreshSlug ? () => void handleRefresh(refreshSlug, it.def.name) : undefined}
+          refreshing={refreshSlug ? sharedResolving[refreshSlug] === 'adding' : undefined}
           roomRects={fFits ? roomFreeRects : null}
         />
       )
+    }
     if (it.kind === 'remote')
       return (
         <RemoteCard

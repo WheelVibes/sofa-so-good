@@ -117,6 +117,12 @@ export const Icon = {
       <path d="M20 12H9a5 5 0 0 0 0 10h1" />
     </Svg>
   ),
+  Refresh: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+      <path d="M21 3v5h-5" />
+    </Svg>
+  ),
   Snap: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />

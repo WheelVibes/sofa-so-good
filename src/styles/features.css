@@ -281,6 +281,11 @@
 .coll-card .add { margin-top: 2px; }
 .coll-x { position: absolute; top: 5px; right: 5px; width: 20px; height: 20px; border-radius: 999px; background: var(--surface-solid); border: 1px solid var(--border); display: grid; place-items: center; color: var(--text-3); }
 .coll-x:hover { color: var(--danger); border-color: var(--danger); }
+.coll-refresh { position: absolute; top: 5px; right: 30px; width: 20px; height: 20px; border-radius: 999px; background: var(--surface-solid); border: 1px solid var(--border); display: grid; place-items: center; color: var(--text-3); }
+.coll-refresh:hover { color: var(--accent); border-color: var(--accent); }
+.coll-refresh:disabled { opacity: 0.6; cursor: default; }
+.coll-refresh[aria-busy='true'] svg { animation: coll-spin 0.8s linear infinite; }
+@keyframes coll-spin { to { transform: rotate(360deg); } }
 
 /* save-to-collection heart, used on catalog cards + inspector */
 .fav-btn { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; color: var(--text-3); background: var(--surface-solid); border: 1px solid var(--border); opacity: 0; transition: var(--dur) var(--ease); z-index: 2; }
