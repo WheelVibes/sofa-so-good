@@ -4,8 +4,11 @@ import {
   buildWallSegments,
   setFlatWallThicknessDefaults,
   setFlatWallThicknessOverrides,
+  wallCornerAbut,
+  wallEndAbutmentNeighbor,
   wallThicknessMetres,
 } from './wallSegments'
+import { OPENING_CLEARANCE } from './walls/wallBodyShape'
 
 const ceiling = 2.6
 
@@ -38,6 +41,53 @@ describe('wallThicknessMetres + setFlatWallThicknessDefaults', () => {
     expect(wallThicknessMetres(int)).toBe(0.1) // no override, no internal default
     setFlatWallThicknessOverrides([]) // cleared → back to default/built-in
     expect(wallThicknessMetres(ext)).toBe(0.3)
+  })
+})
+
+describe('wallCornerAbut — zero-overlap corner tiling (no double translucency, no z-fight)', () => {
+  // An L-corner: wallA runs along X ending at the origin corner; wallB runs along
+  // Z starting at that same corner. They meet at (0,0).
+  const wallA: WallSpec = {
+    id: 'a',
+    start: [-2, 0],
+    end: [0, 0],
+    thickness: 'internal',
+    cutouts: [],
+  }
+  const wallB: WallSpec = {
+    id: 'b',
+    start: [0, 0],
+    end: [0, 2],
+    thickness: 'internal',
+    cutouts: [],
+  }
+  const walls = [wallA, wallB]
+
+  it('finds the abutting neighbour at a shared corner, null at a free end', () => {
+    expect(wallEndAbutmentNeighbor(wallA, walls, false)?.id).toBe('b') // A.end meets B
+    expect(wallEndAbutmentNeighbor(wallA, walls, true)).toBeNull() // A.start is free
+    expect(wallEndAbutmentNeighbor(wallB, walls, true)?.id).toBe('a') // B.start meets A
+  })
+
+  it('exactly ONE wall spans the corner (id tie-break); the other retracts', () => {
+    // 'a' < 'b' → A spans at its end, B retracts at its start.
+    const aEnd = wallCornerAbut(wallA, walls, false) // A spans
+    const bStart = wallCornerAbut(wallB, walls, true) // B butts
+    const half = wallThicknessMetres(wallA) / 2 // 0.05 (both internal)
+    expect(aEnd).toBeCloseTo(half) // spanner extends by the neighbour's half-thickness
+    expect(bStart).toBeCloseTo(-(half - OPENING_CLEARANCE)) // butter retracts, buried by ε
+  })
+
+  it('the butter never ends coplanar with the spanner face (buried by OPENING_CLEARANCE)', () => {
+    const bStart = wallCornerAbut(wallB, walls, true)
+    // A retract of exactly half would be coplanar (z-fight); the ε keeps the
+    // butter end-cap buried inside the spanner instead.
+    expect(bStart).not.toBeCloseTo(-(wallThicknessMetres(wallA) / 2))
+    expect(bStart).toBeGreaterThan(-(wallThicknessMetres(wallA) / 2))
+  })
+
+  it('returns 0 for a free end', () => {
+    expect(wallCornerAbut(wallA, walls, true)).toBe(0)
   })
 })
 

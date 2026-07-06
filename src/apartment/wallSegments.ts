@@ -1,5 +1,6 @@
 import { FLAT } from './constants'
 import type { WallSpec } from './types'
+import { OPENING_CLEARANCE } from './walls/wallBodyShape'
 
 export interface WallSegment {
   /** X-position along the wall axis (start). */
@@ -88,15 +89,13 @@ export function wallThicknessMetres(wall: WallSpec): number {
   return wall.thickness === 'external' ? externalT : internalT
 }
 
-/** Returns the thickness of the wall that this wall's start/end abuts, or 0
- *  if the endpoint is free (does not lie on any other wall's centerline).
- *  Used for trimming face planes flush to the inner edge of the abutting
- *  wall and extending body boxes to its outer edge. */
-export function wallEndAbutmentThickness(
+/** The wall that this wall's start/end abuts (its endpoint lies on the other
+ *  wall's centreline span), or null if the endpoint is free. */
+export function wallEndAbutmentNeighbor(
   wall: WallSpec,
   allWalls: readonly WallSpec[],
   atStart: boolean,
-): number {
+): WallSpec | null {
   const point = atStart ? wall.start : wall.end
   for (const other of allWalls) {
     if (other.id === wall.id) continue
@@ -111,8 +110,50 @@ export function wallEndAbutmentThickness(
     const along = px * tx + pz * tz
     const perp = Math.abs(px * -tz + pz * tx)
     if (perp < 1e-3 && along > -1e-3 && along < len + 1e-3) {
-      return wallThicknessMetres(other)
+      return other
     }
   }
-  return 0
+  return null
+}
+
+/** Returns the thickness of the wall that this wall's start/end abuts, or 0
+ *  if the endpoint is free (does not lie on any other wall's centerline). */
+export function wallEndAbutmentThickness(
+  wall: WallSpec,
+  allWalls: readonly WallSpec[],
+  atStart: boolean,
+): number {
+  const other = wallEndAbutmentNeighbor(wall, allWalls, atStart)
+  return other ? wallThicknessMetres(other) : 0
+}
+
+/**
+ * Signed corner abutment (metres) for the orbit wall body + finish faces at one
+ * end — the amount to extend (+) or retract (−) that end so two walls meeting at
+ * a corner tile it as ONE clean surface with **no doubled translucency and no
+ * z-fight**:
+ *
+ *  - At a corner exactly ONE wall SPANS it (chosen deterministically by wall id)
+ *    and extends by the neighbour's half-thickness to fill the corner square.
+ *  - The other wall BUTTS: it retracts to the spanner's near face, then a hair
+ *    further (`OPENING_CLEARANCE`) so its end-cap is *buried inside* the spanner
+ *    rather than sitting COPLANAR with it. Coplanar faces z-fight; a fully
+ *    overlapping (extend-both) corner double-composites two translucent walls and
+ *    reads darker. Burying the butt end by ε avoids both — the same trick doors/
+ *    windows use to overlap their jambs (see `OPENING_CLEARANCE`).
+ *
+ * Free ends (no abutting wall) return 0. Symmetric: at any shared corner one
+ * wall's id wins the tie-break so exactly one spans and one butts, and both agree.
+ */
+export function wallCornerAbut(
+  wall: WallSpec,
+  allWalls: readonly WallSpec[],
+  atStart: boolean,
+  clearance = OPENING_CLEARANCE,
+): number {
+  const other = wallEndAbutmentNeighbor(wall, allWalls, atStart)
+  if (!other) return 0
+  const half = wallThicknessMetres(other) / 2
+  // Spanner (id wins) extends to fill the corner; butter retracts, buried by ε.
+  return wall.id < other.id ? half : -(half - clearance)
 }

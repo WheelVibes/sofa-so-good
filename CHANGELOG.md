@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.7 — clean translucent wall corners (no doubled opacity, no z-fight)
+
+Faded wall corners in orbit mode and the room editor no longer show a darker
+"double translucent wall" band or a z-fighting crosshatch where two walls
+intersect. Root cause: at a corner the walls **overlapped** — orbit extended
+*both* meeting walls to fill the corner square, so two see-through walls
+composited on top of each other (doubled opacity) and their now-coplanar faces
+z-fought (a per-wall depth `bias` only masked it). The room editor already
+span/butt-tiled corners (single density) but left the butting wall's end-cap
+sitting *exactly coplanar* with the spanner's face — the same z-fight.
+
+Fix — **zero-overlap corner tiling with a buried seam** (WALL-CORNER-TILE): at
+each corner exactly ONE wall spans it (chosen by wall-id tie-break) and extends
+by the neighbour's half-thickness; the other **butts and retracts to the
+spanner's near face minus `OPENING_CLEARANCE`** so its end-cap is *buried inside*
+the spanner rather than overlapping it or lying coplanar with it. No overlap →
+single-density corner (no doubled translucency); no coplanar face → no z-fight.
+This is the same 1 cm burial trick doors/windows already use against their jambs;
+the overlap is invisible. New pure `wallCornerAbut`/`wallEndAbutmentNeighbor`
+helpers in `wallSegments.ts` drive the orbit `WallSegment` body + finish faces;
+`RoomShell.cornerAbutments` gets the matching ε burial. Covered by
+`wallSegments.test.ts`.
+
 ## v0.16.1.6 — real admin login in `npm run dev`; drop the client-side admin gate
 
 `npm run dev` now runs the Vite app **and** a local backend together

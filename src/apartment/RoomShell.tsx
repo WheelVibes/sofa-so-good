@@ -178,11 +178,14 @@ function RoomWall({ materialId, ...p }: WallDispatchProps & { materialId: Materi
 /** How far to extend a clipped wall body past each end so corners read as ONE
  *  clean, sharp join instead of two overlapping/disjoint translucent panels.
  *  At each corner exactly ONE of the two meeting walls SPANS it — extends by the
- *  other wall's FULL thickness to fill the corner square — and the other BUTTS
- *  flush against it (extends 0, its clip already ends at the spanner's face). The
- *  spanner is chosen deterministically by wall id so the two walls agree, so
- *  there's no overlap (single-density corner) — just a clean L. (The remaining
- *  coplanar butt seam is kept from z-fighting by the per-wall `bias`.) */
+ *  other wall's FULL thickness to fill the corner square — and the other BUTTS.
+ *  The spanner is chosen deterministically by wall id so the two walls agree, so
+ *  there's no doubled overlap (single-density corner). The butter extends by a
+ *  hair (`OPENING_CLEARANCE`) rather than ending exactly ON the spanner's face:
+ *  ending flush left its end-cap COPLANAR with the spanner (z-fighting flicker
+ *  that the per-wall `bias` only masked); burying the end-cap ~1 cm inside the
+ *  spanner removes the coplanar face entirely — the same trick doors/windows use
+ *  to overlap their jambs. The 1 cm overlap is invisible and single-density. */
 function cornerAbutments(
   wall: ClippedWall,
   walls: ClippedWall[],
@@ -193,8 +196,9 @@ function cornerAbutments(
     for (const o of walls) {
       if (o === wall) continue
       if (near(o.start, pt) || near(o.end, pt)) {
-        // Span the corner only if we win the id tie-break; else butt flush (0).
-        return wall.wallId < o.wallId ? wallThicknessMetres(o.spec) : 0
+        // Span the corner if we win the id tie-break; else butt, buried by ε so
+        // the end-cap isn't coplanar with the spanner's face (no z-fight).
+        return wall.wallId < o.wallId ? wallThicknessMetres(o.spec) : OPENING_CLEARANCE
       }
     }
     return 0

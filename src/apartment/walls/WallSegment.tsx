@@ -29,7 +29,7 @@ import type { RoomId, WallSpec } from '../types'
 import {
   buildWallSegments,
   type WallSegment as WallSegmentSpan,
-  wallEndAbutmentThickness,
+  wallCornerAbut,
   wallThicknessMetres,
 } from '../wallSegments'
 import { extrudeWallBody, WALL_STRUCTURE_COLOR } from './wallBodyGeometry'
@@ -422,17 +422,20 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       : wall.thickness === 'external'
         ? (wallThicknessDefault?.external ?? FLAT.externalWallThickness)
         : (wallThicknessDefault?.internal ?? FLAT.internalWallThickness)
-  // Half-thickness of the wall this end abuts (0 if the end is free). Used to
-  // (a) extend the body box outward so corners close flush, and (b) pull the
-  // interior face plane in to the inner edge of the abutting wall, so finish
-  // textures stop exactly at the inner corner with no overlap into the body.
-  const startAbut = wallEndAbutmentThickness(wall, WALLS, true) / 2
-  const endAbut = wallEndAbutmentThickness(wall, WALLS, false) / 2
+  // Signed corner abutment at each end (WALL-CORNER-TILE). At a corner exactly
+  // ONE wall SPANS it (+neighbour half-thickness, fills the corner square) and the
+  // other BUTTS — it retracts to the spanner's near face MINUS a hair
+  // (OPENING_CLEARANCE) so its end-cap is buried INSIDE the spanner. This replaces
+  // the old "extend BOTH by half" corner, which overlapped two translucent walls
+  // (doubled opacity — a darker band at the corner) AND left coplanar faces that
+  // z-fought. Zero overlap + a buried (non-coplanar) seam = one clean corner
+  // surface, single-density and flicker-free. Body + finish faces both use these.
+  const startAbut = wallCornerAbut(wall, WALLS, true)
+  const endAbut = wallCornerAbut(wall, WALLS, false)
   // Distinct per-wall depth bias (its index in WALLS) applied to the body's
-  // polygonOffset, so where two walls OVERLAP at a corner (each extended to the
-  // other by the abutment) their now-coplanar faces resolve to a deterministic
-  // winner instead of z-fighting — a stable corner instead of a flickering one
-  // once faded walls write depth (WALL-CORNER-BIAS, mirrors the room editor).
+  // polygonOffset — belt-and-suspenders for any residual coplanarity (e.g. the
+  // tiny buried-seam overlap above) so a corner resolves to a deterministic winner
+  // instead of flickering once faded walls write depth.
   const bodyBias = WALLS.findIndex((w) => w.id === wall.id)
   const segments = buildWallSegments(wall, ceilingHeight)
   const midX = (wall.start[0] + wall.end[0]) / 2
