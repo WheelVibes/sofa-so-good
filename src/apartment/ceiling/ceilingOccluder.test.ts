@@ -35,4 +35,31 @@ describe('occluderRectsForPlan', () => {
     expect(rect?.cx).toBeCloseTo(3.15 + 2.85 / 2, 3)
     expect(rect?.cz).toBeCloseTo(0.2 + 3.4 / 2, 3)
   })
+
+  it('returns an empty array for a plan with no rooms', () => {
+    const plan = { ...buildDefaultPlan(), rooms: [] }
+    expect(occluderRectsForPlan(plan)).toEqual([])
+  })
+
+  it('roofs a custom room id absent from ROOMS, using the plan ceiling height', () => {
+    // A custom-plan room (id not in the ROOMS constant) has no `external` flag,
+    // so it falls through as interior and is roofed at the plan default height.
+    const base = buildDefaultPlan()
+    const plan = {
+      ...base,
+      ceilingHeight: 2.8,
+      rooms: [
+        {
+          id: 'custom-room-xyz',
+          name: 'Custom',
+          origin: [0, 0] as [number, number],
+          width: 3,
+          depth: 4,
+        },
+      ],
+    }
+    const rects = occluderRectsForPlan(plan)
+    expect(rects).toHaveLength(1)
+    expect(rects[0]).toMatchObject({ id: 'custom-room-xyz', cx: 1.5, cz: 2, w: 3, d: 4, y: 2.8 })
+  })
 })

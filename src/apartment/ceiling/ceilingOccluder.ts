@@ -18,6 +18,12 @@ export interface OccluderRect {
  * resolved ceiling height. Mirrors `Ceiling.tsx`'s `!external` room selection:
  * external areas (balcony / service yard / AC ledge) are open to the sky and
  * never roofed. Pure (no three/React) so it stays unit-testable.
+ *
+ * The rect is the room's AABB, so an L-shaped room's concave notch is roofed
+ * too — harmless when the notch belongs to an adjacent interior room (double
+ * cover), and it only ever affects the sun shadow map (never visible geometry).
+ * A plan room id absent from `ROOMS` (a custom-plan room) has no `external`
+ * flag, so it falls through as interior and is roofed — the intended default.
  */
 export function occluderRectsForPlan(plan: FloorPlan): OccluderRect[] {
   const out: OccluderRect[] = []
