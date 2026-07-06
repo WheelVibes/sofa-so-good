@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { ProfilerApp } from './ProfilerApp'
+import profilerCss from './profiler.css?inline'
 
 let win: Window | null = null
 let root: Root | null = null
@@ -38,6 +39,9 @@ export function openProfilerWindow(): void {
   win = w
   w.document.title = 'Sofa Profiler'
   cloneStyles(w.document)
+  const styleEl = w.document.createElement('style')
+  styleEl.textContent = profilerCss
+  w.document.head.appendChild(styleEl)
   const mount = w.document.createElement('div')
   mount.className = 'profiler-root'
   w.document.body.appendChild(mount)

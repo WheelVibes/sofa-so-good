@@ -57,3 +57,15 @@ export interface ObjectCost {
   /** Distinct materials used by this item. */
   materials: number
 }
+
+/** The surface the parent exposes on `window.__profiler` for the detached UI. */
+export interface ProfilerApi {
+  subscribe: (cb: (snap: MetricsSnapshot) => void) => () => void
+  getSnapshot: () => MetricsSnapshot
+  runCostBreakdown: (
+    onProgress?: (done: number, total: number, label: string) => void,
+  ) => Promise<EffectCost[]>
+  getObjectBreakdown: () => ObjectCost[]
+  /** Select an item in the main window (for the Objects tab click-through). */
+  selectItem: (id: string) => void
+}
