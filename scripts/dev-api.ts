@@ -10,7 +10,9 @@
  * admin login (and cloud sync) work in dev exactly like production:
  *   - D1   -> node:sqlite (persisted to `.wrangler/sofa-dev.sqlite`)
  *   - KV   -> in-memory Map with TTL (sessions/flags/cache; cleared on restart)
- *   - R2   -> stub (asset proxy returns 404 in dev; not needed for auth/designs)
+ *   - R2   -> local filesystem mirror of the shared IKEA library (`ikea_optimized/`,
+ *            the same tree uploaded to the prod bucket) so a signed-in admin sees the
+ *            shared catalog populate from disk; 404 when the dir/file is absent
  *
  * DEV ONLY. Not the production runtime. The admin account is seeded from
  * `.dev.vars` (ADMIN_EMAIL / ADMIN_PASSWORD) by the app's own `ensureAdminSeed`
@@ -20,9 +22,9 @@
  * `npm run dev` / `dev:api`).
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { createServer, type IncomingMessage } from 'node:http'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 // The real production worker — hosted here unchanged.
@@ -101,12 +103,48 @@ function makeKV() {
     },
   }
 }
+// `server/assets.ts` (serveAsset) uses the Cloudflare Cache API (`caches.default`),
+// which doesn't exist in Node. A no-op cache makes every asset request take the cold
+// path and read straight from the filesystem mirror below.
+;(globalThis as unknown as { caches?: unknown }).caches ??= {
+  default: { match: async () => undefined, put: async () => {} },
+}
 
-/** R2 stub — the shared-library asset proxy is not served in dev. */
-function makeR2Stub() {
+/**
+ * Filesystem-backed R2 mirror. The production `LIBRARY` bucket is just the local
+ * `ikea_optimized/` tree uploaded with `rclone` (docs/deployment-cloudflare.md):
+ *   R2 `ikea/<group>/<file>`  <-  `<dir>/<group>/<file>`
+ *   R2 `library/index.json`   <-  `<dir>/library-index.json`
+ * so we serve those same keys straight from disk — no credentials, no download —
+ * exercising the real serveAsset → LIBRARY.get → SharedCard → importGroup path.
+ * Returns null (→ 404, the same as an empty library) when the dir/file is absent.
+ */
+function makeR2FS(dir: string) {
+  const rootAbs = resolve(dir)
+  const keyToPath = (key: string): string | null => {
+    const rel =
+      key === 'library/index.json'
+        ? 'library-index.json'
+        : key.startsWith('ikea/')
+          ? key.slice('ikea/'.length)
+          : key
+    const abs = resolve(rootAbs, rel)
+    // Never escape the mirror root (the route already rejects '..'; belt + braces).
+    return abs === rootAbs || abs.startsWith(`${rootAbs}/`) ? abs : null
+  }
   return {
-    async get() {
-      return null
+    async get(key: string) {
+      const path = keyToPath(key)
+      if (!path || !existsSync(path)) return null
+      const data = readFileSync(path)
+      const st = statSync(path)
+      return {
+        body: new Uint8Array(data),
+        httpEtag: `"${st.size.toString(16)}-${Math.trunc(st.mtimeMs).toString(16)}"`,
+        // No stored metadata — serveAsset falls back to contentType(key) by extension.
+        httpMetadata: undefined,
+        writeHttpMetadata() {},
+      }
     },
   }
 }
@@ -140,10 +178,14 @@ for (const file of readdirSync(migrationsDir)
   db.exec(readFileSync(join(migrationsDir, file), 'utf8'))
 }
 
+// Local mirror of the R2 shared-library bucket. Override with DEV_LIBRARY_DIR
+// (absolute or relative to the repo root); defaults to the IKEA scrape output.
+const libraryDir = resolve(ROOT, process.env.DEV_LIBRARY_DIR ?? 'ikea_optimized')
+
 const devVars = { ...parseDotVars(join(ROOT, '.dev.vars')), ...process.env }
 const env = {
   DB: makeD1(db),
-  LIBRARY: makeR2Stub(),
+  LIBRARY: makeR2FS(libraryDir),
   SESSIONS: makeKV(),
   CACHE: makeKV(),
   FLAGS: makeKV(),
@@ -200,5 +242,11 @@ server.listen(PORT, () => {
     seeded
       ? `[dev-api] admin seed: ${env.ADMIN_EMAIL} (set in .dev.vars)`
       : '[dev-api] no ADMIN_EMAIL/ADMIN_PASSWORD in .dev.vars — login will have no accounts',
+  )
+  const libIndex = join(libraryDir, 'library-index.json')
+  console.log(
+    existsSync(libIndex)
+      ? `[dev-api] shared library: ${libraryDir} (admin catalog will populate from disk)`
+      : `[dev-api] shared library dir not found (${libraryDir}) — run 'npm run build-library-index' or set DEV_LIBRARY_DIR; shared catalog stays empty`,
   )
 })
