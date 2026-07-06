@@ -623,10 +623,16 @@ export default function App() {
       }
       if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements()
 
-      // Escape: cancel the tape/comment tools, then clear any selection, then
-      // leave the per-room editor — one key walks all the way back out.
+      // Escape: cancel an armed catalog placement, then the tape/comment tools,
+      // then clear any selection. Escape deliberately does NOT leave the per-room
+      // editor — exiting is an explicit action (the Done control), so a stray
+      // Escape can't dump the user back to the orbit overview mid-design.
       if (code === KEYBINDINGS.deselect) {
         const st = useStore.getState()
+        // A catalog placement in progress owns Escape (cancel the armed ghost);
+        // `usePlacementController` performs the actual cancel — bail here so we
+        // don't also clear the selection on the same keypress.
+        if (st.activeDefId) return
         if (st.tapeMode) {
           st.toggleTapeMode()
           return
@@ -644,7 +650,6 @@ export default function App() {
           st.selectItem(null)
           return
         }
-        if (st.roomEditor.active) st.exitRoomEditor()
         return
       }
 

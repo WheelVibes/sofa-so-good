@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.3 — Esc no longer exits the room / floor-plan editor
+
+Pressing <kbd>Esc</kbd> inside the per-room editor or the 2D floor-plan editor
+would walk you all the way back out to the orbit overview — an easy way to lose
+your place with one stray keypress. Esc now stays *within* the editor and only
+cancels what you're doing:
+
+- **Room editor** (`App.tsx`): Esc cancels an armed catalog placement (the
+  furniture ghost) first, then the tape/comment tools, then clears the current
+  selection — but no longer calls `exitRoomEditor()`. When a placement is armed,
+  Esc bails early so `usePlacementController` cancels the ghost without also
+  clearing the selection on the same keypress.
+- **Floor-plan editor** (`FloorPlanEditor.tsx`): Esc still cancels an in-progress
+  polyline / polygon / wall draft (and an armed PLAN-FURNISH placement), but no
+  longer calls `exitPlanEditorToScene()`.
+
+Leaving either editor is now only the explicit action it always was — the **Exit
+room** / **Done** button (or the `P` hotkey for the plan editor). Docs updated
+(`keyboard-shortcuts.md`, `room-editor.md`).
+
+## v0.16.1.2 — remove imported IKEA/shared assets from the catalog
+
+An imported IKEA / shared-library product (`source:'ikea'` def) could not be
+removed once its IndexedDB blob went missing (storage eviction, private-mode
+wipe, a different browser) — the placed item rendered the placeholder box, the
+catalog card offered no delete (the "×" was gated to `source:'user'` uploads),
+and the "Download" `SharedCard` stayed hidden because a local `ikea-<groupKey>`
+def already existed. No way to free the space or re-download.
+
+The catalog card "×" (`.coll-x`) now also removes `source:'ikea'` imported/shared
+defs (aria-label "Remove downloaded asset"). Removal reuses `removeUserFurniture`
+— dropping the def + its placed instances and deleting the IndexedDB records —
+and un-hides the "Download" card so the group re-fetches from R2 on click.
+Removal routes through `catalog/removeImportedDef.ts:confirmAndRemoveDef`, which
+prompts (via `confirmAction`) only when the def has placed instances that would
+be wiped with it — applied to user uploads too, so a placed upload is no longer
+deleted silently.
+
 ## v0.16.1.1 — skip unused IKEA context-image fetch (kill 404s)
 
 IKEA group registration fetched both `main_image` and `context_image` per variant,
