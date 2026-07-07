@@ -81,6 +81,18 @@ same change that reshapes a system.
   password, `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`, `WIN_CSC_LINK` +
   password) with hardened runtime + `electron/entitlements.mac.plist`; secretless builds are
   unsigned. Node pinned at **24.18.0** (`.nvmrc`, CI, `engines`).
+- **Android (Capacitor)**: `npm run build:mobile` (web build with `VITE_BASE=./` +
+  `VITE_DISABLE_PWA=1`, regenerate launcher icons, `cap sync android`; via
+  `scripts/build-mobile.mjs`) bundles `dist/` into the committed `android/` native project
+  (Capacitor 8, `capacitor.config.ts`, `appId sg.sofasogood.app` shared with Electron). The
+  WebView loads the bundled assets over `https://localhost` — no live URL or service worker,
+  so the app runs fully offline (same bundle shape as the Electron shell). Launcher icons:
+  `scripts/make-android-icons.mjs` renders `public/favicon.svg` → mipmap PNGs + adaptive-icon
+  layers (committed). The APK is compiled on CI, not locally: `.github/workflows/android-apk.yml`
+  (manual dispatch) runs `assembleDebug` on a GitHub runner (JDK 21, Android SDK 36) and uploads
+  the sideloadable `app-debug.apk` as an artifact — the local sandbox can't build it (the Android
+  SDK / Google-Maven hosts are network-blocked). Keep `android/app/build.gradle` `versionName` in
+  sync with `APP_VERSION`. Full guide: **[docs/packaging-android.md](packaging-android.md)**.
 
 ## Layout of the code
 - `src/state/` — Zustand store, `slices/*`: items, selection, finishes, doors, time,

@@ -1,0 +1,61 @@
+name: Android APK (debug)
+
+# Builds a self-contained, sideloadable debug APK of the Capacitor Android shell
+# and uploads it as a downloadable artifact. This sandbox / most dev machines
+# can't compile it (the Android SDK + Google-Maven deps must be fetched), so the
+# canonical build runs here on a GitHub-hosted runner. See docs/packaging-android.md.
+#
+# Run it: Actions tab -> "Android APK (debug)" -> Run workflow. When it finishes,
+# download the `sofa-so-good-debug-apk` artifact, then sideload app-debug.apk
+# (`adb install app-debug.apk`, or open the file on the phone).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/android-apk-build-export-6gc8hz]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 24 / npm 11 — match ci.yml/deploy.yml so `npm ci` accepts the lockfile.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+
+      # JDK 21 — Capacitor 8 / AGP 8.13 build requirement (matches the dev env).
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Android SDK + accept licenses so the Gradle build can resolve compileSdk 36.
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - run: npm ci
+
+      # Build the web bundle (VITE_BASE=./, VITE_DISABLE_PWA=1), regenerate the
+      # launcher icons, and copy dist/ into the native project.
+      - name: Build web + sync Capacitor
+        run: npm run build:mobile
+
+      - name: Assemble debug APK
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sofa-so-good-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

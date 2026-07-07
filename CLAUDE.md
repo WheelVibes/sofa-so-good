@@ -102,7 +102,8 @@ Zustand (sliced store), Vite, Vitest, Biome.
 - `npm run optimize:glb` · `compress:glb-textures` · `scraper-server`/`price-server` (dev).
 - `npm run docs:build`/`build:all` (user guide) · `docs:dev:developer` (dev docs).
 - Packaging: `docker build .` (nginx image, `VITE_BASE=/`) · `npm run dist:desktop` (Electron
-  installers) — details in ARCHITECTURE.md. Node pinned **24.18.0** (`.nvmrc`).
+  installers) · `npm run build:mobile` (Capacitor Android → APK via CI, see
+  `docs/packaging-android.md`) — details in ARCHITECTURE.md. Node pinned **24.18.0** (`.nvmrc`).
 - Cloudflare backend (Pages + Workers + D1/R2/KV): `typecheck:worker` (tsc for `functions/`+
   `server/`+`workers/`), `build-library-index` (R2 manifest). Full deploy + guardrails guide:
   **[docs/deployment-cloudflare.md](docs/deployment-cloudflare.md)**. Backend features gate on

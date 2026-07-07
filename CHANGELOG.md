@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.17.0.4 — Android packaging: Capacitor APK build + CI
+
+Added an Android build target so the app can be sideloaded onto a phone for testing.
+Chose **Capacitor** over TWA/Bubblewrap: it bundles `dist/` inside the APK (offline, no live
+URL or Digital Asset Links needed) and mirrors the existing Electron shell's bundle shape.
+New: `capacitor.config.ts` (`appId sg.sofasogood.app`, shared with Electron), the committed
+`android/` native project (Capacitor 8, compile/target SDK 36, min 24),
+`scripts/build-mobile.mjs` (web build with `VITE_BASE=./` + `VITE_DISABLE_PWA=1` → regenerate
+icons → `cap sync`, mirroring `build-desktop.mjs`), `scripts/make-android-icons.mjs` (renders
+`public/favicon.svg` → mipmap + adaptive-icon layers via the existing `sharp` path; avoids
+`@capacitor/assets`, whose bundled old `sharp` downloads libvips from a blocked host), and the
+`build:mobile`/`cap:sync`/`android:add` npm scripts. The APK is compiled on CI —
+`.github/workflows/android-apk.yml` (manual dispatch) runs `assembleDebug` on a GitHub runner
+(JDK 21, Android SDK 36) and uploads the sideloadable `app-debug.apk` artifact — because the
+sandbox can't reach the Android SDK / Google-Maven hosts. Packaging is build tooling, so it's
+not behind a `FEATURE_FLAGS` entry (consistent with Electron/Docker). Docs: new
+`docs/packaging-android.md` + ARCHITECTURE/CLAUDE/README updates.
+
 ## v0.17.0.3 — CodeQL: Smithsonian scraper sends API key as a header, not in the URL
 
 Cleared the last CodeQL finding (`py/clear-text-logging-sensitive-data`). Root cause

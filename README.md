@@ -75,6 +75,11 @@ docker build -t sofa-so-good . && docker run --rm -p 8080:80 sofa-so-good
 # Desktop app (Electron shell; installers via electron-builder)
 npm run electron:start   # build + launch locally
 npm run dist:desktop     # package installers into release/
+
+# Android app (Capacitor; sideloadable APK)
+npm run build:mobile     # build web + icons + sync into android/
+# then compile the APK via CI (Actions → "Android APK (debug)") or locally with the
+# Android SDK: `cd android && ./gradlew assembleDebug`. See docs/packaging-android.md
 ```
 
 **Cloudflare (full-featured):** deploy as a Pages site + same-origin Worker API with accounts
