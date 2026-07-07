@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useStore } from '../../state/store'
 import { ColorPicker } from './ColorPicker'
@@ -7,6 +8,14 @@ import { ColorPicker } from './ColorPicker'
 afterEach(() => {
   useStore.getState().__resetForTest?.()
 })
+
+/** Controlled harness: mirrors real usage where `onChange` feeds back into the
+ *  `value` prop (via the store → finish → picker), so `close()` can compare the
+ *  current colour against the one the editor opened on. */
+function Controlled({ initial }: { initial: string }) {
+  const [v, setV] = useState(initial)
+  return <ColorPicker value={v} onChange={setV} ariaLabel="Tint" />
+}
 
 describe('ColorPicker', () => {
   it('renders a swatch trigger tinted with the current colour', () => {
@@ -66,6 +75,24 @@ describe('ColorPicker', () => {
     fireEvent.keyDown(hue, { key: 'ArrowRight' })
     expect(onChange).toHaveBeenCalled()
     expect(onChange.mock.calls[0][0]).not.toBe('#ff0000')
+  })
+
+  it('opening then closing an untouched editor does NOT push to recents', () => {
+    render(<Controlled initial="#ff0000" />)
+    const trigger = screen.getByRole('button', { name: 'Tint' })
+    fireEvent.click(trigger) // open
+    fireEvent.click(trigger) // close, unchanged
+    expect(useStore.getState().recentColors).toEqual([])
+  })
+
+  it('closing after changing the colour commits the FINAL colour to recents', () => {
+    render(<Controlled initial="#ff0000" />)
+    const trigger = screen.getByRole('button', { name: 'Tint' })
+    fireEvent.click(trigger) // open
+    const hex = screen.getByLabelText('Hex colour') as HTMLInputElement
+    fireEvent.change(hex, { target: { value: '#00ff00' } })
+    fireEvent.click(trigger) // close
+    expect(useStore.getState().recentColors).toEqual(['#00ff00'])
   })
 
   it('a recent-colour swatch exposes aria-pressed for the active colour', () => {

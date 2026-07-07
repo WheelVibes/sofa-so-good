@@ -178,6 +178,23 @@ describe('FinishPicker — picking a new texture keeps the colour override', () 
   })
 })
 
+describe('FinishPicker — custom colour does not flood recents on every tick', () => {
+  it('a ColorPicker onChange tick applies the finish but does NOT push to recents', () => {
+    // beforeEach seeded recents with a single HEX entry.
+    expect(useStore.getState().recentColors).toEqual([HEX])
+    useStore.getState().setFloorFinish(ROOM, '#123456')
+    render(<FinishPicker />)
+    // Open the desktop custom-colour picker and type a new hex — that fires one
+    // onChange tick (the same continuous path an SV-pad / hue drag hits).
+    fireEvent.click(screen.getByRole('button', { name: 'Custom floor colour' }))
+    fireEvent.change(screen.getByLabelText('Hex colour'), { target: { value: '#00ff00' } })
+    // The finish applied (live preview)…
+    expect(useStore.getState().finishes.floor[ROOM]).toBe('#00ff00')
+    // …but recents were NOT touched — commit happens on ColorPicker close.
+    expect(useStore.getState().recentColors).toEqual([HEX])
+  })
+})
+
 describe('FinishPicker — colour-override chip', () => {
   it('clears the override back to the plain base finish', () => {
     useStore.getState().setFloorFinish(ROOM, `tint:floor-wood-oak:${HEX}!r`)

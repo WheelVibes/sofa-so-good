@@ -65,6 +65,45 @@ describe('uiSlice drawing-set layers (PARITY-DRAWLAYERS)', () => {
   })
 })
 
+describe('uiSlice recent colours', () => {
+  beforeEach(() => useStore.getState().__resetForTest())
+
+  it('defaults to an empty list', () => {
+    expect(useStore.getState().recentColors).toEqual([])
+  })
+
+  it('pushes newest-first', () => {
+    const push = (h: string) => useStore.getState().pushRecentColor(h)
+    push('#111111')
+    push('#222222')
+    expect(useStore.getState().recentColors).toEqual(['#222222', '#111111'])
+  })
+
+  it('caps at 10, dropping the oldest', () => {
+    const push = (h: string) => useStore.getState().pushRecentColor(h)
+    // Push 12 distinct colours; only the newest 10 survive.
+    for (let i = 0; i < 12; i++) push(`#0000${i.toString().padStart(2, '0')}`)
+    const recents = useStore.getState().recentColors
+    expect(recents).toHaveLength(10)
+    // Newest first; the two oldest (#000000, #000001) are dropped.
+    expect(recents[0]).toBe('#000011')
+    expect(recents[9]).toBe('#000002')
+    expect(recents).not.toContain('#000000')
+    expect(recents).not.toContain('#000001')
+  })
+
+  it('re-pushing an existing colour moves it to the front (deduped, case-insensitive)', () => {
+    const push = (h: string) => useStore.getState().pushRecentColor(h)
+    push('#aaaaaa')
+    push('#bbbbbb')
+    push('#cccccc')
+    push('#AAAAAA') // same as #aaaaaa, different case
+    const recents = useStore.getState().recentColors
+    expect(recents).toEqual(['#AAAAAA', '#cccccc', '#bbbbbb'])
+    expect(recents).toHaveLength(3) // no duplicate entry
+  })
+})
+
 describe('uiSlice asset quality', () => {
   beforeEach(() => useStore.getState().__resetForTest())
 

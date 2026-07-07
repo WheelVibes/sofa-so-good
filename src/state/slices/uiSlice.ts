@@ -206,7 +206,7 @@ export interface UiSlice {
   toggleBudget: () => void
   toggleClearance: () => void
   setRecording: (v: boolean) => void
-  /** Record a custom colour as recently-used (deduped, capped at 8). */
+  /** Record a custom colour as recently-used (deduped, newest-first, capped at 10). */
   pushRecentColor: (hex: string) => void
   /** Record a material id as a recently-applied finish (deduped, capped at 8). */
   pushRecentFinish: (id: string) => void
@@ -419,7 +419,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       recentColors: [
         hex,
         ...s.recentColors.filter((c) => c.toLowerCase() !== hex.toLowerCase()),
-      ].slice(0, 8),
+      ].slice(0, 10),
     })),
   pushRecentFinish: (id) =>
     set((s) => ({ recentFinishes: [id, ...s.recentFinishes.filter((f) => f !== id)].slice(0, 8) })),

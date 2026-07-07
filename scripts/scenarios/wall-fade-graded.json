@@ -1,0 +1,91 @@
+{
+  "name": "wall-fade-graded",
+  "url": "http://localhost:5225/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.() })()"
+    },
+    {
+      "name": "daylight",
+      "eval": "(() => { const s = window.__store.getState(); s.setManualHour(13) })()"
+    },
+    {
+      "name": "view-a-head-on-north",
+      "eval": "(() => { const s = window.__store.getState(); window.__store.setState({ pendingViewPose: { pos: [4.6, 4.5, -8], target: [4.6, 1.2, 4.7] }, applyViewNonce: s.applyViewNonce + 1, cameraMode: 'orbit' }) })()"
+    },
+    {
+      "name": "a-north-peak-fade",
+      "waitFor": { "store": "(window.__wallOpacities()['wall-ext-N'] ?? 1) < 0.15" },
+      "timeout": 20000,
+      "failMessage": "north facade did not reach peak fade when faced head-on"
+    },
+    {
+      "name": "a-south-far-wall-opaque",
+      "waitFor": { "store": "(window.__wallOpacities()['wall-ext-S'] ?? 1) > 0.97" },
+      "timeout": 10000,
+      "failMessage": "FAR south wall must stay fully opaque (structural exclusion)"
+    },
+    { "name": "a-settle", "wait": 900 },
+    { "name": "shot-a-head-on", "screenshot": "a-head-on-north-peak-fade" },
+    {
+      "name": "view-b-moderate-angle",
+      "eval": "(() => { const s = window.__store.getState(); window.__store.setState({ pendingViewPose: { pos: [16, 5, -5.5], target: [5, 1.2, 5] }, applyViewNonce: s.applyViewNonce + 1, cameraMode: 'orbit' }) })()"
+    },
+    {
+      "name": "b-north-partial-fade",
+      "waitFor": {
+        "store": "(() => { const o = window.__wallOpacities()['wall-ext-N'] ?? 1; return o > 0.28 && o < 0.6 })()"
+      },
+      "timeout": 20000,
+      "failMessage": "north facade should REST at a partial (graded) opacity at a moderate angle"
+    },
+    { "name": "b-settle", "wait": 900 },
+    { "name": "shot-b-moderate", "screenshot": "b-moderate-angle-partial-fade" },
+    {
+      "name": "view-c-corner-spread",
+      "eval": "(() => { const s = window.__store.getState(); window.__store.setState({ pendingViewPose: { pos: [10, 4.5, -6.5], target: [5.5, 1.2, 4.7] }, applyViewNonce: s.applyViewNonce + 1, cameraMode: 'orbit' }) })()"
+    },
+    {
+      "name": "c-north-fades-by-own-facing",
+      "waitFor": { "store": "(window.__wallOpacities()['wall-ext-N'] ?? 1) < 0.3" },
+      "timeout": 20000,
+      "failMessage": "north facade should fade strongly by its own facing"
+    },
+    {
+      "name": "c-corner-neighbour-spread-fade",
+      "waitFor": {
+        "store": "(() => { const o = window.__wallOpacities()['wall-ext-NE-jog-W'] ?? 1; return o > 0.3 && o < 0.72 })()"
+      },
+      "timeout": 20000,
+      "failMessage": "corner neighbour (NE jog, exterior slightly toward camera) should partially fade via corner spread (own facing alone would leave it ~0.93)"
+    },
+    { "name": "c-settle", "wait": 900 },
+    { "name": "shot-c-corner-spread", "screenshot": "c-corner-spread" },
+    {
+      "name": "view-d-grazing",
+      "eval": "(() => { const s = window.__store.getState(); window.__store.setState({ pendingViewPose: { pos: [20, 4.5, 3.2], target: [2, 1.2, 4.4] }, applyViewNonce: s.applyViewNonce + 1, cameraMode: 'orbit' }) })()"
+    },
+    {
+      "name": "d-east-near-wall-fades",
+      "waitFor": { "store": "(window.__wallOpacities()['wall-ext-E'] ?? 1) < 0.15" },
+      "timeout": 20000,
+      "failMessage": "east facade (faced head-on from the east) should reach peak fade"
+    },
+    {
+      "name": "d-grazing-north-stays-solid",
+      "waitFor": { "store": "(window.__wallOpacities()['wall-ext-N'] ?? 1) > 0.9" },
+      "timeout": 10000,
+      "failMessage": "grazing north wall (barely past perpendicular) must stay ~solid"
+    },
+    {
+      "name": "d-west-far-wall-opaque",
+      "waitFor": { "store": "(window.__wallOpacities()['wall-ext-W'] ?? 1) > 0.97" },
+      "timeout": 10000,
+      "failMessage": "FAR west wall must stay fully opaque"
+    },
+    { "name": "d-settle", "wait": 900 },
+    { "name": "shot-d-grazing", "screenshot": "d-grazing-no-fade" }
+  ]
+}

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { normalizeHex } from '../../materials/colorHarmony'
 import { useStore } from '../../state/store'
@@ -7,6 +7,7 @@ import { Modal } from '../Modal'
 import { Popover } from '../toolbar/Popover'
 import { useIsMobile } from '../useIsMobile'
 import { hexToHsv, hsvToHex } from './colorConvert'
+import { createThrottledEmitter, type ThrottledEmitter } from './throttledEmitter'
 
 interface ColorPickerProps {
   value: string
@@ -43,14 +44,22 @@ export function ColorPicker({
   const isMobile = useIsMobile()
   const [open, setOpen] = useState(false)
   const anchorRef = useRef<HTMLButtonElement>(null)
+  // The colour the editor was showing when it last opened — so closing an
+  // untouched editor never pollutes recents (we only commit on a real change).
+  const openValueRef = useRef<string>('#000000')
   const recent = useStore(useShallow((s) => s.recentColors))
   const pushRecent = useStore((s) => s.pushRecentColor)
 
   const norm = normalizeHex(value) ?? '#000000'
+  const openEditor = () => {
+    openValueRef.current = norm
+    setOpen(true)
+  }
   const close = () => {
     setOpen(false)
-    // Remember the colour the editor closed on for quick reuse.
-    pushRecent(norm)
+    // Commit to recents only when the user actually changed the colour while
+    // the editor was open — opening + closing untouched must not pollute them.
+    if (norm.toLowerCase() !== openValueRef.current.toLowerCase()) pushRecent(norm)
     anchorRef.current?.focus()
   }
 
@@ -70,7 +79,7 @@ export function ColorPicker({
         aria-haspopup="dialog"
         aria-expanded={open}
         title={title}
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => (open ? close() : openEditor())}
       />
       {open && isMobile ? (
         <Modal open onClose={close} title={ariaLabel ?? 'Colour'}>
@@ -103,11 +112,36 @@ function ColorEditor({
   const padRef = useRef<HTMLDivElement>(null)
   const hueRef = useRef<HTMLDivElement>(null)
 
+  // The SV-pad / hue-bar POINTER drag emits dozens of onChange/tick — coalesce
+  // the 3D apply through a trailing throttle so a FINISH-RECOLOR bake can't
+  // flood the GPU (pointerup flushes the final value). Keep `onChange` in a ref
+  // so the throttle survives re-renders even though the parent passes an inline
+  // handler. Discrete inputs (keyboard, hex field, swatch clicks) stay immediate.
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  const throttleRef = useRef<ThrottledEmitter<string> | undefined>(undefined)
+  if (!throttleRef.current) {
+    throttleRef.current = createThrottledEmitter<string>((hex) => onChangeRef.current(hex), 150)
+  }
+  // Guarantee the final dragged value lands if the editor unmounts mid-drag
+  // (e.g. an outside-click close without a pointerup).
+  useEffect(() => () => throttleRef.current?.flush(), [])
+
+  // Immediate apply — keyboard nudges, hex typing, swatch/theme picks.
   const emit = (h: number, s: number, v: number) => {
     const hex = hsvToHex({ h, s, v })
     setHexText(hex)
     onChange(hex)
   }
+  // Throttled apply — pointer drags on the pad / hue bar. The hex text still
+  // updates immediately so the field + input stay live; only the 3D apply is
+  // coalesced.
+  const emitDrag = (h: number, s: number, v: number) => {
+    const hex = hsvToHex({ h, s, v })
+    setHexText(hex)
+    throttleRef.current?.emit(hex)
+  }
+  const flushDrag = () => throttleRef.current?.flush()
   const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
 
   const padPointer = (e: React.PointerEvent) => {
@@ -117,7 +151,7 @@ function ColorEditor({
     const r = el.getBoundingClientRect()
     const s = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))
     const v = Math.min(1, Math.max(0, 1 - (e.clientY - r.top) / r.height))
-    emit(hsv.h, s, v)
+    emitDrag(hsv.h, s, v)
   }
   const huePointer = (e: React.PointerEvent) => {
     const el = hueRef.current
@@ -125,7 +159,7 @@ function ColorEditor({
     el.setPointerCapture(e.pointerId)
     const r = el.getBoundingClientRect()
     const h = Math.min(360, Math.max(0, (e.clientX - r.left) / r.width)) * 360
-    emit(h, hsv.s, hsv.v)
+    emitDrag(h, hsv.s, hsv.v)
   }
   const dragging = (e: React.PointerEvent, fn: (e: React.PointerEvent) => void) => {
     if (e.buttons !== 1) return
@@ -144,6 +178,8 @@ function ColorEditor({
         style={{ backgroundColor: `hsl(${hsv.h}, 100%, 50%)` }}
         onPointerDown={padPointer}
         onPointerMove={(e) => dragging(e, padPointer)}
+        onPointerUp={flushDrag}
+        onPointerCancel={flushDrag}
         onKeyDown={(e) => {
           const step = e.shiftKey ? 0.1 : 0.02
           switch (e.key) {
@@ -190,6 +226,8 @@ function ColorEditor({
         className="color-hue"
         onPointerDown={huePointer}
         onPointerMove={(e) => dragging(e, huePointer)}
+        onPointerUp={flushDrag}
+        onPointerCancel={flushDrag}
         onKeyDown={(e) => {
           const step = e.shiftKey ? 15 : 3
           switch (e.key) {

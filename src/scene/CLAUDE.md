@@ -26,7 +26,7 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   exposure grading, and day-ramped bloom apply in every view mode at every tier (still gated by
   the tier's `shadowMapSize`/`postprocessing`). Orbit culls the real ceiling so you can see in;
   an invisible shadow-casting **virtual ceiling** (`apartment/ceiling/CeilingOccluder.tsx`, planes
-  from the pure `ceilingOccluder.ts:occluderRectsForPlan`) blocks the sun from flooding in through
+  from the pure `occluderRects.ts:occluderRectsForPlan`) blocks the sun from flooding in through
   the open top, so interiors are lit through windows/open doors — mounted in BOTH `Scene.tsx` and
   `RoomEditorScene.tsx`, present in walk mode too for consistency. The occluder material writes no
   colour/depth (invisible to the camera) but `castShadow` with `shadowSide: DoubleSide`. There is
@@ -118,10 +118,36 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `LuxOverlay`/`Panorama`/`Record`/`HqRender`/`SceneExport`) — those aren't rendering systems.
   Its walls fade with the
   **same camera-facing reveal as orbit** (ROOM-EDITOR-WALL-REVEAL): `RoomShell`/`PlanRoomShell`
-  call the shared `apartment/walls/useWallReveal` hook, which reuses the pure `wallRevealFacing`
+  call the shared `apartment/walls/useWallReveal` hook, which reuses the pure angle-graded curve
+  (`facingToward`/`revealStrength`, `wallRevealMath.ts`)
   + the `wallRevealMode`/`wallReveal` settings (translucent by default) and fades a wall via a
   **per-mesh material clone** (the room's walls share one finish material, so mutating it in place
   would fade them all) + publishes `setWallOpacity` so the wall's windows/doors fade too.
+- **The wall reveal is ANGLE-GRADED, not binary (WALL-REVEAL-ANGLE-GRADED).** This deliberately
+  REVERSES the earlier WALL-REVEAL-BINARY-TARGET decision (binary settle + 0.35/0.65 hysteresis,
+  now removed from `WallSegment` and `useWallReveal`): fade strength ramps with how much a wall's
+  OUTWARD surface faces the camera — onset at `REVEAL_ONSET` (a slight angle past perpendicular),
+  peak (`WALL_TRANSLUCENT_MIN` / 0 in auto-hide) head-on — and a wall **settles anywhere along
+  that curve**. Rationale for the reversal: the binary target guarded against walls resting at a
+  "washed" mid-band opacity, but the wall class that must never rest mid-band is the FAR/back
+  walls (interior surface toward the camera) — and those are excluded *structurally* by the
+  orientation check (`facingToward` ≤ 0 → strength exactly 0 → fully opaque), with or without a
+  binary snap. NEAR walls (exterior toward the camera) are the intended graded surface and may
+  rest at any partial translucency; keep the curve a gentle, honest smoothstep (no fast-ramp
+  bias). Interior partitions in `wallRevealScope === 'all'` keep the flip-normal-toward-camera
+  behaviour on the same curve. **Corner spread (WALL-REVEAL-CORNER-SPREAD):** a wall sharing a
+  corner (endpoint, `cornerNeighbors`) with a wall fading by its OWN facing fades too —
+  `cornerSpreadStrength` grades it by this wall's own facing on the spread curve
+  (`SPREAD_ONSET`→`SPREAD_FULL`; a corner companion is near-perpendicular so its `toward` tops
+  out ~0.3–0.5, hence the lower full-point), CAPS it at the strongest neighbour's own strength
+  (the follower never fades deeper than its leader — without the cap a ~45° two-facade view
+  would snap both walls near peak, defeating the graded look), and gates it *smoothly* on that
+  neighbour strength (`SPREAD_GATE`→`SPREAD_GATE_FULL` ramp — a hard cut would pop with no
+  hysteresis); final strength = `max(own, spread)`. Spread is strictly FIRST-degree: each wall publishes its
+  own-facing strength (never its final strength) to the per-frame registry in `wallReveal.ts`
+  (`setWallOwnStrength`), so spread can't cascade wall→wall→wall around the perimeter. All curve/adjacency math is pure in `wallRevealMath.ts`;
+  `PlanShell`/`PlanDoorLeaf` (custom plans in orbit) share the same graded curve (corner spread
+  there is deferred — `WallBox` carries no wall id yet, see TODO.md).
 - **`depthWrite` stays ON through the whole wall/door/window fade (WALL-FADE-DEPTHWRITE).** Every
   reveal-fade site — `WallSegment`, `useWallReveal`, `PlanShell` (wall + trim), `PlanRoomShell`,
   `Skirting`, `Door`, `PlanDoorLeaf`, `Window` (incl. glass) — sets `material.depthWrite = true`

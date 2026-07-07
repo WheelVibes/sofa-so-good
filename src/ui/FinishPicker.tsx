@@ -382,9 +382,13 @@ export function FinishPicker() {
   // (keeps its texture/pattern) instead of replacing it with flat plaster paint
   // — resolution lives in the shared pure `recolorFinishId` (also used by the
   // accent-wall picker). Flag off → always the legacy bare hex.
+  // NOTE: this runs on EVERY ColorPicker onChange tick (continuous during an
+  // SV-pad / hue-bar drag), so it must NOT push to recents — a colour is
+  // committed to recents once, when the ColorPicker closes on its final value.
+  // The live apply itself is throttled inside ColorPicker so the FINISH-RECOLOR
+  // bake can't flood the GPU during a drag.
   const handleCustomColor = (surface: Surface, hex: string) => {
     setLastSurface(surface)
-    pushRecentColor(hex)
     applyFinish(surface, fRecolor ? recolorFinishId(activeFor(surface), hex, materials) : hex)
   }
 

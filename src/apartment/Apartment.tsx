@@ -1,4 +1,4 @@
-import { Ceiling } from './Ceiling'
+import { Ceiling } from './ceiling/Ceiling'
 import { Doors } from './Door'
 import { Floor } from './floor/Floor'
 import { Skirting } from './Skirting'

@@ -467,7 +467,7 @@ same change that reshapes a system.
   `nearestAimedSegment` call with `screen:`/`light:` id prefixes, so whichever is physically
   closer sets its own `nearby*Id` (the other cleared). Scenario:
   `scripts/scenarios/walk-screens-lights.json`.
-- **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts`+
+- **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShellGeometry.ts`+
   `RoomShell.tsx`, `uiSlice.roomEditor`): the **sole editing surface**. A separate
   `<Canvas>` that now mounts the **same rendering stack as the main orbit Canvas** —
   `frameloop="demand"` + `RenderPump`, `PCFSoftShadowMap` shadows, `Sky`/`SceneBackdrop`,
@@ -1077,7 +1077,15 @@ same change that reshapes a system.
   findWallClipsByLevel` resolves each item's own level's walls (used by score /
   report / Clearance panel), and walk-mode `buildWalkBlockers` keeps the
   walker's-storey items (level teleport, ML6c). **Wall reveal**
-  (`apartment/walls/`): exterior walls between camera and interior fade out.
+  (`apartment/walls/`): exterior walls between camera and interior fade out —
+  ANGLE-GRADED (WALL-REVEAL-ANGLE-GRADED, reversing the earlier binary
+  target + hysteresis): fade strength ramps with how much the wall's outward
+  surface faces the camera (onset `REVEAL_ONSET`, peak head-on; pure curve in
+  `wallRevealMath.ts`), settling anywhere along the curve; far walls (outward
+  normal away from the camera) are structurally excluded (strength 0 → opaque).
+  A wall sharing a corner with a wall fading by its own facing spreads the fade
+  (first-degree only, `cornerNeighbors` + the per-frame own-strength registry in
+  `wallReveal.ts` — WALL-REVEAL-CORNER-SPREAD).
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,
   `selection/RotateGizmo.tsx`+`rotateGizmoMath.ts`): grid 10/25/50cm/1m; align
   (`AlignmentGuides`), equal-spacing smart guides (`collision/equalSpacing.ts`

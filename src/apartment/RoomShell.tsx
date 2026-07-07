@@ -19,12 +19,17 @@ import { useStore } from '../state/store'
 import { DOORS, WINDOWS } from './constants'
 import { DoorLeaf } from './Door'
 import { RoomFloor } from './floor/RoomFloor'
-import { type ClippedWall, clippedWallCutouts, type RoomShell as RoomShellData } from './roomShell'
+import {
+  type ClippedWall,
+  clippedWallCutouts,
+  type RoomShell as RoomShellData,
+} from './roomShellGeometry'
 import { WindowPane } from './Window'
 import { localOuterZSign, wallThicknessMetres } from './wallSegments'
 import { useWallReveal } from './walls/useWallReveal'
 import { extrudeWallBody, getWallStructureMaterial } from './walls/wallBodyGeometry'
 import { OPENING_CLEARANCE, wallBodyOutlineFromSpans } from './walls/wallBodyShape'
+import { cornerNeighbors } from './walls/wallRevealMath'
 
 /** A clipped wall box, painted with the room's wall finish, that fades to
  *  translucent when the orbit camera fronts it — so you always see into the
@@ -41,6 +46,7 @@ function WallBox({
   startSlope,
   endSlope,
   bias,
+  cornerWallIds,
 }: {
   wall: ClippedWall
   center: [number, number]
@@ -64,6 +70,8 @@ function WallBox({
   /** Distinct per-wall depth bias (its index in the room) → passed to the reveal
    *  so any non-mitred (buried) corner walls don't z-fight (deterministic winner). */
   bias: number
+  /** Ids of the room's walls sharing a corner with this one (corner-spread). */
+  cornerWallIds?: readonly string[]
 }) {
   const ref = useRef<Mesh>(null)
   const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
@@ -94,6 +102,7 @@ function WallBox({
     nz: normal.y,
     center,
     wallId: wall.wallId,
+    cornerWallIds,
     bias,
   })
 
@@ -171,6 +180,7 @@ interface WallDispatchProps {
   startSlope: number | null
   endSlope: number | null
   bias: number
+  cornerWallIds?: readonly string[]
 }
 function SolidWall(p: WallDispatchProps & { def: SolidMaterialDef }) {
   return <WallBox {...p} material={useSolidMaterial(p.def)} />
@@ -291,6 +301,18 @@ export function RoomShell({ shell }: { shell: RoomShellData }) {
   const wallAccents = useStore(useShallow((s) => s.finishes.wallAccents))
   const windowSet = new Set(shell.windowIds)
   const doorSet = new Set(shell.doorIds)
+  // Corner adjacency between the room's clipped walls (WALL-REVEAL-CORNER-SPREAD).
+  // Clipped walls end at the interior footprint corner, so adjacent walls' endpoints
+  // can sit up to a neighbour half-thickness apart — the 0.25 m epsilon (matching
+  // `cornerMiters`' `near`) still reads them as one corner.
+  const cornerIds = useMemo(
+    () =>
+      cornerNeighbors(
+        shell.walls.map((w) => ({ id: w.wallId, start: w.start, end: w.end })),
+        0.25,
+      ),
+    [shell.walls],
+  )
   return (
     <group>
       {shell.rects.map((r, i) => (
@@ -321,6 +343,7 @@ export function RoomShell({ shell }: { shell: RoomShellData }) {
             startSlope={cm.startSlope}
             endSlope={cm.endSlope}
             bias={i}
+            cornerWallIds={cornerIds.get(w.wallId)}
           />
         )
       })}

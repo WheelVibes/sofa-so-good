@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
-import { occluderRectsForPlan } from './ceilingOccluder'
+import { occluderRectsForPlan } from './occluderRects'
 
 describe('occluderRectsForPlan', () => {
   it('emits a rect per non-external room of the default plan', () => {

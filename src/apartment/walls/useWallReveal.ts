@@ -3,8 +3,15 @@ import { type RefObject, useEffect, useRef } from 'react'
 import { type Material, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from 'three'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import { useStore } from '../../state/store'
-import { setWallOpacity } from './wallReveal'
-import { WALL_TRANSLUCENT_MIN, wallRevealFacing } from './wallRevealMath'
+import { getWallOwnStrength, setWallOpacity, setWallOwnStrength } from './wallReveal'
+import {
+  cornerSpreadStrength,
+  facingToward,
+  revealStrength,
+  revealTargetOpacity,
+  SPREAD_ONSET,
+  WALL_TRANSLUCENT_MIN,
+} from './wallRevealMath'
 
 // Scratch vector for the camera forward direction (avoids per-frame allocation).
 const FWD = new Vector3()
@@ -20,6 +27,10 @@ export interface WallRevealArgs {
   center: [number, number]
   /** Host wall id — published so the room's windows/doors on it fade too. */
   wallId: string
+  /** Ids of the room's walls sharing a CORNER (endpoint) with this one, for the
+   *  corner-spread rule (WALL-REVEAL-CORNER-SPREAD) — precompute per shell via
+   *  `cornerNeighbors`. Omit to disable spread for this wall. */
+  cornerWallIds?: readonly string[]
   /** A small per-wall depth bias (polygonOffsetUnits) applied to the faded clone
    *  so two DIFFERENT translucent walls that OVERLAP at a corner (each extended by
    *  the abutment to close it) don't z-fight on their now-coplanar top/side faces.
@@ -35,9 +46,10 @@ const LERP = 0.18
  * Per-room-editor wall reveal (ROOM-EDITOR-WALL-REVEAL): fades a clipped wall to
  * **translucent** when the orbit camera looks THROUGH it (its outward normal
  * opposes the camera forward), exactly like the main orbit scene's `WallSegment`
- * — reusing the same pure `wallRevealFacing` + the `wallRevealMode`/`wallReveal`
- * settings, so the editor behaves like orbit by default (translucent). The fade
- * is orientation-only (camera look direction), so zoom/pan never change it.
+ * — reusing the same pure angle-graded curve (`facingToward`/`revealStrength`) +
+ * the `wallRevealMode`/`wallReveal` settings, so the editor behaves like orbit by
+ * default (translucent). The fade is orientation-only (camera look direction), so
+ * zoom/pan never change it.
  *
  * Applied to an Object3D (the wall mesh or its group). Because every wall of an
  * isolated room shares ONE finish material, fading it in place would fade the
@@ -48,7 +60,7 @@ const LERP = 0.18
  * fade runs to completion instead of starving after the settle tail.
  */
 export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallRevealArgs): void {
-  const { nx, nz, wallId, bias = 0 } = args
+  const { nx, nz, wallId, cornerWallIds, bias = 0 } = args
   const opacityRef = useRef(1)
   const transparentRef = useRef(false)
   const clonesRef = useRef<Material[]>([])
@@ -56,8 +68,6 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
   // is lerping (see the note at the settling check below). Released the instant
   // the fade settles, and on unmount.
   const pumpReleaseRef = useRef<null | (() => void)>(null)
-  // Hysteresis latch for the binary fade decision (see the target block below).
-  const wasFadedRef = useRef(false)
   // Per-mesh fade bookkeeping (captured opaque original + its faded clone), keyed
   // by the mesh itself. MUST live here, NOT in `mesh.userData`
   // (WALL-REVEAL-STATE-OFF-USERDATA): `RoomShell`/`PlanRoomShell` pass a FRESH
@@ -76,8 +86,10 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on wallId; objRef is a stable ref.
   useEffect(() => {
     setWallOpacity(wallId, 1)
+    setWallOwnStrength(wallId, 0)
     const fadeState = fadeStateRef.current
     return () => {
+      setWallOwnStrength(wallId, 0)
       const root = objRef.current
       root?.traverse((o) => {
         const m = o as Mesh
@@ -111,33 +123,46 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
       // only (camera look direction), so zoom/pan never change the fade; swivelling
       // flips which walls are "near", so the faded pair follows the camera.
       state.camera.getWorldDirection(FWD)
-      const facing = wallRevealFacing(FWD.x, FWD.z, nx, nz)
-      // BINARY target with hysteresis (WALL-REVEAL-BINARY-TARGET). `wallRevealFacing`
-      // is a smoothstep, so a wall viewed at a grazing/oblique angle would otherwise
-      // REST at a mid-band opacity (~0.6–0.8) — which renders as a permanently
-      // "washed"/half-translucent pane in the editor (the field bug: a wall settles
-      // at its true 0.79 target and just looks broken). The dollhouse wants each wall
-      // either clearly see-through OR solid, never parked half-way. So the TARGET is
-      // binary — the smooth `LERP` below still animates the transition, so a wall
-      // fades/solidifies smoothly as you swivel, but always SETTLES crisp. Hysteresis
-      // (start fading below 0.35, stop fading above 0.65) gives a dead-band so a wall
-      // hovering near the threshold can't flip-flop.
-      const shouldFade = wasFadedRef.current ? facing < 0.65 : facing < 0.35
-      wasFadedRef.current = shouldFade
+      // ANGLE-GRADED target (WALL-REVEAL-ANGLE-GRADED, matching orbit's
+      // `WallSegment` — this deliberately REVERSES the retired
+      // WALL-REVEAL-BINARY-TARGET + hysteresis). Fade strength ramps with how much
+      // the wall's OUTWARD surface faces the camera (onset at a slight angle,
+      // peak head-on) and the wall SETTLES anywhere along that curve. The binary
+      // snap guarded against walls resting washed mid-band, but the walls that must
+      // never rest mid-band are the FAR/back ones — excluded structurally here
+      // (their `facingToward` ≤ 0 → strength exactly 0 → opaque); the NEAR pair is
+      // the intended graded surface and may rest at any partial translucency.
+      const toward = facingToward(FWD.x, FWD.z, nx, nz)
+      const own = revealStrength(toward)
+      // Publish OWN-facing strength (never the spread-inclusive final) so corner-
+      // spread stays first-degree — no cascade around the room's perimeter.
+      setWallOwnStrength(wallId, own)
+      // Corner spread (WALL-REVEAL-CORNER-SPREAD): a wall sharing a corner with a
+      // wall meaningfully fading by its OWN facing fades too — graded by its own
+      // facing on the spread curve, smoothly gated on the strongest neighbour's
+      // own strength. One-frame-lagged reads are fine.
+      let strength = own
+      if (cornerWallIds && cornerWallIds.length > 0 && toward > SPREAD_ONSET) {
+        let maxNb = 0
+        for (const id of cornerWallIds) {
+          const s = getWallOwnStrength(id)
+          if (s > maxNb) maxNb = s
+        }
+        strength = Math.max(strength, cornerSpreadStrength(toward, maxNb))
+      }
       // translucent: never fully disappear (strongly see-through floor);
-      // auto-hide: can vanish.
-      target = shouldFade ? (revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN) : 1
+      // auto-hide: can vanish at peak fade.
+      target = revealTargetOpacity(strength, revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN)
     } else {
-      wasFadedRef.current = false
+      setWallOwnStrength(wallId, 0)
     }
-    // Keep the demand-mode RenderPump rendering WHILE the fade is lerping toward its
-    // (now always-crisp) target. This Canvas is `frameloop="demand"` and gates
-    // rendering through RenderPump, which stays continuous only while an animated
-    // source is registered — R3F's native `invalidate()` (below) does NOT sustain it.
+    // Keep the demand-mode RenderPump rendering WHILE the fade is lerping toward
+    // its target. This Canvas is `frameloop="demand"` and gates rendering through
+    // RenderPump, which stays continuous only while an animated source is
+    // registered — R3F's native `invalidate()` (below) does NOT sustain it.
     // Without this the fade starved after the ~300ms settle tail on a static camera
     // and froze part-way. Registered like a spinning fan / placement drop, released
-    // the instant it settles. (The target is binary now, so "settled" is always a
-    // crisp endpoint — no mid-band parking to guard against.)
+    // the instant it settles.
     const settling = Math.abs(target - opacityRef.current) > 0.005
     if (settling && !pumpReleaseRef.current) pumpReleaseRef.current = registerAnimatedSource()
     else if (!settling && pumpReleaseRef.current) {
@@ -152,8 +177,8 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     ) {
       return
     }
-    // Snap onto the target once within the settle threshold so a wall lands on
-    // EXACT endpoints (1 / the floor) instead of parking asymptotically short
+    // Snap onto the target once within the settle threshold so a wall lands
+    // EXACTLY on its (graded) target instead of parking asymptotically short
     // (0.996 / 0.103 — harmless but noisy in every field probe).
     let cur = opacityRef.current + (target - opacityRef.current) * LERP
     if (Math.abs(cur - target) <= 0.005) cur = target

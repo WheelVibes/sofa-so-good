@@ -1,5 +1,5 @@
 import { ROOMS } from '../apartment/constants'
-import { type RoomShell, roomShell } from '../apartment/roomShell'
+import { type RoomShell, roomShell } from '../apartment/roomShellGeometry'
 import type { RoomId } from '../apartment/types'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { type PlanRoomShell, planRoomShell } from '../floorplan/planRoomShell'

@@ -90,6 +90,12 @@ WebGPU path tracing).
   render. Deferred as an analytics/deliverable, not core design UX.
 
 ## Open — core interactions
+- **Corner-spread wall fade for custom plans (`PlanShell`).** The angle-graded orbit wall fade
+  (WALL-REVEAL-ANGLE-GRADED) + corner spread (WALL-REVEAL-CORNER-SPREAD) landed in the default
+  flat (`WallSegment`) and the room editor (`useWallReveal`); `PlanShell`/`PlanDoorLeaf` share the
+  same graded curve but not the corner spread — `planGeometry.ts`'s `WallBox` carries no wall id,
+  so the per-frame own-strength registry can't be keyed there yet. Plumb the wall id through
+  `wallBoxes` and reuse `cornerNeighbors` + `setWallOwnStrength`/`getWallOwnStrength`.
 - **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
   would be a new interaction. Doors already animate (could ease the linear swing curve — low value).
 - **Live slide during drag** (optional, higher-risk) — item hugs walls/furniture in real time, not

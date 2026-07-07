@@ -1,9 +1,9 @@
-import { isFeatureEnabled } from '../features/featureFlags'
-import type { MaterialId } from '../materials/types'
-import { useStore } from '../state/store'
-import { RoomCeiling } from './ceiling/RoomCeiling'
-import { RoomCeilingTile } from './ceiling/RoomCeilingTile'
-import { ROOMS } from './constants'
+import { isFeatureEnabled } from '../../features/featureFlags'
+import type { MaterialId } from '../../materials/types'
+import { useStore } from '../../state/store'
+import { ROOMS } from '../constants'
+import { RoomCeiling } from './RoomCeiling'
+import { RoomCeilingTile } from './RoomCeilingTile'
 
 export function Ceiling() {
   // Adjustable global ceiling height; per-room overrides (e.g. dropped bathroom

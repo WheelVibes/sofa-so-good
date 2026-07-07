@@ -40,8 +40,9 @@ import {
   orientOutward,
   pointInRooms,
   type RoomRect,
+  revealTargetOpacity,
   WALL_TRANSLUCENT_MIN,
-  wallRevealFacing,
+  wallRevealStrength,
 } from './walls/wallRevealMath'
 
 // Window glass day/night tint — clear cool pane by day, dark reflective at night
@@ -58,15 +59,17 @@ const REVEAL_EMISSIVE = new Color('#eceae4')
  * One plan wall, fading out in orbit mode when it sits between the camera and
  * the plan centre (so the dollhouse view isn't blocked by near walls).
  */
-/** Camera-facing reveal factor (1 = opaque, ~0 = faded) for a wall/opening box.
- *  Per-wall and shape-independent: a wall fades when the camera sits on its
- *  OUTWARD side (between the camera and the rooms). "Outward" is found by probing
- *  which side of the box is a room (`isInterior`), so it's correct on
- *  non-rectangular plans (L/U/notched) where the bounding-box centre is an
- *  unreliable reference; it falls back to "away from the plan centre" only when
- *  the probe is ambiguous. `angle` is the box's Y-rotation; the box's broad faces
- *  (the wall surfaces) have the XZ normal (cos a, −sin a). */
-function revealFactor(
+/** Camera-facing ANGLE-GRADED fade strength (0 = opaque, 1 = peak fade) for a
+ *  wall/opening box (WALL-REVEAL-ANGLE-GRADED — shares the same graded curve as
+ *  `WallSegment`/`useWallReveal`, replacing the retired binary target). Per-wall
+ *  and shape-independent: a wall fades when the camera sits on its OUTWARD side
+ *  (between the camera and the rooms). "Outward" is found by probing which side
+ *  of the box is a room (`isInterior`), so it's correct on non-rectangular plans
+ *  (L/U/notched) where the bounding-box centre is an unreliable reference; it
+ *  falls back to "away from the plan centre" only when the probe is ambiguous.
+ *  `angle` is the box's Y-rotation; the box's broad faces (the wall surfaces)
+ *  have the XZ normal (cos a, −sin a). */
+function revealFadeStrength(
   fwdX: number,
   fwdZ: number,
   px: number,
@@ -100,7 +103,7 @@ function revealFactor(
     }
   }
   // Fade purely from the camera's look direction — independent of zoom / pan.
-  return wallRevealFacing(fwdX, fwdZ, nx, nz)
+  return wallRevealStrength(fwdX, fwdZ, nx, nz)
 }
 
 /** Interior room rectangles (+ L-extensions) for a level, for the point-in-room
@@ -143,7 +146,7 @@ function planWallRevealTarget(
   if (!(participates && cameraMode === 'orbit' && revealEnabled && revealMode !== 'opaque'))
     return 1
   const probe = box.thickness / 2 + 0.3
-  const f = revealFactor(
+  const s = revealFadeStrength(
     fwdX,
     fwdZ,
     box.cx,
@@ -155,7 +158,9 @@ function planWallRevealTarget(
     cz,
     !isExterior,
   )
-  return revealMode === 'auto-hide' ? f : Math.max(WALL_TRANSLUCENT_MIN, f)
+  // Graded target: settles anywhere between opaque and the mode's fade floor
+  // per the wall's facing angle (WALL-REVEAL-ANGLE-GRADED).
+  return revealTargetOpacity(s, revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN)
 }
 
 function FadeWall({
@@ -747,7 +752,7 @@ function FadeWindow({
       // Fade from the camera's look direction only (ORIENTATION-ONLY — zoom/pan
       // never change it), matching the host wall's own reveal.
       camera.getWorldDirection(FWD)
-      const f = revealFactor(
+      const s = revealFadeStrength(
         FWD.x,
         FWD.z,
         win.cx,
@@ -759,7 +764,7 @@ function FadeWindow({
         cz,
         !win.revealable,
       )
-      factor = revealMode === 'auto-hide' ? f : Math.max(WALL_TRANSLUCENT_MIN, f)
+      factor = revealTargetOpacity(s, revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN)
     }
     const target = base * factor
     mat.opacity += (target - mat.opacity) * 0.18
