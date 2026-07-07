@@ -18,6 +18,12 @@ const ROOM = 'livingDining'
 
 beforeEach(() => {
   useStore.getState().__resetForTest?.()
+  // The accent-walls section lives under the Walls surface. Force the legacy
+  // stacked layout (finishSurfaceTabs off) so it's visible without switching
+  // tabs; the tabbed placement is covered in FinishPicker.tabs.test.tsx.
+  useStore.setState({
+    featureFlags: { ...useStore.getState().featureFlags, finishSurfaceTabs: false },
+  })
   useStore.getState().selectRoom(ROOM)
 })
 

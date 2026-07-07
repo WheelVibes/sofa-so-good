@@ -50,6 +50,13 @@ function clickRecentColor(group: number) {
 
 beforeEach(() => {
   useStore.getState().__resetForTest?.()
+  // These tests assert the stacked layout (all three surface groups + their
+  // Recent-colour rows mount at once, indexed 0/1/2). Force the legacy stacked
+  // layout off the finishSurfaceTabs flag; the tab layout is covered separately
+  // in FinishPicker.tabs.test.tsx.
+  useStore.setState({
+    featureFlags: { ...useStore.getState().featureFlags, finishSurfaceTabs: false },
+  })
   useStore.getState().selectRoom(ROOM)
   useStore.getState().pushRecentColor(HEX)
 })

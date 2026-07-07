@@ -36,6 +36,12 @@ function setViewport(mobile: boolean) {
 
 beforeEach(() => {
   useStore.getState().__resetForTest?.()
+  // These tests assert the Ceiling section sits alongside Floor + Walls in the
+  // stacked layout. Force finishSurfaceTabs off so all three groups mount at
+  // once; the ceiling tab is covered in FinishPicker.tabs.test.tsx.
+  useStore.setState({
+    featureFlags: { ...useStore.getState().featureFlags, finishSurfaceTabs: false },
+  })
   useStore.getState().selectRoom(ROOM)
 })
 

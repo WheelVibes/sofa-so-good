@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.2.0 — Finishes panel: Floor / Walls / Ceiling tabs + flat section headers
+
+The per-room finishes panel now gives each surface its own tab (user request — the stacked
+FLOOR/WALLS/CEILING sections were hard to tell apart): a full-width `Floor | Walls | Ceiling`
+segmented tab row (role=tablist, Ceiling only under the `ceilingFinish` flag) shows one surface's
+swatches, apply-to-all, composer (+ accent walls under Walls, reset-to-white under Ceiling) at a
+time; the shared tools (copy finishes, room layout, Browse, Upload) stay below. Tab choice reuses
+the persisted `lastSurface` (now including 'ceiling'), keeping Browse's "apply to last surface"
+coherent. Gated by `finishSurfaceTabs` (simple tier, default on; off = the legacy stacked layout,
+byte-identical). Also, per the same user report, the sticky section headers' full-width "strip"
+backgrounds are flattened inside this panel (`.finish-picker .sec-h` — static/transparent/no
+hairline, base rule untouched + style-guarded). Includes a catalog-filter mobile scenario leg
+(`catalog-filter-mobile.json`: bottom-sheet, 32px card actions, filter sheet, narrowed grid) and
+the tabs ladder `finish-tabs-simple.json` — both visually verified on desktop + 390×844 mobile.
+
 ## v0.18.1.0 — Stable catalog order across downloads + catalog filters (STABLE-CATALOG-ORDER)
 
 Downloading a shared-library or CC0 card no longer teleports it to the front of its category:

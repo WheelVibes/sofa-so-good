@@ -99,7 +99,7 @@ export function CatalogFilterButton({
         onSelect={(v) => onChange({ ...filter, source: v })}
       />
       {favEnabled ? (
-        <label className="cat-fits-only" style={{ padding: '8px 9px' }}>
+        <label className="cat-fits-only" style={{ padding: 'var(--s-3)' }}>
           <input
             type="checkbox"
             checked={filter.favouritesOnly}

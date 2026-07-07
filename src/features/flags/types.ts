@@ -131,6 +131,7 @@ export type FeatureFlag =
   | 'itemOpacity'
   | 'ceilingFinish'
   | 'saveMaterials'
+  | 'finishSurfaceTabs'
   | 'masterPalette'
   | 'layerOrder'
   | 'contextMenu'

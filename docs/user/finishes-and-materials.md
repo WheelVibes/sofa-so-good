@@ -6,13 +6,15 @@
 2. The **finish picker** opens with the available finishes. Use the **search box**
    to filter by name, and the **Recently used** row to re‑apply a finish you just
    used (handy for the same floor across bedrooms).
-3. Pick one — it applies instantly to that surface (floors are per‑room).
+3. Choose the surface with the **Floor · Walls · Ceiling** tabs at the top of the
+   picker — each surface has its own tab so they never get muddled together.
+4. Pick a finish — it applies instantly to that surface (floors are per‑room).
    **Apply floor / walls to all rooms** repeats it everywhere in one click.
-4. Scroll down for the **Ceiling** section — paint a room's ceiling from the same
-   palette, **Apply ceiling to all rooms**, or **Reset ceiling to white** to go
-   back to the plain default.
-5. **Accent walls** — click any single wall in the 3D view to paint it a different
-   colour from the rest of the room. The room's finish picker lists its accent
+5. On the **Ceiling** tab, paint a room's ceiling from the same palette, **Apply
+   ceiling to all rooms**, or **Reset ceiling to white** to go back to the plain
+   default.
+6. **Accent walls** — click any single wall in the 3D view to paint it a different
+   colour from the rest of the room. The **Walls** tab lists this room's accent
    walls under **Accent walls**, where you can remove one (match it back to the
    room) at a tap.
 

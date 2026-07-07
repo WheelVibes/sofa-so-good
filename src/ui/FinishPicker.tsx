@@ -279,6 +279,10 @@ export function FinishPicker() {
   const fRemoteMaterials = useFeature('remoteMaterials')
   const fCeiling = useFeature('ceilingFinish')
   const fWallAccent = useFeature('wallAccentPicker')
+  // FINISH-SURFACE-TABS: split the stacked Floor/Walls/Ceiling groups into a
+  // segmented tab row so only the active surface's block shows. Off → the
+  // legacy stacked layout (byte-identical).
+  const fSurfaceTabs = useFeature('finishSurfaceTabs')
   const fDesignerPicks = useFeature('designerPicks')
   const fComposer = useFeature('materialComposer')
   const fSaveMaterials = useFeature('saveMaterials')
@@ -317,7 +321,12 @@ export function FinishPicker() {
   // pre-filtered to it (and resolving applies to it).
   const [lastSurface, setLastSurfaceState] = useState<Surface>(() => {
     try {
-      return localStorage.getItem(LAST_SURFACE_KEY) === 'wall' ? 'wall' : 'floor'
+      const stored = localStorage.getItem(LAST_SURFACE_KEY)
+      if (stored === 'wall') return 'wall'
+      // 'ceiling' is only a valid tab/surface when the ceilingFinish flag is on;
+      // otherwise fall back to floor (the ceiling tab won't render).
+      if (stored === 'ceiling' && fCeiling) return 'ceiling'
+      return 'floor'
     } catch {
       return 'floor'
     }
@@ -414,8 +423,13 @@ export function FinishPicker() {
     setView('swatch')
   }
 
+  // Active surface tab (FINISH-SURFACE-TABS). The Ceiling tab only exists when
+  // the ceilingFinish flag is on, so a stale 'ceiling' selection falls back to
+  // floor rather than showing an empty tab.
+  const activeTab: Surface = lastSurface === 'ceiling' && !fCeiling ? 'floor' : lastSurface
+
   return (
-    <aside className="panel inspector dock-panel">
+    <aside className="panel inspector dock-panel finish-picker">
       <div className="panel-head">
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)', minWidth: 0 }}>
           {view === 'browse' && (
@@ -466,82 +480,123 @@ export function FinishPicker() {
               <MasterPaletteEditor roomId={roomId} />
             </div>
           </Disclosure>
-          <SwatchGroup
-            label="Floor"
-            items={filterFinishes(groups.floor, finishQuery)}
-            active={activeFloor}
-            onSelect={(id) => handleSelect('floor', id)}
-            onRemoveUser={removeUserOrSaved}
-            savedIds={savedIds}
-            onRename={renameUserOrSaved}
-            onCustom={(hex) => handleCustomColor('floor', hex)}
-            recent={recentColors}
-            recentFinishIds={recentFinishes}
-            curated={fDesignerPicks ? resolveDesignerPicks('floor', materials) : undefined}
-          />
-          <button
-            type="button"
-            className="finish-apply-all"
-            onClick={() => {
-              setAllFloorFinish(activeFloor)
-              useStore
-                .getState()
-                .notify.start({ title: 'Floor finish applied to every room', kind: 'success' })
-            }}
-            title="Use this floor finish in every room"
-          >
-            Apply floor to all rooms
-          </button>
-          {fComposer ? (
-            <MaterialComposer
-              label="Floor"
-              active={activeFloor ?? ''}
-              materials={groups.floor}
-              onApply={(id) => handleSelect('floor', id)}
-              onSave={fSaveMaterials ? handleSaveMaterial('floor') : undefined}
-              savedNameOf={savedNameFor}
-            />
+          {fSurfaceTabs ? (
+            <div className="seg finish-surface-tabs" role="tablist" aria-label="Finish surface">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'floor'}
+                className={activeTab === 'floor' ? 'on' : ''}
+                onClick={() => setLastSurface('floor')}
+              >
+                Floor
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'wall'}
+                className={activeTab === 'wall' ? 'on' : ''}
+                onClick={() => setLastSurface('wall')}
+              >
+                Walls
+              </button>
+              {fCeiling ? (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'ceiling'}
+                  className={activeTab === 'ceiling' ? 'on' : ''}
+                  onClick={() => setLastSurface('ceiling')}
+                >
+                  Ceiling
+                </button>
+              ) : null}
+            </div>
           ) : null}
-          <SwatchGroup
-            label="Walls"
-            items={filterFinishes(groups.wall, finishQuery)}
-            active={activeWall}
-            onSelect={(id) => handleSelect('wall', id)}
-            onRemoveUser={removeUserOrSaved}
-            savedIds={savedIds}
-            onRename={renameUserOrSaved}
-            onCustom={(hex) => handleCustomColor('wall', hex)}
-            recent={recentColors}
-            recentFinishIds={recentFinishes}
-            curated={fDesignerPicks ? resolveDesignerPicks('wall', materials) : undefined}
-          />
-          <button
-            type="button"
-            className="finish-apply-all"
-            onClick={() => {
-              setAllWallFinish(activeWall)
-              useStore
-                .getState()
-                .notify.start({ title: 'Wall finish applied to every room', kind: 'success' })
-            }}
-            title="Use this wall finish in every room"
-          >
-            Apply walls to all rooms
-          </button>
-          {fComposer ? (
-            <MaterialComposer
-              label="Walls"
-              active={activeWall ?? ''}
-              materials={groups.wall}
-              onApply={(id) => handleSelect('wall', id)}
-              onSave={fSaveMaterials ? handleSaveMaterial('wall') : undefined}
-              savedNameOf={savedNameFor}
-            />
-          ) : null}
+          {(!fSurfaceTabs || activeTab === 'floor') && (
+            <>
+              <SwatchGroup
+                label="Floor"
+                items={filterFinishes(groups.floor, finishQuery)}
+                active={activeFloor}
+                onSelect={(id) => handleSelect('floor', id)}
+                onRemoveUser={removeUserOrSaved}
+                savedIds={savedIds}
+                onRename={renameUserOrSaved}
+                onCustom={(hex) => handleCustomColor('floor', hex)}
+                recent={recentColors}
+                recentFinishIds={recentFinishes}
+                curated={fDesignerPicks ? resolveDesignerPicks('floor', materials) : undefined}
+              />
+              <button
+                type="button"
+                className="finish-apply-all"
+                onClick={() => {
+                  setAllFloorFinish(activeFloor)
+                  useStore
+                    .getState()
+                    .notify.start({ title: 'Floor finish applied to every room', kind: 'success' })
+                }}
+                title="Use this floor finish in every room"
+              >
+                Apply floor to all rooms
+              </button>
+              {fComposer ? (
+                <MaterialComposer
+                  label="Floor"
+                  active={activeFloor ?? ''}
+                  materials={groups.floor}
+                  onApply={(id) => handleSelect('floor', id)}
+                  onSave={fSaveMaterials ? handleSaveMaterial('floor') : undefined}
+                  savedNameOf={savedNameFor}
+                />
+              ) : null}
+            </>
+          )}
+          {(!fSurfaceTabs || activeTab === 'wall') && (
+            <>
+              <SwatchGroup
+                label="Walls"
+                items={filterFinishes(groups.wall, finishQuery)}
+                active={activeWall}
+                onSelect={(id) => handleSelect('wall', id)}
+                onRemoveUser={removeUserOrSaved}
+                savedIds={savedIds}
+                onRename={renameUserOrSaved}
+                onCustom={(hex) => handleCustomColor('wall', hex)}
+                recent={recentColors}
+                recentFinishIds={recentFinishes}
+                curated={fDesignerPicks ? resolveDesignerPicks('wall', materials) : undefined}
+              />
+              <button
+                type="button"
+                className="finish-apply-all"
+                onClick={() => {
+                  setAllWallFinish(activeWall)
+                  useStore
+                    .getState()
+                    .notify.start({ title: 'Wall finish applied to every room', kind: 'success' })
+                }}
+                title="Use this wall finish in every room"
+              >
+                Apply walls to all rooms
+              </button>
+              {fComposer ? (
+                <MaterialComposer
+                  label="Walls"
+                  active={activeWall ?? ''}
+                  materials={groups.wall}
+                  onApply={(id) => handleSelect('wall', id)}
+                  onSave={fSaveMaterials ? handleSaveMaterial('wall') : undefined}
+                  savedNameOf={savedNameFor}
+                />
+              ) : null}
+            </>
+          )}
           {/* Ceiling paints from the wall (paint/plaster) pool — a ceiling is
               painted like a wall. Default is plain white (no finish), so a
               "Reset to white" clears back to it. Gated by the ceilingFinish flag. */}
-          {fCeiling ? (
+          {fCeiling && (!fSurfaceTabs || activeTab === 'ceiling') ? (
             <>
               <SwatchGroup
                 label="Ceiling"
@@ -599,7 +654,7 @@ export function FinishPicker() {
               accents in one place. Creating one stays a 3D wall tap (opens the
               WallAccentPicker) — the wall→room mapping differs by plan type, so
               we don't re-enumerate it here; this is the management/discovery view. */}
-          {fWallAccent
+          {fWallAccent && (!fSurfaceTabs || activeTab === 'wall')
             ? (() => {
                 const accents = Object.entries(finishes.wallAccents).filter(
                   ([k]) => k.slice(k.lastIndexOf(':') + 1) === roomId,

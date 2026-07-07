@@ -1,0 +1,51 @@
+{
+  "name": "catalog-filter-mobile",
+  "url": "http://localhost:5224/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "seed-remote-cc0",
+      "eval": "window.__store.setState((s)=>({ remoteIndexes: { ...s.remoteIndexes, polyhaven: { status: 'ready', entries: [{ provider: 'polyhaven', slug: 'cozy_sofa', kind: 'furniture', name: 'Cozy Sofa', category: 'seating', thumbUrl: '', resolutions: ['2k'], attribution: 'Poly Haven', sourceUrl: 'https://polyhaven.com/a/cozy_sofa' }] } } }))"
+    },
+    {
+      "name": "body-is-mobile",
+      "waitFor": { "store": "document.body.classList.contains('mobile')" },
+      "timeout": 5000,
+      "failMessage": "body.mobile class not set at 390px viewport"
+    },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-editor-active", "waitFor": { "store": "state.roomEditor.active === true" } },
+    { "name": "wait-room-load", "wait": 2000 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-visible", "waitFor": { "css": ".panel.catalog" }, "timeout": 20000 },
+    { "name": "wait-grid", "wait": 800 },
+    { "name": "shot-mobile-catalog", "screenshot": "mobile-catalog-sheet" },
+    {
+      "name": "card-acts-32px",
+      "eval": "(()=>{ const b = document.querySelector('.card-acts .fav-btn'); if (!b) throw new Error('no .card-acts fav button'); const w = b.getBoundingClientRect().width; if (Math.round(w) !== 32) throw new Error('mobile fav size expected 32, got ' + w) })()"
+    },
+    { "name": "open-filter", "click": "button[aria-label=\"Filter catalog\"]" },
+    { "name": "filter-sheet-open", "waitFor": { "text": "Favourites only" }, "timeout": 8000 },
+    { "name": "shot-mobile-filter", "screenshot": "mobile-filter-sheet" },
+    {
+      "name": "pick-not-downloaded",
+      "eval": "[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Not downloaded').click()"
+    },
+    {
+      "name": "grid-narrowed",
+      "waitFor": { "store": "document.querySelectorAll('.card-grid .cat-card').length >= 1 && [...document.querySelectorAll('.card-grid .cat-card')].every((c) => c.textContent.includes('CC0') || c.textContent.includes('tap to add'))" },
+      "timeout": 8000
+    },
+    { "name": "shot-mobile-narrowed", "screenshot": "mobile-filter-narrowed" }
+  ]
+}
