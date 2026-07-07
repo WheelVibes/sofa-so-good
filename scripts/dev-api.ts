@@ -240,7 +240,7 @@ server.listen(PORT, () => {
   console.log(`[dev-api] worker on http://localhost:${PORT}  (D1 -> ${dbPath})`)
   console.log(
     seeded
-      ? `[dev-api] admin seed: ${env.ADMIN_EMAIL} (set in .dev.vars)`
+      ? '[dev-api] admin seed: credentials loaded from .dev.vars'
       : '[dev-api] no ADMIN_EMAIL/ADMIN_PASSWORD in .dev.vars — login will have no accounts',
   )
   const libIndex = join(libraryDir, 'library-index.json')
