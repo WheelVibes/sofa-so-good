@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sofa So Good</string>
+    <string name="title_activity_main">Sofa So Good</string>
+    <string name="package_name">sg.sofasogood.app</string>
+    <string name="custom_url_scheme">sg.sofasogood.app</string>
+</resources>

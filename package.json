@@ -1,7 +1,7 @@
 {
   "name": "sofa-so-good",
   "private": true,
-  "version": "0.17.0",
+  "version": "0.17.1",
   "type": "module",
   "main": "electron/main.mjs",
   "engines": {
@@ -43,7 +43,10 @@
     "build:all": "node scripts/build-with-guide.mjs",
     "build:desktop": "node scripts/build-desktop.mjs",
     "electron:start": "npm run build:desktop && electron .",
-    "dist:desktop": "npm run build:desktop && electron-builder --publish never"
+    "dist:desktop": "npm run build:desktop && electron-builder --publish never",
+    "android:add": "cap add android",
+    "build:mobile": "node scripts/build-mobile.mjs",
+    "cap:sync": "cap sync android"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.2.8",
@@ -68,6 +71,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
     "@cloudflare/workers-types": "^4.20260702.1",
     "@gltf-transform/core": "^4.3.0",
     "@gltf-transform/extensions": "^4.3.0",
