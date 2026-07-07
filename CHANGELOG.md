@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.13 — orbit walls settle crisp too (binary reveal target)
+
+Ported the v0.16.1.12 binary-reveal-target fix to the main orbit scene's
+`WallSegment`, which still used the raw `wallRevealFacing` smoothstep opacity as
+its fade target — so a wall viewed at a grazing angle could rest at a washed
+mid-band opacity (the same defect just fixed in the room editor; less obvious in
+orbit because the sky backdrop + constant camera motion mask it, but present in
+principle). The orbit reveal target is now binary — fully faded or fully opaque,
+with the same 0.35/0.65 hysteresis dead-band — so walls always SETTLE crisp while
+the smooth lerp still animates the transition as you orbit. Also folded in the
+demand-mode `RenderPump` keep-alive (register an animated source while lerping, so
+a binary transition can't starve part-way when the camera stops) and the
+exact-endpoint snap. Orbit's reveal-through-tint emissive lift is kept (its sky
+backdrop legitimately needs it, unlike the editor's flat backdrop). Behaviour note:
+orbit walls now do a quick full fade/solidify as they cross the threshold rather
+than gradually tracking the smoothstep — consistent with the room editor.
+
 ## v0.16.1.12 — room-editor walls settle crisp, never washed (binary reveal target)
 
 Fixed the persistent "washed / half-translucent back wall" in the per-room editor.

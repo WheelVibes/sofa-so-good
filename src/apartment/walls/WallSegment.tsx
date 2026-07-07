@@ -17,6 +17,7 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { registerAnimatedSource } from '../../scene/animatedSources'
 import { WallFloorAO } from '../../scene/CornerAO'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
@@ -300,6 +301,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // decrease but the render doesn't update" bug. We flip needsUpdate only on the
   // transition (not every frame) to avoid needless shader recompiles.
   const transparentRef = useRef(false)
+  // Hysteresis latch for the binary fade decision + the RenderPump keep-alive
+  // handle held while the fade lerps (both mirror the room-editor `useWallReveal`).
+  const wasFadedRef = useRef(false)
+  const pumpReleaseRef = useRef<null | (() => void)>(null)
 
   // Outward (away-from-interior) horizontal normal + midpoint of this wall, used
   // to fade the wall when the camera sits on its outward side (between the camera
@@ -353,14 +358,41 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         nx = -nx
         nz = -nz
       }
-      const faded = wallRevealFacing(FWD.x, FWD.z, nx, nz)
+      const facing = wallRevealFacing(FWD.x, FWD.z, nx, nz)
+      // BINARY target with hysteresis (WALL-REVEAL-BINARY-TARGET, matching the room
+      // editor's `useWallReveal`). `wallRevealFacing` is a smoothstep, so a wall
+      // viewed at a grazing/oblique angle would otherwise REST at a mid-band opacity
+      // (~0.6–0.8) that reads as a washed half-translucent pane. The lerp below still
+      // animates the transition, so a wall fades/solidifies smoothly as you orbit,
+      // but always SETTLES crisp — either the translucent floor or fully opaque.
+      // Hysteresis (fade below 0.35 facing, restore above 0.65) is a dead-band so a
+      // wall hovering near the threshold can't flip-flop.
+      const shouldFade = wasFadedRef.current ? facing < 0.65 : facing < 0.35
+      wasFadedRef.current = shouldFade
       // translucent: walls never fully disappear (strongly see-through floor).
       // auto-hide: walls can fully disappear (current legacy behaviour).
-      target = revealMode === 'auto-hide' ? faded : Math.max(WALL_TRANSLUCENT_MIN, faded)
+      target = shouldFade ? (revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN) : 1
+    } else {
+      wasFadedRef.current = false
+    }
+    // Keep the demand-mode RenderPump rendering while the fade lerps toward its
+    // (crisp) target — register an animated source, release when settled. A binary
+    // target can sit far from the current opacity when a swivel STOPS, and orbit's
+    // old invalidate()+camera-motion path alone can't guarantee the transition
+    // finishes (the ~300ms settle tail may run out), which would strand a wall at a
+    // washed mid opacity — the same starvation the editor hit. Mirrors useWallReveal.
+    const settling = Math.abs(target - opacityRef.current) > 0.005
+    if (settling && !pumpReleaseRef.current) pumpReleaseRef.current = registerAnimatedSource()
+    else if (!settling && pumpReleaseRef.current) {
+      pumpReleaseRef.current()
+      pumpReleaseRef.current = null
     }
     // Settled and fully opaque: nothing to do (the common case).
     if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return
-    const cur = opacityRef.current + (target - opacityRef.current) * 0.18
+    // Snap onto the target within the settle threshold so a wall lands on an EXACT
+    // endpoint (1 / the floor) instead of parking asymptotically short.
+    let cur = opacityRef.current + (target - opacityRef.current) * 0.18
+    if (Math.abs(cur - target) <= 0.005) cur = target
     opacityRef.current = cur
     // The canvas is frameloop="demand": once the camera stops, the loop halts —
     // which would freeze this opacity lerp mid-fade (walls stuck part-faded).
@@ -474,6 +506,15 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     [wall, wallTop, length, startAbut, endAbut, thickness, startSlope, endSlope],
   )
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
+  // Release the RenderPump keep-alive on unmount so a wall mid-fade when it
+  // unmounts (e.g. entering the room editor) doesn't leak a continuous-render hold.
+  useEffect(
+    () => () => {
+      pumpReleaseRef.current?.()
+      pumpReleaseRef.current = null
+    },
+    [],
+  )
 
   // Subdivide each render segment further by room boundary projections
   // so a wall like wall-int-mid-S (which spans bath2/SY/HS on its north
