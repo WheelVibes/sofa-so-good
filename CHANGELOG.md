@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.2 — Desktop installers also build (artifact-only) on push to main
+
+`release.yml` gains `main` in its push trigger: merges now produce Win/mac/Linux installers as
+run artifacts — the per-merge test-build channel, mirroring the Android debug-APK workflow. The
+`v*`-tag path is unchanged and remains the only one that PUBLISHES to a GitHub Release (the
+existing `--publish never` conditional already made non-tag runs artifact-only, so this is a
+trigger-only change). ARCHITECTURE.md updated.
+
 ## v0.18.3.1 — Android APK workflow: build on every push to main
 
 `.github/workflows/android-apk.yml` now triggers only on `push` to `main` (was: manual

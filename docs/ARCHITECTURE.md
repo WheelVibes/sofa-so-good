@@ -77,7 +77,9 @@ same change that reshapes a system.
   (generated in `build:desktop`, gitignored). In the shell, "Check for updates" queries GitHub
   releases (`src/desktop/updateCheck.ts`, `app:` protocol detection) instead of the SW flow.
   `.github/workflows/release.yml` packages Win/mac/Linux on `v*` tags (publishes to the
-  release) or manual dispatch; signing/notarization activate via secrets (`MAC_CSC_LINK` +
+  release) and, artifact-only (no publish), on every push to `main` + manual dispatch — the
+  per-merge test-build channel, like the Android debug-APK workflow (`android-apk.yml`, also
+  push-to-main); signing/notarization activate via secrets (`MAC_CSC_LINK` +
   password, `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`, `WIN_CSC_LINK` +
   password) with hardened runtime + `electron/entitlements.mac.plist`; secretless builds are
   unsigned. Node pinned at **24.18.0** (`.nvmrc`, CI, `engines`).
