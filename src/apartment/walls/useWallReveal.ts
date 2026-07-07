@@ -56,22 +56,36 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
   // is lerping (see the note at the settling check below). Released the instant
   // the fade settles, and on unmount.
   const pumpReleaseRef = useRef<null | (() => void)>(null)
+  // Hysteresis latch for the binary fade decision (see the target block below).
+  const wasFadedRef = useRef(false)
+  // Per-mesh fade bookkeeping (captured opaque original + its faded clone), keyed
+  // by the mesh itself. MUST live here, NOT in `mesh.userData`
+  // (WALL-REVEAL-STATE-OFF-USERDATA): `RoomShell`/`PlanRoomShell` pass a FRESH
+  // `userData` object (`finishSurfaceUserData(...)`) and a fresh `material` array on
+  // every render, so R3F reconciliation wipes any `userData` we stash — which
+  // previously desynced the clone tracking mid-fade and stranded a wall at a
+  // half-faded opacity (the "washed back wall" that never recovered, since the hook
+  // then re-captured a stale clone as the "original" and restored TO it). A
+  // hook-owned WeakMap is immune to prop reconciliation; entries GC with the mesh.
+  const fadeStateRef = useRef(
+    new WeakMap<Object3D, { orig: Material | Material[]; clone: Material | Material[] }>(),
+  )
 
   // Clear any stale opacity this wall id carried over from the main orbit scene
   // when the editor opens; restore originals + dispose clones on unmount.
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on wallId; objRef is a stable ref.
   useEffect(() => {
     setWallOpacity(wallId, 1)
+    const fadeState = fadeStateRef.current
     return () => {
       const root = objRef.current
       root?.traverse((o) => {
         const m = o as Mesh
         if (!m.isMesh) return
-        const orig = m.userData.__revealOrig as Material | Material[] | undefined
-        if (orig) {
-          m.material = orig
-          m.userData.__revealOrig = undefined
-          m.userData.__revealMat = undefined
+        const entry = fadeState.get(o)
+        if (entry) {
+          m.material = entry.orig
+          fadeState.delete(o)
         }
       })
       for (const c of clonesRef.current) c.dispose()
@@ -97,20 +111,33 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
       // only (camera look direction), so zoom/pan never change the fade; swivelling
       // flips which walls are "near", so the faded pair follows the camera.
       state.camera.getWorldDirection(FWD)
-      const faded = wallRevealFacing(FWD.x, FWD.z, nx, nz)
+      const facing = wallRevealFacing(FWD.x, FWD.z, nx, nz)
+      // BINARY target with hysteresis (WALL-REVEAL-BINARY-TARGET). `wallRevealFacing`
+      // is a smoothstep, so a wall viewed at a grazing/oblique angle would otherwise
+      // REST at a mid-band opacity (~0.6–0.8) — which renders as a permanently
+      // "washed"/half-translucent pane in the editor (the field bug: a wall settles
+      // at its true 0.79 target and just looks broken). The dollhouse wants each wall
+      // either clearly see-through OR solid, never parked half-way. So the TARGET is
+      // binary — the smooth `LERP` below still animates the transition, so a wall
+      // fades/solidifies smoothly as you swivel, but always SETTLES crisp. Hysteresis
+      // (start fading below 0.35, stop fading above 0.65) gives a dead-band so a wall
+      // hovering near the threshold can't flip-flop.
+      const shouldFade = wasFadedRef.current ? facing < 0.65 : facing < 0.35
+      wasFadedRef.current = shouldFade
       // translucent: never fully disappear (strongly see-through floor);
       // auto-hide: can vanish.
-      target = revealMode === 'auto-hide' ? faded : Math.max(WALL_TRANSLUCENT_MIN, faded)
+      target = shouldFade ? (revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN) : 1
+    } else {
+      wasFadedRef.current = false
     }
-    // Keep the demand-mode RenderPump rendering WHILE the fade is lerping. This
-    // Canvas is `frameloop="demand"` and gates rendering through RenderPump, which
-    // only stays continuous while an animated source is registered — R3F's native
-    // `invalidate()` (called below) does NOT sustain it. Without this the fade
-    // starved after the ~300ms settle tail on a static camera (entering the editor),
-    // freezing a front wall PART-WAY (~0.6–0.84) as a washed, emissive-lifted
-    // translucent pane instead of reaching its target — the "super-white slightly
-    // translucent wall" bug. Registered exactly like a spinning fan / placement drop
-    // and released the instant it settles (and on unmount).
+    // Keep the demand-mode RenderPump rendering WHILE the fade is lerping toward its
+    // (now always-crisp) target. This Canvas is `frameloop="demand"` and gates
+    // rendering through RenderPump, which stays continuous only while an animated
+    // source is registered — R3F's native `invalidate()` (below) does NOT sustain it.
+    // Without this the fade starved after the ~300ms settle tail on a static camera
+    // and froze part-way. Registered like a spinning fan / placement drop, released
+    // the instant it settles. (The target is binary now, so "settled" is always a
+    // crisp endpoint — no mid-band parking to guard against.)
     const settling = Math.abs(target - opacityRef.current) > 0.005
     if (settling && !pumpReleaseRef.current) pumpReleaseRef.current = registerAnimatedSource()
     else if (!settling && pumpReleaseRef.current) {
@@ -125,7 +152,11 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     ) {
       return
     }
-    const cur = opacityRef.current + (target - opacityRef.current) * LERP
+    // Snap onto the target once within the settle threshold so a wall lands on
+    // EXACT endpoints (1 / the floor) instead of parking asymptotically short
+    // (0.996 / 0.103 — harmless but noisy in every field probe).
+    let cur = opacityRef.current + (target - opacityRef.current) * LERP
+    if (Math.abs(cur - target) <= 0.005) cur = target
     opacityRef.current = cur
     if (Math.abs(cur - target) > 0.005) state.invalidate()
     setWallOpacity(wallId, cur)
@@ -138,15 +169,18 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
       const m = o as Mesh
       if (!m.isMesh || !m.material) return
       if (transparent) {
-        let clone = m.userData.__revealMat as Material | Material[] | undefined
-        if (!clone) {
+        let entry = fadeStateRef.current.get(m)
+        if (!entry) {
           const orig = m.material
-          m.userData.__revealOrig = orig
-          clone = Array.isArray(orig) ? orig.map((mm) => mm.clone()) : orig.clone()
-          m.userData.__revealMat = clone
+          const clone = Array.isArray(orig) ? orig.map((mm) => mm.clone()) : orig.clone()
+          entry = { orig, clone }
+          fadeStateRef.current.set(m, entry)
           for (const c of Array.isArray(clone) ? clone : [clone]) clonesRef.current.push(c)
         }
-        // Re-assert against a React re-render that would reset mesh.material.
+        const clone = entry.clone
+        // Re-assert against a React re-render that would reset mesh.material back to
+        // the (opaque) original array/instance — the WeakMap entry survives the
+        // re-render, so this always restores THIS wall's faded clone.
         if (m.material !== clone) m.material = clone
         for (const c of Array.isArray(clone) ? clone : [clone]) {
           const cm = c as MeshStandardMaterial
@@ -180,8 +214,8 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
           if (changed) cm.needsUpdate = true
         }
       } else {
-        const orig = m.userData.__revealOrig as Material | Material[] | undefined
-        if (orig && m.material !== orig) m.material = orig
+        const entry = fadeStateRef.current.get(m)
+        if (entry && m.material !== entry.orig) m.material = entry.orig
       }
     })
   })

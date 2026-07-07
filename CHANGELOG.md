@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.12 — room-editor walls settle crisp, never washed (binary reveal target)
+
+Fixed the persistent "washed / half-translucent back wall" in the per-room editor.
+Root cause: `useWallReveal` used the `wallRevealFacing` smoothstep opacity directly
+as its fade **target**, so a wall viewed at a grazing/oblique angle *settled* at a
+mid-band opacity (~0.6–0.8) — which reads as a permanently washed pane over the
+editor's pale backdrop. It only looked like a fade/timing bug (it survived across
+Chrome + mobile Safari, both quality tiers, day-only); a same-frame probe of the
+hook state vs the live mesh material proved the wall was correctly parked at its
+true mid-band target, not frozen.
+
+Fix: the editor reveal target is now **binary** — a wall is either fully see-through
+(the translucent floor) or fully opaque, with hysteresis (start fading below 0.35
+facing, stop above 0.65) so a wall near the boundary can't flip-flop. The existing
+smooth lerp still animates the transition as you swivel, so walls fade/solidify
+smoothly but always SETTLE crisp, on every tier and GPU. Also folded in from the
+investigation: the fade now keeps the demand-mode `RenderPump` alive while lerping
+(registers an animated source, so a static-camera transition can't starve part-way),
+snaps onto exact endpoints, and holds its per-mesh clone bookkeeping in a hook-owned
+`WeakMap` instead of `mesh.userData` (which the wall component overwrites each render).
+Adds dev-only `window.__wallDiag()` / `__wallOpacities()` / `__animatedSourceCount()`
+console probes for future reveal debugging (tree-shaken from prod).
+
 ## v0.16.1.11 — fix room-editor mitre gaps (reference the centre-line corner, not the endpoint)
 
 The v0.16.1.10 mitre left triangular gaps at every corner in the **room editor**
