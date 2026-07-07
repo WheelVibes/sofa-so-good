@@ -199,23 +199,59 @@ export function CatalogCard({
       className={`cat-card group liftable${wontFit ? ' no-fit' : ''}`}
       style={staggerIndex != null ? ({ '--i': staggerIndex } as CSSProperties) : undefined}
     >
-      {favOn ? (
-        <button
-          type="button"
-          className={`fav-btn${saved ? ' on' : ''}`}
-          aria-label={saved ? 'Remove from favourites' : 'Add to favourites'}
-          aria-pressed={saved}
-          onClick={(e) => {
-            e.stopPropagation()
-            toggleFavourite(def.id)
-          }}
-        >
-          {saved ? (
-            <Icon.HeartFilled width={14} height={14} />
-          ) : (
-            <Icon.Heart width={14} height={14} />
-          )}
-        </button>
+      {/* Corner action stack (top-right): ♥ favourite, then ↻ refresh, then ×
+          remove — all sharing the favourite size so they never overlap. Scoped
+          to `.card-acts` so the global `.coll-x`/`.coll-refresh` sizing used by
+          finish tiles / collections stays untouched. */}
+      {favOn || onRefresh || ((isUser || isIkea) && onDelete) ? (
+        <div className="card-acts">
+          {favOn ? (
+            <button
+              type="button"
+              className={`fav-btn${saved ? ' on' : ''}`}
+              aria-label={saved ? 'Remove from favourites' : 'Add to favourites'}
+              aria-pressed={saved}
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleFavourite(def.id)
+              }}
+            >
+              {saved ? (
+                <Icon.HeartFilled width={14} height={14} />
+              ) : (
+                <Icon.Heart width={14} height={14} />
+              )}
+            </button>
+          ) : null}
+          {onRefresh ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onRefresh()
+              }}
+              className="coll-refresh"
+              aria-label="Re-download asset from library"
+              aria-busy={refreshing || undefined}
+              disabled={refreshing}
+            >
+              <Icon.Refresh width={14} height={14} />
+            </button>
+          ) : null}
+          {(isUser || isIkea) && onDelete ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              className="coll-x"
+              aria-label={isIkea ? 'Remove downloaded asset' : 'Remove uploaded asset'}
+            >
+              <Icon.Close width={14} height={14} />
+            </button>
+          ) : null}
+        </div>
       ) : null}
       <div className={`card-thumb${isIkea ? ' photo' : ''}`}>
         {isIkea ? <CatalogSourcePill label="IKEA" /> : null}
@@ -249,34 +285,6 @@ export function CatalogCard({
         <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>
           Uploaded
         </span>
-      ) : null}
-      {(isUser || isIkea) && onDelete ? (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          className="coll-x"
-          aria-label={isIkea ? 'Remove downloaded asset' : 'Remove uploaded asset'}
-        >
-          <Icon.Close width={12} height={12} />
-        </button>
-      ) : null}
-      {onRefresh ? (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onRefresh()
-          }}
-          className="coll-refresh"
-          aria-label="Re-download asset from library"
-          aria-busy={refreshing || undefined}
-          disabled={refreshing}
-        >
-          <Icon.Refresh width={12} height={12} />
-        </button>
       ) : null}
     </div>
   )

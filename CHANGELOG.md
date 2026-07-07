@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.0.1 — Catalog cards: ♥ / ↻ / × action stack (no more hidden buttons)
+
+On imported IKEA/shared catalog cards the corner buttons overlapped — the favourite ♥
+(24/32px) sat on top of the smaller remove × and refresh ↻ (user screenshot: the ↻ half-hidden
+behind the ♥). New `.card-acts` wrapper: a vertical column in the card's top-right, ♥ → ↻ → ×,
+all three at the favourite's size (24px desktop / 32px mobile), icons bumped to match. The whole
+stack reveals on hover/focus-within (desktop), stays visible on touch, and stays visible at rest
+when favourited. Scoped to catalog cards — the global `.coll-x`/`.coll-refresh` geometry used by
+finish tiles/collections is untouched. RemoteCard/SharedCard (♥ only, incl. the Poly Haven
+finishes Browse cards via RemoteCard) had no overlap and keep their behaviour.
+
 ## v0.18.0.0 — Recolour any finish: colour, texture and material fully decoupled (FINISH-RECOLOR)
 
 Custom colours no longer flatten a textured finish to plaster paint — colour, texture/pattern,
