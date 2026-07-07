@@ -517,6 +517,7 @@ export function FinishPicker() {
             <>
               <SwatchGroup
                 label="Floor"
+                hideLabel={fSurfaceTabs}
                 items={filterFinishes(groups.floor, finishQuery)}
                 active={activeFloor}
                 onSelect={(id) => handleSelect('floor', id)}
@@ -557,6 +558,7 @@ export function FinishPicker() {
             <>
               <SwatchGroup
                 label="Walls"
+                hideLabel={fSurfaceTabs}
                 items={filterFinishes(groups.wall, finishQuery)}
                 active={activeWall}
                 onSelect={(id) => handleSelect('wall', id)}
@@ -600,6 +602,7 @@ export function FinishPicker() {
             <>
               <SwatchGroup
                 label="Ceiling"
+                hideLabel={fSurfaceTabs}
                 items={filterFinishes(groups.wall, finishQuery)}
                 active={activeCeiling ?? ''}
                 onSelect={(id) => handleSelect('ceiling', id)}

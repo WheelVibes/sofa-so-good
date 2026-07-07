@@ -99,15 +99,18 @@ export function CatalogFilterButton({
         onSelect={(v) => onChange({ ...filter, source: v })}
       />
       {favEnabled ? (
-        <label className="cat-fits-only" style={{ padding: 'var(--s-3)' }}>
-          <input
-            type="checkbox"
-            checked={filter.favouritesOnly}
-            aria-label="Show only favourited items"
-            onChange={(e) => onChange({ ...filter, favouritesOnly: e.target.checked })}
-          />
+        // Same .menu-item row + trailing check as the radio groups above, so
+        // the toggle reads consistently (no native checkbox — theme-safe).
+        <button
+          type="button"
+          role="menuitemcheckbox"
+          aria-checked={filter.favouritesOnly}
+          className={`menu-item${filter.favouritesOnly ? ' selected' : ''}`}
+          onClick={() => onChange({ ...filter, favouritesOnly: !filter.favouritesOnly })}
+        >
           <span>Favourites only</span>
-        </label>
+          {filter.favouritesOnly ? <Icon.Check width={15} height={15} className="icn" /> : null}
+        </button>
       ) : null}
       {active ? (
         <button

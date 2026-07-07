@@ -40,6 +40,10 @@ interface SwatchGroupProps {
   recentFinishIds?: string[]
   /** Curated "designer picks" for this surface (already resolved to real defs). */
   curated?: MaterialDef[]
+  /** Hide the group's own "Floor"/"Walls"/"Ceiling" header row — the surface
+   *  tabs (finishSurfaceTabs) already name the active surface, so the header
+   *  would be a duplicate. `label` still feeds every aria-label. */
+  hideLabel?: boolean
 }
 
 /** A compact one-tap row of curated "designer picks" for a surface, shown above
@@ -231,6 +235,7 @@ export function SwatchGroup({
   recent,
   recentFinishIds,
   curated,
+  hideLabel,
 }: SwatchGroupProps) {
   const customActive = typeof active === 'string' && active.startsWith('#')
   // FINISH-RECOLOR: a tinted active finish highlights its BASE texture's tile
@@ -281,9 +286,11 @@ export function SwatchGroup({
         : { background: 'var(--surface-3)' }
     return (
       <section className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
-        <div className="sec-h">
-          <span>{label}</span>
-        </div>
+        {hideLabel ? null : (
+          <div className="sec-h">
+            <span>{label}</span>
+          </div>
+        )}
         {tintParts ? (
           <TintOverrideChip color={tintParts.color} baseId={tintParts.baseId} onSelect={onSelect} />
         ) : null}
@@ -352,9 +359,11 @@ export function SwatchGroup({
 
   return (
     <section className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
-      <div className="sec-h">
-        <span>{label}</span>
-      </div>
+      {hideLabel ? null : (
+        <div className="sec-h">
+          <span>{label}</span>
+        </div>
+      )}
       {tintParts ? (
         <TintOverrideChip color={tintParts.color} baseId={tintParts.baseId} onSelect={onSelect} />
       ) : null}

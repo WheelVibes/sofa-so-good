@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.2.1 — Polish: mobile sort beside filter, no duplicate surface headers, themed Favourites toggle
+
+Three user-reported refinements: (1) on mobile the catalog's sort control moves out of the
+horizontally-scrolling category rail into the panel header, beside the filter funnel (desktop
+keeps it on the rail); (2) with the surface tabs naming the active surface, the Floor/Walls/
+Ceiling group headers were duplicates — `SwatchGroup` gains `hideLabel` and the picker passes it
+when `finishSurfaceTabs` is on (the header still renders in the legacy stacked layout and for
+other `SwatchGroup` consumers; `label` keeps feeding every aria-label); (3) the catalog filter's
+"Favourites only" row is now the same `.menu-item` row + trailing check as the other filter
+options (native checkbox dropped — theme-consistent, role=menuitemcheckbox). All three verified
+visually on 390×844 mobile.
+
 ## v0.18.2.0 — Finishes panel: Floor / Walls / Ceiling tabs + flat section headers
 
 The per-room finishes panel now gives each surface its own tab (user request — the stacked

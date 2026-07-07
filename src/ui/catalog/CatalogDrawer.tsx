@@ -9,6 +9,7 @@ import { roomDisplayName } from '../../state/rooms'
 import { useStore } from '../../state/store'
 import { lazyWithRetry } from '../app/lazyWithRetry'
 import { Button } from '../controls/Button'
+import { Select } from '../controls/Select'
 import { EmptyState } from '../EmptyState'
 import { SheetGrab, useSwipeToCollapse } from '../inspector/useInspectorMinimize'
 import { Icon } from '../toolbar/icons'
@@ -447,6 +448,21 @@ export function CatalogDrawer() {
           {view === 'layers' ? 'Objects' : view === 'packs' ? 'Packs' : 'Catalog'}
         </div>
         <div className="insp-head-btns">
+          {/* Mobile: the category rail scrolls horizontally, which buries its
+              leading sort control — surface the sort beside the filter funnel in
+              the header instead (user request). Desktop keeps it on the rail. */}
+          {view === 'catalog' && isMobile && !minimized && categorySortable && !q ? (
+            <Select
+              value={sortBy}
+              onChange={(v) => {
+                setSortBy(v as SortKey)
+                setPage(0)
+              }}
+              ariaLabel="Sort catalog"
+              iconTrigger={<Icon.Sort width={16} height={16} />}
+              options={sortOptions}
+            />
+          ) : null}
           {view === 'catalog' && fCatalogFilters && !minimized ? (
             <CatalogFilterButton
               filter={effectiveFilter}
@@ -604,7 +620,9 @@ export function CatalogDrawer() {
                     recentCount={unified.recent.length}
                     favEnabled={fFavourites}
                     sort={
-                      categorySortable
+                      // Mobile hosts the sort in the panel header beside the
+                      // filter funnel instead (see .insp-head-btns above).
+                      categorySortable && !isMobile
                         ? {
                             value: sortBy,
                             onChange: (v) => {
