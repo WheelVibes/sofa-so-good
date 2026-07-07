@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.17.0.0 — PR: dev profiler, orbit/room-editor wall & lighting fixes, catalog refresh, mobile HUD
+
+Minor release rolling up the `fix/070726` branch to `main`. Highlights: a dev-only
+detached-window performance profiler (Live / Cost / Objects tabs, `window.__profiler`,
+⌘K entry, pro-tier flag); a virtual `CeilingOccluder` for orbit + room-editor shadow
+casting with graded-sun lighting parity (dollhouse suppression removed); crisper wall
+rendering (mitred concave/thickness-aware corners, zero-overlap translucent tiling,
+binary reveal target); catalog refresh/remove for imported IKEA/shared R2 assets; a
+local filesystem mirror for the R2 shared library in dev; and walk-mode mobile HUD
+fixes (top callout, bottom safe-area, transparent ring joystick). See per-build entries
+below.
+
 ## v0.16.1.14 — walk-mode mobile HUD: top callout, safe-area, ring joystick
 
 Fixed three mobile walk-mode issues (`WalkHud`, `.walk-joystick`). The "Walking
