@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.17.0.3 — CodeQL: Smithsonian scraper sends API key as a header, not in the URL
+
+Cleared the last CodeQL finding (`py/clear-text-logging-sensitive-data`). Root cause
+wasn't the log sink but the source: `smithsonian3d_scraper.py` embedded the `api_key`
+in the search URL's query string, and `HttpClient.open` logs the (redacted) URL on a
+retry/error — CodeQL can't see the regex `_redact` strips it, so the taint reached the
+log. Fixed at the source: the key now travels in the `X-Api-Key` request header
+(api.data.gov's recommended method — api.si.edu fronts data.gov), so the secret never
+enters the URL and can't be logged. The hardened `_redact`/`_log` sink sanitizer from
+v0.17.0.2 stays as defense-in-depth. (The JS clear-text alerts from v0.17.0.1–.2 are
+confirmed cleared at HEAD.)
+
 ## v0.17.0.2 — CodeQL: stop persisting auth identity; redact scraper logs
 
 Cleared the CodeQL clear-text findings on the PR. `authSlice` no longer writes the
