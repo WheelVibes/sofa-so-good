@@ -26,22 +26,17 @@ jobs:
       # Test-only browser downloads (puppeteer/playwright devDeps) waste CI time.
       PUPPETEER_SKIP_DOWNLOAD: 1
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
-      # Code signing — activates automatically when the repo secrets exist;
-      # without them electron-builder ships unsigned artifacts (with a warning)
-      # instead of failing. Keychain auto-discovery stays off so a stray
-      # identity on the runner can never sign a release by accident.
+      # Keychain auto-discovery stays off (both channels) so a stray identity on
+      # the runner can never sign a build by accident.
       CSC_IDENTITY_AUTO_DISCOVERY: false
-      # macOS: base64 .p12 certificate + its password.
-      CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-      # macOS notarization (needs the cert above + hardenedRuntime, already set
-      # in electron-builder.yml): Apple ID + app-specific password + team id.
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      # Windows: base64 .pfx certificate + its password.
-      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      # NOTE (DESKTOP-MAC-UNSIGNED): the signing secrets (CSC_LINK/APPLE_*/WIN_*)
+      # are deliberately NOT in this job-level env. A GitHub secret that isn't set
+      # is exported as an EMPTY STRING, not unset — and an empty `CSC_LINK=""` is
+      # electron-builder's worst case: present-but-invalid, so it reads it as a
+      # certificate FILE PATH, resolves it against the repo root, and dies on macOS
+      # with `⨯ <repo> not a file` (Windows treats signing as optional and skips,
+      # so only mac failed). The secrets live in the tag-only publish step below,
+      # so a secretless push-to-main build never exports them at all.
     steps:
       - uses: actions/checkout@v4
 
@@ -75,10 +70,32 @@ jobs:
       - name: Build web bundle for desktop
         run: npm run build:desktop
 
-      - name: Package (publish on tag)
-        run: npx electron-builder --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+      # Signed + notarized publish — TAG builds only. The signing secrets are
+      # scoped to THIS step (see the DESKTOP-MAC-UNSIGNED note above): when they
+      # exist electron-builder signs (mac) + notarizes (Apple creds) + signs
+      # (Windows), and `--publish always` attaches the installers to the release.
+      - name: Package + publish (tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: npx electron-builder --publish always
         env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Artifact-only UNSIGNED build — push to main / manual dispatch. No signing
+      # secrets in env at all, and macOS signing is explicitly disabled:
+      # `mac.identity=null` skips signing (avoids any ad-hoc/cert lookup) and
+      # `mac.hardenedRuntime=false` keeps the unsigned .app launchable (hardened
+      # runtime without a signature blocks launch — electron-builder's documented
+      # unsigned-build pairing). The mac.* overrides are ignored on win/linux.
+      - name: Package unsigned (artifact-only)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: npx electron-builder --publish never -c.mac.identity=null -c.mac.hardenedRuntime=false
 
       - uses: actions/upload-artifact@v4
         with:

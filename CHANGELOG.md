@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.6 — Fix macOS Desktop Release: empty CSC_LINK misread as a cert path (DESKTOP-MAC-UNSIGNED)
+
+With the casing fix (v0.18.3.3) the desktop build reached electron-builder packaging for the first
+time; Windows passed but macOS died with `⨯ <repo> not a file`. Cause: a GitHub secret that isn't
+set is exported as an EMPTY STRING, not unset, and the signing secrets sat in the job-level `env`,
+so every build exported `CSC_LINK=""`. electron-builder reads a present-but-empty `CSC_LINK` as a
+certificate FILE PATH, resolves it against the repo root, and fails — on macOS only, since Windows
+treats signing as optional and skips. Fix: the signing secrets (`CSC_LINK`/`APPLE_*`/`WIN_*`) move
+out of job-level env into the **tag-only** publish step, so a secretless push-to-main build never
+exports them; and the artifact-only path explicitly disables mac signing
+(`-c.mac.identity=null -c.mac.hardenedRuntime=false` — electron-builder's documented unsigned-build
+pairing, the hardened-runtime-off keeping the unsigned .app launchable). Tag builds are unchanged
+(signed + notarized + published). Workflow-only change.
+
 ## v0.18.3.5 — Colour picker: commit-on-close recents (cap 10) + throttled live preview
 
 Dragging the finish picker's colour palette flooded the app — every pointermove pushed a recent
