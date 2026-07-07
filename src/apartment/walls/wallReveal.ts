@@ -67,3 +67,23 @@ export function setWallOpacity(wallId: string, opacity: number): void {
 export function getWallOpacity(wallId: string): number {
   return wallOpacity.get(wallId) ?? 1
 }
+
+/**
+ * Per-wall OWN fade strength (WALL-REVEAL-CORNER-SPREAD), written each frame by
+ * `WallSegment`/`useWallReveal` and read by a wall's CORNER neighbours to decide
+ * corner-spread. This is the wall's fade strength from its OWN facing angle only
+ * (rule 1) — it deliberately EXCLUDES any spread the wall itself received, so a
+ * wall that fades only BECAUSE of spread publishes 0 here and cannot pull its own
+ * neighbours in. That is what keeps spread first-degree (no perimeter-wide
+ * cascade). Missing entries default to 0 (not fading). One-frame lag between
+ * publish and read is acceptable (mirrors the `setWallOpacity` signal pattern).
+ */
+const wallOwnStrength = new Map<string, number>()
+
+export function setWallOwnStrength(wallId: string, strength: number): void {
+  wallOwnStrength.set(wallId, strength)
+}
+
+export function getWallOwnStrength(wallId: string): number {
+  return wallOwnStrength.get(wallId) ?? 0
+}

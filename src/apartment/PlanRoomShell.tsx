@@ -32,6 +32,7 @@ import {
   wallBodyOutlineFromSpans,
 } from './walls/wallBodyShape'
 import { getWallOpacity } from './walls/wallReveal'
+import { cornerNeighbors } from './walls/wallRevealMath'
 
 const WALL_COLOR = '#ede9e2' // matches PlanShell's plaster walls
 const DOOR_COLOR = '#8a6d4f'
@@ -49,6 +50,8 @@ interface WallBoxProps {
   cutouts: WallCutoutSpan[]
   /** The isolated room this clipped wall belongs to (finish-drop target tag). */
   roomId: string
+  /** Ids of the room's walls sharing a corner with this one (corner-spread). */
+  cornerWallIds?: readonly string[]
 }
 
 /** A clipped plan wall that fades to translucent when the orbit camera fronts it
@@ -63,6 +66,7 @@ function WallBoxBody({
   height,
   cutouts,
   roomId,
+  cornerWallIds,
   material,
 }: WallBoxProps & { material: MeshStandardMaterial }) {
   const ref = useRef<Mesh>(null)
@@ -80,7 +84,15 @@ function WallBoxBody({
 
   // Fade the wall to translucent when the orbit camera fronts it — matches the
   // main orbit scene's wall reveal (also publishes opacity for its openings).
-  useWallReveal(ref, { midX, midZ, nx: normal.x, nz: normal.y, center, wallId: wall.wallId })
+  useWallReveal(ref, {
+    midX,
+    midZ,
+    nx: normal.x,
+    nz: normal.y,
+    center,
+    wallId: wall.wallId,
+    cornerWallIds,
+  })
 
   const t = clippedThickness(wall.thickness)
   const h = wall.topHeight ?? height
@@ -219,6 +231,18 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
   const floorMat = resolvePlanRoomFloor(finishes, room) as MaterialId
   const wallMat = resolvePlanRoomWall(finishes, room) as MaterialId | null
 
+  // Corner adjacency between the room's clipped walls (WALL-REVEAL-CORNER-SPREAD).
+  // Same 0.25 m epsilon as RoomShell — clipped endpoints can sit up to a neighbour
+  // half-thickness short of the true corner.
+  const cornerIds = useMemo(
+    () =>
+      cornerNeighbors(
+        shell.walls.map((w) => ({ id: w.wallId, start: w.start, end: w.end })),
+        0.25,
+      ),
+    [shell.walls],
+  )
+
   // Group each wall's openings so its body can carve them out as holes/notches.
   const cutoutsByWall = new Map<string, WallCutoutSpan[]>()
   const clipById = new Map(shell.walls.map((w) => [w.wallId, w]))
@@ -265,6 +289,7 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
           cutouts={cutoutsByWall.get(w.wallId) ?? []}
           finishId={wallMat}
           roomId={room.id}
+          cornerWallIds={cornerIds.get(w.wallId)}
         />
       ))}
 

@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cornerNeighbors,
+  cornerSpreadStrength,
+  facingToward,
   orientOutward,
   pointInRooms,
+  REVEAL_ONSET,
   type RoomRect,
+  revealStrength,
+  revealTargetOpacity,
+  SPREAD_GATE,
+  SPREAD_GATE_FULL,
+  SPREAD_ONSET,
   smoothstep,
-  wallRevealFacing,
+  WALL_TRANSLUCENT_MIN,
+  type WallEndpoints,
+  wallRevealStrength,
 } from './wallRevealMath'
 
 // A single 4×4 room with its NW interior corner at the origin.
@@ -50,51 +61,221 @@ describe('orientOutward', () => {
   })
 })
 
-describe('wallRevealFacing (orientation-only)', () => {
-  // Outward normal −Z (a wall whose outside faces −Z).
-  it('fades (→0) when the camera looks THROUGH the wall (normal opposes forward)', () => {
-    // Camera looking toward +Z (forward +Z); a −Z-facing wall in front of it is
-    // being looked through → fades.
-    expect(wallRevealFacing(0, 1, 0, -1)).toBeCloseTo(0)
+describe('facingToward (orientation-only)', () => {
+  it('is +1 when the outward surface faces the camera head-on (a NEAR wall)', () => {
+    // Camera looking toward +Z; a wall whose outward normal is −Z (its exterior
+    // toward the camera) is being looked through head-on.
+    expect(facingToward(0, 1, 0, -1)).toBeCloseTo(1)
   })
 
-  it('stays opaque (→1) for a far/back wall (normal along forward)', () => {
-    // Forward +Z, a wall whose outward normal is +Z (facing away) stays solid.
-    expect(wallRevealFacing(0, 1, 0, 1)).toBeCloseTo(1)
+  it('is −1 for a far/back wall (outward normal along forward)', () => {
+    expect(facingToward(0, 1, 0, 1)).toBeCloseTo(-1)
+  })
+
+  it('is 0 for an edge-on side wall (normal perpendicular to the view)', () => {
+    expect(facingToward(0, 1, 1, 0)).toBeCloseTo(0)
+    expect(facingToward(0, 1, -1, 0)).toBeCloseTo(0)
   })
 
   it('is independent of camera distance (only the forward direction matters)', () => {
-    // Same forward direction, any magnitude → same result (zoom-invariant).
-    expect(wallRevealFacing(0, 1, 0, -1)).toBeCloseTo(wallRevealFacing(0, 5, 0, -1))
+    expect(facingToward(0, 1, 0, -1)).toBeCloseTo(facingToward(0, 5, 0, -1))
   })
 
-  it('keeps walls opaque for a near-vertical (top-down) view', () => {
-    // Forward almost straight down → negligible horizontal component → all opaque.
-    expect(wallRevealFacing(0.02, 0.02, 0, -1)).toBe(1)
-    expect(wallRevealFacing(0.02, 0.02, 1, 0)).toBe(1)
+  it('reads a near-vertical (top-down) view as fully away (walls stay solid)', () => {
+    // Forward almost straight down → negligible horizontal component.
+    expect(facingToward(0.02, 0.02, 0, -1)).toBe(-1)
+    expect(facingToward(0.02, 0.02, 1, 0)).toBe(-1)
+  })
+})
+
+describe('revealStrength (angle-graded curve — WALL-REVEAL-ANGLE-GRADED)', () => {
+  it('is 0 at/below the onset (grazing / side-on / turned-away surfaces stay solid)', () => {
+    expect(revealStrength(-1)).toBe(0) // far/back wall
+    expect(revealStrength(0)).toBe(0) // edge-on side wall
+    expect(revealStrength(REVEAL_ONSET)).toBe(0) // exactly at onset — not yet fading
+    expect(revealStrength(REVEAL_ONSET - 0.01)).toBe(0)
   })
 
-  it('keeps an edge-on SIDE wall opaque (normal perpendicular to the view)', () => {
-    // A rectangular room's two side walls sit near dot ≈ 0; they must NOT
-    // half-fade (the old bug: they read ~50% translucent and flipped bluer vs
-    // whiter as you orbited past the axis). Only clearly back-facing walls fade.
-    expect(wallRevealFacing(0, 1, 1, 0)).toBe(1) // normal +X ⟂ forward +Z → opaque
-    expect(wallRevealFacing(0, 1, -1, 0)).toBe(1) // normal −X ⟂ forward +Z → opaque
+  it('starts subtly just past the onset (a barely-angled wall fades a little)', () => {
+    const s = revealStrength(REVEAL_ONSET + 0.05)
+    expect(s).toBeGreaterThan(0)
+    expect(s).toBeLessThan(0.05)
   })
 
-  it('keeps a slightly-off-perpendicular side wall opaque', () => {
-    // Off-axis view (forward mostly +Z, a little ±X) tips a side wall a few
-    // degrees; within the opaque margin it must still read fully solid, not begin
-    // fading — this is the exact bath case (the east wall sat at dot ≈ −0.22).
-    expect(wallRevealFacing(0.19, 0.98, 1, 0)).toBe(1) // dot ≈ +0.19 → opaque
-    expect(wallRevealFacing(-0.22, 0.98, 1, 0)).toBe(1) // dot ≈ −0.22 → still opaque
+  it('peaks (1) when the surface faces the camera head-on', () => {
+    expect(revealStrength(1)).toBe(1)
   })
 
-  it('fades only once a wall is clearly back-facing (dot ≤ −0.75)', () => {
-    expect(wallRevealFacing(0, 1, 0, -1)).toBe(0) // dot −1 → fully faded (front wall)
-    const partial = wallRevealFacing(-0.5, 0.87, 1, 0) // dot ≈ −0.5 → mid-transition
-    expect(partial).toBeGreaterThan(0)
-    expect(partial).toBeLessThan(1)
+  it('is monotonically non-decreasing across the whole toward range', () => {
+    let prev = -1
+    for (let t = -1; t <= 1.0001; t += 0.01) {
+      const s = revealStrength(t)
+      expect(s).toBeGreaterThanOrEqual(prev)
+      prev = s
+    }
+  })
+
+  it('rests at genuine mid-band strengths between onset and head-on (graded, not binary)', () => {
+    // The reversal of WALL-REVEAL-BINARY-TARGET: a moderately-angled NEAR wall
+    // settles at a partial strength rather than snapping to an endpoint.
+    const mid = revealStrength((REVEAL_ONSET + 1) / 2)
+    expect(mid).toBeGreaterThan(0.3)
+    expect(mid).toBeLessThan(0.7)
+  })
+})
+
+describe('cornerSpreadStrength (WALL-REVEAL-CORNER-SPREAD)', () => {
+  it('is 0 when no corner neighbour is meaningfully fading (below the gate)', () => {
+    expect(cornerSpreadStrength(0.5, 0)).toBe(0)
+    expect(cornerSpreadStrength(0.5, SPREAD_GATE)).toBe(0) // exactly at the gate — not yet
+  })
+
+  it('is 0 when this wall does not face the camera at least slightly', () => {
+    expect(cornerSpreadStrength(SPREAD_ONSET, 1)).toBe(0) // exactly at onset
+    expect(cornerSpreadStrength(0, 1)).toBe(0) // perpendicular side wall
+    expect(cornerSpreadStrength(-0.5, 1)).toBe(0) // turned away (a far wall never spreads)
+  })
+
+  it('fades a slightly-facing corner companion once a neighbour fades by its own facing', () => {
+    // Between SPREAD_ONSET and REVEAL_ONSET this wall has zero OWN strength but a
+    // positive spread strength when a corner neighbour is strongly fading.
+    const toward = (SPREAD_ONSET + REVEAL_ONSET) / 2
+    expect(revealStrength(toward)).toBe(0)
+    expect(cornerSpreadStrength(toward, 1)).toBeGreaterThan(0)
+  })
+
+  it('reaches a clearly visible strength at a realistic corner-companion angle', () => {
+    // A corner neighbour of a head-on-faded wall is near-perpendicular, so its
+    // own `toward` tops out ~0.3–0.5 — the spread curve (full at SPREAD_FULL)
+    // must make that range visibly translucent, not a ~3% tint.
+    expect(cornerSpreadStrength(0.35, 1)).toBeGreaterThan(0.2)
+    expect(cornerSpreadStrength(0.35, 1)).toBeLessThan(1)
+  })
+
+  it('never exceeds the leading neighbour own strength (the 45° two-facade case)', () => {
+    // At a ~45° corner view both facades fade by their OWN facing (~0.6 strength);
+    // uncapped spread (full by SPREAD_FULL) would override that with ~1 and snap
+    // both near peak, defeating the graded look. The cap keeps spread ≤ leader.
+    expect(cornerSpreadStrength(0.9, 0.6)).toBeLessThanOrEqual(0.6)
+    expect(cornerSpreadStrength(1, 0.55)).toBeLessThanOrEqual(0.55)
+  })
+
+  it('engages smoothly across the neighbour gate (no pop mid-orbit)', () => {
+    const a = cornerSpreadStrength(0.3, SPREAD_GATE + 0.01)
+    const b = cornerSpreadStrength(0.3, (SPREAD_GATE + SPREAD_GATE_FULL) / 2)
+    const c = cornerSpreadStrength(0.3, SPREAD_GATE_FULL)
+    expect(a).toBeGreaterThan(0)
+    expect(a).toBeLessThan(b)
+    expect(b).toBeLessThan(c)
+    // Saturated past the ramp (toward 0.3's spread curve sits below the cap here).
+    expect(c).toBeCloseTo(cornerSpreadStrength(0.3, 1))
+  })
+
+  it('is monotonic in both the facing and the neighbour strength', () => {
+    let prev = -1
+    for (let t = -1; t <= 1.0001; t += 0.05) {
+      const s = cornerSpreadStrength(t, 1)
+      expect(s).toBeGreaterThanOrEqual(prev)
+      prev = s
+    }
+    prev = -1
+    for (let nb = 0; nb <= 1.0001; nb += 0.05) {
+      const s = cornerSpreadStrength(0.5, nb)
+      expect(s).toBeGreaterThanOrEqual(prev)
+      prev = s
+    }
+  })
+})
+
+describe('wallRevealStrength (facing → strength composition)', () => {
+  it('peaks for a head-on faced wall and is 0 for far/side walls', () => {
+    expect(wallRevealStrength(0, 1, 0, -1)).toBe(1) // near wall, head-on
+    expect(wallRevealStrength(0, 1, 0, 1)).toBe(0) // far wall
+    expect(wallRevealStrength(0, 1, 1, 0)).toBe(0) // side wall
+  })
+
+  it('keeps a slightly-off-perpendicular side wall solid (within the onset margin)', () => {
+    // Off-axis view tips a side wall a few degrees; within REVEAL_ONSET it must
+    // still read fully solid — this is the exact bath case (toward ≈ 0.22).
+    expect(wallRevealStrength(-0.22, 0.98, 1, 0)).toBe(0)
+    expect(wallRevealStrength(0.19, 0.98, 1, 0)).toBe(0) // tipped away → solid
+  })
+
+  it('grades a moderately-angled near wall between 0 and 1', () => {
+    // forward ≈ (−0.64, 0.77) vs outward +X wall → toward ≈ 0.64.
+    const s = wallRevealStrength(-0.64, 0.77, 1, 0)
+    expect(s).toBeGreaterThan(0)
+    expect(s).toBeLessThan(1)
+  })
+})
+
+describe('revealTargetOpacity', () => {
+  it('maps strength 0 → opaque and strength 1 → the mode floor', () => {
+    expect(revealTargetOpacity(0, WALL_TRANSLUCENT_MIN)).toBe(1)
+    expect(revealTargetOpacity(1, WALL_TRANSLUCENT_MIN)).toBeCloseTo(WALL_TRANSLUCENT_MIN, 10)
+    expect(revealTargetOpacity(1, 0)).toBe(0) // auto-hide floor
+  })
+
+  it('settles anywhere along the line for partial strengths', () => {
+    const half = revealTargetOpacity(0.5, WALL_TRANSLUCENT_MIN)
+    expect(half).toBeCloseTo(1 - 0.5 * (1 - WALL_TRANSLUCENT_MIN))
+  })
+})
+
+describe('cornerNeighbors (WALL-REVEAL-CORNER-SPREAD adjacency)', () => {
+  // A 4×4 room's four perimeter walls, wound corner-to-corner.
+  const square: WallEndpoints[] = [
+    { id: 'n', start: [0, 0], end: [4, 0] },
+    { id: 'e', start: [4, 0], end: [4, 4] },
+    { id: 's', start: [4, 4], end: [0, 4] },
+    { id: 'w', start: [0, 4], end: [0, 0] },
+  ]
+
+  it('links walls sharing a corner endpoint (each square wall gets both its neighbours)', () => {
+    const map = cornerNeighbors(square)
+    expect(map.get('n')?.sort()).toEqual(['e', 'w'])
+    expect(map.get('e')?.sort()).toEqual(['n', 's'])
+    expect(map.get('s')?.sort()).toEqual(['e', 'w'])
+    expect(map.get('w')?.sort()).toEqual(['n', 's'])
+  })
+
+  it('never links a wall to itself', () => {
+    const map = cornerNeighbors(square)
+    for (const [id, ids] of map) expect(ids).not.toContain(id)
+  })
+
+  it('never self-matches two clips carrying the SAME wall id', () => {
+    // The room editor can render one host wall as multiple clips sharing an id;
+    // their touching endpoints must not register the wall as its own neighbour.
+    const clips: WallEndpoints[] = [
+      { id: 'a', start: [0, 0], end: [2, 0] },
+      { id: 'a', start: [2, 0], end: [4, 0] },
+    ]
+    const map = cornerNeighbors(clips)
+    expect(map.get('a')).toEqual([])
+  })
+
+  it('honours the epsilon (near endpoints count, far ones do not)', () => {
+    const walls: WallEndpoints[] = [
+      { id: 'a', start: [0, 0], end: [4, 0] },
+      { id: 'b', start: [4.04, 0], end: [4.04, 4] }, // 0.04 m gap — within eps 0.05
+      { id: 'c', start: [4.2, 0], end: [4.2, 4] }, // 0.2 m gap — outside eps
+    ]
+    const map = cornerNeighbors(walls)
+    expect(map.get('a')).toContain('b')
+    expect(map.get('a')).not.toContain('c')
+    // A larger epsilon (the room editor's clipped-endpoint case) picks c up too.
+    expect(cornerNeighbors(walls, 0.25).get('a')).toContain('c')
+  })
+
+  it('does NOT link a T-junction (an endpoint mid-span of another wall is not a corner)', () => {
+    const walls: WallEndpoints[] = [
+      { id: 'through', start: [0, 0], end: [8, 0] },
+      { id: 'stem', start: [4, 0], end: [4, 4] }, // ends at the through-wall's midpoint
+    ]
+    const map = cornerNeighbors(walls)
+    expect(map.get('through')).toEqual([])
+    expect(map.get('stem')).toEqual([])
   })
 })
 

@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.4 — Angle-graded orbit wall fade + corner spread (WALL-REVEAL-ANGLE-GRADED, reverses WALL-REVEAL-BINARY-TARGET)
+
+The orbit/room-editor camera-facing wall reveal now settles at a **graded** opacity — fade
+strength ramps with how much the wall's outward surface faces the camera (onset `REVEAL_ONSET`
+≈14° past perpendicular, peak `WALL_TRANSLUCENT_MIN`/0 head-on; gentle monotonic smoothstep) —
+deliberately REVERSING the earlier binary settle + 0.35/0.65 hysteresis (user decision). The
+binary target's real job (FAR walls must never rest as a washed pane) is preserved structurally:
+a far wall's `facingToward` ≤ 0 → strength exactly 0 → fully opaque. **Corner spread**
+(WALL-REVEAL-CORNER-SPREAD): a wall sharing a corner (`cornerNeighbors`, epsilon-matched
+endpoints) with a wall fading by its OWN facing also fades, graded by its own facing on a spread
+curve (`SPREAD_ONSET`→`SPREAD_FULL`), capped at the leader's strength and smoothly gated
+(`SPREAD_GATE`→`SPREAD_GATE_FULL`); strictly first-degree via the per-frame own-strength registry
+(`setWallOwnStrength`) so it can't cascade around the perimeter. Applied in `WallSegment` (default
+flat), `useWallReveal` (room editor, adjacency wired from `RoomShell`/`PlanRoomShell`);
+`PlanShell`/`PlanDoorLeaf` share the same graded curve (corner spread there deferred — TODO.md).
+Pure math + tests in `wallRevealMath.ts`; visual sweep scenario
+`scripts/scenarios/wall-fade-graded.json` (head-on peak / moderate partial / corner spread /
+grazing + far-wall-opaque assertions via `__wallOpacities`).
+
 ## v0.18.3.3 — Fix Windows/macOS desktop builds: case-colliding module names (DESKTOP-CI-CASING)
 
 The first-ever Desktop Release run (new push-to-main trigger) failed on Windows and macOS with

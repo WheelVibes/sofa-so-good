@@ -36,13 +36,18 @@ import {
 } from '../wallSegments'
 import { extrudeWallBody, WALL_STRUCTURE_COLOR } from './wallBodyGeometry'
 import { buildWallBodyOutline } from './wallBodyShape'
-import { setWallOpacity } from './wallReveal'
+import { getWallOwnStrength, setWallOpacity, setWallOwnStrength } from './wallReveal'
 import {
+  cornerNeighbors,
+  cornerSpreadStrength,
+  facingToward,
   orientOutward,
   pointInRooms,
   type RoomRect,
+  revealStrength,
+  revealTargetOpacity,
+  SPREAD_ONSET,
   WALL_TRANSLUCENT_MIN,
-  wallRevealFacing,
 } from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
 
@@ -64,6 +69,14 @@ const ROOM_RECTS: RoomRect[] = Object.values(ROOMS).map((r) => ({
     : undefined,
 }))
 const isInteriorPoint = (x: number, z: number) => pointInRooms(x, z, ROOM_RECTS, 0.05)
+
+// Precomputed corner adjacency for the whole flat (WALLS is static): wall id →
+// ids of walls sharing a corner. Drives the corner-spread rule so a wall next to
+// an actively-fading wall fades too. Exact-endpoint corners in the curated flat,
+// so a small epsilon suffices.
+const WALL_CORNER_NEIGHBORS = cornerNeighbors(
+  WALLS.map((w) => ({ id: w.id, start: w.start, end: w.end })),
+)
 
 const FACE_OFFSET = 0.001 // lift face plane fractionally off the body box
 
@@ -301,10 +314,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // decrease but the render doesn't update" bug. We flip needsUpdate only on the
   // transition (not every frame) to avoid needless shader recompiles.
   const transparentRef = useRef(false)
-  // Hysteresis latch for the binary fade decision + the RenderPump keep-alive
-  // handle held while the fade lerps (both mirror the room-editor `useWallReveal`).
-  const wasFadedRef = useRef(false)
+  // RenderPump keep-alive handle held while the fade lerps (mirrors the room-editor
+  // `useWallReveal`).
   const pumpReleaseRef = useRef<null | (() => void)>(null)
+  // Ids of walls sharing a corner with this one — read each frame for corner-spread.
+  const cornerIds = WALL_CORNER_NEIGHBORS.get(wall.id) ?? []
 
   // Outward (away-from-interior) horizontal normal + midpoint of this wall, used
   // to fade the wall when the camera sits on its outward side (between the camera
@@ -358,29 +372,52 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         nx = -nx
         nz = -nz
       }
-      const facing = wallRevealFacing(FWD.x, FWD.z, nx, nz)
-      // BINARY target with hysteresis (WALL-REVEAL-BINARY-TARGET, matching the room
-      // editor's `useWallReveal`). `wallRevealFacing` is a smoothstep, so a wall
-      // viewed at a grazing/oblique angle would otherwise REST at a mid-band opacity
-      // (~0.6–0.8) that reads as a washed half-translucent pane. The lerp below still
-      // animates the transition, so a wall fades/solidifies smoothly as you orbit,
-      // but always SETTLES crisp — either the translucent floor or fully opaque.
-      // Hysteresis (fade below 0.35 facing, restore above 0.65) is a dead-band so a
-      // wall hovering near the threshold can't flip-flop.
-      const shouldFade = wasFadedRef.current ? facing < 0.65 : facing < 0.35
-      wasFadedRef.current = shouldFade
+      // ANGLE-GRADED target (WALL-REVEAL-ANGLE-GRADED — this deliberately REVERSES
+      // the retired WALL-REVEAL-BINARY-TARGET + hysteresis). Fade strength ramps
+      // with how much the wall's OUTWARD surface faces the camera: onset at a
+      // slight angle past perpendicular (REVEAL_ONSET), peak (full fade) head-on —
+      // and the wall SETTLES anywhere along that curve per its facing angle. The
+      // binary snap existed to stop walls resting at a washed mid-band opacity, but
+      // the wall class that must never rest mid-band is the FAR walls (interior
+      // surface toward the camera) — and those are excluded structurally: their
+      // `facingToward` ≤ 0 → strength exactly 0 → fully opaque. NEAR walls
+      // (exterior toward the camera) are the intended graded surface and may rest
+      // at any partial translucency; the curve is a gentle honest smoothstep
+      // (see wallRevealMath.ts), no fast-ramp bias.
+      const toward = facingToward(FWD.x, FWD.z, nx, nz)
+      const own = revealStrength(toward)
+      // Publish the OWN-facing strength (not the final, spread-inclusive one) so
+      // corner-spread stays FIRST-degree: a wall fading only because of spread
+      // publishes 0 and cannot pull its own neighbours in (no perimeter cascade).
+      setWallOwnStrength(wall.id, own)
+      // Corner spread (WALL-REVEAL-CORNER-SPREAD): a wall sharing a corner with a
+      // wall that is meaningfully fading by its OWN facing fades too, graded by
+      // this wall's own facing on the spread curve (onset SPREAD_ONSET — "faces
+      // the camera at least slightly") and smoothly gated on the strongest
+      // neighbour's own strength. Reads neighbours' last-published values
+      // (one-frame lag is fine, mirroring the setWallOpacity signal pattern).
+      let strength = own
+      if (toward > SPREAD_ONSET && cornerIds.length > 0) {
+        let maxNb = 0
+        for (const id of cornerIds) {
+          const s = getWallOwnStrength(id)
+          if (s > maxNb) maxNb = s
+        }
+        strength = Math.max(strength, cornerSpreadStrength(toward, maxNb))
+      }
       // translucent: walls never fully disappear (strongly see-through floor).
-      // auto-hide: walls can fully disappear (current legacy behaviour).
-      target = shouldFade ? (revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN) : 1
+      // auto-hide: walls can fully disappear at peak fade.
+      target = revealTargetOpacity(strength, revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN)
     } else {
-      wasFadedRef.current = false
+      setWallOwnStrength(wall.id, 0)
     }
     // Keep the demand-mode RenderPump rendering while the fade lerps toward its
-    // (crisp) target — register an animated source, release when settled. A binary
-    // target can sit far from the current opacity when a swivel STOPS, and orbit's
-    // old invalidate()+camera-motion path alone can't guarantee the transition
-    // finishes (the ~300ms settle tail may run out), which would strand a wall at a
-    // washed mid opacity — the same starvation the editor hit. Mirrors useWallReveal.
+    // target — register an animated source, release when settled. The target can
+    // sit far from the current opacity when a swivel STOPS, and orbit's old
+    // invalidate()+camera-motion path alone can't guarantee the transition
+    // finishes (the ~300ms settle tail may run out), which would strand a wall
+    // short of its graded target — the same starvation the editor hit. Mirrors
+    // useWallReveal.
     const settling = Math.abs(target - opacityRef.current) > 0.005
     if (settling && !pumpReleaseRef.current) pumpReleaseRef.current = registerAnimatedSource()
     else if (!settling && pumpReleaseRef.current) {
@@ -389,8 +426,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     }
     // Settled and fully opaque: nothing to do (the common case).
     if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return
-    // Snap onto the target within the settle threshold so a wall lands on an EXACT
-    // endpoint (1 / the floor) instead of parking asymptotically short.
+    // Snap onto the target within the settle threshold so a wall lands EXACTLY on
+    // its (graded) target instead of parking asymptotically short.
     let cur = opacityRef.current + (target - opacityRef.current) * 0.18
     if (Math.abs(cur - target) <= 0.005) cur = target
     opacityRef.current = cur
@@ -507,13 +544,16 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   )
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
   // Release the RenderPump keep-alive on unmount so a wall mid-fade when it
-  // unmounts (e.g. entering the room editor) doesn't leak a continuous-render hold.
+  // unmounts (e.g. entering the room editor) doesn't leak a continuous-render hold;
+  // clear the published own-strength so corner neighbours don't spread from a
+  // stale entry when the walls remount.
   useEffect(
     () => () => {
       pumpReleaseRef.current?.()
       pumpReleaseRef.current = null
+      setWallOwnStrength(wall.id, 0)
     },
-    [],
+    [wall.id],
   )
 
   // Subdivide each render segment further by room boundary projections

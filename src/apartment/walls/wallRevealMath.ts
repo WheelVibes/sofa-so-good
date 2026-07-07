@@ -4,10 +4,12 @@
  *  - `orientOutward` finds which way is "out" by probing a short step off each
  *    face of the wall midpoint against an `isInterior(x, z)` test (point-in-room),
  *    correct on non-rectangular plans where a bbox-centre heuristic would fail.
- *  - `wallRevealFacing` fades a wall from the camera's LOOK DIRECTION only (its
- *    outward normal vs the camera forward), so a wall the camera looks through
- *    goes translucent while a far/back wall stays solid — and, crucially, zoom
- *    and pan never change the fade (only orbiting does).
+ *  - `facingToward` / `revealStrength` / `wallRevealStrength` fade a wall from the
+ *    camera's LOOK DIRECTION only (its outward normal vs the camera forward), so a
+ *    wall the camera looks through goes translucent while a far/back wall stays
+ *    solid — and, crucially, zoom and pan never change the fade (only orbiting does).
+ *  - `cornerNeighbors` returns the walls that share a corner (endpoint), for the
+ *    corner-spread rule.
  *
  * Dependency-free so it is fully unit-tested without the R3F/scene stack.
  */
@@ -20,6 +22,66 @@
  * ignores this and can fade to 0.)
  */
 export const WALL_TRANSLUCENT_MIN = 0.1
+
+/**
+ * ANGLE-GRADED reveal (WALL-REVEAL-ANGLE-GRADED — this deliberately REVERSES the
+ * retired WALL-REVEAL-BINARY-TARGET decision: see the note below).
+ *
+ * `REVEAL_ONSET` is the `toward`-camera cosine (see `facingToward`) at which a
+ * wall's OWN fade begins: below it the wall's outward surface is only grazing /
+ * side-on / turned away from the camera and stays fully solid; at head-on
+ * (`toward` = 1) the fade peaks. Kept at 0.25 (≈14° past perpendicular) so a
+ * rectangular room's two perpendicular SIDE walls (`toward` ≈ 0) never begin to
+ * fade — the old flip-flop where they read ~50% translucent and swapped which
+ * side looked "bluer" as you orbited past the axis.
+ *
+ * -- Why graded now, and what the binary was actually fixing --
+ * The retired binary target + hysteresis was introduced to stop a wall RESTING at
+ * a mid-band opacity. The real symptom it targeted was FAR walls — the backdrop
+ * walls on the far side of the flat, whose INTERIOR surface faces the camera —
+ * looking like a washed half-translucent pane. Those must never sit mid-band; they
+ * stay FULLY OPAQUE. That is already guaranteed here structurally, NOT by a binary
+ * snap: a far wall's outward normal points AWAY from the camera, so `facingToward`
+ * is ≤ 0, so `revealStrength` is exactly 0 → opaque. The NEAR walls (outward
+ * surface toward the camera, sitting between you and the rooms) are exactly the
+ * ones that SHOULD fade gradually and are EXPECTED to rest anywhere along the
+ * curve according to their facing angle — a gentle, honest angle-graded translucency
+ * is the intended look there, not a binary endpoint. So the curve is a plain
+ * monotonic smoothstep (gentle at both ends), NOT biased toward a fast ramp.
+ */
+export const REVEAL_ONSET = 0.25
+
+/**
+ * Lower onset used only for the corner-SPREAD contribution: a wall that shares a
+ * corner with a wall fading by its own facing (rule 1) may itself fade from a
+ * slighter angle ("at least slightly facing the camera") — so a corner opens up
+ * together rather than one wall of it fading alone. Below this even a spread wall
+ * stays solid, so a perpendicular side wall at an exactly head-on view still does
+ * not fade.
+ */
+export const SPREAD_ONSET = 0.05
+
+/**
+ * `toward` at which the corner-spread curve reaches FULL strength. A corner
+ * neighbour of a head-on-faded wall is roughly perpendicular to it, so its own
+ * `toward` realistically tops out around ~0.3–0.5 — grading spread on the own
+ * curve's onset→1 span would leave it nearly invisible in exactly the corner
+ * situations it exists for. A 0.7 peak maps that limited range to a clearly
+ * visible partial fade while staying graded (gentle near the onset).
+ */
+export const SPREAD_FULL = 0.7
+
+/**
+ * A corner neighbour must be fading by its OWN facing above this strength before
+ * it starts pulling its corner neighbours in; the pull ramps smoothly to full by
+ * `SPREAD_GATE_FULL` (a smooth gate — a hard cut would pop the neighbour's fade
+ * on/off as the gate is crossed mid-orbit, and there is deliberately no hysteresis
+ * any more). Reading only OWN (never final) strength is what keeps spread
+ * FIRST-DEGREE — it cannot cascade wall→wall→wall around the whole perimeter
+ * (WALL-REVEAL-CORNER-SPREAD).
+ */
+export const SPREAD_GATE = 0.3
+export const SPREAD_GATE_FULL = 0.5
 
 export function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)))
@@ -50,36 +112,130 @@ export function orientOutward(
 }
 
 /**
- * Reveal opacity from the camera's look DIRECTION only (ORIENTATION-ONLY reveal):
- * fade a wall ONLY when it clearly faces AWAY from the view — i.e. the camera is
- * looking at its BACK / through it (its outward normal turned toward the camera,
- * `dot` well below 0). `(fwdX, fwdZ)` is the camera forward vector's horizontal
- * (XZ) part; `(outNx, outNz)` the wall's unit outward normal; `dot` is their
- * cosine.
+ * How much a wall's outward surface FACES the camera, as a cosine in [-1, 1]:
+ *  - `+1` → the outward surface faces the camera HEAD-ON (the camera looks straight
+ *    through the wall into the room): a NEAR wall between you and the rooms.
+ *  - `0` → the surface is perpendicular to the view (a SIDE wall you're skimming).
+ *  - `< 0` → the surface faces AWAY (its interior side is toward you): a FAR/back
+ *    wall — its fade strength is 0, so it always stays opaque.
  *
- *  - `dot > 0` (outward normal points away with the view → a FAR/back wall): opaque.
- *  - `dot ≈ 0` (outward normal ⟂ the view → a SIDE wall you're skimming): opaque.
- *    Critically NOT half-faded: a rectangular room's two side walls both sit near
- *    `dot ≈ 0`, so a `(-0.4, 0.4)` band left them ~50% translucent and, as you
- *    orbited past the axis, flipped which side read "bluer" (opaque) vs "whiter"
- *    (faded). Fading only clearly-back-facing walls keeps side walls solid.
- *  - `dot << 0` (outward normal toward the camera → a NEAR/front wall between you
- *    and the room): fades, so the dollhouse isn't blocked.
+ * `(fwdX, fwdZ)` is the camera forward vector's horizontal (XZ) part; `(outNx,
+ * outNz)` the wall's unit outward normal. This is `−(outward · forward)`: forward
+ * points into the scene, so an outward normal turned back toward the camera
+ * (opposing forward) yields a positive facing.
  *
- * Crucially this depends ONLY on the camera's orientation — NOT its distance
- * (zoom/dolly moves along the look direction, leaving it unchanged) nor a pan
- * (translating camera+target leaves the look direction unchanged). Only orbiting
- * rotates the camera, so only orbiting changes the fade. A near-vertical (top-
- * down) view has no meaningful horizontal facing, so every wall stays opaque
- * (you read the plan from above). Pure.
+ * Depends ONLY on the camera's orientation — NOT its distance (zoom/dolly moves
+ * along the look direction, leaving it unchanged) nor a pan (translating
+ * camera+target leaves the look direction unchanged). Only orbiting rotates the
+ * camera, so only orbiting changes the fade. A near-vertical (top-down) view has
+ * no meaningful horizontal facing → returns −1 (every wall stays opaque; you read
+ * the plan from above). Pure.
  */
-export function wallRevealFacing(fwdX: number, fwdZ: number, outNx: number, outNz: number): number {
+export function facingToward(fwdX: number, fwdZ: number, outNx: number, outNz: number): number {
   const len = Math.hypot(fwdX, fwdZ)
-  if (len < 0.15) return 1 // looking (nearly) straight down/up → keep walls solid
-  const dot = (outNx * fwdX + outNz * fwdZ) / len
-  // Only walls clearly turned away from the view fade (dot ≤ −0.75 → 0); side
-  // walls (dot ≈ 0) and far walls (dot > 0) stay opaque (≥ −0.25 → 1).
-  return smoothstep(-0.75, -0.25, dot)
+  if (len < 0.15) return -1 // looking (nearly) straight down/up → keep walls solid
+  return -(outNx * fwdX + outNz * fwdZ) / len
+}
+
+/**
+ * Graded fade strength (0 = fully solid, 1 = peak fade) from a `toward`-camera
+ * cosine (see `facingToward`): 0 at or below `onset`, ramping smoothly to 1 at
+ * head-on (`toward` = 1). A plain smoothstep — gentle at both ends, monotonic —
+ * so a near wall settles honestly at whatever translucency its facing angle
+ * warrants (the intended graded look). NOT biased toward a fast ramp: the far-wall
+ * "washed pane" the old binary target guarded against is prevented structurally
+ * (a far wall has `toward` ≤ 0 → strength 0), not by snapping near walls to an
+ * endpoint.
+ */
+export function revealStrength(toward: number, onset = REVEAL_ONSET): number {
+  return smoothstep(onset, 1, toward)
+}
+
+/**
+ * Convenience: graded fade strength straight from the camera forward (XZ) + a
+ * wall's outward normal (`facingToward` → `revealStrength`).
+ */
+export function wallRevealStrength(
+  fwdX: number,
+  fwdZ: number,
+  outNx: number,
+  outNz: number,
+): number {
+  return revealStrength(facingToward(fwdX, fwdZ, outNx, outNz))
+}
+
+/**
+ * Corner-SPREAD fade strength (WALL-REVEAL-CORNER-SPREAD) for a wall whose
+ * corner neighbour is fading by its OWN facing. Three smooth factors:
+ *  - this wall's own facing, graded on the spread curve — onset `SPREAD_ONSET`
+ *    ("faces the camera at least slightly"), full by `SPREAD_FULL` (a corner
+ *    companion is near-perpendicular to the head-on wall, so its `toward` tops
+ *    out well below 1 — see `SPREAD_FULL`);
+ *  - CAPPED at the strongest corner-neighbour's OWN strength: the follower never
+ *    fades deeper than its leader. Without the cap, a ~45° two-facade view (both
+ *    walls fading by their own facing) would have each wall's spread (full by
+ *    `SPREAD_FULL`) override its own graded strength and snap both near peak —
+ *    exactly the graded look this rework exists to provide;
+ *  - ramped over `SPREAD_GATE`→`SPREAD_GATE_FULL` on the neighbour's strength so
+ *    the spread engages smoothly instead of popping when a neighbour crosses the
+ *    gate mid-orbit (there is deliberately no hysteresis any more).
+ * The caller takes `max(own, spread)`. Pass only neighbours' OWN-facing strengths
+ * (never their final, spread-inclusive strengths) — that is what keeps spread
+ * first-degree, with no cascade around the perimeter.
+ */
+export function cornerSpreadStrength(toward: number, maxNeighborOwnStrength: number): number {
+  return (
+    Math.min(smoothstep(SPREAD_ONSET, SPREAD_FULL, toward), maxNeighborOwnStrength) *
+    smoothstep(SPREAD_GATE, SPREAD_GATE_FULL, maxNeighborOwnStrength)
+  )
+}
+
+/**
+ * Target opacity for a given fade `strength`: interpolates from fully opaque
+ * (1, at strength 0) down to `floorOpacity` (at strength 1) — `WALL_TRANSLUCENT_MIN`
+ * in translucent mode, 0 in auto-hide. A near wall settles anywhere on this line
+ * per its facing angle.
+ */
+export function revealTargetOpacity(strength: number, floorOpacity: number): number {
+  return 1 - strength * (1 - floorOpacity)
+}
+
+/** A wall's id + endpoints, the minimum `cornerNeighbors` needs. */
+export interface WallEndpoints {
+  id: string
+  start: readonly [number, number]
+  end: readonly [number, number]
+}
+
+/**
+ * Map each wall id → the ids of walls that share a CORNER with it (an endpoint of
+ * one within `eps` metres of an endpoint of the other). First-degree neighbours
+ * only; never includes the wall itself. Precomputable once per plan (the wall list
+ * is static). Drives the corner-spread rule: a wall adjacent to an actively-fading
+ * wall may fade too.
+ */
+export function cornerNeighbors(
+  walls: readonly WallEndpoints[],
+  eps = 0.05,
+): Map<string, string[]> {
+  const near = (a: readonly [number, number], b: readonly [number, number]) =>
+    Math.hypot(a[0] - b[0], a[1] - b[1]) <= eps
+  const shares = (a: WallEndpoints, b: WallEndpoints) =>
+    near(a.start, b.start) || near(a.start, b.end) || near(a.end, b.start) || near(a.end, b.end)
+  const map = new Map<string, string[]>()
+  for (const w of walls) if (!map.has(w.id)) map.set(w.id, [])
+  for (let i = 0; i < walls.length; i++) {
+    for (let j = i + 1; j < walls.length; j++) {
+      const a = walls[i]
+      const b = walls[j]
+      if (a.id === b.id) continue // never self-match (duplicate ids)
+      if (shares(a, b)) {
+        map.get(a.id)?.push(b.id)
+        map.get(b.id)?.push(a.id)
+      }
+    }
+  }
+  return map
 }
 
 /** A rectangle (+ optional L-shaped extension) in plan metres — the shape both
