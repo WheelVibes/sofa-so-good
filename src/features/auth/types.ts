@@ -1,12 +1,13 @@
 /**
- * Auth abstraction. Today there's a single client-side `LocalAdminProvider`
- * (admin unlock for dev-only features); the `AuthProvider` interface is shaped
- * so a real backend provider (OAuth / email+password / magic-link issuing a
- * session token) can be dropped in later without touching the store/UI.
+ * Auth abstraction. The only implementation is `backendAuthProvider`
+ * (email+password against the Cloudflare API with server sessions — see
+ * `backendProvider.ts`); the `AuthProvider` interface stays generic so another
+ * provider (OAuth / magic-link) could be dropped in without touching store/UI.
  *
- * IMPORTANT: a client-side-only build has **no real security boundary** — any
- * gate here hides UI, it cannot protect secrets. Real auth requires the future
- * backend. See `localAdmin.ts`.
+ * Auth requires a real backend (`hasBackend()`). A build with no backend
+ * (GitHub Pages / offline) has no provider and no sign-in at all — it is fully
+ * guest/local, so there is no client-side gate to mistake for a security
+ * boundary.
  */
 
 export type UserRole = 'admin' | 'user'

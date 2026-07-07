@@ -13,23 +13,20 @@ describe('authSlice', () => {
     expect(isAdminUser(useStore.getState().currentUser)).toBe(false)
   })
 
-  it('signs in with the correct admin password and persists', async () => {
-    const ok = await useStore.getState().signIn({ password: 'admin' })
-    expect(ok).toBe(true)
-    expect(isAdminUser(useStore.getState().currentUser)).toBe(true)
-    expect(useStore.getState().authError).toBeNull()
-    expect(localStorage.getItem('hdb_auth')).toContain('admin')
-  })
-
-  it('records an error on a wrong password and stays signed out', async () => {
-    const ok = await useStore.getState().signIn({ password: 'nope' })
+  it('signIn is unavailable without a backend (no client-side gate)', async () => {
+    // The test build leaves VITE_API_BASE unset, so there is no auth provider —
+    // sign-in fails closed instead of unlocking a client-side admin gate.
+    const ok = await useStore.getState().signIn({ username: 'admin@sofa.dev', password: 'admin' })
     expect(ok).toBe(false)
     expect(useStore.getState().currentUser).toBeNull()
-    expect(useStore.getState().authError).toMatch(/incorrect/i)
+    expect(useStore.getState().authError).toMatch(/unavailable/i)
   })
 
-  it('signs out and clears the persisted session', async () => {
-    await useStore.getState().signIn({ password: 'admin' })
+  it('signs out and clears the persisted session', () => {
+    // Simulate a signed-in session the way a backend login would persist one.
+    const user = { id: 'u1', name: 'Admin', role: 'admin' as const }
+    localStorage.setItem('hdb_auth', JSON.stringify(user))
+    useStore.setState({ currentUser: user })
     useStore.getState().signOut()
     expect(useStore.getState().currentUser).toBeNull()
     expect(localStorage.getItem('hdb_auth')).toBeNull()

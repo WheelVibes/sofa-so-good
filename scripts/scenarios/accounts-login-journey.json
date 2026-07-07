@@ -1,0 +1,32 @@
+{
+  "name": "accounts-login-journey",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "assert-backend-provider",
+      "waitFor": { "store": "window.__store.getState().authIsBackend === true" },
+      "failMessage": "authIsBackend should be true when the dev backend is running (VITE_API_BASE=/api)"
+    },
+    {
+      "name": "sign-in-against-dev-backend",
+      "eval": "window.__store.getState().signIn({ username: 'admin@sofa.dev', password: 'Admin@sofa.dev123!' })"
+    },
+    {
+      "name": "await-admin-session",
+      "waitFor": {
+        "store": "window.__store.getState().currentUser && window.__store.getState().currentUser.role === 'admin'"
+      },
+      "timeout": 20000,
+      "failMessage": "Live /api/auth/login through the Vite proxy → dev backend should sign in the seeded admin"
+    },
+    { "name": "open-login", "eval": "window.__store.getState().setLoginOpen(true)" },
+    { "name": "signed-in-visible", "waitFor": { "text": "Manage accounts" }, "timeout": 20000 },
+    { "name": "settle", "wait": 400 },
+    { "name": "shot-signed-in", "screenshot": "signed-in-admin" }
+  ]
+}

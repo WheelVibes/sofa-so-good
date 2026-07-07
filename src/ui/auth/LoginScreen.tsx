@@ -9,11 +9,11 @@ import { UserManagementModal } from './UserManagementModal'
 /**
  * Full-screen sign-in. Reached via `#/login` or the account entry in Help.
  *
- * Two modes, chosen by the active auth provider:
- *  - Backend build (Cloudflare): real email + password accounts with server
- *    sessions. Accounts are ADMIN-CREATED ONLY — there is no sign-up here.
- *  - Offline / GitHub Pages build: the client-side admin password gate (unlocks
- *    dev-only features + the flags panel; not a security boundary).
+ * Sign-in requires a real backend (`authIsBackend`): email + password accounts
+ * with server sessions, ADMIN-CREATED ONLY (no sign-up here). A signed-in admin
+ * can manage accounts and open the feature-flags panel. Without a backend
+ * (offline / GitHub Pages build) there is no sign-in — the entry points are
+ * hidden and this screen shows a short "not available" note if reached directly.
  */
 export function LoginScreen() {
   const open = useStore((s) => s.loginOpen)
@@ -88,13 +88,11 @@ export function LoginScreen() {
               {currentUser.role}
             </p>
             <p style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', lineHeight: 1.5 }}>
-              {isBackend
-                ? 'Your designs and favourites sync to the cloud on this account.'
-                : isAdminUser(currentUser)
-                  ? 'Admin unlocks dev-only features and the feature-flags panel.'
-                  : ''}
+              {isAdminUser(currentUser)
+                ? 'Your designs sync to the cloud. Admin unlocks dev-only features and the feature-flags panel.'
+                : 'Your designs and favourites sync to the cloud on this account.'}
             </p>
-            {isBackend && isAdminUser(currentUser) ? (
+            {isAdminUser(currentUser) ? (
               <button
                 type="button"
                 className="btn btn-soft btn-block"
@@ -105,7 +103,7 @@ export function LoginScreen() {
                 Manage accounts
               </button>
             ) : null}
-            {!isBackend && isAdminUser(currentUser) ? (
+            {isAdminUser(currentUser) ? (
               <button
                 type="button"
                 className="btn btn-soft btn-block"
@@ -135,7 +133,7 @@ export function LoginScreen() {
               </button>
             </div>
           </>
-        ) : (
+        ) : isBackend ? (
           <form onSubmit={submit}>
             <p className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
               {providerLabel} sign-in
@@ -148,22 +146,18 @@ export function LoginScreen() {
                 margin: '0 0 var(--s-3)',
               }}
             >
-              {isBackend
-                ? 'Sign in with your account. Accounts are created by an administrator.'
-                : 'Unlocks dev-only features. This is a client-side gate, not a security boundary.'}
+              Sign in with your account. Accounts are created by an administrator.
             </p>
-            {isBackend ? (
-              <input
-                className="input"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
-                aria-label="Email"
-                autoComplete="username"
-                style={{ width: '100%', marginBottom: 'var(--s-2)' }}
-              />
-            ) : null}
+            <input
+              className="input"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              aria-label="Email"
+              autoComplete="username"
+              style={{ width: '100%', marginBottom: 'var(--s-2)' }}
+            />
             <input
               className="input"
               type="password"
@@ -171,10 +165,10 @@ export function LoginScreen() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               aria-label="Password"
-              autoComplete={isBackend ? 'current-password' : 'off'}
+              autoComplete="current-password"
               style={{ width: '100%' }}
             />
-            {isBackend ? <Turnstile onToken={setTurnstileToken} /> : null}
+            <Turnstile onToken={setTurnstileToken} />
             {authError ? (
               <p
                 style={{
@@ -197,14 +191,41 @@ export function LoginScreen() {
                 disabled={
                   busy ||
                   password.length === 0 ||
-                  (isBackend && email.length === 0) ||
-                  (isBackend && turnstileEnabled() && turnstileToken.length === 0)
+                  email.length === 0 ||
+                  (turnstileEnabled() && turnstileToken.length === 0)
                 }
               >
                 {busy ? 'Signing in…' : 'Sign in'}
               </button>
             </div>
           </form>
+        ) : (
+          // No backend configured (GitHub Pages / offline build) — there is no
+          // sign-in. The entry points are hidden in this build; this is the
+          // defensive fallback if #/login is reached directly.
+          <>
+            <p
+              style={{
+                fontSize: 'var(--t-2xs)',
+                color: 'var(--text-3)',
+                lineHeight: 1.5,
+                margin: '0 0 var(--s-3)',
+              }}
+            >
+              Sign-in isn’t available in this build — the app runs fully on this device with no
+              account needed.
+            </p>
+            <div style={{ display: 'flex', marginTop: 'var(--s-3)' }}>
+              <button
+                type="button"
+                className="btn btn-accent"
+                style={{ marginLeft: 'auto' }}
+                onClick={close}
+              >
+                Done
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

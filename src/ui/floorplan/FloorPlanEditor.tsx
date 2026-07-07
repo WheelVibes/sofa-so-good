@@ -372,8 +372,9 @@ export function FloorPlanEditor() {
   // Last pointer position in plan metres — where a new ruler guide is dropped
   // (PARITY-PLAN-GUIDES). Updated on every pointer move over the canvas.
   const lastPlanPtRef = useRef<[number, number]>([0, 0])
-  // Exiting back to 3D (Done button / Escape) frames the selected furniture via
-  // the shared `exitPlanEditorToScene`. NOTE: the `P` open/close binding lives in
+  // Exiting back to 3D (the Done button, or the `P` hotkey) frames the selected
+  // furniture via the shared `exitPlanEditorToScene` — Escape deliberately does
+  // NOT exit (it only cancels a draft/placement). NOTE: the `P` open/close binding lives in
   // `controls/planEditorHotkey.ts` (always mounted via App) — this component is
   // lazy-mounted only while open, so a listener here could never OPEN it.
 
@@ -423,8 +424,8 @@ export function FloorPlanEditor() {
     [levelId],
   )
 
-  // Enter closes an in-progress polygon room; Esc cancels it (or exits the
-  // editor when nothing is mid-draw); Delete removes the selected element.
+  // Enter closes an in-progress polygon room; Esc cancels the current draft /
+  // armed placement (but never exits the editor); Delete removes the selected element.
   useEffect(() => {
     if (!editing) return
     const onKey = (e: KeyboardEvent) => {
@@ -451,10 +452,10 @@ export function FloorPlanEditor() {
         setPolyDraft([])
       } else if (e.key === 'Escape') {
         // A toolbar dropdown (Plan / View) owns Escape to close itself — don't
-        // also exit the editor in the same keypress.
+        // also cancel a draft in the same keypress.
         if (document.querySelector('.plan-menu-panel')) return
         // The numeric-entry overlay owns Escape when an input is focused —
-        // let its own handler cancel the draft (don't also exit the editor).
+        // let its own handler cancel the draft.
         if (isEditableTarget(e)) return
         if (polylineDraft.length > 0) {
           setPolylineDraft([])
@@ -464,9 +465,11 @@ export function FloorPlanEditor() {
           setPolyDraft([])
           return
         }
+        // Cancel an in-progress wall draft. Escape deliberately does NOT exit the
+        // plan editor — leaving is an explicit action (the Done control), so a
+        // stray Escape can't dump the user back to the 3D scene mid-edit.
         setDraft(null)
         setNumericPreviewEnd(null)
-        exitPlanEditorToScene()
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         // Don't hijack Backspace/Delete while editing a field (e.g. the room
         // name / dimension inputs in the inspector) — that would silently delete

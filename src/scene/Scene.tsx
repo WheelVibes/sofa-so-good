@@ -1,10 +1,14 @@
 import { useProgress } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { PCFSoftShadowMap } from 'three'
 import { Apartment } from '../apartment/Apartment'
+import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
+import { occluderRectsForPlan } from '../apartment/ceiling/ceilingOccluder'
 import { RoomHoverHighlight } from '../apartment/floor/RoomHoverHighlight'
 import { PlanShell } from '../apartment/PlanShell'
+import { ProfilerProbe } from '../dev/profiler/ProfilerProbe'
+import { useFeature } from '../features/useFeature'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { FurnitureLayer } from '../furniture/FurnitureLayer'
 import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
@@ -70,7 +74,10 @@ function SceneReadySignal() {
 }
 
 export function Scene() {
+  const profilerEnabled = useFeature('profiler')
   const customPlan = useStore((s) => !isDefaultPlan(s.floorPlan))
+  const floorPlan = useStore((s) => s.floorPlan)
+  const occluderRects = useMemo(() => occluderRectsForPlan(floorPlan), [floorPlan])
   // Tier-gate the device-pixel-ratio ceiling: the default Performance tier caps
   // at DPR 1 (big fill-rate saving on weak/mobile GPUs); higher tiers render
   // sharper. R3F applies `dpr` changes live, so this tracks a tier switch.
@@ -109,6 +116,7 @@ export function Scene() {
         <CurtainLightController />
         <FurnitureLights />
         {customPlan ? <PlanShell /> : <Apartment />}
+        <CeilingOccluder rects={occluderRects} />
         {/* "Click a room to edit" hover highlight — works for both plans now. */}
         <RoomHoverHighlight />
         <GridOverlay />
@@ -136,6 +144,7 @@ export function Scene() {
         <Effects />
         <ShowcaseController />
         <QualityController />
+        {import.meta.env.DEV && profilerEnabled ? <ProfilerProbe /> : null}
         <AnisotropyController />
         <ScreenshotController />
         <SceneExportController />

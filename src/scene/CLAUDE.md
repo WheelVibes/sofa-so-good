@@ -21,21 +21,26 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **Tier-gate GPU cost.** Read `RenderTier`; **Performance is the default for everyone**
   (flat: no shadows/IBL/post, DPR 1). Heavy effects (real mirrors, post stack) are
   High/Maximum only (`mirrorReflectorConfig(tier)` is the pattern).
-- **Orbit daytime is a flat dollhouse, not an exterior sim** (ORBIT-DOLLHOUSE,
-  `lighting/dollhouse.ts`). The pure `isDollhouseLighting({cameraMode, sunAltitude, lightsMode})` is
-  true in orbit + day + lights-not-forced-on; `Lighting` then zeroes the directional sun + its shadow
-  and lights the scene with a bright neutral hemi/ambient fill at a fixed (ungraded) exposure, and
-  `EffectsImpl` zeroes bloom. Walk mode + orbit-at-night keep the full graded simulation (sun curve,
-  shadows, day-ramped bloom). **Don't** gate material-quality knobs (IBL/PMREM, sheen/clearcoat, PBR,
-  anisotropy) on this — they must keep working in orbit per tier (a glossy surface stays glossy). The
-  module signal (`get/setDollhouseActive`) lets a per-frame reader agree without a re-render; React
-  consumers compute the predicate directly from store + sun for no frame lag.
+- **Orbit + the room editor run the full walk-mode lighting simulation** (ORBIT-CEILING,
+  replaces the retired ORBIT-DOLLHOUSE flat-fill). The graded sun, PCF sun shadows, day/night
+  exposure grading, and day-ramped bloom apply in every view mode at every tier (still gated by
+  the tier's `shadowMapSize`/`postprocessing`). Orbit culls the real ceiling so you can see in;
+  an invisible shadow-casting **virtual ceiling** (`apartment/ceiling/CeilingOccluder.tsx`, planes
+  from the pure `ceilingOccluder.ts:occluderRectsForPlan`) blocks the sun from flooding in through
+  the open top, so interiors are lit through windows/open doors — mounted in BOTH `Scene.tsx` and
+  `RoomEditorScene.tsx`, present in walk mode too for consistency. The occluder material writes no
+  colour/depth (invisible to the camera) but `castShadow` with `shadowSide: DoubleSide`. There is
+  no `dollhouse.ts` module and no dollhouse module-signal anymore — do NOT reintroduce a per-mode
+  lighting suppression. (The unrelated orbit *camera-framing* "dollhouse" in `OrbitCamera.tsx`/wall
+  reveal is a different concept and stays.)
 - **Bloom only blooms genuine HDR emitters, never broad daytime surfaces** (RD-409). The
   Bloom `luminanceThreshold` (`look.BLOOM.luminanceThreshold`, 1.35) sits **above** sunlit
   white walls/ceilings under the day IBL + ~1.2 graded exposure and **below** the night
   light-fixture emissive peaks (`lighting/fixtureGlow.ts` — shade ~1.6 / strip ~1.8 / bulb
   ~2.05). A lower threshold (the old 1.05) smeared a milky white veil across the whole
-  High/Maximum frame in daylight. The two live in lock-step: the `fixtureGlow` test asserts
+  High/Maximum frame in daylight. Orbit now runs this same full graded simulation + virtual
+  ceiling (ORBIT-CEILING) rather than a flat dollhouse fill, so the threshold applies
+  identically in every view mode. The two live in lock-step: the `fixtureGlow` test asserts
   `BLOOM_LUMINANCE_THRESHOLD === look.BLOOM.luminanceThreshold` and that every emitter peak
   clears it with margin — **raise/lower one and you must move the other**, or daytime blooms
   again or fixtures stop glowing.
@@ -105,7 +110,9 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `Sky`/`SceneBackdrop`/`SceneEnvironment` (IBL), the graded `Lighting`, `FurnitureLights`, and the
   tier-gated `Effects` post stack + `QualityController` — so materials/finishes look identical to
   orbit at the user's quality tier (a glossy/metallic surface reflects the environment instead of
-  rendering flat). It is NOT the old "flat, no-sun/Effects" lightweight canvas anymore; keep it in
+  rendering flat). Daytime lighting here is the same full graded simulation + virtual ceiling
+  occluder as orbit (ORBIT-CEILING) — it is NOT the old "flat, no-sun/Effects" lightweight canvas
+  anymore; keep it in
   lock-step with `Scene.tsx`'s render systems (add a new lighting/post system to BOTH). It still
   omits the whole-flat-only feature controllers (`RoomHoverHighlight`/`CommentPins`/`TapeMeasure`/
   `LuxOverlay`/`Panorama`/`Record`/`HqRender`/`SceneExport`) — those aren't rendering systems.
@@ -178,13 +185,18 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   on every concluding touch up/cancel (so a stamp/shift drop that keeps the same `activeDefId`
   armed re-latches per drop). Same `isActiveDragPointer` reuse, adapted for a hook that can't see
   the gesture's actual start.
-- **Touch selection/drag model (bugs #11/#12).** `scene/touchGestures.ts` (installed once from
-  `App.tsx`) counts active touch pointers on the window (capture phase, so it's current inside
-  R3F handlers). `Furniture.onPointerDown` bails on a multi-finger touch (`activeTouchCount() > 1`)
-  so a pinch/zoom never selects or moves a piece, and on touch a first tap on an UNSELECTED item
-  only selects — it does NOT start a drag in the same gesture (dragging to move requires the item
-  to already be selected; desktop mouse keeps click-drag-to-move). `Furniture.onClick` skips
-  selection when `gestureIsMultiTouch()`. A SECOND touch finger arriving mid-drag calls
+- **Select-then-drag model (DRAG-SELECT-FIRST + bugs #11/#12).** `scene/touchGestures.ts`
+  (installed once from `App.tsx`) counts active touch pointers on the window (capture phase, so
+  it's current inside R3F handlers). `Furniture.onPointerDown` bails on a multi-finger touch
+  (`activeTouchCount() > 1`) so a pinch/zoom never selects or moves a piece. A pointer-down begins
+  a MOVE drag ONLY when the pressed piece was ALREADY selected before the gesture
+  (`dragHelpers.ts:shouldBeginItemDrag`, pure + unit-tested) — on **both desktop and touch**. The
+  FIRST press on an unselected piece never drags: selection is deferred to `onClick` (a clean
+  click selects; a press-drag falls through to the orbit camera, so `draggingItemId` stays null
+  and an immediate drag rotates the room view instead of moving the piece). This unifies desktop
+  with the old touch-only rule (desktop previously selected AND started a drag on one
+  pointer-down, so a first grab moved the piece). `Furniture.onClick` skips selection when
+  `gestureIsMultiTouch()`, so a pinch's first finger landing on a piece still never selects it. A SECOND touch finger arriving mid-drag calls
   `placementSlice.cancelDrag()` (from `DragController`'s window `pointerdown`) — reverts the
   in-progress drag to its pre-drag snapshot + ends it — so a pinch that starts on an
   already-selected piece hands off to the (re-enabled) camera instead of dragging + swallowing

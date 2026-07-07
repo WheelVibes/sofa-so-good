@@ -9,7 +9,6 @@ import { resolveToneMapping, toneContextFromState } from '../toneContext'
 import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
-import { isDollhouseLighting, setDollhouseActive } from './dollhouse'
 import { shadowFrustumForPlan } from './shadowFrustum'
 import { updateStatusBarTint } from './statusBarTint'
 import { type SunPosition, sunDirectionToScene } from './sunPosition'
@@ -19,11 +18,6 @@ import { getWindowAttenuation, getWindowGlassTint } from './windowLightSignal'
 /** Distance from the plan centre where the directional light sits (m). */
 const SUN_DISTANCE = 25
 const TWEEN_DURATION = 0.6
-/** Flat uniform fill for the orbit daytime dollhouse (ORBIT-DOLLHOUSE) — even
- *  brightness, no directional bias (sky≈ground), no sun/shadow. */
-const DOLLHOUSE_HEMI = 1.45
-const DOLLHOUSE_AMBIENT = 0.75
-const DOLLHOUSE_FILL: [number, number, number] = [1, 0.99, 0.97]
 
 interface Vals {
   sun: number
@@ -131,18 +125,11 @@ export function Lighting() {
     // *resolved* operator so brightness stays steady across a context switch.
     const toneMode = resolveToneMapping(st.toneMapping, toneContextFromState(st))
     gl.toneMapping = TONE_MAPPING_THREE[toneMode]
-    // Orbit dollhouse (ORBIT-DOLLHOUSE): in orbit + daytime + lights-not-forced-on
-    // the ceiling-less view shouldn't simulate exterior sun. Use a neutral, fixed
-    // exposure (no day grading swing) and a flat uniform fill below; walk mode and
-    // night orbit keep the real graded simulation. Material IBL/sheen/gloss stay.
-    const dollhouse = isDollhouseLighting({
-      cameraMode: st.cameraMode,
-      sunAltitude: sunPos.altitude,
-      lightsMode: st.lightsMode ?? 'auto',
-    })
-    setDollhouseActive(dollhouse)
+    // Orbit + the room editor run the full graded exterior-sun simulation, same
+    // as walk mode (ORBIT-CEILING); the invisible ceiling occluder blocks the sun
+    // from pouring in through the open top, so it's lit through windows/openings.
     gl.toneMappingExposure =
-      (dollhouse ? 1.0 : grade(sunPos.altitude).exposure) * toneExposureBias(toneMode) * st.exposure
+      grade(sunPos.altitude).exposure * toneExposureBias(toneMode) * st.exposure
 
     // Cheap settle check on the dominant channels. When unsettled, ease the
     // current values toward the target; when settled we still fall through to
@@ -183,10 +170,8 @@ export function Lighting() {
       const attenuation = isFeatureEnabled('curtainLightEffect') ? getWindowAttenuation() : 1.0
       const tint = isFeatureEnabled('windowGlassTint') ? getWindowGlassTint() : ([1, 1, 1] as const)
 
-      // Dollhouse: kill the directional sun + its shadow (no exterior sim); the
-      // uniform fill below lights the scene instead.
-      sunRef.current.intensity = dollhouse ? 0 : cur.sun * attenuation
-      sunRef.current.castShadow = !dollhouse && shadowMapSize > 0
+      sunRef.current.intensity = cur.sun * attenuation
+      sunRef.current.castShadow = shadowMapSize > 0
       sunRef.current.position.set(cur.sunPos[0], cur.sunPos[1], cur.sunPos[2])
       // Apply glass tint as a component-wise multiply of the sun colour.
       sunRef.current.color.setRGB(
@@ -203,23 +188,11 @@ export function Lighting() {
     // 0→1 day level (same signal that drives `SceneEnvironment` IBL intensity).
     const fillScale = iblFillScale(iblActive, cur.sun)
     if (hemiRef.current) {
-      // Dollhouse: a bright, neutral, direction-free fill (sky≈ground) for even
-      // dollhouse brightness; otherwise the graded day/night sky+ground GI.
-      hemiRef.current.intensity = dollhouse ? DOLLHOUSE_HEMI : cur.ambient * 1.1 * fillScale
-      if (dollhouse) {
-        hemiRef.current.color.setRGB(...DOLLHOUSE_FILL)
-        hemiRef.current.groundColor.setRGB(...DOLLHOUSE_FILL)
-      } else {
-        hemiRef.current.color.setRGB(cur.skyColor[0], cur.skyColor[1], cur.skyColor[2])
-        hemiRef.current.groundColor.setRGB(
-          cur.groundColor[0],
-          cur.groundColor[1],
-          cur.groundColor[2],
-        )
-      }
+      hemiRef.current.intensity = cur.ambient * 1.1 * fillScale
+      hemiRef.current.color.setRGB(cur.skyColor[0], cur.skyColor[1], cur.skyColor[2])
+      hemiRef.current.groundColor.setRGB(cur.groundColor[0], cur.groundColor[1], cur.groundColor[2])
     }
-    if (ambientRef.current)
-      ambientRef.current.intensity = dollhouse ? DOLLHOUSE_AMBIENT : cur.ambient * 0.35 * fillScale
+    if (ambientRef.current) ambientRef.current.intensity = cur.ambient * 0.35 * fillScale
 
     // Keep the OS/browser chrome (iOS standalone status bar, mobile address bar)
     // tinted to the top of the canvas so its top edge blends into the scene.

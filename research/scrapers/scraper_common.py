@@ -35,6 +35,7 @@ import argparse
 import json
 import os
 import random
+import re as _re
 import sys
 import time
 import urllib.error
@@ -230,27 +231,34 @@ def _retry_delay(attempt: int, retry_after: Optional[str]) -> float:
     return (2 ** (attempt + 1)) + random.uniform(0, 1.0)
 
 
-def _redact(url: str) -> str:
-    """Mask secret-bearing query params (key/token/api_key/secret/…) before a URL
-    is logged, so an API key passed to a source never lands in clear text in the
-    logs (CodeQL py/clear-text-logging-sensitive-data)."""
-    return _re.sub(
-        r"([?&](?:api[_-]?key|access[_-]?token|key|token|secret|password|auth)=)[^&#\s]*",
-        r"\1***",
-        str(url),
-        flags=_re.IGNORECASE,
-    )
+_SECRET_PARAM = _re.compile(
+    r"((?<![\w.-])[\w.-]*"
+    r"(?:api[_-]?key|access[_-]?token|key|token|secret|password|passwd|pwd|auth"
+    r"|client[_-]?id|client[_-]?secret)"
+    r"[\w.-]*=)[^&#\s]*",
+    flags=_re.IGNORECASE,
+)
+# `scheme://user:pass@host` — mask the userinfo half.
+_URL_USERINFO = _re.compile(r"(://)[^/@\s:]+:[^/@\s]+@")
+
+
+def _redact(msg: str) -> str:
+    """Mask secret-bearing fields (key/token/api_key/secret/password/client_secret/…,
+    whether in a URL query string or a form-encoded body) and `user:pass@` URL
+    userinfo before anything is logged, so a credential passed to a source never
+    lands in clear text in the logs (CodeQL py/clear-text-logging-sensitive-data)."""
+    s = _URL_USERINFO.sub(r"\1***:***@", str(msg))
+    return _SECRET_PARAM.sub(r"\1***", s)
 
 
 def _log(msg: str) -> None:
-    print(msg, file=sys.stderr, flush=True)
+    # Sanitize at the sink so every _log call across all scrapers is covered.
+    print(_redact(msg), file=sys.stderr, flush=True)
 
 
 # --------------------------------------------------------------------------- #
 # Tiny stdlib helpers (avoid bs4 dependency)
 # --------------------------------------------------------------------------- #
-import re as _re
-
 _SITEMAP_LOC = _re.compile(r"<loc>\s*([^<\s]+)\s*</loc>", _re.I)
 _MODEL_VIEWER_SRC = _re.compile(r'<model-viewer[^>]*\ssrc=["\']([^"\']+\.glb[^"\']*)["\']', _re.I)
 _MODEL_VIEWER_IOS = _re.compile(r'\sios-src=["\']([^"\']+\.usdz[^"\']*)["\']', _re.I)

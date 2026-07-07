@@ -17,6 +17,56 @@ export function getWallStructureMaterial(): MeshStandardMaterial {
   return structureMaterial
 }
 
+/**
+ * Mitre spec for the extruded wall body. At a true L-corner the two walls meet
+ * along the 45° angle-bisector; each wall's end is cut to that diagonal so they
+ * share the corner equally. Because the two mitred end-faces are then EXACTLY
+ * coincident with OPPOSITE normals, backface culling renders only one from any
+ * viewpoint — a genuinely seamless join with no z-fighting and no doubled
+ * translucency (no pixel overlaps two coplanar faces).
+ *
+ * `endAt`/`startAt` are the along-axis (local +X) coordinate of the corner's
+ * CENTRE-LINE vertex at each end — the intersection of this wall's centre-line
+ * with the neighbour's. For orbit walls (endpoints ARE the shared corner) that is
+ * `±length/2`; for room-editor clipped walls (endpoints sit at the interior
+ * footprint corner, half a neighbour-thickness short of the centre-line corner)
+ * it is beyond the endpoint. `startSlope`/`endSlope` are the signed diagonal slope
+ * for each mitred end (undefined = that end is NOT mitred): the cut line is
+ * `x = at + slope·z`. The slope's sign encodes which vertex is the EXTERIOR one, so
+ * it is correct for BOTH convex (exterior edge extends, interior retracts) AND
+ * concave / inward-pointing corners — the caller derives it from the NEIGHBOUR's
+ * outward normal so both walls at the corner cut to the SAME diagonal.
+ */
+export interface WallMiter {
+  startAt?: number
+  startSlope?: number
+  endAt?: number
+  endSlope?: number
+}
+
+/**
+ * Shear the extruded body's mitred end(s) to the corner diagonal by clamping each
+ * vertex's along-axis (local X) to the cut line `x = at + slope·z`. The LONG side
+ * reaches the shared outer corner vertex, the short side the inner one; both walls
+ * at the corner clamp to the SAME line, so their end-faces coincide exactly. Runs
+ * on the centred geometry (z ∈ ±thickness/2) before normals are computed.
+ */
+function applyMiter(geo: ExtrudeGeometry, m: WallMiter): void {
+  const pos = geo.getAttribute('position')
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)
+    const z = pos.getZ(i)
+    if (m.endSlope !== undefined && m.endAt !== undefined && x > 1e-6) {
+      const lim = m.endAt + m.endSlope * z
+      if (x > lim) pos.setX(i, lim)
+    } else if (m.startSlope !== undefined && m.startAt !== undefined && x < -1e-6) {
+      const lim = m.startAt + m.startSlope * z
+      if (x < lim) pos.setX(i, lim)
+    }
+  }
+  pos.needsUpdate = true
+}
+
 /** Turn a wall-body cross-section (outline + holes, in the wall's centred
  *  along-axis × height frame) into a three `Shape` with hole paths. */
 function wallBodyShape({ outline, holes }: WallBodyOutline): Shape {
@@ -56,6 +106,8 @@ export function extrudeWallBody(
    * (the orbit scene, which paints the interior via separate face planes).
    */
   innerFaceZSign?: number,
+  /** Mitre one or both ends to the 45° corner diagonal (see {@link WallMiter}). */
+  miter?: WallMiter,
 ): ExtrudeGeometry {
   const geo = new ExtrudeGeometry(wallBodyShape(body), {
     depth: thickness,
@@ -65,6 +117,15 @@ export function extrudeWallBody(
   // ExtrudeGeometry runs the profile along +Z from 0..depth; centre it on the
   // wall's thickness so the body straddles the centreline.
   geo.translate(0, 0, -thickness / 2)
+  // Mitre BEFORE computing normals so the diagonal end-faces get correct normals
+  // (their opposite winding is what lets backface culling render a seamless join).
+  if (
+    miter &&
+    ((miter.startSlope !== undefined && miter.startAt !== undefined) ||
+      (miter.endSlope !== undefined && miter.endAt !== undefined))
+  ) {
+    applyMiter(geo, miter)
+  }
   geo.computeVertexNormals()
   if (innerFaceZSign !== undefined) groupInnerFace(geo, innerFaceZSign)
   return geo

@@ -199,6 +199,25 @@ export function shouldDuplicateOnDragStart(opts: {
   )
 }
 
+/**
+ * Select-then-drag gate (DRAG-SELECT-FIRST): should a pointer-down on a furniture
+ * piece begin a MOVE drag, or fall through to the orbit camera so the press-drag
+ * rotates the room view? A piece can only be grabbed once it is ALREADY selected —
+ * the first press on an unselected piece selects it (via the click handler on a
+ * clean click) and any drag on that same press orbits the view. This mirrors the
+ * long-standing touch rule (a first finger never dragged a piece) and now applies
+ * to desktop mouse too, so an immediate drag on an unselected piece rotates the
+ * view instead of yanking the piece to the cursor. Locked / window-bound pieces
+ * are selectable (to unlock) but never draggable, so they never begin a drag.
+ */
+export function shouldBeginItemDrag(opts: {
+  alreadySelected: boolean
+  locked?: boolean
+  windowBound?: boolean
+}): boolean {
+  return opts.alreadySelected && !opts.locked && !opts.windowBound
+}
+
 /** Snug-stack candidate: the dragged item is the TOP, the hovered item the
  *  BASE — engages only when the base IKEA def accepts the dragged IKEA def's
  *  category (a confirmed compatibility match). Returns the base item or null. */

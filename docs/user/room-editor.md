@@ -50,4 +50,6 @@ In the **Objects / Layers** view each room group has an **eye** (hide) and a
 ## Exiting
 
 Click the **left‑arrow exit button** (“Exit room”) at the far left of the toolbar
-— the room name shows in the dropdown beside it — or press <kbd>Esc</kbd>.
+— the room name shows in the dropdown beside it. (<kbd>Esc</kbd> does *not* leave
+the editor — it only clears the current selection or cancels a piece you’re
+placing, so it can’t drop you out of the room by accident.)

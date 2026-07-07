@@ -1,0 +1,18 @@
+{
+  "name": "walk-mobile-hud",
+  "description": "Mobile walk mode: 'Walking through' callout sits top-centre (below home/menu buttons, clear of the bottom-left joystick) and the controls banner + joystick clear the bottom safe-area.",
+  "url": "http://localhost:5173/",
+  "viewport": { "width": 390, "height": 844, "isMobile": true, "hasTouch": true, "deviceScaleFactor": 2 },
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "wait-scene", "wait": 1500 },
+    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
+    { "name": "walk-loading-done", "waitFor": { "store": "state.loading.active === false" }, "timeout": 10000 },
+    { "name": "settle-walk", "wait": 1200 },
+    { "name": "shot-walk", "screenshot": "01-walk-mobile-hud" }
+  ]
+}

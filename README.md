@@ -49,11 +49,16 @@ in walk: `WASD` move, `E` doors · `?` help. → [All shortcuts](docs/user/keybo
 
 ```bash
 npm install
-npm run dev      # localhost:5173
+cp .dev.vars.example .dev.vars   # first time — seeds the local admin account
+npm run dev      # localhost:5173 (Vite) + local backend on :8788 (admin login works in dev)
 npm test         # vitest
 npm run build    # typecheck + production build
 npm run check    # Biome: format + lint
 ```
+
+`npm run dev` runs the app **and** a local backend (`scripts/dev-api.ts`) so real admin login +
+cloud sync work in dev; needs Node ≥ 22. Use `npm run dev:web` / `npm run dev:api` to run either
+half alone. See [docs/deployment-cloudflare.md](docs/deployment-cloudflare.md) for details.
 
 A **pre-commit hook** (auto-installed by `npm install`) runs `biome check` on staged files.
 Optional dev sidecars — `npm run scraper-server` (IKEA live-scrape pack) and

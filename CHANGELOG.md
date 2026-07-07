@@ -5,6 +5,302 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.17.0.3 — CodeQL: Smithsonian scraper sends API key as a header, not in the URL
+
+Cleared the last CodeQL finding (`py/clear-text-logging-sensitive-data`). Root cause
+wasn't the log sink but the source: `smithsonian3d_scraper.py` embedded the `api_key`
+in the search URL's query string, and `HttpClient.open` logs the (redacted) URL on a
+retry/error — CodeQL can't see the regex `_redact` strips it, so the taint reached the
+log. Fixed at the source: the key now travels in the `X-Api-Key` request header
+(api.data.gov's recommended method — api.si.edu fronts data.gov), so the secret never
+enters the URL and can't be logged. The hardened `_redact`/`_log` sink sanitizer from
+v0.17.0.2 stays as defense-in-depth. (The JS clear-text alerts from v0.17.0.1–.2 are
+confirmed cleared at HEAD.)
+
+## v0.17.0.2 — CodeQL: stop persisting auth identity; redact scraper logs
+
+Cleared the CodeQL clear-text findings on the PR. `authSlice` no longer writes the
+signed-in user (id/name/email) to `localStorage` — the server HttpOnly-cookie session
+is the single source of truth, revived by `refreshAuth()` on boot (`cloudBoot`), so no
+personal data sits in clear text at rest; `signOut` still purges the legacy `hdb_auth`
+key. `research/scrapers/scraper_common.py`: `_log` now routes through a hardened
+`_redact` (form-encoded params like `client_secret=`, `user:pass@` URL userinfo, and
+standalone `token=`/`key=` fields anywhere in a line), sanitizing every scraper log at
+the sink. Also silenced the dev-api admin-email console log (v0.17.0.1).
+
+## v0.17.0.0 — PR: dev profiler, orbit/room-editor wall & lighting fixes, catalog refresh, mobile HUD
+
+Minor release rolling up the `fix/070726` branch to `main`. Highlights: a dev-only
+detached-window performance profiler (Live / Cost / Objects tabs, `window.__profiler`,
+⌘K entry, pro-tier flag); a virtual `CeilingOccluder` for orbit + room-editor shadow
+casting with graded-sun lighting parity (dollhouse suppression removed); crisper wall
+rendering (mitred concave/thickness-aware corners, zero-overlap translucent tiling,
+binary reveal target); catalog refresh/remove for imported IKEA/shared R2 assets; a
+local filesystem mirror for the R2 shared library in dev; and walk-mode mobile HUD
+fixes (top callout, bottom safe-area, transparent ring joystick). See per-build entries
+below.
+
+## v0.16.1.14 — walk-mode mobile HUD: top callout, safe-area, ring joystick
+
+Fixed three mobile walk-mode issues (`WalkHud`, `.walk-joystick`). The "Walking
+through" `InfoCallout` was pinned bottom-centre and got covered by the bottom-left
+touch joystick — it now renders top-centre just below the home/menu buttons, using
+the same `env(safe-area-inset-top) + 104px` offset as the room-editor hint. The
+controls banner container gained an `env(safe-area-inset-bottom)` guard so it clears
+the home indicator, and it lifts above the joystick (24px inset + 88px tall → +124px)
+whenever the joystick is present (coarse pointer), so its left edge no longer overlaps
+the stick on narrow screens. The joystick base is now a transparent **ring** (2px
+`--text` border + `--shadow-pop`) instead of the frosted white disc. Added a mobile
+walk-mode HUD scenario (`scripts/scenarios/walk-mobile-hud.json`).
+
+## v0.16.1.13 — orbit walls settle crisp too (binary reveal target)
+
+Ported the v0.16.1.12 binary-reveal-target fix to the main orbit scene's
+`WallSegment`, which still used the raw `wallRevealFacing` smoothstep opacity as
+its fade target — so a wall viewed at a grazing angle could rest at a washed
+mid-band opacity (the same defect just fixed in the room editor; less obvious in
+orbit because the sky backdrop + constant camera motion mask it, but present in
+principle). The orbit reveal target is now binary — fully faded or fully opaque,
+with the same 0.35/0.65 hysteresis dead-band — so walls always SETTLE crisp while
+the smooth lerp still animates the transition as you orbit. Also folded in the
+demand-mode `RenderPump` keep-alive (register an animated source while lerping, so
+a binary transition can't starve part-way when the camera stops) and the
+exact-endpoint snap. Orbit's reveal-through-tint emissive lift is kept (its sky
+backdrop legitimately needs it, unlike the editor's flat backdrop). Behaviour note:
+orbit walls now do a quick full fade/solidify as they cross the threshold rather
+than gradually tracking the smoothstep — consistent with the room editor.
+
+## v0.16.1.12 — room-editor walls settle crisp, never washed (binary reveal target)
+
+Fixed the persistent "washed / half-translucent back wall" in the per-room editor.
+Root cause: `useWallReveal` used the `wallRevealFacing` smoothstep opacity directly
+as its fade **target**, so a wall viewed at a grazing/oblique angle *settled* at a
+mid-band opacity (~0.6–0.8) — which reads as a permanently washed pane over the
+editor's pale backdrop. It only looked like a fade/timing bug (it survived across
+Chrome + mobile Safari, both quality tiers, day-only); a same-frame probe of the
+hook state vs the live mesh material proved the wall was correctly parked at its
+true mid-band target, not frozen.
+
+Fix: the editor reveal target is now **binary** — a wall is either fully see-through
+(the translucent floor) or fully opaque, with hysteresis (start fading below 0.35
+facing, stop above 0.65) so a wall near the boundary can't flip-flop. The existing
+smooth lerp still animates the transition as you swivel, so walls fade/solidify
+smoothly but always SETTLE crisp, on every tier and GPU. Also folded in from the
+investigation: the fade now keeps the demand-mode `RenderPump` alive while lerping
+(registers an animated source, so a static-camera transition can't starve part-way),
+snaps onto exact endpoints, and holds its per-mesh clone bookkeeping in a hook-owned
+`WeakMap` instead of `mesh.userData` (which the wall component overwrites each render).
+Adds dev-only `window.__wallDiag()` / `__wallOpacities()` / `__animatedSourceCount()`
+console probes for future reveal debugging (tree-shaken from prod).
+
+## v0.16.1.11 — fix room-editor mitre gaps (reference the centre-line corner, not the endpoint)
+
+The v0.16.1.10 mitre left triangular gaps at every corner in the **room editor**
+(most visible top-down). Cause: the editor's clipped walls END at the room's
+INTERIOR footprint corner, but the perpendicular neighbour's centre-line sits half
+a thickness OUTSIDE that — so the true corner is beyond the endpoint. The mitre was
+referenced to the endpoint, so the interior edge retracted ~t/2 short of the inner
+corner and the two walls' interior faces never met. (Orbit walls share the actual
+centre-line corner as their endpoint, so orbit was already correct.)
+
+Fix: the mitre clamp now takes an absolute reference `at` (the along-axis coord of
+the corner's centre-line vertex) instead of `±halfLen`. `cornerMiters` computes it
+as the intersection of the two walls' centre-lines and extends the outline to reach
+the outer corner, so the interior edges meet exactly and the corner closes.
+`WallMiter` is now `{ startAt?, startSlope?, endAt?, endSlope? }`; orbit passes
+`±length/2` (unchanged behaviour), the editor passes the computed centre-line
+corner. Verified: Bath/WC1 corners are closed and seamless from 3/4 and top-down.
+
+## v0.16.1.10 — mitred wall corners (each wall shares half; correct for concave + unequal thickness)
+
+Wall corners are now **mitred** — the two walls are cut to the corner's angle-
+bisector so each takes half, meeting along a diagonal seam (like skirting/crown
+moulding). The two mitred end-faces end up EXACTLY coincident with OPPOSITE
+normals, so backface culling draws only one from any viewpoint: a genuinely
+seamless join with **no z-fighting and no doubled translucency** (no pixel ever
+overlaps two coplanar faces) — and no ε-overlap or depth-bias fudge.
+
+Supersedes the v0.16.1.7 span/butt tiling for true L-corners. Two earlier bugs in
+the first mitre cut are fixed here:
+
+- **Concave / inward-pointing corners** were cut the wrong way (the diagonal
+  assumed a convex outer corner). The slope is now derived from the NEIGHBOUR's
+  outward normal — `slope = sign(nbOutward·thisAxis) · outerZSign · (tNb/tThis)` —
+  so it points from the true exterior∩exterior vertex to the interior∩interior
+  vertex at convex AND concave corners alike.
+- **Different-thickness corners left gaps**: a fixed 45° cut + own-half extension
+  don't line up when the walls differ in thickness. The slope now carries the
+  `tNeighbour/tThis` ratio and the end extends by the NEIGHBOUR's half-thickness,
+  so a thin wall meeting a thick one (and vice-versa) cut to the SAME world
+  diagonal — no gap, no overlap.
+
+`extrudeWallBody` takes a `WallMiter { halfLen, startSlope?, endSlope? }` and shears
+each mitred end to `x = ±halfLen + slope·z`; `wallCornerMiter` resolves the slope
+(+ neighbour-half `abut`) per end, falling back to the buried butt at T-junctions
+or where a neighbour's outward normal is ambiguous. Orbit (`WallSegment`) mitres
+the body and cuts its separate finish planes per-side to match; the room editor
+(`RoomShell`) mitres its single grouped body so the finish follows for free.
+Covered by `wallSegments.test.ts` + `wallBodyGeometry.test.ts`; visually verified
+(convex, concave-perimeter, unequal-thickness, and bathroom corners all seamless).
+
+## v0.16.1.9 — room-editor wall reveal: complete the fade, drop the whitewash
+
+Fixed the room editor's "super-white, slightly-translucent walls" — the
+camera-facing walls that should fade to a clean see-through were instead parking
+half-faded (~0.6–0.84 opacity) with a bright white glow, and the fade wouldn't
+flip to the new near walls when you swivelled. Two causes, both in the
+editor-only `apartment/walls/useWallReveal` hook:
+
+- **Fade starvation.** The editor `<Canvas>` is `frameloop="demand"` and gates
+  rendering through `RenderPump`, which stays continuous only while an *animated
+  source* is registered (the same mechanism that keeps spinning fans alive).
+  `useWallReveal` relied on R3F's native `invalidate()`, which the pump ignores —
+  so after the ~300ms settle tail the fade stalled one lerp step in, and never
+  completed or re-flipped on swivel. Now it registers an animated source while the
+  fade is lerping and releases it the instant it settles.
+- **Whitewash.** The REVEAL-THROUGH-TINT emissive lift (a light-neutral glow that
+  stops a *dark* pane veiling the scene over orbit's night sky) glared bright over
+  the room editor's flat *pale* backdrop. Dropped it in the editor path — faded
+  panes now read as clean glass you see the room through, not frosted white.
+
+Net effect: back/far walls stay fully solid (real finish), the camera-facing walls
+fade cleanly to transparent, and the faded pair follows the camera as you swivel.
+Orbit's `WallSegment` is untouched.
+
+## v0.16.1.8 — dev-only performance profiler
+
+A detached-window ("DevTools-style") performance profiler for the 3D
+viewport, for diagnosing render cost during development. `⌘K` → "Open
+profiler (dev)" opens a themed popup with three tabs: **Live** (rolling FPS/
+frame-time/draw-call/triangle/GPU-memory/JS-heap/light-count dashboard fed by
+a probe inside the R3F canvas), **Cost** (an on-demand sweep that toggles each
+render-quality effect off/on and ranks them by measured ms/frame cost, useful
+at High tier to see what post-processing/shadows/SSAO actually cost), and
+**Objects** (a per-furniture-item triangle/mesh/material breakdown, ranked,
+with click-through selection in the main window). The popup is a separate
+module realm, so it reaches the parent's live singletons via
+`window.opener.__profiler` rather than importing them directly.
+
+Strictly **dev-only**: the `profiler` feature flag (`devOnly`+`pro`) plus an
+`import.meta.env.DEV` guard at every wiring point keep the entire
+`src/dev/profiler/` module graph out of the production bundle (verified by
+grepping `dist/` for the profiler's entry points). See
+`docs/developer/profiler.md` for the full guide and
+`src/dev/profiler/CLAUDE.md` for path-scoped implementation rules.
+
+## v0.16.1.7 — clean translucent wall corners (no doubled opacity, no z-fight)
+
+Faded wall corners in orbit mode and the room editor no longer show a darker
+"double translucent wall" band or a z-fighting crosshatch where two walls
+intersect. Root cause: at a corner the walls **overlapped** — orbit extended
+*both* meeting walls to fill the corner square, so two see-through walls
+composited on top of each other (doubled opacity) and their now-coplanar faces
+z-fought (a per-wall depth `bias` only masked it). The room editor already
+span/butt-tiled corners (single density) but left the butting wall's end-cap
+sitting *exactly coplanar* with the spanner's face — the same z-fight.
+
+Fix — **zero-overlap corner tiling with a buried seam** (WALL-CORNER-TILE): at
+each corner exactly ONE wall spans it (chosen by wall-id tie-break) and extends
+by the neighbour's half-thickness; the other **butts and retracts to the
+spanner's near face minus `OPENING_CLEARANCE`** so its end-cap is *buried inside*
+the spanner rather than overlapping it or lying coplanar with it. No overlap →
+single-density corner (no doubled translucency); no coplanar face → no z-fight.
+This is the same 1 cm burial trick doors/windows already use against their jambs;
+the overlap is invisible. New pure `wallCornerAbut`/`wallEndAbutmentNeighbor`
+helpers in `wallSegments.ts` drive the orbit `WallSegment` body + finish faces;
+`RoomShell.cornerAbutments` gets the matching ε burial. Covered by
+`wallSegments.test.ts`.
+
+## v0.16.1.6 — real admin login in `npm run dev`; drop the client-side admin gate
+
+`npm run dev` now runs the Vite app **and** a local backend together
+(`scripts/dev.mjs` → `scripts/dev-api.ts`), so real email+password admin login +
+cloud sync work in dev exactly like production. The dev backend hosts the actual
+Cloudflare Worker app (`functions/api/[[route]].ts`) on Node with shimmed bindings
+(`node:sqlite` for D1, in-memory KV, R2 stubbed) — chosen over `wrangler pages dev`
+because `workerd` needs glibc ≥ 2.32, which some dev boxes (Ubuntu 20.04 / WSL)
+lack. Vite proxies `/api` → the backend on :8788; the admin is seeded from
+`.dev.vars` (`ADMIN_EMAIL`/`ADMIN_PASSWORD`). `dev:web`/`dev:api` run either half.
+
+The client-side "admin/admin" gate (`localAdminProvider`, `VITE_ADMIN_PASSWORD`)
+is **removed**: auth now requires a real backend. Offline / GitHub Pages builds
+have no sign-in at all (the entry points are hidden). A signed-in backend admin
+gets both **Manage accounts** and the **Feature flags** panel from the login
+screen (the flags panel was previously only reachable via the offline gate).
+
+## v0.16.1.5 — orbit & room-editor lighting parity
+
+Orbit and the room editor now run the full walk-mode lighting simulation (graded sun, PCF
+shadows, exposure grading, bloom) at every tier, replacing the flat daytime "dollhouse" fill.
+An invisible shadow-casting virtual ceiling keeps the open-top orbit view lit through
+windows/openings only. Identical on mobile and desktop.
+
+## v0.16.1.4 — refresh an imported IKEA/shared asset from the catalog card
+
+Companion to v0.16.1.2's remove control: an imported `source:'ikea'` card now
+also carries a **refresh** (re-download) button. When a placed item's thumbnail
+or model can't be rebuilt from IndexedDB, refresh re-fetches the group's
+metadata + GLB + thumbnail from R2 and rebuilds the def **in place** via
+`replaceUserFurniture` — keeping every placed instance — instead of forcing a
+remove-and-re-add.
+
+Mechanics: the button calls the existing `addSharedGroup(group)` path (spinner +
+success/error toast). Because `registerSharedGroup` keys on the manifest folder
+slug while a def only stores its `groupKey`, a new pure `sharedGroupForDef` maps
+`groupKey → group` against the loaded manifest. The control is shown **only when
+re-downloadable** — admin + `sharedLibrary` flag + backend + a matching manifest
+item — so a dev-scrape or non-admin session never sees a dead button. No new
+feature flag (reuses the `sharedLibrary` gate).
+
+## v0.16.1.3 — Esc no longer exits the room / floor-plan editor
+
+Pressing <kbd>Esc</kbd> inside the per-room editor or the 2D floor-plan editor
+would walk you all the way back out to the orbit overview — an easy way to lose
+your place with one stray keypress. Esc now stays *within* the editor and only
+cancels what you're doing:
+
+- **Room editor** (`App.tsx`): Esc cancels an armed catalog placement (the
+  furniture ghost) first, then the tape/comment tools, then clears the current
+  selection — but no longer calls `exitRoomEditor()`. When a placement is armed,
+  Esc bails early so `usePlacementController` cancels the ghost without also
+  clearing the selection on the same keypress.
+- **Floor-plan editor** (`FloorPlanEditor.tsx`): Esc still cancels an in-progress
+  polyline / polygon / wall draft (and an armed PLAN-FURNISH placement), but no
+  longer calls `exitPlanEditorToScene()`.
+
+Leaving either editor is now only the explicit action it always was — the **Exit
+room** / **Done** button (or the `P` hotkey for the plan editor). Docs updated
+(`keyboard-shortcuts.md`, `room-editor.md`).
+
+## v0.16.1.2 — remove imported IKEA/shared assets from the catalog
+
+An imported IKEA / shared-library product (`source:'ikea'` def) could not be
+removed once its IndexedDB blob went missing (storage eviction, private-mode
+wipe, a different browser) — the placed item rendered the placeholder box, the
+catalog card offered no delete (the "×" was gated to `source:'user'` uploads),
+and the "Download" `SharedCard` stayed hidden because a local `ikea-<groupKey>`
+def already existed. No way to free the space or re-download.
+
+The catalog card "×" (`.coll-x`) now also removes `source:'ikea'` imported/shared
+defs (aria-label "Remove downloaded asset"). Removal reuses `removeUserFurniture`
+— dropping the def + its placed instances and deleting the IndexedDB records —
+and un-hides the "Download" card so the group re-fetches from R2 on click.
+Removal routes through `catalog/removeImportedDef.ts:confirmAndRemoveDef`, which
+prompts (via `confirmAction`) only when the def has placed instances that would
+be wiped with it — applied to user uploads too, so a placed upload is no longer
+deleted silently.
+
+## v0.16.1.1 — skip unused IKEA context-image fetch (kill 404s)
+
+IKEA group registration fetched both `main_image` and `context_image` per variant,
+but `buildVariant` only ever consumes `main_image` (downscaled into the card
+thumbnail) — the context/lifestyle image was downloaded, wrapped in a `File`, and
+never read. Many groups also list a `context_image` that was never uploaded to R2,
+so the fetch just 404'd (`…/ikea/ektorp-armchair/hakebo-dark-grey-context.jpg`).
+Dropped the context-image fetch in both `sharedLibrary.ts` (proxy path) and
+`ikeaLive.ts` (dev sidecar path); only `main_image` is fetched now. No behavioural
+change to imports or thumbnails — just one fewer request and no console 404.
+
 ## v0.16.1.0 — dollhouse reveal polish (side-wall fade + through-wall tint)
 
 Patch rollup for two reveal fixes (v0.16.0.1 → .2):

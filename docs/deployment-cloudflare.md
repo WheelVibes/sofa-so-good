@@ -288,13 +288,40 @@ set) is the full-featured version.
 
 ## Local development against the API
 
-Run the Pages Function + bindings locally with Wrangler's Pages dev server:
+### Default: `npm run dev` (Node dev backend)
+
+`npm run dev` runs the Vite app **and** a local backend together, so real admin
+login + cloud sync work in dev with no extra steps:
+
+```bash
+cp .dev.vars.example .dev.vars   # first time only — seeds the dev admin account
+npm run dev                      # Vite :5173 + backend :8788 (Vite proxies /api)
+```
+
+The backend (`scripts/dev-api.ts`) hosts the **actual** Cloudflare Worker app
+(`functions/api/[[route]].ts`) on Node with shimmed bindings — `node:sqlite` for
+D1 (persisted to `.wrangler/sofa-dev.sqlite`), an in-memory Map for KV/sessions,
+and a **filesystem mirror of the R2 shared-library bucket** so the admin catalog
+populates in dev too. R2's contents are just the local `ikea_optimized/` tree
+(the same one `rclone`d to the bucket — see below), so the shim serves those keys
+straight from disk: `ikea/<group>/<file>` → `ikea_optimized/<group>/<file>` and
+`library/index.json` → `ikea_optimized/library-index.json` (run
+`npm run build-library-index` once to produce it). Override the source dir with
+`DEV_LIBRARY_DIR`; if it's absent the shared library just stays empty. The admin
+is seeded from `.dev.vars` (`ADMIN_EMAIL`/`ADMIN_PASSWORD`) on the first request;
+sign in with those on the login screen. Turnstile is skipped when
+`TURNSTILE_SECRET` is empty. Requires Node ≥ 22 (`node:sqlite`); run either half
+alone with `npm run dev:web` / `npm run dev:api`.
+
+**Why not `wrangler pages dev`?** `workerd` (wrangler's local runtime) needs
+glibc ≥ 2.32, which some dev boxes (Ubuntu 20.04 / WSL, glibc 2.31) don't have.
+The Node backend runs the same worker code without `workerd`. If your machine has
+glibc ≥ 2.32 you can still use Wrangler instead:
 
 ```bash
 npm run build
 npx wrangler pages dev dist --d1 DB=sofa-db --kv SESSIONS --kv CACHE --kv FLAGS --r2 LIBRARY=sofa-assets
 ```
 
-Turnstile verification is skipped when `TURNSTILE_SECRET` is unset, so local login
-works with just an email + password. Point the Vite dev server at a running API
-with `VITE_API_BASE` if you want the two split during development.
+Either way, point a split Vite dev server at a running API with `VITE_API_BASE`
+if you want the two on separate origins.

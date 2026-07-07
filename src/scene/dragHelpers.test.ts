@@ -6,6 +6,7 @@ import {
   halfExtents,
   isActiveDragPointer,
   pointInFootprint,
+  shouldBeginItemDrag,
   shouldDuplicateOnDragStart,
   snapAxis,
   snapBase,
@@ -137,6 +138,21 @@ describe('shouldDuplicateOnDragStart (FEAT-B: Alt-drag duplicate decision)', () 
   })
   it('does not duplicate a window-bound fixture (curtains/blinds never drag)', () => {
     expect(shouldDuplicateOnDragStart({ ...base, windowBound: true })).toBe(false)
+  })
+})
+
+describe('shouldBeginItemDrag (DRAG-SELECT-FIRST: select-then-drag gate)', () => {
+  it('begins a drag on an already-selected piece', () => {
+    expect(shouldBeginItemDrag({ alreadySelected: true })).toBe(true)
+  })
+  it('does NOT begin a drag on an unselected piece (first press orbits / selects on click)', () => {
+    expect(shouldBeginItemDrag({ alreadySelected: false })).toBe(false)
+  })
+  it('never drags a locked piece, even when already selected', () => {
+    expect(shouldBeginItemDrag({ alreadySelected: true, locked: true })).toBe(false)
+  })
+  it('never drags a window-bound fixture (curtains/blinds), even when already selected', () => {
+    expect(shouldBeginItemDrag({ alreadySelected: true, windowBound: true })).toBe(false)
   })
 })
 

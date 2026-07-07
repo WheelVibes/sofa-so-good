@@ -8,8 +8,10 @@ License: CC0 — 2,000+ 3D models released to the public domain (part of the 2.8
          as CC0 in the manifest (the API also returns `usage` metadata we capture).
 Programmatic access: Smithsonian Open Access API. Needs a FREE API key from
          https://api.data.gov (api.si.edu fronts data.gov). Pass it via --api-key
-         or the API_KEY env var.
-           GET /openaccess/api/v1.0/search?q=<query>&api_key=<key>&start=&rows=
+         or the API_KEY env var. The key is sent in the `X-Api-Key` request header
+         (api.data.gov's recommended method) — never in the URL query string — so
+         it can't leak into request logs.
+           GET /openaccess/api/v1.0/search?q=<query>&start=&rows=   (X-Api-Key: <key>)
          Each returned object has `content.descriptiveNonRepeating.online_media.media[]`;
          entries with `"type": "3D"` carry a `resources[]` list of downloadable model
          files (GLB/glTF/OBJ/USDZ) and a `content`/`thumbnail` viewer URL. This scraper
@@ -42,8 +44,11 @@ API = "https://api.si.edu/openaccess/api/v1.0"
 _MODEL_EXT = re.compile(r"\.(glb|gltf|usdz|obj)(\?|$)", re.I)
 
 
-def _search(http: HttpClient, query: str, api_key: str, start: int, rows: int) -> dict:
-    params = {"q": query, "api_key": api_key, "start": str(start), "rows": str(rows)}
+def _search(http: HttpClient, query: str, start: int, rows: int) -> dict:
+    # The api_key is sent via the X-Api-Key header (set on the HttpClient), NOT
+    # in the query string — keeping the secret out of the URL so it can never be
+    # logged in clear text on a retry/error (CodeQL py/clear-text-logging).
+    params = {"q": query, "start": str(start), "rows": str(rows)}
     return http.get_json(f"{API}/search?{urllib.parse.urlencode(params)}")
 
 
@@ -83,12 +88,17 @@ def main() -> None:
         _log("       Get one at https://api.data.gov/signup/  (used as api_key on api.si.edu)")
         sys.exit(2)
 
-    http = HttpClient(rps=args.rps, retries=args.retries, timeout=args.timeout)
+    http = HttpClient(
+        rps=args.rps,
+        retries=args.retries,
+        timeout=args.timeout,
+        headers={"X-Api-Key": args.api_key},
+    )
 
     def iter_objects():
         start = 0
         while True:
-            data = _search(http, args.query, args.api_key, start, args.rows)
+            data = _search(http, args.query, start, args.rows)
             rows = (data.get("response") or {}).get("rows") or []
             if not rows:
                 break

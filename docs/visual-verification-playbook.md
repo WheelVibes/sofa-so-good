@@ -1064,6 +1064,11 @@ when the camera is on its outward side** (camera-facing wall reveal, a per-frame
 the camera on the room centre (`OrbitCamera` keys this off `roomEditor.roomId`),
 or a far room like `livingDining` loads off-screen to one side.
 
+### Orbit-roofed-lighting checklist (ORBIT-CEILING)
+Orbit daytime (Medium+ tier): sun shadows present, interior lit through windows/openings (not
+flooded from the open top), see-in view intact; confirm no z-fighting/occlusion pop from the
+ceiling occluder.
+
 ### Drag-and-drop won't work on a `<button>` drop target
 A native `<button>` makes an unreliable drop zone — browsers mishandle drag
 events on it and `dataTransfer.items` / `webkitGetAsEntry()` may not populate, so

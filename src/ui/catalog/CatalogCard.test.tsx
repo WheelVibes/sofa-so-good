@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FurnitureDef, IkeaGltfDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { CatalogCard } from './CatalogCard'
@@ -55,6 +55,40 @@ describe('CatalogCard', () => {
     // The IKEA product photo ships on a baked white background — the `photo`
     // modifier drives the --photo-tile background + multiply blend (parts.css).
     expect(screen.getByText('IKEA').closest('.card-thumb')?.className).toContain('photo')
+  })
+
+  it('shows a remove button for an imported IKEA def when onDelete is given', () => {
+    render(<CatalogCard def={IKEA_DEF} onDelete={() => {}} />)
+    expect(screen.getByLabelText('Remove downloaded asset')).toBeTruthy()
+  })
+
+  it('shows no remove button for a builtin def', () => {
+    render(<CatalogCard def={SOFA_DEF} onDelete={() => {}} />)
+    expect(screen.queryByLabelText(/Remove .* asset/)).toBeNull()
+  })
+
+  it('shows a refresh button only when onRefresh is provided', () => {
+    const { unmount } = render(<CatalogCard def={IKEA_DEF} />)
+    expect(screen.queryByLabelText('Re-download asset from library')).toBeNull()
+    unmount()
+    render(<CatalogCard def={IKEA_DEF} onRefresh={() => {}} />)
+    expect(screen.getByLabelText('Re-download asset from library')).toBeTruthy()
+  })
+
+  it('calls onRefresh (not card placement) when the refresh button is clicked', () => {
+    const onRefresh = vi.fn()
+    render(<CatalogCard def={IKEA_DEF} onRefresh={onRefresh} />)
+    fireEvent.click(screen.getByLabelText('Re-download asset from library'))
+    expect(onRefresh).toHaveBeenCalledTimes(1)
+    // The click must not arm placement for the card.
+    expect(useStore.getState().activeDefId).toBeNull()
+  })
+
+  it('disables + marks the refresh button busy while refreshing', () => {
+    render(<CatalogCard def={IKEA_DEF} onRefresh={() => {}} refreshing />)
+    const btn = screen.getByLabelText('Re-download asset from library')
+    expect(btn.getAttribute('aria-busy')).toBe('true')
+    expect((btn as HTMLButtonElement).disabled).toBe(true)
   })
 
   describe('"fits this room" size cue (CATALOG-FITS)', () => {

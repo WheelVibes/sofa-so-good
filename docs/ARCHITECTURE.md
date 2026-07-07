@@ -9,7 +9,16 @@ same change that reshapes a system.
 > a system, add a line and trim/merge elsewhere; push deep detail to the path-scoped files.
 
 ## Commands (full)
-- `npm run dev` (localhost:5173; store on `window.__store`); `npm test`/`test:watch`.
+- `npm run dev` (localhost:5173; store on `window.__store`) — runs **both** the Vite dev server
+  **and** the local backend (`scripts/dev.mjs` orchestrates Vite + `scripts/dev-api.ts`), so real
+  admin login + cloud sync work in dev. Vite proxies `/api` → the backend on :8788. The backend
+  hosts the actual Cloudflare Worker app (`functions/api/[[route]].ts`) on Node with shimmed
+  bindings (`node:sqlite` for D1 → `.wrangler/sofa-dev.sqlite`, in-memory KV, R2 stubbed) —
+  because `wrangler pages dev`/`workerd` needs glibc ≥ 2.32, which some dev boxes lack. Copy
+  `.dev.vars.example` → `.dev.vars` (seeds the admin via `ADMIN_EMAIL`/`ADMIN_PASSWORD` on the
+  first request); requires Node ≥ 22 (`node:sqlite`, run with `--experimental-sqlite`). Use
+  `npm run dev:web` (Vite only) / `npm run dev:api` (backend only) to run either half alone.
+- `npm test`/`test:watch`.
   **Test environments**: Vitest defaults to `node` (fast, no DOM); any test file that touches
   the DOM (render/`@testing-library`/`window`/`document`/canvas/IndexedDB) must start with a
   `// @vitest-environment happy-dom` line — a missing pragma fails with
@@ -43,6 +52,11 @@ same change that reshapes a system.
   (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) SG retailer price lookup
   (IKEA/Courts/HipVan/Castlery).
 - `python/scripts/` — offline IKEA scraper + asset tooling (not in the app build).
+- **Performance profiler (dev-only)**: `src/dev/profiler/` — detached-window
+  (`window.open`) live metrics dashboard + on-demand effect-cost sweep + per-object
+  GPU breakdown; ⌘K → "Open profiler (dev)" (`profiler` flag, `devOnly`+`pro`, plus
+  `import.meta.env.DEV` at every wiring point so it tree-shakes out of prod). Full
+  guide: `docs/developer/profiler.md`; path-scoped rules: `src/dev/profiler/CLAUDE.md`.
 - **Deploy base**: `VITE_BASE` env overrides the build's base path (default `/sofa-so-good/`
   for GitHub Pages; the dev server stays `/`). Must end with `/`. `scripts/static-serve.mjs`
   honours matching `BASE`/`PORT` envs for serving non-default-base builds locally.
@@ -661,7 +675,12 @@ same change that reshapes a system.
   free-scrub 24h slider + a "System time" toggle (always shows the real clock, never the
   selected time). **Lights** (`lightsMode` off/on/auto) is an independent fixture toggle — not
   tied to the sun (lights can be on in daytime). Fixtures emit capped night point lights; shades
-  glow via `fixtureGlow`.
+  glow via `fixtureGlow`. **Orbit and the room editor run this exact same graded simulation**
+  (ORBIT-CEILING) rather than a flat daytime fill — since orbit culls the real ceiling to see
+  inside, an invisible shadow-casting virtual ceiling occluder (`apartment/ceiling/
+  CeilingOccluder.tsx`, mounted in both `Scene.tsx` and `RoomEditorScene.tsx`) blocks the sun
+  from flooding straight in through the open top, so interiors stay lit only through windows and
+  open doors, matching walk mode.
 - **Parametric furniture generator** (`furniture/parametric/`, PF2): dimension-driven
   bookshelf / wardrobe / sideboard / desk / **kitchen-cabinet run**. Pure tested core —
   `spec.ts` (`ParametricType` union, `clampSpec` envelopes, `defaultSpec`, never throws),
@@ -1397,8 +1416,10 @@ same change that reshapes a system.
 - **Feature flags** (`features/featureFlags.ts`, `featureFlagsSlice`, `ui/FlagsPanel.tsx`):
   `FEATURE_FLAGS` = single source of what ships; pure `resolveFlags(isDev, overrides,
   isAdmin)` — prod locked, dev/admin unlocks `devOnly`+overrides. **Auth** (`authSlice`,
-  `LocalAdminProvider`, `VITE_ADMIN_PASSWORD`) unlocks dev-only features — **NOT a security
-  boundary**.
+  `backendAuthProvider`) is backend-only: with a backend (`hasBackend()` — Cloudflare, or the
+  local dev backend from `npm run dev`) a signed-in **admin** unlocks `devOnly` features + the
+  flags panel; without a backend (offline / GitHub Pages) there is no sign-in at all (no
+  client-side gate). Local dev backend: `scripts/dev-api.ts` (see Commands).
 - **Loading + fast boot** (`ui/loading/`, `storage/bootstrap.ts`, `bootPhase`/`loading`):
   `main.tsx` imports the self-hosted fonts, registers decoders, then renders immediately; async
   `runBootstrap()` (IDB + autosave restore + default seed *after* hydration) flips

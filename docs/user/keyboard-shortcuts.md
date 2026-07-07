@@ -47,7 +47,7 @@ always active; see [General](#general) above.)
 | Search the catalog | <kbd>/</kbd> |
 | Budget / shopping panel | <kbd>B</kbd> |
 | Delete | <kbd>Del</kbd> |
-| Deselect / exit room | <kbd>Esc</kbd> |
+| Deselect / cancel placement | <kbd>Esc</kbd> |
 
 ## In walk mode
 

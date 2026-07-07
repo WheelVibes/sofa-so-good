@@ -17,6 +17,7 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { registerAnimatedSource } from '../../scene/animatedSources'
 import { WallFloorAO } from '../../scene/CornerAO'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
@@ -28,8 +29,9 @@ import { APARTMENT_EXT_D, APARTMENT_EXT_W, FLAT, ROOMS, WALLS } from '../constan
 import type { RoomId, WallSpec } from '../types'
 import {
   buildWallSegments,
+  localOuterZSign,
   type WallSegment as WallSegmentSpan,
-  wallEndAbutmentThickness,
+  wallCornerMiter,
   wallThicknessMetres,
 } from '../wallSegments'
 import { extrudeWallBody, WALL_STRUCTURE_COLOR } from './wallBodyGeometry'
@@ -299,6 +301,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // decrease but the render doesn't update" bug. We flip needsUpdate only on the
   // transition (not every frame) to avoid needless shader recompiles.
   const transparentRef = useRef(false)
+  // Hysteresis latch for the binary fade decision + the RenderPump keep-alive
+  // handle held while the fade lerps (both mirror the room-editor `useWallReveal`).
+  const wasFadedRef = useRef(false)
+  const pumpReleaseRef = useRef<null | (() => void)>(null)
 
   // Outward (away-from-interior) horizontal normal + midpoint of this wall, used
   // to fade the wall when the camera sits on its outward side (between the camera
@@ -352,14 +358,41 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         nx = -nx
         nz = -nz
       }
-      const faded = wallRevealFacing(FWD.x, FWD.z, nx, nz)
+      const facing = wallRevealFacing(FWD.x, FWD.z, nx, nz)
+      // BINARY target with hysteresis (WALL-REVEAL-BINARY-TARGET, matching the room
+      // editor's `useWallReveal`). `wallRevealFacing` is a smoothstep, so a wall
+      // viewed at a grazing/oblique angle would otherwise REST at a mid-band opacity
+      // (~0.6–0.8) that reads as a washed half-translucent pane. The lerp below still
+      // animates the transition, so a wall fades/solidifies smoothly as you orbit,
+      // but always SETTLES crisp — either the translucent floor or fully opaque.
+      // Hysteresis (fade below 0.35 facing, restore above 0.65) is a dead-band so a
+      // wall hovering near the threshold can't flip-flop.
+      const shouldFade = wasFadedRef.current ? facing < 0.65 : facing < 0.35
+      wasFadedRef.current = shouldFade
       // translucent: walls never fully disappear (strongly see-through floor).
       // auto-hide: walls can fully disappear (current legacy behaviour).
-      target = revealMode === 'auto-hide' ? faded : Math.max(WALL_TRANSLUCENT_MIN, faded)
+      target = shouldFade ? (revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN) : 1
+    } else {
+      wasFadedRef.current = false
+    }
+    // Keep the demand-mode RenderPump rendering while the fade lerps toward its
+    // (crisp) target — register an animated source, release when settled. A binary
+    // target can sit far from the current opacity when a swivel STOPS, and orbit's
+    // old invalidate()+camera-motion path alone can't guarantee the transition
+    // finishes (the ~300ms settle tail may run out), which would strand a wall at a
+    // washed mid opacity — the same starvation the editor hit. Mirrors useWallReveal.
+    const settling = Math.abs(target - opacityRef.current) > 0.005
+    if (settling && !pumpReleaseRef.current) pumpReleaseRef.current = registerAnimatedSource()
+    else if (!settling && pumpReleaseRef.current) {
+      pumpReleaseRef.current()
+      pumpReleaseRef.current = null
     }
     // Settled and fully opaque: nothing to do (the common case).
     if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return
-    const cur = opacityRef.current + (target - opacityRef.current) * 0.18
+    // Snap onto the target within the settle threshold so a wall lands on an EXACT
+    // endpoint (1 / the floor) instead of parking asymptotically short.
+    let cur = opacityRef.current + (target - opacityRef.current) * 0.18
+    if (Math.abs(cur - target) <= 0.005) cur = target
     opacityRef.current = cur
     // The canvas is frameloop="demand": once the camera stops, the loop halts —
     // which would freeze this opacity lerp mid-fade (walls stuck part-faded).
@@ -422,17 +455,26 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       : wall.thickness === 'external'
         ? (wallThicknessDefault?.external ?? FLAT.externalWallThickness)
         : (wallThicknessDefault?.internal ?? FLAT.internalWallThickness)
-  // Half-thickness of the wall this end abuts (0 if the end is free). Used to
-  // (a) extend the body box outward so corners close flush, and (b) pull the
-  // interior face plane in to the inner edge of the abutting wall, so finish
-  // textures stop exactly at the inner corner with no overlap into the body.
-  const startAbut = wallEndAbutmentThickness(wall, WALLS, true) / 2
-  const endAbut = wallEndAbutmentThickness(wall, WALLS, false) / 2
+  // Corner joins (WALL-CORNER-MITER). At a true L-corner the two walls are MITRED
+  // to the corner's angle-bisector so each takes half. Their diagonal end-faces are
+  // then EXACTLY coincident with OPPOSITE normals, so backface culling draws only
+  // one from any viewpoint — a seamless join with no z-fighting and no doubled
+  // translucency. `wallCornerMiter` derives the exact diagonal slope from the
+  // NEIGHBOUR's outward normal (so it points correctly at convex AND concave/
+  // inward corners) and the thickness ratio (so different-thickness walls meet with
+  // no gap); it extends by the neighbour's half-thickness so the long side reaches
+  // the outer corner. T-junctions fall back to buried span/butt tiling.
+  const outerZSign = localOuterZSign(dx, dz, reveal.nx, reveal.nz)
+  const startCM = wallCornerMiter(wall, WALLS, true, outerZSign, isInteriorPoint)
+  const endCM = wallCornerMiter(wall, WALLS, false, outerZSign, isInteriorPoint)
+  const startAbut = startCM.abut
+  const endAbut = endCM.abut
+  const startSlope = startCM.slope
+  const endSlope = endCM.slope
   // Distinct per-wall depth bias (its index in WALLS) applied to the body's
-  // polygonOffset, so where two walls OVERLAP at a corner (each extended to the
-  // other by the abutment) their now-coplanar faces resolve to a deterministic
-  // winner instead of z-fighting — a stable corner instead of a flickering one
-  // once faded walls write depth (WALL-CORNER-BIAS, mirrors the room editor).
+  // polygonOffset — belt-and-suspenders for any residual coplanarity at non-mitred
+  // (buried) joins so a corner resolves to a deterministic winner once faded walls
+  // write depth. Mitred corners self-resolve via backface culling and don't need it.
   const bodyBias = WALLS.findIndex((w) => w.id === wall.id)
   const segments = buildWallSegments(wall, ceilingHeight)
   const midX = (wall.start[0] + wall.end[0]) / 2
@@ -446,10 +488,33 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const wallTop = wall.topHeight ?? ceilingHeight
   const bodyGeometry = useMemo(
     () =>
-      extrudeWallBody(buildWallBodyOutline(wall, wallTop, length, startAbut, endAbut), thickness),
-    [wall, wallTop, length, startAbut, endAbut, thickness],
+      extrudeWallBody(
+        buildWallBodyOutline(wall, wallTop, length, startAbut, endAbut),
+        thickness,
+        undefined, // orbit paints the interior via separate face planes (no group)
+        startSlope !== null || endSlope !== null
+          ? {
+              // Orbit walls share the corner endpoint, so the centre-line corner
+              // is the wall end itself (±length/2).
+              startAt: startSlope !== null ? -length / 2 : undefined,
+              startSlope: startSlope ?? undefined,
+              endAt: endSlope !== null ? length / 2 : undefined,
+              endSlope: endSlope ?? undefined,
+            }
+          : undefined,
+      ),
+    [wall, wallTop, length, startAbut, endAbut, thickness, startSlope, endSlope],
   )
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
+  // Release the RenderPump keep-alive on unmount so a wall mid-fade when it
+  // unmounts (e.g. entering the room editor) doesn't leak a continuous-render hold.
+  useEffect(
+    () => () => {
+      pumpReleaseRef.current?.()
+      pumpReleaseRef.current = null
+    },
+    [],
+  )
 
   // Subdivide each render segment further by room boundary projections
   // so a wall like wall-int-mid-S (which spans bath2/SY/HS on its north
@@ -524,14 +589,31 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
           the perpendicular wall's body and is hidden from view; visible
           finishes from adjacent walls now meet flush at the outer corner. */}
       {faceSpans.map((span, i) => {
-        const extStart = span.start < 1e-6 ? startAbut : 0
-        const extEnd = span.end > length - 1e-6 ? endAbut : 0
-        const a = span.start - extStart
-        const b = span.end + extEnd
-        const segLen = b - a
-        const segMid = (a + b) / 2 - length / 2
         const segHeight = span.top - span.bottom
         const segMidY = span.bottom + segHeight / 2
+        // Per-SIDE along-axis extent. A mitred end cuts the two sides along the
+        // diagonal `a = ±halfLen + slope·z`, so each face plane's end lands exactly
+        // on the body's mitred edge at that face's z (= side·thickness/2): the long
+        // side extends, the other retracts. Correct for convex, concave and unequal
+        // thickness alike (the slope carries all of it). Non-mitred ends use the
+        // body's buried abut for both sides.
+        const endExt = (atStartEnd: boolean, side: 1 | -1): number => {
+          const touches = atStartEnd ? span.start < 1e-6 : span.end > length - 1e-6
+          if (!touches) return 0
+          const cm = atStartEnd ? startCM : endCM
+          if (cm.slope !== null) {
+            const half = cm.slope * side * (thickness / 2)
+            return atStartEnd ? -half : half
+          }
+          return cm.abut
+        }
+        const sideSeg = (side: 1 | -1) => {
+          const a = span.start - endExt(true, side)
+          const b = span.end + endExt(false, side)
+          return { segLen: b - a, segMid: (a + b) / 2 - length / 2 }
+        }
+        const posSeg = sideSeg(1)
+        const negSeg = sideSeg(-1)
         const positiveMat = span.positive ? wallFinishes[span.positive] : null
         const negativeMat = span.negative ? wallFinishes[span.negative] : null
         // Skirting boards only on spans that reach the floor.
@@ -546,19 +628,29 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                 side — independent of whether a wall finish is set, so the
                 grounding cue is present on bare plaster too (RD-403). */}
             {cornerAoOn && onFloor && span.positive && (
-              <WallFloorAO segLen={segLen} segMid={segMid} thickness={thickness} sign={1} />
+              <WallFloorAO
+                segLen={posSeg.segLen}
+                segMid={posSeg.segMid}
+                thickness={thickness}
+                sign={1}
+              />
             )}
             {cornerAoOn && onFloor && span.negative && (
-              <WallFloorAO segLen={segLen} segMid={segMid} thickness={thickness} sign={-1} />
+              <WallFloorAO
+                segLen={negSeg.segLen}
+                segMid={negSeg.segMid}
+                thickness={thickness}
+                sign={-1}
+              />
             )}
             {positiveMat ? (
               <>
                 <SilentErrorBoundary resetKey={positiveMat}>
                   <Suspense fallback={null}>
                     <SegmentFace
-                      segLen={segLen}
+                      segLen={posSeg.segLen}
                       segHeight={segHeight}
-                      segMid={segMid}
+                      segMid={posSeg.segMid}
                       segMidY={segMidY}
                       thickness={thickness}
                       sign={1}
@@ -573,12 +665,17 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                   </Suspense>
                 </SilentErrorBoundary>
                 {onFloor && (
-                  <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={1} />
+                  <Baseboard
+                    segLen={posSeg.segLen}
+                    segMid={posSeg.segMid}
+                    thickness={thickness}
+                    sign={1}
+                  />
                 )}
                 {atCeiling && (
                   <CrownMolding
-                    segLen={segLen}
-                    segMid={segMid}
+                    segLen={posSeg.segLen}
+                    segMid={posSeg.segMid}
                     segTop={span.top}
                     thickness={thickness}
                     sign={1}
@@ -586,9 +683,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                 )}
                 {selectedWall?.wallId === wall.id && selectedWall.roomId === span.positive && (
                   <FaceHighlight
-                    segLen={segLen}
+                    segLen={posSeg.segLen}
                     segHeight={segHeight}
-                    segMid={segMid}
+                    segMid={posSeg.segMid}
                     segMidY={segMidY}
                     thickness={thickness}
                     sign={1}
@@ -601,9 +698,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                 <SilentErrorBoundary resetKey={negativeMat}>
                   <Suspense fallback={null}>
                     <SegmentFace
-                      segLen={segLen}
+                      segLen={negSeg.segLen}
                       segHeight={segHeight}
-                      segMid={segMid}
+                      segMid={negSeg.segMid}
                       segMidY={segMidY}
                       thickness={thickness}
                       sign={-1}
@@ -618,12 +715,17 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                   </Suspense>
                 </SilentErrorBoundary>
                 {onFloor && (
-                  <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={-1} />
+                  <Baseboard
+                    segLen={negSeg.segLen}
+                    segMid={negSeg.segMid}
+                    thickness={thickness}
+                    sign={-1}
+                  />
                 )}
                 {atCeiling && (
                   <CrownMolding
-                    segLen={segLen}
-                    segMid={segMid}
+                    segLen={negSeg.segLen}
+                    segMid={negSeg.segMid}
                     segTop={span.top}
                     thickness={thickness}
                     sign={-1}
@@ -631,9 +733,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                 )}
                 {selectedWall?.wallId === wall.id && selectedWall.roomId === span.negative && (
                   <FaceHighlight
-                    segLen={segLen}
+                    segLen={negSeg.segLen}
                     segHeight={segHeight}
-                    segMid={segMid}
+                    segMid={negSeg.segMid}
                     segMidY={segMidY}
                     thickness={thickness}
                     sign={-1}

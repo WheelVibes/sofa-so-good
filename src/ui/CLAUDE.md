@@ -155,7 +155,19 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   icon). Do **not** re-add card action buttons; changing the finish and duplicating are inspector
   jobs. Stamp mode still exists behind `stampPlace` but is armed only from ⌘K. The favourite button
   (`.fav-btn`) shows a solid **red** heart (`Icon.HeartFilled`, `.fav-btn.on { color: var(--danger) }`)
-  when saved and the outline `Icon.Heart` otherwise.
+  when saved and the outline `Icon.Heart` otherwise. The one card action besides ♥ is the
+  removal **"×"** (`.coll-x`): shown for a `source:'user'` upload **or** a `source:'ikea'`
+  imported/shared def (aria-label "Remove uploaded/downloaded asset"), it frees the def's
+  IndexedDB blobs and un-hides its "Download" `SharedCard`. It routes through
+  `catalog/removeImportedDef.ts:confirmAndRemoveDef`, which prompts via `confirmAction` **only
+  when the def has placed instances** (which get wiped with it) — otherwise removal is immediate.
+  A `source:'ikea'` card ALSO carries a **refresh** "↻" (`.coll-refresh`, aria-label "Re-download
+  asset from library") that re-fetches the group from R2 and rebuilds its GLB/thumbnail **in place**
+  (`addSharedGroup(group)` → `replaceUserFurniture`, keeping placed instances). The drawer maps the
+  def's `groupKey` → manifest folder slug via `catalog/sharedGroupForDef.ts` and only passes
+  `onRefresh` when re-downloadable (admin + `sharedLibrary` + `hasBackend()` + a matching manifest
+  item), so a dev-scrape/non-admin def shows no refresh control. No dedicated flag — reuses the
+  `sharedLibrary` gate.
 - **Room-aware catalog default (CATALOG-ROOMAWARE)** keys only the **initial landing category** on
   the room being edited, never the tab order or a subsequent pick. The pure mapping is
   `ui/catalog/roomAwareCategories.ts` (`relevantCategoriesForRoomKind` / `orderCategoriesForRoomKind`
