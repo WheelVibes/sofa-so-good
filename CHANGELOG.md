@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.5 — Colour picker: commit-on-close recents (cap 10) + throttled live preview
+
+Dragging the finish picker's colour palette flooded the app — every pointermove pushed a recent
+colour AND applied a repaint tint (a fresh ≤1024² recolored albedo bake per tick), which could
+crash the tab. Now: recent colours are written ONLY when the palette closes on the final colour
+(untouched open/close writes nothing), capped at **10** newest-first (oldest dropped, re-picks
+move to front); and the SV-pad/hue-bar drags coalesce through a pure `throttledEmitter` (150ms
+leading+trailing, final value flushed on release), so the live 3D preview stays responsive while
+the recolor bake runs at a bounded rate. Accent-wall picker inherits the throttle via the shared
+editor. Unit-tested: emitter timing, recents cap/dedupe, close-commit semantics, no per-tick push.
+
 ## v0.18.3.4 — Angle-graded orbit wall fade + corner spread (WALL-REVEAL-ANGLE-GRADED, reverses WALL-REVEAL-BINARY-TARGET)
 
 The orbit/room-editor camera-facing wall reveal now settles at a **graded** opacity — fade
