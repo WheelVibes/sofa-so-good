@@ -5,7 +5,7 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## v0.17.0.4 — Android packaging: Capacitor APK build + CI
+## v0.17.1.0 — Android packaging: Capacitor APK build + CI
 
 Added an Android build target so the app can be sideloaded onto a phone for testing.
 Chose **Capacitor** over TWA/Bubblewrap: it bundles `dist/` inside the APK (offline, no live
