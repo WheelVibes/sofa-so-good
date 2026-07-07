@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.1 — Android APK workflow: build on every push to main
+
+`.github/workflows/android-apk.yml` now triggers only on `push` to `main` (was: manual
+`workflow_dispatch` + pushes to the original packaging branch), so each merged PR ships a fresh
+sideloadable debug-APK artifact automatically. `docs/packaging-android.md` updated to match.
+
 ## v0.18.3.0 — Finishes surface tabs are permanent (flag retired)
 
 The user declared the tabbed Floor | Walls | Ceiling finishes layout permanent, so the
