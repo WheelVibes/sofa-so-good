@@ -8,10 +8,6 @@
       "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
     },
     { "name": "daylight", "store": { "action": "setManualHour", "args": [13] } },
-    {
-      "name": "flag-on-by-default",
-      "waitFor": { "store": "state.featureFlags.finishSurfaceTabs === true" }
-    },
     { "name": "open-picker", "store": { "action": "selectRoom", "args": ["livingDining"] } },
     { "name": "picker-open", "waitFor": { "css": ".panel.inspector" } },
     { "name": "tab-row-present", "waitFor": { "css": ".finish-surface-tabs" } },

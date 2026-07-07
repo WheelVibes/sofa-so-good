@@ -550,7 +550,7 @@
    no hairline — scoped to the picker so the base rule other panels rely on is
    untouched. */
 .finish-picker .sec-h { position: static; background: transparent; box-shadow: none; }
-/* Full-width Floor | Walls | Ceiling surface tab row (finishSurfaceTabs) — the
+/* Full-width Floor | Walls | Ceiling surface tab row in the finish picker — the
    `.seg` pill stretched to the panel width, each tab flexing evenly (no fixed
    widths, so it holds at 390 px). */
 .finish-surface-tabs { display: flex; width: 100%; margin-bottom: var(--s-3); }

@@ -42,21 +42,27 @@ const TEX: TexturedMaterialDef = {
   uvScale: [1, 1],
 }
 
-/** Click the Nth "Recent colour" swatch (0 = Floor, 1 = Walls, 2 = Ceiling —
- *  group order in the panel). Drives the same `onCustom` path as the picker. */
-function clickRecentColor(group: number) {
-  fireEvent.click(screen.getAllByRole('button', { name: `Recent colour ${HEX}` })[group])
+/** Click the active surface's "Recent colour" swatch — only one surface block
+ *  mounts at a time under the tab row, so switch to the target surface's tab
+ *  first (the panel opens on Floor). Drives the same `onCustom` path as the
+ *  picker. */
+function clickRecentColor(surface: 'floor' | 'wall' | 'ceiling' = 'floor') {
+  if (surface !== 'floor') {
+    const tab = surface === 'wall' ? 'Walls' : 'Ceiling'
+    fireEvent.click(screen.getByRole('tab', { name: tab }))
+  }
+  fireEvent.click(screen.getByRole('button', { name: `Recent colour ${HEX}` }))
 }
 
 beforeEach(() => {
+  // Tab selection persists to localStorage (LAST_SURFACE_KEY); clear it so each
+  // test starts on the default Floor tab regardless of prior tab clicks.
+  try {
+    localStorage.clear()
+  } catch {
+    // ignore (unavailable storage)
+  }
   useStore.getState().__resetForTest?.()
-  // These tests assert the stacked layout (all three surface groups + their
-  // Recent-colour rows mount at once, indexed 0/1/2). Force the legacy stacked
-  // layout off the finishSurfaceTabs flag; the tab layout is covered separately
-  // in FinishPicker.tabs.test.tsx.
-  useStore.setState({
-    featureFlags: { ...useStore.getState().featureFlags, finishSurfaceTabs: false },
-  })
   useStore.getState().selectRoom(ROOM)
   useStore.getState().pushRecentColor(HEX)
 })
@@ -87,7 +93,7 @@ describe('FinishPicker — custom colour repaints the current finish', () => {
     useStore.getState().addUserMaterial(TEX)
     useStore.getState().setFloorFinish(ROOM, 'user-tex-1')
     render(<FinishPicker />)
-    clickRecentColor(0)
+    clickRecentColor()
     expect(useStore.getState().finishes.floor[ROOM]).toBe(`tint:user-tex-1:${HEX}!r`)
     // The colour is still recorded as a recent colour.
     expect(useStore.getState().recentColors).toContain(HEX)
@@ -97,42 +103,42 @@ describe('FinishPicker — custom colour repaints the current finish', () => {
     // 'floor-wood-oak' resolves to the generated Poly Haven textured def.
     useStore.getState().setFloorFinish(ROOM, 'floor-wood-oak')
     render(<FinishPicker />)
-    clickRecentColor(0)
+    clickRecentColor()
     expect(useStore.getState().finishes.floor[ROOM]).toBe(`tint:floor-wood-oak:${HEX}!r`)
   })
 
   it('procedural non-plaster active floor (builtin parquet) → a repaint tint id', () => {
     useStore.getState().setFloorFinish(ROOM, 'floor-parquet-oak')
     render(<FinishPicker />)
-    clickRecentColor(0)
+    clickRecentColor()
     expect(useStore.getState().finishes.floor[ROOM]).toBe(`tint:floor-parquet-oak:${HEX}!r`)
   })
 
   it('re-colours an existing tint in place, keeping its base + scale + gloss', () => {
     useStore.getState().setFloorFinish(ROOM, 'tint:floor-wood-oak:#00ff00@2~0.5')
     render(<FinishPicker />)
-    clickRecentColor(0)
+    clickRecentColor()
     expect(useStore.getState().finishes.floor[ROOM]).toBe(`tint:floor-wood-oak:${HEX}@2~0.5!r`)
   })
 
   it('plaster (paint) active wall stays legacy flat paint (bare hex)', () => {
     useStore.getState().setWallFinish(ROOM, 'wall-paint-white')
     render(<FinishPicker />)
-    clickRecentColor(1)
+    clickRecentColor('wall')
     expect(useStore.getState().finishes.walls[ROOM]).toBe(HEX)
   })
 
   it('bare-hex active floor stays legacy flat paint (bare hex)', () => {
     useStore.getState().setFloorFinish(ROOM, '#123456')
     render(<FinishPicker />)
-    clickRecentColor(0)
+    clickRecentColor()
     expect(useStore.getState().finishes.floor[ROOM]).toBe(HEX)
   })
 
   it('patterned active ceiling (subway tile) → a repaint tint id', () => {
     useStore.getState().setCeilingFinish(ROOM, 'wall-subway-white')
     render(<FinishPicker />)
-    clickRecentColor(2)
+    clickRecentColor('ceiling')
     expect(useStore.getState().finishes.ceiling[ROOM]).toBe(`tint:wall-subway-white:${HEX}!r`)
   })
 
@@ -143,7 +149,7 @@ describe('FinishPicker — custom colour repaints the current finish', () => {
     useStore.getState().addUserMaterial(TEX)
     useStore.getState().setFloorFinish(ROOM, 'user-tex-1')
     render(<FinishPicker />)
-    clickRecentColor(0)
+    clickRecentColor()
     expect(useStore.getState().finishes.floor[ROOM]).toBe(HEX)
   })
 })
@@ -176,7 +182,7 @@ describe('FinishPicker — colour-override chip', () => {
   it('clears the override back to the plain base finish', () => {
     useStore.getState().setFloorFinish(ROOM, `tint:floor-wood-oak:${HEX}!r`)
     render(<FinishPicker />)
-    // Only the Floor group is tinted → exactly one chip.
+    // Only the active (Floor) tab's group mounts → exactly one chip.
     const clear = screen.getAllByRole('button', { name: 'Remove colour override' })
     expect(clear).toHaveLength(1)
     fireEvent.click(clear[0])

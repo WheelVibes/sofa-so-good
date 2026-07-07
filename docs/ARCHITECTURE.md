@@ -1113,11 +1113,11 @@ same change that reshapes a system.
   per-room `FinishPicker` (opens on `selectedRoomId`, aside carries a `finish-picker` class) is the
   unified surface panel — Floor + Walls +
   a **Ceiling** section (paints from the wall pool, `ceilingFinish` flag; apply-all + reset-to-white).
-  Under `finishSurfaceTabs` (simple, default on) the three surfaces render as a `.seg` **Floor | Walls |
+  The three surfaces render as a `.seg` **Floor | Walls |
   Ceiling** tab row (`role="tablist"`/`tab`/`aria-selected`, Ceiling tab only when `ceilingFinish` is on)
-  and only the active surface's block shows (the wall-accents section moves under the Walls tab); the tab
+  and only the active surface's block shows (the wall-accents section lives under the Walls tab); the tab
   state reuses the persisted `lastSurface` (`LAST_SURFACE_KEY`, extended to `'ceiling'`) that also drives
-  the Browse target. Flag off → the legacy stacked layout. The `.finish-picker .sec-h` scoped rule flattens
+  the Browse target. The `.finish-picker .sec-h` scoped rule flattens
   the picker's section-header strips (static/transparent/no hairline) without touching the base sticky
   `.sec-h`;
   the finish setters write through to the active plan and plan activation prunes stale

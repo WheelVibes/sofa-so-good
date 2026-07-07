@@ -40,8 +40,8 @@ interface SwatchGroupProps {
   recentFinishIds?: string[]
   /** Curated "designer picks" for this surface (already resolved to real defs). */
   curated?: MaterialDef[]
-  /** Hide the group's own "Floor"/"Walls"/"Ceiling" header row — the surface
-   *  tabs (finishSurfaceTabs) already name the active surface, so the header
+  /** Hide the group's own "Floor"/"Walls"/"Ceiling" header row — the finish
+   *  picker's surface tabs already name the active surface, so the header
    *  would be a duplicate. `label` still feeds every aria-label. */
   hideLabel?: boolean
 }

@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.0 — Finishes surface tabs are permanent (flag retired)
+
+The user declared the tabbed Floor | Walls | Ceiling finishes layout permanent, so the
+`finishSurfaceTabs` flag and the legacy stacked fallback are removed: the tablist renders
+unconditionally (Ceiling still gated by `ceilingFinish`, incl. the stale-persisted-'ceiling'
+demotion), block conditions simplify to `activeTab === …`, and the registry/type entry is gone.
+The FinishPicker recolor/accent/ceiling test suites — previously pinned to the stacked layout —
+now drive the tabs directly (click the surface tab, then interact; the per-tab mounting actually
+simplified their queries). Docs and the tabs scenario updated; full suite green (5,581).
+
 ## v0.18.2.1 — Polish: mobile sort beside filter, no duplicate surface headers, themed Favourites toggle
 
 Three user-reported refinements: (1) on mobile the catalog's sort control moves out of the

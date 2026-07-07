@@ -1,14 +1,12 @@
 // @vitest-environment happy-dom
 /**
- * FINISH-SURFACE-TABS: the per-room FinishPicker splits its stacked
- * Floor / Walls / Ceiling groups into a segmented tab row so only the active
- * surface's block shows. The Ceiling tab only exists when the `ceilingFinish`
- * flag is on; the wall-accents section moves under the Walls tab. Flag off
- * restores the legacy stacked layout (all groups at once).
+ * The per-room FinishPicker's segmented Floor / Walls / Ceiling surface tab
+ * row — only the active surface's block shows. The Ceiling tab only exists
+ * when the `ceilingFinish` flag is on; the wall-accents section lives under
+ * the Walls tab. The selected tab persists across mounts (LAST_SURFACE_KEY).
  */
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FEATURE_FLAGS, resolveFlags } from '../features/featureFlags'
 import { useStore } from '../state/store'
 import { FinishPicker } from './FinishPicker'
 
@@ -37,24 +35,7 @@ afterEach(() => {
   useStore.getState().selectRoom(null)
 })
 
-describe('finishSurfaceTabs flag', () => {
-  it('is registered as a simple-tier, default-on, prod-safe flag', () => {
-    const flag = FEATURE_FLAGS.finishSurfaceTabs
-    expect(flag).toBeDefined()
-    expect(flag.tier).toBe('simple')
-    expect(flag.default).toBe(true)
-    expect(flag.devOnly).toBeUndefined()
-  })
-
-  it('resolves ON in BOTH Simple and Pro modes (both build kinds)', () => {
-    expect(resolveFlags(false, {}, false, 'simple').finishSurfaceTabs).toBe(true)
-    expect(resolveFlags(false, {}, false, 'pro').finishSurfaceTabs).toBe(true)
-    expect(resolveFlags(true, {}, false, 'simple').finishSurfaceTabs).toBe(true)
-    expect(resolveFlags(true, {}, false, 'pro').finishSurfaceTabs).toBe(true)
-  })
-})
-
-describe('FinishPicker — surface tab row (flag on)', () => {
+describe('FinishPicker — surface tab row', () => {
   it('renders a Floor | Walls | Ceiling tablist', () => {
     render(<FinishPicker />)
     expect(screen.getByRole('tablist', { name: 'Finish surface' })).toBeInTheDocument()
@@ -110,19 +91,5 @@ describe('FinishPicker — surface tab row (flag on)', () => {
     render(<FinishPicker />)
     expect(screen.getByRole('tab', { name: 'Walls' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('Apply walls to all rooms')).toBeInTheDocument()
-  })
-})
-
-describe('FinishPicker — legacy stacked layout (flag off)', () => {
-  it('renders no tablist and stacks every surface group at once', () => {
-    useStore.setState({
-      featureFlags: { ...useStore.getState().featureFlags, finishSurfaceTabs: false },
-    })
-    render(<FinishPicker />)
-    expect(screen.queryByRole('tablist', { name: 'Finish surface' })).toBeNull()
-    expect(screen.getByText('Apply floor to all rooms')).toBeInTheDocument()
-    expect(screen.getByText('Apply walls to all rooms')).toBeInTheDocument()
-    expect(screen.getByText('Apply ceiling to all rooms')).toBeInTheDocument()
-    expect(screen.getByText('Accent walls')).toBeInTheDocument()
   })
 })

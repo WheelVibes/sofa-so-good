@@ -62,11 +62,11 @@ const LAST_SURFACE_KEY = 'hdb_last_finish_surface'
 
 /**
  * Right-side panel shown when a room is selected — the per-room surface
- * customizer. Floor / wall / ceiling sections each present a swatch grid of
- * available materials (built-ins, user uploads with an "Uploaded" badge, and
- * any resolved remote materials with a provider tag). Ceiling paints from the
- * wall/paint pool and defaults to plain white (gated by the `ceilingFinish`
- * flag).
+ * customizer. A segmented Floor | Walls | Ceiling tab row shows one surface
+ * block at a time, each a swatch grid of available materials (built-ins, user
+ * uploads with an "Uploaded" badge, and any resolved remote materials with a
+ * provider tag). Ceiling paints from the wall/paint pool and defaults to plain
+ * white (gated by the `ceilingFinish` flag).
  *
  * From here the user can also `Browse online…` which mounts the remote
  * material browser inline; resolving applies the material to the
@@ -279,10 +279,6 @@ export function FinishPicker() {
   const fRemoteMaterials = useFeature('remoteMaterials')
   const fCeiling = useFeature('ceilingFinish')
   const fWallAccent = useFeature('wallAccentPicker')
-  // FINISH-SURFACE-TABS: split the stacked Floor/Walls/Ceiling groups into a
-  // segmented tab row so only the active surface's block shows. Off → the
-  // legacy stacked layout (byte-identical).
-  const fSurfaceTabs = useFeature('finishSurfaceTabs')
   const fDesignerPicks = useFeature('designerPicks')
   const fComposer = useFeature('materialComposer')
   const fSaveMaterials = useFeature('saveMaterials')
@@ -423,9 +419,9 @@ export function FinishPicker() {
     setView('swatch')
   }
 
-  // Active surface tab (FINISH-SURFACE-TABS). The Ceiling tab only exists when
-  // the ceilingFinish flag is on, so a stale 'ceiling' selection falls back to
-  // floor rather than showing an empty tab.
+  // Active surface tab. The Ceiling tab only exists when the ceilingFinish
+  // flag is on, so a stale 'ceiling' selection falls back to floor rather than
+  // showing an empty tab.
   const activeTab: Surface = lastSurface === 'ceiling' && !fCeiling ? 'floor' : lastSurface
 
   return (
@@ -480,44 +476,42 @@ export function FinishPicker() {
               <MasterPaletteEditor roomId={roomId} />
             </div>
           </Disclosure>
-          {fSurfaceTabs ? (
-            <div className="seg finish-surface-tabs" role="tablist" aria-label="Finish surface">
+          <div className="seg finish-surface-tabs" role="tablist" aria-label="Finish surface">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'floor'}
+              className={activeTab === 'floor' ? 'on' : ''}
+              onClick={() => setLastSurface('floor')}
+            >
+              Floor
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'wall'}
+              className={activeTab === 'wall' ? 'on' : ''}
+              onClick={() => setLastSurface('wall')}
+            >
+              Walls
+            </button>
+            {fCeiling ? (
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeTab === 'floor'}
-                className={activeTab === 'floor' ? 'on' : ''}
-                onClick={() => setLastSurface('floor')}
+                aria-selected={activeTab === 'ceiling'}
+                className={activeTab === 'ceiling' ? 'on' : ''}
+                onClick={() => setLastSurface('ceiling')}
               >
-                Floor
+                Ceiling
               </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'wall'}
-                className={activeTab === 'wall' ? 'on' : ''}
-                onClick={() => setLastSurface('wall')}
-              >
-                Walls
-              </button>
-              {fCeiling ? (
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === 'ceiling'}
-                  className={activeTab === 'ceiling' ? 'on' : ''}
-                  onClick={() => setLastSurface('ceiling')}
-                >
-                  Ceiling
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-          {(!fSurfaceTabs || activeTab === 'floor') && (
+            ) : null}
+          </div>
+          {activeTab === 'floor' && (
             <>
               <SwatchGroup
                 label="Floor"
-                hideLabel={fSurfaceTabs}
+                hideLabel
                 items={filterFinishes(groups.floor, finishQuery)}
                 active={activeFloor}
                 onSelect={(id) => handleSelect('floor', id)}
@@ -554,11 +548,11 @@ export function FinishPicker() {
               ) : null}
             </>
           )}
-          {(!fSurfaceTabs || activeTab === 'wall') && (
+          {activeTab === 'wall' && (
             <>
               <SwatchGroup
                 label="Walls"
-                hideLabel={fSurfaceTabs}
+                hideLabel
                 items={filterFinishes(groups.wall, finishQuery)}
                 active={activeWall}
                 onSelect={(id) => handleSelect('wall', id)}
@@ -598,11 +592,11 @@ export function FinishPicker() {
           {/* Ceiling paints from the wall (paint/plaster) pool — a ceiling is
               painted like a wall. Default is plain white (no finish), so a
               "Reset to white" clears back to it. Gated by the ceilingFinish flag. */}
-          {fCeiling && (!fSurfaceTabs || activeTab === 'ceiling') ? (
+          {fCeiling && activeTab === 'ceiling' ? (
             <>
               <SwatchGroup
                 label="Ceiling"
-                hideLabel={fSurfaceTabs}
+                hideLabel
                 items={filterFinishes(groups.wall, finishQuery)}
                 active={activeCeiling ?? ''}
                 onSelect={(id) => handleSelect('ceiling', id)}
@@ -657,7 +651,7 @@ export function FinishPicker() {
               accents in one place. Creating one stays a 3D wall tap (opens the
               WallAccentPicker) — the wall→room mapping differs by plan type, so
               we don't re-enumerate it here; this is the management/discovery view. */}
-          {fWallAccent && (!fSurfaceTabs || activeTab === 'wall')
+          {fWallAccent && activeTab === 'wall'
             ? (() => {
                 const accents = Object.entries(finishes.wallAccents).filter(
                   ([k]) => k.slice(k.lastIndexOf(':') + 1) === roomId,
