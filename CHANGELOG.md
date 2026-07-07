@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.16.1.14 — walk-mode mobile HUD: top callout, safe-area, ring joystick
+
+Fixed three mobile walk-mode issues (`WalkHud`, `.walk-joystick`). The "Walking
+through" `InfoCallout` was pinned bottom-centre and got covered by the bottom-left
+touch joystick — it now renders top-centre just below the home/menu buttons, using
+the same `env(safe-area-inset-top) + 104px` offset as the room-editor hint. The
+controls banner container gained an `env(safe-area-inset-bottom)` guard so it clears
+the home indicator, and it lifts above the joystick (24px inset + 88px tall → +124px)
+whenever the joystick is present (coarse pointer), so its left edge no longer overlaps
+the stick on narrow screens. The joystick base is now a transparent **ring** (2px
+`--text` border + `--shadow-pop`) instead of the frosted white disc. Added a mobile
+walk-mode HUD scenario (`scripts/scenarios/walk-mobile-hud.json`).
+
 ## v0.16.1.13 — orbit walls settle crisp too (binary reveal target)
 
 Ported the v0.16.1.12 binary-reveal-target fix to the main orbit scene's

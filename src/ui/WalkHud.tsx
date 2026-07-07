@@ -34,41 +34,61 @@ export function WalkHud() {
 
   if (!walking) return null
   return (
-    <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2">
-      <div className="pointer-events-auto">
-        <InfoCallout id="walk-mode" title="Walking through">
-          Move around to see your home at eye level. Leave walk mode to keep editing.
-        </InfoCallout>
+    <>
+      {/* Info callout: top-centre, tucked below the mobile home/menu buttons so
+          the bottom-left joystick never covers it (matches the room-editor hint). */}
+      <div
+        className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 104px)' }}
+      >
+        <div className="pointer-events-auto">
+          <InfoCallout id="walk-mode" title="Walking through">
+            Move around to see your home at eye level. Leave walk mode to keep editing.
+          </InfoCallout>
+        </div>
       </div>
-      <div className={`walk-hud${visible ? '' : ' is-hidden'}`}>
-        <span className="walk-hud-title">Walk mode</span>
-        <span className="walk-hud-sep" />
-        {IS_COARSE_POINTER ? (
-          <>
-            <span className="walk-hud-grp">
-              <kbd>Joystick</kbd> to move
-            </span>
-            <span className="walk-hud-grp">
-              <kbd>Drag</kbd> to look
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="walk-hud-grp">
-              <kbd>Click</kbd> to look
-            </span>
-            <span className="walk-hud-grp">
-              <kbd>W</kbd>
-              <kbd>A</kbd>
-              <kbd>S</kbd>
-              <kbd>D</kbd> move
-            </span>
-            <span className="walk-hud-grp">
-              <kbd>Esc</kbd> show cursor
-            </span>
-          </>
-        )}
+      {/* Controls banner: bottom-centre, clear of the home indicator (safe-area).
+          When the touch joystick is present it sits bottom-left, so lift the
+          banner above it (joystick = 24px inset + 88px tall) to avoid the overlap
+          on narrow screens; on desktop it stays just above the safe-area. */}
+      <div
+        className="pointer-events-none absolute left-1/2 z-20 flex -translate-x-1/2 flex-col items-center"
+        style={{
+          bottom: IS_COARSE_POINTER
+            ? 'calc(env(safe-area-inset-bottom, 0px) + 124px)'
+            : 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)',
+        }}
+      >
+        <div className={`walk-hud${visible ? '' : ' is-hidden'}`}>
+          <span className="walk-hud-title">Walk mode</span>
+          <span className="walk-hud-sep" />
+          {IS_COARSE_POINTER ? (
+            <>
+              <span className="walk-hud-grp">
+                <kbd>Joystick</kbd> to move
+              </span>
+              <span className="walk-hud-grp">
+                <kbd>Drag</kbd> to look
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="walk-hud-grp">
+                <kbd>Click</kbd> to look
+              </span>
+              <span className="walk-hud-grp">
+                <kbd>W</kbd>
+                <kbd>A</kbd>
+                <kbd>S</kbd>
+                <kbd>D</kbd> move
+              </span>
+              <span className="walk-hud-grp">
+                <kbd>Esc</kbd> show cursor
+              </span>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
