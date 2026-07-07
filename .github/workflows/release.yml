@@ -2,10 +2,13 @@ name: Desktop Release
 
 # Package the Electron desktop shell for Windows / macOS / Linux.
 # - On a v* tag: builds AND publishes the installers to the GitHub release.
-# - On manual dispatch: builds only, artifacts attached to the workflow run.
+# - On push to main / manual dispatch: builds only (publish never) — the
+#   installers are attached to the workflow run as artifacts, the per-merge
+#   test-build channel (same idea as the Android debug-APK workflow).
 on:
   push:
     tags: ['v*']
+    branches: [main]
   workflow_dispatch:
 
 permissions:

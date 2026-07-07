@@ -297,6 +297,22 @@
    currentColor). Red reads as "liked" and stays harmonious across all 5 themes. */
 .fav-btn.on { opacity: 1; color: var(--danger); }
 
+/* Catalog-card corner action stack (♥ favourite → ↻ refresh → × remove) — a
+   vertical column in the card's top-right so the buttons never overlap. The
+   whole stack reveals on hover/focus (desktop), stays visible on touch, and
+   stays visible at rest when the card is favourited (so the red heart shows).
+   Scoped to `.card-acts` so the global `.coll-x`/`.coll-refresh` geometry
+   (finish tiles, collections UI) is left untouched. */
+.card-acts { position: absolute; top: 6px; right: 6px; z-index: 2; display: flex; flex-direction: column; gap: 4px; opacity: 0; transition: var(--dur) var(--ease); }
+@media (hover: hover) { .cat-card:hover .card-acts, .cat-card:focus-within .card-acts { opacity: 1; } }
+@media (hover: none) { .card-acts { opacity: 1; } }
+.cat-card:has(.fav-btn.on) .card-acts { opacity: 1; }
+/* All three actions share the favourite geometry (neutralise each button's own
+   absolute positioning + smaller size from its other call sites). */
+.card-acts .fav-btn,
+.card-acts .coll-x,
+.card-acts .coll-refresh { position: static; top: auto; right: auto; width: 24px; height: 24px; opacity: 1; }
+
 /* Active-stamp banner above the catalog footer — a clear "you are stamping X" cue
    with a Done escape hatch. Token classes only (accent-soft surface). */
 .stamp-banner { display: flex; align-items: center; gap: var(--s-2); margin: 0 var(--s-4); padding: var(--s-2) var(--s-3); border-radius: var(--r-2); background: var(--accent-soft); color: var(--accent-soft-text); border: 1px solid var(--accent); font-size: var(--t-2xs); }

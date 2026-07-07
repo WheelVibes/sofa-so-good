@@ -53,6 +53,7 @@ export type FeatureFlag =
   | 'furnitureGroups'
   | 'designerPicks'
   | 'materialComposer'
+  | 'finishRecolor'
   | 'ceilingDesign'
   | 'presentation'
   | 'pbrSurfaces'
@@ -152,6 +153,7 @@ export type FeatureFlag =
   | 'mirrorSelection'
   | 'twoPointPerspective'
   | 'catalogResize'
+  | 'catalogFilters'
   | 'profiler'
 
 export interface FlagDef {

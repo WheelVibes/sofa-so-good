@@ -17,6 +17,13 @@ vi.mock('../materials/procedural/generators', async (importOriginal) => ({
 const ROOM = 'livingDining'
 
 beforeEach(() => {
+  // Tab selection persists to localStorage (LAST_SURFACE_KEY); clear it so each
+  // test starts on the default Floor tab regardless of prior tab clicks.
+  try {
+    localStorage.clear()
+  } catch {
+    // ignore (unavailable storage)
+  }
   useStore.getState().__resetForTest?.()
   useStore.getState().selectRoom(ROOM)
 })
@@ -25,9 +32,16 @@ afterEach(() => {
   useStore.getState().selectRoom(null)
 })
 
+/** The accent-walls section lives under the Walls surface tab — the panel
+ *  opens on Floor, so switch to Walls before asserting the section. */
+function openWallsTab() {
+  fireEvent.click(screen.getByRole('tab', { name: 'Walls' }))
+}
+
 describe('FinishPicker — accent walls section', () => {
   it('shows the section with a tap-a-wall hint when the room has no accents', () => {
     render(<FinishPicker />)
+    openWallsTab()
     expect(screen.getByText('Accent walls')).toBeInTheDocument()
     expect(screen.getByText(/Tap any wall in the 3D view/i)).toBeInTheDocument()
   })
@@ -35,6 +49,7 @@ describe('FinishPicker — accent walls section', () => {
   it('lists an existing accent and clears it on demand', () => {
     useStore.getState().setWallAccent(`w1:${ROOM}`, 'wall-beige')
     render(<FinishPicker />)
+    openWallsTab()
     // The accent is listed with a remove control.
     const clear = screen.getByRole('button', { name: /Remove accent wall/i })
     expect(clear).toBeInTheDocument()
@@ -47,6 +62,7 @@ describe('FinishPicker — accent walls section', () => {
     useStore.getState().setWallAccent(`w1:${ROOM}`, 'wall-beige')
     useStore.getState().setWallAccent('w9:bedroom', 'wall-concrete')
     render(<FinishPicker />)
+    openWallsTab()
     // Exactly one remove control — the other room's accent is not listed here.
     expect(screen.getAllByRole('button', { name: /Remove accent wall/i })).toHaveLength(1)
   })
@@ -56,6 +72,7 @@ describe('FinishPicker — accent walls section', () => {
       featureFlags: { ...useStore.getState().featureFlags, wallAccentPicker: false },
     })
     render(<FinishPicker />)
+    openWallsTab()
     expect(screen.queryByText('Accent walls')).toBeNull()
   })
 })

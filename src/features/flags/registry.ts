@@ -320,6 +320,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Custom colours repaint the CURRENT finish instead of replacing it with
+  // flat plaster paint, and picking a new texture keeps the colour override
+  // (FINISH-RECOLOR). Pure client-side (the `tint:…!r` id grammar + an
+  // on-device canvas recolor of the albedo) → prod-safe. Part of the core
+  // finishing loop a casual user hits on their first colour pick → simple tier.
+  finishRecolor: {
+    label: 'Recolour any finish',
+    description: 'Custom colours repaint the current finish, keeping its texture and pattern',
+    default: true,
+    tier: 'simple',
+  },
   ceilingDesign: {
     label: 'Ceiling design',
     description: 'Per-room tray / coffered / dropped ceilings',
@@ -1300,6 +1311,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   catalogResize: {
     label: 'Resizable catalog',
     description: 'Drag the catalog panel edge to resize it (desktop)',
+    default: true,
+    tier: 'simple',
+  },
+  // Catalog filter control (availability / source / favourites) over the
+  // furniture grid. Pure client-side filtering of the already-merged grid items
+  // → prod-safe, no network / assets. A browse convenience in the core furnish
+  // loop that helps a casual user narrow a large catalog → simple tier (shown in
+  // both modes). Filter state is component-local + ephemeral (not persisted).
+  catalogFilters: {
+    label: 'Catalog filters',
+    description: 'Filter the catalog by availability, source and favourites',
     default: true,
     tier: 'simple',
   },

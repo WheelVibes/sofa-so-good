@@ -543,6 +543,18 @@
   transition: var(--dur) var(--ease);
 }
 .finish-apply-all:hover { background: var(--surface-3); color: var(--text); border-color: var(--accent); }
+/* `.sec-h` is a sticky glass strip for long scrolling panels (see the P36
+   sticky-headers rule above). Inside the per-room finish picker those strips
+   read as full-width lighter bars stacked between surface groups, which looks
+   like unwanted dividers (user report). Flatten them here — static, transparent,
+   no hairline — scoped to the picker so the base rule other panels rely on is
+   untouched. */
+.finish-picker .sec-h { position: static; background: transparent; box-shadow: none; }
+/* Full-width Floor | Walls | Ceiling surface tab row in the finish picker — the
+   `.seg` pill stretched to the panel width, each tab flexing evenly (no fixed
+   widths, so it holds at 390 px). */
+.finish-surface-tabs { display: flex; width: 100%; margin-bottom: var(--s-3); }
+.finish-surface-tabs button { flex: 1; }
 /* Texture + colour composer (MAT-COMPOSE) under each surface's swatch grid. */
 .compose { margin: 0 0 var(--s-3); }
 .compose-summary {

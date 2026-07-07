@@ -18,6 +18,13 @@ import { arrangePlanRoom, arrangeRoom } from '../layout/autoArrange'
 import { cloneRoomItems } from '../layout/cloneRoom'
 import { mirrorRoomItems } from '../layout/mirrorRoom'
 import { swapRoomLayouts } from '../layout/swapRooms'
+import {
+  isComposedMaterialId,
+  isTintMaterialId,
+  parseTintMaterialId,
+  recolorFinishId,
+  tintMaterialId,
+} from '../materials/composeMaterial'
 import { resolveDesignerPicks } from '../materials/designerPicks'
 import type { MaterialCategory, MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
@@ -55,11 +62,11 @@ const LAST_SURFACE_KEY = 'hdb_last_finish_surface'
 
 /**
  * Right-side panel shown when a room is selected — the per-room surface
- * customizer. Floor / wall / ceiling sections each present a swatch grid of
- * available materials (built-ins, user uploads with an "Uploaded" badge, and
- * any resolved remote materials with a provider tag). Ceiling paints from the
- * wall/paint pool and defaults to plain white (gated by the `ceilingFinish`
- * flag).
+ * customizer. A segmented Floor | Walls | Ceiling tab row shows one surface
+ * block at a time, each a swatch grid of available materials (built-ins, user
+ * uploads with an "Uploaded" badge, and any resolved remote materials with a
+ * provider tag). Ceiling paints from the wall/paint pool and defaults to plain
+ * white (gated by the `ceilingFinish` flag).
  *
  * From here the user can also `Browse online…` which mounts the remote
  * material browser inline; resolving applies the material to the
@@ -275,6 +282,7 @@ export function FinishPicker() {
   const fDesignerPicks = useFeature('designerPicks')
   const fComposer = useFeature('materialComposer')
   const fSaveMaterials = useFeature('saveMaterials')
+  const fRecolor = useFeature('finishRecolor')
   const materials = useMaterials()
   const savedMaterials = useStore(useShallow((s) => s.savedMaterials))
   const saveMaterial = useStore((s) => s.saveMaterial)
@@ -309,7 +317,12 @@ export function FinishPicker() {
   // pre-filtered to it (and resolving applies to it).
   const [lastSurface, setLastSurfaceState] = useState<Surface>(() => {
     try {
-      return localStorage.getItem(LAST_SURFACE_KEY) === 'wall' ? 'wall' : 'floor'
+      const stored = localStorage.getItem(LAST_SURFACE_KEY)
+      if (stored === 'wall') return 'wall'
+      // 'ceiling' is only a valid tab/surface when the ceilingFinish flag is on;
+      // otherwise fall back to floor (the ceiling tab won't render).
+      if (stored === 'ceiling' && fCeiling) return 'ceiling'
+      return 'floor'
     } catch {
       return 'floor'
     }
@@ -362,10 +375,42 @@ export function FinishPicker() {
     else setCeilingFinish(roomId, id)
   }
 
+  const activeFor = (surface: Surface): string | undefined =>
+    surface === 'floor' ? activeFloor : surface === 'wall' ? activeWall : activeCeiling
+
+  // FINISH-RECOLOR: a custom colour pick repaints the surface's CURRENT finish
+  // (keeps its texture/pattern) instead of replacing it with flat plaster paint
+  // — resolution lives in the shared pure `recolorFinishId` (also used by the
+  // accent-wall picker). Flag off → always the legacy bare hex.
+  const handleCustomColor = (surface: Surface, hex: string) => {
+    setLastSurface(surface)
+    pushRecentColor(hex)
+    applyFinish(surface, fRecolor ? recolorFinishId(activeFor(surface), hex, materials) : hex)
+  }
+
   const handleSelect = (surface: Surface, id: string) => {
     setLastSurface(surface)
-    if (id.startsWith('#')) pushRecentColor(id)
-    else pushRecentFinish(id)
+    if (id.startsWith('#')) {
+      pushRecentColor(id)
+      applyFinish(surface, id)
+      return
+    }
+    // Recently Used records the PLAIN base id even when the applied finish ends
+    // up tinted below, so the row shows the texture itself.
+    pushRecentFinish(id)
+    // FINISH-RECOLOR: picking a new plain catalog finish while a colour override
+    // (tint) is active keeps the colour — re-tint the NEW base with the same
+    // colour + gloss (scale resets: it's base-specific) in repaint mode, which
+    // is what makes "same colour, new texture" read correctly. Re-selecting the
+    // tint's own base is the override chip's × / "back to plain" path, so it
+    // applies plain instead of re-tinting.
+    if (fRecolor && !isTintMaterialId(id) && !isComposedMaterialId(id)) {
+      const cur = parseTintMaterialId(activeFor(surface) ?? '')
+      if (cur && cur.baseId !== id) {
+        applyFinish(surface, tintMaterialId(id, cur.color, 1, cur.roughness, 'repaint'))
+        return
+      }
+    }
     applyFinish(surface, id)
   }
 
@@ -374,8 +419,13 @@ export function FinishPicker() {
     setView('swatch')
   }
 
+  // Active surface tab. The Ceiling tab only exists when the ceilingFinish
+  // flag is on, so a stale 'ceiling' selection falls back to floor rather than
+  // showing an empty tab.
+  const activeTab: Surface = lastSurface === 'ceiling' && !fCeiling ? 'floor' : lastSurface
+
   return (
-    <aside className="panel inspector dock-panel">
+    <aside className="panel inspector dock-panel finish-picker">
       <div className="panel-head">
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)', minWidth: 0 }}>
           {view === 'browse' && (
@@ -426,92 +476,134 @@ export function FinishPicker() {
               <MasterPaletteEditor roomId={roomId} />
             </div>
           </Disclosure>
-          <SwatchGroup
-            label="Floor"
-            items={filterFinishes(groups.floor, finishQuery)}
-            active={activeFloor}
-            onSelect={(id) => handleSelect('floor', id)}
-            onRemoveUser={removeUserOrSaved}
-            savedIds={savedIds}
-            onRename={renameUserOrSaved}
-            onCustom={(hex) => handleSelect('floor', hex)}
-            recent={recentColors}
-            recentFinishIds={recentFinishes}
-            curated={fDesignerPicks ? resolveDesignerPicks('floor', materials) : undefined}
-          />
-          <button
-            type="button"
-            className="finish-apply-all"
-            onClick={() => {
-              setAllFloorFinish(activeFloor)
-              useStore
-                .getState()
-                .notify.start({ title: 'Floor finish applied to every room', kind: 'success' })
-            }}
-            title="Use this floor finish in every room"
-          >
-            Apply floor to all rooms
-          </button>
-          {fComposer ? (
-            <MaterialComposer
-              label="Floor"
-              active={activeFloor ?? ''}
-              materials={groups.floor}
-              onApply={(id) => handleSelect('floor', id)}
-              onSave={fSaveMaterials ? handleSaveMaterial('floor') : undefined}
-              savedNameOf={savedNameFor}
-            />
-          ) : null}
-          <SwatchGroup
-            label="Walls"
-            items={filterFinishes(groups.wall, finishQuery)}
-            active={activeWall}
-            onSelect={(id) => handleSelect('wall', id)}
-            onRemoveUser={removeUserOrSaved}
-            savedIds={savedIds}
-            onRename={renameUserOrSaved}
-            onCustom={(hex) => handleSelect('wall', hex)}
-            recent={recentColors}
-            recentFinishIds={recentFinishes}
-            curated={fDesignerPicks ? resolveDesignerPicks('wall', materials) : undefined}
-          />
-          <button
-            type="button"
-            className="finish-apply-all"
-            onClick={() => {
-              setAllWallFinish(activeWall)
-              useStore
-                .getState()
-                .notify.start({ title: 'Wall finish applied to every room', kind: 'success' })
-            }}
-            title="Use this wall finish in every room"
-          >
-            Apply walls to all rooms
-          </button>
-          {fComposer ? (
-            <MaterialComposer
-              label="Walls"
-              active={activeWall ?? ''}
-              materials={groups.wall}
-              onApply={(id) => handleSelect('wall', id)}
-              onSave={fSaveMaterials ? handleSaveMaterial('wall') : undefined}
-              savedNameOf={savedNameFor}
-            />
-          ) : null}
+          <div className="seg finish-surface-tabs" role="tablist" aria-label="Finish surface">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'floor'}
+              className={activeTab === 'floor' ? 'on' : ''}
+              onClick={() => setLastSurface('floor')}
+            >
+              Floor
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'wall'}
+              className={activeTab === 'wall' ? 'on' : ''}
+              onClick={() => setLastSurface('wall')}
+            >
+              Walls
+            </button>
+            {fCeiling ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'ceiling'}
+                className={activeTab === 'ceiling' ? 'on' : ''}
+                onClick={() => setLastSurface('ceiling')}
+              >
+                Ceiling
+              </button>
+            ) : null}
+          </div>
+          {activeTab === 'floor' && (
+            <>
+              <SwatchGroup
+                label="Floor"
+                hideLabel
+                items={filterFinishes(groups.floor, finishQuery)}
+                active={activeFloor}
+                onSelect={(id) => handleSelect('floor', id)}
+                onRemoveUser={removeUserOrSaved}
+                savedIds={savedIds}
+                onRename={renameUserOrSaved}
+                onCustom={(hex) => handleCustomColor('floor', hex)}
+                recent={recentColors}
+                recentFinishIds={recentFinishes}
+                curated={fDesignerPicks ? resolveDesignerPicks('floor', materials) : undefined}
+              />
+              <button
+                type="button"
+                className="finish-apply-all"
+                onClick={() => {
+                  setAllFloorFinish(activeFloor)
+                  useStore
+                    .getState()
+                    .notify.start({ title: 'Floor finish applied to every room', kind: 'success' })
+                }}
+                title="Use this floor finish in every room"
+              >
+                Apply floor to all rooms
+              </button>
+              {fComposer ? (
+                <MaterialComposer
+                  label="Floor"
+                  active={activeFloor ?? ''}
+                  materials={groups.floor}
+                  onApply={(id) => handleSelect('floor', id)}
+                  onSave={fSaveMaterials ? handleSaveMaterial('floor') : undefined}
+                  savedNameOf={savedNameFor}
+                />
+              ) : null}
+            </>
+          )}
+          {activeTab === 'wall' && (
+            <>
+              <SwatchGroup
+                label="Walls"
+                hideLabel
+                items={filterFinishes(groups.wall, finishQuery)}
+                active={activeWall}
+                onSelect={(id) => handleSelect('wall', id)}
+                onRemoveUser={removeUserOrSaved}
+                savedIds={savedIds}
+                onRename={renameUserOrSaved}
+                onCustom={(hex) => handleCustomColor('wall', hex)}
+                recent={recentColors}
+                recentFinishIds={recentFinishes}
+                curated={fDesignerPicks ? resolveDesignerPicks('wall', materials) : undefined}
+              />
+              <button
+                type="button"
+                className="finish-apply-all"
+                onClick={() => {
+                  setAllWallFinish(activeWall)
+                  useStore
+                    .getState()
+                    .notify.start({ title: 'Wall finish applied to every room', kind: 'success' })
+                }}
+                title="Use this wall finish in every room"
+              >
+                Apply walls to all rooms
+              </button>
+              {fComposer ? (
+                <MaterialComposer
+                  label="Walls"
+                  active={activeWall ?? ''}
+                  materials={groups.wall}
+                  onApply={(id) => handleSelect('wall', id)}
+                  onSave={fSaveMaterials ? handleSaveMaterial('wall') : undefined}
+                  savedNameOf={savedNameFor}
+                />
+              ) : null}
+            </>
+          )}
           {/* Ceiling paints from the wall (paint/plaster) pool — a ceiling is
               painted like a wall. Default is plain white (no finish), so a
               "Reset to white" clears back to it. Gated by the ceilingFinish flag. */}
-          {fCeiling ? (
+          {fCeiling && activeTab === 'ceiling' ? (
             <>
               <SwatchGroup
                 label="Ceiling"
+                hideLabel
                 items={filterFinishes(groups.wall, finishQuery)}
                 active={activeCeiling ?? ''}
                 onSelect={(id) => handleSelect('ceiling', id)}
                 onRemoveUser={removeUserOrSaved}
                 savedIds={savedIds}
                 onRename={renameUserOrSaved}
-                onCustom={(hex) => handleSelect('ceiling', hex)}
+                onCustom={(hex) => handleCustomColor('ceiling', hex)}
                 recent={recentColors}
                 recentFinishIds={recentFinishes}
                 curated={fDesignerPicks ? resolveDesignerPicks('wall', materials) : undefined}
@@ -559,7 +651,7 @@ export function FinishPicker() {
               accents in one place. Creating one stays a 3D wall tap (opens the
               WallAccentPicker) — the wall→room mapping differs by plan type, so
               we don't re-enumerate it here; this is the management/discovery view. */}
-          {fWallAccent
+          {fWallAccent && activeTab === 'wall'
             ? (() => {
                 const accents = Object.entries(finishes.wallAccents).filter(
                   ([k]) => k.slice(k.lastIndexOf(':') + 1) === roomId,

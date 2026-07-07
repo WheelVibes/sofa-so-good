@@ -1,6 +1,7 @@
 import { useShallow } from 'zustand/react/shallow'
 import type { RoomId } from '../apartment/types'
 import { useFeature } from '../features/useFeature'
+import { parseTintMaterialId, recolorFinishId } from '../materials/composeMaterial'
 import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
 import type { MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
@@ -25,6 +26,7 @@ function swatchImage(m: MaterialDef): string | undefined {
  */
 export function WallAccentPicker() {
   const enabled = useFeature('wallAccentPicker')
+  const fRecolor = useFeature('finishRecolor')
   const selectedWall = useStore((s) => s.selectedWall)
   const wallAccents = useStore(useShallow((s) => s.finishes.wallAccents))
   const roomWall = useStore(useShallow((s) => s.finishes.walls))
@@ -38,6 +40,12 @@ export function WallAccentPicker() {
   const key = `${selectedWall.wallId}:${selectedWall.roomId}`
   const roomName = roomDisplayName(selectedWall.roomId, plan)
   const current = wallAccents[key] ?? roomWall[selectedWall.roomId as RoomId]
+  // FINISH-RECOLOR: a tinted accent still highlights its base texture's tile;
+  // the custom colour repaints the current accent finish (keeps its texture).
+  const currentBase = (current && parseTintMaterialId(current)?.baseId) || current
+  const currentColor = current?.startsWith('#')
+    ? current
+    : parseTintMaterialId(current ?? '')?.color
   const walls = Object.values(materials).filter((m) => m.category === 'wall')
 
   return (
@@ -65,7 +73,7 @@ export function WallAccentPicker() {
               key={m.id}
               onClick={() => setWallAccent(key, m.id)}
               title={m.name}
-              className={`swatch${current === m.id ? ' on' : ''}`}
+              className={`swatch${currentBase === m.id ? ' on' : ''}`}
               style={{
                 backgroundColor: m.swatch,
                 backgroundImage: swatchImage(m),
@@ -73,13 +81,16 @@ export function WallAccentPicker() {
               }}
             />
           ))}
-          {/* Custom colour */}
+          {/* Custom colour: repaints the current accent finish, keeping its
+              texture/pattern (FINISH-RECOLOR); flag off → legacy flat paint. */}
           <ColorPicker
-            value={typeof current === 'string' && current.startsWith('#') ? current : '#cccccc'}
-            onChange={(hex) => setWallAccent(key, hex)}
+            value={currentColor ?? '#cccccc'}
+            onChange={(hex) =>
+              setWallAccent(key, fRecolor ? recolorFinishId(current, hex, materials) : hex)
+            }
             ariaLabel="Custom accent colour"
             title="Custom colour"
-            className={typeof current === 'string' && current.startsWith('#') ? 'on' : ''}
+            className={currentColor ? 'on' : ''}
           />
         </div>
         <button

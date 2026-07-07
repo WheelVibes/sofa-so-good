@@ -354,6 +354,17 @@ describe('P36 sticky section headers', () => {
     expect(c).toMatch(/\.modal-overlay > \.panel\s*\{[^}]*background:\s*var\(--surface-solid\)/s)
     expect(c).toMatch(/\.modal-overlay > \.panel\s*\{[^}]*--sec-h-bg:\s*var\(--surface-solid\)/s)
   })
+  it('flattens .sec-h inside the finish picker (scoped override) — static, transparent, no hairline', () => {
+    // The per-room FinishPicker aside carries a `.finish-picker` class so its
+    // stacked section headers don't read as full-width lighter strips (user
+    // report). The scoped rule must NOT touch the base .sec-h contract asserted
+    // above (still sticky + backgrounded + hairlined for other panels).
+    const p = read('./parts.css')
+    const scoped = p.match(/\.finish-picker \.sec-h\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(scoped).toMatch(/position:\s*static/)
+    expect(scoped).toMatch(/background:\s*transparent/)
+    expect(scoped).toMatch(/box-shadow:\s*none/)
+  })
 })
 
 describe('P21 tabular numerals', () => {

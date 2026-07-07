@@ -93,6 +93,16 @@ body.mobile {
   .budget-hud,
   .drag-readout { position: fixed; }
 
+  /* Walk-mode bottom overlays were missed by the sweep above: the touch
+     joystick (`.walk-joystick`, screens.css) and the controls banner's wrapper
+     (`.walk-hud-dock`, WalkHud.tsx) are bottom-anchored absolutes inside the
+     extended shell, so both rendered ~a status-bar inset too low — the joystick
+     half-clipped by the home indicator. Same fix: anchor to the visual
+     viewport; their existing `env(safe-area-inset-bottom)` offsets then clear
+     the home indicator as designed. */
+  .walk-joystick,
+  .walk-hud-dock { position: fixed; }
+
   /* The 2D plan editor (`.plan-screen`, `absolute inset:0` inside the extended
      shell) also runs past the bottom, so its canvas-pinned controls (compass /
      scale bar / floor selector) would be dragged below the screen. Shrink its
@@ -505,8 +515,11 @@ body.mobile {
 
   /* The catalog card's favourite ♥ reveals on `:hover` on desktop — but touch has
      no hover, so on a phone it stays invisible and unreachable. Show it always on
-     mobile, enlarged for touch. */
+     mobile, enlarged for touch. The whole corner action stack (♥/↻/×) matches. */
   .fav-btn { opacity: 1; width: 32px; height: 32px; }
+  .card-acts .fav-btn,
+  .card-acts .coll-x,
+  .card-acts .coll-refresh { width: 32px; height: 32px; }
 
   /* Same hover-reveal trap on the Layers panel's group hide-all / lock-all eyes
      (`.lyr-geye`): opacity:0 until `.lyr-ghead-row:hover`, so on touch you can't

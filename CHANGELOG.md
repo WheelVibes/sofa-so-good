@@ -5,6 +5,130 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.2 — Desktop installers also build (artifact-only) on push to main
+
+`release.yml` gains `main` in its push trigger: merges now produce Win/mac/Linux installers as
+run artifacts — the per-merge test-build channel, mirroring the Android debug-APK workflow. The
+`v*`-tag path is unchanged and remains the only one that PUBLISHES to a GitHub Release (the
+existing `--publish never` conditional already made non-tag runs artifact-only, so this is a
+trigger-only change). ARCHITECTURE.md updated.
+
+## v0.18.3.1 — Android APK workflow: build on every push to main
+
+`.github/workflows/android-apk.yml` now triggers only on `push` to `main` (was: manual
+`workflow_dispatch` + pushes to the original packaging branch), so each merged PR ships a fresh
+sideloadable debug-APK artifact automatically. `docs/packaging-android.md` updated to match.
+
+## v0.18.3.0 — Finishes surface tabs are permanent (flag retired)
+
+The user declared the tabbed Floor | Walls | Ceiling finishes layout permanent, so the
+`finishSurfaceTabs` flag and the legacy stacked fallback are removed: the tablist renders
+unconditionally (Ceiling still gated by `ceilingFinish`, incl. the stale-persisted-'ceiling'
+demotion), block conditions simplify to `activeTab === …`, and the registry/type entry is gone.
+The FinishPicker recolor/accent/ceiling test suites — previously pinned to the stacked layout —
+now drive the tabs directly (click the surface tab, then interact; the per-tab mounting actually
+simplified their queries). Docs and the tabs scenario updated; full suite green (5,581).
+
+## v0.18.2.1 — Polish: mobile sort beside filter, no duplicate surface headers, themed Favourites toggle
+
+Three user-reported refinements: (1) on mobile the catalog's sort control moves out of the
+horizontally-scrolling category rail into the panel header, beside the filter funnel (desktop
+keeps it on the rail); (2) with the surface tabs naming the active surface, the Floor/Walls/
+Ceiling group headers were duplicates — `SwatchGroup` gains `hideLabel` and the picker passes it
+when `finishSurfaceTabs` is on (the header still renders in the legacy stacked layout and for
+other `SwatchGroup` consumers; `label` keeps feeding every aria-label); (3) the catalog filter's
+"Favourites only" row is now the same `.menu-item` row + trailing check as the other filter
+options (native checkbox dropped — theme-consistent, role=menuitemcheckbox). All three verified
+visually on 390×844 mobile.
+
+## v0.18.2.0 — Finishes panel: Floor / Walls / Ceiling tabs + flat section headers
+
+The per-room finishes panel now gives each surface its own tab (user request — the stacked
+FLOOR/WALLS/CEILING sections were hard to tell apart): a full-width `Floor | Walls | Ceiling`
+segmented tab row (role=tablist, Ceiling only under the `ceilingFinish` flag) shows one surface's
+swatches, apply-to-all, composer (+ accent walls under Walls, reset-to-white under Ceiling) at a
+time; the shared tools (copy finishes, room layout, Browse, Upload) stay below. Tab choice reuses
+the persisted `lastSurface` (now including 'ceiling'), keeping Browse's "apply to last surface"
+coherent. Gated by `finishSurfaceTabs` (simple tier, default on; off = the legacy stacked layout,
+byte-identical). Also, per the same user report, the sticky section headers' full-width "strip"
+backgrounds are flattened inside this panel (`.finish-picker .sec-h` — static/transparent/no
+hairline, base rule untouched + style-guarded). Includes a catalog-filter mobile scenario leg
+(`catalog-filter-mobile.json`: bottom-sheet, 32px card actions, filter sheet, narrowed grid) and
+the tabs ladder `finish-tabs-simple.json` — both visually verified on desktop + 390×844 mobile.
+
+## v0.18.1.0 — Stable catalog order across downloads + catalog filters (STABLE-CATALOG-ORDER)
+
+Downloading a shared-library or CC0 card no longer teleports it to the front of its category:
+`useUnifiedCatalog` now renders a resolved remote entry's local def AT the remote entry's grid
+slot and an imported shared item's `ikea-<groupKey>` def AT the shared item's slot (both excluded
+from the leading local block), so a card keeps its exact position across download. When the
+remote/shared entry isn't in the merge input (Simple mode, non-admin, flag off) the resolved def
+stays in the local block exactly as before. Plus a new **catalog filter** (funnel button in the
+catalog header, `catalogFilters` flag, simple tier, default on): Availability (All / Downloaded /
+Not downloaded — group shown only when the grid holds remote/shared cards) · Source (Built-in /
+My items / CC0 library) · Favourites only, with an accent-dot active indicator, "Reset to All",
+and a distinct empty state. Pure filtering in `catalogBrowse.ts:filterCatalog` (unit-tested);
+state is ephemeral (never persisted). Order-stability + filter + both-mode flag tests; scenario
+ladder `catalog-filter-simple.json` (visually verified: popover groups, narrowed grid, reset).
+
+## v0.18.0.1 — Catalog cards: ♥ / ↻ / × action stack (no more hidden buttons)
+
+On imported IKEA/shared catalog cards the corner buttons overlapped — the favourite ♥
+(24/32px) sat on top of the smaller remove × and refresh ↻ (user screenshot: the ↻ half-hidden
+behind the ♥). New `.card-acts` wrapper: a vertical column in the card's top-right, ♥ → ↻ → ×,
+all three at the favourite's size (24px desktop / 32px mobile), icons bumped to match. The whole
+stack reveals on hover/focus-within (desktop), stays visible on touch, and stays visible at rest
+when favourited. Scoped to catalog cards — the global `.coll-x`/`.coll-refresh` geometry used by
+finish tiles/collections is untouched. RemoteCard/SharedCard (♥ only, incl. the Poly Haven
+finishes Browse cards via RemoteCard) had no overlap and keep their behaviour.
+
+## v0.18.0.0 — Recolour any finish: colour, texture and material fully decoupled (FINISH-RECOLOR)
+
+Custom colours no longer flatten a textured finish to plaster paint — colour, texture/pattern,
+and material params are now independent, mix-and-match axes on every floor/wall/ceiling (and
+accent-wall) finish:
+
+- **New tint mode `!r` (repaint)** in the self-describing id grammar
+  (`tint:<baseId>:<#hex>[@scale][~rough][!r]`, `composeMaterial.ts`): a luminance-preserving,
+  mean-anchored recolor of a textured base's albedo (`materials/recolor.ts` — per-pixel Rec.709
+  luma / image mean × target colour, sRGB-byte domain per the W3C blend-mode spec, ≤1024px bake).
+  Unlike the legacy multiply (`m.color`, darken-only), repaint can lighten — dark walnut really
+  becomes light-grey wood, pattern and normal/roughness detail intact. Old ids are byte-identical
+  (absent token = multiply). The baked albedo is an owned `CanvasTexture` (disposed on LRU evict,
+  `SRGBColorSpace`, anisotropy, world-UV repeat); shared loader maps are never disposed; any
+  failure falls back to the multiply path.
+- **Custom colour = repaint the current finish** (`recolorFinishId`, shared pure resolver): the
+  picker's colour controls (custom colour, palette/recommended rows, recents) write a repaint
+  tint of the active finish — built-in procedural, Poly Haven/ambientCG, or user-uploaded.
+  Paint-like actives (plaster/solid/bare-hex) keep the legacy flat-paint behaviour. Also wired
+  into the accent-wall picker (was a bare-hex writer).
+- **Swap texture, keep colour**: picking a new finish swatch while a colour override is active
+  re-tints the new base with the same colour+gloss; a "Colour override" chip (desktop + mobile)
+  shows the active override and its × restores the plain finish; the base texture's tile stays
+  highlighted while tinted.
+- **Composer colour modes**: "Compose your own…" gains a Repaint/Shade segmented control for
+  textured bases (Repaint default; Shade = legacy multiply) and an async recolored preview thumb
+  (`recolorThumbnailDataUrl`, flat-colour fallback).
+- Gated by the new `finishRecolor` flag (simple tier, default on; off = byte-identical legacy
+  behaviour). No store/schema changes — everything rides the finish-id string. Tests: recolor
+  engine (node), grammar round-trips, cache routing/disposal, picker/composer/accent behaviour in
+  both modes + flag-off; scenario ladder `finishes-recolor-simple.json` (visual: dark walnut →
+  light grey with grain intact, texture swap keeps colour, chip clear, brick wall repaint,
+  composer modes, mobile leg). Docs: user guide (finishes + importing-textures), ARCHITECTURE,
+  materials CLAUDE.md, README.
+
+## v0.17.1.1 — iOS: walk-mode joystick + controls banner clear the home indicator
+
+On phones the walk-mode touch joystick sat half-clipped under the iOS home indicator and the
+"Walk mode · Joystick to move · Drag to look" banner rode too low. Same documented mechanism as
+v0.15.2.5: `.app-shell` is intentionally extended below the visual viewport by
+`env(safe-area-inset-top)` (the v0.15.2.4 full-bleed fix), so its `position: absolute`
+bottom-anchored overlays get dragged past the screen edge. Fix per the established pattern —
+anchor both to the visual viewport with `position: fixed` under `body.mobile`
+(`.walk-joystick` + the banner's new `.walk-hud-dock` wrapper class join the existing
+`.toast-host`/`.budget-hud`/`.drag-readout` rule in `responsive.css`); their designed
+`env(safe-area-inset-bottom)` offsets then clear the home indicator. Desktop/Android unchanged.
+
 ## v0.17.1.0 — Android packaging: Capacitor APK build + CI
 
 Added an Android build target so the app can be sideloaded onto a phone for testing.

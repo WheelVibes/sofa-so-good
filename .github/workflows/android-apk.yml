@@ -5,14 +5,13 @@ name: Android APK (debug)
 # can't compile it (the Android SDK + Google-Maven deps must be fetched), so the
 # canonical build runs here on a GitHub-hosted runner. See docs/packaging-android.md.
 #
-# Run it: Actions tab -> "Android APK (debug)" -> Run workflow. When it finishes,
-# download the `sofa-so-good-debug-apk` artifact, then sideload app-debug.apk
+# Runs on every push to main. When it finishes, download the
+# `sofa-so-good-debug-apk` artifact from the run, then sideload app-debug.apk
 # (`adb install app-debug.apk`, or open the file on the phone).
 
 on:
-  workflow_dispatch:
   push:
-    branches: [claude/android-apk-build-export-6gc8hz]
+    branches: [main]
 
 permissions:
   contents: read

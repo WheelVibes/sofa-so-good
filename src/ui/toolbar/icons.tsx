@@ -508,6 +508,12 @@ export const Icon = {
       <path d="M18 7v10M15 14l3 3 3-3" />
     </Svg>
   ),
+  // Funnel — catalog filter control (no existing funnel glyph fit).
+  Filter: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M3 5h18l-7 8v6l-4 2v-8z" />
+    </Svg>
+  ),
   // Universal-access figure — distinct from the shield "Checks" glyph so the
   // Accessibility tool reads on its own.
   Accessibility: (p: SVGProps<SVGSVGElement>) => (

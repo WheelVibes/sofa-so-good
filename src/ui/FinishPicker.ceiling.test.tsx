@@ -35,9 +35,22 @@ function setViewport(mobile: boolean) {
 }
 
 beforeEach(() => {
+  // Tab selection persists to localStorage (LAST_SURFACE_KEY); clear it so each
+  // test starts on the default Floor tab regardless of prior tab clicks.
+  try {
+    localStorage.clear()
+  } catch {
+    // ignore (unavailable storage)
+  }
   useStore.getState().__resetForTest?.()
   useStore.getState().selectRoom(ROOM)
 })
+
+/** The Ceiling section lives under the Ceiling surface tab — the panel opens
+ *  on Floor, so switch to Ceiling before asserting the section. */
+function openCeilingTab() {
+  fireEvent.click(screen.getByRole('tab', { name: 'Ceiling' }))
+}
 
 afterEach(() => {
   useStore.getState().selectRoom(null)
@@ -66,24 +79,26 @@ describe('ceilingFinish flag', () => {
 describe('FinishPicker ceiling section', () => {
   it('renders a Ceiling swatch group when the flag is on', () => {
     render(<FinishPicker />)
-    expect(screen.getByText('Ceiling')).toBeInTheDocument()
+    openCeilingTab()
     expect(screen.getByTitle('Use this ceiling finish in every room')).toBeInTheDocument()
   })
 
-  it('hides the Ceiling section when the flag is off', () => {
+  it('hides the Ceiling tab + section when the flag is off', () => {
     useStore.setState({
       featureFlags: { ...useStore.getState().featureFlags, ceilingFinish: false },
     })
     render(<FinishPicker />)
-    expect(screen.queryByText('Ceiling')).toBeNull()
-    // Floor + Walls still render.
-    expect(screen.getByText('Floor')).toBeInTheDocument()
-    expect(screen.getByText('Walls')).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Ceiling' })).toBeNull()
+    expect(screen.queryByTitle('Use this ceiling finish in every room')).toBeNull()
+    // Floor + Walls tabs still render.
+    expect(screen.getByRole('tab', { name: 'Floor' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Walls' })).toBeInTheDocument()
   })
 
   it('applies a ceiling finish and exposes a reset-to-white action', () => {
     useStore.getState().setCeilingFinish(ROOM, 'wall-white')
     render(<FinishPicker />)
+    openCeilingTab()
     // With a ceiling set, the reset button appears.
     const reset = screen.getByTitle("Reset this room's ceiling back to plain white")
     expect(reset).toBeInTheDocument()
@@ -94,6 +109,7 @@ describe('FinishPicker ceiling section', () => {
 
   it('disables "Apply ceiling to all rooms" and hides reset until a ceiling is chosen', () => {
     render(<FinishPicker />)
+    openCeilingTab()
     // No ceiling set (default white) → apply-all disabled, no reset button.
     expect(screen.getByTitle('Use this ceiling finish in every room')).toBeDisabled()
     expect(screen.queryByTitle("Reset this room's ceiling back to plain white")).toBeNull()
@@ -108,6 +124,7 @@ describe('FinishPicker ceiling section', () => {
   it('mobile Ceiling dropdown shows a "Default" label instead of blank when unset', () => {
     setViewport(true)
     render(<FinishPicker />)
+    openCeilingTab()
     const trigger = screen.getByLabelText('Ceiling finish')
     expect(trigger).toHaveTextContent('Default')
   })
@@ -116,6 +133,7 @@ describe('FinishPicker ceiling section', () => {
     setViewport(true)
     useStore.getState().setCeilingFinish(ROOM, 'wall-white')
     render(<FinishPicker />)
+    openCeilingTab()
     const trigger = screen.getByLabelText('Ceiling finish')
     expect(trigger).not.toHaveTextContent('Default')
   })

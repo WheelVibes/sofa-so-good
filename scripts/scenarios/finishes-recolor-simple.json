@@ -1,0 +1,92 @@
+{
+  "name": "finishes-recolor-simple",
+  "url": "http://localhost:5223/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "daylight", "store": { "action": "setManualHour", "args": [13] } },
+    {
+      "name": "flag-on-by-default",
+      "waitFor": { "store": "state.featureFlags.finishRecolor === true" }
+    },
+    { "name": "open-picker", "store": { "action": "selectRoom", "args": ["livingDining"] } },
+    { "name": "picker-open", "waitFor": { "css": ".panel.inspector" } },
+    {
+      "name": "apply-walnut-ph-floor",
+      "store": { "action": "setFloorFinish", "args": ["livingDining", "floor-wood-walnut"] }
+    },
+    { "name": "walnut-loads", "wait": 3500 },
+    { "name": "shot-walnut-base", "screenshot": "walnut-base" },
+    {
+      "name": "seed-recent-colour",
+      "store": { "action": "pushRecentColor", "args": ["#c8c8c8"] }
+    },
+    {
+      "name": "pick-lightgrey-on-floor",
+      "eval": "[...document.querySelectorAll('button[aria-label=\"Recent colour #c8c8c8\"]')][0].click()"
+    },
+    {
+      "name": "floor-is-repaint-tint",
+      "waitFor": {
+        "store": "state.finishes.floor['livingDining'] === 'tint:floor-wood-walnut:#c8c8c8!r'"
+      }
+    },
+    { "name": "recolor-bakes", "wait": 2500 },
+    { "name": "shot-walnut-repainted", "screenshot": "walnut-repainted-lightgrey" },
+    {
+      "name": "override-chip-visible",
+      "waitFor": { "css": "button[aria-label=\"Remove colour override\"]" }
+    },
+    {
+      "name": "swap-to-oak-keeps-colour",
+      "eval": "[...document.querySelectorAll('.finish-grid [role=\"button\"]')].find((el) => el.title.startsWith('Oak planks')).click()"
+    },
+    {
+      "name": "oak-kept-the-colour",
+      "waitFor": {
+        "store": "state.finishes.floor['livingDining'] === 'tint:floor-wood-oak:#c8c8c8!r'"
+      }
+    },
+    { "name": "oak-bakes", "wait": 2500 },
+    { "name": "shot-oak-keeps-colour", "screenshot": "oak-keeps-colour" },
+    {
+      "name": "clear-override",
+      "click": "button[aria-label=\"Remove colour override\"]"
+    },
+    {
+      "name": "floor-back-to-plain-oak",
+      "waitFor": { "store": "state.finishes.floor['livingDining'] === 'floor-wood-oak'" }
+    },
+    { "name": "plain-oak-renders", "wait": 1500 },
+    { "name": "shot-override-cleared", "screenshot": "override-cleared" },
+    {
+      "name": "apply-brick-wall",
+      "store": { "action": "setWallFinish", "args": ["livingDining", "wall-brick"] }
+    },
+    { "name": "brick-loads", "wait": 2500 },
+    {
+      "name": "pick-lightgrey-on-walls",
+      "eval": "[...document.querySelectorAll('button[aria-label=\"Recent colour #c8c8c8\"]')][1].click()"
+    },
+    {
+      "name": "wall-is-repaint-tint",
+      "waitFor": {
+        "store": "state.finishes.walls['livingDining'] === 'tint:wall-brick:#c8c8c8!r'"
+      }
+    },
+    { "name": "brick-recolor-bakes", "wait": 2500 },
+    { "name": "shot-brick-repainted", "screenshot": "brick-repainted-lightgrey" },
+    {
+      "name": "open-floor-composer",
+      "eval": "[...document.querySelectorAll('.panel.inspector summary')].find((el) => el.textContent.includes('Compose your own')).click()"
+    },
+    { "name": "composer-shows-repaint-mode", "waitFor": { "text": "Repaint" } },
+    { "name": "shot-composer-modes", "screenshot": "composer-repaint-shade" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "mobile-settles", "wait": 1200 },
+    { "name": "shot-mobile-picker", "screenshot": "mobile-picker" }
+  ]
+}

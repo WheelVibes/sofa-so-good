@@ -21,6 +21,7 @@ import {
   requestProceduralWorker,
 } from './procedural/runProceduralWorker'
 import { notifyProceduralSwap } from './proceduralSwapSignal'
+import { recolorImageToCanvas } from './recolor'
 import type { MaterialDef, ProceduralPattern } from './types'
 
 // Textures a single cached material owns EXCLUSIVELY — the per-material
@@ -300,7 +301,29 @@ export function buildMaterial(
     return m
   }
   if (def.kind === 'textured' && textures) {
-    if (textures.albedo) m.map = textures.albedo
+    // FINISH-RECOLOR — repaint mode: when the def asks to recolor and the albedo
+    // image is loaded, bake a luminance-preserving recolored albedo into an
+    // OWNED CanvasTexture (unlike the shared loader maps below, THIS one is
+    // exclusive to the cached material, so eviction must dispose it). The chosen
+    // colour is baked into the map, so `m.color` stays white (no double tint).
+    // Missing image / recolor failure → fall through to the legacy multiply
+    // path (`m.color` = swatch, shared albedo map), byte-identical to before.
+    const albedoImage = def.recolorAlbedo
+      ? (textures.albedo?.image as CanvasImageSource | undefined)
+      : undefined
+    const recolored = albedoImage ? recolorImageToCanvas(albedoImage, def.swatch) : null
+    if (recolored) {
+      const tex = own(new CanvasTexture(recolored))
+      tex.wrapS = tex.wrapT = RepeatWrapping
+      tex.colorSpace = SRGBColorSpace
+      tex.repeat.set(1 / def.uvScale[0], 1 / def.uvScale[1])
+      applyAnisotropy(tex)
+      tex.needsUpdate = true
+      m.map = tex
+      m.color.set('#ffffff')
+    } else if (textures.albedo) {
+      m.map = textures.albedo
+    }
     if (textures.normal) m.normalMap = textures.normal
     if (textures.roughness) m.roughnessMap = textures.roughness
     if (textures.ao) m.aoMap = textures.ao
@@ -312,8 +335,14 @@ export function buildMaterial(
     // procedural fallback stays sharp. NOT owned: these come from drei's
     // `useTexture` (URL-keyed `useLoader` cache) and may be the SAME `Texture`
     // instance a sibling `tint:<baseId>:#hex` variant of this material also
-    // references — never dispose them on cache eviction.
-    for (const t of [textures.albedo, textures.normal, textures.roughness, textures.ao]) {
+    // references — never dispose them on cache eviction. The recolored albedo
+    // (if any) was already configured above, so it's excluded here.
+    for (const t of [
+      recolored ? undefined : textures.albedo,
+      textures.normal,
+      textures.roughness,
+      textures.ao,
+    ]) {
       if (!t) continue
       t.wrapS = t.wrapT = 1000 // RepeatWrapping
       t.repeat.set(1 / def.uvScale[0], 1 / def.uvScale[1])

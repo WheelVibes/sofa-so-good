@@ -21,6 +21,12 @@ export interface MaterialDefBase {
    *  default (procedural 0.85 / plaster 0.92 / textured map as-is). Used by
    *  composed/tinted finishes that carry a `~<rough>` suffix in their id. */
   roughness?: number
+  /** Repaint the albedo with `swatch` via the luminance-preserving recolor
+   *  (FINISH-RECOLOR) instead of the legacy `material.color` multiply. Set only
+   *  by `tintedMaterialDef` for `tint:…!r` ids; consumed by the textured branch
+   *  of `cache.ts:buildMaterial` (procedural bases already re-bake with the
+   *  swatch, so it's a no-op there). */
+  recolorAlbedo?: boolean
 }
 
 export interface SolidMaterialDef extends MaterialDefBase {

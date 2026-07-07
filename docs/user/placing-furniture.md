@@ -20,6 +20,13 @@ decor, and more), the **search box** to fuzzy‑search across everything, and th
 **heart** on any card to save it to your **favourites** (the star tab, first in
 the list).
 
+**Filter the grid.** The **funnel button** in the catalog header opens quick
+filters: **Availability** (all, downloaded, or not‑yet‑downloaded — shown only
+when the online/shared library has cards here), **Source** (built‑in, your own
+uploads/imports, or the CC0 library), and a **Favourites only** toggle. An active
+filter shows a dot on the button; pick **Reset to All** to clear it. Filters are
+per‑session and never change your saved design.
+
 **It opens on what the room needs.** When you open a room to furnish it, the
 catalog lands on the category that fits best — **Beds** in a bedroom,
 **Appliances** in a kitchen, **Bathroom** in a bath, **Seating** in the living

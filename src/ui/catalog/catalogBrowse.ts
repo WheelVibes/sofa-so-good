@@ -1,6 +1,6 @@
 import { itemFitsRoom, type RoomFreeRect } from '../../catalog/roomFit'
 import { itemPrice } from '../../furniture/furniturePrices'
-import type { GridItem } from './useUnifiedCatalog'
+import { type GridItem, gridItemId } from './useUnifiedCatalog'
 
 /** Browse-time catalog ordering. `default` keeps the curated order. */
 export type SortKey = 'default' | 'name' | 'size' | 'price'
@@ -53,6 +53,73 @@ export function filterByMaxPrice(cards: GridItem[], maxPrice: string): GridItem[
     if (it.kind === 'remote') return true
     if (it.kind === 'shared') return it.item.price == null || it.item.price <= cap
     return itemPrice(it.def, it.def.category) <= cap
+  })
+}
+
+/** Availability facet: whether a card is already a downloaded/local def or an
+ *  un-downloaded remote/shared entry. */
+export type AvailabilityFilter = 'all' | 'downloaded' | 'not-downloaded'
+
+/** Source facet, derived from `def.source` / card kind:
+ *  - `builtin` — the curated app catalog (parametric primitives + bundled/local GLBs)
+ *  - `mine`    — user uploads/imports (`source:'user'`/`'ikea'`, incl. `ikea-*`, and
+ *                the not-yet-imported shared-library cards that resolve to them)
+ *  - `cc0`     — the CC0 online library (remote provider cards + resolved `remote`
+ *                defs + downloadable-content pack defs) */
+export type SourceFilter = 'all' | 'builtin' | 'mine' | 'cc0'
+
+/** Catalog browse filter (component-local + ephemeral — never persisted). */
+export interface CatalogFilter {
+  availability: AvailabilityFilter
+  source: SourceFilter
+  favouritesOnly: boolean
+}
+
+export const DEFAULT_CATALOG_FILTER: CatalogFilter = {
+  availability: 'all',
+  source: 'all',
+  favouritesOnly: false,
+}
+
+/** True when the filter narrows anything (drives the icon's active dot + reset). */
+export function isCatalogFilterActive(f: CatalogFilter): boolean {
+  return f.availability !== 'all' || f.source !== 'all' || f.favouritesOnly
+}
+
+/** Bucket a card into a {@link SourceFilter} source group. */
+export function cardSource(it: GridItem): Exclude<SourceFilter, 'all'> {
+  if (it.kind === 'remote') return 'cc0'
+  if (it.kind === 'shared') return 'mine'
+  const def = it.def
+  if (def.kind === 'parametric') return 'builtin'
+  switch (def.source) {
+    case 'user':
+    case 'ikea':
+      return 'mine'
+    case 'remote':
+    case 'pack':
+      return 'cc0'
+    default: // 'builtin' | 'local'
+      return 'builtin'
+  }
+}
+
+/** Apply the catalog browse {@link CatalogFilter} to a grid listing. Pure; returns
+ *  the input array unchanged when the filter is inactive (a no-op fast path).
+ *  `favouriteIds` is the set of `gridItemId`s currently favourited (only consulted
+ *  when `favouritesOnly` is set). */
+export function filterCatalog(
+  cards: GridItem[],
+  filter: CatalogFilter,
+  favouriteIds: ReadonlySet<string>,
+): GridItem[] {
+  if (!isCatalogFilterActive(filter)) return cards
+  return cards.filter((it) => {
+    if (filter.availability === 'downloaded' && it.kind !== 'local') return false
+    if (filter.availability === 'not-downloaded' && it.kind === 'local') return false
+    if (filter.source !== 'all' && cardSource(it) !== filter.source) return false
+    if (filter.favouritesOnly && !favouriteIds.has(gridItemId(it))) return false
+    return true
   })
 }
 

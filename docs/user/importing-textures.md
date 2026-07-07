@@ -26,6 +26,13 @@ upload.
 4. Select a piece of furniture and choose your material from its **finish**
    dropdown (it appears alongside the built‑in and CC0 DLC options).
 
+Uploaded **floor / wall** materials also appear in the room finish picker, where
+they behave like any other finish: pick a **custom colour** to *repaint* your
+texture with it (the pattern is kept — see
+[Recolour any finish](/finishes-and-materials#recolour-any-finish-colour-and-texture-are-independent)),
+and use **Compose your own…** to tune the tile scale and gloss. A greyscale
+pattern upload works as a reusable template you can tint in any colourway.
+
 > **Worked example — a custom wood table top**
 > 1. Import a **TGA albedo** + a **normal** map.
 > 2. Select a table, open its inspector.

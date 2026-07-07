@@ -44,8 +44,8 @@ bundled assets are used.
 
 Workflow: **`.github/workflows/android-apk.yml`**.
 
-1. GitHub → **Actions** tab → **Android APK (debug)** → **Run workflow**. (It also runs on pushes
-   to the `claude/android-apk-build-export-*` branch.)
+1. The workflow runs automatically on every push to `main`. Open GitHub → **Actions** tab →
+   **Android APK (debug)** and pick the latest run.
 2. The job sets up Node 24 + JDK 21 + Android SDK 36, runs `npm ci` → `npm run build:mobile` →
    `cd android && ./gradlew assembleDebug`, then uploads the APK.
 3. When it goes green, open the run → **Artifacts** → download **`sofa-so-good-debug-apk`**

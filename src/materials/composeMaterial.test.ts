@@ -7,6 +7,7 @@ import {
   isTintMaterialId,
   parseComposedMaterialId,
   parseTintMaterialId,
+  recolorFinishId,
   tintedMaterialDef,
   tintMaterialId,
 } from './composeMaterial'
@@ -98,6 +99,7 @@ describe('tintMaterial (recolour an existing material)', () => {
       baseId: 'floor-wood-oak',
       color: '#3aa0ff',
       scale: 1,
+      mode: 'multiply',
     })
   })
 
@@ -107,7 +109,87 @@ describe('tintMaterial (recolour an existing material)', () => {
       baseId: 'polyhaven:wood_floor_deck',
       color: '#cc8844',
       scale: 1,
+      mode: 'multiply',
     })
+  })
+
+  it('builds + parses a repaint-mode id (`!r`, FINISH-RECOLOR)', () => {
+    const id = tintMaterialId('floor-wood-oak', '#aabbcc', 1, undefined, 'repaint')
+    expect(id).toBe('tint:floor-wood-oak:#aabbcc!r')
+    expect(parseTintMaterialId(id)).toEqual({
+      baseId: 'floor-wood-oak',
+      color: '#aabbcc',
+      scale: 1,
+      mode: 'repaint',
+    })
+  })
+
+  it('repaint token composes with scale + roughness, order-independent', () => {
+    const id = tintMaterialId('polyhaven:plank_flooring', '#334455', 2, 0.3, 'repaint')
+    expect(id).toBe('tint:polyhaven:plank_flooring:#334455@2~0.3!r')
+    expect(parseTintMaterialId(id)).toEqual({
+      baseId: 'polyhaven:plank_flooring',
+      color: '#334455',
+      scale: 2,
+      roughness: 0.3,
+      mode: 'repaint',
+    })
+    // Hand-written token order variants parse identically.
+    expect(parseTintMaterialId('tint:polyhaven:plank_flooring:#334455!r@2~0.3')).toEqual(
+      parseTintMaterialId(id),
+    )
+  })
+
+  it('multiply mode omits the token; unknown mode words degrade to multiply', () => {
+    expect(tintMaterialId('floor-wood-oak', '#aabbcc', 1, undefined, 'multiply')).toBe(
+      'tint:floor-wood-oak:#aabbcc',
+    )
+    expect(parseTintMaterialId('tint:floor-wood-oak:#aabbcc!zz')?.mode).toBe('multiply')
+  })
+
+  it('recolorFinishId repaints the current finish per its kind (FINISH-RECOLOR)', () => {
+    const catalog: Record<string, MaterialDef> = {
+      [proceduralBase.id]: proceduralBase,
+      [texturedBase.id]: texturedBase,
+      'wall-paint-white': {
+        id: 'wall-paint-white',
+        name: 'White',
+        category: 'wall',
+        kind: 'procedural',
+        pattern: 'plaster',
+        swatch: '#f4f1ea',
+        uvScale: [2.5, 2.5],
+      },
+    }
+    // Textured / non-plaster procedural base → repaint tint.
+    expect(recolorFinishId('polyhaven:wood_floor_deck', '#aabbcc', catalog)).toBe(
+      'tint:polyhaven:wood_floor_deck:#aabbcc!r',
+    )
+    expect(recolorFinishId('floor-wood-oak', '#aabbcc', catalog)).toBe(
+      'tint:floor-wood-oak:#aabbcc!r',
+    )
+    // Tint in place: keeps base + scale + gloss, upgrades to repaint.
+    expect(recolorFinishId('tint:floor-wood-oak:#112233@2~0.4', '#aabbcc', catalog)).toBe(
+      'tint:floor-wood-oak:#aabbcc@2~0.4!r',
+    )
+    // Composed finish re-bakes with the new colour (keeps pattern + params).
+    expect(recolorFinishId('compose:tile:#112233@0.5', '#aabbcc', catalog)).toBe(
+      'compose:tile:#aabbcc@0.5',
+    )
+    // Paint-like bases (plaster / bare hex / unset / unknown) stay plain paint.
+    expect(recolorFinishId('wall-paint-white', '#aabbcc', catalog)).toBe('#aabbcc')
+    expect(recolorFinishId('#112233', '#aabbcc', catalog)).toBe('#aabbcc')
+    expect(recolorFinishId(undefined, '#aabbcc', catalog)).toBe('#aabbcc')
+    expect(recolorFinishId('not-in-catalog', '#aabbcc', catalog)).toBe('#aabbcc')
+  })
+
+  it('repaint mode marks the tinted def for albedo recolor (textured base only path)', () => {
+    const id = tintMaterialId('polyhaven:wood_floor_deck', '#aabbcc', 1, undefined, 'repaint')
+    const def = tintedMaterialDef(id, texturedBase)
+    expect(def?.recolorAlbedo).toBe(true)
+    // Legacy multiply ids never set the flag.
+    const legacy = tintedMaterialDef('tint:polyhaven:wood_floor_deck:#aabbcc', texturedBase)
+    expect(legacy?.recolorAlbedo).toBeUndefined()
   })
 
   it('rejects non-tint / malformed ids', () => {

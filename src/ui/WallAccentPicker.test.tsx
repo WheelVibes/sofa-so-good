@@ -6,7 +6,7 @@
  * both modes). Verifies the flag config, both-mode resolution, and that the
  * panel mounts only when the flag is on and a wall is selected.
  */
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FEATURE_FLAGS } from '../features/featureFlags'
 import { useStore } from '../state/store'
@@ -68,5 +68,39 @@ describe('WallAccentPicker mount gating', () => {
     })
     const { container } = render(<WallAccentPicker />)
     expect(container.firstChild).toBeNull()
+  })
+})
+
+describe('WallAccentPicker colour override (FINISH-RECOLOR)', () => {
+  const KEY = `${WALL.wallId}:${WALL.roomId}`
+
+  it('a tinted accent highlights its base texture tile', () => {
+    useStore.setState({ selectedWall: WALL })
+    useStore.getState().setWallAccent(KEY, 'tint:wall-brick-red:#3aa0ff!r')
+    render(<WallAccentPicker />)
+    expect(screen.getByTitle('Exposed brick')).toHaveClass('on')
+  })
+
+  it('custom colour repaints the current textured accent instead of flattening it', () => {
+    useStore.setState({ selectedWall: WALL })
+    useStore.getState().setWallAccent(KEY, 'wall-brick-red')
+    render(<WallAccentPicker />)
+    // Open the themed picker and commit a hex — the accent must become a
+    // repaint tint of the SAME brick base, not a bare `#hex` (flat plaster).
+    fireEvent.click(screen.getByRole('button', { name: 'Custom accent colour' }))
+    fireEvent.change(screen.getByLabelText('Hex colour'), { target: { value: '#3aa0ff' } })
+    expect(useStore.getState().finishes.wallAccents[KEY]).toBe('tint:wall-brick-red:#3aa0ff!r')
+  })
+
+  it('flag off → custom colour keeps the legacy flat paint behaviour', () => {
+    useStore.setState({
+      selectedWall: WALL,
+      featureFlags: { ...useStore.getState().featureFlags, finishRecolor: false },
+    })
+    useStore.getState().setWallAccent(KEY, 'wall-brick-red')
+    render(<WallAccentPicker />)
+    fireEvent.click(screen.getByRole('button', { name: 'Custom accent colour' }))
+    fireEvent.change(screen.getByLabelText('Hex colour'), { target: { value: '#3aa0ff' } })
+    expect(useStore.getState().finishes.wallAccents[KEY]).toBe('#3aa0ff')
   })
 })

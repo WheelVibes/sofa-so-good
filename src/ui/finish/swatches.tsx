@@ -1,6 +1,7 @@
 import type React from 'react'
 import { useState } from 'react'
 import { useFeature } from '../../features/useFeature'
+import { parseTintMaterialId } from '../../materials/composeMaterial'
 import { encodeFinishDrag, FINISH_DND_MIME } from '../../materials/finishDrop'
 import { proceduralThumbnailDataUrl } from '../../materials/procedural/generators'
 import type { MaterialDef } from '../../materials/types'
@@ -39,6 +40,10 @@ interface SwatchGroupProps {
   recentFinishIds?: string[]
   /** Curated "designer picks" for this surface (already resolved to real defs). */
   curated?: MaterialDef[]
+  /** Hide the group's own "Floor"/"Walls"/"Ceiling" header row — the finish
+   *  picker's surface tabs already name the active surface, so the header
+   *  would be a duplicate. `label` still feeds every aria-label. */
+  hideLabel?: boolean
 }
 
 /** A compact one-tap row of curated "designer picks" for a surface, shown above
@@ -131,6 +136,51 @@ function RecentFinishes({
   )
 }
 
+/** FINISH-RECOLOR: compact "Colour override" row shown when the active finish
+ *  is a tint — names the override colour; × clears back to the plain base
+ *  finish (also the escape hatch from keep-colour-on-texture-change). */
+function TintOverrideChip({
+  color,
+  baseId,
+  onSelect,
+}: {
+  color: string
+  baseId: string
+  onSelect: (id: string) => void
+}) {
+  return (
+    <div
+      className="row"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--s-2)',
+        marginBottom: 'var(--s-2)',
+      }}
+    >
+      <span className="badge neutral">Colour override</span>
+      {/* Inline colour is the user's own override colour (data, not theme). */}
+      <span
+        className="swatch"
+        style={{ backgroundColor: color, width: 14, height: 14, flex: '0 0 auto' }}
+        aria-hidden="true"
+      />
+      <span className="label" style={{ fontSize: 'var(--t-2xs)', flex: 1, minWidth: 0 }}>
+        {color.toUpperCase()}
+      </span>
+      <button
+        type="button"
+        className="icon-btn"
+        onClick={() => onSelect(baseId)}
+        title="Remove colour override (back to the plain finish)"
+        aria-label="Remove colour override"
+      >
+        <Icon.Close width={12} height={12} />
+      </button>
+    </div>
+  )
+}
+
 function providerTag(def: MaterialDef): { label: string; cls: string } | null {
   if (def.kind !== 'textured') return null
   if (def.source === 'user') return { label: 'user', cls: 'badge neutral' }
@@ -185,8 +235,15 @@ export function SwatchGroup({
   recent,
   recentFinishIds,
   curated,
+  hideLabel,
 }: SwatchGroupProps) {
   const customActive = typeof active === 'string' && active.startsWith('#')
+  // FINISH-RECOLOR: a tinted active finish highlights its BASE texture's tile
+  // (otherwise nothing in the grid reads as selected); the override chip below
+  // the header communicates + clears the colour override itself.
+  const fRecolor = useFeature('finishRecolor')
+  const tintParts = fRecolor && typeof active === 'string' ? parseTintMaterialId(active) : null
+  const activeBaseId = tintParts?.baseId ?? active
   // Inline rename: which user/saved tile is currently being renamed (id) + draft.
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
@@ -216,7 +273,7 @@ export function SwatchGroup({
   // show a compact dropdown of finishes with a live preview of the current
   // choice instead (+ the custom-colour control + recent row).
   if (isMobile) {
-    const activeMat = items.find((m) => m.id === active)
+    const activeMat = items.find((m) => m.id === activeBaseId)
     const previewStyle: React.CSSProperties = activeMat
       ? {
           backgroundColor: activeMat.swatch,
@@ -229,11 +286,18 @@ export function SwatchGroup({
         : { background: 'var(--surface-3)' }
     return (
       <section className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
-        <div className="sec-h">
-          <span>{label}</span>
-        </div>
-        {curated ? <DesignerPicks mats={curated} active={active} onSelect={onSelect} /> : null}
-        <RecentFinishes mats={recentMats} active={active} onSelect={onSelect} />
+        {hideLabel ? null : (
+          <div className="sec-h">
+            <span>{label}</span>
+          </div>
+        )}
+        {tintParts ? (
+          <TintOverrideChip color={tintParts.color} baseId={tintParts.baseId} onSelect={onSelect} />
+        ) : null}
+        {curated ? (
+          <DesignerPicks mats={curated} active={activeBaseId} onSelect={onSelect} />
+        ) : null}
+        <RecentFinishes mats={recentMats} active={activeBaseId} onSelect={onSelect} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
           <span
             className="swatch-lg"
@@ -244,7 +308,7 @@ export function SwatchGroup({
             className="input"
             style={{ flex: 1, minWidth: 0 }}
             ariaLabel={`${label} finish`}
-            value={customActive ? '' : active}
+            value={customActive ? '' : activeBaseId}
             onChange={(v) => onSelect(v)}
             options={[
               ...(customActive ? [{ value: '', label: 'Custom colour' }] : []),
@@ -279,7 +343,7 @@ export function SwatchGroup({
           ) : null}
           {onCustom ? (
             <ColorPicker
-              value={customActive ? (active as string) : '#cccccc'}
+              value={customActive ? (active as string) : (tintParts?.color ?? '#cccccc')}
               onChange={onCustom}
               ariaLabel={`Custom ${label.toLowerCase()} colour`}
               title="Custom colour"
@@ -295,11 +359,16 @@ export function SwatchGroup({
 
   return (
     <section className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
-      <div className="sec-h">
-        <span>{label}</span>
-      </div>
-      {curated ? <DesignerPicks mats={curated} active={active} onSelect={onSelect} /> : null}
-      <RecentFinishes mats={recentMats} active={active} onSelect={onSelect} />
+      {hideLabel ? null : (
+        <div className="sec-h">
+          <span>{label}</span>
+        </div>
+      )}
+      {tintParts ? (
+        <TintOverrideChip color={tintParts.color} baseId={tintParts.baseId} onSelect={onSelect} />
+      ) : null}
+      {curated ? <DesignerPicks mats={curated} active={activeBaseId} onSelect={onSelect} /> : null}
+      <RecentFinishes mats={recentMats} active={activeBaseId} onSelect={onSelect} />
       {/* biome-ignore lint/a11y/useSemanticElements: see DesignerPicks above. */}
       <div className="finish-grid" role="group" aria-label={`${label} finishes`}>
         {sorted.map((m) => {
@@ -307,7 +376,7 @@ export function SwatchGroup({
           // Uploaded textures and saved custom materials are both the user's own
           // → removable. Saved (composed/tinted/colour) ones get a "mine" badge.
           const isUser = (m.kind === 'textured' && m.source === 'user') || isSaved
-          const isActive = m.id === active
+          const isActive = m.id === activeBaseId
           const tag = providerTag(m) ?? (isSaved ? { label: 'mine', cls: 'badge neutral' } : null)
           const fav = favSet.has(m.id)
           return (
@@ -440,7 +509,7 @@ export function SwatchGroup({
         {/* Custom colour: a themed colour picker styled as a swatch tile. */}
         {onCustom ? (
           <ColorPicker
-            value={customActive ? (active as string) : '#cccccc'}
+            value={customActive ? (active as string) : (tintParts?.color ?? '#cccccc')}
             onChange={onCustom}
             ariaLabel={`Custom ${label.toLowerCase()} colour`}
             title="Custom colour"

@@ -1,0 +1,33 @@
+{
+  "name": "finish-tabs-simple",
+  "url": "http://localhost:5223/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "daylight", "store": { "action": "setManualHour", "args": [13] } },
+    { "name": "open-picker", "store": { "action": "selectRoom", "args": ["livingDining"] } },
+    { "name": "picker-open", "waitFor": { "css": ".panel.inspector" } },
+    { "name": "tab-row-present", "waitFor": { "css": ".finish-surface-tabs" } },
+    { "name": "floor-tab-visible", "waitFor": { "text": "Apply floor to all rooms" } },
+    { "name": "shot-floor-tab", "screenshot": "finish-tab-floor" },
+    {
+      "name": "click-walls-tab",
+      "eval": "[...document.querySelectorAll('.finish-surface-tabs button')].find((b) => b.textContent.trim() === 'Walls').click()"
+    },
+    { "name": "walls-tab-visible", "waitFor": { "text": "Apply walls to all rooms" } },
+    { "name": "accents-under-walls", "waitFor": { "text": "Accent walls" } },
+    { "name": "shot-walls-tab", "screenshot": "finish-tab-walls" },
+    {
+      "name": "click-ceiling-tab",
+      "eval": "[...document.querySelectorAll('.finish-surface-tabs button')].find((b) => b.textContent.trim() === 'Ceiling').click()"
+    },
+    { "name": "ceiling-tab-visible", "waitFor": { "text": "Apply ceiling to all rooms" } },
+    { "name": "shot-ceiling-tab", "screenshot": "finish-tab-ceiling" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "mobile-settles", "wait": 1200 },
+    { "name": "shot-mobile", "screenshot": "finish-tab-mobile" }
+  ]
+}
