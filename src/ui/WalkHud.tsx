@@ -50,9 +50,12 @@ export function WalkHud() {
       {/* Controls banner: bottom-centre, clear of the home indicator (safe-area).
           When the touch joystick is present it sits bottom-left, so lift the
           banner above it (joystick = 24px inset + 88px tall) to avoid the overlap
-          on narrow screens; on desktop it stays just above the safe-area. */}
+          on narrow screens; on desktop it stays just above the safe-area.
+          `.walk-hud-dock`: on mobile the shell extends below the viewport
+          (iOS full-bleed), so responsive.css re-anchors this wrapper (and the
+          joystick) with `position: fixed` to keep it above the home indicator. */}
       <div
-        className="pointer-events-none absolute left-1/2 z-20 flex -translate-x-1/2 flex-col items-center"
+        className="walk-hud-dock pointer-events-none absolute left-1/2 z-20 flex -translate-x-1/2 flex-col items-center"
         style={{
           bottom: IS_COARSE_POINTER
             ? 'calc(env(safe-area-inset-bottom, 0px) + 124px)'

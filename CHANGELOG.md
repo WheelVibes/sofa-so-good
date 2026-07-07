@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.17.1.1 — iOS: walk-mode joystick + controls banner clear the home indicator
+
+On phones the walk-mode touch joystick sat half-clipped under the iOS home indicator and the
+"Walk mode · Joystick to move · Drag to look" banner rode too low. Same documented mechanism as
+v0.15.2.5: `.app-shell` is intentionally extended below the visual viewport by
+`env(safe-area-inset-top)` (the v0.15.2.4 full-bleed fix), so its `position: absolute`
+bottom-anchored overlays get dragged past the screen edge. Fix per the established pattern —
+anchor both to the visual viewport with `position: fixed` under `body.mobile`
+(`.walk-joystick` + the banner's new `.walk-hud-dock` wrapper class join the existing
+`.toast-host`/`.budget-hud`/`.drag-readout` rule in `responsive.css`); their designed
+`env(safe-area-inset-bottom)` offsets then clear the home indicator. Desktop/Android unchanged.
+
 ## v0.17.1.0 — Android packaging: Capacitor APK build + CI
 
 Added an Android build target so the app can be sideloaded onto a phone for testing.
