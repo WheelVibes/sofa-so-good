@@ -153,6 +153,7 @@ export type FeatureFlag =
   | 'mirrorSelection'
   | 'twoPointPerspective'
   | 'catalogResize'
+  | 'catalogFilters'
   | 'profiler'
 
 export interface FlagDef {

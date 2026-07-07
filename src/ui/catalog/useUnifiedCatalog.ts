@@ -40,7 +40,11 @@ const EMPTY_REMOTE: RemoteEntry[] = []
 const EMPTY_SHARED: SharedLibraryItem[] = []
 
 export interface UnifiedCatalog {
-  /** Per-category cards: local defs first, then un-downloaded CC0 entries. */
+  /** Per-category cards. Order (STABLE-CATALOG-ORDER): the leading local block,
+   *  then the remote CC0 block, then the shared-library block — but a card NEVER
+   *  jumps blocks when it's downloaded. A resolved remote entry renders its local
+   *  def AT its remote slot, and an imported shared item renders its local def AT
+   *  its shared slot, so grid order stays put across a download (see the merge). */
   byCategory: Record<FurnitureCategory, GridItem[]>
   /** Flattened list of every card — used by the cross-catalog search. */
   all: GridItem[]
@@ -54,10 +58,22 @@ export interface UnifiedCatalog {
 
 /**
  * Merge the local catalog (built-ins + generated + user/IKEA uploads + installed
- * packs + already-downloaded CC0) with the browsable CC0 remote index into one
- * grid model, grouped by category. A remote entry is hidden once it has been
- * downloaded (its resolved local def represents it instead) so nothing appears
- * twice. Also resolves the favourites list from the persisted `favouriteDefIds`.
+ * packs + already-downloaded CC0) with the browsable CC0 remote index and the
+ * shared R2 library into one grid model, grouped by category. Nothing appears
+ * twice — a downloaded remote entry / imported shared item resolves to a single
+ * local def. Also resolves the favourites list from the persisted `favouriteDefIds`.
+ *
+ * **Stable order across download (STABLE-CATALOG-ORDER).** Each category lists a
+ * leading local block, then the remote CC0 block, then the shared-library block.
+ * Downloading a card must NOT move it: when a remote entry's `provider:slug`
+ * resolves to a local def, that def is emitted `{kind:'local'}` AT the remote
+ * entry's slot (and EXCLUDED from the leading local block); likewise an imported
+ * shared item (`ikea-<groupKey>` local def exists) renders its local def AT the
+ * shared item's slot. This relocation only happens when the remote/shared entry
+ * is actually present in the merge input — so with `includeRemote=false` /
+ * `includeShared=false` (or a non-admin, flag-off session where the shared library
+ * isn't loaded) the resolved/imported def simply stays in the leading local block
+ * exactly as before, and no un-downloaded remote/shared card surfaces.
  *
  * `includeRemote` (from the `remoteFurniture` feature flag) gates the browsable
  * CC0 *model* cards: when false (e.g. Simple mode, where `remoteFurniture` is a
@@ -76,40 +92,88 @@ export function useUnifiedCatalog(includeRemote = true, includeShared = true): U
   const recentDefIds = useStore(useShallow((s) => s.recentDefIds))
 
   return useMemo(() => {
+    const emptyBlocks = () =>
+      Object.fromEntries(FURNITURE_CATEGORIES.map((c) => [c, [] as GridItem[]])) as Record<
+        FurnitureCategory,
+        GridItem[]
+      >
+
     // `provider:slug` of every downloaded CC0 model — these are now local defs.
     const resolvedBases = new Set(resolvedKeys.map((k) => k.slice(0, k.lastIndexOf(':'))))
+    // Resolution-independent base → its resolved local def id (the full
+    // `provider:slug:resolution` key). First-wins if several resolutions exist.
+    const resolvedDefIdByBase = new Map<string, string>()
+    for (const k of resolvedKeys) {
+      const base = k.slice(0, k.lastIndexOf(':'))
+      if (!resolvedDefIdByBase.has(base)) resolvedDefIdByBase.set(base, k)
+    }
 
-    const byCategory = Object.fromEntries(
+    // Local cards + an id index, computed up front so remote/shared slots can
+    // pull a resolved def straight into their own position.
+    const localCards = Object.fromEntries(
       FURNITURE_CATEGORIES.map((c) => [
         c,
         (localByCategory[c] ?? []).map((def): GridItem => ({ kind: 'local', def })),
       ]),
     ) as Record<FurnitureCategory, GridItem[]>
+    const localById = new Map<string, FurnitureDef>()
+    for (const c of FURNITURE_CATEGORIES)
+      for (const it of localCards[c]) if (it.kind === 'local') localById.set(it.def.id, it.def)
 
-    // Index of every remote entry by its resolution-independent base id, used
-    // both to append un-downloaded entries below and to resolve favourites.
+    // Local def ids that must LEAVE the leading local block because they render
+    // at a remote/shared slot instead (STABLE-CATALOG-ORDER — a downloaded card
+    // keeps its position rather than jumping to the top of its category).
+    const relocated = new Set<string>()
+
+    // Remote CC0 block. A resolved entry emits its local def AT this slot (and
+    // marks that def relocated); an un-downloaded entry emits a `remote` card.
+    // `remoteByBase` indexes every entry (resolved or not) for favourite lookup.
     const remoteByBase = new Map<string, RemoteEntry>()
+    const remoteBlocks = emptyBlocks()
     for (const e of remoteEntries) {
       const base = `${e.provider}:${e.slug}`
       if (!remoteByBase.has(base)) remoteByBase.set(base, e)
-      if (resolvedBases.has(base)) continue
       if (!FURNITURE_CATEGORY_SET.has(e.category)) continue
-      byCategory[e.category as FurnitureCategory].push({ kind: 'remote', entry: e })
+      const cat = e.category as FurnitureCategory
+      if (resolvedBases.has(base)) {
+        const defId = resolvedDefIdByBase.get(base)
+        const def = defId ? localById.get(defId) : undefined
+        if (def && !relocated.has(def.id)) {
+          relocated.add(def.id)
+          remoteBlocks[cat].push({ kind: 'local', def })
+        }
+        continue
+      }
+      remoteBlocks[cat].push({ kind: 'remote', entry: e })
     }
 
-    // Shared-library (R2) cards: map category the same way the importer does,
-    // and hide any group already imported (its local `ikea-<groupKey>` def
-    // represents it). Deduped by predicted def id.
-    const localIds = new Set<string>()
-    for (const c of FURNITURE_CATEGORIES)
-      for (const it of byCategory[c]) if (it.kind === 'local') localIds.add(it.def.id)
-
+    // Shared-library (R2) block: map category the same way the importer does. An
+    // imported group (its local `ikea-<groupKey>` def exists) emits that local
+    // def AT this slot (relocated out of the leading block); otherwise a `shared`
+    // card. `sharedById` keeps only the un-imported items (for favourite lookup).
     const sharedById = new Map<string, SharedLibraryItem>()
+    const sharedBlocks = emptyBlocks()
     for (const item of sharedItems) {
       const id = `ikea-${item.groupKey}`
-      if (localIds.has(id) || sharedById.has(id)) continue
+      if (sharedById.has(id) || relocated.has(id)) continue
+      const cat = mapCategory(item.category).category
+      const def = localById.get(id)
+      if (def) {
+        relocated.add(id)
+        sharedBlocks[cat].push({ kind: 'local', def })
+        continue
+      }
       sharedById.set(id, item)
-      byCategory[mapCategory(item.category).category].push({ kind: 'shared', item })
+      sharedBlocks[cat].push({ kind: 'shared', item })
+    }
+
+    // Assemble each category: leading local block (minus relocated defs), then
+    // the remote block, then the shared block.
+    const byCategory = emptyBlocks()
+    for (const c of FURNITURE_CATEGORIES) {
+      for (const it of localCards[c])
+        if (it.kind !== 'local' || !relocated.has(it.def.id)) byCategory[c].push(it)
+      byCategory[c].push(...remoteBlocks[c], ...sharedBlocks[c])
     }
 
     const all: GridItem[] = []
@@ -121,10 +185,6 @@ export function useUnifiedCatalog(includeRemote = true, includeShared = true): U
 
     // Favourites: resolve each saved id to a local def or a remote entry,
     // preserving save order. Orphans (e.g. an uninstalled pack item) drop out.
-    const localById = new Map<string, FurnitureDef>()
-    for (const c of FURNITURE_CATEGORIES)
-      for (const it of byCategory[c]) if (it.kind === 'local') localById.set(it.def.id, it.def)
-
     const favourites: GridItem[] = []
     for (const id of collections) {
       const def = localById.get(id)

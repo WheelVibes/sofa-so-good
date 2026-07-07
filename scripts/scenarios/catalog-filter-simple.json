@@ -1,0 +1,151 @@
+{
+  "name": "catalog-filter-simple",
+  "description": "Ladder for the catalog filter control (catalogFilters, simple tier). Enters the room editor, opens the catalog, seeds a remote CC0 entry so the Availability facet is meaningful, opens the filter popover, applies 'Not downloaded' (grid narrows to remote/shared cards only), then resets to All (grid restored). Verifies the funnel button, the popover groups, and that filtering + reset change the visible grid.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "to-pro",
+      "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()"
+    },
+    {
+      "name": "assert-flag-on",
+      "waitFor": {
+        "store": "state.featureFlags.catalogFilters === true"
+      },
+      "timeout": 5000,
+      "failMessage": "catalogFilters flag should be ON"
+    },
+    {
+      "name": "seed-remote-cc0",
+      "eval": "window.__store.setState((s)=>({ remoteIndexes: { ...s.remoteIndexes, polyhaven: { status: 'ready', entries: [{ provider: 'polyhaven', slug: 'cozy_sofa', kind: 'furniture', name: 'Cozy Sofa', category: 'seating', thumbUrl: '', resolutions: ['2k'], attribution: 'Poly Haven', sourceUrl: 'https://polyhaven.com/a/cozy_sofa' }] } } }))"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-room-load",
+      "wait": 2000
+    },
+    {
+      "name": "open-catalog",
+      "store": {
+        "action": "setCatalogOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "catalog-visible",
+      "waitFor": {
+        "css": ".panel.catalog"
+      },
+      "timeout": 20000,
+      "failMessage": "Catalog drawer did not appear"
+    },
+    {
+      "name": "wait-grid",
+      "wait": 800
+    },
+    {
+      "name": "shot-01-catalog-open",
+      "screenshot": "01-catalog-open"
+    },
+    {
+      "name": "stash-before-count",
+      "eval": "window.__filterBefore = document.querySelectorAll('.card-grid .cat-card').length; if (window.__filterBefore < 2) throw new Error('Expected several cards before filtering, got ' + window.__filterBefore)"
+    },
+    {
+      "name": "verify-filter-button",
+      "eval": "(function(){ const b = document.querySelector('button[aria-label=\"Filter catalog\"]'); if (!b) throw new Error('Filter button not found in catalog header'); })()"
+    },
+    {
+      "name": "open-filter-popover",
+      "click": "button[aria-label=\"Filter catalog\"]"
+    },
+    {
+      "name": "wait-popover",
+      "wait": 300
+    },
+    {
+      "name": "filter-panel-visible",
+      "waitFor": {
+        "css": ".cat-filter-panel"
+      },
+      "timeout": 5000,
+      "failMessage": "Filter popover did not open"
+    },
+    {
+      "name": "verify-availability-group",
+      "eval": "(function(){ const p = document.querySelector('.cat-filter-panel'); if (!p || !p.textContent.includes('Not downloaded')) throw new Error('Availability facet not rendered \u2014 expected a remote/shared card to make it meaningful'); })()"
+    },
+    {
+      "name": "shot-02-filter-popover",
+      "screenshot": "02-filter-popover"
+    },
+    {
+      "name": "apply-not-downloaded",
+      "click": {
+        "text": "Not downloaded"
+      }
+    },
+    {
+      "name": "wait-filter",
+      "wait": 400
+    },
+    {
+      "name": "assert-grid-narrowed",
+      "eval": "(function(){ const now = document.querySelectorAll('.card-grid .cat-card').length; if (now >= window.__filterBefore) throw new Error('Grid did not narrow after Not-downloaded (before ' + window.__filterBefore + ', now ' + now + ')'); if (now < 1) throw new Error('Expected at least the seeded remote card to remain'); })()"
+    },
+    {
+      "name": "shot-03-not-downloaded",
+      "screenshot": "03-not-downloaded"
+    },
+    {
+      "name": "reset-filter",
+      "click": {
+        "text": "Reset to All"
+      }
+    },
+    {
+      "name": "wait-reset",
+      "wait": 400
+    },
+    {
+      "name": "assert-grid-restored",
+      "eval": "(function(){ const now = document.querySelectorAll('.card-grid .cat-card').length; if (now !== window.__filterBefore) throw new Error('Grid not restored after reset (expected ' + window.__filterBefore + ', got ' + now + ')'); })()"
+    },
+    {
+      "name": "shot-04-reset",
+      "screenshot": "04-reset"
+    }
+  ]
+}

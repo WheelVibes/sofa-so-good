@@ -178,6 +178,24 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   (don't fight the user), and an unmapped kind / whole-flat view keeps the persisted default.
   Gated by the `catalogRoomAware` flag (simple tier — a default-landing convenience is core-loop,
   not analytical); flag off restores today's behaviour. Unit-test the mapping + BOTH modes.
+- **Stable catalog order across download (STABLE-CATALOG-ORDER)** lives in `useUnifiedCatalog.ts`:
+  each category is a leading local block → remote CC0 block → shared-library block, and a card must
+  NOT change block when it's downloaded. A resolved remote entry renders its local def AT the remote
+  slot, and an imported shared item (`ikea-<groupKey>` def exists) renders its local def AT the shared
+  slot — both EXCLUDED from the leading block — so the grid index is preserved instead of the card
+  jumping to the top. Relocation happens ONLY when the remote/shared entry is present in the merge
+  input, so `includeRemote=false`/`includeShared=false` (Simple, non-admin, shared lib not loaded)
+  keeps the resolved/imported def in the leading block exactly as before. Don't reintroduce a
+  "hide the entry, let the def fall into the local block" dedup — that's the jump this fixes.
+- **Catalog filter control (`catalogFilters` flag, simple tier)** — the funnel `Icon.Filter` button
+  in the catalog panel header opens `CatalogFilterButton` (Popover desktop / Modal sheet mobile) with
+  Availability (only shown when the grid holds remote/shared cards) · Source (Built-in / My items /
+  CC0 library, via `catalogBrowse.ts:cardSource`) · Favourites-only. Pure filtering is
+  `catalogBrowse.ts:filterCatalog`; `CatalogDrawer` applies it after the price/fits filters. Filter
+  state is **component-local + ephemeral** — never persisted, never in the save schema (like the
+  Max $/Fits-only browse controls). Active state → an accent dot on the button + a "Reset to All"
+  row; an all-filtered-out grid uses the shared `EmptyState`. Test BOTH modes (simple-tier → on in
+  both). Don't route the source buckets through anything but the real `def.source`/card kind.
 - **Remote CC0 catalog is flag-gated by content kind.** Browsable remote *models*
   (`RemoteCard`s in the catalog grid) ride the **`remoteFurniture`** flag (pro, default on) —
   **no provider currently supplies furniture models (Poly Haven is materials/HDRIs only), so this

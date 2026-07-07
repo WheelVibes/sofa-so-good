@@ -16,11 +16,16 @@ import { useAmbientFx } from '../useAmbientFx'
 import { useCollapseTransition } from '../useCollapseTransition'
 import { useIsMobile } from '../useIsMobile'
 import { CatalogCard } from './CatalogCard'
+import { CatalogFilterButton } from './CatalogFilterButton'
 import { CatalogResizeHandle } from './CatalogResizeHandle'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import {
+  type CatalogFilter,
+  DEFAULT_CATALOG_FILTER,
   filterByFits,
   filterByMaxPrice,
+  filterCatalog,
+  isCatalogFilterActive,
   SORT_LABEL,
   type SortKey,
   sortCards,
@@ -160,6 +165,13 @@ export function CatalogDrawer() {
   // Room-aware default landing category (CATALOG-ROOMAWARE) — see the effect
   // below that applies it on room ENTRY only.
   const fRoomAware = useFeature('catalogRoomAware')
+  // Catalog filter control (availability / source / favourites) — pure
+  // client-side filtering of the merged grid, gated by `catalogFilters` (simple
+  // tier). State is component-local + ephemeral (never persisted).
+  const fCatalogFilters = useFeature('catalogFilters')
+  const [filter, setFilter] = useState<CatalogFilter>(DEFAULT_CATALOG_FILTER)
+  const favouriteDefIds = useStore(useShallow((s) => s.favouriteDefIds))
+  const favIds = useMemo(() => new Set(favouriteDefIds), [favouriteDefIds])
   const [fitsOnly, setFitsOnly] = useState(false)
   const ambientFx = useAmbientFx()
   const unified = useUnifiedCatalog(fRemoteFurniture, sharedOn)
@@ -303,9 +315,22 @@ export function CatalogDrawer() {
   // filter search results.
   const fitsOnlyActive = fFitsFilter && fitsOnly
   const priceFiltered = q ? baseCards : filterByMaxPrice(baseCards, maxPrice)
-  const allCards = q
+  // The grid before the availability/source/favourites filter control is applied
+  // — its makeup decides whether the Availability facet is even meaningful.
+  const preFilterCards = q
     ? baseCards
     : filterByFits(priceFiltered, fitsOnlyActive ? roomFreeRects : null)
+  // The Availability facet only makes sense when the grid actually holds
+  // un-downloaded (remote/shared) cards; otherwise force it back to 'all' so a
+  // stale 'Not downloaded' pick from another category can't empty an all-local one.
+  const hasDownloadable = preFilterCards.some((it) => it.kind !== 'local')
+  const effectiveFilter: CatalogFilter = hasDownloadable
+    ? filter
+    : { ...filter, availability: 'all' }
+  const catFilterActive = fCatalogFilters && isCatalogFilterActive(effectiveFilter)
+  const allCards = fCatalogFilters
+    ? filterCatalog(preFilterCards, effectiveFilter, favIds)
+    : preFilterCards
 
   // Paginate so a big category/search doesn't render hundreds of cards at once.
   const pageCount = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE))
@@ -422,6 +447,17 @@ export function CatalogDrawer() {
           {view === 'layers' ? 'Objects' : view === 'packs' ? 'Packs' : 'Catalog'}
         </div>
         <div className="insp-head-btns">
+          {view === 'catalog' && fCatalogFilters && !minimized ? (
+            <CatalogFilterButton
+              filter={effectiveFilter}
+              onChange={(next) => {
+                setFilter(next)
+                setPage(0)
+              }}
+              showAvailability={hasDownloadable}
+              favEnabled={fFavourites}
+            />
+          ) : null}
           {isMobile ? (
             <button
               type="button"
@@ -695,6 +731,20 @@ export function CatalogDrawer() {
                           label: 'Show everything',
                           onClick: () => {
                             setFitsOnly(false)
+                            setPage(0)
+                          },
+                        }}
+                      />
+                    ) : catFilterActive && preFilterCards.length > 0 ? (
+                      <EmptyState
+                        className="catalog-empty"
+                        icon={Icon.Filter}
+                        title="No items match your filters"
+                        description="Nothing here matches the current catalog filters."
+                        cta={{
+                          label: 'Reset to All',
+                          onClick: () => {
+                            setFilter(DEFAULT_CATALOG_FILTER)
                             setPage(0)
                           },
                         }}

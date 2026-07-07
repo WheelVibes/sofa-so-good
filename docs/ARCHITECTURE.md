@@ -335,6 +335,30 @@ same change that reshapes a system.
   unmapped/whole-flat view leaves today's persisted default untouched. This only changes the
   DEFAULT landing tab — the CategoryTabs order, search, filters, and favourites/recent are
   unchanged. Flag off → today's behaviour exactly.
+  **Stable order across download** (STABLE-CATALOG-ORDER, in `useUnifiedCatalog.ts`): each category
+  lists a leading local block, then the remote CC0 block, then the shared-library block — and a card
+  never jumps blocks when it's downloaded. When a remote entry's `provider:slug` resolves to a local
+  def, that def is emitted `{kind:'local'}` **at the remote entry's slot** (and excluded from the
+  leading block); likewise an imported shared item (`ikea-<groupKey>` local def exists) renders its
+  local def **at the shared item's slot**. This relocation only happens when the remote/shared entry
+  is actually present in the merge input, so with `includeRemote=false`/`includeShared=false` (Simple,
+  non-admin, or shared library not loaded) the resolved/imported def simply stays in the leading local
+  block exactly as before. Result: downloading a card keeps its grid position instead of jumping to
+  the top. Unit-tested in `useUnifiedCatalog.order.test.tsx` (index preserved for shared + remote;
+  includeShared=false keeps the def in the local block; no card appears twice).
+  **Catalog filter control** (`catalogFilters` flag, tier: **simple**, default on): a funnel
+  `Icon.Filter` button in the catalog panel header opens a `Popover` (desktop) / `Modal` sheet
+  (mobile) — `ui/catalog/CatalogFilterButton.tsx` — with **Availability** (All / Downloaded /
+  Not-downloaded — only shown when the grid actually holds remote/shared cards), **Source** (All /
+  Built-in / My items / CC0 library, derived from `def.source`/card kind), and a **Favourites only**
+  toggle (reuses `favouriteDefIds`/`gridItemId`). Pure filtering lives in
+  `catalogBrowse.ts:filterCatalog(cards, filter, favouriteIds)` (+ `cardSource`,
+  `isCatalogFilterActive`, `DEFAULT_CATALOG_FILTER`); `CatalogDrawer` applies it to the grid items
+  after the price/fits filters. Filter state is component-local + **ephemeral** (never persisted / not
+  in the save schema); an active filter shows an accent dot on the button and a "Reset to All" row,
+  and an all-filtered-out grid shows the shared `EmptyState` with distinct copy. Unit-tested in
+  `catalogBrowse.test.ts` + `CatalogDrawer.filter.test.tsx` + `features/flags/catalogFilters.test.ts`
+  (both modes); scenario `scripts/scenarios/catalog-filter-simple.json`.
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/InspectorPanel.tsx` is now a thin ~180-line composition shell — REFAC-1 extracted
@@ -1086,8 +1110,16 @@ same change that reshapes a system.
   flag + pure `ui/floorplan/planLabels.ts`, SH3D parity). Per-room **floor + wall + ceiling finishes** resolve through
   `floorplan/roomFinishes.ts` (`resolvePlanRoomFloor`/`Wall`/`Ceiling`: live `finishes` slice →
   `PlanRoom.floor`/`wall`/`ceilingFinish` → default; ceiling default = plain white/unset). The
-  per-room `FinishPicker` (opens on `selectedRoomId`) is the unified surface panel — Floor + Walls +
-  a **Ceiling** section (paints from the wall pool, `ceilingFinish` flag; apply-all + reset-to-white);
+  per-room `FinishPicker` (opens on `selectedRoomId`, aside carries a `finish-picker` class) is the
+  unified surface panel — Floor + Walls +
+  a **Ceiling** section (paints from the wall pool, `ceilingFinish` flag; apply-all + reset-to-white).
+  Under `finishSurfaceTabs` (simple, default on) the three surfaces render as a `.seg` **Floor | Walls |
+  Ceiling** tab row (`role="tablist"`/`tab`/`aria-selected`, Ceiling tab only when `ceilingFinish` is on)
+  and only the active surface's block shows (the wall-accents section moves under the Walls tab); the tab
+  state reuses the persisted `lastSurface` (`LAST_SURFACE_KEY`, extended to `'ceiling'`) that also drives
+  the Browse target. Flag off → the legacy stacked layout. The `.finish-picker .sec-h` scoped rule flattens
+  the picker's section-header strips (static/transparent/no hairline) without touching the base sticky
+  `.sec-h`;
   the finish setters write through to the active plan and plan activation prunes stale
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split / Reverse / Join** (pure `wallOps.ts` — openings re-homed) + **exact length/angle** inspector
   fields (`wallOps.ts` `endForLength`/`endForAngle`/`wallAngleDeg` — PARITY-WALLDIM) + draggable endpoint handles (`moveWallVertex`) +

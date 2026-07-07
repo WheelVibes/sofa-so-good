@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.1.0 — Stable catalog order across downloads + catalog filters (STABLE-CATALOG-ORDER)
+
+Downloading a shared-library or CC0 card no longer teleports it to the front of its category:
+`useUnifiedCatalog` now renders a resolved remote entry's local def AT the remote entry's grid
+slot and an imported shared item's `ikea-<groupKey>` def AT the shared item's slot (both excluded
+from the leading local block), so a card keeps its exact position across download. When the
+remote/shared entry isn't in the merge input (Simple mode, non-admin, flag off) the resolved def
+stays in the local block exactly as before. Plus a new **catalog filter** (funnel button in the
+catalog header, `catalogFilters` flag, simple tier, default on): Availability (All / Downloaded /
+Not downloaded — group shown only when the grid holds remote/shared cards) · Source (Built-in /
+My items / CC0 library) · Favourites only, with an accent-dot active indicator, "Reset to All",
+and a distinct empty state. Pure filtering in `catalogBrowse.ts:filterCatalog` (unit-tested);
+state is ephemeral (never persisted). Order-stability + filter + both-mode flag tests; scenario
+ladder `catalog-filter-simple.json` (visually verified: popover groups, narrowed grid, reset).
+
 ## v0.18.0.1 — Catalog cards: ♥ / ↻ / × action stack (no more hidden buttons)
 
 On imported IKEA/shared catalog cards the corner buttons overlapped — the favourite ♥

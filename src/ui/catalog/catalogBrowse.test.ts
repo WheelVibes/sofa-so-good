@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { itemPrice } from '../../furniture/furniturePrices'
-import { filterByFits, filterByMaxPrice, sortCards } from './catalogBrowse'
-import type { GridItem } from './useUnifiedCatalog'
+import {
+  type CatalogFilter,
+  cardSource,
+  DEFAULT_CATALOG_FILTER,
+  filterByFits,
+  filterByMaxPrice,
+  filterCatalog,
+  isCatalogFilterActive,
+  sortCards,
+} from './catalogBrowse'
+import { type GridItem, gridItemId } from './useUnifiedCatalog'
 
 const local = (id: string): GridItem => ({ kind: 'local', def: BUILTIN_CATALOG[id]! })
 const remote = (name: string): GridItem => ({
@@ -120,5 +129,112 @@ describe('filterByFits (CATALOG-FITS "Fits only" filter)', () => {
   it('keeps everything in a spacious room', () => {
     const input = [stool, sofa]
     expect(filterByFits(input, [{ w: 5, d: 5 }])).toEqual(input)
+  })
+})
+
+// A user-uploaded local def (source 'user' → the 'My items' source bucket).
+const userCard = {
+  kind: 'local',
+  def: {
+    kind: 'gltf',
+    source: 'user',
+    id: 'user-chair',
+    name: 'My Chair',
+    category: 'seating',
+    assetId: 'a1',
+    uploadedAt: '',
+    defaultFootprint: { w: 0.5, d: 0.5, h: 0.9 },
+  },
+} as unknown as GridItem
+// An un-imported shared-library card (→ 'My items', resolves to an ikea-* def).
+const sharedCard = {
+  kind: 'shared',
+  item: {
+    group: 'x',
+    groupKey: 'x',
+    name: 'Shared Table',
+    type: 'Table',
+    category: 'tables',
+    size: '',
+    series: '',
+    variants: 1,
+    thumbnail: '',
+  },
+} as unknown as GridItem
+const remoteCard = remote('Remote Sofa')
+
+describe('cardSource', () => {
+  it('buckets built-in parametric defs as "builtin"', () => {
+    expect(cardSource(sofa)).toBe('builtin')
+    expect(cardSource(stool)).toBe('builtin')
+  })
+  it('buckets user uploads + shared library as "mine"', () => {
+    expect(cardSource(userCard)).toBe('mine')
+    expect(cardSource(sharedCard)).toBe('mine')
+  })
+  it('buckets remote provider cards as "cc0"', () => {
+    expect(cardSource(remoteCard)).toBe('cc0')
+  })
+})
+
+describe('isCatalogFilterActive', () => {
+  it('the default filter is inactive', () => {
+    expect(isCatalogFilterActive(DEFAULT_CATALOG_FILTER)).toBe(false)
+  })
+  it('any non-default facet is active', () => {
+    expect(isCatalogFilterActive({ ...DEFAULT_CATALOG_FILTER, availability: 'downloaded' })).toBe(
+      true,
+    )
+    expect(isCatalogFilterActive({ ...DEFAULT_CATALOG_FILTER, source: 'mine' })).toBe(true)
+    expect(isCatalogFilterActive({ ...DEFAULT_CATALOG_FILTER, favouritesOnly: true })).toBe(true)
+  })
+})
+
+describe('filterCatalog', () => {
+  const cards = [sofa, userCard, sharedCard, remoteCard]
+  const noFavs = new Set<string>()
+
+  it('the default (inactive) filter is a no-op returning the same array', () => {
+    expect(filterCatalog(cards, DEFAULT_CATALOG_FILTER, noFavs)).toBe(cards)
+  })
+
+  it('availability "downloaded" keeps only local cards', () => {
+    const f: CatalogFilter = { ...DEFAULT_CATALOG_FILTER, availability: 'downloaded' }
+    expect(filterCatalog(cards, f, noFavs)).toEqual([sofa, userCard])
+  })
+
+  it('availability "not-downloaded" keeps only remote/shared cards', () => {
+    const f: CatalogFilter = { ...DEFAULT_CATALOG_FILTER, availability: 'not-downloaded' }
+    expect(filterCatalog(cards, f, noFavs)).toEqual([sharedCard, remoteCard])
+  })
+
+  it('source "builtin" keeps only built-in cards', () => {
+    const f: CatalogFilter = { ...DEFAULT_CATALOG_FILTER, source: 'builtin' }
+    expect(filterCatalog(cards, f, noFavs)).toEqual([sofa])
+  })
+
+  it('source "mine" keeps uploads + shared', () => {
+    const f: CatalogFilter = { ...DEFAULT_CATALOG_FILTER, source: 'mine' }
+    expect(filterCatalog(cards, f, noFavs)).toEqual([userCard, sharedCard])
+  })
+
+  it('source "cc0" keeps remote provider cards', () => {
+    const f: CatalogFilter = { ...DEFAULT_CATALOG_FILTER, source: 'cc0' }
+    expect(filterCatalog(cards, f, noFavs)).toEqual([remoteCard])
+  })
+
+  it('favouritesOnly keeps only favourited ids', () => {
+    const favs = new Set<string>([gridItemId(sofa)])
+    const f: CatalogFilter = { ...DEFAULT_CATALOG_FILTER, favouritesOnly: true }
+    expect(filterCatalog(cards, f, favs)).toEqual([sofa])
+  })
+
+  it('facets compose (AND): downloaded + builtin', () => {
+    const f: CatalogFilter = {
+      ...DEFAULT_CATALOG_FILTER,
+      availability: 'downloaded',
+      source: 'builtin',
+    }
+    expect(filterCatalog(cards, f, noFavs)).toEqual([sofa])
   })
 })

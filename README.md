@@ -17,7 +17,7 @@ start designing immediately.
 
 | | |
 |---|---|
-| 🛋️ **Furnish** | A unified ~95-item catalog across 15 categories — parametric (resize / recolour / configure), searchable, with your uploads, packs and a CC0 library in one grid. One-click **Sets**, full-flat **Presets**, and a **Tidy up** auto-arranger. → [Placing furniture](docs/user/placing-furniture.md) |
+| 🛋️ **Furnish** | A unified ~95-item catalog across 15 categories — parametric (resize / recolour / configure), searchable + filterable (availability / source / favourites), with your uploads, packs and a CC0 library in one grid. One-click **Sets**, full-flat **Presets**, and a **Tidy up** auto-arranger. → [Placing furniture](docs/user/placing-furniture.md) |
 | 🎨 **Finish** | Procedural PBR floors, walls & ceilings (oak/walnut/parquet, marble, terrazzo, paints, brick, microcement) plus downloadable CC0 materials, per-room with “apply to all” and per-wall **accent walls**. **Recolour any finish**: a custom colour repaints the current texture (pattern kept — even Poly Haven photos and your uploads), and swapping textures keeps your colour. → [Finishes & materials](docs/user/finishes-and-materials.md) |
 | ☀️ **Light** | A real sun simulation for your location with day/night fixtures, glass tint, and one-tap lighting moods. → [Lighting & time](docs/user/lighting-and-time.md) |
 | 👀 **View** | Orbit dollhouse, top-down plan, and a first-person walkthrough (WASD / on-screen joystick) with a live minimap. → [Navigating](docs/user/navigating.md) |

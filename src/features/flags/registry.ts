@@ -359,6 +359,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Split the per-room finish picker into a Floor | Walls | Ceiling tab row so
+  // each surface gets its own tab instead of stacking (FINISH-SURFACE-TABS).
+  // Pure UI reorganization of the existing picker (no new state/model) →
+  // prod-safe; part of the core finishing loop a casual user hits → simple tier.
+  finishSurfaceTabs: {
+    label: 'Finishes surface tabs',
+    description: 'Floor, walls and ceiling each get a dedicated tab in the finishes panel',
+    default: true,
+    tier: 'simple',
+  },
   // Apartment master colour palette + per-room overrides + harmony-blend
   // suggestions on every colour picker (CUSTOMIZE-MASTER-PALETTE). Pure UI/data
   // (a swatch row + a pure harmony engine) → prod-safe; a core design aid, so
@@ -1311,6 +1321,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   catalogResize: {
     label: 'Resizable catalog',
     description: 'Drag the catalog panel edge to resize it (desktop)',
+    default: true,
+    tier: 'simple',
+  },
+  // Catalog filter control (availability / source / favourites) over the
+  // furniture grid. Pure client-side filtering of the already-merged grid items
+  // → prod-safe, no network / assets. A browse convenience in the core furnish
+  // loop that helps a casual user narrow a large catalog → simple tier (shown in
+  // both modes). Filter state is component-local + ephemeral (not persisted).
+  catalogFilters: {
+    label: 'Catalog filters',
+    description: 'Filter the catalog by availability, source and favourites',
     default: true,
     tier: 'simple',
   },
