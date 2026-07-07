@@ -320,6 +320,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Custom colours repaint the CURRENT finish instead of replacing it with
+  // flat plaster paint, and picking a new texture keeps the colour override
+  // (FINISH-RECOLOR). Pure client-side (the `tint:…!r` id grammar + an
+  // on-device canvas recolor of the albedo) → prod-safe. Part of the core
+  // finishing loop a casual user hits on their first colour pick → simple tier.
+  finishRecolor: {
+    label: 'Recolour any finish',
+    description: 'Custom colours repaint the current finish, keeping its texture and pattern',
+    default: true,
+    tier: 'simple',
+  },
   ceilingDesign: {
     label: 'Ceiling design',
     description: 'Per-room tray / coffered / dropped ceilings',

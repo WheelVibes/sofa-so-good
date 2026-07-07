@@ -17,11 +17,12 @@
  */
 import { Texture } from 'three'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ProceduralMaterialDef } from './types'
+import type { ProceduralMaterialDef, TexturedMaterialDef } from './types'
 
 const generateProceduralMock = vi.fn()
 const isProceduralWorkerAvailableMock = vi.fn()
 const requestProceduralWorkerMock = vi.fn()
+const recolorImageToCanvasMock = vi.fn()
 
 vi.mock('./procedural/generators', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -32,6 +33,15 @@ vi.mock('./procedural/runProceduralWorker', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   isProceduralWorkerAvailable: () => isProceduralWorkerAvailableMock(),
   requestProceduralWorker: (...args: unknown[]) => requestProceduralWorkerMock(...args),
+}))
+
+// FINISH-RECOLOR — happy-dom has no real 2D pixel pipeline, so the recolor bake
+// is mocked; the tests below assert the textured branch's *routing* (repaint vs
+// multiply fallback) and the own()/shared disposal contract, not the pixel math
+// (that's `recolor.test.ts`, node env).
+vi.mock('./recolor', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  recolorImageToCanvas: (...args: unknown[]) => recolorImageToCanvasMock(...args),
 }))
 
 function fakeMaps() {
@@ -130,5 +140,97 @@ describe('buildMaterial procedural bake — quick placeholder + worker upgrade (
     // Only baked once — the cache hit skips generation entirely (LRU/cache
     // behaviour untouched by the PERF-C change).
     expect(generateProceduralMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+function texturedDef(id: string, recolorAlbedo?: boolean): TexturedMaterialDef {
+  return {
+    id,
+    name: 'Test oak',
+    category: 'floor',
+    kind: 'textured',
+    source: 'ambientcg',
+    swatch: '#8800ff',
+    textures: { albedo: 'oak_albedo.jpg' },
+    uvScale: [2, 2],
+    ...(recolorAlbedo ? { recolorAlbedo: true } : {}),
+  }
+}
+
+/** A loader-style Texture whose `.image` is set (as drei's useTexture returns). */
+function loadedTexture(): Texture {
+  const t = new Texture()
+  t.image = document.createElement('canvas')
+  return t
+}
+
+describe('buildMaterial textured branch — repaint vs multiply (FINISH-RECOLOR)', () => {
+  let buildMaterial: typeof import('./cache').buildMaterial
+  let disposeCachedMaterial: typeof import('./cache').disposeCachedMaterial
+
+  beforeEach(async () => {
+    vi.resetModules()
+    recolorImageToCanvasMock.mockReset()
+    ;({ buildMaterial, disposeCachedMaterial } = await import('./cache'))
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('falls back to the multiply path when recolorAlbedo is set but no albedo image is loaded', () => {
+    const albedo = new Texture() // .image is null — not loaded yet
+    const m = buildMaterial(texturedDef('recolor-no-image', true), { albedo })
+    // No image → the recolor engine is never consulted; legacy multiply shape.
+    expect(recolorImageToCanvasMock).not.toHaveBeenCalled()
+    expect(m.map).toBe(albedo)
+    expect(`#${m.color.getHexString()}`).toBe('#8800ff')
+  })
+
+  it('falls back to the multiply path when the recolor bake returns null', () => {
+    recolorImageToCanvasMock.mockReturnValue(null)
+    const albedo = loadedTexture()
+    const m = buildMaterial(texturedDef('recolor-null-bake', true), { albedo })
+    expect(recolorImageToCanvasMock).toHaveBeenCalledTimes(1)
+    expect(m.map).toBe(albedo) // shared loader map kept
+    expect(`#${m.color.getHexString()}`).toBe('#8800ff')
+  })
+
+  it('never consults the recolor engine without the recolorAlbedo flag (legacy ids untouched)', () => {
+    const albedo = loadedTexture()
+    const m = buildMaterial(texturedDef('recolor-legacy'), { albedo })
+    expect(recolorImageToCanvasMock).not.toHaveBeenCalled()
+    expect(m.map).toBe(albedo)
+    expect(`#${m.color.getHexString()}`).toBe('#8800ff')
+  })
+
+  it('repaint: swaps in an OWNED recolored CanvasTexture, whitens m.color, and disposes only the owned map on eviction', () => {
+    const baked = document.createElement('canvas')
+    baked.width = 4
+    baked.height = 4
+    recolorImageToCanvasMock.mockReturnValue(baked)
+    const albedo = loadedTexture()
+    const normal = loadedTexture()
+
+    const m = buildMaterial(texturedDef('recolor-repaint', true), { albedo, normal })
+    expect(recolorImageToCanvasMock).toHaveBeenCalledWith(albedo.image, '#8800ff')
+    // The recolored bake replaces the shared albedo; the tint is baked in, so
+    // m.color must be white (no double tint).
+    expect(m.map).not.toBe(albedo)
+    expect(m.map?.image).toBe(baked)
+    expect(`#${m.color.getHexString()}`).toBe('#ffffff')
+    // Repeat comes from the def's uvScale, like every other branch.
+    expect(m.map?.repeat.x).toBeCloseTo(0.5)
+    expect(m.map?.repeat.y).toBeCloseTo(0.5)
+    // Non-albedo maps stay the SHARED loader instances.
+    expect(m.normalMap).toBe(normal)
+
+    // Ownership contract: eviction/deletion disposes the owned CanvasTexture
+    // but never the shared loader-cached maps.
+    const ownedDispose = vi.spyOn(m.map as Texture, 'dispose')
+    const sharedDispose = vi.spyOn(normal, 'dispose')
+    disposeCachedMaterial('recolor-repaint')
+    expect(ownedDispose).toHaveBeenCalledTimes(1)
+    expect(sharedDispose).not.toHaveBeenCalled()
   })
 })

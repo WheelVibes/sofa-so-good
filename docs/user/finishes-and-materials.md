@@ -22,6 +22,31 @@ the picks are saved with the plan.
 
 ![The finish picker open on a room](/screenshots/finish-picker.png)
 
+## Recolour any finish — colour and texture are independent
+
+Colour, texture/pattern, and material behave as separate, mix‑and‑match choices:
+
+- **Pick a custom colour and keep the texture.** With a wood, tile, brick — or a
+  downloaded Poly Haven / ambientCG — finish applied, choosing a **Custom
+  colour** (or a palette / recent colour) *repaints* that finish: the grain,
+  pattern and surface relief stay, only the colour changes. It can lighten as
+  well as darken — dark walnut really does become a light‑grey wood. Only
+  plain paints (plaster / flat colours) stay simple flat paint.
+- **Swap the texture and keep the colour.** While a colour override is active,
+  tapping a different finish swatch re‑applies *your colour* on the new
+  texture. A **Colour override** chip appears under the surface's header —
+  press its **×** (or re‑tap the highlighted swatch) to go back to the
+  finish's original colours.
+- **Fine‑tune the material.** **Compose your own…** adds a **Scale** slider
+  (tile size) and a **Gloss** slider (matte → polished) on top of any
+  texture + colour combination. For photo textures it also offers two colour
+  modes: **Repaint** (the default — true recolour, keeps the pattern) and
+  **Shade** (darken‑only wash, the old behaviour).
+- **Works with your own textures too.** Any texture you
+  [upload](/importing-textures) can be repainted with any colour from the
+  apartment palette — upload a black‑and‑white pattern once and reuse it in
+  every colourway.
+
 ## Drag a swatch to apply (desktop)
 
 On desktop you can also **drag a swatch out of the finish picker and drop it**:

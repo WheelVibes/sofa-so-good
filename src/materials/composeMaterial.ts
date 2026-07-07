@@ -35,6 +35,19 @@ export const COMPOSE_ROUGHNESS_MAX = 1
 /** No roughness override — the material kind's own default applies. */
 export const DEFAULT_COMPOSE_ROUGHNESS: number | undefined = undefined
 
+/**
+ * How a tint colour combines with a textured base's albedo (FINISH-RECOLOR):
+ *  - `'multiply'` (legacy, the absent-token default): the colour multiplies the
+ *    albedo via `material.color` — can only darken/shade the photo texture.
+ *  - `'repaint'` (`!r` token): luminance-preserving, mean-anchored recolor — the
+ *    albedo is re-baked so its *average* colour becomes the chosen colour while
+ *    the pattern's relative contrast survives (can lighten OR darken; a dark
+ *    walnut really becomes a light-grey wood). Procedural bases already re-bake
+ *    their pattern with the new colour, so the mode only changes textured bases.
+ */
+export type TintMode = 'multiply' | 'repaint'
+export const DEFAULT_TINT_MODE: TintMode = 'multiply'
+
 /** Clamp + sanitise a tile-scale multiplier (non-finite / out-of-range → 1). */
 function clampScale(s: number): number {
   if (!Number.isFinite(s) || s <= 0) return DEFAULT_COMPOSE_SCALE
@@ -48,39 +61,49 @@ function clampRoughness(r: number): number | undefined {
 }
 
 /** Split a colour segment into its parts. After the `<#hex>` colour an optional
- *  `@<scale>` multiplies the tile size and an optional `~<rough>` overrides the
- *  roughness/gloss (CUSTOMIZE-MATERIAL-PARAMS). Both absent → defaults
- *  (byte-identical to the pre-parameter ids, so old saved/applied finishes keep
- *  working). Tokens are order-independent. */
+ *  `@<scale>` multiplies the tile size, an optional `~<rough>` overrides the
+ *  roughness/gloss (CUSTOMIZE-MATERIAL-PARAMS), and an optional `!r` switches the
+ *  tint mode to luminance-preserving repaint (FINISH-RECOLOR). All absent →
+ *  defaults (byte-identical to the pre-parameter ids, so old saved/applied
+ *  finishes keep working). Tokens are order-independent. */
 function splitColorScale(seg: string): {
   color: string
   scale: number
   roughness: number | undefined
+  mode: TintMode
 } {
-  // Colour is everything up to the first parameter token (`@` or `~`).
+  // Colour is everything up to the first parameter token (`@`, `~` or `!`).
   const firstTok = (() => {
-    const at = seg.indexOf('@')
-    const ti = seg.indexOf('~')
-    if (at < 0) return ti
-    if (ti < 0) return at
-    return Math.min(at, ti)
+    let first = -1
+    for (const tok of ['@', '~', '!']) {
+      const i = seg.indexOf(tok)
+      if (i >= 0 && (first < 0 || i < first)) first = i
+    }
+    return first
   })()
-  if (firstTok < 0) return { color: seg, scale: DEFAULT_COMPOSE_SCALE, roughness: undefined }
+  if (firstTok < 0) {
+    return { color: seg, scale: DEFAULT_COMPOSE_SCALE, roughness: undefined, mode: 'multiply' }
+  }
   const color = seg.slice(0, firstTok)
   const scaleM = seg.match(/@(-?[\d.]+)/)
   const roughM = seg.match(/~(-?[\d.]+)/)
+  // Future-proof: `!<word>` is a mode token; only `r` (repaint) is known today —
+  // an unknown word degrades to the legacy multiply mode rather than failing.
+  const modeM = seg.match(/!([a-z]+)/)
   return {
     color,
     scale: scaleM ? clampScale(Number.parseFloat(scaleM[1])) : DEFAULT_COMPOSE_SCALE,
     roughness: roughM ? clampRoughness(Number.parseFloat(roughM[1])) : undefined,
+    mode: modeM?.[1] === 'r' ? 'repaint' : 'multiply',
   }
 }
 
-/** Build the `@<scale>~<rough>` parameter suffix, omitting defaults. */
-function paramSuffix(scale: number, roughness: number | undefined): string {
+/** Build the `@<scale>~<rough>!r` parameter suffix, omitting defaults. */
+function paramSuffix(scale: number, roughness: number | undefined, mode?: TintMode): string {
   const s = clampScale(scale)
   const r = roughness == null ? undefined : clampRoughness(roughness)
-  return `${s === DEFAULT_COMPOSE_SCALE ? '' : `@${s}`}${r == null ? '' : `~${r}`}`
+  const m = mode === 'repaint' ? '!r' : ''
+  return `${s === DEFAULT_COMPOSE_SCALE ? '' : `@${s}`}${r == null ? '' : `~${r}`}${m}`
 }
 
 /** Multiply a `[u, v]` tile size by a scale, guarding non-finite inputs. */
@@ -157,6 +180,8 @@ export function parseComposedMaterialId(id: string): ComposedParts | null {
   const sep = rest.indexOf(':')
   if (sep < 0) return null
   const pattern = rest.slice(0, sep) as ProceduralPattern
+  // A composed finish re-bakes its procedural pattern with the colour, which IS
+  // a true recolor already — a `!r` token is tolerated but changes nothing.
   const { color, scale, roughness } = splitColorScale(rest.slice(sep + 1))
   const texture = BY_PATTERN.get(pattern)
   if (!texture) return null
@@ -178,14 +203,17 @@ export function isTintMaterialId(id: string): boolean {
 }
 
 /** Build a tint id from a base material id + a hex colour, optionally with a
- *  tile-scale multiplier (omitted from the id when 1, for back-compat). */
+ *  tile-scale multiplier and/or a tint mode (both omitted from the id at their
+ *  defaults, for back-compat). `mode: 'repaint'` appends `!r` — the
+ *  luminance-preserving recolor for textured bases (FINISH-RECOLOR). */
 export function tintMaterialId(
   baseId: string,
   color: string,
   scale: number = DEFAULT_COMPOSE_SCALE,
   roughness?: number,
+  mode: TintMode = DEFAULT_TINT_MODE,
 ): string {
-  return `${TINT_PREFIX}${baseId}:${color}${paramSuffix(scale, roughness)}`
+  return `${TINT_PREFIX}${baseId}:${color}${paramSuffix(scale, roughness, mode)}`
 }
 
 export interface TintParts {
@@ -195,9 +223,11 @@ export interface TintParts {
   scale: number
   /** Roughness/gloss override, or `undefined` for the base default. */
   roughness: number | undefined
+  /** How the colour combines with a textured base's albedo (FINISH-RECOLOR). */
+  mode: TintMode
 }
 
-/** Parse a tint id into `{ baseId, color, scale, roughness }`, or `null` if malformed. */
+/** Parse a tint id into `{ baseId, color, scale, roughness, mode }`, or `null` if malformed. */
 export function parseTintMaterialId(id: string): TintParts | null {
   if (!isTintMaterialId(id)) return null
   const rest = id.slice(TINT_PREFIX.length)
@@ -206,9 +236,9 @@ export function parseTintMaterialId(id: string): TintParts | null {
   const lastColon = rest.lastIndexOf(':')
   if (lastColon <= 0) return null
   const baseId = rest.slice(0, lastColon)
-  const { color, scale, roughness } = splitColorScale(rest.slice(lastColon + 1))
+  const { color, scale, roughness, mode } = splitColorScale(rest.slice(lastColon + 1))
   if (!baseId || !HEX_RE.test(color)) return null
-  return { baseId, color, scale, roughness }
+  return { baseId, color, scale, roughness, mode }
 }
 
 /**
@@ -228,6 +258,11 @@ export function tintedMaterialDef(id: string, base: MaterialDef): MaterialDef | 
     swatch: parts.color,
     name: `${base.name} · ${parts.color}`,
   }
+  // Repaint mode (FINISH-RECOLOR): the textured branch of `buildMaterial` bakes
+  // a luminance-preserving recolored albedo instead of multiplying `m.color`.
+  // Harmless on procedural/solid bases (their swatch replacement above is
+  // already a true recolor).
+  if (parts.mode === 'repaint') next = { ...next, recolorAlbedo: true }
   // Apply the tile-scale multiplier where the base has a uvScale (procedural /
   // textured); a solid base has none, so scale is a no-op there.
   if (parts.scale !== DEFAULT_COMPOSE_SCALE && 'uvScale' in next && next.uvScale) {
@@ -235,6 +270,36 @@ export function tintedMaterialDef(id: string, base: MaterialDef): MaterialDef | 
   }
   if (parts.roughness != null) next = { ...next, roughness: parts.roughness }
   return next
+}
+
+/**
+ * Resolve the finish id a custom-colour pick should write so the colour
+ * REPAINTS the surface's current finish instead of replacing it with flat
+ * plaster paint (FINISH-RECOLOR):
+ *  - a tint re-colours in place (keeps base + scale + gloss; legacy multiply
+ *    tints upgrade to repaint on the next colour pick);
+ *  - a composed finish re-bakes its pattern with the new colour;
+ *  - a plain catalog finish becomes `tint:<id>:<hex>!r` — EXCEPT paint-like
+ *    bases (solid / plaster procedural / bare `#hex`), which stay plain paint;
+ *  - no active finish / unknown id → plain paint.
+ * Callers gate on the `finishRecolor` flag (off → pass the bare hex through).
+ * Pure: the merged catalog is supplied for the plain-id def lookup.
+ */
+export function recolorFinishId(
+  active: string | undefined,
+  hex: string,
+  catalog: Record<string, MaterialDef>,
+): string {
+  if (!active) return hex
+  const tint = parseTintMaterialId(active)
+  if (tint) return tintMaterialId(tint.baseId, hex, tint.scale, tint.roughness, 'repaint')
+  const composed = parseComposedMaterialId(active)
+  if (composed) return composeMaterialId(composed.pattern, hex, composed.scale, composed.roughness)
+  if (active.startsWith('#')) return hex
+  const def = catalog[active]
+  if (!def) return hex
+  if (def.kind === 'solid' || (def.kind === 'procedural' && def.pattern === 'plaster')) return hex
+  return tintMaterialId(active, hex, 1, undefined, 'repaint')
 }
 
 /**

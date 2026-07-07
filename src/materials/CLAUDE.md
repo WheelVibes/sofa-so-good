@@ -21,8 +21,27 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `tint:<baseId>:<#hex>`. Both resolve on the fly in `useMaterialDef` (no catalog entry) and serialise
   as a plain string. An optional **`@<scale>` suffix** (CUSTOMIZE-MATERIAL-PARAMS) multiplies the
   tile size (clamped 0.25×–4×; omitted at 1× → back-compat byte-identical id) and is folded into the
-  resolved `uvScale`. When you add another composer parameter, encode it in the id the same way
-  (suffix that defaults to "absent") and apply it in `composedMaterialDef`/`tintedMaterialDef`.
+  resolved `uvScale`. An optional **`!r` token** (FINISH-RECOLOR) switches a tint from the legacy
+  multiply (`m.color`, darken-only) to **repaint** mode: `tintedMaterialDef` sets
+  `recolorAlbedo: true` on the cloned def and the textured branch of `buildMaterial` re-bakes the
+  albedo through `recolor.ts`. Tokens are order-independent; absent token → multiply
+  (byte-identical old ids); on a `compose:`/procedural base `!r` is tolerated but a no-op (the
+  pattern re-bake is already a true recolor). When you add another composer parameter, encode it in
+  the id the same way (suffix that defaults to "absent") and apply it in
+  `composedMaterialDef`/`tintedMaterialDef`.
+- **Luminance-preserving recolor (`recolor.ts`, FINISH-RECOLOR)**: mean-anchored repaint of a
+  textured albedo — per-pixel Rec.709 luma over the **sRGB-encoded bytes** (no linearisation; same
+  domain as the W3C blend modes), then `out_c = clamp(target_c · L / Lmean)`, so the image's
+  *average* colour becomes the target while relative contrast survives (can lighten OR darken;
+  all-black source → flat fill). Pure core `recolorPixels` (node-tested in `recolor.test.ts`);
+  `recolorImageToCanvas` caps the bake at **1024px** max dimension (memory bound — the shared
+  normal map keeps full detail) and returns `null` on any failure (no 2d ctx, tainted canvas, bad
+  hex) → `buildMaterial` falls back to the legacy multiply path unchanged. The baked albedo is an
+  **owned** `CanvasTexture` (`own()`, disposed on LRU evict) with `SRGBColorSpace` + repeat from
+  `uvScale` + `applyAnisotropy`, and `m.color` is forced white (tint is baked in — no double tint);
+  normal/roughness/ao stay the shared loader instances. `recolorThumbnailDataUrl(url, hex, size=96)`
+  is the picker/composer preview helper: memoised (small FIFO), resolves `null` on ANY error so
+  callers fall back to a flat colour block.
 - **User-saved custom materials (`saveMaterials`)**: `state/slices/savedMaterialsSlice.ts` keeps a
   per-device (localStorage, like favourites — NOT the save schema) list of `{ finishId, name,
   category }`. `useMaterials` synthesises a named `MaterialDef` for each (resolving a tint's base from

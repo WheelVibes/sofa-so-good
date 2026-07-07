@@ -18,6 +18,13 @@ import { arrangePlanRoom, arrangeRoom } from '../layout/autoArrange'
 import { cloneRoomItems } from '../layout/cloneRoom'
 import { mirrorRoomItems } from '../layout/mirrorRoom'
 import { swapRoomLayouts } from '../layout/swapRooms'
+import {
+  isComposedMaterialId,
+  isTintMaterialId,
+  parseTintMaterialId,
+  recolorFinishId,
+  tintMaterialId,
+} from '../materials/composeMaterial'
 import { resolveDesignerPicks } from '../materials/designerPicks'
 import type { MaterialCategory, MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
@@ -275,6 +282,7 @@ export function FinishPicker() {
   const fDesignerPicks = useFeature('designerPicks')
   const fComposer = useFeature('materialComposer')
   const fSaveMaterials = useFeature('saveMaterials')
+  const fRecolor = useFeature('finishRecolor')
   const materials = useMaterials()
   const savedMaterials = useStore(useShallow((s) => s.savedMaterials))
   const saveMaterial = useStore((s) => s.saveMaterial)
@@ -362,10 +370,42 @@ export function FinishPicker() {
     else setCeilingFinish(roomId, id)
   }
 
+  const activeFor = (surface: Surface): string | undefined =>
+    surface === 'floor' ? activeFloor : surface === 'wall' ? activeWall : activeCeiling
+
+  // FINISH-RECOLOR: a custom colour pick repaints the surface's CURRENT finish
+  // (keeps its texture/pattern) instead of replacing it with flat plaster paint
+  // — resolution lives in the shared pure `recolorFinishId` (also used by the
+  // accent-wall picker). Flag off → always the legacy bare hex.
+  const handleCustomColor = (surface: Surface, hex: string) => {
+    setLastSurface(surface)
+    pushRecentColor(hex)
+    applyFinish(surface, fRecolor ? recolorFinishId(activeFor(surface), hex, materials) : hex)
+  }
+
   const handleSelect = (surface: Surface, id: string) => {
     setLastSurface(surface)
-    if (id.startsWith('#')) pushRecentColor(id)
-    else pushRecentFinish(id)
+    if (id.startsWith('#')) {
+      pushRecentColor(id)
+      applyFinish(surface, id)
+      return
+    }
+    // Recently Used records the PLAIN base id even when the applied finish ends
+    // up tinted below, so the row shows the texture itself.
+    pushRecentFinish(id)
+    // FINISH-RECOLOR: picking a new plain catalog finish while a colour override
+    // (tint) is active keeps the colour — re-tint the NEW base with the same
+    // colour + gloss (scale resets: it's base-specific) in repaint mode, which
+    // is what makes "same colour, new texture" read correctly. Re-selecting the
+    // tint's own base is the override chip's × / "back to plain" path, so it
+    // applies plain instead of re-tinting.
+    if (fRecolor && !isTintMaterialId(id) && !isComposedMaterialId(id)) {
+      const cur = parseTintMaterialId(activeFor(surface) ?? '')
+      if (cur && cur.baseId !== id) {
+        applyFinish(surface, tintMaterialId(id, cur.color, 1, cur.roughness, 'repaint'))
+        return
+      }
+    }
     applyFinish(surface, id)
   }
 
@@ -434,7 +474,7 @@ export function FinishPicker() {
             onRemoveUser={removeUserOrSaved}
             savedIds={savedIds}
             onRename={renameUserOrSaved}
-            onCustom={(hex) => handleSelect('floor', hex)}
+            onCustom={(hex) => handleCustomColor('floor', hex)}
             recent={recentColors}
             recentFinishIds={recentFinishes}
             curated={fDesignerPicks ? resolveDesignerPicks('floor', materials) : undefined}
@@ -470,7 +510,7 @@ export function FinishPicker() {
             onRemoveUser={removeUserOrSaved}
             savedIds={savedIds}
             onRename={renameUserOrSaved}
-            onCustom={(hex) => handleSelect('wall', hex)}
+            onCustom={(hex) => handleCustomColor('wall', hex)}
             recent={recentColors}
             recentFinishIds={recentFinishes}
             curated={fDesignerPicks ? resolveDesignerPicks('wall', materials) : undefined}
@@ -511,7 +551,7 @@ export function FinishPicker() {
                 onRemoveUser={removeUserOrSaved}
                 savedIds={savedIds}
                 onRename={renameUserOrSaved}
-                onCustom={(hex) => handleSelect('ceiling', hex)}
+                onCustom={(hex) => handleCustomColor('ceiling', hex)}
                 recent={recentColors}
                 recentFinishIds={recentFinishes}
                 curated={fDesignerPicks ? resolveDesignerPicks('wall', materials) : undefined}

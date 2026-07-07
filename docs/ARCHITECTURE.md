@@ -617,6 +617,15 @@ same change that reshapes a system.
   `OWNED_TEXTURES`) — never the shared plaster normal/roughness singletons or `textured`-branch
   maps (loaded through drei's `useTexture`/`useLoader` URL cache, so a `tint:<baseId>:#hex`
   variant shares the same `Texture` instances as its base).
+  **Finish recolor (FINISH-RECOLOR)**: a `tint:<baseId>:<#hex>!r` id switches a tint from the
+  legacy `m.color` multiply (darken-only) to a **repaint** — `materials/recolor.ts` bakes a
+  luminance-preserving, mean-anchored recolor of the albedo (per-pixel Rec.709 luma / image mean ×
+  target colour, sRGB-byte domain, ≤1024px) into an **owned** `CanvasTexture` (disposed on evict;
+  the normal/roughness/ao maps stay shared), so a dark walnut really becomes a light-grey wood.
+  The picker writes it via the pure `composeMaterial.ts:recolorFinishId` (custom colour repaints
+  the current finish; picking a new texture keeps an active colour override), gated by the
+  `finishRecolor` flag (simple tier); `recolorThumbnailDataUrl` powers the composer/preview thumbs
+  with a flat-colour fallback on any failure.
   **C271 worker**: `buildMaterial` immediately generates a sync texture (no first-paint delay),
   then `runProceduralWorker.ts` fires a single shared `Worker`
   (`procedural.worker.ts`) that re-renders via `OffscreenCanvas` and returns three

@@ -96,3 +96,70 @@ describe('SwatchGroup finish grid', () => {
     }
   })
 })
+
+// FINISH-RECOLOR: a tinted active finish (`tint:<base>:<hex>…`) shows a
+// "Colour override" chip (× clears back to the plain base) and highlights the
+// BASE texture's tile as active, so the texture in play stays visible.
+describe('SwatchGroup colour override (FINISH-RECOLOR)', () => {
+  const TINTED = 'tint:floor-a:#ff0000!r'
+
+  it('shows the chip when active is a tint; × applies the plain base id', () => {
+    const onSelect = vi.fn()
+    render(
+      <SwatchGroup
+        label="Floor"
+        items={[oak, walnut]}
+        active={TINTED}
+        onSelect={onSelect}
+        onRemoveUser={() => {}}
+      />,
+    )
+    const clear = screen.getByRole('button', { name: 'Remove colour override' })
+    fireEvent.click(clear)
+    expect(onSelect).toHaveBeenCalledWith('floor-a')
+  })
+
+  it('highlights the tint base texture tile as the active one (aria-pressed)', () => {
+    render(
+      <SwatchGroup
+        label="Floor"
+        items={[oak, walnut]}
+        active={TINTED}
+        onSelect={() => {}}
+        onRemoveUser={() => {}}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /Oak/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /Walnut/ })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('renders no chip (and no base highlight) when the finishRecolor flag is off', () => {
+    useStore.setState({
+      featureFlags: { ...useStore.getState().featureFlags, finishRecolor: false },
+    })
+    render(
+      <SwatchGroup
+        label="Floor"
+        items={[oak, walnut]}
+        active={TINTED}
+        onSelect={() => {}}
+        onRemoveUser={() => {}}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Remove colour override' })).toBeNull()
+    expect(screen.getByRole('button', { name: /Oak/ })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('renders no chip for a plain (non-tint) active finish', () => {
+    render(
+      <SwatchGroup
+        label="Floor"
+        items={[oak, walnut]}
+        active="floor-a"
+        onSelect={() => {}}
+        onRemoveUser={() => {}}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Remove colour override' })).toBeNull()
+  })
+})

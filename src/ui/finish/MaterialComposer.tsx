@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useFeature } from '../../features/useFeature'
 import {
   COMPOSE_SCALE_MAX,
   COMPOSE_SCALE_MIN,
@@ -9,9 +10,11 @@ import {
   DEFAULT_COMPOSE_SCALE,
   parseComposedMaterialId,
   parseTintMaterialId,
+  type TintMode,
   tintMaterialId,
 } from '../../materials/composeMaterial'
 import { proceduralThumbnailDataUrl } from '../../materials/procedural/generators'
+import { recolorThumbnailDataUrl } from '../../materials/recolor'
 import type { MaterialDef, ProceduralPattern } from '../../materials/types'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Disclosure } from '../controls/Disclosure'
@@ -20,7 +23,8 @@ import { Select } from '../controls/Select'
 /**
  * Compose a finish from a **texture/pattern** + a **colour** (MAT-COMPOSE), OR
  * recolour an **existing catalog material** — including the textured CC0 / Poly
- * Haven ones (the colour multiplies their albedo). A collapsible row under each
+ * Haven ones (Repaint re-bakes their albedo to the colour; Shade is the legacy
+ * multiply — FINISH-RECOLOR). A collapsible row under each
  * surface's swatch grid: pick a source (a procedural pattern or any material in
  * this surface's catalog), pick a colour, see a live preview, Apply.
  *
@@ -75,11 +79,16 @@ export function MaterialComposer({
     DEFAULT_COMPOSE_SCALE
   const seedRoughness = (): number | undefined =>
     parseComposedMaterialId(active)?.roughness ?? parseTintMaterialId(active)?.roughness
+  // Colour mode for TEXTURED tint bases (FINISH-RECOLOR): 'repaint' recolours
+  // the albedo (default for new compositions), 'multiply' is the legacy shade.
+  const seedMode = (): TintMode => parseTintMaterialId(active)?.mode ?? 'repaint'
 
+  const fRecolor = useFeature('finishRecolor')
   const [source, setSource] = useState<string>(seedSource)
   const [color, setColor] = useState<string>(seedColor)
   const [scale, setScale] = useState<number>(seedScale)
   const [roughness, setRoughness] = useState<number | undefined>(seedRoughness)
+  const [mode, setMode] = useState<TintMode>(seedMode)
   const [name, setName] = useState<string>('')
 
   // Re-seed when the active finish becomes a composed / tinted one elsewhere.
@@ -89,6 +98,7 @@ export function MaterialComposer({
     setColor(seedColor())
     setScale(seedScale())
     setRoughness(seedRoughness())
+    setMode(seedMode())
   }, [active])
 
   const isPattern = source.startsWith('p:')
@@ -99,21 +109,41 @@ export function MaterialComposer({
     ? (COMPOSE_TEXTURES.find((t) => t.pattern === key)?.label ?? key)
     : (baseMat?.name ?? 'Custom material')
 
+  // The Repaint/Shade colour-mode control only applies to a TEXTURED tint base
+  // (procedural bases re-bake with the colour — already a true recolor) and only
+  // when finishRecolor is on; otherwise the id builds exactly as before.
+  const modeOn = fRecolor && baseMat?.kind === 'textured'
   // Resolve the finish id + a preview swatch for the current source + colour +
-  // scale + gloss.
+  // scale + gloss (+ colour mode for textured bases).
   const id = isPattern
     ? composeMaterialId(key as ProceduralPattern, color, scale, roughness)
-    : tintMaterialId(key, color, scale, roughness)
+    : tintMaterialId(key, color, scale, roughness, modeOn ? mode : undefined)
   // Gloss slider: 0 % = matte (roughness 1), 100 % = glossy (roughness 0.05).
   // An unset roughness shows at the procedural default (0.85) but stays absent
   // from the id until the user drags it.
   const roughVal = roughness ?? 0.85
   const glossPct = Math.round(((1 - roughVal) / 0.95) * 100)
+  // Textured-base repaint preview (FINISH-RECOLOR): recolor the base's thumbnail
+  // asynchronously; `null` (fetch/canvas failure) or Shade mode keeps the flat
+  // colour-block fallback.
+  const [texPreview, setTexPreview] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    setTexPreview(null)
+    if (!(modeOn && mode === 'repaint' && baseMat?.kind === 'textured')) return
+    const url = baseMat.thumbUrl ?? baseMat.runtimeUrls?.albedo ?? baseMat.textures.albedo
+    void recolorThumbnailDataUrl(url, color).then((dataUrl) => {
+      if (!cancelled && dataUrl) setTexPreview(dataUrl)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [modeOn, mode, baseMat, color])
   const preview = isPattern
     ? proceduralThumbnailDataUrl(id, key as ProceduralPattern, color)
     : baseMat?.kind === 'procedural'
       ? proceduralThumbnailDataUrl(id, baseMat.pattern, color)
-      : undefined
+      : (texPreview ?? undefined)
   const isActive = active === id
   // The saved name of the CURRENT composition (so editing reflects live edits).
   const savedName = savedNameOf?.(id)
@@ -180,6 +210,44 @@ export function MaterialComposer({
           title="Colour"
         />
       </div>
+      {/* Colour mode for textured bases (FINISH-RECOLOR): Repaint = luminance-
+          preserving recolor (can lighten or darken the photo texture); Shade =
+          the legacy multiply, which can only darken. */}
+      {modeOn ? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--s-2)',
+            marginTop: 'var(--s-2)',
+          }}
+        >
+          <span className="label" style={{ flex: '0 0 auto', fontSize: 'var(--t-2xs)' }}>
+            Colour mode
+          </span>
+          {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> needs a
+              <legend> and adds default browser border/padding, changing the
+              look of the segmented pill — role="group" + aria-label is the
+              non-visual equivalent (same as the swatch rows). */}
+          <div className="seg" role="group" aria-label={`${label} colour mode`}>
+            {(['repaint', 'multiply'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={mode === m ? 'on' : ''}
+                title={
+                  m === 'repaint'
+                    ? 'Recolour the texture to this colour, keeping its pattern (can lighten or darken)'
+                    : 'Shade (darken) the texture with this colour — the legacy multiply tint'
+                }
+              >
+                {m === 'repaint' ? 'Repaint' : 'Shade'}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {/* Tile-size parameter (CUSTOMIZE-MATERIAL-PARAMS): scales the pattern's
           physical repeat, so the same texture+colour can read fine or chunky. */}
       <label

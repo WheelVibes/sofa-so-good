@@ -5,6 +5,41 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.0.0 — Recolour any finish: colour, texture and material fully decoupled (FINISH-RECOLOR)
+
+Custom colours no longer flatten a textured finish to plaster paint — colour, texture/pattern,
+and material params are now independent, mix-and-match axes on every floor/wall/ceiling (and
+accent-wall) finish:
+
+- **New tint mode `!r` (repaint)** in the self-describing id grammar
+  (`tint:<baseId>:<#hex>[@scale][~rough][!r]`, `composeMaterial.ts`): a luminance-preserving,
+  mean-anchored recolor of a textured base's albedo (`materials/recolor.ts` — per-pixel Rec.709
+  luma / image mean × target colour, sRGB-byte domain per the W3C blend-mode spec, ≤1024px bake).
+  Unlike the legacy multiply (`m.color`, darken-only), repaint can lighten — dark walnut really
+  becomes light-grey wood, pattern and normal/roughness detail intact. Old ids are byte-identical
+  (absent token = multiply). The baked albedo is an owned `CanvasTexture` (disposed on LRU evict,
+  `SRGBColorSpace`, anisotropy, world-UV repeat); shared loader maps are never disposed; any
+  failure falls back to the multiply path.
+- **Custom colour = repaint the current finish** (`recolorFinishId`, shared pure resolver): the
+  picker's colour controls (custom colour, palette/recommended rows, recents) write a repaint
+  tint of the active finish — built-in procedural, Poly Haven/ambientCG, or user-uploaded.
+  Paint-like actives (plaster/solid/bare-hex) keep the legacy flat-paint behaviour. Also wired
+  into the accent-wall picker (was a bare-hex writer).
+- **Swap texture, keep colour**: picking a new finish swatch while a colour override is active
+  re-tints the new base with the same colour+gloss; a "Colour override" chip (desktop + mobile)
+  shows the active override and its × restores the plain finish; the base texture's tile stays
+  highlighted while tinted.
+- **Composer colour modes**: "Compose your own…" gains a Repaint/Shade segmented control for
+  textured bases (Repaint default; Shade = legacy multiply) and an async recolored preview thumb
+  (`recolorThumbnailDataUrl`, flat-colour fallback).
+- Gated by the new `finishRecolor` flag (simple tier, default on; off = byte-identical legacy
+  behaviour). No store/schema changes — everything rides the finish-id string. Tests: recolor
+  engine (node), grammar round-trips, cache routing/disposal, picker/composer/accent behaviour in
+  both modes + flag-off; scenario ladder `finishes-recolor-simple.json` (visual: dark walnut →
+  light grey with grain intact, texture swap keeps colour, chip clear, brick wall repaint,
+  composer modes, mobile leg). Docs: user guide (finishes + importing-textures), ARCHITECTURE,
+  materials CLAUDE.md, README.
+
 ## v0.17.1.1 — iOS: walk-mode joystick + controls banner clear the home indicator
 
 On phones the walk-mode touch joystick sat half-clipped under the iOS home indicator and the
