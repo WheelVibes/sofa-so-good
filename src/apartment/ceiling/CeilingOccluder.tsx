@@ -1,5 +1,5 @@
 import { DoubleSide, MeshBasicMaterial } from 'three'
-import type { OccluderRect } from './ceilingOccluder'
+import type { OccluderRect } from './occluderRects'
 
 /**
  * Shared occluder material: writes NOTHING to the colour or depth buffer in the

@@ -6,7 +6,7 @@
  */
 
 import { DOORS } from '../apartment/constants'
-import { roomShell } from '../apartment/roomShell'
+import { roomShell } from '../apartment/roomShellGeometry'
 import type { RoomId } from '../apartment/types'
 import { wallThicknessMetres } from '../apartment/wallSegments'
 import type { PlanRoomShell } from '../floorplan/planRoomShell'

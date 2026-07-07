@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ROOMS } from './constants'
-import { type ClippedWall, clippedWallCutouts, roomRects, roomShell } from './roomShell'
+import { type ClippedWall, clippedWallCutouts, roomRects, roomShell } from './roomShellGeometry'
 import type { WallSpec } from './types'
 
 describe('roomRects', () => {

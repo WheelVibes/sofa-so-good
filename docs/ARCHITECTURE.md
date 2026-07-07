@@ -467,7 +467,7 @@ same change that reshapes a system.
   `nearestAimedSegment` call with `screen:`/`light:` id prefixes, so whichever is physically
   closer sets its own `nearby*Id` (the other cleared). Scenario:
   `scripts/scenarios/walk-screens-lights.json`.
-- **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts`+
+- **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShellGeometry.ts`+
   `RoomShell.tsx`, `uiSlice.roomEditor`): the **sole editing surface**. A separate
   `<Canvas>` that now mounts the **same rendering stack as the main orbit Canvas** —
   `frameloop="demand"` + `RenderPump`, `PCFSoftShadowMap` shadows, `Sky`/`SceneBackdrop`,

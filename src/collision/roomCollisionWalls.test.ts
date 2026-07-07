@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { roomShell } from '../apartment/roomShell'
+import { roomShell } from '../apartment/roomShellGeometry'
 import { buildRoomCollisionWalls } from './roomCollisionWalls'
 
 describe('buildRoomCollisionWalls', () => {

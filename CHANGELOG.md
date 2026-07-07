@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.3 — Fix Windows/macOS desktop builds: case-colliding module names (DESKTOP-CI-CASING)
+
+The first-ever Desktop Release run (new push-to-main trigger) failed on Windows and macOS with
+TS1149/TS2693/TS2303: CI typechecks on Linux (case-sensitive), but those runners resolve
+extensionless imports case-INsensitively, so same-directory names differing only in case are
+ambiguous — `import '../apartment/RoomShell'` (component) silently resolved to `roomShell.ts`
+(pure helpers), and the `Toolbar.tsx` shim next to `toolbar/` resolved `'./toolbar'` to itself
+(circular alias). Fixed all four latent pairs: `roomShell.ts` → `roomShellGeometry.ts`,
+`ceiling/ceilingOccluder.ts` → `ceiling/occluderRects.ts` (+ their tests), `Ceiling.tsx` moved
+into `ceiling/Ceiling.tsx`, and the root `Toolbar.tsx` shim deleted (App imports `./ui/toolbar`
+directly). New Linux-runnable guard `src/moduleCasingGuard.test.ts` fails fast on any future
+same-directory case collision (same-case `templates.ts`+`templates/` pairs stay allowed — the
+file wins deterministically everywhere). `npm run build` (the failing desktop step) verified
+green; no behaviour changes.
+
 ## v0.18.3.2 — Desktop installers also build (artifact-only) on push to main
 
 `release.yml` gains `main` in its push trigger: merges now produce Win/mac/Linux installers as

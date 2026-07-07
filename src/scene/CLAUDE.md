@@ -26,7 +26,7 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   exposure grading, and day-ramped bloom apply in every view mode at every tier (still gated by
   the tier's `shadowMapSize`/`postprocessing`). Orbit culls the real ceiling so you can see in;
   an invisible shadow-casting **virtual ceiling** (`apartment/ceiling/CeilingOccluder.tsx`, planes
-  from the pure `ceilingOccluder.ts:occluderRectsForPlan`) blocks the sun from flooding in through
+  from the pure `occluderRects.ts:occluderRectsForPlan`) blocks the sun from flooding in through
   the open top, so interiors are lit through windows/open doors — mounted in BOTH `Scene.tsx` and
   `RoomEditorScene.tsx`, present in walk mode too for consistency. The occluder material writes no
   colour/depth (invisible to the camera) but `castShadow` with `shadowSide: DoubleSide`. There is

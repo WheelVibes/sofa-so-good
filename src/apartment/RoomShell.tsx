@@ -19,7 +19,11 @@ import { useStore } from '../state/store'
 import { DOORS, WINDOWS } from './constants'
 import { DoorLeaf } from './Door'
 import { RoomFloor } from './floor/RoomFloor'
-import { type ClippedWall, clippedWallCutouts, type RoomShell as RoomShellData } from './roomShell'
+import {
+  type ClippedWall,
+  clippedWallCutouts,
+  type RoomShell as RoomShellData,
+} from './roomShellGeometry'
 import { WindowPane } from './Window'
 import { localOuterZSign, wallThicknessMetres } from './wallSegments'
 import { useWallReveal } from './walls/useWallReveal'
