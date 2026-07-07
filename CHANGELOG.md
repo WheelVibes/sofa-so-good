@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.17.0.2 — CodeQL: stop persisting auth identity; redact scraper logs
+
+Cleared the CodeQL clear-text findings on the PR. `authSlice` no longer writes the
+signed-in user (id/name/email) to `localStorage` — the server HttpOnly-cookie session
+is the single source of truth, revived by `refreshAuth()` on boot (`cloudBoot`), so no
+personal data sits in clear text at rest; `signOut` still purges the legacy `hdb_auth`
+key. `research/scrapers/scraper_common.py`: `_log` now routes through a hardened
+`_redact` (form-encoded params like `client_secret=`, `user:pass@` URL userinfo, and
+standalone `token=`/`key=` fields anywhere in a line), sanitizing every scraper log at
+the sink. Also silenced the dev-api admin-email console log (v0.17.0.1).
+
 ## v0.17.0.0 — PR: dev profiler, orbit/room-editor wall & lighting fixes, catalog refresh, mobile HUD
 
 Minor release rolling up the `fix/070726` branch to `main`. Highlights: a dev-only
