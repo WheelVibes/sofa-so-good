@@ -43,38 +43,49 @@ export function decideDesktopUpdate(tag: unknown, current: string = APP_VERSION)
   return isNewerVersion(version, current) ? { status: 'update', version } : { status: 'uptodate' }
 }
 
+/** In-flight guard — a repeated "Check for updates" press while the GitHub
+ *  fetch is still outstanding is ignored, so N taps yield ONE spinner + ONE
+ *  result toast instead of N stacked progress toasts. */
+let desktopCheckInFlight = false
+
 /** Manual "Check for updates" with toast feedback, desktop-shell flavour —
  *  mirrors swUpdate.runUpdateCheck's UX (spinner → result toast). */
 export async function runDesktopUpdateCheck(): Promise<void> {
-  const { notify } = useStore.getState()
-  const id = notify.start({ title: 'Checking for updates…', kind: 'progress' })
-  notify.update(id, { progress: null }) // indeterminate spinner
-
-  let result: DesktopUpdate
+  if (desktopCheckInFlight) return
+  desktopCheckInFlight = true
   try {
-    const res = await fetch(RELEASES_API_URL, {
-      headers: { Accept: 'application/vnd.github+json' },
-    })
-    result = res.ok ? decideDesktopUpdate((await res.json())?.tag_name) : { status: 'error' }
-  } catch {
-    result = { status: 'error' }
-  }
+    const { notify } = useStore.getState()
+    const id = notify.start({ title: 'Checking for updates…', kind: 'progress' })
+    notify.update(id, { progress: null }) // indeterminate spinner
 
-  notify.dismiss(id)
-  if (result.status === 'update') {
-    notify.start({
-      title: 'Update available',
-      message: `Sofa So Good v${result.version} is out — you’re on v${APP_VERSION}.`,
-      kind: 'info',
-      icon: 'Versions',
-      autoDismissMs: null,
-      actionLabel: 'Download',
-      // window.open → setWindowOpenHandler in the shell → system browser.
-      onAction: () => void window.open(RELEASES_PAGE_URL, '_blank'),
-    })
-  } else if (result.status === 'uptodate') {
-    notify.start({ title: `You’re on the latest version (v${APP_VERSION})`, kind: 'info' })
-  } else {
-    notify.start({ title: 'Couldn’t reach the update server', kind: 'info' })
+    let result: DesktopUpdate
+    try {
+      const res = await fetch(RELEASES_API_URL, {
+        headers: { Accept: 'application/vnd.github+json' },
+      })
+      result = res.ok ? decideDesktopUpdate((await res.json())?.tag_name) : { status: 'error' }
+    } catch {
+      result = { status: 'error' }
+    }
+
+    notify.dismiss(id)
+    if (result.status === 'update') {
+      notify.start({
+        title: 'Update available',
+        message: `Sofa So Good v${result.version} is out — you’re on v${APP_VERSION}.`,
+        kind: 'info',
+        icon: 'Versions',
+        autoDismissMs: null,
+        actionLabel: 'Download',
+        // window.open → setWindowOpenHandler in the shell → system browser.
+        onAction: () => void window.open(RELEASES_PAGE_URL, '_blank'),
+      })
+    } else if (result.status === 'uptodate') {
+      notify.start({ title: `You’re on the latest version (v${APP_VERSION})`, kind: 'info' })
+    } else {
+      notify.start({ title: 'Couldn’t reach the update server', kind: 'info' })
+    }
+  } finally {
+    desktopCheckInFlight = false
   }
 }

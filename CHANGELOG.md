@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.8 — Single update notification: one auto-check + de-duped manual checks
+
+Fixed duplicate "Update available" toasts. Two causes: (1) `showUpdatePrompt` started the toast
+with no message then mutated in a versioned message async, so a second prompt (empty message) no
+longer matched the notifications slice's kind+title+message de-dupe and stacked a duplicate;
+(2) the manual "Check for updates" path had no in-flight guard, so N presses started N spinners
+(progress toasts never de-dupe). Now: a module-level `updatePromptId` keeps at most one live
+"Update available" card (a fresh one is raised only after the previous is dismissed); in-flight
+guards on `runUpdateCheck`/`runDesktopUpdateCheck` collapse repeated presses to one spinner + one
+result; and a `swWired` guard ensures exactly one auto-check registration (no duplicate hourly
+interval). `isNewerVersion` untouched. Unit-tested (single prompt through the async message
+mutation, in-flight guard collapses concurrent presses).
+
 ## v0.18.3.7 — Stronger consistent head-on wall fade + "Fully hidden" hides walls always (WALL-REVEAL-PEAK / HIDE-ALWAYS)
 
 Two wall-reveal refinements across all four fade surfaces (orbit `WallSegment`, room-editor

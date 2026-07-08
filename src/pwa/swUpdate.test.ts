@@ -51,6 +51,36 @@ describe('showUpdatePrompt', () => {
     sw.showUpdatePrompt()
     expect(useStore.getState().notifications).toHaveLength(1)
   })
+
+  it('stays a single prompt even after the async version line mutates the message', async () => {
+    // Real-world regression: the deployed version fetch resolves and rewrites
+    // the toast's `message`, which used to dodge the kind+title+message de-dupe
+    // and let a later call stack a second copy.
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ version: '99.0.0.0' }),
+    } as Response)
+    try {
+      sw.showUpdatePrompt()
+      await vi.waitFor(() => {
+        expect(useStore.getState().notifications[0]?.message).toBe('(v99.0.0.0)')
+      })
+      sw.showUpdatePrompt() // repeat AFTER the message changed
+      sw.showUpdatePrompt()
+      expect(useStore.getState().notifications).toHaveLength(1)
+    } finally {
+      fetchSpy.mockRestore()
+    }
+  })
+
+  it('raises a fresh prompt again after the previous one was dismissed', () => {
+    sw.showUpdatePrompt()
+    const first = useStore.getState().notifications[0]
+    expect(first).toBeDefined()
+    useStore.getState().notify.dismiss(first.id)
+    sw.showUpdatePrompt()
+    expect(useStore.getState().notifications).toHaveLength(1)
+  })
 })
 
 describe('checkForUpdates', () => {
@@ -194,6 +224,35 @@ describe('runUpdateCheck', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('in-flight guard: rapid presses collapse to one spinner and one result', async () => {
+    setServiceWorker({
+      getRegistration: async () => ({
+        update: async () => {},
+        installing: null,
+        waiting: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+    })
+    // Fire three presses "at once" — the guard trips synchronously on entry, so
+    // only the first raises the progress spinner; the rest are ignored.
+    const runs = Promise.all([sw.runUpdateCheck(), sw.runUpdateCheck(), sw.runUpdateCheck()])
+    expect(useStore.getState().notifications.filter((n) => n.kind === 'progress')).toHaveLength(1)
+    await runs
+    const list = useStore.getState().notifications
+    expect(list.filter((n) => /latest version/.test(n.title))).toHaveLength(1)
+    expect(list.filter((n) => n.kind === 'progress')).toHaveLength(0)
+  })
+
+  it('in-flight guard: a repeated press that finds a waiting worker yields ONE prompt', async () => {
+    setServiceWorker({
+      getRegistration: async () => ({ update: async () => {}, installing: null, waiting: {} }),
+    })
+    await Promise.all([sw.runUpdateCheck(), sw.runUpdateCheck(), sw.runUpdateCheck()])
+    const list = useStore.getState().notifications
+    expect(list.filter((n) => n.title === 'New version available')).toHaveLength(1)
   })
 
   it('surfaces an error when the update check throws', async () => {
