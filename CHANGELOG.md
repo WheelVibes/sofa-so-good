@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.4.0 — Freeze the sun shadow map when static (PERF-MAX-1)
+
+Big per-frame GPU win at High/Maximum with **zero visual change**. The directional sun shadow
+frustum is centred on the plan, not the camera, so a pure camera orbit / turntable auto-rotate /
+walk re-renders a byte-identical depth map every continuous frame — up to 4096² on Maximum (2048²
+High, 1024² Medium) plus every shadow-casting mesh drawn into it. Sun shadows are the profiler's
+#2 measured cost. `Lighting.tsx` now sets the sun light's `shadow.autoUpdate = false` and re-renders
+the map (`needsUpdate = true`) only when it can actually change: the day/night tween is easing, the
+light just (re)mounted, boot/warmup, or the shared `shadowRefreshSignal` is active. That signal is
+pulsed by `RenderPump.markDirty` for its settle tail (so every discrete change — furniture
+move/add/remove, plan edit, orientation, door toggle, finish, quality-tier remount — refreshes the
+map) and per-frame by continuously-animating shadow casters (`pulseShadowRefreshForMotion` in
+`CeilingFan`/`StandingFan`/`Curtain`/`RollerBlind`). It deliberately does NOT key off
+`animatedSourceCount()`, which also counts wall-reveal fades (opacity only — irrelevant to the
+shadow map) that fire every orbit frame and would defeat the freeze. Applies to both the main
+Canvas and the room editor (shared `Lighting`). Measured in software WebGL (relative only):
+continuous auto-rotate at High dropped ~20% of draw calls + triangles per frame and rendered ~24%
+more frames in a fixed window. New `perf-orbit.mjs` / `perf-drawcalls.mjs` relative harnesses +
+`shadowRefreshSignal` unit tests.
+
 ## v0.18.3.10 — Fix Windows Desktop Release: scope mac-only overrides to the mac runner
 
 The v0.18.3.6 macOS fix worked (mac now builds + uploads its unsigned artifact), but its

@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { Group } from 'three'
+import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
 import { useAnimatedSource } from '../../scene/useAnimatedSource'
 import { useStore } from '../../state/store'
 import type { ParamProps } from '../types'
@@ -26,7 +27,12 @@ export function StandingFan({ props }: { props: ParamProps }) {
   const motion = useStore((s) => s.motionEnabled)
   useAnimatedSource(motion)
   useFrame((_, dt) => {
-    if (motion && bladesRef.current) bladesRef.current.rotation.z += dt * 4
+    if (motion && bladesRef.current) {
+      bladesRef.current.rotation.z += dt * 4
+      // Spinning blades move their sun shadow → keep the frozen shadow map
+      // refreshing while they turn (PERF-MAX-1).
+      pulseShadowRefreshForMotion()
+    }
   })
 
   return (
