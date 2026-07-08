@@ -4,6 +4,7 @@ import type { Group, Mesh } from 'three'
 import { draperyOpacityLevel, draperyVisualOpacity } from '../../materials/draperyOpacity'
 import { getDraperyMaterial } from '../../materials/furnitureMaterials'
 import { registerAnimatedSource } from '../../scene/animatedSources'
+import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
 
@@ -90,6 +91,9 @@ export function RollerBlind({ props }: { props: ParamProps }) {
       return
     }
     if (!holdRef.current) holdRef.current = registerAnimatedSource()
+    // The blind (cassette + covering) casts sun shadows and is moving this frame
+    // → keep the frozen shadow map refreshing through the raise/lower (PERF-MAX-1).
+    pulseShadowRefreshForMotion()
     const k = Math.min(1, dt * LOWER_SPEED)
     drawRef.current = cur + (target - cur) * k
     applyLower(drawRef.current)

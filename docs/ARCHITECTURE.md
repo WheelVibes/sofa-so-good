@@ -727,7 +727,13 @@ same change that reshapes a system.
   inside, an invisible shadow-casting virtual ceiling occluder (`apartment/ceiling/
   CeilingOccluder.tsx`, mounted in both `Scene.tsx` and `RoomEditorScene.tsx`) blocks the sun
   from flooding straight in through the open top, so interiors stay lit only through windows and
-  open doors, matching walk mode.
+  open doors, matching walk mode. The sun shadow map is **frozen when static** (PERF-MAX-1,
+  `shadowRefreshSignal.ts`): the plan-centred (not camera-centred) frustum makes a pure camera
+  orbit/auto-rotate/walk produce an identical depth map every frame, so `Lighting` sets the sun
+  `shadow.autoUpdate=false` and only re-renders it on a sun tween, a discrete store change (via
+  `RenderPump.markDirty`'s tail), or a moving shadow caster (`pulseShadowRefreshForMotion` in the
+  fan/curtain/blind primitives) — a large per-frame GPU saving at High/Maximum with no visual
+  change. See `src/scene/CLAUDE.md`.
 - **Parametric furniture generator** (`furniture/parametric/`, PF2): dimension-driven
   bookshelf / wardrobe / sideboard / desk / **kitchen-cabinet run**. Pure tested core —
   `spec.ts` (`ParametricType` union, `clampSpec` envelopes, `defaultSpec`, never throws),

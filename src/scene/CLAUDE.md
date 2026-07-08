@@ -33,6 +33,24 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   no `dollhouse.ts` module and no dollhouse module-signal anymore — do NOT reintroduce a per-mode
   lighting suppression. (The unrelated orbit *camera-framing* "dollhouse" in `OrbitCamera.tsx`/wall
   reveal is a different concept and stays.)
+- **The sun shadow map is FROZEN when nothing that shapes it changes (PERF-MAX-1).** The
+  directional shadow frustum is centred on the plan, NOT the camera, so a pure camera orbit /
+  turntable auto-rotate / walk produces an identical depth map every continuous frame —
+  re-rendering the up-to-4096² map (Maximum; 2048² High, 1024² Medium) each frame is pure waste
+  (sun shadows are the profiler's #2 cost). `Lighting.tsx` sets the sun light's
+  `shadow.autoUpdate = false` and only sets `shadow.needsUpdate = true` when the map can actually
+  change: the day/night tween is easing (`!settled`), the light just (re)mounted, boot/warmup
+  (`!sceneReady`), or the shared **shadow-refresh signal** (`shadowRefreshSignal.ts`) is active.
+  That signal is pulsed (a) by `RenderPump.markDirty` for its whole settle tail — so EVERY
+  discrete store change (furniture move/add/remove, plan edit, orientation, door toggle, finish,
+  quality-tier remount) refreshes the map — and (b) each frame by a continuously-animating shadow
+  caster (`pulseShadowRefreshForMotion` in `CeilingFan`/`StandingFan`/`Curtain`/`RollerBlind`).
+  **Do NOT key the refresh off `animatedSourceCount()`** — it also counts wall-reveal fades, which
+  change only opacity (three's shadow map ignores `opacity`) and fire on every orbit frame, which
+  would defeat the freeze during the exact scenario it targets. Camera-only motion writes no store
+  and pulses no signal, so the frozen (byte-identical) map is reused — zero visual change. Any new
+  shadow-casting furniture that animates its transform without a store change must call
+  `pulseShadowRefreshForMotion()` each moving frame, exactly like the fans/blinds.
 - **Bloom only blooms genuine HDR emitters, never broad daytime surfaces** (RD-409). The
   Bloom `luminanceThreshold` (`look.BLOOM.luminanceThreshold`, 1.35) sits **above** sunlit
   white walls/ceilings under the day IBL + ~1.2 graded exposure and **below** the night

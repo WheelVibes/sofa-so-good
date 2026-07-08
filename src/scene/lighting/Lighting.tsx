@@ -5,6 +5,7 @@ import { isFeatureEnabled } from '../../features/featureFlags'
 import { useStore } from '../../state/store'
 import { registerAnimatedSource } from '../animatedSources'
 import { grade, iblFillScale, SOFT_SHADOW, toneExposureBias } from '../look'
+import { isShadowRefreshActive } from '../shadowRefreshSignal'
 import { resolveToneMapping, toneContextFromState } from '../toneContext'
 import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { useQuality } from '../useQuality'
@@ -104,6 +105,11 @@ export function Lighting() {
   const holdRef = useRef<(() => void) | null>(null)
   useEffect(() => () => holdRef.current?.(), [])
 
+  // PERF-MAX-1: tracks the sun light's shadow instance so a freshly (re)mounted
+  // light (map-size / frustum-extent change → new `key`) always builds its map
+  // once, independent of signal timing.
+  const lastShadow = useRef<unknown>(null)
+
   useFrame((_, dt) => {
     const cur = current.current
     const k = Math.min(1, dt / TWEEN_DURATION)
@@ -173,6 +179,35 @@ export function Lighting() {
       sunRef.current.intensity = cur.sun * attenuation
       sunRef.current.castShadow = shadowMapSize > 0
       sunRef.current.position.set(cur.sunPos[0], cur.sunPos[1], cur.sunPos[2])
+      // PERF-MAX-1: hold the shadow map frozen unless it actually needs to change.
+      // The directional shadow frustum is centred on the plan (not the camera), so
+      // a pure camera orbit / turntable auto-rotate / walk produces an identical
+      // depth map every continuous frame — re-rendering the up-to-4096² map each
+      // frame is pure waste (sun shadows are the profiler's #2 cost). We turn the
+      // light's per-frame `shadow.autoUpdate` off and only re-render (`needsUpdate`)
+      // when the map can actually change:
+      //   - `!settled`         → the sun is easing (day/night tween moves the frustum),
+      //   - shadow-refresh tail → set either by a discrete store change (furniture
+      //                           move/add/remove, plan edit, orientation, door toggle,
+      //                           finish, quality-tier remount — via RenderPump) OR by a
+      //                           continuously-animating shadow caster pulsing it every
+      //                           frame it moves (spinning fans, easing curtains/blinds).
+      //                           See shadowRefreshSignal. NOTE: this deliberately does
+      //                           NOT key off `animatedSourceCount()` — that also counts
+      //                           wall-reveal fades, which change only opacity (three's
+      //                           shadow map ignores opacity), and fire on every orbit
+      //                           frame, which would defeat the freeze during orbit.
+      //   - `!sceneReady`      → boot/warmup, geometry may still be streaming in,
+      //   - new shadow instance → the light just (re)mounted, build its fresh map.
+      // Camera-only motion sets none of these, so the frozen (correct) map is reused.
+      // three resets `needsUpdate` to false after it renders the map.
+      const shadow = sunRef.current.shadow
+      shadow.autoUpdate = false
+      const freshInstance = shadow !== lastShadow.current
+      lastShadow.current = shadow
+      if (!settled || freshInstance || !st.sceneReady || isShadowRefreshActive(performance.now())) {
+        shadow.needsUpdate = true
+      }
       // Apply glass tint as a component-wise multiply of the sun colour.
       sunRef.current.color.setRGB(
         cur.sunColor[0] * tint[0],

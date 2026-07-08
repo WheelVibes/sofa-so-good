@@ -6,6 +6,7 @@ import { useStore } from '../state/store'
 import { animatedSourceCount } from './animatedSources'
 import { isContinuous, type PumpInputs, settleTailMs, shouldRender } from './renderDecision'
 import { setRenderingContinuously } from './renderPumpSignal'
+import { pulseShadowRefresh } from './shadowRefreshSignal'
 import { useQuality } from './useQuality'
 
 /**
@@ -45,6 +46,9 @@ export function RenderPump() {
     // invalidates on its own `change` event.
     const markDirty = () => {
       dirtyUntil.current = performance.now() + settleTailMs(showcaseRef.current)
+      // PERF-MAX-1: a discrete change happened — let Lighting re-render the frozen
+      // sun shadow map across this same settle tail (see shadowRefreshSignal).
+      pulseShadowRefresh(dirtyUntil.current)
       const s = useStore.getState()
       // While the opaque loader is up, defer to the rAF pump (which freezes or
       // throttles WebGL) — a direct invalidate here would bypass that gate.

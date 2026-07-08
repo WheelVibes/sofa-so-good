@@ -9,16 +9,32 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
 > Avoid pricing/quotes/analytics deliverables unless asked.
 
-## Active — orbit/editor lighting parity (2026-07-07, user goal) — IMPLEMENTED on fix/070726 (v0.16.1.5)
-Spec: `docs/superpowers/specs/2026-07-07-orbit-lighting-parity-design.md` ·
-Plan: `docs/superpowers/plans/2026-07-07-orbit-lighting-parity.md` (v0.16.1.5). All tasks done + final review passed.
-- [x] Retire the orbit daytime "dollhouse" flat-fill so orbit + the room editor run the full
-  walk-mode simulation (graded sun, PCF shadows, exposure grading, bloom) at every tier.
-- [x] Add an invisible shadow-casting virtual ceiling (`CeilingOccluder`) so the open-top orbit
-  view is lit through windows/openings only, not flooded from above. Both modes, mobile + desktop.
-- [x] Lock in that the "Original" asset tier is truly lossless (regression tests + audit).
-- [ ] Follow-up: eyeball walk-mode + mobile live once (headless harness couldn't capture them;
-  same lighting code path as the verified orbit view, so expected fine). Remove this block on merge.
+## Active — graphics-tier performance optimization (2026-07-08, user goal)
+Systematically speed up frame processing/rendering **without sacrificing visual quality**,
+focused on the heavy **Maximum** tier (also opportunistic wins on other tiers). Sandbox has no
+GPU — optimizations are validated by code analysis + software-WebGL relative harnesses
+(`scripts/perf-orbit.mjs` = relative FPS; `scripts/perf-drawcalls.mjs` = deterministic per-frame
+draw-call/triangle counts), both driving a continuous autoRotate span at a pinned tier — never by
+absolute numbers. Shipped: **PERF-MAX-1** (freeze the sun shadow map when static — see CHANGELOG
+v0.18.4.0; ~20% fewer draw calls/triangles per orbit frame + ~24% more frames at High).
+Structural note from the analysis: SSAO/bloom/DoF are **camera-dependent** (recomputed every orbit
+frame and only run when something moves — no idle waste to reclaim), so shadows were the uniquely
+freezable per-frame cost. Remaining maximum-tier costs (full-res N8AO, DPR 2, 12 fixture lights,
+geometryDetail 1.8, envResolution 256) are deliberate quality knobs — reducing any sacrifices
+quality, which is out of scope for this goal.
+
+### Investigated + parked (findings recorded so we don't re-investigate)
+- **`preserveDrawingBuffer: true` always-on — BLOCKED by the Record feature.** The PNG export path
+  (`ScreenshotController`) already renders on-demand + reads back synchronously, so it does NOT
+  need it. But `RecordController` uses `captureStream(0)` + `track.requestFrame()` from a `useFrame`
+  that runs BEFORE r3f's render, so it captures the *previous* frame's buffer — which is only
+  reliable with the buffer preserved. A context attribute can't be toggled at runtime, so removing
+  it safely needs a render-after-`requestFrame` refactor (positive `renderPriority` manual render),
+  and `.webm` output can't be verified in headless swiftshader. Not worth the regression risk.
+- **Skip the Bloom pass when its intensity is 0 — NOT a clean win.** `bloomIntensityForDay =
+  intensity·(1−dayLevel)` is exactly 0 only at the solar-noon peak; it's a small nonzero for most
+  of the day, so unmounting Bloom would change the image except in a narrow window (and the
+  mount/unmount recompiles the EffectPass = a hitch). Rejected.
 
 ## Active — asset pipeline (2026-07-02, user goal)
 See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full design.

@@ -4,6 +4,7 @@ import { type BufferGeometry, type Group, PlaneGeometry } from 'three'
 import { draperyOpacityLevel, draperyVisualOpacity } from '../../materials/draperyOpacity'
 import { getDraperyMaterial } from '../../materials/furnitureMaterials'
 import { registerAnimatedSource } from '../../scene/animatedSources'
+import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
 
@@ -144,6 +145,9 @@ export function Curtain({ props }: { props: ParamProps }) {
       return
     }
     if (!holdRef.current) holdRef.current = registerAnimatedSource()
+    // The draped panels cast sun shadows and are moving this frame → keep the
+    // frozen shadow map refreshing through the draw animation (PERF-MAX-1).
+    pulseShadowRefreshForMotion()
     const k = Math.min(1, dt * DRAW_SPEED)
     drawRef.current = cur + (target - cur) * k
     applyDraw(drawRef.current)
