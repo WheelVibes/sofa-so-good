@@ -1,0 +1,118 @@
+{
+  "name": "wall-fade-strength",
+  "url": "http://localhost:5225/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.() })()"
+    },
+    {
+      "name": "daylight",
+      "eval": "(() => { window.__store.getState().setManualHour(13) })()"
+    },
+    {
+      "name": "view-head-on-north",
+      "eval": "(() => { const s = window.__store.getState(); window.__store.setState({ pendingViewPose: { pos: [4.6, 4.5, -8], target: [4.6, 1.2, 4.7] }, applyViewNonce: s.applyViewNonce + 1, cameraMode: 'orbit' }) })()"
+    },
+    {
+      "name": "near-wall-fades-translucent",
+      "waitFor": {
+        "store": "(() => { const o = window.__wallOpacities()['wall-ext-N'] ?? 1; return o < 0.6 })()"
+      },
+      "timeout": 12000,
+      "failMessage": "the camera-facing near wall should fade in translucent mode (exact 0.05 peak is unit-tested)"
+    },
+    {
+      "name": "far-wall-more-opaque-than-near",
+      "waitFor": {
+        "store": "(() => { const o = window.__wallOpacities(); return (o['wall-ext-S'] ?? 1) > (o['wall-ext-N'] ?? 1) })()"
+      },
+      "timeout": 8000,
+      "failMessage": "far wall (interior toward camera) must stay MORE opaque than the near wall"
+    },
+    {
+      "name": "settle-translucent",
+      "wait": 900
+    },
+    {
+      "name": "shot-translucent-peak",
+      "screenshot": "translucent-peak-barely-outline"
+    },
+    {
+      "name": "switch-to-fully-hidden",
+      "eval": "(() => { window.__store.getState().setWallRevealMode('auto-hide') })()"
+    },
+    {
+      "name": "near-wall-fully-hidden",
+      "waitFor": {
+        "store": "(window.__wallOpacities()['wall-ext-N'] ?? 1) < 0.03"
+      },
+      "timeout": 25000
+    },
+    {
+      "name": "far-wall-also-hidden-always",
+      "waitFor": {
+        "store": "(window.__wallOpacities()['wall-ext-S'] ?? 1) < 0.03"
+      },
+      "timeout": 25000,
+      "failMessage": "Fully hidden must hide EVERY wall regardless of facing \u2014 the far wall too"
+    },
+    {
+      "name": "settle-hidden",
+      "wait": 900
+    },
+    {
+      "name": "shot-fully-hidden",
+      "screenshot": "fully-hidden-all-walls-gone"
+    },
+    {
+      "name": "switch-to-opaque",
+      "eval": "(() => { window.__store.getState().setWallRevealMode('opaque') })()"
+    },
+    {
+      "name": "opaque-all-solid",
+      "waitFor": {
+        "store": "(() => { const o = window.__wallOpacities(); return (o['wall-ext-N'] ?? 1) > 0.9 && (o['wall-ext-S'] ?? 1) > 0.9 })()"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle-opaque",
+      "wait": 700
+    },
+    {
+      "name": "shot-opaque",
+      "screenshot": "fully-opaque-all-walls-solid"
+    },
+    {
+      "name": "back-to-translucent",
+      "eval": "(() => { window.__store.getState().setWallRevealMode('translucent') })()"
+    },
+    {
+      "name": "room-editor-head-on",
+      "eval": "(() => { const s = window.__store.getState(); s.enterRoomEditor('livingDining') })()"
+    },
+    {
+      "name": "editor-active",
+      "waitFor": {
+        "store": "window.__store.getState().roomEditor.active === true"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle-editor",
+      "wait": 1500
+    },
+    {
+      "name": "shot-room-editor",
+      "screenshot": "room-editor-translucent-peak"
+    }
+  ]
+}
