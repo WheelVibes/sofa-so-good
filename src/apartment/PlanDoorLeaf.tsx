@@ -7,12 +7,7 @@ import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import { dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { FLAT } from './constants'
-import {
-  orientOutward,
-  revealTargetOpacity,
-  WALL_TRANSLUCENT_MIN,
-  wallRevealStrength,
-} from './walls/wallRevealMath'
+import { orientOutward, revealModeTargetOpacity, wallRevealStrength } from './walls/wallRevealMath'
 
 const SWING_RAD = Math.PI / 2
 const SWING_SECONDS = 0.2
@@ -142,7 +137,7 @@ export function PlanDoorLeaf({
         // smoothly fades its opacity like the wall rather than hard-hiding. Same
         // angle-graded curve as the wall (WALL-REVEAL-ANGLE-GRADED).
         const s = wallRevealStrength(FWD.x, FWD.z, nx, nz)
-        target = revealTargetOpacity(s, revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN)
+        target = revealModeTargetOpacity(revealMode, s)
       }
       opacityRef.current += (target - opacityRef.current) * 0.18
       const cur = opacityRef.current

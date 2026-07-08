@@ -127,8 +127,15 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   REVERSES the earlier WALL-REVEAL-BINARY-TARGET decision (binary settle + 0.35/0.65 hysteresis,
   now removed from `WallSegment` and `useWallReveal`): fade strength ramps with how much a wall's
   OUTWARD surface faces the camera — onset at `REVEAL_ONSET` (a slight angle past perpendicular),
-  peak (`WALL_TRANSLUCENT_MIN` / 0 in auto-hide) head-on — and a wall **settles anywhere along
-  that curve**. Rationale for the reversal: the binary target guarded against walls resting at a
+  peak (`WALL_TRANSLUCENT_MIN`, a strong **0.05** — head-on near walls are barely an outline) head-on —
+  and a wall **settles anywhere along that curve**. All four surfaces (`WallSegment`,
+  `useWallReveal`, `PlanShell`, `PlanDoorLeaf`) share `WALL_TRANSLUCENT_MIN` + the pure
+  `revealModeTargetOpacity(mode, strength)` so the peak is identical everywhere.
+  **The three modes (WALL-REVEAL-HIDE-ALWAYS):** "Fade translucent" = the graded curve above;
+  "Fully opaque" = every wall solid (1) always; **"Fully hidden" (`auto-hide`) = a *participating*
+  wall is 0 ALWAYS, independent of facing angle — the symmetric opposite of Fully opaque** (NOT
+  the old graded "0 only at head-on"). It respects `wallRevealScope`, so in the default `exterior`
+  scope the shell walls vanish while interior partitions (non-participating) stay solid. Rationale for the reversal: the binary target guarded against walls resting at a
   "washed" mid-band opacity, but the wall class that must never rest mid-band is the FAR/back
   walls (interior surface toward the camera) — and those are excluded *structurally* by the
   orientation check (`facingToward` ≤ 0 → strength exactly 0 → fully opaque), with or without a

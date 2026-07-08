@@ -31,6 +31,22 @@ let swReg: ServiceWorkerRegistration | undefined
 /** The plugin's updater — `updateSW(true)` skips waiting + reloads. */
 let updateSW: ((reloadPage?: boolean) => Promise<void>) | undefined
 let lastForegroundCheck = 0
+/** Guard so the auto-check wiring (register + on-open/periodic/foreground) is
+ *  installed EXACTLY once — a second `registerAppServiceWorker()` (a stray
+ *  remount/import, React StrictMode double-invoke of any caller) would
+ *  otherwise stack a second interval + duplicate visibility/focus listeners,
+ *  i.e. two concurrent auto-checks racing to notify. */
+let swWired = false
+/** In-flight guard for the manual PWA check — a repeated "Check for updates"
+ *  press while one is still running is ignored, so N taps yield ONE spinner and
+ *  ONE result instead of N stacked progress toasts. */
+let manualCheckInFlight = false
+/** Id of the live "Update available" prompt, so `showUpdatePrompt` only ever
+ *  raises one. Its message is filled in asynchronously (the deployed version
+ *  line), which mutates the toast's `message` and would otherwise dodge the
+ *  notifications slice's kind+title+message de-dupe — letting a later call
+ *  stack a second copy. See `showUpdatePrompt`. */
+let updatePromptId: string | undefined
 
 const HOUR_MS = 60 * 60 * 1000
 const FOREGROUND_THROTTLE_MS = 60 * 1000
@@ -39,6 +55,8 @@ const FOREGROUND_THROTTLE_MS = 60 * 1000
  *  update checks. A found update surfaces the confirm prompt, never an auto-reload. */
 export function registerAppServiceWorker(): void {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
+  if (swWired) return // exactly one auto-check — never wire a second interval/listeners
+  swWired = true
   updateSW = registerSW({
     immediate: true,
     // A new worker has installed and is waiting — let the user apply it.
@@ -76,7 +94,13 @@ export function registerAppServiceWorker(): void {
  * resurfaces the one prompt instead of stacking copies.
  */
 export function showUpdatePrompt(): void {
-  const { notify } = useStore.getState()
+  const store = useStore.getState()
+  const { notify } = store
+  // Only ever ONE live prompt. If the one we already raised is still on screen,
+  // resurface nothing — bail. (Its message is mutated asynchronously below, so
+  // relying on the slice's kind+title+message de-dupe alone would let a repeat
+  // call stack a second copy once that version line has landed.)
+  if (updatePromptId && store.notifications.some((n) => n.id === updatePromptId)) return
   const id = notify.start({
     title: 'New version available',
     kind: 'info',
@@ -85,6 +109,7 @@ export function showUpdatePrompt(): void {
     actionLabel: 'Update',
     onAction: () => void applyUpdate(),
   })
+  updatePromptId = id
   // The running bundle only knows its own (older) APP_VERSION; fetch the freshly
   // deployed version.json over the network to show the version the waiting worker
   // will install. Fire-and-forget — the toast is already useful without it.
@@ -254,35 +279,45 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
  */
 export async function runUpdateCheck(): Promise<void> {
   // Desktop shell: no SW to compare against — check GitHub releases instead.
+  // (It owns its own in-flight guard, so don't hold this one across the hand-off.)
   if (isDesktopShell()) return runDesktopUpdateCheck()
 
-  const { notify } = useStore.getState()
-  const id = notify.start({ title: 'Checking for updates…', kind: 'progress' })
-  notify.update(id, { progress: null }) // indeterminate spinner — no real % to report
+  // Ignore repeat presses while a check is still running — one spinner, one
+  // result. The stable-id `showUpdatePrompt` further guarantees at most one
+  // "Update available" toast even across sequential checks.
+  if (manualCheckInFlight) return
+  manualCheckInFlight = true
+  try {
+    const { notify } = useStore.getState()
+    const id = notify.start({ title: 'Checking for updates…', kind: 'progress' })
+    notify.update(id, { progress: null }) // indeterminate spinner — no real % to report
 
-  const reg = await resolveRegistration()
-  const res = reg ? await detectUpdate(reg) : 'unsupported'
+    const reg = await resolveRegistration()
+    const res = reg ? await detectUpdate(reg) : 'unsupported'
 
-  if (res !== 'downloading') {
-    notify.dismiss(id)
-    if (res === 'waiting') {
-      showUpdatePrompt() // downloaded earlier — ready to apply now
-    } else if (res === 'uptodate') {
-      notify.start({ title: `You’re on the latest version (v${APP_VERSION})`, kind: 'info' })
-    } else {
-      notify.start({ title: 'Updates aren’t available in this environment', kind: 'info' })
+    if (res !== 'downloading') {
+      notify.dismiss(id)
+      if (res === 'waiting') {
+        showUpdatePrompt() // downloaded earlier — ready to apply now
+      } else if (res === 'uptodate') {
+        notify.start({ title: `You’re on the latest version (v${APP_VERSION})`, kind: 'info' })
+      } else {
+        notify.start({ title: 'Updates aren’t available in this environment', kind: 'info' })
+      }
+      return
     }
-    return
-  }
 
-  // New worker found fast — keep the one progress toast, upgraded to the
-  // download phase, while Workbox precaches the new build.
-  notify.update(id, { title: 'New version — downloading…' })
-  const outcome = reg ? await waitForInstallOutcome(reg) : 'failed'
-  if (outcome === 'waiting') {
-    notify.dismiss(id)
-    showUpdatePrompt()
-  } else {
-    notify.error(id, 'The update failed to download — check your connection and try again.')
+    // New worker found fast — keep the one progress toast, upgraded to the
+    // download phase, while Workbox precaches the new build.
+    notify.update(id, { title: 'New version — downloading…' })
+    const outcome = reg ? await waitForInstallOutcome(reg) : 'failed'
+    if (outcome === 'waiting') {
+      notify.dismiss(id)
+      showUpdatePrompt()
+    } else {
+      notify.error(id, 'The update failed to download — check your connection and try again.')
+    }
+  } finally {
+    manualCheckInFlight = false
   }
 }

@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { decideDesktopUpdate, releaseTagToVersion } from './updateCheck'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useStore } from '../state/store'
+import { decideDesktopUpdate, releaseTagToVersion, runDesktopUpdateCheck } from './updateCheck'
 
 describe('releaseTagToVersion', () => {
   it('accepts v-prefixed and bare tags, 2–4 parts', () => {
@@ -39,5 +40,39 @@ describe('decideDesktopUpdate', () => {
   it('reports unparseable tags as errors', () => {
     expect(decideDesktopUpdate('latest', '0.9.1.0')).toEqual({ status: 'error' })
     expect(decideDesktopUpdate(undefined, '0.9.1.0')).toEqual({ status: 'error' })
+  })
+})
+
+describe('runDesktopUpdateCheck', () => {
+  beforeEach(() => {
+    useStore.setState({ notifications: [] })
+  })
+
+  it('in-flight guard: rapid presses collapse to one spinner and one result', async () => {
+    let resolveFetch: ((v: Response) => void) | undefined
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () =>
+        new Promise<Response>((res) => {
+          resolveFetch = res
+        }),
+    )
+    try {
+      // Three near-simultaneous presses while the GitHub fetch is outstanding.
+      const runs = Promise.all([
+        runDesktopUpdateCheck(),
+        runDesktopUpdateCheck(),
+        runDesktopUpdateCheck(),
+      ])
+      expect(useStore.getState().notifications.filter((n) => n.kind === 'progress')).toHaveLength(1)
+      // The guard means only the first press actually reached fetch.
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      resolveFetch?.({ ok: true, json: async () => ({ tag_name: 'v0.0.0.0' }) } as Response)
+      await runs
+      const list = useStore.getState().notifications
+      expect(list.filter((n) => /latest version/.test(n.title))).toHaveLength(1)
+      expect(list.filter((n) => n.kind === 'progress')).toHaveLength(0)
+    } finally {
+      fetchSpy.mockRestore()
+    }
   })
 })

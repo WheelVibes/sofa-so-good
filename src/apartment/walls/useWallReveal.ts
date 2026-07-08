@@ -7,10 +7,9 @@ import { getWallOwnStrength, setWallOpacity, setWallOwnStrength } from './wallRe
 import {
   cornerSpreadStrength,
   facingToward,
+  revealModeTargetOpacity,
   revealStrength,
-  revealTargetOpacity,
   SPREAD_ONSET,
-  WALL_TRANSLUCENT_MIN,
 } from './wallRevealMath'
 
 // Scratch vector for the camera forward direction (avoids per-frame allocation).
@@ -152,7 +151,7 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
       }
       // translucent: never fully disappear (strongly see-through floor);
       // auto-hide: can vanish at peak fade.
-      target = revealTargetOpacity(strength, revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN)
+      target = revealModeTargetOpacity(revealMode, strength)
     } else {
       setWallOwnStrength(wallId, 0)
     }

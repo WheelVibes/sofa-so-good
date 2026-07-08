@@ -9,6 +9,7 @@ import { useCatalog } from '../furniture/catalog'
 import type { ContextTarget } from '../state/slices/featuresSlice'
 import { useStore } from '../state/store'
 import { Icon, type IconName } from './toolbar/icons'
+import { useIsMobile } from './useIsMobile'
 
 /** Centre point of a plan room — polygon centroid when free-form, else the
  *  (main) rectangle centre. */
@@ -43,6 +44,9 @@ export function ContextMenu() {
   const menu = useStore((s) => s.contextMenu)
   const close = useStore((s) => s.closeContextMenu)
   const catalog = useCatalog()
+  // Touch devices have no keyboard, so the shortcut chips (R / F / ⌘D / Del)
+  // are noise there — the menu row itself is the affordance (MOBILE-CTX-KBD).
+  const isMobile = useIsMobile()
   const menuOn = useFeature('contextMenu')
   const replaceSimilarOn = useFeature('replaceSimilar')
   const groupsOn = useFeature('furnitureGroups')
@@ -100,7 +104,7 @@ export function ContextMenu() {
       >
         <Glyph className="icn" width={16} height={16} />
         {label}
-        {sk ? <kbd className="sk">{sk}</kbd> : null}
+        {sk && !isMobile ? <kbd className="sk">{sk}</kbd> : null}
       </button>
     )
   }

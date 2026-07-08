@@ -40,8 +40,7 @@ import {
   orientOutward,
   pointInRooms,
   type RoomRect,
-  revealTargetOpacity,
-  WALL_TRANSLUCENT_MIN,
+  revealModeTargetOpacity,
   wallRevealStrength,
 } from './walls/wallRevealMath'
 
@@ -160,7 +159,7 @@ function planWallRevealTarget(
   )
   // Graded target: settles anywhere between opaque and the mode's fade floor
   // per the wall's facing angle (WALL-REVEAL-ANGLE-GRADED).
-  return revealTargetOpacity(s, revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN)
+  return revealModeTargetOpacity(revealMode, s)
 }
 
 function FadeWall({
@@ -764,7 +763,7 @@ function FadeWindow({
         cz,
         !win.revealable,
       )
-      factor = revealTargetOpacity(s, revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN)
+      factor = revealModeTargetOpacity(revealMode, s)
     }
     const target = base * factor
     mat.opacity += (target - mat.opacity) * 0.18

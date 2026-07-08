@@ -7,6 +7,7 @@ import {
   pointInRooms,
   REVEAL_ONSET,
   type RoomRect,
+  revealModeTargetOpacity,
   revealStrength,
   revealTargetOpacity,
   SPREAD_GATE,
@@ -219,6 +220,29 @@ describe('revealTargetOpacity', () => {
   it('settles anywhere along the line for partial strengths', () => {
     const half = revealTargetOpacity(0.5, WALL_TRANSLUCENT_MIN)
     expect(half).toBeCloseTo(1 - 0.5 * (1 - WALL_TRANSLUCENT_MIN))
+  })
+})
+
+describe('WALL_TRANSLUCENT_MIN (WALL-REVEAL-PEAK)', () => {
+  it('is a strong-but-visible peak floor (barely an outline, above the 0.02 visible cutoff)', () => {
+    expect(WALL_TRANSLUCENT_MIN).toBe(0.05)
+    expect(WALL_TRANSLUCENT_MIN).toBeGreaterThan(0.02)
+  })
+})
+
+describe('revealModeTargetOpacity (WALL-REVEAL-HIDE-ALWAYS)', () => {
+  it('auto-hide ("Fully hidden") = 0 at EVERY strength — the opposite of Fully opaque', () => {
+    expect(revealModeTargetOpacity('auto-hide', 0)).toBe(0)
+    expect(revealModeTargetOpacity('auto-hide', 0.5)).toBe(0)
+    expect(revealModeTargetOpacity('auto-hide', 1)).toBe(0)
+  })
+
+  it('translucent = the graded angle curve down to the peak floor', () => {
+    expect(revealModeTargetOpacity('translucent', 0)).toBe(1)
+    expect(revealModeTargetOpacity('translucent', 1)).toBeCloseTo(WALL_TRANSLUCENT_MIN, 10)
+    expect(revealModeTargetOpacity('translucent', 0.5)).toBeCloseTo(
+      revealTargetOpacity(0.5, WALL_TRANSLUCENT_MIN),
+    )
   })
 })
 

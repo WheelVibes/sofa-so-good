@@ -5,6 +5,56 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.9 — Context menu hides keyboard-shortcut chips on mobile
+
+The right-click / long-press context menu rendered shortcut chips (R / F / ⌘D / Del) next to its
+rows — useless on touch devices with no keyboard. They're now suppressed under the mobile
+breakpoint (`useIsMobile`, MOBILE-CTX-KBD); the rows themselves are unchanged (the row is the
+affordance). Desktop keeps the chips. Unit-tested both breakpoints.
+
+## v0.18.3.8 — Single update notification: one auto-check + de-duped manual checks
+
+Fixed duplicate "Update available" toasts. Two causes: (1) `showUpdatePrompt` started the toast
+with no message then mutated in a versioned message async, so a second prompt (empty message) no
+longer matched the notifications slice's kind+title+message de-dupe and stacked a duplicate;
+(2) the manual "Check for updates" path had no in-flight guard, so N presses started N spinners
+(progress toasts never de-dupe). Now: a module-level `updatePromptId` keeps at most one live
+"Update available" card (a fresh one is raised only after the previous is dismissed); in-flight
+guards on `runUpdateCheck`/`runDesktopUpdateCheck` collapse repeated presses to one spinner + one
+result; and a `swWired` guard ensures exactly one auto-check registration (no duplicate hourly
+interval). `isNewerVersion` untouched. Unit-tested (single prompt through the async message
+mutation, in-flight guard collapses concurrent presses).
+
+## v0.18.3.7 — Stronger consistent head-on wall fade + "Fully hidden" hides walls always (WALL-REVEAL-PEAK / HIDE-ALWAYS)
+
+Two wall-reveal refinements across all four fade surfaces (orbit `WallSegment`, room-editor
+`useWallReveal`, custom-plan `PlanShell` + `PlanDoorLeaf`):
+- **Stronger, consistent peak**: the head-on translucent floor `WALL_TRANSLUCENT_MIN` drops 0.1 → 0.05,
+  so a near wall facing the camera head-on is barely an outline. Shared by every surface via one
+  constant + the new pure `revealModeTargetOpacity(mode, strength)`, so the strongest fade is
+  identical in the apartment, the room editor, and custom plans.
+- **"Fully hidden" now hides walls ALWAYS**: `auto-hide` mode drives a participating wall to 0
+  regardless of facing angle — the exact symmetric opposite of "Fully opaque" (all walls solid),
+  instead of the previous graded "hidden only at head-on". Respects `wallRevealScope`, so the
+  default exterior scope removes the shell walls while interior partitions stay solid.
+Verified across apartment + room editor (`wall-fade-strength.json`): head-on near wall barely an
+outline with the far wall opaque, Fully hidden clears every exterior wall, Fully opaque restores
+all solid. Pure math unit-tested (peak = 0.05, auto-hide = 0 at every strength).
+
+## v0.18.3.6 — Fix macOS Desktop Release: empty CSC_LINK misread as a cert path (DESKTOP-MAC-UNSIGNED)
+
+With the casing fix (v0.18.3.3) the desktop build reached electron-builder packaging for the first
+time; Windows passed but macOS died with `⨯ <repo> not a file`. Cause: a GitHub secret that isn't
+set is exported as an EMPTY STRING, not unset, and the signing secrets sat in the job-level `env`,
+so every build exported `CSC_LINK=""`. electron-builder reads a present-but-empty `CSC_LINK` as a
+certificate FILE PATH, resolves it against the repo root, and fails — on macOS only, since Windows
+treats signing as optional and skips. Fix: the signing secrets (`CSC_LINK`/`APPLE_*`/`WIN_*`) move
+out of job-level env into the **tag-only** publish step, so a secretless push-to-main build never
+exports them; and the artifact-only path explicitly disables mac signing
+(`-c.mac.identity=null -c.mac.hardenedRuntime=false` — electron-builder's documented unsigned-build
+pairing, the hardened-runtime-off keeping the unsigned .app launchable). Tag builds are unchanged
+(signed + notarized + published). Workflow-only change.
+
 ## v0.18.3.5 — Colour picker: commit-on-close recents (cap 10) + throttled live preview
 
 Dragging the finish picker's colour palette flooded the app — every pointermove pushed a recent

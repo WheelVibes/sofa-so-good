@@ -15,13 +15,38 @@
  */
 
 /**
- * Minimum opacity a faded wall keeps in the default **translucent** reveal mode
- * (both orbit `WallSegment` and the per-room editor). It never fully disappears
- * (that's the separate `auto-hide` mode) — but it's kept low so a revealed wall
- * is strongly see-through, letting you look right into the room. (`auto-hide`
- * ignores this and can fade to 0.)
+ * Peak opacity a head-on wall keeps in the default **translucent** ("Fade
+ * translucent") reveal mode — shared by all four surfaces (orbit `WallSegment`,
+ * the per-room editor `useWallReveal`, and the custom-plan `PlanShell` walls +
+ * `PlanDoorLeaf`), so the strongest fade is identical everywhere. Kept very low
+ * so a head-on near wall is barely more than an OUTLINE (you look straight into
+ * the room) while still not vanishing — vanishing is the separate "Fully hidden"
+ * (`auto-hide`) mode. Lowered from 0.1 → 0.05 (WALL-REVEAL-PEAK) for a
+ * noticeably stronger peak; stays above the `> 0.02` visible cutoff so the faint
+ * outline still renders.
  */
-export const WALL_TRANSLUCENT_MIN = 0.1
+export const WALL_TRANSLUCENT_MIN = 0.05
+
+/** Reveal mode the fade target is computed for. `opaque` never reaches this
+ *  helper (the caller keeps those walls solid). */
+export type WallRevealMode = 'translucent' | 'auto-hide' | 'opaque'
+
+/**
+ * Target opacity for a participating wall under the active reveal MODE:
+ *  - **`auto-hide` ("Fully hidden")** → `0` ALWAYS, independent of facing angle,
+ *    so it is the exact symmetric opposite of "Fully opaque" (which keeps every
+ *    wall at 1 always). This is NOT graded — every participating wall disappears
+ *    outright (WALL-REVEAL-HIDE-ALWAYS), unlike the earlier behaviour that only
+ *    hid a wall at head-on and left grazing/far walls solid.
+ *  - **`translucent` ("Fade translucent")** → the angle-graded
+ *    `revealTargetOpacity(strength, WALL_TRANSLUCENT_MIN)` (1 when solid → the
+ *    low peak floor head-on).
+ * `opaque` is handled by the caller (target stays 1) and must not reach here.
+ */
+export function revealModeTargetOpacity(mode: WallRevealMode, strength: number): number {
+  if (mode === 'auto-hide') return 0
+  return revealTargetOpacity(strength, WALL_TRANSLUCENT_MIN)
+}
 
 /**
  * ANGLE-GRADED reveal (WALL-REVEAL-ANGLE-GRADED — this deliberately REVERSES the

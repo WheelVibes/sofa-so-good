@@ -44,10 +44,9 @@ import {
   orientOutward,
   pointInRooms,
   type RoomRect,
+  revealModeTargetOpacity,
   revealStrength,
-  revealTargetOpacity,
   SPREAD_ONSET,
-  WALL_TRANSLUCENT_MIN,
 } from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
 
@@ -405,9 +404,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         }
         strength = Math.max(strength, cornerSpreadStrength(toward, maxNb))
       }
-      // translucent: walls never fully disappear (strongly see-through floor).
-      // auto-hide: walls can fully disappear at peak fade.
-      target = revealTargetOpacity(strength, revealMode === 'auto-hide' ? 0 : WALL_TRANSLUCENT_MIN)
+      // translucent: graded fade to the low peak floor. auto-hide ("Fully
+      // hidden"): 0 always — the symmetric opposite of "Fully opaque".
+      target = revealModeTargetOpacity(revealMode, strength)
     } else {
       setWallOwnStrength(wall.id, 0)
     }
