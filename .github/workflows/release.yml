@@ -95,7 +95,20 @@ jobs:
       # unsigned-build pairing). The mac.* overrides are ignored on win/linux.
       - name: Package unsigned (artifact-only)
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: npx electron-builder --publish never -c.mac.identity=null -c.mac.hardenedRuntime=false
+        # `shell: bash` on ALL runners (Git Bash on Windows) — the default pwsh on
+        # Windows mis-tokenises electron-builder's `-c.<dotted>=<val>` overrides
+        # and reads `.mac.hardenedRuntime=false` as a config FILE path (ENOENT).
+        # And the `mac.*` overrides only make sense on the mac runner, so scope
+        # them there: identity=null skips signing, hardenedRuntime=false keeps the
+        # unsigned .app launchable. Windows/Linux take the plain command (no dotted
+        # args → nothing to mis-parse); their unsigned builds already work.
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            npx electron-builder --publish never -c.mac.identity=null -c.mac.hardenedRuntime=false
+          else
+            npx electron-builder --publish never
+          fi
 
       - uses: actions/upload-artifact@v4
         with:

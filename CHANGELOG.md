@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.10 — Fix Windows Desktop Release: scope mac-only overrides to the mac runner
+
+The v0.18.3.6 macOS fix worked (mac now builds + uploads its unsigned artifact), but its
+`-c.mac.identity=null -c.mac.hardenedRuntime=false` overrides broke **Windows**: the Windows
+runner's default PowerShell mis-tokenises electron-builder's dotted `-c.<key>=<val>` args and
+reads `.mac.hardenedRuntime=false` as a config *file* path (`ENOENT`), where macOS's bash parsed
+them fine. Fixed by running the artifact-only step under `shell: bash` on every runner (Git Bash
+on Windows) and passing the `mac.*` overrides only on the mac runner (`$RUNNER_OS == macOS`);
+Windows/Linux take the plain `electron-builder --publish never` (no dotted args to mis-parse).
+Workflow-only change.
+
 ## v0.18.3.9 — Context menu hides keyboard-shortcut chips on mobile
 
 The right-click / long-press context menu rendered shortcut chips (R / F / ⌘D / Del) next to its
