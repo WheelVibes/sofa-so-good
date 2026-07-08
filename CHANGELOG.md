@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.3.9 — Context menu hides keyboard-shortcut chips on mobile
+
+The right-click / long-press context menu rendered shortcut chips (R / F / ⌘D / Del) next to its
+rows — useless on touch devices with no keyboard. They're now suppressed under the mobile
+breakpoint (`useIsMobile`, MOBILE-CTX-KBD); the rows themselves are unchanged (the row is the
+affordance). Desktop keeps the chips. Unit-tested both breakpoints.
+
 ## v0.18.3.8 — Single update notification: one auto-check + de-duped manual checks
 
 Fixed duplicate "Update available" toasts. Two causes: (1) `showUpdatePrompt` started the toast
