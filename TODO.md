@@ -19,7 +19,9 @@ absolute numbers. Shipped: **PERF-MAX-1** (freeze the sun shadow map when static
 v0.18.4.0; ~20% fewer draw calls/triangles per orbit frame + ~24% more frames at High);
 **PERF-MAX-2** (throttle the status-bar tint canvas readback to ~10 Hz — CHANGELOG v0.18.4.1;
 removes a per-frame `drawImage`+`getImageData` GPU→CPU sync stall during orbit, zero 3D-render
-change, tint verified still tracking day→night).
+change, tint verified still tracking day→night); **PERF-MAX-3** (memoise the shared sun-position
+computation — CHANGELOG v0.18.4.2; 8 lighting components recomputed `SunCalc.getPosition` + a `Date`
+alloc every render for identical global inputs; size-1 cache + stable ref, byte-identical output).
 Structural note from the analysis: SSAO/bloom/DoF are **camera-dependent** (recomputed every orbit
 frame and only run when something moves — no idle waste to reclaim), so shadows were the uniquely
 freezable per-frame *GPU-pass* cost. Remaining maximum-tier costs (full-res N8AO, DPR 2, 12 fixture

@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.4.2 — Memoise the shared sun-position computation (PERF-MAX-3)
+
+Eliminates redundant work with **byte-identical output**. Eight lighting components — `Lighting`,
+`EffectsImpl`, `SceneEnvironment`, `FurnitureLights`, `Sky`, `SceneBackdrop`, `LuxOverlay` (+ the
+room-editor mirrors) — each call `useSunPosition()`, which ran `SunCalc.getPosition` and allocated a
+fresh `Date` + result object on **every render**, for inputs (effective hour + location) that are
+global and identical across all callers. A size-1 module cache keyed on the resolved instant +
+lat/lon now collapses those to one computation per (minute, location). As a bonus it returns a
+**stable object reference** while inputs are unchanged, so downstream `useMemo`/effect deps that key
+on the sun object (e.g. `Lighting`'s `targetVals`) stop invalidating each render. Verified: the
+returned `SunPosition` is never mutated by any caller (safe to share); day (`#f5f7f7`) → night
+(`#3b3733`) tint sampled from the live canvas is unchanged from baseline; new memo unit test + full
+suite + `tsc` green.
+
 ## v0.18.4.1 — Throttle the status-bar tint canvas readback (PERF-MAX-2)
 
 Removes a per-frame GPU→CPU stall with **zero visual change to the 3D render**. `Lighting.tsx`
