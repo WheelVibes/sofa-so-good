@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.5.0 — Maximum-tier performance pass (PR to main)
+
+Rollup patch bump for the PR to `main` carrying the graphics-tier performance batch below — four
+quality-preserving optimizations (PERF-MAX-2..5) on top of PERF-MAX-1, each verified byte-identical
+(day→night live-canvas tint unchanged) with full suite + `tsc` + biome green:
+
+- **PERF-MAX-2** (v0.18.4.1) — throttle the status-bar tint canvas readback to ~10 Hz (removes a
+  per-frame `drawImage`+`getImageData` GPU→CPU sync stall during orbit).
+- **PERF-MAX-3** (v0.18.4.2) — memoise the shared sun-position computation across the 8 lighting
+  components that recomputed it every render.
+- **PERF-MAX-4** (v0.18.4.3) — eliminate two per-frame `useFrame` allocations (`Lighting` tint
+  literal, `OrbitCamera` view object).
+- **PERF-MAX-5** (v0.18.4.4) — re-render the sun shadow map only on geometry/sun store changes
+  (fail-open gate), not on selection/hover/finish/UI/dev-asset churn.
+
 ## v0.18.4.4 — Only re-render the sun shadow map when geometry/sun actually change (PERF-MAX-5)
 
 Extends the PERF-MAX-1 freeze to discrete edits. `RenderPump.markDirty` re-armed the (otherwise
