@@ -95,14 +95,27 @@ describe('updateStatusBarTint', () => {
 
   it('falls back to the analytic sky colour when no canvas is readable', () => {
     // No source ⇒ sampling is skipped and the linear sky tint is used.
-    updateStatusBarTint(undefined, [1, 1, 1])
+    updateStatusBarTint(undefined, [1, 1, 1], 0)
     expect(content()).toBe('#ffffff')
   })
 
-  it('tracks a changing fallback colour across calls', () => {
-    updateStatusBarTint(undefined, [1, 1, 1])
+  it('tracks a changing fallback colour across calls (past the sample throttle)', () => {
+    updateStatusBarTint(undefined, [1, 1, 1], 0)
     expect(content()).toBe('#ffffff')
-    updateStatusBarTint(undefined, [0, 0, 0])
+    // Advance well past the throttle window so the second call samples.
+    updateStatusBarTint(undefined, [0, 0, 0], 1000)
+    expect(content()).toBe('#000000')
+  })
+
+  it('throttles the readback: a call inside the sample window is a no-op (PERF-MAX-2)', () => {
+    updateStatusBarTint(undefined, [1, 1, 1], 0)
+    expect(content()).toBe('#ffffff')
+    // A change requested inside the 100ms window must NOT be applied yet — the
+    // expensive canvas readback is skipped to avoid a per-frame GPU stall.
+    updateStatusBarTint(undefined, [0, 0, 0], 50)
+    expect(content()).toBe('#ffffff')
+    // Once the window elapses, the next call samples again.
+    updateStatusBarTint(undefined, [0, 0, 0], 150)
     expect(content()).toBe('#000000')
   })
 })

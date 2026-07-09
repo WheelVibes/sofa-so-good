@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.4.1 — Throttle the status-bar tint canvas readback (PERF-MAX-2)
+
+Removes a per-frame GPU→CPU stall with **zero visual change to the 3D render**. `Lighting.tsx`
+tints the browser/OS chrome (`<meta name="theme-color">`) from the live top-of-canvas pixel so the
+iOS standalone status bar / mobile address bar blend into the sky. That sample
+(`sampleCanvasTopHex` → `drawImage(webglCanvas,…)` + `getImageData`) is a pipeline sync/readback,
+and it ran on **every** render frame — up to the tier's DPR-scaled 60 Hz during a camera orbit —
+for a chrome-tint update the eye can't perceive faster than ~10 Hz. `statusBarTint.ts` now throttles
+the readback to a 100 ms interval (`SAMPLE_INTERVAL_MS`); a call inside the window is a no-op, so the
+readback fires ~10 Hz instead of per-frame. The resting colour is identical (at most one interval
+"stale" on the exponential day/night tween tail — imperceptible) and no 3D-render pass changes. The
+throttle takes an injectable `now` for deterministic tests. Verified: the tint still tracks day
+(`#f5f7f7`) → night (`#3b3733`) through the throttled path at a live tier; unit tests + `tsc` green.
+
 ## v0.18.4.0 — Freeze the sun shadow map when static (PERF-MAX-1)
 
 Big per-frame GPU win at High/Maximum with **zero visual change**. The directional sun shadow

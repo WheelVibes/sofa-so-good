@@ -72,9 +72,22 @@ export function sampleCanvasTopHex(source: HTMLCanvasElement): string | null {
 // string compare until the sky colour actually shifts.
 let lastApplied = ''
 
-/** Reset the applied-colour cache. Test-only seam. */
+/**
+ * Minimum interval between the (GPU-readback) canvas samples, ms. `sampleCanvasTopHex`
+ * does a `drawImage(webglCanvas,…)` + `getImageData` — a GPU→CPU pipeline sync/readback.
+ * Running it on EVERY render frame (up to the tier's DPR-scaled 60 Hz) during a camera
+ * orbit stalls the frame for a chrome-tint update the eye can't perceive faster than
+ * ~10 Hz. Throttling the readback to this interval is a pure perf win — the resting
+ * colour is identical (at most one interval "stale" on the exponential day/night tween
+ * tail, imperceptible) and the 3D render is untouched. PERF-MAX-2.
+ */
+const SAMPLE_INTERVAL_MS = 100
+let lastSampleAt = Number.NEGATIVE_INFINITY
+
+/** Reset the applied-colour cache + the sample throttle. Test-only seam. */
 export function resetStatusBarTint(): void {
   lastApplied = ''
+  lastSampleAt = Number.NEGATIVE_INFINITY
 }
 
 /**
@@ -107,11 +120,19 @@ export function applySkyStatusBarTint(rgb: readonly [number, number, number]): v
  * frame isn't readable yet. `fallbackLinearRgb` is the eased hemisphere sky tint
  * (linear light). `applyStatusBarTint` dedups, so re-calling with an unchanged
  * colour is a cheap string compare — no per-frame DOM churn.
+ *
+ * The expensive canvas readback is throttled to `SAMPLE_INTERVAL_MS` (PERF-MAX-2):
+ * a call inside the throttle window is a no-op, so during a continuous orbit span
+ * the pipeline stalls on the readback ~10 Hz instead of every frame. `now` is
+ * injectable for deterministic tests.
  */
 export function updateStatusBarTint(
   source: HTMLCanvasElement | undefined,
   fallbackLinearRgb: readonly [number, number, number],
+  now: number = performance.now(),
 ): void {
+  if (now - lastSampleAt < SAMPLE_INTERVAL_MS) return
+  lastSampleAt = now
   const sampled = source ? sampleCanvasTopHex(source) : null
   applyStatusBarTint(sampled ?? skyColorToHex(fallbackLinearRgb))
 }
