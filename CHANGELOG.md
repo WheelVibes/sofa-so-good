@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.4.4 — Only re-render the sun shadow map when geometry/sun actually change (PERF-MAX-5)
+
+Extends the PERF-MAX-1 freeze to discrete edits. `RenderPump.markDirty` re-armed the (otherwise
+frozen) sun shadow map on **every** store change, so a click-to-select, a hover, opening a panel,
+swapping a finish/colour, or dev asset-index churn each triggered a full depth re-render (up to
+4096² at Maximum) for the settle tail — though the depth-only shadow map depends solely on
+shadow-casting geometry transforms + sun direction, never on materials/selection/UI. A new pure
+`scene/shadowRelevance.ts` (`changeAffectsShadow`) now gates the pulse: it fires only when a changed
+top-level store key can affect the map.
+
+**Fail-open by design** — it pulses UNLESS *every* changed key is in an explicit, conservative
+`SHADOW_IRRELEVANT_KEYS` set (selection/hover, UI panel flags, material/finish/colour metadata,
+dev-asset/auth/persistence bookkeeping). Any key not listed — including `items`, `floorPlan`,
+`orientationDeg`, `doors`, `hiddenItemIds`, `isolateActive`, `viewLevelId`, `showCeilingFixtures`,
+and anything new — forces a pulse, so a forgotten/added key can only cost an extra (correct) refresh,
+**never a stale shadow**. Non-store callers (procedural swap, focus/visibility, mount) pulse
+unconditionally.
+
+Verified with a live pulse-counter probe (synchronous bracket around each store action): selection,
+deselect, hover, and panel-open produce **0** shadow pulses (optimisation active), while orientation
+and furniture-move produce a pulse each (geometry/sun correctness preserved). Unit-tested
+(`changeAffectsShadow` + fail-open on unknown keys); full suite (5647) + `tsc` + biome green; day
+(`#f5f7f7`) → night (`#3b3733`) tint unchanged. Note the visible effect is small on Maximum's target
+strong GPU (a 4096² depth pass is cheap), but it removes needless re-renders on the most frequent
+non-geometry interactions and eliminates the dev-only asset-churn shadow thrash.
+
 ## v0.18.4.3 — Kill two per-frame allocations in the orbit render loop (PERF-MAX-4)
 
 Two GC-pressure allocations inside `useFrame` callbacks that fire every continuous (orbit /

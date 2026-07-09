@@ -23,22 +23,10 @@ the representative regression check. Structural note: SSAO/bloom/DoF are **camer
 run when something moves — no idle waste to reclaim); shadows were the uniquely freezable per-frame
 GPU-pass cost (shipped). Remaining Maximum costs (full-res N8AO, DPR 2, 12 fixture lights,
 geometryDetail 1.8, envResolution 256) are deliberate quality knobs — reducing any sacrifices quality
-(out of scope). The productive remaining vein is CPU-side per-frame waste (readbacks, redundant
-recomputes/allocations) that reclaims time without touching a render pass.
-
-- [ ] **PERF-MAX-5 — narrow the shadow-refresh pulse to shadow-relevant store changes.**
-  `RenderPump.markDirty` pulses `pulseShadowRefresh` on **every** store change, so a shadow-irrelevant
-  edit (finish/colour swap, selection, hover, panel toggle, dev asset-index churn) triggers a full
-  sun-shadow re-render (up to 4096² at Maximum) for the settle tail — though the depth-only shadow map
-  depends solely on shadow-casting geometry transforms + sun direction (materials/finishes/UI don't
-  affect it). During orbit it's masked (already rendering); the cost is on **non-orbit** UI tweaks at
-  high tiers. (A ~2× draw-call inflation seen at Medium in the dev harness traced to **dev-only**
-  churn — `localAssetsStatus`/`localFurniture`/`remoteIndexes` — so PERF-MAX-1's freeze holds in
-  prod.) Fix idea: drive the pulse from a dedicated store subscription firing only on a shadow-relevant
-  key (`items`, `floorPlan`, `orientationDeg`; sun inputs already covered by `!settled`, tier remount
-  by `freshInstance`). **Risk:** missing a geometry-affecting key → stale shadow (visual regression),
-  so it needs a store-key audit + per-mutation harness verification (furniture move/add/remove/rotate/
-  scale, wall edit, door toggle, plan swap) before shipping. Correctness must not regress.
+(out of scope). The CPU-side per-frame waste (readbacks, redundant recomputes/allocations) + the
+discrete-edit shadow re-render have all been reclaimed (PERF-MAX-1..5). **No open items** — the
+zero-regression-risk frontier for this goal is reached; the parked findings below record what was
+evaluated and deliberately not done, so we don't re-investigate.
 
 ### Investigated + parked (findings recorded so we don't re-investigate)
 - **`preserveDrawingBuffer: true` always-on — BLOCKED by the Record feature.** The PNG export path
