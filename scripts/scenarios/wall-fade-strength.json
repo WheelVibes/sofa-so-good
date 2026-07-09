@@ -1,6 +1,6 @@
 {
   "name": "wall-fade-strength",
-  "url": "http://localhost:5225/",
+  "url": "http://localhost:5173/",
   "steps": [
     {
       "name": "store-ready",
@@ -22,12 +22,12 @@
       "eval": "(() => { const s = window.__store.getState(); window.__store.setState({ pendingViewPose: { pos: [4.6, 4.5, -8], target: [4.6, 1.2, 4.7] }, applyViewNonce: s.applyViewNonce + 1, cameraMode: 'orbit' }) })()"
     },
     {
-      "name": "near-wall-fades-translucent",
+      "name": "near-wall-fades-at-default-strength",
       "waitFor": {
         "store": "(() => { const o = window.__wallOpacities()['wall-ext-N'] ?? 1; return o < 0.6 })()"
       },
       "timeout": 12000,
-      "failMessage": "the camera-facing near wall should fade in translucent mode (exact 0.05 peak is unit-tested)"
+      "failMessage": "the camera-facing near wall should fade at the default 0.95 strength (exact 0.05 peak is unit-tested)"
     },
     {
       "name": "far-wall-more-opaque-than-near",
@@ -38,62 +38,84 @@
       "failMessage": "far wall (interior toward camera) must stay MORE opaque than the near wall"
     },
     {
-      "name": "settle-translucent",
+      "name": "settle-default",
       "wait": 900
     },
     {
-      "name": "shot-translucent-peak",
-      "screenshot": "translucent-peak-barely-outline"
+      "name": "shot-default-strength",
+      "screenshot": "fade-0p95-barely-outline"
     },
     {
-      "name": "switch-to-fully-hidden",
-      "eval": "(() => { window.__store.getState().setWallRevealMode('auto-hide') })()"
+      "name": "set-strength-half",
+      "eval": "(() => { window.__store.getState().setWallRevealStrength(0.5) })()"
     },
     {
-      "name": "near-wall-fully-hidden",
+      "name": "near-wall-partial-at-half",
+      "waitFor": {
+        "store": "(() => { const o = window.__wallOpacities()['wall-ext-N'] ?? 1; return o > 0.35 && o < 0.75 })()"
+      },
+      "timeout": 12000,
+      "failMessage": "at strength 0.5 the head-on near wall should settle around a 0.5 opacity floor (partial fade), not barely-an-outline nor solid"
+    },
+    {
+      "name": "settle-half",
+      "wait": 900
+    },
+    {
+      "name": "shot-half-strength",
+      "screenshot": "fade-0p50-partial"
+    },
+    {
+      "name": "set-strength-max",
+      "eval": "(() => { window.__store.getState().setWallRevealStrength(1) })()"
+    },
+    {
+      "name": "near-wall-fully-hidden-at-max",
       "waitFor": {
         "store": "(window.__wallOpacities()['wall-ext-N'] ?? 1) < 0.03"
       },
-      "timeout": 25000
-    },
-    {
-      "name": "far-wall-also-hidden-always",
-      "waitFor": {
-        "store": "(window.__wallOpacities()['wall-ext-S'] ?? 1) < 0.03"
-      },
       "timeout": 25000,
-      "failMessage": "Fully hidden must hide EVERY wall regardless of facing \u2014 the far wall too"
+      "failMessage": "at strength 1.0 the head-on near wall should fade fully hidden"
     },
     {
-      "name": "settle-hidden",
+      "name": "far-wall-stays-opaque-at-max",
+      "waitFor": {
+        "store": "(window.__wallOpacities()['wall-ext-S'] ?? 1) > 0.9"
+      },
+      "timeout": 8000,
+      "failMessage": "unlike the retired auto-hide mode, the angle-graded fade keeps the FAR wall (facing away) opaque even at strength 1.0"
+    },
+    {
+      "name": "settle-max",
       "wait": 900
     },
     {
-      "name": "shot-fully-hidden",
-      "screenshot": "fully-hidden-all-walls-gone"
+      "name": "shot-max-strength",
+      "screenshot": "fade-1p00-near-hidden-far-solid"
     },
     {
-      "name": "switch-to-opaque",
-      "eval": "(() => { window.__store.getState().setWallRevealMode('opaque') })()"
+      "name": "set-strength-zero",
+      "eval": "(() => { window.__store.getState().setWallRevealStrength(0) })()"
     },
     {
       "name": "opaque-all-solid",
       "waitFor": {
         "store": "(() => { const o = window.__wallOpacities(); return (o['wall-ext-N'] ?? 1) > 0.9 && (o['wall-ext-S'] ?? 1) > 0.9 })()"
       },
-      "timeout": 30000
+      "timeout": 30000,
+      "failMessage": "strength 0 must keep every wall fully opaque (never fades)"
     },
     {
-      "name": "settle-opaque",
+      "name": "settle-zero",
       "wait": 700
     },
     {
-      "name": "shot-opaque",
-      "screenshot": "fully-opaque-all-walls-solid"
+      "name": "shot-zero",
+      "screenshot": "fade-0p00-all-walls-solid"
     },
     {
-      "name": "back-to-translucent",
-      "eval": "(() => { window.__store.getState().setWallRevealMode('translucent') })()"
+      "name": "back-to-default",
+      "eval": "(() => { window.__store.getState().setWallRevealStrength(0.95) })()"
     },
     {
       "name": "room-editor-head-on",
@@ -112,7 +134,7 @@
     },
     {
       "name": "shot-room-editor",
-      "screenshot": "room-editor-translucent-peak"
+      "screenshot": "room-editor-fade-0p95"
     }
   ]
 }

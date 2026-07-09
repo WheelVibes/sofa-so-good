@@ -15,37 +15,56 @@
  */
 
 /**
- * Peak opacity a head-on wall keeps in the default **translucent** ("Fade
- * translucent") reveal mode — shared by all four surfaces (orbit `WallSegment`,
- * the per-room editor `useWallReveal`, and the custom-plan `PlanShell` walls +
- * `PlanDoorLeaf`), so the strongest fade is identical everywhere. Kept very low
- * so a head-on near wall is barely more than an OUTLINE (you look straight into
- * the room) while still not vanishing — vanishing is the separate "Fully hidden"
- * (`auto-hide`) mode. Lowered from 0.1 → 0.05 (WALL-REVEAL-PEAK) for a
- * noticeably stronger peak; stays above the `> 0.02` visible cutoff so the faint
- * outline still renders.
+ * Peak opacity a head-on wall keeps at the **default** "Wall fade" strength
+ * (WALL-REVEAL-STRENGTH). Shared by all four surfaces (orbit `WallSegment`, the
+ * per-room editor `useWallReveal`, and the custom-plan `PlanShell` walls +
+ * `PlanDoorLeaf`). Kept very low so a head-on near wall is barely more than an
+ * OUTLINE (you look straight into the room) while still not vanishing — vanishing
+ * is only reached at the slider's `1.0` end. Lowered from 0.1 → 0.05
+ * (WALL-REVEAL-PEAK) for a noticeably stronger peak; stays above the `> 0.02`
+ * visible cutoff so the faint outline still renders. The default slider value is
+ * `1 − WALL_TRANSLUCENT_MIN` (see `DEFAULT_WALL_REVEAL_STRENGTH`), so the app
+ * opens with exactly this floor.
  */
 export const WALL_TRANSLUCENT_MIN = 0.05
 
-/** Reveal mode the fade target is computed for. `opaque` never reaches this
- *  helper (the caller keeps those walls solid). */
-export type WallRevealMode = 'translucent' | 'auto-hide' | 'opaque'
+/**
+ * Default "Wall fade" strength (WALL-REVEAL-STRENGTH). `0.95` = a head-on opacity
+ * floor of `1 − 0.95 = 0.05` (WALL_TRANSLUCENT_MIN) — the same barely-an-outline
+ * head-on fade the retired default "translucent" mode gave. The single slider
+ * (0..1, step 0.05) replaces the old three-way translucent / auto-hide / opaque
+ * modes: `0` = never fade (fully opaque), `1` = fade fully hidden, in between =
+ * the max fade strength.
+ */
+export const DEFAULT_WALL_REVEAL_STRENGTH = 1 - WALL_TRANSLUCENT_MIN
 
 /**
- * Target opacity for a participating wall under the active reveal MODE:
- *  - **`auto-hide` ("Fully hidden")** → `0` ALWAYS, independent of facing angle,
- *    so it is the exact symmetric opposite of "Fully opaque" (which keeps every
- *    wall at 1 always). This is NOT graded — every participating wall disappears
- *    outright (WALL-REVEAL-HIDE-ALWAYS), unlike the earlier behaviour that only
- *    hid a wall at head-on and left grazing/far walls solid.
- *  - **`translucent` ("Fade translucent")** → the angle-graded
- *    `revealTargetOpacity(strength, WALL_TRANSLUCENT_MIN)` (1 when solid → the
- *    low peak floor head-on).
- * `opaque` is handled by the caller (target stays 1) and must not reach here.
+ * Target opacity for a participating wall from the user's single **fade
+ * strength** setting `fade` (WALL-REVEAL-STRENGTH — replaces the retired
+ * translucent/auto-hide/opaque modes) and the angle-graded `strength`:
+ *  - `fade = 0` → target `1` at every strength = **fully opaque, never fades**
+ *    (the caller also skips fading entirely at 0, keeping walls solid).
+ *  - `fade = 1` → a head-on wall (`strength = 1`) reaches `0` = **fully hidden**.
+ *  - in between → `fade` is the MAX fade strength: the head-on opacity floor is
+ *    `1 − fade` (the default `0.95` → `0.05`, WALL_TRANSLUCENT_MIN).
+ * The angle grading is preserved across the whole range (a near wall still
+ * settles along its facing curve); `fade` only scales how DEEP the peak fade
+ * goes. Equivalent to `revealTargetOpacity(strength, 1 − fade)` = `1 − strength ·
+ * fade`.
  */
-export function revealModeTargetOpacity(mode: WallRevealMode, strength: number): number {
-  if (mode === 'auto-hide') return 0
-  return revealTargetOpacity(strength, WALL_TRANSLUCENT_MIN)
+export function revealTargetOpacityForFade(fade: number, strength: number): number {
+  return revealTargetOpacity(strength, 1 - fade)
+}
+
+/** Increment the "Wall fade" slider steps by (WALL-REVEAL-STRENGTH). */
+export const WALL_REVEAL_STRENGTH_STEP = 0.05
+
+/** Format a wall-fade strength for a slider readout: `0` → "Off" (never fades),
+ *  `1` → "Hidden" (fades fully away), else a rounded percentage (0.95 → "95%"). */
+export function formatWallFade(v: number): string {
+  if (v <= 0) return 'Off'
+  if (v >= 1) return 'Hidden'
+  return `${Math.round(v * 100)}%`
 }
 
 /**

@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.0 — Wall reveal is a single fade-strength slider (WALL-REVEAL-STRENGTH) (PR to main)
+
+Replaces the three-way "Wall reveal" mode (Fade translucent / Fully hidden / Fully opaque) with one
+**"Wall fade"** slider (0..1, step 0.05, default **0.95**) in the Scene menu (desktop + mobile),
+governing both the orbit dollhouse and the room editor. The value is the head-on opacity FLOOR
+expressed as fade depth: `0` = never fades (fully opaque), `1` = fades fully hidden head-on, and in
+between the head-on floor is `1 − strength` — so the default 0.95 reproduces the old default
+"translucent" look exactly (`WALL_TRANSLUCENT_MIN` = 0.05). The `wallRevealScope` setting
+(Exterior only / Exterior + interior) is unchanged and applies together with the fade (irrelevant
+only at strength 0, where nothing fades).
+
+- Pure math: `wallRevealMode`/`revealModeTargetOpacity` retired for a single
+  `wallRevealStrength` store field + `revealTargetOpacityForFade(fade, strength)` =
+  `1 − strength · fade`, shared by all four fading surfaces (`WallSegment`, `useWallReveal`,
+  `PlanShell`, `PlanDoorLeaf`). The angle grading is preserved across the whole range — unlike the
+  retired `auto-hide` mode, even at 1.0 a grazing near wall settles partway and FAR walls stay
+  opaque (`facingToward` ≤ 0 → strength 0), giving a cleaner dollhouse (back walls keep context).
+- Verified with the updated `wall-fade-strength` scenario (0.95 barely-outline → 0.5 partial → 1.0
+  near-hidden/far-solid → 0.0 all-solid → room editor) + the Scene-menu slider render; full suite +
+  `tsc` + biome green.
+
 ## v0.18.5.0 — Maximum-tier performance pass (PR to main)
 
 Rollup patch bump for the PR to `main` carrying the graphics-tier performance batch below — four

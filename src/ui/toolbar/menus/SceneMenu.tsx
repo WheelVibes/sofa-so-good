@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatWallFade, WALL_REVEAL_STRENGTH_STEP } from '../../../apartment/walls/wallRevealMath'
 import { useFeature } from '../../../features/useFeature'
 import { HDRI_PRESETS } from '../../../scene/lighting/hdriCatalog'
 import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
@@ -8,6 +9,7 @@ import { PRESET_HOURS } from '../../../state/slices/timeSlice'
 import type { LightsMode } from '../../../state/slices/uiSlice'
 import { useStore } from '../../../state/store'
 import { Select } from '../../controls/Select'
+import { SliderField } from '../../controls/SliderField'
 import { BackdropUpload } from '../../scene/BackdropUpload'
 import { TimeOfDaySlider } from '../../scene/TimeOfDaySlider'
 import { CompassModal } from '../CompassModal'
@@ -17,12 +19,6 @@ const LIGHTS_MODES: { key: LightsMode; label: string }[] = [
   { key: 'auto', label: 'Auto' },
   { key: 'on', label: 'On' },
   { key: 'off', label: 'Off' },
-]
-
-const WALL_REVEAL_MODES: { key: 'auto-hide' | 'translucent' | 'opaque'; label: string }[] = [
-  { key: 'translucent', label: 'Fade translucent' },
-  { key: 'auto-hide', label: 'Fully hidden' },
-  { key: 'opaque', label: 'Fully opaque' },
 ]
 
 const WALL_REVEAL_SCOPES: { key: 'exterior' | 'all'; label: string }[] = [
@@ -62,8 +58,8 @@ export function SceneMenu() {
   const hasCustomBackdrop = useStore((s) => !!s.customBackdropUrl)
   const showCeilingFixtures = useStore((s) => s.showCeilingFixtures)
   const setShowCeilingFixtures = useStore((s) => s.setShowCeilingFixtures)
-  const wallRevealMode = useStore((s) => s.wallRevealMode)
-  const setWallRevealMode = useStore((s) => s.setWallRevealMode)
+  const wallRevealStrength = useStore((s) => s.wallRevealStrength)
+  const setWallRevealStrength = useStore((s) => s.setWallRevealStrength)
   const wallRevealScope = useStore((s) => s.wallRevealScope)
   const setWallRevealScope = useStore((s) => s.setWallRevealScope)
   const proMode = useStore((s) => s.uiMode === 'pro')
@@ -204,18 +200,20 @@ export function SceneMenu() {
         {/* ---- Wall visibility ---- */}
         <div className="scene-sep" />
         <label className="scene-field" onClick={(e) => e.stopPropagation()}>
-          <span>Wall reveal</span>
-          <Select
-            className="input scene-select"
-            value={wallRevealMode}
-            ariaLabel="Wall reveal mode"
-            onChange={(v) => setWallRevealMode(v as 'auto-hide' | 'translucent' | 'opaque')}
-            options={WALL_REVEAL_MODES.map((m) => ({ value: m.key, label: m.label }))}
+          <SliderField
+            label="Wall fade"
+            ariaLabel="Wall fade strength"
+            min={0}
+            max={1}
+            step={WALL_REVEAL_STRENGTH_STEP}
+            value={wallRevealStrength}
+            format={formatWallFade}
+            onChange={setWallRevealStrength}
           />
         </label>
-        {/* Scope: which walls the reveal applies to. Irrelevant when fully
-            opaque (no fade), so it's only shown for the two fading modes. */}
-        {wallRevealMode !== 'opaque' && (
+        {/* Scope: which walls the fade applies to. Irrelevant at strength 0
+            (no fade), so it's only shown while the fade is on. */}
+        {wallRevealStrength > 0 && (
           <label className="scene-field" onClick={(e) => e.stopPropagation()}>
             <span>Reveal walls</span>
             <Select

@@ -1,3 +1,4 @@
+import { formatWallFade, WALL_REVEAL_STRENGTH_STEP } from '../../../apartment/walls/wallRevealMath'
 import { useFeature } from '../../../features/useFeature'
 import { HDRI_PRESETS } from '../../../scene/lighting/hdriCatalog'
 import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
@@ -5,6 +6,7 @@ import { BACKDROPS, type BackdropKind } from '../../../scene/SceneBackdrop'
 import { PRESET_HOURS } from '../../../state/slices/timeSlice'
 import { useStore } from '../../../state/store'
 import { Select } from '../../controls/Select'
+import { SliderField } from '../../controls/SliderField'
 import { BackdropUpload } from '../../scene/BackdropUpload'
 import { TimeOfDaySlider } from '../../scene/TimeOfDaySlider'
 import { Item, LIGHTS_LABEL, Section } from './parts'
@@ -22,7 +24,7 @@ export function SceneSection({
   const s = useStore
   const lightsMode = useStore((st) => st.lightsMode)
   const showCeilingFixtures = useStore((st) => st.showCeilingFixtures)
-  const wallRevealMode = useStore((st) => st.wallRevealMode)
+  const wallRevealStrength = useStore((st) => st.wallRevealStrength)
   const wallRevealScope = useStore((st) => st.wallRevealScope)
   const timeMode = useStore((st) => st.timeMode)
   const manualHour = useStore((st) => st.manualHour)
@@ -105,22 +107,18 @@ export function SceneSection({
       )}
       <Item icon="Sun" label="Sun direction" onClick={act(() => onOpenCompass(), { keep: true })} />
       <label className="scene-field" onClick={(e) => e.stopPropagation()}>
-        <span>Wall reveal</span>
-        <Select
-          className="input scene-select"
-          value={wallRevealMode}
-          ariaLabel="Wall reveal mode"
-          onChange={(v) =>
-            s.getState().setWallRevealMode(v as 'auto-hide' | 'translucent' | 'opaque')
-          }
-          options={[
-            { value: 'translucent', label: 'Fade translucent' },
-            { value: 'auto-hide', label: 'Fully hidden' },
-            { value: 'opaque', label: 'Fully opaque' },
-          ]}
+        <SliderField
+          label="Wall fade"
+          ariaLabel="Wall fade strength"
+          min={0}
+          max={1}
+          step={WALL_REVEAL_STRENGTH_STEP}
+          value={wallRevealStrength}
+          format={formatWallFade}
+          onChange={(v) => s.getState().setWallRevealStrength(v)}
         />
       </label>
-      {wallRevealMode !== 'opaque' && (
+      {wallRevealStrength > 0 && (
         <label className="scene-field" onClick={(e) => e.stopPropagation()}>
           <span>Reveal walls</span>
           <Select
