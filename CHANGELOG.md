@@ -5,6 +5,105 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.5.0 — Maximum-tier performance pass (PR to main)
+
+Rollup patch bump for the PR to `main` carrying the graphics-tier performance batch below — four
+quality-preserving optimizations (PERF-MAX-2..5) on top of PERF-MAX-1, each verified byte-identical
+(day→night live-canvas tint unchanged) with full suite + `tsc` + biome green:
+
+- **PERF-MAX-2** (v0.18.4.1) — throttle the status-bar tint canvas readback to ~10 Hz (removes a
+  per-frame `drawImage`+`getImageData` GPU→CPU sync stall during orbit).
+- **PERF-MAX-3** (v0.18.4.2) — memoise the shared sun-position computation across the 8 lighting
+  components that recomputed it every render.
+- **PERF-MAX-4** (v0.18.4.3) — eliminate two per-frame `useFrame` allocations (`Lighting` tint
+  literal, `OrbitCamera` view object).
+- **PERF-MAX-5** (v0.18.4.4) — re-render the sun shadow map only on geometry/sun store changes
+  (fail-open gate), not on selection/hover/finish/UI/dev-asset churn.
+
+## v0.18.4.4 — Only re-render the sun shadow map when geometry/sun actually change (PERF-MAX-5)
+
+Extends the PERF-MAX-1 freeze to discrete edits. `RenderPump.markDirty` re-armed the (otherwise
+frozen) sun shadow map on **every** store change, so a click-to-select, a hover, opening a panel,
+swapping a finish/colour, or dev asset-index churn each triggered a full depth re-render (up to
+4096² at Maximum) for the settle tail — though the depth-only shadow map depends solely on
+shadow-casting geometry transforms + sun direction, never on materials/selection/UI. A new pure
+`scene/shadowRelevance.ts` (`changeAffectsShadow`) now gates the pulse: it fires only when a changed
+top-level store key can affect the map.
+
+**Fail-open by design** — it pulses UNLESS *every* changed key is in an explicit, conservative
+`SHADOW_IRRELEVANT_KEYS` set (selection/hover, UI panel flags, material/finish/colour metadata,
+dev-asset/auth/persistence bookkeeping). Any key not listed — including `items`, `floorPlan`,
+`orientationDeg`, `doors`, `hiddenItemIds`, `isolateActive`, `viewLevelId`, `showCeilingFixtures`,
+and anything new — forces a pulse, so a forgotten/added key can only cost an extra (correct) refresh,
+**never a stale shadow**. Non-store callers (procedural swap, focus/visibility, mount) pulse
+unconditionally.
+
+Verified with a live pulse-counter probe (synchronous bracket around each store action): selection,
+deselect, hover, and panel-open produce **0** shadow pulses (optimisation active), while orientation
+and furniture-move produce a pulse each (geometry/sun correctness preserved). Unit-tested
+(`changeAffectsShadow` + fail-open on unknown keys); full suite (5647) + `tsc` + biome green; day
+(`#f5f7f7`) → night (`#3b3733`) tint unchanged. Note the visible effect is small on Maximum's target
+strong GPU (a 4096² depth pass is cheap), but it removes needless re-renders on the most frequent
+non-geometry interactions and eliminates the dev-only asset-churn shadow thrash.
+
+## v0.18.4.3 — Kill two per-frame allocations in the orbit render loop (PERF-MAX-4)
+
+Two GC-pressure allocations inside `useFrame` callbacks that fire every continuous (orbit /
+auto-rotate) frame, both with **byte-identical output**:
+
+- **`Lighting.tsx`** — the sun-colour glass-tint fallback allocated a fresh `[1, 1, 1]` array
+  **every frame** when the `windowGlassTint` feature is off (the default), despite an adjacent
+  comment claiming "no per-frame allocation" (true only for the enabled branch). Hoisted to a
+  shared frozen `NEUTRAL_TINT` module constant; the tint is only read (`sunColor[i] * tint[i]`),
+  never mutated, so sharing is safe.
+- **`OrbitCamera.tsx`** — the vertical-lock / two-point-perspective correction allocated a fresh
+  7-field `camera.view` object every frame while that (opt-in) feature is active. Now mutates one
+  ref-held object (per camera instance, so no cross-Canvas aliasing); only `offsetY` changes
+  frame-to-frame and `clearViewOffset()` only flips `.enabled`, so re-asserting it on assign
+  suffices.
+
+Found via a systematic audit of every `useFrame` in `src/scene`/`src/furniture`/`src/apartment`;
+the rest were already disciplined (module-level scratch reuse + input-change gates). Verified: full
+suite (5637) + `tsc` + biome green; day (`#f5f7f7`) → night (`#3b3733`) tint sampled from the live
+canvas unchanged from baseline (`NEUTRAL_TINT` is `[1,1,1]` — identical values).
+
+Investigation note (not shipped): profiling showed the sun-shadow freeze (PERF-MAX-1) *appears*
+defeated at Medium in the **dev** harness (~2× draw calls/frame vs High), but a store-key diff traced
+it to **dev-only** async asset bootstrapping (`localAssetsStatus`/`localFurniture`/`remoteIndexes`)
+firing `markDirty` → `pulseShadowRefresh`; in production nothing writes the store per orbit frame, so
+the freeze holds at every tier. A latent efficiency remains — `markDirty` pulses the shadow refresh on
+*every* store change, incl. shadow-irrelevant ones (finish/colour/selection/UI), so a non-orbit UI
+tweak at Maximum triggers a needless 4096² re-render — but narrowing it risks a stale-shadow
+regression, so it is tracked in `TODO.md` rather than shipped.
+
+## v0.18.4.2 — Memoise the shared sun-position computation (PERF-MAX-3)
+
+Eliminates redundant work with **byte-identical output**. Eight lighting components — `Lighting`,
+`EffectsImpl`, `SceneEnvironment`, `FurnitureLights`, `Sky`, `SceneBackdrop`, `LuxOverlay` (+ the
+room-editor mirrors) — each call `useSunPosition()`, which ran `SunCalc.getPosition` and allocated a
+fresh `Date` + result object on **every render**, for inputs (effective hour + location) that are
+global and identical across all callers. A size-1 module cache keyed on the resolved instant +
+lat/lon now collapses those to one computation per (minute, location). As a bonus it returns a
+**stable object reference** while inputs are unchanged, so downstream `useMemo`/effect deps that key
+on the sun object (e.g. `Lighting`'s `targetVals`) stop invalidating each render. Verified: the
+returned `SunPosition` is never mutated by any caller (safe to share); day (`#f5f7f7`) → night
+(`#3b3733`) tint sampled from the live canvas is unchanged from baseline; new memo unit test + full
+suite + `tsc` green.
+
+## v0.18.4.1 — Throttle the status-bar tint canvas readback (PERF-MAX-2)
+
+Removes a per-frame GPU→CPU stall with **zero visual change to the 3D render**. `Lighting.tsx`
+tints the browser/OS chrome (`<meta name="theme-color">`) from the live top-of-canvas pixel so the
+iOS standalone status bar / mobile address bar blend into the sky. That sample
+(`sampleCanvasTopHex` → `drawImage(webglCanvas,…)` + `getImageData`) is a pipeline sync/readback,
+and it ran on **every** render frame — up to the tier's DPR-scaled 60 Hz during a camera orbit —
+for a chrome-tint update the eye can't perceive faster than ~10 Hz. `statusBarTint.ts` now throttles
+the readback to a 100 ms interval (`SAMPLE_INTERVAL_MS`); a call inside the window is a no-op, so the
+readback fires ~10 Hz instead of per-frame. The resting colour is identical (at most one interval
+"stale" on the exponential day/night tween tail — imperceptible) and no 3D-render pass changes. The
+throttle takes an injectable `now` for deterministic tests. Verified: the tint still tracks day
+(`#f5f7f7`) → night (`#3b3733`) through the throttled path at a live tier; unit tests + `tsc` green.
+
 ## v0.18.4.0 — Freeze the sun shadow map when static (PERF-MAX-1)
 
 Big per-frame GPU win at High/Maximum with **zero visual change**. The directional sun shadow

@@ -2,7 +2,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useStore } from '../../state/store'
-import { FALLBACK_LOCATION, useSunPosition } from './useSunPosition'
+import { __resetSunCacheForTest, FALLBACK_LOCATION, useSunPosition } from './useSunPosition'
 
 describe('FALLBACK_LOCATION', () => {
   it('is Singapore', () => {
@@ -13,6 +13,7 @@ describe('FALLBACK_LOCATION', () => {
 describe('useSunPosition', () => {
   beforeEach(() => {
     useStore.getState().__resetForTest()
+    __resetSunCacheForTest()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-01T04:00:00.000Z')) // 12:00 SGT
   })
@@ -43,5 +44,18 @@ describe('useSunPosition', () => {
     const noon = result.current.altitude
     expect(midnight).toBeLessThan(0)
     expect(noon).toBeGreaterThan(0)
+  })
+
+  it('memoises a stable reference for identical inputs, recomputes on change (PERF-MAX-3)', () => {
+    useStore.getState().setManualHour(12)
+    const a = renderHook(() => useSunPosition())
+    const first = a.result.current
+    // A second independent caller with identical (hour, location) shares the ONE
+    // cached object — no redundant SunCalc.getPosition / Date allocation.
+    const b = renderHook(() => useSunPosition())
+    expect(b.result.current).toBe(first)
+    // Changing the hour busts the key → the same hook now yields a fresh object.
+    act(() => useStore.getState().setManualHour(6))
+    expect(a.result.current).not.toBe(first)
   })
 })

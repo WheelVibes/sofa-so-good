@@ -7,6 +7,7 @@ import { animatedSourceCount } from './animatedSources'
 import { isContinuous, type PumpInputs, settleTailMs, shouldRender } from './renderDecision'
 import { setRenderingContinuously } from './renderPumpSignal'
 import { pulseShadowRefresh } from './shadowRefreshSignal'
+import { changeAffectsShadow } from './shadowRelevance'
 import { useQuality } from './useQuality'
 
 /**
@@ -44,11 +45,22 @@ export function RenderPump() {
     // edits (place/move/select/finish/door/time-scrub/theme/plan) draw without
     // a dedicated invalidate call at each call site. drei's OrbitControls also
     // invalidates on its own `change` event.
-    const markDirty = () => {
+    const markDirty = (next?: object, prev?: object) => {
       dirtyUntil.current = performance.now() + settleTailMs(showcaseRef.current)
       // PERF-MAX-1: a discrete change happened — let Lighting re-render the frozen
       // sun shadow map across this same settle tail (see shadowRefreshSignal).
-      pulseShadowRefresh(dirtyUntil.current)
+      // PERF-MAX-5: but ONLY when the change can actually alter the (depth-only) map.
+      // A store-subscription change passes (state, prev); other callers (procedural
+      // swap, focus/visibility, mount prime) pass nothing → pulse (safe default).
+      // Fail-open: pulses unless every changed key is provably shadow-irrelevant, so
+      // a missed key costs an extra refresh, never a stale shadow.
+      if (
+        !next ||
+        !prev ||
+        changeAffectsShadow(next as Record<string, unknown>, prev as Record<string, unknown>)
+      ) {
+        pulseShadowRefresh(dirtyUntil.current)
+      }
       const s = useStore.getState()
       // While the opaque loader is up, defer to the rAF pump (which freezes or
       // throttles WebGL) — a direct invalidate here would bypass that gate.

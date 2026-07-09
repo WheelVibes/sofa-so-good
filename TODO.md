@@ -10,18 +10,23 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > Avoid pricing/quotes/analytics deliverables unless asked.
 
 ## Active — graphics-tier performance optimization (2026-07-08, user goal)
-Systematically speed up frame processing/rendering **without sacrificing visual quality**,
-focused on the heavy **Maximum** tier (also opportunistic wins on other tiers). Sandbox has no
-GPU — optimizations are validated by code analysis + software-WebGL relative harnesses
-(`scripts/perf-orbit.mjs` = relative FPS; `scripts/perf-drawcalls.mjs` = deterministic per-frame
-draw-call/triangle counts), both driving a continuous autoRotate span at a pinned tier — never by
-absolute numbers. Shipped: **PERF-MAX-1** (freeze the sun shadow map when static — see CHANGELOG
-v0.18.4.0; ~20% fewer draw calls/triangles per orbit frame + ~24% more frames at High).
-Structural note from the analysis: SSAO/bloom/DoF are **camera-dependent** (recomputed every orbit
-frame and only run when something moves — no idle waste to reclaim), so shadows were the uniquely
-freezable per-frame cost. Remaining maximum-tier costs (full-res N8AO, DPR 2, 12 fixture lights,
-geometryDetail 1.8, envResolution 256) are deliberate quality knobs — reducing any sacrifices
-quality, which is out of scope for this goal.
+Systematically speed up frame processing/rendering **without sacrificing visual quality**, focused
+on the heavy **Maximum** tier (also opportunistic wins on other tiers). Shipped work lives in
+`CHANGELOG.md` (PERF-MAX-* entries) — this section tracks only **open** items.
+
+**Methodology.** Sandbox has no GPU (Maximum never finishes warming under software WebGL), so
+changes are validated by code analysis + software-WebGL relative harnesses — `scripts/perf-orbit.mjs`
+(relative FPS) and `scripts/perf-drawcalls.mjs` (deterministic per-frame draw-call/triangle counts),
+both driving a continuous autoRotate span at a pinned tier — never by absolute numbers. All shipped
+changes so far are tier-independent, so day→night tint sampled from the live canvas at medium/high is
+the representative regression check. Structural note: SSAO/bloom/DoF are **camera-dependent** (only
+run when something moves — no idle waste to reclaim); shadows were the uniquely freezable per-frame
+GPU-pass cost (shipped). Remaining Maximum costs (full-res N8AO, DPR 2, 12 fixture lights,
+geometryDetail 1.8, envResolution 256) are deliberate quality knobs — reducing any sacrifices quality
+(out of scope). The CPU-side per-frame waste (readbacks, redundant recomputes/allocations) + the
+discrete-edit shadow re-render have all been reclaimed (PERF-MAX-1..5). **No open items** — the
+zero-regression-risk frontier for this goal is reached; the parked findings below record what was
+evaluated and deliberately not done, so we don't re-investigate.
 
 ### Investigated + parked (findings recorded so we don't re-investigate)
 - **`preserveDrawingBuffer: true` always-on — BLOCKED by the Record feature.** The PNG export path
@@ -35,6 +40,15 @@ quality, which is out of scope for this goal.
   intensity·(1−dayLevel)` is exactly 0 only at the solar-noon peak; it's a small nonzero for most
   of the day, so unmounting Bloom would change the image except in a narrow window (and the
   mount/unmount recompiles the EffectPass = a hitch). Rejected.
+- **Dedup the per-wall `camera.getWorldDirection` in wall-reveal — NOT worth it.** Each wall
+  segment's per-frame `useWallReveal`/`WallSegment` recomputes the camera world direction
+  (`getWorldDirection(FWD)`), so a plan with ~20-40 walls repeats it 20-40×/frame; `cameraForward.ts`
+  already publishes the camera forward once/frame. But `cameraForwardXZ` is pre-**normalised** (len 1)
+  and `facingToward`'s `len < 0.15` top-down guard (keeps walls solid looking straight down) relies on
+  the raw un-normalised XZ magnitude — feeding the normalised vector defeats the guard → walls fade at
+  top-down (visual regression). Safe dedup would need `cameraForward` to also publish the raw XZ
+  forward; the gain is a handful of cheap matrix reads/frame. Marginal value vs the added coupling —
+  parked.
 
 ## Active — asset pipeline (2026-07-02, user goal)
 See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full design.
@@ -158,14 +172,6 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
   - [ ] *(Polish, not phase-gated)* the docked catalog currently floats over the plan rather than
     shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
     `.plan-screen`) — low-risk follow-up.
-
-## Deep-audit backlog (2026-07-04) — fully shipped
-All client-doable items from `docs/research/2026-07-04-deep-audit-and-opportunities.md` have
-shipped (see `CHANGELOG.md`): BUG-1..7, PERF-A/B/D, REAL-1, SEC-1, FEAT-1, FEAT-2, REFAC-1
-(InspectorPanel decomposition), and REFAC-2 (FloorPlanEditor decomposition — a pass landed 8
-toolbar controls + 2 layout shells + 4 SVG layers + `planPointerMapping.ts`, ~3186→2432 lines;
-`onDown/onMove/onUp` + the "Plan ▾" `fileActions` are intentionally left inline per TASKS.md —
-revisit only if either grows further).
 
 ## Open — round-2 audit backlog (2026-07-04)
 Open, client-doable items from `docs/research/2026-07-04-audit-round2-tests-mobile-features.md`

@@ -20,6 +20,11 @@ import { getWindowAttenuation, getWindowGlassTint } from './windowLightSignal'
 const SUN_DISTANCE = 25
 const TWEEN_DURATION = 0.6
 
+/** Shared identity tint (no glass colouring) — the default every frame the
+ *  `windowGlassTint` feature is off. Hoisted so the per-frame `useFrame` fallback
+ *  reuses one frozen array instead of allocating `[1, 1, 1]` each frame (PERF-MAX-4). */
+const NEUTRAL_TINT = [1, 1, 1] as const
+
 interface Vals {
   sun: number
   ambient: number
@@ -174,7 +179,7 @@ export function Lighting() {
       // All tier levels: colour modulation is free (scalar mults only).
       // No per-frame allocation: reads from module-level signals written on store change.
       const attenuation = isFeatureEnabled('curtainLightEffect') ? getWindowAttenuation() : 1.0
-      const tint = isFeatureEnabled('windowGlassTint') ? getWindowGlassTint() : ([1, 1, 1] as const)
+      const tint = isFeatureEnabled('windowGlassTint') ? getWindowGlassTint() : NEUTRAL_TINT
 
       sunRef.current.intensity = cur.sun * attenuation
       sunRef.current.castShadow = shadowMapSize > 0
