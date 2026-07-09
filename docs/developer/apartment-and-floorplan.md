@@ -12,10 +12,12 @@ normal to the camera's *look direction* (`camera.getWorldDirection`), so a wall
 whose outward face turns toward the camera goes translucent while a far/back wall
 stays opaque. Because it uses only the look direction, **zoom (dolly) and pan
 never change the fade — only orbiting does**; a near-vertical top-down view keeps
-every wall solid. Two settings (`wallRevealMode` × `wallRevealScope`, both
-session-only): mode = `translucent` (10% opacity floor, default) / `auto-hide`
-(fully hidden) / `opaque` (no fade); scope = `exterior` (perimeter only, default)
-/ `all` (interior partitions fade too). Exterior walls orient "outward" via a
+every wall solid. Two settings (`wallRevealStrength` × `wallRevealScope`, both
+session-only): a single **fade-strength** slider `wallRevealStrength` (0..1, step
+0.05, default 0.95 — WALL-REVEAL-STRENGTH) where `0` = never fade (fully opaque),
+`1` = fade fully hidden, and in between the head-on opacity floor is `1 − strength`
+(0.95 → 0.05); scope = `exterior` (perimeter only, default) / `all` (interior
+partitions fade too), applied together with the fade. Exterior walls orient "outward" via a
 point-in-room probe (`orientOutward`); interior partitions (rooms on both sides)
 flip their normal toward the camera so they fade when faced. The body is a single
 watertight extruded shape (`walls/wallBodyShape`) so it has no internal seams when

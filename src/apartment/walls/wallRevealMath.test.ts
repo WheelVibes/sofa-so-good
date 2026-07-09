@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest'
 import {
   cornerNeighbors,
   cornerSpreadStrength,
+  DEFAULT_WALL_REVEAL_STRENGTH,
   facingToward,
+  formatWallFade,
   orientOutward,
   pointInRooms,
   REVEAL_ONSET,
   type RoomRect,
-  revealModeTargetOpacity,
   revealStrength,
   revealTargetOpacity,
+  revealTargetOpacityForFade,
   SPREAD_GATE,
   SPREAD_GATE_FULL,
   SPREAD_ONSET,
@@ -230,19 +232,44 @@ describe('WALL_TRANSLUCENT_MIN (WALL-REVEAL-PEAK)', () => {
   })
 })
 
-describe('revealModeTargetOpacity (WALL-REVEAL-HIDE-ALWAYS)', () => {
-  it('auto-hide ("Fully hidden") = 0 at EVERY strength — the opposite of Fully opaque', () => {
-    expect(revealModeTargetOpacity('auto-hide', 0)).toBe(0)
-    expect(revealModeTargetOpacity('auto-hide', 0.5)).toBe(0)
-    expect(revealModeTargetOpacity('auto-hide', 1)).toBe(0)
+describe('revealTargetOpacityForFade (WALL-REVEAL-STRENGTH)', () => {
+  it('fade 0 = fully opaque at EVERY strength (never fades)', () => {
+    expect(revealTargetOpacityForFade(0, 0)).toBe(1)
+    expect(revealTargetOpacityForFade(0, 0.5)).toBe(1)
+    expect(revealTargetOpacityForFade(0, 1)).toBe(1)
   })
 
-  it('translucent = the graded angle curve down to the peak floor', () => {
-    expect(revealModeTargetOpacity('translucent', 0)).toBe(1)
-    expect(revealModeTargetOpacity('translucent', 1)).toBeCloseTo(WALL_TRANSLUCENT_MIN, 10)
-    expect(revealModeTargetOpacity('translucent', 0.5)).toBeCloseTo(
+  it('fade 1 = fully hidden head-on, still angle-graded for grazing walls', () => {
+    expect(revealTargetOpacityForFade(1, 1)).toBe(0) // head-on → gone
+    expect(revealTargetOpacityForFade(1, 0)).toBe(1) // no facing → solid
+    expect(revealTargetOpacityForFade(1, 0.5)).toBeCloseTo(0.5) // grazing → partial
+  })
+
+  it('an in-between fade sets the head-on opacity floor to 1 − fade', () => {
+    expect(revealTargetOpacityForFade(0.6, 1)).toBeCloseTo(0.4)
+    expect(revealTargetOpacityForFade(0.6, 0)).toBe(1)
+    // Linear: 1 − strength · fade.
+    expect(revealTargetOpacityForFade(0.6, 0.5)).toBeCloseTo(1 - 0.5 * 0.6)
+  })
+
+  it('the default fade reproduces the retired "translucent" peak floor', () => {
+    expect(DEFAULT_WALL_REVEAL_STRENGTH).toBeCloseTo(0.95, 10)
+    expect(revealTargetOpacityForFade(DEFAULT_WALL_REVEAL_STRENGTH, 1)).toBeCloseTo(
+      WALL_TRANSLUCENT_MIN,
+      10,
+    )
+    expect(revealTargetOpacityForFade(DEFAULT_WALL_REVEAL_STRENGTH, 0.5)).toBeCloseTo(
       revealTargetOpacity(0.5, WALL_TRANSLUCENT_MIN),
     )
+  })
+})
+
+describe('formatWallFade', () => {
+  it('labels the endpoints and shows a percentage in between', () => {
+    expect(formatWallFade(0)).toBe('Off')
+    expect(formatWallFade(1)).toBe('Hidden')
+    expect(formatWallFade(0.95)).toBe('95%')
+    expect(formatWallFade(0.5)).toBe('50%')
   })
 })
 

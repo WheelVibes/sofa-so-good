@@ -1091,7 +1091,11 @@ same change that reshapes a system.
   normal away from the camera) are structurally excluded (strength 0 → opaque).
   A wall sharing a corner with a wall fading by its own facing spreads the fade
   (first-degree only, `cornerNeighbors` + the per-frame own-strength registry in
-  `wallReveal.ts` — WALL-REVEAL-CORNER-SPREAD).
+  `wallReveal.ts` — WALL-REVEAL-CORNER-SPREAD). A single **fade-strength** slider
+  (`wallRevealStrength`, 0..1, step 0.05, default 0.95 — WALL-REVEAL-STRENGTH,
+  replacing the old translucent/auto-hide/opaque modes) sets the head-on opacity
+  floor to `1 − strength` (`0` never fades, `1` fully hidden;
+  `revealTargetOpacityForFade`), applied together with `wallRevealScope`.
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,
   `selection/RotateGizmo.tsx`+`rotateGizmoMath.ts`): grid 10/25/50cm/1m; align
   (`AlignmentGuides`), equal-spacing smart guides (`collision/equalSpacing.ts`

@@ -40,12 +40,13 @@ import { getWallOwnStrength, setWallOpacity, setWallOwnStrength } from './wallRe
 import {
   cornerNeighbors,
   cornerSpreadStrength,
+  DEFAULT_WALL_REVEAL_STRENGTH,
   facingToward,
   orientOutward,
   pointInRooms,
   type RoomRect,
-  revealModeTargetOpacity,
   revealStrength,
+  revealTargetOpacityForFade,
   SPREAD_ONSET,
 } from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
@@ -352,13 +353,13 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     const st = useStore.getState()
     const orbit = st.cameraMode === 'orbit'
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
-    const revealMode = st.wallRevealMode ?? 'translucent'
+    const fade = st.wallRevealStrength ?? DEFAULT_WALL_REVEAL_STRENGTH
     const revealScope = st.wallRevealScope ?? 'exterior'
     // Exterior walls always participate; interior partitions only in 'all' scope
     // (default 'exterior' keeps them solid so the room layout reads).
     const participates = isExterior || revealScope === 'all'
     let target = 1
-    if (participates && orbit && revealEnabled && revealMode !== 'opaque') {
+    if (participates && orbit && revealEnabled && fade > 0) {
       // ORIENTATION-ONLY reveal: fade based purely on the camera's look direction,
       // so zoom (dolly) and pan never change the fade — only orbiting does.
       // Exterior: fade when the camera looks THROUGH the wall (its outward normal
@@ -404,9 +405,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         }
         strength = Math.max(strength, cornerSpreadStrength(toward, maxNb))
       }
-      // translucent: graded fade to the low peak floor. auto-hide ("Fully
-      // hidden"): 0 always — the symmetric opposite of "Fully opaque".
-      target = revealModeTargetOpacity(revealMode, strength)
+      // Graded fade to the peak floor set by the single "Wall fade" strength
+      // (WALL-REVEAL-STRENGTH): head-on opacity floor is `1 − fade` (0 → never
+      // fades, 1 → fully hidden head-on).
+      target = revealTargetOpacityForFade(fade, strength)
     } else {
       setWallOwnStrength(wall.id, 0)
     }

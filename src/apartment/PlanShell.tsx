@@ -37,10 +37,11 @@ import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
 import {
+  DEFAULT_WALL_REVEAL_STRENGTH,
   orientOutward,
   pointInRooms,
   type RoomRect,
-  revealModeTargetOpacity,
+  revealTargetOpacityForFade,
   wallRevealStrength,
 } from './walls/wallRevealMath'
 
@@ -139,11 +140,10 @@ function planWallRevealTarget(
 ): number {
   const st = useStore.getState()
   const revealEnabled = st.qualityOverrides.wallReveal ?? true
-  const revealMode = st.wallRevealMode ?? 'translucent'
+  const fade = st.wallRevealStrength ?? DEFAULT_WALL_REVEAL_STRENGTH
   const revealScope = st.wallRevealScope ?? 'exterior'
   const participates = isExterior || revealScope === 'all'
-  if (!(participates && cameraMode === 'orbit' && revealEnabled && revealMode !== 'opaque'))
-    return 1
+  if (!(participates && cameraMode === 'orbit' && revealEnabled && fade > 0)) return 1
   const probe = box.thickness / 2 + 0.3
   const s = revealFadeStrength(
     fwdX,
@@ -157,9 +157,9 @@ function planWallRevealTarget(
     cz,
     !isExterior,
   )
-  // Graded target: settles anywhere between opaque and the mode's fade floor
-  // per the wall's facing angle (WALL-REVEAL-ANGLE-GRADED).
-  return revealModeTargetOpacity(revealMode, s)
+  // Graded target: settles anywhere between opaque and the fade-strength floor
+  // (`1 − fade`) per the wall's facing angle (WALL-REVEAL-ANGLE-GRADED).
+  return revealTargetOpacityForFade(fade, s)
 }
 
 function FadeWall({
@@ -742,10 +742,10 @@ function FadeWindow({
     let factor = 1
     const st = useStore.getState()
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
-    const revealMode = st.wallRevealMode ?? 'translucent'
+    const fade = st.wallRevealStrength ?? DEFAULT_WALL_REVEAL_STRENGTH
     const revealScope = st.wallRevealScope ?? 'exterior'
     const participates = win.revealable || revealScope === 'all'
-    if (participates && cameraMode === 'orbit' && revealEnabled && revealMode !== 'opaque') {
+    if (participates && cameraMode === 'orbit' && revealEnabled && fade > 0) {
       // 0.3 m probe past the pane centre — the host wall's thickness isn't carried
       // on the window box, but a fixed reach clears the wall into the room.
       // Fade from the camera's look direction only (ORIENTATION-ONLY — zoom/pan
@@ -763,7 +763,7 @@ function FadeWindow({
         cz,
         !win.revealable,
       )
-      factor = revealModeTargetOpacity(revealMode, s)
+      factor = revealTargetOpacityForFade(fade, s)
     }
     const target = base * factor
     mat.opacity += (target - mat.opacity) * 0.18

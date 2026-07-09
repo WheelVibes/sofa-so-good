@@ -6,9 +6,10 @@ import { useStore } from '../../state/store'
 import { getWallOwnStrength, setWallOpacity, setWallOwnStrength } from './wallReveal'
 import {
   cornerSpreadStrength,
+  DEFAULT_WALL_REVEAL_STRENGTH,
   facingToward,
-  revealModeTargetOpacity,
   revealStrength,
+  revealTargetOpacityForFade,
   SPREAD_ONSET,
 } from './wallRevealMath'
 
@@ -46,9 +47,9 @@ const LERP = 0.18
  * **translucent** when the orbit camera looks THROUGH it (its outward normal
  * opposes the camera forward), exactly like the main orbit scene's `WallSegment`
  * — reusing the same pure angle-graded curve (`facingToward`/`revealStrength`) +
- * the `wallRevealMode`/`wallReveal` settings, so the editor behaves like orbit by
- * default (translucent). The fade is orientation-only (camera look direction), so
- * zoom/pan never change it.
+ * the `wallRevealStrength`/`wallReveal` settings, so the editor behaves like orbit
+ * by default. The fade is orientation-only (camera look direction), so zoom/pan
+ * never change it.
  *
  * Applied to an Object3D (the wall mesh or its group). Because every wall of an
  * isolated room shares ONE finish material, fading it in place would fade the
@@ -112,9 +113,9 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     const st = useStore.getState()
     const orbit = st.cameraMode === 'orbit'
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
-    const revealMode = st.wallRevealMode ?? 'translucent'
+    const fade = st.wallRevealStrength ?? DEFAULT_WALL_REVEAL_STRENGTH
     let target = 1
-    if (orbit && revealEnabled && revealMode !== 'opaque') {
+    if (orbit && revealEnabled && fade > 0) {
       // The editor isolates ONE room, so EVERY wall is treated as an exterior
       // (perimeter) wall of that room (WALL-REVEAL-EXTERIOR): fade only the walls
       // the camera looks THROUGH (outward normal opposes the camera forward) and
@@ -149,9 +150,9 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
         }
         strength = Math.max(strength, cornerSpreadStrength(toward, maxNb))
       }
-      // translucent: never fully disappear (strongly see-through floor);
-      // auto-hide: can vanish at peak fade.
-      target = revealModeTargetOpacity(revealMode, strength)
+      // Graded fade to the peak floor set by the "Wall fade" strength
+      // (WALL-REVEAL-STRENGTH): head-on opacity floor is `1 − fade`.
+      target = revealTargetOpacityForFade(fade, strength)
     } else {
       setWallOwnStrength(wallId, 0)
     }

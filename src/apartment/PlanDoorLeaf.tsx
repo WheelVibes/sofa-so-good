@@ -7,7 +7,12 @@ import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import { dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { FLAT } from './constants'
-import { orientOutward, revealModeTargetOpacity, wallRevealStrength } from './walls/wallRevealMath'
+import {
+  DEFAULT_WALL_REVEAL_STRENGTH,
+  orientOutward,
+  revealTargetOpacityForFade,
+  wallRevealStrength,
+} from './walls/wallRevealMath'
 
 const SWING_RAD = Math.PI / 2
 const SWING_SECONDS = 0.2
@@ -104,14 +109,14 @@ export function PlanDoorLeaf({
     // wall instead of only when it happens to sit on the view axis.
     if (rootRef.current) {
       const st = useStore.getState()
-      const revealMode = st.wallRevealMode ?? 'translucent'
+      const fade = st.wallRevealStrength ?? DEFAULT_WALL_REVEAL_STRENGTH
       const revealScope = st.wallRevealScope ?? 'exterior'
       const revealEnabled = st.qualityOverrides.wallReveal ?? true
       const isExterior = wall.thickness === 'external'
       // Exterior doors fade with their wall; interior doors only in 'all' scope.
       const participates = isExterior || revealScope === 'all'
       let target = 1
-      if (participates && revealEnabled && revealMode !== 'opaque' && st.cameraMode === 'orbit') {
+      if (participates && revealEnabled && fade > 0 && st.cameraMode === 'orbit') {
         camera.getWorldDirection(FWD)
         let nx = -Math.sin(angle)
         let nz = Math.cos(angle)
@@ -137,7 +142,7 @@ export function PlanDoorLeaf({
         // smoothly fades its opacity like the wall rather than hard-hiding. Same
         // angle-graded curve as the wall (WALL-REVEAL-ANGLE-GRADED).
         const s = wallRevealStrength(FWD.x, FWD.z, nx, nz)
-        target = revealModeTargetOpacity(revealMode, s)
+        target = revealTargetOpacityForFade(fade, s)
       }
       opacityRef.current += (target - opacityRef.current) * 0.18
       const cur = opacityRef.current

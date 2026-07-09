@@ -138,7 +138,7 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   **same camera-facing reveal as orbit** (ROOM-EDITOR-WALL-REVEAL): `RoomShell`/`PlanRoomShell`
   call the shared `apartment/walls/useWallReveal` hook, which reuses the pure angle-graded curve
   (`facingToward`/`revealStrength`, `wallRevealMath.ts`)
-  + the `wallRevealMode`/`wallReveal` settings (translucent by default) and fades a wall via a
+  + the `wallRevealStrength`/`wallReveal` settings (default fade 0.95) and fades a wall via a
   **per-mesh material clone** (the room's walls share one finish material, so mutating it in place
   would fade them all) + publishes `setWallOpacity` so the wall's windows/doors fade too.
 - **The wall reveal is ANGLE-GRADED, not binary (WALL-REVEAL-ANGLE-GRADED).** This deliberately
@@ -147,13 +147,17 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   OUTWARD surface faces the camera — onset at `REVEAL_ONSET` (a slight angle past perpendicular),
   peak (`WALL_TRANSLUCENT_MIN`, a strong **0.05** — head-on near walls are barely an outline) head-on —
   and a wall **settles anywhere along that curve**. All four surfaces (`WallSegment`,
-  `useWallReveal`, `PlanShell`, `PlanDoorLeaf`) share `WALL_TRANSLUCENT_MIN` + the pure
-  `revealModeTargetOpacity(mode, strength)` so the peak is identical everywhere.
-  **The three modes (WALL-REVEAL-HIDE-ALWAYS):** "Fade translucent" = the graded curve above;
-  "Fully opaque" = every wall solid (1) always; **"Fully hidden" (`auto-hide`) = a *participating*
-  wall is 0 ALWAYS, independent of facing angle — the symmetric opposite of Fully opaque** (NOT
-  the old graded "0 only at head-on"). It respects `wallRevealScope`, so in the default `exterior`
-  scope the shell walls vanish while interior partitions (non-participating) stay solid. Rationale for the reversal: the binary target guarded against walls resting at a
+  `useWallReveal`, `PlanShell`, `PlanDoorLeaf`) share the pure
+  `revealTargetOpacityForFade(fade, strength)` so the peak is identical everywhere.
+  **Single fade-strength slider (WALL-REVEAL-STRENGTH):** one `wallRevealStrength` value (0..1,
+  step 0.05, default `DEFAULT_WALL_REVEAL_STRENGTH` = 0.95) replaces the retired three-way
+  translucent / auto-hide / opaque mode. It is the head-on opacity FLOOR expressed as fade depth:
+  `0` = never fades (fully opaque, callers skip fading), `1` = fades fully hidden head-on, and in
+  between the head-on opacity floor is `1 − fade` (so the default 0.95 → `WALL_TRANSLUCENT_MIN`
+  0.05, the old default "translucent" look). The angle grading (`revealStrength`) is preserved
+  across the whole range — the slider only scales how deep the peak fade goes — so unlike the
+  retired `auto-hide` mode, even at 1.0 a grazing near wall settles partway and FAR walls stay
+  opaque (strength 0). It still respects `wallRevealScope` (applied together with the fade). Rationale for the earlier binary→graded reversal: the binary target guarded against walls resting at a
   "washed" mid-band opacity, but the wall class that must never rest mid-band is the FAR/back
   walls (interior surface toward the camera) — and those are excluded *structurally* by the
   orientation check (`facingToward` ≤ 0 → strength exactly 0 → fully opaque), with or without a

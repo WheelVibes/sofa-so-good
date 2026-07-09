@@ -7,7 +7,7 @@
     { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
     { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
     { "name": "noon", "store": { "action": "setPresetTime", "args": ["noon"] } },
-    { "name": "opaque", "store": { "action": "setWallRevealMode", "args": ["opaque"] } },
+    { "name": "opaque", "store": { "action": "setWallRevealStrength", "args": [0] } },
     { "name": "make-sloped-with-window", "eval": "(() => { const st=window.__store.getState(); const fp=st.floorPlan; const len=(w)=>Math.hypot(w.end[0]-w.start[0],w.end[1]-w.start[1]); const wall=fp.walls.filter(w=>w.thickness==='external').sort((a,b)=>len(b)-len(a))[0]||fp.walls[0]; const L=len(wall); window.__store.getState().updateWall(wall.id,{topHeight:1.8, topHeightEnd:3.0}); const id=window.__store.getState().addOpening({kind:'window', wallId:wall.id, offset:Math.max(0.2,L/2-0.6), width:1.2, sill:0.6, head:1.8}); return JSON.stringify({wall:wall.id, len:L, opening:id}); })()" },
     { "name": "fork-wait", "wait": 2500 },
     { "name": "orbit", "store": { "action": "requestHomeView", "args": [] } },

@@ -17,6 +17,6 @@
     { "name": "editor-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
     { "name": "wait-load", "wait": 3000 },
     { "name": "shot-default", "screenshot": "01-room-editor-default" },
-    { "name": "verify-translucent-default", "eval": "(function(){ const m=window.__store.getState().wallRevealMode ?? 'translucent'; if(m!=='translucent') throw new Error('expected default wallRevealMode translucent, got '+m); })()" }
+    { "name": "verify-default-strength", "eval": "(function(){ const v=window.__store.getState().wallRevealStrength ?? 0.95; if(Math.abs(v-0.95)>1e-6) throw new Error('expected default wallRevealStrength 0.95, got '+v); })()" }
   ]
 }

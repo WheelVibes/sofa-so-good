@@ -1,3 +1,4 @@
+import { DEFAULT_WALL_REVEAL_STRENGTH } from '../../apartment/walls/wallRevealMath'
 import { clampExposure, DEFAULT_EXPOSURE } from '../../scene/look'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { QUALITY_LABEL, RENDER_TIERS } from '../../scene/quality'
@@ -64,14 +65,18 @@ export interface UiSlice {
    *  Default false = fixtures hidden; point lights still emit when lights are on. */
   showCeilingFixtures: boolean
   setShowCeilingFixtures: (v: boolean) => void
-  /** How exterior walls reveal when the orbit camera looks through them.
-   *  'auto-hide' = fade to invisible; 'translucent' = fade to 15% opacity (default); 'opaque' = no fade. */
-  wallRevealMode: 'auto-hide' | 'translucent' | 'opaque'
-  setWallRevealMode: (m: 'auto-hide' | 'translucent' | 'opaque') => void
+  /** Single wall-fade strength (WALL-REVEAL-STRENGTH) for the orbit dollhouse /
+   *  room editor — how transparent a camera-facing wall fades to. `0` = fully
+   *  opaque, never fades; `1` = fades fully hidden; in between (step 0.05) is the
+   *  MAX fade strength (head-on opacity floor `1 − strength`). Default
+   *  `DEFAULT_WALL_REVEAL_STRENGTH` (0.95). Replaces the retired three-way
+   *  translucent / auto-hide / opaque mode. */
+  wallRevealStrength: number
+  setWallRevealStrength: (v: number) => void
   /** Which walls the reveal applies to: 'exterior' = perimeter walls only
    *  (default — keeps interior partitions solid so the layout reads); 'all' =
-   *  interior partitions fade too (full see-through dollhouse). Ignored when
-   *  `wallRevealMode` is 'opaque'. */
+   *  interior partitions fade too (full see-through dollhouse). Applied together
+   *  with `wallRevealStrength`; irrelevant when the strength is `0` (no fade). */
   wallRevealScope: 'exterior' | 'all'
   setWallRevealScope: (s: 'exterior' | 'all') => void
   /** Which construction drawing-set layers (sheet groups) to include in the
@@ -225,7 +230,7 @@ export const UI_INITIAL: Pick<
   | 'exposure'
   | 'lightsMode'
   | 'showCeilingFixtures'
-  | 'wallRevealMode'
+  | 'wallRevealStrength'
   | 'wallRevealScope'
   | 'drawingLayers'
   | 'autoShadowsOff'
@@ -263,7 +268,7 @@ export const UI_INITIAL: Pick<
   exposure: DEFAULT_EXPOSURE,
   lightsMode: 'auto',
   showCeilingFixtures: false,
-  wallRevealMode: 'translucent' as const,
+  wallRevealStrength: DEFAULT_WALL_REVEAL_STRENGTH,
   wallRevealScope: 'exterior' as const,
   drawingLayers: {} as DrawingLayerVisibility,
   autoShadowsOff: false,
@@ -373,7 +378,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setExposure: (e) => set({ exposure: clampExposure(e) }),
   setLightsMode: (m) => set({ lightsMode: m }),
   setShowCeilingFixtures: (v) => set({ showCeilingFixtures: v }),
-  setWallRevealMode: (m) => set({ wallRevealMode: m }),
+  setWallRevealStrength: (v) => set({ wallRevealStrength: Math.min(1, Math.max(0, v)) }),
   setWallRevealScope: (s) => set({ wallRevealScope: s }),
   setDrawingLayer: (layer, on) =>
     set((s) => ({ drawingLayers: { ...s.drawingLayers, [layer]: on } })),
