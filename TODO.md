@@ -10,24 +10,35 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > Avoid pricing/quotes/analytics deliverables unless asked.
 
 ## Active — graphics-tier performance optimization (2026-07-08, user goal)
-Systematically speed up frame processing/rendering **without sacrificing visual quality**,
-focused on the heavy **Maximum** tier (also opportunistic wins on other tiers). Sandbox has no
-GPU — optimizations are validated by code analysis + software-WebGL relative harnesses
-(`scripts/perf-orbit.mjs` = relative FPS; `scripts/perf-drawcalls.mjs` = deterministic per-frame
-draw-call/triangle counts), both driving a continuous autoRotate span at a pinned tier — never by
-absolute numbers. Shipped: **PERF-MAX-1** (freeze the sun shadow map when static — see CHANGELOG
-v0.18.4.0; ~20% fewer draw calls/triangles per orbit frame + ~24% more frames at High);
-**PERF-MAX-2** (throttle the status-bar tint canvas readback to ~10 Hz — CHANGELOG v0.18.4.1;
-removes a per-frame `drawImage`+`getImageData` GPU→CPU sync stall during orbit, zero 3D-render
-change, tint verified still tracking day→night); **PERF-MAX-3** (memoise the shared sun-position
-computation — CHANGELOG v0.18.4.2; 8 lighting components recomputed `SunCalc.getPosition` + a `Date`
-alloc every render for identical global inputs; size-1 cache + stable ref, byte-identical output).
-Structural note from the analysis: SSAO/bloom/DoF are **camera-dependent** (recomputed every orbit
-frame and only run when something moves — no idle waste to reclaim), so shadows were the uniquely
-freezable per-frame *GPU-pass* cost. Remaining maximum-tier costs (full-res N8AO, DPR 2, 12 fixture
-lights, geometryDetail 1.8, envResolution 256) are deliberate quality knobs — reducing any
-sacrifices quality, which is out of scope for this goal. Continuing to hunt CPU-side per-frame waste
-(readbacks, redundant recomputes) that reclaims time without touching any render pass.
+Systematically speed up frame processing/rendering **without sacrificing visual quality**, focused
+on the heavy **Maximum** tier (also opportunistic wins on other tiers). Shipped work lives in
+`CHANGELOG.md` (PERF-MAX-* entries) — this section tracks only **open** items.
+
+**Methodology.** Sandbox has no GPU (Maximum never finishes warming under software WebGL), so
+changes are validated by code analysis + software-WebGL relative harnesses — `scripts/perf-orbit.mjs`
+(relative FPS) and `scripts/perf-drawcalls.mjs` (deterministic per-frame draw-call/triangle counts),
+both driving a continuous autoRotate span at a pinned tier — never by absolute numbers. All shipped
+changes so far are tier-independent, so day→night tint sampled from the live canvas at medium/high is
+the representative regression check. Structural note: SSAO/bloom/DoF are **camera-dependent** (only
+run when something moves — no idle waste to reclaim); shadows were the uniquely freezable per-frame
+GPU-pass cost (shipped). Remaining Maximum costs (full-res N8AO, DPR 2, 12 fixture lights,
+geometryDetail 1.8, envResolution 256) are deliberate quality knobs — reducing any sacrifices quality
+(out of scope). The productive remaining vein is CPU-side per-frame waste (readbacks, redundant
+recomputes/allocations) that reclaims time without touching a render pass.
+
+- [ ] **PERF-MAX-5 — narrow the shadow-refresh pulse to shadow-relevant store changes.**
+  `RenderPump.markDirty` pulses `pulseShadowRefresh` on **every** store change, so a shadow-irrelevant
+  edit (finish/colour swap, selection, hover, panel toggle, dev asset-index churn) triggers a full
+  sun-shadow re-render (up to 4096² at Maximum) for the settle tail — though the depth-only shadow map
+  depends solely on shadow-casting geometry transforms + sun direction (materials/finishes/UI don't
+  affect it). During orbit it's masked (already rendering); the cost is on **non-orbit** UI tweaks at
+  high tiers. (A ~2× draw-call inflation seen at Medium in the dev harness traced to **dev-only**
+  churn — `localAssetsStatus`/`localFurniture`/`remoteIndexes` — so PERF-MAX-1's freeze holds in
+  prod.) Fix idea: drive the pulse from a dedicated store subscription firing only on a shadow-relevant
+  key (`items`, `floorPlan`, `orientationDeg`; sun inputs already covered by `!settled`, tier remount
+  by `freshInstance`). **Risk:** missing a geometry-affecting key → stale shadow (visual regression),
+  so it needs a store-key audit + per-mutation harness verification (furniture move/add/remove/rotate/
+  scale, wall edit, door toggle, plan swap) before shipping. Correctness must not regress.
 
 ### Investigated + parked (findings recorded so we don't re-investigate)
 - **`preserveDrawingBuffer: true` always-on — BLOCKED by the Record feature.** The PNG export path
@@ -41,6 +52,15 @@ sacrifices quality, which is out of scope for this goal. Continuing to hunt CPU-
   intensity·(1−dayLevel)` is exactly 0 only at the solar-noon peak; it's a small nonzero for most
   of the day, so unmounting Bloom would change the image except in a narrow window (and the
   mount/unmount recompiles the EffectPass = a hitch). Rejected.
+- **Dedup the per-wall `camera.getWorldDirection` in wall-reveal — NOT worth it.** Each wall
+  segment's per-frame `useWallReveal`/`WallSegment` recomputes the camera world direction
+  (`getWorldDirection(FWD)`), so a plan with ~20-40 walls repeats it 20-40×/frame; `cameraForward.ts`
+  already publishes the camera forward once/frame. But `cameraForwardXZ` is pre-**normalised** (len 1)
+  and `facingToward`'s `len < 0.15` top-down guard (keeps walls solid looking straight down) relies on
+  the raw un-normalised XZ magnitude — feeding the normalised vector defeats the guard → walls fade at
+  top-down (visual regression). Safe dedup would need `cameraForward` to also publish the raw XZ
+  forward; the gain is a handful of cheap matrix reads/frame. Marginal value vs the added coupling —
+  parked.
 
 ## Active — asset pipeline (2026-07-02, user goal)
 See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full design.

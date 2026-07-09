@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.4.3 — Kill two per-frame allocations in the orbit render loop (PERF-MAX-4)
+
+Two GC-pressure allocations inside `useFrame` callbacks that fire every continuous (orbit /
+auto-rotate) frame, both with **byte-identical output**:
+
+- **`Lighting.tsx`** — the sun-colour glass-tint fallback allocated a fresh `[1, 1, 1]` array
+  **every frame** when the `windowGlassTint` feature is off (the default), despite an adjacent
+  comment claiming "no per-frame allocation" (true only for the enabled branch). Hoisted to a
+  shared frozen `NEUTRAL_TINT` module constant; the tint is only read (`sunColor[i] * tint[i]`),
+  never mutated, so sharing is safe.
+- **`OrbitCamera.tsx`** — the vertical-lock / two-point-perspective correction allocated a fresh
+  7-field `camera.view` object every frame while that (opt-in) feature is active. Now mutates one
+  ref-held object (per camera instance, so no cross-Canvas aliasing); only `offsetY` changes
+  frame-to-frame and `clearViewOffset()` only flips `.enabled`, so re-asserting it on assign
+  suffices.
+
+Found via a systematic audit of every `useFrame` in `src/scene`/`src/furniture`/`src/apartment`;
+the rest were already disciplined (module-level scratch reuse + input-change gates). Verified: full
+suite (5637) + `tsc` + biome green; day (`#f5f7f7`) → night (`#3b3733`) tint sampled from the live
+canvas unchanged from baseline (`NEUTRAL_TINT` is `[1,1,1]` — identical values).
+
+Investigation note (not shipped): profiling showed the sun-shadow freeze (PERF-MAX-1) *appears*
+defeated at Medium in the **dev** harness (~2× draw calls/frame vs High), but a store-key diff traced
+it to **dev-only** async asset bootstrapping (`localAssetsStatus`/`localFurniture`/`remoteIndexes`)
+firing `markDirty` → `pulseShadowRefresh`; in production nothing writes the store per orbit frame, so
+the freeze holds at every tier. A latent efficiency remains — `markDirty` pulses the shadow refresh on
+*every* store change, incl. shadow-irrelevant ones (finish/colour/selection/UI), so a non-orbit UI
+tweak at Maximum triggers a needless 4096² re-render — but narrowing it risks a stale-shadow
+regression, so it is tracked in `TODO.md` rather than shipped.
+
 ## v0.18.4.2 — Memoise the shared sun-position computation (PERF-MAX-3)
 
 Eliminates redundant work with **byte-identical output**. Eight lighting components — `Lighting`,

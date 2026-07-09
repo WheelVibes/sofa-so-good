@@ -459,6 +459,20 @@ export function OrbitCamera() {
   // correction simply re-applies, cheaply, every frame it's on.
   const verticalLockOn = useStore((s) => s.verticalLock)
   const fTwoPointPerspective = useFeature('twoPointPerspective')
+  // Reused view-offset object (per camera instance via ref) so the vertical-lock
+  // useFrame mutates one object each frame instead of allocating a fresh 7-field
+  // literal every frame while the feature is active (PERF-MAX-4). Only `offsetY`
+  // changes frame-to-frame; the rest are constant. `camera.clearViewOffset()` only
+  // flips `.enabled` false, so re-asserting `enabled = true` on assign is enough.
+  const viewOffset = useRef({
+    enabled: true,
+    fullWidth: 1,
+    fullHeight: 1,
+    offsetX: 0,
+    offsetY: 0,
+    width: 1,
+    height: 1,
+  })
   useFrame(() => {
     const c = controlsRef.current
     if (!c || !(camera instanceof PerspectiveCamera)) return
@@ -481,16 +495,12 @@ export function OrbitCamera() {
     // Assign the view window directly (rather than `setViewOffset`, which
     // would also stomp `camera.aspect` with `fullWidth/fullHeight` — see
     // `verticalLock.ts`'s doc comment) so the live viewport aspect ratio
-    // R3F already maintains on `camera` is left completely alone.
-    camera.view = {
-      enabled: true,
-      fullWidth: 1,
-      fullHeight: 1,
-      offsetX: 0,
-      offsetY: result.offsetY,
-      width: 1,
-      height: 1,
-    }
+    // R3F already maintains on `camera` is left completely alone. Mutate the
+    // reused object (PERF-MAX-4) rather than allocating a fresh one each frame.
+    const v = viewOffset.current
+    v.enabled = true
+    v.offsetY = result.offsetY
+    camera.view = v
     camera.updateProjectionMatrix()
   })
 
