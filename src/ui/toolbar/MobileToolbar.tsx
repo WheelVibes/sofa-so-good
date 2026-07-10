@@ -113,6 +113,12 @@ export function MobileToolbar() {
         ] as { id: string; icon: IconName; title: string }[])
       : ([
           { id: 'edit-home', icon: 'Cube', title: 'Edit' },
+          // Whole-flat Arrange (Smart Start / layout presets / style themes) is
+          // reachable from the overview too — desktop mounts ArrangeMenu in both
+          // modes (Toolbar.tsx's view-mode cluster); without this rail entry a
+          // phone user had to enter a single room to restyle the whole home
+          // (TB-4 in the 2026-07-10 toolbar UX audit).
+          { id: 'arrange', icon: 'Sets', title: 'Arrange' },
           { id: 'scene', icon: 'Time', title: 'Scene' },
         ] as { id: string; icon: IconName; title: string }[])),
     ...(proMode
@@ -237,15 +243,19 @@ export function MobileToolbar() {
                   />
                 ) : null}
 
-                {/* Edit / Design / Arrange — manual + bulk editing, only inside the
-                  per-room editor (the overview is view-only). */}
+                {/* Edit / Design — manual editing, only inside the per-room
+                  editor (the overview is view-only). */}
                 {roomEditorActive ? (
                   <>
                     <EditSection activeId={shownId} act={act} />
                     <DesignSection activeId={shownId} act={act} />
-                    <ArrangeSection activeId={shownId} act={act} />
                   </>
                 ) : null}
+
+                {/* Arrange — whole-flat sets / presets / style themes. Mounted in
+                  BOTH modes (mirrors desktop, which surfaces ArrangeMenu in the
+                  overview cluster too — its actions act on the whole flat). */}
+                <ArrangeSection activeId={shownId} act={act} />
 
                 {/* Tools (advanced — hidden in Simple mode) */}
                 {proMode ? (

@@ -29,11 +29,8 @@ Each carries file:line evidence. Open items from this audit are tracked in `TODO
 
 ## P1 — structure, discoverability, parity
 
-4. **Whole-flat Arrange is unreachable on mobile.** Desktop deliberately surfaces
-   `ArrangeMenu` (Smart Start, Tidy home, layout presets, style themes) in the orbit overview
-   (`Toolbar.tsx:207-217`); mobile `railItems` (`MobileToolbar.tsx:106-127`) gates Arrange+Design
-   to `roomEditorActive` — on a phone you must enter a single room to restyle the whole home.
-   Highest-value parity gap; add an Arrange rail section to the overview mode.
+4. ~~Whole-flat Arrange is unreachable on mobile~~ — **shipped v0.18.6.10** (Arrange rail entry +
+   `ArrangeSection` now mount in the overview too).
 
 5. **Tools menu is a 20+-row grab-bag mixing analysis with exports.** "Analyse" and
    "Review & tour" (registry rows) are coherent; then "Export & document" appends ~17
@@ -190,7 +187,7 @@ with a floating toolbar), plus the command-bar/shortcut literature. Sources:
 
 1. ~~P0-1 Popover descendant-portal containment~~ — shipped v0.18.6.2.
 2. ~~P0-2 Scene toggle affordance~~ — shipped v0.18.6.3. **P2-11a Lights segmented consistency** (S).
-3. **P1-4 mobile overview Arrange section** (S–M — reuse `ArrangeSection`, add rail entry).
+3. ~~P1-4 mobile overview Arrange section~~ — shipped v0.18.6.10.
 4. **P2-12 kbd chips** (S — registry `kbd` field + camera rows + Esc from keybindings).
 5. **P2-10 Measure naming split** (S). **P3-18/19 label/icon harmonization** (S).
 6. **P1-5/6 Tools/File export consolidation** (M — information architecture change, needs a

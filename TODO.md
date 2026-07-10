@@ -124,8 +124,6 @@ Full audit (findings P0–P3 with file:line evidence, Figma/modern-app grounding
 `docs/research/2026-07-10-toolbar-ux-audit.md`. Work the sequenced list there; delete each
 finding from the doc + this list as it ships. Open items, in order:
 - [ ] **TB-3 (P0)** Mobile menu-sheet grab pill is decorative — wire swipe-down-to-close or drop it.
-- [ ] **TB-4 (P1)** Mobile overview has no Arrange section — whole-flat Smart Start/presets/styles
-  unreachable without entering a room (desktop surfaces them in overview).
 - [ ] **TB-5 (P1)** Consolidate exports: Tools "Export & document" (~17 rows) merges into File;
   Tools keeps analysis panels/modes only. Group the four scattered cost surfaces under one entry.
 - [ ] **TB-6 (P1)** Toolbar island overflow affordance (edge fade/chevrons); no Lights/Scene

@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.10 — Mobile overview gains the Arrange section (TB-4, desktop parity)
+
+Whole-flat Arrange (furniture sets, layout presets, style themes, save-as-set/style) was
+unreachable on mobile outside the room editor — desktop deliberately mounts `ArrangeMenu` in the
+orbit overview (its actions act on the whole flat), but the mobile rail gated Arrange to
+`roomEditorActive`, forcing a phone user into a single room to restyle the whole home (highest-
+value parity gap in the toolbar UX audit). The `arrange` rail entry now appears in the overview
+too and `ArrangeSection` mounts in both modes. Unit tests: rail contains Arrange in overview AND
+room-editor modes + the detail pane renders. Scenario-verified at 390×844 (rail entry, pane
+renders, whole-flat style applies from the overview).
+
 ## v0.18.6.9 — Dead-export prune, batch 2 (DE-2/DE-3): 80 internal helpers de-exported
 
 Dropped the unnecessary `export` keyword on 80 internal-only helpers across 56 files (audit

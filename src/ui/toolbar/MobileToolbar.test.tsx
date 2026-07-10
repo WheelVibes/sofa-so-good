@@ -28,3 +28,24 @@ describe('MobileToolbar menu sheet — Escape to close', () => {
     expect(screen.queryByRole('button', { name: 'Close' })).toBeNull()
   })
 })
+
+describe('MobileToolbar rail — whole-flat Arrange in the overview (TB-4)', () => {
+  const railTitles = () =>
+    screen.getAllByRole('tab').map((t) => t.getAttribute('title') ?? t.getAttribute('aria-label'))
+
+  it('the OVERVIEW rail includes Arrange (desktop parity: whole-flat presets/styles)', () => {
+    render(<MobileToolbar />)
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(railTitles()).toContain('Arrange')
+    // Selecting it shows the Arrange detail pane (save-style row is unconditional).
+    fireEvent.click(screen.getByRole('tab', { name: 'Arrange' }))
+    expect(screen.getByText('Save current style…')).toBeInTheDocument()
+  })
+
+  it('the room-editor rail keeps Arrange too', () => {
+    useStore.getState().enterRoomEditor('livingDining')
+    render(<MobileToolbar />)
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(railTitles()).toContain('Arrange')
+  })
+})
