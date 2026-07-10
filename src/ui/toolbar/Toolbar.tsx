@@ -125,7 +125,12 @@ export function Toolbar() {
         {/* Exit + room switcher — leftmost while the room editor is active. */}
         {roomEditorActive && (
           <>
-            <IconButton icon="ExitRoom" label="Exit room" shortcut="Esc" onClick={exitRoomEditor} />
+            <IconButton
+              icon="ExitRoom"
+              label="Exit room"
+              shortcut={shortcutLabel('deselect')}
+              onClick={exitRoomEditor}
+            />
             <RoomSwitcher />
             <Divider />
           </>

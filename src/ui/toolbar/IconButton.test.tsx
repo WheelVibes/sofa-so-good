@@ -11,10 +11,10 @@ describe('P33 disabled-with-reason', () => {
     expect(btn.getAttribute('title')).toBe('Nothing to undo')
   })
 
-  it('keeps the normal label + no title when enabled', () => {
+  it('keeps the label mirrored onto title when enabled (touch has no hover tooltip — TB-7)', () => {
     render(<IconButton icon="Undo" label="Undo" shortcut="Ctrl Z" />)
     const btn = screen.getByRole('button', { name: 'Undo' })
     expect(btn).not.toBeDisabled()
-    expect(btn.getAttribute('title')).toBeNull()
+    expect(btn.getAttribute('title')).toBe('Undo')
   })
 })

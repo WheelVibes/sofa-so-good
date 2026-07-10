@@ -21,6 +21,7 @@ import { downloadRenoIcs } from '../../openRenoIcs'
 import { openDesignReport } from '../../openReport'
 import { exportScene3d } from '../../openSceneExport'
 import { viewInAr } from '../../viewInAr'
+import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
 /** Tools cluster: budget, clearance checks, sun study, walkthrough, report.
@@ -124,6 +125,7 @@ export function ToolsMenu() {
         label={n > 0 ? `${base} · ${n}` : base}
         sub={a.sub}
         docs={a.docs}
+        kbd={a.kbd ? shortcutLabel(a.kbd) : undefined}
         active={a.isActive(snap)}
         onClick={() => a.run(useStore)}
       />

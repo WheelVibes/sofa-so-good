@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.12 — Shortcut discoverability (TB-7): chips where bindings exist, names on touch
+
+Figma-grounded rule from the toolbar audit: every action with a shortcut teaches it. (a) The
+tool-action registry gains a `kbd?: KeybindingId` field, rendered as the standard `.mi-kbd` chip
+by the desktop Tools menu — Budget now shows `B`; future registry shortcuts are one field away
+instead of structurally impossible. (b) View → Orbit/Walk rows show the `V` chip
+(`toggleCameraMode` — the most-used shortcut was invisible). (c) "Exit room" derives `Esc` from
+`KEYBINDINGS.deselect` via `shortcutLabel` (which now contracts `Escape`→`Esc`) instead of a
+hardcoded string. (d) `IconButton` mirrors its label onto the native `title` when ENABLED too —
+the custom tooltip is hover/keyboard-only, so icon-only buttons (Snap, Lights, Graphics) exposed
+nothing on touch. Scenario-verified (V chips on camera rows, B chip on Budget with the flag on).
+
 ## v0.18.6.11 — Mobile menu sheet: grab pill now swipes to dismiss (TB-3)
 
 The sheet's grab pill (`.m-sheet-grab`) rendered the OS-level "draggable sheet" affordance but

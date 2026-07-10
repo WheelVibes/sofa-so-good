@@ -78,12 +78,10 @@ Each carries file:line evidence. Open items from this audit are tracked in `TODO
     segmented/Select so all states are visible. At minimum the toolbar Lights tooltip should name
     the *next* state ("Lights: Auto — click for On").
 
-12. **Shortcut chips are missing where bindings exist** (discoverability of the keyboard layer):
-    View→Orbit/Walk never show `V` (`toggleCameraMode`, `ViewMenu.tsx:62-75`); Tools→Budget never
-    shows `B` — the `ToolAction` registry type has no `kbd` field at all
-    (`actions/toolActions.tsx:34-56`); Scene→Time of day never surfaces `T` (`cyclePresetTime`).
-    Add a `kbd` field to the registry + chips on the camera rows. Also "Exit room" hardcodes
-    `shortcut="Esc"` (`Toolbar.tsx:128`) against the never-hardcode-key-labels rule.
+12. ~~Shortcut chips missing where bindings exist~~ — **mostly shipped v0.18.6.12** (registry
+    `kbd` field + Budget `B`, camera rows `V`, Esc derived from keybindings, `title` on enabled
+    IconButtons). Remaining sliver: Scene→Time of day never surfaces `T` (`cyclePresetTime`) —
+    the slider row has no natural chip slot; revisit with the Scene-menu restructure.
 
 13. **Enabled icon-buttons expose nothing on touch.** `IconButton` only sets a native `title` when
     *disabled* (`IconButton.tsx:51`); the custom `Tooltip` is hover/keyboard-only. Icon-only
@@ -186,7 +184,7 @@ with a floating toolbar), plus the command-bar/shortcut literature. Sources:
 1. ~~P0-1 Popover descendant-portal containment~~ — shipped v0.18.6.2.
 2. ~~P0-2 Scene toggle affordance~~ — shipped v0.18.6.3. **P2-11a Lights segmented consistency** (S).
 3. ~~P1-4 mobile overview Arrange section~~ — shipped v0.18.6.10.
-4. **P2-12 kbd chips** (S — registry `kbd` field + camera rows + Esc from keybindings).
+4. ~~P2-12 kbd chips~~ — shipped v0.18.6.12 (incl. P2-13's enabled-title mirror).
 5. **P2-10 Measure naming split** (S). **P3-18/19 label/icon harmonization** (S).
 6. **P1-5/6 Tools/File export consolidation** (M — information architecture change, needs a
    scenario re-rung + docs update).

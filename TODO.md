@@ -127,9 +127,6 @@ finding from the doc + this list as it ships. Open items, in order:
   Tools keeps analysis panels/modes only. Group the four scattered cost surfaces under one entry.
 - [ ] **TB-6 (P1)** Toolbar island overflow affordance (edge fade/chevrons); no Lights/Scene
   control inside the room editor; plan-editor mobile menu paradigm differs from the main sheet.
-- [ ] **TB-7 (P2)** Shortcut discoverability: `kbd` field on the tool-action registry, chips for
-  Orbit/Walk (V), Budget (B), time preset (T); Esc from keybindings not hardcoded; mirror `label`
-  to `title` on enabled IconButtons for touch.
 - [ ] **TB-8 (P2)** "Measurements" vs "Measure" naming/icon collision; cycle-buttons (Lights,
   grid size, mobile cycles) → segmented/Select where 3+ states.
 - [ ] **TB-9 (P2)** Consolidate menu primitives (one section-header idiom, Arrange on

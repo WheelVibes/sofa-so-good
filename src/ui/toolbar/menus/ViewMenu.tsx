@@ -63,6 +63,7 @@ export function ViewMenu() {
         icon="Orbit"
         label="Orbit"
         sub="Look around the model"
+        kbd={shortcutLabel('toggleCameraMode')}
         active={isOrbit}
         onClick={() => setCameraMode('orbit')}
       />
@@ -70,6 +71,7 @@ export function ViewMenu() {
         icon="Walk"
         label="Walk"
         sub="First-person walkthrough"
+        kbd={shortcutLabel('toggleCameraMode')}
         active={!isOrbit}
         onClick={() => setCameraMode('firstPerson')}
       />

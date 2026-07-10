@@ -15,6 +15,8 @@ const MOD_BINDINGS: ReadonlySet<KeybindingId> = new Set([
 export function shortcutLabel(id: KeybindingId): string {
   const code = KEYBINDINGS[id]
   if (!code) return ''
+  // Display contraction for non-letter codes (chips stay compact).
+  if (code === 'Escape') return 'Esc'
   const key = code.startsWith('Key') ? code.slice(3) : code
   return MOD_BINDINGS.has(id) ? `Ctrl ${key}` : key
 }
