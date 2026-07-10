@@ -666,15 +666,14 @@ gotchas:
   until you open them: `state.items.filter(i => i.defId === 'curtains').forEach(i =>
   updateItemProps(i.id, { drawAmount: 0 }))`. Do this as one of the first eval steps, before any
   walk-mode screenshot that needs the view to actually be visible.
-- **The per-room editor's `Canvas` (`scene/RoomEditorScene.tsx`) is a completely separate lighting
-  rig from the main `Scene`** — a fixed `hemisphereLight` + `ambientLight` for a flat, always-lit
-  authoring view, and it does **not** render `<FurnitureLights />` at all. Any light-emitter effect
-  (a registered fixture, or an `itemAsLight`-flagged item) is invisible while `roomEditor.active`
-  is true, regardless of the hour/`lightsMode` — this isn't a bug, it's deliberate (PERF, a stable
-  view to place items by), but it means you must `exitRoomEditor()` before probing/screenshotting
-  any lighting effect. The Inspector (needed to click the real per-item light toggle) is only
-  reachable inside the room editor, so the pattern is: enter editor → select item → click toggle →
-  **exit editor** → re-focus → probe/screenshot in the real Scene.
+- **OUTDATED (accurate when written; superseded by the graphics-globalization pass):** the
+  per-room editor's `Canvas` (`scene/RoomEditorScene.tsx`) used to be a fixed flat
+  `hemisphereLight`+`ambientLight` rig with no `<FurnitureLights />`. It now mounts the FULL
+  orbit render stack — `Lighting` (sun/time), `FurnitureLights`, `Effects`,
+  `QualityController` — so lighting effects ARE visible and probe-able inside the room editor
+  (which is also why the Scene menu now shows there, TB-6b v0.18.6.17). The old
+  enter-editor → toggle → **exit editor** → probe dance is no longer required; kept here so
+  older scenarios that still do it aren't "fixed" into breaking.
 - **A near-pitch-black "unlit" comparison shot proves nothing.** Picking a very late manual hour
   (23:00) for the "before/after" light-toggle pair renders the whole room fully black in both
   states under `lightsMode: 'auto'`-independent darkness — the point light's absence has no visual

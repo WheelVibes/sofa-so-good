@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.17 — Scene menu available inside the room editor (TB-6b)
+
+The Scene cluster (time of day, lights, ceiling fixtures, motion, render preset, backdrop, wall
+fade, sun direction) was hidden while `roomEditor.active` — a hangover from when the editor
+canvas was a fixed flat rig. `RoomEditorScene` has mounted the FULL orbit render stack
+(`Lighting` sun/time, `FurnitureLights`, `Effects`, `QualityController`) since the
+graphics-globalization pass, so hiding Scene there just stranded users who wanted to check
+lighting while furnishing (they had to exit the editor: audit P1-9). `SceneMenu` now mounts in
+every mode on desktop; the mobile rail gains a Scene section in the room editor too. The
+playbook's outdated "editor canvas has no FurnitureLights" gotcha is corrected with a dated
+supersession note. Scenario-verified: Scene opens inside the editor and the editor canvas
+responds (dusk + fixtures-on renders warm interior light).
+
 ## v0.18.6.16 — Toolbar overflow affordance: clipped edges now fade (TB-6a)
 
 The island's horizontal scroll was invisible — on narrow desktops the clipped cluster silently

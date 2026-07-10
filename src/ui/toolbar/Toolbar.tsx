@@ -164,9 +164,13 @@ export function Toolbar() {
             you can always switch Orbit/Walk (and frame the overview). */}
         <ViewMenu />
 
-        {/* Scene (time / lighting moods / sun) stays available in Walk too, so
-            you can experience the flat at different times of day while walking. */}
-        {!roomEditorActive && <SceneMenu />}
+        {/* Scene (time / lighting moods / sun) is available in EVERY mode —
+            Walk (experience times of day while walking) AND the room editor
+            (TB-6b: RoomEditorScene mounts the full orbit render stack — sun,
+            fixture lights, effects — since the graphics-globalization pass, so
+            hiding Scene there stranded users who wanted to check lighting while
+            furnishing; they had to exit the editor). */}
+        <SceneMenu />
 
         {/* EDIT MODE — inside the per-room editor (orbit): every editing cluster
             lives here now. Selection/placement/finishes only happen in here. */}

@@ -116,6 +116,9 @@ export function MobileToolbar() {
           { id: 'edit', icon: 'Select', title: 'Edit' },
           { id: 'design', icon: 'Catalog', title: 'Design' },
           { id: 'arrange', icon: 'Sets', title: 'Arrange' },
+          // Scene is meaningful inside the room editor too (TB-6b) — the editor
+          // canvas renders the full lighting stack (sun/fixtures/effects).
+          { id: 'scene', icon: 'Time', title: 'Scene' },
         ] as { id: string; icon: IconName; title: string }[])
       : ([
           { id: 'edit-home', icon: 'Cube', title: 'Edit' },
@@ -255,14 +258,12 @@ export function MobileToolbar() {
                 {/* Edit — step into a room / reshape the floor plan (overview only). */}
                 {!roomEditorActive ? <EditHomeSection activeId={shownId} act={act} /> : null}
 
-                {/* Scene */}
-                {!roomEditorActive ? (
-                  <SceneSection
-                    activeId={shownId}
-                    act={act}
-                    onOpenCompass={() => setCompassOpen(true)}
-                  />
-                ) : null}
+                {/* Scene — both modes (TB-6b, mirrors desktop). */}
+                <SceneSection
+                  activeId={shownId}
+                  act={act}
+                  onOpenCompass={() => setCompassOpen(true)}
+                />
 
                 {/* Edit / Design — manual editing, only inside the per-room
                   editor (the overview is view-only). */}
