@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.16 — Toolbar overflow affordance: clipped edges now fade (TB-6a)
+
+The island's horizontal scroll was invisible — on narrow desktops the clipped cluster silently
+vanished with no cue that more buttons exist (no modern-app precedent for silent overflow, per
+the audit's Figma grounding). The Toolbar's scroll effect now stamps `.can-scroll-left/right`
+(scroll + ResizeObserver driven, so cluster mount/unmount recomputes) and CSS `mask-image`
+fades the clipped edge(s) — content visibly bleeds out toward where more exists. No cue when
+the row fits. Scenario-verified at 700px in the room editor (right fade → scroll-to-end flips
+to left fade → wide viewport carries no cues).
+
 ## v0.18.6.15 — Toolbar consistency batch (TB-9/TB-10 partial)
 
 Three audit items: (a) **Arrange's user-set/user-style `×` deletes now gate on `confirmAction`**

@@ -103,12 +103,30 @@ export function Toolbar() {
     el.addEventListener('pointermove', onPointerMove)
     el.addEventListener('pointerup', endDrag)
     el.addEventListener('pointercancel', endDrag)
+
+    // Overflow affordance (TB-6): stamp .can-scroll-left/right so CSS can fade
+    // the clipped edge — silent horizontal overflow hid the right cluster
+    // (Graphics/Appearance) on narrow desktops with no cue. Scroll + resize +
+    // content-size driven (ResizeObserver catches cluster mount/unmount).
+    const updateOverflowCues = () => {
+      const canLeft = el.scrollLeft > 1
+      const canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+      el.classList.toggle('can-scroll-left', canLeft)
+      el.classList.toggle('can-scroll-right', canRight)
+    }
+    updateOverflowCues()
+    el.addEventListener('scroll', updateOverflowCues, { passive: true })
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateOverflowCues) : null
+    ro?.observe(el)
+
     return () => {
       el.removeEventListener('wheel', onWheel)
       el.removeEventListener('pointerdown', onPointerDown)
       el.removeEventListener('pointermove', onPointerMove)
       el.removeEventListener('pointerup', endDrag)
       el.removeEventListener('pointercancel', endDrag)
+      el.removeEventListener('scroll', updateOverflowCues)
+      ro?.disconnect()
     }
   }, [])
   const gridLabel = gridSize >= 1 ? `${gridSize} m` : `${Math.round(gridSize * 100)} cm`

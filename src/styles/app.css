@@ -373,3 +373,22 @@
 .toolbar.toolbar-scroll {
   padding-bottom: calc(var(--s-2) + 2px);
 }
+
+/* Overflow AFFORDANCE (TB-6): the island's horizontal scroll was invisible —
+   on narrow desktops the right cluster (Graphics/Appearance) silently clipped
+   with no cue that more buttons exist. The Toolbar's scroll effect stamps
+   .can-scroll-left / .can-scroll-right (scroll + resize driven); each side
+   fades the clipped edge via mask-image so off-screen content visibly bleeds
+   out. Modern canvas apps never hide overflow silently (toolbar UX audit). */
+.toolbar.toolbar-scroll.can-scroll-right {
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+}
+.toolbar.toolbar-scroll.can-scroll-left {
+  mask-image: linear-gradient(to right, transparent, black 28px);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 28px);
+}
+.toolbar.toolbar-scroll.can-scroll-left.can-scroll-right {
+  mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+}

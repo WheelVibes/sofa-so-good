@@ -123,8 +123,8 @@ Full audit (findings P0–P3 with file:line evidence, Figma/modern-app grounding
 finding from the doc + this list as it ships. Open items, in order:
 - [ ] **TB-5 (P1)** Consolidate exports: Tools "Export & document" (~17 rows) merges into File;
   Tools keeps analysis panels/modes only. Group the four scattered cost surfaces under one entry.
-- [ ] **TB-6 (P1)** Toolbar island overflow affordance (edge fade/chevrons); no Lights/Scene
-  control inside the room editor; plan-editor mobile menu paradigm differs from the main sheet.
+- [ ] **TB-6-tail (P1)** No Lights/Scene control inside the room editor; plan-editor mobile menu
+  paradigm differs from the main sheet. (Overflow edge-fade shipped v0.18.6.16.)
 - [ ] **TB-8-tail (P3)** Cycle-buttons → segmented/Select where 3+ states (grid size, mobile
   Lights/Ceiling/Motion cycles; the naming split + Lights next-state tooltip shipped v0.18.6.13);
   distinct icon for the tape tool.
