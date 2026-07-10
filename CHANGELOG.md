@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.4 — Tests: orientationSlice wrap + callouts/badges localStorage guards (R3-TEST-2/3)
+
+Backfills the last two round-3-audit test gaps: `orientationSlice.test.ts` pins
+`setOrientationDeg` normalization into [0,360) (`-90→270`, `450→90`, `360→0`, ± sweep) — a bad
+wrap silently mis-rotates the sun; `calloutsSlice.test.ts` + `badgesSlice.test.ts` pin the
+corrupt-localStorage guards (`hdb_dismissed_callouts`/`hdb_seen_badges`: corrupt JSON / non-array
+/ mixed-type arrays degrade cleanly), dismiss dedup + blank-id ignore, persistence, and the
+module-reload round-trip (via `vi.resetModules()` + dynamic import, happy-dom). Also struck the
+stale R3-TEST-1 / R3-FEAT-1 TODO entries — both shipped back in v0.13.0.16/.18.
+
 ## v0.18.6.3 — Fix (TB-2): Scene-menu Ceiling fixtures / Motion toggles read as controls again
 
 `.seg-btn` was an **undefined CSS class** — the Scene menu's "Ceiling fixtures" and "Motion"

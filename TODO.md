@@ -212,15 +212,6 @@ Open, client-doable items from `docs/research/2026-07-04-audit-round3-backlog-re
 competitor sweep found history-panel/shortcut-help/room-area/favourites/copy-paste/nudge/
 room-palette/lock/align-distribute all already shipped — so the list is short + evidence-based,
 ranked by value ÷ effort:
-- [ ] **R3-TEST-1 — `floorplan/templates/shared.ts` geometry helpers (0 tests).** `perimeter`/
-  `room`/`door`/`window`/`parapet`/`iwall` seed the shell of **every** starter plan (18+ HDB/condo
-  templates); area `CLAUDE.md` mandates "Geometry stays pure + unit-tested here." (S · HIGH)
-- [ ] **R3-TEST-2 — `state/slices/orientationSlice.ts` `normalize`/`setOrientationDeg` (0 tests).**
-  Home compass rotation driving sun/sky orientation + compass HUD; a bad wrap silently mis-rotates
-  the sun. Assert `-90→270`, `450→90`, `360→0`. (S · MED-HIGH)
-- [ ] **R3-FEAT-1 — Persistent / cross-plan clipboard paste.** `clipboardSlice` is session-only;
-  self-persist to localStorage (mirror `favouritesSlice`) so paste survives reload + works across
-  designs. Coohom/Planner 5D "my items". Pro tier. (S · MED)
 - [ ] **R3-FEAT-2 — Curated colour-palette preset gallery.** Palette *mechanism* exists
   (`colorPaletteSlice`) but no one-click curated theme; add a static preset list + picker calling
   `setMasterPalette`/`setRoomPalette`. Coohom/Planner 5D themes. Pro tier. (S · MED)
@@ -230,8 +221,6 @@ ranked by value ÷ effort:
 - [ ] **R3-FEAT-3 — Orthographic / isometric camera view.** `OrbitCamera.tsx:491` has an unused
   ortho fallback; expose a parallel-projection/iso "dollhouse" toggle (SketchUp/Sweet Home 3D/
   Planner 5D). Pro tier; needs a visual-verification pass (raycast/shadow/zoom differ). (M · MED)
-- [ ] **R3-TEST-3 — `calloutsSlice.ts`/`badgesSlice.ts` localStorage guards (0 tests).** Corrupt-
-  storage parse + dedup resilience for onboarding callouts / NEW badges. (S · MED-LOW)
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live
