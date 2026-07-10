@@ -119,6 +119,32 @@ WebGPU path tracing).
 - **Fast rasterized "preview render" tier** (Coohom parity) — a local analog to the 10-s cloud
   render. Deferred as an analytics/deliverable, not core design UX.
 
+## Active — toolbar UX program (2026-07-10, user goal)
+Full audit (findings P0–P3 with file:line evidence, Figma/modern-app grounding, screenshots):
+`docs/research/2026-07-10-toolbar-ux-audit.md`. Work the sequenced list there; delete each
+finding from the doc + this list as it ships. Open items, in order:
+- [ ] **TB-1 (P0)** Popover containment must accept descendant portals — nested Select drops picks
+  and closes the parent menu (= the TASKS.md IXT bug; fixes Scene/Arrange selects).
+- [ ] **TB-2 (P0)** Scene-menu "Ceiling fixtures"/"Motion" toggles render as plain text — give
+  them a real control affordance (segmented, like Lights).
+- [ ] **TB-3 (P0)** Mobile menu-sheet grab pill is decorative — wire swipe-down-to-close or drop it.
+- [ ] **TB-4 (P1)** Mobile overview has no Arrange section — whole-flat Smart Start/presets/styles
+  unreachable without entering a room (desktop surfaces them in overview).
+- [ ] **TB-5 (P1)** Consolidate exports: Tools "Export & document" (~17 rows) merges into File;
+  Tools keeps analysis panels/modes only. Group the four scattered cost surfaces under one entry.
+- [ ] **TB-6 (P1)** Toolbar island overflow affordance (edge fade/chevrons); no Lights/Scene
+  control inside the room editor; plan-editor mobile menu paradigm differs from the main sheet.
+- [ ] **TB-7 (P2)** Shortcut discoverability: `kbd` field on the tool-action registry, chips for
+  Orbit/Walk (V), Budget (B), time preset (T); Esc from keybindings not hardcoded; mirror `label`
+  to `title` on enabled IconButtons for touch.
+- [ ] **TB-8 (P2)** "Measurements" vs "Measure" naming/icon collision; cycle-buttons (Lights,
+  grid size, mobile cycles) → segmented/Select where 3+ states.
+- [ ] **TB-9 (P2)** Consolidate menu primitives (one section-header idiom, Arrange on
+  MenuItem/EmptyState); confirmAction on user-set/style deletes; 44px hamburger/brand targets;
+  tablist roving focus + sheet focus-trap.
+- [ ] **TB-10 (P3)** Label separator convention, desktop↔mobile naming/icon drift, SliderField in
+  GraphicsSettings, wall-reveal double naming, shared 640px breakpoint token, History icon.
+
 ## Open — core interactions
 - **Corner-spread wall fade for custom plans (`PlanShell`).** The angle-graded orbit wall fade
   (WALL-REVEAL-ANGLE-GRADED) + corner spread (WALL-REVEAL-CORNER-SPREAD) landed in the default
