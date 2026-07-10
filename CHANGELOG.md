@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.18 — Mobile sheet Tab focus-trap (a11y) + DE-4b ruling
+
+The mobile menu sheet gains the Tab focus-trap it was the last overlay without (the long-open
+a11y TODO + TB-9 tail): focus moves into the sheet on open and Tab/Shift+Tab wrap at the edges
+via the shared `controls/focusTrap.ts` helpers `Modal`/`ToolbarMenu` already use. Unit-tested
+(focus lands inside; wraps both directions). DE-4b resolved: `importSh3dFile` was never dead —
+it's `openSh3dImport()`'s internal worker, exported "for direct/drag callers" that never
+materialised; de-exported with the ruling recorded inline (re-export if a `.sh3d` drop-zone
+ever ships).
+
 ## v0.18.6.17 — Scene menu available inside the room editor (TB-6b)
 
 The Scene cluster (time of day, lights, ceiling fixtures, motion, render preset, backdrop, wall

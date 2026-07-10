@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { FOCUSABLE_SELECTOR, trapTabKey } from '../../controls/focusTrap'
 import { useModalGuard } from '../../controls/modalGuard'
 import { hasBackend } from '../../features/api/client'
 import { useFeature } from '../../features/useFeature'
@@ -32,6 +33,7 @@ const SHEET_SWIPE_PX = 36
 
 export function MobileToolbar() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const sheetRef = useRef<HTMLDivElement>(null)
   // Touch-start Y of a grab-pill swipe (TB-3: swipe up on the pill closes).
   const sheetSwipeY = useRef<number | null>(null)
   const [activeId, setActiveId] = useState<string>('view')
@@ -84,9 +86,20 @@ export function MobileToolbar() {
       if (e.key === 'Escape') {
         e.stopPropagation()
         setMenuOpen(false)
+        return
+      }
+      // Tab focus-trap (TB-9 / the long-open a11y TODO): the sheet overlays the
+      // whole app, so Tab must cycle within it — same shared helper Modal and
+      // ToolbarMenu use. Keyboard-on-touch is rare but the sheet also renders
+      // on narrow desktop windows.
+      if (e.key === 'Tab' && sheetRef.current && trapTabKey(sheetRef.current, e)) {
+        e.preventDefault()
       }
     }
     window.addEventListener('keydown', onKey)
+    // Move focus into the sheet on open (mirrors Modal), so Tab starts inside.
+    const first = sheetRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+    first?.focus()
     return () => window.removeEventListener('keydown', onKey)
   }, [menuOpen])
 
@@ -197,7 +210,7 @@ export function MobileToolbar() {
 
       {menuOpen ? (
         <div className="m-menu-overlay" onClick={(e) => e.target === e.currentTarget && close()}>
-          <div className="m-sheet">
+          <div className="m-sheet" ref={sheetRef}>
             {/* The grab pill promises a sheet gesture (TB-3) — honour it: a
                 swipe UP on the pill/header dismisses the top-anchored sheet
                 (mirrors useSwipeToCollapse's touch pattern; the sheet hangs

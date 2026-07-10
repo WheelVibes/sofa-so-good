@@ -29,6 +29,29 @@ describe('MobileToolbar menu sheet — Escape to close', () => {
   })
 })
 
+describe('MobileToolbar menu sheet — Tab focus trap (TB-9)', () => {
+  it('moves focus into the sheet on open and wraps Tab at the edges', () => {
+    render(<MobileToolbar />)
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    const sheet = document.querySelector('.m-sheet') as HTMLElement
+    expect(sheet).toBeTruthy()
+    // Focus landed inside the sheet on open (mirrors Modal).
+    expect(sheet.contains(document.activeElement)).toBe(true)
+    // Shift+Tab from the FIRST focusable wraps to the LAST (trapTabKey).
+    const focusables = sheet.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    )
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    first.focus()
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    // Tab from the LAST wraps back to the FIRST.
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+  })
+})
+
 describe('MobileToolbar menu sheet — grab-pill swipe up dismisses (TB-3)', () => {
   const openSheet = () => {
     const utils = render(<MobileToolbar />)

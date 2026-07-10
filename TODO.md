@@ -130,8 +130,8 @@ finding from the doc + this list as it ships. Open items, in order:
   Lights/Ceiling/Motion cycles; the naming split + Lights next-state tooltip shipped v0.18.6.13);
   distinct icon for the tape tool.
 - [ ] **TB-9-tail (P2)** Consolidate menu primitives (one section-header idiom, Arrange on
-  MenuItem/EmptyState); tablist roving focus + sheet focus-trap. (confirmAction on set/style
-  deletes + 44px hamburger/brand targets shipped v0.18.6.15.)
+  MenuItem/EmptyState); tablist roving focus. (confirmAction on set/style deletes + 44px
+  hamburger/brand targets shipped v0.18.6.15; sheet focus-trap shipped v0.18.6.18.)
 - [ ] **TB-10-tail (P3)** Desktop↔mobile naming/icon drift, SliderField in GraphicsSettings,
   wall-reveal double naming, shared 640px breakpoint token, History icon. (Separator convention
   shipped v0.18.6.15.)
@@ -156,9 +156,6 @@ finding from the doc + this list as it ships. Open items, in order:
   open the 2D editor); drag-drop is fiddly to verify headlessly. Note: 2D room polygons are SVG, so
   the `ui/CLAUDE.md` "drop zones must be `<div>`" rule needs a workaround.
 
-## Open — accessibility (very low value, optional)
-- **Full focus-trap on the mobile menu sheet** (`MobileToolbar`) — Escape-close + `useModalGuard`
-  ship; a Tab focus-trap remains, but keyboard-on-touch is rare.
 
 ## Core-loop parity gaps (2026-07-03 audit)
 Ranked by value/effort. All pure-client, core-loop (furnish→arrange→finish→view→share) +

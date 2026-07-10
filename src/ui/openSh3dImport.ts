@@ -111,8 +111,11 @@ export function openSh3dImport(): void {
   input.click()
 }
 
-/** Read + parse + apply one `.sh3d` File (exported for direct/drag callers). */
-export async function importSh3dFile(file: File): Promise<void> {
+/** Read + parse + apply one `.sh3d` File. Module-private (DE-4b ruling,
+ *  2026-07-10): it was exported "for direct/drag callers" but no drag-drop
+ *  `.sh3d` entry point exists or is planned — `openSh3dImport()`'s file picker
+ *  is the sole caller. Re-export it if a drop-zone ever materialises. */
+async function importSh3dFile(file: File): Promise<void> {
   const s = useStore.getState()
   const planName = planNameFromFile(file.name)
   const progressId = s.notify.start({ title: `Importing “${planName}”…`, kind: 'progress' })

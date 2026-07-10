@@ -144,8 +144,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   oxc-parser ESM/CJS `require()` mismatch (both Node 20 and the pinned 24.18.0) — upgrade
   knip/oxc-parser first, then extend `knip.json` to `functions/**`, `workers/**`,
   `electron/*.mjs`, verify clean (DE-1..3 landed v0.18.6.8/.9), and add `npm run deadcode` to CI.
-- [ ] **DE-4b**: `openSh3dImport.ts:115` `importSh3dFile` is dormant with no backlog item — decide
-  wire-up or removal.
 - [ ] **DE-5**: extend `knip.json` entry/project to `functions/**`, `workers/**`, `electron/*.mjs`
   (currently invisible to knip), verify clean after DE-2/3, then add `npm run deadcode` to CI.
 
