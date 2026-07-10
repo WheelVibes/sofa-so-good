@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.20 — PLAN-FURNISH Phase 3: window fixtures place from the 2D plan editor
+
+Curtains/roller blinds are now placeable from the plan's Furnish catalog (the Phase-1 toast
+pointing to the 3D editor is retired). Ghost AND commit snap live to the EDITED level's nearest
+window via the new pure `buildPlanWindowGhostItem` (`planFurnishPlacement.ts`) — a thin wrapper
+over the exact 3D pair (`snapToNearestWindow` + `windowFixtureProps`), so position, room-side
+facing, and window sizing match the 3D path bit-for-bit; drop points stay RAW (grid/wall
+magnetism would flip the facing). Works on desktop click, mobile tap, and long-press drag;
+stamp repeat-snaps per click; a windowless level toasts "No window to place on" + disarms
+(also on a mid-arm level switch). Level-aware via `levelAsPlan`; placed items carry `levelId`.
+Unit tests (snap-to-centre, nearest-of-several, facing flip, sizing, levelId, no-window);
+scenario `plan-furnish-windows.json` 31/31 green (placed curtain 0.0000 m from the window's
+segment centre, props asserted against `windowFixtureProps`); Phase-1 (34/34) + Phase-2 (68/68)
+regressions green; full suite 5721 green. Docs updated (user guide, ui/floorplan/furniture
+CLAUDE.md). Two PRE-EXISTING bugs found and logged in TASKS.md (plan inspector ignores
+`windowBound`; size line shows def H not window-sized H) — not fixed here.
+
 ## v0.18.6.19 — PLAN-FURNISH Phase 2: mobile furniture placement in the 2D plan editor
 
 Resumes the archived `wip/plan-furnish-mobile-phase2` work (54/64 green, deferred 2026-07-04)

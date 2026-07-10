@@ -13,7 +13,9 @@
  */
 import { canPlace } from '../../../collision/placement'
 import type { CollisionWall } from '../../../collision/walls'
+import type { PlanOpening, PlanWall } from '../../../floorplan/types'
 import { defaultItemProps } from '../../../furniture/placement/defaultItemProps'
+import { snapToNearestWindow, windowFixtureProps } from '../../../furniture/placement/windowSnap'
 import type { FurnitureDef, FurnitureItem } from '../../../furniture/types'
 
 /** Synthetic id for the plan-space placement preview (never persisted/committed). */
@@ -49,37 +51,91 @@ export function buildPlanGhostItem(
   }
 }
 
-/** Window-bound fixtures (curtains/blinds/grilles) snap onto the nearest
- *  window via a dedicated 3D-only branch (`furniture/placement/windowSnap.ts`)
- *  that Phase 1 doesn't port to the plan editor — excluded here rather than
- *  half-supported (a floor-drop `canPlace` check would be meaningless for a
- *  fixture that never rests on the floor). Deferred to a later PLAN-FURNISH
- *  phase alongside the window-snap commit branch. */
-export function isPlanPlaceable(def: FurnitureDef): boolean {
-  return !def.windowBound
+/** The edited storey's window-snap inputs (PLAN-FURNISH Phase 3) — the same
+ *  walls/openings/ceilingHeight triple the 3D commit reads off `floorPlan`,
+ *  but scoped to the ACTIVE level (`levelAsPlan` — the plan editor edits one
+ *  storey at a time, so a curtain armed on level 2 must never snap to a
+ *  ground-floor window). */
+export interface PlanWindowContext {
+  walls: ReadonlyArray<PlanWall>
+  openings: ReadonlyArray<PlanOpening>
+  ceilingHeight: number
 }
 
-/** Validity of the plan ghost at its current world point — false outright for
- *  an excluded (window-bound) def, else the same `canPlace` rule every other
- *  plan-space transform (move/rotate/scale) already validates against. */
+/** Whether the edited level has at least one window a fixture could snap to
+ *  (a `window` opening whose host wall resolves) — the arming gate for a
+ *  `windowBound` def in the plan. Probes `snapToNearestWindow` so "has a
+ *  window" and "will snap" can never disagree. */
+export function planHasWindow(
+  walls: ReadonlyArray<PlanWall>,
+  openings: ReadonlyArray<PlanOpening>,
+): boolean {
+  return snapToNearestWindow(walls, openings, [0, 0]) !== null
+}
+
+/**
+ * PLAN-FURNISH Phase 3 — the window-snapped ghost/commit item for a
+ * `windowBound` def (curtains, roller blinds) dropped at `worldPoint`.
+ * Reuses the EXACT pure pair the 3D commit uses
+ * (`furniture/placement/windowSnap.ts`): `snapToNearestWindow` picks the
+ * nearest window on the edited level and the room-side facing (the wall
+ * normal pointing toward the drop point), `windowFixtureProps` sizes the
+ * fixture to that window (curtains wider than the glass + floor-to-ceiling,
+ * blinds slightly wider with a covering drop) merged over the def defaults.
+ * The user-dialed `ghostRotation` is deliberately ignored — a window fixture's
+ * orientation is the window's, never the R key's (same as 3D). Returns `null`
+ * when the level has no window to snap to (the caller toasts + disarms).
+ */
+export function buildPlanWindowGhostItem(
+  def: FurnitureDef,
+  worldPoint: [number, number],
+  plan: PlanWindowContext,
+  levelId?: string,
+): FurnitureItem | null {
+  const snap = snapToNearestWindow(plan.walls, plan.openings, worldPoint)
+  if (!snap) return null
+  return {
+    id: PLAN_GHOST_ID,
+    defId: def.id,
+    position: snap.position,
+    rotation: snap.rotation,
+    props: {
+      ...defaultItemProps(def),
+      ...windowFixtureProps(def.id, snap.window, plan.ceilingHeight),
+    },
+    ...(levelId ? { levelId } : {}),
+  }
+}
+
+/** Validity of a FLOOR-standing plan ghost at its current world point — the
+ *  same `canPlace` rule every other plan-space transform (move/rotate/scale)
+ *  already validates against. Window-bound defs never take this path (their
+ *  validity is "did `buildPlanWindowGhostItem` snap", Phase 3) — a floor
+ *  `canPlace` check is meaningless for a fixture that never rests on the
+ *  floor, so this stays `false` as a fail-safe for any caller that forgot to
+ *  branch. */
 export function planGhostValid(
   ghostItem: FurnitureItem,
   def: FurnitureDef,
   ctx: PlanGhostContext,
 ): boolean {
-  if (!isPlanPlaceable(def)) return false
+  if (def.windowBound) return false
   return canPlace(ghostItem, def, ctx)
 }
 
 export type PlanCommitDecision = 'commit' | 'invalid' | 'ineligible'
 
-/** What a commit click should do with the currently-armed def: `'ineligible'`
- *  (window-bound, excluded from Phase 1 — the caller shows a toast and
- *  disarms), `'invalid'` (red ghost — collision, click is swallowed and stays
- *  armed), or `'commit'` (green ghost — place it). */
+/** What a commit click should do with the currently-armed def: `'commit'`
+ *  (green ghost — place it), `'invalid'` (red ghost — collision, click is
+ *  swallowed and stays armed so the user tries another spot), or
+ *  `'ineligible'` (a window-bound def with no window on the edited level —
+ *  no spot can EVER commit it, so the caller toasts and disarms; Phase 3
+ *  turned window-bound-with-a-window into a normal `'commit'`). A
+ *  window-bound def's `valid` is snap existence (`buildPlanWindowGhostItem`
+ *  returned an item), not `canPlace`. */
 export function decidePlanCommit(def: FurnitureDef, valid: boolean): PlanCommitDecision {
-  if (!isPlanPlaceable(def)) return 'ineligible'
-  return valid ? 'commit' : 'invalid'
+  if (valid) return 'commit'
+  return def.windowBound ? 'ineligible' : 'invalid'
 }
 
 /**

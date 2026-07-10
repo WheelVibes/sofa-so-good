@@ -10,12 +10,18 @@ stays a thin dispatcher. Several kinds of file live here:
   points / a `snap` fn passed in explicitly) — never read editor or component
   state, never call `useStore`. This is what makes each one unit-testable in
   isolation. `planFurnishPlacement.ts` (PLAN-FURNISH) is the pattern for a
-  placement-adjacent module: it builds the synthetic ghost item, decides
-  `canPlace` validity (excluding window-bound defs from Phase 1) and the
-  commit decision — `FloorPlanEditor`'s `onDown`/`onMove` own the screen→world
-  mapping (reusing the existing `pointerWorld`/`toPx`) and the store
-  reads/writes, this module only decides what the ghost looks like and what a
-  click should do with it.
+  placement-adjacent module: it builds the synthetic ghost item — floor defs
+  validated by `canPlace`; window-bound defs (Phase 3) via
+  `buildPlanWindowGhostItem`, which snaps to the EDITED level's nearest window
+  using the exact 3D pure pair (`furniture/placement/windowSnap.ts`
+  `snapToNearestWindow` + `windowFixtureProps`), with snap-existence as its
+  validity and a RAW (unsnapped) drop point so wall magnetism can't corrupt
+  the room-side facing — and the commit decision (`'ineligible'` = window-bound
+  with no window on the level, toast + disarm) — `FloorPlanEditor`'s
+  `onDown`/`onMove` own the screen→world mapping (reusing the existing
+  `pointerWorld`/`pointerPlanRaw`/`toPx`) and the store reads/writes, this
+  module only decides what the ghost looks like and what a click should do
+  with it.
 - **`planPointerMapping.ts`** (REFAC-2) sits one level up from the pure modules:
   `createPlanPointerMapping()` composes `floorPlanGeometry`/`snapToWalls`/
   `snapWallAngle` into the screen→world coordinate pipeline (grid/guide snap,

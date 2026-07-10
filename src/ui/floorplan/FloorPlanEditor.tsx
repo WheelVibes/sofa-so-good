@@ -66,10 +66,11 @@ import { PlanViewMenuActions } from './editor/PlanViewMenuActions'
 import { EXPORT_PAD, GRID_MARGIN, type Tool, ZOOM_BTN_STEP } from './editor/planConstants'
 import {
   buildPlanGhostItem,
+  buildPlanWindowGhostItem,
   decidePlanCommit,
   decidePlanTouchLift,
-  isPlanPlaceable,
   planGhostValid,
+  planHasWindow,
   screenToGridPoint,
 } from './editor/planFurnishPlacement'
 import { dimFontPx, roomFontPx } from './editor/planLabelDisplay'
@@ -589,6 +590,8 @@ export function FloorPlanEditor() {
     levelId,
     itemLevelId,
     walls: levelPlan.walls,
+    openings: levelPlan.openings,
+    ceilingHeight: levelPlan.ceilingHeight,
     guides: fGuides ? plan.guides : undefined,
   })
   planTouchCtxRef.current = {
@@ -599,17 +602,45 @@ export function FloorPlanEditor() {
     levelId,
     itemLevelId,
     walls: levelPlan.walls,
+    openings: levelPlan.openings,
+    ceilingHeight: levelPlan.ceilingHeight,
     guides: fGuides ? plan.guides : undefined,
   }
-  const planGhostItem = useMemo(
-    () =>
-      planDef && planGhostWorld
-        ? buildPlanGhostItem(planDef, planGhostWorld, ghostRotation, itemLevelId)
-        : null,
-    [planDef, planGhostWorld, ghostRotation, itemLevelId],
-  )
+  const planGhostItem = useMemo(() => {
+    if (!planDef || !planGhostWorld) return null
+    // PLAN-FURNISH Phase 3: a window-bound fixture's ghost SNAPS to the
+    // nearest window on the edited storey (position + facing + window-sized
+    // props), mirroring the 3D `PlacementGhost`'s window snap — null (no
+    // ghost) when the level has no window.
+    if (planDef.windowBound)
+      return buildPlanWindowGhostItem(
+        planDef,
+        planGhostWorld,
+        {
+          walls: levelPlan.walls,
+          openings: levelPlan.openings,
+          ceilingHeight: levelPlan.ceilingHeight,
+        },
+        itemLevelId,
+      )
+    return buildPlanGhostItem(planDef, planGhostWorld, ghostRotation, itemLevelId)
+    // levelPlan is a fresh object every render (levelAsPlan) but its
+    // walls/openings arrays + ceilingHeight are stable references — depend on
+    // those, not the wrapper.
+  }, [
+    planDef,
+    planGhostWorld,
+    ghostRotation,
+    itemLevelId,
+    levelPlan.walls,
+    levelPlan.openings,
+    levelPlan.ceilingHeight,
+  ])
   const planGhostIsValid = useMemo(() => {
     if (!planGhostItem || !planDef) return false
+    // A window-bound ghost only exists when it snapped to a window — the snap
+    // IS its validity (Phase 3); `canPlace` is a floor rule that doesn't apply.
+    if (planDef.windowBound) return true
     return planGhostValid(planGhostItem, planDef, {
       others: items,
       defs: catalogRef.current,
@@ -618,23 +649,25 @@ export function FloorPlanEditor() {
     })
   }, [planGhostItem, planDef, items, doors, levelId, catalogRef])
 
-  // Window-bound fixtures (curtains/blinds/grilles) aren't supported by the
-  // Phase-1 plan ghost/commit (no window-snap branch here yet — see
-  // `planFurnishPlacement.ts:isPlanPlaceable`); disarm immediately with an
-  // explanatory toast instead of showing a ghost that can never commit.
+  // PLAN-FURNISH Phase 3: a window-bound fixture (curtains/blinds) places by
+  // snapping to the nearest window on the EDITED level — a level with no
+  // window can never commit it, so disarm immediately with the same
+  // explanatory toast the 3D controller shows, instead of stranding an armed
+  // ghost. Re-runs on a level switch mid-arm (the fixture may be placeable on
+  // one storey but not another).
   useEffect(() => {
-    if (!fPlanFurnish || !planDef) return
-    if (isPlanPlaceable(planDef)) return
+    if (!fPlanFurnish || !planDef?.windowBound) return
+    if (planHasWindow(levelPlan.walls, levelPlan.openings)) return
     useStore.getState().notify.start({
       kind: 'info',
-      title: 'Not supported in the plan yet',
-      message: `${planDef.name} can only be placed from the 3D room editor for now.`,
+      title: 'No window to place on',
+      message: `${planDef.name} can only be placed on a window — this plan has none.`,
     })
     useStore.getState().cancelPlacement()
     // planDef itself is derived from activeDefId — this effect intentionally
-    // re-runs only when the armed def (or the flag) changes, not on every
-    // unrelated re-render.
-  }, [planDef, fPlanFurnish])
+    // re-runs only when the armed def, the flag, or the edited level's
+    // walls/openings change, not on every unrelated re-render.
+  }, [planDef, fPlanFurnish, levelPlan.walls, levelPlan.openings])
 
   // Arming a placement always shows furniture footprints (otherwise the just
   // placed piece would be invisible/unselectable — `showFurniture` defaults
@@ -705,16 +738,23 @@ export function FloorPlanEditor() {
       svg: SVGSVGElement,
       clientX: number,
       clientY: number,
+      raw = false,
     ): [number, number] => {
       const ctx = planTouchCtxRef.current
       const rect = svg.getBoundingClientRect()
+      // Phase 3 (`raw`): a window-bound fixture's drop point must stay
+      // UNSNAPPED — grid/guide/wall snapping (especially wall magnetism, which
+      // pulls a near-wall point onto the wall centreline) would corrupt the
+      // room-side facing `snapToNearestWindow` derives from it. Mirrors the
+      // mouse path's `pointerPlanRaw`.
       let gridded = screenToGridPoint(clientX, clientY, rect, {
         W: ctx.W,
         H: ctx.H,
         PX: ctx.PX,
-        gridSize: ctx.gridSize,
+        gridSize: raw ? 0 : ctx.gridSize,
         gridMargin: GRID_MARGIN,
       })
+      if (raw) return gridded
       if (ctx.guides?.length) gridded = snapToGuides(gridded, ctx.guides, 0.15)
       return snapToWalls(gridded, ctx.walls)
     }
@@ -724,11 +764,12 @@ export function FloorPlanEditor() {
       // (its move/commit are the SVG's own onMove/onDown) — the ghost is already
       // tracked there; don't double-drive it from here.
       if (svgTouchPointers.current.has(ev.pointerId)) return
-      if (!useStore.getState().activeDefId) return
+      const defId = useStore.getState().activeDefId
+      if (!defId) return
       const svg = svgRef.current
       setPlanGhostWorld(
         svg && isOnPlan(svg, ev.clientX, ev.clientY)
-          ? clientToWorld(svg, ev.clientX, ev.clientY)
+          ? clientToWorld(svg, ev.clientX, ev.clientY, !!getDef(defId)?.windowBound)
           : null,
       )
     }
@@ -753,18 +794,32 @@ export function FloorPlanEditor() {
       const def = getDef(defId)
       const svg = svgRef.current
       const onPlan = !!svg && isOnPlan(svg, ev.clientX, ev.clientY)
-      const world = svg && onPlan ? clientToWorld(svg, ev.clientX, ev.clientY) : null
-      const { levelId: liveLevelId, itemLevelId: liveItemLevelId } = planTouchCtxRef.current
+      const world =
+        svg && onPlan ? clientToWorld(svg, ev.clientX, ev.clientY, !!def?.windowBound) : null
+      const ctx = planTouchCtxRef.current
+      const { levelId: liveLevelId, itemLevelId: liveItemLevelId } = ctx
       let ghost: FurnitureItem | null = null
       let valid = false
       if (def && world) {
-        ghost = buildPlanGhostItem(def, world, st.ghostRotation, liveItemLevelId)
-        valid = planGhostValid(ghost, def, {
-          others: st.items,
-          defs: catalogRef.current,
-          doors: st.doors,
-          walls: placementWalls(st, liveLevelId),
-        })
+        if (def.windowBound) {
+          // Phase 3: snap the lift point to the nearest window on the edited
+          // level — the snap IS the validity (null ⇒ no window ⇒ cancel).
+          ghost = buildPlanWindowGhostItem(
+            def,
+            world,
+            { walls: ctx.walls, openings: ctx.openings, ceilingHeight: ctx.ceilingHeight },
+            liveItemLevelId,
+          )
+          valid = ghost !== null
+        } else {
+          ghost = buildPlanGhostItem(def, world, st.ghostRotation, liveItemLevelId)
+          valid = planGhostValid(ghost, def, {
+            others: st.items,
+            defs: catalogRef.current,
+            doors: st.doors,
+            walls: placementWalls(st, liveLevelId),
+          })
+        }
       }
       if (decidePlanTouchLift(def, onPlan, valid) !== 'commit' || !ghost || !def) {
         st.cancelPlacement()
@@ -931,16 +986,37 @@ export function FloorPlanEditor() {
     if (fPlanFurnish && activeDefId) {
       const def = getDef(activeDefId)
       if (def) {
-        const [wx, wz] = pointerWorld(e)
-        const ghost = buildPlanGhostItem(def, [wx, wz], ghostRotation, itemLevelId)
         const st = useStore.getState()
-        const valid = planGhostValid(ghost, def, {
-          others: st.items,
-          defs: catalogRef.current,
-          doors: st.doors,
-          walls: placementWalls(st, levelId),
-        })
-        if (decidePlanCommit(def, valid) === 'commit') {
+        let ghost: FurnitureItem | null
+        let valid: boolean
+        if (def.windowBound) {
+          // PLAN-FURNISH Phase 3: window-bound fixtures snap to the nearest
+          // window on the edited level (position + room-side facing +
+          // window-sized props — the exact 3D pair, `windowSnap.ts`). The drop
+          // point stays RAW (no grid/guide/wall snap): wall magnetism would
+          // pull a near-wall click onto the wall centreline and corrupt the
+          // facing side `snapToNearestWindow` derives from it.
+          ghost = buildPlanWindowGhostItem(
+            def,
+            pointerPlanRaw(e),
+            {
+              walls: levelPlan.walls,
+              openings: levelPlan.openings,
+              ceilingHeight: levelPlan.ceilingHeight,
+            },
+            itemLevelId,
+          )
+          valid = ghost !== null
+        } else {
+          ghost = buildPlanGhostItem(def, pointerWorld(e), ghostRotation, itemLevelId)
+          valid = planGhostValid(ghost, def, {
+            others: st.items,
+            defs: catalogRef.current,
+            doors: st.doors,
+            walls: placementWalls(st, levelId),
+          })
+        }
+        if (ghost && decidePlanCommit(def, valid) === 'commit') {
           const priorItems = st.items
           const newId = st.addItem({
             defId: def.id,
@@ -961,8 +1037,9 @@ export function FloorPlanEditor() {
             st.setPendingEdit({ kind: 'placement', ids: [newId], originals: [], priorItems })
           }
         }
-        // 'invalid' (red ghost) / 'ineligible' (window-bound, already toasted
-        // + disarmed by the effect above): swallow the click, nothing to do.
+        // 'invalid' (red ghost) / 'ineligible' (window-bound with no window on
+        // this level — already toasted + disarmed by the effect above): swallow
+        // the click, nothing to do.
       }
       return
     }
@@ -1145,9 +1222,12 @@ export function FloorPlanEditor() {
     // PLAN-FURNISH Phase 1: while a def is armed, track the ghost instead of
     // any other drag/tool state (none can be active at once — arming took
     // over `onDown` above). Grid-snapped, same as every other plan-space
-    // placement/move.
+    // placement/move — except a window-bound fixture (Phase 3), whose raw
+    // cursor point drives the window snap + room-side facing (grid/wall
+    // snapping would corrupt the facing; the ghost itself lands on the
+    // window, so an unsnapped cursor is invisible anyway).
     if (fPlanFurnish && activeDefId) {
-      setPlanGhostWorld(pointerWorld(e))
+      setPlanGhostWorld(planDef?.windowBound ? pointerPlanRaw(e) : pointerWorld(e))
       return
     }
     if (movingStop) {

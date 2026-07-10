@@ -250,9 +250,11 @@ like placing in 3D on mobile); cancelling brings the catalog back. You can also
 **press-and-hold** a card and drag your finger straight onto the plan, ghost in
 tow, and lift to place.
 
-Curtains, blinds and window grilles aren't supported here yet — arm one and
-you'll get a message pointing you to the 3D per‑room editor, where they snap
-onto a window automatically.
+**Curtains and roller blinds** snap onto windows here too: arm one and the
+ghost jumps to the window nearest your cursor, sized to fit it; click (or tap)
+to hang it there, facing the side of the wall you clicked from. If the storey
+you're editing has no windows you'll get a message instead — window grilles
+remain a window *style* (set on the window itself), not a placeable piece.
 
 ## Tracing from a photo *(Pro)*
 

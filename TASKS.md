@@ -148,6 +148,14 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   (currently invisible to knip), verify clean after DE-2/3, then add `npm run deadcode` to CI.
 
 
+## Bugs found by PLAN-FURNISH Phase 3 verification (2026-07-11, pre-existing — not Phase-3 regressions)
+- [ ] **BUG: the 2D plan's `PlanInspector` + rotate handle ignore `def.windowBound`** — a selected
+  curtain in the plan shows editable X/Z/Angle/Width fields and a rotate knob, while the 3D
+  inspector hides transforms and `Furniture.tsx` blocks drags. Editing them detaches the fixture
+  from its window. Fix: gate those controls on `windowBound` like the 3D inspector does.
+- [ ] **Cosmetic: plan inspector "Size (W×D×H)" shows the def's footprint H** (e.g. 275 cm) rather
+  than the window-sized `props.height` (255 cm) for window fixtures.
+
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
 - Keep this file pending-only; keep `TODO.md` (legacy deferred-work log) current.

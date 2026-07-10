@@ -1,18 +1,40 @@
 import { describe, expect, it } from 'vitest'
+import type { PlanOpening, PlanWall } from '../../../floorplan/types'
 import { BUILTIN_CATALOG } from '../../../furniture/builtinCatalog'
+import { windowFixtureProps } from '../../../furniture/placement/windowSnap'
 import {
   buildPlanGhostItem,
+  buildPlanWindowGhostItem,
   decidePlanCommit,
   decidePlanTouchLift,
-  isPlanPlaceable,
   PLAN_GHOST_ID,
   planGhostValid,
+  planHasWindow,
   screenToGridPoint,
 } from './planFurnishPlacement'
 
 const sofa = BUILTIN_CATALOG['sofa-3seat']
-// A window-bound fixture (WINDOW-FIXTURE) — excluded from Phase 1 plan placement.
+// Window-bound fixtures (WINDOW-FIXTURE) — plan-placeable since Phase 3 by
+// snapping to the edited level's nearest window.
 const curtains = BUILTIN_CATALOG.curtains
+const blind = BUILTIN_CATALOG['roller-blind']
+
+const wall = (id: string, start: [number, number], end: [number, number]): PlanWall => ({
+  id,
+  start,
+  end,
+  thickness: 'external',
+})
+
+const win = (id: string, wallId: string, offset: number, width = 1.2): PlanOpening => ({
+  id,
+  kind: 'window',
+  wallId,
+  offset,
+  width,
+  sill: 0.9,
+  head: 2.1,
+})
 
 describe('buildPlanGhostItem', () => {
   it('builds a synthetic ghost item at the given world point', () => {
@@ -43,14 +65,88 @@ describe('buildPlanGhostItem', () => {
   })
 })
 
-describe('isPlanPlaceable', () => {
-  it('is true for an ordinary floor-standing def', () => {
-    expect(isPlanPlaceable(sofa)).toBe(true)
+// PLAN-FURNISH Phase 3 — window-bound fixtures (curtains/blinds) snap to the
+// edited level's nearest window, reusing the exact 3D pure pair
+// (`furniture/placement/windowSnap.ts`).
+describe('planHasWindow', () => {
+  it('is false with no openings at all', () => {
+    expect(planHasWindow([wall('w1', [0, 0], [4, 0])], [])).toBe(false)
   })
 
-  it('is false for a window-bound fixture (excluded from Phase 1)', () => {
-    expect(curtains.windowBound).toBe(true)
-    expect(isPlanPlaceable(curtains)).toBe(false)
+  it('is false when the only openings are doors', () => {
+    const doors: PlanOpening[] = [
+      { id: 'd1', kind: 'door', wallId: 'w1', offset: 1, width: 0.9, sill: 0, head: 2.1 },
+    ]
+    expect(planHasWindow([wall('w1', [0, 0], [4, 0])], doors)).toBe(false)
+  })
+
+  it("is false when a window's host wall doesn't resolve (stale wallId)", () => {
+    expect(planHasWindow([wall('w1', [0, 0], [4, 0])], [win('win1', 'missing', 1)])).toBe(false)
+  })
+
+  it('is true when at least one window resolves to a wall', () => {
+    expect(planHasWindow([wall('w1', [0, 0], [4, 0])], [win('win1', 'w1', 1)])).toBe(true)
+  })
+})
+
+describe('buildPlanWindowGhostItem', () => {
+  const walls = [wall('w1', [0, 0], [4, 0])]
+  const openings = [win('win1', 'w1', 1, 1.2)]
+  const ceilingHeight = 2.6
+  const ctx = { walls, openings, ceilingHeight }
+
+  it('returns null when the level has no window (caller toasts + disarms)', () => {
+    expect(buildPlanWindowGhostItem(curtains, [2, 1], { ...ctx, openings: [] })).toBeNull()
+  })
+
+  it('snaps the ghost onto the window centre on the wall line', () => {
+    const item = buildPlanWindowGhostItem(curtains, [2.4, 1.3], ctx)
+    expect(item).not.toBeNull()
+    expect(item?.id).toBe(PLAN_GHOST_ID)
+    expect(item?.defId).toBe(curtains.id)
+    // Window centre = offset + width/2 = 1.6 along +X, on the wall line (z=0) —
+    // NOT the raw drop point.
+    expect(item?.position[0]).toBeCloseTo(1.6, 6)
+    expect(item?.position[1]).toBeCloseTo(0, 6)
+  })
+
+  it('faces the room side the drop point is on (same convention as the 3D commit)', () => {
+    const below = buildPlanWindowGhostItem(curtains, [1.6, 1], ctx)
+    const above = buildPlanWindowGhostItem(curtains, [1.6, -1], ctx)
+    expect(below).not.toBeNull()
+    expect(above).not.toBeNull()
+    // Opposite sides of the wall differ by π (the fixture hangs on the side
+    // the user aimed at).
+    const diff = Math.abs((below?.rotation ?? 0) - (above?.rotation ?? 0))
+    expect(diff % (2 * Math.PI)).toBeCloseTo(Math.PI, 6)
+  })
+
+  it('snaps to the NEAREST of several windows', () => {
+    const two = { ...ctx, openings: [win('win1', 'w1', 0.2, 0.8), win('win2', 'w1', 3, 0.8)] }
+    const nearFirst = buildPlanWindowGhostItem(curtains, [0.5, 1], two)
+    const nearSecond = buildPlanWindowGhostItem(curtains, [3.6, 1], two)
+    expect(nearFirst?.position[0]).toBeCloseTo(0.6, 6)
+    expect(nearSecond?.position[0]).toBeCloseTo(3.4, 6)
+  })
+
+  it('sizes the fixture to the snapped window via windowFixtureProps (curtains)', () => {
+    const item = buildPlanWindowGhostItem(curtains, [1.6, 1], ctx)
+    const sized = windowFixtureProps(curtains.id, { width: 1.2, sill: 0.9, head: 2.1 }, 2.6)
+    for (const [k, v] of Object.entries(sized)) expect(item?.props[k]).toBe(v)
+  })
+
+  it('sizes a roller blind to its window (covering drop)', () => {
+    const item = buildPlanWindowGhostItem(blind, [1.6, 1], ctx)
+    const sized = windowFixtureProps(blind.id, { width: 1.2, sill: 0.9, head: 2.1 }, 2.6)
+    expect(Object.keys(sized).length).toBeGreaterThan(0)
+    for (const [k, v] of Object.entries(sized)) expect(item?.props[k]).toBe(v)
+  })
+
+  it('carries an explicit levelId (multi-level plans)', () => {
+    const item = buildPlanWindowGhostItem(curtains, [1.6, 1], ctx, 'level-2')
+    expect(item?.levelId).toBe('level-2')
+    const ground = buildPlanWindowGhostItem(curtains, [1.6, 1], ctx)
+    expect(ground?.levelId).toBeUndefined()
   })
 })
 
@@ -75,7 +171,7 @@ describe('planGhostValid', () => {
     expect(planGhostValid(item, sofa, { ...emptyCtx, others: [other] })).toBe(false)
   })
 
-  it('is always false for a window-bound def, valid position or not', () => {
+  it('is always false for a window-bound def (its validity is snap existence, not canPlace)', () => {
     const item = buildPlanGhostItem(curtains, [5, 5], 0)
     expect(planGhostValid(item, curtains, emptyCtx)).toBe(false)
   })
@@ -90,8 +186,11 @@ describe('decidePlanCommit', () => {
     expect(decidePlanCommit(sofa, false)).toBe('invalid')
   })
 
-  it('is ineligible for a window-bound def regardless of validity', () => {
-    expect(decidePlanCommit(curtains, true)).toBe('ineligible')
+  it('commits a window-bound def that snapped to a window (Phase 3: valid = snap existence)', () => {
+    expect(decidePlanCommit(curtains, true)).toBe('commit')
+  })
+
+  it('is ineligible (not merely invalid) for a window-bound def with no window — no spot can ever commit it', () => {
     expect(decidePlanCommit(curtains, false)).toBe('ineligible')
   })
 })
@@ -147,7 +246,11 @@ describe('decidePlanTouchLift', () => {
     expect(decidePlanTouchLift(sofa, true, false)).toBe('invalid')
   })
 
-  it('is ineligible for a window-bound def even when on-plan and "valid"', () => {
-    expect(decidePlanTouchLift(curtains, true, true)).toBe('ineligible')
+  it('commits a window-bound def on-plan whose lift point snapped to a window (Phase 3)', () => {
+    expect(decidePlanTouchLift(curtains, true, true)).toBe('commit')
+  })
+
+  it('is ineligible for a window-bound def on-plan with no window to snap to', () => {
+    expect(decidePlanTouchLift(curtains, true, false)).toBe('ineligible')
   })
 })

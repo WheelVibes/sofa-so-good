@@ -166,10 +166,12 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
   `docs/research/2026-07-03-plan-furnish-implementation-plan.md` (marked done there). Remaining:
   - Phase 2 (mobile tap-to-place + long-press-from-card + stamp reuse) **SHIPPED v0.18.6.19**
     (user decision 2026-07-10: arm auto-closes the catalog sheet, mirroring 3D `placeConfirm`).
-  - [ ] **Phase 3** — window-bound fixtures (curtains/blinds/grilles) via `snapToNearestWindow` in
-    the plan (Phase 1 excludes them with a toast pointing to the 3D room editor).
-  - [ ] **Phase 4** — HTML5 drag-from-catalog onto the plan SVG (deferred pending the logged
-    `<div>`-vs-SVG drop-zone friction).
+  - Phase 3 (window-bound fixtures snap in the plan) **SHIPPED v0.18.6.20**.
+  - [ ] **Phase 4** — HTML5 drag-from-catalog onto the plan SVG. **Recommend keeping deferred
+    (2026-07-11 assessment)**: desktop already places via click-to-arm→ghost→click and mobile via
+    tap/long-press-drag (Phases 1–2), so this adds a third gesture purely for 3D-drag-habit
+    parity; the `<div>`-vs-SVG drop-zone friction remains (workaround: transparent overlay div
+    during drag). Revisit only on user demand.
   - [ ] *(Polish, not phase-gated)* the docked catalog currently floats over the plan rather than
     shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
     `.plan-screen`) — low-risk follow-up.
