@@ -17,13 +17,7 @@ export interface StylePreset {
 }
 
 /** Rooms a style restyles (the "designed" living spaces). */
-export const STYLE_ROOMS: RoomId[] = [
-  'mainBedroom',
-  'bedroom2',
-  'bedroom3',
-  'livingDining',
-  'corridor',
-]
+const STYLE_ROOMS: RoomId[] = ['mainBedroom', 'bedroom2', 'bedroom3', 'livingDining', 'corridor']
 
 export const STYLE_PRESETS: StylePreset[] = [
   { id: 'scandi', name: 'Scandinavian', dryFloor: 'floor-wood-oak', wall: 'wall-paint-white' },

@@ -199,5 +199,3 @@ function entitiesSection(plan: FloorPlan): string {
 export function planToDxf(plan: FloorPlan): string {
   return headerSection() + tablesSection() + entitiesSection(plan) + block(pair(0, 'EOF'))
 }
-
-export { dxfY, polygonCentroid, wallPointAt }

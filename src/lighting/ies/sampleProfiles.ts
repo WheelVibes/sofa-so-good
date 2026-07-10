@@ -49,7 +49,7 @@ export const BUNDLED_IES_PROFILES: BundledIesProfile[] = [
 ]
 
 /** Lookup a bundled profile by id. */
-export function bundledIesById(id: string): BundledIesProfile | undefined {
+function bundledIesById(id: string): BundledIesProfile | undefined {
   return BUNDLED_IES_PROFILES.find((p) => p.id === id)
 }
 

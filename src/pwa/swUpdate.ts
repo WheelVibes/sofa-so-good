@@ -141,7 +141,7 @@ const JUST_UPDATED_KEY = 'sofa.justUpdated'
 
 /** Apply the waiting update: skip waiting + reload to the new version. Marks the
  *  reload so the new build can confirm the update once it finishes loading. */
-export async function applyUpdate(): Promise<void> {
+async function applyUpdate(): Promise<void> {
   try {
     localStorage.setItem(JUST_UPDATED_KEY, '1')
   } catch {

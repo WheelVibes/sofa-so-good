@@ -34,13 +34,13 @@
 import { type FloorPlan, planTotalArea } from '../floorplan/types'
 
 /** Baseline floor area (m²) the per-phase `baseDays` are calibrated for. */
-export const BASELINE_SQM = 90
+const BASELINE_SQM = 90
 
 /** Baseline room count the `perRoom` increment is measured above. */
-export const BASELINE_ROOMS = 6
+const BASELINE_ROOMS = 6
 
 /** SG reno work week — contractors commonly work 6 days, so weeks = days / 6. */
-export const WORK_DAYS_PER_WEEK = 6
+const WORK_DAYS_PER_WEEK = 6
 
 /** Clamp band for the whole schedule (working days). ~3 to ~24 weeks. */
 export const MIN_TOTAL_DAYS = 18
@@ -174,7 +174,7 @@ function clean(n: number | undefined): number {
 }
 
 /** Derive planner input from a FloorPlan (area via `planTotalArea`, room count). */
-export function inputFromFloorPlan(
+function inputFromFloorPlan(
   plan: FloorPlan,
   opts?: { hasCarpentry?: boolean; hasHacking?: boolean },
 ): RenoTimelineInput {

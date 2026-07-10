@@ -18,7 +18,7 @@ const KEY_STORAGE = 'hdb_ai_key'
 const MODEL_STORAGE = 'hdb_ai_img_model'
 
 /** Default Replicate img2img model version (SDXL img2img). Overridable. */
-export const DEFAULT_IMG_MODEL = '39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b'
+const DEFAULT_IMG_MODEL = '39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b'
 
 export function getAiKey(): string {
   try {
@@ -33,7 +33,7 @@ export function setAiKey(key: string): void {
     else localStorage.removeItem(KEY_STORAGE)
   } catch {}
 }
-export function getImgModel(): string {
+function getImgModel(): string {
   try {
     return localStorage.getItem(MODEL_STORAGE) || DEFAULT_IMG_MODEL
   } catch {

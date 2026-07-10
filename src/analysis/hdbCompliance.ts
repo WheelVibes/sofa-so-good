@@ -43,7 +43,7 @@ export interface ComplianceReport {
 }
 
 /** Tunable heuristic thresholds, kept in one auditable place. */
-export const COMPLIANCE_THRESHOLDS = {
+const COMPLIANCE_THRESHOLDS = {
   /** Walls at/over this length (m) are treated as likely load-bearing spans. */
   structuralWallLengthM: 4,
   /** Rooms at/over this area (m²) are treated as "large" for floor-loading. */
@@ -231,7 +231,7 @@ function roomCeilingHeight(r: PlanRoom, plan: FloorPlan): number | null {
 }
 
 /** The ordered rule set. Append a `ComplianceRule` here to extend the advisor. */
-export const RULES: ComplianceRule[] = [
+const RULES: ComplianceRule[] = [
   { id: 'structural-walls', run: ruleStructuralWalls },
   { id: 'wet-area', run: ruleWetAreaWaterproofing },
   { id: 'floor-loading', run: ruleFloorLoading },

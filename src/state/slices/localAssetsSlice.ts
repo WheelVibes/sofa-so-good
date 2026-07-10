@@ -6,7 +6,7 @@ import { FURNITURE_CATEGORIES } from '../../furniture/types'
 import { inferCollisionFlags } from '../../furniture/upload/inferFlags'
 
 /** Mount path served by the dev-only Vite plugin (`scripts/vite-local-assets.mjs`). */
-export const LOCAL_ASSETS_MOUNT = '/@local-assets'
+const LOCAL_ASSETS_MOUNT = '/@local-assets'
 
 /** One entry of the plugin's `index.json` (metadata only — no category logic). */
 export interface LocalAssetIndexEntry {

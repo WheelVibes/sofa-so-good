@@ -73,7 +73,7 @@ export interface WallSides {
  *  shared south wall covering bath2 + service yard + household shelter)
  *  must sample per render-segment, since each segment's interior face
  *  belongs to a different room. */
-export function wallRoomSidesAt(wall: WallSpec, axisOffset: number): WallSides {
+function wallRoomSidesAt(wall: WallSpec, axisOffset: number): WallSides {
   const dx = wall.end[0] - wall.start[0]
   const dz = wall.end[1] - wall.start[1]
   const length = Math.hypot(dx, dz)

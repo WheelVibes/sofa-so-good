@@ -50,7 +50,7 @@ function getProbeCtx(): CanvasRenderingContext2D | null {
  * (zero-sized, transparent/not-yet-drawn, or a cross-origin/context error) so
  * the caller can fall back to the analytic sky colour.
  */
-export function sampleCanvasTopHex(source: HTMLCanvasElement): string | null {
+function sampleCanvasTopHex(source: HTMLCanvasElement): string | null {
   const w = source.width
   const h = source.height
   if (!w || !h) return null

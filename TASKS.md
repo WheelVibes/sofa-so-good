@@ -140,11 +140,10 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   real-GPU verify.
 
 ## Dead-export prune plan (from docs/research/2026-07-03-dead-export-audit.md, verified per-symbol)
-- [ ] **DE-2/DE-3**: drop the unneeded `export` keyword on the 86 internal-only helpers (two
-  mechanical batches by folder — audit doc §Tasks 2-3). Unblocks a noise-free `npm run deadcode`.
-  NOTE: `npm run deadcode` (knip) currently CRASHES on an oxc-parser ESM/CJS `require()` mismatch
-  (both Node 20 and the pinned 24.18.0) — re-verification must be grep-based until knip/oxc-parser
-  is upgraded; fold that dep fix into DE-5.
+- [ ] **DE-5** (pre-req discovered 2026-07-10): `npm run deadcode` (knip) CRASHES on an
+  oxc-parser ESM/CJS `require()` mismatch (both Node 20 and the pinned 24.18.0) — upgrade
+  knip/oxc-parser first, then extend `knip.json` to `functions/**`, `workers/**`,
+  `electron/*.mjs`, verify clean (DE-1..3 landed v0.18.6.8/.9), and add `npm run deadcode` to CI.
 - [ ] **DE-4b**: `openSh3dImport.ts:115` `importSh3dFile` is dormant with no backlog item — decide
   wire-up or removal.
 - [ ] **DE-5**: extend `knip.json` entry/project to `functions/**`, `workers/**`, `electron/*.mjs`

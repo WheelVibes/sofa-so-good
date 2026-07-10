@@ -30,8 +30,8 @@ export const COMPOSE_SCALE_MAX = 4
 export const DEFAULT_COMPOSE_SCALE = 1
 
 /** Roughness (gloss) override bounds: 0 = mirror gloss, 1 = fully matte. */
-export const COMPOSE_ROUGHNESS_MIN = 0.05
-export const COMPOSE_ROUGHNESS_MAX = 1
+const COMPOSE_ROUGHNESS_MIN = 0.05
+const COMPOSE_ROUGHNESS_MAX = 1
 
 /**
  * How a tint colour combines with a textured base's albedo (FINISH-RECOLOR):

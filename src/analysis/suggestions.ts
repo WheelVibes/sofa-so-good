@@ -109,7 +109,7 @@ const SPARSE_VARIETY = 2
  * single `empty-*` rule (handled in `buildSuggestions`), so a bare room isn't
  * buried under every missing-X tip.
  */
-export const SUGGESTION_RULES: readonly SuggestionRule[] = [
+const SUGGESTION_RULES: readonly SuggestionRule[] = [
   // --- Empty habitable room: suggest the core kit for its kind. -------------
   {
     id: 'empty-living',

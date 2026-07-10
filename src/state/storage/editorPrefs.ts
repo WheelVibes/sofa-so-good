@@ -22,7 +22,7 @@ const PLAN_LABEL_MODES: PlanLabelMode[] = ['off', 'name', 'price']
  *  Simple the DOM attribute falls back to `'comfortable'` while the stored
  *  value is left untouched, so switching back to Pro restores compact.
  *  jsdom-safe: no-op without `document`. */
-export function applyDensity(density: Density): void {
+function applyDensity(density: Density): void {
   if (typeof document === 'undefined') return
   const effective = useStore.getState().featureFlags.densityMode ? density : 'comfortable'
   document.documentElement.setAttribute('data-density', effective)

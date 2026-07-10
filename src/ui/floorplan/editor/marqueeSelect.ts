@@ -57,7 +57,7 @@ export interface MarqueeHits {
  * tap that wobbles a pixel or two doesn't sweep up nearby items. ~1 cm at any
  * zoom — well under the smallest meaningful drag.
  */
-export const MIN_MARQUEE_SIZE_M = 0.01
+const MIN_MARQUEE_SIZE_M = 0.01
 
 /** Convert a (possibly inverted) rect into an axis-aligned OBB for SAT tests. */
 function rectToObb(rect: MarqueeRect): OBB {

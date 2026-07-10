@@ -54,7 +54,7 @@ export function wallRateKind(id: string): WallRateKind {
 // serialisable — travels with the design (save schema) like the quote template.
 
 /** Built-in carpentry rate (SGD per linear metre) for cabinet/wardrobe runs. */
-export const DEFAULT_CARPENTRY_RATE = 320
+const DEFAULT_CARPENTRY_RATE = 320
 
 /** A complete, user-overridable rate card driving the quote + renovation estimate. */
 export interface PriceRules {

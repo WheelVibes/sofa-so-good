@@ -33,7 +33,7 @@ export function exitPlanEditorToScene(): void {
 }
 
 /** The raw `P` handler (exported for tests; wired via {@link usePlanEditorHotkey}). */
-export function onPlanEditorKey(code: string, e: KeyboardEvent): void {
+function onPlanEditorKey(code: string, e: KeyboardEvent): void {
   if (code !== KEYBINDINGS.togglePlanEditor) return
   if (e.metaKey || e.ctrlKey || e.altKey) return
   if (!isFeatureEnabled('floorPlanEditor')) return

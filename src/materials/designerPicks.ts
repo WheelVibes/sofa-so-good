@@ -7,7 +7,7 @@
  */
 
 /** Ordered curated floor finishes (most-reached-for first). */
-export const DESIGNER_FLOOR_IDS = [
+const DESIGNER_FLOOR_IDS = [
   'floor-wood-oak',
   'floor-wood-walnut',
   'floor-parquet',
@@ -17,7 +17,7 @@ export const DESIGNER_FLOOR_IDS = [
 ] as const
 
 /** Ordered curated wall finishes spanning warm/cool neutrals + a wood accent. */
-export const DESIGNER_WALL_IDS = [
+const DESIGNER_WALL_IDS = [
   'wall-paint-white',
   'wall-paint-greige',
   'wall-paint-sage',

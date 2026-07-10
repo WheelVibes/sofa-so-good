@@ -6,11 +6,7 @@ import { type DecodedImage, decodeImage } from './decodeImage'
  * "optimize as much as possible while keeping original quality" (codec-only; the
  * source resolution is preserved). KTX2/UASTC remains an opt-in follow-up.
  */
-export async function reencodeToWebp(
-  img: DecodedImage,
-  name: string,
-  quality = 0.95,
-): Promise<File> {
+async function reencodeToWebp(img: DecodedImage, name: string, quality = 0.95): Promise<File> {
   const canvas = new OffscreenCanvas(img.width, img.height)
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('2D canvas unavailable')

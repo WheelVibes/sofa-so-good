@@ -59,7 +59,7 @@ export interface WallElevation {
 /** A footprint whose nearest point is within this many metres of the wall line
  *  counts as "against" that wall (covers flush pieces + near-wall nightstands,
  *  TVs, wall units, cabinets). */
-export const ELEVATION_NEAR_WALL = 0.6
+const ELEVATION_NEAR_WALL = 0.6
 
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
 

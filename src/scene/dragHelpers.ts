@@ -13,7 +13,7 @@ import { resolveCompatible } from '../furniture/ikea/compatibility'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 
 /** Alignment snap threshold (m) — how close a dragged edge/centre must be to snap. */
-export const ALIGN_TH = 0.1
+const ALIGN_TH = 0.1
 
 /** Collision walls → axis-aligned face descriptors for equal-spacing detection. */
 export function wallFaces(walls: CollisionWall[]): WallFaceInput[] {

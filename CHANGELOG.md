@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.9 — Dead-export prune, batch 2 (DE-2/DE-3): 80 internal helpers de-exported
+
+Dropped the unnecessary `export` keyword on 80 internal-only helpers across 56 files (audit
+Tasks 2–3), each re-verified by repo-wide grep first — zero behaviour change, unblocks a
+noise-free future `npm run deadcode`. 6 audited symbols were deliberately KEPT exported:
+`ConvertError`, `formatClock`, `PROD_PROVIDER_IDS`, `HORIZON_Y` (all gained real cross-file/test
+consumers since the audit), plus `AC_LEDGE_AREA_M2` — whose only consumer died in DE-1, so it is
+now **deleted** outright instead. `dxf.ts`'s trailing `export {…}` statement removed. `tsc` +
+full suite green.
+
 ## v0.18.6.8 — Dead-export prune, batch 1 (DE-1): 19 dead exports deleted
 
 Deleted the 19 truly-dead exports from the 2026-07-03 dead-export audit (each re-verified by

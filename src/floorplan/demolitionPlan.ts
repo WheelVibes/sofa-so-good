@@ -30,7 +30,7 @@ export interface WallDiff {
 }
 
 /** Endpoint match tolerance, in metres (1 mm). */
-export const MATCH_EPSILON = 1e-3
+const MATCH_EPSILON = 1e-3
 
 function asWalls(plan: FloorPlan): PlanWall[] {
   return plan && Array.isArray(plan.walls) ? plan.walls : []

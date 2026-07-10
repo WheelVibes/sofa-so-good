@@ -10,7 +10,7 @@ import type { CollisionWall } from './walls'
 
 /** Default snap radius (m): only pulls flush when a footprint edge is this close
  *  to a wall face, so mid-room placement is never disturbed. */
-export const WALL_SNAP_DISTANCE = 0.12
+const WALL_SNAP_DISTANCE = 0.12
 
 export function wallSnapOffset(
   box: Aabb,

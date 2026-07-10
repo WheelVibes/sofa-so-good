@@ -4,7 +4,7 @@ import { ROTATE_FINE_STEP } from '../../controls/keybindings'
 export const GIZMO_SNAP_STEP = ROTATE_FINE_STEP
 
 /** Ring radius beyond the footprint half-extent, and the floor minimum. */
-export const GIZMO_HANDLE_GAP = 0.38
+const GIZMO_HANDLE_GAP = 0.38
 export const GIZMO_MIN_RADIUS = 0.55
 
 /** Floor-ring radius for an item whose footprint half-extents are (hx, hz). */

@@ -7,7 +7,7 @@ import { Icon, type IconName } from './toolbar/icons'
 
 const ONBOARDED_KEY = 'hdb_onboarded'
 
-export function markOnboarded() {
+function markOnboarded() {
   try {
     localStorage.setItem(ONBOARDED_KEY, '1')
   } catch {

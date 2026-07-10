@@ -30,7 +30,7 @@ function furnitureDefOf(def: MaterialDef): MaterialDef {
  * immediately — no procedural fallback flicker when an item is placed.
  * All are procedural (offline-safe): no remote fetch needed.
  */
-export const CATALOG_WOOD_DEFAULTS: readonly string[] = [
+const CATALOG_WOOD_DEFAULTS: readonly string[] = [
   'floor-wood-oak',
   'floor-wood-walnut',
   'floor-wood-teak',

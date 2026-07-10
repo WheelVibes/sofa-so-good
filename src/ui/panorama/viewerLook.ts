@@ -22,7 +22,7 @@ export const FOV_MAX = 100
 /** Radians of look per pixel dragged. */
 export const DRAG_SENSITIVITY = 0.005
 /** Degrees of fov per wheel deltaY unit. */
-export const ZOOM_SENSITIVITY = 0.05
+const ZOOM_SENSITIVITY = 0.05
 
 /**
  * Sphere mesh yaw aligning the equirect seam so the capture's forward

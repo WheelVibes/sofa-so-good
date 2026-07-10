@@ -6,10 +6,10 @@ import type { AssetBundle, ProviderId, RemoteEntry } from '../types'
 const SCHEMA_VERSION = 1
 const META_KEY = '__meta__'
 
-export const indexStore = createStore('sofa-cache-index', 'kv')
-export const thumbsStore = createStore('sofa-cache-thumbs', 'kv')
-export const assetsStore = createStore('sofa-cache-assets', 'kv')
-export const metaStore = createStore('sofa-cache-meta', 'kv')
+const indexStore = createStore('sofa-cache-index', 'kv')
+const thumbsStore = createStore('sofa-cache-thumbs', 'kv')
+const assetsStore = createStore('sofa-cache-assets', 'kv')
+const metaStore = createStore('sofa-cache-meta', 'kv')
 
 // Some non-browser test environments (happy-dom + fake-indexeddb) lose the
 // Blob prototype across structuredClone. We serialize Blobs to a portable

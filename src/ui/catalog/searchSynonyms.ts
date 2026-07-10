@@ -17,7 +17,7 @@ import { fuzzyScore } from './fuzzySearch'
  * items named with any other. Keep terms lower-case; multi-word phrases are
  * allowed (matched as substrings, so "bedside table" → "nightstand").
  */
-export const SYNONYM_GROUPS: readonly (readonly string[])[] = [
+const SYNONYM_GROUPS: readonly (readonly string[])[] = [
   ['sofa', 'couch', 'settee', 'loveseat', 'divan'],
   ['sofa', 'lounge'],
   ['armchair', 'accent chair', 'lounge chair', 'easy chair', 'occasional chair'],
@@ -103,7 +103,7 @@ export function singularize(q: string): string[] {
  * ("bed") are intentionally NOT keys — only room/use words — so the common
  * single-item search isn't broadened unexpectedly.
  */
-export const CATEGORY_INTENT: Record<string, readonly string[]> = {
+const CATEGORY_INTENT: Record<string, readonly string[]> = {
   bedroom: ['bed', 'nightstand', 'wardrobe', 'dresser'],
   nursery: ['crib', 'changing table', 'rocking chair', 'kids bed'],
   kitchen: ['cabinet', 'countertop', 'stove', 'refrigerator', 'sink', 'bar stool'],
