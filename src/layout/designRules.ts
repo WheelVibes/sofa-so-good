@@ -33,10 +33,3 @@ export const STACK = {
   /** Seat height for a sofa accepting seat cushions. */
   seatDefault: 0.42,
 } as const
-
-/** Comfortable TV viewing distance band for a screen of `diagonalInches`
- *  (4K rule of thumb: 1.2–1.6× the diagonal). Returns metres. */
-export function tvViewingDistance(diagonalInches: number): { min: number; max: number } {
-  const diagM = diagonalInches * 0.0254
-  return { min: diagM * 1.2, max: diagM * 1.6 }
-}

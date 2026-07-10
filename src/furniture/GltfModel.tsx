@@ -539,8 +539,3 @@ function ReflectorOverlay({ plane, resolution }: { plane: MirrorPlane; resolutio
     </mesh>
   )
 }
-
-/** Preload helper called from app boot for high-frequency models. */
-export function preloadGltf(url: string) {
-  useGLTF.preload(url)
-}

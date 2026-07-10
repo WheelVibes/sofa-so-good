@@ -18,11 +18,6 @@ export async function getXrStore(): Promise<XRStore> {
   return store
 }
 
-/** The store if it has been created (the Scene provider mounts on demand). */
-export function peekXrStore(): XRStore | null {
-  return store
-}
-
 /** Enter an immersive-VR session (creates the store on first use). */
 export async function enterVr(): Promise<void> {
   const s = await getXrStore()

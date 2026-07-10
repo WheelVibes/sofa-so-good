@@ -198,15 +198,6 @@ export function useCatalogGetter(): {
   return { getDef: getDefStable.current, ref }
 }
 
-/** Non-reactive lookup. Falls back to built-in catalog only — call sites
- *  that need user uploads should pass them in via the merged catalog. */
-export function getDef(
-  catalog: Record<FurnitureType, FurnitureDef>,
-  id: FurnitureType,
-): FurnitureDef | undefined {
-  return catalog[id]
-}
-
 export function isUserDef(def: FurnitureDef): def is UserGltfDef {
   return def.kind === 'gltf' && def.source === 'user'
 }

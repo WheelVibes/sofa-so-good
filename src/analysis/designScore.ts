@@ -15,7 +15,7 @@ import { findWallClipsByLevel } from '../collision/levelWallClips'
 import { findItemOverlaps, itemFootprint } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { allPlanRooms, levelOfRoom } from '../floorplan/levels'
-import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
+import { planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { isItemEmitter } from '../furniture/lightEmitters'
@@ -400,9 +400,4 @@ export function buildDesignScore(
     itemCount: items.length,
     roomCount: rooms.length,
   }
-}
-
-/** True when there's effectively nothing to score yet (empty default shell). */
-export function isUnscoredDesign(items: FurnitureItem[], plan: FloorPlan): boolean {
-  return items.length === 0 && isDefaultPlan(plan)
 }

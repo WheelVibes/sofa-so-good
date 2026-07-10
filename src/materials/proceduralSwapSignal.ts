@@ -28,19 +28,8 @@ export function notifyProceduralSwap(): void {
   _notify()
 }
 
-/** Current snapshot (monotone counter). `useSyncExternalStore` getSnapshot. */
-export function getProceduralSwapCount(): number {
-  return _swapCount
-}
-
 /** Subscribe — `useSyncExternalStore` subscribe param. Returns unsubscribe fn. */
 export function subscribeProceduralSwap(listener: Listener): () => void {
   _listeners.add(listener)
   return () => _listeners.delete(listener)
-}
-
-/** Reset for tests. */
-export function _resetProceduralSwapSignal(): void {
-  _swapCount = 0
-  _listeners.clear()
 }

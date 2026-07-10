@@ -40,12 +40,6 @@ export function getImgModel(): string {
     return DEFAULT_IMG_MODEL
   }
 }
-export function setImgModel(v: string): void {
-  try {
-    if (v) localStorage.setItem(MODEL_STORAGE, v)
-    else localStorage.removeItem(MODEL_STORAGE)
-  } catch {}
-}
 
 export interface PhotorealOptions {
   /** PNG data URL of the current scene. */

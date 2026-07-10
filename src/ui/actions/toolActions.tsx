@@ -63,10 +63,6 @@ const CATEGORY_LABEL: Record<ToolCategory, string> = {
 /** Display order of the category section headers. */
 export const TOOL_CATEGORY_ORDER: readonly ToolCategory[] = ['analyze', 'review']
 
-export function toolCategoryLabel(c: ToolCategory): string {
-  return CATEGORY_LABEL[c]
-}
-
 /** Resolve a (possibly state-derived) label against the current store snapshot. */
 export function resolveToolLabel(a: ToolAction, s: StoreState): string {
   return typeof a.label === 'function' ? a.label(s) : a.label

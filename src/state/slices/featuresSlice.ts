@@ -3,15 +3,6 @@ import type { SliceCreator } from './types'
 
 const TOUR_DONE_KEY = 'hdb_tour_done'
 
-/** Whether the product tour has been completed/skipped on this device. */
-export function hasSeenTour(): boolean {
-  try {
-    return localStorage.getItem(TOUR_DONE_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
 function markTourDone(): void {
   try {
     localStorage.setItem(TOUR_DONE_KEY, '1')

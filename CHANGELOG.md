@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.8 — Dead-export prune, batch 1 (DE-1): 19 dead exports deleted
+
+Deleted the 19 truly-dead exports from the 2026-07-03 dead-export audit (each re-verified by
+repo-wide grep before deletion — none had gained a reference): `DEFAULT_COMPOSE_ROUGHNESS`,
+generators' `mix` re-export + `rawToTexture`, `getProceduralSwapCount` +
+`_resetProceduralSwapSignal`, `preloadGltf`, catalog's standalone `getDef`, `toolCategoryLabel`,
+`isUnscoredDesign`, `hasSeenTour`, the `PRESET_HOURS` store barrel re-export, `peekXrStore`,
+remote-cache `deleteAsset` + `listAssetKeys`, `DEFAULT_THUMB_CAP_BYTES`, `TOTAL_AREA_M2`,
+`setImgModel`, `DEFAULT_IES_PROFILE_ID`, `tvViewingDistance` (+ their orphaned imports).
+`disposeCachedMaterial` (now wired, v0.18.6.7) and `importSh3dFile` (DE-4b, open decision)
+untouched. −101/+3 lines across 16 files; `tsc` + full suite green. Note: `npm run deadcode`
+(knip) currently crashes on an oxc-parser ESM/CJS mismatch — recorded under DE-5 in TASKS.md.
+
 ## v0.18.6.7 — Fix (DE-4a): deleting a user material now frees its cached GPU material
 
 `removeUserMaterial` only revoked blob URLs — the built `MeshStandardMaterial` (+ its owned
