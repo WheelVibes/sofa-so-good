@@ -370,6 +370,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Curated one-click colour-theme presets for the master/room palette
+  // (R3-FEAT-2; Coohom/Planner 5D "themes"). Pure static data + the existing
+  // setMasterPalette/setRoomPalette actions → prod-safe. Pro tier per the
+  // round-3 audit ruling (a styling accelerator, not the core loop).
+  palettePresets: {
+    label: 'Palette presets',
+    description: 'One-click curated colour themes for the apartment palette',
+    default: true,
+    tier: 'pro',
+  },
   presentation: {
     label: 'Presentation mode',
     description: 'Full-screen saved-views slideshow with notes',

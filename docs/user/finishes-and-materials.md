@@ -49,6 +49,17 @@ Colour, texture/pattern, and material behave as separate, mix‑and‑match choi
   apartment palette — upload a black‑and‑white pattern once and reuse it in
   every colourway.
 
+## Apartment colour palette & presets
+
+The finish picker's **Apartment colour palette…** section sets a master palette
+of up to 5 colours for the whole home — every colour picker then offers it as a
+swatch row plus **Recommended blends** (harmony suggestions). Tick **Override
+palette for this room** to give one room its own palette.
+
+In **Pro** mode, **Palette presets** offers one-click curated themes
+(Scandinavian calm, Japandi, Terracotta warmth, Coastal breeze, and more) — tap
+a card to apply it to the palette you're editing. Applying a preset is undoable.
+
 ## Drag a swatch to apply (desktop)
 
 On desktop you can also **drag a swatch out of the finish picker and drop it**:

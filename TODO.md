@@ -212,9 +212,6 @@ Open, client-doable items from `docs/research/2026-07-04-audit-round3-backlog-re
 competitor sweep found history-panel/shortcut-help/room-area/favourites/copy-paste/nudge/
 room-palette/lock/align-distribute all already shipped — so the list is short + evidence-based,
 ranked by value ÷ effort:
-- [ ] **R3-FEAT-2 — Curated colour-palette preset gallery.** Palette *mechanism* exists
-  (`colorPaletteSlice`) but no one-click curated theme; add a static preset list + picker calling
-  `setMasterPalette`/`setRoomPalette`. Coohom/Planner 5D themes. Pro tier. (S · MED)
 - [ ] **R3-REFAC-1 — `App.tsx` (1163 lines) has ~487 lines of inline keyboard orchestration.**
   Extract the three blocks (`:225-362` global ⌘K/undo, `:586-800` editor `onKey`, `:811-947` nudge)
   into `controls/useAppHotkeys.ts` + `useNudge.ts`; makes hotkeys unit-testable. (M · MED)

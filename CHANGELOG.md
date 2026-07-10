@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.5 — Curated colour-palette preset gallery (R3-FEAT-2, `palettePresets` flag)
+
+One-click curated colour themes for the apartment palette — the local answer to Coohom /
+Planner 5D theme galleries. 8 presets (`src/ui/color/palettePresets.ts`: Scandinavian calm,
+Japandi, Terracotta warmth, Coastal breeze, Sage & cream, Modern monochrome, Blush & walnut,
+Navy & brass — each ≤5 valid hex, `cleanPalette`-stable) rendered as a swatch-strip card grid
+(`.pal-presets`, token-only CSS) inside `MasterPaletteEditor`'s section of the FinishPicker.
+A preset applies to whichever palette is being edited (room override when active, else master)
+via the existing undoable setters. New pro-tier flag `palettePresets` (default on). Tests: data
+validity, Simple/Pro tier gating, apply/undo + room-override routing, hidden-in-Simple at the
+UI level. Scenario-verified in the real FinishPicker (gallery renders, Terracotta click lands
+in the store). User docs: new "Apartment colour palette & presets" section.
+
 ## v0.18.6.4 — Tests: orientationSlice wrap + callouts/badges localStorage guards (R3-TEST-2/3)
 
 Backfills the last two round-3-audit test gaps: `orientationSlice.test.ts` pins
