@@ -48,6 +48,10 @@ function planWallEndAbutment(wall: PlanWall, plan: FloorPlan, atStart: boolean):
 
 /** A renderable, axis-rotated wall box. */
 export interface WallBox {
+  /** Source wall id — lets renderers key per-wall state (e.g. the reveal
+   *  corner-spread own-strength registry) even though one wall breaks into
+   *  several boxes around its openings. */
+  wallId: string
   /** Centre in world XZ. */
   cx: number
   cz: number
@@ -95,6 +99,7 @@ export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
         const [ax, az] = at(s0)
         const [bx, bz] = at(s1)
         boxes.push({
+          wallId: wall.id,
           cx: (ax + bx) / 2,
           cz: (az + bz) / 2,
           length: s1 - s0,
@@ -140,6 +145,7 @@ export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
     const [ax, az] = at(s0)
     const [bx, bz] = at(s1)
     boxes.push({
+      wallId: wall.id,
       cx: (ax + bx) / 2,
       cz: (az + bz) / 2,
       length: s1 - s0,

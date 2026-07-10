@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.6 — Corner-spread wall fade for custom plans (PlanShell, WALL-REVEAL-CORNER-SPREAD)
+
+Custom plans now get the same corner-spread reveal the default flat (`WallSegment`) and room
+editor (`useWallReveal`) ship: a wall sharing a corner with a wall that is meaningfully fading by
+its OWN facing fades too, so orbiting a corner opens BOTH near walls cleanly instead of leaving
+one opaque. Plumbing: `WallBox` now carries its source `wallId` (`planGeometry.ts` — one wall
+breaks into several boxes around openings), `PlanLevelShell` memoizes `cornerNeighbors(lp.walls)`
+per plan, and `planWallRevealTarget` computes own strength + publishes it to the shared
+`setWallOwnStrength` registry (wall BODY only — trim/glass/door followers read without
+publishing, keeping spread first-degree, no perimeter cascade) then grades
+`cornerSpreadStrength` from the strongest neighbour. Skirting, crown, window glass
+(`FadeWindow`), and door leaves (`PlanDoorLeaf`) all follow their host wall's spread in lockstep.
+Scenario-verified on `tpl-hdb-4room` (corner-on camera: ≥2 semi-faded wall boxes asserted via
+scene-graph probe + screenshot review); `tsc` + floorplan/apartment suites green.
+
 ## v0.18.6.5 — Curated colour-palette preset gallery (R3-FEAT-2, `palettePresets` flag)
 
 One-click curated colour themes for the apartment palette — the local answer to Coohom /
