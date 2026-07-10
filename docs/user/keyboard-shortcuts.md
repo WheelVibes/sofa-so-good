@@ -26,7 +26,7 @@
 | Reset view | <kbd>H</kbd> |
 | Frame selection | <kbd>Z</kbd> |
 | Time of day | <kbd>T</kbd> |
-| Measurements | <kbd>M</kbd> |
+| Dimension labels | <kbd>M</kbd> |
 | Tidy room | <kbd>L</kbd> |
 
 ## Editing a selection

@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.13 — Naming: "Dimensions" vs "Measure distance"; Lights button teaches its cycle (TB-8)
+
+Two near-identical names shared one icon: toolbar "Measurements" (the dimension-labels overlay,
+key M) vs Tools "Measure" (the tape tool) — high collision risk (TB-8). The overlay toggle is now
+**"Dimensions"** (desktop toolbar, mobile Edit section, ⌘K "Toggle dimension labels", user docs
+shortcut table) and the tape tool is **"Measure distance"** (Tools menu + design-tools doc). The
+3-state **Lights** cycle button's tooltip now names the state a click moves to ("Lights: Auto ·
+click for On" — `NEXT_LIGHTS` mirrors `uiSlice`'s `LIGHTS_CYCLE`), teaching the hidden state
+space until it becomes a segmented control. Scenario-verified (Tools row, Dimensions toggle,
+Lights tooltip).
+
 ## v0.18.6.12 — Shortcut discoverability (TB-7): chips where bindings exist, names on touch
 
 Figma-grounded rule from the toolbar audit: every action with a shortcut teaches it. (a) The

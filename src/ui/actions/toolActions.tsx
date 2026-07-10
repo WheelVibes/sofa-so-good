@@ -184,7 +184,10 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
   },
   {
     id: 'measure',
-    label: (s) => (s.tapeMode ? 'Measuring…' : 'Measure'),
+    // 'Measure distance' (not plain 'Measure') — the toolbar's 'Dimensions'
+    // overlay toggle used to be called 'Measurements', and the two near-identical
+    // names shared one icon (TB-8 in the toolbar UX audit).
+    label: (s) => (s.tapeMode ? 'Measuring…' : 'Measure distance'),
     sub: 'Tap two points for a distance',
     icon: 'Measure',
     category: 'analyze',

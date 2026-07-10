@@ -127,8 +127,9 @@ finding from the doc + this list as it ships. Open items, in order:
   Tools keeps analysis panels/modes only. Group the four scattered cost surfaces under one entry.
 - [ ] **TB-6 (P1)** Toolbar island overflow affordance (edge fade/chevrons); no Lights/Scene
   control inside the room editor; plan-editor mobile menu paradigm differs from the main sheet.
-- [ ] **TB-8 (P2)** "Measurements" vs "Measure" naming/icon collision; cycle-buttons (Lights,
-  grid size, mobile cycles) → segmented/Select where 3+ states.
+- [ ] **TB-8-tail (P3)** Cycle-buttons → segmented/Select where 3+ states (grid size, mobile
+  Lights/Ceiling/Motion cycles; the naming split + Lights next-state tooltip shipped v0.18.6.13);
+  distinct icon for the tape tool.
 - [ ] **TB-9 (P2)** Consolidate menu primitives (one section-header idiom, Arrange on
   MenuItem/EmptyState); confirmAction on user-set/style deletes; 44px hamburger/brand targets;
   tablist roving focus + sheet focus-trap.

@@ -21,6 +21,12 @@ function Divider() {
 }
 
 const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = { auto: 'Auto', on: 'On', off: 'Off' }
+/** Cycle order of the Lights toolbar button (matches uiSlice.cycleLightsMode). */
+const NEXT_LIGHTS: Record<'auto' | 'on' | 'off', 'auto' | 'on' | 'off'> = {
+  auto: 'on',
+  on: 'off',
+  off: 'auto',
+}
 
 /** The icon-island toolbar. Frequent actions are direct icon buttons; busy
  *  clusters collapse into labelled portaled dropdown menus. Editing clusters
@@ -185,7 +191,7 @@ export function Toolbar() {
             ) : null}
             <IconButton
               icon="Measure"
-              label="Measurements"
+              label="Dimensions"
               shortcut={shortcutLabel('toggleMeasurements')}
               active={showMeasurements}
               onClick={toggleMeasurements}
@@ -224,7 +230,10 @@ export function Toolbar() {
             <Divider />
             <IconButton
               icon="Lights"
-              label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
+              // A 3-state cycle button hides its state space (TB-8/P2-11) — until
+              // this becomes a segmented control, at least TEACH the cycle: the
+              // tooltip names the state a click moves to.
+              label={`Lights: ${LIGHTS_LABEL[lightsMode]} · click for ${LIGHTS_LABEL[NEXT_LIGHTS[lightsMode]]}`}
               active={lightsMode !== 'auto'}
               onClick={cycleLightsMode}
             />

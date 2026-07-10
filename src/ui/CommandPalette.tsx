@@ -162,7 +162,7 @@ export function CommandPalette() {
       {
         id: 'measure',
         group: 'Actions',
-        label: 'Toggle measurements',
+        label: 'Toggle dimension labels',
         hint: 'M',
         icon: 'Measure',
         run: () => s().toggleMeasurements(),

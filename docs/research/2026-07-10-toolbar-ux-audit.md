@@ -64,11 +64,9 @@ Each carries file:line evidence. Open items from this audit are tracked in `TODO
 
 ## P2 — naming, component choice, keyboard
 
-10. **"Measurements" vs "Measure" — two near-identical names, same icon, different features.**
-    Toolbar "Measurements" = dimension labels overlay (`showMeasurements`, key M); Tools
-    "Measure" = tape tool (`tapeMode`). Both use `Icon.Measure`. Rename for contrast (e.g.
-    "Dimensions" for the overlay vs "Measure distance" for the tape) and give the tape its own
-    icon.
+10. ~~"Measurements" vs "Measure" naming collision~~ — **renames shipped v0.18.6.13**
+    ("Dimensions" overlay vs "Measure distance" tape). Remaining sliver: both still share
+    `Icon.Measure` — give the tape its own glyph when the icon set next grows.
 
 11. **Cycle-buttons hide state spaces.** (a) Toolbar **Lights** cycles Auto→On→Off blind
     (`Toolbar.tsx:220-225`) while the *same* control is a proper 3-way segmented in Scene
