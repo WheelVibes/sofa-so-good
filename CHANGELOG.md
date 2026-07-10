@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.14 — Refactor: App.tsx keyboard orchestration → testable hooks (R3-REFAC-1)
+
+`App.tsx` shrinks 1190 → 522 lines: the three inline keyboard blocks move behaviour-preserving
+into `controls/useAppHotkeys.ts` (`useGlobalHotkeys` — the raw window ⌘K/undo/`?`/`B`/⌘A/`[`/`]`/
+`,`/`.`/`/` listener, kept raw because ⌘K must fire while typing; + `useEditorHotkeys` via
+`useKeyboard`, identical deps so re-registration behaviour is unchanged) and `controls/useNudge.ts`
+(the arrow-key rAF hold loop with camera-cardinal snapping, group collision pre-check, and the
+`'nudge'` history-coalesce window). App composes them in the original listener order. NEW unit
+coverage (11 tests): ⌘K from a text input, modal suppression + release, undo/redo, Delete skips
+locked, R rotates in one undo step, nudge moves by `speed×dt` / coalesces a hold+re-tap into one
+undo entry / suppressed behind modals. Full suite (5700) green; scenario smoke: ⌘K, held-arrow
+nudge, R rotate all work live. (A sub-frame arrow TAP moves nothing — verified identical in the
+pre-refactor code, not a regression.)
+
 ## v0.18.6.13 — Naming: "Dimensions" vs "Measure distance"; Lights button teaches its cycle (TB-8)
 
 Two near-identical names shared one icon: toolbar "Measurements" (the dimension-labels overlay,
