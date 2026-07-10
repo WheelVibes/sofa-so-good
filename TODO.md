@@ -128,11 +128,12 @@ finding from the doc + this list as it ships. Open items, in order:
 - [ ] **TB-8-tail (P3)** Cycle-buttons → segmented/Select where 3+ states (grid size, mobile
   Lights/Ceiling/Motion cycles; the naming split + Lights next-state tooltip shipped v0.18.6.13);
   distinct icon for the tape tool.
-- [ ] **TB-9 (P2)** Consolidate menu primitives (one section-header idiom, Arrange on
-  MenuItem/EmptyState); confirmAction on user-set/style deletes; 44px hamburger/brand targets;
-  tablist roving focus + sheet focus-trap.
-- [ ] **TB-10 (P3)** Label separator convention, desktop↔mobile naming/icon drift, SliderField in
-  GraphicsSettings, wall-reveal double naming, shared 640px breakpoint token, History icon.
+- [ ] **TB-9-tail (P2)** Consolidate menu primitives (one section-header idiom, Arrange on
+  MenuItem/EmptyState); tablist roving focus + sheet focus-trap. (confirmAction on set/style
+  deletes + 44px hamburger/brand targets shipped v0.18.6.15.)
+- [ ] **TB-10-tail (P3)** Desktop↔mobile naming/icon drift, SliderField in GraphicsSettings,
+  wall-reveal double naming, shared 640px breakpoint token, History icon. (Separator convention
+  shipped v0.18.6.15.)
 
 ## Open — core interactions
 - **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
@@ -186,10 +187,12 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
 Open, client-doable items from `docs/research/2026-07-04-audit-round2-tests-mobile-features.md`
 (full detail + code refs there). Shipped from this audit — MOBILE-1/2/3, TEST-3/4/5/6/7/8,
 FEAT-A/B/C/D — are in `CHANGELOG.md`. Still open:
-- [ ] **FEAT-E — grid-snap for furniture placement in 3D** (S–M, low risk). Deprioritized: the
-  alignment guides + neighbour snap already deliver most of the "tidy placement" value; revisit as
-  complementary polish (a `gridSnap3d` toggle quantizing `dragControllerHandlers.onMove`, reusing
-  `floorplan/gridSnap.ts`, neighbour-snap wins within threshold else grid). Pro tier.
+- ~~FEAT-E — grid-snap for furniture placement in 3D~~ **STALE, struck 2026-07-10**: already
+  shipped since v0.7.0.0 — the room-editor toolbar's "Snap to grid" toggle (`snapEnabled` +
+  `gridSize`/`cycleGridSize`) quantizes `dragControllerHandlers.onMove:107` via `snapToGrid`, the
+  `PlacementGhost` snaps too, and `GridOverlay` renders the live grid. The only unshipped nuance
+  is neighbour-snap composing WITH grid snap (guides are skipped while grid snap is on —
+  deliberate); not worth a separate item.
 - New reference: **Home Planner** (backend/licensed-asset-led — informs the tracked catalog-expansion/
   F11 work, not a client-doable feature). Added to `REFERENCES.md`.
 

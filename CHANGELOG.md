@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.15 — Toolbar consistency batch (TB-9/TB-10 partial)
+
+Three audit items: (a) **Arrange's user-set/user-style `×` deletes now gate on `confirmAction`**
+(danger prompt naming the set/style) — they destroyed user-authored data with no confirm/undo,
+against the destructive-action policy; scenario-verified (cancel keeps, confirm deletes).
+(b) **Mobile hamburger + brand dot get ≥44px hit areas** via inset `::after` (visual size
+unchanged — the primary menu-open control was a sub-target in the same file that enforces 44px
+for `.tool-btn`). (c) **One label+value separator convention (` · `)**: `Graphics · Balanced`,
+`Lights · Auto (click for On)` — was `—`/`:`/`·` mixed across three buttons. Also struck the
+stale FEAT-E TODO entry (3D grid snap shipped since v0.7.0.0 — `snapEnabled` quantizes
+`dragControllerHandlers.onMove`, ghost + overlay included).
+
 ## v0.18.6.14 — Refactor: App.tsx keyboard orchestration → testable hooks (R3-REFAC-1)
 
 `App.tsx` shrinks 1190 → 522 lines: the three inline keyboard blocks move behaviour-preserving

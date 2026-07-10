@@ -233,7 +233,7 @@ export function Toolbar() {
               // A 3-state cycle button hides its state space (TB-8/P2-11) — until
               // this becomes a segmented control, at least TEACH the cycle: the
               // tooltip names the state a click moves to.
-              label={`Lights: ${LIGHTS_LABEL[lightsMode]} · click for ${LIGHTS_LABEL[NEXT_LIGHTS[lightsMode]]}`}
+              label={`Lights · ${LIGHTS_LABEL[lightsMode]} (click for ${LIGHTS_LABEL[NEXT_LIGHTS[lightsMode]]})`}
               active={lightsMode !== 'auto'}
               onClick={cycleLightsMode}
             />
@@ -247,7 +247,7 @@ export function Toolbar() {
         <Divider />
         <IconButton
           icon="Quality"
-          label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
+          label={`Graphics · ${QUALITY_LABEL[qualityTier]}`}
           onClick={() => setGraphicsOpen(true)}
         />
         <AppearancePopover />

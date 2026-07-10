@@ -139,9 +139,13 @@ body.mobile {
   /* 44px minimum touch targets on the room-editor exit X (MOBILE-TAP-TARGETS). */
   .toolbar.mobilebar .tool-btn { min-width: 44px; min-height: 44px; }
   /* Hamburger matches the brand-dot size; override the tool-btn min-size so it
-     stays visually square with the logo rather than ballooning to 44px. */
-  .toolbar.mobilebar .m-menu-btn { flex: none; width: 32px; height: 32px; min-width: 32px; min-height: 32px; }
-  .toolbar.mobilebar .brand-dot { width: 32px; height: 32px; font-size: 14px; box-shadow: var(--shadow-panel); }
+     stays visually square with the logo rather than ballooning to 44px — but
+     keep the HIT AREA at ≥44px via an inset ::after (TB-9: the primary
+     menu-open control was a sub-target; same trick as the sheet close X). */
+  .toolbar.mobilebar .m-menu-btn { flex: none; width: 32px; height: 32px; min-width: 32px; min-height: 32px; position: relative; }
+  .toolbar.mobilebar .m-menu-btn::after { content: ''; position: absolute; inset: -6px; }
+  .toolbar.mobilebar .brand-dot { width: 32px; height: 32px; font-size: 14px; box-shadow: var(--shadow-panel); position: relative; }
+  .toolbar.mobilebar .brand-dot::after { content: ''; position: absolute; inset: -6px; }
   /* Default state is just two controls — drop the panel chrome so they float
      directly over the scene; each control keeps its own surface. */
   .toolbar.mobilebar:not(.editing-room) {
