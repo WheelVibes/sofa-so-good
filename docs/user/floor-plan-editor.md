@@ -225,11 +225,12 @@ knob pointing the way it faces. Drag the ring (or knob) to spin it — it snaps 
 15° steps, and you can hold **Shift** for a free angle, exactly like the wall and
 3D furniture rotation. Leaving the editor frames the selected piece back in 3D.
 
-## Adding furniture from the plan *(Pro, desktop)*
+## Adding furniture from the plan *(Pro)*
 
-You don't have to leave the plan to add a new piece. In **Pro** mode, on desktop,
-the **Furnish** button in the header (next to the drawing tools) opens the same
-catalog you use in 3D, docked to the left of the plan:
+You don't have to leave the plan to add a new piece. In **Pro** mode, the
+**Furnish** button in the header (next to the drawing tools) opens the same
+catalog you use in 3D — docked to the left of the plan on desktop, or as a
+bottom sheet on your phone:
 
 1. Click **Furnish** to open the catalog, then click a card to arm it — a
    footprint‑shaped **ghost** appears and follows your cursor, tinted **green**
@@ -242,11 +243,16 @@ catalog you use in 3D, docked to the left of the plan:
    A red spot swallows the click (nothing is placed) so you can keep aiming.
 4. **Escape** or right‑click cancels the armed piece without placing it.
 
+**On your phone** the same flow is one-handed: tap **Furnish**, tap a card —
+the catalog sheet closes itself so the plan is visible — then tap the plan
+where you want the piece. A **Place item?** ✓/✗ bar confirms the drop (exactly
+like placing in 3D on mobile); cancelling brings the catalog back. You can also
+**press-and-hold** a card and drag your finger straight onto the plan, ghost in
+tow, and lift to place.
+
 Curtains, blinds and window grilles aren't supported here yet — arm one and
 you'll get a message pointing you to the 3D per‑room editor, where they snap
-onto a window automatically. Placing furniture from the plan is a **Pro**,
-**desktop** feature for now; on mobile, add furniture from the 3D catalog as
-usual and come back to the plan to nudge it into place.
+onto a window automatically.
 
 ## Tracing from a photo *(Pro)*
 

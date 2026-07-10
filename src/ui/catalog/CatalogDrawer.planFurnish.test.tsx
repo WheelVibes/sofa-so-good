@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 /**
- * PLAN-FURNISH Phase 1 — the catalog also surfaces inside the 2D floor-plan
- * editor (desktop only), behind the pro-tier `planFurnish` flag, WITHOUT
- * loosening `roomEditorActive`'s existing meaning (it's an OR, not a
- * replacement). Tested in both Simple (hidden) and Pro (shown) per the
- * CLAUDE.md hard rule, plus the desktop-only + room-editor-unaffected cases.
+ * PLAN-FURNISH — the catalog also surfaces inside the 2D floor-plan editor
+ * (desktop dock in Phase 1; the mobile bottom sheet since Phase 2), behind
+ * the pro-tier `planFurnish` flag, WITHOUT loosening `roomEditorActive`'s
+ * existing meaning (it's an OR, not a replacement). Tested in both Simple
+ * (hidden) and Pro (shown) per the CLAUDE.md hard rule, on desktop AND
+ * mobile, plus the room-editor-unaffected case.
  */
 import { render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -55,28 +56,44 @@ describe('CatalogDrawer in the 2D plan editor (PLAN-FURNISH)', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('does not surface via the plan editor on mobile (Phase 1 is desktop-only)', () => {
-    useStore.getState().setUiMode('pro')
-    useStore.getState().reresolveFeatureFlags()
+  // PLAN-FURNISH Phase 2: the plan-editor catalog is no longer desktop-only —
+  // on mobile it surfaces as the standard bottom sheet (arming from a card
+  // auto-closes it so the plan is visible for the placement tap). Tested in
+  // BOTH modes per the CLAUDE.md hard rule.
+  describe('on mobile (Phase 2)', () => {
     const original = window.matchMedia
-    // Force the ≤640px mobile breakpoint `useIsMobile` reads (matches the
-    // `setViewport` helper pattern in `ui/tour/ProductTour.test.tsx`).
-    window.matchMedia = ((query: string) => ({
-      matches: query.includes('max-width'),
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })) as unknown as typeof window.matchMedia
-    try {
+    beforeEach(() => {
+      // Force the ≤640px mobile breakpoint `useIsMobile` reads (matches the
+      // `setViewport` helper pattern in `ui/tour/ProductTour.test.tsx`).
+      window.matchMedia = ((query: string) => ({
+        matches: query.includes('max-width'),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })) as unknown as typeof window.matchMedia
+    })
+    afterEach(() => {
+      window.matchMedia = original
+    })
+
+    it('surfaces in the plan editor on mobile in Pro mode', () => {
+      useStore.getState().setUiMode('pro')
+      useStore.getState().reresolveFeatureFlags()
+      const { container } = render(<CatalogDrawer />)
+      expect(container.querySelector('.panel.catalog')).not.toBeNull()
+      expect(container.querySelector('.catalog-in-plan')).not.toBeNull()
+    })
+
+    it('stays hidden on mobile in Simple mode (planFurnish is pro-tier)', () => {
+      useStore.getState().setUiMode('simple')
+      useStore.getState().reresolveFeatureFlags()
       const { container } = render(<CatalogDrawer />)
       expect(container.firstChild).toBeNull()
-    } finally {
-      window.matchMedia = original
-    }
+    })
   })
 
   it('does not carry the plan modifier class when opened for the room editor normally', () => {

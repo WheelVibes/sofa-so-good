@@ -164,15 +164,8 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
 - [ ] **PLAN-FURNISH Phases 2–4 — plan-editor furniture placement follow-ups.** Phase 1
   (desktop click-to-place; `planFurnish` flag) has shipped — see `CHANGELOG.md` and
   `docs/research/2026-07-03-plan-furnish-implementation-plan.md` (marked done there). Remaining:
-  - [ ] **Phase 2** — mobile tap-to-place + long-press-from-card, stamp-mode reuse for repeat drops.
-    **ATTEMPTED + DEFERRED (2026-07-04)** — reached 54/64 scenario steps green (catalog sheet
-    surfaces on mobile, tap-to-place + long-press-drag commit both work) but not shipped. Work
-    archived on branch `wip/plan-furnish-mobile-phase2` (resume from there). Blockers for a future
-    focused effort: (a) the mobile catalog bottom-sheet covers ~72% of a 390×844 viewport, so
-    tap-to-place needs the sheet to **auto-collapse on arm** (or dock smaller) — decide the
-    catalog-vs-plan mobile layout first; (b) verify the stamp-in-plan touch-commit (scenario step 55)
-    + drop the unverified desktop stamp-in-plan tweak that snuck into that WIP; (c) SwiftShader
-    harness flakiness (Page.captureScreenshot timeouts) needs the lazy-plan-editor-mount waits.
+  - Phase 2 (mobile tap-to-place + long-press-from-card + stamp reuse) **SHIPPED v0.18.6.19**
+    (user decision 2026-07-10: arm auto-closes the catalog sheet, mirroring 3D `placeConfirm`).
   - [ ] **Phase 3** — window-bound fixtures (curtains/blinds/grilles) via `snapToNearestWindow` in
     the plan (Phase 1 excludes them with a toast pointing to the 3D room editor).
   - [ ] **Phase 4** — HTML5 drag-from-catalog onto the plan SVG (deferred pending the logged

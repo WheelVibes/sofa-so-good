@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.19 — PLAN-FURNISH Phase 2: mobile furniture placement in the 2D plan editor
+
+Resumes the archived `wip/plan-furnish-mobile-phase2` work (54/64 green, deferred 2026-07-04)
+with the layout decision made: **arming a catalog card AUTO-CLOSES the mobile bottom-sheet**
+(it covered ~72% of a 390×844 plan), mirroring the 3D `placeConfirm` grammar — tap a card →
+sheet closes, plan visible → tap the plan → Phase 1's `onDown` commit → "Place item?" ✓/✗ bar;
+cancel/confirm reopen the catalog. Long-press-from-card drag ships too (window-level pointer
+events; pure `screenToGridPoint`/`decidePlanTouchLift` helpers in `planFurnishPlacement.ts`,
+unit-tested), plus stamp-mode repeat drops (stays armed, no pill — verified along with a desktop
+Phase-1 regression run). CatalogDrawer's plan-editor mount drops its `!isMobile` gate; the
+mobile plan header gains the Furnish entry (Edit mode, Pro). **New bug found & fixed**: the 3D
+`usePlacementController` touch handlers raced the plan's own commit (cancelled armed stamps,
+reopened the sheet over the pending pill) — they now stand down while `floorPlanEditing`, and
+the plan effect handles `pointercancel` aborts itself. Scenario `plan-furnish-mobile.json`:
+**68/68 green** (390×844, lazy-mount `waitFor`s — no fixed waits); desktop
+`plan-furnish-simple.json` 34/34; full suite (5710) + `tsc` + biome green. Docs: user guide's
+"Adding furniture from the plan" is no longer desktop-only; `ui/CLAUDE.md` records the mobile
+grammar + controller stand-down.
+
 ## v0.18.6.18 — Mobile sheet Tab focus-trap (a11y) + DE-4b ruling
 
 The mobile menu sheet gains the Tab focus-trap it was the last overlay without (the long-open

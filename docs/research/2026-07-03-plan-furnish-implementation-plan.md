@@ -277,3 +277,6 @@ the plan above closely, with a few implementation notes worth recording:
   → item confirmed present and correctly sized/named in the 3D scene.
 - **Not done this phase** (see the phase table above, unchanged): mobile tap-to-place (Phase 2),
   window-bound fixtures in the plan (Phase 3), HTML5 drag-from-catalog (Phase 4).
+- **Update 2026-07-10: Phase 2 SHIPPED (v0.18.6.19)** — mobile tap-to-place + long-press-from-card
+  + stamp reuse, with the user-decided option-1 layout (arming auto-closes the catalog sheet,
+  mirroring 3D `placeConfirm`; cancel/confirm reopen it). Phases 3–4 remain open (TODO.md).
