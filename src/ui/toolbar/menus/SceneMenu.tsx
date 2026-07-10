@@ -108,7 +108,7 @@ export function SceneMenu() {
             type="button"
             className={`seg-btn${showCeilingFixtures ? ' on' : ''}`}
             onClick={() => setShowCeilingFixtures(!showCeilingFixtures)}
-            style={{ fontSize: 'var(--t-xs)', padding: '3px 10px' }}
+            title="Show or hide ceiling-mounted lights and fans"
           >
             {showCeilingFixtures ? 'Visible' : 'Hidden'}
           </button>
@@ -125,7 +125,6 @@ export function SceneMenu() {
                 className={`seg-btn${motionEnabled ? ' on' : ''}`}
                 onClick={() => toggleMotion()}
                 title="Animate moving furniture like ceiling-fan blades"
-                style={{ fontSize: 'var(--t-xs)', padding: '3px 10px' }}
               >
                 {motionEnabled ? 'On' : 'Paused'}
               </button>

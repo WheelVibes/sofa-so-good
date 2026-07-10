@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.3 — Fix (TB-2): Scene-menu Ceiling fixtures / Motion toggles read as controls again
+
+`.seg-btn` was an **undefined CSS class** — the Scene menu's "Ceiling fixtures" and "Motion"
+toggles (and the plan-inspector's style/axis pickers, which share the class) rendered as bare
+words with no button affordance, indistinguishable from status text (P0-2 in the toolbar UX
+audit, screenshot-confirmed). Defined `.seg-btn` in `components.css` as a bordered state-toggle
+pill (tokens only: `--border`/`--surface-2`/hover `--surface-3`/on `--accent`), dropped the
+now-redundant inline font/padding on the two Scene rows, and gave Ceiling fixtures a tooltip.
+Scenario-verified in light AND dark (real `setModePref('dark')`): both toggles read as pills,
+Motion click flips `motionEnabled` and the pill state.
+
 ## v0.18.6.2 — Fix (TB-1): nested Select inside a toolbar Popover no longer closes the parent menu
 
 `Popover`'s outside-pointerdown/scroll containment only accepted its own portaled panel; a

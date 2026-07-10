@@ -123,8 +123,6 @@ WebGPU path tracing).
 Full audit (findings P0–P3 with file:line evidence, Figma/modern-app grounding, screenshots):
 `docs/research/2026-07-10-toolbar-ux-audit.md`. Work the sequenced list there; delete each
 finding from the doc + this list as it ships. Open items, in order:
-- [ ] **TB-2 (P0)** Scene-menu "Ceiling fixtures"/"Motion" toggles render as plain text — give
-  them a real control affordance (segmented, like Lights).
 - [ ] **TB-3 (P0)** Mobile menu-sheet grab pill is decorative — wire swipe-down-to-close or drop it.
 - [ ] **TB-4 (P1)** Mobile overview has no Arrange section — whole-flat Smart Start/presets/styles
   unreachable without entering a room (desktop surfaces them in overview).

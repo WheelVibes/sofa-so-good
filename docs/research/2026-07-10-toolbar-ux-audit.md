@@ -19,11 +19,8 @@ Each carries file:line evidence. Open items from this audit are tracked in `TODO
 1. ~~Nested `Select` inside a toolbar `Popover` closes the whole menu on option click~~ —
    **shipped v0.18.6.2** (`popoverTreeContains` descendant-portal containment; see CHANGELOG).
 
-2. **Scene-menu "Ceiling fixtures" / "Motion" toggles render as plain status text.** Screenshot
-   evidence: the rows show just the section header + the word "Hidden"/"On" with no button
-   affordance (border/fill), so users read them as status lines, not tappable controls
-   (`menus/SceneMenu.tsx` seg-btn toggle idiom). They need a visible control (the segmented
-   `.scene-seg` idiom used by Lights two sections up, or a `Toggle` switch).
+2. ~~Scene-menu "Ceiling fixtures" / "Motion" toggles render as plain status text~~ — **shipped
+   v0.18.6.3** (root cause: `.seg-btn` was an undefined CSS class; now a bordered toggle pill).
 
 3. **Mobile menu sheet's grab pill is decorative.** `.m-sheet-grab` (`MobileToolbar.tsx:186`,
    `responsive.css:217`) renders the universal "draggable sheet" affordance but has **no** drag
@@ -192,7 +189,7 @@ with a floating toolbar), plus the command-bar/shortcut literature. Sources:
 ## Suggested sequencing (value ÷ effort)
 
 1. ~~P0-1 Popover descendant-portal containment~~ — shipped v0.18.6.2.
-2. **P0-2 Scene toggle affordance** (S) + **P2-11a Lights segmented consistency** (S).
+2. ~~P0-2 Scene toggle affordance~~ — shipped v0.18.6.3. **P2-11a Lights segmented consistency** (S).
 3. **P1-4 mobile overview Arrange section** (S–M — reuse `ArrangeSection`, add rail entry).
 4. **P2-12 kbd chips** (S — registry `kbd` field + camera rows + Esc from keybindings).
 5. **P2-10 Measure naming split** (S). **P3-18/19 label/icon harmonization** (S).
