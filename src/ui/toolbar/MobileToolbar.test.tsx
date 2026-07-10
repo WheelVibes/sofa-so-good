@@ -29,6 +29,33 @@ describe('MobileToolbar menu sheet — Escape to close', () => {
   })
 })
 
+describe('MobileToolbar menu sheet — grab-pill swipe up dismisses (TB-3)', () => {
+  const openSheet = () => {
+    const utils = render(<MobileToolbar />)
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    const grab = utils.container.parentElement?.querySelector('.m-sheet-grab') as HTMLElement
+    return grab ?? (document.querySelector('.m-sheet-grab') as HTMLElement)
+  }
+
+  it('a swipe UP past the threshold closes the sheet', () => {
+    const grab = openSheet()
+    expect(grab).toBeTruthy()
+    fireEvent.touchStart(grab, { touches: [{ clientY: 300 }] })
+    fireEvent.touchEnd(grab, { changedTouches: [{ clientY: 240 }] })
+    expect(document.querySelector('.m-sheet')).toBeNull()
+  })
+
+  it('a small or downward swipe keeps the sheet open', () => {
+    const grab = openSheet()
+    fireEvent.touchStart(grab, { touches: [{ clientY: 300 }] })
+    fireEvent.touchEnd(grab, { changedTouches: [{ clientY: 290 }] })
+    expect(document.querySelector('.m-sheet')).not.toBeNull()
+    fireEvent.touchStart(grab, { touches: [{ clientY: 300 }] })
+    fireEvent.touchEnd(grab, { changedTouches: [{ clientY: 400 }] })
+    expect(document.querySelector('.m-sheet')).not.toBeNull()
+  })
+})
+
 describe('MobileToolbar rail — whole-flat Arrange in the overview (TB-4)', () => {
   const railTitles = () =>
     screen.getAllByRole('tab').map((t) => t.getAttribute('title') ?? t.getAttribute('aria-label'))

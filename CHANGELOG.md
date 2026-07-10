@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.11 — Mobile menu sheet: grab pill now swipes to dismiss (TB-3)
+
+The sheet's grab pill (`.m-sheet-grab`) rendered the OS-level "draggable sheet" affordance but
+had no gesture handler — a misleading promise (P0-3 in the toolbar UX audit; Figma/FigJam
+grounding: sheets that look draggable are draggable). A swipe UP on the pill (≥36 px, matching
+the inspector's `SWIPE_PX` feel) now dismisses the top-anchored sheet — "toward the top bar" is
+the natural dismiss motion for a sheet that hangs from it. Unit-tested (dismisses past the
+threshold; small/downward swipes keep it open); touch gestures aren't drivable in the headless
+harness, so the tests are the behavioural evidence (no visual change to verify).
+
 ## v0.18.6.10 — Mobile overview gains the Arrange section (TB-4, desktop parity)
 
 Whole-flat Arrange (furniture sets, layout presets, style themes, save-as-set/style) was

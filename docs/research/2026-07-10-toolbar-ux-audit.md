@@ -22,10 +22,8 @@ Each carries file:line evidence. Open items from this audit are tracked in `TODO
 2. ~~Scene-menu "Ceiling fixtures" / "Motion" toggles render as plain status text~~ — **shipped
    v0.18.6.3** (root cause: `.seg-btn` was an undefined CSS class; now a bordered toggle pill).
 
-3. **Mobile menu sheet's grab pill is decorative.** `.m-sheet-grab` (`MobileToolbar.tsx:186`,
-   `responsive.css:217`) renders the universal "draggable sheet" affordance but has **no** drag
-   handler — no swipe-to-dismiss exists (only the inspector has real `useInspectorMinimize`).
-   Either wire a swipe-down-to-close or remove the pill.
+3. ~~Mobile menu sheet's grab pill is decorative~~ — **shipped v0.18.6.11** (swipe up on the pill
+   dismisses the top-anchored sheet).
 
 ## P1 — structure, discoverability, parity
 
@@ -192,6 +190,6 @@ with a floating toolbar), plus the command-bar/shortcut literature. Sources:
 5. **P2-10 Measure naming split** (S). **P3-18/19 label/icon harmonization** (S).
 6. **P1-5/6 Tools/File export consolidation** (M — information architecture change, needs a
    scenario re-rung + docs update).
-7. **P1-7 island overflow affordance** (S–M). **P0-3 sheet swipe or pill removal** (S).
+7. **P1-7 island overflow affordance** (S–M). ~~P0-3 sheet swipe~~ — shipped v0.18.6.11.
 8. **P2-15 confirm on set/style delete** (S). **P2-13 title on enabled IconButton** (S).
 9. **P2-17 touch targets** (S). Rest as opportunistic polish.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useModalGuard } from '../../controls/modalGuard'
 import { hasBackend } from '../../features/api/client'
 import { useFeature } from '../../features/useFeature'
@@ -26,8 +26,14 @@ import { ToolsSection } from './mobile/ToolsSection'
 import { ViewSection } from './mobile/ViewSection'
 import { RoomSwitcher } from './RoomSwitcher'
 
+/** Min upward travel (px) for a grab-pill swipe to dismiss the menu sheet
+ *  (TB-3) — matches the inspector's `SWIPE_PX` threshold feel. */
+const SHEET_SWIPE_PX = 36
+
 export function MobileToolbar() {
   const [menuOpen, setMenuOpen] = useState(false)
+  // Touch-start Y of a grab-pill swipe (TB-3: swipe up on the pill closes).
+  const sheetSwipeY = useRef<number | null>(null)
   const [activeId, setActiveId] = useState<string>('view')
   const [graphicsOpen, setGraphicsOpen] = useState(false)
   const [compassOpen, setCompassOpen] = useState(false)
@@ -189,7 +195,22 @@ export function MobileToolbar() {
       {menuOpen ? (
         <div className="m-menu-overlay" onClick={(e) => e.target === e.currentTarget && close()}>
           <div className="m-sheet">
-            <div className="m-sheet-grab" />
+            {/* The grab pill promises a sheet gesture (TB-3) — honour it: a
+                swipe UP on the pill/header dismisses the top-anchored sheet
+                (mirrors useSwipeToCollapse's touch pattern; the sheet hangs
+                from the top bar, so "toward the bar" is the dismiss motion). */}
+            <div
+              className="m-sheet-grab"
+              onTouchStart={(e) => {
+                sheetSwipeY.current = e.touches[0]?.clientY ?? null
+              }}
+              onTouchEnd={(e) => {
+                const y0 = sheetSwipeY.current
+                sheetSwipeY.current = null
+                if (y0 == null) return
+                if ((e.changedTouches[0]?.clientY ?? y0) - y0 < -SHEET_SWIPE_PX) close()
+              }}
+            />
             <div className="m-sheet-head">
               <div className="m-sheet-brand">
                 <span className="brand-dot" title="Sofa So Good">
