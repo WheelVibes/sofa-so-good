@@ -151,13 +151,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] **DE-5**: extend `knip.json` entry/project to `functions/**`, `workers/**`, `electron/*.mjs`
   (currently invisible to knip), verify clean after DE-2/3, then add `npm run deadcode` to CI.
 
-## Bugs found by IXT back-fill (2026-07-03, evidence in scenario run logs/screenshots)
-- [ ] **BUG: nested Select inside a toolbar Popover closes the parent menu on option click** —
-  `ui/toolbar/Popover.tsx`'s outside-pointerdown containment checks only its own portaled panel;
-  a nested `controls/Select.tsx` option list portals to a SIBLING body node, so the click reads
-  as "outside" and the whole menu closes before the option lands (repro: SceneMenu "Window view"
-  select; screenshot `failed-backdrop-is-dusk.png`). Fix idea: containment should also accept
-  clicks inside any descendant portal (e.g. shared data-attr or a portal registry).
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

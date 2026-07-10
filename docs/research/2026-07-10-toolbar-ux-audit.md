@@ -16,15 +16,8 @@ Each carries file:line evidence. Open items from this audit are tracked in `TODO
 
 ## P0 — broken or misleading interactions
 
-1. **Nested `Select` inside a toolbar `Popover` closes the whole menu on option click.**
-   `Popover`'s outside-pointerdown containment (`ui/toolbar/Popover.tsx`) only accepts its own
-   portaled panel; a nested `controls/Select.tsx` option list portals to a *sibling* body node, so
-   picking an option reads as "outside", the parent menu closes on `pointerdown` and the option's
-   `click` never lands — the pick is silently dropped. Affects every Select in the Scene menu
-   (Render preset, Window view, Environment lighting, Reveal walls) and Arrange's `PickApply`
-   pickers. Already logged in `TASKS.md` (IXT back-fill bug); this is the single worst toolbar
-   interaction bug. Fix: containment must accept clicks inside any *descendant* portal (portal
-   registry or shared data-attr).
+1. ~~Nested `Select` inside a toolbar `Popover` closes the whole menu on option click~~ —
+   **shipped v0.18.6.2** (`popoverTreeContains` descendant-portal containment; see CHANGELOG).
 
 2. **Scene-menu "Ceiling fixtures" / "Motion" toggles render as plain status text.** Screenshot
    evidence: the rows show just the section header + the word "Hidden"/"On" with no button
@@ -198,8 +191,7 @@ with a floating toolbar), plus the command-bar/shortcut literature. Sources:
 
 ## Suggested sequencing (value ÷ effort)
 
-1. **P0-1 Popover descendant-portal containment** (S — unblocks every nested Select; also fixes
-   the same bug for future menus).
+1. ~~P0-1 Popover descendant-portal containment~~ — shipped v0.18.6.2.
 2. **P0-2 Scene toggle affordance** (S) + **P2-11a Lights segmented consistency** (S).
 3. **P1-4 mobile overview Arrange section** (S–M — reuse `ArrangeSection`, add rail entry).
 4. **P2-12 kbd chips** (S — registry `kbd` field + camera rows + Esc from keybindings).

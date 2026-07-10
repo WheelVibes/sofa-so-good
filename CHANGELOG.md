@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.2 — Fix (TB-1): nested Select inside a toolbar Popover no longer closes the parent menu
+
+`Popover`'s outside-pointerdown/scroll containment only accepted its own portaled panel; a
+`Select` opened from inside a menu panel portals its option list to a SIBLING `document.body`
+node, so picking an option read as "outside" — the parent menu closed on `pointerdown` before the
+option's `click` ever ran and the pick was silently dropped (repro: Scene menu → Window view;
+found by the IXT back-fill, P0-1 in `docs/research/2026-07-10-toolbar-ux-audit.md`). Fix: every
+open `Popover` registers `{panel, anchor}` in a module-level set; containment now walks
+descendant portals by anchor ownership (`popoverTreeContains` — a popover whose anchor lives
+inside my panel is part of my subtree, any depth). Covers pointerdown AND the capture-phase
+scroll-close (scrolling a nested option list no longer closes the menu). Unit tests for nested
+portals (stay-open, truly-outside still closes both, nested scroll); scenario-verified: picking
+"Dusk" in Scene → Window view lands in the store with the Scene menu still open.
+
 ## v0.18.6.1 — Fix: "Turn off light source" never worked (updateItemProps can now clear a key)
 
 The inspector header's light toggle (`InspectorHeader.tsx`) built a props copy, `delete`d
