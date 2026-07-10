@@ -143,9 +143,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] **DE-1**: delete the 19 truly-dead exports (18 files — lists in the audit doc §Task 1).
 - [ ] **DE-2/DE-3**: drop the unneeded `export` keyword on the 86 internal-only helpers (two
   mechanical batches by folder — audit doc §Tasks 2-3). Unblocks a noise-free `npm run deadcode`.
-- [ ] **DE-4a (BUG candidate)**: `materials/cache.ts:201` `disposeCachedMaterial` is never called
-  by the user-material delete path (`FinishPicker.tsx:290` → `userAssetsSlice.ts:153` only revokes
-  object URLs) — possible cached-GPU-texture leak on delete. Investigate + fix or document why not.
 - [ ] **DE-4b**: `openSh3dImport.ts:115` `importSh3dFile` is dormant with no backlog item — decide
   wire-up or removal.
 - [ ] **DE-5**: extend `knip.json` entry/project to `functions/**`, `workers/**`, `electron/*.mjs`

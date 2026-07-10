@@ -97,6 +97,13 @@ export class LruCache<V> {
     return value
   }
 
+  /** Snapshot of the current keys (no recency refresh) — lets an explicit
+   *  deletion sweep find every derived entry for a base id (`disposeCached
+   *  MaterialsFor`) without exposing the backing map. */
+  keys(): string[] {
+    return [...this.map.keys()]
+  }
+
   /** Test-only: clear all entries (disposing each immediately/synchronously). */
   clearForTest(): void {
     for (const value of this.map.values()) this.disposeValue(value)

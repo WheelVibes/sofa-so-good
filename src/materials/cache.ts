@@ -364,3 +364,26 @@ export function disposeCachedMaterial(id: string): void {
   if (!m) return
   disposeOwnedMaterial(m)
 }
+
+/** Drops EVERY cache entry derived from a base MaterialId — the plain id, its
+ *  procedural `<id>@<size>` variants, `tint:<id>:…` recolours, and the
+ *  `furn:`-prefixed furniture-finish entries (`furnitureMaterialCacheId`) —
+ *  used when a user material is DELETED (DE-4a): `removeUserMaterial` only
+ *  revoked the blob URLs, so the built material + its owned GPU textures (and
+ *  any tint siblings) sat in the LRU until size-based eviction. Prefix checks
+ *  are delimiter-anchored so `u1` never sweeps `u12`. */
+export function disposeCachedMaterialsFor(baseId: string): void {
+  for (const key of CACHE.keys()) {
+    if (
+      key === baseId ||
+      key.startsWith(`${baseId}@`) ||
+      key.startsWith(`tint:${baseId}:`) ||
+      key === `furn:${baseId}` ||
+      key.startsWith(`furn:${baseId}:`) ||
+      key.startsWith(`furn:${baseId}@`) ||
+      key.startsWith(`furn:tint:${baseId}:`)
+    ) {
+      disposeCachedMaterial(key)
+    }
+  }
+}

@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.7 — Fix (DE-4a): deleting a user material now frees its cached GPU material
+
+`removeUserMaterial` only revoked blob URLs — the built `MeshStandardMaterial` (+ its owned
+recolour bakes) and every tint/furniture derivative stayed in the 256-entry surface-material LRU
+until size pressure evicted them (confirmed leak candidate from the dead-export audit). New
+`disposeCachedMaterialsFor(baseId)` (`materials/cache.ts`) sweeps the plain id, `<id>@size`,
+`tint:<id>:…`, and `furn:`-prefixed derivatives via the existing ownership-aware
+`disposeCachedMaterial` (shared loader textures are never disposed); prefix checks are
+delimiter-anchored so `u1` never sweeps `u12`. `LruCache` gains a non-refreshing `keys()`.
+Wired into `removeUserMaterial`; unit tests cover the sweep, the prefix-collision guard, and the
+no-op path.
+
 ## v0.18.6.6 — Corner-spread wall fade for custom plans (PlanShell, WALL-REVEAL-CORNER-SPREAD)
 
 Custom plans now get the same corner-spread reveal the default flat (`WallSegment`) and room
