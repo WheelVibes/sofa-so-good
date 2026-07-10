@@ -116,8 +116,6 @@ WebGPU path tracing).
   (lower value), and a headless scenario would need a new dev-only `window.__priceSidecarStub` lever
   in `livePrice.ts` purely for the test. Unit coverage already exercises the client logic; revisit
   only if the sidecar path regresses.
-- **Fast rasterized "preview render" tier** (Coohom parity) — a local analog to the 10-s cloud
-  render. Deferred as an analytics/deliverable, not core design UX.
 
 ## Active — toolbar UX program (2026-07-10, user goal)
 Full audit (findings P0–P3 with file:line evidence, Figma/modern-app grounding, screenshots):

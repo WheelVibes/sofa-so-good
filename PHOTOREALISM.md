@@ -84,8 +84,10 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
 - **PHOTO-GLASS — transmission + volume + IOR fidelity** ◑ (M, materials; Verify G).
   Window **sky-catch** shipped (RZ2): glass carries a daylight-ramped emissive sky tint
   (`glassSkyCatchIntensity`) so panes read as lit glass on every tier (not flat dark rectangles).
-  **Remaining:** ensure windows/glassware use real `transmission`+`ior`(1.5)+`thickness`+`attenuationColor`
-  (`KHR_materials_volume`); add `transmissionResolutionScale` to bound real-time cost. Extend down to
+  **Glassware** already uses real `transmission`+`ior`(1.5)+`thickness` on High/Max
+  (`furnitureMaterials.ts:getGlassMaterial`). **Remaining:** WINDOW panes are still
+  `meshStandardMaterial` (no transmission — `apartment/Window.tsx`); add `attenuationColor`
+  (`KHR_materials_volume`) + `transmissionResolutionScale` to bound real-time cost; extend down to
   Medium where affordable.
 
 ### Tier 3 — ultra-detail materials/assets (memory-bound, mostly verifiable)
@@ -104,8 +106,6 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   the IBL probe + planar mirrors. WebGPU-gated with WebGL fallback.
 - **PHOTO-WEBGPU** (L). Evaluate three.js `WebGPURenderer`/TSL maturity (2026) for true SSGI,
   better lights, compute denoise; capability-detect with WebGL2 fallback.
-- **PHOTO-SSAA-EXPORT** (S, export; Verify G). Supersample the snapshot/export path (render large →
-  downsample) for reference-quality stills, separate from the live SMAA.
 
 ## Verification posture
 Real-time DOM/scene-graph/flag changes are headless-verifiable. **Path-traced + post-heavy pixel

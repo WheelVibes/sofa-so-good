@@ -42,7 +42,6 @@ are interaction/productivity features, plus the AI auto-layout family.
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| Fast rasterized "preview render" tier | ◑ | ✅ | A high-quality single-frame raster capture as the local analog to cloud 10-s render. | M |
 | Day-to-night animated render clip | ◑ | ✅ | Animate the time-of-day slider along the video path (real-GPU final clip). | M |
 | AI floor-plan generation (text → plan) | ❌ | 🔑 | BYO-key LLM emits wall/room JSON into the 2D plan schema. | L |
 | AI plan recognition: auto-detect doors/windows + scale | ◑ | 🔑 | Extend the existing BYO-key AI wall tracing to openings + scale calibration. | M |
@@ -77,10 +76,15 @@ polylines), and its iconic **video flythrough** export.
 > section tracks only what is still open.
 
 **High-value medium efforts (M):**
-1. Fast rasterized "preview render" tier (Coohom) — local analog to cloud 10-s render.
-2. Day-to-night animated render clip (Coohom) — animate time-of-day along the video path.
-3. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
-4. AI matting / background removal for product cutouts (WASM segmentation).
+1. Day-to-night animated render clip (Coohom) — animate time-of-day along the video path.
+2. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
+3. AI matting / background removal for product cutouts (WASM segmentation).
+
+_(The former "fast rasterized preview render tier" row was retired 2026-07-10: the capability
+substantively ships — one-tap raster render presets (`scene/renderPresets.ts`, F4) + the 2×
+SSAA snapshot capture (`ScreenshotController`, PHOTO-SSAA-EXPORT v0.8.0.30) + the render-compare
+raster capture (`RenderCompareModal`) together ARE the local analog to Coohom's 10-s preview;
+no distinct feature remains to build.)_
 
 **Marquee large efforts (L):**
 5. **AI floor-plan generation** (text → plan, Coohom, 🔑 BYO-key).
