@@ -1,85 +1,158 @@
 {
   "name": "furnlight-simple",
-  "description": "Simple ladder for the item-as-light-source feature (PARITY-FURNLIGHT, itemAsLight flag, simple tier): confirms it's on by default in Simple mode, places a plain non-fixture item (a dresser — not in LIGHT_EMITTERS), flips the REAL inspector 'Make a light source' icon-button (only reachable inside the per-room editor), then EXITS the room editor to verify it actually emits in the real Scene (store props.lightOn + a live scene-graph PointLight probe, since the per-room editor's own Canvas — RoomEditorScene.tsx — has a fixed flat hemisphere+ambient rig and does not render FurnitureLights at all, so the light is invisible while still inside the editor) — screenshots lit vs unlit in both orbit and walk mode. NOTE: at the time this was written there is no shipped walk-mode E-key light-toggle interaction and no 'walkLights' flag — TASKS.md queues 'Interactable lights' as future work (see report) — so this rung exercises the inspector toggle, the only shipped light-source-toggle UI. Also NOTE (real bug, not fixed here, see the 'clear-lighton-via-store' step + report): the real 'Turn off light source' button does not work — InspectorPanel.tsx's onClick deletes `lightOn` from a local copy, but `updateItemProps` (itemsSlice.ts) only ever merges old+new props, so the deletion never reaches the store and the light stays on forever once toggled. This rung clears it via a direct store call instead so it can still verify the (working) ON path and reach a clean end state.",
+  "description": "Simple ladder for the item-as-light-source feature (PARITY-FURNLIGHT, itemAsLight flag, simple tier): confirms it's on by default in Simple mode, places a plain non-fixture item (a dresser — not in LIGHT_EMITTERS), flips the REAL inspector 'Make a light source' icon-button (only reachable inside the per-room editor), then EXITS the room editor to verify it actually emits in the real Scene (store props.lightOn + a live scene-graph PointLight probe, since the per-room editor's own Canvas — RoomEditorScene.tsx — has a fixed flat hemisphere+ambient rig and does not render FurnitureLights at all, so the light is invisible while still inside the editor) — screenshots lit vs unlit in both orbit and walk mode. NOTE: at the time this was written there is no shipped walk-mode E-key light-toggle interaction and no 'walkLights' flag — TASKS.md queues 'Interactable lights' as future work (see report) — so this rung exercises the inspector toggle, the only shipped light-source-toggle UI. The 'Turn off light source' path clicks the REAL button (regression guard for the fixed merge-can't-clear updateItemProps bug).",
   "url": "http://localhost:5231/",
   "steps": [
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
     {
       "name": "dismiss-overlays",
       "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(19.5); s.setLightsMode?.('on'); })()"
     },
     {
       "name": "verify-simple-mode",
-      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
       "timeout": 5000,
       "failMessage": "App did not boot in Simple mode"
     },
     {
       "name": "verify-itemaslight-flag-simple-tier",
-      "waitFor": { "store": "state.featureFlags.itemAsLight === true" },
+      "waitFor": {
+        "store": "state.featureFlags.itemAsLight === true"
+      },
       "timeout": 5000,
       "failMessage": "itemAsLight is tier:'simple' and default:true — expected true in Simple mode"
     },
-    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    {
+      "name": "enter-room-editor",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
     {
       "name": "room-editor-active",
-      "waitFor": { "store": "state.roomEditor.active === true" },
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
       "timeout": 10000
     },
-    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
-    { "name": "settle-editor", "wait": 800 },
+    {
+      "name": "hide-loading",
+      "eval": "window.__store.getState().hideLoading?.()"
+    },
+    {
+      "name": "settle-editor",
+      "wait": 800
+    },
     {
       "name": "place-dresser",
       "eval": "window.__store.getState().setItems([{id:'furnlight-dresser',defId:'dresser',position:[9.6,2.6],rotation:0,props:{}}])"
     },
-    { "name": "select-dresser", "store": { "action": "selectItem", "args": ["furnlight-dresser"] } },
+    {
+      "name": "select-dresser",
+      "store": {
+        "action": "selectItem",
+        "args": [
+          "furnlight-dresser"
+        ]
+      }
+    },
     {
       "name": "inspector-visible",
-      "waitFor": { "css": ".panel.inspector" },
+      "waitFor": {
+        "css": ".panel.inspector"
+      },
       "timeout": 10000,
       "failMessage": "Inspector panel did not mount for the selected dresser"
     },
     {
       "name": "light-toggle-visible",
-      "waitFor": { "css": "button[aria-label=\"Make a light source\"]" },
+      "waitFor": {
+        "css": "button[aria-label=\"Make a light source\"]"
+      },
       "timeout": 5000,
       "failMessage": "itemAsLight toggle missing — expected on a non-fixture def (dresser is not in LIGHT_EMITTERS) with the flag on in Simple mode"
     },
-    { "name": "focus-dresser", "eval": "window.__store.getState().focusOn?.([9.6,2.6])" },
-    { "name": "settle-focus", "wait": 1200 },
+    {
+      "name": "focus-dresser",
+      "eval": "window.__store.getState().focusOn?.([9.6,2.6])"
+    },
+    {
+      "name": "settle-focus",
+      "wait": 1200
+    },
     {
       "name": "baseline-not-emitter",
-      "waitFor": { "store": "!(state.items.find((i) => i.id === 'furnlight-dresser')?.props.lightOn)" },
+      "waitFor": {
+        "store": "!(state.items.find((i) => i.id === 'furnlight-dresser')?.props.lightOn)"
+      },
       "timeout": 3000,
       "failMessage": "Freshly-placed dresser should not already have lightOn set"
     },
-    { "name": "shot-inspector-before-toggle", "screenshot": "01-inspector-before-toggle" },
-    { "name": "toggle-light-on", "click": "button[aria-label=\"Make a light source\"]" },
+    {
+      "name": "shot-inspector-before-toggle",
+      "screenshot": "01-inspector-before-toggle"
+    },
+    {
+      "name": "toggle-light-on",
+      "click": "button[aria-label=\"Make a light source\"]"
+    },
     {
       "name": "verify-store-lighton",
-      "waitFor": { "store": "state.items.find((i) => i.id === 'furnlight-dresser')?.props.lightOn === 'yes'" },
+      "waitFor": {
+        "store": "state.items.find((i) => i.id === 'furnlight-dresser')?.props.lightOn === 'yes'"
+      },
       "timeout": 5000,
       "failMessage": "Toggling 'Make a light source' should set props.lightOn='yes'"
     },
     {
       "name": "light-controls-visible",
-      "waitFor": { "css": "input[aria-label=\"Light brightness\"]" },
+      "waitFor": {
+        "css": "input[aria-label=\"Light brightness\"]"
+      },
       "timeout": 5000,
       "failMessage": "The colour/brightness Light section should appear once the item is an emitter"
     },
-    { "name": "shot-inspector-after-toggle", "screenshot": "02-inspector-after-toggle-light-controls" },
+    {
+      "name": "shot-inspector-after-toggle",
+      "screenshot": "02-inspector-after-toggle-light-controls"
+    },
     {
       "name": "exit-room-editor",
-      "store": { "action": "exitRoomEditor", "args": [] }
+      "store": {
+        "action": "exitRoomEditor",
+        "args": []
+      }
     },
     {
       "name": "exit-loading-done",
-      "waitFor": { "store": "state.loading.active === false" },
+      "waitFor": {
+        "store": "state.loading.active === false"
+      },
       "timeout": 10000
     },
-    { "name": "settle-exit", "wait": 800 },
-    { "name": "focus-dresser-orbit", "eval": "window.__store.getState().focusOn?.([9.6,2.6])" },
-    { "name": "settle-focus-orbit", "wait": 1500 },
+    {
+      "name": "settle-exit",
+      "wait": 800
+    },
+    {
+      "name": "focus-dresser-orbit",
+      "eval": "window.__store.getState().focusOn?.([9.6,2.6])"
+    },
+    {
+      "name": "settle-focus-orbit",
+      "wait": 1500
+    },
     {
       "name": "verify-scenegraph-lit",
       "waitFor": {
@@ -88,52 +161,134 @@
       "timeout": 8000,
       "failMessage": "After exiting the room editor (the real Scene renders FurnitureLights), the toggled-on dresser should produce a live PointLight near it in window.__three.scene"
     },
-    { "name": "shot-lit-orbit", "screenshot": "03-dresser-lit-orbit" },
-    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
-    { "name": "walk-loading-done", "waitFor": { "store": "state.loading.active === false" }, "timeout": 10000 },
-    { "name": "settle-walk", "wait": 1500 },
-    { "name": "shot-walk-lit", "screenshot": "04-walk-mode-lights-on" },
-    { "name": "back-orbit", "store": { "action": "setCameraMode", "args": ["orbit"] } },
-    { "name": "orbit-loading-done", "waitFor": { "store": "state.loading.active === false" }, "timeout": 10000 },
-    { "name": "settle-back-orbit", "wait": 800 },
-    { "name": "reenter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
     {
-      "name": "reenter-room-editor-active",
-      "waitFor": { "store": "state.roomEditor.active === true" },
+      "name": "shot-lit-orbit",
+      "screenshot": "03-dresser-lit-orbit"
+    },
+    {
+      "name": "enter-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "walk-loading-done",
+      "waitFor": {
+        "store": "state.loading.active === false"
+      },
       "timeout": 10000
     },
-    { "name": "hide-loading-2", "eval": "window.__store.getState().hideLoading?.()" },
-    { "name": "settle-editor-2", "wait": 800 },
-    { "name": "reselect-dresser", "store": { "action": "selectItem", "args": ["furnlight-dresser"] } },
+    {
+      "name": "settle-walk",
+      "wait": 1500
+    },
+    {
+      "name": "shot-walk-lit",
+      "screenshot": "04-walk-mode-lights-on"
+    },
+    {
+      "name": "back-orbit",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "orbit"
+        ]
+      }
+    },
+    {
+      "name": "orbit-loading-done",
+      "waitFor": {
+        "store": "state.loading.active === false"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle-back-orbit",
+      "wait": 800
+    },
+    {
+      "name": "reenter-room-editor",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "reenter-room-editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "hide-loading-2",
+      "eval": "window.__store.getState().hideLoading?.()"
+    },
+    {
+      "name": "settle-editor-2",
+      "wait": 800
+    },
+    {
+      "name": "reselect-dresser",
+      "store": {
+        "action": "selectItem",
+        "args": [
+          "furnlight-dresser"
+        ]
+      }
+    },
     {
       "name": "off-toggle-visible",
-      "waitFor": { "css": "button[aria-label=\"Turn off light source\"]" },
+      "waitFor": {
+        "css": "button[aria-label=\"Turn off light source\"]"
+      },
       "timeout": 5000,
       "failMessage": "Expected the inspector toggle to read 'Turn off light source' after it was turned on"
     },
     {
-      "name": "clear-lighton-via-store",
-      "comment_not_a_step_key_see_report": "KNOWN BUG, not fixed here (see report): clicking this real button does NOT turn the light back off. InspectorPanel.tsx's onClick builds `next = {...item.props}` then `delete next.lightOn`, but updateItemProps (itemsSlice.ts) only ever MERGES ({...it.props, ...props}) — since `next` simply lacks the key, the merge re-adds lightOn:'yes' from the old props, so it never clears. Verified: clicking the button and asserting props.lightOn cleared times out every run. Working around it here with an explicit store override so this rung still verifies the ON path (which works) and reaches a clean end state.",
-      "eval": "window.__store.getState().updateItemProps('furnlight-dresser', { lightOn: undefined })"
+      "name": "click-turn-off-light",
+      "comment_not_a_step_key_see_report": "Fixed bug regression guard: this used to be a store-level workaround because updateItemProps only merged (a deleted key could never clear). updateItemProps now removes explicitly-undefined keys and the header passes { lightOn: undefined }, so the REAL button click must clear the prop.",
+      "click": "button[aria-label=\"Turn off light source\"]"
     },
     {
       "name": "verify-store-lightoff",
-      "waitFor": { "store": "!(state.items.find((i) => i.id === 'furnlight-dresser')?.props.lightOn === 'yes')" },
+      "waitFor": {
+        "store": "!(state.items.find((i) => i.id === 'furnlight-dresser')?.props.lightOn)"
+      },
       "timeout": 5000,
-      "failMessage": "The store-level workaround should clear props.lightOn"
+      "failMessage": "Clicking the real 'Turn off light source' button should clear props.lightOn (BUG regression)"
     },
     {
       "name": "exit-room-editor-2",
-      "store": { "action": "exitRoomEditor", "args": [] }
+      "store": {
+        "action": "exitRoomEditor",
+        "args": []
+      }
     },
     {
       "name": "exit-loading-done-2",
-      "waitFor": { "store": "state.loading.active === false" },
+      "waitFor": {
+        "store": "state.loading.active === false"
+      },
       "timeout": 10000
     },
-    { "name": "settle-exit-2", "wait": 800 },
-    { "name": "focus-dresser-orbit-2", "eval": "window.__store.getState().focusOn?.([9.6,2.6])" },
-    { "name": "settle-focus-orbit-2", "wait": 1500 },
+    {
+      "name": "settle-exit-2",
+      "wait": 800
+    },
+    {
+      "name": "focus-dresser-orbit-2",
+      "eval": "window.__store.getState().focusOn?.([9.6,2.6])"
+    },
+    {
+      "name": "settle-focus-orbit-2",
+      "wait": 1500
+    },
     {
       "name": "verify-scenegraph-unlit",
       "waitFor": {
@@ -142,6 +297,9 @@
       "timeout": 8000,
       "failMessage": "After toggling off + exiting, the scene-graph PointLight near the item should be gone"
     },
-    { "name": "shot-unlit-orbit-again", "screenshot": "05-dresser-unlit-again-orbit" }
+    {
+      "name": "shot-unlit-orbit-again",
+      "screenshot": "05-dresser-unlit-again-orbit"
+    }
   ]
 }

@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.1 — Fix: "Turn off light source" never worked (updateItemProps can now clear a key)
+
+The inspector header's light toggle (`InspectorHeader.tsx`) built a props copy, `delete`d
+`lightOn`, and passed the whole bag — but `itemsSlice.updateItemProps` only ever *merged*
+(`{...it.props, ...props}`), so the missing key was re-filled from the old props and an item could
+never be un-flagged as a light source (found by the `furnlight-simple` IXT rung). Fix at the store
+level: `updateItemProps` now **removes** any key whose patch value is explicitly `undefined` (the
+only way a merge-style action can clear), and the header passes the minimal
+`{ lightOn: 'yes' | undefined }` patch. Unit tests cover clear/keep-others/undo;
+`furnlight-simple.json`'s turn-off step now clicks the REAL button (regression guard) — 49/49
+steps green, lit vs unlit screenshots visually verified.
+
 ## v0.18.6.0 — Wall reveal is a single fade-strength slider (WALL-REVEAL-STRENGTH) (PR to main)
 
 Replaces the three-way "Wall reveal" mode (Fade translucent / Fully hidden / Fully opaque) with one

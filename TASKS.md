@@ -158,12 +158,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   as "outside" and the whole menu closes before the option lands (repro: SceneMenu "Window view"
   select; screenshot `failed-backdrop-is-dusk.png`). Fix idea: containment should also accept
   clicks inside any descendant portal (e.g. shared data-attr or a portal registry).
-- [ ] **BUG: "Turn off light source" never works** — `ui/inspector/InspectorPanel.tsx:429` does
-  `delete next.lightOn` then passes the whole props bag, but `itemsSlice.updateItemProps` merges
-  (`{...it.props, ...props}`) so a deleted key can't clear; once lit, an item can't be unlit via
-  the inspector (walk-mode E-toggle works — it flips `'yes'`/`'no'` explicitly). Fix: pass
-  `{ lightOn: undefined }` (spread overwrites with undefined) or make the inspector use the
-  `'no'` convention consistent with `lightEmitters`.
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
