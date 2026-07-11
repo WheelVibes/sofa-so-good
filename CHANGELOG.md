@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.2 — FETCH-MANIFEST-BACKFILL: manifest channel parity restored + regression-guarded
+
+The 6 older albedo-only `assets/manifest/materials.json` entries (floor-parquet/carpet,
+wall-plaster/brick/beige/stone-brick) are backfilled with their Poly Haven `_nor_gl_1k`/
+`_rough_1k` URLs (verified live against the /files API; albedo URLs match exactly), so a future
+`npm run fetch-assets` no longer drops the normal/rough channels the on-disk sidecars already
+carry. Proven with a scoped re-run of the fetch loop for just these 6: sidecars + regenerated
+catalog keep all channels (byte churn from sharp re-encode reverted — diff stays manifest+test
+only). New data-driven regression guard in `manifest.test.ts`: every bundled sidecar channel must
+have a matching manifest URL, for ALL entries. 357 targeted tests green; no runtime change.
+
 ## v0.21.1.2 — PHOTO-PBR-MAPS complete: 6 curated CC0 Poly Haven finishes for procedural-only tokens
 
 Extends the existing manifest → fetch-assets → index-assets pipeline (no new machinery):
