@@ -25,15 +25,16 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
   Maximum (4096 + full-res AO + film grain + chromatic aberration).
 - **Lighting**: sun `DirectionalLight` + `PCFSoftShadowMap` (radius 4, not PCSS); hemisphere + flat
   ambient; **procedural Lightformer IBL probe** (64–256px) by default, **with an opt-in captured CC0
-  HDRI IBL** (`hdriEnvironment`, Medium+) — the path-tracer env is still the 2-colour gradient.
+  HDRI IBL** (`hdriEnvironment`, Medium+) — the HQ path tracer is lit by the same HDRI when one
+  is active (PHOTO-HDRI-PT; gradient fallback otherwise).
 - **Materials**: `MeshPhysicalMaterial` with procedural micro-textures (≤512px albedo/normal/rough),
   sheen + clearcoat (all tiers, `materialRealism.ts`), transmission glass (High/Max only). **Bundled +
   runtime Poly Haven 2K PBR finishes ship; in-browser KTX2/UASTC encode ships (opt-in); no POM/displacement.**
 - **Post** (`Effects.tsx`): N8AO → Bloom → HueSat → (CA) → Vignette → (grain) → SMAA. Tone-mappers
   Filmic(ACES)/AgX/Neutral available; auto-exposure + user dial.
 - **Path tracer** (`pathtrace/hqRenderSession.ts`): progressive, tiled, `PhysicalCamera` DoF,
-  library `DenoiseMaterial` (edge-blur). **Environment is a 2-colour gradient (no HDRI); no OIDN;
-  bounce/firefly settings untuned.**
+  library `DenoiseMaterial` (edge-blur), interior-tuned bounces/MIS (`hqTracerConfig.ts`,
+  PHOTO-PT-TUNE), env = the active HDRI (PHOTO-HDRI-PT) or the gradient fallback. **No OIDN.**
 - **Geometry**: `geometryDetail` segment multiplier; `RoundedBox` corners on some primitives; contact
   shadow blobs Medium+. **No edge bevels on hard primitives; few set-dressing props.**
 - **Backdrops**: walk-mode equirectangular photo as `scene.background` (procedural `city/dusk/park/hills`
@@ -52,10 +53,6 @@ Legend — Verify: `H` headless-verifiable (DOM/scene-graph/unit) · `G` needs a
 belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
 
 ### Tier 1 — highest impact, mostly verifiable, do first
-- **PHOTO-HDRI-PT — feed the HDRI env into the path tracer** (M, HQ still; Verify G).
-  HDRI IBL ships for the real-time tiers (`hdriEnvironment`); the remaining piece is feeding the same
-  `scene.environment` into `three-gpu-pathtracer` (`root.environment`, importance-sampled) so the HQ
-  still uses the captured HDRI instead of its 2-colour gradient. (Real-time HDRI IBL itself is shipped.)
 - **PHOTO-DETAIL-PROPS — more CC0 set-dressing** ◑ (M, all tiers; Verify H).
   The set-dressing pack + one-tap auto-styling already ship (C276–C278, `decorStyling.ts`). **Remaining:**
   more curated CC0 decor/prop bundles from Poly Haven / Poly Pizza (networked assets). Overlaps

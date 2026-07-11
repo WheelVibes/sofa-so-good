@@ -127,7 +127,13 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] PHOTO-* frontier: PHOTO-GLASS, PHOTO-GTAO, PHOTO-SOFTSHADOW (VSM — drei PCSS broken r182+),
   PHOTO-POM, PHOTO-SSGI-SSR (WebGPU), PHOTO-WEBGPU. See `PHOTOREALISM.md`.
 - [ ] PHOTO-DENOISE nicety: swap in browser OIDN (`DennisSmolek/Denoiser`) + albedo/normal AOV.
-- [ ] F1 tail: real-GPU convergence/quality pass + decide quality-tier gating of the menu entry.
+- [ ] **PT-BLANK-GUARD (from the 2026-07-11 F1 pass)**: on drivers where three-gpu-pathtracer's
+  megakernel fails GLSL validation (e.g. WSL D3D12/ANGLE — Shader Error 1282, empty log), the HQ
+  render completes SILENTLY BLANK (white/black PNG, samples count to done) and the failed context
+  can block the next WebGL context until ContextLossGuard recovers. Guard: probe the first
+  sample's pixels (all-0/all-255 → the modal's existing error phase + "device may not support"
+  copy) and harden the post-session context-loss path. (F1 tier-gating decision itself is
+  RESOLVED: no gating — capability is driver-shaped, not tier-shaped; see CHANGELOG v0.18.6.22.)
 - [ ] **BUG (found by the 2026-07-11 real-GPU pass): blown-out white light strips under every
   closed door leaf** (+ wedges 0.1–0.3 m onto the floor and along jamb feet/skirting bases).
   Repro: default flat, Maximum tier, any daytime hour, camera [8.0, 0.6, 4.6] → lookAt

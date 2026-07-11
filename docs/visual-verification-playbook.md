@@ -53,6 +53,14 @@ path is real; it is slower per frame than SwiftShader but renders truthfully.
 Always GPU-verify items the backlog tags `[real-GPU verify]` before striking them.
 
 GPU-session gotchas (2026-07-11 sweep):
+- **The `three-gpu-pathtracer` HQ render does NOT run on this GPU path** (ANGLE D3D12 Intel UHD
+  over the WSL `/dev/dxg` passthrough): the tracer's megakernel ShaderMaterial fails
+  `VALIDATE_STATUS` (Shader Error 1282, empty info log), every `renderSample` no-ops
+  (`INVALID_OPERATION: useProgram/drawArrays`) so the sample counter races to "done" with a
+  BLANK frame (white with the denoise blit, black without), and the page is then flagged as
+  having "caused context loss" — the NEXT WebGL context (a re-render, or even the live canvas)
+  is blocked. Verify PT convergence/lighting on **SwiftShader** instead (dev-tiny 192×108 ·
+  64 spp ≈ 1 min BVH + ~4.5 min sampling); keep `SHOT_GPU=1` for raster-only effects.
 - **Whole-flat orbit close-ups: keep the camera clear of window walls.** Plan coords ≈ world
   coords with no recentring — a pose at z≈1.5 embeds the camera inside the north window (sill/
   grille fills the foreground). Aim by reading item positions from `__store.getState().items`
@@ -189,6 +197,11 @@ come out near-black.
   (it only clicks first if you pass `x`/`y`) — Command Palette's search input autofocuses on
   open via `requestAnimationFrame`, so a `waitFor {css: ".cmdk-item"}` step before typing is
   enough; don't add an explicit focus click.
+- **Top-level `const`/`let` in one `eval` step leaks into every later `eval` in the same
+  scenario** — `page.evaluate` runs each script in the page's global scope, so two steps that
+  both open with `const s = window.__store.getState()` fail the second one with
+  `Identifier 's' has already been declared`. Wrap multi-statement evals in an IIFE
+  (`(() => { … })()`) or use unique names.
 - **A `waitFor`/`eval` text-substring check against the Command Palette can false-positive on
   its own empty-state echo.** `CommandPalette`'s "no results" row renders
   `No commands match "{query.trim()}".` — if your assertion checks

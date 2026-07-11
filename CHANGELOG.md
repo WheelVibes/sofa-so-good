@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.22 — HQ render uses the real HDRI environment (PHOTO-HDRI-PT) + F1 ruling
+
+The path-traced HQ still now renders inside the ACTUAL HDRI environment when one is active
+(`hdriEnvironment` flag + selected `hdriId`) instead of the 2-colour gradient: new pure
+`pathtrace/hqEnvironment.ts` (`hqEnvironmentUrl` + `isReusableEquirectEnvironment`, unit-tested)
+and `hqRenderSession.resolveTracerEnvironment` — reuses the live equirect `scene.environment`
+when compatible (never disposed; the scene owns it) or RGBE-loads the `.hdr` directly (flat
+tier); any failure falls back to the exact old gradient path (procedural mode byte-identical).
+Verified with 64-spp A/B stills: gradient = flat cool sky; HDRI (venice_sunset) = warm dusk
+backdrop + directional bounce on the shell — meaningfully more photoreal.
+**F1 tail RESOLVED — no tier gating** for the HQ-render entry: the PT is its own renderer;
+evidence shows it converges on software GL (weaker than any tier) yet fails on a D3D12 driver
+that runs High-tier raster fine — capability is driver-shaped, not tier-shaped. Follow-up logged
+in TASKS.md instead: on drivers where the PT megakernel fails GLSL validation it renders BLANK
+silently (samples still count to done) and can knock out the live canvas context afterwards —
+needs a first-sample pixel probe → honest error phase.
+
 ## v0.18.6.21 — Plan editor: desktop goes full-bleed — header + help float over the grid
 
 User feedback (screenshot): on desktop the "Editing your floor plan" callout sat on an opaque
