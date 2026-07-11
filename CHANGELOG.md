@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.20.0.7 — P2 memoization audit: CLEAN verdict, findings recorded (no code change)
+
+Evidence-first audit of the hot R3F components/selectors with temporary render-count probes
+(13 suspect components, driven per-interaction on the harness): camera orbit causes ZERO React
+re-renders (pose flows through module-level signals), a furniture drag re-renders only the moved
+instance (the `Furniture` memo + reference-stable `useCatalog` def hold), a time-of-day scrub
+touches only the 4 sun-dependent components, and the selector sweep found no unstable-object
+selectors on hot paths. No fixes warranted — speculative memoization would add overhead for
+nothing. Verdict + load-bearing details parked in TODO.md's perf section; P2 removed from
+TASKS.md. All probes removed (tree byte-identical).
+
 ## v0.20.0.6 — R3-FEAT-3: parallel-projection (orthographic) dollhouse toggle
 
 New pro-tier `parallelProjection` flag: "Parallel projection" in View → Framing (desktop +

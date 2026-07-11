@@ -31,6 +31,14 @@ zero-regression-risk frontier for this goal is reached; the parked findings belo
 evaluated and deliberately not done, so we don't re-investigate.
 
 ### Investigated + parked (findings recorded so we don't re-investigate)
+- **P2 memoization audit — CLEAN, no changes (2026-07-11).** Render-count probes on the 13 hot
+  scene components across orbit/drag/time-scrub: orbit = 0 React re-renders (camera pose flows
+  through `cameras/cameraForward.ts` signals, not the store); a furniture drag re-renders ONLY the
+  moved `Furniture` instance (the memo comparator holds; `useCatalog` keeps `def` reference-stable
+  across drags — documented prior fix); time scrub re-renders only the 4 sun-dependent components.
+  Selector sweep found no unstable-object selectors on hot paths (the plain `s.items` subscribers
+  are single-field = reference-stable; adding `useShallow` there would cost an 81-element compare
+  for identical behaviour — leave them). Don't re-audit without new evidence of churn.
 - **`preserveDrawingBuffer: true` always-on — BLOCKED by the Record feature.** The PNG export path
   (`ScreenshotController`) already renders on-demand + reads back synchronously, so it does NOT
   need it. But `RecordController` uses `captureStream(0)` + `track.requestFrame()` from a `useFrame`
