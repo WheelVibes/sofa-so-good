@@ -1,0 +1,120 @@
+{
+  "name": "photo-gtao-ab-ao",
+  "description": "PHOTO-GTAO AO-debug rung: same pose, high+max tiers only (use with a temporary N8AO renderMode=1 edit).",
+  "url": "http://localhost:5231/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "open-curtains",
+      "eval": "(function(){ const s=window.__store.getState(); s.items.filter(i=>i.defId==='curtains').forEach(i=>s.updateItemProps(i.id,{drawAmount:0})); })()"
+    },
+    {
+      "name": "log-corner-items",
+      "eval": "(function(){ const s=window.__store.getState(); window.__corner = s.items.filter(i=>/sofa|wardrobe|dresser|bed/.test(i.defId)).map(i=>({id:i.id,defId:i.defId,p:i.position,r:i.rotation})); return JSON.stringify(window.__corner); })()"
+    },
+    {
+      "name": "tier-high",
+      "store": {
+        "action": "setQualityTier",
+        "args": [
+          "high"
+        ]
+      }
+    },
+    {
+      "name": "hide-loading-1",
+      "wait": 2500
+    },
+    {
+      "name": "hide-loading-1b",
+      "eval": "window.__store.getState().hideLoading?.()"
+    },
+    {
+      "name": "focus-sofa",
+      "eval": "(function(){ const s=window.__store.getState(); const it=s.items.find(i=>/sofa/.test(i.defId))||s.items[0]; window.__focusP=it.position; s.focusOn?.([it.position[0], it.position[1]]); })()"
+    },
+    {
+      "name": "settle-focus",
+      "wait": 2200
+    },
+    {
+      "name": "tilt-to-profile",
+      "drag": {
+        "from": [
+          800,
+          520
+        ],
+        "to": [
+          800,
+          300
+        ]
+      }
+    },
+    {
+      "name": "settle-tilt",
+      "wait": 800
+    },
+    {
+      "name": "zoom-in",
+      "wheel": {
+        "x": 800,
+        "y": 500,
+        "dy": -420
+      }
+    },
+    {
+      "name": "settle-zoom",
+      "wait": 2500
+    },
+    {
+      "name": "shot-high",
+      "screenshot": "high"
+    },
+    {
+      "name": "tier-max",
+      "store": {
+        "action": "setQualityTier",
+        "args": [
+          "maximum"
+        ]
+      }
+    },
+    {
+      "name": "settle-max",
+      "wait": 4000
+    },
+    {
+      "name": "hide-loading-2",
+      "eval": "window.__store.getState().hideLoading?.()"
+    },
+    {
+      "name": "settle-max2",
+      "wait": 1500
+    },
+    {
+      "name": "shot-max",
+      "screenshot": "maximum"
+    }
+  ]
+}

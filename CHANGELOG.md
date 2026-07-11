@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.19.0.4 — PHOTO-GTAO resolved: REJECTED on real-GPU A/B evidence (no code change)
+
+Evaluation-first outcome recorded in `PHOTOREALISM.md`: literal GTAO can't integrate cleanly
+(`GTAONode` = WebGPU/TSL-only; `GTAOPass` = three's own EffectComposer, incompatible with the
+pmndrs composer; `realism-effects` discontinued); the shipped N8AO already composites in linear
+space (no radiometry bug — `autosetGamma` only applies when `renderToScreen`). Quality-preset
+bumps (High `medium→high`, Max `high→ultra`) A/B'd on the real GPU incl. AO-buffer-only captures:
+contact crops RMSE ≤ 3.4/255 — invisible, 4× sample cost rejected. Medium cheap AO rejected
+(composer mount = the extra full-scene pass Medium's `postprocessing: false` boundary exists to
+avoid); flat-tier contact grounding re-evaluated, still marginal (RZ1 blobs + RD-403 strips
+suffice). Ships only the re-runnable A/B scenarios (`scripts/scenarios/photo-gtao-ab.json`,
+`photo-gtao-ab-ao.json`).
+
 ## v0.19.0.3 — custom-plan doorway thresholds (parity with the default flat's DOOR-GAP-LEAK fix)
 
 Plan doorways had the same unfloored wall-thickness slot the default flat had (v0.18.6.23):

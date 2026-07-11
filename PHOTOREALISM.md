@@ -70,10 +70,21 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   (tfjs, runs on WebGL2) with WebGPU `oidn-web` when available; render cheap **albedo + normal AOV**
   passes from the snapshot scene to guide it (near-offline quality at 64–128 samples). New flag,
   prod-safe (Apache-2.0 weights). Fallback to current `DenoiseMaterial`.
-- **PHOTO-GTAO — GTAO option + AO on more tiers** (M, real-time High/Max; Verify G).
-  Offer three.js `GTAONode`/GTAO alongside N8AO (more radiometrically correct); consider a cheap AO
-  on Medium. Re-evaluate cheap contact-grounding on the flat tier (the earlier RZ1 attempt was
-  reverted as marginal — revisit only with a clear A/B win on a real GPU).
+- **PHOTO-GTAO — ruling (2026-07-11, real-GPU A/B): REJECTED, N8AO stays as-is.** A literal GTAO
+  cannot integrate cleanly: `GTAONode` is WebGPU/TSL-`RenderPipeline`-only, `GTAOPass` targets
+  three's own WebGL `EffectComposer` (incompatible Pass hierarchy with the pmndrs composer), and
+  `realism-effects` is discontinued/uninstalled. The shipped N8AO already composites
+  radiometrically correctly (linear-space; `autosetGamma` only gammas when `renderToScreen`).
+  Bumping the quality presets (High `medium→high`, Max `high→ultra`) was A/B'd on a real GPU with
+  AO-buffer (`renderMode 1`) captures at a furnished contact pose: contact-region crops differ by
+  RMSE ≤ 3.4/255 (mean Δ ≤ 0.5/255) — invisible, so the 4× aoSamples cost is rejected.
+  **Medium cheap AO: REJECTED** — N8AO needs the pmndrs composer's extra full-scene render pass,
+  the exact cost class Medium's `postprocessing: false` boundary exists to avoid (baked corner
+  strips + contact decals remain Medium's AO). **Flat-tier contact grounding: re-evaluated, still
+  marginal** — RZ1 blobs + RD-403 corner strips already ground the evidence pose; no cheap
+  candidate beat them without RD-410-class risk. Re-runnable A/B rungs:
+  `scripts/scenarios/photo-gtao-ab.json` (beauty, 3 tiers) + `photo-gtao-ab-ao.json` (High/Max,
+  pair with a temporary `renderMode={1}` on the `<N8AO>` in `EffectsImpl.tsx`).
 - **PHOTO-GLASS — remaining ruling:** window-pane transmission shipped on High/Max (see audit
   above); **extending transmission down to Medium is REJECTED for now** — the transmissive pass
   renders the whole opaque scene to an extra render target, which is exactly the cost class the
