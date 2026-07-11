@@ -123,9 +123,6 @@ WebGPU path tracing).
 Full audit (findings P0–P3 with file:line evidence, Figma/modern-app grounding, screenshots):
 `docs/research/2026-07-10-toolbar-ux-audit.md`. Work the sequenced list there; delete each
 finding from the doc + this list as it ships. Open items, in order:
-- [ ] **TB-6-tail (P1)** Plan-editor mobile menu paradigm differs from the main sheet (centered
-  "Plan tools" modal + text "☰ Menu" vs the icon-rail sheet). (Overflow edge-fade shipped
-  v0.18.6.16; Scene-in-room-editor shipped v0.18.6.17.)
 - [ ] **TB-9-tail (P2)** Consolidate menu primitives (one section-header idiom, Arrange on
   MenuItem/EmptyState); tablist roving focus. (confirmAction on set/style deletes + 44px
   hamburger/brand targets shipped v0.18.6.15; sheet focus-trap shipped v0.18.6.18.)

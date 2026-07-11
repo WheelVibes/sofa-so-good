@@ -1172,8 +1172,9 @@ same change that reshapes a system.
   unit-tested itself. REFAC-2 also lifted the toolbar/header JSX out of the component: small
   presentational controls (`EditModeToggle`, `DrawToolPalette`, `WallTypeToggle`, `UndoRedoButtons`,
   `GridZoomControls`, `PlanTotalLabel`, `PlanViewMenuActions`, `PlanDefaultsFields`) plus two layout
-  shells (`PlanEditorHeader` — the mobile/desktop toolbar row, `PlanToolsSheet` — the mobile ☰ Menu
-  bottom-sheet) that take already-built fragments as `ReactNode` props rather than raw store state, and
+  shells (`PlanEditorHeader` — the mobile/desktop toolbar row, `PlanToolsSheet` — the mobile menu,
+  now the same `MobileSheet` icon-rail sheet as the main mobile toolbar, TB-6-tail) that take
+  already-built fragments as `ReactNode` props rather than raw store state, and
   four more SVG **render layers** alongside the eleven from MOD-FPE-SPLIT (`PlanGuidesLayer`,
   `OtherLevelsUnderlay`, `PersistentDimensionsLayer`, `AnnotationsLayer`). The "Plan ▾" menu's file/
   reference-photo actions (~230 lines, many independent feature-flagged pieces) were deliberately
@@ -1327,7 +1328,10 @@ same change that reshapes a system.
   states: overview/room-editor/walk. Tooltips+menus via `Popover`; shortcut chips from
   `controls/keybindings.ts`. Mobile: minimal bar → bottom action-sheet with a master-detail
   layout — an icon-only left rail of sections (`data-tour-section`) opens each section's items in
-  the right detail pane (`MobileToolbar.tsx`).
+  the right detail pane (`MobileToolbar.tsx`). The sheet chrome + a11y contract (overlay,
+  grab-pill swipe-dismiss, Escape/modal-guard, Tab trap + focus restore, roving-tabindex rail)
+  is the shared `toolbar/mobile/MobileSheet.tsx` shell — also consumed by the 2D plan editor's
+  mobile menu (`PlanToolsSheet`, TB-6-tail) so both editing surfaces share ONE menu paradigm.
 - **Keyboard shortcuts** (`controls/`): `keybindings.ts` (the key map) + `useKeyboard.ts`
   (global keydown hook; skips repeats + editable targets) + `modalGuard.ts` (module-level
   open-modal counter — the shared `Modal` primitive and the modal-style overlays register

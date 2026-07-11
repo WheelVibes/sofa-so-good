@@ -1,11 +1,17 @@
-import type { ReactNode } from 'react'
-import { Modal } from '../../Modal'
+import { type ReactNode, useState } from 'react'
+import { Button } from '../../controls/Button'
+import { MobileSheet, type SheetRailItem } from '../../toolbar/mobile/MobileSheet'
+import { Section, SubHeader } from '../../toolbar/mobile/parts'
 
 /**
- * Mobile "☰ Menu" bottom-sheet: the desktop toolbar's Plan/View/Edit/Defaults
- * controls, collapsed into labelled sections since they don't all fit the
- * mobile top bar. Extracted from `FloorPlanEditor` (REFAC-2) — purely a layout
- * shell over already-built fragments (same rationale as `PlanEditorHeader`).
+ * Mobile plan-editor menu: the desktop toolbar's Plan/View/Edit/Defaults
+ * controls, in the SAME icon-rail sheet paradigm as the main app's mobile
+ * menu (TB-6-tail — this was a bespoke centered "Plan tools" modal, the one
+ * mobile surface on a different navigation idiom). The shared `MobileSheet`
+ * shell provides the overlay/grab-pill/rail/detail chrome plus the
+ * focus-trap/Escape/swipe-dismiss behaviours; the plan controls are the same
+ * already-built fragments as before (REFAC-2 layout-shell rationale), grouped
+ * into rail sections with `SubHeader` clusters mirroring the main sheet's look.
  */
 export function PlanToolsSheet({
   open,
@@ -36,58 +42,82 @@ export function PlanToolsSheet({
   totalLabel: ReactNode
   onHelp: () => void
 }) {
+  const [activeId, setActiveId] = useState('plan')
+  // The Edit section only exists while its controls do (wall thickness is
+  // Edit-mode-only; multi-select can be flag-gated) — mirror that on the rail.
+  const hasEdit = Boolean(wallTypeSeg || multiSelectToggle)
+  const railItems: SheetRailItem[] = [
+    { id: 'plan', icon: 'FloorPlan', title: 'Plan' },
+    { id: 'view', icon: 'Eye', title: 'View' },
+    ...(hasEdit ? ([{ id: 'edit', icon: 'Select', title: 'Edit' }] as SheetRailItem[]) : []),
+    { id: 'defaults', icon: 'Settings', title: 'Defaults' },
+  ]
+  // Keep the user's pick while it exists (Edit can vanish when its controls
+  // do); else fall back to the first section so the pane never blanks.
+  const shownId = railItems.some((r) => r.id === activeId) ? activeId : railItems[0].id
+
   return (
-    <Modal open={open} onClose={onClose} title="Plan tools">
-      {/* Grouped into labelled sections so the sheet reads as tidy settings
-          rather than one dense wall of buttons. */}
-      <div className="plan-tools-sheet">
-        <section className="plan-tools-group">
-          <div className="menu-label">Plan</div>
+    <MobileSheet
+      open={open}
+      onClose={onClose}
+      title="Plan tools"
+      railItems={railItems}
+      activeId={shownId}
+      onSelectSection={setActiveId}
+    >
+      <Section id="plan" title="Plan" icon="FloorPlan" activeId={shownId}>
+        <div className="plan-tools-group">
           <input
             value={planName}
             onChange={(e) => onPlanNameChange(e.target.value)}
             className="input"
             aria-label="Plan name"
           />
-          {/* Floors are managed from the bottom-left LevelMenu dropdown. */}
+        </div>
+        {/* Floors are managed from the bottom-left LevelMenu dropdown. */}
+        <SubHeader>Templates &amp; file</SubHeader>
+        <div className="plan-tools-group">
           <div className="flex flex-wrap items-center gap-2">
             {templateLibrary}
             {fileActions}
           </div>
-        </section>
+        </div>
+      </Section>
 
-        <section className="plan-tools-group">
-          <div className="menu-label">View</div>
+      <Section id="view" title="View" icon="Eye" activeId={shownId}>
+        <SubHeader>Overlays &amp; export</SubHeader>
+        <div className="plan-tools-group">
           <div className="flex flex-wrap items-center gap-2">{viewMenuActions}</div>
-          {/* undo/redo live in the top bar on mobile, so only grid + zoom here. */}
+        </div>
+        {/* undo/redo live in the top bar on mobile, so only grid + zoom here. */}
+        <SubHeader>Grid &amp; zoom</SubHeader>
+        <div className="plan-tools-group">
           <div className="flex flex-wrap items-center gap-2">{gridZoom}</div>
-        </section>
+        </div>
+      </Section>
 
-        {(wallTypeSeg || multiSelectToggle) && (
-          <section className="plan-tools-group">
-            <div className="menu-label">Edit</div>
+      {hasEdit ? (
+        <Section id="edit" title="Edit" icon="Select" activeId={shownId}>
+          <div className="plan-tools-group">
             {wallTypeSeg ? (
               <div className="flex flex-wrap items-center gap-2">{wallTypeSeg}</div>
             ) : null}
             {multiSelectToggle}
-          </section>
-        )}
+          </div>
+        </Section>
+      ) : null}
 
-        <section className="plan-tools-group">
-          <div className="menu-label">Defaults</div>
+      <Section id="defaults" title="Defaults" icon="Settings" activeId={shownId}>
+        <div className="plan-tools-group">
           {planDefaults}
           {totalLabel}
-        </section>
-
-        <button
-          type="button"
-          className="btn btn-sm btn-block"
-          onClick={onHelp}
-          title="Open the user guide in a new tab"
-        >
-          Help — user guide ↗
-        </button>
-      </div>
-    </Modal>
+        </div>
+        <div className="plan-tools-group">
+          <Button size="sm" block onClick={onHelp} title="Open the user guide in a new tab">
+            Help — user guide ↗
+          </Button>
+        </div>
+      </Section>
+    </MobileSheet>
   )
 }

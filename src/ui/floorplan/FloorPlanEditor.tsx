@@ -137,8 +137,8 @@ export function FloorPlanEditor() {
   const annotations = useStore((s) => s.annotations)
   const { getDef, ref: catalogRef } = useCatalogGetter()
   // Mobile: the toolbar is too cluttered to fit, so secondary controls + the
-  // plan defaults collapse behind a single "Tools" menu (parity with the
-  // per-room editor's collapsed mobile toolbar).
+  // plan defaults collapse behind the hamburger's "Plan tools" sheet — the
+  // same MobileSheet icon-rail paradigm as the main mobile menu (TB-6-tail).
   const isMobile = useIsMobile()
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false)
   const [scaleModalOpen, setScaleModalOpen] = useState(false)
@@ -1836,7 +1836,7 @@ export function FloorPlanEditor() {
   )
 
   // File / reference actions — grouped behind the desktop "Plan ▾" menu (and
-  // shown flat in the mobile Tools modal).
+  // shown in the mobile Plan-tools sheet).
   const fileActions = (
     <>
       <button
@@ -2108,7 +2108,7 @@ export function FloorPlanEditor() {
   )
 
   // Occasional view toggles + export — grouped behind the desktop "View ▾" menu
-  // (and shown flat in the mobile Tools modal).
+  // (and shown in the mobile Plan-tools sheet).
   const viewMenuActions = (
     <PlanViewMenuActions
       fPlanLabels={fPlanLabels}
@@ -2157,7 +2157,7 @@ export function FloorPlanEditor() {
   )
 
   // Plan-wide defaults (ceiling height + wall colour) — surfaced in the mobile
-  // Tools modal (on desktop they live in the right-hand PlanInspector).
+  // Plan-tools sheet (on desktop they live in the right-hand PlanInspector).
   const planDefaults = (
     <PlanDefaultsFields
       ceilingHeight={plan.ceilingHeight}

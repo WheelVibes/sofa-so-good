@@ -45,7 +45,16 @@ stays a thin dispatcher. Several kinds of file live here:
   their props are already-built `ReactNode` fragments the editor assembles
   from its own state (`viewToggle`, `toolPalette`, `fileActionsMenu`, …), not
   raw store values, so they stay a handful of primitives + node props rather
-  than a "God component" bundling the editor's whole state surface. The "Plan
+  than a "God component" bundling the editor's whole state surface.
+  `PlanToolsSheet` (TB-6-tail) renders those fragments inside the shared
+  `ui/toolbar/mobile/MobileSheet.tsx` icon-rail sheet (Plan / View / Edit /
+  Defaults rail sections + `parts.tsx` `Section`/`SubHeader`) — the SAME
+  paradigm as the main mobile menu. Its trigger is the header's hamburger
+  (`.tool-btn.m-menu-btn`, mirroring `MobileToolbar`'s), NOT a text button,
+  and the old bespoke centered "Plan tools" `Modal` must not come back; the
+  shell owns Escape/focus-trap/swipe-dismiss. Fragment touch targets get
+  their 44px min-height from the `.m-detail .plan-tools-group` rules in
+  `responsive.css`. The "Plan
   ▾" menu's file/reference-photo actions (`fileActions`, ~230 lines of
   independent feature-flagged pieces) are deliberately **kept inline** in
   `FloorPlanEditor.tsx` rather than extracted the same way — bundling them

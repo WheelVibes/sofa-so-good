@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.20.0.3 — TB-6-tail: plan editor's mobile menu joins the icon-rail sheet paradigm
+
+The main mobile toolbar's sheet is extracted into a shared shell, `mobile/MobileSheet.tsx`
+(overlay, grab-pill swipe dismiss, brand+title head, icon master rail with WAI-ARIA roving tabs
+via the new `controls/useRovingTabs` hook, detail pane, footer; owns the a11y contract —
+`useModalGuard`, Escape, focus-trap, focus-in/restore). `MobileToolbar` re-renders through it
+(behaviour-preserving), and the plan editor's bespoke centered "Plan tools" modal is rewritten on
+the same shell: rail sections Plan (name/templates/file) · View (Overlays & export, Grid & zoom) ·
+Edit (conditional, as before) · Defaults (+ Help); the text "☰ Menu" trigger becomes the same
+icon hamburger as the main bar (44px hit area). Every action stays reachable, flag gates
+untouched (fragments arrive pre-gated from FloorPlanEditor), desktop plan editor asserted
+unchanged. 39-step scenario `tb6-plan-mobile-sheet.json` + 7 new PlanToolsSheet tests + 7
+useRovingTabs tests; screenshots reviewed (plan sheet sections, main-sheet regression, desktop
+header). Paradigm rule recorded in `floorplan/editor/CLAUDE.md`.
+
 ## v0.20.0.2 — TB-5: File owns output — Tools' "Export & document" grab-bag merged into File
 
 Figma-grounded IA fix from the toolbar audit: the ~17-row "Export & document" section leaves
