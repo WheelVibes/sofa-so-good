@@ -26,6 +26,14 @@ jobs:
       # Test-only browser downloads (puppeteer/playwright devDeps) waste CI time.
       PUPPETEER_SKIP_DOWNLOAD: 1
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+      # Cache Electron + electron-builder tool downloads (NSIS/winCodeSign/fpm/
+      # AppImage tooling) in the workspace so actions/cache can persist them —
+      # the builder-binaries mirror intermittently 504s (both the 2026-07-09
+      # ubuntu + windows failures died there mid-download; macOS survived by
+      # luck). Workspace-relative paths keep ONE cache step portable across all
+      # three OSes. https://www.electron.build/docs/features/github-actions/
+      ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
       # Keychain auto-discovery stays off (both channels) so a stray identity on
       # the runner can never sign a build by accident.
       CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -39,6 +47,15 @@ jobs:
       # so a secretless push-to-main build never exports them at all.
     steps:
       - uses: actions/checkout@v4
+
+      # Persist the Electron zip + builder tooling across runs so a mirror
+      # outage can't fail the build once a runner has seen this version.
+      - name: Cache Electron + builder binaries
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: electron-builder-${{ runner.os }}-${{ hashFiles('package-lock.json', 'electron-builder.yml') }}
+          restore-keys: electron-builder-${{ runner.os }}-
 
       # Guard: the tag must match src/version.ts exactly. The desktop shell's
       # update check compares the latest release tag against its baked-in
@@ -76,7 +93,16 @@ jobs:
       # (Windows), and `--publish always` attaches the installers to the release.
       - name: Package + publish (tag)
         if: startsWith(github.ref, 'refs/tags/')
-        run: npx electron-builder --publish always
+        # Retry ×3 with backoff: the tool-download mirror 504s transiently (the
+        # 2026-07-09 failure class); the cache above makes retries cheap.
+        shell: bash
+        run: |
+          for i in 1 2 3; do
+            npx electron-builder --publish always && exit 0
+            echo "electron-builder attempt $i failed; retrying in $((i*30))s…"
+            sleep $((i*30))
+          done
+          exit 1
         env:
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -103,12 +129,21 @@ jobs:
         # unsigned .app launchable. Windows/Linux take the plain command (no dotted
         # args → nothing to mis-parse); their unsigned builds already work.
         shell: bash
+        # Retry ×3 with backoff — the builder-binaries mirror intermittently
+        # 504s mid tool-download (2026-07-09 ubuntu+windows failures); with the
+        # cache step above, a retry (or the next run) hits the local copy.
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then
-            npx electron-builder --publish never -c.mac.identity=null -c.mac.hardenedRuntime=false
+            EB_ARGS=(-c.mac.identity=null -c.mac.hardenedRuntime=false)
           else
-            npx electron-builder --publish never
+            EB_ARGS=()
           fi
+          for i in 1 2 3; do
+            npx electron-builder --publish never "${EB_ARGS[@]}" && exit 0
+            echo "electron-builder attempt $i failed; retrying in $((i*30))s…"
+            sleep $((i*30))
+          done
+          exit 1
 
       - uses: actions/upload-artifact@v4
         with:

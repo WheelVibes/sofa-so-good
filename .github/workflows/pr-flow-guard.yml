@@ -1,0 +1,28 @@
+name: PR flow guard
+
+# Branch-flow policy (2026-07-11): feature branches open PRs into `staging`;
+# ONLY `staging` may open a PR into `main`. This check fails any PR that
+# targets main from another head so the rule is enforced in CI (pair it with
+# a branch-protection rule requiring this check on main). Release/hotfix
+# exceptions should go through staging too — cherry-pick there first.
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  guard:
+    name: Only staging → main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check head branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [ "$HEAD_REF" != "staging" ]; then
+            echo "::error::PRs into main are only accepted from 'staging' (got '$HEAD_REF')."
+            echo "Open this PR against 'staging' instead; staging PRs into main."
+            exit 1
+          fi
+          echo "OK: staging → main."

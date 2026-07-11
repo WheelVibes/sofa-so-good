@@ -1,8 +1,14 @@
-name: Deploy to GitHub Pages
+name: Deploy to GitHub Pages (staging)
 
+# GitHub Pages is the STAGING deployment (offline demo bundle): it publishes
+# the `staging` branch so new features can be tested at the Pages URL before
+# they graduate. Production is the Cloudflare deployment from `main`
+# (deploy-cloudflare.yml) — Pages deliberately does NOT deploy from main
+# (branch-flow change, 2026-07-11: feature branches PR into staging; only
+# staging PRs into main).
 on:
   push:
-    branches: [main]
+    branches: [staging]
   workflow_dispatch:
 
 # Allow the GITHUB_TOKEN to publish to Pages.
