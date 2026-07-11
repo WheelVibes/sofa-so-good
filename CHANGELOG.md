@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.0.4 — PHOTO-POM: parallax-occlusion mapping on procedural hero floors (High/Max)
+
+Steep-parallax + occlusion ray-march (LearnOpenGL basis, Schüler cotangent frame — no precomputed
+tangents) injected via `onBeforeCompile` into the floor material's map/rough/normal UV lookups;
+composes with VSM shadows/IBL/tone-mapping unchanged. Height source is the procedural pattern's
+own height field (the same buffer `heightToNormalRGBA` already consumes — no fabricated art; no
+bundled Poly Haven finish ships displacement). Gained POM: tile, hexagon, subway, checker, brick,
+parquet, herringbone floors (`pomFloor.ts` + `useFloorProceduralMaterial`, own LRU-disposed
+textures). Steps: High 16 / Max 32 / below = inert — Medium A/B pixel-identical (mean 0.000).
+New `pomFloors` flag (pro/on). GPU-verified at a grazing walk pose: herringbone joints visibly
+recess and occlude (diff mean 10.6/255 concentrated on the floor), no swimming/step/seam
+artifacts; frame cost below measurement noise (POM-on never consistently slower). 14 unit tests;
+full suite 5880 green; A/B scenarios `photo-pom-ab.json` + `photo-pom-closeup.json`. Caveat noted
+in code: injected GLSL copies three r184 chunk bodies — re-verify on a three upgrade.
+
 ## v0.21.0.3 — plan editor now honours `windowBound` (3 fixes: inspector, rotate handle, drag)
 
 The 2D plan editor now mirrors the 3D inspector's window-fixture semantics exactly.

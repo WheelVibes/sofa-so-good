@@ -1162,6 +1162,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Parallax-occlusion mapping on hero grout-relief floors (PHOTO-POM): the
+  // procedural tile / hexagon / subway / checker / brick / parquet / herringbone
+  // patterns already bake a height field to derive their normals; POM ray-marches
+  // that same height in the fragment shader so grout/joints genuinely RECESS and
+  // occlude as the camera moves (a step up from the flat normal-map fake). The
+  // ray-march costs GPU, so it is additionally gated to High/Max tiers at runtime
+  // (`pomStepsForTier` → Performance/Medium are byte-identical, no POM). Pure
+  // procedural height, no licensed art → prod-safe (default on). Advanced GPU
+  // realism beyond the core loop → pro tier (forced off in Simple).
+  pomFloors: {
+    label: 'Parallax floor relief',
+    description: 'Ray-marched recessed grout/joints on tile, brick and parquet floors (High/Max)',
+    default: true,
+    tier: 'pro',
+  },
   // Dismissible, localStorage-persisted first-run hint banners for the room
   // editor / floor-plan editor / walk mode (P25). Pure UI, prod-safe. Aids
   // beginners in the default experience → simple tier (shown in both modes).

@@ -253,6 +253,42 @@ export function generateProcedural(
   return { albedo, normal, roughness, metalness: f.metalness }
 }
 
+/** PHOTO-POM — bake the pattern's own height field (0..1, the same buffer that
+ *  {@link heightToNormalRGBA} turns into the normal map) into a LINEAR greyscale
+ *  texture for parallax-occlusion mapping on hero floors. No new art: it is the
+ *  exact relief the pattern already computes (recessed grout ≈ 0, tile face ≈ 1),
+ *  just exposed as a sampleable height/depth map instead of being consumed only
+ *  for the normal derivation. Callers own the returned texture (dispose on evict).
+ *  Height is packed into R (G/B mirror it so a naive read still works); linear
+ *  colour space — it is data, not colour. */
+export function generateProceduralHeightTexture(
+  id: string,
+  pattern: ProceduralPattern,
+  swatch: string,
+  sizeOverride?: number,
+): CanvasTexture {
+  const size = sizeOverride ?? effectivePatternSize(pattern)
+  const prev = S
+  S = size
+  try {
+    const seed = hashSeed(`${id}:${pattern}`)
+    const base = hexToRgb(swatch)
+    const f = PATTERN_FN[pattern](base, seed, S)
+    const data = new Uint8ClampedArray(S * S * 4)
+    for (let i = 0; i < S * S; i++) {
+      const h = Math.round(clamp01(f.height[i]) * 255)
+      data[i * 4] = h
+      data[i * 4 + 1] = h
+      data[i * 4 + 2] = h
+      data[i * 4 + 3] = 255
+    }
+    // Linear (not sRGB): a height field is data, not colour.
+    return toTexture(data, false)
+  } finally {
+    S = prev
+  }
+}
+
 /** PERF-C — edge size of the instant synchronous placeholder bake used when the
  *  off-thread worker is available to deliver the real quality texture moments
  *  later. Small enough to be effectively free on the main thread (a fraction of
