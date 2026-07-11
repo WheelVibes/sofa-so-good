@@ -5,7 +5,7 @@ import type { SliceCreator } from './types'
 /** A user-saved finish "style": the per-room floor/wall finishes (+ accents)
  *  captured from the current design, re-appliable later. Persisted to
  *  localStorage so it survives reloads (kept out of the autosave/schema). */
-export interface UserStyle {
+interface UserStyle {
   id: string
   name: string
   floor: Record<string, MaterialId>

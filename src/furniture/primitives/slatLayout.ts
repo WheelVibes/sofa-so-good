@@ -49,7 +49,7 @@ export function pitchedOffsets(width: number, count: number): number[] {
 // group (unchanged), so the per-slat layout depends only on width + max drop.
 
 /** Slat pitch (m) — one slat every ~8 cm of drop. */
-export const VENETIAN_SLAT_PITCH = 0.08
+const VENETIAN_SLAT_PITCH = 0.08
 /** Default slat tilt (rad, about local X) — the fixed venetian louvre angle. */
 export const VENETIAN_SLAT_TILT = 0.5
 const SLAT_THICKNESS = 0.006

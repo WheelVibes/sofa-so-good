@@ -219,7 +219,7 @@ export function withLevelGeometry(
 
 /** Default floor-to-floor gap between two stacked storeys (m) — the concrete
  *  slab thickness added atop a storey's ceiling before the next floor starts. */
-export const LEVEL_SLAB_HEIGHT = 0.3
+const LEVEL_SLAB_HEIGHT = 0.3
 
 /**
  * Recompute every upper level's `elevation` from a (possibly reordered) array

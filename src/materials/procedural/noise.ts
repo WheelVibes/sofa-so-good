@@ -140,10 +140,6 @@ export function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
 
-export function mix(a: number, b: number, t: number): number {
-  return a + (b - a) * t
-}
-
 export function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x
 }

@@ -20,7 +20,7 @@ import type { PlanOpening, PlanRoom, PlanVec2, PlanWall } from './types'
 export const DUPLICATE_ROOM_OFFSET = 0.5
 
 /** Per-room finish picks that travel with a duplicated room. */
-export interface RoomFinishes {
+interface RoomFinishes {
   /** Floor material id keyed by room id (`finishes.floor`). */
   floor?: string
   /** Wall material id keyed by room id (`finishes.walls`). */

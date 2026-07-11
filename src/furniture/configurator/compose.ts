@@ -18,7 +18,7 @@ import {
   selectedOption,
 } from './model'
 
-export interface ComposedGltfPiece {
+interface ComposedGltfPiece {
   url: string
   anchor: SlotAnchor
   /** Namespace for this piece's discovered finish targets (slot id / 'base'). */

@@ -25,9 +25,9 @@ export function newSetItemId(): string {
   return `set-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
 }
 
-export type SetRole = 'table' | 'chair' | 'bench' | 'stool' | 'other'
+type SetRole = 'table' | 'chair' | 'bench' | 'stool' | 'other'
 
-export interface SetMember {
+interface SetMember {
   groupKey: string
   role: SetRole
   qty: number

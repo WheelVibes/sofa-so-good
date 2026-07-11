@@ -20,7 +20,7 @@ import {
 } from './types'
 
 /** Which side of the plan a dimension line sits on. */
-export type DimensionSide = 'top' | 'bottom' | 'left' | 'right' | 'interior'
+type DimensionSide = 'top' | 'bottom' | 'left' | 'right' | 'interior'
 
 /**
  * A single dimension line in metre space. `(x1,y1)→(x2,y2)` is the line the

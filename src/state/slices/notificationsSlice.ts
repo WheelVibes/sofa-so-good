@@ -2,7 +2,7 @@ import type { IconName } from '../../ui/toolbar/icons'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
-export type NotificationKind = 'info' | 'progress' | 'success' | 'error'
+type NotificationKind = 'info' | 'progress' | 'success' | 'error'
 
 /** A per-item line shown when a notification is expanded (e.g. each failed
  *  import: which item, and why). */
@@ -54,7 +54,7 @@ export interface Notification {
   createdAt: number
 }
 
-export interface NotificationStartOpts {
+interface NotificationStartOpts {
   title: string
   kind?: NotificationKind
   message?: string

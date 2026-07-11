@@ -50,7 +50,7 @@ export interface TimeCompareCaptureDeps {
 }
 
 /** Default settle delay — matches the render-compare / staging-reveal capture cadence. */
-export const TIME_COMPARE_SETTLE_MS = 380
+const TIME_COMPARE_SETTLE_MS = 380
 
 /**
  * Capture the scene at time preset A, then at time preset B — the SAME camera

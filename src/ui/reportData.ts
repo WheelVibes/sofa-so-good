@@ -103,7 +103,7 @@ export function furnitureCostByRoom(
   return rows
 }
 
-export interface RoomItemLine {
+interface RoomItemLine {
   defId: string
   name: string
   count: number

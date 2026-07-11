@@ -25,7 +25,7 @@ import type { FloorPlan, PlanWall } from './types'
 import { wallLength } from './types'
 
 /** Palette injected by the caller (resolved theme tokens). */
-export interface ElectricalPalette {
+interface ElectricalPalette {
   /** Plan wall stroke. */
   wall: string
   /** Foreground for legend text + glyph markings. */

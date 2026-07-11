@@ -10,7 +10,7 @@
  * boundary.
  */
 
-export type UserRole = 'admin' | 'user'
+type UserRole = 'admin' | 'user'
 
 export interface AuthUser {
   id: string

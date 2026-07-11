@@ -44,7 +44,7 @@ const COMPOSE_ROUGHNESS_MAX = 1
  *    their pattern with the new colour, so the mode only changes textured bases.
  */
 export type TintMode = 'multiply' | 'repaint'
-export const DEFAULT_TINT_MODE: TintMode = 'multiply'
+const DEFAULT_TINT_MODE: TintMode = 'multiply'
 
 /** Clamp + sanitise a tile-scale multiplier (non-finite / out-of-range → 1). */
 function clampScale(s: number): number {

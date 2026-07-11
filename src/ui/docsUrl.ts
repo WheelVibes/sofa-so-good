@@ -21,7 +21,7 @@ export function openDocs() {
  * heading ids (grepped from the built `dist/docs/<slug>.html`), so they don't 404
  * — see `docsUrl.test.ts` for the page-slug guard.
  */
-export type NonFlagDocKey =
+type NonFlagDocKey =
   | 'wall'
   | 'room'
   | 'door'

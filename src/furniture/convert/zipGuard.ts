@@ -42,7 +42,7 @@ export const MAX_ENTRY_RATIO = 200
 
 /** Only apply the ratio rule above this uncompressed size, so a tiny
  *  highly-compressible manifest (e.g. XML) can't false-positive. */
-export const RATIO_MIN_ORIGINAL_BYTES = 1024 * 1024
+const RATIO_MIN_ORIGINAL_BYTES = 1024 * 1024
 
 /** Enumerate central-directory entries WITHOUT inflating any of them. */
 export function readZipEntries(bytes: Uint8Array): ZipEntryInfo[] {

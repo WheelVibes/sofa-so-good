@@ -5,7 +5,7 @@ import type { PlanSelection } from '../../../../state/slices/floorPlanSlice'
 import type { Tool } from '../planConstants'
 
 /** Live baseline for a whole-wall drag (start/end + grab point). */
-export interface WallDragState {
+interface WallDragState {
   id: string
   s0: [number, number]
   e0: [number, number]

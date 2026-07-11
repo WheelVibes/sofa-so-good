@@ -31,7 +31,7 @@ export interface PlanLight {
   color: string
 }
 
-export interface LightScheduleRow {
+interface LightScheduleRow {
   type: string
   label: string
   count: number

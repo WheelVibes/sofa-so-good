@@ -16,7 +16,7 @@
  */
 
 /** A room as seen by the suggester. Categories are opaque catalog tags. */
-export interface SuggestionRoom {
+interface SuggestionRoom {
   id: string
   name: string
   /** Interior floor area in square metres. */

@@ -13,7 +13,7 @@ import type { UnitSystem } from '../utils/measurement'
 import { buildDimensions, type Dimension } from './autoDimension'
 import { type FloorPlan, planBounds } from './types'
 
-export interface DimensionSvgPalette {
+interface DimensionSvgPalette {
   /** Strong foreground (dimension lines, ticks, labels). */
   ink: string
   /** Muted foreground (plan walls). */

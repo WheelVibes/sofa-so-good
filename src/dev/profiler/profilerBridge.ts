@@ -3,7 +3,7 @@ import type { RenderTier } from '../../scene/quality'
 import type { MetricsSample, MetricsSnapshot } from './profilerTypes'
 
 /** Live references registered by the in-Canvas probe. */
-export interface BridgeRefs {
+interface BridgeRefs {
   gl: WebGLRenderer
   scene: Scene
   invalidate: () => void

@@ -14,7 +14,7 @@
  */
 
 /** The widest viewport still treated as "mobile" (inclusive), in CSS px. */
-export const MOBILE_MAX_WIDTH = 640
+const MOBILE_MAX_WIDTH = 640
 
 /** `matchMedia` query that is true on mobile-width viewports. */
 export const MOBILE_MEDIA_QUERY = `(max-width: ${MOBILE_MAX_WIDTH}px)`

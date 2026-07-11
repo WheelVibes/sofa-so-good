@@ -59,6 +59,7 @@
     "fflate": "^0.8.3",
     "hono": "^4.12.27",
     "idb-keyval": "^6.2.4",
+    "ktx-parse": "^1.1.0",
     "ktx2-encoder": "^0.5.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -66,6 +67,7 @@
     "three": "^0.184.0",
     "three-bvh-csg": "^0.0.17",
     "three-gpu-pathtracer": "^0.0.24",
+    "three-stdlib": "^2.36.1",
     "utif": "^3.1.0",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"

@@ -28,7 +28,7 @@ export const OPENABLE_FRACTION = 0.5
 const PROBE_OFFSET = 0.2
 
 /** One room's daylight + ventilation result. */
-export interface DaylightRow {
+interface DaylightRow {
   roomId: string
   roomName: string
   /** Interior floor area, m². */

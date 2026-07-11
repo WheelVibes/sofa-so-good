@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.1.1 — DE-6: over-export backlog zeroed — knip is now a strict CI gate
+
+113 symbols de-exported (15 values + 96 types with unreferenced `export` stripped; 4 redundant
+barrel re-exports pruned — incl. the `HORIZON_Y` hit, which was a redundant re-export, not the
+protected canonical symbol). 6 verified-dead symbols deleted (`currentEffectiveQuality`, `mix`,
+`clearPomFloorCacheForTest`, `PlanViewport`, the `safeHref`/`sanitizeUrlField` aliases —
+resolving the duplicate-export warning with `safeUrl` canonical). `PROD_PROVIDER_IDS` kept via
+`/** @public */` (documented extension point + vi.mock target); playwright ×2 + wrangler
+ignored with reasons (harness/deploy CLIs, not imports); real transitive imports `three-stdlib`
++ `ktx-parse` declared direct (lockfile-only sync); `python/**` ignored (kills the
+@gltf-transform/cli + toktx noise). knip.json → knip.jsonc (reason comments), ALL rules now
+`error`, `npm run deadcode` exits 0 with zero findings. Verified: tsc + worker typecheck +
+biome + full suite 5879 green + `npm run build` + dev-server smoke. 88 source files,
++118/−149, mechanical.
+
 ## v0.21.0.4 — PHOTO-POM: parallax-occlusion mapping on procedural hero floors (High/Max)
 
 Steep-parallax + occlusion ray-march (LearnOpenGL basis, Schüler cotangent frame — no precomputed

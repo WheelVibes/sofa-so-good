@@ -12,7 +12,7 @@ const DB_NAME = 'sofa-so-good'
 const DB_VERSION = 1
 const STORE = 'assets'
 
-export type AssetKind = 'gltf' | 'texture'
+type AssetKind = 'gltf' | 'texture'
 
 export interface AssetRecord {
   assetId: string

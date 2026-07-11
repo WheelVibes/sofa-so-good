@@ -73,7 +73,7 @@ function deserializeBundle(v: unknown): AssetBundle {
   }
 }
 
-export interface CacheMetaEntry {
+interface CacheMetaEntry {
   key: string
   bytes: number
   lastAccessedAt: number

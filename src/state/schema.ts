@@ -616,7 +616,7 @@ export function serialize(state: RootState): SerializedState {
  *  `hydrate.ts`/`cloudBoot.ts` distinguishing "corrupt" from "def temporarily
  *  unresolvable", BUG-2) can reuse the exact same check instead of drifting a
  *  second copy of it. */
-export function hasFiniteItemTransform(it: SerializedState['items'][number]): boolean {
+function hasFiniteItemTransform(it: SerializedState['items'][number]): boolean {
   return (
     Number.isFinite(it.position[0]) &&
     Number.isFinite(it.position[1]) &&

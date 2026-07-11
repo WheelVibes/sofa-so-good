@@ -61,7 +61,7 @@ export const MIN_SOCKETS_BY_KIND: Partial<Record<RoomKind, number>> = {
 }
 
 /** Per-room line in the schedule. */
-export interface ElectricalRoomRow {
+interface ElectricalRoomRow {
   roomId: string
   roomName: string
   kind: RoomKind

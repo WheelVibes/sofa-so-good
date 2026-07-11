@@ -15,7 +15,7 @@
  * spiral treads).
  */
 
-export type StaircasePartKind = 'tread' | 'riser' | 'landing' | 'post' | 'rail' | 'newel'
+type StaircasePartKind = 'tread' | 'riser' | 'landing' | 'post' | 'rail' | 'newel'
 
 export interface StaircasePart {
   kind: StaircasePartKind

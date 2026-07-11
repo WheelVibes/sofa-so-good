@@ -1,5 +1,4 @@
 import type { QualitySettings } from '../../scene/quality'
-import { resolveQuality } from '../../scene/quality'
 import { useStore } from '../../state/store'
 import { setProfilerBenchmarkActive } from './benchmarkSignal'
 import { COST_SWEEP, runSweep } from './costBreakdown'
@@ -8,9 +7,9 @@ import { profilerBridge } from './profilerBridge'
 import type { EffectCost, ObjectCost } from './profilerTypes'
 
 /** Frames to let the pipeline settle after changing an override. */
-export const SETTLE_FRAMES = 20
+const SETTLE_FRAMES = 20
 /** Frames averaged per measurement. */
-export const SAMPLE_FRAMES = 60
+const SAMPLE_FRAMES = 60
 
 /** Await `n` rendered frames, driving the demand-mode canvas via invalidate. */
 function driveFrames(invalidate: () => void, n: number): Promise<void> {
@@ -91,10 +90,4 @@ export function getObjectBreakdown(): ObjectCost[] {
     return it?.label ?? it?.defId ?? id
   }
   return buildObjectBreakdown(refs.scene, labelFor)
-}
-
-/** Current effective quality settings (for the Live tab's tier readout). */
-export function currentEffectiveQuality(): QualitySettings {
-  const s = useStore.getState()
-  return resolveQuality(s.qualityTier, s.qualityOverrides)
 }

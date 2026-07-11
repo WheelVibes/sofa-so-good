@@ -11,8 +11,8 @@ export type RoomId =
   | 'householdShelter'
   | 'acLedge'
 
-export type DoorId = string
-export type WindowId = string
+type DoorId = string
+type WindowId = string
 
 /** Position in metres from the apartment origin (0,0 at NW external corner, +X east, +Z south). */
 export type Vec2 = readonly [number, number]
@@ -44,9 +44,9 @@ export interface RoomDef {
   }
 }
 
-export type CutoutKind = 'door' | 'window'
+type CutoutKind = 'door' | 'window'
 
-export interface Cutout {
+interface Cutout {
   kind: CutoutKind
   /** Distance from wall start at floor level (X-axis along the wall). */
   offset: number

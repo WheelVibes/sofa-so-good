@@ -58,7 +58,7 @@ export type HandleStyle = 'bar' | 'knob' | 'none'
 /** What's set into a base cabinet's worktop (besides a plain slab). */
 export type WorktopFeature = 'none' | 'sink' | 'hob'
 
-export type CabinetPartRole =
+type CabinetPartRole =
   | 'carcass'
   | 'toeKick'
   | 'countertop'
@@ -69,7 +69,7 @@ export type CabinetPartRole =
   | 'handle'
   | 'shelf'
 
-export interface CabinetPart {
+interface CabinetPart {
   role: CabinetPartRole
   /** Centre position [x, y, z] in metres (footprint-centred, floor at y=0). */
   position: [number, number, number]

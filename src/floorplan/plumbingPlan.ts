@@ -27,7 +27,7 @@ export interface PlumbingPoint {
 }
 
 /** One schedule row: how many of a given kind, with a friendly label. */
-export interface PlumbingScheduleRow {
+interface PlumbingScheduleRow {
   kind: PlumbingKind
   count: number
   label: string

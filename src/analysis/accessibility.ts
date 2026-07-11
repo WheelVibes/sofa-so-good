@@ -24,7 +24,7 @@ export const TURN_CIRCLE = 1.5
 const ENTRY_WIDTH = 1.0
 
 /** One door's accessibility result. */
-export interface DoorAccessRow {
+interface DoorAccessRow {
   id: string
   /** Clear structural opening width (m). */
   width: number
@@ -32,7 +32,7 @@ export interface DoorAccessRow {
 }
 
 /** One room's turning-space result. */
-export interface RoomAccessRow {
+interface RoomAccessRow {
   roomId: string
   roomName: string
   /** Smaller plan dimension (m) — the limiting span for a turning circle. */

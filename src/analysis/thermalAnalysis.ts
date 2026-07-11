@@ -107,7 +107,7 @@ export function glazingUKind(hint: string | null | undefined): GlazingUKind {
 }
 
 /** A single envelope surface category and its rolled-up area + U-value. */
-export interface ThermalSurface {
+interface ThermalSurface {
   /** 'wall' (opaque) or 'glazing'. */
   category: 'wall' | 'glazing'
   /** The U-value bucket used (e.g. 'rc', 'single'). */

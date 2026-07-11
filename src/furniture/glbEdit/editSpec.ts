@@ -70,7 +70,7 @@ export interface GroupMaterialData {
  *  range of triangles from one of the original source parts, and `materials[g.materialIndex]`
  *  carries that source part's surface look. A spec without these fields (pre-C273)
  *  keeps building unchanged — the single `finish`/`color` on the ShapePart is used. */
-export interface MeshGeometryData {
+interface MeshGeometryData {
   positions: number[]
   normals: number[]
   index?: number[]

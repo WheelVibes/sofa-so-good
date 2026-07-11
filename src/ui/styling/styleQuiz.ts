@@ -7,7 +7,7 @@
 
 import { STYLE_PRESETS } from './styleTransfer'
 
-export interface QuizOption {
+interface QuizOption {
   /** Display label for this answer. */
   label: string
   /** Weight contributed toward each style id (styleId → points). */

@@ -23,7 +23,7 @@ import { escapeTemplateText, type QuoteTemplate, templateCurrencyFormatter } fro
 export const M_TO_FT = 3.28084
 
 /** A single FF&E (furniture / fixtures / equipment) entry. */
-export interface BoqFurniture {
+interface BoqFurniture {
   name: string
   category?: string
   qty: number
@@ -31,21 +31,21 @@ export interface BoqFurniture {
 }
 
 /** A finish line keyed by its named finish, priced per square metre. */
-export interface BoqFinish {
+interface BoqFinish {
   name: string
   areaSqm: number
   ratePerSqm: number
 }
 
 /** A carpentry line priced per linear metre. */
-export interface BoqCarpentry {
+interface BoqCarpentry {
   name: string
   lengthM: number
   ratePerM: number
 }
 
 /** A room summary (optional context; not itself billed). */
-export interface BoqRoom {
+interface BoqRoom {
   id: string
   name: string
   floorArea: number
@@ -65,7 +65,7 @@ export interface BoqInput {
 }
 
 /** One priced line in a section. */
-export interface BoqLine {
+interface BoqLine {
   description: string
   qty: number
   unit: string
@@ -76,7 +76,7 @@ export interface BoqLine {
 }
 
 /** A titled group of lines with its own subtotal. */
-export interface BoqSection {
+interface BoqSection {
   title: string
   lines: BoqLine[]
   subtotal: number

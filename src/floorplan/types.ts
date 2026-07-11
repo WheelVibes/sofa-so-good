@@ -184,7 +184,7 @@ export type HousingType = 'HDB' | 'Condominium'
 /** Three-level template categorisation: housing type → project → apartment type
  *  (e.g. HDB › Serangoon North Vista › 4-Room). Every built-in template carries
  *  one; user-saved plans are prompted for it. */
-export interface PlanCategory {
+interface PlanCategory {
   housingType: HousingType
   /** Development / estate name (e.g. "Serangoon North Vista"). */
   projectName: string
@@ -454,7 +454,7 @@ export function wallLength(w: PlanWall): number {
 
 /** The smallest an opening is ever allowed to be (m) — matches the inspector's
  *  numeric-field floor (`OpeningInspector`'s `Num min={0.1}`). */
-export const MIN_PLAN_OPENING_WIDTH = 0.1
+const MIN_PLAN_OPENING_WIDTH = 0.1
 
 /**
  * Clamp an opening's width to fit within a wall of length `wallLen`, given an

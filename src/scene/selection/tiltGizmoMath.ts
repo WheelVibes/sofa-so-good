@@ -26,7 +26,7 @@ export const TILT_DRAG_RANGE_PX = 220
 export const TILT_RAD_PER_PX = (TILT_LIMIT_RAD * 2) / TILT_DRAG_RANGE_PX
 
 /** Anchor + handle geometry (metres) for the joystick drawn above the item. */
-export const TILT_HANDLE_GAP = 0.12 // clearance above the item's bbox top
+const TILT_HANDLE_GAP = 0.12 // clearance above the item's bbox top
 export const TILT_ROD_LENGTH = 0.22 // rod rise from the anchor to the ball
 export const TILT_HANDLE_RADIUS = 0.075 // grab-ball radius (matches RotateGizmo's knob)
 

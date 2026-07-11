@@ -10,7 +10,7 @@
 export type MaterialId = string
 export type MaterialCategory = 'floor' | 'wall'
 
-export interface MaterialDefBase {
+interface MaterialDefBase {
   id: MaterialId
   name: string
   category: MaterialCategory

@@ -14,7 +14,7 @@ import { itemFootprint } from '../../collision/placement'
 import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
 import { obbAxisHalf } from '../../layout/alignDistribute'
 
-export type Vec3 = [number, number, number]
+type Vec3 = [number, number, number]
 
 /** One selected item's world footprint OBB + vertical extent above the floor
  *  (`def.verticalSpan ?? [0, defaultFootprint.h]`, the same fallback used by

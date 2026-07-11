@@ -19,7 +19,7 @@ import type { FloorPlan, PlanWall } from './types'
 import { wallLength } from './types'
 
 /** Palette injected by the caller (resolved theme tokens). */
-export interface PlumbingPalette {
+interface PlumbingPalette {
   /** Plan wall stroke. */
   wall: string
   /** Foreground for legend text + glyph markings. */

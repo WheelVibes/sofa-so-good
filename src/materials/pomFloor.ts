@@ -261,8 +261,3 @@ export function buildPomFloorMaterial(
   POM_CACHE.set(key, m)
   return m
 }
-
-/** Test-only: drop all cached POM materials. */
-export function clearPomFloorCacheForTest(): void {
-  POM_CACHE.clearForTest()
-}

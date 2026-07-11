@@ -20,7 +20,7 @@ export interface Span {
 /** The empty distance between two adjacent spans (a then b, a fully before b).
  *  Used to describe one "gap" the user could match. The `between` coordinates
  *  are the facing edges the badge bracket should span (`from` = a.hi, `to` = b.lo). */
-export interface Gap {
+interface Gap {
   /** Gap size in metres (>= 0). */
   size: number
   /** Near edge of the gap (the earlier span's far edge). */

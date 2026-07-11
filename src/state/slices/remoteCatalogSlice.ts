@@ -18,7 +18,7 @@ import type { TexturedMaterialDef } from '../../materials/types'
 const ONE_DAY = 24 * 60 * 60 * 1000
 const STALE_AFTER = 7 * ONE_DAY
 
-export type RemoteIndexState = {
+type RemoteIndexState = {
   status: 'idle' | 'loading' | 'ready' | 'error'
   entries: RemoteEntry[]
   fetchedAt?: string

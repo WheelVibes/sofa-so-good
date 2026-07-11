@@ -1,0 +1,44 @@
+{
+  "entry": [
+    "scripts/**/*.{mjs,ts}",
+    "**/*.test.{ts,tsx}",
+    "functions/**/*.ts",
+    "workers/**/*.ts",
+    "electron/*.mjs"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "functions/**/*.ts", "workers/**/*.ts", "electron/*.mjs"],
+  "ignore": [
+    // Python-adjacent GLB optimisation helpers — invoke external CLIs (toktx from
+    // KTX-Software, an optional guarded `import('@gltf-transform/cli')`) that are not
+    // part of the TS build graph; not npm-managed, so leave them out of knip's analysis.
+    "python/**"
+  ],
+  "ignoreDependencies": [
+    // Playwright is the driver for the screenshot/scenario harness (scripts/shot.mjs),
+    // launched via node, so knip's import graph never sees it — keep it declared, don't uninstall.
+    "@playwright/test",
+    "playwright",
+    // wrangler is the Cloudflare deploy CLI used from deployment docs/CI, not imported in code.
+    "wrangler"
+  ],
+  "vite": {
+    "config": ["vite.config.ts"]
+  },
+  "vitest": {
+    "config": ["vitest.config.ts"]
+  },
+  "rules": {
+    "files": "error",
+    "unresolved": "error",
+    "dependencies": "error",
+    "devDependencies": "error",
+    "unlisted": "error",
+    "binaries": "error",
+    "exports": "error",
+    "nsExports": "error",
+    "types": "error",
+    "nsTypes": "error",
+    "duplicates": "error",
+    "enumMembers": "error"
+  }
+}

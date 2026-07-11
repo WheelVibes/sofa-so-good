@@ -44,7 +44,7 @@ export function shouldAutoAdvance(opts: {
 // ---------------------------------------------------------------------------
 
 /** A view slide: the existing saved camera view, shown as before. */
-export interface ViewSlide {
+interface ViewSlide {
   kind: 'view'
   view: SavedView
 }
@@ -54,7 +54,7 @@ export interface ViewSlide {
  * same `capturePanorama({eye})` + `panoImageIdb` cache path as PanoTourModal.
  * `levelId` is absent for ground-floor stops.
  */
-export interface TourStopSlide {
+interface TourStopSlide {
   kind: 'tourStop'
   stop: PanoTourStop
 }

@@ -128,14 +128,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   (GLASS + SOFTSHADOW shipped v0.19.0.1; GTAO rejected by real-GPU ruling 2026-07-11).
 
 ## Dead-export prune plan (from docs/research/2026-07-03-dead-export-audit.md, verified per-symbol)
-- [ ] **DE-6 (follow-up from DE-5, 2026-07-11)**: knip's extended scope surfaces the pre-existing
-  over-export backlog as CI *warnings* (105 unused-exported types + 19 value exports — the DE-1..3
-  prune plan only ever covered value exports; spot-checks show the "same-file-used, drop-`export`-
-  only" false-positive class, NOT dead code). Driving them to zero = de-exporting ~120 symbols
-  (audit-doc Task 2/3 pattern extended to types). One genuine zero-reference deletion candidate:
-  `currentEffectiveQuality` (`src/dev/profiler/profilerEngine.ts`) — dev-only, awaiting a call.
-  Also warn-level: 3 unused devDeps (playwright ×2, wrangler — all actually used outside knip's
-  view), 6 unlisted deps, `safeUrl` duplicate export.
 
 
 ## Process

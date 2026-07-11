@@ -20,7 +20,7 @@
 
 import type { CeilingConfig } from '../../floorplan/types'
 
-export interface CeilingPlane {
+interface CeilingPlane {
   kind: 'plane'
   role: 'base' | 'frame' | 'centre' | 'soffit' | 'beam'
   cx: number
@@ -31,7 +31,7 @@ export interface CeilingPlane {
   y: number
 }
 
-export interface CeilingSide {
+interface CeilingSide {
   kind: 'side'
   /** Footprint line: a thin vertical strip centred at (cx,cz) spanning w×d. */
   cx: number
@@ -44,7 +44,7 @@ export interface CeilingSide {
 
 /** A pitched (sloped) ceiling plane: a w×d panel that ramps from `yHigh` to
  *  `yLow` along `axis` (the high edge at the lower coordinate). */
-export interface CeilingSlope {
+interface CeilingSlope {
   kind: 'slope'
   cx: number
   cz: number

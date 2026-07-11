@@ -17,7 +17,7 @@ import {
 } from './backdropHorizon'
 import { paintSkyEquirect, type Vec3 } from './lighting/skyGradient'
 
-export { EQUIRECT_H, EQUIRECT_W, HORIZON_Y } from './backdropHorizon'
+export { EQUIRECT_H, EQUIRECT_W } from './backdropHorizon'
 
 /** Photo-backdrop presets (the `none` backdrop bakes nothing — plain sky). */
 export type PhotoBackdropKind = 'city' | 'dusk' | 'park' | 'hills'
