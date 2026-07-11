@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.0.2 — DE-5: knip deadcode scan repaired, scope extended, wired into CI
+
+`npm run deadcode` crashed with "Cannot find native binding" — root cause was NOT the suspected
+oxc ESM/CJS mismatch but the npm optional-deps bug (npm/cli#4828): `@oxc-parser/binding-linux-
+x64-gnu` was simply never installed. knip 6.17.1 → 6.26.0 (oxc-parser 0.137.0, minimal lock diff)
+re-resolves it. `knip.json`: entry/project extended to `functions/**`, `workers/**`,
+`electron/*.mjs` (previously invisible); `.claude/**` ignored (agent worktrees were massive false
+noise); config now hint-free; new `rules` block gates the high-signal categories (`files`,
+`unresolved` = error, both zero) while the pre-existing over-export backlog surfaces as warnings
+(→ DE-6 in TASKS.md; nothing deleted — spot-checks confirm the same-file-used false-positive
+class). CI gains a standalone `deadcode` job (checkout → node 24.18.0 → `npm ci` → knip) on the
+existing [main, staging] triggers. Verified: deadcode exit 0, tsc + worker typecheck + biome
+clean, dev server + vitest unaffected by the dep bump.
+
 ## v0.21.0.1 — PERF6 tail resolved: REJECTED on real-GPU evidence (no code change)
 
 The antialias/preserveDrawingBuffer "toggle needs a context recreate" tail is closed as

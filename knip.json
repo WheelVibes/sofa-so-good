@@ -1,8 +1,31 @@
 {
-  "entry": ["src/main.tsx!", "src/setupTests.ts", "scripts/**/*.{mjs,ts}", "**/*.test.{ts,tsx}"],
-  "project": ["src/**/*.{ts,tsx}"],
-  "ignore": ["src/**/*.d.ts", "src/types/**"],
-  "ignoreBinaries": ["flock"],
-  "vite": { "config": ["vite.config.ts"] },
-  "vitest": { "config": ["vitest.config.ts"] }
+  "entry": [
+    "scripts/**/*.{mjs,ts}",
+    "**/*.test.{ts,tsx}",
+    "functions/**/*.ts",
+    "workers/**/*.ts",
+    "electron/*.mjs"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "functions/**/*.ts", "workers/**/*.ts", "electron/*.mjs"],
+  "ignore": [".claude/**"],
+  "vite": {
+    "config": ["vite.config.ts"]
+  },
+  "vitest": {
+    "config": ["vitest.config.ts"]
+  },
+  "rules": {
+    "files": "error",
+    "unresolved": "error",
+    "dependencies": "warn",
+    "devDependencies": "warn",
+    "unlisted": "warn",
+    "binaries": "warn",
+    "exports": "warn",
+    "nsExports": "warn",
+    "types": "warn",
+    "nsTypes": "warn",
+    "duplicates": "warn",
+    "enumMembers": "warn"
+  }
 }
