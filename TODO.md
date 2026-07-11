@@ -148,9 +148,19 @@ is retained as the methodology/grounding reference.
   the Doors & drawers interaction (select cabinet → toggle open → assert `props.open` + screenshot),
   per the interaction-test-ladder policy. Playbook note: seeding `setItems` must wait for a short
   boot-hold after `sceneReady` or the async move-in furnishing clobbers it.
-- **Live slide during drag** (optional, higher-risk) — item hugs walls/furniture in real time, not
-  just on release; more invasive in `DragController`'s per-move snapping. (Drag inertia: skip —
-  hurts placement precision.)
+- **Live slide during drag — PARKED (2026-07-12 evaluation, numeric evidence).** The specified
+  per-move minimal-axis MTV slide (vs walls + furniture, reusing `nudgeToValid`) is provably
+  unstable: ±0.02 m frame wobble, 0.39 m face-flip jumps circling an obstacle, and a 0.62 m
+  teleport THROUGH a wall once penetration passes the midpoint. Also premise-corrected: there is
+  no "hug on release" today (onUp's auto-nudge was deliberately removed — bug #6; `nudgeToValid`
+  is test-only dead code), and `wallSnapOffset` already pulls flush within 0.12 m, so the residual
+  value is low. **If revisited**: build a walls-only swept two-pass X/Z clamp
+  (`collision/slideAlongWalls.ts` modelled on walk-mode `resolveMovement`, seeded from a
+  lastValidPos ref, applied after all snaps, snap-off single-item drags only, noClip/windowBound
+  excluded) — proven stable + tunnel-proof in the probe (maxJump 0.02 m, corner-stable, no
+  tunnelling on a 2 m step); flag `liveSlideDrag` simple/default-OFF; REQUIRES real-device feel
+  QA (headless can't measure pointer jitter/tug-of-war with the magnetic snap). Probe
+  measurements in the 2026-07-12 session records. (Drag inertia: still skip.)
 
 ## Open — customizability / UX
 - **Fold baseboard + accent-wall *creation* into the FinishPicker.** The FinishPicker now covers

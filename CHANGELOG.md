@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.9 — live-slide-during-drag PARKED on numeric evidence (no code change)
+
+Evaluation spike on the real collision code: the specified per-move MTV slide vs walls+furniture
+wobbles (±0.02 m/frame), face-flips (0.39 m jumps circling an obstacle) and teleports 0.62 m
+through walls past mid-penetration — must not ship. Premise corrections recorded: no hug-on-release
+exists today (auto-nudge deliberately removed; `nudgeToValid` is test-only dead code) and
+`wallSnapOffset` already covers the near-flush case. A stable walls-only swept-clamp path (modelled
+on walk-mode `resolveMovement`) was proven in-probe (no wobble, corner-stable, tunnel-proof) and is
+documented in TODO as the revisit design — flag simple/default-OFF + mandatory on-device feel QA.
+
 ## v0.21.2.8 — cabinet doors & drawers open/close (new core interaction)
 
 Storage fronts are no longer static: kitchen cabinets (Base/Wall/Tall), hinged-door wardrobes,
