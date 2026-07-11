@@ -105,6 +105,14 @@ drawers, glass or open shelves), and toggles for the **countertop** (base), a
 worktop — the **cornice/crown cap** (wall & tall) and the **toe‑kick**. Build a
 whole run by placing several side by side.
 
+### Opening doors & drawers
+
+Storage furniture with fronts — kitchen cabinets, hinged‑door wardrobes,
+sideboards and dressers — can be **opened and closed**: select the piece and use
+the **Doors & drawers** toggle in its inspector. Doors swing on their hinges and
+drawers slide out with a smooth motion, so you can peek inside; the state is
+saved with your design.
+
 ### Drag‑to‑rotate ring
 
 When you select a piece (in the **select** tool), a blue **rotate ring** appears

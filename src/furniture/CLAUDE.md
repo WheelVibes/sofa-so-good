@@ -122,6 +122,23 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   door>fixture priority order: `FirstPersonCamera` merges their aim segments into a single
   `nearestAimedSegment` call (id-prefixed `screen:`/`light:`) so whichever is physically closer
   claims the "nearby" slot.
+- **Cabinet open/close (CABINET-OPEN)**: cabinet-family primitives with visible fronts —
+  `CabinetBase`/`CabinetWall`/`CabinetTall` (kitchen), `Wardrobe` (hinged doors), `Sideboard`,
+  `Dresser` — swing their doors + slide their drawers open with an eased ~0.4 s motion, mirroring
+  the room-door swing + curtain/blind draw. Like curtains, the open/closed value lives on the
+  placed item's own `props.open` (`'yes'`/`'no'`, default absent = closed), so it round-trips via
+  the existing `items` persistence with **no new schema field or slice** — the inspector toggle
+  just calls `updateItemProps`. Capability is keyed on the primitive kind
+  (`cabinetOpen.ts:OPENABLE_CABINET_PRIMITIVES` / `supportsCabinetOpen(def)`); the pure hinge/ease
+  math (`easeInOut`, `advanceOpen`, `doorHingePivot`) is unit-tested and render-agnostic. The
+  animation runs in the shared `primitives/openable.tsx` `HingedDoor`/`SlideDrawer` wrappers, which
+  ease toward the target each frame and hold the demand render-loop + frozen shadow map open only
+  while moving (`registerAnimatedSource` + `pulseShadowRefreshForMotion`, exactly like
+  `Curtain`/`RollerBlind`). `cabinet/cabinetModel.ts` tags each front `CabinetPart` with its
+  `column` (+ door `hinge` side) so `CabinetModule` can group a column's parts into one animated
+  unit. Gated by the `cabinetOpen` flag (simple tier — a furnish/view delight, not an analytical
+  tool). The inspector control lives in `ui/inspector/ParametricBody.tsx`, shown only when the flag
+  is on AND `supportsCabinetOpen(def)`.
 - **Categories**: 15 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected

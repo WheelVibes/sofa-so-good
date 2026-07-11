@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.8 — cabinet doors & drawers open/close (new core interaction)
+
+Storage fronts are no longer static: kitchen cabinets (Base/Wall/Tall), hinged-door wardrobes,
+sideboards and dressers open/close with ~0.4 s eased motion — doors swing about their hinge edge
+(`HingedDoor`, double-translate pivot), drawers slide forward (`SlideDrawer`) — via the new
+shared `primitives/openable.tsx`, which holds the demand render-loop + frozen-shadow refresh open
+only while moving (the Curtain/RollerBlind pattern). State is the per-item persisted `props.open`
+(design data, defaults closed — mirrors the windowFixture idiom, no schema change); the control
+is a capability-gated "Doors & drawers" toggle in the item inspector
+(`cabinetOpen.ts:supportsCabinetOpen`). New `cabinetOpen` flag (simple/on — core furnish/view
+delight, pure code; both-modes tested). CabinetCorner intentionally excluded (different
+geometry). 43 targeted tests (easing/hinge math, capability, cabinetModel column/hinge grouping,
+inspector gating); screenshots reviewed (hinge-edge swings, attached fronts, eased mid-state,
+visible interiors). Docs: ARCHITECTURE + user placing-furniture section. Follow-up IXT ladder
+logged in TODO.
+
 ## v0.21.2.7 — R-BLEED: directional doorway bleed in the 2D lux model
 
 Premise correction recorded: there was no isotropic bleed to fix — the 2D lux model

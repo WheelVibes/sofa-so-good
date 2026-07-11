@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { itemFootprint } from '../../collision/placement'
 import { useFeature } from '../../features/useFeature'
+import { supportsCabinetOpen } from '../../furniture/cabinetOpen'
 import {
   defaultParamProps,
   type FurnitureItem,
@@ -50,8 +51,27 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
   const units = useStore((s) => s.units)
   const surfaceMaterials = useSurfaceMaterialOptions()
   const mountPresetsOn = useFeature('mountHeights')
+  const cabinetOpenOn = useFeature('cabinetOpen')
 
   const setProp = (key: string, value: ParamValue) => updateItemProps(item.id, { [key]: value })
+
+  // ── Open / close doors & drawers (CABINET-OPEN) ───────────────────────────
+  // Only for cabinet-family primitives that model animatable fronts, and only
+  // when the feature is enabled. The state rides `props.open`.
+  const canOpen = cabinetOpenOn && supportsCabinetOpen(def)
+  const cabinetIsOpen = item.props['open'] === 'yes'
+  const openSection = canOpen ? (
+    <InspectorSection title="Doors & drawers" defaultOpen>
+      <button
+        type="button"
+        aria-pressed={cabinetIsOpen}
+        onClick={() => setProp('open', cabinetIsOpen ? 'no' : 'yes')}
+        className="w-full rounded border border-[var(--border-2)] bg-[var(--surface)] px-2 py-1 text-xs font-medium hover:border-[var(--accent)]"
+      >
+        {cabinetIsOpen ? 'Close doors & drawers' : 'Open doors & drawers'}
+      </button>
+    </InspectorSection>
+  ) : null
 
   // ── Universal size (scale) ────────────────────────────────────────────────
   const scale = typeof item.props['scale'] === 'number' ? (item.props['scale'] as number) : 1
@@ -187,7 +207,13 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
     </InspectorSection>
   )
 
-  if (def.paramSchema.length === 0) return sizeSection
+  if (def.paramSchema.length === 0)
+    return (
+      <>
+        {openSection}
+        {sizeSection}
+      </>
+    )
 
   // Reset every schema-driven prop (size/form/finish/colour) back to the def's
   // defaults. Differs from the current props → only show when something changed.
@@ -195,6 +221,7 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
   const isModified = Object.keys(defaults).some((k) => item.props[k] !== defaults[k])
   return (
     <>
+      {openSection}
       <InspectorSection
         title="Properties"
         defaultOpen={proMode}

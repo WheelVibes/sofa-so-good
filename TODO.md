@@ -144,8 +144,10 @@ All sequenced findings (TB-1 … TB-10 + tails) shipped; records live in `CHANGE
 is retained as the methodology/grounding reference.
 
 ## Open — core interactions
-- **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
-  would be a new interaction. Doors already animate (could ease the linear swing curve — low value).
+- **Cabinet-open IXT ladder** (follow-up to v0.21.2.8): add a simple `scripts/scenarios/` rung for
+  the Doors & drawers interaction (select cabinet → toggle open → assert `props.open` + screenshot),
+  per the interaction-test-ladder policy. Playbook note: seeding `setItems` must wait for a short
+  boot-hold after `sceneReady` or the async move-in furnishing clobbers it.
 - **Live slide during drag** (optional, higher-risk) — item hugs walls/furniture in real time, not
   just on release; more invasive in `DragController`'s per-move snapping. (Drag inertia: skip —
   hurts placement precision.)

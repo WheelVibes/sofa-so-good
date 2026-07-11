@@ -776,6 +776,13 @@ same change that reshapes a system.
   carcass/countertop/cornice + slab·shaker·drawers·glass·open fronts; structurally sound).
   `CabinetModule.tsx` renders via `CabinetBase`/`Wall`/`Tall`; `cabinetCatalog.ts` = 3
   defs spread into `BUILTIN_CATALOG`.
+- **Cabinet open/close** (`furniture/cabinetOpen.ts` + `primitives/openable.tsx`,
+  `cabinetOpen` flag, simple/on): cabinet-family fronts open with eased ~0.4 s motion —
+  doors swing on their hinge edge (`HingedDoor`), drawers slide forward (`SlideDrawer`) —
+  driven by the per-item persisted `props.open` and an inspector "Doors & drawers" toggle
+  (capability-gated via `supportsCabinetOpen`). Wired: kitchen cabinets, hinged wardrobes,
+  sideboard, dresser. Animation holds the demand render-loop + shadow refresh open only
+  while moving (the Curtain/RollerBlind pattern).
 - **IKEA model import** (`furniture/ikea/`, `userAssetsSlice`): scraper emits per-group
   `metadata.json` + `<finish>.glb` + images; upload auto-detects groups; `importGroup.ts`
   → one `IkeaGltfDef` (`variants[]`, blobs in IDB, category/clearance/price from metadata).
@@ -969,6 +976,15 @@ same change that reshapes a system.
   toggled by `luxOverlayOn` from the Drawings panel's Lighting tab — rides the `drawings` flag.
   LP6: `luxExcludedIds` filters fixtures before grid build; `luxPlaying` rAF auto-advances `manualHour`
   at 1 hr/s; Drawings panel Lighting tab gains inline time slider + play button + per-fixture checkboxes.
+  **Inter-room doorway bleed (R-BLEED):** pure `lighting2d/doorwayBleed.ts` adds a *directional*
+  neighbour-contribution term to both the scalar table (`estimateRoomLux`, new `borrowedLux`) and the
+  spatial grid (`buildRoomLuxGrid`): a room borrows a documented fraction (`BLEED_TRANSMISSION`, aperture-
+  scaled) of each adjacent room's OWN ambient through an **open** doorway (`doors` map; closed by default →
+  zero bleed, so the out-of-box overlay/table are byte-identical to before). First-degree only (no cascade,
+  like wall-reveal spread). The grid distributes the borrowed room-mean with a facing (cosine) + distance
+  falloff weight normalised to unit mean — so the heatmap pools the bleed in front of the doorway and fades
+  around corners while the per-room average still equals the 2D table (the lumen-method lock-step holds).
+  No raycast (doorway-direction weighting only; convex-room approximation). Rides the same `drawings` flag.
 - **Electrical points schedule** (`analysis/electricalSchedule.ts` pure → `buildElectricalSchedule(plan,
   items, catalog)`: a consolidated, room-by-room count of **lighting points** (reuses
   `lightEmitters.isItemEmitter`, the same predicate the lighting plan uses) + indicative **power points /

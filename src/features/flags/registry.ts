@@ -597,6 +597,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Open/close a cabinet's doors + drawers (CABINET-OPEN): the inspector gains an
+  // Open/Close toggle for cabinet-family primitives (kitchen cabinets, wardrobes,
+  // sideboards, dressers) whose fronts then swing/slide with an eased ~0.4 s
+  // motion — mirroring the room-door swing + curtain/blind draw. The open state
+  // lives on the item's own `props.open`, round-tripping via the existing `items`
+  // persistence (no new schema field). Pure code, no external assets → prod-safe;
+  // a core furnish/view delight (peek inside your storage), not an analytical
+  // tool → simple tier, like the walk-mode interact siblings above.
+  cabinetOpen: {
+    label: 'Open cabinet doors & drawers',
+    description: 'Open or close a cabinet, wardrobe, sideboard or dresser from the inspector',
+    default: true,
+    tier: 'simple',
+  },
   // Minimap tap-to-teleport (MINIMAP-JUMP): click/tap a spot on the walk-mode
   // minimap to jump the walker there, clamped inside the tapped (or nearest)
   // room's walls. A navigation aid for the core walk loop, not an advanced

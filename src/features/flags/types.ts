@@ -148,6 +148,7 @@ export type FeatureFlag =
   | 'walkWindowFixtures'
   | 'walkScreens'
   | 'walkLights'
+  | 'cabinetOpen'
   | 'minimapTeleport'
   | 'planFurnish'
   | 'frameSelection'

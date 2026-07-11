@@ -69,12 +69,19 @@ type CabinetPartRole =
   | 'handle'
   | 'shelf'
 
-interface CabinetPart {
+export interface CabinetPart {
   role: CabinetPartRole
   /** Centre position [x, y, z] in metres (footprint-centred, floor at y=0). */
   position: [number, number, number]
   /** Box size [w, h, d] in metres. */
   size: [number, number, number]
+  /** Front-column index this part belongs to (door/drawer/glass/handle), so the
+   *  renderer can group a column's parts into one animated open/close unit
+   *  (CABINET-OPEN). Absent on the static carcass/toe-kick/countertop/cornice. */
+  column?: number
+  /** Door leaves only: which vertical edge hinges (the outer edge of the column),
+   *  driving the swing pivot + direction. */
+  hinge?: 'left' | 'right'
 }
 
 /** Where the worktop is cut for a sink or hob (footprint-centred X/Z + the
@@ -207,25 +214,41 @@ export function buildCabinet(input: CabinetSpec): CabinetModel {
       const dh = (frontH - gap * (drawerRows - 1)) / drawerRows
       for (let r = 0; r < drawerRows; r++) {
         const y = carcassBottom + REVEAL + dh / 2 + r * (dh + gap)
-        parts.push({ role: 'drawer', position: [cx, y, frontProudZ], size: [colW, dh, FRONT_T] })
+        parts.push({
+          role: 'drawer',
+          position: [cx, y, frontProudZ],
+          size: [colW, dh, FRONT_T],
+          column: c,
+        })
         if (wantHandles)
           parts.push({
             role: 'handle',
             position: [cx, y + dh / 2 - 0.03, frontProudZ + FRONT_T / 2 + 0.01],
             size: [colW * 0.45, HANDLE_W, 0.02],
+            column: c,
           })
       }
       continue
     }
-    // slab / shaker / glass: one door per column.
+    // slab / shaker / glass: one door per column. The leaf hinges on the column's
+    // OUTER edge (handle toward the centre gap), so left-half columns hinge left,
+    // right-half columns hinge right — a natural double-door open.
     const cy = carcassBottom + carcassH / 2
-    parts.push({ role: 'door', position: [cx, cy, frontProudZ], size: [colW, frontH, FRONT_T] })
+    const hinge: 'left' | 'right' = c < columns / 2 ? 'left' : 'right'
+    parts.push({
+      role: 'door',
+      position: [cx, cy, frontProudZ],
+      size: [colW, frontH, FRONT_T],
+      column: c,
+      hinge,
+    })
     if (front === 'glass') {
       // Recessed glass pane inset within the door frame.
       parts.push({
         role: 'glass',
         position: [cx, cy, frontProudZ - 0.002],
         size: [colW - 0.06, frontH - 0.06, 0.004],
+        column: c,
       })
     }
     // Vertical bar handle on the cabinet's outward edge of each door.
@@ -235,6 +258,7 @@ export function buildCabinet(input: CabinetSpec): CabinetModel {
         role: 'handle',
         position: [cx + hingeSign * (colW / 2 - 0.035), cy, frontProudZ + FRONT_T / 2 + 0.01],
         size: [HANDLE_W, Math.min(0.16, frontH * 0.4), 0.02],
+        column: c,
       })
   }
 

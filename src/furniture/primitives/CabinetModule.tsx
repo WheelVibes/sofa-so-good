@@ -2,14 +2,17 @@ import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import {
   buildCabinet,
   type CabinetFront,
+  type CabinetPart,
   type CabinetType,
   type HandleStyle,
   type WorktopCutout,
   type WorktopFeature,
 } from '../cabinet/cabinetModel'
+import { doorHingePivot, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { GlassMaterial } from './GlassMaterial'
+import { HingedDoor, SlideDrawer } from './openable'
 import { readNum, readStr } from './shared'
 
 /**
@@ -31,11 +34,13 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
   const worktopColor = readStr(props, 'worktopColor', '#34373d')
   const worktopFinish = readStr(props, 'worktopFinish', 'solid')
 
+  const depth = readNum(props, 'depth', type === 'wall' ? 0.35 : 0.6)
+  const open = isCabinetOpen(props)
   const model = buildCabinet({
     type,
     width: readNum(props, 'width', 0.6),
     height: readNum(props, 'height', type === 'tall' ? 2.0 : 0.72),
-    depth: readNum(props, 'depth', type === 'wall' ? 0.35 : 0.6),
+    depth,
     columns: readNum(props, 'columns', type === 'tall' ? 1 : 2),
     front,
     toeKick: readNum(props, 'toeKick', 0.1),
@@ -57,78 +62,122 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
   // Wall (upper) cabinets mount off the floor — lift the whole carcass to the
   // underside mount height (the model builds floor-anchored at y=0).
   const mountY = type === 'wall' ? readNum(props, 'mountHeight', 1.45) : 0
+  // How far a drawer slides out when open — clamped so it reads without an
+  // absurdly deep pull-out (drawers extend forward into the room, never a wall).
+  const drawerSlide = Math.min(0.45, depth * 0.6)
+
+  const renderPart = (p: CabinetPart, key: string) => {
+    if (p.role === 'countertop') {
+      return (
+        <BeveledBox
+          key={key}
+          castShadow
+          receiveShadow
+          position={p.position}
+          material={worktopMat ?? undefined}
+          args={p.size}
+        >
+          {worktopMat ? null : (
+            <meshStandardMaterial color={worktopColor} roughness={0.22} metalness={0.15} />
+          )}
+        </BeveledBox>
+      )
+    }
+    if (p.role === 'glass') {
+      // Tier-gated glass: real transmission on High/Maximum, cheap transparent
+      // pane on Performance/Medium (see GlassMaterial / getGlassMaterial).
+      return (
+        <mesh key={key} position={p.position}>
+          <boxGeometry args={p.size} />
+          <GlassMaterial color="#cfe0e6" opacity={0.35} />
+        </mesh>
+      )
+    }
+    if (p.role === 'handle') {
+      // A knob is a small round pull at the handle anchor; a bar fills the
+      // part's box. (`none` emits no handle parts, so we never reach here.)
+      if (model.handleStyle === 'knob') {
+        return (
+          <mesh key={key} castShadow position={p.position} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.014, 0.014, 0.03, 12]} />
+            <meshStandardMaterial {...handleMat} />
+          </mesh>
+        )
+      }
+      return (
+        <mesh key={key} castShadow position={p.position}>
+          <boxGeometry args={p.size} />
+          <meshStandardMaterial {...handleMat} />
+        </mesh>
+      )
+    }
+    // carcass / toeKick / cornice / door / drawer / shelf share the body
+    // material. Shaker doors get a recessed-panel frame drawn on top.
+    const isShakerDoor = p.role === 'door' && front === 'shaker'
+    return (
+      <group key={key}>
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={p.position}
+          material={bodyMat}
+          args={p.size}
+        />
+        {isShakerDoor &&
+          shakerRails(p.size[0], p.size[1]).map(([dx, dy, bw, bh], k) => (
+            <mesh
+              key={k}
+              position={[p.position[0] + dx, p.position[1] + dy, p.position[2] + 0.004]}
+              material={bodyMat}
+            >
+              <boxGeometry args={[bw, bh, 0.01]} />
+            </mesh>
+          ))}
+      </group>
+    )
+  }
+
+  // Split parts into the static carcass/worktop and the per-column fronts. Each
+  // column of fronts (a door + its glass/handle, or a drawer stack + handles)
+  // becomes ONE animated open/close unit (CABINET-OPEN): doors swing on their
+  // hinge edge, drawers slide forward.
+  const staticParts = model.parts.filter((p) => p.column === undefined)
+  const columns = new Map<number, CabinetPart[]>()
+  for (const p of model.parts) {
+    if (p.column === undefined) continue
+    const list = columns.get(p.column)
+    if (list) list.push(p)
+    else columns.set(p.column, [p])
+  }
 
   return (
     <group position={[0, mountY, 0]}>
-      {model.parts.map((p, i) => {
-        const key = `${p.role}-${i}`
-        if (p.role === 'countertop') {
+      {staticParts.map((p, i) => renderPart(p, `s${i}`))}
+      {[...columns.entries()].map(([col, parts]) => {
+        const inner = parts.map((p, i) => renderPart(p, `c${col}-${i}`))
+        const door = parts.find((p) => p.role === 'door')
+        if (door) {
+          const { pivotX, swingSign } = doorHingePivot(
+            door.position[0],
+            door.size[0],
+            door.hinge ?? 'left',
+          )
           return (
-            <BeveledBox
-              key={key}
-              castShadow
-              receiveShadow
-              position={p.position}
-              material={worktopMat ?? undefined}
-              args={p.size}
+            <HingedDoor
+              key={col}
+              open={open}
+              pivotX={pivotX}
+              pivotZ={door.position[2]}
+              swingSign={swingSign}
             >
-              {worktopMat ? null : (
-                <meshStandardMaterial color={worktopColor} roughness={0.22} metalness={0.15} />
-              )}
-            </BeveledBox>
+              {inner}
+            </HingedDoor>
           )
         }
-        if (p.role === 'glass') {
-          // Tier-gated glass: real transmission on High/Maximum, cheap transparent
-          // pane on Performance/Medium (see GlassMaterial / getGlassMaterial).
-          return (
-            <mesh key={key} position={p.position}>
-              <boxGeometry args={p.size} />
-              <GlassMaterial color="#cfe0e6" opacity={0.35} />
-            </mesh>
-          )
-        }
-        if (p.role === 'handle') {
-          // A knob is a small round pull at the handle anchor; a bar fills the
-          // part's box. (`none` emits no handle parts, so we never reach here.)
-          if (model.handleStyle === 'knob') {
-            return (
-              <mesh key={key} castShadow position={p.position} rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[0.014, 0.014, 0.03, 12]} />
-                <meshStandardMaterial {...handleMat} />
-              </mesh>
-            )
-          }
-          return (
-            <mesh key={key} castShadow position={p.position}>
-              <boxGeometry args={p.size} />
-              <meshStandardMaterial {...handleMat} />
-            </mesh>
-          )
-        }
-        // carcass / toeKick / cornice / door / drawer / shelf share the body
-        // material. Shaker doors get a recessed-panel frame drawn on top.
-        const isShakerDoor = p.role === 'door' && front === 'shaker'
         return (
-          <group key={key}>
-            <BeveledBox
-              castShadow
-              receiveShadow
-              position={p.position}
-              material={bodyMat}
-              args={p.size}
-            />
-            {isShakerDoor &&
-              shakerRails(p.size[0], p.size[1]).map(([dx, dy, bw, bh], k) => (
-                <mesh
-                  key={k}
-                  position={[p.position[0] + dx, p.position[1] + dy, p.position[2] + 0.004]}
-                  material={bodyMat}
-                >
-                  <boxGeometry args={[bw, bh, 0.01]} />
-                </mesh>
-              ))}
-          </group>
+          <SlideDrawer key={col} open={open} distance={drawerSlide}>
+            {inner}
+          </SlideDrawer>
         )
       })}
       {model.worktopCutout?.kind === 'sink' && <SinkBasin cut={model.worktopCutout} />}
