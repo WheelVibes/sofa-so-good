@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.21 — Plan editor: desktop goes full-bleed — header + help float over the grid
+
+User feedback (screenshot): on desktop the "Editing your floor plan" callout sat on an opaque
+`.plan-screen`-coloured band above the canvas. The mobile full-bleed treatment (v0.15.2.7) is
+now the BASE for every viewport: `.plan-top` overlays the top (pointer-events pass through to
+the grid between its children), the grid canvas extends to the top edge, the header is a
+translucent floating bar, and the callout reads as a floating card (`max-width: 640px`) instead
+of a full-width banner. Mobile keeps its pill styling/safe-area rules unchanged.
+Scenario-verified (canvas top < 2px + callout width asserted; desktop light + dark screenshots
+reviewed; mobile full-bleed regression green).
+
 ## v0.18.6.20 — PLAN-FURNISH Phase 3: window fixtures place from the 2D plan editor
 
 Curtains/roller blinds are now placeable from the plan's Furnish catalog (the Phase-1 toast

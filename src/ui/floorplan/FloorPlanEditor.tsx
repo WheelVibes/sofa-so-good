@@ -2169,10 +2169,10 @@ export function FloorPlanEditor() {
 
   return (
     <div className="plan-screen absolute inset-0 z-30 flex flex-col">
-      {/* Header/toolbar + help callout. On MOBILE `.plan-top` is pulled out of the
-          flex column and FLOATS over the full-bleed grid (like the floor switcher /
-          compass) so the canvas reaches the top edge; desktop keeps them in-flow
-          above the canvas. Styling in responsive.css. */}
+      {/* Header/toolbar + help callout. `.plan-top` FLOATS over the full-bleed
+          grid on EVERY viewport (like the floor switcher / compass) so the canvas
+          reaches the top edge — base overlay in parts.css, the mobile pill
+          treatment in responsive.css. */}
       <div className="plan-top">
         {/* Header / toolbar. Desktop stays a SINGLE row (`flex-nowrap` + horizontal
           scroll fallback so it can never spill to two rows); mobile keeps its
