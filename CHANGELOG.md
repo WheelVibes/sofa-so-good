@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.10 — cabinet-open IXT rung + move-in-clobber playbook gotcha
+
+New `scripts/scenarios/cabinet-open-simple.json` (33 steps, all green): boot with the move-in
+clobber guard (`bootPhase === 'ready'` + boot-hold — `bootPhase` flips strictly after the async
+default-furnish seed), resolve a cabinet-family item from the real layout via an in-page
+`supportsCabinetOpen` import (main wardrobe; flipped to hinged doorStyle — sliding has no open
+animation by design), then drive the REAL inspector button: open → `props.open==='yes'` +
+screenshot (leaves swung ~81°, interior visible) → close → restored; flag gate asserted at the
+DOM level (section absent with `cabinetOpen` off, back when restored). No assertion compromises.
+Playbook gains the move-in-clobber gotcha + the wardrobe framing note.
+
 ## v0.21.2.9 — live-slide-during-drag PARKED on numeric evidence (no code change)
 
 Evaluation spike on the real collision code: the specified per-move MTV slide vs walls+furniture

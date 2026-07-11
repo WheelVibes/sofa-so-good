@@ -144,10 +144,6 @@ All sequenced findings (TB-1 … TB-10 + tails) shipped; records live in `CHANGE
 is retained as the methodology/grounding reference.
 
 ## Open — core interactions
-- **Cabinet-open IXT ladder** (follow-up to v0.21.2.8): add a simple `scripts/scenarios/` rung for
-  the Doors & drawers interaction (select cabinet → toggle open → assert `props.open` + screenshot),
-  per the interaction-test-ladder policy. Playbook note: seeding `setItems` must wait for a short
-  boot-hold after `sceneReady` or the async move-in furnishing clobbers it.
 - **Live slide during drag — PARKED (2026-07-12 evaluation, numeric evidence).** The specified
   per-move minimal-axis MTV slide (vs walls + furniture, reusing `nudgeToValid`) is provably
   unstable: ±0.02 m frame wobble, 0.39 m face-flip jumps circling an obstacle, and a 0.62 m
