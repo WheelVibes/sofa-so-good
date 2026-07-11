@@ -5,6 +5,11 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.19.0.0 — Minor bump for the PR to staging (backlog-clearing + toolbar UX + plan-furnish + GPU wave)
+
+Version-only commit: rolls the v0.18.6.1–.23 line below into the 0.19.0 minor for the
+multi-feature PR to `staging` (per the versioning rule); `package.json` synced to 0.19.0.
+
 ## v0.18.6.23 — Fix: doorway threshold light leak (white strips under closed doors)
 
 The blown-out white strips under every closed door leaf (found by this session's first real-GPU
