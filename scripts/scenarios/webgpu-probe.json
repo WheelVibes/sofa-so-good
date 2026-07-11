@@ -1,0 +1,13 @@
+{
+  "name": "webgpu-probe",
+  "description": "PHOTO-WEBGPU capability probe: reports navigator.gpu availability + the WebGPU adapter (vendor/architecture/isFallbackAdapter/limits) in this browser. NOTE: the default shot.mjs launch flags do NOT enable WebGPU — navigator.gpu is only exposed when Chromium is launched with '--enable-unsafe-webgpu --enable-features=Vulkan'. As of the 2026-07-12 eval this env resolves ONLY a SwiftShader (Dawn software) adapter even with SHOT_GPU=1 (the ANGLE D3D12 real-GPU passthrough does not reach Dawn/Vulkan under WSL2), so a WebGPU pixel pass is NOT real-GPU-verifiable here. Re-run when the harness gains a WebGPU real-adapter path; store step surfaces the JSON in the log.",
+  "url": "http://localhost:5231/",
+  "steps": [
+    {
+      "name": "probe-webgpu",
+      "eval": "(async () => { const out = { hasNavGpu: typeof navigator !== 'undefined' && 'gpu' in navigator }; if (out.hasNavGpu) { try { const a = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }); if (a) { out.adapter = true; out.isFallback = a.isFallbackAdapter; out.info = { vendor: a.info?.vendor, architecture: a.info?.architecture }; out.maxTex2D = a.limits?.maxTextureDimension2D; try { out.device = !!(await a.requestDevice()) } catch (e) { out.deviceErr = String(e) } } else { out.adapter = false } } catch (e) { out.adapterErr = String(e) } } window.__WEBGPU_PROBE = out; return JSON.stringify(out); })()"
+    },
+    { "name": "record-result", "wait": 500 },
+    { "name": "dump", "eval": "JSON.stringify(window.__WEBGPU_PROBE || { note: 'probe did not run' })" }
+  ]
+}

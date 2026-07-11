@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.3 — PHOTO-WEBGPU + PHOTO-SSGI-SSR resolved: REJECTED-FOR-NOW with revisit triggers
+
+Evidence-backed evaluation (cited research + in-sandbox probe): three.js WebGPURenderer/TSL is
+real in r184 and Safari 26 ships WebGPU, but adoption here is a ~20-file / 6-subsystem
+dual-renderer migration — the pmndrs post stack (N8AO/Bloom/SMAA) is WebGL-EffectComposer-only
+with no migration path (TSL RenderPipeline rewrite required), three-gpu-pathtracer stays
+WebGL2-only (app becomes multi-renderer), and pomFloor's onBeforeCompile GLSL can't be expressed
+in TSL. Decisive blocker: the sandbox probe (`webgpu-probe.json`) shows WebGPU resolves ONLY a
+SwiftShader software adapter (real-GPU passthrough is ANGLE-D3D12/WebGL) — a WebGPU SSGI pixel
+pass is unverifiable here. Both Tier-4 entries replaced with the full ruling + concrete ALL-of
+revisit triggers (r3f WebGPU stability, GTAONode/Bloom/SMAA parity, a real WebGPU adapter,
+Safari min-OS — near-met). PHOTO-SSGI-SSR deferred with it; interim WebGL realism-effects SSGI
+explicitly ruled out. No source changes.
+
 ## v0.21.2.2 — FETCH-MANIFEST-BACKFILL: manifest channel parity restored + regression-guarded
 
 The 6 older albedo-only `assets/manifest/materials.json` entries (floor-parquet/carpet,
