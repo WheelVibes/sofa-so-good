@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.19.0.1 — VSM soft sun shadows (PHOTO-SOFTSHADOW) + real window-glass transmission (PHOTO-GLASS)
+
+**Soft shadows:** three r184 silently DEPRECATED `PCFSoftShadowMap` (coerced to hard `PCFShadowMap`
+with a console warning), so the app had been rendering hard-edged sun shadows since the bump.
+Medium+ tiers now use **`VSMShadowMap`** (radius 6, blurSamples 12, anti-acne bias −0.0002 /
+normalBias 0.02 — `look.ts` `shadowFilterForTier`/`VSM_SHADOW`, per the three.js VSM example +
+docs; drei PCSS remains banned per the PHOTOREALISM note). The Canvas `shadows` prop is
+tier-derived (R3F re-applies it every render — a controller-only write gets stomped, found via a
+GL format/sampler mismatch on GPU); new `RendererTierController` recompiles scene materials on a
+filter-boundary tier switch and sets `transmissionResolutionScale`. GPU-verified: A/B wardrobe
+shadow shows a graded penumbra (no acne/bleed); doorway thresholds pixel-identical (no VSM
+light-bleed at thin leaves); PERF-MAX-5 frozen-shadow-map still freezes (blur runs inside the
+gated `WebGLShadowMap.render`).
+**Window glass:** panes (`Window.tsx` + PlanShell `FadeWindow`) gain real
+`transmission`+`ior`(1.5)+`thickness`(6mm)+`attenuationColor` on High/Max via pure
+`windowGlassPhysical(tier)`/`windowTransmission(daylight)` (day 0.92 → night 0.2;
+`transmissionResolutionScale` High 0.75 / Max 1.0) — sky-catch emissive, day/night blend, and
+wall-fade compose preserved; Medium/Performance byte-identical. Medium-tier transmission
+REJECTED by ruling (the transmissive pre-pass is the cost class Medium exists to avoid).
+GPU-verified: pane reads as even cool glass (was a blown-out flat rectangle), dollhouse
+fade+transmission composes clean, night pane goes dark-reflective. Unit tests for both pure
+modules; full suite 5744 green.
+
 ## v0.19.0.0 — Minor bump for the PR to staging (backlog-clearing + toolbar UX + plan-furnish + GPU wave)
 
 Version-only commit: rolls the v0.18.6.1–.23 line below into the 0.19.0 minor for the

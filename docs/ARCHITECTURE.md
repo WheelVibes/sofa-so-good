@@ -470,7 +470,8 @@ same change that reshapes a system.
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShellGeometry.ts`+
   `RoomShell.tsx`, `uiSlice.roomEditor`): the **sole editing surface**. A separate
   `<Canvas>` that now mounts the **same rendering stack as the main orbit Canvas** —
-  `frameloop="demand"` + `RenderPump`, `PCFSoftShadowMap` shadows, `Sky`/`SceneBackdrop`,
+  `frameloop="demand"` + `RenderPump`, the tier-driven shadow filter (VSM on Medium+, PCF on
+  Performance — `RendererTierController` + the Canvas `shadows` prop), `Sky`/`SceneBackdrop`,
   `SceneEnvironment` (procedural/HDRI IBL), the graded `Lighting` sun + tone mapping,
   `FurnitureLights`, and the tier-gated `Effects` post stack + `QualityController` — so a
   glossy/metallic finish reflects the environment and looks identical to orbit at every

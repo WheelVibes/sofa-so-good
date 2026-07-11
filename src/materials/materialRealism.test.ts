@@ -5,7 +5,10 @@ import {
   glassConfig,
   glassSkyCatchIntensity,
   sheenLayer,
+  transmissionResolutionScaleForTier,
   transmissionTiers,
+  windowGlassPhysical,
+  windowTransmission,
 } from './materialRealism'
 
 const ALL_TIERS: RenderTier[] = ['performance', 'medium', 'high', 'maximum']
@@ -164,5 +167,58 @@ describe('glassSkyCatchIntensity (RZ2)', () => {
 
   it('stays below the bloom threshold so windows do not bloom', () => {
     expect(glassSkyCatchIntensity(1)).toBeLessThan(1.05)
+  })
+})
+
+describe('windowGlassPhysical (PHOTO-GLASS)', () => {
+  it('is null on Performance/Medium so cheap panes stay byte-identical', () => {
+    expect(windowGlassPhysical('performance')).toBeNull()
+    expect(windowGlassPhysical('medium')).toBeNull()
+  })
+
+  it('returns architectural-glass params on High/Maximum', () => {
+    for (const tier of ['high', 'maximum'] as const) {
+      const p = windowGlassPhysical(tier)
+      expect(p).not.toBeNull()
+      expect(p?.ior).toBe(1.5)
+      expect(p?.thickness).toBeGreaterThan(0)
+      expect(p?.metalness).toBe(0)
+      expect(p?.roughness).toBeLessThan(0.2)
+      expect(p?.attenuationDistance).toBeGreaterThan(0)
+    }
+  })
+
+  it('matches the glassware transmission gate exactly (one tier story)', () => {
+    for (const tier of ALL_TIERS) {
+      expect(windowGlassPhysical(tier) !== null).toBe(transmissionTiers(tier))
+    }
+  })
+})
+
+describe('windowTransmission (day/night blend)', () => {
+  it('is nearly clear by day and a dark reflective pane at night', () => {
+    expect(windowTransmission(1)).toBeGreaterThan(0.85)
+    expect(windowTransmission(0)).toBeLessThanOrEqual(0.25)
+  })
+
+  it('is monotonic in daylight and clamped outside [0,1]', () => {
+    expect(windowTransmission(0.5)).toBeGreaterThan(windowTransmission(0.1))
+    expect(windowTransmission(2)).toBe(windowTransmission(1))
+    expect(windowTransmission(-1)).toBe(windowTransmission(0))
+  })
+
+  it('never reaches degenerate 0/1 transmission', () => {
+    expect(windowTransmission(0)).toBeGreaterThan(0)
+    expect(windowTransmission(1)).toBeLessThan(1)
+  })
+})
+
+describe('transmissionResolutionScaleForTier', () => {
+  it('bounds the transmissive pass at 75% on High, full res elsewhere', () => {
+    expect(transmissionResolutionScaleForTier('high')).toBe(0.75)
+    expect(transmissionResolutionScaleForTier('maximum')).toBe(1)
+    // Inert (no transmission pass) on the cheap tiers — keep neutral 1.
+    expect(transmissionResolutionScaleForTier('performance')).toBe(1)
+    expect(transmissionResolutionScaleForTier('medium')).toBe(1)
   })
 })

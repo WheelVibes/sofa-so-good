@@ -1,6 +1,5 @@
 import { Canvas } from '@react-three/fiber'
 import { useMemo } from 'react'
-import { PCFSoftShadowMap } from 'three'
 import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
 import { occluderRectsForPlan } from '../apartment/ceiling/occluderRects'
 import { PlanRoomShell } from '../apartment/PlanRoomShell'
@@ -27,10 +26,11 @@ import { CurtainLightController } from './lighting/CurtainLightController'
 import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
-import { DEFAULT_TONE_MAPPING } from './look'
+import { DEFAULT_TONE_MAPPING, shadowFilterForTier } from './look'
 import { PlacementDropAnimator } from './PlacementDropAnimator'
 import { PlacementGhost } from './PlacementGhost'
 import { QualityController } from './QualityController'
+import { RendererTierController, SHADOW_FILTER_THREE } from './RendererTierController'
 import { RenderPump } from './RenderPump'
 import { getRoomEditorShell } from './roomEditorShell'
 import { ScreenshotController } from './ScreenshotController'
@@ -61,6 +61,7 @@ export function RoomEditorScene() {
   // Honour the user's global quality tier for the pixel-ratio ceiling, matching
   // the main orbit Canvas (High/Maximum renders crisp; Performance caps at 1).
   const dprMax = useQuality().dprMax
+  const shadowMapType = SHADOW_FILTER_THREE[shadowFilterForTier(useStore((s) => s.qualityTier))]
   if (!roomId) return null
   const editorShell = getRoomEditorShell(plan, roomId)
   if (!editorShell) return null
@@ -80,7 +81,12 @@ export function RoomEditorScene() {
       // draws 0 frames when idle and continuously only while something animates.
       frameloop="demand"
       dpr={[1, dprMax]}
-      shadows={{ type: PCFSoftShadowMap }}
+      // Tier-driven filter (PHOTO-SOFTSHADOW): VSM soft shadows on Medium+, PCF
+      // on the (shadowless) Performance tier. Must be THIS prop, not only the
+      // controller: r3f re-applies `shadows` on every Canvas render, so a
+      // gl-level write elsewhere would be stomped. Runtime-switch material
+      // recompiles live in RendererTierController.
+      shadows={{ type: shadowMapType }}
       camera={{
         position: [cx + r * 1.6, r * 1.8, cz + r * 1.6],
         fov: 45,
@@ -102,6 +108,7 @@ export function RoomEditorScene() {
       <ContextLossGuard />
       <RenderPump />
       <AnisotropyController />
+      <RendererTierController />
       {/* Neutral dollhouse backdrop (ROOM-EDITOR-BACKDROP): the isolated room is
           an authoring "dollhouse", so we do NOT paint the time-of-day <Sky/> as
           the background here. A faded exterior wall in an isolated room reveals

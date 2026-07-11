@@ -6,6 +6,7 @@ import {
   Color,
   DoubleSide,
   type Mesh,
+  type MeshPhysicalMaterial,
   type MeshStandardMaterial,
   ShapeUtils,
   Vector2,
@@ -28,7 +29,12 @@ import {
 } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import { BeveledBox } from '../furniture/primitives/BeveledBox'
-import { GLASS_SKYCATCH_COLOR, glassSkyCatchIntensity } from '../materials/materialRealism'
+import {
+  GLASS_SKYCATCH_COLOR,
+  glassSkyCatchIntensity,
+  windowGlassPhysical,
+  windowTransmission,
+} from '../materials/materialRealism'
 import { triplanarUv } from '../materials/triplanar'
 import type { MaterialId } from '../materials/types'
 import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
@@ -792,6 +798,9 @@ function FadeWindow({
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
+  // PHOTO-GLASS: High/Maximum render the pane as real refractive glass; below
+  // that the cheap transparent pane stays byte-identical (null here).
+  const glassPhysical = windowGlassPhysical(useStore((s) => s.qualityTier))
   // A custom glass tint replaces the cool default for the daylight colour; the
   // night blend toward dark reflective glass is preserved either way.
   const dayColor = useMemo(
@@ -808,7 +817,10 @@ function FadeWindow({
     const d = getFixtureGlow() // 1 at night, 0 in daylight
     mat.color.lerpColors(dayColor, GLASS_NIGHT, d)
     mat.emissiveIntensity = glassSkyCatchIntensity(1 - d)
-    const base = 0.28 + d * 0.45 // more opaque (less see-through) at night
+    // Transmission tiers keep alpha at 1 (opacity is reserved for the wall-fade
+    // compose) and blend day/night through transmission instead (PHOTO-GLASS).
+    if (glassPhysical) (mat as MeshPhysicalMaterial).transmission = windowTransmission(1 - d)
+    const base = glassPhysical ? 1 : 0.28 + d * 0.45 // more opaque at night (cheap tiers)
     let factor = 1
     const st = useStore.getState()
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
@@ -871,15 +883,32 @@ function FadeWindow({
     <group position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>
       <mesh ref={ref}>
         <boxGeometry args={[0.03, win.height, win.width]} />
-        <meshStandardMaterial
-          color="#bcd4e6"
-          emissive={GLASS_SKYCATCH_COLOR}
-          emissiveIntensity={0.4}
-          transparent
-          opacity={0.32}
-          roughness={0.1}
-          metalness={0}
-        />
+        {glassPhysical ? (
+          <meshPhysicalMaterial
+            color="#bcd4e6"
+            emissive={GLASS_SKYCATCH_COLOR}
+            emissiveIntensity={0.4}
+            transmission={0.9}
+            ior={glassPhysical.ior}
+            thickness={glassPhysical.thickness}
+            attenuationColor={glassPhysical.attenuationColor}
+            attenuationDistance={glassPhysical.attenuationDistance}
+            transparent
+            opacity={1}
+            roughness={glassPhysical.roughness}
+            metalness={glassPhysical.metalness}
+          />
+        ) : (
+          <meshStandardMaterial
+            color="#bcd4e6"
+            emissive={GLASS_SKYCATCH_COLOR}
+            emissiveIntensity={0.4}
+            transparent
+            opacity={0.32}
+            roughness={0.1}
+            metalness={0}
+          />
+        )}
       </mesh>
       {bars.map((b, i) => (
         <mesh key={i} position={b.pos} castShadow>

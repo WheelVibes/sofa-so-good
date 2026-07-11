@@ -1,8 +1,20 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
-import { Color, type Group, Mesh, type MeshStandardMaterial } from 'three'
-import { GLASS_SKYCATCH_COLOR, glassSkyCatchIntensity } from '../materials/materialRealism'
+import {
+  Color,
+  type Group,
+  Mesh,
+  type MeshPhysicalMaterial,
+  type MeshStandardMaterial,
+} from 'three'
+import {
+  GLASS_SKYCATCH_COLOR,
+  glassSkyCatchIntensity,
+  windowGlassPhysical,
+  windowTransmission,
+} from '../materials/materialRealism'
 import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
+import { useStore } from '../state/store'
 import { WALLS, WINDOWS } from './constants'
 import type { WallSpec, WindowSpec } from './types'
 import { getWallOpacity } from './walls/wallReveal'
@@ -66,6 +78,10 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
   const wall = findWall(spec.wallId)
   const groupRef = useRef<Group>(null)
   const glassRef = useRef<MeshStandardMaterial>(null)
+  // PHOTO-GLASS: High/Maximum render the pane as real refractive glass
+  // (transmission + ior 1.5 + thin volume); Performance/Medium keep the cheap
+  // transparent pane byte-identical (`windowGlassPhysical` returns null there).
+  const glassPhysical = windowGlassPhysical(useStore((s) => s.qualityTier))
   // Last-applied `transparent` flag for the opaque (non-glass) parts — toggling
   // it at runtime needs a `needsUpdate` to actually blend (see WallSegment).
   const opaqueTransparentRef = useRef(false)
@@ -80,10 +96,15 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
     if (!g.visible) return
     const d = getFixtureGlow() // 1 at night, 0 in daylight
     const glass = glassRef.current
-    const glassBase = 0.28 + d * 0.45 // more opaque (less see-through) at night
+    // Cheap tiers tell the day/night story with opacity (more opaque at night);
+    // transmission tiers keep alpha at 1 (opacity is reserved for the wall-fade
+    // compose) and tell it with transmission instead — clear refractive pane by
+    // day, near-solid dark reflective pane at night (PHOTO-GLASS).
+    const glassBase = glassPhysical ? 1 : 0.28 + d * 0.45
     if (glass) {
       glass.color.lerpColors(GLASS_DAY, GLASS_NIGHT, d)
       glass.emissiveIntensity = glassSkyCatchIntensity(1 - d)
+      if (glassPhysical) (glass as MeshPhysicalMaterial).transmission = windowTransmission(1 - d)
     }
     const fading = wallOp < 0.985
     const opaqueChanged = fading !== opaqueTransparentRef.current
@@ -129,19 +150,39 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
   return (
     <group ref={groupRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
       <group position={[localX, cy, 0]}>
-        {/* Glass */}
+        {/* Glass — real transmission on High/Maximum, cheap transparency below
+            (PHOTO-GLASS). Both keep the sky-catch emissive + day/night blend +
+            wall-fade opacity compose; only the see-through mechanism differs. */}
         <mesh>
           <boxGeometry args={[w - FRAME_T, h - FRAME_T, GLASS_D]} />
-          <meshStandardMaterial
-            ref={glassRef}
-            color="#bcd4e6"
-            emissive={GLASS_SKYCATCH_COLOR}
-            emissiveIntensity={0.4}
-            roughness={0.05}
-            metalness={0.1}
-            transparent
-            opacity={0.28}
-          />
+          {glassPhysical ? (
+            <meshPhysicalMaterial
+              ref={glassRef}
+              color="#bcd4e6"
+              emissive={GLASS_SKYCATCH_COLOR}
+              emissiveIntensity={0.4}
+              roughness={glassPhysical.roughness}
+              metalness={glassPhysical.metalness}
+              transmission={0.9}
+              ior={glassPhysical.ior}
+              thickness={glassPhysical.thickness}
+              attenuationColor={glassPhysical.attenuationColor}
+              attenuationDistance={glassPhysical.attenuationDistance}
+              transparent
+              opacity={1}
+            />
+          ) : (
+            <meshStandardMaterial
+              ref={glassRef}
+              color="#bcd4e6"
+              emissive={GLASS_SKYCATCH_COLOR}
+              emissiveIntensity={0.4}
+              roughness={0.05}
+              metalness={0.1}
+              transparent
+              opacity={0.28}
+            />
+          )}
         </mesh>
         {/* Outer frame */}
         <Bar w={w} h={FRAME_T} x={0} y={h / 2 - FRAME_T / 2} />
