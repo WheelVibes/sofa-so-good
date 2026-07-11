@@ -1,6 +1,7 @@
 import { Ceiling } from './ceiling/Ceiling'
 import { Doors } from './Door'
 import { Floor } from './floor/Floor'
+import { Thresholds } from './floor/Thresholds'
 import { Skirting } from './Skirting'
 import { Windows } from './Window'
 import { Walls } from './walls/Walls'
@@ -9,6 +10,7 @@ export function Apartment() {
   return (
     <group>
       <Floor />
+      <Thresholds />
       <Ceiling />
       <Walls />
       <Skirting />

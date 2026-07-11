@@ -108,6 +108,14 @@ probes; directional door-bleed weighting; real-time path-traced GI/RTX (revisit 
 WebGPU path tracing).
 
 ## Deferred candidates
+- **Custom-plan doorway thresholds (parity with DOOR-GAP-LEAK fix)** (2026-07-11). The curated
+  flat's door-gap light leak (blown-white strips under closed leaves — the sky background seen
+  through the unfloored wall-thickness strip inside each doorway) is fixed by
+  `apartment/floor/Thresholds.tsx` + pure `thresholdRects.ts`, but only for the default flat
+  (mirrors `Skirting`, default-flat-only). The custom-plan path (`PlanShell`/`PlanRoomShell` +
+  `PlanRoomFloor`) builds the same cutout-to-y=0 walls over interior-only floor rects, so plan
+  doorways almost certainly leak the same way. Reuse `thresholdRects` with a PlanWall/PlanOpening
+  adapter and mount alongside `PlanShell`; GPU-verify at a grazing pose on a forked plan.
 - **Deeper transition-warmup: `renderer.compileAsync` + time-sliced mounts** (2026-07-03).
   v0.10.0.7 shipped compositor-proof overlay animation + readiness-based hide (throttled ~10 fps
   warm frames behind the overlay). The remaining lever if big scenes still block long: explicit

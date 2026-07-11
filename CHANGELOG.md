@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.18.6.23 — Fix: doorway threshold light leak (white strips under closed doors)
+
+The blown-out white strips under every closed door leaf (found by this session's first real-GPU
+pass) were a GEOMETRY HOLE, not a shadow leak: room floors cover interiors only and a door
+cutout opens the wall to y=0, so the wall-thickness strip inside every doorway had no geometry —
+a grazing camera looked through the slot into the void under the flat and saw the bright HDR sky
+background. Proven by bisection on GPU (shadows-off: identical; probe plane under the flat:
+strips vanish; present at every tier). Fix at the true cause: new pure
+`floor/thresholdRects.ts` (one patch per floor-level door cutout, 12 mm tuck-under; windows/
+raised sills skipped) rendered by `floor/Thresholds.tsx` as hardwood threshold strips that fade
+with their host wall (`getWallOpacity`, WALL-FADE-DEPTHWRITE). Near-white pixels in the repro
+frame: 1346 → 0; sunlit-room regression frames clean; unit tests + full suite (5732) green.
+Deferral noted in TODO.md: the custom-plan path (`PlanShell`) likely leaks identically —
+`thresholdRects` is reusable there with a PlanWall adapter.
+
 ## v0.18.6.22 — HQ render uses the real HDRI environment (PHOTO-HDRI-PT) + F1 ruling
 
 The path-traced HQ still now renders inside the ACTUAL HDRI environment when one is active
