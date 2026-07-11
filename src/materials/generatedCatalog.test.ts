@@ -18,7 +18,7 @@ const PUBLIC_ROOT = join(__dirname, '../../public')
 
 // Convert a baked `${BASE_URL}assets/...` runtime URL back to a public/ path.
 function toPublicPath(url: string): string {
-  return join(PUBLIC_ROOT, url.replace(/^\/?/, '').replace(/^assets/, 'assets'))
+  return join(PUBLIC_ROOT, url.replace(/^\/?/, ''))
 }
 
 describe('GENERATED_MATERIALS (bundled CC0 PBR finishes)', () => {
