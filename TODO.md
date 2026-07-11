@@ -122,8 +122,9 @@ proxy/mirror/host is missing, and standing one up is a deployment task, not a co
 
 ## Time-of-day — out-of-scope deferrals (from the spec)
 Auto-advancing in-world clock; window-glass tinting affecting shadow colour; localized per-room IBL
-probes; directional door-bleed weighting; real-time path-traced GI/RTX (revisit only with affordable
-WebGPU path tracing).
+probes; real-time path-traced GI/RTX (revisit only with affordable WebGPU path tracing).
+(Directional door-bleed weighting shipped v0.21.2.7 into the 2D lux model — the 3D render's bleed
+was already physically correct via real lights.)
 
 ## Deferred candidates
 - **Deeper transition-warmup: `renderer.compileAsync` + time-sliced mounts** (2026-07-03).

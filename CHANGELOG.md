@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.7 — R-BLEED: directional doorway bleed in the 2D lux model
+
+Premise correction recorded: there was no isotropic bleed to fix — the 2D lux model
+(`roomLux`/`luxGrid`, behind the pro `drawings` flag) had NO doorway term at all (a fixture-less
+corridor read 0 lx beside lit rooms with open doors), while the 3D render's bleed was already
+physically correct via real lights. New pure `lighting2d/doorwayBleed.ts`:
+`interRoomDoorwaySources` (open doors → neighbour links; windows/external/closed dropped),
+`bleedMeanLux` (aperture-scaled 0.12 transmission of the neighbour's OWN lux, first-degree only)
+and `directionalBleedWeight` (max(0,cosθ) forward lobe × 1/(1+(d/1.8)²) falloff — no raycast,
+convex-room approximation). Grid distribution is normalised to unit mean so the heatmap pools
+light in front of the doorway while the per-room average stays lock-step with the 2D table
+(tested invariant). Door open-state defaults closed → out-of-box output byte-identical; the
+printed report keeps own-light-only by design. Verified: 79 lighting2d tests green + a top-down
+overhead A/B (corridor flat-dark with doors closed → borrowed-light gradient pooled at the two
+opened bedroom doorways). TODO's stale "directional door-bleed weighting" deferral reconciled.
+
 ## v0.21.2.6 — NEW_BADGES live: Parallel projection badged, mobile Item gains badge support
 
 The dormant "New"-badge system gets its follow-up consumer: `parallelProjection: '0.20.0.6'`

@@ -120,7 +120,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 ## Open — real-GPU / frontier (need a real GPU to implement+verify the pixel pass)
 - [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle with WebGL fallback.
 - [ ] PR4/R-SSAO: soft-shadow upgrade (PCSS/VSM) + contact-shadow refinement.
-- [ ] R-BLEED: inter-room light-bleed directional weighting (needs geometry raycasting).
 - [ ] PHOTO-* frontier: PHOTO-POM, PHOTO-SSGI-SSR (WebGPU), PHOTO-WEBGPU. See `PHOTOREALISM.md`
   (GLASS + SOFTSHADOW shipped v0.19.0.1; GTAO rejected by real-GPU ruling 2026-07-11).
 

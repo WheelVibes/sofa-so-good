@@ -75,6 +75,7 @@ describe('roomLuxTableHtml', () => {
     area: 20,
     lumens: 4000,
     lux: 123.4,
+    borrowedLux: 0,
     recommended: { min: 100, max: 200 },
     status: 'ok',
   }

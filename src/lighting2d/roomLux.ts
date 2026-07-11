@@ -14,6 +14,7 @@
 import { type RoomKind, roomKindFromName } from '../analysis/suggestions'
 import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
 import { type FloorPlan, planRoomArea, pointInRoom } from '../floorplan/types'
+import { bleedMeanLux, type DoorOpenMap, interRoomDoorwaySources } from './doorwayBleed'
 import type { PlanLight } from './lightingPlan'
 
 /**
@@ -72,8 +73,13 @@ export interface RoomLuxEstimate {
   area: number
   /** Total derived source flux from the room's emitters, lm. */
   lumens: number
-  /** Estimated average illuminance, lx (0 for a room with no emitters). */
+  /** Estimated average illuminance, lx — the room's OWN emitters plus any light
+   *  borrowed from neighbours through open doorways ({@link borrowedLux}). */
   lux: number
+  /** Mean light (lx) borrowed from neighbouring rooms through open doorways
+   *  (R-BLEED). 0 when every connecting door is shut (the default). Included in
+   *  {@link lux}; broken out for transparency. */
+  borrowedLux: number
   /** Recommended band for the room kind (lx). */
   recommended: { min: number; max: number }
   /** `lux` vs the recommended band. An unlit room reads `low`. */
@@ -92,11 +98,18 @@ export function planLightLumens(light: Pick<PlanLight, 'intensity'>): number {
  * Zero-area (degenerate) rooms are skipped; rooms with no emitters are kept,
  * reported at 0 lx / `low` — "this room is unlit" is the actionable finding.
  */
-export function estimateRoomLux(plan: FloorPlan, lights: PlanLight[]): RoomLuxEstimate[] {
+export function estimateRoomLux(
+  plan: FloorPlan,
+  lights: PlanLight[],
+  doors: DoorOpenMap = {},
+): RoomLuxEstimate[] {
   const rows: RoomLuxEstimate[] = []
   // Every storey's rooms; a light only counts toward rooms on ITS storey
   // (F13/ML5 — same-XZ rooms on different levels must not share fixtures).
   for (const level of planLevels(plan)) {
+    // Phase 1 — each room's OWN illuminance from the fixtures whose bulb it
+    // contains (interior walls block direct light, exactly as before).
+    const own = new Map<string, { area: number; lumens: number; lux: number }>()
     for (const room of level.rooms) {
       const area = planRoomArea(room)
       if (area <= 0) continue
@@ -105,18 +118,39 @@ export function estimateRoomLux(plan: FloorPlan, lights: PlanLight[]): RoomLuxEs
         if ((l.levelId ?? GROUND_LEVEL_ID) !== level.id) continue
         if (pointInRoom(room, l.x, l.z)) lumens += planLightLumens(l)
       }
+      own.set(room.id, { area, lumens, lux: (lumens * UTILISATION_FACTOR) / area })
+    }
+
+    // Phase 2 — first-degree light borrowed from neighbours through OPEN
+    // doorways (R-BLEED). Each room adds the mean bleed of every open door it
+    // shares, computed from the NEIGHBOUR's own lux (never re-borrowed light).
+    const borrowed = new Map<string, number>()
+    for (const src of interRoomDoorwaySources(level.rooms, level.walls, level.openings, doors)) {
+      const neighbour = own.get(src.sourceId)
+      if (!neighbour) continue
+      borrowed.set(
+        src.receiverId,
+        (borrowed.get(src.receiverId) ?? 0) + bleedMeanLux(neighbour.lux, src.aperture, src.open),
+      )
+    }
+
+    for (const room of level.rooms) {
+      const o = own.get(room.id)
+      if (!o) continue
       const kind = roomKindFromName(room.name)
       const recommended = RECOMMENDED_LUX[kind]
-      const lux = (lumens * UTILISATION_FACTOR) / area
+      const borrowedLux = borrowed.get(room.id) ?? 0
+      const lux = o.lux + borrowedLux
       const status: LuxStatus =
         lux < recommended.min ? 'low' : lux > recommended.max ? 'high' : 'ok'
       rows.push({
         roomId: room.id,
         roomName: room.name,
         kind,
-        area,
-        lumens,
+        area: o.area,
+        lumens: o.lumens,
         lux,
+        borrowedLux,
         recommended,
         status,
       })

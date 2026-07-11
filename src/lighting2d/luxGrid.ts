@@ -38,6 +38,12 @@ import {
   roomPolygon,
   wallLength,
 } from '../floorplan/types'
+import {
+  bleedMeanLux,
+  type DoorOpenMap,
+  directionalBleedWeight,
+  interRoomDoorwaySources,
+} from './doorwayBleed'
 import type { PlanLight } from './lightingPlan'
 import { planLightLumens, SCENE_INTENSITY_CALIBRATION, UTILISATION_FACTOR } from './roomLux'
 
@@ -107,6 +113,20 @@ export interface LuxGridOptions {
   daylightLevel: number
   /** Sample spacing (m); defaults to {@link LUX_GRID_CELL}. */
   cell?: number
+  /** Door open/closed state (store `doors` map) for inter-room bleed (R-BLEED).
+   *  Absent / a door absent → closed → no bleed. */
+  doors?: DoorOpenMap
+}
+
+/** One neighbour→room bleed contribution for {@link buildRoomLuxGrid}: a doorway
+ *  placement plus the mean lux it borrows from the adjacent room. */
+export interface RoomBleedSource {
+  /** World [x,z] centre of the doorway. */
+  center: [number, number]
+  /** Unit wall-normal pointing into THIS room. */
+  inwardNormal: [number, number]
+  /** Mean borrowed illuminance (lx) this doorway adds to the room. */
+  meanLux: number
 }
 
 /** Every window of a (single-level pseudo-)plan as a daylight source. */
@@ -173,6 +193,7 @@ export function buildRoomLuxGrid(
   lights: PlanLight[],
   windows: WindowSource[],
   opts: LuxGridOptions,
+  bleed: RoomBleedSource[] = [],
 ): RoomLuxGrid | null {
   const poly = roomPolygon(room)
   if (poly.length < 3) return null
@@ -240,11 +261,46 @@ export function buildRoomLuxGrid(
     const lumenAvg = ((lumens * UTILISATION_FACTOR) / area) * fixtureLevel
     ambient = Math.max(0, lumenAvg - directSum / inRoomCells)
   }
-  let maxLux = 0
   for (let i = 0; i < values.length; i++) {
     if (values[i] === MASKED) continue
     values[i] += ambient
-    if (values[i] > maxLux) maxLux = values[i]
+  }
+
+  // Pass 3: inter-room bleed through open doorways (R-BLEED). Each source adds
+  // its borrowed room-MEAN distributed with the directional (facing + distance)
+  // weight, normalised to unit mean over the in-room cells — so the per-room
+  // average gained equals `estimateRoomLux`'s borrowed term (the lumen-method
+  // lock-step holds) while the SPATIAL distribution pools near/in front of the
+  // doorway and fades around corners.
+  if (inRoomCells > 0) {
+    const weight = new Float32Array(cols * rows)
+    for (const src of bleed) {
+      if (!(src.meanLux > 0)) continue
+      let sumW = 0
+      for (let iz = 0; iz < rows; iz++) {
+        const pz = minZ + (iz + 0.5) * cell
+        for (let ix = 0; ix < cols; ix++) {
+          const i = iz * cols + ix
+          if (values[i] === MASKED) continue
+          const px = minX + (ix + 0.5) * cell
+          const wgt = directionalBleedWeight(src.center, src.inwardNormal, px, pz)
+          weight[i] = wgt
+          sumW += wgt
+        }
+      }
+      // Mean-preserving: Σ addedᵢ = meanLux · inRoomCells (so mean added = meanLux).
+      // Degenerate lobe (no cell faces the door) → fall back to a uniform lift.
+      const norm = sumW > 1e-9 ? (src.meanLux * inRoomCells) / sumW : 0
+      for (let i = 0; i < values.length; i++) {
+        if (values[i] === MASKED) continue
+        values[i] += norm > 0 ? weight[i] * norm : src.meanLux
+      }
+    }
+  }
+
+  let maxLux = 0
+  for (let i = 0; i < values.length; i++) {
+    if (values[i] !== MASKED && values[i] > maxLux) maxLux = values[i]
   }
   return { roomId: room.id, x0: minX, z0: minZ, cols, rows, cell, values, maxLux }
 }
@@ -268,12 +324,46 @@ export function buildLuxGrids(
   opts: LuxGridOptions,
 ): LevelLuxGrids[] {
   const levels = planLevels(plan).length > 1 ? visibleLevels(plan, viewLevelId) : planLevels(plan)
+  const fixtureLevel = clamp01(opts.fixtureLevel)
+  const doors = opts.doors ?? {}
   return levels.map((level) => {
     const levelLights = itemsOnLevel(lights, level.id)
     const windows = planWindowSources(levelAsPlan(plan, level))
+
+    // Per-room OWN-fixture lux (lumen method at the current fixture level) — the
+    // source term neighbours borrow from through open doorways (first-degree).
+    const ownLux = new Map<string, number>()
+    if (fixtureLevel > 0) {
+      for (const room of level.rooms) {
+        const area = planRoomArea(room)
+        if (area <= 0) continue
+        const lumens = levelLights.reduce(
+          (sum, l) => (pointInRoom(room, l.x, l.z) ? sum + planLightLumens(l) : sum),
+          0,
+        )
+        ownLux.set(room.id, ((lumens * UTILISATION_FACTOR) / area) * fixtureLevel)
+      }
+    }
+    const bleedByRoom = new Map<string, RoomBleedSource[]>()
+    if (fixtureLevel > 0) {
+      for (const src of interRoomDoorwaySources(level.rooms, level.walls, level.openings, doors)) {
+        const meanLux = bleedMeanLux(ownLux.get(src.sourceId) ?? 0, src.aperture, src.open)
+        if (meanLux <= 0) continue
+        const list = bleedByRoom.get(src.receiverId) ?? []
+        list.push({ center: src.center, inwardNormal: src.inwardNormal, meanLux })
+        bleedByRoom.set(src.receiverId, list)
+      }
+    }
+
     const grids: RoomLuxGrid[] = []
     for (const room of level.rooms) {
-      const grid = buildRoomLuxGrid(room, levelLights, windows, opts)
+      const grid = buildRoomLuxGrid(
+        room,
+        levelLights,
+        windows,
+        opts,
+        bleedByRoom.get(room.id) ?? [],
+      )
       if (grid) grids.push(grid)
     }
     return { levelId: level.id, elevation: level.elevation, grids }

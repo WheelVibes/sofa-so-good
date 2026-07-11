@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { FloorPlan, PlanRoom } from '../floorplan/types'
+import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../floorplan/types'
 import type { PlanLight } from './lightingPlan'
 import {
   buildLuxGrids,
@@ -260,5 +260,97 @@ describe('buildLuxGrids (levels)', () => {
       daylightLevel: 0,
     })
     expect(out.map((l) => l.levelId)).toEqual(['ground'])
+  })
+})
+
+describe('inter-room doorway bleed (R-BLEED)', () => {
+  // Living [0..4]×[0..4] (lit) and Kitchen [0..4]×[4..8] (dark) share the wall
+  // at z=4, connected by a door. Kitchen borrows light from Living when open.
+  const living = room('lv', 'Living Room', 4, 4, 0, 0)
+  const kitchen = room('kt', 'Kitchen', 4, 4, 0, 4)
+  const wall: PlanWall = { id: 'w', start: [0, 4], end: [4, 4], thickness: 'internal' }
+  const dr: PlanOpening = {
+    id: 'd1',
+    kind: 'door',
+    wallId: 'w',
+    offset: 1.5,
+    width: 0.9,
+    sill: 0,
+    head: 2.1,
+  }
+  const twoRoom = () => makePlan([living, kitchen], { walls: [wall], openings: [dr] })
+  const lights = [light(2, 2)] // bulb in the Living room only
+
+  const kitchenGrid = (doors: Record<string, { open: boolean }>) =>
+    buildLuxGrids(twoRoom(), lights, 'ground', {
+      fixtureLevel: 1,
+      daylightLevel: 0,
+      doors,
+    })[0]!.grids.find((g) => g.roomId === 'kt')!
+
+  const inRoomMean = (g: RoomLuxGrid) => {
+    let sum = 0
+    let n = 0
+    for (const v of g.values)
+      if (v !== MASKED) {
+        sum += v
+        n += 1
+      }
+    return n > 0 ? sum / n : 0
+  }
+  /** Lux at the grid cell nearest a world point. */
+  const at = (g: RoomLuxGrid, x: number, z: number) => {
+    const ix = Math.min(g.cols - 1, Math.max(0, Math.floor((x - g.x0) / g.cell)))
+    const iz = Math.min(g.rows - 1, Math.max(0, Math.floor((z - g.z0) / g.cell)))
+    return g.values[iz * g.cols + ix]!
+  }
+
+  it('a dark room stays fully dark with the door CLOSED (default) — no regression', () => {
+    expect(inRoomMean(kitchenGrid({}))).toBe(0)
+    expect(kitchenGrid({}).maxLux).toBe(0)
+  })
+
+  it('the dark room gains borrowed light once the door is OPEN', () => {
+    const open = inRoomMean(kitchenGrid({ d1: { open: true } }))
+    expect(open).toBeGreaterThan(0)
+  })
+
+  it('the bleed is DIRECTIONAL — peaks in front of the doorway, not isotropic', () => {
+    const g = kitchenGrid({ d1: { open: true } })
+    // Door centre is at x≈1.95, z=4; Kitchen spans z=4..8.
+    const frontOfDoor = at(g, 1.95, 4.2) // just inside, directly in front
+    const offToTheSide = at(g, 0.3, 4.2) // same depth from the wall, but off-axis
+    const deepAhead = at(g, 1.95, 7.8) // directly ahead but far into the room
+    // Facing term: in front of the opening beats an off-axis point at equal depth.
+    expect(frontOfDoor).toBeGreaterThan(offToTheSide * 1.5)
+    // Distance term: near the doorway beats deep in the room.
+    expect(frontOfDoor).toBeGreaterThan(deepAhead)
+    expect(deepAhead).toBeGreaterThan(0)
+  })
+
+  it('preserves the lumen-method lock-step: grid mean equals the 2D table borrowed lux', () => {
+    const doors = { d1: { open: true } }
+    const g = kitchenGrid(doors)
+    const [, kt] = estimateRoomLux(twoRoom(), lights, doors)
+    expect(kt!.roomId).toBe('kt')
+    expect(kt!.borrowedLux).toBeGreaterThan(0)
+    expect(inRoomMean(g)).toBeCloseTo(kt!.lux, 3)
+  })
+
+  it('the lit room is essentially unaffected (borrows nothing from a dark neighbour)', () => {
+    const closed = inRoomMean(
+      buildLuxGrids(twoRoom(), lights, 'ground', {
+        fixtureLevel: 1,
+        daylightLevel: 0,
+      })[0]!.grids.find((g) => g.roomId === 'lv')!,
+    )
+    const open = inRoomMean(
+      buildLuxGrids(twoRoom(), lights, 'ground', {
+        fixtureLevel: 1,
+        daylightLevel: 0,
+        doors: { d1: { open: true } },
+      })[0]!.grids.find((g) => g.roomId === 'lv')!,
+    )
+    expect(open).toBeCloseTo(closed, 6)
   })
 })
