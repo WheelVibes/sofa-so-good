@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.19.0.3 — custom-plan doorway thresholds (parity with the default flat's DOOR-GAP-LEAK fix)
+
+Plan doorways had the same unfloored wall-thickness slot the default flat had (v0.18.6.23):
+reproduced on `tpl-hdb-4room` at a grazing pose — a pale strip (UnroomedFloor, or raw backdrop in
+the room editor) under closed leaves. Fix reuses the shared `thresholdRects()` via a pure adapter,
+`planThresholdRects.ts` (`planThresholdRects(plan)` maps PlanWall/PlanOpening → WallSpec with
+per-wall/plan thickness precedence, span clamping mirroring `wallBoxes`, and a straight
+chord pseudo-wall for doors on curved walls; `roomShellThresholdRects` covers the room-editor
+shell). Mounts: `FadeThreshold` per level in `PlanLevelShell` (top face 1mm below the PlanRoomFloor
+lift, shared 12mm tuck-under, fading via `useTrimFade` with the WALL-FADE-DEPTHWRITE rules) and
+`PlanRoomThresholds` in `PlanRoomShell` (fades via the `getWallOpacity` registry like the default
+flat's `Thresholds.tsx`). GPU-verified before/after at the grazing pose (strip → clean hardwood
+threshold, no z-fighting), wall-fade compose (faded facade drives its threshold to opacity 0.05
+while interior stays 1.0), room editor clean, and the default flat untouched (8 strips, normal
+fade). 7 new adapter unit tests; targeted suites 37 green.
+
 ## v0.19.0.2 — PT-BLANK-GUARD: blank HQ render surfaces the error phase (was a silent white PNG)
 
 On drivers where three-gpu-pathtracer's megakernel fails GLSL validation (e.g. WSL D3D12/ANGLE —

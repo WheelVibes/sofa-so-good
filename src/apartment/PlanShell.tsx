@@ -41,6 +41,8 @@ import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
+import { planThresholdRects } from './floor/planThresholdRects'
+import type { ThresholdRect } from './floor/thresholdRects'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
 import { getWallOwnStrength, setWallOwnStrength } from './walls/wallReveal'
 import {
@@ -365,6 +367,65 @@ function FadeSkirting({
   )
 }
 
+// Threshold patch: slab thickness below the top face (never visible) + top-face
+// lift. The default flat uses THRESHOLD_LIFT 0.0006 under floors at 0.001; plan
+// room floors render higher (0.006, PlanRoomFloor), so the plan patch tops out
+// 1 mm below them — the 12 mm THRESHOLD_OVERLAP tuck-under hides the abutment
+// seam with no z-fighting (distinct heights), and it stays clear of the
+// UnroomedFloor at −0.01.
+const PLAN_THRESHOLD_H = 0.02
+const PLAN_THRESHOLD_LIFT = 0.005
+
+/** Floor patch under a plan doorway (DOOR-GAP-LEAK, `Thresholds.tsx` analog):
+ *  a slim hardwood threshold strip filling the unfloored wall-thickness slot in
+ *  the door opening. Fades/hides in lockstep with its host wall (same
+ *  `useTrimFade` contract as FadeSkirting/FadeCrown), so a faded wall doesn't
+ *  leave an opaque strip floating in its doorway. */
+function FadeThreshold({
+  rect,
+  isExterior,
+  isInterior,
+  cx,
+  cz,
+  neighborIds,
+}: {
+  rect: ThresholdRect
+  isExterior: boolean
+  isInterior: (x: number, z: number) => boolean
+  cx: number
+  cz: number
+  neighborIds: readonly string[]
+}) {
+  const ref = useRef<Mesh>(null)
+  // WallBox stand-in for the shared fade math (probe reach uses `thickness`).
+  const box = useMemo<WallBox>(
+    () => ({
+      wallId: rect.wallId,
+      cx: rect.cx,
+      cz: rect.cz,
+      length: rect.length,
+      thickness: rect.depth,
+      height: PLAN_THRESHOLD_H,
+      cy: PLAN_THRESHOLD_LIFT - PLAN_THRESHOLD_H / 2,
+      angle: rect.angle,
+    }),
+    [rect],
+  )
+  useTrimFade(ref, box, isExterior, isInterior, cx, cz, neighborIds)
+  return (
+    <mesh
+      ref={ref}
+      position={[rect.cx, PLAN_THRESHOLD_LIFT - PLAN_THRESHOLD_H / 2, rect.cz]}
+      rotation={[0, rect.angle, 0]}
+      receiveShadow
+    >
+      <boxGeometry args={[rect.depth, PLAN_THRESHOLD_H, rect.length]} />
+      {/* Hardwood threshold strip — matches the default flat's Thresholds. */}
+      <meshStandardMaterial color="#7d6243" roughness={0.8} metalness={0} transparent opacity={1} />
+    </mesh>
+  )
+}
+
 /** Crown molding at the wall–ceiling junction that fades/hides with its host wall
  *  (ceiling trim) — so a faded wall reveals floor-to-ceiling with no opaque band
  *  left at the top. */
@@ -521,6 +582,17 @@ function PlanLevelShell({
       }
     }
     return out
+  }, [lp])
+
+  // Doorway threshold patches (DOOR-GAP-LEAK): fill the unfloored
+  // wall-thickness slot under every floor-level door opening, tagged with the
+  // host wall's exterior flag so each fades with its wall.
+  const thresholds = useMemo(() => {
+    const exterior = new Map(lp.walls.map((w) => [w.id, w.thickness === 'external']))
+    return planThresholdRects(lp).map((rect) => ({
+      rect,
+      isExterior: exterior.get(rect.wallId) ?? false,
+    }))
   }, [lp])
 
   // Window glass panes (between sill and head, in the wall gap).
@@ -730,6 +802,20 @@ function PlanLevelShell({
               neighborIds={neighbors.get(b.wallId) ?? NO_NEIGHBORS}
             />
           ))}
+
+      {/* Doorway threshold strips — floor patches under door openings so the
+          wall-thickness slot isn't a hole (DOOR-GAP-LEAK, Thresholds analog). */}
+      {thresholds.map(({ rect, isExterior }, i) => (
+        <FadeThreshold
+          key={`th${i}`}
+          rect={rect}
+          isExterior={isExterior}
+          isInterior={isInterior}
+          cx={cx}
+          cz={cz}
+          neighborIds={neighbors.get(rect.wallId) ?? NO_NEIGHBORS}
+        />
+      ))}
 
       {/* Door leaves — swinging, clickable; closed by default (matches collision). */}
       {lp.openings
