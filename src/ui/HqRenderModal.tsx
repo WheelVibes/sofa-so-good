@@ -6,6 +6,7 @@ import {
   FOCUS_MIN_M,
   FSTOP_PRESETS,
 } from '../scene/cameras/cameraLensSettings'
+import { isHqBlankRenderError } from '../scene/pathtrace/hqBlankProbe'
 import { hqEnvironmentUrl } from '../scene/pathtrace/hqEnvironment'
 import type { HqRenderSession } from '../scene/pathtrace/hqRenderSession'
 import { getHqRenderSource } from '../scene/pathtrace/hqRenderSource'
@@ -77,6 +78,9 @@ export function HqRenderModal() {
   const [maxSamples, setMaxSamples] = useState<number>(256)
   const [samples, setSamples] = useState(0)
   const [phase, setPhase] = useState<'idle' | 'building' | 'rendering' | 'done' | 'error'>('idle')
+  // Which failure the error phase describes: 'blank' is the PT-BLANK-GUARD
+  // abort (driver compiled a context but the megakernel produced no pixels).
+  const [errorKind, setErrorKind] = useState<'generic' | 'blank'>('generic')
   const sessionRef = useRef<HqRenderSession | null>(null)
   const hostRef = useRef<HTMLDivElement>(null)
   const beamRef = useRef<HTMLSpanElement>(null)
@@ -100,11 +104,13 @@ export function HqRenderModal() {
     teardown()
     const src = getHqRenderSource()
     if (!src) {
+      setErrorKind('generic')
       setPhase('error')
       return
     }
     const res = RESOLUTIONS.find((r) => r.id === resId) ?? RESOLUTIONS[1]
     setPhase('building')
+    setErrorKind('generic')
     setSamples(0)
     try {
       const { createHqRenderSession } = await import('../scene/pathtrace/hqRenderSession')
@@ -121,6 +127,15 @@ export function HqRenderModal() {
         onDone: () => setPhase('done'),
         onError: (err) => {
           if (import.meta.env.DEV) console.warn('HQ render failed:', err)
+          if (isHqBlankRenderError(err)) {
+            // PT-BLANK-GUARD: the session already disposed itself — the
+            // accumulated "samples" were no-ops, so zero the counter to keep
+            // Save PNG disabled (it would export a blank frame).
+            setErrorKind('blank')
+            setSamples(0)
+          } else {
+            setErrorKind('generic')
+          }
           setPhase('error')
         },
       })
@@ -334,7 +349,9 @@ export function HqRenderModal() {
             {phase === 'building'
               ? 'Preparing scene (building BVH)…'
               : phase === 'error'
-                ? 'Could not start the render — your device may not support WebGL2. The PNG export in File still works.'
+                ? errorKind === 'blank'
+                  ? "The render came back blank — this device's graphics driver may not support the high-quality renderer. The PNG export in File still works."
+                  : 'Could not start the render — your device may not support WebGL2. The PNG export in File still works.'
                 : 'Pick a resolution and quality, then Start render. Higher samples = cleaner image, longer wait.'}
           </div>
         ) : null}

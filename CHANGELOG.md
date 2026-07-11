@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.19.0.2 — PT-BLANK-GUARD: blank HQ render surfaces the error phase (was a silent white PNG)
+
+On drivers where three-gpu-pathtracer's megakernel fails GLSL validation (e.g. WSL D3D12/ANGLE —
+Shader Error 1282, empty log), the HQ render used to complete SILENTLY BLANK and could wedge the
+main canvas's context. Now: pure `hqBlankProbe.ts` classifier (`classifyProbePixels` — blank =
+every sampled RGB byte 0 or 255; failed readback = ok, so missing evidence never aborts) fed by a
+one-shot 4×4-grid `readPixels` probe in `hqRenderSession` that fires on the first tick with a
+dirty GL error queue (the failed-megakernel signature) or after the first full sample. Blank →
+dispose + `HqBlankRenderError` → the modal's EXISTING error phase with driver-specific copy and
+Save PNG disabled. Failure paths (blank abort, throwing `renderSample`, `setScene` failure, close)
+now share `disposeSession` + best-effort `forceContextLoss()`, cooperating with `ContextLossGuard`.
+The first-tick early abort matters: error surfaces in 29s vs 56s and the main context recovers
+immediately (previously lost >180s from invalid-draw spam). GPU-verified end-to-end on the real
+failing driver (error phase + healthy scene after close, `isContextLost() === false`); healthy-path
+safety covered by 14 classifier unit tests + one-shot `probed` gate. Scenario:
+`scripts/scenarios/hq-render-blank-guard.json`.
+
 ## v0.19.0.1 — VSM soft sun shadows (PHOTO-SOFTSHADOW) + real window-glass transmission (PHOTO-GLASS)
 
 **Soft shadows:** three r184 silently DEPRECATED `PCFSoftShadowMap` (coerced to hard `PCFShadowMap`

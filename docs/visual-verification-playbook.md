@@ -55,12 +55,19 @@ Always GPU-verify items the backlog tags `[real-GPU verify]` before striking the
 GPU-session gotchas (2026-07-11 sweep):
 - **The `three-gpu-pathtracer` HQ render does NOT run on this GPU path** (ANGLE D3D12 Intel UHD
   over the WSL `/dev/dxg` passthrough): the tracer's megakernel ShaderMaterial fails
-  `VALIDATE_STATUS` (Shader Error 1282, empty info log), every `renderSample` no-ops
-  (`INVALID_OPERATION: useProgram/drawArrays`) so the sample counter races to "done" with a
-  BLANK frame (white with the denoise blit, black without), and the page is then flagged as
-  having "caused context loss" — the NEXT WebGL context (a re-render, or even the live canvas)
-  is blocked. Verify PT convergence/lighting on **SwiftShader** instead (dev-tiny 192×108 ·
-  64 spp ≈ 1 min BVH + ~4.5 min sampling); keep `SHOT_GPU=1` for raster-only effects.
+  `VALIDATE_STATUS` (Shader Error 1282, empty info log) and every `renderSample` no-ops
+  (`INVALID_OPERATION: useProgram/drawArrays`). Since PT-BLANK-GUARD this no longer completes
+  silently blank: the session's one-shot pixel probe (`hqBlankProbe.ts` fed by
+  `hqRenderSession.ts`, fired on the first tick when the GL error queue is dirty, else after
+  the first full sample) detects the uniform white/black canvas (white with the denoise blit,
+  black without), aborts with `HqBlankRenderError`, and the modal shows its error phase ("The
+  render came back blank — this device's graphics driver may not support the high-quality
+  renderer") with Save PNG disabled. The session force-loses its own context on dispose, and
+  the early abort keeps the invalid-draw spam short enough that the MAIN canvas context
+  restores promptly (verified: full-sample-late abort left the live canvas lost >180 s;
+  first-tick abort → live scene renders normally right after). Verify PT convergence/lighting
+  on **SwiftShader** instead (dev-tiny 192×108 · 64 spp ≈ 1 min BVH + ~4.5 min sampling); keep
+  `SHOT_GPU=1` for raster-only effects — and for exercising the blank-guard end-to-end.
 - **Whole-flat orbit close-ups: keep the camera clear of window walls.** Plan coords ≈ world
   coords with no recentring — a pose at z≈1.5 embeds the camera inside the north window (sill/
   grille fills the foreground). Aim by reading item positions from `__store.getState().items`

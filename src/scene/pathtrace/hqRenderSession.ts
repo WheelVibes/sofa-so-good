@@ -12,8 +12,9 @@
  * affect a running render (it's a still).
  */
 
-import type { Camera, Object3D, Scene, Texture } from 'three'
+import type { Camera, Object3D, Scene, Texture, WebGLRenderer } from 'three'
 import { mmToFov } from '../cameras/cameraLensSettings'
+import { classifyProbePixels, HqBlankRenderError } from './hqBlankProbe'
 import { isReusableEquirectEnvironment } from './hqEnvironment'
 import { HQ_TRACER_CONFIG } from './hqTracerConfig'
 
@@ -73,6 +74,29 @@ export function clampHqOptions(o: { width: number; height: number; maxSamples: n
     height: dim(o.height),
     maxSamples: Math.max(1, Math.min(4096, Math.round(o.maxSamples) || 1)),
   }
+}
+
+/**
+ * PT-BLANK-GUARD readback: sample a sparse `grid`×`grid` of 1-px reads across
+ * the tracer's drawing buffer (valid post-blit — the session's renderer is
+ * created with `preserveDrawingBuffer: true`). ~16 single-pixel `readPixels`
+ * calls, one-shot after the first sample — negligible next to a path-trace
+ * sample. Classified by the pure `classifyProbePixels`.
+ */
+function readCanvasProbePixels(renderer: WebGLRenderer, width: number, height: number): Uint8Array {
+  const grid = 4
+  const gl = renderer.getContext()
+  const out = new Uint8Array(grid * grid * 4)
+  let i = 0
+  for (let gy = 0; gy < grid; gy++) {
+    for (let gx = 0; gx < grid; gx++) {
+      const x = Math.min(width - 1, Math.floor(((gx + 0.5) / grid) * width))
+      const y = Math.min(height - 1, Math.floor(((gy + 0.5) / grid) * height))
+      gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out.subarray(i, i + 4))
+      i += 4
+    }
+  }
+  return out
 }
 
 /** Material kinds the path tracer's converter understands. Anything else
@@ -313,6 +337,12 @@ export async function createHqRenderSession(
   } catch (err) {
     ownedEnv?.dispose()
     renderer.dispose()
+    // Free the failed context's GPU slot immediately (see disposeSession).
+    try {
+      renderer.forceContextLoss()
+    } catch {
+      // context already gone
+    }
     opts.onError?.(err)
     throw err
   }
@@ -321,6 +351,31 @@ export async function createHqRenderSession(
   let raf = 0
   let running = false
   let disposed = false
+  let probed = false
+
+  const disposeSession = () => {
+    if (disposed) return
+    disposed = true
+    running = false
+    cancelAnimationFrame(raf)
+    tracer.dispose?.()
+    // Only a texture this session loaded itself — never the live scene's.
+    ownedEnv?.dispose()
+    renderer.dispose()
+    // Explicitly lose the offscreen context (three wraps WEBGL_lose_context —
+    // same pattern as ui/WebGLFallback.tsx) so its GPU slot frees NOW instead
+    // of at GC. Browsers cap live WebGL contexts, and on drivers where the
+    // megakernel fails validation the dead tracer context can otherwise starve
+    // the MAIN canvas's next context until ContextLossGuard's restore path
+    // kicks in — this cooperates with that guard (frees the slot proactively)
+    // rather than duplicating its restore listeners. The canvas is dedicated
+    // and never reused, so losing its context is side-effect free.
+    try {
+      renderer.forceContextLoss()
+    } catch {
+      // context already lost
+    }
+  }
 
   const tick = () => {
     if (!running || disposed) return
@@ -329,9 +384,48 @@ export async function createHqRenderSession(
       samples = Math.floor(tracer.samples)
       opts.onProgress?.(samples, opts.maxSamples)
     } catch (err) {
-      running = false
+      // A throwing renderSample means the tracer is unusable — free the GL
+      // context promptly rather than waiting for the modal's teardown.
+      disposeSession()
       opts.onError?.(err)
       return
+    }
+    // PT-BLANK-GUARD: one-shot pixel probe. On drivers where the megakernel
+    // fails GLSL validation (e.g. WSL D3D12/ANGLE — Shader Error 1282, empty
+    // info log), renderSample no-ops silently (samples still count up) and the
+    // canvas stays uniformly black/white — abort with a recognisable error
+    // instead of "finishing" a blank render. The probe normally waits for the
+    // first FULL sample (a mid-sample canvas has un-rendered tiles that could
+    // read as black), but when the very first tick leaves errors in the GL
+    // queue — the failure mode's signature — it fires immediately, cutting the
+    // invalid-draw spam that gets the whole page flagged for context loss.
+    // `probed` guarantees a healthy session is never re-probed (and can never
+    // be aborted mid-flight); a failed/odd readback classifies as 'ok' so the
+    // probe itself can't kill a working render.
+    if (!probed) {
+      let ready = samples >= 1
+      if (!ready) {
+        try {
+          const gl = renderer.getContext()
+          ready = gl.getError() !== gl.NO_ERROR
+        } catch {
+          // context gone — the next renderSample will throw and dispose
+        }
+      }
+      if (ready) {
+        probed = true
+        let verdict: ReturnType<typeof classifyProbePixels> = 'ok'
+        try {
+          verdict = classifyProbePixels(readCanvasProbePixels(renderer, opts.width, opts.height))
+        } catch {
+          // readback failed — never abort on missing evidence
+        }
+        if (verdict === 'blank') {
+          disposeSession()
+          opts.onError?.(new HqBlankRenderError())
+          return
+        }
+      }
     }
     if (samples >= opts.maxSamples) {
       running = false
@@ -356,15 +450,6 @@ export async function createHqRenderSession(
       cancelAnimationFrame(raf)
     },
     toDataURL: () => canvas.toDataURL('image/png'),
-    dispose: () => {
-      if (disposed) return
-      disposed = true
-      running = false
-      cancelAnimationFrame(raf)
-      tracer.dispose?.()
-      // Only a texture this session loaded itself — never the live scene's.
-      ownedEnv?.dispose()
-      renderer.dispose()
-    },
+    dispose: disposeSession,
   }
 }
