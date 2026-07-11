@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { QUALITY_LABEL } from '../../scene/quality'
+import { GRID_SIZES, type LightsMode } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
+import { Segmented } from '../controls/Segmented'
+import { Select } from '../controls/Select'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { useIsMobile } from '../useIsMobile'
 import { AppearancePopover } from './AppearancePopover'
 import { BrandDot } from './BrandDot'
+import { formatGridSize } from './gridSizeLabel'
 import { IconButton } from './IconButton'
+import { Icon } from './icons'
 import { MobileToolbar } from './MobileToolbar'
 import { ArrangeMenu } from './menus/ArrangeMenu'
 import { EditMenu } from './menus/EditMenu'
@@ -20,13 +25,12 @@ function Divider() {
   return <div className="tool-divider" />
 }
 
-const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = { auto: 'Auto', on: 'On', off: 'Off' }
-/** Cycle order of the Lights toolbar button (matches uiSlice.cycleLightsMode). */
-const NEXT_LIGHTS: Record<'auto' | 'on' | 'off', 'auto' | 'on' | 'off'> = {
-  auto: 'on',
-  on: 'off',
-  off: 'auto',
-}
+/** Lights segmented options (TB-8: all 3 states visible, one click each). */
+const LIGHTS_OPTIONS = [
+  { value: 'auto', label: 'Auto', title: 'Lights: Auto — follow the time of day' },
+  { value: 'on', label: 'On', title: 'Lights: always on' },
+  { value: 'off', label: 'Off', title: 'Lights: always off' },
+]
 
 /** The icon-island toolbar. Frequent actions are direct icon buttons; busy
  *  clusters collapse into labelled portaled dropdown menus. Editing clusters
@@ -43,13 +47,13 @@ export function Toolbar() {
   const snapEnabled = useStore((s) => s.snapEnabled)
   const toggleSnap = useStore((s) => s.toggleSnap)
   const gridSize = useStore((s) => s.gridSize)
-  const cycleGridSize = useStore((s) => s.cycleGridSize)
+  const setGridSize = useStore((s) => s.setGridSize)
   const canUndo = useStore((s) => s.past.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
   const lightsMode = useStore((s) => s.lightsMode)
-  const cycleLightsMode = useStore((s) => s.cycleLightsMode)
+  const setLightsMode = useStore((s) => s.setLightsMode)
   const qualityTier = useStore((s) => s.qualityTier)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
 
@@ -129,7 +133,7 @@ export function Toolbar() {
       ro?.disconnect()
     }
   }, [])
-  const gridLabel = gridSize >= 1 ? `${gridSize} m` : `${Math.round(gridSize * 100)} cm`
+  const gridLabel = formatGridSize(gridSize)
 
   // The 2D floor-plan editor is a focused full-screen mode with its own header
   // bar, so the main island would otherwise float over it. Hide it there.
@@ -202,14 +206,19 @@ export function Toolbar() {
               onClick={toggleSnap}
             />
             {snapEnabled ? (
-              <button
-                type="button"
-                onClick={cycleGridSize}
+              // Grid size is a picker over GRID_SIZES, not a cycle (TB-8) — a
+              // compact Select since 6 segments would crowd the icon island.
+              <Select
+                ariaLabel="Grid cell size"
                 title="Grid cell size"
-                className="tool-btn"
-              >
-                <span className="cap mono">{gridLabel}</span>
-              </button>
+                className="input tool-select"
+                value={String(gridSize)}
+                onChange={(v) => setGridSize(Number(v))}
+                options={GRID_SIZES.map((g) => ({
+                  value: String(g),
+                  label: formatGridSize(g),
+                }))}
+              />
             ) : null}
             <IconButton
               icon="Measure"
@@ -250,15 +259,17 @@ export function Toolbar() {
             {proMode && <ToolsMenu />}
 
             <Divider />
-            <IconButton
-              icon="Lights"
-              // A 3-state cycle button hides its state space (TB-8/P2-11) — until
-              // this becomes a segmented control, at least TEACH the cycle: the
-              // tooltip names the state a click moves to.
-              label={`Lights · ${LIGHTS_LABEL[lightsMode]} (click for ${LIGHTS_LABEL[NEXT_LIGHTS[lightsMode]]})`}
-              active={lightsMode !== 'auto'}
-              onClick={cycleLightsMode}
-            />
+            {/* Lights — segmented, not a cycle button (TB-8): all 3 states are
+                visible and one click away, so no next-state tooltip is needed. */}
+            <div className="tool-seg" title="Lights">
+              <Icon.Lights width={16} height={16} className="icn" />
+              <Segmented
+                ariaLabel="Lights"
+                value={lightsMode}
+                onChange={(v) => setLightsMode(v as LightsMode)}
+                options={LIGHTS_OPTIONS}
+              />
+            </div>
 
             <Divider />
             <FileMenu />

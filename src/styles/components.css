@@ -508,6 +508,16 @@ body.mobile .tip::after { content: none; }
 .seg.fit button { padding: 5px 4px; font-size: var(--t-2xs); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .seg button.on { background: var(--surface-solid); color: var(--text); box-shadow: 0 1px 2px oklch(0 0 0 / 0.08); }
 .seg.accent button.on { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.seg button:focus-visible { box-shadow: var(--focus-ring); }
+
+/* Toolbar-island segmented cluster (TB-8: the desktop Lights control) — a
+   decorative context icon + a .seg group that carries the accessible name. */
+.tool-seg { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.tool-seg > .icn { color: var(--text-3); flex: none; }
+
+/* Compact toolbar-island Select (TB-8: the grid-size picker) — `.input` is
+   width:100% for form layouts; in the flex island it must hug its content. */
+.toolbar .tool-select { width: auto; min-width: 84px; flex: none; padding: 6px 10px; }
 
 /* Standalone state-toggle pill (Scene menu Ceiling fixtures / Motion, the
    plan-inspector style/axis pickers). Must read as a CONTROL, not status

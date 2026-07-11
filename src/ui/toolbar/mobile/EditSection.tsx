@@ -1,4 +1,7 @@
+import { GRID_SIZES } from '../../../state/slices/uiSlice'
 import { useStore } from '../../../state/store'
+import { Segmented } from '../../controls/Segmented'
+import { formatGridSize } from '../gridSizeLabel'
 import { Item, Section } from './parts'
 
 /** Edit — manual editing controls, only inside the per-room editor. */
@@ -16,7 +19,7 @@ export function EditSection({
   const canUndo = useStore((st) => st.past.length > 0)
   const canRedo = useStore((st) => st.future.length > 0)
 
-  const gridLabel = gridSize >= 1 ? `${gridSize} m` : `${Math.round(gridSize * 100)} cm`
+  const gridLabel = formatGridSize(gridSize)
 
   return (
     <Section id="edit" title="Edit" icon="Select" activeId={activeId}>
@@ -39,12 +42,18 @@ export function EditSection({
         onClick={act(() => s.getState().toggleSnap(), { keep: true })}
       />
       {snapEnabled ? (
-        <Item
-          icon="Snap"
-          label={`Grid size · ${gridLabel}`}
-          sub="Tap to cycle"
-          onClick={act(() => s.getState().cycleGridSize(), { keep: true })}
-        />
+        // Grid size — segmented, not a tap-to-cycle row (TB-8): every size is
+        // visible and one tap away.
+        <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+          <span>Grid size</span>
+          <Segmented
+            fit
+            ariaLabel="Grid size"
+            value={String(gridSize)}
+            onChange={(v) => s.getState().setGridSize(Number(v))}
+            options={GRID_SIZES.map((g) => ({ value: String(g), label: formatGridSize(g) }))}
+          />
+        </label>
       ) : null}
       <Item
         icon="Measure"

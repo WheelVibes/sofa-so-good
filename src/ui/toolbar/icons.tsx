@@ -61,6 +61,17 @@ export const Icon = {
       <path d="M7 8v3M11 8v4M15 8v3M19 8v4" />
     </Svg>
   ),
+  /** Tape-measure reel + pulled-out tape with an end hook — the "Measure
+   *  distance" tape tool. Distinct from the ruler (`Measure`), which stays on
+   *  the Dimensions overlay toggle (TB-8: the two tools shared one icon). */
+  Tape: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <circle cx="9.5" cy="10.5" r="5.5" />
+      <circle cx="9.5" cy="10.5" r="1.8" />
+      <path d="M9.5 16H21" />
+      <path d="M21 16v3" />
+    </Svg>
+  ),
   Quality: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z" />

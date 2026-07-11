@@ -128,9 +128,6 @@ finding from the doc + this list as it ships. Open items, in order:
 - [ ] **TB-6-tail (P1)** Plan-editor mobile menu paradigm differs from the main sheet (centered
   "Plan tools" modal + text "☰ Menu" vs the icon-rail sheet). (Overflow edge-fade shipped
   v0.18.6.16; Scene-in-room-editor shipped v0.18.6.17.)
-- [ ] **TB-8-tail (P3)** Cycle-buttons → segmented/Select where 3+ states (grid size, mobile
-  Lights/Ceiling/Motion cycles; the naming split + Lights next-state tooltip shipped v0.18.6.13);
-  distinct icon for the tape tool.
 - [ ] **TB-9-tail (P2)** Consolidate menu primitives (one section-header idiom, Arrange on
   MenuItem/EmptyState); tablist roving focus. (confirmAction on set/style deletes + 44px
   hamburger/brand targets shipped v0.18.6.15; sheet focus-trap shipped v0.18.6.18.)

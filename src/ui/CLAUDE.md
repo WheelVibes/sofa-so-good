@@ -19,6 +19,15 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   once in `main.tsx`; do **not** re-add a blanket `font-size:16px` rule, and do **not**
   revert to toggling the viewport on `focusin`/`focusout` — rewriting the meta after
   focus caused a zoom-in-then-out flicker on every tap.
+- **A control with 3+ states is a `controls/Segmented` (or a `Select` where space is tight),
+  never a click-to-cycle button** (TB-8): a cycle hides the state space. `Segmented` renders
+  the `.seg` token classes (`accent`/`fit` variants) with radiogroup semantics + a roving
+  tabindex (arrow keys move AND select); inside the mobile sheet, `.m-detail .seg` rules make
+  segments full-width with ≥44px touch targets. Consumers: the desktop toolbar Lights cluster
+  (`.tool-seg` = icon + group) and the mobile Scene Lights / Edit Grid-size rows; the desktop
+  grid size is a compact `Select` (`.tool-select`) since 6 segments would crowd the island.
+  Two-state toggles stay plain toggle buttons. Grid labels come from
+  `toolbar/gridSizeLabel.ts:formatGridSize`.
 - **Buttons use the `<Button>` primitive** (`controls/Button.tsx`): pass
   `variant`/`size`/`block`/`icon`/`loading` instead of hand-writing `.btn-*`
   class strings. The `.btn-*` classes stay the source of truth — `Button` only

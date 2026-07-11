@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.20.0.1 — TB-8-tail: segmented controls replace 3+-state cycle-buttons + distinct tape icon
+
+New reusable `controls/Segmented` (renders the existing `.seg` token classes; radiogroup semantics,
+roving tabindex — arrow keys/Home/End move AND select, wrap, skip disabled; `accent`/`fit`
+variants; no hardcoded colours). Replaced: desktop toolbar Lights 3-state cycle → inline
+Auto|On|Off segmented (`.tool-seg`); desktop grid-size 6-state cycle → compact `Select`
+(`.tool-select` — 6 segments would crowd the icon island; matches the plan editor's grid Select);
+mobile Scene Lights row → full-width segmented; mobile Edit grid row → 6-segment `fit` segmented
+(all one row at 390px, ≥44px targets via `.m-detail .seg`). Ceiling fixtures + Motion stay plain
+toggles (2-state — fine per the audit grounding). Shared `toolbar/gridSizeLabel.ts:formatGridSize`
+also fixes 0.025 m rendering as "3 cm" (now "2.5 cm"). The measure tool gets its own `Icon.Tape`
+(reel + pulled tape) — the ruler glyph stays on the Dimensions toggle, ending the shared-icon
+confusion. Rule recorded in `src/ui/CLAUDE.md` (no new cycle-buttons); scenario
+`tb8-segmented-controls.json` (44 steps); targeted suites 46 green; screenshots reviewed
+(desktop toolbar/select popover/tools menu, mobile scene+edit sheets — no overflow).
+
 ## v0.19.0.5 — PHOTO-DENOISE: OIDN AI denoise of the HQ path-traced still
 
 The HQ still's edge-blur is now followed by a real OIDN U-Net denoise when accumulation completes
