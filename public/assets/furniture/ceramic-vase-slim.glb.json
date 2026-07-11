@@ -1,0 +1,16 @@
+{
+  "id": "ceramic-vase-slim",
+  "name": "Ceramic vase (slim)",
+  "category": "decor",
+  "footprint": {
+    "w": 0.112,
+    "d": 0.112,
+    "h": 0.414
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "noClip": true,
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/ceramic_vase_03"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "desk-lamp-arm",
+  "name": "Desk lamp",
+  "category": "lighting",
+  "footprint": { "w": 0.202, "d": 0.614, "h": 0.893 },
+  "scale": 1,
+  "anchor": "floor-center",
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/desk_lamp_arm_01"
+}

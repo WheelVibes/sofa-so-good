@@ -17,6 +17,7 @@ import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
 import { arrangeAllRoomsForPlan, roomKindFromName } from '../layout/autoArrange'
+import { GENERATED_FURNITURE } from './generatedCatalog'
 import { applyDecorStylingForPlan } from './layout/decorStyling'
 import type { LayoutPreset } from './layoutPresets'
 import type { FurnitureDef, FurnitureItem, ParamProps } from './types'
@@ -225,7 +226,13 @@ export function furnishPlanItems(
   const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors)
   const furniture = dropOverlaps(arranged, defs)
   if (!withDecor) return furniture
-  // Styling pass: add set-dressing props on host surfaces.
-  const decor = applyDecorStylingForPlan(plan, furniture, defs)
+  // Styling pass: add set-dressing props on host surfaces. The pass may reach for
+  // bundled CC0 GLB set-dressing props (vases, books, plants, a tea set) that
+  // live in the generated catalog, not BUILTIN_CATALOG — merge them in for the
+  // lookup ONLY (arrangement above stays on the builtin defs it was given, so
+  // furnish/collision behaviour is unchanged). Callers' own defs win on id clash.
+  const styleDefs: Record<string, FurnitureDef> = { ...defs }
+  for (const g of GENERATED_FURNITURE) if (!styleDefs[g.id]) styleDefs[g.id] = g
+  const decor = applyDecorStylingForPlan(plan, furniture, styleDefs)
   return [...furniture, ...decor]
 }

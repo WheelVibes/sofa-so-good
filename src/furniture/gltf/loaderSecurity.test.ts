@@ -51,9 +51,25 @@ describe('isAllowedModelResourceUrl (SEC-1 render-path policy)', () => {
     ).toBe(true)
   })
 
+  it('allows a root-relative same-origin path — the app serving a bundled builtin GLB', () => {
+    // The top-level url drei passes for a builtin GLB (`${BASE_URL}assets/...`)
+    // reaches the modifier root-relative — it must NOT be blocked, or every
+    // builtin GLB renders as a placeholder box.
+    expect(isAllowedModelResourceUrl('/assets/furniture/pool-table-6ft.glb', OWN_ORIGIN)).toBe(true)
+    expect(
+      isAllowedModelResourceUrl('/sofa-so-good/assets/furniture/tea-set.glb', OWN_ORIGIN),
+    ).toBe(true)
+  })
+
   it('blocks an absolute foreign-origin URL — the SEC-1 attack the fix closes', () => {
     expect(isAllowedModelResourceUrl('https://evil.example/beacon.png', OWN_ORIGIN)).toBe(false)
     expect(isAllowedModelResourceUrl('http://192.168.1.1/probe', OWN_ORIGIN)).toBe(false)
+  })
+
+  it('blocks a protocol-relative URL — same-origin leading slash must not cover //host', () => {
+    // `//evil.example/x` is NOT same-origin (it addresses evil.example); the
+    // root-relative allowance is a single leading slash only.
+    expect(isAllowedModelResourceUrl('//evil.example/beacon.png', OWN_ORIGIN)).toBe(false)
   })
 
   it('blocks a different scheme/port on the same host (not a true origin match)', () => {

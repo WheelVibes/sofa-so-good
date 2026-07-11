@@ -59,10 +59,7 @@ Legend — Verify: `H` headless-verifiable (DOM/scene-graph/unit) · `G` needs a
 belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
 
 ### Tier 1 — highest impact, mostly verifiable, do first
-- **PHOTO-DETAIL-PROPS — more CC0 set-dressing** ◑ (M, all tiers; Verify H).
-  The set-dressing pack + one-tap auto-styling already ship (C276–C278, `decorStyling.ts`). **Remaining:**
-  more curated CC0 decor/prop bundles from Poly Haven / Poly Pizza (networked assets). Overlaps
-  C-PLANTS/DECOR in TASKS.
+(all shipped — records in `CHANGELOG.md`)
 
 ### Tier 2 — high impact, needs real-GPU verification
 - **PHOTO-GTAO — ruling (2026-07-11, real-GPU A/B): REJECTED, N8AO stays as-is.** A literal GTAO

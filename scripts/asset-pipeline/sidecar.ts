@@ -8,6 +8,12 @@ export interface FurnitureSidecar {
   footprint: { w: number; d: number; h: number }
   scale: number
   anchor: 'floor-center' | 'origin'
+  /** Flat/tabletop set-dressing prop (vase, books, frame): never collides with
+   *  walls or items, so the auto-styling pass (decorStyling.ts) can drop it onto
+   *  a host surface without a placement conflict — matches the noClip parametric
+   *  decor primitives it sits beside. Floor-standing GLBs (a tall plant, a lamp)
+   *  omit it so they collide like real furniture. */
+  noClip?: boolean
   license?: 'CC0' | 'CC-BY'
   attribution?: string
   sourceUrl?: string

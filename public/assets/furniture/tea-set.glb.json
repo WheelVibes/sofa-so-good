@@ -1,0 +1,16 @@
+{
+  "id": "tea-set",
+  "name": "Tea set",
+  "category": "decor",
+  "footprint": {
+    "w": 0.918,
+    "d": 0.484,
+    "h": 0.165
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "noClip": true,
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/tea_set_01"
+}

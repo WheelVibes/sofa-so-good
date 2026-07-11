@@ -1,6 +1,34 @@
 {
   "furniture": [
     {
+      "id": "book-set",
+      "name": "Book set",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/book_encyclopedia_set_01",
+      "license": "CC0"
+    },
+    {
+      "id": "ceramic-vase-slim",
+      "name": "Ceramic vase (slim)",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/ceramic_vase_03",
+      "license": "CC0"
+    },
+    {
+      "id": "ceramic-vase-wide",
+      "name": "Ceramic vase (wide)",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/ceramic_vase_01",
+      "license": "CC0"
+    },
+    {
+      "id": "desk-lamp-arm",
+      "name": "Desk lamp",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/desk_lamp_arm_01",
+      "license": "CC0"
+    },
+    {
       "id": "pool-table-6ft",
       "name": "Pool Table (6 ft)",
       "attribution": "Evol-Love (poly.pizza)",
@@ -27,6 +55,34 @@
       "attribution": "Evol-Love (poly.pizza)",
       "sourceUrl": "https://poly.pizza/m/7GzmqI1M0fC",
       "license": "CC-BY"
+    },
+    {
+      "id": "potted-plant-leafy",
+      "name": "Potted plant (leafy)",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/potted_plant_01",
+      "license": "CC0"
+    },
+    {
+      "id": "potted-succulent",
+      "name": "Potted succulent",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/potted_plant_04",
+      "license": "CC0"
+    },
+    {
+      "id": "standing-photo-frame",
+      "name": "Standing photo frame",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/standing_picture_frame_01",
+      "license": "CC0"
+    },
+    {
+      "id": "tea-set",
+      "name": "Tea set",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/tea_set_01",
+      "license": "CC0"
     }
   ],
   "materials": [

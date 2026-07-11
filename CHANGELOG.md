@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.4 — PHOTO-DETAIL-PROPS: 8 CC0 prop GLBs + SEC-1 fix that un-broke ALL builtin GLBs
+
+8 curated Poly Haven CC0 props via the existing GLB pipeline (Draco + 1K WebP + LOD variants,
+7.1 MB total): wide/slim ceramic vases, leafy potted plant, succulent, book set, standing photo
+frame, arm desk lamp, tea set — real-metre footprints, floor-normalized/centred at pack time,
+per-item credits. The 6 tabletop props register as `decorStyling.ts` secondary options across 11
+host surfaces (leaders unchanged) with a new `noClip` sidecar field so styled props never
+collide on a host. **Major bug found & fixed**: `gltf/loaderSecurity.ts` (SEC-1) rejected
+root-relative `/assets/...` URLs (`new URL()` throws without a base) → EVERY builtin GLB —
+including the shipped pool tables — silently rendered as a placeholder box; single-leading-slash
+same-origin paths are now allowed (protocol-relative + foreign origins still fail closed,
+16 security tests green). Pipeline extras: `index-assets` skips `-low/-medium` LOD siblings;
+optional `noClip` in sidecars. New furniture `generatedCatalog.test.ts` (footprints, licenses,
+GLB magic headers, noClip contract, styling integration). Lineup + styled-vignette screenshots
+reviewed (scale/anchoring/textures correct). Full suite 5913 green.
+
 ## v0.21.2.3 — PHOTO-WEBGPU + PHOTO-SSGI-SSR resolved: REJECTED-FOR-NOW with revisit triggers
 
 Evidence-backed evaluation (cited research + in-sandbox probe): three.js WebGPURenderer/TSL is

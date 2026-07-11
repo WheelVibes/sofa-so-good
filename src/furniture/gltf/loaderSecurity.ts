@@ -54,6 +54,16 @@ export function isAllowedModelResourceUrl(url: string, pageOrigin: string): bool
   const trimmed = normalize(url).trim()
   if (trimmed === '') return true
   if (isEmbeddedOrBlobUrl(trimmed)) return true
+  // Root-relative absolute path (`/assets/furniture/x.glb`, or
+  // `/sofa-so-good/assets/...` under a sub-path base): this is the TOP-LEVEL url
+  // drei passes for a bundled builtin GLB — unlike an embedded ref it never gets
+  // resolved against a model base before reaching this modifier, so it arrives
+  // root-relative and would otherwise throw in `new URL()` below and be blocked
+  // (leaving every builtin GLB rendering as a placeholder box). A leading single
+  // slash is unambiguously same-origin (it can only address the app's own host);
+  // a protocol-relative `//host/...` is NOT (it points at `host`) and is excluded
+  // here so it still fails closed via the `new URL()` path.
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return true
   try {
     return new URL(trimmed).origin === pageOrigin
   } catch {
