@@ -115,6 +115,11 @@ export function FurnitureLayer({
                 const willMove = beginElementDrag(e, selectedItemId === it.id || inMulti)
                 if (!inMulti) st.selectItem(it.id)
                 if (!willMove) return // view / unselected-on-touch: let it pan
+                // Window-bound fixtures (curtains/blinds) are static on their
+                // window — selectable (to inspect/unlock/resize) but never moved,
+                // exactly like the 3D scene (`Furniture.tsx` `shouldBeginItemDrag`).
+                // Dragging one would detach it from its window.
+                if (def.windowBound) return
                 const [wx, wz] = pointerWorld(e)
                 st.pushHistory()
                 setMovingItem({ id: it.id, gx: wx - it.position[0], gz: wz - it.position[1] })

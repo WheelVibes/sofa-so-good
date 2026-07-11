@@ -43,6 +43,10 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   other fixture that lives ON a window — place ONLY on windows and are static once placed. Setting
   `windowBound: true` does three things: the inspector hides the Transform section + Rotate/Flip
   actions, the scene drag is blocked (`Furniture.tsx`), and at placement time the fixture **snaps to
+  the nearest window opening**. The **2D plan editor mirrors the same gating** (`PlanFurnitureInspector`
+  hides X/Z/angle + shows a "fixed to its window" hint but keeps the size fields; `FurnitureRotateHandle`
+  renders nothing; `FurnitureLayer`'s footprint keeps the fixture selectable but never starts a move
+  drag) — a fixture can't be detached from its window on either surface. Placement **snaps to
   the nearest window opening** via the pure `placement/windowSnap.ts:snapToNearestWindow(walls,
   openings, dropPos)` — both the commit (`ui/catalog/usePlacementController.ts`, bypassing the floor
   `canPlace` gate; an info toast + no-add when the plan has no window) and the `scene/PlacementGhost`

@@ -1,0 +1,26 @@
+{
+  "name": "plan-window-fixture-gating",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "open-plan-editor", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "show-furniture-footprints", "eval": "(() => { const btns = [...document.querySelectorAll('button[aria-haspopup=\"menu\"]')]; const view = btns.find(b => /^\\s*View/.test(b.textContent||'')); if (view) view.click(); })()" },
+    { "name": "click-furniture-toggle", "eval": "(() => { const b = [...document.querySelectorAll('button')].find(x => (x.textContent||'').trim() === 'Furniture'); if (b) b.click(); })()" },
+    { "name": "close-view-menu", "key": "Escape" },
+    { "name": "store-still-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "ensure-plan-open", "eval": "(() => { const st = window.__store.getState(); if (!st.floorPlanEditing) st.setFloorPlanEditing(true); })()" },
+    { "name": "plan-still-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "select-curtain", "eval": "(() => { const st = window.__store.getState(); const c = st.items.find(i => i.defId === 'curtains'); window.__curtainId = c ? c.id : null; if (c) st.selectItem(c.id); })()" },
+    { "name": "curtain-selected", "waitFor": { "store": "window.__store.getState().selectedItemId === window.__curtainId" }, "timeout": 10000 },
+    { "name": "expand-inspector", "eval": "(() => { const b = document.querySelector('[aria-label=\"Expand properties\"]'); if (b) b.click(); })()" },
+    { "name": "shot-curtain-inspector", "screenshot": "curtain-inspector-gated" },
+    { "name": "assert-curtain-gated", "eval": "(() => { const labels = [...document.querySelectorAll('.plan-props .label')].map(e => (e.textContent||'').trim()); const hasX = labels.includes('X (m)'); const hasAngle = labels.includes('Angle (°)'); const hasWidth = labels.includes('Width (m)'); const hint = /Fixed to its window/i.test(document.body.textContent||''); const knob = !!document.querySelector('[data-rot-handle]'); window.__curtainCheck = { hasX, hasAngle, hasWidth, hint, knob }; if (hasX) throw new Error('curtain still shows X field'); if (hasAngle) throw new Error('curtain still shows Angle field'); if (!hasWidth) throw new Error('curtain lost its Width (size) field'); if (!hint) throw new Error('curtain hint missing'); if (knob) throw new Error('curtain still shows rotate knob'); })()" },
+    { "name": "select-normal", "eval": "(() => { const st = window.__store.getState(); const n = st.items.find(i => i.defId !== 'curtains' && !i.locked && !(st.__catalog && false)); window.__normalId = n ? n.id : null; if (n) st.selectItem(n.id); })()" },
+    { "name": "normal-selected", "waitFor": { "store": "window.__store.getState().selectedItemId === window.__normalId" }, "timeout": 10000 },
+    { "name": "expand-inspector-2", "eval": "(() => { const b = document.querySelector('[aria-label=\"Expand properties\"]'); if (b) b.click(); })()" },
+    { "name": "shot-normal-inspector", "screenshot": "normal-inspector-fields" },
+    { "name": "assert-normal-present", "eval": "(() => { const labels = [...document.querySelectorAll('.plan-props .label')].map(e => (e.textContent||'').trim()); const hasX = labels.includes('X (m)'); const hasAngle = labels.includes('Angle (°)'); const knob = !!document.querySelector('[data-rot-handle]'); const hint = /Fixed to its window/i.test(document.body.textContent||''); window.__normalCheck = { hasX, hasAngle, knob, hint }; if (!hasX) throw new Error('normal item missing X field'); if (!hasAngle) throw new Error('normal item missing Angle field'); if (!knob) throw new Error('normal item missing rotate knob'); if (hint) throw new Error('normal item wrongly shows window hint'); })()" }
+  ]
+}

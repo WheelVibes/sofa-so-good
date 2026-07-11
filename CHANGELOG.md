@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.0.3 — plan editor now honours `windowBound` (3 fixes: inspector, rotate handle, drag)
+
+The 2D plan editor now mirrors the 3D inspector's window-fixture semantics exactly.
+(1) `PlanFurnitureInspector` gates X/Z/Angle on `!def.windowBound` with a "Fixed to its window…"
+hint (Width/Depth stay editable, as in 3D); (2) the plan rotate handle returns null for
+window-bound items; (3) NEW BUG found during the fix: the plan's footprint `onPointerDown`
+started a move drag with no windowBound check, silently detaching curtains from their window —
+now selectable-but-not-draggable, mirroring `Furniture.tsx`/`shouldBeginItemDrag`. Cosmetic fix:
+the Size (W×D×H) line uses effective `props.height` (window-sized, e.g. 230 cm) over the def
+footprint. 20 new gating tests + floorplan suite 207 green; guard scenario
+`plan-window-fixture-gating.json`; screenshots reviewed (curtain gated + hint + no ring; normal
+item keeps full fields + ring). Rule noted in `furniture/CLAUDE.md`.
+
 ## v0.21.0.2 — DE-5: knip deadcode scan repaired, scope extended, wired into CI
 
 `npm run deadcode` crashed with "Cannot find native binding" — root cause was NOT the suspected

@@ -21,6 +21,11 @@ interface FurnitureRotateHandleProps {
  * centre (15°-snap, Shift for free). Extracted verbatim from `FloorPlanEditor`
  * as behaviour-preserving code-motion (MOD-FPE-SPLIT); the parent still gates on
  * the Furniture toggle + edit mode + select tool + a live selection.
+ *
+ * Window-bound fixtures (curtains/blinds) are static on their window — the 3D
+ * inspector hides the rotate action + the scene drag is blocked, so the plan
+ * rotate knob must be absent too (spinning it would detach the fixture from its
+ * window). Mirrors `def.windowBound` gating in `InspectorPanel`/`Furniture.tsx`.
  */
 export function FurnitureRotateHandle({
   item,
@@ -33,7 +38,7 @@ export function FurnitureRotateHandle({
 }: FurnitureRotateHandleProps) {
   if (!item || item.locked) return null
   const def = getDef(item.defId)
-  if (!def) return null
+  if (!def || def.windowBound) return null
   const obb = itemFootprint(item, def)
   const cx = toPx(obb.cx)
   const cy = toPx(obb.cz)
