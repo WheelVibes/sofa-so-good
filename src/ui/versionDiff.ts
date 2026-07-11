@@ -1,6 +1,6 @@
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 
-export interface VersionDiffLine {
+interface VersionDiffLine {
   defId: string
   name: string
   count: number

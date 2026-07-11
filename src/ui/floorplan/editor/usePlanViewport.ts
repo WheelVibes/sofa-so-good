@@ -258,6 +258,3 @@ export function usePlanViewport(plan: FloorPlan, levelPlan: FloorPlan, editing: 
     centerPlan,
   }
 }
-
-/** The shape returned by {@link usePlanViewport} (for typing consumers if needed). */
-export type PlanViewport = ReturnType<typeof usePlanViewport>

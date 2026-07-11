@@ -18,7 +18,7 @@
 import { type FloorPlan, type PlanRoom, planRoomArea, wallLength } from '../floorplan/types'
 
 /** Advisory severity. `permit` = likely needs HDB permit / professional sign-off. */
-export type ComplianceSeverity = 'permit' | 'caution' | 'info'
+type ComplianceSeverity = 'permit' | 'caution' | 'info'
 
 /** A single non-binding renovation advisory. */
 export interface Advisory {
@@ -73,7 +73,7 @@ function isKitchenName(name: string): boolean {
  * Each rule is a pure function producing zero or more advisories from the plan.
  * Composed by `buildComplianceReport`; add a rule by appending to `RULES`.
  */
-export interface ComplianceRule {
+interface ComplianceRule {
   id: string
   run: (plan: FloorPlan) => Advisory[]
 }

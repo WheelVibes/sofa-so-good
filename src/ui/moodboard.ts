@@ -6,13 +6,13 @@
 // and is intended to be opened in a new window (like a report) and printed/shared.
 
 /** A single colour-palette swatch. */
-export type MoodboardColor = { hex: string; name?: string }
+type MoodboardColor = { hex: string; name?: string }
 
 /** A finish/material entry; `swatch` is an optional CSS colour/gradient string. */
-export type MoodboardMaterial = { name: string; swatch?: string }
+type MoodboardMaterial = { name: string; swatch?: string }
 
 /** A furniture tile. */
-export type MoodboardItem = {
+type MoodboardItem = {
   name: string
   category?: string
   count?: number

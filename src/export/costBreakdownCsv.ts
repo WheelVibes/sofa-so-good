@@ -58,7 +58,7 @@ const CATEGORY_LABEL: Record<FurnitureCategory, string> = {
 }
 
 /** One aggregated furniture-category line. */
-export interface CategoryCost {
+interface CategoryCost {
   category: FurnitureCategory
   label: string
   /** Number of placed items in this category. */
@@ -68,7 +68,7 @@ export interface CategoryCost {
 }
 
 /** One priced finishes/renovation line (floor or wall finish). */
-export interface FinishCost {
+interface FinishCost {
   /** Resolved finish display name. */
   name: string
   /** Surface kind. */

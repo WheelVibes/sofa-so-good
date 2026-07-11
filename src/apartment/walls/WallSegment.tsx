@@ -792,5 +792,3 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
 }
 
 export const WallSegment = memo(WallSegmentInner, (a, b) => a.wall === b.wall)
-
-export type { WallSegmentSpan }

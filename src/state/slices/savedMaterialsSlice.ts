@@ -15,7 +15,7 @@ const LS_KEY = 'hdb_saved_materials'
  * still writes the underlying self-describing id to the room, which renders even
  * on another device that never saw the name.
  */
-export interface SavedMaterial {
+interface SavedMaterial {
   /** The self-describing finish id (`compose:…` / `tint:…` / `#hex`). Doubles
    *  as the merged-catalog id and the stable key for remove/rename. */
   finishId: string

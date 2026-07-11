@@ -23,4 +23,4 @@ export {
   resolveFlags,
   setResolvedFlags,
 } from './flags/resolve'
-export type { FeatureFlag, FlagDef, FlagOverrides } from './flags/types'
+export type { FeatureFlag } from './flags/types'

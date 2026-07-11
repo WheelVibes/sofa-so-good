@@ -151,5 +151,95 @@
     "name": "Stone brick",
     "category": "wall",
     "uvScale": [1.5, 1.5]
+  },
+  {
+    "id": "floor-wood-natural",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/wood_floor",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_diff_1k.jpg",
+      "normal": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_nor_gl_1k.jpg",
+      "rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_rough_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Natural wood",
+    "category": "floor",
+    "uvScale": [1.5, 1.5]
+  },
+  {
+    "id": "floor-tile-stone",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/floor_tiles_06",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floor_tiles_06/floor_tiles_06_diff_1k.jpg",
+      "normal": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floor_tiles_06/floor_tiles_06_nor_gl_1k.jpg",
+      "rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floor_tiles_06/floor_tiles_06_rough_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Stone tiles",
+    "category": "floor",
+    "uvScale": [1.2, 1.2]
+  },
+  {
+    "id": "floor-concrete",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/concrete_floor_02",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_floor_02/concrete_floor_02_diff_1k.jpg",
+      "normal": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_floor_02/concrete_floor_02_nor_gl_1k.jpg",
+      "rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_floor_02/concrete_floor_02_rough_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Concrete floor",
+    "category": "floor",
+    "uvScale": [2.2, 2.2]
+  },
+  {
+    "id": "wall-fabric-denim",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/denim_fabric",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg",
+      "normal": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg",
+      "rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Denim fabric",
+    "category": "wall",
+    "uvScale": [1.5, 1.5]
+  },
+  {
+    "id": "wall-leather-white",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/leather_white",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leather_white/leather_white_diff_1k.jpg",
+      "normal": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leather_white/leather_white_nor_gl_1k.jpg",
+      "rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/leather_white/leather_white_rough_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "White leather",
+    "category": "wall",
+    "uvScale": [1.5, 1.5]
+  },
+  {
+    "id": "wall-metal-plate",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/metal_plate",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate/metal_plate_diff_1k.jpg",
+      "normal": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate/metal_plate_nor_gl_1k.jpg",
+      "rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate/metal_plate_rough_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Metal plate",
+    "category": "wall",
+    "uvScale": [1.0, 1.0]
   }
 ]

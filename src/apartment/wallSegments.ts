@@ -211,7 +211,7 @@ export function localOuterZSign(dx: number, dz: number, outNx: number, outNz: nu
 /** This wall's outward (away-from-interior) unit normal, found by probing which
  *  side of its midpoint is inside a room. Returns null when neither/both sides are
  *  interior (an ambiguous interior partition) — the caller then avoids mitring. */
-export function wallOutwardNormal(
+function wallOutwardNormal(
   wall: WallSpec,
   isInterior: (x: number, z: number) => boolean,
 ): { nx: number; nz: number } | null {

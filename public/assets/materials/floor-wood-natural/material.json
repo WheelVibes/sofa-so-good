@@ -1,0 +1,17 @@
+{
+  "id": "floor-wood-natural",
+  "name": "Natural wood",
+  "category": "floor",
+  "uvScale": [
+    1.5,
+    1.5
+  ],
+  "channels": {
+    "albedo": "albedo.jpg",
+    "normal": "normal.jpg",
+    "rough": "rough.jpg"
+  },
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/wood_floor"
+}

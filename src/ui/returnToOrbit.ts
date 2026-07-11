@@ -6,7 +6,7 @@ import { useStore } from '../state/store'
  * the 2D floor-plan editor open. Every other screen (walk-through, room editor,
  * floor-plan editor) is "somewhere else" the brand mark can return you from.
  */
-export function isOrbitOverview(s = useStore.getState()): boolean {
+function isOrbitOverview(s = useStore.getState()): boolean {
   return s.cameraMode === 'orbit' && !s.roomEditor.active && !s.floorPlanEditing
 }
 

@@ -25,10 +25,10 @@
  */
 
 /** Photometry goniometer type (LM-63 field). */
-export type PhotometricType = 'C' | 'B' | 'A'
+type PhotometricType = 'C' | 'B' | 'A'
 
 /** Luminous-opening units (LM-63 field): feet or metres. */
-export type IesUnits = 'feet' | 'meters'
+type IesUnits = 'feet' | 'meters'
 
 export interface IesProfile {
   /** `[KEYWORD] → value` header map (e.g. `MANUFAC`, `LUMCAT`, `TEST`). */

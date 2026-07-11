@@ -38,6 +38,13 @@
       "license": "CC0"
     },
     {
+      "id": "floor-concrete",
+      "name": "Concrete floor",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/concrete_floor_02",
+      "license": "CC0"
+    },
+    {
       "id": "floor-parquet",
       "name": "Parquet",
       "attribution": "Poly Haven",
@@ -52,10 +59,24 @@
       "license": "CC0"
     },
     {
+      "id": "floor-tile-stone",
+      "name": "Stone tiles",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/floor_tiles_06",
+      "license": "CC0"
+    },
+    {
       "id": "floor-tile-white",
       "name": "White tiles",
       "attribution": "Poly Haven",
       "sourceUrl": "https://polyhaven.com/a/square_tiles_03",
+      "license": "CC0"
+    },
+    {
+      "id": "floor-wood-natural",
+      "name": "Natural wood",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/wood_floor",
       "license": "CC0"
     },
     {
@@ -91,6 +112,27 @@
       "name": "Concrete wall",
       "attribution": "Poly Haven",
       "sourceUrl": "https://polyhaven.com/a/concrete_wall_007",
+      "license": "CC0"
+    },
+    {
+      "id": "wall-fabric-denim",
+      "name": "Denim fabric",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/denim_fabric",
+      "license": "CC0"
+    },
+    {
+      "id": "wall-leather-white",
+      "name": "White leather",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/leather_white",
+      "license": "CC0"
+    },
+    {
+      "id": "wall-metal-plate",
+      "name": "Metal plate",
+      "attribution": "Poly Haven",
+      "sourceUrl": "https://polyhaven.com/a/metal_plate",
       "license": "CC0"
     },
     {

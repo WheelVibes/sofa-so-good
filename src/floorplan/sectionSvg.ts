@@ -14,7 +14,7 @@
 
 import type { Section } from './section'
 
-export interface SectionPalette {
+interface SectionPalette {
   /** Cut wall column fill. */
   wall: string
   /** Floor line / floor segments. */

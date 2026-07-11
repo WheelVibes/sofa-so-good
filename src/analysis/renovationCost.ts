@@ -121,7 +121,7 @@ export function wallRateFor(rules: PriceRules, id: string): number {
   return rules.wall[wallRateKind(id)]
 }
 
-export interface RenoLine {
+interface RenoLine {
   /** Finish id (caller maps to a friendly name). */
   id: string
   /** Rate bucket used. */

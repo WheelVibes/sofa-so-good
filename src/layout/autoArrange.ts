@@ -23,7 +23,7 @@ import { CLEARANCE } from './designRules'
 
 // Re-export the arrange-role classification (extracted to ./arrangeRoles) so
 // existing importers of these from './autoArrange' keep working.
-export { type ArrangeRole, roleForCategory, roleOf }
+export { roleForCategory, roleOf }
 
 /**
  * Heuristic per-room auto-arranger ("Tidy up room"). Given the items already

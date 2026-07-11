@@ -55,10 +55,6 @@ export function safeUrl(url: string | null | undefined): string | undefined {
   return undefined
 }
 
-/** Convenience alias for `href={…}` props: returns a safe URL or `undefined`
- *  so the attribute is omitted (and the element falls back to inert text). */
-export const safeHref = safeUrl
-
 /** Schemes safe to bind to an image `src` / SVG `<image href>`: the local
  *  object/data-image URLs an upload produces, plus remote http(s) and relative.
  *  Notably allows `blob:` and `data:` (needed for user-uploaded/generated
@@ -91,8 +87,3 @@ export function safeImageSrc(url: string | null | undefined): string | undefined
   // in the returned value's dataflow.
   return url.replace(/[<>"']/g, (c) => encodeURIComponent(c))
 }
-
-/** Sanitize a URL field for storage: returns the URL when safe, else
- *  `undefined` so the field is dropped from state (keeps imports
- *  back-compatible — the rest of the record is preserved). */
-export const sanitizeUrlField = safeUrl

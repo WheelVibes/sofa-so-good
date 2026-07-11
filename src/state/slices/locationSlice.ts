@@ -1,7 +1,7 @@
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
-export interface Location {
+interface Location {
   lat: number
   lon: number
   /** Optional human-readable label (e.g. "London, UK"). Populated when
@@ -32,7 +32,7 @@ export const LOCATION_INITIAL: Pick<LocationSlice, 'location' | 'locationPromptD
  *  prefer the geocoded label (city search / reverse-geocoded geolocation),
  *  else fall back to formatted coordinates (manual entry, or geolocation
  *  when reverse-geocoding returned no label). */
-export function formatLocation(loc: Location): string {
+function formatLocation(loc: Location): string {
   if (loc.label) return loc.label
   const lat = `${Math.abs(loc.lat).toFixed(2)}°${loc.lat >= 0 ? 'N' : 'S'}`
   const lon = `${Math.abs(loc.lon).toFixed(2)}°${loc.lon >= 0 ? 'E' : 'W'}`

@@ -1,0 +1,17 @@
+{
+  "id": "wall-metal-plate",
+  "name": "Metal plate",
+  "category": "wall",
+  "uvScale": [
+    1,
+    1
+  ],
+  "channels": {
+    "albedo": "albedo.jpg",
+    "normal": "normal.jpg",
+    "rough": "rough.jpg"
+  },
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/metal_plate"
+}

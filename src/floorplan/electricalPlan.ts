@@ -34,7 +34,7 @@ export interface ElectricalPoint {
 }
 
 /** One schedule row: how many of a given kind, with a friendly label. */
-export interface ElectricalScheduleRow {
+interface ElectricalScheduleRow {
   kind: ElectricalKind
   count: number
   label: string

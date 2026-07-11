@@ -6,7 +6,7 @@ import type { SliceCreator } from './types'
 /** A user-authored furniture "set": the current selection captured as
  *  centroid-relative offsets so it can be dropped again like a built-in set.
  *  Persisted to localStorage (kept out of the autosave/schema). */
-export interface UserSet {
+interface UserSet {
   id: string
   name: string
   items: SetItem[]

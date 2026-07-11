@@ -24,16 +24,16 @@ import { blockedDoorItems } from '../layout/clearance'
 import { findNarrowGaps } from '../layout/walkway'
 import { buildDaylightReport, isExternalRoom } from './daylight'
 
-export type ScoreCategoryId = 'clearance' | 'circulation' | 'daylight' | 'furnishing' | 'lighting'
+type ScoreCategoryId = 'clearance' | 'circulation' | 'daylight' | 'furnishing' | 'lighting'
 
 export type IssueSeverity = 'critical' | 'warning' | 'info'
 
-export interface ScoreIssue {
+interface ScoreIssue {
   severity: IssueSeverity
   message: string
 }
 
-export interface ScoreCategory {
+interface ScoreCategory {
   id: ScoreCategoryId
   label: string
   /** 0–100, rounded. */

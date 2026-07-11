@@ -89,7 +89,7 @@ export interface BulkImportOptions {
   lodTiers?: boolean
 }
 
-export interface SkippedFile {
+interface SkippedFile {
   name: string
   reason: string
 }

@@ -30,7 +30,7 @@ export const PARAMETRIC_TYPE_LABEL: Record<ParametricType, string> = {
 
 /** Hard-surface finish kinds the generator offers (subset of
  *  `getSurfaceMaterial` kinds; `mat:<id>` DLC values also pass through). */
-export type ParametricFinish = 'wood' | 'painted' | 'gloss' | (string & {})
+type ParametricFinish = 'wood' | 'painted' | 'gloss' | (string & {})
 
 /** Per-compartment (bay) front style — what face a single bay shows. */
 export type CompartmentStyle = 'open' | 'door' | 'drawer'

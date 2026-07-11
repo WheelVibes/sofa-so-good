@@ -9,7 +9,7 @@ import { isFeatureEnabled } from '../../features/featureFlags'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
-export interface SharedLibraryState {
+interface SharedLibraryState {
   status: 'idle' | 'loading' | 'ready' | 'error'
   items: SharedLibraryItem[]
   /** Per-group add state, keyed by the manifest `group`. */

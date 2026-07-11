@@ -156,10 +156,6 @@ import {
   type WindowFixtureSlice,
 } from './slices/windowFixtureSlice'
 
-export type { CameraMode } from './slices/cameraSlice'
-export type { Location } from './slices/locationSlice'
-export type { TimeMode, TimePreset } from './slices/timeSlice'
-
 export interface RootState
   extends CameraSlice,
     TimeSlice,

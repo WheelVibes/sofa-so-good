@@ -27,7 +27,7 @@ const PROBE_OFFSET = 0.2
 const SIZE_EPS = 1e-3
 
 /** A grouped door/window type ("mark"). */
-export interface OpeningMark {
+interface OpeningMark {
   /** Typed mark label: `D1`, `D2`… for doors, `W1`, `W2`… for windows. */
   mark: string
   kind: 'door' | 'window'

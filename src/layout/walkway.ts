@@ -62,7 +62,7 @@ function obbToAabb(id: string, o: OBB): AabbItem {
 }
 
 /** Severity of a narrow gap, mapped to the two HDB thresholds. */
-export type GapSeverity = 'tight' | 'sub-ideal'
+type GapSeverity = 'tight' | 'sub-ideal'
 
 export interface NarrowGap {
   /** First item's id. */

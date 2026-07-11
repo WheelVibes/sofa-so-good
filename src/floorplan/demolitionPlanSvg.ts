@@ -12,7 +12,7 @@
 import type { WallDiff } from './demolitionPlan'
 import type { PlanWall } from './types'
 
-export interface DemolitionPalette {
+interface DemolitionPalette {
   /** Kept walls (unchanged). */
   kept: string
   /** Demolished / hacked walls. */

@@ -127,15 +127,15 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] PHOTO-* frontier: PHOTO-POM, PHOTO-SSGI-SSR (WebGPU), PHOTO-WEBGPU. See `PHOTOREALISM.md`
   (GLASS + SOFTSHADOW shipped v0.19.0.1; GTAO rejected by real-GPU ruling 2026-07-11).
 
+## Asset pipeline
+- [ ] **FETCH-MANIFEST-BACKFILL (latent regression found 2026-07-12)**: 6 older
+  `assets/manifest/materials.json` entries (carpet/parquet/beige/brick/plaster/stone-brick) are
+  albedo-only in the manifest while their on-disk sidecars have normal/rough channels — a re-run
+  of `npm run fetch-assets` rewrites those sidecars and DROPS the channels. Backfill the 6
+  manifest entries with their normal/rough download URLs before anyone re-runs fetch-assets.
+  (The 2026-07-12 PBR additions avoided it by reverting the churn + running `index-assets` alone.)
+
 ## Dead-export prune plan (from docs/research/2026-07-03-dead-export-audit.md, verified per-symbol)
-- [ ] **DE-6 (follow-up from DE-5, 2026-07-11)**: knip's extended scope surfaces the pre-existing
-  over-export backlog as CI *warnings* (105 unused-exported types + 19 value exports — the DE-1..3
-  prune plan only ever covered value exports; spot-checks show the "same-file-used, drop-`export`-
-  only" false-positive class, NOT dead code). Driving them to zero = de-exporting ~120 symbols
-  (audit-doc Task 2/3 pattern extended to types). One genuine zero-reference deletion candidate:
-  `currentEffectiveQuality` (`src/dev/profiler/profilerEngine.ts`) — dev-only, awaiting a call.
-  Also warn-level: 3 unused devDeps (playwright ×2, wrangler — all actually used outside knip's
-  view), 6 unlisted deps, `safeUrl` duplicate export.
 
 
 ## Process

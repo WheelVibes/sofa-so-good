@@ -20,7 +20,7 @@ import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 
 /** An opening (door/window) placed on the wall, in metres: `x0..x1` along the
  *  wall from its start, `sill..head` above the floor. */
-export interface ElevationOpening {
+interface ElevationOpening {
   kind: 'door' | 'window'
   x0: number
   x1: number
@@ -35,7 +35,7 @@ export interface ElevationOpening {
 /** A furniture piece projected onto the wall plane, in metres: `x0..x1` along
  *  the wall, `0..height` above the floor; `depth` is the nearest footprint
  *  distance to the wall line (smaller = more in front, used for draw order). */
-export interface ElevationItem {
+interface ElevationItem {
   id: string
   label: string
   x0: number

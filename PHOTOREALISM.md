@@ -87,11 +87,6 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   Revisit only with a measured budget win (e.g. `transmissionResolutionScale` ≤ 0.5 profiling).
 
 ### Tier 3 — ultra-detail materials/assets (memory-bound, mostly verifiable)
-- **PHOTO-PBR-MAPS — extend CC0 PBR coverage** ◑ (L, materials; Verify H/G).
-  Core shipped (the 12 bundled finishes are full-PBR + runtime Poly Haven fetch — v0.8.0.27).
-  **Remaining:** bundle curated **Poly Haven / ambientCG** sets for the still-procedural-only tokens
-  (fabric/leather/metal + more wood/tile/concrete variants: albedo+normal+rough+AO), world-UV tiled,
-  with the procedural generators as the always-available base.
 
 ### Tier 4 — frontier (WebGPU / large)
 - **PHOTO-SSGI-SSR** (L, WebGPU/High-end; Verify G). Screen-space GI + reflections via

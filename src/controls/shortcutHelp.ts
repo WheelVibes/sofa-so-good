@@ -7,7 +7,7 @@ import { KEYBINDINGS, type KeybindingId } from './keybindings'
  * are documented in the description. Pure data — unit-tested for integrity.
  */
 
-export interface ShortcutRow {
+interface ShortcutRow {
   /** Key chips to render (each its own <kbd>), e.g. `['Ctrl/⌘', 'Z']`. */
   keys: string[]
   desc: string

@@ -2,7 +2,7 @@ import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
 /** A pending themed text-prompt request (replaces the blocking `window.prompt`). */
-export interface PromptRequest {
+interface PromptRequest {
   title: string
   /** Inline field label (defaults to the title context). */
   label?: string

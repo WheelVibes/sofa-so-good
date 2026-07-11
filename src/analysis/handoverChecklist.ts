@@ -26,14 +26,14 @@ import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furnitur
 import { type RoomKind, roomKindFromName } from './suggestions'
 
 /** One actionable checklist line. */
-export interface ChecklistItem {
+interface ChecklistItem {
   /** Stable id (group key + rule id) so a UI can key/checkbox each line. */
   id: string
   label: string
 }
 
 /** A named group of checklist lines (a room, the appliances bucket, or generic). */
-export interface ChecklistGroup {
+interface ChecklistGroup {
   /** 'room' = a plan room; 'appliances' = utility activation; 'generic' = handover. */
   kind: 'room' | 'appliances' | 'generic'
   title: string

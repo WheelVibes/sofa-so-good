@@ -417,7 +417,7 @@ export interface IkeaProductInfo {
   categoryConfidence?: 'high' | 'low'
 }
 
-export interface IkeaCompatibility {
+interface IkeaCompatibility {
   acceptsCategories: string[]
   size?: string
 }
@@ -425,7 +425,7 @@ export interface IkeaCompatibility {
 /** Modular sofa section connectivity (from the scraper). `role` is the section
  *  kind; `mates` lists which local edges accept which neighbour roles. Absent for
  *  non-modular products. Drives edge-snap when combining two sections. */
-export interface IkeaModular {
+interface IkeaModular {
   role: 'seat' | 'corner' | 'chaise' | 'armrest'
   mates: { edge: 'left' | 'right' | 'back'; accepts: string[] }[]
 }

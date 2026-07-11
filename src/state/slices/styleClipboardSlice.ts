@@ -6,7 +6,7 @@ import type { SliceCreator } from './types'
 
 /** A copied "look" — the appearance-only prop subset of a source item, plus the
  *  source def's id/name for the paste affordance label. */
-export interface StyleClipboard {
+interface StyleClipboard {
   defId: FurnitureType
   name: string
   props: ParamProps

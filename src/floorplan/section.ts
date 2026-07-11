@@ -33,7 +33,7 @@ import {
   wallLength,
 } from './types'
 
-export type SectionAxis = 'x' | 'z'
+type SectionAxis = 'x' | 'z'
 
 export interface SectionCut {
   /** Which world axis the cut line is fixed on. `'x'` → a vertical plane at
@@ -44,7 +44,7 @@ export interface SectionCut {
 }
 
 /** A wall the cut crosses, as a filled column on the section. */
-export interface SectionWall {
+interface SectionWall {
   /** Centre position along the section axis (the non-fixed axis), metres. */
   pos: number
   /** Wall thickness (metres) — its visible width in the section. */
@@ -58,7 +58,7 @@ export interface SectionWall {
 }
 
 /** An opening on a cut wall, as a gap in that wall column. */
-export interface SectionOpening {
+interface SectionOpening {
   /** Centre position along the section axis, metres. */
   pos: number
   /** Visible width of the gap along the section axis, metres. */
@@ -71,7 +71,7 @@ export interface SectionOpening {
 }
 
 /** A room the cut passes through, as a labelled floor segment. */
-export interface SectionRoom {
+interface SectionRoom {
   name: string
   /** Start position along the section axis, metres. */
   start: number
@@ -93,7 +93,7 @@ export interface SectionItemInput {
 
 /** A furniture piece projected onto the section plane (elevation of what stands
  *  in the room band the cut passes through, drawn behind the cut walls). */
-export interface SectionItem {
+interface SectionItem {
   id: string
   label: string
   /** Start position along the section axis, metres. */
@@ -105,7 +105,7 @@ export interface SectionItem {
 }
 
 /** A ceiling run at height `y` spanning `[start,end]` along the section axis. */
-export interface SectionCeil {
+interface SectionCeil {
   start: number
   end: number
   y: number

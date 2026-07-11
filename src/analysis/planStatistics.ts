@@ -34,7 +34,7 @@ export function isCirculationRoom(r: Pick<PlanRoom, 'name'>): boolean {
 }
 
 /** Per-kind tally: how many rooms of a kind, and their combined area (m²). */
-export interface RoomKindStat {
+interface RoomKindStat {
   kind: RoomKind
   count: number
   /** Combined interior floor area of rooms of this kind (m²). */

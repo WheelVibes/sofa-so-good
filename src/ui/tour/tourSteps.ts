@@ -11,7 +11,7 @@
  *  spotlighting `target`. Steps without a `mobile` entry centre on mobile (the
  *  control has no mobile-reachable equivalent, e.g. Scene inside the room editor),
  *  exactly like a missing desktop target. */
-export interface TourStepMobile {
+interface TourStepMobile {
   /** CSS selector for the element to spotlight on mobile (a `data-tour-section`
    *  accordion header or a `data-tour` row). */
   target: string

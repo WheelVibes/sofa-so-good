@@ -18,7 +18,7 @@ export type BackdropKind = 'city' | 'dusk' | 'park' | 'hills' | 'sky' | 'custom'
 
 /** Interface density. 'simple' hides advanced/technical clusters (analysis Tools,
  *  the floor-plan editor) for a friendlier first experience; 'pro' shows all. */
-export type UiMode = 'simple' | 'pro'
+type UiMode = 'simple' | 'pro'
 
 /** Row density (P38, Pro-tier `densityMode` flag). 'comfortable' is the default
  *  vertical rhythm; 'compact' tightens vertical row padding only (via
@@ -29,7 +29,7 @@ export type Density = 'comfortable' | 'compact'
 /** Boot lifecycle phase. `'hydrating'` until the async bootstrap (IDB user
  *  assets, packs, autosave) resolves; then `'ready'`. Drives the initial
  *  loading overlay. */
-export type BootPhase = 'hydrating' | 'ready'
+type BootPhase = 'hydrating' | 'ready'
 
 /** Ephemeral UI flags — opened drawers, dialogs, etc. Not persisted. */
 export interface UiSlice {

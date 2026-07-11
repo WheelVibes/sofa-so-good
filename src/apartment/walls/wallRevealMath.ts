@@ -113,7 +113,7 @@ export const SPREAD_ONSET = 0.05
  * situations it exists for. A 0.7 peak maps that limited range to a clearly
  * visible partial fade while staying graded (gentle near the onset).
  */
-export const SPREAD_FULL = 0.7
+const SPREAD_FULL = 0.7
 
 /**
  * A corner neighbour must be fading by its OWN facing above this strength before
