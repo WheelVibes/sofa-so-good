@@ -123,8 +123,6 @@ WebGPU path tracing).
 Full audit (findings P0–P3 with file:line evidence, Figma/modern-app grounding, screenshots):
 `docs/research/2026-07-10-toolbar-ux-audit.md`. Work the sequenced list there; delete each
 finding from the doc + this list as it ships. Open items, in order:
-- [ ] **TB-5 (P1)** Consolidate exports: Tools "Export & document" (~17 rows) merges into File;
-  Tools keeps analysis panels/modes only. Group the four scattered cost surfaces under one entry.
 - [ ] **TB-6-tail (P1)** Plan-editor mobile menu paradigm differs from the main sheet (centered
   "Plan tools" modal + text "☰ Menu" vs the icon-rail sheet). (Overflow edge-fade shipped
   v0.18.6.16; Scene-in-room-editor shipped v0.18.6.17.)

@@ -9,21 +9,38 @@ import { storage } from '../../../state/storage/adapter'
 import type { SlotMeta } from '../../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
+import { resolveToolLabel, toolAction } from '../../actions/toolActions'
+import { downloadBoqXlsx } from '../../downloadBoqXlsx'
+import { DRAWING_LAYERS } from '../../drawingLayers'
+import { openBoq } from '../../openBoq'
 import { downloadCostBreakdownCsv } from '../../openCostBreakdownCsv'
+import { openDrawingSet } from '../../openDrawingSet'
+import { downloadPlanDxf } from '../../openDxf'
 import { downloadFfeCsv } from '../../openFfeCsv'
 import { downloadFurnitureCsv } from '../../openFurnitureCsv'
+import { openMoodboard } from '../../openMoodboard'
+import { downloadPlanSvg } from '../../openPlanSvg'
+import { downloadRenoIcs } from '../../openRenoIcs'
+import { openDesignReport } from '../../openReport'
 import { downloadRoomScheduleCsv } from '../../openRoomScheduleCsv'
+import { exportScene3d } from '../../openSceneExport'
 import { openSh3dImport } from '../../openSh3dImport'
 import { openShoppingList } from '../../openShoplist'
+import { viewInAr } from '../../viewInAr'
+import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
-/** File cluster: save / load (with slot thumbnails + resets) / export PNG /
- *  record clip. Logic lifted from the previous Toolbar's Save/Load/Export/
- *  Record buttons. */
+/** File cluster — every OUTPUT lives here (TB-5, File-owns-output IA): save /
+ *  load, capture (PNG / panorama / renders / clip), share & document (report,
+ *  moodboard, drawing set), the "Budget & costs" group (the budget panel plus
+ *  all its cost exports, previously scattered across four menu spots), and the
+ *  CAD / 3D / CSV data exports that used to sit in Tools → "Export & document". */
 export function FileMenu() {
   const recording = useStore((s) => s.recording)
   const setRecording = useStore((s) => s.setRecording)
   const proMode = useStore((s) => s.uiMode === 'pro')
+  const budgetOpen = useStore((s) => s.budgetOpen)
+  const setShareOpen = useStore((s) => s.setShareOpen)
   const fPanorama = useFeature('panorama')
   const fPanoTour = useFeature('panoTour')
   const fHqRender = useFeature('hqRender')
@@ -32,7 +49,16 @@ export function FileMenu() {
   const fTimeCompare = useFeature('timeCompare')
   const resetToDefault = useStore((s) => s.resetToDefault)
   const resetToEmpty = useStore((s) => s.resetToEmpty)
+  const fShare = useFeature('shareExport')
+  const fMoodboard = useFeature('moodboard')
+  const fReport = useFeature('report')
+  const fBudget = useFeature('budget')
   const fShopExport = useFeature('shopExport')
+  const fBoq = useFeature('boq')
+  const fQuoteTemplate = useFeature('quoteTemplate')
+  const fDxf = useFeature('dxfExport')
+  const fSceneExport = useFeature('sceneExport3d')
+  const fViewInAr = useFeature('viewInAr')
   const fImportSh3d = useFeature('importSh3d')
   const [slots, setSlots] = useState<SlotMeta[]>([])
 
@@ -82,9 +108,14 @@ export function FileMenu() {
     useStore.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
   }
 
+  // The Budget panel row renders from the shared tool-action registry so its
+  // behaviour (close sibling aux panels → toggle) and ⌘K/kbd stay in lockstep
+  // (TB-5: it anchors the "Budget & costs" group here instead of Tools).
+  const budget = toolAction('budget')
+
   return (
-    <ToolbarMenu icon="Save" label="File" active={recording} width={256}>
-      <div className="menu-label">Save & export</div>
+    <ToolbarMenu icon="Save" label="File" active={recording || budgetOpen} width={256}>
+      <div className="menu-label">Save & capture</div>
       <MenuItem icon="Save" label="Save…" sub="Store the current layout" onClick={save} />
       <MenuItem
         icon="Export"
@@ -144,6 +175,75 @@ export function FileMenu() {
           onClick={() => useStore.getState().setTimeCompareOpen(true)}
         />
       ) : null}
+      {canRecord() && proMode ? (
+        <MenuItem
+          icon="Record"
+          label={recording ? 'Stop recording' : 'Record clip'}
+          sub="Capture a .webm video of the view"
+          active={recording}
+          onClick={() => setRecording(!recording)}
+        />
+      ) : null}
+
+      {(fShare || fMoodboard || fReport) && <div className="menu-label">Share & document</div>}
+      {fShare ? (
+        <MenuItem
+          icon="Share"
+          label="Share & export"
+          sub="Link, PNG snapshot, shoppable PDF"
+          docs="shareExport"
+          onClick={() => setShareOpen(true)}
+        />
+      ) : null}
+      {fMoodboard ? (
+        <MenuItem
+          icon="Palette"
+          label="Moodboard"
+          sub="Style board: palette + finishes + pieces"
+          onClick={() => openMoodboard()}
+        />
+      ) : null}
+      {fReport ? (
+        <MenuItem
+          icon="Report"
+          label="Report"
+          sub="Printable design report"
+          docs="report"
+          onClick={() => openDesignReport()}
+        />
+      ) : null}
+      {fReport ? (
+        <>
+          <MenuItem
+            icon="FloorPlan"
+            label="Drawing set"
+            sub="Paginated plan + elevations + schedules (PDF)"
+            onClick={() => openDrawingSet()}
+          />
+          <DrawingLayersPicker />
+        </>
+      ) : null}
+      {fReport ? (
+        <MenuItem
+          icon="Export"
+          label="Reno timeline (.ics)"
+          sub="Renovation phases as calendar events"
+          onClick={() => void downloadRenoIcs()}
+        />
+      ) : null}
+
+      {(fBudget || fShopExport || fBoq) && <div className="menu-label">Budget & costs</div>}
+      {fBudget ? (
+        <MenuItem
+          icon={budget.icon}
+          label={resolveToolLabel(budget, useStore.getState())}
+          sub={budget.sub}
+          docs={budget.docs}
+          kbd={budget.kbd ? shortcutLabel(budget.kbd) : undefined}
+          active={budget.isActive(useStore.getState())}
+          onClick={() => budget.run(useStore)}
+        />
+      ) : null}
       {fShopExport ? (
         <MenuItem
           icon="Budget"
@@ -153,29 +253,29 @@ export function FileMenu() {
           onClick={() => openShoppingList()}
         />
       ) : null}
-      {fShopExport ? (
-        <MenuItem
-          icon="Export"
-          label="Furniture list (CSV)"
-          sub="Spreadsheet of every item — dims, qty, prices"
-          onClick={() => void downloadFurnitureCsv()}
-        />
-      ) : null}
-      {fShopExport ? (
-        <MenuItem
-          icon="Export"
-          label="Room schedule (CSV)"
-          sub="Per-room area, perimeter, finishes & ceiling"
-          onClick={() => void downloadRoomScheduleCsv()}
-        />
-      ) : null}
-      {fShopExport ? (
-        <MenuItem
-          icon="Export"
-          label="FF&E schedule (CSV)"
-          sub="Item-by-item schedule — source, SKU, size, qty, price"
-          onClick={() => void downloadFfeCsv()}
-        />
+      {fBoq ? (
+        <>
+          <MenuItem
+            icon="Budget"
+            label="Quote (BOQ)"
+            sub="Bill of quantities — FF&E, finishes, carpentry"
+            onClick={() => openBoq()}
+          />
+          <MenuItem
+            icon="Export"
+            label="Quote → Excel (.xlsx)"
+            sub="Download the bill of quantities as a spreadsheet"
+            onClick={() => void downloadBoqXlsx()}
+          />
+          {fQuoteTemplate && (
+            <MenuItem
+              icon="Budget"
+              label="Quote template"
+              sub="Company branding, notes, GST & markup"
+              onClick={() => useStore.getState().setQuoteTemplateOpen(true)}
+            />
+          )}
+        </>
       ) : null}
       {fShopExport ? (
         <MenuItem
@@ -185,14 +285,83 @@ export function FileMenu() {
           onClick={() => void downloadCostBreakdownCsv()}
         />
       ) : null}
-      {canRecord() && proMode ? (
+
+      {(fDxf || fSceneExport || fViewInAr || fShopExport) && (
+        <div className="menu-label">CAD, 3D & data</div>
+      )}
+      {fDxf ? (
+        <>
+          <MenuItem
+            icon="Export"
+            label="Export DXF (CAD)"
+            sub="2D plan for AutoCAD / contractor handoff"
+            onClick={() => downloadPlanDxf()}
+          />
+          <MenuItem
+            icon="Export"
+            label="Export SVG (plan)"
+            sub="Vector 2D plan for any editor / print"
+            onClick={() => void downloadPlanSvg()}
+          />
+        </>
+      ) : null}
+      {fSceneExport ? (
+        <>
+          <MenuItem
+            icon="Export"
+            label="Export 3D model (.glb)"
+            sub="Whole furnished scene for Blender / AR / Coohom"
+            onClick={() => void exportScene3d('glb')}
+          />
+          <MenuItem
+            icon="Export"
+            label="Export 3D model (.obj)"
+            sub="Geometry-only Wavefront OBJ"
+            onClick={() => void exportScene3d('obj')}
+          />
+          <MenuItem
+            icon="Export"
+            label="Export 3D model (.stl)"
+            sub="Geometry-only STL for 3D printing / CAD"
+            onClick={() => void exportScene3d('stl')}
+          />
+          <MenuItem
+            icon="Export"
+            label="Export for AR (.usdz)"
+            sub="View in your room — iOS AR Quick Look"
+            onClick={() => void exportScene3d('usdz')}
+          />
+        </>
+      ) : null}
+      {fViewInAr ? (
         <MenuItem
-          icon="Record"
-          label={recording ? 'Stop recording' : 'Record clip'}
-          sub="Capture a .webm video of the view"
-          active={recording}
-          onClick={() => setRecording(!recording)}
+          icon="Walkthrough"
+          label="View in your room (AR)"
+          sub="Place the design in your room — iOS AR, or an AR-ready GLB"
+          onClick={() => void viewInAr()}
         />
+      ) : null}
+      {fShopExport ? (
+        <>
+          <MenuItem
+            icon="Export"
+            label="Furniture list (CSV)"
+            sub="Spreadsheet of every item — dims, qty, prices"
+            onClick={() => void downloadFurnitureCsv()}
+          />
+          <MenuItem
+            icon="Export"
+            label="Room schedule (CSV)"
+            sub="Per-room area, perimeter, finishes & ceiling"
+            onClick={() => void downloadRoomScheduleCsv()}
+          />
+          <MenuItem
+            icon="Export"
+            label="FF&E schedule (CSV)"
+            sub="Item-by-item schedule — source, SKU, size, qty, price"
+            onClick={() => void downloadFfeCsv()}
+          />
+        </>
       ) : null}
 
       <div className="menu-label">Load & reset</div>
@@ -292,5 +461,40 @@ export function FileMenu() {
         onClick={() => void runUpdateCheck()}
       />
     </ToolbarMenu>
+  )
+}
+
+/** Compact checklist of which drawing-set sheet groups to include in the export
+ *  (the floor plan is always included). Lives under the "Drawing set" entry;
+ *  clicks don't close the menu so several layers can be toggled in one go.
+ *  (Moved here with the Drawing set row from ToolsMenu, TB-5.) */
+function DrawingLayersPicker() {
+  const layers = useStore((s) => s.drawingLayers)
+  const setDrawingLayer = useStore((s) => s.setDrawingLayer)
+  return (
+    <div
+      className="px-3 py-1"
+      style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <span className="label" style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)' }}>
+        Include sheets
+      </span>
+      {DRAWING_LAYERS.map((l) => (
+        <label
+          key={l.key}
+          className="flex items-center gap-2"
+          style={{ fontSize: 'var(--t-xs)', cursor: 'pointer' }}
+        >
+          <input
+            type="checkbox"
+            checked={layers[l.key] !== false}
+            aria-label={l.label}
+            onChange={(e) => setDrawingLayer(l.key, e.target.checked)}
+          />
+          <span>{l.label}</span>
+        </label>
+      ))}
+    </div>
   )
 }

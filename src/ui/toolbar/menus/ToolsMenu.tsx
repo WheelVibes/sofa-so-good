@@ -10,24 +10,16 @@ import {
   visibleToolActions,
 } from '../../actions/toolActions'
 import { closeAllAuxPanels } from '../../auxPanels'
-import { downloadBoqXlsx } from '../../downloadBoqXlsx'
-import { DRAWING_LAYERS } from '../../drawingLayers'
-import { openBoq } from '../../openBoq'
-import { openDrawingSet } from '../../openDrawingSet'
-import { downloadPlanDxf } from '../../openDxf'
-import { openMoodboard } from '../../openMoodboard'
-import { downloadPlanSvg } from '../../openPlanSvg'
-import { downloadRenoIcs } from '../../openRenoIcs'
-import { openDesignReport } from '../../openReport'
-import { exportScene3d } from '../../openSceneExport'
-import { viewInAr } from '../../viewInAr'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
-/** Tools cluster: budget, clearance checks, sun study, walkthrough, report.
- *  Logic lifted from the previous Toolbar's ToolsMenu + its sub-buttons. */
+/** Tools cluster — analysis panels and modes ONLY (TB-5): the shared
+ *  Analyse/Review registry rows, plus the bespoke Sheet-callouts panel toggle,
+ *  Sun-study mode and the Style wizards. Every one-shot export/document action
+ *  that used to live here ("Export & document", ~17 rows) moved to the FILE
+ *  menu (`FileMenu`), matching the File-owns-output IA of Figma / Sweet Home 3D
+ *  / Planner 5D (toolbar UX audit P1-5). */
 export function ToolsMenu() {
-  const budgetOpen = useStore((s) => s.budgetOpen)
   const clearancePanelOpen = useStore((s) => s.clearancePanelOpen)
   const elevationsOpen = useStore((s) => s.elevationsOpen)
   const daylightOpen = useStore((s) => s.daylightOpen)
@@ -38,18 +30,17 @@ export function ToolsMenu() {
   const commentCount = useStore((s) => s.comments.length)
   const drawingCalloutsOpen = useStore((s) => s.drawingCalloutsOpen)
   const drawingCalloutCount = useStore((s) => s.drawingCallouts.length)
-  const setShareOpen = useStore((s) => s.setShareOpen)
   const versionsOpen = useStore((s) => s.versionsOpen)
   const historyOpen = useStore((s) => s.historyOpen)
   const touring = useStore((s) => s.touring)
   const recording = useStore((s) => s.recording)
 
-  // The budget / clearance / versions / history / analysis panels all dock to the
-  // same centred-top `.aux` slot, so they're mutually exclusive — opening one
-  // closes the others (shared helper, also used by mobile + ⌘K).
-  // Aux-panel open/close logic for the Analyse + Review rows now lives in the
-  // shared tool-action registry (`actions/toolActions`); this menu just renders
-  // it. The drawing-callouts toggle below stays bespoke (Export section).
+  // The clearance / versions / history / analysis panels all dock to the same
+  // centred-top `.aux` slot, so they're mutually exclusive — opening one closes
+  // the others (shared helper, also used by mobile + ⌘K). Aux-panel open/close
+  // logic for the Analyse + Review rows lives in the shared tool-action
+  // registry (`actions/toolActions`); this menu just renders it. The
+  // drawing-callouts toggle below stays bespoke (local per-feature state).
   const closeAux = () => closeAllAuxPanels(useStore.getState())
 
   const items = useStore((s) => s.items)
@@ -72,7 +63,6 @@ export function ToolsMenu() {
   }
 
   const anyActive =
-    budgetOpen ||
     clearancePanelOpen ||
     elevationsOpen ||
     daylightOpen ||
@@ -88,28 +78,18 @@ export function ToolsMenu() {
     commentMode ||
     drawingCalloutsOpen
 
-  const openReport = () => openDesignReport()
-
-  // Per-feature gates for the bespoke Export section. The Analyse + Review rows
-  // are gated inside the registry (`visibleToolActions`), so they need no flags
-  // here — only Sun study (local-state) keeps a flag.
-  const fShare = useFeature('shareExport')
+  // Per-feature gates for the bespoke rows. The Analyse + Review rows are gated
+  // inside the registry (`visibleToolActions`), so they need no flags here.
   const fSun = useFeature('sunStudy')
-  const fReport = useFeature('report')
-  const fMoodboard = useFeature('moodboard')
   const fStyleTransfer = useFeature('styleTransfer')
   const fStyleQuiz = useFeature('styleQuiz')
-  const fDxf = useFeature('dxfExport')
-  const fBoq = useFeature('boq')
-  const fQuoteTemplate = useFeature('quoteTemplate')
-  const fSceneExport = useFeature('sceneExport3d')
-  const fViewInAr = useFeature('viewInAr')
   const fDrawingCallouts = useFeature('drawingCallouts')
 
   // Analyse + Review rows come from the shared registry so this menu, the mobile
-  // sheet and ⌘K can't drift (see actions/toolActions). The Sun-study toggle is
-  // injected into the Review group because its on/off lives in local component
-  // state (not the store), so it can't be a registry action.
+  // sheet and ⌘K can't drift (see actions/toolActions). Two bespoke injections:
+  // Sheet callouts joins the Analyse group (an annotation panel, like Comments,
+  // whose open-state lives outside the aux registry), and the Sun-study toggle
+  // joins the Review group because its on/off lives in local component state.
   const flags = useStore((s) => s.featureFlags)
   const groups = groupToolActions(visibleToolActions('desktop', flags))
   const snap = useStore.getState()
@@ -138,6 +118,20 @@ export function ToolsMenu() {
         <Fragment key={g.category}>
           <div className="menu-label">{g.label}</div>
           {g.actions.map(renderAction)}
+          {g.category === 'analyze' && fDrawingCallouts ? (
+            <MenuItem
+              icon="Pin"
+              label={
+                drawingCalloutCount > 0
+                  ? `Sheet callouts · ${drawingCalloutCount}`
+                  : 'Sheet callouts'
+              }
+              sub="Free-text notes on drawing-set sheets"
+              docs="drawingCallouts"
+              active={drawingCalloutsOpen}
+              onClick={toggleDrawingCallouts}
+            />
+          ) : null}
           {g.category === 'review' && fSun ? (
             <MenuItem
               icon="SunStudy"
@@ -150,16 +144,7 @@ export function ToolsMenu() {
           ) : null}
         </Fragment>
       ))}
-      {(fReport ||
-        fBoq ||
-        fDxf ||
-        fSceneExport ||
-        fViewInAr ||
-        fDrawingCallouts ||
-        fShare ||
-        fMoodboard ||
-        fStyleTransfer ||
-        fStyleQuiz) && <div className="menu-label">Export & document</div>}
+      {(fStyleQuiz || fStyleTransfer) && <div className="menu-label">Style</div>}
       {fStyleQuiz && (
         <MenuItem
           icon="Palette"
@@ -177,174 +162,7 @@ export function ToolsMenu() {
           onClick={() => useStore.getState().setStyleTransferOpen(true)}
         />
       )}
-      {fShare && (
-        <MenuItem
-          icon="Share"
-          label="Share & export"
-          sub="Link, PNG snapshot, shoppable PDF"
-          docs="shareExport"
-          onClick={() => setShareOpen(true)}
-        />
-      )}
-      {fMoodboard && (
-        <MenuItem
-          icon="Palette"
-          label="Moodboard"
-          sub="Style board: palette + finishes + pieces"
-          onClick={() => openMoodboard()}
-        />
-      )}
-      {fReport && (
-        <MenuItem
-          icon="Report"
-          label="Report"
-          sub="Printable design report"
-          docs="report"
-          onClick={openReport}
-        />
-      )}
-      {fReport && (
-        <MenuItem
-          icon="Export"
-          label="Reno timeline (.ics)"
-          sub="Renovation phases as calendar events"
-          onClick={() => void downloadRenoIcs()}
-        />
-      )}
-      {fBoq && (
-        <>
-          <MenuItem
-            icon="Budget"
-            label="Quote (BOQ)"
-            sub="Bill of quantities — FF&E, finishes, carpentry"
-            onClick={() => openBoq()}
-          />
-          <MenuItem
-            icon="Export"
-            label="Quote → Excel (.xlsx)"
-            sub="Download the bill of quantities as a spreadsheet"
-            onClick={() => void downloadBoqXlsx()}
-          />
-          {fQuoteTemplate && (
-            <MenuItem
-              icon="Budget"
-              label="Quote template"
-              sub="Company branding, notes, GST & markup"
-              onClick={() => useStore.getState().setQuoteTemplateOpen(true)}
-            />
-          )}
-        </>
-      )}
-      {fDxf && (
-        <MenuItem
-          icon="Export"
-          label="Export DXF (CAD)"
-          sub="2D plan for AutoCAD / contractor handoff"
-          onClick={() => downloadPlanDxf()}
-        />
-      )}
-      {fDxf && (
-        <MenuItem
-          icon="Export"
-          label="Export SVG (plan)"
-          sub="Vector 2D plan for any editor / print"
-          onClick={() => void downloadPlanSvg()}
-        />
-      )}
-      {fSceneExport && (
-        <>
-          <MenuItem
-            icon="Export"
-            label="Export 3D model (.glb)"
-            sub="Whole furnished scene for Blender / AR / Coohom"
-            onClick={() => void exportScene3d('glb')}
-          />
-          <MenuItem
-            icon="Export"
-            label="Export 3D model (.obj)"
-            sub="Geometry-only Wavefront OBJ"
-            onClick={() => void exportScene3d('obj')}
-          />
-          <MenuItem
-            icon="Export"
-            label="Export 3D model (.stl)"
-            sub="Geometry-only STL for 3D printing / CAD"
-            onClick={() => void exportScene3d('stl')}
-          />
-          <MenuItem
-            icon="Export"
-            label="Export for AR (.usdz)"
-            sub="View in your room — iOS AR Quick Look"
-            onClick={() => void exportScene3d('usdz')}
-          />
-        </>
-      )}
-      {fViewInAr && (
-        <MenuItem
-          icon="Walkthrough"
-          label="View in your room (AR)"
-          sub="Place the design in your room — iOS AR, or an AR-ready GLB"
-          onClick={() => void viewInAr()}
-        />
-      )}
-      {fReport && (
-        <>
-          <MenuItem
-            icon="FloorPlan"
-            label="Drawing set"
-            sub="Paginated plan + elevations + schedules (PDF)"
-            onClick={() => openDrawingSet()}
-          />
-          <DrawingLayersPicker />
-        </>
-      )}
-      {fDrawingCallouts && (
-        <MenuItem
-          icon="Pin"
-          label={
-            drawingCalloutCount > 0 ? `Sheet callouts · ${drawingCalloutCount}` : 'Sheet callouts'
-          }
-          sub="Free-text notes on drawing-set sheets"
-          docs="drawingCallouts"
-          active={drawingCalloutsOpen}
-          onClick={toggleDrawingCallouts}
-        />
-      )}
     </ToolbarMenu>
-  )
-}
-
-/** Compact checklist of which drawing-set sheet groups to include in the export
- *  (the floor plan is always included). Lives under the "Drawing set" entry;
- *  clicks don't close the menu so several layers can be toggled in one go. */
-function DrawingLayersPicker() {
-  const layers = useStore((s) => s.drawingLayers)
-  const setDrawingLayer = useStore((s) => s.setDrawingLayer)
-  return (
-    <div
-      className="px-3 py-1"
-      style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <span className="label" style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)' }}>
-        Include sheets
-      </span>
-      {DRAWING_LAYERS.map((l) => (
-        <label
-          key={l.key}
-          className="flex items-center gap-2"
-          style={{ fontSize: 'var(--t-xs)', cursor: 'pointer' }}
-        >
-          <input
-            type="checkbox"
-            checked={layers[l.key] !== false}
-            aria-label={l.label}
-            onChange={(e) => setDrawingLayer(l.key, e.target.checked)}
-          />
-          <span>{l.label}</span>
-        </label>
-      ))}
-    </div>
   )
 }
 

@@ -7,13 +7,12 @@ import {
   type ToolAction,
   visibleToolActions,
 } from '../../actions/toolActions'
-import { downloadPlanSvg } from '../../openPlanSvg'
-import { downloadRenoIcs } from '../../openRenoIcs'
-import { openDesignReport } from '../../openReport'
 import { Item, Section, SubHeader } from './parts'
 
-/** Tools (advanced — hidden in Simple mode): the shared Analyse/Review tool
- *  registry plus the bespoke Sun study + Export & document group. */
+/** Tools (advanced — hidden in Simple mode): analysis panels and modes ONLY
+ *  (TB-5) — the shared Analyse/Review tool registry plus the bespoke Sun study
+ *  and Style wizards. Every export/document row moved to the File section
+ *  (`FileSection`), mirroring the desktop File-owns-output reorganisation. */
 export function ToolsSection({
   activeId,
   act,
@@ -28,7 +27,6 @@ export function ToolsSection({
   const s = useStore
   const featureFlags = useStore((st) => st.featureFlags)
   const roomEditorActive = useStore((st) => st.roomEditor.active)
-  const budgetOpen = useStore((st) => st.budgetOpen)
   const versionsOpen = useStore((st) => st.versionsOpen)
   const historyOpen = useStore((st) => st.historyOpen)
   const clearancePanelOpen = useStore((st) => st.clearancePanelOpen)
@@ -40,21 +38,15 @@ export function ToolsSection({
   const tapeMode = useStore((st) => st.tapeMode)
   const touring = useStore((st) => st.touring)
 
-  const fShare = useFeature('shareExport')
   const fStyleTransfer = useFeature('styleTransfer')
   const fStyleQuiz = useFeature('styleQuiz')
   const fSun = useFeature('sunStudy')
-  const fReport = useFeature('report')
-  const fDxf = useFeature('dxfExport')
-
-  const openReport = () => openDesignReport()
 
   // The Analyse + Review tool rows render from the shared registry (parity with
   // desktop + ⌘K). Active highlighting reads the already-subscribed open-flags
   // (so the sheet re-renders when a panel toggles); labels resolve dynamically
   // (Measure → Measuring…, Walkthrough → Stop tour).
   const toolActive: Record<string, boolean> = {
-    budget: budgetOpen,
     clearance: clearancePanelOpen,
     drawings: elevationsOpen,
     daylight: daylightOpen,
@@ -98,26 +90,12 @@ export function ToolsSection({
           </Fragment>
         ),
       )}
-      {fShare ||
-      fStyleTransfer ||
-      fStyleQuiz ||
-      (!roomEditorActive && fReport) ||
-      (!roomEditorActive && fDxf) ? (
-        <SubHeader>Export &amp; document</SubHeader>
-      ) : null}
+      {fStyleQuiz || fStyleTransfer ? <SubHeader>Style</SubHeader> : null}
       {fStyleQuiz ? (
         <Item
           icon="Palette"
           label="Style quiz"
           onClick={act(() => s.getState().setStyleQuizOpen(true))}
-        />
-      ) : null}
-      {fShare ? (
-        <Item
-          icon="Share"
-          label="Share & export"
-          docs="shareExport"
-          onClick={act(() => s.getState().setShareOpen(true))}
         />
       ) : null}
       {fStyleTransfer ? (
@@ -126,35 +104,6 @@ export function ToolsSection({
           label="Style transfer"
           onClick={act(() => s.getState().setStyleTransferOpen(true))}
         />
-      ) : null}
-      {!roomEditorActive ? (
-        <>
-          {fReport ? (
-            <Item
-              icon="Report"
-              label="Report"
-              sub="Printable design report"
-              docs="report"
-              onClick={act(openReport)}
-            />
-          ) : null}
-          {fReport ? (
-            <Item
-              icon="Export"
-              label="Reno timeline (.ics)"
-              sub="Renovation phases as calendar events"
-              onClick={act(() => void downloadRenoIcs())}
-            />
-          ) : null}
-          {fDxf ? (
-            <Item
-              icon="Export"
-              label="Export SVG (plan)"
-              sub="Vector 2D plan for any editor / print"
-              onClick={act(() => void downloadPlanSvg())}
-            />
-          ) : null}
-        </>
       ) : null}
     </Section>
   )

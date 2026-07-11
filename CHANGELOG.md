@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.20.0.2 — TB-5: File owns output — Tools' "Export & document" grab-bag merged into File
+
+Figma-grounded IA fix from the toolbar audit: the ~17-row "Export & document" section leaves
+Tools; **File** is reorganised into **Save & capture · Share & document · Budget & costs ·
+CAD, 3D & data · Load & reset · App**, and **Tools** keeps analysis panels/modes only
+(**Analyse** — registry rows + Sheet callouts · **Review & tour** — + Sun study · **Style** —
+Style quiz/transfer). The four scattered cost surfaces now sit together under File → **Budget &
+costs**: Budget panel (registry-rendered via `toolAction('budget')`, kbd `B`, palette-only
+surfaces so ⌘K keeps it), Shopping list, Quote (BOQ) + Excel + template, Cost breakdown (CSV).
+`DrawingLayersPicker` moved with the Drawing set. Mobile File/Tools sections mirror the same
+grouping (mobile gains Quote/Budget rows it never had). No command lost; every row keeps its
+`useFeature` gate (cost flags default off — nothing new exposed in prod). New grouping tests for
+FileMenu/ToolsMenu/mobile FileSection assert BOTH Simple and Pro; user docs + ARCHITECTURE
+updated to the new menu paths. Before/after screenshots reviewed (desktop File/Tools, mobile
+sheet): the 72vh Tools overflow is gone, sections render with clean headers.
+
 ## v0.20.0.1 — TB-8-tail: segmented controls replace 3+-state cycle-buttons + distinct tape icon
 
 New reusable `controls/Segmented` (renders the existing `.seg` token classes; radiogroup semantics,

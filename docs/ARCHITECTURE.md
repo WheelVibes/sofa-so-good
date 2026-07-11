@@ -395,7 +395,13 @@ same change that reshapes a system.
   `isActive`/`run`); the desktop `menus/ToolsMenu`, the `MobileToolbar` sheet, and the
   `CommandPalette` all render from it via `visibleToolActions(surface, flags)` /
   `groupToolActions`, so they can't drift (invariants + per-surface projection covered by
-  `toolActions.test.ts`). The export cluster + local-state Sun-study toggle stay hand-rendered.
+  `toolActions.test.ts`). The local-state Sun-study toggle stays hand-rendered. **TB-5 (File owns
+  output):** every one-shot export/document row lives in the **File** menus (`menus/FileMenu` +
+  `mobile/FileSection`), grouped under section headers (Save & capture · Share & document ·
+  Budget & costs · CAD, 3D & data · Load & reset); Tools holds analysis panels/modes only
+  (Analyse · Review & tour · Style). The four cost surfaces (Budget panel + Shopping list +
+  Quote/BOQ + Cost breakdown) sit together under File → **Budget & costs**; the Budget row
+  renders from the registry (`toolAction('budget')`, surfaces `['palette']` so ⌘K keeps it).
   Aux panels that share the centred-top slot are closed as a group via `src/ui/auxPanels.ts`
   (`closeAllAuxPanels`); contextual user-guide deep-links resolve through `src/ui/docsUrl.ts`.
   **Shared UI systems**: `InfoCallout` (flag-gated dismissible hint banners, per-id persisted) and `ui/newBadges.ts` (registry-driven "New" `.new-dot` on toolbar/menu entries, seen-state persisted). **Shared form controls** (`src/ui/controls/`): `Button` (typed composer over the `.btn-*` vocabulary — variant/size/block/icon/loading), `Select` (themed dropdown — replaces every native
