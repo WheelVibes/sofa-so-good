@@ -284,8 +284,10 @@ Multiple independent layers keep the bill at **$0**:
 **Branch-flow change (2026-07-11): GitHub Pages is now the STAGING deployment.**
 `deploy.yml` publishes the **`staging` branch** (no longer `main`) — new features
 land there for testing at the Pages URL before graduating; `main` deploys to
-Cloudflare only (this doc). Feature branches PR into `staging`; only `staging`
-PRs into `main` (enforced by `.github/workflows/pr-flow-guard.yml`).
+Cloudflare only (this doc). Feature branches are cut FROM `staging` and PR back
+into it (branch protection blocks direct pushes to `staging`); only `staging`
+PRs into `main` (enforced by `.github/workflows/pr-flow-guard.yml`). The
+`github-pages` deployment environment's branch policy allows only `staging`.
 
 Because the client gates all backend features on `VITE_API_BASE`
 (`hasBackend()`), a build without it (GitHub Pages) has **no cloud login, no
