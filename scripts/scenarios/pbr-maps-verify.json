@@ -1,0 +1,32 @@
+{
+  "name": "pbr-maps-verify",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(()=>{localStorage.setItem('hdb_onboarded','1'); const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()})()" },
+    { "name": "daylight", "eval": "window.__store.getState().setManualHour(13)" },
+    { "name": "scene-ready", "waitFor": { "store": "window.__store.getState().sceneReady === true" }, "timeout": 60000 },
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "settle-room", "wait": 2500 },
+
+    { "name": "apply-wood-fabric", "eval": "(()=>{const s=window.__store.getState(); s.setFloorFinish('livingDining','floor-wood-natural'); s.setWallFinish('livingDining','wall-fabric-denim')})()" },
+    { "name": "wait-wood-fabric", "waitFor": { "store": "window.__store.getState().finishes.floor.livingDining === 'floor-wood-natural'" } },
+    { "name": "settle-1", "wait": 2500 },
+    { "name": "shot-wood-fabric", "screenshot": "01-floor-wood-natural__wall-fabric-denim" },
+
+    { "name": "apply-tile-leather", "eval": "(()=>{const s=window.__store.getState(); s.setFloorFinish('livingDining','floor-tile-stone'); s.setWallFinish('livingDining','wall-leather-white')})()" },
+    { "name": "wait-tile-leather", "waitFor": { "store": "window.__store.getState().finishes.floor.livingDining === 'floor-tile-stone'" } },
+    { "name": "settle-2", "wait": 2500 },
+    { "name": "shot-tile-leather", "screenshot": "02-floor-tile-stone__wall-leather-white" },
+
+    { "name": "apply-concrete-metal", "eval": "(()=>{const s=window.__store.getState(); s.setFloorFinish('livingDining','floor-concrete'); s.setWallFinish('livingDining','wall-metal-plate')})()" },
+    { "name": "wait-concrete-metal", "waitFor": { "store": "window.__store.getState().finishes.floor.livingDining === 'floor-concrete'" } },
+    { "name": "settle-3", "wait": 2500 },
+    { "name": "shot-concrete-metal", "screenshot": "03-floor-concrete__wall-metal-plate" },
+
+    { "name": "apply-procedural-baseline", "eval": "(()=>{const s=window.__store.getState(); s.setFloorFinish('livingDining','floor-terrazzo'); s.setWallFinish('livingDining','wall-concrete-grey')})()" },
+    { "name": "wait-baseline", "waitFor": { "store": "window.__store.getState().finishes.floor.livingDining === 'floor-terrazzo'" } },
+    { "name": "settle-4", "wait": 2500 },
+    { "name": "shot-baseline", "screenshot": "04-procedural-baseline-terrazzo__concrete-grey" }
+  ]
+}

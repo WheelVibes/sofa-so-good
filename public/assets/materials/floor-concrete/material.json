@@ -1,0 +1,17 @@
+{
+  "id": "floor-concrete",
+  "name": "Concrete floor",
+  "category": "floor",
+  "uvScale": [
+    2.2,
+    2.2
+  ],
+  "channels": {
+    "albedo": "albedo.jpg",
+    "normal": "normal.jpg",
+    "rough": "rough.jpg"
+  },
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/concrete_floor_02"
+}
