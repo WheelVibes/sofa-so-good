@@ -47,14 +47,14 @@ export function buildPlanShareUrl(code: string): string {
 
 /** Reject an oversized code before inflating (cheap first-line DoS guard). A
  *  real design compresses to well under this. */
-export const MAX_CODE_LENGTH = 2_000_000
+const MAX_CODE_LENGTH = 2_000_000
 
 /** Cap on the *decompressed* payload. The compressed-size limit alone is not a
  *  zip-bomb guard — deflate easily expands 2 MB into gigabytes — so inflation is
  *  bounded to this many bytes and aborted past it. A real design's JSON is a few
  *  MB even with thousands of items, well under this ceiling (which mirrors the
  *  `.sofa.json` import limit so both untrusted paths refuse the same oversize). */
-export const MAX_DECOMPRESSED_BYTES = 50 * 1024 * 1024
+const MAX_DECOMPRESSED_BYTES = 50 * 1024 * 1024
 
 class DecompressionLimitError extends Error {}
 

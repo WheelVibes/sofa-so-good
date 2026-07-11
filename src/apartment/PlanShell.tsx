@@ -36,13 +36,18 @@ import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
+import { getWallOwnStrength, setWallOwnStrength } from './walls/wallReveal'
 import {
+  cornerNeighbors,
+  cornerSpreadStrength,
   DEFAULT_WALL_REVEAL_STRENGTH,
+  facingToward,
   orientOutward,
   pointInRooms,
   type RoomRect,
+  revealStrength,
   revealTargetOpacityForFade,
-  wallRevealStrength,
+  SPREAD_ONSET,
 } from './walls/wallRevealMath'
 
 // Window glass day/night tint — clear cool pane by day, dark reflective at night
@@ -54,6 +59,8 @@ const FWD = new Vector3()
 // Light neutral a faded wall is lifted toward so it doesn't dim the room seen
 // through it (REVEAL-THROUGH-TINT). Shared, read-only.
 const REVEAL_EMISSIVE = new Color('#eceae4')
+// Stable empty neighbour list for walls with no corner adjacency.
+const NO_NEIGHBORS: readonly string[] = []
 
 /**
  * One plan wall, fading out in orbit mode when it sits between the camera and
@@ -69,7 +76,7 @@ const REVEAL_EMISSIVE = new Color('#eceae4')
  *  falls back to "away from the plan centre" only when the probe is ambiguous.
  *  `angle` is the box's Y-rotation; the box's broad faces (the wall surfaces)
  *  have the XZ normal (cos a, −sin a). */
-function revealFadeStrength(
+function revealFacingToward(
   fwdX: number,
   fwdZ: number,
   px: number,
@@ -102,8 +109,10 @@ function revealFadeStrength(
       nz = -nz
     }
   }
-  // Fade purely from the camera's look direction — independent of zoom / pan.
-  return wallRevealStrength(fwdX, fwdZ, nx, nz)
+  // Facing purely from the camera's look direction — independent of zoom / pan.
+  // Returns the raw `toward` cosine so callers can grade BOTH the own-facing
+  // strength (`revealStrength`) and the corner-spread curve from it.
+  return facingToward(fwdX, fwdZ, nx, nz)
 }
 
 /** Interior room rectangles (+ L-extensions) for a level, for the point-in-room
@@ -137,15 +146,23 @@ function planWallRevealTarget(
   isInterior: (x: number, z: number) => boolean,
   cx: number,
   cz: number,
+  /** Corner-neighbour wall ids (walls sharing an endpoint) for spread. */
+  neighborIds: readonly string[],
+  /** Only the wall BODY publishes its own strength (trim/glass read-only, so a
+   *  wall's registry entry isn't overwritten by a lockstep follower). */
+  publishOwn: boolean,
 ): number {
   const st = useStore.getState()
   const revealEnabled = st.qualityOverrides.wallReveal ?? true
   const fade = st.wallRevealStrength ?? DEFAULT_WALL_REVEAL_STRENGTH
   const revealScope = st.wallRevealScope ?? 'exterior'
   const participates = isExterior || revealScope === 'all'
-  if (!(participates && cameraMode === 'orbit' && revealEnabled && fade > 0)) return 1
+  if (!(participates && cameraMode === 'orbit' && revealEnabled && fade > 0)) {
+    if (publishOwn) setWallOwnStrength(box.wallId, 0)
+    return 1
+  }
   const probe = box.thickness / 2 + 0.3
-  const s = revealFadeStrength(
+  const toward = revealFacingToward(
     fwdX,
     fwdZ,
     box.cx,
@@ -157,9 +174,27 @@ function planWallRevealTarget(
     cz,
     !isExterior,
   )
+  const own = revealStrength(toward)
+  // Publish the OWN-facing strength (never the spread-inclusive one) so spread
+  // stays first-degree — a wall fading only because of spread publishes 0 and
+  // cannot pull its own neighbours in (mirrors WallSegment/useWallReveal).
+  if (publishOwn) setWallOwnStrength(box.wallId, own)
+  // Corner spread (WALL-REVEAL-CORNER-SPREAD): a wall sharing a corner with a
+  // wall that is meaningfully fading by its OWN facing fades too, graded by
+  // this wall's own facing on the spread curve and gated on the strongest
+  // neighbour's published own strength (one-frame lag is fine).
+  let strength = own
+  if (toward > SPREAD_ONSET && neighborIds.length > 0) {
+    let maxNb = 0
+    for (const id of neighborIds) {
+      const s = getWallOwnStrength(id)
+      if (s > maxNb) maxNb = s
+    }
+    strength = Math.max(strength, cornerSpreadStrength(toward, maxNb))
+  }
   // Graded target: settles anywhere between opaque and the fade-strength floor
   // (`1 − fade`) per the wall's facing angle (WALL-REVEAL-ANGLE-GRADED).
-  return revealTargetOpacityForFade(fade, s)
+  return revealTargetOpacityForFade(fade, strength)
 }
 
 function FadeWall({
@@ -169,6 +204,7 @@ function FadeWall({
   color,
   isExterior,
   isInterior,
+  neighborIds,
 }: {
   box: WallBox
   cx: number
@@ -179,6 +215,8 @@ function FadeWall({
   isExterior: boolean
   /** Point-in-room test used to orient each wall's outward normal. */
   isInterior: (x: number, z: number) => boolean
+  /** Corner-neighbour wall ids for the reveal corner-spread. */
+  neighborIds: readonly string[]
 }) {
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
@@ -197,6 +235,8 @@ function FadeWall({
       isInterior,
       cx,
       cz,
+      neighborIds,
+      true,
     )
     mat.opacity += (target - mat.opacity) * 0.18
     const next = mat.opacity < 0.98
@@ -248,6 +288,7 @@ function useTrimFade(
   isInterior: (x: number, z: number) => boolean,
   cx: number,
   cz: number,
+  neighborIds: readonly string[],
 ) {
   const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
@@ -257,6 +298,8 @@ function useTrimFade(
     const mat = mesh.material as MeshStandardMaterial
     if (!mat) return
     camera.getWorldDirection(FWD)
+    // publishOwn=false: the trim follows its host wall's fade (incl. spread)
+    // without overwriting the wall's own-strength registry entry.
     const target = planWallRevealTarget(
       FWD.x,
       FWD.z,
@@ -266,6 +309,8 @@ function useTrimFade(
       isInterior,
       cx,
       cz,
+      neighborIds,
+      false,
     )
     mat.opacity += (target - mat.opacity) * 0.18
     const next = mat.opacity < 0.98
@@ -288,6 +333,7 @@ function FadeSkirting({
   isInterior,
   cx,
   cz,
+  neighborIds,
 }: {
   box: WallBox
   height: number
@@ -296,9 +342,10 @@ function FadeSkirting({
   isInterior: (x: number, z: number) => boolean
   cx: number
   cz: number
+  neighborIds: readonly string[]
 }) {
   const ref = useRef<Mesh>(null)
-  useTrimFade(ref, box, isExterior, isInterior, cx, cz)
+  useTrimFade(ref, box, isExterior, isInterior, cx, cz, neighborIds)
   return (
     <BeveledBox
       ref={ref}
@@ -322,6 +369,7 @@ function FadeCrown({
   isInterior,
   cx,
   cz,
+  neighborIds,
 }: {
   box: WallBox
   ceilingHeight: number
@@ -329,9 +377,10 @@ function FadeCrown({
   isInterior: (x: number, z: number) => boolean
   cx: number
   cz: number
+  neighborIds: readonly string[]
 }) {
   const ref = useRef<Mesh>(null)
-  useTrimFade(ref, box, isExterior, isInterior, cx, cz)
+  useTrimFade(ref, box, isExterior, isInterior, cx, cz, neighborIds)
   return (
     <BeveledBox
       ref={ref}
@@ -428,6 +477,11 @@ function PlanLevelShell({
     return (x: number, z: number) => pointInRooms(x, z, rects, 0.05)
   }, [lp])
 
+  // Corner-adjacency (walls sharing an endpoint) for the reveal corner-spread
+  // (WALL-REVEAL-CORNER-SPREAD) — the same static map WallSegment/useWallReveal
+  // build; plan geometry only changes with the plan itself.
+  const neighbors = useMemo(() => cornerNeighbors(lp.walls), [lp])
+
   // Pair each render box with whether its source wall is an external/perimeter
   // wall: only those fade for the camera reveal (internal partitions stay solid
   // so the room layout reads clearly), matching the default flat's WallSegment.
@@ -492,6 +546,7 @@ function PlanLevelShell({
         }
         return {
           id: o.id,
+          wallId: wall.id,
           cx,
           cz,
           cy: (o.sill + o.head) / 2,
@@ -618,6 +673,7 @@ function PlanLevelShell({
           color={color}
           isExterior={isExterior}
           isInterior={isInterior}
+          neighborIds={neighbors.get(box.wallId) ?? NO_NEIGHBORS}
         />
       ))}
 
@@ -647,6 +703,7 @@ function PlanLevelShell({
           isInterior={isInterior}
           cx={cx}
           cz={cz}
+          neighborIds={neighbors.get(b.wallId) ?? NO_NEIGHBORS}
         />
       ))}
 
@@ -664,6 +721,7 @@ function PlanLevelShell({
               isInterior={isInterior}
               cx={cx}
               cz={cz}
+              neighborIds={neighbors.get(b.wallId) ?? NO_NEIGHBORS}
             />
           ))}
 
@@ -682,13 +740,21 @@ function PlanLevelShell({
               cx={cx}
               cz={cz}
               isInterior={isInterior}
+              neighborIds={neighbors.get(wall.id) ?? NO_NEIGHBORS}
             />
           ) : null
         })}
 
       {/* Window glass — fades with its wall during the orbit reveal (FadeWindow). */}
       {windows.map((w) => (
-        <FadeWindow key={w.id} win={w} cx={cx} cz={cz} isInterior={isInterior} />
+        <FadeWindow
+          key={w.id}
+          win={w}
+          cx={cx}
+          cz={cz}
+          isInterior={isInterior}
+          neighborIds={neighbors.get(w.wallId) ?? NO_NEIGHBORS}
+        />
       ))}
     </group>
   )
@@ -702,8 +768,10 @@ function FadeWindow({
   cx,
   cz,
   isInterior,
+  neighborIds,
 }: {
   win: {
+    wallId: string
     cx: number
     cz: number
     cy: number
@@ -718,6 +786,8 @@ function FadeWindow({
   cz: number
   /** Point-in-room test used to orient the host wall's outward normal. */
   isInterior: (x: number, z: number) => boolean
+  /** Host wall's corner neighbours, so the glass follows its wall's spread. */
+  neighborIds: readonly string[]
 }) {
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
@@ -751,7 +821,7 @@ function FadeWindow({
       // Fade from the camera's look direction only (ORIENTATION-ONLY — zoom/pan
       // never change it), matching the host wall's own reveal.
       camera.getWorldDirection(FWD)
-      const s = revealFadeStrength(
+      const toward = revealFacingToward(
         FWD.x,
         FWD.z,
         win.cx,
@@ -763,6 +833,17 @@ function FadeWindow({
         cz,
         !win.revealable,
       )
+      // Own strength + the host wall's corner spread (read-only — the wall body
+      // publishes; the pane just follows), so glass fades with a spread wall too.
+      let s = revealStrength(toward)
+      if (toward > SPREAD_ONSET && neighborIds.length > 0) {
+        let maxNb = 0
+        for (const id of neighborIds) {
+          const nb = getWallOwnStrength(id)
+          if (nb > maxNb) maxNb = nb
+        }
+        s = Math.max(s, cornerSpreadStrength(toward, maxNb))
+      }
       factor = revealTargetOpacityForFade(fade, s)
     }
     const target = base * factor

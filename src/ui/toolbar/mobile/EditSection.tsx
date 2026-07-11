@@ -48,7 +48,7 @@ export function EditSection({
       ) : null}
       <Item
         icon="Measure"
-        label="Measurements"
+        label="Dimensions"
         on={showMeasurements}
         onClick={act(() => s.getState().toggleMeasurements(), { keep: true })}
       />

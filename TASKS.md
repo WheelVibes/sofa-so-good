@@ -127,43 +127,34 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] PHOTO-* frontier: PHOTO-GLASS, PHOTO-GTAO, PHOTO-SOFTSHADOW (VSM — drei PCSS broken r182+),
   PHOTO-POM, PHOTO-SSGI-SSR (WebGPU), PHOTO-WEBGPU. See `PHOTOREALISM.md`.
 - [ ] PHOTO-DENOISE nicety: swap in browser OIDN (`DennisSmolek/Denoiser`) + albedo/normal AOV.
-- [ ] F1 tail: real-GPU convergence/quality pass + decide quality-tier gating of the menu entry.
-- [ ] C275 tail: real-GPU check that curtain-dim frames present immediately (scene-graph intensity
-  provably updates instantly; headless presents one render-burst late).
-- [ ] RZ tails (real-GPU light-catch verify): RZ2 room-editor glass (`PlanRoomShell`), RZ3 edge
-  bevels, RZ5 skirting-floor seam AO + painted-trim wear.
-
-## Open — performance (need real-hardware profiling to justify)
+- [ ] **PT-BLANK-GUARD (from the 2026-07-11 F1 pass)**: on drivers where three-gpu-pathtracer's
+  megakernel fails GLSL validation (e.g. WSL D3D12/ANGLE — Shader Error 1282, empty log), the HQ
+  render completes SILENTLY BLANK (white/black PNG, samples count to done) and the failed context
+  can block the next WebGL context until ContextLossGuard recovers. Guard: probe the first
+  sample's pixels (all-0/all-255 → the modal's existing error phase + "device may not support"
+  copy) and harden the post-session context-loss path. (F1 tier-gating decision itself is
+  RESOLVED: no gating — capability is driver-shaped, not tier-shaped; see CHANGELOG v0.18.6.22.)
 - [ ] P2: memoization audit of hot R3F components/selectors.
 - [ ] P3 tail: rotation-capable instancing for venetian-blind / drying-rack slats.
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` toggle needs a context recreate (flash) +
   real-GPU verify.
 
 ## Dead-export prune plan (from docs/research/2026-07-03-dead-export-audit.md, verified per-symbol)
-- [ ] **DE-1**: delete the 19 truly-dead exports (18 files — lists in the audit doc §Task 1).
-- [ ] **DE-2/DE-3**: drop the unneeded `export` keyword on the 86 internal-only helpers (two
-  mechanical batches by folder — audit doc §Tasks 2-3). Unblocks a noise-free `npm run deadcode`.
-- [ ] **DE-4a (BUG candidate)**: `materials/cache.ts:201` `disposeCachedMaterial` is never called
-  by the user-material delete path (`FinishPicker.tsx:290` → `userAssetsSlice.ts:153` only revokes
-  object URLs) — possible cached-GPU-texture leak on delete. Investigate + fix or document why not.
-- [ ] **DE-4b**: `openSh3dImport.ts:115` `importSh3dFile` is dormant with no backlog item — decide
-  wire-up or removal.
+- [ ] **DE-5** (pre-req discovered 2026-07-10): `npm run deadcode` (knip) CRASHES on an
+  oxc-parser ESM/CJS `require()` mismatch (both Node 20 and the pinned 24.18.0) — upgrade
+  knip/oxc-parser first, then extend `knip.json` to `functions/**`, `workers/**`,
+  `electron/*.mjs`, verify clean (DE-1..3 landed v0.18.6.8/.9), and add `npm run deadcode` to CI.
 - [ ] **DE-5**: extend `knip.json` entry/project to `functions/**`, `workers/**`, `electron/*.mjs`
   (currently invisible to knip), verify clean after DE-2/3, then add `npm run deadcode` to CI.
 
-## Bugs found by IXT back-fill (2026-07-03, evidence in scenario run logs/screenshots)
-- [ ] **BUG: nested Select inside a toolbar Popover closes the parent menu on option click** —
-  `ui/toolbar/Popover.tsx`'s outside-pointerdown containment checks only its own portaled panel;
-  a nested `controls/Select.tsx` option list portals to a SIBLING body node, so the click reads
-  as "outside" and the whole menu closes before the option lands (repro: SceneMenu "Window view"
-  select; screenshot `failed-backdrop-is-dusk.png`). Fix idea: containment should also accept
-  clicks inside any descendant portal (e.g. shared data-attr or a portal registry).
-- [ ] **BUG: "Turn off light source" never works** — `ui/inspector/InspectorPanel.tsx:429` does
-  `delete next.lightOn` then passes the whole props bag, but `itemsSlice.updateItemProps` merges
-  (`{...it.props, ...props}`) so a deleted key can't clear; once lit, an item can't be unlit via
-  the inspector (walk-mode E-toggle works — it flips `'yes'`/`'no'` explicitly). Fix: pass
-  `{ lightOn: undefined }` (spread overwrites with undefined) or make the inspector use the
-  `'no'` convention consistent with `lightEmitters`.
+
+## Bugs found by PLAN-FURNISH Phase 3 verification (2026-07-11, pre-existing — not Phase-3 regressions)
+- [ ] **BUG: the 2D plan's `PlanInspector` + rotate handle ignore `def.windowBound`** — a selected
+  curtain in the plan shows editable X/Z/Angle/Width fields and a rotate knob, while the 3D
+  inspector hides transforms and `Furniture.tsx` blocks drags. Editing them detaches the fixture
+  from its window. Fix: gate those controls on `windowBound` like the 3D inspector does.
+- [ ] **Cosmetic: plan inspector "Size (W×D×H)" shows the def's footprint H** (e.g. 275 cm) rather
+  than the window-sized `props.height` (255 cm) for window fixtures.
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

@@ -28,3 +28,74 @@ describe('MobileToolbar menu sheet — Escape to close', () => {
     expect(screen.queryByRole('button', { name: 'Close' })).toBeNull()
   })
 })
+
+describe('MobileToolbar menu sheet — Tab focus trap (TB-9)', () => {
+  it('moves focus into the sheet on open and wraps Tab at the edges', () => {
+    render(<MobileToolbar />)
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    const sheet = document.querySelector('.m-sheet') as HTMLElement
+    expect(sheet).toBeTruthy()
+    // Focus landed inside the sheet on open (mirrors Modal).
+    expect(sheet.contains(document.activeElement)).toBe(true)
+    // Shift+Tab from the FIRST focusable wraps to the LAST (trapTabKey).
+    const focusables = sheet.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    )
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    first.focus()
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    // Tab from the LAST wraps back to the FIRST.
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+  })
+})
+
+describe('MobileToolbar menu sheet — grab-pill swipe up dismisses (TB-3)', () => {
+  const openSheet = () => {
+    const utils = render(<MobileToolbar />)
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    const grab = utils.container.parentElement?.querySelector('.m-sheet-grab') as HTMLElement
+    return grab ?? (document.querySelector('.m-sheet-grab') as HTMLElement)
+  }
+
+  it('a swipe UP past the threshold closes the sheet', () => {
+    const grab = openSheet()
+    expect(grab).toBeTruthy()
+    fireEvent.touchStart(grab, { touches: [{ clientY: 300 }] })
+    fireEvent.touchEnd(grab, { changedTouches: [{ clientY: 240 }] })
+    expect(document.querySelector('.m-sheet')).toBeNull()
+  })
+
+  it('a small or downward swipe keeps the sheet open', () => {
+    const grab = openSheet()
+    fireEvent.touchStart(grab, { touches: [{ clientY: 300 }] })
+    fireEvent.touchEnd(grab, { changedTouches: [{ clientY: 290 }] })
+    expect(document.querySelector('.m-sheet')).not.toBeNull()
+    fireEvent.touchStart(grab, { touches: [{ clientY: 300 }] })
+    fireEvent.touchEnd(grab, { changedTouches: [{ clientY: 400 }] })
+    expect(document.querySelector('.m-sheet')).not.toBeNull()
+  })
+})
+
+describe('MobileToolbar rail — whole-flat Arrange in the overview (TB-4)', () => {
+  const railTitles = () =>
+    screen.getAllByRole('tab').map((t) => t.getAttribute('title') ?? t.getAttribute('aria-label'))
+
+  it('the OVERVIEW rail includes Arrange (desktop parity: whole-flat presets/styles)', () => {
+    render(<MobileToolbar />)
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(railTitles()).toContain('Arrange')
+    // Selecting it shows the Arrange detail pane (save-style row is unconditional).
+    fireEvent.click(screen.getByRole('tab', { name: 'Arrange' }))
+    expect(screen.getByText('Save current style…')).toBeInTheDocument()
+  })
+
+  it('the room-editor rail keeps Arrange too', () => {
+    useStore.getState().enterRoomEditor('livingDining')
+    render(<MobileToolbar />)
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }))
+    expect(railTitles()).toContain('Arrange')
+  })
+})

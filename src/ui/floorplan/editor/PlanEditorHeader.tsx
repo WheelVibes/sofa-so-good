@@ -92,6 +92,22 @@ export function PlanEditorHeader({
           {editMode === 'edit' && (
             <PlanToolMenu tools={toolList} tool={tool} label={toolLabel} onPick={onPickTool} />
           )}
+          {/* PLAN-FURNISH Phase 2 — mobile entry point for the same catalog the
+              desktop "Furnish" button opens (below); gated the same way (Edit
+              mode only) for parity. Tap a card to arm tap-to-place (the sheet
+              auto-closes so the plan is visible) or long-press it to drag onto
+              the plan. */}
+          {editMode === 'edit' && fPlanFurnish && (
+            <button
+              type="button"
+              onClick={onToggleCatalog}
+              className={`btn btn-sm${catalogOpen ? ' btn-accent' : ''}`}
+              title="Browse furniture to add directly to the plan"
+              aria-pressed={catalogOpen}
+            >
+              Furnish
+            </button>
+          )}
           {drawHint}
           {/* Undo/redo are important enough to stay in the top bar (not buried
               in the ☰ Menu). `ml-auto` pushes them + Done to the right. */}

@@ -7,11 +7,15 @@ import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import { dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { FLAT } from './constants'
+import { getWallOwnStrength } from './walls/wallReveal'
 import {
+  cornerSpreadStrength,
   DEFAULT_WALL_REVEAL_STRENGTH,
+  facingToward,
   orientOutward,
+  revealStrength,
   revealTargetOpacityForFade,
-  wallRevealStrength,
+  SPREAD_ONSET,
 } from './walls/wallRevealMath'
 
 const SWING_RAD = Math.PI / 2
@@ -45,6 +49,7 @@ export function PlanDoorLeaf({
   cx,
   cz,
   isInterior,
+  neighborIds,
 }: {
   wall: PlanWall
   opening: PlanOpening
@@ -54,6 +59,9 @@ export function PlanDoorLeaf({
   /** Point-in-room test used to orient the host wall's outward normal (robust on
    *  non-rectangular plans); falls back to the plan-centre reference if absent. */
   isInterior?: (x: number, z: number) => boolean
+  /** Host wall's corner-neighbour ids — the leaf follows its wall's corner-spread
+   *  fade (read-only; the wall body publishes the own-strength registry). */
+  neighborIds?: readonly string[]
 }) {
   const isOpen = useStore((s) => s.doors[opening.id]?.open ?? false)
   const toggle = useStore((s) => s.toggleDoor)
@@ -140,8 +148,19 @@ export function PlanDoorLeaf({
         // Fade in lockstep with the host wall's own reveal, from the camera's look
         // direction only (ORIENTATION-ONLY — unaffected by zoom / pan) — the leaf
         // smoothly fades its opacity like the wall rather than hard-hiding. Same
-        // angle-graded curve as the wall (WALL-REVEAL-ANGLE-GRADED).
-        const s = wallRevealStrength(FWD.x, FWD.z, nx, nz)
+        // angle-graded curve as the wall (WALL-REVEAL-ANGLE-GRADED), plus the
+        // wall's corner-spread (WALL-REVEAL-CORNER-SPREAD) so the leaf doesn't
+        // stay opaque in a wall that faded because its corner neighbour did.
+        const toward = facingToward(FWD.x, FWD.z, nx, nz)
+        let s = revealStrength(toward)
+        if (neighborIds && toward > SPREAD_ONSET && neighborIds.length > 0) {
+          let maxNb = 0
+          for (const id of neighborIds) {
+            const nb = getWallOwnStrength(id)
+            if (nb > maxNb) maxNb = nb
+          }
+          s = Math.max(s, cornerSpreadStrength(toward, maxNb))
+        }
         target = revealTargetOpacityForFade(fade, s)
       }
       opacityRef.current += (target - opacityRef.current) * 0.18

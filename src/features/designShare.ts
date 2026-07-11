@@ -30,7 +30,7 @@ export const DESIGN_CODE_BUDGET = 16 * 1024
  *  code inflates to a few hundred KB of JSON at most; deflate's theoretical
  *  ~1032:1 ceiling can't exceed ~17 MB, and this stops a crafted bomb far
  *  earlier (same bounded-inflate mechanism as plan links, tighter cap). */
-export const MAX_DESIGN_DECOMPRESSED_BYTES = 4 * 1024 * 1024
+const MAX_DESIGN_DECOMPRESSED_BYTES = 4 * 1024 * 1024
 
 /** Hash-route that carries a shared design: `#/design/<code>` (also tolerates
  *  `#design/<code>`). Distinct from `#/plans/<code>` so each route keeps its

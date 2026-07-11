@@ -108,11 +108,7 @@ export function assignRoomWallNames(
 /** The first room whose boundary the wall lies along, or `null` when the wall
  *  is free-standing (belongs to no room yet). Used to room-prefix the name of a
  *  freshly-drawn wall/opening at creation time. */
-export function roomForWall(
-  rooms: readonly PlanRoom[],
-  wall: PlanWall,
-  tol = 0.25,
-): PlanRoom | null {
+function roomForWall(rooms: readonly PlanRoom[], wall: PlanWall, tol = 0.25): PlanRoom | null {
   for (const room of rooms) {
     for (const edge of roomBoundaryEdges(room)) {
       if (wallOnEdge(wall, edge, tol)) return room

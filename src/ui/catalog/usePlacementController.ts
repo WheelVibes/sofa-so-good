@@ -219,6 +219,15 @@ export function usePlacementController() {
     // canvas or on an invalid spot aborts (which reopens a hidden catalog).
     const onPointerUp = (ev: PointerEvent) => {
       if (ev.pointerType !== 'touch') return
+      // PLAN-FURNISH Phase 2: inside the 2D plan editor the plan surface owns
+      // every touch placement gesture (tap-to-place commits on the plan SVG's
+      // own pointerdown; the long-press drag commits via FloorPlanEditor's
+      // window-level lift effect). This 3D-canvas handler would only ever see
+      // "not a canvas" under a plan lift (the full-screen plan overlay covers
+      // the canvas) and wrongly cancel a still-armed placement — e.g. a stamp
+      // tap that deliberately stays armed for the next drop, or the tap-commit
+      // race where this listener hasn't torn down yet on the same pointerup.
+      if (useStore.getState().floorPlanEditing) return
       // A second finger's independent release must not end/commit THIS drag —
       // only the finger latched by `onMove` above may (MOBILE-3).
       if (!isActiveDragPointer(dragPointerId, ev.pointerId)) return
@@ -256,6 +265,9 @@ export function usePlacementController() {
     // gate it the same way as the lift above.
     const onPointerCancel = (ev: PointerEvent) => {
       if (ev.pointerType !== 'touch') return
+      // Plan-editor placements are owned by the plan surface (see onPointerUp);
+      // FloorPlanEditor's own window pointercancel listener handles the abort.
+      if (useStore.getState().floorPlanEditing) return
       if (!isActiveDragPointer(dragPointerId, ev.pointerId)) return
       dragPointerId = null
       // Explicit-confirm mode: an OS-interrupted touch must NOT abort the

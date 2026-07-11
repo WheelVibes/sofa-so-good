@@ -73,7 +73,7 @@ function resolveFinishDef(
  *  synthesise a tinted plaster def for it so any wall/floor can be painted an
  *  arbitrary colour without a catalog entry. The id doubles as the cache key,
  *  so each colour caches its own material. */
-export function customColorDef(id: string): MaterialDef {
+function customColorDef(id: string): MaterialDef {
   return {
     id,
     name: 'Custom colour',

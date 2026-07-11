@@ -8,8 +8,8 @@
  * Pure (no three/React/store) so it unit-tests in isolation.
  */
 
-export const RESIZE_MIN_FACTOR = 0.2
-export const RESIZE_MAX_FACTOR = 5
+const RESIZE_MIN_FACTOR = 0.2
+const RESIZE_MAX_FACTOR = 5
 
 /** The uniform scale factor from the grab distance (pivot→grab) and the current
  *  pointer distance (pivot→cursor), clamped to a sane range. A non-positive /

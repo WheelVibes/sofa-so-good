@@ -14,7 +14,9 @@ Systematically speed up frame processing/rendering **without sacrificing visual 
 on the heavy **Maximum** tier (also opportunistic wins on other tiers). Shipped work lives in
 `CHANGELOG.md` (PERF-MAX-* entries) — this section tracks only **open** items.
 
-**Methodology.** Sandbox has no GPU (Maximum never finishes warming under software WebGL), so
+**Methodology.** (2026-07-11: the environment NOW HAS a real GPU — `SHOT_GPU=1` — so absolute
+verification is possible; the notes below describe the original software-WebGL constraints.)
+Sandbox had no GPU (Maximum never finishes warming under software WebGL), so
 changes are validated by code analysis + software-WebGL relative harnesses — `scripts/perf-orbit.mjs`
 (relative FPS) and `scripts/perf-drawcalls.mjs` (deterministic per-frame draw-call/triangle counts),
 both driving a continuous autoRotate span at a pinned tier — never by absolute numbers. All shipped
@@ -106,6 +108,14 @@ probes; directional door-bleed weighting; real-time path-traced GI/RTX (revisit 
 WebGPU path tracing).
 
 ## Deferred candidates
+- **Custom-plan doorway thresholds (parity with DOOR-GAP-LEAK fix)** (2026-07-11). The curated
+  flat's door-gap light leak (blown-white strips under closed leaves — the sky background seen
+  through the unfloored wall-thickness strip inside each doorway) is fixed by
+  `apartment/floor/Thresholds.tsx` + pure `thresholdRects.ts`, but only for the default flat
+  (mirrors `Skirting`, default-flat-only). The custom-plan path (`PlanShell`/`PlanRoomShell` +
+  `PlanRoomFloor`) builds the same cutout-to-y=0 walls over interior-only floor rects, so plan
+  doorways almost certainly leak the same way. Reuse `thresholdRects` with a PlanWall/PlanOpening
+  adapter and mount alongside `PlanShell`; GPU-verify at a grazing pose on a forked plan.
 - **Deeper transition-warmup: `renderer.compileAsync` + time-sliced mounts** (2026-07-03).
   v0.10.0.7 shipped compositor-proof overlay animation + readiness-based hide (throttled ~10 fps
   warm frames behind the overlay). The remaining lever if big scenes still block long: explicit
@@ -116,16 +126,27 @@ WebGPU path tracing).
   (lower value), and a headless scenario would need a new dev-only `window.__priceSidecarStub` lever
   in `livePrice.ts` purely for the test. Unit coverage already exercises the client logic; revisit
   only if the sidecar path regresses.
-- **Fast rasterized "preview render" tier** (Coohom parity) — a local analog to the 10-s cloud
-  render. Deferred as an analytics/deliverable, not core design UX.
+
+## Active — toolbar UX program (2026-07-10, user goal)
+Full audit (findings P0–P3 with file:line evidence, Figma/modern-app grounding, screenshots):
+`docs/research/2026-07-10-toolbar-ux-audit.md`. Work the sequenced list there; delete each
+finding from the doc + this list as it ships. Open items, in order:
+- [ ] **TB-5 (P1)** Consolidate exports: Tools "Export & document" (~17 rows) merges into File;
+  Tools keeps analysis panels/modes only. Group the four scattered cost surfaces under one entry.
+- [ ] **TB-6-tail (P1)** Plan-editor mobile menu paradigm differs from the main sheet (centered
+  "Plan tools" modal + text "☰ Menu" vs the icon-rail sheet). (Overflow edge-fade shipped
+  v0.18.6.16; Scene-in-room-editor shipped v0.18.6.17.)
+- [ ] **TB-8-tail (P3)** Cycle-buttons → segmented/Select where 3+ states (grid size, mobile
+  Lights/Ceiling/Motion cycles; the naming split + Lights next-state tooltip shipped v0.18.6.13);
+  distinct icon for the tape tool.
+- [ ] **TB-9-tail (P2)** Consolidate menu primitives (one section-header idiom, Arrange on
+  MenuItem/EmptyState); tablist roving focus. (confirmAction on set/style deletes + 44px
+  hamburger/brand targets shipped v0.18.6.15; sheet focus-trap shipped v0.18.6.18.)
+- [ ] **TB-10-tail (P3)** Desktop↔mobile naming/icon drift, SliderField in GraphicsSettings,
+  wall-reveal double naming, shared 640px breakpoint token, History icon. (Separator convention
+  shipped v0.18.6.15.)
 
 ## Open — core interactions
-- **Corner-spread wall fade for custom plans (`PlanShell`).** The angle-graded orbit wall fade
-  (WALL-REVEAL-ANGLE-GRADED) + corner spread (WALL-REVEAL-CORNER-SPREAD) landed in the default
-  flat (`WallSegment`) and the room editor (`useWallReveal`); `PlanShell`/`PlanDoorLeaf` share the
-  same graded curve but not the corner spread — `planGeometry.ts`'s `WallBox` carries no wall id,
-  so the per-frame own-strength registry can't be keyed there yet. Plumb the wall id through
-  `wallBoxes` and reuse `cornerNeighbors` + `setWallOwnStrength`/`getWallOwnStrength`.
 - **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
   would be a new interaction. Doors already animate (could ease the linear swing curve — low value).
 - **Live slide during drag** (optional, higher-risk) — item hugs walls/furniture in real time, not
@@ -145,9 +166,6 @@ WebGPU path tracing).
   open the 2D editor); drag-drop is fiddly to verify headlessly. Note: 2D room polygons are SVG, so
   the `ui/CLAUDE.md` "drop zones must be `<div>`" rule needs a workaround.
 
-## Open — accessibility (very low value, optional)
-- **Full focus-trap on the mobile menu sheet** (`MobileToolbar`) — Escape-close + `useModalGuard`
-  ship; a Tab focus-trap remains, but keyboard-on-touch is rare.
 
 ## Core-loop parity gaps (2026-07-03 audit)
 Ranked by value/effort. All pure-client, core-loop (furnish→arrange→finish→view→share) +
@@ -156,19 +174,14 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
 - [ ] **PLAN-FURNISH Phases 2–4 — plan-editor furniture placement follow-ups.** Phase 1
   (desktop click-to-place; `planFurnish` flag) has shipped — see `CHANGELOG.md` and
   `docs/research/2026-07-03-plan-furnish-implementation-plan.md` (marked done there). Remaining:
-  - [ ] **Phase 2** — mobile tap-to-place + long-press-from-card, stamp-mode reuse for repeat drops.
-    **ATTEMPTED + DEFERRED (2026-07-04)** — reached 54/64 scenario steps green (catalog sheet
-    surfaces on mobile, tap-to-place + long-press-drag commit both work) but not shipped. Work
-    archived on branch `wip/plan-furnish-mobile-phase2` (resume from there). Blockers for a future
-    focused effort: (a) the mobile catalog bottom-sheet covers ~72% of a 390×844 viewport, so
-    tap-to-place needs the sheet to **auto-collapse on arm** (or dock smaller) — decide the
-    catalog-vs-plan mobile layout first; (b) verify the stamp-in-plan touch-commit (scenario step 55)
-    + drop the unverified desktop stamp-in-plan tweak that snuck into that WIP; (c) SwiftShader
-    harness flakiness (Page.captureScreenshot timeouts) needs the lazy-plan-editor-mount waits.
-  - [ ] **Phase 3** — window-bound fixtures (curtains/blinds/grilles) via `snapToNearestWindow` in
-    the plan (Phase 1 excludes them with a toast pointing to the 3D room editor).
-  - [ ] **Phase 4** — HTML5 drag-from-catalog onto the plan SVG (deferred pending the logged
-    `<div>`-vs-SVG drop-zone friction).
+  - Phase 2 (mobile tap-to-place + long-press-from-card + stamp reuse) **SHIPPED v0.18.6.19**
+    (user decision 2026-07-10: arm auto-closes the catalog sheet, mirroring 3D `placeConfirm`).
+  - Phase 3 (window-bound fixtures snap in the plan) **SHIPPED v0.18.6.20**.
+  - [ ] **Phase 4** — HTML5 drag-from-catalog onto the plan SVG. **Recommend keeping deferred
+    (2026-07-11 assessment)**: desktop already places via click-to-arm→ghost→click and mobile via
+    tap/long-press-drag (Phases 1–2), so this adds a third gesture purely for 3D-drag-habit
+    parity; the `<div>`-vs-SVG drop-zone friction remains (workaround: transparent overlay div
+    during drag). Revisit only on user demand.
   - [ ] *(Polish, not phase-gated)* the docked catalog currently floats over the plan rather than
     shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
     `.plan-screen`) — low-risk follow-up.
@@ -177,10 +190,12 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
 Open, client-doable items from `docs/research/2026-07-04-audit-round2-tests-mobile-features.md`
 (full detail + code refs there). Shipped from this audit — MOBILE-1/2/3, TEST-3/4/5/6/7/8,
 FEAT-A/B/C/D — are in `CHANGELOG.md`. Still open:
-- [ ] **FEAT-E — grid-snap for furniture placement in 3D** (S–M, low risk). Deprioritized: the
-  alignment guides + neighbour snap already deliver most of the "tidy placement" value; revisit as
-  complementary polish (a `gridSnap3d` toggle quantizing `dragControllerHandlers.onMove`, reusing
-  `floorplan/gridSnap.ts`, neighbour-snap wins within threshold else grid). Pro tier.
+- ~~FEAT-E — grid-snap for furniture placement in 3D~~ **STALE, struck 2026-07-10**: already
+  shipped since v0.7.0.0 — the room-editor toolbar's "Snap to grid" toggle (`snapEnabled` +
+  `gridSize`/`cycleGridSize`) quantizes `dragControllerHandlers.onMove:107` via `snapToGrid`, the
+  `PlacementGhost` snaps too, and `GridOverlay` renders the live grid. The only unshipped nuance
+  is neighbour-snap composing WITH grid snap (guides are skipped while grid snap is on —
+  deliberate); not worth a separate item.
 - New reference: **Home Planner** (backend/licensed-asset-led — informs the tracked catalog-expansion/
   F11 work, not a client-doable feature). Added to `REFERENCES.md`.
 
@@ -190,26 +205,9 @@ Open, client-doable items from `docs/research/2026-07-04-audit-round3-backlog-re
 competitor sweep found history-panel/shortcut-help/room-area/favourites/copy-paste/nudge/
 room-palette/lock/align-distribute all already shipped — so the list is short + evidence-based,
 ranked by value ÷ effort:
-- [ ] **R3-TEST-1 — `floorplan/templates/shared.ts` geometry helpers (0 tests).** `perimeter`/
-  `room`/`door`/`window`/`parapet`/`iwall` seed the shell of **every** starter plan (18+ HDB/condo
-  templates); area `CLAUDE.md` mandates "Geometry stays pure + unit-tested here." (S · HIGH)
-- [ ] **R3-TEST-2 — `state/slices/orientationSlice.ts` `normalize`/`setOrientationDeg` (0 tests).**
-  Home compass rotation driving sun/sky orientation + compass HUD; a bad wrap silently mis-rotates
-  the sun. Assert `-90→270`, `450→90`, `360→0`. (S · MED-HIGH)
-- [ ] **R3-FEAT-1 — Persistent / cross-plan clipboard paste.** `clipboardSlice` is session-only;
-  self-persist to localStorage (mirror `favouritesSlice`) so paste survives reload + works across
-  designs. Coohom/Planner 5D "my items". Pro tier. (S · MED)
-- [ ] **R3-FEAT-2 — Curated colour-palette preset gallery.** Palette *mechanism* exists
-  (`colorPaletteSlice`) but no one-click curated theme; add a static preset list + picker calling
-  `setMasterPalette`/`setRoomPalette`. Coohom/Planner 5D themes. Pro tier. (S · MED)
-- [ ] **R3-REFAC-1 — `App.tsx` (1163 lines) has ~487 lines of inline keyboard orchestration.**
-  Extract the three blocks (`:225-362` global ⌘K/undo, `:586-800` editor `onKey`, `:811-947` nudge)
-  into `controls/useAppHotkeys.ts` + `useNudge.ts`; makes hotkeys unit-testable. (M · MED)
 - [ ] **R3-FEAT-3 — Orthographic / isometric camera view.** `OrbitCamera.tsx:491` has an unused
   ortho fallback; expose a parallel-projection/iso "dollhouse" toggle (SketchUp/Sweet Home 3D/
   Planner 5D). Pro tier; needs a visual-verification pass (raycast/shadow/zoom differ). (M · MED)
-- [ ] **R3-TEST-3 — `calloutsSlice.ts`/`badgesSlice.ts` localStorage guards (0 tests).** Corrupt-
-  storage parse + dedup resilience for onboarding callouts / NEW badges. (S · MED-LOW)
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live

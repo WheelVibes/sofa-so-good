@@ -76,7 +76,7 @@ function roomBounds(r: PlanRoom): [number, number, number, number] {
 /** Whether two rooms touch/adjoin (their footprints, grown by the wall-thickness
  *  tolerance, overlap). A heuristic on bounding boxes — good enough to spot a
  *  room dropped off on its own, away from the apartment. */
-export function roomsAdjacent(a: PlanRoom, b: PlanRoom, tol = ROOM_TOUCH_TOL): boolean {
+function roomsAdjacent(a: PlanRoom, b: PlanRoom, tol = ROOM_TOUCH_TOL): boolean {
   const [ax0, az0, ax1, az1] = roomBounds(a)
   const [bx0, bz0, bx1, bz1] = roomBounds(b)
   return ax0 - tol <= bx1 && bx0 - tol <= ax1 && az0 - tol <= bz1 && bz0 - tol <= az1

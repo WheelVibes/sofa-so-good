@@ -96,6 +96,67 @@ describe('Popover', () => {
     expect(closed).toBe(true)
   })
 
+  // A Select opened from inside a menu panel portals its OWN option list to a
+  // SIBLING body node — the parent's outside-pointerdown check must treat that
+  // descendant portal as "inside", or the parent closes on pointerdown before
+  // the option's click ever lands and the pick is silently dropped
+  // (TB-1 / the IXT nested-Select bug).
+  describe('nested descendant portals', () => {
+    function NestedHarness({
+      onParentClose,
+      onChildClose,
+    }: {
+      onParentClose: () => void
+      onChildClose: () => void
+    }) {
+      const parentAnchor = useRef<HTMLButtonElement>(null)
+      const childAnchor = useRef<HTMLButtonElement>(null)
+      return (
+        <div>
+          <button ref={parentAnchor}>parent-trigger</button>
+          <Popover open anchorRef={parentAnchor} onClose={onParentClose}>
+            <div>parent-panel</div>
+            {/* A nested Select-style trigger living INSIDE the parent panel… */}
+            <button ref={childAnchor}>child-trigger</button>
+            {/* …whose option list portals to a sibling document.body node. */}
+            <Popover open anchorRef={childAnchor} onClose={onChildClose}>
+              <button>child-option</button>
+            </Popover>
+          </Popover>
+        </div>
+      )
+    }
+
+    it('pointerdown on a descendant portal panel does NOT close the parent', () => {
+      let parentClosed = false
+      render(<NestedHarness onParentClose={() => (parentClosed = true)} onChildClose={() => {}} />)
+      fireEvent.pointerDown(screen.getByText('child-option'))
+      expect(parentClosed).toBe(false)
+      expect(screen.getByText('parent-panel')).toBeTruthy()
+    })
+
+    it('pointerdown on a descendant portal still closes on truly-outside clicks', () => {
+      let parentClosed = false
+      let childClosed = false
+      render(
+        <NestedHarness
+          onParentClose={() => (parentClosed = true)}
+          onChildClose={() => (childClosed = true)}
+        />,
+      )
+      fireEvent.pointerDown(document.body)
+      expect(parentClosed).toBe(true)
+      expect(childClosed).toBe(true)
+    })
+
+    it('scrolling inside a descendant portal does NOT close the parent', () => {
+      let parentClosed = false
+      render(<NestedHarness onParentClose={() => (parentClosed = true)} onChildClose={() => {}} />)
+      fireEvent.scroll(screen.getByText('child-option'))
+      expect(parentClosed).toBe(false)
+    })
+  })
+
   // Some menus (File's saved layouts, Arrange) have their own overflow list —
   // scrolling *inside* the panel doesn't move the anchor and must not close it.
   it('does NOT close when scrolling a list inside the panel', () => {

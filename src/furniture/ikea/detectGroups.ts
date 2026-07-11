@@ -21,7 +21,7 @@ function dirOf(path: string): string {
 /** Max concurrent metadata.json reads (read + JSON.parse) in flight. Parsing is
  *  I/O-bound per file; reading a handful concurrently removes the serial stall on
  *  a folder of thousands of groups, bounded so it can't flood the main thread. */
-export const DETECT_CONCURRENCY = 12
+const DETECT_CONCURRENCY = 12
 
 /** Find every `metadata.json` among the picked files that looks like an IKEA
  *  group, scoped to the folder it lives in. A folder of several groups yields

@@ -10,7 +10,7 @@ import { Num } from './PlanInspector'
 /** Resolve the live width/depth (metres) of an item from its def + props.
  *  Mirrors the 3D inspector's footprint read: parametric items may override
  *  the default footprint via their `footprintParams` → paramSchema values. */
-export function itemFootprintWD(item: FurnitureItem, def: FurnitureDef): { w: number; d: number } {
+function itemFootprintWD(item: FurnitureItem, def: FurnitureDef): { w: number; d: number } {
   let w = def.defaultFootprint.w
   let d = def.defaultFootprint.d
   if (def.kind === 'parametric') {

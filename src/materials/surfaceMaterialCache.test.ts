@@ -196,6 +196,43 @@ describe('surface material cache disposal ownership (PERF-A)', () => {
   })
 })
 
+describe('disposeCachedMaterialsFor — user-material delete sweep (DE-4a)', () => {
+  const solid = (id: string) =>
+    ({ id, name: 'x', category: 'wall', kind: 'solid', swatch: '#112233' }) as const
+
+  it('drops the base entry AND its tint/furn/size derivatives, sparing prefix-colliding ids', async () => {
+    const { buildMaterial, disposeCachedMaterialsFor, getCachedMaterial } = await import('./cache')
+
+    // Simulate the key shapes a deleted user material can leave in the cache:
+    // the plain build, a tint recolour, a furniture-finish entry, and an
+    // UNRELATED id that shares the prefix (must survive the sweep).
+    const base = buildMaterial(solid('user-mat-1'))
+    buildMaterial(solid('tint:user-mat-1:#ff0000'))
+    buildMaterial(solid('furn:user-mat-1:x1.00'))
+    const collider = buildMaterial(solid('user-mat-12'))
+
+    const baseDispose = vi.spyOn(base, 'dispose')
+    disposeCachedMaterialsFor('user-mat-1')
+
+    expect(getCachedMaterial('user-mat-1')).toBeUndefined()
+    expect(getCachedMaterial('tint:user-mat-1:#ff0000')).toBeUndefined()
+    expect(getCachedMaterial('furn:user-mat-1:x1.00')).toBeUndefined()
+    // Explicit deletion disposes immediately (LruCache.delete → caller-owned).
+    expect(baseDispose).toHaveBeenCalled()
+    // The prefix-colliding sibling is untouched.
+    expect(getCachedMaterial('user-mat-12')).toBe(collider)
+  })
+
+  it('is a harmless no-op for an id with no cached entries', async () => {
+    const { disposeCachedMaterialsFor, __getSurfaceMaterialCacheSizeForTest } = await import(
+      './cache'
+    )
+    const before = __getSurfaceMaterialCacheSizeForTest()
+    expect(() => disposeCachedMaterialsFor('never-built')).not.toThrow()
+    expect(__getSurfaceMaterialCacheSizeForTest()).toBe(before)
+  })
+})
+
 describe('surface material cache anisotropy (REAL-1)', () => {
   it('applies the current anisotropy cap to every textured (DLC/uploaded) map', async () => {
     const { Texture } = await import('three')

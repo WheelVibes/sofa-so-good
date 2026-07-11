@@ -115,7 +115,7 @@ function contains(r: Rect, x: number, z: number): boolean {
  * sides). An item whose footprint covers one is squarely in the doorway path
  * — a real blocker — unlike an item merely beside the door.
  */
-export function doorProbePoints(plan: FloorPlan): Array<[number, number]> {
+function doorProbePoints(plan: FloorPlan): Array<[number, number]> {
   const pts: Array<[number, number]> = []
   for (const o of plan.openings) {
     if (o.kind !== 'door') continue

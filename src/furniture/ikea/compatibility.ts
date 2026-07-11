@@ -29,7 +29,7 @@ function depluralize(phrase: string): string {
 }
 
 /** Category labels a product can be matched against: breadcrumb names + typeName. */
-export function productCategories(def: IkeaGltfDef): Set<string> {
+function productCategories(def: IkeaGltfDef): Set<string> {
   const labels = new Set<string>()
   for (const crumb of def.productInfo?.categoryHierarchy ?? []) labels.add(norm(crumb))
   if (def.productInfo?.typeName) labels.add(norm(def.productInfo.typeName))
@@ -42,7 +42,7 @@ export function productCategories(def: IkeaGltfDef): Set<string> {
  * phrase, not loose tokens, so 'Spring mattresses' does not match a
  * 'Foam & latex mattresses' product just because both contain 'mattress'.
  */
-export function categoryMatches(acceptsCategory: string, labels: Set<string>): boolean {
+function categoryMatches(acceptsCategory: string, labels: Set<string>): boolean {
   const want = depluralize(acceptsCategory)
   for (const label of labels) {
     const lab = depluralize(label)

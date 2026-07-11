@@ -10,7 +10,7 @@
  * future versions throw a typed error.
  */
 
-export const CURRENT_VERSION = 2
+const CURRENT_VERSION = 2
 
 type Migration = (raw: unknown) => unknown
 

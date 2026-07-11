@@ -11,7 +11,7 @@
 
 export type DraperyOpacity = 'sheer' | 'light' | 'room' | 'blackout'
 
-export const DRAPERY_OPACITY: Record<DraperyOpacity, { visual: number; transmit: number }> = {
+const DRAPERY_OPACITY: Record<DraperyOpacity, { visual: number; transmit: number }> = {
   // Loose weave: lots of daylight diffuses through; cloth reads translucent.
   sheer: { visual: 0.4, transmit: 0.45 },
   // Light-filtering: softens daylight; slightly translucent.

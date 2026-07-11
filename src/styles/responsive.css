@@ -139,9 +139,13 @@ body.mobile {
   /* 44px minimum touch targets on the room-editor exit X (MOBILE-TAP-TARGETS). */
   .toolbar.mobilebar .tool-btn { min-width: 44px; min-height: 44px; }
   /* Hamburger matches the brand-dot size; override the tool-btn min-size so it
-     stays visually square with the logo rather than ballooning to 44px. */
-  .toolbar.mobilebar .m-menu-btn { flex: none; width: 32px; height: 32px; min-width: 32px; min-height: 32px; }
-  .toolbar.mobilebar .brand-dot { width: 32px; height: 32px; font-size: 14px; box-shadow: var(--shadow-panel); }
+     stays visually square with the logo rather than ballooning to 44px — but
+     keep the HIT AREA at ≥44px via an inset ::after (TB-9: the primary
+     menu-open control was a sub-target; same trick as the sheet close X). */
+  .toolbar.mobilebar .m-menu-btn { flex: none; width: 32px; height: 32px; min-width: 32px; min-height: 32px; position: relative; }
+  .toolbar.mobilebar .m-menu-btn::after { content: ''; position: absolute; inset: -6px; }
+  .toolbar.mobilebar .brand-dot { width: 32px; height: 32px; font-size: 14px; box-shadow: var(--shadow-panel); position: relative; }
+  .toolbar.mobilebar .brand-dot::after { content: ''; position: absolute; inset: -6px; }
   /* Default state is just two controls — drop the panel chrome so they float
      directly over the scene; each control keeps its own surface. */
   .toolbar.mobilebar:not(.editing-room) {
@@ -161,22 +165,10 @@ body.mobile {
   .toolbar.mobilebar.editing-room .brand-dot { width: 36px; height: 36px; font-size: 14px; }
   .toolbar.mobilebar .m-room-select { flex: 1 1 auto; min-width: 0; max-width: 56vw; height: 44px; font-size: var(--t-sm); font-weight: 600; }
 
-  /* ---- Floor-plan editor: full-bleed grid + floating toolbar/help ----------
-     The toolbar + help callout FLOAT over the grid (like the floor switcher /
-     compass), so the grid canvas reaches the top edge. `.plan-top` is pulled out
-     of the flex column and overlaid at the top; the canvas row then fills the
-     whole screen. `pointer-events: none` on the wrapper lets a pan reach the grid
-     through the gaps, while the pill + callout stay interactive. */
-  .plan-top {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 20;
-    pointer-events: none;
-  }
-  .plan-top .plan-header,
-  .plan-top .info-callout { pointer-events: auto; }
+  /* ---- Floor-plan editor: floating toolbar pill ----------------------------
+     The `.plan-top` absolute overlay (full-bleed grid + floating header/help)
+     is now the BASE treatment for every viewport (parts.css); mobile only
+     keeps its pill styling + safe-area insets here. */
 
   /* The toolbar is a rounded floating pill with the room-editor toolbar's
      surface/border/shadow treatment, clearing the notch via

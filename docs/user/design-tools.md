@@ -120,9 +120,9 @@ at the top:
 
 Both also appear in the printable **Report**. Works on desktop and as a mobile sheet.
 
-## Measure
+## Measure distance
 
-**Measure** (Tools menu) turns on a tape measure: click two points on the floor
+**Measure distance** (Tools menu) turns on a tape measure: click two points on the floor
 and the distance between them appears on an amber ruler line. Click again to
 start a fresh measurement; turn the tool off from the same menu. Works on touch
 (tap the two points) too.

@@ -14,8 +14,8 @@ import { APP_VERSION, isNewerVersion } from '../version'
 
 /** GitHub repo the desktop shell checks for new releases. */
 const REPO = 'cwlroda/sofa-so-good'
-export const RELEASES_API_URL = `https://api.github.com/repos/${REPO}/releases/latest`
-export const RELEASES_PAGE_URL = `https://github.com/${REPO}/releases/latest`
+const RELEASES_API_URL = `https://api.github.com/repos/${REPO}/releases/latest`
+const RELEASES_PAGE_URL = `https://github.com/${REPO}/releases/latest`
 
 /** True when running inside the Electron desktop shell — dist/ is served over
  *  the privileged `app://` scheme registered by electron/main.mjs. */

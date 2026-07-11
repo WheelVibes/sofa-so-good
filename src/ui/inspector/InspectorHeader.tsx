@@ -91,10 +91,11 @@ export function InspectorHeader({
           <button
             type="button"
             onClick={() => {
-              const next = { ...item.props }
-              if (item.props.lightOn === 'yes') delete next.lightOn
-              else next.lightOn = 'yes'
-              useStore.getState().updateItemProps(item.id, next)
+              // `undefined` removes the key (updateItemProps clears explicitly-
+              // undefined values) — a merged bag could never turn the light off.
+              useStore.getState().updateItemProps(item.id, {
+                lightOn: item.props.lightOn === 'yes' ? undefined : 'yes',
+              })
             }}
             className={`icon-btn${item.props.lightOn === 'yes' ? ' on' : ''}`}
             aria-label={

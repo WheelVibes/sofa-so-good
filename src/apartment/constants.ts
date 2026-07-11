@@ -688,7 +688,3 @@ export function roomArea(r: RoomDef): number {
 export const INTERIOR_AREA_M2 = Object.values(ROOMS)
   .filter((r) => !r.external)
   .reduce((acc, r) => acc + roomArea(r), 0)
-
-export const AC_LEDGE_AREA_M2 = roomArea(ROOMS.acLedge)
-
-export const TOTAL_AREA_M2 = INTERIOR_AREA_M2 + AC_LEDGE_AREA_M2

@@ -26,14 +26,10 @@ jobs:
       # Test-only browser downloads (puppeteer/playwright devDeps) waste CI time.
       PUPPETEER_SKIP_DOWNLOAD: 1
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
-      # Cache Electron + electron-builder tool downloads (NSIS/winCodeSign/fpm/
-      # AppImage tooling) in the workspace so actions/cache can persist them —
-      # the builder-binaries mirror intermittently 504s (both the 2026-07-09
-      # ubuntu + windows failures died there mid-download; macOS survived by
-      # luck). Workspace-relative paths keep ONE cache step portable across all
-      # three OSes. https://www.electron.build/docs/features/github-actions/
-      ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
-      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+      # ELECTRON_CACHE / ELECTRON_BUILDER_CACHE are exported by the
+      # "Point electron caches outside the workspace" step below — the `runner`
+      # context isn't valid in job-level env, and the cache MUST live outside
+      # the repo (see that step's comment for the ESM-misparse failure mode).
       # Keychain auto-discovery stays off (both channels) so a stray identity on
       # the runner can never sign a build by accident.
       CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -48,14 +44,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Cache Electron + electron-builder tool downloads (NSIS/winCodeSign/
+      # icons-bundle/fpm/AppImage tooling) so a mirror 504 can't fail the build
+      # (the 2026-07-09 ubuntu+windows failures died there mid-download).
+      # MUST live OUTSIDE the workspace ($RUNNER_TEMP): electron-builder runs
+      # the extracted icon-tool.js (CommonJS, .js) with plain node, and a cache
+      # inside the repo puts our package.json `"type": "module"` in its
+      # ancestor chain → `require is not defined in ES module scope` (the
+      # 2026-07-11 mac+windows failure; linux skips ico/icns conversion, which
+      # is why it passed). $RUNNER_TEMP is set on every OS (bash shell incl.
+      # Git Bash on Windows). https://www.electron.build/docs/features/github-actions/
+      - name: Point electron caches outside the workspace
+        shell: bash
+        run: |
+          echo "ELECTRON_CACHE=$RUNNER_TEMP/eb-cache/electron" >> "$GITHUB_ENV"
+          echo "ELECTRON_BUILDER_CACHE=$RUNNER_TEMP/eb-cache/electron-builder" >> "$GITHUB_ENV"
+
       # Persist the Electron zip + builder tooling across runs so a mirror
       # outage can't fail the build once a runner has seen this version.
       - name: Cache Electron + builder binaries
         uses: actions/cache@v4
         with:
-          path: .cache
-          key: electron-builder-${{ runner.os }}-${{ hashFiles('package-lock.json', 'electron-builder.yml') }}
-          restore-keys: electron-builder-${{ runner.os }}-
+          path: ${{ runner.temp }}/eb-cache
+          # v2 key: the v1 cache stored the workspace-relative layout that
+          # triggered the ESM misparse — never restore it.
+          key: electron-builder-v2-${{ runner.os }}-${{ hashFiles('package-lock.json', 'electron-builder.yml') }}
+          restore-keys: electron-builder-v2-${{ runner.os }}-
 
       # Guard: the tag must match src/version.ts exactly. The desktop shell's
       # update check compares the latest release tag against its baked-in

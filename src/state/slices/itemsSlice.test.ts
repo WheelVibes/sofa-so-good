@@ -225,6 +225,49 @@ describe('addItem level stamping (F13/ML5)', () => {
   })
 })
 
+describe('updateItemProps key clearing (BUG: "Turn off light source" never works)', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('removes a key whose patch value is explicitly undefined', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'sofa-3seat', position: [0, 0], rotation: 0, props: {} })
+    useStore.getState().updateItemProps(id, { lightOn: 'yes' })
+    expect(useStore.getState().items.find((i) => i.id === id)?.props.lightOn).toBe('yes')
+    useStore.getState().updateItemProps(id, { lightOn: undefined })
+    const props = useStore.getState().items.find((i) => i.id === id)?.props ?? {}
+    expect('lightOn' in props).toBe(false)
+  })
+
+  it('keeps other keys intact while clearing one', () => {
+    const s = useStore.getState()
+    const id = s.addItem({
+      defId: 'sofa-3seat',
+      position: [0, 0],
+      rotation: 0,
+      props: { finish: 'gloss', lightOn: 'yes' },
+    })
+    useStore.getState().updateItemProps(id, { lightOn: undefined })
+    const props = useStore.getState().items.find((i) => i.id === id)?.props ?? {}
+    expect(props.finish).toBe('gloss')
+    expect('lightOn' in props).toBe(false)
+  })
+
+  it('clearing is undoable (undo restores the key)', () => {
+    const s = useStore.getState()
+    const id = s.addItem({
+      defId: 'sofa-3seat',
+      position: [0, 0],
+      rotation: 0,
+      props: { lightOn: 'yes' },
+    })
+    useStore.getState().updateItemProps(id, { lightOn: undefined })
+    useStore.getState().undo()
+    expect(useStore.getState().items.find((i) => i.id === id)?.props.lightOn).toBe('yes')
+  })
+})
+
 describe('updateManyItemProps (bulk recolour, one undo step)', () => {
   beforeEach(() => {
     useStore.getState().__resetForTest()

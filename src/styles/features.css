@@ -572,6 +572,21 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 .backdrop-upload-row { display: flex; gap: 6px; }
 .backdrop-upload-row .btn { flex: 1 1 auto; }
 
+/* ---- Palette preset gallery (R3-FEAT-2, MasterPaletteEditor) ----- */
+.pal-presets { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-1); }
+.pal-preset {
+  display: flex; flex-direction: column; gap: 3px; padding: 6px;
+  border: 1px solid var(--border); border-radius: var(--r-2); background: var(--surface-2);
+  text-align: left; transition: var(--dur) var(--ease);
+}
+.pal-preset:hover { background: var(--surface-3); border-color: var(--border-2); }
+.pal-strip { display: flex; gap: 2px; }
+.pal-chip { flex: 1; height: 14px; border-radius: 3px; }
+.pal-name {
+  font-size: var(--t-2xs); font-weight: 600; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* ---- Arrange menu compact pick + apply rows --------------------- */
 .arr-pick { display: flex; align-items: center; gap: 6px; padding: 2px 6px 4px; }
 .arr-select { flex: 1; min-width: 0; height: 30px; font-size: var(--t-xs); }

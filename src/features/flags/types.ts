@@ -132,6 +132,7 @@ export type FeatureFlag =
   | 'ceilingFinish'
   | 'saveMaterials'
   | 'masterPalette'
+  | 'palettePresets'
   | 'layerOrder'
   | 'contextMenu'
   | 'infoCallouts'

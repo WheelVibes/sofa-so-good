@@ -6,6 +6,7 @@ import {
   FOCUS_MIN_M,
   FSTOP_PRESETS,
 } from '../scene/cameras/cameraLensSettings'
+import { hqEnvironmentUrl } from '../scene/pathtrace/hqEnvironment'
 import type { HqRenderSession } from '../scene/pathtrace/hqRenderSession'
 import { getHqRenderSource } from '../scene/pathtrace/hqRenderSource'
 import { useStore } from '../state/store'
@@ -57,6 +58,10 @@ export function HqRenderModal() {
   const open = useStore((s) => s.hqRenderOpen)
   const setOpen = useStore((s) => s.setHqRenderOpen)
   const hasLensControls = useFeature('cameraDof')
+  // The active HDRI environment lights the still too (PHOTO-HDRI-PT): same
+  // flag + selection as the real-time IBL; null keeps the gradient fallback.
+  const hdriOn = useFeature('hdriEnvironment')
+  const hdriId = useStore((s) => s.hdriId)
 
   // Lens + DoF live in the store (shared with the raster pass + persisted).
   const lensFocalMm = useStore((s) => s.lensFocalMm)
@@ -108,6 +113,7 @@ export function HqRenderModal() {
         height: res.h,
         maxSamples,
         fStop: dofFStop || undefined,
+        hdriUrl: hqEnvironmentUrl(hdriOn, hdriId) ?? undefined,
         // Lens + manual focus only when the pro lens controls are enabled.
         focalLengthMm: hasLensControls ? lensFocalMm : undefined,
         focusDistance: hasLensControls && !dofAuto ? dofFocusDistance : undefined,
@@ -135,6 +141,8 @@ export function HqRenderModal() {
     resId,
     maxSamples,
     dofFStop,
+    hdriOn,
+    hdriId,
     hasLensControls,
     lensFocalMm,
     dofAuto,

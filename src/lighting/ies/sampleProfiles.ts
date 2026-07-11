@@ -49,12 +49,9 @@ export const BUNDLED_IES_PROFILES: BundledIesProfile[] = [
 ]
 
 /** Lookup a bundled profile by id. */
-export function bundledIesById(id: string): BundledIesProfile | undefined {
+function bundledIesById(id: string): BundledIesProfile | undefined {
   return BUNDLED_IES_PROFILES.find((p) => p.id === id)
 }
-
-/** Default profile id used when a fixture is switched to IES without a choice. */
-export const DEFAULT_IES_PROFILE_ID = 'narrow-downlight'
 
 // Lazy parse cache so a profile string is parsed at most once per session.
 const cache = new Map<string, IesProfile>()

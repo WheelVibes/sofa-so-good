@@ -29,14 +29,14 @@ export function gizmoModesFor(kind: ShapeKind): GizmoMode[] {
 /** Snap precision: 5 mm for lengths (the numeric inputs step 0.05 m but accept
  *  finer), 1° for rotations. Coarse enough to read clean in the inputs, fine
  *  enough not to fight the drag. */
-export const POSITION_SNAP_M = 0.005
-export const SIZE_SNAP_M = 0.005
-export const ROTATION_SNAP_DEG = 1
+const POSITION_SNAP_M = 0.005
+const SIZE_SNAP_M = 0.005
+const ROTATION_SNAP_DEG = 1
 
 /** Bounds mirroring the numeric inputs: position min −3 m (kept symmetric at
  *  +3 m — the preview grid is 6 m), size min 0.02 m. */
-export const POSITION_LIMIT_M = 3
-export const MIN_SIZE_M = 0.02
+const POSITION_LIMIT_M = 3
+const MIN_SIZE_M = 0.02
 
 /** Round `v` to a multiple of `step`, normalising `-0` to `0`. */
 export function snapValue(v: number, step: number): number {

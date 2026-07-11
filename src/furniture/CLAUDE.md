@@ -47,7 +47,11 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   openings, dropPos)` — both the commit (`ui/catalog/usePlacementController.ts`, bypassing the floor
   `canPlace` gate; an info toast + no-add when the plan has no window) and the `scene/PlacementGhost`
   preview (snaps the ghost, keeps the raw drop point in `ghostWorld` so the commit re-derives the same
-  snap incl. facing). Window grilles stay an opening `style` (`grille`/`louvre`), not a fixture.
+  snap incl. facing). The **2D plan editor** places them the same way (PLAN-FURNISH Phase 3):
+  `ui/floorplan/editor/planFurnishPlacement.ts:buildPlanWindowGhostItem` wraps the same
+  `snapToNearestWindow` + `windowFixtureProps` pair scoped to the EDITED level's walls/openings
+  (`levelAsPlan`), ghost and commit both snapped; no-window levels toast + disarm on arming.
+  Window grilles stay an opening `style` (`grille`/`louvre`), not a fixture.
   Placement also **sizes** the fixture to its window via the pure `windowFixtureProps(defId, window,
   ceilingHeight)` — curtains wider than the glass + floor-to-ceiling, blinds slightly wider with a
   covering drop. The `Curtain` primitive is a **double-sided wavy draped sheet** (two gathering panels,

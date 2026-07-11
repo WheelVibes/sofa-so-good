@@ -18,6 +18,7 @@
  * this registry yet.
  */
 
+import type { KeybindingId } from '../../controls/keybindings'
 import type { FeatureFlag } from '../../features/featureFlags'
 import { canRecord } from '../../scene/RecordController'
 import type { useStore } from '../../state/store'
@@ -45,6 +46,10 @@ export interface ToolAction {
   flag: FeatureFlag
   /** Contextual user-guide deep-link key (DOCS-DEEPLINK). */
   docs?: DocKey
+  /** Keybinding id whose combo renders as a right-aligned chip on desktop rows
+   *  (TB-7) — an action with a real shortcut must surface it; the chip/tooltip
+   *  is the primary shortcut-teaching surface (toolbar UX audit). */
+  kbd?: KeybindingId
   /** Which surfaces render this action — the anti-drift parity guard checks each. */
   surfaces: readonly ToolSurface[]
   /** Mobile hides this while the per-room editor is active (matches the old sheet). */
@@ -62,10 +67,6 @@ const CATEGORY_LABEL: Record<ToolCategory, string> = {
 
 /** Display order of the category section headers. */
 export const TOOL_CATEGORY_ORDER: readonly ToolCategory[] = ['analyze', 'review']
-
-export function toolCategoryLabel(c: ToolCategory): string {
-  return CATEGORY_LABEL[c]
-}
 
 /** Resolve a (possibly state-derived) label against the current store snapshot. */
 export function resolveToolLabel(a: ToolAction, s: StoreState): string {
@@ -93,6 +94,7 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     category: 'analyze',
     flag: 'budget',
     docs: 'budget',
+    kbd: 'toggleBudget',
     surfaces: ['desktop', 'mobile', 'palette'],
     isActive: (s) => s.budgetOpen,
     run: auxToggle(
@@ -182,7 +184,10 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
   },
   {
     id: 'measure',
-    label: (s) => (s.tapeMode ? 'Measuring…' : 'Measure'),
+    // 'Measure distance' (not plain 'Measure') — the toolbar's 'Dimensions'
+    // overlay toggle used to be called 'Measurements', and the two near-identical
+    // names shared one icon (TB-8 in the toolbar UX audit).
+    label: (s) => (s.tapeMode ? 'Measuring…' : 'Measure distance'),
     sub: 'Tap two points for a distance',
     icon: 'Measure',
     category: 'analyze',

@@ -14,7 +14,7 @@ const WALK_BACKDROP_ID = 'walk-backdrop-photo'
 
 /** Largest image accepted (bytes) — guards against a giant upload exhausting
  *  storage / GPU memory. ~25 MB comfortably fits a high-res equirect JPG. */
-export const MAX_WALK_BACKDROP_BYTES = 25 * 1024 * 1024
+const MAX_WALK_BACKDROP_BYTES = 25 * 1024 * 1024
 
 /** Store (or replace) the uploaded backdrop photo blob. */
 export async function persistWalkBackdrop(blob: Blob): Promise<void> {

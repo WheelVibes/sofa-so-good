@@ -57,7 +57,7 @@ function subscribe(fn: () => void) {
  *  Parametric primitives render their component; GLB user uploads + bundled
  *  GLBs render the loaded model. IKEA (photo) / pack (install thumb) defs carry
  *  their own image and are skipped. */
-export function requestThumbnail(def: FurnitureDef) {
+function requestThumbnail(def: FurnitureDef) {
   if (def.kind === 'gltf' && !gltfThumbSource(def)) return
   if (def.kind !== 'parametric' && def.kind !== 'gltf') return
   if (cache.has(def.id) || queued.has(def.id)) return

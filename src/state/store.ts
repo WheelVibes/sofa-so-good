@@ -159,7 +159,6 @@ import {
 export type { CameraMode } from './slices/cameraSlice'
 export type { Location } from './slices/locationSlice'
 export type { TimeMode, TimePreset } from './slices/timeSlice'
-export { PRESET_HOURS } from './slices/timeSlice'
 
 export interface RootState
   extends CameraSlice,

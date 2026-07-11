@@ -179,7 +179,7 @@ export function isCurtainOpen(item: FurnitureItem): boolean {
  *  window — its opacity/light-blocking floor (CURTAIN-OPACITY): sheer ≈ 0.45 …
  *  blackout ≈ 0.02. Driven by the item's `lightBlock` level (legacy
  *  `material: 'sheer'` → sheer). */
-export function curtainTransmission(item: FurnitureItem): number {
+function curtainTransmission(item: FurnitureItem): number {
   return draperyTransmit(draperyOpacityLevel(item.props))
 }
 

@@ -70,7 +70,7 @@ function samePoint(a: PlanVec2, b: PlanVec2): boolean {
 
 /** Validate the grid spacing; throws on a non-positive / non-finite value.
  *  Exposed so callers (the slice) can validate before committing. */
-export function assertGrid(gridM: number): void {
+function assertGrid(gridM: number): void {
   if (!Number.isFinite(gridM) || gridM <= 0) {
     throw new RangeError(`snapPlanToGrid: gridM must be finite and > 0 (got ${gridM})`)
   }
@@ -150,7 +150,7 @@ function snapLevelGeometry(lvl: PlanUpperLevel, gridM: number): PlanUpperLevel {
 }
 
 /** Snap a single furniture item's POSITION to the grid (size preserved). */
-export function snapItem(item: FurnitureItem, gridM: number): FurnitureItem {
+function snapItem(item: FurnitureItem, gridM: number): FurnitureItem {
   return { ...item, position: snapPoint(item.position, gridM) }
 }
 

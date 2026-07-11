@@ -21,6 +21,12 @@ function Divider() {
 }
 
 const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = { auto: 'Auto', on: 'On', off: 'Off' }
+/** Cycle order of the Lights toolbar button (matches uiSlice.cycleLightsMode). */
+const NEXT_LIGHTS: Record<'auto' | 'on' | 'off', 'auto' | 'on' | 'off'> = {
+  auto: 'on',
+  on: 'off',
+  off: 'auto',
+}
 
 /** The icon-island toolbar. Frequent actions are direct icon buttons; busy
  *  clusters collapse into labelled portaled dropdown menus. Editing clusters
@@ -97,12 +103,30 @@ export function Toolbar() {
     el.addEventListener('pointermove', onPointerMove)
     el.addEventListener('pointerup', endDrag)
     el.addEventListener('pointercancel', endDrag)
+
+    // Overflow affordance (TB-6): stamp .can-scroll-left/right so CSS can fade
+    // the clipped edge — silent horizontal overflow hid the right cluster
+    // (Graphics/Appearance) on narrow desktops with no cue. Scroll + resize +
+    // content-size driven (ResizeObserver catches cluster mount/unmount).
+    const updateOverflowCues = () => {
+      const canLeft = el.scrollLeft > 1
+      const canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+      el.classList.toggle('can-scroll-left', canLeft)
+      el.classList.toggle('can-scroll-right', canRight)
+    }
+    updateOverflowCues()
+    el.addEventListener('scroll', updateOverflowCues, { passive: true })
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateOverflowCues) : null
+    ro?.observe(el)
+
     return () => {
       el.removeEventListener('wheel', onWheel)
       el.removeEventListener('pointerdown', onPointerDown)
       el.removeEventListener('pointermove', onPointerMove)
       el.removeEventListener('pointerup', endDrag)
       el.removeEventListener('pointercancel', endDrag)
+      el.removeEventListener('scroll', updateOverflowCues)
+      ro?.disconnect()
     }
   }, [])
   const gridLabel = gridSize >= 1 ? `${gridSize} m` : `${Math.round(gridSize * 100)} cm`
@@ -125,7 +149,12 @@ export function Toolbar() {
         {/* Exit + room switcher — leftmost while the room editor is active. */}
         {roomEditorActive && (
           <>
-            <IconButton icon="ExitRoom" label="Exit room" shortcut="Esc" onClick={exitRoomEditor} />
+            <IconButton
+              icon="ExitRoom"
+              label="Exit room"
+              shortcut={shortcutLabel('deselect')}
+              onClick={exitRoomEditor}
+            />
             <RoomSwitcher />
             <Divider />
           </>
@@ -135,9 +164,13 @@ export function Toolbar() {
             you can always switch Orbit/Walk (and frame the overview). */}
         <ViewMenu />
 
-        {/* Scene (time / lighting moods / sun) stays available in Walk too, so
-            you can experience the flat at different times of day while walking. */}
-        {!roomEditorActive && <SceneMenu />}
+        {/* Scene (time / lighting moods / sun) is available in EVERY mode —
+            Walk (experience times of day while walking) AND the room editor
+            (TB-6b: RoomEditorScene mounts the full orbit render stack — sun,
+            fixture lights, effects — since the graphics-globalization pass, so
+            hiding Scene there stranded users who wanted to check lighting while
+            furnishing; they had to exit the editor). */}
+        <SceneMenu />
 
         {/* EDIT MODE — inside the per-room editor (orbit): every editing cluster
             lives here now. Selection/placement/finishes only happen in here. */}
@@ -180,7 +213,7 @@ export function Toolbar() {
             ) : null}
             <IconButton
               icon="Measure"
-              label="Measurements"
+              label="Dimensions"
               shortcut={shortcutLabel('toggleMeasurements')}
               active={showMeasurements}
               onClick={toggleMeasurements}
@@ -219,7 +252,10 @@ export function Toolbar() {
             <Divider />
             <IconButton
               icon="Lights"
-              label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
+              // A 3-state cycle button hides its state space (TB-8/P2-11) — until
+              // this becomes a segmented control, at least TEACH the cycle: the
+              // tooltip names the state a click moves to.
+              label={`Lights · ${LIGHTS_LABEL[lightsMode]} (click for ${LIGHTS_LABEL[NEXT_LIGHTS[lightsMode]]})`}
               active={lightsMode !== 'auto'}
               onClick={cycleLightsMode}
             />
@@ -233,7 +269,7 @@ export function Toolbar() {
         <Divider />
         <IconButton
           icon="Quality"
-          label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
+          label={`Graphics · ${QUALITY_LABEL[qualityTier]}`}
           onClick={() => setGraphicsOpen(true)}
         />
         <AppearancePopover />

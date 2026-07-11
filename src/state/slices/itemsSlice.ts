@@ -1,6 +1,11 @@
 import { GROUND_LEVEL_ID, levelOfRoom } from '../../floorplan/levels'
 import { buildMergedCatalog } from '../../furniture/catalog'
-import { defaultParamProps, type FurnitureItem, type ParamProps } from '../../furniture/types'
+import {
+  defaultParamProps,
+  type FurnitureItem,
+  type ParamProps,
+  type ParamValue,
+} from '../../furniture/types'
 import { gapFixVector } from '../../layout/gapFix'
 import type { RootState } from '../store'
 import { reorderByIds, type ZMove } from '../zorder'
@@ -39,7 +44,11 @@ export interface ItemsSlice {
    *  history step of its own immediately before the delete loop (clearRoom),
    *  so the loop's first iteration doesn't add a second, redundant entry. */
   deleteItem: (id: string, opts?: { silent?: boolean; skipHistoryPush?: boolean }) => void
-  updateItemProps: (id: string, props: ParamProps) => void
+  /** Merge `props` into the item's bag (one coalesced undo step per
+   *  item+prop-set). A key whose value is explicitly `undefined` is REMOVED
+   *  from the bag — the only way a caller can clear a prop, since a plain
+   *  merge can never delete (the "Turn off light source" bug). */
+  updateItemProps: (id: string, props: Record<string, ParamValue | undefined>) => void
   /** Merge `props` into every listed item in ONE undo step (bulk recolour /
    *  batch appearance edit). Unknown ids are ignored. */
   updateManyItemProps: (ids: string[], props: ParamProps) => void
@@ -252,7 +261,15 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     // single undo step rather than dozens.
     get().pushHistoryCoalesced(`prop:${id}:${Object.keys(props).sort().join(',')}`)
     set((s) => ({
-      items: s.items.map((it) => (it.id === id ? { ...it, props: { ...it.props, ...props } } : it)),
+      items: s.items.map((it) => {
+        if (it.id !== id) return it
+        const next: ParamProps = { ...it.props }
+        for (const [k, v] of Object.entries(props)) {
+          if (v === undefined) delete next[k]
+          else next[k] = v
+        }
+        return { ...it, props: next }
+      }),
     }))
   },
   updateManyItemProps: (ids, props) => {

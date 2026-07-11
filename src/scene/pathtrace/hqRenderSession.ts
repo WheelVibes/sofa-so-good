@@ -12,8 +12,9 @@
  * affect a running render (it's a still).
  */
 
-import type { Camera, Object3D, Scene } from 'three'
+import type { Camera, Object3D, Scene, Texture } from 'three'
 import { mmToFov } from '../cameras/cameraLensSettings'
+import { isReusableEquirectEnvironment } from './hqEnvironment'
 import { HQ_TRACER_CONFIG } from './hqTracerConfig'
 
 export interface HqRenderOptions {
@@ -34,6 +35,10 @@ export interface HqRenderOptions {
   /** Edge-preserving denoise blit on the preview/output (default true) —
    *  smooths Monte-Carlo noise at low sample counts. */
   denoise?: boolean
+  /** Equirect `.hdr` URL to light the still with (PHOTO-HDRI-PT) — the user's
+   *  active `hdriEnvironment` selection, resolved via `hqEnvironmentUrl`.
+   *  Undefined → the neutral 2-colour gradient sky (procedural mode). */
+  hdriUrl?: string
   /** Called after every sample with (done, max). */
   onProgress?: (samples: number, maxSamples: number) => void
   /** Called once accumulation reaches maxSamples. */
@@ -91,15 +96,48 @@ function isTraceableMaterial(m: unknown): boolean {
 }
 
 /**
+ * The environment the tracer is lit by when an HDRI is active (PHOTO-HDRI-PT):
+ * reuse the live `scene.environment` when it's already the loaded equirect
+ * (Medium+ tiers — never disposed here, the live scene still owns it), else
+ * load the `.hdr` directly (flat tier keeps `scene.environment` null). Any
+ * load failure (offline / headless) → null, so callers fall back to the
+ * gradient instead of crashing.
+ */
+async function resolveTracerEnvironment(
+  live: Scene,
+  hdriUrl: string | undefined,
+): Promise<{ tex: Texture; owned: boolean } | null> {
+  if (!hdriUrl) return null
+  if (isReusableEquirectEnvironment(live.environment))
+    return { tex: live.environment, owned: false }
+  try {
+    const [{ RGBELoader }, three] = await Promise.all([
+      import('three/examples/jsm/loaders/RGBELoader.js'),
+      import('three'),
+    ])
+    const tex = await new RGBELoader().loadAsync(hdriUrl)
+    tex.mapping = three.EquirectangularReflectionMapping
+    return { tex, owned: true }
+  } catch {
+    return null
+  }
+}
+
+/**
  * Snapshot the live scene into a tracer-safe static Scene: world-baked clones
  * of every visible mesh with a standard material (geometry + materials shared
  * by reference — cheap), plus simple copies of the punctual lights and a
- * neutral gradient sky for ambience. Custom-shader overlays (grid, outlines,
+ * neutral gradient sky for ambience — or, when the user has an HDRI
+ * environment active, that captured equirect instead (PHOTO-HDRI-PT,
+ * importance-sampled by the tracer). Custom-shader overlays (grid, outlines,
  * contact shadows), lines, sprites and the PMREM probe environment are
  * deliberately excluded — the converter can't ingest them (undefined uniform
  * reads) and they aren't part of a photoreal still anyway.
  */
-async function buildTracerScene(live: Scene): Promise<Scene> {
+async function buildTracerScene(
+  live: Scene,
+  hdriUrl?: string,
+): Promise<{ root: Scene; ownedEnv: Texture | null }> {
   const three = await import('three')
   const { GradientEquirectTexture } = await import('three-gpu-pathtracer')
   const root = new three.Scene()
@@ -149,15 +187,23 @@ async function buildTracerScene(live: Scene): Promise<Scene> {
     }
   })
 
-  // Soft sky ambience instead of the live PMREM probe (whose render-target
-  // texture the converter can't read).
+  // The user's captured HDRI when one is active (PHOTO-HDRI-PT) — the same
+  // environment the real-time IBL uses, importance-sampled by the tracer —
+  // else a soft gradient sky instead of the live PMREM probe (whose
+  // render-target texture the converter can't read).
+  const env = await resolveTracerEnvironment(live, hdriUrl)
+  if (env) {
+    root.environment = env.tex
+    root.background = env.tex
+    return { root, ownedEnv: env.owned ? env.tex : null }
+  }
   const sky = new GradientEquirectTexture()
   sky.topColor.set(0xbfd4e6)
   sky.bottomColor.set(0x5a5650)
   sky.update()
   root.environment = sky
   root.background = sky
-  return root
+  return { root, ownedEnv: null }
 }
 
 /**
@@ -230,9 +276,12 @@ export async function createHqRenderSession(
   tracer.tiles.set(tiles, tiles)
   tracer.minSamples = 0
 
+  let ownedEnv: Texture | null = null
   try {
     // Snapshot the live scene + camera pose into the tracer's BVH.
-    const snapshot = await buildTracerScene(scene)
+    const built = await buildTracerScene(scene, opts.hdriUrl)
+    const snapshot = built.root
+    ownedEnv = built.ownedEnv
     let renderCamera: Camera = camera
     if (opts.fStop && opts.fStop > 0) {
       // Photographic camera (F5 + PC2-CAM-DOF-LENS): clone the live pose into the
@@ -262,6 +311,7 @@ export async function createHqRenderSession(
     }
     tracer.setScene(snapshot, renderCamera)
   } catch (err) {
+    ownedEnv?.dispose()
     renderer.dispose()
     opts.onError?.(err)
     throw err
@@ -312,6 +362,8 @@ export async function createHqRenderSession(
       running = false
       cancelAnimationFrame(raf)
       tracer.dispose?.()
+      // Only a texture this session loaded itself — never the live scene's.
+      ownedEnv?.dispose()
       renderer.dispose()
     },
   }

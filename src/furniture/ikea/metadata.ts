@@ -62,7 +62,7 @@ const DesignZ = z
   })
   .passthrough()
 
-export const IkeaMetadataZ = z
+const IkeaMetadataZ = z
   .object({
     group_key: z.string(),
     product_name: z.string(),

@@ -17,7 +17,7 @@ import type { ParametricSpec } from './spec'
  *  a dark recessed kick; handles + rail read as brushed metal; drawer-fronts
  *  carry the same finish as the carcass; drawer-handles are brushed metal.
  *  Kitchen worktops get a slightly lighter, more matte stone-like appearance. */
-export function partMaterial(role: ParametricPartRole, spec: ParametricSpec): Material {
+function partMaterial(role: ParametricPartRole, spec: ParametricSpec): Material {
   if (role === 'handle' || role === 'rail' || role === 'drawer-handle')
     return getSolidMaterial('#9b9b9b', 0.35, 0.85)
   if (role === 'plinth') return getSolidMaterial('#3a3733', 0.8, 0.05)

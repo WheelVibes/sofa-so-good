@@ -44,7 +44,7 @@ export interface DimensionSet {
 }
 
 /** Distance the overall dimension lines sit outside the plan bounds (metres). */
-export const DIMENSION_OFFSET = 0.6
+const DIMENSION_OFFSET = 0.6
 
 /** Format a metre length as a fixed 2-decimal label, e.g. `3.40 m`.
  *  @deprecated Prefer `formatLength(value, units)` from `utils/measurement` for

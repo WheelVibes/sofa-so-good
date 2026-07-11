@@ -7,7 +7,7 @@
 export type PlanLabelMode = 'off' | 'name' | 'price'
 
 /** The toolbar cycle order. */
-export const PLAN_LABEL_CYCLE: PlanLabelMode[] = ['off', 'name', 'price']
+const PLAN_LABEL_CYCLE: PlanLabelMode[] = ['off', 'name', 'price']
 
 /** Short human label for the toolbar button. */
 export const PLAN_LABEL_TEXT: Record<PlanLabelMode, string> = {

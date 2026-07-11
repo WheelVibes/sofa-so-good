@@ -4,6 +4,7 @@ import { effectivePalette, MAX_PALETTE_COLORS } from '../../state/slices/colorPa
 import { useStore } from '../../state/store'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Icon } from '../toolbar/icons'
+import { PALETTE_PRESETS } from './palettePresets'
 
 /**
  * Editor for the apartment master colour palette + an optional per-room override
@@ -13,6 +14,7 @@ import { Icon } from '../toolbar/icons'
  */
 export function MasterPaletteEditor({ roomId }: { roomId?: string | null }) {
   const on = useFeature('masterPalette')
+  const presetsOn = useFeature('palettePresets')
   const master = useStore((s) => s.masterPalette)
   const roomPalettes = useStore((s) => s.roomPalettes)
   const setMasterPalette = useStore((s) => s.setMasterPalette)
@@ -21,10 +23,17 @@ export function MasterPaletteEditor({ roomId }: { roomId?: string | null }) {
 
   const override = roomId ? roomPalettes[roomId] : undefined
   const hasOverride = !!override && override.length > 0
+  // A preset applies to whichever palette this editor is currently editing:
+  // the room override when one is active, else the apartment master.
+  const applyPreset = (colors: string[]) => {
+    if (roomId && hasOverride) setRoomPalette(roomId, colors)
+    else setMasterPalette(colors)
+  }
 
   return (
     <div className="space-y-2">
       <PaletteSlots label="Apartment palette" palette={master} onChange={setMasterPalette} />
+      {presetsOn ? <PresetGallery onApply={applyPreset} /> : null}
       {roomId ? (
         <div>
           <label
@@ -53,6 +62,38 @@ export function MasterPaletteEditor({ roomId }: { roomId?: string | null }) {
         </div>
       ) : null}
       <RecommendedPreview palette={effectivePalette(master, roomPalettes, roomId)} />
+    </div>
+  )
+}
+
+/** One-click curated theme gallery (R3-FEAT-2, `palettePresets` flag). Each
+ *  row shows the preset's swatch strip + name; clicking applies it via the
+ *  normal palette setters (sanitised + undoable). */
+function PresetGallery({ onApply }: { onApply: (colors: string[]) => void }) {
+  return (
+    <div>
+      <div className="label" style={{ fontSize: 'var(--t-2xs)', marginBottom: 'var(--s-1)' }}>
+        Palette presets
+      </div>
+      <div className="pal-presets">
+        {PALETTE_PRESETS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className="pal-preset"
+            onClick={() => onApply(p.colors)}
+            aria-label={`Apply the ${p.name} palette preset`}
+            title={`Apply "${p.name}" (undoable)`}
+          >
+            <span className="pal-strip" aria-hidden>
+              {p.colors.map((hex) => (
+                <span key={hex} className="pal-chip" style={{ backgroundColor: hex }} />
+              ))}
+            </span>
+            <span className="pal-name">{p.name}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

@@ -11,7 +11,7 @@ import { type SerializedState, SerializedStateZ, serialize } from '../schema'
 import type { RootState } from '../store'
 import { migrate } from './migrations'
 
-export const DESIGN_FILE_EXT = '.sofa.json'
+const DESIGN_FILE_EXT = '.sofa.json'
 
 /** Hard cap on an imported design file. Designs are JSON — even thousands of
  *  items with user/IKEA defs serialize to a few MB — so 50 MB is generously

@@ -14,7 +14,7 @@ import { isFeatureEnabled } from '../../features/featureFlags'
 import { applyAnisotropy } from '../anisotropy'
 import type { ProceduralPattern } from '../types'
 import type { Fields } from './fieldKit'
-import { clamp01, hashSeed, heightToNormalRGBA, hexToRgb, mix } from './noise'
+import { clamp01, hashSeed, heightToNormalRGBA, hexToRgb } from './noise'
 import { carpetFields, grasscloth, stripeFields } from './patterns/fabric'
 import { concreteFields, marbleFields, terrazzoFields } from './patterns/stone'
 import {
@@ -129,23 +129,6 @@ function toTexture(data: Uint8ClampedArray, srgb: boolean): CanvasTexture {
   const canvas = makeCanvas()
   const ctx = canvas.getContext('2d')!
   const img = ctx.createImageData(S, S)
-  img.data.set(data)
-  ctx.putImageData(img, 0, 0)
-  const tex = new CanvasTexture(canvas)
-  tex.wrapS = tex.wrapT = RepeatWrapping
-  if (srgb) tex.colorSpace = SRGBColorSpace
-  applyAnisotropy(tex)
-  return tex
-}
-
-/** Build a THREE CanvasTexture from a raw RGBA pixel array and a size.
- *  Used by the main thread to materialise worker-returned pixel buffers. */
-export function rawToTexture(data: Uint8ClampedArray, size: number, srgb: boolean): CanvasTexture {
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
-  const ctx = canvas.getContext('2d')!
-  const img = ctx.createImageData(size, size)
   img.data.set(data)
   ctx.putImageData(img, 0, 0)
   const tex = new CanvasTexture(canvas)
@@ -379,5 +362,3 @@ export function proceduralThumbnailDataUrl(
     S = prev
   }
 }
-
-export { mix }

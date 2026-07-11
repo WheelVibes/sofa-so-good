@@ -132,10 +132,22 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
   gate on `canEditScene`; leaving the editor clears the selection. **One documented exception:**
   `CatalogDrawer` also mounts inside the 2D floor-plan editor, behind `roomEditorActive ||
-  (floorPlanEditing && planFurnish && !isMobile)` (PLAN-FURNISH) — the plan editor is its own
-  parallel editing surface that was already mutating `items` directly (move/rotate/scale) before
-  this, so surfacing the catalog there doesn't touch `canEditScene`/the VIEW-EDIT-SPLIT invariant.
-  Don't extend this pattern to Inspector/FinishPicker without the same justification.
+  (floorPlanEditing && planFurnish)` (PLAN-FURNISH; Phase 2 dropped the old `!isMobile` gate) —
+  the plan editor is its own parallel editing surface that was already mutating `items` directly
+  (move/rotate/scale) before this, so surfacing the catalog there doesn't touch
+  `canEditScene`/the VIEW-EDIT-SPLIT invariant. Don't extend this pattern to
+  Inspector/FinishPicker without the same justification. **Mobile plan placement mirrors the 3D
+  `placeConfirm` grammar:** arming from a card AUTO-CLOSES the catalog bottom-sheet (the sheet
+  covers ~72% of a phone plan; `reopenCatalogAfterPlace` brings it back on cancel/confirm), the
+  plan tap commits through Phase 1's `onDown` → `pendingEdit` → "Place item?" ✓/✗ bar, and the 3D
+  `usePlacementController` touch handlers stand down while `floorPlanEditing` (they raced the
+  plan's own commit and cancelled armed stamps). Long-press-from-card drags via window-level
+  pointer events (`planFurnishPlacement.ts` pure helpers). **Window-bound fixtures place in the
+  plan too (Phase 3):** the ghost + commit snap to the EDITED level's nearest window via
+  `planFurnishPlacement.ts:buildPlanWindowGhostItem` (the same `windowSnap.ts` pair as 3D,
+  window-sized props, raw unsnapped drop point so wall magnetism can't flip the facing); a level
+  with no window toasts "No window to place on" + disarms on arming
+  (scenario: `plan-furnish-windows.json`).
 - **"Fits this room" catalog cue (CATALOG-FITS)** reuses the room's real geometry, never a
   parallel one: `ui/catalog/useCatalogRoomFit.ts` resolves the active room's free-space rects via
   `scene/roomEditorShell.ts:getRoomEditorShell` (the same shell the camera + room-filter already

@@ -23,7 +23,7 @@
 import type { Object3D } from 'three'
 
 /** `userData` key set on any object (and its subtree) that must NOT be exported. */
-export const NO_EXPORT_KEY = 'noExport' as const
+const NO_EXPORT_KEY = 'noExport' as const
 
 /** `userData` payload that excludes an object (+ its subtree) from 3D export.
  *  Spread onto an R3F object's `userData` prop: `userData={noExportUserData()}`.

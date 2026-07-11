@@ -12,7 +12,7 @@ import { useStore } from '../store'
 const KEY = 'hdb_appearance'
 
 /** Write the resolved theme + mode onto <html>. */
-export function applyAppearance(theme: ThemeName, modePref: ModePref): void {
+function applyAppearance(theme: ThemeName, modePref: ModePref): void {
   const mode = resolveMode(modePref)
   const el = document.documentElement
   el.setAttribute('data-theme', theme)

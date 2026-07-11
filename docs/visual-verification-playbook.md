@@ -52,6 +52,24 @@ Notes: GPU mode uses Chromium's `--headless=new` (not `shell`) so the compositor
 path is real; it is slower per frame than SwiftShader but renders truthfully.
 Always GPU-verify items the backlog tags `[real-GPU verify]` before striking them.
 
+GPU-session gotchas (2026-07-11 sweep):
+- **The `three-gpu-pathtracer` HQ render does NOT run on this GPU path** (ANGLE D3D12 Intel UHD
+  over the WSL `/dev/dxg` passthrough): the tracer's megakernel ShaderMaterial fails
+  `VALIDATE_STATUS` (Shader Error 1282, empty info log), every `renderSample` no-ops
+  (`INVALID_OPERATION: useProgram/drawArrays`) so the sample counter races to "done" with a
+  BLANK frame (white with the denoise blit, black without), and the page is then flagged as
+  having "caused context loss" — the NEXT WebGL context (a re-render, or even the live canvas)
+  is blocked. Verify PT convergence/lighting on **SwiftShader** instead (dev-tiny 192×108 ·
+  64 spp ≈ 1 min BVH + ~4.5 min sampling); keep `SHOT_GPU=1` for raster-only effects.
+- **Whole-flat orbit close-ups: keep the camera clear of window walls.** Plan coords ≈ world
+  coords with no recentring — a pose at z≈1.5 embeds the camera inside the north window (sill/
+  grille fills the foreground). Aim by reading item positions from `__store.getState().items`
+  and stand ~1–1.5 m INTO the room.
+- **The demand-frameloop one-burst-late presentation is SwiftShader-only.** On real GPU a
+  lighting-only store change (C275 curtain dim) is present in the immediately-captured frame
+  (measured 94.5 → 64.4 mean luminance with no wait/nudge step) — keep the no-op-nudge trick
+  only for software-WebGL runs.
+
 ## Scenario mode (recommended — use this for anything multi-step)
 
 **Harness runs are serialized machine-wide.** `shot.mjs` re-execs itself under
@@ -179,6 +197,11 @@ come out near-black.
   (it only clicks first if you pass `x`/`y`) — Command Palette's search input autofocuses on
   open via `requestAnimationFrame`, so a `waitFor {css: ".cmdk-item"}` step before typing is
   enough; don't add an explicit focus click.
+- **Top-level `const`/`let` in one `eval` step leaks into every later `eval` in the same
+  scenario** — `page.evaluate` runs each script in the page's global scope, so two steps that
+  both open with `const s = window.__store.getState()` fail the second one with
+  `Identifier 's' has already been declared`. Wrap multi-statement evals in an IIFE
+  (`(() => { … })()`) or use unique names.
 - **A `waitFor`/`eval` text-substring check against the Command Palette can false-positive on
   its own empty-state echo.** `CommandPalette`'s "no results" row renders
   `No commands match "{query.trim()}".` — if your assertion checks
@@ -666,15 +689,14 @@ gotchas:
   until you open them: `state.items.filter(i => i.defId === 'curtains').forEach(i =>
   updateItemProps(i.id, { drawAmount: 0 }))`. Do this as one of the first eval steps, before any
   walk-mode screenshot that needs the view to actually be visible.
-- **The per-room editor's `Canvas` (`scene/RoomEditorScene.tsx`) is a completely separate lighting
-  rig from the main `Scene`** — a fixed `hemisphereLight` + `ambientLight` for a flat, always-lit
-  authoring view, and it does **not** render `<FurnitureLights />` at all. Any light-emitter effect
-  (a registered fixture, or an `itemAsLight`-flagged item) is invisible while `roomEditor.active`
-  is true, regardless of the hour/`lightsMode` — this isn't a bug, it's deliberate (PERF, a stable
-  view to place items by), but it means you must `exitRoomEditor()` before probing/screenshotting
-  any lighting effect. The Inspector (needed to click the real per-item light toggle) is only
-  reachable inside the room editor, so the pattern is: enter editor → select item → click toggle →
-  **exit editor** → re-focus → probe/screenshot in the real Scene.
+- **OUTDATED (accurate when written; superseded by the graphics-globalization pass):** the
+  per-room editor's `Canvas` (`scene/RoomEditorScene.tsx`) used to be a fixed flat
+  `hemisphereLight`+`ambientLight` rig with no `<FurnitureLights />`. It now mounts the FULL
+  orbit render stack — `Lighting` (sun/time), `FurnitureLights`, `Effects`,
+  `QualityController` — so lighting effects ARE visible and probe-able inside the room editor
+  (which is also why the Scene menu now shows there, TB-6b v0.18.6.17). The old
+  enter-editor → toggle → **exit editor** → probe dance is no longer required; kept here so
+  older scenarios that still do it aren't "fixed" into breaking.
 - **A near-pitch-black "unlit" comparison shot proves nothing.** Picking a very late manual hour
   (23:00) for the "before/after" light-toggle pair renders the whole room fully black in both
   states under `lightsMode: 'auto'`-independent darkness — the point light's absence has no visual

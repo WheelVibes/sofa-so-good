@@ -81,12 +81,25 @@ export function CatalogCard({
     const y = t.clientY
     const timer = window.setTimeout(() => {
       if (press.current) press.current.fired = true
+      const s = useStore.getState()
+      // PLAN-FURNISH Phase 2 — inside the 2D plan editor the card arms the
+      // PLAN placement grammar instead: arm + auto-close the sheet so the plan
+      // is visible (cancel is the path back to the catalog), then either drag
+      // this same touch onto the plan (FloorPlanEditor's window-level
+      // long-press effect drives the ghost and commits on lift) or lift and
+      // tap the plan (tap-to-place). No `placeConfirm`/`cursor` — those drive
+      // the 3D canvas ghost, which is inert behind the plan overlay.
+      if (s.floorPlanEditing) {
+        s.setReopenCatalogAfterPlace(true)
+        s.setActiveDefId(def.id)
+        s.setCatalogOpen(false)
+        return
+      }
       // Explicit-confirm placement (bugs #2/#5): arm the ghost at the finger,
       // close the catalog, and show the "Place item?" pill. The ghost then
       // follows the finger and stays freely draggable — a lift never commits or
       // aborts — until the user taps ✓/✗. We do NOT snap the camera (requestTopView
       // was removed): a camera move mid-drag read as "the canvas moving on me".
-      const s = useStore.getState()
       s.setReopenCatalogAfterPlace(true)
       s.setActiveDefId(def.id)
       s.setPlaceConfirm(true)
@@ -117,15 +130,29 @@ export function CatalogCard({
     // doesn't toggle placement back off.
     if (press.current?.fired) return
     if (isMobile) {
-      // Bug #5: a plain tap closes the catalog and drops the ghost hovering at
-      // the canvas centre with the "Place item?" pill, freely draggable until
-      // ✓/✗ (same explicit-confirm flow as the long-press, just centred). Tapping
-      // the same armed card again toggles the placement off.
       const s = useStore.getState()
-      if (s.activeDefId === def.id && s.placeConfirm) {
+      // Tapping the same armed card again toggles the placement off (both the
+      // 3D placeConfirm flow and the plan tap-to-place flow).
+      if (s.activeDefId === def.id && (s.placeConfirm || s.floorPlanEditing)) {
         s.cancelPlacement()
         return
       }
+      // PLAN-FURNISH Phase 2 — inside the 2D plan editor a tap arms the PLAN
+      // tap-to-place grammar: arm + auto-close the sheet so the plan is
+      // visible, then a tap on the plan SVG commits at that spot (the same
+      // `onDown` branch desktop click-to-place uses; the pendingEdit ✓/✗ bar
+      // follows). Cancel is the path back to the catalog
+      // (`reopenCatalogAfterPlace`). No `placeConfirm`/`cursor` — those drive
+      // the 3D canvas ghost, which is inert behind the plan overlay.
+      if (s.floorPlanEditing) {
+        s.setReopenCatalogAfterPlace(true)
+        s.setActiveDefId(def.id)
+        s.setCatalogOpen(false)
+        return
+      }
+      // Bug #5: a plain tap closes the catalog and drops the ghost hovering at
+      // the canvas centre with the "Place item?" pill, freely draggable until
+      // ✓/✗ (same explicit-confirm flow as the long-press, just centred).
       s.setReopenCatalogAfterPlace(true)
       s.setActiveDefId(def.id)
       s.setPlaceConfirm(true)

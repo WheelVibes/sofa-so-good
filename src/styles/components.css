@@ -509,6 +509,19 @@ body.mobile .tip::after { content: none; }
 .seg button.on { background: var(--surface-solid); color: var(--text); box-shadow: 0 1px 2px oklch(0 0 0 / 0.08); }
 .seg.accent button.on { background: var(--accent); color: var(--on-accent); box-shadow: none; }
 
+/* Standalone state-toggle pill (Scene menu Ceiling fixtures / Motion, the
+   plan-inspector style/axis pickers). Must read as a CONTROL, not status
+   text — this class shipped undefined for a while, so those toggles rendered
+   as bare words with no affordance (TB-2 in the 2026-07-10 toolbar audit). */
+.seg-btn {
+  min-height: 28px; padding: 3px 10px; border-radius: var(--r-2);
+  border: 1px solid var(--border); background: var(--surface-2);
+  font-size: var(--t-xs); font-weight: 600; color: var(--text-2);
+  transition: var(--dur) var(--ease);
+}
+.seg-btn:hover { background: var(--surface-3); color: var(--text); }
+.seg-btn.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
 /* ---- Tabs ----------------------------------------------------- */
 .tabs { display: flex; gap: 2px; padding: 0 var(--s-4); }
 .tab {

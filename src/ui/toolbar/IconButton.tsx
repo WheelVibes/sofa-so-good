@@ -48,7 +48,10 @@ export function IconButton({
         aria-label={label}
         aria-disabled={disabled || undefined}
         disabled={disabled}
-        title={disabled ? disabledReason : undefined}
+        // Mirror the accessible name onto the native title even when ENABLED
+        // (TB-7): the custom Tooltip is hover/keyboard-only, so a touch user on
+        // an icon-only button (Snap, Lights, Graphics) otherwise gets no name.
+        title={disabled ? disabledReason : label}
         onClick={disabled ? undefined : onClick}
         className={`tool-btn${active ? ' active' : ''}${cta ? ' cta' : ''}`}
       >

@@ -43,7 +43,7 @@ import { planLightLumens, SCENE_INTENSITY_CALIBRATION, UTILISATION_FACTOR } from
 
 /** Default sample spacing (m). Fine enough to show lamp pools, coarse enough
  *  that a whole flat is a few thousand samples. */
-export const LUX_GRID_CELL = 0.25
+const LUX_GRID_CELL = 0.25
 
 /** Hard cap per grid axis — a huge polygon room grows its cell size instead
  *  of its sample count, keeping texture uploads bounded. */
@@ -62,10 +62,10 @@ export const DAYLIGHT_NEAR_WINDOW_LUX = 1600
 
 /** Reference glazing area (m²) producing the full near-window value; larger
  *  windows scale up (capped) and small ventilation panes scale down. */
-export const DAYLIGHT_REF_GLAZING = 1.5
+const DAYLIGHT_REF_GLAZING = 1.5
 
 /** Distance (m) into the room at which the daylight wash halves. */
-export const DAYLIGHT_HALF_DEPTH = 1.8
+const DAYLIGHT_HALF_DEPTH = 1.8
 
 /** How far (m) to probe perpendicular to a window's wall when assigning it to
  *  a room (same trick as `analysis/daylight.ts`). */

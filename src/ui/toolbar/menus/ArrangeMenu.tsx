@@ -124,7 +124,17 @@ export function ArrangeMenu() {
                     type="button"
                     aria-label={`Delete ${u.name}`}
                     title="Delete set"
-                    onClick={() => deleteUserSet(u.id)}
+                    onClick={async () => {
+                      // Destructive-action policy (TB-9): a saved set is
+                      // user-authored data — confirm before deleting.
+                      const ok = await useStore.getState().confirmAction({
+                        title: 'Delete set?',
+                        message: `“${u.name}” (${u.items.length} items) will be removed from My sets.`,
+                        confirmLabel: 'Delete',
+                        danger: true,
+                      })
+                      if (ok) deleteUserSet(u.id)
+                    }}
                     className="rounded px-1.5 py-1 text-[var(--text-3)] hover:bg-[var(--surface-3)] hover:text-[var(--danger)]"
                   >
                     ×
@@ -192,7 +202,17 @@ export function ArrangeMenu() {
                 type="button"
                 aria-label={`Delete ${s.name}`}
                 title="Delete style"
-                onClick={() => deleteUserStyle(s.id)}
+                onClick={async () => {
+                  // Destructive-action policy (TB-9): confirm before deleting a
+                  // user-authored saved style.
+                  const ok = await useStore.getState().confirmAction({
+                    title: 'Delete style?',
+                    message: `“${s.name}” will be removed from My styles.`,
+                    confirmLabel: 'Delete',
+                    danger: true,
+                  })
+                  if (ok) deleteUserStyle(s.id)
+                }}
                 className="rounded px-1.5 py-1 text-[var(--text-3)] hover:bg-[var(--surface-3)] hover:text-[var(--danger)]"
               >
                 ×

@@ -1,6 +1,7 @@
 import { evictGltfAsset } from '../../furniture/GltfModel'
 import { LOD_TIERS, lodAssetId, unregisterLodVariants } from '../../furniture/gltf/lod'
 import type { IkeaGltfDef, UserGltfDef } from '../../furniture/types'
+import { disposeCachedMaterialsFor } from '../../materials/cache'
 import type { TexturedMaterialDef } from '../../materials/types'
 import { IdbAssetStore } from '../storage/IdbAssetStore'
 import type { RootState } from '../store'
@@ -155,6 +156,10 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
     set((s) => ({
       userMaterials: s.userMaterials.filter((d) => d.id !== id),
     }))
+    // Free the built GPU material(s) — the plain entry plus any tint/furniture
+    // derivatives (DE-4a: revoking blob URLs alone left the cached
+    // MeshStandardMaterial + owned textures in the LRU until eviction).
+    disposeCachedMaterialsFor(id)
     if (def?.runtimeUrls) {
       for (const url of Object.values(def.runtimeUrls)) {
         if (url) URL.revokeObjectURL(url)

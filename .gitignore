@@ -65,3 +65,7 @@ build/
 .wrangler/
 .dev.vars
 workers/**/.wrangler/
+
+# CodeGraph / graphify local index artifacts (tooling, never committed)
+.codegraph/
+src/graphify-out/

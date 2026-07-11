@@ -39,7 +39,7 @@ export interface StagingCaptureDeps {
 }
 
 /** Default settle delay — matches the render-compare capture cadence. */
-export const STAGING_SETTLE_MS = 380
+const STAGING_SETTLE_MS = 380
 
 /**
  * Capture the furnished ("after") frame, then transiently hide every piece of

@@ -95,16 +95,22 @@ export function CatalogDrawer() {
   const roomEditorActive = useStore((s) => s.roomEditor.active)
   const roomEditorRoomId = useStore((s) => s.roomEditor.roomId)
   const floorPlan = useStore((s) => s.floorPlan)
-  // PLAN-FURNISH Phase 1: the catalog also surfaces inside the 2D floor-plan
-  // editor (desktop only — Phase 1 is desktop click-to-place; mobile stays
-  // hidden here rather than opening a bottom sheet on top of the plan's own
-  // mobile "Tools" sheet), behind the pro-tier `planFurnish` flag. This is the
-  // ONLY new gate — `canEditScene`/`roomEditorActive`'s existing meaning is
-  // untouched; see `state/editing.ts` / the PLAN-FURNISH implementation plan.
+  // PLAN-FURNISH: the catalog also surfaces inside the 2D floor-plan editor,
+  // behind the pro-tier `planFurnish` flag. Phase 1 shipped desktop
+  // click-to-place only; Phase 2 extends the same gate to mobile — the drawer
+  // becomes the standard `body.mobile` bottom sheet (`.catalog` in
+  // `responsive.css`), lifted above the plan's full-screen overlay by the
+  // `.dock-panel-left.catalog-in-plan` z-index bump (that rule applies
+  // regardless of viewport, so no new CSS is needed for the mobile case).
+  // Arming a placement from a card auto-closes the sheet so the plan is
+  // visible for the placement tap (see `CatalogCard`'s plan-editor branch).
+  // This is the ONLY new gate — `canEditScene`/`roomEditorActive`'s existing
+  // meaning is untouched; see `state/editing.ts` / the PLAN-FURNISH
+  // implementation plan.
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const fPlanFurnish = useFeature('planFurnish')
   const isMobile = useIsMobile()
-  const planFurnishActive = floorPlanEditing && fPlanFurnish && !isMobile
+  const planFurnishActive = floorPlanEditing && fPlanFurnish
   // Mobile bottom-sheet minimize (bug #7): collapse the catalog to just its
   // header (swipe the handle down, or tap the −/+ button) so it stops covering
   // the room while a piece is being positioned, then swipe up / tap + to expand.

@@ -5,6 +5,303 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.19.0.0 — Minor bump for the PR to staging (backlog-clearing + toolbar UX + plan-furnish + GPU wave)
+
+Version-only commit: rolls the v0.18.6.1–.23 line below into the 0.19.0 minor for the
+multi-feature PR to `staging` (per the versioning rule); `package.json` synced to 0.19.0.
+
+## v0.18.6.23 — Fix: doorway threshold light leak (white strips under closed doors)
+
+The blown-out white strips under every closed door leaf (found by this session's first real-GPU
+pass) were a GEOMETRY HOLE, not a shadow leak: room floors cover interiors only and a door
+cutout opens the wall to y=0, so the wall-thickness strip inside every doorway had no geometry —
+a grazing camera looked through the slot into the void under the flat and saw the bright HDR sky
+background. Proven by bisection on GPU (shadows-off: identical; probe plane under the flat:
+strips vanish; present at every tier). Fix at the true cause: new pure
+`floor/thresholdRects.ts` (one patch per floor-level door cutout, 12 mm tuck-under; windows/
+raised sills skipped) rendered by `floor/Thresholds.tsx` as hardwood threshold strips that fade
+with their host wall (`getWallOpacity`, WALL-FADE-DEPTHWRITE). Near-white pixels in the repro
+frame: 1346 → 0; sunlit-room regression frames clean; unit tests + full suite (5732) green.
+Deferral noted in TODO.md: the custom-plan path (`PlanShell`) likely leaks identically —
+`thresholdRects` is reusable there with a PlanWall adapter.
+
+## v0.18.6.22 — HQ render uses the real HDRI environment (PHOTO-HDRI-PT) + F1 ruling
+
+The path-traced HQ still now renders inside the ACTUAL HDRI environment when one is active
+(`hdriEnvironment` flag + selected `hdriId`) instead of the 2-colour gradient: new pure
+`pathtrace/hqEnvironment.ts` (`hqEnvironmentUrl` + `isReusableEquirectEnvironment`, unit-tested)
+and `hqRenderSession.resolveTracerEnvironment` — reuses the live equirect `scene.environment`
+when compatible (never disposed; the scene owns it) or RGBE-loads the `.hdr` directly (flat
+tier); any failure falls back to the exact old gradient path (procedural mode byte-identical).
+Verified with 64-spp A/B stills: gradient = flat cool sky; HDRI (venice_sunset) = warm dusk
+backdrop + directional bounce on the shell — meaningfully more photoreal.
+**F1 tail RESOLVED — no tier gating** for the HQ-render entry: the PT is its own renderer;
+evidence shows it converges on software GL (weaker than any tier) yet fails on a D3D12 driver
+that runs High-tier raster fine — capability is driver-shaped, not tier-shaped. Follow-up logged
+in TASKS.md instead: on drivers where the PT megakernel fails GLSL validation it renders BLANK
+silently (samples still count to done) and can knock out the live canvas context afterwards —
+needs a first-sample pixel probe → honest error phase.
+
+## v0.18.6.21 — Plan editor: desktop goes full-bleed — header + help float over the grid
+
+User feedback (screenshot): on desktop the "Editing your floor plan" callout sat on an opaque
+`.plan-screen`-coloured band above the canvas. The mobile full-bleed treatment (v0.15.2.7) is
+now the BASE for every viewport: `.plan-top` overlays the top (pointer-events pass through to
+the grid between its children), the grid canvas extends to the top edge, the header is a
+translucent floating bar, and the callout reads as a floating card (`max-width: 640px`) instead
+of a full-width banner. Mobile keeps its pill styling/safe-area rules unchanged.
+Scenario-verified (canvas top < 2px + callout width asserted; desktop light + dark screenshots
+reviewed; mobile full-bleed regression green).
+
+## v0.18.6.20 — PLAN-FURNISH Phase 3: window fixtures place from the 2D plan editor
+
+Curtains/roller blinds are now placeable from the plan's Furnish catalog (the Phase-1 toast
+pointing to the 3D editor is retired). Ghost AND commit snap live to the EDITED level's nearest
+window via the new pure `buildPlanWindowGhostItem` (`planFurnishPlacement.ts`) — a thin wrapper
+over the exact 3D pair (`snapToNearestWindow` + `windowFixtureProps`), so position, room-side
+facing, and window sizing match the 3D path bit-for-bit; drop points stay RAW (grid/wall
+magnetism would flip the facing). Works on desktop click, mobile tap, and long-press drag;
+stamp repeat-snaps per click; a windowless level toasts "No window to place on" + disarms
+(also on a mid-arm level switch). Level-aware via `levelAsPlan`; placed items carry `levelId`.
+Unit tests (snap-to-centre, nearest-of-several, facing flip, sizing, levelId, no-window);
+scenario `plan-furnish-windows.json` 31/31 green (placed curtain 0.0000 m from the window's
+segment centre, props asserted against `windowFixtureProps`); Phase-1 (34/34) + Phase-2 (68/68)
+regressions green; full suite 5721 green. Docs updated (user guide, ui/floorplan/furniture
+CLAUDE.md). Two PRE-EXISTING bugs found and logged in TASKS.md (plan inspector ignores
+`windowBound`; size line shows def H not window-sized H) — not fixed here.
+
+## v0.18.6.19 — PLAN-FURNISH Phase 2: mobile furniture placement in the 2D plan editor
+
+Resumes the archived `wip/plan-furnish-mobile-phase2` work (54/64 green, deferred 2026-07-04)
+with the layout decision made: **arming a catalog card AUTO-CLOSES the mobile bottom-sheet**
+(it covered ~72% of a 390×844 plan), mirroring the 3D `placeConfirm` grammar — tap a card →
+sheet closes, plan visible → tap the plan → Phase 1's `onDown` commit → "Place item?" ✓/✗ bar;
+cancel/confirm reopen the catalog. Long-press-from-card drag ships too (window-level pointer
+events; pure `screenToGridPoint`/`decidePlanTouchLift` helpers in `planFurnishPlacement.ts`,
+unit-tested), plus stamp-mode repeat drops (stays armed, no pill — verified along with a desktop
+Phase-1 regression run). CatalogDrawer's plan-editor mount drops its `!isMobile` gate; the
+mobile plan header gains the Furnish entry (Edit mode, Pro). **New bug found & fixed**: the 3D
+`usePlacementController` touch handlers raced the plan's own commit (cancelled armed stamps,
+reopened the sheet over the pending pill) — they now stand down while `floorPlanEditing`, and
+the plan effect handles `pointercancel` aborts itself. Scenario `plan-furnish-mobile.json`:
+**68/68 green** (390×844, lazy-mount `waitFor`s — no fixed waits); desktop
+`plan-furnish-simple.json` 34/34; full suite (5710) + `tsc` + biome green. Docs: user guide's
+"Adding furniture from the plan" is no longer desktop-only; `ui/CLAUDE.md` records the mobile
+grammar + controller stand-down.
+
+## v0.18.6.18 — Mobile sheet Tab focus-trap (a11y) + DE-4b ruling
+
+The mobile menu sheet gains the Tab focus-trap it was the last overlay without (the long-open
+a11y TODO + TB-9 tail): focus moves into the sheet on open and Tab/Shift+Tab wrap at the edges
+via the shared `controls/focusTrap.ts` helpers `Modal`/`ToolbarMenu` already use. Unit-tested
+(focus lands inside; wraps both directions). DE-4b resolved: `importSh3dFile` was never dead —
+it's `openSh3dImport()`'s internal worker, exported "for direct/drag callers" that never
+materialised; de-exported with the ruling recorded inline (re-export if a `.sh3d` drop-zone
+ever ships).
+
+## v0.18.6.17 — Scene menu available inside the room editor (TB-6b)
+
+The Scene cluster (time of day, lights, ceiling fixtures, motion, render preset, backdrop, wall
+fade, sun direction) was hidden while `roomEditor.active` — a hangover from when the editor
+canvas was a fixed flat rig. `RoomEditorScene` has mounted the FULL orbit render stack
+(`Lighting` sun/time, `FurnitureLights`, `Effects`, `QualityController`) since the
+graphics-globalization pass, so hiding Scene there just stranded users who wanted to check
+lighting while furnishing (they had to exit the editor: audit P1-9). `SceneMenu` now mounts in
+every mode on desktop; the mobile rail gains a Scene section in the room editor too. The
+playbook's outdated "editor canvas has no FurnitureLights" gotcha is corrected with a dated
+supersession note. Scenario-verified: Scene opens inside the editor and the editor canvas
+responds (dusk + fixtures-on renders warm interior light).
+
+## v0.18.6.16 — Toolbar overflow affordance: clipped edges now fade (TB-6a)
+
+The island's horizontal scroll was invisible — on narrow desktops the clipped cluster silently
+vanished with no cue that more buttons exist (no modern-app precedent for silent overflow, per
+the audit's Figma grounding). The Toolbar's scroll effect now stamps `.can-scroll-left/right`
+(scroll + ResizeObserver driven, so cluster mount/unmount recomputes) and CSS `mask-image`
+fades the clipped edge(s) — content visibly bleeds out toward where more exists. No cue when
+the row fits. Scenario-verified at 700px in the room editor (right fade → scroll-to-end flips
+to left fade → wide viewport carries no cues).
+
+## v0.18.6.15 — Toolbar consistency batch (TB-9/TB-10 partial)
+
+Three audit items: (a) **Arrange's user-set/user-style `×` deletes now gate on `confirmAction`**
+(danger prompt naming the set/style) — they destroyed user-authored data with no confirm/undo,
+against the destructive-action policy; scenario-verified (cancel keeps, confirm deletes).
+(b) **Mobile hamburger + brand dot get ≥44px hit areas** via inset `::after` (visual size
+unchanged — the primary menu-open control was a sub-target in the same file that enforces 44px
+for `.tool-btn`). (c) **One label+value separator convention (` · `)**: `Graphics · Balanced`,
+`Lights · Auto (click for On)` — was `—`/`:`/`·` mixed across three buttons. Also struck the
+stale FEAT-E TODO entry (3D grid snap shipped since v0.7.0.0 — `snapEnabled` quantizes
+`dragControllerHandlers.onMove`, ghost + overlay included).
+
+## v0.18.6.14 — Refactor: App.tsx keyboard orchestration → testable hooks (R3-REFAC-1)
+
+`App.tsx` shrinks 1190 → 522 lines: the three inline keyboard blocks move behaviour-preserving
+into `controls/useAppHotkeys.ts` (`useGlobalHotkeys` — the raw window ⌘K/undo/`?`/`B`/⌘A/`[`/`]`/
+`,`/`.`/`/` listener, kept raw because ⌘K must fire while typing; + `useEditorHotkeys` via
+`useKeyboard`, identical deps so re-registration behaviour is unchanged) and `controls/useNudge.ts`
+(the arrow-key rAF hold loop with camera-cardinal snapping, group collision pre-check, and the
+`'nudge'` history-coalesce window). App composes them in the original listener order. NEW unit
+coverage (11 tests): ⌘K from a text input, modal suppression + release, undo/redo, Delete skips
+locked, R rotates in one undo step, nudge moves by `speed×dt` / coalesces a hold+re-tap into one
+undo entry / suppressed behind modals. Full suite (5700) green; scenario smoke: ⌘K, held-arrow
+nudge, R rotate all work live. (A sub-frame arrow TAP moves nothing — verified identical in the
+pre-refactor code, not a regression.)
+
+## v0.18.6.13 — Naming: "Dimensions" vs "Measure distance"; Lights button teaches its cycle (TB-8)
+
+Two near-identical names shared one icon: toolbar "Measurements" (the dimension-labels overlay,
+key M) vs Tools "Measure" (the tape tool) — high collision risk (TB-8). The overlay toggle is now
+**"Dimensions"** (desktop toolbar, mobile Edit section, ⌘K "Toggle dimension labels", user docs
+shortcut table) and the tape tool is **"Measure distance"** (Tools menu + design-tools doc). The
+3-state **Lights** cycle button's tooltip now names the state a click moves to ("Lights: Auto ·
+click for On" — `NEXT_LIGHTS` mirrors `uiSlice`'s `LIGHTS_CYCLE`), teaching the hidden state
+space until it becomes a segmented control. Scenario-verified (Tools row, Dimensions toggle,
+Lights tooltip).
+
+## v0.18.6.12 — Shortcut discoverability (TB-7): chips where bindings exist, names on touch
+
+Figma-grounded rule from the toolbar audit: every action with a shortcut teaches it. (a) The
+tool-action registry gains a `kbd?: KeybindingId` field, rendered as the standard `.mi-kbd` chip
+by the desktop Tools menu — Budget now shows `B`; future registry shortcuts are one field away
+instead of structurally impossible. (b) View → Orbit/Walk rows show the `V` chip
+(`toggleCameraMode` — the most-used shortcut was invisible). (c) "Exit room" derives `Esc` from
+`KEYBINDINGS.deselect` via `shortcutLabel` (which now contracts `Escape`→`Esc`) instead of a
+hardcoded string. (d) `IconButton` mirrors its label onto the native `title` when ENABLED too —
+the custom tooltip is hover/keyboard-only, so icon-only buttons (Snap, Lights, Graphics) exposed
+nothing on touch. Scenario-verified (V chips on camera rows, B chip on Budget with the flag on).
+
+## v0.18.6.11 — Mobile menu sheet: grab pill now swipes to dismiss (TB-3)
+
+The sheet's grab pill (`.m-sheet-grab`) rendered the OS-level "draggable sheet" affordance but
+had no gesture handler — a misleading promise (P0-3 in the toolbar UX audit; Figma/FigJam
+grounding: sheets that look draggable are draggable). A swipe UP on the pill (≥36 px, matching
+the inspector's `SWIPE_PX` feel) now dismisses the top-anchored sheet — "toward the top bar" is
+the natural dismiss motion for a sheet that hangs from it. Unit-tested (dismisses past the
+threshold; small/downward swipes keep it open); touch gestures aren't drivable in the headless
+harness, so the tests are the behavioural evidence (no visual change to verify).
+
+## v0.18.6.10 — Mobile overview gains the Arrange section (TB-4, desktop parity)
+
+Whole-flat Arrange (furniture sets, layout presets, style themes, save-as-set/style) was
+unreachable on mobile outside the room editor — desktop deliberately mounts `ArrangeMenu` in the
+orbit overview (its actions act on the whole flat), but the mobile rail gated Arrange to
+`roomEditorActive`, forcing a phone user into a single room to restyle the whole home (highest-
+value parity gap in the toolbar UX audit). The `arrange` rail entry now appears in the overview
+too and `ArrangeSection` mounts in both modes. Unit tests: rail contains Arrange in overview AND
+room-editor modes + the detail pane renders. Scenario-verified at 390×844 (rail entry, pane
+renders, whole-flat style applies from the overview).
+
+## v0.18.6.9 — Dead-export prune, batch 2 (DE-2/DE-3): 80 internal helpers de-exported
+
+Dropped the unnecessary `export` keyword on 80 internal-only helpers across 56 files (audit
+Tasks 2–3), each re-verified by repo-wide grep first — zero behaviour change, unblocks a
+noise-free future `npm run deadcode`. 6 audited symbols were deliberately KEPT exported:
+`ConvertError`, `formatClock`, `PROD_PROVIDER_IDS`, `HORIZON_Y` (all gained real cross-file/test
+consumers since the audit), plus `AC_LEDGE_AREA_M2` — whose only consumer died in DE-1, so it is
+now **deleted** outright instead. `dxf.ts`'s trailing `export {…}` statement removed. `tsc` +
+full suite green.
+
+## v0.18.6.8 — Dead-export prune, batch 1 (DE-1): 19 dead exports deleted
+
+Deleted the 19 truly-dead exports from the 2026-07-03 dead-export audit (each re-verified by
+repo-wide grep before deletion — none had gained a reference): `DEFAULT_COMPOSE_ROUGHNESS`,
+generators' `mix` re-export + `rawToTexture`, `getProceduralSwapCount` +
+`_resetProceduralSwapSignal`, `preloadGltf`, catalog's standalone `getDef`, `toolCategoryLabel`,
+`isUnscoredDesign`, `hasSeenTour`, the `PRESET_HOURS` store barrel re-export, `peekXrStore`,
+remote-cache `deleteAsset` + `listAssetKeys`, `DEFAULT_THUMB_CAP_BYTES`, `TOTAL_AREA_M2`,
+`setImgModel`, `DEFAULT_IES_PROFILE_ID`, `tvViewingDistance` (+ their orphaned imports).
+`disposeCachedMaterial` (now wired, v0.18.6.7) and `importSh3dFile` (DE-4b, open decision)
+untouched. −101/+3 lines across 16 files; `tsc` + full suite green. Note: `npm run deadcode`
+(knip) currently crashes on an oxc-parser ESM/CJS mismatch — recorded under DE-5 in TASKS.md.
+
+## v0.18.6.7 — Fix (DE-4a): deleting a user material now frees its cached GPU material
+
+`removeUserMaterial` only revoked blob URLs — the built `MeshStandardMaterial` (+ its owned
+recolour bakes) and every tint/furniture derivative stayed in the 256-entry surface-material LRU
+until size pressure evicted them (confirmed leak candidate from the dead-export audit). New
+`disposeCachedMaterialsFor(baseId)` (`materials/cache.ts`) sweeps the plain id, `<id>@size`,
+`tint:<id>:…`, and `furn:`-prefixed derivatives via the existing ownership-aware
+`disposeCachedMaterial` (shared loader textures are never disposed); prefix checks are
+delimiter-anchored so `u1` never sweeps `u12`. `LruCache` gains a non-refreshing `keys()`.
+Wired into `removeUserMaterial`; unit tests cover the sweep, the prefix-collision guard, and the
+no-op path.
+
+## v0.18.6.6 — Corner-spread wall fade for custom plans (PlanShell, WALL-REVEAL-CORNER-SPREAD)
+
+Custom plans now get the same corner-spread reveal the default flat (`WallSegment`) and room
+editor (`useWallReveal`) ship: a wall sharing a corner with a wall that is meaningfully fading by
+its OWN facing fades too, so orbiting a corner opens BOTH near walls cleanly instead of leaving
+one opaque. Plumbing: `WallBox` now carries its source `wallId` (`planGeometry.ts` — one wall
+breaks into several boxes around openings), `PlanLevelShell` memoizes `cornerNeighbors(lp.walls)`
+per plan, and `planWallRevealTarget` computes own strength + publishes it to the shared
+`setWallOwnStrength` registry (wall BODY only — trim/glass/door followers read without
+publishing, keeping spread first-degree, no perimeter cascade) then grades
+`cornerSpreadStrength` from the strongest neighbour. Skirting, crown, window glass
+(`FadeWindow`), and door leaves (`PlanDoorLeaf`) all follow their host wall's spread in lockstep.
+Scenario-verified on `tpl-hdb-4room` (corner-on camera: ≥2 semi-faded wall boxes asserted via
+scene-graph probe + screenshot review); `tsc` + floorplan/apartment suites green.
+
+## v0.18.6.5 — Curated colour-palette preset gallery (R3-FEAT-2, `palettePresets` flag)
+
+One-click curated colour themes for the apartment palette — the local answer to Coohom /
+Planner 5D theme galleries. 8 presets (`src/ui/color/palettePresets.ts`: Scandinavian calm,
+Japandi, Terracotta warmth, Coastal breeze, Sage & cream, Modern monochrome, Blush & walnut,
+Navy & brass — each ≤5 valid hex, `cleanPalette`-stable) rendered as a swatch-strip card grid
+(`.pal-presets`, token-only CSS) inside `MasterPaletteEditor`'s section of the FinishPicker.
+A preset applies to whichever palette is being edited (room override when active, else master)
+via the existing undoable setters. New pro-tier flag `palettePresets` (default on). Tests: data
+validity, Simple/Pro tier gating, apply/undo + room-override routing, hidden-in-Simple at the
+UI level. Scenario-verified in the real FinishPicker (gallery renders, Terracotta click lands
+in the store). User docs: new "Apartment colour palette & presets" section.
+
+## v0.18.6.4 — Tests: orientationSlice wrap + callouts/badges localStorage guards (R3-TEST-2/3)
+
+Backfills the last two round-3-audit test gaps: `orientationSlice.test.ts` pins
+`setOrientationDeg` normalization into [0,360) (`-90→270`, `450→90`, `360→0`, ± sweep) — a bad
+wrap silently mis-rotates the sun; `calloutsSlice.test.ts` + `badgesSlice.test.ts` pin the
+corrupt-localStorage guards (`hdb_dismissed_callouts`/`hdb_seen_badges`: corrupt JSON / non-array
+/ mixed-type arrays degrade cleanly), dismiss dedup + blank-id ignore, persistence, and the
+module-reload round-trip (via `vi.resetModules()` + dynamic import, happy-dom). Also struck the
+stale R3-TEST-1 / R3-FEAT-1 TODO entries — both shipped back in v0.13.0.16/.18.
+
+## v0.18.6.3 — Fix (TB-2): Scene-menu Ceiling fixtures / Motion toggles read as controls again
+
+`.seg-btn` was an **undefined CSS class** — the Scene menu's "Ceiling fixtures" and "Motion"
+toggles (and the plan-inspector's style/axis pickers, which share the class) rendered as bare
+words with no button affordance, indistinguishable from status text (P0-2 in the toolbar UX
+audit, screenshot-confirmed). Defined `.seg-btn` in `components.css` as a bordered state-toggle
+pill (tokens only: `--border`/`--surface-2`/hover `--surface-3`/on `--accent`), dropped the
+now-redundant inline font/padding on the two Scene rows, and gave Ceiling fixtures a tooltip.
+Scenario-verified in light AND dark (real `setModePref('dark')`): both toggles read as pills,
+Motion click flips `motionEnabled` and the pill state.
+
+## v0.18.6.2 — Fix (TB-1): nested Select inside a toolbar Popover no longer closes the parent menu
+
+`Popover`'s outside-pointerdown/scroll containment only accepted its own portaled panel; a
+`Select` opened from inside a menu panel portals its option list to a SIBLING `document.body`
+node, so picking an option read as "outside" — the parent menu closed on `pointerdown` before the
+option's `click` ever ran and the pick was silently dropped (repro: Scene menu → Window view;
+found by the IXT back-fill, P0-1 in `docs/research/2026-07-10-toolbar-ux-audit.md`). Fix: every
+open `Popover` registers `{panel, anchor}` in a module-level set; containment now walks
+descendant portals by anchor ownership (`popoverTreeContains` — a popover whose anchor lives
+inside my panel is part of my subtree, any depth). Covers pointerdown AND the capture-phase
+scroll-close (scrolling a nested option list no longer closes the menu). Unit tests for nested
+portals (stay-open, truly-outside still closes both, nested scroll); scenario-verified: picking
+"Dusk" in Scene → Window view lands in the store with the Scene menu still open.
+
+## v0.18.6.1 — Fix: "Turn off light source" never worked (updateItemProps can now clear a key)
+
+The inspector header's light toggle (`InspectorHeader.tsx`) built a props copy, `delete`d
+`lightOn`, and passed the whole bag — but `itemsSlice.updateItemProps` only ever *merged*
+(`{...it.props, ...props}`), so the missing key was re-filled from the old props and an item could
+never be un-flagged as a light source (found by the `furnlight-simple` IXT rung). Fix at the store
+level: `updateItemProps` now **removes** any key whose patch value is explicitly `undefined` (the
+only way a merge-style action can clear), and the header passes the minimal
+`{ lightOn: 'yes' | undefined }` patch. Unit tests cover clear/keep-others/undo;
+`furnlight-simple.json`'s turn-off step now clicks the REAL button (regression guard) — 49/49
+steps green, lit vs unlit screenshots visually verified.
+
 ## v0.18.6.0 — Wall reveal is a single fade-strength slider (WALL-REVEAL-STRENGTH) (PR to main)
 
 Replaces the three-way "Wall reveal" mode (Fade translucent / Fully hidden / Fully opaque) with one

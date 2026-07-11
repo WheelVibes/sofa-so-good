@@ -1,4 +1,4 @@
-import { clear, createStore, del, get, keys, set } from 'idb-keyval'
+import { clear, createStore, del, get, set } from 'idb-keyval'
 import type { AssetBundle, ProviderId, RemoteEntry } from '../types'
 
 // idb-keyval's createStore creates a one-store database per call, so each
@@ -6,10 +6,10 @@ import type { AssetBundle, ProviderId, RemoteEntry } from '../types'
 const SCHEMA_VERSION = 1
 const META_KEY = '__meta__'
 
-export const indexStore = createStore('sofa-cache-index', 'kv')
-export const thumbsStore = createStore('sofa-cache-thumbs', 'kv')
-export const assetsStore = createStore('sofa-cache-assets', 'kv')
-export const metaStore = createStore('sofa-cache-meta', 'kv')
+const indexStore = createStore('sofa-cache-index', 'kv')
+const thumbsStore = createStore('sofa-cache-thumbs', 'kv')
+const assetsStore = createStore('sofa-cache-assets', 'kv')
+const metaStore = createStore('sofa-cache-meta', 'kv')
 
 // Some non-browser test environments (happy-dom + fake-indexeddb) lose the
 // Blob prototype across structuredClone. We serialize Blobs to a portable
@@ -173,11 +173,6 @@ export async function getAsset(key: string): Promise<AssetBundle | undefined> {
   return deserializeBundle(raw)
 }
 
-export async function deleteAsset(key: string): Promise<void> {
-  await withMetaLock((meta) => applyRemoveMeta(meta, key))
-  await del(key, assetsStore)
-}
-
 /** Evict least-recently-used assets until the total is ≤ `capBytes`. The meta
  *  accounting + selection happen in one locked cycle (so it can't race a
  *  concurrent put), then the chosen blobs are removed from the asset store. */
@@ -194,10 +189,6 @@ export async function evictAssetsUntilUnder(capBytes: number): Promise<void> {
     return deleted
   })
   for (const key of toDelete) await del(key, assetsStore)
-}
-
-export async function listAssetKeys(): Promise<string[]> {
-  return (await keys(assetsStore)) as string[]
 }
 
 export async function putThumb(key: string, b: Blob): Promise<void> {

@@ -181,7 +181,7 @@ function scaleLevelGeometry(lvl: PlanUpperLevel, k: number, anchor: PlanVec2): P
  * Scale a single furniture item: position (about the anchor) + elevation always;
  * footprint props only when `scaleSize`.
  */
-export function rescaleItem(
+function rescaleItem(
   item: FurnitureItem,
   k: number,
   anchor: PlanVec2,

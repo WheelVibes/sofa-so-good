@@ -1,0 +1,95 @@
+{
+  "name": "plan-furnish-windows",
+  "description": "PLAN-FURNISH Phase 3 (window-bound fixtures in the 2D plan): arming curtains in the plan editor no longer toasts-and-refuses — the ghost SNAPS to the nearest window on the edited level (position + facing + window-sized props via the same windowSnap.ts pair the 3D commit uses) and a click commits it there; the placed item's position sits exactly ON a window's wall segment (store assert against the plan's own window openings) with windowFixtureProps sizing (width/height/sillY); a plan whose edited level has NO windows toasts 'No window to place on' and disarms on arming; the placed curtain round-trips into the 3D scene on its window.",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "to-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "planFurnish-flag-on-pro",
+      "waitFor": { "store": "state.featureFlags.planFurnish === true" },
+      "timeout": 5000
+    },
+
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    {
+      "name": "plan-svg-mounted",
+      "waitFor": { "css": ".plan-screen svg.plan-paper" },
+      "timeout": 30000,
+      "failMessage": "The lazily-mounted plan editor's SVG never appeared"
+    },
+    { "name": "clear-items", "store": { "action": "setItems", "args": [[]] } },
+    {
+      "name": "plan-has-windows",
+      "waitFor": { "store": "state.floorPlan.openings.some(o => o.kind === 'window')" },
+      "timeout": 5000,
+      "failMessage": "The default flat's plan should have window openings for this scenario"
+    },
+
+    { "name": "arm-curtains", "store": { "action": "setActiveDefId", "args": ["curtains"] } },
+    {
+      "name": "curtains-stay-armed",
+      "waitFor": { "store": "state.activeDefId === 'curtains'" },
+      "timeout": 5000,
+      "failMessage": "Phase 3: arming curtains in the plan must NOT toast-and-disarm any more (the plan has windows)"
+    },
+    {
+      "name": "hover-near-a-window",
+      "eval": "(function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const fp = window.__store.getState().floorPlan; const win = fp.openings.find(o => o.kind === 'window'); if (!win) throw new Error('no window opening'); const el = svg.querySelector('[data-opening=\"' + win.id + '\"]'); if (!el) throw new Error('window opening element not rendered'); const r = el.getBoundingClientRect(); const sr = svg.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2; const dx = (sr.left + sr.width / 2) - cx, dy = (sr.top + sr.height / 2) - cy; const len = Math.hypot(dx, dy) || 1; window.__pt = { x: cx + (dx / len) * 30, y: cy + (dy / len) * 30 }; window.__winRect = { x: cx, y: cy }; window.__winId = win.id; svg.dispatchEvent(new PointerEvent('pointermove', { clientX: window.__pt.x, clientY: window.__pt.y, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse' })); })()"
+    },
+    {
+      "name": "ghost-snapped-and-valid",
+      "waitFor": { "css": "[data-plan-ghost=\"curtains\"][data-plan-ghost-valid=\"true\"]" },
+      "timeout": 5000,
+      "failMessage": "The curtain ghost should render VALID (green), snapped onto the hovered window"
+    },
+    {
+      "name": "assert-ghost-on-window",
+      "eval": "(function(){ const g = document.querySelector('[data-plan-ghost=\"curtains\"] polygon'); if (!g) throw new Error('ghost polygon missing'); const r = g.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2; const d = Math.hypot(cx - window.__winRect.x, cy - window.__winRect.y); if (d > 30) throw new Error('ghost centre is ' + d.toFixed(1) + 'px from the window centre — not snapped'); console.log('ghost snapped onto the window, ' + d.toFixed(1) + 'px from its centre'); })()"
+    },
+    { "name": "shot-01-ghost-snapped", "screenshot": "01-ghost-snapped-to-window" },
+
+    { "name": "record-baseline", "eval": "window.__base = window.__store.getState().items.length" },
+    {
+      "name": "click-to-commit",
+      "eval": "(function(){ const svg = document.querySelector('.plan-screen svg.plan-paper'); const opts = { clientX: window.__pt.x, clientY: window.__pt.y, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 }; svg.dispatchEvent(new PointerEvent('pointerdown', opts)); svg.dispatchEvent(new PointerEvent('pointerup', opts)); })()"
+    },
+    {
+      "name": "curtain-committed",
+      "waitFor": { "store": "state.items.length === window.__base + 1 && state.activeDefId === null && state.pendingEdit && state.pendingEdit.kind === 'placement'" },
+      "timeout": 5000,
+      "failMessage": "Clicking with a window-bound def armed should place it (snapped) and resolve to the normal plan placement confirm"
+    },
+    {
+      "name": "assert-position-on-window-segment-and-props",
+      "eval": "(function(){ const st = window.__store.getState(); const item = st.items[st.items.length - 1]; if (item.defId !== 'curtains') throw new Error('last item is not the curtains: ' + item.defId); const fp = st.floorPlan; const byId = Object.fromEntries(fp.walls.map(w => [w.id, w])); const centres = fp.openings.filter(o => o.kind === 'window' && byId[o.wallId]).map(o => { const w = byId[o.wallId]; const dx = w.end[0] - w.start[0], dz = w.end[1] - w.start[1]; const len = Math.hypot(dx, dz); const t = o.offset + o.width / 2; return { id: o.id, x: w.start[0] + (dx / len) * t, z: w.start[1] + (dz / len) * t, width: o.width, sill: o.sill }; }); const best = centres.reduce((a, c) => { const d = Math.hypot(item.position[0] - c.x, item.position[1] - c.z); return !a || d < a.d ? { ...c, d } : a; }, null); if (!best || best.d > 0.001) throw new Error('placed curtain is ' + (best ? best.d.toFixed(3) : '?') + 'm from the nearest window centre — not snapped onto a window wall segment'); const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v)); const expWidth = clamp(best.width + 0.36, 1.0, 3.4); const expHeight = clamp(fp.ceilingHeight - 0.05, 1.8, 3.2); if (Math.abs(item.props.width - expWidth) > 1e-6) throw new Error('curtain width ' + item.props.width + ' != windowFixtureProps width ' + expWidth); if (Math.abs(item.props.height - expHeight) > 1e-6) throw new Error('curtain height ' + item.props.height + ' != windowFixtureProps height ' + expHeight); if (Math.abs(item.props.sillY - best.sill) > 1e-6) throw new Error('curtain sillY ' + item.props.sillY + ' != window sill ' + best.sill); console.log('curtain snapped to window ' + best.id + ' (d=' + best.d.toFixed(4) + 'm) with window-sized props'); })()"
+    },
+    { "name": "confirm-placement", "eval": "window.__store.getState().confirmPendingEdit()" },
+    { "name": "shot-02-placed-in-plan", "screenshot": "02-placed-curtain-on-window-plan" },
+
+    {
+      "name": "strip-windows-from-plan",
+      "eval": "(function(){ const st = window.__store.getState(); window.__fp = st.floorPlan; st.setFloorPlan({ ...st.floorPlan, openings: st.floorPlan.openings.filter(o => o.kind !== 'window') }); })()"
+    },
+    { "name": "arm-curtains-no-window", "store": { "action": "setActiveDefId", "args": ["curtains"] } },
+    {
+      "name": "no-window-toast-and-disarm",
+      "waitFor": { "store": "state.activeDefId === null && state.notifications.some(n => n.title === 'No window to place on')" },
+      "timeout": 5000,
+      "failMessage": "Arming curtains on a level with no windows should toast 'No window to place on' (the 3D copy) and disarm"
+    },
+    { "name": "shot-03-no-window-toast", "screenshot": "03-no-window-toast" },
+    { "name": "restore-plan", "eval": "window.__store.getState().setFloorPlan(window.__fp)" },
+
+    { "name": "close-plan", "store": { "action": "setFloorPlanEditing", "args": [false] } },
+    { "name": "plan-closed", "waitFor": { "css": ".plan-screen", "visible": false }, "timeout": 15000 },
+    { "name": "wait-scene-settle", "wait": 2500 },
+    { "name": "shot-04-round-trip-3d", "screenshot": "04-round-trip-3d-curtain-on-window" }
+  ]
+}
