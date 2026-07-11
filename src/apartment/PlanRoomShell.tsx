@@ -24,6 +24,8 @@ import { finishSurfaceUserData } from '../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../scene/SilentErrorBoundary'
 import { useStore } from '../state/store'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
+import { roomShellThresholdRects } from './floor/planThresholdRects'
+import type { ThresholdRect } from './floor/thresholdRects'
 import { useWallReveal } from './walls/useWallReveal'
 import { extrudeWallBody } from './walls/wallBodyGeometry'
 import {
@@ -216,6 +218,66 @@ function PlanOpeningMesh({ entry }: { entry: PlanRoomOpening }) {
   )
 }
 
+// Threshold patch sizing (DOOR-GAP-LEAK, room-editor analog): slab thickness
+// below the top face + a top-face lift 1 mm under the 0.006 PlanRoomFloor lift,
+// matching PlanShell's FadeThreshold so orbit and room editor look alike.
+const THRESHOLD_H = 0.02
+const THRESHOLD_LIFT = 0.005
+
+/** Floor patches under the isolated room's doorways (DOOR-GAP-LEAK). The room
+ *  editor draws only this room's floor and its wall bodies are carved to y=0 at
+ *  each door, so without these the wall-thickness slot under a door leaf was a
+ *  hole straight to the backdrop (no `UnroomedFloor` here — it read as a bright
+ *  strip). Each patch fades with its host wall via the same `getWallOpacity`
+ *  registry the openings use (mirrors the default flat's `Thresholds`). */
+function PlanRoomThresholds({ shell }: { shell: Shell }) {
+  const rects = useMemo<ThresholdRect[]>(() => {
+    const byId = new Map(shell.walls.map((w) => [w.wallId, w]))
+    return roomShellThresholdRects(shell.openings, (wallId) => {
+      const clip = byId.get(wallId)
+      return clip ? clippedThickness(clip.thickness) : 0.1
+    })
+  }, [shell])
+
+  const groupRef = useRef<Group>(null)
+  useFrame(() => {
+    const g = groupRef.current
+    if (!g) return
+    for (let i = 0; i < g.children.length && i < rects.length; i++) {
+      const mesh = g.children[i] as Mesh
+      const mat = mesh.material as MeshStandardMaterial
+      if (!mat) continue
+      const op = getWallOpacity(rects[i].wallId)
+      mesh.visible = op > 0.02
+      const next = op < 0.985
+      // Toggling `transparent` at runtime needs a recompile to blend (see
+      // WallSegment); flip needsUpdate only on the actual transition.
+      if (next !== mat.transparent) mat.needsUpdate = true
+      mat.transparent = next
+      mat.opacity = op
+      // depthWrite stays ON (WALL-FADE-DEPTHWRITE), same as every reveal surface.
+      mat.depthWrite = true
+    }
+  })
+
+  return (
+    <group ref={groupRef}>
+      {rects.map((r, i) => (
+        <mesh
+          key={i}
+          position={[r.cx, THRESHOLD_LIFT - THRESHOLD_H / 2, r.cz]}
+          rotation={[0, r.angle, 0]}
+          receiveShadow
+        >
+          <boxGeometry args={[r.depth, THRESHOLD_H, r.length]} />
+          {/* Hardwood threshold strip — matches Thresholds/PlanShell. */}
+          <meshStandardMaterial color="#7d6243" roughness={0.8} metalness={0} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
 /**
  * Renders one isolated room of a **custom floor plan** for the per-room editor —
  * the plan-data analogue of `apartment/RoomShell`. Per-rect (or polygon) floors
@@ -299,6 +361,10 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
       {shell.openings.map((entry) => (
         <PlanOpeningMesh key={entry.opening.id} entry={entry} />
       ))}
+
+      {/* Doorway threshold strips — fill the unfloored wall-thickness slot under
+          each door so the backdrop can't shine through (DOOR-GAP-LEAK). */}
+      <PlanRoomThresholds shell={shell} />
     </group>
   )
 }

@@ -22,6 +22,7 @@ export type FeatureFlag =
   | 'panoTour'
   | 'renderPresets'
   | 'hqRender'
+  | 'hqAiDenoise'
   | 'vrWalkthrough'
   | 'savedViews'
   | 'backdrops'

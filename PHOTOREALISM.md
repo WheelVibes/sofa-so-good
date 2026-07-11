@@ -23,12 +23,18 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
 - **Tiers** (`scene/quality.ts`): Performance (flat, default — no shadows/IBL/post, DPR1) → Medium
   (1024 sun shadow + procedural IBL probe + contact shadows) → High (2048 + N8AO + Bloom + SMAA) →
   Maximum (4096 + full-res AO + film grain + chromatic aberration).
-- **Lighting**: sun `DirectionalLight` + `PCFSoftShadowMap` (radius 4, not PCSS); hemisphere + flat
+- **Lighting**: sun `DirectionalLight` + **`VSMShadowMap` soft shadows on Medium+** (radius 6 /
+  blurSamples 12, `look.ts:VSM_SHADOW`; Performance keeps PCF and is shadowless anyway; filter is
+  tier-driven via the Canvas `shadows` prop + `RendererTierController` — NOT drei PCSS, broken on
+  three r182+; note three r184 deprecated `PCFSoftShadowMap` → plain PCF); hemisphere + flat
   ambient; **procedural Lightformer IBL probe** (64–256px) by default, **with an opt-in captured CC0
   HDRI IBL** (`hdriEnvironment`, Medium+) — the HQ path tracer is lit by the same HDRI when one
   is active (PHOTO-HDRI-PT; gradient fallback otherwise).
 - **Materials**: `MeshPhysicalMaterial` with procedural micro-textures (≤512px albedo/normal/rough),
-  sheen + clearcoat (all tiers, `materialRealism.ts`), transmission glass (High/Max only). **Bundled +
+  sheen + clearcoat (all tiers, `materialRealism.ts`), transmission glass (High/Max only —
+  glassware AND window panes, with `attenuationColor` volume tint + a tier-bounded
+  `transmissionResolutionScale`; Performance/Medium panes keep the cheap transparent+sky-catch
+  look byte-identical). **Bundled +
   runtime Poly Haven 2K PBR finishes ship; in-browser KTX2/UASTC encode ships (opt-in); no POM/displacement.**
 - **Post** (`Effects.tsx`): N8AO → Bloom → HueSat → (CA) → Vignette → (grain) → SMAA. Tone-mappers
   Filmic(ACES)/AgX/Neutral available; auto-exposure + user dial.
@@ -59,29 +65,35 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   C-PLANTS/DECOR in TASKS.
 
 ### Tier 2 — high impact, needs real-GPU verification
-- **PHOTO-DENOISE — browser OIDN on the HQ still** (M–L, HQ still; Verify G).
-  Replace the edge-blur with an OIDN U-Net on the final accumulated frame: `DennisSmolek/Denoiser`
-  (tfjs, runs on WebGL2) with WebGPU `oidn-web` when available; render cheap **albedo + normal AOV**
-  passes from the snapshot scene to guide it (near-offline quality at 64–128 samples). New flag,
-  prod-safe (Apache-2.0 weights). Fallback to current `DenoiseMaterial`.
-- **PHOTO-GTAO — GTAO option + AO on more tiers** (M, real-time High/Max; Verify G).
-  Offer three.js `GTAONode`/GTAO alongside N8AO (more radiometrically correct); consider a cheap AO
-  on Medium. Re-evaluate cheap contact-grounding on the flat tier (the earlier RZ1 attempt was
-  reverted as marginal — revisit only with a clear A/B win on a real GPU).
-- **PHOTO-SOFTSHADOW — softer sun shadows** (M, real-time Medium+; Verify G).
-  ⚠️ **Do NOT use drei `<SoftShadows>`/PCSS** — broken on three r182+ (drei #2583, calls removed
-  `unpackRGBAToDepth`). Instead use **`VSMShadowMap`** (`renderer.shadowMap.type`, soft via
-  `light.shadow.radius`/`blurSamples`) and/or extend the existing `<AccumulativeShadows>` showcase
-  path (already used Medium+) to more parked views. Tune `look.ts` shadow params. Re-evaluate PCSS
-  once drei patches it.
-- **PHOTO-GLASS — transmission + volume + IOR fidelity** ◑ (M, materials; Verify G).
-  Window **sky-catch** shipped (RZ2): glass carries a daylight-ramped emissive sky tint
-  (`glassSkyCatchIntensity`) so panes read as lit glass on every tier (not flat dark rectangles).
-  **Glassware** already uses real `transmission`+`ior`(1.5)+`thickness` on High/Max
-  (`furnitureMaterials.ts:getGlassMaterial`). **Remaining:** WINDOW panes are still
-  `meshStandardMaterial` (no transmission — `apartment/Window.tsx`); add `attenuationColor`
-  (`KHR_materials_volume`) + `transmissionResolutionScale` to bound real-time cost; extend down to
-  Medium where affordable.
+- **PHOTO-DENOISE — SHIPPED v0.19.0.5.** OIDN U-Net denoise of the finished HQ still
+  (`denoiser`@0.0.11 tfjs build, lazy-imported; backend chain WebGPU→WebGL2→CPU), guided by
+  one-shot albedo+normal AOV passes captured at session start (`hqAovPasses.ts`; AOV failure →
+  color-only model). Weights self-hosted (`public/denoiser-tzas/`, 1.25 MB, Apache-2.0 —
+  offline/GH-Pages safe, no CDN). Flag `hqAiDenoise` (simple/on, matching `hqRender`); edge-blur
+  `DenoiseMaterial` stays as live preview + fallback; >4K stills skip the AI pass
+  (`aiDenoiseEligible`). `oidn-web` deliberately not added (would duplicate the UNet tfjs-webgpu
+  already covers). A/B (SwiftShader, 64 spp): speckle → smooth, edges preserved, guided 9-channel
+  model confirmed in-console. Scenario: `scripts/scenarios/hq-ai-denoise-simple.json`.
+- **PHOTO-GTAO — ruling (2026-07-11, real-GPU A/B): REJECTED, N8AO stays as-is.** A literal GTAO
+  cannot integrate cleanly: `GTAONode` is WebGPU/TSL-`RenderPipeline`-only, `GTAOPass` targets
+  three's own WebGL `EffectComposer` (incompatible Pass hierarchy with the pmndrs composer), and
+  `realism-effects` is discontinued/uninstalled. The shipped N8AO already composites
+  radiometrically correctly (linear-space; `autosetGamma` only gammas when `renderToScreen`).
+  Bumping the quality presets (High `medium→high`, Max `high→ultra`) was A/B'd on a real GPU with
+  AO-buffer (`renderMode 1`) captures at a furnished contact pose: contact-region crops differ by
+  RMSE ≤ 3.4/255 (mean Δ ≤ 0.5/255) — invisible, so the 4× aoSamples cost is rejected.
+  **Medium cheap AO: REJECTED** — N8AO needs the pmndrs composer's extra full-scene render pass,
+  the exact cost class Medium's `postprocessing: false` boundary exists to avoid (baked corner
+  strips + contact decals remain Medium's AO). **Flat-tier contact grounding: re-evaluated, still
+  marginal** — RZ1 blobs + RD-403 corner strips already ground the evidence pose; no cheap
+  candidate beat them without RD-410-class risk. Re-runnable A/B rungs:
+  `scripts/scenarios/photo-gtao-ab.json` (beauty, 3 tiers) + `photo-gtao-ab-ao.json` (High/Max,
+  pair with a temporary `renderMode={1}` on the `<N8AO>` in `EffectsImpl.tsx`).
+- **PHOTO-GLASS — remaining ruling:** window-pane transmission shipped on High/Max (see audit
+  above); **extending transmission down to Medium is REJECTED for now** — the transmissive pass
+  renders the whole opaque scene to an extra render target, which is exactly the cost class the
+  Medium tier exists to avoid (Medium panes keep the cheap transparent + fresnel + sky-catch look).
+  Revisit only with a measured budget win (e.g. `transmissionResolutionScale` ≤ 0.5 profiling).
 
 ### Tier 3 — ultra-detail materials/assets (memory-bound, mostly verifiable)
 - **PHOTO-PBR-MAPS — extend CC0 PBR coverage** ◑ (L, materials; Verify H/G).

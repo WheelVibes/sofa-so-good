@@ -124,7 +124,8 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **Mount expensive controllers once**; collapse repeat geometry via `InstancedBoxes`.
   `ContextLossGuard` must stay mounted in **both** Canvases (main + room editor).
 - The room editor uses a **separate Canvas that mirrors the main orbit render stack**
-  (`RoomEditorScene.tsx`): `frameloop="demand"` + `RenderPump`, `PCFSoftShadowMap` shadows,
+  (`RoomEditorScene.tsx`): `frameloop="demand"` + `RenderPump`, the tier-driven shadow filter
+  (VSM on Medium+, PCF on Performance — `RendererTierController` + the Canvas `shadows` prop),
   `Sky`/`SceneBackdrop`/`SceneEnvironment` (IBL), the graded `Lighting`, `FurnitureLights`, and the
   tier-gated `Effects` post stack + `QualityController` — so materials/finishes look identical to
   orbit at the user's quality tier (a glossy/metallic surface reflects the environment instead of

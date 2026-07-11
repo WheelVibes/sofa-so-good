@@ -105,6 +105,60 @@ export function glassConfig(
 export const GLASS_SKYCATCH_COLOR = '#cfe4f5'
 
 /**
+ * WINDOW-pane physical glass parameters (PHOTO-GLASS). High/Maximum only —
+ * same `transmissionTiers` gate as glassware's `getGlassMaterial` (transmission
+ * costs an extra transmissive render pass). Returns `null` on Performance /
+ * Medium so those tiers keep the cheap transparent+opacity pane BYTE-IDENTICAL.
+ *
+ * A window pane keeps `transparent: true` (unlike glassware) because the wall
+ * reveal composes the pane's fade through `opacity` — transmission and alpha
+ * blending stack fine; opacity just scales the whole result.
+ */
+export interface WindowGlassPhysical {
+  ior: number
+  /** Pane volume depth (m) feeding the refraction/attenuation — real HDB pane ~6 mm. */
+  thickness: number
+  /** Faint green edge tint real float glass shows (KHR_materials_volume). */
+  attenuationColor: string
+  attenuationDistance: number
+  roughness: number
+  metalness: number
+}
+
+export function windowGlassPhysical(tier: RenderTier): WindowGlassPhysical | null {
+  if (!transmissionTiers(tier)) return null
+  return {
+    ior: 1.5,
+    thickness: 0.006,
+    attenuationColor: '#d7efe4',
+    attenuationDistance: 0.5,
+    roughness: 0.05,
+    metalness: 0,
+  }
+}
+
+/**
+ * Transmission strength for a window pane by daylight (PHOTO-GLASS). Preserves
+ * the day/night glass story the cheap tiers tell with opacity: by day the pane
+ * transmits almost fully (clear glass, subtle refraction); at night it drops
+ * toward a dark reflective pane (interior reads its own reflection, not a
+ * see-through hole into the void). `daylight` is 0 (night) … 1 (full day).
+ */
+export function windowTransmission(daylight: number): number {
+  return 0.2 + clamp(daylight, 0, 1) * 0.72
+}
+
+/**
+ * Renderer-level `transmissionResolutionScale` per tier (PHOTO-GLASS): High
+ * renders the shared transmissive pass at 75% resolution to bound the cost of
+ * full-wall window panes; Maximum keeps full res. Tiers without transmission
+ * never render the pass, so the value is inert there — keep it 1.
+ */
+export function transmissionResolutionScaleForTier(tier: RenderTier): number {
+  return tier === 'high' ? 0.75 : 1
+}
+
+/**
  * Emissive intensity for a window pane's **sky-catch** (RZ2): by day the glass
  * reads as bright, lit by the sky; at night it goes dark (a reflective pane).
  * Cheap (emissive only, no transmission pass) so it works on every tier —

@@ -1,7 +1,6 @@
 import { useProgress } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
-import { PCFSoftShadowMap } from 'three'
 import { Apartment } from '../apartment/Apartment'
 import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
 import { occluderRectsForPlan } from '../apartment/ceiling/occluderRects'
@@ -36,12 +35,13 @@ import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
 import { Sky } from './lighting/Sky'
-import { DEFAULT_TONE_MAPPING } from './look'
+import { DEFAULT_TONE_MAPPING, shadowFilterForTier } from './look'
 import { PanoramaController } from './PanoramaController'
 import { PlacementDropAnimator } from './PlacementDropAnimator'
 import { PlacementGhost } from './PlacementGhost'
 import { QualityController } from './QualityController'
 import { RecordController } from './RecordController'
+import { RendererTierController, SHADOW_FILTER_THREE } from './RendererTierController'
 import { RenderPump } from './RenderPump'
 import { SceneBackdrop } from './SceneBackdrop'
 import { SceneExportController } from './SceneExportController'
@@ -82,13 +82,19 @@ export function Scene() {
   // at DPR 1 (big fill-rate saving on weak/mobile GPUs); higher tiers render
   // sharper. R3F applies `dpr` changes live, so this tracks a tier switch.
   const dprMax = useQuality().dprMax
+  const shadowMapType = SHADOW_FILTER_THREE[shadowFilterForTier(useStore((s) => s.qualityTier))]
   return (
     <Canvas
       // Demand mode: render only when RenderPump calls invalidate() — the scene
       // draws 0 frames when idle (battery/thermal win) and continuously only
       // while something animates. See RenderPump / renderDecision.
       frameloop="demand"
-      shadows={{ type: PCFSoftShadowMap }}
+      // Tier-driven filter (PHOTO-SOFTSHADOW): VSM soft shadows on Medium+, PCF
+      // on the (shadowless) Performance tier. Must be THIS prop, not only the
+      // controller: r3f re-applies `shadows` on every Canvas render, so a
+      // gl-level write elsewhere would be stomped. Runtime-switch material
+      // recompiles live in RendererTierController.
+      shadows={{ type: shadowMapType }}
       dpr={[1, dprMax]}
       camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: 400 }}
       gl={{
@@ -146,6 +152,7 @@ export function Scene() {
         <QualityController />
         {import.meta.env.DEV && profilerEnabled ? <ProfilerProbe /> : null}
         <AnisotropyController />
+        <RendererTierController />
         <ScreenshotController />
         <SceneExportController />
         <PanoramaController />

@@ -4,7 +4,13 @@ import { type AmbientLight, type DirectionalLight, type HemisphereLight, Object3
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { useStore } from '../../state/store'
 import { registerAnimatedSource } from '../animatedSources'
-import { grade, iblFillScale, SOFT_SHADOW, toneExposureBias } from '../look'
+import {
+  grade,
+  iblFillScale,
+  shadowFilterForTier,
+  shadowParamsForFilter,
+  toneExposureBias,
+} from '../look'
 import { isShadowRefreshActive } from '../shadowRefreshSignal'
 import { resolveToneMapping, toneContextFromState } from '../toneContext'
 import { TONE_MAPPING_THREE } from '../toneMappingThree'
@@ -68,6 +74,11 @@ export function Lighting() {
   const sunPos = useSunPosition()
   const orientation = useStore((s) => s.orientationDeg)
   const shadowMapSize = useQuality().shadowMapSize
+  // PHOTO-SOFTSHADOW: Medium+ tiers run VSM (real blurred penumbrae via
+  // radius/blurSamples); the renderer-level filter switch lives in
+  // ShadowFilterController — here we only feed the matching per-light params.
+  const shadowFilter = shadowFilterForTier(useStore((s) => s.qualityTier))
+  const shadowParams = shadowParamsForFilter(shadowFilter)
   // IBL is on for Medium+ tiers; when it is, the procedural environment provides
   // ambient bounce, so the analytical hemisphere+ambient fill is dialled down to
   // avoid double-counting (LIGHT-IBL-OVERLAP — midday washout otherwise).
@@ -250,15 +261,18 @@ export function Lighting() {
         // Remount the light (rebuilding its shadow camera) when the map size or
         // the plan-fitted frustum extent changes, so the new ortho bounds + far
         // plane take effect cleanly.
-        key={`${shadowMapSize}-${Math.round(halfExtent)}`}
+        // …and when the shadow FILTER changes (PCFSoft ↔ VSM) — the two formats
+        // build/blur their maps differently, so a fresh instance is the clean path.
+        key={`${shadowMapSize}-${Math.round(halfExtent)}-${shadowFilter}`}
         ref={sunRef}
         castShadow={shadowMapSize > 0}
         target={sunTarget}
         shadow-mapSize-width={shadowMapSize || 1024}
         shadow-mapSize-height={shadowMapSize || 1024}
-        shadow-bias={SOFT_SHADOW.bias}
-        shadow-normalBias={SOFT_SHADOW.normalBias}
-        shadow-radius={SOFT_SHADOW.radius}
+        shadow-bias={shadowParams.bias}
+        shadow-normalBias={shadowParams.normalBias}
+        shadow-radius={shadowParams.radius}
+        shadow-blurSamples={shadowParams.blurSamples}
         shadow-camera-near={1}
         shadow-camera-far={SUN_DISTANCE * 2 + halfExtent}
         shadow-camera-left={-halfExtent}

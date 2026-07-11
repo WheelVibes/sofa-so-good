@@ -6,6 +6,8 @@
  * returned by SunCalc (negative below the horizon, ~1.57 at zenith).
  */
 
+import type { RenderTier } from './quality'
+
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
 const smoothstep = (a: number, b: number, x: number) => {
   const t = clamp((x - a) / (b - a), 0, 1)
@@ -133,6 +135,62 @@ export const SOFT_SHADOW = {
   // Small negative depth bias counteracts self-shadowing/acne on PCFSoftShadowMap.
   bias: -0.0002,
 } as const
+
+/**
+ * Sun-shadow filtering algorithm (PHOTO-SOFTSHADOW). Pure string union — the
+ * renderer maps it to a three `ShadowMapType` constant in
+ * `ShadowFilterController` (same pattern as `ToneMappingMode` /
+ * `TONE_MAPPING_THREE`).
+ *
+ *  - `pcf` — PCFShadowMap, the cheap default. Hard-ish edges (`shadow.radius`
+ *    is ignored), no bleed. (The historical `PCFSoftShadowMap` is DEPRECATED on
+ *    three r184 — the renderer coerces it to plain PCF with a console warning —
+ *    so `pcf` is what the app has effectively rendered since the r184 bump.)
+ *  - `vsm` — VSMShadowMap: variance shadow mapping with a real separable blur
+ *    (`shadow.radius` + `shadow.blurSamples`), giving genuinely soft penumbrae.
+ *    Trade-offs (three docs + forum guidance): (a) prone to LIGHT BLEEDING —
+ *    bright halos where casters overlap / at thin occluders; (b) under VSM
+ *    **all shadow receivers also render into the shadow map** (they contribute
+ *    to the variance computation), so receive-only surfaces self-cast — bias/
+ *    normalBias discipline matters more than under PCF.
+ *
+ * NOT drei `<SoftShadows>`/PCSS — broken on three r182+ (drei #2583).
+ */
+export type ShadowFilter = 'pcf' | 'vsm'
+
+/**
+ * Which shadow filter a render tier earns. Medium+ get VSM soft sun shadows;
+ * Performance keeps PCF — it renders shadowless (`shadowMapSize` 0), and
+ * staying on the cheap filter also avoids VSM's receivers-also-cast material
+ * recompiles on the flat default tier. Pure + unit-tested.
+ */
+export function shadowFilterForTier(tier: RenderTier): ShadowFilter {
+  return tier === 'performance' ? 'pcf' : 'vsm'
+}
+
+/** VSM sun-shadow tuning (PHOTO-SOFTSHADOW). `radius`/`blurSamples` drive the
+ *  separable blur over the variance map; bias values are tuned against VSM's
+ *  receivers-also-cast self-shadowing (see `ShadowFilter`). */
+export const VSM_SHADOW = {
+  /** Blur kernel radius in shadow-map texels. */
+  radius: 6,
+  /** Samples per blur pass (quality of the separable blur). */
+  blurSamples: 12,
+  normalBias: 0.02,
+  // VSM tolerates a small negative bias; variance filtering handles most acne.
+  bias: -0.0002,
+} as const
+
+/** Resolved per-light shadow params for a filter (what `Lighting` feeds the
+ *  sun `DirectionalLight`). Pure so the pairing is unit-testable. */
+export function shadowParamsForFilter(filter: ShadowFilter): {
+  radius: number
+  blurSamples: number
+  normalBias: number
+  bias: number
+} {
+  return filter === 'vsm' ? VSM_SHADOW : { ...SOFT_SHADOW, blurSamples: 8 } // blurSamples = three default; inert under PCF
+}
 
 /** Screen-space AO tuning (N8AO) — deeper than the old defaults so corners
  *  and recesses ground like the reference renders. */

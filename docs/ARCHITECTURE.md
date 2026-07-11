@@ -470,7 +470,8 @@ same change that reshapes a system.
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShellGeometry.ts`+
   `RoomShell.tsx`, `uiSlice.roomEditor`): the **sole editing surface**. A separate
   `<Canvas>` that now mounts the **same rendering stack as the main orbit Canvas** —
-  `frameloop="demand"` + `RenderPump`, `PCFSoftShadowMap` shadows, `Sky`/`SceneBackdrop`,
+  `frameloop="demand"` + `RenderPump`, the tier-driven shadow filter (VSM on Medium+, PCF on
+  Performance — `RendererTierController` + the Canvas `shadows` prop), `Sky`/`SceneBackdrop`,
   `SceneEnvironment` (procedural/HDRI IBL), the graded `Lighting` sun + tone mapping,
   `FurnitureLights`, and the tier-gated `Effects` post stack + `QualityController` — so a
   glossy/metallic finish reflects the environment and looks identical to orbit at every
@@ -1435,7 +1436,14 @@ same change that reshapes a system.
   drag-to-look viewer `ui/panorama/PanoramaViewer.tsx` (pure `viewerLook.ts` clamp math) + PNG,
   `panorama` flag, pro), **HQ render** (`scene/pathtrace/hqRenderSession.ts` progressive
   path-traced still via `three-gpu-pathtracer`; `hqRenderSource.ts` module singleton exposes
-  live scene+camera; `ui/HqRenderModal.tsx` — resolution/samples/DoF; `hqRender` flag, pro),
+  live scene+camera; `ui/HqRenderModal.tsx` — resolution/samples/DoF; `hqRender` flag, pro;
+  **AI denoise** PHOTO-DENOISE: OIDN U-Net over the finished still via the lazy-loaded
+  `denoiser` package (tfjs — WebGPU→WebGL2→CPU fallback chain), guided by one-shot raster
+  albedo/normal AOVs (`hqAovPasses.ts`) captured at session start; Apache-2.0 weights
+  self-hosted in `public/denoiser-tzas/` (~0.6 MB/model, offline-safe); pure gates in
+  `hqAiDenoiseMath.ts` (≤4K eligibility, backend order, weights URL); runs automatically on
+  done/Stop via `session.applyAiDenoise()`, edge-blur `DenoiseMaterial` blit stays as live
+  preview + fallback; `hqAiDenoise` flag, simple),
   **Render preset A/B compare** (`ui/renderCompare/compareState.ts` pure logic — preset
   selection, swap, divider clamping; `ui/RenderCompareModal.tsx` two sequential captures +
   Lightroom-style before/after slider with touch parity; `renderCompare` flag, pro),

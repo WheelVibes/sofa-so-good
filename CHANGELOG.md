@@ -5,6 +5,95 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.19.0.5 — PHOTO-DENOISE: OIDN AI denoise of the HQ path-traced still
+
+The HQ still's edge-blur is now followed by a real OIDN U-Net denoise when accumulation completes
+(or on Stop): `denoiser`@0.0.11 (MIT; tfjs build) dynamic-imported on first use (zero boot-bundle
+cost), backend chain tfjs-WebGPU→WebGL2→CPU, guided by one-shot **albedo+normal AOV** passes
+captured at session start (`hqAovPasses.ts` — per-mesh basic-material albedo + MeshNormalMaterial
+override into an offscreen target, full state restore; AOV failure degrades to color-only).
+Intel's Apache-2.0 weights are **self-hosted** under `public/denoiser-tzas/` (1.25 MB `_small`
+guided + color-only models + LICENSE — offline/GH-Pages safe, the lib's jsDelivr default never
+hit). New `hqAiDenoise` flag (simple/on, tier-matched to `hqRender`); modal gains a
+"Denoising (OIDN AI)…" phase; Save PNG exports the denoised frame; edge-blur `DenoiseMaterial`
+remains the live preview + fallback; >4K stills skip the AI pass (`aiDenoiseEligible`, pure +
+unit-tested). Respects the v0.19.0.2 session hardening (never runs on the blank-abort path;
+disposed guards; per-run tensor disposal). A/B (SwiftShader, 192×108@64spp): Monte-Carlo speckle
+→ visibly smooth surfaces, edges preserved, no color shift; console confirmed the 9-channel
+guided model on the WebGL backend. `oidn-web` deliberately omitted (duplicate UNet for the
+WebGPU case tfjs-webgpu covers). Targeted suites 125 green. Note: `npm install` may clobber
+rolldown's platform binding (npm optional-deps bug) — reinstall `@rolldown/binding-linux-x64-gnu`
+if the dev server fails post-install.
+
+## v0.19.0.4 — PHOTO-GTAO resolved: REJECTED on real-GPU A/B evidence (no code change)
+
+Evaluation-first outcome recorded in `PHOTOREALISM.md`: literal GTAO can't integrate cleanly
+(`GTAONode` = WebGPU/TSL-only; `GTAOPass` = three's own EffectComposer, incompatible with the
+pmndrs composer; `realism-effects` discontinued); the shipped N8AO already composites in linear
+space (no radiometry bug — `autosetGamma` only applies when `renderToScreen`). Quality-preset
+bumps (High `medium→high`, Max `high→ultra`) A/B'd on the real GPU incl. AO-buffer-only captures:
+contact crops RMSE ≤ 3.4/255 — invisible, 4× sample cost rejected. Medium cheap AO rejected
+(composer mount = the extra full-scene pass Medium's `postprocessing: false` boundary exists to
+avoid); flat-tier contact grounding re-evaluated, still marginal (RZ1 blobs + RD-403 strips
+suffice). Ships only the re-runnable A/B scenarios (`scripts/scenarios/photo-gtao-ab.json`,
+`photo-gtao-ab-ao.json`).
+
+## v0.19.0.3 — custom-plan doorway thresholds (parity with the default flat's DOOR-GAP-LEAK fix)
+
+Plan doorways had the same unfloored wall-thickness slot the default flat had (v0.18.6.23):
+reproduced on `tpl-hdb-4room` at a grazing pose — a pale strip (UnroomedFloor, or raw backdrop in
+the room editor) under closed leaves. Fix reuses the shared `thresholdRects()` via a pure adapter,
+`planThresholdRects.ts` (`planThresholdRects(plan)` maps PlanWall/PlanOpening → WallSpec with
+per-wall/plan thickness precedence, span clamping mirroring `wallBoxes`, and a straight
+chord pseudo-wall for doors on curved walls; `roomShellThresholdRects` covers the room-editor
+shell). Mounts: `FadeThreshold` per level in `PlanLevelShell` (top face 1mm below the PlanRoomFloor
+lift, shared 12mm tuck-under, fading via `useTrimFade` with the WALL-FADE-DEPTHWRITE rules) and
+`PlanRoomThresholds` in `PlanRoomShell` (fades via the `getWallOpacity` registry like the default
+flat's `Thresholds.tsx`). GPU-verified before/after at the grazing pose (strip → clean hardwood
+threshold, no z-fighting), wall-fade compose (faded facade drives its threshold to opacity 0.05
+while interior stays 1.0), room editor clean, and the default flat untouched (8 strips, normal
+fade). 7 new adapter unit tests; targeted suites 37 green.
+
+## v0.19.0.2 — PT-BLANK-GUARD: blank HQ render surfaces the error phase (was a silent white PNG)
+
+On drivers where three-gpu-pathtracer's megakernel fails GLSL validation (e.g. WSL D3D12/ANGLE —
+Shader Error 1282, empty log), the HQ render used to complete SILENTLY BLANK and could wedge the
+main canvas's context. Now: pure `hqBlankProbe.ts` classifier (`classifyProbePixels` — blank =
+every sampled RGB byte 0 or 255; failed readback = ok, so missing evidence never aborts) fed by a
+one-shot 4×4-grid `readPixels` probe in `hqRenderSession` that fires on the first tick with a
+dirty GL error queue (the failed-megakernel signature) or after the first full sample. Blank →
+dispose + `HqBlankRenderError` → the modal's EXISTING error phase with driver-specific copy and
+Save PNG disabled. Failure paths (blank abort, throwing `renderSample`, `setScene` failure, close)
+now share `disposeSession` + best-effort `forceContextLoss()`, cooperating with `ContextLossGuard`.
+The first-tick early abort matters: error surfaces in 29s vs 56s and the main context recovers
+immediately (previously lost >180s from invalid-draw spam). GPU-verified end-to-end on the real
+failing driver (error phase + healthy scene after close, `isContextLost() === false`); healthy-path
+safety covered by 14 classifier unit tests + one-shot `probed` gate. Scenario:
+`scripts/scenarios/hq-render-blank-guard.json`.
+
+## v0.19.0.1 — VSM soft sun shadows (PHOTO-SOFTSHADOW) + real window-glass transmission (PHOTO-GLASS)
+
+**Soft shadows:** three r184 silently DEPRECATED `PCFSoftShadowMap` (coerced to hard `PCFShadowMap`
+with a console warning), so the app had been rendering hard-edged sun shadows since the bump.
+Medium+ tiers now use **`VSMShadowMap`** (radius 6, blurSamples 12, anti-acne bias −0.0002 /
+normalBias 0.02 — `look.ts` `shadowFilterForTier`/`VSM_SHADOW`, per the three.js VSM example +
+docs; drei PCSS remains banned per the PHOTOREALISM note). The Canvas `shadows` prop is
+tier-derived (R3F re-applies it every render — a controller-only write gets stomped, found via a
+GL format/sampler mismatch on GPU); new `RendererTierController` recompiles scene materials on a
+filter-boundary tier switch and sets `transmissionResolutionScale`. GPU-verified: A/B wardrobe
+shadow shows a graded penumbra (no acne/bleed); doorway thresholds pixel-identical (no VSM
+light-bleed at thin leaves); PERF-MAX-5 frozen-shadow-map still freezes (blur runs inside the
+gated `WebGLShadowMap.render`).
+**Window glass:** panes (`Window.tsx` + PlanShell `FadeWindow`) gain real
+`transmission`+`ior`(1.5)+`thickness`(6mm)+`attenuationColor` on High/Max via pure
+`windowGlassPhysical(tier)`/`windowTransmission(daylight)` (day 0.92 → night 0.2;
+`transmissionResolutionScale` High 0.75 / Max 1.0) — sky-catch emissive, day/night blend, and
+wall-fade compose preserved; Medium/Performance byte-identical. Medium-tier transmission
+REJECTED by ruling (the transmissive pre-pass is the cost class Medium exists to avoid).
+GPU-verified: pane reads as even cool glass (was a blown-out flat rectangle), dollhouse
+fade+transmission composes clean, night pane goes dark-reflective. Unit tests for both pure
+modules; full suite 5744 green.
+
 ## v0.19.0.0 — Minor bump for the PR to staging (backlog-clearing + toolbar UX + plan-furnish + GPU wave)
 
 Version-only commit: rolls the v0.18.6.1–.23 line below into the 0.19.0 minor for the

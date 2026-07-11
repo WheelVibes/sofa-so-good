@@ -1,0 +1,54 @@
+{
+  "name": "hq-ai-denoise-simple",
+  "url": "http://localhost:5233/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 90000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.() })()"
+    },
+    { "name": "flag-on-by-default", "waitFor": { "store": "state.featureFlags.hqAiDenoise === true" }, "failMessage": "hqAiDenoise should default ON (simple tier)" },
+    { "name": "open-hq-modal", "store": { "action": "setHqRenderOpen", "args": [true] } },
+    { "name": "modal-mounted", "waitFor": { "text": "HQ render" }, "timeout": 60000 },
+    { "name": "open-res-select", "click": "[aria-label=\"Render resolution\"]" },
+    { "name": "pick-dev-tiny", "click": { "text": "Tiny (dev) · 192×108" } },
+    { "name": "open-samples-select", "click": "[aria-label=\"Render quality (samples)\"]" },
+    { "name": "pick-64-samples", "click": { "text": "64 samples" } },
+    { "name": "shot-config", "screenshot": "config" },
+    { "name": "start-render", "click": { "text": "Start render" } },
+    {
+      "name": "sampling-progresses",
+      "waitFor": { "text": "/ 64 samples" },
+      "timeout": 300000,
+      "failMessage": "path tracing never produced a first sample"
+    },
+    {
+      "name": "denoise-phase-appears",
+      "waitFor": { "text": "Denoising (OIDN AI)…" },
+      "timeout": 600000,
+      "failMessage": "accumulation finished but the AI denoise phase never started"
+    },
+    { "name": "shot-denoising", "screenshot": "denoising" },
+    {
+      "name": "render-done",
+      "waitFor": { "text": "Re-render" },
+      "timeout": 600000,
+      "failMessage": "AI denoise never completed (phase stuck in denoising)"
+    },
+    {
+      "name": "probe-denoised-canvas",
+      "eval": "(() => { const host = [...document.querySelectorAll('.modal-overlay canvas')]; window.__aiDenoised = host.some((c) => !!c.getContext('2d')) })()"
+    },
+    {
+      "name": "assert-denoised-canvas",
+      "waitFor": { "store": "window.__aiDenoised === true" },
+      "failMessage": "the preview canvas was not swapped for the AI-denoised 2D canvas — the OIDN pass fell back"
+    },
+    { "name": "shot-done", "screenshot": "done" },
+    {
+      "name": "blow-up-actual-pixels",
+      "eval": "(() => { const c = [...document.querySelectorAll('.modal-overlay canvas')].find((x) => !!x.getContext('2d')); const img = document.createElement('img'); img.src = c.toDataURL('image/png'); img.style.cssText = 'position:fixed;inset:0;z-index:99999;width:100vw;height:100vh;object-fit:contain;background:#000;image-rendering:pixelated'; document.body.appendChild(img) })()"
+    },
+    { "name": "shot-actual-pixels", "screenshot": "actual-pixels" }
+  ]
+}

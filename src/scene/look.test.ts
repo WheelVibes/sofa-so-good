@@ -12,8 +12,11 @@ import {
   IBL_FILL_COMPENSATION,
   iblFillScale,
   SOFT_SHADOW,
+  shadowFilterForTier,
+  shadowParamsForFilter,
   TONE_MAPPING_MODES,
   toneExposureBias,
+  VSM_SHADOW,
 } from './look'
 
 describe('iblFillScale', () => {
@@ -126,5 +129,41 @@ describe('tone mapping look', () => {
     expect(clampExposure(Number.NaN)).toBe(DEFAULT_EXPOSURE)
     expect(EXPOSURE_MIN).toBeLessThan(1)
     expect(EXPOSURE_MAX).toBeGreaterThan(1)
+  })
+})
+
+describe('shadowFilterForTier (PHOTO-SOFTSHADOW)', () => {
+  it('keeps the flat Performance tier on PCF (it renders shadowless anyway)', () => {
+    expect(shadowFilterForTier('performance')).toBe('pcf')
+  })
+
+  it('gives every shadowed tier (Medium+) VSM soft shadows', () => {
+    expect(shadowFilterForTier('medium')).toBe('vsm')
+    expect(shadowFilterForTier('high')).toBe('vsm')
+    expect(shadowFilterForTier('maximum')).toBe('vsm')
+  })
+})
+
+describe('shadowParamsForFilter', () => {
+  it('pairs VSM with the VSM tuning (real blur radius + samples)', () => {
+    const p = shadowParamsForFilter('vsm')
+    expect(p).toEqual(VSM_SHADOW)
+    expect(p.radius).toBeGreaterThan(1)
+    expect(p.blurSamples).toBeGreaterThanOrEqual(8)
+  })
+
+  it('pairs PCF with the historical SOFT_SHADOW tuning', () => {
+    const p = shadowParamsForFilter('pcf')
+    expect(p.radius).toBe(SOFT_SHADOW.radius)
+    expect(p.bias).toBe(SOFT_SHADOW.bias)
+    expect(p.normalBias).toBe(SOFT_SHADOW.normalBias)
+  })
+
+  it('keeps a small anti-acne bias on both filters', () => {
+    for (const f of ['pcf', 'vsm'] as const) {
+      const p = shadowParamsForFilter(f)
+      expect(p.bias).toBeLessThan(0)
+      expect(p.normalBias).toBeGreaterThan(0)
+    }
   })
 })

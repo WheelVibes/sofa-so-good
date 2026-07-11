@@ -1,0 +1,23 @@
+{
+  "name": "hq-render-blank-guard",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 90000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.() })()" },
+    { "name": "open-hq-modal", "store": { "action": "setHqRenderOpen", "args": [true] } },
+    { "name": "modal-mounted", "waitFor": { "text": "HQ render" }, "timeout": 60000 },
+    { "name": "shot-modal-idle", "screenshot": "modal-idle" },
+    { "name": "start-render", "click": { "text": "Start render" } },
+    { "name": "blank-error-surfaces", "waitFor": { "text": "came back blank" }, "timeout": 300000, "failMessage": "PT-BLANK-GUARD error copy never appeared - render either succeeded or hung" },
+    { "name": "shot-error-phase", "screenshot": "error-phase" },
+    { "name": "probe-save-disabled", "eval": "window.__savePngDisabled = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Save PNG')?.disabled === true" },
+    { "name": "assert-save-disabled", "waitFor": { "store": "window.__savePngDisabled === true" }, "failMessage": "Save PNG should be disabled after a blank abort (samples zeroed)" },
+    { "name": "close-modal", "store": { "action": "setHqRenderOpen", "args": [false] } },
+    { "name": "start-nudger", "eval": "window.__nudger = setInterval(() => { const s = window.__store.getState(); s.setManualHour(10 + (Date.now() % 2) * 0.01) }, 2000)" },
+    { "name": "main-context-restored", "waitFor": { "store": "window.__three && window.__three.gl.getContext().isContextLost() === false" }, "timeout": 180000, "failMessage": "main canvas WebGL context never restored after the aborted HQ session" },
+    { "name": "stop-nudger", "eval": "clearInterval(window.__nudger)" },
+    { "name": "nudge-render", "store": { "action": "setManualHour", "args": [10] } },
+    { "name": "settle", "wait": 3000 },
+    { "name": "shot-app-after", "screenshot": "app-after" }
+  ]
+}
