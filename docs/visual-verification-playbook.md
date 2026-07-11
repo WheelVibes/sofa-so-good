@@ -52,6 +52,16 @@ Notes: GPU mode uses Chromium's `--headless=new` (not `shell`) so the compositor
 path is real; it is slower per frame than SwiftShader but renders truthfully.
 Always GPU-verify items the backlog tags `[real-GPU verify]` before striking them.
 
+GPU-session gotchas (2026-07-11 sweep):
+- **Whole-flat orbit close-ups: keep the camera clear of window walls.** Plan coords ≈ world
+  coords with no recentring — a pose at z≈1.5 embeds the camera inside the north window (sill/
+  grille fills the foreground). Aim by reading item positions from `__store.getState().items`
+  and stand ~1–1.5 m INTO the room.
+- **The demand-frameloop one-burst-late presentation is SwiftShader-only.** On real GPU a
+  lighting-only store change (C275 curtain dim) is present in the immediately-captured frame
+  (measured 94.5 → 64.4 mean luminance with no wait/nudge step) — keep the no-op-nudge trick
+  only for software-WebGL runs.
+
 ## Scenario mode (recommended — use this for anything multi-step)
 
 **Harness runs are serialized machine-wide.** `shot.mjs` re-execs itself under

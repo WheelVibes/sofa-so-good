@@ -128,10 +128,13 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   PHOTO-POM, PHOTO-SSGI-SSR (WebGPU), PHOTO-WEBGPU. See `PHOTOREALISM.md`.
 - [ ] PHOTO-DENOISE nicety: swap in browser OIDN (`DennisSmolek/Denoiser`) + albedo/normal AOV.
 - [ ] F1 tail: real-GPU convergence/quality pass + decide quality-tier gating of the menu entry.
-- [ ] C275 tail: real-GPU check that curtain-dim frames present immediately (scene-graph intensity
-  provably updates instantly; headless presents one render-burst late).
-- [ ] RZ tails (real-GPU light-catch verify): RZ2 room-editor glass (`PlanRoomShell`), RZ3 edge
-  bevels, RZ5 skirting-floor seam AO + painted-trim wear.
+- [ ] **BUG (found by the 2026-07-11 real-GPU pass): blown-out white light strips under every
+  closed door leaf** (+ wedges 0.1–0.3 m onto the floor and along jamb feet/skirting bases).
+  Repro: default flat, Maximum tier, any daytime hour, camera [8.0, 0.6, 4.6] → lookAt
+  [5.5, 0.15, 4.9]. Not sun bleed (identical at hours 10/13/15, brighter than any sunlit
+  surface; `Door.tsx` builds the leaf flush at y=0 with castShadow) — likely a shadow-map
+  depth-bias leak at the thin leaf base or a floor–wall junction gap at thresholds. Evidence
+  frames in the 2026-07-11 session scratchpad (`rz5-out/03`, `rz5b-out/02-03`).
 
 ## Open — performance (need real-hardware profiling to justify)
 - [ ] P2: memoization audit of hot R3F components/selectors.

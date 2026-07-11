@@ -14,7 +14,9 @@ Systematically speed up frame processing/rendering **without sacrificing visual 
 on the heavy **Maximum** tier (also opportunistic wins on other tiers). Shipped work lives in
 `CHANGELOG.md` (PERF-MAX-* entries) — this section tracks only **open** items.
 
-**Methodology.** Sandbox has no GPU (Maximum never finishes warming under software WebGL), so
+**Methodology.** (2026-07-11: the environment NOW HAS a real GPU — `SHOT_GPU=1` — so absolute
+verification is possible; the notes below describe the original software-WebGL constraints.)
+Sandbox had no GPU (Maximum never finishes warming under software WebGL), so
 changes are validated by code analysis + software-WebGL relative harnesses — `scripts/perf-orbit.mjs`
 (relative FPS) and `scripts/perf-drawcalls.mjs` (deterministic per-frame draw-call/triangle counts),
 both driving a continuous autoRotate span at a pinned tier — never by absolute numbers. All shipped

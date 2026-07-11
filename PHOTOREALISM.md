@@ -60,10 +60,6 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   The set-dressing pack + one-tap auto-styling already ship (C276–C278, `decorStyling.ts`). **Remaining:**
   more curated CC0 decor/prop bundles from Poly Haven / Poly Pizza (networked assets). Overlaps
   C-PLANTS/DECOR in TASKS.
-- **PHOTO-BEVELS — edge-bevel light-catch verify** ◑ (real-GPU tail; Verify G).
-  The shared `furniture/primitives/BeveledBox.tsx` (~7 mm chamfer) rollout is **complete** across case
-  goods, panel/shelf units, and appliances; structural correctness verified. **Remaining:** the edge
-  light-catch real-GPU pixel pass (RZ3 tail).
 
 ### Tier 2 — high impact, needs real-GPU verification
 - **PHOTO-DENOISE — browser OIDN on the HQ still** (M–L, HQ still; Verify G).
@@ -108,10 +104,11 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   better lights, compute denoise; capability-detect with WebGL2 fallback.
 
 ## Verification posture
-Real-time DOM/scene-graph/flag changes are headless-verifiable. **Path-traced + post-heavy pixel
-quality (PT tuning, OIDN, SSR/SSGI/PCSS/POM) needs a real-GPU session** — SwiftShader headless won't
-converge or present these faithfully (documented under the F1 tail). For those, verify wiring +
-determinism + no-crash headless, ship behind flags, and mark the pixel pass **pending real-GPU**.
+**UPDATE 2026-07-11: the dev environment now has a real GPU** (`SHOT_GPU=1` → ANGLE D3D12 /
+Intel UHD via WSL passthrough) — the "pending real-GPU" queue is unblocked; PT convergence, OIDN,
+SSR/SSGI/VSM/POM pixel passes are all verifiable in-session (Maximum tier converges; first
+verification sweep cleared PHOTO-BEVELS/RZ2/RZ5/C275). Real-time DOM/scene-graph/flag changes
+remain headless-verifiable as before.
 
 ## Tone-mapping note (context-aware default shipped — RD-404)
 We expose ACES(Filmic)/AgX/**Neutral**, plus an **Auto** setting (now the default). The selection
