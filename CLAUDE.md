@@ -78,11 +78,14 @@ Zustand (sliced store), Vite, Vitest, Biome.
   failure names and force a full ~3 min rerun. Redirect the complete output to a log file
   (`npx vitest --run > /tmp/…/vitest.log 2>&1`) and grep/tail the FILE afterwards.
   Commit/push only when asked; one focused change per commit; log shipped work in `CHANGELOG.md`.
-- **Branch flow (2026-07-11).** Feature branches open PRs into **`staging`** (never straight to
-  `main`); only **`staging` → `main`** PRs are allowed (CI-enforced by
+- **Branch flow (2026-07-11).** Feature branches are **cut FROM `staging`** and open PRs back
+  **into `staging`** (never straight to `main`). **Nothing is pushed to `staging` directly** —
+  branch protection requires a PR (any change, even docs/CI, goes through a feature branch).
+  Only **`staging` → `main`** PRs are allowed (CI-enforced by
   `.github/workflows/pr-flow-guard.yml`). Deployments: **GitHub Pages publishes `staging`**
-  (offline test/demo build); **Cloudflare publishes `main`** (production, backend-enabled).
-  GitHub Pages does NOT deploy from `main`.
+  (offline test/demo build; the `github-pages` environment's branch policy allows only
+  `staging`); **Cloudflare publishes `main`** (production, backend-enabled). GitHub Pages does
+  NOT deploy from `main`.
 - **Versioning (`major.minor.patch.build`).** The running build lives in `src/version.ts`
   (`APP_VERSION`, the source of truth the "Check for updates" flow compares); `package.json`
   mirrors the first three parts. Current line started at **`0.1.0.0`**. **Every commit bumps the
