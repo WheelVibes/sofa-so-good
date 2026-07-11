@@ -8,14 +8,15 @@ import { tidyHome } from '../../../layout/tidyHome'
 import { applyStyle, STYLE_PRESETS } from '../../../materials/stylePresets'
 import { useStore } from '../../../state/store'
 import { Select } from '../../controls/Select'
-import { Icon, type IconName } from '../icons'
-import { KbdChip } from '../KbdChip'
+import { EmptyState } from '../../EmptyState'
+import { Icon } from '../icons'
 import { shortcutLabel } from '../shortcuts'
-import { ToolbarMenu } from '../ToolbarMenu'
+import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
 
 /** Arrange cluster: quick actions (Smart Start / Tidy) plus three compact
  *  "pick → Apply" pickers — Sets, Presets and finish Styles — that each collapse
- *  a long list into one dropdown, keeping the menu short. */
+ *  a long list into one dropdown, keeping the menu short. Rows are the shared
+ *  `MenuItem` + headers the shared `MenuLabel` (TB-9 — no hand-rolled rows). */
 export function ArrangeMenu() {
   const applyLayoutPreset = useStore((s) => s.applyLayoutPreset)
   const setSmartStartOpen = useStore((s) => s.setSmartStartOpen)
@@ -44,184 +45,201 @@ export function ArrangeMenu() {
 
   return (
     <ToolbarMenu icon="Sets" label="Arrange" width={264}>
-      <div className="max-h-[70vh] overflow-y-auto">
-        {fSmartStart && (
-          <Action
-            icon="Presets"
-            label="Smart Start…"
-            sub="Pick a style, furnish every room"
-            onClick={() => setSmartStartOpen(true)}
-          />
-        )}
-        <Action
-          icon="Tidy"
-          label="Tidy home"
-          sub="Auto-arrange every room"
-          kbd={shortcutLabel('tidyHome')}
-          onClick={tidyHome}
+      {fSmartStart && (
+        <MenuItem
+          icon="Presets"
+          label="Smart Start…"
+          sub="Pick a style, furnish every room"
+          onClick={() => setSmartStartOpen(true)}
         />
+      )}
+      <MenuItem
+        icon="Tidy"
+        label="Tidy home"
+        sub="Auto-arrange every room"
+        kbd={shortcutLabel('tidyHome')}
+        onClick={tidyHome}
+      />
 
-        <Header>Drop a set</Header>
-        <PickApply
-          placeholder="Choose a furniture set…"
-          options={setOptions}
-          applyLabel="Drop"
-          onApply={applySet}
-        />
+      <MenuLabel>Drop a set</MenuLabel>
+      <PickApply
+        placeholder="Choose a furniture set…"
+        options={setOptions}
+        applyLabel="Drop"
+        onApply={applySet}
+      />
 
-        {fUserSets && (
-          <>
-            <Header>My sets</Header>
-            <Action
-              icon="Sets"
-              label="Save selection as set…"
-              sub={
-                selectionCount > 0
-                  ? `Capture ${selectionCount} selected ${selectionCount === 1 ? 'item' : 'items'}`
-                  : 'Select items first, then save'
-              }
-              onClick={async () => {
-                if (selectionCount === 0) {
-                  useStore.getState().notify.start({
-                    title: 'Select items to save as a set',
-                    kind: 'info',
-                  })
-                  return
-                }
-                const name = await useStore.getState().promptText({
-                  title: 'Save set',
-                  label: 'Name this set (drop it again from this menu)',
-                  defaultValue: `My set ${userSets.length + 1}`,
-                  submitLabel: 'Save',
+      {fUserSets && (
+        <>
+          <MenuLabel>My sets</MenuLabel>
+          <MenuItem
+            icon="Sets"
+            label="Save selection as set…"
+            sub={
+              selectionCount > 0
+                ? `Capture ${selectionCount} selected ${selectionCount === 1 ? 'item' : 'items'}`
+                : 'Select items first, then save'
+            }
+            onClick={async () => {
+              if (selectionCount === 0) {
+                useStore.getState().notify.start({
+                  title: 'Select items to save as a set',
+                  kind: 'info',
                 })
-                if (name && saveSelectionAsSet(name))
-                  useStore.getState().notify.start({ title: `Saved “${name}”`, kind: 'success' })
-              }}
+                return
+              }
+              const name = await useStore.getState().promptText({
+                title: 'Save set',
+                label: 'Name this set (drop it again from this menu)',
+                defaultValue: `My set ${userSets.length + 1}`,
+                submitLabel: 'Save',
+              })
+              if (name && saveSelectionAsSet(name))
+                useStore.getState().notify.start({ title: `Saved “${name}”`, kind: 'success' })
+            }}
+          />
+          {userSets.length === 0 ? (
+            <EmptyState
+              icon={Icon.Sets}
+              title="No saved sets yet"
+              description="Select a few pieces, then save."
             />
-            {userSets.length === 0 ? (
-              <div className="px-2 py-1 text-[10px] text-[var(--text-3)]">
-                No saved sets yet — select a few pieces, then save.
-              </div>
-            ) : (
-              userSets.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-center gap-1 rounded-md pr-1 hover:bg-[var(--surface-2)]"
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => dropUserSet(u.id)}
-                    title={`Drop “${u.name}” (${u.items.length} items)`}
-                    className="flex flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-left"
-                  >
-                    <span className="text-[var(--text-2)]">
-                      <Icon.Sets width={16} height={16} />
-                    </span>
-                    <span className="block flex-1 text-[13px] text-[var(--text)]">{u.name}</span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Delete ${u.name}`}
-                    title="Delete set"
-                    onClick={async () => {
-                      // Destructive-action policy (TB-9): a saved set is
-                      // user-authored data — confirm before deleting.
-                      const ok = await useStore.getState().confirmAction({
-                        title: 'Delete set?',
-                        message: `“${u.name}” (${u.items.length} items) will be removed from My sets.`,
-                        confirmLabel: 'Delete',
-                        danger: true,
-                      })
-                      if (ok) deleteUserSet(u.id)
-                    }}
-                    className="rounded px-1.5 py-1 text-[var(--text-3)] hover:bg-[var(--surface-3)] hover:text-[var(--danger)]"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))
-            )}
-          </>
-        )}
-
-        <Header>Apply a preset</Header>
-        <PickApply
-          placeholder="Choose a layout preset…"
-          options={LAYOUT_PRESETS.map((p) => ({ id: p.id, name: p.name }))}
-          onApply={(id) => applyLayoutPreset(id)}
-        />
-
-        <Header>Apply a style</Header>
-        <PickApply
-          placeholder="Choose a finish style…"
-          options={STYLE_PRESETS.map((p) => ({ id: p.id, name: p.name }))}
-          onApply={(id) => {
-            const preset = STYLE_PRESETS.find((p) => p.id === id)
-            if (preset) applyStyle(preset, setFloorFinish, setWallFinish)
-          }}
-        />
-
-        <Header>My styles</Header>
-        <Action
-          icon="Style"
-          label="Save current style…"
-          sub="Capture every room's floor + wall finish"
-          onClick={async () => {
-            const name = await useStore.getState().promptText({
-              title: 'Save style',
-              label: "Name this style (captures every room's finishes)",
-              defaultValue: `My style ${userStyles.length + 1}`,
-              submitLabel: 'Save',
-            })
-            if (name) saveCurrentStyle(name)
-          }}
-        />
-        {userStyles.length === 0 ? (
-          <div className="px-2 py-1 text-[10px] text-[var(--text-3)]">
-            No saved styles yet — finish a room, then save.
-          </div>
-        ) : (
-          userStyles.map((s) => (
-            <div
-              key={s.id}
-              className="flex items-center gap-1 rounded-md pr-1 hover:bg-[var(--surface-2)]"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => applyUserStyle(s.id)}
-                className="flex flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-left"
-              >
-                <span className="text-[var(--text-2)]">
-                  <Icon.Style width={16} height={16} />
-                </span>
-                <span className="block flex-1 text-[13px] text-[var(--text)]">{s.name}</span>
-              </button>
-              <button
-                type="button"
-                aria-label={`Delete ${s.name}`}
-                title="Delete style"
-                onClick={async () => {
-                  // Destructive-action policy (TB-9): confirm before deleting a
-                  // user-authored saved style.
+          ) : (
+            userSets.map((u) => (
+              <SavedRow
+                key={u.id}
+                icon={Icon.Sets}
+                name={u.name}
+                applyTitle={`Drop “${u.name}” (${u.items.length} items)`}
+                onApply={() => dropUserSet(u.id)}
+                deleteLabel={`Delete ${u.name}`}
+                deleteTitle="Delete set"
+                onDelete={async () => {
+                  // Destructive-action policy (TB-9): a saved set is
+                  // user-authored data — confirm before deleting.
                   const ok = await useStore.getState().confirmAction({
-                    title: 'Delete style?',
-                    message: `“${s.name}” will be removed from My styles.`,
+                    title: 'Delete set?',
+                    message: `“${u.name}” (${u.items.length} items) will be removed from My sets.`,
                     confirmLabel: 'Delete',
                     danger: true,
                   })
-                  if (ok) deleteUserStyle(s.id)
+                  if (ok) deleteUserSet(u.id)
                 }}
-                className="rounded px-1.5 py-1 text-[var(--text-3)] hover:bg-[var(--surface-3)] hover:text-[var(--danger)]"
-              >
-                ×
-              </button>
-            </div>
-          ))
-        )}
-      </div>
+              />
+            ))
+          )}
+        </>
+      )}
+
+      <MenuLabel>Apply a preset</MenuLabel>
+      <PickApply
+        placeholder="Choose a layout preset…"
+        options={LAYOUT_PRESETS.map((p) => ({ id: p.id, name: p.name }))}
+        onApply={(id) => applyLayoutPreset(id)}
+      />
+
+      <MenuLabel>Apply a style</MenuLabel>
+      <PickApply
+        placeholder="Choose a finish style…"
+        options={STYLE_PRESETS.map((p) => ({ id: p.id, name: p.name }))}
+        onApply={(id) => {
+          const preset = STYLE_PRESETS.find((p) => p.id === id)
+          if (preset) applyStyle(preset, setFloorFinish, setWallFinish)
+        }}
+      />
+
+      <MenuLabel>My styles</MenuLabel>
+      <MenuItem
+        icon="Style"
+        label="Save current style…"
+        sub="Capture every room's floor + wall finish"
+        onClick={async () => {
+          const name = await useStore.getState().promptText({
+            title: 'Save style',
+            label: "Name this style (captures every room's finishes)",
+            defaultValue: `My style ${userStyles.length + 1}`,
+            submitLabel: 'Save',
+          })
+          if (name) saveCurrentStyle(name)
+        }}
+      />
+      {userStyles.length === 0 ? (
+        <EmptyState
+          icon={Icon.Style}
+          title="No saved styles yet"
+          description="Finish a room, then save."
+        />
+      ) : (
+        userStyles.map((s) => (
+          <SavedRow
+            key={s.id}
+            icon={Icon.Style}
+            name={s.name}
+            onApply={() => applyUserStyle(s.id)}
+            deleteLabel={`Delete ${s.name}`}
+            deleteTitle="Delete style"
+            onDelete={async () => {
+              // Destructive-action policy (TB-9): confirm before deleting a
+              // user-authored saved style.
+              const ok = await useStore.getState().confirmAction({
+                title: 'Delete style?',
+                message: `“${s.name}” will be removed from My styles.`,
+                confirmLabel: 'Delete',
+                danger: true,
+              })
+              if (ok) deleteUserStyle(s.id)
+            }}
+          />
+        ))
+      )}
     </ToolbarMenu>
+  )
+}
+
+/** A saved user set/style row: a `.menu-item`-styled apply button plus a
+ *  trailing delete "×" (two interactive controls, so it can't be a plain
+ *  `MenuItem` — same composite pattern as `SavedViewsSection`'s rows). */
+function SavedRow({
+  icon: Glyph,
+  name,
+  applyTitle,
+  onApply,
+  deleteLabel,
+  deleteTitle,
+  onDelete,
+}: {
+  icon: (p: React.SVGProps<SVGSVGElement>) => React.ReactNode
+  name: string
+  applyTitle?: string
+  onApply: () => void
+  deleteLabel: string
+  deleteTitle: string
+  onDelete: () => void
+}) {
+  return (
+    <div className="flex items-center gap-1 rounded-md pr-1 hover:bg-[var(--surface-2)]">
+      <button
+        type="button"
+        role="menuitem"
+        onClick={onApply}
+        title={applyTitle}
+        className="flex flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-left"
+      >
+        <span className="text-[var(--text-2)]">
+          <Glyph width={16} height={16} />
+        </span>
+        <span className="block flex-1 text-[13px] text-[var(--text)]">{name}</span>
+      </button>
+      <button
+        type="button"
+        aria-label={deleteLabel}
+        title={deleteTitle}
+        onClick={onDelete}
+        className="rounded px-1.5 py-1 text-[var(--text-3)] hover:bg-[var(--surface-3)] hover:text-[var(--danger)]"
+      >
+        ×
+      </button>
+    </div>
   )
 }
 
@@ -262,51 +280,5 @@ function PickApply({
         {applyLabel}
       </button>
     </div>
-  )
-}
-
-function Header({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mt-1 border-t border-[var(--border)] px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)] first:mt-0 first:border-t-0">
-      {children}
-    </div>
-  )
-}
-
-/** Like MenuItem but tuned for this dense panel (smaller rows). */
-function Action({
-  icon,
-  label,
-  sub,
-  active,
-  kbd,
-  onClick,
-}: {
-  icon: IconName
-  label: string
-  sub?: string
-  active?: boolean
-  /** Shortcut combo label (from `shortcuts.ts`), rendered as a right-aligned
-   *  `.mi-kbd` chip (P24) — never hardcode the key text inline in `label`. */
-  kbd?: string
-  onClick: () => void
-}) {
-  const Cmp = Icon[icon]
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left hover:bg-[var(--surface-2)] ${active ? 'bg-[var(--surface-2)]' : ''}`}
-    >
-      <span className="text-[var(--text-2)]">
-        <Cmp width={16} height={16} />
-      </span>
-      <span className="flex-1">
-        <span className="block text-[13px] text-[var(--text)]">{label}</span>
-        {sub ? <span className="block text-[10px] text-[var(--text-3)]">{sub}</span> : null}
-      </span>
-      {kbd ? <KbdChip>{kbd}</KbdChip> : null}
-    </button>
   )
 }

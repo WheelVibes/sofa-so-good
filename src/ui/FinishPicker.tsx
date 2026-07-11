@@ -36,6 +36,7 @@ import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
 import { MasterPaletteEditor } from './color/MasterPaletteEditor'
 import { Disclosure } from './controls/Disclosure'
 import { Select } from './controls/Select'
+import { useRovingTabs } from './controls/useRovingTabs'
 import { MaterialComposer } from './finish/MaterialComposer'
 import { SwatchGroup } from './finish/swatches'
 import { Icon } from './toolbar/icons'
@@ -340,6 +341,28 @@ export function FinishPicker() {
     if (view === 'browse' && phStatus === 'idle') void bootstrapRemote()
   }, [view, phStatus, bootstrapRemote])
 
+  // Active surface tab. The Ceiling tab only exists when the ceilingFinish
+  // flag is on, so a stale 'ceiling' selection falls back to floor rather than
+  // showing an empty tab.
+  const activeTab: Surface = lastSurface === 'ceiling' && !fCeiling ? 'floor' : lastSurface
+
+  // WAI-ARIA tabs pattern for the surface tablist (TB-9): one Tab stop (the
+  // active tab), Arrow/Home/End rove focus AND select (shared hook). Hooks must
+  // precede the early returns below.
+  const surfaceTabs: { key: Surface; label: string }[] = [
+    { key: 'floor', label: 'Floor' },
+    { key: 'wall', label: 'Walls' },
+    ...(fCeiling ? [{ key: 'ceiling' as Surface, label: 'Ceiling' }] : []),
+  ]
+  const surfaceRoving = useRovingTabs({
+    count: surfaceTabs.length,
+    activeIndex: surfaceTabs.findIndex((t) => t.key === activeTab),
+    onActivate: (i) => {
+      const t = surfaceTabs[i]
+      if (t) setLastSurface(t.key)
+    },
+  })
+
   if (!roomId) return null
   // Resolve a display name + area from the fixed apartment (default plan) OR the
   // active custom plan, so the picker works for custom-plan rooms too (RE6).
@@ -423,11 +446,6 @@ export function FinishPicker() {
     setView('swatch')
   }
 
-  // Active surface tab. The Ceiling tab only exists when the ceilingFinish
-  // flag is on, so a stale 'ceiling' selection falls back to floor rather than
-  // showing an empty tab.
-  const activeTab: Surface = lastSurface === 'ceiling' && !fCeiling ? 'floor' : lastSurface
-
   return (
     <aside className="panel inspector dock-panel finish-picker">
       <div className="panel-head">
@@ -480,36 +498,26 @@ export function FinishPicker() {
               <MasterPaletteEditor roomId={roomId} />
             </div>
           </Disclosure>
-          <div className="seg finish-surface-tabs" role="tablist" aria-label="Finish surface">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'floor'}
-              className={activeTab === 'floor' ? 'on' : ''}
-              onClick={() => setLastSurface('floor')}
-            >
-              Floor
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'wall'}
-              className={activeTab === 'wall' ? 'on' : ''}
-              onClick={() => setLastSurface('wall')}
-            >
-              Walls
-            </button>
-            {fCeiling ? (
+          <div
+            className="seg finish-surface-tabs"
+            role="tablist"
+            aria-label="Finish surface"
+            ref={surfaceRoving.listRef}
+            onKeyDown={surfaceRoving.onKeyDown}
+          >
+            {surfaceTabs.map((t, i) => (
               <button
+                key={t.key}
                 type="button"
                 role="tab"
-                aria-selected={activeTab === 'ceiling'}
-                className={activeTab === 'ceiling' ? 'on' : ''}
-                onClick={() => setLastSurface('ceiling')}
+                aria-selected={activeTab === t.key}
+                tabIndex={surfaceRoving.tabIndexFor(i)}
+                className={activeTab === t.key ? 'on' : ''}
+                onClick={() => setLastSurface(t.key)}
               >
-                Ceiling
+                {t.label}
               </button>
-            ) : null}
+            ))}
           </div>
           {activeTab === 'floor' && (
             <>

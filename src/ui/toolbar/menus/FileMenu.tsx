@@ -28,7 +28,7 @@ import { openSh3dImport } from '../../openSh3dImport'
 import { openShoppingList } from '../../openShoplist'
 import { viewInAr } from '../../viewInAr'
 import { shortcutLabel } from '../shortcuts'
-import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
+import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
 
 /** File cluster — every OUTPUT lives here (TB-5, File-owns-output IA): save /
  *  load, capture (PNG / panorama / renders / clip), share & document (report,
@@ -115,7 +115,7 @@ export function FileMenu() {
 
   return (
     <ToolbarMenu icon="Save" label="File" active={recording || budgetOpen} width={256}>
-      <div className="menu-label">Save & capture</div>
+      <MenuLabel>Save & capture</MenuLabel>
       <MenuItem icon="Save" label="Save…" sub="Store the current layout" onClick={save} />
       <MenuItem
         icon="Export"
@@ -185,7 +185,7 @@ export function FileMenu() {
         />
       ) : null}
 
-      {(fShare || fMoodboard || fReport) && <div className="menu-label">Share & document</div>}
+      {(fShare || fMoodboard || fReport) && <MenuLabel>Share & document</MenuLabel>}
       {fShare ? (
         <MenuItem
           icon="Share"
@@ -232,7 +232,7 @@ export function FileMenu() {
         />
       ) : null}
 
-      {(fBudget || fShopExport || fBoq) && <div className="menu-label">Budget & costs</div>}
+      {(fBudget || fShopExport || fBoq) && <MenuLabel>Budget & costs</MenuLabel>}
       {fBudget ? (
         <MenuItem
           icon={budget.icon}
@@ -286,9 +286,7 @@ export function FileMenu() {
         />
       ) : null}
 
-      {(fDxf || fSceneExport || fViewInAr || fShopExport) && (
-        <div className="menu-label">CAD, 3D & data</div>
-      )}
+      {(fDxf || fSceneExport || fViewInAr || fShopExport) && <MenuLabel>CAD, 3D & data</MenuLabel>}
       {fDxf ? (
         <>
           <MenuItem
@@ -364,7 +362,7 @@ export function FileMenu() {
         </>
       ) : null}
 
-      <div className="menu-label">Load & reset</div>
+      <MenuLabel>Load & reset</MenuLabel>
       {fImportSh3d ? (
         <MenuItem
           icon="FloorPlan"
@@ -453,7 +451,7 @@ export function FileMenu() {
         </div>
       )}
 
-      <div className="menu-label">App</div>
+      <MenuLabel>App</MenuLabel>
       <MenuItem
         icon="Download"
         label="Check for updates"

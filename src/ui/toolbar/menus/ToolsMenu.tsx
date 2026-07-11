@@ -11,7 +11,7 @@ import {
 } from '../../actions/toolActions'
 import { closeAllAuxPanels } from '../../auxPanels'
 import { shortcutLabel } from '../shortcuts'
-import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
+import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
 
 /** Tools cluster — analysis panels and modes ONLY (TB-5): the shared
  *  Analyse/Review registry rows, plus the bespoke Sheet-callouts panel toggle,
@@ -116,7 +116,7 @@ export function ToolsMenu() {
     <ToolbarMenu icon="Tools" label="Tools" active={Boolean(anyActive)}>
       {groups.map((g) => (
         <Fragment key={g.category}>
-          <div className="menu-label">{g.label}</div>
+          <MenuLabel>{g.label}</MenuLabel>
           {g.actions.map(renderAction)}
           {g.category === 'analyze' && fDrawingCallouts ? (
             <MenuItem
@@ -144,7 +144,7 @@ export function ToolsMenu() {
           ) : null}
         </Fragment>
       ))}
-      {(fStyleQuiz || fStyleTransfer) && <div className="menu-label">Style</div>}
+      {(fStyleQuiz || fStyleTransfer) && <MenuLabel>Style</MenuLabel>}
       {fStyleQuiz && (
         <MenuItem
           icon="Palette"

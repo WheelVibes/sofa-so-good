@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.20.0.4 — TB-9-tail: one menu-header primitive, Arrange on shared MenuItem/EmptyState, roving tablists
+
+New `MenuLabel` primitive (`ToolbarMenu.tsx` — `.menu-label`, or `.m-sec-h` via `sheet`) now
+renders every desktop menu header (File ×6, Tools ×2, View's 3 hand-rolled Tailwind headers,
+Arrange's bespoke `Header`) and backs the mobile `SubHeader`; SceneMenu's `.scene-row-head`
+deliberately excluded (a header ROW carrying live controls — documented). Arrange's hand-rolled
+rows migrate to shared `MenuItem` (+ `EmptyState` for the no-sets/no-styles cases, redundant
+inner scroll wrapper dropped; labels/behaviour identical). Tablists get the WAI-ARIA roving
+pattern via `useRovingTabs` (shipped v0.20.0.3): the mobile sheet's rail and FinishPicker's
+surface tabs — and the integration test caught a REAL pre-existing bug: MobileSheet's focus-move
+effect was keyed on the `onClose` closure, re-running on every render and stealing focus
+mid-session (now a latest-ref, keyed on `open`). Structural test pins all four menus to
+`.menu-label` with zero hand-rolls. Targeted suites incl. TB-5 grouping tests all green
+(52+63+47); screenshots reviewed (File/Tools pixel-identical; View/Arrange consistent; mobile
+unchanged). Follow-up noted: `ScalePlanModal`'s pseudo-tablist (aria-pressed, no tab roles).
+
 ## v0.20.0.3 — TB-6-tail: plan editor's mobile menu joins the icon-rail sheet paradigm
 
 The main mobile toolbar's sheet is extracted into a shared shell, `mobile/MobileSheet.tsx`

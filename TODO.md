@@ -123,9 +123,6 @@ WebGPU path tracing).
 Full audit (findings P0–P3 with file:line evidence, Figma/modern-app grounding, screenshots):
 `docs/research/2026-07-10-toolbar-ux-audit.md`. Work the sequenced list there; delete each
 finding from the doc + this list as it ships. Open items, in order:
-- [ ] **TB-9-tail (P2)** Consolidate menu primitives (one section-header idiom, Arrange on
-  MenuItem/EmptyState); tablist roving focus. (confirmAction on set/style deletes + 44px
-  hamburger/brand targets shipped v0.18.6.15; sheet focus-trap shipped v0.18.6.18.)
 - [ ] **TB-10-tail (P3)** Desktop↔mobile naming/icon drift, SliderField in GraphicsSettings,
   wall-reveal double naming, shared 640px breakpoint token, History icon. (Separator convention
   shipped v0.18.6.15.)
