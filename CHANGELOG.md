@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.5 — SLOT-203: configurator GLB-sub-asset slot options
+
+The bed product gains an optional "Bedside lamp" slot whose "Arm reading lamp" option is a
+bundled GLB (the CC0 desk-lamp-arm from v0.21.2.4 — 424 KB, per-option license/attribution) —
+unblocked by the props pipeline + the SEC-1 root-relative-URL fix. New `gltfSlot.ts` load path:
+cached secure GLTFLoader (DRACO+meshopt) → uniform height-fit to the slot footprint → reparent
+at the slot anchor (quarter-turn orient) → `namespaceGltfFinishTargets` renames materials to
+`slot::name` so `listFinishTargets` exposes them without colliding with procedural `base:` keys;
+tints flow through the existing `finish:<key>` override channel (no schema change).
+`buildConfiguredObject` awaits GLB pieces for the bake; new `buildConfiguredPreview` renders the
+procedural body synchronously and attaches GLBs async (fail-soft — a slow/missing GLB never
+blanks the preview); ownership-aware disposal for GLB subtrees. Verified: configurator preview
+shows the lamp at correct anchor/scale/orientation with the new slot UI; placed-item tint
+round-trip (orange → #1878ff) works through the namespaced target. 32 configurator tests green
+(defaults updated: price +85); full suite 5928 green. Rule recorded in configurator/CLAUDE.md.
+
 ## v0.21.2.4 — PHOTO-DETAIL-PROPS: 8 CC0 prop GLBs + SEC-1 fix that un-broke ALL builtin GLBs
 
 8 curated Poly Haven CC0 props via the existing GLB pipeline (Draco + 1K WebP + LOD variants,

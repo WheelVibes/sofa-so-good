@@ -53,6 +53,12 @@ export interface SlotOption {
   /** Footprint this option contributes, in its own frame (for bounds union). */
   footprint: { w: number; d: number; h: number }
   tags?: string[]
+  /** Attribution for a `gltfUrl` sub-asset (SLOT-203) — wired like the bundled
+   *  props' `.glb.json` sidecars so a GLB option carries its own credit. Ignored
+   *  for procedural (`parts`) options. */
+  license?: string
+  attribution?: string
+  sourceUrl?: string
 }
 
 export interface ProductSlot {

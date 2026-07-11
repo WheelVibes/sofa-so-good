@@ -36,9 +36,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   many independent feature-flagged pieces) were also left inline — bundling them needs a 40+ prop
   surface (passing the whole store-action snapshot), which would hurt readability more than the
   current named-fragment const. Revisit only if either grows further.
-- [ ] SLOT-203 (configurator GLB-sub-asset options): needs a **bundled CC0 GLB** asset + the load
-  path (load → reparent at the slot anchor → per-slot `listFinishTargets` namespacing). The v1
-  products are all-procedural, so this is gated on sourcing a suitable CC0 GLB option to bundle.
 - [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — livePrices.
   (**AI-surfaces simple rung landed** — `ai-surfaces-simple.json` (50 steps, all green): covers
   the three AI features, all pro-tier + prod-safe + BYO-key (NOT devOnly, unlike

@@ -103,6 +103,29 @@ const MATTRESS_FRAME: ConfigurableProduct = {
         },
       ],
     },
+    {
+      // SLOT-203 — the first GLB-sub-asset option: a bundled CC0 Poly Haven desk
+      // lamp reparented beside the bed head as a bedside reading lamp. Its arm
+      // (authored facing +Z) is quarter-turned to reach over the bed (+X). The
+      // GLB is floor-centred/real-metre, so it seats on the floor at anchor.y=0.
+      id: 'lamp',
+      label: 'Bedside lamp',
+      anchor: { position: [-0.95, 0, -0.72], rotationY: Math.PI / 2 },
+      optional: true,
+      defaultOptionId: 'lamp-arm',
+      options: [
+        {
+          id: 'lamp-arm',
+          label: 'Arm reading lamp',
+          price: 85,
+          footprint: { w: 0.202, d: 0.614, h: 0.893 },
+          gltfUrl: '/assets/furniture/desk-lamp-arm.glb',
+          license: 'CC0',
+          attribution: 'Poly Haven',
+          sourceUrl: 'https://polyhaven.com/a/desk_lamp_arm_01',
+        },
+      ],
+    },
   ],
 }
 

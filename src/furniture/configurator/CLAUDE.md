@@ -24,7 +24,19 @@ is the lean rule set.
   summed price, and `finishTargets`). A configured product is a regular baked `UserGltfDef` — it
   persists, hydrates, collides, prices, and re-skins through the **existing** mechanisms. **Never**
   invent a new persisted asset kind / schema field / hydration branch for it.
+- **GLB-sub-asset options (SLOT-203).** A slot option may set `gltfUrl` (a bundled CC0 GLB) instead
+  of procedural `parts` — never both. `composeProduct` emits it as a `gltfPiece` (url + anchor +
+  `finishPrefix = slot.id` + footprint); `buildObject.ts` loads it (`gltfSlot.ts:loadSlotGltfScene` —
+  a raw `GLTFLoader` with Draco + meshopt behind the shared SEC-1 secure manager, `withBase`'d url),
+  fits it to the option footprint (`fitScaleToFootprint`), reparents it under a holder AT the slot
+  anchor (position + quarter-turn), and **namespaces its material groups** to `<slot>::<name>`
+  (`namespaceGltfFinishTargets`) so `listFinishTargets` returns them without colliding when two slots
+  load the same GLB. Namespacing rides into the exported GLB, so the placed product's inspector shows
+  per-slot finish pickers through the **existing** finish-override channel — no new schema. A GLB that
+  fails to load is skipped (fail-soft). Disposal frees GLB-piece subtrees' owned textures/materials
+  (procedural clones share cached textures — never disposed). Keep `gltfSlot.ts`'s pure helpers pure +
+  unit-tested; a GLB option carries its own `license`/`attribution`/`sourceUrl` (wired like the props'
+  `.glb.json` sidecars). First user: the bed's `lamp` slot (bundled Poly Haven CC0 desk lamp).
 - **Flag-gated** by `productConfigurator` (simple tier, prod-safe). The dialog (`ui/configurator/`)
   + ⌘K command gate on it; test both modes.
-- **Fast-follows (open):** SLOT-203 (GLB-sub-asset options — load + per-slot `listFinishTargets`
-  namespacing), SLOT-204 (re-editable placed items via `item.props['__slotSpec']`).
+- **Fast-follows (open):** SLOT-204 (re-editable placed items via `item.props['__slotSpec']`).
