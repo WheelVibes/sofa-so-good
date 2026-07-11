@@ -31,6 +31,10 @@ describe('NEW_BADGES registry', () => {
   it('has at least one entry with a real wired toolbar/menu entry (styleQuiz)', () => {
     expect(NEW_BADGES.styleQuiz).toBeDefined()
   })
+
+  it('has a second entry wired to BOTH a desktop MenuItem and a mobile Item (parallelProjection)', () => {
+    expect(NEW_BADGES.parallelProjection).toBeDefined()
+  })
 })
 
 describe('isRecentlyIntroduced', () => {

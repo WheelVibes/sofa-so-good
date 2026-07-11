@@ -155,6 +155,7 @@ export function ViewMenu() {
               label="Parallel projection"
               sub="Orthographic dollhouse — no perspective foreshortening"
               active={parallelProjection}
+              newFlag="parallelProjection"
               onClick={toggleParallelProjection}
             />
           ) : null}

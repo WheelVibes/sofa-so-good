@@ -84,8 +84,6 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
 
 ## UI/UX polish program — remaining follow-ups (2026-07-02 program, completed 2026-07-03)
 The 39-item Vi-develop-derived program shipped (see CHANGELOG); only these follow-ups remain:
-- [ ] **NEW_BADGES follow-up** — register the next feature that ships a real toolbar/menu row
-  (badges are dormant until then by design; see ui/newBadges.ts).
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the
   catalog is already paginated (`PAGE_SIZE=12`, never renders >12 cards); history/layers
   realistically render <100 rows. Revisit with a lightweight slice-on-scroll window (NOT a new

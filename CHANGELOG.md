@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.6 — NEW_BADGES live: Parallel projection badged, mobile Item gains badge support
+
+The dormant "New"-badge system gets its follow-up consumer: `parallelProjection: '0.20.0.6'`
+registered in `NEW_BADGES`, wired on the desktop ViewMenu row AND the mobile ViewSection row —
+which required bringing the mobile `Item` primitive to parity with desktop `MenuItem`
+(`newFlag` prop, `useNewBadge`, mark-seen on click, `.new-dot`; 7-case test mirror). Badge shows
+only while the feature flag is on and the ship version is within the recency window; seen-state
+persists (`hdb_seen_badges`). Verified dot-shows → click → dot-gone under a pinned version
+(the real entry is already past the window — kept as the wiring example per the styleQuiz
+precedent). 63 targeted tests green.
+
 ## v0.21.2.5 — SLOT-203: configurator GLB-sub-asset slot options
 
 The bed product gains an optional "Bedside lamp" slot whose "Arm reading lamp" option is a

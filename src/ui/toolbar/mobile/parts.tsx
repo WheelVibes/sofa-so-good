@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
+import type { FeatureFlag } from '../../../features/featureFlags'
 import { type DocKey, openToolDocs } from '../../docsUrl'
+import { useNewBadge } from '../../newBadges'
 import { Icon, type IconName } from '../icons'
 import { MenuLabel } from '../ToolbarMenu'
 
@@ -19,6 +21,7 @@ export function Item({
   disabled,
   tourId,
   docs,
+  newFlag,
   onClick,
 }: {
   icon: IconName
@@ -31,16 +34,28 @@ export function Item({
    *  mobile (no hover) it's always shown; a sibling control so it doesn't fire
    *  the row or close the sheet. */
   docs?: DocKey
+  /** When this row fronts a recently-shipped feature (`src/ui/newBadges.ts`),
+   *  pass its `FeatureFlag` to show a pulsing `.new-dot` until first use (P27)
+   *  — the mobile-sheet mirror of `MenuItem`'s `newFlag` (desktop). Resolved
+   *  via `useNewBadge`, a no-op (`show: false`) for any flag with no
+   *  `NEW_BADGES` entry — safe to pass unconditionally. */
+  newFlag?: FeatureFlag
   onClick: () => void
 }) {
   const Glyph = Icon[icon]
+  // `useNewBadge` always needs a flag argument to keep hook calls unconditional
+  // across renders — see `MenuItem`'s identical pattern.
+  const { show: showNewBadge, markSeen } = useNewBadge(newFlag ?? 'newBadges')
   const row = (
     <button
       type="button"
       className="m-item"
       data-tour={tourId}
       disabled={disabled}
-      onClick={onClick}
+      onClick={() => {
+        if (newFlag) markSeen()
+        onClick()
+      }}
     >
       <Glyph className="icn" width={18} height={18} />
       <span className="m-item-tx">
@@ -48,6 +63,7 @@ export function Item({
         {sub ? <span className="m-item-s">{sub}</span> : null}
       </span>
       {on ? <span className="m-on">On</span> : null}
+      {newFlag && showNewBadge ? <span className="new-dot" aria-hidden /> : null}
     </button>
   )
   if (!docs) return row

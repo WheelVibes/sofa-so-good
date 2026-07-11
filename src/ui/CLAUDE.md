@@ -129,15 +129,19 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   Performance-tier/IO-pause mandate for low value on a productivity tool (the `.tool-btn:hover`
   treatment stays).
 - **"New" badges on a recently-shipped entry use `newFlag` (P27), not a hand-rolled dot.**
-  `MenuItem` (`toolbar/ToolbarMenu.tsx`) takes `newFlag?: FeatureFlag` — add the same prop to
-  `IconButton` if the representative entry is a toolbar icon instead (one integration point per
-  entry, not both). The pulsing `.new-dot` shows via `useNewBadge(flag)` (`src/ui/newBadges.ts`)
-  only while `newBadges` is on, the target flag is on, the flag has a `NEW_BADGES` entry, and
-  that entry is still within its recency window (same `major.minor.patch` as `APP_VERSION`, ≤25
-  builds) and unseen — dismissed on first click, persisted per-flag (`badgesSlice`,
-  `hdb_seen_badges`). Add an entry to `NEW_BADGES` only for a feature with a real, verified
-  toolbar/menu row; retire it by deleting the entry once it's no longer worth calling out (no
-  need to wait for it to age out).
+  `MenuItem` (`toolbar/ToolbarMenu.tsx`, desktop) and `Item` (`toolbar/mobile/parts.tsx`, mobile
+  sheet) both take `newFlag?: FeatureFlag` — wire the same flag on BOTH a feature's desktop
+  `MenuItem` row and its mobile `Item` row for parity; add the same prop to `IconButton` if the
+  representative entry is a toolbar icon instead (one integration point per entry, not more).
+  The pulsing `.new-dot` shows via `useNewBadge(flag)` (`src/ui/newBadges.ts`) only while
+  `newBadges` is on, the target flag is on, the flag has a `NEW_BADGES` entry, and that entry is
+  still within its recency window (same `major.minor.patch` as `APP_VERSION`, ≤25 builds) and
+  unseen — dismissed on first click, persisted per-flag (`badgesSlice`, `hdb_seen_badges`). Add
+  an entry to `NEW_BADGES` only for a feature with a real, verified toolbar/menu row (desktop
+  `styleQuiz` in `ToolsMenu.tsx`; desktop+mobile `parallelProjection` in `ViewMenu.tsx` +
+  `ViewSection.tsx`); retire it by deleting the entry once it's no longer worth calling out (no
+  need to wait for it to age out — both current entries are already past their recency window
+  and are kept only as wiring examples).
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
   gate on `canEditScene`; leaving the editor clears the selection. **One documented exception:**
   `CatalogDrawer` also mounts inside the 2D floor-plan editor, behind `roomEditorActive ||
