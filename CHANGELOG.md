@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.20.0.6 — R3-FEAT-3: parallel-projection (orthographic) dollhouse toggle
+
+New pro-tier `parallelProjection` flag: "Parallel projection" in View → Framing (desktop +
+mobile) + a ⌘K "Go to" command, matching SketchUp/Sweet Home 3D. Implementation swaps the default
+camera (drei `<OrthographicCamera makeDefault>`, whole-flat overview only — the room editor stays
+perspective); a swap-continuity layout effect restores the OrbitControls pivot + pose before the
+first update (measured viewpoint delta 0.0 — no jump), with on-screen scale preserved via the
+pure `orthoProjection.ts` perspective-distance ↔ ortho-zoom bridge (exact inverses,
+unit-tested). Every nonce fly (top/reset/focus/frame) sets ortho zoom too; vertical-lock cleanly
+no-ops in ortho. State persisted per-device (`qualityPrefs`, like verticalLock). GPU-verified
+(10-frame scenario `parallel-projection.json`, all reviewed): same-viewpoint toggle shows truly
+parallel wall edges; raycast picking works in ortho (selected a desk); wheel zoom drives
+`.zoom` with no clipping; top view becomes a true orthographic plan with clean shadows/AO;
+toggle-back restores perspective. Both-modes flag tests desktop + mobile. Also rides here:
+TB-10's mobile ViewSection drift fixes ("Walk", Reset/TopView glyphs — file shared).
+
 ## v0.20.0.5 — TB-10-tail: naming/icon drift, SliderField migration, breakpoint token, History icon
 
 Closes the toolbar UX program. Drift alignments (mobile → desktop canonical): "Walk through" →

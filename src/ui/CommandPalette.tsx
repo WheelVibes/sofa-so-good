@@ -72,6 +72,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   parametric: 'parametricFurniture',
   'configure-product': 'productConfigurator',
   'stamp-mode': 'stampPlace',
+  'parallel-projection': 'parallelProjection',
   'replace-similar': 'replaceSimilar',
   'ai-furnish': 'aiLayout',
   'drawing-callouts': 'drawingCallouts',
@@ -578,6 +579,14 @@ export function CommandPalette() {
         hint: 'V',
         icon: s().cameraMode === 'orbit' ? 'Walk' : 'Orbit',
         run: () => s().setCameraMode(s().cameraMode === 'orbit' ? 'firstPerson' : 'orbit'),
+      },
+      {
+        id: 'parallel-projection',
+        group: 'Go to',
+        label: s().parallelProjection ? 'Perspective view' : 'Parallel projection',
+        hint: 'ortho',
+        icon: 'Cube',
+        run: () => s().toggleParallelProjection(),
       },
       {
         id: 'time',

@@ -43,6 +43,17 @@ the same for just the item(s) you've selected.
 | Frame the current selection | <kbd>Z</kbd> |
 | Switch orbit ⇄ walk | <kbd>V</kbd> |
 
+### Parallel projection (Pro)
+
+In **Pro** mode the **View** menu adds a **Parallel projection** toggle. It
+switches the overview between the normal perspective camera and an
+*orthographic* one — the classic architectural "dollhouse" look where parallel
+walls stay parallel and nothing shrinks with distance, exactly like the
+Parallel‑projection mode in SketchUp or Sweet Home 3D. It's great for clean,
+plan‑like hero shots and for judging proportions without perspective
+distortion. Toggling it keeps your current viewpoint, and you still orbit, pan
+and zoom the same way. Turn it off to return to perspective.
+
 ## Walk mode
 
 Switch to walk (<kbd>V</kbd>) to feel the real scale of the flat at eye level.

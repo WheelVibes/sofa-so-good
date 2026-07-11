@@ -1,7 +1,7 @@
-import { OrbitControls } from '@react-three/drei'
+import { OrthographicCamera as DreiOrthographicCamera, OrbitControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
-import { MOUSE, PerspectiveCamera, TOUCH, Vector3 } from 'three'
+import { useEffect, useLayoutEffect, useRef } from 'react'
+import { MOUSE, OrthographicCamera, PerspectiveCamera, TOUCH, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../../apartment/constants'
 import { useAnyModalOpen } from '../../controls/modalGuard'
@@ -14,6 +14,7 @@ import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
 import { flyDurationFor, flyPose, smoothstep as smooth } from './cameraTween'
 import { clampOrbitDistance, FRAME_MARGIN, fitDistanceForFov } from './frameSelection'
+import { orthoZoomForPerspective, perspectiveDistanceForOrthoZoom } from './orthoProjection'
 import { computeVerticalLock } from './verticalLock'
 import { VIEW_TOUR_LEG_SECONDS, type ViewTourFrame, viewTourFrames } from './viewTour'
 
@@ -35,6 +36,7 @@ function writePose(pos: Vector3, tgt: Vector3): void {
 type Pose = { pos: [number, number, number]; target: [number, number, number] }
 
 const APPROX_WALL_H = 2.7 // include wall height when fitting the dollhouse view
+const REF_FOV_DEG = 45 // Canvas perspective FOV — the reference lens for ortho fits
 
 /** Plan footprint (width, depth) — the apartment extents for the default flat,
  *  the plan's own bounds otherwise. */
@@ -44,24 +46,24 @@ function planExtents(plan: FloorPlan): [number, number] {
 
 /** Camera distance at which a sphere of `radius` exactly fills the smaller of the
  *  vertical / horizontal field of view — so the framing fits any viewport aspect
- *  ratio (portrait phones included). Thin per-camera wrapper over the shared,
- *  unit-tested `fitDistanceForFov` (frameSelection.ts) so the whole-plan
- *  dollhouse/room/top framings below and the FEAT-A selection framing share
- *  one formula. */
-function fitDistance(radius: number, camera: PerspectiveCamera): number {
-  return fitDistanceForFov(radius, (camera.fov * Math.PI) / 180, camera.aspect || 1)
+ *  ratio (portrait phones included). Thin wrapper over the shared, unit-tested
+ *  `fitDistanceForFov` (frameSelection.ts); takes an explicit FOV + aspect so the
+ *  same framing math works whether the live camera is perspective or the swapped-
+ *  in orthographic one (which has no `.fov`). */
+function fitDistance(radius: number, fovRad: number, aspect: number): number {
+  return fitDistanceForFov(radius, fovRad, aspect || 1)
 }
 
 /** 3/4 dollhouse framing for the active plan, sized to the viewport so the whole
  *  flat just fills the view — dynamic for both the default flat and custom plans
  *  and any window aspect ratio. */
-function dollhouseFraming(plan: FloorPlan, camera: PerspectiveCamera): Pose {
+function dollhouseFraming(plan: FloorPlan, fovRad: number, aspect: number): Pose {
   const [pw, pd] = planExtents(plan)
   const cx = pw / 2
   const cz = pd / 2
   // Bounding-sphere radius of the footprint + a little wall height, with margin.
   const radius = 0.5 * Math.hypot(pw, pd, APPROX_WALL_H) * 1.1
-  const dist = fitDistance(radius, camera)
+  const dist = fitDistance(radius, fovRad, aspect)
   // Unit 3/4 direction (equal X/Z, lower Y for a dollhouse look).
   const inv = 1 / Math.hypot(0.82, 0.6, 0.82)
   const dx = 0.82 * inv
@@ -73,18 +75,17 @@ function dollhouseFraming(plan: FloorPlan, camera: PerspectiveCamera): Pose {
 /** Overhead top-down framing for the active plan: centred, at a height that makes
  *  the whole footprint just fill the viewport (honours aspect ratio). The tiny +Z
  *  keeps OrbitControls out of gimbal lock at the pole. */
-function topFraming(plan: FloorPlan, camera: PerspectiveCamera): Pose {
+function topFraming(plan: FloorPlan, fovRad: number, aspect: number): Pose {
   const [pw, pd] = planExtents(plan)
   const cx = pw / 2
   const cz = pd / 2
-  const vFov = (camera.fov * Math.PI) / 180
-  const aspect = camera.aspect || 1
+  const asp = aspect || 1
   const margin = 1.12
-  const half = Math.tan(vFov / 2)
+  const half = Math.tan(fovRad / 2)
   // Looking straight down: screen-vertical maps to world depth, screen-horizontal
   // to world width. Height must satisfy both.
   const hForDepth = ((pd / 2) * margin) / half
-  const hForWidth = ((pw / 2) * margin) / (half * aspect)
+  const hForWidth = ((pw / 2) * margin) / (half * asp)
   const h = Math.max(hForDepth, hForWidth, 4)
   return { pos: [cx, h, cz + 0.01], target: [cx, 0, cz] }
 }
@@ -122,26 +123,80 @@ export function OrbitCamera() {
   const controlsRef = useRef<OrbitControlsImpl>(null)
 
   const roomEditorId = useStore((s) => s.roomEditor.roomId)
+
+  // Parallel-projection / orthographic "dollhouse" view (R3-FEAT-3). A whole-flat
+  // overview feature only: the per-room editor frames its own room and stays
+  // perspective, so gate ortho off whenever a room is being edited (entering a
+  // room reverts to perspective, exiting restores ortho). Also gated by the pro
+  // flag so it's off in Simple mode.
+  const fParallel = useFeature('parallelProjection')
+  const parallelProjectionOn = useStore((s) => s.parallelProjection)
+  const ortho = parallelProjectionOn && fParallel && !roomEditorId
+  const orthoRef = useRef<OrthographicCamera>(null)
+
+  // Live handle on the current default camera (perspective, or the swapped-in
+  // ortho) so the nonce-driven fly effects read the ACTIVE camera without
+  // re-subscribing to it — a projection swap changes `camera`, but those effects
+  // must fire only on their own nonce, never re-frame on the swap itself.
+  const cameraRef = useRef(camera)
+  cameraRef.current = camera
+  // The Canvas's perspective camera, captured whenever it's the active default
+  // (i.e. while not ortho) so the swap can read its FOV + restore its pose.
+  const perspCamRef = useRef<PerspectiveCamera | null>(null)
+  if (camera instanceof PerspectiveCamera) perspCamRef.current = camera
+
   // The `makeDefault` OrbitControls registers itself on the R3F store once
   // mounted; this reactive read (unlike the imperative `controlsRef`) lets the
   // framing effect below RE-RUN the moment the controls attach — so the FIRST
   // room entered is framed too, not just later room switches (the controls ref
   // can still be null on the effect's initial mount run, which silently skipped
-  // the default framing before).
+  // the default framing before). It also fires on a projection swap (drei
+  // re-creates the controls when the default camera changes), which the
+  // swap-continuity effect below keys on.
   const attachedControls = useThree((s) => s.controls) as OrbitControlsImpl | null
 
+  // Apply the orthographic `zoom` that reproduces a would-be perspective framing
+  // at the given pose (no-op unless the live camera is ortho). Held in a ref +
+  // refreshed each render — like `startFly` below — so effects see the live
+  // closure without listing it as a dependency. Since ortho projection ignores
+  // camera distance, every "fly to a framing" also has to translate that framing
+  // distance into a `zoom` or the ortho view wouldn't change scale at all.
+  const applyOrthoZoom = useRef<(pos: Pose['pos'], target: Pose['target']) => void>(() => {})
+  applyOrthoZoom.current = (pos, target) => {
+    const cam = cameraRef.current
+    if (!(cam instanceof OrthographicCamera)) return
+    const heightPx = gl.domElement.clientHeight || 1
+    const fovRad = ((perspCamRef.current?.fov ?? REF_FOV_DEG) * Math.PI) / 180
+    const d = Math.hypot(pos[0] - target[0], pos[1] - target[1], pos[2] - target[2])
+    cam.zoom = orthoZoomForPerspective(d, fovRad, heightPx)
+    cam.updateProjectionMatrix()
+  }
+
+  // Frame the room / whole-flat overview on FIRST controls attach and on a
+  // genuine room switch — never merely because a projection swap re-created the
+  // controls (`attachedControls` also changes then, but that path preserves the
+  // viewpoint itself via the swap-continuity effect below). A `framedRef` guard
+  // distinguishes the two so a perspective↔ortho toggle doesn't yank the camera
+  // back to the dollhouse default. Reads the plan fresh (not a dep) so a plain
+  // plan edit never yanks the camera; always runs in a perspective context
+  // (ortho is gated off in the room editor, and the first overview frame happens
+  // at boot before any toggle).
+  const framedRef = useRef<{ done: boolean; room: string | null }>({ done: false, room: null })
+  // biome-ignore lint/correctness/useExhaustiveDependencies: frames only on first attach / room switch; viewport-size reads are point-in-time, not deps.
   useEffect(() => {
-    // In the per-room editor, frame the isolated room (its centre + a 3/4 offset
-    // sized to the room) instead of the whole-apartment default. Re-runs on room
-    // switch AND when the controls first attach, so entering the editor — by
-    // tapping a room in orbit or switching rooms — ALWAYS lands on a centred
-    // dollhouse view. The plan is read fresh (not a dep) so a plain plan edit
-    // never yanks the camera.
-    const plan = useStore.getState().floorPlan
     const c = controlsRef.current ?? attachedControls
-    if (roomEditorId) {
-      if (!c) return
-      const editorShell = getRoomEditorShell(plan, roomEditorId)
+    if (!c) return
+    const room = roomEditorId ?? null
+    if (framedRef.current.done && framedRef.current.room === room) return
+    framedRef.current = { done: true, room }
+    const cam = cameraRef.current
+    const heightPx = gl.domElement.clientHeight || 1
+    const widthPx = gl.domElement.clientWidth || 1
+    const fovRad = ((perspCamRef.current?.fov ?? REF_FOV_DEG) * Math.PI) / 180
+    const aspect = widthPx / heightPx
+    const plan = useStore.getState().floorPlan
+    if (room) {
+      const editorShell = getRoomEditorShell(plan, room)
       if (!editorShell) return
       const [cx, cz] = editorShell.shell.center
       const r = Math.max(editorShell.shell.radius, 1.5)
@@ -150,61 +205,124 @@ export function OrbitCamera() {
       // spins around it rather than a floor-level point that biases it high.
       const midH = APPROX_WALL_H / 2
       c.target.set(cx, midH, cz)
-      if (camera instanceof PerspectiveCamera) {
-        // Fit the whole room (footprint + wall height) to the viewport so it
-        // fills the dollhouse view on load — aspect-aware (portrait phones fit to
-        // width), with a small margin so it isn't edge-to-edge.
-        const radius = Math.hypot(r, midH) * 1.04
-        const dist = fitDistance(radius, camera)
-        const inv = 1 / Math.hypot(0.82, 0.6, 0.82)
-        camera.position.set(cx + 0.82 * inv * dist, midH + 0.6 * inv * dist, cz + 0.82 * inv * dist)
-      } else {
-        camera.position.set(cx + r * 1.5, r * 1.7, cz + r * 1.5)
-      }
+      // Fit the whole room (footprint + wall height) to the viewport so it fills
+      // the dollhouse view on load — aspect-aware (portrait phones fit to width),
+      // with a small margin so it isn't edge-to-edge.
+      const radius = Math.hypot(r, midH) * 1.04
+      const dist = fitDistance(radius, fovRad, aspect)
+      const inv = 1 / Math.hypot(0.82, 0.6, 0.82)
+      cam.position.set(cx + 0.82 * inv * dist, midH + 0.6 * inv * dist, cz + 0.82 * inv * dist)
       c.update()
       return
     }
     // Dollhouse overview framed to fit the active plan in the current viewport.
-    if (camera instanceof PerspectiveCamera) {
-      const { pos, target } = dollhouseFraming(plan, camera)
-      camera.position.set(...pos)
-      c?.target.set(...target)
-      c?.update()
+    const { pos, target } = dollhouseFraming(plan, fovRad, aspect)
+    cam.position.set(...pos)
+    c.target.set(...target)
+    c.update()
+    // If we booted straight into (or exited a room back into) parallel
+    // projection, translate this framing distance into the ortho zoom — the
+    // ortho camera ignores distance, so without this the persisted-ortho boot
+    // would keep its seed zoom instead of fitting the flat.
+    applyOrthoZoom.current(pos, target)
+  }, [roomEditorId, attachedControls])
+
+  // Projection-swap continuity (R3-FEAT-3). drei's <OrbitControls> re-creates its
+  // internal controls instance whenever the default camera changes (its useMemo
+  // is keyed on the camera), which resets the pivot to the origin — so on every
+  // perspective↔ortho swap we restore the live pivot + match the new camera's
+  // pose to the outgoing one, preserving the viewpoint with no jump. Keyed on
+  // `attachedControls` so it runs once the recreated controls have registered as
+  // default, before the first frame's OrbitControls.update() (no origin flash).
+  // The FIRST attach (prev === null) is skipped — the framing effect owns that.
+  const prevAttachedRef = useRef<OrbitControlsImpl | null>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs only on a controls-instance (camera) swap; pose/size reads are point-in-time.
+  useLayoutEffect(() => {
+    const c = attachedControls
+    const prev = prevAttachedRef.current
+    prevAttachedRef.current = c
+    if (!c || !prev || c === prev) return
+    const cam = cameraRef.current
+    const heightPx = gl.domElement.clientHeight || 1
+    const fovRad = ((perspCamRef.current?.fov ?? REF_FOV_DEG) * Math.PI) / 180
+    // Outgoing pose (pivot + camera position) is mirrored into `cameraPose` every
+    // frame by the main useFrame below, so it's the live view at the swap instant.
+    const tx = cameraPose.tx
+    const ty = cameraPose.ty
+    const tz = cameraPose.tz
+    const dirX = cameraPose.px - tx
+    const dirY = cameraPose.py - ty
+    const dirZ = cameraPose.pz - tz
+    const oldDist = Math.hypot(dirX, dirY, dirZ) || 1
+    c.target.set(tx, ty, tz)
+    cam.up.set(0, 1, 0)
+    if (cam instanceof OrthographicCamera) {
+      // → orthographic: keep the same camera position + match the on-screen scale
+      // at the pivot so the toggle doesn't zoom.
+      cam.position.set(cameraPose.px, cameraPose.py, cameraPose.pz)
+      cam.zoom = orthoZoomForPerspective(oldDist, fovRad, heightPx)
+      cam.updateProjectionMatrix()
+    } else if (cam instanceof PerspectiveCamera && orthoRef.current) {
+      // → perspective: convert the outgoing ortho zoom back into a viewing
+      // distance (same direction) so a zoomed-in ortho view maps to an equally-
+      // close perspective view.
+      const newDist = perspectiveDistanceForOrthoZoom(orthoRef.current.zoom, fovRad, heightPx)
+      const inv = newDist / oldDist
+      cam.position.set(tx + dirX * inv, ty + dirY * inv, tz + dirZ * inv)
+      cam.updateProjectionMatrix()
     }
-  }, [camera, roomEditorId, attachedControls])
+    c.update()
+    writePose(cam.position, c.target)
+  }, [attachedControls])
 
   // Snap to a top-down plan view when requested from the toolbar (fit to viewport).
   // In the per-room editor, frame the isolated room from straight overhead (its
   // centre + a fit height sized to the room) rather than the whole plan — this is
   // also what the mobile "pick up a piece" long-press triggers so placement drops
-  // onto a clean plan view.
+  // onto a clean plan view. Works in ortho too (fly the angle, set the zoom).
   const topViewNonce = useStore((s) => s.topViewNonce)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fires only on the top-view nonce; size reads are snapshotted, not deps.
   useEffect(() => {
     if (topViewNonce === 0) return
-    if (!(camera instanceof PerspectiveCamera)) return
+    const heightPx = gl.domElement.clientHeight || 1
+    const widthPx = gl.domElement.clientWidth || 1
+    const fovRad = ((perspCamRef.current?.fov ?? REF_FOV_DEG) * Math.PI) / 180
+    const aspect = widthPx / heightPx
     const plan = useStore.getState().floorPlan
     if (roomEditorId) {
       const editorShell = getRoomEditorShell(plan, roomEditorId)
       if (editorShell) {
         const [cx, cz] = editorShell.shell.center
         const r = Math.max(editorShell.shell.radius, 1.5)
-        const h = Math.max(fitDistance(r * 1.12, camera), 4)
-        startFly.current([cx, h, cz + 0.01], [cx, 0, cz])
+        const h = Math.max(fitDistance(r * 1.12, fovRad, aspect), 4)
+        const pos: Pose['pos'] = [cx, h, cz + 0.01]
+        const target: Pose['target'] = [cx, 0, cz]
+        startFly.current(pos, target)
+        applyOrthoZoom.current(pos, target)
         return
       }
     }
-    const { pos, target } = topFraming(plan, camera)
+    const { pos, target } = topFraming(plan, fovRad, aspect)
     startFly.current(pos, target)
-  }, [topViewNonce, camera, roomEditorId])
+    applyOrthoZoom.current(pos, target)
+  }, [topViewNonce, roomEditorId])
 
   // "Reset view" → snap back to a 3/4 dollhouse overview that fits the viewport.
   const homeViewNonce = useStore((s) => s.homeViewNonce)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fires only on the reset-view nonce; size reads are snapshotted, not deps.
   useEffect(() => {
     if (homeViewNonce === 0) return
-    if (!(camera instanceof PerspectiveCamera)) return
-    const { pos, target } = dollhouseFraming(useStore.getState().floorPlan, camera)
+    const heightPx = gl.domElement.clientHeight || 1
+    const widthPx = gl.domElement.clientWidth || 1
+    const fovRad = ((perspCamRef.current?.fov ?? REF_FOV_DEG) * Math.PI) / 180
+    const { pos, target } = dollhouseFraming(
+      useStore.getState().floorPlan,
+      fovRad,
+      widthPx / heightPx,
+    )
     startFly.current(pos, target)
-  }, [homeViewNonce, camera])
+    applyOrthoZoom.current(pos, target)
+  }, [homeViewNonce])
 
   // Double-click an item → smoothly re-target the orbit pivot onto it and
   // dolly in to a comfortable framing distance (keeps the current view angle).
@@ -212,18 +330,22 @@ export function OrbitCamera() {
   useEffect(() => {
     if (focusNonce === 0) return
     const c = controlsRef.current
+    const cam = cameraRef.current
     const p = useStore.getState().focusPoint
     if (!c || !p) return
     const dest = new Vector3(p[0], 0.6, p[1])
-    const offset = camera.position.clone().sub(c.target)
+    const offset = cam.position.clone().sub(c.target)
     const dist = offset.length()
     const targetDist = Math.min(dist, 4.5) // dolly in if far
     offset.setLength(targetDist)
     const destPos = dest.clone().add(offset)
     // Eased re-target onto the item (keeps the current view angle) rather than a
     // hard snap — the comment always promised "smoothly", now it actually glides.
-    startFly.current([destPos.x, destPos.y, destPos.z], [dest.x, dest.y, dest.z])
-  }, [focusNonce, camera])
+    const pos: Pose['pos'] = [destPos.x, destPos.y, destPos.z]
+    const target: Pose['target'] = [dest.x, dest.y, dest.z]
+    startFly.current(pos, target)
+    applyOrthoZoom.current(pos, target)
+  }, [focusNonce])
 
   // Frame selection (FEAT-A, "Z" or the NavCluster button) → dolly/retarget so
   // the selection's world bounds fill the view. Keeps the current orbit angle
@@ -233,24 +355,31 @@ export function OrbitCamera() {
   // bounding sphere (via the shared fitDistanceForFov) rather than a fixed
   // dolly-in clamp, so a big wardrobe frames wider than a side table.
   const frameNonce = useStore((s) => s.frameNonce)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fires only on the frame-selection nonce; camera/controls/size read live, not deps.
   useEffect(() => {
     if (frameNonce === 0) return
     const c = controlsRef.current
+    const cam = cameraRef.current
     const bounds = useStore.getState().frameBounds
-    if (!c || !bounds || !(camera instanceof PerspectiveCamera)) return
-    const vFov = (camera.fov * Math.PI) / 180
+    if (!c || !bounds) return
+    const heightPx = gl.domElement.clientHeight || 1
+    const widthPx = gl.domElement.clientWidth || 1
+    const fovRad = ((perspCamRef.current?.fov ?? REF_FOV_DEG) * Math.PI) / 180
     const distance = clampOrbitDistance(
-      fitDistanceForFov(bounds.radius * FRAME_MARGIN, vFov, camera.aspect || 1),
+      fitDistanceForFov(bounds.radius * FRAME_MARGIN, fovRad, widthPx / heightPx || 1),
     )
     const dest = new Vector3(...bounds.center)
-    const offset = camera.position.clone().sub(c.target)
+    const offset = cam.position.clone().sub(c.target)
     // Degenerate offset (camera sitting exactly on the target) → fall back to
     // the same 3/4 dollhouse direction used everywhere else in this file.
     if (offset.lengthSq() < 1e-6) offset.set(0.82, 0.6, 0.82)
     offset.setLength(distance)
     const destPos = dest.clone().add(offset)
-    startFly.current([destPos.x, destPos.y, destPos.z], [dest.x, dest.y, dest.z])
-  }, [frameNonce, camera])
+    const pos: Pose['pos'] = [destPos.x, destPos.y, destPos.z]
+    const target: Pose['target'] = [dest.x, dest.y, dest.z]
+    startFly.current(pos, target)
+    applyOrthoZoom.current(pos, target)
+  }, [frameNonce])
 
   // Eased camera fly — shared by every retarget (saved view, focus, top, home)
   // so the camera glides rather than teleporting. `dur` is distance-aware
@@ -309,6 +438,7 @@ export function OrbitCamera() {
     const pose = useStore.getState().pendingViewPose
     if (!pose) return
     startFly.current(pose.pos, pose.target)
+    applyOrthoZoom.current(pose.pos, pose.target)
   }, [applyViewNonce])
 
   // Automated walkthrough tour: fly the camera through a sequence of per-room
@@ -456,7 +586,9 @@ export function OrbitCamera() {
   // Never touches `camera.position` or `c.target` — only the camera's
   // orientation + projection — so OrbitControls' own spherical bookkeeping
   // (which drives next frame's `update()`) is completely unaffected; the
-  // correction simply re-applies, cheaply, every frame it's on.
+  // correction simply re-applies, cheaply, every frame it's on. Orthographic
+  // projection has no vanishing point to correct, so this cleanly no-ops there
+  // (the `instanceof PerspectiveCamera` guard below).
   const verticalLockOn = useStore((s) => s.verticalLock)
   const fTwoPointPerspective = useFeature('twoPointPerspective')
   // Reused view-offset object (per camera instance via ref) so the vertical-lock
@@ -528,8 +660,11 @@ export function OrbitCamera() {
         const distance = offset.length()
         const halfFov = (camera.fov / 2) * (Math.PI / 180)
         panScale = (2 * distance * Math.tan(halfFov)) / dom.clientHeight
+      } else if (camera instanceof OrthographicCamera) {
+        // Orthographic pan: one screen pixel maps to 1/zoom world units (the
+        // frustum spans the canvas in pixels), independent of distance.
+        panScale = 1 / (camera.zoom || 1)
       } else {
-        // Orthographic fallback — not currently used but keeps the handler safe.
         panScale = 1 / dom.clientHeight
       }
 
@@ -559,25 +694,52 @@ export function OrbitCamera() {
   // Frozen only during a furniture drag / gizmo gesture (see controlsEnabled);
   // otherwise the camera orbits, zooms, pans and tilts freely. makeDefault is
   // kept so these stay the default camera controls when re-enabled.
+  //
+  // Parallel projection (R3-FEAT-3): when on, mount a drei <OrthographicCamera
+  // makeDefault> — it becomes the default camera (drei restores the perspective
+  // one on unmount), OrbitControls re-binds to it reactively, and the swap-
+  // continuity effect above preserves the viewpoint. The initial position/zoom
+  // props seed it from the live perspective pose so there's no first-frame flash;
+  // OrbitControls then drives its `zoom` for pinch/wheel just like a persp dolly.
   return (
-    <OrbitControls
-      ref={controlsRef}
-      makeDefault
-      enabled={controlsEnabled}
-      autoRotate={autoRotate}
-      autoRotateSpeed={0.6}
-      enableDamping
-      dampingFactor={0.1}
-      enablePan
-      screenSpacePanning
-      panSpeed={1}
-      mouseButtons={{ LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN }}
-      touches={{ ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }}
-      minDistance={3}
-      maxDistance={60}
-      // Allow a near-overhead angle for layout planning (just shy of straight
-      // down to avoid gimbal lock).
-      maxPolarAngle={Math.PI / 2 - 0.015}
-    />
+    <>
+      {ortho ? (
+        <DreiOrthographicCamera
+          ref={orthoRef}
+          makeDefault
+          near={0.1}
+          far={1000}
+          position={[cameraPose.px, cameraPose.py, cameraPose.pz]}
+          zoom={orthoZoomForPerspective(
+            Math.hypot(
+              cameraPose.px - cameraPose.tx,
+              cameraPose.py - cameraPose.ty,
+              cameraPose.pz - cameraPose.tz,
+            ) || 10,
+            ((perspCamRef.current?.fov ?? REF_FOV_DEG) * Math.PI) / 180,
+            gl.domElement.clientHeight || 1,
+          )}
+        />
+      ) : null}
+      <OrbitControls
+        ref={controlsRef}
+        makeDefault
+        enabled={controlsEnabled}
+        autoRotate={autoRotate}
+        autoRotateSpeed={0.6}
+        enableDamping
+        dampingFactor={0.1}
+        enablePan
+        screenSpacePanning
+        panSpeed={1}
+        mouseButtons={{ LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN }}
+        touches={{ ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }}
+        minDistance={3}
+        maxDistance={60}
+        // Allow a near-overhead angle for layout planning (just shy of straight
+        // down to avoid gimbal lock).
+        maxPolarAngle={Math.PI / 2 - 0.015}
+      />
+    </>
   )
 }

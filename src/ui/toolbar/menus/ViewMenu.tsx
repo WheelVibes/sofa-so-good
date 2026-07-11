@@ -24,6 +24,8 @@ export function ViewMenu() {
   const toggleAutoRotate = useStore((s) => s.toggleAutoRotate)
   const verticalLock = useStore((s) => s.verticalLock)
   const toggleVerticalLock = useStore((s) => s.toggleVerticalLock)
+  const parallelProjection = useStore((s) => s.parallelProjection)
+  const toggleParallelProjection = useStore((s) => s.toggleParallelProjection)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
@@ -32,6 +34,7 @@ export function ViewMenu() {
   const savedViews = useFeature('savedViews')
   const fVr = useFeature('vrWalkthrough')
   const fTwoPointPerspective = useFeature('twoPointPerspective')
+  const fParallelProjection = useFeature('parallelProjection')
   const [vrSupported, setVrSupported] = useState(false)
   useEffect(() => {
     if (!fVr) return
@@ -144,6 +147,15 @@ export function ViewMenu() {
               sub="Keep wall corners parallel instead of converging"
               active={verticalLock}
               onClick={toggleVerticalLock}
+            />
+          ) : null}
+          {fParallelProjection ? (
+            <MenuItem
+              icon="Cube"
+              label="Parallel projection"
+              sub="Orthographic dollhouse — no perspective foreshortening"
+              active={parallelProjection}
+              onClick={toggleParallelProjection}
             />
           ) : null}
           {proMode && savedViews ? <SavedViewsSection /> : null}

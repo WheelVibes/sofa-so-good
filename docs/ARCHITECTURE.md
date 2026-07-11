@@ -524,6 +524,18 @@ same change that reshapes a system.
   OrbitControls' own spherical state is unaffected. Toggle lives in the `ViewMenu`/`ViewSection`
   "Framing" cluster (desktop + mobile parity) next to Turntable; persisted per-device via
   `qualityPrefs` (`verticalLock`, back-compat default off).
+- **Parallel projection / orthographic dollhouse (R3-FEAT-3, `parallelProjection` flag, pro):**
+  swaps the whole-flat orbit camera between perspective and orthographic projection (the SketchUp /
+  Sweet Home 3D / Planner 5D "Parallel projection" toggle) so parallel building lines stay parallel
+  with no foreshortening. `OrbitCamera.tsx` conditionally mounts a drei `<OrthographicCamera
+  makeDefault>` (ortho gated to the overview — the room editor stays perspective); OrbitControls
+  re-binds to it reactively and drives its `.zoom` for pinch/wheel. The pure, unit-tested
+  `scene/cameras/orthoProjection.ts` bridges perspective distance ↔ ortho zoom so the swap
+  preserves the on-screen framing (a layout effect keyed on the recreated controls restores the
+  live pivot + matches the new camera's pose — no jump; every nonce fly translates its framing
+  distance into a zoom). Vertical-lock cleanly no-ops in ortho (no vanishing point). Toggle lives
+  in the `ViewMenu`/`ViewSection` "Framing" cluster + a ⌘K "Parallel projection" command; persisted
+  per-device via `qualityPrefs` (`parallelProjection`, back-compat default off).
 - **Placement drop-in easing** (`scene/placementDrop.ts`, pure timing + unit-tested): a freshly
   placed piece eases DOWN onto its resting spot from a small height (~0.16 m, 300 ms, ease-out).
   `Furniture` keeps NO per-item `useFrame` (perf rule) — instead each item registers its root

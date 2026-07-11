@@ -40,6 +40,7 @@ export function loadQualityPrefs(): void {
       dofFocusDistance?: number
       dofAuto?: boolean
       verticalLock?: boolean
+      parallelProjection?: boolean
     }
     // Migrate the old flat tier name. Other names map 1:1 onto the new
     // RenderTier union (medium/high unchanged; maximum is new).
@@ -73,6 +74,9 @@ export function loadQualityPrefs(): void {
       // Two-point-perspective / vertical-line-lock (FEAT-D) — back-compat
       // default off (normal perspective) for legacy prefs.
       verticalLock: typeof p.verticalLock === 'boolean' ? p.verticalLock : false,
+      // Parallel-projection / orthographic dollhouse (R3-FEAT-3) — back-compat
+      // default off (normal perspective) for legacy prefs.
+      parallelProjection: typeof p.parallelProjection === 'boolean' ? p.parallelProjection : false,
     })
   } catch {
     /* ignore corrupt prefs */
@@ -94,6 +98,7 @@ export function watchQualityPrefs(): void {
       dofFocusDistance: s.dofFocusDistance,
       dofAuto: s.dofAuto,
       verticalLock: s.verticalLock,
+      parallelProjection: s.parallelProjection,
     })
     if (snap === last) return
     last = snap

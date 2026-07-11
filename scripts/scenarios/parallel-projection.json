@@ -1,0 +1,81 @@
+{
+  "name": "parallel-projection",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setUiMode('pro'); s.reresolveFeatureFlags?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "flags-ready", "waitFor": { "store": "window.__store.getState().featureFlags.parallelProjection === true" }, "timeout": 15000 },
+    { "name": "three-ready", "waitFor": { "store": "!!window.__three && window.__three.camera.type === 'PerspectiveCamera'" }, "timeout": 40000 },
+    { "name": "set-high-tier", "eval": "(() => { const s = window.__store.getState(); s.setQualityTier?.('high'); })()" },
+    { "name": "settle-tier", "wait": 1500 },
+    { "name": "hide-loading", "eval": "(() => { window.__store.getState().hideLoading?.(); })()" },
+    { "name": "settle-persp", "wait": 1200 },
+    { "name": "shot-perspective", "screenshot": "01-perspective-baseline" },
+    {
+      "name": "capture-persp-pose",
+      "eval": "(() => { const c = window.__three.camera; window.__pp = { pos: [c.position.x, c.position.y, c.position.z], type: c.type }; })()"
+    },
+    { "name": "toggle-ortho", "store": { "action": "setParallelProjection", "args": [true] } },
+    { "name": "wait-ortho", "waitFor": { "store": "window.__three.camera.type === 'OrthographicCamera'" }, "timeout": 15000 },
+    { "name": "settle-ortho", "wait": 800 },
+    { "name": "shot-ortho", "screenshot": "02-ortho-same-viewpoint" },
+    {
+      "name": "assert-viewpoint-preserved",
+      "eval": "(() => { const c = window.__three.camera; const p0 = window.__pp.pos; const d = Math.hypot(c.position.x-p0[0], c.position.y-p0[1], c.position.z-p0[2]); window.__viewpointDelta = d; if (d > 0.5) throw new Error('camera jumped on ortho toggle, delta=' + d.toFixed(3)); })()"
+    },
+    {
+      "name": "assert-ortho-picking",
+      "eval": "(() => { const t = window.__three; const rc = t.raycaster; let total = 0, furnitureHitId = null; for (const [x,y] of [[0,0],[0.15,-0.1],[-0.2,0.05],[0.1,0.2],[-0.1,-0.2]]) { rc.setFromCamera({x,y}, t.camera); const hits = rc.intersectObjects(t.scene.children, true); total += hits.length; for (const h of hits) { let o = h.object; while (o) { if (o.userData && o.userData.itemId) { furnitureHitId = o.userData.itemId; break; } o = o.parent; } if (furnitureHitId) break; } } window.__orthoPick = { total, furnitureHitId }; if (total === 0) throw new Error('ortho raycast hit nothing — picking broken'); })()"
+    },
+    {
+      "name": "select-picked-furniture",
+      "eval": "(() => { const id = window.__orthoPick.furnitureHitId; if (id) window.__store.getState().selectItem?.(id); window.__selResult = { picked: id, selected: window.__store.getState().selectedItemId }; })()"
+    },
+    { "name": "shot-ortho-picked", "screenshot": "03-ortho-picked-furniture" },
+    {
+      "name": "clear-selection",
+      "eval": "(() => { window.__store.getState().selectItem?.(null); })()"
+    },
+    { "name": "zoom-in-ortho", "wheel": { "x": 640, "y": 400, "dy": -600 } },
+    { "name": "zoom-in-ortho-2", "wheel": { "x": 640, "y": 400, "dy": -600 } },
+    { "name": "settle-zoom-in", "wait": 500 },
+    {
+      "name": "assert-ortho-zoom-changed",
+      "eval": "(() => { const c = window.__three.camera; if (c.type !== 'OrthographicCamera') throw new Error('camera left ortho on zoom'); window.__zoomIn = c.zoom; })()"
+    },
+    { "name": "shot-ortho-zoomed-in", "screenshot": "04-ortho-zoomed-in" },
+    { "name": "zoom-out-ortho", "wheel": { "x": 640, "y": 400, "dy": 900 } },
+    { "name": "zoom-out-ortho-2", "wheel": { "x": 640, "y": 400, "dy": 900 } },
+    { "name": "settle-zoom-out", "wait": 500 },
+    { "name": "shot-ortho-zoomed-out", "screenshot": "05-ortho-zoomed-out" },
+    {
+      "name": "assert-not-blank",
+      "eval": "(() => { const c = window.__three.camera; if (!Number.isFinite(c.zoom) || c.zoom <= 0) throw new Error('ortho zoom degenerate: ' + c.zoom); })()"
+    },
+    { "name": "orbit-ortho", "drag": { "from": [640, 400], "to": [860, 300] } },
+    { "name": "settle-orbit", "wait": 600 },
+    { "name": "shot-ortho-orbited", "screenshot": "06-ortho-orbited-parallel-lines" },
+    { "name": "top-view-ortho", "store": { "action": "requestTopView", "args": [] } },
+    { "name": "settle-top", "wait": 1200 },
+    { "name": "shot-ortho-top", "screenshot": "07-ortho-top-view" },
+    { "name": "reset-view-ortho", "store": { "action": "requestHomeView", "args": [] } },
+    { "name": "settle-reset", "wait": 1200 },
+    { "name": "shot-ortho-reset", "screenshot": "08-ortho-reset-dollhouse" },
+    { "name": "toggle-back-persp", "store": { "action": "setParallelProjection", "args": [false] } },
+    { "name": "wait-persp", "waitFor": { "store": "window.__three.camera.type === 'PerspectiveCamera'" }, "timeout": 15000 },
+    { "name": "settle-persp-back", "wait": 800 },
+    { "name": "shot-persp-restored", "screenshot": "09-perspective-restored" },
+    { "name": "walk-mode", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
+    { "name": "settle-walk", "wait": 1200 },
+    { "name": "shot-walk", "screenshot": "10-walk-mode-unaffected" },
+    { "name": "back-to-orbit", "store": { "action": "setCameraMode", "args": ["orbit"] } },
+    { "name": "settle-orbit2", "wait": 1000 },
+    {
+      "name": "report",
+      "eval": "(() => { window.__report = { viewpointDelta: window.__viewpointDelta, orthoPick: window.__orthoPick, sel: window.__selResult, zoomIn: window.__zoomIn }; console.log('PARALLEL-PROJECTION REPORT', JSON.stringify(window.__report)); })()"
+    }
+  ]
+}

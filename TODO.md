@@ -183,9 +183,6 @@ Open, client-doable items from `docs/research/2026-07-04-audit-round3-backlog-re
 competitor sweep found history-panel/shortcut-help/room-area/favourites/copy-paste/nudge/
 room-palette/lock/align-distribute all already shipped — so the list is short + evidence-based,
 ranked by value ÷ effort:
-- [ ] **R3-FEAT-3 — Orthographic / isometric camera view.** `OrbitCamera.tsx:491` has an unused
-  ortho fallback; expose a parallel-projection/iso "dollhouse" toggle (SketchUp/Sweet Home 3D/
-  Planner 5D). Pro tier; needs a visual-verification pass (raycast/shadow/zoom differ). (M · MED)
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live
