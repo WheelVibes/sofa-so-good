@@ -31,6 +31,18 @@ zero-regression-risk frontier for this goal is reached; the parked findings belo
 evaluated and deliberately not done, so we don't re-investigate.
 
 ### Investigated + parked (findings recorded so we don't re-investigate)
+- **PERF6 tail — antialias/preserveDrawingBuffer context-attr toggle: REJECTED, no recreate
+  (2026-07-11, real-GPU verified).** Both are hardcoded `true` in the Scene + RoomEditor Canvas
+  `gl` props; never plumbed into `QualitySettings` and never UI-exposed (the "…+ antialiasing"
+  toggle maps to `postprocessing`/SMAA, not the canvas attribute — no silent no-op bug exists).
+  Real-GPU probe (ANGLE D3D12 Intel UHD) confirms the context is created ONCE (attributes
+  identical across tiers → no runtime toggle without a context recreate/flash) and the default
+  framebuffer is 4× MSAA at every tier. On Performance/Medium that MSAA is the *sole* AA
+  (load-bearing); on High/Max the composer renders offscreen + SMAA so it's redundant — but
+  reclaiming it needs a recreate flash on the Medium↔High boundary for a saving that measured
+  UNDER the noise floor (`antialias:false` at Performance gave no FPS gain). `preserveDrawingBuffer`
+  stays (Record, already BLOCKED above). Revisit only if tier switches ever remount the Canvas
+  for another reason.
 - **P2 memoization audit — CLEAN, no changes (2026-07-11).** Render-count probes on the 13 hot
   scene components across orbit/drag/time-scrub: orbit = 0 React re-renders (camera pose flows
   through `cameras/cameraForward.ts` signals, not the store); a furniture drag re-renders ONLY the

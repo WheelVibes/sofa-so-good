@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.0.1 — PERF6 tail resolved: REJECTED on real-GPU evidence (no code change)
+
+The antialias/preserveDrawingBuffer "toggle needs a context recreate" tail is closed as
+won't-do: neither attribute was ever plumbed or UI-exposed (no dead knob, no no-op toggle — the
+"…+ antialiasing" Graphics toggle correctly maps to `postprocessing`/SMAA), the GL context is
+created once (a runtime toggle would force a visible recreate flash), the default framebuffer's
+4× MSAA is load-bearing on Performance/Medium (sole AA) and only redundant on High/Max where the
+saving measured below the noise floor, and `preserveDrawingBuffer` remains pinned by Record.
+Full ruling + revisit condition parked in TODO.md's perf section.
+
 ## v0.20.0.8 — P3 tail: rotation-capable instancing for venetian-blind + drying-rack slats
 
 `InstancedBoxes` gains per-instance `rotation` (matrix baked `T·R·S`, size innermost — exactly
