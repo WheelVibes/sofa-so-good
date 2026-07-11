@@ -2,8 +2,9 @@ name: Deploy to Cloudflare Pages
 
 # Builds the full-featured Cloudflare bundle (VITE_API_BASE=/api → accounts +
 # cloud sync) and deploys it to the `sofa-so-good` Pages project. Pushes to main
-# publish production (sofa-so-good.pages.dev); other branches get preview URLs.
-# The separate GitHub Pages workflow (deploy.yml) still ships the offline demo.
+# publish PRODUCTION (sofa-so-good.pages.dev); other branches get preview URLs.
+# The separate GitHub Pages workflow (deploy.yml) ships the offline demo from
+# the `staging` branch — GitHub Pages no longer deploys from main (2026-07-11).
 on:
   push:
     branches: [main]

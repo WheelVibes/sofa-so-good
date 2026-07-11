@@ -6,8 +6,9 @@ Vite build) plus a same-origin **Pages Function** API (Workers) bound to **D1**
 library), and **KV** (sessions, cache, kill-switch flags). It also ships a
 standalone **cron Worker** that acts as a cost circuit-breaker.
 
-The existing **GitHub Pages** deployment keeps working unchanged as a free,
-account-less, fully-offline demo — see [GitHub Pages coexistence](#github-pages-coexistence).
+The **GitHub Pages** deployment is the free, account-less, fully-offline demo,
+now published from the **`staging` branch** — see
+[GitHub Pages coexistence](#github-pages-coexistence).
 
 - [Architecture](#architecture)
 - [What you set up manually](#what-you-set-up-manually-one-time)
@@ -280,11 +281,17 @@ Multiple independent layers keep the bill at **$0**:
 
 ## GitHub Pages coexistence
 
-The GitHub Pages workflow is unchanged. Because the client gates all backend
-features on `VITE_API_BASE` (`hasBackend()`), a build without it (GitHub Pages)
-has **no cloud login, no cloud sync, and no shared-library browser** — it stays
-the existing local-only, offline PWA. The Cloudflare build (with `VITE_API_BASE`
-set) is the full-featured version.
+**Branch-flow change (2026-07-11): GitHub Pages is now the STAGING deployment.**
+`deploy.yml` publishes the **`staging` branch** (no longer `main`) — new features
+land there for testing at the Pages URL before graduating; `main` deploys to
+Cloudflare only (this doc). Feature branches PR into `staging`; only `staging`
+PRs into `main` (enforced by `.github/workflows/pr-flow-guard.yml`).
+
+Because the client gates all backend features on `VITE_API_BASE`
+(`hasBackend()`), a build without it (GitHub Pages) has **no cloud login, no
+cloud sync, and no shared-library browser** — it stays the local-only, offline
+PWA. The Cloudflare build (with `VITE_API_BASE` set) is the full-featured
+version.
 
 ## Local development against the API
 
