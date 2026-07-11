@@ -61,6 +61,17 @@ export const Icon = {
       <path d="M7 8v3M11 8v4M15 8v3M19 8v4" />
     </Svg>
   ),
+  /** Tape-measure reel + pulled-out tape with an end hook — the "Measure
+   *  distance" tape tool. Distinct from the ruler (`Measure`), which stays on
+   *  the Dimensions overlay toggle (TB-8: the two tools shared one icon). */
+  Tape: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <circle cx="9.5" cy="10.5" r="5.5" />
+      <circle cx="9.5" cy="10.5" r="1.8" />
+      <path d="M9.5 16H21" />
+      <path d="M21 16v3" />
+    </Svg>
+  ),
   Quality: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z" />
@@ -316,6 +327,19 @@ export const Icon = {
       <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
       <path d="M3 3v5h5" />
       <path d="M12 8v4l3 2" />
+    </Svg>
+  ),
+  /** Edit-history timeline — a clock face under a counter-clockwise "rewind
+   *  time" arc. Distinct from the toolbar Undo arrow (`Undo`, which the History
+   *  entry used to borrow — TB-10) and from the `Versions` rewind-circle (whose
+   *  arrow IS the circle, with tiny offset hands) so the two Review-cluster
+   *  entries read apart. */
+  History: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <circle cx="12" cy="13.5" r="6" />
+      <path d="M12 10.5v3l2.5 1.5" />
+      <path d="M4.5 8.5a8.5 8.5 0 0 1 15 0" />
+      <path d="M4.5 4.5v4h4" />
     </Svg>
   ),
   Lock: (p: SVGProps<SVGSVGElement>) => (

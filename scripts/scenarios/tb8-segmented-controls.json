@@ -1,0 +1,99 @@
+{
+  "name": "tb8-segmented-controls",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13) })()"
+    },
+    {
+      "name": "lights-seg-visible",
+      "waitFor": { "css": "[role=\"radiogroup\"][aria-label=\"Lights\"]" }
+    },
+    { "name": "shot-desktop-lights-seg", "screenshot": "desktop-lights-segmented" },
+    {
+      "name": "tap-lights-on",
+      "eval": "(() => { const g = document.querySelector('[role=\"radiogroup\"][aria-label=\"Lights\"]'); [...g.querySelectorAll('button')].find((b) => b.textContent.trim() === 'On').click() })()"
+    },
+    {
+      "name": "lights-on-committed",
+      "waitFor": { "store": "state.lightsMode === 'on'" }
+    },
+    { "name": "shot-desktop-lights-on", "screenshot": "desktop-lights-on" },
+
+    {
+      "name": "enter-room-editor",
+      "eval": "window.__store.getState().enterRoomEditor('livingDining')"
+    },
+    { "name": "in-editor", "waitFor": { "store": "state.roomEditor.active === true" } },
+    {
+      "name": "enable-snap",
+      "eval": "(() => { const s = window.__store.getState(); if (!s.snapEnabled) s.toggleSnap() })()"
+    },
+    {
+      "name": "grid-select-visible",
+      "waitFor": { "css": "[aria-label=\"Grid cell size\"]" }
+    },
+    { "name": "shot-desktop-grid-select", "screenshot": "desktop-grid-select" },
+    { "name": "open-grid-select", "click": "[aria-label=\"Grid cell size\"]" },
+    { "name": "grid-options-open", "waitFor": { "css": ".select-panel" } },
+    { "name": "shot-desktop-grid-open", "screenshot": "desktop-grid-select-open" },
+    { "name": "pick-10cm", "click": { "text": "10 cm" } },
+    { "name": "grid-committed", "waitFor": { "store": "state.gridSize === 0.1" } },
+    { "name": "shot-desktop-grid-picked", "screenshot": "desktop-grid-picked" },
+
+    { "name": "exit-editor", "eval": "window.__store.getState().exitRoomEditor()" },
+    { "name": "out-of-editor", "waitFor": { "store": "state.roomEditor.active === false" } },
+    {
+      "name": "go-pro",
+      "eval": "(() => { const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags?.() })()"
+    },
+    {
+      "name": "open-tools-menu",
+      "eval": "(() => { const b = [...document.querySelectorAll('button[aria-haspopup=\"menu\"]')].find((x) => /^\\s*Tools/.test(x.textContent)); b.click() })()"
+    },
+    { "name": "tools-menu-open", "waitFor": { "text": "Measure distance" } },
+    { "name": "shot-desktop-tools-tape-icon", "screenshot": "desktop-tools-menu-tape-icon" },
+    { "name": "close-tools-menu", "key": "Escape" },
+
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "mobile-toolbar", "waitFor": { "css": "[aria-label=\"Menu\"]" }, "timeout": 20000 },
+    { "name": "open-sheet", "click": "[aria-label=\"Menu\"]" },
+    { "name": "sheet-open", "waitFor": { "css": ".m-sheet" } },
+    { "name": "pick-scene-rail", "click": "[aria-label=\"Scene\"]" },
+    {
+      "name": "mobile-lights-seg",
+      "waitFor": { "css": ".m-detail [role=\"radiogroup\"][aria-label=\"Lights\"]" }
+    },
+    { "name": "shot-mobile-scene-lights", "screenshot": "mobile-scene-lights-segmented" },
+    {
+      "name": "tap-lights-off",
+      "eval": "(() => { const g = document.querySelector('.m-detail [role=\"radiogroup\"][aria-label=\"Lights\"]'); [...g.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Off').click() })()"
+    },
+    { "name": "lights-off-committed", "waitFor": { "store": "state.lightsMode === 'off'" } },
+
+    {
+      "name": "enter-editor-mobile",
+      "eval": "window.__store.getState().enterRoomEditor('livingDining')"
+    },
+    { "name": "in-editor-mobile", "waitFor": { "store": "state.roomEditor.active === true" } },
+    {
+      "name": "ensure-sheet-open",
+      "eval": "(() => { if (!document.querySelector('.m-sheet')) document.querySelector('[aria-label=\"Menu\"]').click() })()"
+    },
+    { "name": "sheet-open-2", "waitFor": { "css": ".m-sheet" } },
+    { "name": "pick-edit-rail", "click": "[aria-label=\"Edit\"]" },
+    {
+      "name": "mobile-grid-seg",
+      "waitFor": { "css": ".m-detail [role=\"radiogroup\"][aria-label=\"Grid size\"]" }
+    },
+    { "name": "shot-mobile-edit-grid", "screenshot": "mobile-edit-grid-segmented" },
+    {
+      "name": "tap-25cm",
+      "eval": "(() => { const g = document.querySelector('.m-detail [role=\"radiogroup\"][aria-label=\"Grid size\"]'); [...g.querySelectorAll('button')].find((b) => b.textContent.trim() === '25 cm').click() })()"
+    },
+    { "name": "grid-25-committed", "waitFor": { "store": "state.gridSize === 0.25" } },
+    { "name": "shot-mobile-grid-picked", "screenshot": "mobile-grid-picked" }
+  ]
+}

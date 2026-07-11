@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
 import { BrandDot } from '../../toolbar/BrandDot'
+import { Icon } from '../../toolbar/icons'
 import { PlanToolMenu } from './PlanToolMenu'
 import type { Tool } from './planConstants'
 
 /**
  * The 2D plan editor's header/toolbar row — mobile (short wrapping bar: View/Edit
- * + ☰ Menu + the mobile tool picker + undo/redo + Done) vs desktop (single row,
+ * + the hamburger menu + the mobile tool picker + undo/redo + Done) vs desktop (single row,
  * `flex-nowrap` + horizontal-scroll fallback so it never spills to two rows).
  * Extracted from `FloorPlanEditor` (REFAC-2) — purely a layout shell: every
  * control is either a primitive (`isMobile`/`tool`/…) or an already-built
@@ -77,17 +78,20 @@ export function PlanEditorHeader({
               surfaces read as the same app. */}
           <BrandDot size={20} />
           {viewToggle}
-          {/* The ☰ menu holds furniture/undo/grid/labels/export/etc., useful in
-              both modes — so show it always (the drawing-tool picker stays
-              Edit-only). */}
+          {/* The hamburger opens the Plan-tools sheet (templates/labels/export/
+              defaults/etc.), useful in both modes — so show it always (the
+              drawing-tool picker stays Edit-only). Icon trigger + classes match
+              the main mobile toolbar's menu button (TB-6-tail: one menu
+              affordance across modes). */}
           <button
             type="button"
-            className={`btn btn-sm${toolsMenuOpen ? ' btn-accent' : ''}`}
+            className={`tool-btn m-menu-btn${toolsMenuOpen ? ' active' : ''}`}
+            aria-label="Menu"
             aria-haspopup="dialog"
             aria-expanded={toolsMenuOpen}
             onClick={onOpenToolsMenu}
           >
-            ☰ Menu
+            <Icon.Menu />
           </button>
           {editMode === 'edit' && (
             <PlanToolMenu tools={toolList} tool={tool} label={toolLabel} onPick={onPickTool} />

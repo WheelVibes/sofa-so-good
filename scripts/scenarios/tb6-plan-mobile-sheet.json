@@ -1,0 +1,210 @@
+{
+  "name": "tb6-plan-mobile-sheet",
+  "url": "http://localhost:5231/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.() })()"
+    },
+    {
+      "name": "mobile-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "open-plan-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "plan-screen",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "assert-icon-trigger",
+      "eval": "(() => { const b = document.querySelector('.plan-header .m-menu-btn'); if (!b) throw new Error('no hamburger in plan header'); if (/Menu/.test(b.textContent)) throw new Error('trigger still shows text label'); })()"
+    },
+    {
+      "name": "shot-mobile-trigger",
+      "screenshot": "mobile-plan-trigger"
+    },
+    {
+      "name": "open-sheet",
+      "eval": "document.querySelector('.plan-header .m-menu-btn').click()"
+    },
+    {
+      "name": "sheet-open",
+      "waitFor": {
+        "css": ".plan-screen .m-sheet"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "shot-sheet-at-open",
+      "screenshot": "sheet-plan-at-open"
+    },
+    {
+      "name": "settle",
+      "wait": 400
+    },
+    {
+      "name": "shot-sheet-plan",
+      "screenshot": "sheet-plan-section"
+    },
+    {
+      "name": "assert-no-edit-tab-in-view-mode",
+      "eval": "(() => { if (document.querySelector('.plan-screen .m-rail [aria-label=\"Edit\"]')) throw new Error('Edit tab should be hidden in View mode'); })()"
+    },
+    {
+      "name": "pick-view-section",
+      "eval": "document.querySelector('.plan-screen .m-rail [aria-label=\"View\"]').click()"
+    },
+    {
+      "name": "shot-sheet-view",
+      "screenshot": "sheet-view-section"
+    },
+    {
+      "name": "pick-defaults-section",
+      "eval": "document.querySelector('.plan-screen .m-rail [aria-label=\"Defaults\"]').click()"
+    },
+    {
+      "name": "shot-sheet-defaults",
+      "screenshot": "sheet-defaults-section"
+    },
+    {
+      "name": "escape-closes",
+      "key": "Escape"
+    },
+    {
+      "name": "sheet-closed",
+      "waitFor": {
+        "css": ".plan-screen .m-sheet",
+        "visible": false
+      }
+    },
+    {
+      "name": "enter-edit-mode",
+      "eval": "(() => { const b = [...document.querySelectorAll('.plan-header .seg button')].find((x) => x.textContent.trim() === 'Edit'); if (!b) throw new Error('no Edit toggle'); b.click() })()"
+    },
+    {
+      "name": "reopen-sheet",
+      "eval": "document.querySelector('.plan-header .m-menu-btn').click()"
+    },
+    {
+      "name": "sheet-open-2",
+      "waitFor": {
+        "css": ".plan-screen .m-sheet"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "pick-edit-section",
+      "eval": "(() => { const t = document.querySelector('.plan-screen .m-rail [aria-label=\"Edit\"]'); if (!t) throw new Error('Edit tab missing in Edit mode'); t.click() })()"
+    },
+    {
+      "name": "shot-sheet-edit",
+      "screenshot": "sheet-edit-section"
+    },
+    {
+      "name": "close-sheet-2",
+      "key": "Escape"
+    },
+    {
+      "name": "sheet-closed-2",
+      "waitFor": {
+        "css": ".plan-screen .m-sheet",
+        "visible": false
+      }
+    },
+    {
+      "name": "exit-plan-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          false
+        ]
+      }
+    },
+    {
+      "name": "settle-plan-exit-crossfade",
+      "eval": "window.__store.getState().hideLoading?.()"
+    },
+    {
+      "name": "wait-crossfade",
+      "wait": 700
+    },
+    {
+      "name": "main-sheet-regression-open",
+      "eval": "document.querySelector('.toolbar.mobilebar .m-menu-btn').click()"
+    },
+    {
+      "name": "main-sheet-open",
+      "waitFor": {
+        "css": ".m-sheet"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "shot-main-sheet",
+      "screenshot": "main-sheet-regression"
+    },
+    {
+      "name": "close-main-sheet",
+      "key": "Escape"
+    },
+    {
+      "name": "main-sheet-closed",
+      "waitFor": {
+        "css": ".m-sheet",
+        "visible": false
+      }
+    },
+    {
+      "name": "desktop-viewport",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "name": "reopen-plan-desktop",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "plan-screen-desktop",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "assert-desktop-unchanged",
+      "eval": "(() => { if (document.querySelector('.plan-header .m-menu-btn')) throw new Error('hamburger leaked into desktop plan header'); if (document.querySelector('.m-sheet')) throw new Error('sheet open on desktop'); })()"
+    },
+    {
+      "name": "shot-desktop-header",
+      "screenshot": "desktop-plan-header"
+    }
+  ]
+}

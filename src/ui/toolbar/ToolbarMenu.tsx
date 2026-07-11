@@ -89,6 +89,18 @@ export function ToolbarMenu({
   )
 }
 
+/** THE section-header idiom for menus (TB-9): an uppercase group label on the
+ *  `.menu-label` token class (sticky inside a scrollable `.pop-panel`, see
+ *  `app.css`), or its mobile-sheet density twin `.m-sec-h` when `sheet` is set
+ *  (consumed via the mobile `SubHeader` wrapper in `mobile/parts.tsx`). Every
+ *  desktop menu / mobile section header renders through this — never hand-roll
+ *  another uppercase header div. (`SceneMenu`'s `.scene-row-head` is NOT a
+ *  section label — it's a header ROW that can carry a live trailing control,
+ *  e.g. the System-time button — and stays its own primitive.) */
+export function MenuLabel({ children, sheet }: { children: ReactNode; sheet?: boolean }) {
+  return <div className={sheet ? 'm-sec-h' : 'menu-label'}>{children}</div>
+}
+
 /** A single row inside a ToolbarMenu: icon + label + optional description.
  *  `ariaLabel` overrides the accessible name (used so the product tour can
  *  spotlight a specific menu item, e.g. "Edit a room"). */

@@ -6,7 +6,7 @@ import { enterVr, getXrStore } from '../../../scene/xr/xrStore'
 import { useStore } from '../../../state/store'
 import { formatLength } from '../../../utils/measurement'
 import { shortcutLabel } from '../shortcuts'
-import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
+import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
 import { SavedViewsSection } from './SavedViewsSection'
 
 /** Combined camera + view cluster. The single entry point for *how you look* at
@@ -24,6 +24,8 @@ export function ViewMenu() {
   const toggleAutoRotate = useStore((s) => s.toggleAutoRotate)
   const verticalLock = useStore((s) => s.verticalLock)
   const toggleVerticalLock = useStore((s) => s.toggleVerticalLock)
+  const parallelProjection = useStore((s) => s.parallelProjection)
+  const toggleParallelProjection = useStore((s) => s.toggleParallelProjection)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
@@ -32,6 +34,7 @@ export function ViewMenu() {
   const savedViews = useFeature('savedViews')
   const fVr = useFeature('vrWalkthrough')
   const fTwoPointPerspective = useFeature('twoPointPerspective')
+  const fParallelProjection = useFeature('parallelProjection')
   const [vrSupported, setVrSupported] = useState(false)
   useEffect(() => {
     if (!fVr) return
@@ -56,9 +59,7 @@ export function ViewMenu() {
 
   return (
     <ToolbarMenu icon={isOrbit ? 'Orbit' : 'Walk'} label="View" active={autoRotate} width={244}>
-      <div className="px-2 pb-0.5 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">
-        Camera
-      </div>
+      <MenuLabel>Camera</MenuLabel>
       <MenuItem
         icon="Orbit"
         label="Orbit"
@@ -88,10 +89,7 @@ export function ViewMenu() {
       ) : null}
       {isMultiLevel(plan) ? (
         <>
-          <div className="my-1 border-t border-[var(--border)]" />
-          <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">
-            Levels
-          </div>
+          <MenuLabel>Levels</MenuLabel>
           <MenuItem
             icon="TopView"
             label="All levels"
@@ -120,10 +118,7 @@ export function ViewMenu() {
       ) : null}
       {overview ? (
         <>
-          <div className="my-1 border-t border-[var(--border)]" />
-          <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">
-            Framing
-          </div>
+          <MenuLabel>Framing</MenuLabel>
           <MenuItem
             icon="TopView"
             label="Top view"
@@ -152,6 +147,15 @@ export function ViewMenu() {
               sub="Keep wall corners parallel instead of converging"
               active={verticalLock}
               onClick={toggleVerticalLock}
+            />
+          ) : null}
+          {fParallelProjection ? (
+            <MenuItem
+              icon="Cube"
+              label="Parallel projection"
+              sub="Orthographic dollhouse — no perspective foreshortening"
+              active={parallelProjection}
+              onClick={toggleParallelProjection}
             />
           ) : null}
           {proMode && savedViews ? <SavedViewsSection /> : null}

@@ -7,17 +7,27 @@ import { storage } from '../../../state/storage/adapter'
 import type { SlotMeta } from '../../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
+import { resolveToolLabel, toolAction } from '../../actions/toolActions'
+import { downloadBoqXlsx } from '../../downloadBoqXlsx'
+import { openBoq } from '../../openBoq'
 import { downloadCostBreakdownCsv } from '../../openCostBreakdownCsv'
 import { downloadFfeCsv } from '../../openFfeCsv'
 import { downloadFurnitureCsv } from '../../openFurnitureCsv'
+import { downloadPlanSvg } from '../../openPlanSvg'
+import { downloadRenoIcs } from '../../openRenoIcs'
+import { openDesignReport } from '../../openReport'
 import { downloadRoomScheduleCsv } from '../../openRoomScheduleCsv'
 import { exportScene3d } from '../../openSceneExport'
 import { openSh3dImport } from '../../openSh3dImport'
 import { openShoppingList } from '../../openShoplist'
 import { Icon } from '../icons'
-import { Item, Section } from './parts'
+import { Item, Section, SubHeader } from './parts'
 
-/** File — save / export / import / reset, plus the saved-layout list. */
+/** File — every OUTPUT lives here (TB-5, mirrors the desktop FileMenu): save /
+ *  capture, share & document (rows that used to sit in the Tools section's
+ *  "Export & document" group), the "Budget & costs" cluster (budget panel +
+ *  all its cost exports under one entry), CAD/3D/CSV data exports, import /
+ *  reset, and the saved-layout list. */
 export function FileSection({
   activeId,
   act,
@@ -31,6 +41,7 @@ export function FileSection({
 }) {
   const s = useStore
   const recording = useStore((st) => st.recording)
+  const budgetOpen = useStore((st) => st.budgetOpen)
 
   const fPanorama = useFeature('panorama')
   const fPanoTour = useFeature('panoTour')
@@ -38,7 +49,13 @@ export function FileSection({
   const fRenderCompare = useFeature('renderCompare')
   const fStagingReveal = useFeature('stagingReveal')
   const fTimeCompare = useFeature('timeCompare')
+  const fShare = useFeature('shareExport')
+  const fReport = useFeature('report')
+  const fBudget = useFeature('budget')
   const fShopExport = useFeature('shopExport')
+  const fBoq = useFeature('boq')
+  const fQuoteTemplate = useFeature('quoteTemplate')
+  const fDxf = useFeature('dxfExport')
   const fSceneExport = useFeature('sceneExport3d')
   const fImportSh3d = useFeature('importSh3d')
 
@@ -82,8 +99,13 @@ export function FileSection({
     refreshSlots()
   }
 
+  // Budget renders from the shared tool-action registry (same behaviour +
+  // active state as ⌘K / the desktop File menu's "Budget & costs" row, TB-5).
+  const budget = toolAction('budget')
+
   return (
     <Section id="file" title="File" icon="Save" activeId={activeId}>
+      <SubHeader>Save &amp; capture</SubHeader>
       <Item icon="Save" label="Save…" sub="Store the current layout" onClick={act(saveLayout)} />
       <Item
         icon="Export"
@@ -142,6 +164,53 @@ export function FileSection({
           onClick={act(() => s.getState().setTimeCompareOpen(true))}
         />
       ) : null}
+      {canRecord() ? (
+        <Item
+          icon="Record"
+          label={recording ? 'Stop recording' : 'Record clip'}
+          on={recording}
+          onClick={act(() => s.getState().setRecording(!recording), { keep: true })}
+        />
+      ) : null}
+
+      {fShare || fReport ? <SubHeader>Share &amp; document</SubHeader> : null}
+      {fShare ? (
+        <Item
+          icon="Share"
+          label="Share & export"
+          docs="shareExport"
+          onClick={act(() => s.getState().setShareOpen(true))}
+        />
+      ) : null}
+      {fReport ? (
+        <Item
+          icon="Report"
+          label="Report"
+          sub="Printable design report"
+          docs="report"
+          onClick={act(() => openDesignReport())}
+        />
+      ) : null}
+      {fReport ? (
+        <Item
+          icon="Export"
+          label="Reno timeline (.ics)"
+          sub="Renovation phases as calendar events"
+          onClick={act(() => void downloadRenoIcs())}
+        />
+      ) : null}
+
+      {fBudget || fShopExport || fBoq ? <SubHeader>Budget &amp; costs</SubHeader> : null}
+      {fBudget ? (
+        <Item
+          icon={budget.icon}
+          label={resolveToolLabel(budget, s.getState())}
+          sub={budget.sub}
+          on={budgetOpen}
+          docs={budget.docs}
+          onClick={act(() => budget.run(s))}
+        />
+      ) : null}
       {fShopExport ? (
         <Item
           icon="Budget"
@@ -151,29 +220,29 @@ export function FileSection({
           onClick={act(() => openShoppingList())}
         />
       ) : null}
-      {fShopExport ? (
-        <Item
-          icon="Export"
-          label="Furniture list (CSV)"
-          sub="Spreadsheet of every item — dims, qty, prices"
-          onClick={act(() => void downloadFurnitureCsv())}
-        />
-      ) : null}
-      {fShopExport ? (
-        <Item
-          icon="Export"
-          label="Room schedule (CSV)"
-          sub="Per-room area, perimeter, finishes & ceiling"
-          onClick={act(() => void downloadRoomScheduleCsv())}
-        />
-      ) : null}
-      {fShopExport ? (
-        <Item
-          icon="Export"
-          label="FF&E schedule (CSV)"
-          sub="Item-by-item schedule — source, SKU, size, qty, price"
-          onClick={act(() => void downloadFfeCsv())}
-        />
+      {fBoq ? (
+        <>
+          <Item
+            icon="Budget"
+            label="Quote (BOQ)"
+            sub="Bill of quantities — FF&E, finishes, carpentry"
+            onClick={act(() => openBoq())}
+          />
+          <Item
+            icon="Export"
+            label="Quote → Excel (.xlsx)"
+            sub="Download the bill of quantities as a spreadsheet"
+            onClick={act(() => void downloadBoqXlsx())}
+          />
+          {fQuoteTemplate ? (
+            <Item
+              icon="Budget"
+              label="Quote template"
+              sub="Company branding, notes, GST & markup"
+              onClick={act(() => s.getState().setQuoteTemplateOpen(true))}
+            />
+          ) : null}
+        </>
       ) : null}
       {fShopExport ? (
         <Item
@@ -181,6 +250,16 @@ export function FileSection({
           label="Cost breakdown (CSV)"
           sub="Furniture + finishes + renovation, with a grand total"
           onClick={act(() => void downloadCostBreakdownCsv())}
+        />
+      ) : null}
+
+      {fDxf || fSceneExport || fShopExport ? <SubHeader>CAD, 3D &amp; data</SubHeader> : null}
+      {fDxf ? (
+        <Item
+          icon="Export"
+          label="Export SVG (plan)"
+          sub="Vector 2D plan for any editor / print"
+          onClick={act(() => void downloadPlanSvg())}
         />
       ) : null}
       {fSceneExport ? (
@@ -191,14 +270,30 @@ export function FileSection({
           onClick={act(() => void exportScene3d('glb'))}
         />
       ) : null}
-      {canRecord() ? (
-        <Item
-          icon="Record"
-          label={recording ? 'Stop recording' : 'Record clip'}
-          on={recording}
-          onClick={act(() => s.getState().setRecording(!recording), { keep: true })}
-        />
+      {fShopExport ? (
+        <>
+          <Item
+            icon="Export"
+            label="Furniture list (CSV)"
+            sub="Spreadsheet of every item — dims, qty, prices"
+            onClick={act(() => void downloadFurnitureCsv())}
+          />
+          <Item
+            icon="Export"
+            label="Room schedule (CSV)"
+            sub="Per-room area, perimeter, finishes & ceiling"
+            onClick={act(() => void downloadRoomScheduleCsv())}
+          />
+          <Item
+            icon="Export"
+            label="FF&E schedule (CSV)"
+            sub="Item-by-item schedule — source, SKU, size, qty, price"
+            onClick={act(() => void downloadFfeCsv())}
+          />
+        </>
       ) : null}
+
+      <SubHeader>Load &amp; reset</SubHeader>
       {fImportSh3d ? (
         <Item
           icon="FloorPlan"

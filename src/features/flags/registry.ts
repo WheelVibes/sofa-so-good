@@ -1325,6 +1325,22 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Parallel-projection / orthographic "dollhouse" view (R3-FEAT-3): swaps the
+  // whole-flat orbit camera between a perspective and an orthographic
+  // (isometric-style) projection so parallel building lines stay parallel and
+  // there is no foreshortening — the SketchUp / Sweet Home 3D / Planner 5D
+  // "Parallel projection" toggle (REFERENCES.md). The camera swap
+  // (`scene/cameras/OrbitCamera.tsx` + the pure `orthoProjection.ts` scale
+  // bridge) preserves the live viewpoint on toggle, and OrbitControls drives the
+  // ortho `zoom` so pinch/wheel zoom still work. Pure client-side camera math, no
+  // external assets → prod-safe. A pro-tier viewing lever beyond the core loop
+  // (hidden in Simple mode automatically).
+  parallelProjection: {
+    label: 'Parallel projection',
+    description: 'Orthographic (isometric) dollhouse view — parallel lines stay parallel',
+    default: true,
+    tier: 'pro',
+  },
   // Drag-to-resize the docked catalog rail on desktop/wide screens (a col-resize
   // handle on its right edge; width persisted per-device). A core-loop UX
   // convenience available to everyone → simple tier. Mobile keeps the bottom

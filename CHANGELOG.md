@@ -5,6 +5,123 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.20.0.8 — P3 tail: rotation-capable instancing for venetian-blind + drying-rack slats
+
+`InstancedBoxes` gains per-instance `rotation` (matrix baked `T·R·S`, size innermost — exactly
+equivalent to a rotated mesh) plus a sibling `InstancedCylinders`; pure `slatLayout.ts` computes
+the venetian slat transforms (`venetianSlatInstances`, tilt parameterised + unit-tested 0→π/2)
+and all 11 drying-rack rods (`dryingRackCylinders`). The venetian branch of `RollerBlind` and the
+whole `DryingRack` metalwork now render as ONE instanced mesh each: draw calls 158 → 128 (−19%
+with one blind + one rack; scales linearly), 32 meshes collapsed to 2. Visual parity verified:
+venetian closed/half/open **byte-identical** (AE=0, group-scale raise/lower intact); rack crops
+visually identical (only sub-pixel AA on the 8 mm rods from unifying bar tessellation at 8
+segments; foot rails now cast shadows — more correct). 15 new unit tests; guard scenario
+`venetian-rack-instancing.json`; stale "slats are non-instanced" note fixed in furniture CLAUDE.
+
+## v0.20.0.7 — P2 memoization audit: CLEAN verdict, findings recorded (no code change)
+
+Evidence-first audit of the hot R3F components/selectors with temporary render-count probes
+(13 suspect components, driven per-interaction on the harness): camera orbit causes ZERO React
+re-renders (pose flows through module-level signals), a furniture drag re-renders only the moved
+instance (the `Furniture` memo + reference-stable `useCatalog` def hold), a time-of-day scrub
+touches only the 4 sun-dependent components, and the selector sweep found no unstable-object
+selectors on hot paths. No fixes warranted — speculative memoization would add overhead for
+nothing. Verdict + load-bearing details parked in TODO.md's perf section; P2 removed from
+TASKS.md. All probes removed (tree byte-identical).
+
+## v0.20.0.6 — R3-FEAT-3: parallel-projection (orthographic) dollhouse toggle
+
+New pro-tier `parallelProjection` flag: "Parallel projection" in View → Framing (desktop +
+mobile) + a ⌘K "Go to" command, matching SketchUp/Sweet Home 3D. Implementation swaps the default
+camera (drei `<OrthographicCamera makeDefault>`, whole-flat overview only — the room editor stays
+perspective); a swap-continuity layout effect restores the OrbitControls pivot + pose before the
+first update (measured viewpoint delta 0.0 — no jump), with on-screen scale preserved via the
+pure `orthoProjection.ts` perspective-distance ↔ ortho-zoom bridge (exact inverses,
+unit-tested). Every nonce fly (top/reset/focus/frame) sets ortho zoom too; vertical-lock cleanly
+no-ops in ortho. State persisted per-device (`qualityPrefs`, like verticalLock). GPU-verified
+(10-frame scenario `parallel-projection.json`, all reviewed): same-viewpoint toggle shows truly
+parallel wall edges; raycast picking works in ortho (selected a desk); wheel zoom drives
+`.zoom` with no clipping; top view becomes a true orthographic plan with clean shadows/AO;
+toggle-back restores perspective. Both-modes flag tests desktop + mobile. Also rides here:
+TB-10's mobile ViewSection drift fixes ("Walk", Reset/TopView glyphs — file shared).
+
+## v0.20.0.5 — TB-10-tail: naming/icon drift, SliderField migration, breakpoint token, History icon
+
+Closes the toolbar UX program. Drift alignments (mobile → desktop canonical): "Walk through" →
+"Walk", mobile Reset-view gets the `Reset` glyph, Levels rows `Orbit` → `TopView`, "Graphics — " →
+"Graphics · " (the P3-18 separator convention). GraphicsSettings' three raw range inputs
+(Exposure, Night light fixtures, Resolution scale) migrate to the shared `SliderField`.
+Wall-reveal double naming settled on **"Wall fade"** (Graphics toggle renamed; the "Reveal walls"
+scope Select is a different concept and stays). New `src/ui/breakpoints.ts` exports
+`MOBILE_MAX_WIDTH`/`MOBILE_MEDIA_QUERY` — JS consumers (`useIsMobile`, `App.tsx`) consolidated;
+CSS media-query literals can't read a token without a new PostCSS plugin (out of scope for P3),
+so they carry comments linking back to the token. History gets its own `Icon.History`
+(clock + rewind arc, regression-tested) instead of reusing `Undo`. Screenshots reviewed
+(Graphics panel, Tools menu History vs Versions, View desktop+mobile pair).
+
+## v0.20.0.4 — TB-9-tail: one menu-header primitive, Arrange on shared MenuItem/EmptyState, roving tablists
+
+New `MenuLabel` primitive (`ToolbarMenu.tsx` — `.menu-label`, or `.m-sec-h` via `sheet`) now
+renders every desktop menu header (File ×6, Tools ×2, View's 3 hand-rolled Tailwind headers,
+Arrange's bespoke `Header`) and backs the mobile `SubHeader`; SceneMenu's `.scene-row-head`
+deliberately excluded (a header ROW carrying live controls — documented). Arrange's hand-rolled
+rows migrate to shared `MenuItem` (+ `EmptyState` for the no-sets/no-styles cases, redundant
+inner scroll wrapper dropped; labels/behaviour identical). Tablists get the WAI-ARIA roving
+pattern via `useRovingTabs` (shipped v0.20.0.3): the mobile sheet's rail and FinishPicker's
+surface tabs — and the integration test caught a REAL pre-existing bug: MobileSheet's focus-move
+effect was keyed on the `onClose` closure, re-running on every render and stealing focus
+mid-session (now a latest-ref, keyed on `open`). Structural test pins all four menus to
+`.menu-label` with zero hand-rolls. Targeted suites incl. TB-5 grouping tests all green
+(52+63+47); screenshots reviewed (File/Tools pixel-identical; View/Arrange consistent; mobile
+unchanged). Follow-up noted: `ScalePlanModal`'s pseudo-tablist (aria-pressed, no tab roles).
+
+## v0.20.0.3 — TB-6-tail: plan editor's mobile menu joins the icon-rail sheet paradigm
+
+The main mobile toolbar's sheet is extracted into a shared shell, `mobile/MobileSheet.tsx`
+(overlay, grab-pill swipe dismiss, brand+title head, icon master rail with WAI-ARIA roving tabs
+via the new `controls/useRovingTabs` hook, detail pane, footer; owns the a11y contract —
+`useModalGuard`, Escape, focus-trap, focus-in/restore). `MobileToolbar` re-renders through it
+(behaviour-preserving), and the plan editor's bespoke centered "Plan tools" modal is rewritten on
+the same shell: rail sections Plan (name/templates/file) · View (Overlays & export, Grid & zoom) ·
+Edit (conditional, as before) · Defaults (+ Help); the text "☰ Menu" trigger becomes the same
+icon hamburger as the main bar (44px hit area). Every action stays reachable, flag gates
+untouched (fragments arrive pre-gated from FloorPlanEditor), desktop plan editor asserted
+unchanged. 39-step scenario `tb6-plan-mobile-sheet.json` + 7 new PlanToolsSheet tests + 7
+useRovingTabs tests; screenshots reviewed (plan sheet sections, main-sheet regression, desktop
+header). Paradigm rule recorded in `floorplan/editor/CLAUDE.md`.
+
+## v0.20.0.2 — TB-5: File owns output — Tools' "Export & document" grab-bag merged into File
+
+Figma-grounded IA fix from the toolbar audit: the ~17-row "Export & document" section leaves
+Tools; **File** is reorganised into **Save & capture · Share & document · Budget & costs ·
+CAD, 3D & data · Load & reset · App**, and **Tools** keeps analysis panels/modes only
+(**Analyse** — registry rows + Sheet callouts · **Review & tour** — + Sun study · **Style** —
+Style quiz/transfer). The four scattered cost surfaces now sit together under File → **Budget &
+costs**: Budget panel (registry-rendered via `toolAction('budget')`, kbd `B`, palette-only
+surfaces so ⌘K keeps it), Shopping list, Quote (BOQ) + Excel + template, Cost breakdown (CSV).
+`DrawingLayersPicker` moved with the Drawing set. Mobile File/Tools sections mirror the same
+grouping (mobile gains Quote/Budget rows it never had). No command lost; every row keeps its
+`useFeature` gate (cost flags default off — nothing new exposed in prod). New grouping tests for
+FileMenu/ToolsMenu/mobile FileSection assert BOTH Simple and Pro; user docs + ARCHITECTURE
+updated to the new menu paths. Before/after screenshots reviewed (desktop File/Tools, mobile
+sheet): the 72vh Tools overflow is gone, sections render with clean headers.
+
+## v0.20.0.1 — TB-8-tail: segmented controls replace 3+-state cycle-buttons + distinct tape icon
+
+New reusable `controls/Segmented` (renders the existing `.seg` token classes; radiogroup semantics,
+roving tabindex — arrow keys/Home/End move AND select, wrap, skip disabled; `accent`/`fit`
+variants; no hardcoded colours). Replaced: desktop toolbar Lights 3-state cycle → inline
+Auto|On|Off segmented (`.tool-seg`); desktop grid-size 6-state cycle → compact `Select`
+(`.tool-select` — 6 segments would crowd the icon island; matches the plan editor's grid Select);
+mobile Scene Lights row → full-width segmented; mobile Edit grid row → 6-segment `fit` segmented
+(all one row at 390px, ≥44px targets via `.m-detail .seg`). Ceiling fixtures + Motion stay plain
+toggles (2-state — fine per the audit grounding). Shared `toolbar/gridSizeLabel.ts:formatGridSize`
+also fixes 0.025 m rendering as "3 cm" (now "2.5 cm"). The measure tool gets its own `Icon.Tape`
+(reel + pulled tape) — the ruler glyph stays on the Dimensions toggle, ending the shared-icon
+confusion. Rule recorded in `src/ui/CLAUDE.md` (no new cycle-buttons); scenario
+`tb8-segmented-controls.json` (44 steps); targeted suites 46 green; screenshots reviewed
+(desktop toolbar/select popover/tools menu, mobile scene+edit sheets — no overflow).
+
 ## v0.19.0.5 — PHOTO-DENOISE: OIDN AI denoise of the HQ path-traced still
 
 The HQ still's edge-blur is now followed by a real OIDN U-Net denoise when accumulation completes

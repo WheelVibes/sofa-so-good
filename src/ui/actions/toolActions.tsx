@@ -16,6 +16,13 @@
  * sub-controls) and the local-state Sun-study toggle stay hand-rendered — they
  * diverge per surface and aren't store-backed — so they're intentionally not in
  * this registry yet.
+ *
+ * TB-5 (toolbar UX audit P1-6): the Budget action no longer renders in the
+ * Tools menu/sheet — it anchors the "Budget & costs" group in the FILE menu
+ * (desktop `menus/FileMenu` + mobile `mobile/FileSection`, via `toolAction`)
+ * so all four cost surfaces (Budget panel, Shopping list, Quote/BOQ, Cost
+ * breakdown) live under one entry. Its `surfaces` list therefore carries only
+ * `'palette'` (⌘K keeps working unchanged).
  */
 
 import type { KeybindingId } from '../../controls/keybindings'
@@ -95,7 +102,9 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     flag: 'budget',
     docs: 'budget',
     kbd: 'toggleBudget',
-    surfaces: ['desktop', 'mobile', 'palette'],
+    // Not 'desktop'/'mobile': the File menus render this row manually inside
+    // their "Budget & costs" group (TB-5) — see the header scope note.
+    surfaces: ['palette'],
     isActive: (s) => s.budgetOpen,
     run: auxToggle(
       (s) => s.budgetOpen,
@@ -186,10 +195,11 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     id: 'measure',
     // 'Measure distance' (not plain 'Measure') — the toolbar's 'Dimensions'
     // overlay toggle used to be called 'Measurements', and the two near-identical
-    // names shared one icon (TB-8 in the toolbar UX audit).
+    // names shared one icon (TB-8 in the toolbar UX audit). The tape tool now
+    // carries its own tape-measure glyph; the ruler stays on Dimensions.
     label: (s) => (s.tapeMode ? 'Measuring…' : 'Measure distance'),
     sub: 'Tap two points for a distance',
-    icon: 'Measure',
+    icon: 'Tape',
     category: 'analyze',
     flag: 'measure',
     docs: 'measure',
@@ -222,7 +232,9 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     label: 'History',
     paletteLabel: 'Edit history — jump to any step',
     sub: 'Timeline of edits — jump to any step',
-    icon: 'Undo',
+    // TB-10: was 'Undo' — collided with the toolbar Undo button. Its own
+    // clock-with-rewind-arrow glyph now, distinct from Versions' rewind-circle.
+    icon: 'History',
     category: 'review',
     flag: 'history',
     docs: 'history',
@@ -273,6 +285,15 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     },
   },
 ]
+
+/** Look up a single registry action by id — for surfaces that render a registry
+ *  action OUTSIDE the grouped Tools projection (the File menus' "Budget & costs"
+ *  row, TB-5). Throws on a bad id so a typo fails loudly in tests. */
+export function toolAction(id: string): ToolAction {
+  const a = TOOL_ACTIONS.find((x) => x.id === id)
+  if (!a) throw new Error(`Unknown tool action: ${id}`)
+  return a
+}
 
 /** All actions that render on a given surface (independent of feature flags). */
 export function toolActionsForSurface(surface: ToolSurface): ToolAction[] {

@@ -347,18 +347,20 @@ on both desktop and mobile. The scale bar's length and label update live as you
 zoom, so you always have a real‑world reference for the current view. On a phone the
 expanded Properties panel may cover them.
 
-## On a phone: the Tools menu
+## On a phone: the Plan tools menu
 
-On a small screen the toolbar fits one row: **View / Edit**, a **☰ Menu** button,
-a **tool button** (shows the current tool, e.g. *Wall ▾*) that opens a grid of
-all the drawing tools to tap, **undo / redo** (↶ ↷), and **Done**. Tap **☰ Menu**
-to open the
-**Plan tools** sheet, organised into tidy sections so it isn't a wall of buttons:
-**Plan** (name, templates, New / Reset / Reference photo), **View**
-(labels, dimensions, furniture, all-levels, Export PNG, undo/redo, grid, zoom),
+On a small screen the toolbar fits one row: **View / Edit**, a **☰ menu**
+button (the same hamburger icon as the main app's mobile menu), a **tool
+button** (shows the current tool, e.g. *Wall ▾*) that opens a grid of all the
+drawing tools to tap, **undo / redo** (↶ ↷), and **Done**. Tap the **☰ menu**
+to open the **Plan tools** sheet — the same icon-rail sheet as the main mobile
+menu: tap an icon on the left rail to show that section's controls. The
+sections are **Plan** (name, templates, New / Reset / Reference photo),
+**View** (labels, dimensions, furniture, all-levels, Export PNG, grid, zoom),
 **Edit** (wall thickness and multi-select, when you're using those), and
-**Defaults** (Ceiling height, Wall colour, area total) — plus a **Help → user
-guide** link.
+**Defaults** (Ceiling height, Wall colour, area total, plus a **Help → user
+guide** link). Swipe up on the grab pill, tap outside, or press Escape to
+close it.
 
 ## Properties panel
 
@@ -372,8 +374,8 @@ title bar, so you can lock or remove it without expanding the panel.
 
 ## Export the plan as an image
 
-**Export PNG** (under the header's **View ▾** menu on desktop, or the **☰ Menu**
-on a phone) downloads the floor plan as a PNG image — walls, rooms, areas and
+**Export PNG** (under the header's **View ▾** menu on desktop, or the **☰ menu**'s
+**View** section on a phone) downloads the floor plan as a PNG image — walls, rooms, areas and
 dimension labels — to share with a client, drop into a document, or print. (The
 reference trace photo isn't included; it's just the clean plan.)
 

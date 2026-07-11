@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import { FOCUSABLE_SELECTOR, trapTabKey } from '../../controls/focusTrap'
-import { useModalGuard } from '../../controls/modalGuard'
+import { useEffect, useState } from 'react'
 import { hasBackend } from '../../features/api/client'
 import { useFeature } from '../../features/useFeature'
 import { useSunStudy } from '../../scene/sunStudy'
@@ -10,32 +8,25 @@ import { storage } from '../../state/storage/adapter'
 import type { SlotMeta } from '../../state/storage/StorageAdapter'
 import { useStore } from '../../state/store'
 import { GraphicsSettings } from '../GraphicsSettings'
-import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
 import { AppearanceControls } from './AppearancePopover'
 import { BrandDot } from './BrandDot'
 import { CompassModal } from './CompassModal'
-import { Icon, type IconName } from './icons'
+import { Icon } from './icons'
 import { AppearanceSection } from './mobile/AppearanceSection'
 import { ArrangeSection } from './mobile/ArrangeSection'
 import { DesignSection } from './mobile/DesignSection'
 import { EditHomeSection } from './mobile/EditHomeSection'
 import { EditSection } from './mobile/EditSection'
 import { FileSection } from './mobile/FileSection'
+import { MobileSheet, type SheetRailItem } from './mobile/MobileSheet'
 import { SceneSection } from './mobile/SceneSection'
 import { ToolsSection } from './mobile/ToolsSection'
 import { ViewSection } from './mobile/ViewSection'
 import { RoomSwitcher } from './RoomSwitcher'
 
-/** Min upward travel (px) for a grab-pill swipe to dismiss the menu sheet
- *  (TB-3) — matches the inspector's `SWIPE_PX` threshold feel. */
-const SHEET_SWIPE_PX = 36
-
 export function MobileToolbar() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const sheetRef = useRef<HTMLDivElement>(null)
-  // Touch-start Y of a grab-pill swipe (TB-3: swipe up on the pill closes).
-  const sheetSwipeY = useRef<number | null>(null)
   const [activeId, setActiveId] = useState<string>('view')
   const [graphicsOpen, setGraphicsOpen] = useState(false)
   const [compassOpen, setCompassOpen] = useState(false)
@@ -76,33 +67,6 @@ export function MobileToolbar() {
 
   const close = () => setMenuOpen(false)
 
-  // Suppress app-wide hotkeys while the sheet is open + close it on Escape, so
-  // the mobile menu matches every other overlay (A11Y — it previously had
-  // neither, the lone overlay without an Escape handler).
-  useModalGuard(menuOpen)
-  useEffect(() => {
-    if (!menuOpen) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation()
-        setMenuOpen(false)
-        return
-      }
-      // Tab focus-trap (TB-9 / the long-open a11y TODO): the sheet overlays the
-      // whole app, so Tab must cycle within it — same shared helper Modal and
-      // ToolbarMenu use. Keyboard-on-touch is rare but the sheet also renders
-      // on narrow desktop windows.
-      if (e.key === 'Tab' && sheetRef.current && trapTabKey(sheetRef.current, e)) {
-        e.preventDefault()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    // Move focus into the sheet on open (mirrors Modal), so Tab starts inside.
-    const first = sheetRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
-    first?.focus()
-    return () => window.removeEventListener('keydown', onKey)
-  }, [menuOpen])
-
   // Most actions dismiss the sheet; pass {keep:true} for in-place toggles.
   // {defer:true} closes the sheet FIRST and only then runs the action — used by
   // camera moves (reset / top view) so the fly plays in full view instead of
@@ -122,7 +86,7 @@ export function MobileToolbar() {
   // Left-rail sections for the current mode (icon-only master rail; the matching
   // <Section> renders its body in the detail pane). The ids/icons/titles must
   // stay in lockstep with the <Section> blocks below.
-  const railItems: { id: string; icon: IconName; title: string }[] = [
+  const railItems: SheetRailItem[] = [
     { id: 'view', icon: 'Orbit', title: 'View' },
     ...(roomEditorActive
       ? ([
@@ -132,7 +96,7 @@ export function MobileToolbar() {
           // Scene is meaningful inside the room editor too (TB-6b) — the editor
           // canvas renders the full lighting stack (sun/fixtures/effects).
           { id: 'scene', icon: 'Time', title: 'Scene' },
-        ] as { id: string; icon: IconName; title: string }[])
+        ] as SheetRailItem[])
       : ([
           { id: 'edit-home', icon: 'Cube', title: 'Edit' },
           // Whole-flat Arrange (Smart Start / layout presets / style themes) is
@@ -142,14 +106,8 @@ export function MobileToolbar() {
           // (TB-4 in the 2026-07-10 toolbar UX audit).
           { id: 'arrange', icon: 'Sets', title: 'Arrange' },
           { id: 'scene', icon: 'Time', title: 'Scene' },
-        ] as { id: string; icon: IconName; title: string }[])),
-    ...(proMode
-      ? ([{ id: 'tools', icon: 'Tools', title: 'Tools' }] as {
-          id: string
-          icon: IconName
-          title: string
-        }[])
-      : []),
+        ] as SheetRailItem[])),
+    ...(proMode ? ([{ id: 'tools', icon: 'Tools', title: 'Tools' }] as SheetRailItem[]) : []),
     { id: 'file', icon: 'Save', title: 'File' },
     { id: 'appearance', icon: 'Palette', title: 'Appearance & help' },
   ]
@@ -208,135 +166,78 @@ export function MobileToolbar() {
         ) : null}
       </div>
 
-      {menuOpen ? (
-        <div className="m-menu-overlay" onClick={(e) => e.target === e.currentTarget && close()}>
-          <div className="m-sheet" ref={sheetRef}>
-            {/* The grab pill promises a sheet gesture (TB-3) — honour it: a
-                swipe UP on the pill/header dismisses the top-anchored sheet
-                (mirrors useSwipeToCollapse's touch pattern; the sheet hangs
-                from the top bar, so "toward the bar" is the dismiss motion). */}
-            <div
-              className="m-sheet-grab"
-              onTouchStart={(e) => {
-                sheetSwipeY.current = e.touches[0]?.clientY ?? null
-              }}
-              onTouchEnd={(e) => {
-                const y0 = sheetSwipeY.current
-                sheetSwipeY.current = null
-                if (y0 == null) return
-                if ((e.changedTouches[0]?.clientY ?? y0) - y0 < -SHEET_SWIPE_PX) close()
-              }}
-            />
-            <div className="m-sheet-head">
-              <div className="m-sheet-brand">
-                <span className="brand-dot" title="Sofa So Good">
-                  <BrandMark size={20} />
-                </span>
-                <span className="panel-title">Sofa So Good</span>
-              </div>
-              <button type="button" className="icon-btn" aria-label="Close" onClick={close}>
-                <Icon.Close width={16} height={16} />
-              </button>
-            </div>
-            <div className="m-sheet-panes">
-              {/* Icon-only master rail: pick a section; its items show in the
-                  detail pane on the right. */}
-              <div className="m-rail" role="tablist" aria-label="Menu sections">
-                {railItems.map((r) => {
-                  const Glyph = Icon[r.icon]
-                  const on = shownId === r.id
-                  return (
-                    <button
-                      type="button"
-                      key={r.id}
-                      className={`m-rail-btn${on ? ' on' : ''}`}
-                      data-tour-section={r.id}
-                      role="tab"
-                      aria-selected={on}
-                      aria-current={on ? 'true' : undefined}
-                      aria-label={r.title}
-                      onClick={() => setActiveId(r.id)}
-                    >
-                      <Glyph className="icn" width={22} height={22} />
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="m-detail">
-                {/* View — combined camera + framing (mirrors the desktop View menu).
-                  Orbit/Walk always; top/reset/turntable/saved only in the
-                  overview (the room editor frames its own room). */}
-                <ViewSection activeId={shownId} act={act} vrSupported={vrSupported} />
+      {/* The sheet shell (overlay/grab-pill/head/rail/detail + the a11y
+          contract) is the shared MobileSheet — the same paradigm the 2D plan
+          editor's mobile menu uses (TB-6-tail). */}
+      <MobileSheet
+        open={menuOpen}
+        onClose={close}
+        title="Sofa So Good"
+        railItems={railItems}
+        activeId={shownId}
+        onSelectSection={setActiveId}
+        footer={
+          // Persistent footer: sign in / account, always at the bottom of the
+          // main menu regardless of the selected section. Backend builds only.
+          accountsOn ? (
+            <button
+              type="button"
+              className="m-foot-btn"
+              onClick={act(() => s.getState().setLoginOpen(true))}
+            >
+              <Icon.Eye className="icn" width={18} height={18} />
+              <span className="m-foot-tx">
+                {currentUser ? `Account · ${currentUser.name}` : 'Sign in'}
+              </span>
+            </button>
+          ) : undefined
+        }
+      >
+        {/* View — combined camera + framing (mirrors the desktop View menu).
+            Orbit/Walk always; top/reset/turntable/saved only in the
+            overview (the room editor frames its own room). */}
+        <ViewSection activeId={shownId} act={act} vrSupported={vrSupported} />
 
-                {/* Edit — step into a room / reshape the floor plan (overview only). */}
-                {!roomEditorActive ? <EditHomeSection activeId={shownId} act={act} /> : null}
+        {/* Edit — step into a room / reshape the floor plan (overview only). */}
+        {!roomEditorActive ? <EditHomeSection activeId={shownId} act={act} /> : null}
 
-                {/* Scene — both modes (TB-6b, mirrors desktop). */}
-                <SceneSection
-                  activeId={shownId}
-                  act={act}
-                  onOpenCompass={() => setCompassOpen(true)}
-                />
+        {/* Scene — both modes (TB-6b, mirrors desktop). */}
+        <SceneSection activeId={shownId} act={act} onOpenCompass={() => setCompassOpen(true)} />
 
-                {/* Edit / Design — manual editing, only inside the per-room
-                  editor (the overview is view-only). */}
-                {roomEditorActive ? (
-                  <>
-                    <EditSection activeId={shownId} act={act} />
-                    <DesignSection activeId={shownId} act={act} />
-                  </>
-                ) : null}
+        {/* Edit / Design — manual editing, only inside the per-room
+            editor (the overview is view-only). */}
+        {roomEditorActive ? (
+          <>
+            <EditSection activeId={shownId} act={act} />
+            <DesignSection activeId={shownId} act={act} />
+          </>
+        ) : null}
 
-                {/* Arrange — whole-flat sets / presets / style themes. Mounted in
-                  BOTH modes (mirrors desktop, which surfaces ArrangeMenu in the
-                  overview cluster too — its actions act on the whole flat). */}
-                <ArrangeSection activeId={shownId} act={act} />
+        {/* Arrange — whole-flat sets / presets / style themes. Mounted in
+            BOTH modes (mirrors desktop, which surfaces ArrangeMenu in the
+            overview cluster too — its actions act on the whole flat). */}
+        <ArrangeSection activeId={shownId} act={act} />
 
-                {/* Tools (advanced — hidden in Simple mode) */}
-                {proMode ? (
-                  <ToolsSection
-                    activeId={shownId}
-                    act={act}
-                    sunStudy={sunStudy}
-                    setSunStudy={setSunStudy}
-                  />
-                ) : null}
+        {/* Tools (advanced — hidden in Simple mode) */}
+        {proMode ? (
+          <ToolsSection
+            activeId={shownId}
+            act={act}
+            sunStudy={sunStudy}
+            setSunStudy={setSunStudy}
+          />
+        ) : null}
 
-                {/* File */}
-                <FileSection
-                  activeId={shownId}
-                  act={act}
-                  slots={slots}
-                  refreshSlots={refreshSlots}
-                />
+        {/* File */}
+        <FileSection activeId={shownId} act={act} slots={slots} refreshSlots={refreshSlots} />
 
-                {/* Appearance & help */}
-                <AppearanceSection
-                  activeId={shownId}
-                  act={act}
-                  onOpenGraphics={() => setGraphicsOpen(true)}
-                />
-              </div>
-            </div>
-            {/* Persistent footer: sign in / account, always at the bottom of the
-                main menu regardless of the selected section. Backend builds only. */}
-            {accountsOn ? (
-              <div className="m-sheet-foot">
-                <button
-                  type="button"
-                  className="m-foot-btn"
-                  onClick={act(() => s.getState().setLoginOpen(true))}
-                >
-                  <Icon.Eye className="icn" width={18} height={18} />
-                  <span className="m-foot-tx">
-                    {currentUser ? `Account · ${currentUser.name}` : 'Sign in'}
-                  </span>
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+        {/* Appearance & help */}
+        <AppearanceSection
+          activeId={shownId}
+          act={act}
+          onOpenGraphics={() => setGraphicsOpen(true)}
+        />
+      </MobileSheet>
 
       <GraphicsSettings
         open={graphicsOpen}

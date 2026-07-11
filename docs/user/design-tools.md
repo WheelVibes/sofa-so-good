@@ -1,7 +1,8 @@
 # Budget, checks & report
 
 The **Arrange** and **Tools** menus hold the planning aids that turn a layout into
-a plan you can act on.
+a plan you can act on; every export and printable document — including the whole
+**Budget & costs** group — lives in the **File** menu.
 
 ![The shopping list with per-item SGD costs](/screenshots/budget.png)
 
@@ -24,7 +25,8 @@ suitable furniture set for each room and arranges it to that plan's walls.
 
 ## Budget & shopping list
 
-The **Budget / shopping list** (Tools menu) groups every placed piece by category
+The **Budget / shopping list** (**File → Budget & costs → Budget**, or press
+**B**) groups every placed piece by category
 and totals an approximate cost in **SGD**, with a **Saved** tab for everything
 you've hearted. **Export CSV** downloads the list (category, item,
 quantity, unit price, line total) for a spreadsheet or to send to a supplier.
@@ -44,11 +46,12 @@ across every storey with its floor area, wall perimeter, floor + wall finish and
 ceiling height, plus a grand-total footer. Both open straight in Excel or Google
 Sheets.
 
-For a contractor-ready costing, **Tools → Quote (BOQ)** opens a printable bill of
+For a contractor-ready costing, **File → Quote (BOQ)** opens a printable bill of
 quantities (FF&E, flooring/painting finishes priced per area, and built-in
-carpentry by linear metre, with per-section subtotals + a grand total). **Tools →
+carpentry by linear metre, with per-section subtotals + a grand total). **File →
 Quote → Excel (.xlsx)** downloads the same bill as a spreadsheet you can edit or
-send on.
+send on. All of these sit together under the File menu's **Budget & costs**
+group, so every cost surface has one entry point.
 
 For a single machine-readable costing file, **File → Cost breakdown (CSV)** (also
 on ⌘K and the mobile **File** section) downloads one spreadsheet that combines
@@ -195,7 +198,7 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   & handover) estimated from your floor area and room count.
 - **Reno timeline (.ics)** — exports that renovation timeline as a calendar file
   you can import into Google / Apple / Outlook Calendar, with one all-day event per
-  phase starting today. Find it in **Tools** (desktop and the mobile sheet) or via
+  phase starting today. Find it in **File** (desktop and the mobile sheet) or via
   ⌘K — it shares the Report toggle, so it's available whenever the Report is.
 - **Drawing set** — a formal, paginated **plan set** (A4 landscape, one drawing per
   sheet with title blocks): cover + sheet index, floor plan, each wall elevation,

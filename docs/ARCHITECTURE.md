@@ -258,9 +258,11 @@ same change that reshapes a system.
   City/Park/Hills/Studio estates were removed.) Main Canvas is **`frameloop="demand"`**:
   `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic;
   `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
-  `bakeInstanceMatrix`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/
-  FeatureWall/ToyStorage (batten maths in pure `primitives/slatLayout.ts`);
-  `ContextLossGuard.tsx` recovers WebGL context loss.
+  `bakeInstanceMatrix`, now baking an optional per-instance rotation as `T·R·S`, plus a sibling
+  `InstancedCylinders`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/
+  FeatureWall/ToyStorage, and the **rotation-capable** venetian-blind slats + drying-rack rods
+  (batten/slat/rod maths in pure `primitives/slatLayout.ts`); `ContextLossGuard.tsx` recovers
+  WebGL context loss.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
   CC0 + Poly Haven + the R2 shared library (signed-in, pro), one fuzzy search + browse Sort +
@@ -395,7 +397,13 @@ same change that reshapes a system.
   `isActive`/`run`); the desktop `menus/ToolsMenu`, the `MobileToolbar` sheet, and the
   `CommandPalette` all render from it via `visibleToolActions(surface, flags)` /
   `groupToolActions`, so they can't drift (invariants + per-surface projection covered by
-  `toolActions.test.ts`). The export cluster + local-state Sun-study toggle stay hand-rendered.
+  `toolActions.test.ts`). The local-state Sun-study toggle stays hand-rendered. **TB-5 (File owns
+  output):** every one-shot export/document row lives in the **File** menus (`menus/FileMenu` +
+  `mobile/FileSection`), grouped under section headers (Save & capture · Share & document ·
+  Budget & costs · CAD, 3D & data · Load & reset); Tools holds analysis panels/modes only
+  (Analyse · Review & tour · Style). The four cost surfaces (Budget panel + Shopping list +
+  Quote/BOQ + Cost breakdown) sit together under File → **Budget & costs**; the Budget row
+  renders from the registry (`toolAction('budget')`, surfaces `['palette']` so ⌘K keeps it).
   Aux panels that share the centred-top slot are closed as a group via `src/ui/auxPanels.ts`
   (`closeAllAuxPanels`); contextual user-guide deep-links resolve through `src/ui/docsUrl.ts`.
   **Shared UI systems**: `InfoCallout` (flag-gated dismissible hint banners, per-id persisted) and `ui/newBadges.ts` (registry-driven "New" `.new-dot` on toolbar/menu entries, seen-state persisted). **Shared form controls** (`src/ui/controls/`): `Button` (typed composer over the `.btn-*` vocabulary — variant/size/block/icon/loading), `Select` (themed dropdown — replaces every native
@@ -518,6 +526,18 @@ same change that reshapes a system.
   OrbitControls' own spherical state is unaffected. Toggle lives in the `ViewMenu`/`ViewSection`
   "Framing" cluster (desktop + mobile parity) next to Turntable; persisted per-device via
   `qualityPrefs` (`verticalLock`, back-compat default off).
+- **Parallel projection / orthographic dollhouse (R3-FEAT-3, `parallelProjection` flag, pro):**
+  swaps the whole-flat orbit camera between perspective and orthographic projection (the SketchUp /
+  Sweet Home 3D / Planner 5D "Parallel projection" toggle) so parallel building lines stay parallel
+  with no foreshortening. `OrbitCamera.tsx` conditionally mounts a drei `<OrthographicCamera
+  makeDefault>` (ortho gated to the overview — the room editor stays perspective); OrbitControls
+  re-binds to it reactively and drives its `.zoom` for pinch/wheel. The pure, unit-tested
+  `scene/cameras/orthoProjection.ts` bridges perspective distance ↔ ortho zoom so the swap
+  preserves the on-screen framing (a layout effect keyed on the recreated controls restores the
+  live pivot + matches the new camera's pose — no jump; every nonce fly translates its framing
+  distance into a zoom). Vertical-lock cleanly no-ops in ortho (no vanishing point). Toggle lives
+  in the `ViewMenu`/`ViewSection` "Framing" cluster + a ⌘K "Parallel projection" command; persisted
+  per-device via `qualityPrefs` (`parallelProjection`, back-compat default off).
 - **Placement drop-in easing** (`scene/placementDrop.ts`, pure timing + unit-tested): a freshly
   placed piece eases DOWN onto its resting spot from a small height (~0.16 m, 300 ms, ease-out).
   `Furniture` keeps NO per-item `useFrame` (perf rule) — instead each item registers its root
@@ -1166,8 +1186,9 @@ same change that reshapes a system.
   unit-tested itself. REFAC-2 also lifted the toolbar/header JSX out of the component: small
   presentational controls (`EditModeToggle`, `DrawToolPalette`, `WallTypeToggle`, `UndoRedoButtons`,
   `GridZoomControls`, `PlanTotalLabel`, `PlanViewMenuActions`, `PlanDefaultsFields`) plus two layout
-  shells (`PlanEditorHeader` — the mobile/desktop toolbar row, `PlanToolsSheet` — the mobile ☰ Menu
-  bottom-sheet) that take already-built fragments as `ReactNode` props rather than raw store state, and
+  shells (`PlanEditorHeader` — the mobile/desktop toolbar row, `PlanToolsSheet` — the mobile menu,
+  now the same `MobileSheet` icon-rail sheet as the main mobile toolbar, TB-6-tail) that take
+  already-built fragments as `ReactNode` props rather than raw store state, and
   four more SVG **render layers** alongside the eleven from MOD-FPE-SPLIT (`PlanGuidesLayer`,
   `OtherLevelsUnderlay`, `PersistentDimensionsLayer`, `AnnotationsLayer`). The "Plan ▾" menu's file/
   reference-photo actions (~230 lines, many independent feature-flagged pieces) were deliberately
@@ -1321,7 +1342,10 @@ same change that reshapes a system.
   states: overview/room-editor/walk. Tooltips+menus via `Popover`; shortcut chips from
   `controls/keybindings.ts`. Mobile: minimal bar → bottom action-sheet with a master-detail
   layout — an icon-only left rail of sections (`data-tour-section`) opens each section's items in
-  the right detail pane (`MobileToolbar.tsx`).
+  the right detail pane (`MobileToolbar.tsx`). The sheet chrome + a11y contract (overlay,
+  grab-pill swipe-dismiss, Escape/modal-guard, Tab trap + focus restore, roving-tabindex rail)
+  is the shared `toolbar/mobile/MobileSheet.tsx` shell — also consumed by the 2D plan editor's
+  mobile menu (`PlanToolsSheet`, TB-6-tail) so both editing surfaces share ONE menu paradigm.
 - **Keyboard shortcuts** (`controls/`): `keybindings.ts` (the key map) + `useKeyboard.ts`
   (global keydown hook; skips repeats + editable targets) + `modalGuard.ts` (module-level
   open-modal counter — the shared `Modal` primitive and the modal-style overlays register

@@ -31,6 +31,14 @@ zero-regression-risk frontier for this goal is reached; the parked findings belo
 evaluated and deliberately not done, so we don't re-investigate.
 
 ### Investigated + parked (findings recorded so we don't re-investigate)
+- **P2 memoization audit — CLEAN, no changes (2026-07-11).** Render-count probes on the 13 hot
+  scene components across orbit/drag/time-scrub: orbit = 0 React re-renders (camera pose flows
+  through `cameras/cameraForward.ts` signals, not the store); a furniture drag re-renders ONLY the
+  moved `Furniture` instance (the memo comparator holds; `useCatalog` keeps `def` reference-stable
+  across drags — documented prior fix); time scrub re-renders only the 4 sun-dependent components.
+  Selector sweep found no unstable-object selectors on hot paths (the plain `s.items` subscribers
+  are single-field = reference-stable; adding `useShallow` there would cost an 81-element compare
+  for identical behaviour — leave them). Don't re-audit without new evidence of churn.
 - **`preserveDrawingBuffer: true` always-on — BLOCKED by the Record feature.** The PNG export path
   (`ScreenshotController`) already renders on-demand + reads back synchronously, so it does NOT
   need it. But `RecordController` uses `captureStream(0)` + `track.requestFrame()` from a `useFrame`
@@ -119,24 +127,10 @@ WebGPU path tracing).
   in `livePrice.ts` purely for the test. Unit coverage already exercises the client logic; revisit
   only if the sidecar path regresses.
 
-## Active — toolbar UX program (2026-07-10, user goal)
-Full audit (findings P0–P3 with file:line evidence, Figma/modern-app grounding, screenshots):
-`docs/research/2026-07-10-toolbar-ux-audit.md`. Work the sequenced list there; delete each
-finding from the doc + this list as it ships. Open items, in order:
-- [ ] **TB-5 (P1)** Consolidate exports: Tools "Export & document" (~17 rows) merges into File;
-  Tools keeps analysis panels/modes only. Group the four scattered cost surfaces under one entry.
-- [ ] **TB-6-tail (P1)** Plan-editor mobile menu paradigm differs from the main sheet (centered
-  "Plan tools" modal + text "☰ Menu" vs the icon-rail sheet). (Overflow edge-fade shipped
-  v0.18.6.16; Scene-in-room-editor shipped v0.18.6.17.)
-- [ ] **TB-8-tail (P3)** Cycle-buttons → segmented/Select where 3+ states (grid size, mobile
-  Lights/Ceiling/Motion cycles; the naming split + Lights next-state tooltip shipped v0.18.6.13);
-  distinct icon for the tape tool.
-- [ ] **TB-9-tail (P2)** Consolidate menu primitives (one section-header idiom, Arrange on
-  MenuItem/EmptyState); tablist roving focus. (confirmAction on set/style deletes + 44px
-  hamburger/brand targets shipped v0.18.6.15; sheet focus-trap shipped v0.18.6.18.)
-- [ ] **TB-10-tail (P3)** Desktop↔mobile naming/icon drift, SliderField in GraphicsSettings,
-  wall-reveal double naming, shared 640px breakpoint token, History icon. (Separator convention
-  shipped v0.18.6.15.)
+## Toolbar UX program (2026-07-10, user goal) — COMPLETE 2026-07-11
+All sequenced findings (TB-1 … TB-10 + tails) shipped; records live in `CHANGELOG.md`
+(v0.18.6.x … v0.20.0.5) and the audit doc `docs/research/2026-07-10-toolbar-ux-audit.md`
+is retained as the methodology/grounding reference.
 
 ## Open — core interactions
 - **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
@@ -197,9 +191,6 @@ Open, client-doable items from `docs/research/2026-07-04-audit-round3-backlog-re
 competitor sweep found history-panel/shortcut-help/room-area/favourites/copy-paste/nudge/
 room-palette/lock/align-distribute all already shipped — so the list is short + evidence-based,
 ranked by value ÷ effort:
-- [ ] **R3-FEAT-3 — Orthographic / isometric camera view.** `OrbitCamera.tsx:491` has an unused
-  ortho fallback; expose a parallel-projection/iso "dollhouse" toggle (SketchUp/Sweet Home 3D/
-  Planner 5D). Pro tier; needs a visual-verification pass (raycast/shadow/zoom differ). (M · MED)
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live

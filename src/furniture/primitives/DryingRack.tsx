@@ -1,58 +1,28 @@
+import { useMemo } from 'react'
 import type { ParamProps } from '../types'
+import { InstancedCylinders } from './InstancedBoxes'
 import { metalLeg, readNum, readStr } from './shared'
+import { dryingRackCylinders } from './slatLayout'
 
 /** Foldable A-frame clothes drying rack (a ubiquitous HDB service-yard item):
- *  two splayed leg frames joined by horizontal drying bars. Faces +Z. */
+ *  two splayed leg frames joined by horizontal drying bars. Faces +Z. Every
+ *  member is a plain metal rod sharing one brushed-metal material, so the whole
+ *  frame renders as a single rotation-capable `InstancedCylinders` draw call
+ *  (previously ~11 individual cylinder meshes). The rod layout is pure geometry
+ *  in `slatLayout.ts`, rebuilt only when the width changes. */
 export function DryingRack({ props }: { props: ParamProps }) {
   const width = readNum(props, 'width', 0.9)
   const color = readStr(props, 'color', '#c9ccd1')
-  const h = 0.95
-  const spread = 0.5
   // Legs / foot rails / drying bars route through the shared brushed-metal
   // material (soft satin brushing, tinted by the rack colour).
   const metal = metalLeg(color, 'satin')
-  const halfW = width / 2
-
-  // Two A-frames at ±spread/2 in Z; each is an inverted-V of two legs.
-  const frames = [-spread / 2, spread / 2]
-  const bars = 5
+  const rods = useMemo(() => dryingRackCylinders(width), [width])
 
   return (
     <group>
-      {frames.map((z, fi) => (
-        <group key={fi}>
-          {[-1, 1].map((s) => (
-            <mesh
-              key={s}
-              castShadow
-              position={[s * halfW * 0.35, h / 2, z]}
-              rotation={[0, 0, s * 0.32]}
-              material={metal}
-            >
-              <cylinderGeometry args={[0.015, 0.015, h, 8]} />
-            </mesh>
-          ))}
-          {/* Foot rail */}
-          <mesh position={[0, 0.02, z]} rotation={[0, 0, Math.PI / 2]} material={metal}>
-            <cylinderGeometry args={[0.012, 0.012, width * 0.8, 8]} />
-          </mesh>
-        </group>
-      ))}
-      {/* Top drying bars spanning the two frames */}
-      {Array.from({ length: bars }, (_, i) => {
-        const z = -spread / 2 + (spread * i) / (bars - 1)
-        return (
-          <mesh
-            key={`b${i}`}
-            castShadow
-            position={[0, h - 0.04, z]}
-            rotation={[0, 0, Math.PI / 2]}
-            material={metal}
-          >
-            <cylinderGeometry args={[0.008, 0.008, width * 0.78, 6]} />
-          </mesh>
-        )
-      })}
+      <InstancedCylinders instances={rods} radialSegments={8} castShadow>
+        <primitive object={metal} attach="material" />
+      </InstancedCylinders>
     </group>
   )
 }

@@ -25,6 +25,7 @@ export function ViewSection({
   const mobilePlan = useStore((st) => st.floorPlan)
   const autoRotate = useStore((st) => st.autoRotate)
   const verticalLock = useStore((st) => st.verticalLock)
+  const parallelProjection = useStore((st) => st.parallelProjection)
   const roomEditorActive = useStore((st) => st.roomEditor.active)
   const savedViews = useStore((st) => st.savedViews)
 
@@ -33,6 +34,7 @@ export function ViewSection({
   const fPresentation = useFeature('presentation')
   const fPanoTour = useFeature('panoTour')
   const fTwoPointPerspective = useFeature('twoPointPerspective')
+  const fParallelProjection = useFeature('parallelProjection')
 
   return (
     <Section id="view" title="View" icon="Orbit" activeId={activeId}>
@@ -46,7 +48,7 @@ export function ViewSection({
       />
       <Item
         icon="Walk"
-        label="Walk through"
+        label="Walk"
         sub="First-person walkthrough"
         on={cameraMode === 'firstPerson'}
         onClick={act(() => s.getState().setCameraMode('firstPerson'))}
@@ -66,7 +68,7 @@ export function ViewSection({
         <>
           <div className="m-sub-h">Levels</div>
           <Item
-            icon="Orbit"
+            icon="TopView"
             label="All levels"
             on={viewLevelId === 'all'}
             onClick={act(() => s.getState().setViewLevel('all'), { keep: true })}
@@ -74,7 +76,7 @@ export function ViewSection({
           {planLevels(mobilePlan).map((l) => (
             <Item
               key={l.id}
-              icon="Orbit"
+              icon="TopView"
               label={l.name}
               // Walk mode: picking a storey teleports the walker (ML6c).
               sub={cameraMode === 'firstPerson' ? 'Walk this storey' : undefined}
@@ -94,7 +96,7 @@ export function ViewSection({
             onClick={act(() => s.getState().requestTopView(), { defer: true })}
           />
           <Item
-            icon="Home"
+            icon="Reset"
             label="Reset view"
             sub="Fit the 3D overview"
             onClick={act(() => s.getState().requestHomeView(), { defer: true })}
@@ -113,6 +115,15 @@ export function ViewSection({
               sub="Keep wall corners parallel"
               on={verticalLock}
               onClick={act(() => s.getState().toggleVerticalLock(), { keep: true })}
+            />
+          ) : null}
+          {fParallelProjection ? (
+            <Item
+              icon="Cube"
+              label="Parallel projection"
+              sub="Orthographic dollhouse view"
+              on={parallelProjection}
+              onClick={act(() => s.getState().toggleParallelProjection(), { keep: true })}
             />
           ) : null}
           {fSavedViews ? (

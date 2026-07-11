@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { type DocKey, openToolDocs } from '../../docsUrl'
 import { Icon, type IconName } from '../icons'
+import { MenuLabel } from '../ToolbarMenu'
 
 export const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = {
   auto: 'Auto',
@@ -70,9 +71,10 @@ export function Item({
 }
 
 /** A sub-header that groups rows within a mobile accordion section (e.g. the
- *  Analyse / Review / Export groups inside Tools) — mirrors the desktop menus. */
+ *  Analyse / Review / Export groups inside Tools) — the mobile-sheet face of
+ *  the ONE shared section-header primitive (`MenuLabel`, TB-9). */
 export function SubHeader({ children }: { children: ReactNode }) {
-  return <div className="m-sec-h">{children}</div>
+  return <MenuLabel sheet>{children}</MenuLabel>
 }
 
 /** One section of the mobile menu, rendered in the detail pane. The icon-only

@@ -154,6 +154,7 @@ export type FeatureFlag =
   | 'isolateSelection'
   | 'mirrorSelection'
   | 'twoPointPerspective'
+  | 'parallelProjection'
   | 'catalogResize'
   | 'catalogFilters'
   | 'profiler'

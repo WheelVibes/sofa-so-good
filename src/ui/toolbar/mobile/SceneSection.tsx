@@ -4,7 +4,9 @@ import { HDRI_PRESETS } from '../../../scene/lighting/hdriCatalog'
 import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
 import { BACKDROPS, type BackdropKind } from '../../../scene/SceneBackdrop'
 import { PRESET_HOURS } from '../../../state/slices/timeSlice'
+import type { LightsMode } from '../../../state/slices/uiSlice'
 import { useStore } from '../../../state/store'
+import { Segmented } from '../../controls/Segmented'
 import { Select } from '../../controls/Select'
 import { SliderField } from '../../controls/SliderField'
 import { BackdropUpload } from '../../scene/BackdropUpload'
@@ -62,13 +64,20 @@ export function SceneSection({
       {/* Time of day: slider + snap-to icon checkpoints (shared with
           desktop). The System toggle inside shows the real clock. */}
       <TimeOfDaySlider />
-      <Item
-        icon="Lights"
-        label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
-        sub="Independent of the time of day"
-        on={lightsMode !== 'auto'}
-        onClick={act(() => s.getState().cycleLightsMode(), { keep: true })}
-      />
+      {/* Lights — segmented, not a tap-to-cycle row (TB-8): all 3 states are
+          visible and one tap away. */}
+      <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+        <span>Lights — independent of the time of day</span>
+        <Segmented
+          ariaLabel="Lights"
+          value={lightsMode}
+          onChange={(v) => s.getState().setLightsMode(v as LightsMode)}
+          options={(['auto', 'on', 'off'] as const).map((m) => ({
+            value: m,
+            label: LIGHTS_LABEL[m],
+          }))}
+        />
+      </label>
       <Item
         icon="Lights"
         label={`Ceiling fixtures: ${showCeilingFixtures ? 'Visible' : 'Hidden'}`}

@@ -32,6 +32,22 @@ describe('tool-action registry — invariants', () => {
     }
   })
 
+  it('the tape tool carries its own icon, distinct from the Dimensions ruler (TB-8)', () => {
+    const measure = TOOL_ACTIONS.find((a) => a.id === 'measure')
+    expect(measure?.icon).toBe('Tape')
+    // The ruler glyph stays on the toolbar's Dimensions overlay toggle.
+    expect(measure?.icon).not.toBe('Measure')
+    expect(Icon.Tape).toBeTypeOf('function')
+  })
+
+  it('History carries its own clock glyph, not the Undo arrow (TB-10)', () => {
+    const history = TOOL_ACTIONS.find((a) => a.id === 'history')
+    expect(history?.icon).toBe('History')
+    // Was 'Undo', which collided with the toolbar Undo button.
+    expect(history?.icon).not.toBe('Undo')
+    expect(Icon.History).toBeTypeOf('function')
+  })
+
   it('every docs key (when set) maps to a documented guide section', () => {
     for (const a of TOOL_ACTIONS) {
       if (a.docs) expect(FEATURE_DOCS[a.docs]).toBeDefined()
@@ -113,6 +129,14 @@ describe('tool-action registry — surface projections', () => {
     expect(palette).not.toContain('measure')
     expect(palette).not.toContain('drawings')
     expect(palette).not.toContain('walkthrough')
+  })
+
+  it('budget is palette-only — the File menus render it inside "Budget & costs" (TB-5)', () => {
+    // The Tools menu/sheet must NOT render Budget any more: it anchors the
+    // consolidated cost cluster in FileMenu / FileSection instead. ⌘K keeps it.
+    expect(toolActionsForSurface('desktop').map((a) => a.id)).not.toContain('budget')
+    expect(toolActionsForSurface('mobile').map((a) => a.id)).not.toContain('budget')
+    expect(toolActionsForSurface('palette').map((a) => a.id)).toContain('budget')
   })
 
   it('groups preserve category order and drop empty sections', () => {

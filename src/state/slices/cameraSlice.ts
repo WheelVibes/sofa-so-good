@@ -84,6 +84,14 @@ export interface CameraSlice {
   verticalLock: boolean
   setVerticalLock: (v: boolean) => void
   toggleVerticalLock: () => void
+  /** Parallel projection / orthographic "dollhouse" view (R3-FEAT-3): renders the
+   *  whole-flat orbit camera orthographically (no perspective foreshortening) so
+   *  parallel building lines stay parallel — the SketchUp / Sweet Home 3D
+   *  "Parallel projection" toggle. Session-only (like `verticalLock`), off by
+   *  default (normal perspective); gated by the `parallelProjection` pro flag. */
+  parallelProjection: boolean
+  setParallelProjection: (v: boolean) => void
+  toggleParallelProjection: () => void
 }
 
 export const CAMERA_INITIAL: Pick<
@@ -106,6 +114,7 @@ export const CAMERA_INITIAL: Pick<
   | 'dofFocusDistance'
   | 'dofAuto'
   | 'verticalLock'
+  | 'parallelProjection'
 > = {
   cameraMode: 'orbit',
   topViewNonce: 0,
@@ -125,6 +134,7 @@ export const CAMERA_INITIAL: Pick<
   dofFocusDistance: FOCUS_DEFAULT_M,
   dofAuto: true,
   verticalLock: false,
+  parallelProjection: false,
 }
 
 export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get) => ({
@@ -155,4 +165,6 @@ export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get
   setDofAuto: (v) => set({ dofAuto: !!v }),
   setVerticalLock: (v) => set({ verticalLock: !!v }),
   toggleVerticalLock: () => set((s) => ({ verticalLock: !s.verticalLock })),
+  setParallelProjection: (v) => set({ parallelProjection: !!v }),
+  toggleParallelProjection: () => set((s) => ({ parallelProjection: !s.parallelProjection })),
 })
