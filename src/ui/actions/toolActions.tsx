@@ -232,7 +232,9 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     label: 'History',
     paletteLabel: 'Edit history — jump to any step',
     sub: 'Timeline of edits — jump to any step',
-    icon: 'Undo',
+    // TB-10: was 'Undo' — collided with the toolbar Undo button. Its own
+    // clock-with-rewind-arrow glyph now, distinct from Versions' rewind-circle.
+    icon: 'History',
     category: 'review',
     flag: 'history',
     docs: 'history',

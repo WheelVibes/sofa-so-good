@@ -119,13 +119,10 @@ WebGPU path tracing).
   in `livePrice.ts` purely for the test. Unit coverage already exercises the client logic; revisit
   only if the sidecar path regresses.
 
-## Active — toolbar UX program (2026-07-10, user goal)
-Full audit (findings P0–P3 with file:line evidence, Figma/modern-app grounding, screenshots):
-`docs/research/2026-07-10-toolbar-ux-audit.md`. Work the sequenced list there; delete each
-finding from the doc + this list as it ships. Open items, in order:
-- [ ] **TB-10-tail (P3)** Desktop↔mobile naming/icon drift, SliderField in GraphicsSettings,
-  wall-reveal double naming, shared 640px breakpoint token, History icon. (Separator convention
-  shipped v0.18.6.15.)
+## Toolbar UX program (2026-07-10, user goal) — COMPLETE 2026-07-11
+All sequenced findings (TB-1 … TB-10 + tails) shipped; records live in `CHANGELOG.md`
+(v0.18.6.x … v0.20.0.5) and the audit doc `docs/research/2026-07-10-toolbar-ux-audit.md`
+is retained as the methodology/grounding reference.
 
 ## Open — core interactions
 - **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)

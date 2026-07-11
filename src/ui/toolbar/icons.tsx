@@ -329,6 +329,19 @@ export const Icon = {
       <path d="M12 8v4l3 2" />
     </Svg>
   ),
+  /** Edit-history timeline — a clock face under a counter-clockwise "rewind
+   *  time" arc. Distinct from the toolbar Undo arrow (`Undo`, which the History
+   *  entry used to borrow — TB-10) and from the `Versions` rewind-circle (whose
+   *  arrow IS the circle, with tiny offset hands) so the two Review-cluster
+   *  entries read apart. */
+  History: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <circle cx="12" cy="13.5" r="6" />
+      <path d="M12 10.5v3l2.5 1.5" />
+      <path d="M4.5 8.5a8.5 8.5 0 0 1 15 0" />
+      <path d="M4.5 4.5v4h4" />
+    </Svg>
+  ),
   Lock: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <rect x="5" y="11" width="14" height="9" rx="1.5" />

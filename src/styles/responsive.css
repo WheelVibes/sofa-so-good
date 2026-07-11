@@ -37,6 +37,8 @@
    corners and cover the catalog / inspector. Drop those side
    panels below the toolbar line so they never overlap it.
    (Budget/finishes .aux is already centred at top:74 — fine.)
+   641 = MOBILE_MAX_WIDTH + 1 (single source: src/ui/breakpoints.ts) — media
+   queries can't read the JS constant, so keep this literal in sync with it.
    ============================================================ */
 @media (min-width: 641px) and (max-width: 1600px) {
   .catalog, .inspector {
@@ -56,7 +58,8 @@
 }
 
 /* ============================================================
-   MOBILE  ≤640  (class toggled by app.js: body.mobile)
+   MOBILE  ≤640  (class toggled from JS: body.mobile — the query lives in
+   src/ui/breakpoints.ts as MOBILE_MEDIA_QUERY, MOBILE_MAX_WIDTH = 640)
    ============================================================ */
 body.mobile {
 

@@ -28,7 +28,7 @@ export function AppearanceSection({
       />
       <Item
         icon="Quality"
-        label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
+        label={`Graphics · ${QUALITY_LABEL[qualityTier]}`}
         sub="Render & asset quality"
         onClick={act(() => onOpenGraphics(), { keep: true })}
       />

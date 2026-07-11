@@ -14,6 +14,7 @@ import { TONE_MAPPING_SETTINGS, type ToneMappingSetting } from '../scene/toneCon
 import { useStore } from '../state/store'
 import { AuxPanelHead } from './AuxPanelHead'
 import { Select } from './controls/Select'
+import { SliderField } from './controls/SliderField'
 
 const TIERS = RENDER_TIERS
 /** Segment label per setting — extends the look labels with the 'auto' option. */
@@ -177,29 +178,18 @@ export function GraphicsSettings({
             </div>
             <p className="sec-desc">{TONE_MAPPING_HINT[toneMapping]}</p>
 
-            {/* Exposure (brightness) — applies on every tier alongside the Look. */}
-            <div className="row">
-              <div
-                className="rk"
-                style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}
-              >
-                <div>Exposure</div>
-                <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}>
-                  Overall brightness · {exposure.toFixed(2)}×
-                </div>
-              </div>
-              <input
-                type="range"
-                min={EXPOSURE_MIN}
-                max={EXPOSURE_MAX}
-                step={0.05}
-                value={exposure}
-                aria-label="Exposure"
-                onChange={(e) => setExposure(Number(e.target.value))}
-                className="slider"
-                style={{ width: 112 }}
-              />
-            </div>
+            {/* Exposure (brightness) — applies on every tier alongside the Look.
+                Uses the shared SliderField (label + slider + readout, TB-10). */}
+            <SliderField
+              label="Exposure"
+              ariaLabel="Exposure"
+              min={EXPOSURE_MIN}
+              max={EXPOSURE_MAX}
+              step={0.05}
+              value={exposure}
+              format={(v) => `${v.toFixed(2)}×`}
+              onChange={setExposure}
+            />
           </div>
 
           {/* Advanced graphics (asset detail + per-effect overrides + FPS) —
@@ -257,7 +247,7 @@ export function GraphicsSettings({
                   onChange={(v) => setOverride('postprocessing', v)}
                 />
                 <Toggle
-                  label="Auto-reveal walls"
+                  label="Wall fade"
                   hint="Fade near walls when orbiting"
                   checked={eff.wallReveal}
                   onChange={(v) => setOverride('wallReveal', v)}
@@ -275,30 +265,24 @@ export function GraphicsSettings({
                   onChange={toggleShowFps}
                 />
 
-                <Row label="Night light fixtures" hint={`${eff.maxFixtureLights} max`}>
-                  <input
-                    type="range"
-                    min={0}
-                    max={12}
-                    step={1}
-                    value={eff.maxFixtureLights}
-                    onChange={(e) => setOverride('maxFixtureLights', Number(e.target.value))}
-                    className="slider"
-                    style={{ width: 112 }}
-                  />
-                </Row>
-                <Row label="Resolution scale" hint={`${eff.dprMax.toFixed(2)}×`}>
-                  <input
-                    type="range"
-                    min={0.75}
-                    max={2}
-                    step={0.25}
-                    value={eff.dprMax}
-                    onChange={(e) => setOverride('dprMax', Number(e.target.value))}
-                    className="slider"
-                    style={{ width: 112 }}
-                  />
-                </Row>
+                <SliderField
+                  label="Night light fixtures"
+                  min={0}
+                  max={12}
+                  step={1}
+                  value={eff.maxFixtureLights}
+                  format={(v) => `${v} max`}
+                  onChange={(v) => setOverride('maxFixtureLights', v)}
+                />
+                <SliderField
+                  label="Resolution scale"
+                  min={0.75}
+                  max={2}
+                  step={0.25}
+                  value={eff.dprMax}
+                  format={(v) => `${v.toFixed(2)}×`}
+                  onChange={(v) => setOverride('dprMax', v)}
+                />
               </div>
 
               {hasOverrides && (

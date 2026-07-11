@@ -136,7 +136,8 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
    remaining space and the toolbar (centred at left:50% within this box)
    re-centres over the canvas. The rail opens purely from the panel's presence
    (`:has(.dock-panel)`) — panels mount only when open, so there's no JS state.
-   Mobile (≤640px) keeps the rail at 0 and the panels stay bottom-sheets. */
+   Mobile (≤640px) keeps the rail at 0 and the panels stay bottom-sheets.
+   (641 below = MOBILE_MAX_WIDTH + 1; single source: src/ui/breakpoints.ts.) */
 .app-shell {
   --right-rail: 0px;
   --left-rail: 0px;

@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.20.0.5 — TB-10-tail: naming/icon drift, SliderField migration, breakpoint token, History icon
+
+Closes the toolbar UX program. Drift alignments (mobile → desktop canonical): "Walk through" →
+"Walk", mobile Reset-view gets the `Reset` glyph, Levels rows `Orbit` → `TopView`, "Graphics — " →
+"Graphics · " (the P3-18 separator convention). GraphicsSettings' three raw range inputs
+(Exposure, Night light fixtures, Resolution scale) migrate to the shared `SliderField`.
+Wall-reveal double naming settled on **"Wall fade"** (Graphics toggle renamed; the "Reveal walls"
+scope Select is a different concept and stays). New `src/ui/breakpoints.ts` exports
+`MOBILE_MAX_WIDTH`/`MOBILE_MEDIA_QUERY` — JS consumers (`useIsMobile`, `App.tsx`) consolidated;
+CSS media-query literals can't read a token without a new PostCSS plugin (out of scope for P3),
+so they carry comments linking back to the token. History gets its own `Icon.History`
+(clock + rewind arc, regression-tested) instead of reusing `Undo`. Screenshots reviewed
+(Graphics panel, Tools menu History vs Versions, View desktop+mobile pair).
+
 ## v0.20.0.4 — TB-9-tail: one menu-header primitive, Arrange on shared MenuItem/EmptyState, roving tablists
 
 New `MenuLabel` primitive (`ToolbarMenu.tsx` — `.menu-label`, or `.m-sec-h` via `sheet`) now

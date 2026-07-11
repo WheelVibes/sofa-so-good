@@ -40,6 +40,14 @@ describe('tool-action registry — invariants', () => {
     expect(Icon.Tape).toBeTypeOf('function')
   })
 
+  it('History carries its own clock glyph, not the Undo arrow (TB-10)', () => {
+    const history = TOOL_ACTIONS.find((a) => a.id === 'history')
+    expect(history?.icon).toBe('History')
+    // Was 'Undo', which collided with the toolbar Undo button.
+    expect(history?.icon).not.toBe('Undo')
+    expect(Icon.History).toBeTypeOf('function')
+  })
+
   it('every docs key (when set) maps to a documented guide section', () => {
     for (const a of TOOL_ACTIONS) {
       if (a.docs) expect(FEATURE_DOCS[a.docs]).toBeDefined()

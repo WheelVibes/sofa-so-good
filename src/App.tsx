@@ -45,6 +45,7 @@ import { preloadFeatureChunks } from './ui/app/preloadOnIdle'
 import { LoginScreen } from './ui/auth/LoginScreen'
 import { BudgetHud } from './ui/BudgetHud'
 import { resolveBootDecision } from './ui/bootDecision'
+import { MOBILE_MEDIA_QUERY } from './ui/breakpoints'
 import { CommandPalette } from './ui/CommandPalette'
 import { ConfirmModal } from './ui/ConfirmModal'
 import { ContextMenu } from './ui/ContextMenu'
@@ -217,7 +218,7 @@ export default function App() {
   // layer (bottom-sheet panels, hidden nav cluster, viewport-fit modals) kicks
   // in. The prototype's vanilla app set this; the React port mirrors it.
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 640px)')
+    const mq = window.matchMedia(MOBILE_MEDIA_QUERY)
     const apply = () => document.body.classList.toggle('mobile', mq.matches)
     apply()
     mq.addEventListener('change', apply)
