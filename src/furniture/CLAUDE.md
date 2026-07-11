@@ -79,8 +79,15 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   fixture can be placed/moved). Every interact entry point (this click, the door click, the E-key
   handler in `App.tsx`) is gated through the single `state/editing.ts:dispatchWalkInteract` — orbit
   mode never toggles a door/fixture, only walk mode does (VIEW-EDIT-SPLIT). Venetian-blind slats
-  render as individual (non-instanced) meshes today (see TASKS.md P3 tail) — fine for the
-  raise/lower toggle since it only moves the whole cassette, not per-slat tilt.
+  render through **one rotation-capable `InstancedBoxes` draw call** (the earlier instancing pass
+  had to skip them because the slats tilt): `bakeInstanceMatrix` now bakes an optional per-instance
+  Euler rotation as `T·R·S` (size innermost), so a tilted instance is exactly equivalent to a
+  `<mesh position rotation>` box — verified byte-identical (AE=0) across the raise/lower range. The
+  slat layout is pure geometry in `primitives/slatLayout.ts` (`venetianSlatInstances`/
+  `venetianSlatCount`, unit-tested); the raise/lower toggle stays a Y-scale on the parent group.
+  The **drying rack** does the same for its rods via the sibling `InstancedCylinders`
+  (unit-cylinder scaled `[radius, length, radius]` + rotation; `dryingRackCylinders` in the same
+  module) — all 11 legs/rails/bars collapse to one draw call (bars unified to the leg tessellation).
 - **Screen wallpaper cycle (WALK-SCREEN-INTERACT)**: click/tap or press E on a placed screen to
   advance `props.screenContent` to the next option, wrapping around. "Screen" is a **capability**,
   not a def-id list: `isInteractableScreen(def)` (`furniture/screenInteract.ts`) is true for any

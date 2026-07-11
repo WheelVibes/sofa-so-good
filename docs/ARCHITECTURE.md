@@ -258,9 +258,11 @@ same change that reshapes a system.
   City/Park/Hills/Studio estates were removed.) Main Canvas is **`frameloop="demand"`**:
   `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic;
   `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
-  `bakeInstanceMatrix`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/
-  FeatureWall/ToyStorage (batten maths in pure `primitives/slatLayout.ts`);
-  `ContextLossGuard.tsx` recovers WebGL context loss.
+  `bakeInstanceMatrix`, now baking an optional per-instance rotation as `T·R·S`, plus a sibling
+  `InstancedCylinders`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/
+  FeatureWall/ToyStorage, and the **rotation-capable** venetian-blind slats + drying-rack rods
+  (batten/slat/rod maths in pure `primitives/slatLayout.ts`); `ContextLossGuard.tsx` recovers
+  WebGL context loss.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
   CC0 + Poly Haven + the R2 shared library (signed-in, pro), one fuzzy search + browse Sort +

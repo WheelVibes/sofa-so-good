@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.20.0.8 — P3 tail: rotation-capable instancing for venetian-blind + drying-rack slats
+
+`InstancedBoxes` gains per-instance `rotation` (matrix baked `T·R·S`, size innermost — exactly
+equivalent to a rotated mesh) plus a sibling `InstancedCylinders`; pure `slatLayout.ts` computes
+the venetian slat transforms (`venetianSlatInstances`, tilt parameterised + unit-tested 0→π/2)
+and all 11 drying-rack rods (`dryingRackCylinders`). The venetian branch of `RollerBlind` and the
+whole `DryingRack` metalwork now render as ONE instanced mesh each: draw calls 158 → 128 (−19%
+with one blind + one rack; scales linearly), 32 meshes collapsed to 2. Visual parity verified:
+venetian closed/half/open **byte-identical** (AE=0, group-scale raise/lower intact); rack crops
+visually identical (only sub-pixel AA on the 8 mm rods from unifying bar tessellation at 8
+segments; foot rails now cast shadows — more correct). 15 new unit tests; guard scenario
+`venetian-rack-instancing.json`; stale "slats are non-instanced" note fixed in furniture CLAUDE.
+
 ## v0.20.0.7 — P2 memoization audit: CLEAN verdict, findings recorded (no code change)
 
 Evidence-first audit of the hot R3F components/selectors with temporary render-count probes

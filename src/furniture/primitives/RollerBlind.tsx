@@ -1,12 +1,14 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import type { Group, Mesh } from 'three'
 import { draperyOpacityLevel, draperyVisualOpacity } from '../../materials/draperyOpacity'
 import { getDraperyMaterial } from '../../materials/furnitureMaterials'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
 import type { ParamProps } from '../types'
+import { InstancedBoxes } from './InstancedBoxes'
 import { readNum, readStr } from './shared'
+import { venetianSlatInstances } from './slatLayout'
 
 /** How fast the raise/lower animation eases (fraction of the gap per second·dt). */
 const LOWER_SPEED = 3.0
@@ -49,8 +51,11 @@ export function RollerBlind({ props }: { props: ParamProps }) {
 
   // A venetian blind models a fixed stack of slats revealed progressively (they
   // bunch toward the cassette when raised); the roller is a single fabric panel
-  // whose height scales with the current drop.
-  const SLATS = Math.max(4, Math.round(maxDrop / 0.08))
+  // whose height scales with the current drop. The slats are identical, tilted
+  // boxes sharing one material → one rotation-capable `InstancedBoxes` draw call
+  // (previously one mesh per slat). The raise/lower stays a Y-scale on the
+  // parent group, so the transforms rebuild only when width/drop change.
+  const slatInstances = useMemo(() => venetianSlatInstances(width, maxDrop), [width, maxDrop])
 
   const fabricRef = useRef<Mesh>(null)
   const railRef = useRef<Group>(null)
@@ -112,17 +117,9 @@ export function RollerBlind({ props }: { props: ParamProps }) {
       {kind === 'venetian' ? (
         // Slat stack anchored at the cassette top, scaled down toward it as raised.
         <group ref={slatsRef} position={[0, fabricTop, 0]} scale={[1, drop0 / maxDrop, 1]}>
-          {Array.from({ length: SLATS }, (_, i) => (
-            <mesh
-              key={i}
-              castShadow
-              position={[0, -(maxDrop / SLATS) * (i + 0.5), 0.045]}
-              rotation={[0.5, 0, 0]}
-            >
-              <boxGeometry args={[width, 0.006, 0.06]} />
-              <meshStandardMaterial {...slatMat} />
-            </mesh>
-          ))}
+          <InstancedBoxes instances={slatInstances} castShadow>
+            <meshStandardMaterial {...slatMat} />
+          </InstancedBoxes>
         </group>
       ) : (
         // Single fabric panel: a unit-height (1 m) box scaled to the drop.
