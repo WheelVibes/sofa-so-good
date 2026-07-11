@@ -9,6 +9,24 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `PATTERN_SIZE_CAP` (256 for smooth/noise-based, 512 for high-frequency geometric patterns).
 - **World-space UVs** (`worldUv.ts`): surfaces tile at a fixed physical scale — don't bake
   per-mesh UVs or assume a unit cube.
+- **Parallax-occlusion floors (`pomFloor.ts`, PHOTO-POM)**: hero grout-relief FLOOR finishes
+  (procedural `tile`/`hexagon`/`subway`/`checker`/`brick`/`parquet`/`herringbone`) get real recessed
+  grout/joints that occlude as the camera moves, on **High/Maximum only** (shader ray-march cost),
+  behind the `pomFloors` flag (pro tier, default on — pure procedural height, prod-safe). No new art:
+  it reuses the pattern's OWN height field — `generateProceduralHeightTexture` (generators.ts) bakes
+  the same `f.height` that `heightToNormalRGBA` turns into the normal map into a linear depth map.
+  `buildPomFloorMaterial` builds a SELF-CONTAINED `MeshStandardMaterial` (its own albedo/normal/rough
+  + height, owned + LRU-disposed — independent of the shared `cache.ts` LRU) and patches the stock
+  three-r184 shader via `onBeforeCompile`: a steep-parallax + occlusion ray-march (Schüler cotangent
+  frame, no precomputed tangents) offsets the shared floor UV (`vMapUv`) before the map/roughness/
+  normal chunks. It touches ONLY those UV lookups — VSM shadows, envMap/IBL, tone-mapping all compose
+  unchanged. Pure gating helpers (`pomEligiblePattern`/`pomStepsForTier` = 0 perf/med · 16 high · 32
+  max/`pomHeightScaleForPattern`/`pomFloorEligible`) are unit-tested (`pomFloor.test.ts`) — **Performance/
+  Medium return 0 steps → the floor keeps the plain shared procedural material, byte-identical** (verified
+  real-GPU: the Medium A/B pair is pixel-identical, mean 0.0). Wired only at the FLOOR render sites via
+  `useFloorProceduralMaterial` (RoomFloor/PlanRoomFloor `Procedural`) — walls/ceilings untouched. If a
+  three upgrade changes the `map_fragment`/`roughnessmap_fragment`/`normal_fragment_maps` chunk bodies,
+  re-verify the copied GLSL in `pomFloor.ts`.
 - **Colour harmony (`colorHarmony.ts`, CUSTOMIZE-MASTER-PALETTE)**: pure hex↔HSL + `recommendedBlends(palette, max=10)`
   derives harmony companions (complementary/analogous/triadic + tints/shades/neutral) from the
   apartment master palette. The palette lives in `state/slices/colorPaletteSlice.ts` (`masterPalette`

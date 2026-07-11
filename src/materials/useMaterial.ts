@@ -2,6 +2,7 @@ import { useTexture } from '@react-three/drei'
 import { useMemo } from 'react'
 import type { MeshStandardMaterial } from 'three'
 import { useShallow } from 'zustand/react/shallow'
+import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
 import { BUILTIN_MATERIALS } from './builtinCatalog'
 import { buildMaterial, getCachedMaterial } from './cache'
@@ -13,6 +14,7 @@ import {
   tintedMaterialDef,
 } from './composeMaterial'
 import { GENERATED_MATERIALS } from './generatedCatalog'
+import { buildPomFloorMaterial, pomFloorEligible } from './pomFloor'
 import type {
   MaterialCategory,
   MaterialDef,
@@ -124,6 +126,22 @@ export function useProceduralMaterial(def: ProceduralMaterialDef): MeshStandardM
   const cached = getCachedMaterial(def.id)
   if (cached) return cached
   return buildMaterial(def)
+}
+
+/** Floor-only procedural material with optional parallax-occlusion mapping
+ *  (PHOTO-POM). On Performance / Medium, when the `pomFloors` flag is off, or for
+ *  a pattern without hero grout relief this returns the plain shared procedural
+ *  material — byte-identical to {@link useProceduralMaterial}. On High / Maximum
+ *  an eligible geometric floor (tile / hexagon / subway / checker / brick /
+ *  parquet / herringbone) gets a POM variant whose grout / joints recess and
+ *  occlude as the camera moves. The base hook is always called (stable hook
+ *  order); the tier subscription re-renders the floor when the tier changes. */
+export function useFloorProceduralMaterial(def: ProceduralMaterialDef): MeshStandardMaterial {
+  const tier = useStore((s) => s.qualityTier)
+  const pomOn = useFeature('pomFloors')
+  const base = useProceduralMaterial(def)
+  if (pomFloorEligible(def.pattern, tier, pomOn)) return buildPomFloorMaterial(def, tier)
+  return base
 }
 
 /** Hook for textured materials — always calls useTexture so hook

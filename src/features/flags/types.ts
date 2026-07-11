@@ -127,6 +127,7 @@ export type FeatureFlag =
   | 'roomInset'
   | 'roomReorder'
   | 'tileBreakup'
+  | 'pomFloors'
   | 'elementColors'
   | 'openingStyles'
   | 'itemOpacity'

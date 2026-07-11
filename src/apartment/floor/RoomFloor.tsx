@@ -9,8 +9,8 @@ import type {
   TexturedMaterialDef,
 } from '../../materials/types'
 import {
+  useFloorProceduralMaterial,
   useMaterialDef,
-  useProceduralMaterial,
   useSolidMaterial,
   useTexturedMaterial,
 } from '../../materials/useMaterial'
@@ -134,7 +134,7 @@ function ProceduralRoomFloor({
   def,
   ...rest
 }: Omit<FloorMeshProps, 'material' | 'tileSize'> & { def: ProceduralMaterialDef }) {
-  const material = useProceduralMaterial(def)
+  const material = useFloorProceduralMaterial(def)
   return <FloorMesh {...rest} material={material} tileSize={def.uvScale[0]} />
 }
 

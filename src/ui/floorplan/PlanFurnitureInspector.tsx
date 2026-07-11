@@ -62,7 +62,11 @@ export function PlanFurnitureInspector({
   if (!def) return null
 
   const { w, d } = itemFootprintWD(item, def)
-  const h = def.defaultFootprint.h
+  // Effective height: a per-item `props.height` (e.g. a window-bound curtain sized
+  // floor-to-ceiling at placement, ~2.55 m) overrides the def's authored footprint
+  // H (~2.75 m) — so the Size readout reports the real height, not the default.
+  const propH = item.props['height']
+  const h = typeof propH === 'number' ? propH : def.defaultFootprint.h
 
   // Collision-checked transform commit (one undo step), reading fresh state so a
   // stale captured `item` can't write a deleted id. Mirrors InspectorPanel.
@@ -155,19 +159,32 @@ export function PlanFurnitureInspector({
         />
       </div>
 
-      <Num
-        label="X (m)"
-        value={item.position[0]}
-        step={0.05}
-        onChange={(v) => tryMove(v, item.position[1])}
-      />
-      <Num
-        label="Z (m)"
-        value={item.position[1]}
-        step={0.05}
-        onChange={(v) => tryMove(item.position[0], v)}
-      />
-      <Num label="Angle (°)" value={rotDeg} step={15} onChange={trySetRotDeg} />
+      {/* Position + angle are hidden for window-bound fixtures (curtains/blinds):
+          they're statically snapped to their window, so editing X/Z/angle would
+          detach them. Mirrors the 3D inspector's `!def.windowBound` Transform gate
+          (`InspectorPanel.tsx`) + the blocked scene/plan drag. Size fields below
+          stay editable (a curtain still resizes), matching the 3D inspector. */}
+      {!def.windowBound ? (
+        <>
+          <Num
+            label="X (m)"
+            value={item.position[0]}
+            step={0.05}
+            onChange={(v) => tryMove(v, item.position[1])}
+          />
+          <Num
+            label="Z (m)"
+            value={item.position[1]}
+            step={0.05}
+            onChange={(v) => tryMove(item.position[0], v)}
+          />
+          <Num label="Angle (°)" value={rotDeg} step={15} onChange={trySetRotDeg} />
+        </>
+      ) : (
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
+          Fixed to its window — it stays snapped in place, so it can't be moved or rotated here.
+        </p>
+      )}
 
       {wField ? (
         <Num

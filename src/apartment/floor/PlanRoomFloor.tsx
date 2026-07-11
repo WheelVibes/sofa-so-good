@@ -9,8 +9,8 @@ import type {
   TexturedMaterialDef,
 } from '../../materials/types'
 import {
+  useFloorProceduralMaterial,
   useMaterialDef,
-  useProceduralMaterial,
   useSolidMaterial,
   useTexturedMaterial,
 } from '../../materials/useMaterial'
@@ -224,7 +224,9 @@ function Textured({ def, ...rest }: Rect & { def: TexturedMaterialDef }) {
   return <FloorMesh {...rest} material={useTexturedMaterial(def)} tileSize={def.uvScale[0]} />
 }
 function Procedural({ def, ...rest }: Rect & { def: ProceduralMaterialDef }) {
-  return <FloorMesh {...rest} material={useProceduralMaterial(def)} tileSize={def.uvScale[0]} />
+  return (
+    <FloorMesh {...rest} material={useFloorProceduralMaterial(def)} tileSize={def.uvScale[0]} />
+  )
 }
 
 function Inner({ materialId, ...rest }: Props) {

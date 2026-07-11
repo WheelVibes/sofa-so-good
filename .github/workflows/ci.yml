@@ -36,6 +36,24 @@ jobs:
       - name: Lint
         run: npm run lint
 
+  deadcode:
+    name: Dead-code scan (knip)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci
+
+      # knip flags orphaned files, unresolved imports, and (as non-blocking
+      # warnings) the unused-export/dependency backlog. Gated in knip.json:
+      # only `files`/`unresolved` fail the build; everything else is `warn`.
+      # Fast (single pass, ~10s) so it runs as its own job, not in the test job.
+      - name: Dead-code scan
+        run: npm run deadcode
+
   test:
     name: Tests (shard ${{ matrix.shard }}/2)
     runs-on: ubuntu-latest

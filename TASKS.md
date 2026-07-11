@@ -126,25 +126,17 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] R-BLEED: inter-room light-bleed directional weighting (needs geometry raycasting).
 - [ ] PHOTO-* frontier: PHOTO-POM, PHOTO-SSGI-SSR (WebGPU), PHOTO-WEBGPU. See `PHOTOREALISM.md`
   (GLASS + SOFTSHADOW shipped v0.19.0.1; GTAO rejected by real-GPU ruling 2026-07-11).
-- [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` toggle needs a context recreate (flash) +
-  real-GPU verify.
 
 ## Dead-export prune plan (from docs/research/2026-07-03-dead-export-audit.md, verified per-symbol)
-- [ ] **DE-5** (pre-req discovered 2026-07-10): `npm run deadcode` (knip) CRASHES on an
-  oxc-parser ESM/CJS `require()` mismatch (both Node 20 and the pinned 24.18.0) — upgrade
-  knip/oxc-parser first, then extend `knip.json` to `functions/**`, `workers/**`,
-  `electron/*.mjs`, verify clean (DE-1..3 landed v0.18.6.8/.9), and add `npm run deadcode` to CI.
-- [ ] **DE-5**: extend `knip.json` entry/project to `functions/**`, `workers/**`, `electron/*.mjs`
-  (currently invisible to knip), verify clean after DE-2/3, then add `npm run deadcode` to CI.
+- [ ] **DE-6 (follow-up from DE-5, 2026-07-11)**: knip's extended scope surfaces the pre-existing
+  over-export backlog as CI *warnings* (105 unused-exported types + 19 value exports — the DE-1..3
+  prune plan only ever covered value exports; spot-checks show the "same-file-used, drop-`export`-
+  only" false-positive class, NOT dead code). Driving them to zero = de-exporting ~120 symbols
+  (audit-doc Task 2/3 pattern extended to types). One genuine zero-reference deletion candidate:
+  `currentEffectiveQuality` (`src/dev/profiler/profilerEngine.ts`) — dev-only, awaiting a call.
+  Also warn-level: 3 unused devDeps (playwright ×2, wrangler — all actually used outside knip's
+  view), 6 unlisted deps, `safeUrl` duplicate export.
 
-
-## Bugs found by PLAN-FURNISH Phase 3 verification (2026-07-11, pre-existing — not Phase-3 regressions)
-- [ ] **BUG: the 2D plan's `PlanInspector` + rotate handle ignore `def.windowBound`** — a selected
-  curtain in the plan shows editable X/Z/Angle/Width fields and a rotate knob, while the 3D
-  inspector hides transforms and `Furniture.tsx` blocks drags. Editing them detaches the fixture
-  from its window. Fix: gate those controls on `windowBound` like the 3D inspector does.
-- [ ] **Cosmetic: plan inspector "Size (W×D×H)" shows the def's footprint H** (e.g. 275 cm) rather
-  than the window-sized `props.height` (255 cm) for window fixtures.
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

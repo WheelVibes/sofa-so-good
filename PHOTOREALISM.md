@@ -65,15 +65,6 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   C-PLANTS/DECOR in TASKS.
 
 ### Tier 2 — high impact, needs real-GPU verification
-- **PHOTO-DENOISE — SHIPPED v0.19.0.5.** OIDN U-Net denoise of the finished HQ still
-  (`denoiser`@0.0.11 tfjs build, lazy-imported; backend chain WebGPU→WebGL2→CPU), guided by
-  one-shot albedo+normal AOV passes captured at session start (`hqAovPasses.ts`; AOV failure →
-  color-only model). Weights self-hosted (`public/denoiser-tzas/`, 1.25 MB, Apache-2.0 —
-  offline/GH-Pages safe, no CDN). Flag `hqAiDenoise` (simple/on, matching `hqRender`); edge-blur
-  `DenoiseMaterial` stays as live preview + fallback; >4K stills skip the AI pass
-  (`aiDenoiseEligible`). `oidn-web` deliberately not added (would duplicate the UNet tfjs-webgpu
-  already covers). A/B (SwiftShader, 64 spp): speckle → smooth, edges preserved, guided 9-channel
-  model confirmed in-console. Scenario: `scripts/scenarios/hq-ai-denoise-simple.json`.
 - **PHOTO-GTAO — ruling (2026-07-11, real-GPU A/B): REJECTED, N8AO stays as-is.** A literal GTAO
   cannot integrate cleanly: `GTAONode` is WebGPU/TSL-`RenderPipeline`-only, `GTAOPass` targets
   three's own WebGL `EffectComposer` (incompatible Pass hierarchy with the pmndrs composer), and
@@ -101,9 +92,6 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   **Remaining:** bundle curated **Poly Haven / ambientCG** sets for the still-procedural-only tokens
   (fabric/leather/metal + more wood/tile/concrete variants: albedo+normal+rough+AO), world-UV tiled,
   with the procedural generators as the always-available base.
-- **PHOTO-POM — parallax-occlusion mapping on hero floors** (M, High/Max; Verify G).
-  POM on tile/brick/parquet floors for real recessed grout/relief as the camera moves — big step up
-  from normal maps; gate to High+ (shader ray-march cost).
 
 ### Tier 4 — frontier (WebGPU / large)
 - **PHOTO-SSGI-SSR** (L, WebGPU/High-end; Verify G). Screen-space GI + reflections via

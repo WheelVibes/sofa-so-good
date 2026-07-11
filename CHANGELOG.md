@@ -5,6 +5,58 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.0.4 — PHOTO-POM: parallax-occlusion mapping on procedural hero floors (High/Max)
+
+Steep-parallax + occlusion ray-march (LearnOpenGL basis, Schüler cotangent frame — no precomputed
+tangents) injected via `onBeforeCompile` into the floor material's map/rough/normal UV lookups;
+composes with VSM shadows/IBL/tone-mapping unchanged. Height source is the procedural pattern's
+own height field (the same buffer `heightToNormalRGBA` already consumes — no fabricated art; no
+bundled Poly Haven finish ships displacement). Gained POM: tile, hexagon, subway, checker, brick,
+parquet, herringbone floors (`pomFloor.ts` + `useFloorProceduralMaterial`, own LRU-disposed
+textures). Steps: High 16 / Max 32 / below = inert — Medium A/B pixel-identical (mean 0.000).
+New `pomFloors` flag (pro/on). GPU-verified at a grazing walk pose: herringbone joints visibly
+recess and occlude (diff mean 10.6/255 concentrated on the floor), no swimming/step/seam
+artifacts; frame cost below measurement noise (POM-on never consistently slower). 14 unit tests;
+full suite 5880 green; A/B scenarios `photo-pom-ab.json` + `photo-pom-closeup.json`. Caveat noted
+in code: injected GLSL copies three r184 chunk bodies — re-verify on a three upgrade.
+
+## v0.21.0.3 — plan editor now honours `windowBound` (3 fixes: inspector, rotate handle, drag)
+
+The 2D plan editor now mirrors the 3D inspector's window-fixture semantics exactly.
+(1) `PlanFurnitureInspector` gates X/Z/Angle on `!def.windowBound` with a "Fixed to its window…"
+hint (Width/Depth stay editable, as in 3D); (2) the plan rotate handle returns null for
+window-bound items; (3) NEW BUG found during the fix: the plan's footprint `onPointerDown`
+started a move drag with no windowBound check, silently detaching curtains from their window —
+now selectable-but-not-draggable, mirroring `Furniture.tsx`/`shouldBeginItemDrag`. Cosmetic fix:
+the Size (W×D×H) line uses effective `props.height` (window-sized, e.g. 230 cm) over the def
+footprint. 20 new gating tests + floorplan suite 207 green; guard scenario
+`plan-window-fixture-gating.json`; screenshots reviewed (curtain gated + hint + no ring; normal
+item keeps full fields + ring). Rule noted in `furniture/CLAUDE.md`.
+
+## v0.21.0.2 — DE-5: knip deadcode scan repaired, scope extended, wired into CI
+
+`npm run deadcode` crashed with "Cannot find native binding" — root cause was NOT the suspected
+oxc ESM/CJS mismatch but the npm optional-deps bug (npm/cli#4828): `@oxc-parser/binding-linux-
+x64-gnu` was simply never installed. knip 6.17.1 → 6.26.0 (oxc-parser 0.137.0, minimal lock diff)
+re-resolves it. `knip.json`: entry/project extended to `functions/**`, `workers/**`,
+`electron/*.mjs` (previously invisible); `.claude/**` ignored (agent worktrees were massive false
+noise); config now hint-free; new `rules` block gates the high-signal categories (`files`,
+`unresolved` = error, both zero) while the pre-existing over-export backlog surfaces as warnings
+(→ DE-6 in TASKS.md; nothing deleted — spot-checks confirm the same-file-used false-positive
+class). CI gains a standalone `deadcode` job (checkout → node 24.18.0 → `npm ci` → knip) on the
+existing [main, staging] triggers. Verified: deadcode exit 0, tsc + worker typecheck + biome
+clean, dev server + vitest unaffected by the dep bump.
+
+## v0.21.0.1 — PERF6 tail resolved: REJECTED on real-GPU evidence (no code change)
+
+The antialias/preserveDrawingBuffer "toggle needs a context recreate" tail is closed as
+won't-do: neither attribute was ever plumbed or UI-exposed (no dead knob, no no-op toggle — the
+"…+ antialiasing" Graphics toggle correctly maps to `postprocessing`/SMAA), the GL context is
+created once (a runtime toggle would force a visible recreate flash), the default framebuffer's
+4× MSAA is load-bearing on Performance/Medium (sole AA) and only redundant on High/Max where the
+saving measured below the noise floor, and `preserveDrawingBuffer` remains pinned by Record.
+Full ruling + revisit condition parked in TODO.md's perf section.
+
 ## v0.20.0.8 — P3 tail: rotation-capable instancing for venetian-blind + drying-rack slats
 
 `InstancedBoxes` gains per-instance `rotation` (matrix baked `T·R·S`, size innermost — exactly

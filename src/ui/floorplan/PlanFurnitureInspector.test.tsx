@@ -20,6 +20,15 @@ function resizableDef(): ParametricDef {
   throw new Error('no resizable parametric def found in catalog')
 }
 
+/** A window-bound fixture def (curtain/blind) — statically snapped to its
+ *  window, so the plan inspector must hide X/Z/angle + the rotate handle. */
+function windowBoundDef(): ParametricDef {
+  for (const def of Object.values(BUILTIN_CATALOG)) {
+    if (def.kind === 'parametric' && def.windowBound) return def
+  }
+  throw new Error('no window-bound parametric def found in catalog')
+}
+
 /** Place a single item on a wall-less custom plan (no walls/rooms → collision
  *  checks only consider item-item overlap, so moves/rotations always pass). */
 function placeOne(defId: string, props: Record<string, number | string> = {}): string {
@@ -99,6 +108,59 @@ describe('PlanFurnitureInspector (PARITY-PLAN-FURN-INSPECT)', () => {
       fireEvent.change(screen.getByLabelText('X (m)'), { target: { value: '3' } })
     })
     expect(useStore.getState().items.find((i) => i.id === id)!.position[0]).toBe(0)
+  })
+
+  it('hides X/Z/angle transform fields for a window-bound fixture (mirrors the 3D inspector)', () => {
+    const def = windowBoundDef()
+    const id = placeOne(def.id)
+    render(<PlanFurnitureInspector item={useStore.getState().items.find((i) => i.id === id)!} />)
+    // Transform inputs must be absent — editing them would detach the fixture
+    // from its window (the 3D inspector hides its Transform section the same way).
+    expect(screen.queryByLabelText('X (m)')).toBeNull()
+    expect(screen.queryByLabelText('Z (m)')).toBeNull()
+    expect(screen.queryByLabelText('Angle (°)')).toBeNull()
+    // An explanatory hint stands in for the hidden fields.
+    expect(screen.getByText(/Fixed to its window/i)).toBeTruthy()
+  })
+
+  it('keeps the size fields for a window-bound fixture (a curtain still resizes, like 3D)', () => {
+    const def = windowBoundDef()
+    const id = placeOne(def.id)
+    render(<PlanFurnitureInspector item={useStore.getState().items.find((i) => i.id === id)!} />)
+    // Width stays editable — only the position/angle transform is window-locked.
+    expect(screen.getByLabelText('Width (m)')).toBeTruthy()
+    expect(screen.getByText('Size (W×D×H)')).toBeTruthy()
+  })
+
+  it('shows a normal item its X/Z/angle transform fields (control)', () => {
+    const def = resizableDef()
+    const id = placeOne(def.id)
+    render(<PlanFurnitureInspector item={useStore.getState().items.find((i) => i.id === id)!} />)
+    expect(screen.getByLabelText('X (m)')).toBeTruthy()
+    expect(screen.getByLabelText('Z (m)')).toBeTruthy()
+    expect(screen.getByLabelText('Angle (°)')).toBeTruthy()
+    expect(screen.queryByText(/Fixed to its window/i)).toBeNull()
+  })
+
+  it('the Size line reports props.height when it overrides the def footprint H', () => {
+    const def = windowBoundDef()
+    const id = placeOne(def.id, { height: 2.55 })
+    const item = useStore.getState().items.find((i) => i.id === id)!
+    // Force the per-item height override (addItem may have filled the schema
+    // default), then confirm the readout shows 2.55 m → 255 cm, not the def's H.
+    render(<PlanFurnitureInspector item={{ ...item, props: { ...item.props, height: 2.55 } }} />)
+    const size = screen.getByText('Size (W×D×H)').parentElement!
+    expect(size.textContent).toContain('255')
+    expect(size.textContent).not.toContain(String(Math.round(def.defaultFootprint.h * 100)))
+  })
+
+  it('the Size line falls back to the def footprint H when props.height is unset', () => {
+    const def = resizableDef()
+    const id = placeOne(def.id)
+    const item = useStore.getState().items.find((i) => i.id === id)!
+    render(<PlanFurnitureInspector item={{ ...item, props: {} }} />)
+    const size = screen.getByText('Size (W×D×H)').parentElement!
+    expect(size.textContent).toContain(String(Math.round(def.defaultFootprint.h * 100)))
   })
 
   it('renders nothing when the def is missing (stale id, graceful)', () => {
