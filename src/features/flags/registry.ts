@@ -115,6 +115,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  hqAiDenoise: {
+    label: 'HQ render AI denoise',
+    // PHOTO-DENOISE: OIDN U-Net over the finished HQ still (the `denoiser`
+    // package — tfjs; WebGPU when available, else WebGL2), guided by cheap
+    // albedo/normal AOV passes. Weights are Apache-2.0, self-hosted under
+    // public/denoiser-tzas/ — prod-safe, no third-party CDN. Same tier as its
+    // host feature `hqRender`; falls back to the edge-blur when off/failed.
+    description: 'Neural (OIDN) denoise of the finished HQ render for near-offline quality',
+    default: true,
+    tier: 'simple',
+  },
   vrWalkthrough: {
     label: 'VR walkthrough',
     description: 'WebXR immersive walkthrough on supported headsets',

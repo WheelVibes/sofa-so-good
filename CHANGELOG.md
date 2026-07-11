@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.19.0.5 — PHOTO-DENOISE: OIDN AI denoise of the HQ path-traced still
+
+The HQ still's edge-blur is now followed by a real OIDN U-Net denoise when accumulation completes
+(or on Stop): `denoiser`@0.0.11 (MIT; tfjs build) dynamic-imported on first use (zero boot-bundle
+cost), backend chain tfjs-WebGPU→WebGL2→CPU, guided by one-shot **albedo+normal AOV** passes
+captured at session start (`hqAovPasses.ts` — per-mesh basic-material albedo + MeshNormalMaterial
+override into an offscreen target, full state restore; AOV failure degrades to color-only).
+Intel's Apache-2.0 weights are **self-hosted** under `public/denoiser-tzas/` (1.25 MB `_small`
+guided + color-only models + LICENSE — offline/GH-Pages safe, the lib's jsDelivr default never
+hit). New `hqAiDenoise` flag (simple/on, tier-matched to `hqRender`); modal gains a
+"Denoising (OIDN AI)…" phase; Save PNG exports the denoised frame; edge-blur `DenoiseMaterial`
+remains the live preview + fallback; >4K stills skip the AI pass (`aiDenoiseEligible`, pure +
+unit-tested). Respects the v0.19.0.2 session hardening (never runs on the blank-abort path;
+disposed guards; per-run tensor disposal). A/B (SwiftShader, 192×108@64spp): Monte-Carlo speckle
+→ visibly smooth surfaces, edges preserved, no color shift; console confirmed the 9-channel
+guided model on the WebGL backend. `oidn-web` deliberately omitted (duplicate UNet for the
+WebGPU case tfjs-webgpu covers). Targeted suites 125 green. Note: `npm install` may clobber
+rolldown's platform binding (npm optional-deps bug) — reinstall `@rolldown/binding-linux-x64-gnu`
+if the dev server fails post-install.
+
 ## v0.19.0.4 — PHOTO-GTAO resolved: REJECTED on real-GPU A/B evidence (no code change)
 
 Evaluation-first outcome recorded in `PHOTOREALISM.md`: literal GTAO can't integrate cleanly

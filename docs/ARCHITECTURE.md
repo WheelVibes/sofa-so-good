@@ -1436,7 +1436,14 @@ same change that reshapes a system.
   drag-to-look viewer `ui/panorama/PanoramaViewer.tsx` (pure `viewerLook.ts` clamp math) + PNG,
   `panorama` flag, pro), **HQ render** (`scene/pathtrace/hqRenderSession.ts` progressive
   path-traced still via `three-gpu-pathtracer`; `hqRenderSource.ts` module singleton exposes
-  live scene+camera; `ui/HqRenderModal.tsx` — resolution/samples/DoF; `hqRender` flag, pro),
+  live scene+camera; `ui/HqRenderModal.tsx` — resolution/samples/DoF; `hqRender` flag, pro;
+  **AI denoise** PHOTO-DENOISE: OIDN U-Net over the finished still via the lazy-loaded
+  `denoiser` package (tfjs — WebGPU→WebGL2→CPU fallback chain), guided by one-shot raster
+  albedo/normal AOVs (`hqAovPasses.ts`) captured at session start; Apache-2.0 weights
+  self-hosted in `public/denoiser-tzas/` (~0.6 MB/model, offline-safe); pure gates in
+  `hqAiDenoiseMath.ts` (≤4K eligibility, backend order, weights URL); runs automatically on
+  done/Stop via `session.applyAiDenoise()`, edge-blur `DenoiseMaterial` blit stays as live
+  preview + fallback; `hqAiDenoise` flag, simple),
   **Render preset A/B compare** (`ui/renderCompare/compareState.ts` pure logic — preset
   selection, swap, divider clamping; `ui/RenderCompareModal.tsx` two sequential captures +
   Lightroom-style before/after slider with touch parity; `renderCompare` flag, pro),

@@ -14,6 +14,8 @@
 
 import type { Camera, Object3D, Scene, Texture, WebGLRenderer } from 'three'
 import { mmToFov } from '../cameras/cameraLensSettings'
+import { aiDenoiseEligible } from './hqAiDenoiseMath'
+import type { HqAovImages } from './hqAovPasses'
 import { classifyProbePixels, HqBlankRenderError } from './hqBlankProbe'
 import { isReusableEquirectEnvironment } from './hqEnvironment'
 import { HQ_TRACER_CONFIG } from './hqTracerConfig'
@@ -36,6 +38,11 @@ export interface HqRenderOptions {
   /** Edge-preserving denoise blit on the preview/output (default true) —
    *  smooths Monte-Carlo noise at low sample counts. */
   denoise?: boolean
+  /** AI denoise (PHOTO-DENOISE, `hqAiDenoise` flag): arm the OIDN U-Net pass —
+   *  cheap albedo/normal AOV guides are captured at session start and
+   *  `applyAiDenoise()` becomes available once samples exist. The edge-blur
+   *  `denoise` blit stays on as the live preview + fallback. */
+  aiDenoise?: boolean
   /** Equirect `.hdr` URL to light the still with (PHOTO-HDRI-PT) — the user's
    *  active `hdriEnvironment` selection, resolved via `hqEnvironmentUrl`.
    *  Undefined → the neutral 2-colour gradient sky (procedural mode). */
@@ -56,8 +63,14 @@ export interface HqRenderSession {
   /** Pause accumulation (resume with start()). */
   stop: () => void
   start: () => void
-  /** PNG of the current accumulation state. */
+  /** PNG of the current accumulation state (the AI-denoised frame once
+   *  `applyAiDenoise()` has succeeded). */
   toDataURL: () => string
+  /** Run the OIDN AI denoise over the accumulated frame (PHOTO-DENOISE).
+   *  Resolves with the denoised canvas, or null when the pass is disabled,
+   *  ineligible (8K), or failed — callers keep the edge-blur preview then.
+   *  Idempotent-ish: a second call re-runs over the current accumulation. */
+  applyAiDenoise: () => Promise<HTMLCanvasElement | null>
   /** Stop + free the GL context and path-tracer resources. */
   dispose: () => void
 }
@@ -301,6 +314,11 @@ export async function createHqRenderSession(
   tracer.minSamples = 0
 
   let ownedEnv: Texture | null = null
+  // Albedo + normal guide AOVs for the AI denoiser (PHOTO-DENOISE) — captured
+  // one-shot below, right after the BVH snapshot, while the snapshot scene is
+  // in scope. Null → colour-only denoise (still valid OIDN input).
+  let aovs: HqAovImages | null = null
+  const wantAiDenoise = opts.aiDenoise === true && aiDenoiseEligible(opts.width, opts.height)
   try {
     // Snapshot the live scene + camera pose into the tracer's BVH.
     const built = await buildTracerScene(scene, opts.hdriUrl)
@@ -334,6 +352,17 @@ export async function createHqRenderSession(
       renderCamera = phys
     }
     tracer.setScene(snapshot, renderCamera)
+    if (wantAiDenoise) {
+      // Cheap raster passes into offscreen targets — they never touch the
+      // canvas drawing buffer the tracer accumulates into. Best-effort: a
+      // failure only downgrades the AI pass to colour-only.
+      try {
+        const { captureAovPasses } = await import('./hqAovPasses')
+        aovs = await captureAovPasses(renderer, snapshot, renderCamera, opts.width, opts.height)
+      } catch {
+        aovs = null
+      }
+    }
   } catch (err) {
     ownedEnv?.dispose()
     renderer.dispose()
@@ -352,6 +381,11 @@ export async function createHqRenderSession(
   let running = false
   let disposed = false
   let probed = false
+  // The OIDN AI-denoised frame (PHOTO-DENOISE): a plain 2D canvas so
+  // toDataURL/preview never depend on another GL context. Cleared whenever
+  // accumulation resumes (it would be stale against newer samples).
+  let denoisedCanvas: HTMLCanvasElement | null = null
+  let denoising = false
 
   const disposeSession = () => {
     if (disposed) return
@@ -442,6 +476,7 @@ export async function createHqRenderSession(
     },
     start: () => {
       if (running || disposed) return
+      denoisedCanvas = null
       running = true
       raf = requestAnimationFrame(tick)
     },
@@ -449,7 +484,31 @@ export async function createHqRenderSession(
       running = false
       cancelAnimationFrame(raf)
     },
-    toDataURL: () => canvas.toDataURL('image/png'),
+    toDataURL: () =>
+      denoisedCanvas ? denoisedCanvas.toDataURL('image/png') : canvas.toDataURL('image/png'),
+    applyAiDenoise: async () => {
+      if (!wantAiDenoise || disposed || denoising || samples === 0) return denoisedCanvas
+      denoising = true
+      try {
+        const { runAiDenoise } = await import('./hqAiDenoise')
+        const img = await runAiDenoise(canvas, aovs, () => disposed)
+        if (disposed) return null
+        const out = document.createElement('canvas')
+        out.width = img.width
+        out.height = img.height
+        const ctx = out.getContext('2d')
+        if (!ctx) return null
+        ctx.putImageData(img, 0, 0)
+        denoisedCanvas = out
+        return out
+      } catch (err) {
+        // Every backend failed (or cancelled) — the edge-blur preview stands.
+        if (import.meta.env.DEV) console.warn('HQ AI denoise failed:', err)
+        return null
+      } finally {
+        denoising = false
+      }
+    },
     dispose: disposeSession,
   }
 }

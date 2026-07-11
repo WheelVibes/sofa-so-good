@@ -65,11 +65,15 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   C-PLANTS/DECOR in TASKS.
 
 ### Tier 2 — high impact, needs real-GPU verification
-- **PHOTO-DENOISE — browser OIDN on the HQ still** (M–L, HQ still; Verify G).
-  Replace the edge-blur with an OIDN U-Net on the final accumulated frame: `DennisSmolek/Denoiser`
-  (tfjs, runs on WebGL2) with WebGPU `oidn-web` when available; render cheap **albedo + normal AOV**
-  passes from the snapshot scene to guide it (near-offline quality at 64–128 samples). New flag,
-  prod-safe (Apache-2.0 weights). Fallback to current `DenoiseMaterial`.
+- **PHOTO-DENOISE — SHIPPED v0.19.0.5.** OIDN U-Net denoise of the finished HQ still
+  (`denoiser`@0.0.11 tfjs build, lazy-imported; backend chain WebGPU→WebGL2→CPU), guided by
+  one-shot albedo+normal AOV passes captured at session start (`hqAovPasses.ts`; AOV failure →
+  color-only model). Weights self-hosted (`public/denoiser-tzas/`, 1.25 MB, Apache-2.0 —
+  offline/GH-Pages safe, no CDN). Flag `hqAiDenoise` (simple/on, matching `hqRender`); edge-blur
+  `DenoiseMaterial` stays as live preview + fallback; >4K stills skip the AI pass
+  (`aiDenoiseEligible`). `oidn-web` deliberately not added (would duplicate the UNet tfjs-webgpu
+  already covers). A/B (SwiftShader, 64 spp): speckle → smooth, edges preserved, guided 9-channel
+  model confirmed in-console. Scenario: `scripts/scenarios/hq-ai-denoise-simple.json`.
 - **PHOTO-GTAO — ruling (2026-07-11, real-GPU A/B): REJECTED, N8AO stays as-is.** A literal GTAO
   cannot integrate cleanly: `GTAONode` is WebGPU/TSL-`RenderPipeline`-only, `GTAOPass` targets
   three's own WebGL `EffectComposer` (incompatible Pass hierarchy with the pmndrs composer), and

@@ -74,10 +74,17 @@ export function HqRenderModal() {
   const setDofFocusDistance = useStore((s) => s.setDofFocusDistance)
   const setDofAuto = useStore((s) => s.setDofAuto)
 
+  // AI denoise (PHOTO-DENOISE): OIDN U-Net pass over the finished still,
+  // guided by AOVs captured at session start. Runs automatically on
+  // completion/stop when the flag is on; the edge-blur is the fallback.
+  const aiDenoise = useFeature('hqAiDenoise')
+
   const [resId, setResId] = useState<string>('1080')
   const [maxSamples, setMaxSamples] = useState<number>(256)
   const [samples, setSamples] = useState(0)
-  const [phase, setPhase] = useState<'idle' | 'building' | 'rendering' | 'done' | 'error'>('idle')
+  const [phase, setPhase] = useState<
+    'idle' | 'building' | 'rendering' | 'denoising' | 'done' | 'error'
+  >('idle')
   // Which failure the error phase describes: 'blank' is the PT-BLANK-GUARD
   // abort (driver compiled a context but the megakernel produced no pixels).
   const [errorKind, setErrorKind] = useState<'generic' | 'blank'>('generic')
@@ -100,6 +107,30 @@ export function HqRenderModal() {
     return teardown
   }, [open, teardown])
 
+  // Accumulation finished (naturally or via Stop) — run the AI denoise pass
+  // when armed, swapping the preview to the denoised frame on success. Any
+  // failure/null keeps the tracer canvas (edge-blur) preview — silent fallback.
+  const finalize = useCallback(async () => {
+    const session = sessionRef.current
+    if (!session) {
+      setPhase('done')
+      return
+    }
+    if (aiDenoise) {
+      setPhase('denoising')
+      const out = await session.applyAiDenoise()
+      // Torn down or re-rendered while denoising — that flow owns the phase now.
+      if (sessionRef.current !== session) return
+      const host = hostRef.current
+      if (out && host) {
+        host.innerHTML = ''
+        out.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block'
+        host.appendChild(out)
+      }
+    }
+    setPhase('done')
+  }, [aiDenoise])
+
   const start = useCallback(async () => {
     teardown()
     const src = getHqRenderSource()
@@ -119,12 +150,13 @@ export function HqRenderModal() {
         height: res.h,
         maxSamples,
         fStop: dofFStop || undefined,
+        aiDenoise,
         hdriUrl: hqEnvironmentUrl(hdriOn, hdriId) ?? undefined,
         // Lens + manual focus only when the pro lens controls are enabled.
         focalLengthMm: hasLensControls ? lensFocalMm : undefined,
         focusDistance: hasLensControls && !dofAuto ? dofFocusDistance : undefined,
         onProgress: (n) => setSamples(n),
-        onDone: () => setPhase('done'),
+        onDone: () => void finalize(),
         onError: (err) => {
           if (import.meta.env.DEV) console.warn('HQ render failed:', err)
           if (isHqBlankRenderError(err)) {
@@ -156,6 +188,7 @@ export function HqRenderModal() {
     resId,
     maxSamples,
     dofFStop,
+    aiDenoise,
     hdriOn,
     hdriId,
     hasLensControls,
@@ -163,6 +196,7 @@ export function HqRenderModal() {
     dofAuto,
     dofFocusDistance,
     teardown,
+    finalize,
   ])
 
   const download = () => {
@@ -178,7 +212,7 @@ export function HqRenderModal() {
     useStore.getState().notify.start({ title: 'Render saved to your downloads', kind: 'success' })
   }
 
-  const busy = phase === 'building' || phase === 'rendering'
+  const busy = phase === 'building' || phase === 'rendering' || phase === 'denoising'
   const dofOn = dofFStop > 0
   // The border-beam animates continuously, so mount it only while busy + gated,
   // and IntersectionObserver-pause it (`.paused`) whenever it scrolls off-screen
@@ -297,13 +331,17 @@ export function HqRenderModal() {
                 className="btn"
                 onClick={() => {
                   sessionRef.current?.stop()
-                  setPhase('done')
+                  void finalize()
                 }}
               >
                 Stop
               </button>
             ) : (
-              <Button loading={phase === 'building'} onClick={start}>
+              <Button
+                loading={phase === 'building' || phase === 'denoising'}
+                onClick={start}
+                disabled={phase === 'denoising'}
+              >
                 {phase === 'done' || phase === 'error' ? 'Re-render' : 'Start render'}
               </Button>
             )}
@@ -348,11 +386,13 @@ export function HqRenderModal() {
           >
             {phase === 'building'
               ? 'Preparing scene (building BVH)…'
-              : phase === 'error'
-                ? errorKind === 'blank'
-                  ? "The render came back blank — this device's graphics driver may not support the high-quality renderer. The PNG export in File still works."
-                  : 'Could not start the render — your device may not support WebGL2. The PNG export in File still works.'
-                : 'Pick a resolution and quality, then Start render. Higher samples = cleaner image, longer wait.'}
+              : phase === 'denoising'
+                ? 'Denoising (OIDN AI)…'
+                : phase === 'error'
+                  ? errorKind === 'blank'
+                    ? "The render came back blank — this device's graphics driver may not support the high-quality renderer. The PNG export in File still works."
+                    : 'Could not start the render — your device may not support WebGL2. The PNG export in File still works.'
+                  : 'Pick a resolution and quality, then Start render. Higher samples = cleaner image, longer wait.'}
           </div>
         ) : null}
       </div>

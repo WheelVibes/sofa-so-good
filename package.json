@@ -55,6 +55,7 @@
     "@react-three/fiber": "^9.6.1",
     "@react-three/postprocessing": "^3.0.4",
     "@react-three/xr": "^6.6.30",
+    "denoiser": "^0.0.11",
     "fflate": "^0.8.3",
     "hono": "^4.12.27",
     "idb-keyval": "^6.2.4",
