@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.15 — CI: knip dead-export fix (doorwayBleed tuning constants un-exported)
+
+PR #92's knip dead-code scan flagged `BLEED_HALF_DEPTH` and `FACING_EXP` in
+`lighting2d/doorwayBleed.ts` as unused exports — both are only read inside the module (the
+falloff/lobe math); dropped the `export` keyword. knip + lighting2d suite + tsc clean.
+
 ## v0.21.2.14 — R-BLEED-PROBE-DEDUP: one shared opening→rooms probe (pure refactor)
 
 New `src/floorplan/openingProbe.ts` — the single pure home for the "which room(s) does this wall

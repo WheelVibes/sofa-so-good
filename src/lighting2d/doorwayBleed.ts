@@ -67,11 +67,11 @@ export const APERTURE_FACTOR_CAP = 1.5
 
 /** Distance (m) into the receiving room at which the bleed halves (same shape
  *  and spirit as the daylight wash's half-depth). */
-export const BLEED_HALF_DEPTH = 1.8
+const BLEED_HALF_DEPTH = 1.8
 
 /** Exponent on the facing (cosine) term. 1 = a plain cosine forward lobe; higher
  *  tightens the lobe directly in front of the doorway. */
-export const FACING_EXP = 1
+const FACING_EXP = 1
 
 /** How far (m) to probe perpendicular to a doorway's wall when resolving which
  *  two rooms it connects (same trick as `analysis/daylight.ts` / window sources). */
