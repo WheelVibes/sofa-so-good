@@ -30,13 +30,13 @@
  */
 
 import { itemsOnLevel, levelAsPlan, planLevels, visibleLevels } from '../floorplan/levels'
+import { openingProbePoints } from '../floorplan/openingProbe'
 import {
   type FloorPlan,
   type PlanRoom,
   planRoomArea,
   pointInRoom,
   roomPolygon,
-  wallLength,
 } from '../floorplan/types'
 import {
   bleedMeanLux,
@@ -136,26 +136,17 @@ export function planWindowSources(plan: FloorPlan): WindowSource[] {
     if (o.kind !== 'window') continue
     const wall = plan.walls.find((w) => w.id === o.wallId)
     if (!wall) continue
-    const len = wallLength(wall)
-    if (len <= 0) continue
-    const dx = (wall.end[0] - wall.start[0]) / len
-    const dz = (wall.end[1] - wall.start[1]) / len
-    const along = Math.min(Math.max(o.offset + o.width / 2, 0), len)
-    const x = wall.start[0] + dx * along
-    const z = wall.start[1] + dz * along
+    // Centre clamped into the wall span; the two ± probes let the per-room test
+    // (`probes.some(pointInRoom)`) pick whichever side is the interior.
+    const probe = openingProbePoints(wall, o, WINDOW_PROBE_OFFSET, true)
+    if (!probe) continue
     const glazing = Math.max(0, o.width) * Math.max(0, o.head - o.sill)
     if (glazing <= 0) continue
-    // Wall normal (either side — the room test picks the interior one).
-    const nx = -dz
-    const nz = dx
     out.push({
-      x,
-      z,
+      x: probe.center[0],
+      z: probe.center[1],
       glazing,
-      probes: [
-        [x + nx * WINDOW_PROBE_OFFSET, z + nz * WINDOW_PROBE_OFFSET],
-        [x - nx * WINDOW_PROBE_OFFSET, z - nz * WINDOW_PROBE_OFFSET],
-      ],
+      probes: [probe.plus, probe.minus],
     })
   }
   return out

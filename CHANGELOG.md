@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.14 — R-BLEED-PROBE-DEDUP: one shared opening→rooms probe (pure refactor)
+
+New `src/floorplan/openingProbe.ts` — the single pure home for the "which room(s) does this wall
+opening touch" geometry (`wallTangent`/`wallNormal`/`openingCenter`/`openingProbePoints`/
+`roomsAcrossOpening`) that `lighting2d/doorwayBleed.ts`, `analysis/daylight.ts`, and
+`lighting2d/luxGrid.ts` each carried a private copy of. All three now route through it,
+call-for-call equivalent (the three prior normal definitions were verified identical); the one
+semantic difference — daylight/luxGrid clamp the along-wall centre into `[0, len]`, doorwayBleed
+does not — is preserved as a documented `clampCenter` parameter (only diverges on a malformed
+opening). 12 new unit tests (shared wall → both rooms with correct ± sides, exterior wall,
+degenerate wall, offset sign convention, clamp behaviour); net −49 lines across the three
+consumers. No behaviour change: lighting2d/analysis/floorplan suites 834 green, full suite green.
+
 ## v0.21.2.13 — glb-csg-textures scenario: save step un-broken (below-fold click + real assertion)
 
 Applied the known one-line fix from the glb-designer rung to `glb-csg-textures-simple.json`: the

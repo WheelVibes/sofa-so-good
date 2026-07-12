@@ -42,8 +42,8 @@
  * the same spirit as `luxGrid.ts`'s daylight wash, not a radiosity simulation.
  */
 
+import { roomsAcrossOpening } from '../floorplan/openingProbe'
 import type { PlanOpening, PlanRoom, PlanWall } from '../floorplan/types'
-import { pointInRoom, wallLength } from '../floorplan/types'
 
 /** Open/closed state of a door, keyed by opening id (the store's `doors` map). */
 export type DoorOpenMap = Record<string, { open: boolean } | undefined>
@@ -143,30 +143,6 @@ export function directionalBleedWeight(
   return lobe * falloff
 }
 
-/** Unit tangent (start→end direction) of a wall, or null if degenerate. Shared
- *  by {@link wallNormal} and {@link openingCenter} so the length/direction math
- *  lives in one place. */
-function wallTangent(w: PlanWall): [number, number] | null {
-  const len = wallLength(w)
-  if (len <= 0) return null
-  return [(w.end[0] - w.start[0]) / len, (w.end[1] - w.start[1]) / len]
-}
-
-/** Unit interior-facing perpendicular of a wall, or null if degenerate. */
-function wallNormal(w: PlanWall): [number, number] | null {
-  const t = wallTangent(w)
-  if (!t) return null
-  return [-t[1], t[0]] // rotate the tangent 90°
-}
-
-/** World [x,z] centre of an opening along its parent wall, or null if degenerate. */
-function openingCenter(op: PlanOpening, w: PlanWall): [number, number] | null {
-  const t = wallTangent(w)
-  if (!t) return null
-  const at = op.offset + op.width / 2
-  return [w.start[0] + t[0] * at, w.start[1] + t[1] * at]
-}
-
 /**
  * Resolve every OPEN interior doorway into a pair of bleed sources (each doorway
  * feeds light BOTH ways — A borrows from B and B borrows from A). A doorway
@@ -191,13 +167,11 @@ export function interRoomDoorwaySources(
     if (!open) continue // closed default → no bleed
     const w = wallById.get(op.wallId)
     if (!w) continue
-    const n = wallNormal(w)
-    const c = openingCenter(op, w)
-    if (!n || !c) continue
-    const plus: [number, number] = [c[0] + n[0] * PROBE_OFFSET, c[1] + n[1] * PROBE_OFFSET]
-    const minus: [number, number] = [c[0] - n[0] * PROBE_OFFSET, c[1] - n[1] * PROBE_OFFSET]
-    const roomPlus = rooms.find((r) => pointInRoom(r, plus[0], plus[1]))
-    const roomMinus = rooms.find((r) => pointInRoom(r, minus[0], minus[1]))
+    // Probe both sides of the doorway (no centre clamp — openings are wall-threaded
+    // upstream). `plus` lies on the +normal side, so its interior normal is +n.
+    const across = roomsAcrossOpening(rooms, w, op, PROBE_OFFSET)
+    if (!across) continue
+    const { center: c, normal: n, plus: roomPlus, minus: roomMinus } = across
     if (!roomPlus || !roomMinus || roomPlus.id === roomMinus.id) continue
     const aperture = Math.max(0, op.width) * Math.max(0, op.head - op.sill)
     if (aperture <= 0) continue

@@ -11,8 +11,9 @@
  * panel (`ui/DaylightPanel.tsx`) is presentation over the rows this returns.
  */
 import { isMultiLevel, levelAsPlan, planLevels } from '../floorplan/levels'
+import { roomsAcrossOpening } from '../floorplan/openingProbe'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../floorplan/types'
-import { planRoomArea, pointInRoom, wallLength } from '../floorplan/types'
+import { planRoomArea } from '../floorplan/types'
 
 /** Glazing area as a fraction of floor area required to pass the daylight check. */
 export const DAYLIGHT_MIN_RATIO = 0.1
@@ -79,21 +80,12 @@ export function isExternalRoom(r: PlanRoom): boolean {
   return EXTERNAL_NAME.test(r.name) || EXTERNAL_NAME.test(r.id)
 }
 
-/** Unit-direction + perpendicular of a wall, or null for a zero-length wall. */
-function wallAxes(w: PlanWall): { ux: number; uz: number; px: number; pz: number } | null {
-  const len = wallLength(w)
-  if (len <= 0) return null
-  const ux = (w.end[0] - w.start[0]) / len
-  const uz = (w.end[1] - w.start[1]) / len
-  // Perpendicular (rotate the unit vector 90°).
-  return { ux, uz, px: -uz, pz: ux }
-}
-
 /**
  * Finds the room a window borders. The window's centre sits on the wall; we probe
  * a short distance to each side of the wall and return whichever room contains a
- * probe point. Returns null when no (non-external) room is found — e.g. a window
- * onto the outside on an external wall.
+ * probe point (the +normal side is tested first, matching the shared helper's
+ * `plus ?? minus`). Returns null when no (non-external) room is found — e.g. a
+ * window onto the outside on an external wall.
  */
 function roomForWindow(
   rooms: PlanRoom[],
@@ -102,21 +94,10 @@ function roomForWindow(
 ): PlanRoom | null {
   const wall = wallsById.get(o.wallId)
   if (!wall) return null
-  const axes = wallAxes(wall)
-  if (!axes) return null
-  const len = wallLength(wall)
-  // Window centre along the wall (clamped into the wall span for safety).
-  const s = Math.max(0, Math.min(len, o.offset + o.width / 2))
-  const cx = wall.start[0] + axes.ux * s
-  const cz = wall.start[1] + axes.uz * s
-  for (const sign of [1, -1]) {
-    const px = cx + axes.px * PROBE_OFFSET * sign
-    const pz = cz + axes.pz * PROBE_OFFSET * sign
-    for (const r of rooms) {
-      if (pointInRoom(r, px, pz)) return r
-    }
-  }
-  return null
+  // Clamp the along-wall centre into the wall span for safety.
+  const across = roomsAcrossOpening(rooms, wall, o, PROBE_OFFSET, true)
+  if (!across) return null
+  return across.plus ?? across.minus
 }
 
 /**
