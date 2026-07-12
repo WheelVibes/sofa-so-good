@@ -22,10 +22,12 @@
 import type { Group, Material, Mesh, Object3D } from 'three'
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { type GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { withBase } from '../../utils/assetUrl'
+import { DRACO_DECODER_PATH } from '../gltf/decoders'
 import type { FinishTarget } from '../gltf/finishTargets'
 import { getSecureGltfManager } from '../gltf/loaderSecurity'
+import { finishLabel } from './compose'
 
 /** Separator between a slot namespace and the GLB's own material/mesh name. A
  *  double colon distinguishes namespaced GLB targets from procedural single-colon
@@ -36,12 +38,6 @@ const SEP = '::'
  *  `('lamp', 'shade') → 'lamp::shade'`). Pure. */
 export function namespaceFinishKey(prefix: string, key: string): string {
   return `${prefix}${SEP}${key}`
-}
-
-/** Humanise a namespaced key for display (`lamp::desk_lamp_arm → "Lamp desk lamp arm"`). */
-function humanize(key: string): string {
-  const words = key.replace(/[:_-]+/g, ' ').trim()
-  return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 /**
@@ -71,20 +67,46 @@ function getLoader(): GLTFLoader {
   const manager = getSecureGltfManager()
   const loader = new GLTFLoader(manager)
   const draco = new DRACOLoader(manager)
-  draco.setDecoderPath(withBase('/draco/'))
+  // Reuse the single self-hosted/base-aware Draco path (`gltf/decoders.ts`) so
+  // this loader can't drift from the shared drei one (SLOT-203 fix).
+  draco.setDecoderPath(DRACO_DECODER_PATH)
   loader.setDRACOLoader(draco)
   loader.setMeshoptDecoder(MeshoptDecoder)
   cachedLoader = loader
   return loader
 }
 
-/** Load a bundled slot GLB into its scene `Group`. The `gltfUrl` is stored
+/** Parsed-scene cache: `url` → its parse Promise, so repeated attaches of the
+ *  same slot GLB (a selection change, two slots sharing one asset) decode it
+ *  ONCE instead of re-fetching + re-parsing per click. Bounded — only the few
+ *  bundled slot urls ever key it, held for the session. */
+const sceneCache = new Map<string, Promise<GLTF>>()
+
+/** Load a bundled slot GLB into a scene `Group`. The `gltfUrl` is stored
  *  root-relative (`/assets/…`); `withBase` makes it correct under the prod
- *  sub-path base. Each call re-parses (no scene cache), so the caller owns —
- *  and disposes — the returned geometry/materials/textures. */
+ *  sub-path base. The parse is cached per url (above), then each call returns an
+ *  independent `scene.clone(true)` whose MATERIALS are cloned per-attach — so
+ *  `namespaceGltfFinishTargets`'s in-place renaming (and any later per-slot tint)
+ *  can't leak between two instances, or back onto the cached template. Geometry
+ *  and textures stay shared with the template (cheap to re-upload; never
+ *  renamed); the caller still disposes the returned subtree's materials/textures
+ *  (`disposeConfiguredObject`). */
 export async function loadSlotGltfScene(url: string): Promise<Group> {
-  const gltf = await getLoader().loadAsync(withBase(url))
-  return gltf.scene
+  let parse = sceneCache.get(url)
+  if (!parse) {
+    parse = getLoader().loadAsync(withBase(url))
+    sceneCache.set(url, parse)
+  }
+  const gltf = await parse
+  const scene = gltf.scene.clone(true)
+  scene.traverse((obj) => {
+    const mesh = obj as Mesh
+    if (!mesh.isMesh) return
+    mesh.material = Array.isArray(mesh.material)
+      ? mesh.material.map((m) => m.clone())
+      : mesh.material.clone()
+  })
+  return scene
 }
 
 /**
@@ -110,7 +132,7 @@ export function namespaceGltfFinishTargets(root: Object3D, prefix: string): Fini
       m.name = key
       if (!seenKey.has(key)) {
         seenKey.add(key)
-        targets.push({ key, label: humanize(key) })
+        targets.push({ key, label: finishLabel(key) })
       }
     }
   })

@@ -36,6 +36,7 @@ vi.mock('./gltfSlot', async (importOriginal) => {
   }
 })
 
+import { loadSlotGltfScene } from './gltfSlot'
 import { getConfigurableProduct } from './products'
 import { saveConfiguredAsset } from './saveConfigured'
 
@@ -78,6 +79,14 @@ describe('saveConfiguredAsset (SLOT-103)', () => {
     expect((opts.finishTargets as { key: string }[]).some((t) => t.key === 'headboard:face')).toBe(
       false,
     )
+  })
+
+  it('rejects (and persists NOTHING) when a slot GLB fails to load — no phantom asset', async () => {
+    vi.mocked(loadSlotGltfScene).mockRejectedValueOnce(new Error('offline'))
+    await expect(
+      saveConfiguredAsset(mattress, { productId: 'mattress-frame', selections: {} }),
+    ).rejects.toThrow('offline')
+    expect(persistSpy).not.toHaveBeenCalled()
   })
 })
 

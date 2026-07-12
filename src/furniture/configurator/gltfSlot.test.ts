@@ -1,6 +1,31 @@
 import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
-import { describe, expect, it } from 'vitest'
-import { fitScaleToFootprint, namespaceFinishKey, namespaceGltfFinishTargets } from './gltfSlot'
+import { describe, expect, it, vi } from 'vitest'
+
+// Mock the loader stack so the parse-cache test is hermetic (no real GLTFLoader,
+// no drei pulled in via `gltf/decoders`, no network). The pure helpers below are
+// unaffected — they touch none of these.
+const { loadAsyncSpy } = vi.hoisted(() => ({ loadAsyncSpy: vi.fn() }))
+vi.mock('../gltf/decoders', () => ({ DRACO_DECODER_PATH: '/draco/' }))
+vi.mock('three/examples/jsm/loaders/GLTFLoader.js', () => ({
+  GLTFLoader: class {
+    setDRACOLoader() {}
+    setMeshoptDecoder() {}
+    loadAsync = loadAsyncSpy
+  },
+}))
+vi.mock('three/examples/jsm/loaders/DRACOLoader.js', () => ({
+  DRACOLoader: class {
+    setDecoderPath() {}
+  },
+}))
+vi.mock('three/examples/jsm/libs/meshopt_decoder.module.js', () => ({ MeshoptDecoder: {} }))
+
+import {
+  fitScaleToFootprint,
+  loadSlotGltfScene,
+  namespaceFinishKey,
+  namespaceGltfFinishTargets,
+} from './gltfSlot'
 
 describe('namespaceFinishKey (SLOT-203)', () => {
   it('prefixes a discovered key with the slot namespace', () => {
@@ -83,5 +108,32 @@ describe('namespaceGltfFinishTargets (SLOT-203)', () => {
     root.add(mesh('Body', 'desk_lamp_arm_01'))
     const [t] = namespaceGltfFinishTargets(root, 'lamp')
     expect(t!.label).toBe('Lamp desk lamp arm 01')
+  })
+})
+
+describe('loadSlotGltfScene — parse cache + per-attach material clone (SLOT-203)', () => {
+  it('parses a url ONCE across repeated attaches, returning independent clones', async () => {
+    const template = new Group()
+    const mat = new MeshStandardMaterial()
+    mat.name = 'shade'
+    template.add(new Mesh(new BoxGeometry(1, 1, 1), mat))
+    loadAsyncSpy.mockResolvedValue({ scene: template })
+
+    const a = await loadSlotGltfScene('/assets/furniture/cache-me.glb')
+    const b = await loadSlotGltfScene('/assets/furniture/cache-me.glb')
+
+    // The expensive parse ran once; the second attach reused the cached scene.
+    expect(loadAsyncSpy).toHaveBeenCalledTimes(1)
+    expect(a).not.toBe(b) // independent clones
+
+    // Per-attach material instances: renaming one (as namespaceGltfFinishTargets
+    // does) must not leak onto the other instance or the cached template.
+    const matA = (a.children[0] as Mesh).material as MeshStandardMaterial
+    const matB = (b.children[0] as Mesh).material as MeshStandardMaterial
+    expect(matA).not.toBe(matB)
+    expect(matA).not.toBe(mat)
+    matA.name = 'lamp::shade'
+    expect(matB.name).toBe('shade')
+    expect(mat.name).toBe('shade')
   })
 })

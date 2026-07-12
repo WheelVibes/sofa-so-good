@@ -79,8 +79,9 @@ function footprintAabb(fp: { w: number; d: number; h: number }, anchor: SlotAnch
   return { minX: ax - w / 2, maxX: ax + w / 2, minZ: az - d / 2, maxZ: az + d / 2, top: ay + fp.h }
 }
 
-/** Humanise a finish key ("base:frame" → "Base frame"). */
-function finishLabel(key: string): string {
+/** Humanise a finish key ("base:frame" → "Base frame"). Shared with
+ *  `gltfSlot.ts`'s per-slot GLB namespacing so both label the same way. */
+export function finishLabel(key: string): string {
   const words = key.replace(/[:_-]+/g, ' ').trim()
   return words.charAt(0).toUpperCase() + words.slice(1)
 }

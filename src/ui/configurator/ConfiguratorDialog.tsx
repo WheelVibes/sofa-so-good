@@ -134,6 +134,14 @@ export function ConfiguratorDialog() {
         useStore.getState().setCatalogOpen(false)
         useStore.getState().setActiveDefId(res.def.id)
       }
+    } catch (err) {
+      // A GLB slot option that fails to load rejects the bake (buildObject fails
+      // loud on the bake path) — surface it instead of persisting a phantom asset.
+      useStore.getState().notify.start({
+        title: "Couldn't build this product",
+        message: err instanceof Error ? err.message : 'A part failed to load.',
+        kind: 'error',
+      })
     } finally {
       setBusy(false)
     }

@@ -27,14 +27,23 @@ is the lean rule set.
 - **GLB-sub-asset options (SLOT-203).** A slot option may set `gltfUrl` (a bundled CC0 GLB) instead
   of procedural `parts` — never both. `composeProduct` emits it as a `gltfPiece` (url + anchor +
   `finishPrefix = slot.id` + footprint); `buildObject.ts` loads it (`gltfSlot.ts:loadSlotGltfScene` —
-  a raw `GLTFLoader` with Draco + meshopt behind the shared SEC-1 secure manager, `withBase`'d url),
-  fits it to the option footprint (`fitScaleToFootprint`), reparents it under a holder AT the slot
-  anchor (position + quarter-turn), and **namespaces its material groups** to `<slot>::<name>`
-  (`namespaceGltfFinishTargets`) so `listFinishTargets` returns them without colliding when two slots
-  load the same GLB. Namespacing rides into the exported GLB, so the placed product's inspector shows
-  per-slot finish pickers through the **existing** finish-override channel — no new schema. A GLB that
-  fails to load is skipped (fail-soft). Disposal frees GLB-piece subtrees' owned textures/materials
-  (procedural clones share cached textures — never disposed). Keep `gltfSlot.ts`'s pure helpers pure +
+  a raw `GLTFLoader` with Draco (the shared `gltf/decoders.ts:DRACO_DECODER_PATH`, never a second
+  hardcoded path) + meshopt behind the shared SEC-1 secure manager, `withBase`'d url; the parse is
+  **cached per url** and each attach gets an independent `scene.clone(true)` with **per-attach material
+  clones** so `namespaceGltfFinishTargets`'s in-place renaming can't leak between instances or onto
+  the cached template), fits it to the option footprint (`fitScaleToFootprint`), reparents it under a
+  holder AT the slot anchor (position + quarter-turn), and **namespaces its material groups** to
+  `<slot>::<name>` (`namespaceGltfFinishTargets`) so `listFinishTargets` returns them without colliding
+  when two slots load the same GLB. Namespacing rides into the exported GLB, so the placed product's
+  inspector shows per-slot finish pickers through the **existing** finish-override channel — no new
+  schema. **A failed GLB is handled per path:** the PREVIEW (`buildConfiguredPreview`) is fail-soft —
+  `console.warn` + skip so one bad/slow asset never blanks the procedural body; the BAKE
+  (`buildConfiguredObject` → `saveConfiguredAsset`) fails **loud** — the load error propagates so the
+  dialog surfaces an error toast instead of persisting a phantom asset priced/footprinted for a piece
+  the GLB doesn't contain. Disposal frees GLB-piece subtrees' per-attach materials + their textures
+  (swept generically — any `THREE.Texture`-valued material prop, not a fixed slot list; the parse-cached
+  template keeps its own geometry/textures and re-uploads on the next attach; procedural clones share
+  cached textures — never disposed). Keep `gltfSlot.ts`'s pure helpers pure +
   unit-tested; a GLB option carries its own `license`/`attribution`/`sourceUrl` (wired like the props'
   `.glb.json` sidecars). First user: the bed's `lamp` slot (bundled Poly Haven CC0 desk lamp).
 - **Flag-gated** by `productConfigurator` (simple tier, prod-safe). The dialog (`ui/configurator/`)

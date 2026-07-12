@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.12 — review fixes: configurator cluster (6 findings) + SLOT-203 docs
+
+Second half of the round-7 review fixes. **Phantom lamp** (CONFIRMED): a failed slot-GLB load was
+swallowed (`catch → []`) while compose still baked the option's price/footprint — a saved asset
+charged +$85 for a lamp that wasn't there. `attachGltfPiece` now takes `failSoft`: the PREVIEW
+stays fail-soft (with `console.warn`) so the procedural body still renders, the BAKE fails loud —
+`saveConfiguredAsset` rejects, never persists, and `ConfiguratorDialog`'s save handler surfaces the
+standard error toast. **Texture disposal** (PLAUSIBLE): the fixed `TEXTURE_SLOTS` list missed
+physical-material extension maps (`clearcoatMap`, …) — replaced with a generic `isTexture` sweep
+over material values. **Per-click re-parse** (CONFIRMED): gltfSlot now caches parsed scenes
+(module-level url → Promise map) and clones per attach with per-attach material instances, so
+`namespaceGltfFinishTargets`'s in-place renaming can't leak across instances or onto the template.
+**DRACO path bypass** (CONFIRMED): `DRACO_DECODER_PATH` exported from `gltf/decoders.ts` and used
+by gltfSlot instead of a hardcoded copy. **humanize dup**: `finishLabel` exported from compose.ts.
+**SLOT-203 docs gap** (CONFIRMED hard-rule violation): ARCHITECTURE.md gains the slot-configurator
+entry (load path, fail-soft/fail-loud split); `docs/user/placing-furniture.md` gains "Configure a
+product" (labels verified against source); configurator CLAUDE.md's now-wrong fail-soft claim
+corrected. Visual: dialog + red arm-reading-lamp GLB verified through the new cache+clone path.
+Configurator+gltf targeted suites 99 green; full suite 6001 green pre-commit.
+
 ## v0.21.2.11 — review fixes: cabinet/lux/security cluster (9 findings)
 
 Adversarial code review of the round-7 diff (8 finder angles → verified findings) — this commit

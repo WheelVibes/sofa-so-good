@@ -67,17 +67,29 @@ function buildProceduralGroup(model: ComposedModel): Group {
  * load → fit to the option footprint → reparent under a holder (scale/rotation
  * about the anchor origin, so the GLB's floor-centred base stays seated at
  * anchor.y) → namespace its material groups per-slot. Returns the piece's
- * namespaced finish targets. Fail-soft: a GLB that can't load resolves to `[]`
- * (the piece is simply absent) so one bad/slow asset never breaks the rest.
+ * namespaced finish targets.
+ *
+ * `failSoft` decides how a failed GLB load is handled. The **PREVIEW** passes
+ * `true`: the load is warned + swallowed (resolves to `[]`, the piece is simply
+ * absent) so one bad/slow asset never blanks the procedural body. The **BAKE**
+ * passes `false`: the error propagates, so `buildConfiguredObject` /
+ * `saveConfiguredAsset` reject rather than persist a phantom asset that's priced
+ * + footprinted for a piece the exported GLB doesn't actually contain.
  */
 async function attachGltfPiece(
   group: Group,
   piece: ComposedModel['gltfPieces'][number],
+  failSoft: boolean,
 ): Promise<{ key: string; label: string }[]> {
   let scene: Group
   try {
     scene = await loadSlotGltfScene(piece.url)
-  } catch {
+  } catch (err) {
+    if (!failSoft) throw err
+    console.warn(
+      `[configurator] slot GLB failed to load (${piece.url}); showing procedural body without it`,
+      err,
+    )
     return []
   }
   const size = new Vector3()
@@ -119,7 +131,9 @@ export async function buildConfiguredObject(
   const group = buildProceduralGroup(model)
   const finishTargets = [...model.finishTargets]
   for (const piece of model.gltfPieces) {
-    for (const t of await attachGltfPiece(group, piece)) {
+    // BAKE: fail loud — a load error propagates so the save rejects instead of
+    // persisting a phantom asset (priced/footprinted for a missing piece).
+    for (const t of await attachGltfPiece(group, piece, false)) {
       if (!finishTargets.some((f) => f.key === t.key)) finishTargets.push(t)
     }
   }
@@ -142,7 +156,9 @@ export function buildConfiguredPreview(
   const model = composeProduct(product, spec)
   const group = buildProceduralGroup(model)
   const ready = (async () => {
-    for (const piece of model.gltfPieces) await attachGltfPiece(group, piece)
+    // PREVIEW: fail-soft — a slow/failed GLB is warned + skipped so it never
+    // blanks the procedural body.
+    for (const piece of model.gltfPieces) await attachGltfPiece(group, piece, true)
   })()
   return { object: group, ready }
 }
@@ -158,31 +174,23 @@ function underGltfHolder(node: Mesh): boolean {
   return false
 }
 
-const TEXTURE_SLOTS = [
-  'map',
-  'normalMap',
-  'roughnessMap',
-  'metalnessMap',
-  'emissiveMap',
-  'aoMap',
-  'alphaMap',
-  'bumpMap',
-  'displacementMap',
-] as const
-
+/** Dispose every texture the material references. Rather than a fixed slot list
+ *  (which silently leaks any map the list forgot — e.g. `clearcoatMap`,
+ *  `sheenColorMap`, `iridescenceMap`), sweep the material's own properties and
+ *  dispose any value that is a THREE.Texture. */
 function disposeMaterialTextures(mat: Material): void {
-  const rec = mat as unknown as Record<string, unknown>
-  for (const slot of TEXTURE_SLOTS) {
-    const tex = rec[slot] as Texture | null | undefined
-    tex?.dispose?.()
+  for (const v of Object.values(mat)) {
+    if (v && (v as Texture).isTexture) (v as Texture).dispose()
   }
 }
 
 /**
  * Dispose a built group. Procedural box geometries + their per-key cloned
  * materials are disposed (their textures are SHARED via the furnitureMaterials
- * cache — never disposed here). GLB-piece subtrees, being freshly loaded and
- * owned, additionally have their textures disposed.
+ * cache — never disposed here). GLB-piece subtrees carry per-attach cloned
+ * materials (`gltfSlot.loadSlotGltfScene`), so those + their textures are
+ * disposed here; the parse-cached template keeps its own geometry/textures and
+ * simply re-uploads on the next attach.
  */
 export function disposeConfiguredObject(group: Group): void {
   const proceduralMats = new Set<Material>()

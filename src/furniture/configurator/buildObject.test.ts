@@ -64,18 +64,36 @@ describe('buildConfiguredObject — GLB sub-asset option (SLOT-203)', () => {
     expect(() => disposeConfiguredObject(object)).not.toThrow()
   })
 
-  it('is fail-soft: a GLB that fails to load is skipped, not fatal', async () => {
+  it('BAKE fails LOUD: a GLB that fails to load rejects the whole build (no phantom asset)', async () => {
     loadSpy.mockRejectedValue(new Error('offline'))
-    const { object, finishTargets } = await buildConfiguredObject(mattress, {
+    // Unlike the preview, the bake must NOT silently drop a piece it still
+    // prices/footprints — the error propagates so the save rejects.
+    await expect(
+      buildConfiguredObject(mattress, { productId: 'mattress-frame', selections: {} }),
+    ).rejects.toThrow('offline')
+  })
+
+  it('disposal frees a non-standard texture slot (clearcoatMap) on a GLB piece', async () => {
+    const disposed = vi.fn()
+    loadSpy.mockImplementation(async () => {
+      const { Group, Mesh, BoxGeometry, MeshPhysicalMaterial } = await import('three')
+      const g = new Group()
+      const mat = new MeshPhysicalMaterial()
+      mat.name = 'shade'
+      // A texture in a slot the OLD fixed TEXTURE_SLOTS list didn't cover.
+      ;(mat as unknown as Record<string, unknown>)['clearcoatMap'] = {
+        isTexture: true,
+        dispose: disposed,
+      }
+      g.add(new Mesh(new BoxGeometry(1, 1, 1), mat))
+      return g
+    })
+    const { object } = await buildConfiguredObject(mattress, {
       productId: 'mattress-frame',
       selections: {},
     })
-    // No holder was added; procedural parts + targets still built.
-    expect(object.children.some((c) => c.userData['__configuratorGltf'])).toBe(false)
-    expect(finishTargets.some((t) => t.key.startsWith('lamp::'))).toBe(false)
-    expect(finishTargets.some((t) => t.key === 'base:frame')).toBe(true)
-    // Procedural box meshes are present.
-    expect(object.children.some((c) => (c as Mesh).isMesh)).toBe(true)
+    disposeConfiguredObject(object)
+    expect(disposed).toHaveBeenCalled()
   })
 
   it('omitting the lamp (optional slot → null) adds no GLB piece', async () => {
@@ -112,7 +130,8 @@ describe('buildConfiguredPreview — non-blocking body (SLOT-203)', () => {
     disposeConfiguredObject(object)
   })
 
-  it('a slow/failed GLB never blanks the procedural body', async () => {
+  it('a slow/failed GLB never blanks the procedural body (warns, fail-soft)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     loadSpy.mockRejectedValue(new Error('offline'))
     const { object, ready } = buildConfiguredPreview(mattress, {
       productId: 'mattress-frame',
@@ -121,5 +140,8 @@ describe('buildConfiguredPreview — non-blocking body (SLOT-203)', () => {
     expect(object.children.some((c) => (c as Mesh).isMesh)).toBe(true)
     await ready // resolves even though the load rejected (fail-soft)
     expect(object.children.some((c) => c.userData['__configuratorGltf'])).toBe(false)
+    // The failure is surfaced to the console rather than silently swallowed.
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
   })
 })

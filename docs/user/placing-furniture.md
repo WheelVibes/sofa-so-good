@@ -154,6 +154,21 @@ back**, **group / ungroup**, lock / unlock, and delete. (Group appears when
 you have several pieces selected; Ungroup appears when the piece is already part
 of a group.)
 
+## Configure a product
+
+Some pieces are **built to order from parts**. Open **Configure a product** from the
+⌘K command palette to assemble one: pick a product with the tabs at the top — a
+**Bed (mattress on frame)** or a **Modular sofa** — then choose one option per section
+on the right and watch the 3D preview (and running price) update live.
+
+The bed, for example, lets you pick the **Mattress** (Foam, Pocket‑spring or Hybrid),
+the **Headboard** (Padded panel, Slatted timber, or none), and a **Bedside lamp** — an
+**Arm reading lamp** that sits beside the bed head, or none at all. Type a name if you
+like, then **Add to room** to drop it straight into the room you're editing, or **Save to
+catalog** to keep it for later. It becomes a normal catalog item you can place, move,
+price and re‑finish like any other. (If a part can't be built, you'll see an error and
+nothing is saved.)
+
 ## Replace with similar
 
 Selected a piece but want to try an alternative? Open **Replace with similar…**

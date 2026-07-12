@@ -29,7 +29,7 @@ export interface DecoderReport {
  * under the GitHub Pages base); override via VITE_DRACO_DECODER_PATH for a CDN or
  * other self-hosted location.
  */
-const DRACO_DECODER_PATH = import.meta.env.VITE_DRACO_DECODER_PATH ?? withBase('/draco/')
+export const DRACO_DECODER_PATH = import.meta.env.VITE_DRACO_DECODER_PATH ?? withBase('/draco/')
 
 /** Module-level idempotency guard — see {@link registerGltfDecoders}. */
 let registered = false
