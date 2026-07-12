@@ -234,7 +234,11 @@ export function buildCabinet(input: CabinetSpec): CabinetModel {
     // OUTER edge (handle toward the centre gap), so left-half columns hinge left,
     // right-half columns hinge right — a natural double-door open.
     const cy = carcassBottom + carcassH / 2
+    // Single source of truth for the column-side split: left-half columns hinge
+    // on their left (outer) edge with the handle toward the centre gap; the
+    // handle's outward offset sign derives from the same split.
     const hinge: 'left' | 'right' = c < columns / 2 ? 'left' : 'right'
+    const hingeSign = hinge === 'left' ? 1 : -1
     parts.push({
       role: 'door',
       position: [cx, cy, frontProudZ],
@@ -252,7 +256,6 @@ export function buildCabinet(input: CabinetSpec): CabinetModel {
       })
     }
     // Vertical bar handle on the cabinet's outward edge of each door.
-    const hingeSign = c < columns / 2 ? 1 : -1
     if (wantHandles)
       parts.push({
         role: 'handle',

@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import { resolveFlags } from '../features/featureFlags'
+import { afterEach, describe, expect, it } from 'vitest'
+import { resolveFlags, setResolvedFlags } from '../features/featureFlags'
 import {
   advanceOpen,
   DOOR_OPEN_ANGLE,
   doorHingePivot,
+  drawerSlideDistance,
   easeInOut,
   isCabinetOpen,
   OPEN_SECONDS,
@@ -130,11 +131,56 @@ describe('supportsCabinetOpen — capability gate', () => {
   })
 })
 
+describe('supportsCabinetOpen — config-aware (nothing to animate → false)', () => {
+  it('is false for a sliding or open-style wardrobe (no hinged leaf/drawer)', () => {
+    expect(supportsCabinetOpen(parametric('Wardrobe'), { doorStyle: 'sliding' })).toBe(false)
+    expect(supportsCabinetOpen(parametric('Wardrobe'), { doorStyle: 'open' })).toBe(false)
+  })
+
+  it('is true for a hinged wardrobe (explicit or default)', () => {
+    expect(supportsCabinetOpen(parametric('Wardrobe'), { doorStyle: 'hinged' })).toBe(true)
+    expect(supportsCabinetOpen(parametric('Wardrobe'))).toBe(true) // default = hinged
+  })
+
+  it('is false for an open-front cabinet, true for every hinged/drawer front', () => {
+    for (const kind of ['CabinetBase', 'CabinetWall', 'CabinetTall'] as const) {
+      expect(supportsCabinetOpen(parametric(kind), { front: 'open' })).toBe(false)
+      for (const front of ['slab', 'shaker', 'drawers', 'glass'])
+        expect(supportsCabinetOpen(parametric(kind), { front })).toBe(true)
+      expect(supportsCabinetOpen(parametric(kind))).toBe(true) // default = slab
+    }
+  })
+
+  it('is true for dresser + sideboard regardless of config (always drawers/doors)', () => {
+    expect(supportsCabinetOpen(parametric('Dresser'), { front: 'open' })).toBe(true)
+    expect(supportsCabinetOpen(parametric('Sideboard'), {})).toBe(true)
+  })
+})
+
+describe('drawerSlideDistance — one shared formula', () => {
+  it('scales with depth and caps at 0.45 m', () => {
+    expect(drawerSlideDistance(0.5)).toBeCloseTo(0.3)
+    expect(drawerSlideDistance(0.6)).toBeCloseTo(0.36)
+    expect(drawerSlideDistance(1)).toBe(0.45) // capped
+    expect(drawerSlideDistance(0.42)).toBeCloseTo(0.252)
+  })
+})
+
 describe('isCabinetOpen', () => {
-  it('reads props.open, defaulting closed when absent/other', () => {
+  // Restore the module flag snapshot to defaults (cabinetOpen on) after each case.
+  afterEach(() => setResolvedFlags(resolveFlags(false, {}, false, 'simple')))
+
+  it('reads props.open, defaulting closed when absent/other (flag on)', () => {
+    setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
     expect(isCabinetOpen({ open: 'yes' })).toBe(true)
     expect(isCabinetOpen({ open: 'no' })).toBe(false)
     expect(isCabinetOpen({})).toBe(false)
+  })
+
+  it('reads closed when the cabinetOpen flag is OFF, even with open:yes persisted', () => {
+    // Kill-switch: a privileged override forces the flag off (see resolveFlags).
+    setResolvedFlags(resolveFlags(true, { cabinetOpen: false }, false, 'simple'))
+    expect(isCabinetOpen({ open: 'yes' })).toBe(false)
   })
 })
 

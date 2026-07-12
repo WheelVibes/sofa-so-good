@@ -147,4 +147,15 @@ describe('estimateRoomLux — inter-room doorway bleed (R-BLEED)', () => {
     expect(open.lux).toBeCloseTo(closed.lux, 6)
     expect(open.borrowedLux).toBe(0)
   })
+
+  it('accepts the store doors map as-is (panel/heatmap parity): explicit closed = absent', () => {
+    // ElevationPanel passes the store's `doors` map straight through — the same
+    // map LuxOverlay feeds buildLuxGrids — so an explicit `{ open: false }`
+    // entry must read identically to no entry at all.
+    const explicit = estimateRoomLux(plan, lights, { d1: { open: false } }).find(
+      (r) => r.roomId === 'kt',
+    )!
+    expect(explicit.borrowedLux).toBe(0)
+    expect(explicit.lux).toBe(0)
+  })
 })

@@ -19,6 +19,13 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   the inert WebXR entry + provider already ship.
 
 ## Open — client-doable
+- [ ] R-BLEED-PROBE-DEDUP: `lighting2d/doorwayBleed.ts` (`wallTangent`/`wallNormal`/`openingCenter`
+  + the ±`PROBE_OFFSET` two-sided room-resolution in `interRoomDoorwaySources`),
+  `analysis/daylight.ts`, and `lighting2d/luxGrid.ts` each carry their own copy of the
+  "which room(s) does this wall opening touch" probe (wall tangent/normal + short perpendicular
+  probe + `pointInRoom`). Extract one shared pure helper (e.g. `floorplan/openingProbe.ts:
+  roomsAcrossOpening(rooms, wall, opening, offset)`) and route all three through it, keeping each
+  caller's own transmission/aperture semantics. Pure geometry, unit-testable; no behaviour change.
 - [ ] MOD-FPE-SPLIT (optional tail, REFAC-2 landed a further cut): `FloorPlanEditor.tsx` is now
   **~2432 lines** (was 4271, −43%). Done: state/effect hooks `usePlanBackdrop` (v.46), `usePlanAiWalls`
   (v.47), `usePlanViewport` (v.49), `usePlanLevel` (v.50); **all 11 SVG render layers** in

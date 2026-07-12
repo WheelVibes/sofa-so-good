@@ -58,7 +58,7 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
   // ── Open / close doors & drawers (CABINET-OPEN) ───────────────────────────
   // Only for cabinet-family primitives that model animatable fronts, and only
   // when the feature is enabled. The state rides `props.open`.
-  const canOpen = cabinetOpenOn && supportsCabinetOpen(def)
+  const canOpen = cabinetOpenOn && supportsCabinetOpen(def, item.props)
   const cabinetIsOpen = item.props['open'] === 'yes'
   const openSection = canOpen ? (
     <InspectorSection title="Doors & drawers" defaultOpen>

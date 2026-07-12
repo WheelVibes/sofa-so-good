@@ -74,6 +74,10 @@ export function ElevationPanel() {
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
   const units = useStore((s) => s.units)
+  // Same open/closed door map the LuxOverlay heatmap uses, so the panel's
+  // per-room lux table matches the 3D overlay (borrowed light through open
+  // doorways is counted in both).
+  const doors = useStore(useShallow((s) => s.doors))
   const catalogInputs = useStore(
     useShallow((s) => ({
       userFurniture: s.userFurniture,
@@ -99,7 +103,10 @@ export function ElevationPanel() {
     [merged, items],
   )
   // Per-room lumen-method estimate vs the recommended residential bands.
-  const roomLux = useMemo(() => estimateRoomLux(plan, lighting.lights), [plan, lighting])
+  const roomLux = useMemo(
+    () => estimateRoomLux(plan, lighting.lights, doors),
+    [plan, lighting, doors],
+  )
 
   if (!open) return null
 

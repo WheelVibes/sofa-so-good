@@ -13,6 +13,7 @@
  * primitives/renderer map those onto meshes (`primitives/openable.tsx`).
  */
 
+import { isFeatureEnabled } from '../features/featureFlags'
 import type { FurnitureDef, ParamProps, PrimitiveKind } from './types'
 
 /** Primitives that model visible, animatable fronts. Keyed on `PrimitiveKind`
@@ -26,14 +27,46 @@ export const OPENABLE_CABINET_PRIMITIVES: ReadonlySet<PrimitiveKind> = new Set<P
   'Dresser',
 ])
 
-/** True when this def is a parametric cabinet-family primitive whose doors/drawers
- *  can open. GLB/IKEA/pack defs are never openable (their fronts are baked). */
-export function supportsCabinetOpen(def: FurnitureDef): boolean {
-  return def.kind === 'parametric' && OPENABLE_CABINET_PRIMITIVES.has(def.primitive)
+/**
+ * True when this def — at its effective `props` — is a parametric cabinet-family
+ * primitive with something to animate: a hinged door OR a drawer. GLB/IKEA/pack
+ * defs are never openable (their fronts are baked), and neither is a
+ * configuration with no moving front: a **sliding** or **open** (doorless)
+ * wardrobe, or an **open**-front (shelving) cabinet. Dressers and sideboards
+ * always carry drawers/doors, so they're always openable.
+ *
+ * `props` is the item's effective props (schema defaults merged with overrides);
+ * when omitted the primitive defaults apply (wardrobe → hinged, cabinet → slab),
+ * so a capability probe with no props stays permissive for the openable kinds.
+ */
+export function supportsCabinetOpen(def: FurnitureDef, props?: ParamProps): boolean {
+  if (def.kind !== 'parametric' || !OPENABLE_CABINET_PRIMITIVES.has(def.primitive)) return false
+  const p = props ?? {}
+  switch (def.primitive) {
+    case 'Wardrobe':
+      // Sliding panels bypass on a track and open-style wardrobes have no doors —
+      // neither has a hinged leaf or drawer to swing/slide. Default is 'hinged'.
+      return (p['doorStyle'] ?? 'hinged') === 'hinged'
+    case 'CabinetBase':
+    case 'CabinetWall':
+    case 'CabinetTall':
+      // An open-front cabinet is exposed shelving — no door or drawer front.
+      // Every other front (slab/shaker/drawers/glass) animates. Default 'slab'.
+      return (p['front'] ?? 'slab') !== 'open'
+    default:
+      // Dresser (always drawers) + Sideboard (always doors/drawers).
+      return true
+  }
 }
 
-/** Read the persisted open state off an item's props. Absent = closed. */
+/**
+ * Read the persisted open state off an item's props. Absent = closed. Gated on
+ * the `cabinetOpen` feature flag so the kill-switch actually closes doors on the
+ * render side — a persisted `open: 'yes'` reads as closed when the flag is off
+ * (import the non-React helper since this runs in the render/scene path too).
+ */
 export function isCabinetOpen(props: ParamProps): boolean {
+  if (!isFeatureEnabled('cabinetOpen')) return false
   return props['open'] === 'yes'
 }
 
@@ -42,6 +75,17 @@ export const OPEN_SECONDS = 0.4
 /** How far a door leaf swings when fully open (radians). Just shy of 90° so it
  *  reads as ajar and never clips a neighbouring column head-on. */
 export const DOOR_OPEN_ANGLE = (Math.PI / 2) * 0.9
+
+/**
+ * How far a drawer slides out when open (m), given the cabinet's `depth`. One
+ * shared formula for every drawer primitive (CabinetModule / Dresser /
+ * Sideboard) so the pull-out distance can't drift per-primitive. Scales with
+ * depth but is clamped so it reads as an open drawer without an absurdly deep
+ * pull-out (drawers extend forward into the room, never into a wall).
+ */
+export function drawerSlideDistance(depth: number): number {
+  return Math.min(0.45, depth * 0.6)
+}
 
 /** Cubic ease-in-out (C¹, zero velocity at both ends). Clamped to [0, 1]. */
 export function easeInOut(t: number): number {

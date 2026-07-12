@@ -72,6 +72,14 @@ describe('isAllowedModelResourceUrl (SEC-1 render-path policy)', () => {
     expect(isAllowedModelResourceUrl('//evil.example/beacon.png', OWN_ORIGIN)).toBe(false)
   })
 
+  it('blocks a backslash-authority bypass — a naive startsWith("/") check missed these', () => {
+    // Browsers fold `\` to `/` for special schemes, so `/\host` and `/\/host`
+    // resolve to a FOREIGN authority when based against the page origin. The
+    // base-resolved origin check catches them; the old leading-slash allow did not.
+    expect(isAllowedModelResourceUrl('/\\evil.example/x', OWN_ORIGIN)).toBe(false)
+    expect(isAllowedModelResourceUrl('/\\/evil.example/x', OWN_ORIGIN)).toBe(false)
+  })
+
   it('blocks a different scheme/port on the same host (not a true origin match)', () => {
     expect(isAllowedModelResourceUrl('http://app.example.com/x.png', OWN_ORIGIN)).toBe(false)
     expect(isAllowedModelResourceUrl('https://app.example.com:8443/x.png', OWN_ORIGIN)).toBe(false)

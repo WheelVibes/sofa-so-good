@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { Group, Mesh } from 'three'
 import { draperyOpacityLevel, draperyVisualOpacity } from '../../materials/draperyOpacity'
 import { getDraperyMaterial } from '../../materials/furnitureMaterials'
@@ -63,6 +63,16 @@ export function RollerBlind({ props }: { props: ParamProps }) {
   const drawRef = useRef(target)
   const holdRef = useRef<null | (() => void)>(null)
   const invalidate = useThree((s) => s.invalidate)
+
+  // Release the animated-source hold if we unmount mid raise/lower — otherwise a
+  // blind removed/hidden while easing leaks a RenderPump registration.
+  useEffect(
+    () => () => {
+      holdRef.current?.()
+      holdRef.current = null
+    },
+    [],
+  )
 
   const applyLower = (l: number) => {
     const drop = MIN_DROP + (maxDrop - MIN_DROP) * l

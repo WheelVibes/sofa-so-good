@@ -115,6 +115,16 @@ export function Curtain({ props }: { props: ParamProps }) {
   const holdRef = useRef<null | (() => void)>(null)
   const invalidate = useThree((s) => s.invalidate)
 
+  // Release the animated-source hold if we unmount mid-draw — otherwise a curtain
+  // removed/hidden while easing leaks a RenderPump registration.
+  useEffect(
+    () => () => {
+      holdRef.current?.()
+      holdRef.current = null
+    },
+    [],
+  )
+
   const applyDraw = (d: number) => {
     for (const [ref, side] of [
       [leftRef, -1],

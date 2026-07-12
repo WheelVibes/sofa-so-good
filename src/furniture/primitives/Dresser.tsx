@@ -1,5 +1,5 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
-import { isCabinetOpen } from '../cabinetOpen'
+import { drawerSlideDistance, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { SlideDrawer } from './openable'
@@ -27,7 +27,7 @@ export function Dresser({ props }: { props: ParamProps }) {
   const dw = (width - gap * (cols + 1)) / cols
   const dh = (bodyH - gap * (rows + 1)) / rows
   const isOpen = isCabinetOpen(props)
-  const drawerSlide = Math.min(0.4, depth * 0.7)
+  const drawerSlide = drawerSlideDistance(depth)
 
   return (
     <group>

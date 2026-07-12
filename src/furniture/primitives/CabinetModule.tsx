@@ -8,7 +8,7 @@ import {
   type WorktopCutout,
   type WorktopFeature,
 } from '../cabinet/cabinetModel'
-import { doorHingePivot, isCabinetOpen } from '../cabinetOpen'
+import { doorHingePivot, drawerSlideDistance, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { GlassMaterial } from './GlassMaterial'
@@ -62,9 +62,8 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
   // Wall (upper) cabinets mount off the floor — lift the whole carcass to the
   // underside mount height (the model builds floor-anchored at y=0).
   const mountY = type === 'wall' ? readNum(props, 'mountHeight', 1.45) : 0
-  // How far a drawer slides out when open — clamped so it reads without an
-  // absurdly deep pull-out (drawers extend forward into the room, never a wall).
-  const drawerSlide = Math.min(0.45, depth * 0.6)
+  // How far a drawer slides out when open (shared across all drawer primitives).
+  const drawerSlide = drawerSlideDistance(depth)
 
   const renderPart = (p: CabinetPart, key: string) => {
     if (p.role === 'countertop') {

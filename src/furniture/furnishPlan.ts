@@ -17,7 +17,7 @@ import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
 import { arrangeAllRoomsForPlan, roomKindFromName } from '../layout/autoArrange'
-import { GENERATED_FURNITURE } from './generatedCatalog'
+import { mergeGeneratedCatalog } from './generatedCatalog'
 import { applyDecorStylingForPlan } from './layout/decorStyling'
 import type { LayoutPreset } from './layoutPresets'
 import type { FurnitureDef, FurnitureItem, ParamProps } from './types'
@@ -231,8 +231,7 @@ export function furnishPlanItems(
   // live in the generated catalog, not BUILTIN_CATALOG — merge them in for the
   // lookup ONLY (arrangement above stays on the builtin defs it was given, so
   // furnish/collision behaviour is unchanged). Callers' own defs win on id clash.
-  const styleDefs: Record<string, FurnitureDef> = { ...defs }
-  for (const g of GENERATED_FURNITURE) if (!styleDefs[g.id]) styleDefs[g.id] = g
+  const styleDefs = mergeGeneratedCatalog(defs)
   const decor = applyDecorStylingForPlan(plan, furniture, styleDefs)
   return [...furniture, ...decor]
 }

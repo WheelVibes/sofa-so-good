@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import type { ReactNode } from 'react'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Group } from 'three'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
@@ -17,12 +17,25 @@ import { advanceOpen, DOOR_OPEN_ANGLE, easeInOut, OPEN_SECONDS } from '../cabine
  * when closed.
  */
 
-/** Drive `apply(easedFraction)` each frame while easing `open` → target. */
-function useOpenEase(open: boolean, apply: (frac: number) => void): void {
+/** Drive `apply(easedFraction)` each frame while easing `open` → target.
+ *  Exported for unit tests (the animated-source hold lifecycle); the primitives
+ *  consume it via `HingedDoor`/`SlideDrawer`. */
+export function useOpenEase(open: boolean, apply: (frac: number) => void): void {
   const target = open ? 1 : 0
   const rawRef = useRef(target)
   const holdRef = useRef<null | (() => void)>(null)
   const invalidate = useThree((s) => s.invalidate)
+  // Release the animated-source hold if we unmount mid-sweep (before `next ===
+  // target` fires) — otherwise a cabinet removed/hidden while opening leaks a
+  // RenderPump registration and never lets the demand loop settle. Matches
+  // Lighting.tsx's unmount-cleanup pattern.
+  useEffect(
+    () => () => {
+      holdRef.current?.()
+      holdRef.current = null
+    },
+    [],
+  )
   useFrame((_, dt) => {
     const cur = rawRef.current
     if (cur !== target) {

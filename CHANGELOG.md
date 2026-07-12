@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.11 — review fixes: cabinet/lux/security cluster (9 findings)
+
+Adversarial code review of the round-7 diff (8 finder angles → verified findings) — this commit
+lands the cabinet/lux/security cluster. **Unmount leak** (CONFIRMED): `useOpenEase` never released
+its `registerAnimatedSource` hold when a moving door/drawer unmounted, pinning the demand render
+loop forever — fixed with an unmount cleanup (Lighting.tsx pattern); Curtain/RollerBlind shared the
+same pre-existing shape and got the identical fix; new `openable.test.tsx` asserts the count drops
+to 0 on mid-animation unmount. **No-op toggle** (CONFIRMED): `supportsCabinetOpen(def, props)` is
+now config-aware — sliding/open wardrobes and `front:'open'` cabinets no longer show a
+"Doors & drawers" toggle that does nothing. **Flag-off kill switch** (PLAUSIBLE): `isCabinetOpen`
+gates on `isFeatureEnabled('cabinetOpen')` so persisted-open items render closed when the flag is
+off. **loaderSecurity backslash gap** (CONFIRMED, node-verified): `/\evil.example/x` passed the
+root-relative prefix check but resolved foreign-origin — the branch now base-resolves via
+`new URL(trimmed, pageOrigin)` and compares origins; non-slash strings still fail closed.
+**ElevationPanel lux divergence** (CONFIRMED): the panel now passes store `doors` to
+`estimateRoomLux`, matching the LuxOverlay heatmap (report/drawings omission stays deliberate).
+Dedups: cabinetModel hinge computed once; shared `drawerSlideDistance(depth)` (unified value never
+over-extends past either old per-primitive max); `mergeGeneratedCatalog(defs)` exported and used by
+furnishPlan + decorStyling.test; `wallTangent(w)` extracted inside doorwayBleed (cross-module probe
+consolidation recorded as R-BLEED-PROBE-DEDUP in TASKS.md). Visual: cabinet-open scenario all 33
+steps green post-refactor. Full suite 6001 green, tsc/biome clean.
+
 ## v0.21.2.10 — cabinet-open IXT rung + move-in-clobber playbook gotcha
 
 New `scripts/scenarios/cabinet-open-simple.json` (33 steps, all green): boot with the move-in

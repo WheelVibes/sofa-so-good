@@ -1,5 +1,5 @@
 import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
-import { doorHingePivot, isCabinetOpen } from '../cabinetOpen'
+import { doorHingePivot, drawerSlideDistance, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { HingedDoor, SlideDrawer } from './openable'
@@ -41,7 +41,7 @@ export function Sideboard({ props }: { props: ParamProps }) {
   const bayW = (width - gap * (bays + 1)) / bays
   const faceZ = depth / 2 + 0.004
   const isOpen = isCabinetOpen(props)
-  const drawerSlide = Math.min(0.4, depth * 0.7)
+  const drawerSlide = drawerSlideDistance(depth)
 
   // For 'mixed', interior bays alternate: a central drawer stack, side doors.
   const centreBay = Math.floor(bays / 2)

@@ -143,23 +143,28 @@ export function directionalBleedWeight(
   return lobe * falloff
 }
 
-/** Unit direction + interior-facing perpendicular of a wall, or null if degenerate. */
-function wallNormal(w: PlanWall): [number, number] | null {
+/** Unit tangent (start→end direction) of a wall, or null if degenerate. Shared
+ *  by {@link wallNormal} and {@link openingCenter} so the length/direction math
+ *  lives in one place. */
+function wallTangent(w: PlanWall): [number, number] | null {
   const len = wallLength(w)
   if (len <= 0) return null
-  const ux = (w.end[0] - w.start[0]) / len
-  const uz = (w.end[1] - w.start[1]) / len
-  return [-uz, ux] // rotate the tangent 90°
+  return [(w.end[0] - w.start[0]) / len, (w.end[1] - w.start[1]) / len]
+}
+
+/** Unit interior-facing perpendicular of a wall, or null if degenerate. */
+function wallNormal(w: PlanWall): [number, number] | null {
+  const t = wallTangent(w)
+  if (!t) return null
+  return [-t[1], t[0]] // rotate the tangent 90°
 }
 
 /** World [x,z] centre of an opening along its parent wall, or null if degenerate. */
 function openingCenter(op: PlanOpening, w: PlanWall): [number, number] | null {
-  const len = wallLength(w)
-  if (len <= 0) return null
-  const ux = (w.end[0] - w.start[0]) / len
-  const uz = (w.end[1] - w.start[1]) / len
+  const t = wallTangent(w)
+  if (!t) return null
   const at = op.offset + op.width / 2
-  return [w.start[0] + ux * at, w.start[1] + uz * at]
+  return [w.start[0] + t[0] * at, w.start[1] + t[1] * at]
 }
 
 /**
