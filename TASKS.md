@@ -74,9 +74,9 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   neither of which the headless harness can supply without faking a provider response (which
   the task explicitly rules out); `ai/aiClient.ts`, `ai/floorPlanAi.ts`, and
   `ai/autoLayoutAi.ts`'s request/response builders are pinned by their own unit tests
-  (`aiClient` has no dedicated test file yet — its pure helpers `buildReplicateImg2ImgBody`/
-  `parseReplicateOutput`/`safePollUrl` are good candidates for a future unit-test pass, out of
-  scope here) so the wire contract stays covered even though the live round-trip isn't. Added
+  (`aiClient.test.ts` covers `buildReplicateImg2ImgBody`/`parseReplicateOutput`/`safePollUrl`,
+  including the off-host poll-URL exfiltration guard) so the wire contract stays covered even
+  though the live round-trip isn't. Added
   a dedicated `describe('AI surfaces …')` block to `featureFlags.test.ts` pinning all three
   flags' tier/devOnly/default in one place (mirrors the existing per-flag describe pattern).
   No stub lever was needed — unlike `livePrices`/model-upload, none of the three AI surfaces
@@ -100,7 +100,9 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   of the scrolling right panel, below the fold at every viewport. Fix in-scenario: click Save via a
   DOM `.click()` eval (viewport-independent), NOT the text-click. Verified: import + parse of
   GLTFExporter and `persistUserGlb` all work headless — the ONLY blocker was the missed click.
-  `glb-csg-textures-simple.json` should get the same one-line fix when next touched.)
+  `glb-csg-textures-simple.json` got the same fix (v0.21.2.13): DOM-eval save click + the real
+  `state.userFurniture` store assertion instead of the toast-text wait — the save round-trip takes
+  ~28 s under headless SwiftShader, so the old 15 s text-wait was doubly doomed; all 32 steps green.)
   (crown-molding, backdrop-upload and
   furnlight simple rungs landed — `crown-molding-simple.json` v0.11.2.13,
   `backdrop-upload-simple.json` + `furnlight-simple.json` v0.11.2.14; **ceilingDesign simple rung

@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.13 — glb-csg-textures scenario: save step un-broken (below-fold click + real assertion)
+
+Applied the known one-line fix from the glb-designer rung to `glb-csg-textures-simple.json`: the
+"Save asset" step used the harness text-click, which clicks the unscrolled bounding-rect centre —
+the button sits below the fold of the scrolling right panel, so the click was a silent no-op.
+Now a DOM-eval `.click()` (viewport-independent). Also upgraded the post-save wait from the toast
+text (15 s) to the real store assertion (`state.userFurniture` gains the named `UserGltfDef`,
+60 s): the CSG save round-trip (GLTFExporter + CC0 texture embedding + IDB write) takes ~28 s
+under headless SwiftShader, so the old wait was doubly doomed. All 32 steps green (toast
+`Saved "CSG Texture Test" to your catalog` + dialog close verified on screenshot). TASKS.md
+IXT-SUITES notes refreshed (this fix recorded; stale "aiClient has no dedicated test file" claim
+corrected — `aiClient.test.ts` pins all three pure helpers).
+
 ## v0.21.2.12 — review fixes: configurator cluster (6 findings) + SLOT-203 docs
 
 Second half of the round-7 review fixes. **Phantom lamp** (CONFIRMED): a failed slot-GLB load was
