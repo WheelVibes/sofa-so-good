@@ -1,6 +1,8 @@
 import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
+import { doorHingePivot, drawerSlideDistance, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { HingedDoor, SlideDrawer } from './openable'
 import { metalLeg, readNum, readStr } from './shared'
 
 /**
@@ -38,6 +40,8 @@ export function Sideboard({ props }: { props: ParamProps }) {
   const gap = 0.02
   const bayW = (width - gap * (bays + 1)) / bays
   const faceZ = depth / 2 + 0.004
+  const isOpen = isCabinetOpen(props)
+  const drawerSlide = drawerSlideDistance(depth)
 
   // For 'mixed', interior bays alternate: a central drawer stack, side doors.
   const centreBay = Math.floor(bays / 2)
@@ -83,11 +87,11 @@ export function Sideboard({ props }: { props: ParamProps }) {
         const x = -width / 2 + gap + bayW / 2 + b * (bayW + gap)
         const isDrawerBay = front === 'drawers' || (front === 'mixed' && b === centreBay)
         if (isDrawerBay) {
-          // Two stacked drawers in this bay.
+          // Two stacked drawers in this bay — slide out together (CABINET-OPEN).
           const rows = 2
           const dh = (bodyH - gap * (rows + 1)) / rows
           return (
-            <group key={b}>
+            <SlideDrawer key={b} open={isOpen} distance={drawerSlide}>
               {Array.from({ length: rows }, (_, r) => {
                 const y = legH + gap + dh / 2 + r * (dh + gap)
                 return (
@@ -97,22 +101,24 @@ export function Sideboard({ props }: { props: ParamProps }) {
                   </group>
                 )
               })}
-            </group>
+            </SlideDrawer>
           )
         }
         // A single door front for this bay.
         const y = legH + bodyH / 2
-        // Hinge side alternates so handles meet at the centre of door pairs.
+        // Hinge side alternates so handles meet at the centre of door pairs; the
+        // door swings open on that hinge edge (CABINET-OPEN).
         const hingeLeft = b % 2 === 0
+        const { pivotX, swingSign } = doorHingePivot(x, bayW, hingeLeft ? 'left' : 'right')
         return (
-          <group key={b}>
+          <HingedDoor key={b} open={isOpen} pivotX={pivotX} pivotZ={faceZ} swingSign={swingSign}>
             <BeveledBox
               position={[x, y, faceZ]}
               material={wood}
               args={[bayW, bodyH - gap * 2, 0.02]}
             />
             <Pull x={x + (hingeLeft ? bayW / 2 - 0.04 : -bayW / 2 + 0.04)} y={y} />
-          </group>
+          </HingedDoor>
         )
       })}
 

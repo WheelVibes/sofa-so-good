@@ -55,7 +55,19 @@ export function isAllowedModelResourceUrl(url: string, pageOrigin: string): bool
   if (trimmed === '') return true
   if (isEmbeddedOrBlobUrl(trimmed)) return true
   try {
-    return new URL(trimmed).origin === pageOrigin
+    // Resolve to an absolute URL, then compare origins — the one choke point.
+    // A root-relative path (`/assets/furniture/x.glb`, or `/sofa-so-good/...`
+    // under a sub-path base) is the TOP-LEVEL url drei passes for a bundled
+    // builtin GLB; it never gets resolved against a model base before reaching
+    // here, so we resolve it against the page origin. This closes the bypasses a
+    // blanket `startsWith('/')` allow missed: a protocol-relative `//host/...`
+    // and a backslash-authority `/\host` / `/\/host` both resolve to a FOREIGN
+    // origin here (browsers fold `\` to `/` for special schemes) and are blocked.
+    // A non-slash string is required to parse as an ABSOLUTE URL (no base), so a
+    // bare unresolvable string ("not a url") throws → fails closed rather than
+    // being read as a same-origin relative path.
+    const base = trimmed.startsWith('/') ? pageOrigin || undefined : undefined
+    return new URL(trimmed, base).origin === pageOrigin
   } catch {
     return false
   }

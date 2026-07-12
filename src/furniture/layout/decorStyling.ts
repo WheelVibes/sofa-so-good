@@ -149,14 +149,16 @@ const HOST_PROPS: Record<string, readonly string[]> = {
   'bed-double': ['throw-cushion', 'throw-blanket'],
   'bed-single': ['throw-cushion'],
   // Low / occasional tables. A styled tray is the classic coffee-table vignette
-  // (candle + bowl + books grouped on a tray), so it leads here.
-  'coffee-table': ['decor-tray', 'fruit-bowl', 'magazine-stack', 'candle-cluster'],
-  'dining-table-4': ['candle-cluster', 'fruit-bowl'],
-  'side-table': ['candle-cluster', 'desk-plant'],
+  // (candle + bowl + books grouped on a tray), so it leads here. The CC0 GLB
+  // props (tea set / ceramic vase / potted succulent) are secondary photoreal
+  // options interleaved after the hero prop.
+  'coffee-table': ['decor-tray', 'tea-set', 'fruit-bowl', 'magazine-stack', 'candle-cluster'],
+  'dining-table-4': ['candle-cluster', 'ceramic-vase-slim', 'fruit-bowl'],
+  'side-table': ['candle-cluster', 'potted-succulent', 'desk-plant'],
   // Nightstands / bedside
-  nightstand: ['desk-plant', 'candle-cluster'],
+  nightstand: ['desk-plant', 'potted-succulent', 'candle-cluster'],
   // Work surfaces
-  desk: ['desk-plant', 'book-stack'],
+  desk: ['desk-plant', 'book-set', 'book-stack'],
   // Storage tops (console, sideboard, bookshelf, cube-shelf). The trailing
   // plant drapes over the front edge — a hero piece on elevated/open tops, so
   // it leads on the open shelving units and appears as a secondary option on the
@@ -164,6 +166,7 @@ const HOST_PROPS: Record<string, readonly string[]> = {
   'console-table': [
     'photo-frame-cluster',
     'trailing-plant',
+    'ceramic-vase-slim',
     'decor-tray',
     'small-sculpture',
     'book-stack',
@@ -171,15 +174,22 @@ const HOST_PROPS: Record<string, readonly string[]> = {
   sideboard: [
     'photo-frame-cluster',
     'trailing-plant',
+    'ceramic-vase-wide',
     'decor-tray',
     'book-stack',
     'candle-cluster',
   ],
-  bookshelf: ['trailing-plant', 'book-stack', 'small-sculpture', 'desk-plant'],
-  'cube-shelf': ['trailing-plant', 'book-stack', 'small-sculpture'],
-  dresser: ['photo-frame-cluster', 'desk-plant'],
+  bookshelf: ['trailing-plant', 'book-stack', 'potted-succulent', 'small-sculpture', 'desk-plant'],
+  'cube-shelf': ['trailing-plant', 'book-stack', 'book-set', 'small-sculpture'],
+  dresser: ['photo-frame-cluster', 'standing-photo-frame', 'desk-plant'],
   // Media unit top — frames, a sculpture, a plant, books.
-  'tv-console': ['photo-frame-cluster', 'small-sculpture', 'desk-plant', 'book-stack'],
+  'tv-console': [
+    'photo-frame-cluster',
+    'ceramic-vase-wide',
+    'small-sculpture',
+    'desk-plant',
+    'book-stack',
+  ],
   // Soft seating — an ottoman doubles as a coffee table, so a styled tray leads,
   // then a folded throw / a stray cushion.
   ottoman: ['decor-tray', 'throw-blanket', 'throw-cushion'],

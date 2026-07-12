@@ -59,10 +59,7 @@ Legend — Verify: `H` headless-verifiable (DOM/scene-graph/unit) · `G` needs a
 belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
 
 ### Tier 1 — highest impact, mostly verifiable, do first
-- **PHOTO-DETAIL-PROPS — more CC0 set-dressing** ◑ (M, all tiers; Verify H).
-  The set-dressing pack + one-tap auto-styling already ship (C276–C278, `decorStyling.ts`). **Remaining:**
-  more curated CC0 decor/prop bundles from Poly Haven / Poly Pizza (networked assets). Overlaps
-  C-PLANTS/DECOR in TASKS.
+(all shipped — records in `CHANGELOG.md`)
 
 ### Tier 2 — high impact, needs real-GPU verification
 - **PHOTO-GTAO — ruling (2026-07-11, real-GPU A/B): REJECTED, N8AO stays as-is.** A literal GTAO
@@ -89,11 +86,30 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
 ### Tier 3 — ultra-detail materials/assets (memory-bound, mostly verifiable)
 
 ### Tier 4 — frontier (WebGPU / large)
-- **PHOTO-SSGI-SSR** (L, WebGPU/High-end; Verify G). Screen-space GI + reflections via
-  `realism-effects` (0beqz) or the three.js WebGPU path; colour bounce + glossy reflections beyond
-  the IBL probe + planar mirrors. WebGPU-gated with WebGL fallback.
-- **PHOTO-WEBGPU** (L). Evaluate three.js `WebGPURenderer`/TSL maturity (2026) for true SSGI,
-  better lights, compute denoise; capability-detect with WebGL2 fallback.
+- **PHOTO-WEBGPU — ruling (2026-07-12): REJECTED-FOR-NOW, revisit on triggers below.** three.js
+  `WebGPURenderer`/TSL is real (r184: TSL lowers to WGSL/GLSL; `SSGINode`/`GTAONode`/`TRAANode`
+  exist; r3f v9 supports an async `gl` factory + auto WebGL2 fallback), but adoption is a large
+  dual-renderer migration for us, not a swap: (a) the whole post stack is `@react-three/postprocessing`
+  = **WebGL `EffectComposer`, no WebGPU migration path** — N8AO/Bloom/SMAA/DoF must be rewritten as
+  TSL `RenderPipeline` nodes; (b) **`three-gpu-pathtracer` is WebGL2-only**, so `hqRenderSession`
+  stays WebGL and the app becomes multi-renderer; (c) **`pomFloor.ts` uses `onBeforeCompile` GLSL,
+  which TSL cannot express** — needs a NodeMaterial rewrite; (d) VSM/transmission/anisotropy/context-loss
+  controllers are all renderer-coupled (≈20+ files / 6 subsystems). **Verification is blocked:** the
+  sandbox's real-GPU passthrough is ANGLE-D3D12 (WebGL only); WebGPU resolves **only a SwiftShader
+  software adapter** (probed 2026-07-12 via `scripts/scenarios/webgpu-probe.json` + flags), so a WebGPU
+  SSGI/SSR pixel pass can't converge or be A/B'd here. **Revisit when ALL hold:** r3f v9 WebGPU Canvas
+  is documented-stable (not "edge cases persist"); `GTAONode` reaches N8AO parity AND a TSL Bloom/SMAA
+  replacement lands so the post stack can port; the sandbox gains a real WebGPU adapter (Dawn→Vulkan→GPU,
+  or a device with native WebGPU) so `SSGINode` is real-GPU-verifiable; Safari-on-iOS WebGPU is
+  confirmed on the app's min OS (iOS 26 already ships it — near-met). Browser matrix mid-2026:
+  Chrome/Edge stable, Safari 26 (iOS/macOS) on by default, Firefox partial (macOS-ARM only), Chrome-Linux
+  Gen12+ beta only.
+- **PHOTO-SSGI-SSR — gated on PHOTO-WEBGPU (deferred with it).** Screen-space GI + glossy reflections
+  are the main prize (colour bounce + reflections beyond the IBL probe), and `SSGINode`/SSR ship in the
+  WebGPU node pipeline — but they require the WebGPU renderer + TSL post pipeline above, and are a "G"
+  real-GPU item that is currently **unverifiable in-sandbox** (software Dawn only). Do not attempt a
+  WebGL `realism-effects` SSGI in the interim: `realism-effects` is discontinued/uninstalled (per the
+  PHOTO-GTAO ruling) and would fight the pmndrs composer. Revisit exactly when PHOTO-WEBGPU's triggers clear.
 
 ## Verification posture
 **UPDATE 2026-07-11: the dev environment now has a real GPU** (`SHOT_GPU=1` → ANGLE D3D12 /

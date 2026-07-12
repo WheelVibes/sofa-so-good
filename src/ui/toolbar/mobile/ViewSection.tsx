@@ -123,6 +123,7 @@ export function ViewSection({
               label="Parallel projection"
               sub="Orthographic dollhouse view"
               on={parallelProjection}
+              newFlag="parallelProjection"
               onClick={act(() => s.getState().toggleParallelProjection(), { keep: true })}
             />
           ) : null}

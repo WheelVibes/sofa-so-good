@@ -1,0 +1,11 @@
+{
+  "id": "potted-plant-leafy",
+  "name": "Potted plant (leafy)",
+  "category": "decor",
+  "footprint": { "w": 0.587, "d": 0.634, "h": 1.35 },
+  "scale": 1,
+  "anchor": "floor-center",
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/potted_plant_01"
+}

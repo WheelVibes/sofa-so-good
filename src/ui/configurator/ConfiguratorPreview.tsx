@@ -3,14 +3,17 @@ import { Canvas } from '@react-three/fiber'
 import { useEffect, useState } from 'react'
 import type { Group } from 'three'
 import {
-  buildConfiguredObject,
+  buildConfiguredPreview,
   disposeConfiguredObject,
 } from '../../furniture/configurator/buildObject'
 import type { ConfigurableProduct, ConfiguredSpec } from '../../furniture/configurator/model'
 
-/** The assembled product, built by the SAME `buildConfiguredObject` the save path
- *  exports (so the preview can't drift from the baked GLB). Rebuilt + disposed
- *  when the product or selection changes (async — GLB options may load). */
+/** The assembled product, built by the same procedural + GLB pipeline the save
+ *  path exports (so the preview can't drift from the baked GLB). The procedural
+ *  body shows immediately; any GLB sub-asset option (SLOT-203) pops in as it
+ *  loads — a slow/failed GLB never blanks the body. Rebuilt + disposed when the
+ *  product or selection changes (disposal deferred until in-flight loads settle
+ *  so a late-arriving GLB piece is freed too). */
 function ConfiguredPiece({
   product,
   spec,
@@ -21,18 +24,16 @@ function ConfiguredPiece({
   const [object, setObject] = useState<Group | null>(null)
   useEffect(() => {
     let alive = true
-    let built: Group | null = null
-    void buildConfiguredObject(product, spec).then((res) => {
-      if (!alive) {
-        disposeConfiguredObject(res.object)
-        return
-      }
-      built = res.object
-      setObject(res.object)
-    })
+    const { object: built, ready } = buildConfiguredPreview(product, spec)
+    setObject(built)
     return () => {
       alive = false
-      if (built) disposeConfiguredObject(built)
+      setObject(null)
+      // Dispose only once every in-flight GLB load has attached-or-skipped, so a
+      // piece that arrives after unmount is disposed too (no leak).
+      void ready.finally(() => {
+        if (!alive) disposeConfiguredObject(built)
+      })
     }
   }, [product, spec])
   return object ? <primitive object={object} /> : null

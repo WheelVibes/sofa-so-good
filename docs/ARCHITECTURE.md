@@ -776,6 +776,34 @@ same change that reshapes a system.
   carcass/countertop/cornice + slab·shaker·drawers·glass·open fronts; structurally sound).
   `CabinetModule.tsx` renders via `CabinetBase`/`Wall`/`Tall`; `cabinetCatalog.ts` = 3
   defs spread into `BUILTIN_CATALOG`.
+- **Cabinet open/close** (`furniture/cabinetOpen.ts` + `primitives/openable.tsx`,
+  `cabinetOpen` flag, simple/on): cabinet-family fronts open with eased ~0.4 s motion —
+  doors swing on their hinge edge (`HingedDoor`), drawers slide forward (`SlideDrawer`) —
+  driven by the per-item persisted `props.open` and an inspector "Doors & drawers" toggle
+  (capability-gated via `supportsCabinetOpen`). Wired: kitchen cabinets, hinged wardrobes,
+  sideboard, dresser. Animation holds the demand render-loop + shadow refresh open only
+  while moving (the Curtain/RollerBlind pattern).
+- **Slot product configurator** (`furniture/configurator/`, SLOT, `productConfigurator` flag,
+  simple/prod-safe): a configurable product = base + named `slots`, each resolving to one option
+  (procedural `parts` OR a bundled CC0 `gltfUrl`, never both) under a floor-anchored/+Z anchor.
+  Authored in `products.ts` (`CONFIGURABLE_PRODUCTS` — mattress-on-frame bed, modular sofa);
+  `clampConfig` (never throws, mutex/requires/excludes left-wins) + the pure render-agnostic
+  `composeProduct` (parts + `gltfPieces` + unioned footprint + summed price + finish-target keys)
+  feed BOTH the dialog preview and the bake, so they can't drift. `buildObject.ts` maps the composed
+  model → a three `Group` (per-`finishKey` cloned materials for procedural parts); a **preview**
+  build (`buildConfiguredPreview`) returns the body synchronously and attaches GLB pieces
+  non-blocking + fail-soft (warn + skip a bad asset), while the **bake** (`buildConfiguredObject`)
+  awaits every piece and fails LOUD (a load error rejects so the save never persists a phantom asset).
+  **GLB slot-option load path (SLOT-203, `gltfSlot.ts`):** a raw `GLTFLoader` behind the shared SEC-1
+  secure manager + the `gltf/decoders.ts` Draco path + meshopt, `withBase`'d url, parse-cached per url
+  (few bundled slot urls) with an independent `scene.clone(true)` + per-attach material clones per
+  attach → `fitScaleToFootprint` to the option footprint → reparent under a holder at the slot anchor
+  (position + quarter-turn) → per-slot `namespaceGltfFinishTargets` renaming its material groups to
+  `<slot>::<name>` so `listFinishTargets` returns them without colliding. `saveConfigured.ts` bakes it
+  through the GLB-designer pipeline (`exportGlb` → `persistUserGlb`) into a regular `UserGltfDef` — no
+  new persisted asset kind. Dialog `ui/configurator/ConfiguratorDialog` (product tabs + per-slot option
+  buttons + live preview + running price; a bake failure surfaces an error toast); ⌘K "Configure a
+  product". Area rules: `src/furniture/configurator/CLAUDE.md`.
 - **IKEA model import** (`furniture/ikea/`, `userAssetsSlice`): scraper emits per-group
   `metadata.json` + `<finish>.glb` + images; upload auto-detects groups; `importGroup.ts`
   → one `IkeaGltfDef` (`variants[]`, blobs in IDB, category/clearance/price from metadata).
@@ -969,6 +997,15 @@ same change that reshapes a system.
   toggled by `luxOverlayOn` from the Drawings panel's Lighting tab — rides the `drawings` flag.
   LP6: `luxExcludedIds` filters fixtures before grid build; `luxPlaying` rAF auto-advances `manualHour`
   at 1 hr/s; Drawings panel Lighting tab gains inline time slider + play button + per-fixture checkboxes.
+  **Inter-room doorway bleed (R-BLEED):** pure `lighting2d/doorwayBleed.ts` adds a *directional*
+  neighbour-contribution term to both the scalar table (`estimateRoomLux`, new `borrowedLux`) and the
+  spatial grid (`buildRoomLuxGrid`): a room borrows a documented fraction (`BLEED_TRANSMISSION`, aperture-
+  scaled) of each adjacent room's OWN ambient through an **open** doorway (`doors` map; closed by default →
+  zero bleed, so the out-of-box overlay/table are byte-identical to before). First-degree only (no cascade,
+  like wall-reveal spread). The grid distributes the borrowed room-mean with a facing (cosine) + distance
+  falloff weight normalised to unit mean — so the heatmap pools the bleed in front of the doorway and fades
+  around corners while the per-room average still equals the 2D table (the lumen-method lock-step holds).
+  No raycast (doorway-direction weighting only; convex-room approximation). Rides the same `drawings` flag.
 - **Electrical points schedule** (`analysis/electricalSchedule.ts` pure → `buildElectricalSchedule(plan,
   items, catalog)`: a consolidated, room-by-room count of **lighting points** (reuses
   `lightEmitters.isItemEmitter`, the same predicate the lighting plan uses) + indicative **power points /

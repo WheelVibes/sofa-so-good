@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { FloorPlan } from '../../floorplan/types'
 import { BUILTIN_CATALOG } from '../builtinCatalog'
 import { furnishPlanItems } from '../furnishPlan'
+import { mergeGeneratedCatalog } from '../generatedCatalog'
 import { LAYOUT_PRESETS } from '../layoutPresets'
 import type { FurnitureItem } from '../types'
 import { applyDecorStyling, applyDecorStylingForPlan } from './decorStyling'
@@ -488,9 +489,14 @@ describe('furnishPlanItems with decor (withDecor=true)', () => {
     const withDecor = furnishPlanItems(plan, movein, BUILTIN_CATALOG, {}, true)
     const decorOnly = withDecor.filter((it) => !withoutDecor.some((w) => w.id === it.id))
     expect(decorOnly.length).toBeGreaterThan(0)
+    // The styling pass may reach for bundled CC0 GLB props (in GENERATED_FURNITURE,
+    // not BUILTIN_CATALOG) — resolve against the same merged catalog furnishPlan
+    // uses. EVERY auto-placed decor prop must still be noClip so it can't conflict
+    // with floor collision.
+    const merged = mergeGeneratedCatalog(BUILTIN_CATALOG)
     for (const d of decorOnly) {
-      const def = BUILTIN_CATALOG[d.defId]
-      expect(def?.noClip).toBe(true)
+      const def = merged[d.defId]
+      expect(def?.noClip, `${d.defId} must be noClip`).toBe(true)
     }
   })
 

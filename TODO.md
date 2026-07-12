@@ -84,8 +84,6 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
 
 ## UI/UX polish program — remaining follow-ups (2026-07-02 program, completed 2026-07-03)
 The 39-item Vi-develop-derived program shipped (see CHANGELOG); only these follow-ups remain:
-- [ ] **NEW_BADGES follow-up** — register the next feature that ships a real toolbar/menu row
-  (badges are dormant until then by design; see ui/newBadges.ts).
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the
   catalog is already paginated (`PAGE_SIZE=12`, never renders >12 cards); history/layers
   realistically render <100 rows. Revisit with a lightweight slice-on-scroll window (NOT a new
@@ -124,8 +122,9 @@ proxy/mirror/host is missing, and standing one up is a deployment task, not a co
 
 ## Time-of-day — out-of-scope deferrals (from the spec)
 Auto-advancing in-world clock; window-glass tinting affecting shadow colour; localized per-room IBL
-probes; directional door-bleed weighting; real-time path-traced GI/RTX (revisit only with affordable
-WebGPU path tracing).
+probes; real-time path-traced GI/RTX (revisit only with affordable WebGPU path tracing).
+(Directional door-bleed weighting shipped v0.21.2.7 into the 2D lux model — the 3D render's bleed
+was already physically correct via real lights.)
 
 ## Deferred candidates
 - **Deeper transition-warmup: `renderer.compileAsync` + time-sliced mounts** (2026-07-03).
@@ -145,11 +144,19 @@ All sequenced findings (TB-1 … TB-10 + tails) shipped; records live in `CHANGE
 is retained as the methodology/grounding reference.
 
 ## Open — core interactions
-- **Cabinet drawer/door open-close.** Cabinet fronts are static; opening them (with eased motion)
-  would be a new interaction. Doors already animate (could ease the linear swing curve — low value).
-- **Live slide during drag** (optional, higher-risk) — item hugs walls/furniture in real time, not
-  just on release; more invasive in `DragController`'s per-move snapping. (Drag inertia: skip —
-  hurts placement precision.)
+- **Live slide during drag — PARKED (2026-07-12 evaluation, numeric evidence).** The specified
+  per-move minimal-axis MTV slide (vs walls + furniture, reusing `nudgeToValid`) is provably
+  unstable: ±0.02 m frame wobble, 0.39 m face-flip jumps circling an obstacle, and a 0.62 m
+  teleport THROUGH a wall once penetration passes the midpoint. Also premise-corrected: there is
+  no "hug on release" today (onUp's auto-nudge was deliberately removed — bug #6; `nudgeToValid`
+  is test-only dead code), and `wallSnapOffset` already pulls flush within 0.12 m, so the residual
+  value is low. **If revisited**: build a walls-only swept two-pass X/Z clamp
+  (`collision/slideAlongWalls.ts` modelled on walk-mode `resolveMovement`, seeded from a
+  lastValidPos ref, applied after all snaps, snap-off single-item drags only, noClip/windowBound
+  excluded) — proven stable + tunnel-proof in the probe (maxJump 0.02 m, corner-stable, no
+  tunnelling on a 2 m step); flag `liveSlideDrag` simple/default-OFF; REQUIRES real-device feel
+  QA (headless can't measure pointer jitter/tug-of-war with the magnetic snap). Probe
+  measurements in the 2026-07-12 session records. (Drag inertia: still skip.)
 
 ## Open — customizability / UX
 - **Fold baseboard + accent-wall *creation* into the FinishPicker.** The FinishPicker now covers

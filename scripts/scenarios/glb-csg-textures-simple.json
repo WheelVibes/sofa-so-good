@@ -114,12 +114,17 @@
     },
     {
       "name": "click-save",
-      "click": { "text": "Save asset" }
+      "comment": "DOM .click(), NOT the harness text-click: 'Save asset' sits below the fold of the scrolling right panel and clickByText clicks the unscrolled bounding-rect centre — silent no-op (see glb-designer-simple.json).",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
     },
     {
       "name": "wait-saved",
-      "waitFor": { "text": "Saved" },
-      "timeout": 15000
+      "comment": "Real round-trip assertion (not the toast text): GLTFExporter + CC0 texture embedding + IDB write are slow under headless SwiftShader — generous timeout.",
+      "waitFor": {
+        "store": "state.userFurniture.some(d => d.name === 'CSG Texture Test' && d.source === 'user')"
+      },
+      "timeout": 60000,
+      "failMessage": "saving the CSG asset should add a UserGltfDef named 'CSG Texture Test' to state.userFurniture"
     },
     {
       "name": "shot-after-save",

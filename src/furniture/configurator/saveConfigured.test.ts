@@ -17,7 +17,26 @@ vi.mock('../../materials/furnitureMaterials', () => ({
     },
   }),
 }))
+// Mock only the GLB loader (SLOT-203) so the bake test is deterministic + offline:
+// return a tiny real three Group with one named material, exercising the per-slot
+// finish-target namespacing (→ a 'lamp::…' target) + reparent + dispose path
+// without a network fetch. The pure helpers stay real (importOriginal).
+vi.mock('./gltfSlot', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./gltfSlot')>()
+  const { Group, Mesh, BoxGeometry, MeshStandardMaterial } = await import('three')
+  return {
+    ...actual,
+    loadSlotGltfScene: vi.fn(async () => {
+      const g = new Group()
+      const mat = new MeshStandardMaterial()
+      mat.name = 'desk_lamp_arm_01'
+      g.add(new Mesh(new BoxGeometry(0.2, 0.9, 0.6), mat))
+      return g
+    }),
+  }
+})
 
+import { loadSlotGltfScene } from './gltfSlot'
 import { getConfigurableProduct } from './products'
 import { saveConfiguredAsset } from './saveConfigured'
 
@@ -33,13 +52,15 @@ describe('saveConfiguredAsset (SLOT-103)', () => {
     const [file, opts] = persistSpy.mock.calls[0] as unknown as [File, Record<string, unknown>]
     expect(file).toBeInstanceOf(File)
     expect(opts.category).toBe('beds')
-    expect(opts.price).toBe(220 + 260 + 150)
+    expect(opts.price).toBe(220 + 260 + 150 + 85) // + bedside lamp (SLOT-203, default on)
     const fp = opts.footprint as { w: number; d: number; h: number }
-    expect(fp.w).toBeCloseTo(1.6, 2)
+    expect(fp.w).toBeGreaterThan(1.6) // lamp stands to the left of the head
     expect(fp.d).toBeGreaterThanOrEqual(2.1)
+    // Procedural groups + the per-slot-namespaced GLB group (SLOT-203).
     expect((opts.finishTargets as { key: string }[]).map((t) => t.key).sort()).toEqual([
       'base:frame',
       'headboard:face',
+      'lamp::desk_lamp_arm_01',
       'mattress:cover',
     ])
     // SLOT-204: the recipe rides on the def for later re-editing.
@@ -54,10 +75,18 @@ describe('saveConfiguredAsset (SLOT-103)', () => {
       selections: { headboard: null },
     })
     const [, opts] = persistSpy.mock.calls[0] as unknown as [File, Record<string, unknown>]
-    expect(opts.price).toBe(220 + 260)
+    expect(opts.price).toBe(220 + 260 + 85) // + bedside lamp (default on)
     expect((opts.finishTargets as { key: string }[]).some((t) => t.key === 'headboard:face')).toBe(
       false,
     )
+  })
+
+  it('rejects (and persists NOTHING) when a slot GLB fails to load — no phantom asset', async () => {
+    vi.mocked(loadSlotGltfScene).mockRejectedValueOnce(new Error('offline'))
+    await expect(
+      saveConfiguredAsset(mattress, { productId: 'mattress-frame', selections: {} }),
+    ).rejects.toThrow('offline')
+    expect(persistSpy).not.toHaveBeenCalled()
   })
 })
 

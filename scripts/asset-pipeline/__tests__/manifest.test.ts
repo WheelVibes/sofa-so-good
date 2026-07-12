@@ -1,5 +1,7 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { furnitureManifestSchema, materialManifestSchema } from '../manifest'
+import { furnitureManifestSchema, materialManifestFile, materialManifestSchema } from '../manifest'
 
 describe('furnitureManifestSchema', () => {
   const ok = {
@@ -72,4 +74,37 @@ describe('materialManifestSchema', () => {
       }),
     ).toThrow()
   })
+})
+
+// FETCH-MANIFEST-BACKFILL regression guard: the manifest is the source of truth
+// for a `npm run fetch-assets` re-run, which rewrites each material's on-disk
+// sidecar from `downloads` alone. If an entry's on-disk sidecar carries a
+// normal/rough channel but the manifest omits that download URL, a re-fetch
+// silently DROPS the channel (the exact bug 6 albedo-only entries had:
+// carpet/parquet/beige/brick/plaster/stone-brick). Assert the manifest never
+// drifts behind its own bundled sidecars so the regression can't recur.
+describe('material manifest ⇄ bundled sidecar channel parity', () => {
+  const repoRoot = join(__dirname, '../../..')
+  const manifest = materialManifestFile.parse(
+    JSON.parse(readFileSync(join(repoRoot, 'assets/manifest/materials.json'), 'utf8')),
+  )
+
+  for (const entry of manifest) {
+    const sidecarPath = join(repoRoot, 'public/assets/materials', entry.id, 'material.json')
+    if (!existsSync(sidecarPath)) continue
+    const sidecar = JSON.parse(readFileSync(sidecarPath, 'utf8')) as {
+      channels: Record<string, string>
+    }
+
+    it(`${entry.id}: manifest lists every channel present on disk`, () => {
+      for (const channel of ['normal', 'rough'] as const) {
+        if (sidecar.channels[channel]) {
+          expect(
+            entry.downloads[channel],
+            `${entry.id} sidecar has a ${channel} map but manifest downloads.${channel} is missing — a re-fetch would drop it`,
+          ).toBeTruthy()
+        }
+      }
+    })
+  }
 })

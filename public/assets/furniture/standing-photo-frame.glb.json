@@ -1,0 +1,16 @@
+{
+  "id": "standing-photo-frame",
+  "name": "Standing photo frame",
+  "category": "decor",
+  "footprint": {
+    "w": 0.1,
+    "d": 0.201,
+    "h": 0.25
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "noClip": true,
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/standing_picture_frame_01"
+}

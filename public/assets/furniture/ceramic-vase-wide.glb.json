@@ -1,0 +1,16 @@
+{
+  "id": "ceramic-vase-wide",
+  "name": "Ceramic vase (wide)",
+  "category": "decor",
+  "footprint": {
+    "w": 0.204,
+    "d": 0.204,
+    "h": 0.4
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "noClip": true,
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/ceramic_vase_01"
+}

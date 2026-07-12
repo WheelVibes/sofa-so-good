@@ -4,10 +4,18 @@ Bundled assets are CC0 except where a per-item licence is noted below.
 
 ## Furniture
 
+- **Book set** (book-set) — Poly Haven, [source](https://polyhaven.com/a/book_encyclopedia_set_01), CC0
+- **Ceramic vase (slim)** (ceramic-vase-slim) — Poly Haven, [source](https://polyhaven.com/a/ceramic_vase_03), CC0
+- **Ceramic vase (wide)** (ceramic-vase-wide) — Poly Haven, [source](https://polyhaven.com/a/ceramic_vase_01), CC0
+- **Desk lamp** (desk-lamp-arm) — Poly Haven, [source](https://polyhaven.com/a/desk_lamp_arm_01), CC0
 - **Pool Table (6 ft)** (pool-table-6ft) — Evol-Love (poly.pizza), [source](https://poly.pizza/m/7GzmqI1M0fC), CC-BY
 - **Pool Table (7 ft)** (pool-table-7ft) — Evol-Love (poly.pizza), [source](https://poly.pizza/m/7GzmqI1M0fC), CC-BY
 - **Pool Table (8 ft)** (pool-table-8ft) — Evol-Love (poly.pizza), [source](https://poly.pizza/m/7GzmqI1M0fC), CC-BY
 - **Pool Table (9 ft)** (pool-table-9ft) — Evol-Love (poly.pizza), [source](https://poly.pizza/m/7GzmqI1M0fC), CC-BY
+- **Potted plant (leafy)** (potted-plant-leafy) — Poly Haven, [source](https://polyhaven.com/a/potted_plant_01), CC0
+- **Potted succulent** (potted-succulent) — Poly Haven, [source](https://polyhaven.com/a/potted_plant_04), CC0
+- **Standing photo frame** (standing-photo-frame) — Poly Haven, [source](https://polyhaven.com/a/standing_picture_frame_01), CC0
+- **Tea set** (tea-set) — Poly Haven, [source](https://polyhaven.com/a/tea_set_01), CC0
 
 ## Materials
 

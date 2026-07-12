@@ -1,6 +1,8 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { doorHingePivot, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { HingedDoor } from './openable'
 import { readNum, readStr } from './shared'
 
 interface WardrobeProps {
@@ -204,16 +206,28 @@ export function Wardrobe({ props }: WardrobeProps) {
     })
   })()
 
+  // Hinged doors swing open (CABINET-OPEN) about their OUTER edge (handle toward
+  // the centre gap), reading the persisted per-item open state.
+  const isOpen = isCabinetOpen(props)
   const doors =
     sliding || open
       ? null
       : Array.from({ length: doorCount }, (_, i) => {
           const x = -width / 2 + doorGap + doorPanelW / 2 + i * (doorPanelW + doorGap)
-          // Handle on the inner edge of each door (toward the centre gap).
+          // Handle on the inner edge of each door (toward the centre gap); the
+          // door therefore hinges on its outer edge.
           const handleSide = i < doorCount / 2 ? 1 : -1
           const handleX = x + handleSide * (doorPanelW / 2 - 0.05)
+          const hinge = i < doorCount / 2 ? 'left' : 'right'
+          const { pivotX, swingSign } = doorHingePivot(x, doorPanelW, hinge)
           return (
-            <group key={i}>
+            <HingedDoor
+              key={i}
+              open={isOpen}
+              pivotX={pivotX}
+              pivotZ={depth / 2 - doorInset}
+              swingSign={swingSign}
+            >
               <BeveledBox
                 castShadow
                 position={[x, height / 2, depth / 2 - doorInset]}
@@ -224,7 +238,7 @@ export function Wardrobe({ props }: WardrobeProps) {
                 <boxGeometry args={[0.02, 0.22, 0.02]} />
                 <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
               </mesh>
-            </group>
+            </HingedDoor>
           )
         })
 

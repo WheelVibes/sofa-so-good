@@ -73,18 +73,22 @@ describe('transformPart (SLOT-101)', () => {
 })
 
 describe('composeProduct — mattress-frame (SLOT-201)', () => {
-  it('default config: base + foam mattress + padded headboard', () => {
+  it('default config: base + foam mattress + padded headboard + bedside lamp', () => {
     const m = composeProduct(mattress, { productId: 'mattress-frame', selections: {} })
-    // 5 frame parts + 1 mattress + 1 headboard.
+    // 5 frame parts + 1 mattress + 1 headboard (the lamp is a GLB piece, not a part).
     expect(m.parts).toHaveLength(7)
-    expect(m.price).toBe(220 + 260 + 150)
-    // Bounds cover the 1.6 × 2.1 frame; headboard adds height above the frame.
-    expect(m.bounds.w).toBeCloseTo(1.6, 2)
+    // The default lamp (SLOT-203) is a GLB sub-asset piece, namespaced under 'lamp'.
+    expect(m.gltfPieces).toHaveLength(1)
+    expect(m.gltfPieces[0]!.finishPrefix).toBe('lamp')
+    expect(m.gltfPieces[0]!.url).toBe('/assets/furniture/desk-lamp-arm.glb')
+    expect(m.price).toBe(220 + 260 + 150 + 85)
+    // Bounds widen past the 1.6 frame — the lamp stands to the left of the head.
+    expect(m.bounds.w).toBeGreaterThan(1.6)
     // Frame depth 2.1; the headboard protrudes ~0.04 behind it (anchor z = -1.05).
     expect(m.bounds.d).toBeGreaterThanOrEqual(2.1)
     expect(m.bounds.d).toBeLessThan(2.2)
     expect(m.bounds.h).toBeGreaterThan(0.9) // 0.30 frame + 0.30 anchor + 0.70 panel = 1.0
-    // Three re-skinnable groups.
+    // Procedural re-skinnable groups (GLB targets are discovered at load/bake).
     expect(m.finishTargets.map((t) => t.key).sort()).toEqual([
       'base:frame',
       'headboard:face',
@@ -92,14 +96,23 @@ describe('composeProduct — mattress-frame (SLOT-201)', () => {
     ])
   })
 
-  it('omitting the headboard drops its part + price', () => {
+  it('omitting the headboard drops its part + price (lamp still on)', () => {
     const m = composeProduct(mattress, {
       productId: 'mattress-frame',
       selections: { headboard: null },
     })
     expect(m.parts).toHaveLength(6)
-    expect(m.price).toBe(220 + 260)
+    expect(m.price).toBe(220 + 260 + 85)
     expect(m.finishTargets.some((t) => t.key === 'headboard:face')).toBe(false)
+  })
+
+  it('dropping the lamp removes its GLB piece + price', () => {
+    const m = composeProduct(mattress, {
+      productId: 'mattress-frame',
+      selections: { lamp: null },
+    })
+    expect(m.gltfPieces).toHaveLength(0)
+    expect(m.price).toBe(220 + 260 + 150) // base + foam + headboard, no lamp
   })
 
   it('a thicker mattress raises the price and the bounds height', () => {
@@ -107,7 +120,7 @@ describe('composeProduct — mattress-frame (SLOT-201)', () => {
       productId: 'mattress-frame',
       selections: { mattress: 'm-hybrid', headboard: null },
     })
-    expect(m.price).toBe(220 + 640)
+    expect(m.price).toBe(220 + 640 + 85) // + bedside lamp (default on)
   })
 })
 

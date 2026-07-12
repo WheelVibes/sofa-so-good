@@ -65,6 +65,7 @@ export function LuxOverlay() {
   const viewLevelId = useStore((s) => s.viewLevelId)
   const lightsMode = useStore((s) => s.lightsMode)
   const luxExcludedIds = useStore(useShallow((s) => s.luxExcludedIds))
+  const doors = useStore(useShallow((s) => s.doors))
   const luxPlaying = useStore((s) => s.luxPlaying)
   // Non-reactive catalog accessor (scene rule): recompute on items/plan, never
   // on catalog churn.
@@ -122,8 +123,9 @@ export function LuxOverlay() {
     return buildLuxGrids(plan, lights, viewLevelId, {
       fixtureLevel: fq,
       daylightLevel: dq,
+      doors,
     })
-  }, [show, plan, items, viewLevelId, fq, dq, luxExcludedIds])
+  }, [show, plan, items, viewLevelId, fq, dq, luxExcludedIds, doors])
 
   const layers = useMemo<OverlayLayer[]>(
     () =>

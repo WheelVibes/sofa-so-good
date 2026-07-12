@@ -1,0 +1,16 @@
+{
+  "id": "potted-succulent",
+  "name": "Potted succulent",
+  "category": "decor",
+  "footprint": {
+    "w": 0.168,
+    "d": 0.185,
+    "h": 0.267
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "noClip": true,
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/potted_plant_04"
+}

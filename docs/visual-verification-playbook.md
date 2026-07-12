@@ -884,6 +884,17 @@ visits are silent.
 prompt → final scene. `first-run-no-tour.json` walks carousel → "Enter sandbox"
 → asserts `tourOpen === false` → location prompt → final scene.
 
+### Seeding/selecting items right after `sceneReady` gets clobbered by the move-in seed
+The default move-in furnishing is applied by an async boot step (`bootstrap.ts`'s
+`seed` step calls `resetToDefault()` when `items` is empty), which runs *after*
+the store exists and can land after `sceneReady` flips — a `setItems([...])` or
+`selectItem(...)` fired too early is silently overwritten by the full default
+layout. Gate on the end of the whole bootstrap, not on `storeExists`/`sceneReady`
+alone: `waitFor {store: "state.bootPhase === 'ready' && state.sceneReady === true"}`
+(`bootPhase` flips to `'ready'` in `runBootstrap`'s `finally`, i.e. strictly after
+the seed step), then hold a short beat (~800 ms) before seeding/selecting. Found
+building `cabinet-open-simple.json` (flagged by the CABINET-OPEN author).
+
 ### Pro-tier features are OFF at boot (the app starts in Simple mode)
 The store boots with `uiMode: 'simple'`, which forces every `tier: 'pro'` flag
 off — so a pro-gated overlay/tool/panel you're verifying silently never mounts

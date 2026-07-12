@@ -23,6 +23,9 @@ interface ComposedGltfPiece {
   anchor: SlotAnchor
   /** Namespace for this piece's discovered finish targets (slot id / 'base'). */
   finishPrefix: string
+  /** The option's declared footprint (metres) — the object builder fits the
+   *  loaded GLB to this height (`fitScaleToFootprint`). */
+  footprint: { w: number; d: number; h: number }
 }
 
 export interface ComposedModel {
@@ -76,8 +79,9 @@ function footprintAabb(fp: { w: number; d: number; h: number }, anchor: SlotAnch
   return { minX: ax - w / 2, maxX: ax + w / 2, minZ: az - d / 2, maxZ: az + d / 2, top: ay + fp.h }
 }
 
-/** Humanise a finish key ("base:frame" → "Base frame"). */
-function finishLabel(key: string): string {
+/** Humanise a finish key ("base:frame" → "Base frame"). Shared with
+ *  `gltfSlot.ts`'s per-slot GLB namespacing so both label the same way. */
+export function finishLabel(key: string): string {
   const words = key.replace(/[:_-]+/g, ' ').trim()
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
@@ -114,7 +118,12 @@ export function composeProduct(
     }
   }
   if (product.base.gltfUrl) {
-    gltfPieces.push({ url: product.base.gltfUrl, anchor: IDENTITY, finishPrefix: 'base' })
+    gltfPieces.push({
+      url: product.base.gltfUrl,
+      anchor: IDENTITY,
+      finishPrefix: 'base',
+      footprint: product.base.footprint,
+    })
   }
 
   let price = product.base.price
@@ -130,7 +139,12 @@ export function composeProduct(
         parts.push({ ...tp, finishKey: p.finishKey ?? `${slot.id}:${p.role}` })
       }
     } else if (opt.gltfUrl) {
-      gltfPieces.push({ url: opt.gltfUrl, anchor: slot.anchor, finishPrefix: slot.id })
+      gltfPieces.push({
+        url: opt.gltfUrl,
+        anchor: slot.anchor,
+        finishPrefix: slot.id,
+        footprint: opt.footprint,
+      })
     }
   }
 

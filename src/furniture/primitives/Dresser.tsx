@@ -1,6 +1,8 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { drawerSlideDistance, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { SlideDrawer } from './openable'
 import { readNum, readStr } from './shared'
 
 /** Wide chest of drawers: body + a grid of drawer fronts. `handle` picks the
@@ -24,6 +26,8 @@ export function Dresser({ props }: { props: ParamProps }) {
   const gap = 0.02
   const dw = (width - gap * (cols + 1)) / cols
   const dh = (bodyH - gap * (rows + 1)) / rows
+  const isOpen = isCabinetOpen(props)
+  const drawerSlide = drawerSlideDistance(depth)
 
   return (
     <group>
@@ -39,7 +43,7 @@ export function Dresser({ props }: { props: ParamProps }) {
           const x = -width / 2 + gap + dw / 2 + c * (dw + gap)
           const y = legH + gap + dh / 2 + r * (dh + gap)
           return (
-            <group key={`${r}.${c}`}>
+            <SlideDrawer key={`${r}.${c}`} open={isOpen} distance={drawerSlide}>
               <BeveledBox
                 position={[x, y, depth / 2 + 0.003]}
                 material={wood}
@@ -63,7 +67,7 @@ export function Dresser({ props }: { props: ParamProps }) {
                   <meshStandardMaterial color="#2c2c2c" roughness={0.5} metalness={0.4} />
                 </mesh>
               )}
-            </group>
+            </SlideDrawer>
           )
         }),
       )}

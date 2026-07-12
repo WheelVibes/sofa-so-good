@@ -13,6 +13,13 @@ export interface IndexOptions {
   projectRoot: string
 }
 
+// Generated LOD proxies (`foo-low.glb` / `foo-medium.glb`, produced by
+// optimize_glb_lod.mjs) are tier siblings of a base GLB — the runtime resolves
+// them by suffix, they are NOT their own catalog entries. Skip them here (same
+// guard the optimize/compress scripts use) so a base that ships LOD variants
+// doesn't spawn phantom `dropped-foo-low` defs.
+const LOD_VARIANT_RE = /-(low|medium)\.glb$/i
+
 function walk(dir: string, ext: RegExp): string[] {
   if (!existsSync(dir)) return []
   const out: string[] = []
@@ -20,7 +27,7 @@ function walk(dir: string, ext: RegExp): string[] {
     const p = join(dir, name)
     const s = statSync(p)
     if (s.isDirectory()) out.push(...walk(p, ext))
-    else if (ext.test(name)) out.push(p)
+    else if (ext.test(name) && !LOD_VARIANT_RE.test(name)) out.push(p)
   }
   return out
 }
@@ -37,6 +44,7 @@ function baseUrlExpr(relPath: string): string {
 function tsLiteralFurniture(meta: FurnitureSidecar, relPath: string): string {
   const attrLine = meta.attribution ? `    attribution: ${JSON.stringify(meta.attribution)},\n` : ''
   const srcLine = meta.sourceUrl ? `    sourceUrl: ${JSON.stringify(meta.sourceUrl)},\n` : ''
+  const noClipLine = meta.noClip ? `    noClip: true,\n` : ''
   return `  {
     kind: 'gltf',
     id: ${JSON.stringify(meta.id)},
@@ -45,7 +53,7 @@ function tsLiteralFurniture(meta: FurnitureSidecar, relPath: string): string {
     source: 'builtin',
     url: ${baseUrlExpr(relPath)},
     license: ${JSON.stringify(meta.license ?? 'CC0')},
-${attrLine}${srcLine}    defaultFootprint: { w: ${meta.footprint.w}, d: ${meta.footprint.d}, h: ${meta.footprint.h} },
+${attrLine}${srcLine}${noClipLine}    defaultFootprint: { w: ${meta.footprint.w}, d: ${meta.footprint.d}, h: ${meta.footprint.h} },
     scale: ${meta.scale},
   },\n`
 }

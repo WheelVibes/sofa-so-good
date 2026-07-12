@@ -167,3 +167,38 @@ describe('buildCabinet — handle styles', () => {
     expect(m.bounds.d).toBeGreaterThan(0.6)
   })
 })
+
+describe('buildCabinet — open/close front grouping (CABINET-OPEN)', () => {
+  it('tags each door with its column index and an outer-edge hinge side', () => {
+    const m = buildCabinet(base({ columns: 2, front: 'slab' }))
+    const doors = byRole(m, 'door')
+    expect(doors.map((d) => d.column)).toEqual([0, 1])
+    // Left-half column hinges left; right-half column hinges right → a natural
+    // double-door open with handles meeting in the middle.
+    expect(doors[0].hinge).toBe('left')
+    expect(doors[1].hinge).toBe('right')
+  })
+
+  it('groups a glass pane + handle onto the same column as their door', () => {
+    const m = buildCabinet(base({ columns: 2, front: 'glass' }))
+    for (const role of ['door', 'glass', 'handle'] as const) {
+      expect(byRole(m, role).map((p) => p.column)).toEqual([0, 1])
+    }
+  })
+
+  it('tags every drawer front (and handle) with its column, and no hinge', () => {
+    const m = buildCabinet(base({ columns: 2, front: 'drawers', drawerRows: 3 }))
+    const drawers = byRole(m, 'drawer')
+    expect(drawers).toHaveLength(6)
+    // Three drawers per column: [0,0,0,1,1,1].
+    expect(drawers.map((d) => d.column).sort()).toEqual([0, 0, 0, 1, 1, 1])
+    expect(drawers.every((d) => d.hinge === undefined)).toBe(true)
+  })
+
+  it('leaves the static carcass/toe-kick/countertop with no column', () => {
+    const m = buildCabinet(base({ columns: 2 }))
+    for (const role of ['carcass', 'toeKick', 'countertop'] as const) {
+      expect(byRole(m, role).every((p) => p.column === undefined)).toBe(true)
+    }
+  })
+})

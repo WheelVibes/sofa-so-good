@@ -28,6 +28,18 @@ export const NEW_BADGES: Partial<Record<FeatureFlag, string>> = {
   // infoCallouts ('0.10.0.33') was retired at the v0.11.0.0 minor bump — the
   // version-derived recency window had already aged it out (see CLAUDE.md rule:
   // retire entries instead of letting stale ones accumulate).
+
+  // "Parallel projection" (R3-FEAT-3) — a real MenuItem in the View menu's
+  // "Framing" group (desktop `toolbar/menus/ViewMenu.tsx`) + the mirrored row
+  // in the mobile "View" section (`toolbar/mobile/ViewSection.tsx`). Pro tier,
+  // same "hidden when off in Simple" behaviour as styleQuiz — and the first
+  // entry to exercise the mobile `Item` badge path (added alongside this
+  // entry; previously only the desktop `MenuItem` supported `newFlag`).
+  // Shipped in v0.20.0.6; APP_VERSION has since moved a minor line past it, so
+  // — like styleQuiz — it's already outside the live recency window. Kept
+  // registered anyway as the second wiring example (TODO.md follow-up); a
+  // future genuinely-new row is what actually needs the window to be open.
+  parallelProjection: '0.20.0.6',
 }
 
 /** How many `build` numbers a badge stays "recent" for, once on the same

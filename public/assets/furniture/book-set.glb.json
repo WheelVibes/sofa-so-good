@@ -1,0 +1,16 @@
+{
+  "id": "book-set",
+  "name": "Book set",
+  "category": "decor",
+  "footprint": {
+    "w": 0.551,
+    "d": 0.163,
+    "h": 0.237
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "noClip": true,
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/book_encyclopedia_set_01"
+}

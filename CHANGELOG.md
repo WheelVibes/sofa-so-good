@@ -5,6 +5,201 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.15 — CI: knip dead-export fix (doorwayBleed tuning constants un-exported)
+
+PR #92's knip dead-code scan flagged `BLEED_HALF_DEPTH` and `FACING_EXP` in
+`lighting2d/doorwayBleed.ts` as unused exports — both are only read inside the module (the
+falloff/lobe math); dropped the `export` keyword. knip + lighting2d suite + tsc clean.
+
+## v0.21.2.14 — R-BLEED-PROBE-DEDUP: one shared opening→rooms probe (pure refactor)
+
+New `src/floorplan/openingProbe.ts` — the single pure home for the "which room(s) does this wall
+opening touch" geometry (`wallTangent`/`wallNormal`/`openingCenter`/`openingProbePoints`/
+`roomsAcrossOpening`) that `lighting2d/doorwayBleed.ts`, `analysis/daylight.ts`, and
+`lighting2d/luxGrid.ts` each carried a private copy of. All three now route through it,
+call-for-call equivalent (the three prior normal definitions were verified identical); the one
+semantic difference — daylight/luxGrid clamp the along-wall centre into `[0, len]`, doorwayBleed
+does not — is preserved as a documented `clampCenter` parameter (only diverges on a malformed
+opening). 12 new unit tests (shared wall → both rooms with correct ± sides, exterior wall,
+degenerate wall, offset sign convention, clamp behaviour); net −49 lines across the three
+consumers. No behaviour change: lighting2d/analysis/floorplan suites 834 green, full suite green.
+
+## v0.21.2.13 — glb-csg-textures scenario: save step un-broken (below-fold click + real assertion)
+
+Applied the known one-line fix from the glb-designer rung to `glb-csg-textures-simple.json`: the
+"Save asset" step used the harness text-click, which clicks the unscrolled bounding-rect centre —
+the button sits below the fold of the scrolling right panel, so the click was a silent no-op.
+Now a DOM-eval `.click()` (viewport-independent). Also upgraded the post-save wait from the toast
+text (15 s) to the real store assertion (`state.userFurniture` gains the named `UserGltfDef`,
+60 s): the CSG save round-trip (GLTFExporter + CC0 texture embedding + IDB write) takes ~28 s
+under headless SwiftShader, so the old wait was doubly doomed. All 32 steps green (toast
+`Saved "CSG Texture Test" to your catalog` + dialog close verified on screenshot). TASKS.md
+IXT-SUITES notes refreshed (this fix recorded; stale "aiClient has no dedicated test file" claim
+corrected — `aiClient.test.ts` pins all three pure helpers).
+
+## v0.21.2.12 — review fixes: configurator cluster (6 findings) + SLOT-203 docs
+
+Second half of the round-7 review fixes. **Phantom lamp** (CONFIRMED): a failed slot-GLB load was
+swallowed (`catch → []`) while compose still baked the option's price/footprint — a saved asset
+charged +$85 for a lamp that wasn't there. `attachGltfPiece` now takes `failSoft`: the PREVIEW
+stays fail-soft (with `console.warn`) so the procedural body still renders, the BAKE fails loud —
+`saveConfiguredAsset` rejects, never persists, and `ConfiguratorDialog`'s save handler surfaces the
+standard error toast. **Texture disposal** (PLAUSIBLE): the fixed `TEXTURE_SLOTS` list missed
+physical-material extension maps (`clearcoatMap`, …) — replaced with a generic `isTexture` sweep
+over material values. **Per-click re-parse** (CONFIRMED): gltfSlot now caches parsed scenes
+(module-level url → Promise map) and clones per attach with per-attach material instances, so
+`namespaceGltfFinishTargets`'s in-place renaming can't leak across instances or onto the template.
+**DRACO path bypass** (CONFIRMED): `DRACO_DECODER_PATH` exported from `gltf/decoders.ts` and used
+by gltfSlot instead of a hardcoded copy. **humanize dup**: `finishLabel` exported from compose.ts.
+**SLOT-203 docs gap** (CONFIRMED hard-rule violation): ARCHITECTURE.md gains the slot-configurator
+entry (load path, fail-soft/fail-loud split); `docs/user/placing-furniture.md` gains "Configure a
+product" (labels verified against source); configurator CLAUDE.md's now-wrong fail-soft claim
+corrected. Visual: dialog + red arm-reading-lamp GLB verified through the new cache+clone path.
+Configurator+gltf targeted suites 99 green; full suite 6001 green pre-commit.
+
+## v0.21.2.11 — review fixes: cabinet/lux/security cluster (9 findings)
+
+Adversarial code review of the round-7 diff (8 finder angles → verified findings) — this commit
+lands the cabinet/lux/security cluster. **Unmount leak** (CONFIRMED): `useOpenEase` never released
+its `registerAnimatedSource` hold when a moving door/drawer unmounted, pinning the demand render
+loop forever — fixed with an unmount cleanup (Lighting.tsx pattern); Curtain/RollerBlind shared the
+same pre-existing shape and got the identical fix; new `openable.test.tsx` asserts the count drops
+to 0 on mid-animation unmount. **No-op toggle** (CONFIRMED): `supportsCabinetOpen(def, props)` is
+now config-aware — sliding/open wardrobes and `front:'open'` cabinets no longer show a
+"Doors & drawers" toggle that does nothing. **Flag-off kill switch** (PLAUSIBLE): `isCabinetOpen`
+gates on `isFeatureEnabled('cabinetOpen')` so persisted-open items render closed when the flag is
+off. **loaderSecurity backslash gap** (CONFIRMED, node-verified): `/\evil.example/x` passed the
+root-relative prefix check but resolved foreign-origin — the branch now base-resolves via
+`new URL(trimmed, pageOrigin)` and compares origins; non-slash strings still fail closed.
+**ElevationPanel lux divergence** (CONFIRMED): the panel now passes store `doors` to
+`estimateRoomLux`, matching the LuxOverlay heatmap (report/drawings omission stays deliberate).
+Dedups: cabinetModel hinge computed once; shared `drawerSlideDistance(depth)` (unified value never
+over-extends past either old per-primitive max); `mergeGeneratedCatalog(defs)` exported and used by
+furnishPlan + decorStyling.test; `wallTangent(w)` extracted inside doorwayBleed (cross-module probe
+consolidation recorded as R-BLEED-PROBE-DEDUP in TASKS.md). Visual: cabinet-open scenario all 33
+steps green post-refactor. Full suite 6001 green, tsc/biome clean.
+
+## v0.21.2.10 — cabinet-open IXT rung + move-in-clobber playbook gotcha
+
+New `scripts/scenarios/cabinet-open-simple.json` (33 steps, all green): boot with the move-in
+clobber guard (`bootPhase === 'ready'` + boot-hold — `bootPhase` flips strictly after the async
+default-furnish seed), resolve a cabinet-family item from the real layout via an in-page
+`supportsCabinetOpen` import (main wardrobe; flipped to hinged doorStyle — sliding has no open
+animation by design), then drive the REAL inspector button: open → `props.open==='yes'` +
+screenshot (leaves swung ~81°, interior visible) → close → restored; flag gate asserted at the
+DOM level (section absent with `cabinetOpen` off, back when restored). No assertion compromises.
+Playbook gains the move-in-clobber gotcha + the wardrobe framing note.
+
+## v0.21.2.9 — live-slide-during-drag PARKED on numeric evidence (no code change)
+
+Evaluation spike on the real collision code: the specified per-move MTV slide vs walls+furniture
+wobbles (±0.02 m/frame), face-flips (0.39 m jumps circling an obstacle) and teleports 0.62 m
+through walls past mid-penetration — must not ship. Premise corrections recorded: no hug-on-release
+exists today (auto-nudge deliberately removed; `nudgeToValid` is test-only dead code) and
+`wallSnapOffset` already covers the near-flush case. A stable walls-only swept-clamp path (modelled
+on walk-mode `resolveMovement`) was proven in-probe (no wobble, corner-stable, tunnel-proof) and is
+documented in TODO as the revisit design — flag simple/default-OFF + mandatory on-device feel QA.
+
+## v0.21.2.8 — cabinet doors & drawers open/close (new core interaction)
+
+Storage fronts are no longer static: kitchen cabinets (Base/Wall/Tall), hinged-door wardrobes,
+sideboards and dressers open/close with ~0.4 s eased motion — doors swing about their hinge edge
+(`HingedDoor`, double-translate pivot), drawers slide forward (`SlideDrawer`) — via the new
+shared `primitives/openable.tsx`, which holds the demand render-loop + frozen-shadow refresh open
+only while moving (the Curtain/RollerBlind pattern). State is the per-item persisted `props.open`
+(design data, defaults closed — mirrors the windowFixture idiom, no schema change); the control
+is a capability-gated "Doors & drawers" toggle in the item inspector
+(`cabinetOpen.ts:supportsCabinetOpen`). New `cabinetOpen` flag (simple/on — core furnish/view
+delight, pure code; both-modes tested). CabinetCorner intentionally excluded (different
+geometry). 43 targeted tests (easing/hinge math, capability, cabinetModel column/hinge grouping,
+inspector gating); screenshots reviewed (hinge-edge swings, attached fronts, eased mid-state,
+visible interiors). Docs: ARCHITECTURE + user placing-furniture section. Follow-up IXT ladder
+logged in TODO.
+
+## v0.21.2.7 — R-BLEED: directional doorway bleed in the 2D lux model
+
+Premise correction recorded: there was no isotropic bleed to fix — the 2D lux model
+(`roomLux`/`luxGrid`, behind the pro `drawings` flag) had NO doorway term at all (a fixture-less
+corridor read 0 lx beside lit rooms with open doors), while the 3D render's bleed was already
+physically correct via real lights. New pure `lighting2d/doorwayBleed.ts`:
+`interRoomDoorwaySources` (open doors → neighbour links; windows/external/closed dropped),
+`bleedMeanLux` (aperture-scaled 0.12 transmission of the neighbour's OWN lux, first-degree only)
+and `directionalBleedWeight` (max(0,cosθ) forward lobe × 1/(1+(d/1.8)²) falloff — no raycast,
+convex-room approximation). Grid distribution is normalised to unit mean so the heatmap pools
+light in front of the doorway while the per-room average stays lock-step with the 2D table
+(tested invariant). Door open-state defaults closed → out-of-box output byte-identical; the
+printed report keeps own-light-only by design. Verified: 79 lighting2d tests green + a top-down
+overhead A/B (corridor flat-dark with doors closed → borrowed-light gradient pooled at the two
+opened bedroom doorways). TODO's stale "directional door-bleed weighting" deferral reconciled.
+
+## v0.21.2.6 — NEW_BADGES live: Parallel projection badged, mobile Item gains badge support
+
+The dormant "New"-badge system gets its follow-up consumer: `parallelProjection: '0.20.0.6'`
+registered in `NEW_BADGES`, wired on the desktop ViewMenu row AND the mobile ViewSection row —
+which required bringing the mobile `Item` primitive to parity with desktop `MenuItem`
+(`newFlag` prop, `useNewBadge`, mark-seen on click, `.new-dot`; 7-case test mirror). Badge shows
+only while the feature flag is on and the ship version is within the recency window; seen-state
+persists (`hdb_seen_badges`). Verified dot-shows → click → dot-gone under a pinned version
+(the real entry is already past the window — kept as the wiring example per the styleQuiz
+precedent). 63 targeted tests green.
+
+## v0.21.2.5 — SLOT-203: configurator GLB-sub-asset slot options
+
+The bed product gains an optional "Bedside lamp" slot whose "Arm reading lamp" option is a
+bundled GLB (the CC0 desk-lamp-arm from v0.21.2.4 — 424 KB, per-option license/attribution) —
+unblocked by the props pipeline + the SEC-1 root-relative-URL fix. New `gltfSlot.ts` load path:
+cached secure GLTFLoader (DRACO+meshopt) → uniform height-fit to the slot footprint → reparent
+at the slot anchor (quarter-turn orient) → `namespaceGltfFinishTargets` renames materials to
+`slot::name` so `listFinishTargets` exposes them without colliding with procedural `base:` keys;
+tints flow through the existing `finish:<key>` override channel (no schema change).
+`buildConfiguredObject` awaits GLB pieces for the bake; new `buildConfiguredPreview` renders the
+procedural body synchronously and attaches GLBs async (fail-soft — a slow/missing GLB never
+blanks the preview); ownership-aware disposal for GLB subtrees. Verified: configurator preview
+shows the lamp at correct anchor/scale/orientation with the new slot UI; placed-item tint
+round-trip (orange → #1878ff) works through the namespaced target. 32 configurator tests green
+(defaults updated: price +85); full suite 5928 green. Rule recorded in configurator/CLAUDE.md.
+
+## v0.21.2.4 — PHOTO-DETAIL-PROPS: 8 CC0 prop GLBs + SEC-1 fix that un-broke ALL builtin GLBs
+
+8 curated Poly Haven CC0 props via the existing GLB pipeline (Draco + 1K WebP + LOD variants,
+7.1 MB total): wide/slim ceramic vases, leafy potted plant, succulent, book set, standing photo
+frame, arm desk lamp, tea set — real-metre footprints, floor-normalized/centred at pack time,
+per-item credits. The 6 tabletop props register as `decorStyling.ts` secondary options across 11
+host surfaces (leaders unchanged) with a new `noClip` sidecar field so styled props never
+collide on a host. **Major bug found & fixed**: `gltf/loaderSecurity.ts` (SEC-1) rejected
+root-relative `/assets/...` URLs (`new URL()` throws without a base) → EVERY builtin GLB —
+including the shipped pool tables — silently rendered as a placeholder box; single-leading-slash
+same-origin paths are now allowed (protocol-relative + foreign origins still fail closed,
+16 security tests green). Pipeline extras: `index-assets` skips `-low/-medium` LOD siblings;
+optional `noClip` in sidecars. New furniture `generatedCatalog.test.ts` (footprints, licenses,
+GLB magic headers, noClip contract, styling integration). Lineup + styled-vignette screenshots
+reviewed (scale/anchoring/textures correct). Full suite 5913 green.
+
+## v0.21.2.3 — PHOTO-WEBGPU + PHOTO-SSGI-SSR resolved: REJECTED-FOR-NOW with revisit triggers
+
+Evidence-backed evaluation (cited research + in-sandbox probe): three.js WebGPURenderer/TSL is
+real in r184 and Safari 26 ships WebGPU, but adoption here is a ~20-file / 6-subsystem
+dual-renderer migration — the pmndrs post stack (N8AO/Bloom/SMAA) is WebGL-EffectComposer-only
+with no migration path (TSL RenderPipeline rewrite required), three-gpu-pathtracer stays
+WebGL2-only (app becomes multi-renderer), and pomFloor's onBeforeCompile GLSL can't be expressed
+in TSL. Decisive blocker: the sandbox probe (`webgpu-probe.json`) shows WebGPU resolves ONLY a
+SwiftShader software adapter (real-GPU passthrough is ANGLE-D3D12/WebGL) — a WebGPU SSGI pixel
+pass is unverifiable here. Both Tier-4 entries replaced with the full ruling + concrete ALL-of
+revisit triggers (r3f WebGPU stability, GTAONode/Bloom/SMAA parity, a real WebGPU adapter,
+Safari min-OS — near-met). PHOTO-SSGI-SSR deferred with it; interim WebGL realism-effects SSGI
+explicitly ruled out. No source changes.
+
+## v0.21.2.2 — FETCH-MANIFEST-BACKFILL: manifest channel parity restored + regression-guarded
+
+The 6 older albedo-only `assets/manifest/materials.json` entries (floor-parquet/carpet,
+wall-plaster/brick/beige/stone-brick) are backfilled with their Poly Haven `_nor_gl_1k`/
+`_rough_1k` URLs (verified live against the /files API; albedo URLs match exactly), so a future
+`npm run fetch-assets` no longer drops the normal/rough channels the on-disk sidecars already
+carry. Proven with a scoped re-run of the fetch loop for just these 6: sidecars + regenerated
+catalog keep all channels (byte churn from sharp re-encode reverted — diff stays manifest+test
+only). New data-driven regression guard in `manifest.test.ts`: every bundled sidecar channel must
+have a matching manifest URL, for ALL entries. 357 targeted tests green; no runtime change.
+
 ## v0.21.1.2 — PHOTO-PBR-MAPS complete: 6 curated CC0 Poly Haven finishes for procedural-only tokens
 
 Extends the existing manifest → fetch-assets → index-assets pipeline (no new machinery):

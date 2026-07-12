@@ -113,3 +113,49 @@ describe('estimateRoomLux', () => {
     expect(nook.lux).toBeCloseTo((planLightLumens({ intensity: 9 }) * UTILISATION_FACTOR) / 8, 6)
   })
 })
+
+describe('estimateRoomLux — inter-room doorway bleed (R-BLEED)', () => {
+  // Living [0..4]×[0..4] (lit), Kitchen [0..4]×[4..8] (dark), shared door at z=4.
+  const plan: FloorPlan = {
+    ...makePlan([room('lv', 'Living Room', 4, 4, 0, 0), room('kt', 'Kitchen', 4, 4, 0, 4)]),
+    walls: [{ id: 'w', start: [0, 4], end: [4, 4], thickness: 'internal' }],
+    openings: [
+      { id: 'd1', kind: 'door', wallId: 'w', offset: 1.5, width: 0.9, sill: 0, head: 2.1 },
+    ],
+  }
+  const lights = [light(2, 2)] // Living only
+
+  it('reports 0 borrowed lux with the door closed (default) — unlit kitchen stays low', () => {
+    const kt = estimateRoomLux(plan, lights).find((r) => r.roomId === 'kt')!
+    expect(kt.borrowedLux).toBe(0)
+    expect(kt.lux).toBe(0)
+    expect(kt.status).toBe('low')
+  })
+
+  it('adds a positive borrowed term when the door is open', () => {
+    const kt = estimateRoomLux(plan, lights, { d1: { open: true } }).find((r) => r.roomId === 'kt')!
+    expect(kt.borrowedLux).toBeGreaterThan(0)
+    expect(kt.lux).toBeCloseTo(kt.borrowedLux, 6) // no own fixtures → lux is all borrowed
+    expect(kt.lumens).toBe(0) // borrowed light is NOT the room's own flux
+  })
+
+  it('does not increase the lit source room (dark neighbour lends nothing back)', () => {
+    const closed = estimateRoomLux(plan, lights).find((r) => r.roomId === 'lv')!
+    const open = estimateRoomLux(plan, lights, { d1: { open: true } }).find(
+      (r) => r.roomId === 'lv',
+    )!
+    expect(open.lux).toBeCloseTo(closed.lux, 6)
+    expect(open.borrowedLux).toBe(0)
+  })
+
+  it('accepts the store doors map as-is (panel/heatmap parity): explicit closed = absent', () => {
+    // ElevationPanel passes the store's `doors` map straight through — the same
+    // map LuxOverlay feeds buildLuxGrids — so an explicit `{ open: false }`
+    // entry must read identically to no entry at all.
+    const explicit = estimateRoomLux(plan, lights, { d1: { open: false } }).find(
+      (r) => r.roomId === 'kt',
+    )!
+    expect(explicit.borrowedLux).toBe(0)
+    expect(explicit.lux).toBe(0)
+  })
+})
