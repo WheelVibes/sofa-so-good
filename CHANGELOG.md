@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.27 — Asset Studio: staged plan + research references
+
+New user goal (2026-07-16): grow the GLB designer into a professional furniture
+asset-building tool. Research (current-capability map + external tool survey) distilled
+into a staged program at `docs/asset-studio-plan.md` (Stage 0 foundations → 1 geometry →
+2 materials → 3 components/templates → 4 precision UX → 5 realism detail); TODO.md active
+goal added; REFERENCES.md gains a furniture-modeling/CAD tool section (Tylko, Shapr3D,
+Plasticity, Womp, TinkerCAD, SWOOD, Polyboard, chili3d/replicad, …). Docs only.
+
 ## v0.21.2.26 — Round-10 review-fix cluster: pack install + a pre-existing multi-file-import bug
 
 A cluster of round-10 review fixes centred on the pack-install path, plus the

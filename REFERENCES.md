@@ -42,3 +42,38 @@ docs are public. Proprietary ones are studied via their live apps + help docs.
 - **FEATURE_PARITY.md** — the living parity matrix (Coohom + Sweet Home 3D deep-dives) distilling this research into a prioritised, client-side-feasible roadmap.
 - **Mattoboard** — real-time 3D **materials & furniture moodboard** ("DesignStream") tool; directly relevant to our existing moodboard-export surface — study its material-forward board UX (2026-07-04 deep-audit pass). [app](https://mattoboard.com/)
 - **Home Planner** (homeplannerapp.com) — 2D/3D web+mobile planner with a very large multi-brand **shoppable catalog** (400k+ items / 30k+ brands) + AR. Backend/licensed-asset-led — informs the tracked catalog-expansion / F11 brand-importer work, not a client-doable feature (2026-07-04 round-2 audit).
+
+## Furniture asset-building / 3D modeling tools (Asset Studio research, 2026-07-16)
+References for turning the GLB designer into a professional furniture asset builder —
+see `docs/asset-studio-plan.md` for the staged program this research seeds.
+
+- **Tylko** — parametric consumer furniture configurator: size/depth/colour sliders + add-ons
+  (doors, drawers, legs), parametric code tied to ergonomics emitting production files. The
+  primary UX benchmark for an approachable custom-furniture builder. [app](https://tylko.com)
+- **Shapr3D** — history-based parametric solid (B-rep) CAD with true edge fillet/chamfer;
+  touch-first approachable UI. [app](https://www.shapr3d.com)
+- **Plasticity** — "CAD for artists": Parasolid NURBS kernel with artist UX; the model for
+  pro fillets + curves without CAD ceremony. [app](https://www.plasticity.xyz)
+- **Womp** — browser SDF/metaball "liquid 3D" sculpt for non-experts; real-time booleans,
+  blended materials. [app](https://womp.com)
+- **Spline** — browser 3D design tool with direct three.js/React export; designer-friendly
+  materials/animation. [app](https://spline.design)
+- **TinkerCAD** — browser primitive + "solid/hole" boolean modeling; the approachability
+  benchmark for zero-experience users (its group/hole metaphor maps onto three-bvh-csg).
+  [app](https://www.tinkercad.com)
+- **SketchUp Free** — browser push/pull surface modeling; the most teachable 2D→3D metaphor.
+  [app](https://www.sketchup.com/plans-and-pricing/sketchup-free)
+- **Polyboard** — parametric board/panel cabinet construction (material thickness, hardware
+  placement, cutting optimization). [app](https://wooddesigner.org/polyboard-software-tools/)
+- **SWOOD (Eficad)** — the reference for hardware/joinery component libraries (Blum/Hettich/
+  Grass) with auto connector insertion on detected panel contact surfaces.
+  [app](https://swood.eficad.com)
+- **SketchList 3D / Mozaik / Cabinet Vision** — board-based cabinet-CAD complexity ladder
+  (cut lists, assembly drawings, CNC). [overview](https://sketchlist.com/blog/best-cabinet-design-software/)
+- **Opendesk** — open-source CNC-cut flat-pack furniture; reference for modular,
+  manufacturable open designs. [app](https://www.opendesk.cc)
+- **Open-source web-CAD to study (dev reference, not competitors):**
+  [three-bvh-csg](https://github.com/gkjohnson/three-bvh-csg) (fast browser booleans) ·
+  [chili3d](https://github.com/xiangechen/chili3d) (OCCT→WASM + three.js) ·
+  [replicad](https://replicad.xyz) / [opencascade.js](https://ocjs.org) (B-rep in browser;
+  ~4–15 MB WASM — ruled out for now in the plan).
