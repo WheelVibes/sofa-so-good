@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.22 — IXT-SUITES: aiWalls full-UI rung (last deferred leg)
+
+Landed the final deferred IXT-SUITES rung — the `aiWalls` full-UI leg that
+`ai-surfaces-simple.json` could only store-flag-check (the "AI walls" trace button
+renders only once a 2D plan-trace backdrop image is uploaded inside `FloorPlanEditor`).
+New `scripts/scenarios/aiwalls-simple.json` (57 steps, all green): opens the floor-plan
+editor, and (A) in **Simple** asserts the Plan menu has NO trace section at all
+(`planTraceBackdrop` + `aiWalls` both pro-tier, forced off); (B) in **Pro** injects a
+tiny canvas-generated PNG through the REAL hidden trace file input
+(`usePlanBackdrop.loadBackdrop`, native-setter + DataTransfer + change — no binary
+fixture) and asserts the "AI walls" button **mounts** enabled (and is absent before any
+backdrop, since it's backdrop-gated); (C) back in **Simple** with the backdrop still
+resident asserts the button is **absent even with the backdrop present** (tier gate, not
+missing backdrop), then (D) back in **Pro** WITHOUT re-uploading proves the backdrop was
+retained and the button reappears; (E) exercises the pre-inference path safely — clicking
+"AI walls" with no key opens the real "Vision-model API key" `PromptModal`
+(`usePlanAiWalls.runAiWalls`), which is cancelled so `runAiWalls` returns at
+`if (!key) return` before `classifyVisionEndpoint`/`recognizeFloorPlan`'s `fetch` (a
+fetch spy proves no `openai`/`replicate` call ever fired; no draft notification, no
+second prompt). Mirrors `backdrop-upload-simple.json`'s real-file-input pattern for the
+2D plan-trace backdrop and `ai-surfaces-simple.json`'s never-touch-the-network rule.
+Docs-only elsewhere: removed the now-fully-shipped IXT-SUITES entry from `TASKS.md`
+(per the shipped-items-are-removed policy) and recorded the new harness gotcha (the
+`Plan ▾` two-text-node clickByText miss + popover local-state race → self-retrying
+open/close evals) in the visual-verification playbook. No app-source changes.
+
 ## v0.21.2.21 — knip: recordViewTour un-exported
 
 The v0.21.2.20 guard dedup left `recordViewTour` with a single caller in its own module

@@ -600,6 +600,53 @@ pre-network UI state. **Key gotcha learned here:**
   Share modal. Leaving it open across all four mode/flag flips lets the toggle's appear/disappear
   track the resolved flag live in one session.
 
+### Worked example — aiWalls full-UI rung (IXT-SUITES, plan-trace backdrop → "AI walls" button)
+
+**`aiwalls-simple.json`** (57 steps) lands the leg `ai-surfaces-simple.json` deferred: the
+FloorPlanEditor "AI walls" vision-model trace button only renders once a 2D plan-trace backdrop
+image is uploaded, so the earlier rung could only store-flag-check `aiWalls`. Both `aiWalls` and its
+host `planTraceBackdrop` are **pro-tier**, so in Simple neither the trace UI nor the button exists.
+Flow: open the plan editor (`setFloorPlanEditing(true)`, an idle-preloaded lazy screen — mounts
+headless like the Share modal) → (A) Simple: the Plan menu has no trace section at all → (B) Pro:
+inject a tiny canvas PNG through the REAL hidden trace file input (`usePlanBackdrop.loadBackdrop`,
+native-setter + DataTransfer + `change`, mirroring `backdrop-upload-simple.json`) and assert the "AI
+walls" button **mounts** enabled (absent before any backdrop — it's backdrop-gated) → (C) back to
+Simple with the backdrop still resident: button **absent even with the backdrop present** (tier
+gate, not a missing backdrop) → (D) back to Pro WITHOUT re-uploading: button reappears (backdrop was
+retained) → (E) click "AI walls" with no key → the real "Vision-model API key" `PromptModal`
+(`usePlanAiWalls.runAiWalls`) → Cancel, so `runAiWalls` returns at `if (!key) return` before
+`classifyVisionEndpoint`/`recognizeFloorPlan`'s `fetch` (never touch the network — same rule as the
+other two AI surfaces). **Key gotchas learned here:**
+- **A `{label} ▾` menu trigger renders as TWO text nodes (`"Plan"` + `" ▾"`), so `clickByText` can
+  never match the whole `"Plan ▾"` label** — no single text node contains the full string, and
+  clicking the bare `"Plan"` substring is fragile (the LAST-match rule can pick a later `Plan…` item
+  in the open panel). Click the trigger by exact button text instead:
+  `[...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Plan ▾')` — a
+  `button`'s `textContent` **concatenates** its child text nodes, so it equals `"Plan ▾"` even though
+  no individual node does.
+- **The `Popover`-portaled menu panel (`ui/toolbar/Popover.tsx`) keeps its open state in the
+  `PlanMenu` component's local `useState`, and closes itself on ANY outside `pointerdown` / capture-
+  phase `scroll` / `resize`.** Under headless the plan editor's mount/fit settling can fire a stray
+  scroll/resize that snaps a just-opened menu shut between the eval-click step and the next
+  `waitFor`, so a single `.click()` + a separate `waitFor {css:.plan-menu-panel}` is flaky (it opened
+  reliably in a standalone probe but raced in-scenario). Make open/close **atomic and self-retrying**
+  inside one async `eval`: click the trigger, poll up to ~5 s for `.plan-menu-panel` to appear (open)
+  or disappear (close), re-clicking if it flipped back. `.click()` (a real dispatched click event
+  React honours) DOES open it — this is a timing/re-render race, not a click-doesn't-register bug.
+- **Injecting a backdrop needs the menu OPEN in Pro** — the hidden trace `<input type=file>` is part
+  of the `fileActions` fragment that only mounts inside the Plan menu's popover panel (and only when
+  `planTraceBackdrop` is on), so target `.plan-menu-panel input[type="file"]`, not a global query.
+- **"Absent even with the backdrop present" is provable without reading React state:** the backdrop
+  lives in `usePlanBackdrop`'s component-local `useState`, which survives a `setUiMode` flip (the
+  editor isn't remounted). Assert the button is gone in Simple, then re-open the Pro menu WITHOUT
+  re-uploading and assert it reappears — that round-trip proves the backdrop was retained the whole
+  time and only the tier gate hid it.
+- **No-network proof mirrors `ai-surfaces`:** install a non-blocking `window.fetch` spy in the setup
+  eval that records every URL, clear `localStorage['hdb_ai_vision_key']` so `runAiWalls` takes the
+  key-PROMPT path, cancel the prompt, then assert no logged URL matches `openai`/`replicate` and no
+  `drafted`/`recognition failed`/second-prompt appeared — Vite HMR uses websockets/module loads, not
+  `window.fetch`, so the spy stays clean.
+
 ### Worked example — optimize worker pool + IO-002 early size-cap gate (2026-07-03)
 
 Verifying the **optimize worker POOL** (`optimize/runOptimize.ts`) end-to-end needs a REAL

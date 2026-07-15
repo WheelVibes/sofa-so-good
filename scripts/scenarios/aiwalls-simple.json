@@ -1,0 +1,196 @@
+{
+  "name": "aiwalls-simple",
+  "description": "IXT-SUITES full-UI rung for aiWalls (the FloorPlanEditor 'AI walls' vision-model trace button) — the leg ai-surfaces-simple.json deliberately deferred (it only store-flag-checked aiWalls because the button renders only once a 2D plan-trace backdrop image is uploaded). aiWalls AND its host planTraceBackdrop are BOTH pro-tier (default true), so in Simple mode neither the trace UI nor the button exists. Mirrors backdrop-upload-simple.json's real-file-input upload pattern, but for the 2D plan-trace backdrop (usePlanBackdrop.loadBackdrop) instead of the walk-mode window backdrop. Coverage: (A) Simple baseline — the Plan menu shows NO 'Reference photo…' / 'Set scale' / 'AI walls' at all (planTraceBackdrop pro-tier, forced off). (B) Pro — the trace UI appears; with no backdrop yet the 'AI walls' button is STILL absent (it needs a backdrop), then a tiny canvas-generated PNG is injected through the REAL hidden file input (native-setter + DataTransfer + change event → loadBackdrop), and once the backdrop loads the 'AI walls' button MOUNTS (real DOM-mount assertion, enabled). (C) Back to Simple with the backdrop still resident in component state — the button is ABSENT even though the backdrop is present (proving the tier gate hides it, not the missing backdrop), then (D) back to Pro WITHOUT re-uploading proves the backdrop was retained the whole time and the button reappears. (E) The pre-inference path is exercised safely: clicking 'AI walls' with no vision key opens the real 'Vision-model API key' PromptModal (usePlanAiWalls.runAiWalls's promptText), which is cancelled — runAiWalls returns at `if (!key) return` BEFORE classifyVisionEndpoint / recognizeFloorPlan's fetch, so no request to api.openai.com ever fires (a fetch spy records every call and the final assertion proves none hit openai/replicate; no 'AI drafted' notification, no second endpoint-confirm prompt). The real AI inference itself stays out of scope (needs a live key + network) exactly as for the other two AI surfaces — see TASKS.md IXT-SUITES. NOTE: the 'Plan ▾' menu trigger renders 'Plan' and ' ▾' as TWO text nodes, so clickByText can't match the whole label AND a stray editor re-render can toggle the local popover state — so the open/close steps are self-retrying evals (click until .plan-menu-panel is present / gone) rather than a single text/mouse click.",
+  "url": "http://localhost:5233/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays-and-arm-fetch-spy",
+      "comment": "Clear onboarding + any persisted vision key (so runAiWalls takes the key-PROMPT path, never a silent keyed request), and install a non-blocking fetch spy that records every URL — the final assertion proves none reached a model provider.",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); localStorage.removeItem('hdb_ai_vision_key'); localStorage.removeItem('hdb_ai_vision_url'); } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); if (!window.__aiFetchLog) { window.__aiFetchLog = []; const orig = window.fetch; window.fetch = function(...args){ try { window.__aiFetchLog.push(String(args[0] && args[0].url ? args[0].url : args[0])); } catch {}; return orig.apply(this, args); }; } })()"
+    },
+    {
+      "name": "verify-simple-default",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "app should boot in Simple mode"
+    },
+    {
+      "name": "verify-flags-simple-tier-off",
+      "waitFor": { "store": "state.featureFlags.aiWalls === false && state.featureFlags.planTraceBackdrop === false" },
+      "timeout": 5000,
+      "failMessage": "aiWalls AND planTraceBackdrop are both registered pro-tier (registry.ts) — expected both false in Simple mode"
+    },
+    { "name": "open-plan-editor", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    {
+      "name": "plan-loading-done",
+      "waitFor": { "store": "state.loading.active === false" },
+      "timeout": 15000,
+      "failMessage": "opening the floor-plan editor never settled (loading.active stuck true)"
+    },
+    {
+      "name": "wait-plan-screen",
+      "waitFor": { "css": ".plan-screen" },
+      "timeout": 10000,
+      "failMessage": "FloorPlanEditor (.plan-screen) did not mount — it's lazy but idle-preloaded (preloadOnIdle.ts PRELOAD_ORDER), so it should be resident"
+    },
+    { "name": "settle-plan-mount", "wait": 1200 },
+    {
+      "name": "open-plan-menu-simple",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { if (document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not open'); })()"
+    },
+    {
+      "name": "wait-plan-menu-simple",
+      "waitFor": { "css": ".plan-menu-panel" },
+      "timeout": 8000,
+      "failMessage": "the Plan ▾ dropdown (portaled .plan-menu-panel) did not open"
+    },
+    { "name": "settle-menu-simple", "wait": 300 },
+    { "name": "shot-plan-menu-simple", "screenshot": "01-plan-menu-simple-no-trace-ui" },
+    {
+      "name": "assert-no-trace-ui-in-simple",
+      "comment": "planTraceBackdrop is pro-tier, so in Simple mode the WHOLE reference-photo section (file input + 'Reference photo…' / 'Set scale' / 'AI walls') is null — nothing to upload, nothing to recognise.",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); if (!panel) throw new Error('Plan menu panel missing'); const t = panel.textContent || ''; if (t.includes('Reference photo')) throw new Error(\"'Reference photo…' visible in Simple mode — planTraceBackdrop is pro-tier and should be hidden\"); if (t.includes('AI walls')) throw new Error(\"'AI walls' visible in Simple mode — aiWalls is pro-tier and should be hidden\"); if (t.includes('Set scale')) throw new Error(\"trace 'Set scale' visible in Simple mode — the trace section should be gated off\"); })()"
+    },
+    {
+      "name": "close-plan-menu-simple",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 3000; while (Date.now() < deadline) { if (!document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not close'); })()"
+    },
+    { "name": "settle-close-simple", "wait": 300 },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "verify-flags-pro-tier-on",
+      "waitFor": { "store": "state.featureFlags.aiWalls === true && state.featureFlags.planTraceBackdrop === true" },
+      "timeout": 5000,
+      "failMessage": "setUiMode('pro') calls reresolveFeatureFlags() — expected aiWalls AND planTraceBackdrop true in Pro mode"
+    },
+    {
+      "name": "open-plan-menu-pro",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel && (panel.textContent || '').includes('Reference photo')) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu (Pro) did not open with the trace section'); })()"
+    },
+    {
+      "name": "wait-reference-photo-pro",
+      "waitFor": { "text": "Reference photo" },
+      "timeout": 8000,
+      "failMessage": "'Reference photo…' trace-upload button should appear in the Plan menu in Pro mode (planTraceBackdrop on)"
+    },
+    { "name": "settle-menu-pro", "wait": 300 },
+    { "name": "shot-pro-reference-photo-no-backdrop", "screenshot": "02-pro-reference-photo-no-backdrop-no-aiwalls" },
+    {
+      "name": "assert-aiwalls-absent-without-backdrop",
+      "comment": "The 'AI walls' button lives INSIDE the `backdrop ?` branch — with no backdrop loaded yet it must not render even in Pro. This is exactly why ai-surfaces could only store-flag-check aiWalls: the button is backdrop-gated.",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); if (!panel) throw new Error('Plan menu panel missing in Pro'); if (!(panel.textContent||'').includes('Reference photo')) throw new Error(\"expected the 'Reference photo…' upload button (no backdrop yet)\"); if ((panel.textContent||'').includes('AI walls')) throw new Error(\"'AI walls' button rendered before any backdrop was loaded — it must require a trace backdrop\"); })()"
+    },
+    {
+      "name": "upload-trace-backdrop",
+      "comment": "Inject a tiny canvas-generated PNG through the REAL hidden trace file input (usePlanBackdrop's fileRef) via native-setter + DataTransfer + change event — the exact real path loadBackdrop() runs. No binary fixture on disk.",
+      "eval": "(async () => { const c = document.createElement('canvas'); c.width = 256; c.height = 192; const g = c.getContext('2d'); g.fillStyle = '#222'; g.fillRect(0,0,c.width,c.height); g.strokeStyle = '#8ab4ff'; g.lineWidth = 6; g.strokeRect(20,20,c.width-40,c.height-40); g.fillStyle = '#8ab4ff'; g.font = 'bold 22px sans-serif'; g.fillText('PLAN TRACE', 40, 110); const blob = await new Promise((r) => c.toBlob(r, 'image/png')); const file = new File([blob], 'trace-plan.png', { type: 'image/png' }); const input = document.querySelector('.plan-menu-panel input[type=\"file\"]'); if (!input) throw new Error('trace file input not found in Plan menu (planTraceBackdrop off?)'); const dt = new DataTransfer(); dt.items.add(file); Object.defineProperty(input, 'files', { value: dt.files, configurable: true }); input.dispatchEvent(new Event('change', { bubbles: true })); })()"
+    },
+    {
+      "name": "wait-aiwalls-mounts",
+      "waitFor": { "text": "AI walls" },
+      "timeout": 10000,
+      "failMessage": "after the trace backdrop loads (loadBackdrop → img.onload → setBackdrop), the 'AI walls' button should MOUNT in the Plan menu (aiWalls on + backdrop present)"
+    },
+    { "name": "settle-backdrop-loaded", "wait": 500 },
+    {
+      "name": "assert-aiwalls-mounts-enabled",
+      "comment": "Real UI-mount assertion: the button exists in the live DOM and is enabled (aiBusy false — no request in flight).",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'AI walls'); if (!btn) throw new Error(\"'AI walls' button did not mount even with backdrop present in Pro\"); if (btn.disabled) throw new Error(\"'AI walls' should be enabled at rest (aiBusy false)\"); const panel = document.querySelector('.plan-menu-panel'); if (!panel || !panel.textContent.includes('Set scale')) throw new Error('trace calibration toolbar (Set scale) should be present with a backdrop'); })()"
+    },
+    { "name": "shot-pro-aiwalls-present", "screenshot": "03-pro-backdrop-loaded-aiwalls-mounts" },
+    {
+      "name": "close-plan-menu-pro",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 3000; while (Date.now() < deadline) { if (!document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not close'); })()"
+    },
+    { "name": "settle-close-pro", "wait": 600 },
+    { "name": "shot-pro-backdrop-on-plan", "screenshot": "04-pro-trace-backdrop-visible-on-plan" },
+    { "name": "switch-to-simple-with-backdrop", "store": { "action": "setUiMode", "args": ["simple"] } },
+    {
+      "name": "verify-flags-back-to-simple",
+      "waitFor": { "store": "state.featureFlags.aiWalls === false && state.featureFlags.planTraceBackdrop === false" },
+      "timeout": 5000,
+      "failMessage": "switching back to Simple should force aiWalls + planTraceBackdrop off again"
+    },
+    {
+      "name": "open-plan-menu-simple-2",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { if (document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not open'); })()"
+    },
+    {
+      "name": "wait-plan-menu-simple-2",
+      "waitFor": { "css": ".plan-menu-panel" },
+      "timeout": 8000
+    },
+    { "name": "settle-menu-simple-2", "wait": 300 },
+    {
+      "name": "assert-aiwalls-absent-in-simple-with-backdrop",
+      "comment": "THE crux of this rung: the backdrop is still resident (component-local state was NOT unmounted by the mode flip), yet the tier gate hides the whole trace section — so 'AI walls' is absent even WITH the backdrop present. Proven retained by the next Pro re-open (no re-upload).",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); if (!panel) throw new Error('Plan menu panel missing'); const t = panel.textContent || ''; if (t.includes('AI walls')) throw new Error(\"'AI walls' visible in Simple mode even with backdrop present — the pro-tier flag gate should hide it\"); if (t.includes('Reference photo')) throw new Error(\"trace section leaked into Simple mode (planTraceBackdrop should be off)\"); if (t.includes('Set scale')) throw new Error(\"trace 'Set scale' leaked into Simple mode\"); })()"
+    },
+    { "name": "shot-simple-backdrop-present-aiwalls-absent", "screenshot": "05-simple-backdrop-present-aiwalls-absent" },
+    {
+      "name": "close-plan-menu-simple-2",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 3000; while (Date.now() < deadline) { if (!document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not close'); })()"
+    },
+    { "name": "settle-close-simple-2", "wait": 300 },
+    { "name": "switch-back-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "verify-flags-pro-again",
+      "waitFor": { "store": "state.featureFlags.aiWalls === true && state.featureFlags.planTraceBackdrop === true" },
+      "timeout": 5000
+    },
+    {
+      "name": "open-plan-menu-pro-2",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel && (panel.textContent || '').includes('AI walls')) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu (Pro re-open) did not show AI walls'); })()"
+    },
+    {
+      "name": "wait-aiwalls-reappears-no-reupload",
+      "waitFor": { "text": "AI walls" },
+      "timeout": 8000,
+      "failMessage": "the 'AI walls' button should reappear in Pro WITHOUT re-uploading — proving the backdrop was retained in component state across the Simple round-trip"
+    },
+    {
+      "name": "assert-aiwalls-present-again",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'AI walls'); if (!btn) throw new Error(\"'AI walls' did not reappear in Pro (backdrop should have been retained, no re-upload)\"); })()"
+    },
+    { "name": "shot-pro-aiwalls-reappears", "screenshot": "06-pro-aiwalls-reappears-no-reupload" },
+    {
+      "name": "click-aiwalls-pre-inference",
+      "comment": "Clicking fires runAiWalls; the Plan menu closes on the action click (PlanMenu onClick), and with no vision key set runAiWalls calls promptText for the key — the real PRE-inference UI, before any endpoint check or fetch. Real DOM .click() (viewport-independent; the button sits in the portaled panel).",
+      "eval": "(() => { const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'AI walls'); if (!btn) throw new Error(\"'AI walls' button not found to click\"); btn.click(); })()"
+    },
+    {
+      "name": "wait-key-prompt",
+      "waitFor": { "text": "Vision-model API key" },
+      "timeout": 8000,
+      "failMessage": "clicking 'AI walls' with no key should open the 'Vision-model API key' PromptModal (usePlanAiWalls.runAiWalls promptText) — the pre-inference gate, before any network"
+    },
+    { "name": "settle-prompt-open", "wait": 300 },
+    {
+      "name": "assert-key-prompt-and-no-network-yet",
+      "eval": "(function(){ const s = window.__store.getState(); if (s.textPrompt === null) throw new Error('key PromptModal not open'); if (!document.body.textContent.includes('AI floor-plan recognition')) throw new Error('key prompt title missing'); const cancel = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Cancel'); const cont = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Continue'); if (!cancel || !cont) throw new Error('key prompt Cancel/Continue buttons missing'); const bad = (window.__aiFetchLog || []).filter((u) => /openai|replicate/i.test(u)); if (bad.length) throw new Error('a request to a model provider fired before inference was even requested: ' + bad.join(', ')); })()"
+    },
+    { "name": "shot-key-prompt", "screenshot": "07-aiwalls-key-prompt-pre-inference" },
+    { "name": "cancel-key-prompt", "click": { "text": "Cancel" } },
+    {
+      "name": "key-prompt-closed",
+      "waitFor": { "store": "state.textPrompt === null" },
+      "timeout": 5000,
+      "failMessage": "Cancel should resolvePrompt(null), clearing state.textPrompt"
+    },
+    { "name": "settle-after-cancel", "wait": 500 },
+    {
+      "name": "assert-no-network-no-walls-after-cancel",
+      "comment": "runAiWalls returns at `if (!key) return` on the cancelled key prompt — BEFORE classifyVisionEndpoint (no endpoint-confirm prompt) and BEFORE recognizeFloorPlan's fetch. So: no second prompt, no 'AI drafted' success / 'recognition failed' error notification, and the fetch spy recorded no openai/replicate call.",
+      "eval": "(function(){ const s = window.__store.getState(); if (s.textPrompt !== null) throw new Error('a second prompt opened after cancelling the key — runAiWalls should have returned on empty key, never reaching the endpoint-confirm prompt'); const badNotif = (s.notifications || []).some((n) => /drafted|AI floor-plan recognition failed|AI recognition cancelled|Insecure AI endpoint/i.test((n.title || '') + ' ' + (n.message || ''))); if (badNotif) throw new Error('an AI-walls result/endpoint notification appeared even though the key prompt was cancelled before any request'); const bad = (window.__aiFetchLog || []).filter((u) => /openai|replicate/i.test(u)); if (bad.length) throw new Error('a model-provider fetch fired despite cancelling before inference: ' + bad.join(', ')); })()"
+    },
+    { "name": "shot-cancelled-clean", "screenshot": "08-aiwalls-cancelled-no-network" },
+    { "name": "back-to-simple-final", "store": { "action": "setUiMode", "args": ["simple"] } },
+    {
+      "name": "verify-flags-final-simple",
+      "waitFor": { "store": "state.featureFlags.aiWalls === false && state.featureFlags.planTraceBackdrop === false" },
+      "timeout": 5000,
+      "failMessage": "final return to Simple should force both flags off again"
+    }
+  ]
+}
