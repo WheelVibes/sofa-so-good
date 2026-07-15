@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.17 — PARITY-VIDEO tail: MP4 walkthrough export + duration prompt
+
+Closes the PARITY-VIDEO tail. Two user-visible changes to the "Record walkthrough video" flow
+(View → Saved views, still behind the existing `walkthrough` flag, simple tier — no new flag):
+
+- **MP4 export where the browser can encode it.** New pure `src/scene/recordingFormat.ts`
+  `pickRecordingFormat(isTypeSupported)` probes `MediaRecorder.isTypeSupported` for
+  `video/mp4;codecs=avc1…` first (Chrome/Edge advertise it only when an OS/hardware H.264 encoder
+  is present; Safari records mp4 natively; Firefox does not) and cleanly falls back through the VP9
+  → VP8 → bare `video/webm` candidates. `RecordController` uses the picked `mimeType`, and keeps the
+  download **honest** — the extension (`hdb-design-<stamp>.mp4` vs `.webm`) and the `Blob` type
+  always match the container actually produced. No wasm/ffmpeg dependency added (native MediaRecorder
+  only). Refs: MDN `MediaRecorder.isTypeSupported`; chromestatus.com/feature/5163469011943424.
+- **Duration prompt before recording.** `promptAndRecordViewTour()` opens the shared themed number
+  prompt (`promptText`/`PromptModal`) asking for total video length in seconds (default = the old
+  5s-per-view pace); Cancel / blank aborts with **no recording started**. Pure
+  `parseTourDuration(raw, legs, defaultTotal)` handles cancel/invalid/clamp so the per-leg pace stays
+  inside `setViewTourLegSeconds`'s [0.5s, 12s] range. `SavedViewsSection` now calls it instead of
+  hard-coding `recordViewTour(5 * (views-1))`; the non-tour toolbar record toggle is unchanged.
+
+Unit tests: `recordingFormat.test.ts` (mp4-preferred / webm fallback / unlabelled-default matrix) +
+`recordViewTour.test.ts` (`parseTourDuration` cancel/default/clamp). Caveat: Firefox and any
+Chromium without an OS H.264 encoder still get `.webm` — by design, surfaced honestly in the
+filename.
+
 ## v0.21.2.16 — IXT-SUITES: livePrices simple rung (`liveprices-simple.json`)
 
 Back-fills the last named per-flag IXT-SUITES rung — the `livePrices` feature (`devOnly` +

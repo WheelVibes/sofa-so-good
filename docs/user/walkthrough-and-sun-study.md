@@ -22,7 +22,8 @@ best way to judge real scale and sightlines.
 
 From the **Tools** menu, start the **Walkthrough** — the camera flies a smooth
 tour through each room on its own. You can **record** the tour to a video clip to
-share.
+share: pick a total length when prompted, and the clip downloads automatically
+when the tour ends (an MP4 where your browser supports it, otherwise a WebM).
 
 ## Sun study
 

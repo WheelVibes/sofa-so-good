@@ -133,7 +133,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
     `src/catalog/pricing/livePrice.test.ts`, so no new unit test was needed and the wire contract stays
     covered even though the live round-trip isn't driven. The "Pro-alone-isn't-enough for a default-off
     pro flag" gotcha is recorded in the visual-verification playbook.
-- [ ] PARITY-VIDEO tail: MP4 transcode of the walkthrough `.webm` + a duration modal.
 - [ ] C-PLANTS/DECOR tail: curated CC0 set-dressing bundles from Poly Haven / Poly Pizza.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).

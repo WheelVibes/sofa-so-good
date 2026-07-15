@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { useStore } from '../state/store'
+import { pickRecordingFormat } from './recordingFormat'
 
 /** True when the browser can record a canvas stream to a video file. */
 export function canRecord(): boolean {
@@ -10,8 +11,6 @@ export function canRecord(): boolean {
     'captureStream' in HTMLCanvasElement.prototype
   )
 }
-
-const MIME_CANDIDATES = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
 
 type CaptureTrack = MediaStreamTrack & { requestFrame?: () => void }
 
@@ -59,21 +58,23 @@ export function RecordController() {
       }
       const stream = canvas.captureStream(0) // 0 → frames pushed manually
       trackRef.current = stream.getVideoTracks()[0] as CaptureTrack
-      const mimeType = MIME_CANDIDATES.find((t) => MediaRecorder.isTypeSupported(t))
+      // MP4 (H.264) where the browser can encode it, else .webm — the extension
+      // and blob type below stay honest with whichever container is produced.
+      const fmt = pickRecordingFormat((t) => MediaRecorder.isTypeSupported(t))
       rec = new MediaRecorder(
         stream,
-        mimeType ? { mimeType, videoBitsPerSecond: 12_000_000 } : undefined,
+        fmt.mimeType ? { mimeType: fmt.mimeType, videoBitsPerSecond: 12_000_000 } : undefined,
       )
       rec.ondataavailable = (e) => {
         if (e.data.size > 0) chunks.push(e.data)
       }
       rec.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' })
+        const blob = new Blob(chunks, { type: fmt.blobType })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
         a.href = url
-        a.download = `hdb-design-${stamp}.webm`
+        a.download = `hdb-design-${stamp}.${fmt.extension}`
         document.body.appendChild(a)
         a.click()
         a.remove()
