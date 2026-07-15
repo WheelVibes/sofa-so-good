@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.20 — review fixes: recording/MP4 round-9 cluster
+
+Verified round-9 code-review findings on the recording/MP4 feature (v0.21.2.17). No behaviour
+change beyond the honest-format fix and the stale-count fix.
+
+- **Format-honest copy**: File menu "Record clip" sub-label now "Capture a video of the view (MP4 or
+  WebM)" (was ".webm"-only).
+- **User docs**: the auto **Walkthrough** tour section (no duration prompt) keeps only the MP4-or-WebM
+  download note; the duration prompt is documented where it lives — **Record walkthrough video** on
+  saved views (`docs/user/navigating.md`).
+- **Stale webm-only claims** corrected in `docs/developer/rendering-and-scene.md`,
+  `RecordController.tsx` docstring, and `Scene.tsx`'s `preserveDrawingBuffer` comment.
+- **Actual-format reconciliation**: `RecordController` now derives the extension/blob type from the
+  recorder's real `rec.mimeType` (falling back to the requested format when empty), via the new pure
+  `resolveActualFormat` in `recordingFormat.ts` (unit-tested).
+- **Shared leg-pace bounds**: `MIN/MAX_VIEW_TOUR_LEG_SECONDS` exported from `cameraSlice` and reused by
+  both `setViewTourLegSeconds`'s clamp and `recordViewTour`'s `parseTourDuration` (was duplicated).
+- **Single candidate list**: `pickRecordingFormat` iterates one ordered `{mime,extension,blobType}`
+  list instead of two parallel arrays + two loops (behaviour-identical).
+- **De-duped guard**: one `tourViews(s)` helper holds the `<2 views` threshold + toast for both
+  `recordViewTour`/`promptAndRecordViewTour`.
+- **Fresh leg count**: `promptAndRecordViewTour` re-reads saved views after the modal resolves and
+  paces the tour off the current views (re-checking the ≥2 guard); the pre-await read only feeds the
+  prompt label/default.
+
 ## v0.21.2.19 — PHOTO-POM verified: real-GPU parallax-occlusion-floor pixel A/B
 
 Closes PHOTO-POM, the last real-GPU-verifiable item on the PHOTO-* frontier line. POM (parallax-

@@ -113,6 +113,12 @@ saved view row has three small buttons:
 - The **note** button — add a presenter note, shown as the slide's caption.
 - The **trash** button — delete the view (asks you to confirm).
 
+**View → Cinematic tour** flies the camera smoothly through your saved views in
+order (no recording). **View → Record walkthrough video** does the same flight
+and captures it: it asks for the total video length, then flies the tour and
+downloads the clip when it ends (an MP4 where your browser supports it, otherwise
+a WebM). Both need at least two saved views.
+
 **View → Render all views** flies through every saved view in turn and downloads
 a high-quality PNG of each — a one-click way to export a whole set of presentation
 images at once (named so they sort in saved-view order).

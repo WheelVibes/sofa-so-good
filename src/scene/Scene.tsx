@@ -102,7 +102,7 @@ export function Scene() {
         powerPreference: 'high-performance',
         stencil: false,
         // Keep the drawing buffer readable so the in-app Export (PNG) and
-        // Record (.webm) capture features reliably grab rendered frames.
+        // Record (MP4/WebM) capture features reliably grab rendered frames.
         preserveDrawingBuffer: true,
         // Initial only — Lighting.tsx drives both the operator (from the user's
         // tone-mapping "look") and the exposure per-frame from grade(altitude).

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickRecordingFormat } from './recordingFormat'
+import { pickRecordingFormat, resolveActualFormat } from './recordingFormat'
 
 /** Build a fake `isTypeSupported` that returns true for the given MIME set. */
 const supports =
@@ -42,5 +42,46 @@ describe('pickRecordingFormat', () => {
   it('returns an unlabelled default (still .webm) when nothing matches', () => {
     const fmt = pickRecordingFormat(() => false)
     expect(fmt).toEqual({ mimeType: undefined, extension: 'webm', blobType: 'video/webm' })
+  })
+})
+
+describe('resolveActualFormat', () => {
+  const mp4 = {
+    mimeType: 'video/mp4;codecs=avc1.640028',
+    extension: 'mp4',
+    blobType: 'video/mp4',
+  } as const
+  const webm = {
+    mimeType: 'video/webm;codecs=vp9',
+    extension: 'webm',
+    blobType: 'video/webm',
+  } as const
+
+  it('keeps the requested format when the recorder reports no mimeType', () => {
+    expect(resolveActualFormat(mp4, '')).toEqual(mp4)
+  })
+
+  it('echoes the requested format when the actual mime agrees', () => {
+    expect(resolveActualFormat(mp4, 'video/mp4;codecs=avc1.640028')).toEqual({
+      mimeType: 'video/mp4;codecs=avc1.640028',
+      extension: 'mp4',
+      blobType: 'video/mp4',
+    })
+  })
+
+  it('follows the actual mime when the recorder picked WebM despite an MP4 request', () => {
+    expect(resolveActualFormat(mp4, 'video/webm;codecs=vp8')).toEqual({
+      mimeType: 'video/webm;codecs=vp8',
+      extension: 'webm',
+      blobType: 'video/webm',
+    })
+  })
+
+  it('detects the container even with extra codec params or casing', () => {
+    expect(resolveActualFormat(webm, 'VIDEO/MP4; codecs="avc1.42E01E"').extension).toBe('mp4')
+  })
+
+  it('keeps the requested format for an unknown container', () => {
+    expect(resolveActualFormat(webm, 'video/x-matroska')).toEqual(webm)
   })
 })

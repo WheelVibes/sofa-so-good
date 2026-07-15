@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { useStore } from '../state/store'
-import { pickRecordingFormat } from './recordingFormat'
+import { pickRecordingFormat, resolveActualFormat } from './recordingFormat'
 
 /** True when the browser can record a canvas stream to a video file. */
 export function canRecord(): boolean {
@@ -15,8 +15,10 @@ export function canRecord(): boolean {
 type CaptureTrack = MediaStreamTrack & { requestFrame?: () => void }
 
 /**
- * Records the live WebGL canvas to a downloadable .webm while `recording` is
- * true (toggled from the toolbar). Uses a manual-frame capture stream
+ * Records the live WebGL canvas to a downloadable video while `recording` is
+ * true (toggled from the toolbar) — MP4 (H.264) where the browser can encode it,
+ * otherwise WebM; the container is runtime-probed and the extension/blob type
+ * follow whatever the recorder actually resolves. Uses a manual-frame capture stream
  * (`captureStream(0)`) and pushes each rendered frame via `track.requestFrame`
  * from the render loop — reliable regardless of compositor behaviour (and it
  * works because the canvas keeps a readable drawing buffer). Post-processing
@@ -60,11 +62,16 @@ export function RecordController() {
       trackRef.current = stream.getVideoTracks()[0] as CaptureTrack
       // MP4 (H.264) where the browser can encode it, else .webm — the extension
       // and blob type below stay honest with whichever container is produced.
-      const fmt = pickRecordingFormat((t) => MediaRecorder.isTypeSupported(t))
+      const requested = pickRecordingFormat((t) => MediaRecorder.isTypeSupported(t))
       rec = new MediaRecorder(
         stream,
-        fmt.mimeType ? { mimeType: fmt.mimeType, videoBitsPerSecond: 12_000_000 } : undefined,
+        requested.mimeType
+          ? { mimeType: requested.mimeType, videoBitsPerSecond: 12_000_000 }
+          : undefined,
       )
+      // The recorder may have resolved a different container than requested;
+      // trust its own `mimeType` (may be '' — then keep the requested format).
+      const fmt = resolveActualFormat(requested, rec.mimeType)
       rec.ondataavailable = (e) => {
         if (e.data.size > 0) chunks.push(e.data)
       }
