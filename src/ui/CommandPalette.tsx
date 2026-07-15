@@ -90,11 +90,14 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   // always-on left↔right "sel-mirror" (FEAT-2) — pro-tier, so it's hidden in
   // Simple along with the rest of `mirrorSelection`.
   'sel-mirror-z': 'mirrorSelection',
+  // The 3D asset designer — pro tier, so its flag already hides it in Simple
+  // mode (no separate PRO_ONLY_COMMANDS entry needed).
+  'glb-designer': 'glbDesigner',
   'open-profiler': 'profiler',
 }
 
-/** ⌘K command ids that are Pro-only (hidden in Simple mode). */
-const PRO_ONLY_COMMANDS = new Set<string>(['glb-designer'])
+/** ⌘K command ids that are Pro-only (hidden in Simple mode) beyond any flag gate. */
+const PRO_ONLY_COMMANDS = new Set<string>([])
 
 interface Command {
   id: string

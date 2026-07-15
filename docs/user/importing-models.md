@@ -93,10 +93,16 @@ build one in the browser:
   notch, a hole) or **Intersect** (keep only the overlap). The result replaces both
   shapes as a single **Combined** shape that keeps the selected shape's colour, texture and
   finish; you can keep moving/rotating it, recombining it, or carving it again. It
-  works on shapes only (not the source model), and there's no undo inside the
-  designer — re-add the shapes if you change your mind. If two shapes can't be
-  combined (for example intersecting shapes that don't overlap), you'll see
-  "Couldn't combine these shapes".
+  works on shapes only (not the source model). Changed your mind? **Undo** it
+  (see below). If two shapes can't be combined (for example intersecting shapes
+  that don't overlap), you'll see "Couldn't combine these shapes".
+- **Undo / redo** — every edit (add, move, resize, recolour, combine, …) is
+  undoable: press **⌘Z** (⇧⌘Z to redo), or use the **↶ / ↷** buttons next to
+  "Add shape". A slider or gizmo drag counts as a single step.
+- **Start from an asset you designed** — if you pick one of your own
+  designer-built assets as the base, a **Restore editable parts** button appears:
+  tap it to re-open its original shapes and keep editing them, instead of treating
+  the saved asset as a fixed model.
 
 Give it a name and category and hit **Save asset** — it's exported to a GLB and
 added to your catalog like any upload, ready to place and reuse. When you started

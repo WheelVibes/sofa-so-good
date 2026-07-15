@@ -1391,6 +1391,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // 3D asset designer (GLB designer / Asset Studio). Compose a custom furniture
+  // asset from primitive shapes (+ CSG combine, per-part finishes) and/or start
+  // from an uploaded GLB, then save it into the catalog through the same
+  // export/persist pipeline as an upload. Pure client-side geometry + the
+  // existing GLB export path (no sidecar / licensing) → prod-safe, default on.
+  // A power authoring tool that needs the full-screen canvas → pro tier
+  // (forced off in Simple mode, keeping the casual UI minimal — the ⌘K command,
+  // the catalog "Design" button and the dialog itself all gate on it).
+  glbDesigner: {
+    label: '3D asset designer',
+    description: 'Compose or edit a custom 3D furniture asset from shapes and/or an uploaded GLB',
+    default: true,
+    tier: 'pro',
+  },
   profiler: {
     label: 'Profiler',
     description: 'Dev-only detached-window performance profiler (live metrics + cost breakdown)',

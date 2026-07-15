@@ -1,0 +1,148 @@
+{
+  "name": "glb-designer-stage0",
+  "description": "Asset Studio Stage 0 rung for the GLB asset designer. Proves the four foundations: (1) the new `glbDesigner` feature flag gates the dialog even in Pro — with `setFeatureFlag('glbDesigner', false)` the dialog stays UNMOUNTED though `glbDesignerOpen` is forced true and uiMode is 'pro'; flag back on → it opens; (2) undo/redo (`glbEdit/specHistory.ts`) — build a 2-part asset (two boxes), click the toolbar Undo (↶) button and assert the second part's row disappears (1 → after redo 2), the definitive part-count proof via the designer's own `.lyr-row` layer rows (the spec is React-local, not in the store, so we assert the DOM not `window.__store`); (3) editable saves (`glbEdit/specPersist.ts`) — name + Save (DOM `.click()` on the below-the-fold 'Save asset' button, same reason as glb-designer-simple.json) and assert a `UserGltfDef` lands in `state.userFurniture` carrying a string `assetSpec` prop (the versioned embedded edit spec — the real persistence round-trip); (4) restore-editable — reopen the designer, pick the just-saved asset in the 'Start from' source Select, click 'Restore editable parts' and assert the two box rows come back editable (part list length 2), i.e. the frozen source mesh re-opens as an editable part list. Screenshots the decisive frames. Part rows are counted with `.glb-designer button[aria-label^=\"Remove box \"]` — scoped to the designer panel so the catalog's own 'Remove uploaded asset' button (which also starts with 'Remove ') can't inflate the count. Save takes a while in SwiftShader headless (GLTFExporter + IDB) — generous timeouts. Complements glb-designer-simple.json (tier gate + minimal edit + store round-trip) and glb-csg-textures-simple.json (finishes + CSG) — this rung is the Stage-0 undo/redo + flag + editable-save coverage.",
+  "url": "http://localhost:5301/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "verify-flag-on-in-pro",
+      "waitFor": { "store": "state.featureFlags.glbDesigner === true" },
+      "timeout": 5000,
+      "failMessage": "glbDesigner is a pro-tier flag → on in Pro mode by default"
+    },
+    {
+      "name": "flag-off",
+      "comment": "Turn the feature OFF directly (dev/admin-only setFeatureFlag) — the dialog must stay hidden even in Pro.",
+      "store": { "action": "setFeatureFlag", "args": ["glbDesigner", false] }
+    },
+    { "name": "open-with-flag-off", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "settle-flag-off", "wait": 1500 },
+    {
+      "name": "assert-hidden-flag-off",
+      "eval": "(function(){ if (document.body.textContent.includes('3D asset designer')) throw new Error('GLB designer rendered with glbDesigner flag OFF — the flag must gate the dialog mount'); const st = window.__store.getState(); if (st.glbDesignerOpen !== true) throw new Error('glbDesignerOpen should stay true — the component itself gates on the flag'); if (st.featureFlags.glbDesigner !== false) throw new Error('glbDesigner flag should be false here'); })()"
+    },
+    { "name": "shot-flag-off", "screenshot": "01-flag-off-hidden-in-pro" },
+    { "name": "close-flag-off", "store": { "action": "setGlbDesignerOpen", "args": [false] } },
+    {
+      "name": "flag-on",
+      "store": { "action": "setFeatureFlag", "args": ["glbDesigner", true] }
+    },
+    { "name": "open-with-flag-on", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    {
+      "name": "wait-designer",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 15000,
+      "failMessage": "designer dialog should mount with the flag on in Pro mode"
+    },
+    { "name": "shot-designer-open", "screenshot": "02-designer-open-flag-on" },
+    { "name": "add-box-1", "click": { "text": "Box" } },
+    {
+      "name": "wait-box-1",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove box 1']" },
+      "timeout": 5000
+    },
+    { "name": "add-box-2", "click": { "text": "Box" } },
+    {
+      "name": "assert-two-parts",
+      "eval": "(function(){ const n = document.querySelectorAll('.glb-designer button[aria-label^=\"Remove box \"]').length; if (n !== 2) throw new Error('expected 2 box parts after two Add-shape clicks, got ' + n); })()"
+    },
+    { "name": "shot-two-parts", "screenshot": "03-two-parts" },
+    {
+      "name": "click-undo",
+      "comment": "Toolbar Undo (↶) button — removes the second part (its own history step; add-shape does not coalesce).",
+      "eval": "(function(){ const b = document.querySelector('.glb-designer button[aria-label=\"Undo\"]'); if (!b) throw new Error('Undo button not found'); if (b.disabled) throw new Error('Undo should be enabled after two edits'); b.click(); })()"
+    },
+    {
+      "name": "assert-undo-removed-part",
+      "waitFor": { "store": "true" },
+      "timeout": 2000
+    },
+    {
+      "name": "assert-one-part-after-undo",
+      "eval": "(function(){ const n = document.querySelectorAll('.glb-designer button[aria-label^=\"Remove box \"]').length; if (n !== 1) throw new Error('undo should remove the 2nd part → expected 1 part, got ' + n); })()"
+    },
+    { "name": "shot-after-undo", "screenshot": "04-after-undo-one-part" },
+    {
+      "name": "click-redo",
+      "eval": "(function(){ const b = document.querySelector('.glb-designer button[aria-label=\"Redo\"]'); if (!b) throw new Error('Redo button not found'); if (b.disabled) throw new Error('Redo should be enabled after an undo'); b.click(); })()"
+    },
+    { "name": "settle-redo", "wait": 400 },
+    {
+      "name": "assert-two-parts-after-redo",
+      "eval": "(function(){ const n = document.querySelectorAll('.glb-designer button[aria-label^=\"Remove box \"]').length; if (n !== 2) throw new Error('redo should restore the 2nd part → expected 2 parts, got ' + n); })()"
+    },
+    { "name": "shot-after-redo", "screenshot": "05-after-redo-two-parts" },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); if (!inp) throw new Error('asset name input missing'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage0 Editable Box'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "comment": "DOM .click() on the below-the-fold 'Save asset' button (same rationale as glb-designer-simple.json — coordinate text-click misses a scrolled-out button).",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-save-with-spec",
+      "comment": "The editable-save proof: the saved UserGltfDef must carry the embedded, versioned edit spec as a string `assetSpec` prop (specPersist.ts) — this is what lets it re-open editable.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage0 Editable Box' && d.source === 'user' && typeof d.assetSpec === 'string' && d.assetSpec.length > 0)"
+      },
+      "timeout": 30000,
+      "failMessage": "saving should add a UserGltfDef carrying a string `assetSpec` (the embedded edit spec) to state.userFurniture"
+    },
+    {
+      "name": "assert-designer-closed",
+      "waitFor": { "store": "state.glbDesignerOpen === false" },
+      "timeout": 5000,
+      "failMessage": "a successful save should close the dialog"
+    },
+    { "name": "shot-saved", "screenshot": "06-after-save-closed" },
+    { "name": "reopen-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    {
+      "name": "wait-designer-again",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 15000
+    },
+    {
+      "name": "open-source-select",
+      "comment": "Open the 'Start from' Select (custom combobox) so we can pick the just-saved asset as the source.",
+      "eval": "(function(){ const t = document.querySelector('.glb-designer button[aria-label=\"Source model\"]'); if (!t) throw new Error('Source model select trigger not found'); t.click(); })()"
+    },
+    {
+      "name": "wait-source-option",
+      "waitFor": { "css": "[role='option']" },
+      "timeout": 5000
+    },
+    {
+      "name": "pick-saved-source",
+      "eval": "(function(){ const opt = [...document.querySelectorAll('[role=\"option\"]')].find(o => o.textContent.trim() === 'Stage0 Editable Box'); if (!opt) throw new Error('saved asset not offered as a source option'); opt.click(); })()"
+    },
+    {
+      "name": "wait-restore-button",
+      "waitFor": { "text": "Restore editable parts" },
+      "timeout": 8000,
+      "failMessage": "a designer-built source (carrying assetSpec) should offer 'Restore editable parts'"
+    },
+    { "name": "shot-restore-offer", "screenshot": "07-restore-offered" },
+    {
+      "name": "click-restore",
+      "eval": "(function(){ const b = [...document.querySelectorAll('.glb-designer button')].find(x => x.textContent.trim().includes('Restore editable parts')); if (!b) throw new Error('Restore editable parts button not found'); b.click(); })()"
+    },
+    { "name": "settle-restore", "wait": 800 },
+    {
+      "name": "assert-parts-restored",
+      "comment": "The restore-editable proof: the saved asset's full part list re-opens editable (2 box rows), not a frozen source mesh.",
+      "eval": "(function(){ const n = document.querySelectorAll('.glb-designer button[aria-label^=\"Remove box \"]').length; if (n !== 2) throw new Error('Restore editable parts should re-open the 2 saved box parts, got ' + n); })()"
+    },
+    { "name": "shot-restored", "screenshot": "08-parts-restored-editable" }
+  ]
+}

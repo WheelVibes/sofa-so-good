@@ -1,6 +1,39 @@
-import { describe, expect, it } from 'vitest'
+import { Group } from 'three'
+import { describe, expect, it, vi } from 'vitest'
 import type { UserGltfDef } from '../types'
-import { buildOverwriteDef, placementFlags } from './saveAsset'
+import type { PersistOptions, PersistResult } from '../upload/persist'
+import { addPart, createEmptySpec, updatePart } from './editSpec'
+import { buildOverwriteDef, exportAndSaveAsset, placementFlags } from './saveAsset'
+import { parseAssetSpec } from './specPersist'
+
+// Mock the export + persist deps so we can exercise exportAndSaveAsset's spec
+// plumbing without a GPU / IndexedDB.
+const persistCalls: PersistOptions[] = []
+vi.mock('../convert/toGlb', () => ({
+  exportGlb: vi.fn(async () => new ArrayBuffer(8)),
+}))
+vi.mock('../upload/persist', () => ({
+  persistUserGlb: vi.fn(async (_file: File, opts: PersistOptions): Promise<PersistResult> => {
+    persistCalls.push(opts)
+    const def: UserGltfDef = {
+      id: 'user-fresh',
+      name: opts.name,
+      category: opts.category,
+      kind: 'gltf',
+      source: 'user',
+      assetId: 'asset-fresh',
+      uploadedAt: '2026-07-16T00:00:00.000Z',
+      defaultFootprint: { w: 1, d: 1, h: 1 },
+      runtimeUrl: 'blob:fresh',
+      // Mirror persist.ts: the assetSpec option lands on the def.
+      ...(opts.assetSpec ? { assetSpec: opts.assetSpec } : {}),
+    }
+    return { ok: true, def }
+  }),
+}))
+vi.mock('../../state/store', () => ({
+  useStore: { getState: () => ({ userFurniture: [] }) },
+}))
 
 describe('placementFlags', () => {
   it('floor → no special flags', () => {
@@ -42,5 +75,34 @@ describe('buildOverwriteDef', () => {
 
   it('falls back to a default name when blank', () => {
     expect(buildOverwriteDef(fresh, 'id', '   ', 'others').name).toBe('Custom asset')
+  })
+})
+
+describe('exportAndSaveAsset — spec persistence round-trip (Asset Studio S0)', () => {
+  it('embeds the edit spec so the saved def re-opens to an identical spec', async () => {
+    persistCalls.length = 0
+    let spec = createEmptySpec()
+    spec = addPart(spec, 'box')
+    spec = updatePart(spec, spec.parts[0].id, { size: [1, 0.5, 0.4], color: '#c0ffee' })
+
+    const res = await exportAndSaveAsset(new Group(), 'Designed Box', 'others', {}, undefined, spec)
+    expect(res.ok).toBe(true)
+
+    // The spec travelled as a versioned JSON string through the persist option…
+    expect(persistCalls).toHaveLength(1)
+    const stored = persistCalls[0].assetSpec
+    expect(typeof stored).toBe('string')
+    // …onto the def's props, and reopening parses it back to the identical spec.
+    const def = (res as { ok: true; def: UserGltfDef }).def
+    expect(def.assetSpec).toBe(stored)
+    expect(parseAssetSpec(def.assetSpec)).toEqual(spec)
+  })
+
+  it('stores no spec when none is supplied (legacy / non-designer saves unchanged)', async () => {
+    persistCalls.length = 0
+    const res = await exportAndSaveAsset(new Group(), 'Plain', 'others', {})
+    expect(res.ok).toBe(true)
+    expect(persistCalls[0].assetSpec).toBeUndefined()
+    expect((res as { ok: true; def: UserGltfDef }).def.assetSpec).toBeUndefined()
   })
 })

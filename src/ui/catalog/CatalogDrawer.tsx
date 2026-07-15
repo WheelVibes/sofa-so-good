@@ -131,7 +131,6 @@ export function CatalogDrawer() {
   const sharedItems = useStore(useShallow((s) => s.sharedLibrary.items))
   const sharedResolving = useStore(useShallow((s) => s.sharedLibrary.resolving))
   const setActiveDefId = useStore((s) => s.setActiveDefId)
-  const isPro = useStore((s) => s.uiMode === 'pro')
   const setGlbDesignerOpen = useStore((s) => s.setGlbDesignerOpen)
   const setParametricOpen = useStore((s) => s.setParametricOpen)
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
@@ -144,6 +143,9 @@ export function CatalogDrawer() {
   const fPacks = useFeature('packs')
   const fUpload = useFeature('modelUpload')
   const fParametric = useFeature('parametricFurniture')
+  // The 3D asset designer "Design" button — gated by its flag (pro tier, so it
+  // stays hidden in Simple mode exactly as the old `isPro` check did).
+  const fGlbDesigner = useFeature('glbDesigner')
   const fFavourites = useFeature('catalogFavourites')
   // Browsable CC0 3D models (Poly Haven) are an advanced, external surface — gated
   // behind `remoteFurniture` (pro tier), so they hide in Simple mode and the grid
@@ -824,7 +826,7 @@ export function CatalogDrawer() {
                         Custom size
                       </Button>
                     ) : null}
-                    {isPro ? (
+                    {fGlbDesigner ? (
                       <Button
                         variant="soft"
                         size="sm"

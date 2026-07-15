@@ -151,6 +151,7 @@ export async function hydrateUserAssets(): Promise<void> {
         ...(typeof m.meta?.['price'] === 'number' ? { price: m.meta['price'] } : {}),
         ...(typeof m.meta?.['byteSize'] === 'number' ? { byteSize: m.meta['byteSize'] } : {}),
         ...(typeof m.meta?.['slotSpec'] === 'string' ? { slotSpec: m.meta['slotSpec'] } : {}),
+        ...(typeof m.meta?.['assetSpec'] === 'string' ? { assetSpec: m.meta['assetSpec'] } : {}),
       })
       // Re-resolve the asset's generated LOD tier siblings (derived keys) and
       // re-register them — blob URLs are session-scoped, so the registry must

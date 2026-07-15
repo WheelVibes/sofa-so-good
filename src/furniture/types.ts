@@ -321,6 +321,11 @@ export interface UserGltfDef extends FurnitureDefBase {
    *  the product configurator — lets the inspector re-open it for editing
    *  (SLOT-204). Persisted (IDB meta + save schema). Absent for other defs. */
   slotSpec?: string
+  /** GLB-designer edit spec (versioned JSON `{ v, spec }`, `glbEdit/specPersist.ts`)
+   *  when this def was built in the 3D asset designer — lets the designer re-open it
+   *  with its full editable part list instead of a frozen source mesh. Persisted
+   *  (IDB meta + save schema). Absent for other defs. */
+  assetSpec?: string
 }
 
 export interface RemoteGltfDef extends FurnitureDefBase {

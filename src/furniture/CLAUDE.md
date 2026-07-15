@@ -176,7 +176,7 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   throwing. `secureGltfLoader` is drei `useGLTF`'s `extendLoader` injection point — pass it as the
   4th arg (`useGLTF(url, true, true, secureGltfLoader)`, keeping `true, true` so DRACO/meshopt
   defaults aren't dropped) on every runtime `useGLTF` call site (`GltfModel.tsx`,
-  `ui/catalog/thumbnails.tsx`, `ui/glbEditor/GlbDesignerDialog.tsx`); it mutates only the single
+  `ui/catalog/thumbnails.tsx`, `ui/glbEditor/DesignerViewport.tsx`); it mutates only the single
   `GLTFLoader` instance drei memoizes for `useGLTF` (never `THREE.DefaultLoadingManager`), so
   material/HDRI loaders elsewhere are untouched. A raw `GLTFLoader` (not via `useGLTF`) —
   `catalog/packs/thumbnail.ts`'s `ThumbnailRenderer` — takes `getSecureGltfManager()` straight into

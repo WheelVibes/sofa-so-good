@@ -78,6 +78,8 @@ const UserGltfDefZ = z.object({
   byteSize: z.number().optional(),
   // Optional slot-configurator recipe (JSON) for re-editing (SLOT-204) — additive.
   slotSpec: z.string().optional(),
+  // Optional GLB-designer edit spec (JSON) for re-editing (Asset Studio S0) — additive.
+  assetSpec: z.string().optional(),
 })
 
 const IkeaVariantZ = z.object({
@@ -575,6 +577,7 @@ export function serialize(state: RootState): SerializedState {
               finishOverrides: d.finishOverrides,
               price: d.price,
               slotSpec: d.slotSpec,
+              assetSpec: d.assetSpec,
             },
       ),
     userMaterials: state.userMaterials.map((d) => ({

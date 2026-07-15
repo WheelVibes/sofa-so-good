@@ -31,19 +31,22 @@ shrinking — every stage extracts modules, never grows the monolith.
 
 ---
 
-## Stage 0 — Foundations & hygiene (prerequisites everything else builds on)
-- **`glbDesigner` feature flag** (pro tier, default on) — closes the existing
-  every-feature-behind-a-flag violation; gate the dialog, ⌘K command (`COMMAND_FLAGS`),
-  catalog "Design" button; both-modes tests.
-- **Undo/redo** for `AssetEditSpec` (bounded history reducer around the spec state;
-  ⌘Z/⇧⌘Z + toolbar buttons). Blocks everything after it — no pro tool ships without undo.
-- **Editable saves (spec persistence):** embed the edit spec in the saved def
-  (`__assetSpec` prop, mirroring the configurator's SLOT-204 plan) so a saved asset
-  re-opens in the editor with full part list instead of a frozen mesh. Migration-safe:
-  absent spec → today's behaviour.
-- **Dialog decomposition:** split the ~800-line `GlbDesignerDialog.tsx` (viewport,
-  toolbar, layers panel, source panel, save panel) so later stages land as new modules.
-- **REFERENCES.md**: add the furniture-modeling tool section from the research.
+## Stage 0 — Foundations & hygiene (prerequisites everything else builds on) — ✅ SHIPPED (v0.21.2.28)
+- ✅ **`glbDesigner` feature flag** (pro tier, default on) — closes the every-feature-behind-a-flag
+  violation; gates the dialog mount, the ⌘K `glb-designer` command (`COMMAND_FLAGS`) and the catalog
+  "Design" button; both-modes tests (`features/flags/glbDesigner.test.ts`).
+- ✅ **Undo/redo** for `AssetEditSpec` — bounded (~50) history reducer `glbEdit/specHistory.ts`
+  (pure, tested; ~300 ms same-key coalescing so a drag is one step); ⌘Z/⇧⌘Z (+⌘Y) in-dialog +
+  toolbar ↶/↷ buttons with disabled states.
+- ✅ **Editable saves (spec persistence):** the edit spec is embedded on the saved def as a
+  versioned JSON `assetSpec` (`glbEdit/specPersist.ts` `{ v, spec }`, mirroring the configurator's
+  `slotSpec`/SLOT-204 round-trip — IDB meta + save schema, additive, no schema-version bump). Picking
+  a designer-built source offers **Restore editable parts** (full part list re-opens editable);
+  absent spec → today's frozen-source behaviour.
+- ✅ **Dialog decomposition:** `GlbDesignerDialog.tsx` is now composition + state wiring; UI split
+  into `DesignerViewport` / `DesignerToolbar` / `LayersPanel` / `SourcePanel` / `CombinePanel` /
+  `SavePanel` (+ `PartsPreview`), all pure logic in `furniture/glbEdit/`.
+- ✅ **REFERENCES.md**: furniture-modeling tool section added (with the staged plan, v0.21.2.27).
 
 ## Stage 1 — Geometry: custom complex shapes
 - **New parametric shape kinds** in `editSpec.ts`/`buildObject.ts`:
@@ -97,5 +100,5 @@ shrinking — every stage extracts modules, never grows the monolith.
 
 ---
 
-**Status:** Stage 0 in progress (started 2026-07-16). Each stage lands as its own
+**Status:** Stage 0 **shipped** (v0.21.2.28, 2026-07-16); Stage 1 next. Each stage lands as its own
 commit train with an end-of-stage adversarial review; this file tracks stage state.

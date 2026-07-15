@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.28 — Asset Studio Stage 0: flag, undo/redo, editable saves, dialog split
+
+Foundations for growing the GLB designer into a professional asset builder
+(`docs/asset-studio-plan.md`, Stage 0).
+
+- **`glbDesigner` feature flag** (pro tier, default on, prod-safe) — closes the
+  every-feature-behind-a-flag gap. Gates the dialog mount (was a bare `uiMode==='pro'`
+  check), the ⌘K `glb-designer` command (`COMMAND_FLAGS`, dropped the redundant
+  `PRO_ONLY_COMMANDS` entry) and the catalog "Design" button (desktop + mobile). Both-modes
+  test (`features/flags/glbDesigner.test.ts`).
+- **Undo/redo** — new pure `furniture/glbEdit/specHistory.ts`: a bounded (~50-entry) snapshot
+  history around the `AssetEditSpec` with ~300 ms same-key coalescing (a slider/gizmo drag is
+  one undo step), truncate-on-fork, front-drop bound. Wired to ⌘Z / ⇧⌘Z (+ ⌘Y) in-dialog
+  (respecting the modal-guard idiom that suppresses global hotkeys) + toolbar ↶/↷ buttons with
+  disabled states. Unit-tested (push/undo/redo/coalesce/bound/truncate).
+- **Editable saves (spec persistence)** — the edit spec is embedded on the saved def as a
+  versioned JSON `assetSpec` (`furniture/glbEdit/specPersist.ts`, `{ v: 1, spec }`), mirroring the
+  configurator's `slotSpec` round-trip: threaded through `saveAsset.ts` → `persistUserGlb`
+  (IDB meta + def) → `hydrateAssets` → the save schema (`schema.ts`, additive — no schema-version
+  bump). Re-picking a designer-built asset as the "Start from" source now offers **Restore
+  editable parts** (its full part list re-opens editable instead of a frozen source mesh); an
+  absent spec keeps today's behaviour, so non-designer defs are unaffected. Round-trip unit tests
+  (`specPersist.test.ts` + a mocked-persist `saveAsset.test.ts` case).
+- **Dialog decomposition** — the ~800-line `GlbDesignerDialog.tsx` is now composition + state
+  wiring; the UI is split into focused `ui/glbEditor/` modules: `DesignerViewport` (canvas + gizmo
+  + source model), `DesignerToolbar` (undo/redo + add-shape palette), `LayersPanel` (part list),
+  `SourcePanel` (start-from + restore + recolour), `CombinePanel` (CSG), `SavePanel`
+  (name/category/placement/save), `PartsPreview`. Behaviour-preserving; SEC-1 `secureGltfLoader`
+  now lives on `DesignerViewport`'s `useGLTF` call site (docs updated).
+- Visual verification: `scripts/scenarios/glb-designer-stage0.json` (flag-off hides even in Pro →
+  flag-on opens → build 2 parts, undo/redo the second, save-with-spec → reopen restores parts).
+- Docs: `asset-studio-plan.md` Stage 0 marked shipped; `ARCHITECTURE.md`, `visual-verification-playbook.md`,
+  `docs/user/importing-models.md` (undo + Restore editable parts) updated.
+
 ## v0.21.2.27 — Asset Studio: staged plan + research references
 
 New user goal (2026-07-16): grow the GLB designer into a professional furniture

@@ -57,6 +57,13 @@ const GRANDFATHERED = new Set<string>([
   'floorplan/editor/layers/NotesLayer.tsx',
   'floorplan/editor/layers/TourStopsLayer.tsx',
   'glbEditor/GlbDesignerDialog.tsx',
+  // Asset Studio S0 dialog decomposition: these modules hold inline-px values
+  // relocated verbatim from the (already-grandfathered) GlbDesignerDialog during
+  // a behaviour-preserving extraction — not newly-introduced literals.
+  'glbEditor/CombinePanel.tsx',
+  'glbEditor/LayersPanel.tsx',
+  'glbEditor/SavePanel.tsx',
+  'glbEditor/SourcePanel.tsx',
   'glbEditor/PartInspector.tsx',
   'inspector/InspectorPanel.tsx',
   'inspector/InspectorSection.tsx',

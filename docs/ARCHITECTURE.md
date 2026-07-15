@@ -560,8 +560,14 @@ same change that reshapes a system.
   by default) — the HQ-render border-beam (`.beam`, mounts only while rendering, IntersectionObserver-
   paused off-screen) and the catalog/preset mouse-follow radial gradient (pointermove-driven `--mx`/
   `--my`, `color-mix` accent, no continuous animation).
-- **GLB Asset Designer** (`furniture/glbEdit/`, `ui/glbEditor/GlbDesignerDialog.tsx`,
-  `featuresSlice.glbDesignerOpen`): compose a custom asset from primitive shapes
+- **GLB Asset Designer** (a.k.a. Asset Studio — `furniture/glbEdit/`, `ui/glbEditor/`,
+  `featuresSlice.glbDesignerOpen`, gated by the **`glbDesigner`** flag — pro tier, default on;
+  the flag gates the dialog mount, the ⌘K `glb-designer` command (COMMAND_FLAGS) and the catalog
+  "Design" button). `GlbDesignerDialog.tsx` is composition + state wiring; the UI is split into
+  focused sibling modules — `DesignerViewport` (canvas + gizmo + source model), `DesignerToolbar`
+  (undo/redo + add-shape palette), `LayersPanel` (part list), `SourcePanel` (start-from + restore +
+  recolour), `CombinePanel` (CSG), `SavePanel` (name/category/placement/save) + `PartInspector` +
+  `PartsPreview`. Compose a custom asset from primitive shapes
   (box/cylinder/sphere/cone/pyramid/capsule/torus/wedge — pure tested `editSpec.ts` `SHAPE_KINDS`;
   geometry via `buildObject.ts` `partGeometry` + per-part PBR via `partMaterial` — both shared by
   the live preview so it can't drift; each part carries colour + roughness + metalness +
@@ -590,8 +596,15 @@ same change that reshapes a system.
   overlay + G/R/S keys in-dialog; orbit auto-pauses while dragging via `makeDefault`). A
   finished drag is written back through the SAME `updatePart` path as the numeric inputs —
   `gizmoWriteBack.ts` `gizmoPatch` (pure, tested) coalesces per drag-END and snaps to 5 mm /
-  1°; `mesh` parts hide Scale (triangles are baked). Launched from ⌘K. TODO:
-  per-component recolour/hide of a source GLB's meshes (v2).
+  1°; `mesh` parts hide Scale (triangles are baked). **Undo/redo** (Stage 0): a bounded
+  (~50-entry) history around the spec (`specHistory.ts`, pure + tested — push/undo/redo with
+  ~300 ms same-key coalescing so a slider drag is one step), wired to ⌘Z / ⇧⌘Z in-dialog (⌘Y
+  too) + the toolbar buttons (disabled at the ends). **Editable saves** (Stage 0): the edit
+  spec is embedded on the saved def as a versioned JSON `assetSpec` (`specPersist.ts`,
+  `{ v, spec }`, mirroring the configurator's `slotSpec` round-trip — travels IDB meta + the save
+  schema), so re-picking a designer-built asset as the "Start from" source offers **Restore
+  editable parts** (its full part list re-opens editable instead of a frozen source mesh); an
+  absent spec keeps today's frozen-source behaviour. Launched from ⌘K / the catalog Design button.
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`) is the
   **first** first-run surface — fires on clean profile, bot decision extracted to
   `ui/bootDecision.ts` (pure, tested). Carousel step 3 offers "Take the guided tour" as the

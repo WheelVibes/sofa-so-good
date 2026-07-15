@@ -504,8 +504,9 @@ inside the room, plus a door + a window opening on the plan. **Key gotchas learn
 ### Worked example — GLB asset designer simple rung (IXT-SUITES GLB-designer re-rung)
 
 **`glb-designer-simple.json`** covers the pro-only 3D asset designer
-(`ui/glbEditor/GlbDesignerDialog.tsx`, gated directly on `uiMode==='pro'` — NOT a `FEATURE_FLAGS`
-entry, so drive it with `setUiMode('pro')`, no `reresolveFeatureFlags`): Simple/Pro gate (dialog
+(`ui/glbEditor/GlbDesignerDialog.tsx`, gated by the **`glbDesigner`** flag — pro tier, so
+`setUiMode('pro')` resolves it on; the Stage-0 `glb-designer-stage0.json` rung additionally
+drives the flag directly via `setFeatureFlag('glbDesigner', …)`): Simple/Pro gate (dialog
 stays UNMOUNTED in Simple even with `glbDesignerOpen` forced true, present in Pro) → a real edit
 round-trip (add box → set size X to 1 m + raise position Y to 0.8 m; the controlled numeric inputs
 AND the live 3D preview both reflect the elongated raised box) → a real **save round-trip to the

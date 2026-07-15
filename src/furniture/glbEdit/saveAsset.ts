@@ -3,6 +3,8 @@ import { useStore } from '../../state/store'
 import { exportGlb } from '../convert/toGlb'
 import type { FurnitureCategory, UserGltfDef } from '../types'
 import { type PersistResult, persistUserGlb } from '../upload/persist'
+import type { AssetEditSpec } from './editSpec'
+import { serializeAssetSpec } from './specPersist'
 
 /** Measured world footprint (m) of a built object, for an accurate
  *  `defaultFootprint`. Returns null for an empty/degenerate object. */
@@ -30,6 +32,10 @@ export async function exportAndSaveAsset(
    *  in place (keeping every placed instance referencing it) instead of adding a
    *  new catalog entry — "save edits back over the original". */
   overwriteId?: string,
+  /** The designer's edit spec — embedded on the saved def (versioned JSON) so
+   *  the asset re-opens editable (Asset Studio S0). Absent → no spec is stored
+   *  (today's behaviour: the def re-opens as a frozen source mesh). */
+  spec?: AssetEditSpec,
 ): Promise<PersistResult> {
   const buffer = await exportGlb(object)
   const safe = (name.trim() || 'Custom asset').replace(/[^\w\- ]+/g, '').slice(0, 60)
@@ -44,6 +50,8 @@ export async function exportAndSaveAsset(
     mounted: opts.mounted,
     noClip: opts.noClip,
     footprint: measureFootprint(object) ?? undefined,
+    // Embed the edit spec so this asset re-opens editable in the designer.
+    assetSpec: spec ? serializeAssetSpec(spec) : undefined,
     // Don't auto-register a new def when overwriting — we re-home it under the
     // existing id ourselves so placed instances ride through.
     commit: !overwriting,

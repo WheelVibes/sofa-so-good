@@ -159,6 +159,7 @@ export type FeatureFlag =
   | 'parallelProjection'
   | 'catalogResize'
   | 'catalogFilters'
+  | 'glbDesigner'
   | 'profiler'
 
 export interface FlagDef {
