@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.21 — knip: recordViewTour un-exported
+
+The v0.21.2.20 guard dedup left `recordViewTour` with a single caller in its own module
+(`promptAndRecordViewTour`), so the export tripped CI's dead-code scan. Made it
+module-private — which also enforces the review's intent that the duration prompt can't
+be bypassed by a future direct call site.
+
 ## v0.21.2.20 — review fixes: recording/MP4 round-9 cluster
 
 Verified round-9 code-review findings on the recording/MP4 feature (v0.21.2.17). No behaviour

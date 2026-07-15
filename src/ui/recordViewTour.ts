@@ -48,9 +48,11 @@ export function parseTourDuration(
  * path — this just coordinates pace, recording and the tour start.
  *
  * `totalSeconds` (optional) spreads evenly across the legs (one fewer than the
- * number of views); omit to keep the current per-leg pace.
+ * number of views); omit to keep the current per-leg pace. Module-private: the
+ * only sanctioned entry point is {@link promptAndRecordViewTour}, so a new call
+ * site can't accidentally bypass the duration prompt.
  */
-export function recordViewTour(totalSeconds?: number): void {
+function recordViewTour(totalSeconds?: number): void {
   const s = useStore.getState()
   const views = tourViews(s)
   if (!views) return
