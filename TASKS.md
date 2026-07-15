@@ -36,13 +36,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   many independent feature-flagged pieces) were also left inline — bundling them needs a 40+ prop
   surface (passing the whole store-action snapshot), which would hurt readability more than the
   current named-fragment const. Revisit only if either grows further.
-- [x] C-PLANTS/DECOR tail: curated CC0 set-dressing bundles from Poly Haven (v0.21.2.24) —
-      3 themed one-click bundles (Indoor plants ×6, Shelf & table decor ×7, Kitchen counter ×7)
-      of CC0 Poly Haven props, surfaced as `poly-haven-bundle` pack cards in the Packs tab
-      (`catalog/packs/polyHaven.ts` + `installPolyHavenBundle`). Poly Pizza dropped as a bundle
-      source (its search API needs a per-user key; direct CDN downloads aren't reachable without
-      it), so bundles are Poly Haven only, packed to self-contained GLBs in-browser via the
-      convert pipeline.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).
 - [ ] X-SHOP tail [DEV]: HipVan price adapter is blocked — its public

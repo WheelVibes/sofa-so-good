@@ -24,19 +24,43 @@ export interface SiblingPool {
   entryUrl: string
 }
 
-/** A LoadingManager that rewrites requested URLs to sibling blob URLs by
- *  basename; unknown refs fall back to a blank texture (SEC-1 — this is a
- *  closed allowlist: a dropped model can only ever resolve to a file also
- *  dropped alongside it, never an arbitrary network URL, foreign or not —
- *  `isEmbeddedOrBlobUrl`/`BLOCKED_RESOURCE_FALLBACK` are the same primitives
- *  the runtime render-loader policy in `gltf/loaderSecurity.ts` shares). */
+/**
+ * The URL-rewrite policy for the sibling pool (extracted so it's unit-testable
+ * without a real `LoadingManager`). SEC-1 — a closed allowlist: a dropped model
+ * can only ever resolve to a file dropped alongside it, never an arbitrary
+ * network URL (`isEmbeddedOrBlobUrl`/`BLOCKED_RESOURCE_FALLBACK` are the same
+ * primitives the runtime render-loader policy in `gltf/loaderSecurity.ts`
+ * shares).
+ *
+ * The sibling-pool basename lookup is attempted **first**, before honouring a
+ * bare `blob:` URL. This matters: GLTFLoader/OBJ/MTL resolve a glTF's relative
+ * refs (`scene.bin`, `textures/wood.jpg`) against the *entry's* `blob:` base,
+ * producing a synthetic `blob:<origin>/scene.bin` that `isEmbeddedOrBlobUrl`
+ * would happily pass through — so an early `isEmbeddedOrBlobUrl` return
+ * short-circuited exactly those refs and the pool never ran, silently losing
+ * every sibling of a multi-file drag-drop import. A pool object URL the manager
+ * itself minted (the entry file or a resolved sibling) is passed through
+ * unchanged (its basename is an opaque uuid that never matches a pool key), and
+ * self-contained `data:` URIs pass straight through.
+ */
+export function resolveSiblingUrl(pool: SiblingPool, url: string): string {
+  // Self-contained data: URIs are already inline — pass straight through.
+  if (url.startsWith('data:')) return url
+  // An object URL the pool itself minted (the entry file or a sibling) is the
+  // real resource already — never re-resolve it by basename.
+  if (url === pool.entryUrl) return url
+  for (const own of pool.urls.values()) if (own === url) return url
+  // Sibling-pool basename lookup FIRST (see the header for why order matters).
+  const base = (url.split(/[?#]/)[0].split('/').pop() ?? url).toLowerCase()
+  const sibling = pool.urls.get(base)
+  if (sibling) return sibling
+  // No basename match: honour a genuine embedded/blob URL, else block to blank.
+  return isEmbeddedOrBlobUrl(url) ? url : BLOCKED_RESOURCE_FALLBACK
+}
+
 function managerFor(pool: SiblingPool): THREE.LoadingManager {
   const mgr = new THREE.LoadingManager()
-  mgr.setURLModifier((url) => {
-    if (isEmbeddedOrBlobUrl(url)) return url
-    const base = (url.split('/').pop() ?? url).toLowerCase()
-    return pool.urls.get(base) ?? BLOCKED_RESOURCE_FALLBACK
-  })
+  mgr.setURLModifier((url) => resolveSiblingUrl(pool, url))
   return mgr
 }
 

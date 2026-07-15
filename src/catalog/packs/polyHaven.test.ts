@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { FURNITURE_CATEGORIES } from '../../furniture/types'
 import {
-  inlineGltfUris,
   POLY_HAVEN_BUNDLES,
   polyHavenAttribution,
   polyHavenBasename,
   polyHavenBundle,
-  polyHavenDataMime,
   polyHavenSourceUrl,
   resolvePolyHavenGltfFiles,
 } from './polyHaven'
@@ -80,44 +78,6 @@ describe('polyHavenBasename', () => {
     expect(polyHavenBasename('textures/foo_1k.jpg')).toBe('foo_1k.jpg')
     expect(polyHavenBasename('https://h/a/b/c.bin?token=1#x')).toBe('c.bin')
     expect(polyHavenBasename('plain.gltf')).toBe('plain.gltf')
-  })
-})
-
-describe('polyHavenDataMime', () => {
-  it('maps texture/buffer extensions to MIME types', () => {
-    expect(polyHavenDataMime('foo_diff_1k.jpg')).toBe('image/jpeg')
-    expect(polyHavenDataMime('foo.JPEG')).toBe('image/jpeg')
-    expect(polyHavenDataMime('foo.png')).toBe('image/png')
-    expect(polyHavenDataMime('foo.webp')).toBe('image/webp')
-    expect(polyHavenDataMime('model.bin')).toBe('application/octet-stream')
-    expect(polyHavenDataMime('weird')).toBe('application/octet-stream')
-  })
-})
-
-describe('inlineGltfUris', () => {
-  it('replaces external buffer/image refs with matching data URIs by basename', () => {
-    const gltf = {
-      buffers: [{ uri: 'ceramic_vase_01.bin' }],
-      images: [{ uri: 'textures/diff_1k.jpg' }, { uri: 'textures/nor_1k.jpg' }],
-    }
-    const out = inlineGltfUris(gltf, {
-      'ceramic_vase_01.bin': 'data:application/octet-stream;base64,AAAA',
-      'diff_1k.jpg': 'data:image/jpeg;base64,BBBB',
-      'nor_1k.jpg': 'data:image/jpeg;base64,CCCC',
-    })
-    expect(out.buffers[0].uri).toBe('data:application/octet-stream;base64,AAAA')
-    expect(out.images[0].uri).toBe('data:image/jpeg;base64,BBBB')
-    expect(out.images[1].uri).toBe('data:image/jpeg;base64,CCCC')
-  })
-
-  it('leaves already-inline or unmatched refs untouched, tolerates missing arrays', () => {
-    const gltf = {
-      buffers: [{ uri: 'data:application/octet-stream;base64,ZZ' }, { uri: 'unknown.bin' }],
-    }
-    const out = inlineGltfUris(gltf, { 'other.bin': 'data:x' })
-    expect(out.buffers[0].uri).toBe('data:application/octet-stream;base64,ZZ')
-    expect(out.buffers[1].uri).toBe('unknown.bin')
-    expect(() => inlineGltfUris({}, {})).not.toThrow()
   })
 })
 

@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.26 — Round-10 review-fix cluster: pack install + a pre-existing multi-file-import bug
+
+A cluster of round-10 review fixes centred on the pack-install path, plus the
+**pre-existing multi-file drag-drop import bug** the review surfaced.
+
+- **[bug] Multi-file drag-drop imports silently lost their sibling files
+  (`furniture/convert/loadToObject.ts`).** The convert sibling-pool
+  `LoadingManager` URL modifier early-returned on `isEmbeddedOrBlobUrl(url)`
+  BEFORE the basename lookup — but GLTFLoader/OBJ/MTL resolve a glTF's relative
+  refs (`scene.bin`, `textures/wood.jpg`) against the entry's `blob:` base into a
+  synthetic `blob:<origin>/scene.bin`, which passed `isEmbeddedOrBlobUrl` and
+  short-circuited the pool, so every referenced `.bin`/texture of a multi-file
+  drop resolved to nothing. Fixed at the shared mechanism: the new pure,
+  unit-tested `resolveSiblingUrl(pool, url)` attempts the basename lookup FIRST
+  (a resolved-relative ref matches its dropped sibling), passes the entry's/
+  siblings' own object URLs + `data:` URIs through unchanged, and only then
+  honours a bare `blob:`/blocks a foreign ref (SEC-1 closed allowlist unchanged).
+- **Poly Haven bundles now import through the pooled `runConvert` with real
+  sibling files, dropping the data-URI inlining workaround
+  (`catalog/packs/install.ts`, `catalog/packs/polyHaven.ts`).** With the sibling
+  bug fixed, `fetchPolyHavenGlb` hands the entry glTF + its `.bin`/textures to
+  `runConvert` as siblings (off the main thread) instead of base64-inlining every
+  dependency into the glTF and calling `convertModel` on the main thread. Removed
+  the now-dead `inlineGltfUris`/`GltfUriDoc`/`polyHavenDataMime`/`bytesToBase64`
+  (this also made the finding-8 "share the URI-rewrite helper with
+  `remote/resolver.ts`" moot — the helper no longer exists).
+- **Poly Haven bundle install is now additive** (matching Poly Pizza) so a retry
+  after a partial failure tops the pack up instead of replacing it.
+- **`buildEntry` moved inside the per-item try/catch** in both API-pack installers
+  so a persist/thumbnail failure skips that one item per the documented per-item
+  semantics, and the two identical install loops were extracted into one shared
+  `installItems` runner.
+- **`PolyHavenBundleCard` gained a local busy state** (`Adding…`, disabled while
+  inflight) like `PolyPizzaCard`; deleted the dead `installing`/`setInstalling`
+  store field (never written — the notification system already drives progress)
+  and its now-dead `inflight` card branches. Extracted a shared `PackCardShell` +
+  `PackRemoveRow` used by the zip / Poly Pizza / Poly Haven cards.
+
 ## v0.21.2.25 — GE4: "Update original" round-trip verified + two real bugs fixed
 
 Closes the GE4 tail — a real-env verification pass of the GLB designer's **"Update

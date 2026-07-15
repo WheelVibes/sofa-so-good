@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
   type IkeaProgressEvent,
   registerGroup,
@@ -19,6 +19,72 @@ import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 
 const fmtMB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
+
+/** Shared presentational chrome for the install-style pack cards (zip / Poly
+ *  Pizza / Poly Haven): the bordered card, name (+ optional right-aligned meta
+ *  like size or item count), description, and the attribution line with an
+ *  optional trailing source/help link. Each card supplies its own install
+ *  controls as `children`. Keeps the file's local Tailwind-var style. */
+function PackCardShell({
+  pack,
+  meta,
+  linkLabel,
+  children,
+}: {
+  pack: Pack
+  meta?: ReactNode
+  /** When set, renders " · <link>" after the attribution (e.g. 'source'). */
+  linkLabel?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface-solid)] p-3">
+      {meta !== undefined ? (
+        <div className="flex items-baseline justify-between">
+          <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
+          <div className="text-[10px] text-[var(--text-3)]">{meta}</div>
+        </div>
+      ) : (
+        <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
+      )}
+      <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
+      <div className="text-[10px] text-[var(--text-3)]">
+        {pack.attribution}
+        {linkLabel && (
+          <>
+            {' '}
+            ·{' '}
+            <a className="underline" href={pack.sourceUrl} target="_blank" rel="noreferrer">
+              {linkLabel}
+            </a>
+          </>
+        )}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+/** Shared "✓ N items installed  · Remove/Uninstall" footer row for an installed
+ *  pack. Copy (count label + remove-button text) varies per card, passed in. */
+function PackRemoveRow({
+  label,
+  removeLabel,
+  onRemove,
+}: {
+  label: string
+  removeLabel: string
+  onRemove: () => void
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-[11px] text-[var(--accent-soft-text)]">✓ {label}</span>
+      <button onClick={onRemove} className="text-[11px] text-[var(--danger)] underline">
+        {removeLabel}
+      </button>
+    </div>
+  )
+}
 
 /** Live-scrape IKEA pack: drives the local sidecar, shows per-product progress. */
 function IkeaLiveCard({ pack }: { pack: Pack }) {
@@ -147,52 +213,40 @@ function IkeaLiveCard({ pack }: { pack: Pack }) {
 /** Hosted-zip pack card (Kenney etc.) — the original install flow. */
 function ZipPackCard({ pack }: { pack: Pack }) {
   const installed = useStore((s) => s.installedPacks)
-  const installing = useStore((s) => s.installing)
   const isInstalled = !!installed[pack.id]
-  const inflight = installing[pack.id]
   const entryCount = installed[pack.id]?.entries.length ?? 0
   const size = pack.sizeBytes ?? 0
+  const [busy, setBusy] = useState(false)
+
+  async function onInstall() {
+    setBusy(true)
+    try {
+      await installPack(pack)
+    } catch {
+      // Surfaced via the install flow's progress/error notification.
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface-solid)] p-3">
-      <div className="flex items-baseline justify-between">
-        <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
-        <div className="text-[10px] text-[var(--text-3)]">{fmtMB(size)}</div>
-      </div>
-      <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
-      <div className="text-[10px] text-[var(--text-3)]">
-        {pack.attribution} ·{' '}
-        <a className="underline" href={pack.sourceUrl} target="_blank" rel="noreferrer">
-          source
-        </a>
-      </div>
-      {inflight ? (
-        <button
-          disabled
-          className="rounded bg-[var(--surface-3)] px-3 py-1.5 text-xs text-[var(--text-2)]"
-        >
-          Installing… {Math.round(inflight.progress * 100)}%
-        </button>
-      ) : isInstalled ? (
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-[var(--accent-soft-text)]">
-            ✓ {entryCount} items installed
-          </span>
-          <button
-            onClick={() => void uninstallPack(pack.id)}
-            className="text-[11px] text-[var(--danger)] underline"
-          >
-            Uninstall
-          </button>
-        </div>
+    <PackCardShell pack={pack} meta={fmtMB(size)} linkLabel="source">
+      {isInstalled ? (
+        <PackRemoveRow
+          label={`${entryCount} items installed`}
+          removeLabel="Uninstall"
+          onRemove={() => void uninstallPack(pack.id)}
+        />
       ) : (
         <button
-          onClick={() => void installPack(pack)}
-          className="rounded bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--on-accent)] hover:bg-[var(--accent-2)]"
+          onClick={() => void onInstall()}
+          disabled={busy}
+          className="rounded bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--on-accent)] hover:bg-[var(--accent-2)] disabled:opacity-50"
         >
-          Install ({fmtMB(size)})
+          {busy ? 'Installing…' : `Install (${fmtMB(size)})`}
         </button>
       )}
-    </div>
+    </PackCardShell>
   )
 }
 
@@ -226,15 +280,7 @@ function PolyPizzaCard({ pack }: { pack: Pack }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface-solid)] p-3">
-      <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
-      <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
-      <div className="text-[10px] text-[var(--text-3)]">
-        {pack.attribution} ·{' '}
-        <a className="underline" href={pack.sourceUrl} target="_blank" rel="noreferrer">
-          get a free API key
-        </a>
-      </div>
+    <PackCardShell pack={pack} linkLabel="get a free API key">
       <input
         type="password"
         value={apiKey}
@@ -268,19 +314,13 @@ function PolyPizzaCard({ pack }: { pack: Pack }) {
         </div>
       )}
       {entryCount > 0 && (
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-[var(--accent-soft-text)]">
-            ✓ {entryCount} models in your catalog
-          </span>
-          <button
-            onClick={() => void uninstallPack(pack.id)}
-            className="text-[11px] text-[var(--danger)] underline"
-          >
-            Remove all
-          </button>
-        </div>
+        <PackRemoveRow
+          label={`${entryCount} models in your catalog`}
+          removeLabel="Remove all"
+          onRemove={() => void uninstallPack(pack.id)}
+        />
       )}
-    </div>
+    </PackCardShell>
   )
 }
 
@@ -289,60 +329,39 @@ function PolyPizzaCard({ pack }: { pack: Pack }) {
  *  Works in production builds (keyless, CORS-friendly Poly Haven API). */
 function PolyHavenBundleCard({ pack }: { pack: Pack }) {
   const installed = useStore((s) => s.installedPacks)
-  const installing = useStore((s) => s.installing)
   const isInstalled = !!installed[pack.id]
-  const inflight = installing[pack.id]
   const entryCount = installed[pack.id]?.entries.length ?? 0
   const itemCount = polyHavenBundle(pack.id)?.items.length ?? 0
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function onAdd() {
+    setBusy(true)
     setError(null)
     try {
       await installPolyHavenBundle(pack)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface-solid)] p-3">
-      <div className="flex items-baseline justify-between">
-        <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
-        <div className="text-[10px] text-[var(--text-3)]">{itemCount} items</div>
-      </div>
-      <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
-      <div className="text-[10px] text-[var(--text-3)]">
-        {pack.attribution} ·{' '}
-        <a className="underline" href={pack.sourceUrl} target="_blank" rel="noreferrer">
-          source
-        </a>
-      </div>
-      {inflight ? (
-        <button
-          disabled
-          className="rounded bg-[var(--surface-3)] px-3 py-1.5 text-xs text-[var(--text-2)]"
-        >
-          Adding… {Math.round(inflight.progress * 100)}%
-        </button>
-      ) : isInstalled ? (
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-[var(--accent-soft-text)]">
-            ✓ {entryCount} items added
-          </span>
-          <button
-            onClick={() => void uninstallPack(pack.id)}
-            className="text-[11px] text-[var(--danger)] underline"
-          >
-            Remove all
-          </button>
-        </div>
+    <PackCardShell pack={pack} meta={`${itemCount} items`} linkLabel="source">
+      {isInstalled ? (
+        <PackRemoveRow
+          label={`${entryCount} items added`}
+          removeLabel="Remove all"
+          onRemove={() => void uninstallPack(pack.id)}
+        />
       ) : (
         <button
           onClick={() => void onAdd()}
-          className="rounded bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--on-accent)] hover:bg-[var(--accent-2)]"
+          disabled={busy}
+          className="rounded bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--on-accent)] hover:bg-[var(--accent-2)] disabled:opacity-50"
         >
-          Add bundle ({itemCount} items)
+          {busy ? 'Adding…' : `Add bundle (${itemCount} items)`}
         </button>
       )}
       {error && (
@@ -350,7 +369,7 @@ function PolyHavenBundleCard({ pack }: { pack: Pack }) {
           {error}
         </div>
       )}
-    </div>
+    </PackCardShell>
   )
 }
 

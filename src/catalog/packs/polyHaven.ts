@@ -209,55 +209,13 @@ export interface PolyHavenGltfFiles {
   deps: PolyHavenFileRef[]
 }
 
-/** MIME type for a dependency file, from its extension. Used to build the
- *  `data:` URI when inlining a Poly Haven glTF's external refs. */
-export function polyHavenDataMime(name: string): string {
-  const ext = name.toLowerCase().split('.').pop() ?? ''
-  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
-  if (ext === 'png') return 'image/png'
-  if (ext === 'webp') return 'image/webp'
-  return 'application/octet-stream'
-}
-
-/** The subset of a glTF document this module rewrites. */
-export interface GltfUriDoc {
-  buffers?: { uri?: string }[]
-  images?: { uri?: string }[]
-}
-
-/**
- * Pure: rewrite a glTF's external `buffers[].uri`/`images[].uri` to inline
- * `data:` URIs, matched by basename against `dataUriByName`. Mutates + returns
- * the passed document. This makes the glTF fully self-contained BEFORE it hits
- * the CONVERT pipeline — the shared loader-security manager passes `data:`
- * through unchanged, whereas relative refs resolved against the entry's `blob:`
- * URL are short-circuited as `blob:` and never reach the sibling-pool map (so
- * inlining, not a sibling pool, is what actually loads Poly Haven's deps). Refs
- * already inline (`data:`) or unmatched are left untouched.
- */
-export function inlineGltfUris<T extends GltfUriDoc>(
-  gltf: T,
-  dataUriByName: Record<string, string>,
-): T {
-  const swap = (list?: { uri?: string }[]): void => {
-    for (const entry of list ?? []) {
-      if (typeof entry.uri === 'string' && !entry.uri.startsWith('data:')) {
-        const uri = dataUriByName[polyHavenBasename(entry.uri)]
-        if (uri) entry.uri = uri
-      }
-    }
-  }
-  swap(gltf.buffers)
-  swap(gltf.images)
-  return gltf
-}
-
 /**
  * Pure: turn a Poly Haven `/files/<slug>` response into a download plan for the
  * given resolution. Returns null when that resolution has no glTF variant. The
  * `include` map is authoritative for dependency URLs (we never build CDN paths);
  * dependency names are basenames so they match the glTF's own relative refs when
- * inlined via `inlineGltfUris`.
+ * the deps are handed to the CONVERT pipeline as sibling files (resolved by
+ * `convert/loadToObject.ts:resolveSiblingUrl`).
  */
 export function resolvePolyHavenGltfFiles(
   filesJson: unknown,
