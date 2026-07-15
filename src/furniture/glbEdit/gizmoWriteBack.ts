@@ -8,7 +8,7 @@
  * numeric inputs' bounds. Pure of three/react — unit-testable.
  */
 
-import type { ShapeKind, ShapePart } from './editSpec'
+import type { PartGroup, ShapeKind, ShapePart } from './editSpec'
 
 export type GizmoMode = 'translate' | 'rotate' | 'scale'
 
@@ -18,6 +18,10 @@ export const GIZMO_MODES: { mode: GizmoMode; label: string; hotkey: string }[] =
   { mode: 'rotate', label: 'Rotate', hotkey: 'r' },
   { mode: 'scale', label: 'Scale', hotkey: 's' },
 ]
+
+/** Gizmo modes for a whole transform group (Stage 3a): a group moves + rotates
+ *  as a unit but has no Scale (its members keep their own sizes). */
+export const GROUP_GIZMO_MODES = GIZMO_MODES.filter((m) => m.mode !== 'scale')
 
 /** Gizmo modes available for a part kind. A combined `mesh` part's triangles
  *  are baked (its `size` is informational, no field drives the geometry), so
@@ -112,4 +116,28 @@ export function gizmoPatch(
       return same(size, part.size) ? null : { size }
     }
   }
+}
+
+/**
+ * Compute the transform-group patch for one finished GROUP gizmo drag (Stage
+ * 3a), or `null` when the snapped result equals the group's current transform.
+ * A group only translates/rotates (no scale) — same 5 mm / 1° snapping + ±3 m
+ * clamp as a part. An all-zero position/rotation is returned explicitly so
+ * `updatePartGroupTransform` can clear the field (identity → absent).
+ */
+export function groupGizmoPatch(
+  group: PartGroup,
+  mode: GizmoMode,
+  snap: GizmoSnapshot,
+): { position?: [number, number, number]; rotation?: [number, number, number] } | null {
+  if (mode === 'rotate') {
+    const rotation = snap.rotation.map((rad) =>
+      normalizeDeg(snapValue((rad * 180) / Math.PI, ROTATION_SNAP_DEG)),
+    ) as [number, number, number]
+    return same(rotation, group.rotation ?? [0, 0, 0]) ? null : { rotation }
+  }
+  const position = snap.position.map((v) =>
+    clamp(snapValue(v, POSITION_SNAP_M), -POSITION_LIMIT_M, POSITION_LIMIT_M),
+  ) as [number, number, number]
+  return same(position, group.position ?? [0, 0, 0]) ? null : { position }
 }

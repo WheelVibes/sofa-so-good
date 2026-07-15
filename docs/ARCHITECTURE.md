@@ -589,8 +589,20 @@ same change that reshapes a system.
   inspector's `PartMaterialSection.tsx` shows a one-tap **finish preset** gallery (pure
   `glbEdit/finishPresets.ts`, 14 curated bundles), a "Custom finish" `Disclosure` of the raw
   sliders, and a "Gradient" `Disclosure`. Every field round-trips losslessly through the GLB
-  export (verified — `physicalMaterialExport.test.ts`; support matrix in `docs/asset-studio-plan.md`);
-  `specPersist` is at **v3**
+  export (verified — `physicalMaterialExport.test.ts`; support matrix in `docs/asset-studio-plan.md`).
+  **Stage 3a — transform groups** (v0.21.2.33): named `PartGroup`s (`editSpec.ts`, `partGroups[]`)
+  hold a shared `position`/`rotation` applied ON TOP of member transforms — **distinct from a CSG
+  `CombineGroup`** (UI copy "Group" vs "Combine"); a part can be in one of each. `buildEditedObject`
+  nests grouped parts under a three.Group carrying the group transform (`glbEdit/groupTransform.ts`
+  — pure `groupedPartWorldPosition` + `ungroupPartGroup` which flattens so nothing jumps; flat
+  groups only, no nesting). `LayersPanel` is a shallow tree (group rows: inline rename, collapse,
+  indented members, Ungroup/Duplicate/Mirror; a **Group** action on the multi-select toolbar); the
+  gizmo drags a whole group via a group proxy (`gizmoWriteBack.ts:groupGizmoPatch`).
+  `specPersist` is at **v4**, and both it and the configurator's `slotSpec` now ride the shared
+  versioned **`furniture/specEnvelope.ts`** `{ kind, v, payload }` envelope + `EnvelopeCodec` (one
+  parse/serialize/migrate/guard path — `parseAssetSpec`/`serializeAssetSpec` +
+  `configurator/configuredPersist.ts` `parseConfiguredSpec`/`serializeConfiguredSpec`; `parseLegacy`
+  keeps reading pre-envelope blobs, re-saved in the envelope on next write).
   and/or start from an uploaded GLB
   (uniformly scaled) to make a variant; live R3F preview (`buildEditedObject`), then
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands
@@ -611,9 +623,10 @@ same change that reshapes a system.
   (~50-entry) history around the spec (`specHistory.ts`, pure + tested — push/undo/redo with
   ~300 ms same-key coalescing so a slider drag is one step), wired to ⌘Z / ⇧⌘Z in-dialog (⌘Y
   too) + the toolbar buttons (disabled at the ends). **Editable saves** (Stage 0): the edit
-  spec is embedded on the saved def as a versioned JSON `assetSpec` (`specPersist.ts`,
-  `{ v, spec }`, mirroring the configurator's `slotSpec` round-trip — travels IDB meta + the save
-  schema), so re-picking a designer-built asset as the "Start from" source offers **Restore
+  spec is embedded on the saved def as a versioned JSON `assetSpec` (`specPersist.ts`, the shared
+  `specEnvelope` `{ kind:'asset', v, payload }` — same envelope as the configurator's `slotSpec` —
+  travels IDB meta + the save schema), so re-picking a designer-built asset as the "Start from"
+  source offers **Restore
   editable parts** (its full part list re-opens editable instead of a frozen source mesh); an
   absent spec keeps today's frozen-source behaviour. Launched from ⌘K / the catalog Design button.
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`) is the

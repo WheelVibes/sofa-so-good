@@ -3,56 +3,46 @@
  * saved user def, so a designer-built asset re-opens editable (its full part
  * list restored) instead of only as a frozen source mesh.
  *
- * The spec is embedded as a JSON string on the saved def (`UserGltfDef.assetSpec`,
- * mirroring the configurator's `slotSpec` round-trip / SLOT-204) and travels the
- * same IDB-meta + save-schema path as `slotSpec`. It is versioned (`{ v: 1, spec }`)
- * so a future spec-shape change can migrate on read; an absent or unrecognised
- * blob simply yields `null` (today's behaviour: the def re-opens as a source mesh,
- * not an editable part list). Pure + dependency-free → unit-testable.
+ * The spec is embedded as a JSON string on the saved def (`UserGltfDef.assetSpec`)
+ * and travels the IDB-meta + save-schema path. Since Stage 3a it rides the
+ * SHARED versioned envelope (`furniture/specEnvelope.ts`, kind `'asset'`) — the
+ * single parse/serialize/migrate/guard path also used by the configurator's
+ * `slotSpec` — instead of a bespoke `{ v, spec }` blob. A `parseLegacy`
+ * recogniser keeps reading the pre-envelope `{ v, spec }` shape (existing saves
+ * never break); the next write re-saves it in the envelope. An absent /
+ * unrecognised / future-version blob yields `null` (today's behaviour: the def
+ * re-opens as a source mesh). Pure + dependency-free → unit-testable.
  */
 
+import { type EnvelopeCodec, parseEnvelope, serializeEnvelope } from '../specEnvelope'
 import type { AssetEditSpec } from './editSpec'
 
-/** Current envelope version. Bump + branch in `parseAssetSpec` on a breaking
+/** Current envelope version. Bump + branch in `migrateAssetSpec` on a breaking
  *  spec-shape change.
  *
  *  - v1 (Asset Studio S0…S1a): parts + meshOverrides + sourceScale.
  *  - v2 (CSG v2, Stage 1b): adds optional `parts[].role` + `combineGroups[]`.
- *    A v1 spec is a STRUCTURAL SUBSET of v2 (no roles, no groups), so migration
- *    is the identity — a v1 blob loads unchanged, just re-tagged v2 on next save.
- *  - v3 (Materials, Stage 2): adds optional `PhysicalSurfaceFields`
- *    (sheen/clearcoat/transmission/ior/thickness/anisotropy…) + `parts[].gradient`
- *    on parts and per-group materials. Every field is optional, so a v2 spec is a
- *    STRUCTURAL SUBSET of v3 — migration stays the identity. */
-export const ASSET_SPEC_VERSION = 3
-
-interface AssetSpecEnvelope {
-  v: number
-  spec: AssetEditSpec
-}
+ *  - v3 (Materials, Stage 2): adds optional `PhysicalSurfaceFields` + `gradient`.
+ *  - v4 (Groups, Stage 3a): adds optional `partGroups[]` (named transform
+ *    groups). Every added field is optional, so each older version is a
+ *    STRUCTURAL SUBSET of the next — migration stays the identity (an older blob
+ *    loads unchanged, just re-tagged on next save). */
+export const ASSET_SPEC_VERSION = 4
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
- *  v1→v2 is the identity (v1 is a subset of v2); returns null for an
- *  unknown/newer version we can't safely read. Pure + exported for tests. */
+ *  Every version bump so far has been an additive superset, so migration is the
+ *  identity; an unknown/newer version returns null (can't safely read). Pure +
+ *  exported for tests. */
 export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSpec | null {
   switch (from) {
-    case 1:
-    // A v1 spec has no `role`/`combineGroups` — already a valid v2 spec.
-    // fall through
-    case 2:
-    // A v2 spec has no physical fields / gradient — already a valid v3 spec.
-    // fall through
-    case 3:
+    case 1: // no role/combineGroups — already a valid v2 spec.
+    case 2: // no physical fields/gradient — already a valid v3 spec.
+    case 3: // no partGroups — already a valid v4 spec.
+    case 4:
       return spec
     default:
       return null
   }
-}
-
-/** Serialise a spec to the versioned JSON string stored on the def. */
-export function serializeAssetSpec(spec: AssetEditSpec): string {
-  const env: AssetSpecEnvelope = { v: ASSET_SPEC_VERSION, spec }
-  return JSON.stringify(env)
 }
 
 /** Valid CSG combine operators (mirrors `editSpec.CombineOp`; inlined so this
@@ -62,10 +52,19 @@ const VALID_OPS = new Set<string>(['union', 'subtract', 'intersect'])
 /** Valid part roles (mirrors `editSpec.PartRole`). */
 const VALID_ROLES = new Set<string>(['solid', 'hole'])
 
+/** A finite-number `[x, y, z]` tuple (group transform fields). */
+function isVec3(x: unknown): boolean {
+  return (
+    Array.isArray(x) &&
+    x.length === 3 &&
+    x.every((n) => typeof n === 'number' && Number.isFinite(n))
+  )
+}
+
 /** Guard the optional `combineGroups` field: absent is fine; otherwise every
  *  entry must be `{ id: string, partIds: string[], op ∈ CSG ops }`. A malformed
- *  blob (bad op, non-string ids) makes the whole spec un-restorable so it can't
- *  silently drop or corrupt a group on reload. */
+ *  blob makes the whole spec un-restorable so it can't silently drop or corrupt a
+ *  group on reload. */
 function isCombineGroups(x: unknown): boolean {
   if (x === undefined) return true
   if (!Array.isArray(x)) return false
@@ -78,6 +77,27 @@ function isCombineGroups(x: unknown): boolean {
       grp.partIds.every((id) => typeof id === 'string') &&
       typeof grp.op === 'string' &&
       VALID_OPS.has(grp.op)
+    )
+  })
+}
+
+/** Guard the optional `partGroups` field (Stage 3a): absent is fine; otherwise
+ *  every entry must be `{ id, name: string, partIds: string[] }` with an
+ *  optional finite `position`/`rotation` vec3. Strict — a malformed group makes
+ *  the whole spec un-restorable (matching `combineGroups`). */
+function isPartGroups(x: unknown): boolean {
+  if (x === undefined) return true
+  if (!Array.isArray(x)) return false
+  return x.every((g) => {
+    if (!g || typeof g !== 'object') return false
+    const grp = g as Record<string, unknown>
+    if (grp.position !== undefined && !isVec3(grp.position)) return false
+    if (grp.rotation !== undefined && !isVec3(grp.rotation)) return false
+    return (
+      typeof grp.id === 'string' &&
+      typeof grp.name === 'string' &&
+      Array.isArray(grp.partIds) &&
+      grp.partIds.every((id) => typeof id === 'string')
     )
   })
 }
@@ -130,8 +150,8 @@ function partsValid(parts: unknown[]): boolean {
 
 /** Minimal structural guard — enough to reject garbage without re-validating the
  *  whole geometry (the designer tolerates partial specs via its own defaults).
- *  Also validates `combineGroups` + part `role` values so a malformed blob is
- *  NOT restorable (parse returns null per its contract). */
+ *  Also validates `combineGroups` + `partGroups` + part `role` values so a
+ *  malformed blob is NOT restorable (parse returns null per its contract). */
 function isSpec(x: unknown): x is AssetEditSpec {
   if (!x || typeof x !== 'object') return false
   const s = x as Record<string, unknown>
@@ -141,8 +161,29 @@ function isSpec(x: unknown): x is AssetEditSpec {
     typeof s.sourceScale === 'number' &&
     !!s.meshOverrides &&
     typeof s.meshOverrides === 'object' &&
-    isCombineGroups(s.combineGroups)
+    isCombineGroups(s.combineGroups) &&
+    isPartGroups(s.partGroups)
   )
+}
+
+/** The shared-envelope codec for the designer's `AssetEditSpec`. */
+const ASSET_CODEC: EnvelopeCodec<AssetEditSpec> = {
+  kind: 'asset',
+  version: ASSET_SPEC_VERSION,
+  isValid: isSpec,
+  migrate: migrateAssetSpec,
+  // Legacy pre-envelope shape: `{ v: number, spec: AssetEditSpec }`.
+  parseLegacy: (parsed) => {
+    if (!parsed || typeof parsed !== 'object') return null
+    const rec = parsed as Record<string, unknown>
+    if (typeof rec.v !== 'number' || rec.spec === undefined) return null
+    return { v: rec.v, payload: rec.spec }
+  },
+}
+
+/** Serialise a spec to the versioned envelope JSON string stored on the def. */
+export function serializeAssetSpec(spec: AssetEditSpec): string {
+  return serializeEnvelope(ASSET_CODEC, spec)
 }
 
 /**
@@ -151,16 +192,5 @@ function isSpec(x: unknown): x is AssetEditSpec {
  * "not restorable", falling back to the frozen-source path.
  */
 export function parseAssetSpec(json: string | undefined | null): AssetEditSpec | null {
-  if (!json) return null
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(json)
-  } catch {
-    return null
-  }
-  if (!parsed || typeof parsed !== 'object') return null
-  const env = parsed as Partial<AssetSpecEnvelope>
-  if (typeof env.v !== 'number' || !isSpec(env.spec)) return null
-  // Migrate older envelopes up to the current shape (v1→v2 is the identity).
-  return migrateAssetSpec(env.spec, env.v)
+  return parseEnvelope(ASSET_CODEC, json)
 }

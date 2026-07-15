@@ -125,8 +125,34 @@ shrinking — every stage extracts modules, never grows the monolith.
 | `gradient` (baked) | core `COLOR_0` + `vertexColors` | ✅ | Combine (CSG) drops COLOR_0 (position+normal only) → gradient not offered on mesh parts. |
 
 ## Stage 3 — Components, fittings, templates, groups
+### Stage 3a — spec-envelope unification + part grouping/hierarchy — ✅ SHIPPED (v0.21.2.33)
+- ✅ **One versioned spec envelope** (`furniture/specEnvelope.ts`, pure + unit-tested): a shared
+  `{ kind: 'asset' | 'configured', v, payload }` envelope + `EnvelopeCodec` (strict guard +
+  version migration + `parseLegacy` recogniser). `assetSpec` (`glbEdit/specPersist.ts`, kind
+  `'asset'`) and `slotSpec` (`configurator/configuredPersist.ts`, kind `'configured'`) both route
+  through the single `parseEnvelope`/`serializeEnvelope` path — `parseLegacy` keeps reading the old
+  `{v,spec}` (asset) + raw `{productId,selections}` (configured) blobs, re-saved in the envelope on
+  next write. The two def FIELDS stay separate for schema stability (the unification is the FORMAT
+  + one shared module, not a field merge). Closes the recorded Stage-1 envelope debt.
+- ✅ **Named transform groups** (`editSpec.ts` `PartGroup` — **distinct from `CombineGroup`**; UI
+  copy "Group" vs. "Combine"): `partGroups[]` with an optional group `position`/`rotation` applied
+  ON TOP of member transforms at build time. Pure ops (add / rename / update-transform / duplicate
+  (deep-copies members) / mirror / prune) + `groupTransform.ts` (three math: `groupedPartWorldPosition`
+  + `ungroupPartGroup` — flatten so nothing jumps). **Flat groups only** (no nesting / `parentGroupId`
+  — deliberate scope). A part is in at most one PartGroup AND may be in a CombineGroup independently.
+  Persistence bumped to **v4** (v1–v3 → v4 identity migration; strict `partGroups` validation).
+- ✅ **Build + gizmo:** `buildEditedObject` nests grouped parts under a three.Group carrying the
+  group transform (unit-tested: grouped part world = group transform ∘ part transform). The gizmo
+  selects + drags a whole group (LayersPanel group-row click → group proxy → `TransformControls`,
+  translate/rotate only, same 5 mm/1° snap via `groupGizmoPatch`).
+- ✅ **LayersPanel → shallow tree:** group rows (inline rename, collapse/expand, indented members),
+  Group action on the multi-select toolbar, per-group Ungroup / Duplicate / Mirror; combine ⛓ badge
+  stays distinct from group membership. Mobile parity.
+- ✅ **History/undo:** every group op is one `commit()` entry; undo of ungroup restores the group.
+
+### Stage 3 — remaining
 - **Part grouping/hierarchy:** named groups with group transforms in the spec; layer panel
-  becomes a tree; group duplicate/mirror.
+  becomes a tree; group duplicate/mirror. — ✅ done (3a)
 - **Fittings/component library:** curated hardware components (legs ×N styles, handles,
   knobs, feet, hinges, castors) as parametric mini-builders + CC0 GLB parts;
   **snap-to-surface placement** (SWOOD pattern: click a face, component lands oriented,
@@ -140,16 +166,12 @@ shrinking — every stage extracts modules, never grows the monolith.
   save grouped multi-piece designs as a set.
 
 ### Stage-1 review debts (recorded during the v0.21.2.31 review-fix cluster — address BEFORE Stage 3 lands)
-- **Unify the persisted specs under one versioned envelope.** `slotSpec` (configurator) and
-  `assetSpec` (designer) are two parallel `{v, …}` JSON blobs on `UserGltfDef` that travel the
-  same IDB-meta + save-schema path. Before Stage 3 adds a THIRD (template/component specs),
-  fold them under one versioned `{ kind, v, payload }` envelope so there's a single
-  parse/migrate/guard path instead of N copies (`specPersist.ts` is the model to generalise).
-- **Disambiguate `CombineGroup` vs. Stage-3 transform groups.** Stage 3's "part grouping/
-  hierarchy" introduces named groups with group transforms — a different concept from CSG
-  boolean `CombineGroup`s. Reserve the word **"Combine"** for booleans in UI copy NOW (already
-  the case), and pick a distinct name (e.g. "Group"/"Assembly") for the hierarchy feature so the
-  spec types + layers-panel tree don't collide.
+- ✅ **Unify the persisted specs under one versioned envelope.** DONE (Stage 3a, v0.21.2.33):
+  `furniture/specEnvelope.ts` `{ kind, v, payload }` + `EnvelopeCodec`; `assetSpec` (kind `'asset'`)
+  and `slotSpec` (kind `'configured'`) both route through it with `parseLegacy` back-compat.
+- ✅ **Disambiguate `CombineGroup` vs. Stage-3 transform groups.** DONE (Stage 3a, v0.21.2.33):
+  the transform feature is `PartGroup` / "Group" in the UI; the boolean feature stays `CombineGroup`
+  / "Combine" (⛓). A part can be in one of each independently.
 - **Define the parametric→designer bridge recipe representation.** Stage 3's "template-first
   flows" bridge the parametric generator into the designer as editable part sets. Decide the
   recipe representation up front — either embed the parametric params in the spec (re-derivable,
@@ -170,5 +192,7 @@ shrinking — every stage extracts modules, never grows the monolith.
 
 **Status:** Stage 0 **shipped** (v0.21.2.28); Stage 1 **fully shipped** — Stage 1a
 (v0.21.2.29) + Stage 1b / CSG v2 (v0.21.2.30, 2026-07-16); Stage 2 / materials **shipped**
-(v0.21.2.32, 2026-07-16). **Stage 3 (components/fittings/templates) next.** Each stage lands as
-its own commit train with an end-of-stage adversarial review; this file tracks stage state.
+(v0.21.2.32, 2026-07-16); Stage 3a / spec-envelope unification + transform groups **shipped**
+(v0.21.2.33, 2026-07-16). **Stage 3 remainder (fittings/component library, template-first flows,
+sets/modular) next.** Each stage lands as its own commit train with an end-of-stage adversarial
+review; this file tracks stage state.

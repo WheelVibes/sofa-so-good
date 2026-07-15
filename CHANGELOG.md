@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.33 — Asset Studio Stage 3a — spec-envelope unification + transform groups
+
+Folds the designer + configurator persisted recipes under one versioned envelope (the recorded
+Stage-1 review debt) and adds named part groups to the GLB Asset Designer.
+
+- **One versioned spec envelope** (`furniture/specEnvelope.ts`, pure + unit-tested): a shared
+  `{ kind: 'asset' | 'configured', v, payload }` envelope + `EnvelopeCodec` (strict payload guard +
+  version migration + a `parseLegacy` recogniser). `assetSpec` (`glbEdit/specPersist.ts`, kind
+  `'asset'`) and the configurator's `slotSpec` (`configurator/configuredPersist.ts`, kind
+  `'configured'`) now share the single `parseEnvelope`/`serializeEnvelope` path instead of two
+  ad-hoc `{v,…}` / raw-JSON blobs. `parseLegacy` keeps reading the old shapes (`{v,spec}` for asset,
+  raw `{productId,selections}` for configured) so **no existing save breaks** — re-saved in the
+  envelope on the next write. The two def FIELDS (`assetSpec`/`slotSpec` strings) stay separate for
+  schema stability. Closes the recorded envelope debt + reserves "Group" vs "Combine" naming.
+- **Named transform groups** (`editSpec.ts` `PartGroup` — distinct from the CSG `CombineGroup`):
+  `partGroups[]` with an optional group `position`/`rotation` applied ON TOP of member transforms at
+  build time. Pure ops (add / rename / update-transform / duplicate — deep-copies members / mirror /
+  prune) + `glbEdit/groupTransform.ts` (three math: `groupedPartWorldPosition`, `ungroupPartGroup`
+  which flattens the group transform into members so nothing jumps). **Flat groups only** (no nesting
+  — deliberate scope). A part is in at most one PartGroup AND may be in a CombineGroup independently.
+- **Build + gizmo** (`buildObject.ts` / `DesignerViewport` / `gizmoWriteBack.ts`): a grouped part
+  builds under a nested three.Group carrying the group transform (unit-tested: world = group
+  transform ∘ part transform). The gizmo selects + drags a whole group (LayersPanel group-row click
+  → group proxy → `TransformControls`, translate/rotate only, same 5 mm/1° snap via `groupGizmoPatch`).
+- **LayersPanel → shallow tree** (`ui/glbEditor/LayersPanel.tsx`): group rows with inline rename,
+  collapse/expand, indented member rows, and per-group Ungroup / Duplicate / Mirror; a **Group**
+  action on the multi-select toolbar. The combine ⛓ badge stays distinct from group membership.
+  Mobile parity (rows in the stacked layout, touch-revealed actions).
+- **History/undo:** every group op is one `commit()` history entry; undo of ungroup restores the
+  group intact.
+- **Persistence** bumped to **v4** (`specPersist.ts`): additive superset of v3 → v1–v3 → v4 identity
+  migration; strict validation of the new `partGroups` shape (a malformed blob is un-restorable).
+
 ## v0.21.2.32 — Asset Studio Stage 2 — Materials (finishes, presets, gradients)
 
 Physically-based finishes for the GLB Asset Designer: sheen, clearcoat, transmission (glass),

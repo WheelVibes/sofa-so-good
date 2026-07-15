@@ -143,8 +143,51 @@ describe('specPersist', () => {
     expect(restored!.parts[1].role).toBe('hole')
   })
 
-  it('the current envelope is v3', () => {
-    expect(ASSET_SPEC_VERSION).toBe(3)
+  it('the current envelope is v4', () => {
+    expect(ASSET_SPEC_VERSION).toBe(4)
+  })
+
+  it('serialises to the shared `{ kind: "asset", v, payload }` envelope', () => {
+    const json = serializeAssetSpec(createEmptySpec())
+    expect(JSON.parse(json)).toMatchObject({ kind: 'asset', v: ASSET_SPEC_VERSION })
+    expect(JSON.parse(json).payload).toBeTruthy()
+  })
+
+  it('round-trips Stage-3a transform groups (partGroups) with a transform', () => {
+    let s = addPart(addPart(createEmptySpec(), 'box'), 'cylinder')
+    const ids = s.parts.map((p) => p.id)
+    s = {
+      ...s,
+      partGroups: [{ id: 'pg1', name: 'Group 1', partIds: ids, position: [0.5, 0, 0.2] }],
+    }
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored).toEqual(s)
+    expect(restored!.partGroups).toHaveLength(1)
+    expect(restored!.partGroups![0]).toMatchObject({ name: 'Group 1', position: [0.5, 0, 0.2] })
+  })
+
+  it('rejects a malformed partGroups blob (bad transform / missing name)', () => {
+    const wrap = (spec: unknown) => parseAssetSpec(JSON.stringify({ v: ASSET_SPEC_VERSION, spec }))
+    const base = createEmptySpec()
+    // position not a vec3
+    expect(
+      wrap({ ...base, partGroups: [{ id: 'g', name: 'G', partIds: ['a'], position: [1, 2] }] }),
+    ).toBeNull()
+    // missing name
+    expect(wrap({ ...base, partGroups: [{ id: 'g', partIds: ['a'] }] })).toBeNull()
+    // not an array
+    expect(wrap({ ...base, partGroups: 'nope' })).toBeNull()
+  })
+
+  it('parses a legacy `{ v, spec }` blob (pre-envelope) — never breaks old saves', () => {
+    const s = addPart(createEmptySpec(), 'box')
+    const legacy = JSON.stringify({ v: 3, spec: s })
+    expect(parseAssetSpec(legacy)).toEqual(s)
+  })
+
+  it('rejects a wrong-kind envelope (a configured blob is not an asset)', () => {
+    const configured = JSON.stringify({ kind: 'configured', v: 1, payload: createEmptySpec() })
+    expect(parseAssetSpec(configured)).toBeNull()
   })
 
   it('migrates a v1 blob (no roles/groups) unchanged — reads editable', () => {
@@ -156,11 +199,12 @@ describe('specPersist', () => {
     expect(restored!.combineGroups).toBeUndefined()
   })
 
-  it('migrateAssetSpec: v1/v2→v3 identity, unknown version → null', () => {
+  it('migrateAssetSpec: v1/v2/v3/v4→v4 identity, unknown version → null', () => {
     const spec = createEmptySpec()
     expect(migrateAssetSpec(spec, 1)).toBe(spec)
     expect(migrateAssetSpec(spec, 2)).toBe(spec)
     expect(migrateAssetSpec(spec, 3)).toBe(spec)
+    expect(migrateAssetSpec(spec, 4)).toBe(spec)
     expect(migrateAssetSpec(spec, 99)).toBeNull()
   })
 

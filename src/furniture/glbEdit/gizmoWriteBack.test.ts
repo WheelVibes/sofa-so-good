@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { defaultPart, type ShapePart, updatePart } from './editSpec'
+import { defaultPart, type PartGroup, type ShapePart, updatePart } from './editSpec'
 import {
   GIZMO_MODES,
   type GizmoSnapshot,
+  GROUP_GIZMO_MODES,
   gizmoModesFor,
   gizmoPatch,
+  groupGizmoPatch,
   normalizeDeg,
   snapValue,
 } from './gizmoWriteBack'
@@ -148,5 +150,42 @@ describe('round-trip through updatePart (the numeric inputs’ path)', () => {
     const next = updatePart(spec, part.id, patch ?? {})
     expect(next.parts[0].position).toEqual([0.125, 0.75, -1])
     expect(next.parts[0].id).toBe(part.id)
+  })
+})
+
+describe('groupGizmoPatch — transform-group gizmo write-back (Stage 3a)', () => {
+  const group = (over: Partial<PartGroup> = {}): PartGroup => ({
+    id: 'g',
+    name: 'Group 1',
+    partIds: ['a', 'b'],
+    ...over,
+  })
+
+  it('GROUP_GIZMO_MODES excludes scale (a group has no size)', () => {
+    expect(GROUP_GIZMO_MODES.map((m) => m.mode)).toEqual(['translate', 'rotate'])
+  })
+
+  it('translate → snapped, clamped position patch', () => {
+    const patch = groupGizmoPatch(group(), 'translate', snap({ position: [0.1234, 0, 5] }))
+    expect(patch).toEqual({ position: [0.125, 0, 3] }) // 5 clamped to +3m
+  })
+
+  it('rotate → snapped, normalised rotation patch', () => {
+    const patch = groupGizmoPatch(group(), 'rotate', snap({ rotation: [0, Math.PI / 2, 0] }))
+    expect(patch).toEqual({ rotation: [0, 90, 0] })
+  })
+
+  it('returns null when the drag lands on the current transform (no churn)', () => {
+    const g = group({ position: [0.5, 0, 0] })
+    expect(groupGizmoPatch(g, 'translate', snap({ position: [0.5, 0, 0] }))).toBeNull()
+  })
+
+  it('scale mode falls back to a position patch (no group scaling)', () => {
+    const patch = groupGizmoPatch(
+      group(),
+      'scale',
+      snap({ position: [0.5, 0, 0], scale: [2, 2, 2] }),
+    )
+    expect(patch).toEqual({ position: [0.5, 0, 0] })
   })
 })

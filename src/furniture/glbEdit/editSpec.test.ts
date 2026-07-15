@@ -2,14 +2,23 @@ import { describe, expect, it } from 'vitest'
 import {
   type AssetEditSpec,
   addPart,
+  addPartGroup,
   createEmptySpec,
   defaultPart,
   duplicatePart,
+  duplicatePartGroup,
   isBuildable,
   mirrorPart,
+  mirrorPartGroup,
+  partGroupForPart,
+  partGroupMemberIds,
+  partGroups,
   removePart,
+  removePartGroupRaw,
+  renamePartGroup,
   setMeshOverride,
   updatePart,
+  updatePartGroupTransform,
 } from './editSpec'
 
 describe('AssetEditSpec', () => {
@@ -207,5 +216,85 @@ describe('per-part texture finish (GE3c) — schema + back-compat', () => {
     // Editing a legacy part never invents a finish.
     const next = updatePart(revived, 'a', { color: '#112233' })
     expect(next.parts[0]!.finish).toBeUndefined()
+  })
+})
+
+describe('transform groups (Stage 3a)', () => {
+  function twoBoxes() {
+    const s = addPart(addPart(createEmptySpec(), 'box'), 'box')
+    return { s, ids: s.parts.map((p) => p.id) }
+  }
+
+  it('addPartGroup records a named group over ≥1 distinct existing parts', () => {
+    const { s, ids } = twoBoxes()
+    const { spec, groupId } = addPartGroup(s, ids)
+    expect(groupId).toBeTruthy()
+    expect(partGroups(spec)).toHaveLength(1)
+    expect(partGroups(spec)[0]).toMatchObject({ name: 'Group 1', partIds: ids })
+    expect(partGroupForPart(spec, ids[0])?.id).toBe(groupId)
+    expect([...partGroupMemberIds(spec)]).toEqual(ids)
+  })
+
+  it('addPartGroup rejects a part already in another transform group', () => {
+    const { s, ids } = twoBoxes()
+    const first = addPartGroup(s, [ids[0]]).spec
+    // ids[0] is already grouped — a new group over it is rejected.
+    const { groupId } = addPartGroup(first, ids)
+    expect(groupId).toBeNull()
+  })
+
+  it('rename / transform update are immutable + clear identity transforms', () => {
+    const { s, ids } = twoBoxes()
+    const { spec, groupId } = addPartGroup(s, ids)
+    const named = renamePartGroup(spec, groupId!, 'Legs')
+    expect(partGroups(named)[0].name).toBe('Legs')
+    const moved = updatePartGroupTransform(named, groupId!, { position: [0.5, 0, 0] })
+    expect(partGroups(moved)[0].position).toEqual([0.5, 0, 0])
+    // Setting the transform back to zero clears the field (identity → absent).
+    const cleared = updatePartGroupTransform(moved, groupId!, { position: [0, 0, 0] })
+    expect(partGroups(cleared)[0].position).toBeUndefined()
+  })
+
+  it('duplicatePartGroup deep-copies members into a new offset group', () => {
+    const { s, ids } = twoBoxes()
+    const { spec, groupId } = addPartGroup(s, ids)
+    const withXf = updatePartGroupTransform(spec, groupId!, { position: [1, 0, 0] })
+    const { spec: dup, groupId: newId } = duplicatePartGroup(withXf, groupId!)
+    expect(newId).toBeTruthy()
+    expect(newId).not.toBe(groupId)
+    expect(dup.parts).toHaveLength(4) // members deep-copied
+    expect(partGroups(dup)).toHaveLength(2)
+    const copy = partGroups(dup).find((g) => g.id === newId)!
+    // Copy is offset in +X from the original transform and shares NO part ids.
+    expect(copy.position![0]).toBeGreaterThan(1)
+    expect(copy.partIds.some((id) => ids.includes(id))).toBe(false)
+  })
+
+  it('mirrorPartGroup mirrors the group transform + its members across X=0', () => {
+    const { s, ids } = twoBoxes()
+    const positioned = updatePart(s, ids[0], { position: [0.5, 0.2, 0] })
+    const { spec, groupId } = addPartGroup(positioned, ids)
+    const withXf = updatePartGroupTransform(spec, groupId!, { position: [1, 0, 0] })
+    const { spec: mir, groupId: newId } = mirrorPartGroup(withXf, groupId!)
+    const mgroup = partGroups(mir).find((g) => g.id === newId)!
+    expect(mgroup.position![0]).toBe(-1)
+    const mMember = mir.parts.find((p) => p.id === mgroup.partIds[0])!
+    expect(mMember.position[0]).toBe(-0.5)
+  })
+
+  it('removePart prunes a member from its transform group (empty group dropped)', () => {
+    const { s, ids } = twoBoxes()
+    const { spec } = addPartGroup(s, [ids[0]])
+    const after = removePart(spec, ids[0])
+    expect(partGroups(after)).toHaveLength(0)
+    expect(after.partGroups).toBeUndefined()
+  })
+
+  it('removePartGroupRaw drops the group without touching member transforms', () => {
+    const { s, ids } = twoBoxes()
+    const { spec, groupId } = addPartGroup(s, ids)
+    const after = removePartGroupRaw(spec, groupId!)
+    expect(partGroups(after)).toHaveLength(0)
+    expect(after.parts).toEqual(spec.parts) // members untouched
   })
 })

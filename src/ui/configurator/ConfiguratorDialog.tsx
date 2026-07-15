@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useModalGuard } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
 import { composeProduct } from '../../furniture/configurator/compose'
+import { parseConfiguredSpec } from '../../furniture/configurator/configuredPersist'
 import { clampConfig, offeredOptions, productLabel } from '../../furniture/configurator/model'
 import {
   CONFIGURABLE_PRODUCTS,
@@ -53,17 +54,16 @@ export function ConfiguratorDialog() {
     if (!open) return
     const editJson = useStore.getState().configuratorEditSpec
     let seeded = false
-    if (editJson) {
-      try {
-        const parsed = JSON.parse(editJson) as { productId?: string; selections?: Selections }
-        const p = parsed.productId ? getConfigurableProduct(parsed.productId) : null
-        if (p) {
-          setProductId(p.id)
-          setSelections(clampConfig(p, { selections: parsed.selections ?? {} }).selections)
-          seeded = true
-        }
-      } catch {
-        // Malformed recipe → fall through to a fresh product.
+    // Parse through the shared versioned envelope (Stage 3a) — handles both the
+    // new `{ kind:'configured', … }` envelope and legacy raw-JSON blobs; returns
+    // null (→ fresh product) for anything malformed.
+    const parsed = parseConfiguredSpec(editJson)
+    if (parsed) {
+      const p = getConfigurableProduct(parsed.productId)
+      if (p) {
+        setProductId(p.id)
+        setSelections(clampConfig(p, { selections: parsed.selections }).selections)
+        seeded = true
       }
     }
     if (!seeded) {

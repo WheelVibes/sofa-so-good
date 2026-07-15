@@ -5,6 +5,7 @@ import {
   Mesh,
   type MeshPhysicalMaterial,
   MeshStandardMaterial,
+  Vector3,
 } from 'three'
 import { describe, expect, it } from 'vitest'
 import { buildMaterial } from '../../materials/cache'
@@ -20,6 +21,7 @@ import {
 import {
   addCombineGroup,
   addPart,
+  addPartGroup,
   createEmptySpec,
   DEFAULT_PART_METALNESS,
   DEFAULT_PART_ROUGHNESS,
@@ -27,7 +29,10 @@ import {
   SHAPE_KINDS,
   type ShapePart,
   setPartRole,
+  updatePart,
+  updatePartGroupTransform,
 } from './editSpec'
+import { groupedPartWorldPosition } from './groupTransform'
 
 /** Simulate the furniture material loader having built `mat:<id>` into the
  *  shared cache (the same pattern as `furnitureMaterialFinish.test.ts` — a
@@ -442,5 +447,45 @@ describe('buildEditedObject — CSG v2 combine groups (Stage 1b)', () => {
     const obj = buildEditedObject(null, s)
     expect(obj.children).toHaveLength(2)
     expect(obj.children.map((o) => o.name)).toEqual(['box-1', 'cylinder-2'])
+  })
+})
+
+describe('buildEditedObject — transform groups (Stage 3a)', () => {
+  it('builds a grouped part at group transform ∘ part transform (world position)', () => {
+    let s = addPart(addPart(createEmptySpec(), 'box'), 'box')
+    const ids = s.parts.map((p) => p.id)
+    s = updatePart(s, ids[0], { position: [0.5, 0.2, 0] })
+    s = updatePart(s, ids[1], { position: [-0.5, 0.2, 0] })
+    const { spec, groupId } = addPartGroup(s, ids)
+    const withXf = updatePartGroupTransform(spec, groupId!, {
+      position: [1, 0, 0.3],
+      rotation: [0, 90, 0],
+    })
+    const obj = buildEditedObject(null, withXf)
+    obj.updateMatrixWorld(true)
+    // The group is one nested container child; each member's WORLD position must
+    // equal the pure `groupedPartWorldPosition` invariant.
+    const container = obj.children.find((c) => c.name === 'group-1')!
+    expect(container).toBeTruthy()
+    expect(container.children).toHaveLength(2)
+    const group = withXf.partGroups![0]
+    withXf.parts.forEach((part) => {
+      const mesh = container.children.find((m) => m.position.equals(new Vector3(...part.position)))!
+      const world = mesh.getWorldPosition(new Vector3())
+      const expected = groupedPartWorldPosition(group, part)
+      expect(world.x).toBeCloseTo(expected[0], 5)
+      expect(world.y).toBeCloseTo(expected[1], 5)
+      expect(world.z).toBeCloseTo(expected[2], 5)
+    })
+  })
+
+  it('an ungrouped part still builds at the asset root (back-compat)', () => {
+    const s = addPart(addPart(createEmptySpec(), 'box'), 'cylinder')
+    const ids = s.parts.map((p) => p.id)
+    const { spec, groupId } = addPartGroup(s, [ids[0]])
+    void groupId
+    const obj = buildEditedObject(null, spec)
+    // One group container (holding the box) + the ungrouped cylinder at root.
+    expect(obj.children.map((c) => c.name).sort()).toEqual(['cylinder-2', 'group-1'])
   })
 })

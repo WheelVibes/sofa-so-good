@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MathUtils, Mesh, type Object3D } from 'three'
+import { type Group, MathUtils, Mesh, type Object3D } from 'three'
 import { useModalGuard } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
 import { buildEditedObject } from '../../furniture/glbEdit/buildObject'
@@ -10,25 +10,34 @@ import {
   type AssetEditSpec,
   addCombineGroup,
   addPart,
+  addPartGroup,
   bakeCombineGroup,
   combinedPartIds,
   combineGroups,
   createEmptySpec,
   duplicatePart,
+  duplicatePartGroup,
   isBuildable,
   mirrorPart,
+  mirrorPartGroup,
   newPartId,
+  partGroupMemberIds,
+  partGroups,
   removeCombineGroup,
   removePart,
+  renamePartGroup,
   setMeshOverride,
   updatePart,
+  updatePartGroupTransform,
 } from '../../furniture/glbEdit/editSpec'
 import {
   GIZMO_MODES,
   type GizmoMode,
   gizmoModesFor,
   gizmoPatch,
+  groupGizmoPatch,
 } from '../../furniture/glbEdit/gizmoWriteBack'
+import { ungroupPartGroup } from '../../furniture/glbEdit/groupTransform'
 import { exportAndSaveAsset, placementFlags } from '../../furniture/glbEdit/saveAsset'
 import {
   createSpecHistory,
@@ -50,6 +59,7 @@ import { useIsMobile } from '../useIsMobile'
 import { CombinePanel } from './CombinePanel'
 import { DesignerToolbar } from './DesignerToolbar'
 import { DesignerViewport } from './DesignerViewport'
+import { GroupInspector } from './GroupInspector'
 import { LayersPanel } from './LayersPanel'
 import { PartInspector } from './PartInspector'
 import { type PlacementKind, SavePanel } from './SavePanel'
@@ -103,12 +113,23 @@ export function GlbDesignerDialog() {
   const doUndo = () => setHist((h) => histUndo(h))
   const doRedo = () => setHist((h) => histRedo(h))
 
-  // Select one part (resets the multi-selection). `null` clears it.
-  const setSelId = (id: string | null) => setSelIds(id ? [id] : [])
+  // Select one part (resets the multi-selection + clears any group selection).
+  // `null` clears it.
+  const setSelId = (id: string | null) => {
+    setSelIds(id ? [id] : [])
+    if (id) setSelGroupId(null)
+  }
   // Toggle a part in/out of the multi-selection (shift/⌘-click or select mode).
-  const toggleSel = (id: string) =>
+  const toggleSel = (id: string) => {
+    setSelGroupId(null)
     setSelIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
+  }
   const onSelectPart = (id: string, additive: boolean) => (additive ? toggleSel(id) : setSelId(id))
+  // Select a whole transform group for the group gizmo (clears part selection).
+  const selectGroup = (id: string) => {
+    setSelIds([])
+    setSelGroupId((cur) => (cur === id ? null : id))
+  }
 
   // ---- Live combine-group evaluation (CSG v2, off the main thread) --------
   const {
@@ -125,6 +146,9 @@ export function GlbDesignerDialog() {
   // one; additive click toggles.
   const [selIds, setSelIds] = useState<string[]>([])
   const selId = selIds.length > 0 ? selIds[selIds.length - 1] : null
+  // The selected TRANSFORM group (Stage 3a) — the group gizmo target. Mutually
+  // exclusive with the part selection.
+  const [selGroupId, setSelGroupId] = useState<string | null>(null)
   const [selectMode, setSelectMode] = useState(false)
   const [combining, setCombining] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -160,6 +184,31 @@ export function GlbDesignerDialog() {
   useEffect(() => {
     setSelMesh(selId ? (meshRegistry.current.get(selId) ?? null) : null)
   }, [selId])
+
+  // ---- Group gizmo (Stage 3a) — a registry of transform-group id → container
+  // Object3D, mirroring the per-part mesh registry so the gizmo can attach to a
+  // whole group. -----------------------------------------------------------
+  const [selGroupObj, setSelGroupObj] = useState<Group | null>(null)
+  const groupRegistry = useRef(new Map<string, Group>())
+  const groupRefCallbacks = useRef(new Map<string, (g: Group | null) => void>())
+  const selGroupIdRef = useRef(selGroupId)
+  selGroupIdRef.current = selGroupId
+  const groupRefFor = (id: string) => {
+    let cb = groupRefCallbacks.current.get(id)
+    if (!cb) {
+      cb = (g: Group | null) => {
+        if (g) groupRegistry.current.set(id, g)
+        else groupRegistry.current.delete(id)
+        const want = selGroupIdRef.current
+        setSelGroupObj(want ? (groupRegistry.current.get(want) ?? null) : null)
+      }
+      groupRefCallbacks.current.set(id, cb)
+    }
+    return cb
+  }
+  useEffect(() => {
+    setSelGroupObj(selGroupId ? (groupRegistry.current.get(selGroupId) ?? null) : null)
+  }, [selGroupId])
 
   // This dialog is a modal-style overlay that doesn't build on `Modal`, so it
   // registers with the modal guard itself: global scene hotkeys (incl. the
@@ -257,10 +306,12 @@ export function GlbDesignerDialog() {
       setCategory('others')
       setPlacement('floor')
       setSelIds([])
+      setSelGroupId(null)
       setSelectMode(false)
       setOverwrite(false)
       setGizmoMode('translate')
       setSelMesh(null)
+      setSelGroupObj(null)
       sourceSceneRef.current = null
     }
   }, [open])
@@ -274,6 +325,11 @@ export function GlbDesignerDialog() {
   const eligibleCombineIds = selIds.filter((id) => !consumedIds.has(id))
   const groups = combineGroups(spec)
   const readyResultIds = new Set([...combineResults.keys()])
+  // Transform groups (Stage 3a). Selected parts NOT already in a transform group
+  // are the ones a new Group can take (≥2 enables it).
+  const transformGroups = partGroups(spec)
+  const grouped = partGroupMemberIds(spec)
+  const eligibleGroupIds = selIds.filter((id) => !grouped.has(id))
 
   // A mesh (CSG) part has no scale mode (its triangles are baked) — fall back
   // to translate rather than showing a gizmo that can't write back.
@@ -399,6 +455,77 @@ export function GlbDesignerDialog() {
     commit((sp) => removeCombineGroup(sp, groupId))
   }
 
+  // ---- Transform group actions (Stage 3a) --------------------------------
+  // Group the selected (ungrouped) parts into one named transform group.
+  const groupSelected = () => {
+    if (eligibleGroupIds.length < 2) return
+    const { spec: next, groupId } = addPartGroup(spec, eligibleGroupIds)
+    if (!groupId) {
+      useStore.getState().notify.start({ title: "Couldn't group these parts", kind: 'error' })
+      return
+    }
+    commit(next)
+    setSelectMode(false)
+    selectGroup(groupId)
+  }
+
+  // Ungroup: release members with their transforms flattened (no jump). Undo of
+  // this restores the group (one history entry).
+  const ungroupTransform = (groupId: string) => {
+    commit((sp) => ungroupPartGroup(sp, groupId))
+    if (selGroupId === groupId) setSelGroupId(null)
+  }
+
+  const renameGroup = (groupId: string, name: string) => {
+    commit((sp) => renamePartGroup(sp, groupId, name), { coalesceKey: `group-name:${groupId}` })
+  }
+
+  // Numeric group-transform edit (the GroupInspector fields — same target as the
+  // group gizmo write-back); coalesced into one undo step.
+  const patchGroupTransform = (
+    groupId: string,
+    patch: { position?: [number, number, number]; rotation?: [number, number, number] },
+  ) => {
+    commit((sp) => updatePartGroupTransform(sp, groupId, patch), { coalesceKey: 'group-xf' })
+  }
+
+  const duplicateGroup = (groupId: string) => {
+    const { spec: next, groupId: newId } = duplicatePartGroup(spec, groupId)
+    if (!newId) return
+    commit(next)
+    selectGroup(newId)
+  }
+
+  const mirrorGroup = (groupId: string) => {
+    const { spec: next, groupId: newId } = mirrorPartGroup(spec, groupId)
+    if (!newId) return
+    commit(next)
+    selectGroup(newId)
+  }
+
+  // Write a finished GROUP gizmo drag back onto the group transform (same 5mm/1°
+  // snap as a part; coalesced into one undo step).
+  const commitGroupGizmoDrag = () => {
+    const obj = selGroupObj
+    const group = transformGroups.find((g) => g.id === selGroupId)
+    if (!obj || !group) return
+    const mode: GizmoMode = gizmoMode === 'scale' ? 'translate' : gizmoMode
+    const patch = groupGizmoPatch(group, mode, {
+      position: [obj.position.x, obj.position.y, obj.position.z],
+      rotation: [obj.rotation.x, obj.rotation.y, obj.rotation.z],
+      scale: [obj.scale.x, obj.scale.y, obj.scale.z],
+    })
+    if (patch) {
+      commit((sp) => updatePartGroupTransform(sp, group.id, patch), { coalesceKey: 'group-gizmo' })
+    } else {
+      // No-op drag — snap the object back to the spec transform.
+      const p = group.position ?? [0, 0, 0]
+      const r = group.rotation ?? [0, 0, 0]
+      obj.position.set(p[0], p[1], p[2])
+      obj.rotation.set(MathUtils.degToRad(r[0]), MathUtils.degToRad(r[1]), MathUtils.degToRad(r[2]))
+    }
+  }
+
   const save = async () => {
     if (!isBuildable(spec) || busy) return
     const notify = useStore.getState().notify
@@ -508,13 +635,16 @@ export function GlbDesignerDialog() {
               results={combineResults}
               sel={sel}
               selMesh={selMesh}
+              selGroupObj={selGroupObj}
               finishIds={finishIds}
               sourceUrl={sourceUrl}
               gizmoActive={gizmoActive}
               setGizmoMode={setGizmoMode}
               meshRefFor={meshRefFor}
+              groupRefFor={groupRefFor}
               onScene={onScene}
               onCommitGizmoDrag={commitGizmoDrag}
+              onCommitGroupGizmoDrag={commitGroupGizmoDrag}
             />
           </div>
 
@@ -559,9 +689,17 @@ export function GlbDesignerDialog() {
             <LayersPanel
               spec={spec}
               selIds={selIds}
+              selGroupId={selGroupId}
               selectMode={selectMode}
+              eligibleGroupCount={eligibleGroupIds.length}
               onSelect={onSelectPart}
+              onSelectGroup={selectGroup}
               onToggleSelectMode={() => setSelectMode((v) => !v)}
+              onGroup={groupSelected}
+              onUngroup={ungroupTransform}
+              onRenameGroup={renameGroup}
+              onDuplicateGroup={duplicateGroup}
+              onMirrorGroup={mirrorGroup}
               onDuplicate={duplicate}
               onRemove={remove}
             />
@@ -577,6 +715,22 @@ export function GlbDesignerDialog() {
                 onMirror={mirror}
               />
             ) : null}
+
+            {!sel && selGroupId
+              ? (() => {
+                  const g = transformGroups.find((x) => x.id === selGroupId)
+                  return g ? (
+                    <GroupInspector
+                      group={g}
+                      onRename={(name) => renameGroup(g.id, name)}
+                      onPatchTransform={(patch) => patchGroupTransform(g.id, patch)}
+                      onUngroup={() => ungroupTransform(g.id)}
+                      onDuplicate={() => duplicateGroup(g.id)}
+                      onMirror={() => mirrorGroup(g.id)}
+                    />
+                  ) : null
+                })()
+              : null}
 
             {spec.parts.length > 1 || groups.length > 0 ? (
               <CombinePanel

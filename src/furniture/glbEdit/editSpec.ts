@@ -63,6 +63,30 @@ export interface CombineGroup {
  *  lives here so the spec type is self-contained (no import cycle). */
 export type CombineOp = 'union' | 'subtract' | 'intersect'
 
+/** A named TRANSFORM group (Asset Studio Stage 3a). **Distinct from a
+ *  `CombineGroup`** — which fuses parts with a CSG boolean. A `PartGroup` keeps
+ *  its members as separate meshes but moves/rotates them together as one unit via
+ *  an optional group `position`/`rotation` applied ON TOP of each member's own
+ *  transform at build time (grouped part world = group transform ∘ part
+ *  transform). Ungrouping FLATTENS the group transform into each member so
+ *  nothing jumps. **Flat only** — a PartGroup never nests inside another
+ *  (deliberate Stage-3a scope: no `parentGroupId`). A part is in at most ONE
+ *  PartGroup, and MAY also be in a CombineGroup independently. UI vocabulary is
+ *  "Group" (the boolean feature stays "Combine"). */
+export interface PartGroup {
+  id: string
+  /** Display name in the layers tree (e.g. "Group 1"). */
+  name: string
+  /** Member part ids, in add order. ≥1 member. */
+  partIds: string[]
+  /** Group origin offset in metres, applied on top of member positions. Absent →
+   *  [0,0,0] (no offset). */
+  position?: [number, number, number]
+  /** Group rotation in DEGREES (Euler XYZ), applied on top of member rotations.
+   *  Absent → no rotation. */
+  rotation?: [number, number, number]
+}
+
 /** All primitive kinds, in palette order. Source of truth for the designer's
  *  "add shape" controls + the geometry switch in `buildObject.ts`. (`mesh` is
  *  deliberately absent — a mesh part is only ever produced by combining.) */
@@ -261,6 +285,11 @@ export interface AssetEditSpec {
    *  no combines (every part renders on its own). Each group references ≥2
    *  member `parts` that stay editable; the built result is evaluated lazily. */
   combineGroups?: CombineGroup[]
+  /** Named transform groups (Stage 3a). Absent/empty → no groups (every part
+   *  builds at its own transform). A group's members build under a shared
+   *  parent transform (`PartGroup.position`/`rotation`). Independent of
+   *  `combineGroups` — a part can be in both. */
+  partGroups?: PartGroup[]
 }
 
 export function createEmptySpec(): AssetEditSpec {
@@ -353,7 +382,8 @@ export function removePart(spec: AssetEditSpec, id: string): AssetEditSpec {
   const parts = spec.parts.filter((p) => p.id !== id)
   // A part removed from under a combine group is pruned from its member list; a
   // group left with <2 members is dissolved (its survivor becomes a free part).
-  return pruneCombineGroups({ ...spec, parts })
+  // Transform groups are pruned too (an empty group is dropped).
+  return prunePartGroups(pruneCombineGroups({ ...spec, parts }))
 }
 
 let groupSeq = 0
@@ -489,22 +519,243 @@ export function bakeCombineGroup(
   return removeCombineGroup({ ...spec, parts }, groupId)
 }
 
+// ---- Transform groups (Stage 3a) -----------------------------------------
+
+let partGroupSeq = 0
+/** Fresh unique transform-group id (internal — minted only by `addPartGroup`). */
+function newPartGroupId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `pg-${crypto.randomUUID()}`
+  }
+  partGroupSeq += 1
+  return `pg-${Date.now().toString(36)}-${partGroupSeq}`
+}
+
+/** The transform groups on a spec (never undefined). */
+export function partGroups(spec: AssetEditSpec): PartGroup[] {
+  return spec.partGroups ?? []
+}
+
+/** The transform group that owns `partId`, or null when the part is ungrouped. */
+export function partGroupForPart(spec: AssetEditSpec, partId: string): PartGroup | null {
+  return partGroups(spec).find((g) => g.partIds.includes(partId)) ?? null
+}
+
+/** Ids of every part that belongs to some transform group. */
+export function partGroupMemberIds(spec: AssetEditSpec): Set<string> {
+  const set = new Set<string>()
+  for (const g of partGroups(spec)) for (const id of g.partIds) set.add(id)
+  return set
+}
+
+/** Return a spec with no `partGroups` field (keeps round-trips byte-identical to
+ *  a fresh spec once the last group is gone). */
+function stripPartGroups(spec: AssetEditSpec): AssetEditSpec {
+  if (spec.partGroups === undefined) return spec
+  const { partGroups: _drop, ...rest } = spec
+  return rest
+}
+
+/** Drop any member id that no longer names an existing part, and remove groups
+ *  left with no members. Keeps the field absent when there are none. */
+function prunePartGroups(spec: AssetEditSpec): AssetEditSpec {
+  const groups = partGroups(spec)
+  if (groups.length === 0) return spec
+  const live = new Set(spec.parts.map((p) => p.id))
+  const next = groups
+    .map((g) => ({ ...g, partIds: g.partIds.filter((id) => live.has(id)) }))
+    .filter((g) => g.partIds.length >= 1)
+  if (
+    next.length === groups.length &&
+    next.every((g, i) => g.partIds.length === groups[i].partIds.length)
+  ) {
+    return spec
+  }
+  return next.length > 0 ? { ...spec, partGroups: next } : stripPartGroups(spec)
+}
+
+/**
+ * Record a new transform group over `partIds` (add order). Guards: ≥1 distinct
+ * existing part, none already in another transform group (a part is in at most
+ * one PartGroup). The members keep their own transforms — the group starts with
+ * an identity transform. Returns the spec unchanged (+ `groupId: null`) if the
+ * inputs are invalid.
+ */
+export function addPartGroup(
+  spec: AssetEditSpec,
+  partIds: string[],
+): { spec: AssetEditSpec; groupId: string | null } {
+  const distinct = [...new Set(partIds)]
+  const live = new Set(spec.parts.map((p) => p.id))
+  const alreadyGrouped = partGroupMemberIds(spec)
+  if (distinct.length < 1 || distinct.some((id) => !live.has(id) || alreadyGrouped.has(id))) {
+    return { spec, groupId: null }
+  }
+  const groups = partGroups(spec)
+  const id = newPartGroupId()
+  const group: PartGroup = { id, name: `Group ${groups.length + 1}`, partIds: distinct }
+  return { spec: { ...spec, partGroups: [...groups, group] }, groupId: id }
+}
+
+/** Rename a transform group immutably. No-op for an unknown id or a blank name. */
+export function renamePartGroup(spec: AssetEditSpec, groupId: string, name: string): AssetEditSpec {
+  const trimmed = name.trim()
+  if (!trimmed) return spec
+  const groups = partGroups(spec)
+  if (!groups.some((g) => g.id === groupId)) return spec
+  return {
+    ...spec,
+    partGroups: groups.map((g) => (g.id === groupId ? { ...g, name: trimmed } : g)),
+  }
+}
+
+/** Set the group's transform immutably. An all-zero position/rotation clears the
+ *  field so the spec stays clean (identity → absent). No-op for an unknown id. */
+export function updatePartGroupTransform(
+  spec: AssetEditSpec,
+  groupId: string,
+  patch: { position?: [number, number, number]; rotation?: [number, number, number] },
+): AssetEditSpec {
+  const groups = partGroups(spec)
+  if (!groups.some((g) => g.id === groupId)) return spec
+  const isZero = (t?: [number, number, number]) => !t || t.every((v) => v === 0)
+  return {
+    ...spec,
+    partGroups: groups.map((g) => {
+      if (g.id !== groupId) return g
+      const next: PartGroup = { ...g }
+      if (patch.position !== undefined) {
+        if (isZero(patch.position)) delete next.position
+        else next.position = patch.position
+      }
+      if (patch.rotation !== undefined) {
+        if (isZero(patch.rotation)) delete next.rotation
+        else next.rotation = patch.rotation
+      }
+      return next
+    }),
+  }
+}
+
+/** Remove a transform group's entity WITHOUT touching its members' transforms.
+ *  Only correct on its own when the group transform is identity — the flattening
+ *  ungroup (`groupTransform.ts:ungroupPartGroup`) uses this after baking the
+ *  group transform into each member so nothing jumps. No-op for an unknown id. */
+export function removePartGroupRaw(spec: AssetEditSpec, groupId: string): AssetEditSpec {
+  const groups = partGroups(spec)
+  const next = groups.filter((g) => g.id !== groupId)
+  if (next.length === groups.length) return spec
+  return next.length > 0 ? { ...spec, partGroups: next } : stripPartGroups(spec)
+}
+
+/** Deep-copy one part with a fresh id (shared by duplicate/mirror of parts +
+ *  groups). `xform` remaps position/rotation for a mirror; identity for a plain
+ *  copy. Arrays are deep-copied so the clone never shares a mutable tuple. */
+function clonePart(
+  src: ShapePart,
+  xform: (p: ShapePart) => Pick<ShapePart, 'position' | 'rotation'>,
+): ShapePart {
+  const { position, rotation } = xform(src)
+  return {
+    ...src,
+    id: newPartId(),
+    position,
+    size: [...src.size],
+    rotation: rotation ? [...rotation] : undefined,
+    profile: src.profile ? src.profile.map((p) => [...p]) : undefined,
+    outline: src.outline ? src.outline.map((p) => [...p]) : undefined,
+    gradient: src.gradient ? { ...src.gradient } : undefined,
+  }
+}
+
+/**
+ * Duplicate a whole transform group: DEEP-COPY every member (fresh ids), append
+ * the copies, and add a new group over them offset slightly (+X) from the
+ * original's transform so it's visible. Returns `{ spec, groupId }` with the new
+ * group id (or the spec unchanged + null for an unknown id).
+ */
+export function duplicatePartGroup(
+  spec: AssetEditSpec,
+  groupId: string,
+): { spec: AssetEditSpec; groupId: string | null } {
+  const group = partGroups(spec).find((g) => g.id === groupId)
+  if (!group) return { spec, groupId: null }
+  const copies: ShapePart[] = []
+  for (const id of group.partIds) {
+    const src = spec.parts.find((p) => p.id === id)
+    if (!src) continue
+    copies.push(clonePart(src, (p) => ({ position: [...p.position], rotation: p.rotation })))
+  }
+  if (copies.length === 0) return { spec, groupId: null }
+  const gp = group.position ?? [0, 0, 0]
+  const groups = partGroups(spec)
+  const newId = newPartGroupId()
+  const copyGroup: PartGroup = {
+    id: newId,
+    name: `Group ${groups.length + 1}`,
+    partIds: copies.map((p) => p.id),
+    position: [gp[0] + 0.3, gp[1], gp[2]],
+    rotation: group.rotation ? [...group.rotation] : undefined,
+  }
+  return {
+    spec: { ...spec, parts: [...spec.parts, ...copies], partGroups: [...groups, copyGroup] },
+    groupId: newId,
+  }
+}
+
+/**
+ * Mirror a whole transform group across the asset's centre (the X=0 / YZ plane):
+ * deep-copy every member mirrored (same convention as `mirrorPart` — X negated,
+ * Y/Z rotations negated) and add a new group whose transform is likewise
+ * mirrored, so a symmetric assembly (two arms, a leg cluster) is one click.
+ * Returns `{ spec, groupId }`.
+ */
+export function mirrorPartGroup(
+  spec: AssetEditSpec,
+  groupId: string,
+): { spec: AssetEditSpec; groupId: string | null } {
+  const group = partGroups(spec).find((g) => g.id === groupId)
+  if (!group) return { spec, groupId: null }
+  const copies: ShapePart[] = []
+  for (const id of group.partIds) {
+    const src = spec.parts.find((p) => p.id === id)
+    if (!src) continue
+    copies.push(
+      clonePart(src, (p) => ({
+        position: [-p.position[0], p.position[1], p.position[2]],
+        rotation: p.rotation ? [p.rotation[0], -p.rotation[1], -p.rotation[2]] : undefined,
+      })),
+    )
+  }
+  if (copies.length === 0) return { spec, groupId: null }
+  const gp = group.position ?? [0, 0, 0]
+  const gr = group.rotation
+  const groups = partGroups(spec)
+  const newId = newPartGroupId()
+  const mirroredPos: [number, number, number] = [-gp[0], gp[1], gp[2]]
+  const mirrorGroup: PartGroup = {
+    id: newId,
+    name: `Group ${groups.length + 1}`,
+    partIds: copies.map((p) => p.id),
+    ...(mirroredPos.some((v) => v !== 0) ? { position: mirroredPos } : {}),
+    ...(gr ? { rotation: [gr[0], -gr[1], -gr[2]] as [number, number, number] } : {}),
+  }
+  return {
+    spec: { ...spec, parts: [...spec.parts, ...copies], partGroups: [...groups, mirrorGroup] },
+    groupId: newId,
+  }
+}
+
 /** Clone a part (full transform + material), offset slightly along X so the copy
  *  is visible, and append it. Returns the spec unchanged if the id is unknown.
  *  Arrays are deep-copied so the clone never shares a mutable tuple. */
 export function duplicatePart(spec: AssetEditSpec, id: string): AssetEditSpec {
   const src = spec.parts.find((p) => p.id === id)
   if (!src) return spec
-  const copy: ShapePart = {
-    ...src,
-    id: newPartId(),
-    position: [src.position[0] + 0.2, src.position[1], src.position[2]],
-    size: [...src.size],
-    rotation: src.rotation ? [...src.rotation] : undefined,
-    profile: src.profile ? src.profile.map((p) => [...p]) : undefined,
-    outline: src.outline ? src.outline.map((p) => [...p]) : undefined,
-    gradient: src.gradient ? { ...src.gradient } : undefined,
-  }
+  const copy = clonePart(src, (p) => ({
+    position: [p.position[0] + 0.2, p.position[1], p.position[2]],
+    rotation: p.rotation,
+  }))
   return { ...spec, parts: [...spec.parts, copy] }
 }
 
@@ -517,16 +768,10 @@ export function duplicatePart(spec: AssetEditSpec, id: string): AssetEditSpec {
 export function mirrorPart(spec: AssetEditSpec, id: string): AssetEditSpec {
   const src = spec.parts.find((p) => p.id === id)
   if (!src) return spec
-  const copy: ShapePart = {
-    ...src,
-    id: newPartId(),
-    position: [-src.position[0], src.position[1], src.position[2]],
-    size: [...src.size],
-    rotation: src.rotation ? [src.rotation[0], -src.rotation[1], -src.rotation[2]] : undefined,
-    profile: src.profile ? src.profile.map((p) => [...p]) : undefined,
-    outline: src.outline ? src.outline.map((p) => [...p]) : undefined,
-    gradient: src.gradient ? { ...src.gradient } : undefined,
-  }
+  const copy = clonePart(src, (p) => ({
+    position: [-p.position[0], p.position[1], p.position[2]],
+    rotation: p.rotation ? [p.rotation[0], -p.rotation[1], -p.rotation[2]] : undefined,
+  }))
   return { ...spec, parts: [...spec.parts, copy] }
 }
 

@@ -29,7 +29,9 @@ import {
   DEFAULT_PART_ROUGHNESS,
   type GroupMaterialData,
   type MeshOverride,
+  type PartGroup,
   type PhysicalSurfaceFields,
+  partGroups,
   type ShapePart,
 } from './editSpec'
 import { applyGradientColors } from './gradient'
@@ -359,12 +361,54 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
   }
 }
 
+/** Build one primitive part into a live/export Mesh at its LOCAL transform
+ *  (local to its transform-group parent, or to the asset root when ungrouped). */
+function buildPartMesh(part: ShapePart, name: string): Mesh {
+  const mesh = new Mesh(partGeometry(part), partMaterials(part))
+  // Name parts so a saved asset's components are addressable when it's later
+  // reopened as a source for per-mesh recolour/hide.
+  mesh.name = name
+  mesh.position.set(part.position[0], part.position[1], part.position[2])
+  if (part.rotation) {
+    mesh.rotation.set(
+      MathUtils.degToRad(part.rotation[0]),
+      MathUtils.degToRad(part.rotation[1]),
+      MathUtils.degToRad(part.rotation[2]),
+    )
+  }
+  mesh.castShadow = true
+  mesh.receiveShadow = true
+  return mesh
+}
+
+/** A three.Group carrying a `PartGroup`'s shared transform (position + Euler-XYZ
+ *  degrees). Grouped part meshes are added as children so their world pose is
+ *  group transform ∘ part transform (Stage 3a). */
+function buildPartGroupContainer(g: PartGroup, name: string): Group {
+  const container = new Group()
+  container.name = name
+  const p = g.position ?? [0, 0, 0]
+  container.position.set(p[0], p[1], p[2])
+  if (g.rotation) {
+    container.rotation.set(
+      MathUtils.degToRad(g.rotation[0]),
+      MathUtils.degToRad(g.rotation[1]),
+      MathUtils.degToRad(g.rotation[2]),
+    )
+  }
+  return container
+}
+
 /**
  * Build the designer's edited asset as a three.Group, floor-anchored and centred
  * (the app's asset convention): an optional cloned + uniformly-scaled source GLB
  * plus every primitive part as a `MeshStandardMaterial` box/cylinder/sphere.
  * Pure of the store — the caller supplies the already-loaded `source` object (or
  * null for a from-scratch asset). The returned group is ready for `exportGlb`.
+ *
+ * Stage 3a (transform groups): a part that belongs to a `PartGroup` builds under
+ * a nested three.Group carrying the group's shared transform, so members move as
+ * a unit. Ungrouped parts build at the asset root as before.
  *
  * CSG v2 (Stage 1b): `results` maps a combine group's id → its evaluated `mesh`
  * result part (produced by `csgEval.evaluateAllGroups`, off the main thread).
@@ -392,6 +436,13 @@ export function buildEditedObject(
   }
 
   const consumed = combinedPartIds(spec)
+  // Transform-group containers + a member id → container lookup (Stage 3a).
+  const containerByPart = new Map<string, Group>()
+  partGroups(spec).forEach((g, i) => {
+    const container = buildPartGroupContainer(g, `group-${i + 1}`)
+    group.add(container)
+    for (const id of g.partIds) containerByPart.set(id, container)
+  })
 
   spec.parts.forEach((part, i) => {
     // A part folded into a combine group is represented by the group's baked
@@ -399,21 +450,10 @@ export function buildEditedObject(
     // its role only cuts inside a Subtract combine (least-surprising: it exports
     // as what the editor shows).
     if (consumed.has(part.id)) return
-    const mesh = new Mesh(partGeometry(part), partMaterials(part))
-    // Name parts so a saved asset's components are addressable when it's later
-    // reopened as a source for per-mesh recolour/hide.
-    mesh.name = `${part.kind}-${i + 1}`
-    mesh.position.set(part.position[0], part.position[1], part.position[2])
-    if (part.rotation) {
-      mesh.rotation.set(
-        MathUtils.degToRad(part.rotation[0]),
-        MathUtils.degToRad(part.rotation[1]),
-        MathUtils.degToRad(part.rotation[2]),
-      )
-    }
-    mesh.castShadow = true
-    mesh.receiveShadow = true
-    group.add(mesh)
+    const mesh = buildPartMesh(part, `${part.kind}-${i + 1}`)
+    // A transform-group member builds under its group container (world pose =
+    // group transform ∘ part transform); an ungrouped part at the asset root.
+    ;(containerByPart.get(part.id) ?? group).add(mesh)
   })
 
   // Bake each combine group's evaluated result into the export.

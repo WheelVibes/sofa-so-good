@@ -131,7 +131,18 @@ build one in the browser:
   *exactly* flush — overlap or offset them slightly so the cut doesn't flicker. If the
   shapes don't overlap the result can be **Empty** — an Empty combine **blocks Save** (so it
   can't silently vanish from the saved asset); fix the overlap or **Ungroup** it first.
-- **Undo / redo** — every edit (add, move, resize, recolour, combine, …) is
+- **Group shapes** — to move several shapes together as one unit, tap **Select**
+  (or shift/⌘-click rows) to pick **two or more** shapes in the **Shapes** list, then
+  hit **Group**. They appear in the list under a **Group 1** row with the members
+  indented beneath it (double-click the name to rename it; the ▸ chevron collapses
+  or expands it). Click the group row to select the whole group — a **Move / Rotate**
+  gizmo drives all of its shapes together. Each group row also has **Duplicate** (deep-copies
+  the group and its shapes), **Mirror** (mirrors it across the centre — handy for a matching
+  pair) and **Ungroup**. **Ungroup** releases the shapes exactly where they are on screen (they
+  don't jump), and it's undoable, so **⌘Z** brings the group back. A **Group** ("Group N") is
+  a different thing from a **Combine** (⛓) — a Group just moves shapes together and keeps them
+  separate; a Combine fuses them with a boolean. A shape can be in one of each.
+- **Undo / redo** — every edit (add, move, resize, recolour, combine, group, …) is
   undoable: press **⌘Z** (⇧⌘Z to redo), or use the **↶ / ↷** buttons next to
   "Add shape". A slider or gizmo drag counts as a single step.
 - **Start from an asset you designed** — if you pick one of your own

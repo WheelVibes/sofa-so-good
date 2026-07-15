@@ -1,10 +1,15 @@
 import { Bounds, OrbitControls, TransformControls, useGLTF } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Suspense, useEffect } from 'react'
-import type { Mesh, Object3D } from 'three'
+import type { Group, Mesh, Object3D } from 'three'
 import { EnsureFurnitureMaterials } from '../../furniture/FurnitureMaterialLoader'
 import type { AssetEditSpec, ShapePart } from '../../furniture/glbEdit/editSpec'
-import { GIZMO_MODES, type GizmoMode, gizmoModesFor } from '../../furniture/glbEdit/gizmoWriteBack'
+import {
+  GIZMO_MODES,
+  type GizmoMode,
+  GROUP_GIZMO_MODES,
+  gizmoModesFor,
+} from '../../furniture/glbEdit/gizmoWriteBack'
 import { secureGltfLoader } from '../../furniture/gltf/loaderSecurity'
 import { PartsPreview } from './PartsPreview'
 
@@ -52,26 +57,37 @@ export function DesignerViewport({
   results,
   sel,
   selMesh,
+  selGroupObj,
   finishIds,
   sourceUrl,
   gizmoActive,
   setGizmoMode,
   meshRefFor,
+  groupRefFor,
   onScene,
   onCommitGizmoDrag,
+  onCommitGroupGizmoDrag,
 }: {
   spec: AssetEditSpec
   results: Map<string, ShapePart>
   sel: ShapePart | null
   selMesh: Mesh | null
+  /** The selected transform-group's container object (Stage 3a) — the gizmo
+   *  attaches to it instead of a part mesh. Mutually exclusive with `sel`. */
+  selGroupObj: Group | null
   finishIds: string[]
   sourceUrl: string | null
   gizmoActive: GizmoMode
   setGizmoMode: (m: GizmoMode) => void
   meshRefFor: (id: string) => (m: Mesh | null) => void
+  groupRefFor: (groupId: string) => (g: Group | null) => void
   onScene: (o: Object3D | null) => void
   onCommitGizmoDrag: () => void
+  onCommitGroupGizmoDrag: () => void
 }) {
+  // A group has no Scale gizmo (its members' sizes are their own) — clamp the
+  // shared mode to translate/rotate while a group is the gizmo target.
+  const groupGizmo: GizmoMode = gizmoActive === 'scale' ? 'translate' : gizmoActive
   return (
     <>
       {/* frameloop="demand": only repaint on demand — drei's OrbitControls +
@@ -91,7 +107,12 @@ export function DesignerViewport({
             {sourceUrl && (
               <SourceModel url={sourceUrl} scale={spec.sourceScale} onScene={onScene} />
             )}
-            <PartsPreview spec={spec} results={results} meshRefFor={meshRefFor} />
+            <PartsPreview
+              spec={spec}
+              results={results}
+              meshRefFor={meshRefFor}
+              groupRefFor={groupRefFor}
+            />
           </Bounds>
         </Suspense>
         {/* OrbitControls is makeDefault, so drei's TransformControls
@@ -100,6 +121,12 @@ export function DesignerViewport({
         <OrbitControls makeDefault />
         {sel && selMesh ? (
           <TransformControls object={selMesh} mode={gizmoActive} onMouseUp={onCommitGizmoDrag} />
+        ) : selGroupObj ? (
+          <TransformControls
+            object={selGroupObj}
+            mode={groupGizmo}
+            onMouseUp={onCommitGroupGizmoDrag}
+          />
         ) : null}
       </Canvas>
       {/* Gizmo mode switch — overlays the preview's top-left corner. */}
@@ -119,6 +146,21 @@ export function DesignerViewport({
               </button>
             ),
           )}
+        </div>
+      ) : selGroupObj ? (
+        <div className="seg" style={{ position: 'absolute', top: 8, left: 8 }}>
+          {GROUP_GIZMO_MODES.map(({ mode, label, hotkey }) => (
+            <button
+              key={mode}
+              type="button"
+              className={groupGizmo === mode ? 'on' : ''}
+              aria-label={`Group gizmo: ${label}`}
+              title={`${label} the selected group (${hotkey.toUpperCase()})`}
+              onClick={() => setGizmoMode(mode)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       ) : null}
     </>

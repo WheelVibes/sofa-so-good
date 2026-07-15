@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { MathUtils, type Mesh } from 'three'
+import { type Group, MathUtils, type Mesh } from 'three'
 import {
   type GhostVariant,
   ghostMaterial,
@@ -10,6 +10,7 @@ import {
   type AssetEditSpec,
   combinedPartIds,
   combineGroups,
+  partGroups,
   type ShapePart,
 } from '../../furniture/glbEdit/editSpec'
 import { useStore } from '../../state/store'
@@ -86,26 +87,63 @@ export function PartsPreview({
   spec,
   results,
   meshRefFor,
+  groupRefFor,
 }: {
   spec: AssetEditSpec
   results: Map<string, ShapePart>
   meshRefFor: (id: string) => (m: Mesh | null) => void
+  /** Registers each transform-group's container so the gizmo can attach to it
+   *  (Stage 3a). */
+  groupRefFor: (groupId: string) => (g: Group | null) => void
 }) {
   const consumed = combinedPartIds(spec)
+  const groups = partGroups(spec)
+  const memberToGroup = new Map<string, string>()
+  for (const g of groups) for (const id of g.partIds) memberToGroup.set(id, g.id)
+
+  // Ghost styling applies ONLY to parts consumed by a combine group: a consumed
+  // hole reads as a cut, a consumed solid as a faint proxy. A FREE hole (no
+  // group) renders as a normal solid — its role is just a marker until it's added
+  // to a Subtract combine (so the preview matches what the export bakes).
+  const ghostFor = (p: ShapePart): GhostVariant | undefined =>
+    consumed.has(p.id) ? (p.role === 'hole' ? 'hole' : 'consumed') : undefined
+
   return (
     <>
-      {spec.parts.map((p) => {
-        // Ghost styling applies ONLY to parts consumed by a combine group: a
-        // consumed hole reads as a cut, a consumed solid as a faint proxy. A
-        // FREE hole (no group) renders as a normal solid — its role is just a
-        // marker until it's added to a Subtract combine (so the preview matches
-        // what the export bakes).
-        const ghost: GhostVariant | undefined = consumed.has(p.id)
-          ? p.role === 'hole'
-            ? 'hole'
-            : 'consumed'
-          : undefined
-        return <PartMesh key={p.id} part={p} ghost={ghost} meshRef={meshRefFor(p.id)} />
+      {/* Ungrouped parts build at the asset root. */}
+      {spec.parts
+        .filter((p) => !memberToGroup.has(p.id))
+        .map((p) => (
+          <PartMesh key={p.id} part={p} ghost={ghostFor(p)} meshRef={meshRefFor(p.id)} />
+        ))}
+      {/* Transform-group members build under a container carrying the group's
+          shared transform, so their world pose = group transform ∘ part
+          transform (matches buildEditedObject). */}
+      {groups.map((g) => {
+        const rot = g.rotation
+        return (
+          <group
+            key={g.id}
+            ref={groupRefFor(g.id)}
+            position={g.position ?? [0, 0, 0]}
+            rotation={
+              rot
+                ? [
+                    MathUtils.degToRad(rot[0]),
+                    MathUtils.degToRad(rot[1]),
+                    MathUtils.degToRad(rot[2]),
+                  ]
+                : undefined
+            }
+          >
+            {g.partIds.map((id) => {
+              const p = spec.parts.find((pp) => pp.id === id)
+              return p ? (
+                <PartMesh key={id} part={p} ghost={ghostFor(p)} meshRef={meshRefFor(id)} />
+              ) : null
+            })}
+          </group>
+        )
       })}
       {combineGroups(spec).map((g) => {
         const result = results.get(g.id)
