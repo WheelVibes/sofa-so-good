@@ -36,7 +36,10 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   many independent feature-flagged pieces) were also left inline — bundling them needs a 40+ prop
   surface (passing the whole store-action snapshot), which would hurt readability more than the
   current named-fragment const. Revisit only if either grows further.
-- [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — livePrices.
+- [ ] IXT-SUITES: remaining interaction-test scenarios (C267 harness) — the `aiWalls` 2D
+  plan-trace-backdrop full-UI rung (its store-level tier gating is already covered; only the
+  backdrop-upload → "AI walls" button-mount UI leg inside `src/ui/floorplan/**` is deferred, see
+  the AI-surfaces note below). The named per-flag backfill down `FEATURE_FLAGS` is otherwise done.
   (**AI-surfaces simple rung landed** — `ai-surfaces-simple.json` (50 steps, all green): covers
   the three AI features, all pro-tier + prod-safe + BYO-key (NOT devOnly, unlike
   `ikeaLive`/`livePrices` — pure client code that fails soft with no key/sidecar):
@@ -112,6 +115,24 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
     detection via the `__detectGroups` dev hook). A full journey rung is blocked on the dialog being
     `React.lazy` (won't mount headless); the paginated-list render is instead covered by
     `GroupPanel.test.tsx` + `pageWindow.test.ts` and a temporary `?__pagerdemo` `main.tsx` mount.
+  - livePrices: **simple rung landed** (`liveprices-simple.json`, 26 steps, all green). `livePrices`
+    is `devOnly` + `pro`-tier + **default `false`**; its only UI surface is the "Live SG retailer
+    prices" checkbox in the Shopping/Budget panel (`BudgetPanel.tsx`, gated on
+    `useFeature('livePrices')`), which drives `useLivePrices` → `pingPriceSidecar()` →
+    `fetch(localhost:5175)` (the `npm run price-server` dev sidecar). Because the default is off, the
+    gating matrix is **richer than a typical pro flag** — asserted at BOTH the store-flag AND the real
+    UI-mount level: (1) Simple → `false`, toggle absent; (2) Pro → **STILL `false`** (default-off, so
+    switching mode alone does NOT reveal it — the distinguishing case vs. a default-on pro flag), toggle
+    still absent; (3) explicit dev/admin override (`setFeatureFlag('livePrices', true)`, unlocks the
+    `devOnly` flag in a privileged session) → `true`, toggle mounts **unchecked with the estimate caption
+    still showing** (reachable pre-network state); (4) back to Simple → `false` again (the pro-tier gate
+    beats the persisted LS override), toggle gone. The toggle is **deliberately never switched on** —
+    flipping it fires the sidecar `fetch`, the feature's only network contact, out of scope for a headless
+    rung per the no-sidecar rule; no stub lever was added. The sidecar client (ping/fetch/cheapest-first/
+    cache + the exact Simple/Pro/override gate matrix) is already fully pinned by
+    `src/catalog/pricing/livePrice.test.ts`, so no new unit test was needed and the wire contract stays
+    covered even though the live round-trip isn't driven. The "Pro-alone-isn't-enough for a default-off
+    pro flag" gotcha is recorded in the visual-verification playbook.
 - [ ] PARITY-VIDEO tail: MP4 transcode of the walkthrough `.webm` + a duration modal.
 - [ ] C-PLANTS/DECOR tail: curated CC0 set-dressing bundles from Poly Haven / Poly Pizza.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).

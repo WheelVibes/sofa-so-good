@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.16 — IXT-SUITES: livePrices simple rung (`liveprices-simple.json`)
+
+Back-fills the last named per-flag IXT-SUITES rung — the `livePrices` feature (`devOnly` +
+`pro`-tier + **default `false`**). Its only UI surface is the "Live SG retailer prices" checkbox in
+the Shopping/Budget panel (`BudgetPanel.tsx`, gated on `useFeature('livePrices')`), which drives
+`useLivePrices` → `pingPriceSidecar()` → `fetch(localhost:5175)` (the `npm run price-server` dev
+sidecar). New `scripts/scenarios/liveprices-simple.json` (26 steps, all green) covers the full
+gating matrix at BOTH the store-flag AND the real UI-mount level. Because the registry default is
+off, this flag is a **richer gate than a typical pro flag**: (1) Simple → `false`, toggle absent;
+(2) switch to Pro → **STILL `false`** (default-off, so switching mode alone does NOT reveal it — the
+distinguishing case vs. every default-on pro flag), toggle still absent; (3) an explicit dev/admin
+override (`setFeatureFlag('livePrices', true)`, which unlocks the `devOnly` flag in a privileged
+session) → `true`, the toggle finally mounts **unchecked with the estimate caption still showing**
+(reachable pre-network state); (4) back to Simple → `false` again (the pro-tier gate beats the
+persisted LS override), toggle gone. Verified visually: the Pro-default and Pro-override frames
+differ only by the checkbox appearing below "Export CSV". The toggle is **deliberately never switched
+on** — flipping it fires the sidecar `fetch`, the feature's only network contact, out of scope for a
+headless rung per the no-sidecar rule; no stub lever was added. The sidecar client (ping/fetch/
+cheapest-first/cache + the exact Simple/Pro/override gate matrix) is already fully pinned by
+`src/catalog/pricing/livePrice.test.ts`, so no new unit test was needed. Playbook gains a worked
+example documenting the "Pro-alone-isn't-enough for a default-off pro flag" gotcha. Docs-and-tests
+only (no app source touched); tsc + biome clean.
+
 ## v0.21.2.15 — CI: knip dead-export fix (doorwayBleed tuning constants un-exported)
 
 PR #92's knip dead-code scan flagged `BLEED_HALF_DEPTH` and `FACING_EXP` in
