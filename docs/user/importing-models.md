@@ -71,6 +71,16 @@ build one in the browser:
   (roughness, metalness, **glow** and **opacity** sliders — so a part can read as matte
   wood, polished metal, a lit neon/lamp, or translucent glass). A live 3D preview
   updates as you go.
+- **Rounded edges** — boxes and wedges gain a **Corner radius** slider that softens their
+  edges so they catch light like real furniture (0 = sharp).
+- **More shapes** — below the primitives, a **Lathe / Extrude / Sweep** row adds
+  profile-driven shapes:
+  - **Lathe** revolves a 2D profile into turned legs, bowls, vases and columns — pick a
+    **preset**, drag the profile points (or type X/Y), and set the number of **sides**.
+  - **Extrude** turns a 2D outline (rounded rectangle, ellipse, L, T, arch) into a prism with
+    a bevel on by default.
+  - **Sweep** runs a cross-section (round piping, half-round, ogee moulding, rectangle) along
+    a path (straight, L-corner, U-channel, ring) for railings, edging and mouldings.
 - **Texture a shape** — each shape also has a **Texture** picker: choose **None — solid
   colour** (the default), tap a curated **Quick finishes** swatch (Oak, Walnut, Teak, Ash,
   Ebony, Marble), or pick any catalog / downloaded CC0 material from the dropdown — the

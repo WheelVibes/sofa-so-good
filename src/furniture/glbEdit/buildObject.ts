@@ -5,7 +5,6 @@ import {
   Color,
   ConeGeometry,
   CylinderGeometry,
-  ExtrudeGeometry,
   Float32BufferAttribute,
   Group,
   type Material,
@@ -13,7 +12,6 @@ import {
   Mesh,
   MeshStandardMaterial,
   type Object3D,
-  Shape,
   SphereGeometry,
   TorusGeometry,
 } from 'three'
@@ -30,6 +28,13 @@ import {
   type MeshOverride,
   type ShapePart,
 } from './editSpec'
+import {
+  bevelledBoxGeometry,
+  extrudeGeometry,
+  latheGeometry,
+  sweepGeometry,
+  wedgeGeometry,
+} from './shapeProfiles'
 
 /** The shared cache-built material for a part's `mat:<id>` finish, or null
  *  while it isn't built yet / the id is unknown (→ solid-colour fallback).
@@ -187,7 +192,16 @@ export function partGeometry(part: ShapePart): BufferGeometry {
   const [w, h, d] = part.size
   switch (part.kind) {
     case 'box':
-      return new BoxGeometry(w, h, d)
+      // bevel 0 / absent → plain BoxGeometry (byte-identical to pre-Stage-1a).
+      return part.bevel && part.bevel > 0
+        ? bevelledBoxGeometry(w, h, d, part.bevel)
+        : new BoxGeometry(w, h, d)
+    case 'lathe':
+      return latheGeometry(part.profile ?? [], part.segments ?? 32, w, h)
+    case 'extrude':
+      return extrudeGeometry(part.outline ?? [], w, h, d, part.bevel ?? 0.02)
+    case 'sweep':
+      return sweepGeometry(part.sweepProfile ?? 'circle', part.sweepPath ?? 'ring', w, h)
     case 'cylinder':
       return new CylinderGeometry(w / 2, w / 2, h, 32)
     case 'cone':
@@ -234,20 +248,10 @@ export function partGeometry(part: ShapePart): BufferGeometry {
       }
       return geo
     }
-    case 'wedge': {
-      // Right-triangular prism (a ramp): triangle in the Z/Y plane rising toward
-      // +Z, extruded across the width (X). Built via ExtrudeGeometry so three
-      // handles winding + normals; then mapped (extrude axis Z→X) and centred.
-      const shape = new Shape()
-      shape.moveTo(-d / 2, -h / 2)
-      shape.lineTo(d / 2, -h / 2)
-      shape.lineTo(d / 2, h / 2)
-      shape.closePath()
-      const geo = new ExtrudeGeometry(shape, { depth: w, bevelEnabled: false })
-      geo.translate(0, 0, -w / 2) // centre along the extrude axis
-      geo.rotateY(-Math.PI / 2) // extrude axis Z → X (so width = w on X, depth = d on Z)
-      return geo
-    }
+    case 'wedge':
+      // Right-triangular prism (a ramp). bevel 0 / absent → sharp edges
+      // (byte-identical to pre-Stage-1a); bevel > 0 chamfers the ramp edges.
+      return wedgeGeometry(w, h, d, part.bevel ?? 0)
     default:
       return new SphereGeometry(Math.max(w, h, d) / 2, 32, 16)
   }

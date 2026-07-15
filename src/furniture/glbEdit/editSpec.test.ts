@@ -3,6 +3,7 @@ import {
   type AssetEditSpec,
   addPart,
   createEmptySpec,
+  defaultPart,
   duplicatePart,
   isBuildable,
   mirrorPart,
@@ -147,6 +148,48 @@ describe('per-part texture finish (GE3c) — schema + back-compat', () => {
     s = updatePart(s, s.parts[0]!.id, { finish: 'mat:ambientcg:Wood048:1k' })
     const revived = JSON.parse(JSON.stringify(s)) as AssetEditSpec
     expect(revived.parts[0]!.finish).toBe('mat:ambientcg:Wood048:1k')
+  })
+
+  it('Stage 1a kinds seed their parametric defaults (profile/outline/preset/bevel)', () => {
+    const lathe = defaultPart('lathe')
+    expect(lathe.kind).toBe('lathe')
+    expect(Array.isArray(lathe.profile)).toBe(true)
+    expect(lathe.profile!.length).toBeGreaterThan(1)
+    expect(lathe.segments).toBe(32)
+
+    const extrude = defaultPart('extrude')
+    expect(Array.isArray(extrude.outline)).toBe(true)
+    // Bevel ON by default for extrudes.
+    expect(extrude.bevel).toBeGreaterThan(0)
+
+    const sweep = defaultPart('sweep')
+    expect(sweep.sweepProfile).toBe('circle')
+    expect(sweep.sweepPath).toBe('ring')
+
+    // Box/wedge default sharp (bevel absent → byte-identical geometry).
+    expect(defaultPart('box').bevel).toBeUndefined()
+    expect(defaultPart('wedge').bevel).toBeUndefined()
+  })
+
+  it('duplicate/mirror deep-copy a lathe profile (no shared tuple array)', () => {
+    let s = addPart(createEmptySpec(), 'lathe')
+    const id = s.parts[0]!.id
+    s = duplicatePart(s, id)
+    const src = s.parts[0]!
+    const copy = s.parts[1]!
+    expect(copy.profile).toEqual(src.profile)
+    expect(copy.profile).not.toBe(src.profile) // distinct array
+    expect(copy.profile![0]).not.toBe(src.profile![0]) // distinct points
+    // Mutating the copy's profile never leaks into the source.
+    copy.profile![0][0] = 999
+    expect(src.profile![0][0]).not.toBe(999)
+  })
+
+  it('an extrude outline survives a JSON round trip', () => {
+    const s = addPart(createEmptySpec(), 'extrude')
+    const revived = JSON.parse(JSON.stringify(s)) as AssetEditSpec
+    expect(revived.parts[0]!.outline).toEqual(s.parts[0]!.outline)
+    expect(revived.parts[0]!.bevel).toBe(s.parts[0]!.bevel)
   })
 
   it('a pre-GE3c spec (no finish anywhere) round-trips unchanged and stays buildable', () => {

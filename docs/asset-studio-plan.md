@@ -49,15 +49,26 @@ shrinking — every stage extracts modules, never grows the monolith.
 - ✅ **REFERENCES.md**: furniture-modeling tool section added (with the staged plan, v0.21.2.27).
 
 ## Stage 1 — Geometry: custom complex shapes
-- **New parametric shape kinds** in `editSpec.ts`/`buildObject.ts`:
-  - `extrude` — 2D profile (point/curve editor) → `ExtrudeGeometry` with bevel params;
-  - `lathe` — profile → `LatheGeometry` (turned legs, bowls, columns);
-  - `sweep` — profile along a path → `TubeGeometry`/`ExtrudeGeometry(extrudePath)`
-    (piping, rails, mouldings, edging).
-  Profile editor UI: draggable points on a 2D canvas + numeric entry, preset profiles
-  (rounded rect, ogee, bullnose, chamfer) — approachability first.
-- **Ubiquitous bevels** (highest realism-per-effort finding): `bevel` param on box/wedge
-  (RoundedBox-style), bevel defaults ON for extrudes; micro-bevel default that catches light.
+### Stage 1a — new shape kinds + ubiquitous bevels — ✅ SHIPPED (v0.21.2.29)
+- ✅ **New parametric shape kinds** in `editSpec.ts`/`buildObject.ts` (pure geometry in
+  `glbEdit/shapeProfiles.ts`, unit-tested — finite verts, correct normals + UVs, bbox tracks `size`):
+  - ✅ `extrude` — normalized 2D `outline` (centred [-0.5,0.5]) → `ExtrudeGeometry`, **bevel ON by
+    default**; presets rounded-rect / ellipse / L / T / arch.
+  - ✅ `lathe` — normalized `profile` (x = radius fraction, y = height fraction) + `segments` →
+    `LatheGeometry`; presets turned-leg / tapered-leg / bowl / vase / column.
+  - ✅ `sweep` — preset cross-section (circle/half-round/ogee/rectangle) × preset path
+    (straight/L/U/ring) → `TubeGeometry` (circle) / `ExtrudeGeometry(extrudePath)` (others).
+    Presets-only param surface (arbitrary path editing deferred).
+  - ✅ **Profile editor UI** (`ui/glbEditor/ProfileEditor.tsx`): draggable SVG points (44px touch
+    targets — mobile-usable) + numeric X/Y entry + add/remove + preset dropdown seeding.
+- ✅ **Ubiquitous bevels**: `bevel` (m) on box (three `RoundedBoxGeometry`) + wedge (bevel-enabled
+  extrude); `bevel` 0/absent is byte-identical to the old sharp geometry. Extrudes default bevel on.
+  Inspector "Corner radius" `SliderField` for bevelable kinds.
+- ✅ **Plumbing**: `SHAPE_KINDS`/`SHAPE_LABEL`/`DEFAULT_SIZE`/`defaultPart` + duplicate/mirror
+  deep-copy + `gizmoWriteBack` (lathe/sweep stay round under scale) + `specPersist` round-trip
+  (tested) + `DesignerToolbar` "More shapes" cluster.
+
+### Stage 1b — CSG v2 (OPEN)
 - **CSG v2:** multi-select booleans; ops recorded in the spec (non-destructive — operands
   stay editable, result rebuilt lazily); heavy combines moved to the worker pool; source-GLB
   as operand where watertight. Keep the TinkerCAD "solid/hole" mental model in the UI.
@@ -100,5 +111,6 @@ shrinking — every stage extracts modules, never grows the monolith.
 
 ---
 
-**Status:** Stage 0 **shipped** (v0.21.2.28, 2026-07-16); Stage 1 next. Each stage lands as its own
+**Status:** Stage 0 **shipped** (v0.21.2.28); Stage 1a **shipped** (v0.21.2.29, 2026-07-16) —
+Stage 1b (CSG v2) next. Each stage lands as its own
 commit train with an end-of-stage adversarial review; this file tracks stage state.

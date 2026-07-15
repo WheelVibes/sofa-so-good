@@ -8,6 +8,13 @@
  * decisions (bounds, validation, part maths) unit-testable without a GPU.
  */
 
+import {
+  EXTRUDE_PRESETS,
+  LATHE_PRESETS,
+  type SweepPathKind,
+  type SweepProfileKind,
+} from './shapeProfiles'
+
 export type PrimitiveShapeKind =
   | 'box'
   | 'cylinder'
@@ -17,6 +24,17 @@ export type PrimitiveShapeKind =
   | 'capsule'
   | 'pyramid'
   | 'wedge'
+  | 'lathe'
+  | 'extrude'
+  | 'sweep'
+
+/** Kinds that accept a bevel / corner-radius (`ShapePart.bevel`). Box + wedge
+ *  only — extrudes carry their own always-on bevel and the round kinds are
+ *  already smooth. Source of truth for the inspector's "Corner radius" control. */
+export const BEVELABLE_KINDS: PrimitiveShapeKind[] = ['box', 'wedge']
+
+/** Kinds edited via a 2D profile point list (the shared profile editor). */
+export const PROFILE_KINDS: PrimitiveShapeKind[] = ['lathe', 'extrude']
 
 /** A part is either a parametric primitive or a baked `mesh` — the result of a
  *  CSG combine (`csgCombine.ts`), whose triangles live in `ShapePart.geometry`. */
@@ -34,6 +52,9 @@ export const SHAPE_KINDS: PrimitiveShapeKind[] = [
   'capsule',
   'torus',
   'wedge',
+  'lathe',
+  'extrude',
+  'sweep',
 ]
 
 export const SHAPE_LABEL: Record<ShapeKind, string> = {
@@ -45,6 +66,9 @@ export const SHAPE_LABEL: Record<ShapeKind, string> = {
   capsule: 'Capsule',
   torus: 'Torus',
   wedge: 'Wedge',
+  lathe: 'Lathe',
+  extrude: 'Extrude',
+  sweep: 'Sweep',
   mesh: 'Combined',
 }
 
@@ -112,6 +136,23 @@ export interface ShapePart {
   /** Baked triangles — present iff `kind === 'mesh'`. For a mesh part `size` is
    *  the result's bounding box (informational; the geometry is already sized). */
   geometry?: MeshGeometryData
+  /** Corner radius / edge bevel in metres (Stage 1a). Box → rounded box; wedge →
+   *  bevelled ramp edges; extrude → extrusion-edge bevel (ON by default). 0 /
+   *  absent → today's sharp geometry (byte-identical). Clamped to the shape size
+   *  by the geometry builder. */
+  bevel?: number
+  /** Lathe: revolve profile — normalized `[x, y]` points, x ∈ [0,1] fraction of
+   *  radius (`size[0]/2`), y ∈ [0,1] fraction of height (`size[1]`). */
+  profile?: [number, number][]
+  /** Lathe: radial segments (revolution smoothness). Absent → 32. */
+  segments?: number
+  /** Extrude: outline — normalized `[x, y]` points, both ∈ [-0.5, 0.5] (centred),
+   *  scaled to `size[0]×size[1]` and extruded by `size[2]`. */
+  outline?: [number, number][]
+  /** Sweep: cross-section profile preset (`circle`/`half-round`/`ogee`/`rectangle`). */
+  sweepProfile?: SweepProfileKind
+  /** Sweep: path preset (`straight`/`l-corner`/`u`/`ring`). */
+  sweepPath?: SweepPathKind
 }
 
 /** Fallback PBR finish for a part that hasn't set its own (keeps old specs +
@@ -179,15 +220,42 @@ const DEFAULT_SIZE: Record<PrimitiveShapeKind, [number, number, number]> = {
   capsule: [0.25, 0.6, 0.25],
   torus: [0.4, 0.12, 0.4],
   wedge: [0.5, 0.4, 0.5],
+  lathe: [0.12, 0.5, 0.12], // [diameter, height, _] — a turned leg
+  extrude: [0.4, 0.3, 0.12], // [width, height, depth]
+  sweep: [0.5, 0.06, 0.5], // [pathExtent, tubeThickness, _] — a piping ring
+}
+
+/** Per-kind extra parametric defaults (profiles/presets/bevel) applied by
+ *  `defaultPart`. Kept out of `DEFAULT_SIZE` so `size` stays a clean tuple. */
+function defaultShapeParams(kind: PrimitiveShapeKind): Partial<ShapePart> {
+  switch (kind) {
+    case 'lathe':
+      return { profile: LATHE_PRESETS['turned-leg'].map((p) => [...p]), segments: 32 }
+    case 'extrude':
+      // Bevel ON by default for extrudes (Stage 1a realism default).
+      return { outline: EXTRUDE_PRESETS['rounded-rect'].map((p) => [...p]), bevel: 0.02 }
+    case 'sweep':
+      return { sweepProfile: 'circle', sweepPath: 'ring' }
+    default:
+      return {}
+  }
 }
 
 /** Sensible starting dimensions/colour + floor-resting Y per shape kind. */
 export function defaultPart(kind: PrimitiveShapeKind): ShapePart {
   const size = [...DEFAULT_SIZE[kind]] as [number, number, number]
   // Rest the shape on the floor: a standing torus spans its outer radius in Y
-  // (it lies in the XY plane), everything else spans half its height.
-  const y = kind === 'torus' ? size[0] / 2 : size[1] / 2
-  return { id: newPartId(), kind, position: [0, y, 0], size, color: '#b08d57' }
+  // (it lies in the XY plane); a sweep ring lies flat (thin in Y); everything
+  // else spans half its height.
+  const y = kind === 'torus' ? size[0] / 2 : kind === 'sweep' ? size[1] : size[1] / 2
+  return {
+    id: newPartId(),
+    kind,
+    position: [0, y, 0],
+    size,
+    color: '#b08d57',
+    ...defaultShapeParams(kind),
+  }
 }
 
 export function addPart(spec: AssetEditSpec, kind: PrimitiveShapeKind): AssetEditSpec {
@@ -214,6 +282,8 @@ export function duplicatePart(spec: AssetEditSpec, id: string): AssetEditSpec {
     position: [src.position[0] + 0.2, src.position[1], src.position[2]],
     size: [...src.size],
     rotation: src.rotation ? [...src.rotation] : undefined,
+    profile: src.profile ? src.profile.map((p) => [...p]) : undefined,
+    outline: src.outline ? src.outline.map((p) => [...p]) : undefined,
   }
   return { ...spec, parts: [...spec.parts, copy] }
 }
@@ -233,6 +303,8 @@ export function mirrorPart(spec: AssetEditSpec, id: string): AssetEditSpec {
     position: [-src.position[0], src.position[1], src.position[2]],
     size: [...src.size],
     rotation: src.rotation ? [src.rotation[0], -src.rotation[1], -src.rotation[2]] : undefined,
+    profile: src.profile ? src.profile.map((p) => [...p]) : undefined,
+    outline: src.outline ? src.outline.map((p) => [...p]) : undefined,
   }
   return { ...spec, parts: [...spec.parts, copy] }
 }

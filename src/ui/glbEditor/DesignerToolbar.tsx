@@ -1,10 +1,18 @@
-import { SHAPE_KINDS, SHAPE_LABEL } from '../../furniture/glbEdit/editSpec'
+import { type PrimitiveShapeKind, SHAPE_LABEL } from '../../furniture/glbEdit/editSpec'
 import { Icon } from '../toolbar/icons'
 
-const SHAPES: { kind: (typeof SHAPE_KINDS)[number]; label: string }[] = SHAPE_KINDS.map((kind) => ({
-  kind,
-  label: SHAPE_LABEL[kind],
-}))
+// Primitives first, then the Stage-1a profile-driven "More shapes" cluster.
+const PRIMITIVE_KINDS: PrimitiveShapeKind[] = [
+  'box',
+  'cylinder',
+  'sphere',
+  'cone',
+  'pyramid',
+  'capsule',
+  'torus',
+  'wedge',
+]
+const PROFILE_SHAPE_KINDS: PrimitiveShapeKind[] = ['lathe', 'extrude', 'sweep']
 
 /**
  * The designer's build toolbar: undo/redo (with disabled states, mirroring the
@@ -22,7 +30,7 @@ export function DesignerToolbar({
   canRedo: boolean
   onUndo: () => void
   onRedo: () => void
-  onAddShape: (kind: (typeof SHAPE_KINDS)[number]) => void
+  onAddShape: (kind: PrimitiveShapeKind) => void
 }) {
   return (
     <div className="sec">
@@ -50,9 +58,22 @@ export function DesignerToolbar({
         </div>
       </div>
       <div className="action-grid two">
-        {SHAPES.map((s) => (
-          <button key={s.kind} type="button" className="act" onClick={() => onAddShape(s.kind)}>
-            {s.label}
+        {PRIMITIVE_KINDS.map((kind) => (
+          <button key={kind} type="button" className="act" onClick={() => onAddShape(kind)}>
+            {SHAPE_LABEL[kind]}
+          </button>
+        ))}
+      </div>
+      <div
+        className="label"
+        style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', margin: 'var(--s-2) 0 4px' }}
+      >
+        More shapes
+      </div>
+      <div className="action-grid">
+        {PROFILE_SHAPE_KINDS.map((kind) => (
+          <button key={kind} type="button" className="act" onClick={() => onAddShape(kind)}>
+            {SHAPE_LABEL[kind]}
           </button>
         ))}
       </div>

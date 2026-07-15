@@ -98,6 +98,10 @@ export function gizmoPatch(
       const size = part.size.map((s, i) =>
         Math.max(MIN_SIZE_M, snapValue(s * snap.scale[i], SIZE_SNAP_M)),
       ) as [number, number, number]
+      // Radially-symmetric kinds (lathe revolve, sweep) read their diameter from
+      // size[0] only — mirror X into Z so a scale drag keeps them round rather
+      // than silently discarding the Z change. (extrude keeps its own W/H/depth.)
+      if (part.kind === 'lathe' || part.kind === 'sweep') size[2] = size[0]
       return same(size, part.size) ? null : { size }
     }
   }

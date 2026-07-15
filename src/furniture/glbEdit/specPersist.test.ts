@@ -29,6 +29,21 @@ describe('specPersist', () => {
     expect(restored).toEqual(spec)
   })
 
+  it('round-trips Stage 1a parametric fields (profile/outline/segments/bevel/sweep)', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'lathe')
+    s = addPart(s, 'extrude')
+    s = addPart(s, 'sweep')
+    s = updatePart(s, s.parts[0].id, { bevel: 0.05, segments: 48 })
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored).toEqual(s)
+    expect(restored!.parts[0].profile).toEqual(s.parts[0].profile)
+    expect(restored!.parts[0].segments).toBe(48)
+    expect(restored!.parts[1].outline).toEqual(s.parts[1].outline)
+    expect(restored!.parts[2].sweepProfile).toBe('circle')
+    expect(restored!.parts[2].sweepPath).toBe('ring')
+  })
+
   it('wraps the spec in a versioned envelope', () => {
     const json = serializeAssetSpec(createEmptySpec())
     expect(JSON.parse(json)).toMatchObject({ v: ASSET_SPEC_VERSION })

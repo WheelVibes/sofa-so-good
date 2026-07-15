@@ -1,13 +1,32 @@
 import {
+  BEVELABLE_KINDS,
   DEFAULT_PART_METALNESS,
   DEFAULT_PART_ROUGHNESS,
   type ShapePart,
 } from '../../furniture/glbEdit/editSpec'
+import {
+  EXTRUDE_PRESET_LABEL,
+  EXTRUDE_PRESETS,
+  LATHE_PRESET_LABEL,
+  LATHE_PRESETS,
+  type ProfilePoint,
+  SWEEP_PATH_LABEL,
+  SWEEP_PATHS,
+  SWEEP_PROFILE_LABEL,
+  SWEEP_PROFILES,
+  type SweepPathKind,
+  type SweepProfileKind,
+} from '../../furniture/glbEdit/shapeProfiles'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Select } from '../controls/Select'
+import { SliderField } from '../controls/SliderField'
 import { useSurfaceMaterialOptions } from '../inspector/ParametricBody'
 import { QuickFinishes } from '../inspector/QuickFinishes'
 import { Icon } from '../toolbar/icons'
+import { ProfileEditor, type ProfileSpace } from './ProfileEditor'
+
+const LATHE_SPACE: ProfileSpace = { minX: 0, maxX: 1, minY: 0, maxY: 1, showAxis: true }
+const EXTRUDE_SPACE: ProfileSpace = { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5 }
 
 /**
  * The GLB designer's per-part edit panel ("Edit box/cylinder/…"): size /
@@ -37,6 +56,12 @@ export function PartInspector({
 }) {
   const surfaceMaterials = useSurfaceMaterialOptions()
   const finish = part.finish ?? ''
+  // Bevel applies to box + wedge (default sharp) and extrude (default on).
+  const bevelable =
+    BEVELABLE_KINDS.includes(part.kind as (typeof BEVELABLE_KINDS)[number]) ||
+    part.kind === 'extrude'
+  // Cap the corner radius at half the smallest dimension so it can't invert.
+  const maxBevel = Math.max(0.02, Math.min(...part.size) / 2)
   // Combined (mesh) parts have per-source materials frozen in the geometry —
   // colour/finish/PBR sliders are hidden (no face-picker; re-combine to change).
   const isCombined = part.kind === 'mesh' && !!part.geometry?.materials?.length
@@ -138,6 +163,83 @@ export function PartInspector({
           ))}
         </div>
       </div>
+      {/* Corner radius / bevel — box + wedge (default 0 = sharp) and extrude
+          (default on). Max is half the smallest dimension so it never inverts. */}
+      {bevelable ? (
+        <SliderField
+          label="Corner radius (m)"
+          value={part.bevel ?? (part.kind === 'extrude' ? 0.02 : 0)}
+          min={0}
+          max={maxBevel}
+          step={0.005}
+          format={(v) => `${v.toFixed(3)} m`}
+          onChange={(v) => onPatch({ bevel: v })}
+        />
+      ) : null}
+
+      {/* Lathe/extrude profile point editor + preset seeding. */}
+      {part.kind === 'lathe' ? (
+        <>
+          <SliderField
+            label="Sides"
+            value={part.segments ?? 32}
+            min={3}
+            max={96}
+            step={1}
+            format={(v) => String(v)}
+            onChange={(v) => onPatch({ segments: Math.round(v) })}
+          />
+          <ProfileEditor
+            points={(part.profile ?? LATHE_PRESETS['turned-leg']) as ProfilePoint[]}
+            space={LATHE_SPACE}
+            presets={LATHE_PRESETS}
+            presetLabels={LATHE_PRESET_LABEL}
+            onChange={(pts) => onPatch({ profile: pts })}
+          />
+        </>
+      ) : null}
+      {part.kind === 'extrude' ? (
+        <ProfileEditor
+          points={(part.outline ?? EXTRUDE_PRESETS['rounded-rect']) as ProfilePoint[]}
+          space={EXTRUDE_SPACE}
+          presets={EXTRUDE_PRESETS}
+          presetLabels={EXTRUDE_PRESET_LABEL}
+          onChange={(pts) => onPatch({ outline: pts })}
+        />
+      ) : null}
+
+      {/* Sweep: preset cross-section × path (no free point editing — Stage 1a). */}
+      {part.kind === 'sweep' ? (
+        <div style={{ marginTop: 'var(--s-2)', display: 'grid', gap: 'var(--s-2)' }}>
+          <div>
+            <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+              Profile
+            </div>
+            <Select
+              className="input"
+              ariaLabel="Sweep profile"
+              value={part.sweepProfile ?? 'circle'}
+              onChange={(v) => onPatch({ sweepProfile: v as SweepProfileKind })}
+              style={{ width: '100%' }}
+              options={SWEEP_PROFILES.map((k) => ({ value: k, label: SWEEP_PROFILE_LABEL[k] }))}
+            />
+          </div>
+          <div>
+            <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+              Path
+            </div>
+            <Select
+              className="input"
+              ariaLabel="Sweep path"
+              value={part.sweepPath ?? 'ring'}
+              onChange={(v) => onPatch({ sweepPath: v as SweepPathKind })}
+              style={{ width: '100%' }}
+              options={SWEEP_PATHS.map((k) => ({ value: k, label: SWEEP_PATH_LABEL[k] }))}
+            />
+          </div>
+        </div>
+      ) : null}
+
       {/* Colour and texture controls are hidden for combined (mesh) parts whose
           materials are frozen at combine time (GE3c tail). Re-add source parts
           and combine again to change finishes. */}

@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.29 — Asset Studio Stage 1a: new shape kinds + ubiquitous bevels
+
+Geometry expansion for the GLB designer (`docs/asset-studio-plan.md`, Stage 1a; CSG v2 is a
+separate later task). All geometry maths are pure + unit-tested in
+`furniture/glbEdit/shapeProfiles.ts` (finite verts, correct normals + UVs, bbox tracks `size`).
+
+- **Ubiquitous bevels** — new optional `bevel` (metres) on `box` + `wedge`: box via three's
+  `RoundedBoxGeometry` addon (correct normals/UVs), wedge via a bevel-enabled `ExtrudeGeometry`
+  profile. `bevel` 0 / absent is **byte-identical** to the old sharp geometry (tested), so every
+  existing spec/test is unaffected. A "Corner radius" `SliderField` shows for bevelable kinds.
+- **`lathe`** — revolve a normalized 2D profile (`profile: [x,y][]`, x = radius fraction, y =
+  height fraction) with editable `segments`. Preset profiles: turned leg, tapered leg, bowl,
+  vase, column.
+- **`extrude`** — 2D outline (`outline: [x,y][]`, centred [-0.5,0.5]) → prism via `ExtrudeGeometry`
+  with a bevel **ON by default**. Presets: rounded rectangle, ellipse, L-shape, T-shape, arch.
+- **`sweep`** — a preset cross-section (round/piping, half-round, ogee moulding, rectangle) swept
+  along a preset path (straight, L-corner, U-channel, ring). Circle profile → `TubeGeometry`;
+  others → `ExtrudeGeometry` with an `extrudePath`. Presets-only param surface by design.
+- **Shared 2D profile editor** (`ui/glbEditor/ProfileEditor.tsx`) — a compact SVG point editor in
+  the inspector: draggable points (44px touch targets → works on mobile), add/remove, numeric X/Y
+  entry, and a preset dropdown that seeds the whole point list. Pure profile helpers
+  (`validateProfilePoints`/`dedupeProfile`/`closeProfile`/`resampleProfile`) unit-tested.
+- **Plumbing** — `SHAPE_KINDS`/`SHAPE_LABEL`/`DEFAULT_SIZE`/`defaultPart` extended;
+  `duplicatePart`/`mirrorPart` deep-copy the profile/outline arrays; `partGeometry` builders wired;
+  `gizmoWriteBack` keeps radially-symmetric kinds (lathe/sweep) round under a scale drag
+  (X mirrored into Z); `specPersist` round-trips the new fields (tested). New kinds export with UVs
+  (`ExtrudeGeometry`/`LatheGeometry`/`TubeGeometry` all generate their own).
+- **Add-shape UI** — `DesignerToolbar` gains a "More shapes" cluster (Lathe / Extrude / Sweep)
+  below the primitive grid.
+- Scenario `scripts/scenarios/glb-designer-stage1a.json` (Pro, flag on): adds a turned-leg lathe,
+  a bevelled rounded-rect extrude, a piping-ring sweep and a bevelled box; asserts part/layer
+  counts and that a numeric lathe-profile edit changes the part's stored params.
+
 ## v0.21.2.28 — Asset Studio Stage 0: flag, undo/redo, editable saves, dialog split
 
 Foundations for growing the GLB designer into a professional asset builder
