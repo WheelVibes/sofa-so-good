@@ -41,7 +41,8 @@ downgrade; `Lighting` holds the loop open while its day/night tween settles.
 
 `ContextLossGuard.tsx` (WebGL context-loss safety net), `ScreenshotController.tsx`
 (PNG export + a reusable hi-fi capture via `captureCanvas.ts`),
-`RecordController.tsx` (.webm), cameras (`cameras/OrbitCamera`,
+`RecordController.tsx` (MP4 where the browser can encode H.264, else WebM),
+cameras (`cameras/OrbitCamera`,
 `FirstPersonCamera`), selection (outline/hover/marquee). `ShowcaseController`
 is retired (RD-410) — it used to mount a drei `AccumulativeShadows` ground
 catcher when the camera parked, but on a full apartment that 19 m plane caught

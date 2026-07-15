@@ -179,7 +179,7 @@ export function FileMenu() {
         <MenuItem
           icon="Record"
           label={recording ? 'Stop recording' : 'Record clip'}
-          sub="Capture a .webm video of the view"
+          sub="Capture a video of the view (MP4 or WebM)"
           active={recording}
           onClick={() => setRecording(!recording)}
         />

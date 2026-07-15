@@ -1,0 +1,91 @@
+{
+  "name": "liveprices-simple",
+  "description": "IXT-SUITES simple rung for the livePrices feature (devOnly + pro-tier + default OFF). Its only UI surface is the 'Live SG retailer prices' checkbox toggle in the Shopping/Budget panel (BudgetPanel.tsx), gated on useFeature('livePrices'); flipping it on drives the useLivePrices hook against the local price-server sidecar (npm run price-server, http://localhost:5175). This rung covers ONLY the tractable, no-sidecar surface: the full flag/tier/devOnly gating matrix (asserted at BOTH the store-flag level AND the real UI-mount level) plus the reachable pre-network UI state. The gating story here is richer than a typical pro flag because livePrices' registry default is FALSE: (1) Simple mode -> false (pro-tier forced off) -> toggle absent; (2) switch to Pro -> STILL false, because the default is off, so switching mode alone is NOT enough to reveal it -> toggle STILL absent (the distinguishing case vs. every default-on pro flag); (3) an explicit dev/admin override (setFeatureFlag('livePrices', true)) -> true -> the toggle finally mounts, unchecked, with the estimate caption still showing (no fetch has run); (4) switch back to Simple -> false again, because the pro-tier gate wins over the LS override -> toggle gone. The toggle is deliberately never switched ON: flipping it fires pingPriceSidecar() -> fetch(http://localhost:5175/health), the feature's one and only sidecar contact, which is out of scope for a headless rung per the task's no-sidecar rule. That client (ping/fetch/cheapest-first/cache + the exact Simple/Pro/override gate matrix) is pinned by src/catalog/pricing/livePrice.test.ts, so the wire contract stays covered even though the live round-trip isn't driven here. The budget panel is left open across all four mode/flag flips so the toggle's appear/disappear tracks the resolved flag live.",
+  "url": "http://localhost:5233/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "verify-simple-default",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 10000,
+      "failMessage": "app should boot in Simple mode"
+    },
+    {
+      "name": "verify-flag-off-in-simple",
+      "waitFor": { "store": "state.featureFlags.livePrices === false" },
+      "timeout": 5000,
+      "failMessage": "livePrices is devOnly + pro-tier + default-off — expected false in Simple mode (registry.ts + resolve.ts)"
+    },
+    { "name": "open-budget", "store": { "action": "toggleBudget" } },
+    {
+      "name": "wait-budget-panel",
+      "waitFor": { "css": ".panel.mini.aux" },
+      "timeout": 15000,
+      "failMessage": "Budget/Shopping panel did not mount after toggleBudget — it's a lazy chunk but idle-preloaded (preloadOnIdle.ts PRELOAD_ORDER), so it should be resident well before this timeout"
+    },
+    { "name": "ensure-list-tab", "store": { "action": "setShopTab", "args": ["list"] } },
+    { "name": "settle-budget-simple", "wait": 500 },
+    { "name": "shot-budget-simple", "screenshot": "01-budget-simple-no-live-toggle" },
+    {
+      "name": "assert-toggle-absent-in-simple",
+      "comment": "The live-prices toggle is the only <input type=checkbox> in the budget panel (the other input is the numeric budget-target field), so its absence is a clean UI-mount gating proof.",
+      "eval": "(function(){ if (document.querySelector('.panel.mini.aux input[type=\"checkbox\"]')) throw new Error('Live SG retailer prices toggle rendered in Simple mode — livePrices is pro-tier and should be hidden'); if (document.body.textContent.includes('Live SG retailer prices')) throw new Error('live-prices label text present in Simple mode'); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "verify-flag-still-off-in-pro-default",
+      "comment": "The distinguishing case: unlike a default-on pro flag, livePrices' registry default is FALSE, so a privileged Pro session STILL resolves it off — switching to Pro alone does NOT reveal the toggle.",
+      "waitFor": { "store": "state.featureFlags.livePrices === false" },
+      "timeout": 5000,
+      "failMessage": "livePrices default is false — even a Pro (dev) session should stay off until an explicit override turns it on"
+    },
+    { "name": "settle-pro-default", "wait": 400 },
+    {
+      "name": "assert-toggle-still-absent-in-pro-default",
+      "eval": "(function(){ if (document.querySelector('.panel.mini.aux input[type=\"checkbox\"]')) throw new Error('Live SG retailer prices toggle rendered in Pro mode with no override — livePrices default is off, so switching to Pro must not reveal it'); })()"
+    },
+    { "name": "shot-pro-default", "screenshot": "02-budget-pro-default-still-hidden" },
+    {
+      "name": "enable-override",
+      "comment": "setFeatureFlag works in a dev build (IS_DEV) without an admin; it persists an LS override AND directly flips the store flag. livePrices is devOnly, but a dev/privileged session unlocks devOnly flags (resolve.ts).",
+      "store": { "action": "setFeatureFlag", "args": ["livePrices", true] }
+    },
+    {
+      "name": "verify-flag-on-with-override",
+      "waitFor": { "store": "state.featureFlags.livePrices === true" },
+      "timeout": 5000,
+      "failMessage": "setFeatureFlag('livePrices', true) should turn the flag on in a dev session"
+    },
+    {
+      "name": "wait-toggle-mounts",
+      "waitFor": { "text": "Live SG retailer prices" },
+      "timeout": 5000,
+      "failMessage": "The 'Live SG retailer prices' toggle should mount once livePrices resolves true (BudgetPanel.tsx gates it on useFeature('livePrices'))"
+    },
+    { "name": "settle-toggle-visible", "wait": 400 },
+    { "name": "shot-toggle-visible", "screenshot": "03-budget-pro-override-live-toggle" },
+    {
+      "name": "assert-toggle-present-unchecked-prenetwork",
+      "comment": "Reachable pre-network UI state: the toggle mounts UNCHECKED and enabled, and the caption still reads the estimate copy (liveOn=false, no useLivePrices fetch has run). It is deliberately not clicked — clicking fires pingPriceSidecar() -> fetch(localhost:5175), the feature's only sidecar contact, out of scope for a headless rung. The client + ping/fetch/cache + gate matrix are pinned by livePrice.test.ts.",
+      "eval": "(function(){ const cb = document.querySelector('.panel.mini.aux input[type=\"checkbox\"]'); if (!cb) throw new Error('live-prices toggle checkbox not found'); if (cb.checked) throw new Error('toggle should start UNCHECKED (liveOn=false, pre-network)'); if (cb.disabled) throw new Error('toggle should be enabled'); if (!document.body.textContent.includes('Approx. mid-market retail')) throw new Error('caption should still read the estimate copy before the toggle is switched on (no live fetch has run)'); })()"
+    },
+    { "name": "switch-back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    {
+      "name": "verify-flag-off-again-in-simple",
+      "comment": "The pro-tier gate wins over the persisted LS override — resolveFlags forces a pro flag off in Simple regardless of an override, so livePrices returns to false.",
+      "waitFor": { "store": "state.featureFlags.livePrices === false" },
+      "timeout": 5000,
+      "failMessage": "switching back to Simple should force livePrices off again even with the override in localStorage (tier gate beats override)"
+    },
+    { "name": "settle-back-simple", "wait": 400 },
+    {
+      "name": "assert-toggle-gone-again",
+      "eval": "(function(){ if (document.querySelector('.panel.mini.aux input[type=\"checkbox\"]')) throw new Error('toggle still present after switching back to Simple — the pro-tier gate should hide it again despite the LS override'); })()"
+    },
+    { "name": "shot-back-simple", "screenshot": "04-budget-back-to-simple-hidden" }
+  ]
+}

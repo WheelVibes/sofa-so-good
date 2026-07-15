@@ -77,6 +77,62 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   candidate beat them without RD-410-class risk. Re-runnable A/B rungs:
   `scripts/scenarios/photo-gtao-ab.json` (beauty, 3 tiers) + `photo-gtao-ab-ao.json` (High/Max,
   pair with a temporary `renderMode={1}` on the `<N8AO>` in `EffectsImpl.tsx`).
+- **PR4/R-SSAO (soft-shadow upgrade + contact-shadow refinement) — ruling (2026-07-15, real-GPU
+  audit): VSM VERIFIED, PCSS REJECTED, no tuning warranted.** The shipped VSM soft-shadow stack
+  (PHOTO-SOFTSHADOW, `look.ts:VSM_SHADOW` radius 6 / blurSamples 12 on Medium+; `shadowFilterForTier`)
+  was audited on the real GPU (`ANGLE … D3D12 Intel UHD`, `SHOT_GPU=1`) across Medium/High/Maximum
+  at late-afternoon sun (hour 15) — a dollhouse overview + a zoomed central-rooms pose per tier,
+  each captured in its own fresh session (repeated 4096-map tier switches exhaust this iGPU's WebGL
+  context → error boundary; A/B one tier per session). **Findings:** every Medium+ tier renders the
+  sun shadows cleanly — **no light bleeding, no boxy blur, no shadow acne, no peter-panning** — and
+  grounding is consistent across tiers. Sun shadows are **subtle indoors by design**: the ORBIT-CEILING
+  virtual-ceiling occluder gates direct sun to windows, so the dominant grounding cues are the
+  contact-shadow blobs (`ContactShadow.tsx`, resolution-independent) + baked corner-AO on Medium
+  (`CornerAO`) / real SSAO on High+ — and these do **not** visibly double-darken under the (subtle)
+  sun shadows (contact blobs sit under wall-flush furniture the raking sun barely reaches). **PCSS
+  REJECTED:** an `onBeforeCompile` distance-dependent-penumbra patch is in scope ONLY if VSM's
+  uniform blur is *visibly* wrong; it is not — with sun shadows this subtle and window-gated, the
+  uniform penumbra reads correctly, and a per-fragment PCSS kernel would add cost + a shader-recompile
+  surface + iGPU context-stability risk (context loss already observed on tier switches) for **no
+  visible gain**. **No radius/bias/frustum/contact-opacity tuning shipped** — the audit surfaced no
+  defect to fix, and the fixed-texel VSM radius (which makes the top tier's world-space penumbra the
+  narrowest) produces no visible "too-sharp/too-soft" artifact at any achievable framing, so a
+  resolution-aware radius would be an unshowable speculative change (deliberately skipped; recorded
+  here so it is not re-proposed blind). Re-runnable rungs (fresh session per tier, no switching):
+  `scripts/scenarios/softshadow-pen-{medium,high,maximum}.json` (decisive A/B) +
+  `softshadow-audit.json` (overview + interior). Contact-shadow strength stays full on Performance
+  (its sole grounding cue — do not weaken).
+- **PHOTO-POM (parallax-occlusion floors) — ruling (2026-07-15, real-GPU pixel A/B): VERIFIED,
+  ships as-is.** The shipped POM stack (`materials/pomFloor.ts`, `onBeforeCompile` steep-parallax +
+  occlusion ray-march over the procedural height field, wired at the floor sites via
+  `useFloorProceduralMaterial`; flag `pomFloors`, pro tier default-on) was pixel-verified on the real
+  GPU (`ANGLE … D3D12 (Intel(R) UHD Graphics)`, `SHOT_GPU=1`) for the first time — SwiftShader was the
+  only renderer before. Method: walk mode, low eye (1.2 m) + grazing downward pitch (via the dev
+  `__walkLook` lever) over an unfurnished grey-porcelain-tile floor (`floor-tile-grey`, procedural
+  `tile`), one tier per fresh session (no tier switching — iGPU context gotcha), capturing `pomFloors`
+  ON vs OFF at the identical pose (flag toggle only). **Findings:** at Maximum (32 steps) and High (16
+  steps) the grout/joints **genuinely recede and occlude** the tile faces at grazing angle — decisive
+  vs the flat normal-map OFF frame (mean pixel Δ ≈ 15/255 whole-frame, ≈ 24–34/255 over the floor
+  region; the OFF grout is a flat drawn line, the ON grout a carved channel with a proud tile edge).
+  The grazing-angle clamp (`nz = max(|vts.z|, 0.15)`) holds: **no smear/explosion** at the extreme far
+  grazing band near the wall, **no UV bleed past the floor silhouette** onto the skirting (POM offsets
+  only the floor UV — the floor/wall edge is byte-identical ON/OFF), and VSM sun shadows + the skirting
+  compose unchanged. Only minor near-field grout-edge waviness/stepping inherent to the finite step
+  count (smoother at 32 than 16, acceptable at both — reads as physical tile edges). **No perf
+  collapse / context loss / error-boundary** on this iGPU at 32 steps (frames captured ~1.7 s each).
+  **Medium control: no POM** — `pomStepsForTier` returns 0, the floor keeps the plain shared
+  procedural material and renders cleanly (the flat path, as gated). **Reach note (recorded so it is
+  not mistaken for a bug):** POM only fires on *procedural* eligible-pattern floor defs, so the builtin
+  ids that `GENERATED_MATERIALS` shadows with a **textured** Poly Haven photo of the same id
+  (`floor-tile-white`, `floor-tile-marble`, `floor-parquet`, `floor-concrete`, `floor-wood-oak/walnut`)
+  dispatch to `TexturedRoomFloor` and never reach the POM hook — by design (the CC0 photo is the
+  higher-fidelity path there). POM's reachable surface is the many *un-shadowed* procedural finishes
+  (`floor-tile-grey/charcoal/sand`, `floor-tile-hex(-charcoal)`, `floor-parquet-oak/walnut`,
+  `floor-herringbone-oak/walnut`) + composed procedural finishes (`compose:<pattern>:<#hex>`). No code
+  changed — the shader, gating, and tier steps are correct. Re-runnable rungs (fresh session per tier):
+  `scripts/scenarios/pom-{maximum,high,medium}.json` (decisive A/B) + `pom-probe.json` (scene-graph
+  proof that `buildPomFloorMaterial` actually lands on the floor meshes — 16/16 carry the
+  `pom-floor-32-0.03` program key).
 - **PHOTO-GLASS — remaining ruling:** window-pane transmission shipped on High/Max (see audit
   above); **extending transmission down to Medium is REJECTED for now** — the transmissive pass
   renders the whole opaque scene to an extra render target, which is exactly the cost class the
@@ -115,8 +171,9 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
 **UPDATE 2026-07-11: the dev environment now has a real GPU** (`SHOT_GPU=1` → ANGLE D3D12 /
 Intel UHD via WSL passthrough) — the "pending real-GPU" queue is unblocked; PT convergence, OIDN,
 SSR/SSGI/VSM/POM pixel passes are all verifiable in-session (Maximum tier converges; first
-verification sweep cleared PHOTO-BEVELS/RZ2/RZ5/C275). Real-time DOM/scene-graph/flag changes
-remain headless-verifiable as before.
+verification sweep cleared PHOTO-BEVELS/RZ2/RZ5/C275; **PHOTO-POM VERIFIED 2026-07-15** — grout
+recession/occlusion real-GPU-confirmed at High/Max, see the Tier 2 ruling). Real-time
+DOM/scene-graph/flag changes remain headless-verifiable as before.
 
 ## Tone-mapping note (context-aware default shipped — RD-404)
 We expose ACES(Filmic)/AgX/**Neutral**, plus an **Auto** setting (now the default). The selection

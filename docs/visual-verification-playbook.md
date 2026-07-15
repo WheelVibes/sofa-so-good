@@ -72,6 +72,15 @@ GPU-session gotchas (2026-07-11 sweep):
   coords with no recentring — a pose at z≈1.5 embeds the camera inside the north window (sill/
   grille fills the foreground). Aim by reading item positions from `__store.getState().items`
   and stand ~1–1.5 m INTO the room.
+- **Don't switch quality tiers repeatedly in one GPU session — A/B one tier per fresh session.**
+  On this iGPU (ANGLE D3D12 Intel UHD), tearing down and rebuilding the shadow map + post stack on
+  each `setQualityTier` — especially to/from Maximum's 4096² map — exhausts the WebGL context; after
+  ~2 switches the context is lost and the app's 3D-scene **error boundary** trips ("Something went
+  wrong in the 3D scene"), so the later frames capture the error card, not the scene (observed in the
+  PR4/R-SSAO soft-shadow audit, 2026-07-15). For a per-tier pixel A/B, run **one scenario per tier**
+  that sets that single tier and never switches (see `scripts/scenarios/softshadow-pen-{medium,high,
+  maximum}.json`) rather than one scenario that cycles tiers. A single overview→interior camera move
+  within one tier is fine; it's the tier remounts that accumulate the leak.
 - **The demand-frameloop one-burst-late presentation is SwiftShader-only.** On real GPU a
   lighting-only store change (C275 curtain dim) is present in the immediately-captured frame
   (measured 94.5 → 64.4 mean luminance with no wait/nudge step) — keep the no-op-nudge trick
@@ -555,6 +564,41 @@ the pagination fix. **Key gotchas learned here:**
 - **A GLB *inside* a group folder is not loose**; only model files outside every detected group dir
   count as loose. The fixture puts one `w.glb` under each `bulk/g<i>/` (not loose) and two at
   `bulk/loose-*.glb` (loose) to exercise both branches of `looseModelFiles`.
+
+### Worked example — livePrices gating (default-OFF pro flag: Pro alone isn't enough)
+
+**`liveprices-simple.json`** (26 steps, all green) covers the `livePrices` feature's only UI surface —
+the "Live SG retailer prices" checkbox in the Shopping/Budget panel (`BudgetPanel.tsx`, gated on
+`useFeature('livePrices')`); flipping it on drives `useLivePrices` → `pingPriceSidecar()` →
+`fetch(http://localhost:5175)` (the `npm run price-server` dev sidecar). The rung asserts the full
+flag gating matrix at BOTH the store-flag level (`state.featureFlags.livePrices`) AND the real
+UI-mount level (`.panel.mini.aux input[type="checkbox"]` present/absent), plus the reachable
+pre-network UI state. **Key gotcha learned here:**
+- **A `devOnly` + `pro`-tier flag whose registry `default` is `false` needs an explicit override to
+  reveal its UI — switching to Pro is NOT enough.** Most pro-tier features are `default: true`, so the
+  standard scenario shape (assert hidden in Simple → `setUiMode('pro')` → assert present) works. But
+  `livePrices` (like anything `default: false`) resolves **off in Pro too** — `resolveFlags`'s
+  `pro`-tier branch only forces a flag *off* in Simple; in Pro it falls through to `def.default`,
+  which is `false`. So the correct three-state proof is: Simple → `false` (tier), **Pro → still
+  `false` (default-off)**, Pro **+ `setFeatureFlag('livePrices', true)`** → `true` (the override
+  unlocks the `devOnly` flag in a dev/admin session AND directly flips the store flag). Switching back
+  to Simple returns it to `false` — the pro-tier gate beats the persisted LS override
+  (`resolveFlags(..., 'simple')` forces a pro flag off regardless of overrides), which is a bonus
+  assertion the default-on flags can't make. Don't write a "Pro reveals it" step for a default-off
+  flag; it will (correctly) still be hidden and the step fails.
+- **Don't switch the toggle ON in a headless rung for a sidecar-backed feature.** The checkbox
+  *mounting* (unchecked, with the estimate caption still showing) is the reachable pre-network UI
+  state — the analog of `ai-surfaces-simple.json` typing a fake key to *enable* (but never clicking)
+  the "Make photoreal" button. Checking the box fires `pingPriceSidecar()` (a real `fetch` to the
+  local price-server), the feature's only network contact, which is out of scope per the no-sidecar
+  rule — and the sidecar client + gate matrix are already fully unit-tested
+  (`src/catalog/pricing/livePrice.test.ts`), so there's nothing to gain by driving it. Assert the
+  toggle's presence + unchecked/enabled state, not its live-fetch result.
+- The budget panel mounts purely on `budgetOpen` (`toggleBudget`; App.tsx has no camera-mode/flag
+  gate on the mount — the `budget` flag gates only the toolbar entry + `BudgetHud`), and it's an
+  idle-preloaded lazy chunk (`preloadOnIdle.ts` `PRELOAD_ORDER`), so it mounts headless like the
+  Share modal. Leaving it open across all four mode/flag flips lets the toggle's appear/disappear
+  track the resolved flag live in one session.
 
 ### Worked example — optimize worker pool + IO-002 early size-cap gate (2026-07-03)
 

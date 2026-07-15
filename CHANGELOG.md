@@ -5,6 +5,144 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.21 — knip: recordViewTour un-exported
+
+The v0.21.2.20 guard dedup left `recordViewTour` with a single caller in its own module
+(`promptAndRecordViewTour`), so the export tripped CI's dead-code scan. Made it
+module-private — which also enforces the review's intent that the duration prompt can't
+be bypassed by a future direct call site.
+
+## v0.21.2.20 — review fixes: recording/MP4 round-9 cluster
+
+Verified round-9 code-review findings on the recording/MP4 feature (v0.21.2.17). No behaviour
+change beyond the honest-format fix and the stale-count fix.
+
+- **Format-honest copy**: File menu "Record clip" sub-label now "Capture a video of the view (MP4 or
+  WebM)" (was ".webm"-only).
+- **User docs**: the auto **Walkthrough** tour section (no duration prompt) keeps only the MP4-or-WebM
+  download note; the duration prompt is documented where it lives — **Record walkthrough video** on
+  saved views (`docs/user/navigating.md`).
+- **Stale webm-only claims** corrected in `docs/developer/rendering-and-scene.md`,
+  `RecordController.tsx` docstring, and `Scene.tsx`'s `preserveDrawingBuffer` comment.
+- **Actual-format reconciliation**: `RecordController` now derives the extension/blob type from the
+  recorder's real `rec.mimeType` (falling back to the requested format when empty), via the new pure
+  `resolveActualFormat` in `recordingFormat.ts` (unit-tested).
+- **Shared leg-pace bounds**: `MIN/MAX_VIEW_TOUR_LEG_SECONDS` exported from `cameraSlice` and reused by
+  both `setViewTourLegSeconds`'s clamp and `recordViewTour`'s `parseTourDuration` (was duplicated).
+- **Single candidate list**: `pickRecordingFormat` iterates one ordered `{mime,extension,blobType}`
+  list instead of two parallel arrays + two loops (behaviour-identical).
+- **De-duped guard**: one `tourViews(s)` helper holds the `<2 views` threshold + toast for both
+  `recordViewTour`/`promptAndRecordViewTour`.
+- **Fresh leg count**: `promptAndRecordViewTour` re-reads saved views after the modal resolves and
+  paces the tour off the current views (re-checking the ≥2 guard); the pre-await read only feeds the
+  prompt label/default.
+
+## v0.21.2.19 — PHOTO-POM verified: real-GPU parallax-occlusion-floor pixel A/B
+
+Closes PHOTO-POM, the last real-GPU-verifiable item on the PHOTO-* frontier line. POM (parallax-
+occlusion floors, `materials/pomFloor.ts`, flag `pomFloors`) shipped long ago with unit tests but had
+**never been pixel-verified on real hardware** (SwiftShader was the only renderer). This is a
+**verify-and-rule** change — the shipped shader/gating is correct, so **no source code changed**; the
+deliverable is the ruling + re-runnable scenarios + bookkeeping.
+
+- **Real-GPU pixel A/B** (`SHOT_GPU=1`, `ANGLE … D3D12 Intel(R) UHD Graphics`): walk mode, low eye
+  (1.2 m) + grazing pitch (dev `__walkLook` lever) over an unfurnished grey-porcelain-tile floor,
+  `pomFloors` ON vs OFF at the identical pose, one tier per fresh session. **Maximum (32 steps) and
+  High (16 steps): grout/joints genuinely recede and occlude** the tile faces at grazing angle —
+  decisive vs the flat normal-map OFF frame (floor-region mean Δ ≈ 24–34/255). The grazing clamp holds
+  (**no smear/explosion**, **no UV bleed past the floor silhouette** onto the skirting — POM offsets
+  only the floor UV), VSM shadows compose unchanged, only minor near-field grout-edge stepping inherent
+  to the step count. **No perf collapse / context loss** at 32 steps. **Medium control: no POM** (the
+  flat shared procedural material, as gated by `pomStepsForTier` → 0).
+- **Reach note (recorded, not a bug):** POM only fires on *procedural* eligible-pattern floor defs, so
+  builtin ids that `GENERATED_MATERIALS` shadows with a **textured** Poly Haven photo of the same id
+  (`floor-tile-white`, `floor-tile-marble`, `floor-parquet`, `floor-concrete`, `floor-wood-oak/walnut`)
+  dispatch to `TexturedRoomFloor` and never reach the POM hook — by design (the CC0 photo is the
+  higher-fidelity path). POM's reachable surface is the un-shadowed procedural finishes
+  (`floor-tile-grey/charcoal/sand`, `floor-tile-hex(-charcoal)`, `floor-parquet-oak/walnut`,
+  `floor-herringbone-oak/walnut`) + composed procedural finishes.
+- **Harness**: `scripts/scenarios/pom-{maximum,high,medium}.json` (single-tier fresh-session A/B) +
+  `pom-probe.json` (scene-graph proof `buildPomFloorMaterial` lands on the floor meshes — 16/16 carry
+  the `pom-floor-32-0.03` program key).
+- Docs: `TASKS.md` PHOTO-POM removed from the frontier line (PHOTO-SSGI-SSR + PHOTO-WEBGPU remain,
+  blocked on a real WebGPU adapter); `PHOTOREALISM.md` Tier-2 ruling + verification-posture note;
+  `src/version.ts` → 0.21.2.19.
+
+## v0.21.2.18 — PR4/R-SSAO closed: real-GPU soft-shadow audit (VSM verified, PCSS rejected)
+
+Closes the long-blocked PR4/R-SSAO backlog item ("soft-shadow upgrade (PCSS/VSM) + contact-shadow
+refinement") now that the sandbox has real-GPU WebGL. This is a **verify-and-rule** change — the
+audit found the shipped stack already correct, so **no renderer code changed** (like the GTAO
+ruling); the deliverable is the pixel-verified ruling + bookkeeping.
+
+- **Real-GPU audit** (`SHOT_GPU=1`, `ANGLE … D3D12 Intel(R) UHD Graphics`) of the VSM soft-shadow
+  stack (`look.ts:VSM_SHADOW`, `shadowFilterForTier`; PHOTO-SOFTSHADOW) across Medium/High/Maximum
+  at late-afternoon sun (hour 15), dollhouse overview + zoomed central-rooms poses. **Every Medium+
+  tier renders the sun shadows cleanly — no light bleeding, boxy blur, shadow acne, or peter-panning**;
+  grounding is consistent across tiers. Sun shadows are subtle indoors by design (the ORBIT-CEILING
+  virtual ceiling gates direct sun to windows), so contact-shadow blobs + corner-AO (Medium) / SSAO
+  (High+) carry grounding and do **not** double-darken under the subtle sun shadows.
+- **PCSS rejected**: a distance-dependent-penumbra `onBeforeCompile` patch is warranted only if VSM's
+  uniform blur is *visibly* wrong — it is not — and would add per-fragment cost + a shader-recompile
+  surface + iGPU context-stability risk (context loss observed on repeated 4096-map tier switches)
+  for no visible gain. No radius/bias/frustum/contact-opacity tuning shipped — the audit surfaced no
+  defect. Full rationale + re-runnable rungs in `PHOTOREALISM.md`; ruling recorded so it isn't
+  re-proposed blind.
+- **Harness**: added `scripts/scenarios/softshadow-pen-{medium,high,maximum}.json` (single-tier,
+  fresh-session-per-tier A/B — the reliable way to compare tiers without exhausting the iGPU context)
+  + `softshadow-audit.json` (overview + interior). Playbook gains a gotcha: repeated tier switching
+  in one GPU session trips the 3D-scene error boundary on this iGPU — capture one tier per session.
+- Docs: `TASKS.md` PR4/R-SSAO line removed (closed); `PHOTOREALISM.md` ruling; `visual-verification-
+  playbook.md` tier-switch gotcha; `src/version.ts` → 0.21.2.18.
+
+## v0.21.2.17 — PARITY-VIDEO tail: MP4 walkthrough export + duration prompt
+
+Closes the PARITY-VIDEO tail. Two user-visible changes to the "Record walkthrough video" flow
+(View → Saved views, still behind the existing `walkthrough` flag, simple tier — no new flag):
+
+- **MP4 export where the browser can encode it.** New pure `src/scene/recordingFormat.ts`
+  `pickRecordingFormat(isTypeSupported)` probes `MediaRecorder.isTypeSupported` for
+  `video/mp4;codecs=avc1…` first (Chrome/Edge advertise it only when an OS/hardware H.264 encoder
+  is present; Safari records mp4 natively; Firefox does not) and cleanly falls back through the VP9
+  → VP8 → bare `video/webm` candidates. `RecordController` uses the picked `mimeType`, and keeps the
+  download **honest** — the extension (`hdb-design-<stamp>.mp4` vs `.webm`) and the `Blob` type
+  always match the container actually produced. No wasm/ffmpeg dependency added (native MediaRecorder
+  only). Refs: MDN `MediaRecorder.isTypeSupported`; chromestatus.com/feature/5163469011943424.
+- **Duration prompt before recording.** `promptAndRecordViewTour()` opens the shared themed number
+  prompt (`promptText`/`PromptModal`) asking for total video length in seconds (default = the old
+  5s-per-view pace); Cancel / blank aborts with **no recording started**. Pure
+  `parseTourDuration(raw, legs, defaultTotal)` handles cancel/invalid/clamp so the per-leg pace stays
+  inside `setViewTourLegSeconds`'s [0.5s, 12s] range. `SavedViewsSection` now calls it instead of
+  hard-coding `recordViewTour(5 * (views-1))`; the non-tour toolbar record toggle is unchanged.
+
+Unit tests: `recordingFormat.test.ts` (mp4-preferred / webm fallback / unlabelled-default matrix) +
+`recordViewTour.test.ts` (`parseTourDuration` cancel/default/clamp). Caveat: Firefox and any
+Chromium without an OS H.264 encoder still get `.webm` — by design, surfaced honestly in the
+filename.
+
+## v0.21.2.16 — IXT-SUITES: livePrices simple rung (`liveprices-simple.json`)
+
+Back-fills the last named per-flag IXT-SUITES rung — the `livePrices` feature (`devOnly` +
+`pro`-tier + **default `false`**). Its only UI surface is the "Live SG retailer prices" checkbox in
+the Shopping/Budget panel (`BudgetPanel.tsx`, gated on `useFeature('livePrices')`), which drives
+`useLivePrices` → `pingPriceSidecar()` → `fetch(localhost:5175)` (the `npm run price-server` dev
+sidecar). New `scripts/scenarios/liveprices-simple.json` (26 steps, all green) covers the full
+gating matrix at BOTH the store-flag AND the real UI-mount level. Because the registry default is
+off, this flag is a **richer gate than a typical pro flag**: (1) Simple → `false`, toggle absent;
+(2) switch to Pro → **STILL `false`** (default-off, so switching mode alone does NOT reveal it — the
+distinguishing case vs. every default-on pro flag), toggle still absent; (3) an explicit dev/admin
+override (`setFeatureFlag('livePrices', true)`, which unlocks the `devOnly` flag in a privileged
+session) → `true`, the toggle finally mounts **unchecked with the estimate caption still showing**
+(reachable pre-network state); (4) back to Simple → `false` again (the pro-tier gate beats the
+persisted LS override), toggle gone. Verified visually: the Pro-default and Pro-override frames
+differ only by the checkbox appearing below "Export CSV". The toggle is **deliberately never switched
+on** — flipping it fires the sidecar `fetch`, the feature's only network contact, out of scope for a
+headless rung per the no-sidecar rule; no stub lever was added. The sidecar client (ping/fetch/
+cheapest-first/cache + the exact Simple/Pro/override gate matrix) is already fully pinned by
+`src/catalog/pricing/livePrice.test.ts`, so no new unit test was needed. Playbook gains a worked
+example documenting the "Pro-alone-isn't-enough for a default-off pro flag" gotcha. Docs-and-tests
+only (no app source touched); tsc + biome clean.
+
 ## v0.21.2.15 — CI: knip dead-export fix (doorwayBleed tuning constants un-exported)
 
 PR #92's knip dead-code scan flagged `BLEED_HALF_DEPTH` and `FACING_EXP` in

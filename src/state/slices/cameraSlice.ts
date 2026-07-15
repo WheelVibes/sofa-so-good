@@ -94,6 +94,12 @@ export interface CameraSlice {
   toggleParallelProjection: () => void
 }
 
+/** Per-leg pace bounds for the saved-views cinematic tour (seconds per leg).
+ *  Shared so the total→per-leg conversion in `ui/recordViewTour` clamps the same
+ *  way `setViewTourLegSeconds` does. */
+export const MIN_VIEW_TOUR_LEG_SECONDS = 0.5
+export const MAX_VIEW_TOUR_LEG_SECONDS = 12
+
 export const CAMERA_INITIAL: Pick<
   CameraSlice,
   | 'cameraMode'
@@ -156,7 +162,13 @@ export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get
   requestFrameSelection: (bounds) =>
     set((s) => (bounds ? { frameBounds: bounds, frameNonce: s.frameNonce + 1 } : {})),
   setTouring: (v) => set({ touring: v === true ? 'rooms' : v }),
-  setViewTourLegSeconds: (s) => set({ viewTourLegSeconds: Math.max(0.5, Math.min(12, s)) }),
+  setViewTourLegSeconds: (s) =>
+    set({
+      viewTourLegSeconds: Math.max(
+        MIN_VIEW_TOUR_LEG_SECONDS,
+        Math.min(MAX_VIEW_TOUR_LEG_SECONDS, s),
+      ),
+    }),
   setWalkFov: (deg) => set({ walkFov: clampWalkFov(deg) }),
   setWalkEyeHeight: (m) => set({ walkEyeHeight: clampWalkEyeHeight(m) }),
   setLensFocalMm: (mm) => set({ lensFocalMm: clampFocalMm(mm) }),

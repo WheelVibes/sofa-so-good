@@ -1,0 +1,56 @@
+{
+  "name": "walkthrough-video-duration",
+  "description": "PARITY-VIDEO tail: the Record-walkthrough duration prompt + MP4/WebM format pick. Saves two views, opens the themed duration prompt via promptAndRecordViewTour, screenshots it (desktop + mobile), then resolves it and asserts the tour starts with the chosen pace + recording is armed. Also logs pickRecordingFormat over the real headless MediaRecorder.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "wait-camera", "wait": 800 },
+    { "name": "log-format", "eval": "import('/src/scene/recordingFormat.ts').then(m => { const f = m.pickRecordingFormat(t => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)); console.log('RECFMT', JSON.stringify(f), 'mp4Supported=', typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.640028')) })" },
+    { "name": "save-two-views", "eval": "(() => { const st = window.__store.getState(); st.saveCurrentView('A'); st.requestTopView?.(); st.saveCurrentView('B'); })()" },
+    {
+      "name": "verify-two-views",
+      "waitFor": { "store": "state.savedViews.length >= 2" },
+      "timeout": 5000,
+      "failMessage": "expected at least two saved views"
+    },
+    { "name": "open-duration-prompt", "eval": "import('/src/ui/recordViewTour.ts').then(m => { window.__recWalk = m.promptAndRecordViewTour() })" },
+    {
+      "name": "verify-prompt-open",
+      "waitFor": { "store": "state.textPrompt && state.textPrompt.title === 'Record walkthrough'" },
+      "timeout": 5000,
+      "failMessage": "duration prompt modal did not open"
+    },
+    { "name": "shot-prompt-desktop", "screenshot": "01-duration-prompt-desktop" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844, "mobile": true } },
+    { "name": "wait-reflow", "wait": 400 },
+    { "name": "shot-prompt-mobile", "screenshot": "02-duration-prompt-mobile" },
+    { "name": "desktop-viewport", "viewport": { "width": 1280, "height": 800, "mobile": false } },
+    { "name": "wait-reflow-2", "wait": 300 },
+    { "name": "resolve-prompt", "eval": "window.__store.getState().resolvePrompt('6')" },
+    {
+      "name": "verify-tour-started",
+      "waitFor": { "store": "state.touring === 'views'" },
+      "timeout": 5000,
+      "failMessage": "resolving the duration prompt did not start the saved-views tour"
+    },
+    {
+      "name": "verify-recording",
+      "waitFor": { "store": "state.recording === true" },
+      "timeout": 5000,
+      "failMessage": "recording was not armed after the duration prompt"
+    },
+    {
+      "name": "verify-pace-set",
+      "waitFor": { "store": "Math.abs(state.viewTourLegSeconds - 6 / (state.savedViews.length - 1)) < 0.01" },
+      "timeout": 5000,
+      "failMessage": "view-tour pace was not set from the chosen total duration"
+    },
+    { "name": "let-record", "wait": 1200 },
+    { "name": "shot-recording", "screenshot": "03-recording-tour" },
+    { "name": "stop", "eval": "(() => { const st = window.__store.getState(); st.setTouring(false); st.setRecording(false); })()" }
+  ]
+}

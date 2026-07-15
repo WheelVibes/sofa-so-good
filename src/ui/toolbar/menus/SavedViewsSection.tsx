@@ -3,7 +3,7 @@ import { canRecord } from '../../../scene/RecordController'
 import { captureThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
 import { PresentationSetup } from '../../presentation/PresentationSetup'
-import { recordViewTour } from '../../recordViewTour'
+import { promptAndRecordViewTour } from '../../recordViewTour'
 import { renderAllSavedViews } from '../../renderAllViews'
 import { Icon } from '../icons'
 import { MenuItem } from '../ToolbarMenu'
@@ -109,8 +109,8 @@ export function SavedViewsSection() {
         <MenuItem
           icon="Record"
           label="Record walkthrough video"
-          sub="Fly the saved-views tour and download a .webm (~5s per view)"
-          onClick={() => recordViewTour(5 * (savedViews.length - 1))}
+          sub="Pick a length, fly the saved-views tour, download the video"
+          onClick={() => void promptAndRecordViewTour()}
         />
       ) : null}
       {savedViews.length > 0 && batchRenderOn ? (

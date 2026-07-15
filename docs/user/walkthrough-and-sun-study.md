@@ -21,8 +21,11 @@ best way to judge real scale and sightlines.
 ## Auto walkthrough tour
 
 From the **Tools** menu, start the **Walkthrough** — the camera flies a smooth
-tour through each room on its own. You can **record** the tour to a video clip to
-share.
+tour through each room on its own. Where your browser can record, the tour is
+also captured to a video clip that downloads automatically when it ends (an MP4
+where your browser supports it, otherwise a WebM). To set the clip length
+yourself, use **Record walkthrough video** on your [saved views](/navigating)
+instead.
 
 ## Sun study
 
