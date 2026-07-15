@@ -40,7 +40,13 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).
 - [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
-- [ ] X-SHOP: verify Courts/HipVan/Castlery price adapters against the live sites (built offline).
+- [ ] X-SHOP tail [DEV]: HipVan price adapter is blocked — its public
+  `www.hipvan.com/api/search/products` endpoint was retired (404); search now runs through an
+  authenticated `api.communa.sg` API gateway (`/hv_shop/api/v1/search/products`, session token +
+  refresh on top of an `x-api-key`), which a plain browser-UA fetch can't reach. Adapter stays
+  dev-gated best-effort (fails soft to "no match") until a public endpoint returns. Courts
+  (Magento GraphQL) and Castlery (Algolia hits embedded in the Next.js RSC payload) were verified
+  live and updated 2026-07 (v0.21.2.23).
 
 ## Open — real-GPU / frontier (need a real GPU to implement+verify the pixel pass)
 - [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle with WebGL fallback.

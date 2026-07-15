@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.23 — X-SHOP: live-verify Courts/HipVan/Castlery price adapters
+
+Ran the deferred real-network verification pass over the dev-only price sidecar
+(`scripts/price-server.mjs`) adapters, each against the live SG retailer with a
+browser UA for `sofa` / `queen bed` / `dining table`:
+
+- **Courts** (`courts-sg`, Magento GraphQL `products` search): still live and
+  correct — HTTP 200 with real SGD prices + product links (e.g. sofa → $499 Muze
+  Tammi Armless Sofa, queen bed → $1063 Dunlopillo mattress, dining table → $328
+  Levin). Parser unchanged.
+- **Castlery** (`castlery-sg`): **drifted and fixed.** The search page dropped its
+  JSON-LD Product markup (only a `BreadcrumbList` remains) and now renders results
+  as a Next.js RSC payload that embeds the Algolia response. `parseCastleryResponse`
+  now reads the embedded `"hits":[…]` product records (price/image on the first
+  variant, `slug` → `/sg/products/<slug>`), with the old JSON-LD scan kept as a
+  fallback. Verified live: sofa → $149, queen bed → $849 Seb Bed, dining table →
+  $1259 Sawyer. Bracket-matched JSON extraction is quote/escape aware.
+- **HipVan** (`hipvan-sg`): **blocked (documented).** The public
+  `www.hipvan.com/api/search/products` endpoint is gone (404 SPA shell); search now
+  goes through an authenticated `api.communa.sg` API gateway
+  (`/hv_shop/api/v1/search/products`) that needs a session token with refresh on top
+  of an `x-api-key` — a plain browser-UA fetch can't retrieve results. Adapter left
+  as-is (dev-gated, fails soft to "no match"); limitation recorded in `TASKS.md`.
+
+Test fixture (`scripts/price-server.test.mjs`) updated to a trimmed snapshot of
+Castlery's live embedded-Algolia shape (offline, no live-fetching tests); all
+parsers stay pure + unit-tested (15 tests green). Docs refreshed
+(`docs/developer/offline-tooling.md`). Dev-only + licensing gating unchanged; no
+new retailers.
+
 ## v0.21.2.22 — IXT-SUITES: aiWalls full-UI rung (last deferred leg)
 
 Landed the final deferred IXT-SUITES rung — the `aiWalls` full-UI leg that
