@@ -20,6 +20,13 @@ decor, and more), the **search box** to fuzzy‑search across everything, and th
 **heart** on any card to save it to your **favourites** (the star tab, first in
 the list).
 
+**Ready‑made decor bundles (Pro).** Switch the catalog to the **Packs** tab to find
+curated **set‑dressing bundles** — **Indoor plants**, **Shelf & table decor**, and
+**Kitchen counter** — each a handful of free (CC0) props from Poly Haven. Press
+**Add bundle** and every item downloads straight into your catalog under the
+**decor** and **kitchen** tabs, ready to place. **Remove all** takes the bundle back
+out again.
+
 **Filter the grid.** The **funnel button** in the catalog header opens quick
 filters: **Availability** (all, downloaded, or not‑yet‑downloaded — shown only
 when the online/shared library has cards here), **Source** (built‑in, your own

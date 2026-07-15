@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.24 — C-PLANTS/DECOR: curated CC0 Poly Haven set-dressing bundles
+
+Closes the C-PLANTS/DECOR tail. Three themed **one-click set-dressing bundles** now
+appear as pack cards in the Packs tab (Pro, `packs` flag — no new flag): **Indoor
+plants** (6), **Shelf & table decor** (7), **Kitchen counter** (7) — 20 curated
+**CC0** props total, all from Poly Haven. "Add bundle" fetches every item, packs it
+into a self-contained GLB in-browser, and registers it through the existing pack
+pipeline so the items land in the catalog like any installed pack (floor-anchored,
+real-metre scale, per-item credit in the inspector).
+
+- **`catalog/packs/polyHaven.ts`** (new): the curated `POLY_HAVEN_BUNDLES` data +
+  pure helpers (`resolvePolyHavenGltfFiles` turns a Poly Haven `/files/<slug>`
+  response into a download plan; `polyHavenBasename`/`polyHavenAttribution`/
+  `polyHavenSourceUrl`/`polyHavenBundle`). Every item captures its author for the
+  credit line even though CC0 needs no attribution; the license label is `CC0`.
+- **Poly Haven, not Poly Pizza.** Poly Pizza's search API requires a per-user key
+  (verified 401 without one) and its CDN download URLs aren't reachable without that
+  search step, so it can't drive a keyless curated bundle. Poly Haven's API is fully
+  public + `access-control-allow-origin: *`, so it's the bundle source. Its models are
+  **multi-file glTF** (`.gltf` + external `.bin` + `textures/*.jpg`) — the reason Poly
+  Haven was dropped as a *browsable* model source (v0.9.0.64) — so `installPolyHavenBundle`
+  (`catalog/packs/install.ts`) fetches each item's files (dependency URLs come straight
+  from the API `include` map, never constructed) and re-exports them into one
+  self-contained GLB via the existing model-CONVERT pipeline (`furniture/convert/
+  convertModel`), then reuses `buildEntry`/`commit`. Nothing is vendored into the repo —
+  items stay remote-fetched, like Poly Pizza.
+- **UI**: `PolyHavenBundleCard` (`ui/catalog/PacksTab.tsx`) — item count, description,
+  attribution + source link, an "Add bundle (N items)" button with install progress,
+  and a "Remove all" once installed. Bundles ride the existing `packs` flag (the whole
+  Packs tab is Pro + `packs`-gated), so no new `FEATURE_FLAGS` entry.
+- **Licensing**: all CC0 → no `CREDITS.json` change needed (that file is for *bundled*
+  assets; these are remote-fetched CC0). Per-item license (`CC0`) + author attribution
+  surface in the inspector via the pack entry's `license`/`attribution`.
+- Tests: `catalog/packs/polyHaven.test.ts` (resolver happy/edge paths, basename, bundle
+  data invariants, prod-visibility of the bundle packs). `src/version.ts` → `0.21.2.24`.
+
 ## v0.21.2.23 — X-SHOP: live-verify Courts/HipVan/Castlery price adapters
 
 Ran the deferred real-network verification pass over the dev-only price sidecar

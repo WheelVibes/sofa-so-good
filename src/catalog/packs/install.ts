@@ -1,9 +1,21 @@
 import { unzipSync } from 'fflate'
+import { convertModel } from '../../furniture/convert/convertModel'
 import type { FurnitureCategory, PackGltfDef } from '../../furniture/types'
 import { IdbAssetStore } from '../../state/storage/IdbAssetStore'
 import { useStore } from '../../state/store'
 import { glbFootprint } from './footprint'
 import { InstalledPackStore } from './installedPackStore'
+import {
+  inlineGltfUris,
+  POLY_HAVEN_API,
+  POLY_HAVEN_RESOLUTION,
+  type PolyHavenItem,
+  polyHavenAttribution,
+  polyHavenBundle,
+  polyHavenDataMime,
+  polyHavenSourceUrl,
+  resolvePolyHavenGltfFiles,
+} from './polyHaven'
 import type { PolyPizzaModel } from './polyPizza'
 import { searchPolyPizza } from './polyPizza'
 import { packEntryScale, scaledFootprint } from './scaleHeuristic'
@@ -301,6 +313,134 @@ export async function installPolyPizzaPack(
     if (built.length === 0) throw new Error('Every model failed to download (possible CORS issue).')
     const installed = await commit(pack, built, true)
     notify.success(notifId, `${built.length} models added to your catalog`)
+    return installed
+  } catch (err) {
+    notify.error(notifId, err instanceof Error ? err.message : String(err))
+    throw err
+  }
+}
+
+/** Base64-encode bytes for a `data:` URI (chunked so a large texture doesn't
+ *  blow the argument limit of `String.fromCharCode(...spread)`). */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const CHUNK = 0x8000
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+  }
+  return btoa(binary)
+}
+
+/**
+ * Fetch one Poly Haven model's multi-file glTF (`.gltf` + `.bin` + textures) and
+ * pack it into a self-contained binary GLB. The dependency URLs come from the
+ * API's `include` map — never constructed here. Each dependency is inlined into
+ * the glTF as a `data:` URI (so the glTF has zero external refs), then the
+ * single self-contained glTF is re-exported to a binary GLB via the shared
+ * model-CONVERT pipeline. Inlining is required because CONVERT loads the entry
+ * from a `blob:` URL, and relative refs resolved against a `blob:` base are
+ * short-circuited by the loader-security manager before its sibling-pool map
+ * runs — `data:` URIs pass straight through.
+ */
+async function fetchPolyHavenGlb(
+  item: PolyHavenItem,
+  fetchImpl: typeof fetch,
+  signal?: AbortSignal,
+): Promise<Uint8Array> {
+  const filesRes = await fetchImpl(`${POLY_HAVEN_API}/files/${item.slug}`, { signal })
+  if (!filesRes.ok) throw new Error(`files ${item.slug}: HTTP ${filesRes.status}`)
+  const plan = resolvePolyHavenGltfFiles(await filesRes.json(), POLY_HAVEN_RESOLUTION)
+  if (!plan) throw new Error(`${item.slug}: no ${POLY_HAVEN_RESOLUTION} glTF variant`)
+
+  const fetchBytes = async (url: string, label: string): Promise<Uint8Array> => {
+    const res = await fetchImpl(url, { signal })
+    if (!res.ok) throw new Error(`${label}: HTTP ${res.status}`)
+    return new Uint8Array(await res.arrayBuffer())
+  }
+
+  const [gltfBytes, ...depBytes] = await Promise.all([
+    fetchBytes(plan.gltfUrl, plan.gltfName),
+    ...plan.deps.map((d) => fetchBytes(d.url, d.name)),
+  ])
+  const dataUriByName: Record<string, string> = {}
+  plan.deps.forEach((d, i) => {
+    dataUriByName[d.name] = `data:${polyHavenDataMime(d.name)};base64,${bytesToBase64(depBytes[i])}`
+  })
+
+  const gltfJson = inlineGltfUris(
+    JSON.parse(new TextDecoder().decode(gltfBytes)) as Record<string, unknown>,
+    dataUriByName,
+  )
+  const entry = new File([JSON.stringify(gltfJson)], plan.gltfName, { type: 'model/gltf+json' })
+  const { glb } = await convertModel(entry, [])
+  return new Uint8Array(await glb.arrayBuffer())
+}
+
+/**
+ * Installs a curated Poly Haven set-dressing bundle: fetches each item's glTF +
+ * textures in-browser (keyless, CORS-friendly), packs each into a self-contained
+ * GLB, and registers them through the shared pack pipeline. All items are CC0 —
+ * the author is captured for the credit line. An individual item that fails is
+ * skipped; the flow only rejects when every item fails.
+ */
+export async function installPolyHavenBundle(
+  pack: Pack,
+  opts: InstallOpts = {},
+): Promise<InstalledPack> {
+  if (pack.kind !== 'poly-haven-bundle') throw new Error(`"${pack.id}" is not a Poly Haven bundle.`)
+  const bundle = polyHavenBundle(pack.id)
+  if (!bundle) throw new Error(`Unknown Poly Haven bundle "${pack.id}".`)
+  const fetchImpl = opts.fetchImpl ?? fetch
+  const { notify } = useStore.getState()
+  const notifId =
+    opts.notificationId ??
+    notify.start({
+      title: `Adding ${pack.name}`,
+      kind: 'progress',
+      message: 'Downloading…',
+    })
+
+  try {
+    const renderer = new ThumbnailRenderer()
+    const built: { entry: InstalledPackEntry; def: PackGltfDef }[] = []
+    try {
+      for (let i = 0; i < bundle.items.length; i++) {
+        if (opts.signal?.aborted) throw new Error('Cancelled')
+        const item = bundle.items[i]
+        let glbBytes: Uint8Array
+        try {
+          glbBytes = await fetchPolyHavenGlb(item, fetchImpl, opts.signal)
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') throw err
+          // Skip an item that fails to download/convert; keep the rest.
+          continue
+        }
+        built.push(
+          await buildEntry(
+            pack,
+            { id: item.slug, name: item.name, category: item.category },
+            glbBytes,
+            renderer,
+            {
+              attribution: polyHavenAttribution(item),
+              license: 'CC0',
+              sourceUrl: polyHavenSourceUrl(item.slug),
+            },
+          ),
+        )
+        notify.update(notifId, {
+          progress: (i + 1) / bundle.items.length,
+          message: `Downloading… ${i + 1}/${bundle.items.length}`,
+        })
+      }
+    } finally {
+      renderer.dispose()
+    }
+
+    if (built.length === 0)
+      throw new Error('Every item failed to download (possible network/CORS issue).')
+    const installed = await commit(pack, built, false)
+    notify.success(notifId, `${built.length} items added to your catalog`)
     return installed
   } catch (err) {
     notify.error(notifId, err instanceof Error ? err.message : String(err))

@@ -818,14 +818,20 @@ same change that reshapes a system.
 - **Downloadable content** (`catalog/packs/registry.ts`, `ui/catalog/PacksTab.tsx`):
   declarative `AVAILABLE_PACKS`; `visiblePacks(isDev)` hides `devOnly`. **Gating rule**:
   CORS/programmatic download → prod; needs proxy/sidecar/hand-download → `devOnly`. Kinds
-  `'poly-pizza'` (prod), `'zip'` (Kenney dev), `'ikea-live'` (dev sidecar `scraper-server.mjs`
-  → `public/assets/ikea/`, SSE), `'manual'`. **Remote material providers**
-  (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG (proxy, dev), gated
+  `'poly-pizza'` (prod), `'poly-haven-bundle'` (prod), `'zip'` (Kenney dev), `'ikea-live'` (dev
+  sidecar `scraper-server.mjs` → `public/assets/ikea/`, SSE), `'manual'`. **Curated Poly Haven
+  set-dressing bundles** (`catalog/packs/polyHaven.ts`, `POLY_HAVEN_BUNDLES`): themed one-click
+  installs (Indoor plants / Shelf & table decor / Kitchen counter) of CC0 props from the keyless
+  Poly Haven API. Poly Haven models are multi-file glTF (`.gltf`+`.bin`+textures), so
+  `installPolyHavenBundle` fetches each item (deps come from the API `include` map, never
+  constructed) and packs it into a self-contained GLB in-browser via `convertModel`
+  (`furniture/convert/`), then reuses `buildEntry`/`commit`; nothing is vendored. **Remote material
+  providers** (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG (proxy, dev), gated
   by `activeProviderIds`/`PROD_PROVIDER_IDS`. **Poly Haven supplies materials/textures (+ HDRIs
-  via `scene/lighting/hdriCatalog.ts`) only — its furniture *models* are deliberately not an
-  asset source**, so no provider currently emits `kind:'furniture'` (the `remoteFurniture` browse
-  is dormant until one does). Add a source: poly-pizza-style client reusing `buildEntry`/`commit`,
-  a `RemoteProvider`, or a `'manual'` entry.
+  via `scene/lighting/hdriCatalog.ts`) plus these curated model bundles — but is NOT a *browsable*
+  model source** (its multi-file glTF is why), so no provider emits `kind:'furniture'` (the
+  `remoteFurniture` browse is dormant until one does). Add a source: poly-pizza-style client reusing
+  `buildEntry`/`commit`, a `RemoteProvider`, or a `'manual'` entry.
 - **Shared library (R2, prod)** (`state/slices/sharedLibrarySlice.ts`, `ui/catalog/SharedCard.tsx`,
   `catalog/packs/sharedLibrary.ts`): the Cloudflare R2 library **auto-populates the catalog grid**
   for signed-in **admins** — `bootstrapSharedLibrary` fetches `library/index.json` once on catalog

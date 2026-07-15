@@ -1,7 +1,23 @@
 import { parseKenneyFurnitureKit } from './parsers'
+import { POLY_HAVEN_BUNDLES } from './polyHaven'
 import type { Pack } from './types'
 
+/** Each curated Poly Haven bundle surfaces as one installable pack card. All
+ *  items are CC0 + fetched from the keyless, CORS-friendly Poly Haven API, so
+ *  the bundles are visible in production builds (no `devOnly`). The card looks
+ *  the bundle's items up by id in `POLY_HAVEN_BUNDLES`. */
+const POLY_HAVEN_BUNDLE_PACKS: Pack[] = POLY_HAVEN_BUNDLES.map((b) => ({
+  id: b.id,
+  kind: 'poly-haven-bundle' as const,
+  name: b.name,
+  description: b.description,
+  attribution: 'Poly Haven — polyhaven.com (CC0, credited per model)',
+  license: 'CC0' as const,
+  sourceUrl: 'https://polyhaven.com/models',
+}))
+
 export const AVAILABLE_PACKS: Pack[] = [
+  ...POLY_HAVEN_BUNDLE_PACKS,
   {
     id: 'poly-pizza',
     kind: 'poly-pizza',

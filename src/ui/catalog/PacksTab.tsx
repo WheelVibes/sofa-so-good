@@ -6,7 +6,12 @@ import {
   startScrape,
   streamProgress,
 } from '../../catalog/packs/ikeaLive'
-import { installPack, installPolyPizzaPack } from '../../catalog/packs/install'
+import {
+  installPack,
+  installPolyHavenBundle,
+  installPolyPizzaPack,
+} from '../../catalog/packs/install'
+import { polyHavenBundle } from '../../catalog/packs/polyHaven'
 import { visiblePacks } from '../../catalog/packs/registry'
 import type { Pack } from '../../catalog/packs/types'
 import { uninstallPack } from '../../catalog/packs/uninstall'
@@ -279,6 +284,76 @@ function PolyPizzaCard({ pack }: { pack: Pack }) {
   )
 }
 
+/** Curated Poly Haven bundle card: one click fetches every CC0 item in the
+ *  bundle (glTF + textures) and packs each into a self-contained GLB in-browser.
+ *  Works in production builds (keyless, CORS-friendly Poly Haven API). */
+function PolyHavenBundleCard({ pack }: { pack: Pack }) {
+  const installed = useStore((s) => s.installedPacks)
+  const installing = useStore((s) => s.installing)
+  const isInstalled = !!installed[pack.id]
+  const inflight = installing[pack.id]
+  const entryCount = installed[pack.id]?.entries.length ?? 0
+  const itemCount = polyHavenBundle(pack.id)?.items.length ?? 0
+  const [error, setError] = useState<string | null>(null)
+
+  async function onAdd() {
+    setError(null)
+    try {
+      await installPolyHavenBundle(pack)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface-solid)] p-3">
+      <div className="flex items-baseline justify-between">
+        <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
+        <div className="text-[10px] text-[var(--text-3)]">{itemCount} items</div>
+      </div>
+      <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
+      <div className="text-[10px] text-[var(--text-3)]">
+        {pack.attribution} ·{' '}
+        <a className="underline" href={pack.sourceUrl} target="_blank" rel="noreferrer">
+          source
+        </a>
+      </div>
+      {inflight ? (
+        <button
+          disabled
+          className="rounded bg-[var(--surface-3)] px-3 py-1.5 text-xs text-[var(--text-2)]"
+        >
+          Adding… {Math.round(inflight.progress * 100)}%
+        </button>
+      ) : isInstalled ? (
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-[var(--accent-soft-text)]">
+            ✓ {entryCount} items added
+          </span>
+          <button
+            onClick={() => void uninstallPack(pack.id)}
+            className="text-[11px] text-[var(--danger)] underline"
+          >
+            Remove all
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => void onAdd()}
+          className="rounded bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--on-accent)] hover:bg-[var(--accent-2)]"
+        >
+          Add bundle ({itemCount} items)
+        </button>
+      )}
+      {error && (
+        <div className="rounded bg-[color-mix(in_oklch,var(--danger)_12%,transparent)] px-2 py-1.5 text-[11px] text-[var(--danger)]">
+          {error}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Manual-source card: a source with no CORS/programmatic download. Links out;
  *  the user downloads by hand and imports via the Upload dialog. Dev-only. */
 function ManualCard({ pack }: { pack: Pack }) {
@@ -312,6 +387,7 @@ function ManualCard({ pack }: { pack: Pack }) {
 function renderCard(pack: Pack) {
   if (pack.kind === 'ikea-live') return <IkeaLiveCard key={pack.id} pack={pack} />
   if (pack.kind === 'poly-pizza') return <PolyPizzaCard key={pack.id} pack={pack} />
+  if (pack.kind === 'poly-haven-bundle') return <PolyHavenBundleCard key={pack.id} pack={pack} />
   if (pack.kind === 'manual') return <ManualCard key={pack.id} pack={pack} />
   return <ZipPackCard key={pack.id} pack={pack} />
 }

@@ -1,0 +1,20 @@
+{
+  "name": "poly-haven-bundles-journey",
+  "description": "C-PLANTS/DECOR: curated CC0 Poly Haven set-dressing bundles. Drives the REAL install pipeline in-page (dynamic import of installPolyHavenBundle) to fetch the 'Indoor plants' bundle, pack each multi-file glTF into a self-contained GLB in-browser via the convert pipeline, and register the items as pack furniture. Asserts every packed item measured a plausible real-metre footprint (not a 1x1x1 placeholder), then places two plants (a money tree + a potted plant) in a cleared living/dining room and screenshots to confirm they land floor-anchored at plausible scale with no artifacts. Requires live network to api.polyhaven.com + dl.polyhaven.org.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.()" },
+    { "name": "wait-boot-ready", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000, "failMessage": "app never finished booting (bootPhase/sceneReady)" },
+    { "name": "wait-boot-loader-gone", "waitFor": { "css": "#boot-loader", "visible": false }, "timeout": 15000 },
+    { "name": "enter-room-clear", "eval": "(function(){ const s = window.__store.getState(); if (s.setManualHour) s.setManualHour(13); s.enterRoomEditor('livingDining'); s.setItems([]); })()" },
+    { "name": "settle", "wait": 1500 },
+    { "name": "kick-install", "eval": "void Promise.all([import('/src/catalog/packs/registry.ts'), import('/src/catalog/packs/install.ts')]).then(([r, i]) => i.installPolyHavenBundle(r.AVAILABLE_PACKS.find(p => p.id === 'poly-haven-plants'))).then(() => { window.__phInstalled = true }).catch(e => { window.__phInstallErr = String(e && e.message || e) })" },
+    { "name": "wait-install", "waitFor": { "store": "window.__phInstallErr ? (() => { throw new Error('install failed: ' + window.__phInstallErr) })() : state.packFurniture.filter(d => d.packId === 'poly-haven-plants').length >= 2" }, "timeout": 240000, "failMessage": "expected >=2 packed Poly Haven plant items (network to dl.polyhaven.org may be blocked headless)" },
+    { "name": "assert-real-metre-scale", "waitFor": { "store": "state.packFurniture.filter(d => d.packId === 'poly-haven-plants').every(d => d.defaultFootprint && d.defaultFootprint.h > 0.1 && d.defaultFootprint.h < 2.5 && d.defaultFootprint.w > 0.05 && d.defaultFootprint.w < 2)" }, "timeout": 8000, "failMessage": "packed items should have a plausible real-metre footprint, not a 1x1x1 placeholder" },
+    { "name": "place-plants", "eval": "(function(){ const s = window.__store.getState(); const room = s.floorPlan.rooms.find(r => r.id === 'livingDining'); const ox = room.origin[0]; const oz = room.origin[1]; s.addItem({ defId: 'poly-haven-plants:pachira_aquatica_01', position: [ox + 1.2, oz + 1.4], rotation: 0, props: {} }); s.addItem({ defId: 'poly-haven-plants:potted_plant_02', position: [ox + 2.2, oz + 1.4], rotation: 0, props: {} }); })()" },
+    { "name": "wait-placed", "waitFor": { "store": "state.items.length >= 2" }, "timeout": 8000 },
+    { "name": "wait-render", "wait": 5000 },
+    { "name": "shot-placed", "screenshot": "plants-placed" }
+  ]
+}
