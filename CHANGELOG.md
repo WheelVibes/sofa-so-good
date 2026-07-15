@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.34 — Asset Studio Stage 3b — fittings/component library + snap-to-surface placement
+
+Adds a curated hardware component library to the GLB Asset Designer with the SWOOD click-a-face
+placement pattern and a one-tap symmetric repeat — place one leg, get a four-legged table.
+
+- **Component library** (`furniture/glbEdit/components.ts`, pure + unit-tested): 13 parametric
+  FITTINGS grouped Legs / Handles / Feet / Hinges — tapered/round/square/hairpin/angled legs, bar/
+  arc/knob/recessed pulls, dome/puck/castor feet, a butt hinge. Each is a pure builder emitting an
+  ordinary `ShapePart[]` in a component-local frame (`floor` fittings hang down from local y=0;
+  `wall` fittings protrude +Z with the long axis horizontal), with 1–3 clamped params and metal/
+  wood/rubber finish defaults on the plain `ShapePart` colour/roughness/metalness fields (no
+  `mat:<id>` textures). A placed component is just parts + a named `PartGroup` — no new part kind,
+  no bespoke render/export path, fully editable (gizmo/inspector/ungroup) once landed.
+- **Snap-to-surface placement** (`furniture/glbEdit/componentPlace.ts`, pure + unit-tested): the
+  new **Components** panel (`ui/glbEditor/ComponentsPanel.tsx`) arms a fitting (with live param
+  sliders); clicking a face in the preview places it. `componentTransform` builds the minimal
+  rotation mapping the component's declared mount axis onto the clicked world normal (a leg on a
+  table underside hangs straight down and sits flush; a bar pull on an upright face stays
+  horizontal), 5 mm-snaps the hit point, and `addPlacedComponent` lands it as a named group,
+  selected. Real R3F face click via `DesignerViewport`/`PartsPreview` (+ a ground plane for floor
+  drops); Esc / re-tap disarms. A small `window.__glbDesignerPlaceOnFace` automation seam (like
+  `window.__store`) lets the scenario drive a deterministic face-place.
+- **Symmetric "Repeat to corners"** (`editSpec.ts:repeatComponentGroup`, pure + unit-tested): from
+  the `GroupInspector`, Mirror X / Mirror Z (2 copies) or Repeat ×4 (all four corners) duplicates a
+  placed fitting about the asset bounding-box centre (`assetCenterXZ`), deep-copying members with
+  mirrored group transforms in one undo step.
+- **Scenario** `scripts/scenarios/glb-designer-stage3b.json`; docs + plan updated. Persistence is
+  unchanged — a component is a `PartGroup`, already covered by the v4 `partGroups` envelope.
+
 ## v0.21.2.33 — Asset Studio Stage 3a — spec-envelope unification + transform groups
 
 Folds the designer + configurator persisted recipes under one versioned envelope (the recorded

@@ -4,6 +4,8 @@ import { type Group, MathUtils, Mesh, type Object3D } from 'three'
 import { useModalGuard } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
 import { buildEditedObject } from '../../furniture/glbEdit/buildObject'
+import { type FaceHit, placeComponentOnFace } from '../../furniture/glbEdit/componentPlace'
+import { componentById } from '../../furniture/glbEdit/components'
 import type { CsgOp } from '../../furniture/glbEdit/csgCombine'
 import { combineGroupToMeshPart, evaluateAllGroups } from '../../furniture/glbEdit/csgEval'
 import {
@@ -26,6 +28,8 @@ import {
   removeCombineGroup,
   removePart,
   renamePartGroup,
+  repeatComponentGroup,
+  type SymmetryMode,
   setMeshOverride,
   updatePart,
   updatePartGroupTransform,
@@ -57,6 +61,7 @@ import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { CombinePanel } from './CombinePanel'
+import { ComponentsPanel } from './ComponentsPanel'
 import { DesignerToolbar } from './DesignerToolbar'
 import { DesignerViewport } from './DesignerViewport'
 import { GroupInspector } from './GroupInspector'
@@ -156,6 +161,10 @@ export function GlbDesignerDialog() {
   const [meshNames, setMeshNames] = useState<string[]>([])
   const sourceSceneRef = useRef<Object3D | null>(null)
 
+  // ---- Component library — armed fitting + params (Stage 3b) -------------
+  const [armedComponentId, setArmedComponentId] = useState<string | null>(null)
+  const [armedParams, setArmedParams] = useState<Record<string, number>>({})
+
   // ---- Drag gizmo (GE2b) -------------------------------------------------
   const [gizmoMode, setGizmoMode] = useState<GizmoMode>('translate')
   // The selected part's live preview Mesh (what TransformControls attaches to).
@@ -210,6 +219,29 @@ export function GlbDesignerDialog() {
     setSelGroupObj(selGroupId ? (groupRegistry.current.get(selGroupId) ?? null) : null)
   }, [selGroupId])
 
+  // ---- Component placement seam (Stage 3b) — the armed-place handler is
+  // defined below (after the early return), so the viewport + the automation
+  // seam call the LATEST closure via this ref. ------------------------------
+  const armedRef = useRef<string | null>(armedComponentId)
+  armedRef.current = armedComponentId
+  const placeArmedRef = useRef<(hit: FaceHit) => void>(() => {})
+  // Expose a small placement seam while the designer is open so the scenario
+  // harness can drive a face-place deterministically (the real UI path is a
+  // click in the preview). Mirrors the `window.__store` automation seam.
+  useEffect(() => {
+    if (!open || !enabled) return
+    const w = window as unknown as {
+      __glbDesignerPlaceOnFace?: (
+        point: [number, number, number],
+        normal: [number, number, number],
+      ) => void
+    }
+    w.__glbDesignerPlaceOnFace = (point, normal) => placeArmedRef.current({ point, normal })
+    return () => {
+      w.__glbDesignerPlaceOnFace = undefined
+    }
+  }, [open, enabled])
+
   // This dialog is a modal-style overlay that doesn't build on `Modal`, so it
   // registers with the modal guard itself: global scene hotkeys (incl. the
   // global ⌘Z undo) no-op while it's open, which keeps the dialog-scoped
@@ -231,6 +263,14 @@ export function GlbDesignerDialog() {
           t.isContentEditable)
       const mod = e.metaKey || e.ctrlKey
       const key = e.key.toLowerCase()
+      // Esc disarms a pending component placement (before anything else claims it).
+      if (key === 'escape' && armedRef.current) {
+        e.preventDefault()
+        e.stopPropagation()
+        setArmedComponentId(null)
+        setArmedParams({})
+        return
+      }
       // Undo / redo — handle locally (the modal guard suppresses global undo).
       // Inlined (not the `doUndo`/`doRedo` handlers) so the effect deps stay
       // `[open, enabled]` — `setHist` is a stable setter.
@@ -312,6 +352,8 @@ export function GlbDesignerDialog() {
       setGizmoMode('translate')
       setSelMesh(null)
       setSelGroupObj(null)
+      setArmedComponentId(null)
+      setArmedParams({})
       sourceSceneRef.current = null
     }
   }, [open])
@@ -388,6 +430,48 @@ export function GlbDesignerDialog() {
     if (next.parts.length > spec.parts.length) {
       setSelId(next.parts[next.parts.length - 1]!.id)
     }
+  }
+
+  // ---- Component library (Stage 3b) --------------------------------------
+  // Arm a fitting: seed its params from the defaults, clear any part/group
+  // selection (the next preview click PLACES rather than selects).
+  const armComponent = (id: string) => {
+    const def = componentById(id)
+    if (!def) return
+    setArmedComponentId(id)
+    const seed: Record<string, number> = {}
+    for (const p of def.params) seed[p.key] = p.default
+    setArmedParams(seed)
+    setSelIds([])
+    setSelGroupId(null)
+  }
+  const disarmComponent = () => {
+    setArmedComponentId(null)
+    setArmedParams({})
+  }
+  const setArmedParam = (key: string, value: number) =>
+    setArmedParams((p) => ({ ...p, [key]: value }))
+
+  // Place the armed component onto a clicked face (SWOOD): orient to the normal,
+  // snap, land as a named PartGroup, select it, and disarm.
+  const placeArmed = (hit: FaceHit) => {
+    const def = armedComponentId ? componentById(armedComponentId) : null
+    if (!def) return
+    const { spec: next, groupId } = placeComponentOnFace(spec, def, armedParams, hit)
+    if (!groupId) return
+    commit(next)
+    disarmComponent()
+    selectGroup(groupId)
+  }
+  placeArmedRef.current = placeArmed
+
+  // "Repeat" a placed component group to its symmetric positions about the asset
+  // bbox centre (Mirror X/Z or ×4). Selects the last copy so it's easy to tweak.
+  const repeatGroup = (groupId: string, mode: SymmetryMode) => {
+    const { spec: next, groupIds } = repeatComponentGroup(spec, groupId, mode)
+    if (groupIds.length === 0) return
+    commit(next)
+    selectGroup(groupIds[groupIds.length - 1])
   }
 
   const commitGizmoDrag = () => {
@@ -645,6 +729,8 @@ export function GlbDesignerDialog() {
               onScene={onScene}
               onCommitGizmoDrag={commitGizmoDrag}
               onCommitGroupGizmoDrag={commitGroupGizmoDrag}
+              armed={!!armedComponentId}
+              onPlaceFace={(point, normal) => placeArmed({ point, normal })}
             />
           </div>
 
@@ -684,6 +770,14 @@ export function GlbDesignerDialog() {
               onUndo={doUndo}
               onRedo={doRedo}
               onAddShape={addShape}
+            />
+
+            <ComponentsPanel
+              armedId={armedComponentId}
+              params={armedParams}
+              onArm={armComponent}
+              onDisarm={disarmComponent}
+              onParam={setArmedParam}
             />
 
             <LayersPanel
@@ -727,6 +821,7 @@ export function GlbDesignerDialog() {
                       onUngroup={() => ungroupTransform(g.id)}
                       onDuplicate={() => duplicateGroup(g.id)}
                       onMirror={() => mirrorGroup(g.id)}
+                      onRepeat={(mode) => repeatGroup(g.id, mode)}
                     />
                   ) : null
                 })()

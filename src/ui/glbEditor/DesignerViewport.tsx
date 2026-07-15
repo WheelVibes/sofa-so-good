@@ -67,6 +67,8 @@ export function DesignerViewport({
   onScene,
   onCommitGizmoDrag,
   onCommitGroupGizmoDrag,
+  armed,
+  onPlaceFace,
 }: {
   spec: AssetEditSpec
   results: Map<string, ShapePart>
@@ -84,6 +86,10 @@ export function DesignerViewport({
   onScene: (o: Object3D | null) => void
   onCommitGizmoDrag: () => void
   onCommitGroupGizmoDrag: () => void
+  /** Stage 3b: a component is armed — clicks place it on the clicked face; a
+   *  ground plane catches floor clicks so a fitting can be dropped on the floor. */
+  armed: boolean
+  onPlaceFace: (point: [number, number, number], normal: [number, number, number]) => void
 }) {
   // A group has no Scale gizmo (its members' sizes are their own) — clamp the
   // shared mode to translate/rotate while a group is the gizmo target.
@@ -112,8 +118,24 @@ export function DesignerViewport({
               results={results}
               meshRefFor={meshRefFor}
               groupRefFor={groupRefFor}
+              onPlaceFace={armed ? onPlaceFace : undefined}
             />
           </Bounds>
+          {/* Ground click target for floor placement (Stage 3b) — only while a
+              component is armed, and OUTSIDE <Bounds> so it never affects the
+              auto-framing. Rotated flat so its world normal is +Y (up). */}
+          {armed ? (
+            <mesh
+              rotation={[-Math.PI / 2, 0, 0]}
+              onClick={(e) => {
+                e.stopPropagation()
+                onPlaceFace([e.point.x, e.point.y, e.point.z], [0, 1, 0])
+              }}
+            >
+              <planeGeometry args={[20, 20]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+          ) : null}
         </Suspense>
         {/* OrbitControls is makeDefault, so drei's TransformControls
             auto-disables it while a gizmo handle is being dragged

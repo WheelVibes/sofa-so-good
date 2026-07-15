@@ -1,5 +1,6 @@
+import type { ThreeEvent } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
-import { type Group, MathUtils, type Mesh } from 'three'
+import { type Group, MathUtils, type Mesh, Vector3 } from 'three'
 import {
   type GhostVariant,
   ghostMaterial,
@@ -28,10 +29,14 @@ function PartMesh({
   part,
   ghost,
   meshRef,
+  onPlaceFace,
 }: {
   part: ShapePart
   ghost?: GhostVariant
   meshRef?: (m: Mesh | null) => void
+  /** When set (a component is armed), a click on this mesh places the component
+   *  on the clicked face (world point + world normal). */
+  onPlaceFace?: (point: [number, number, number], normal: [number, number, number]) => void
 }) {
   // A picked `mat:<id>` texture builds into the cache asynchronously — the
   // epoch bump re-resolves the material once it's ready (GE3c).
@@ -58,6 +63,23 @@ function PartMesh({
     [mat],
   )
   const rot = part.rotation
+  const onClick = onPlaceFace
+    ? (e: ThreeEvent<MouseEvent>) => {
+        // Only the front-most hit places (SWOOD click); don't let the click also
+        // reach the ground plane / meshes behind.
+        e.stopPropagation()
+        const p = e.point
+        const face = e.face
+        if (!face) return
+        // Geometry-local face normal → world direction (accounts for the mesh's
+        // own rotation + any group transform above it).
+        const wn = new Vector3()
+          .copy(face.normal)
+          .transformDirection(e.object.matrixWorld)
+          .normalize()
+        onPlaceFace([p.x, p.y, p.z], [wn.x, wn.y, wn.z])
+      }
+    : undefined
   return (
     <mesh
       ref={meshRef}
@@ -72,6 +94,7 @@ function PartMesh({
       renderOrder={ghost ? 1 : 0}
       geometry={geom}
       material={mat}
+      onClick={onClick}
     />
   )
 }
@@ -88,6 +111,7 @@ export function PartsPreview({
   results,
   meshRefFor,
   groupRefFor,
+  onPlaceFace,
 }: {
   spec: AssetEditSpec
   results: Map<string, ShapePart>
@@ -95,6 +119,8 @@ export function PartsPreview({
   /** Registers each transform-group's container so the gizmo can attach to it
    *  (Stage 3a). */
   groupRefFor: (groupId: string) => (g: Group | null) => void
+  /** Stage 3b: when a component is armed, a click on any part face places it. */
+  onPlaceFace?: (point: [number, number, number], normal: [number, number, number]) => void
 }) {
   const consumed = combinedPartIds(spec)
   const groups = partGroups(spec)
@@ -114,7 +140,13 @@ export function PartsPreview({
       {spec.parts
         .filter((p) => !memberToGroup.has(p.id))
         .map((p) => (
-          <PartMesh key={p.id} part={p} ghost={ghostFor(p)} meshRef={meshRefFor(p.id)} />
+          <PartMesh
+            key={p.id}
+            part={p}
+            ghost={ghostFor(p)}
+            meshRef={meshRefFor(p.id)}
+            onPlaceFace={onPlaceFace}
+          />
         ))}
       {/* Transform-group members build under a container carrying the group's
           shared transform, so their world pose = group transform ∘ part
@@ -139,7 +171,13 @@ export function PartsPreview({
             {g.partIds.map((id) => {
               const p = spec.parts.find((pp) => pp.id === id)
               return p ? (
-                <PartMesh key={id} part={p} ghost={ghostFor(p)} meshRef={meshRefFor(id)} />
+                <PartMesh
+                  key={id}
+                  part={p}
+                  ghost={ghostFor(p)}
+                  meshRef={meshRefFor(id)}
+                  onPlaceFace={onPlaceFace}
+                />
               ) : null
             })}
           </group>

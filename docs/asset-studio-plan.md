@@ -150,13 +150,32 @@ shrinking — every stage extracts modules, never grows the monolith.
   stays distinct from group membership. Mobile parity.
 - ✅ **History/undo:** every group op is one `commit()` entry; undo of ungroup restores the group.
 
+### Stage 3b — fittings/component library + snap-to-surface placement — ✅ SHIPPED (v0.21.2.34)
+- ✅ **Component library** (`glbEdit/components.ts`, pure + unit-tested): 13 curated parametric
+  FITTINGS — legs (tapered/round/square/hairpin/angled mid-century), handles/pulls (bar, arc,
+  round knob, recessed groove), feet (dome, cylinder puck, castor), and a butt hinge — each a
+  pure builder emitting an ordinary `ShapePart[]` in a component-local frame with 1–3 clamped
+  params + metal/wood/rubber finish defaults (plain `ShapePart` colour/roughness/metalness, no
+  `mat:<id>`). A placed component is just parts + a named `PartGroup` (no new part kind).
+- ✅ **Snap-to-surface placement** (`glbEdit/componentPlace.ts`, pure + unit-tested; the SWOOD
+  pattern): arm a component in the **Components** panel, then click a face in the preview →
+  `componentTransform` maps the component's declared mount axis (`floor` → down for legs/feet,
+  `wall` → out for handles/hinges) onto the clicked world normal, 5 mm-snaps the hit point, and
+  `addPlacedComponent` lands it as a named group, selected. A ground plane catches floor clicks;
+  Esc / re-tap disarms. Real R3F face click (`DesignerViewport`/`PartsPreview`) + a small
+  automation seam (`window.__glbDesignerPlaceOnFace`) for the scenario.
+- ✅ **Symmetric "Repeat to corners"** (`editSpec.ts:repeatComponentGroup`, pure + unit-tested):
+  from the `GroupInspector`, one tap mirrors a placed fitting about the asset bbox centre — Mirror
+  X / Mirror Z (2 copies) or Repeat ×4 (all four corners) — deep-copying members with mirrored
+  group transforms. Place one leg, get a four-legged table.
+- ✅ Scenario `scripts/scenarios/glb-designer-stage3b.json`; persistence unchanged (a component is
+  a `PartGroup` — already covered by the v4 `partGroups` envelope).
+
 ### Stage 3 — remaining
 - **Part grouping/hierarchy:** named groups with group transforms in the spec; layer panel
   becomes a tree; group duplicate/mirror. — ✅ done (3a)
-- **Fittings/component library:** curated hardware components (legs ×N styles, handles,
-  knobs, feet, hinges, castors) as parametric mini-builders + CC0 GLB parts;
-  **snap-to-surface placement** (SWOOD pattern: click a face, component lands oriented,
-  with spacing presets).
+- **Fittings/component library:** curated hardware components + **snap-to-surface placement**
+  (SWOOD pattern). — ✅ done (3b)
 - **Template-first flows:** archetype starters (sofa, cabinet/wardrobe, table, shelving,
   bed frame) — bridge the existing parametric generator INTO the designer as editable part
   sets, sliders clamped to ergonomic ranges (sofa seat ~0.44 m, counter 0.9 m, …) so
@@ -193,6 +212,7 @@ shrinking — every stage extracts modules, never grows the monolith.
 **Status:** Stage 0 **shipped** (v0.21.2.28); Stage 1 **fully shipped** — Stage 1a
 (v0.21.2.29) + Stage 1b / CSG v2 (v0.21.2.30, 2026-07-16); Stage 2 / materials **shipped**
 (v0.21.2.32, 2026-07-16); Stage 3a / spec-envelope unification + transform groups **shipped**
-(v0.21.2.33, 2026-07-16). **Stage 3 remainder (fittings/component library, template-first flows,
-sets/modular) next.** Each stage lands as its own commit train with an end-of-stage adversarial
+(v0.21.2.33, 2026-07-16); Stage 3b / fittings-component library + snap-to-surface placement
+**shipped** (v0.21.2.34, 2026-07-16). **Stage 3 remainder (template-first flows, sets/modular)
+next.** Each stage lands as its own commit train with an end-of-stage adversarial
 review; this file tracks stage state.

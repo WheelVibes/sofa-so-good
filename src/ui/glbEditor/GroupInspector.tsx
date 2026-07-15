@@ -1,4 +1,4 @@
-import type { PartGroup } from '../../furniture/glbEdit/editSpec'
+import type { PartGroup, SymmetryMode } from '../../furniture/glbEdit/editSpec'
 import { Icon } from '../toolbar/icons'
 
 /**
@@ -16,6 +16,7 @@ export function GroupInspector({
   onUngroup,
   onDuplicate,
   onMirror,
+  onRepeat,
 }: {
   group: PartGroup
   onRename: (name: string) => void
@@ -26,6 +27,9 @@ export function GroupInspector({
   onUngroup: () => void
   onDuplicate: () => void
   onMirror: () => void
+  /** Symmetric "Repeat" — mirror the group to 2/4 positions about the asset
+   *  bbox centre (Stage 3b). The real win for legs/feet placed one at a time. */
+  onRepeat: (mode: SymmetryMode) => void
 }) {
   const position = group.position ?? [0, 0, 0]
   const rotation = group.rotation ?? [0, 0, 0]
@@ -109,6 +113,45 @@ export function GroupInspector({
       <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-1)' }}>
         Moving/rotating the group moves every shape in it together. Ungroup releases the shapes
         where they are (nothing jumps).
+      </div>
+
+      {/* Symmetric repeat (Stage 3b): mirror a placed fitting to the opposite
+          side(s) about the asset bounding-box centre — place one leg, get four. */}
+      <div
+        className="label"
+        style={{
+          fontSize: 'var(--t-2xs)',
+          color: 'var(--text-3)',
+          margin: 'var(--s-2) 0 var(--s-1)',
+        }}
+      >
+        Repeat to corners
+      </div>
+      <div className="action-grid">
+        <button
+          type="button"
+          className="act"
+          aria-label="Mirror to opposite side (X)"
+          onClick={() => onRepeat('mirror-x')}
+        >
+          Mirror X
+        </button>
+        <button
+          type="button"
+          className="act"
+          aria-label="Mirror to opposite side (Z)"
+          onClick={() => onRepeat('mirror-z')}
+        >
+          Mirror Z
+        </button>
+        <button
+          type="button"
+          className="act"
+          aria-label="Repeat to all four corners"
+          onClick={() => onRepeat('quad')}
+        >
+          Repeat ×4
+        </button>
       </div>
     </div>
   )

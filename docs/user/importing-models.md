@@ -142,6 +142,19 @@ build one in the browser:
   don't jump), and it's undoable, so **⌘Z** brings the group back. A **Group** ("Group N") is
   a different thing from a **Combine** (⛓) — a Group just moves shapes together and keeps them
   separate; a Combine fuses them with a boolean. A shape can be in one of each.
+- **Components (fittings)** — the **Components** panel is a library of ready-made hardware:
+  **Legs** (Tapered / Round / Square / Hairpin / Angled), **Handles** (Bar pull / Arc pull /
+  Round knob / Recessed pull), **Feet** (Dome foot / Puck foot / Castor) and a **Butt hinge**.
+  Tap one to **arm** it — a panel opens with 1–3 sliders (height, width, length…) and a hint.
+  Now **click a surface in the preview** to drop the fitting there: it snaps to the face and
+  orients itself automatically — a leg dropped on a tabletop's **underside** (or the floor)
+  hangs straight down and stands plumb; a bar pull clicked on an **upright** drawer/door front
+  sits flush with its bar horizontal. Tap the armed component again, or press **Esc**, to cancel.
+  A placed fitting lands as its own named **Group**, so you can move, resize, recolour or ungroup
+  it like anything else.
+- **Repeat to corners** — placed one leg or foot? Select its group and use **Mirror X**,
+  **Mirror Z** or **Repeat ×4** (in the group panel) to copy it to the matching corner(s) of the
+  piece in one tap — place a single leg, get a four-legged table. It's one undo step.
 - **Undo / redo** — every edit (add, move, resize, recolour, combine, group, …) is
   undoable: press **⌘Z** (⇧⌘Z to redo), or use the **↶ / ↷** buttons next to
   "Add shape". A slider or gizmo drag counts as a single step.

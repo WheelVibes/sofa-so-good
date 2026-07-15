@@ -598,6 +598,17 @@ same change that reshapes a system.
   groups only, no nesting). `LayersPanel` is a shallow tree (group rows: inline rename, collapse,
   indented members, Ungroup/Duplicate/Mirror; a **Group** action on the multi-select toolbar); the
   gizmo drags a whole group via a group proxy (`gizmoWriteBack.ts:groupGizmoPatch`).
+  **Stage 3b — fittings/component library** (v0.21.2.34): a curated set of parametric hardware
+  fittings (`glbEdit/components.ts`, pure + unit-tested — 13 legs/handles/feet/hinges, each a
+  builder emitting an ordinary `ShapePart[]` in a component-local frame with 1–3 clamped params +
+  metal/wood/rubber finish defaults). The **`ComponentsPanel`** arms a fitting; a preview face-click
+  places it (SWOOD): `glbEdit/componentPlace.ts` (`componentTransform`) maps the component's mount
+  axis (`floor` legs/feet → down, `wall` handles/hinges → out) onto the clicked world normal, 5 mm-
+  snaps, and `editSpec.ts:addPlacedComponent` lands it as a named `PartGroup` (no new part kind).
+  Face clicks come from `PartsPreview`/`DesignerViewport` (R3F `onClick` + a ground plane; a
+  `window.__glbDesignerPlaceOnFace` automation seam mirrors `window.__store`). `GroupInspector`'s
+  **Repeat to corners** (`editSpec.ts:repeatComponentGroup` + `assetCenterXZ`, pure) mirrors a placed
+  fitting to 2/4 symmetric positions about the asset bbox centre. Scenario `glb-designer-stage3b`.
   `specPersist` is at **v4**, and both it and the configurator's `slotSpec` now ride the shared
   versioned **`furniture/specEnvelope.ts`** `{ kind, v, payload }` envelope + `EnvelopeCodec` (one
   parse/serialize/migrate/guard path — `parseAssetSpec`/`serializeAssetSpec` +

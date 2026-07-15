@@ -746,6 +746,129 @@ export function mirrorPartGroup(
   }
 }
 
+/**
+ * Land a placed component (Stage 3b): append its `parts` and wrap them in a new
+ * named `PartGroup` carrying the mount `position`/`rotation` (from
+ * `componentPlace.ts`). Because a component is just parts + a transform group, it
+ * is fully editable once placed (gizmo, inspector, ungroup) with no new part
+ * kind. Guards: ≥1 part. An all-zero position/rotation is left absent so the spec
+ * stays clean. Returns `{ spec, groupId }` (groupId null when `parts` is empty).
+ */
+export function addPlacedComponent(
+  spec: AssetEditSpec,
+  parts: ShapePart[],
+  name: string,
+  position?: [number, number, number],
+  rotation?: [number, number, number],
+): { spec: AssetEditSpec; groupId: string | null } {
+  if (parts.length === 0) return { spec, groupId: null }
+  const id = newPartGroupId()
+  const group: PartGroup = { id, name, partIds: parts.map((p) => p.id) }
+  if (position?.some((v) => v !== 0)) group.position = position
+  if (rotation?.some((v) => v !== 0)) group.rotation = rotation
+  return {
+    spec: {
+      ...spec,
+      parts: [...spec.parts, ...parts],
+      partGroups: [...partGroups(spec), group],
+    },
+    groupId: id,
+  }
+}
+
+/** The centre (X, Z) of the asset's symmetry frame — the AABB centre of the
+ *  UNGROUPED solid parts (the asset body a fitting attaches to, e.g. a tabletop),
+ *  falling back to all non-hole parts, then all parts, then the origin. Ignores
+ *  part rotation (an axis-aligned approximation — enough for X/Z mirroring). Pure. */
+function assetCenterXZ(spec: AssetEditSpec): [number, number] {
+  const grouped = partGroupMemberIds(spec)
+  let pool = spec.parts.filter((p) => !grouped.has(p.id) && p.role !== 'hole')
+  if (pool.length === 0) pool = spec.parts.filter((p) => p.role !== 'hole')
+  if (pool.length === 0) pool = spec.parts
+  if (pool.length === 0) return [0, 0]
+  let minX = Infinity
+  let maxX = -Infinity
+  let minZ = Infinity
+  let maxZ = -Infinity
+  for (const p of pool) {
+    minX = Math.min(minX, p.position[0] - p.size[0] / 2)
+    maxX = Math.max(maxX, p.position[0] + p.size[0] / 2)
+    minZ = Math.min(minZ, p.position[2] - p.size[2] / 2)
+    maxZ = Math.max(maxZ, p.position[2] + p.size[2] / 2)
+  }
+  return [(minX + maxX) / 2, (minZ + maxZ) / 2]
+}
+
+/** Symmetric-repeat mode for a placed component group (Stage 3b). */
+export type SymmetryMode = 'mirror-x' | 'mirror-z' | 'quad'
+
+/**
+ * Duplicate a component (transform) group to its symmetric position(s) about the
+ * asset's bounding-box centre (`assetCenterXZ`) — the real furniture win: place
+ * one leg/foot, then one tap mirrors it to the 2 (`mirror-x`/`mirror-z`) or 4
+ * (`quad`) corners. Each copy DEEP-COPIES the members (fresh ids) and carries a
+ * mirrored group transform (position reflected across the centre; rotation
+ * reflected with the same X-mirror convention as `mirrorPartGroup`). Pure. No-op
+ * (empty `groupIds`) for an unknown id.
+ */
+export function repeatComponentGroup(
+  spec: AssetEditSpec,
+  groupId: string,
+  mode: SymmetryMode,
+): { spec: AssetEditSpec; groupIds: string[] } {
+  const group = partGroups(spec).find((g) => g.id === groupId)
+  if (!group) return { spec, groupIds: [] }
+  const [cx, cz] = assetCenterXZ(spec)
+  const gp = group.position ?? [0, 0, 0]
+  const gr = group.rotation
+  type Target = { pos: [number, number, number]; rot?: [number, number, number] }
+  const mirrorX = (): Target => ({
+    pos: [2 * cx - gp[0], gp[1], gp[2]],
+    rot: gr ? [gr[0], -gr[1], -gr[2]] : undefined,
+  })
+  const mirrorZ = (): Target => ({
+    pos: [gp[0], gp[1], 2 * cz - gp[2]],
+    rot: gr ? [-gr[0], -gr[1], gr[2]] : undefined,
+  })
+  const mirrorXZ = (): Target => ({
+    pos: [2 * cx - gp[0], gp[1], 2 * cz - gp[2]],
+    rot: gr ? [-gr[0], gr[1], -gr[2]] : undefined,
+  })
+  const targets: Target[] =
+    mode === 'mirror-x'
+      ? [mirrorX()]
+      : mode === 'mirror-z'
+        ? [mirrorZ()]
+        : [mirrorX(), mirrorZ(), mirrorXZ()]
+
+  let next = spec
+  const groupIds: string[] = []
+  for (const t of targets) {
+    const copies: ShapePart[] = []
+    for (const id of group.partIds) {
+      const src = next.parts.find((p) => p.id === id)
+      if (!src) continue
+      copies.push(clonePart(src, (p) => ({ position: [...p.position], rotation: p.rotation })))
+    }
+    if (copies.length === 0) continue
+    const newId = newPartGroupId()
+    const copyGroup: PartGroup = {
+      id: newId,
+      name: group.name,
+      partIds: copies.map((p) => p.id),
+      ...(t.pos.some((v) => v !== 0) ? { position: t.pos } : {}),
+      ...(t.rot?.some((v) => v !== 0) ? { rotation: t.rot } : {}),
+    }
+    next = {
+      ...next,
+      parts: [...next.parts, ...copies],
+      partGroups: [...partGroups(next), copyGroup],
+    }
+    groupIds.push(newId)
+  }
+  return { spec: next, groupIds }
+}
+
 /** Clone a part (full transform + material), offset slightly along X so the copy
  *  is visible, and append it. Returns the spec unchanged if the id is unknown.
  *  Arrays are deep-copied so the clone never shares a mutable tuple. */
