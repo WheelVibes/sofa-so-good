@@ -68,10 +68,24 @@ shrinking — every stage extracts modules, never grows the monolith.
   deep-copy + `gizmoWriteBack` (lathe/sweep stay round under scale) + `specPersist` round-trip
   (tested) + `DesignerToolbar` "More shapes" cluster.
 
-### Stage 1b — CSG v2 (OPEN)
-- **CSG v2:** multi-select booleans; ops recorded in the spec (non-destructive — operands
-  stay editable, result rebuilt lazily); heavy combines moved to the worker pool; source-GLB
-  as operand where watertight. Keep the TinkerCAD "solid/hole" mental model in the UI.
+### Stage 1b — CSG v2 — ✅ SHIPPED (v0.21.2.30)
+- ✅ **Non-destructive combine groups** (`glbEdit/editSpec.ts` `combineGroups[]` +
+  `parts[].role: 'solid'|'hole'`): multi-select 2+ parts → Union/Subtract/Intersect records a
+  group whose **operands stay editable**; the result is evaluated lazily from their live
+  transforms (`glbEdit/csgEval.ts`). Pure helpers `addCombineGroup`/`removeCombineGroup` (ungroup)
+  /`bakeCombineGroup`/`setPartRole`/`pruneCombineGroups`, unit-tested.
+- ✅ **Multi-operand** folds (`foldCsg`): union/intersect across all operands; subtract carves the
+  `hole`-role operands out of the solids (no holes → first-selected is the base). Per-group
+  material preservation carried over from v1.
+- ✅ **Worker offload** — the third pooled worker (`glbEdit/csgWorkerPool.ts` + `csg.worker.ts`),
+  built on the shared `furniture/worker/workerPool.ts`; transferable geometry; debounced preview
+  (`useCombineResults`) with a "Computing…" hint; translucent hole ghosts; main-thread fallback.
+- ✅ **Bake escape hatch** ("Bake to mesh") → one frozen editable `mesh` part; v1 mesh parts load
+  unchanged (back-compat).
+- ✅ **Export** bakes each group's evaluated result (holes not exported); `assetSpec` keeps the full
+  non-destructive graph. Persistence bumped to **v2** (v1→v2 identity migration).
+- Source-GLB-as-operand deferred (the designer never makes the source a part; bake a mesh + combine
+  covers the watertight case). TinkerCAD "solid/hole" mental model is the UI vocabulary.
 
 ## Stage 2 — Materials: finishes, colours, gradients, sheen, gloss
 - **`MeshPhysicalMaterial` part materials:** expose sheen (fabric/velvet), clearcoat
@@ -111,6 +125,7 @@ shrinking — every stage extracts modules, never grows the monolith.
 
 ---
 
-**Status:** Stage 0 **shipped** (v0.21.2.28); Stage 1a **shipped** (v0.21.2.29, 2026-07-16) —
-Stage 1b (CSG v2) next. Each stage lands as its own
-commit train with an end-of-stage adversarial review; this file tracks stage state.
+**Status:** Stage 0 **shipped** (v0.21.2.28); Stage 1 **fully shipped** — Stage 1a
+(v0.21.2.29) + Stage 1b / CSG v2 (v0.21.2.30, 2026-07-16). **Stage 2 (materials) next.** Each
+stage lands as its own commit train with an end-of-stage adversarial review; this file tracks
+stage state.

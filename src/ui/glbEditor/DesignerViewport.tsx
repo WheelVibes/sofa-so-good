@@ -49,6 +49,7 @@ function SourceModel({
  */
 export function DesignerViewport({
   spec,
+  results,
   sel,
   selMesh,
   finishIds,
@@ -60,6 +61,7 @@ export function DesignerViewport({
   onCommitGizmoDrag,
 }: {
   spec: AssetEditSpec
+  results: Map<string, ShapePart>
   sel: ShapePart | null
   selMesh: Mesh | null
   finishIds: string[]
@@ -85,7 +87,7 @@ export function DesignerViewport({
             {sourceUrl && (
               <SourceModel url={sourceUrl} scale={spec.sourceScale} onScene={onScene} />
             )}
-            <PartsPreview spec={spec} meshRefFor={meshRefFor} />
+            <PartsPreview spec={spec} results={results} meshRefFor={meshRefFor} />
           </Bounds>
         </Suspense>
         {/* OrbitControls is makeDefault, so drei's TransformControls

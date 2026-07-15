@@ -1,0 +1,183 @@
+{
+  "name": "glb-designer-stage1b",
+  "description": "Asset Studio Stage 1b — CSG v2 non-destructive booleans. In Pro with glbDesigner on: build a Box, add a Cylinder, position + rotate it to punch straight through the box on Z, mark it as a Hole (Type toggle), multi-select both (Select mode) and Subtract → a non-destructive 'Combine 1 · subtract' group whose result renders as a box with a visible circular hole (asserted: the group's Bake button becomes enabled ONLY when the evaluated result is non-degenerate). Then re-select the cylinder and slide the hole sideways via a numeric position edit, asserting re-evaluation (Bake re-enables). Then add three boxes, multi-union them into 'Combine 2 · union', and Bake that group into one 'mesh' part. Finally save and assert the persisted UserGltfDef's assetSpec embeds combineGroups + the subtract op + the hole role (the non-destructive graph survived the round-trip, so re-opening restores editability). Screenshots the decisive frames.",
+  "url": "http://localhost:5310/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "verify-flag-on",
+      "waitFor": { "store": "state.featureFlags.glbDesigner === true" },
+      "timeout": 5000,
+      "failMessage": "glbDesigner is a pro-tier flag → on in Pro mode by default"
+    },
+    { "name": "open-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    {
+      "name": "wait-designer",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 15000
+    },
+    { "name": "shot-designer-open", "screenshot": "01-designer-open" },
+    { "name": "add-box", "click": { "text": "Box" } },
+    {
+      "name": "wait-box",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove box 1']" },
+      "timeout": 5000
+    },
+    { "name": "add-cylinder", "click": { "text": "Cylinder" } },
+    {
+      "name": "wait-cylinder",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove cylinder 2']" },
+      "timeout": 5000
+    },
+    {
+      "name": "position-cylinder-through-box",
+      "comment": "The cylinder is auto-selected. Rotate it 90° about X (axis → Z) and lengthen it so it pierces the box's front+back faces; centre it on the box (x=0,z=0). Numeric edits round-trip through updatePart.",
+      "eval": "(function(){ const set = (label, val) => { const inp = document.querySelector(`.glb-designer input[aria-label=\"${label}\"]`); if (!inp) throw new Error('missing input: ' + label); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, String(val)); inp.dispatchEvent(new Event('input', { bubbles: true })); }; set('cylinder position X', 0); set('cylinder position Y', 0.2); set('cylinder position Z', 0); set('cylinder rotation X', 90); set('cylinder size Y', 0.8); })()"
+    },
+    { "name": "settle-position", "wait": 400 },
+    {
+      "name": "mark-cylinder-hole",
+      "comment": "Click the Hole button in the cylinder's Type toggle — it becomes a translucent ghost.",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Hole' && b.closest('[role=radiogroup]')); if (!btn) throw new Error('Hole toggle not found'); btn.click(); })()"
+    },
+    {
+      "name": "assert-hole-badge",
+      "waitFor": { "css": ".glb-designer .lyr-row .badge" },
+      "timeout": 4000,
+      "failMessage": "marking the cylinder as a Hole should show a Hole badge on its layer row"
+    },
+    { "name": "shot-hole-ghost", "screenshot": "02-cylinder-hole-ghost" },
+    {
+      "name": "enter-select-mode",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => /^Select$/.test(b.textContent.trim())); if (!btn) throw new Error('Select mode toggle not found'); btn.click(); })()"
+    },
+    {
+      "name": "select-box-and-cylinder",
+      "comment": "In Select mode, click the box row (adds it) — the cylinder is already selected — so both operands are picked.",
+      "eval": "(function(){ const rows = [...document.querySelectorAll('.glb-designer .lyr-row')]; const boxRow = rows.find(r => /box 1/i.test(r.textContent || '')); if (!boxRow) throw new Error('box row not found'); boxRow.click(); })()"
+    },
+    { "name": "settle-select", "wait": 300 },
+    {
+      "name": "click-subtract",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Subtract selected parts\"]'); if (!btn) throw new Error('Subtract button not found'); if (btn.disabled) throw new Error('Subtract disabled — need 2 free parts selected'); btn.click(); })()"
+    },
+    {
+      "name": "assert-subtract-group-ready",
+      "comment": "The combine records a group and evaluates it OFF the main thread; the Bake button enables ONLY when the result is a real (non-degenerate) mesh — i.e. the box-with-hole rendered.",
+      "waitFor": { "css": ".glb-designer button[aria-label='Bake Combine 1 to a mesh']:not([disabled])" },
+      "timeout": 30000,
+      "failMessage": "the subtract group should evaluate to a non-degenerate box-with-hole (Bake enables)"
+    },
+    { "name": "settle-render", "wait": 1200 },
+    { "name": "shot-box-with-hole", "screenshot": "03-box-with-circular-hole" },
+    {
+      "name": "leave-select-mode",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => /Selecting/.test(b.textContent.trim())); if (btn) btn.click(); })()"
+    },
+    {
+      "name": "reselect-cylinder",
+      "eval": "(function(){ const rows = [...document.querySelectorAll('.glb-designer .lyr-row')]; const row = rows.find(r => /cylinder 2/i.test(r.textContent || '')); if (!row) throw new Error('cylinder row not found'); row.click(); })()"
+    },
+    {
+      "name": "wait-cylinder-inspector",
+      "waitFor": { "css": ".glb-designer input[aria-label='cylinder position X']" },
+      "timeout": 5000
+    },
+    {
+      "name": "move-the-hole",
+      "comment": "Slide the hole sideways — a live re-evaluation of the same group (non-destructive: the operand moved, the result follows).",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"cylinder position X\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '0.12'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "assert-reeval-ready",
+      "waitFor": { "css": ".glb-designer button[aria-label='Bake Combine 1 to a mesh']:not([disabled])" },
+      "timeout": 30000,
+      "failMessage": "moving the hole should re-evaluate the group to a fresh non-degenerate result"
+    },
+    { "name": "settle-moved", "wait": 1200 },
+    { "name": "shot-hole-moved", "screenshot": "04-hole-moved" },
+    { "name": "add-union-box-1", "click": { "text": "Box" } },
+    {
+      "name": "wait-ub1",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove box 3']" },
+      "timeout": 5000
+    },
+    { "name": "add-union-box-2", "click": { "text": "Box" } },
+    {
+      "name": "wait-ub2",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove box 4']" },
+      "timeout": 5000
+    },
+    { "name": "add-union-box-3", "click": { "text": "Box" } },
+    {
+      "name": "wait-ub3",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove box 5']" },
+      "timeout": 5000
+    },
+    {
+      "name": "select-three-boxes",
+      "comment": "Multi-select the three new boxes (3/4/5) via shift-click MouseEvents (additive without depending on Select-mode re-render) for a multi-union.",
+      "eval": "(function(){ const rows = [...document.querySelectorAll('.glb-designer .lyr-row')]; const row = (nm) => { const r = rows.find(x => new RegExp(nm,'i').test(x.textContent || '')); if (!r) throw new Error('missing row: ' + nm); return r; }; row('box 3').click(); row('box 4').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true })); row('box 5').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true })); })()"
+    },
+    { "name": "settle-multi-select", "wait": 300 },
+    {
+      "name": "click-union",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Union selected parts\"]'); if (!btn) throw new Error('Union button not found'); if (btn.disabled) throw new Error('Union disabled'); btn.click(); })()"
+    },
+    {
+      "name": "assert-union-group-ready",
+      "waitFor": { "css": ".glb-designer button[aria-label='Bake Combine 2 to a mesh']:not([disabled])" },
+      "timeout": 30000,
+      "failMessage": "the three-box union (Combine 2) should evaluate to a non-degenerate result"
+    },
+    { "name": "shot-two-groups", "screenshot": "05-subtract-and-union-groups" },
+    {
+      "name": "record-parts-before-bake",
+      "eval": "window.__partsBefore = document.querySelectorAll('.glb-designer button[aria-label^=\"Remove \"]').length"
+    },
+    {
+      "name": "bake-union-group",
+      "comment": "Bake Combine 2 (the union) into one frozen 'mesh' part — the three source boxes collapse into a single editable-position mesh.",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Bake Combine 2 to a mesh\"]'); if (!btn) throw new Error('Bake button not found'); if (btn.disabled) throw new Error('Bake disabled'); btn.click(); })()"
+    },
+    {
+      "name": "assert-baked-mesh-row",
+      "comment": "After baking the union, a single 'mesh' layer row exists and the part count dropped (3 boxes → 1 mesh).",
+      "waitFor": { "css": ".glb-designer button[aria-label^='Remove mesh ']" },
+      "timeout": 10000,
+      "failMessage": "baking a combine group should produce one 'mesh' layer row"
+    },
+    {
+      "name": "assert-part-count-dropped",
+      "eval": "(function(){ const now = document.querySelectorAll('.glb-designer button[aria-label^=\"Remove \"]').length; if (!(now < window.__partsBefore)) throw new Error('baking should reduce the part count, before=' + window.__partsBefore + ' after=' + now); })()"
+    },
+    { "name": "shot-after-bake", "screenshot": "06-union-baked-to-mesh" },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage1b CSG'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-spec-carries-combine-graph",
+      "comment": "End-to-end proof: the saved UserGltfDef's assetSpec JSON embeds the non-destructive combine graph — a combineGroups array, the subtract op, and the hole role — so re-opening restores editability with the op intact.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage1b CSG' && typeof d.assetSpec === 'string' && d.assetSpec.includes('combineGroups') && d.assetSpec.includes('\"subtract\"') && d.assetSpec.includes('\"role\":\"hole\"'))"
+      },
+      "timeout": 60000,
+      "failMessage": "saved assetSpec should embed combineGroups + the subtract op + the hole role"
+    },
+    { "name": "shot-saved", "screenshot": "07-saved" }
+  ]
+}

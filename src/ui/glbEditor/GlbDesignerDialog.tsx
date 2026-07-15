@@ -4,14 +4,20 @@ import { MathUtils, Mesh, type Object3D } from 'three'
 import { useModalGuard } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
 import { buildEditedObject } from '../../furniture/glbEdit/buildObject'
-import { type CsgOp, canCombineParts, combineParts } from '../../furniture/glbEdit/csgCombine'
+import type { CsgOp } from '../../furniture/glbEdit/csgCombine'
+import { combineGroupToMeshPart, evaluateAllGroups } from '../../furniture/glbEdit/csgEval'
 import {
   type AssetEditSpec,
+  addCombineGroup,
   addPart,
+  bakeCombineGroup,
+  combinedPartIds,
+  combineGroups,
   createEmptySpec,
   duplicatePart,
   isBuildable,
   mirrorPart,
+  removeCombineGroup,
   removePart,
   setMeshOverride,
   updatePart,
@@ -47,6 +53,7 @@ import { LayersPanel } from './LayersPanel'
 import { PartInspector } from './PartInspector'
 import { type PlacementKind, SavePanel } from './SavePanel'
 import { SourcePanel } from './SourcePanel'
+import { useCombineResults } from './useCombineResults'
 
 /**
  * GLB Asset Designer — compose a new asset from primitive shapes and/or start
@@ -95,12 +102,29 @@ export function GlbDesignerDialog() {
   const doUndo = () => setHist((h) => histUndo(h))
   const doRedo = () => setHist((h) => histRedo(h))
 
+  // Select one part (resets the multi-selection). `null` clears it.
+  const setSelId = (id: string | null) => setSelIds(id ? [id] : [])
+  // Toggle a part in/out of the multi-selection (shift/⌘-click or select mode).
+  const toggleSel = (id: string) =>
+    setSelIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
+  const onSelectPart = (id: string, additive: boolean) => (additive ? toggleSel(id) : setSelId(id))
+
+  // ---- Live combine-group evaluation (CSG v2, off the main thread) --------
+  const {
+    results: combineResults,
+    computing: combineComputing,
+    errors: combineErrors,
+  } = useCombineResults(spec)
+
   const [name, setName] = useState('Custom asset')
   const [category, setCategory] = useState<FurnitureCategory>('others')
   const [placement, setPlacement] = useState<PlacementKind>('floor')
-  const [selId, setSelId] = useState<string | null>(null)
-  // Second pick for a CSG combine ("with…"); the selected part is the first operand.
-  const [combineId, setCombineId] = useState('')
+  // Multi-select (CSG v2): the LAST id is the "primary" (inspector + gizmo
+  // target); the whole array is the combine selection. A single click resets to
+  // one; additive click toggles.
+  const [selIds, setSelIds] = useState<string[]>([])
+  const selId = selIds.length > 0 ? selIds[selIds.length - 1] : null
+  const [selectMode, setSelectMode] = useState(false)
   const [combining, setCombining] = useState(false)
   const [busy, setBusy] = useState(false)
   const [overwrite, setOverwrite] = useState(false)
@@ -231,8 +255,8 @@ export function GlbDesignerDialog() {
       setName('Custom asset')
       setCategory('others')
       setPlacement('floor')
-      setSelId(null)
-      setCombineId('')
+      setSelIds([])
+      setSelectMode(false)
       setOverwrite(false)
       setGizmoMode('translate')
       setSelMesh(null)
@@ -243,8 +267,12 @@ export function GlbDesignerDialog() {
   if (!open || !enabled) return null
 
   const sel = spec.parts.find((p) => p.id === selId) ?? null
-  // Stale picks (removed part / now the selected part) fall back to "with…".
-  const combineWithId = sel && canCombineParts(spec, sel.id, combineId) ? combineId : ''
+  // Selected FREE parts (not already consumed by a group) are the operands a new
+  // combine can take. ≥2 enables the Union/Subtract/Intersect actions.
+  const consumedIds = combinedPartIds(spec)
+  const eligibleCombineIds = selIds.filter((id) => !consumedIds.has(id))
+  const groups = combineGroups(spec)
+  const readyResultIds = new Set([...combineResults.keys()])
 
   // A mesh (CSG) part has no scale mode (its triangles are baked) — fall back
   // to translate rather than showing a gizmo that can't write back.
@@ -270,7 +298,6 @@ export function GlbDesignerDialog() {
     // source-mesh path with the editable part list.
     commit(restorableSpec)
     setSelId(restorableSpec.parts[0]?.id ?? null)
-    setCombineId('')
   }
 
   const addShape = (kind: Parameters<typeof addPart>[1]) => {
@@ -292,7 +319,9 @@ export function GlbDesignerDialog() {
 
   const remove = (id: string) => {
     commit((sp) => removePart(sp, id))
-    if (selId === id) setSelId(null)
+    // Drop the removed id from the multi-selection (removePart also dissolves any
+    // combine group that falls below 2 members).
+    setSelIds((ids) => ids.filter((x) => x !== id))
   }
 
   const mirror = () => {
@@ -323,28 +352,51 @@ export function GlbDesignerDialog() {
     }
   }
 
-  const combine = async (op: CsgOp) => {
-    if (!sel || !combineWithId || combining) return
+  // Record a non-destructive combine group over the selected free parts (CSG v2).
+  // The operands stay editable; the live preview evaluates the result. Order
+  // follows selection order (first-selected is the subtract base without holes).
+  const combine = (op: CsgOp) => {
+    if (eligibleCombineIds.length < 2 || combining) return
+    const { spec: next, groupId } = addCombineGroup(spec, eligibleCombineIds, op)
+    if (!groupId) {
+      useStore.getState().notify.start({ title: "Couldn't combine these parts", kind: 'error' })
+      return
+    }
+    commit(next)
+    setSelectMode(false)
+    // Keep the operands selected so the user can immediately tweak the hole etc.
+  }
+
+  // "Bake to mesh": freeze a combine group into one editable-position mesh part.
+  const bake = async (groupId: string) => {
+    const group = groups.find((g) => g.id === groupId)
+    if (!group || combining) return
     setCombining(true)
     try {
-      // `combineParts` dynamic-imports the CSG engine (three-bvh-csg) on first use.
-      const next = await combineParts(spec, sel.id, combineWithId, op)
-      commit(next.spec)
-      setSelId(next.partId)
-      setCombineId('')
+      const meshPart = await combineGroupToMeshPart(spec, group, { bake: true })
+      commit((sp) => bakeCombineGroup(sp, groupId, meshPart))
+      setSelId(meshPart.id)
     } catch {
-      // Non-manifold/degenerate output (e.g. intersecting disjoint shapes).
-      useStore.getState().notify.start({ title: "Couldn't combine these shapes", kind: 'error' })
+      useStore.getState().notify.start({ title: "Couldn't bake this combine", kind: 'error' })
     } finally {
       setCombining(false)
     }
+  }
+
+  // Ungroup: dissolve a combine group; its member parts stay exactly as they were.
+  const ungroup = (groupId: string) => {
+    commit((sp) => removeCombineGroup(sp, groupId))
   }
 
   const save = async () => {
     if (!isBuildable(spec) || busy) return
     setBusy(true)
     try {
-      const obj = buildEditedObject(sourceSceneRef.current, spec)
+      // Evaluate every combine group fresh so the exported GLB bakes each result
+      // (holes carved, not exported as geometry) even if the live preview hadn't
+      // settled. Off the main thread via the shared pool (fallback on the main).
+      const groupResults = await evaluateAllGroups(spec)
+      const obj = buildEditedObject(sourceSceneRef.current, spec, groupResults)
       const overwriteId = overwrite && spec.sourceAssetId ? spec.sourceAssetId : undefined
       const res = await exportAndSaveAsset(
         obj,
@@ -420,6 +472,7 @@ export function GlbDesignerDialog() {
           >
             <DesignerViewport
               spec={spec}
+              results={combineResults}
               sel={sel}
               selMesh={selMesh}
               finishIds={finishIds}
@@ -471,9 +524,11 @@ export function GlbDesignerDialog() {
             />
 
             <LayersPanel
-              parts={spec.parts}
-              selId={selId}
-              onSelect={setSelId}
+              spec={spec}
+              selIds={selIds}
+              selectMode={selectMode}
+              onSelect={onSelectPart}
+              onToggleSelectMode={() => setSelectMode((v) => !v)}
               onDuplicate={duplicate}
               onRemove={remove}
             />
@@ -490,14 +545,17 @@ export function GlbDesignerDialog() {
               />
             ) : null}
 
-            {sel && spec.parts.length > 1 ? (
+            {spec.parts.length > 1 || groups.length > 0 ? (
               <CombinePanel
-                sel={sel}
-                parts={spec.parts}
-                combineWithId={combineWithId}
+                eligibleCount={eligibleCombineIds.length}
                 combining={combining}
-                onPickCombineWith={setCombineId}
+                groups={groups}
+                results={readyResultIds}
+                errors={combineErrors}
+                computing={combineComputing}
                 onCombine={combine}
+                onBake={bake}
+                onUngroup={ungroup}
               />
             ) : null}
 

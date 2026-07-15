@@ -81,8 +81,9 @@ export function bakedPartGeometry(part: ShapePart): BufferGeometry {
 }
 
 /** Extract the surface-look config from a ShapePart as a `GroupMaterialData` record
- *  (used to snapshot the per-part material at combine time). */
-function partAsGroupMaterial(part: ShapePart): GroupMaterialData {
+ *  (used to snapshot the per-part material at combine time). Shared with the CSG
+ *  v2 evaluator (`csgEval.ts`). */
+export function partAsGroupMaterial(part: ShapePart): GroupMaterialData {
   return {
     color: part.color,
     finish: part.finish,

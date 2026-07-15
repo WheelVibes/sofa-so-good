@@ -571,6 +571,37 @@ place (same id, new geometry, no duplicate) and the placed instance still resolv
   (`apartment/constants.ts` — e.g. Living/Dining centre ≈ `[10.55, 4.1]`). `enterRoomEditor('<roomId>')`
   first to frame the room for a clean before/after screenshot.
 
+### Worked example — GLB designer CSG v2 non-destructive booleans (Stage 1b)
+
+**`glb-designer-stage1b.json`** drives the CSG v2 flow: build a Box, add a Cylinder, rotate/size
+it to pierce the box, mark it a **Hole** (Type toggle), multi-select both, **Subtract** → a
+non-destructive `Combine 1 · subtract` group that renders as a box-with-hole; then move the hole
+(numeric edit) to prove live re-evaluation; multi-**Union** three more boxes; **Bake** that group
+to one `mesh` part; save + assert the persisted `assetSpec` embeds `combineGroups` + the subtract
+op + the `role:"hole"`. **New gotchas beyond the earlier designer rungs:**
+- **Toggling "Select" mode and clicking rows in the SAME synchronous `eval` uses the STALE
+  `selectMode`.** The layer-row `onClick` reads the `selectMode` prop at click time; clicking the
+  Select toggle only schedules a React state update, which hasn't re-rendered the rows yet within
+  one eval tick — so every row click in that same eval still sees `selectMode === false` and
+  RESETS the selection to a single part (Union/Subtract then reads <2 operands and is disabled).
+  Fix: additive-select via **shift-click MouseEvents** — `row.dispatchEvent(new MouseEvent('click',
+  { bubbles: true, shiftKey: true }))` — which the row's `e.shiftKey` branch honours regardless of
+  render timing (React reads `nativeEvent.shiftKey`). Reserve the Select-mode toggle for a
+  SEPARATE step if you must exercise it (as the subtract selection does — toggle in one step, click
+  the row in the next, one render apart).
+- **Assert a combine RESULT via its group's Bake button enabling, not a text match.** The boolean
+  evaluates off the main thread (worker pool → main-thread `foldCsg` fallback headless) and is
+  debounced; the `Bake <group> to a mesh` button is `disabled` until a non-degenerate result lands.
+  `waitFor {css:".glb-designer button[aria-label='Bake Combine 1 to a mesh']:not([disabled])"}` is a
+  clean "the box-with-hole actually evaluated" gate (a degenerate/empty fold leaves it disabled +
+  shows an `Empty` badge). The same gate re-fires after moving an operand (re-evaluation).
+- **`add shape` resets the multi-selection** (`addPart` mints a fresh id and the dialog
+  single-selects it), so build all operands FIRST, then select — don't interleave add + select.
+- Offset test geometry so no two operand faces sit exactly coplanar (three-bvh-csg z-fights on
+  exact coplanar faces): the box-through-hole cylinder pierces both faces (length > box depth) and
+  the union boxes overlap/clear cleanly — verified artifact-free (no open faces / flipped normals /
+  z-fighting) across all 7 frames.
+
 ### Worked example — model-upload group detection at scale (UPLOAD-DETECT-PAGINATION)
 
 **`model-upload-simple.json`** verifies the model-upload feature's Simple rung: the **Upload**

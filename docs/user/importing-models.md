@@ -87,25 +87,33 @@ build one in the browser:
   same finishes you can apply to placed furniture. The texture defines the surface
   (its own roughness/metalness; those two sliders hide while one is set), while glow and
   opacity still apply on top; tap the active swatch (or pick None) to go back to the solid
-  colour. Textures are baked into the saved asset, and a **Combined** shape keeps the first
-  shape's texture.
+  colour. Textures are baked into the saved asset, and a combined shape keeps each source
+  shape's own texture on its own faces.
+- **Solid or Hole** — every shape's edit panel has a **Type** switch: **Solid** (the
+  default) or **Hole**. A **Hole** shows as a translucent ghost and is used to carve into
+  other shapes with **Subtract** (below). Marking a shape as a Hole doesn't change anything
+  on its own until you combine it.
 - **Drag it in the preview** — selecting a shape shows a 3D gizmo on it, with a
   **Move / Rotate / Scale** switch in the preview's corner (or press **G**, **R**, **S**).
   Drag the arrows/rings/handles to place the shape; when you let go, the numbers in the
   edit panel update (snapped to 5 mm and 1°), so you can still fine-tune by typing.
-  A **Combined** shape can be moved and rotated but not scaled — its geometry is baked,
-  so the Scale option is hidden for it.
 - **Start from an uploaded model** — pick one of your uploaded GLBs as the base and
   resize it to make a custom variant (optionally kit‑bashing extra shapes on top).
-- **Combine (boolean)** — with a shape selected and at least one other shape in the
-  list, pick the second shape in the **with…** dropdown, then **Union** (merge both
-  into one solid), **Subtract** (carve the picked shape out of the selected one — a
-  notch, a hole) or **Intersect** (keep only the overlap). The result replaces both
-  shapes as a single **Combined** shape that keeps the selected shape's colour, texture and
-  finish; you can keep moving/rotating it, recombining it, or carving it again. It
-  works on shapes only (not the source model). Changed your mind? **Undo** it
-  (see below). If two shapes can't be combined (for example intersecting shapes
-  that don't overlap), you'll see "Couldn't combine these shapes".
+- **Combine (boolean)** — booleans are **non-destructive**: the shapes you combine stay
+  fully editable and the result updates live as you move them. In the **Shapes** list, tap
+  **Select** (or shift/⌘-click rows) to pick **two or more** shapes, then choose:
+    - **Union** — merge them into one solid.
+    - **Subtract** — carve holes out of solids. Shapes marked **Hole** are cut out of the
+      solids; if you didn't mark any Hole, the **first** shape you selected is the base and
+      the rest are carved out of it.
+    - **Intersect** — keep only the overlap of all the shapes.
+
+  Each combine appears under **Combined groups** with two actions: **Bake** (freeze the
+  result into one editable shape — handy to then combine it with something else) and
+  **Ungroup** (dissolve the combine; the shapes go back to how they were). A heavy combine
+  briefly shows **Computing…** while it works. Tip: don't line shapes up so two faces sit
+  *exactly* flush — overlap or offset them slightly so the cut doesn't flicker. If the
+  shapes don't overlap the result can be **Empty**.
 - **Undo / redo** — every edit (add, move, resize, recolour, combine, …) is
   undoable: press **⌘Z** (⇧⌘Z to redo), or use the **↶ / ↷** buttons next to
   "Add shape". A slider or gizmo drag counts as a single step.

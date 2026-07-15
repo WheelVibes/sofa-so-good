@@ -2,10 +2,12 @@
 
 Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 
-- **CPU-heavy upload-pipeline steps run in a pooled Worker, never the main thread.** Two
-  instances today: `optimize/runOptimize.ts` (Draco/WebP re-encode — its own from-scratch pool,
-  don't refactor it) and `convert/runConvert.ts` (OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/gltf → GLB via
-  `convertModel`, built on the generic `furniture/worker/workerPool.ts`). Both: spawn-on-contention
+- **CPU-heavy steps run in a pooled Worker, never the main thread.** Three instances today:
+  `optimize/runOptimize.ts` (Draco/WebP re-encode — its own from-scratch pool, don't refactor it),
+  `convert/runConvert.ts` (OBJ/FBX/STL/… → GLB via `convertModel`) and `glbEdit/csgWorkerPool.ts`
+  (CSG v2 boolean folds via `glbEdit/csgEval.ts:foldCsg` + `csg.worker.ts`, Stage 1b) — the latter
+  two are built on the generic `furniture/worker/workerPool.ts`; **any new pool builds on it too,
+  never a fourth copy of the pattern.** All: spawn-on-contention
   (reuse an idle worker before growing the pool), a worker `error`/`messageerror` retires only
   that worker (its own queued calls fall back, the rest of the pool is unaffected), idle-teardown
   after 30s so a burst doesn't hold its peak size all session, and a graceful **per-file** fallback

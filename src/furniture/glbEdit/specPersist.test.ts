@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
   type AssetEditSpec,
+  addCombineGroup,
   addPart,
   createEmptySpec,
   setMeshOverride,
+  setPartRole,
   updatePart,
 } from './editSpec'
-import { ASSET_SPEC_VERSION, parseAssetSpec, serializeAssetSpec } from './specPersist'
+import {
+  ASSET_SPEC_VERSION,
+  migrateAssetSpec,
+  parseAssetSpec,
+  serializeAssetSpec,
+} from './specPersist'
 
 /** A representative non-trivial spec (parts, transforms, finishes, overrides). */
 function sampleSpec(): AssetEditSpec {
@@ -69,5 +76,40 @@ describe('specPersist', () => {
       parseAssetSpec(JSON.stringify({ v: ASSET_SPEC_VERSION, spec: { parts: 'nope' } })),
     ).toBeNull()
     expect(parseAssetSpec(JSON.stringify({ v: ASSET_SPEC_VERSION }))).toBeNull()
+  })
+
+  // ---- CSG v2 (Stage 1b) — roles + combine groups + v1→v2 migration --------
+  it('round-trips CSG v2 roles + combine groups', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'box')
+    s = addPart(s, 'cylinder')
+    const [boxId, cylId] = s.parts.map((p) => p.id)
+    s = setPartRole(s, cylId, 'hole')
+    s = addCombineGroup(s, [boxId, cylId], 'subtract').spec
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored).toEqual(s)
+    expect(restored!.combineGroups).toHaveLength(1)
+    expect(restored!.combineGroups![0]).toMatchObject({ op: 'subtract', partIds: [boxId, cylId] })
+    expect(restored!.parts[1].role).toBe('hole')
+  })
+
+  it('the current envelope is v2', () => {
+    expect(ASSET_SPEC_VERSION).toBe(2)
+  })
+
+  it('migrates a v1 blob (no roles/groups) unchanged — reads editable', () => {
+    // A v1 envelope: a plain parts spec with NO combineGroups/role fields.
+    const v1spec = updatePart(addPart(createEmptySpec(), 'box'), '', {})
+    const v1json = JSON.stringify({ v: 1, spec: v1spec })
+    const restored = parseAssetSpec(v1json)
+    expect(restored).toEqual(v1spec)
+    expect(restored!.combineGroups).toBeUndefined()
+  })
+
+  it('migrateAssetSpec: v1→v2 identity, unknown version → null', () => {
+    const spec = createEmptySpec()
+    expect(migrateAssetSpec(spec, 1)).toBe(spec)
+    expect(migrateAssetSpec(spec, 2)).toBe(spec)
+    expect(migrateAssetSpec(spec, 99)).toBeNull()
   })
 })

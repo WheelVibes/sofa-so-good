@@ -11,6 +11,7 @@ import {
   partMaterial,
 } from './buildObject'
 import {
+  addCombineGroup,
   addPart,
   createEmptySpec,
   DEFAULT_PART_METALNESS,
@@ -18,6 +19,7 @@ import {
   defaultPart,
   SHAPE_KINDS,
   type ShapePart,
+  setPartRole,
 } from './editSpec'
 
 /** Simulate the furniture material loader having built `mat:<id>` into the
@@ -297,5 +299,70 @@ describe('boxProjectUvs — UVs for CSG mesh parts', () => {
     boxProjectUvs(geo)
     expect(geo.getAttribute('uv')).toBe(orig)
     geo.dispose()
+  })
+})
+
+describe('buildEditedObject — CSG v2 combine groups (Stage 1b)', () => {
+  function meshPartFromBox(id: string): ShapePart {
+    const g = new BoxGeometry(1, 1, 1)
+    const pos = Array.from(g.getAttribute('position').array)
+    const nor = Array.from(g.getAttribute('normal').array)
+    const idx = g.getIndex() ? Array.from(g.getIndex()!.array) : undefined
+    g.dispose()
+    return {
+      id,
+      kind: 'mesh',
+      position: [0, 0.5, 0],
+      size: [1, 1, 1],
+      color: '#889900',
+      geometry: { positions: pos, normals: nor, index: idx },
+    }
+  }
+
+  it('skips consumed operands + free holes, and bakes the group result mesh', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'box') // a — free solid
+    s = addPart(s, 'box') // b — will be consumed
+    s = addPart(s, 'box') // c — will be consumed
+    s = addPart(s, 'box') // h — free hole (no group)
+    const [a, b, c, h] = s.parts.map((p) => p.id)
+    s = setPartRole(s, h, 'hole')
+    s = addCombineGroup(s, [b, c], 'union').spec
+    const groupId = s.combineGroups![0].id
+
+    const results = new Map<string, ShapePart>([[groupId, meshPartFromBox('result')]])
+    const obj = buildEditedObject(null, s, results)
+    const names = obj.children.map((o) => o.name)
+    // Free solid 'a' renders (box-1); consumed b/c do NOT; free hole h does NOT;
+    // the group result renders as combine-1.
+    expect(names).toContain('box-1')
+    expect(names).toContain('combine-1')
+    expect(names).not.toContain('box-2')
+    expect(names).not.toContain('box-3')
+    expect(names.filter((n) => n.startsWith('box-'))).toEqual(['box-1'])
+    // a (solid) + the combine result = 2 meshes.
+    expect(obj.children).toHaveLength(2)
+    expect(a && b && c && h).toBeTruthy()
+  })
+
+  it('omits a group with no ready result (its operands are still not double-rendered)', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'box')
+    s = addPart(s, 'box')
+    const [a, b] = s.parts.map((p) => p.id)
+    s = addCombineGroup(s, [a, b], 'union').spec
+    // Empty results map (evaluation not ready) → nothing for the group, and the
+    // consumed operands are still suppressed.
+    const obj = buildEditedObject(null, s, new Map())
+    expect(obj.children).toHaveLength(0)
+  })
+
+  it('with no combine groups, builds exactly as before (back-compat)', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'box')
+    s = addPart(s, 'cylinder')
+    const obj = buildEditedObject(null, s)
+    expect(obj.children).toHaveLength(2)
+    expect(obj.children.map((o) => o.name)).toEqual(['box-1', 'cylinder-2'])
   })
 })

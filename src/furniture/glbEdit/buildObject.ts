@@ -22,6 +22,8 @@ import {
 } from '../../materials/furnitureMaterials'
 import {
   type AssetEditSpec,
+  combinedPartIds,
+  combineGroups,
   DEFAULT_PART_METALNESS,
   DEFAULT_PART_ROUGHNESS,
   type GroupMaterialData,
@@ -118,6 +120,45 @@ export function partMaterials(part: ShapePart): MeshStandardMaterial | MeshStand
     return part.geometry.materials.map(groupMaterial)
   }
   return partMaterial(part)
+}
+
+/** How a CSG-v2 operand is ghosted in the editor preview (never exported). */
+export type GhostVariant = 'hole' | 'consumed'
+
+/** Translucent ghost material for a combine-group operand (CSG v2, TinkerCAD
+ *  look — opacity only, no bespoke texture art). A `hole` reads as a stronger,
+ *  cooler cut-out; a consumed `solid` is a very faint proxy so the "real"
+ *  evaluated result mesh reads on top of it. `depthWrite = false` keeps it from
+ *  z-fighting the result. Caller-owned (safe to dispose). */
+export function ghostMaterial(part: ShapePart, variant: GhostVariant): MeshStandardMaterial {
+  const hole = variant === 'hole'
+  return new MeshStandardMaterial({
+    // Holes tint toward the part colour so a red hole still reads red; consumed
+    // solids echo their own colour faintly.
+    color: hole ? part.color : part.color,
+    roughness: 0.9,
+    metalness: 0,
+    transparent: true,
+    opacity: hole ? 0.34 : 0.14,
+    depthWrite: false,
+  })
+}
+
+/** Build the transient `mesh` result of a combine group into a live preview
+ *  Mesh (opaque, non-interactive). Shared by preview + export. */
+function combineResultMesh(result: ShapePart): Mesh {
+  const mesh = new Mesh(partGeometry(result), partMaterials(result))
+  mesh.position.set(result.position[0], result.position[1], result.position[2])
+  if (result.rotation) {
+    mesh.rotation.set(
+      MathUtils.degToRad(result.rotation[0]),
+      MathUtils.degToRad(result.rotation[1]),
+      MathUtils.degToRad(result.rotation[2]),
+    )
+  }
+  mesh.castShadow = true
+  mesh.receiveShadow = true
+  return mesh
 }
 
 /**
@@ -263,8 +304,19 @@ export function partGeometry(part: ShapePart): BufferGeometry {
  * plus every primitive part as a `MeshStandardMaterial` box/cylinder/sphere.
  * Pure of the store — the caller supplies the already-loaded `source` object (or
  * null for a from-scratch asset). The returned group is ready for `exportGlb`.
+ *
+ * CSG v2 (Stage 1b): `results` maps a combine group's id → its evaluated `mesh`
+ * result part (produced by `csgEval.evaluateAllGroups`, off the main thread).
+ * Parts consumed by a group are NOT emitted on their own — the group's result
+ * mesh stands in for them. A `hole`-role part with no group is skipped entirely
+ * (a lone hole exports no geometry). When `results` is absent/empty (no
+ * combines, or the pre-Stage-1b path), every part renders exactly as before.
  */
-export function buildEditedObject(source: Object3D | null, spec: AssetEditSpec): Group {
+export function buildEditedObject(
+  source: Object3D | null,
+  spec: AssetEditSpec,
+  results?: Map<string, ShapePart>,
+): Group {
   const group = new Group()
   group.name = 'sofa-asset'
 
@@ -276,7 +328,14 @@ export function buildEditedObject(source: Object3D | null, spec: AssetEditSpec):
     group.add(clone)
   }
 
+  const consumed = combinedPartIds(spec)
+
   spec.parts.forEach((part, i) => {
+    // A part folded into a combine group is represented by the group's baked
+    // result, not on its own.
+    if (consumed.has(part.id)) return
+    // A free hole with no group carves nothing → export no geometry for it.
+    if (part.role === 'hole') return
     const mesh = new Mesh(partGeometry(part), partMaterials(part))
     // Name parts so a saved asset's components are addressable when it's later
     // reopened as a source for per-mesh recolour/hide.
@@ -291,6 +350,15 @@ export function buildEditedObject(source: Object3D | null, spec: AssetEditSpec):
     }
     mesh.castShadow = true
     mesh.receiveShadow = true
+    group.add(mesh)
+  })
+
+  // Bake each combine group's evaluated result into the export.
+  combineGroups(spec).forEach((g, i) => {
+    const result = results?.get(g.id)
+    if (!result) return
+    const mesh = combineResultMesh(result)
+    mesh.name = `combine-${i + 1}`
     group.add(mesh)
   })
   return group

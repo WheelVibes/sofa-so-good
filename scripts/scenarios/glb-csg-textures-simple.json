@@ -75,29 +75,32 @@
       "screenshot": "03-two-boxes-different-finishes"
     },
     {
-      "name": "select-first-box",
-      "eval": "(function() { const rows = document.querySelectorAll('.lyr-row'); if (rows[0]) rows[0].click(); })()"
+      "name": "select-both-boxes",
+      "comment": "CSG v2 is selection-driven: enter Select mode and pick both textured boxes as combine operands.",
+      "eval": "(function() { const selBtn = [...document.querySelectorAll('.glb-designer button')].find(b => /^Select$/.test(b.textContent.trim())); if (selBtn) selBtn.click(); const rows = [...document.querySelectorAll('.glb-designer .lyr-row')]; ['box 1','box 2'].forEach(nm => { const row = rows.find(r => new RegExp(nm,'i').test(r.textContent || '')); if (row) row.click(); }); })()"
     },
     {
-      "name": "wait-first-selected",
-      "waitFor": { "css": "input[aria-label='box size X']" },
-      "timeout": 5000
-    },
-    {
-      "name": "pick-second-box-in-combine",
-      "eval": "(function() { const sel = document.querySelector('select[aria-label=\"Combine with\"]'); if (!sel) return; const opt = [...sel.options].find(o => o.text.includes('box 2')); if (opt) { Object.getOwnPropertyDescriptor(Object.getPrototypeOf(sel), 'value').set.call(sel, opt.value); sel.dispatchEvent(new Event('change', { bubbles: true })); } })()"
-    },
-    {
-      "name": "wait-combine-ready",
-      "wait": 500
+      "name": "wait-two-selected",
+      "wait": 400
     },
     {
       "name": "click-union",
-      "click": { "text": "Union" }
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Union selected parts\"]'); if (!btn || btn.disabled) throw new Error('Union unavailable'); btn.click(); })()"
+    },
+    {
+      "name": "wait-union-ready",
+      "comment": "The non-destructive union evaluates off-thread; Bake enables when the result is ready.",
+      "waitFor": { "css": ".glb-designer button[aria-label='Bake Combine 1 to a mesh']:not([disabled])" },
+      "timeout": 30000
+    },
+    {
+      "name": "bake-union",
+      "comment": "Bake the union into one 'mesh' part so its per-source textures are frozen into the exported GLB (the v1 behaviour this scenario verifies).",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Bake Combine 1 to a mesh\"]'); if (!btn || btn.disabled) throw new Error('Bake unavailable'); btn.click(); })()"
     },
     {
       "name": "wait-combined",
-      "waitFor": { "text": "Combined" },
+      "waitFor": { "css": ".glb-designer button[aria-label^='Remove mesh ']" },
       "timeout": 30000
     },
     {

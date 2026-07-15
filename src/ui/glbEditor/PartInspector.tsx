@@ -83,6 +83,35 @@ export function PartInspector({
       <div className="sec-h">
         <span>Edit {part.kind}</span>
       </div>
+      {/* Solid / Hole role (CSG v2). A hole renders as a translucent ghost and
+          is carved out of the solids inside a Subtract combine. Not shown for a
+          baked mesh part (its faces are already fused). */}
+      {part.kind !== 'mesh' ? (
+        <div style={{ marginBottom: 'var(--s-2)' }}>
+          <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+            Type
+          </div>
+          <div className="seg" role="radiogroup" aria-label="Solid or hole">
+            <button
+              type="button"
+              className={part.role === 'hole' ? '' : 'on'}
+              aria-pressed={part.role !== 'hole'}
+              onClick={() => onPatch({ role: undefined })}
+            >
+              Solid
+            </button>
+            <button
+              type="button"
+              className={part.role === 'hole' ? 'on' : ''}
+              aria-pressed={part.role === 'hole'}
+              title="Carve this shape out of overlapping solids in a Subtract combine"
+              onClick={() => onPatch({ role: 'hole' })}
+            >
+              Hole
+            </button>
+          </div>
+        </div>
+      ) : null}
       {/* A combined (mesh) part's triangles are baked — size is fixed;
           position/rotation still move the whole result. */}
       {part.kind === 'mesh' ? (

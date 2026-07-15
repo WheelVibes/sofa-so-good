@@ -14,12 +14,32 @@
 import type { AssetEditSpec } from './editSpec'
 
 /** Current envelope version. Bump + branch in `parseAssetSpec` on a breaking
- *  spec-shape change. */
-export const ASSET_SPEC_VERSION = 1
+ *  spec-shape change.
+ *
+ *  - v1 (Asset Studio S0…S1a): parts + meshOverrides + sourceScale.
+ *  - v2 (CSG v2, Stage 1b): adds optional `parts[].role` + `combineGroups[]`.
+ *    A v1 spec is a STRUCTURAL SUBSET of v2 (no roles, no groups), so migration
+ *    is the identity — a v1 blob loads unchanged, just re-tagged v2 on next save. */
+export const ASSET_SPEC_VERSION = 2
 
 interface AssetSpecEnvelope {
   v: number
   spec: AssetEditSpec
+}
+
+/** Migrate a parsed spec at envelope version `from` up to the current version.
+ *  v1→v2 is the identity (v1 is a subset of v2); returns null for an
+ *  unknown/newer version we can't safely read. Pure + exported for tests. */
+export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSpec | null {
+  switch (from) {
+    case 1:
+    // A v1 spec has no `role`/`combineGroups` — already a valid v2 spec.
+    // fall through
+    case 2:
+      return spec
+    default:
+      return null
+  }
 }
 
 /** Serialise a spec to the versioned JSON string stored on the def. */
@@ -56,6 +76,7 @@ export function parseAssetSpec(json: string | undefined | null): AssetEditSpec |
   }
   if (!parsed || typeof parsed !== 'object') return null
   const env = parsed as Partial<AssetSpecEnvelope>
-  if (env.v !== ASSET_SPEC_VERSION) return null
-  return isSpec(env.spec) ? env.spec : null
+  if (typeof env.v !== 'number' || !isSpec(env.spec)) return null
+  // Migrate older envelopes up to the current shape (v1→v2 is the identity).
+  return migrateAssetSpec(env.spec, env.v)
 }

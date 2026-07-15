@@ -40,6 +40,32 @@ export const PROFILE_KINDS: PrimitiveShapeKind[] = ['lathe', 'extrude']
  *  CSG combine (`csgCombine.ts`), whose triangles live in `ShapePart.geometry`. */
 export type ShapeKind = PrimitiveShapeKind | 'mesh'
 
+/** TinkerCAD-style solid/hole role (CSG v2, Stage 1b). A `hole` part renders as
+ *  a translucent ghost in the editor and, inside a Subtract combine group, is
+ *  carved out of the group's solids. Absent → `solid` (the default), so every
+ *  pre-Stage-1b spec keeps its parts solid. */
+export type PartRole = 'solid' | 'hole'
+
+/** A non-destructive boolean-combine operation recorded in the spec (CSG v2).
+ *  The member parts (`partIds`, in selection order) STAY editable in
+ *  `spec.parts`; the built object evaluates the boolean lazily from their live
+ *  transforms/geometry (`glbEdit/csgEval.ts`). A part belongs to at most one
+ *  group. Dropping the group (ungroup) leaves the members untouched — the whole
+ *  point of "non-destructive". */
+export interface CombineGroup {
+  id: string
+  /** Display name in the layers panel (e.g. "Combine 1"). */
+  name: string
+  /** Member part ids, in selection order. The first is the subtract base when
+   *  no member is marked as a hole. ≥2 members. */
+  partIds: string[]
+  op: CombineOp
+}
+
+/** The boolean operator a combine group applies. Mirrors `csgCombine.CsgOp` but
+ *  lives here so the spec type is self-contained (no import cycle). */
+export type CombineOp = 'union' | 'subtract' | 'intersect'
+
 /** All primitive kinds, in palette order. Source of truth for the designer's
  *  "add shape" controls + the geometry switch in `buildObject.ts`. (`mesh` is
  *  deliberately absent — a mesh part is only ever produced by combining.) */
@@ -153,6 +179,9 @@ export interface ShapePart {
   sweepProfile?: SweepProfileKind
   /** Sweep: path preset (`straight`/`l-corner`/`u`/`ring`). */
   sweepPath?: SweepPathKind
+  /** TinkerCAD solid/hole role (CSG v2). Absent → `solid`. A `hole` renders as a
+   *  translucent ghost and is carved out inside a Subtract combine group. */
+  role?: PartRole
 }
 
 /** Fallback PBR finish for a part that hasn't set its own (keeps old specs +
@@ -178,6 +207,10 @@ export interface AssetEditSpec {
   parts: ShapePart[]
   /** Recolour/hide overrides keyed by the source GLB's mesh name. */
   meshOverrides: Record<string, MeshOverride>
+  /** Non-destructive boolean-combine groups (CSG v2, Stage 1b). Absent/empty →
+   *  no combines (every part renders on its own). Each group references ≥2
+   *  member `parts` that stay editable; the built result is evaluated lazily. */
+  combineGroups?: CombineGroup[]
 }
 
 export function createEmptySpec(): AssetEditSpec {
@@ -267,7 +300,143 @@ export function addPart(spec: AssetEditSpec, kind: PrimitiveShapeKind): AssetEdi
 }
 
 export function removePart(spec: AssetEditSpec, id: string): AssetEditSpec {
-  return { ...spec, parts: spec.parts.filter((p) => p.id !== id) }
+  const parts = spec.parts.filter((p) => p.id !== id)
+  // A part removed from under a combine group is pruned from its member list; a
+  // group left with <2 members is dissolved (its survivor becomes a free part).
+  return pruneCombineGroups({ ...spec, parts })
+}
+
+let groupSeq = 0
+/** Fresh unique combine-group id (internal — groups are only minted by
+ *  `addCombineGroup`). */
+function newGroupId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `grp-${crypto.randomUUID()}`
+  }
+  groupSeq += 1
+  return `grp-${Date.now().toString(36)}-${groupSeq}`
+}
+
+/** The combine groups on a spec (never undefined). */
+export function combineGroups(spec: AssetEditSpec): CombineGroup[] {
+  return spec.combineGroups ?? []
+}
+
+/** The combine group that owns `partId`, or null when the part is free. */
+export function groupForPart(spec: AssetEditSpec, partId: string): CombineGroup | null {
+  return combineGroups(spec).find((g) => g.partIds.includes(partId)) ?? null
+}
+
+/** Ids of every part consumed by a combine group (rendered via the group result,
+ *  not on their own). */
+export function combinedPartIds(spec: AssetEditSpec): Set<string> {
+  const set = new Set<string>()
+  for (const g of combineGroups(spec)) for (const id of g.partIds) set.add(id)
+  return set
+}
+
+/** Drop any member id that no longer names an existing part, and remove groups
+ *  that fall below 2 members (a boolean needs ≥2 operands). Keeps the spec's
+ *  `combineGroups` field absent when there are none, so old specs stay identical. */
+export function pruneCombineGroups(spec: AssetEditSpec): AssetEditSpec {
+  const groups = combineGroups(spec)
+  if (groups.length === 0) return spec
+  const live = new Set(spec.parts.map((p) => p.id))
+  const next = groups
+    .map((g) => ({ ...g, partIds: g.partIds.filter((id) => live.has(id)) }))
+    .filter((g) => g.partIds.length >= 2)
+  if (
+    next.length === groups.length &&
+    next.every((g, i) => g.partIds.length === groups[i].partIds.length)
+  ) {
+    return spec
+  }
+  return next.length > 0 ? { ...spec, combineGroups: next } : stripCombineGroups(spec)
+}
+
+/** Return a spec with no `combineGroups` field (keeps round-trips byte-identical
+ *  to a fresh spec once the last group is gone). */
+function stripCombineGroups(spec: AssetEditSpec): AssetEditSpec {
+  if (spec.combineGroups === undefined) return spec
+  const { combineGroups: _drop, ...rest } = spec
+  return rest
+}
+
+/** Set (or clear) a part's solid/hole role immutably. `solid` (the default)
+ *  clears the field so specs stay clean. No-op for an unknown id. */
+export function setPartRole(spec: AssetEditSpec, id: string, role: PartRole): AssetEditSpec {
+  return {
+    ...spec,
+    parts: spec.parts.map((p) =>
+      p.id === id ? { ...p, role: role === 'solid' ? undefined : role } : p,
+    ),
+  }
+}
+
+/**
+ * Record a new combine group over `partIds` (selection order) with `op`.
+ * Non-destructive: the members stay in `spec.parts`. Guards: ≥2 distinct
+ * existing parts, none already consumed by another group (bake first to
+ * re-combine a result). Returns the spec unchanged (+ `groupId: null`) if the
+ * inputs are invalid.
+ */
+export function addCombineGroup(
+  spec: AssetEditSpec,
+  partIds: string[],
+  op: CombineOp,
+): { spec: AssetEditSpec; groupId: string | null } {
+  const distinct = [...new Set(partIds)]
+  const live = new Set(spec.parts.map((p) => p.id))
+  const alreadyGrouped = combinedPartIds(spec)
+  if (distinct.length < 2 || distinct.some((id) => !live.has(id) || alreadyGrouped.has(id))) {
+    return { spec, groupId: null }
+  }
+  const groups = combineGroups(spec)
+  const id = newGroupId()
+  const group: CombineGroup = { id, name: `Combine ${groups.length + 1}`, partIds: distinct, op }
+  return { spec: { ...spec, combineGroups: [...groups, group] }, groupId: id }
+}
+
+/** Dissolve a combine group (ungroup) — its member parts become free again;
+ *  nothing about the parts changes. No-op for an unknown group id. */
+export function removeCombineGroup(spec: AssetEditSpec, groupId: string): AssetEditSpec {
+  const groups = combineGroups(spec)
+  const next = groups.filter((g) => g.id !== groupId)
+  if (next.length === groups.length) return spec
+  return next.length > 0 ? { ...spec, combineGroups: next } : stripCombineGroups(spec)
+}
+
+/**
+ * "Bake to mesh": replace a combine group + its member parts with a single
+ * frozen `mesh` part (the evaluated result, produced by the caller). The mesh
+ * lands at the position of the group's first member so list order stays stable;
+ * the group and its members are dropped. Pure — the caller owns the async
+ * evaluation. No-op for an unknown group id.
+ */
+export function bakeCombineGroup(
+  spec: AssetEditSpec,
+  groupId: string,
+  meshPart: ShapePart,
+): AssetEditSpec {
+  const group = combineGroups(spec).find((g) => g.id === groupId)
+  if (!group) return spec
+  const memberSet = new Set(group.partIds)
+  // Emit the baked mesh in place of the FIRST member; drop the rest. Keeps the
+  // surrounding (free) parts in their original order.
+  const parts: ShapePart[] = []
+  let emitted = false
+  for (const p of spec.parts) {
+    if (memberSet.has(p.id)) {
+      if (!emitted) {
+        parts.push(meshPart)
+        emitted = true
+      }
+      continue
+    }
+    parts.push(p)
+  }
+  if (!emitted) parts.push(meshPart)
+  return removeCombineGroup({ ...spec, parts }, groupId)
 }
 
 /** Clone a part (full transform + material), offset slightly along X so the copy

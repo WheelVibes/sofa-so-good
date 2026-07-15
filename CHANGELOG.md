@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.30 — Asset Studio Stage 1b: CSG v2 (non-destructive booleans)
+
+Finishes **Stage 1** of the asset-studio plan (`docs/asset-studio-plan.md`). Replaces the v1
+two-operand bake-into-one-frozen-mesh combine with a **non-destructive, TinkerCAD-style
+solid/hole** boolean system: operands stay editable in the spec and the result is re-evaluated
+live from their transforms. Heavy folds run on a shared Web Worker pool; a per-file main-thread
+fallback keeps parity where no Worker exists.
+
+- **Non-destructive combine groups** (`glbEdit/editSpec.ts`): `AssetEditSpec.combineGroups[]`
+  (`{id,name,partIds[],op}`) records a Union/Subtract/Intersect over 2+ **member parts that stay
+  editable**; a part gains an optional `role: 'solid' | 'hole'`. `addCombineGroup` /
+  `removeCombineGroup` (ungroup — operands untouched) / `bakeCombineGroup` / `setPartRole` /
+  `pruneCombineGroups` are pure + unit-tested; `removePart` prunes members and dissolves a group
+  that drops below 2 operands.
+- **Multi-operand booleans** (`glbEdit/csgEval.ts` `foldCsg`): union/intersect fold across all
+  operands; **subtract** carves the `hole`-role operands out of the solids (with none marked, the
+  first-selected part is the base). Per-source draw groups + material preservation carry over from
+  v1 (`meshPartFromGeometry`).
+- **Worker offload** (`glbEdit/csgWorkerPool.ts` + `csg.worker.ts`): the THIRD pooled worker,
+  built on the shared `furniture/worker/workerPool.ts` (not a copy) — geometry attributes cross as
+  transferables; a main-thread `foldCsg` fallback runs when no Worker is available or one fails.
+  The preview evaluates **debounced** (`useCombineResults`) and shows a "Computing…" hint for slow
+  folds; a `hole` renders as a translucent ghost (opacity only, no bespoke texture) with the
+  evaluated solid on top.
+- **Bake escape hatch**: "Bake to mesh" freezes a group's evaluated result into one editable
+  `mesh` part (to then CSG against a source GLB or reduce complexity). v1 `mesh` parts from
+  previously-saved assets load/render unchanged.
+- **Export**: the built GLB bakes each group's evaluated result (holes carved, not exported as
+  geometry); the full non-destructive graph stays in `assetSpec` so re-opening restores editability.
+- **Spec persistence** bumped to **v2** with a v1→v2 identity migration (v1 is a structural subset
+  — old designer assets keep opening editable).
+- **UI**: the layers panel is now multi-select (Select mode toggle + shift/⌘-click); the combine
+  panel is selection-driven (Union/Subtract/Intersect + a per-group Bake / Ungroup); the part edit
+  panel gains a **Solid / Hole** toggle. Panel copy documents the subtract rule and the
+  offset-coplanar-faces guidance (three-bvh-csg limitation). All under the existing `glbDesigner`
+  pro flag (tested in both modes via the flag suite).
+- Tests: spec-level (recording, hole semantics, multi-operand, migration, bake, prune, round-trip),
+  geometry-level (`foldCsg`/`combineGroupToMeshPart` — union/subtract/intersect bbox + vertex
+  sanity, hole-inside-solid volume decrease, disjoint degeneracy), and the build path (consumed
+  operands + free holes skipped, results baked). Scenario `glb-designer-stage1b.json`.
+
 ## v0.21.2.29 — Asset Studio Stage 1a: new shape kinds + ubiquitous bevels
 
 Geometry expansion for the GLB designer (`docs/asset-studio-plan.md`, Stage 1a; CSG v2 is a
