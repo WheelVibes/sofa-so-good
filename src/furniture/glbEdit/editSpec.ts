@@ -522,8 +522,9 @@ export function bakeCombineGroup(
 // ---- Transform groups (Stage 3a) -----------------------------------------
 
 let partGroupSeq = 0
-/** Fresh unique transform-group id (internal — minted only by `addPartGroup`). */
-function newPartGroupId(): string {
+/** Fresh unique transform-group id. Exported so template builders
+ *  (`templates.ts`) can mint a wrapping group's id with the same `pg-` prefix. */
+export function newPartGroupId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `pg-${crypto.randomUUID()}`
   }

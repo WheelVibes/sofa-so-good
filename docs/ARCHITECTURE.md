@@ -609,6 +609,18 @@ same change that reshapes a system.
   `window.__glbDesignerPlaceOnFace` automation seam mirrors `window.__store`). `GroupInspector`'s
   **Repeat to corners** (`editSpec.ts:repeatComponentGroup` + `assetCenterXZ`, pure) mirrors a placed
   fitting to 2/4 symmetric positions about the asset bbox centre. Scenario `glb-designer-stage3b`.
+  **Stage 3c — template-first flows** (v0.21.2.35): 6 archetype STARTER templates (`glbEdit/templates.ts`,
+  pure + unit-tested — Dining/Coffee table, Bookshelf, Cabinet, Bed frame, Sofa frame), each a pure
+  builder (clamped ergonomic dims → `ShapePart[]` + one wrapping `PartGroup`). The **parametric→designer
+  bridge is ruled to FLATTEN at insertion** (not a live recipe in the spec — that would be a fourth spec
+  concept; a template is just parts + a group, already covered by the v4 `partGroups` envelope). The
+  Bookshelf **reuses `parametric/buildParts.ts`** (its box `ParametricPart[]` map cleanly to `ShapePart`s
+  via a thin adapter); cabinet/table/bed/sofa reuse `components.ts` fittings + `finishPresets.ts` (sofa
+  cushions get **Velvet**). `TemplatesPanel.tsx` (above Components) arms a template → a compact parametric
+  step (2–4 ergonomic sliders with unit + range + hint) with a **live viewport preview** (the dialog
+  renders the would-be-inserted spec) → `insertTemplate` (pure) flattens it in as ONE undo step: an empty
+  spec is REPLACED, a non-empty spec inserts ALONGSIDE (offset on +X, no confirm). Scenario
+  `glb-designer-stage3c`.
   `specPersist` is at **v4**, and both it and the configurator's `slotSpec` now ride the shared
   versioned **`furniture/specEnvelope.ts`** `{ kind, v, payload }` envelope + `EnvelopeCodec` (one
   parse/serialize/migrate/guard path — `parseAssetSpec`/`serializeAssetSpec` +

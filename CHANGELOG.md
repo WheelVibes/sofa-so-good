@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.35 — Asset Studio Stage 3c — template-first flows
+
+Adds archetype STARTER templates to the GLB Asset Designer: tap a template, tune a couple of
+ergonomic sliders with a live preview, then insert its editable parts. Proportions are right by
+construction (Tylko "start from a working piece").
+
+- **Parametric→designer bridge ruled** (recorded in `docs/asset-studio-plan.md`): a template
+  **flattens to plain `ShapePart`s at insertion** (option b), NOT a live parametric recipe in the
+  spec — a live recipe would be a fourth spec concept and fights the part-level editing model. The
+  approachability win is kept by making the **dialog parametric**: the user adjusts clamped
+  ergonomic sliders with a live viewport preview BEFORE inserting, and the insert flattens the
+  previewed geometry. No new spec field, no persistence bump (a template is just parts + a group,
+  already covered by the v4 `partGroups` envelope, like a placed component).
+- **Template library** (`furniture/glbEdit/templates.ts`, pure + unit-tested): 6 archetype
+  starters — **Dining table** (top + 4 tapered legs), **Coffee table** (lower default), **Bookshelf**
+  (sides/top/bottom/back + N shelves), **Cabinet** (carcass + 2–4 doors with bar pulls + puck feet),
+  **Bed frame** (platform + headboard + 4 legs by SG mattress preset), **Sofa frame** (base + back +
+  2 arms + 4 legs + seat/back cushions with a Velvet finish). Each is a pure builder (clamped dims →
+  `ShapePart[]` + one wrapping `PartGroup`). Every param is clamped to an ergonomic range with the
+  default at the sweet spot (dining 0.72–0.78 m, seat 0.40–0.48 m, shelf depth 0.25–0.40 m, SG
+  mattress presets …) and carries a hint naming the standard.
+- **Reuse over rewrite**: the **Bookshelf** template REUSES `parametric/buildParts.ts` — its
+  bookshelf `ParametricPart[]` map cleanly to box `ShapePart`s via a thin adapter (no re-derived
+  carcass geometry). Cabinet/table/bed/sofa reuse `components.ts` fittings (tapered/square legs, bar
+  pulls, puck feet); sofa cushions reuse the `finishPresets.ts` **Velvet** bundle.
+- **Template picker** (`ui/glbEditor/TemplatesPanel.tsx`, above Components in the toolbar panel):
+  tap a template → a compact parametric step (its 2–4 sliders, each showing unit + allowed range +
+  the ergonomic hint) with a **live viewport preview** (the dialog renders the would-be-inserted
+  spec) → **Use template** flattens it in. An empty spec is **replaced**; a non-empty spec **inserts
+  alongside** (offset on +X, no confirm — least surprising). Cancel backs out cleanly. One undo step.
+  `insertTemplate` (pure) computes the alongside offset and selects the inserted group.
+- Scenario `scripts/scenarios/glb-designer-stage3c.json`; `src/version.ts` → `0.21.2.35`. Docs:
+  plan (3c + bridge ruling shipped), ARCHITECTURE, user guide (Templates flow, exact labels).
+
 ## v0.21.2.34 — Asset Studio Stage 3b — fittings/component library + snap-to-surface placement
 
 Adds a curated hardware component library to the GLB Asset Designer with the SWOOD click-a-face

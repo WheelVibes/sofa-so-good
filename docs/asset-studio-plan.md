@@ -179,7 +179,7 @@ shrinking — every stage extracts modules, never grows the monolith.
 - **Template-first flows:** archetype starters (sofa, cabinet/wardrobe, table, shelving,
   bed frame) — bridge the existing parametric generator INTO the designer as editable part
   sets, sliders clamped to ergonomic ranges (sofa seat ~0.44 m, counter 0.9 m, …) so
-  proportions are right by construction.
+  proportions are right by construction. — ✅ done (3c)
 - **Sets & modular customization:** save a designed asset as a configurator product
   (designer → slot-spec export) so a built piece becomes a customizable product family;
   save grouped multi-piece designs as a set.
@@ -191,11 +191,35 @@ shrinking — every stage extracts modules, never grows the monolith.
 - ✅ **Disambiguate `CombineGroup` vs. Stage-3 transform groups.** DONE (Stage 3a, v0.21.2.33):
   the transform feature is `PartGroup` / "Group" in the UI; the boolean feature stays `CombineGroup`
   / "Combine" (⛓). A part can be in one of each independently.
-- **Define the parametric→designer bridge recipe representation.** Stage 3's "template-first
-  flows" bridge the parametric generator into the designer as editable part sets. Decide the
-  recipe representation up front — either embed the parametric params in the spec (re-derivable,
-  smaller, but couples the spec to the generator) or flatten to parts at import (self-contained,
-  larger, loses the parametric handles) — before building the bridge.
+- ✅ **Define the parametric→designer bridge recipe representation.** RULED (Stage 3c,
+  v0.21.2.35): **flatten to plain `ShapePart`s at insertion (option b)**. A live parametric
+  recipe embedded in the spec would be a FOURTH spec concept (alongside parts / combineGroups /
+  partGroups) and fights the whole part-level editing model — once inserted the user owns the
+  parts (drag, recolour, combine, ungroup), so a re-derivable recipe has nowhere to live without
+  the spec learning to reconcile hand-edits back into generator params. Templates instead **seed
+  an editable starting point** (Tylko "start from a working piece") and then get out of the way.
+  The approachability win is preserved by making the **template dialog itself parametric**: the
+  user adjusts ergonomic sliders BEFORE inserting, with a live viewport preview, and the insert
+  flattens the previewed geometry into `ShapePart`s + one wrapping `PartGroup`. No new spec field,
+  no persistence-version bump (a template is just parts+group — already covered by the v4
+  `partGroups` envelope, exactly like a placed component).
+
+### Stage 3c — template-first flows — ✅ SHIPPED (v0.21.2.35)
+- ✅ **Template library** (`glbEdit/templates.ts`, pure + unit-tested): 6 archetype starters —
+  **Dining table**, **Coffee table**, **Bookshelf**, **Cabinet/sideboard**, **Bed frame**,
+  **Sofa frame** — each a pure builder (clamped dims → `ShapePart[]` + one wrapping `PartGroup`).
+  Every param is clamped to an ergonomic range (seat 0.40–0.48 m, dining 0.72–0.78 m, shelf depth
+  0.25–0.40 m, SG mattress presets …) with defaults at the sweet spot; each carries a `hint`
+  naming the standard. Bookshelf **reuses `parametric/buildParts.ts`** (its bookshelf `ParametricPart[]`
+  map cleanly to box `ShapePart`s via a thin adapter — no rewrite); cabinet/table/bed/sofa reuse
+  `components.ts` fittings (tapered/square legs, bar pulls, puck feet) where natural; sofa cushions
+  carry the `finishPresets.ts` **Velvet** bundle.
+- ✅ **Template picker** (`ui/glbEditor/TemplatesPanel.tsx`, above Components): tap a template →
+  a compact parametric step (its 2–4 sliders, each showing unit + range + the ergonomic hint) with
+  a **live viewport preview** (the dialog renders the would-be-inserted spec) → **Use template**
+  flattens it in. Empty spec **replaces**; a non-empty spec **inserts alongside** (offset on +X, no
+  confirm — least surprising). Cancel backs out cleanly. One undo step.
+- ✅ Scenario `scripts/scenarios/glb-designer-stage3c.json`; no persistence change (v4 envelope).
 
 ## Stage 4 — Precision & pro UX
 - Alignment/distribution (align faces/centres, distribute), grid-snap toggle + step,
@@ -213,6 +237,7 @@ shrinking — every stage extracts modules, never grows the monolith.
 (v0.21.2.29) + Stage 1b / CSG v2 (v0.21.2.30, 2026-07-16); Stage 2 / materials **shipped**
 (v0.21.2.32, 2026-07-16); Stage 3a / spec-envelope unification + transform groups **shipped**
 (v0.21.2.33, 2026-07-16); Stage 3b / fittings-component library + snap-to-surface placement
-**shipped** (v0.21.2.34, 2026-07-16). **Stage 3 remainder (template-first flows, sets/modular)
-next.** Each stage lands as its own commit train with an end-of-stage adversarial
-review; this file tracks stage state.
+**shipped** (v0.21.2.34, 2026-07-16); Stage 3c / template-first flows **shipped**
+(v0.21.2.35, 2026-07-16 — parametric→designer bridge ruled: flatten at insertion, dialog
+parametric). **Stage 3 remainder (sets & modular customization) next.** Each stage lands as its
+own commit train with an end-of-stage adversarial review; this file tracks stage state.

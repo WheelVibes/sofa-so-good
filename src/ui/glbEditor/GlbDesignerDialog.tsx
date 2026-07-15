@@ -55,6 +55,7 @@ import {
   type SpecHistory,
 } from '../../furniture/glbEdit/specHistory'
 import { parseAssetSpec } from '../../furniture/glbEdit/specPersist'
+import { buildTemplate, insertTemplate, templateById } from '../../furniture/glbEdit/templates'
 import type { FurnitureCategory, UserGltfDef } from '../../furniture/types'
 import { parseFurnitureMaterialFinish } from '../../materials/furnitureMaterials'
 import { useStore } from '../../state/store'
@@ -69,6 +70,7 @@ import { LayersPanel } from './LayersPanel'
 import { PartInspector } from './PartInspector'
 import { type PlacementKind, SavePanel } from './SavePanel'
 import { SourcePanel } from './SourcePanel'
+import { TemplatesPanel } from './TemplatesPanel'
 import { useCombineResults } from './useCombineResults'
 
 /**
@@ -164,6 +166,13 @@ export function GlbDesignerDialog() {
   // ---- Component library — armed fitting + params (Stage 3b) -------------
   const [armedComponentId, setArmedComponentId] = useState<string | null>(null)
   const [armedParams, setArmedParams] = useState<Record<string, number>>({})
+
+  // ---- Template picker — armed template + params (Stage 3c) ---------------
+  // While a template is armed the viewport previews the would-be-inserted spec
+  // live; "Use template" flattens it in (one undo step). Mutually exclusive with
+  // an armed component.
+  const [templateId, setTemplateId] = useState<string | null>(null)
+  const [templateParams, setTemplateParams] = useState<Record<string, number>>({})
 
   // ---- Drag gizmo (GE2b) -------------------------------------------------
   const [gizmoMode, setGizmoMode] = useState<GizmoMode>('translate')
@@ -338,6 +347,17 @@ export function GlbDesignerDialog() {
     return [...set]
   }, [spec.parts])
 
+  // Live template preview (Stage 3c): while a template is armed, the viewport
+  // renders the spec AS IT WOULD BE after inserting the (clamped) template, so
+  // the user sees the piece live before committing. `buildTemplate` mints fresh
+  // ids each recompute — harmless (nothing is selected while previewing).
+  const previewSpec = useMemo(() => {
+    if (!templateId) return null
+    const def = templateById(templateId)
+    if (!def) return null
+    return insertTemplate(spec, buildTemplate(def, templateParams)).spec
+  }, [templateId, templateParams, spec])
+
   // Reset when reopened.
   useEffect(() => {
     if (open) {
@@ -354,6 +374,8 @@ export function GlbDesignerDialog() {
       setSelGroupObj(null)
       setArmedComponentId(null)
       setArmedParams({})
+      setTemplateId(null)
+      setTemplateParams({})
       sourceSceneRef.current = null
     }
   }, [open])
@@ -444,6 +466,9 @@ export function GlbDesignerDialog() {
     setArmedParams(seed)
     setSelIds([])
     setSelGroupId(null)
+    // Arming a component leaves the template picker (mutually exclusive modes).
+    setTemplateId(null)
+    setTemplateParams({})
   }
   const disarmComponent = () => {
     setArmedComponentId(null)
@@ -472,6 +497,39 @@ export function GlbDesignerDialog() {
     if (groupIds.length === 0) return
     commit(next)
     selectGroup(groupIds[groupIds.length - 1])
+  }
+
+  // ---- Template picker (Stage 3c) ----------------------------------------
+  // Arm a template: seed its params from the ergonomic defaults, clear any
+  // selection + armed component (the viewport then previews it live).
+  const armTemplate = (id: string) => {
+    const def = templateById(id)
+    if (!def) return
+    setTemplateId(id)
+    const seed: Record<string, number> = {}
+    for (const p of def.params) seed[p.key] = p.default
+    setTemplateParams(seed)
+    setSelIds([])
+    setSelGroupId(null)
+    setArmedComponentId(null)
+    setArmedParams({})
+  }
+  const cancelTemplate = () => {
+    setTemplateId(null)
+    setTemplateParams({})
+  }
+  const setTemplateParam = (key: string, value: number) =>
+    setTemplateParams((p) => ({ ...p, [key]: value }))
+  // "Use template": flatten the previewed template into the current spec (empty
+  // → replaces, non-empty → inserts alongside on +X) as ONE undo step; select
+  // the inserted group so it's ready to move/edit.
+  const useTemplate = () => {
+    const def = templateId ? templateById(templateId) : null
+    if (!def) return
+    const { spec: next, groupId } = insertTemplate(spec, buildTemplate(def, templateParams))
+    commit(next)
+    cancelTemplate()
+    if (groupId) selectGroup(groupId)
   }
 
   const commitGizmoDrag = () => {
@@ -715,11 +773,13 @@ export function GlbDesignerDialog() {
             }}
           >
             <DesignerViewport
-              spec={spec}
+              // While a template is armed, render the would-be-inserted spec as a
+              // live preview and suppress the gizmo (nothing is selected).
+              spec={previewSpec ?? spec}
               results={combineResults}
-              sel={sel}
-              selMesh={selMesh}
-              selGroupObj={selGroupObj}
+              sel={previewSpec ? null : sel}
+              selMesh={previewSpec ? null : selMesh}
+              selGroupObj={previewSpec ? null : selGroupObj}
               finishIds={finishIds}
               sourceUrl={sourceUrl}
               gizmoActive={gizmoActive}
@@ -770,6 +830,15 @@ export function GlbDesignerDialog() {
               onUndo={doUndo}
               onRedo={doRedo}
               onAddShape={addShape}
+            />
+
+            <TemplatesPanel
+              armedId={templateId}
+              params={templateParams}
+              onArm={armTemplate}
+              onCancel={cancelTemplate}
+              onUse={useTemplate}
+              onParam={setTemplateParam}
             />
 
             <ComponentsPanel

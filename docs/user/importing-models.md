@@ -66,6 +66,16 @@ glass model). On lower tiers it stays a normal surface.
 No model to import? Open the **3D asset designer** (⌘K → "Design a 3D asset") to
 build one in the browser:
 
+- **Templates** — the fastest start: the **Templates** section offers ready-made pieces —
+  **Dining table**, **Coffee table**, **Bookshelf**, **Cabinet**, **Bed frame** and **Sofa
+  frame**. Tap one and a small panel opens with 2–4 dimension sliders (each shows its unit, the
+  allowed range and a hint naming the standard — e.g. *"Standard dining height 0.75 m"*), and the
+  **preview updates live** as you drag. The dimensions are clamped to sensible furniture sizes, so
+  the proportions always look right. Tap **Use template** to drop its **editable parts** into your
+  design — if the canvas is empty it *replaces* it, otherwise it's added **alongside** what's
+  already there. It arrives as its own named **Group** (so you can move the whole piece), and every
+  part is fully editable, so you can then recolour, resize, combine or ungroup it like anything you
+  built by hand. **Cancel** backs out. It's one undo step.
 - **Compose from shapes** — add boxes, cylinders, spheres, cones, pyramids, capsules,
   torus rings and wedges, then set each one's size, position, **rotation**, colour and **surface finish**
   (roughness, metalness, **glow** and **opacity** sliders — so a part can read as matte
