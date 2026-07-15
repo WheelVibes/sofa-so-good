@@ -1,0 +1,23 @@
+{
+  "name": "softshadow-pen-medium",
+  "description": "PR4/R-SSAO single-tier (medium) penumbra pose in a FRESH session (no tier switching — avoids iGPU context exhaustion). Steep dollhouse + dolly into central rooms. Hour 15. SHOT_GPU=1.",
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    { "name": "set-afternoon", "eval": "(function(){ const s=window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(15); })()" },
+    { "name": "open-curtains", "eval": "(function(){ const s=window.__store.getState(); s.items.filter(i=>/curtain|blind/.test(i.defId)).forEach(i=>s.updateItemProps(i.id,{drawAmount:0})); })()" },
+    { "name": "tier", "store": { "action": "setQualityTier", "args": ["medium"] } },
+    { "name": "settle", "wait": 4500 },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "settle2", "wait": 1200 },
+    { "name": "tilt", "drag": { "from": [800, 300], "to": [800, 440] } },
+    { "name": "settle-tilt", "wait": 900 },
+    { "name": "orbit", "drag": { "from": [700, 400], "to": [980, 400] } },
+    { "name": "settle-orbit", "wait": 900 },
+    { "name": "dolly-in", "wheel": { "x": 800, "y": 500, "dy": -520 } },
+    { "name": "settle-di", "wait": 1600 },
+    { "name": "shot", "screenshot": "penumbra-medium" }
+  ]
+}

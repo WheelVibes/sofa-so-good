@@ -72,6 +72,15 @@ GPU-session gotchas (2026-07-11 sweep):
   coords with no recentring — a pose at z≈1.5 embeds the camera inside the north window (sill/
   grille fills the foreground). Aim by reading item positions from `__store.getState().items`
   and stand ~1–1.5 m INTO the room.
+- **Don't switch quality tiers repeatedly in one GPU session — A/B one tier per fresh session.**
+  On this iGPU (ANGLE D3D12 Intel UHD), tearing down and rebuilding the shadow map + post stack on
+  each `setQualityTier` — especially to/from Maximum's 4096² map — exhausts the WebGL context; after
+  ~2 switches the context is lost and the app's 3D-scene **error boundary** trips ("Something went
+  wrong in the 3D scene"), so the later frames capture the error card, not the scene (observed in the
+  PR4/R-SSAO soft-shadow audit, 2026-07-15). For a per-tier pixel A/B, run **one scenario per tier**
+  that sets that single tier and never switches (see `scripts/scenarios/softshadow-pen-{medium,high,
+  maximum}.json`) rather than one scenario that cycles tiers. A single overview→interior camera move
+  within one tier is fine; it's the tier remounts that accumulate the leak.
 - **The demand-frameloop one-burst-late presentation is SwiftShader-only.** On real GPU a
   lighting-only store change (C275 curtain dim) is present in the immediately-captured frame
   (measured 94.5 → 64.4 mean luminance with no wait/nudge step) — keep the no-op-nudge trick

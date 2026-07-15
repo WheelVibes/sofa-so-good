@@ -1,0 +1,29 @@
+{
+  "name": "softshadow-audit",
+  "description": "PR4/R-SSAO soft-shadow audit context shots (single Maximum session — no tier switching, per the playbook iGPU-context gotcha). Default furnished 4-room, late-afternoon sun (hour 15). Two poses: dollhouse overview (whole-flat grounding) + living-room interior (sofa contact + window mullions). For the per-tier A/B use softshadow-pen-{medium,high,maximum}.json. SHOT_GPU=1.",
+  "url": "http://localhost:5174/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    { "name": "set-afternoon", "eval": "(function(){ const s=window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(15); })()" },
+    { "name": "open-curtains", "eval": "(function(){ const s=window.__store.getState(); s.items.filter(i=>/curtain|blind/.test(i.defId)).forEach(i=>s.updateItemProps(i.id,{drawAmount:0})); })()" },
+    { "name": "log-sofa", "eval": "(function(){ const s=window.__store.getState(); const it=s.items.find(i=>/sofa/.test(i.defId))||s.items[0]; window.__sofaP=it.position; return JSON.stringify({id:it.id,defId:it.defId,p:it.position}); })()" },
+
+    { "name": "tier-max", "store": { "action": "setQualityTier", "args": ["maximum"] } },
+    { "name": "settle-x", "wait": 4500 },
+    { "name": "hide-loading-x", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "settle-x2", "wait": 1200 },
+    { "name": "zoomout", "wheel": { "x": 800, "y": 500, "dy": 300 } },
+    { "name": "settle-zo", "wait": 900 },
+    { "name": "tilt", "drag": { "from": [800, 300], "to": [800, 430] } },
+    { "name": "settle-tilt", "wait": 900 },
+    { "name": "orbit", "drag": { "from": [700, 400], "to": [980, 400] } },
+    { "name": "settle-orbit", "wait": 1000 },
+    { "name": "shot-overview", "screenshot": "overview-maximum" },
+
+    { "name": "focus-living", "eval": "(function(){ const s=window.__store.getState(); const p=window.__sofaP||[0,0,0]; s.focusOn?.([p[0], p[2]]); })()" },
+    { "name": "settle-fl", "wait": 2200 },
+    { "name": "shot-interior", "screenshot": "interior-maximum" }
+  ]
+}

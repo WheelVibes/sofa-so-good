@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.18 — PR4/R-SSAO closed: real-GPU soft-shadow audit (VSM verified, PCSS rejected)
+
+Closes the long-blocked PR4/R-SSAO backlog item ("soft-shadow upgrade (PCSS/VSM) + contact-shadow
+refinement") now that the sandbox has real-GPU WebGL. This is a **verify-and-rule** change — the
+audit found the shipped stack already correct, so **no renderer code changed** (like the GTAO
+ruling); the deliverable is the pixel-verified ruling + bookkeeping.
+
+- **Real-GPU audit** (`SHOT_GPU=1`, `ANGLE … D3D12 Intel(R) UHD Graphics`) of the VSM soft-shadow
+  stack (`look.ts:VSM_SHADOW`, `shadowFilterForTier`; PHOTO-SOFTSHADOW) across Medium/High/Maximum
+  at late-afternoon sun (hour 15), dollhouse overview + zoomed central-rooms poses. **Every Medium+
+  tier renders the sun shadows cleanly — no light bleeding, boxy blur, shadow acne, or peter-panning**;
+  grounding is consistent across tiers. Sun shadows are subtle indoors by design (the ORBIT-CEILING
+  virtual ceiling gates direct sun to windows), so contact-shadow blobs + corner-AO (Medium) / SSAO
+  (High+) carry grounding and do **not** double-darken under the subtle sun shadows.
+- **PCSS rejected**: a distance-dependent-penumbra `onBeforeCompile` patch is warranted only if VSM's
+  uniform blur is *visibly* wrong — it is not — and would add per-fragment cost + a shader-recompile
+  surface + iGPU context-stability risk (context loss observed on repeated 4096-map tier switches)
+  for no visible gain. No radius/bias/frustum/contact-opacity tuning shipped — the audit surfaced no
+  defect. Full rationale + re-runnable rungs in `PHOTOREALISM.md`; ruling recorded so it isn't
+  re-proposed blind.
+- **Harness**: added `scripts/scenarios/softshadow-pen-{medium,high,maximum}.json` (single-tier,
+  fresh-session-per-tier A/B — the reliable way to compare tiers without exhausting the iGPU context)
+  + `softshadow-audit.json` (overview + interior). Playbook gains a gotcha: repeated tier switching
+  in one GPU session trips the 3D-scene error boundary on this iGPU — capture one tier per session.
+- Docs: `TASKS.md` PR4/R-SSAO line removed (closed); `PHOTOREALISM.md` ruling; `visual-verification-
+  playbook.md` tier-switch gotcha; `src/version.ts` → 0.21.2.18.
+
 ## v0.21.2.17 — PARITY-VIDEO tail: MP4 walkthrough export + duration prompt
 
 Closes the PARITY-VIDEO tail. Two user-visible changes to the "Record walkthrough video" flow

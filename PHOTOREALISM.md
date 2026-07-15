@@ -77,6 +77,31 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   candidate beat them without RD-410-class risk. Re-runnable A/B rungs:
   `scripts/scenarios/photo-gtao-ab.json` (beauty, 3 tiers) + `photo-gtao-ab-ao.json` (High/Max,
   pair with a temporary `renderMode={1}` on the `<N8AO>` in `EffectsImpl.tsx`).
+- **PR4/R-SSAO (soft-shadow upgrade + contact-shadow refinement) — ruling (2026-07-15, real-GPU
+  audit): VSM VERIFIED, PCSS REJECTED, no tuning warranted.** The shipped VSM soft-shadow stack
+  (PHOTO-SOFTSHADOW, `look.ts:VSM_SHADOW` radius 6 / blurSamples 12 on Medium+; `shadowFilterForTier`)
+  was audited on the real GPU (`ANGLE … D3D12 Intel UHD`, `SHOT_GPU=1`) across Medium/High/Maximum
+  at late-afternoon sun (hour 15) — a dollhouse overview + a zoomed central-rooms pose per tier,
+  each captured in its own fresh session (repeated 4096-map tier switches exhaust this iGPU's WebGL
+  context → error boundary; A/B one tier per session). **Findings:** every Medium+ tier renders the
+  sun shadows cleanly — **no light bleeding, no boxy blur, no shadow acne, no peter-panning** — and
+  grounding is consistent across tiers. Sun shadows are **subtle indoors by design**: the ORBIT-CEILING
+  virtual-ceiling occluder gates direct sun to windows, so the dominant grounding cues are the
+  contact-shadow blobs (`ContactShadow.tsx`, resolution-independent) + baked corner-AO on Medium
+  (`CornerAO`) / real SSAO on High+ — and these do **not** visibly double-darken under the (subtle)
+  sun shadows (contact blobs sit under wall-flush furniture the raking sun barely reaches). **PCSS
+  REJECTED:** an `onBeforeCompile` distance-dependent-penumbra patch is in scope ONLY if VSM's
+  uniform blur is *visibly* wrong; it is not — with sun shadows this subtle and window-gated, the
+  uniform penumbra reads correctly, and a per-fragment PCSS kernel would add cost + a shader-recompile
+  surface + iGPU context-stability risk (context loss already observed on tier switches) for **no
+  visible gain**. **No radius/bias/frustum/contact-opacity tuning shipped** — the audit surfaced no
+  defect to fix, and the fixed-texel VSM radius (which makes the top tier's world-space penumbra the
+  narrowest) produces no visible "too-sharp/too-soft" artifact at any achievable framing, so a
+  resolution-aware radius would be an unshowable speculative change (deliberately skipped; recorded
+  here so it is not re-proposed blind). Re-runnable rungs (fresh session per tier, no switching):
+  `scripts/scenarios/softshadow-pen-{medium,high,maximum}.json` (decisive A/B) +
+  `softshadow-audit.json` (overview + interior). Contact-shadow strength stays full on Performance
+  (its sole grounding cue — do not weaken).
 - **PHOTO-GLASS — remaining ruling:** window-pane transmission shipped on High/Max (see audit
   above); **extending transmission down to Medium is REJECTED for now** — the transmissive pass
   renders the whole opaque scene to an extra render target, which is exactly the cost class the
