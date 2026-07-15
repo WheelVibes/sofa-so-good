@@ -141,10 +141,12 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 
 ## Open — real-GPU / frontier (need a real GPU to implement+verify the pixel pass)
 - [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle with WebGL fallback.
-- [ ] PHOTO-* frontier: PHOTO-POM, PHOTO-SSGI-SSR (WebGPU), PHOTO-WEBGPU. See `PHOTOREALISM.md`
+- [ ] PHOTO-* frontier: PHOTO-SSGI-SSR (WebGPU), PHOTO-WEBGPU. See `PHOTOREALISM.md`
   (GLASS + SOFTSHADOW shipped v0.19.0.1; GTAO rejected by real-GPU ruling 2026-07-11;
   PR4/R-SSAO closed by real-GPU audit 2026-07-15 — VSM verified artifact-free, PCSS rejected,
-  contact shadows verified, no tuning warranted, v0.21.2.18).
+  contact shadows verified, no tuning warranted, v0.21.2.18; **PHOTO-POM verified by real-GPU
+  pixel A/B 2026-07-15 — grout recession/occlusion confirmed at High/Max, no artifacts, no code
+  change, v0.21.2.19**; the remaining two stay blocked on a real WebGPU adapter in-sandbox).
 
 ## Dead-export prune plan (from docs/research/2026-07-03-dead-export-audit.md, verified per-symbol)
 

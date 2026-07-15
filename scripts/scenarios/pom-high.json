@@ -1,0 +1,28 @@
+{
+  "name": "pom-high",
+  "description": "PHOTO-POM real-GPU A/B at High tier (16 ray-march steps). Walk mode, low eye + grazing downward pitch over a grey-porcelain-tile floor (procedural, POM-eligible). Captures pomFloors ON then OFF at the SAME pose (flag toggle only — no tier switch). Fresh session per tier. SHOT_GPU=1.",
+  "url": "http://localhost:5199/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    { "name": "pro-mode", "eval": "(function(){ const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); })()" },
+    { "name": "clear-furniture", "eval": "window.__store.getState().setItems([])" },
+    { "name": "tile-floor", "eval": "window.__store.getState().setAllFloorFinish('floor-tile-grey')" },
+    { "name": "daylight", "eval": "(function(){ const s=window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13); })()" },
+    { "name": "open-curtains", "eval": "(function(){ const s=window.__store.getState(); s.items.filter(i=>/curtain|blind/.test(i.defId)).forEach(i=>s.updateItemProps(i.id,{drawAmount:0})); })()" },
+    { "name": "tier", "store": { "action": "setQualityTier", "args": ["high"] } },
+    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
+    { "name": "walk-settle", "waitFor": { "store": "!!window.__walkLook" }, "timeout": 20000 },
+    { "name": "low-eye", "store": { "action": "setWalkEyeHeight", "args": [1.2] } },
+    { "name": "teleport-and-pitch", "eval": "(function(){ const c=window.__three.camera; c.position.x=10.5; c.position.z=6.0; window.__walkLook.setPitch(-0.4); })()" },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "settle-pose", "wait": 2500 },
+    { "name": "pom-on", "eval": "window.__store.getState().setFeatureFlag('pomFloors', true)" },
+    { "name": "settle-on", "wait": 2000 },
+    { "name": "shot-on", "screenshot": "high-pom-ON" },
+    { "name": "pom-off", "eval": "window.__store.getState().setFeatureFlag('pomFloors', false)" },
+    { "name": "settle-off", "wait": 2000 },
+    { "name": "shot-off", "screenshot": "high-pom-OFF" }
+  ]
+}

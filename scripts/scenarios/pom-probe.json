@@ -1,0 +1,18 @@
+{
+  "name": "pom-probe",
+  "description": "Scene-graph probe (SwiftShader-ok): confirms buildPomFloorMaterial is actually applied to the floor meshes at Maximum with pomFloors on — logs per-floor-mesh material.userData.pomHeightMap + customProgramCacheKey. Use floor-tile-grey (procedural, POM-eligible — NOT floor-tile-white, which is DLC-shadowed to a textured Poly Haven photo and never hits the POM path).",
+  "url": "http://localhost:5199/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "scene-ready", "waitFor": { "store": "state.sceneReady === true" }, "timeout": 90000 },
+    { "name": "pro-mode", "eval": "(function(){ const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); })()" },
+    { "name": "clear-furniture", "eval": "window.__store.getState().setItems([])" },
+    { "name": "tier", "store": { "action": "setQualityTier", "args": ["maximum"] } },
+    { "name": "pom-on", "eval": "window.__store.getState().setFeatureFlag('pomFloors', true)" },
+    { "name": "tile-floor", "eval": "window.__store.getState().setAllFloorFinish('floor-tile-grey')" },
+    { "name": "settle", "wait": 2500 },
+    { "name": "probe", "eval": "(function(){ const st=window.__store.getState(); const scene=window.__three.scene; let pom=0,total=0,keys={}; scene.traverse(o=>{ if(o.isMesh && o.userData && o.userData.finishTarget && o.userData.finishTarget.kind==='floor'){ total++; const m=o.material; if(m&&m.userData&&m.userData.pomHeightMap){ pom++; const k=m.customProgramCacheKey?m.customProgramCacheKey():'?'; keys[k]=(keys[k]||0)+1; } } }); console.log('POMPROBE tier='+st.qualityTier+' pomFloors='+st.featureFlags.pomFloors+' floorMeshes='+total+' withPOM='+pom+' keys='+JSON.stringify(keys)); })()" },
+    { "name": "settle2", "wait": 300 }
+  ]
+}

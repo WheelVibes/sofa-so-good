@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.19 — PHOTO-POM verified: real-GPU parallax-occlusion-floor pixel A/B
+
+Closes PHOTO-POM, the last real-GPU-verifiable item on the PHOTO-* frontier line. POM (parallax-
+occlusion floors, `materials/pomFloor.ts`, flag `pomFloors`) shipped long ago with unit tests but had
+**never been pixel-verified on real hardware** (SwiftShader was the only renderer). This is a
+**verify-and-rule** change — the shipped shader/gating is correct, so **no source code changed**; the
+deliverable is the ruling + re-runnable scenarios + bookkeeping.
+
+- **Real-GPU pixel A/B** (`SHOT_GPU=1`, `ANGLE … D3D12 Intel(R) UHD Graphics`): walk mode, low eye
+  (1.2 m) + grazing pitch (dev `__walkLook` lever) over an unfurnished grey-porcelain-tile floor,
+  `pomFloors` ON vs OFF at the identical pose, one tier per fresh session. **Maximum (32 steps) and
+  High (16 steps): grout/joints genuinely recede and occlude** the tile faces at grazing angle —
+  decisive vs the flat normal-map OFF frame (floor-region mean Δ ≈ 24–34/255). The grazing clamp holds
+  (**no smear/explosion**, **no UV bleed past the floor silhouette** onto the skirting — POM offsets
+  only the floor UV), VSM shadows compose unchanged, only minor near-field grout-edge stepping inherent
+  to the step count. **No perf collapse / context loss** at 32 steps. **Medium control: no POM** (the
+  flat shared procedural material, as gated by `pomStepsForTier` → 0).
+- **Reach note (recorded, not a bug):** POM only fires on *procedural* eligible-pattern floor defs, so
+  builtin ids that `GENERATED_MATERIALS` shadows with a **textured** Poly Haven photo of the same id
+  (`floor-tile-white`, `floor-tile-marble`, `floor-parquet`, `floor-concrete`, `floor-wood-oak/walnut`)
+  dispatch to `TexturedRoomFloor` and never reach the POM hook — by design (the CC0 photo is the
+  higher-fidelity path). POM's reachable surface is the un-shadowed procedural finishes
+  (`floor-tile-grey/charcoal/sand`, `floor-tile-hex(-charcoal)`, `floor-parquet-oak/walnut`,
+  `floor-herringbone-oak/walnut`) + composed procedural finishes.
+- **Harness**: `scripts/scenarios/pom-{maximum,high,medium}.json` (single-tier fresh-session A/B) +
+  `pom-probe.json` (scene-graph proof `buildPomFloorMaterial` lands on the floor meshes — 16/16 carry
+  the `pom-floor-32-0.03` program key).
+- Docs: `TASKS.md` PHOTO-POM removed from the frontier line (PHOTO-SSGI-SSR + PHOTO-WEBGPU remain,
+  blocked on a real WebGPU adapter); `PHOTOREALISM.md` Tier-2 ruling + verification-posture note;
+  `src/version.ts` → 0.21.2.19.
+
 ## v0.21.2.18 — PR4/R-SSAO closed: real-GPU soft-shadow audit (VSM verified, PCSS rejected)
 
 Closes the long-blocked PR4/R-SSAO backlog item ("soft-shadow upgrade (PCSS/VSM) + contact-shadow
