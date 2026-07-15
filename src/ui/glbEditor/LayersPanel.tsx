@@ -54,6 +54,10 @@ export function LayersPanel({
           const selected = selIds.includes(p.id)
           const grp = groupForPart(spec, p.id)
           const isHole = p.role === 'hole'
+          // A hole only actually cuts inside a Subtract combine. A groupless hole
+          // renders/exports as a plain solid — flag it as inert so the "Hole" tag
+          // isn't misleading.
+          const inertHole = isHole && !grp
           return (
             <div
               key={p.id}
@@ -76,7 +80,9 @@ export function LayersPanel({
                     width: 16,
                     height: 16,
                     borderRadius: 3,
-                    opacity: isHole ? 0.4 : 1,
+                    // Dim only a hole that's actually cutting (grouped); a free
+                    // hole renders as a solid, so keep it at full opacity.
+                    opacity: isHole && !inertHole ? 0.4 : 1,
                   }}
                 />
               )}
@@ -85,11 +91,15 @@ export function LayersPanel({
               </span>
               {isHole ? (
                 <span
-                  className="badge neutral"
+                  className={`badge ${inertHole ? 'warn' : 'neutral'}`}
                   style={{ fontSize: 'var(--t-2xs)' }}
-                  title="Hole — carved out inside a Subtract combine"
+                  title={
+                    inertHole
+                      ? 'Hole — inert until added to a Subtract combine (renders as a solid)'
+                      : 'Hole — carved out inside a Subtract combine'
+                  }
                 >
-                  Hole
+                  {inertHole ? 'Hole (inert)' : 'Hole'}
                 </span>
               ) : null}
               {grp ? (

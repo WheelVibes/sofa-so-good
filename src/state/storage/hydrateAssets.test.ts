@@ -116,6 +116,7 @@ describe('hydrateUserAssets', () => {
         byteSize: 12345,
         price: 199.5,
         slotSpec: '{"type":"bookshelf"}',
+        assetSpec: '{"v":2,"spec":{"sourceScale":1,"parts":[],"meshOverrides":{}}}',
         footprint: JSON.stringify({ w: 1.2, d: 0.8, h: 0.9 }),
         finishTargets: JSON.stringify([{ key: 'body', label: 'Body' }]),
         finishOverrides: JSON.stringify({ body: '#334455' }),
@@ -140,6 +141,7 @@ describe('hydrateUserAssets', () => {
     expect(def.price).toBe(199.5)
     expect(def.byteSize).toBe(12345)
     expect(def.slotSpec).toBe('{"type":"bookshelf"}')
+    expect(def.assetSpec).toBe('{"v":2,"spec":{"sourceScale":1,"parts":[],"meshOverrides":{}}}')
     expect(def.defaultFootprint).toEqual({ w: 1.2, d: 0.8, h: 0.9 })
     expect(def.finishTargets).toEqual([{ key: 'body', label: 'Body' }])
     expect(def.finishOverrides).toEqual({ body: '#334455' })

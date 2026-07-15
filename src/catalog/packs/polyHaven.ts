@@ -194,8 +194,9 @@ export function polyHavenBasename(pathOrUrl: string): string {
   return clean.split('/').pop() ?? clean
 }
 
-/** One external file a glTF depends on (its `.bin` or a texture). */
-export interface PolyHavenFileRef {
+/** One external file a glTF depends on (its `.bin` or a texture). Only used
+ *  within this module (as `PolyHavenGltfFiles.deps`), so it stays un-exported. */
+interface PolyHavenFileRef {
   /** Basename — matches how the sibling pool + glTF relative refs resolve. */
   name: string
   url: string

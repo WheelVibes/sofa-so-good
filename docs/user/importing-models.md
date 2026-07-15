@@ -90,9 +90,11 @@ build one in the browser:
   colour. Textures are baked into the saved asset, and a combined shape keeps each source
   shape's own texture on its own faces.
 - **Solid or Hole** — every shape's edit panel has a **Type** switch: **Solid** (the
-  default) or **Hole**. A **Hole** shows as a translucent ghost and is used to carve into
-  other shapes with **Subtract** (below). Marking a shape as a Hole doesn't change anything
-  on its own until you combine it.
+  default) or **Hole**. A **Hole only cuts inside a Subtract combine** (below): once it's
+  carving inside one it shows as a translucent ghost. On its own — before it's part of a
+  Subtract — a Hole stays a plain solid and saves as one (the layers list tags it *Hole
+  (inert)* to make that clear), so marking a shape as a Hole changes nothing until you
+  combine it.
 - **Drag it in the preview** — selecting a shape shows a 3D gizmo on it, with a
   **Move / Rotate / Scale** switch in the preview's corner (or press **G**, **R**, **S**).
   Drag the arrows/rings/handles to place the shape; when you let go, the numbers in the
@@ -113,7 +115,8 @@ build one in the browser:
   **Ungroup** (dissolve the combine; the shapes go back to how they were). A heavy combine
   briefly shows **Computing…** while it works. Tip: don't line shapes up so two faces sit
   *exactly* flush — overlap or offset them slightly so the cut doesn't flicker. If the
-  shapes don't overlap the result can be **Empty**.
+  shapes don't overlap the result can be **Empty** — an Empty combine **blocks Save** (so it
+  can't silently vanish from the saved asset); fix the overlap or **Ungroup** it first.
 - **Undo / redo** — every edit (add, move, resize, recolour, combine, …) is
   undoable: press **⌘Z** (⇧⌘Z to redo), or use the **↶ / ↷** buttons next to
   "Add shape". A slider or gizmo drag counts as a single step.
@@ -126,4 +129,6 @@ Give it a name and category and hit **Save asset** — it's exported to a GLB an
 added to your catalog like any upload, ready to place and reuse. When you started
 from one of your own models, flip **Update original** before saving to overwrite
 that asset in place — every copy you've already placed updates to the new edit.
+Because that changes every placed copy and **can't be undone**, Save first asks you
+to confirm.
 

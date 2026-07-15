@@ -114,6 +114,31 @@ describe('gizmoPatch scale', () => {
   })
 })
 
+describe('gizmoPatch scale — radially-symmetric kinds (lathe/sweep) drive off the dragged axis', () => {
+  // default lathe size = [0.12, 0.5, 0.12] (diameter, height, _).
+  const lathe = (over: Partial<ShapePart> = {}): ShapePart => ({ ...defaultPart('lathe'), ...over })
+
+  it('an X-only drag mirrors X onto Z (stays round)', () => {
+    const p = gizmoPatch(lathe(), 'scale', snap({ scale: [2, 1, 1] }))
+    expect(p).toEqual({ size: [0.24, 0.5, 0.24] })
+  })
+
+  it('a Z-only drag drives the diameter off Z (no longer a no-op / null)', () => {
+    const p = gizmoPatch(lathe(), 'scale', snap({ scale: [1, 1, 2] }))
+    expect(p).toEqual({ size: [0.24, 0.5, 0.24] })
+  })
+
+  it('a uniform drag scales diameter + height together', () => {
+    const p = gizmoPatch(lathe(), 'scale', snap({ scale: [2, 2, 2] }))
+    expect(p).toEqual({ size: [0.24, 1, 0.24] })
+  })
+
+  it('a Y-only drag changes only height, keeping the diameter round', () => {
+    const p = gizmoPatch(lathe(), 'scale', snap({ scale: [1, 2, 1] }))
+    expect(p).toEqual({ size: [0.12, 1, 0.12] })
+  })
+})
+
 describe('round-trip through updatePart (the numeric inputs’ path)', () => {
   it('the patch lands on the part exactly like typing the numbers', () => {
     const part = box()

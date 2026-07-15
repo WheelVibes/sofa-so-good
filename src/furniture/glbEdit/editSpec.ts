@@ -33,9 +33,6 @@ export type PrimitiveShapeKind =
  *  already smooth. Source of truth for the inspector's "Corner radius" control. */
 export const BEVELABLE_KINDS: PrimitiveShapeKind[] = ['box', 'wedge']
 
-/** Kinds edited via a 2D profile point list (the shared profile editor). */
-export const PROFILE_KINDS: PrimitiveShapeKind[] = ['lathe', 'extrude']
-
 /** A part is either a parametric primitive or a baked `mesh` — the result of a
  *  CSG combine (`csgCombine.ts`), whose triangles live in `ShapePart.geometry`. */
 export type ShapeKind = PrimitiveShapeKind | 'mesh'

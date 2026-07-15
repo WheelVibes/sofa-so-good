@@ -74,7 +74,11 @@ export function DesignerViewport({
 }) {
   return (
     <>
-      <Canvas shadows camera={{ position: [1.6, 1.3, 1.8], fov: 40 }}>
+      {/* frameloop="demand": only repaint on demand — drei's OrbitControls +
+          TransformControls invalidate during interaction, and any spec/profile/
+          ghost prop change re-renders the R3F tree (which invalidates a frame in
+          demand mode), so the preview stays live without a permanent 60fps loop. */}
+      <Canvas frameloop="demand" shadows camera={{ position: [1.6, 1.3, 1.8], fov: 40 }}>
         <ambientLight intensity={0.7} />
         <hemisphereLight intensity={0.6} />
         <directionalLight position={[3, 5, 2]} intensity={1.1} castShadow />

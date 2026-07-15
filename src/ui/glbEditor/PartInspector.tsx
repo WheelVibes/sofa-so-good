@@ -110,6 +110,11 @@ export function PartInspector({
               Hole
             </button>
           </div>
+          {part.role === 'hole' ? (
+            <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
+              Holes only cut inside a Subtract combine. Until then it stays a solid.
+            </div>
+          ) : null}
         </div>
       ) : null}
       {/* A combined (mesh) part's triangles are baked — size is fixed;
@@ -315,30 +320,15 @@ export function PartInspector({
       ) : null}
       {sliders.map(({ prop, value, min, max }) => (
         <div key={prop} style={{ marginTop: 'var(--s-2)' }}>
-          <div
-            className="label"
-            style={{
-              fontSize: 'var(--t-2xs)',
-              color: 'var(--text-3)',
-              display: 'flex',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span style={{ textTransform: 'capitalize' }}>
-              {prop === 'emissiveIntensity' ? 'glow' : prop}
-            </span>
-            <span>{value.toFixed(2)}</span>
-          </div>
-          <input
-            type="range"
-            className="slider"
+          <SliderField
+            label={prop === 'emissiveIntensity' ? 'Glow' : prop[0].toUpperCase() + prop.slice(1)}
+            ariaLabel={`${part.kind} ${prop}`}
+            value={value}
             min={min}
             max={max}
             step={0.05}
-            value={value}
-            aria-label={`${part.kind} ${prop}`}
-            onChange={(e) => onPatch({ [prop]: Number(e.target.value) })}
-            style={{ width: '100%' }}
+            format={(v) => v.toFixed(2)}
+            onChange={(v) => onPatch({ [prop]: v })}
           />
         </div>
       ))}

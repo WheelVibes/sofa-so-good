@@ -1,5 +1,5 @@
 import { type PrimitiveShapeKind, SHAPE_LABEL } from '../../furniture/glbEdit/editSpec'
-import { Icon } from '../toolbar/icons'
+import { UndoRedoButtons } from '../floorplan/editor/UndoRedoButtons'
 
 // Primitives first, then the Stage-1a profile-driven "More shapes" cluster.
 const PRIMITIVE_KINDS: PrimitiveShapeKind[] = [
@@ -36,25 +36,10 @@ export function DesignerToolbar({
     <div className="sec">
       <div className="sec-h">
         <span>Add shape</span>
-        <div className="seg" style={{ marginLeft: 'auto' }}>
-          <button
-            type="button"
-            aria-label="Undo"
-            title="Undo (⌘Z)"
-            disabled={!canUndo}
-            onClick={onUndo}
-          >
-            <Icon.Undo width={14} height={14} />
-          </button>
-          <button
-            type="button"
-            aria-label="Redo"
-            title="Redo (⇧⌘Z)"
-            disabled={!canRedo}
-            onClick={onRedo}
-          >
-            <Icon.Redo width={14} height={14} />
-          </button>
+        {/* Shared plan-editor undo/redo pair (prop-identical); the wrapper keeps
+            this toolbar's right-alignment. Accepts its 16px icons. */}
+        <div style={{ marginLeft: 'auto' }}>
+          <UndoRedoButtons canUndo={canUndo} canRedo={canRedo} onUndo={onUndo} onRedo={onRedo} />
         </div>
       </div>
       <div className="action-grid two">

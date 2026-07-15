@@ -5,6 +5,49 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.31 — Asset Studio Stage-0/1 review-fix cluster
+
+Correctness, efficiency and cleanup fixes from the Stage-0/1 review of the GLB Asset Designer.
+
+Correctness:
+- **Fail-loud save on a degenerate combine** (`GlbDesignerDialog.save` + `SavePanel.canSave`):
+  a combine group that fails to evaluate no longer silently vanishes from the saved asset — Save
+  is disabled while `useCombineResults` reports an Empty group, and the save re-check blocks with
+  a toast naming the group (`Combine 'X' failed — fix or ungroup it before saving`).
+  `evaluateAllGroups` keeps skipping degenerate groups for the **live preview** only.
+- **`specPersist.isSpec` validates `combineGroups` + part `role`** (array of
+  `{id,partIds[],op ∈ CSG ops}`, roles ∈ `solid|hole`) so a malformed blob is not restorable
+  (parse returns null) instead of loading a corrupt/partial spec.
+- **Gizmo Z-scale on lathe/sweep** (`gizmoWriteBack.ts`): the driving diameter axis is now
+  whichever of X/Z the user actually dragged (larger |scale−1|), mirrored to the other — a Z-only
+  drag is no longer a no-op that returned null.
+- **`useCombineResults` stale-signature prune**: per-group signatures are pruned alongside the
+  results Map when a group disappears (pure `reconcileGroupSignatures` helper), so an
+  ungroup-then-undo of the same group re-evaluates instead of showing no result.
+- **Free hole-role parts are honest**: a hole NOT in a Subtract combine renders + exports as a
+  normal solid (ghost styling applies only to holes consumed by a group); the layers row tags it
+  *Hole (inert)* and the inspector notes "Holes only cut inside a Subtract combine".
+- **Update-original is gated** behind a `confirmAction({danger:true})` prompt before the
+  overwrite save runs; bails cleanly on cancel.
+
+Efficiency:
+- **Designer viewport `frameloop="demand"`** — the preview only repaints on demand
+  (controls/interaction + prop-change re-renders) instead of a permanent 60fps loop.
+- **`ProfileEditor` rAF-coalesced drag** — a fast pointer drag fires at most one `onChange` per
+  animation frame (latest point stashed, flushed on `pointerup`).
+- **`bake()` reuses the cached combine result** — clones the live `useCombineResults` part with a
+  fresh id instead of re-running the CSG fold (recompute stays as the fallback).
+
+Cleanup:
+- Deleted dead exports `LATHE_PRESET_IDS`/`EXTRUDE_PRESET_IDS`/`PROFILE_KINDS` and the orphaned v1
+  `combineParts`/`canCombineParts`/`replaceWithCombined` (+ their tests); un-exported
+  `PolyHavenFileRef` (internal-only) — `npm run deadcode` (knip) is green.
+- `SliderField` migration: PartInspector's roughness/metalness/glow/opacity + SourcePanel's
+  source-scale slider now use `controls/SliderField`.
+- DesignerToolbar undo/redo reuses `ui/floorplan/editor/UndoRedoButtons`.
+- `buildObject` extracts one `buildSurfaceMaterial(look)` shared by the part + per-group material
+  wrappers.
+
 ## v0.21.2.30 — Asset Studio Stage 1b: CSG v2 (non-destructive booleans)
 
 Finishes **Stage 1** of the asset-studio plan (`docs/asset-studio-plan.md`). Replaces the v1

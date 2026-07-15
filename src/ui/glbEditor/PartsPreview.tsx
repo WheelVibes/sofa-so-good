@@ -95,8 +95,16 @@ export function PartsPreview({
   return (
     <>
       {spec.parts.map((p) => {
-        const ghost: GhostVariant | undefined =
-          p.role === 'hole' ? 'hole' : consumed.has(p.id) ? 'consumed' : undefined
+        // Ghost styling applies ONLY to parts consumed by a combine group: a
+        // consumed hole reads as a cut, a consumed solid as a faint proxy. A
+        // FREE hole (no group) renders as a normal solid — its role is just a
+        // marker until it's added to a Subtract combine (so the preview matches
+        // what the export bakes).
+        const ghost: GhostVariant | undefined = consumed.has(p.id)
+          ? p.role === 'hole'
+            ? 'hole'
+            : 'consumed'
+          : undefined
         return <PartMesh key={p.id} part={p} ghost={ghost} meshRef={meshRefFor(p.id)} />
       })}
       {combineGroups(spec).map((g) => {

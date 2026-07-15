@@ -319,12 +319,12 @@ describe('buildEditedObject — CSG v2 combine groups (Stage 1b)', () => {
     }
   }
 
-  it('skips consumed operands + free holes, and bakes the group result mesh', () => {
+  it('skips consumed operands, renders a free hole as a solid, and bakes the group result mesh', () => {
     let s = createEmptySpec()
     s = addPart(s, 'box') // a — free solid
     s = addPart(s, 'box') // b — will be consumed
     s = addPart(s, 'box') // c — will be consumed
-    s = addPart(s, 'box') // h — free hole (no group)
+    s = addPart(s, 'box') // h — free hole (no group) — now exports as a solid
     const [a, b, c, h] = s.parts.map((p) => p.id)
     s = setPartRole(s, h, 'hole')
     s = addCombineGroup(s, [b, c], 'union').spec
@@ -333,16 +333,31 @@ describe('buildEditedObject — CSG v2 combine groups (Stage 1b)', () => {
     const results = new Map<string, ShapePart>([[groupId, meshPartFromBox('result')]])
     const obj = buildEditedObject(null, s, results)
     const names = obj.children.map((o) => o.name)
-    // Free solid 'a' renders (box-1); consumed b/c do NOT; free hole h does NOT;
-    // the group result renders as combine-1.
+    // Free solid 'a' renders (box-1); consumed b/c do NOT; a groupless hole 'h'
+    // renders as a normal solid (box-4); the group result renders as combine-1.
     expect(names).toContain('box-1')
+    expect(names).toContain('box-4')
     expect(names).toContain('combine-1')
     expect(names).not.toContain('box-2')
     expect(names).not.toContain('box-3')
-    expect(names.filter((n) => n.startsWith('box-'))).toEqual(['box-1'])
-    // a (solid) + the combine result = 2 meshes.
-    expect(obj.children).toHaveLength(2)
+    expect(names.filter((n) => n.startsWith('box-'))).toEqual(['box-1', 'box-4'])
+    // a (solid) + h (groupless hole → solid) + the combine result = 3 meshes.
+    expect(obj.children).toHaveLength(3)
     expect(a && b && c && h).toBeTruthy()
+  })
+
+  it('a groupless hole exports its geometry (role is inert until grouped)', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'cylinder')
+    const id = s.parts[0].id
+    s = setPartRole(s, id, 'hole')
+    const obj = buildEditedObject(null, s)
+    // One mesh with real triangles — NOT skipped.
+    expect(obj.children).toHaveLength(1)
+    const mesh = obj.children[0] as Mesh
+    expect(mesh.name).toBe('cylinder-1')
+    const pos = (mesh.geometry as BufferGeometry).getAttribute('position')
+    expect(pos.count).toBeGreaterThan(0)
   })
 
   it('omits a group with no ready result (its operands are still not double-rendered)', () => {

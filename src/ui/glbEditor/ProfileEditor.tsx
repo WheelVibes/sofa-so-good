@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ProfilePoint } from '../../furniture/glbEdit/shapeProfiles'
 import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
@@ -44,6 +44,19 @@ export function ProfileEditor({
   const svgRef = useRef<SVGSVGElement | null>(null)
   const dragIdx = useRef<number | null>(null)
   const [sel, setSel] = useState(0)
+  // rAF-coalesced drag: a pointermove only stashes the latest data point; a
+  // single rAF flushes it as ONE `onChange` per animation frame (a fast drag can
+  // fire pointermove many times per frame — each `onChange` re-renders the whole
+  // dialog + rebuilds the parametric geometry, so uncoalesced they thrash).
+  const rafRef = useRef<number | null>(null)
+  const pendingRef = useRef<ProfilePoint | null>(null)
+  // Cancel a pending flush on unmount.
+  useEffect(
+    () => () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+    },
+    [],
+  )
 
   const { minX, maxX, minY, maxY } = space
   const toPx = (p: ProfilePoint): [number, number] => [
@@ -129,11 +142,35 @@ export function ProfileEditor({
           if (dragIdx.current === null) return
           const d = eventToData(e)
           if (!d) return
-          const idx = dragIdx.current
-          onChange(points.map((p, i) => (i === idx ? d : p)))
+          pendingRef.current = d
+          // Coalesce: schedule at most one flush per frame. The rAF closure
+          // captures THIS render's `points`/`onChange` — safe because `onChange`
+          // fires (and re-renders) at most once per frame, so `points` is stable
+          // within the frame.
+          if (rafRef.current !== null) return
+          rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = null
+            const pt = pendingRef.current
+            pendingRef.current = null
+            if (pt === null || dragIdx.current === null) return
+            const idx = dragIdx.current
+            onChange(points.map((p, i) => (i === idx ? pt : p)))
+          })
         }}
         onPointerUp={(e) => {
           if (dragIdx.current !== null) {
+            // Flush any point still pending from the last frame so pointerup
+            // never drops the final position.
+            if (rafRef.current !== null) {
+              cancelAnimationFrame(rafRef.current)
+              rafRef.current = null
+            }
+            const pt = pendingRef.current
+            pendingRef.current = null
+            if (pt !== null) {
+              const idx = dragIdx.current
+              onChange(points.map((p, i) => (i === idx ? pt : p)))
+            }
             ;(e.target as Element).releasePointerCapture?.(e.pointerId)
             dragIdx.current = null
           }

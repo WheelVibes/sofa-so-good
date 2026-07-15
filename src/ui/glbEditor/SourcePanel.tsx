@@ -2,6 +2,7 @@ import type { AssetEditSpec } from '../../furniture/glbEdit/editSpec'
 import type { UserGltfDef } from '../../furniture/types'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Select } from '../controls/Select'
+import { SliderField } from '../controls/SliderField'
 import { Icon } from '../toolbar/icons'
 
 /**
@@ -54,18 +55,19 @@ export function SourcePanel({
           ]}
         />
         {spec.sourceAssetId ? (
-          <label className="fld" style={{ marginTop: 'var(--s-2)' }}>
-            <span>Scale ×{spec.sourceScale.toFixed(2)}</span>
-            <input
-              type="range"
+          <div style={{ marginTop: 'var(--s-2)' }}>
+            {/* The label carries the live value, so suppress the duplicate readout. */}
+            <SliderField
+              label={`Scale ×${spec.sourceScale.toFixed(2)}`}
+              ariaLabel="Source scale"
+              value={spec.sourceScale}
               min={0.1}
               max={3}
               step={0.05}
-              value={spec.sourceScale}
-              onChange={(e) => onScaleChange(Number(e.target.value))}
-              aria-label="Source scale"
+              hideReadout
+              onChange={onScaleChange}
             />
-          </label>
+          </div>
         ) : null}
         {/* This asset was built in the designer — offer restoring its editable
             part list instead of editing the baked source mesh (Asset Studio S0). */}

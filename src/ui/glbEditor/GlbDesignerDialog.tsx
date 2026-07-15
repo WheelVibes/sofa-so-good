@@ -17,6 +17,7 @@ import {
   duplicatePart,
   isBuildable,
   mirrorPart,
+  newPartId,
   removeCombineGroup,
   removePart,
   setMeshOverride,
@@ -371,6 +372,16 @@ export function GlbDesignerDialog() {
   const bake = async (groupId: string) => {
     const group = groups.find((g) => g.id === groupId)
     if (!group || combining) return
+    // Reuse the already-computed live preview result when it's ready — clone it
+    // with a fresh persistable id instead of re-running the CSG fold. Falls back
+    // to a fresh evaluation only when no cached result exists yet.
+    const cached = combineResults.get(groupId)
+    if (cached) {
+      const meshPart = { ...cached, id: newPartId() }
+      commit((sp) => bakeCombineGroup(sp, groupId, meshPart))
+      setSelId(meshPart.id)
+      return
+    }
     setCombining(true)
     try {
       const meshPart = await combineGroupToMeshPart(spec, group, { bake: true })
@@ -390,12 +401,35 @@ export function GlbDesignerDialog() {
 
   const save = async () => {
     if (!isBuildable(spec) || busy) return
+    const notify = useStore.getState().notify
+    // Update-original is destructive (every placed copy changes, irreversible) —
+    // gate it behind an explicit confirm before the overwrite path runs.
+    if (overwrite && spec.sourceAssetId) {
+      const ok = await useStore.getState().confirmAction({
+        title: 'Update original asset?',
+        message: "All placed copies change and this can't be undone.",
+        confirmLabel: 'Update original',
+        danger: true,
+      })
+      if (!ok) return
+    }
     setBusy(true)
     try {
       // Evaluate every combine group fresh so the exported GLB bakes each result
       // (holes carved, not exported as geometry) even if the live preview hadn't
       // settled. Off the main thread via the shared pool (fallback on the main).
       const groupResults = await evaluateAllGroups(spec)
+      // FAIL LOUD: a group that failed to evaluate (degenerate) is dropped by
+      // evaluateAllGroups (fine for the live preview), but it must NOT silently
+      // vanish from a saved asset — block the save and name the offending group.
+      const failed = combineGroups(spec).find((g) => !groupResults.has(g.id))
+      if (failed) {
+        notify.start({
+          title: `Combine '${failed.name}' failed — fix or ungroup it before saving`,
+          kind: 'error',
+        })
+        return
+      }
       const obj = buildEditedObject(sourceSceneRef.current, spec, groupResults)
       const overwriteId = overwrite && spec.sourceAssetId ? spec.sourceAssetId : undefined
       const res = await exportAndSaveAsset(
@@ -406,7 +440,6 @@ export function GlbDesignerDialog() {
         overwriteId,
         spec,
       )
-      const notify = useStore.getState().notify
       if (res.ok) {
         notify.start({
           title: res.duplicate
@@ -566,7 +599,9 @@ export function GlbDesignerDialog() {
               hasSource={!!spec.sourceAssetId}
               overwrite={overwrite}
               busy={busy}
-              canSave={isBuildable(spec)}
+              // Block save while any combine group is reporting a degenerate
+              // result — saving would silently drop it (fail-loud, finding 1).
+              canSave={isBuildable(spec) && combineErrors.size === 0}
               onName={setName}
               onCategory={setCategory}
               onPlacement={setPlacement}

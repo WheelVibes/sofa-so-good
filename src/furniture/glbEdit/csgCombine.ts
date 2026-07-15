@@ -1,19 +1,14 @@
 /**
- * CSG boolean combine for the GLB Asset Designer — union / subtract / intersect
- * two primitive (or already-combined) parts into ONE new `mesh` part whose
- * triangles are baked into the spec (`ShapePart.geometry`).
+ * CSG geometry helpers for the GLB Asset Designer — the pure spec/geometry maths
+ * shared by the live boolean evaluator (`csgEval.ts`, CSG v2): baking a part's
+ * transform into its geometry (`bakedPartGeometry`), snapshotting a part's
+ * surface look (`partAsGroupMaterial`), and wrapping a CSG result geometry as a
+ * `mesh` `ShapePart` (`meshPartFromGeometry`, which serialises the per-group
+ * material round-trip into `geometry.groups`/`geometry.materials`).
  *
- * The heavy lifting is `three-bvh-csg` (MIT), DYNAMIC-imported inside
- * `combineParts` so it stays out of the boot bundle — everything else here is
- * pure spec/geometry maths, unit-testable without the library:
- *   - each part's local transform (position + degree rotation) is baked into
- *     its geometry first (`bakedPartGeometry`), so the CSG runs in plain
- *     asset-local space with identity brushes;
- *   - the result geometry carries one group per source part (via `useGroups=true`),
- *     and the result brush's material array maps group→source part material config
- *     (`meshPartFromGeometry` serialises both into `geometry.groups`/`geometry.materials`);
- *   - the new part replaces part A in place and drops part B
- *     (`replaceWithCombined`).
+ * (The old destructive v1 combine that fused two parts into one and dropped the
+ * operands — `combineParts`/`canCombineParts`/`replaceWithCombined` — was removed
+ * once CSG v2's non-destructive combine groups replaced it.)
  *
  * Inspector behaviour (GE3c tail): a combined mesh part's per-source materials are
  * frozen at combine time — they are not editable per-group after the fact (no face
@@ -25,17 +20,9 @@
  * zero-volume sliver) throws — callers catch and toast.
  */
 
-import {
-  type BufferGeometry,
-  Euler,
-  MathUtils,
-  Matrix4,
-  MeshStandardMaterial,
-  Quaternion,
-  Vector3,
-} from 'three'
+import { type BufferGeometry, Euler, MathUtils, Matrix4, Quaternion, Vector3 } from 'three'
 import { partGeometry } from './buildObject'
-import { type AssetEditSpec, type GroupMaterialData, newPartId, type ShapePart } from './editSpec'
+import { type GroupMaterialData, newPartId, type ShapePart } from './editSpec'
 
 export type CsgOp = 'union' | 'subtract' | 'intersect'
 
@@ -49,15 +36,6 @@ export const CSG_OPS: { op: CsgOp; label: string }[] = [
  *  axis — anything thinner is a degenerate sliver (e.g. two boxes touching
  *  only on a face) that would export as invisible/z-fighting geometry. */
 const MIN_RESULT_EXTENT = 1e-4
-
-/** True when `idA`/`idB` name two distinct existing parts — the only inputs a
- *  combine accepts. (Parts are primitive shapes or previous combine results by
- *  construction; the source GLB is never a part, so it can't be combined.) */
-export function canCombineParts(spec: AssetEditSpec, idA: string, idB: string): boolean {
-  if (idA === idB) return false
-  const has = (id: string) => spec.parts.some((p) => p.id === id)
-  return has(idA) && has(idB)
-}
 
 /** The part's asset-local transform (centre position + degree Euler rotation)
  *  as a matrix, ready to bake into its geometry. */
@@ -172,111 +150,5 @@ export function meshPartFromGeometry(
         : undefined,
       materials: hasGroups ? groupMaterials : undefined,
     },
-  }
-}
-
-/** Replace part A (in place, keeping list order) with the combined part and
- *  drop part B. Pure/immutable like the other spec helpers. */
-export function replaceWithCombined(
-  spec: AssetEditSpec,
-  idA: string,
-  idB: string,
-  combined: ShapePart,
-): AssetEditSpec {
-  return {
-    ...spec,
-    parts: spec.parts.filter((p) => p.id !== idB).map((p) => (p.id === idA ? combined : p)),
-  }
-}
-
-/**
- * Boolean-combine parts `idA` (op) `idB` into one new `mesh` part. Async: the
- * CSG engine (`three-bvh-csg`) is dynamic-imported on first use. Returns the
- * next spec plus the new part's id (for reselection). Throws if the ids are
- * invalid or the result is degenerate — catch and toast.
- *
- * GE3c tail: uses `useGroups = true` so the result geometry carries one draw
- * group per source part, preserving each part's finish on its own faces.
- * Brush materials are throwaway `MeshStandardMaterial` instances whose colour is
- * set to the part's `color` — they are only used by the Evaluator's group-
- * deduplication logic (two groups sharing the same material object are merged);
- * the actual per-group surface look is captured as `GroupMaterialData` snapshots
- * from the source `ShapePart` specs, independent of three.js materials.
- *
- * Parts that share the same `finish` + `color` combination are assigned the same
- * brush material instance so the Evaluator's `consolidateGroups` logic naturally
- * merges their triangles into one group — visually correct and more efficient than
- * redundant separate groups.
- */
-export async function combineParts(
-  spec: AssetEditSpec,
-  idA: string,
-  idB: string,
-  op: CsgOp,
-): Promise<{ spec: AssetEditSpec; partId: string }> {
-  const a = spec.parts.find((p) => p.id === idA)
-  const b = spec.parts.find((p) => p.id === idB)
-  if (!a || !b || a === b) throw new Error('combine needs two distinct parts')
-  const { ADDITION, Brush, Evaluator, INTERSECTION, SUBTRACTION } = await import('three-bvh-csg')
-  const geoA = bakedPartGeometry(a)
-  const geoB = bakedPartGeometry(b)
-
-  // Build lightweight proxy materials for the Evaluator's group-deduplication:
-  // parts with identical finish+colour share an instance so their groups merge.
-  const matCache = new Map<string, MeshStandardMaterial>()
-  const brushMat = (part: ShapePart): MeshStandardMaterial => {
-    const key = `${part.color}|${part.finish ?? ''}`
-    let m = matCache.get(key)
-    if (!m) {
-      m = new MeshStandardMaterial({ color: part.color })
-      matCache.set(key, m)
-    }
-    return m
-  }
-
-  try {
-    const brushA = new Brush(geoA)
-    const brushB = new Brush(geoB)
-    brushA.material = brushMat(a)
-    brushB.material = brushMat(b)
-    brushA.updateMatrixWorld()
-    brushB.updateMatrixWorld()
-    const evaluator = new Evaluator()
-    // useGroups = true: result geometry carries one group per source material,
-    // and result.material is the array of MeshStandardMaterial proxy instances.
-    // Include 'uv' so existing UV data survives (boxProjectUvs is a no-op when
-    // UVs are present, but the CSG attributes list must include 'uv' to carry them).
-    evaluator.attributes = ['position', 'normal', 'uv']
-    evaluator.useGroups = true
-    const csgOp = op === 'union' ? ADDITION : op === 'subtract' ? SUBTRACTION : INTERSECTION
-    const result = evaluator.evaluate(brushA, brushB, csgOp)
-
-    // Map each proxy material back to the source part's GroupMaterialData.
-    // The Evaluator's `result.material` is the deduplicated array of proxy mats.
-    const resultMats: MeshStandardMaterial[] = Array.isArray(result.material)
-      ? (result.material as MeshStandardMaterial[])
-      : [result.material as MeshStandardMaterial]
-
-    const matA = brushMat(a)
-    const matB = brushMat(b)
-    const gmA = partAsGroupMaterial(a)
-    const gmB = partAsGroupMaterial(b)
-
-    // Build the GroupMaterialData array index-matched to resultMats.
-    const groupMaterials: GroupMaterialData[] = resultMats.map((m) => {
-      // Proxy mats are identity-compared to the brush mats.
-      if (m === matA) return gmA
-      if (m === matB) return gmB
-      // Shared proxy (same finish+colour) → use part A's config (first operand).
-      return gmA
-    })
-
-    const combined = meshPartFromGeometry(result.geometry, a, groupMaterials)
-    result.geometry.dispose()
-    return { spec: replaceWithCombined(spec, idA, idB, combined), partId: combined.id }
-  } finally {
-    geoA.dispose()
-    geoB.dispose()
-    for (const m of matCache.values()) m.dispose()
   }
 }

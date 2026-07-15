@@ -47,65 +47,58 @@ function cachedFinishMaterial(finish: string): MeshStandardMaterial | null {
   return getBuiltMaterial(furnitureMaterialCacheId(matId)) ?? null
 }
 
-/** Build one owned `MeshStandardMaterial` from a `GroupMaterialData` record
- *  (the per-source-part surface look baked at CSG combine time, GE3c tail).
- *  Same logic as `partMaterial` — finish clone with shared textures, or solid
- *  colour fallback. Every call returns a material the caller OWNS. */
-function groupMaterial(g: GroupMaterialData): MeshStandardMaterial {
-  const glow = g.emissiveIntensity ?? 0
-  const opacity = g.opacity ?? 1
-  const base = g.finish ? cachedFinishMaterial(g.finish) : null
+/** The 6 shared surface-look fields both a `ShapePart` and a per-group
+ *  `GroupMaterialData` carry — the input to `buildSurfaceMaterial`. */
+interface SurfaceLook {
+  color: string
+  finish?: string
+  roughness?: number
+  metalness?: number
+  emissiveIntensity?: number
+  opacity?: number
+}
+
+/** Build one owned `MeshStandardMaterial` from the shared surface-look fields.
+ *  With a `finish` set (GE3c) and its catalog material built, returns a CLONE of
+ *  that textured material (textures stay shared; the clone keeps the shared cache
+ *  instance unmutated and lets glow/opacity apply on top — the finish's own
+ *  colour/roughness/metalness maps win over the flat values). Otherwise the flat
+ *  solid-colour material honouring the roughness/metalness defaults. Every call
+ *  returns a material the caller OWNS (safe to dispose — textures never are). */
+function buildSurfaceMaterial(look: SurfaceLook): MeshStandardMaterial {
+  const glow = look.emissiveIntensity ?? 0
+  const opacity = look.opacity ?? 1
+  const base = look.finish ? cachedFinishMaterial(look.finish) : null
   if (base) {
     const m = base.clone()
-    m.emissive = new Color(glow > 0 ? g.color : 0x000000)
+    m.emissive = new Color(glow > 0 ? look.color : 0x000000)
     m.emissiveIntensity = glow
     m.transparent = opacity < 1
     m.opacity = opacity
     return m
   }
   return new MeshStandardMaterial({
-    color: g.color,
-    roughness: g.roughness ?? DEFAULT_PART_ROUGHNESS,
-    metalness: g.metalness ?? DEFAULT_PART_METALNESS,
-    emissive: new Color(glow > 0 ? g.color : 0x000000),
+    color: look.color,
+    roughness: look.roughness ?? DEFAULT_PART_ROUGHNESS,
+    metalness: look.metalness ?? DEFAULT_PART_METALNESS,
+    // Glow in the part's own colour (so a red part glows red); black = no glow.
+    emissive: new Color(glow > 0 ? look.color : 0x000000),
     emissiveIntensity: glow,
     transparent: opacity < 1,
     opacity,
   })
 }
 
+/** Per-group material (baked at CSG combine time, GE3c tail) — a thin wrapper
+ *  over `buildSurfaceMaterial` for a `GroupMaterialData` record. */
+function groupMaterial(g: GroupMaterialData): MeshStandardMaterial {
+  return buildSurfaceMaterial(g)
+}
+
 /** The PBR material for a primitive part. Used by both the export
- *  (`buildEditedObject`) and the live preview so they never diverge.
- *
- *  With a `finish` set (GE3c) and its catalog material built, the part gets a
- *  CLONE of that textured material (textures stay shared; the clone keeps the
- *  shared cache instance unmutated and lets per-part glow/opacity apply on
- *  top — the finish's own colour/roughness/metalness maps win over the part's
- *  flat values). Otherwise: the flat solid-colour material honouring the
- *  per-part roughness/metalness (matte-ish defaults). Every call returns a
- *  material the caller OWNS (safe to dispose — textures are never disposed). */
+ *  (`buildEditedObject`) and the live preview so they never diverge. */
 export function partMaterial(part: ShapePart): MeshStandardMaterial {
-  const glow = part.emissiveIntensity ?? 0
-  const opacity = part.opacity ?? 1
-  const base = part.finish ? cachedFinishMaterial(part.finish) : null
-  if (base) {
-    const m = base.clone()
-    m.emissive = new Color(glow > 0 ? part.color : 0x000000)
-    m.emissiveIntensity = glow
-    m.transparent = opacity < 1
-    m.opacity = opacity
-    return m
-  }
-  return new MeshStandardMaterial({
-    color: part.color,
-    roughness: part.roughness ?? DEFAULT_PART_ROUGHNESS,
-    metalness: part.metalness ?? DEFAULT_PART_METALNESS,
-    // Glow in the part's own colour (so a red part glows red); black = no glow.
-    emissive: new Color(glow > 0 ? part.color : 0x000000),
-    emissiveIntensity: glow,
-    transparent: opacity < 1,
-    opacity,
-  })
+  return buildSurfaceMaterial(part)
 }
 
 /**
@@ -308,9 +301,11 @@ export function partGeometry(part: ShapePart): BufferGeometry {
  * CSG v2 (Stage 1b): `results` maps a combine group's id → its evaluated `mesh`
  * result part (produced by `csgEval.evaluateAllGroups`, off the main thread).
  * Parts consumed by a group are NOT emitted on their own — the group's result
- * mesh stands in for them. A `hole`-role part with no group is skipped entirely
- * (a lone hole exports no geometry). When `results` is absent/empty (no
- * combines, or the pre-Stage-1b path), every part renders exactly as before.
+ * mesh stands in for them. A `hole`-role part with NO group exports as a regular
+ * solid (its role is just a marker until it's added to a Subtract combine — it
+ * only cuts inside one), matching what the editor shows for a groupless hole.
+ * When `results` is absent/empty (no combines, or the pre-Stage-1b path), every
+ * part renders exactly as before.
  */
 export function buildEditedObject(
   source: Object3D | null,
@@ -332,10 +327,10 @@ export function buildEditedObject(
 
   spec.parts.forEach((part, i) => {
     // A part folded into a combine group is represented by the group's baked
-    // result, not on its own.
+    // result, not on its own. A free hole (no group) exports as a normal solid —
+    // its role only cuts inside a Subtract combine (least-surprising: it exports
+    // as what the editor shows).
     if (consumed.has(part.id)) return
-    // A free hole with no group carves nothing → export no geometry for it.
-    if (part.role === 'hole') return
     const mesh = new Mesh(partGeometry(part), partMaterials(part))
     // Name parts so a saved asset's components are addressable when it's later
     // reopened as a source for per-mesh recolour/hide.

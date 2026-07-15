@@ -98,10 +98,17 @@ export function gizmoPatch(
       const size = part.size.map((s, i) =>
         Math.max(MIN_SIZE_M, snapValue(s * snap.scale[i], SIZE_SNAP_M)),
       ) as [number, number, number]
-      // Radially-symmetric kinds (lathe revolve, sweep) read their diameter from
-      // size[0] only — mirror X into Z so a scale drag keeps them round rather
-      // than silently discarding the Z change. (extrude keeps its own W/H/depth.)
-      if (part.kind === 'lathe' || part.kind === 'sweep') size[2] = size[0]
+      // Radially-symmetric kinds (lathe revolve, sweep) read their diameter from a
+      // single axis and must stay round. Whichever of X/Z the user actually dragged
+      // — the one with the larger |scale−1| — drives the diameter, mirrored onto the
+      // other; Y stays independent. (Mirroring X→Z unconditionally made a Z-only drag
+      // a no-op that returned null. extrude keeps its own W/H/depth.)
+      if (part.kind === 'lathe' || part.kind === 'sweep') {
+        const driveX = Math.abs(snap.scale[0] - 1) >= Math.abs(snap.scale[2] - 1)
+        const driven = driveX ? size[0] : size[2]
+        size[0] = driven
+        size[2] = driven
+      }
       return same(size, part.size) ? null : { size }
     }
   }

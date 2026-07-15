@@ -78,6 +78,56 @@ describe('specPersist', () => {
     expect(parseAssetSpec(JSON.stringify({ v: ASSET_SPEC_VERSION }))).toBeNull()
   })
 
+  it('rejects malformed combineGroups / bad part roles (not restorable)', () => {
+    const wrap = (spec: unknown) => parseAssetSpec(JSON.stringify({ v: ASSET_SPEC_VERSION, spec }))
+    const base = createEmptySpec()
+    // combineGroups not an array
+    expect(wrap({ ...base, combineGroups: 'nope' })).toBeNull()
+    // bad op
+    expect(
+      wrap({ ...base, combineGroups: [{ id: 'g1', partIds: ['a', 'b'], op: 'frobnicate' }] }),
+    ).toBeNull()
+    // non-string member ids
+    expect(
+      wrap({ ...base, combineGroups: [{ id: 'g1', partIds: [1, 2], op: 'union' }] }),
+    ).toBeNull()
+    // missing id
+    expect(wrap({ ...base, combineGroups: [{ partIds: ['a', 'b'], op: 'union' }] })).toBeNull()
+    // invalid role on a part
+    expect(
+      wrap({
+        ...base,
+        parts: [
+          {
+            id: 'p1',
+            kind: 'box',
+            position: [0, 0, 0],
+            size: [1, 1, 1],
+            color: '#fff',
+            role: 'ghost',
+          },
+        ],
+      }),
+    ).toBeNull()
+    // a WELL-FORMED combineGroups + role still parses
+    expect(
+      wrap({
+        ...base,
+        parts: [
+          {
+            id: 'p1',
+            kind: 'box',
+            position: [0, 0, 0],
+            size: [1, 1, 1],
+            color: '#fff',
+            role: 'hole',
+          },
+        ],
+        combineGroups: [{ id: 'g1', name: 'Combine 1', partIds: ['a', 'b'], op: 'subtract' }],
+      }),
+    ).not.toBeNull()
+  })
+
   // ---- CSG v2 (Stage 1b) — roles + combine groups + v1→v2 migration --------
   it('round-trips CSG v2 roles + combine groups', () => {
     let s = createEmptySpec()

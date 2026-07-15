@@ -52,6 +52,24 @@ function groupSignature(spec: AssetEditSpec, group: CombineGroup): string {
   })
 }
 
+/**
+ * Reconcile per-group bookkeeping against the live group set: prune signature
+ * entries for groups that no longer exist (they'd otherwise leak AND make a
+ * re-added group with the same id look "unchanged" so it never re-evaluates —
+ * e.g. after undo), and return the ids whose signature changed (need re-eval).
+ * Pure — unit-tested independently of the React hook.
+ */
+export function reconcileGroupSignatures(
+  current: { id: string; sig: string }[],
+  prevSig: Map<string, string>,
+): { stale: string[]; nextSig: Map<string, string> } {
+  const liveIds = new Set(current.map((g) => g.id))
+  const nextSig = new Map<string, string>()
+  for (const [id, sig] of prevSig) if (liveIds.has(id)) nextSig.set(id, sig)
+  const stale = current.filter((g) => nextSig.get(g.id) !== g.sig).map((g) => g.id)
+  return { stale, nextSig }
+}
+
 export interface CombineResults {
   /** groupId → evaluated result mesh part (present once computed successfully). */
   results: Map<string, ShapePart>
@@ -92,7 +110,16 @@ export function useCombineResults(spec: AssetEditSpec): CombineResults {
       return changed ? next : prev
     })
 
-    const stale = groups.filter((g) => sigRef.current.get(g.id) !== groupSignature(spec, g))
+    // Prune stale sigRef entries alongside the results Map (a group can be
+    // ungrouped then restored by undo with the SAME id — a leftover signature
+    // would mask it as "unchanged" and it would never re-evaluate) and find the
+    // groups whose signature changed and need (re)evaluation.
+    const { stale: staleIds, nextSig } = reconcileGroupSignatures(
+      groups.map((g) => ({ id: g.id, sig: groupSignature(spec, g) })),
+      sigRef.current,
+    )
+    sigRef.current = nextSig
+    const stale = groups.filter((g) => staleIds.includes(g.id))
     if (stale.length === 0) return
 
     const debounce = setTimeout(() => {

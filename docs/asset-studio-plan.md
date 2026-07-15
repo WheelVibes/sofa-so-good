@@ -113,6 +113,23 @@ shrinking — every stage extracts modules, never grows the monolith.
   (designer → slot-spec export) so a built piece becomes a customizable product family;
   save grouped multi-piece designs as a set.
 
+### Stage-1 review debts (recorded during the v0.21.2.31 review-fix cluster — address BEFORE Stage 3 lands)
+- **Unify the persisted specs under one versioned envelope.** `slotSpec` (configurator) and
+  `assetSpec` (designer) are two parallel `{v, …}` JSON blobs on `UserGltfDef` that travel the
+  same IDB-meta + save-schema path. Before Stage 3 adds a THIRD (template/component specs),
+  fold them under one versioned `{ kind, v, payload }` envelope so there's a single
+  parse/migrate/guard path instead of N copies (`specPersist.ts` is the model to generalise).
+- **Disambiguate `CombineGroup` vs. Stage-3 transform groups.** Stage 3's "part grouping/
+  hierarchy" introduces named groups with group transforms — a different concept from CSG
+  boolean `CombineGroup`s. Reserve the word **"Combine"** for booleans in UI copy NOW (already
+  the case), and pick a distinct name (e.g. "Group"/"Assembly") for the hierarchy feature so the
+  spec types + layers-panel tree don't collide.
+- **Define the parametric→designer bridge recipe representation.** Stage 3's "template-first
+  flows" bridge the parametric generator into the designer as editable part sets. Decide the
+  recipe representation up front — either embed the parametric params in the spec (re-derivable,
+  smaller, but couples the spec to the generator) or flatten to parts at import (self-contained,
+  larger, loses the parametric handles) — before building the bridge.
+
 ## Stage 4 — Precision & pro UX
 - Alignment/distribution (align faces/centres, distribute), grid-snap toggle + step,
   live dimension readouts + measure tool, arbitrary-axis mirror, linear/radial array

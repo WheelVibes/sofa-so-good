@@ -237,9 +237,6 @@ export const EXTRUDE_PRESETS: Record<string, ProfilePoint[]> = {
   })(),
 }
 
-export const LATHE_PRESET_IDS = Object.keys(LATHE_PRESETS)
-export const EXTRUDE_PRESET_IDS = Object.keys(EXTRUDE_PRESETS)
-
 export const LATHE_PRESET_LABEL: Record<string, string> = {
   'turned-leg': 'Turned leg',
   'tapered-leg': 'Tapered leg',
