@@ -45,7 +45,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
       convert pipeline.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).
-- [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
 - [ ] X-SHOP tail [DEV]: HipVan price adapter is blocked — its public
   `www.hipvan.com/api/search/products` endpoint was retired (404); search now runs through an
   authenticated `api.communa.sg` API gateway (`/hv_shop/api/v1/search/products`, session token +

@@ -540,6 +540,36 @@ mobile legs re-assert hidden. **Key gotchas learned here:**
   store change (`userFurniture` length/entry), not a `waitFor {text:"Saved"}` that can miss the
   toast's 3 s window.
 
+### Worked example — GLB designer "Update original" round-trip (GE4)
+
+**`glb-update-original.json`** verifies the designer's edit-existing-asset flow: create a box
+asset → place an instance in a room editor → re-open the designer, pick that asset as the
+"Start from" source, scale it, toggle **Update original**, save → assert the def is replaced in
+place (same id, new geometry, no duplicate) and the placed instance still resolves.
+**New gotchas beyond the simple rung above:**
+- **The designer's "Start from" picker is the custom `ui/controls/Select`, NOT a native
+  `<select>`** — you can't set `.value` + dispatch `change`. Drive it in two eval steps: click the
+  trigger `button[aria-label="Source model"]`, then (after a short settle) click the option:
+  `[...document.querySelectorAll('[role="option"]')].find(o => o.textContent.trim().includes('<name>')).click()`.
+  The option list is portalled (`Popover`), so it's a sibling of the trigger in the DOM, not a child.
+- **Wait for the source GLB to actually LOAD before saving an "Update original"**, or the re-export
+  silently omits the original geometry (`buildEditedObject(source=null, …)` builds an empty object
+  and placed instances lose their mesh). The **"Recolour parts"** section only renders once the
+  source scene has loaded into the preview and its named meshes populate `meshNames` — `waitFor
+  {text:"Recolour parts"}` (generous timeout — GLB parse under SwiftShader) is the load gate.
+- **Assert the EXACT expected size, not just "changed".** This scenario caught a real bug where a
+  `scale` prop on `<primitive object={gltf.scene}>` mutated the shared `useGLTF`-cached scene's
+  `.scale`, so the export double-applied the source scale (a 0.8 m box at source-scale 2× saved at
+  3.2 m / 6.4 m — non-deterministic 4×/8×). A loose `footprint > original` assertion passes on the
+  buggy 8×; a bracketed `> ×1.7 && < ×2.4` pins the correct 2× and fails the regression. General
+  lesson: never put a display-only `scale` on a `<primitive>` bound to a shared cached object — wrap
+  it in a `<group scale>` instead (the cached scene is exported / reused by other consumers).
+- **Place a programmatic instance with `addItem` + a known interior coordinate.** `addItem` does no
+  collision check, so `window.__store.getState().addItem({defId, position:[x,z], rotation:0,
+  props:{}})` always lands; for the default flat, room centroids are stable
+  (`apartment/constants.ts` — e.g. Living/Dining centre ≈ `[10.55, 4.1]`). `enterRoomEditor('<roomId>')`
+  first to frame the room for a clean before/after screenshot.
+
 ### Worked example — model-upload group detection at scale (UPLOAD-DETECT-PAGINATION)
 
 **`model-upload-simple.json`** verifies the model-upload feature's Simple rung: the **Upload**

@@ -62,7 +62,18 @@ function SourceModel({
     onScene(gltf.scene)
     return () => onScene(null)
   }, [gltf.scene, onScene])
-  return <primitive object={gltf.scene} scale={scale} />
+  // Apply the preview scale on a WRAPPER group, never on the `<primitive>` — a
+  // `scale` prop on `<primitive object={gltf.scene}>` mutates the shared
+  // useGLTF-cached scene's own `.scale`. That scale then (a) leaks into the
+  // object reported by `onScene` (used for export), so `buildEditedObject`'s
+  // `multiplyScalar(sourceScale)` double-applies it and an "Update original"
+  // saves geometry scaled 4×/8× instead of ×sourceScale, and (b) corrupts the
+  // cache for any other consumer of the same GLB (e.g. the placed instance).
+  return (
+    <group scale={scale}>
+      <primitive object={gltf.scene} />
+    </group>
+  )
 }
 
 /** One primitive part, built from the SAME `partGeometry` + `partMaterials` the
@@ -483,7 +494,19 @@ export function GlbDesignerDialog() {
                 className="input"
                 ariaLabel="Source model"
                 value={spec.sourceAssetId ?? ''}
-                onChange={(v) => setSpec((s) => ({ ...s, sourceAssetId: v || undefined }))}
+                onChange={(v) => {
+                  setSpec((s) => ({ ...s, sourceAssetId: v || undefined }))
+                  // Editing an existing asset: seed name + category from the
+                  // picked source so "Update original" keeps them instead of
+                  // clobbering the def name to the default "Custom asset" (the
+                  // reopen reset clears the name field). The user can still
+                  // rename before saving as a new asset.
+                  const src = v ? userGlbs.find((d) => d.id === v) : undefined
+                  if (src) {
+                    setName(src.name)
+                    setCategory(src.category)
+                  }
+                }}
                 style={{ width: '100%' }}
                 options={[
                   { value: '', label: 'Blank (compose from shapes)' },

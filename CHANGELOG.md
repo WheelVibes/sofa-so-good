@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.25 — GE4: "Update original" round-trip verified + two real bugs fixed
+
+Closes the GE4 tail — a real-env verification pass of the GLB designer's **"Update
+original"** flow (re-open an existing user asset as the "Start from" source →
+edit → toggle *Update original* → the stored def is replaced in place under the
+same id, so placed instances ride through). Built a new IXT scenario
+(`scripts/scenarios/glb-update-original.json`, 38 steps): Pro mode, create a 0.8 m
+box asset via the designer save path, place an instance in the Living/Dining room
+editor, re-open the designer, pick that asset as the source, scale it 2×, toggle
+*Update original*, click it — then assert the REAL Zustand round-trip (not toast
+text): the catalog did **not** grow (no duplicate), the same def id carries the new
+geometry (footprint scaled ~2× exactly + a fresh `assetId`) with its name preserved,
+and the previously placed instance still resolves to that def. Before/after
+screenshots of the placed instance confirm the size change in the 3D scene.
+
+The verification surfaced **two real defects**, both fixed:
+
+- **Source scale double-applied → geometry saved 4×/8× too large
+  (`ui/glbEditor/GlbDesignerDialog.tsx`).** `SourceModel` rendered the preview via
+  `<primitive object={gltf.scene} scale={scale}>`, and a `scale` prop on a
+  `<primitive>` **mutates the shared `useGLTF`-cached scene's own `.scale`**. That
+  mutated scale then (a) leaked into the object reported to the exporter, so
+  `buildEditedObject`'s `clone.scale.multiplyScalar(sourceScale)` applied the scale a
+  second time (measured 3.2 m / 6.4 m for a 0.8 m box at source-scale 2×, i.e.
+  non-deterministic 4×–8×), and (b) corrupted the cache for any other consumer of the
+  same GLB (the placed instance). Fixed by applying the preview scale on a **wrapper
+  `<group scale>`** so `<primitive object={gltf.scene}>` never touches the cached
+  scene — the reported source stays at native scale and `sourceScale` is applied
+  exactly once (0.8 m → 1.6 m at 2×).
+- **"Update original" clobbered the def name to "Custom asset".** Re-opening the
+  designer resets the name field to the default; selecting a source didn't repopulate
+  it, so the overwrite saved the placeholder name. Fixed by **seeding the name +
+  category from the picked source** in the "Start from" `onChange` (the user can still
+  rename before saving as a new asset).
+
+Blob hygiene on update is already correct: `replaceUserFurniture`
+(`state/slices/userAssetsSlice.ts`) frees the old def's IndexedDB blob + revokes its
+runtime/LOD URLs + evicts its GLTF cache entry (the fresh persist writes a new
+`assetId`, so the old one is no longer referenced) — verified by the scenario's
+`assetId`-changed assertion.
+
 ## v0.21.2.24 — C-PLANTS/DECOR: curated CC0 Poly Haven set-dressing bundles
 
 Closes the C-PLANTS/DECOR tail. Three themed **one-click set-dressing bundles** now
