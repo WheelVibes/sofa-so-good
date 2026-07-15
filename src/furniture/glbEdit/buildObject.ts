@@ -10,6 +10,7 @@ import {
   type Material,
   MathUtils,
   Mesh,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   type Object3D,
   SphereGeometry,
@@ -28,8 +29,10 @@ import {
   DEFAULT_PART_ROUGHNESS,
   type GroupMaterialData,
   type MeshOverride,
+  type PhysicalSurfaceFields,
   type ShapePart,
 } from './editSpec'
+import { applyGradientColors } from './gradient'
 import {
   bevelledBoxGeometry,
   extrudeGeometry,
@@ -47,23 +50,62 @@ function cachedFinishMaterial(finish: string): MeshStandardMaterial | null {
   return getBuiltMaterial(furnitureMaterialCacheId(matId)) ?? null
 }
 
-/** The 6 shared surface-look fields both a `ShapePart` and a per-group
- *  `GroupMaterialData` carry — the input to `buildSurfaceMaterial`. */
-interface SurfaceLook {
+/** The shared surface-look fields both a `ShapePart` and a per-group
+ *  `GroupMaterialData` carry — the input to `buildSurfaceMaterial`. Extends the
+ *  optional `PhysicalSurfaceFields` (Stage 2) so a velvet/lacquer/glass/brushed
+ *  look flows through the same builder. `vertexColors` (Stage 2 gradient) turns
+ *  on the geometry's baked `COLOR_0` tint. */
+interface SurfaceLook extends PhysicalSurfaceFields {
   color: string
   finish?: string
   roughness?: number
   metalness?: number
   emissiveIntensity?: number
   opacity?: number
+  /** True when the part's geometry carries a baked gradient (COLOR_0) — the
+   *  material must render `vertexColors`. */
+  vertexColors?: boolean
 }
 
-/** Build one owned `MeshStandardMaterial` from the shared surface-look fields.
+/** True when any of the four PRIMARY physical axes is set > 0 — the gate that
+ *  upgrades `buildSurfaceMaterial` from `MeshStandardMaterial` to
+ *  `MeshPhysicalMaterial`. None set → byte-identical pre-Stage-2 output (cost
+ *  discipline: the physical material only pays where a finish actually needs it).
+ *  The secondary fields (sheenColor/…/ior/thickness/anisotropyRotation) only
+ *  refine a primary, so they never trigger the upgrade on their own. */
+function hasPhysicalLook(look: PhysicalSurfaceFields): boolean {
+  return (
+    (look.sheen ?? 0) > 0 ||
+    (look.clearcoat ?? 0) > 0 ||
+    (look.transmission ?? 0) > 0 ||
+    (look.anisotropy ?? 0) > 0
+  )
+}
+
+/** Apply the Stage-2 physical finishing fields to a fresh `MeshPhysicalMaterial`
+ *  in place. Only the fields present are written, so an unset secondary keeps
+ *  three's own default. */
+function applyPhysicalFields(m: MeshPhysicalMaterial, look: PhysicalSurfaceFields): void {
+  if (look.sheen !== undefined) m.sheen = look.sheen
+  if (look.sheenRoughness !== undefined) m.sheenRoughness = look.sheenRoughness
+  if (look.sheenColor !== undefined) m.sheenColor = new Color(look.sheenColor)
+  if (look.clearcoat !== undefined) m.clearcoat = look.clearcoat
+  if (look.clearcoatRoughness !== undefined) m.clearcoatRoughness = look.clearcoatRoughness
+  if (look.transmission !== undefined) m.transmission = look.transmission
+  if (look.ior !== undefined) m.ior = look.ior
+  if (look.thickness !== undefined) m.thickness = look.thickness
+  if (look.anisotropy !== undefined) m.anisotropy = look.anisotropy
+  if (look.anisotropyRotation !== undefined) m.anisotropyRotation = look.anisotropyRotation
+}
+
+/** Build one owned material from the shared surface-look fields.
  *  With a `finish` set (GE3c) and its catalog material built, returns a CLONE of
  *  that textured material (textures stay shared; the clone keeps the shared cache
  *  instance unmutated and lets glow/opacity apply on top — the finish's own
- *  colour/roughness/metalness maps win over the flat values). Otherwise the flat
- *  solid-colour material honouring the roughness/metalness defaults. Every call
+ *  colour/roughness/metalness maps win over the flat values). Otherwise, when no
+ *  physical field is set, the flat solid-colour `MeshStandardMaterial`; when a
+ *  physical field IS set (Stage 2), a `MeshPhysicalMaterial` carrying the same
+ *  base values plus the sheen/clearcoat/transmission/anisotropy layer. Every call
  *  returns a material the caller OWNS (safe to dispose — textures never are). */
 function buildSurfaceMaterial(look: SurfaceLook): MeshStandardMaterial {
   const glow = look.emissiveIntensity ?? 0
@@ -75,9 +117,14 @@ function buildSurfaceMaterial(look: SurfaceLook): MeshStandardMaterial {
     m.emissiveIntensity = glow
     m.transparent = opacity < 1
     m.opacity = opacity
+    // A textured finish supersedes the physical part-fields (its own maps win) —
+    // matching how roughness/metalness are ignored under a finish. Gradient is
+    // likewise disabled by the inspector when a finish is set, but honour any
+    // baked COLOR_0 defensively.
+    if (look.vertexColors) m.vertexColors = true
     return m
   }
-  return new MeshStandardMaterial({
+  const shared = {
     color: look.color,
     roughness: look.roughness ?? DEFAULT_PART_ROUGHNESS,
     metalness: look.metalness ?? DEFAULT_PART_METALNESS,
@@ -86,7 +133,14 @@ function buildSurfaceMaterial(look: SurfaceLook): MeshStandardMaterial {
     emissiveIntensity: glow,
     transparent: opacity < 1,
     opacity,
-  })
+    vertexColors: !!look.vertexColors,
+  }
+  if (hasPhysicalLook(look)) {
+    const m = new MeshPhysicalMaterial(shared)
+    applyPhysicalFields(m, look)
+    return m
+  }
+  return new MeshStandardMaterial(shared)
 }
 
 /** Per-group material (baked at CSG combine time, GE3c tail) — a thin wrapper
@@ -98,7 +152,8 @@ function groupMaterial(g: GroupMaterialData): MeshStandardMaterial {
 /** The PBR material for a primitive part. Used by both the export
  *  (`buildEditedObject`) and the live preview so they never diverge. */
 export function partMaterial(part: ShapePart): MeshStandardMaterial {
-  return buildSurfaceMaterial(part)
+  // A part with a baked gradient (Stage 2) renders its geometry's COLOR_0 tint.
+  return buildSurfaceMaterial({ ...part, vertexColors: !!part.gradient })
 }
 
 /**
@@ -223,6 +278,19 @@ export function boxProjectUvs(geo: BufferGeometry): void {
  *  face points +Z (front). Exported so the live designer preview builds the
  *  exact geometry the export will, with no per-kind drift. */
 export function partGeometry(part: ShapePart): BufferGeometry {
+  const geo = buildShapeGeometry(part)
+  // Stage 2 — bake a two-tone gradient as a COLOR_0 vertex attribute. Works on
+  // every shape kind (it only reads the geometry's own bounds). The CSG evaluator
+  // strips COLOR_0 (position+normal only), so a combined operand's gradient does
+  // not survive a bake — consistent with the inspector not offering gradient on
+  // mesh parts.
+  if (part.gradient) applyGradientColors(geo, part.gradient)
+  return geo
+}
+
+/** The raw geometry switch (no gradient) — kept separate so `partGeometry` can
+ *  layer the Stage-2 gradient over any shape kind uniformly. */
+function buildShapeGeometry(part: ShapePart): BufferGeometry {
   const [w, h, d] = part.size
   switch (part.kind) {
     case 'box':

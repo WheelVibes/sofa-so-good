@@ -89,6 +89,20 @@ build one in the browser:
   opacity still apply on top; tap the active swatch (or pick None) to go back to the solid
   colour. Textures are baked into the saved asset, and a combined shape keeps each source
   shape's own texture on its own faces.
+- **Finish presets** — under the texture picker, a grid of one‑tap **Finish presets** sets a
+  realistic surface *feel* while keeping the shape's own colour: **Velvet**, **Satin**,
+  **Leather**, **Lacquered wood**, **Oiled wood**, **Matte paint**, **Powder‑coat**, **Brushed
+  steel**, **Polished chrome**, **Brass**, **Clear glass**, **Frosted glass**, **Ceramic** and
+  **Rubber**. Tap one to apply it (the matching preset stays highlighted); it clears any texture so
+  the finish shows. Open **Custom finish** to fine‑tune the raw sliders yourself — **Sheen** (the
+  soft glow of velvet/satin), **Clearcoat** (a lacquer gloss film), **Transmission** (see‑through
+  glass, with **Index of refraction** + **Thickness**) and **Anisotropy** (a brushed‑metal
+  highlight, with a **Brush angle**). *Glass see‑through only shows in the preview on the
+  High/Maximum graphics tiers, but it always exports correctly.*
+- **Two‑tone gradient** — open **Gradient** and tap **Add two‑tone gradient** to fade the shape
+  between two colours: pick the **Axis** (X/Y/Z) and the **From** / **To** colours. The gradient is
+  baked into the shape and survives export. It's for solid‑colour shapes — if a texture is set, clear
+  it first (the picker tells you).
 - **Solid or Hole** — every shape's edit panel has a **Type** switch: **Solid** (the
   default) or **Hole**. A **Hole only cuts inside a Subtract combine** (below): once it's
   carving inside one it shows as a translucent ghost. On its own — before it's part of a

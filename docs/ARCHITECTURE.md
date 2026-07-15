@@ -579,7 +579,18 @@ same change that reshapes a system.
   `partMaterial` resolves the finish to a clone of the cached material — solid-colour fallback
   while unbuilt/unknown, never a crash. The texture is **baked into the exported GLB** (like
   the solid colours), so the saved asset needs no `mat:` re-resolution; CSG results gain
-  box-projected UVs (`boxProjectUvs`) so a finish tiles on them too)
+  box-projected UVs (`boxProjectUvs`) so a finish tiles on them too).
+  **Stage 2 — materials** (v0.21.2.32): each part also carries optional
+  `PhysicalSurfaceFields` (`editSpec.ts`) — sheen / clearcoat / transmission+ior+thickness /
+  anisotropy — and an optional two-tone `gradient`. `buildSurfaceMaterial` upgrades to a
+  `MeshPhysicalMaterial` ONLY when a physical axis is set (`hasPhysicalLook`; plain
+  `MeshStandardMaterial` otherwise — cost discipline); the gradient bakes to a `COLOR_0` vertex
+  attribute (`glbEdit/gradient.ts`, applied in `partGeometry`) rendered with `vertexColors`. The
+  inspector's `PartMaterialSection.tsx` shows a one-tap **finish preset** gallery (pure
+  `glbEdit/finishPresets.ts`, 14 curated bundles), a "Custom finish" `Disclosure` of the raw
+  sliders, and a "Gradient" `Disclosure`. Every field round-trips losslessly through the GLB
+  export (verified — `physicalMaterialExport.test.ts`; support matrix in `docs/asset-studio-plan.md`);
+  `specPersist` is at **v3**
   and/or start from an uploaded GLB
   (uniformly scaled) to make a variant; live R3F preview (`buildEditedObject`), then
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands

@@ -1,4 +1,11 @@
-import { BoxGeometry, BufferGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
+import {
+  BoxGeometry,
+  BufferGeometry,
+  Group,
+  Mesh,
+  type MeshPhysicalMaterial,
+  MeshStandardMaterial,
+} from 'three'
 import { describe, expect, it } from 'vitest'
 import { buildMaterial } from '../../materials/cache'
 import { furnitureMaterialCacheId } from '../../materials/furnitureMaterials'
@@ -176,6 +183,62 @@ describe('partMaterial — per-part PBR', () => {
     const mesh = obj.children.find((c) => c instanceof Mesh) as Mesh
     expect(mesh.rotation.x).toBeCloseTo(Math.PI / 2)
     expect(mesh.rotation.y).toBeCloseTo(0)
+  })
+})
+
+describe('partMaterial — Stage 2 physical fields', () => {
+  it('stays a plain MeshStandardMaterial (not physical) when no physical field is set', () => {
+    const m = partMaterial(defaultPart('box'))
+    expect((m as { isMeshPhysicalMaterial?: boolean }).isMeshPhysicalMaterial).toBeFalsy()
+    expect(m.vertexColors).toBe(false)
+  })
+
+  it('upgrades to MeshPhysicalMaterial + carries sheen when sheen > 0', () => {
+    const m = partMaterial({
+      ...defaultPart('capsule'),
+      sheen: 1,
+      sheenRoughness: 0.3,
+      sheenColor: '#8899ff',
+    }) as unknown as MeshPhysicalMaterial
+    expect(m.isMeshPhysicalMaterial).toBe(true)
+    expect(m.sheen).toBeCloseTo(1)
+    expect(m.sheenRoughness).toBeCloseTo(0.3)
+    expect(m.sheenColor.getHexString()).toBe('8899ff')
+  })
+
+  it('carries clearcoat / transmission+ior+thickness / anisotropy', () => {
+    const coat = partMaterial({
+      ...defaultPart('box'),
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.12,
+    }) as unknown as MeshPhysicalMaterial
+    expect(coat.isMeshPhysicalMaterial).toBe(true)
+    expect(coat.clearcoat).toBeCloseTo(0.8)
+    const glass = partMaterial({
+      ...defaultPart('box'),
+      transmission: 0.9,
+      ior: 1.4,
+      thickness: 0.2,
+    }) as unknown as MeshPhysicalMaterial
+    expect(glass.transmission).toBeCloseTo(0.9)
+    expect(glass.ior).toBeCloseTo(1.4)
+    expect(glass.thickness).toBeCloseTo(0.2)
+    const brushed = partMaterial({
+      ...defaultPart('cylinder'),
+      anisotropy: 0.7,
+      anisotropyRotation: 0.5,
+    }) as unknown as MeshPhysicalMaterial
+    expect(brushed.anisotropy).toBeCloseTo(0.7)
+    expect(brushed.anisotropyRotation).toBeCloseTo(0.5)
+  })
+
+  it('a gradient part renders vertexColors and carries a COLOR_0 attribute', () => {
+    const part = {
+      ...defaultPart('box'),
+      gradient: { axis: 'y' as const, from: '#ff0000', to: '#0000ff' },
+    }
+    const m = partMaterial(part)
+    expect(m.vertexColors).toBe(true)
   })
 })
 

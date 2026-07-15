@@ -157,6 +157,17 @@ function materialKey(g: GroupMaterialData): string {
     g.metalness ?? '',
     g.emissiveIntensity ?? '',
     g.opacity ?? '',
+    // Stage 2 physical fields — distinct finishes must not merge into one group.
+    g.sheen ?? '',
+    g.sheenColor ?? '',
+    g.sheenRoughness ?? '',
+    g.clearcoat ?? '',
+    g.clearcoatRoughness ?? '',
+    g.transmission ?? '',
+    g.ior ?? '',
+    g.thickness ?? '',
+    g.anisotropy ?? '',
+    g.anisotropyRotation ?? '',
   ].join('|')
 }
 

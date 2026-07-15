@@ -19,8 +19,12 @@ import type { AssetEditSpec } from './editSpec'
  *  - v1 (Asset Studio S0…S1a): parts + meshOverrides + sourceScale.
  *  - v2 (CSG v2, Stage 1b): adds optional `parts[].role` + `combineGroups[]`.
  *    A v1 spec is a STRUCTURAL SUBSET of v2 (no roles, no groups), so migration
- *    is the identity — a v1 blob loads unchanged, just re-tagged v2 on next save. */
-export const ASSET_SPEC_VERSION = 2
+ *    is the identity — a v1 blob loads unchanged, just re-tagged v2 on next save.
+ *  - v3 (Materials, Stage 2): adds optional `PhysicalSurfaceFields`
+ *    (sheen/clearcoat/transmission/ior/thickness/anisotropy…) + `parts[].gradient`
+ *    on parts and per-group materials. Every field is optional, so a v2 spec is a
+ *    STRUCTURAL SUBSET of v3 — migration stays the identity. */
+export const ASSET_SPEC_VERSION = 3
 
 interface AssetSpecEnvelope {
   v: number
@@ -36,6 +40,9 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
     // A v1 spec has no `role`/`combineGroups` — already a valid v2 spec.
     // fall through
     case 2:
+    // A v2 spec has no physical fields / gradient — already a valid v3 spec.
+    // fall through
+    case 3:
       return spec
     default:
       return null
@@ -75,12 +82,49 @@ function isCombineGroups(x: unknown): boolean {
   })
 }
 
-/** Every part must be an object with a valid `role` (or none). */
+/** The optional `PhysicalSurfaceFields` numeric fields (Stage 2) — each must be
+ *  absent or a finite number when present. */
+const PHYSICAL_NUM_FIELDS = [
+  'sheen',
+  'sheenRoughness',
+  'clearcoat',
+  'clearcoatRoughness',
+  'transmission',
+  'ior',
+  'thickness',
+  'anisotropy',
+  'anisotropyRotation',
+] as const
+
+/** Guard a part's optional Stage-2 material fields: every physical numeric field
+ *  is absent or finite, `sheenColor` is absent or a string, and `gradient` (when
+ *  present) is `{ axis ∈ x|y|z, from: string, to: string }`. A malformed field
+ *  makes the whole spec un-restorable (strict guard, matching `combineGroups`). */
+function materialFieldsValid(p: Record<string, unknown>): boolean {
+  for (const key of PHYSICAL_NUM_FIELDS) {
+    const v = p[key]
+    if (v !== undefined && (typeof v !== 'number' || !Number.isFinite(v))) return false
+  }
+  if (p.sheenColor !== undefined && typeof p.sheenColor !== 'string') return false
+  const g = p.gradient
+  if (g !== undefined) {
+    if (!g || typeof g !== 'object') return false
+    const grad = g as Record<string, unknown>
+    if (grad.axis !== 'x' && grad.axis !== 'y' && grad.axis !== 'z') return false
+    if (typeof grad.from !== 'string' || typeof grad.to !== 'string') return false
+  }
+  return true
+}
+
+/** Every part must be an object with a valid `role` (or none) and valid
+ *  Stage-2 material/gradient fields. */
 function partsValid(parts: unknown[]): boolean {
   return parts.every((p) => {
     if (!p || typeof p !== 'object') return false
-    const role = (p as Record<string, unknown>).role
-    return role === undefined || (typeof role === 'string' && VALID_ROLES.has(role))
+    const rec = p as Record<string, unknown>
+    const role = rec.role
+    if (role !== undefined && (typeof role !== 'string' || !VALID_ROLES.has(role))) return false
+    return materialFieldsValid(rec)
   })
 }
 

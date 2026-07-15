@@ -23,6 +23,7 @@ import { SliderField } from '../controls/SliderField'
 import { useSurfaceMaterialOptions } from '../inspector/ParametricBody'
 import { QuickFinishes } from '../inspector/QuickFinishes'
 import { Icon } from '../toolbar/icons'
+import { PartMaterialSection } from './PartMaterialSection'
 import { ProfileEditor, type ProfileSpace } from './ProfileEditor'
 
 const LATHE_SPACE: ProfileSpace = { minX: 0, maxX: 1, minY: 0, maxY: 1, showAxis: true }
@@ -318,6 +319,12 @@ export function PartInspector({
           </div>
         </>
       ) : null}
+      {/* Stage 2 — finish preset gallery first (research: one-tap presets before
+          raw sliders), then the basic PBR sliders, with the advanced physical
+          sliders + two-tone gradient tucked behind PartMaterialSection's own
+          disclosures. Combined (mesh) parts read their frozen per-source
+          materials, so they get no material section (same as colour/finish). */}
+      {!isCombined ? <PartMaterialSection part={part} onPatch={onPatch} /> : null}
       {sliders.map(({ prop, value, min, max }) => (
         <div key={prop} style={{ marginTop: 'var(--s-2)' }}>
           <SliderField

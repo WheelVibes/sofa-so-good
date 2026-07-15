@@ -95,11 +95,61 @@ export const SHAPE_LABEL: Record<ShapeKind, string> = {
   mesh: 'Combined',
 }
 
+/** Optional `MeshPhysicalMaterial` finishing fields (Stage 2 — materials). Every
+ *  field is absent by default, so a part/group with none set is byte-identical to
+ *  the pre-Stage-2 plain `MeshStandardMaterial` output. `buildSurfaceMaterial`
+ *  upgrades to a `MeshPhysicalMaterial` ONLY when one of the four primary axes
+ *  (`sheen`/`clearcoat`/`transmission`/`anisotropy`) is > 0 — the secondary
+ *  fields (`sheenColor`/`sheenRoughness`/`ior`/`thickness`/`anisotropyRotation`)
+ *  only refine their primary. All numeric axes are 0…1 except `ior` (≈1.0–2.333,
+ *  glass ≈1.5), `thickness` (metres, glass volume) and `anisotropyRotation`
+ *  (radians). Every field round-trips losslessly through the GLB export (verified
+ *  — KHR_materials_sheen / clearcoat / transmission / ior / volume / anisotropy). */
+export interface PhysicalSurfaceFields {
+  /** Fabric/velvet retroreflective sheen halo (KHR_materials_sheen). */
+  sheen?: number
+  /** Sheen lobe colour (hex). Absent → white lobe (reads as pile). */
+  sheenColor?: string
+  /** Sheen lobe roughness 0…1. Absent → three's default (1). */
+  sheenRoughness?: number
+  /** Lacquer/gloss film over the base (KHR_materials_clearcoat). */
+  clearcoat?: number
+  /** Clearcoat film roughness 0…1. Absent → three's default. */
+  clearcoatRoughness?: number
+  /** Refractive glass transmission (KHR_materials_transmission). NOTE: the
+   *  transmission render pass needs a real GPU — headless previews read flat. */
+  transmission?: number
+  /** Index of refraction (KHR_materials_ior). Glass ≈ 1.5. */
+  ior?: number
+  /** Glass volume thickness in metres (KHR_materials_volume). */
+  thickness?: number
+  /** Brushed-metal directional highlight (KHR_materials_anisotropy). */
+  anisotropy?: number
+  /** Anisotropy sweep rotation in radians. Absent → 0 (U axis). */
+  anisotropyRotation?: number
+}
+
+/** Per-part vertex-colour gradient (Stage 2). Baked into the part geometry as a
+ *  `COLOR_0` attribute (lerped `from`→`to` along the chosen local bbox axis) and
+ *  rendered with `vertexColors` on; survives GLB export as COLOR_0. Only offered
+ *  for solid-colour parts (no textured `finish`) — the multiply of a texture map
+ *  by the gradient reads muddy, so the inspector disables it when a finish is
+ *  set. */
+export interface PartGradient {
+  axis: 'x' | 'y' | 'z'
+  /** Colour at the axis minimum (hex). */
+  from: string
+  /** Colour at the axis maximum (hex). */
+  to: string
+}
+
 /** Per-group material configuration baked at CSG combine time. Mirrors the
  *  surface-look fields of `ShapePart` but without id/kind/transform — pure data
  *  so the spec stays serialisable. Absent fields fall back to the same defaults
- *  as `partMaterial` (roughness 0.6, metalness 0.05, opaque, no glow). */
-export interface GroupMaterialData {
+ *  as `partMaterial` (roughness 0.6, metalness 0.05, opaque, no glow). Carries
+ *  the Stage-2 `PhysicalSurfaceFields` too, so a combine bake preserves each
+ *  operand's finish (velvet/glass/etc.). */
+export interface GroupMaterialData extends PhysicalSurfaceFields {
   color: string
   finish?: string
   roughness?: number
@@ -127,7 +177,7 @@ interface MeshGeometryData {
   materials?: GroupMaterialData[]
 }
 
-export interface ShapePart {
+export interface ShapePart extends PhysicalSurfaceFields {
   id: string
   kind: ShapeKind
   /** Centre position in metres (asset-local, floor at y=0, +Z front). */
@@ -179,6 +229,9 @@ export interface ShapePart {
   /** TinkerCAD solid/hole role (CSG v2). Absent → `solid`. A `hole` renders as a
    *  translucent ghost and is carved out inside a Subtract combine group. */
   role?: PartRole
+  /** Two-tone vertex-colour gradient baked into the geometry (Stage 2). Absent →
+   *  no gradient (plain solid colour / finish). */
+  gradient?: PartGradient
 }
 
 /** Fallback PBR finish for a part that hasn't set its own (keeps old specs +
@@ -450,6 +503,7 @@ export function duplicatePart(spec: AssetEditSpec, id: string): AssetEditSpec {
     rotation: src.rotation ? [...src.rotation] : undefined,
     profile: src.profile ? src.profile.map((p) => [...p]) : undefined,
     outline: src.outline ? src.outline.map((p) => [...p]) : undefined,
+    gradient: src.gradient ? { ...src.gradient } : undefined,
   }
   return { ...spec, parts: [...spec.parts, copy] }
 }
@@ -471,6 +525,7 @@ export function mirrorPart(spec: AssetEditSpec, id: string): AssetEditSpec {
     rotation: src.rotation ? [src.rotation[0], -src.rotation[1], -src.rotation[2]] : undefined,
     profile: src.profile ? src.profile.map((p) => [...p]) : undefined,
     outline: src.outline ? src.outline.map((p) => [...p]) : undefined,
+    gradient: src.gradient ? { ...src.gradient } : undefined,
   }
   return { ...spec, parts: [...spec.parts, copy] }
 }

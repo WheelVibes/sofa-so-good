@@ -143,8 +143,8 @@ describe('specPersist', () => {
     expect(restored!.parts[1].role).toBe('hole')
   })
 
-  it('the current envelope is v2', () => {
-    expect(ASSET_SPEC_VERSION).toBe(2)
+  it('the current envelope is v3', () => {
+    expect(ASSET_SPEC_VERSION).toBe(3)
   })
 
   it('migrates a v1 blob (no roles/groups) unchanged — reads editable', () => {
@@ -156,10 +156,52 @@ describe('specPersist', () => {
     expect(restored!.combineGroups).toBeUndefined()
   })
 
-  it('migrateAssetSpec: v1→v2 identity, unknown version → null', () => {
+  it('migrateAssetSpec: v1/v2→v3 identity, unknown version → null', () => {
     const spec = createEmptySpec()
     expect(migrateAssetSpec(spec, 1)).toBe(spec)
     expect(migrateAssetSpec(spec, 2)).toBe(spec)
+    expect(migrateAssetSpec(spec, 3)).toBe(spec)
     expect(migrateAssetSpec(spec, 99)).toBeNull()
+  })
+
+  it('round-trips Stage-2 physical fields + gradient', () => {
+    const base = addPart(createEmptySpec(), 'box')
+    const id = base.parts[0].id
+    const s = updatePart(base, id, {
+      sheen: 1,
+      sheenColor: '#8899ff',
+      sheenRoughness: 0.3,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.12,
+      transmission: 0.9,
+      ior: 1.5,
+      thickness: 0.3,
+      anisotropy: 0.7,
+      anisotropyRotation: 0.4,
+      gradient: { axis: 'y', from: '#ff0000', to: '#0000ff' },
+    })
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored).toEqual(s)
+  })
+
+  it('rejects a malformed physical field (non-number sheen)', () => {
+    const spec = addPart(createEmptySpec(), 'box')
+    const bad = JSON.stringify({
+      v: 3,
+      spec: { ...spec, parts: [{ ...spec.parts[0], sheen: 'lots' }] },
+    })
+    expect(parseAssetSpec(bad)).toBeNull()
+  })
+
+  it('rejects a malformed gradient (bad axis)', () => {
+    const spec = addPart(createEmptySpec(), 'box')
+    const bad = JSON.stringify({
+      v: 3,
+      spec: {
+        ...spec,
+        parts: [{ ...spec.parts[0], gradient: { axis: 'w', from: '#fff', to: '#000' } }],
+      },
+    })
+    expect(parseAssetSpec(bad)).toBeNull()
   })
 })

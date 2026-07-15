@@ -87,16 +87,42 @@ shrinking — every stage extracts modules, never grows the monolith.
 - Source-GLB-as-operand deferred (the designer never makes the source a part; bake a mesh + combine
   covers the watertight case). TinkerCAD "solid/hole" mental model is the UI vocabulary.
 
-## Stage 2 — Materials: finishes, colours, gradients, sheen, gloss
-- **`MeshPhysicalMaterial` part materials:** expose sheen (fabric/velvet), clearcoat
-  (lacquer/gloss), transmission + IOR + thickness (glass), anisotropy (brushed metal) on
-  `ShapePart` + `PartInspector` sliders; exports via glTF KHR extensions (verify per-ext
-  exporter support; document what bakes).
-- **Finish preset gallery:** named presets (velvet, satin, leather, lacquered wood,
-  oiled wood, glass, brushed steel, powder-coat…) = curated parameter bundles over the
-  existing `mat:<id>`/procedural vocabulary — swatch grid UI, one tap to apply.
-- **Gradients/two-tone:** per-part vertex-colour gradient (axis + two colours) baked into
-  geometry; survives GLB export losslessly.
+## Stage 2 — Materials: finishes, colours, gradients, sheen, gloss — ✅ SHIPPED (v0.21.2.32)
+- ✅ **`MeshPhysicalMaterial` part materials:** optional `PhysicalSurfaceFields` on `ShapePart`
+  + `GroupMaterialData` (`editSpec.ts`) — `sheen`/`sheenColor`/`sheenRoughness`,
+  `clearcoat`/`clearcoatRoughness`, `transmission`/`ior`/`thickness`, `anisotropy`/
+  `anisotropyRotation`; all absent by default (byte-identical output). `buildObject.ts`
+  `buildSurfaceMaterial` upgrades to `MeshPhysicalMaterial` ONLY when one of the four primary
+  axes is > 0 (`hasPhysicalLook` gate — cost discipline), else the plain `MeshStandardMaterial`.
+  `partAsGroupMaterial` + `csgEval.materialKey` carry the fields through combine bakes.
+  `PartInspector` → `PartMaterialSection` exposes the raw sliders behind a "Custom finish"
+  Disclosure. `specPersist` bumped to **v3** (v2→v3 identity migration; strict field validation).
+- ✅ **Finish preset gallery:** pure `glbEdit/finishPresets.ts` — 14 named, colour-agnostic
+  physics bundles (Velvet, Satin, Leather, Lacquered wood, Oiled wood, Matte paint, Powder-coat,
+  Brushed steel, Polished chrome, Brass, Clear glass, Frosted glass, Ceramic, Rubber), reusing the
+  pure `materialRealism.ts` sheen/clearcoat helpers. `PartMaterialSection` renders a `.fin-presets`
+  swatch grid (presets FIRST per the research); one tap applies (clears finish + stale fields),
+  the matching preset highlights (`matchingFinishPresetId`). Unit-tested (ranges, apply→match
+  round-trip, no-stale-field).
+- ✅ **Gradients/two-tone:** per-part `gradient: {axis, from, to}` baked as a `COLOR_0` vertex
+  attribute (pure `glbEdit/gradient.ts` `applyGradientColors`, applied in `partGeometry` over
+  every shape kind) + `vertexColors` on the material. Inspector: axis `Segmented` + two
+  `ColorPicker`s behind a "Gradient" Disclosure, **disabled when a textured finish is set** (a
+  texture × gradient multiply reads muddy — hint shown). Unit-tested (endpoints, axis, degenerate
+  span, every shape kind).
+
+### Export support matrix (verified, `physicalMaterialExport.test.ts` — three r184 GLTFExporter → app GLTFLoader round-trip)
+**Every** Stage-2 field bakes AND restores losslessly — nothing is export-only or dropped:
+
+| Field(s) | glTF extension | Bakes + restores | Notes |
+|---|---|---|---|
+| `sheen` / `sheenColor` / `sheenRoughness` | KHR_materials_sheen | ✅ | — |
+| `clearcoat` / `clearcoatRoughness` | KHR_materials_clearcoat | ✅ | — |
+| `transmission` | KHR_materials_transmission | ✅ | **Render caveat:** the transmissive pass needs a real GPU, so the in-editor/headless preview reads flat on Performance/Medium (use `SHOT_GPU=1`). The exported GLB is always correct — a PREVIEW limit, not an export one. |
+| `ior` | KHR_materials_ior | ✅ | — |
+| `thickness` | KHR_materials_volume | ✅ | — |
+| `anisotropy` / `anisotropyRotation` | KHR_materials_anisotropy | ✅ | — |
+| `gradient` (baked) | core `COLOR_0` + `vertexColors` | ✅ | Combine (CSG) drops COLOR_0 (position+normal only) → gradient not offered on mesh parts. |
 
 ## Stage 3 — Components, fittings, templates, groups
 - **Part grouping/hierarchy:** named groups with group transforms in the spec; layer panel
@@ -143,6 +169,6 @@ shrinking — every stage extracts modules, never grows the monolith.
 ---
 
 **Status:** Stage 0 **shipped** (v0.21.2.28); Stage 1 **fully shipped** — Stage 1a
-(v0.21.2.29) + Stage 1b / CSG v2 (v0.21.2.30, 2026-07-16). **Stage 2 (materials) next.** Each
-stage lands as its own commit train with an end-of-stage adversarial review; this file tracks
-stage state.
+(v0.21.2.29) + Stage 1b / CSG v2 (v0.21.2.30, 2026-07-16); Stage 2 / materials **shipped**
+(v0.21.2.32, 2026-07-16). **Stage 3 (components/fittings/templates) next.** Each stage lands as
+its own commit train with an end-of-stage adversarial review; this file tracks stage state.

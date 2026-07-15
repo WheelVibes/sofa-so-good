@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.32 — Asset Studio Stage 2 — Materials (finishes, presets, gradients)
+
+Physically-based finishes for the GLB Asset Designer: sheen, clearcoat, transmission (glass),
+anisotropy (brushed metal), a one-tap finish preset gallery, and two-tone vertex-colour gradients.
+
+- **Physical material fields on `ShapePart` + per-group `GroupMaterialData`** (`editSpec.ts`
+  `PhysicalSurfaceFields`): optional `sheen`/`sheenColor`/`sheenRoughness`, `clearcoat`/
+  `clearcoatRoughness`, `transmission`/`ior`/`thickness`, `anisotropy`/`anisotropyRotation` — all
+  absent by default (byte-identical output). `buildObject.ts:buildSurfaceMaterial` upgrades to a
+  `MeshPhysicalMaterial` ONLY when one of the four primary axes is > 0 (`hasPhysicalLook` gate —
+  cost discipline; plain `MeshStandardMaterial` otherwise). Combine bakes carry the fields through
+  `partAsGroupMaterial` + `csgEval.materialKey`.
+- **Finish preset gallery** (`glbEdit/finishPresets.ts`, pure + unit-tested): 14 named,
+  colour-agnostic physics bundles (Velvet, Satin, Leather, Lacquered wood, Oiled wood, Matte paint,
+  Powder-coat, Brushed steel, Polished chrome, Brass, Clear glass, Frosted glass, Ceramic, Rubber),
+  reusing the pure `materialRealism.ts` sheen/clearcoat helpers. A `.fin-presets` swatch grid in the
+  inspector (`PartMaterialSection.tsx`) — presets FIRST, then the basic PBR sliders, with the raw
+  sheen/clearcoat/transmission/anisotropy sliders behind a "Custom finish" `Disclosure`. One tap
+  applies (clears any textured finish + stale fields); the matching preset highlights.
+- **Two-tone gradients** (`glbEdit/gradient.ts`, pure + unit-tested): per-part
+  `gradient: {axis, from, to}` baked as a `COLOR_0` vertex attribute over every shape kind (in
+  `partGeometry`) and rendered with `vertexColors`. Inspector: axis `Segmented` + two `ColorPicker`s
+  behind a "Gradient" `Disclosure`, disabled when a textured finish is set (texture × gradient reads
+  muddy — hint shown).
+- **Export reality check** (`physicalMaterialExport.test.ts`): a three-r184 `GLTFExporter` →
+  app `GLTFLoader` round-trip proves **every** field bakes AND restores losslessly
+  (KHR_materials_sheen / clearcoat / transmission / ior / volume / anisotropy + core COLOR_0). The
+  only caveat is a RENDER one — transmission's transmissive pass needs a real GPU, so the preview
+  reads flat on low tiers (the export is always correct). Support matrix recorded in
+  `docs/asset-studio-plan.md`.
+- **Persistence** bumped to **v3** (`specPersist.ts`): additive superset of v2 → v2→v3 identity
+  migration; strict validation of the new numeric fields + gradient shape (a malformed blob is
+  un-restorable).
+- Docs: `docs/user/importing-models.md` designer section (preset gallery + gradient);
+  `docs/asset-studio-plan.md` Stage 2 marked shipped + the export matrix; scenario
+  `scripts/scenarios/glb-designer-stage2.json` (velvet/lacquer/glass/brushed/gradient, saved-spec
+  assertion). Version → `0.21.2.32`.
+
 ## v0.21.2.31 — Asset Studio Stage-0/1 review-fix cluster
 
 Correctness, efficiency and cleanup fixes from the Stage-0/1 review of the GLB Asset Designer.

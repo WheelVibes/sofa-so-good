@@ -1,0 +1,149 @@
+{
+  "name": "glb-designer-stage2",
+  "description": "Asset Studio Stage 2 — Materials. In Pro with glbDesigner on: build a Capsule and apply the Velvet finish preset (sheen), a Box and apply Lacquered wood (clearcoat highlight), an Extrude and apply Clear glass (transmission — run with SHOT_GPU=1 so the transmissive pass renders), a Lathe leg and apply Brushed steel (anisotropy), and a Box with a Y-axis two-tone gradient (vertex colours). Each apply is asserted via the highlighted (.fin-preset.on) swatch, then the whole asset is saved and the persisted UserGltfDef.assetSpec is asserted to embed sheen/clearcoat/transmission/anisotropy + the gradient (fields survive save → restore). Screenshots each material close-up.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "verify-flag-on",
+      "waitFor": { "store": "state.featureFlags.glbDesigner === true" },
+      "timeout": 5000
+    },
+    { "name": "open-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "wait-designer", "waitFor": { "text": "3D asset designer" }, "timeout": 15000 },
+
+    { "name": "add-capsule", "click": { "text": "Capsule" } },
+    {
+      "name": "wait-capsule",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove capsule 1']" },
+      "timeout": 5000
+    },
+    {
+      "name": "apply-velvet",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer .fin-preset')].find(b => b.textContent.trim() === 'Velvet'); if (!btn) throw new Error('Velvet preset not found'); btn.click(); })()"
+    },
+    {
+      "name": "assert-velvet-active",
+      "waitFor": { "css": ".glb-designer .fin-preset.on" },
+      "timeout": 4000,
+      "failMessage": "applying Velvet should highlight its preset swatch (sheen set)"
+    },
+    { "name": "settle-velvet", "wait": 500 },
+    { "name": "shot-velvet", "screenshot": "01-velvet-capsule" },
+
+    { "name": "add-box", "click": { "text": "Box" } },
+    {
+      "name": "wait-box",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove box 2']" },
+      "timeout": 5000
+    },
+    {
+      "name": "bevel-the-box",
+      "comment": "Give the box a corner radius so the clearcoat highlight rides a rounded edge.",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Corner radius (m)\"]'); if (inp) { const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '0.05'); inp.dispatchEvent(new Event('input', { bubbles: true })); } })()"
+    },
+    {
+      "name": "apply-lacquered-wood",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer .fin-preset')].find(b => b.textContent.trim() === 'Lacquered wood'); if (!btn) throw new Error('Lacquered wood preset not found'); btn.click(); })()"
+    },
+    {
+      "name": "assert-lacquer-active",
+      "waitFor": { "css": ".glb-designer .fin-preset.on" },
+      "timeout": 4000,
+      "failMessage": "applying Lacquered wood should highlight its preset swatch (clearcoat set)"
+    },
+    { "name": "settle-lacquer", "wait": 500 },
+    { "name": "shot-lacquer", "screenshot": "02-lacquered-box" },
+
+    { "name": "add-extrude", "click": { "text": "Extrude" } },
+    {
+      "name": "wait-extrude",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove extrude 3']" },
+      "timeout": 5000
+    },
+    {
+      "name": "apply-clear-glass",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer .fin-preset')].find(b => b.textContent.trim() === 'Clear glass'); if (!btn) throw new Error('Clear glass preset not found'); btn.click(); })()"
+    },
+    {
+      "name": "assert-glass-active",
+      "waitFor": { "css": ".glb-designer .fin-preset.on" },
+      "timeout": 4000,
+      "failMessage": "applying Clear glass should highlight its preset swatch (transmission set)"
+    },
+    { "name": "settle-glass", "wait": 800 },
+    { "name": "shot-glass", "screenshot": "03-clear-glass-extrude" },
+
+    { "name": "add-lathe", "click": { "text": "Lathe" } },
+    {
+      "name": "wait-lathe",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove lathe 4']" },
+      "timeout": 5000
+    },
+    {
+      "name": "apply-brushed-steel",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer .fin-preset')].find(b => b.textContent.trim() === 'Brushed steel'); if (!btn) throw new Error('Brushed steel preset not found'); btn.click(); })()"
+    },
+    {
+      "name": "assert-brushed-active",
+      "waitFor": { "css": ".glb-designer .fin-preset.on" },
+      "timeout": 4000,
+      "failMessage": "applying Brushed steel should highlight its preset swatch (anisotropy set)"
+    },
+    { "name": "settle-brushed", "wait": 500 },
+    { "name": "shot-brushed", "screenshot": "04-brushed-steel-lathe" },
+
+    { "name": "add-gradient-box", "click": { "text": "Box" } },
+    {
+      "name": "wait-gradient-box",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove box 5']" },
+      "timeout": 5000
+    },
+    {
+      "name": "open-gradient-disclosure",
+      "comment": "Open the Gradient disclosure then add a two-tone gradient (defaults to the Y axis).",
+      "eval": "(function(){ const sum = [...document.querySelectorAll('.glb-designer summary')].find(s => s.textContent.trim() === 'Gradient'); if (!sum) throw new Error('Gradient disclosure not found'); sum.click(); })()"
+    },
+    { "name": "settle-disclosure", "wait": 200 },
+    {
+      "name": "add-gradient",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Add two-tone gradient'); if (!btn) throw new Error('Add gradient button not found'); btn.click(); })()"
+    },
+    {
+      "name": "assert-gradient-axis-shown",
+      "waitFor": { "css": ".glb-designer [aria-label='Gradient axis']" },
+      "timeout": 4000,
+      "failMessage": "adding a gradient should reveal the axis Segmented + colour pickers"
+    },
+    { "name": "settle-gradient", "wait": 500 },
+    { "name": "shot-gradient", "screenshot": "05-gradient-box" },
+
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage2 Materials'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-spec-carries-materials",
+      "comment": "End-to-end proof: the saved assetSpec JSON embeds the Stage-2 material fields (sheen/clearcoat/transmission/anisotropy) and the two-tone gradient, so re-opening restores the finishes.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage2 Materials' && typeof d.assetSpec === 'string' && d.assetSpec.includes('\"sheen\"') && d.assetSpec.includes('\"clearcoat\"') && d.assetSpec.includes('\"transmission\"') && d.assetSpec.includes('\"anisotropy\"') && d.assetSpec.includes('\"gradient\"') && d.assetSpec.includes('\"axis\":\"y\"'))"
+      },
+      "timeout": 60000,
+      "failMessage": "saved assetSpec should embed sheen/clearcoat/transmission/anisotropy + the gradient"
+    },
+    { "name": "shot-saved", "screenshot": "06-saved" }
+  ]
+}

@@ -69,6 +69,18 @@ export function partAsGroupMaterial(part: ShapePart): GroupMaterialData {
     metalness: part.metalness,
     emissiveIntensity: part.emissiveIntensity,
     opacity: part.opacity,
+    // Stage 2 — carry the physical finishing fields so a combine bake preserves
+    // each operand's velvet/lacquer/glass/brushed look.
+    sheen: part.sheen,
+    sheenColor: part.sheenColor,
+    sheenRoughness: part.sheenRoughness,
+    clearcoat: part.clearcoat,
+    clearcoatRoughness: part.clearcoatRoughness,
+    transmission: part.transmission,
+    ior: part.ior,
+    thickness: part.thickness,
+    anisotropy: part.anisotropy,
+    anisotropyRotation: part.anisotropyRotation,
   }
 }
 
