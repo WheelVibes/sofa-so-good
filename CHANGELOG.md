@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.42 — Asset Studio Iteration 2 · Stage 6a — content expansion (chair + storage templates, structural components)
+
+Adds the conspicuous archetype gaps to the GLB Asset Designer's template + component libraries. All
+pure builders in `furniture/glbEdit/`, unit-tested, emitting ordinary `ShapePart[]` + a wrapping
+`PartGroup` exactly like the Stage-3c/3b libraries — no new spec field, no persistence bump, all behind
+the existing `glbDesigner` pro flag (the panels render library entries generically, so no UI wiring
+changed). Plan: `docs/asset-studio-plan.md` Stage 6a.
+
+- **Dining chair template** (`glbEdit/templates.ts` `buildChair`) — seat board + 4 square legs (reuses
+  the `leg-straight-square` component) + 4 apron rails + two rear posts reclined ~8° + a lumbar back
+  board. Ergonomic clamps: seat height 0.42–0.48 m (0.45), seat width 0.40–0.50 m (0.44), seat depth
+  0.38–0.45 m (0.42), back-top height 0.80–1.00 m (0.90) — each slider names its standard.
+- **Wardrobe template** (`buildWardrobe`) — plinth + tall carcass + 2–3 doors with bar pulls + an
+  interior steel hanging rail (cylinder). Params W (0.6–1.8) / H (1.8–2.4) / D (0.5–0.65) / doors (2–3).
+- **Desk template** (`buildDesk`) — top + a drawer pedestal (2–3 stacked drawer fronts + bar pulls) on
+  one side + two square legs on the other. Params W (1.0–1.8) / D (0.6–0.8) / H (0.72–0.76) / drawers.
+- **TV console template** (`buildTvConsole`) — low open carcass + one middle shelf + four short tapered
+  legs (a media unit, distinct from the door-fronted Cabinet). Params W / D / H (0.4–0.6, low).
+- **Structural components** (`glbEdit/components.ts`, new **Structure** category) — **Apron rail** (flat
+  under-surface rail, floor mount), **Stretcher** (round leg-to-leg rod, wall mount), **Slat set** (N
+  thin slats across a span — one `count` param, floor mount), **Drawer box** (open 5-panel carcass:
+  front + back + 2 sides + bottom, geometry only, floor mount), **Shelf pins** (a spaced pair of support
+  pins, wall mount). 1–3 clamped params each with metal/wood finish defaults.
+- **Tests** — `templates.test.ts` (10 archetypes; chair-proportion / wardrobe-rail / desk-pedestal /
+  low-console bbox checks) and `components.test.ts` (17 fittings across 5 categories; slat-count,
+  drawer-carcass, shelf-pin assertions). Scenario `scripts/scenarios/glb-designer-stage6a.json`.
+
 ## v0.21.2.41 — Asset Studio: final fix round (decals, plump, array semantics, footprints)
 
 A post-completion correctness pass over the Asset Studio designer. Pure geometry/spec logic in

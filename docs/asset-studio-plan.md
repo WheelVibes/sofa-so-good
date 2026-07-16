@@ -362,3 +362,56 @@ context value re-renders unrelated panels on every keystroke, split the context 
 slices (e.g. selection/tool state vs. the spec, or a Zustand-style store with selector
 subscriptions) so a change touches only the panels that read it. No action needed today — this is a
 "revisit when the profiler shows it" note, not a debt.
+
+---
+
+## Iteration 2 (user goal 2026-07-16: "keep iterating — geometry, materials, components
+## and templates, modular customization, precision, realism, and performance")
+
+### Stage 6a — Content expansion: chair template + structural components — ✅ SHIPPED (v0.21.2.42)
+- ✅ **Dining chair template** (the conspicuous archetype gap): seat board + 4 square legs (reuses
+  the `leg-straight-square` component) + 4 apron rails + two rear posts reclined ~8° + a lumbar
+  back board; ergonomic clamps (seat h 0.42–0.48/0.45, seat w 0.40–0.50/0.44, seat d 0.38–0.45/0.42,
+  back-top h 0.80–1.00/0.90).
+- ✅ Templates: **Wardrobe** (plinth + tall carcass + 2–3 bar-pull doors + interior steel rail),
+  **Desk** (top + 2–3-drawer pedestal one side + 2 legs the other), **TV console** (low open carcass
+  + one shelf + short tapered legs). Now **10** archetype starters.
+- ✅ Components: a new **Structure** category — **Apron rail** (floor), **Stretcher** (wall, round
+  rod), **Slat set** (floor, N slats across a span via one `count` param), **Drawer box** (floor,
+  open 5-panel carcass — geometry only, opens nothing), **Shelf pins** (wall, spaced support pair).
+  Now **17** fittings across 5 categories. Each 1–3 clamped params + metal/wood finish defaults.
+- ✅ Pure builders in `furniture/glbEdit/{templates,components}.ts` (unit-tested), rendered by the
+  existing `TemplatesPanel`/`ComponentsPanel` generically (no UI wiring change) — a template/placed
+  component is still just parts + a `PartGroup`, already covered by the v4+ envelope (no persistence
+  bump). Scenario `scripts/scenarios/glb-designer-stage6a.json`.
+
+### Stage 6b — Geometry ops II
+- **Shell/hollow** (wall thickness) on box/extrude → open-top carcass in one click
+  (CSG-based: auto inner-hole part, or true shell math).
+- **Loft** between two profiles (bottom/top) — tapered organic bodies.
+- **Free sweep path**: draw the sweep path in the 2D profile editor (not just presets).
+
+### Stage 6c — Materials II
+- **Per-face finishes on boxes** (top/side/edge) — tabletop veneer vs **edge banding**,
+  the board-construction realism cue from the Polyboard/SWOOD research.
+- **Texture scale + grain direction** per part (mat:<id> finishes): rotate/scale the
+  applied texture; grain follows the part's long axis by default.
+
+### Stage 6d — Precision II
+- **Face-to-face snapping while dragging** (magnetic surfaces, CAD-style): a dragged part
+  snaps flush to nearby part faces (within threshold), with visual snap hint.
+- **Pivot control**: numeric transform origin (corner/centre/face) for rotate/scale.
+
+### Stage 6e — Realism II
+- **Procedural fabric wrinkle normals** on plumped cushions (subtle noise normal map,
+  no bespoke art).
+- **Wood grain direction** control tied into 6c; grain continuity hint across parts.
+
+### Stage 6f — Performance
+- **Save-time GLB optimization**: route designer saves through the existing optimize
+  pipeline (weld/draco/UV atlas as applicable) — smaller stored assets.
+- **Context slicing** (the recorded scaling debt) if profiling shows panel re-render cost.
+- **Instanced preview** for array groups (N identical parts → InstancedMesh in preview).
+
+Each stage: same program rules (flags, pure+tested logic, worker rule, visual verification,
+docs, per-commit versioning) + stage-end adversarial review.

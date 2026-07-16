@@ -33,7 +33,7 @@ import { LATHE_PRESETS } from './shapeProfiles'
 export type ComponentMount = 'floor' | 'wall'
 
 /** Palette-grouping for the Components UI. */
-export type ComponentCategory = 'Legs' | 'Handles' | 'Feet' | 'Hinges'
+export type ComponentCategory = 'Legs' | 'Handles' | 'Feet' | 'Hinges' | 'Structure'
 
 /** One exposed numeric parameter (metres), clamped to `[min, max]`. */
 interface ComponentParam {
@@ -358,10 +358,120 @@ export const COMPONENT_LIBRARY: ComponentDef[] = [
       ]
     },
   },
+
+  // ---- Structure (rails, stretchers, slats, drawer boxes, shelf pins) ------
+  {
+    id: 'apron-rail',
+    name: 'Apron rail',
+    category: 'Structure',
+    // Floor mount — a flat rail hangs UNDER a surface (its top flush to the
+    // clicked underside), long axis along X.
+    mount: 'floor',
+    params: [
+      { key: 'length', label: 'Length (m)', min: 0.2, max: 1.2, step: 0.02, default: 0.4 },
+      { key: 'height', label: 'Height (m)', min: 0.03, max: 0.12, step: 0.005, default: 0.06 },
+    ],
+    build: ({ length, height }) => {
+      const thk = 0.02
+      return [mk('box', [length, height, thk], [0, -height / 2, 0], WOOD, { bevel: 0.004 })]
+    },
+  },
+  {
+    id: 'stretcher',
+    name: 'Stretcher',
+    category: 'Structure',
+    // Wall mount — a round rod tying two legs, long axis along X, protruding on
+    // +Z so it sits flush on the clicked leg face.
+    mount: 'wall',
+    params: [
+      { key: 'length', label: 'Length (m)', min: 0.2, max: 1.2, step: 0.02, default: 0.4 },
+      { key: 'diameter', label: '⌀ (m)', min: 0.015, max: 0.05, step: 0.005, default: 0.025 },
+    ],
+    build: ({ length, diameter }) => [
+      mk('cylinder', [diameter, length, diameter], [0, 0, 0], WOOD, { rotation: [0, 0, 90] }),
+    ],
+  },
+  {
+    id: 'slat-set',
+    name: 'Slat set',
+    category: 'Structure',
+    // Floor mount — a row of thin slats (bed base / bench top), distributed along
+    // the span (X), each running along Z, hanging just below the attach plane.
+    mount: 'floor',
+    params: [
+      { key: 'span', label: 'Span (m)', min: 0.4, max: 2.0, step: 0.05, default: 0.9 },
+      { key: 'length', label: 'Slat length (m)', min: 0.2, max: 1.0, step: 0.02, default: 0.4 },
+      { key: 'count', label: 'Slats', min: 3, max: 16, step: 1, default: 8 },
+    ],
+    build: ({ span, length, count }) => {
+      const n = Math.max(1, Math.round(count))
+      const thk = 0.03
+      const parts: ShapePart[] = []
+      for (let i = 0; i < n; i++) {
+        const x = -span / 2 + ((i + 0.5) * span) / n
+        parts.push(mk('box', [thk, thk, length], [x, -thk / 2, 0], WOOD, { bevel: 0.004 }))
+      }
+      return parts
+    },
+  },
+  {
+    id: 'drawer-box',
+    name: 'Drawer box',
+    category: 'Structure',
+    // Floor mount — an open-top drawer carcass (front + back + 2 sides + bottom),
+    // its rim flush to the attach plane, body hanging below. Geometry only (opens
+    // nothing).
+    mount: 'floor',
+    params: [
+      { key: 'width', label: 'Width (m)', min: 0.2, max: 0.8, step: 0.02, default: 0.4 },
+      { key: 'height', label: 'Height (m)', min: 0.08, max: 0.25, step: 0.01, default: 0.14 },
+      { key: 'depth', label: 'Depth (m)', min: 0.25, max: 0.6, step: 0.02, default: 0.45 },
+    ],
+    build: ({ width, height, depth }) => {
+      const t = 0.012
+      const midY = -height / 2
+      return [
+        // Sides.
+        mk('box', [t, height, depth], [-width / 2 + t / 2, midY, 0], WOOD),
+        mk('box', [t, height, depth], [width / 2 - t / 2, midY, 0], WOOD),
+        // Front + back.
+        mk('box', [width, height, t], [0, midY, depth / 2 - t / 2], WOOD),
+        mk('box', [width, height, t], [0, midY, -depth / 2 + t / 2], WOOD),
+        // Bottom panel.
+        mk('box', [width - t * 2, t, depth - t * 2], [0, -height + t / 2, 0], WOOD),
+      ]
+    },
+  },
+  {
+    id: 'shelf-pin-pair',
+    name: 'Shelf pins',
+    category: 'Structure',
+    // Wall mount — two small support pins protruding from a side panel (+Z), spaced
+    // front-to-back, to carry an adjustable shelf.
+    mount: 'wall',
+    params: [
+      { key: 'spacing', label: 'Spacing (m)', min: 0.1, max: 0.6, step: 0.02, default: 0.3 },
+      { key: 'diameter', label: '⌀ (m)', min: 0.005, max: 0.012, step: 0.001, default: 0.007 },
+    ],
+    build: ({ spacing, diameter }) => {
+      const len = 0.02
+      return [-1, 1].map((s) =>
+        mk('cylinder', [diameter, len, diameter], [(s * spacing) / 2, 0, len / 2], STEEL, {
+          rotation: [90, 0, 0],
+        }),
+      )
+    },
+  },
 ]
 
 /** Category display order for the palette. */
-export const COMPONENT_CATEGORIES: ComponentCategory[] = ['Legs', 'Handles', 'Feet', 'Hinges']
+export const COMPONENT_CATEGORIES: ComponentCategory[] = [
+  'Legs',
+  'Handles',
+  'Feet',
+  'Hinges',
+  'Structure',
+]
 
 /** Look up a component definition by id (null when unknown). */
 export function componentById(id: string): ComponentDef | null {

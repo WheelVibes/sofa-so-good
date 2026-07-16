@@ -26,8 +26,8 @@ function aabb(parts: ShapePart[]) {
 }
 
 describe('template library', () => {
-  it('exposes exactly 6 archetype starters with unique ids and 2–4 params each', () => {
-    expect(TEMPLATE_LIBRARY.length).toBe(6)
+  it('exposes exactly 10 archetype starters with unique ids and 2–4 params each', () => {
+    expect(TEMPLATE_LIBRARY.length).toBe(10)
     const ids = new Set<string>()
     for (const t of TEMPLATE_LIBRARY) {
       expect(ids.has(t.id)).toBe(false)
@@ -50,6 +50,10 @@ describe('template library', () => {
       'cabinet',
       'bed-frame',
       'sofa-frame',
+      'dining-chair',
+      'wardrobe',
+      'desk',
+      'tv-console',
     ]) {
       expect(templateById(id)).not.toBeNull()
     }
@@ -129,6 +133,74 @@ describe('template geometry tracks its params (bbox)', () => {
     const velvety = parts.filter((p) => matchingFinishPresetId(p) === 'velvet')
     expect(velvety.length).toBeGreaterThanOrEqual(2) // ≥ seat + back cushions
     for (const p of velvety) expect(p.sheen ?? 0).toBeGreaterThan(0)
+  })
+
+  it('dining chair reads as a chair: seat at the seat-height param, back above it, legs plumb', () => {
+    const seatH = 0.45
+    const backH = 0.9
+    const parts = buildTemplate(templateById('dining-chair')!, {
+      seatHeight: seatH,
+      seatWidth: 0.44,
+      seatDepth: 0.42,
+      backHeight: backH,
+    }).parts
+    const b = aabb(parts)
+    // A seat board sits at ~seat height (a thin, wide, deep box straddling seatH).
+    const seat = parts.find(
+      (p) =>
+        Math.abs(p.position[1] - (seatH - 0.02)) < 0.03 && p.size[0] > 0.35 && p.size[2] > 0.35,
+    )
+    expect(seat).toBeDefined()
+    // Seat height sits inside the ergonomic band.
+    expect(seatH).toBeGreaterThanOrEqual(0.42)
+    expect(seatH).toBeLessThanOrEqual(0.48)
+    // The backrest reaches above the seat, up to ~the back-height param.
+    expect(b.hi[1]).toBeGreaterThan(seatH + 0.2)
+    expect(b.hi[1]).toBeCloseTo(backH, 1)
+    // Legs reach the floor; nothing dips below it; footprint tracks the seat.
+    expect(b.lo[1]).toBeCloseTo(0, 2)
+    expect(b.w).toBeCloseTo(0.44, 1)
+  })
+
+  it('wardrobe is a tall carcass tracking width/height, with an interior rail', () => {
+    const parts = buildTemplate(templateById('wardrobe')!, {
+      width: 1.0,
+      height: 2.1,
+      depth: 0.58,
+      doors: 3,
+    }).parts
+    // The rail is a horizontal cylinder (its size[1] is its LENGTH, not its
+    // vertical extent), so measure the carcass from the axis-aligned box parts.
+    const b = aabb(parts.filter((p) => p.kind === 'box'))
+    expect(b.hi[1]).toBeCloseTo(2.1, 1)
+    expect(b.w).toBeCloseTo(1.0, 1)
+    // A horizontal steel cylinder near the top is the hanging rail.
+    const rail = parts.find((p) => p.kind === 'cylinder' && (p.metalness ?? 0) > 0.5)
+    expect(rail).toBeDefined()
+    expect(rail!.position[1]).toBeGreaterThan(2.1 * 0.8)
+  })
+
+  it('desk top sits at the height param with a drawer pedestal on one side', () => {
+    const few = buildTemplate(templateById('desk')!, { drawers: 2 }).parts.length
+    const many = buildTemplate(templateById('desk')!, { drawers: 3 }).parts.length
+    expect(many).toBeGreaterThan(few) // more drawers → more fronts + pulls
+    const parts = buildTemplate(templateById('desk')!, {
+      width: 1.4,
+      depth: 0.7,
+      height: 0.74,
+    }).parts
+    const b = aabb(parts)
+    expect(b.hi[1]).toBeCloseTo(0.74, 2)
+    expect(b.w).toBeCloseTo(1.4, 1)
+    expect(b.lo[1]).toBeCloseTo(0, 2)
+  })
+
+  it('tv console is low (0.4–0.6 m) and tracks its width', () => {
+    const b = aabb(buildTemplate(templateById('tv-console')!, { width: 1.4, height: 0.5 }).parts)
+    expect(b.hi[1]).toBeCloseTo(0.5, 2)
+    expect(b.hi[1]).toBeLessThan(0.6)
+    expect(b.w).toBeCloseTo(1.4, 1)
+    expect(b.lo[1]).toBeCloseTo(0, 2)
   })
 })
 

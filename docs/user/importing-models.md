@@ -67,8 +67,9 @@ No model to import? Open the **3D asset designer** (⌘K → "Design a 3D asset"
 build one in the browser:
 
 - **Templates** — the fastest start: the **Templates** section offers ready-made pieces —
-  **Dining table**, **Coffee table**, **Bookshelf**, **Cabinet**, **Bed frame** and **Sofa
-  frame**. Tap one and a small panel opens with 2–4 dimension sliders (each shows its unit, the
+  **Dining table**, **Coffee table**, **Bookshelf**, **Cabinet**, **Bed frame**, **Sofa
+  frame**, **Dining chair**, **Wardrobe**, **Desk** and **TV console**. Tap one and a small panel
+  opens with 2–4 dimension sliders (each shows its unit, the
   allowed range and a hint naming the standard — e.g. *"Standard dining height 0.75 m"*), and the
   **preview updates live** as you drag. The dimensions are clamped to sensible furniture sizes, so
   the proportions always look right. Tap **Use template** to drop its **editable parts** into your
@@ -154,7 +155,9 @@ build one in the browser:
   separate; a Combine fuses them with a boolean. A shape can be in one of each.
 - **Components (fittings)** — the **Components** panel is a library of ready-made hardware:
   **Legs** (Tapered / Round / Square / Hairpin / Angled), **Handles** (Bar pull / Arc pull /
-  Round knob / Recessed pull), **Feet** (Dome foot / Puck foot / Castor) and a **Butt hinge**.
+  Round knob / Recessed pull), **Feet** (Dome foot / Puck foot / Castor), a **Butt hinge**, and
+  **Structure** parts (Apron rail / Stretcher / Slat set / Drawer box / Shelf pins) for the frame
+  and internals of a piece.
   Tap one to **arm** it — a panel opens with 1–3 sliders (height, width, length…) and a hint.
   Now **click a surface in the preview** to drop the fitting there: it snaps to the face and
   orients itself automatically — a leg dropped on a tabletop's **underside** (or the floor)

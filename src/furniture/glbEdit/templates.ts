@@ -335,6 +335,203 @@ function buildSofa(w: number, d: number, seatH: number): TemplateResult {
 }
 
 // ============================================================================
+// Dining chair — seat board + reclined back (posts + rail) + 4 legs + apron
+// ============================================================================
+
+function buildChair(seatH: number, seatW: number, seatD: number, backH: number): TemplateResult {
+  const parts: ShapePart[] = []
+  const seatT = 0.04
+  const legW = 0.04
+  const legInset = 0.045
+  const apronH = 0.06
+  const apronT = 0.02
+  const postW = 0.04
+  const postT = 0.035
+  const reclineDeg = 8 // slight backward lean (5–10°) for lumbar comfort
+  const boardT = 0.03
+  const underside = seatH - seatT
+  const halfW = seatW / 2 - legInset
+  const halfD = seatD / 2 - legInset
+  // Four square legs, floor → seat underside.
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      parts.push(
+        ...fitting('leg-straight-square', { height: Math.max(0.06, underside), width: legW }, [
+          sx * halfW,
+          underside,
+          sz * halfD,
+        ]),
+      )
+    }
+  }
+  // Seat board.
+  parts.push(box([seatW, seatT, seatD], [0, seatH - seatT / 2, 0], WOOD, { bevel: 0.008 }))
+  // Apron rails just under the seat, tying the legs together (front/back along X,
+  // sides along Z).
+  const apronY = underside - apronH / 2
+  for (const sz of [-1, 1]) {
+    parts.push(box([2 * halfW, apronH, apronT], [0, apronY, sz * halfD], WOOD))
+  }
+  for (const sx of [-1, 1]) {
+    parts.push(box([apronT, apronH, 2 * halfD], [sx * halfW, apronY, 0], WOOD))
+  }
+  // Two rear posts rising from the seat to the back height, reclined slightly.
+  const postH = backH - seatH
+  const postY = (backH + seatH) / 2
+  const postZ = -halfD
+  const recline: [number, number, number] = [-reclineDeg, 0, 0]
+  for (const sx of [-1, 1]) {
+    parts.push(
+      box([postW, postH, postT], [sx * halfW, postY, postZ], DARK_WOOD, { rotation: recline }),
+    )
+  }
+  // Lumbar/top back board spanning the posts, in the upper part of the back.
+  const boardH = Math.min(0.16, postH * 0.5)
+  const boardY = backH - boardH / 2 - 0.03
+  parts.push(
+    box([2 * halfW + postW, boardH, boardT], [0, boardY, postZ], DARK_WOOD, {
+      rotation: recline,
+      bevel: 0.01,
+    }),
+  )
+  return wrap(parts, 'Dining chair')
+}
+
+// ============================================================================
+// Wardrobe — plinth + tall carcass + N doors (bar pulls) + interior rail
+// ============================================================================
+
+function buildWardrobe(w: number, h: number, d: number, doors: number): TemplateResult {
+  const parts: ShapePart[] = []
+  const n = clamp(Math.round(doors), 2, 3)
+  const plinthH = 0.08
+  const plinthInset = 0.03
+  parts.push(
+    box([w - 2 * plinthInset, plinthH, d - 2 * plinthInset], [0, plinthH / 2, 0], DARK_WOOD),
+  )
+  const bottom = plinthH
+  const carcassH = h - bottom
+  const innerW = w - PANEL_T * 2
+  for (const sx of [-1, 1]) {
+    parts.push(
+      box([PANEL_T, carcassH, d], [sx * (w / 2 - PANEL_T / 2), bottom + carcassH / 2, 0], WOOD),
+    )
+  }
+  parts.push(box([innerW, PANEL_T, d], [0, h - PANEL_T / 2, 0], WOOD))
+  parts.push(box([innerW, PANEL_T, d], [0, bottom + PANEL_T / 2, 0], WOOD))
+  parts.push(box([innerW, carcassH, BACK_T], [0, bottom + carcassH / 2, -d / 2 + BACK_T / 2], WOOD))
+  // Interior hanging rail (a steel cylinder spanning the inner width near the top).
+  parts.push({
+    id: newPartId(),
+    kind: 'cylinder',
+    size: [0.025, innerW, 0.025],
+    position: [0, h - 0.16, -0.02],
+    rotation: [0, 0, 90],
+    color: '#c4c8ce',
+    roughness: 0.3,
+    metalness: 0.9,
+  })
+  // Doors + a bar pull each (hinge on the outer edge, pull on the inner).
+  const doorH = carcassH - 2 * REVEAL
+  const doorY = bottom + REVEAL + doorH / 2
+  const leafW = (innerW - REVEAL * (n - 1)) / n
+  const frontZ = d / 2
+  for (let i = 0; i < n; i++) {
+    const lx = -innerW / 2 + leafW / 2 + i * (leafW + REVEAL)
+    parts.push(box([leafW - REVEAL, doorH, DOOR_T], [lx, doorY, frontZ + DOOR_T / 2], PANEL))
+    const hinge = i < n / 2 ? 1 : -1
+    parts.push(
+      ...fitting('handle-bar-pull', { length: 0.12, standoff: 0.03 }, [
+        lx + hinge * (leafW / 2 - 0.05),
+        doorY,
+        frontZ + DOOR_T,
+      ]),
+    )
+  }
+  return wrap(parts, 'Wardrobe')
+}
+
+// ============================================================================
+// Desk — top + one drawer pedestal (stacked fronts + pulls) + 2 legs opposite
+// ============================================================================
+
+function buildDesk(w: number, d: number, h: number, drawers: number): TemplateResult {
+  const parts: ShapePart[] = []
+  const n = clamp(Math.round(drawers), 2, 3)
+  const topT = 0.03
+  parts.push(box([w, topT, d], [0, h - topT / 2, 0], WOOD, { bevel: 0.008 }))
+  const underside = h - topT
+  // Pedestal carcass on the +X side.
+  const pedW = Math.min(0.42, w * 0.32)
+  const pedX = w / 2 - pedW / 2
+  parts.push(box([pedW, underside, d], [pedX, underside / 2, 0], PANEL))
+  // Stacked drawer fronts + a bar pull each on the pedestal front (+Z).
+  const area = underside - 2 * REVEAL
+  const drawerH = (area - REVEAL * (n - 1)) / n
+  const frontZ = d / 2
+  for (let i = 0; i < n; i++) {
+    const y = REVEAL + drawerH / 2 + i * (drawerH + REVEAL)
+    parts.push(
+      box([pedW - 2 * REVEAL, drawerH - REVEAL, DOOR_T], [pedX, y, frontZ + DOOR_T / 2], PANEL),
+    )
+    parts.push(
+      ...fitting('handle-bar-pull', { length: Math.min(0.16, pedW * 0.5), standoff: 0.028 }, [
+        pedX,
+        y,
+        frontZ + DOOR_T,
+      ]),
+    )
+  }
+  // Two square legs on the −X side, floor → top underside.
+  const legInset = 0.05
+  for (const sz of [-1, 1]) {
+    parts.push(
+      ...fitting('leg-straight-square', { height: Math.max(0.06, underside), width: 0.05 }, [
+        -(w / 2 - legInset),
+        underside,
+        sz * (d / 2 - legInset),
+      ]),
+    )
+  }
+  return wrap(parts, 'Desk')
+}
+
+// ============================================================================
+// TV console — low open carcass + one shelf + short tapered legs
+// ============================================================================
+
+function buildTvConsole(w: number, d: number, h: number): TemplateResult {
+  const parts: ShapePart[] = []
+  const legH = 0.12 // the tapered-leg component's minimum height
+  const legInset = 0.06
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      parts.push(
+        ...fitting('leg-tapered-round', { height: legH, diameter: 0.05 }, [
+          sx * (w / 2 - legInset),
+          legH,
+          sz * (d / 2 - legInset),
+        ]),
+      )
+    }
+  }
+  const bottom = legH
+  const carcassH = h - bottom
+  const innerW = w - PANEL_T * 2
+  for (const sx of [-1, 1]) {
+    parts.push(
+      box([PANEL_T, carcassH, d], [sx * (w / 2 - PANEL_T / 2), bottom + carcassH / 2, 0], WOOD),
+    )
+  }
+  parts.push(box([innerW, PANEL_T, d], [0, h - PANEL_T / 2, 0], WOOD))
+  parts.push(box([innerW, PANEL_T, d], [0, bottom + PANEL_T / 2, 0], WOOD))
+  parts.push(box([innerW, carcassH, BACK_T], [0, bottom + carcassH / 2, -d / 2 + BACK_T / 2], WOOD))
+  // One open middle shelf → two open display bays (a media unit, not a cabinet).
+  parts.push(box([innerW, PANEL_T, d - BACK_T], [0, bottom + carcassH / 2, BACK_T / 2], WOOD))
+  return wrap(parts, 'TV console')
+}
+
+// ============================================================================
 // The library
 // ============================================================================
 
@@ -601,6 +798,188 @@ export const TEMPLATE_LIBRARY: TemplateDef[] = [
     ],
     build: (p) => buildSofa(p.width, p.depth, p.seatHeight),
   },
+  {
+    id: 'dining-chair',
+    name: 'Dining chair',
+    category: 'seating',
+    params: [
+      {
+        key: 'seatHeight',
+        label: 'Seat height',
+        unit: 'm',
+        min: 0.42,
+        max: 0.48,
+        step: 0.01,
+        default: 0.45,
+        hint: 'Dining seat height 0.42–0.48 m (pairs a 0.75 m table)',
+      },
+      {
+        key: 'seatWidth',
+        label: 'Seat width',
+        unit: 'm',
+        min: 0.4,
+        max: 0.5,
+        step: 0.01,
+        default: 0.44,
+        hint: 'Seat width 0.40–0.50 m fits an adult',
+      },
+      {
+        key: 'seatDepth',
+        label: 'Seat depth',
+        unit: 'm',
+        min: 0.38,
+        max: 0.45,
+        step: 0.01,
+        default: 0.42,
+        hint: 'Seat depth 0.38–0.45 m supports the thighs',
+      },
+      {
+        key: 'backHeight',
+        label: 'Back height',
+        unit: 'm',
+        min: 0.8,
+        max: 1.0,
+        step: 0.01,
+        default: 0.9,
+        hint: 'Backrest top 0.80–1.00 m from the floor',
+      },
+    ],
+    build: (p) => buildChair(p.seatHeight, p.seatWidth, p.seatDepth, p.backHeight),
+  },
+  {
+    id: 'wardrobe',
+    name: 'Wardrobe',
+    category: 'storage',
+    params: [
+      {
+        key: 'width',
+        label: 'Width',
+        unit: 'm',
+        min: 0.6,
+        max: 1.8,
+        step: 0.05,
+        default: 0.9,
+        hint: 'Each door leaf stays under 0.6 m',
+      },
+      {
+        key: 'height',
+        label: 'Height',
+        unit: 'm',
+        min: 1.8,
+        max: 2.4,
+        step: 0.05,
+        default: 2.0,
+        hint: 'Wardrobes stand 1.8–2.4 m; leave a ceiling reach',
+      },
+      {
+        key: 'depth',
+        label: 'Depth',
+        unit: 'm',
+        min: 0.5,
+        max: 0.65,
+        step: 0.01,
+        default: 0.58,
+        hint: '0.55–0.60 m clears a hanger on the rail',
+      },
+      {
+        key: 'doors',
+        label: 'Doors',
+        unit: 'doors',
+        min: 2,
+        max: 3,
+        step: 1,
+        default: 2,
+        hint: 'Two or three hinged leaves',
+      },
+    ],
+    build: (p) => buildWardrobe(p.width, p.height, p.depth, p.doors),
+  },
+  {
+    id: 'desk',
+    name: 'Desk',
+    category: 'tables',
+    params: [
+      {
+        key: 'width',
+        label: 'Width',
+        unit: 'm',
+        min: 1.0,
+        max: 1.8,
+        step: 0.05,
+        default: 1.4,
+        hint: 'Desks run 1.2–1.6 m wide',
+      },
+      {
+        key: 'depth',
+        label: 'Depth',
+        unit: 'm',
+        min: 0.6,
+        max: 0.8,
+        step: 0.02,
+        default: 0.7,
+        hint: '0.6–0.8 m deep clears a monitor arm',
+      },
+      {
+        key: 'height',
+        label: 'Height',
+        unit: 'm',
+        min: 0.72,
+        max: 0.76,
+        step: 0.01,
+        default: 0.74,
+        hint: 'Standard desk height 0.72–0.76 m',
+      },
+      {
+        key: 'drawers',
+        label: 'Drawers',
+        unit: 'drawers',
+        min: 2,
+        max: 3,
+        step: 1,
+        default: 3,
+        hint: 'Pedestal holds two or three drawers',
+      },
+    ],
+    build: (p) => buildDesk(p.width, p.depth, p.height, p.drawers),
+  },
+  {
+    id: 'tv-console',
+    name: 'TV console',
+    category: 'storage',
+    params: [
+      {
+        key: 'width',
+        label: 'Width',
+        unit: 'm',
+        min: 1.0,
+        max: 1.8,
+        step: 0.05,
+        default: 1.4,
+        hint: 'Wider than the TV stand base (1.2–1.8 m)',
+      },
+      {
+        key: 'depth',
+        label: 'Depth',
+        unit: 'm',
+        min: 0.35,
+        max: 0.5,
+        step: 0.01,
+        default: 0.4,
+        hint: '0.35–0.50 m deep holds media boxes',
+      },
+      {
+        key: 'height',
+        label: 'Height',
+        unit: 'm',
+        min: 0.4,
+        max: 0.6,
+        step: 0.01,
+        default: 0.5,
+        hint: 'Screen centre near seated eye level (0.4–0.6 m)',
+      },
+    ],
+    build: (p) => buildTvConsole(p.width, p.depth, p.height),
+  },
 ]
 
 /** A `ParametricPart` (box role) → designer `ShapePart` adapter — the bookshelf
@@ -640,7 +1019,8 @@ export function resolveTemplateParams(
     const v = typeof raw === 'number' && Number.isFinite(raw) ? raw : p.default
     const clamped = clamp(v, p.min, p.max)
     // Integer / preset params snap to whole steps.
-    const isInt = !!p.presetLabels || p.unit === 'shelves' || p.unit === 'doors'
+    const isInt =
+      !!p.presetLabels || p.unit === 'shelves' || p.unit === 'doors' || p.unit === 'drawers'
     out[p.key] = isInt ? Math.round(clamped) : clamped
   }
   return out

@@ -35,7 +35,8 @@ export function TemplatesPanel() {
    *  with its unit. */
   const format = (p: TemplateParam) => (v: number) => {
     if (p.presetLabels) return p.presetLabels[Math.round(v)] ?? String(v)
-    if (p.unit === 'shelves' || p.unit === 'doors') return `${Math.round(v)} ${p.unit}`
+    if (p.unit === 'shelves' || p.unit === 'doors' || p.unit === 'drawers')
+      return `${Math.round(v)} ${p.unit}`
     return `${v.toFixed(2)}${p.unit ? ` ${p.unit}` : ''}`
   }
 

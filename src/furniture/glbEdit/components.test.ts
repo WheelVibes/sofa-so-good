@@ -21,9 +21,9 @@ function partBox(p: ShapePart) {
 const VALID_KINDS = new Set<string>([...SHAPE_KINDS])
 
 describe('component library', () => {
-  it('exposes a curated set (12–14) grouped into the four categories', () => {
-    expect(COMPONENT_LIBRARY.length).toBeGreaterThanOrEqual(12)
-    expect(COMPONENT_LIBRARY.length).toBeLessThanOrEqual(14)
+  it('exposes a curated set (17–19) grouped into the five categories', () => {
+    expect(COMPONENT_LIBRARY.length).toBeGreaterThanOrEqual(17)
+    expect(COMPONENT_LIBRARY.length).toBeLessThanOrEqual(19)
     const cats = new Set(COMPONENT_LIBRARY.map((c) => c.category))
     for (const c of COMPONENT_CATEGORIES) expect(cats.has(c)).toBe(true)
   })
@@ -88,6 +88,35 @@ describe('component library', () => {
     const bottom = Math.min(...parts.map((p) => partBox(p).minY))
     expect(bottom).toBeLessThanOrEqual(-0.45)
     expect(bottom).toBeGreaterThanOrEqual(-0.55)
+  })
+
+  it('slat set builds one box per slat (count → part count)', () => {
+    const def = componentById('slat-set')!
+    expect(buildComponentParts(def, { count: 4 }).length).toBe(4)
+    expect(buildComponentParts(def, { count: 10 }).length).toBe(10)
+    // A fractional/garbage count rounds to a whole number of slats.
+    expect(buildComponentParts(def, { count: 6.4 }).length).toBe(6)
+  })
+
+  it('drawer box is a 5-part open carcass (front + back + 2 sides + bottom)', () => {
+    const parts = buildComponentParts(componentById('drawer-box')!, {
+      width: 0.4,
+      height: 0.14,
+      depth: 0.45,
+    })
+    expect(parts.length).toBe(5)
+    // Rim flush to the attach plane (top at y≈0), body hanging below.
+    const top = Math.max(...parts.map((p) => p.position[1] + p.size[1] / 2))
+    const bottom = Math.min(...parts.map((p) => p.position[1] - p.size[1] / 2))
+    expect(top).toBeLessThanOrEqual(0.01)
+    expect(bottom).toBeCloseTo(-0.14, 2)
+  })
+
+  it('shelf pins are a pair spaced by the spacing param', () => {
+    const parts = buildComponentParts(componentById('shelf-pin-pair')!, { spacing: 0.4 })
+    expect(parts.length).toBe(2)
+    const xs = parts.map((p) => p.position[0]).sort((a, b) => a - b)
+    expect(xs[1] - xs[0]).toBeCloseTo(0.4, 3)
   })
 
   it('clamps out-of-range params to the declared bounds', () => {
