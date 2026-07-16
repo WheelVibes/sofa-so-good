@@ -77,4 +77,12 @@ Pet-type keyword curation + catalog tab ordering; room-aware mapping (service ya
 balcony → pets surfaced); user docs page; showcase scenario (a pet-ready 4-room flat:
 meshed windows, gated kitchen, cat wall run, litter in service yard); stage-end review.
 
-**Status:** planned 2026-07-17; P1 in progress.
+**Status:** planned 2026-07-17. **P1 SHIPPED** 2026-07-17 — `pets` category across all
+exhaustive Record sites + paw `CategoryIcon` + plan-cat colour; `petFittings` flag (simple
+tier, gates the tab via `useUnifiedCatalog`'s `includePets`); pet-bed migrated decor→pets (id
+unchanged); window/balcony mesh screen (`windowBound`, alpha-mapped canvas grid texture in
+`primitives/meshGridTexture.ts` reading as ≤5 cm safety mesh); NEW `doorBound` plumbing
+(`placement/doorSnap.ts:snapToNearestDoor`/`doorFixtureProps` + threaded through
+usePlacementController/PlacementGhost/FloorPlanEditor); doorway pet gate + pet-door insert
+(`doorBound`); freestanding playpen (4–8 panels). Tests: `doorSnap.test.ts`,
+`defs/pets.test.ts`, `flags/petFittings.test.ts`, updated `categories`/`windowSnap` tests.

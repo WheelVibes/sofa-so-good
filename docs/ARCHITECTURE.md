@@ -339,6 +339,22 @@ same change that reshapes a system.
   unmapped/whole-flat view leaves today's persisted default untouched. This only changes the
   DEFAULT landing tab — the CategoryTabs order, search, filters, and favourites/recent are
   unchanged. Flag off → today's behaviour exactly.
+  **Pet fittings** (Pet program P1, `petFittings` flag, tier: **simple**, default on): the `pets`
+  `FurnitureCategory` (16th value) collects pet beds, safety fittings and pet furniture. The flag
+  gates the tab via `useUnifiedCatalog(includeRemote, includeShared, includePets)` — off zeroes the
+  pets block so the tab hides and its cards never surface (grid/search/favourites/recent). Two
+  fitting kinds snap to the plan like curtains do to windows: the **window/balcony mesh screen**
+  (`windowBound`; a slim frame + an alpha-mapped canvas grid texture in
+  `primitives/meshGridTexture.ts` that reads as ≤5 cm safety mesh — the SG Cat Management Framework
+  fitting), and — via **NEW `doorBound` plumbing** — the **pet gate** + **pet-door insert**, which
+  snap across the nearest **door** opening. `doorBound` is the door analog of `windowBound`:
+  `furniture/placement/doorSnap.ts:snapToNearestDoor`/`doorFixtureProps` (a clone of `windowSnap`
+  filtering `kind==='door'`, floor-anchored, spanning `op.width`) threaded through the same three
+  surfaces windowBound uses — `usePlacementController` (`commitDoorBound`), `scene/PlacementGhost`
+  preview, and the plan editor (`planFurnishPlacement.ts:buildPlanDoorGhostItem`/`planHasDoor`,
+  wired in `FloorPlanEditor`) — and every "static fixture" gate (`Furniture.tsx` drag, inspector
+  Transform sections, plan `FurnitureLayer`/`FurnitureRotateHandle`) now checks
+  `windowBound || doorBound`. The **playpen** is an ordinary freestanding item (`frontClearance`).
   **Stable order across download** (STABLE-CATALOG-ORDER, in `useUnifiedCatalog.ts`): each category
   lists a leading local block, then the remote CC0 block, then the shared-library block — and a card
   never jumps blocks when it's downloaded. When a remote entry's `provider:slug` resolves to a local

@@ -141,10 +141,24 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   unit. Gated by the `cabinetOpen` flag (simple tier — a furnish/view delight, not an analytical
   tool). The inspector control lives in `ui/inspector/ParametricBody.tsx`, shown only when the flag
   is on AND `supportsCabinetOpen(def)`.
-- **Categories**: 15 `FurnitureCategory` values. A new one must update the union,
+- **Categories**: 16 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected
-  for imports, **never** typed by hand.
+  for imports, **never** typed by hand. The `pets` category (Pet program) is gated behind the
+  `petFittings` flag: `useUnifiedCatalog(includeRemote, includeShared, includePets)` zeroes the
+  pets block when off so the tab hides + its cards never surface (browse/search/favourites).
+- **Door-bound fixtures (`def.doorBound`, DOOR-FIXTURE)** — pet gates, pet-door inserts, and any
+  fixture that spans a doorway — are the door analog of `windowBound` (above): placed ONLY on a
+  door opening, static once placed (inspector hides Transform, scene drag blocked, 2D plan
+  gating mirrored), and at placement **snap to the nearest door** via the pure
+  `placement/doorSnap.ts:snapToNearestDoor(walls, openings, dropPos)` (a clone of `windowSnap`
+  filtering `kind==='door'`, spanning `op.width`, floor-anchored at the opening). Threaded through
+  the SAME three call sites windowBound uses — `usePlacementController` commit (`commitDoorBound`),
+  `scene/PlacementGhost` preview, and the plan editor (`planFurnishPlacement.ts:buildPlanDoorGhostItem`
+  + `planHasDoor`, wired in `FloorPlanEditor`). `doorFixtureProps(defId, door)` spans the fixture
+  to the doorway. Every `windowBound` gate that means "static fixture" (`Furniture.tsx` drag,
+  `ItemActionButtons`/`InspectorPanel`/`PlanFurnitureInspector` Transform, `FurnitureLayer`/
+  `FurnitureRotateHandle`) now also checks `|| def.doorBound`.
 - **Per-part finish** of any GLB: a placed item's `props['finish:<materialOrMeshName>']` re-skins that
   named group — value is either a hex `#colour` (retints the part's own material, keeping its maps) OR a
   material token (`wood`/`marble`/`stone`/`metal`/`rattan`/`concrete`/`painted`/`gloss`/`mat:<id>`,

@@ -104,7 +104,7 @@ export function InspectorPanel() {
                   style={{ flex: 1, minWidth: 0 }}
                 />
               </label>
-              {proMode && !def.windowBound ? (
+              {proMode && !(def.windowBound || def.doorBound) ? (
                 <InspectorSection
                   title="Transform"
                   defaultOpen

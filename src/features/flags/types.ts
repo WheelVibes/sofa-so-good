@@ -162,6 +162,7 @@ export type FeatureFlag =
   | 'glbDesigner'
   | 'assetConfigurableExport'
   | 'assetSets'
+  | 'petFittings'
   | 'profiler'
 
 export interface FlagDef {

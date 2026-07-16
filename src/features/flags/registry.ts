@@ -617,6 +617,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // tool — biggest win on mobile where WASD/drag-walking across a whole flat
   // is slow (RoomSketcher/Coohom tour parity). Pure code, no external assets
   // → prod-safe; simple tier like its `walkScreens`/`walkLights` siblings.
+  // Pet fittings & furniture catalog category (Pet program). Adds the `pets`
+  // catalog tab — pet beds, safety window/balcony mesh screens, doorway pet
+  // gates, pet-door inserts, playpens (procedural, real-metre, structurally
+  // sound). Pure procedural geometry, no external assets → prod-safe. Placing
+  // pet furniture is part of the core furnish loop (many SG homes have pets;
+  // the window-mesh screen is a Cat-Management-Framework compliance fitting) →
+  // simple tier. When off, the `pets` category is hidden from the catalog.
+  petFittings: {
+    label: 'Pet fittings',
+    description: 'Pet beds, safety window mesh screens, doorway gates, pet doors & playpens',
+    default: true,
+    tier: 'simple',
+  },
   minimapTeleport: {
     label: 'Minimap tap-to-teleport',
     description: 'Click or tap a spot on the walk-mode minimap to move there instantly',

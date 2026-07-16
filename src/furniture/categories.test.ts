@@ -18,14 +18,15 @@ describe('FurnitureCategory', () => {
       'outdoor',
       'electronics',
       'kids',
+      'pets',
       'laundry',
       'others',
     ] as const) {
       expect(FURNITURE_CATEGORIES).toContain(c)
     }
   })
-  it('has 15 categories', () => {
-    expect(FURNITURE_CATEGORIES).toHaveLength(15)
+  it('has 16 categories', () => {
+    expect(FURNITURE_CATEGORIES).toHaveLength(16)
   })
   it('lists others last (catch-all sorts to the end)', () => {
     expect(FURNITURE_CATEGORIES[FURNITURE_CATEGORIES.length - 1]).toBe('others')

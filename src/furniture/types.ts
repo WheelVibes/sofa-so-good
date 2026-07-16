@@ -31,6 +31,7 @@ export type FurnitureCategory =
   | 'outdoor'
   | 'electronics'
   | 'kids'
+  | 'pets'
   | 'laundry'
   | 'others'
 
@@ -48,6 +49,7 @@ export const FURNITURE_CATEGORIES: readonly FurnitureCategory[] = [
   'outdoor',
   'electronics',
   'kids',
+  'pets',
   'laundry',
   'others',
 ]
@@ -162,6 +164,10 @@ export type PrimitiveKind =
   | 'PhotoFrameCluster'
   | 'TrailingPlant'
   | 'DecorTray'
+  | 'WindowMeshScreen'
+  | 'PetGate'
+  | 'PetDoorInsert'
+  | 'PetPlaypen'
 
 export type ParamField =
   | {
@@ -244,6 +250,11 @@ interface FurnitureDefBase {
    *  window — no move/rotate/flip (the inspector hides those + drag is blocked).
    *  Customisation (size/colour/texture/draw) still applies. */
   windowBound?: boolean
+  /** Door-bound fixture (pet gates / pet-door inserts): statically placed across
+   *  a door opening — no move/rotate/flip (the inspector hides those + drag is
+   *  blocked, exactly like `windowBound`). At placement it snaps to the nearest
+   *  door opening, sized to span it. Customisation (size/colour/style) still applies. */
+  doorBound?: boolean
   /** Clear floor (m) the layout must preserve in front of this piece; from IKEA design semantics. */
   frontClearance?: number
   /**

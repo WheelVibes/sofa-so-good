@@ -20,6 +20,7 @@ export const CATEGORY_COLORS: Record<FurnitureCategory, string> = {
   outdoor: '#84cc16',
   electronics: '#0ea5e9',
   kids: '#d946ef',
+  pets: '#f472b6',
   laundry: '#14b8a6',
   others: '#9ca3af',
 }

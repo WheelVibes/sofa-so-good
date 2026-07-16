@@ -178,12 +178,13 @@ export function CatalogDrawer() {
   // client-side filtering of the merged grid, gated by `catalogFilters` (simple
   // tier). State is component-local + ephemeral (never persisted).
   const fCatalogFilters = useFeature('catalogFilters')
+  const fPetFittings = useFeature('petFittings')
   const [filter, setFilter] = useState<CatalogFilter>(DEFAULT_CATALOG_FILTER)
   const favouriteDefIds = useStore(useShallow((s) => s.favouriteDefIds))
   const favIds = useMemo(() => new Set(favouriteDefIds), [favouriteDefIds])
   const [fitsOnly, setFitsOnly] = useState(false)
   const ambientFx = useAmbientFx()
-  const unified = useUnifiedCatalog(fRemoteFurniture, sharedOn)
+  const unified = useUnifiedCatalog(fRemoteFurniture, sharedOn, fPetFittings)
   // The real category to land on from a "Browse furniture" CTA (favourites/
   // recent/empty-category empty states) — the first real category that
   // actually has cards, so the CTA never lands on another empty tab. Labelled

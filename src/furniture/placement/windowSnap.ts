@@ -142,6 +142,15 @@ export function windowFixtureProps(
       sillY: win.sill,
     }
   }
+  if (defId === 'window-mesh-screen') {
+    // Cover the whole opening (+ a small overhang each side so there is no gap
+    // for a cat to slip through), from the sill to the head. Internal mounting.
+    return {
+      width: clamp(win.width + 0.06, 0.4, 3.4),
+      sillY: clamp(win.sill, 0, 2.4),
+      topY: clamp(win.head, 0.3, 3.2),
+    }
+  }
   if (defId === 'roller-blind') {
     const top = clamp(win.head + 0.12, 1.8, 2.7)
     // Cover from just above the head down to just below the sill.

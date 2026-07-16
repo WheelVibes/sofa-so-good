@@ -119,7 +119,7 @@ export function FurnitureLayer({
                 // window — selectable (to inspect/unlock/resize) but never moved,
                 // exactly like the 3D scene (`Furniture.tsx` `shouldBeginItemDrag`).
                 // Dragging one would detach it from its window.
-                if (def.windowBound) return
+                if (def.windowBound || def.doorBound) return
                 const [wx, wz] = pointerWorld(e)
                 st.pushHistory()
                 setMovingItem({ id: it.id, gx: wx - it.position[0], gz: wz - it.position[1] })

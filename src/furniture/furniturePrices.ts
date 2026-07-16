@@ -21,6 +21,7 @@ const CATEGORY_BASE: Record<FurnitureCategory, number> = {
   outdoor: 300,
   electronics: 120,
   kids: 80,
+  pets: 90,
   laundry: 60,
   others: 100,
 }
@@ -90,7 +91,6 @@ export const ITEM_PRICE: Record<string, number> = {
   'cove-light': 110,
   // Decor
   aquarium: 450,
-  'pet-bed': 60,
   'potted-plant': 70,
   'wall-art': 90,
   'wall-tapestry': 70,
@@ -148,6 +148,12 @@ export const ITEM_PRICE: Record<string, number> = {
   'photo-frame-cluster': 50,
   'trailing-plant': 55,
   'decor-tray': 45,
+  // Pets
+  'pet-bed': 60,
+  'window-mesh-screen': 120,
+  'pet-gate': 85,
+  'pet-door-insert': 95,
+  'pet-playpen': 130,
 }
 
 /** Estimated price (SGD) for one item. For an IKEA def the per-INSTANCE variant

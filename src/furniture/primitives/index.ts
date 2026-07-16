@@ -68,6 +68,9 @@ import { OutdoorParasol } from './OutdoorParasol'
 import { OutdoorTable } from './OutdoorTable'
 import { Oven } from './Oven'
 import { PetBed } from './PetBed'
+import { PetDoorInsert } from './PetDoorInsert'
+import { PetGate } from './PetGate'
+import { PetPlaypen } from './PetPlaypen'
 import { PhotoFrameCluster } from './PhotoFrameCluster'
 import { Piano } from './Piano'
 import { PlanterTrough } from './PlanterTrough'
@@ -109,6 +112,7 @@ import { WallShelf } from './WallShelf'
 import { WallTapestry } from './WallTapestry'
 import { Wardrobe } from './Wardrobe'
 import { WashingMachine } from './WashingMachine'
+import { WindowMeshScreen } from './WindowMeshScreen'
 import { WineCooler } from './WineCooler'
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>
@@ -219,4 +223,8 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   PhotoFrameCluster,
   TrailingPlant,
   DecorTray,
+  WindowMeshScreen,
+  PetGate,
+  PetDoorInsert,
+  PetPlaypen,
 }

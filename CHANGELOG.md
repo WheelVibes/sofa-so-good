@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.72 — Pets P1: pets category + SG compliance fittings
+
+Foundations + the Singapore-differentiating fittings: new `pets` FurnitureCategory (paw tab,
+all exhaustive Record sites; pet-bed migrated from decor, id unchanged); `petFittings` flag
+(simple tier) gating the tab; **window/balcony mesh screen** (`windowBound`, canvas-grid
+alpha texture reading as ≤5 cm CMF safety mesh); **NEW `doorBound` placement plumbing**
+(`placement/doorSnap.ts` mirroring windowSnap, threaded through controller/ghost/plan editor)
+carrying a doorway **pet gate** + **pet-door insert**; freestanding **playpen** (4–8 panels).
+Scenario `pets-p1.json` (60 steps): exact-snap asserts (d=0.0000 to window/door centres),
+mesh-read + doorway-span frames verified; both-modes flag tests; doorSnap unit tests.
+
 ## v0.21.2.71 — Asset Studio Stage 12 — face-choice tufting & plump
 
 The plump crown + tuft dimples + button/stitch decals can now sit on ANY box face, not just the

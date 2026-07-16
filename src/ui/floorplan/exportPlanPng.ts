@@ -27,6 +27,7 @@ const PLAN_VARS = [
   '--plan-cat-lighting',
   '--plan-cat-others',
   '--plan-cat-outdoor',
+  '--plan-cat-pets',
   '--plan-cat-seating',
   '--plan-cat-storage',
   '--plan-cat-tables',

@@ -23,6 +23,7 @@ import { LAUNDRY_DEFS } from './defs/laundry'
 import { LIGHTING_DEFS } from './defs/lighting'
 import { OTHERS_DEFS } from './defs/others'
 import { OUTDOOR_DEFS } from './defs/outdoor'
+import { PETS_DEFS } from './defs/pets'
 import { SEATING_DEFS } from './defs/seating'
 import { STORAGE_DEFS } from './defs/storage'
 import { TABLES_DEFS } from './defs/tables'
@@ -43,6 +44,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   ...LIGHTING_DEFS,
   ...OTHERS_DEFS,
   ...OUTDOOR_DEFS,
+  ...PETS_DEFS,
   ...SEATING_DEFS,
   ...STORAGE_DEFS,
   ...TABLES_DEFS,

@@ -112,6 +112,25 @@ drawers, glass or open shelves), and toggles for the **countertop** (base), a
 worktop — the **cornice/crown cap** (wall & tall) and the **toe‑kick**. Build a
 whole run by placing several side by side.
 
+### Pet fittings
+
+The **Pets** tab collects furniture and safety fittings for homes with pets. Most
+place like any other piece, but two kinds snap to your plan automatically:
+
+- **Window mesh screen** — a fine safety mesh in a slim frame. Drop it near a
+  window and it snaps onto the nearest window opening, sized to cover it (the
+  Singapore Cat Management Framework requires meshing windows, grilles and
+  balconies). Customise the **frame** colour/finish, **mesh density**
+  (Fine — cat‑safe — or Standard) and **frame style**.
+- **Pet gate** and **Pet door insert** — drop either near a doorway and it snaps
+  across the nearest **door** opening, sized to span it. The gate has a **height**,
+  **Bars**/**Mesh** style and an optional **walk‑through flap**; the insert has a
+  **flap size** (Small/Medium).
+
+Both snapping kinds stay fixed to their window/door once placed (like curtains),
+so they have no move/rotate handles. The **Pet bed** and freestanding **Pet
+playpen** place and resize like ordinary furniture.
+
 ### Opening doors & drawers
 
 Storage furniture with fronts — kitchen cabinets, hinged‑door wardrobes,

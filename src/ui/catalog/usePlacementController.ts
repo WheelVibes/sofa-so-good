@@ -4,6 +4,7 @@ import { isEditableTarget } from '../../controls/useKeyboard'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { useCatalog } from '../../furniture/catalog'
 import { defaultItemProps as defaultProps } from '../../furniture/placement/defaultItemProps'
+import { doorFixtureProps, snapToNearestDoor } from '../../furniture/placement/doorSnap'
 import { snapToNearestWindow, windowFixtureProps } from '../../furniture/placement/windowSnap'
 import { isActiveDragPointer } from '../../scene/dragHelpers'
 import { beginDrop } from '../../scene/placementDrop'
@@ -113,6 +114,33 @@ export function usePlacementController() {
       })
       return true
     }
+    // Door-bound fixtures (pet gates / pet-door inserts, DOOR-FIXTURE) snap onto
+    // the nearest door opening: the raw drop point is ignored, the fixture lands
+    // spanning the doorway facing the room side dropped toward, and a plan with no
+    // door rejects the placement (toast). Mirrors `commitWindowBound`.
+    const commitDoorBound = (dropPos: [number, number]): boolean => {
+      const { floorPlan, addItem, notify, armedVariantProps } = useStore.getState()
+      const snap = snapToNearestDoor(floorPlan.walls, floorPlan.openings, dropPos)
+      if (!snap) {
+        notify.start({
+          kind: 'info',
+          title: 'No doorway to place on',
+          message: `${def.name} can only be placed on a doorway — this plan has none.`,
+        })
+        return false
+      }
+      addItem({
+        defId: def.id,
+        position: snap.position,
+        rotation: snap.rotation,
+        props: {
+          ...defaultProps(def),
+          ...(armedVariantProps ?? {}),
+          ...doorFixtureProps(def.id, snap.door),
+        },
+      })
+      return true
+    }
     /** Commit the armed placement at the current ghost. `keepArmed` keeps the
      *  placement live (stamp / shift) instead of resolving it to a pending
      *  tick/cross confirmation. Returns what happened. */
@@ -125,6 +153,10 @@ export function usePlacementController() {
       // commit immediately (no tick/cross).
       if (def.windowBound) {
         if (commitWindowBound(ghostWorld) && !keepArmed) cancelPlacement()
+        return 'committed'
+      }
+      if (def.doorBound) {
+        if (commitDoorBound(ghostWorld) && !keepArmed) cancelPlacement()
         return 'committed'
       }
       if (!ghostValid) return 'invalid'
@@ -170,6 +202,10 @@ export function usePlacementController() {
       if (!placeConfirm || !ghostWorld) return
       if (def.windowBound) {
         if (commitWindowBound(ghostWorld)) useStore.getState().cancelPlacement()
+        return
+      }
+      if (def.doorBound) {
+        if (commitDoorBound(ghostWorld)) useStore.getState().cancelPlacement()
         return
       }
       if (!ghostValid) return

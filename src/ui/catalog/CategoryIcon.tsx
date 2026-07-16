@@ -127,6 +127,17 @@ export function CategoryIcon({
           <path d="M4 13c0-2.2 1.8-4 4-4s4 1.8 4 4" />
         </svg>
       )
+    case 'pets':
+      return (
+        <svg {...common}>
+          {/* Paw: a large main pad + four toe beans above it. */}
+          <path d="M8 8.5c1.9 0 3.4 1.3 3.4 2.9 0 1.1-1 1.6-2 1.6-.6 0-1-.3-1.4-.3s-.8.3-1.4.3c-1 0-2-.5-2-1.6C4.6 9.8 6.1 8.5 8 8.5z" />
+          <circle cx="5" cy="6.5" r="0.9" fill="currentColor" stroke="none" />
+          <circle cx="7" cy="4.8" r="0.9" fill="currentColor" stroke="none" />
+          <circle cx="9" cy="4.8" r="0.9" fill="currentColor" stroke="none" />
+          <circle cx="11" cy="6.5" r="0.9" fill="currentColor" stroke="none" />
+        </svg>
+      )
     case 'laundry':
       return (
         <svg {...common}>

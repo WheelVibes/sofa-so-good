@@ -17,6 +17,7 @@ export const CATEGORY_FILL: Record<FurnitureCategory, string> = {
   outdoor: 'var(--plan-cat-outdoor)',
   electronics: 'var(--plan-cat-electronics)',
   kids: 'var(--plan-cat-kids)',
+  pets: 'var(--plan-cat-pets)',
   laundry: 'var(--plan-cat-laundry)',
   others: 'var(--plan-cat-others)',
 }

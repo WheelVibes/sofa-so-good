@@ -81,7 +81,11 @@ export interface UnifiedCatalog {
  * un-downloaded remote entries surface. Already-resolved remote models stay as
  * local defs regardless — gating affects the browse/add path, not placed items.
  */
-export function useUnifiedCatalog(includeRemote = true, includeShared = true): UnifiedCatalog {
+export function useUnifiedCatalog(
+  includeRemote = true,
+  includeShared = true,
+  includePets = true,
+): UnifiedCatalog {
   const localByCategory = useCatalogByCategory()
   const remoteEntriesAll = useRemoteEntries('furniture')
   const remoteEntries = includeRemote ? remoteEntriesAll : EMPTY_REMOTE
@@ -176,6 +180,11 @@ export function useUnifiedCatalog(includeRemote = true, includeShared = true): U
       byCategory[c].push(...remoteBlocks[c], ...sharedBlocks[c])
     }
 
+    // Flag-gate the `pets` category (petFittings): with the flag off the pets
+    // tab is hidden (count 0) and its cards never surface in the grid or the
+    // cross-catalog search / favourites / recents.
+    if (!includePets) byCategory.pets = []
+
     const all: GridItem[] = []
     const counts = {} as Record<FurnitureCategory, number>
     for (const c of FURNITURE_CATEGORIES) {
@@ -189,6 +198,7 @@ export function useUnifiedCatalog(includeRemote = true, includeShared = true): U
     for (const id of collections) {
       const def = localById.get(id)
       if (def) {
+        if (!includePets && def.category === 'pets') continue
         favourites.push({ kind: 'local', def })
         continue
       }
@@ -206,9 +216,17 @@ export function useUnifiedCatalog(includeRemote = true, includeShared = true): U
     const recent: GridItem[] = []
     for (const id of recentDefIds) {
       const def = localById.get(id)
-      if (def) recent.push({ kind: 'local', def })
+      if (def && (includePets || def.category !== 'pets')) recent.push({ kind: 'local', def })
     }
 
     return { byCategory, all, counts, favourites, recent }
-  }, [localByCategory, remoteEntries, sharedItems, resolvedKeys, collections, recentDefIds])
+  }, [
+    localByCategory,
+    remoteEntries,
+    sharedItems,
+    resolvedKeys,
+    collections,
+    recentDefIds,
+    includePets,
+  ])
 }

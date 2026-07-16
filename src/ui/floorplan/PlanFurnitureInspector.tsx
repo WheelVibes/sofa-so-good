@@ -164,7 +164,7 @@ export function PlanFurnitureInspector({
           detach them. Mirrors the 3D inspector's `!def.windowBound` Transform gate
           (`InspectorPanel.tsx`) + the blocked scene/plan drag. Size fields below
           stay editable (a curtain still resizes), matching the 3D inspector. */}
-      {!def.windowBound ? (
+      {!(def.windowBound || def.doorBound) ? (
         <>
           <Num
             label="X (m)"
