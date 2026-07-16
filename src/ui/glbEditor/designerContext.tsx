@@ -39,6 +39,7 @@ import { combineGroupToMeshPart, evaluateAllGroups } from '../../furniture/glbEd
 import {
   type AssetEditSpec,
   addCombineGroup,
+  addDecal,
   addPart,
   addPartGroup,
   bakeCombineGroup,
@@ -46,6 +47,8 @@ import {
   combineGroups,
   combineSpansPartGroups,
   createEmptySpec,
+  DECAL_DEFAULT_SIZE,
+  type DecalKind,
   duplicatePart,
   duplicatePartGroup,
   isBuildable,
@@ -58,6 +61,7 @@ import {
   partGroupMemberIds,
   partGroups,
   removeCombineGroup,
+  removeDecal as removeDecalOp,
   removePart,
   renamePart,
   renamePartGroup,
@@ -65,6 +69,7 @@ import {
   type ShapePart,
   type SymmetryMode,
   setMeshOverride,
+  decals as specDecals,
   updatePart,
   updatePartGroupTransform,
 } from '../../furniture/glbEdit/editSpec'
@@ -76,6 +81,12 @@ import {
   groupGizmoPatch,
 } from '../../furniture/glbEdit/gizmoWriteBack'
 import { ungroupPartGroup } from '../../furniture/glbEdit/groupTransform'
+import {
+  addPiping,
+  canPipe,
+  PIPING_DEFAULTS,
+  type PipingParams,
+} from '../../furniture/glbEdit/piping'
 import { exportAndSaveAsset, placementFlags } from '../../furniture/glbEdit/saveAsset'
 import { hasSplittableGroups, splitSpecByGroups } from '../../furniture/glbEdit/setSplit'
 import {
@@ -223,6 +234,12 @@ function useDesignerController() {
   const [templateId, setTemplateId] = useState<string | null>(null)
   const [templateParams, setTemplateParams] = useState<Record<string, number>>({})
 
+  // ---- Detail layer — armed decal kind (Stage 5) --------------------------
+  // While a decal is armed the next preview click on a part FACE projects that
+  // decal onto the part (SWOOD seam, reused). Mutually exclusive with an armed
+  // component/template.
+  const [armedDecalKind, setArmedDecalKind] = useState<DecalKind | null>(null)
+
   // ---- Grid snap preference (Stage 4, per-device localStorage) -----------
   const [gridSnap, setGridSnap] = useState<GridSnapPref>(() => loadGridSnap())
   const snapStep = effectiveSnapStep(gridSnap)
@@ -308,6 +325,12 @@ function useDesignerController() {
   const armedRef = useRef<string | null>(armedComponentId)
   armedRef.current = armedComponentId
   const placeArmedRef = useRef<(hit: FaceHit) => void>(() => {})
+  // Latest decal-place closure for the viewport + automation seam (Stage 5).
+  const armedDecalRef = useRef<DecalKind | null>(armedDecalKind)
+  armedDecalRef.current = armedDecalKind
+  const placeDecalRef = useRef<
+    (partId: string, point: [number, number, number], normal: [number, number, number]) => void
+  >(() => {})
 
   // Automation seam for the scenario harness (Stage 3d): drive the spec + the
   // "Make configurable" export deterministically. Mirrors `__glbDesignerPlaceOnFace`.
@@ -355,6 +378,23 @@ function useDesignerController() {
       w.__glbDesignerPlaceOnFace = undefined
     }
   }, [open, enabled])
+  // Dev-only decal placement seam (Stage 5) — projects the armed decal onto a
+  // part face given the target part id + PART-LOCAL hit point + local normal.
+  useEffect(() => {
+    if (!open || !enabled || !import.meta.env.DEV) return
+    const w = window as unknown as {
+      __glbDesignerPlaceDecal?: (
+        partId: string,
+        point: [number, number, number],
+        normal: [number, number, number],
+      ) => void
+    }
+    w.__glbDesignerPlaceDecal = (partId, point, normal) =>
+      placeDecalRef.current(partId, point, normal)
+    return () => {
+      w.__glbDesignerPlaceDecal = undefined
+    }
+  }, [open, enabled])
 
   // This dialog is a modal-style overlay that doesn't build on `Modal`, so it
   // registers with the modal guard itself: global scene hotkeys (incl. the
@@ -377,12 +417,14 @@ function useDesignerController() {
           t.isContentEditable)
       const mod = e.metaKey || e.ctrlKey
       const key = e.key.toLowerCase()
-      // Esc disarms a pending component placement (before anything else claims it).
-      if (key === 'escape' && armedRef.current) {
+      // Esc disarms a pending component or decal placement (before anything
+      // else claims it).
+      if (key === 'escape' && (armedRef.current || armedDecalRef.current)) {
         e.preventDefault()
         e.stopPropagation()
         setArmedComponentId(null)
         setArmedParams({})
+        setArmedDecalKind(null)
         return
       }
       // Undo / redo — handle locally (the modal guard suppresses global undo).
@@ -481,6 +523,7 @@ function useDesignerController() {
       setArmedParams({})
       setTemplateId(null)
       setTemplateParams({})
+      setArmedDecalKind(null)
       setSplitGroups(false)
       setAssignments({})
       setCfgBusy(false)
@@ -653,9 +696,10 @@ function useDesignerController() {
     setArmedParams(seed)
     setSelIds([])
     setSelGroupId(null)
-    // Arming a component leaves the template picker (mutually exclusive modes).
+    // Arming a component leaves the template picker + armed decal (exclusive).
     setTemplateId(null)
     setTemplateParams({})
+    setArmedDecalKind(null)
   }
   const disarmComponent = () => {
     setArmedComponentId(null)
@@ -702,6 +746,7 @@ function useDesignerController() {
     setSelGroupId(null)
     setArmedComponentId(null)
     setArmedParams({})
+    setArmedDecalKind(null)
   }
   const cancelTemplate = () => {
     setTemplateId(null)
@@ -719,6 +764,54 @@ function useDesignerController() {
     commit(next)
     cancelTemplate()
     if (groupId) selectGroup(groupId)
+  }
+
+  // ---- Detail layer: decals + piping (Stage 5) ---------------------------
+  // Arm a decal kind: the next preview face-click projects it. Clears any armed
+  // component/template + the selection (mutually exclusive modes).
+  const armDecal = (kind: DecalKind) => {
+    setArmedDecalKind(kind)
+    setArmedComponentId(null)
+    setArmedParams({})
+    setTemplateId(null)
+    setTemplateParams({})
+    setSelIds([])
+    setSelGroupId(null)
+  }
+  const disarmDecal = () => setArmedDecalKind(null)
+
+  // Project the armed decal onto a clicked part face (part-local hit point +
+  // local normal), record it, and disarm. Stays selected on nothing (a decal
+  // isn't a part/group).
+  const placeDecal = (
+    partId: string,
+    point: [number, number, number],
+    normal: [number, number, number],
+  ) => {
+    const kind = armedDecalRef.current
+    if (!kind) return
+    const { spec: next, decalId } = addDecal(spec, {
+      partId,
+      position: point,
+      normal,
+      size: DECAL_DEFAULT_SIZE[kind],
+      kind,
+    })
+    if (!decalId) return
+    commit(next)
+    disarmDecal()
+  }
+  placeDecalRef.current = placeDecal
+  const removeDecal = (id: string) => commit((sp) => removeDecalOp(sp, id))
+
+  // "Add piping": trace the selected box/extrude's top-face perimeter as a thin
+  // welt, grouped with the host. One undo step; selects the new group.
+  const addPipingToSelected = (params: PipingParams = PIPING_DEFAULTS) => {
+    if (!canPipe(sel)) return
+    const { spec: next, groupId } = addPiping(spec, sel.id, params)
+    if (!groupId) return
+    commit(next)
+    selectGroup(groupId)
   }
 
   const commitGizmoDrag = () => {
@@ -1088,6 +1181,8 @@ function useDesignerController() {
   const viewSelMesh = previewSpec ? null : selMesh
   const viewSelGroupObj = previewSpec ? null : selGroupObj
   const armed = !!armedComponentId
+  const decalArmed = !!armedDecalKind
+  const decalList = specDecals(spec)
 
   return {
     // lifecycle / chrome
@@ -1159,6 +1254,15 @@ function useDesignerController() {
     cancelTemplate,
     useTemplate,
     setTemplateParam,
+    // detail layer: decals + piping (Stage 5)
+    armedDecalKind,
+    decalArmed,
+    decalList,
+    armDecal,
+    disarmDecal,
+    removeDecal,
+    canPipeSelected: canPipe(sel),
+    addPipingToSelected,
     // transform groups (Stage 3a)
     transformGroups,
     groupSelected,
@@ -1215,6 +1319,7 @@ function useDesignerController() {
     commitGroupGizmoDrag,
     armed,
     placeOnFace,
+    placeDecal,
     sourceUrl,
     finishIds,
   }

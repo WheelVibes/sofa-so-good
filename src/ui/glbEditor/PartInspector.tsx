@@ -65,6 +65,8 @@ export function PartInspector() {
     part.kind === 'extrude'
   // Cap the corner radius at half the smallest dimension so it can't invert.
   const maxBevel = Math.max(0.02, Math.min(...part.size) / 2)
+  // Cushion "plump" (Stage 5) — a soft top-bulge on box/capsule kinds.
+  const plumpable = part.kind === 'box' || part.kind === 'capsule'
   // Combined (mesh) parts have per-source materials frozen in the geometry —
   // colour/finish/PBR sliders are hidden (no face-picker; re-combine to change).
   const isCombined = part.kind === 'mesh' && !!part.geometry?.materials?.length
@@ -226,6 +228,21 @@ export function PartInspector() {
           step={0.005}
           format={(v) => `${v.toFixed(3)} m`}
           onChange={(v) => onPatch({ bevel: v })}
+        />
+      ) : null}
+
+      {/* Cushion plump (Stage 5) — a soft sine-falloff bulge so upholstery reads
+          stuffed. Box + capsule only; 0 = flat (byte-identical). */}
+      {plumpable ? (
+        <SliderField
+          label="Plump (cushion)"
+          ariaLabel={`${part.kind} plump`}
+          value={part.plump ?? 0}
+          min={0}
+          max={1}
+          step={0.05}
+          format={(v) => v.toFixed(2)}
+          onChange={(v) => onPatch({ plump: v || undefined })}
         />
       ) : null}
 

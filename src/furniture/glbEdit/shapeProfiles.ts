@@ -456,18 +456,26 @@ function sweepProfileShape(profile: SweepProfileKind, t: number): Shape {
 
 /** Profile swept along a path. Circle profile → `TubeGeometry` (piping/rails);
  *  every other profile → `ExtrudeGeometry` with an `extrudePath`. `size` =
- *  [pathExtent, tubeThickness, pathExtent]. Centred on the origin. */
+ *  [pathExtent, tubeThickness, pathExtent]. Centred on the origin.
+ *
+ *  Stage 5: an explicit closed `pathPoints` polyline (metres, sweep-local)
+ *  OVERRIDES the preset `path` — the piping preset traces a rounded-rect
+ *  perimeter from a host part's footprint (`piping.ts`). */
 export function sweepGeometry(
   profile: SweepProfileKind,
   path: SweepPathKind,
   w: number,
   t: number,
+  pathPoints?: [number, number, number][],
 ): BufferGeometry {
-  const { points, closed } = sweepPathPoints(path, w)
+  const explicit = pathPoints && pathPoints.length >= 2
+  const { points, closed } = explicit
+    ? { points: pathPoints.map((p) => new Vector3(p[0], p[1], p[2])), closed: true }
+    : sweepPathPoints(path, w)
   const curve = new CatmullRomCurve3(points, closed, 'catmullrom', 0.5)
   // Enough steps to read smooth on a small moulding without an expensive build
   // (ExtrudeGeometry with an extrudePath is O(steps × profileVerts)).
-  const tubular = path === 'ring' ? 48 : 24
+  const tubular = explicit ? Math.max(64, points.length * 4) : path === 'ring' ? 48 : 24
   if (profile === 'circle') {
     return new TubeGeometry(curve, tubular, Math.max(0.005, t / 2), 12, closed)
   }

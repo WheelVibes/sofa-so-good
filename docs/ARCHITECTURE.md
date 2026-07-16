@@ -663,6 +663,23 @@ same change that reshapes a system.
   perspective camera kept) and a live **W×D×H** dimension readout (`useFrame` Box3 union over the
   selected preview objects). `LayersPanel.tsx` gains a name **filter** + inline part **rename**;
   `ShapePart.name` bumps the envelope to **v6** (additive identity migration). Scenario `glb-designer-stage4`.
+  **Stage 5 — realism detail layer** (v0.21.2.40, closes the program): a **Details** panel
+  (`ui/glbEditor/DetailsPanel.tsx`) arms a curated **decal** kind (Button/Stitch line/Seam/Round
+  patch/Wear spot); a click on a part surface projects it with three's `DecalGeometry`
+  (`glbEdit/decals.ts` + `decalTexture.ts` procedural canvas patterns; the Stage-3b face-click seam
+  reused, dev seam `window.__glbDesignerPlaceDecal`). `AssetEditSpec.decals[]` stores each in the
+  target part's LOCAL frame (`{partId,position,normal,size,kind,color?,rotation?}`), so it's built
+  against the part geometry at identity and rendered as a CHILD of the part mesh — it follows a
+  grouped/moved part and `removePart` prunes it (`pruneDecals`). Decals are REAL geometry offset a
+  hair along the normal (zero z-fighting, survives export) → they EXPORT into the GLB and reimport
+  intact (`decalExport.test.ts`). **Piping** (`glbEdit/piping.ts`): one-tap on a box/extrude traces
+  its top-face perimeter (`roundedRectPathPoints`) as a thin `sweep` welt (new explicit `sweepPoints`
+  override on the sweep part), grouped with the host, host colour darkened. **Cushion "plump"**
+  (`glbEdit/plump.ts`): a `plump` 0…1 box/capsule param applies a sine-falloff vertex bulge (crown +
+  bow, corners pinned, normals recomputed) on a tessellated box — the shipped cushion-realism ruling
+  (b), see `PHOTOREALISM.md`. Envelope bumps to **v7** (`decals[]` + `plump` + `sweepPoints`, additive
+  identity migration). Scenario `glb-designer-stage5`. **The Asset Studio program is complete
+  (Stages 0–5).**
   and/or start from an uploaded GLB
   (uniformly scaled) to make a variant; live R3F preview (`buildEditedObject`), then
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands

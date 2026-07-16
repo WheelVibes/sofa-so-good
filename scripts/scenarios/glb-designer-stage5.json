@@ -1,0 +1,153 @@
+{
+  "name": "glb-designer-stage5",
+  "description": "Asset Studio Stage 5 — the realism detail layer in the GLB Asset Designer (Pro, glbDesigner on). Build a cushion box, dial its Plump slider so the upholstery crowns; one-tap Add piping to trace the cushion's top-face perimeter as a soft welt (a sweep part in a 'Piping' group); arm the Button detail and place 3 tufted-button decals across the cushion top via the window.__glbDesignerPlaceDecal seam (real DecalGeometry, offset so it never z-fights). Save and assert the persisted UserGltfDef's assetSpec envelope embeds the cushion's plump, the 'Piping' group + its sweepPoints welt, AND all 3 button decals — proving the detail layer round-trips as an editable spec. Screenshots the plumped cushion, the piping welt, and the buttons.",
+  "url": "http://localhost:5312/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-designer-open",
+      "screenshot": "01-designer-open"
+    },
+    {
+      "name": "add-cushion",
+      "click": { "text": "Box" }
+    },
+    {
+      "name": "wait-box",
+      "waitFor": { "css": "input[aria-label='box size X']" },
+      "timeout": 5000
+    },
+    {
+      "name": "shape-cushion",
+      "comment": "A square-ish cushion 0.6 x 0.16 x 0.6 raised to y=0.3.",
+      "eval": "(function(){ const set = (label, val) => { const inp = document.querySelector(`.glb-designer input[aria-label=\"${label}\"]`); if (!inp) throw new Error('missing input: ' + label); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, String(val)); inp.dispatchEvent(new Event('input', { bubbles: true })); }; set('box size X', 0.6); set('box size Y', 0.16); set('box size Z', 0.6); set('box position Y', 0.3); })()"
+    },
+    {
+      "name": "set-plump",
+      "comment": "Dial the cushion Plump slider so the top crowns (ruling (b) — vertex-displacement bulge).",
+      "eval": "(function(){ const inp = document.querySelector(\".glb-designer input[aria-label='box plump']\"); if (!inp) throw new Error('box plump slider missing'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '0.25'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "wait-plump",
+      "wait": 600
+    },
+    {
+      "name": "assert-plump",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const box = s.parts.find(p => p.kind === 'box'); if (!box || box.plump !== 0.25) throw new Error('cushion plump not set to 0.25'); })()"
+    },
+    {
+      "name": "shot-plump",
+      "screenshot": "02-cushion-plump"
+    },
+    {
+      "name": "expand-details",
+      "comment": "Expand the collapsed Details section before Add piping / arming a decal.",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Details');if(!s)throw new Error('Details summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "add-piping",
+      "comment": "One tap traces the cushion top-face perimeter as a welt, grouped with the host.",
+      "click": { "selector": "button[aria-label='Add piping to selected shape']", "timeout": 5000 }
+    },
+    {
+      "name": "wait-piping",
+      "wait": 700
+    },
+    {
+      "name": "assert-piping",
+      "comment": "A 'Piping' group holds the host cushion + a sweep welt tracing a closed rounded-rect (sweepPoints).",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const grp = (s.partGroups || []).find(g => g.name === 'Piping'); if (!grp) throw new Error('Piping group missing'); if (grp.partIds.length !== 2) throw new Error('Piping group should hold host + welt, got ' + grp.partIds.length); const welt = s.parts.find(p => p.kind === 'sweep' && Array.isArray(p.sweepPoints)); if (!welt || welt.sweepPoints.length < 8) throw new Error('piping sweep part with a rounded-rect path missing'); })()"
+    },
+    {
+      "name": "shot-piping",
+      "screenshot": "03-piping-welt"
+    },
+    {
+      "name": "arm-button-1",
+      "click": { "selector": "button[aria-label='Place Button']", "timeout": 5000 }
+    },
+    {
+      "name": "assert-decal-armed",
+      "eval": "(function(){ if (typeof window.__glbDesignerPlaceDecal !== 'function') throw new Error('decal placement seam window.__glbDesignerPlaceDecal missing'); if (!document.body.textContent.includes('Button armed')) throw new Error('Button decal did not arm'); })()"
+    },
+    {
+      "name": "place-button-1",
+      "comment": "Project a button decal onto the cushion top (part-local point + up normal), left of centre.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const id = s.parts.find(p => p.kind === 'box').id; window.__glbDesignerPlaceDecal(id, [-0.14, 0.1, 0], [0, 1, 0]); })()"
+    },
+    {
+      "name": "arm-button-2",
+      "click": { "selector": "button[aria-label='Place Button']", "timeout": 5000 }
+    },
+    {
+      "name": "place-button-2",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const id = s.parts.find(p => p.kind === 'box').id; window.__glbDesignerPlaceDecal(id, [0, 0.1, 0], [0, 1, 0]); })()"
+    },
+    {
+      "name": "arm-button-3",
+      "click": { "selector": "button[aria-label='Place Button']", "timeout": 5000 }
+    },
+    {
+      "name": "place-button-3",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const id = s.parts.find(p => p.kind === 'box').id; window.__glbDesignerPlaceDecal(id, [0.14, 0.1, 0], [0, 1, 0]); })()"
+    },
+    {
+      "name": "wait-buttons",
+      "wait": 700
+    },
+    {
+      "name": "assert-three-decals",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const d = s.decals || []; if (d.length !== 3) throw new Error('expected 3 decals, got ' + d.length); if (!d.every(x => x.kind === 'button')) throw new Error('all decals should be buttons'); })()"
+    },
+    {
+      "name": "shot-buttons",
+      "screenshot": "04-button-decals"
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage5 Cushion'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-detail-layer",
+      "comment": "End-to-end proof: the saved assetSpec (shared asset envelope) embeds the cushion plump, the Piping group + sweepPoints welt, AND all 3 button decals — the whole detail layer round-trips as an editable spec.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage5 Cushion' && typeof d.assetSpec === 'string' && d.assetSpec.includes('\"kind\":\"asset\"') && (() => { try { const env = JSON.parse(d.assetSpec); const s = env.payload; const box = s.parts.find(p => p.kind === 'box'); const welt = s.parts.find(p => p.kind === 'sweep' && Array.isArray(p.sweepPoints)); const piping = (s.partGroups || []).some(g => g.name === 'Piping'); const decals = s.decals || []; return box && box.plump === 0.25 && !!welt && piping && decals.length === 3 && decals.every(x => x.kind === 'button'); } catch { return false } })())"
+      },
+      "timeout": 60000,
+      "failMessage": "saved assetSpec should embed the cushion plump, the Piping welt group, and 3 button decals"
+    },
+    {
+      "name": "shot-saved",
+      "screenshot": "05-saved-with-details"
+    }
+  ]
+}

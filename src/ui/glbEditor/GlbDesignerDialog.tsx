@@ -5,6 +5,7 @@ import { CombinePanel } from './CombinePanel'
 import { ComponentsPanel } from './ComponentsPanel'
 import { DesignerToolbar } from './DesignerToolbar'
 import { DesignerViewport } from './DesignerViewport'
+import { DetailsPanel } from './DetailsPanel'
 import { DesignerProvider, useDesigner } from './designerContext'
 import { GroupInspector } from './GroupInspector'
 import { LayersPanel } from './LayersPanel'
@@ -107,6 +108,7 @@ function DesignerDialogFrame() {
             <ArrangePanel />
             <PartInspector />
             <GroupInspector />
+            <DetailsPanel />
             <CombinePanel />
             <MakeConfigurablePanel />
             <SavePanel />

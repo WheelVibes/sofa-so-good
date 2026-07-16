@@ -165,6 +165,19 @@ build one in the browser:
 - **Repeat to corners** — placed one leg or foot? Select its group and use **Mirror X**,
   **Mirror Z** or **Repeat ×4** (in the group panel) to copy it to the matching corner(s) of the
   piece in one tap — place a single leg, get a four-legged table. It's one undo step.
+- **Details (buttons, stitching, wear)** — the **Details** panel adds fine upholstery detail. Tap
+  a detail — **Button**, **Stitch line**, **Seam**, **Round patch** or **Wear spot** — to **arm**
+  it, then **click a shape's surface** in the preview to place it there. It sits flush on the
+  surface, follows the shape if you move or group it, and is saved into the asset (real geometry, so
+  it exports too). A **Placed details** list lets you remove any one. Press **Esc** to cancel an
+  armed detail.
+- **Piping** — in the **Details** panel, with a **box** or **extrude** shape selected, tap **Add
+  piping** to trace a soft welt around the shape's top edge — the classic upholstered-cushion look —
+  with no manual path drawing. Set the **Tube ⌀** and **Edge inset** first. The piping lands grouped
+  with the shape (it moves with it) in the shape's colour, slightly darkened.
+- **Plump a cushion** — box and capsule shapes have a **Plump (cushion)** slider in their edit
+  panel: raise it to bulge the shape like a stuffed cushion (the top crowns and the sides bow, while
+  the corners stay pinned like a seam). 0 keeps it flat.
 - **Arrange (align, distribute, mirror, array)** — with shapes selected, an **Arrange**
   section appears. Pick an **axis** (X/Y/Z), then **Align min**, **Align centre** or **Align max**
   to line the selected shapes up on that axis (needs 2+ shapes), or **Distribute** to space 3+

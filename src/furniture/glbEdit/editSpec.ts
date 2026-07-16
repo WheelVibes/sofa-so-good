@@ -167,6 +167,53 @@ export interface PartGradient {
   to: string
 }
 
+/** A projected surface detail (Asset Studio Stage 5 — realism detail layer).
+ *  Built with three's `DecalGeometry` against a target part's mesh and rendered
+ *  as a thin offset overlay that follows its part (it's a child of the part mesh,
+ *  so a grouped/moved part carries its decals; a deleted part prunes them). Real
+ *  geometry → it EXPORTS into the GLB. `position`/`normal` are in the target
+ *  part's LOCAL frame (the raycast hit converted via `worldToLocal` + the
+ *  geometry-local face normal), so the projection is stable under any part/group
+ *  transform. */
+export interface Decal {
+  id: string
+  /** The part this decal is projected onto (its local frame owns the transform). */
+  partId: string
+  /** Projector centre in the target part's LOCAL frame (metres). */
+  position: [number, number, number]
+  /** Surface normal in the target part's LOCAL frame (the projector's +Z aim). */
+  normal: [number, number, number]
+  /** In-plane footprint size (metres) — the decal's larger extent. */
+  size: number
+  kind: DecalKind
+  /** Tint (hex). Absent → the kind's default thread/button colour. */
+  color?: string
+  /** In-plane roll about the normal (degrees) — orients the line kinds
+   *  (stitch/seam). Absent → 0. */
+  rotation?: number
+}
+
+/** The curated detail kinds (Stage 5). A small set drawn as simple procedural
+ *  canvas patterns (no bespoke texture art): a tufted `button`, a dashed `stitch`
+ *  line, a crossed `seam`, a round `patch`, and a soft `wear` spot. */
+export type DecalKind = 'button' | 'stitch' | 'seam' | 'patch' | 'wear'
+export const DECAL_KINDS: DecalKind[] = ['button', 'stitch', 'seam', 'patch', 'wear']
+export const DECAL_LABEL: Record<DecalKind, string> = {
+  button: 'Button',
+  stitch: 'Stitch line',
+  seam: 'Seam',
+  patch: 'Round patch',
+  wear: 'Wear spot',
+}
+/** Default in-plane size (m) per kind — buttons/patches small, lines longer. */
+export const DECAL_DEFAULT_SIZE: Record<DecalKind, number> = {
+  button: 0.03,
+  stitch: 0.12,
+  seam: 0.12,
+  patch: 0.05,
+  wear: 0.06,
+}
+
 /** Per-group material configuration baked at CSG combine time. Mirrors the
  *  surface-look fields of `ShapePart` but without id/kind/transform — pure data
  *  so the spec stays serialisable. Absent fields fall back to the same defaults
@@ -254,6 +301,15 @@ export interface ShapePart extends PhysicalSurfaceFields {
   sweepProfile?: SweepProfileKind
   /** Sweep: path preset (`straight`/`l-corner`/`u`/`ring`). */
   sweepPath?: SweepPathKind
+  /** Sweep: explicit closed path points (metres, sweep-local, centred) that
+   *  OVERRIDE the `sweepPath` preset (Stage 5). Used by the piping preset — a
+   *  rounded-rect perimeter traced from a host part's footprint. Absent → the
+   *  `sweepPath` preset. */
+  sweepPoints?: [number, number, number][]
+  /** Cushion "plump" 0…1 (Stage 5) — a sine-falloff vertex bulge on box/capsule
+   *  kinds so upholstery reads soft/stuffed (normals recomputed). 0 / absent →
+   *  today's flat geometry (byte-identical). */
+  plump?: number
   /** TinkerCAD solid/hole role (CSG v2). Absent → `solid`. A `hole` renders as a
    *  translucent ghost and is carved out inside a Subtract combine group. */
   role?: PartRole
@@ -300,6 +356,10 @@ export interface AssetEditSpec {
    *  minting a duplicate. Round-trips through the spec envelope (v5). Absent →
    *  never exported. */
   exportedProductId?: string
+  /** Projected surface details (Stage 5 — realism detail layer). Absent/empty →
+   *  no decals. Each references a target `part` it's projected onto and follows;
+   *  a deleted part prunes its decals (`pruneDecals`). */
+  decals?: Decal[]
 }
 
 export function createEmptySpec(): AssetEditSpec {
@@ -392,8 +452,9 @@ export function removePart(spec: AssetEditSpec, id: string): AssetEditSpec {
   const parts = spec.parts.filter((p) => p.id !== id)
   // A part removed from under a combine group is pruned from its member list; a
   // group left with <2 members is dissolved (its survivor becomes a free part).
-  // Transform groups are pruned too (an empty group is dropped).
-  return prunePartGroups(pruneCombineGroups({ ...spec, parts }))
+  // Transform groups are pruned too (an empty group is dropped). Any decal
+  // projected onto the removed part is dropped (Stage 5).
+  return prunePartGroups(pruneCombineGroups(pruneDecals({ ...spec, parts })))
 }
 
 let groupSeq = 0
@@ -1026,6 +1087,86 @@ export function mirrorPartsAxis(
   }
   if (copies.length === 0) return { spec, newIds: [] }
   return { spec: { ...spec, parts: [...spec.parts, ...copies] }, newIds: copies.map((p) => p.id) }
+}
+
+// ---- Decals / detail layer (Stage 5) --------------------------------------
+
+let decalSeq = 0
+/** Fresh unique decal id (internal — decals are only minted by `addDecal`). */
+function newDecalId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `dcl-${crypto.randomUUID()}`
+  }
+  decalSeq += 1
+  return `dcl-${Date.now().toString(36)}-${decalSeq}`
+}
+
+/** The decals on a spec (never undefined). */
+export function decals(spec: AssetEditSpec): Decal[] {
+  return spec.decals ?? []
+}
+
+/** Decals projected onto a given part (in render/build order). */
+export function decalsForPart(spec: AssetEditSpec, partId: string): Decal[] {
+  return decals(spec).filter((d) => d.partId === partId)
+}
+
+/** Return a spec with no `decals` field (keeps round-trips byte-identical to a
+ *  fresh spec once the last decal is gone). */
+function stripDecals(spec: AssetEditSpec): AssetEditSpec {
+  if (spec.decals === undefined) return spec
+  const { decals: _drop, ...rest } = spec
+  return rest
+}
+
+/**
+ * Record a projected decal onto a part (Stage 5). Mints a fresh id; the caller
+ * supplies the target `partId`, part-local `position`/`normal`, `size`, `kind`
+ * (+ optional colour/roll). Guards: the target part must exist. Returns
+ * `{ spec, decalId }` (decalId null for an unknown part).
+ */
+export function addDecal(
+  spec: AssetEditSpec,
+  decal: Omit<Decal, 'id'>,
+): { spec: AssetEditSpec; decalId: string | null } {
+  if (!spec.parts.some((p) => p.id === decal.partId)) return { spec, decalId: null }
+  const id = newDecalId()
+  return { spec: { ...spec, decals: [...decals(spec), { ...decal, id }] }, decalId: id }
+}
+
+/** Remove one decal immutably. Drops the `decals` field once the last is gone.
+ *  No-op for an unknown id. */
+export function removeDecal(spec: AssetEditSpec, id: string): AssetEditSpec {
+  const list = decals(spec)
+  const next = list.filter((d) => d.id !== id)
+  if (next.length === list.length) return spec
+  return next.length > 0 ? { ...spec, decals: next } : stripDecals(spec)
+}
+
+/** Patch one decal's fields (size/colour/rotation/…) immutably. No-op for an
+ *  unknown id; `id`/`partId` are preserved. */
+export function updateDecal(
+  spec: AssetEditSpec,
+  id: string,
+  patch: Partial<Omit<Decal, 'id' | 'partId'>>,
+): AssetEditSpec {
+  const list = decals(spec)
+  if (!list.some((d) => d.id === id)) return spec
+  return {
+    ...spec,
+    decals: list.map((d) => (d.id === id ? { ...d, ...patch, id: d.id, partId: d.partId } : d)),
+  }
+}
+
+/** Drop any decal whose target part no longer exists (called by `removePart`).
+ *  Keeps the field absent when there are none. Pure. */
+export function pruneDecals(spec: AssetEditSpec): AssetEditSpec {
+  const list = decals(spec)
+  if (list.length === 0) return spec
+  const live = new Set(spec.parts.map((p) => p.id))
+  const next = list.filter((d) => live.has(d.partId))
+  if (next.length === list.length) return spec
+  return next.length > 0 ? { ...spec, decals: next } : stripDecals(spec)
 }
 
 /** True when the spec would produce a non-empty asset (a source or ≥1 part). */

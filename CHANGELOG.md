@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.40 — Asset Studio Stage 5: realism detail layer (program COMPLETE)
+
+Closes Stage 5 — the FINAL stage — of the Asset Studio plan; **all stages (0–5) are now shipped**.
+Adds the realism detail layer to the GLB designer, riding the existing `glbDesigner` pro flag and
+the Stage-4a `useDesigner()` context (zero new prop threading). All pure geometry/spec logic lives
+in `furniture/glbEdit/`, unit-tested.
+
+- **Decal / detail layer** (`glbEdit/decals.ts` + `decalTexture.ts`, pure + tested; UI
+  `ui/glbEditor/DetailsPanel.tsx`) — a new **Details** section arms a curated detail (**Button**,
+  **Stitch line**, **Seam**, **Round patch**, **Wear spot**), then a click on a shape's surface in
+  the preview projects it with three's `DecalGeometry` (the Stage-3b place-on-face raycast seam,
+  reused; the automation seam `window.__glbDesignerPlaceDecal` stays dev-gated). Spec:
+  `decals[]` on `AssetEditSpec` — each decal's `position`/`normal` live in the target part's LOCAL
+  frame, so it's built against the part geometry at identity and rendered as a CHILD of the part
+  mesh: it follows a grouped/moved part automatically, and deleting a part prunes its decals. Zero
+  z-fighting (each vertex offset 0.7 mm along its normal — survives export — plus `depthWrite:false`).
+  Patterns are tiny procedural canvas textures (headless-guarded). Decals are REAL geometry → they
+  **export into the GLB and reimport intact** (verified round-trip, `decalExport.test.ts`).
+- **Piping / seam preset** (`glbEdit/piping.ts`, pure + tested) — one-tap **Add piping** on a
+  selected box/extrude traces its top-face perimeter as a rounded-rect path and renders it as a thin
+  round `sweep` welt (Stage-1 sweep reused via a new explicit `sweepPoints` override), grouped with
+  the host, finish defaulting to the host colour darkened. Params: tube diameter + edge inset.
+- **Cushion "plump"** (`glbEdit/plump.ts`, pure + tested) — a `plump` 0…1 slider on box/capsule
+  parts applies a sine-falloff vertex bulge (crowned top/bottom, bowed sides, pinned corners, normals
+  recomputed) so upholstery reads soft. This is the shipped cushion-realism ruling **(b)** — a pure
+  geometry tweak — over offline-baked cloth-sim GLB variants (asset production, out of scope) or
+  skipping; recorded in `PHOTOREALISM.md`.
+- Persistence: spec envelope **v6 → v7** (additive identity migration + strict validation of
+  `decals[]`, `parts[].plump`, `parts[].sweepPoints`). Scenario
+  `scripts/scenarios/glb-designer-stage5.json` drives plump → piping → 3 button decals → save/restore
+  round-trip (asserts the envelope embeds all three + export sanity).
+
 ## v0.21.2.39 — Asset Studio Stage 4b: precision & pro UX (Stage 4 complete)
 
 Closes Stage 4 of the Asset Studio plan. Adds the professional precision toolset to the GLB

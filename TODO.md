@@ -9,13 +9,13 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
 > Avoid pricing/quotes/analytics deliverables unless asked.
 
-## Active — Asset Studio: GLB editor → professional furniture builder (2026-07-16, user goal)
-Turn the GLB designer into a professional asset-building tool for high-fidelity custom
+## Done — Asset Studio: GLB editor → professional furniture builder (2026-07-16, user goal) — ✅ COMPLETE (v0.21.2.40)
+Turned the GLB designer into a professional asset-building tool for high-fidelity custom
 furniture (complex shapes, components, templates, materials/finishes/colours/gradients/
 sheen/gloss, fittings, parts, groups, sets, modular customization). Staged plan + research
-conclusions: **[docs/asset-studio-plan.md](docs/asset-studio-plan.md)** (Stage 0 foundations →
-1 geometry → 2 materials → 3 components/templates → 4 precision UX → 5 realism detail).
-Open = whatever the plan file marks unshipped; shipped stages log in `CHANGELOG.md`.
+conclusions: **[docs/asset-studio-plan.md](docs/asset-studio-plan.md)**. **All stages shipped**:
+0 foundations → 1 geometry → 2 materials → 3 components/templates → 4 precision UX → 5 realism
+detail layer (decals/piping/cushion-plump, v0.21.2.40). Shipped stages log in `CHANGELOG.md`.
 
 ## Active — graphics-tier performance optimization (2026-07-08, user goal)
 Systematically speed up frame processing/rendering **without sacrificing visual quality**, focused

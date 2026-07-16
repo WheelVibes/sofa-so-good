@@ -7,14 +7,35 @@ import {
   partGeometry,
   partMaterials,
 } from '../../furniture/glbEdit/buildObject'
+import { decalGeometry, decalMaterial } from '../../furniture/glbEdit/decals'
 import {
   type AssetEditSpec,
   combinedPartIds,
   combineGroups,
+  type Decal,
+  decalsForPart,
   partGroups,
   type ShapePart,
 } from '../../furniture/glbEdit/editSpec'
 import { useStore } from '../../state/store'
+
+/** A decal overlay child of a part mesh (Stage 5) — built from the SAME
+ *  `decalGeometry`/`decalMaterial` the export uses, so the preview matches the
+ *  saved GLB. Geometry/material are memoised on the decal + the part geometry and
+ *  disposed on change/unmount. */
+function DecalMesh({
+  decal,
+  targetGeo,
+}: {
+  decal: Decal
+  targetGeo: ReturnType<typeof partGeometry>
+}) {
+  const geom = useMemo(() => decalGeometry(targetGeo, decal), [targetGeo, decal])
+  useEffect(() => () => geom.dispose(), [geom])
+  const mat = useMemo(() => decalMaterial(decal), [decal])
+  useEffect(() => () => mat.dispose(), [mat])
+  return <mesh geometry={geom} material={mat} renderOrder={2} />
+}
 
 /** One primitive part, built from the SAME `partGeometry` + `partMaterials` the
  *  export uses (so the preview can never drift from the saved GLB). Geometry
@@ -30,6 +51,8 @@ function PartMesh({
   ghost,
   meshRef,
   onPlaceFace,
+  onPlaceDecal,
+  decals,
 }: {
   part: ShapePart
   ghost?: GhostVariant
@@ -37,6 +60,15 @@ function PartMesh({
   /** When set (a component is armed), a click on this mesh places the component
    *  on the clicked face (world point + world normal). */
   onPlaceFace?: (point: [number, number, number], normal: [number, number, number]) => void
+  /** When set (a decal is armed), a click projects the decal onto this part —
+   *  the hit is passed in the PART'S LOCAL frame (Stage 5). */
+  onPlaceDecal?: (
+    partId: string,
+    point: [number, number, number],
+    normal: [number, number, number],
+  ) => void
+  /** Decals projected onto this part (Stage 5) — rendered as offset children. */
+  decals?: Decal[]
 }) {
   // A picked `mat:<id>` texture builds into the cache asynchronously — the
   // epoch bump re-resolves the material once it's ready (GE3c).
@@ -63,23 +95,32 @@ function PartMesh({
     [mat],
   )
   const rot = part.rotation
-  const onClick = onPlaceFace
-    ? (e: ThreeEvent<MouseEvent>) => {
-        // Only the front-most hit places (SWOOD click); don't let the click also
-        // reach the ground plane / meshes behind.
-        e.stopPropagation()
-        const p = e.point
-        const face = e.face
-        if (!face) return
-        // Geometry-local face normal → world direction (accounts for the mesh's
-        // own rotation + any group transform above it).
-        const wn = new Vector3()
-          .copy(face.normal)
-          .transformDirection(e.object.matrixWorld)
-          .normalize()
-        onPlaceFace([p.x, p.y, p.z], [wn.x, wn.y, wn.z])
-      }
-    : undefined
+  const onClick =
+    onPlaceFace || onPlaceDecal
+      ? (e: ThreeEvent<MouseEvent>) => {
+          // Only the front-most hit places (SWOOD click); don't let the click also
+          // reach the ground plane / meshes behind.
+          e.stopPropagation()
+          const p = e.point
+          const face = e.face
+          if (!face) return
+          if (onPlaceDecal) {
+            // Decal placement (Stage 5): the projector lives in the part's LOCAL
+            // frame, so pass the local hit point + the geometry-local face normal.
+            const lp = e.object.worldToLocal(p.clone())
+            const ln = face.normal
+            onPlaceDecal(part.id, [lp.x, lp.y, lp.z], [ln.x, ln.y, ln.z])
+            return
+          }
+          // Geometry-local face normal → world direction (accounts for the mesh's
+          // own rotation + any group transform above it).
+          const wn = new Vector3()
+            .copy(face.normal)
+            .transformDirection(e.object.matrixWorld)
+            .normalize()
+          onPlaceFace?.([p.x, p.y, p.z], [wn.x, wn.y, wn.z])
+        }
+      : undefined
   return (
     <mesh
       ref={meshRef}
@@ -95,7 +136,13 @@ function PartMesh({
       geometry={geom}
       material={mat}
       onClick={onClick}
-    />
+    >
+      {/* Decals ride as offset children (part-local frame) so they follow the
+          part under any group/transform (Stage 5). Suppressed on ghost operands. */}
+      {!ghost && decals
+        ? decals.map((d) => <DecalMesh key={d.id} decal={d} targetGeo={geom} />)
+        : null}
+    </mesh>
   )
 }
 
@@ -112,6 +159,7 @@ export function PartsPreview({
   meshRefFor,
   groupRefFor,
   onPlaceFace,
+  onPlaceDecal,
 }: {
   spec: AssetEditSpec
   results: Map<string, ShapePart>
@@ -121,6 +169,13 @@ export function PartsPreview({
   groupRefFor: (groupId: string) => (g: Group | null) => void
   /** Stage 3b: when a component is armed, a click on any part face places it. */
   onPlaceFace?: (point: [number, number, number], normal: [number, number, number]) => void
+  /** Stage 5: when a decal is armed, a click projects it onto the clicked part
+   *  (hit passed in the part's local frame). */
+  onPlaceDecal?: (
+    partId: string,
+    point: [number, number, number],
+    normal: [number, number, number],
+  ) => void
 }) {
   const consumed = combinedPartIds(spec)
   const groups = partGroups(spec)
@@ -157,6 +212,8 @@ export function PartsPreview({
             ghost={ghostFor(p)}
             meshRef={meshRefFor(p.id)}
             onPlaceFace={onPlaceFace}
+            onPlaceDecal={onPlaceDecal}
+            decals={decalsForPart(spec, p.id)}
           />
         ))}
       {/* Transform-group members build under a container carrying the group's
@@ -188,6 +245,8 @@ export function PartsPreview({
                   ghost={ghostFor(p)}
                   meshRef={meshRefFor(id)}
                   onPlaceFace={onPlaceFace}
+                  onPlaceDecal={onPlaceDecal}
+                  decals={decalsForPart(spec, id)}
                 />
               ) : null
             })}

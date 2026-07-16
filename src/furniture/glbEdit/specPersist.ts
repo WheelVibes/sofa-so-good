@@ -31,8 +31,11 @@ import type { AssetEditSpec } from './editSpec'
  *    `exportedProductId` so a re-export replaces its prior product. Additive
  *    superset → migration stays the identity.
  *  - v6 (Precision & pro UX, Stage 4b): adds optional `parts[].name` (user part
- *    rename). Additive superset → migration stays the identity. */
-export const ASSET_SPEC_VERSION = 6
+ *    rename). Additive superset → migration stays the identity.
+ *  - v7 (Realism detail layer, Stage 5): adds optional `decals[]` + optional
+ *    `parts[].plump` (cushion bulge) + optional `parts[].sweepPoints` (piping
+ *    path). Additive superset → migration stays the identity. */
+export const ASSET_SPEC_VERSION = 7
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
  *  Every version bump so far has been an additive superset, so migration is the
@@ -45,7 +48,8 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
     case 3: // no partGroups — already a valid v4 spec.
     case 4: // no exportedProductId — already a valid v5 spec.
     case 5: // no parts[].name — already a valid v6 spec.
-    case 6:
+    case 6: // no decals/plump/sweepPoints — already a valid v7 spec.
+    case 7:
       return spec
     default:
       return null
@@ -143,8 +147,41 @@ function materialFieldsValid(p: Record<string, unknown>): boolean {
   return true
 }
 
-/** Every part must be an object with a valid `role` (or none) and valid
- *  Stage-2 material/gradient fields. */
+/** Valid decal kinds (mirrors `editSpec.DecalKind`). */
+const VALID_DECAL_KINDS = new Set<string>(['button', 'stitch', 'seam', 'patch', 'wear'])
+
+/** Guard the optional `decals` field (Stage 5): absent is fine; otherwise every
+ *  entry must be `{ id, partId: string, position: vec3, normal: vec3,
+ *  size: finite number, kind ∈ decal kinds }` with an optional string `color`
+ *  and finite `rotation`. Strict — a malformed decal makes the whole spec
+ *  un-restorable (matching the other collections). */
+function isDecals(x: unknown): boolean {
+  if (x === undefined) return true
+  if (!Array.isArray(x)) return false
+  return x.every((d) => {
+    if (!d || typeof d !== 'object') return false
+    const dec = d as Record<string, unknown>
+    if (dec.color !== undefined && typeof dec.color !== 'string') return false
+    if (
+      dec.rotation !== undefined &&
+      (typeof dec.rotation !== 'number' || !Number.isFinite(dec.rotation))
+    )
+      return false
+    return (
+      typeof dec.id === 'string' &&
+      typeof dec.partId === 'string' &&
+      isVec3(dec.position) &&
+      isVec3(dec.normal) &&
+      typeof dec.size === 'number' &&
+      Number.isFinite(dec.size) &&
+      typeof dec.kind === 'string' &&
+      VALID_DECAL_KINDS.has(dec.kind)
+    )
+  })
+}
+
+/** Every part must be an object with a valid `role` (or none), valid Stage-2
+ *  material/gradient fields, and valid Stage-5 `plump`/`sweepPoints`. */
 function partsValid(parts: unknown[]): boolean {
   return parts.every((p) => {
     if (!p || typeof p !== 'object') return false
@@ -153,6 +190,12 @@ function partsValid(parts: unknown[]): boolean {
     if (role !== undefined && (typeof role !== 'string' || !VALID_ROLES.has(role))) return false
     // v6: optional user part name.
     if (rec.name !== undefined && typeof rec.name !== 'string') return false
+    // v7: optional cushion plump + explicit sweep path points.
+    if (rec.plump !== undefined && (typeof rec.plump !== 'number' || !Number.isFinite(rec.plump)))
+      return false
+    if (rec.sweepPoints !== undefined) {
+      if (!Array.isArray(rec.sweepPoints) || !rec.sweepPoints.every(isVec3)) return false
+    }
     return materialFieldsValid(rec)
   })
 }
@@ -172,6 +215,7 @@ function isSpec(x: unknown): x is AssetEditSpec {
     typeof s.meshOverrides === 'object' &&
     isCombineGroups(s.combineGroups) &&
     isPartGroups(s.partGroups) &&
+    isDecals(s.decals) &&
     (s.exportedProductId === undefined || typeof s.exportedProductId === 'string')
   )
 }

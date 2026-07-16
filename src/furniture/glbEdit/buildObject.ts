@@ -21,6 +21,7 @@ import {
   furnitureMaterialCacheId,
   parseFurnitureMaterialFinish,
 } from '../../materials/furnitureMaterials'
+import { decalGeometry, decalMaterial } from './decals'
 import {
   type AssetEditSpec,
   combinedPartIds,
@@ -28,6 +29,8 @@ import {
   combineHomeGroup,
   DEFAULT_PART_METALNESS,
   DEFAULT_PART_ROUGHNESS,
+  type Decal,
+  decalsForPart,
   type GroupMaterialData,
   type MeshOverride,
   type PartGroup,
@@ -36,6 +39,7 @@ import {
   type ShapePart,
 } from './editSpec'
 import { applyGradientColors } from './gradient'
+import { applyPlump, plumpBoxGeometry } from './plump'
 import {
   bevelledBoxGeometry,
   extrudeGeometry,
@@ -297,6 +301,9 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
   const [w, h, d] = part.size
   switch (part.kind) {
     case 'box':
+      // Stage 5: a plumped cushion needs a tessellated box to displace.
+      if (part.plump && part.plump > 0)
+        return plumpBoxGeometry(w, h, d, part.bevel ?? 0, part.plump)
       // bevel 0 / absent → plain BoxGeometry (byte-identical to pre-Stage-1a).
       return part.bevel && part.bevel > 0
         ? bevelledBoxGeometry(w, h, d, part.bevel)
@@ -306,7 +313,13 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
     case 'extrude':
       return extrudeGeometry(part.outline ?? [], w, h, d, part.bevel ?? 0.02)
     case 'sweep':
-      return sweepGeometry(part.sweepProfile ?? 'circle', part.sweepPath ?? 'ring', w, h)
+      return sweepGeometry(
+        part.sweepProfile ?? 'circle',
+        part.sweepPath ?? 'ring',
+        w,
+        h,
+        part.sweepPoints,
+      )
     case 'cylinder':
       return new CylinderGeometry(w / 2, w / 2, h, 32)
     case 'cone':
@@ -322,7 +335,10 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
       const radius = Math.max(0.01, w / 2)
       // CapsuleGeometry's `length` excludes the two hemispherical caps.
       const length = Math.max(0, h - 2 * radius)
-      return new CapsuleGeometry(radius, length, 8, 24)
+      const geo = new CapsuleGeometry(radius, length, 8, 24)
+      // Stage 5: a plumped capsule bolster bulges outward (already tessellated).
+      if (part.plump && part.plump > 0) applyPlump(geo, part.plump, [w, h, d])
+      return geo
     }
     case 'torus': {
       const tube = Math.max(0.01, h / 2)
@@ -362,10 +378,25 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
   }
 }
 
+/** A decal overlay mesh, projected against `targetGeo` (the part's already-built,
+ *  part-local geometry) and parented under the part mesh so it follows the part
+ *  (Stage 5). Real geometry → it exports into the GLB. */
+function buildDecalMesh(targetGeo: BufferGeometry, decal: Decal, name: string): Mesh {
+  const mesh = new Mesh(decalGeometry(targetGeo, decal), decalMaterial(decal))
+  mesh.name = name
+  mesh.renderOrder = 2
+  mesh.castShadow = false
+  mesh.receiveShadow = false
+  return mesh
+}
+
 /** Build one primitive part into a live/export Mesh at its LOCAL transform
- *  (local to its transform-group parent, or to the asset root when ungrouped). */
-function buildPartMesh(part: ShapePart, name: string): Mesh {
-  const mesh = new Mesh(partGeometry(part), partMaterials(part))
+ *  (local to its transform-group parent, or to the asset root when ungrouped).
+ *  Stage 5: any decals projected onto the part are added as child overlay meshes
+ *  (in the part's local frame) so they follow it. */
+function buildPartMesh(part: ShapePart, name: string, partDecals: Decal[] = []): Mesh {
+  const geo = partGeometry(part)
+  const mesh = new Mesh(geo, partMaterials(part))
   // Name parts so a saved asset's components are addressable when it's later
   // reopened as a source for per-mesh recolour/hide.
   mesh.name = name
@@ -379,6 +410,9 @@ function buildPartMesh(part: ShapePart, name: string): Mesh {
   }
   mesh.castShadow = true
   mesh.receiveShadow = true
+  partDecals.forEach((d, i) => {
+    mesh.add(buildDecalMesh(geo, d, `${name}-decal-${i + 1}`))
+  })
   return mesh
 }
 
@@ -451,7 +485,7 @@ export function buildEditedObject(
     // its role only cuts inside a Subtract combine (least-surprising: it exports
     // as what the editor shows).
     if (consumed.has(part.id)) return
-    const mesh = buildPartMesh(part, `${part.kind}-${i + 1}`)
+    const mesh = buildPartMesh(part, `${part.kind}-${i + 1}`, decalsForPart(spec, part.id))
     // A transform-group member builds under its group container (world pose =
     // group transform ∘ part transform); an ungrouped part at the asset root.
     ;(containerByPart.get(part.id) ?? group).add(mesh)

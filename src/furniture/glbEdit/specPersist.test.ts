@@ -143,8 +143,8 @@ describe('specPersist', () => {
     expect(restored!.parts[1].role).toBe('hole')
   })
 
-  it('the current envelope is v6', () => {
-    expect(ASSET_SPEC_VERSION).toBe(6)
+  it('the current envelope is v7', () => {
+    expect(ASSET_SPEC_VERSION).toBe(7)
   })
 
   it('round-trips the exportedProductId (v5, stable make-configurable id)', () => {
@@ -162,6 +162,27 @@ describe('specPersist', () => {
     // A v5-tagged blob (no name field) still parses (additive identity migration).
     const legacyV5 = JSON.stringify({ kind: 'asset', v: 5, payload: createEmptySpec() })
     expect(parseAssetSpec(legacyV5)).toEqual(createEmptySpec())
+  })
+
+  it('round-trips Stage-5 plump + sweepPoints and migrates a v6 blob identically', () => {
+    let s = addPart(createEmptySpec(), 'box')
+    s = {
+      ...s,
+      parts: s.parts.map((p) => ({
+        ...p,
+        plump: 0.5,
+        sweepPoints: [
+          [0.1, 0.1, 0.1],
+          [-0.1, 0.1, 0.1],
+        ] as [number, number, number][],
+      })),
+    }
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored?.parts[0].plump).toBe(0.5)
+    expect(restored?.parts[0].sweepPoints).toHaveLength(2)
+    // A v6-tagged blob (no decals/plump) still parses (additive identity migration).
+    const legacyV6 = JSON.stringify({ kind: 'asset', v: 6, payload: createEmptySpec() })
+    expect(parseAssetSpec(legacyV6)).toEqual(createEmptySpec())
   })
 
   it('rejects a non-string part name', () => {

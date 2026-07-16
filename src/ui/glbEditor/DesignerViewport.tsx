@@ -190,6 +190,8 @@ export function DesignerViewport() {
     commitGroupGizmoDrag: onCommitGroupGizmoDrag,
     armed,
     placeOnFace: onPlaceFace,
+    decalArmed,
+    placeDecal: onPlaceDecal,
     gridSnap,
     toggleGridSnap,
     setSnapStep,
@@ -226,6 +228,7 @@ export function DesignerViewport() {
               meshRefFor={meshRefFor}
               groupRefFor={groupRefFor}
               onPlaceFace={armed ? onPlaceFace : undefined}
+              onPlaceDecal={decalArmed ? onPlaceDecal : undefined}
             />
             {/* View-preset responder — inside <Bounds> so `useBounds()` resolves. */}
             <CameraViews request={viewRequest} />

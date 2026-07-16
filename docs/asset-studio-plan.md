@@ -293,10 +293,41 @@ shrinking — every stage extracts modules, never grows the monolith.
     click-two-points measure was **deferred** as lower-value than the shipped surfaces.
   - Scenario `scripts/scenarios/glb-designer-stage4.json`.
 
-## Stage 5 — Realism detail layer
-- Decal/detail layer (`DecalGeometry`): seams, stitches, buttons, logos, wear.
-- Piping/seam presets along cushion edges (Stage-1 sweep reused).
-- Cushion realism ruling: evaluate baked-deformation variants vs cost; record ruling.
+## Stage 5 — Realism detail layer — ✅ SHIPPED (v0.21.2.40) — closes the program
+- ✅ **Decal/detail layer** (`glbEdit/decals.ts` + `decalTexture.ts`, pure + unit-tested; UI
+  `ui/glbEditor/DetailsPanel.tsx`): a **Details** section arms a curated detail — **Button**,
+  **Stitch line**, **Seam**, **Round patch**, **Wear spot** — then a click on a part's surface in
+  the preview projects it (the Stage-3b place-on-face raycast seam, reused; the dev-gated automation
+  seam is `window.__glbDesignerPlaceDecal`). Spec: `decals: {id, partId, position, normal, size,
+  kind, color?, rotation?}[]` on `AssetEditSpec` (envelope **v6→v7** additive migration + strict
+  validation). Each decal's `position`/`normal` live in the TARGET PART'S LOCAL frame (the raycast
+  hit via `worldToLocal` + the geometry-local face normal), so it's built with `DecalGeometry`
+  against the part geometry at identity and rendered as a CHILD of the part mesh — it follows a
+  grouped/moved part automatically, and `removePart` prunes a deleted part's decals (`pruneDecals`).
+  Zero z-fighting: each decal vertex is physically offset a hair (0.7 mm) along its normal (survives
+  the GLB round-trip, which drops `polygonOffset`) + `depthWrite:false`. Patterns are small
+  procedural **canvas** textures (button/stitch/seam/patch/wear), headless-guarded (flat-tint
+  fallback when no 2D canvas). Decals are REAL geometry → they EXPORT into the GLB and reimport
+  intact (verified, `decalExport.test.ts` — GLTFExporter → app GLTFLoader round-trip: the decal
+  overlay mesh survives with position + uv).
+- ✅ **Piping/seam preset** (`glbEdit/piping.ts`, pure + unit-tested): one-tap **Add piping** on a
+  selected box/extrude traces its top-face perimeter as a rounded-rect path (`roundedRectPathPoints`,
+  pure math) rendered as a thin round **`sweep`** welt (Stage-1 sweep reused — a new explicit
+  `sweepPoints` override on the sweep part feeds `sweepGeometry`), grouped with the host (joins its
+  existing group or mints a "Piping" group over the pair), finish defaulting to the host colour
+  darkened. Params: tube diameter + edge inset (`DetailsPanel` sliders). Covers sofa/cushion piping
+  with no manual path work.
+- ✅ **Cushion realism ruling — SHIPPED option (b)** (`glbEdit/plump.ts`, pure + unit-tested): a
+  `plump` 0…1 param on box/capsule kinds applies a sine-falloff vertex bulge — the top/bottom crown,
+  the sides bow, the corners stay pinned (the seam line), normals recomputed; a plumped box builds on
+  a tessellated `RoundedBoxGeometry` so there are interior vertices to displace. Verified to read
+  convincingly as a stuffed cushion (Stage-5 scenario `02-cushion-plump`), so option (b) shipped over
+  (a) offline-baked cloth-sim GLB variants (needs asset production — out of scope for pure code) and
+  (c) skip. Ruling recorded in `PHOTOREALISM.md`. Inspector: a **Plump (cushion)** slider on
+  box/capsule parts.
+- ✅ Scenario `scripts/scenarios/glb-designer-stage5.json` (plump → Add piping → 3 button decals →
+  save/restore round-trip asserts the envelope embeds plump + Piping welt + 3 decals + export
+  sanity). All pure ops unit-tested (`decals.test.ts` / `piping.test.ts` / `plump.test.ts`).
 
 ---
 
@@ -312,5 +343,9 @@ designer→configurable-product export via baked-GLB `data:`-URL options + user-
 **fully shipped** — Stage 4a (designer context refactor, v0.21.2.38) + Stage 4b (precision & pro
 UX, v0.21.2.39, 2026-07-16: align/distribute, grid-snap toggle+step, live dimension readout,
 arbitrary-axis mirror, linear/radial array, ortho view presets + Home, part search/rename).
-Stage 5 (realism detail layer) next. Each stage lands as its own commit train with an
-end-of-stage adversarial review; this file tracks stage state.
+Stage 5 (realism detail layer) **fully shipped** (v0.21.2.40, 2026-07-16: decal/detail layer via
+`DecalGeometry` — buttons/stitches/seams/patches/wear projected on part faces, exported into the
+GLB; one-tap piping welt tracing a box/extrude top-face perimeter; cushion "plump" vertex-bulge —
+ruling (b) shipped). **The Asset Studio program is COMPLETE — all stages (0–5) shipped.** Each
+stage landed as its own commit train with an end-of-stage adversarial review; this file tracks
+stage state.
