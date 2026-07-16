@@ -953,3 +953,26 @@ Studio/Room preview → save → restore round-trip → place in the flat). Bugs
   read as thread); a velvet-sheen-keyed recolour leaves the arms/backrest grey (key on the FABRIC tag
   instead — tuned in-scenario); `Save asset` auto-closes the designer (reopen for a same-session
   restore).
+
+### Stage 11b follow-up — actionable findings fixed — ✅ SHIPPED (v0.21.2.68)
+The two ACTIONABLE Stage-11b findings, closed (the rest stay recorded — see below):
+- ✅ **Finding 1 — grouped-member face snapping was inert.** A dragged part inside a `PartGroup`
+  now snaps in the group's **local frame**: every snap target's world centre is pulled into that
+  frame via the new pure `groupTransform.ts:worldToGroupLocalPosition` (inverse of
+  `groupedPartWorldPosition`), so `snapFaces` runs in one consistent space and a template cushion
+  abuts its SIBLINGS (and any outside part) exactly like an ungrouped part. Wired through the live
+  drag session, the `__glbDesignerPrecision.drag` seam, and the `mergeEngagedSnap` commit; the live
+  snap hint is lifted back to world. The showcase `precision-abut-seats` phase now drives the REAL
+  magnet (drops 4 mm short of flush and lets it snap) and asserts the committed X differs from the
+  raw proposed X. Pure session-level tests in `dragSnapSession.test.ts` (member-vs-sibling +
+  member-vs-outside-part, flush at every grid step).
+- ✅ **Finding 5 — tuft stitch contrast.** The stitch decal colour default is now **tonal**, derived
+  from the host part's own colour via the pure `colorHarmony.ts:tonalContrast` (WCAG
+  `relativeLuminance` picks the direction — darken ~25 % for a light host, lighten ~20 % for a dark
+  host; hue/saturation preserved). Stitches on dark velvet read as thread, not chalk; users still
+  override via the decal colour field. Baked into `tufting.ts:tuftStitchDecals`; derivation tested
+  in `colorHarmony.test.ts` + `tufting.test.ts`.
+- 📌 **Recorded (not fixed):** *face-choice tufting* (plump/tuft is top-face only — a future "tuft on
+  a chosen face" axis unlocks upright backs/arms) and *`Save asset` auto-closes the designer*
+  (accepted UX — reopen for a same-session restore). The sheen-keyed recolour + room-centre overlap
+  were scenario-tuning / general placement notes, not Asset-Studio source bugs.

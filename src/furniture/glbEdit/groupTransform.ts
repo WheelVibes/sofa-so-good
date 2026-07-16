@@ -31,6 +31,25 @@ function groupMatrix(group: PartGroup): Matrix4 {
 }
 
 /**
+ * A world position pulled INTO the group's local frame — the exact inverse of
+ * `groupedPartWorldPosition` (world = group ∘ local ⇒ local = group⁻¹ ∘ world).
+ *
+ * The face-snap drag of a grouped MEMBER runs entirely in the member's group-local
+ * frame (the member's `position` field IS group-local), so every snap TARGET — a
+ * same-group sibling or an ungrouped part outside the group — has its world centre
+ * pulled into that one consistent space with this before `snapFaces` sees it
+ * (finding 1). A same-group sibling round-trips exactly back to its own local
+ * position; an outside part lands at its localised centre. Pure.
+ */
+export function worldToGroupLocalPosition(
+  group: PartGroup,
+  world: readonly [number, number, number],
+): [number, number, number] {
+  const v = new Vector3(world[0], world[1], world[2]).applyMatrix4(groupMatrix(group).invert())
+  return [clean(v.x), clean(v.y), clean(v.z)]
+}
+
+/**
  * World position of a grouped part = group transform ∘ part local position.
  * The invariant the live preview + the export + the gizmo write-back all rely
  * on. Pure.

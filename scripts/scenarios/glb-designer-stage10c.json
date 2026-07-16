@@ -1,6 +1,6 @@
 {
   "name": "glb-designer-stage10c",
-  "description": "Asset Studio Iteration 6 Stage 10c — Chesterfield (diamond) tufting in the GLB Asset Designer (Pro, glbDesigner on). Insert the Bench template (its upholstered top ships plumped + tufted, a rectangular grid), give the seat cushion a velvet sheen, then switch the Tufting Pattern to Diamond and turn Stitch lines ON — the classic chesterfield read: an offset button lattice with diagonal stitch lines running through the dimple valleys. Assert the offset lattice + tagged stitch decals generated, toggle back to Grid (assert the decals regenerate), flip back to Diamond, and Save — asserting the persisted def's assetSpec is the v13 envelope embedding parts[].tuft.pattern='diamond' + stitches + the tagged stitch decals. Run with SHOT_GPU=1 (the velvet sheen + stitch lines read best on a real GPU).",
+  "description": "Asset Studio Iteration 6 Stage 10c — Chesterfield (diamond) tufting in the GLB Asset Designer (Pro, glbDesigner on). Insert the Bench template (its upholstered top ships plumped + tufted, a rectangular grid), give the seat cushion a velvet sheen, then switch the Tufting Pattern to Diamond and turn Stitch lines ON — the classic chesterfield read: an offset button lattice with diagonal stitch lines running through the dimple valleys. Assert the offset lattice + tagged stitch decals generated, toggle back to Grid (assert the decals regenerate), flip back to Diamond, and Save — asserting the persisted def's assetSpec is a v>=13 envelope (asserted loosely so a concurrent envelope bump can't false-fail) embedding parts[].tuft.pattern='diamond' + stitches + the tagged stitch decals. Run with SHOT_GPU=1 (the velvet sheen + stitch lines read best on a real GPU).",
   "steps": [
     {
       "name": "store-ready",
@@ -140,12 +140,12 @@
     },
     {
       "name": "assert-saved-chesterfield",
-      "comment": "End-to-end proof: the saved assetSpec is the v13 envelope embedding parts[].tuft.pattern='diamond' + stitches + the tagged stitch decals — the chesterfield round-trips as an editable spec.",
+      "comment": "End-to-end proof: the saved assetSpec is a v>=13 envelope (loose — a concurrent envelope bump must not false-fail) embedding parts[].tuft.pattern='diamond' + stitches + the tagged stitch decals — the chesterfield round-trips as an editable spec.",
       "waitFor": {
-        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage10c Chesterfield' && typeof d.assetSpec === 'string' && (() => { try { const env = JSON.parse(d.assetSpec); if (env.v !== 13) return false; const s = env.payload; const c = s.parts.find(p => p.name === 'Seat cushion'); if (!c || !c.tuft || c.tuft.pattern !== 'diamond' || c.tuft.stitches !== true) return false; const lines = (s.decals||[]).filter(x => x.tuft && x.kind === 'stitch'); const buttons = (s.decals||[]).filter(x => x.tuft && x.kind === 'button'); return lines.length > 0 && buttons.length === c.tuft.rows * c.tuft.cols; } catch { return false } })())"
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage10c Chesterfield' && typeof d.assetSpec === 'string' && (() => { try { const env = JSON.parse(d.assetSpec); if (typeof env.v !== 'number' || env.v < 13) return false; const s = env.payload; const c = s.parts.find(p => p.name === 'Seat cushion'); if (!c || !c.tuft || c.tuft.pattern !== 'diamond' || c.tuft.stitches !== true) return false; const lines = (s.decals||[]).filter(x => x.tuft && x.kind === 'stitch'); const buttons = (s.decals||[]).filter(x => x.tuft && x.kind === 'button'); return lines.length > 0 && buttons.length === c.tuft.rows * c.tuft.cols; } catch { return false } })())"
       },
       "timeout": 90000,
-      "failMessage": "saved assetSpec should embed parts[].tuft.pattern='diamond' + stitches + tagged stitch decals at the v13 envelope"
+      "failMessage": "saved assetSpec should embed parts[].tuft.pattern='diamond' + stitches + tagged stitch decals at a v>=13 envelope"
     },
     {
       "name": "shot-saved",

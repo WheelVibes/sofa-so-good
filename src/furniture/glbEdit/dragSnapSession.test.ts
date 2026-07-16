@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { SNAP_STEPS } from '../../ui/glbEditor/gridSnapPref'
 import { boundsFromCenterExtent } from './arrange'
 import { DRAG_SNAP_RELEASE_FACTOR, startDragSnapSession, updateDragSnap } from './dragSnapSession'
+import type { PartGroup } from './editSpec'
 import { FACE_SNAP_THRESHOLD_M } from './faceSnap'
+import { mergeEngagedSnap } from './gizmoWriteBack'
+import { worldToGroupLocalPosition } from './groupTransform'
 
 /** A unit box centred at `c`. */
 const box = (c: [number, number, number], size: [number, number, number] = [1, 1, 1]) =>
@@ -111,5 +115,86 @@ describe('dragSnapSession — axis independence + targets stay fixed', () => {
     expect(session.releaseThreshold).toBeCloseTo(0.006, 9)
     // 6 mm is outside the 4 mm engage band → no snap.
     expect(updateDragSnap(session, box([0.006, 0, 0])).snapped).toBe(false)
+  })
+})
+
+// ---- Stage 11b finding 1 — grouped-member face snap in the group-local frame --
+// A dragged part that belongs to a PartGroup snaps in the GROUP'S LOCAL frame
+// (its `position` field + the gizmo mesh are group-local). The fix localises every
+// snap TARGET's world centre into that frame (`worldToGroupLocalPosition`) so the
+// session sees one consistent space. These pure tests mirror the real live-drag →
+// commit path (`updateDragSnap` engages on the raw live position; `mergeEngagedSnap`
+// then commits the flush value verbatim regardless of the grid step).
+describe('dragSnapSession — grouped member snaps in the group-local frame (finding 1)', () => {
+  // A translated group: members' local positions get +2 on X in world.
+  const group: PartGroup = {
+    id: 'g',
+    name: 'Sofa frame',
+    partIds: ['m', 'sib'],
+    position: [2, 0, 0],
+  }
+  const size: [number, number, number] = [1, 1, 1]
+
+  /** A snap target expressed in `group`'s local frame from its WORLD centre. */
+  const localTarget = (worldCenter: [number, number, number]) =>
+    boundsFromCenterExtent(worldToGroupLocalPosition(group, worldCenter), size)
+
+  it('member abuts its SIBLING flush at every grid step', () => {
+    // Sibling is a member of the same group at local x=1.02 (world x=3.02); its
+    // −X face sits at local 0.52. The dragged member (half-width 0.5) is flush when
+    // its centre reaches local x=0.02.
+    const sibWorldCenter: [number, number, number] = [2 + 1.02, 0, 0]
+    const target = localTarget(sibWorldCenter)
+    expect(target.center[0]).toBeCloseTo(1.02, 6) // round-trips to its own local pos
+    const flushX = target.min[0] - size[0] / 2 // 0.52 − 0.5 = 0.02
+
+    for (const step of SNAP_STEPS) {
+      const session = startDragSnapSession([target])
+      // Raw live drag stops 4 mm short of flush — inside the 8 mm engage band.
+      const rawX = flushX + 0.004
+      const frame = updateDragSnap(session, box([rawX, 0, 0], size))
+      expect(session.engaged.x).toBe(true)
+      const liveX = rawX + frame.delta[0]
+      expect(liveX).toBeCloseTo(flushX, 6)
+      // Commit: grid-quantise the raw position, then the engaged flush wins verbatim
+      // (so a coarse 5 cm grid can't drag the committed value off the sibling face).
+      const gridX = Math.round(rawX / step) * step
+      const final = mergeEngagedSnap([gridX, 0, 0], [liveX, 0, 0], session.engaged)
+      expect(final[0]).toBeCloseTo(flushX, 6)
+      // Member's +X face meets the sibling's −X face flush in the group frame.
+      expect(final[0] + size[0] / 2).toBeCloseTo(target.min[0], 6)
+    }
+  })
+
+  it('member abuts an UNGROUPED part OUTSIDE the group flush at every grid step', () => {
+    // An ungrouped part at world x=4 — its localised centre lands at local x=2, so
+    // its −X face is at local 1.5. The member is flush when its centre reaches 1.0.
+    const outsideWorldCenter: [number, number, number] = [4, 0, 0]
+    const target = localTarget(outsideWorldCenter)
+    expect(target.center[0]).toBeCloseTo(2, 6)
+    const flushX = target.min[0] - size[0] / 2 // 1.5 − 0.5 = 1.0
+
+    for (const step of SNAP_STEPS) {
+      const session = startDragSnapSession([target])
+      const rawX = flushX + 0.005 // 5 mm short — inside the engage band
+      const frame = updateDragSnap(session, box([rawX, 0, 0], size))
+      expect(session.engaged.x).toBe(true)
+      const liveX = rawX + frame.delta[0]
+      const gridX = Math.round(rawX / step) * step
+      const final = mergeEngagedSnap([gridX, 0, 0], [liveX, 0, 0], session.engaged)
+      expect(final[0]).toBeCloseTo(flushX, 6)
+      expect(final[0] + size[0] / 2).toBeCloseTo(target.min[0], 6)
+    }
+  })
+
+  it('does not engage a far target outside the band (localised distance is honest)', () => {
+    // Outside part world x=4 (local −X face 1.5); the member sitting at local x=0.4
+    // (+X face 0.9) is 0.6 m away → no snap, proving the localisation preserves the
+    // true gap rather than collapsing frames.
+    const target = localTarget([4, 0, 0])
+    const session = startDragSnapSession([target])
+    const frame = updateDragSnap(session, box([0.4, 0, 0], size))
+    expect(frame.snapped).toBe(false)
+    expect(session.engaged.x).toBe(false)
   })
 })

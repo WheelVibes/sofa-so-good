@@ -28,6 +28,7 @@
  * three geometry construction — everything numeric is testable in node.
  */
 
+import { tonalContrast } from '../../materials/colorHarmony'
 import {
   type AssetEditSpec,
   addDecal,
@@ -280,6 +281,13 @@ export function tuftStitchDecals(part: ShapePart): Omit<Decal, 'id'>[] {
   const [w, h, d] = part.size
   const amount = part.plump ?? 0
   const pts = tuftButtonPositionsXZ(w, d, rows, cols, pat)
+  // TONAL default (Stage 11b finding 5): the thread takes the host fabric's own
+  // hue/saturation nudged in lightness (a lighter thread on dark velvet, a shadow
+  // line on pale linen) so stitches read as THREAD, not the fixed chalk-white
+  // that flared on dark upholstery. `undefined` (no/invalid host colour) falls
+  // back to the kind's light default in `decalMaterial`; the user can still
+  // override per-decal via the colour field.
+  const stitchColor = part.color ? (tonalContrast(part.color) ?? undefined) : undefined
   const out: Omit<Decal, 'id'>[] = []
   for (const [i, j] of tuftStitchPairs(rows, cols, pat)) {
     const a = pts[i]
@@ -302,6 +310,7 @@ export function tuftStitchDecals(part: ShapePart): Omit<Decal, 'id'>[] {
       size: Math.max(TUFT_STITCH_MIN, len),
       kind: 'stitch' as const,
       rotation: (-Math.atan2(dz, dx) * 180) / Math.PI,
+      ...(stitchColor ? { color: stitchColor } : {}),
       tuft: true,
     })
   }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { hexToHsl } from '../../materials/colorHarmony'
 import {
   addDecal,
   createEmptySpec,
@@ -320,6 +321,29 @@ describe('tuft stitch pairs + decals (Stage 10c)', () => {
   it('no stitches when the toggle is off or the part has no grid', () => {
     expect(tuftStitchDecals(box({ tuft: { rows: 2, cols: 3, depth: 0.5 } }))).toEqual([])
     expect(tuftStitchDecals(box({ tuft: undefined }))).toEqual([])
+  })
+
+  it('defaults the stitch thread to a TONAL colour derived from the host fabric (finding 5)', () => {
+    // Dark oxblood velvet → a LIGHTER thread of the same hue family (reads as
+    // thread, not the fixed chalk-white). Same tuft grid, only the host colour.
+    const dark = box({ color: '#5b2733', tuft: { rows: 2, cols: 3, depth: 0.5, stitches: true } })
+    const darkStitch = tuftStitchDecals(dark)[0]
+    expect(darkStitch.color).toBeDefined()
+    const hHost = hexToHsl('#5b2733')!
+    const hThread = hexToHsl(darkStitch.color!)!
+    expect(hThread.l).toBeGreaterThan(hHost.l) // lighter than the dark host
+    expect(hThread.h).toBeCloseTo(hHost.h, 0) // tonal — same hue family
+    // A light host darkens instead → the thread is a shadow line, not chalk.
+    const light = box({ color: '#e8ddc4', tuft: { rows: 2, cols: 3, depth: 0.5, stitches: true } })
+    const lightStitch = tuftStitchDecals(light)[0]
+    expect(hexToHsl(lightStitch.color!)!.l).toBeLessThan(hexToHsl('#e8ddc4')!.l)
+  })
+
+  it('leaves the stitch colour unset (light default) when the host has no valid colour', () => {
+    const { color: _drop, ...bare } = box({
+      tuft: { rows: 2, cols: 3, depth: 0.5, stitches: true },
+    })
+    expect(tuftStitchDecals(bare as ShapePart).every((s) => s.color === undefined)).toBe(true)
   })
 
   it('tuftDecals bundles buttons + stitches (buttons only when stitches off)', () => {

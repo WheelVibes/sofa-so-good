@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.68 — Asset Studio Stage 11b follow-up — actionable findings fixed
+
+The two ACTIONABLE findings from the Stage-11b showcase integration build (v0.21.2.67), fixed +
+tested. The remaining findings stay recorded (face-choice tufting is a future axis; `Save asset`
+auto-close is accepted UX).
+
+- **Grouped-member face snapping now engages (finding 1).** Dragging a part that belongs to a
+  `PartGroup` gave plain grid snap only — no face snap against its siblings, exactly where a
+  template user wants it (cushions inside the `Sofa frame` group). The member's mesh + `position`
+  field are **group-local**, but the snap targets were world AABBs, so `snapFaces` was mixing
+  frames. Fix: the drag now runs entirely in the member's **group-local frame** — every target's
+  world centre is pulled into that frame via the new pure
+  `glbEdit/groupTransform.ts:worldToGroupLocalPosition` (the exact inverse of
+  `groupedPartWorldPosition`), so a same-group sibling maps back to its own local position and an
+  outside/ungrouped part to its localised centre. A same-group sibling abut and a member-vs-outside
+  abut both engage; the live snap hint is lifted back to world so it lands on the real faces. Wired
+  through the live drag session (`beginPartDrag`/`applyLivePartDragSnap`/`liveDrag`), the
+  `__glbDesignerPrecision.drag` seam (`faceSnapPartPosition`), and the `mergeEngagedSnap` commit —
+  an ungrouped drag is byte-identical (its frame IS world).
+- **Tuft stitch thread is now TONAL (finding 5).** Stitch decals defaulted to a fixed light tint
+  (`#efe9dc`), reading as bright chalk dashes on dark velvet. `glbEdit/tufting.ts:tuftStitchDecals`
+  now derives the default stitch colour from the host part's own colour via the new pure
+  `materials/colorHarmony.ts:tonalContrast` — WCAG `relativeLuminance` (reused from
+  `analysis/imagePalette.ts`) picks the direction (darken ~25 % for a light host, lighten ~20 % for
+  a dark host), keeping the host's hue + saturation and moving only lightness. Stitches on oxblood
+  velvet read as a lighter thread of the same colour; on pale linen as a subtle shadow line. Users
+  still override per-decal via the colour field; no host colour → the previous light default.
+- **Showcase scenario precision phase now exercises the real magnet.** `precision-abut-seats` drops
+  cushion 1 four mm short of flush and lets the group-local face magnet abut it to its sibling
+  (fine grid so quantisation can't leave the 8 mm band), then asserts the committed X differs from
+  the raw proposed X — the flush-abut assertion it previously had to work around is restored.
+- **Tests + gates.** New pure tests: `dragSnapSession.test.ts` (grouped member abuts a sibling AND
+  an outside part flush at every grid step, honest localised distance), `colorHarmony.test.ts` +
+  `tufting.test.ts` (tonal derivation direction/hue-preservation/override). `tsc` + `biome` +
+  `knip` clean; scenarios `glb-designer-showcase.json` + `glb-designer-stage10c.json` re-run green
+  (improved chesterfield frame: `03-precision-abut` + the diamond-tuft frames now read as thread).
+
 ## v0.21.2.67 — Asset Studio Stage 11b — showcase integration build (shipped-with-findings)
 
 Scripted end-to-end integration build of a complete catalog-quality **chesterfield sofa** in the

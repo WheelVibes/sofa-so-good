@@ -1483,14 +1483,17 @@ piping welts → Studio-vs-Room IBL → save (optimize-on-save) → restore from
 (asserts 14 parts / 1 group / 38 decals survive the round-trip) → place the saved sofa in the flat's
 Living/Dining room at High tier (the money shot). It's the Stage-11b integration regression.
 **Reusable landmines learned here (beyond the earlier designer rungs):**
-- **Face-to-face magnetic snapping does NOT engage on a grouped MEMBER.** `__glbDesignerPrecision.drag`
-  on a part that belongs to a `PartGroup` (every template cushion is a member of the wrapping group)
-  commits the raw position **verbatim** — no grid snap, no face snap — so a "drag 5 mm shy → asserts
-  flush" step (which works on a top-level part, per `glb-designer-stage6d.json`) fails with the gap
-  left exactly at the raw offset. To place a grouped member precisely, compute the exact target from
-  the live geometry and drag to it (the seam commits it verbatim, so it lands exact). This is
-  documented 6d/7b behaviour, but it means the whole template-first precision story is numeric, not
-  magnetic — flag it as a finding rather than "fixing" the scenario around it silently.
+- **Face-to-face magnetic snapping now ENGAGES on a grouped MEMBER (fixed v0.21.2.68).** Previously
+  `__glbDesignerPrecision.drag` on a part inside a `PartGroup` committed the raw position verbatim
+  (no face snap), so a "drag 5 mm shy → asserts flush" step failed with the gap left at the raw
+  offset — the workaround was to compute the exact flush target and drag to it numerically. That's
+  fixed: the drag now runs in the member's **group-local frame** (targets localised via
+  `groupTransform.ts:worldToGroupLocalPosition`), so a member snaps to its SIBLINGS (and outside
+  parts) exactly like a top-level part. The `precision-abut-seats` phase now drives the REAL magnet
+  — drop the member ~4 mm short of flush (inside the 8 mm band; set a fine `setSnapStep(0.001)` so
+  grid quantisation can't leave the band) and assert both `gap ≈ 0` AND `committedX !== proposedX`
+  (proving the magnet, not a verbatim commit, closed it). The old "compute exact target + drag
+  verbatim" recipe still works for a top-level part but is no longer needed for grouped members.
 - **The plump/tuft system is TOP-FACE only** — tufting reads on a horizontal seat cushion, never on a
   vertical backrest/arm (its dimples would land on the thin top edge). So a "chesterfield" built this
   way tufts the seat, not the back.

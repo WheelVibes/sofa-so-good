@@ -120,7 +120,11 @@ import {
   groupGizmoPatch,
   mergeEngagedSnap,
 } from '../../furniture/glbEdit/gizmoWriteBack'
-import { groupedPartWorldPosition, ungroupPartGroup } from '../../furniture/glbEdit/groupTransform'
+import {
+  groupedPartWorldPosition,
+  ungroupPartGroup,
+  worldToGroupLocalPosition,
+} from '../../furniture/glbEdit/groupTransform'
 import {
   addPiping,
   canPipe,
@@ -1492,18 +1496,64 @@ function useDesignerController() {
     return boundsFromCenterExtent(center, partWorldExtent(p))
   }
 
-  // Face-snap an ungrouped part's proposed (grid-snapped) translate position to a
-  // nearby part face (Stage 6d) and flash the hint. Returns the snapped position,
-  // or null when nothing snapped. `src` is the spec to read targets from. Shared
-  // by the gizmo commit + the dev seam.
+  // The face-snap targets for a dragged part, expressed in the DRAGGED part's OWN
+  // frame (finding 1). An UNGROUPED part drags in the world frame, so the targets
+  // stay world AABBs unchanged. A GROUPED MEMBER drags in its group's LOCAL frame
+  // (its `position` field is group-local, and so is the mesh the gizmo moves), so
+  // every target's world centre is pulled into that frame via
+  // `worldToGroupLocalPosition` — a same-group sibling maps back to its own local
+  // position, an outside/ungrouped part to its localised centre — and `snapFaces`
+  // sees one consistent space. (Extent stays the part's rotation-aware world
+  // extent: exact for an identity/translation group; the group's own rotation is
+  // the same documented approximation as the whole-group drag.)
+  const snapTargetsInDragFrame = (src: AssetEditSpec, part: ShapePart) => {
+    const group = partGroups(src).find((g) => g.partIds.includes(part.id))
+    return src.parts
+      .filter((p) => p.id !== part.id)
+      .map((p) => {
+        const wb = partWorldBoundsIn(src, p)
+        if (!group) return wb
+        return boundsFromCenterExtent(worldToGroupLocalPosition(group, wb.center), wb.size)
+      })
+  }
+
+  // Lift a snap hint (box + per-axis plane coords) computed in a dragged part's
+  // frame back to WORLD space so the gizmo hint sits on the real faces even for a
+  // grouped member (whose snap runs in group-local space). For an ungrouped part
+  // this is the identity. Exact for identity/translation groups; the group's own
+  // rotation is the same documented approximation as the extent.
+  const worldSnapHint = (
+    src: AssetEditSpec,
+    part: ShapePart,
+    localCenter: [number, number, number],
+    hits: FaceSnapHit[],
+  ): {
+    hits: FaceSnapHit[]
+    bounds: { min: [number, number, number]; max: [number, number, number] }
+  } => {
+    const group = partGroups(src).find((g) => g.partIds.includes(part.id))
+    const worldCenter = group
+      ? groupedPartWorldPosition(group, { ...part, position: localCenter })
+      : localCenter
+    const gp = group?.position ?? [0, 0, 0]
+    const idx: Record<Axis3, 0 | 1 | 2> = { x: 0, y: 1, z: 2 }
+    const worldHits = group ? hits.map((h) => ({ ...h, coord: h.coord + gp[idx[h.axis]] })) : hits
+    return { hits: worldHits, bounds: boundsFromCenterExtent(worldCenter, partWorldExtent(part)) }
+  }
+
+  // Face-snap a part's proposed (grid-snapped) translate position to a nearby part
+  // face (Stage 6d) and flash the hint. Returns the snapped position, or null when
+  // nothing snapped. `src` is the spec to read targets from. Shared by the gizmo
+  // commit + the dev seam. A grouped MEMBER snaps against its siblings + outside
+  // parts in its group-local frame (finding 1) — the returned position is in the
+  // same (group-local) frame as the input `proposed`, ready to commit verbatim.
   const faceSnapPartPosition = (
     src: AssetEditSpec,
     part: ShapePart,
     proposed: [number, number, number],
   ): [number, number, number] | null => {
-    if (partGroupMemberIds(src).has(part.id)) return null
     const moving = boundsFromCenterExtent(proposed, partWorldExtent(part))
-    const targets = src.parts.filter((p) => p.id !== part.id).map((p) => partWorldBoundsIn(src, p))
+    const targets = snapTargetsInDragFrame(src, part)
     const { delta, hits } = snapFaces(moving, targets)
     if (hits.length === 0) return null
     const snapped: [number, number, number] = [
@@ -1511,30 +1561,22 @@ function useDesignerController() {
       proposed[1] + delta[1],
       proposed[2] + delta[2],
     ]
-    flashSnapHint(hits, boundsFromCenterExtent(snapped, partWorldExtent(part)))
+    const hint = worldSnapHint(src, part, snapped, hits)
+    flashSnapHint(hint.hits, hint.bounds)
     return snapped
   }
 
   // ---- Live part translate-drag snap (Stage 7b) --------------------------
-  // Open a session at drag start: capture the static targets (every OTHER part's
-  // world AABB) ONCE. Only for an ungrouped part, translate mode, magnet on, Alt
-  // not held (the escape hatch) — matching `faceSnapPartPosition`'s eligibility.
+  // Open a session at drag start: capture the static targets ONCE, in the dragged
+  // part's own frame (world for an ungrouped part, the group's local frame for a
+  // grouped member — finding 1). Only in translate mode, magnet on, Alt not held
+  // (the escape hatch) — matching `faceSnapPartPosition`'s eligibility.
   const beginPartDrag = () => {
     dragSessionRef.current = null
     liveHintSigRef.current = null
     const part = sel
-    if (
-      !part ||
-      gizmoActive !== 'translate' ||
-      !gridSnap.enabled ||
-      altHeldRef.current ||
-      partGroupMemberIds(spec).has(part.id)
-    )
-      return
-    const targets = spec.parts
-      .filter((p) => p.id !== part.id)
-      .map((p) => partWorldBoundsIn(spec, p))
-    dragSessionRef.current = startDragSnapSession(targets)
+    if (!part || gizmoActive !== 'translate' || !gridSnap.enabled || altHeldRef.current) return
+    dragSessionRef.current = startDragSnapSession(snapTargetsInDragFrame(spec, part))
   }
 
   // One frame of live snap: read the mesh's raw (TransformControls-set) position,
@@ -1546,11 +1588,15 @@ function useDesignerController() {
     const m = selMesh
     const part = sel
     if (!m || !part) return null
+    // `m.position` is the gizmo's frame — group-local for a grouped member, world
+    // for an ungrouped part — matching the session's targets (finding 1). The live
+    // hint is lifted back to world so it lands on the real faces.
     const raw: [number, number, number] = [m.position.x, m.position.y, m.position.z]
     // Alt pressed mid-drag → release the magnet live (leave the mesh at raw).
     if (!session || altHeldRef.current) {
       lastLiveSnapRef.current = null
-      setLiveHint([], boundsFromCenterExtent(raw, partWorldExtent(part)))
+      const h = worldSnapHint(spec, part, raw, [])
+      setLiveHint(h.hits, h.bounds)
       return raw
     }
     const extent = partWorldExtent(part)
@@ -1559,7 +1605,8 @@ function useDesignerController() {
     const live: [number, number, number] = [raw[0] + delta[0], raw[1] + delta[1], raw[2] + delta[2]]
     m.position.set(live[0], live[1], live[2])
     lastLiveSnapRef.current = { position: live, axes: { ...session.engaged } }
-    setLiveHint(hits, boundsFromCenterExtent(live, extent))
+    const h = worldSnapHint(spec, part, live, hits)
+    setLiveHint(h.hits, h.bounds)
     return live
   }
 
@@ -1726,17 +1773,10 @@ function useDesignerController() {
         dragSessionRef.current = null
         liveHintSigRef.current = null
         const part = spec.parts.find((p) => p.id === partId)
-        if (
-          !part ||
-          !gridSnap.enabled ||
-          altHeldRef.current ||
-          partGroupMemberIds(spec).has(partId)
-        )
-          return
-        const targets = spec.parts
-          .filter((p) => p.id !== partId)
-          .map((p) => partWorldBoundsIn(spec, p))
-        dragSessionRef.current = startDragSnapSession(targets)
+        if (!part || !gridSnap.enabled || altHeldRef.current) return
+        // `rawPos` from `move` is in the part's own frame (group-local for a
+        // grouped member), so the targets are localised to match (finding 1).
+        dragSessionRef.current = startDragSnapSession(snapTargetsInDragFrame(spec, part))
       },
       move: (partId, rawPos) => {
         const part = spec.parts.find((p) => p.id === partId)
@@ -1748,10 +1788,12 @@ function useDesignerController() {
           const { delta, hits } = updateDragSnap(session, boundsFromCenterExtent(rawPos, extent))
           live = [rawPos[0] + delta[0], rawPos[1] + delta[1], rawPos[2] + delta[2]]
           lastLiveSnapRef.current = { position: live, axes: { ...session.engaged } }
-          setLiveHint(hits, boundsFromCenterExtent(live, extent))
+          const h = worldSnapHint(spec, part, live, hits)
+          setLiveHint(h.hits, h.bounds)
         } else {
           lastLiveSnapRef.current = null
-          setLiveHint([], boundsFromCenterExtent(rawPos, extent))
+          const h = worldSnapHint(spec, part, rawPos, [])
+          setLiveHint(h.hits, h.bounds)
         }
         // Drive the live preview mesh (visual for the drag screenshot) when it's
         // the selected part's mounted mesh.

@@ -93,15 +93,21 @@
     },
 
     {
+      "name": "precision-fine-grid",
+      "comment": "PHASE 3 — PRECISION setup. Switch to the 1 mm grid step in its OWN step: setSnapStep is React state, so a drag issued in the SAME tick would still see the old 5 mm step, and 5 mm quantisation from a 2 mm-shy start can hand the magnet a different nearest face.",
+      "eval": "window.__glbDesignerPrecision.setSnapStep(0.001)"
+    },
+    { "name": "wait-fine-grid", "wait": 300 },
+    {
       "name": "precision-abut-seats",
-      "comment": "PHASE 3 — PRECISION. The template lays the two seat cushions with a reveal gap; tighten them into a seamless bench line via the __glbDesignerPrecision.drag seam. NOTE (integration finding): face-to-face MAGNETIC snapping (Stage 6d) is documented as unavailable on a grouped MEMBER — and template cushions are members of the 'Sofa frame' group — so the drag commits the value verbatim (no auto-snap). We therefore compute the exact abut target from the live geometry (cushion 1's -X face meets cushion 0's +X face) and drive the gizmo to it, achieving a precise flush placement numerically. Record the pre-drag reveal gap to prove it closed.",
-      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); const seats=s.parts.filter(p=>/^Seat cushion/.test(p.name||'')).sort((a,b)=>a.position[0]-b.position[0]); if(seats.length!==2) throw new Error('need 2 seat cushions'); const c0=seats[0], c1=seats[1]; const c0maxX=c0.position[0]+c0.size[0]/2; const preGap=(c1.position[0]-c1.size[0]/2)-c0maxX; const targetX=c0maxX+c1.size[0]/2; window.__abut={ c0id:c0.id, c1id:c1.id, preGap }; window.__glbDesignerPrecision.drag(c1.id, [targetX, c1.position[1], c1.position[2]]); })()"
+      "comment": "PHASE 3 — PRECISION. The template lays the two seat cushions with a ~4 mm reveal gap; tighten them into a seamless bench line via the __glbDesignerPrecision.drag seam and the REAL face-to-face magnet (Stage 6d). Finding 1 (Stage 11b) is fixed: magnetic snapping now works on a grouped MEMBER — the drag runs in the 'Sofa frame' group's LOCAL frame, so cushion 1 snaps flush against its SIBLING cushion 0. Drag cushion 1 to stop 2 mm SHORT of flush — inside the 8 mm magnet band AND strictly nearer to the sibling's face than to the right arm's inner face (abut ties break to the NEAREST candidate, and at width 1.7 the arm face sits ~6 mm the other way) — and let the magnet abut it exactly, no pre-computed flush commit. Record the pre-drag reveal gap + the raw proposed X to prove the magnet (not a verbatim commit) closed it.",
+      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); const seats=s.parts.filter(p=>/^Seat cushion/.test(p.name||'')).sort((a,b)=>a.position[0]-b.position[0]); if(seats.length!==2) throw new Error('need 2 seat cushions'); const c0=seats[0], c1=seats[1]; const c0maxX=c0.position[0]+c0.size[0]/2; const preGap=(c1.position[0]-c1.size[0]/2)-c0maxX; const flushX=c0maxX+c1.size[0]/2; const proposedX=flushX+0.002; window.__abut={ c0id:c0.id, c1id:c1.id, preGap, flushX, proposedX }; window.__glbDesignerPrecision.drag(c1.id, [proposedX, c1.position[1], c1.position[2]]); })()"
     },
     { "name": "wait-abut", "wait": 500 },
     {
       "name": "assert-abut-flush",
-      "comment": "Seat cushion 1's -X face now meets seat cushion 0's +X face flush (gap ~0), closing the template's reveal gap.",
-      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); const c0=s.parts.find(p=>p.id===window.__abut.c0id); const c1=s.parts.find(p=>p.id===window.__abut.c1id); const c0maxX=c0.position[0]+c0.size[0]/2; const c1minX=c1.position[0]-c1.size[0]/2; const gap=c1minX-c0maxX; if(Math.abs(gap)>1e-3) throw new Error('seat cushions not flush — gap '+gap); if(!(window.__abut.preGap>Math.abs(gap))) throw new Error('reveal gap did not close (pre '+window.__abut.preGap+' post '+gap+')'); console.log('11B_PRECISION preGap='+window.__abut.preGap+' postGap='+gap); })()"
+      "comment": "The magnet fired on the grouped member: seat cushion 1's -X face now meets seat cushion 0's +X face flush (gap ~0), closing the template's reveal gap — AND the committed X differs from the raw proposed X, proving the auto-snap (not a verbatim commit) did it.",
+      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); const c0=s.parts.find(p=>p.id===window.__abut.c0id); const c1=s.parts.find(p=>p.id===window.__abut.c1id); const c0maxX=c0.position[0]+c0.size[0]/2; const c1minX=c1.position[0]-c1.size[0]/2; const gap=c1minX-c0maxX; if(Math.abs(gap)>1e-3) throw new Error('seat cushions not flush — gap '+gap); if(!(window.__abut.preGap>Math.abs(gap))) throw new Error('reveal gap did not close (pre '+window.__abut.preGap+' post '+gap+')'); if(Math.abs(c1.position[0]-window.__abut.proposedX)<1e-4) throw new Error('magnet did not fire — committed the raw proposed X verbatim'); console.log('11B_PRECISION preGap='+window.__abut.preGap+' postGap='+gap+' snapped='+(window.__abut.proposedX-c1.position[0])); })()"
     },
     {
       "name": "shot-precision",
