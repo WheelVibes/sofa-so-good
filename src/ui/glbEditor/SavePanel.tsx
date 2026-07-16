@@ -1,5 +1,6 @@
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { Select } from '../controls/Select'
+import { useDesigner } from './designerContext'
 
 export type PlacementKind = 'floor' | 'wall' | 'floorCovering'
 
@@ -8,46 +9,27 @@ export type PlacementKind = 'floor' | 'wall' | 'floorCovering'
  * optional "Update original" toggle (when editing an existing source), and the
  * save button. Purely presentational — the dialog owns the spec + save flow.
  */
-export function SavePanel({
-  name,
-  category,
-  placement,
-  hasSource,
-  overwrite,
-  busy,
-  canSave,
-  canSplitGroups,
-  splitGroups,
-  groupCount,
-  onName,
-  onCategory,
-  onPlacement,
-  onToggleOverwrite,
-  onToggleSplitGroups,
-  onSave,
-}: {
-  name: string
-  category: FurnitureCategory
-  placement: PlacementKind
-  hasSource: boolean
-  overwrite: boolean
-  busy: boolean
-  canSave: boolean
-  /** Whether the design has ≥1 top-level group, so it can be split into a "set"
-   *  (Stage 3d). When false the checkbox is hidden. Gated by the `assetSets` flag
-   *  upstream (absent → false). */
-  canSplitGroups?: boolean
-  /** When true, each top-level group ALSO saves as its own catalog asset. */
-  splitGroups?: boolean
-  /** Number of top-level groups (shown in the checkbox hint). */
-  groupCount?: number
-  onName: (name: string) => void
-  onCategory: (c: FurnitureCategory) => void
-  onPlacement: (p: PlacementKind) => void
-  onToggleOverwrite: () => void
-  onToggleSplitGroups?: () => void
-  onSave: () => void
-}) {
+export function SavePanel() {
+  const {
+    name,
+    category,
+    placement,
+    spec,
+    overwrite,
+    busy,
+    canSave,
+    canSplitGroups,
+    splitGroups,
+    transformGroups,
+    setName: onName,
+    setCategory: onCategory,
+    setPlacement: onPlacement,
+    toggleOverwrite: onToggleOverwrite,
+    toggleSplitGroups: onToggleSplitGroups,
+    save: onSave,
+  } = useDesigner()
+  const hasSource = !!spec.sourceAssetId
+  const groupCount = transformGroups.length
   return (
     <div className="sec">
       <div className="sec-h">

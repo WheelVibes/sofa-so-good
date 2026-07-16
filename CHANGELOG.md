@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.38 — Asset Studio Stage 4a: designer context (pre-Stage-4 refactor)
+
+Behaviour-preserving refactor ahead of Stage 4 (precision & pro UX). `GlbDesignerDialog`
+had accreted ~99 hand-threaded props across its 11 child panels over Stages 0–3; every new
+Stage-4 tool would widen that firehose further. Introduces a designer **context** so the
+panels read state/handlers directly. No feature or UI change; all designer scenarios
+(stage0/1a/1b/2/3a/3b/3c/3d) stay green.
+
+- **`ui/glbEditor/designerContext.tsx`** — new `DesignerProvider` + `useDesigner()` owning
+  the whole editing model: spec + bounded undo/redo history (the `specHistory` wiring),
+  selection (parts + transform group), gizmo mode + the live-preview mesh/group registries,
+  armed component/template state, live combine (CSG v2) evaluation, "make configurable"
+  assignments, and every commit/save/export handler. The controller hook runs unconditionally
+  (matching the pre-4a dialog body) so its hooks/effects — reset-on-open, the modal guard,
+  the dialog hotkeys, and the dev-only `__glbDesigner`/`__glbDesignerPlaceOnFace` automation
+  seams — stay stable whether the dialog is open or closed.
+- **`GlbDesignerDialog.tsx` is now pure composition** — the ~1100-line wiring file drops to
+  the dialog chrome + a flat list of panels under `<DesignerProvider>`; it gates its own render
+  on `open`/`enabled` while the provider stays mounted.
+- **All 11 panels consume `useDesigner()`** (DesignerViewport, DesignerToolbar, SourcePanel,
+  TemplatesPanel, ComponentsPanel, LayersPanel, PartInspector, GroupInspector, CombinePanel,
+  MakeConfigurablePanel, SavePanel). Panels that were conditionally mounted now self-gate
+  (PartInspector self-gates after its hooks; GroupInspector/CombinePanel/MakeConfigurablePanel
+  early-return). **Total prop bindings across the panels: ~99 → 0.**
+- **Re-render scope unchanged.** The pre-4a dialog already re-rendered every panel on any state
+  change (handlers were recreated each render, so none of the panels were prop-stable); a single
+  provider is exactly equivalent, and the Stage-3 memoization win — `LayersPanel`'s `useMemo`
+  keyed on `spec` + its `PartRow` `memo` — is preserved because `spec`'s identity is unaffected
+  by unrelated state changes.
+- **Pure logic untouched** — `furniture/glbEdit/*` and `configurator/designerExport.ts` change
+  only in that the imports now resolve from `designerContext.tsx`. `PartInspector.test.tsx` mounts
+  the panel via a minimal `DesignerContext.Provider` value (the raw context is exported for tests);
+  `GlbDesignerDialog.test.tsx` is unchanged.
+
 ## v0.21.2.37 — Asset Studio Stage-3 review fixes (correctness + cleanup)
 
 Verified fixes from the Stage-3 adversarial review, spanning the designer's combine/group

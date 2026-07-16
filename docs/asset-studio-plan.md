@@ -254,12 +254,16 @@ shrinking — every stage extracts modules, never grows the monolith.
 - ✅ Scenario `scripts/scenarios/glb-designer-stage3c.json`; no persistence change (v4 envelope).
 
 ## Stage 4 — Precision & pro UX
-- **Pre-Stage-4 refactor (do FIRST):** `GlbDesignerDialog` hand-threads ~99 props across 11 child
-  panels (SourcePanel/DesignerToolbar/TemplatesPanel/ComponentsPanel/LayersPanel/PartInspector/
-  GroupInspector/CombinePanel/MakeConfigurablePanel/SavePanel/DesignerViewport). Introduce a
-  designer **context** (spec + history + selection + handlers) and consume it in the panels before
-  adding any Stage-4 surface — otherwise every new tool widens the prop firehose further. This is
-  the first task of Stage 4.
+- ✅ **Stage 4a — pre-Stage-4 refactor (shipped, v0.21.2.38, 2026-07-16):** `GlbDesignerDialog`
+  had accreted ~99 hand-threaded props across 11 child panels (SourcePanel/DesignerToolbar/
+  TemplatesPanel/ComponentsPanel/LayersPanel/PartInspector/GroupInspector/CombinePanel/
+  MakeConfigurablePanel/SavePanel/DesignerViewport). Introduced a designer **context**
+  (`ui/glbEditor/designerContext.tsx` — `DesignerProvider`/`useDesigner()`) owning spec +
+  history + selection + gizmo/preview registries + armed component/template state + live combine
+  eval + make-configurable assignments + every handler; the panels consume it directly and the
+  dialog is pure composition. Behaviour-preserving (no feature/UI change): panel prop bindings
+  ~99 → 0; all designer scenarios (stage0/1a/1b/2/3a/3b/3c/3d) stay green. Do this BEFORE adding
+  any Stage-4 surface — otherwise every new tool widens the prop firehose further.
 - Alignment/distribution (align faces/centres, distribute), grid-snap toggle + step,
   live dimension readouts + measure tool, arbitrary-axis mirror, linear/radial array
   (reuse room-editor helpers), ortho view presets + camera bookmarks, part search/rename.
@@ -280,5 +284,6 @@ shrinking — every stage extracts modules, never grows the monolith.
 parametric); Stage 3d / sets & modular customization **shipped** (v0.21.2.36, 2026-07-16 —
 designer→configurable-product export via baked-GLB `data:`-URL options + user-products registry +
 "save groups as separate assets" sets). **Stage 3 fully shipped.** Stage 4 (precision & pro UX)
-next. Each stage lands as its own commit train with an end-of-stage adversarial review; this file
-tracks stage state.
+underway: **Stage 4a — designer context refactor shipped** (v0.21.2.38, 2026-07-16), the
+remaining Stage-4 precision surfaces next. Each stage lands as its own commit train with an
+end-of-stage adversarial review; this file tracks stage state.

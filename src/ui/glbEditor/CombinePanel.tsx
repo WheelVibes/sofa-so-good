@@ -1,5 +1,5 @@
-import { CSG_OPS, type CsgOp } from '../../furniture/glbEdit/csgCombine'
-import type { CombineGroup } from '../../furniture/glbEdit/editSpec'
+import { CSG_OPS } from '../../furniture/glbEdit/csgCombine'
+import { useDesigner } from './designerContext'
 
 /**
  * CSG v2 combine panel (Stage 1b) — non-destructive booleans over a MULTI-select
@@ -14,29 +14,21 @@ import type { CombineGroup } from '../../furniture/glbEdit/editSpec'
  * base and the rest are subtracted from it. Mark a part as a Hole in its edit
  * panel. Purely presentational — the dialog owns the (async) evaluation.
  */
-export function CombinePanel({
-  eligibleCount,
-  combining,
-  groups,
-  results,
-  errors,
-  computing,
-  onCombine,
-  onBake,
-  onUngroup,
-}: {
-  /** Count of currently-selected FREE parts (≥2 enables the actions). */
-  eligibleCount: number
-  combining: boolean
-  groups: CombineGroup[]
-  /** groupId → evaluated result present (Bake enabled only when ready). */
-  results: Set<string>
-  errors: Set<string>
-  computing: boolean
-  onCombine: (op: CsgOp) => void
-  onBake: (groupId: string) => void
-  onUngroup: (groupId: string) => void
-}) {
+export function CombinePanel() {
+  const {
+    spec,
+    eligibleCombineCount: eligibleCount,
+    combining,
+    combineGroupList: groups,
+    readyResultIds: results,
+    combineErrors: errors,
+    combineComputing: computing,
+    combine: onCombine,
+    bake: onBake,
+    ungroupCombine: onUngroup,
+  } = useDesigner()
+  // Shown once there's something to combine or an existing combine to manage.
+  if (spec.parts.length <= 1 && groups.length === 0) return null
   const canCombine = eligibleCount >= 2 && !combining
   return (
     <div className="sec">

@@ -1,9 +1,8 @@
-import type { AssetEditSpec } from '../../furniture/glbEdit/editSpec'
-import type { UserGltfDef } from '../../furniture/types'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Select } from '../controls/Select'
 import { SliderField } from '../controls/SliderField'
 import { Icon } from '../toolbar/icons'
+import { useDesigner } from './designerContext'
 
 /**
  * The designer's "Start from" source picker + per-mesh recolour list. Picks an
@@ -13,30 +12,19 @@ import { Icon } from '../toolbar/icons'
  * editable part list instead of editing the frozen source mesh (Asset Studio S0).
  * Purely presentational — the dialog owns the spec.
  */
-export function SourcePanel({
-  spec,
-  userGlbs,
-  meshNames,
-  canRestore,
-  onPickSource,
-  onScaleChange,
-  onRestoreSpec,
-  onSetMeshColor,
-  onToggleMeshHidden,
-  onResetMesh,
-}: {
-  spec: AssetEditSpec
-  userGlbs: UserGltfDef[]
-  meshNames: string[]
-  /** True when the picked source carries a restorable designer spec. */
-  canRestore: boolean
-  onPickSource: (id: string) => void
-  onScaleChange: (scale: number) => void
-  onRestoreSpec: () => void
-  onSetMeshColor: (meshName: string, hex: string) => void
-  onToggleMeshHidden: (meshName: string, hidden: boolean) => void
-  onResetMesh: (meshName: string) => void
-}) {
+export function SourcePanel() {
+  const {
+    spec,
+    userGlbs,
+    meshNames,
+    canRestore,
+    pickSource: onPickSource,
+    setSourceScale: onScaleChange,
+    restoreSpec: onRestoreSpec,
+    setMeshColor: onSetMeshColor,
+    toggleMeshHidden: onToggleMeshHidden,
+    resetMesh: onResetMesh,
+  } = useDesigner()
   return (
     <>
       <div className="sec">

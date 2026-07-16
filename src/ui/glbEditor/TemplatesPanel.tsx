@@ -7,6 +7,7 @@ import { Disclosure } from '../controls/Disclosure'
 import { SliderField } from '../controls/SliderField'
 import { Icon } from '../toolbar/icons'
 import { ArmedCard } from './ArmedCard'
+import { useDesigner } from './designerContext'
 
 /**
  * The GLB designer's template picker (Asset Studio Stage 3c — template-first
@@ -19,21 +20,15 @@ import { ArmedCard } from './ArmedCard'
  * backs out. Purely presentational — the dialog owns the armed state, the live
  * preview and the insertion.
  */
-export function TemplatesPanel({
-  armedId,
-  params,
-  onArm,
-  onCancel,
-  onUse,
-  onParam,
-}: {
-  armedId: string | null
-  params: Record<string, number>
-  onArm: (id: string) => void
-  onCancel: () => void
-  onUse: () => void
-  onParam: (key: string, value: number) => void
-}) {
+export function TemplatesPanel() {
+  const {
+    templateId: armedId,
+    templateParams: params,
+    armTemplate: onArm,
+    cancelTemplate: onCancel,
+    useTemplate: onUse,
+    setTemplateParam: onParam,
+  } = useDesigner()
   const armed = armedId ? templateById(armedId) : null
 
   /** Readout for a param: the preset label for an index param, else the value

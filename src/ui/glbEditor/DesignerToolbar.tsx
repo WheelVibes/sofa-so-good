@@ -1,5 +1,6 @@
 import { type PrimitiveShapeKind, SHAPE_LABEL } from '../../furniture/glbEdit/editSpec'
 import { UndoRedoButtons } from '../floorplan/editor/UndoRedoButtons'
+import { useDesigner } from './designerContext'
 
 // Primitives first, then the Stage-1a profile-driven "More shapes" cluster.
 const PRIMITIVE_KINDS: PrimitiveShapeKind[] = [
@@ -19,19 +20,8 @@ const PROFILE_SHAPE_KINDS: PrimitiveShapeKind[] = ['lathe', 'extrude', 'sweep']
  * dialog's ⌘Z / ⇧⌘Z) + the "Add shape" primitive palette. Purely presentational —
  * the dialog owns the spec + history.
  */
-export function DesignerToolbar({
-  canUndo,
-  canRedo,
-  onUndo,
-  onRedo,
-  onAddShape,
-}: {
-  canUndo: boolean
-  canRedo: boolean
-  onUndo: () => void
-  onRedo: () => void
-  onAddShape: (kind: PrimitiveShapeKind) => void
-}) {
+export function DesignerToolbar() {
+  const { canUndo, canRedo, doUndo: onUndo, doRedo: onRedo, addShape: onAddShape } = useDesigner()
   return (
     <div className="sec">
       <div className="sec-h">

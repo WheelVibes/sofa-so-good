@@ -2,7 +2,6 @@ import {
   BEVELABLE_KINDS,
   DEFAULT_PART_METALNESS,
   DEFAULT_PART_ROUGHNESS,
-  type ShapePart,
 } from '../../furniture/glbEdit/editSpec'
 import {
   EXTRUDE_PRESET_LABEL,
@@ -23,6 +22,7 @@ import { SliderField } from '../controls/SliderField'
 import { useSurfaceMaterialOptions } from '../inspector/ParametricBody'
 import { QuickFinishes } from '../inspector/QuickFinishes'
 import { Icon } from '../toolbar/icons'
+import { useDesigner } from './designerContext'
 import { PartMaterialSection } from './PartMaterialSection'
 import { ProfileEditor, type ProfileSpace } from './ProfileEditor'
 
@@ -46,16 +46,12 @@ const EXTRUDE_SPACE: ProfileSpace = { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0
  * and rotation still work (they move/rotate the whole combined result).
  * To change finishes, re-add the source parts and combine again.
  */
-export function PartInspector({
-  part,
-  onPatch,
-  onMirror,
-}: {
-  part: ShapePart
-  onPatch: (patch: Partial<ShapePart>) => void
-  onMirror: () => void
-}) {
+export function PartInspector() {
+  const { sel: part, patchSelectedPart: onPatch, mirror: onMirror } = useDesigner()
   const surfaceMaterials = useSurfaceMaterialOptions()
+  // Only rendered when a part is selected (the dialog mounts it unconditionally,
+  // so self-gate AFTER the hooks above keep a stable call order).
+  if (!part) return null
   const finish = part.finish ?? ''
   // Bevel applies to box + wedge (default sharp) and extrude (default on).
   const bevelable =

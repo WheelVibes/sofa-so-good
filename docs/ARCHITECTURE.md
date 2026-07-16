@@ -563,11 +563,23 @@ same change that reshapes a system.
 - **GLB Asset Designer** (a.k.a. Asset Studio — `furniture/glbEdit/`, `ui/glbEditor/`,
   `featuresSlice.glbDesignerOpen`, gated by the **`glbDesigner`** flag — pro tier, default on;
   the flag gates the dialog mount, the ⌘K `glb-designer` command (COMMAND_FLAGS) and the catalog
-  "Design" button). `GlbDesignerDialog.tsx` is composition + state wiring; the UI is split into
-  focused sibling modules — `DesignerViewport` (canvas + gizmo + source model), `DesignerToolbar`
-  (undo/redo + add-shape palette), `LayersPanel` (part list), `SourcePanel` (start-from + restore +
-  recolour), `CombinePanel` (CSG), `SavePanel` (name/category/placement/save) + `PartInspector` +
-  `PartsPreview`. Compose a custom asset from primitive shapes
+  "Design" button). **State lives in a designer context** (Stage 4a, `ui/glbEditor/
+  designerContext.tsx` — `DesignerProvider` + `useDesigner()`): the controller hook owns the spec +
+  bounded undo/redo history, selection (parts + transform group), gizmo mode + the live-preview
+  mesh/group registries, armed component/template state, live combine (CSG v2) evaluation, the
+  make-configurable assignments, and every commit/save/export handler + the reset-on-open / modal
+  guard / hotkey / dev-only `__glbDesigner*` automation-seam effects (it runs unconditionally, so
+  those stay stable whether the dialog is open or closed). `GlbDesignerDialog.tsx` is then pure
+  **composition** — the dialog chrome under `<DesignerProvider>` plus a flat list of panels, each of
+  which reads what it needs from `useDesigner()` (no props; conditionally-shown panels self-gate).
+  This replaced the ~99 hand-threaded props the panels carried through Stages 0–3, so a new Stage-4
+  tool no longer widens a prop firehose. The UI is split into focused sibling modules —
+  `DesignerViewport` (canvas + gizmo + source model), `DesignerToolbar` (undo/redo + add-shape
+  palette), `LayersPanel` (part list), `SourcePanel` (start-from + restore + recolour),
+  `CombinePanel` (CSG), `SavePanel` (name/category/placement/save) + `PartInspector` +
+  `GroupInspector` + `TemplatesPanel` + `ComponentsPanel` + `MakeConfigurablePanel` +
+  `PartsPreview`. All pure spec/geometry logic stays in `furniture/glbEdit/` — the context is only
+  the React state wiring. Compose a custom asset from primitive shapes
   (box/cylinder/sphere/cone/pyramid/capsule/torus/wedge — pure tested `editSpec.ts` `SHAPE_KINDS`;
   geometry via `buildObject.ts` `partGeometry` + per-part PBR via `partMaterial` — both shared by
   the live preview so it can't drift; each part carries colour + roughness + metalness +

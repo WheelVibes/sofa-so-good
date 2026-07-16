@@ -1,11 +1,7 @@
 import { memo, useMemo, useState } from 'react'
-import {
-  type AssetEditSpec,
-  combineGroups,
-  partGroups,
-  type ShapePart,
-} from '../../furniture/glbEdit/editSpec'
+import { combineGroups, partGroups, type ShapePart } from '../../furniture/glbEdit/editSpec'
 import { Icon } from '../toolbar/icons'
+import { useDesigner } from './designerContext'
 
 /** Inline group-rename input that owns its OWN draft state so keystrokes
  *  re-render only this field, never the whole layer tree (finding 9). Seeds from
@@ -157,41 +153,24 @@ const PartRow = memo(function PartRow({
  * ("Group") is distinct from a **CombineGroup** ("Combine", ⛓) — a part can be
  * in one of each. Purely presentational — the dialog owns the spec + selection.
  */
-export function LayersPanel({
-  spec,
-  selIds,
-  selGroupId,
-  selectMode,
-  eligibleGroupCount,
-  onSelect,
-  onSelectGroup,
-  onToggleSelectMode,
-  onGroup,
-  onUngroup,
-  onRenameGroup,
-  onDuplicateGroup,
-  onMirrorGroup,
-  onDuplicate,
-  onRemove,
-}: {
-  spec: AssetEditSpec
-  selIds: string[]
-  selGroupId: string | null
-  selectMode: boolean
-  /** Count of selected, not-yet-grouped parts (≥2 enables Group). */
-  eligibleGroupCount: number
-  /** `additive` = shift/ctrl/⌘-click or select-mode → toggle in the selection. */
-  onSelect: (id: string, additive: boolean) => void
-  onSelectGroup: (id: string) => void
-  onToggleSelectMode: () => void
-  onGroup: () => void
-  onUngroup: (groupId: string) => void
-  onRenameGroup: (groupId: string, name: string) => void
-  onDuplicateGroup: (groupId: string) => void
-  onMirrorGroup: (groupId: string) => void
-  onDuplicate: (id: string) => void
-  onRemove: (id: string) => void
-}) {
+export function LayersPanel() {
+  const {
+    spec,
+    selIds,
+    selGroupId,
+    selectMode,
+    eligibleGroupCount,
+    onSelectPart: onSelect,
+    selectGroup: onSelectGroup,
+    toggleSelectMode: onToggleSelectMode,
+    groupSelected: onGroup,
+    ungroupTransform: onUngroup,
+    renameGroup: onRenameGroup,
+    duplicateGroup: onDuplicateGroup,
+    mirrorGroup: onMirrorGroup,
+    duplicate: onDuplicate,
+    remove: onRemove,
+  } = useDesigner()
   const parts = spec.parts
   // Collapsed transform-group ids (local view state).
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())

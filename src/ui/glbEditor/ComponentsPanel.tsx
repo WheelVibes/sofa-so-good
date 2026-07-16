@@ -7,6 +7,7 @@ import {
 import { Disclosure } from '../controls/Disclosure'
 import { SliderField } from '../controls/SliderField'
 import { ArmedCard } from './ArmedCard'
+import { useDesigner } from './designerContext'
 
 /**
  * The GLB designer's fittings/component library (Asset Studio Stage 3b). Tap a
@@ -18,20 +19,14 @@ import { ArmedCard } from './ArmedCard'
  * touch targets via the shared `.act` class. Purely presentational — the dialog
  * owns the armed state + runs the placement.
  */
-export function ComponentsPanel({
-  armedId,
-  params,
-  onArm,
-  onDisarm,
-  onParam,
-}: {
-  armedId: string | null
-  params: Record<string, number>
-  /** Arm a component (or re-tap to toggle off — the dialog decides). */
-  onArm: (id: string) => void
-  onDisarm: () => void
-  onParam: (key: string, value: number) => void
-}) {
+export function ComponentsPanel() {
+  const {
+    armedComponentId: armedId,
+    armedParams: params,
+    armComponent: onArm,
+    disarmComponent: onDisarm,
+    setArmedParam: onParam,
+  } = useDesigner()
   const armed = armedId ? componentById(armedId) : null
   const byCategory = (cat: ComponentCategory) => COMPONENT_LIBRARY.filter((c) => c.category === cat)
 

@@ -1,5 +1,5 @@
-import type { PartGroup, SymmetryMode } from '../../furniture/glbEdit/editSpec'
 import { Icon } from '../toolbar/icons'
+import { useDesigner } from './designerContext'
 
 /**
  * The GLB designer's per-transform-group edit panel (Stage 3a), shown when a
@@ -9,28 +9,28 @@ import { Icon } from '../toolbar/icons'
  * Ungroup / Duplicate / Mirror actions. Purely presentational — the dialog owns
  * the spec; edits flow through `onPatchTransform` / `onRename` / the actions.
  */
-export function GroupInspector({
-  group,
-  onRename,
-  onPatchTransform,
-  onUngroup,
-  onDuplicate,
-  onMirror,
-  onRepeat,
-}: {
-  group: PartGroup
-  onRename: (name: string) => void
-  onPatchTransform: (patch: {
+export function GroupInspector() {
+  const {
+    selectedGroup: group,
+    renameGroup,
+    patchGroupTransform,
+    ungroupTransform,
+    duplicateGroup,
+    mirrorGroup,
+    repeatGroup,
+  } = useDesigner()
+  // Shown only when a whole transform group is selected (mutually exclusive with
+  // a part selection). No hooks above, so an early null return is safe.
+  if (!group) return null
+  const onRename = (name: string) => renameGroup(group.id, name)
+  const onPatchTransform = (patch: {
     position?: [number, number, number]
     rotation?: [number, number, number]
-  }) => void
-  onUngroup: () => void
-  onDuplicate: () => void
-  onMirror: () => void
-  /** Symmetric "Repeat" — mirror the group to 2/4 positions about the asset
-   *  bbox centre (Stage 3b). The real win for legs/feet placed one at a time. */
-  onRepeat: (mode: SymmetryMode) => void
-}) {
+  }) => patchGroupTransform(group.id, patch)
+  const onUngroup = () => ungroupTransform(group.id)
+  const onDuplicate = () => duplicateGroup(group.id)
+  const onMirror = () => mirrorGroup(group.id)
+  const onRepeat = (mode: Parameters<typeof repeatGroup>[1]) => repeatGroup(group.id, mode)
   const position = group.position ?? [0, 0, 0]
   const rotation = group.rotation ?? [0, 0, 0]
   const fields: {

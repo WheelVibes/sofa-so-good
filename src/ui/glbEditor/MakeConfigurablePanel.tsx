@@ -1,6 +1,5 @@
-import type { GroupAssignment } from '../../furniture/configurator/designerExport'
-import type { PartGroup } from '../../furniture/glbEdit/editSpec'
 import { Disclosure } from '../controls/Disclosure'
+import { useDesigner } from './designerContext'
 
 /**
  * GLB designer — "Make configurable" authoring panel (Asset Studio Stage 3d).
@@ -13,24 +12,20 @@ import { Disclosure } from '../controls/Disclosure'
  * price (default 0). Purely presentational — the dialog owns the assignment state
  * and the async export/save.
  */
-export function MakeConfigurablePanel({
-  groups,
-  assignments,
-  slotCount,
-  busy,
-  canSave,
-  onSetAssignment,
-  onSave,
-}: {
-  groups: PartGroup[]
-  assignments: Record<string, GroupAssignment>
-  /** Distinct non-empty slot keys currently assigned (drives the save gate + hint). */
-  slotCount: number
-  busy: boolean
-  canSave: boolean
-  onSetAssignment: (groupId: string, patch: Partial<GroupAssignment>) => void
-  onSave: () => void
-}) {
+export function MakeConfigurablePanel() {
+  const {
+    configurableEnabled,
+    transformGroups: groups,
+    assignments,
+    assignedSlotCount: slotCount,
+    cfgBusy: busy,
+    setAssignment: onSetAssignment,
+    exportConfigurable,
+  } = useDesigner()
+  // Gated by the `assetConfigurableExport` flag AND the design having ≥1 group.
+  if (!configurableEnabled || groups.length === 0) return null
+  const canSave = slotCount > 0
+  const onSave = () => exportConfigurable(true)
   return (
     // Collapsed by default (progressive disclosure) — force open once at least
     // one slot is assigned so the save affordance stays visible.

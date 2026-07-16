@@ -1,9 +1,8 @@
 import { Bounds, OrbitControls, TransformControls, useGLTF } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Suspense, useEffect } from 'react'
-import type { Group, Mesh, Object3D } from 'three'
+import type { Object3D } from 'three'
 import { EnsureFurnitureMaterials } from '../../furniture/FurnitureMaterialLoader'
-import type { AssetEditSpec, ShapePart } from '../../furniture/glbEdit/editSpec'
 import {
   GIZMO_MODES,
   type GizmoMode,
@@ -11,6 +10,7 @@ import {
   gizmoModesFor,
 } from '../../furniture/glbEdit/gizmoWriteBack'
 import { secureGltfLoader } from '../../furniture/gltf/loaderSecurity'
+import { useDesigner } from './designerContext'
 import { PartsPreview } from './PartsPreview'
 
 /** The gizmo-mode segmented switch overlaying the preview's top-left corner —
@@ -88,45 +88,25 @@ function SourceModel({
  * (`TransformControls`) on the selected part, and the gizmo-mode overlay switch.
  * Purely presentational — all spec state + write-back live in the dialog.
  */
-export function DesignerViewport({
-  spec,
-  results,
-  sel,
-  selMesh,
-  selGroupObj,
-  finishIds,
-  sourceUrl,
-  gizmoActive,
-  setGizmoMode,
-  meshRefFor,
-  groupRefFor,
-  onScene,
-  onCommitGizmoDrag,
-  onCommitGroupGizmoDrag,
-  armed,
-  onPlaceFace,
-}: {
-  spec: AssetEditSpec
-  results: Map<string, ShapePart>
-  sel: ShapePart | null
-  selMesh: Mesh | null
-  /** The selected transform-group's container object (Stage 3a) — the gizmo
-   *  attaches to it instead of a part mesh. Mutually exclusive with `sel`. */
-  selGroupObj: Group | null
-  finishIds: string[]
-  sourceUrl: string | null
-  gizmoActive: GizmoMode
-  setGizmoMode: (m: GizmoMode) => void
-  meshRefFor: (id: string) => (m: Mesh | null) => void
-  groupRefFor: (groupId: string) => (g: Group | null) => void
-  onScene: (o: Object3D | null) => void
-  onCommitGizmoDrag: () => void
-  onCommitGroupGizmoDrag: () => void
-  /** Stage 3b: a component is armed — clicks place it on the clicked face; a
-   *  ground plane catches floor clicks so a fitting can be dropped on the floor. */
-  armed: boolean
-  onPlaceFace: (point: [number, number, number], normal: [number, number, number]) => void
-}) {
+export function DesignerViewport() {
+  const {
+    viewSpec: spec,
+    combineResults: results,
+    viewSel: sel,
+    viewSelMesh: selMesh,
+    viewSelGroupObj: selGroupObj,
+    finishIds,
+    sourceUrl,
+    gizmoActive,
+    setGizmoMode,
+    meshRefFor,
+    groupRefFor,
+    onScene,
+    commitGizmoDrag: onCommitGizmoDrag,
+    commitGroupGizmoDrag: onCommitGroupGizmoDrag,
+    armed,
+    placeOnFace: onPlaceFace,
+  } = useDesigner()
   // A group has no Scale gizmo (its members' sizes are their own) — clamp the
   // shared mode to translate/rotate while a group is the gizmo target.
   const groupGizmo: GizmoMode = gizmoActive === 'scale' ? 'translate' : gizmoActive
