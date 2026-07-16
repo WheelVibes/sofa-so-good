@@ -5,7 +5,7 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## v0.21.2.70 — Asset Studio Stage 12 — face-choice tufting & plump
+## v0.21.2.71 — Asset Studio Stage 12 — face-choice tufting & plump
 
 The plump crown + tuft dimples + button/stitch decals can now sit on ANY box face, not just the
 top — the upright chesterfield backrest / sofa-arm case the showcase had no way to build.
@@ -34,6 +34,20 @@ top — the upright chesterfield backrest / sofa-arm case the showcase had no wa
   functionally unchanged; the Stage-12 scenario proves the showcase **Sofa frame** backrest CAN now
   tuft its upright front face. Scenario `scripts/scenarios/glb-designer-stage12.json`; tests for the
   permutation math, default-top byte-identity, mirror semantics, and envelope round-trip.
+
+## v0.21.2.70 — Pet fittings program: research + staged plan
+
+New user goal (2026-07-17): SG pet compliance fittings (Cat Management Framework window/
+balcony meshing mandate, HDB small-breed dog rules), annoyance-fixers, and per-pet-type
+furniture — procedural, to-scale, fully customizable. Research (regulations + dimensions +
+CC0 verdict: procedural is the route) and vehicle mapping (parametric primitives; windowBound
+for mesh screens; NEW doorBound plumbing for gates; configurator for modular pieces; new
+`pets` category) distilled into `docs/pet-fittings-plan.md` (P1 compliance → P5 presets).
+Docs only.
+
+## v0.21.2.69 — Asset Studio iteration 8 plan
+
+Stage 12 (face-choice tufting/plump — the showcase's recorded upright-backrest gap). Docs only.
 
 ## v0.21.2.68 — Asset Studio Stage 11b follow-up — actionable findings fixed
 

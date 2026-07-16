@@ -12,7 +12,7 @@
 
 import { BoxGeometry, type BufferGeometry } from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
-import type { TuftGrid } from './editSpec'
+import type { PlumpFace, TuftGrid } from './editSpec'
 import { plumpVertexDelta } from './tufting'
 
 /**
@@ -32,6 +32,7 @@ export function applyPlump(
   amount: number,
   size: [number, number, number],
   tuft?: TuftGrid,
+  face?: PlumpFace,
 ): void {
   if (amount <= 0) return
   const pos = geo.getAttribute('position')
@@ -40,7 +41,7 @@ export function applyPlump(
     const x = pos.getX(i)
     const y = pos.getY(i)
     const z = pos.getZ(i)
-    const [dx, dy, dz] = plumpVertexDelta(x, y, z, w, h, d, amount, tuft)
+    const [dx, dy, dz] = plumpVertexDelta(x, y, z, w, h, d, amount, tuft, face)
     pos.setXYZ(i, x + dx, y + dy, z + dz)
   }
   pos.needsUpdate = true
@@ -66,10 +67,11 @@ export function plumpBoxGeometry(
   bevel: number,
   amount: number,
   tuft?: TuftGrid,
+  face?: PlumpFace,
 ): BufferGeometry {
   const clampedR = bevel > 0 ? Math.min(bevel, Math.min(w, h, d) / 2 - 1e-4) : 0
   const geo: BufferGeometry =
     clampedR > 0 ? new RoundedBoxGeometry(w, h, d, 5, clampedR) : new BoxGeometry(w, h, d, 8, 8, 8)
-  applyPlump(geo, amount, [w, h, d], tuft)
+  applyPlump(geo, amount, [w, h, d], tuft, face)
   return geo
 }

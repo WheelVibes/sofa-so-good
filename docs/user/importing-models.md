@@ -213,6 +213,11 @@ build one in the browser:
 - **Plump a cushion** — box and capsule shapes have a **Plump (cushion)** slider in their edit
   panel: raise it to bulge the shape like a stuffed cushion (the top crowns and the sides bow, while
   the corners stay pinned like a seam). 0 keeps it flat.
+- **Crown/tuft face** — once a **box** is plumped, a **Face** switch (Top / Front / Back / Left /
+  Right) picks *which* face bulges and tufts. **Top** is the usual cushion; **Front** or **Back**
+  crowns an upright vertical face — so a thin board becomes a padded, button-tufted backrest or sofa
+  arm — and **Left**/**Right** do the side faces. The wrinkles, buttons and stitch lines all follow
+  the face you choose.
 - **Fabric wrinkles** — once a shape is plumped, a **Wrinkles (fabric)** slider appears just below
   Plump. It adds a subtle procedural fabric texture — soft creases that gather toward the pinned
   corners plus a fine cloth nap — so the cushion reads as sewn upholstery rather than a smooth

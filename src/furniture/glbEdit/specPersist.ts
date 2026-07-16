@@ -76,7 +76,12 @@ import type { AssetEditSpec } from './editSpec'
  *    a genuine validator change → a clean version bump. Still additive: an older
  *    (v13) spec has only `[x, y]` points, which validate + build byte-identically
  *    (an all-sharp profile is `smoothProfile`'s identity). Migration is the
- *    identity. */
+ *    identity.
+ *    Also within v14 (Face-choice tufting, Stage 12): optional `parts[].plumpFace`
+ *    (`top`|`front`|`back`|`left`|`right`) selecting which box face crowns/tufts.
+ *    Kept within-version (same within-version judgment as `srcRef.fp`/tuft): an
+ *    older build ignores the unknown field, an older spec has none (→ `top`,
+ *    byte-identical), and the field is a pure permutation of the existing math. */
 export const ASSET_SPEC_VERSION = 14
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
@@ -111,6 +116,8 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
 const VALID_OPS = new Set<string>(['union', 'subtract', 'intersect'])
 /** Valid part roles (mirrors `editSpec.PartRole`). */
 const VALID_ROLES = new Set<string>(['solid', 'hole'])
+/** Valid `parts[].plumpFace` values (Stage 12; additive within v14). */
+const VALID_PLUMP_FACES = new Set<string>(['top', 'front', 'back', 'left', 'right'])
 
 /** A finite-number `[x, y, z]` tuple (group transform fields). */
 function isVec3(x: unknown): boolean {
@@ -307,6 +314,10 @@ function partsValid(parts: unknown[]): boolean {
       return false
     // v11: optional tufting grid { rows, cols, depth } (all finite numbers).
     if (!isTuftGrid(rec.tuft)) return false
+    // Stage 12 (added additively within v14, like `srcRef.fp` within v13): the
+    // optional plump/tuft face. An older build simply ignores the unknown field,
+    // and an older spec has none (→ `top`, byte-identical), so no envelope bump.
+    if (rec.plumpFace !== undefined && !VALID_PLUMP_FACES.has(rec.plumpFace as string)) return false
     // v12: optional taper 0…1 (box/extrude deformer).
     if (rec.taper !== undefined && (typeof rec.taper !== 'number' || !Number.isFinite(rec.taper)))
       return false

@@ -1,11 +1,16 @@
+import { type Euler, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import { hexToHsl } from '../../materials/colorHarmony'
+import { decalOrientation } from './decals'
 import {
   addDecal,
   createEmptySpec,
   type Decal,
   duplicatePart,
+  mirrorPartAxis,
+  mirrorPlumpFace,
   newPartId,
+  type PlumpFace,
   type ShapePart,
 } from './editSpec'
 import {
@@ -404,5 +409,161 @@ describe('duplicate deep-copies the tuft grid + its buttons', () => {
     // The source's tuft buttons were cloned onto the copy (still 4 each).
     const cloneButtons = (dup.decals ?? []).filter((dd) => dd.partId === clone.id && dd.tuft)
     expect(cloneButtons.length).toBe(4)
+  })
+})
+
+// ============================================================================
+// Stage 12 — face-choice plump + tufting (coordinate-frame permutation)
+// ============================================================================
+
+describe('face-choice plump crown (Stage 12)', () => {
+  const w = 0.9
+  const h = 0.5
+  const d = 0.14 // thin upright backrest board
+
+  it('default (top / absent) is byte-identical to the top-face math', () => {
+    for (const [x, y, z] of [
+      [0.2, 0.25, 0.05],
+      [-0.4, -0.25, -0.07],
+      [0, 0.25, 0],
+    ]) {
+      const absent = plumpVertexDelta(x, y, z, w, h, d, 0.6)
+      const top = plumpVertexDelta(x, y, z, w, h, d, 0.6, undefined, 'top')
+      expect(top).toEqual(absent) // exact — the top frame is the identity permutation
+    }
+  })
+
+  it('front crown displaces the +Z face along +Z (and back along −Z)', () => {
+    // Front-face centre vertex bulges outward along +Z.
+    const frontMid = plumpVertexDelta(0, 0, d / 2, w, h, d, 0.6, undefined, 'front')
+    expect(frontMid[2]).toBeGreaterThan(0.001) // pushed +Z
+    expect(Math.abs(frontMid[0])).toBeLessThan(1e-9) // no in-plane pull at the centre
+    expect(Math.abs(frontMid[1])).toBeLessThan(1e-9)
+    // Back-face centre bulges along −Z (its outward normal).
+    const backMid = plumpVertexDelta(0, 0, -d / 2, w, h, d, 0.6, undefined, 'back')
+    expect(backMid[2]).toBeLessThan(-0.001)
+  })
+
+  it('pins the four corners of the chosen face (front)', () => {
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        const [dx, dy, dz] = plumpVertexDelta(
+          (sx * w) / 2,
+          (sy * h) / 2,
+          d / 2,
+          w,
+          h,
+          d,
+          0.6,
+          { rows: 2, cols: 3, depth: 1 },
+          'front',
+        )
+        expect(Math.abs(dx)).toBeLessThan(1e-6)
+        expect(Math.abs(dy)).toBeLessThan(1e-6)
+        expect(Math.abs(dz)).toBeLessThan(1e-6)
+      }
+    }
+  })
+
+  it('left/right crown along ∓/±X respectively', () => {
+    const right = plumpVertexDelta(w / 2, 0, 0, d, h, w, 0.6, undefined, 'right')
+    expect(right[0]).toBeGreaterThan(0.001)
+    const left = plumpVertexDelta(-w / 2, 0, 0, d, h, w, 0.6, undefined, 'left')
+    expect(left[0]).toBeLessThan(-0.001)
+  })
+})
+
+describe('face-choice tuft buttons + stitches (Stage 12)', () => {
+  const backrest = (face: PlumpFace, extra: Partial<ShapePart> = {}): ShapePart => ({
+    id: newPartId(),
+    kind: 'box',
+    position: [0, 0.6, 0],
+    size: [0.9, 0.5, 0.14],
+    color: '#654',
+    plump: 0.5,
+    plumpFace: face,
+    tuft: { rows: 2, cols: 3, depth: 0.5, pattern: 'diamond', stitches: true },
+    ...extra,
+  })
+
+  it('front-face buttons sit on the +Z face with a +Z normal', () => {
+    const buttons = tuftButtonDecals(backrest('front'))
+    expect(buttons.length).toBe(6)
+    for (const b of buttons) {
+      expect(b.normal).toEqual([0, 0, 1]) // front outward normal
+      expect(b.position[2]).toBeGreaterThan(0.06) // ~ +d/2 surface (bulged)
+      // In-plane extents stay within the face (cols → X, rows → Y).
+      expect(Math.abs(b.position[0])).toBeLessThanOrEqual(0.9 / 2 + 1e-9)
+      expect(Math.abs(b.position[1])).toBeLessThanOrEqual(0.5 / 2 + 1e-9)
+    }
+  })
+
+  it('back-face buttons sit on the −Z face with a −Z normal', () => {
+    const buttons = tuftButtonDecals(backrest('back'))
+    for (const b of buttons) {
+      expect(b.normal).toEqual([0, 0, -1])
+      expect(b.position[2]).toBeLessThan(-0.06)
+    }
+  })
+
+  it('stitch rotation orients each thread along its button-to-button direction on the face', () => {
+    // Empirically ties position + normal + rotation together against the real
+    // `decalOrientation` (the same transform the renderer/export uses): the decal's
+    // long axis (+X) after orientation must run parallel to the local direction
+    // between the two connected buttons.
+    for (const face of ['top', 'front', 'back', 'left', 'right'] as const) {
+      const part = backrest(face)
+      const buttons = tuftButtonDecals(part).map((b) => new Vector3(...b.position))
+      const stitches = tuftStitchDecals(part)
+      const pairs = tuftStitchPairs(2, 3, 'diamond')
+      expect(stitches.length).toBe(pairs.length)
+      stitches.forEach((s, k) => {
+        const [i, j] = pairs[k]
+        const wantDir = buttons[j].clone().sub(buttons[i]).normalize()
+        const e: Euler = decalOrientation(s.normal, s.rotation ?? 0)
+        const longAxis = new Vector3(1, 0, 0).applyEuler(e)
+        // Parallel (either sense) → |dot| ≈ 1.
+        expect(Math.abs(longAxis.dot(wantDir))).toBeGreaterThan(0.999)
+      })
+    }
+  })
+})
+
+describe('mirror semantics for the plump/tuft face (Stage 12)', () => {
+  it('mirrorPlumpFace swaps left↔right on X, front↔back on Z, top unchanged', () => {
+    expect(mirrorPlumpFace('left', { x: true })).toBe('right')
+    expect(mirrorPlumpFace('right', { x: true })).toBe('left')
+    expect(mirrorPlumpFace('front', { x: true })).toBe('front') // X doesn't touch Z faces
+    expect(mirrorPlumpFace('front', { z: true })).toBe('back')
+    expect(mirrorPlumpFace('back', { z: true })).toBe('front')
+    expect(mirrorPlumpFace('top', { x: true })).toBe('top')
+    expect(mirrorPlumpFace('front', undefined)).toBe('front') // no flip → verbatim
+  })
+
+  it('a Z-mirror flips the face front→back AND the cloned buttons land on the mirrored dimples', () => {
+    const part: ShapePart = {
+      id: newPartId(),
+      kind: 'box',
+      position: [0, 0.6, 0.3],
+      size: [0.9, 0.5, 0.14],
+      color: '#654',
+      plump: 0.5,
+      plumpFace: 'front',
+      tuft: { rows: 2, cols: 3, depth: 0.5 },
+    }
+    let spec = { ...createEmptySpec(), parts: [part] }
+    spec = setTuftGrid(spec, part.id, part.tuft!)
+    const { spec: mirrored, newId } = mirrorPartAxis(spec, part.id, 'z')
+    const copy = mirrored.parts.find((p) => p.id === newId)!
+    expect(copy.plumpFace).toBe('back') // face reflected
+    // The cloned decals equal what the mirrored (back) face would regenerate:
+    // fresh-regenerate on the copy and compare the sorted positions/normals.
+    const cloned = (mirrored.decals ?? []).filter((dd) => dd.partId === newId && dd.tuft)
+    const regen = tuftButtonDecals(copy)
+    expect(cloned.length).toBe(regen.length)
+    const key = (p: [number, number, number]) => p.map((v) => v.toFixed(6)).join(',')
+    const clonedKeys = new Set(cloned.map((c) => key(c.position)))
+    for (const r of regen) expect(clonedKeys.has(key(r.position))).toBe(true)
+    for (const c of cloned) expect(c.normal).toEqual([0, 0, -1])
   })
 })

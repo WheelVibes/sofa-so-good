@@ -77,6 +77,22 @@ describe('specPersist', () => {
     expect(restored!.parts[0].outline![1]).toEqual([0.5, -0.5, 1])
   })
 
+  it('round-trips the plump/tuft face (Stage 12, additive within v14)', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'box')
+    s = updatePart(s, s.parts[0].id, { plump: 0.5, plumpFace: 'front' })
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored).toEqual(s)
+    expect(restored!.parts[0].plumpFace).toBe('front')
+    // A garbage face is rejected (the whole spec fails to parse).
+    const bad = JSON.stringify({
+      kind: 'asset',
+      v: ASSET_SPEC_VERSION,
+      payload: { ...s, parts: [{ ...s.parts[0], plumpFace: 'sideways' }] },
+    })
+    expect(parseAssetSpec(bad)).toBeNull()
+  })
+
   it('migrates a v13 blob (no smooth flag) forward as the identity', () => {
     // A pre-11a spec has only [x, y] points → loads unchanged, re-tagged v14.
     const s = addPart(createEmptySpec(), 'lathe')

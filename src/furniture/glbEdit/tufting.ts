@@ -34,10 +34,145 @@ import {
   addDecal,
   type Decal,
   decals,
+  type PlumpFace,
   type ShapePart,
   type TuftGrid,
   type TuftPattern,
 } from './editSpec'
+
+/**
+ * Stage 12 — face-choice frame. The plump crown + tuft dimples + button/stitch
+ * layout are all authored in a single CANONICAL frame (crown along +Y, lattice
+ * in the XZ plane) by the pure math below. A `FaceFrame` is a pure coordinate
+ * permutation that maps that canonical frame onto ANY box face: the chosen
+ * face's outward axis becomes the crown axis (+cy) and its two in-plane axes
+ * become the lattice plane (cx = columns, cz = rows). One helper feeds ALL of
+ * `plumpVertexDelta` / `tuftButtonPositionsXZ` / stitches / decal placement — the
+ * crown/dimple/lattice functions are never forked.
+ *
+ *  - `nAxis`/`nSign`: the local axis (0=X,1=Y,2=Z) + direction the outward normal
+ *    (crown axis) maps to. `nSign * local[nAxis]` is the canonical crown coord.
+ *  - `uAxis`/`vAxis`: the local axes the canonical columns (cx) / rows (cz) map to.
+ *  - `normal`: the outward face normal (a decal's `+Z` aim) in local space.
+ *  - `eU`/`eV`: unit local vectors along the column / row axes (for the stitch
+ *    direction).
+ *  - `refDir`: the local direction a decal's long axis (+X) points at roll 0 —
+ *    i.e. `decalOrientation(normal, 0)` applied to (1,0,0). Precomputed per face
+ *    (it's `Quaternion.setFromUnitVectors(+Z, normal)·(1,0,0)`, three's minimal
+ *    rotation) so the stitch roll is pure math with no three dependency; a test
+ *    cross-checks each value against the real `decalOrientation`.
+ */
+interface FaceFrame {
+  nAxis: 0 | 1 | 2
+  nSign: 1 | -1
+  uAxis: 0 | 1 | 2
+  vAxis: 0 | 1 | 2
+  normal: readonly [number, number, number]
+  eU: readonly [number, number, number]
+  eV: readonly [number, number, number]
+  refDir: readonly [number, number, number]
+}
+
+/** The five box faces a plump/tuft can crown, as pure coordinate permutations of
+ *  the canonical (crown +Y, lattice XZ) frame. `top` is the identity → byte-
+ *  identical to the pre-Stage-12 math. */
+const FACE_FRAMES: Record<PlumpFace, FaceFrame> = {
+  top: {
+    nAxis: 1,
+    nSign: 1,
+    uAxis: 0,
+    vAxis: 2,
+    normal: [0, 1, 0],
+    eU: [1, 0, 0],
+    eV: [0, 0, 1],
+    refDir: [1, 0, 0],
+  },
+  front: {
+    nAxis: 2,
+    nSign: 1,
+    uAxis: 0,
+    vAxis: 1,
+    normal: [0, 0, 1],
+    eU: [1, 0, 0],
+    eV: [0, 1, 0],
+    refDir: [1, 0, 0],
+  },
+  back: {
+    nAxis: 2,
+    nSign: -1,
+    uAxis: 0,
+    vAxis: 1,
+    normal: [0, 0, -1],
+    eU: [1, 0, 0],
+    eV: [0, 1, 0],
+    refDir: [-1, 0, 0],
+  },
+  right: {
+    nAxis: 0,
+    nSign: 1,
+    uAxis: 2,
+    vAxis: 1,
+    normal: [1, 0, 0],
+    eU: [0, 0, 1],
+    eV: [0, 1, 0],
+    refDir: [0, 0, -1],
+  },
+  left: {
+    nAxis: 0,
+    nSign: -1,
+    uAxis: 2,
+    vAxis: 1,
+    normal: [-1, 0, 0],
+    eU: [0, 0, 1],
+    eV: [0, 1, 0],
+    refDir: [0, 0, 1],
+  },
+}
+
+const frameFor = (face: PlumpFace | undefined): FaceFrame => FACE_FRAMES[face ?? 'top']
+
+/** Canonical in-plane / crown sizes for a part under a face frame:
+ *  `[cw (cols), ch (crown thickness), cd (rows)]`. */
+function canonicalSize(
+  size: readonly [number, number, number],
+  f: FaceFrame,
+): [number, number, number] {
+  return [size[f.uAxis], size[f.nAxis], size[f.vAxis]]
+}
+
+/** Map a canonical point `(cx, cy, cz)` (cy along the crown/outward axis) back to
+ *  the part's local frame. Used to place button/stitch decals on the chosen face. */
+function canonicalPointToLocal(
+  cx: number,
+  cy: number,
+  cz: number,
+  f: FaceFrame,
+): [number, number, number] {
+  const out: [number, number, number] = [0, 0, 0]
+  out[f.uAxis] = cx
+  out[f.nAxis] = f.nSign * cy
+  out[f.vAxis] = cz
+  return out
+}
+
+/** The stitch decal roll (degrees) so its long axis runs along the canonical
+ *  connection `(Δcx, Δcz)` on the chosen face — the signed angle from the face's
+ *  `refDir` to the local connection direction about the face normal. Reduces
+ *  EXACTLY to the top-face `-atan2(Δcz, Δcx)` (byte-identical) and generalises to
+ *  every face. Pure. */
+function faceStitchRotation(dcx: number, dcz: number, f: FaceFrame): number {
+  // Local direction of the connection: Δcx along eU + Δcz along eV.
+  const dx = dcx * f.eU[0] + dcz * f.eV[0]
+  const dy = dcx * f.eU[1] + dcz * f.eV[1]
+  const dz = dcx * f.eU[2] + dcz * f.eV[2]
+  // signed angle from refDir → dir about normal = atan2((refDir×dir)·n, refDir·dir)
+  const cx = f.refDir[1] * dz - f.refDir[2] * dy
+  const cy = f.refDir[2] * dx - f.refDir[0] * dz
+  const cz = f.refDir[0] * dy - f.refDir[1] * dx
+  const crossDotN = cx * f.normal[0] + cy * f.normal[1] + cz * f.normal[2]
+  const dot = f.refDir[0] * dx + f.refDir[1] * dy + f.refDir[2] * dz
+  return (Math.atan2(crossDotN, dot) * 180) / Math.PI
+}
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
@@ -196,6 +331,43 @@ export function plumpVertexDelta(
   d: number,
   amount: number,
   tuft?: TuftGrid,
+  face?: PlumpFace,
+): [number, number, number] {
+  // Stage 12 — permute the local vertex into the canonical (crown +Y) frame, run
+  // the SHARED crown/dimple math, permute the delta back. `top`/absent is the
+  // identity permutation → byte-identical to the pre-Stage-12 output.
+  const f = frameFor(face)
+  const size: readonly [number, number, number] = [w, h, d]
+  const local: readonly [number, number, number] = [x, y, z]
+  const [cw, ch, cd] = canonicalSize(size, f)
+  const [dcx, dcy, dcz] = canonicalVertexDelta(
+    local[f.uAxis],
+    f.nSign * local[f.nAxis],
+    local[f.vAxis],
+    cw,
+    ch,
+    cd,
+    amount,
+    tuft,
+  )
+  const out: [number, number, number] = [0, 0, 0]
+  out[f.uAxis] = dcx
+  out[f.nAxis] = f.nSign * dcy
+  out[f.vAxis] = dcz
+  return out
+}
+
+/** The canonical (crown +Y, lattice XZ) plump displacement — the pure math every
+ *  face permutes onto (`plumpVertexDelta`). */
+function canonicalVertexDelta(
+  x: number,
+  y: number,
+  z: number,
+  w: number,
+  h: number,
+  d: number,
+  amount: number,
+  tuft?: TuftGrid,
 ): [number, number, number] {
   const a = clamp01(amount)
   if (a <= 0) return [0, 0, 0]
@@ -254,12 +426,16 @@ export function tuftButtonDecals(part: ShapePart): Omit<Decal, 'id'>[] {
   const grid = part.tuft
   if (!grid) return []
   const { rows, cols, pattern } = clampTuft(grid)
-  const [w, h, d] = part.size
+  // Stage 12 — lay the lattice out in the chosen face's canonical plane, then
+  // permute each button point onto the face. `top`/absent keeps the +Y math
+  // byte-identical.
+  const f = frameFor(part.plumpFace)
+  const [cw, ch, cd] = canonicalSize(part.size, f)
   const amount = part.plump ?? 0
-  return tuftButtonPositionsXZ(w, d, rows, cols, pattern ?? 'grid').map(([bx, bz]) => ({
+  return tuftButtonPositionsXZ(cw, cd, rows, cols, pattern ?? 'grid').map(([bx, bz]) => ({
     partId: part.id,
-    position: [bx, plumpTopSurfaceY(bx, bz, w, h, d, amount, grid), bz] as [number, number, number],
-    normal: [0, 1, 0] as [number, number, number],
+    position: canonicalPointToLocal(bx, plumpTopSurfaceY(bx, bz, cw, ch, cd, amount, grid), bz, f),
+    normal: [...f.normal] as [number, number, number],
     size: TUFT_BUTTON_SIZE,
     kind: 'button' as const,
     tuft: true,
@@ -278,9 +454,12 @@ export function tuftStitchDecals(part: ShapePart): Omit<Decal, 'id'>[] {
   if (!grid?.stitches) return []
   const { rows, cols, pattern } = clampTuft(grid)
   const pat = pattern ?? 'grid'
-  const [w, h, d] = part.size
+  // Stage 12 — canonical lattice on the chosen face; each midpoint + roll is
+  // permuted onto the face (`top`/absent is byte-identical).
+  const f = frameFor(part.plumpFace)
+  const [cw, ch, cd] = canonicalSize(part.size, f)
   const amount = part.plump ?? 0
-  const pts = tuftButtonPositionsXZ(w, d, rows, cols, pat)
+  const pts = tuftButtonPositionsXZ(cw, cd, rows, cols, pat)
   // TONAL default (Stage 11b finding 5): the thread takes the host fabric's own
   // hue/saturation nudged in lightness (a lighter thread on dark velvet, a shadow
   // line on pale linen) so stitches read as THREAD, not the fixed chalk-white
@@ -301,15 +480,16 @@ export function tuftStitchDecals(part: ShapePart): Omit<Decal, 'id'>[] {
     const mz = (a[1] + b[1]) / 2
     out.push({
       partId: part.id,
-      position: [mx, plumpTopSurfaceY(mx, mz, w, h, d, amount, grid), mz] as [
-        number,
-        number,
-        number,
-      ],
-      normal: [0, 1, 0] as [number, number, number],
+      position: canonicalPointToLocal(
+        mx,
+        plumpTopSurfaceY(mx, mz, cw, ch, cd, amount, grid),
+        mz,
+        f,
+      ),
+      normal: [...f.normal] as [number, number, number],
       size: Math.max(TUFT_STITCH_MIN, len),
       kind: 'stitch' as const,
-      rotation: (-Math.atan2(dz, dx) * 180) / Math.PI,
+      rotation: faceStitchRotation(dx, dz, f),
       ...(stitchColor ? { color: stitchColor } : {}),
       tuft: true,
     })

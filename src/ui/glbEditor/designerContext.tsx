@@ -94,6 +94,7 @@ import {
   mirrorPartsAxis,
   newPartId,
   type PartGroup,
+  type PlumpFace,
   partGroupMemberIds,
   partGroups,
   removeCombineGroup,
@@ -562,6 +563,11 @@ function useDesignerController() {
     listUserComponents: () => { id: string; name: string }[]
     armUserComponent: (id: string) => void
     deleteUserComponent: (id: string) => Promise<void>
+    /** Stage 12 — regenerate the tagged tuft decals for every tufted part from
+     *  the current spec (positions/normals follow each part's `plumpFace`). Used
+     *  by the scenario after a programmatic `setSpec`, which sets `parts[].tuft`
+     *  (→ dimples) but not the button/stitch decals. */
+    regenTufts: () => void
   }>({
     setSpec: () => {},
     getSpec: createEmptySpec,
@@ -575,6 +581,7 @@ function useDesignerController() {
     listUserComponents: () => [],
     armUserComponent: () => {},
     deleteUserComponent: async () => {},
+    regenTufts: () => {},
   })
   useEffect(() => {
     // Dev-only automation seam (scenarios run against the dev server = DEV build);
@@ -601,6 +608,7 @@ function useDesignerController() {
         listUserComponents: () => { id: string; name: string }[]
         armUserComponent: (id: string) => void
         deleteUserComponent: (id: string) => Promise<void>
+        regenTufts: () => void
       }
     }
     w.__glbDesigner = {
@@ -616,6 +624,7 @@ function useDesignerController() {
       listUserComponents: () => seamRef.current.listUserComponents(),
       armUserComponent: (id) => seamRef.current.armUserComponent(id),
       deleteUserComponent: (id) => seamRef.current.deleteUserComponent(id),
+      regenTufts: () => seamRef.current.regenTufts(),
     }
     return () => {
       w.__glbDesigner = undefined
@@ -1129,6 +1138,18 @@ function useDesignerController() {
   const setTuftGrid = (grid: TuftGrid | null) => {
     if (!sel) return
     commit((sp) => setTuftGridOp(sp, sel.id, grid), { coalesceKey: `tuft:${sel.id}` })
+  }
+
+  // Which face of the selected plumped box crowns + tufts (Stage 12). Sets the
+  // `plumpFace` field AND regenerates the tuft decals (their positions/normals
+  // follow the face) in one step. `top` clears the field (byte-identical default).
+  const setPlumpFace = (face: PlumpFace) => {
+    if (!sel) return
+    commit((sp) => {
+      const next = updatePart(sp, sel.id, { plumpFace: face === 'top' ? undefined : face })
+      const part = next.parts.find((p) => p.id === sel.id)
+      return part?.tuft ? setTuftGridOp(next, sel.id, part.tuft) : next
+    })
   }
 
   // Numeric ROTATION edit of the selected part (Stage 6d) — applies the same
@@ -2416,6 +2437,12 @@ function useDesignerController() {
       useStore.getState().userComponents.map((c) => ({ id: c.id, name: c.name })),
     armUserComponent: (id) => armUserComponent(id),
     deleteUserComponent: (id) => deleteUserComponent(id),
+    regenTufts: () =>
+      commit((sp) => {
+        let next = sp
+        for (const p of sp.parts) if (p.tuft) next = setTuftGridOp(next, p.id, p.tuft)
+        return next
+      }),
   }
 
   // ---- View-model derived for the live preview ---------------------------
@@ -2466,6 +2493,7 @@ function useDesignerController() {
     // so the inspector hides those sections behind a hint.
     selInCombine: !!sel && combinedPartIds(spec).has(sel.id),
     setTuftGrid,
+    setPlumpFace,
     renamePartName,
     // arrange: align / distribute / mirror-axis / array (Stage 4)
     selCount: selIds.length,

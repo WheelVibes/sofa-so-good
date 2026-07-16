@@ -442,7 +442,7 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
       // Stage 5: a plumped cushion needs a tessellated box to displace. Stage 7c:
       // a tuft grid subtracts dimples from the crown at the button points.
       if (part.plump && part.plump > 0)
-        return plumpBoxGeometry(w, h, d, part.bevel ?? 0, part.plump, part.tuft)
+        return plumpBoxGeometry(w, h, d, part.bevel ?? 0, part.plump, part.tuft, part.plumpFace)
       // bevel 0 / absent → plain BoxGeometry (byte-identical to pre-Stage-1a).
       const box =
         part.bevel && part.bevel > 0

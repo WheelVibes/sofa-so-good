@@ -981,8 +981,29 @@ The two ACTIONABLE Stage-11b findings, closed (the rest stay recorded — see be
 
 ## Iteration 8
 
-### Stage 12 — Face-choice tufting & plump
-The showcase's recorded gap: plump/tuft act on the top (+Y) face only. Add a face axis
-(top / front / back — the upright cases) so a backrest board can crown and carry the
-diamond lattice on its vertical face; stitches/buttons follow the chosen face's frame.
+### Stage 12 — Face-choice tufting & plump — ✅ SHIPPED (v0.21.2.70) — closes Iteration 8
+The showcase's recorded gap: plump/tuft acted on the top (+Y) face only. Now `parts[].plumpFace`
+(`top`|`front`|`back`|`left`|`right`) selects which box face crowns + tufts so a backrest board
+crowns and carries the diamond lattice on its vertical face; buttons/stitches/wrinkles follow it.
 Completes the chesterfield (tufted back + arms).
+- ✅ **Pure coordinate-frame permutation** (`tufting.ts` `FaceFrame`, one helper) wraps the SAME
+  crown/dimple/lattice math — the chosen face's outward axis → crown axis, its two in-plane axes →
+  lattice plane. Feeds all of `plumpVertexDelta` / `tuftButtonPositionsXZ` / stitches / decal
+  placement (positions AND normals); the crown/dimple/lattice functions are never forked. `top` /
+  absent is the identity permutation → **byte-identical** to pre-Stage-12. **All five faces shipped**
+  (±X/±Z generalise trivially via axis permutation).
+- ✅ **Stitch roll on any face** — signed angle from the face's reference direction to the local
+  connection direction; reduces exactly to the top-face `-atan2(Δz, Δx)`. Verified empirically
+  against the real `decalOrientation` (renderer + export transform) on all five faces.
+- ✅ **UI** — a **Face** `Segmented` (Top/Front/Back/Left/Right) in the Plump/Tufting section, shown
+  when a box is plumped; switching regenerates the tuft decals in one undo step (`setPlumpFace`).
+- ✅ **Wrinkle normals follow the face for free** — the map is per-face in UV space (corner-gathering
+  keys on each face's own UV corners), so it applies to the plumped face unchanged (verified).
+- ✅ **Clone/mirror carry the face** — X-mirror swaps `left`↔`right`, Z-mirror `front`↔`back`
+  (`mirrorPlumpFace`); with the existing decal-local flip the cloned buttons land on the mirrored
+  face's dimples (proven by test). Duplicate/array carry it verbatim.
+- ✅ **Plumbing** — envelope **additive within v14** (older build ignores the unknown field; older
+  spec → `top`, byte-identical) + strict validation. Templates left functionally unchanged; the
+  scenario proves the showcase **Sofa frame** backrest CAN now tuft its upright front face.
+  Scenario `scripts/scenarios/glb-designer-stage12.json`; permutation-math / default-top byte-identity
+  / mirror-semantics / envelope round-trip tests.

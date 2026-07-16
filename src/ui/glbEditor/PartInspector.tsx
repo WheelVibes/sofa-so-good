@@ -2,6 +2,7 @@ import {
   BEVELABLE_KINDS,
   DEFAULT_PART_METALNESS,
   DEFAULT_PART_ROUGHNESS,
+  type PlumpFace,
   taperable,
 } from '../../furniture/glbEdit/editSpec'
 import {
@@ -72,6 +73,7 @@ export function PartInspector() {
     renamePartName: onRenamePart,
     tuftGrid,
     setTuftGrid: onSetTuft,
+    setPlumpFace: onSetFace,
     selInCombine,
   } = useDesigner()
   const surfaceMaterials = useSurfaceMaterialOptions()
@@ -345,6 +347,31 @@ export function PartInspector() {
             onChange={(v) => onPatch({ wrinkles: v })}
           />
         )
+      ) : null}
+
+      {/* Crown/tuft face (Stage 12) — which box face bulges + tufts. Top (+Y) is
+          the cushion default; Front/Back (±Z) crown the upright vertical faces
+          (a chesterfield backrest / sofa arm), Left/Right (±X) the sides. Box
+          only; hidden while hollow (plump is off then). */}
+      {part.kind === 'box' && (part.plump ?? 0) > 0 && shellVal <= 0 ? (
+        <div style={{ marginTop: 'var(--s-2)' }}>
+          <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+            Face
+          </div>
+          <Segmented
+            ariaLabel="Plump/tuft face"
+            fit
+            value={part.plumpFace ?? 'top'}
+            onChange={(v) => onSetFace(v as PlumpFace)}
+            options={[
+              { value: 'top', label: 'Top' },
+              { value: 'front', label: 'Front' },
+              { value: 'back', label: 'Back' },
+              { value: 'left', label: 'Left' },
+              { value: 'right', label: 'Right' },
+            ]}
+          />
+        </div>
       ) : null}
 
       {/* Tufting (Stage 7c; pattern + stitches 10c) — one-tap button grid +

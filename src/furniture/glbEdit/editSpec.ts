@@ -190,6 +190,16 @@ export type FaceFinishZone = 'top' | 'bottom' | 'sides'
  *  migration — a Stage-7c tuft never carried this field). */
 export type TuftPattern = 'grid' | 'diamond'
 
+/** Which face of a plumped box crowns + tufts (Asset Studio Stage 12). `top`
+ *  (+Y) is the original cushion behaviour (byte-identical default). `front`/`back`
+ *  (±Z) crown the upright vertical faces — the chesterfield backrest / sofa-arm
+ *  case; `left`/`right` (±X) the side faces. Implemented as a pure coordinate-frame
+ *  permutation around the SAME crown/dimple/lattice math (`tufting.ts` `faceFrame`)
+ *  — the chosen face's outward axis becomes the crown axis and its two in-plane
+ *  axes become the lattice plane. Absent → `top`. Applies to a plumped box only
+ *  (a capsule bolster is round — face has no meaning). */
+export type PlumpFace = 'top' | 'front' | 'back' | 'left' | 'right'
+
 /** One-tap TUFTING on a plumped box cushion (Asset Studio Stage 7c, extended in
  *  10c). A `rows × cols` grid of button pull-points on the cushion's top face,
  *  laid out either as a rectangular `grid` or a `diamond` (Chesterfield) lattice.
@@ -447,6 +457,11 @@ export interface ShapePart extends PhysicalSurfaceFields {
    *  AND a matching grid of tagged `button` decals is generated. Absent → no
    *  tufting (byte-identical). Applies to a plumped box only. */
   tuft?: TuftGrid
+  /** Which face of a plumped box crowns + tufts (Stage 12). See `PlumpFace`.
+   *  `top` / absent → the original +Y cushion (byte-identical); `front`/`back`
+   *  (±Z) tuft the upright vertical faces (backrest/arm), `left`/`right` (±X) the
+   *  sides. Ignored unless the part is a plumped box. */
+  plumpFace?: PlumpFace
   /** TinkerCAD solid/hole role (CSG v2). Absent → `solid`. A `hole` renders as a
    *  translucent ghost and is carved out inside a Subtract combine group. */
   role?: PartRole
@@ -1001,12 +1016,27 @@ export function removePartGroupRaw(spec: AssetEditSpec, groupId: string): AssetE
   return next.length > 0 ? { ...spec, partGroups: next } : stripPartGroups(spec)
 }
 
+/** Reflect a plumped box's tuft/crown face under a mirror (Stage 12). An X-mirror
+ *  swaps `left`↔`right`, a Z-mirror swaps `front`↔`back`; `top` (and the axis a
+ *  flip doesn't touch) is unchanged. No flip → the face verbatim. Pure. */
+export function mirrorPlumpFace(
+  face: PlumpFace,
+  flip: { x?: boolean; z?: boolean } | undefined,
+): PlumpFace {
+  let f = face
+  if (flip?.x) f = f === 'left' ? 'right' : f === 'right' ? 'left' : f
+  if (flip?.z) f = f === 'front' ? 'back' : f === 'back' ? 'front' : f
+  return f
+}
+
 /** Deep-copy one part with a fresh id (shared by duplicate/mirror of parts +
  *  groups). `xform` remaps position/rotation for a mirror; identity for a plain
- *  copy. Arrays are deep-copied so the clone never shares a mutable tuple. */
+ *  copy. `flip` (a mirror's reflected axes) reflects the plump/tuft face. Arrays
+ *  are deep-copied so the clone never shares a mutable tuple. */
 function clonePart(
   src: ShapePart,
   xform: (p: ShapePart) => Pick<ShapePart, 'position' | 'rotation'>,
+  flip?: { x?: boolean; z?: boolean },
 ): ShapePart {
   const { position, rotation } = xform(src)
   return {
@@ -1039,6 +1069,13 @@ function clonePart(
     // clone never shares it (like faceFinishes). Its generated button decals ride
     // through `appendClonedDecals` (they carry the `tuft` flag via `...d`).
     tuft: src.tuft ? { ...src.tuft } : undefined,
+    // Stage 12: a mirror reflects which face crowns/tufts — an X-mirror swaps
+    // left↔right, a Z-mirror swaps front↔back (top is unchanged by either). With
+    // no flip (duplicate/array) the face rides through verbatim. Combined with
+    // `transformDecalLocal` flipping the tuft-button decals on the same axis, the
+    // cloned decals land exactly where the mirrored face's regenerated dimples sit
+    // (the crown axis flips too), so the copy stays self-consistent.
+    plumpFace: src.plumpFace ? mirrorPlumpFace(src.plumpFace, flip) : undefined,
     // Stage 9a: a GLB-decompose ref is a small immutable pointer — deep-copy so a
     // clone never shares the object (the baked `geometry` arrays keep riding the
     // `...src` spread by reference, as mesh parts always have).
@@ -1113,10 +1150,14 @@ export function mirrorPartGroup(
   for (const id of group.partIds) {
     const src = spec.parts.find((p) => p.id === id)
     if (!src) continue
-    const copy = clonePart(src, (p) => ({
-      position: [-p.position[0], p.position[1], p.position[2]],
-      rotation: p.rotation ? [p.rotation[0], -p.rotation[1], -p.rotation[2]] : undefined,
-    }))
+    const copy = clonePart(
+      src,
+      (p) => ({
+        position: [-p.position[0], p.position[1], p.position[2]],
+        rotation: p.rotation ? [p.rotation[0], -p.rotation[1], -p.rotation[2]] : undefined,
+      }),
+      { x: true },
+    )
     copies.push(copy)
     pairs.push({ srcId: id, newId: copy.id })
   }
@@ -1251,7 +1292,11 @@ export function repeatComponentGroup(
     for (const id of group.partIds) {
       const src = next.parts.find((p) => p.id === id)
       if (!src) continue
-      const copy = clonePart(src, (p) => ({ position: [...p.position], rotation: p.rotation }))
+      const copy = clonePart(
+        src,
+        (p) => ({ position: [...p.position], rotation: p.rotation }),
+        t.flip,
+      )
       copies.push(copy)
       pairs.push({ srcId: id, newId: copy.id })
     }
@@ -1423,7 +1468,10 @@ export function mirrorPartAxis(
 ): { spec: AssetEditSpec; newId: string | null } {
   const src = spec.parts.find((p) => p.id === id)
   if (!src) return { spec, newId: null }
-  const copy = clonePart(src, (p) => mirroredTransform(p.position, p.rotation, axis))
+  const copy = clonePart(src, (p) => mirroredTransform(p.position, p.rotation, axis), {
+    x: axis === 'x',
+    z: axis === 'z',
+  })
   const withCopy = appendClonedDecals(
     { ...spec, parts: [...spec.parts, copy] },
     [{ srcId: id, newId: copy.id }],
@@ -1448,7 +1496,10 @@ export function mirrorPartsAxis(
   for (const id of ids) {
     const src = spec.parts.find((p) => p.id === id)
     if (!src) continue
-    const copy = clonePart(src, (p) => mirroredTransform(p.position, p.rotation, axis))
+    const copy = clonePart(src, (p) => mirroredTransform(p.position, p.rotation, axis), {
+      x: axis === 'x',
+      z: axis === 'z',
+    })
     copies.push(copy)
     pairs.push({ srcId: id, newId: copy.id })
   }
