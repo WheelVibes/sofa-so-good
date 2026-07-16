@@ -183,6 +183,12 @@ export type PrimitiveKind =
   | 'DogRamp'
   | 'CoolingMat'
   | 'PetToyBin'
+  | 'BirdCage'
+  | 'BirdPlayGym'
+  | 'RabbitHutch'
+  | 'SmallPetPen'
+  | 'HamsterTank'
+  | 'AquariumStand'
 
 export type ParamField =
   | {
@@ -242,6 +248,9 @@ interface FurnitureDefBase {
    *  catalog search finds an item even when the user types a common alias.
    *  Matched alongside the display name. */
   keywords?: string[]
+  /** Optional short descriptive note surfaced in the inspector (e.g. an
+   *  aquarium stand's load-rating advisory). One or two plain sentences. */
+  description?: string
   /** Default Y-axis rotation in radians, applied at placement. */
   defaultRotation?: number
   /**

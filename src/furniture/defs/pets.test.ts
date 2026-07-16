@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { AQUARIUM_TANK_DIMS } from '../primitives/AquariumStand'
+import { BIRD_CAGE_SIZES } from '../primitives/BirdCage'
 import { CRATE_SIZES } from '../primitives/DogCrate'
+import { HAMSTER_TANK_SIZES } from '../primitives/HamsterTank'
 import { PRIMITIVE_COMPONENTS } from '../primitives/index'
+import { CC_GRID_CELL } from '../primitives/SmallPetPen'
 import { defaultParamProps, type FurnitureDef, type ParametricDef } from '../types'
 import { PETS_DEFS as PETS_DEFS_TYPED } from './pets'
 
@@ -216,5 +220,104 @@ describe('PETS_DEFS', () => {
       'ramp',
       'steps',
     ])
+  })
+
+  // ---- Stage P4 — other pets ---------------------------------------------
+  it('ships the P4 other-pets line-up, each with a registered primitive', () => {
+    for (const id of [
+      'bird-cage',
+      'bird-play-gym',
+      'rabbit-hutch',
+      'small-pet-pen',
+      'hamster-tank',
+      'aquarium-stand',
+    ]) {
+      expect(PETS_DEFS).toHaveProperty(id)
+      const def = PETS_DEFS[id] as ParametricDef
+      expect(def.category).toBe('pets')
+      expect(PRIMITIVE_COMPONENTS[def.primitive]).toBeTypeOf('function')
+    }
+  })
+
+  it('keywords each P4 item by its pet type (bird / rabbit / guinea-pig / hamster / fish)', () => {
+    const has = (id: string, kw: string) => PETS_DEFS[id].keywords?.includes(kw)
+    expect(has('bird-cage', 'bird')).toBe(true)
+    expect(has('bird-play-gym', 'bird')).toBe(true)
+    expect(has('rabbit-hutch', 'rabbit')).toBe(true)
+    expect(has('rabbit-hutch', 'small-pet')).toBe(true)
+    expect(has('small-pet-pen', 'guinea-pig')).toBe(true)
+    expect(has('small-pet-pen', 'small-pet')).toBe(true)
+    expect(has('hamster-tank', 'hamster')).toBe(true)
+    expect(has('hamster-tank', 'small-pet')).toBe(true)
+    expect(has('aquarium-stand', 'fish')).toBe(true)
+  })
+
+  it('the bird cage offers a dome/rect shape + stand/tabletop mount, S/M sizes', () => {
+    const cage = PETS_DEFS['bird-cage'] as ParametricDef
+    const shape = cage.paramSchema.find((f) => f.key === 'shape')
+    expect(shape && 'options' in shape ? shape.options.map((o) => o.value) : []).toEqual([
+      'dome',
+      'rect',
+    ])
+    const mount = cage.paramSchema.find((f) => f.key === 'mount')
+    expect(mount && 'options' in mount ? mount.options.map((o) => o.value) : []).toEqual([
+      'stand',
+      'tabletop',
+    ])
+    // Size table monotonic S → M.
+    expect(BIRD_CAGE_SIZES.M.dia).toBeGreaterThan(BIRD_CAGE_SIZES.S.dia)
+    expect(BIRD_CAGE_SIZES.M.cageH).toBeGreaterThan(BIRD_CAGE_SIZES.S.cageH)
+  })
+
+  it('the rabbit hutch defaults to the researched 135×60×90 cm envelope', () => {
+    const hutch = PETS_DEFS['rabbit-hutch'] as ParametricDef
+    expect(hutch.defaultFootprint).toEqual({ w: 1.35, d: 0.6, h: 0.9 })
+    expect(hutch.footprintParams).toEqual({ w: 'width', d: 'depth' })
+    expect(hutch.frontClearance).toBeGreaterThan(0)
+    // W/D/H are all editable + clamped.
+    for (const key of ['width', 'depth', 'height']) {
+      const f = hutch.paramSchema.find((p) => p.key === key)
+      expect(f?.kind).toBe('number')
+    }
+  })
+
+  it('the C&C pen clamps to a 2×3 grid minimum (≈27×41 in)', () => {
+    const pen = PETS_DEFS['small-pet-pen'] as ParametricDef
+    for (const key of ['gridsX', 'gridsY']) {
+      const f = pen.paramSchema.find((p) => p.key === key)
+      expect(f?.kind).toBe('integer')
+      expect(f && 'min' in f ? f.min : undefined).toBe(2)
+    }
+    // A 3×2 default grid of 0.36 m cells clears the 27×41 in (≈0.69×1.04 m) minimum.
+    expect(CC_GRID_CELL).toBeCloseTo(0.36)
+    expect(3 * CC_GRID_CELL).toBeGreaterThanOrEqual(1.04)
+    expect(2 * CC_GRID_CELL).toBeGreaterThanOrEqual(0.69)
+  })
+
+  it('the hamster enclosure meets the ≥100×50 cm floor at Medium', () => {
+    const tank = PETS_DEFS['hamster-tank'] as ParametricDef
+    expect(HAMSTER_TANK_SIZES.M.w).toBeGreaterThanOrEqual(1.0)
+    expect(HAMSTER_TANK_SIZES.M.d).toBeGreaterThanOrEqual(0.5)
+    const base = tank.paramSchema.find((f) => f.key === 'base')
+    expect(base && 'options' in base ? base.options.map((o) => o.value) : []).toEqual([
+      'floor',
+      'stand',
+    ])
+  })
+
+  it('the aquarium stand surfaces its load rating in the def description', () => {
+    const aq = PETS_DEFS['aquarium-stand'] as ParametricDef
+    expect(aq.description).toBeTruthy()
+    expect(aq.description).toMatch(/kg/)
+    // Tank length drives stand dims: 0.6 / 0.9 / 1.2 m present + monotonic.
+    const len = aq.paramSchema.find((f) => f.key === 'tankLength')
+    expect(len && 'options' in len ? len.options.map((o) => o.value) : []).toEqual([
+      '0.6',
+      '0.9',
+      '1.2',
+    ])
+    expect(AQUARIUM_TANK_DIMS['1.2'].w).toBeGreaterThan(AQUARIUM_TANK_DIMS['0.6'].w)
+    // Cabinet doors are toggleable.
+    expect(aq.paramSchema.some((f) => f.key === 'doors')).toBe(true)
   })
 })

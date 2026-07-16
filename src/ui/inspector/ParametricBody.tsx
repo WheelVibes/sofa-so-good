@@ -221,6 +221,18 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
   const isModified = Object.keys(defaults).some((k) => item.props[k] !== defaults[k])
   return (
     <>
+      {def.description ? (
+        <p
+          className="text-xs"
+          style={{
+            color: 'var(--text-2)',
+            lineHeight: 'var(--lh-body)',
+            marginBottom: 'var(--s-2)',
+          }}
+        >
+          {def.description}
+        </p>
+      ) : null}
       {openSection}
       <InspectorSection
         title="Properties"

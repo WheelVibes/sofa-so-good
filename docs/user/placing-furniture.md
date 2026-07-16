@@ -179,6 +179,36 @@ allowed in HDB flats:
 - **Pet toy bin** — a small open storage basket in a **Round** or **Rectangular**
   shape with a woven finish, sized to taste, with an optional **Lid**.
 
+**For birds**, the Pets tab has:
+
+- **Bird cage** — a wire cage with a seed tray and interior perches. Pick a
+  **Size** (Small/Medium), a **Cage shape** (**Dome** round or **Rectangular**),
+  and a **Mount**: **On stand** (a pedestal that raises it to eye level) or
+  **Tabletop** (set it on a surface). Set the frame colour.
+- **Bird play gym** — a small tabletop playstand with a top perch, a ladder and
+  hanging rings. Set the perch (wood) and frame colours.
+
+**For small pets**, the Pets tab has:
+
+- **Rabbit hutch** — a raised two-zone hutch (default **135×60×90 cm**): an
+  enclosed timber sleeping box with a pitched roof beside an open wire run. Set the
+  **Width**, **Depth** and **Height**, the finish and the timber/wire colours.
+- **Small-pet pen** — an open-top C&C (Cubes & Coroplast) grid pen for guinea pigs
+  and other small pets, with a coloured coroplast base. Set the size in grid
+  squares — **Grids across** × **Grids deep** (2×3 minimum) — and the grid/base
+  colours.
+- **Hamster enclosure** — a glass tank (≥100×50 cm at Medium) with a wire-mesh
+  lid, a bedding line and a little wheel and hideout inside. Pick a **Size**
+  (Small/Medium) and a **Base** (**On floor** or **On stand**), and the bedding,
+  glass and frame colours.
+
+**Aquariums** — the Pets tab has an **Aquarium stand + tank**: a load-rated
+steel-frame and MDF cabinet stand carrying a water-filled glass tank over a gravel
+bed. Choose the **Tank length** (0.6 / 0.9 / 1.2 m — it drives the stand size),
+whether the cabinet has **Doors** or an open shelf, and the frame, cabinet and
+water-tint colours. A filled tank is heavy (a 1.2 m tank runs ~300 kg), so the
+inspector reminds you to stand it against a wall on solid, level flooring.
+
 ### Opening doors & drawers
 
 Storage furniture with fronts — kitchen cabinets, hinged‑door wardrobes,

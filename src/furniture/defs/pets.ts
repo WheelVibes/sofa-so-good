@@ -981,4 +981,222 @@ export const PETS_DEFS = {
       },
     ],
   },
+  // ---- Stage P4 — other pets ----------------------------------------------
+  'bird-cage': {
+    kind: 'parametric',
+    id: 'bird-cage',
+    name: 'Bird cage',
+    keywords: ['bird', 'cage', 'aviary', 'parrot', 'budgie', 'canary', 'perch'],
+    category: 'pets',
+    primitive: 'BirdCage',
+    // Footprint matches the default (M) size; the `size` enum drives live dims.
+    defaultFootprint: { w: 0.56, d: 0.56, h: 1.44 },
+    verticalSpan: { base: 0, top: 1.5 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: 'M',
+        options: [
+          { value: 'S', label: 'Small' },
+          { value: 'M', label: 'Medium' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'mount',
+        label: 'Mount',
+        default: 'stand',
+        options: [
+          { value: 'stand', label: 'On stand' },
+          { value: 'tabletop', label: 'Tabletop' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'shape',
+        label: 'Cage shape',
+        default: 'dome',
+        options: [
+          { value: 'dome', label: 'Dome (round)' },
+          { value: 'rect', label: 'Rectangular' },
+        ],
+      },
+      { kind: 'color', key: 'frameColor', label: 'Frame', default: '#3a3d42' },
+    ],
+  },
+  'bird-play-gym': {
+    kind: 'parametric',
+    id: 'bird-play-gym',
+    name: 'Bird play gym',
+    keywords: ['bird', 'play gym', 'playstand', 'perch', 'ladder', 'parrot'],
+    category: 'pets',
+    primitive: 'BirdPlayGym',
+    defaultFootprint: { w: 0.42, d: 0.28, h: 0.43 },
+    verticalSpan: { base: 0, top: 0.45 },
+    paramSchema: [
+      { kind: 'color', key: 'color', label: 'Perch (wood)', default: '#b98f5e' },
+      { kind: 'color', key: 'frameColor', label: 'Frame', default: '#3a3d42' },
+    ],
+  },
+  'rabbit-hutch': {
+    kind: 'parametric',
+    id: 'rabbit-hutch',
+    name: 'Rabbit hutch',
+    keywords: ['rabbit', 'small-pet', 'hutch', 'bunny', 'cage', 'run', 'guinea pig'],
+    category: 'pets',
+    primitive: 'RabbitHutch',
+    defaultFootprint: { w: 1.35, d: 0.6, h: 0.9 },
+    footprintParams: { w: 'width', d: 'depth' },
+    frontClearance: 0.4,
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.9,
+        max: 1.6,
+        step: 0.05,
+        default: 1.35,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'depth',
+        label: 'Depth',
+        min: 0.5,
+        max: 0.75,
+        step: 0.05,
+        default: 0.6,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'height',
+        label: 'Height',
+        min: 0.7,
+        max: 1.1,
+        step: 0.05,
+        default: 0.9,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Timber', default: '#9d7c54' },
+      { kind: 'color', key: 'wireColor', label: 'Wire', default: '#5b6068' },
+    ],
+  },
+  'small-pet-pen': {
+    kind: 'parametric',
+    id: 'small-pet-pen',
+    name: 'Small-pet pen',
+    keywords: ['guinea-pig', 'guinea pig', 'small-pet', 'pen', 'C&C', 'grid', 'cage', 'rabbit'],
+    category: 'pets',
+    primitive: 'SmallPetPen',
+    // 3×2 grids × 0.36 m cell (≈41×27 in), the C&C minimum for a pair. The grid
+    // count drives live dims in the primitive; the footprint stays the default
+    // bbox (grid counts aren't metres, so they can't feed footprintParams).
+    defaultFootprint: { w: 1.08, d: 0.72, h: 0.36 },
+    frontClearance: 0.4,
+    paramSchema: [
+      { kind: 'integer', key: 'gridsX', label: 'Grids across', min: 2, max: 6, default: 3 },
+      { kind: 'integer', key: 'gridsY', label: 'Grids deep', min: 2, max: 6, default: 2 },
+      { kind: 'color', key: 'wireColor', label: 'Grid', default: '#e8ebee' },
+      { kind: 'color', key: 'baseColor', label: 'Coroplast base', default: '#6b8fb0' },
+    ],
+  },
+  'hamster-tank': {
+    kind: 'parametric',
+    id: 'hamster-tank',
+    name: 'Hamster enclosure',
+    keywords: ['hamster', 'small-pet', 'tank', 'bin cage', 'gerbil', 'glass', 'terrarium'],
+    category: 'pets',
+    primitive: 'HamsterTank',
+    // Footprint matches the default (M) size on the floor; `size`/`base` drive dims.
+    defaultFootprint: { w: 1.0, d: 0.5, h: 0.45 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: 'M',
+        options: [
+          { value: 'S', label: 'Small (80 cm)' },
+          { value: 'M', label: 'Medium (100 cm)' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'base',
+        label: 'Base',
+        default: 'floor',
+        options: [
+          { value: 'floor', label: 'On floor' },
+          { value: 'stand', label: 'On stand' },
+        ],
+      },
+      { kind: 'color', key: 'beddingColor', label: 'Bedding', default: '#d8c39a' },
+      { kind: 'color', key: 'glassColor', label: 'Glass', default: '#cfe0e6' },
+      { kind: 'color', key: 'frameColor', label: 'Frame', default: '#1b1b1e' },
+    ],
+  },
+  'aquarium-stand': {
+    kind: 'parametric',
+    id: 'aquarium-stand',
+    name: 'Aquarium stand + tank',
+    keywords: ['fish', 'aquarium', 'tank', 'stand', 'cabinet', 'fish tank', 'water'],
+    category: 'pets',
+    primitive: 'AquariumStand',
+    // Footprint matches the default (0.9 m) tank; `tankLength` drives live dims.
+    defaultFootprint: { w: 0.9, d: 0.4, h: 1.25 },
+    verticalSpan: { base: 0, top: 1.3 },
+    // Load rating surfaced descriptively (LP4): a filled tank is very heavy.
+    description:
+      'A water-filled tank is heavy — a 1.2 m tank runs ~300 kg. The steel frame is load-rated; place it against a wall on solid, level flooring.',
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'tankLength',
+        label: 'Tank length',
+        default: '0.9',
+        options: [
+          { value: '0.6', label: '0.6 m (~60 L)' },
+          { value: '0.9', label: '0.9 m (~150 L)' },
+          { value: '1.2', label: '1.2 m (~250 L)' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'doors',
+        label: 'Cabinet doors',
+        default: 'yes',
+        options: [
+          { value: 'yes', label: 'Doors' },
+          { value: 'no', label: 'Open shelf' },
+        ],
+      },
+      { kind: 'color', key: 'frameColor', label: 'Steel frame', default: '#2b2d31' },
+      {
+        kind: 'enum',
+        key: 'cabinetFinish',
+        label: 'Cabinet finish',
+        default: 'painted',
+        options: [
+          { value: 'painted', label: 'Painted MDF' },
+          { value: 'wood', label: 'Wood' },
+        ],
+      },
+      { kind: 'color', key: 'cabinetColor', label: 'Cabinet', default: '#3a3f45' },
+      { kind: 'color', key: 'waterColor', label: 'Water tint', default: '#3f7d8c' },
+    ],
+  },
 } satisfies Record<string, FurnitureDef>

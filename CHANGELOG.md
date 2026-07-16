@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.76 — Pets P4: birds, small pets, fish
+
+Six defs for the remaining pet types (pets category, keyworded by pet): bird cage
+(dome/rect shapes, stand/tabletop mounts, S/M via BIRD_CAGE_SIZES, seed tray + perches),
+bird play gym (tray/uprights/ladder/rings), rabbit hutch (two-zone: enclosed pitched-roof
+sleeping box + open wire run, default 135×60×90), C&C small-pet pen (gridsX×gridsY over
+the 0.36 m grid cell, coroplast liner), hamster tank (glass ≥100×50 at M, floor/stand
+base, mesh lid, wheel + hideout), aquarium stand (steel frame + MDF cabinet, tank
+0.6/0.9/1.2 m with water/gravel/plants; ~300 kg load rating surfaced via a new optional
+`FurnitureDefBase.description` rendered in the inspector). Scenario `pets-p4.json` frames
+verified (aquarium glass/water reads, dome cage bars converge cleanly, hutch two-zone
+visible); user docs gain For birds / For small pets / Aquariums.
+
 ## v0.21.2.75 — Pets P3: the dog set
 
 Six dog items (pets category, 'dog' keywords): dog crate (XXS-M researched dims via

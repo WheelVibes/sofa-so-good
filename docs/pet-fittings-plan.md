@@ -125,6 +125,32 @@ Bird cage + stand, play gym; rabbit hutch (135×60×90 default); guinea/hamster 
 (≥100×50); aquarium/terrarium stand (steel+MDF look, load-rating descriptive metadata,
 tank-size params).
 
+**P4 SHIPPED** 2026-07-17. Six new `pets` defs, each keyworded by pet type: `bird-cage`
+(`BirdCage` — a wire cage on a `mount` enum stand/tabletop; `shape` enum `dome` — a cylinder
+of vertical bars + hoops capped by a clean domed roof of bars converging to a finial — or
+`rect` — 4 barred sides under a flat roof; `size` S/M via the exported `BIRD_CAGE_SIZES` table;
+a moulded seed tray + interior perch dowels, tripod pedestal; wire via `metalLeg`);
+`bird-play-gym` (`BirdPlayGym` — a small tabletop playstand: tray base, two uprights carrying a
+wood top perch, a diagonal ladder + two hanging rings); `rabbit-hutch` (`RabbitHutch` — a raised
+two-zone hutch, default 135×60×90, `width`/`depth`/`height` clamped; an enclosed timber sleeping
+box with a pitched roof beside an open wire run on four legs — "solid box + wire cage" reads from
+any angle; wood carcass + `metalLeg` bars); `small-pet-pen` (`SmallPetPen` — an open-top C&C grid
+pen, `gridsX`×`gridsY` integers 2–6 over the exported `CC_GRID_CELL` 0.36 m cell, ≥2×3 min ≈
+41×27 in; grid-lattice walls + a coloured coroplast liner tray); `hamster-tank` (`HamsterTank` —
+a glass tank ≥100×50 at Medium via `HAMSTER_TANK_SIZES`, `size` S/M + `base` floor/stand; a black
+frame, a wire-mesh lid, a bedding line + an interior wheel & dome hideout; transparent glass shell
+like the decor `Aquarium`); `aquarium-stand` (`AquariumStand` — a steel-frame + MDF-cabinet stand
+carrying a water-filled glass tank over a gravel bed with planted stems; `tankLength` enum
+0.6/0.9/1.2 m via `AQUARIUM_TANK_DIMS` drives the stand dims, `doors` toggles the cabinet leaves;
+**load rating surfaced descriptively** via a new optional `FurnitureDefBase.description` field
+rendered as a muted line atop the inspector's `ParametricBody`). Prices in `furniturePrices.ts`.
+Tests: `defs/pets.test.ts` (P4 line-up, per-pet keywords, cage shape/mount, hutch 135×60×90
+envelope, C&C 2×3 min, hamster ≥100×50, aquarium load-note + tank-length dims). Visual:
+`scripts/scenarios/pets-p4.json` (the small-pets room — bird cage on stand + play gym, rabbit
+hutch, C&C pen, hamster tank on a stand, aquarium against a wall; room-wide + aquarium/cage/hutch
+closeups). New `description` field: `FurnitureDefBase.description?` (types.ts) + a muted inspector
+line (`ParametricBody.tsx`).
+
 ## Stage P5 — Presets, integration & polish
 Pet-type keyword curation + catalog tab ordering; room-aware mapping (service yard/
 balcony → pets surfaced); user docs page; showcase scenario (a pet-ready 4-room flat:

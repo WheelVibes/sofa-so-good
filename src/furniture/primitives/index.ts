@@ -9,6 +9,7 @@ import type { ComponentType } from 'react'
 import type { ParamProps, PrimitiveKind } from '../types'
 import { AirconUnit } from './AirconUnit'
 import { Aquarium } from './Aquarium'
+import { AquariumStand } from './AquariumStand'
 import { Armchair } from './Armchair'
 import { BarCart } from './BarCart'
 import { BarStool } from './BarStool'
@@ -16,6 +17,8 @@ import { BathroomSink } from './BathroomSink'
 import { Bathtub } from './Bathtub'
 import { Bed } from './Bed'
 import { Bench } from './Bench'
+import { BirdCage } from './BirdCage'
+import { BirdPlayGym } from './BirdPlayGym'
 import { BookStack } from './BookStack'
 import { Bookshelf } from './Bookshelf'
 import { BunkBed } from './BunkBed'
@@ -59,6 +62,7 @@ import { FloorSpeaker } from './FloorSpeaker'
 import { FloorVase } from './FloorVase'
 import { FruitBowl } from './FruitBowl'
 import { GarmentRack } from './GarmentRack'
+import { HamsterTank } from './HamsterTank'
 import { HangingPlant } from './HangingPlant'
 import { HighChair } from './HighChair'
 import { KitchenCounter } from './KitchenCounter'
@@ -87,6 +91,7 @@ import { PhotoFrameCluster } from './PhotoFrameCluster'
 import { Piano } from './Piano'
 import { PlanterTrough } from './PlanterTrough'
 import { PottedPlant } from './PottedPlant'
+import { RabbitHutch } from './RabbitHutch'
 import { RangeHood } from './RangeHood'
 import { Refrigerator } from './Refrigerator'
 import { RollerBlind } from './RollerBlind'
@@ -97,6 +102,7 @@ import { ShoeCabinet } from './ShoeCabinet'
 import { Shower } from './Shower'
 import { Sideboard } from './Sideboard'
 import { SideTable } from './SideTable'
+import { SmallPetPen } from './SmallPetPen'
 import { SmallSculpture } from './SmallSculpture'
 import { Sofa } from './Sofa'
 import { SofaSectional } from './SofaSectional'
@@ -255,4 +261,10 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   DogRamp,
   CoolingMat,
   PetToyBin,
+  BirdCage,
+  BirdPlayGym,
+  RabbitHutch,
+  SmallPetPen,
+  HamsterTank,
+  AquariumStand,
 }
