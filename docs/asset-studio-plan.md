@@ -910,3 +910,18 @@ judgment as `srcRef.fp`. Inspector: a Pattern segmented (Grid / Diamond) + a Sti
 Tests: `tufting.test.ts` + `specPersist.test.ts`; visual
 `scripts/scenarios/glb-designer-stage10c.json` (SHOT_GPU — velvet cushion, diamond + stitches,
 toggle back to grid, save/restore). **Closes Iteration 6 (pending review).**
+
+---
+
+## Iteration 7
+
+### Stage 11a — Curved profiles
+ProfileEditor points gain a per-point smooth toggle (Catmull-Rom/bezier through smooth
+points, sharp corners preserved); resampled before geometry so lathe/loft/extrude/sweep
+all benefit. Presets updated where curves read better (vase, bowl, ogee).
+
+### Stage 11b — Showcase integration build
+Scripted end-to-end build of a complete chesterfield sofa using every system (template →
+shell/taper → physical materials → diamond tufting + stitches → piping → components →
+Room preview → save → place in the flat). Bugs found are REPORTED (not fixed in-flight);
+the result doubles as an integration regression scenario + demo frames.

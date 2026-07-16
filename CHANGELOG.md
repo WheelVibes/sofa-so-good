@@ -5,6 +5,10 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.65 — Asset Studio iteration 7 plan
+
+Stage 11a (curved profiles) + 11b (showcase integration build) appended to the plan. Docs only.
+
 ## v0.21.2.64 — iteration-6 review fixes
 
 Two verified findings from the closing review: `PartsPreview`'s material memo now depends on
