@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.64 — iteration-6 review fixes
+
+Two verified findings from the closing review: `PartsPreview`'s material memo now depends on
+the srcRef resolve epoch (a late-resolving textured part no longer keeps its flat placeholder
+material after the geometry arrives), and the mobile designer's dense icon-row hit areas cap
+horizontal expansion at -2px (a symmetric -9px overlapped ~32px-pitch neighbours by ~12px,
+stealing taps).
+
 ## v0.21.2.63 — Asset Studio Stage 10c — Chesterfield (diamond) tufting
 
 The Stage-7c rectangular tuft grid gains the classic **diamond (Chesterfield) lattice** plus

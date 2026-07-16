@@ -526,11 +526,14 @@ body.mobile {
   body.mobile .glb-designer .panel-body .act { min-height: 44px; }
   /* Dense row-action icon buttons (layers rename/dup/remove/ungroup,
      ProfileEditor add/remove, inspector) keep their compact visual size
-     but gain a 44px HIT AREA via ::after — the repo's .m-sheet-head
-     pattern — so a layer row doesn't blow its width with 5 big buttons. */
+     but gain a taller HIT AREA via ::after — the repo's .m-sheet-head
+     pattern — so a layer row doesn't blow its width with 5 big buttons.
+     Horizontal expansion is capped at -2px: the 5-icon group rows sit at
+     ~32px pitch, so a symmetric -9px would overlap neighbours by ~12px
+     and steal taps — worse than a slightly narrower target. */
   body.mobile .glb-designer .panel-body .icon-btn { position: relative; }
   body.mobile .glb-designer .panel-body .icon-btn::after {
-    content: ''; position: absolute; inset: -9px;
+    content: ''; position: absolute; inset: -9px -2px;
   }
   /* Help modal: comfortable body padding on phones. */
   #helpPanel .panel-body { padding: var(--s-2) var(--s-4) var(--s-5); }

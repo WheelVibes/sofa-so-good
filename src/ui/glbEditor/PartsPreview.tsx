@@ -97,8 +97,9 @@ function PartMesh({
   // operand always uses the single translucent ghost material instead.
   const mat = useMemo(() => {
     void epoch // a finish may have just been built into the material cache
+    void srcEpoch // a srcRef source may have just resolved (textures arrive with it)
     return ghost ? ghostMaterial(part, ghost) : partMaterials(part)
-  }, [part, epoch, ghost])
+  }, [part, epoch, srcEpoch, ghost])
   useEffect(
     () => () => {
       if (Array.isArray(mat))
