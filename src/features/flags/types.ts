@@ -160,6 +160,8 @@ export type FeatureFlag =
   | 'catalogResize'
   | 'catalogFilters'
   | 'glbDesigner'
+  | 'assetConfigurableExport'
+  | 'assetSets'
   | 'profiler'
 
 export interface FlagDef {

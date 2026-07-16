@@ -1,0 +1,130 @@
+{
+  "name": "glb-designer-stage3d",
+  "description": "Asset Studio Stage 3d — sets & modular customization. PART A (configurable product): in the GLB designer, drive a table spec whose 4 round (cylinder) legs and 4 square (box) legs are two separate groups; mark both as options of one 'Legs' variant slot and export as a user configurable product (base + Legs slot, each option a baked data-URL GLB). Open the exported product in the existing ConfiguratorDialog, swap the Legs option from Round → Square (asserting the option renders + is selected), then Save to catalog — asserting the baked user def's slotSpec envelope records the Square option. PART B (sets): drive a 2-group design, tick 'Save groups as separate assets', Save — asserting THREE new defs land (2 single-piece assets named after the groups + 1 combined). Cylinder legs prove the baked-GLB option route preserves shape fidelity the configurator's box-only ConfiguredPart cannot.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 120000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); localStorage.removeItem('hdb_user_products') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUserConfigurableProducts?.([]); s.setQualityTier?.('performance'); })()"
+    },
+    { "name": "set-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "open-glb-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "wait-designer", "waitFor": { "text": "3D asset designer" }, "timeout": 15000 },
+
+    {
+      "name": "seed-table-with-leg-variants",
+      "comment": "Drive the designer to the state a user reaches by building a table, grouping its legs, then duplicating that group and editing the copy into square legs — two leg GROUPS (round cylinders + square boxes) over one shared tabletop.",
+      "eval": "(function(){ const corners=[[-0.5,-0.3],[0.5,-0.3],[-0.5,0.3],[0.5,0.3]]; const parts=[{id:'top',kind:'box',position:[0,0.74,0],size:[1.2,0.04,0.8],color:'#9a7b50'}]; const round=[]; const square=[]; corners.forEach((c,i)=>{ const rid='rl'+i, sid='sl'+i; parts.push({id:rid,kind:'cylinder',position:[c[0],0.36,c[1]],size:[0.06,0.72,0.06],color:'#8a6a45'}); parts.push({id:sid,kind:'box',position:[c[0],0.36,c[1]],size:[0.06,0.72,0.06],color:'#6e5337'}); round.push(rid); square.push(sid); }); window.__glbDesigner.setSpec({ sourceScale:1, meshOverrides:{}, parts, partGroups:[ {id:'leg-round',name:'Round legs',partIds:round}, {id:'leg-square',name:'Square legs',partIds:square} ] }); })()"
+    },
+    { "name": "wait-seed", "wait": 600 },
+    {
+      "name": "assert-two-leg-groups",
+      "comment": "Both leg groups appear as rows in the layers tree; the Make configurable panel is up.",
+      "eval": "(function(){ const names=[...document.querySelectorAll('.glb-designer .lyr-nm')].map(n=>(n.textContent||'').trim()); if(names.filter(t=>t==='Round legs').length!==1) throw new Error('Round legs group missing'); if(names.filter(t=>t==='Square legs').length!==1) throw new Error('Square legs group missing'); if(![...document.querySelectorAll('.glb-designer .sec-h span')].some(s=>(s.textContent||'').trim()==='Make configurable')) throw new Error('Make configurable panel missing'); })()"
+    },
+    {
+      "name": "name-the-product",
+      "eval": "(function(){ const inp=document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp),'value').set; setter.call(inp,'Configurable table'); inp.dispatchEvent(new Event('input',{bubbles:true})); })()"
+    },
+    { "name": "shot-designer-leg-variants", "screenshot": "01-designer-leg-variants" },
+    {
+      "name": "export-configurable",
+      "comment": "Mark both leg groups as options of one 'Legs' slot (Round default + Square) and bake → a user configurable product.",
+      "eval": "window.__cfgProductId=null; window.__glbDesigner.makeConfigurable({ 'leg-round':{slot:'Legs',label:'Round',price:40}, 'leg-square':{slot:'Legs',label:'Square',price:60} }).then(id=>{ window.__cfgProductId=id })"
+    },
+    {
+      "name": "assert-product-registered",
+      "waitFor": { "store": "state.userConfigurableProducts.length >= 1 && state.userConfigurableProducts[0].slots.length === 1 && state.userConfigurableProducts[0].slots[0].id === 'Legs' && state.userConfigurableProducts[0].slots[0].options.length === 2 && state.userConfigurableProducts[0].slots[0].options.every(o => typeof o.gltfUrl === 'string' && o.gltfUrl.startsWith('data:'))" },
+      "timeout": 30000,
+      "failMessage": "exported product should register in userConfigurableProducts with a 2-option 'Legs' slot whose options carry baked data-URL GLBs"
+    },
+    { "name": "close-designer", "store": { "action": "setGlbDesignerOpen", "args": [false] } },
+
+    {
+      "name": "open-configurator-on-product",
+      "comment": "Open the existing ConfiguratorDialog seeded on the exported user product (SLOT-204 recipe seed).",
+      "eval": "(function(){ const st=window.__store.getState(); const p=st.userConfigurableProducts[0]; st.setConfiguratorEditSpec(JSON.stringify({productId:p.id, selections:{}})); st.setConfiguratorOpen(true); })()"
+    },
+    { "name": "wait-configurator", "waitFor": { "text": "Configure a product" }, "timeout": 15000 },
+    {
+      "name": "assert-legs-slot-and-options",
+      "comment": "The user product is selected; its 'Legs' slot offers Round + Square option buttons.",
+      "eval": "(function(){ const labels=[...document.querySelectorAll('.configurator-dialog .sec-h span')].map(s=>(s.textContent||'').trim()); if(!labels.includes('Legs')) throw new Error('Legs slot section missing'); const btns=[...document.querySelectorAll('.configurator-dialog button')].map(b=>(b.textContent||'').trim()); if(!btns.some(t=>t.startsWith('Round'))) throw new Error('Round option missing'); if(!btns.some(t=>t.startsWith('Square'))) throw new Error('Square option missing'); })()"
+    },
+    { "name": "wait-preview-round", "wait": 2000 },
+    { "name": "shot-configurator-round", "screenshot": "02-configurator-round-legs" },
+    {
+      "name": "swap-to-square",
+      "comment": "Swap the Legs option to Square — the preview re-bakes the square-leg GLB live.",
+      "eval": "(function(){ const btn=[...document.querySelectorAll('.configurator-dialog button')].find(b=>(b.textContent||'').trim().startsWith('Square')); if(!btn) throw new Error('Square option button missing'); btn.click(); })()"
+    },
+    {
+      "name": "assert-square-selected",
+      "comment": "The Square button now reads as the active (accent) selection.",
+      "eval": "(function(){ const btn=[...document.querySelectorAll('.configurator-dialog button')].find(b=>(b.textContent||'').trim().startsWith('Square')); if(!btn.className.includes('btn-accent')) throw new Error('Square option did not become the active selection'); })()"
+    },
+    { "name": "wait-preview-square", "wait": 2200 },
+    { "name": "shot-configurator-square", "screenshot": "03-configurator-square-legs-midswap" },
+    {
+      "name": "record-cfg-baseline",
+      "eval": "window.__cfgBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "save-configured",
+      "comment": "Bake the Square configuration into the catalog through the unchanged saveConfiguredAsset path.",
+      "eval": "(function(){ const btn=[...document.querySelectorAll('.configurator-dialog button')].find(b=>(b.textContent||'').trim()==='Save to catalog'); if(!btn) throw new Error('Save to catalog button missing'); btn.click(); })()"
+    },
+    {
+      "name": "assert-configured-saved",
+      "comment": "The baked user def records the Square option in its slotSpec envelope (selections.Legs === 'leg-square').",
+      "waitFor": { "store": "state.userFurniture.length > window.__cfgBaseline && state.userFurniture.some(d => typeof d.slotSpec === 'string' && (() => { try { const env = JSON.parse(d.slotSpec); const s = env.payload || env; return !!(s && s.selections && s.selections.Legs === 'leg-square') } catch { return false } })())" },
+      "timeout": 30000,
+      "failMessage": "the saved configured asset should carry a slotSpec selecting the Square leg option (leg-square)"
+    },
+    { "name": "shot-configured-saved", "screenshot": "04-configured-asset-saved" },
+
+    {
+      "name": "reopen-designer-for-sets",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    { "name": "wait-designer-2", "waitFor": { "text": "3D asset designer" }, "timeout": 15000 },
+    {
+      "name": "seed-two-piece-design",
+      "comment": "A two-piece design: two separate single-box groups ('Cube A' + 'Cube B').",
+      "eval": "(function(){ window.__glbDesigner.setSpec({ sourceScale:1, meshOverrides:{}, parts:[ {id:'a',kind:'box',position:[0,0.25,0],size:[0.5,0.5,0.5],color:'#9a7b50'}, {id:'b',kind:'box',position:[1.2,0.25,0],size:[0.5,0.5,0.5],color:'#6e5337'} ], partGroups:[ {id:'gA',name:'Cube A',partIds:['a']}, {id:'gB',name:'Cube B',partIds:['b']} ] }); })()"
+    },
+    { "name": "wait-seed-2", "wait": 600 },
+    {
+      "name": "name-the-set",
+      "eval": "(function(){ const inp=document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp),'value').set; setter.call(inp,'Two Cube Set'); inp.dispatchEvent(new Event('input',{bubbles:true})); })()"
+    },
+    {
+      "name": "enable-split-groups",
+      "comment": "Tick 'Save groups as separate assets' (SavePanel switch).",
+      "eval": "(function(){ const sw=document.querySelector('.glb-designer button[aria-label=\"Save groups as separate assets\"]'); if(!sw) throw new Error('split-groups switch missing'); sw.scrollIntoView(); sw.click(); })()"
+    },
+    { "name": "wait-split-toggle", "wait": 400 },
+    {
+      "name": "assert-split-on",
+      "eval": "(function(){ const sw=document.querySelector('.glb-designer button[aria-label=\"Save groups as separate assets\"]'); if(!sw || sw.getAttribute('aria-checked')!=='true') throw new Error('split-groups switch did not turn on'); })()"
+    },
+    { "name": "shot-sets-savepanel", "screenshot": "05-sets-save-panel" },
+    {
+      "name": "record-sets-baseline",
+      "eval": "window.__setsBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "save-set",
+      "eval": "(function(){ const btn=[...document.querySelectorAll('.glb-designer button')].find(b=>b.textContent.trim()==='Save asset' && !b.disabled); if(!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-set-split-into-three",
+      "comment": "One combined asset ('Two Cube Set') + one single-piece asset per group ('Cube A', 'Cube B') → 3 new defs.",
+      "waitFor": { "store": "state.userFurniture.length === window.__setsBaseline + 3 && ['Two Cube Set','Cube A','Cube B'].every(n => state.userFurniture.some(d => d.name === n))" },
+      "timeout": 30000,
+      "failMessage": "saving a 2-group design with split-groups on should add 3 defs: the combined 'Two Cube Set' + single-piece 'Cube A' and 'Cube B'"
+    },
+    { "name": "shot-sets-saved", "screenshot": "06-sets-saved" }
+  ]
+}

@@ -1405,6 +1405,25 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Asset Studio Stage 3d — export a designed piece as a configurable product
+  // family (mark part groups as variant slots → a slot-based product). Rides the
+  // existing pure-code configurator (baked GLB options), prod-safe, but a power
+  // authoring surface inside the designer → pro tier (forced off in Simple).
+  assetConfigurableExport: {
+    label: 'Save as configurable product',
+    description: 'Turn a designed asset into a customizable product family (variant slots)',
+    default: true,
+    tier: 'pro',
+  },
+  // Asset Studio Stage 3d — save a multi-piece design as a "set" (each top-level
+  // group becomes its own catalog asset, plus the whole as one). Pure code,
+  // prod-safe; a designer authoring convenience → pro tier.
+  assetSets: {
+    label: 'Save groups as separate assets',
+    description: 'Split a multi-piece design so each group also saves as its own asset',
+    default: true,
+    tier: 'pro',
+  },
   profiler: {
     label: 'Profiler',
     description: 'Dev-only detached-window performance profiler (live metrics + cost breakdown)',

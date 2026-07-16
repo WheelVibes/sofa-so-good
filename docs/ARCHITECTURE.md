@@ -621,6 +621,19 @@ same change that reshapes a system.
   renders the would-be-inserted spec) → `insertTemplate` (pure) flattens it in as ONE undo step: an empty
   spec is REPLACED, a non-empty spec inserts ALONGSIDE (offset on +X, no confirm). Scenario
   `glb-designer-stage3c`.
+  **Stage 3d — sets & modular customization** (v0.21.2.36, closes Stage 3): (1) **Designer →
+  configurable product export** (`configurator/designerExport.ts`, pure planner unit-tested + async
+  baker; `ui/glbEditor/MakeConfigurablePanel.tsx`, flag `assetConfigurableExport`) — name a **Slot**
+  on a `PartGroup` (two groups sharing a slot name = alternative options, first = default) → emit a
+  `ConfigurableProduct`. **Options are baked GLB `data:` URLs** on the existing `gltfUrl` field (a
+  box-only `ConfiguredPart` can't hold lathe/cylinder/CSG parts), baked in product-world space at an
+  identity slot anchor, so the configurator's `model`/`compose`/`buildObject`/`saveConfigured` are
+  UNCHANGED; footprint `h` = vertical extent so `fitScaleToFootprint` stays ≈1. Exported products
+  register in the `userConfigurableProducts` slice (`state/slices/userProductsSlice.ts`, localStorage
+  `hdb_user_products`) and merge into `ConfiguratorDialog`'s tabs + resolution. (2) **Sets**
+  (`glbEdit/setSplit.ts`, pure + unit-tested; `SavePanel` switch, flag `assetSets`) — "Save groups as
+  separate assets" splits a multi-piece design so each top-level group also saves as its own catalog
+  asset (group transform flattened in), no new runtime concept. Scenario `glb-designer-stage3d`.
   `specPersist` is at **v4**, and both it and the configurator's `slotSpec` now ride the shared
   versioned **`furniture/specEnvelope.ts`** `{ kind, v, payload }` envelope + `EnvelopeCodec` (one
   parse/serialize/migrate/guard path — `parseAssetSpec`/`serializeAssetSpec` +

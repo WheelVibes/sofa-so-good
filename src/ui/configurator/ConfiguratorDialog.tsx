@@ -4,11 +4,13 @@ import { useModalGuard } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
 import { composeProduct } from '../../furniture/configurator/compose'
 import { parseConfiguredSpec } from '../../furniture/configurator/configuredPersist'
-import { clampConfig, offeredOptions, productLabel } from '../../furniture/configurator/model'
 import {
-  CONFIGURABLE_PRODUCTS,
-  getConfigurableProduct,
-} from '../../furniture/configurator/products'
+  type ConfigurableProduct,
+  clampConfig,
+  offeredOptions,
+  productLabel,
+} from '../../furniture/configurator/model'
+import { CONFIGURABLE_PRODUCTS } from '../../furniture/configurator/products'
 import { saveConfiguredAsset } from '../../furniture/configurator/saveConfigured'
 import { canEditScene } from '../../state/editing'
 import { firstEditableRoomId } from '../../state/rooms'
@@ -30,6 +32,14 @@ export function ConfiguratorDialog() {
   const enabled = useFeature('productConfigurator')
   const priceOn = useFeature('budget')
   const isMobile = useIsMobile()
+  // Authored products + the user's own exported configurable products (Stage 3d).
+  const userProducts = useStore((s) => s.userConfigurableProducts)
+  const allProducts = useMemo<ConfigurableProduct[]>(
+    () => [...CONFIGURABLE_PRODUCTS, ...userProducts],
+    [userProducts],
+  )
+  const resolveProduct = (id: string): ConfigurableProduct | null =>
+    allProducts.find((p) => p.id === id) ?? null
   const close = () => {
     const st = useStore.getState()
     st.setConfiguratorOpen(false)
@@ -40,7 +50,7 @@ export function ConfiguratorDialog() {
   }
 
   const [productId, setProductId] = useState(CONFIGURABLE_PRODUCTS[0].id)
-  const product = getConfigurableProduct(productId) ?? CONFIGURABLE_PRODUCTS[0]
+  const product = resolveProduct(productId) ?? CONFIGURABLE_PRODUCTS[0]
   const [selections, setSelections] = useState<Selections>(
     () => clampConfig(CONFIGURABLE_PRODUCTS[0], null).selections,
   )
@@ -59,7 +69,10 @@ export function ConfiguratorDialog() {
     // null (→ fresh product) for anything malformed.
     const parsed = parseConfiguredSpec(editJson)
     if (parsed) {
-      const p = getConfigurableProduct(parsed.productId)
+      // Resolve over authored + user products via getState (keeps the effect's
+      // deps `[open]` — `resolveProduct` is a per-render closure).
+      const products = [...CONFIGURABLE_PRODUCTS, ...useStore.getState().userConfigurableProducts]
+      const p = products.find((x) => x.id === parsed.productId) ?? null
       if (p) {
         setProductId(p.id)
         setSelections(clampConfig(p, { selections: parsed.selections }).selections)
@@ -97,7 +110,7 @@ export function ConfiguratorDialog() {
 
   const selectProduct = (id: string) => {
     if (id === productId) return
-    const p = getConfigurableProduct(id)
+    const p = resolveProduct(id)
     if (!p) return
     setProductId(id)
     setSelections(clampConfig(p, null).selections)
@@ -174,7 +187,7 @@ export function ConfiguratorDialog() {
           </button>
         </div>
         <div className="tabs">
-          {CONFIGURABLE_PRODUCTS.map((p) => (
+          {allProducts.map((p) => (
             <button
               key={p.id}
               type="button"

@@ -180,3 +180,31 @@ that asset in place — every copy you've already placed updates to the new edit
 Because that changes every placed copy and **can't be undone**, Save first asks you
 to confirm.
 
+### Save a multi‑piece design as a set
+
+Designed more than one piece in the same canvas — say a table and a bookshelf, each in
+its own **Group**? Flip **Save groups as separate assets** in the Save panel before you
+hit **Save asset**. You get the whole thing as one catalog asset **plus** each group
+saved as its own single‑piece asset (named after the group), so you can place them
+individually or together later. The switch only appears when your design has at least one
+group.
+
+### Turn a design into a configurable product
+
+Want to offer swappable options — e.g. round **or** square legs — instead of one fixed
+piece? Group the parts that make up each option (for example, put the four legs in their
+own group, then **Duplicate** that group and edit the copy into square legs), then use the
+**Make configurable** panel:
+
+1. **Name a Slot** on each group you want to offer as an option (e.g. type `Legs`).
+   Groups you give the **same** slot name become **alternatives** of that slot — the first
+   one is the default. Leave a group's slot blank to keep it as fixed base geometry;
+   loose (ungrouped) shapes are always part of the base.
+2. Give each option a short **label** and a **price** (defaults to 0 — edit it if you like).
+3. Hit **Save as configurable product**.
+
+It opens straight into **Configure a product**, where you (or anyone) can pick an option
+per slot, watch the piece update live, and **Save to catalog** / **Add to room** the exact
+configuration you want — just like the built‑in configurable products. Your saved product
+also shows up as its own tab in **Configure a product** for next time.
+

@@ -182,7 +182,39 @@ shrinking — every stage extracts modules, never grows the monolith.
   proportions are right by construction. — ✅ done (3c)
 - **Sets & modular customization:** save a designed asset as a configurator product
   (designer → slot-spec export) so a built piece becomes a customizable product family;
-  save grouped multi-piece designs as a set.
+  save grouped multi-piece designs as a set. — ✅ done (3d)
+
+### Stage 3d — sets & modular customization — ✅ SHIPPED (v0.21.2.36) — closes Stage 3
+- ✅ **Designer → configurable product export** (`furniture/configurator/designerExport.ts`, pure
+  planner unit-tested + async baker; UI `ui/glbEditor/MakeConfigurablePanel.tsx`, flag
+  `assetConfigurableExport` pro/on). A "Make configurable" panel exposes the design's top-level
+  `PartGroup`s: name a **Slot** on a group to offer it as a swappable option; two groups sharing a
+  slot name become alternatives (first = default). Blank groups + loose parts bake into the fixed
+  base. Emits a `ConfigurableProduct` that opens in the **existing** `ConfiguratorDialog`, swaps
+  options live, and bakes through the **unchanged** `saveConfiguredAsset` path.
+- ✅ **Option-representation ruling (baked GLB `data:` URL):** a configurator `SlotOption` holds a
+  box-only `ConfiguredPart` OR a `gltfUrl` — it can't carry arbitrary designer `ShapePart`s
+  (lathe/cylinder legs, CSG, sweeps, bevels, gradients). So each option **and** the base is baked to
+  its own small GLB embedded as a self-contained `data:` URL on the existing `gltfUrl` field. This
+  preserves full shape fidelity and touches the configurator's `model`/`compose`/`buildObject`/
+  `saveConfigured` **zero** (they already load/fit/namespace/re-skin `gltfUrl` options — SLOT-203).
+  Each option GLB is baked in product-world space (group transform flattened into every part) with
+  an **identity slot anchor**, so the v1 quarter-turn `SlotAnchor` limit never bites; footprints are
+  symmetric world spans (a provable superset for compose's origin-centred bounds). Per-option price
+  inputs default 0. Rejected: box-restriction (lossy — can't hold the tapered/round legs) and
+  forking the configurator model to understand designer parts.
+- ✅ **User products registry** (`state/slices/userProductsSlice.ts`): exported products register in
+  `userConfigurableProducts` and appear alongside authored `CONFIGURABLE_PRODUCTS` wherever
+  configurable products are browsed (`ConfiguratorDialog` tabs) + resolve for the SLOT-204 re-edit
+  seed. Self-persists to localStorage (`hdb_user_products`, the per-device authored-library pattern
+  shared with `userSetsSlice`); the products it bakes into the catalog persist via the normal
+  user-furniture path.
+- ✅ **Sets** (`furniture/glbEdit/setSplit.ts`, pure + unit-tested; `SavePanel` switch, flag
+  `assetSets` pro/on): "Save groups as separate assets" splits a multi-piece design so **each
+  top-level group also saves as its own catalog asset** (named after the group, group transform
+  flattened in) alongside the whole. A placed set is just the individual assets — no new runtime
+  concept.
+- ✅ Scenario `scripts/scenarios/glb-designer-stage3d.json`; both flags both-modes tested.
 
 ### Stage-1 review debts (recorded during the v0.21.2.31 review-fix cluster — address BEFORE Stage 3 lands)
 - ✅ **Unify the persisted specs under one versioned envelope.** DONE (Stage 3a, v0.21.2.33):
@@ -239,5 +271,8 @@ shrinking — every stage extracts modules, never grows the monolith.
 (v0.21.2.33, 2026-07-16); Stage 3b / fittings-component library + snap-to-surface placement
 **shipped** (v0.21.2.34, 2026-07-16); Stage 3c / template-first flows **shipped**
 (v0.21.2.35, 2026-07-16 — parametric→designer bridge ruled: flatten at insertion, dialog
-parametric). **Stage 3 remainder (sets & modular customization) next.** Each stage lands as its
-own commit train with an end-of-stage adversarial review; this file tracks stage state.
+parametric); Stage 3d / sets & modular customization **shipped** (v0.21.2.36, 2026-07-16 —
+designer→configurable-product export via baked-GLB `data:`-URL options + user-products registry +
+"save groups as separate assets" sets). **Stage 3 fully shipped.** Stage 4 (precision & pro UX)
+next. Each stage lands as its own commit train with an end-of-stage adversarial review; this file
+tracks stage state.

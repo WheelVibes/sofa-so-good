@@ -3,6 +3,14 @@ import { createPortal } from 'react-dom'
 import { type Group, MathUtils, Mesh, type Object3D } from 'three'
 import { useModalGuard } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
+import { serializeConfiguredSpec } from '../../furniture/configurator/configuredPersist'
+import {
+  buildConfigurableProduct,
+  type GroupAssignment,
+  isPlanExportable,
+  planConfigurableExport,
+} from '../../furniture/configurator/designerExport'
+import { clampConfig } from '../../furniture/configurator/model'
 import { buildEditedObject } from '../../furniture/glbEdit/buildObject'
 import { type FaceHit, placeComponentOnFace } from '../../furniture/glbEdit/componentPlace'
 import { componentById } from '../../furniture/glbEdit/components'
@@ -43,6 +51,7 @@ import {
 } from '../../furniture/glbEdit/gizmoWriteBack'
 import { ungroupPartGroup } from '../../furniture/glbEdit/groupTransform'
 import { exportAndSaveAsset, placementFlags } from '../../furniture/glbEdit/saveAsset'
+import { hasSplittableGroups, splitSpecByGroups } from '../../furniture/glbEdit/setSplit'
 import {
   createSpecHistory,
   currentSpec,
@@ -67,6 +76,7 @@ import { DesignerToolbar } from './DesignerToolbar'
 import { DesignerViewport } from './DesignerViewport'
 import { GroupInspector } from './GroupInspector'
 import { LayersPanel } from './LayersPanel'
+import { MakeConfigurablePanel } from './MakeConfigurablePanel'
 import { PartInspector } from './PartInspector'
 import { type PlacementKind, SavePanel } from './SavePanel'
 import { SourcePanel } from './SourcePanel'
@@ -89,6 +99,8 @@ export function GlbDesignerDialog() {
   // feature flag (pro tier, so it's forced off in Simple mode; the ⌘K command
   // and the catalog "Design" button share the same gate).
   const enabled = useFeature('glbDesigner')
+  const setsEnabled = useFeature('assetSets')
+  const configurableEnabled = useFeature('assetConfigurableExport')
   const isMobile = useIsMobile()
   const close = () => useStore.getState().setGlbDesignerOpen(false)
   // Select the stable array ref, filter in a memo — filtering inside the selector
@@ -163,6 +175,12 @@ export function GlbDesignerDialog() {
   const [meshNames, setMeshNames] = useState<string[]>([])
   const sourceSceneRef = useRef<Object3D | null>(null)
 
+  // ---- Sets (Stage 3d): also save each top-level group as its own asset ---
+  const [splitGroups, setSplitGroups] = useState(false)
+  // ---- Make configurable (Stage 3d): per-group variant-slot assignments ---
+  const [assignments, setAssignments] = useState<Record<string, GroupAssignment>>({})
+  const [cfgBusy, setCfgBusy] = useState(false)
+
   // ---- Component library — armed fitting + params (Stage 3b) -------------
   const [armedComponentId, setArmedComponentId] = useState<string | null>(null)
   const [armedParams, setArmedParams] = useState<Record<string, number>>({})
@@ -234,6 +252,34 @@ export function GlbDesignerDialog() {
   const armedRef = useRef<string | null>(armedComponentId)
   armedRef.current = armedComponentId
   const placeArmedRef = useRef<(hit: FaceHit) => void>(() => {})
+
+  // Automation seam for the scenario harness (Stage 3d): drive the spec + the
+  // "Make configurable" export deterministically. Mirrors `__glbDesignerPlaceOnFace`.
+  // The handlers are assigned below (after the early return) via this ref so the
+  // seam always calls the latest closures.
+  const seamRef = useRef<{
+    setSpec: (s: AssetEditSpec) => void
+    getSpec: () => AssetEditSpec
+    makeConfigurable: (a: Record<string, GroupAssignment>) => Promise<string | null>
+  }>({ setSpec: () => {}, getSpec: createEmptySpec, makeConfigurable: async () => null })
+  useEffect(() => {
+    if (!open || !enabled) return
+    const w = window as unknown as {
+      __glbDesigner?: {
+        setSpec: (s: AssetEditSpec) => void
+        getSpec: () => AssetEditSpec
+        makeConfigurable: (a: Record<string, GroupAssignment>) => Promise<string | null>
+      }
+    }
+    w.__glbDesigner = {
+      setSpec: (s) => seamRef.current.setSpec(s),
+      getSpec: () => seamRef.current.getSpec(),
+      makeConfigurable: (a) => seamRef.current.makeConfigurable(a),
+    }
+    return () => {
+      w.__glbDesigner = undefined
+    }
+  }, [open, enabled])
   // Expose a small placement seam while the designer is open so the scenario
   // harness can drive a face-place deterministically (the real UI path is a
   // click in the preview). Mirrors the `window.__store` automation seam.
@@ -376,6 +422,9 @@ export function GlbDesignerDialog() {
       setArmedParams({})
       setTemplateId(null)
       setTemplateParams({})
+      setSplitGroups(false)
+      setAssignments({})
+      setCfgBusy(false)
       sourceSceneRef.current = null
     }
   }, [open])
@@ -710,12 +759,34 @@ export function GlbDesignerDialog() {
         spec,
       )
       if (res.ok) {
+        // Sets (Stage 3d): also save each top-level group as its own catalog
+        // asset (named after the group). Placed sets are just the individual
+        // assets — no new runtime concept.
+        let extra = 0
+        if (splitGroups && setsEnabled && !overwriteId && hasSplittableGroups(spec)) {
+          const pieces = splitSpecByGroups(spec)
+          for (const piece of pieces) {
+            const pieceResults = await evaluateAllGroups(piece.spec)
+            const pieceObj = buildEditedObject(null, piece.spec, pieceResults)
+            const pieceRes = await exportAndSaveAsset(
+              pieceObj,
+              piece.name,
+              category,
+              placementFlags(placement),
+              undefined,
+              piece.spec,
+            )
+            if (pieceRes.ok && !pieceRes.duplicate) extra += 1
+          }
+        }
         notify.start({
           title: res.duplicate
             ? 'That asset already exists'
             : overwriteId
               ? `Updated "${name}"`
-              : `Saved "${name}" to your catalog`,
+              : extra > 0
+                ? `Saved "${name}" + ${extra} piece${extra === 1 ? '' : 's'} to your catalog`
+                : `Saved "${name}" to your catalog`,
           kind: res.duplicate ? 'info' : 'success',
         })
         close()
@@ -725,6 +796,87 @@ export function GlbDesignerDialog() {
     } finally {
       setBusy(false)
     }
+  }
+
+  // ---- Make configurable (Stage 3d) --------------------------------------
+  const setAssignment = (groupId: string, patch: Partial<GroupAssignment>) => {
+    setAssignments((prev) => {
+      const cur = prev[groupId] ?? {
+        slot: null,
+        label: transformGroups.find((g) => g.id === groupId)?.name ?? 'Option',
+        price: 0,
+      }
+      return { ...prev, [groupId]: { ...cur, ...patch } }
+    })
+  }
+  // Distinct non-empty slot keys currently assigned.
+  const assignedSlots = new Set(
+    Object.values(assignments)
+      .map((a) => a.slot)
+      .filter((s): s is string => !!s),
+  )
+
+  // Export the current design as a user configurable product: plan (pure) → bake
+  // each option/base to a self-contained GLB → register in the user-products
+  // registry, then open the configurator seeded on it. `openConfigurator` lets
+  // the automation seam bake-only. Returns the new product id (or null).
+  const exportConfigurable = async (
+    openConfigurator: boolean,
+    explicit?: Record<string, GroupAssignment>,
+  ): Promise<string | null> => {
+    if (cfgBusy) return null
+    const notify = useStore.getState().notify
+    const source = explicit ?? assignments
+    // Fill defaults for any group the user never touched (→ base).
+    const filled: Record<string, GroupAssignment> = {}
+    for (const g of partGroups(spec)) {
+      filled[g.id] = source[g.id] ?? { slot: null, label: g.name, price: 0 }
+    }
+    const plan = planConfigurableExport(spec, filled)
+    if (!isPlanExportable(plan)) {
+      notify.start({
+        title: 'Name a slot on at least one group first',
+        kind: 'error',
+      })
+      return null
+    }
+    setCfgBusy(true)
+    try {
+      const id = `user-cfg-${newPartId()}`
+      const product = await buildConfigurableProduct(plan, {
+        id,
+        label: name.trim() || 'Custom product',
+        category,
+      })
+      useStore.getState().addUserConfigurableProduct(product)
+      notify.start({ title: `Saved "${product.label}" as a configurable product`, kind: 'success' })
+      if (openConfigurator) {
+        const seed = clampConfig(product, null)
+        useStore.getState().setConfiguratorEditSpec(serializeConfiguredSpec(seed))
+        useStore.getState().setConfiguratorOpen(true)
+        close()
+      }
+      return id
+    } catch (err) {
+      notify.start({
+        title: "Couldn't build this product",
+        message: err instanceof Error ? err.message : 'A part failed to bake.',
+        kind: 'error',
+      })
+      return null
+    } finally {
+      setCfgBusy(false)
+    }
+  }
+
+  // Wire the automation seam to the latest closures (Stage 3d scenario).
+  seamRef.current = {
+    setSpec: (s) => commit(s),
+    getSpec: () => spec,
+    makeConfigurable: (a) => {
+      setAssignments(a)
+      return exportConfigurable(false, a)
+    },
   }
 
   return createPortal(
@@ -910,6 +1062,18 @@ export function GlbDesignerDialog() {
               />
             ) : null}
 
+            {configurableEnabled && transformGroups.length > 0 ? (
+              <MakeConfigurablePanel
+                groups={transformGroups}
+                assignments={assignments}
+                slotCount={assignedSlots.size}
+                busy={cfgBusy}
+                canSave={assignedSlots.size > 0}
+                onSetAssignment={setAssignment}
+                onSave={() => exportConfigurable(true)}
+              />
+            ) : null}
+
             <SavePanel
               name={name}
               category={category}
@@ -920,10 +1084,14 @@ export function GlbDesignerDialog() {
               // Block save while any combine group is reporting a degenerate
               // result — saving would silently drop it (fail-loud, finding 1).
               canSave={isBuildable(spec) && combineErrors.size === 0}
+              canSplitGroups={setsEnabled && !overwrite && hasSplittableGroups(spec)}
+              splitGroups={splitGroups}
+              groupCount={transformGroups.length}
               onName={setName}
               onCategory={setCategory}
               onPlacement={setPlacement}
               onToggleOverwrite={() => setOverwrite((v) => !v)}
+              onToggleSplitGroups={() => setSplitGroups((v) => !v)}
               onSave={save}
             />
           </div>

@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.36 — Asset Studio Stage 3d — sets & modular customization (closes Stage 3)
+
+Two designer authoring surfaces that turn a built piece into reusable products, closing Asset
+Studio Stage 3.
+
+- **Designer → configurable product export** (`furniture/configurator/designerExport.ts`, pure
+  planner unit-tested + async baker): a "Make configurable" panel exposes the design's top-level
+  `PartGroup`s. Name a **Slot** on a group to offer it as a swappable option; give two groups the
+  **same** slot name to make them alternatives (the first is the default). Blank groups + loose
+  parts bake into the fixed base. On save it emits a `ConfigurableProduct` (the configurator's own
+  model) that opens in the **existing** `ConfiguratorDialog`, swaps options live, and bakes to the
+  catalog through the **unchanged** `saveConfiguredAsset` path.
+  - **Option-representation decision:** a configurator `SlotOption` holds a box-only `ConfiguredPart`
+    or a `gltfUrl` — it cannot carry arbitrary designer `ShapePart`s (lathe/cylinder legs, CSG,
+    sweeps, bevels, gradients). So each option **and** the base is **baked to its own small GLB
+    embedded as a self-contained `data:` URL** on the existing `gltfUrl` field. This preserves full
+    shape fidelity and touches the configurator's `model`/`compose`/`buildObject`/`saveConfigured`
+    **zero** (they already load, fit, namespace, and re-skin `gltfUrl` options). Each option GLB is
+    baked in product-world space (the group transform flattened into every part) with an identity
+    slot anchor, so the v1 quarter-turn `SlotAnchor` limit never bites; footprints are symmetric
+    world spans (a provable superset for the origin-centred compose bounds). Per-option **price**
+    inputs default 0.
+- **User products registry** (`state/slices/userProductsSlice.ts`): exported products register in
+  `userConfigurableProducts` and appear alongside the authored `CONFIGURABLE_PRODUCTS` wherever
+  configurable products are browsed (`ConfiguratorDialog` tabs) + resolve for the SLOT-204 re-edit
+  seed. Self-persists to localStorage (`hdb_user_products`, the per-device authored-library pattern
+  shared with `userSetsSlice`) — the products the flow bakes into the catalog still persist through
+  the normal user-furniture path.
+- **Sets** (`furniture/glbEdit/setSplit.ts`, pure + unit-tested): a "Save groups as separate assets"
+  switch in `SavePanel` splits a multi-piece design so **each top-level group also saves as its own
+  catalog asset** (named after the group, group transform flattened in) in addition to the whole
+  saving as one asset. A placed set is just the individual assets — no new runtime concept.
+- **Flags** (both pro-tier, default on, forced off in Simple, both-modes tested):
+  `assetConfigurableExport` gates the Make-configurable panel; `assetSets` gates the split switch.
+- Scenario `scripts/scenarios/glb-designer-stage3d.json` (build a table with round + square leg
+  groups → export as a Legs-slot product → swap Round→Square in the configurator → save; then a
+  2-group design split into 3 defs). Stage 3 fully shipped.
+
 ## v0.21.2.35 — Asset Studio Stage 3c — template-first flows
 
 Adds archetype STARTER templates to the GLB Asset Designer: tap a template, tune a couple of

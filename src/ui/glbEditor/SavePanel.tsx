@@ -16,10 +16,14 @@ export function SavePanel({
   overwrite,
   busy,
   canSave,
+  canSplitGroups,
+  splitGroups,
+  groupCount,
   onName,
   onCategory,
   onPlacement,
   onToggleOverwrite,
+  onToggleSplitGroups,
   onSave,
 }: {
   name: string
@@ -29,10 +33,19 @@ export function SavePanel({
   overwrite: boolean
   busy: boolean
   canSave: boolean
+  /** Whether the design has ≥1 top-level group, so it can be split into a "set"
+   *  (Stage 3d). When false the checkbox is hidden. Gated by the `assetSets` flag
+   *  upstream (absent → false). */
+  canSplitGroups?: boolean
+  /** When true, each top-level group ALSO saves as its own catalog asset. */
+  splitGroups?: boolean
+  /** Number of top-level groups (shown in the checkbox hint). */
+  groupCount?: number
   onName: (name: string) => void
   onCategory: (c: FurnitureCategory) => void
   onPlacement: (p: PlacementKind) => void
   onToggleOverwrite: () => void
+  onToggleSplitGroups?: () => void
   onSave: () => void
 }) {
   return (
@@ -87,6 +100,30 @@ export function SavePanel({
             aria-label="Update original"
             onClick={onToggleOverwrite}
             className={`switch${overwrite ? ' on' : ''}`}
+          />
+        </label>
+      ) : null}
+      {canSplitGroups && onToggleSplitGroups ? (
+        <label
+          className="row"
+          style={{ cursor: 'pointer', marginBottom: 'var(--s-2)' }}
+          title="Also save each top-level group as its own catalog asset (a set). Placed pieces are the individual assets."
+        >
+          <div className="rk" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}>
+            <div>Save groups as separate assets</div>
+            <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}>
+              {groupCount
+                ? `Adds ${groupCount} single-piece asset${groupCount === 1 ? '' : 's'} + the whole`
+                : 'Each group also saves on its own'}
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!splitGroups}
+            aria-label="Save groups as separate assets"
+            onClick={onToggleSplitGroups}
+            className={`switch${splitGroups ? ' on' : ''}`}
           />
         </label>
       ) : null}

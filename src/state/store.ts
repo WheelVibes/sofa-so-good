@@ -144,6 +144,11 @@ import {
   USER_ASSETS_INITIAL,
   type UserAssetsSlice,
 } from './slices/userAssetsSlice'
+import {
+  createUserProductsSlice,
+  USER_PRODUCTS_INITIAL,
+  type UserProductsSlice,
+} from './slices/userProductsSlice'
 import { createUserSetsSlice, USER_SETS_INITIAL, type UserSetsSlice } from './slices/userSetsSlice'
 import {
   createUserStylesSlice,
@@ -188,6 +193,7 @@ export interface RootState
     FeaturesSlice,
     StyleClipboardSlice,
     UserSetsSlice,
+    UserProductsSlice,
     UserStylesSlice,
     RecentSlice,
     CalloutsSlice,
@@ -253,6 +259,7 @@ const INITIAL = {
   ...STYLE_CLIPBOARD_INITIAL,
   ...USER_SETS_INITIAL,
   ...ISOLATE_INITIAL,
+  ...USER_PRODUCTS_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -302,6 +309,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createPriceRulesSlice(set, get, api),
   ...createStyleClipboardSlice(set, get, api),
   ...createUserSetsSlice(set, get, api),
+  ...createUserProductsSlice(set, get, api),
   ...createIsolateSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))
