@@ -63,6 +63,12 @@ import type { AssetEditSpec } from './editSpec'
  *    superset → migration stays the identity. (A v12 spec has no srcRef — every
  *    mesh part keeps its baked `geometry`; an older v13 spec has no `fp` — the ref
  *    resolves without a drift check, exactly as before.)
+ *    Also within v13 (Stage 10c, Chesterfield tufting): optional
+ *    `parts[].tuft.pattern` (`grid`|`diamond`) + `parts[].tuft.stitches`
+ *    (boolean). Added additively WITHOUT a version bump — the `isTuftGrid`
+ *    validator already tolerated extra optional keys, so this follows the same
+ *    within-version judgment as `srcRef.fp` (an older v13 tuft simply has no
+ *    pattern/stitches → renders as the rectangular grid it always was).
  */
 export const ASSET_SPEC_VERSION = 13
 
@@ -252,13 +258,18 @@ function isDecals(x: unknown): boolean {
   })
 }
 
-/** Guard the optional `tuft` field (Stage 7c): absent is fine; otherwise an
- *  object with finite numeric `rows`/`cols`/`depth`. Strict — a malformed value
- *  makes the whole spec un-restorable (matching the other collections). */
+/** Guard the optional `tuft` field (Stage 7c; pattern + stitches added additively
+ *  within v13 by Stage 10c): absent is fine; otherwise an object with finite
+ *  numeric `rows`/`cols`/`depth`, an optional `pattern ∈ grid|diamond`, and an
+ *  optional boolean `stitches`. Strict — a malformed value makes the whole spec
+ *  un-restorable (matching the other collections). A Stage-7c tuft (no pattern/
+ *  stitches) validates unchanged. */
 function isTuftGrid(x: unknown): boolean {
   if (x === undefined) return true
   if (!x || typeof x !== 'object') return false
   const t = x as Record<string, unknown>
+  if (t.pattern !== undefined && t.pattern !== 'grid' && t.pattern !== 'diamond') return false
+  if (t.stitches !== undefined && typeof t.stitches !== 'boolean') return false
   return (['rows', 'cols', 'depth'] as const).every(
     (k) => typeof t[k] === 'number' && Number.isFinite(t[k]),
   )

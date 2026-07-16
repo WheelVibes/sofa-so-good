@@ -13,8 +13,12 @@ import {
   plumpVertexDelta,
   setTuftGrid,
   TUFT_INSET,
+  TUFT_STITCH_MAX,
   tuftButtonDecals,
   tuftButtonPositionsXZ,
+  tuftDecals,
+  tuftStitchDecals,
+  tuftStitchPairs,
 } from './tufting'
 
 const box = (extra: Partial<ShapePart> = {}): ShapePart => ({
@@ -196,6 +200,169 @@ describe('setTuftGrid (spec op): regeneration + tagging', () => {
   it('is a no-op for an unknown part id', () => {
     const spec = { ...createEmptySpec(), parts: [box()] }
     expect(setTuftGrid(spec, 'nope', { rows: 2, cols: 2, depth: 0.5 })).toBe(spec)
+  })
+})
+
+describe('diamond pattern layout (Stage 10c)', () => {
+  const w = 1.2
+  const d = 0.5
+
+  it('clampTuft keeps pattern/stitches clean (grid + off drop their keys)', () => {
+    // A plain grid stays byte-identical to a Stage-7c tuft (no new keys).
+    expect(clampTuft({ rows: 3, cols: 3, depth: 0.5 })).toEqual({ rows: 3, cols: 3, depth: 0.5 })
+    expect(clampTuft({ rows: 3, cols: 3, depth: 0.5, pattern: 'grid', stitches: false })).toEqual({
+      rows: 3,
+      cols: 3,
+      depth: 0.5,
+    })
+    // Diamond + stitches are preserved.
+    expect(clampTuft({ rows: 2, cols: 3, depth: 0.5, pattern: 'diamond', stitches: true })).toEqual(
+      { rows: 2, cols: 3, depth: 0.5, pattern: 'diamond', stitches: true },
+    )
+  })
+
+  it('offsets every ODD row by half a column, edge-clamped; count unchanged', () => {
+    const rows = 3
+    const cols = 3
+    const grid = tuftButtonPositionsXZ(w, d, rows, cols, 'grid')
+    const diamond = tuftButtonPositionsXZ(w, d, rows, cols, 'diamond')
+    expect(diamond.length).toBe(rows * cols) // same count as the grid
+    const usableX = (w / 2) * (1 - TUFT_INSET)
+    const halfCol = usableX / (cols - 1)
+    for (let ri = 0; ri < rows; ri++) {
+      for (let c = 0; c < cols; c++) {
+        const g = grid[ri * cols + c]
+        const dm = diamond[ri * cols + c]
+        expect(dm[1]).toBeCloseTo(g[1], 9) // Z (row) is unchanged
+        const off = ri % 2 === 1 ? halfCol : 0
+        expect(dm[0]).toBeCloseTo(Math.min(usableX, Math.max(-usableX, g[0] + off)), 9)
+      }
+    }
+    // No button escapes the inset window (edge-clamped).
+    expect(Math.max(...diamond.map((p) => Math.abs(p[0])))).toBeLessThanOrEqual(usableX + 1e-9)
+  })
+
+  it('even rows are identical to the grid (only odd rows shift)', () => {
+    const diamond = tuftButtonPositionsXZ(w, d, 2, 3, 'diamond')
+    const grid = tuftButtonPositionsXZ(w, d, 2, 3, 'grid')
+    // Row 0 (even) matches the grid exactly.
+    for (let c = 0; c < 3; c++) expect(diamond[c][0]).toBeCloseTo(grid[c][0], 9)
+    // Row 1 (odd) is shifted right of the grid row.
+    for (let c = 0; c < 2; c++) expect(diamond[3 + c][0]).toBeGreaterThan(grid[3 + c][0])
+  })
+
+  it('a diamond dimple still pins the four corners (top-only, corners fixed)', () => {
+    const h = 0.12
+    const tuft = { rows: 2, cols: 3, depth: 1, pattern: 'diamond' as const }
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        const [dx, dy, dz] = plumpVertexDelta((sx * w) / 2, h / 2, (sz * d) / 2, w, h, d, 0.7, tuft)
+        expect(Math.abs(dx)).toBeLessThan(1e-6)
+        expect(Math.abs(dy)).toBeLessThan(1e-6)
+        expect(Math.abs(dz)).toBeLessThan(1e-6)
+      }
+    }
+  })
+})
+
+describe('tuft stitch pairs + decals (Stage 10c)', () => {
+  it('grid connects orthogonal neighbours (horizontals + verticals)', () => {
+    const pairs = tuftStitchPairs(2, 3, 'grid')
+    // rows*(cols-1) horizontals + (rows-1)*cols verticals = 4 + 3.
+    expect(pairs.length).toBe(2 * 2 + 1 * 3)
+    // A 6×6 grid stays within the cap.
+    const big = tuftStitchPairs(6, 6, 'grid')
+    expect(big.length).toBe(6 * 5 + 5 * 6) // 60
+    expect(big.length).toBeLessThanOrEqual(TUFT_STITCH_MAX)
+  })
+
+  it('diamond connects the diagonal lattice (straight-down + one lateral)', () => {
+    // 2×3: one row pair, row 0 unshifted → 3 straight + 2 laterals (cols 1,2).
+    expect(tuftStitchPairs(2, 3, 'diamond').length).toBe(5)
+    // 3×3: two row pairs, 5 each.
+    expect(tuftStitchPairs(3, 3, 'diamond').length).toBe(10)
+    // Never exceeds the cap.
+    expect(tuftStitchPairs(6, 6, 'diamond').length).toBeLessThanOrEqual(TUFT_STITCH_MAX)
+  })
+
+  it('stitch decals sit at button midpoints, tagged, rolled to the connection angle', () => {
+    const part = box({ tuft: { rows: 2, cols: 3, depth: 0.5, stitches: true } })
+    const pts = tuftButtonPositionsXZ(part.size[0], part.size[2], 2, 3, 'grid')
+    const stitches = tuftStitchDecals(part)
+    expect(stitches.length).toBe(tuftStitchPairs(2, 3, 'grid').length)
+    for (const s of stitches) {
+      expect(s.kind).toBe('stitch')
+      expect(s.tuft).toBe(true)
+      expect(s.partId).toBe(part.id)
+      expect(s.normal).toEqual([0, 1, 0])
+      expect(Number.isFinite(s.rotation)).toBe(true)
+    }
+    // The first grid pair is horizontal (button 0 → button 1): Δz = 0 → roll 0.
+    const [i, j] = tuftStitchPairs(2, 3, 'grid')[0]
+    const mid = [(pts[i][0] + pts[j][0]) / 2, (pts[i][1] + pts[j][1]) / 2]
+    const horiz = stitches[0]
+    expect(horiz.position[0]).toBeCloseTo(mid[0], 9)
+    expect(horiz.position[2]).toBeCloseTo(mid[1], 9)
+    expect(horiz.rotation).toBeCloseTo(0, 6)
+  })
+
+  it('a diamond stitch runs on a diagonal (roll is not axis-aligned)', () => {
+    const part = box({ tuft: { rows: 2, cols: 3, depth: 0.5, pattern: 'diamond', stitches: true } })
+    const stitches = tuftStitchDecals(part)
+    expect(stitches.length).toBeGreaterThan(0)
+    // At least one stitch is a true diagonal (roll not a multiple of 90°).
+    const mod90 = (r: number) => ((r % 90) + 90) % 90
+    expect(stitches.some((s) => mod90(s.rotation ?? 0) > 1 && mod90(s.rotation ?? 0) < 89)).toBe(
+      true,
+    )
+  })
+
+  it('no stitches when the toggle is off or the part has no grid', () => {
+    expect(tuftStitchDecals(box({ tuft: { rows: 2, cols: 3, depth: 0.5 } }))).toEqual([])
+    expect(tuftStitchDecals(box({ tuft: undefined }))).toEqual([])
+  })
+
+  it('tuftDecals bundles buttons + stitches (buttons only when stitches off)', () => {
+    const noStitch = box({ tuft: { rows: 2, cols: 3, depth: 0.5 } })
+    expect(tuftDecals(noStitch).length).toBe(6) // buttons only
+    const withStitch = box({ tuft: { rows: 2, cols: 3, depth: 0.5, stitches: true } })
+    expect(tuftDecals(withStitch).length).toBe(6 + tuftStitchPairs(2, 3, 'grid').length)
+    expect(tuftDecals(withStitch).every((dd) => dd.tuft)).toBe(true)
+  })
+})
+
+describe('setTuftGrid regeneration for pattern + stitches (Stage 10c)', () => {
+  it('turning stitches on adds tagged stitch decals alongside the buttons', () => {
+    const part = box()
+    let spec = { ...createEmptySpec(), parts: [part] }
+    spec = setTuftGrid(spec, part.id, { rows: 2, cols: 3, depth: 0.5 })
+    expect((spec.decals ?? []).filter((dd) => dd.kind === 'stitch').length).toBe(0)
+    spec = setTuftGrid(spec, part.id, { rows: 2, cols: 3, depth: 0.5, stitches: true })
+    const buttons = (spec.decals ?? []).filter((dd) => dd.tuft && dd.kind === 'button')
+    const lines = (spec.decals ?? []).filter((dd) => dd.tuft && dd.kind === 'stitch')
+    expect(buttons.length).toBe(6)
+    expect(lines.length).toBe(tuftStitchPairs(2, 3, 'grid').length)
+  })
+
+  it('switching grid → diamond REPLACES the tuft decals (fresh ids)', () => {
+    const part = box()
+    let spec = { ...createEmptySpec(), parts: [part] }
+    spec = setTuftGrid(spec, part.id, { rows: 3, cols: 3, depth: 0.5, stitches: true })
+    const before = new Set((spec.decals ?? []).map((dd) => dd.id))
+    spec = setTuftGrid(spec, part.id, {
+      rows: 3,
+      cols: 3,
+      depth: 0.5,
+      pattern: 'diamond',
+      stitches: true,
+    })
+    expect(spec.parts[0].tuft?.pattern).toBe('diamond')
+    const after = (spec.decals ?? []).filter((dd) => dd.tuft)
+    expect(after.some((dd) => before.has(dd.id))).toBe(false) // all replaced
+    expect(after.filter((dd) => dd.kind === 'button').length).toBe(9)
+    expect(after.filter((dd) => dd.kind === 'stitch').length).toBe(
+      tuftStitchPairs(3, 3, 'diamond').length,
+    )
   })
 })
 

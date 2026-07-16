@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.63 — Asset Studio Stage 10c — Chesterfield (diamond) tufting
+
+The Stage-7c rectangular tuft grid gains the classic **diamond (Chesterfield) lattice** plus
+optional **stitch lines**, so a plumped box cushion can read as a real buttoned-and-piped
+chesterfield. Pure geometry in `furniture/glbEdit/tufting.ts` (three-free, unit-tested); the
+spec type + validator carry the new fields additively **within envelope v13** (no bump).
+
+- **Diamond pattern.** `TuftGrid` gains `pattern: 'grid' | 'diamond'` (absent → `grid`,
+  byte-identical migration). Diamond offsets every odd row by half a column (edge-clamped to the
+  inset window) — `tuftButtonPositionsXZ` applies the shift, and the plump gaussian dimples follow
+  the shifted button points through the same `ry²·cos·cos` falloff (the four seam corners stay
+  pinned in both patterns).
+- **Stitch lines.** A new `stitches: boolean` on the tuft config generates tagged `stitch` line
+  decals along the connections between adjacent buttons — the diagonal lattice for `diamond`,
+  orthogonal neighbours for `grid` (`tuftStitchPairs`). Each line is centred between its two buttons
+  and rolled to the connection angle (the Stage-5 decal `rotation` field: a top-face decal's long
+  axis lands at `atan2(z,x) = −rotation`). Bounded by `TUFT_STITCH_MAX` (80; a 6×6 grid is ≤60,
+  diamond ≤55). Buttons + stitches regenerate together (`tuftDecals`) and are both tagged `tuft`,
+  so editing rows/cols/depth/pattern/stitches replaces only the generated decals — user-placed
+  decals are never touched. Clone/mirror carry the grid + its decals as before.
+- **Inspector.** The Tufting section adds a **Pattern** segmented control (Grid / Diamond) and a
+  **Stitch lines** toggle (`PartInspector.tsx`), replacing the old "rectangular grid only" hint.
+- **Plumbing.** `parts[].tuft.pattern`/`.stitches` are additive optional fields the `isTuftGrid`
+  validator already tolerated, so they ride **within v13** (strict-validated when present:
+  `pattern ∈ grid|diamond`, `stitches` boolean) — the same within-version judgment as `srcRef.fp`;
+  no v14 migration needed. A Stage-7c grid tuft loads unchanged.
+- **Tests.** `tufting.test.ts` (diamond offset/clamp/count, corner-pinned dimples, stitch pair
+  counts + caps, midpoints/angles/tagging, `setTuftGrid` regeneration on pattern/stitches change) +
+  `specPersist.test.ts` (diamond round-trip within v13, grid-tuft back-compat, rejects a bad
+  pattern / non-boolean stitches). Visual `scripts/scenarios/glb-designer-stage10c.json` (SHOT_GPU:
+  a velvet plumped cushion with diamond tufting + stitches; toggle back to grid; save/restore).
+
 ## v0.21.2.62 — Asset Studio Stage 10b — mobile designer UX pass
 
 The full-screen GLB Asset Designer dialog owns its own layout (not a bottom-sheet) and had

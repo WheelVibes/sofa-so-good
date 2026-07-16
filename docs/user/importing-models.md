@@ -217,9 +217,11 @@ build one in the browser:
   Plump/Wrinkles controls. Turn it on to add a **grid of buttons** to the cushion top: **Rows** and
   **Columns** (1–6 each) set the grid and **Dimple depth** sets how deep each button pulls the
   padding in. Each button sits in its own soft dimple — the classic button-tufted upholstery look.
-  Changing the rows/columns regenerates the button grid; any details you placed by hand are left
-  alone. (It's a **rectangular** grid — the diamond/Chesterfield pattern isn't offered.) The
-  **Bench** template ships tufted by default, so it's a quick way to see the effect.
+  A **Pattern** switch picks **Grid** (a plain rectangle) or **Diamond** — the offset-row
+  Chesterfield lattice — and a **Stitch lines** toggle adds thread lines connecting the buttons
+  (diagonals on the diamond, straight lines on the grid) for the full buttoned-and-piped read.
+  Changing any of these regenerates the buttons/stitches; any details you placed by hand are left
+  alone. The **Bench** template ships tufted by default, so it's a quick way to see the effect.
 - **Arrange (align, distribute, mirror, array)** — with shapes selected, an **Arrange**
   section appears. Pick an **axis** (X/Y/Z), then **Align min**, **Align centre** or **Align max**
   to line the selected shapes up on that axis (needs 2+ shapes), or **Distribute** to space 3+

@@ -42,7 +42,7 @@ import {
   type ShapePart,
 } from './editSpec'
 import { applyFinishPreset } from './finishPresets'
-import { tuftButtonDecals } from './tufting'
+import { tuftDecals } from './tufting'
 
 /** Where a saved template is placed by default — a hint the designer applies to
  *  the Save panel's placement select when the template is inserted (the floating
@@ -611,7 +611,7 @@ function buildBench(w: number, d: number, seatH: number): TemplateResult {
   })
   parts.push(cushion)
   const result = wrap(parts, 'Bench')
-  result.decals = tuftButtonDecals(cushion)
+  result.decals = tuftDecals(cushion)
   return result
 }
 

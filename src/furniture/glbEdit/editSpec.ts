@@ -183,18 +183,32 @@ export interface FaceFinish {
 /** The three face zones of a `FaceFinishes` (Stage 6c). */
 export type FaceFinishZone = 'top' | 'bottom' | 'sides'
 
-/** One-tap TUFTING on a plumped box cushion (Asset Studio Stage 7c). A regular
- *  `rows × cols` grid (the diamond/Chesterfield pattern is deliberately OUT of
- *  scope) of button pull-points on the cushion's top face. Setting it does TWO
- *  things (see `tufting.ts`): (a) subtracts smooth gaussian dimples at the button
- *  positions from the plump crown (the geometry pull-down) and (b) regenerates a
- *  matching grid of tagged `button` decals (the visible buttons). `rows`/`cols`
- *  are 1–6; `depth` 0…1 scales how deep the dimples pull (0 = buttons only, no
- *  dimple). Absent → no tufting (byte-identical). Applies to a plumped box only. */
+/** The tuft lattice arrangement (Asset Studio Stage 10c). `grid` = the Stage-7c
+ *  rectangular rows × cols; `diamond` = the classic Chesterfield lattice, every
+ *  other row shifted half a column (edge-clamped). Absent → `grid` (byte-identical
+ *  migration — a Stage-7c tuft never carried this field). */
+export type TuftPattern = 'grid' | 'diamond'
+
+/** One-tap TUFTING on a plumped box cushion (Asset Studio Stage 7c, extended in
+ *  10c). A `rows × cols` grid of button pull-points on the cushion's top face,
+ *  laid out either as a rectangular `grid` or a `diamond` (Chesterfield) lattice.
+ *  Setting it does TWO things (see `tufting.ts`): (a) subtracts smooth gaussian
+ *  dimples at the button positions from the plump crown (the geometry pull-down)
+ *  and (b) regenerates a matching grid of tagged `button` decals (the visible
+ *  buttons) plus, when `stitches` is on, tagged `stitch` line decals along the
+ *  connections between adjacent buttons (diagonal for `diamond`, orthogonal for
+ *  `grid`). `rows`/`cols` are 1–6; `depth` 0…1 scales how deep the dimples pull
+ *  (0 = buttons only, no dimple). `pattern` absent → `grid`; `stitches` absent →
+ *  off (both byte-identical to a Stage-7c tuft). Applies to a plumped box only. */
 export interface TuftGrid {
   rows: number
   cols: number
   depth: number
+  /** Lattice arrangement (Stage 10c). Absent → `grid`. */
+  pattern?: TuftPattern
+  /** Generate stitch-line decals between adjacent buttons (Stage 10c). Absent →
+   *  off. */
+  stitches?: boolean
 }
 
 /** Per-face finishes on a SHARP box (Asset Studio Stage 6c) — the

@@ -24,6 +24,7 @@ import {
 import { TUFT_DEFAULTS, TUFT_LIMITS } from '../../furniture/glbEdit/tufting'
 import { DEFAULT_WRINKLES } from '../../furniture/glbEdit/wrinkleTexture'
 import { ColorPicker } from '../controls/ColorPicker'
+import { Segmented } from '../controls/Segmented'
 import { Select } from '../controls/Select'
 import { SliderField } from '../controls/SliderField'
 import { useSurfaceMaterialOptions } from '../inspector/ParametricBody'
@@ -343,10 +344,11 @@ export function PartInspector() {
         )
       ) : null}
 
-      {/* Tufting (Stage 7c) — one-tap button grid + matching plump dimples on a
-          plumped box cushion (the bench showcase). Rectangular grid only (the
-          diamond/Chesterfield pattern is out of scope). Editing rows/cols/depth
-          regenerates the tagged button decals; user-placed decals are untouched.
+      {/* Tufting (Stage 7c; pattern + stitches 10c) — one-tap button grid +
+          matching plump dimples on a plumped box cushion (the bench showcase).
+          Rectangular grid or the offset-row diamond (Chesterfield) lattice, with
+          optional stitch lines. Editing rows/cols/depth/pattern/stitches
+          regenerates the tagged decals; user-placed decals are untouched.
           Hidden for a combine member — a folded result can't carry per-part
           surface details, so they were pruned when the part joined the combine
           (finding 2). */}
@@ -418,15 +420,49 @@ export function PartInspector() {
                 format={(v) => v.toFixed(2)}
                 onChange={(v) => onSetTuft({ ...tuftGrid, depth: v })}
               />
-              <div
-                style={{
-                  fontSize: 'var(--t-2xs)',
-                  color: 'var(--text-3)',
-                  marginTop: 'var(--s-1)',
-                }}
-              >
-                Rectangular grid only — the diamond/Chesterfield pattern isn't supported.
+              {/* Pattern (Stage 10c) — rectangular grid vs the offset-row diamond
+                  (Chesterfield) lattice. */}
+              <div style={{ marginTop: 'var(--s-2)' }}>
+                <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                  Pattern
+                </div>
+                <Segmented
+                  ariaLabel="Tufting pattern"
+                  value={tuftGrid.pattern ?? 'grid'}
+                  onChange={(v) => onSetTuft({ ...tuftGrid, pattern: v as 'grid' | 'diamond' })}
+                  options={[
+                    { value: 'grid', label: 'Grid' },
+                    { value: 'diamond', label: 'Diamond', title: 'Chesterfield lattice' },
+                  ]}
+                />
               </div>
+              {/* Stitch lines (Stage 10c) — thread lines connecting adjacent
+                  buttons (diagonal for diamond, orthogonal for grid). */}
+              <label
+                className="row"
+                style={{ cursor: 'pointer', marginTop: 'var(--s-2)' }}
+                title="Add stitch lines connecting the tufting buttons"
+              >
+                <div
+                  className="rk"
+                  style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}
+                >
+                  <div>Stitch lines</div>
+                  <div
+                    style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}
+                  >
+                    Thread between the buttons
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!!tuftGrid.stitches}
+                  aria-label="Tufting stitches"
+                  onClick={() => onSetTuft({ ...tuftGrid, stitches: !tuftGrid.stitches })}
+                  className={`switch${tuftGrid.stitches ? ' on' : ''}`}
+                />
+              </label>
             </>
           ) : null}
         </div>

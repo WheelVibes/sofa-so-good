@@ -159,6 +159,51 @@ describe('specPersist', () => {
     expect(migrateAssetSpec(createEmptySpec(), 10)).toEqual(createEmptySpec())
   })
 
+  it('round-trips Stage-10c diamond tuft pattern + stitches within v13', () => {
+    let s = addPart(createEmptySpec(), 'box')
+    s = {
+      ...s,
+      parts: s.parts.map((p) => ({
+        ...p,
+        plump: 0.7,
+        tuft: { rows: 3, cols: 3, depth: 0.5, pattern: 'diamond' as const, stitches: true },
+      })),
+    }
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored?.parts[0].tuft).toEqual({
+      rows: 3,
+      cols: 3,
+      depth: 0.5,
+      pattern: 'diamond',
+      stitches: true,
+    })
+    // A Stage-7c grid tuft (no pattern/stitches) still parses unchanged — the new
+    // fields are additive within v13 (no version bump).
+    let grid = addPart(createEmptySpec(), 'box')
+    grid = {
+      ...grid,
+      parts: grid.parts.map((p) => ({ ...p, tuft: { rows: 2, cols: 2, depth: 0.4 } })),
+    }
+    const gridBlob = JSON.stringify({ kind: 'asset', v: 13, payload: grid })
+    expect(parseAssetSpec(gridBlob)?.parts[0].tuft).toEqual({ rows: 2, cols: 2, depth: 0.4 })
+  })
+
+  it('rejects an invalid tuft pattern or non-boolean stitches', () => {
+    const bad = (tuft: unknown) =>
+      JSON.stringify({
+        kind: 'asset',
+        v: ASSET_SPEC_VERSION,
+        payload: {
+          ...createEmptySpec(),
+          parts: [
+            { id: 'a', kind: 'box', position: [0, 0, 0], size: [1, 1, 1], color: '#fff', tuft },
+          ],
+        },
+      })
+    expect(parseAssetSpec(bad({ rows: 2, cols: 2, depth: 0.5, pattern: 'hex' }))).toBeNull()
+    expect(parseAssetSpec(bad({ rows: 2, cols: 2, depth: 0.5, stitches: 'yes' }))).toBeNull()
+  })
+
   it('rejects a non-finite taper value', () => {
     const bad = JSON.stringify({
       kind: 'asset',

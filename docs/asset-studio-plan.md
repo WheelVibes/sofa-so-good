@@ -632,8 +632,9 @@ the source of truth.
   **top-face only**), and (b) `setTuftGrid` regenerates a matching grid of **button decals** (the
   Stage-5 decal system reused) sitting IN the dimples (local Y from `plumpTopSurfaceY`, so a button
   reads as centred in its dimple). Tuft decals are **tagged** (`Decal.tuft`) so editing rows/cols/depth
-  REPLACES only the tuft buttons and never touches user-placed decals. **Rectangular grid only** — the
-  diamond/Chesterfield look is OUT of scope (documented). The plump crown/bow/dimple scalar math moved
+  REPLACES only the tuft buttons and never touches user-placed decals. Shipped **rectangular grid
+  only**; the diamond/Chesterfield lattice + stitch lines were added later in **Stage 10c**. The
+  plump crown/bow/dimple scalar math moved
   into `tufting.ts` (pure, three-free); `plump.ts` delegates to it (byte-identical without a tuft
   grid). Inspector: a "Tufting (buttons)" toggle + Rows/Columns/Dimple-depth sliders next to Plump
   (`PartInspector.tsx`), shown only for a plumped box.
@@ -893,6 +894,19 @@ desktop untouched):
   numeric-edit size → open Templates disclosure → arm + insert a Coffee table → save end-to-end;
   a screenshot at every step. All real taps/types.
 
-### Stage 10c — Chesterfield tufting
+### Stage 10c — Chesterfield tufting — ✅ SHIPPED (v0.21.2.63)
 Diamond-lattice tuft grid (offset rows) + optional stitch-line decals connecting buttons —
-the classic chesterfield read; extends the 7c rectangular grid.
+the classic chesterfield read; extends the 7c rectangular grid. `TuftGrid` gains
+`pattern: 'grid' | 'diamond'` (absent → grid, byte-identical) and `stitches: boolean`. Diamond
+offsets every odd row by half a column (edge-clamped); the plump gaussian dimples follow the
+shifted button points through the same `ry²·cos·cos` falloff (corners stay pinned in both
+patterns). Stitch decals (`tuftStitchPairs` → tagged `stitch` lines, centred between adjacent
+buttons and rolled to the connection angle via the Stage-5 decal `rotation`) run the diagonal
+lattice for diamond, orthogonal neighbours for grid — bounded by `TUFT_STITCH_MAX` (80). Buttons +
+stitches regenerate together (`tuftDecals`), both tagged `tuft`, so user decals are never touched;
+clone/mirror carry them. Envelope stays **v13** — `pattern`/`stitches` are additive optional fields
+the `isTuftGrid` validator tolerated (strict-validated when present), the same within-version
+judgment as `srcRef.fp`. Inspector: a Pattern segmented (Grid / Diamond) + a Stitch-lines toggle.
+Tests: `tufting.test.ts` + `specPersist.test.ts`; visual
+`scripts/scenarios/glb-designer-stage10c.json` (SHOT_GPU — velvet cushion, diamond + stitches,
+toggle back to grid, save/restore). **Closes Iteration 6 (pending review).**
