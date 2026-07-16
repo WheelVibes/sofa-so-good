@@ -488,4 +488,44 @@ describe('buildEditedObject — transform groups (Stage 3a)', () => {
     // One group container (holding the box) + the ungrouped cylinder at root.
     expect(obj.children.map((c) => c.name).sort()).toEqual(['cylinder-2', 'group-1'])
   })
+
+  // ---- finding 1: a combine whose members share a transform group must bake
+  // its result UNDER that group's container so it moves with the group. --------
+  it('bakes a combine result inside its members transform-group container', () => {
+    let s = addPart(addPart(createEmptySpec(), 'box'), 'box')
+    const ids = s.parts.map((p) => p.id)
+    // Group the two boxes, then combine them (all members share one group).
+    const { spec: grouped, groupId } = addPartGroup(s, ids)
+    s = addCombineGroup(grouped, ids, 'union').spec
+    const cgId = s.combineGroups![0].id
+    // A baked result sitting at the group-local origin.
+    const results = new Map<string, ShapePart>([[cgId, meshResultAt('r', [0, 0.5, 0])]])
+    // Offset the group by +2m X so the container's transform is observable.
+    const withXf = updatePartGroupTransform(s, groupId!, { position: [2, 0, 0] })
+    const obj = buildEditedObject(null, withXf, results)
+    obj.updateMatrixWorld(true)
+    const container = obj.children.find((c) => c.name === 'group-1')!
+    // The combine result is a CHILD of the container, not a root child.
+    const result = container.children.find((c) => c.name === 'combine-1')!
+    expect(result).toBeTruthy()
+    expect(obj.children.find((c) => c.name === 'combine-1')).toBeUndefined()
+    // Its world X reflects the group's +2m offset (local 0 → world 2).
+    expect(result.getWorldPosition(new Vector3()).x).toBeCloseTo(2, 5)
+  })
 })
+
+/** A baked `mesh` result part centred at `position`. */
+function meshResultAt(id: string, position: [number, number, number]): ShapePart {
+  const g = new BoxGeometry(1, 1, 1)
+  const pos = Array.from(g.getAttribute('position').array)
+  const nor = Array.from(g.getAttribute('normal').array)
+  g.dispose()
+  return {
+    id,
+    kind: 'mesh',
+    position,
+    size: [1, 1, 1],
+    color: '#889900',
+    geometry: { positions: pos, normals: nor },
+  }
+}

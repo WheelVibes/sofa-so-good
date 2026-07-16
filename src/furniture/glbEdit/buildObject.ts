@@ -25,6 +25,7 @@ import {
   type AssetEditSpec,
   combinedPartIds,
   combineGroups,
+  combineHomeGroup,
   DEFAULT_PART_METALNESS,
   DEFAULT_PART_ROUGHNESS,
   type GroupMaterialData,
@@ -456,13 +457,19 @@ export function buildEditedObject(
     ;(containerByPart.get(part.id) ?? group).add(mesh)
   })
 
-  // Bake each combine group's evaluated result into the export.
+  // Bake each combine group's evaluated result into the export. When every
+  // member of the combine belongs to one transform group, the result geometry
+  // was baked in that group's LOCAL space (member positions are group-local), so
+  // it must live UNDER the group's container to move with the group (finding 1).
+  // Ungrouped combines land at the asset root as before.
   combineGroups(spec).forEach((g, i) => {
     const result = results?.get(g.id)
     if (!result) return
     const mesh = combineResultMesh(result)
     mesh.name = `combine-${i + 1}`
-    group.add(mesh)
+    const home = combineHomeGroup(spec, g)
+    const container = home ? containerByPart.get(home.partIds[0]) : undefined
+    ;(container ?? group).add(mesh)
   })
   return group
 }

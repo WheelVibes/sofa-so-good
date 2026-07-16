@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AssetEditSpec, ShapePart } from './editSpec'
-import { hasSplittableGroups, specAabbFootprint, splitSpecByGroups } from './setSplit'
+import { hasSplittableGroups, splitSpecByGroups } from './setSplit'
 
 function box(
   id: string,
@@ -55,12 +55,26 @@ describe('splitSpecByGroups (Stage 3d sets)', () => {
     expect(sidePart.position[0]).toBeCloseTo(1.6, 5)
   })
 
-  it('footprints reflect each piece independently', () => {
-    const [table, shelf] = splitSpecByGroups(twoGroupSpec())
-    const tf = specAabbFootprint(table.spec)!
-    expect(tf.w).toBeCloseTo(1.2, 5) // tabletop span
-    const sf = specAabbFootprint(shelf.spec)!
-    expect(sf.h).toBeCloseTo(1.8, 5) // bookshelf tall side
+  it('suffixes duplicate group names so each piece is a distinct asset', () => {
+    const spec: AssetEditSpec = {
+      sourceScale: 1,
+      meshOverrides: {},
+      parts: [
+        box('a', [0, 0.5, 0], [0.4, 1, 0.4]),
+        box('b', [1, 0.5, 0], [0.4, 1, 0.4]),
+        box('c', [2, 0.5, 0], [0.4, 1, 0.4]),
+      ],
+      partGroups: [
+        { id: 'g1', name: 'Cabinet', partIds: ['a'] },
+        { id: 'g2', name: 'Cabinet', partIds: ['b'] },
+        { id: 'g3', name: 'Cabinet', partIds: ['c'] },
+      ],
+    }
+    expect(splitSpecByGroups(spec).map((a) => a.name)).toEqual([
+      'Cabinet',
+      'Cabinet 2',
+      'Cabinet 3',
+    ])
   })
 
   it('includes a combine group only when fully inside the split group', () => {

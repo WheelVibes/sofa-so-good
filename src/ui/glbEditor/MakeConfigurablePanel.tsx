@@ -1,5 +1,6 @@
 import type { GroupAssignment } from '../../furniture/configurator/designerExport'
 import type { PartGroup } from '../../furniture/glbEdit/editSpec'
+import { Disclosure } from '../controls/Disclosure'
 
 /**
  * GLB designer — "Make configurable" authoring panel (Asset Studio Stage 3d).
@@ -31,10 +32,9 @@ export function MakeConfigurablePanel({
   onSave: () => void
 }) {
   return (
-    <div className="sec">
-      <div className="sec-h">
-        <span>Make configurable</span>
-      </div>
+    // Collapsed by default (progressive disclosure) — force open once at least
+    // one slot is assigned so the save affordance stays visible.
+    <Disclosure className="sec" summary="Make configurable" defaultOpen={slotCount > 0}>
       <div
         style={{
           fontSize: 'var(--t-2xs)',
@@ -119,6 +119,6 @@ export function MakeConfigurablePanel({
             ? `Save as configurable product (${slotCount} slot${slotCount === 1 ? '' : 's'})`
             : 'Save as configurable product'}
       </button>
-    </div>
+    </Disclosure>
   )
 }

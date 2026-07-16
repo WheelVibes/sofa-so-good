@@ -62,6 +62,15 @@ export function splitSpecByGroups(spec: AssetEditSpec): GroupAsset[] {
   const groups = partGroups(spec)
   const byId = new Map(spec.parts.map((p) => [p.id, p]))
   const combines = spec.combineGroups ?? []
+  // Suffix duplicate group names within one split so two "Cabinet" groups become
+  // distinct catalog assets ("Cabinet", "Cabinet 2", …) instead of a save that
+  // silently reports a duplicate and drops the second.
+  const nameCounts = new Map<string, number>()
+  const uniqueName = (name: string): string => {
+    const n = (nameCounts.get(name) ?? 0) + 1
+    nameCounts.set(name, n)
+    return n === 1 ? name : `${name} ${n}`
+  }
   return groups.map((group) => {
     const memberIds = new Set(group.partIds)
     const parts: ShapePart[] = []
@@ -75,29 +84,8 @@ export function splitSpecByGroups(spec: AssetEditSpec): GroupAsset[] {
     )
     const sub: AssetEditSpec = { ...createEmptySpec(), parts }
     if (contained.length > 0) sub.combineGroups = contained.map((cg) => ({ ...cg }))
-    return { name: group.name, spec: sub }
+    return { name: uniqueName(group.name), spec: sub }
   })
-}
-
-/** Axis-aligned footprint (metres) of a spec's parts, ignoring rotation — a
- *  quick pure bbox used to sanity-check a split piece's size (the authoritative
- *  footprint is still measured off the built object at save time). Returns null
- *  for an empty spec. */
-export function specAabbFootprint(spec: AssetEditSpec): { w: number; d: number; h: number } | null {
-  if (spec.parts.length === 0) return null
-  let minX = Infinity
-  let maxX = -Infinity
-  let minZ = Infinity
-  let maxZ = -Infinity
-  let maxY = 0
-  for (const p of spec.parts) {
-    minX = Math.min(minX, p.position[0] - p.size[0] / 2)
-    maxX = Math.max(maxX, p.position[0] + p.size[0] / 2)
-    minZ = Math.min(minZ, p.position[2] - p.size[2] / 2)
-    maxZ = Math.max(maxZ, p.position[2] + p.size[2] / 2)
-    maxY = Math.max(maxY, p.position[1] + p.size[1] / 2)
-  }
-  return { w: Math.max(0.05, maxX - minX), d: Math.max(0.05, maxZ - minZ), h: Math.max(0.05, maxY) }
 }
 
 /** True when a spec has ≥1 top-level group (so the "save groups as separate

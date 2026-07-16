@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   type AssetEditSpec,
+  addCombineGroup,
   addPart,
   addPartGroup,
+  combineSpansPartGroups,
   createEmptySpec,
   defaultPart,
   duplicatePart,
@@ -216,6 +218,50 @@ describe('per-part texture finish (GE3c) — schema + back-compat', () => {
     // Editing a legacy part never invents a finish.
     const next = updatePart(revived, 'a', { color: '#112233' })
     expect(next.parts[0]!.finish).toBeUndefined()
+  })
+})
+
+describe('combine ⨯ transform-group boundary (finding 1)', () => {
+  /** Four boxes; ids[0..1] in group A, ids[2..3] in group B, plus two ungrouped. */
+  function fourBoxesTwoGroups() {
+    let s = createEmptySpec()
+    for (let i = 0; i < 4; i++) s = addPart(s, 'box')
+    const ids = s.parts.map((p) => p.id)
+    s = addPartGroup(s, [ids[0], ids[1]]).spec
+    s = addPartGroup(s, [ids[2], ids[3]]).spec
+    return { s, ids }
+  }
+
+  it('allows a combine whose members all share one transform group', () => {
+    const { s, ids } = fourBoxesTwoGroups()
+    expect(combineSpansPartGroups(s, [ids[0], ids[1]])).toBe(false)
+    const { groupId } = addCombineGroup(s, [ids[0], ids[1]], 'union')
+    expect(groupId).toBeTruthy()
+  })
+
+  it('blocks a combine spanning two different transform groups', () => {
+    const { s, ids } = fourBoxesTwoGroups()
+    expect(combineSpansPartGroups(s, [ids[0], ids[2]])).toBe(true)
+    const { spec, groupId } = addCombineGroup(s, [ids[0], ids[2]], 'union')
+    expect(groupId).toBeNull()
+    expect(spec).toBe(s) // unchanged
+  })
+
+  it('blocks a combine mixing a grouped member with an ungrouped one', () => {
+    let s = createEmptySpec()
+    for (let i = 0; i < 2; i++) s = addPart(s, 'box')
+    const ids = s.parts.map((p) => p.id)
+    s = addPartGroup(s, [ids[0]]).spec // ids[0] grouped, ids[1] free
+    expect(combineSpansPartGroups(s, ids)).toBe(true)
+    expect(addCombineGroup(s, ids, 'union').groupId).toBeNull()
+  })
+
+  it('allows a combine of two ungrouped parts (result lives at root)', () => {
+    let s = createEmptySpec()
+    for (let i = 0; i < 2; i++) s = addPart(s, 'box')
+    const ids = s.parts.map((p) => p.id)
+    expect(combineSpansPartGroups(s, ids)).toBe(false)
+    expect(addCombineGroup(s, ids, 'union').groupId).toBeTruthy()
   })
 })
 

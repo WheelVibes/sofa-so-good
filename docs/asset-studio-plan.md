@@ -254,6 +254,12 @@ shrinking — every stage extracts modules, never grows the monolith.
 - ✅ Scenario `scripts/scenarios/glb-designer-stage3c.json`; no persistence change (v4 envelope).
 
 ## Stage 4 — Precision & pro UX
+- **Pre-Stage-4 refactor (do FIRST):** `GlbDesignerDialog` hand-threads ~99 props across 11 child
+  panels (SourcePanel/DesignerToolbar/TemplatesPanel/ComponentsPanel/LayersPanel/PartInspector/
+  GroupInspector/CombinePanel/MakeConfigurablePanel/SavePanel/DesignerViewport). Introduce a
+  designer **context** (spec + history + selection + handlers) and consume it in the panels before
+  adding any Stage-4 surface — otherwise every new tool widens the prop firehose further. This is
+  the first task of Stage 4.
 - Alignment/distribution (align faces/centres, distribute), grid-snap toggle + step,
   live dimension readouts + measure tool, arbitrary-axis mirror, linear/radial array
   (reuse room-editor helpers), ortho view presets + camera bookmarks, part search/rename.

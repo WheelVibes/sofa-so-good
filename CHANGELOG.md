@@ -5,6 +5,53 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.37 — Asset Studio Stage-3 review fixes (correctness + cleanup)
+
+Verified fixes from the Stage-3 adversarial review, spanning the designer's combine/group
+interaction, the configurable-product export, persistence, and the designer panels.
+
+- **Combine result honours its transform group** (`glbEdit/buildObject.ts` + `ui/glbEditor/
+  PartsPreview.tsx`): a CSG combine whose members all live in one `PartGroup` now bakes/renders its
+  result UNDER that group's container, so it moves with the group instead of snapping to the asset
+  root. `addCombineGroup` blocks combining ACROSS different groups (or mixing grouped + ungrouped)
+  via the new `combineSpansPartGroups` guard, with a specific dialog hint; a combine's shared home
+  group is resolved by `combineHomeGroup`. Unit-tested (result transforms with the group;
+  cross-group blocked).
+- **designerExport bakes CSG into options/base** (`configurator/designerExport.ts`): each option
+  and the base now carry their self-contained combine groups, which are EVALUATED at bake time so
+  the option GLB holds carved/fused geometry (was silently dropping the CSG and baking raw
+  operands). A combine straddling a slot boundary blocks "Make configurable" with a hint
+  (`crossBucketCombineName`). Option bakes now run in parallel (`Promise.all`). Unit-tested
+  (internal subtract bakes carved geometry vs raw).
+- **Set-split saves fail loud** (`ui/glbEditor/GlbDesignerDialog.tsx`): a degenerate combine inside
+  a split-out group aborts the whole save with a naming toast, matching the main save path (was
+  baking a piece silently missing its CSG result).
+- **User-products persistence fails loud** (`state/slices/userProductsSlice.ts`): `persistProducts`
+  reports success; `addUserConfigurableProduct` returns it and the dialog toasts an error + does NOT
+  claim success (or open the configurator) when the localStorage write blows quota — the in-memory
+  registry never claims a product the reload won't have. (The heavier IDB-blob route was scoped out;
+  see `userProductsSlice` doc.)
+- **Stable exported product id** (`glbEdit/editSpec.ts` + `specPersist.ts` v5): a design stamps an
+  `exportedProductId` on first "Make configurable" and REUSES it on re-export, so re-exports REPLACE
+  their prior product instead of minting duplicates; replacing evicts the stale one's slot-scene
+  caches.
+- **gltfSlot cache bounded** (`configurator/gltfSlot.ts`): `data:`/`blob:` slot GLBs (designer
+  products) are no longer cached (the map can't grow unbounded across a session); added
+  `evictSlotScene(url)` called on product remove/replace. Bundled-URL behaviour unchanged.
+- **Dev-gated automation seams** (`GlbDesignerDialog.tsx`): both `window.__glbDesigner*`
+  registrations are wrapped in `import.meta.env.DEV` (scenarios run against the dev server, so they
+  keep working).
+- **setSplit name de-dup + dead-code drop** (`glbEdit/setSplit.ts`): duplicate group names within
+  one split are suffixed ("Cabinet", "Cabinet 2", …); the unused `specAabbFootprint` was deleted.
+- **Cleanup:** `LayersPanel` memoises its derived maps + `React.memo`s `PartRow` + moves the
+  rename draft into a row-local input (keystrokes no longer re-render the tree); shared `ArmedCard`
+  scaffolding extracted for Templates/Components; a single parameterised `GizmoModeOverlay` replaces
+  the two DesignerViewport overlays; `gizmoWriteBack` shares its snap/clamp helpers across the part
+  and group patches; Templates/Components/Make-configurable panels wrap in `controls/Disclosure`
+  (collapsed by default, open when armed/active).
+- Recorded the pre-Stage-4 `GlbDesignerDialog` context refactor as the first Stage-4 task
+  (`docs/asset-studio-plan.md`).
+
 ## v0.21.2.36 — Asset Studio Stage 3d — sets & modular customization (closes Stage 3)
 
 Two designer authoring surfaces that turn a built piece into reusable products, closing Asset

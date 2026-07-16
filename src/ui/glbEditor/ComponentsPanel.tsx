@@ -4,8 +4,9 @@ import {
   type ComponentCategory,
   componentById,
 } from '../../furniture/glbEdit/components'
+import { Disclosure } from '../controls/Disclosure'
 import { SliderField } from '../controls/SliderField'
-import { Icon } from '../toolbar/icons'
+import { ArmedCard } from './ArmedCard'
 
 /**
  * The GLB designer's fittings/component library (Asset Studio Stage 3b). Tap a
@@ -35,11 +36,9 @@ export function ComponentsPanel({
   const byCategory = (cat: ComponentCategory) => COMPONENT_LIBRARY.filter((c) => c.category === cat)
 
   return (
-    <div className="sec">
-      <div className="sec-h">
-        <span>Components</span>
-      </div>
-
+    // Collapsed by default (progressive disclosure) — force open while a
+    // component is armed so its placement hint + sliders stay visible.
+    <Disclosure className="sec" summary="Components" defaultOpen={!!armed}>
       {COMPONENT_CATEGORIES.map((cat) => (
         <div key={cat} style={{ marginBottom: 'var(--s-2)' }}>
           <div
@@ -71,44 +70,21 @@ export function ComponentsPanel({
       ))}
 
       {armed ? (
-        <div
-          style={{
-            marginTop: 'var(--s-1)',
-            padding: 'var(--s-2)',
-            border: '1px solid var(--accent)',
-            borderRadius: 'var(--r-2)',
-            background: 'var(--surface-2)',
-          }}
+        <ArmedCard
+          title={`${armed.name} armed`}
+          closeLabel="Cancel placement"
+          closeTitle="Cancel (Esc)"
+          marginTop="var(--s-1)"
+          hint={
+            <>
+              Click a surface in the preview to place it.{' '}
+              {armed.mount === 'floor'
+                ? 'Legs/feet drop from downward faces (a table underside or the floor).'
+                : 'Handles/hinges sit on upright faces (a drawer or door front).'}
+            </>
+          }
+          onClose={onDisarm}
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--s-2)',
-              marginBottom: 'var(--s-2)',
-            }}
-          >
-            <Icon.Cube width={14} height={14} />
-            <span style={{ fontWeight: 600, fontSize: 'var(--t-sm)' }}>{armed.name} armed</span>
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Cancel placement"
-              title="Cancel (Esc)"
-              style={{ marginLeft: 'auto' }}
-              onClick={onDisarm}
-            >
-              <Icon.Close width={13} height={13} />
-            </button>
-          </div>
-          <div
-            style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginBottom: 'var(--s-2)' }}
-          >
-            Click a surface in the preview to place it.{' '}
-            {armed.mount === 'floor'
-              ? 'Legs/feet drop from downward faces (a table underside or the floor).'
-              : 'Handles/hinges sit on upright faces (a drawer or door front).'}
-          </div>
           {armed.params.map((p) => (
             <SliderField
               key={p.key}
@@ -121,8 +97,8 @@ export function ComponentsPanel({
               format={(v) => v.toFixed(3)}
             />
           ))}
-        </div>
+        </ArmedCard>
       ) : null}
-    </div>
+    </Disclosure>
   )
 }

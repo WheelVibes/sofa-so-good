@@ -13,6 +13,42 @@ import {
 import { secureGltfLoader } from '../../furniture/gltf/loaderSecurity'
 import { PartsPreview } from './PartsPreview'
 
+/** The gizmo-mode segmented switch overlaying the preview's top-left corner —
+ *  shared by the part-gizmo and group-gizmo (Stage 3a) overlays, parameterised
+ *  on the available `modes`, the `active` mode, and the `subject` it drives. */
+function GizmoModeOverlay({
+  modes,
+  active,
+  subject,
+  ariaPrefix,
+  onPick,
+}: {
+  modes: { mode: GizmoMode; label: string; hotkey: string }[]
+  active: GizmoMode
+  /** Noun for the title copy, e.g. `'shape'` / `'group'`. */
+  subject: string
+  /** Aria-label prefix, e.g. `'Gizmo'` / `'Group gizmo'`. */
+  ariaPrefix: string
+  onPick: (m: GizmoMode) => void
+}) {
+  return (
+    <div className="seg" style={{ position: 'absolute', top: 8, left: 8 }}>
+      {modes.map(({ mode, label, hotkey }) => (
+        <button
+          key={mode}
+          type="button"
+          className={active === mode ? 'on' : ''}
+          aria-label={`${ariaPrefix}: ${label}`}
+          title={`${label} the selected ${subject} (${hotkey.toUpperCase()})`}
+          onClick={() => onPick(mode)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** Loaded source GLB, uniformly scaled; reports its scene up for export. */
 function SourceModel({
   url,
@@ -153,37 +189,21 @@ export function DesignerViewport({
       </Canvas>
       {/* Gizmo mode switch — overlays the preview's top-left corner. */}
       {sel ? (
-        <div className="seg" style={{ position: 'absolute', top: 8, left: 8 }}>
-          {GIZMO_MODES.filter(({ mode }) => gizmoModesFor(sel.kind).includes(mode)).map(
-            ({ mode, label, hotkey }) => (
-              <button
-                key={mode}
-                type="button"
-                className={gizmoActive === mode ? 'on' : ''}
-                aria-label={`Gizmo: ${label}`}
-                title={`${label} the selected shape (${hotkey.toUpperCase()})`}
-                onClick={() => setGizmoMode(mode)}
-              >
-                {label}
-              </button>
-            ),
-          )}
-        </div>
+        <GizmoModeOverlay
+          modes={GIZMO_MODES.filter(({ mode }) => gizmoModesFor(sel.kind).includes(mode))}
+          active={gizmoActive}
+          subject="shape"
+          ariaPrefix="Gizmo"
+          onPick={setGizmoMode}
+        />
       ) : selGroupObj ? (
-        <div className="seg" style={{ position: 'absolute', top: 8, left: 8 }}>
-          {GROUP_GIZMO_MODES.map(({ mode, label, hotkey }) => (
-            <button
-              key={mode}
-              type="button"
-              className={groupGizmo === mode ? 'on' : ''}
-              aria-label={`Group gizmo: ${label}`}
-              title={`${label} the selected group (${hotkey.toUpperCase()})`}
-              onClick={() => setGizmoMode(mode)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <GizmoModeOverlay
+          modes={GROUP_GIZMO_MODES}
+          active={groupGizmo}
+          subject="group"
+          ariaPrefix="Group gizmo"
+          onPick={setGizmoMode}
+        />
       ) : null}
     </>
   )

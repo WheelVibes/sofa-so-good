@@ -1,17 +1,51 @@
-import { useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import {
   type AssetEditSpec,
   combineGroups,
-  groupForPart,
   partGroups,
   type ShapePart,
 } from '../../furniture/glbEdit/editSpec'
 import { Icon } from '../toolbar/icons'
 
+/** Inline group-rename input that owns its OWN draft state so keystrokes
+ *  re-render only this field, never the whole layer tree (finding 9). Seeds from
+ *  `initial` on mount; Enter/blur commits, Escape cancels. */
+function GroupRenameInput({
+  initial,
+  ariaLabel,
+  onCommit,
+  onCancel,
+}: {
+  initial: string
+  ariaLabel: string
+  onCommit: (name: string) => void
+  onCancel: () => void
+}) {
+  const [draft, setDraft] = useState(initial)
+  return (
+    <input
+      className="input"
+      style={{ flex: 1, minWidth: 0, height: 24, fontSize: 'var(--t-sm)' }}
+      // biome-ignore lint/a11y/noAutofocus: inline rename affordance
+      autoFocus
+      value={draft}
+      aria-label={ariaLabel}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => onCommit(draft)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onCommit(draft)
+        else if (e.key === 'Escape') onCancel()
+      }}
+    />
+  )
+}
+
 /** One shape (layer) row — swatch, name (`kind N`), Hole / Combine tags, and
  *  duplicate / remove actions. Shared by ungrouped rows and the indented member
- *  rows under a transform group. */
-function PartRow({
+ *  rows under a transform group. `memo`ised so an unchanged row doesn't re-render
+ *  when the tree does (finding 9). */
+const PartRow = memo(function PartRow({
   part,
   number,
   selected,
@@ -111,7 +145,7 @@ function PartRow({
       </button>
     </div>
   )
-}
+})
 
 /**
  * The designer's part (layer) list, a **shallow tree** (Stage 3a): named
@@ -161,30 +195,32 @@ export function LayersPanel({
   const parts = spec.parts
   // Collapsed transform-group ids (local view state).
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  // Inline-rename state for a transform group.
+  // Which transform group is being inline-renamed (the draft text itself lives
+  // inside `GroupRenameInput` so keystrokes don't re-render the tree — finding 9).
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [draft, setDraft] = useState('')
+
+  // Derived lookups, recomputed only when the spec changes (finding 9) — not on
+  // every selection/rename-toggle re-render.
+  const { combineTagById, numberById, groups, ungrouped } = useMemo(() => {
+    const combines = combineGroups(spec)
+    const combineIndex = new Map(combines.map((g, i) => [g.id, i + 1]))
+    const tagById = new Map<string, number>()
+    for (const g of combines) for (const id of g.partIds) tagById.set(id, combineIndex.get(g.id)!)
+    // 1-based number per part = its position in the (stable) parts array.
+    const nums = new Map(spec.parts.map((p, i) => [p.id, i + 1]))
+    const gps = partGroups(spec)
+    const groupedIds = new Set<string>()
+    for (const g of gps) for (const id of g.partIds) groupedIds.add(id)
+    return {
+      combineTagById: tagById,
+      numberById: nums,
+      groups: gps,
+      ungrouped: spec.parts.filter((p) => !groupedIds.has(p.id)),
+    }
+  }, [spec])
+  const combineTagFor = (partId: string): number | null => combineTagById.get(partId) ?? null
 
   if (parts.length === 0) return null
-
-  const combines = combineGroups(spec)
-  // Stable 1-based combine index for the ⛓ tag.
-  const combineIndex = new Map(combines.map((g, i) => [g.id, i + 1]))
-  const combineTagFor = (partId: string): number | null => {
-    const g = groupForPart(spec, partId)
-    return g ? (combineIndex.get(g.id) ?? null) : null
-  }
-  // 1-based number per part = its position in the (stable) parts array.
-  const numberById = new Map(parts.map((p, i) => [p.id, i + 1]))
-  const groups = partGroups(spec)
-  const groupedIds = new Set<string>()
-  for (const g of groups) for (const id of g.partIds) groupedIds.add(id)
-  const ungrouped = parts.filter((p) => !groupedIds.has(p.id))
-
-  const commitRename = (id: string) => {
-    onRenameGroup(id, draft)
-    setEditingId(null)
-  }
 
   return (
     <div style={{ marginTop: 'var(--s-2)' }}>
@@ -253,20 +289,14 @@ export function LayersPanel({
                 </button>
                 <Icon.Group width={14} height={14} />
                 {editingId === g.id ? (
-                  <input
-                    className="input"
-                    style={{ flex: 1, minWidth: 0, height: 24, fontSize: 'var(--t-sm)' }}
-                    // biome-ignore lint/a11y/noAutofocus: inline rename affordance
-                    autoFocus
-                    value={draft}
-                    aria-label={`Rename ${g.name}`}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onBlur={() => commitRename(g.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') commitRename(g.id)
-                      else if (e.key === 'Escape') setEditingId(null)
+                  <GroupRenameInput
+                    initial={g.name}
+                    ariaLabel={`Rename ${g.name}`}
+                    onCommit={(name) => {
+                      onRenameGroup(g.id, name)
+                      setEditingId(null)
                     }}
+                    onCancel={() => setEditingId(null)}
                   />
                 ) : (
                   <span
@@ -275,7 +305,6 @@ export function LayersPanel({
                     title={`${g.name} — double-click to rename`}
                     onDoubleClick={(e) => {
                       e.stopPropagation()
-                      setDraft(g.name)
                       setEditingId(g.id)
                     }}
                   >
@@ -295,7 +324,6 @@ export function LayersPanel({
                   aria-label={`Rename ${g.name}`}
                   onClick={(e) => {
                     e.stopPropagation()
-                    setDraft(g.name)
                     setEditingId(g.id)
                   }}
                 >

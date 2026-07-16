@@ -33,8 +33,10 @@
 
 import { exportGlb } from '../convert/toGlb'
 import { buildEditedObject } from '../glbEdit/buildObject'
+import { evaluateAllGroups } from '../glbEdit/csgEval'
 import {
   type AssetEditSpec,
+  type CombineGroup,
   createEmptySpec,
   type PartGroup,
   partGroupMemberIds,
@@ -56,12 +58,15 @@ export interface GroupAssignment {
   price: number
 }
 
-/** A planned option before baking — its flattened world-space parts + footprint. */
+/** A planned option before baking — its flattened world-space parts + footprint.
+ *  `combineGroups` are the CSG groups fully contained in this option (evaluated
+ *  at bake time so the option GLB carries carved/fused geometry, finding 2). */
 interface PlannedOption {
   id: string
   label: string
   price: number
   parts: ShapePart[]
+  combineGroups: CombineGroup[]
   footprint: { w: number; d: number; h: number }
 }
 
@@ -76,8 +81,55 @@ export interface ExportPlan {
   /** Parts baked into the fixed base (ungrouped parts + "Base"-assigned groups),
    *  already in product-world space. */
   baseParts: ShapePart[]
+  /** CSG groups fully contained in the base (evaluated at bake time). */
+  baseCombineGroups: CombineGroup[]
   baseFootprint: { w: number; d: number; h: number }
   slots: PlannedSlot[]
+}
+
+/** Which export bucket each part lands in: `'base'` (ungrouped part or a group
+ *  kept on Base) or an option group's id. Every part maps to exactly one bucket.
+ *  Pure. */
+function partBuckets(
+  spec: AssetEditSpec,
+  assignments: Record<string, GroupAssignment>,
+): Map<string, string> {
+  const map = new Map<string, string>()
+  const grouped = partGroupMemberIds(spec)
+  for (const p of spec.parts) if (!grouped.has(p.id)) map.set(p.id, 'base')
+  for (const g of partGroups(spec)) {
+    const a = assignments[g.id]
+    const bucket = !a || a.slot == null ? 'base' : g.id
+    for (const id of g.partIds) map.set(id, bucket)
+  }
+  return map
+}
+
+/** The name of the first combine group whose members straddle a bucket boundary
+ *  (some inside a slot group, some outside), or null when every combine is
+ *  self-contained. A straddling combine can't be baked into one option's GLB, so
+ *  "Make configurable" must block with a hint (finding 2). Pure. */
+export function crossBucketCombineName(
+  spec: AssetEditSpec,
+  assignments: Record<string, GroupAssignment>,
+): string | null {
+  const bucket = partBuckets(spec, assignments)
+  for (const cg of spec.combineGroups ?? []) {
+    const seen = new Set(cg.partIds.map((id) => bucket.get(id)).filter((b): b is string => !!b))
+    if (seen.size > 1) return cg.name
+  }
+  return null
+}
+
+/** The combine groups whose EVERY member sits in `bucketKey`. */
+function combinesInBucket(
+  spec: AssetEditSpec,
+  bucket: Map<string, string>,
+  bucketKey: string,
+): CombineGroup[] {
+  return (spec.combineGroups ?? [])
+    .filter((cg) => cg.partIds.every((id) => bucket.get(id) === bucketKey))
+    .map((cg) => ({ ...cg, partIds: [...cg.partIds] }))
 }
 
 /** Deep-clone a part at a new pose (from `flattenMember`), preserving every
@@ -149,6 +201,7 @@ export function planConfigurableExport(
 ): ExportPlan {
   const groups = partGroups(spec)
   const grouped = partGroupMemberIds(spec)
+  const bucket = partBuckets(spec, assignments)
 
   // Base = every ungrouped part + every group explicitly kept on "Base".
   const baseParts: ShapePart[] = spec.parts.filter((p) => !grouped.has(p.id)).map((p) => ({ ...p }))
@@ -180,6 +233,7 @@ export function planConfigurableExport(
         label: a.label.trim() || g.name,
         price: Number.isFinite(a.price) && a.price > 0 ? a.price : 0,
         parts,
+        combineGroups: combinesInBucket(spec, bucket, g.id),
         footprint: symmetricFootprint(parts),
       }
     })
@@ -191,7 +245,12 @@ export function planConfigurableExport(
     }
   })
 
-  return { baseParts, baseFootprint: symmetricFootprint(baseParts), slots }
+  return {
+    baseParts,
+    baseCombineGroups: combinesInBucket(spec, bucket, 'base'),
+    baseFootprint: symmetricFootprint(baseParts),
+    slots,
+  }
 }
 
 /** True when a plan yields a usable product (≥1 slot with ≥1 option). */
@@ -199,12 +258,23 @@ export function isPlanExportable(plan: ExportPlan): boolean {
   return plan.slots.length > 0 && plan.slots.every((s) => s.options.length > 0)
 }
 
-/** Bake a flat list of world-space parts to a binary GLB, base64-encode it, and
- *  return a self-contained `data:` URL. No source GLB, no combine groups — the
- *  designer parts are already flattened. */
-async function bakePartsToDataUrl(parts: ShapePart[]): Promise<string> {
-  const spec: AssetEditSpec = { ...createEmptySpec(), parts }
-  const object = buildEditedObject(null, spec)
+/** Bake a flat list of world-space parts (+ any self-contained CSG combine
+ *  groups) to a binary GLB, base64-encode it, and return a self-contained
+ *  `data:` URL. No source GLB — the designer parts are already flattened. When
+ *  `combineGroups` are present they are EVALUATED so the baked GLB carries the
+ *  carved/fused result geometry, not the raw operands (finding 2). */
+async function bakePartsToDataUrl(
+  parts: ShapePart[],
+  combineGroups?: CombineGroup[],
+): Promise<string> {
+  const hasCsg = !!combineGroups && combineGroups.length > 0
+  const spec: AssetEditSpec = {
+    ...createEmptySpec(),
+    parts,
+    ...(hasCsg ? { combineGroups } : {}),
+  }
+  const results = hasCsg ? await evaluateAllGroups(spec) : undefined
+  const object = buildEditedObject(null, spec, results)
   const buffer = await exportGlb(object)
   return `data:model/gltf-binary;base64,${base64FromArrayBuffer(buffer)}`
 }
@@ -238,19 +308,23 @@ export async function buildConfigurableProduct(
   plan: ExportPlan,
   meta: ExportMeta,
 ): Promise<ConfigurableProduct> {
-  const baseGltf = plan.baseParts.length > 0 ? await bakePartsToDataUrl(plan.baseParts) : undefined
+  const baseGltf =
+    plan.baseParts.length > 0
+      ? await bakePartsToDataUrl(plan.baseParts, plan.baseCombineGroups)
+      : undefined
   const slots: ProductSlot[] = []
   for (const s of plan.slots) {
-    const options: SlotOption[] = []
-    for (const o of s.options) {
-      options.push({
+    // Bake every option of a slot in parallel (finding 12 — independent GLB
+    // bakes, no shared cache to serialise on).
+    const options: SlotOption[] = await Promise.all(
+      s.options.map(async (o) => ({
         id: o.id,
         label: o.label,
         price: o.price,
         footprint: o.footprint,
-        gltfUrl: await bakePartsToDataUrl(o.parts),
-      })
-    }
+        gltfUrl: await bakePartsToDataUrl(o.parts, o.combineGroups),
+      })),
+    )
     slots.push({
       id: s.id,
       label: s.label,

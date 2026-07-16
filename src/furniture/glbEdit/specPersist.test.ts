@@ -143,8 +143,14 @@ describe('specPersist', () => {
     expect(restored!.parts[1].role).toBe('hole')
   })
 
-  it('the current envelope is v4', () => {
-    expect(ASSET_SPEC_VERSION).toBe(4)
+  it('the current envelope is v5', () => {
+    expect(ASSET_SPEC_VERSION).toBe(5)
+  })
+
+  it('round-trips the exportedProductId (v5, stable make-configurable id)', () => {
+    const s = { ...createEmptySpec(), exportedProductId: 'user-cfg-abc' }
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored?.exportedProductId).toBe('user-cfg-abc')
   })
 
   it('serialises to the shared `{ kind: "asset", v, payload }` envelope', () => {

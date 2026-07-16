@@ -21,7 +21,7 @@
     {
       "name": "assert-two-leg-groups",
       "comment": "Both leg groups appear as rows in the layers tree; the Make configurable panel is up.",
-      "eval": "(function(){ const names=[...document.querySelectorAll('.glb-designer .lyr-nm')].map(n=>(n.textContent||'').trim()); if(names.filter(t=>t==='Round legs').length!==1) throw new Error('Round legs group missing'); if(names.filter(t=>t==='Square legs').length!==1) throw new Error('Square legs group missing'); if(![...document.querySelectorAll('.glb-designer .sec-h span')].some(s=>(s.textContent||'').trim()==='Make configurable')) throw new Error('Make configurable panel missing'); })()"
+      "eval": "(function(){ const names=[...document.querySelectorAll('.glb-designer .lyr-nm')].map(n=>(n.textContent||'').trim()); if(names.filter(t=>t==='Round legs').length!==1) throw new Error('Round legs group missing'); if(names.filter(t=>t==='Square legs').length!==1) throw new Error('Square legs group missing'); if(![...document.querySelectorAll('.glb-designer .sec-h span, .glb-designer summary.compose-summary')].some(s=>(s.textContent||'').trim()==='Make configurable')) throw new Error('Make configurable panel missing'); })()"
     },
     {
       "name": "name-the-product",

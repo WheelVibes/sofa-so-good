@@ -127,6 +127,17 @@ export function PartsPreview({
   const memberToGroup = new Map<string, string>()
   for (const g of groups) for (const id of g.partIds) memberToGroup.set(id, g.id)
 
+  // A combine result whose members all belong to one transform group renders
+  // INSIDE that group's wrapper (its geometry is baked in group-local space, so
+  // it must move with the group — finding 1); ungrouped combines render at root.
+  const combines = combineGroups(spec)
+  const resultHomeGroup = (cg: (typeof combines)[number]): string | null =>
+    cg.partIds[0] ? (memberToGroup.get(cg.partIds[0]) ?? null) : null
+  const resultMesh = (cg: (typeof combines)[number]) => {
+    const result = results.get(cg.id)
+    return result ? <PartMesh key={`result:${cg.id}`} part={result} /> : null
+  }
+
   // Ghost styling applies ONLY to parts consumed by a combine group: a consumed
   // hole reads as a cut, a consumed solid as a faint proxy. A FREE hole (no
   // group) renders as a normal solid — its role is just a marker until it's added
@@ -180,13 +191,13 @@ export function PartsPreview({
                 />
               ) : null
             })}
+            {/* Combine results whose members belong to THIS group ride inside it. */}
+            {combines.filter((cg) => resultHomeGroup(cg) === g.id).map(resultMesh)}
           </group>
         )
       })}
-      {combineGroups(spec).map((g) => {
-        const result = results.get(g.id)
-        return result ? <PartMesh key={`result:${g.id}`} part={result} /> : null
-      })}
+      {/* Ungrouped combine results render at the asset root. */}
+      {combines.filter((cg) => resultHomeGroup(cg) === null).map(resultMesh)}
     </>
   )
 }

@@ -1,6 +1,23 @@
+import { Mesh } from 'three'
 import { describe, expect, it } from 'vitest'
-import type { AssetEditSpec, ShapePart } from '../glbEdit/editSpec'
-import { type GroupAssignment, isPlanExportable, planConfigurableExport } from './designerExport'
+import { buildEditedObject } from '../glbEdit/buildObject'
+import { evaluateAllGroups } from '../glbEdit/csgEval'
+import { type AssetEditSpec, createEmptySpec, type ShapePart } from '../glbEdit/editSpec'
+import {
+  crossBucketCombineName,
+  type GroupAssignment,
+  isPlanExportable,
+  planConfigurableExport,
+} from './designerExport'
+
+/** Total vertex count across every mesh in a built object. */
+function vertexCount(obj: import('three').Object3D): number {
+  let n = 0
+  obj.traverse((o) => {
+    if (o instanceof Mesh) n += o.geometry.getAttribute('position')?.count ?? 0
+  })
+  return n
+}
 
 function part(
   id: string,
@@ -33,6 +50,61 @@ function tableSpec(): AssetEditSpec {
 }
 
 const assign = (over: Record<string, GroupAssignment>) => over
+
+describe('planConfigurableExport — CSG in options/base (finding 2)', () => {
+  /** A slab + a hole box in one PartGroup, with a SUBTRACT combine carving the
+   *  hole out of the slab. The group is a slot option. */
+  function carvedOptionSpec(): AssetEditSpec {
+    return {
+      sourceScale: 1,
+      meshOverrides: {},
+      parts: [
+        part('slab', 'box', [0, 0.5, 0], [1, 1, 1]),
+        { ...part('hole', 'box', [0, 0.5, 0], [0.4, 2, 0.4]), role: 'hole' },
+      ],
+      partGroups: [{ id: 'g-opt', name: 'Carved', partIds: ['slab', 'hole'] }],
+      combineGroups: [{ id: 'c1', name: 'Combine 1', partIds: ['slab', 'hole'], op: 'subtract' }],
+    }
+  }
+
+  it('carries a self-contained combine into its option and bakes carved geometry', async () => {
+    const plan = planConfigurableExport(carvedOptionSpec(), {
+      'g-opt': { slot: 'Shape', label: 'Carved', price: 0 },
+    })
+    const opt = plan.slots[0].options[0]
+    expect(opt.combineGroups.map((c) => c.id)).toEqual(['c1'])
+
+    const subSpec: AssetEditSpec = {
+      ...createEmptySpec(),
+      parts: opt.parts,
+      combineGroups: opt.combineGroups,
+    }
+    const results = await evaluateAllGroups(subSpec)
+    expect(results.size).toBe(1)
+    const carved = buildEditedObject(null, subSpec, results)
+    const raw = buildEditedObject(null, { ...createEmptySpec(), parts: opt.parts })
+    // The carved bake differs from the raw two-box operands (a real subtract).
+    expect(vertexCount(carved)).toBeGreaterThan(0)
+    expect(vertexCount(carved)).not.toBe(vertexCount(raw))
+  })
+
+  it('flags a combine straddling a slot boundary so export can block', () => {
+    const spec = carvedOptionSpec()
+    // Move the hole out of the group so the combine spans slot ⨯ base.
+    spec.partGroups = [{ id: 'g-opt', name: 'Carved', partIds: ['slab'] }]
+    expect(
+      crossBucketCombineName(spec, { 'g-opt': { slot: 'Shape', label: 'Carved', price: 0 } }),
+    ).toBe('Combine 1')
+  })
+
+  it('a self-contained combine does not flag as cross-bucket', () => {
+    expect(
+      crossBucketCombineName(carvedOptionSpec(), {
+        'g-opt': { slot: 'Shape', label: 'Carved', price: 0 },
+      }),
+    ).toBeNull()
+  })
+})
 
 describe('planConfigurableExport (Stage 3d)', () => {
   it('folds ungrouped parts + Base-assigned groups into the base', () => {

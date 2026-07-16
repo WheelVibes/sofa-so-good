@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ConfigurableProduct } from '../../furniture/configurator/model'
 import { useStore } from '../store'
 
@@ -47,8 +47,23 @@ describe('userProductsSlice (Stage 3d)', () => {
   })
 
   it('registers an exported product', () => {
-    useStore.getState().addUserConfigurableProduct(product('user-cfg-1'))
+    expect(useStore.getState().addUserConfigurableProduct(product('user-cfg-1'))).toBe(true)
     expect(useStore.getState().userConfigurableProducts.map((p) => p.id)).toEqual(['user-cfg-1'])
+  })
+
+  it('FAILS LOUD (returns false, no state commit) when the write throws', () => {
+    // Simulate a quota-exceeded localStorage write.
+    const spy = vi.spyOn(globalThis.localStorage, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    try {
+      const ok = useStore.getState().addUserConfigurableProduct(product('user-cfg-1'))
+      expect(ok).toBe(false)
+      // The in-memory registry must NOT claim a product the reload won't have.
+      expect(useStore.getState().userConfigurableProducts).toHaveLength(0)
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('replaces by id instead of duplicating', () => {

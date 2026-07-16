@@ -6,6 +6,7 @@ import { useFeature } from '../../features/useFeature'
 import { serializeConfiguredSpec } from '../../furniture/configurator/configuredPersist'
 import {
   buildConfigurableProduct,
+  crossBucketCombineName,
   type GroupAssignment,
   isPlanExportable,
   planConfigurableExport,
@@ -24,6 +25,7 @@ import {
   bakeCombineGroup,
   combinedPartIds,
   combineGroups,
+  combineSpansPartGroups,
   createEmptySpec,
   duplicatePart,
   duplicatePartGroup,
@@ -263,7 +265,9 @@ export function GlbDesignerDialog() {
     makeConfigurable: (a: Record<string, GroupAssignment>) => Promise<string | null>
   }>({ setSpec: () => {}, getSpec: createEmptySpec, makeConfigurable: async () => null })
   useEffect(() => {
-    if (!open || !enabled) return
+    // Dev-only automation seam (scenarios run against the dev server = DEV build);
+    // never registered on a production window (finding 7).
+    if (!open || !enabled || !import.meta.env.DEV) return
     const w = window as unknown as {
       __glbDesigner?: {
         setSpec: (s: AssetEditSpec) => void
@@ -284,7 +288,8 @@ export function GlbDesignerDialog() {
   // harness can drive a face-place deterministically (the real UI path is a
   // click in the preview). Mirrors the `window.__store` automation seam.
   useEffect(() => {
-    if (!open || !enabled) return
+    // Dev-only automation seam (see the sibling `__glbDesigner` effect, finding 7).
+    if (!open || !enabled || !import.meta.env.DEV) return
     const w = window as unknown as {
       __glbDesignerPlaceOnFace?: (
         point: [number, number, number],
@@ -605,6 +610,17 @@ export function GlbDesignerDialog() {
   // follows selection order (first-selected is the subtract base without holes).
   const combine = (op: CsgOp) => {
     if (eligibleCombineIds.length < 2 || combining) return
+    // A combine's baked result lives under its members' shared transform-group
+    // container, so members must all share one home (finding 1) — surface a
+    // specific hint rather than the generic failure when they span groups.
+    if (combineSpansPartGroups(spec, eligibleCombineIds)) {
+      useStore.getState().notify.start({
+        title: "Can't combine across different groups",
+        message: 'Ungroup them first, or combine parts within one group.',
+        kind: 'error',
+      })
+      return
+    }
     const { spec: next, groupId } = addCombineGroup(spec, eligibleCombineIds, op)
     if (!groupId) {
       useStore.getState().notify.start({ title: "Couldn't combine these parts", kind: 'error' })
@@ -767,6 +783,17 @@ export function GlbDesignerDialog() {
           const pieces = splitSpecByGroups(spec)
           for (const piece of pieces) {
             const pieceResults = await evaluateAllGroups(piece.spec)
+            // FAIL LOUD per piece, exactly like the main save path: a degenerate
+            // combine inside a split group must abort the whole save, never bake
+            // a piece silently missing its CSG result.
+            const pieceFailed = combineGroups(piece.spec).find((g) => !pieceResults.has(g.id))
+            if (pieceFailed) {
+              notify.start({
+                title: `Combine '${pieceFailed.name}' in "${piece.name}" failed — fix or ungroup it before saving`,
+                kind: 'error',
+              })
+              return
+            }
             const pieceObj = buildEditedObject(null, piece.spec, pieceResults)
             const pieceRes = await exportAndSaveAsset(
               pieceObj,
@@ -840,15 +867,42 @@ export function GlbDesignerDialog() {
       })
       return null
     }
+    // A combine straddling a slot boundary can't bake into one option's GLB —
+    // block with a clear hint rather than silently dropping it (finding 2).
+    const straddling = crossBucketCombineName(spec, filled)
+    if (straddling) {
+      notify.start({
+        title: `Combine '${straddling}' spans a slot boundary`,
+        message: 'Keep a combine inside one group before making it configurable.',
+        kind: 'error',
+      })
+      return null
+    }
     setCfgBusy(true)
     try {
-      const id = `user-cfg-${newPartId()}`
+      // Stable product id (finding 5): reuse the id this design was last exported
+      // under so a re-export REPLACES its product instead of duplicating. Stamp a
+      // fresh id onto the spec on first export so a second export (this session or
+      // a re-edit of the saved asset) reuses it.
+      const id = spec.exportedProductId ?? `user-cfg-${newPartId()}`
+      if (!spec.exportedProductId) commit((s) => ({ ...s, exportedProductId: id }))
       const product = await buildConfigurableProduct(plan, {
         id,
         label: name.trim() || 'Custom product',
         category,
       })
-      useStore.getState().addUserConfigurableProduct(product)
+      const saved = useStore.getState().addUserConfigurableProduct(product)
+      if (!saved) {
+        // Fail loud (finding 4): the localStorage write failed (quota/private
+        // mode), so don't claim success or open the configurator on a product
+        // the next reload won't have.
+        notify.start({
+          title: "Couldn't save this product",
+          message: 'Storage is full — remove some saved products and try again.',
+          kind: 'error',
+        })
+        return null
+      }
       notify.start({ title: `Saved "${product.label}" as a configurable product`, kind: 'success' })
       if (openConfigurator) {
         const seed = clampConfig(product, null)

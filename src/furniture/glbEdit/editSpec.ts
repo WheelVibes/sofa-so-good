@@ -290,6 +290,12 @@ export interface AssetEditSpec {
    *  parent transform (`PartGroup.position`/`rotation`). Independent of
    *  `combineGroups` — a part can be in both. */
   partGroups?: PartGroup[]
+  /** The id this design was last exported as a configurable product under
+   *  (Stage 3d, finding 5). Stamped on first "Make configurable" and REUSED on
+   *  every re-export so a re-export REPLACES the prior product instead of
+   *  minting a duplicate. Round-trips through the spec envelope (v5). Absent →
+   *  never exported. */
+  exportedProductId?: string
 }
 
 export function createEmptySpec(): AssetEditSpec {
@@ -453,12 +459,34 @@ export function setPartRole(spec: AssetEditSpec, id: string, role: PartRole): As
   }
 }
 
+/** True when a set of member ids do NOT all share the same transform-group home:
+ *  they span two different `PartGroup`s, or mix a grouped member with an
+ *  ungrouped one. A combine's baked result is placed under its members' shared
+ *  transform-group container (so it moves with the group) — that only has a
+ *  well-defined home when every member lives in the SAME group (or all are
+ *  ungrouped, → the asset root). Pure. */
+export function combineSpansPartGroups(spec: AssetEditSpec, partIds: string[]): boolean {
+  const homes = new Set(partIds.map((id) => partGroupForPart(spec, id)?.id ?? null))
+  return homes.size > 1
+}
+
+/** The single `PartGroup` every member of a combine group belongs to, or null
+ *  when the members are all ungrouped (result lives at the asset root). Assumes
+ *  the members don't span groups (guaranteed by `addCombineGroup`). Pure. */
+export function combineHomeGroup(spec: AssetEditSpec, group: CombineGroup): PartGroup | null {
+  const first = group.partIds[0]
+  return first ? partGroupForPart(spec, first) : null
+}
+
 /**
  * Record a new combine group over `partIds` (selection order) with `op`.
  * Non-destructive: the members stay in `spec.parts`. Guards: ≥2 distinct
  * existing parts, none already consumed by another group (bake first to
- * re-combine a result). Returns the spec unchanged (+ `groupId: null`) if the
- * inputs are invalid.
+ * re-combine a result), and every member sharing the SAME transform-group home
+ * (all ungrouped OR all in one `PartGroup`) so the baked result has a
+ * well-defined container to live in (finding 1 — combining ACROSS different
+ * transform groups is blocked). Returns the spec unchanged (+ `groupId: null`)
+ * if the inputs are invalid.
  */
 export function addCombineGroup(
   spec: AssetEditSpec,
@@ -471,6 +499,8 @@ export function addCombineGroup(
   if (distinct.length < 2 || distinct.some((id) => !live.has(id) || alreadyGrouped.has(id))) {
     return { spec, groupId: null }
   }
+  // Members must share one transform-group home (see `combineSpansPartGroups`).
+  if (combineSpansPartGroups(spec, distinct)) return { spec, groupId: null }
   const groups = combineGroups(spec)
   const id = newGroupId()
   const group: CombineGroup = { id, name: `Combine ${groups.length + 1}`, partIds: distinct, op }

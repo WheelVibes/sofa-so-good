@@ -26,8 +26,11 @@ import type { AssetEditSpec } from './editSpec'
  *  - v4 (Groups, Stage 3a): adds optional `partGroups[]` (named transform
  *    groups). Every added field is optional, so each older version is a
  *    STRUCTURAL SUBSET of the next — migration stays the identity (an older blob
- *    loads unchanged, just re-tagged on next save). */
-export const ASSET_SPEC_VERSION = 4
+ *    loads unchanged, just re-tagged on next save).
+ *  - v5 (Make-configurable stable id, Stage 3d finding 5): adds optional
+ *    `exportedProductId` so a re-export replaces its prior product. Additive
+ *    superset → migration stays the identity. */
+export const ASSET_SPEC_VERSION = 5
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
  *  Every version bump so far has been an additive superset, so migration is the
@@ -38,7 +41,8 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
     case 1: // no role/combineGroups — already a valid v2 spec.
     case 2: // no physical fields/gradient — already a valid v3 spec.
     case 3: // no partGroups — already a valid v4 spec.
-    case 4:
+    case 4: // no exportedProductId — already a valid v5 spec.
+    case 5:
       return spec
     default:
       return null
@@ -162,7 +166,8 @@ function isSpec(x: unknown): x is AssetEditSpec {
     !!s.meshOverrides &&
     typeof s.meshOverrides === 'object' &&
     isCombineGroups(s.combineGroups) &&
-    isPartGroups(s.partGroups)
+    isPartGroups(s.partGroups) &&
+    (s.exportedProductId === undefined || typeof s.exportedProductId === 'string')
   )
 }
 

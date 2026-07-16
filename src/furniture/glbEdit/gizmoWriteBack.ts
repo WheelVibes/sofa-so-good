@@ -67,6 +67,22 @@ export interface GizmoSnapshot {
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 const same = (a: readonly number[], b: readonly number[]) => a.every((v, i) => v === b[i])
 
+/** A gizmo snapshot's position → the part/group `position` field: snapped to
+ *  5 mm and clamped to ±3 m. Shared by `gizmoPatch` + `groupGizmoPatch`. */
+function snappedPosition(snap: GizmoSnapshot): [number, number, number] {
+  return snap.position.map((v) =>
+    clamp(snapValue(v, POSITION_SNAP_M), -POSITION_LIMIT_M, POSITION_LIMIT_M),
+  ) as [number, number, number]
+}
+
+/** A gizmo snapshot's rotation (Euler XYZ radians) → the degree `rotation`
+ *  field: snapped to 1° and normalised to [-180, 180). Shared by both patches. */
+function snappedRotationDeg(snap: GizmoSnapshot): [number, number, number] {
+  return snap.rotation.map((rad) =>
+    normalizeDeg(snapValue((rad * 180) / Math.PI, ROTATION_SNAP_DEG)),
+  ) as [number, number, number]
+}
+
 /**
  * Compute the `updatePart` patch for one finished gizmo drag, or `null` when
  * the snapped result equals the part's current fields (no spec churn).
@@ -83,15 +99,11 @@ export function gizmoPatch(
 ): Partial<ShapePart> | null {
   switch (mode) {
     case 'translate': {
-      const position = snap.position.map((v) =>
-        clamp(snapValue(v, POSITION_SNAP_M), -POSITION_LIMIT_M, POSITION_LIMIT_M),
-      ) as [number, number, number]
+      const position = snappedPosition(snap)
       return same(position, part.position) ? null : { position }
     }
     case 'rotate': {
-      const deg = snap.rotation.map((rad) =>
-        normalizeDeg(snapValue((rad * 180) / Math.PI, ROTATION_SNAP_DEG)),
-      ) as [number, number, number]
+      const deg = snappedRotationDeg(snap)
       const cleared = deg.every((v) => v === 0)
       const current = part.rotation ?? [0, 0, 0]
       if (same(deg, current)) return null
@@ -131,13 +143,9 @@ export function groupGizmoPatch(
   snap: GizmoSnapshot,
 ): { position?: [number, number, number]; rotation?: [number, number, number] } | null {
   if (mode === 'rotate') {
-    const rotation = snap.rotation.map((rad) =>
-      normalizeDeg(snapValue((rad * 180) / Math.PI, ROTATION_SNAP_DEG)),
-    ) as [number, number, number]
+    const rotation = snappedRotationDeg(snap)
     return same(rotation, group.rotation ?? [0, 0, 0]) ? null : { rotation }
   }
-  const position = snap.position.map((v) =>
-    clamp(snapValue(v, POSITION_SNAP_M), -POSITION_LIMIT_M, POSITION_LIMIT_M),
-  ) as [number, number, number]
+  const position = snappedPosition(snap)
   return same(position, group.position ?? [0, 0, 0]) ? null : { position }
 }
