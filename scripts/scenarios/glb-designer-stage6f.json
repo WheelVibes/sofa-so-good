@@ -1,0 +1,92 @@
+{
+  "name": "glb-designer-stage6f",
+  "description": "Asset Studio Iteration 2 Stage 6f — performance in the GLB Asset Designer (Pro, glbDesigner on). Part 1: draw-call instancing — 20 identical legs UNGROUPED (control) then the SAME 20 legs in ONE transform group (array). A manual gl.render() on the designer canvas reads renderer.info.render.calls each time; the grouped case renders as ONE InstancedMesh so calls drop by ≥15 vs the ungrouped control. Part 2: save-time optimize — a plumped+wrinkled cushion (embeds a real normal-map PNG) is measured via __glbDesigner.measureSave() (raw export vs optimized), asserting the optimized blob is smaller, then saved end-to-end (WebP+Draco run in the real browser).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "css": ".glb-designer" },
+      "timeout": 20000
+    },
+    { "name": "settle-designer", "wait": 1200 },
+    {
+      "name": "seed-ungrouped-control",
+      "comment": "20 identical leg cylinders, NO group → each renders as its own mesh (the non-instanced control).",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); const parts = []; for (let i=0;i<20;i++){ parts.push({ id:'leg-'+i, kind:'cylinder', name:'Leg '+i, position:[(i%5)*0.18 - 0.36, 0.36, Math.floor(i/5)*0.18 - 0.27], size:[0.05,0.72,0.05], color:'#4a4a4a', metalness:0.6, roughness:0.4 }); } s.parts = parts; s.partGroups = []; window.__glbDesigner.setSpec(s); })()"
+    },
+    { "name": "wait-control", "wait": 1200 },
+    {
+      "name": "measure-control-drawcalls",
+      "comment": "Force one deterministic render of the designer canvas, then read renderer.info.render.calls + count real meshes.",
+      "eval": "(function(){ const t = window.__glbDesignerThree; t.gl.render(t.scene, t.camera); let mesh=0, inst=0; t.scene.traverse((o)=>{ if(o.isInstancedMesh) inst++; else if(o.isMesh) mesh++; }); window.__6fControl = { calls: t.gl.info.render.calls, meshes: mesh, instanced: inst }; console.log('6F_CONTROL ' + JSON.stringify(window.__6fControl)); })()"
+    },
+    { "name": "shot-control", "screenshot": "01-ungrouped-20-legs-control" },
+    {
+      "name": "seed-grouped-array",
+      "comment": "The SAME 20 identical legs, now in ONE transform group → groupInstanceable fires → ONE InstancedMesh.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); s.partGroups = [{ id:'array-g', name:'Array', partIds: s.parts.map(p=>p.id) }]; window.__glbDesigner.setSpec(s); })()"
+    },
+    { "name": "wait-grouped", "wait": 1200 },
+    {
+      "name": "measure-instanced-drawcalls",
+      "eval": "(function(){ const t = window.__glbDesignerThree; t.gl.render(t.scene, t.camera); let mesh=0, inst=0; t.scene.traverse((o)=>{ if(o.isInstancedMesh) inst++; else if(o.isMesh) mesh++; }); window.__6fInstanced = { calls: t.gl.info.render.calls, meshes: mesh, instanced: inst }; console.log('6F_INSTANCED ' + JSON.stringify(window.__6fInstanced)); })()"
+    },
+    { "name": "shot-instanced", "screenshot": "02-grouped-20-legs-instanced" },
+    {
+      "name": "assert-drawcalls-dropped",
+      "comment": "The instanced array must (a) render ≥1 InstancedMesh, (b) have far fewer individual meshes, and (c) drop renderer draw calls by ≥15 vs the ungrouped control.",
+      "eval": "(function(){ const c = window.__6fControl, i = window.__6fInstanced; if (!c || !i) throw new Error('measurements missing'); if (i.instanced < 1) throw new Error('expected an InstancedMesh in the grouped case, got '+i.instanced); if (i.meshes >= c.meshes) throw new Error('instanced mesh count ('+i.meshes+') should be far below the control ('+c.meshes+')'); if (c.calls - i.calls < 15) throw new Error('draw-call drop too small: control='+c.calls+' instanced='+i.calls); console.log('6F_DRAWCALLS control='+c.calls+' instanced='+i.calls+' saved='+(c.calls-i.calls)); })()"
+    },
+    {
+      "name": "seed-textured-cushion",
+      "comment": "Part 2 — a plumped + wrinkled velvet cushion (embeds a real procedural normal-map PNG on export) + a base board. The textured case for the save-optimize measurement.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); s.partGroups = []; s.parts = [ { id:'board', kind:'box', name:'Board', position:[0,0.03,0], size:[0.62,0.06,0.62], color:'#5a3d29', roughness:0.5, metalness:0.1 }, { id:'cushion', kind:'box', name:'Cushion', position:[0,0.2,0], size:[0.56,0.24,0.56], color:'#3f6389', plump:0.85, wrinkles:0.8, sheen:1, sheenRoughness:0.3, sheenColor:'#b9cbe0', roughness:0.55, metalness:0 } ]; window.__glbDesigner.setSpec(s); })()"
+    },
+    { "name": "wait-cushion", "wait": 1500 },
+    { "name": "shot-cushion", "screenshot": "03-textured-cushion" },
+    {
+      "name": "measure-save-optimize",
+      "comment": "Rigorous browser before/after: raw GLTFExporter bytes vs the optimizeSavedGlb output (WebP + Draco run for real here). Assert the optimized blob is SMALLER and was adopted.",
+      "eval": "(async function(){ const r = await window.__glbDesigner.measureSave(); window.__6fSave = r; console.log('6F_SAVE ' + JSON.stringify(r)); if (!r) throw new Error('measureSave returned null'); if (!(r.afterBytes < r.beforeBytes)) throw new Error('optimized ('+r.afterBytes+') not smaller than raw ('+r.beforeBytes+')'); if (!r.optimized) throw new Error('keep-smaller guard did not adopt the optimized bytes'); })()"
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage6f Cushion'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved",
+      "comment": "End-to-end: the optimized asset persists (a new UserGltfDef with a byteSize and the editable assetSpec) — the whole save→optimize→persist path works in the real browser and the wrinkle normal map survived (assetSpec embeds wrinkles).",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage6f Cushion' && typeof d.byteSize === 'number' && d.byteSize > 0 && typeof d.assetSpec === 'string' && (() => { try { const env = JSON.parse(d.assetSpec); const c = env.payload.parts.find(p => p.id === 'cushion'); return c && c.wrinkles === 0.8; } catch { return false } })())"
+      },
+      "timeout": 60000,
+      "failMessage": "saved asset should persist with a byteSize + editable assetSpec (wrinkles 0.8 survived the optimize)"
+    },
+    { "name": "shot-saved", "screenshot": "04-saved-optimized-cushion" }
+  ]
+}

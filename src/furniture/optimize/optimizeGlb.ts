@@ -1,5 +1,5 @@
 import { type Document, WebIO } from '@gltf-transform/core'
-import { KHRTextureBasisu } from '@gltf-transform/extensions'
+import { ALL_EXTENSIONS, KHRTextureBasisu } from '@gltf-transform/extensions'
 import { dedup, draco, prune, weld } from '@gltf-transform/functions'
 import draco3d from 'draco3dgltf'
 import { encodeKtx2, isKtx2EncodeAvailable } from '../../lib/ktx2encode'
@@ -39,7 +39,14 @@ let ioPromise: Promise<{ io: WebIO; draco: boolean }> | null = null
 export async function getIO(): Promise<{ io: WebIO; draco: boolean }> {
   if (!ioPromise) {
     ioPromise = (async () => {
-      const io = new WebIO()
+      // Register EVERY glTF extension the reader/writer might encounter.
+      // gltf-transform DROPS any unregistered extension on read → without this
+      // the pass would silently strip a model's KHR_materials_sheen / clearcoat /
+      // transmission / ior / volume / anisotropy (etc.) — exactly the physical
+      // finishes the GLB designer bakes (Stage 2) and any uploaded model carries.
+      // Also registers KHR_draco_mesh_compression so a Draco-compressed INPUT
+      // reads back before we re-pack it.
+      const io = new WebIO().registerExtensions(ALL_EXTENSIONS)
       try {
         io.registerDependencies({
           'draco3d.decoder': await draco3d.createDecoderModule(),

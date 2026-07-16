@@ -1,6 +1,6 @@
 import type { ThreeEvent } from '@react-three/fiber'
-import { useEffect, useMemo } from 'react'
-import { type Group, MathUtils, type Mesh, Vector3 } from 'three'
+import { useEffect, useMemo, useRef } from 'react'
+import { type Group, type InstancedMesh, MathUtils, type Mesh, Vector3 } from 'three'
 import {
   type GhostVariant,
   ghostMaterial,
@@ -17,6 +17,7 @@ import {
   partGroups,
   type ShapePart,
 } from '../../furniture/glbEdit/editSpec'
+import { type GroupInstancing, groupInstanceable } from '../../furniture/glbEdit/groupInstance'
 import { useStore } from '../../state/store'
 
 /** A decal overlay child of a part mesh (Stage 5) — built from the SAME
@@ -147,6 +148,67 @@ function PartMesh({
 }
 
 /**
+ * An array group's geometry-identical members rendered as ONE `InstancedMesh`
+ * (Stage 6f) — N draw calls collapse to 1. Geometry + material are built from the
+ * SAME `partGeometry`/`partMaterials` the export uses (so an instance is
+ * pixel-identical to the individual mesh it replaces), memoised on the
+ * representative part and disposed on change/unmount. Per-instance matrices are
+ * written on the `InstancedMesh` in an effect. Clicking any instance selects the
+ * WHOLE group (members are identical, so there's no meaningful per-instance
+ * selection); individual-member editing falls back to non-instanced rendering in
+ * `PartsPreview` (when a member is in the selection). Lives inside the group's
+ * transform container, so the group gizmo moves every instance together.
+ */
+function InstancedParts({
+  inst,
+  groupId,
+  onSelectGroup,
+}: {
+  inst: GroupInstancing
+  groupId: string
+  onSelectGroup?: (id: string) => void
+}) {
+  const epoch = useStore((s) => s.materialEpoch)
+  const geom = useMemo(() => partGeometry(inst.part), [inst.part])
+  useEffect(() => () => geom.dispose(), [geom])
+  const mat = useMemo(() => {
+    void epoch // a finish may have just been built into the material cache
+    const m = partMaterials(inst.part)
+    // The detector excludes multi-material parts, so this is a single material;
+    // guard defensively and take the first if an array ever slips through.
+    return Array.isArray(m) ? m[0] : m
+  }, [inst.part, epoch])
+  useEffect(() => () => mat.dispose(), [mat])
+  const ref = useRef<InstancedMesh | null>(null)
+  useEffect(() => {
+    const m = ref.current
+    if (!m) return
+    inst.matrices.forEach((mx, i) => {
+      m.setMatrixAt(i, mx)
+    })
+    m.count = inst.matrices.length
+    m.instanceMatrix.needsUpdate = true
+    m.computeBoundingSphere()
+  }, [inst])
+  return (
+    <instancedMesh
+      ref={ref}
+      args={[geom, mat, inst.matrices.length]}
+      castShadow
+      receiveShadow
+      onClick={
+        onSelectGroup
+          ? (e: ThreeEvent<MouseEvent>) => {
+              e.stopPropagation()
+              onSelectGroup(groupId)
+            }
+          : undefined
+      }
+    />
+  )
+}
+
+/**
  * The composed primitive parts, rendered declaratively (export uses
  * buildEditedObject). CSG v2: parts consumed by a combine group render as
  * translucent ghosts (still gizmo-selectable so the operand stays editable),
@@ -160,6 +222,8 @@ export function PartsPreview({
   groupRefFor,
   onPlaceFace,
   onPlaceDecal,
+  selIds = [],
+  onSelectGroup,
 }: {
   spec: AssetEditSpec
   results: Map<string, ShapePart>
@@ -176,6 +240,12 @@ export function PartsPreview({
     point: [number, number, number],
     normal: [number, number, number],
   ) => void
+  /** Stage 6f: the currently-selected part ids. A group with a selected MEMBER
+   *  renders its members individually (so the gizmo can attach to that member's
+   *  real mesh) rather than instanced. */
+  selIds?: string[]
+  /** Stage 6f: click on an instanced group selects the whole group. */
+  onSelectGroup?: (groupId: string) => void
 }) {
   const consumed = combinedPartIds(spec)
   const groups = partGroups(spec)
@@ -221,6 +291,13 @@ export function PartsPreview({
           transform (matches buildEditedObject). */}
       {groups.map((g) => {
         const rot = g.rotation
+        // Stage 6f — an array group of ≥4 geometry-identical members renders as
+        // ONE InstancedMesh (N draw calls → 1). Fall back to individual meshes
+        // when a MEMBER is selected (the gizmo needs that member's real mesh) so
+        // per-member editing stays intact; the group gizmo still works instanced
+        // (the InstancedMesh lives in this same transform container).
+        const memberSelected = g.partIds.some((id) => selIds.includes(id))
+        const inst = memberSelected ? null : groupInstanceable(spec, g)
         return (
           <group
             key={g.id}
@@ -236,20 +313,25 @@ export function PartsPreview({
                 : undefined
             }
           >
-            {g.partIds.map((id) => {
-              const p = spec.parts.find((pp) => pp.id === id)
-              return p ? (
-                <PartMesh
-                  key={id}
-                  part={p}
-                  ghost={ghostFor(p)}
-                  meshRef={meshRefFor(id)}
-                  onPlaceFace={onPlaceFace}
-                  onPlaceDecal={onPlaceDecal}
-                  decals={decalsForPart(spec, id)}
-                />
-              ) : null
-            })}
+            {inst ? (
+              <InstancedParts inst={inst} groupId={g.id} onSelectGroup={onSelectGroup} />
+            ) : null}
+            {inst
+              ? null
+              : g.partIds.map((id) => {
+                  const p = spec.parts.find((pp) => pp.id === id)
+                  return p ? (
+                    <PartMesh
+                      key={id}
+                      part={p}
+                      ghost={ghostFor(p)}
+                      meshRef={meshRefFor(id)}
+                      onPlaceFace={onPlaceFace}
+                      onPlaceDecal={onPlaceDecal}
+                      decals={decalsForPart(spec, id)}
+                    />
+                  ) : null
+                })}
             {/* Combine results whose members belong to THIS group ride inside it. */}
             {combines.filter((cg) => resultHomeGroup(cg) === g.id).map(resultMesh)}
           </group>

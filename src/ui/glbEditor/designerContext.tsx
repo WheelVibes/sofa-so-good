@@ -99,6 +99,7 @@ import {
   scalePivotPosition,
 } from '../../furniture/glbEdit/pivot'
 import { exportAndSaveAsset, placementFlags } from '../../furniture/glbEdit/saveAsset'
+import { optimizeSavedGlb } from '../../furniture/glbEdit/saveOptimize'
 import { hasSplittableGroups, splitSpecByGroups } from '../../furniture/glbEdit/setSplit'
 import {
   createSpecHistory,
@@ -388,7 +389,17 @@ function useDesignerController() {
     setSpec: (s: AssetEditSpec) => void
     getSpec: () => AssetEditSpec
     makeConfigurable: (a: Record<string, GroupAssignment>) => Promise<string | null>
-  }>({ setSpec: () => {}, getSpec: createEmptySpec, makeConfigurable: async () => null })
+    measureSave: () => Promise<{
+      beforeBytes: number
+      afterBytes: number
+      optimized: boolean
+    } | null>
+  }>({
+    setSpec: () => {},
+    getSpec: createEmptySpec,
+    makeConfigurable: async () => null,
+    measureSave: async () => null,
+  })
   useEffect(() => {
     // Dev-only automation seam (scenarios run against the dev server = DEV build);
     // never registered on a production window (finding 7).
@@ -398,12 +409,18 @@ function useDesignerController() {
         setSpec: (s: AssetEditSpec) => void
         getSpec: () => AssetEditSpec
         makeConfigurable: (a: Record<string, GroupAssignment>) => Promise<string | null>
+        measureSave: () => Promise<{
+          beforeBytes: number
+          afterBytes: number
+          optimized: boolean
+        } | null>
       }
     }
     w.__glbDesigner = {
       setSpec: (s) => seamRef.current.setSpec(s),
       getSpec: () => seamRef.current.getSpec(),
       makeConfigurable: (a) => seamRef.current.makeConfigurable(a),
+      measureSave: () => seamRef.current.measureSave(),
     }
     return () => {
       w.__glbDesigner = undefined
@@ -1476,6 +1493,24 @@ function useDesignerController() {
     }
   }
 
+  // Stage 6f — measure the save-time optimize win on the CURRENT design without
+  // persisting: build the export object exactly as `save` does, export it raw,
+  // then run `optimizeSavedGlb` and report before/after bytes. Dev seam only
+  // (the scenario reads the WebP+Draco win on a real textured asset).
+  const measureSave = async (): Promise<{
+    beforeBytes: number
+    afterBytes: number
+    optimized: boolean
+  } | null> => {
+    if (!isBuildable(spec)) return null
+    const groupResults = await evaluateAllGroups(spec)
+    const obj = buildEditedObject(sourceSceneRef.current, spec, groupResults)
+    const { exportGlb } = await import('../../furniture/convert/toGlb')
+    const raw = new Uint8Array(await exportGlb(obj))
+    const { beforeBytes, afterBytes, optimized } = await optimizeSavedGlb(raw)
+    return { beforeBytes, afterBytes, optimized }
+  }
+
   // Wire the automation seam to the latest closures (Stage 3d scenario).
   seamRef.current = {
     setSpec: (s) => commit(s),
@@ -1484,6 +1519,7 @@ function useDesignerController() {
       setAssignments(a)
       return exportConfigurable(false, a)
     },
+    measureSave,
   }
 
   // ---- View-model derived for the live preview ---------------------------

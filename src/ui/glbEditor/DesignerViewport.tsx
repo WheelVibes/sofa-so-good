@@ -1,5 +1,5 @@
 import { Bounds, OrbitControls, TransformControls, useBounds, useGLTF } from '@react-three/drei'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { Box3, type Object3D, Vector3 } from 'three'
 import { EnsureFurnitureMaterials } from '../../furniture/FurnitureMaterialLoader'
@@ -52,6 +52,27 @@ function GizmoModeOverlay({
       ))}
     </div>
   )
+}
+
+/** Dev-only: expose the DESIGNER canvas's renderer + scene on a distinct global
+ *  (`window.__glbDesignerThree`) so the Stage-6f scenario can read
+ *  `gl.info.render.calls` for the instanced-array draw-call measurement. Kept
+ *  separate from the main scene's `window.__three` so the two canvases never
+ *  clobber each other. Tree-shaken from production by the DEV guard at the mount
+ *  site. */
+function DevGlExpose() {
+  const { gl, scene, camera } = useThree()
+  useEffect(() => {
+    ;(window as unknown as { __glbDesignerThree?: unknown }).__glbDesignerThree = {
+      gl,
+      scene,
+      camera,
+    }
+    return () => {
+      ;(window as unknown as { __glbDesignerThree?: unknown }).__glbDesignerThree = undefined
+    }
+  }, [gl, scene, camera])
+  return null
 }
 
 /** Loaded source GLB, uniformly scaled; reports its scene up for export. */
@@ -243,6 +264,8 @@ export function DesignerViewport() {
     placeOnFace: onPlaceFace,
     decalArmed,
     placeDecal: onPlaceDecal,
+    selIds,
+    selectGroup,
     gridSnap,
     toggleGridSnap,
     setSnapStep,
@@ -264,6 +287,7 @@ export function DesignerViewport() {
           ghost prop change re-renders the R3F tree (which invalidates a frame in
           demand mode), so the preview stays live without a permanent 60fps loop. */}
       <Canvas frameloop="demand" shadows camera={{ position: [1.6, 1.3, 1.8], fov: 40 }}>
+        {import.meta.env.DEV ? <DevGlExpose /> : null}
         <ambientLight intensity={0.7} />
         <hemisphereLight intensity={0.6} />
         <directionalLight position={[3, 5, 2]} intensity={1.1} castShadow />
@@ -283,6 +307,8 @@ export function DesignerViewport() {
               groupRefFor={groupRefFor}
               onPlaceFace={armed ? onPlaceFace : undefined}
               onPlaceDecal={decalArmed ? onPlaceDecal : undefined}
+              selIds={selIds}
+              onSelectGroup={selectGroup}
             />
             {/* View-preset responder — inside <Bounds> so `useBounds()` resolves. */}
             <CameraViews request={viewRequest} />

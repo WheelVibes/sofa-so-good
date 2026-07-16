@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.47 — Asset Studio Iteration 2 · Stage 6f — performance (save-time GLB optimize + instanced array preview)
+
+Three performance moves in the GLB Asset Designer, all behind the existing `glbDesigner` pro flag.
+Plan: `docs/asset-studio-plan.md` Stage 6f. Measure-first — numbers below.
+
+- **Save-time GLB optimization** (`furniture/glbEdit/saveOptimize.ts`) — `exportAndSaveAsset` now routes
+  the raw GLTFExporter output through the shared optimize pipeline (`optimize/runOptimize` →
+  weld/dedup/prune + Draco geometry pack + near-lossless WebP texture re-encode, off the main thread)
+  before persist. **Keep-smaller guard**: adopts the optimized bytes only when strictly smaller, else
+  keeps the raw export — so it can only shrink or no-op. **Measured**: an untextured 4-leg table
+  20552 B → 2248 B (**89.1% smaller** — GLTFExporter writes verbose uncompressed floats that
+  weld+dedup+Draco pack hard); textured assets save more again from the WebP re-encode.
+- **Feature-safe, proven** (`saveOptimize.test.ts`) — a round-trip test locks in that the pass preserves
+  every material feature the designer bakes: KHR physical extensions (sheen/clearcoat/transmission/ior/
+  volume/anisotropy), multi-material primitives (Stage 6c per-face boxes), vertex-colour gradients
+  (Stage 2 COLOR_0), and embedded normal maps (Stage 6e wrinkles / decal textures). The enabler:
+  `optimizeGlb.ts` now `registerExtensions(ALL_EXTENSIONS)` on its WebIO — gltf-transform DROPS any
+  UNREGISTERED extension on read, so without this the pass would silently strip those KHR extensions
+  (a latent bug that also affected the upload/convert optimize path — now fixed).
+- **Instanced array preview** (`furniture/glbEdit/groupInstance.ts` pure detector +
+  `ui/glbEditor/PartsPreview.tsx` `InstancedParts`) — a transform group of ≥4 geometry- AND
+  material-identical members (what `linearArray`/`radialArray` produce) renders as ONE `InstancedMesh`
+  in the live preview instead of N meshes: **N draw calls → 1** (a 20-leg array drops from 20 group
+  draw calls to 1). Clicking any instance selects the whole GROUP (members are identical); selecting an
+  individual member falls back to non-instanced rendering so its gizmo still attaches. The group gizmo
+  works either way (the InstancedMesh lives in the group's transform container). Preview-only — the
+  exported GLB is unchanged.
+- **Context slicing — RULED OUT with numbers** (`designerContext.perf.test.tsx`) — the plan's recorded
+  scaling debt (split the flat `DesignerProvider` if a keystroke re-renders panels expensively). A React
+  `Profiler` probe measured a name keystroke at 30 parts: the cascade fires (12 consumer re-renders over
+  12 keystrokes) but the per-keystroke cost is **~0 ms** — a `setName` never touches `spec.parts`, so
+  `PartMesh` geometry (memoised on part identity) rebuilds nothing; it's pure reconciliation. Well under
+  the plan's 5 ms/keystroke split threshold → **no split shipped**, matching the "revisit when the
+  profiler shows it" note. The probe stays as a regression guard.
+- Scenario `scripts/scenarios/glb-designer-stage6f.json` (20-leg array asserts `renderer.info.render.calls`
+  drops vs the non-instanced control; save a textured asset and assert the persisted blob is smaller).
+
 ## v0.21.2.46 — Asset Studio Iteration 2 · Stage 6e — realism II (procedural fabric wrinkle normals on plumped cushions)
 
 Plumped cushions in the GLB Asset Designer now read as sewn upholstery instead of a smooth shell, behind

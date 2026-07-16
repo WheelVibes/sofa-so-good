@@ -507,11 +507,40 @@ subscriptions) so a change touches only the panels that read it. No action neede
   verbatim (a symmetric scalar). No new feature flag — like plump/faceFinishes it rides the
   existing `glbDesigner` gate. Scenario `scripts/scenarios/glb-designer-stage6e.json`.
 
-### Stage 6f — Performance
-- **Save-time GLB optimization**: route designer saves through the existing optimize
-  pipeline (weld/draco/UV atlas as applicable) — smaller stored assets.
-- **Context slicing** (the recorded scaling debt) if profiling shows panel re-render cost.
-- **Instanced preview** for array groups (N identical parts → InstancedMesh in preview).
+### Stage 6f — Performance — ✅ SHIPPED (v0.21.2.47)
+- ✅ **Save-time GLB optimization** (`glbEdit/saveOptimize.ts`) — `exportAndSaveAsset` routes the raw
+  GLTFExporter output through the shared optimize pipeline (`optimize/runOptimize` → weld/dedup/prune +
+  Draco geometry pack + near-lossless WebP texture re-encode, off the main thread) before persist, with
+  a **keep-smaller guard** (adopt the optimized bytes only when strictly smaller — procedural geometry
+  is tiny where Draco's per-primitive overhead can otherwise grow it). **Measured**: an untextured
+  4-leg table 20552 B → 2248 B (**89.1% smaller**); textured assets (mat:<id> finishes / decal /
+  wrinkle maps) save more from the WebP re-encode (browser path — the scenario measures it).
+- ✅ **Feature-safety proven first** (`saveOptimize.test.ts`, the round-trip gate written BEFORE
+  wiring): the pass preserves **all four** at-risk features — KHR physical extensions
+  (sheen/clearcoat/transmission/ior/volume/anisotropy), multi-material primitives (6c per-face boxes),
+  vertex-colour gradients (Stage 2 COLOR_0), embedded normal maps (6e wrinkles / decals). **Enabler +
+  latent-bug fix**: `optimizeGlb.ts` now `registerExtensions(ALL_EXTENSIONS)` on its WebIO —
+  gltf-transform DROPS any unregistered extension on read, so before this the pass silently stripped
+  those KHR extensions (also affected the upload/convert optimize path — fixed). No per-spec gate was
+  needed (nothing is stripped), so optimize runs for every save.
+- ✅ **Instanced array preview** (`glbEdit/groupInstance.ts` pure `groupInstanceable` detector +
+  `ui/glbEditor/PartsPreview.tsx` `InstancedParts`): a transform group of ≥4 geometry- AND
+  material-identical members (what `linearArray`/`radialArray` produce) renders as ONE `InstancedMesh` —
+  **N draw calls → 1** (a 20-leg array: 20 group draw calls → 1). **Selection rule (documented,
+  simplest honest):** clicking any instance selects the whole GROUP (members are identical); selecting
+  an individual member falls back to non-instanced rendering so the per-member gizmo attaches to a real
+  mesh. The group gizmo works in both modes (the InstancedMesh lives in the group's transform
+  container). Excluded from instancing: combined `mesh` parts, per-face (multi-material) boxes, parts
+  carrying decals (per-part child overlays). Preview-only — the exported GLB is unchanged.
+- ⏭️ **Context slicing — RULED OUT with numbers** (`designerContext.perf.test.tsx`): a React `Profiler`
+  probe measured a name keystroke at 30 parts — the cascade fires (12 consumer re-renders over 12
+  keystrokes) but per-keystroke cost is **~0 ms** (a `setName` never touches `spec.parts`, so `PartMesh`
+  geometry memoised on part identity rebuilds nothing — pure reconciliation). Well under the plan's
+  5 ms/keystroke threshold → **no split shipped**, matching the "revisit when the profiler shows it"
+  note above. The probe stays as a regression guard.
+- ✅ Scenario `scripts/scenarios/glb-designer-stage6f.json` (20-leg array → assert
+  `renderer.info.render.calls` drops vs the non-instanced control; save a textured asset → assert the
+  persisted blob is smaller than the raw export while the reloaded def still renders).
 
 Each stage: same program rules (flags, pure+tested logic, worker rule, visual verification,
 docs, per-commit versioning) + stage-end adversarial review.
