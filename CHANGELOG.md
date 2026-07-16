@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.43 — Asset Studio Iteration 2 · Stage 6b — geometry ops II (shell/hollow, loft, free sweep path)
+
+Three new geometry capabilities in the GLB Asset Designer, all pure builders in
+`furniture/glbEdit/shapeProfiles.ts` (unit-tested), behind the existing `glbDesigner` pro flag. Spec
+envelope bumped **v7 → v8** (additive superset → identity migration + strict validation for the new
+fields). Plan: `docs/asset-studio-plan.md` Stage 6b.
+
+- **Shell / hollow** — an optional `shell` (wall thickness, m) on box + extrude parts carves an open
+  hollow carcass (the one-click cabinet/drawer-box case). **Implementation: pure construction (not
+  CSG)** — the box shell is 5 `BoxGeometry` panels (4 walls + a bottom slab) merged, exact with
+  correct per-face normals/UVs and zero CSG cost; the extrude shell uses `ExtrudeGeometry`'s native
+  hole support (outer outline minus an inset inner outline via a `Shape` hole) + a bottom cap. The
+  inner outline comes from a pure miter **polygon-offset** helper (`insetPolygon`) that CLAMPS runaway
+  reflex miters and returns `null` on collapse/self-intersection — a concave outline too tight for the
+  wall thickness falls back to a SOLID extrude (a fail-safe, documented, never a crash). `shell: 0`/
+  absent = solid (byte-identical). Open face: box opens **+Y** (top); the extrude opens along its
+  extrude axis (a follow-up for face choice is out of scope). Inspector: a "Hollow (wall)" slider
+  (hides the plump slider on a hollow box — a plumped carcass is nonsensical).
+- **Loft** — a new `loft` shape kind: two horizontal cross-section outlines (bottom + top) resampled
+  to a common point count (`resampleProfile` reused) + height → side-wall quads + centroid-fan caps,
+  built NON-INDEXED so `computeVertexNormals` keeps the cap edges crisp and never smears a twisted
+  normal across the seam. Correct outward normals (winding tested), planar cap UVs, bbox tracks size,
+  size scales both profiles. Presets: round→square, square→round, taper (square/round). Inspector:
+  the `ProfileEditor` twice (Bottom / Top) + a transition preset that seeds both.
+- **Free sweep path** — the `sweep` kind gains a `'custom'` path drawn in the 2D `ProfileEditor` (XZ
+  top-view), stored as normalized `sweepPathPoints`, swept OPEN with the existing cross-section
+  presets. Distinct from Stage-5 piping's closed absolute `sweepPoints` (precedence: piping > custom >
+  preset). Path presets: S-curve / wave / arc / L-bend.
+- **Plumbing**: `editSpec` types + `loft` in `SHAPE_KINDS`/`SHAPE_LABEL`/`DEFAULT_SIZE`/`defaultPart`
+  + duplicate/mirror deep-copy the new arrays; `specPersist` v8 additive migration + strict guards
+  (`shell` finite, `loftBottom`/`loftTop`/`sweepPathPoints` are `[x,y]` lists). Gizmo size semantics
+  for loft need no special-casing (unlike lathe/sweep it's not forced round — size scales the whole
+  body).
+- **Tests**: geometry-level (`shapeProfiles.test.ts` — shell inner cavity + measurable wall thickness,
+  loft caps closed + cap-normal winding, `insetPolygon`/`polygonSignedArea` incl. a concave L outline
+  + over-inset collapse, custom-path sweep bbox), spec round-trips + v7→v8 migration
+  (`specPersist.test.ts`), duplicate/mirror deep-copy (`editSpec.test.ts`). Scenario
+  `scripts/scenarios/glb-designer-stage6b.json` (hollow a box, loft a round→square vase, custom-path
+  S-curve rail, save/restore round-trip).
+
 ## v0.21.2.42 — Asset Studio Iteration 2 · Stage 6a — content expansion (chair + storage templates, structural components)
 
 Adds the conspicuous archetype gaps to the GLB Asset Designer's template + component libraries. All

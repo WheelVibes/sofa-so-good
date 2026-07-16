@@ -13,7 +13,7 @@ const PRIMITIVE_KINDS: PrimitiveShapeKind[] = [
   'torus',
   'wedge',
 ]
-const PROFILE_SHAPE_KINDS: PrimitiveShapeKind[] = ['lathe', 'extrude', 'sweep']
+const PROFILE_SHAPE_KINDS: PrimitiveShapeKind[] = ['lathe', 'extrude', 'sweep', 'loft']
 
 /**
  * The designer's build toolbar: undo/redo (with disabled states, mirroring the

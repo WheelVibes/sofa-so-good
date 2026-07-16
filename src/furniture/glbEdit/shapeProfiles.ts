@@ -25,16 +25,19 @@
 
 import {
   BoxGeometry,
-  type BufferGeometry,
+  BufferGeometry,
   CatmullRomCurve3,
   ExtrudeGeometry,
+  Float32BufferAttribute,
   LatheGeometry,
+  Path,
   Shape,
   TubeGeometry,
   Vector2,
   Vector3,
 } from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
 export type ProfilePoint = [number, number]
 
@@ -257,10 +260,12 @@ export const EXTRUDE_PRESET_LABEL: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 export type SweepProfileKind = 'circle' | 'half-round' | 'ogee' | 'rectangle'
-export type SweepPathKind = 'straight' | 'l-corner' | 'u' | 'ring'
+/** Stage 6b adds `'custom'` — a free path drawn in the 2D profile editor (XZ
+ *  plane), stored on the part as normalized `sweepPathPoints`. */
+export type SweepPathKind = 'straight' | 'l-corner' | 'u' | 'ring' | 'custom'
 
 export const SWEEP_PROFILES: SweepProfileKind[] = ['circle', 'half-round', 'ogee', 'rectangle']
-export const SWEEP_PATHS: SweepPathKind[] = ['straight', 'l-corner', 'u', 'ring']
+export const SWEEP_PATHS: SweepPathKind[] = ['straight', 'l-corner', 'u', 'ring', 'custom']
 
 export const SWEEP_PROFILE_LABEL: Record<SweepProfileKind, string> = {
   circle: 'Round (piping)',
@@ -273,6 +278,45 @@ export const SWEEP_PATH_LABEL: Record<SweepPathKind, string> = {
   'l-corner': 'L-corner',
   u: 'U-channel',
   ring: 'Ring',
+  custom: 'Custom (draw)',
+}
+
+/** Named normalized OPEN paths (XZ plane, centred [-0.5, 0.5]) that seed the
+ *  custom sweep-path editor (Stage 6b). `[x, z]` fractions of the path extent
+ *  (`size[0]`); rendered as an open Catmull-Rom curve. */
+export const SWEEP_PATH_POINT_PRESETS: Record<string, ProfilePoint[]> = {
+  's-curve': [
+    [-0.5, -0.4],
+    [-0.2, -0.5],
+    [0.0, 0.0],
+    [0.2, 0.5],
+    [0.5, 0.4],
+  ],
+  wave: [
+    [-0.5, 0.0],
+    [-0.25, -0.4],
+    [0.0, 0.0],
+    [0.25, 0.4],
+    [0.5, 0.0],
+  ],
+  arc: [
+    [-0.5, 0.3],
+    [-0.25, -0.2],
+    [0.0, -0.4],
+    [0.25, -0.2],
+    [0.5, 0.3],
+  ],
+  'l-bend': [
+    [-0.5, -0.5],
+    [0.4, -0.5],
+    [0.5, 0.4],
+  ],
+}
+export const SWEEP_PATH_POINT_PRESET_LABEL: Record<string, string> = {
+  's-curve': 'S-curve',
+  wave: 'Wave',
+  arc: 'Arc',
+  'l-bend': 'L-bend',
 }
 
 // ---------------------------------------------------------------------------
@@ -412,6 +456,10 @@ function sweepPathPoints(path: SweepPathKind, len: number): { points: Vector3[];
       }
       return { points: pts, closed: true }
     }
+    default:
+      // 'custom' is handled by the caller before this preset lookup — fall back
+      // to a straight path defensively so the function stays total.
+      return { points: [new Vector3(-h, 0, 0), new Vector3(h, 0, 0)], closed: false }
   }
 }
 
@@ -460,22 +508,34 @@ function sweepProfileShape(profile: SweepProfileKind, t: number): Shape {
  *
  *  Stage 5: an explicit closed `pathPoints` polyline (metres, sweep-local)
  *  OVERRIDES the preset `path` — the piping preset traces a rounded-rect
- *  perimeter from a host part's footprint (`piping.ts`). */
+ *  perimeter from a host part's footprint (`piping.ts`).
+ *
+ *  Stage 6b: with `path === 'custom'` an OPEN `customPath` (normalized `[x, z]`
+ *  fractions of the path extent, centred [-0.5, 0.5], drawn in the 2D editor) is
+ *  swept — a free rail/moulding curve. Precedence: an explicit closed
+ *  `pathPoints` (piping) wins, then a `custom` open path, then the preset. */
 export function sweepGeometry(
   profile: SweepProfileKind,
   path: SweepPathKind,
   w: number,
   t: number,
   pathPoints?: [number, number, number][],
+  customPath?: ProfilePoint[],
 ): BufferGeometry {
   const explicit = pathPoints && pathPoints.length >= 2
+  const custom = path === 'custom' && customPath && customPath.length >= 2
   const { points, closed } = explicit
     ? { points: pathPoints.map((p) => new Vector3(p[0], p[1], p[2])), closed: true }
-    : sweepPathPoints(path, w)
+    : custom
+      ? {
+          points: dedupeProfile(customPath).map((p) => new Vector3(p[0] * w, 0, p[1] * w)),
+          closed: false,
+        }
+      : sweepPathPoints(path, w)
   const curve = new CatmullRomCurve3(points, closed, 'catmullrom', 0.5)
   // Enough steps to read smooth on a small moulding without an expensive build
   // (ExtrudeGeometry with an extrudePath is O(steps × profileVerts)).
-  const tubular = explicit ? Math.max(64, points.length * 4) : path === 'ring' ? 48 : 24
+  const tubular = explicit || custom ? Math.max(64, points.length * 4) : path === 'ring' ? 48 : 24
   if (profile === 'circle') {
     return new TubeGeometry(curve, tubular, Math.max(0.005, t / 2), 12, closed)
   }
@@ -485,5 +545,367 @@ export function sweepGeometry(
     bevelEnabled: false,
     extrudePath: curve,
   })
+  return geo
+}
+
+// ---------------------------------------------------------------------------
+// Polygon offset (inset) — pure 2D helper for the extrude shell inner hole.
+// ---------------------------------------------------------------------------
+
+/** Signed area (shoelace) of a simple polygon (open loop of distinct vertices).
+ *  > 0 = CCW, < 0 = CW. Pure. */
+export function polygonSignedArea(pts: ProfilePoint[]): number {
+  let a = 0
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i]
+    const q = pts[(i + 1) % pts.length]
+    a += p[0] * q[1] - q[0] * p[1]
+  }
+  return a / 2
+}
+
+/** Unit vector of `v`, or null when degenerate (zero length). */
+function unit(v: ProfilePoint): ProfilePoint | null {
+  const m = Math.hypot(v[0], v[1])
+  return m < 1e-9 ? null : [v[0] / m, v[1] / m]
+}
+
+/** Intersection of line (through `p`, direction `d`) and line (through `q`,
+ *  direction `e`), or null when parallel. Pure. */
+function lineIntersect(
+  p: ProfilePoint,
+  d: ProfilePoint,
+  q: ProfilePoint,
+  e: ProfilePoint,
+): ProfilePoint | null {
+  const denom = d[0] * e[1] - d[1] * e[0]
+  if (Math.abs(denom) < 1e-9) return null
+  const tt = ((q[0] - p[0]) * e[1] - (q[1] - p[1]) * e[0]) / denom
+  return [p[0] + d[0] * tt, p[1] + d[1] * tt]
+}
+
+/** Drop a closing duplicate vertex (first ≈ last) so a polygon is a clean open
+ *  loop of distinct vertices. Pure. */
+function openLoop(pts: ProfilePoint[]): ProfilePoint[] {
+  const out = dedupeProfile(pts)
+  if (out.length >= 2) {
+    const f = out[0]
+    const l = out[out.length - 1]
+    if (Math.abs(f[0] - l[0]) < 1e-9 && Math.abs(f[1] - l[1]) < 1e-9) out.pop()
+  }
+  return out
+}
+
+/**
+ * Inset a simple closed polygon inward by `delta` (same units as the points) via
+ * a per-vertex MITER offset: each edge is shifted inward by `delta` and adjacent
+ * offset edges are intersected for the new vertex. Returns the inset polygon, or
+ * `null` when it collapses / flips (the inset area vanishes or reverses
+ * orientation).
+ *
+ * **Concave-outline limit (documented, honest):** a miter offset is exact for
+ * convex corners and mild concavity, but a deeply concave outline — where the
+ * wall thickness exceeds the local half-width of a neck — will self-intersect
+ * under the inset. Rather than emit a tangled inner ring, a runaway reflex miter
+ * is CLAMPED to a bevel distance (`delta × 4`) and, if the whole inset still
+ * collapses/flips, the function returns `null` so the caller can fall back to a
+ * solid shape (a fail-safe, never a crash). Pure.
+ */
+export function insetPolygon(pts: ProfilePoint[], delta: number): ProfilePoint[] | null {
+  const loop = openLoop(pts)
+  const n = loop.length
+  if (n < 3 || !(delta > 0)) return null
+  const ccw = polygonSignedArea(loop) > 0
+  // Inward normal of an edge direction (left normal for CCW, right for CW).
+  const inward = (e: ProfilePoint): ProfilePoint => (ccw ? [-e[1], e[0]] : [e[1], -e[0]])
+  const out: ProfilePoint[] = []
+  for (let i = 0; i < n; i++) {
+    const prev = loop[(i - 1 + n) % n]
+    const cur = loop[i]
+    const next = loop[(i + 1) % n]
+    const e1 = unit([cur[0] - prev[0], cur[1] - prev[1]])
+    const e2 = unit([next[0] - cur[0], next[1] - cur[1]])
+    if (!e1 || !e2) return null
+    const n1 = inward(e1)
+    const n2 = inward(e2)
+    const p1: ProfilePoint = [cur[0] + n1[0] * delta, cur[1] + n1[1] * delta]
+    const p2: ProfilePoint = [cur[0] + n2[0] * delta, cur[1] + n2[1] * delta]
+    const v = lineIntersect(p1, e1, p2, e2)
+    if (!v) {
+      // Straight-through vertex (collinear edges) — a single offset point.
+      out.push(p1)
+      continue
+    }
+    // Clamp a runaway miter at a sharp reflex corner to a bevel distance.
+    const dx = v[0] - cur[0]
+    const dy = v[1] - cur[1]
+    const md = Math.hypot(dx, dy)
+    const maxMiter = delta * 4
+    if (md > maxMiter && md > 1e-9) {
+      const s = maxMiter / md
+      out.push([cur[0] + dx * s, cur[1] + dy * s])
+    } else {
+      out.push(v)
+    }
+  }
+  // Over-inset detection: a convex polygon inset past its inradius keeps the same
+  // orientation but each edge REVERSES direction — catch that (dot < 0) plus the
+  // orientation-flip / vanishing-area cases (concave necks).
+  for (let i = 0; i < n; i++) {
+    const oe = unit([loop[(i + 1) % n][0] - loop[i][0], loop[(i + 1) % n][1] - loop[i][1]])
+    const ie = unit([out[(i + 1) % n][0] - out[i][0], out[(i + 1) % n][1] - out[i][1]])
+    if (oe && ie && oe[0] * ie[0] + oe[1] * ie[1] < 0) return null
+  }
+  const insetArea = polygonSignedArea(out)
+  const origArea = polygonSignedArea(loop)
+  if (Math.sign(insetArea) !== Math.sign(origArea) || Math.abs(insetArea) < 1e-6) return null
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Shell / hollow (Stage 6b) — open-top carcass on box + extrude.
+// ---------------------------------------------------------------------------
+
+/** A closed filled `Shape` from a point list. */
+function shapeFromPoints(pts: ProfilePoint[]): Shape {
+  const s = new Shape()
+  pts.forEach((p, i) => {
+    if (i === 0) s.moveTo(p[0], p[1])
+    else s.lineTo(p[0], p[1])
+  })
+  s.closePath()
+  return s
+}
+
+/**
+ * A hollow, open-TOP (+Y) box carcass — 4 walls + a bottom slab of uniform wall
+ * `thickness` (metres) — built by PURE CONSTRUCTION (five `BoxGeometry` panels
+ * merged), so it's exact with correct per-face normals + UVs and no CSG cost.
+ * The walls form a frame (front/back span the full width, left/right fit between
+ * them) and the bottom slab fills the inner footprint, so wall thickness is
+ * measurable in the vertex data and the top is open. `thickness` is clamped so
+ * the walls never meet; if it's too large for the footprint the shape falls back
+ * to a solid `BoxGeometry` (never a degenerate carcass). Total bbox = w×h×d.
+ */
+export function shellBoxGeometry(
+  w: number,
+  h: number,
+  d: number,
+  thickness: number,
+): BufferGeometry {
+  const t = clamp(thickness, 0, Math.min(w, d) / 2 - 1e-3)
+  if (!(t > 0) || w - 2 * t <= 1e-3 || d - 2 * t <= 1e-3) return new BoxGeometry(w, h, d)
+  const panels: BufferGeometry[] = []
+  const front = new BoxGeometry(w, h, t)
+  front.translate(0, 0, d / 2 - t / 2)
+  const back = new BoxGeometry(w, h, t)
+  back.translate(0, 0, -d / 2 + t / 2)
+  const left = new BoxGeometry(t, h, d - 2 * t)
+  left.translate(-w / 2 + t / 2, 0, 0)
+  const right = new BoxGeometry(t, h, d - 2 * t)
+  right.translate(w / 2 - t / 2, 0, 0)
+  const bottom = new BoxGeometry(w - 2 * t, t, d - 2 * t)
+  bottom.translate(0, -h / 2 + t / 2, 0)
+  panels.push(front, back, left, right, bottom)
+  const merged = mergeGeometries(panels, false)
+  for (const g of panels) g.dispose()
+  return merged ?? new BoxGeometry(w, h, d)
+}
+
+/**
+ * A hollow extrude — the outline's cross-section carved to a RING (outer outline
+ * minus an inset inner outline via a `Shape` hole, `ExtrudeGeometry`'s native
+ * feature) and extruded along Z, PLUS a solid bottom cap of `thickness`. So a
+ * profiled prism becomes an open carcass whose walls are `thickness` (metres)
+ * thick, open at the +Z extrusion end (documented: box opens +Y; the extrude
+ * opens along its extrude axis — a follow-up for face choice is out of scope).
+ *
+ * Concave-outline honesty: the inner outline comes from `insetPolygon`; if the
+ * outline is too concave for the wall thickness (the inset collapses/flips) the
+ * hole is dropped and a SOLID extrude is built instead (a fail-safe). Shell
+ * disables the extrude bevel (bevel + shell is out of scope). Centred on Z.
+ */
+export function shellExtrudeGeometry(
+  outline: ProfilePoint[],
+  w: number,
+  h: number,
+  d: number,
+  thickness: number,
+): BufferGeometry {
+  const pts = openLoop(validateProfilePoints(outline) ? outline : EXTRUDE_PRESETS['rounded-rect'])
+  const scaled = pts.map((p) => [p[0] * w, p[1] * h] as ProfilePoint)
+  const t = clamp(thickness, 1e-3, Math.min(w, h) / 2 - 1e-3)
+  const inner = insetPolygon(scaled, t)
+  if (!inner || inner.length < 3) {
+    // Outline too concave for this wall thickness — keep it solid (documented).
+    return extrudeGeometry(outline, w, h, d, 0)
+  }
+  const wallDepth = Math.max(1e-3, d - t)
+  const outerShape = shapeFromPoints(scaled)
+  const hole = new Path()
+  inner.forEach((p, i) => {
+    if (i === 0) hole.moveTo(p[0], p[1])
+    else hole.lineTo(p[0], p[1])
+  })
+  hole.closePath()
+  outerShape.holes.push(hole)
+  const wall = new ExtrudeGeometry(outerShape, {
+    depth: wallDepth,
+    bevelEnabled: false,
+    curveSegments: 8,
+  })
+  wall.translate(0, 0, t)
+  const cap = new ExtrudeGeometry(shapeFromPoints(scaled), {
+    depth: t,
+    bevelEnabled: false,
+    curveSegments: 8,
+  })
+  const merged = mergeGeometries([cap, wall], false)
+  cap.dispose()
+  wall.dispose()
+  const geo = merged ?? new BoxGeometry(w, h, d)
+  geo.translate(0, 0, -d / 2)
+  return geo
+}
+
+// ---------------------------------------------------------------------------
+// Loft (Stage 6b) — a body between two horizontal cross-sections.
+// ---------------------------------------------------------------------------
+
+/** Sample a centred circle of `n` points, radius `r` (normalized). */
+function circleOutline(n: number, r = 0.5): ProfilePoint[] {
+  const pts: ProfilePoint[] = []
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2
+    pts.push([r * Math.cos(a), r * Math.sin(a)])
+  }
+  return pts
+}
+
+/** Sample a centred square perimeter (`n` divisible by 4), half-extent `half`. */
+function squareOutline(n: number, half = 0.5): ProfilePoint[] {
+  const per = Math.max(1, Math.floor(n / 4))
+  const corners: ProfilePoint[] = [
+    [half, half],
+    [-half, half],
+    [-half, -half],
+    [half, -half],
+  ]
+  const pts: ProfilePoint[] = []
+  for (let c = 0; c < 4; c++) {
+    const a = corners[c]
+    const b = corners[(c + 1) % 4]
+    for (let s = 0; s < per; s++) {
+      const tt = s / per
+      pts.push([a[0] + (b[0] - a[0]) * tt, a[1] + (b[1] - a[1]) * tt])
+    }
+  }
+  return pts
+}
+
+/** Named loft profile pairs (bottom + top horizontal cross-sections, normalized
+ *  centred outlines). Authored with EQUAL point counts so no resample loss. */
+export const LOFT_PRESETS: Record<string, { bottom: ProfilePoint[]; top: ProfilePoint[] }> = {
+  'round-square': { bottom: circleOutline(16), top: squareOutline(16) },
+  'square-round': { bottom: squareOutline(16), top: circleOutline(16) },
+  taper: { bottom: squareOutline(16, 0.5), top: squareOutline(16, 0.28) },
+  'round-taper': { bottom: circleOutline(16, 0.5), top: circleOutline(16, 0.3) },
+}
+export const LOFT_PRESET_LABEL: Record<string, string> = {
+  'round-square': 'Round → square',
+  'square-round': 'Square → round',
+  taper: 'Taper (square)',
+  'round-taper': 'Taper (round)',
+}
+
+/** Force a loop to CCW orientation (positive signed area) so loft winding is
+ *  consistent regardless of how the outline was authored/edited. */
+function ensureCCW(pts: ProfilePoint[]): ProfilePoint[] {
+  return polygonSignedArea(pts) < 0 ? [...pts].reverse() : pts
+}
+
+/** Centroid of a point list. */
+function centroid(pts: Vector3[]): Vector3 {
+  const c = new Vector3()
+  for (const p of pts) c.add(p)
+  return c.multiplyScalar(1 / Math.max(1, pts.length))
+}
+
+/**
+ * A lofted body between two horizontal cross-section outlines (`bottom` at
+ * −h/2, `top` at +h/2), each a normalized centred `[x, z]` outline scaled to
+ * `size[0] × size[2]`. Both are resampled to a common point count (the smaller
+ * of the two, reusing `resampleProfile`) and re-oriented CCW, then stitched into
+ * side-wall quads + centroid-fan caps. Built as a NON-INDEXED geometry (walls
+ * and caps own separate vertices) so `computeVertexNormals` keeps the cap edges
+ * crisp and never smears a twisted normal across the seam. Correct outward
+ * normals + planar cap UVs; bbox tracks `size`. Pure.
+ *
+ * CAP LIMIT: the caps are centroid fans, exact for convex/mildly-concave
+ * outlines (every preset) — a strongly concave cross-section would fan across a
+ * concavity. Documented, not a crash.
+ */
+export function loftGeometry(
+  bottom: ProfilePoint[],
+  top: ProfilePoint[],
+  w: number,
+  h: number,
+  d: number,
+): BufferGeometry {
+  const fallback = LOFT_PRESETS['round-square']
+  let b = openLoop(validateProfilePoints(bottom) ? bottom : fallback.bottom)
+  let tp = openLoop(validateProfilePoints(top) ? top : fallback.top)
+  if (b.length < 3) b = openLoop(fallback.bottom)
+  if (tp.length < 3) tp = openLoop(fallback.top)
+  const n = Math.min(b.length, tp.length)
+  b = ensureCCW(resampleProfile(b, n))
+  tp = ensureCCW(resampleProfile(tp, n))
+  const N = Math.min(b.length, tp.length)
+  const hy = Math.max(1e-3, h) / 2
+  const B = b.slice(0, N).map((p) => new Vector3(p[0] * w, -hy, p[1] * d))
+  const T = tp.slice(0, N).map((p) => new Vector3(p[0] * w, hy, p[1] * d))
+  const cB = centroid(B)
+  const cT = centroid(T)
+
+  const pos: number[] = []
+  const uv: number[] = []
+  const push = (v: Vector3, u: number, s: number) => {
+    pos.push(v.x, v.y, v.z)
+    uv.push(u, s)
+  }
+  // Side walls — one quad per edge (two triangles). Winding chosen so the
+  // outward normal points away from the axis (verified in tests).
+  for (let i = 0; i < N; i++) {
+    const j = (i + 1) % N
+    const u0 = i / N
+    const u1 = (i + 1) / N
+    push(B[i], u0, 0)
+    push(T[i], u0, 1)
+    push(B[j], u1, 0)
+    push(B[j], u1, 0)
+    push(T[i], u0, 1)
+    push(T[j], u1, 1)
+  }
+  // Caps — centroid fans. Bottom faces −Y, top faces +Y.
+  const capUv = (v: Vector3, half: number): [number, number] => [
+    0.5 + v.x / (2 * half || 1),
+    0.5 + v.z / (2 * half || 1),
+  ]
+  const hw = Math.max(w, d) || 1
+  for (let i = 0; i < N; i++) {
+    const j = (i + 1) % N
+    // Bottom cap (−Y): wound so the fan normal points down.
+    push(cB, ...capUv(cB, hw))
+    push(B[i], ...capUv(B[i], hw))
+    push(B[j], ...capUv(B[j], hw))
+    // Top cap (+Y): opposite winding so the normal points up.
+    push(cT, ...capUv(cT, hw))
+    push(T[j], ...capUv(T[j], hw))
+    push(T[i], ...capUv(T[i], hw))
+  }
+  const geo = new BufferGeometry()
+  geo.setAttribute('position', new Float32BufferAttribute(pos, 3))
+  geo.setAttribute('uv', new Float32BufferAttribute(uv, 2))
+  geo.computeVertexNormals()
   return geo
 }

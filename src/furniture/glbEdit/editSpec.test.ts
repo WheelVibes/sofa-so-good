@@ -127,6 +127,31 @@ describe('setMeshOverride', () => {
     const s = addPart(createEmptySpec(), 'box')
     expect(mirrorPart(s, 'nope')).toBe(s)
   })
+
+  it('duplicate/mirror deep-copy the Stage-6b arrays (loft outlines + custom path)', () => {
+    // A loft seeds loftBottom/loftTop; add a custom sweep path too.
+    let s = addPart(createEmptySpec(), 'loft')
+    const loftId = s.parts[0]!.id
+    s = updatePart(s, loftId, {
+      sweepPathPoints: [
+        [-0.5, 0],
+        [0.5, 0],
+      ],
+    })
+    const dup = duplicatePart(s, loftId)
+    const copy = dup.parts[1]!
+    // Deep-copied — mutating the clone's arrays must not touch the source.
+    copy.loftBottom![0][0] = 999
+    copy.loftTop![0][0] = 999
+    copy.sweepPathPoints![0][0] = 999
+    expect(s.parts[0]!.loftBottom![0][0]).not.toBe(999)
+    expect(s.parts[0]!.loftTop![0][0]).not.toBe(999)
+    expect(s.parts[0]!.sweepPathPoints![0][0]).not.toBe(999)
+    // Mirror likewise deep-copies.
+    const mir = mirrorPart(s, loftId)
+    expect(mir.parts[1]!.loftBottom).toEqual(s.parts[0]!.loftBottom)
+    expect(mir.parts[1]!.loftBottom).not.toBe(s.parts[0]!.loftBottom)
+  })
 })
 
 describe('per-part texture finish (GE3c) — schema + back-compat', () => {

@@ -84,14 +84,21 @@ build one in the browser:
   updates as you go.
 - **Rounded edges** — boxes and wedges gain a **Corner radius** slider that softens their
   edges so they catch light like real furniture (0 = sharp).
-- **More shapes** — below the primitives, a **Lathe / Extrude / Sweep** row adds
+- **More shapes** — below the primitives, a **Lathe / Extrude / Sweep / Loft** row adds
   profile-driven shapes:
   - **Lathe** revolves a 2D profile into turned legs, bowls, vases and columns — pick a
     **preset**, drag the profile points (or type X/Y), and set the number of **sides**.
   - **Extrude** turns a 2D outline (rounded rectangle, ellipse, L, T, arch) into a prism with
     a bevel on by default.
   - **Sweep** runs a cross-section (round piping, half-round, ogee moulding, rectangle) along
-    a path (straight, L-corner, U-channel, ring) for railings, edging and mouldings.
+    a path (straight, L-corner, U-channel, ring) for railings, edging and mouldings. Pick
+    **Custom (draw)** to draw your own path in the top-view editor for a free rail or S-curve.
+  - **Loft** blends between two outlines — a **Bottom section** and a **Top section** — for
+    tapered, organic bodies (a round base rising to a square top, a tapering plinth). Pick a
+    **transition preset** (Round → square, Taper) to seed both, then drag either outline.
+- **Hollow it out** — **box** and **extrude** shapes have a **Hollow (wall)** slider: raise it to
+  carve an open-top carcass with uniform walls (a cabinet, tray or drawer box) in one move; 0 keeps
+  the shape solid.
 - **Texture a shape** — each shape also has a **Texture** picker: choose **None — solid
   colour** (the default), tap a curated **Quick finishes** swatch (Oak, Walnut, Teak, Ash,
   Ebony, Marble), or pick any catalog / downloaded CC0 material from the dropdown — the

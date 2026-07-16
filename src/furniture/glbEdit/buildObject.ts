@@ -44,6 +44,9 @@ import {
   bevelledBoxGeometry,
   extrudeGeometry,
   latheGeometry,
+  loftGeometry,
+  shellBoxGeometry,
+  shellExtrudeGeometry,
   sweepGeometry,
   wedgeGeometry,
 } from './shapeProfiles'
@@ -301,6 +304,9 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
   const [w, h, d] = part.size
   switch (part.kind) {
     case 'box':
+      // Stage 6b: a hollow wall thickness carves an open-top carcass (wins over
+      // plump — a hollow plumped cushion is nonsensical).
+      if (part.shell && part.shell > 0) return shellBoxGeometry(w, h, d, part.shell)
       // Stage 5: a plumped cushion needs a tessellated box to displace.
       if (part.plump && part.plump > 0)
         return plumpBoxGeometry(w, h, d, part.bevel ?? 0, part.plump)
@@ -311,7 +317,12 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
     case 'lathe':
       return latheGeometry(part.profile ?? [], part.segments ?? 32, w, h)
     case 'extrude':
-      return extrudeGeometry(part.outline ?? [], w, h, d, part.bevel ?? 0.02)
+      // Stage 6b: a hollow wall thickness → a ring cross-section + bottom cap.
+      return part.shell && part.shell > 0
+        ? shellExtrudeGeometry(part.outline ?? [], w, h, d, part.shell)
+        : extrudeGeometry(part.outline ?? [], w, h, d, part.bevel ?? 0.02)
+    case 'loft':
+      return loftGeometry(part.loftBottom ?? [], part.loftTop ?? [], w, h, d)
     case 'sweep':
       return sweepGeometry(
         part.sweepProfile ?? 'circle',
@@ -319,6 +330,7 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
         w,
         h,
         part.sweepPoints,
+        part.sweepPathPoints,
       )
     case 'cylinder':
       return new CylinderGeometry(w / 2, w / 2, h, 32)

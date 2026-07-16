@@ -143,8 +143,8 @@ describe('specPersist', () => {
     expect(restored!.parts[1].role).toBe('hole')
   })
 
-  it('the current envelope is v7', () => {
-    expect(ASSET_SPEC_VERSION).toBe(7)
+  it('the current envelope is v8', () => {
+    expect(ASSET_SPEC_VERSION).toBe(8)
   })
 
   it('round-trips the exportedProductId (v5, stable make-configurable id)', () => {
@@ -302,5 +302,51 @@ describe('specPersist', () => {
       },
     })
     expect(parseAssetSpec(bad)).toBeNull()
+  })
+
+  it('round-trips Stage-6b fields (shell + loft cross-sections + custom sweep path)', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'box')
+    s = addPart(s, 'extrude')
+    s = addPart(s, 'loft')
+    s = addPart(s, 'sweep')
+    s = updatePart(s, s.parts[0].id, { shell: 0.03 })
+    s = updatePart(s, s.parts[1].id, { shell: 0.02 })
+    s = updatePart(s, s.parts[3].id, {
+      sweepPath: 'custom',
+      sweepPathPoints: [
+        [-0.5, -0.4],
+        [0, 0],
+        [0.5, 0.4],
+      ],
+    })
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored).toEqual(s)
+    expect(restored!.parts[0].shell).toBe(0.03)
+    // Loft seeds bottom + top cross-sections by default.
+    expect(restored!.parts[2].loftBottom).toEqual(s.parts[2].loftBottom)
+    expect(restored!.parts[2].loftTop).toEqual(s.parts[2].loftTop)
+    expect(restored!.parts[3].sweepPathPoints).toEqual(s.parts[3].sweepPathPoints)
+  })
+
+  it('migrates a v7 blob (no shell/loft/path) forward as the identity', () => {
+    // A pre-6b spec is a structural subset of v8 → loads unchanged, re-tagged v8.
+    const s = addPart(createEmptySpec(), 'box')
+    const v7 = JSON.stringify({ kind: 'asset', v: 7, payload: s })
+    expect(parseAssetSpec(v7)).toEqual(s)
+  })
+
+  it('rejects a malformed shell (non-number) / loft outline (non-vec2)', () => {
+    const spec = addPart(createEmptySpec(), 'box')
+    const badShell = JSON.stringify({
+      v: 8,
+      spec: { ...spec, parts: [{ ...spec.parts[0], shell: 'thick' }] },
+    })
+    expect(parseAssetSpec(badShell)).toBeNull()
+    const badLoft = JSON.stringify({
+      v: 8,
+      spec: { ...spec, parts: [{ ...spec.parts[0], loftBottom: [[0, 0, 0]] }] },
+    })
+    expect(parseAssetSpec(badLoft)).toBeNull()
   })
 })

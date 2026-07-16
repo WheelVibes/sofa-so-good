@@ -34,8 +34,12 @@ import type { AssetEditSpec } from './editSpec'
  *    rename). Additive superset → migration stays the identity.
  *  - v7 (Realism detail layer, Stage 5): adds optional `decals[]` + optional
  *    `parts[].plump` (cushion bulge) + optional `parts[].sweepPoints` (piping
- *    path). Additive superset → migration stays the identity. */
-export const ASSET_SPEC_VERSION = 7
+ *    path). Additive superset → migration stays the identity.
+ *  - v8 (Geometry ops II, Stage 6b): adds the `'loft'` shape kind + optional
+ *    `parts[].shell` (hollow wall thickness), `parts[].loftBottom`/`loftTop`
+ *    (loft cross-sections) + `parts[].sweepPathPoints` (free sweep path).
+ *    Additive superset → migration stays the identity. */
+export const ASSET_SPEC_VERSION = 8
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
  *  Every version bump so far has been an additive superset, so migration is the
@@ -49,7 +53,8 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
     case 4: // no exportedProductId — already a valid v5 spec.
     case 5: // no parts[].name — already a valid v6 spec.
     case 6: // no decals/plump/sweepPoints — already a valid v7 spec.
-    case 7:
+    case 7: // no shell/loft/sweepPathPoints — already a valid v8 spec.
+    case 8:
       return spec
     default:
       return null
@@ -70,6 +75,20 @@ function isVec3(x: unknown): boolean {
     x.length === 3 &&
     x.every((n) => typeof n === 'number' && Number.isFinite(n))
   )
+}
+
+/** A finite-number `[x, y]` tuple (profile / loft / path points). */
+function isVec2(x: unknown): boolean {
+  return (
+    Array.isArray(x) &&
+    x.length === 2 &&
+    x.every((n) => typeof n === 'number' && Number.isFinite(n))
+  )
+}
+
+/** A list of finite `[x, y]` points (loft outline / custom sweep path). */
+function isVec2List(x: unknown): boolean {
+  return Array.isArray(x) && x.every(isVec2)
 }
 
 /** Guard the optional `combineGroups` field: absent is fine; otherwise every
@@ -196,6 +215,12 @@ function partsValid(parts: unknown[]): boolean {
     if (rec.sweepPoints !== undefined) {
       if (!Array.isArray(rec.sweepPoints) || !rec.sweepPoints.every(isVec3)) return false
     }
+    // v8: optional hollow wall thickness, loft cross-sections, free sweep path.
+    if (rec.shell !== undefined && (typeof rec.shell !== 'number' || !Number.isFinite(rec.shell)))
+      return false
+    if (rec.loftBottom !== undefined && !isVec2List(rec.loftBottom)) return false
+    if (rec.loftTop !== undefined && !isVec2List(rec.loftTop)) return false
+    if (rec.sweepPathPoints !== undefined && !isVec2List(rec.sweepPathPoints)) return false
     return materialFieldsValid(rec)
   })
 }

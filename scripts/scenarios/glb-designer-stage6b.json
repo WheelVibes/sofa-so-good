@@ -1,0 +1,159 @@
+{
+  "name": "glb-designer-stage6b",
+  "description": "Asset Studio Iteration 2 Stage 6b — geometry ops II in the GLB Asset Designer (Pro, glbDesigner on). Add a Box and dial its 'Hollow (wall)' slider so it becomes an open-top carcass, then look straight down (Top view) to confirm the open cavity + uniform wall thickness. Add a Loft (round → square by default) and shape it into a tapered vase, confirming no twisted/inverted faces. Add a Sweep, switch its path to Custom and feed an S-curve so the rail follows the drawn path smoothly. Finally Save and assert the persisted UserGltfDef's assetSpec (v8 envelope) embeds the box shell, the loft's bottom+top cross-sections, and the sweep's custom path points — the whole geometry layer round-trips as an editable spec.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "css": ".glb-designer" },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-designer",
+      "wait": 800
+    },
+    {
+      "name": "shot-designer-open",
+      "screenshot": "01-designer-open"
+    },
+    {
+      "name": "add-box",
+      "click": { "text": "Box" }
+    },
+    {
+      "name": "wait-box",
+      "waitFor": { "css": "input[aria-label='box size X']" },
+      "timeout": 5000
+    },
+    {
+      "name": "shape-box",
+      "comment": "A shallow tray-like box 0.5 x 0.3 x 0.5 raised so its whole cavity is visible.",
+      "eval": "(function(){ const set = (label, val) => { const inp = document.querySelector(`.glb-designer input[aria-label=\"${label}\"]`); if (!inp) throw new Error('missing input: ' + label); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, String(val)); inp.dispatchEvent(new Event('input', { bubbles: true })); }; set('box size X', 0.5); set('box size Y', 0.3); set('box size Z', 0.5); set('box position Y', 0.15); })()"
+    },
+    {
+      "name": "set-hollow",
+      "comment": "Dial the Hollow (wall) slider so the box becomes an open-top carcass with 3 cm walls.",
+      "eval": "(function(){ const inp = document.querySelector(\".glb-designer input[aria-label='box hollow wall']\"); if (!inp) throw new Error('box hollow wall slider missing'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '0.03'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "wait-hollow",
+      "wait": 500
+    },
+    {
+      "name": "assert-hollow",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const box = s.parts.find(p => p.kind === 'box'); if (!box) throw new Error('box missing'); if (!(box.shell > 0.02 && box.shell < 0.04)) throw new Error('box shell not set (~0.03), got ' + box.shell); })()"
+    },
+    {
+      "name": "top-view",
+      "comment": "Look straight down so the open cavity + uniform wall thickness read clearly.",
+      "click": { "selector": "button[aria-label='Top view']", "timeout": 5000 }
+    },
+    {
+      "name": "wait-top",
+      "wait": 700
+    },
+    {
+      "name": "shot-hollow-box",
+      "screenshot": "02-hollow-box-top"
+    },
+    {
+      "name": "home-view",
+      "click": { "selector": "button[aria-label='Home view']", "timeout": 5000 }
+    },
+    {
+      "name": "add-loft",
+      "comment": "A Loft seeds a round-bottom → square-top body by default.",
+      "click": { "text": "Loft" }
+    },
+    {
+      "name": "wait-loft",
+      "waitFor": { "css": "input[aria-label='loft size X']" },
+      "timeout": 5000
+    },
+    {
+      "name": "shape-loft",
+      "comment": "Make it a taller vase (0.3 x 0.55 x 0.3) offset to +X, clear of the box.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); const loft = s.parts.find(p => p.kind === 'loft'); if (!loft) throw new Error('loft part missing'); loft.size = [0.3, 0.55, 0.3]; loft.position = [0.8, 0.275, 0]; loft.color = '#7a9bb0'; window.__glbDesigner.setSpec(s); })()"
+    },
+    {
+      "name": "wait-loft-shape",
+      "wait": 700
+    },
+    {
+      "name": "assert-loft",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const loft = s.parts.find(p => p.kind === 'loft'); if (!loft) throw new Error('loft missing'); if (!Array.isArray(loft.loftBottom) || loft.loftBottom.length < 3) throw new Error('loft bottom section missing'); if (!Array.isArray(loft.loftTop) || loft.loftTop.length < 3) throw new Error('loft top section missing'); })()"
+    },
+    {
+      "name": "shot-loft",
+      "screenshot": "03-loft-vase"
+    },
+    {
+      "name": "add-sweep",
+      "click": { "text": "Sweep" }
+    },
+    {
+      "name": "wait-sweep",
+      "waitFor": { "css": "select[aria-label='Sweep path'], [aria-label='Sweep path']" },
+      "timeout": 5000
+    },
+    {
+      "name": "make-custom-rail",
+      "comment": "Switch the sweep path to Custom and feed an S-curve drawn in the top-view path editor, offset to +X.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); const sweep = s.parts.find(p => p.kind === 'sweep'); if (!sweep) throw new Error('sweep part missing'); sweep.sweepProfile = 'circle'; sweep.sweepPath = 'custom'; sweep.sweepPathPoints = [[-0.5,-0.4],[-0.2,-0.5],[0,0],[0.2,0.5],[0.5,0.4]]; sweep.size = [0.7, 0.05, 0.7]; sweep.position = [1.5, 0.2, 0]; sweep.color = '#b5793a'; window.__glbDesigner.setSpec(s); })()"
+    },
+    {
+      "name": "wait-rail",
+      "wait": 700
+    },
+    {
+      "name": "assert-rail",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const sweep = s.parts.find(p => p.kind === 'sweep'); if (!sweep) throw new Error('sweep missing'); if (sweep.sweepPath !== 'custom') throw new Error('sweep path not custom'); if (!Array.isArray(sweep.sweepPathPoints) || sweep.sweepPathPoints.length < 4) throw new Error('custom sweep path points missing'); })()"
+    },
+    {
+      "name": "shot-rail",
+      "screenshot": "04-custom-sweep-rail"
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage6b Geometry'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-geometry-ops",
+      "comment": "End-to-end proof: the saved assetSpec (v8 envelope) embeds the box shell, the loft's bottom+top cross-sections, and the sweep's custom path points — the Stage-6b geometry layer round-trips as an editable spec.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage6b Geometry' && typeof d.assetSpec === 'string' && d.assetSpec.includes('\"kind\":\"asset\"') && (() => { try { const env = JSON.parse(d.assetSpec); if (env.v !== 8) return false; const s = env.payload; const box = s.parts.find(p => p.kind === 'box'); const loft = s.parts.find(p => p.kind === 'loft'); const sweep = s.parts.find(p => p.kind === 'sweep'); return box && box.shell > 0 && loft && Array.isArray(loft.loftBottom) && Array.isArray(loft.loftTop) && sweep && sweep.sweepPath === 'custom' && Array.isArray(sweep.sweepPathPoints) && sweep.sweepPathPoints.length >= 4; } catch { return false } })())"
+      },
+      "timeout": 60000,
+      "failMessage": "saved assetSpec should embed the box shell, the loft cross-sections, and the custom sweep path (v8 envelope)"
+    },
+    {
+      "name": "shot-saved",
+      "screenshot": "05-saved-with-geometry-ops"
+    }
+  ]
+}

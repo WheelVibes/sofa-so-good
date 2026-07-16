@@ -8,8 +8,12 @@ import {
   EXTRUDE_PRESETS,
   LATHE_PRESET_LABEL,
   LATHE_PRESETS,
+  LOFT_PRESET_LABEL,
+  LOFT_PRESETS,
   type ProfilePoint,
   SWEEP_PATH_LABEL,
+  SWEEP_PATH_POINT_PRESET_LABEL,
+  SWEEP_PATH_POINT_PRESETS,
   SWEEP_PATHS,
   SWEEP_PROFILE_LABEL,
   SWEEP_PROFILES,
@@ -28,6 +32,10 @@ import { ProfileEditor, type ProfileSpace } from './ProfileEditor'
 
 const LATHE_SPACE: ProfileSpace = { minX: 0, maxX: 1, minY: 0, maxY: 1, showAxis: true }
 const EXTRUDE_SPACE: ProfileSpace = { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5 }
+// Loft cross-sections + the custom sweep path share the centred [-0.5, 0.5]
+// footprint window (both are XZ-plane outlines/paths).
+const LOFT_SPACE: ProfileSpace = { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5 }
+const SWEEP_PATH_SPACE: ProfileSpace = { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5 }
 
 /**
  * The GLB designer's per-part edit panel ("Edit box/cylinder/…"): size /
@@ -65,8 +73,18 @@ export function PartInspector() {
     part.kind === 'extrude'
   // Cap the corner radius at half the smallest dimension so it can't invert.
   const maxBevel = Math.max(0.02, Math.min(...part.size) / 2)
-  // Cushion "plump" (Stage 5) — a soft top-bulge on box/capsule kinds.
-  const plumpable = part.kind === 'box' || part.kind === 'capsule'
+  // Shell/hollow (Stage 6b) — an open-top carcass on box/extrude.
+  const hollowable = part.kind === 'box' || part.kind === 'extrude'
+  const shellVal = part.shell ?? 0
+  // Wall thickness caps below half the smallest in-plane dimension (box: W/D,
+  // extrude: W/H) so the walls never meet.
+  const maxShell =
+    part.kind === 'extrude'
+      ? Math.max(0.01, Math.min(part.size[0], part.size[1]) / 2 - 0.005)
+      : Math.max(0.01, Math.min(part.size[0], part.size[2]) / 2 - 0.005)
+  // Cushion "plump" (Stage 5) — a soft top-bulge on box/capsule kinds. Hidden
+  // while a box is hollow (a plumped carcass is nonsensical; shell wins).
+  const plumpable = (part.kind === 'box' && shellVal <= 0) || part.kind === 'capsule'
   // Combined (mesh) parts have per-source materials frozen in the geometry —
   // colour/finish/PBR sliders are hidden (no face-picker; re-combine to change).
   const isCombined = part.kind === 'mesh' && !!part.geometry?.materials?.length
@@ -246,6 +264,79 @@ export function PartInspector() {
         />
       ) : null}
 
+      {/* Shell/hollow (Stage 6b) — box + extrude. > 0 opens a hollow carcass of
+          uniform wall thickness (box opens +Y top; extrude opens along its
+          extrude axis). 0 = solid (byte-identical). */}
+      {hollowable ? (
+        <SliderField
+          label="Hollow (wall)"
+          ariaLabel={`${part.kind} hollow wall`}
+          value={shellVal}
+          min={0}
+          max={maxShell}
+          step={0.005}
+          format={(v) => (v > 0 ? `${v.toFixed(3)} m` : 'Solid')}
+          onChange={(v) => onPatch({ shell: v > 0 ? v : undefined })}
+        />
+      ) : null}
+
+      {/* Loft (Stage 6b) — bottom + top cross-sections + a transition preset. */}
+      {part.kind === 'loft' ? (
+        <div style={{ marginTop: 'var(--s-2)' }}>
+          <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+            Loft profile
+          </div>
+          <Select
+            className="input"
+            ariaLabel="Loft preset"
+            value=""
+            placeholder="Transition preset…"
+            onChange={(id) => {
+              const p = LOFT_PRESETS[id]
+              if (p)
+                onPatch({
+                  loftBottom: p.bottom.map((q) => [...q] as [number, number]),
+                  loftTop: p.top.map((q) => [...q] as [number, number]),
+                })
+            }}
+            style={{ width: '100%' }}
+            options={[
+              { value: '', label: 'Transition preset…' },
+              ...Object.keys(LOFT_PRESETS).map((id) => ({
+                value: id,
+                label: LOFT_PRESET_LABEL[id] ?? id,
+              })),
+            ]}
+          />
+          <div
+            className="label"
+            style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-2)' }}
+          >
+            Bottom section
+          </div>
+          <ProfileEditor
+            points={(part.loftBottom ?? LOFT_PRESETS['round-square'].bottom) as ProfilePoint[]}
+            space={LOFT_SPACE}
+            presets={EXTRUDE_PRESETS}
+            presetLabels={EXTRUDE_PRESET_LABEL}
+            onChange={(pts) => onPatch({ loftBottom: pts.map((q) => [...q] as [number, number]) })}
+          />
+          <div
+            className="label"
+            style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-2)' }}
+          >
+            Top section
+          </div>
+          <ProfileEditor
+            points={(part.loftTop ?? LOFT_PRESETS['round-square'].top) as ProfilePoint[]}
+            space={LOFT_SPACE}
+            presets={EXTRUDE_PRESETS}
+            presetLabels={EXTRUDE_PRESET_LABEL}
+            onChange={(pts) => onPatch({ loftTop: pts.map((q) => [...q] as [number, number]) })}
+          />
+        </div>
+      ) : null}
+
       {/* Lathe/extrude profile point editor + preset seeding. */}
       {part.kind === 'lathe' ? (
         <>
@@ -301,11 +392,44 @@ export function PartInspector() {
               className="input"
               ariaLabel="Sweep path"
               value={part.sweepPath ?? 'ring'}
-              onChange={(v) => onPatch({ sweepPath: v as SweepPathKind })}
+              onChange={(v) => {
+                const path = v as SweepPathKind
+                // Seed a starter path when switching to Custom so the editor has
+                // something to draw with (S-curve by default).
+                if (path === 'custom' && !part.sweepPathPoints) {
+                  onPatch({
+                    sweepPath: path,
+                    sweepPathPoints: SWEEP_PATH_POINT_PRESETS['s-curve'].map(
+                      (q) => [...q] as [number, number],
+                    ),
+                  })
+                } else {
+                  onPatch({ sweepPath: path })
+                }
+              }}
               style={{ width: '100%' }}
               options={SWEEP_PATHS.map((k) => ({ value: k, label: SWEEP_PATH_LABEL[k] }))}
             />
           </div>
+          {/* Free path (Stage 6b) — draw the sweep path in the 2D editor (XZ). */}
+          {part.sweepPath === 'custom' ? (
+            <div>
+              <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                Path (top view, X → Z)
+              </div>
+              <ProfileEditor
+                points={
+                  (part.sweepPathPoints ?? SWEEP_PATH_POINT_PRESETS['s-curve']) as ProfilePoint[]
+                }
+                space={SWEEP_PATH_SPACE}
+                presets={SWEEP_PATH_POINT_PRESETS}
+                presetLabels={SWEEP_PATH_POINT_PRESET_LABEL}
+                onChange={(pts) =>
+                  onPatch({ sweepPathPoints: pts.map((q) => [...q] as [number, number]) })
+                }
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 

@@ -11,6 +11,7 @@
 import {
   EXTRUDE_PRESETS,
   LATHE_PRESETS,
+  LOFT_PRESETS,
   type SweepPathKind,
   type SweepProfileKind,
 } from './shapeProfiles'
@@ -27,6 +28,7 @@ export type PrimitiveShapeKind =
   | 'lathe'
   | 'extrude'
   | 'sweep'
+  | 'loft'
 
 /** Kinds that accept a bevel / corner-radius (`ShapePart.bevel`). Box + wedge
  *  only — extrudes carry their own always-on bevel and the round kinds are
@@ -102,6 +104,7 @@ export const SHAPE_KINDS: PrimitiveShapeKind[] = [
   'lathe',
   'extrude',
   'sweep',
+  'loft',
 ]
 
 export const SHAPE_LABEL: Record<ShapeKind, string> = {
@@ -116,6 +119,7 @@ export const SHAPE_LABEL: Record<ShapeKind, string> = {
   lathe: 'Lathe',
   extrude: 'Extrude',
   sweep: 'Sweep',
+  loft: 'Loft',
   mesh: 'Combined',
 }
 
@@ -306,6 +310,21 @@ export interface ShapePart extends PhysicalSurfaceFields {
    *  rounded-rect perimeter traced from a host part's footprint. Absent → the
    *  `sweepPath` preset. */
   sweepPoints?: [number, number, number][]
+  /** Sweep: a free OPEN path drawn in the 2D editor (Stage 6b) — normalized
+   *  `[x, z]` fractions of the path extent (`size[0]`), centred [-0.5, 0.5].
+   *  Used only when `sweepPath === 'custom'`; absent → the preset/`sweepPoints`. */
+  sweepPathPoints?: [number, number][]
+  /** Shell/hollow wall thickness in metres (Stage 6b) — box + extrude only.
+   *  > 0 carves an open-top (box: +Y) / open-end (extrude) hollow carcass of
+   *  uniform wall thickness. 0 / absent → solid (byte-identical). Clamped to the
+   *  footprint by the geometry builder. */
+  shell?: number
+  /** Loft: the BOTTOM horizontal cross-section — normalized centred `[x, z]`
+   *  outline (both ∈ [-0.5, 0.5]), scaled to `size[0] × size[2]` at y = −h/2. */
+  loftBottom?: [number, number][]
+  /** Loft: the TOP horizontal cross-section — same convention as `loftBottom`,
+   *  at y = +h/2. Resampled to match the bottom's point count at build. */
+  loftTop?: [number, number][]
   /** Cushion "plump" 0…1 (Stage 5) — a sine-falloff vertex bulge on box/capsule
    *  kinds so upholstery reads soft/stuffed (normals recomputed). 0 / absent →
    *  today's flat geometry (byte-identical). */
@@ -405,6 +424,7 @@ const DEFAULT_SIZE: Record<PrimitiveShapeKind, [number, number, number]> = {
   lathe: [0.12, 0.5, 0.12], // [diameter, height, _] — a turned leg
   extrude: [0.4, 0.3, 0.12], // [width, height, depth]
   sweep: [0.5, 0.06, 0.5], // [pathExtent, tubeThickness, _] — a piping ring
+  loft: [0.4, 0.5, 0.4], // [width, height, depth] — a tapered body
 }
 
 /** Per-kind extra parametric defaults (profiles/presets/bevel) applied by
@@ -418,6 +438,11 @@ function defaultShapeParams(kind: PrimitiveShapeKind): Partial<ShapePart> {
       return { outline: EXTRUDE_PRESETS['rounded-rect'].map((p) => [...p]), bevel: 0.02 }
     case 'sweep':
       return { sweepProfile: 'circle', sweepPath: 'ring' }
+    case 'loft':
+      return {
+        loftBottom: LOFT_PRESETS['round-square'].bottom.map((p) => [...p] as [number, number]),
+        loftTop: LOFT_PRESETS['round-square'].top.map((p) => [...p] as [number, number]),
+      }
     default:
       return {}
   }
@@ -763,6 +788,14 @@ function clonePart(
     rotation: rotation ? [...rotation] : undefined,
     profile: src.profile ? src.profile.map((p) => [...p]) : undefined,
     outline: src.outline ? src.outline.map((p) => [...p]) : undefined,
+    loftBottom: src.loftBottom ? src.loftBottom.map((p) => [...p] as [number, number]) : undefined,
+    loftTop: src.loftTop ? src.loftTop.map((p) => [...p] as [number, number]) : undefined,
+    sweepPoints: src.sweepPoints
+      ? src.sweepPoints.map((p) => [...p] as [number, number, number])
+      : undefined,
+    sweepPathPoints: src.sweepPathPoints
+      ? src.sweepPathPoints.map((p) => [...p] as [number, number])
+      : undefined,
     gradient: src.gradient ? { ...src.gradient } : undefined,
   }
 }

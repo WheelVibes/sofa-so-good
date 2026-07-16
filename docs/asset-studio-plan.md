@@ -385,11 +385,31 @@ subscriptions) so a change touches only the panels that read it. No action neede
   component is still just parts + a `PartGroup`, already covered by the v4+ envelope (no persistence
   bump). Scenario `scripts/scenarios/glb-designer-stage6a.json`.
 
-### Stage 6b — Geometry ops II
-- **Shell/hollow** (wall thickness) on box/extrude → open-top carcass in one click
-  (CSG-based: auto inner-hole part, or true shell math).
-- **Loft** between two profiles (bottom/top) — tapered organic bodies.
-- **Free sweep path**: draw the sweep path in the 2D profile editor (not just presets).
+### Stage 6b — Geometry ops II — ✅ SHIPPED (v0.21.2.43)
+- ✅ **Shell/hollow** (`parts[].shell`, wall thickness m) on box/extrude → open hollow carcass in one
+  click. **Implementation ruling: PURE CONSTRUCTION over CSG** — the box shell is 4 walls + a bottom
+  slab (5 merged `BoxGeometry` panels): exact, correct per-face normals/UVs, zero CSG cost and no
+  worker round-trip; the extrude shell uses `ExtrudeGeometry`'s native hole (outer outline minus an
+  inset inner outline via a `Shape` hole) + a bottom cap. The inner outline is a pure miter
+  **polygon-offset** (`insetPolygon`, unit-tested) that clamps runaway reflex miters and returns
+  `null` on collapse/self-intersection → a too-concave-for-the-thickness outline falls back to a SOLID
+  extrude (honest documented limit, never a crash). `shell: 0`/absent = solid (byte-identical). Open
+  face: box **+Y** (top); extrude opens along its extrude axis (face-choice follow-up out of scope).
+  Inspector: "Hollow (wall)" `SliderField` (hides plump on a hollow box).
+- ✅ **Loft** — new `loft` shape kind: bottom + top cross-section outlines (resampled to a common
+  count via `resampleProfile`) + height → side-wall quads + centroid-fan caps, built NON-INDEXED so
+  cap edges stay crisp and no twisted/inverted faces. Correct outward normals (winding unit-tested),
+  planar cap UVs, bbox tracks size; size scales both profiles (no round-forcing). Presets:
+  round→square, square→round, taper (square/round). UI: the `ProfileEditor` twice (Bottom/Top) + a
+  transition preset seeding both.
+- ✅ **Free sweep path** — the `sweep` kind gains `sweepPath: 'custom'` + a `sweepPathPoints`
+  (normalized XZ) path drawn in the 2D `ProfileEditor`, swept OPEN with the existing cross-section
+  presets. Distinct from Stage-5 piping's closed absolute `sweepPoints` (precedence piping > custom >
+  preset). Path presets: S-curve / wave / arc / L-bend.
+- ✅ **Plumbing**: `editSpec` types + `loft` across `SHAPE_KINDS`/`SHAPE_LABEL`/`DEFAULT_SIZE`/
+  `defaultPart` + duplicate/mirror deep-copy; `specPersist` envelope **v7→v8** additive identity
+  migration + strict validation for `shell`/`loftBottom`/`loftTop`/`sweepPathPoints`. Scenario
+  `scripts/scenarios/glb-designer-stage6b.json`.
 
 ### Stage 6c — Materials II
 - **Per-face finishes on boxes** (top/side/edge) — tabletop veneer vs **edge banding**,
