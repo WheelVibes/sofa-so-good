@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { ColorPicker } from '../controls/ColorPicker'
-import { Select } from '../controls/Select'
+import { Select, type SelectOption } from '../controls/Select'
 import { SliderField } from '../controls/SliderField'
 import { Icon } from '../toolbar/icons'
 import { useDesigner } from './designerContext'
@@ -18,6 +19,9 @@ export function SourcePanel() {
     userGlbs,
     meshNames,
     canRestore,
+    decomposableDefs,
+    decomposing,
+    makePartsEditable,
     pickSource: onPickSource,
     setSourceScale: onScaleChange,
     restoreSpec: onRestoreSpec,
@@ -25,6 +29,22 @@ export function SourcePanel() {
     toggleMeshHidden: onToggleMeshHidden,
     resetMesh: onResetMesh,
   } = useDesigner()
+  // The def picked for "Make parts editable" (Stage 9a) — local, opt-in; distinct
+  // from the frozen-source `sourceAssetId` above.
+  const [editableDefId, setEditableDefId] = useState('')
+  // Grouped, all-catalog options (built-ins / my uploads / shared / packs) with
+  // disabled section headers — Select has no native optgroups (`src/ui/CLAUDE.md`).
+  const editableOptions: SelectOption[] = []
+  const pushGroup = (label: string, defs: { id: string; name: string }[]) => {
+    if (defs.length === 0) return
+    editableOptions.push({ value: `__h:${label}`, label: `— ${label} —`, disabled: true })
+    for (const d of defs) editableOptions.push({ value: d.id, label: d.name })
+  }
+  editableOptions.push({ value: '', label: 'Pick an item…' })
+  pushGroup('Built-ins', decomposableDefs.builtins)
+  pushGroup('My uploads', decomposableDefs.user)
+  pushGroup('Shared library', decomposableDefs.shared)
+  pushGroup('Packs', decomposableDefs.packs)
   return (
     <>
       <div className="sec">
@@ -76,6 +96,38 @@ export function SourcePanel() {
             </div>
           </div>
         ) : null}
+      </div>
+
+      {/* Make parts editable (Stage 9a) — decompose ANY catalog item into editable
+          parts/groups. Opt-in + heavier than the frozen-source path above. */}
+      <div className="sec">
+        <div className="sec-h">
+          <span>Make parts editable</span>
+        </div>
+        <Select
+          className="input"
+          ariaLabel="Item to make editable"
+          value={editableDefId}
+          onChange={setEditableDefId}
+          style={{ width: '100%' }}
+          options={editableOptions}
+        />
+        <div style={{ marginTop: 'var(--s-2)' }}>
+          <button
+            type="button"
+            className="btn btn-soft btn-block"
+            disabled={!editableDefId || decomposing}
+            onClick={() => makePartsEditable(editableDefId)}
+            title="Break this item into editable shapes you can move, recolour and combine"
+          >
+            <Icon.Cube width={14} height={14} />
+            {decomposing ? 'Making editable…' : 'Make parts editable'}
+          </button>
+          <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
+            Turn any furniture — a built-in, your upload, a shared or pack item — into editable
+            parts. Replaces the current design.
+          </div>
+        </div>
       </div>
 
       {meshNames.length > 0 ? (

@@ -10,6 +10,7 @@ import {
 import { type Group, MathUtils, Mesh, type Object3D } from 'three'
 import { useModalGuard } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
+import { useCatalog } from '../../furniture/catalog'
 import { serializeConfiguredSpec } from '../../furniture/configurator/configuredPersist'
 import { validateProductConstraints } from '../../furniture/configurator/constraints'
 import {
@@ -43,6 +44,11 @@ import { type FaceHit, placeComponentOnFace } from '../../furniture/glbEdit/comp
 import { componentById } from '../../furniture/glbEdit/components'
 import type { CsgOp } from '../../furniture/glbEdit/csgCombine'
 import { combineGroupToMeshPart, evaluateAllGroups } from '../../furniture/glbEdit/csgEval'
+import {
+  decomposeGlbDef,
+  dropUnresolvableSrcRefParts,
+  specSrcRefDefIds,
+} from '../../furniture/glbEdit/decomposeLoader'
 import {
   type DragSnapSession,
   startDragSnapSession,
@@ -125,12 +131,14 @@ import {
   type SpecHistory,
 } from '../../furniture/glbEdit/specHistory'
 import { parseAssetSpec } from '../../furniture/glbEdit/specPersist'
+import { ensureSpecSrcRefs } from '../../furniture/glbEdit/srcRefCache'
 import { buildTemplate, insertTemplate, templateById } from '../../furniture/glbEdit/templates'
 import { setTuftGrid as setTuftGridOp } from '../../furniture/glbEdit/tufting'
-import type { FurnitureCategory, UserGltfDef } from '../../furniture/types'
+import type { FurnitureCategory, FurnitureDef, UserGltfDef } from '../../furniture/types'
 import { parseFurnitureMaterialFinish } from '../../materials/furnitureMaterials'
 import { useStore } from '../../state/store'
 import { useIsMobile } from '../useIsMobile'
+import { requestPrimitiveDecompose } from './decomposeHost'
 import {
   effectiveSnapStep,
   type GridSnapPref,
@@ -190,6 +198,31 @@ function useDesignerController() {
     () => userFurniture.filter((d): d is UserGltfDef => d.source === 'user' && !!d.runtimeUrl),
     [userFurniture],
   )
+
+  // ---- Decompose-to-parts source catalog (Stage 9a) ----------------------
+  // ANY catalog def can be "made editable": a procedural builtin renders offscreen
+  // and bakes into mesh parts; a GLB def (user/shared/pack, anything with a
+  // runtime blob url) decomposes into REFERENCE parts (`srcRef`). Grouped for the
+  // picker (built-ins / my uploads / shared / packs).
+  const catalog = useCatalog()
+  const decomposableDefs = useMemo(() => {
+    const defs = Object.values(catalog) as FurnitureDef[]
+    const byName = (a: FurnitureDef, b: FurnitureDef) => a.name.localeCompare(b.name)
+    const glbWithUrl = (d: FurnitureDef, source: string) =>
+      d.kind === 'gltf' && d.source === source && !!(d as { runtimeUrl?: string }).runtimeUrl
+    return {
+      builtins: defs.filter((d) => d.kind === 'parametric').sort(byName),
+      user: defs.filter((d) => glbWithUrl(d, 'user')).sort(byName),
+      shared: defs.filter((d) => glbWithUrl(d, 'ikea')).sort(byName),
+      packs: defs.filter((d) => glbWithUrl(d, 'pack')).sort(byName),
+    }
+  }, [catalog])
+  const [decomposing, setDecomposing] = useState(false)
+  // Map a source def id → its runtime GLB url (blob:), or null (procedural / gone).
+  const resolveDefUrl = (defId: string): string | null => {
+    const d = catalog[defId] as (FurnitureDef & { runtimeUrl?: string }) | undefined
+    return d && d.kind === 'gltf' && d.runtimeUrl ? d.runtimeUrl : null
+  }
 
   // ---- Spec + bounded undo/redo history (specHistory.ts) -----------------
   const [hist, setHist] = useState<SpecHistory>(() => createSpecHistory(createEmptySpec()))
@@ -471,11 +504,15 @@ function useDesignerController() {
       afterBytes: number
       optimized: boolean
     } | null>
+    /** Stage 9a — decompose a catalog def into editable parts (drives the real
+     *  "Make parts editable" handler). */
+    makePartsEditable: (defId: string) => Promise<void>
   }>({
     setSpec: () => {},
     getSpec: createEmptySpec,
     makeConfigurable: async () => null,
     measureSave: async () => null,
+    makePartsEditable: async () => {},
   })
   useEffect(() => {
     // Dev-only automation seam (scenarios run against the dev server = DEV build);
@@ -491,6 +528,7 @@ function useDesignerController() {
           afterBytes: number
           optimized: boolean
         } | null>
+        makePartsEditable: (defId: string) => Promise<void>
       }
     }
     w.__glbDesigner = {
@@ -498,6 +536,7 @@ function useDesignerController() {
       getSpec: () => seamRef.current.getSpec(),
       makeConfigurable: (a) => seamRef.current.makeConfigurable(a),
       measureSave: () => seamRef.current.measureSave(),
+      makePartsEditable: (defId) => seamRef.current.makePartsEditable(defId),
     }
     return () => {
       w.__glbDesigner = undefined
@@ -787,23 +826,87 @@ function useDesignerController() {
 
   const restoreSpec = () => {
     if (!restorableSpec) return
+    // Stage 9a — a restored design can carry GLB-decompose REFERENCE parts
+    // (`srcRef`). Drop any whose source def is gone (honest degradation, toast),
+    // and kick off resolution of the survivors so the preview fills in.
+    const { spec: cleaned, dropped } = dropUnresolvableSrcRefParts(
+      restorableSpec,
+      (defId) => resolveDefUrl(defId) !== null,
+    )
+    void ensureSpecSrcRefs(specSrcRefDefIds(cleaned), resolveDefUrl)
+    if (dropped > 0) {
+      useStore.getState().notify.start({
+        title: `Dropped ${dropped} part${dropped === 1 ? '' : 's'} — source item is gone`,
+        message: 'They referenced a catalog item that no longer exists.',
+        kind: 'info',
+      })
+    }
     // Reopen the asset's original editable shapes (a distinct undo step); the
     // restored spec carries its OWN source (usually none), replacing the frozen
     // source-mesh path with the editable part list.
-    commit(restorableSpec)
-    setSelId(restorableSpec.parts[0]?.id ?? null)
+    commit(cleaned)
+    setSelId(cleaned.parts[0]?.id ?? null)
     // Stage 7d — if this design was previously exported as a configurable product,
     // re-seed the "Make configurable" panel (slot / label / price / rules) from it
     // so a re-edit restores the authored variant slots + constraints. The product
     // resolves by the design's stable `exportedProductId`; option ids ARE group
     // ids, so the reconstruction is exact for the groups the design still has.
-    const productId = restorableSpec.exportedProductId
+    const productId = cleaned.exportedProductId
     if (productId) {
       const product = useStore.getState().userConfigurableProducts.find((p) => p.id === productId)
       if (product) {
-        const knownGroupIds = new Set(partGroups(restorableSpec).map((g) => g.id))
+        const knownGroupIds = new Set(partGroups(cleaned).map((g) => g.id))
         setAssignments(reconstructAssignments(product, knownGroupIds))
       }
+    }
+  }
+
+  // ---- "Make parts editable" — decompose ANY catalog def (Stage 9a) --------
+  // A procedural builtin renders offscreen → baked mesh parts; a GLB def (with a
+  // runtime blob url) decomposes into REFERENCE parts. Replaces the current spec
+  // with the decomposed parts + groups as ONE undo step (opt-in, heavier than the
+  // frozen-source path). Selects the first part + seeds name/category.
+  const makePartsEditable = async (defId: string) => {
+    if (decomposing || !defId) return
+    const def = catalog[defId] as FurnitureDef | undefined
+    if (!def) return
+    const notify = useStore.getState().notify
+    setDecomposing(true)
+    try {
+      let result: Awaited<ReturnType<typeof decomposeGlbDef>> | null = null
+      const url = resolveDefUrl(defId)
+      if (def.kind === 'parametric') {
+        result = await requestPrimitiveDecompose(def)
+      } else if (url) {
+        result = await decomposeGlbDef(defId, url)
+      } else {
+        notify.start({ title: "This item can't be made editable", kind: 'error' })
+        return
+      }
+      if (!result || result.parts.length === 0) {
+        notify.start({ title: "Couldn't read this item's parts", kind: 'error' })
+        return
+      }
+      const next: AssetEditSpec = {
+        ...createEmptySpec(),
+        parts: result.parts,
+        ...(result.groups.length > 0 ? { partGroups: result.groups } : {}),
+      }
+      commit(next)
+      setSelId(result.parts[0].id)
+      setName(def.name)
+      setCategory(def.category)
+      if (result.overBudget || result.capped) {
+        notify.start({
+          title: `Made "${def.name}" editable`,
+          message: result.overBudget
+            ? 'This is a heavy model — editing may feel slow.'
+            : 'Repeated parts were merged to keep it light.',
+          kind: 'info',
+        })
+      }
+    } finally {
+      setDecomposing(false)
     }
   }
 
@@ -1723,6 +1826,9 @@ function useDesignerController() {
         })
         return
       }
+      // Stage 9a — resolve any GLB-decompose reference parts so the export bakes
+      // their real geometry into the GLB (the saved spec keeps the small refs).
+      await ensureSpecSrcRefs(specSrcRefDefIds(spec), resolveDefUrl)
       const obj = buildEditedObject(sourceSceneRef.current, spec, groupResults)
       const overwriteId = overwrite && spec.sourceAssetId ? spec.sourceAssetId : undefined
       const res = await exportAndSaveAsset(
@@ -1753,6 +1859,7 @@ function useDesignerController() {
               })
               return
             }
+            await ensureSpecSrcRefs(specSrcRefDefIds(piece.spec), resolveDefUrl)
             const pieceObj = buildEditedObject(null, piece.spec, pieceResults)
             const pieceRes = await exportAndSaveAsset(
               pieceObj,
@@ -1936,6 +2043,7 @@ function useDesignerController() {
     optimized: boolean
   } | null> => {
     if (!isBuildable(spec)) return null
+    await ensureSpecSrcRefs(specSrcRefDefIds(spec), resolveDefUrl)
     const groupResults = await evaluateAllGroups(spec)
     const obj = buildEditedObject(sourceSceneRef.current, spec, groupResults)
     const { exportGlb } = await import('../../furniture/convert/toGlb')
@@ -1953,6 +2061,7 @@ function useDesignerController() {
       return exportConfigurable(false, a)
     },
     measureSave,
+    makePartsEditable: (defId) => makePartsEditable(defId),
   }
 
   // ---- View-model derived for the live preview ---------------------------
@@ -2034,6 +2143,10 @@ function useDesignerController() {
     setMeshColor,
     toggleMeshHidden,
     resetMesh,
+    // decompose-to-parts (Stage 9a)
+    decomposableDefs,
+    decomposing,
+    makePartsEditable,
     // components (Stage 3b)
     armedComponentId,
     armedParams,

@@ -300,6 +300,27 @@ interface MeshGeometryData {
   materials?: GroupMaterialData[]
 }
 
+/** A REFERENCE to a mesh inside a source catalog def (Asset Studio Stage 9a —
+ *  "any furniture as an editable template"). A `mesh` `ShapePart` decomposed from
+ *  a **GLB** def (user upload / shared / pack) carries a `srcRef` INSTEAD of baked
+ *  `geometry` arrays, so the spec stays tiny for a heavy source (a 150k-tri sofa
+ *  doesn't inline its triangles). The geometry is re-resolved on demand through
+ *  `srcRefCache.ts`: load the def's GLB via the SEC-1 loader, extract the mesh at
+ *  `meshPath` (its index among the def's decomposable meshes, in traversal order),
+ *  bake its world transform + re-centre it — identical to what the decompose pass
+ *  produced. At SAVE the export bakes the resolved real geometry into the GLB; the
+ *  stored spec keeps the ref. If the source def is gone at restore time the ref
+ *  can't resolve, so those parts are dropped with a toast (honest degradation).
+ *  A part carries EITHER `geometry` (procedural/CSG bake) OR `srcRef` (GLB ref),
+ *  never both — `srcRef` present ⇒ `geometry` absent. */
+export interface SrcRef {
+  /** The source catalog def id whose GLB owns the mesh. */
+  defId: string
+  /** The mesh's index among the def's decomposable meshes (traversal order),
+   *  as a string so the field stays a stable opaque key. */
+  meshPath: string
+}
+
 export interface ShapePart extends PhysicalSurfaceFields {
   id: string
   /** Optional user-given display name (Stage 4). Absent → the layers panel falls
@@ -333,9 +354,17 @@ export interface ShapePart extends PhysicalSurfaceFields {
   /** Surface opacity 0…1. <1 makes the part translucent (glass, acrylic).
    *  Absent → 1 (opaque). */
   opacity?: number
-  /** Baked triangles — present iff `kind === 'mesh'`. For a mesh part `size` is
-   *  the result's bounding box (informational; the geometry is already sized). */
+  /** Baked triangles — present for a `kind === 'mesh'` part produced by a CSG
+   *  combine bake or a PROCEDURAL-def decompose (Stage 9a). For a mesh part `size`
+   *  is the result's bounding box (informational; the geometry is already sized).
+   *  Absent on a GLB-def-decompose mesh part, which carries `srcRef` instead. */
   geometry?: MeshGeometryData
+  /** Reference to a mesh inside a source GLB def (Stage 9a). Present iff
+   *  `kind === 'mesh'` AND `geometry` is absent — a GLB-decompose part whose
+   *  triangles are re-resolved lazily (`srcRefCache.ts`) instead of inlined.
+   *  `size` is the mesh's decompose-time bounding box, so bounds-based features
+   *  (face snap / arrange / dimensions) work before the geometry resolves. */
+  srcRef?: SrcRef
   /** Corner radius / edge bevel in metres (Stage 1a). Box → rounded box; wedge →
    *  bevelled ramp edges; extrude → extrusion-edge bevel (ON by default). 0 /
    *  absent → today's sharp geometry (byte-identical). Clamped to the shape size
@@ -973,6 +1002,10 @@ function clonePart(
     // clone never shares it (like faceFinishes). Its generated button decals ride
     // through `appendClonedDecals` (they carry the `tuft` flag via `...d`).
     tuft: src.tuft ? { ...src.tuft } : undefined,
+    // Stage 9a: a GLB-decompose ref is a small immutable pointer — deep-copy so a
+    // clone never shares the object (the baked `geometry` arrays keep riding the
+    // `...src` spread by reference, as mesh parts always have).
+    srcRef: src.srcRef ? { ...src.srcRef } : undefined,
   }
 }
 

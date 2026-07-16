@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.57 — Asset Studio Stage 9a — any furniture as an editable template (envelope v13)
+
+"Make parts editable" on **any** catalog item — a built-in procedural primitive (the ~110-shape
+vocabulary), a user upload, a shared-library asset, or a pack item — decomposes it into editable
+designer parts + groups (one undo step, opt-in beside the frozen-source flow). Each source mesh
+becomes a frozen `mesh` `ShapePart` (the CSG-bake representation), meshes sharing a top-level named
+child are wrapped in one `PartGroup` mirroring the source hierarchy, and each mesh's material
+colour/roughness/metalness is captured. Decomposed parts behave exactly like CSG-baked mesh parts —
+translate/rotate gizmo, recolour, group/duplicate/mirror, combine, face-snap/arrange off their
+bounds — and the exported GLB always bakes real geometry.
+
+- **Decompose core** (`furniture/glbEdit/decompose.ts`, pure three math — unit-tested): `decomposeObject`
+  bakes each mesh's world transform (relative to the decompose root, so it's invariant to where the
+  root sits) into its geometry, re-centres it on its bbox (position = the centre, no rotation), and
+  emits one part per mesh + a group per multi-mesh top-level child. `InstancedMesh` (procedural
+  `InstancedBoxes`) de-instances one-to-one up to a **64-instance cap**; beyond it every instance
+  merges into ONE baked part (documented). A **150k-triangle budget** flag (`overBudget`) surfaces a
+  size hint — decompose always completes, never hangs.
+- **Spec-size strategy — REFERENCE parts.** A **procedural** decompose bakes geometry inline (small).
+  A **GLB** decompose emits `parts[].srcRef` (`{ defId, meshPath }`) INSTEAD of arrays — resolved
+  lazily via `srcRefCache.ts` (SEC-1 loader → mesh by index → baked+centred geometry, cached per def,
+  a resolve epoch re-renders the preview). At SAVE the export bakes the resolved real geometry into
+  the GLB; the stored spec keeps the small refs. On restore, a `srcRef` whose source def is gone is
+  **dropped with a toast** (honest degradation) via `dropUnresolvableSrcRefParts`.
+- **UI:** SourcePanel grows a **"Make parts editable"** section — a grouped, all-catalog picker
+  (Built-ins / My uploads / Shared library / Packs) + a button; the existing frozen-source
+  "Start from" path stays the default. A procedural def renders offscreen (`decomposeHost.tsx`, a
+  hidden on-demand `<Canvas>` mirroring the thumbnail host) since primitives have no pure builder.
+- **Persistence:** envelope **v12 → v13** (`specPersist.ts`) — additive identity migration + strict
+  `srcRef` validation. Older v12 specs load unchanged.
+- **Tests:** `decompose.test.ts` (part/group counts, leg lands at the leg position, root-transform
+  invariance, ref mode, instance cap de-instance/merge, budget flag), `srcRef.test.ts` (v13
+  round-trip/migration/reject, cache resolution, missing-def degradation, real GLTFExporter →
+  GLTFLoader GLB round-trip → decompose → resolve). Scenario `scripts/scenarios/glb-designer-stage9a.json`.
+  Rides the existing `glbDesigner` pro flag; no new feature flag.
+
 ## v0.21.2.56 — Asset Studio iteration 5 plan
 
 User direction: existing furniture (incl. shared-library assets) as editable templates, and

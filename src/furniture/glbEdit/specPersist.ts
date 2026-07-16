@@ -56,8 +56,13 @@ import type { AssetEditSpec } from './editSpec'
  *  - v12 (Geometry III, Stage 8b): adds optional `parts[].taper` (0…1 taper
  *    deformer on box/extrude). Additive superset → migration stays the identity.
  *    (A v11 spec has no taper field — it loads unchanged with straight sides.)
+ *  - v13 (Any furniture as a template, Stage 9a): adds optional `parts[].srcRef`
+ *    (`{ defId, meshPath }`) on a `mesh` part decomposed from a GLB def — a
+ *    reference re-resolved lazily instead of inlined geometry. Additive superset →
+ *    migration stays the identity. (A v12 spec has no srcRef — every mesh part
+ *    keeps its baked `geometry`.)
  */
-export const ASSET_SPEC_VERSION = 12
+export const ASSET_SPEC_VERSION = 13
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
  *  Every version bump so far has been an additive superset, so migration is the
@@ -76,7 +81,8 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
     case 9: // no wrinkles — already a valid v10 spec.
     case 10: // no tuft grid / tuft decal tag — already a valid v11 spec.
     case 11: // no taper — already a valid v12 spec.
-    case 12:
+    case 12: // no srcRef — already a valid v13 spec.
+    case 13:
       return spec
     default:
       return null
@@ -280,6 +286,12 @@ function partsValid(parts: unknown[]): boolean {
     // v12: optional taper 0…1 (box/extrude deformer).
     if (rec.taper !== undefined && (typeof rec.taper !== 'number' || !Number.isFinite(rec.taper)))
       return false
+    // v13: optional GLB-decompose reference (`{ defId, meshPath }` strings).
+    if (rec.srcRef !== undefined) {
+      if (!rec.srcRef || typeof rec.srcRef !== 'object') return false
+      const sr = rec.srcRef as Record<string, unknown>
+      if (typeof sr.defId !== 'string' || typeof sr.meshPath !== 'string') return false
+    }
     if (rec.sweepPoints !== undefined) {
       if (!Array.isArray(rec.sweepPoints) || !rec.sweepPoints.every(isVec3)) return false
     }

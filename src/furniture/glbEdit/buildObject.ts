@@ -46,6 +46,7 @@ import { applyGradientColors } from './gradient'
 import { applyPlump, plumpBoxGeometry } from './plump'
 import { bevelledBoxGeometry, extrudeGeometry, latheGeometry, wedgeGeometry } from './shapeProfiles'
 import { loftGeometry, shellBoxGeometry, shellExtrudeGeometry, sweepGeometry } from './shellLoft'
+import { getCachedSrcRefGeometry } from './srcRefCache'
 import { applyTaper } from './taper'
 import { effectiveWrinkles, wrinkleNormalScale, wrinkleNormalTexture } from './wrinkleTexture'
 
@@ -488,8 +489,20 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
       return new TorusGeometry(radius, tube, 16, 48)
     }
     case 'mesh': {
-      // A CSG combine result: triangles are baked (already sized + centred on
-      // the part origin), so rebuild verbatim from the stored arrays.
+      // Stage 9a — a GLB-decompose REFERENCE part carries no baked arrays; its
+      // geometry is resolved lazily from the source def's GLB (`srcRefCache.ts`).
+      // A cache hit is cloned (the shared cache copy is never disposed) + box-UV'd
+      // for textured finishes; a miss shows a placeholder box until the def loads
+      // (the preview re-renders on the resolve epoch; the export awaits resolution).
+      if (part.srcRef && !part.geometry) {
+        const cached = getCachedSrcRefGeometry(part.srcRef)
+        if (!cached) return new BoxGeometry(w, h, d)
+        const g = cached.clone()
+        boxProjectUvs(g)
+        return g
+      }
+      // A CSG combine result / procedural-decompose bake: triangles are baked
+      // (already sized + centred on the part origin), so rebuild verbatim.
       const data = part.geometry
       if (!data) return new BoxGeometry(w, h, d) // defensive: malformed spec
       const geo = new BufferGeometry()

@@ -262,6 +262,14 @@ build one in the browser:
   designer-built assets as the base, a **Restore editable parts** button appears:
   tap it to re-open its original shapes and keep editing them, instead of treating
   the saved asset as a fixed model.
+- **Make parts editable** — a separate section, lower down, lets you turn **any**
+  furniture into an editable design: pick an item from the dropdown (grouped into
+  **Built-ins**, **My uploads**, **Shared library** and **Packs** — every catalog
+  item, not just your own uploads) and hit **Make parts editable**. It breaks the
+  piece into shapes you can move, recolour and combine, just like a design you built
+  from scratch. This **replaces your current design**, so use it to start a new one —
+  it's a different path from **Start from** above, which keeps a picked model as a
+  single frozen piece unless it's already one of your own designer-built assets.
 
 Give it a name and category and hit **Save asset** — it's exported to a GLB and
 added to your catalog like any upload, ready to place and reuse. When you started

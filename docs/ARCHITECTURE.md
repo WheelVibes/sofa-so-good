@@ -732,6 +732,37 @@ same change that reshapes a system.
   source offers **Restore
   editable parts** (its full part list re-opens editable instead of a frozen source mesh); an
   absent spec keeps today's frozen-source behaviour. Launched from ⌘K / the catalog Design button.
+  **Any furniture as an editable template (Stage 9a):** the `SourcePanel` "Make parts editable"
+  section lets you pick ANY catalog def — a grouped all-catalog `Select` (Built-ins / My uploads /
+  Shared library / Packs, built from `useDesigner().decomposableDefs`) — and decompose it into
+  editable parts/groups, replacing the current spec as one undo step. Pure core:
+  `glbEdit/decompose.ts` `decomposeObject(root, opts)` bakes each mesh's world transform (relative
+  to the decompose root) into root-local space, re-centres it on its bbox (so `position`/rotation
+  behave like any primitive), and wraps meshes sharing a top-level named child into one
+  `PartGroup`; an `InstancedMesh` de-instances one part per instance up to
+  `DECOMPOSE_INSTANCE_CAP` (64), merging into a single baked part beyond it, and the pass reports
+  `overBudget` past `DECOMPOSE_TRI_BUDGET` (150k tris, informational only — never blocks). Two
+  output flavours: **bake** (procedural defs — inlines geometry arrays) and **reference**
+  (`opts.ref: { defId }`, GLB defs — emits a `ShapePart.srcRef` = `{ defId, meshPath }` instead of
+  inlining a heavy source's triangles). `glbEdit/srcRefCache.ts` lazily resolves a `srcRef` back
+  into real geometry: it loads the def's GLB once through the SEC-1 loader
+  (`gltf/loaderSecurity.ts`), walks its decomposable meshes in the SAME order
+  `decompose.ts:forEachDecomposableMesh` used (so the mesh index re-resolves to the same mesh),
+  bakes+re-centres identically, and caches by `defId::meshIndex`; `buildObject.ts`'s mesh-geometry
+  case reads the cache synchronously (a placeholder box shows until resolved) and a resolution
+  epoch (`getSrcRefEpoch`/`subscribeSrcRef`) re-renders the preview the moment a def finishes
+  loading. `glbEdit/decomposeLoader.ts` is the GLB-side async glue: `decomposeGlbDef(defId, url)`
+  loads the GLB once, seeds the srcRef cache from that same scene (no second fetch), and
+  decomposes in reference mode; `specSrcRefDefIds(spec)` gathers a spec's referenced def ids
+  (awaited via `ensureSpecSrcRefs` before export so `buildObject` bakes real geometry into the
+  GLB); `dropUnresolvableSrcRefParts` prunes any `srcRef` part whose source def is gone at
+  restore time (honest degradation, never a crash). Procedural defs have no pure geometry builder,
+  so the PROCEDURAL path renders offscreen: `ui/glbEditor/decomposeHost.tsx`'s `DecomposeHost`
+  (mounted once inside the open dialog) is a hidden on-demand `<Canvas>` that mounts the armed
+  primitive, waits two frames for its children to build, reads back the group, and resolves
+  `requestPrimitiveDecompose(def)` with `decomposeObject(group, { ref: null })` (bake mode) — a
+  6s watchdog resolves `null` if a primitive never settles, so a decompose can never hang. The
+  spec envelope bumps to **v13** for the new optional `parts[].srcRef` (additive, `specPersist.ts`).
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`) is the
   **first** first-run surface — fires on clean profile, bot decision extracted to
   `ui/bootDecision.ts` (pure, tested). Carousel step 3 offers "Take the guided tour" as the

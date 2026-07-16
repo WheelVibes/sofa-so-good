@@ -766,12 +766,33 @@ via lathe. Pure vertex transform, exports losslessly.
 ## Iteration 5 (user direction 2026-07-16: existing furniture as templates / components as
 ## building blocks)
 
-### Stage 9a — Any furniture as an editable template
-"Start from" any catalog def — procedural built-ins (the ~110-primitive vocabulary), user
-GLBs, shared-library assets, pack items — decomposed into editable parts: each named mesh →
+### Stage 9a — Any furniture as an editable template — ✅ SHIPPED (v0.21.2.57)
+"Make parts editable" on any catalog def — procedural built-ins (the ~110-primitive vocabulary),
+user GLBs, shared-library assets, pack items — decomposed into editable parts: each mesh →
 a frozen `mesh` ShapePart (the CSG-bake representation) inside PartGroups mirroring the
-source hierarchy; materials captured. Spec-size strategy: reference parts (defId + mesh
-path, re-resolved via SEC-1 loader) with baked fallback when the source def is gone.
+source hierarchy; materials captured.
+- ✅ **Decompose core** (`glbEdit/decompose.ts`, pure + unit-tested): `decomposeObject` bakes each
+  mesh's world transform (relative to the decompose root → root-transform invariant) into its
+  geometry, re-centres on the bbox (position = centre, no rotation, the CSG-bake convention), one
+  part per mesh + one `PartGroup` per multi-mesh top-level child (name fallback `mesh.name ||
+  parent.name || 'part N'`); captures material colour/roughness/metalness. `InstancedMesh`
+  de-instances one-to-one up to a **64-instance cap**, MERGES into one baked part beyond it. A
+  **150k-tri budget** flag surfaces a size hint — decompose always completes (never hangs).
+- ✅ **Spec-size strategy — REFERENCE parts.** Procedural defs BAKE geometry inline (small); GLB
+  defs emit `parts[].srcRef` (`{ defId, meshPath }`) resolved lazily via `srcRefCache.ts` (SEC-1
+  loader → mesh by index → baked+centred geometry; per-def cache + a resolve epoch re-rendering the
+  preview). SAVE bakes the resolved real geometry into the exported GLB; the spec keeps the refs.
+  Restore drops a `srcRef` whose source def is gone with a toast (`dropUnresolvableSrcRefParts`).
+- ✅ **UI:** SourcePanel's "Make parts editable" section — a grouped all-catalog picker (Built-ins /
+  My uploads / Shared / Packs) + button; the frozen-source "Start from" path stays default. A
+  procedural def renders offscreen (`ui/glbEditor/decomposeHost.tsx`, a hidden on-demand `<Canvas>`
+  mirroring the thumbnail host) since primitives have no pure geometry builder.
+- ✅ **Interplay:** decomposed mesh parts are ordinary `mesh` parts — translate/rotate gizmo (no
+  scale), recolour, group/duplicate/mirror, delete, combine (`bakedPartGeometry` handles them),
+  face-snap/arrange/dimensions off their `size`/geometry bounds (unchanged mesh branch).
+- ✅ **Persistence:** envelope **v12 → v13** (additive identity migration + strict `srcRef`
+  validation). Tests `decompose.test.ts` + `srcRef.test.ts`; scenario
+  `scripts/scenarios/glb-designer-stage9a.json`. Rides the `glbDesigner` pro flag (no new flag).
 
 ### Stage 9b — Component building blocks
 Selective extraction: pick individual meshes/sub-groups from any source def and insert just

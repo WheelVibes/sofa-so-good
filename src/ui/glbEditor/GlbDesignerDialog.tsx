@@ -6,6 +6,7 @@ import { ComponentsPanel } from './ComponentsPanel'
 import { DesignerToolbar } from './DesignerToolbar'
 import { DesignerViewport } from './DesignerViewport'
 import { DetailsPanel } from './DetailsPanel'
+import { DecomposeHost } from './decomposeHost'
 import { DesignerProvider, useDesigner } from './designerContext'
 import { GroupInspector } from './GroupInspector'
 import { LayersPanel } from './LayersPanel'
@@ -115,6 +116,9 @@ function DesignerDialogFrame() {
           </div>
         </div>
       </div>
+      {/* Offscreen host that renders a procedural def to a three scene so
+          "Make parts editable" can decompose it (Stage 9a). */}
+      <DecomposeHost />
     </div>,
     document.body,
   )

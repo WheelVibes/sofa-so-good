@@ -1,5 +1,5 @@
 import type { ThreeEvent } from '@react-three/fiber'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { type Group, type InstancedMesh, MathUtils, type Mesh, Vector3 } from 'three'
 import {
   type GhostVariant,
@@ -18,7 +18,14 @@ import {
   type ShapePart,
 } from '../../furniture/glbEdit/editSpec'
 import { type GroupInstancing, groupInstanceable } from '../../furniture/glbEdit/groupInstance'
+import { getSrcRefEpoch, subscribeSrcRef } from '../../furniture/glbEdit/srcRefCache'
 import { useStore } from '../../state/store'
+
+/** Re-render when a GLB-decompose reference (`srcRef`) resolves in the cache
+ *  (Stage 9a) — mesh parts carrying a ref rebuild their geometry on the bump. */
+function useSrcRefEpoch(): number {
+  return useSyncExternalStore(subscribeSrcRef, getSrcRefEpoch, () => 0)
+}
 
 /** A decal overlay child of a part mesh (Stage 5) — built from the SAME
  *  `decalGeometry`/`decalMaterial` the export uses, so the preview matches the
@@ -74,9 +81,16 @@ function PartMesh({
   // A picked `mat:<id>` texture builds into the cache asynchronously — the
   // epoch bump re-resolves the material once it's ready (GE3c).
   const epoch = useStore((s) => s.materialEpoch)
+  // A GLB-decompose reference part rebuilds its geometry when the srcRef cache
+  // resolves (Stage 9a); other parts ignore the epoch (stable dep).
+  const srcEpoch = useSrcRefEpoch()
   // `part` is recreated immutably by updatePart on every edit, so depending on
-  // it rebuilds the geometry exactly when kind/size change.
-  const geom = useMemo(() => partGeometry(part), [part])
+  // it rebuilds the geometry exactly when kind/size change. `srcEpoch` rebuilds a
+  // ref part when its source GLB resolves (the `mat`/`epoch` idiom below).
+  const geom = useMemo(() => {
+    void srcEpoch
+    return partGeometry(part)
+  }, [part, srcEpoch])
   useEffect(() => () => geom.dispose(), [geom])
   // For a combined mesh part with per-source materials, partMaterials returns an
   // array; for all other parts it returns a single material (GE3c tail). A ghost
