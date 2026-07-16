@@ -5,9 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## v0.21.2.69 — Asset Studio iteration 8 plan
+## v0.21.2.70 — Asset Studio Stage 12 — face-choice tufting & plump
 
-Stage 12 (face-choice tufting/plump — the showcase's recorded upright-backrest gap). Docs only.
+The plump crown + tuft dimples + button/stitch decals can now sit on ANY box face, not just the
+top — the upright chesterfield backrest / sofa-arm case the showcase had no way to build.
+
+- **Face axis (`parts[].plumpFace`: `top` | `front` | `back` | `left` | `right`).** A single pure
+  **coordinate-frame permutation** (`tufting.ts` `FaceFrame`) wraps the EXISTING crown/dimple/lattice
+  math — the chosen face's outward axis becomes the crown axis, its two in-plane axes the lattice
+  plane. One helper feeds all of `plumpVertexDelta` / `tuftButtonPositionsXZ` / stitches / decal
+  placement (positions AND normals follow the face frame); the crown/dimple/lattice functions are
+  never forked. `top` / absent is the **identity permutation → byte-identical** to the pre-Stage-12
+  output. All five faces shipped (the axis permutation generalises to ±X/±Z trivially).
+- **Stitch roll on any face** — the thread's decal rotation is the signed angle from the face's
+  reference direction to the local button-to-button direction; reduces EXACTLY to the top-face
+  `-atan2(Δz, Δx)` and generalises. Verified empirically against the real `decalOrientation` (the
+  transform the renderer + GLB export use) across all five faces.
+- **UI** — a compact **Face** `Segmented` (Top/Front/Back/Left/Right) in the Plump/Tufting section,
+  shown when a box is plumped; switching it regenerates the tuft decals in one undo step.
+- **Wrinkle normals follow the face for free** — the fabric wrinkle map is per-face in UV space
+  (corner-gathering keys on each face's own UV corners), so it already applies to the plumped face
+  with no change (verified in the scenario).
+- **Clone/mirror carry the face** — an X-mirror swaps `left`↔`right`, a Z-mirror `front`↔`back`
+  (`mirrorPlumpFace`); combined with the existing decal-local flip the cloned tuft buttons land
+  exactly on the mirrored face's dimples (proven by test). Duplicate/array carry the face verbatim.
+- **Plumbing** — envelope **additive within v14** (an older build ignores the unknown field; an
+  older spec has none → `top`, byte-identical), strict validation of the face value. Templates left
+  functionally unchanged; the Stage-12 scenario proves the showcase **Sofa frame** backrest CAN now
+  tuft its upright front face. Scenario `scripts/scenarios/glb-designer-stage12.json`; tests for the
+  permutation math, default-top byte-identity, mirror semantics, and envelope round-trip.
 
 ## v0.21.2.68 — Asset Studio Stage 11b follow-up — actionable findings fixed
 

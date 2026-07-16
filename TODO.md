@@ -17,6 +17,12 @@ conclusions: **[docs/asset-studio-plan.md](docs/asset-studio-plan.md)**. **All s
 0 foundations → 1 geometry → 2 materials → 3 components/templates → 4 precision UX → 5 realism
 detail layer (decals/piping/cushion-plump, v0.21.2.40). Shipped stages log in `CHANGELOG.md`.
 
+## Active — Pet fittings & furniture program (2026-07-17, user goal)
+SG pet compliance (Cat Management Framework window/balcony meshing, HDB dog rules) +
+annoyance-fixers + per-pet-type furniture, procedural/parametric, presets by pet type.
+Staged plan + research conclusions: **[docs/pet-fittings-plan.md](docs/pet-fittings-plan.md)**
+(P1 compliance → P2 cats → P3 dogs → P4 other pets → P5 presets/integration).
+
 ## Active — graphics-tier performance optimization (2026-07-08, user goal)
 Systematically speed up frame processing/rendering **without sacrificing visual quality**, focused
 on the heavy **Maximum** tier (also opportunistic wins on other tiers). Shipped work lives in
