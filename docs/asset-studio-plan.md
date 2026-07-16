@@ -436,10 +436,34 @@ subscriptions) so a change touches only the panels that read it. No action neede
   verbatim — a reflection preserves the grain axis, so no X↔Z flip needed). Pure ops + cache bound +
   export round-trip unit-tested; scenario `scripts/scenarios/glb-designer-stage6c.json`.
 
-### Stage 6d — Precision II
-- **Face-to-face snapping while dragging** (magnetic surfaces, CAD-style): a dragged part
-  snaps flush to nearby part faces (within threshold), with visual snap hint.
-- **Pivot control**: numeric transform origin (corner/centre/face) for rotate/scale.
+### Stage 6d — Precision II — ✅ SHIPPED (v0.21.2.45)
+- ✅ **Face-to-face magnetic snapping** (`glbEdit/faceSnap.ts`, pure + unit-tested): while
+  translating a part/group with the gizmo, on drag-END the committed position snaps FLUSH to a
+  nearby part's AABB face on any axis within an ~8 mm world threshold. Two flavours per axis —
+  **abut** (outer face meets outer face, zero gap — the higher priority) and **align** (same-side
+  faces become coplanar). A candidate only fires when the two boxes OVERLAP on the other two axes
+  (locality gate), and each axis decides independently (axis isolation). Rides the **existing magnet
+  toggle** (grid snap + face snap share it) and **wins over the grid quantisation** it just applied.
+  **Live-vs-commit ruling: COMMIT-TIME snap** — the drei `TransformControls` mutates the preview
+  mesh directly and the write-back already runs once on `onMouseUp` (`commitGizmoDrag`/
+  `commitGroupGizmoDrag`), so snapping the committed value is the clean seam; a live during-drag snap
+  would need a per-frame `objectChange` interception that fights the gizmo's own mutation, deferred
+  as not worth the risk. **Hint shipped:** a brief (~0.9 s) accent-edge quad (`SnapHintOverlay`)
+  flashed on each snapped face plane — green for abut, blue for align — spanning the snapped
+  selection's AABB, auto-clearing. Applies to an ungrouped part (world = local) and a whole transform
+  group (union bounds vs the parts outside it); a grouped MEMBER individually gizmo'd keeps plain grid
+  snap only (documented — its mesh position is group-local).
+- ✅ **Pivot control** (`glbEdit/pivot.ts`, pure + unit-tested): a **Centre / Base / Corner**
+  segmented in the viewport (top-left, under the gizmo-mode switch) changes the reference point for
+  **numeric rotation** (part + group inspector fields) and **gizmo rotate/scale** of a part (and
+  group). Implemented as position compensation on write-back — rotating about base keeps the bottom
+  face in place (`C' = C + R_old·o − R_new·o`), scaling from base grows upward (bottom stays), corner
+  keeps the −X −Y −Z corner fixed. **Default Centre = today's behaviour byte-identical** (the compensation
+  is skipped entirely). Ephemeral (not saved). For a group, `centre` maps to the group origin (today);
+  `base`/`corner` use the members' local union bounds.
+- ✅ Scenario `scripts/scenarios/glb-designer-stage6d.json` (two boxes → flush abut with gap 0; base
+  pivot + rotate keeps minY; scale from base keeps the floor). No persistence change (both features are
+  ephemeral UI state, no spec/envelope field).
 
 ### Stage 6e — Realism II
 - **Procedural fabric wrinkle normals** on plumped cushions (subtle noise normal map,

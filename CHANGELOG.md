@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.45 — Asset Studio Iteration 2 · Stage 6d — precision II (face-to-face snapping + pivot control)
+
+Two precision tools in the GLB Asset Designer, behind the existing `glbDesigner` pro flag. Both are
+ephemeral UI behaviour — no spec field, no persistence/envelope bump. Plan: `docs/asset-studio-plan.md`
+Stage 6d.
+
+- **Face-to-face magnetic snapping** (`glbEdit/faceSnap.ts`, pure + unit-tested) — while translating a
+  part/group with the gizmo, the committed position snaps FLUSH to a nearby part's AABB face on any
+  axis within an ~8 mm world threshold (CAD-style). Two flavours per axis: **abut** (outer face meets
+  outer face, zero gap — higher priority) and **align** (same-side faces coplanar). A snap only fires
+  when the two boxes overlap on the OTHER two axes (locality gate), and each axis decides independently
+  (axis isolation). Rides the **existing magnet toggle** (grid + face snap share it) and **wins over the
+  grid quantisation** it just applied. **Live-vs-commit: commit-time snap** — drei `TransformControls`
+  mutates the preview mesh directly and the write-back already runs once on `onMouseUp`, so snapping the
+  committed value is the clean seam (a live during-drag snap would fight the gizmo's own per-frame
+  mutation — deferred). **Hint:** a brief (~0.9 s) accent-edge quad (`SnapHintOverlay`) on each snapped
+  face plane — green abut / blue align — auto-clearing. Works for an ungrouped part and a whole transform
+  group (union bounds vs the parts outside it); a grouped MEMBER individually dragged keeps plain grid
+  snap (its mesh position is group-local — documented).
+- **Pivot control** (`glbEdit/pivot.ts`, pure + unit-tested) — a **Centre / Base / Corner** segmented in
+  the viewport (top-left) changes the reference point for **numeric rotation** (part + group inspector)
+  and **gizmo rotate/scale** of a part (and group). Position compensation on write-back: rotate about
+  base keeps the bottom face in place (`C' = C + R_old·o − R_new·o`), scale from base grows upward, corner
+  keeps the −X −Y −Z corner fixed. **Default Centre is byte-identical to today** (compensation skipped).
+  For a group, `centre` maps to the group origin (today); `base`/`corner` use the members' local union
+  bounds.
+- **Plumbing** — `arrange.ts` exports `boundsFromCenterExtent` / `unionBounds` (and a shared
+  `partBounds`) so the snap write-back reuses the same rotation-aware AABB math as align/distribute;
+  `designerContext` wires both into `commitGizmoDrag` / `commitGroupGizmoDrag` / the numeric rotation
+  handlers. Pure ops unit-tested (`faceSnap.test.ts` — abut both directions, align, threshold miss,
+  perpendicular-overlap/axis isolation, group-union + multi-target; `pivot.test.ts` — pivot offsets,
+  rotate-about-base fixed pivot, minY preserved, scale-from-base/corner, centre identity, group base
+  pivot). Scenario `scripts/scenarios/glb-designer-stage6d.json`.
+
 ## v0.21.2.44 — Asset Studio Iteration 2 · Stage 6c — materials II (per-face finishes / edge banding + texture scale & grain)
 
 Two materials capabilities in the GLB Asset Designer, behind the existing `glbDesigner` pro flag.

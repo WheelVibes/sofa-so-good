@@ -23,7 +23,11 @@ import {
   type AlignMode,
   type Axis3,
   alignParts,
+  boundsFromCenterExtent,
   distributeParts,
+  partWorldExtent,
+  selectionBounds,
+  unionBounds,
 } from '../../furniture/glbEdit/arrange'
 import {
   type LinearArrayOptions,
@@ -73,6 +77,7 @@ import {
   updatePart,
   updatePartGroupTransform,
 } from '../../furniture/glbEdit/editSpec'
+import { type FaceSnapHit, snapFaces } from '../../furniture/glbEdit/faceSnap'
 import {
   GIZMO_MODES,
   type GizmoMode,
@@ -80,13 +85,19 @@ import {
   gizmoPatch,
   groupGizmoPatch,
 } from '../../furniture/glbEdit/gizmoWriteBack'
-import { ungroupPartGroup } from '../../furniture/glbEdit/groupTransform'
+import { groupedPartWorldPosition, ungroupPartGroup } from '../../furniture/glbEdit/groupTransform'
 import {
   addPiping,
   canPipe,
   PIPING_DEFAULTS,
   type PipingParams,
 } from '../../furniture/glbEdit/piping'
+import {
+  groupRotatePivotPosition,
+  type PivotMode,
+  rotatePivotPosition,
+  scalePivotPosition,
+} from '../../furniture/glbEdit/pivot'
 import { exportAndSaveAsset, placementFlags } from '../../furniture/glbEdit/saveAsset'
 import { hasSplittableGroups, splitSpecByGroups } from '../../furniture/glbEdit/setSplit'
 import {
@@ -256,6 +267,36 @@ function useDesignerController() {
       return next
     })
 
+  // ---- Pivot control (Stage 6d) — the reference point for numeric rotation +
+  // gizmo scale of a part/group. `center` = today's behaviour (byte-identical);
+  // `base`/`corner` compensate the position on write-back. Ephemeral (not saved).
+  const [pivot, setPivot] = useState<PivotMode>('center')
+
+  // ---- Face-snap hint (Stage 6d) — a brief accent-edge overlay flashed on the
+  // snapped face plane(s) after a magnetic drag settles. Auto-clears after ~0.9 s.
+  const [snapHint, setSnapHint] = useState<{
+    hits: FaceSnapHit[]
+    min: [number, number, number]
+    max: [number, number, number]
+    n: number
+  } | null>(null)
+  const snapHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const flashSnapHint = (
+    hits: FaceSnapHit[],
+    bounds: { min: [number, number, number]; max: [number, number, number] },
+  ) => {
+    if (hits.length === 0) return
+    setSnapHint({ hits, min: bounds.min, max: bounds.max, n: Date.now() })
+    if (snapHintTimer.current) clearTimeout(snapHintTimer.current)
+    snapHintTimer.current = setTimeout(() => setSnapHint(null), 900)
+  }
+  useEffect(
+    () => () => {
+      if (snapHintTimer.current) clearTimeout(snapHintTimer.current)
+    },
+    [],
+  )
+
   // ---- Camera view presets (Stage 4) — a monotonically-bumped request the
   // viewport's in-canvas responder reacts to (so re-picking the same preset
   // re-fits). No persistence. -----------------------------------------------
@@ -332,6 +373,13 @@ function useDesignerController() {
     (partId: string, point: [number, number, number], normal: [number, number, number]) => void
   >(() => {})
 
+  // Latest precision-tool closures for the Stage 6d scenario seam (assigned below).
+  const precisionRef = useRef<{
+    drag: (partId: string, rawPos: [number, number, number]) => void
+    rotate: (partId: string, rotationDeg: [number, number, number], pivotMode: PivotMode) => void
+    scale: (partId: string, newSize: [number, number, number], pivotMode: PivotMode) => void
+  }>({ drag: () => {}, rotate: () => {}, scale: () => {} })
+
   // Automation seam for the scenario harness (Stage 3d): drive the spec + the
   // "Make configurable" export deterministically. Mirrors `__glbDesignerPlaceOnFace`.
   // The handlers are assigned below via this ref so the seam always calls the
@@ -393,6 +441,32 @@ function useDesignerController() {
       placeDecalRef.current(partId, point, normal)
     return () => {
       w.__glbDesignerPlaceDecal = undefined
+    }
+  }, [open, enabled])
+  // Dev-only precision seam (Stage 6d) — drive a gizmo translate (face snap), a
+  // pivot-compensated rotation, or a pivot-compensated scale deterministically
+  // (the real UI path is a gizmo drag / a numeric field). Mirrors the sibling
+  // seams and always calls the latest closures via `precisionRef`.
+  useEffect(() => {
+    if (!open || !enabled || !import.meta.env.DEV) return
+    const w = window as unknown as {
+      __glbDesignerPrecision?: {
+        drag: (partId: string, rawPos: [number, number, number]) => void
+        rotate: (
+          partId: string,
+          rotationDeg: [number, number, number],
+          pivotMode: PivotMode,
+        ) => void
+        scale: (partId: string, newSize: [number, number, number], pivotMode: PivotMode) => void
+      }
+    }
+    w.__glbDesignerPrecision = {
+      drag: (partId, rawPos) => precisionRef.current.drag(partId, rawPos),
+      rotate: (partId, rot, mode) => precisionRef.current.rotate(partId, rot, mode),
+      scale: (partId, size, mode) => precisionRef.current.scale(partId, size, mode),
+    }
+    return () => {
+      w.__glbDesignerPrecision = undefined
     }
   }, [open, enabled])
 
@@ -533,6 +607,8 @@ function useDesignerController() {
       setSplitGroups(false)
       setAssignments({})
       setCfgBusy(false)
+      setPivot('center')
+      setSnapHint(null)
       sourceSceneRef.current = null
     }
   }, [open])
@@ -624,6 +700,21 @@ function useDesignerController() {
   // Numeric/field edit of the selected part (one `updatePart` patch), coalesced.
   const patchSelectedPart = (patch: Partial<ShapePart>) => {
     if (!sel) return
+    commit((sp) => updatePart(sp, sel.id, patch), { coalesceKey: 'patch' })
+  }
+
+  // Numeric ROTATION edit of the selected part (Stage 6d) — applies the same
+  // pivot compensation as the gizmo so typing an angle rotates about the chosen
+  // base/corner too. `center` is byte-identical to a plain rotation patch. An
+  // all-zero rotation clears the field (absent = no rotation).
+  const setPartRotation = (rotation: [number, number, number]) => {
+    if (!sel) return
+    const cleared = rotation.every((v) => v === 0)
+    const rot = cleared ? undefined : rotation
+    const patch: Partial<ShapePart> = { rotation: rot }
+    if (pivot !== 'center') {
+      patch.position = rotatePivotPosition(sel.position, sel.size, sel.rotation, rot, pivot)
+    }
     commit((sp) => updatePart(sp, sel.id, patch), { coalesceKey: 'patch' })
   }
 
@@ -820,11 +911,53 @@ function useDesignerController() {
     selectGroup(groupId)
   }
 
+  // World AABB of any part, accounting for its transform-group membership (its
+  // world centre is the grouped world position; extent is its rotation-aware
+  // world extent — the group's own rotation is a documented approximation, rare
+  // for a snap TARGET). Used to build the face-snap targets.
+  const partWorldBoundsFor = (p: ShapePart) => {
+    const g = transformGroups.find((gr) => gr.partIds.includes(p.id))
+    const center = g ? groupedPartWorldPosition(g, p) : p.position
+    return boundsFromCenterExtent(center, partWorldExtent(p))
+  }
+
+  // World AABB of a part within a GIVEN spec (accounting for its group). The seam
+  // passes the LIVE spec from inside a commit updater (staleness-proof); the
+  // gizmo commit passes the render's spec.
+  const partWorldBoundsIn = (src: AssetEditSpec, p: ShapePart) => {
+    const g = partGroups(src).find((gr) => gr.partIds.includes(p.id))
+    const center = g ? groupedPartWorldPosition(g, p) : p.position
+    return boundsFromCenterExtent(center, partWorldExtent(p))
+  }
+
+  // Face-snap an ungrouped part's proposed (grid-snapped) translate position to a
+  // nearby part face (Stage 6d) and flash the hint. Returns the snapped position,
+  // or null when nothing snapped. `src` is the spec to read targets from. Shared
+  // by the gizmo commit + the dev seam.
+  const faceSnapPartPosition = (
+    src: AssetEditSpec,
+    part: ShapePart,
+    proposed: [number, number, number],
+  ): [number, number, number] | null => {
+    if (partGroupMemberIds(src).has(part.id)) return null
+    const moving = boundsFromCenterExtent(proposed, partWorldExtent(part))
+    const targets = src.parts.filter((p) => p.id !== part.id).map((p) => partWorldBoundsIn(src, p))
+    const { delta, hits } = snapFaces(moving, targets)
+    if (hits.length === 0) return null
+    const snapped: [number, number, number] = [
+      proposed[0] + delta[0],
+      proposed[1] + delta[1],
+      proposed[2] + delta[2],
+    ]
+    flashSnapHint(hits, boundsFromCenterExtent(snapped, partWorldExtent(part)))
+    return snapped
+  }
+
   const commitGizmoDrag = () => {
     const m = selMesh
     const part = sel
     if (!m || !part) return
-    const patch = gizmoPatch(
+    let patch = gizmoPatch(
       part,
       gizmoActive,
       {
@@ -836,12 +969,103 @@ function useDesignerController() {
     )
     m.scale.set(1, 1, 1)
     if (patch) {
-      commit((sp) => updatePart(sp, part.id, patch))
+      // ---- Stage 6d precision II ----------------------------------------
+      // Face-to-face magnetic snap (translate) — an ungrouped part, magnet on:
+      // snap the grid-snapped position flush to a nearby part face; face snap
+      // wins over the grid quantisation it just applied.
+      if (gizmoActive === 'translate' && patch.position && gridSnap.enabled) {
+        const snapped = faceSnapPartPosition(spec, part, patch.position)
+        if (snapped) patch = { ...patch, position: snapped }
+      } else if (gizmoActive === 'rotate' && 'rotation' in patch && pivot !== 'center') {
+        // Rotate about the chosen pivot — compensate the centre so the base /
+        // corner stays fixed (the exact position is kept un-grid-snapped so the
+        // invariant holds).
+        const position = rotatePivotPosition(
+          part.position,
+          part.size,
+          part.rotation,
+          patch.rotation,
+          pivot,
+        )
+        patch = { ...patch, position }
+      } else if (gizmoActive === 'scale' && patch.size && pivot !== 'center') {
+        const position = scalePivotPosition(
+          part.position,
+          part.size,
+          patch.size,
+          part.rotation,
+          pivot,
+        )
+        patch = { ...patch, position }
+      }
+      commit((sp) => updatePart(sp, part.id, patch as Partial<ShapePart>))
     } else {
       const r = part.rotation ?? [0, 0, 0]
       m.position.set(part.position[0], part.position[1], part.position[2])
       m.rotation.set(MathUtils.degToRad(r[0]), MathUtils.degToRad(r[1]), MathUtils.degToRad(r[2]))
     }
+  }
+
+  // ---- Precision seam closures (Stage 6d scenario) — faithful replays of the
+  // real write-back using the SAME pure functions the gizmo commit uses. Each
+  // reads the LIVE spec from inside the commit updater (`sp`) so a rapid
+  // programmatic sequence never acts on a stale render's spec. --------
+  precisionRef.current = {
+    drag: (partId, rawPos) => {
+      commit((sp) => {
+        const part = sp.parts.find((p) => p.id === partId)
+        if (!part) return sp
+        // Grid-snap the raw dragged position exactly as the gizmo does, then face-snap.
+        const gp = gizmoPatch(
+          part,
+          'translate',
+          { position: rawPos, rotation: [0, 0, 0], scale: [1, 1, 1] },
+          snapStep,
+        )
+        let position: [number, number, number] = gp?.position ?? [...part.position]
+        if (gridSnap.enabled) {
+          const snapped = faceSnapPartPosition(sp, part, position)
+          if (snapped) position = snapped
+        }
+        return updatePart(sp, partId, { position })
+      })
+    },
+    rotate: (partId, rotationDeg, pivotMode) => {
+      commit((sp) => {
+        const part = sp.parts.find((p) => p.id === partId)
+        if (!part) return sp
+        const cleared = rotationDeg.every((v) => v === 0)
+        const rot = cleared ? undefined : rotationDeg
+        const patch: Partial<ShapePart> = { rotation: rot }
+        if (pivotMode !== 'center') {
+          patch.position = rotatePivotPosition(
+            part.position,
+            part.size,
+            part.rotation,
+            rot,
+            pivotMode,
+          )
+        }
+        return updatePart(sp, partId, patch)
+      })
+    },
+    scale: (partId, newSize, pivotMode) => {
+      commit((sp) => {
+        const part = sp.parts.find((p) => p.id === partId)
+        if (!part) return sp
+        const patch: Partial<ShapePart> = { size: newSize }
+        if (pivotMode !== 'center') {
+          patch.position = scalePivotPosition(
+            part.position,
+            part.size,
+            newSize,
+            part.rotation,
+            pivotMode,
+          )
+        }
+        return updatePart(sp, partId, patch)
+      })
+    },
   }
 
   // Record a non-destructive combine group over the selected free parts (CSG v2).
@@ -928,13 +1152,44 @@ function useDesignerController() {
     })
   }
 
+  // Members-union bounds of a transform group in its OWN local frame (members at
+  // their local positions, group transform NOT applied) — the pivot reference for
+  // a group rotation (Stage 6d).
+  const groupLocalUnion = (groupId: string) => {
+    const g = transformGroups.find((gr) => gr.id === groupId)
+    if (!g) return null
+    const memberParts = g.partIds
+      .map((id) => spec.parts.find((p) => p.id === id))
+      .filter((p): p is ShapePart => !!p)
+    return { group: g, union: selectionBounds(memberParts) }
+  }
+
   // Numeric group-transform edit (the GroupInspector fields — same target as the
-  // group gizmo write-back); coalesced into one undo step.
+  // group gizmo write-back); coalesced into one undo step. A rotation under a
+  // non-centre pivot compensates the group origin so the group's base/corner
+  // stays fixed (Stage 6d).
   const patchGroupTransform = (
     groupId: string,
     patch: { position?: [number, number, number]; rotation?: [number, number, number] },
   ) => {
-    commit((sp) => updatePartGroupTransform(sp, groupId, patch), { coalesceKey: 'group-xf' })
+    let finalPatch = patch
+    if (patch.rotation && pivot !== 'center') {
+      const lu = groupLocalUnion(groupId)
+      if (lu?.union) {
+        finalPatch = {
+          ...patch,
+          position: groupRotatePivotPosition(
+            lu.group.position,
+            lu.union.center,
+            lu.union.min,
+            lu.group.rotation,
+            patch.rotation,
+            pivot,
+          ),
+        }
+      }
+    }
+    commit((sp) => updatePartGroupTransform(sp, groupId, finalPatch), { coalesceKey: 'group-xf' })
   }
 
   const duplicateGroup = (groupId: string) => {
@@ -958,7 +1213,7 @@ function useDesignerController() {
     const group = transformGroups.find((g) => g.id === selGroupId)
     if (!obj || !group) return
     const mode: GizmoMode = gizmoMode === 'scale' ? 'translate' : gizmoMode
-    const patch = groupGizmoPatch(
+    let patch = groupGizmoPatch(
       group,
       mode,
       {
@@ -969,7 +1224,59 @@ function useDesignerController() {
       snapStep,
     )
     if (patch) {
-      commit((sp) => updatePartGroupTransform(sp, group.id, patch), { coalesceKey: 'group-gizmo' })
+      // ---- Stage 6d precision II (group) --------------------------------
+      if (mode === 'translate' && patch.position && gridSnap.enabled) {
+        // Face-snap the whole group: union its members' world bounds at the
+        // proposed origin and snap flush to the parts outside the group.
+        const proposedGroup = { ...group, position: patch.position }
+        const memberParts = group.partIds
+          .map((id) => spec.parts.find((p) => p.id === id))
+          .filter((p): p is ShapePart => !!p)
+        const moving = unionBounds(
+          memberParts.map((p) =>
+            boundsFromCenterExtent(groupedPartWorldPosition(proposedGroup, p), partWorldExtent(p)),
+          ),
+        )
+        const memberSet = new Set(group.partIds)
+        if (moving) {
+          const targets = spec.parts.filter((p) => !memberSet.has(p.id)).map(partWorldBoundsFor)
+          const { delta, hits } = snapFaces(moving, targets)
+          if (hits.length > 0) {
+            const snapped: [number, number, number] = [
+              patch.position[0] + delta[0],
+              patch.position[1] + delta[1],
+              patch.position[2] + delta[2],
+            ]
+            patch = { ...patch, position: snapped }
+            flashSnapHint(hits, {
+              min: [moving.min[0] + delta[0], moving.min[1] + delta[1], moving.min[2] + delta[2]],
+              max: [moving.max[0] + delta[0], moving.max[1] + delta[1], moving.max[2] + delta[2]],
+            })
+          }
+        }
+      } else if (mode === 'rotate' && patch.rotation && pivot !== 'center') {
+        const union = selectionBounds(
+          group.partIds
+            .map((id) => spec.parts.find((p) => p.id === id))
+            .filter((p): p is ShapePart => !!p),
+        )
+        if (union) {
+          patch = {
+            ...patch,
+            position: groupRotatePivotPosition(
+              group.position,
+              union.center,
+              union.min,
+              group.rotation,
+              patch.rotation,
+              pivot,
+            ),
+          }
+        }
+      }
+      commit((sp) => updatePartGroupTransform(sp, group.id, patch as NonNullable<typeof patch>), {
+        coalesceKey: 'group-gizmo',
+      })
     } else {
       // No-op drag — snap the object back to the spec transform.
       const p = group.position ?? [0, 0, 0]
@@ -1233,6 +1540,11 @@ function useDesignerController() {
     snapStep,
     toggleGridSnap,
     setSnapStep,
+    // precision II (Stage 6d): pivot control + face-snap hint
+    pivot,
+    setPivot,
+    snapHint,
+    setPartRotation,
     // camera view presets + live dimension readout (Stage 4)
     viewRequest,
     requestView,

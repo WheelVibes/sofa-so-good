@@ -20,10 +20,12 @@ function withPart(
   part: ShapePart,
   onPatch: (patch: Partial<ShapePart>) => void,
   onMirror: () => void = () => {},
+  onSetRotation: (rotation: [number, number, number]) => void = () => {},
 ): ReactElement {
   const value = {
     sel: part,
     patchSelectedPart: onPatch,
+    setPartRotation: onSetRotation,
     mirror: onMirror,
   } as unknown as DesignerContextValue
   return (
@@ -80,10 +82,13 @@ describe('PartInspector — per-part texture picker (GE3c)', () => {
 
   it('keeps the existing transform fields (extraction did not change behaviour)', () => {
     const onPatch = vi.fn()
-    render(withPart(defaultPart('box'), onPatch))
+    const onSetRotation = vi.fn()
+    render(withPart(defaultPart('box'), onPatch, () => {}, onSetRotation))
     fireEvent.change(screen.getByLabelText('box size X'), { target: { value: '0.8' } })
     expect(onPatch).toHaveBeenCalledWith({ size: [0.8, 0.4, 0.4] })
+    // Rotation routes through the pivot-aware `setPartRotation` (Stage 6d), not the
+    // plain patch — so the pivot compensation applies whether typed or dragged.
     fireEvent.change(screen.getByLabelText('box rotation Y'), { target: { value: '45' } })
-    expect(onPatch).toHaveBeenCalledWith({ rotation: [0, 45, 0] })
+    expect(onSetRotation).toHaveBeenCalledWith([0, 45, 0])
   })
 })

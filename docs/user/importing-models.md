@@ -208,6 +208,15 @@ build one in the browser:
 - **Grid snap** — the **magnet** button (top-right of the preview) turns grid snapping on/off, and
   the step menu beside it (**1 mm / 5 mm / 1 cm / 5 cm**) sets how coarsely a gizmo drag and the
   size/position number fields step. Your choice is remembered on this device.
+- **Face snapping (magnetic surfaces)** — with the **magnet** on, dragging a shape (or a whole group)
+  so a face comes within about 8 mm of another shape's face **snaps it flush** — the two surfaces meet
+  with no gap, or line up edge-to-edge. A brief coloured edge flashes on the face it snapped to. Turn
+  the magnet off to place freely.
+- **Pivot (rotation / scale point)** — the **Centre / Base / Corner** switch (top-left, under the
+  Move / Rotate / Scale switch) sets the point a shape rotates and scales around. **Centre** is the
+  default; **Base** keeps the bottom face put (rotate a leg without it sinking, or grow a shape upward
+  from the floor); **Corner** pins the shape's minimum corner. It applies to both the gizmo and the
+  number fields.
 - **Dimension readout** — while shapes are selected, the preview shows the selection's size
   (**W × D × H** in centimetres) in the bottom-left corner, updating live as you drag.
 - **Views** — the **Front / Side / Top** buttons (top-right) snap the camera to a straight-on view

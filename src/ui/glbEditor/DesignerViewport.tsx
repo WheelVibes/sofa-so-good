@@ -3,12 +3,14 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { Box3, type Object3D, Vector3 } from 'three'
 import { EnsureFurnitureMaterials } from '../../furniture/FurnitureMaterialLoader'
+import type { FaceSnapHit } from '../../furniture/glbEdit/faceSnap'
 import {
   GIZMO_MODES,
   type GizmoMode,
   GROUP_GIZMO_MODES,
   gizmoModesFor,
 } from '../../furniture/glbEdit/gizmoWriteBack'
+import { PIVOT_MODES } from '../../furniture/glbEdit/pivot'
 import { secureGltfLoader } from '../../furniture/gltf/loaderSecurity'
 import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
@@ -161,6 +163,55 @@ function LiveDimensions({
   return null
 }
 
+/** Brief accent-edge highlight on the face plane(s) a magnetic drag just snapped
+ *  to (Stage 6d). One thin bright quad per fired snap, spanning the snapped
+ *  selection's AABB on the two axes perpendicular to the snap axis. Rendered as a
+ *  child of the Canvas so it repaints on the state change and clears with it. */
+function SnapHintOverlay({
+  hint,
+}: {
+  hint: { hits: FaceSnapHit[]; min: [number, number, number]; max: [number, number, number] } | null
+}) {
+  if (!hint) return null
+  const { min, max } = hint
+  const span: [number, number, number] = [max[0] - min[0], max[1] - min[1], max[2] - min[2]]
+  const mid: [number, number, number] = [
+    (min[0] + max[0]) / 2,
+    (min[1] + max[1]) / 2,
+    (min[2] + max[2]) / 2,
+  ]
+  const THIN = 0.006
+  return (
+    <>
+      {hint.hits.map((h) => {
+        const size: [number, number, number] =
+          h.axis === 'x'
+            ? [THIN, span[1], span[2]]
+            : h.axis === 'y'
+              ? [span[0], THIN, span[2]]
+              : [span[0], span[1], THIN]
+        const pos: [number, number, number] =
+          h.axis === 'x'
+            ? [h.coord, mid[1], mid[2]]
+            : h.axis === 'y'
+              ? [mid[0], h.coord, mid[2]]
+              : [mid[0], mid[1], h.coord]
+        return (
+          <mesh key={`${h.axis}-${h.kind}`} position={pos}>
+            <boxGeometry args={size} />
+            <meshBasicMaterial
+              color={h.kind === 'abut' ? '#4ade80' : '#38bdf8'}
+              transparent
+              opacity={0.85}
+              depthTest={false}
+            />
+          </mesh>
+        )
+      })}
+    </>
+  )
+}
+
 /**
  * The designer's live 3D preview: the R3F canvas, the composed parts (built from
  * the SAME `partGeometry`/`partMaterials` the export uses so the preview can
@@ -195,6 +246,9 @@ export function DesignerViewport() {
     gridSnap,
     toggleGridSnap,
     setSnapStep,
+    pivot,
+    setPivot,
+    snapHint,
     viewRequest,
     requestView,
     getSelectionObjects,
@@ -263,6 +317,7 @@ export function DesignerViewport() {
           />
         ) : null}
         <LiveDimensions getObjects={getSelectionObjects} onChange={setDims} />
+        <SnapHintOverlay hint={snapHint} />
       </Canvas>
       {/* Gizmo mode switch — overlays the preview's top-left corner. */}
       {sel ? (
@@ -281,6 +336,32 @@ export function DesignerViewport() {
           ariaPrefix="Group gizmo"
           onPick={setGizmoMode}
         />
+      ) : null}
+
+      {/* Pivot control (Stage 6d) — the reference point for numeric rotation +
+          gizmo scale of the selected part/group (Centre = default). Below the
+          gizmo-mode switch (top-left). */}
+      {sel || selGroupObj ? (
+        <div
+          className="seg"
+          style={{ position: 'absolute', top: 44, left: 8, display: 'flex' }}
+          role="radiogroup"
+          aria-label="Pivot"
+        >
+          {PIVOT_MODES.map(({ mode, label, title }) => (
+            <button
+              key={mode}
+              type="button"
+              className={pivot === mode ? 'on' : ''}
+              aria-label={`Pivot: ${label}`}
+              aria-pressed={pivot === mode}
+              title={title}
+              onClick={() => setPivot(mode)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       ) : null}
 
       {/* Grid snap toggle + step (top-right). */}

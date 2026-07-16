@@ -59,6 +59,7 @@ export function PartInspector() {
   const {
     sel: part,
     patchSelectedPart: onPatch,
+    setPartRotation: onSetRotation,
     mirror: onMirror,
     snapStep,
     renamePartName: onRenamePart,
@@ -227,13 +228,13 @@ export function PartInspector() {
               aria-label={`${part.kind} rotation ${'XYZ'[axis]}`}
               onChange={(e) => {
                 const v = Number(e.target.value)
-                onPatch({
-                  rotation: (part.rotation ?? [0, 0, 0]).map((o, k) => (k === axis ? v : o)) as [
+                onSetRotation(
+                  (part.rotation ?? [0, 0, 0]).map((o, k) => (k === axis ? v : o)) as [
                     number,
                     number,
                     number,
                   ],
-                })
+                )
               }}
               style={{ width: '33%' }}
             />

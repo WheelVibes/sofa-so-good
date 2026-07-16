@@ -1,0 +1,100 @@
+{
+  "name": "glb-designer-stage6d",
+  "description": "Asset Studio Iteration 2 Stage 6d — precision II (face-to-face magnetic snapping + pivot control) in the GLB Asset Designer (Pro, glbDesigner on). Phase 1: seed two 0.4 m boxes apart on X (a 'mover' and a 'wall', overlapping on Y/Z), then drive a gizmo translate of the mover to within ~5 mm of the wall's near face through the window.__glbDesignerPrecision.drag seam — with the magnet ON the committed position snaps FLUSH (the mover's +X face meets the wall's −X face with a gap of exactly 0). Phase 2: seed one upright leg box on the floor, set the pivot to Base, rotate it 45° about Y (it spins in place, still sitting on the floor — minY unchanged) and then scale it taller from the Base (it grows UPWARD, the bottom face stays on the floor — minY still 0). Screenshots: the flush pair (Front view, zero gap), the base-rotated leg on the floor, the base-scaled leg still grounded.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 45000
+    },
+    {
+      "name": "seed-two-boxes",
+      "comment": "Two 0.4 m boxes on the floor (minY 0), overlapping on Y and Z, separated on X: the wall spans X [0.3, 0.7], the mover spans X [-0.7, -0.3].",
+      "eval": "(function(){ window.__glbDesigner.setSpec({ sourceScale: 1, meshOverrides: {}, parts: [ { id: 'wall', kind: 'box', position: [0.5, 0.2, 0], size: [0.4, 0.4, 0.4], color: '#6b8fb5' }, { id: 'mover', kind: 'box', position: [-0.5, 0.2, 0], size: [0.4, 0.4, 0.4], color: '#c98b5b' } ] }); })()"
+    },
+    { "name": "wait-seed", "wait": 500 },
+    { "name": "shot-apart", "screenshot": "00-two-boxes-apart" },
+    {
+      "name": "drag-mover-near-wall",
+      "comment": "Drive a gizmo translate of the mover to raw X 0.094 (5 mm grid-snaps to 0.095 → its +X face lands at 0.295, a 5 mm gap from the wall's −X face at 0.3 — inside the 8 mm threshold). Magnet is on, so the committed position face-snaps FLUSH.",
+      "eval": "window.__glbDesignerPrecision.drag('mover', [0.094, 0.2, 0])"
+    },
+    { "name": "wait-snap", "wait": 400 },
+    {
+      "name": "assert-flush",
+      "comment": "The mover's +X face (center + half) meets the wall's −X face (center − half) with a gap of exactly 0 — a magnetic abutment.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const mover = s.parts.find(p => p.id === 'mover'); const wall = s.parts.find(p => p.id === 'wall'); if (!mover || !wall) throw new Error('parts missing'); const moverMaxX = mover.position[0] + mover.size[0] / 2; const wallMinX = wall.position[0] - wall.size[0] / 2; const gap = wallMinX - moverMaxX; if (Math.abs(gap) > 1e-6) throw new Error('faces not flush — gap ' + gap + ' (mover.x ' + mover.position[0] + ')'); })()"
+    },
+    {
+      "name": "front-view",
+      "eval": "(function(){ const b = [...document.querySelectorAll('.glb-designer button')].find(x => x.getAttribute('aria-label') === 'Front view'); if (b) b.click(); })()"
+    },
+    { "name": "wait-front", "wait": 700 },
+    {
+      "name": "shot-flush",
+      "comment": "Front view closeup: the two boxes touch edge-to-edge with no visible gap between them.",
+      "screenshot": "01-flush-pair"
+    },
+    {
+      "name": "seed-leg",
+      "comment": "One upright leg box, 0.2 × 0.8 × 0.2, sitting on the floor (center y 0.4 → minY 0).",
+      "eval": "(function(){ window.__glbDesigner.setSpec({ sourceScale: 1, meshOverrides: {}, parts: [ { id: 'leg', kind: 'box', position: [0, 0.4, 0], size: [0.2, 0.8, 0.2], color: '#8b6f47' } ] }); })()"
+    },
+    { "name": "wait-leg", "wait": 500 },
+    {
+      "name": "home-view",
+      "eval": "(function(){ const b = [...document.querySelectorAll('.glb-designer button')].find(x => x.getAttribute('aria-label') === 'Home view'); if (b) b.click(); })()"
+    },
+    { "name": "wait-home", "wait": 600 },
+    {
+      "name": "rotate-base-45",
+      "comment": "Pivot = Base, rotate 45° about Y. The leg spins in place and stays on the floor.",
+      "eval": "window.__glbDesignerPrecision.rotate('leg', [0, 45, 0], 'base')"
+    },
+    { "name": "wait-rot", "wait": 400 },
+    {
+      "name": "assert-base-rotate-keeps-miny",
+      "comment": "Rotating about the base keeps the bottom face on the floor: minY unchanged at 0.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const leg = s.parts.find(p => p.id === 'leg'); if (!leg) throw new Error('leg missing'); if (Math.abs(leg.rotation[1] - 45) > 1e-6) throw new Error('rotation not applied'); const minY = leg.position[1] - leg.size[1] / 2; if (Math.abs(minY) > 1e-6) throw new Error('base rotate moved the floor — minY ' + minY); })()"
+    },
+    {
+      "name": "shot-base-rotated",
+      "comment": "The leg is yawed 45° but still sits flat on the grid floor (base pivot).",
+      "screenshot": "02-base-rotated-on-floor"
+    },
+    {
+      "name": "scale-from-base",
+      "comment": "Pivot = Base, scale the leg taller (0.8 → 1.4 m). It grows UPWARD; the bottom face stays on the floor.",
+      "eval": "window.__glbDesignerPrecision.scale('leg', [0.2, 1.4, 0.2], 'base')"
+    },
+    { "name": "wait-scale", "wait": 400 },
+    {
+      "name": "assert-scale-from-base-keeps-miny",
+      "comment": "Scaling from the base keeps the bottom face on the floor: the taller leg still has minY 0 and its centre rose to 0.7.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const leg = s.parts.find(p => p.id === 'leg'); if (!leg) throw new Error('leg missing'); if (Math.abs(leg.size[1] - 1.4) > 1e-6) throw new Error('height not scaled'); const minY = leg.position[1] - leg.size[1] / 2; if (Math.abs(minY) > 1e-6) throw new Error('scale-from-base left the floor — minY ' + minY); if (Math.abs(leg.position[1] - 0.7) > 1e-6) throw new Error('centre should rise to 0.7, got ' + leg.position[1]); })()"
+    },
+    {
+      "name": "shot-scale-from-base",
+      "comment": "The leg is taller but its bottom still rests on the floor (base pivot scale grows upward).",
+      "screenshot": "03-scale-from-base-grounded"
+    }
+  ]
+}

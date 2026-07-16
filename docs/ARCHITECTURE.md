@@ -696,7 +696,16 @@ same change that reshapes a system.
   overlay + G/R/S keys in-dialog; orbit auto-pauses while dragging via `makeDefault`). A
   finished drag is written back through the SAME `updatePart` path as the numeric inputs —
   `gizmoWriteBack.ts` `gizmoPatch` (pure, tested) coalesces per drag-END and snaps lengths to the
-  grid-snap step (default 5 mm, Stage 4b) / rotation to 1°; `mesh` parts hide Scale (triangles are baked). **Undo/redo** (Stage 0): a bounded
+  grid-snap step (default 5 mm, Stage 4b) / rotation to 1°; `mesh` parts hide Scale (triangles are baked).
+  **Precision II (Iteration 2, Stage 6d, v0.21.2.45):** with the magnet on, a finished translate also
+  **face-snaps** — `faceSnap.ts` (pure, tested) snaps the committed position flush to a nearby part's
+  AABB face within ~8 mm (abut = zero-gap outer faces; align = coplanar same-side faces; locality-gated
+  on perpendicular overlap, per-axis, face snap wins over grid), with a brief accent-edge hint
+  (`SnapHintOverlay`); commit-time not live (the write-back is the clean seam). A viewport **Centre /
+  Base / Corner pivot** switch (`pivot.ts`, pure, tested) changes the reference point for numeric
+  rotation + gizmo rotate/scale via position compensation on write-back (Centre = byte-identical to
+  today); applies to a part and a whole transform group. Both are ephemeral UI state (no spec/envelope
+  field). **Undo/redo** (Stage 0): a bounded
   (~50-entry) history around the spec (`specHistory.ts`, pure + tested — push/undo/redo with
   ~300 ms same-key coalescing so a slider drag is one step), wired to ⌘Z / ⇧⌘Z in-dialog (⌘Y
   too) + the toolbar buttons (disabled at the ends). **Editable saves** (Stage 0): the edit

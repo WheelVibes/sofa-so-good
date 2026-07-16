@@ -106,22 +106,34 @@ export interface Bounds3 {
   size: [number, number, number]
 }
 
-/** One part's world AABB (centre = its position, extent = `partWorldExtent`). */
-function partBounds(part: ShapePart): Bounds3 {
-  const [ex, ey, ez] = partWorldExtent(part)
-  const [px, py, pz] = part.position
-  const min: [number, number, number] = [px - ex / 2, py - ey / 2, pz - ez / 2]
-  const max: [number, number, number] = [px + ex / 2, py + ey / 2, pz + ez / 2]
-  return { min, max, center: [px, py, pz], size: [ex, ey, ez] }
+/** An AABB from a centre + full extent (both metres). Pure. */
+export function boundsFromCenterExtent(
+  center: readonly [number, number, number],
+  extent: readonly [number, number, number],
+): Bounds3 {
+  const [cx, cy, cz] = center
+  const [ex, ey, ez] = extent
+  return {
+    min: [cx - ex / 2, cy - ey / 2, cz - ez / 2],
+    max: [cx + ex / 2, cy + ey / 2, cz + ez / 2],
+    center: [cx, cy, cz],
+    size: [ex, ey, ez],
+  }
 }
 
-/** Union AABB over a set of parts. Returns null for an empty set. */
-export function selectionBounds(parts: ShapePart[]): Bounds3 | null {
-  if (parts.length === 0) return null
+/** One part's world AABB (centre = its position, extent = `partWorldExtent`).
+ *  The face-snap write-back builds its dragged/target bounds from the same
+ *  rotation-aware extent via `boundsFromCenterExtent` + `partWorldExtent`. */
+function partBounds(part: ShapePart): Bounds3 {
+  return boundsFromCenterExtent(part.position, partWorldExtent(part))
+}
+
+/** Union AABB over a list of boxes. Returns null for an empty list. Pure. */
+export function unionBounds(list: Bounds3[]): Bounds3 | null {
+  if (list.length === 0) return null
   const min: [number, number, number] = [Infinity, Infinity, Infinity]
   const max: [number, number, number] = [-Infinity, -Infinity, -Infinity]
-  for (const p of parts) {
-    const b = partBounds(p)
+  for (const b of list) {
     for (let i = 0; i < 3; i++) {
       min[i] = Math.min(min[i], b.min[i])
       max[i] = Math.max(max[i], b.max[i])
@@ -134,6 +146,12 @@ export function selectionBounds(parts: ShapePart[]): Bounds3 | null {
     (min[2] + max[2]) / 2,
   ]
   return { min, max, center, size }
+}
+
+/** Union AABB over a set of parts (each at its OWN local transform). Returns null
+ *  for an empty set. */
+export function selectionBounds(parts: ShapePart[]): Bounds3 | null {
+  return unionBounds(parts.map(partBounds))
 }
 
 /** Kill float dust + normalise -0. */
