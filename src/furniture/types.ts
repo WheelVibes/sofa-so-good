@@ -177,6 +177,12 @@ export type PrimitiveKind =
   | 'LitterCabinet'
   | 'CatWindowPerch'
   | 'CatTunnel'
+  | 'DogCrate'
+  | 'DogBedOrthopedic'
+  | 'FeedingStation'
+  | 'DogRamp'
+  | 'CoolingMat'
+  | 'PetToyBin'
 
 export type ParamField =
   | {

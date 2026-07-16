@@ -158,6 +158,27 @@ You can also build a **modular cat tree** in the product configurator (**Tools �
 Configure a product → Cat tree (modular)**): pick a platform, house cube, hammock
 or cup perch for each tier, then add it to your room.
 
+**For dogs**, the Pets tab has a comfort‑and‑access set sized for the small breeds
+allowed in HDB flats:
+
+- **Dog crate** — pick a **Size** (XXS → M) and a **Style**: a **Wire crate**
+  (bright bars, a tray base and a latched front door) or a **Wood‑top** crate that
+  doubles as a side table (a solid timber top over slatted sides). Set the wire,
+  timber and wood‑finish colours.
+- **Orthopedic dog bed** — a low memory‑foam mattress with a raised bolster. Set
+  the **Width** and **Depth**, choose a **Back headrest** or **Three‑side (U)**
+  bolster, and the mattress/bolster colours.
+- **Feeding station** — a raised stand with **Single** or **Double** steel bowls.
+  Set the **Stand height** (small → medium dog), the timber colour/finish and the
+  bowl colour. It keeps clear access space in front.
+- **Dog ramp** — access up to a sofa or bed. Choose **Ramp** or **Steps**, set the
+  **Height** (0.4–0.7 m), **Run**, **Width** and optional **Side rails**; the tread
+  reads as carpet.
+- **Cooling mat** — a thin gel pad that lies flat on the floor (like a rug). Pick a
+  **Size** (Small/Medium) and the gel colour.
+- **Pet toy bin** — a small open storage basket in a **Round** or **Rectangular**
+  shape with a woven finish, sized to taste, with an optional **Lid**.
+
 ### Opening doors & drawers
 
 Storage furniture with fronts — kitchen cabinets, hinged‑door wardrobes,

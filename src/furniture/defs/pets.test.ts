@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { CRATE_SIZES } from '../primitives/DogCrate'
 import { PRIMITIVE_COMPONENTS } from '../primitives/index'
 import { defaultParamProps, type FurnitureDef, type ParametricDef } from '../types'
 import { PETS_DEFS as PETS_DEFS_TYPED } from './pets'
@@ -124,5 +125,96 @@ describe('PETS_DEFS', () => {
   it('the litter box + cabinet keep front clearance for access', () => {
     expect(PETS_DEFS['litter-box'].frontClearance).toBeGreaterThan(0)
     expect(PETS_DEFS['litter-cabinet'].frontClearance).toBeGreaterThan(0)
+  })
+
+  // ---- Stage P3 — the dog set --------------------------------------------
+  it('ships the P3 dog-set line-up, each dog-keyworded with a registered primitive', () => {
+    for (const id of [
+      'dog-crate',
+      'dog-bed-orthopedic',
+      'pet-feeding-station',
+      'dog-ramp',
+      'pet-cooling-mat',
+      'pet-toy-bin',
+    ]) {
+      expect(PETS_DEFS).toHaveProperty(id)
+      const def = PETS_DEFS[id] as ParametricDef
+      expect(def.category).toBe('pets')
+      expect(PRIMITIVE_COMPONENTS[def.primitive]).toBeTypeOf('function')
+      // Every P3 item is discoverable by the 'dog' keyword (curation rule).
+      expect(def.keywords).toContain('dog')
+    }
+  })
+
+  it('the dog crate offers XXS–M sizes + wire/furniture styles', () => {
+    const crate = PETS_DEFS['dog-crate'] as ParametricDef
+    const size = crate.paramSchema.find((f) => f.key === 'size')
+    expect(size?.kind).toBe('enum')
+    expect(size && 'options' in size ? size.options.map((o) => o.value) : []).toEqual([
+      'XXS',
+      'XS',
+      'S',
+      'M',
+    ])
+    const style = crate.paramSchema.find((f) => f.key === 'style')
+    expect(style && 'options' in style ? style.options.map((o) => o.value) : []).toEqual([
+      'wire',
+      'furniture',
+    ])
+    expect(crate.frontClearance).toBeGreaterThan(0)
+  })
+
+  it('the crate size table stays within the SG small-breed envelope (XXS→M)', () => {
+    // XXS ~41×28×23 cm through M ~61×46×51 cm; monotonically non-decreasing.
+    const order = ['XXS', 'XS', 'S', 'M']
+    const dims = order.map((k) => CRATE_SIZES[k])
+    for (const d of dims) expect(d).toBeDefined()
+    expect(CRATE_SIZES.XXS).toEqual({ w: 0.41, d: 0.28, h: 0.23 })
+    expect(CRATE_SIZES.M).toEqual({ w: 0.61, d: 0.46, h: 0.51 })
+    for (let i = 1; i < dims.length; i++) {
+      expect(dims[i].w).toBeGreaterThanOrEqual(dims[i - 1].w)
+      expect(dims[i].h).toBeGreaterThanOrEqual(dims[i - 1].h)
+    }
+    // The def's footprint matches the default (S) size.
+    expect(PETS_DEFS['dog-crate'].defaultFootprint.w).toBe(CRATE_SIZES.S.w)
+  })
+
+  it('the cooling mat is a flat noClip floor covering (like a rug), sized S/M', () => {
+    const mat = PETS_DEFS['pet-cooling-mat']
+    expect(mat.noClip).toBe(true)
+    expect(mat.windowBound).toBeUndefined()
+    expect(mat.doorBound).toBeUndefined()
+    // Thin: never taller than a rug/threshold.
+    expect(mat.defaultFootprint.h).toBeLessThanOrEqual(0.02)
+    const size = (mat as ParametricDef).paramSchema.find((f) => f.key === 'size')
+    expect(size && 'options' in size ? size.options.map((o) => o.value) : []).toEqual(['S', 'M'])
+  })
+
+  it('the orthopedic bed is a distinct rectangular def (not a pet-bed shape clone)', () => {
+    const ortho = PETS_DEFS['dog-bed-orthopedic'] as ParametricDef
+    expect(ortho.primitive).toBe('DogBedOrthopedic')
+    expect(ortho.footprintParams).toEqual({ w: 'width', d: 'depth' })
+    // Its own bolster axis, separate from pet-bed's round/rect shape enum.
+    expect(ortho.paramSchema.some((f) => f.key === 'bolster_style')).toBe(true)
+  })
+
+  it('the feeding station keeps front clearance + a bowl-count control', () => {
+    const feeder = PETS_DEFS['pet-feeding-station'] as ParametricDef
+    expect(feeder.frontClearance).toBeGreaterThan(0)
+    const bowls = feeder.paramSchema.find((f) => f.key === 'bowls')
+    expect(bowls?.kind).toBe('enum')
+  })
+
+  it('the dog ramp footprint tracks its run + width (ramp/steps styles)', () => {
+    const ramp = PETS_DEFS['dog-ramp'] as ParametricDef
+    expect(ramp.footprintParams).toEqual({ w: 'width', d: 'length' })
+    const height = ramp.paramSchema.find((f) => f.key === 'height')
+    expect(height && 'min' in height ? height.min : undefined).toBe(0.4)
+    expect(height && 'max' in height ? height.max : undefined).toBe(0.7)
+    const style = ramp.paramSchema.find((f) => f.key === 'style')
+    expect(style && 'options' in style ? style.options.map((o) => o.value) : []).toEqual([
+      'ramp',
+      'steps',
+    ])
   })
 })

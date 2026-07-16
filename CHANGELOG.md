@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.75 — Pets P3: the dog set
+
+Six dog items (pets category, 'dog' keywords): dog crate (XXS-M researched dims via
+CRATE_SIZES; wire cage vs SG furniture side-table styles), orthopedic bed (distinct new
+primitive — judgment recorded vs extending pet-bed), raised feeding station (1-2 steel
+bowls), sofa ramp/steps (carpet tread, optional rails), noClip gel cooling mat (quilted,
+S/M), woven toy bin. Scenario `pets-p3.json` frames verified (furniture crate reads as
+furniture, wire as cage, ramp reaches seat); defs/prices tests extended.
+
 ## v0.21.2.74 — Pets P1 review fixes
 
 Four verified findings: doorBound fixtures offset off the wall centreline (gate z+0.045,

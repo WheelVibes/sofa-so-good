@@ -164,6 +164,13 @@ export const ITEM_PRICE: Record<string, number> = {
   'litter-cabinet': 180,
   'cat-window-perch': 70,
   'cat-tunnel': 35,
+  // Pets — Stage P3 dog set
+  'dog-crate': 150,
+  'dog-bed-orthopedic': 95,
+  'pet-feeding-station': 65,
+  'dog-ramp': 80,
+  'pet-cooling-mat': 40,
+  'pet-toy-bin': 35,
 }
 
 /** Estimated price (SGD) for one item. For an IKEA def the per-INSTANCE variant

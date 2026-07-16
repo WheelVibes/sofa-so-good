@@ -86,6 +86,40 @@ Crates XXS-M (SG small breeds; wire + wood-top styles), bed variants (extend pet
 feeding station (raised, single/double), ramp/steps (sofa/bed access), cooling mat
 (noClip floor covering), toy storage bin.
 
+**P3 SHIPPED** 2026-07-17. Six new `pets` defs (all keyworded `dog`): `dog-crate`
+(`DogCrate` — a `size` enum XXS/XS/S/M driving researched dims via the exported
+`CRATE_SIZES` table, XXS 41×28×23 → M 61×46×51 cm; `style` enum `wire` — bright metal
+bars on all four sides + roof over a moulded plastic tray, a barred front door + latch,
+via `metalLeg` — or `furniture`, a wood-top side-table crate with an overhanging timber
+top, corner posts, vertical wood slats and a slatted front door + knob; `frontClearance`
+for access); `dog-bed-orthopedic` (`DogBedOrthopedic` — **a distinct def, not a pet-bed
+shape**: a low chamfered memory-foam mattress slab in matte fabric with a back-headrest or
+three-side U bolster, `width`/`depth` footprint params — see the bed-variant judgment
+below); `pet-feeding-station` (`FeedingStation` — a timber stand on four legs carrying 1–2
+recessed stainless bowls via `getMetalMaterial`, `standHeight` small→medium dog,
+`frontClearance` 0.4); `dog-ramp` (`DogRamp` — a `style` enum ramp/steps, `height` 0.4–0.7
+for sofa/bed access, carpet-read `getFabricMaterial` tread, optional side rails; `ramp` is
+an inclined board on side skirts + a high-end support, `steps` are carpeted box steps at a
+~16 cm rise; footprint tracks `width`/`length`); `pet-cooling-mat` (`CoolingMat` — a
+`noClip` flat gel pad mirroring the rug's flat-covering placement, ~8 mm thick, S/M sizes,
+gel-blue/grey colour, quilted channel seams, smooth low-roughness `getSolidMaterial` gel
+read); `pet-toy-bin` (`PetToyBin` — a small open woven basket, round or rectangular, woven
+read via the shared `getFabricMaterial` weave — no bespoke texture art — with an optional
+lid, `width`/`depth`/`height` params). Prices in `furniturePrices.ts`. Tests:
+`defs/pets.test.ts` (P3 dog line-up, crate size enum + `CRATE_SIZES` envelope, noClip mat,
+orthopedic-vs-pet-bed distinctness, feeding-station/ramp schema). Visual:
+`scripts/scenarios/pets-p3.json` (the dog corner — furniture + wire crate, orthopedic bed,
+double feeder, ramp reaching a sofa seat, cooling mat, toy bin; corner-wide + crate-closeup
++ ramp-to-sofa + mat/feeder/bin frames).
+
+**Bed-variant judgment:** added a **new `dog-bed-orthopedic` def** rather than extending
+`pet-bed`'s `shape` enum. Two reasons: (1) the pet-fittings append-only constraint for this
+stage forbids editing the existing `pet-bed` def; (2) an orthopedic bed's silhouette — a
+thick, low, matte memory-foam mattress with a single/U bolster — is genuinely distinct from
+`pet-bed`'s round basket and 3-side plush mat, so a dedicated `DogBedOrthopedic` primitive
+reads cleaner than overloading `PetBed`'s if/else, and it is not a near-duplicate (different
+material read, proportions and bolster axis).
+
 ## Stage P4 — Other pets
 Bird cage + stand, play gym; rabbit hutch (135×60×90 default); guinea/hamster enclosure
 (≥100×50); aquarium/terrarium stand (steel+MDF look, load-rating descriptive metadata,
@@ -105,3 +139,4 @@ unchanged); window/balcony mesh screen (`windowBound`, alpha-mapped canvas grid 
 usePlacementController/PlacementGhost/FloorPlanEditor); doorway pet gate + pet-door insert
 (`doorBound`); freestanding playpen (4–8 panels). Tests: `doorSnap.test.ts`,
 `defs/pets.test.ts`, `flags/petFittings.test.ts`, updated `categories`/`windowSnap` tests.
+**P2 SHIPPED** + **P3 SHIPPED** 2026-07-17 (see the per-stage notes above).

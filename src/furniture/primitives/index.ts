@@ -33,6 +33,7 @@ import { ChangingTable } from './ChangingTable'
 import { CoatRack } from './CoatRack'
 import { CoffeeTable } from './CoffeeTable'
 import { ConsoleTable } from './ConsoleTable'
+import { CoolingMat } from './CoolingMat'
 import { CoveLight } from './CoveLight'
 import { Crib } from './Crib'
 import { CubeShelf } from './CubeShelf'
@@ -43,9 +44,13 @@ import { DeskPlant } from './DeskPlant'
 import { DiningChair } from './DiningChair'
 import { DiningTable } from './DiningTable'
 import { Dishwasher } from './Dishwasher'
+import { DogBedOrthopedic } from './DogBedOrthopedic'
+import { DogCrate } from './DogCrate'
+import { DogRamp } from './DogRamp'
 import { Dresser } from './Dresser'
 import { DryingRack } from './DryingRack'
 import { FeatureWall } from './FeatureWall'
+import { FeedingStation } from './FeedingStation'
 import { Fireplace } from './Fireplace'
 import { FlatscreenTV } from './FlatscreenTV'
 import { FloorLamp } from './FloorLamp'
@@ -77,6 +82,7 @@ import { PetBed } from './PetBed'
 import { PetDoorInsert } from './PetDoorInsert'
 import { PetGate } from './PetGate'
 import { PetPlaypen } from './PetPlaypen'
+import { PetToyBin } from './PetToyBin'
 import { PhotoFrameCluster } from './PhotoFrameCluster'
 import { Piano } from './Piano'
 import { PlanterTrough } from './PlanterTrough'
@@ -243,4 +249,10 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   LitterCabinet,
   CatWindowPerch,
   CatTunnel,
+  DogCrate,
+  DogBedOrthopedic,
+  FeedingStation,
+  DogRamp,
+  CoolingMat,
+  PetToyBin,
 }

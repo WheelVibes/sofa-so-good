@@ -1,0 +1,53 @@
+{
+  "name": "pets-p3",
+  "description": "Pet program Stage P3 (the dog set): a dog corner injected on the living-room floor — a wood-top (furniture) dog crate + a wire crate side by side, an orthopedic dog bed, a raised feeding station, a dog ramp reaching a sofa seat, a gel cooling mat (flat noClip covering) and a woven toy bin. Screenshots: the corner wide, then a crate closeup so the wood-top crate reads as furniture and the wire crate as a crate; the ramp must reach the sofa seat height.",
+  "url": "http://localhost:5232/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-editor-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 8000 },
+    { "name": "wait-room-load", "wait": 2500 },
+    { "name": "dismiss-hints", "eval": "(function(){ const s = window.__store.getState(); s.dismissCallout?.('empty-room-hint'); s.dismissCallout?.('room-editor'); })()" },
+    { "name": "clear-items", "store": { "action": "setItems", "args": [[]] } },
+
+    {
+      "name": "compute-room-anchors",
+      "eval": "(function(){ const st = window.__store.getState(); const fp = st.floorPlan; const room = fp.rooms.find(r => r.id === st.roomEditor.roomId) || fp.rooms.find(r => r.id === 'livingDining'); if (!room) throw new Error('no living/dining room'); const ox = room.origin[0], oz = room.origin[1], W = room.width, D = room.depth; window.__room = { ox, oz, W, D, cx: ox + W/2, cz: oz + D/2 }; })()"
+    },
+
+    {
+      "name": "inject-dog-corner",
+      "eval": "(function(){ const st = window.__store.getState(); const r = window.__room; const at = (defId, fx, fz, rotation, props) => ({ id: defId + '-p3', defId, position: [r.ox + r.W*fx, r.oz + r.D*fz], rotation: rotation || 0, props: props || {} }); const sofaFrontZ = r.oz + r.D*0.16 + 0.45; const rampLen = 0.95; const rampZ = sofaFrontZ + rampLen/2; const items = [ at('sofa-3seat', 0.3, 0.16, 0, {}), { id: 'dog-ramp-p3', defId: 'dog-ramp', position: [r.ox + r.W*0.3, rampZ], rotation: 0, props: { style: 'ramp', height: 0.42, length: rampLen, rails: 'yes' } }, { id: 'dog-crate-furniture-p3', defId: 'dog-crate', position: [r.ox + r.W*0.62, r.oz + r.D*0.18], rotation: 0, props: { size: 'M', style: 'furniture' } }, { id: 'dog-crate-wire-p3', defId: 'dog-crate', position: [r.ox + r.W*0.84, r.oz + r.D*0.18], rotation: 0, props: { size: 'M', style: 'wire' } }, at('dog-bed-orthopedic', 0.5, 0.5, 0, { bolster_style: 'three-side' }), at('pet-feeding-station', 0.72, 0.55, 0, { bowls: '2', standHeight: 0.16 }), at('pet-cooling-mat', 0.4, 0.72, 0, { size: 'M' }), at('pet-toy-bin', 0.62, 0.75, 0, { shape: 'round', lid: 'no' }) ]; st.setItems(items); window.__crateC = [r.ox + r.W*0.73, r.oz + r.D*0.18]; window.__rampInfo = { z: rampZ, x: r.ox + r.W*0.3 }; window.__gearC = [r.ox + r.W*0.55, r.oz + r.D*0.64]; })()"
+    },
+    { "name": "wait-render", "wait": 2200 },
+    {
+      "name": "assert-all-placed",
+      "eval": "(function(){ const ids = window.__store.getState().items.map(i => i.defId); for (const id of ['sofa-3seat','dog-ramp','dog-crate','dog-bed-orthopedic','pet-feeding-station','pet-cooling-mat','pet-toy-bin']) { if (!ids.includes(id)) throw new Error('missing item: ' + id); } const crates = window.__store.getState().items.filter(i => i.defId === 'dog-crate'); if (crates.length !== 2) throw new Error('expected 2 crates, got ' + crates.length); console.log('dog corner: ' + ids.join(', ')); })()"
+    },
+
+    { "name": "frame-corner-wide", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.ox + r.W*0.55, 0.5, r.oz + r.D*0.38], radius:3.4}); })()" },
+    { "name": "wait-frame-wide", "wait": 1800 },
+    { "name": "deselect-wide", "eval": "window.__store.getState().selectItem?.(null)" },
+    { "name": "shot-01-dog-corner", "screenshot": "01-dog-corner" },
+
+    { "name": "frame-crates", "eval": "(function(){ const c = window.__crateC; window.__store.getState().requestFrameSelection?.({center:[c[0], 0.3, c[1]], radius:1.15}); })()" },
+    { "name": "wait-frame-crates", "wait": 1800 },
+    { "name": "deselect-crates", "eval": "window.__store.getState().selectItem?.(null)" },
+    { "name": "shot-02-crate-closeup", "screenshot": "02-crate-closeup" },
+
+    { "name": "frame-ramp", "eval": "(function(){ const ri = window.__rampInfo; window.__store.getState().requestFrameSelection?.({center:[ri.x, 0.4, ri.z - 0.2], radius:1.5}); })()" },
+    { "name": "wait-frame-ramp", "wait": 1800 },
+    { "name": "deselect-ramp", "eval": "window.__store.getState().selectItem?.(null)" },
+    { "name": "shot-03-ramp-to-sofa", "screenshot": "03-ramp-to-sofa" },
+
+    { "name": "frame-gear", "eval": "(function(){ const c = window.__gearC; window.__store.getState().requestFrameSelection?.({center:[c[0], 0.2, c[1]], radius:1.1}); })()" },
+    { "name": "wait-frame-gear", "wait": 1800 },
+    { "name": "deselect-gear", "eval": "window.__store.getState().selectItem?.(null)" },
+    { "name": "shot-04-mat-feeder-bin", "screenshot": "04-mat-feeder-bin" }
+  ]
+}
