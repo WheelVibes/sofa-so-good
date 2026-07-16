@@ -151,6 +151,15 @@ export function windowFixtureProps(
       topY: clamp(win.head, 0.3, 3.2),
     }
   }
+  if (defId === 'cat-window-perch') {
+    // A sill-level lounging shelf: fit the perch WIDTH to the opening (a small
+    // inset so it sits within the reveal) and anchor it AT the sill so it never
+    // covers the glass. `sillY` is read by the primitive to lift the perch.
+    return {
+      width: clamp(win.width - 0.08, 0.4, 1.4),
+      sillY: clamp(win.sill, 0.1, 2.4),
+    }
+  }
   if (defId === 'roller-blind') {
     const top = clamp(win.head + 0.12, 1.8, 2.7)
     // Cover from just above the head down to just below the sill.

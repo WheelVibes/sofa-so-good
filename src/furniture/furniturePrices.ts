@@ -154,6 +154,16 @@ export const ITEM_PRICE: Record<string, number> = {
   'pet-gate': 85,
   'pet-door-insert': 95,
   'pet-playpen': 130,
+  // Pets — Stage P2 cat set
+  'cat-tree': 190,
+  'cat-wall-shelf': 45,
+  'cat-wall-steps': 110,
+  'cat-wall-bridge': 95,
+  'scratching-post': 55,
+  'litter-box': 40,
+  'litter-cabinet': 180,
+  'cat-window-perch': 70,
+  'cat-tunnel': 35,
 }
 
 /** Estimated price (SGD) for one item. For an IKEA def the per-INSTANCE variant

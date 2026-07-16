@@ -149,9 +149,67 @@ describe('composeProduct — modular sofa (SLOT-202)', () => {
   })
 })
 
+const catTree = getConfigurableProduct('cat-tree-modular')!
+
+describe('composeProduct — modular cat tree (Pet P2)', () => {
+  it('base + default tiers compose with a summed price and finish targets', () => {
+    const m = composeProduct(catTree, { productId: 'cat-tree-modular', selections: {} })
+    // Defaults: tier1 platform (25) + tier2 house (60) + tier3 perch (35).
+    expect(m.price).toBe(120 + 25 + 60 + 35)
+    // The base sisal post + plinth expose re-skin groups.
+    expect(m.finishTargets.some((t) => t.key === 'base:post')).toBe(true)
+    expect(m.finishTargets.some((t) => t.key === 'base:plinth')).toBe(true)
+    // The tree rises through every tier (top perch near 1.4 m + rim).
+    expect(m.bounds.h).toBeGreaterThan(1.4)
+  })
+
+  it('a hammock forces the tier below back to a solid platform (requires constraint)', () => {
+    const s = clampConfig(catTree, {
+      selections: { tier1: 'house', tier2: 'hammock' },
+    })
+    // tier2 hammock ⇒ tier1 must be a platform to hang over.
+    expect(s.selections.tier2).toBe('hammock')
+    expect(s.selections.tier1).toBe('platform')
+  })
+
+  it('a top hammock forces the middle tier to a platform', () => {
+    const s = clampConfig(catTree, { selections: { tier2: 'house', tier3: 'hammock' } })
+    expect(s.selections.tier3).toBe('hammock')
+    expect(s.selections.tier2).toBe('platform')
+  })
+
+  it('swapping a slot changes the composed price', () => {
+    const withHouse = composeProduct(catTree, {
+      productId: 'cat-tree-modular',
+      selections: { tier3: 'platform' },
+    })
+    // tier3 platform (25) instead of the default perch (35) ⇒ 10 cheaper.
+    const withPerch = composeProduct(catTree, { productId: 'cat-tree-modular', selections: {} })
+    expect(withPerch.price - withHouse.price).toBe(10)
+  })
+
+  it('every cat-tree option contributes a real footprint + price', () => {
+    for (const slot of catTree.slots) {
+      for (const opt of slot.options) {
+        expect(opt.price).toBeGreaterThan(0)
+        expect(opt.footprint.w).toBeGreaterThan(0)
+        expect(opt.footprint.h).toBeGreaterThan(0)
+      }
+    }
+  })
+})
+
 describe('product registry', () => {
-  it('exposes both worked-example products', () => {
-    expect(CONFIGURABLE_PRODUCTS.map((p) => p.id)).toEqual(['mattress-frame', 'modular-sofa'])
+  it('exposes the worked-example products + the modular cat tree', () => {
+    expect(CONFIGURABLE_PRODUCTS.map((p) => p.id)).toEqual([
+      'mattress-frame',
+      'modular-sofa',
+      'cat-tree-modular',
+    ])
     expect(getConfigurableProduct('nope')).toBeNull()
+  })
+
+  it('the cat tree is categorised under pets', () => {
+    expect(catTree.category).toBe('pets')
   })
 })

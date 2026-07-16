@@ -131,6 +131,33 @@ Both snapping kinds stay fixed to their window/door once placed (like curtains),
 so they have no move/rotate handles. The **Pet bed** and freestanding **Pet
 playpen** place and resize like ordinary furniture.
 
+**For cats**, the Pets tab also has a full climbing‑and‑comfort set:
+
+- **Cat tree** — a floor‑standing tower with sisal‑wrapped posts and plush
+  platforms. Set the number of **Tiers** (2–5), the **Height** and **Base
+  width**, choose **Sisal rope** or **Ribbed** posts, and toggle the **House
+  cube** and **Top perch**. Platforms stagger over the base so it stands steady.
+- **Cat wall shelf**, **Cat wall steps** and **Cat wall bridge** — wall‑mounted
+  climbing furniture. Each has a **Mount height**; the steps rise diagonally
+  (set the **Steps** count, **Rise** and **Run**) and the bridge spans a
+  slatted catwalk between two anchors (**Span**). Place several to build a wall
+  run at different heights.
+- **Scratching post** — **Vertical post**, **Angled board** or floor **Pad**
+  styles, with a **Height** and sisal/base colours.
+- **Litter box** — an **Open tray**, **Covered hood** or **Top‑entry** tub, each
+  at its true size, and **Litter cabinet** — a bench that conceals a covered
+  litter box with a side entry hole and rear ventilation. Both keep clear access
+  space in front.
+- **Cat window perch** — a plush sill‑level lounger. Drop it near a window and it
+  snaps to the sill (it never covers the glass); set its **Depth** and cushion
+  colour.
+- **Cat tunnel** — a fabric play tube in **Straight** or **S‑curve** shapes, with
+  a **Length** and **Diameter**.
+
+You can also build a **modular cat tree** in the product configurator (**Tools →
+Configure a product → Cat tree (modular)**): pick a platform, house cube, hammock
+or cup perch for each tier, then add it to your room.
+
 ### Opening doors & drawers
 
 Storage furniture with fronts — kitchen cabinets, hinged‑door wardrobes,

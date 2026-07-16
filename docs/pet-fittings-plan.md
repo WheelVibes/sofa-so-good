@@ -62,6 +62,25 @@ bridge (mounted, depth/spacing correct), scratching posts (vertical/angled/pad),
 (open/covered) + concealment cabinet (ventilation cut-outs), window perch (windowBound),
 tunnel. Modular cat tree as a configurator product (base + tier/house/hammock slots).
 
+**P2 SHIPPED** 2026-07-17. Nine new `pets` defs (all keyworded `cat`): `cat-tree` (parametric
+`CatTree` — 2–5 staggered plush platforms on sisal-wrapped posts that connect base→platform,
+optional house cube + top perch; a shared ring-striped `sisalTexture.ts` canvas texture gives
+the rope read, no bespoke art); `cat-wall-shelf`/`cat-wall-steps`/`cat-wall-bridge` (mounted +
+`mountHeight`, one `CatShelves.tsx` module — a single ledge, a 3–5 step diagonal run with
+count/rise/run, and two anchors + a slatted bridge span); `scratching-post` (vertical/angled/pad,
+shared sisal read); `litter-box` (open ~46×36×10 / covered ~56×46×41 / top-entry, real dims,
+`frontClearance`); `litter-cabinet` (bench carcass with a side entry hole + rear vent slots +
+front door, wood finishes, interior sized for a covered box); `cat-window-perch` (`windowBound` —
+`windowSnap.ts:windowFixtureProps` sizes it to the opening width and anchors it AT the sill via a
+new `sillY` prop so it never covers the glass, brackets angle down to the wall); `cat-tunnel`
+(`TubeGeometry` straight/S-curve fabric tube with rib rings). Modular cat tree as a
+`CONFIGURABLE_PRODUCTS` entry (`cat-tree-modular`, category `pets`): sisal-post base + 3 tier
+slots (platform/house/hammock, top tier also a cup perch), with `requires` constraints so a
+hammock forces a solid platform on the tier below. Prices in `furniturePrices.ts`. Tests:
+`defs/pets.test.ts` (P2 line-up/schema/flags), `placement/windowSnap.test.ts` (perch sizing),
+`configurator/configurator.test.ts` (cat-tree compose/clamp/constraints/registry). Visual:
+`scripts/scenarios/pets-p2.json` (cat corner, wall run, snapped window perch, configurator swap).
+
 ## Stage P3 — Dog set
 Crates XXS-M (SG small breeds; wire + wood-top styles), bed variants (extend pet-bed),
 feeding station (raised, single/double), ramp/steps (sofa/bed access), cooling mat

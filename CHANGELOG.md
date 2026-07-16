@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.73 — Pets P2: the cat set
+
+Eight cat items (pets category, 'cat' keywords): parametric cat tree (2-5 staggered tiers,
+sisal-read posts via shared `sisalTexture.ts`, optional house/top perch, structurally sound),
+wall shelf + diagonal step run + slatted bridge (mounted/mountHeight), scratching post
+(vertical/angled/pad), litter box (open/covered/top-entry at researched dims) + ventilated
+litter concealment cabinet, window perch (windowBound at sill height via a new
+windowFixtureProps branch + sillY prop), fabric cat tunnel (straight/S), and a modular
+cat-tree configurator product (3 tier slots, hammock-requires-platform constraint).
+Scenario `pets-p2.json` 60 steps green (cat corner / wall run / perch snap d=0 /
+configurator swap frames verified); 117 targeted tests.
+
 ## v0.21.2.72 — Pets P1: pets category + SG compliance fittings
 
 Foundations + the Singapore-differentiating fittings: new `pets` FurnitureCategory (paw tab,

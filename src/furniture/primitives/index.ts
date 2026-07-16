@@ -22,6 +22,10 @@ import { BunkBed } from './BunkBed'
 import { CabinetCorner } from './CabinetCorner'
 import { CabinetBase, CabinetTall, CabinetWall } from './CabinetModule'
 import { CandleCluster } from './CandleCluster'
+import { CatWallBridge, CatWallShelf, CatWallSteps } from './CatShelves'
+import { CatTree } from './CatTree'
+import { CatTunnel } from './CatTunnel'
+import { CatWindowPerch } from './CatWindowPerch'
 import { CeilingFan } from './CeilingFan'
 import { CeilingLight } from './CeilingLight'
 import { ChaiseLounge } from './ChaiseLounge'
@@ -55,6 +59,8 @@ import { HighChair } from './HighChair'
 import { KitchenCounter } from './KitchenCounter'
 import { KitchenIsland } from './KitchenIsland'
 import { LaundryHamper } from './LaundryHamper'
+import { LitterBox } from './LitterBox'
+import { LitterCabinet } from './LitterCabinet'
 import { MagazineStack } from './MagazineStack'
 import { Microwave } from './Microwave'
 import { Mirror } from './Mirror'
@@ -80,6 +86,7 @@ import { Refrigerator } from './Refrigerator'
 import { RollerBlind } from './RollerBlind'
 import { RoomDivider } from './RoomDivider'
 import { Rug } from './Rug'
+import { ScratchingPost } from './ScratchingPost'
 import { ShoeCabinet } from './ShoeCabinet'
 import { Shower } from './Shower'
 import { Sideboard } from './Sideboard'
@@ -227,4 +234,13 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   PetGate,
   PetDoorInsert,
   PetPlaypen,
+  CatTree,
+  CatWallShelf,
+  CatWallSteps,
+  CatWallBridge,
+  ScratchingPost,
+  LitterBox,
+  LitterCabinet,
+  CatWindowPerch,
+  CatTunnel,
 }

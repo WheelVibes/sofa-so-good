@@ -168,6 +168,15 @@ export type PrimitiveKind =
   | 'PetGate'
   | 'PetDoorInsert'
   | 'PetPlaypen'
+  | 'CatTree'
+  | 'CatWallShelf'
+  | 'CatWallSteps'
+  | 'CatWallBridge'
+  | 'ScratchingPost'
+  | 'LitterBox'
+  | 'LitterCabinet'
+  | 'CatWindowPerch'
+  | 'CatTunnel'
 
 export type ParamField =
   | {
