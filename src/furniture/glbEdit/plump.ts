@@ -12,50 +12,36 @@
 
 import { BoxGeometry, type BufferGeometry } from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
-
-const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+import type { TuftGrid } from './editSpec'
+import { plumpVertexDelta } from './tufting'
 
 /**
  * Displace `geo` in place into a plumped cushion. `amount` 0…1 scales the bulge
  * (capped to a fraction of the smallest footprint so it never balloons); `size`
  * is the part's [w, h, d]. A vertex bulges most at the face centres and not at
  * all at the corners: the vertical displacement crowns the top/bottom, the
- * horizontal displacement bows the sides. Recomputes normals. No-op for
- * `amount <= 0`. Requires a tessellated geometry (see `plumpBoxGeometry`) — a
- * plain 8-corner box has no interior vertices to move.
+ * horizontal displacement bows the sides. An optional `tuft` grid (Stage 7c)
+ * subtracts smooth gaussian dimples from the top crown at the button points.
+ * Recomputes normals. No-op for `amount <= 0`. Requires a tessellated geometry
+ * (see `plumpBoxGeometry`) — a plain 8-corner box has no interior vertices to
+ * move. The per-vertex math is the pure `plumpVertexDelta` (`tufting.ts`), so it
+ * is byte-identical to the pre-Stage-7c bulge when `tuft` is absent.
  */
 export function applyPlump(
   geo: BufferGeometry,
   amount: number,
   size: [number, number, number],
+  tuft?: TuftGrid,
 ): void {
-  const a = clamp01(amount)
-  if (a <= 0) return
+  if (amount <= 0) return
   const pos = geo.getAttribute('position')
   const [w, h, d] = size
-  const hx = Math.max(1e-4, w / 2)
-  const hy = Math.max(1e-4, h / 2)
-  const hz = Math.max(1e-4, d / 2)
-  // Crown height + side bow, capped so a big `amount` stays a cushion not a ball.
-  const crown = a * Math.min(w, d) * 0.28
-  const bow = a * Math.min(w, d) * 0.14
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i)
     const y = pos.getY(i)
     const z = pos.getZ(i)
-    const rx = clamp01(Math.abs(x) / hx)
-    const ry = clamp01(Math.abs(y) / hy)
-    const rz = clamp01(Math.abs(z) / hz)
-    // Cosine falloff: 1 at a plane centre, 0 at the rim (cos(π/2)=0).
-    const cos = (r: number) => Math.cos((r * Math.PI) / 2)
-    // Vertical crown: strongest on the top/bottom faces (|y| near hy), fading to
-    // the edges by the horizontal falloff so corners stay pinned.
-    const dyMag = crown * (ry * ry) * cos(rx) * cos(rz)
-    // Side bow: strongest on the side faces (|x|/|z| near their half), fading up
-    // toward the crowned faces.
-    const dxMag = bow * (rx * rx) * cos(ry) * cos(rz)
-    const dzMag = bow * (rz * rz) * cos(ry) * cos(rx)
-    pos.setXYZ(i, x + Math.sign(x) * dxMag, y + Math.sign(y) * dyMag, z + Math.sign(z) * dzMag)
+    const [dx, dy, dz] = plumpVertexDelta(x, y, z, w, h, d, amount, tuft)
+    pos.setXYZ(i, x + dx, y + dy, z + dz)
   }
   pos.needsUpdate = true
   geo.computeVertexNormals()
@@ -79,10 +65,11 @@ export function plumpBoxGeometry(
   d: number,
   bevel: number,
   amount: number,
+  tuft?: TuftGrid,
 ): BufferGeometry {
   const clampedR = bevel > 0 ? Math.min(bevel, Math.min(w, h, d) / 2 - 1e-4) : 0
   const geo: BufferGeometry =
     clampedR > 0 ? new RoundedBoxGeometry(w, h, d, 5, clampedR) : new BoxGeometry(w, h, d, 8, 8, 8)
-  applyPlump(geo, amount, [w, h, d])
+  applyPlump(geo, amount, [w, h, d], tuft)
   return geo
 }

@@ -11,14 +11,16 @@ import { type Group, MathUtils, Mesh, type Object3D } from 'three'
 import { useModalGuard } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
 import { serializeConfiguredSpec } from '../../furniture/configurator/configuredPersist'
+import { validateProductConstraints } from '../../furniture/configurator/constraints'
 import {
   buildConfigurableProduct,
   crossBucketCombineName,
   type GroupAssignment,
   isPlanExportable,
   planConfigurableExport,
+  reconstructAssignments,
 } from '../../furniture/configurator/designerExport'
-import { clampConfig } from '../../furniture/configurator/model'
+import { type ConfigurableProduct, clampConfig } from '../../furniture/configurator/model'
 import {
   type AlignMode,
   type Axis3,
@@ -80,6 +82,7 @@ import {
   type SymmetryMode,
   setMeshOverride,
   decals as specDecals,
+  type TuftGrid,
   updatePart,
   updatePartGroupTransform,
 } from '../../furniture/glbEdit/editSpec'
@@ -120,6 +123,7 @@ import {
 } from '../../furniture/glbEdit/specHistory'
 import { parseAssetSpec } from '../../furniture/glbEdit/specPersist'
 import { buildTemplate, insertTemplate, templateById } from '../../furniture/glbEdit/templates'
+import { setTuftGrid as setTuftGridOp } from '../../furniture/glbEdit/tufting'
 import type { FurnitureCategory, UserGltfDef } from '../../furniture/types'
 import { parseFurnitureMaterialFinish } from '../../materials/furnitureMaterials'
 import { useStore } from '../../state/store'
@@ -761,6 +765,19 @@ function useDesignerController() {
     // source-mesh path with the editable part list.
     commit(restorableSpec)
     setSelId(restorableSpec.parts[0]?.id ?? null)
+    // Stage 7d — if this design was previously exported as a configurable product,
+    // re-seed the "Make configurable" panel (slot / label / price / rules) from it
+    // so a re-edit restores the authored variant slots + constraints. The product
+    // resolves by the design's stable `exportedProductId`; option ids ARE group
+    // ids, so the reconstruction is exact for the groups the design still has.
+    const productId = restorableSpec.exportedProductId
+    if (productId) {
+      const product = useStore.getState().userConfigurableProducts.find((p) => p.id === productId)
+      if (product) {
+        const knownGroupIds = new Set(partGroups(restorableSpec).map((g) => g.id))
+        setAssignments(reconstructAssignments(product, knownGroupIds))
+      }
+    }
   }
 
   const addShape = (kind: Parameters<typeof addPart>[1]) => {
@@ -800,6 +817,14 @@ function useDesignerController() {
   const patchSelectedPart = (patch: Partial<ShapePart>) => {
     if (!sel) return
     commit((sp) => updatePart(sp, sel.id, patch), { coalesceKey: 'patch' })
+  }
+
+  // One-tap tufting on the selected plumped box (Stage 7c). Sets/clears the tuft
+  // grid AND regenerates the tagged button decals in one coalesced step (a
+  // rows/cols/depth slider drag is one undo entry). `null` clears tufting.
+  const setTuftGrid = (grid: TuftGrid | null) => {
+    if (!sel) return
+    commit((sp) => setTuftGridOp(sp, sel.id, grid), { coalesceKey: `tuft:${sel.id}` })
   }
 
   // Numeric ROTATION edit of the selected part (Stage 6d) — applies the same
@@ -958,6 +983,9 @@ function useDesignerController() {
     if (!def) return
     const { spec: next, groupId } = insertTemplate(spec, buildTemplate(def, templateParams))
     commit(next)
+    // Stage 7c: apply the template's placement hint (the floating shelf is
+    // wall-mounted) so the Save panel defaults correctly.
+    if (def.placement) setPlacement(def.placement)
     cancelTemplate()
     if (groupId) selectGroup(groupId)
   }
@@ -1705,6 +1733,38 @@ function useDesignerController() {
       })
       return null
     }
+    // Slot-constraint authoring (Stage 7d): validate the mapped rules on a cheap
+    // product SHELL BEFORE the expensive GLB bake — a contradiction / unsatisfiable
+    // rule blocks with a toast naming the problem rather than exporting a product
+    // whose combos `clampConfig` can never honour.
+    const shell: ConfigurableProduct = {
+      id: 'validate',
+      label: name.trim() || 'Custom product',
+      category,
+      base: { footprint: plan.baseFootprint, price: 0 },
+      slots: plan.slots.map((s) => ({
+        id: s.id,
+        label: s.label,
+        anchor: { position: [0, 0, 0] },
+        defaultOptionId: s.defaultOptionId,
+        options: s.options.map((o) => ({
+          id: o.id,
+          label: o.label,
+          price: o.price,
+          footprint: o.footprint,
+        })),
+      })),
+      constraints: plan.constraints,
+    }
+    const problems = validateProductConstraints(shell)
+    if (problems.length > 0) {
+      notify.start({
+        title: "Can't save — rules conflict",
+        message: problems[0],
+        kind: 'error',
+      })
+      return null
+    }
     setCfgBusy(true)
     try {
       // Stable product id (finding 5): reuse the id this design was last exported
@@ -1819,6 +1879,8 @@ function useDesignerController() {
     remove,
     mirror,
     patchSelectedPart,
+    tuftGrid: sel?.tuft ?? null,
+    setTuftGrid,
     renamePartName,
     // arrange: align / distribute / mirror-axis / array (Stage 4)
     selCount: selIds.length,

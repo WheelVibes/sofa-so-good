@@ -29,7 +29,12 @@ import { defaultSpec } from '../parametric/spec'
 import { buildComponentParts, componentById } from './components'
 import {
   type AssetEditSpec,
+  addDecal,
+  type CombineGroup,
+  combineGroups,
   createEmptySpec,
+  type Decal,
+  newCombineGroupId,
   newPartGroupId,
   newPartId,
   type PartGroup,
@@ -37,6 +42,12 @@ import {
   type ShapePart,
 } from './editSpec'
 import { applyFinishPreset } from './finishPresets'
+import { tuftButtonDecals } from './tufting'
+
+/** Where a saved template is placed by default — a hint the designer applies to
+ *  the Save panel's placement select when the template is inserted (the floating
+ *  shelf is wall-mounted; everything else stands on the floor). */
+type TemplatePlacement = 'floor' | 'wall'
 
 /** One exposed slider param. Metres unless `unit` says otherwise; clamped to
  *  `[min, max]`. `presetLabels`, when set, makes the slider step through named
@@ -63,6 +74,13 @@ export interface TemplateParam {
 export interface TemplateResult {
   parts: ShapePart[]
   groups: PartGroup[]
+  /** Tuft button decals to attach (Stage 7c) — the bench's upholstered top ships
+   *  tufted by default. Ids are minted on insert. Each references a `parts[]` id. */
+  decals?: Omit<Decal, 'id'>[]
+  /** Built-in combine groups (Stage 7c) — the bathroom vanity ships with a basin
+   *  cutout (countertop solid − basin hole). Each references `parts[]` ids that
+   *  share the wrapping transform group's home. */
+  combineGroups?: CombineGroup[]
 }
 
 export interface TemplateDef {
@@ -70,6 +88,9 @@ export interface TemplateDef {
   name: string
   /** Suggested catalog category + save-name seed for the piece. */
   category: 'tables' | 'storage' | 'beds' | 'seating'
+  /** Default placement hint (Stage 7c) — the floating shelf is `wall`; absent →
+   *  `floor`. The designer applies it to the Save panel's placement select. */
+  placement?: TemplatePlacement
   params: TemplateParam[]
   /** Pure builder — receives fully-resolved (clamped) params and emits the
    *  flattened parts + wrapping group. */
@@ -83,6 +104,8 @@ const WOOD: Look = { color: '#9a7b50', roughness: 0.5, metalness: 0.05 }
 const DARK_WOOD: Look = { color: '#6e5337', roughness: 0.5, metalness: 0.05 }
 const PANEL: Look = { color: '#e8e4dc', roughness: 0.55, metalness: 0.03 }
 const FABRIC: Look = { color: '#8a8f98', roughness: 0.7, metalness: 0.02 }
+const STONE: Look = { color: '#dcdcd6', roughness: 0.35, metalness: 0.05 }
+const STEEL: Look = { color: '#c4c8ce', roughness: 0.3, metalness: 0.9 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
@@ -542,6 +565,195 @@ function buildTvConsole(w: number, d: number, h: number): TemplateResult {
 }
 
 // ============================================================================
+// Bench — upholstered tufted top (the Stage-7c showcase) + base rails + 4 legs
+// ============================================================================
+
+function buildBench(w: number, d: number, seatH: number): TemplateResult {
+  const parts: ShapePart[] = []
+  const cushionThk = 0.12
+  const seatTop = seatH
+  const legInset = 0.09
+  const legW = 0.05
+  const railH = 0.06
+  const railT = 0.03
+  const railTop = seatTop - cushionThk
+  const railBottom = railTop - railH
+  const legH = Math.max(0.06, railBottom)
+  // Four square legs, floor → base-rail underside.
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      parts.push(
+        ...fitting('leg-straight-square', { height: legH, width: legW }, [
+          sx * (w / 2 - legInset),
+          legH,
+          sz * (d / 2 - legInset),
+        ]),
+      )
+    }
+  }
+  // Front + back rails tying the legs, just under the cushion.
+  for (const sz of [-1, 1]) {
+    parts.push(
+      box(
+        [w - legInset, railH, railT],
+        [0, railBottom + railH / 2, sz * (d / 2 - legInset)],
+        DARK_WOOD,
+      ),
+    )
+  }
+  // The upholstered top: plumped (soft), wrinkles default-on (no mat finish so
+  // they show), tufted by default — the frame this stage exists for. Cols scale
+  // with the bench length; two rows front-to-back.
+  const cushion = box([w, cushionThk, d], [0, seatTop - cushionThk / 2, 0], FABRIC, {
+    name: 'Seat cushion',
+    plump: 0.7,
+    tuft: { rows: 2, cols: clamp(Math.round(w / 0.42), 2, 5), depth: 0.55 },
+  })
+  parts.push(cushion)
+  const result = wrap(parts, 'Bench')
+  result.decals = tuftButtonDecals(cushion)
+  return result
+}
+
+// ============================================================================
+// Bar stool — round lathe seat + tall tapered legs + a swept foot ring
+// ============================================================================
+
+/** Lathe profile (x = radius fraction, y = height fraction) for a round stool
+ *  seat: a disc with softly chamfered top + bottom edges. */
+const STOOL_SEAT_PROFILE: [number, number][] = [
+  [0, 0],
+  [0.82, 0],
+  [1, 0.28],
+  [1, 0.72],
+  [0.82, 1],
+  [0, 1],
+]
+
+function buildBarStool(seatH: number, seatDia: number): TemplateResult {
+  const parts: ShapePart[] = []
+  const seatThk = 0.06
+  const seatBottom = seatH - seatThk
+  const underside = seatBottom
+  // Round lathe seat.
+  parts.push({
+    id: newPartId(),
+    kind: 'lathe',
+    size: [seatDia, seatThk, seatDia],
+    position: [0, seatBottom + seatThk / 2, 0],
+    profile: STOOL_SEAT_PROFILE.map((p) => [...p] as [number, number]),
+    segments: 40,
+    ...DARK_WOOD,
+  })
+  // Four tall tapered legs on an inscribed circle, floor → seat underside.
+  const legR = Math.max(0.08, seatDia / 2 - 0.05)
+  const legOff = legR * Math.SQRT1_2
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      parts.push(
+        ...fitting('leg-tapered-round', { height: underside, diameter: 0.045 }, [
+          sx * legOff,
+          underside,
+          sz * legOff,
+        ]),
+      )
+    }
+  }
+  // Swept foot ring (a circle profile on a ring path) tying the legs low down.
+  const ringY = Math.min(0.24, underside * 0.4)
+  parts.push({
+    id: newPartId(),
+    kind: 'sweep',
+    size: [2 * legR, 0.02, 2 * legR],
+    position: [0, ringY, 0],
+    sweepProfile: 'circle',
+    sweepPath: 'ring',
+    ...STEEL,
+  })
+  return wrap(parts, 'Bar stool')
+}
+
+// ============================================================================
+// Floating shelf — a wall-mounted board + a hidden back cleat (no legs)
+// ============================================================================
+
+function buildFloatingShelf(w: number, d: number, thickness: number): TemplateResult {
+  const parts: ShapePart[] = []
+  // The shelf board — back face at z = −d/2 sits against the wall; underside at
+  // y = 0 (the asset's local origin; a wall-mounted piece hangs at any height).
+  parts.push(
+    box([w, thickness, d], [0, thickness / 2, 0], WOOD, {
+      bevel: Math.min(0.01, thickness / 2),
+    }),
+  )
+  // Two concealed cleats along the board underside near the ends (the hidden
+  // bracket cue), tucked against the wall face and sitting within the board's own
+  // height so the piece reads as a solid floating slab.
+  const cleatT = 0.02
+  const cleatH = thickness
+  for (const sx of [-1, 1]) {
+    parts.push(
+      box(
+        [w * 0.18, cleatH, cleatT],
+        [sx * (w / 2 - w * 0.12), cleatH / 2, -d / 2 + cleatT / 2],
+        DARK_WOOD,
+      ),
+    )
+  }
+  return wrap(parts, 'Floating shelf')
+}
+
+// ============================================================================
+// Bathroom vanity — carcass + basin cutout (a built-in subtract combine) + doors
+// ============================================================================
+
+function buildVanity(w: number, h: number, d: number, doors: number): TemplateResult {
+  const parts: ShapePart[] = []
+  const n = clamp(Math.round(doors), 1, 3)
+  const plinthH = 0.06
+  parts.push(buildPlinth(w, d, plinthH, 0.03))
+  const counterT = 0.04
+  const carcassTop = h - counterT
+  const bottom = plinthH
+  const carcassH = carcassTop - bottom
+  const innerW = w - PANEL_T * 2
+  // Carcass up to the underside of the counter.
+  parts.push(...buildCarcass(w, carcassTop, d, bottom))
+  // Countertop slab (solid) minus a basin bowl (hole) → the built-in combine.
+  const counter = box([w, counterT, d], [0, carcassTop + counterT / 2, 0], STONE)
+  const basinDia = Math.min(0.42, Math.min(w, d) * 0.6)
+  const basin: ShapePart = {
+    id: newPartId(),
+    kind: 'cylinder',
+    // Taller than the counter so the subtract cuts a clean through-hole (no
+    // coplanar faces to fight the CSG evaluator).
+    size: [basinDia, counterT * 2.5, basinDia],
+    position: [0, carcassTop + counterT / 2, 0],
+    role: 'hole',
+    ...STONE,
+  }
+  parts.push(counter, basin)
+  // Doors across the front.
+  const doorH = carcassH - 2 * REVEAL
+  const doorY = bottom + REVEAL + doorH / 2
+  parts.push(
+    ...buildDoorRow(n, innerW, doorH, doorY, d / 2, (leafW) => Math.min(0.12, leafW * 0.5), 0.06),
+  )
+  const result = wrap(parts, 'Bathroom vanity')
+  // The countertop + basin are both members of the wrapping transform group
+  // (`wrap` grouped every part), so the combine has a well-defined home.
+  result.combineGroups = [
+    {
+      id: newCombineGroupId(),
+      name: 'Basin cutout',
+      partIds: [counter.id, basin.id],
+      op: 'subtract',
+    },
+  ]
+  return result
+}
+
+// ============================================================================
 // The library
 // ============================================================================
 
@@ -990,6 +1202,159 @@ export const TEMPLATE_LIBRARY: TemplateDef[] = [
     ],
     build: (p) => buildTvConsole(p.width, p.depth, p.height),
   },
+  {
+    id: 'bench',
+    name: 'Bench',
+    category: 'seating',
+    params: [
+      {
+        key: 'width',
+        label: 'Length',
+        unit: 'm',
+        min: 0.9,
+        max: 1.8,
+        step: 0.05,
+        default: 1.2,
+        hint: 'Benches run 1.0–1.6 m for two to three seats',
+      },
+      {
+        key: 'depth',
+        label: 'Depth',
+        unit: 'm',
+        min: 0.32,
+        max: 0.5,
+        step: 0.02,
+        default: 0.4,
+        hint: 'Seat depth 0.35–0.45 m',
+      },
+      {
+        key: 'seatHeight',
+        label: 'Seat height',
+        unit: 'm',
+        min: 0.42,
+        max: 0.48,
+        step: 0.01,
+        default: 0.45,
+        hint: 'Bench seat height ~0.45 m',
+      },
+    ],
+    build: (p) => buildBench(p.width, p.depth, p.seatHeight),
+  },
+  {
+    id: 'bar-stool',
+    name: 'Bar stool',
+    category: 'seating',
+    params: [
+      {
+        key: 'seatHeight',
+        label: 'Seat height',
+        unit: 'm',
+        min: 0.65,
+        max: 0.78,
+        step: 0.01,
+        default: 0.7,
+        hint: 'Counter stool 0.65 m, bar stool up to 0.78 m',
+      },
+      {
+        key: 'seatDiameter',
+        label: 'Seat ⌀',
+        unit: 'm',
+        min: 0.28,
+        max: 0.4,
+        step: 0.01,
+        default: 0.34,
+        hint: 'Round seat 0.30–0.38 m across',
+      },
+    ],
+    build: (p) => buildBarStool(p.seatHeight, p.seatDiameter),
+  },
+  {
+    id: 'floating-shelf',
+    name: 'Floating shelf',
+    category: 'storage',
+    placement: 'wall',
+    params: [
+      {
+        key: 'width',
+        label: 'Width',
+        unit: 'm',
+        min: 0.4,
+        max: 1.6,
+        step: 0.05,
+        default: 0.8,
+        hint: 'Spans over 1.2 m want a mid bracket',
+      },
+      {
+        key: 'depth',
+        label: 'Depth',
+        unit: 'm',
+        min: 0.15,
+        max: 0.35,
+        step: 0.01,
+        default: 0.22,
+        hint: 'Shelf depth 0.18–0.30 m holds books/decor',
+      },
+      {
+        key: 'thickness',
+        label: 'Thickness',
+        unit: 'm',
+        min: 0.03,
+        max: 0.08,
+        step: 0.005,
+        default: 0.04,
+        hint: 'Board 30–60 mm reads as a solid floating shelf',
+      },
+    ],
+    build: (p) => buildFloatingShelf(p.width, p.depth, p.thickness),
+  },
+  {
+    id: 'bathroom-vanity',
+    name: 'Bathroom vanity',
+    category: 'storage',
+    params: [
+      {
+        key: 'width',
+        label: 'Width',
+        unit: 'm',
+        min: 0.6,
+        max: 1.4,
+        step: 0.05,
+        default: 0.9,
+        hint: 'Single-basin vanities run 0.6–1.2 m',
+      },
+      {
+        key: 'height',
+        label: 'Height',
+        unit: 'm',
+        min: 0.8,
+        max: 0.9,
+        step: 0.01,
+        default: 0.85,
+        hint: 'Vanity counter height 0.80–0.90 m',
+      },
+      {
+        key: 'depth',
+        label: 'Depth',
+        unit: 'm',
+        min: 0.45,
+        max: 0.6,
+        step: 0.01,
+        default: 0.5,
+        hint: '0.45–0.55 m deep clears a basin',
+      },
+      {
+        key: 'doors',
+        label: 'Doors',
+        unit: 'doors',
+        min: 1,
+        max: 3,
+        step: 1,
+        default: 2,
+        hint: 'One to three cupboard leaves under the basin',
+      },
+    ],
+    build: (p) => buildVanity(p.width, p.height, p.depth, p.doors),
+  },
 ]
 
 /** A `ParametricPart` (box role) → designer `ShapePart` adapter — the bookshelf
@@ -1088,12 +1453,15 @@ export function insertTemplate(
   if (result.parts.length === 0) return { spec, groupId: null }
   const isEmpty = spec.parts.length === 0 && !spec.sourceAssetId
   if (isEmpty) {
-    const next: AssetEditSpec = {
+    const base: AssetEditSpec = {
       ...createEmptySpec(),
       parts: result.parts,
       partGroups: result.groups,
     }
-    return { spec: next, groupId: result.groups[0]?.id ?? null }
+    return {
+      spec: attachTemplateExtras(base, result),
+      groupId: result.groups[0]?.id ?? null,
+    }
   }
   const maxX = specMaxWorldX(spec) ?? 0
   const offsetX = maxX + INSERT_GAP_M + resultHalfWidth(result)
@@ -1101,10 +1469,25 @@ export function insertTemplate(
     const p = g.position ?? [0, 0, 0]
     return { ...g, position: [p[0] + offsetX, p[1], p[2]] as [number, number, number] }
   })
-  const next: AssetEditSpec = {
+  const base: AssetEditSpec = {
     ...spec,
     parts: [...spec.parts, ...result.parts],
     partGroups: [...partGroups(spec), ...shifted],
   }
-  return { spec: next, groupId: shifted[0]?.id ?? null }
+  return { spec: attachTemplateExtras(base, result), groupId: shifted[0]?.id ?? null }
+}
+
+/** Attach a template's built-in combine groups + tuft decals onto a spec that
+ *  already carries its parts/groups (Stage 7c). Combine groups reference part ids
+ *  minted in `build()`, unaffected by the alongside +X offset (which only shifts
+ *  group positions); tuft decals are appended with fresh ids. Pure. */
+function attachTemplateExtras(spec: AssetEditSpec, result: TemplateResult): AssetEditSpec {
+  let next = spec
+  if (result.combineGroups?.length) {
+    next = { ...next, combineGroups: [...combineGroups(next), ...result.combineGroups] }
+  }
+  if (result.decals?.length) {
+    for (const dec of result.decals) next = addDecal(next, dec).spec
+  }
+  return next
 }

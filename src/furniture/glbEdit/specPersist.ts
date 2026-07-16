@@ -48,8 +48,13 @@ import type { AssetEditSpec } from './editSpec'
  *    → migration stays the identity. (An older v9 plumped cushion has no
  *    `wrinkles` field, so it renders with the subtle default-on wrinkles — the
  *    stored spec data is unchanged; only the surface look gains the realism
- *    default.) */
-export const ASSET_SPEC_VERSION = 10
+ *    default.)
+ *  - v11 (Realism III, Stage 7c): adds optional `parts[].tuft` (`{rows, cols,
+ *    depth}` tufting grid on a plumped box) + optional `decals[].tuft` (a boolean
+ *    tag marking the tuft-generated buttons). Additive superset -> migration stays
+ *    the identity. (A v10 spec has no tuft fields — it loads unchanged.)
+ */
+export const ASSET_SPEC_VERSION = 11
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
  *  Every version bump so far has been an additive superset, so migration is the
@@ -66,7 +71,8 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
     case 7: // no shell/loft/sweepPathPoints — already a valid v8 spec.
     case 8: // no faceFinishes/finishScale/finishRotation — already a valid v9 spec.
     case 9: // no wrinkles — already a valid v10 spec.
-    case 10:
+    case 10: // no tuft grid / tuft decal tag — already a valid v11 spec.
+    case 11:
       return spec
     default:
       return null
@@ -219,6 +225,8 @@ function isDecals(x: unknown): boolean {
       (typeof dec.rotation !== 'number' || !Number.isFinite(dec.rotation))
     )
       return false
+    // v11: optional tuft tag (marks a tuft-generated button decal).
+    if (dec.tuft !== undefined && typeof dec.tuft !== 'boolean') return false
     return (
       typeof dec.id === 'string' &&
       typeof dec.partId === 'string' &&
@@ -230,6 +238,18 @@ function isDecals(x: unknown): boolean {
       VALID_DECAL_KINDS.has(dec.kind)
     )
   })
+}
+
+/** Guard the optional `tuft` field (Stage 7c): absent is fine; otherwise an
+ *  object with finite numeric `rows`/`cols`/`depth`. Strict — a malformed value
+ *  makes the whole spec un-restorable (matching the other collections). */
+function isTuftGrid(x: unknown): boolean {
+  if (x === undefined) return true
+  if (!x || typeof x !== 'object') return false
+  const t = x as Record<string, unknown>
+  return (['rows', 'cols', 'depth'] as const).every(
+    (k) => typeof t[k] === 'number' && Number.isFinite(t[k]),
+  )
 }
 
 /** Every part must be an object with a valid `role` (or none), valid Stage-2
@@ -251,6 +271,8 @@ function partsValid(parts: unknown[]): boolean {
       (typeof rec.wrinkles !== 'number' || !Number.isFinite(rec.wrinkles))
     )
       return false
+    // v11: optional tufting grid { rows, cols, depth } (all finite numbers).
+    if (!isTuftGrid(rec.tuft)) return false
     if (rec.sweepPoints !== undefined) {
       if (!Array.isArray(rec.sweepPoints) || !rec.sweepPoints.every(isVec3)) return false
     }

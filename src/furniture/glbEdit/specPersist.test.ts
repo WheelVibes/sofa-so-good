@@ -143,8 +143,8 @@ describe('specPersist', () => {
     expect(restored!.parts[1].role).toBe('hole')
   })
 
-  it('the current envelope is v10', () => {
-    expect(ASSET_SPEC_VERSION).toBe(10)
+  it('the current envelope is v11', () => {
+    expect(ASSET_SPEC_VERSION).toBe(11)
   })
 
   it('round-trips Stage-6e wrinkles and migrates a v9 blob identically', () => {
@@ -286,10 +286,10 @@ describe('specPersist', () => {
     expect(restored!.combineGroups).toBeUndefined()
   })
 
-  it('migrateAssetSpec: every known version v1…v10 is the identity, unknown version → null', () => {
+  it('migrateAssetSpec: every known version v1…v11 is the identity, unknown version → null', () => {
     const spec = createEmptySpec()
     // Every bump so far is an additive superset, so migration is the identity for
-    // each recognised version through the current envelope (v10).
+    // each recognised version through the current envelope (v11).
     for (let v = 1; v <= ASSET_SPEC_VERSION; v++) {
       expect(migrateAssetSpec(spec, v)).toBe(spec)
     }

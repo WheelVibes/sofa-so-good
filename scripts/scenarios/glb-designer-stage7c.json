@@ -1,0 +1,182 @@
+{
+  "name": "glb-designer-stage7c",
+  "description": "Asset Studio Iteration 3 Stage 7c — tufting generator + more archetypes in the GLB Asset Designer (Pro, glbDesigner on). Insert the new 'Bench' template — its upholstered top ships plumped + tufted by default (the showcase frame: gaussian dimples in the crown with a button centred in each dimple). Then insert 'Bar stool' (round lathe seat + tall legs + a swept foot ring) and 'Bathroom vanity' (carcass + a built-in basin-cutout combine) alongside. Select the bench's 'Seat cushion', bump the Tufting rows, and assert the tagged button decals regenerate (count changes, old ids replaced, user decals untouched). Finally Save and assert the persisted def's assetSpec is the v11 envelope embedding parts[].tuft + the tagged tuft decals. Run with SHOT_GPU=1 (the fabric wrinkles + finishes read best on a real GPU).",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "css": ".glb-designer" },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-designer",
+      "wait": 800
+    },
+    {
+      "name": "expand-templates",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Templates');if(!s)throw new Error('Templates summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-bench",
+      "comment": "Arm the new Bench template — the parametric step shows the length/depth/seat-height sliders + a live preview of the tufted top.",
+      "click": { "selector": "button[aria-label='Start from Bench template']", "timeout": 5000 }
+    },
+    {
+      "name": "assert-bench-armed",
+      "eval": "(function(){ if (!document.querySelector('.glb-designer button[aria-label=\"Use Bench template\"]')) throw new Error('Use Bench action missing — bench template did not arm'); })()"
+    },
+    {
+      "name": "use-bench",
+      "click": { "selector": "button[aria-label='Use Bench template']", "timeout": 5000 }
+    },
+    {
+      "name": "wait-bench",
+      "wait": 900
+    },
+    {
+      "name": "home-view",
+      "eval": "(function(){ const b = document.querySelector('.glb-designer button[aria-label=\"Home view\"]'); if (b) b.click(); })()"
+    },
+    {
+      "name": "wait-home",
+      "wait": 1000
+    },
+    {
+      "name": "shot-bench-tufted",
+      "comment": "THE frame this stage exists for: the bench's upholstered top with visible tufting — gaussian dimples in the plump crown, a button decal centred in each dimple, in a rectangular grid.",
+      "screenshot": "01-bench-tufted"
+    },
+    {
+      "name": "assert-bench-tufted",
+      "comment": "The bench cushion is a plumped box carrying a tuft grid, and its tagged button decals were generated (rows × cols).",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const cushion = s.parts.find(p => p.name === 'Seat cushion'); if (!cushion) throw new Error('Seat cushion part missing'); if ((cushion.plump ?? 0) <= 0) throw new Error('cushion is not plumped'); if (!cushion.tuft) throw new Error('cushion has no tuft grid'); const tufts = (s.decals||[]).filter(d => d.tuft && d.partId === cushion.id); if (tufts.length !== cushion.tuft.rows * cushion.tuft.cols) throw new Error('expected ' + (cushion.tuft.rows*cushion.tuft.cols) + ' tuft buttons, got ' + tufts.length); if (!tufts.every(d => d.kind === 'button')) throw new Error('tuft decals must be buttons'); })()"
+    },
+    {
+      "name": "expand-templates-2",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Templates');if(!s)throw new Error('Templates summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-bar-stool",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Start from Bar stool template\"]'); if (!btn) throw new Error('Bar stool template button not found'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "use-bar-stool",
+      "click": { "selector": "button[aria-label='Use Bar stool template']", "timeout": 5000 }
+    },
+    {
+      "name": "wait-stool",
+      "wait": 700
+    },
+    {
+      "name": "expand-templates-3",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Templates');if(!s)throw new Error('Templates summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-vanity",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Start from Bathroom vanity template\"]'); if (!btn) throw new Error('Bathroom vanity template button not found'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "use-vanity",
+      "click": { "selector": "button[aria-label='Use Bathroom vanity template']", "timeout": 5000 }
+    },
+    {
+      "name": "wait-vanity",
+      "comment": "Give the built-in basin-cutout combine time to evaluate in the preview (CSG worker).",
+      "wait": 2000
+    },
+    {
+      "name": "home-view-2",
+      "eval": "(function(){ const b = document.querySelector('.glb-designer button[aria-label=\"Home view\"]'); if (b) b.click(); })()"
+    },
+    {
+      "name": "wait-home-2",
+      "wait": 1200
+    },
+    {
+      "name": "shot-trio",
+      "comment": "Bench + bar stool + bathroom vanity side by side; the vanity's countertop shows the carved basin cavity (the built-in subtract combine evaluated in the preview).",
+      "screenshot": "02-bench-stool-vanity"
+    },
+    {
+      "name": "assert-vanity-combine",
+      "comment": "The vanity shipped WITH a built-in subtract combine (countertop − basin hole).",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const cgs = s.combineGroups || []; const sub = cgs.find(g => g.op === 'subtract' && g.partIds.length === 2); if (!sub) throw new Error('no built-in subtract combine on the spec'); const hole = s.parts.find(p => p.role === 'hole'); if (!hole) throw new Error('basin hole part missing'); if (!sub.partIds.includes(hole.id)) throw new Error('basin hole not in the combine group'); })()"
+    },
+    {
+      "name": "select-cushion",
+      "comment": "Select the bench's Seat cushion so the Tufting controls appear in the inspector (expand the Bench group first if collapsed). The layer row is clicked by its name label.",
+      "eval": "(function(){ const findRow = () => [...document.querySelectorAll('.glb-designer .lyr-nm')].find(n => (n.textContent||'').trim() === 'Seat cushion'); let nm = findRow(); if (!nm) { const exp = document.querySelector('.glb-designer button[aria-label=\"Expand Bench\"]'); if (exp) exp.click(); nm = findRow(); } if (!nm) throw new Error('Seat cushion layer row not found'); const row = nm.closest('.lyr-row'); row.scrollIntoView(); row.click(); })()"
+    },
+    {
+      "name": "wait-inspector",
+      "wait": 400
+    },
+    {
+      "name": "assert-tuft-controls",
+      "eval": "(function(){ if (!document.querySelector('.glb-designer input[aria-label=\"Tufting rows\"]')) throw new Error('Tufting rows slider missing — the cushion is not selected or not tuftable'); })()"
+    },
+    {
+      "name": "record-tuft-before",
+      "eval": "window.__tuftBefore = (() => { const t = (window.__glbDesigner.getSpec().decals||[]).filter(d => d.tuft); return { count: t.length, ids: t.map(d => d.id) }; })()"
+    },
+    {
+      "name": "bump-rows",
+      "comment": "Drag the Tufting rows slider up — the tagged button grid regenerates (old tuft decals replaced).",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Tufting rows\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '4'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "wait-regen",
+      "wait": 500
+    },
+    {
+      "name": "assert-rows-regen",
+      "comment": "Editing rows changed the tuft button count and REPLACED the previous tuft decals (fresh ids), never touching user decals.",
+      "eval": "(function(){ const t = (window.__glbDesigner.getSpec().decals||[]).filter(d => d.tuft); if (t.length === window.__tuftBefore.count) throw new Error('tuft decal count did not change: ' + t.length); const before = new Set(window.__tuftBefore.ids); if (t.some(d => before.has(d.id))) throw new Error('old tuft decals were not replaced'); })()"
+    },
+    {
+      "name": "shot-rows-changed",
+      "screenshot": "03-tuft-rows-changed"
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage7c Tufting'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-tuft",
+      "comment": "End-to-end proof: the saved assetSpec is the v11 envelope embedding parts[].tuft (rows bumped to 4) + the tagged tuft decals (4 × cols). Tufting round-trips as an editable spec.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage7c Tufting' && typeof d.assetSpec === 'string' && (() => { try { const env = JSON.parse(d.assetSpec); if (env.v !== 11) return false; const s = env.payload; const cushion = s.parts.find(p => p.name === 'Seat cushion'); const tufts = (s.decals||[]).filter(x => x.tuft); return !!cushion && !!cushion.tuft && cushion.tuft.rows === 4 && tufts.length === 4 * cushion.tuft.cols; } catch { return false } })())"
+      },
+      "timeout": 90000,
+      "failMessage": "saved assetSpec should embed parts[].tuft (rows 4) + tagged tuft decals at the v11 envelope"
+    },
+    {
+      "name": "shot-saved",
+      "screenshot": "04-saved-with-tufting"
+    }
+  ]
+}

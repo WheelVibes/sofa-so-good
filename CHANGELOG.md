@@ -5,6 +5,85 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.52 — Asset Studio Iteration 3 · Stage 7d — slot-constraint authoring for configurable exports
+
+The GLB Asset Designer's "Make configurable" flow gains per-option **compatibility-rule authoring**:
+an author can declare `requires` / `excludes` rules between options of different slots, and the
+exported product family enforces them automatically (invalid combos become unpickable / auto-resolve).
+Reuses the configurator's existing `SlotConstraint` model + `clampConfig` enforcement — no parallel
+constraint system. Behind the existing `assetConfigurableExport` pro flag; no persistence/envelope
+change (a `ConfigurableProduct` already persists its `constraints`). Plan:
+`docs/asset-studio-plan.md` Iteration 3 Stage 7d.
+
+- **Authoring model reuses the configurator's exact vocabulary.** Each exposed option (a `PartGroup`
+  assigned a slot) carries `rules: { kind: 'requires' | 'excludes'; target: <group id> }[]` on its
+  `GroupAssignment`; `configurator/designerExport.ts:mapRulesToConstraints` maps them into the
+  existing `model.ts` `SlotConstraint` (`requires`/`excludes`) at plan time — an option id IS its
+  group id and a slot id IS its slot key, so the mapping is exact — and carries them onto
+  `ConfigurableProduct.constraints`. Only **cross-slot** targets are emitted (a same-slot or
+  non-exposed/base target is meaningless and dropped). `ConfiguratorDialog`'s existing `clampConfig`
+  makes invalid combos auto-resolve end-to-end (pick Glass top → Legs auto-flip to Steel).
+- **Compact per-option Rules UI** (`ui/glbEditor/MakeConfigurablePanel.tsx`): a "Rules" `Disclosure`
+  under each exposed option, each rule a kind Select (requires/excludes) + a cross-slot target Select
+  (labelled "<slot> · <option>") with add/remove; only options in OTHER slots are offered.
+  `controls/Disclosure` gained an optional `style` prop for the nested indent.
+- **Validation** (`configurator/constraints.ts`, pure + unit-tested): `validateProductConstraints`
+  returns human-readable problems — **contradiction** (an option both requires AND excludes the same
+  target), **unsatisfiable / circular requires** (the requires closure forces one slot to two options
+  at once, or forces a forbidden excludes pair), and **dangling** references. Export validates a cheap
+  product SHELL BEFORE the expensive GLB bake and **blocks with a toast** naming the first problem.
+  `pruneProductConstraints` drops constraints referencing a removed slot/option (+ warnings) so a
+  stale rule self-heals rather than crashing `clampConfig`.
+- **Persistence**: constraints live in the exported product (`userProductsSlice` path unchanged);
+  re-export via the stable `spec.exportedProductId` preserves/updates rules; **re-edit seeding** —
+  `restoreSpec` reconstructs the panel's assignments (slot / label / price / **rules**) from the
+  matching user product via `reconstructAssignments`, pruning any rule whose target group was deleted.
+- **Tests**: constraint mapping designer→product + `reconstructAssignments` round-trip
+  (`designerExport.test.ts`); `validateProductConstraints`/`pruneProductConstraints` cases — ok,
+  contradiction, circular, dangling (`constraints.test.ts`); `clampConfig` integration (a requires
+  rule flips the dependent slot). Scenario `scripts/scenarios/glb-designer-stage7d.json`.
+
+## v0.21.2.51 — Asset Studio Iteration 3 · Stage 7c — tufting generator + more archetypes
+
+The GLB Asset Designer gains **one-tap tufting** on plumped cushions plus four new archetype
+templates (bench, bar stool, floating shelf, bathroom vanity). Behind the existing `glbDesigner`
+pro flag; spec envelope **v10 → v11** (additive). Plan: `docs/asset-studio-plan.md` Iteration 3
+Stage 7c.
+
+- **Tufting** (`furniture/glbEdit/tufting.ts`, pure + unit-tested): a `TuftGrid { rows, cols, depth }`
+  (1–6 × 1–6, depth 0…1) on a plumped **box** does two coordinated things — (a) `plumpVertexDelta`
+  subtracts smooth **gaussian dimples** from the plump crown at each button point, weighted by the
+  SAME `ry²·cos·cos` falloff as the crown so the four seam corners stay pinned and the dimple is
+  top-face only; (b) `setTuftGrid` regenerates a matching grid of **button decals** (the Stage-5 decal
+  system, reused) sitting IN the dimples (local Y from `plumpTopSurfaceY`). Tuft decals are **tagged**
+  (`Decal.tuft`) so editing rows/cols/depth REPLACES only the tuft buttons and never touches
+  user-placed decals. **Rectangular grid only** — the diamond/Chesterfield look is out of scope
+  (documented). The plump crown/bow/dimple math moved into `tufting.ts` (pure, three-free);
+  `plump.ts:applyPlump`/`plumpBoxGeometry` now delegate to it (byte-identical without a tuft grid).
+  Inspector: a "Tufting (buttons)" toggle + Rows/Columns/Dimple-depth sliders next to Plump, shown
+  only for a plumped box (`ui/glbEditor/PartInspector.tsx`).
+- **Archetype templates** (`furniture/glbEdit/templates.ts`, now **14** starters, unit-tested):
+  **Bench** (upholstered top plumped + tufted by default — the showcase — on square legs + rails),
+  **Bar stool** (round lathe seat + tall tapered legs + a swept foot ring, seat 0.65–0.78 m),
+  **Floating shelf** (a wall-mounted board + concealed cleats; carries a `placement: 'wall'` hint the
+  Save panel applies), and **Bathroom vanity** (reuses `buildCarcass`/`buildDoorRow`/`buildPlinth` +
+  ships WITH a built-in **subtract combine** — countertop minus a basin-hole cylinder). Ergonomic
+  clamps: bench seat ~0.45 m, stool 0.65–0.78 m, vanity counter 0.80–0.90 m. `TemplateResult` gained
+  optional `decals` (bench tuft buttons) + `combineGroups` (vanity basin); `insertTemplate` attaches
+  both (part ids are minted in `build()`, so the combine members share the wrapping group's home).
+- **Persistence**: envelope **v10 → v11** (`specPersist.ts`) — additive identity migration + strict
+  validation for `parts[].tuft` (`{rows,cols,depth}` finite) and `decals[].tuft` (boolean tag). An
+  older v10 spec loads unchanged.
+- **Tests**: `tufting.test.ts` (grid layout/inset/symmetry, dimple-below-crown + monotonic depth +
+  corner pinning + top-only, decal tagging, `setTuftGrid` regeneration/replacement + user-decal
+  safety + deep-copy on duplicate) + new `templates.test.ts` cases (each archetype buildable + bbox;
+  the vanity's built-in combine round-trips through insert AND evaluates to a mesh).
+- **Visual verification** (SHOT_GPU=1): `scripts/scenarios/glb-designer-stage7c.json` — insert the
+  bench (tufted top: dimples + buttons centred in each), then bar stool + vanity alongside (basin
+  cavity visibly carved by the combine preview), bump the tufting rows (button grid regenerates,
+  count changes, old tuft decals replaced), and save → the persisted `assetSpec` is the v11 envelope
+  embedding `parts[].tuft` + the tagged tuft decals.
+
 ## v0.21.2.50 — Asset Studio Iteration 3 · Stage 7b — live during-drag face snapping
 
 The Stage-6d deferral: the magnetic face snap now previews **live while you drag** in the GLB Asset

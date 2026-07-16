@@ -68,7 +68,8 @@ build one in the browser:
 
 - **Templates** — the fastest start: the **Templates** section offers ready-made pieces —
   **Dining table**, **Coffee table**, **Bookshelf**, **Cabinet**, **Bed frame**, **Sofa
-  frame**, **Dining chair**, **Wardrobe**, **Desk** and **TV console**. Tap one and a small panel
+  frame**, **Dining chair**, **Wardrobe**, **Desk**, **TV console**, **Bench**, **Bar stool**,
+  **Floating shelf** and **Bathroom vanity**. Tap one and a small panel
   opens with 2–4 dimension sliders (each shows its unit, the
   allowed range and a hint naming the standard — e.g. *"Standard dining height 0.75 m"*), and the
   **preview updates live** as you drag. The dimensions are clamped to sensible furniture sizes, so
@@ -203,6 +204,13 @@ build one in the browser:
   shell. It's **on by default** at a gentle level; drag it to **Off** to remove it, or up for a more
   gathered look. (If you apply a **material finish** to the shape, its own surface texture takes over
   and the wrinkles step aside — a short note replaces the slider.)
+- **Tufting** — once a **box** is plumped, a **Tufting (buttons)** toggle appears just below the
+  Plump/Wrinkles controls. Turn it on to add a **grid of buttons** to the cushion top: **Rows** and
+  **Columns** (1–6 each) set the grid and **Dimple depth** sets how deep each button pulls the
+  padding in. Each button sits in its own soft dimple — the classic button-tufted upholstery look.
+  Changing the rows/columns regenerates the button grid; any details you placed by hand are left
+  alone. (It's a **rectangular** grid — the diamond/Chesterfield pattern isn't offered.) The
+  **Bench** template ships tufted by default, so it's a quick way to see the effect.
 - **Arrange (align, distribute, mirror, array)** — with shapes selected, an **Arrange**
   section appears. Pick an **axis** (X/Y/Z), then **Align min**, **Align centre** or **Align max**
   to line the selected shapes up on that axis (needs 2+ shapes), or **Distribute** to space 3+
@@ -268,10 +276,29 @@ own group, then **Duplicate** that group and edit the copy into square legs), th
    one is the default. Leave a group's slot blank to keep it as fixed base geometry;
    loose (ungrouped) shapes are always part of the base.
 2. Give each option a short **label** and a **price** (defaults to 0 — edit it if you like).
-3. Hit **Save as configurable product**.
+3. *(Optional)* Set **compatibility rules** between options — see below.
+4. Hit **Save as configurable product**.
 
 It opens straight into **Configure a product**, where you (or anyone) can pick an option
 per slot, watch the piece update live, and **Save to catalog** / **Add to room** the exact
 configuration you want — just like the built‑in configurable products. Your saved product
 also shows up as its own tab in **Configure a product** for next time.
+
+#### Compatibility rules (requires / excludes)
+
+Some option combinations don't make sense together — a glass top might only be rated for
+steel legs, or you might not want two chaise ends on one sofa. Expand the **Rules**
+section under any option to add rules against options in **other** slots:
+
+- **requires** — picking this option automatically switches the target slot to the
+  required option (e.g. *Top · Glass* **requires** *Legs · Steel* → choosing the glass top
+  snaps the legs to steel).
+- **excludes** — this option and the target can't both be chosen; picking this one clears
+  the conflicting option back to that slot's default.
+
+Rules are enforced live in **Configure a product**: an invalid pick auto-resolves so you
+can never build an impossible combination. If two rules contradict each other (an option
+that both requires *and* excludes the same target) or make a slot impossible to fill, the
+save is blocked with a message telling you which rule to fix. If you later delete an option
+group and re-export, any rule that pointed at it is quietly dropped.
 

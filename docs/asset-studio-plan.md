@@ -624,11 +624,69 @@ the source of truth.
   origin), screenshots the live hint during the open drag, then commits and asserts the committed
   position matches. Behind the existing `glbDesigner` pro flag; no persistence/envelope change.
 
-### Stage 7c — Realism III: tufting generator + more archetypes
-One-tap tufting on plumped cushions (grid params rows×cols → button decals + local dimple
-in the plump displacement); bench / bar-stool / floating-shelf / bathroom-vanity templates.
+### Stage 7c — Realism III: tufting generator + more archetypes — ✅ SHIPPED (v0.21.2.51)
+- ✅ **One-tap tufting** (`glbEdit/tufting.ts`, pure + unit-tested): a `TuftGrid {rows, cols, depth}`
+  (1–6 × 1–6, depth 0…1) on a plumped **box** does two coordinated things — (a) `plumpVertexDelta`
+  subtracts smooth **gaussian dimples** from the plump crown at each button point (weighted by the
+  SAME `ry²·cos·cos` falloff as the crown, so the four seam **corners stay pinned** and the dimple is
+  **top-face only**), and (b) `setTuftGrid` regenerates a matching grid of **button decals** (the
+  Stage-5 decal system reused) sitting IN the dimples (local Y from `plumpTopSurfaceY`, so a button
+  reads as centred in its dimple). Tuft decals are **tagged** (`Decal.tuft`) so editing rows/cols/depth
+  REPLACES only the tuft buttons and never touches user-placed decals. **Rectangular grid only** — the
+  diamond/Chesterfield look is OUT of scope (documented). The plump crown/bow/dimple scalar math moved
+  into `tufting.ts` (pure, three-free); `plump.ts` delegates to it (byte-identical without a tuft
+  grid). Inspector: a "Tufting (buttons)" toggle + Rows/Columns/Dimple-depth sliders next to Plump
+  (`PartInspector.tsx`), shown only for a plumped box.
+- ✅ **Archetype templates** (`glbEdit/templates.ts`, now **14** starters): **Bench** (upholstered top
+  plumped + tufted default ON — the showcase — on square legs + rails), **Bar stool** (round lathe seat
+  + tall tapered legs + a swept foot ring, seat 0.65–0.78 m), **Floating shelf** (wall-mounted board +
+  concealed cleats; a `placement: 'wall'` hint the Save panel applies), **Bathroom vanity** (reuses the
+  6a-refactored `buildCarcass`/`buildDoorRow`/`buildPlinth` + ships WITH a built-in **subtract
+  combine** — countertop minus a basin-hole cylinder). Ergonomic clamps: bench seat ~0.45, stool
+  0.65–0.78, vanity 0.85. `TemplateResult` gained optional `decals` + `combineGroups`; `insertTemplate`
+  attaches both (part ids minted in `build()`, so the combine members share the wrapping group's home —
+  the vanity is the first template shipping WITH a built-in combine group, round-trip verified).
+- ✅ **Persistence**: envelope **v10 → v11** (`specPersist.ts`) — additive identity migration + strict
+  validation for `parts[].tuft` + `decals[].tuft`. Older v10 specs load unchanged.
+- ✅ **Tests**: `tufting.test.ts` (grid math/positions/inset, dimple-below-crown + monotonic depth +
+  corner pinning + top-only, decal tagging, `setTuftGrid` regeneration/replacement + user-decal safety
+  + deep-copy on duplicate) + `templates.test.ts` (each archetype buildable + bbox; the vanity's
+  built-in combine round-trips through insert AND evaluates to a mesh). Scenario
+  `scripts/scenarios/glb-designer-stage7c.json` (SHOT_GPU=1): bench tufted (dimples + centred buttons),
+  bar stool + vanity alongside (basin cavity carved by the combine preview), bump tufting rows (button
+  grid regenerates + old tuft decals replaced), save → v11 envelope embeds `parts[].tuft` + tuft decals.
 
-### Stage 7d — Modular II: slot constraints authoring
-Make-configurable gains per-option requires/excludes authoring (the configurator's clampConfig
-already enforces constraints — expose authoring), so exported product families encode real
+### Stage 7d — Modular II: slot constraints authoring — ✅ SHIPPED (v0.21.2.52)
+Make-configurable gains per-option requires/excludes authoring (the configurator's `clampConfig`
+already enforces constraints — this exposes AUTHORING), so exported product families encode real
 compatibility rules.
+- ✅ **Constraint authoring reuses the configurator's exact model** — no parallel system. Each
+  exposed option (a `PartGroup` assigned a slot) carries `rules: { kind: 'requires' | 'excludes';
+  target: <group id> }[]` on its `GroupAssignment`; `designerExport.ts:mapRulesToConstraints` maps
+  them into the existing `model.ts` `SlotConstraint` vocabulary (`requires`/`excludes`) at plan
+  time (an option id IS its group id, a slot id IS its slot key, so the mapping is exact), carried
+  onto the exported `ConfigurableProduct.constraints`. Only **cross-slot** targets are emitted
+  (a same-slot or non-exposed/base target is dropped — a slot holds one option). `ConfiguratorDialog`'s
+  existing `clampConfig` enforcement then makes invalid combos auto-resolve (verified end-to-end:
+  picking Glass top auto-flips Legs → Steel).
+- ✅ **UI** (`MakeConfigurablePanel.tsx`): a compact per-option **Rules** `Disclosure` — a
+  kind Select (requires/excludes) + a cross-slot target Select (labelled "<slot> · <option>") per
+  rule, with add/remove; only options in OTHER slots are offered as targets. `Disclosure` gained an
+  optional `style` prop for the nested indent.
+- ✅ **Validation** (`configurator/constraints.ts`, pure + unit-tested): `validateProductConstraints`
+  returns human-readable problems — **contradiction** (an option both requires AND excludes the same
+  target), **unsatisfiable / circular requires** (following the requires closure forces one slot to
+  two options at once, or forces a forbidden excludes pair), and **dangling** references. Export
+  validates a cheap product SHELL BEFORE the GLB bake and **blocks with a toast** naming the first
+  problem. `pruneProductConstraints` drops constraints referencing a removed slot/option (+ a
+  per-removal warning) so a stale rule self-heals.
+- ✅ **Persistence**: constraints live in the exported product (`userProductsSlice` path unchanged);
+  re-export via the stable `spec.exportedProductId` preserves/updates rules; **re-edit seeding** —
+  `restoreSpec` reconstructs the panel's assignments (slot / label / price / **rules**) from the
+  matching user product via `reconstructAssignments`, pruning any rule whose target group was deleted.
+- ✅ **Tests**: constraint mapping designer→product + `reconstructAssignments` round-trip
+  (`designerExport.test.ts`); `validateProductConstraints`/`pruneProductConstraints` cases — ok,
+  contradiction, circular, dangling (`constraints.test.ts`); `clampConfig` integration (a requires
+  rule flips the dependent slot). Scenario `scripts/scenarios/glb-designer-stage7d.json`. No new
+  feature flag (rides the existing `assetConfigurableExport` pro gate); no persistence/envelope bump
+  (a product already persists its `constraints`).

@@ -7,8 +7,11 @@ import {
   crossBucketCombineName,
   type GroupAssignment,
   isPlanExportable,
+  mapRulesToConstraints,
   planConfigurableExport,
+  reconstructAssignments,
 } from './designerExport'
+import { type ConfigurableProduct, clampConfig, type SlotOption } from './model'
 
 /** Total vertex count across every mesh in a built object. */
 function vertexCount(obj: import('three').Object3D): number {
@@ -210,5 +213,221 @@ describe('planConfigurableExport (Stage 3d)', () => {
       assign({ 'g-round': { slot: 'Legs', label: 'Round', price: 0 } }),
     )
     expect(isPlanExportable(withSlot)).toBe(true)
+  })
+})
+
+/** A design with a Top slot (glass/oak) + a Legs slot (steel/wood). */
+function twoSlotSpec(): AssetEditSpec {
+  return {
+    sourceScale: 1,
+    meshOverrides: {},
+    parts: [
+      part('gl', 'box', [0, 0.7, 0], [1.2, 0.03, 0.8]),
+      part('ok', 'box', [0, 0.7, 0], [1.2, 0.03, 0.8]),
+      part('st', 'box', [-0.5, 0.35, 0], [0.05, 0.7, 0.05]),
+      part('wd', 'box', [-0.5, 0.35, 0], [0.05, 0.7, 0.05]),
+    ],
+    partGroups: [
+      { id: 'g-glass', name: 'Glass', partIds: ['gl'] },
+      { id: 'g-oak', name: 'Oak', partIds: ['ok'] },
+      { id: 'g-steel', name: 'Steel', partIds: ['st'] },
+      { id: 'g-wood', name: 'Wood', partIds: ['wd'] },
+    ],
+  }
+}
+
+const TWO_SLOT_ASSIGN: Record<string, GroupAssignment> = {
+  'g-glass': {
+    slot: 'Top',
+    label: 'Glass',
+    price: 0,
+    rules: [{ kind: 'requires', target: 'g-steel' }],
+  },
+  'g-oak': { slot: 'Top', label: 'Oak', price: 0 },
+  'g-steel': { slot: 'Legs', label: 'Steel', price: 0 },
+  'g-wood': { slot: 'Legs', label: 'Wood', price: 0 },
+}
+
+describe('slot-constraint authoring mapping (Stage 7d)', () => {
+  it('maps an authored requires rule to a cross-slot SlotConstraint on the plan', () => {
+    const plan = planConfigurableExport(twoSlotSpec(), TWO_SLOT_ASSIGN)
+    expect(plan.constraints).toEqual([
+      {
+        kind: 'requires',
+        ifSlot: 'Top',
+        ifOption: 'g-glass',
+        thenSlot: 'Legs',
+        thenOption: 'g-steel',
+      },
+    ])
+  })
+
+  it('maps an excludes rule to an excludes SlotConstraint', () => {
+    const slots = planConfigurableExport(twoSlotSpec(), TWO_SLOT_ASSIGN).slots
+    const constraints = mapRulesToConstraints(
+      {
+        ...TWO_SLOT_ASSIGN,
+        'g-glass': {
+          slot: 'Top',
+          label: 'Glass',
+          price: 0,
+          rules: [{ kind: 'excludes', target: 'g-wood' }],
+        },
+      },
+      slots,
+    )
+    expect(constraints).toEqual([
+      {
+        kind: 'excludes',
+        slot: 'Top',
+        option: 'g-glass',
+        conflictsWith: { slot: 'Legs', option: 'g-wood' },
+      },
+    ])
+  })
+
+  it('drops a same-slot or non-exposed rule target (only cross-slot options)', () => {
+    const slots = planConfigurableExport(twoSlotSpec(), TWO_SLOT_ASSIGN).slots
+    const constraints = mapRulesToConstraints(
+      {
+        ...TWO_SLOT_ASSIGN,
+        // Target its own slot-mate (Oak) + a base group (not in any slot) → both dropped.
+        'g-glass': {
+          slot: 'Top',
+          label: 'Glass',
+          price: 0,
+          rules: [
+            { kind: 'requires', target: 'g-oak' },
+            { kind: 'requires', target: 'g-missing' },
+          ],
+        },
+      },
+      slots,
+    )
+    expect(constraints).toEqual([])
+  })
+
+  it('a mapped requires constraint flips the dependent slot via clampConfig', () => {
+    const plan = planConfigurableExport(twoSlotSpec(), TWO_SLOT_ASSIGN)
+    const opt = (id: string): SlotOption => ({
+      id,
+      label: id,
+      price: 0,
+      footprint: { w: 1, d: 1, h: 1 },
+    })
+    const product: ConfigurableProduct = {
+      id: 'p',
+      label: 'P',
+      category: 'others',
+      base: { footprint: { w: 1, d: 1, h: 1 }, price: 0 },
+      slots: [
+        {
+          id: 'Top',
+          label: 'Top',
+          anchor: { position: [0, 0, 0] },
+          defaultOptionId: 'g-oak',
+          options: [opt('g-glass'), opt('g-oak')],
+        },
+        {
+          id: 'Legs',
+          label: 'Legs',
+          anchor: { position: [0, 0, 0] },
+          defaultOptionId: 'g-wood',
+          options: [opt('g-steel'), opt('g-wood')],
+        },
+      ],
+      constraints: plan.constraints,
+    }
+    // Picking the glass top while wood legs are selected auto-resolves Legs → steel.
+    const s = clampConfig(product, { selections: { Top: 'g-glass', Legs: 'g-wood' } })
+    expect(s.selections.Legs).toBe('g-steel')
+    // Oak top imposes no rule → wood legs stay.
+    const s2 = clampConfig(product, { selections: { Top: 'g-oak', Legs: 'g-wood' } })
+    expect(s2.selections.Legs).toBe('g-wood')
+  })
+
+  it('reconstructAssignments round-trips slot / label / price / rules from a product', () => {
+    const opt = (id: string, label: string, price: number): SlotOption => ({
+      id,
+      label,
+      price,
+      footprint: { w: 1, d: 1, h: 1 },
+    })
+    const product: ConfigurableProduct = {
+      id: 'p',
+      label: 'P',
+      category: 'others',
+      base: { footprint: { w: 1, d: 1, h: 1 }, price: 0 },
+      slots: [
+        {
+          id: 'Top',
+          label: 'Top',
+          anchor: { position: [0, 0, 0] },
+          defaultOptionId: 'g-glass',
+          options: [opt('g-glass', 'Glass', 120), opt('g-oak', 'Oak', 90)],
+        },
+        {
+          id: 'Legs',
+          label: 'Legs',
+          anchor: { position: [0, 0, 0] },
+          defaultOptionId: 'g-steel',
+          options: [opt('g-steel', 'Steel', 60), opt('g-wood', 'Wood', 40)],
+        },
+      ],
+      constraints: [
+        {
+          kind: 'requires',
+          ifSlot: 'Top',
+          ifOption: 'g-glass',
+          thenSlot: 'Legs',
+          thenOption: 'g-steel',
+        },
+      ],
+    }
+    const known = new Set(['g-glass', 'g-oak', 'g-steel', 'g-wood'])
+    const a = reconstructAssignments(product, known)
+    expect(a['g-glass']).toEqual({
+      slot: 'Top',
+      label: 'Glass',
+      price: 120,
+      rules: [{ kind: 'requires', target: 'g-steel' }],
+    })
+    expect(a['g-oak']).toEqual({ slot: 'Top', label: 'Oak', price: 90 })
+  })
+
+  it('reconstructAssignments prunes a rule whose target group is gone', () => {
+    const opt = (id: string): SlotOption => ({
+      id,
+      label: id,
+      price: 0,
+      footprint: { w: 1, d: 1, h: 1 },
+    })
+    const product: ConfigurableProduct = {
+      id: 'p',
+      label: 'P',
+      category: 'others',
+      base: { footprint: { w: 1, d: 1, h: 1 }, price: 0 },
+      slots: [
+        {
+          id: 'Top',
+          label: 'Top',
+          anchor: { position: [0, 0, 0] },
+          defaultOptionId: 'g-glass',
+          options: [opt('g-glass')],
+        },
+      ],
+      constraints: [
+        {
+          kind: 'requires',
+          ifSlot: 'Top',
+          ifOption: 'g-glass',
+          thenSlot: 'Legs',
+          thenOption: 'g-steel',
+        },
+      ],
+    }
+    // g-steel is no longer a known group → the rule is dropped from the seed.
+    const a = reconstructAssignments(product, new Set(['g-glass']))
+    expect(a['g-glass']).toEqual({ slot: 'Top', label: 'g-glass', price: 0 })
   })
 })

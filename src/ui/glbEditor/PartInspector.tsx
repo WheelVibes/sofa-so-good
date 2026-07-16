@@ -20,6 +20,7 @@ import {
   type SweepPathKind,
   type SweepProfileKind,
 } from '../../furniture/glbEdit/shapeProfiles'
+import { TUFT_DEFAULTS, TUFT_LIMITS } from '../../furniture/glbEdit/tufting'
 import { DEFAULT_WRINKLES } from '../../furniture/glbEdit/wrinkleTexture'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Select } from '../controls/Select'
@@ -64,6 +65,8 @@ export function PartInspector() {
     mirror: onMirror,
     snapStep,
     renamePartName: onRenamePart,
+    tuftGrid,
+    setTuftGrid: onSetTuft,
   } = useDesigner()
   const surfaceMaterials = useSurfaceMaterialOptions()
   // Only rendered when a part is selected (the dialog mounts it unconditionally,
@@ -308,6 +311,81 @@ export function PartInspector() {
             onChange={(v) => onPatch({ wrinkles: v })}
           />
         )
+      ) : null}
+
+      {/* Tufting (Stage 7c) — one-tap button grid + matching plump dimples on a
+          plumped box cushion (the bench showcase). Rectangular grid only (the
+          diamond/Chesterfield pattern is out of scope). Editing rows/cols/depth
+          regenerates the tagged button decals; user-placed decals are untouched. */}
+      {part.kind === 'box' && (part.plump ?? 0) > 0 && shellVal <= 0 ? (
+        <div style={{ marginTop: 'var(--s-2)' }}>
+          <label
+            className="row"
+            style={{ cursor: 'pointer' }}
+            title="Add a grid of tufting buttons + matching dimples to the plumped top"
+          >
+            <div
+              className="rk"
+              style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}
+            >
+              <div>Tufting (buttons)</div>
+              <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}>
+                Buttons + dimples on the plumped top
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!tuftGrid}
+              aria-label="Tufting"
+              onClick={() => onSetTuft(tuftGrid ? null : TUFT_DEFAULTS)}
+              className={`switch${tuftGrid ? ' on' : ''}`}
+            />
+          </label>
+          {tuftGrid ? (
+            <>
+              <SliderField
+                label="Rows"
+                ariaLabel="Tufting rows"
+                value={tuftGrid.rows}
+                min={TUFT_LIMITS.rows.min}
+                max={TUFT_LIMITS.rows.max}
+                step={TUFT_LIMITS.rows.step}
+                format={(v) => String(Math.round(v))}
+                onChange={(v) => onSetTuft({ ...tuftGrid, rows: Math.round(v) })}
+              />
+              <SliderField
+                label="Columns"
+                ariaLabel="Tufting columns"
+                value={tuftGrid.cols}
+                min={TUFT_LIMITS.cols.min}
+                max={TUFT_LIMITS.cols.max}
+                step={TUFT_LIMITS.cols.step}
+                format={(v) => String(Math.round(v))}
+                onChange={(v) => onSetTuft({ ...tuftGrid, cols: Math.round(v) })}
+              />
+              <SliderField
+                label="Dimple depth"
+                ariaLabel="Tufting depth"
+                value={tuftGrid.depth}
+                min={TUFT_LIMITS.depth.min}
+                max={TUFT_LIMITS.depth.max}
+                step={TUFT_LIMITS.depth.step}
+                format={(v) => v.toFixed(2)}
+                onChange={(v) => onSetTuft({ ...tuftGrid, depth: v })}
+              />
+              <div
+                style={{
+                  fontSize: 'var(--t-2xs)',
+                  color: 'var(--text-3)',
+                  marginTop: 'var(--s-1)',
+                }}
+              >
+                Rectangular grid only — the diamond/Chesterfield pattern isn't supported.
+              </div>
+            </>
+          ) : null}
+        </div>
       ) : null}
 
       {/* Shell/hollow (Stage 6b) — box + extrude. > 0 opens a hollow carcass of

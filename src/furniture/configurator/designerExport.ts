@@ -46,7 +46,17 @@ import {
 } from '../glbEdit/editSpec'
 import { flattenMember } from '../glbEdit/groupTransform'
 import type { FurnitureCategory } from '../types'
-import type { ConfigurableProduct, ProductSlot, SlotOption } from './model'
+import type { ConfigurableProduct, ProductSlot, SlotConstraint, SlotOption } from './model'
+
+/** A cross-slot compatibility rule authored on one option (Stage 7d). `target` is
+ *  the group id of an option in a DIFFERENT slot; `requires`/`excludes` map to the
+ *  configurator's `SlotConstraint` vocabulary at plan time (reusing its exact
+ *  model — no parallel constraint system). */
+export interface OptionRule {
+  kind: 'requires' | 'excludes'
+  /** Target option's group id (must be an exposed option in another slot). */
+  target: string
+}
 
 /** Per-group export assignment collected from the "Make configurable" UI. */
 export interface GroupAssignment {
@@ -57,6 +67,8 @@ export interface GroupAssignment {
   label: string
   /** Option price in SGD — defaults to 0, editable per option. */
   price: number
+  /** Cross-slot requires/excludes rules authored on this option (Stage 7d). */
+  rules?: OptionRule[]
 }
 
 /** A planned option before baking — its flattened world-space parts + footprint.
@@ -86,6 +98,10 @@ export interface ExportPlan {
   baseCombineGroups: CombineGroup[]
   baseFootprint: { w: number; d: number; h: number }
   slots: PlannedSlot[]
+  /** Cross-slot constraints mapped from the authored per-option `rules` (Stage 7d)
+   *  into the configurator's `SlotConstraint` vocabulary — carried onto the
+   *  exported product so `clampConfig` enforces them at pick/bake time. */
+  constraints: SlotConstraint[]
 }
 
 /** Which export bucket each part lands in: `'base'` (ungrouped part or a group
@@ -255,7 +271,97 @@ export function planConfigurableExport(
     baseCombineGroups: combinesInBucket(spec, bucket, 'base'),
     baseFootprint: symmetricFootprint(baseParts),
     slots,
+    constraints: mapRulesToConstraints(assignments, slots),
   }
+}
+
+/**
+ * Map the authored per-option `rules` (keyed by group id) into the configurator's
+ * `SlotConstraint` vocabulary — reusing `requires`/`excludes` verbatim. An option's
+ * id is its group id and a slot's id is its slot key (see `planConfigurableExport`),
+ * so a rule referencing another group id resolves directly to a cross-slot option.
+ * A rule is emitted ONLY when both endpoints are exposed options in DIFFERENT slots
+ * (self-slot targets are meaningless — a slot holds one option — and are dropped).
+ * Pure + deterministic (slot-then-option order).
+ */
+export function mapRulesToConstraints(
+  assignments: Record<string, GroupAssignment>,
+  slots: PlannedSlot[],
+): SlotConstraint[] {
+  // group id → its slot id, for every exposed option in the plan.
+  const slotOfOption = new Map<string, string>()
+  for (const s of slots) for (const o of s.options) slotOfOption.set(o.id, s.id)
+
+  const constraints: SlotConstraint[] = []
+  for (const s of slots) {
+    for (const o of s.options) {
+      const rules = assignments[o.id]?.rules
+      if (!rules) continue
+      for (const r of rules) {
+        const targetSlot = slotOfOption.get(r.target)
+        // Target must be an exposed option in a DIFFERENT slot.
+        if (!targetSlot || targetSlot === s.id) continue
+        if (r.kind === 'requires') {
+          constraints.push({
+            kind: 'requires',
+            ifSlot: s.id,
+            ifOption: o.id,
+            thenSlot: targetSlot,
+            thenOption: r.target,
+          })
+        } else {
+          constraints.push({
+            kind: 'excludes',
+            slot: s.id,
+            option: o.id,
+            conflictsWith: { slot: targetSlot, option: r.target },
+          })
+        }
+      }
+    }
+  }
+  return constraints
+}
+
+/**
+ * Reconstruct per-group `GroupAssignment`s (slot / label / price / rules) from an
+ * already-exported product, so re-opening a design for editing re-seeds the
+ * "Make configurable" panel with what was last exported (SLOT-204 parity for the
+ * authoring side). An option's id IS its group id, so the mapping is exact as long
+ * as the design still contains those groups; a rule whose target group is absent
+ * from `knownGroupIds` is dropped (the option was deleted since export). Pure.
+ */
+export function reconstructAssignments(
+  product: ConfigurableProduct,
+  knownGroupIds: ReadonlySet<string>,
+): Record<string, GroupAssignment> {
+  const out: Record<string, GroupAssignment> = {}
+  // option (group) id → the rules authored on it, rebuilt from the constraints.
+  const rulesByOption = new Map<string, OptionRule[]>()
+  for (const c of product.constraints ?? []) {
+    if (c.kind === 'requires') {
+      const list = rulesByOption.get(c.ifOption) ?? []
+      list.push({ kind: 'requires', target: c.thenOption })
+      rulesByOption.set(c.ifOption, list)
+    } else if (c.kind === 'excludes') {
+      const list = rulesByOption.get(c.option) ?? []
+      list.push({ kind: 'excludes', target: c.conflictsWith.option })
+      rulesByOption.set(c.option, list)
+    }
+  }
+  for (const slot of product.slots) {
+    for (const opt of slot.options) {
+      if (!knownGroupIds.has(opt.id)) continue
+      const rules = (rulesByOption.get(opt.id) ?? []).filter((r) => knownGroupIds.has(r.target))
+      out[opt.id] = {
+        slot: slot.id,
+        label: opt.label,
+        price: opt.price,
+        ...(rules.length > 0 ? { rules } : {}),
+      }
+    }
+  }
+  return out
 }
 
 /** True when a plan yields a usable product (≥1 slot with ≥1 option). */
@@ -348,5 +454,6 @@ export async function buildConfigurableProduct(
       ...(baseGltf ? { gltfUrl: baseGltf } : {}),
     },
     slots,
+    ...(plan.constraints.length > 0 ? { constraints: plan.constraints } : {}),
   }
 }

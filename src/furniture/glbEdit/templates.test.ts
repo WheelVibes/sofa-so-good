@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildEditedObject } from './buildObject'
+import { combineGroupToMeshPart } from './csgEval'
 import { createEmptySpec, isBuildable, partGroups, type ShapePart } from './editSpec'
 import { matchingFinishPresetId } from './finishPresets'
 import {
@@ -26,8 +27,8 @@ function aabb(parts: ShapePart[]) {
 }
 
 describe('template library', () => {
-  it('exposes exactly 10 archetype starters with unique ids and 2–4 params each', () => {
-    expect(TEMPLATE_LIBRARY.length).toBe(10)
+  it('exposes exactly 14 archetype starters with unique ids and 2–4 params each', () => {
+    expect(TEMPLATE_LIBRARY.length).toBe(14)
     const ids = new Set<string>()
     for (const t of TEMPLATE_LIBRARY) {
       expect(ids.has(t.id)).toBe(false)
@@ -54,6 +55,10 @@ describe('template library', () => {
       'wardrobe',
       'desk',
       'tv-console',
+      'bench',
+      'bar-stool',
+      'floating-shelf',
+      'bathroom-vanity',
     ]) {
       expect(templateById(id)).not.toBeNull()
     }
@@ -64,7 +69,8 @@ describe('template library', () => {
     TEMPLATE_LIBRARY.map((t) => [t.id, t] as const),
   )('%s builds a buildable spec with a single wrapping group of finite parts', (_id, def: TemplateDef) => {
     const result = buildTemplate(def)
-    expect(result.parts.length).toBeGreaterThanOrEqual(4)
+    // Most archetypes are ≥4 parts; the floating shelf is a minimal wall slab (3).
+    expect(result.parts.length).toBeGreaterThanOrEqual(3)
     // Exactly one wrapping group holding every part (one move handle).
     expect(result.groups.length).toBe(1)
     const ids = new Set(result.parts.map((p) => p.id))
@@ -201,6 +207,83 @@ describe('template geometry tracks its params (bbox)', () => {
     expect(b.hi[1]).toBeLessThan(0.6)
     expect(b.w).toBeCloseTo(1.4, 1)
     expect(b.lo[1]).toBeCloseTo(0, 2)
+  })
+})
+
+describe('Stage 7c archetypes', () => {
+  it('bench: upholstered top ships plumped + tufted, seat ~0.45 m', () => {
+    const result = buildTemplate(templateById('bench')!, {
+      width: 1.2,
+      depth: 0.4,
+      seatHeight: 0.45,
+    })
+    const b = aabb(result.parts)
+    expect(b.hi[1]).toBeCloseTo(0.45, 2) // cushion top at seat height
+    expect(b.lo[1]).toBeCloseTo(0, 2) // legs reach the floor
+    // A plumped, tufted cushion is the showcase part.
+    const cushion = result.parts.find((p) => (p.plump ?? 0) > 0 && p.tuft)
+    expect(cushion).toBeDefined()
+    // Its tuft buttons are generated and tagged (rows × cols).
+    expect(result.decals?.length).toBeGreaterThan(0)
+    expect(result.decals!.every((dd) => dd.tuft && dd.kind === 'button')).toBe(true)
+    expect(result.decals!.length).toBe(cushion!.tuft!.rows * cushion!.tuft!.cols)
+  })
+
+  it('bar stool: tall seat (0.65–0.78 m), round lathe seat + a swept foot ring', () => {
+    const result = buildTemplate(templateById('bar-stool')!, {
+      seatHeight: 0.72,
+      seatDiameter: 0.34,
+    })
+    const b = aabb(result.parts)
+    expect(b.hi[1]).toBeCloseTo(0.72, 2)
+    expect(b.lo[1]).toBeCloseTo(0, 2)
+    expect(result.parts.some((p) => p.kind === 'lathe')).toBe(true) // round seat
+    expect(result.parts.some((p) => p.kind === 'sweep')).toBe(true) // foot ring
+  })
+
+  it('floating shelf: wall placement, board underside at y=0', () => {
+    const def = templateById('floating-shelf')!
+    expect(def.placement).toBe('wall')
+    const b = aabb(buildTemplate(def, { width: 0.8, depth: 0.22, thickness: 0.04 }).parts)
+    expect(b.lo[1]).toBeCloseTo(0, 3)
+    expect(b.w).toBeCloseTo(0.8, 1)
+  })
+
+  it('bathroom vanity: counter ~0.85 m, ships with a built-in basin-cutout combine', () => {
+    const result = buildTemplate(templateById('bathroom-vanity')!, {
+      width: 0.9,
+      height: 0.85,
+      depth: 0.5,
+      doors: 2,
+    })
+    // Measure the solids only — the basin HOLE cylinder deliberately overshoots
+    // the counter (a clean through-cut), so it isn't part of the visible extent.
+    const b = aabb(result.parts.filter((p) => p.role !== 'hole'))
+    expect(b.hi[1]).toBeCloseTo(0.85, 2) // counter top at vanity height
+    expect(b.lo[1]).toBeCloseTo(0, 2)
+    // One subtract combine group over the countertop + basin hole.
+    expect(result.combineGroups?.length).toBe(1)
+    const cg = result.combineGroups![0]
+    expect(cg.op).toBe('subtract')
+    expect(cg.partIds.length).toBe(2)
+    // The basin operand is a hole; the counter is a solid.
+    const basin = result.parts.find((p) => p.role === 'hole')
+    expect(basin).toBeDefined()
+    expect(cg.partIds).toContain(basin!.id)
+  })
+
+  it("vanity's built-in combine round-trips through insert + evaluates to a mesh", async () => {
+    const result = buildTemplate(templateById('bathroom-vanity')!)
+    const { spec } = insertTemplate(createEmptySpec(), result)
+    // The combine group survives insertion, and its members share the wrapping
+    // transform group's home (so it has a well-defined container to build under).
+    expect(spec.combineGroups?.length).toBe(1)
+    const group = spec.combineGroups![0]
+    expect(partGroups(spec)[0].partIds).toEqual(expect.arrayContaining(group.partIds))
+    // The boolean actually evaluates (counter minus basin) to a non-empty mesh.
+    const mesh = await combineGroupToMeshPart(spec, group)
+    expect(mesh.kind).toBe('mesh')
+    expect(mesh.geometry!.positions.length).toBeGreaterThan(0)
   })
 })
 

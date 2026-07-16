@@ -423,9 +423,10 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
       // Stage 6b: a hollow wall thickness carves an open-top carcass (wins over
       // plump — a hollow plumped cushion is nonsensical).
       if (part.shell && part.shell > 0) return shellBoxGeometry(w, h, d, part.shell)
-      // Stage 5: a plumped cushion needs a tessellated box to displace.
+      // Stage 5: a plumped cushion needs a tessellated box to displace. Stage 7c:
+      // a tuft grid subtracts dimples from the crown at the button points.
       if (part.plump && part.plump > 0)
-        return plumpBoxGeometry(w, h, d, part.bevel ?? 0, part.plump)
+        return plumpBoxGeometry(w, h, d, part.bevel ?? 0, part.plump, part.tuft)
       // bevel 0 / absent → plain BoxGeometry (byte-identical to pre-Stage-1a).
       return part.bevel && part.bevel > 0
         ? bevelledBoxGeometry(w, h, d, part.bevel)
