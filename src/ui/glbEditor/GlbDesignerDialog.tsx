@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import { Icon } from '../toolbar/icons'
+import { ArrangePanel } from './ArrangePanel'
 import { CombinePanel } from './CombinePanel'
 import { ComponentsPanel } from './ComponentsPanel'
 import { DesignerToolbar } from './DesignerToolbar'
@@ -103,6 +104,7 @@ function DesignerDialogFrame() {
             <TemplatesPanel />
             <ComponentsPanel />
             <LayersPanel />
+            <ArrangePanel />
             <PartInspector />
             <GroupInspector />
             <CombinePanel />

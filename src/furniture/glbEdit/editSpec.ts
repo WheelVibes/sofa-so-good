@@ -203,6 +203,10 @@ interface MeshGeometryData {
 
 export interface ShapePart extends PhysicalSurfaceFields {
   id: string
+  /** Optional user-given display name (Stage 4). Absent → the layers panel falls
+   *  back to the default `kind N` label (`partLabel`). Round-trips through the
+   *  spec envelope (v6). */
+  name?: string
   kind: ShapeKind
   /** Centre position in metres (asset-local, floor at y=0, +Z front). */
   position: [number, number, number]
@@ -920,13 +924,7 @@ export function duplicatePart(spec: AssetEditSpec, id: string): AssetEditSpec {
  *  one (wedge) mirrors its placement but keeps its own handedness. No-op for an
  *  unknown id. */
 export function mirrorPart(spec: AssetEditSpec, id: string): AssetEditSpec {
-  const src = spec.parts.find((p) => p.id === id)
-  if (!src) return spec
-  const copy = clonePart(src, (p) => ({
-    position: [-p.position[0], p.position[1], p.position[2]],
-    rotation: p.rotation ? [p.rotation[0], -p.rotation[1], -p.rotation[2]] : undefined,
-  }))
-  return { ...spec, parts: [...spec.parts, copy] }
+  return mirrorPartAxis(spec, id, 'x').spec
 }
 
 export function updatePart(
@@ -935,6 +933,99 @@ export function updatePart(
   patch: Partial<ShapePart>,
 ): AssetEditSpec {
   return { ...spec, parts: spec.parts.map((p) => (p.id === id ? { ...p, ...patch, id: p.id } : p)) }
+}
+
+/** Set (or clear) a part's display name immutably (Stage 4). A blank name clears
+ *  the field so the layers panel falls back to the default `kind N` label. No-op
+ *  for an unknown id. */
+export function renamePart(spec: AssetEditSpec, id: string, name: string): AssetEditSpec {
+  const trimmed = name.trim()
+  if (!spec.parts.some((p) => p.id === id)) return spec
+  return {
+    ...spec,
+    parts: spec.parts.map((p) => (p.id === id ? { ...p, name: trimmed || undefined } : p)),
+  }
+}
+
+/** The layers-panel label for a part: its user name when set, else the default
+ *  `kind N` (N = its 1-based position in the parts array). Pure. */
+export function partLabel(part: ShapePart, number: number): string {
+  return part.name?.trim() || `${part.kind} ${number}`
+}
+
+/** Which asset origin plane a designer mirror reflects across: `'x'` reflects X
+ *  (the YZ plane, left↔right), `'z'` reflects Z (the XY plane, front↔back). */
+export type MirrorAxis3 = 'x' | 'z'
+
+/**
+ * Reflect a transform across the asset origin plane on `axis` — the SINGLE
+ * conjugation every designer mirror shares (`mirrorPart`, `mirrorPartGroup`,
+ * `repeatComponentGroup` all use this convention): X-mirror negates X and the
+ * Y/Z rotations; Z-mirror negates Z and the X/Y rotations. Pure.
+ */
+export function mirroredTransform(
+  position: readonly [number, number, number],
+  rotation: readonly [number, number, number] | undefined,
+  axis: MirrorAxis3,
+): { position: [number, number, number]; rotation?: [number, number, number] } {
+  if (axis === 'x') {
+    return {
+      position: [-position[0], position[1], position[2]],
+      rotation: rotation ? [rotation[0], -rotation[1], -rotation[2]] : undefined,
+    }
+  }
+  return {
+    position: [position[0], position[1], -position[2]],
+    rotation: rotation ? [-rotation[0], -rotation[1], rotation[2]] : undefined,
+  }
+}
+
+/** Clone a part with a fresh id at an explicit pose (deep-copies its arrays) —
+ *  the array/mirror building block, exported for `arrayBuild.ts`. */
+export function clonePartAtPose(
+  src: ShapePart,
+  position: [number, number, number],
+  rotation?: [number, number, number],
+): ShapePart {
+  return clonePart(src, () => ({ position, rotation }))
+}
+
+/**
+ * Mirror one part across the asset origin plane on `axis` (X or Z), appending a
+ * mirrored copy — the axis-aware extension of `mirrorPart` (which stays an
+ * X-only alias). Reuses the shared `mirroredTransform` conjugation. No-op for an
+ * unknown id. Returns `{ spec, newId }`.
+ */
+export function mirrorPartAxis(
+  spec: AssetEditSpec,
+  id: string,
+  axis: MirrorAxis3,
+): { spec: AssetEditSpec; newId: string | null } {
+  const src = spec.parts.find((p) => p.id === id)
+  if (!src) return { spec, newId: null }
+  const copy = clonePart(src, (p) => mirroredTransform(p.position, p.rotation, axis))
+  return { spec: { ...spec, parts: [...spec.parts, copy] }, newId: copy.id }
+}
+
+/**
+ * Mirror a whole multi-selection across the asset origin plane on `axis`,
+ * appending a mirrored copy of every given part (each reflected by the shared
+ * `mirroredTransform`) so a symmetric assembly is one action. Returns
+ * `{ spec, newIds }` (empty when no id resolves). Pure.
+ */
+export function mirrorPartsAxis(
+  spec: AssetEditSpec,
+  ids: string[],
+  axis: MirrorAxis3,
+): { spec: AssetEditSpec; newIds: string[] } {
+  const copies: ShapePart[] = []
+  for (const id of ids) {
+    const src = spec.parts.find((p) => p.id === id)
+    if (!src) continue
+    copies.push(clonePart(src, (p) => mirroredTransform(p.position, p.rotation, axis)))
+  }
+  if (copies.length === 0) return { spec, newIds: [] }
+  return { spec: { ...spec, parts: [...spec.parts, ...copies] }, newIds: copies.map((p) => p.id) }
 }
 
 /** True when the spec would produce a non-empty asset (a source or ≥1 part). */

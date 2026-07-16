@@ -30,12 +30,17 @@ export function gizmoModesFor(kind: ShapeKind): GizmoMode[] {
   return kind === 'mesh' ? ['translate', 'rotate'] : ['translate', 'rotate', 'scale']
 }
 
-/** Snap precision: 5 mm for lengths (the numeric inputs step 0.05 m but accept
- *  finer), 1° for rotations. Coarse enough to read clean in the inputs, fine
- *  enough not to fight the drag. */
-const POSITION_SNAP_M = 0.005
-const SIZE_SNAP_M = 0.005
+/** Default snap precision: 5 mm for lengths, 1° for rotations. Coarse enough to
+ *  read clean in the inputs, fine enough not to fight the drag. The length step
+ *  is overridable per-drag (Stage 4 grid-snap toggle — 1 mm/5 mm/1 cm/5 cm);
+ *  rotation stays 1°. */
+const DEFAULT_SNAP_M = 0.005
 const ROTATION_SNAP_DEG = 1
+
+/** The length snap step (metres) for one gizmo write-back — position + size share
+ *  it. Absent → `DEFAULT_SNAP_M` (5 mm, the pre-Stage-4 behaviour). A finer step
+ *  (e.g. 0.001) effectively disables snapping without a separate off-path. */
+export type SnapStep = number | undefined
 
 /** Bounds mirroring the numeric inputs: position min −3 m (kept symmetric at
  *  +3 m — the preview grid is 6 m), size min 0.02 m. */
@@ -68,11 +73,15 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const same = (a: readonly number[], b: readonly number[]) => a.every((v, i) => v === b[i])
 
 /** A gizmo snapshot's position → the part/group `position` field: snapped to
- *  5 mm and clamped to ±3 m. Shared by `gizmoPatch` + `groupGizmoPatch`. */
-function snappedPosition(snap: GizmoSnapshot): [number, number, number] {
-  return snap.position.map((v) =>
-    clamp(snapValue(v, POSITION_SNAP_M), -POSITION_LIMIT_M, POSITION_LIMIT_M),
-  ) as [number, number, number]
+ *  `step` (default 5 mm) and clamped to ±3 m. Shared by `gizmoPatch` +
+ *  `groupGizmoPatch`. */
+function snappedPosition(snap: GizmoSnapshot, step: SnapStep): [number, number, number] {
+  const s = step ?? DEFAULT_SNAP_M
+  return snap.position.map((v) => clamp(snapValue(v, s), -POSITION_LIMIT_M, POSITION_LIMIT_M)) as [
+    number,
+    number,
+    number,
+  ]
 }
 
 /** A gizmo snapshot's rotation (Euler XYZ radians) → the degree `rotation`
@@ -96,10 +105,12 @@ export function gizmoPatch(
   part: ShapePart,
   mode: GizmoMode,
   snap: GizmoSnapshot,
+  step?: SnapStep,
 ): Partial<ShapePart> | null {
+  const lenStep = step ?? DEFAULT_SNAP_M
   switch (mode) {
     case 'translate': {
-      const position = snappedPosition(snap)
+      const position = snappedPosition(snap, lenStep)
       return same(position, part.position) ? null : { position }
     }
     case 'rotate': {
@@ -112,7 +123,7 @@ export function gizmoPatch(
     case 'scale': {
       if (part.kind === 'mesh') return null
       const size = part.size.map((s, i) =>
-        Math.max(MIN_SIZE_M, snapValue(s * snap.scale[i], SIZE_SNAP_M)),
+        Math.max(MIN_SIZE_M, snapValue(s * snap.scale[i], lenStep)),
       ) as [number, number, number]
       // Radially-symmetric kinds (lathe revolve, sweep) read their diameter from a
       // single axis and must stay round. Whichever of X/Z the user actually dragged
@@ -141,11 +152,12 @@ export function groupGizmoPatch(
   group: PartGroup,
   mode: GizmoMode,
   snap: GizmoSnapshot,
+  step?: SnapStep,
 ): { position?: [number, number, number]; rotation?: [number, number, number] } | null {
   if (mode === 'rotate') {
     const rotation = snappedRotationDeg(snap)
     return same(rotation, group.rotation ?? [0, 0, 0]) ? null : { rotation }
   }
-  const position = snappedPosition(snap)
+  const position = snappedPosition(snap, step)
   return same(position, group.position ?? [0, 0, 0]) ? null : { position }
 }

@@ -5,6 +5,49 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.39 — Asset Studio Stage 4b: precision & pro UX (Stage 4 complete)
+
+Closes Stage 4 of the Asset Studio plan. Adds the professional precision toolset to the GLB
+designer, all riding the existing `glbDesigner` pro flag, all built on the Stage-4a
+`useDesigner()` context (zero new prop threading). Pure geometry lives in `furniture/glbEdit/`,
+unit-tested.
+
+- **Align & distribute** (`glbEdit/arrange.ts`, pure + tested) — a compact **Arrange** section
+  appears on any selection: with 2+ shapes selected, an axis picker (X/Y/Z) + Align min/centre/max,
+  and Distribute (3+ shapes) for equal gaps between adjacent bounding boxes. Kind-aware
+  rotation-projected AABB extents (`partWorldExtent`: a lathe/sweep read their diameter on X **and**
+  Z, a torus spans its outer diameter on X/Z, a mesh reads its baked geometry bounds). One undo step
+  per action.
+- **Grid snap toggle + step** (`ui/glbEditor/gridSnapPref.ts`) — a viewport magnet toggle + step
+  Select (1 mm/5 mm/1 cm/5 cm). The step drives BOTH the gizmo write-back snapping
+  (`gizmoWriteBack.ts` now takes an optional length step, defaulting to the old 5 mm) and the part
+  inspector's numeric size/position stepping. Persisted per-device to localStorage
+  (`hdb_designer_grid_snap`/`hdb_designer_snap_step`, like the catalog width — NOT the save schema).
+- **Live dimension readout** — a viewport-corner overlay shows the selection's W×D×H in cm, updated
+  live during a gizmo drag (a `useFrame` Box3 union over the selected preview objects).
+- **Arbitrary-axis mirror** — Mirror X / Mirror Z for a single part AND a multi-selection
+  (`editSpec.mirrorPartAxis`/`mirrorPartsAxis`), reusing the shared `mirroredTransform`
+  conjugation the group mirror already used (not re-derived). The single-part "Mirror across centre"
+  inspector action stays (now a thin X alias).
+- **Linear & radial array** (`glbEdit/arrayBuild.ts`, pure + tested) — duplicate the selection
+  (parts or a selected group) into a named "Array" group: linear (count, gap, axis) and radial
+  (count, radius, sweep). The radial path **reuses the room editor's `radialArrayPlacements`
+  verbatim** (its `{position:[x,z], rotation}` maps straight onto a designer part's `[x,y,z]` +
+  Y-rotation); the linear path is a trivial 3D translation implemented directly (the room helper's
+  `arrayOffsets` is XZ-plane + FurnitureItem-shaped — the wrong fit). One undo step.
+- **Ortho view presets + Home** — Front/Side/Top/Home buttons over the viewport reposition the
+  (kept) perspective camera to fit-framed poses looking down each axis via an in-canvas responder;
+  no persistence.
+- **Part search & rename** — a filter input above the layers tree (case-insensitive name substring,
+  shows matched rows + their groups, force-expands under an active filter) and inline part rename
+  (double-click the label / an Edit button / a Name field in the inspector — the same affordance
+  groups have). `ShapePart` gains an optional `name`; the spec envelope bumps **v5 → v6** (additive
+  identity migration, `parseAssetSpec` guard rejects a non-string name). The default label falls
+  back to `kind N`.
+- Scenario `scripts/scenarios/glb-designer-stage4.json`; docs (`docs/asset-studio-plan.md` Stage 4
+  marked shipped, user designer guide, ARCHITECTURE module list). No new feature flag — everything
+  rides `glbDesigner` (pro, both-modes-tested).
+
 ## v0.21.2.38 — Asset Studio Stage 4a: designer context (pre-Stage-4 refactor)
 
 Behaviour-preserving refactor ahead of Stage 4 (precision & pro UX). `GlbDesignerDialog`

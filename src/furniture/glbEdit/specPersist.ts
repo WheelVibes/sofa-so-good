@@ -29,8 +29,10 @@ import type { AssetEditSpec } from './editSpec'
  *    loads unchanged, just re-tagged on next save).
  *  - v5 (Make-configurable stable id, Stage 3d finding 5): adds optional
  *    `exportedProductId` so a re-export replaces its prior product. Additive
- *    superset → migration stays the identity. */
-export const ASSET_SPEC_VERSION = 5
+ *    superset → migration stays the identity.
+ *  - v6 (Precision & pro UX, Stage 4b): adds optional `parts[].name` (user part
+ *    rename). Additive superset → migration stays the identity. */
+export const ASSET_SPEC_VERSION = 6
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
  *  Every version bump so far has been an additive superset, so migration is the
@@ -42,7 +44,8 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
     case 2: // no physical fields/gradient — already a valid v3 spec.
     case 3: // no partGroups — already a valid v4 spec.
     case 4: // no exportedProductId — already a valid v5 spec.
-    case 5:
+    case 5: // no parts[].name — already a valid v6 spec.
+    case 6:
       return spec
     default:
       return null
@@ -148,6 +151,8 @@ function partsValid(parts: unknown[]): boolean {
     const rec = p as Record<string, unknown>
     const role = rec.role
     if (role !== undefined && (typeof role !== 'string' || !VALID_ROLES.has(role))) return false
+    // v6: optional user part name.
+    if (rec.name !== undefined && typeof rec.name !== 'string') return false
     return materialFieldsValid(rec)
   })
 }

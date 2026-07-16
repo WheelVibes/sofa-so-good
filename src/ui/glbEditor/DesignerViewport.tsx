@@ -1,7 +1,7 @@
-import { Bounds, OrbitControls, TransformControls, useGLTF } from '@react-three/drei'
-import { Canvas } from '@react-three/fiber'
-import { Suspense, useEffect } from 'react'
-import type { Object3D } from 'three'
+import { Bounds, OrbitControls, TransformControls, useBounds, useGLTF } from '@react-three/drei'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { Box3, type Object3D, Vector3 } from 'three'
 import { EnsureFurnitureMaterials } from '../../furniture/FurnitureMaterialLoader'
 import {
   GIZMO_MODES,
@@ -10,7 +10,10 @@ import {
   gizmoModesFor,
 } from '../../furniture/glbEdit/gizmoWriteBack'
 import { secureGltfLoader } from '../../furniture/gltf/loaderSecurity'
-import { useDesigner } from './designerContext'
+import { Select } from '../controls/Select'
+import { Icon } from '../toolbar/icons'
+import { useDesigner, type ViewPreset } from './designerContext'
+import { SNAP_STEP_LABEL, SNAP_STEPS } from './gridSnapPref'
 import { PartsPreview } from './PartsPreview'
 
 /** The gizmo-mode segmented switch overlaying the preview's top-left corner —
@@ -81,12 +84,93 @@ function SourceModel({
   )
 }
 
+/** In-canvas responder to a camera view-preset request (Stage 4). A child of
+ *  `<Bounds>`, so it drives the camera through the drei Bounds API — which
+ *  cooperates with OrbitControls (animating to the pose + re-enabling orbit
+ *  after). Frames the content looking down the requested axis (Front/Side/Top)
+ *  or an iso Home pose, fit to the content bounds. Keeps the perspective camera. */
+function CameraViews({ request }: { request: { preset: ViewPreset; n: number } }) {
+  const bounds = useBounds()
+  const seen = useRef(request.n)
+  useEffect(() => {
+    if (request.n === seen.current) return
+    seen.current = request.n
+    // Recompute the content bounds, then frame from the requested direction at
+    // the fit distance drei computes for the current camera.
+    const { center, distance } = bounds.refresh().getSize()
+    const d = distance || 2
+    let pos: [number, number, number]
+    switch (request.preset) {
+      case 'front':
+        pos = [center.x, center.y, center.z + d]
+        break
+      case 'side':
+        pos = [center.x + d, center.y, center.z]
+        break
+      case 'top':
+        pos = [center.x, center.y + d, center.z]
+        break
+      default:
+        pos = [center.x + d * 0.55, center.y + d * 0.45, center.z + d * 0.65]
+    }
+    // Straight-down needs a non-Y up to avoid a degenerate lookAt.
+    const up: [number, number, number] = request.preset === 'top' ? [0, 0, -1] : [0, 1, 0]
+    bounds.moveTo(pos).lookAt({ target: [center.x, center.y, center.z], up })
+  }, [request, bounds])
+  return null
+}
+
+/** In-canvas live bbox reporter (Stage 4 dimension readout). Each frame it unions
+ *  the currently-selected preview objects' world bounding boxes and, when the
+ *  rounded centimetre size changes, reports W×D×H — so the overlay updates live
+ *  during a gizmo drag (frames invalidate then) and once per selection change. */
+function LiveDimensions({
+  getObjects,
+  onChange,
+}: {
+  getObjects: () => Object3D[]
+  onChange: (dims: [number, number, number] | null) => void
+}) {
+  const box = useRef(new Box3())
+  const tmp = useRef(new Vector3())
+  const last = useRef<string | null>(null)
+  useFrame(() => {
+    const objs = getObjects()
+    if (objs.length === 0) {
+      if (last.current !== null) {
+        last.current = null
+        onChange(null)
+      }
+      return
+    }
+    box.current.makeEmpty()
+    for (const o of objs) box.current.expandByObject(o)
+    if (box.current.isEmpty()) return
+    const s = box.current.getSize(tmp.current)
+    const cm: [number, number, number] = [
+      Math.round(s.x * 100),
+      Math.round(s.y * 100),
+      Math.round(s.z * 100),
+    ]
+    const key = cm.join('x')
+    if (key !== last.current) {
+      last.current = key
+      onChange(cm)
+    }
+  })
+  return null
+}
+
 /**
  * The designer's live 3D preview: the R3F canvas, the composed parts (built from
  * the SAME `partGeometry`/`partMaterials` the export uses so the preview can
  * never drift from the saved GLB), the optional source GLB, the drag gizmo
  * (`TransformControls`) on the selected part, and the gizmo-mode overlay switch.
- * Purely presentational — all spec state + write-back live in the dialog.
+ *
+ * Stage 4 adds: a grid-snap toggle + step select (top-right), orthographic-style
+ * view presets + Home (below it), and a live W×D×H dimension readout of the
+ * selection (bottom-left). Purely presentational — all spec state + write-back
+ * live in the designer context.
  */
 export function DesignerViewport() {
   const {
@@ -106,10 +190,17 @@ export function DesignerViewport() {
     commitGroupGizmoDrag: onCommitGroupGizmoDrag,
     armed,
     placeOnFace: onPlaceFace,
+    gridSnap,
+    toggleGridSnap,
+    setSnapStep,
+    viewRequest,
+    requestView,
+    getSelectionObjects,
   } = useDesigner()
   // A group has no Scale gizmo (its members' sizes are their own) — clamp the
   // shared mode to translate/rotate while a group is the gizmo target.
   const groupGizmo: GizmoMode = gizmoActive === 'scale' ? 'translate' : gizmoActive
+  const [dims, setDims] = useState<[number, number, number] | null>(null)
   return (
     <>
       {/* frameloop="demand": only repaint on demand — drei's OrbitControls +
@@ -136,6 +227,8 @@ export function DesignerViewport() {
               groupRefFor={groupRefFor}
               onPlaceFace={armed ? onPlaceFace : undefined}
             />
+            {/* View-preset responder — inside <Bounds> so `useBounds()` resolves. */}
+            <CameraViews request={viewRequest} />
           </Bounds>
           {/* Ground click target for floor placement (Stage 3b) — only while a
               component is armed, and OUTSIDE <Bounds> so it never affects the
@@ -166,6 +259,7 @@ export function DesignerViewport() {
             onMouseUp={onCommitGroupGizmoDrag}
           />
         ) : null}
+        <LiveDimensions getObjects={getSelectionObjects} onChange={setDims} />
       </Canvas>
       {/* Gizmo mode switch — overlays the preview's top-left corner. */}
       {sel ? (
@@ -184,6 +278,92 @@ export function DesignerViewport() {
           ariaPrefix="Group gizmo"
           onPick={setGizmoMode}
         />
+      ) : null}
+
+      {/* Grid snap toggle + step (top-right). */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          display: 'flex',
+          gap: 'var(--s-1)',
+          alignItems: 'center',
+        }}
+      >
+        <button
+          type="button"
+          className={`icon-btn${gridSnap.enabled ? ' on' : ''}`}
+          aria-label="Toggle grid snap"
+          aria-pressed={gridSnap.enabled}
+          title={gridSnap.enabled ? 'Grid snap on' : 'Grid snap off'}
+          onClick={toggleGridSnap}
+        >
+          <Icon.Snap width={15} height={15} />
+        </button>
+        <Select
+          className="input"
+          ariaLabel="Snap step"
+          value={String(gridSnap.step)}
+          onChange={(v) => setSnapStep(Number(v) as (typeof SNAP_STEPS)[number])}
+          style={{ width: 74, height: 28 }}
+          options={SNAP_STEPS.map((s) => ({ value: String(s), label: SNAP_STEP_LABEL[s] }))}
+        />
+      </div>
+
+      {/* View presets + Home (below the snap controls). */}
+      {/* Each button carries its own aria-label, so the container needs no role. */}
+      <div className="seg" style={{ position: 'absolute', top: 44, right: 8, display: 'flex' }}>
+        <button
+          type="button"
+          aria-label="Front view"
+          title="Front view"
+          onClick={() => requestView('front')}
+        >
+          Front
+        </button>
+        <button
+          type="button"
+          aria-label="Side view"
+          title="Side view"
+          onClick={() => requestView('side')}
+        >
+          Side
+        </button>
+        <button
+          type="button"
+          aria-label="Top view"
+          title="Top view"
+          onClick={() => requestView('top')}
+        >
+          Top
+        </button>
+        <button
+          type="button"
+          aria-label="Home view"
+          title="Reset view"
+          onClick={() => requestView('home')}
+        >
+          <Icon.Home width={13} height={13} />
+        </button>
+      </div>
+
+      {/* Live dimension readout (bottom-left) — the selection's W×D×H in cm. */}
+      {dims ? (
+        <div
+          className="badge neutral mono"
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            left: 8,
+            fontSize: 'var(--t-2xs)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+          role="status"
+          aria-label="Selection dimensions"
+        >
+          {dims[0]} × {dims[2]} × {dims[1]} cm
+        </div>
       ) : null}
     </>
   )

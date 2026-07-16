@@ -264,9 +264,34 @@ shrinking — every stage extracts modules, never grows the monolith.
   dialog is pure composition. Behaviour-preserving (no feature/UI change): panel prop bindings
   ~99 → 0; all designer scenarios (stage0/1a/1b/2/3a/3b/3c/3d) stay green. Do this BEFORE adding
   any Stage-4 surface — otherwise every new tool widens the prop firehose further.
-- Alignment/distribution (align faces/centres, distribute), grid-snap toggle + step,
-  live dimension readouts + measure tool, arbitrary-axis mirror, linear/radial array
-  (reuse room-editor helpers), ortho view presets + camera bookmarks, part search/rename.
+- ✅ **Stage 4b — precision & pro UX (shipped, v0.21.2.39, 2026-07-16):** all riding the
+  `glbDesigner` flag, all on the Stage-4a `useDesigner()` context (zero new prop threading):
+  - ✅ **Align & distribute** (`glbEdit/arrange.ts`, pure + tested) — align min/centre/max on
+    X/Y/Z (≥2 selected) + distribute equal-gap (≥3) in a compact "Arrange" section; kind-aware
+    rotation-projected AABB extents (`partWorldExtent`). One undo step each.
+  - ✅ **Grid snap toggle + step** (`ui/glbEditor/gridSnapPref.ts`) — viewport magnet toggle +
+    1 mm/5 mm/1 cm/5 cm step Select; drives the gizmo write-back snap (`gizmoWriteBack` now takes
+    an optional length step, default 5 mm) AND the inspector's numeric stepping; persisted
+    per-device to localStorage (not the save schema).
+  - ✅ **Live dimension readout** — viewport-corner W×D×H (cm) overlay, live during a gizmo drag
+    (in-canvas `useFrame` Box3 union over the selected preview objects).
+  - ✅ **Arbitrary-axis mirror** — Mirror X / Mirror Z for a single part AND a multi-selection,
+    reusing the shared `mirroredTransform` conjugation (`editSpec.mirrorPartAxis`/`mirrorPartsAxis`)
+    — not re-derived. The inspector's single-part mirror stays (thin X alias).
+  - ✅ **Linear & radial array** (`glbEdit/arrayBuild.ts`, pure + tested) — duplicate the selection
+    into a named "Array" group. **Reuse verdict:** the radial path reuses room
+    `radialArrayPlacements` verbatim (XZ `{position,rotation}` maps onto a part's `[x,y,z]` + yaw);
+    the linear path is implemented directly (room `arrayOffsets` is XZ-plane + FurnitureItem-shaped
+    + rotation-relative — the wrong fit for an axis-aligned X/Y/Z array). One undo step.
+  - ✅ **Ortho view presets + Home** — Front/Side/Top/Home buttons reposition the (kept) perspective
+    camera to fit-framed axis poses via an in-canvas responder; no persistence. (Camera "bookmarks"
+    beyond the presets weren't needed for the core loop — deferred, not blocking.)
+  - ✅ **Part search & rename** — layers-tree filter (case-insensitive name substring, shows matched
+    rows + their groups, force-expands under filter) + inline part rename; `ShapePart.name` added,
+    spec envelope **v5 → v6** (additive identity migration). Default label falls back to `kind N`.
+  - Measure tool: the live dimension readout covers the "how big is this" need in-editor; a separate
+    click-two-points measure was **deferred** as lower-value than the shipped surfaces.
+  - Scenario `scripts/scenarios/glb-designer-stage4.json`.
 
 ## Stage 5 — Realism detail layer
 - Decal/detail layer (`DecalGeometry`): seams, stitches, buttons, logos, wear.
@@ -284,6 +309,8 @@ shrinking — every stage extracts modules, never grows the monolith.
 parametric); Stage 3d / sets & modular customization **shipped** (v0.21.2.36, 2026-07-16 —
 designer→configurable-product export via baked-GLB `data:`-URL options + user-products registry +
 "save groups as separate assets" sets). **Stage 3 fully shipped.** Stage 4 (precision & pro UX)
-underway: **Stage 4a — designer context refactor shipped** (v0.21.2.38, 2026-07-16), the
-remaining Stage-4 precision surfaces next. Each stage lands as its own commit train with an
+**fully shipped** — Stage 4a (designer context refactor, v0.21.2.38) + Stage 4b (precision & pro
+UX, v0.21.2.39, 2026-07-16: align/distribute, grid-snap toggle+step, live dimension readout,
+arbitrary-axis mirror, linear/radial array, ortho view presets + Home, part search/rename).
+Stage 5 (realism detail layer) next. Each stage lands as its own commit train with an
 end-of-stage adversarial review; this file tracks stage state.

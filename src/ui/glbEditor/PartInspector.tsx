@@ -47,7 +47,13 @@ const EXTRUDE_SPACE: ProfileSpace = { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0
  * To change finishes, re-add the source parts and combine again.
  */
 export function PartInspector() {
-  const { sel: part, patchSelectedPart: onPatch, mirror: onMirror } = useDesigner()
+  const {
+    sel: part,
+    patchSelectedPart: onPatch,
+    mirror: onMirror,
+    snapStep,
+    renamePartName: onRenamePart,
+  } = useDesigner()
   const surfaceMaterials = useSurfaceMaterialOptions()
   // Only rendered when a part is selected (the dialog mounts it unconditionally,
   // so self-gate AFTER the hooks above keep a stable call order).
@@ -79,6 +85,21 @@ export function PartInspector() {
     <div className="sec">
       <div className="sec-h">
         <span>Edit {part.kind}</span>
+      </div>
+      {/* Part name (Stage 4) — blank falls back to the default `kind N` label. */}
+      <div style={{ marginBottom: 'var(--s-2)' }}>
+        <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+          Name
+        </div>
+        <input
+          type="text"
+          className="input"
+          value={part.name ?? ''}
+          placeholder={part.kind}
+          aria-label="Shape name"
+          onChange={(e) => onRenamePart(part.id, e.target.value)}
+          style={{ width: '100%' }}
+        />
       </div>
       {/* Solid / Hole role (CSG v2). A hole renders as a translucent ghost and
           is carved out of the solids inside a Subtract combine. Not shown for a
@@ -144,7 +165,7 @@ export function PartInspector() {
                 key={axis}
                 type="number"
                 className="input"
-                step={0.05}
+                step={snapStep}
                 min={field === 'size' ? 0.02 : -3}
                 value={part[field][axis]}
                 aria-label={`${part.kind} ${field} ${'XYZ'[axis]}`}

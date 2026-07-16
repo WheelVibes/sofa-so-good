@@ -143,14 +143,39 @@ describe('specPersist', () => {
     expect(restored!.parts[1].role).toBe('hole')
   })
 
-  it('the current envelope is v5', () => {
-    expect(ASSET_SPEC_VERSION).toBe(5)
+  it('the current envelope is v6', () => {
+    expect(ASSET_SPEC_VERSION).toBe(6)
   })
 
   it('round-trips the exportedProductId (v5, stable make-configurable id)', () => {
     const s = { ...createEmptySpec(), exportedProductId: 'user-cfg-abc' }
     const restored = parseAssetSpec(serializeAssetSpec(s))
     expect(restored?.exportedProductId).toBe('user-cfg-abc')
+  })
+
+  it('round-trips a part name (v6) and migrates a v5 blob identically', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'box')
+    s = { ...s, parts: s.parts.map((p) => ({ ...p, name: 'Front leg' })) }
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored?.parts[0].name).toBe('Front leg')
+    // A v5-tagged blob (no name field) still parses (additive identity migration).
+    const legacyV5 = JSON.stringify({ kind: 'asset', v: 5, payload: createEmptySpec() })
+    expect(parseAssetSpec(legacyV5)).toEqual(createEmptySpec())
+  })
+
+  it('rejects a non-string part name', () => {
+    const bad = JSON.stringify({
+      kind: 'asset',
+      v: ASSET_SPEC_VERSION,
+      payload: {
+        ...createEmptySpec(),
+        parts: [
+          { id: 'a', kind: 'box', position: [0, 0, 0], size: [1, 1, 1], color: '#fff', name: 5 },
+        ],
+      },
+    })
+    expect(parseAssetSpec(bad)).toBeNull()
   })
 
   it('serialises to the shared `{ kind: "asset", v, payload }` envelope', () => {

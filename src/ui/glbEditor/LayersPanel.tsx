@@ -1,11 +1,17 @@
 import { memo, useMemo, useState } from 'react'
-import { combineGroups, partGroups, type ShapePart } from '../../furniture/glbEdit/editSpec'
+import {
+  combineGroups,
+  partGroups,
+  partLabel,
+  type ShapePart,
+} from '../../furniture/glbEdit/editSpec'
+import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 import { useDesigner } from './designerContext'
 
-/** Inline group-rename input that owns its OWN draft state so keystrokes
- *  re-render only this field, never the whole layer tree (finding 9). Seeds from
- *  `initial` on mount; Enter/blur commits, Escape cancels. */
+/** Inline rename input (shape + group) that owns its OWN draft state so
+ *  keystrokes re-render only this field, never the whole layer tree (finding 9).
+ *  Seeds from `initial` on mount; Enter/blur commits, Escape cancels. */
 function GroupRenameInput({
   initial,
   ariaLabel,
@@ -47,7 +53,11 @@ const PartRow = memo(function PartRow({
   selected,
   selectMode,
   combineTag,
+  editing,
   onSelect,
+  onStartRename,
+  onRename,
+  onEndRename,
   onDuplicate,
   onRemove,
 }: {
@@ -57,10 +67,15 @@ const PartRow = memo(function PartRow({
   selectMode: boolean
   /** 1-based combine-group index (⛓ N) when the part is in a combine group. */
   combineTag: number | null
+  editing: boolean
   onSelect: (id: string, additive: boolean) => void
+  onStartRename: (id: string) => void
+  onRename: (id: string, name: string) => void
+  onEndRename: () => void
   onDuplicate: (id: string) => void
   onRemove: (id: string) => void
 }) {
+  const label = partLabel(part, number)
   const isHole = part.role === 'hole'
   // A hole only actually cuts inside a Subtract combine. A groupless hole
   // renders/exports as a plain solid — flag it as inert so the tag isn't misleading.
@@ -74,7 +89,7 @@ const PartRow = memo(function PartRow({
         <input
           type="checkbox"
           checked={selected}
-          aria-label={`Select ${part.kind} ${number}`}
+          aria-label={`Select ${label}`}
           onChange={() => onSelect(part.id, true)}
           onClick={(e) => e.stopPropagation()}
         />
@@ -92,9 +107,25 @@ const PartRow = memo(function PartRow({
           }}
         />
       )}
-      <span className="lyr-nm" title={`${part.kind} ${number}`}>
-        {part.kind} {number}
-      </span>
+      {editing ? (
+        <GroupRenameInput
+          initial={part.name ?? ''}
+          ariaLabel={`Rename ${label}`}
+          onCommit={(name) => onRename(part.id, name)}
+          onCancel={onEndRename}
+        />
+      ) : (
+        <span
+          className="lyr-nm"
+          title={`${label} — double-click to rename`}
+          onDoubleClick={(e) => {
+            e.stopPropagation()
+            onStartRename(part.id)
+          }}
+        >
+          {label}
+        </span>
+      )}
       {isHole ? (
         <span
           className={`badge ${inertHole ? 'warn' : 'neutral'}`}
@@ -120,7 +151,18 @@ const PartRow = memo(function PartRow({
       <button
         type="button"
         className="icon-btn"
-        aria-label={`Duplicate ${part.kind} ${number}`}
+        aria-label={`Rename ${label}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          onStartRename(part.id)
+        }}
+      >
+        <Icon.Edit width={13} height={13} />
+      </button>
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label={`Duplicate ${label}`}
         onClick={(e) => {
           e.stopPropagation()
           onDuplicate(part.id)
@@ -131,7 +173,7 @@ const PartRow = memo(function PartRow({
       <button
         type="button"
         className="icon-btn"
-        aria-label={`Remove ${part.kind} ${number}`}
+        aria-label={`Remove ${label}`}
         onClick={(e) => {
           e.stopPropagation()
           onRemove(part.id)
@@ -170,6 +212,7 @@ export function LayersPanel() {
     mirrorGroup: onMirrorGroup,
     duplicate: onDuplicate,
     remove: onRemove,
+    renamePartName: onRenamePart,
   } = useDesigner()
   const parts = spec.parts
   // Collapsed transform-group ids (local view state).
@@ -177,6 +220,13 @@ export function LayersPanel() {
   // Which transform group is being inline-renamed (the draft text itself lives
   // inside `GroupRenameInput` so keystrokes don't re-render the tree — finding 9).
   const [editingId, setEditingId] = useState<string | null>(null)
+  // Which part is being inline-renamed (Stage 4).
+  const [editingPartId, setEditingPartId] = useState<string | null>(null)
+  // Name filter (Stage 4). Case-insensitive substring over the part label; a
+  // group is shown when any of its members matches (matched members only). Blank
+  // shows everything.
+  const [filter, setFilter] = useState('')
+  const query = filter.trim().toLowerCase()
 
   // Derived lookups, recomputed only when the spec changes (finding 9) — not on
   // every selection/rename-toggle re-render.
@@ -199,7 +249,32 @@ export function LayersPanel() {
   }, [spec])
   const combineTagFor = (partId: string): number | null => combineTagById.get(partId) ?? null
 
+  // A part matches the filter when its label contains the query (blank → all).
+  const matchPart = (p: ShapePart) =>
+    !query ||
+    partLabel(p, numberById.get(p.id) ?? 0)
+      .toLowerCase()
+      .includes(query)
+  const filteredUngrouped = query ? ungrouped.filter(matchPart) : ungrouped
+  const filteredGroups = query
+    ? groups
+        .map((g) => ({
+          group: g,
+          ids: g.partIds.filter((id) =>
+            matchPart(spec.parts.find((p) => p.id === id) ?? ({} as ShapePart)),
+          ),
+        }))
+        .filter((g) => g.ids.length > 0)
+    : groups.map((g) => ({ group: g, ids: g.partIds }))
+  const noMatches =
+    query.length > 0 && filteredUngrouped.length === 0 && filteredGroups.length === 0
+
   if (parts.length === 0) return null
+
+  const renamePartRow = (id: string, name: string) => {
+    onRenamePart(id, name)
+    setEditingPartId(null)
+  }
 
   return (
     <div style={{ marginTop: 'var(--s-2)' }}>
@@ -234,10 +309,39 @@ export function LayersPanel() {
         </div>
       ) : null}
 
+      {/* Name filter (Stage 4) — shown once there's more than one shape. */}
+      {parts.length > 1 ? (
+        <div style={{ marginBottom: 6, position: 'relative' }}>
+          <input
+            className="input"
+            type="text"
+            value={filter}
+            placeholder="Filter shapes…"
+            aria-label="Filter shapes by name"
+            onChange={(e) => setFilter(e.target.value)}
+            style={{ width: '100%', height: 28, paddingLeft: 26 }}
+          />
+          <Icon.Search
+            width={13}
+            height={13}
+            style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-3)' }}
+          />
+        </div>
+      ) : null}
+
+      {noMatches ? (
+        <EmptyState
+          icon={Icon.Search}
+          title="No shapes match"
+          description={`Nothing named like "${filter.trim()}".`}
+        />
+      ) : null}
+
       <div style={{ display: 'grid', gap: 4 }}>
         {/* Transform groups first — header row + indented members. */}
-        {groups.map((g) => {
-          const isCollapsed = collapsed.has(g.id)
+        {filteredGroups.map(({ group: g, ids: memberIds }) => {
+          // Force-expand under an active filter so matched members are visible.
+          const isCollapsed = !query && collapsed.has(g.id)
           const groupSel = selGroupId === g.id
           return (
             <div key={g.id}>
@@ -353,7 +457,7 @@ export function LayersPanel() {
                     gap: 4,
                   }}
                 >
-                  {g.partIds.map((id) => {
+                  {memberIds.map((id) => {
                     const p = parts.find((pp) => pp.id === id)
                     return p ? (
                       <PartRow
@@ -363,7 +467,11 @@ export function LayersPanel() {
                         selected={selIds.includes(id)}
                         selectMode={selectMode}
                         combineTag={combineTagFor(id)}
+                        editing={editingPartId === id}
                         onSelect={onSelect}
+                        onStartRename={setEditingPartId}
+                        onRename={renamePartRow}
+                        onEndRename={() => setEditingPartId(null)}
                         onDuplicate={onDuplicate}
                         onRemove={onRemove}
                       />
@@ -376,7 +484,7 @@ export function LayersPanel() {
         })}
 
         {/* Ungrouped shapes. */}
-        {ungrouped.map((p) => (
+        {filteredUngrouped.map((p) => (
           <PartRow
             key={p.id}
             part={p}
@@ -384,7 +492,11 @@ export function LayersPanel() {
             selected={selIds.includes(p.id)}
             selectMode={selectMode}
             combineTag={combineTagFor(p.id)}
+            editing={editingPartId === p.id}
             onSelect={onSelect}
+            onStartRename={setEditingPartId}
+            onRename={renamePartRow}
+            onEndRename={() => setEditingPartId(null)}
             onDuplicate={onDuplicate}
             onRemove={onRemove}
           />

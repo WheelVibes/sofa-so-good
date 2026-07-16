@@ -651,6 +651,18 @@ same change that reshapes a system.
   parse/serialize/migrate/guard path — `parseAssetSpec`/`serializeAssetSpec` +
   `configurator/configuredPersist.ts` `parseConfiguredSpec`/`serializeConfiguredSpec`; `parseLegacy`
   keeps reading pre-envelope blobs, re-saved in the envelope on next write).
+  **Stage 4b — precision & pro UX** (v0.21.2.39): **align/distribute** (`glbEdit/arrange.ts`, pure +
+  tested — kind-aware rotation-projected AABB extents `partWorldExtent`; `alignParts`/`distributeParts`),
+  **linear/radial array** (`glbEdit/arrayBuild.ts`, pure + tested — radial **reuses** room
+  `radialArray.ts:radialArrayPlacements`, linear implemented directly), and **arbitrary-axis mirror**
+  (`editSpec.ts:mirroredTransform`/`mirrorPartAxis`/`mirrorPartsAxis` — the single shared mirror
+  conjugation) all surface in `ui/glbEditor/ArrangePanel.tsx` on selection. A **grid-snap** preference
+  (`ui/glbEditor/gridSnapPref.ts`, per-device localStorage) feeds an optional length step into
+  `gizmoWriteBack.ts` (default 5 mm) + the inspector's numeric stepping; the viewport (`DesignerViewport.tsx`)
+  adds a magnet toggle + step Select, **Front/Side/Top/Home** camera presets (in-canvas responder,
+  perspective camera kept) and a live **W×D×H** dimension readout (`useFrame` Box3 union over the
+  selected preview objects). `LayersPanel.tsx` gains a name **filter** + inline part **rename**;
+  `ShapePart.name` bumps the envelope to **v6** (additive identity migration). Scenario `glb-designer-stage4`.
   and/or start from an uploaded GLB
   (uniformly scaled) to make a variant; live R3F preview (`buildEditedObject`), then
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands
@@ -666,8 +678,8 @@ same change that reshapes a system.
   gets a drei `TransformControls` gizmo in the preview (Move/Rotate/Scale segmented control
   overlay + G/R/S keys in-dialog; orbit auto-pauses while dragging via `makeDefault`). A
   finished drag is written back through the SAME `updatePart` path as the numeric inputs —
-  `gizmoWriteBack.ts` `gizmoPatch` (pure, tested) coalesces per drag-END and snaps to 5 mm /
-  1°; `mesh` parts hide Scale (triangles are baked). **Undo/redo** (Stage 0): a bounded
+  `gizmoWriteBack.ts` `gizmoPatch` (pure, tested) coalesces per drag-END and snaps lengths to the
+  grid-snap step (default 5 mm, Stage 4b) / rotation to 1°; `mesh` parts hide Scale (triangles are baked). **Undo/redo** (Stage 0): a bounded
   (~50-entry) history around the spec (`specHistory.ts`, pure + tested — push/undo/redo with
   ~300 ms same-key coalescing so a slider drag is one step), wired to ⌘Z / ⇧⌘Z in-dialog (⌘Y
   too) + the toolbar buttons (disabled at the ends). **Editable saves** (Stage 0): the edit

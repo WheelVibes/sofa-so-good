@@ -165,7 +165,25 @@ build one in the browser:
 - **Repeat to corners** — placed one leg or foot? Select its group and use **Mirror X**,
   **Mirror Z** or **Repeat ×4** (in the group panel) to copy it to the matching corner(s) of the
   piece in one tap — place a single leg, get a four-legged table. It's one undo step.
-- **Undo / redo** — every edit (add, move, resize, recolour, combine, group, …) is
+- **Arrange (align, distribute, mirror, array)** — with shapes selected, an **Arrange**
+  section appears. Pick an **axis** (X/Y/Z), then **Align min**, **Align centre** or **Align max**
+  to line the selected shapes up on that axis (needs 2+ shapes), or **Distribute** to space 3+
+  shapes with equal gaps. **Mirror X** / **Mirror Z** drop a mirrored copy of the selection across
+  the piece's centre — one shape or many. **Array** (in the Array drop-down) duplicates the
+  selection into a repeated pattern: a **Linear array** (count, gap, axis) makes a row, a **Radial
+  array** (count, radius, sweep) makes a ring. Each array lands as its own **Array** group. Every
+  arrange action is one undo step.
+- **Grid snap** — the **magnet** button (top-right of the preview) turns grid snapping on/off, and
+  the step menu beside it (**1 mm / 5 mm / 1 cm / 5 cm**) sets how coarsely a gizmo drag and the
+  size/position number fields step. Your choice is remembered on this device.
+- **Dimension readout** — while shapes are selected, the preview shows the selection's size
+  (**W × D × H** in centimetres) in the bottom-left corner, updating live as you drag.
+- **Views** — the **Front / Side / Top** buttons (top-right) snap the camera to a straight-on view
+  of each side; **Home** (the house icon) resets to the default angle.
+- **Find & rename shapes** — use the **filter box** above the shape list to find a shape by name.
+  Double-click a shape's name (or use its pencil button, or the **Name** field in its edit panel)
+  to rename it; a blank name goes back to the default "box 1" style label.
+- **Undo / redo** — every edit (add, move, resize, recolour, combine, group, align, array, …) is
   undoable: press **⌘Z** (⇧⌘Z to redo), or use the **↶ / ↷** buttons next to
   "Add shape". A slider or gizmo drag counts as a single step.
 - **Start from an asset you designed** — if you pick one of your own

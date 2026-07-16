@@ -189,3 +189,31 @@ describe('groupGizmoPatch — transform-group gizmo write-back (Stage 3a)', () =
     expect(patch).toEqual({ position: [0.5, 0, 0] })
   })
 })
+
+describe('gizmoPatch — custom snap step (Stage 4 grid snap)', () => {
+  it('snaps position to a 1 cm step', () => {
+    const p = gizmoPatch(box(), 'translate', snap({ position: [0.123, 0.2, 0] }), 0.01)
+    expect(p).toEqual({ position: [0.12, 0.2, 0] })
+  })
+
+  it('snaps position to a 5 cm step', () => {
+    const p = gizmoPatch(box(), 'translate', snap({ position: [0.17, 0.2, 0] }), 0.05)
+    expect(p).toEqual({ position: [0.15, 0.2, 0] })
+  })
+
+  it('a fine step (snap off) keeps a mid-grid drag', () => {
+    const p = gizmoPatch(box(), 'translate', snap({ position: [0.123, 0.2, 0] }), 0.001)
+    expect(p).toEqual({ position: [0.123, 0.2, 0] })
+  })
+
+  it('defaults to 5 mm when no step is given (back-compat)', () => {
+    const p = gizmoPatch(box(), 'translate', snap({ position: [0.123, 0.2, 0] }))
+    expect(p).toEqual({ position: [0.125, 0.2, 0] })
+  })
+
+  it('snaps a group drag to the custom step too', () => {
+    const g: PartGroup = { id: 'g', name: 'G', partIds: ['a'] }
+    const patch = groupGizmoPatch(g, 'translate', snap({ position: [0.17, 0, 0] }), 0.05)
+    expect(patch).toEqual({ position: [0.15, 0, 0] })
+  })
+})

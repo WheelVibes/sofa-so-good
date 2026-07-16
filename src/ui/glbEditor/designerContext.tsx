@@ -19,6 +19,18 @@ import {
   planConfigurableExport,
 } from '../../furniture/configurator/designerExport'
 import { clampConfig } from '../../furniture/configurator/model'
+import {
+  type AlignMode,
+  type Axis3,
+  alignParts,
+  distributeParts,
+} from '../../furniture/glbEdit/arrange'
+import {
+  type LinearArrayOptions,
+  linearArray,
+  type RadialArrayOptions,
+  radialArray,
+} from '../../furniture/glbEdit/arrayBuild'
 import { buildEditedObject } from '../../furniture/glbEdit/buildObject'
 import { type FaceHit, placeComponentOnFace } from '../../furniture/glbEdit/componentPlace'
 import { componentById } from '../../furniture/glbEdit/components'
@@ -37,13 +49,17 @@ import {
   duplicatePart,
   duplicatePartGroup,
   isBuildable,
+  type MirrorAxis3,
   mirrorPart,
+  mirrorPartAxis,
   mirrorPartGroup,
+  mirrorPartsAxis,
   newPartId,
   partGroupMemberIds,
   partGroups,
   removeCombineGroup,
   removePart,
+  renamePart,
   renamePartGroup,
   repeatComponentGroup,
   type ShapePart,
@@ -79,8 +95,18 @@ import type { FurnitureCategory, UserGltfDef } from '../../furniture/types'
 import { parseFurnitureMaterialFinish } from '../../materials/furnitureMaterials'
 import { useStore } from '../../state/store'
 import { useIsMobile } from '../useIsMobile'
+import {
+  effectiveSnapStep,
+  type GridSnapPref,
+  loadGridSnap,
+  type SnapStepM,
+  saveGridSnap,
+} from './gridSnapPref'
 import type { PlacementKind } from './SavePanel'
 import { useCombineResults } from './useCombineResults'
+
+/** Orthographic-style camera preset the viewport can snap to (Stage 4). */
+export type ViewPreset = 'home' | 'front' | 'side' | 'top'
 
 /**
  * Asset Studio designer **context** (Stage 4a).
@@ -196,6 +222,31 @@ function useDesignerController() {
   // an armed component.
   const [templateId, setTemplateId] = useState<string | null>(null)
   const [templateParams, setTemplateParams] = useState<Record<string, number>>({})
+
+  // ---- Grid snap preference (Stage 4, per-device localStorage) -----------
+  const [gridSnap, setGridSnap] = useState<GridSnapPref>(() => loadGridSnap())
+  const snapStep = effectiveSnapStep(gridSnap)
+  const toggleGridSnap = () =>
+    setGridSnap((p) => {
+      const next = { ...p, enabled: !p.enabled }
+      saveGridSnap(next)
+      return next
+    })
+  const setSnapStep = (step: SnapStepM) =>
+    setGridSnap(() => {
+      const next: GridSnapPref = { enabled: true, step }
+      saveGridSnap(next)
+      return next
+    })
+
+  // ---- Camera view presets (Stage 4) — a monotonically-bumped request the
+  // viewport's in-canvas responder reacts to (so re-picking the same preset
+  // re-fits). No persistence. -----------------------------------------------
+  const [viewRequest, setViewRequest] = useState<{ preset: ViewPreset; n: number }>({
+    preset: 'home',
+    n: 0,
+  })
+  const requestView = (preset: ViewPreset) => setViewRequest((r) => ({ preset, n: r.n + 1 }))
 
   // ---- Drag gizmo (GE2b) -------------------------------------------------
   const [gizmoMode, setGizmoMode] = useState<GizmoMode>('translate')
@@ -527,6 +578,69 @@ function useDesignerController() {
     commit((sp) => updatePart(sp, sel.id, patch), { coalesceKey: 'patch' })
   }
 
+  // Rename a part inline (layers tree / inspector). Blank clears back to the
+  // default `kind N` label. Coalesced per part id.
+  const renamePartName = (id: string, partName: string) =>
+    commit((sp) => renamePart(sp, id, partName), { coalesceKey: `part-name:${id}` })
+
+  // ---- Arrange: align / distribute (Stage 4) -----------------------------
+  // Operate on the selected PARTS (`selIds`). Align needs ≥2, distribute ≥3.
+  const alignSelection = (axis: Axis3, mode: AlignMode) =>
+    commit((sp) => alignParts(sp, selIds, axis, mode))
+  const distributeSelection = (axis: Axis3) => commit((sp) => distributeParts(sp, selIds, axis))
+
+  // ---- Arrange: arbitrary-axis mirror (Stage 4) --------------------------
+  // Mirror the selected part(s) across the asset origin plane on X or Z,
+  // appending mirrored copies (one for a single selection, the whole set for a
+  // multi-selection). Selects the new copies.
+  const mirrorAxis = (axis: MirrorAxis3) => {
+    if (selIds.length === 0) return
+    if (selIds.length === 1) {
+      const { spec: next, newId } = mirrorPartAxis(spec, selIds[0], axis)
+      if (!newId) return
+      commit(next)
+      setSelId(newId)
+    } else {
+      const { spec: next, newIds } = mirrorPartsAxis(spec, selIds, axis)
+      if (newIds.length === 0) return
+      commit(next)
+      setSelIds(newIds)
+    }
+  }
+
+  // ---- Arrange: linear / radial array (Stage 4) --------------------------
+  // Source = the selected transform group's members (when a group is selected)
+  // else the selected parts. Creates the copies as one named "Array" group.
+  const arraySourceIds = selGroupId && selectedGroup ? selectedGroup.partIds : selIds
+  const arrayLinear = (opts: LinearArrayOptions) => {
+    const { spec: next, groupId } = linearArray(spec, arraySourceIds, opts)
+    if (!groupId) return
+    commit(next)
+    selectGroup(groupId)
+  }
+  const arrayRadial = (opts: RadialArrayOptions) => {
+    const { spec: next, groupId } = radialArray(spec, arraySourceIds, opts)
+    if (!groupId) return
+    commit(next)
+    selectGroup(groupId)
+  }
+
+  // Live list of the currently-selected preview Object3Ds (parts + group) for
+  // the dimension readout's Box3 union (Stage 4). Reads the mesh/group registries
+  // so the bbox is live during a gizmo drag.
+  const getSelectionObjects = (): Object3D[] => {
+    const objs: Object3D[] = []
+    for (const id of selIds) {
+      const m = meshRegistry.current.get(id)
+      if (m) objs.push(m)
+    }
+    if (selGroupId) {
+      const g = groupRegistry.current.get(selGroupId)
+      if (g) objs.push(g)
+    }
+    return objs
+  }
+
   // ---- Component library (Stage 3b) --------------------------------------
   // Arm a fitting: seed its params from the defaults, clear any part/group
   // selection (the next preview click PLACES rather than selects).
@@ -611,11 +725,16 @@ function useDesignerController() {
     const m = selMesh
     const part = sel
     if (!m || !part) return
-    const patch = gizmoPatch(part, gizmoActive, {
-      position: [m.position.x, m.position.y, m.position.z],
-      rotation: [m.rotation.x, m.rotation.y, m.rotation.z],
-      scale: [m.scale.x, m.scale.y, m.scale.z],
-    })
+    const patch = gizmoPatch(
+      part,
+      gizmoActive,
+      {
+        position: [m.position.x, m.position.y, m.position.z],
+        rotation: [m.rotation.x, m.rotation.y, m.rotation.z],
+        scale: [m.scale.x, m.scale.y, m.scale.z],
+      },
+      snapStep,
+    )
     m.scale.set(1, 1, 1)
     if (patch) {
       commit((sp) => updatePart(sp, part.id, patch))
@@ -740,11 +859,16 @@ function useDesignerController() {
     const group = transformGroups.find((g) => g.id === selGroupId)
     if (!obj || !group) return
     const mode: GizmoMode = gizmoMode === 'scale' ? 'translate' : gizmoMode
-    const patch = groupGizmoPatch(group, mode, {
-      position: [obj.position.x, obj.position.y, obj.position.z],
-      rotation: [obj.rotation.x, obj.rotation.y, obj.rotation.z],
-      scale: [obj.scale.x, obj.scale.y, obj.scale.z],
-    })
+    const patch = groupGizmoPatch(
+      group,
+      mode,
+      {
+        position: [obj.position.x, obj.position.y, obj.position.z],
+        rotation: [obj.rotation.x, obj.rotation.y, obj.rotation.z],
+        scale: [obj.scale.x, obj.scale.y, obj.scale.z],
+      },
+      snapStep,
+    )
     if (patch) {
       commit((sp) => updatePartGroupTransform(sp, group.id, patch), { coalesceKey: 'group-gizmo' })
     } else {
@@ -994,6 +1118,24 @@ function useDesignerController() {
     remove,
     mirror,
     patchSelectedPart,
+    renamePartName,
+    // arrange: align / distribute / mirror-axis / array (Stage 4)
+    selCount: selIds.length,
+    alignSelection,
+    distributeSelection,
+    mirrorAxis,
+    arrayLinear,
+    arrayRadial,
+    arraySourceCount: arraySourceIds.length,
+    // grid snap (Stage 4)
+    gridSnap,
+    snapStep,
+    toggleGridSnap,
+    setSnapStep,
+    // camera view presets + live dimension readout (Stage 4)
+    viewRequest,
+    requestView,
+    getSelectionObjects,
     // source picker + mesh recolour
     userGlbs,
     meshNames,
