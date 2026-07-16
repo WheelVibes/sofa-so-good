@@ -141,6 +141,34 @@ export function gizmoPatch(
   }
 }
 
+/** Per-axis engaged flags from a live face-snap session at drag end. */
+export interface EngagedAxes {
+  x: boolean
+  y: boolean
+  z: boolean
+}
+
+/**
+ * Reconcile a grid-snapped position with the flush position a LIVE face snap was
+ * showing when the drag ended (Stage 7b · finding 1). On every axis the live snap
+ * was engaged, the flush value wins VERBATIM — grid rounding is skipped — so the
+ * committed value equals what the user saw at ANY grid step (at a coarse 5 cm step
+ * a re-derivation from the grid-quantised position could miss the engage band and
+ * commit a non-flush value, diverging from the live preview). Non-engaged axes keep
+ * the grid-snapped value. Pure.
+ */
+export function mergeEngagedSnap(
+  gridPos: readonly [number, number, number],
+  flushPos: readonly [number, number, number],
+  engaged: EngagedAxes,
+): [number, number, number] {
+  return [
+    engaged.x ? flushPos[0] : gridPos[0],
+    engaged.y ? flushPos[1] : gridPos[1],
+    engaged.z ? flushPos[2] : gridPos[2],
+  ]
+}
+
 /**
  * Compute the transform-group patch for one finished GROUP gizmo drag (Stage
  * 3a), or `null` when the snapped result equals the group's current transform.

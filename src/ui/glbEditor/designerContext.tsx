@@ -18,6 +18,7 @@ import {
   type GroupAssignment,
   isPlanExportable,
   planConfigurableExport,
+  pruneAssignmentRules,
   reconstructAssignments,
 } from '../../furniture/configurator/designerExport'
 import { type ConfigurableProduct, clampConfig } from '../../furniture/configurator/model'
@@ -88,11 +89,13 @@ import {
 } from '../../furniture/glbEdit/editSpec'
 import { type FaceSnapHit, snapFaces } from '../../furniture/glbEdit/faceSnap'
 import {
+  type EngagedAxes,
   GIZMO_MODES,
   type GizmoMode,
   gizmoModesFor,
   gizmoPatch,
   groupGizmoPatch,
+  mergeEngagedSnap,
 } from '../../furniture/glbEdit/gizmoWriteBack'
 import { groupedPartWorldPosition, ungroupPartGroup } from '../../furniture/glbEdit/groupTransform'
 import {
@@ -140,6 +143,19 @@ import { useCombineResults } from './useCombineResults'
 
 /** Orthographic-style camera preset the viewport can snap to (Stage 4). */
 export type ViewPreset = 'home' | 'front' | 'side' | 'top'
+
+/** The live face-snap state captured at drag end (Stage 7b · finding 1): the flush
+ *  position shown to the user + which axes were snapped, handed to the commit path
+ *  so the committed value equals the live-shown flush at any grid step. */
+interface EngagedSnapPayload {
+  position: [number, number, number]
+  axes: EngagedAxes
+}
+
+/** Component-wise equality of two position tuples. */
+function posEqual(a: readonly number[], b: readonly number[]): boolean {
+  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
+}
 
 /**
  * Asset Studio designer **context** (Stage 4a).
@@ -337,6 +353,11 @@ function useDesignerController() {
   // live (and commit) snap for that drag.
   const dragSessionRef = useRef<DragSnapSession | null>(null)
   const altHeldRef = useRef(false)
+  // The last LIVE snap frame's flush position + engaged axes (Stage 7b · finding 1).
+  // Captured per frame during the drag so the commit uses exactly what was last
+  // SHOWN — re-deriving at drag end would read the already-flush mesh position,
+  // where `snapFaces` reports no candidate and the engagement spuriously releases.
+  const lastLiveSnapRef = useRef<EngagedSnapPayload | null>(null)
 
   // ---- Camera view presets (Stage 4) — a monotonically-bumped request the
   // viewport's in-canvas responder reacts to (so re-picking the same preset
@@ -426,11 +447,15 @@ function useDesignerController() {
       move: (partId: string, rawPos: [number, number, number]) => [number, number, number] | null
       end: (partId: string) => void
     }
+    /** Set the grid snap step (m) deterministically — lets a scenario exercise the
+     *  commit path at a coarse step (finding 1) without driving the custom Select. */
+    setSnapStep: (stepM: number) => void
   }>({
     drag: () => {},
     rotate: () => {},
     scale: () => {},
     liveDrag: { start: () => {}, move: () => null, end: () => {} },
+    setSnapStep: () => {},
   })
 
   // Automation seam for the scenario harness (Stage 3d): drive the spec + the
@@ -535,6 +560,7 @@ function useDesignerController() {
           ) => [number, number, number] | null
           end: (partId: string) => void
         }
+        setSnapStep: (stepM: number) => void
       }
     }
     w.__glbDesignerPrecision = {
@@ -546,6 +572,7 @@ function useDesignerController() {
         move: (partId, rawPos) => precisionRef.current.liveDrag.move(partId, rawPos),
         end: (partId) => precisionRef.current.liveDrag.end(partId),
       },
+      setSnapStep: (stepM) => precisionRef.current.setSnapStep(stepM),
     }
     return () => {
       w.__glbDesignerPrecision = undefined
@@ -1014,6 +1041,18 @@ function useDesignerController() {
   ) => {
     const kind = armedDecalRef.current
     if (!kind) return
+    // A combine member is consumed by the folded result — a decal projected onto
+    // it can't render/export on that result, so refuse placement with a hint
+    // rather than dropping it silently at bake (finding 2).
+    if (combinedPartIds(spec).has(partId)) {
+      useStore.getState().notify.start({
+        title: 'Combines hide surface details',
+        message: 'Bake or ungroup this combine first, then add the detail.',
+        kind: 'info',
+      })
+      disarmDecal()
+      return
+    }
     const { spec: next, decalId } = addDecal(spec, {
       partId,
       position: point,
@@ -1114,6 +1153,7 @@ function useDesignerController() {
     const raw: [number, number, number] = [m.position.x, m.position.y, m.position.z]
     // Alt pressed mid-drag → release the magnet live (leave the mesh at raw).
     if (!session || altHeldRef.current) {
+      lastLiveSnapRef.current = null
       setLiveHint([], boundsFromCenterExtent(raw, partWorldExtent(part)))
       return raw
     }
@@ -1122,11 +1162,12 @@ function useDesignerController() {
     const { delta, hits } = updateDragSnap(session, moving)
     const live: [number, number, number] = [raw[0] + delta[0], raw[1] + delta[1], raw[2] + delta[2]]
     m.position.set(live[0], live[1], live[2])
+    lastLiveSnapRef.current = { position: live, axes: { ...session.engaged } }
     setLiveHint(hits, boundsFromCenterExtent(live, extent))
     return live
   }
 
-  const commitGizmoDrag = (skipFaceSnap = false) => {
+  const commitGizmoDrag = (skipFaceSnap = false, engagedSnap: EngagedSnapPayload | null = null) => {
     const m = selMesh
     const part = sel
     if (!m || !part) return
@@ -1141,15 +1182,9 @@ function useDesignerController() {
       snapStep,
     )
     m.scale.set(1, 1, 1)
+    // Pivot compensation for rotate/scale (only when the gizmo produced a patch).
     if (patch) {
-      // ---- Stage 6d precision II ----------------------------------------
-      // Face-to-face magnetic snap (translate) — an ungrouped part, magnet on:
-      // snap the grid-snapped position flush to a nearby part face; face snap
-      // wins over the grid quantisation it just applied.
-      if (gizmoActive === 'translate' && patch.position && gridSnap.enabled && !skipFaceSnap) {
-        const snapped = faceSnapPartPosition(spec, part, patch.position)
-        if (snapped) patch = { ...patch, position: snapped }
-      } else if (gizmoActive === 'rotate' && 'rotation' in patch && pivot !== 'center') {
+      if (gizmoActive === 'rotate' && 'rotation' in patch && pivot !== 'center') {
         // Rotate about the chosen pivot — compensate the centre so the base /
         // corner stays fixed (the exact position is kept un-grid-snapped so the
         // invariant holds).
@@ -1171,6 +1206,28 @@ function useDesignerController() {
         )
         patch = { ...patch, position }
       }
+    }
+    // ---- Stage 6d precision II / Stage 7b finding 1 (translate face snap) ----
+    // Reconcile the grid-snapped position with a face snap. When a LIVE snap was
+    // engaged at drag end it is the authority: the flush value wins VERBATIM on
+    // each engaged axis (skip grid rounding), so the committed value equals the
+    // live-shown flush at EVERY grid step (at a coarse 5 cm step a re-derivation
+    // from the grid-quantised position could miss the engage band). With no live
+    // session (the `drag` seam) re-derive the commit-time face snap from the
+    // grid-snapped position, as before. Runs independent of the gizmoPatch null
+    // check: an engaged live snap can move the part even when the grid-snapped
+    // position matched the current one.
+    if (gizmoActive === 'translate' && gridSnap.enabled && !skipFaceSnap) {
+      const gridPos: [number, number, number] = patch?.position ?? [...part.position]
+      let finalPos: [number, number, number] | null = null
+      if (engagedSnap && (engagedSnap.axes.x || engagedSnap.axes.y || engagedSnap.axes.z)) {
+        finalPos = mergeEngagedSnap(gridPos, engagedSnap.position, engagedSnap.axes)
+      } else if (patch?.position) {
+        finalPos = faceSnapPartPosition(spec, part, patch.position)
+      }
+      if (finalPos) patch = posEqual(finalPos, part.position) ? null : { position: finalPos }
+    }
+    if (patch) {
       commit((sp) => updatePart(sp, part.id, patch as Partial<ShapePart>))
     } else {
       const r = part.rotation ?? [0, 0, 0]
@@ -1186,12 +1243,20 @@ function useDesignerController() {
   // skip both live and commit snap (the CAD escape hatch).
   const endPartDrag = () => {
     const skip = altHeldRef.current
+    // The engaged snap is the LAST live frame's result (captured while the cursor
+    // was still at a real raw position) — NOT a recompute here, which would read
+    // the already-flush mesh where `snapFaces` finds no candidate and the snap
+    // spuriously releases (finding 1). Read it before the final flush frame.
+    const lastSnap = lastLiveSnapRef.current
     if (dragSessionRef.current) applyLivePartDragSnap()
+    const engagedSnap =
+      lastSnap && !skip && (lastSnap.axes.x || lastSnap.axes.y || lastSnap.axes.z) ? lastSnap : null
     dragSessionRef.current = null
+    lastLiveSnapRef.current = null
     liveHintSigRef.current = null
     if (snapHintTimer.current) clearTimeout(snapHintTimer.current)
     setSnapHint(null)
-    commitGizmoDrag(skip)
+    commitGizmoDrag(skip, engagedSnap)
   }
 
   // ---- Precision seam closures (Stage 6d scenario) — faithful replays of the
@@ -1286,8 +1351,10 @@ function useDesignerController() {
         if (session && !altHeldRef.current) {
           const { delta, hits } = updateDragSnap(session, boundsFromCenterExtent(rawPos, extent))
           live = [rawPos[0] + delta[0], rawPos[1] + delta[1], rawPos[2] + delta[2]]
+          lastLiveSnapRef.current = { position: live, axes: { ...session.engaged } }
           setLiveHint(hits, boundsFromCenterExtent(live, extent))
         } else {
+          lastLiveSnapRef.current = null
           setLiveHint([], boundsFromCenterExtent(rawPos, extent))
         }
         // Drive the live preview mesh (visual for the drag screenshot) when it's
@@ -1302,6 +1369,7 @@ function useDesignerController() {
         if (selIdRef.current === partId) endPartDrag()
       },
     },
+    setSnapStep: (stepM) => setSnapStep(stepM as SnapStepM),
   }
 
   // Record a non-destructive combine group over the selected free parts (CSG v2).
@@ -1380,6 +1448,23 @@ function useDesignerController() {
   const ungroupTransform = (groupId: string) => {
     commit((sp) => ungroupPartGroup(sp, groupId))
     if (selGroupId === groupId) setSelGroupId(null)
+    // The group is gone — prune any "Make configurable" assignment/rule that
+    // referenced it so the panel never shows a slot or rule pointing at nothing
+    // (finding 3). Known ids = the remaining groups (ungroup removes this one).
+    const knownGroupIds = new Set(
+      partGroups(spec)
+        .filter((g) => g.id !== groupId)
+        .map((g) => g.id),
+    )
+    const { assignments: nextAssign, removed } = pruneAssignmentRules(assignments, knownGroupIds)
+    if (removed.length > 0) {
+      setAssignments(nextAssign)
+      useStore.getState().notify.start({
+        title: 'Configurable rules updated',
+        message: removed[0],
+        kind: 'info',
+      })
+    }
   }
 
   const renameGroup = (groupId: string, groupName: string) => {
@@ -1482,6 +1567,7 @@ function useDesignerController() {
         ),
       )
     if (!session || altHeldRef.current) {
+      lastLiveSnapRef.current = null
       const b = boundsAt(raw)
       if (b) setLiveHint([], { min: b.min, max: b.max })
       return raw
@@ -1491,6 +1577,7 @@ function useDesignerController() {
     const { delta, hits } = updateDragSnap(session, moving)
     const live: [number, number, number] = [raw[0] + delta[0], raw[1] + delta[1], raw[2] + delta[2]]
     obj.position.set(live[0], live[1], live[2])
+    lastLiveSnapRef.current = { position: live, axes: { ...session.engaged } }
     setLiveHint(hits, {
       min: [moving.min[0] + delta[0], moving.min[1] + delta[1], moving.min[2] + delta[2]],
       max: [moving.max[0] + delta[0], moving.max[1] + delta[1], moving.max[2] + delta[2]],
@@ -1501,7 +1588,10 @@ function useDesignerController() {
   // Write a finished GROUP gizmo drag back onto the group transform (same 5mm/1°
   // snap as a part; coalesced into one undo step). `skipFaceSnap` (Alt held) skips
   // the commit-time face snap, matching the live escape hatch.
-  const commitGroupGizmoDrag = (skipFaceSnap = false) => {
+  const commitGroupGizmoDrag = (
+    skipFaceSnap = false,
+    engagedSnap: EngagedSnapPayload | null = null,
+  ) => {
     const obj = selGroupObj
     const group = transformGroups.find((g) => g.id === selGroupId)
     if (!obj || !group) return
@@ -1516,12 +1606,41 @@ function useDesignerController() {
       },
       snapStep,
     )
-    if (patch) {
-      // ---- Stage 6d precision II (group) --------------------------------
-      if (mode === 'translate' && patch.position && gridSnap.enabled && !skipFaceSnap) {
-        // Face-snap the whole group: union its members' world bounds at the
-        // proposed origin and snap flush to the parts outside the group.
-        const proposedGroup = { ...group, position: patch.position }
+    // Rotate pivot compensation (only when the gizmo produced a patch).
+    if (patch && mode === 'rotate' && patch.rotation && pivot !== 'center') {
+      const union = selectionBounds(
+        group.partIds
+          .map((id) => spec.parts.find((p) => p.id === id))
+          .filter((p): p is ShapePart => !!p),
+      )
+      if (union) {
+        patch = {
+          ...patch,
+          position: groupRotatePivotPosition(
+            group.position,
+            union.center,
+            union.min,
+            group.rotation,
+            patch.rotation,
+            pivot,
+          ),
+        }
+      }
+    }
+    // ---- Stage 6d precision II (group) / Stage 7b finding 1 (group face snap) --
+    // Reconcile the grid-snapped origin with a face snap. A LIVE snap engaged at
+    // drag end wins VERBATIM on each snapped axis (skip grid rounding, so the
+    // committed origin equals the live-shown flush at every grid step); otherwise
+    // re-derive from the union of the members' world bounds at the grid origin.
+    // Independent of the null check — an engaged snap can move the group even when
+    // the grid-snapped origin matched the current one.
+    if (mode === 'translate' && gridSnap.enabled && !skipFaceSnap) {
+      const gridPos: [number, number, number] = patch?.position ?? group.position ?? [0, 0, 0]
+      let finalPos: [number, number, number] | null = null
+      if (engagedSnap && (engagedSnap.axes.x || engagedSnap.axes.y || engagedSnap.axes.z)) {
+        finalPos = mergeEngagedSnap(gridPos, engagedSnap.position, engagedSnap.axes)
+      } else {
+        const proposedGroup = { ...group, position: gridPos }
         const memberParts = groupMemberParts(group)
         const moving = unionBounds(
           memberParts.map((p) =>
@@ -1533,38 +1652,19 @@ function useDesignerController() {
           const targets = spec.parts.filter((p) => !memberSet.has(p.id)).map(partWorldBoundsFor)
           const { delta, hits } = snapFaces(moving, targets)
           if (hits.length > 0) {
-            const snapped: [number, number, number] = [
-              patch.position[0] + delta[0],
-              patch.position[1] + delta[1],
-              patch.position[2] + delta[2],
-            ]
-            patch = { ...patch, position: snapped }
+            finalPos = [gridPos[0] + delta[0], gridPos[1] + delta[1], gridPos[2] + delta[2]]
             flashSnapHint(hits, {
               min: [moving.min[0] + delta[0], moving.min[1] + delta[1], moving.min[2] + delta[2]],
               max: [moving.max[0] + delta[0], moving.max[1] + delta[1], moving.max[2] + delta[2]],
             })
           }
         }
-      } else if (mode === 'rotate' && patch.rotation && pivot !== 'center') {
-        const union = selectionBounds(
-          group.partIds
-            .map((id) => spec.parts.find((p) => p.id === id))
-            .filter((p): p is ShapePart => !!p),
-        )
-        if (union) {
-          patch = {
-            ...patch,
-            position: groupRotatePivotPosition(
-              group.position,
-              union.center,
-              union.min,
-              group.rotation,
-              patch.rotation,
-              pivot,
-            ),
-          }
-        }
       }
+      if (finalPos) {
+        patch = posEqual(finalPos, group.position ?? [0, 0, 0]) ? null : { position: finalPos }
+      }
+    }
+    if (patch) {
       commit((sp) => updatePartGroupTransform(sp, group.id, patch as NonNullable<typeof patch>), {
         coalesceKey: 'group-gizmo',
       })
@@ -1580,12 +1680,16 @@ function useDesignerController() {
   // Group drag end (mouseUp) — mirror of `endPartDrag`.
   const endGroupDrag = () => {
     const skip = altHeldRef.current
+    const lastSnap = lastLiveSnapRef.current
     if (dragSessionRef.current) applyLiveGroupDragSnap()
+    const engagedSnap =
+      lastSnap && !skip && (lastSnap.axes.x || lastSnap.axes.y || lastSnap.axes.z) ? lastSnap : null
     dragSessionRef.current = null
+    lastLiveSnapRef.current = null
     liveHintSigRef.current = null
     if (snapHintTimer.current) clearTimeout(snapHintTimer.current)
     setSnapHint(null)
-    commitGroupGizmoDrag(skip)
+    commitGroupGizmoDrag(skip, engagedSnap)
   }
 
   const save = async () => {
@@ -1732,6 +1836,18 @@ function useDesignerController() {
         kind: 'error',
       })
       return null
+    }
+    // Silently-dropped rules (finding 3): if the plan dropped any authored rule
+    // (its target is no longer an exposed option, or it points inside its own
+    // slot), surface them and let the author cancel BEFORE the expensive bake —
+    // rather than baking a product quietly missing rules they thought they set.
+    if (plan.droppedRules.length > 0) {
+      const ok = await useStore.getState().confirmAction({
+        title: 'Some rules can’t be applied',
+        message: `${plan.droppedRules.join(' ')} Save without them?`,
+        confirmLabel: 'Save anyway',
+      })
+      if (!ok) return null
     }
     // Slot-constraint authoring (Stage 7d): validate the mapped rules on a cheap
     // product SHELL BEFORE the expensive GLB bake — a contradiction / unsatisfiable
@@ -1880,6 +1996,10 @@ function useDesignerController() {
     mirror,
     patchSelectedPart,
     tuftGrid: sel?.tuft ?? null,
+    // The selected part is consumed by a combine (finding 2): its per-part
+    // surface details (tufting + decals) can't project onto the folded result,
+    // so the inspector hides those sections behind a hint.
+    selInCombine: !!sel && combinedPartIds(spec).has(sel.id),
     setTuftGrid,
     renamePartName,
     // arrange: align / distribute / mirror-axis / array (Stage 4)

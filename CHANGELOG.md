@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.53 — Asset Studio Iteration 3 · review fixes (snap authority, combine details, dropped rules, hung-worker reclaim)
+
+Six iteration-3 review findings closed; no user-facing feature added — correctness + honesty fixes
+across the GLB Asset Designer + optimize pipeline. Plan: `docs/asset-studio-plan.md` Iteration 3
+(marked complete-with-review).
+
+- **Live-vs-commit snap divergence at coarse grid steps (finding 1).** When a live face-snap was
+  ENGAGED at drag end, the flush position now wins over grid quantisation: `endPartDrag`/`endGroupDrag`
+  capture the engaged-axis state + flush position from the drag session and hand it to
+  `commitGizmoDrag`/`commitGroupGizmoDrag`, which commit the flush value VERBATIM on each engaged axis
+  (grid rounding applies only to the NON-snapped axes) via the new pure
+  `gizmoWriteBack.ts:mergeEngagedSnap`. Previously the commit grid-quantised the flush position THEN
+  re-derived the face snap, so at a coarse 5 cm step the re-derivation could miss the 8 mm engage band
+  and commit a non-flush value that diverged from the live preview. The committed value now equals the
+  live-shown flush at EVERY grid step. Scenario `glb-designer-stage7b` gains a 5 cm-step phase (wall at
+  x=0.52 → flush centre 0.12, off-grid) asserting the commit lands flush (0.12), not grid-rounded
+  (0.10); unit-tested in `gizmoWriteBack.test.ts`.
+- **Decals/tufting on combine-consumed parts (finding 2).** A part folded into a combine is consumed
+  by the baked result, so its per-part surface details can't project onto it — they were silently
+  dropped at bake. Now `editSpec.ts:addCombineGroup` PRUNES a member's decals + clears its `tuft`
+  field as the part joins the combine (one undo step; ungroup does NOT resurrect them), the
+  PartInspector hides the Tufting section for a combine member with a hint ("Combines hide surface
+  details — bake or ungroup first"), and decal placement onto a combine member is refused with the
+  same hint instead of dropping silently.
+- **Silently-dropped constraint rules (finding 3).** `exportConfigurable` now surfaces every rule the
+  plan would drop (dangling / same-slot target) in a confirm dialog BEFORE the bake (author can
+  cancel), via the new `ExportPlan.droppedRules` (from the shared `classifyRules` pass). Ungrouping a
+  transform group prunes stale assignment rules pointing at the removed group
+  (`designerExport.ts:pruneAssignmentRules`) so the panel never shows a rule pointing at nothing. The
+  dead product-level `pruneProductConstraints` was removed — its self-heal logic now lives at the
+  authoring layer where the dangling reference originates.
+- **Hung-worker reclamation (finding 4).** The optimize worker pool (`optimize/runOptimize.ts`) gains
+  a per-job watchdog (`JOB_TIMEOUT_MS` = 30 s, just above `saveOptimize`'s 20 s caller race): a worker
+  that never answers is terminated, its pending jobs fail-soft to `null` (callers keep the raw GLB),
+  and it's dropped so a fresh worker respawns lazily — a normal fast job just arms + clears one timer.
+  `saveOptimize`'s doc comment updated to match. Tested with a never-responding fake worker.
+- **NUL-byte map key (finding 5).** `constraints.ts` internal key separator changed from a literal
+  `\0` to `::` (matching the file's other keys) — the file diffs as text again.
+- **Dead biome suppression (finding 6).** Removed the no-longer-triggering `noArrayIndexKey`
+  suppression in `MakeConfigurablePanel.tsx`.
+
 ## v0.21.2.52 — Asset Studio Iteration 3 · Stage 7d — slot-constraint authoring for configurable exports
 
 The GLB Asset Designer's "Make configurable" flow gains per-option **compatibility-rule authoring**:

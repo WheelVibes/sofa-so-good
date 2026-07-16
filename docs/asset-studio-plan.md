@@ -678,15 +678,35 @@ compatibility rules.
   target), **unsatisfiable / circular requires** (following the requires closure forces one slot to
   two options at once, or forces a forbidden excludes pair), and **dangling** references. Export
   validates a cheap product SHELL BEFORE the GLB bake and **blocks with a toast** naming the first
-  problem. `pruneProductConstraints` drops constraints referencing a removed slot/option (+ a
-  per-removal warning) so a stale rule self-heals.
+  problem. (The stale-rule self-heal moved to the authoring layer in the review-fix cluster below —
+  `designerExport.ts:pruneAssignmentRules` on ungroup — so the product built for export never carries
+  a dangling constraint to prune.)
 - ✅ **Persistence**: constraints live in the exported product (`userProductsSlice` path unchanged);
   re-export via the stable `spec.exportedProductId` preserves/updates rules; **re-edit seeding** —
   `restoreSpec` reconstructs the panel's assignments (slot / label / price / **rules**) from the
   matching user product via `reconstructAssignments`, pruning any rule whose target group was deleted.
 - ✅ **Tests**: constraint mapping designer→product + `reconstructAssignments` round-trip
-  (`designerExport.test.ts`); `validateProductConstraints`/`pruneProductConstraints` cases — ok,
+  (`designerExport.test.ts`); `validateProductConstraints` cases — ok,
   contradiction, circular, dangling (`constraints.test.ts`); `clampConfig` integration (a requires
   rule flips the dependent slot). Scenario `scripts/scenarios/glb-designer-stage7d.json`. No new
   feature flag (rides the existing `assetConfigurableExport` pro gate); no persistence/envelope bump
   (a product already persists its `constraints`).
+
+### Iteration 3 — review-fix cluster — ✅ COMPLETE-WITH-REVIEW (v0.21.2.53)
+Six findings from the iteration-3 adversarial review, closed as one cluster (no new feature —
+correctness + honesty). Full detail in `CHANGELOG.md` v0.21.2.53.
+- ✅ **Finding 1 — live-vs-commit snap divergence at coarse grid steps.** An engaged live face-snap
+  now wins over grid quantisation at commit: the drag session's engaged-axis state + flush position
+  flow into `commitGizmoDrag`/`commitGroupGizmoDrag`, which commit the flush value verbatim on snapped
+  axes (grid rounds the rest) via the pure `gizmoWriteBack.ts:mergeEngagedSnap`. Committed value now
+  equals the live-shown flush at every step; `glb-designer-stage7b` gains a 5 cm-step assertion.
+- ✅ **Finding 2 — decals/tufting on combine-consumed parts.** `addCombineGroup` prunes a member's
+  decals + clears its tuft (one undo step; ungroup doesn't resurrect); PartInspector hides the Tufting
+  section and decal placement is refused on a combine member, both with a hint.
+- ✅ **Finding 3 — silently-dropped constraint rules.** `exportConfigurable` confirms dropped rules
+  (`ExportPlan.droppedRules`) before the bake (cancellable); ungroup prunes stale assignment rules
+  (`pruneAssignmentRules`). Dead `pruneProductConstraints` removed (logic moved to the authoring layer).
+- ✅ **Finding 4 — hung-worker reclamation.** Per-job watchdog (`JOB_TIMEOUT_MS` 30 s) in the optimize
+  pool terminates a never-answering worker, fails its pending jobs soft, and respawns lazily.
+- ✅ **Finding 5 — NUL-byte map key** in `constraints.ts` → `::` (file diffs as text again).
+- ✅ **Finding 6 — dead biome suppression** removed from `MakeConfigurablePanel.tsx`.

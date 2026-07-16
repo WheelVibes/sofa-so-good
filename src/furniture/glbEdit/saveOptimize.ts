@@ -14,13 +14,17 @@ import { runOptimize } from '../optimize/runOptimize'
  * beyond a legitimate optimize of designer-scale geometry yet short enough that a
  * stuck save recovers on its own.
  *
- * **Worker-leak note (intentional, no cancellation infra).** `runOptimize` has no
- * job-cancel API: on timeout the in-flight worker call is simply abandoned (its
- * `pending` resolver is dropped when we `race` past it). If the worker was truly
- * hung the browser reclaims it when the tab closes; if it eventually finishes, the
- * pool worker returns to idle and is REUSED for the next job (or torn down after
- * `runOptimize`'s 30 s idle-teardown). We deliberately don't build cancellation —
- * a leaked *idle* worker is bounded (`POOL_MAX`) and self-healing.
+ * **Worker-leak note.** This race has no job-cancel API of its own: on timeout the
+ * in-flight worker call is simply abandoned (its `pending` resolver is dropped when
+ * we `race` past it). Two backstops keep that from leaking a pool slot: if the
+ * worker eventually finishes, it returns to idle and is REUSED for the next job (or
+ * torn down after `runOptimize`'s 30 s idle-teardown); if it is genuinely HUNG and
+ * never answers, `runOptimize`'s per-job watchdog ({@link
+ * import('../optimize/runOptimize').JOB_TIMEOUT_MS}, 30 s — set just above this
+ * 20 s race so we lose it first) terminates the worker, rejects its pending jobs
+ * (harmless here — we already returned the raw GLB), and drops it so a fresh worker
+ * respawns on demand. A leaked *idle* worker is bounded (`POOL_MAX`); a hung one is
+ * now reclaimed rather than held for the tab's lifetime.
  */
 export const OPTIMIZE_SAVE_TIMEOUT_MS = 20_000
 

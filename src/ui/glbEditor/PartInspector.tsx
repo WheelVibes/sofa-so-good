@@ -67,6 +67,7 @@ export function PartInspector() {
     renamePartName: onRenamePart,
     tuftGrid,
     setTuftGrid: onSetTuft,
+    selInCombine,
   } = useDesigner()
   const surfaceMaterials = useSurfaceMaterialOptions()
   // Only rendered when a part is selected (the dialog mounts it unconditionally,
@@ -316,8 +317,22 @@ export function PartInspector() {
       {/* Tufting (Stage 7c) — one-tap button grid + matching plump dimples on a
           plumped box cushion (the bench showcase). Rectangular grid only (the
           diamond/Chesterfield pattern is out of scope). Editing rows/cols/depth
-          regenerates the tagged button decals; user-placed decals are untouched. */}
-      {part.kind === 'box' && (part.plump ?? 0) > 0 && shellVal <= 0 ? (
+          regenerates the tagged button decals; user-placed decals are untouched.
+          Hidden for a combine member — a folded result can't carry per-part
+          surface details, so they were pruned when the part joined the combine
+          (finding 2). */}
+      {part.kind === 'box' && (part.plump ?? 0) > 0 && shellVal <= 0 && selInCombine ? (
+        <div
+          style={{
+            marginTop: 'var(--s-2)',
+            fontSize: 'var(--t-2xs)',
+            color: 'var(--text-3)',
+            fontWeight: 500,
+          }}
+        >
+          Combines hide surface details — bake or ungroup first.
+        </div>
+      ) : part.kind === 'box' && (part.plump ?? 0) > 0 && shellVal <= 0 ? (
         <div style={{ marginTop: 'var(--s-2)' }}>
           <label
             className="row"

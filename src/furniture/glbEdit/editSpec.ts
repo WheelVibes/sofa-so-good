@@ -708,7 +708,39 @@ export function addCombineGroup(
   const groups = combineGroups(spec)
   const id = newCombineGroupId()
   const group: CombineGroup = { id, name: `Combine ${groups.length + 1}`, partIds: distinct, op }
-  return { spec: { ...spec, combineGroups: [...groups, group] }, groupId: id }
+  // A combine member is consumed by the folded result — its per-part surface
+  // details (decals + tufting) can't project onto that result reliably, so at
+  // export they'd be silently dropped (`buildObject.ts` skips a consumed part's
+  // mesh, and the decals live as children of that mesh). Prune them AS the part
+  // joins the combine instead — one undo step, documented by the panel hint
+  // ("Combines hide surface details — bake or ungroup first"). Ungrouping does
+  // NOT resurrect them: once pruned they're gone from the spec (finding 2).
+  const withGroup = pruneCombineMemberDetails(
+    { ...spec, combineGroups: [...groups, group] },
+    new Set(distinct),
+  )
+  return { spec: withGroup, groupId: id }
+}
+
+/** Drop the decals + clear the tuft field of every part in `memberSet` — the
+ *  surface details a combine can't preserve on a consumed member (finding 2).
+ *  Pure; a member with no details leaves the spec untouched for that part. */
+function pruneCombineMemberDetails(
+  spec: AssetEditSpec,
+  memberSet: ReadonlySet<string>,
+): AssetEditSpec {
+  const parts = spec.parts.map((p) => {
+    if (!memberSet.has(p.id) || p.tuft === undefined) return p
+    const { tuft: _drop, ...rest } = p
+    return rest
+  })
+  let next: AssetEditSpec = { ...spec, parts }
+  const list = decals(next)
+  const kept = list.filter((d) => !memberSet.has(d.partId))
+  if (kept.length !== list.length) {
+    next = kept.length > 0 ? { ...next, decals: kept } : stripDecals(next)
+  }
+  return next
 }
 
 /** Dissolve a combine group (ungroup) — its member parts become free again;

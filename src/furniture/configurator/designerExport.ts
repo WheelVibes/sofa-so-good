@@ -102,6 +102,11 @@ export interface ExportPlan {
    *  into the configurator's `SlotConstraint` vocabulary — carried onto the
    *  exported product so `clampConfig` enforces them at pick/bake time. */
   constraints: SlotConstraint[]
+  /** Human-readable notes for every authored rule the plan DROPPED (target no
+   *  longer an exposed option, or a meaningless same-slot target) — surfaced to
+   *  the author BEFORE the bake so a silently-lost rule can be reviewed/cancelled
+   *  rather than vanishing (finding 3). Empty when every rule mapped cleanly. */
+  droppedRules: string[]
 }
 
 /** Which export bucket each part lands in: `'base'` (ungrouped part or a group
@@ -266,41 +271,64 @@ export function planConfigurableExport(
     }
   })
 
+  const { constraints, dropped } = classifyRules(assignments, slots)
   return {
     baseParts,
     baseCombineGroups: combinesInBucket(spec, bucket, 'base'),
     baseFootprint: symmetricFootprint(baseParts),
     slots,
-    constraints: mapRulesToConstraints(assignments, slots),
+    constraints,
+    droppedRules: dropped,
   }
 }
 
 /**
- * Map the authored per-option `rules` (keyed by group id) into the configurator's
- * `SlotConstraint` vocabulary — reusing `requires`/`excludes` verbatim. An option's
- * id is its group id and a slot's id is its slot key (see `planConfigurableExport`),
- * so a rule referencing another group id resolves directly to a cross-slot option.
- * A rule is emitted ONLY when both endpoints are exposed options in DIFFERENT slots
- * (self-slot targets are meaningless — a slot holds one option — and are dropped).
- * Pure + deterministic (slot-then-option order).
+ * Single pass over the authored per-option `rules` (keyed by group id): classify
+ * each into a mapped `SlotConstraint` (a valid cross-slot rule) OR a DROP with a
+ * human-readable reason. An option's id is its group id and a slot's id is its slot
+ * key (see `planConfigurableExport`), so a rule referencing another group id
+ * resolves directly to a cross-slot option. A rule is emitted ONLY when both
+ * endpoints are exposed options in DIFFERENT slots — a target that isn't an exposed
+ * option (its group was deleted/un-slotted) or a meaningless same-slot target is
+ * dropped and reported so it can't vanish silently (finding 3). Shared by
+ * {@link mapRulesToConstraints} and {@link droppedRuleDescriptions} so the two can
+ * never disagree on which rules survive. Pure + deterministic (slot-then-option).
  */
-export function mapRulesToConstraints(
+function classifyRules(
   assignments: Record<string, GroupAssignment>,
   slots: PlannedSlot[],
-): SlotConstraint[] {
-  // group id → its slot id, for every exposed option in the plan.
+): { constraints: SlotConstraint[]; dropped: string[] } {
+  // group id → its slot id / label, for every exposed option in the plan.
   const slotOfOption = new Map<string, string>()
-  for (const s of slots) for (const o of s.options) slotOfOption.set(o.id, s.id)
+  const labelOfOption = new Map<string, string>()
+  for (const s of slots)
+    for (const o of s.options) {
+      slotOfOption.set(o.id, s.id)
+      labelOfOption.set(o.id, o.label)
+    }
 
   const constraints: SlotConstraint[] = []
+  const dropped: string[] = []
   for (const s of slots) {
     for (const o of s.options) {
       const rules = assignments[o.id]?.rules
       if (!rules) continue
+      const from = labelOfOption.get(o.id) ?? o.id
+      const verb = (k: OptionRule['kind']) => (k === 'requires' ? 'requires' : 'excludes')
       for (const r of rules) {
         const targetSlot = slotOfOption.get(r.target)
-        // Target must be an exposed option in a DIFFERENT slot.
-        if (!targetSlot || targetSlot === s.id) continue
+        if (!targetSlot) {
+          dropped.push(
+            `"${from}" ${verb(r.kind)} an option that is no longer available — the rule was dropped.`,
+          )
+          continue
+        }
+        if (targetSlot === s.id) {
+          dropped.push(
+            `"${from}" ${verb(r.kind)} another option in its own slot — only cross-slot rules apply, so it was dropped.`,
+          )
+          continue
+        }
         if (r.kind === 'requires') {
           constraints.push({
             kind: 'requires',
@@ -320,7 +348,62 @@ export function mapRulesToConstraints(
       }
     }
   }
-  return constraints
+  return { constraints, dropped }
+}
+
+/** Map the authored per-option `rules` into the configurator's `SlotConstraint`
+ *  vocabulary (see {@link classifyRules}). Pure. */
+export function mapRulesToConstraints(
+  assignments: Record<string, GroupAssignment>,
+  slots: PlannedSlot[],
+): SlotConstraint[] {
+  return classifyRules(assignments, slots).constraints
+}
+
+/** The human-readable notes for every authored rule that would be DROPPED when
+ *  mapping to constraints (dangling / same-slot target) — see {@link classifyRules}.
+ *  Empty when every rule maps cleanly. Pure. */
+export function droppedRuleDescriptions(
+  assignments: Record<string, GroupAssignment>,
+  slots: PlannedSlot[],
+): string[] {
+  return classifyRules(assignments, slots).dropped
+}
+
+/**
+ * Prune the "Make configurable" assignments after a group disappears (ungroup /
+ * delete): drop any assignment whose group id is no longer present, and strip any
+ * rule whose `target` group id is gone, so the panel never shows a slot or rule
+ * pointing at nothing (finding 3). Returns the cleaned assignments plus a
+ * human-readable note per removal — the stale-rule self-heal-and-report step,
+ * applied at the authoring layer where the dangling reference actually originates
+ * (so the exported product never carries one). Pure.
+ */
+export function pruneAssignmentRules(
+  assignments: Record<string, GroupAssignment>,
+  knownGroupIds: ReadonlySet<string>,
+): { assignments: Record<string, GroupAssignment>; removed: string[] } {
+  const out: Record<string, GroupAssignment> = {}
+  const removed: string[] = []
+  for (const [groupId, a] of Object.entries(assignments)) {
+    if (!knownGroupIds.has(groupId)) {
+      if (a.slot != null) {
+        removed.push(`"${a.label}" left slot "${a.slot}" — its group no longer exists.`)
+      }
+      continue
+    }
+    if (!a.rules || a.rules.length === 0) {
+      out[groupId] = a
+      continue
+    }
+    const kept = a.rules.filter((r) => knownGroupIds.has(r.target))
+    if (kept.length !== a.rules.length) {
+      removed.push(`A rule on "${a.label}" pointing at a removed option was dropped.`)
+    }
+    const { rules: _dropped, ...rest } = a
+    out[groupId] = kept.length > 0 ? { ...rest, rules: kept } : rest
+  }
+  return { assignments: out, removed }
 }
 
 /**

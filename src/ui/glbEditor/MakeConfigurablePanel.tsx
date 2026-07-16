@@ -198,7 +198,6 @@ function OptionRulesEditor({
       ) : (
         <>
           {rules.map((r, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional + editable in place
             <div key={i} style={{ display: 'flex', gap: 'var(--s-1)', marginBottom: 'var(--s-1)' }}>
               <Select
                 value={r.kind}

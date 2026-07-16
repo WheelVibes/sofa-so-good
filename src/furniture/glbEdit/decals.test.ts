@@ -13,6 +13,7 @@ import {
   duplicatePart,
   mirrorPart,
   pruneDecals,
+  removeCombineGroup,
   removeDecal,
   removePart,
   type ShapePart,
@@ -147,6 +148,45 @@ describe('bakeCombineGroup prunes orphaned decals', () => {
     // The members a + b are gone; the decal that was on `a` must not orphan.
     expect(baked.parts.map((p) => p.id)).toEqual(['baked-mesh'])
     expect(baked.decals).toBeUndefined()
+  })
+})
+
+describe('addCombineGroup prunes a member’s surface details (finding 2)', () => {
+  it('drops member decals + clears the tuft field; a non-member is untouched', () => {
+    let spec = addPart(createEmptySpec(), 'box')
+    const a = spec.parts[0].id
+    spec = addPart(spec, 'box')
+    const b = spec.parts[1].id
+    spec = addPart(spec, 'box')
+    const c = spec.parts[2].id // not in the combine
+    // Member `a` carries a plump + tuft field, a tagged tuft button, a user decal.
+    spec = updatePart(spec, a, { plump: 0.3, tuft: { rows: 2, cols: 2, depth: 0.5 } })
+    spec = addDecal(spec, baseDecal(a)).spec
+    spec = addDecal(spec, { ...baseDecal(a), tuft: true }).spec
+    // A decal on the non-member `c` must survive.
+    spec = addDecal(spec, baseDecal(c)).spec
+
+    const { spec: grouped, groupId } = addCombineGroup(spec, [a, b], 'union')
+    expect(groupId).toBeTruthy()
+    expect(decalsForPart(grouped, a)).toHaveLength(0) // both a's decals pruned
+    expect(grouped.parts.find((p) => p.id === a)?.tuft).toBeUndefined() // tuft field cleared
+    expect(decalsForPart(grouped, c)).toHaveLength(1) // non-member kept
+
+    // Ungroup must NOT resurrect the pruned details — they're gone from the spec.
+    const ungrouped = removeCombineGroup(grouped, groupId!)
+    expect(decalsForPart(ungrouped, a)).toHaveLength(0)
+    expect(ungrouped.parts.find((p) => p.id === a)?.tuft).toBeUndefined()
+    expect(decalsForPart(ungrouped, c)).toHaveLength(1)
+  })
+
+  it('leaves a detail-free combine byte-identical aside from the group', () => {
+    let spec = addPart(createEmptySpec(), 'box')
+    const a = spec.parts[0].id
+    spec = addPart(spec, 'box')
+    const b = spec.parts[1].id
+    const { spec: grouped } = addCombineGroup(spec, [a, b], 'union')
+    expect(grouped.decals).toBeUndefined()
+    expect(grouped.parts).toEqual(spec.parts) // parts unchanged (no details to prune)
   })
 })
 

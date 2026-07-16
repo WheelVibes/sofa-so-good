@@ -7,6 +7,7 @@ import {
   gizmoModesFor,
   gizmoPatch,
   groupGizmoPatch,
+  mergeEngagedSnap,
   normalizeDeg,
   snapValue,
 } from './gizmoWriteBack'
@@ -215,5 +216,42 @@ describe('gizmoPatch — custom snap step (Stage 4 grid snap)', () => {
     const g: PartGroup = { id: 'g', name: 'G', partIds: ['a'] }
     const patch = groupGizmoPatch(g, 'translate', snap({ position: [0.17, 0, 0] }), 0.05)
     expect(patch).toEqual({ position: [0.15, 0, 0] })
+  })
+})
+
+describe('mergeEngagedSnap — live face-snap wins over grid quantisation (finding 1)', () => {
+  it('takes the flush value VERBATIM on an engaged axis, skipping the coarse grid', () => {
+    // A live drag showed the mover flush at x=0.1 (its +X face abutting a wall);
+    // the commit grid-snapped that to 0.15 at a 5 cm step (gridPos). The engaged X
+    // axis must win → committed x = the live flush 0.1, not the 0.15 grid value.
+    const gridPos: [number, number, number] = [0.15, 0.2, 0]
+    const flush: [number, number, number] = [0.1, 0.2, 0]
+    const merged = mergeEngagedSnap(gridPos, flush, { x: true, y: false, z: false })
+    expect(merged).toEqual([0.1, 0.2, 0])
+  })
+
+  it('keeps the grid-snapped value on a NON-engaged axis', () => {
+    const gridPos: [number, number, number] = [0.15, 0.35, 0.15]
+    const flush: [number, number, number] = [0.1, 0.271, 0.083]
+    // Only X snapped flush; Y/Z stay on the grid.
+    const merged = mergeEngagedSnap(gridPos, flush, { x: true, y: false, z: false })
+    expect(merged).toEqual([0.1, 0.35, 0.15])
+  })
+
+  it('honours the flush value at ANY grid step (fine 1 mm and coarse 5 cm agree)', () => {
+    const flush: [number, number, number] = [0.1, 0.2, 0]
+    // Whatever the grid rounded X to, an engaged X commits the flush value — so
+    // the committed value equals the live-shown flush regardless of step.
+    for (const gridX of [0.1, 0.125, 0.15, 0.0]) {
+      const merged = mergeEngagedSnap([gridX, 0.2, 0], flush, { x: true, y: false, z: false })
+      expect(merged[0]).toBe(0.1)
+    }
+  })
+
+  it('all axes engaged → the whole flush position wins (group path)', () => {
+    const gridPos: [number, number, number] = [0.15, 0.15, 0.15]
+    const flush: [number, number, number] = [0.083, 0.271, 0.019]
+    const merged = mergeEngagedSnap(gridPos, flush, { x: true, y: true, z: true })
+    expect(merged).toEqual(flush)
   })
 })

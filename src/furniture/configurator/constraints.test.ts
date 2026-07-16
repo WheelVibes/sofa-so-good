@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pruneProductConstraints, validateProductConstraints } from './constraints'
+import { validateProductConstraints } from './constraints'
 import type { ConfigurableProduct, SlotConstraint, SlotOption } from './model'
 
 /** A two-slot product (Top: glass/oak, Legs: steel/wood) with hand-set
@@ -105,36 +105,5 @@ describe('validateProductConstraints (Stage 7d)', () => {
     ])
     const problems = validateProductConstraints(product)
     expect(problems.some((p) => /no longer exists/i.test(p))).toBe(true)
-  })
-})
-
-describe('pruneProductConstraints (Stage 7d)', () => {
-  it('keeps valid constraints and reports none removed', () => {
-    const valid: SlotConstraint = {
-      kind: 'requires',
-      ifSlot: 'Top',
-      ifOption: 'g-glass',
-      thenSlot: 'Legs',
-      thenOption: 'g-steel',
-    }
-    const { constraints, removed } = pruneProductConstraints(twoSlotProduct([valid]))
-    expect(constraints).toEqual([valid])
-    expect(removed).toEqual([])
-  })
-
-  it('drops a constraint whose target option was deleted, with a warning', () => {
-    const { constraints, removed } = pruneProductConstraints(
-      twoSlotProduct([
-        {
-          kind: 'excludes',
-          slot: 'Top',
-          option: 'g-glass',
-          conflictsWith: { slot: 'Legs', option: 'deleted' },
-        },
-      ]),
-    )
-    expect(constraints).toEqual([])
-    expect(removed).toHaveLength(1)
-    expect(removed[0]).toMatch(/removed option/i)
   })
 })

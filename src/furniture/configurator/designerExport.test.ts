@@ -5,10 +5,12 @@ import { evaluateAllGroups } from '../glbEdit/csgEval'
 import { type AssetEditSpec, createEmptySpec, type ShapePart } from '../glbEdit/editSpec'
 import {
   crossBucketCombineName,
+  droppedRuleDescriptions,
   type GroupAssignment,
   isPlanExportable,
   mapRulesToConstraints,
   planConfigurableExport,
+  pruneAssignmentRules,
   reconstructAssignments,
 } from './designerExport'
 import { type ConfigurableProduct, clampConfig, type SlotOption } from './model'
@@ -307,6 +309,28 @@ describe('slot-constraint authoring mapping (Stage 7d)', () => {
     expect(constraints).toEqual([])
   })
 
+  it('reports dropped rules on the plan (dangling + same-slot targets) — finding 3', () => {
+    const plan = planConfigurableExport(twoSlotSpec(), {
+      ...TWO_SLOT_ASSIGN,
+      'g-glass': {
+        slot: 'Top',
+        label: 'Glass',
+        price: 0,
+        rules: [
+          { kind: 'requires', target: 'g-steel' }, // valid cross-slot → mapped
+          { kind: 'requires', target: 'g-oak' }, // same slot → dropped
+          { kind: 'excludes', target: 'g-missing' }, // no longer an option → dropped
+        ],
+      },
+    })
+    expect(plan.constraints).toHaveLength(1) // only the valid cross-slot rule survives
+    expect(plan.droppedRules).toHaveLength(2)
+    expect(plan.droppedRules.some((m) => /its own slot/i.test(m))).toBe(true)
+    expect(plan.droppedRules.some((m) => /no longer available/i.test(m))).toBe(true)
+    // A clean plan drops nothing.
+    expect(planConfigurableExport(twoSlotSpec(), TWO_SLOT_ASSIGN).droppedRules).toEqual([])
+  })
+
   it('a mapped requires constraint flips the dependent slot via clampConfig', () => {
     const plan = planConfigurableExport(twoSlotSpec(), TWO_SLOT_ASSIGN)
     const opt = (id: string): SlotOption => ({
@@ -429,5 +453,65 @@ describe('slot-constraint authoring mapping (Stage 7d)', () => {
     // g-steel is no longer a known group → the rule is dropped from the seed.
     const a = reconstructAssignments(product, new Set(['g-glass']))
     expect(a['g-glass']).toEqual({ slot: 'Top', label: 'g-glass', price: 0 })
+  })
+})
+
+describe('droppedRuleDescriptions (finding 3)', () => {
+  it('describes a dangling target and a same-slot target', () => {
+    const slots = planConfigurableExport(twoSlotSpec(), TWO_SLOT_ASSIGN).slots
+    const dropped = droppedRuleDescriptions(
+      {
+        ...TWO_SLOT_ASSIGN,
+        'g-glass': {
+          slot: 'Top',
+          label: 'Glass',
+          price: 0,
+          rules: [
+            { kind: 'requires', target: 'g-oak' }, // same slot
+            { kind: 'excludes', target: 'g-missing' }, // gone
+          ],
+        },
+      },
+      slots,
+    )
+    expect(dropped).toHaveLength(2)
+    expect(dropped.some((m) => /"Glass" requires .*its own slot/i.test(m))).toBe(true)
+    expect(dropped.some((m) => /"Glass" excludes .*no longer available/i.test(m))).toBe(true)
+  })
+
+  it('is empty when every rule maps cleanly', () => {
+    const slots = planConfigurableExport(twoSlotSpec(), TWO_SLOT_ASSIGN).slots
+    expect(droppedRuleDescriptions(TWO_SLOT_ASSIGN, slots)).toEqual([])
+  })
+})
+
+describe('pruneAssignmentRules (finding 3)', () => {
+  it('drops an assignment whose group is gone and reports it', () => {
+    const { assignments, removed } = pruneAssignmentRules(
+      TWO_SLOT_ASSIGN,
+      new Set(['g-glass', 'g-steel', 'g-wood']), // g-oak was ungrouped
+    )
+    expect(assignments['g-oak']).toBeUndefined()
+    expect(assignments['g-glass']).toBeDefined()
+    expect(removed).toHaveLength(1)
+    expect(removed[0]).toMatch(/Oak.*no longer exists/i)
+  })
+
+  it('strips a rule whose target group is gone but keeps the assignment', () => {
+    const { assignments, removed } = pruneAssignmentRules(
+      TWO_SLOT_ASSIGN,
+      new Set(['g-glass', 'g-oak', 'g-wood']), // g-steel (g-glass's requires target) gone
+    )
+    // g-glass survives but its rule (→ g-steel) is stripped.
+    expect(assignments['g-glass']).toEqual({ slot: 'Top', label: 'Glass', price: 0 })
+    expect(assignments['g-glass'].rules).toBeUndefined()
+    expect(removed.some((m) => /rule on "Glass".*was dropped/i.test(m))).toBe(true)
+  })
+
+  it('is a clean pass-through when every group + target still exists', () => {
+    const known = new Set(['g-glass', 'g-oak', 'g-steel', 'g-wood'])
+    const { assignments, removed } = pruneAssignmentRules(TWO_SLOT_ASSIGN, known)
+    expect(removed).toEqual([])
+    expect(assignments['g-glass'].rules).toEqual([{ kind: 'requires', target: 'g-steel' }])
   })
 })

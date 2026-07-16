@@ -190,7 +190,10 @@ build one in the browser:
   it, then **click a shape's surface** in the preview to place it there. It sits flush on the
   surface, follows the shape if you move or group it, and is saved into the asset (real geometry, so
   it exports too). A **Placed details** list lets you remove any one. Press **Esc** to cancel an
-  armed detail.
+  armed detail. Details (and tufting, below) apply to a *standalone* shape — a shape that's part of a
+  **Combine** can't carry them (the boolean fuses it into one result), so those controls hide with a
+  short "Combines hide surface details — bake or ungroup first" note, and combining a shape that
+  already has details drops them (one undo step; ungrouping doesn't bring them back).
 - **Piping** — in the **Details** panel, with a **box** or **extrude** shape selected, tap **Add
   piping** to trace a soft welt around the shape's top edge — the classic upholstered-cushion look —
   with no manual path drawing. Set the **Tube ⌀** and **Edge inset** first. The piping lands grouped
