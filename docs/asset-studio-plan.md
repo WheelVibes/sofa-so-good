@@ -760,3 +760,20 @@ via lathe. Pure vertex transform, exports losslessly.
   bevel+taper composes, extrude Z-axis taper, `taperable` gate matrix, `partGeometry` integration
   incl. faceFinishes-composes + shell-gated) + `specPersist.test.ts` v12 round-trip/migration/reject.
   Visual verification: `scripts/scenarios/glb-designer-stage8b.json`.
+
+---
+
+## Iteration 5 (user direction 2026-07-16: existing furniture as templates / components as
+## building blocks)
+
+### Stage 9a — Any furniture as an editable template
+"Start from" any catalog def — procedural built-ins (the ~110-primitive vocabulary), user
+GLBs, shared-library assets, pack items — decomposed into editable parts: each named mesh →
+a frozen `mesh` ShapePart (the CSG-bake representation) inside PartGroups mirroring the
+source hierarchy; materials captured. Spec-size strategy: reference parts (defId + mesh
+path, re-resolved via SEC-1 loader) with baked fallback when the source def is gone.
+
+### Stage 9b — Component building blocks
+Selective extraction: pick individual meshes/sub-groups from any source def and insert just
+those (the "grab the legs" flow). Plus user components: save any PartGroup as a reusable
+component that appears in the Components panel (persisted like user furniture).

@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.56 — Asset Studio iteration 5 plan
+
+User direction: existing furniture (incl. shared-library assets) as editable templates, and
+selective mesh extraction as building blocks. Stage 9a/9b appended to
+`docs/asset-studio-plan.md`. Docs only.
+
 ## v0.21.2.55 — Asset Studio Stage 8b — taper deformer (box/extrude splayed sides, envelope v12)
 
 The GLB Asset Designer gains a **Taper** slider on solid **box** and **extrude** shapes — the
