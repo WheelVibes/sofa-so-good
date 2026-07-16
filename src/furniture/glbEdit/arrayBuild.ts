@@ -15,7 +15,14 @@
  */
 
 import { radialArrayPlacements } from '../radialArray'
-import { type AssetEditSpec, addPlacedComponent, clonePartAtPose, type ShapePart } from './editSpec'
+import { selectionBounds } from './arrange'
+import {
+  type AssetEditSpec,
+  addPlacedComponent,
+  appendClonedDecals,
+  clonePartAtPose,
+  type ShapePart,
+} from './editSpec'
 
 const DEG = Math.PI / 180
 const RAD = 180 / Math.PI
@@ -29,9 +36,11 @@ const ARRAY_MAX_COPIES = 50
 const ARRAY_MIN_GAP = 0.001
 
 export interface LinearArrayOptions {
-  /** Number of copies to create (each offset by `gap·k` for k = 1…count). ≥1. */
+  /** Number of copies to create (each offset by one pitch step per k = 1…count). ≥1. */
   count: number
-  /** Centre-to-centre spacing between copies, in metres (may be negative to
+  /** EDGE gap between adjacent copies' bounding boxes, in metres (the clear space
+   *  left between them) — the pitch is `sourceExtent + gap` on the chosen axis, so
+   *  the word "gap" matches the geometry. May be negative (copies overlap /
    *  array in the −axis direction). */
   gap: number
   axis: LinearArrayAxis
@@ -45,11 +54,14 @@ function sourceParts(spec: AssetEditSpec, ids: string[]): ShapePart[] {
 }
 
 /**
- * Linear array: clone the source part(s) `count` times, each offset by `gap·k`
- * (k = 1…count) along the chosen axis, and wrap the copies in one new named
- * group ("Array"). The originals are left in place. Returns `{ spec, groupId }`
- * (groupId null when no source resolves or the gap is degenerate). Pure — one
- * spec transition = one undo step.
+ * Linear array: clone the source part(s) `count` times, each offset by one pitch
+ * step per k (k = 1…count) along the chosen axis, and wrap the copies in one new
+ * named group ("Array"). The pitch is EDGE-gap semantics — `sourceExtent + gap`
+ * (rotation/kind-aware extent from `arrange.selectionBounds`) — so adjacent
+ * copies leave `gap` metres of clear space between their bounding boxes and the
+ * cluster shape is preserved. The originals are left in place. Returns
+ * `{ spec, groupId }` (groupId null when no source resolves or the gap is
+ * degenerate). Pure — one spec transition = one undo step.
  */
 export function linearArray(
   spec: AssetEditSpec,
@@ -60,15 +72,23 @@ export function linearArray(
   if (src.length === 0 || Math.abs(opts.gap) < ARRAY_MIN_GAP) return { spec, groupId: null }
   const count = clampCount(opts.count)
   const i = AXIS_INDEX[opts.axis]
+  // Edge-gap pitch: the source cluster's extent on this axis + the requested gap,
+  // signed so a negative gap still arrays in the −axis direction.
+  const extent = selectionBounds(src)?.size[i] ?? 0
+  const pitch = Math.sign(opts.gap) * (extent + Math.abs(opts.gap))
   const copies: ShapePart[] = []
+  const pairs: Array<{ srcId: string; newId: string }> = []
   for (let k = 1; k <= count; k++) {
     for (const p of src) {
       const pos = [...p.position] as [number, number, number]
-      pos[i] = pos[i] + opts.gap * k
-      copies.push(clonePartAtPose(p, pos, p.rotation ? [...p.rotation] : undefined))
+      pos[i] = pos[i] + pitch * k
+      const copy = clonePartAtPose(p, pos, p.rotation ? [...p.rotation] : undefined)
+      copies.push(copy)
+      pairs.push({ srcId: p.id, newId: copy.id })
     }
   }
-  return addPlacedComponent(spec, copies, 'Array')
+  const { spec: out, groupId } = addPlacedComponent(spec, copies, 'Array')
+  return { spec: appendClonedDecals(out, pairs), groupId }
 }
 
 export interface RadialArrayOptions {
@@ -106,6 +126,7 @@ export function radialArray(
   })
   if (placements.length === 0) return { spec, groupId: null }
   const copies: ShapePart[] = []
+  const pairs: Array<{ srcId: string; newId: string }> = []
   for (const pl of placements) {
     const yawDeg = pl.rotation * RAD
     const cos = Math.cos(pl.rotation)
@@ -124,8 +145,11 @@ export function radialArray(
       ]
       const baseRot = p.rotation ?? [0, 0, 0]
       const rot: [number, number, number] = [baseRot[0], baseRot[1] + yawDeg, baseRot[2]]
-      copies.push(clonePartAtPose(p, pos, rot))
+      const copy = clonePartAtPose(p, pos, rot)
+      copies.push(copy)
+      pairs.push({ srcId: p.id, newId: copy.id })
     }
   }
-  return addPlacedComponent(spec, copies, 'Array')
+  const { spec: out, groupId } = addPlacedComponent(spec, copies, 'Array')
+  return { spec: appendClonedDecals(out, pairs), groupId }
 }

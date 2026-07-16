@@ -172,6 +172,33 @@ describe('planConfigurableExport (Stage 3d)', () => {
     expect(fp.h).toBeCloseTo(0.74, 5)
   })
 
+  it('base footprint is rotation- + kind-aware (a lathe leg laid on its side)', () => {
+    // A turned lathe leg (size [diameter, height, _] = [0.12, 0.5, 0.12]) rotated
+    // 90° about Z so its 0.5 m length now runs along X. A raw-`size` footprint
+    // would report w ≈ 0.12 (the diameter); the rotation-aware `partWorldExtent`
+    // reports the swung 0.5 m length instead.
+    const spec: AssetEditSpec = {
+      sourceScale: 1,
+      meshOverrides: {},
+      parts: [
+        {
+          id: 'leg',
+          kind: 'lathe',
+          position: [0, 0.25, 0],
+          size: [0.12, 0.5, 0.12],
+          rotation: [0, 0, 90],
+          color: '#999999',
+        },
+      ],
+    }
+    const plan = planConfigurableExport(spec, {})
+    // w = 2·(|0| + 0.5/2) = 1.0? No — symmetric span = 2·(posX + halfExtent) =
+    // 2·(0 + 0.25) = 0.5 for the swung length; depth stays the 0.12 diameter.
+    expect(plan.baseFootprint.w).toBeCloseTo(0.5, 5)
+    expect(plan.baseFootprint.d).toBeCloseTo(0.12, 5)
+    expect(plan.baseFootprint.h).toBeCloseTo(0.12, 5)
+  })
+
   it('isPlanExportable requires ≥1 slot with options', () => {
     const noSlots = planConfigurableExport(
       tableSpec(),

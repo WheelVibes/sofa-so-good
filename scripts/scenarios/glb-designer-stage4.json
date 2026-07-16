@@ -120,8 +120,8 @@
     { "name": "wait-array", "wait": 400 },
     {
       "name": "assert-array-group",
-      "comment": "A named Array group holds 4 copies of the source shape at even 0.3 m gaps on X.",
-      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const groups = (s.partGroups||[]).filter(g => g.name === 'Array'); if (groups.length !== 1) throw new Error('expected 1 Array group, got ' + groups.length); const g = groups[0]; if (g.partIds.length !== 4) throw new Error('expected 4 copies, got ' + g.partIds.length); const xs = g.partIds.map(id => s.parts.find(p => p.id === id).position[0]).sort((a,b)=>a-b); for (let i = 2; i < xs.length; i++) { const g1 = xs[i-1]-xs[i-2]; const g2 = xs[i]-xs[i-1]; if (Math.abs(g1-g2) > 1e-6) throw new Error('uneven array gaps: ' + JSON.stringify(xs)); } if (Math.abs((xs[1]-xs[0]) - 0.3) > 1e-6) throw new Error('gap not 0.3: ' + JSON.stringify(xs)); })()"
+      "comment": "A named Array group holds 4 copies at an even 0.7 m pitch on X — edge-gap semantics: the 0.4 m box extent + the 0.3 m edge gap. The clear space between adjacent boxes is 0.3 m.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const groups = (s.partGroups||[]).filter(g => g.name === 'Array'); if (groups.length !== 1) throw new Error('expected 1 Array group, got ' + groups.length); const g = groups[0]; if (g.partIds.length !== 4) throw new Error('expected 4 copies, got ' + g.partIds.length); const xs = g.partIds.map(id => s.parts.find(p => p.id === id).position[0]).sort((a,b)=>a-b); for (let i = 2; i < xs.length; i++) { const g1 = xs[i-1]-xs[i-2]; const g2 = xs[i]-xs[i-1]; if (Math.abs(g1-g2) > 1e-6) throw new Error('uneven array pitch: ' + JSON.stringify(xs)); } if (Math.abs((xs[1]-xs[0]) - 0.7) > 1e-6) throw new Error('pitch not 0.7 (extent 0.4 + gap 0.3): ' + JSON.stringify(xs)); })()"
     },
     { "name": "shot-array", "screenshot": "04-linear-array" },
     {

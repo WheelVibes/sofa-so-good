@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.41 — Asset Studio: final fix round (decals, plump, array semantics, footprints)
+
+A post-completion correctness pass over the Asset Studio designer. Pure geometry/spec logic in
+`furniture/glbEdit/`, unit-tested; no new user-facing feature (all behind the existing `glbDesigner`
+pro flag).
+
+- **Decals follow a part resize** (`glbEdit/editSpec.ts` `updatePart`) — a decal's LOCAL position now
+  scales proportionally per axis when its target part is resized, so it stays on the same relative spot
+  of the (re-sized) surface instead of drifting off the face. Normals are unchanged.
+- **Bake prunes orphaned decals** (`glbEdit/editSpec.ts` `bakeCombineGroup`) — baking a combine group
+  folds its member parts into one mesh; any decal projected onto a baked-away member is now pruned
+  (reuses `pruneDecals`) instead of orphaning.
+- **Duplicate / mirror / array clone decals** — `duplicatePart`, `mirrorPartAxis`/`mirrorPartsAxis`,
+  `duplicatePartGroup`/`mirrorPartGroup`/`repeatComponentGroup`, and `arrayBuild.ts`
+  `linearArray`/`radialArray` now clone the source parts' decals onto the new part ids (shared
+  `appendClonedDecals` helper). Mirror ops reflect each cloned decal's local position + normal on the
+  mirrored axis (X and/or Z) to match the part reflection.
+- **`plump` respects an explicit bevel** (`glbEdit/plump.ts` `plumpBoxGeometry`) — plump only needs a
+  tessellated box, not rounded corners, so `bevel = 0 + plump > 0` now keeps SHARP corners on a
+  segmented `BoxGeometry` (the previous forced minimum radius silently rounded a cushion the user
+  asked to keep crisp); `bevel > 0` still rounds via `RoundedBoxGeometry`.
+- **Linear array uses edge-gap semantics** (`arrayBuild.ts` + `ui/glbEditor/ArrangePanel.tsx`) — the
+  "gap" control is now a true EDGE gap (clear space between adjacent copies' bounding boxes); the pitch
+  is `sourceExtent + gap` using the rotation/kind-aware extent from `arrange.selectionBounds`, so the
+  word "gap" matches the geometry. Radial array unchanged.
+- **`designerExport.symmetricFootprint` is rotation- + kind-aware** — reuses `arrange.partWorldExtent`
+  so a rotated lathe/torus/mesh option's baked-product footprint provably covers its geometry (was a
+  raw-`size` AABB that under-reported a swung part).
+- **Migration test extended** (`specPersist.test.ts`) — `migrateAssetSpec` identity coverage now spans
+  every known version v1…v7 (was v1…v4) with a corrected title.
+- **Inline-px guard fix** (`ui/glbEditor/DetailsPanel.tsx`) — the placed-details row used a literal
+  `padding: '2px 0'` (a new-file violation of `inlinePxGuard`); swapped to the `--s-1` spacing token.
+
 ## v0.21.2.40 — Asset Studio Stage 5: realism detail layer (program COMPLETE)
 
 Closes Stage 5 — the FINAL stage — of the Asset Studio plan; **all stages (0–5) are now shipped**.

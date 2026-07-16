@@ -251,12 +251,15 @@ describe('specPersist', () => {
     expect(restored!.combineGroups).toBeUndefined()
   })
 
-  it('migrateAssetSpec: v1/v2/v3/v4→v4 identity, unknown version → null', () => {
+  it('migrateAssetSpec: every known version v1…v7 is the identity, unknown version → null', () => {
     const spec = createEmptySpec()
-    expect(migrateAssetSpec(spec, 1)).toBe(spec)
-    expect(migrateAssetSpec(spec, 2)).toBe(spec)
-    expect(migrateAssetSpec(spec, 3)).toBe(spec)
-    expect(migrateAssetSpec(spec, 4)).toBe(spec)
+    // Every bump so far is an additive superset, so migration is the identity for
+    // each recognised version through the current envelope (v7).
+    for (let v = 1; v <= ASSET_SPEC_VERSION; v++) {
+      expect(migrateAssetSpec(spec, v)).toBe(spec)
+    }
+    expect(migrateAssetSpec(spec, 0)).toBeNull()
+    expect(migrateAssetSpec(spec, ASSET_SPEC_VERSION + 1)).toBeNull()
     expect(migrateAssetSpec(spec, 99)).toBeNull()
   })
 

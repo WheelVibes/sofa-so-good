@@ -90,7 +90,7 @@ export function DetailsPanel() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '2px 0',
+                padding: 'var(--s-1) 0',
               }}
             >
               <span style={{ fontSize: 'var(--t-sm)' }}>{DECAL_LABEL[d.kind]}</span>

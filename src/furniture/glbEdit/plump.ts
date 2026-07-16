@@ -64,11 +64,14 @@ export function applyPlump(
 }
 
 /**
- * A tessellated box ready for `applyPlump` (Stage 5). Uses `RoundedBoxGeometry`
- * (soft edges + interior vertices to displace) when a bevel/plump is wanted, or a
- * segmented `BoxGeometry` otherwise, then applies the plump. Returns a box that is
- * already displaced. `bevel` seeds the rounded-edge radius (clamped in
- * `RoundedBoxGeometry`).
+ * A tessellated box ready for `applyPlump` (Stage 5). Plump only needs interior
+ * vertices to displace — a segmented `BoxGeometry` provides those without forcing
+ * any corner rounding — so the **bevel is respected literally**: `bevel > 0`
+ * rounds the edges (`RoundedBoxGeometry`, which is also tessellated), while
+ * `bevel = 0` keeps SHARP corners on a segmented box and still bulges. (Previously
+ * a minimum radius was forced whenever plump was set, silently rounding a cushion
+ * the user asked to keep crisp — the rounding was never a geometric requirement of
+ * the displacement.) Returns a box that is already displaced.
  */
 export function plumpBoxGeometry(
   w: number,
@@ -77,8 +80,7 @@ export function plumpBoxGeometry(
   bevel: number,
   amount: number,
 ): BufferGeometry {
-  const r = Math.max(bevel, Math.min(w, h, d) * 0.06)
-  const clampedR = Math.min(r, Math.min(w, h, d) / 2 - 1e-4)
+  const clampedR = bevel > 0 ? Math.min(bevel, Math.min(w, h, d) / 2 - 1e-4) : 0
   const geo: BufferGeometry =
     clampedR > 0 ? new RoundedBoxGeometry(w, h, d, 5, clampedR) : new BoxGeometry(w, h, d, 8, 8, 8)
   applyPlump(geo, amount, [w, h, d])

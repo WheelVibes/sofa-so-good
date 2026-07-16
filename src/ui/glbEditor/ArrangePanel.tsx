@@ -48,6 +48,7 @@ function ArraySection() {
             step={0.05}
             value={gap}
             aria-label="Linear array gap"
+            title="Edge gap: clear space left between adjacent copies"
             onChange={(e) => setGap(Number(e.target.value))}
             style={{ width: '30%' }}
           />

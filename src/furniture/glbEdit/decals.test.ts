@@ -2,16 +2,22 @@ import { BoxGeometry, Euler, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import { decalGeometry, decalOrientation, decalSizeVec } from './decals'
 import {
+  addCombineGroup,
   addDecal,
   addPart,
+  bakeCombineGroup,
   createEmptySpec,
   type Decal,
   decals,
   decalsForPart,
+  duplicatePart,
+  mirrorPart,
   pruneDecals,
   removeDecal,
   removePart,
+  type ShapePart,
   updateDecal,
+  updatePart,
 } from './editSpec'
 import { parseAssetSpec, serializeAssetSpec } from './specPersist'
 
@@ -88,6 +94,95 @@ describe('decal spec ops', () => {
     const { spec, partId } = specWithBox()
     const withDecal = addDecal(spec, baseDecal(partId)).spec
     expect(pruneDecals(withDecal)).toBe(withDecal)
+  })
+})
+
+describe('decals follow a part resize (updatePart)', () => {
+  it('scales a decal position proportionally per axis, keeping it on the surface plane', () => {
+    // A box default 0.4×0.4×0.4; a decal on its top face (local y = +0.2) near the
+    // +X edge. Its normal is +Y (the top face).
+    const { spec, partId } = specWithBox()
+    const withDecal = addDecal(spec, {
+      partId,
+      position: [0.1, 0.2, 0],
+      normal: [0, 1, 0],
+      size: 0.03,
+      kind: 'button',
+    }).spec
+    // Double the X size (0.4 → 0.8); the top face is still at y = half-height 0.2.
+    const resized = updatePart(withDecal, partId, { size: [0.8, 0.4, 0.4] })
+    const d = resized.decals?.[0]
+    expect(d?.position[0]).toBeCloseTo(0.2, 6) // scaled with the doubled X
+    expect(d?.position[1]).toBeCloseTo(0.2, 6) // unchanged Y — still the top plane
+    expect(d?.position[2]).toBeCloseTo(0, 6)
+    expect(d?.normal).toEqual([0, 1, 0]) // normal never changes on resize
+  })
+
+  it('leaves decals untouched when the patch does not change size', () => {
+    const { spec, partId } = specWithBox()
+    const withDecal = addDecal(spec, baseDecal(partId)).spec
+    const moved = updatePart(withDecal, partId, { position: [1, 0.2, 0] })
+    expect(moved.decals?.[0].position).toEqual([0, 0.2, 0])
+  })
+})
+
+describe('bakeCombineGroup prunes orphaned decals', () => {
+  it('drops decals of the baked-away member parts', () => {
+    let spec = addPart(createEmptySpec(), 'box')
+    const a = spec.parts[0].id
+    spec = addPart(spec, 'box')
+    const b = spec.parts[1].id
+    spec = addDecal(spec, baseDecal(a)).spec
+    const { spec: grouped, groupId } = addCombineGroup(spec, [a, b], 'union')
+    expect(groupId).toBeTruthy()
+    const meshPart: ShapePart = {
+      id: 'baked-mesh',
+      kind: 'mesh',
+      position: [0, 0, 0],
+      size: [1, 1, 1],
+      color: '#888',
+      geometry: { positions: [], normals: [] },
+    }
+    const baked = bakeCombineGroup(grouped, groupId!, meshPart)
+    // The members a + b are gone; the decal that was on `a` must not orphan.
+    expect(baked.parts.map((p) => p.id)).toEqual(['baked-mesh'])
+    expect(baked.decals).toBeUndefined()
+  })
+})
+
+describe('duplicate / mirror clone a part decals', () => {
+  it('duplicatePart copies the source decals onto the new part (straight copy)', () => {
+    const { spec, partId } = specWithBox()
+    const withDecal = addDecal(spec, baseDecal(partId)).spec
+    const dup = duplicatePart(withDecal, partId)
+    const newPart = dup.parts[1]
+    expect(dup.parts).toHaveLength(2)
+    expect(decals(dup)).toHaveLength(2)
+    const cloned = decalsForPart(dup, newPart.id)
+    expect(cloned).toHaveLength(1)
+    // Fresh id, retargeted partId, same local pose as a straight copy.
+    expect(cloned[0].id).not.toBe(withDecal.decals?.[0].id)
+    expect(cloned[0].position).toEqual([0, 0.2, 0])
+    expect(cloned[0].normal).toEqual([0, 1, 0])
+  })
+
+  it('mirrorPart mirrors the cloned decal local position + normal across X', () => {
+    const { spec, partId } = specWithBox()
+    // A decal on the +X face (local x = +0.2, normal +X).
+    const withDecal = addDecal(spec, {
+      partId,
+      position: [0.2, 0.2, 0.05],
+      normal: [1, 0, 0],
+      size: 0.03,
+      kind: 'patch',
+    }).spec
+    const mirrored = mirrorPart(withDecal, partId)
+    const newPart = mirrored.parts[1]
+    const cloned = decalsForPart(mirrored, newPart.id)
+    expect(cloned).toHaveLength(1)
+    // X negated (position + normal); Y/Z untouched.
+    expect(cloned[0].position).toEqual([-0.2, 0.2, 0.05])
+    expect(cloned[0].normal).toEqual([-1, 0, 0])
   })
 })
 

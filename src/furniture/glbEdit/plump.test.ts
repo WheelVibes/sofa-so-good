@@ -69,4 +69,45 @@ describe('plumpBoxGeometry', () => {
     expect(Number.isFinite(box.min.x)).toBe(true)
     expect(geo.getAttribute('position').count).toBeGreaterThan(24)
   })
+
+  it('bevel 0 + plump keeps SHARP corners (a corner vertex sits at the exact extent)', () => {
+    const [w, h, d] = [0.5, 0.15, 0.5]
+    const geo = plumpBoxGeometry(w, h, d, 0, 0.6)
+    // Plump still tessellates + bulges the faces (crowned above the flat top)…
+    const box = bbox(geo)
+    expect(box.max.y).toBeGreaterThan(h / 2)
+    // …but with no bevel the eight corners stay pinned at the exact half-extents
+    // (a rounded box would pull them inward). Find an exact-extent corner vertex.
+    const pos = geo.getAttribute('position')
+    let hasSharpCorner = false
+    for (let i = 0; i < pos.count; i++) {
+      if (
+        Math.abs(Math.abs(pos.getX(i)) - w / 2) < 1e-6 &&
+        Math.abs(Math.abs(pos.getY(i)) - h / 2) < 1e-6 &&
+        Math.abs(Math.abs(pos.getZ(i)) - d / 2) < 1e-6
+      ) {
+        hasSharpCorner = true
+        break
+      }
+    }
+    expect(hasSharpCorner).toBe(true)
+  })
+
+  it('bevel > 0 rounds the corners (no vertex at the exact box corner)', () => {
+    const [w, h, d] = [0.5, 0.15, 0.5]
+    const geo = plumpBoxGeometry(w, h, d, 0.05, 0.6)
+    const pos = geo.getAttribute('position')
+    let hasSharpCorner = false
+    for (let i = 0; i < pos.count; i++) {
+      if (
+        Math.abs(Math.abs(pos.getX(i)) - w / 2) < 1e-6 &&
+        Math.abs(Math.abs(pos.getY(i)) - h / 2) < 1e-6 &&
+        Math.abs(Math.abs(pos.getZ(i)) - d / 2) < 1e-6
+      ) {
+        hasSharpCorner = true
+        break
+      }
+    }
+    expect(hasSharpCorner).toBe(false)
+  })
 })

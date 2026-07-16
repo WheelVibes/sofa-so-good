@@ -611,7 +611,10 @@ export function bakeCombineGroup(
     parts.push(p)
   }
   if (!emitted) parts.push(meshPart)
-  return removeCombineGroup({ ...spec, parts }, groupId)
+  // The member parts are gone (folded into the baked mesh); prune any decal that
+  // was projected onto one of them so it doesn't orphan (Stage 5). Decals on the
+  // surrounding free parts are untouched.
+  return pruneDecals(removeCombineGroup({ ...spec, parts }, groupId))
 }
 
 // ---- Transform groups (Stage 3a) -----------------------------------------
@@ -777,10 +780,13 @@ export function duplicatePartGroup(
   const group = partGroups(spec).find((g) => g.id === groupId)
   if (!group) return { spec, groupId: null }
   const copies: ShapePart[] = []
+  const pairs: Array<{ srcId: string; newId: string }> = []
   for (const id of group.partIds) {
     const src = spec.parts.find((p) => p.id === id)
     if (!src) continue
-    copies.push(clonePart(src, (p) => ({ position: [...p.position], rotation: p.rotation })))
+    const copy = clonePart(src, (p) => ({ position: [...p.position], rotation: p.rotation }))
+    copies.push(copy)
+    pairs.push({ srcId: id, newId: copy.id })
   }
   if (copies.length === 0) return { spec, groupId: null }
   const gp = group.position ?? [0, 0, 0]
@@ -793,10 +799,11 @@ export function duplicatePartGroup(
     position: [gp[0] + 0.3, gp[1], gp[2]],
     rotation: group.rotation ? [...group.rotation] : undefined,
   }
-  return {
-    spec: { ...spec, parts: [...spec.parts, ...copies], partGroups: [...groups, copyGroup] },
-    groupId: newId,
-  }
+  const nextSpec = appendClonedDecals(
+    { ...spec, parts: [...spec.parts, ...copies], partGroups: [...groups, copyGroup] },
+    pairs,
+  )
+  return { spec: nextSpec, groupId: newId }
 }
 
 /**
@@ -813,15 +820,16 @@ export function mirrorPartGroup(
   const group = partGroups(spec).find((g) => g.id === groupId)
   if (!group) return { spec, groupId: null }
   const copies: ShapePart[] = []
+  const pairs: Array<{ srcId: string; newId: string }> = []
   for (const id of group.partIds) {
     const src = spec.parts.find((p) => p.id === id)
     if (!src) continue
-    copies.push(
-      clonePart(src, (p) => ({
-        position: [-p.position[0], p.position[1], p.position[2]],
-        rotation: p.rotation ? [p.rotation[0], -p.rotation[1], -p.rotation[2]] : undefined,
-      })),
-    )
+    const copy = clonePart(src, (p) => ({
+      position: [-p.position[0], p.position[1], p.position[2]],
+      rotation: p.rotation ? [p.rotation[0], -p.rotation[1], -p.rotation[2]] : undefined,
+    }))
+    copies.push(copy)
+    pairs.push({ srcId: id, newId: copy.id })
   }
   if (copies.length === 0) return { spec, groupId: null }
   const gp = group.position ?? [0, 0, 0]
@@ -836,10 +844,12 @@ export function mirrorPartGroup(
     ...(mirroredPos.some((v) => v !== 0) ? { position: mirroredPos } : {}),
     ...(gr ? { rotation: [gr[0], -gr[1], -gr[2]] as [number, number, number] } : {}),
   }
-  return {
-    spec: { ...spec, parts: [...spec.parts, ...copies], partGroups: [...groups, mirrorGroup] },
-    groupId: newId,
-  }
+  const nextSpec = appendClonedDecals(
+    { ...spec, parts: [...spec.parts, ...copies], partGroups: [...groups, mirrorGroup] },
+    pairs,
+    { x: true },
+  )
+  return { spec: nextSpec, groupId: newId }
 }
 
 /**
@@ -917,18 +927,25 @@ export function repeatComponentGroup(
   const [cx, cz] = assetCenterXZ(spec)
   const gp = group.position ?? [0, 0, 0]
   const gr = group.rotation
-  type Target = { pos: [number, number, number]; rot?: [number, number, number] }
+  type Target = {
+    pos: [number, number, number]
+    rot?: [number, number, number]
+    flip: { x?: boolean; z?: boolean }
+  }
   const mirrorX = (): Target => ({
     pos: [2 * cx - gp[0], gp[1], gp[2]],
     rot: gr ? [gr[0], -gr[1], -gr[2]] : undefined,
+    flip: { x: true },
   })
   const mirrorZ = (): Target => ({
     pos: [gp[0], gp[1], 2 * cz - gp[2]],
     rot: gr ? [-gr[0], -gr[1], gr[2]] : undefined,
+    flip: { z: true },
   })
   const mirrorXZ = (): Target => ({
     pos: [2 * cx - gp[0], gp[1], 2 * cz - gp[2]],
     rot: gr ? [-gr[0], gr[1], -gr[2]] : undefined,
+    flip: { x: true, z: true },
   })
   const targets: Target[] =
     mode === 'mirror-x'
@@ -941,10 +958,13 @@ export function repeatComponentGroup(
   const groupIds: string[] = []
   for (const t of targets) {
     const copies: ShapePart[] = []
+    const pairs: Array<{ srcId: string; newId: string }> = []
     for (const id of group.partIds) {
       const src = next.parts.find((p) => p.id === id)
       if (!src) continue
-      copies.push(clonePart(src, (p) => ({ position: [...p.position], rotation: p.rotation })))
+      const copy = clonePart(src, (p) => ({ position: [...p.position], rotation: p.rotation }))
+      copies.push(copy)
+      pairs.push({ srcId: id, newId: copy.id })
     }
     if (copies.length === 0) continue
     const newId = newPartGroupId()
@@ -955,11 +975,15 @@ export function repeatComponentGroup(
       ...(t.pos.some((v) => v !== 0) ? { position: t.pos } : {}),
       ...(t.rot?.some((v) => v !== 0) ? { rotation: t.rot } : {}),
     }
-    next = {
-      ...next,
-      parts: [...next.parts, ...copies],
-      partGroups: [...partGroups(next), copyGroup],
-    }
+    next = appendClonedDecals(
+      {
+        ...next,
+        parts: [...next.parts, ...copies],
+        partGroups: [...partGroups(next), copyGroup],
+      },
+      pairs,
+      t.flip,
+    )
     groupIds.push(newId)
   }
   return { spec: next, groupIds }
@@ -975,7 +999,9 @@ export function duplicatePart(spec: AssetEditSpec, id: string): AssetEditSpec {
     position: [p.position[0] + 0.2, p.position[1], p.position[2]],
     rotation: p.rotation,
   }))
-  return { ...spec, parts: [...spec.parts, copy] }
+  return appendClonedDecals({ ...spec, parts: [...spec.parts, copy] }, [
+    { srcId: id, newId: copy.id },
+  ])
 }
 
 /** Clone a part mirrored across the asset's centre (the X=0 / YZ plane): the
@@ -993,7 +1019,51 @@ export function updatePart(
   id: string,
   patch: Partial<ShapePart>,
 ): AssetEditSpec {
-  return { ...spec, parts: spec.parts.map((p) => (p.id === id ? { ...p, ...patch, id: p.id } : p)) }
+  const old = spec.parts.find((p) => p.id === id)
+  const parts = spec.parts.map((p) => (p.id === id ? { ...p, ...patch, id: p.id } : p))
+  const next: AssetEditSpec = { ...spec, parts }
+  // Resizing a part keeps its decals on the same RELATIVE spot of the surface:
+  // a decal's local position scales proportionally per axis with the part size
+  // (its normal is unchanged). Without this the decal drifts off the resized
+  // face (Stage 5 — decals are stored in the part's local frame).
+  if (old && patch.size && !sameSize(old.size, patch.size)) {
+    return rescalePartDecals(next, id, old.size, patch.size)
+  }
+  return next
+}
+
+/** True when two size tuples are componentwise equal. */
+function sameSize(a: [number, number, number], b: [number, number, number]): boolean {
+  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
+}
+
+/** Scale a part's decals' local positions by the per-axis size change (normals
+ *  unchanged), so each decal stays on the same fraction of the resized surface.
+ *  A zero old extent on an axis leaves that component untouched (no divide). Pure. */
+function rescalePartDecals(
+  spec: AssetEditSpec,
+  partId: string,
+  oldSize: [number, number, number],
+  newSize: [number, number, number],
+): AssetEditSpec {
+  const list = decals(spec)
+  if (!list.some((d) => d.partId === partId)) return spec
+  const f: [number, number, number] = [
+    oldSize[0] !== 0 ? newSize[0] / oldSize[0] : 1,
+    oldSize[1] !== 0 ? newSize[1] / oldSize[1] : 1,
+    oldSize[2] !== 0 ? newSize[2] / oldSize[2] : 1,
+  ]
+  return {
+    ...spec,
+    decals: list.map((d) =>
+      d.partId === partId
+        ? {
+            ...d,
+            position: [d.position[0] * f[0], d.position[1] * f[1], d.position[2] * f[2]],
+          }
+        : d,
+    ),
+  }
 }
 
 /** Set (or clear) a part's display name immutably (Stage 4). A blank name clears
@@ -1065,7 +1135,12 @@ export function mirrorPartAxis(
   const src = spec.parts.find((p) => p.id === id)
   if (!src) return { spec, newId: null }
   const copy = clonePart(src, (p) => mirroredTransform(p.position, p.rotation, axis))
-  return { spec: { ...spec, parts: [...spec.parts, copy] }, newId: copy.id }
+  const withCopy = appendClonedDecals(
+    { ...spec, parts: [...spec.parts, copy] },
+    [{ srcId: id, newId: copy.id }],
+    { x: axis === 'x', z: axis === 'z' },
+  )
+  return { spec: withCopy, newId: copy.id }
 }
 
 /**
@@ -1080,13 +1155,20 @@ export function mirrorPartsAxis(
   axis: MirrorAxis3,
 ): { spec: AssetEditSpec; newIds: string[] } {
   const copies: ShapePart[] = []
+  const pairs: Array<{ srcId: string; newId: string }> = []
   for (const id of ids) {
     const src = spec.parts.find((p) => p.id === id)
     if (!src) continue
-    copies.push(clonePart(src, (p) => mirroredTransform(p.position, p.rotation, axis)))
+    const copy = clonePart(src, (p) => mirroredTransform(p.position, p.rotation, axis))
+    copies.push(copy)
+    pairs.push({ srcId: id, newId: copy.id })
   }
   if (copies.length === 0) return { spec, newIds: [] }
-  return { spec: { ...spec, parts: [...spec.parts, ...copies] }, newIds: copies.map((p) => p.id) }
+  const withCopies = appendClonedDecals({ ...spec, parts: [...spec.parts, ...copies] }, pairs, {
+    x: axis === 'x',
+    z: axis === 'z',
+  })
+  return { spec: withCopies, newIds: copies.map((p) => p.id) }
 }
 
 // ---- Decals / detail layer (Stage 5) --------------------------------------
@@ -1167,6 +1249,54 @@ export function pruneDecals(spec: AssetEditSpec): AssetEditSpec {
   const next = list.filter((d) => live.has(d.partId))
   if (next.length === list.length) return spec
   return next.length > 0 ? { ...spec, decals: next } : stripDecals(spec)
+}
+
+/** Reflect a decal's LOCAL position + normal across the requested axes — the
+ *  detail-layer counterpart to `mirroredTransform`. The mirrored part keeps its
+ *  geometry handedness (positions aren't negatively scaled), so a straight
+ *  negation of the local point + normal on the flipped axis lands the decal on
+ *  the mirror-image spot of the copy's surface. Pure. */
+function transformDecalLocal(
+  d: Decal,
+  flip: { x?: boolean; z?: boolean } | undefined,
+): Pick<Decal, 'position' | 'normal'> {
+  const position: [number, number, number] = [...d.position]
+  const normal: [number, number, number] = [...d.normal]
+  if (flip?.x) {
+    position[0] = -position[0]
+    normal[0] = -normal[0]
+  }
+  if (flip?.z) {
+    position[2] = -position[2]
+    normal[2] = -normal[2]
+  }
+  return { position, normal }
+}
+
+/**
+ * Clone the decals of each source part onto its cloned counterpart, appending the
+ * fresh decals (each with a new id) to the spec. `pairs` maps `srcId → newId`
+ * (the ids `clonePart`/`clonePartAtPose` produced); `flip` mirrors every cloned
+ * decal's local pose for a mirror op (X and/or Z). Keeps the `decals` field
+ * absent when the sources carry none, so a decal-free clone stays byte-identical.
+ * Pure — shared by duplicate/mirror/array of parts + groups.
+ */
+export function appendClonedDecals(
+  spec: AssetEditSpec,
+  pairs: Array<{ srcId: string; newId: string }>,
+  flip?: { x?: boolean; z?: boolean },
+): AssetEditSpec {
+  const src = decals(spec)
+  if (src.length === 0 || pairs.length === 0) return spec
+  const add: Decal[] = []
+  for (const { srcId, newId } of pairs) {
+    for (const d of src) {
+      if (d.partId !== srcId) continue
+      add.push({ ...d, ...transformDecalLocal(d, flip), id: newDecalId(), partId: newId })
+    }
+  }
+  if (add.length === 0) return spec
+  return { ...spec, decals: [...src, ...add] }
 }
 
 /** True when the spec would produce a non-empty asset (a source or ≥1 part). */

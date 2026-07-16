@@ -349,3 +349,16 @@ GLB; one-tap piping welt tracing a box/extrude top-face perimeter; cushion "plum
 ruling (b) shipped). **The Asset Studio program is COMPLETE — all stages (0–5) shipped.** Each
 stage landed as its own commit train with an end-of-stage adversarial review; this file tracks
 stage state.
+
+### Future: context slicing if the designer grows
+
+The designer's React state today is a single flat context (`ui/glbEditor/designerContext.tsx` —
+one `DesignerProvider` owning the whole `AssetEditSpec` + selection + tool state). That is the
+**right call at the current size**: the spec is small, edits are coarse-grained (one undo step per
+op), and every panel legitimately reads most of it, so a flat context is simplest and fast enough.
+Recorded here only as the **scaling boundary** to watch: if the designer later grows many more
+independent panels or the spec balloons (large baked meshes, hundreds of parts) such that a single
+context value re-renders unrelated panels on every keystroke, split the context into narrower
+slices (e.g. selection/tool state vs. the spec, or a Zustand-style store with selector
+subscriptions) so a change touches only the panels that read it. No action needed today — this is a
+"revisit when the profiler shows it" note, not a debt.

@@ -32,6 +32,7 @@
  */
 
 import { exportGlb } from '../convert/toGlb'
+import { partWorldExtent } from '../glbEdit/arrange'
 import { buildEditedObject } from '../glbEdit/buildObject'
 import { evaluateAllGroups } from '../glbEdit/csgEval'
 import {
@@ -178,10 +179,14 @@ function symmetricFootprint(parts: ShapePart[]): { w: number; d: number; h: numb
   let minY = Number.POSITIVE_INFINITY
   let maxY = Number.NEGATIVE_INFINITY
   for (const p of parts) {
-    ax = Math.max(ax, Math.abs(p.position[0]) + p.size[0] / 2)
-    az = Math.max(az, Math.abs(p.position[2]) + p.size[2] / 2)
-    minY = Math.min(minY, p.position[1] - p.size[1] / 2)
-    maxY = Math.max(maxY, p.position[1] + p.size[1] / 2)
+    // Rotation- + kind-aware world extent (a rotated lathe leg / torus / mesh
+    // spans more than its raw `size` tuple) so the footprint provably covers the
+    // baked geometry — reuses the designer's own `partWorldExtent`.
+    const [ex, ey, ez] = partWorldExtent(p)
+    ax = Math.max(ax, Math.abs(p.position[0]) + ex / 2)
+    az = Math.max(az, Math.abs(p.position[2]) + ez / 2)
+    minY = Math.min(minY, p.position[1] - ey / 2)
+    maxY = Math.max(maxY, p.position[1] + ey / 2)
   }
   const h = Number.isFinite(minY) ? maxY - minY : 0
   return { w: Math.max(0.05, ax * 2), d: Math.max(0.05, az * 2), h: Math.max(0.05, h) }

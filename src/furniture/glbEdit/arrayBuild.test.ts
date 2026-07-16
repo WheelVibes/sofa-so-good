@@ -10,20 +10,22 @@ function spec(parts: ShapePart[]): AssetEditSpec {
 }
 
 describe('linearArray', () => {
-  it('creates count copies in one named group with equal gaps', () => {
+  it('creates count copies in one named group with equal edge gaps', () => {
+    // Box extent 0.1 on X + a 0.3 edge gap → pitch 0.4 (edge-gap semantics).
     const s = spec([box('leg', [0, 0.25, 0])])
     const { spec: out, groupId } = linearArray(s, ['leg'], { count: 4, gap: 0.3, axis: 'x' })
     expect(groupId).toBeTruthy()
     const groups = partGroups(out)
     expect(groups).toHaveLength(1)
     expect(groups[0].partIds).toHaveLength(4)
-    // Copies at x = 0.3, 0.6, 0.9, 1.2.
+    // Copies at x = 0.4, 0.8, 1.2, 1.6 (pitch = extent 0.1 + gap 0.3).
     const xs = groups[0].partIds
       .map((id) => out.parts.find((p) => p.id === id)!.position[0])
       .sort((a, b) => a - b)
-    for (const [i, x] of [0.3, 0.6, 0.9, 1.2].entries()) expect(xs[i]).toBeCloseTo(x, 6)
-    // Equal gaps.
+    for (const [i, x] of [0.4, 0.8, 1.2, 1.6].entries()) expect(xs[i]).toBeCloseTo(x, 6)
+    // Equal pitch → equal gaps; the clear space between adjacent boxes = 0.3.
     expect(xs[1] - xs[0]).toBeCloseTo(xs[2] - xs[1], 6)
+    expect(xs[1] - xs[0] - 0.1).toBeCloseTo(0.3, 6)
   })
 
   it('no-ops for a degenerate gap', () => {
