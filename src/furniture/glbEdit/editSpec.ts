@@ -359,6 +359,14 @@ export interface ShapePart extends PhysicalSurfaceFields {
    *  kinds so upholstery reads soft/stuffed (normals recomputed). 0 / absent →
    *  today's flat geometry (byte-identical). */
   plump?: number
+  /** Fabric wrinkle normal-map intensity 0…1 (Stage 6e) — a procedural, seeded
+   *  normal map (soft creases gathering toward the pinned corners + fine fabric
+   *  nap) overlaid on a PLUMPED box/capsule so the cushion reads as sewn
+   *  upholstery instead of a smooth shell. Material-only (no geometry change).
+   *  ABSENT defaults ON at a subtle level when `plump > 0` (the realism default);
+   *  an explicit `0` disables it. Skipped when a textured `mat:<id>` finish is set
+   *  (the finish's own normal map wins). See `wrinkleTexture.ts`. */
+  wrinkles?: number
   /** TinkerCAD solid/hole role (CSG v2). Absent → `solid`. A `hole` renders as a
    *  translucent ghost and is carved out inside a Subtract combine group. */
   role?: PartRole

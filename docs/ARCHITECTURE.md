@@ -705,7 +705,18 @@ same change that reshapes a system.
   Base / Corner pivot** switch (`pivot.ts`, pure, tested) changes the reference point for numeric
   rotation + gizmo rotate/scale via position compensation on write-back (Centre = byte-identical to
   today); applies to a part and a whole transform group. Both are ephemeral UI state (no spec/envelope
-  field). **Undo/redo** (Stage 0): a bounded
+  field). **Realism II (Iteration 2, Stage 6e, v0.21.2.46):** a plumped box/capsule cushion gains a
+  procedural **fabric wrinkle** normal map (`glbEdit/wrinkleTexture.ts`, pure height field + bounded
+  texture cache) — low-freq creases gathering toward the pinned seam corners (a `cornerness` mask) +
+  fine cloth nap, seeded from the part id (stable across renders + save/reload). A **Wrinkles (fabric)**
+  inspector slider (next to Plump) is default-on subtle (`DEFAULT_WRINKLES`) when `plump>0`, 0 = off;
+  visible strength is `normalScale ≈ 0.15…0.4` following plump depth × intensity. Baked as a
+  `DataTexture` (headless-generatable → the spec→material wiring is testable; `GLTFExporter` embeds it
+  as PNG, `normalTexture`+`scale` survive), cached in a bounded dispose-on-evict `LruCache` keyed by
+  `(seed, intensity-bucket)` (a slider drag reuses a handful of tiles). A textured `mat:<id>` finish
+  owns the normal channel, so wrinkles are skipped when a finish is set (inspector shows a hint).
+  New spec field `parts[].wrinkles?`, envelope bumps to **v10** (additive identity migration); wood-grain
+  direction was already Stage 6c (`finishRotation`). **Undo/redo** (Stage 0): a bounded
   (~50-entry) history around the spec (`specHistory.ts`, pure + tested — push/undo/redo with
   ~300 ms same-key coalescing so a slider drag is one step), wired to ⌘Z / ⇧⌘Z in-dialog (⌘Y
   too) + the toolbar buttons (disabled at the ends). **Editable saves** (Stage 0): the edit

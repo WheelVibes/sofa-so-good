@@ -15,6 +15,7 @@ import {
   type Object3D,
   SphereGeometry,
   TorusGeometry,
+  Vector2,
 } from 'three'
 import { getBuiltMaterial } from '../../materials/cache'
 import { finishTextureVariant } from '../../materials/finishTextureVariant'
@@ -53,6 +54,7 @@ import {
   sweepGeometry,
   wedgeGeometry,
 } from './shapeProfiles'
+import { effectiveWrinkles, wrinkleNormalScale, wrinkleNormalTexture } from './wrinkleTexture'
 
 /** The shared cache-built material for a part's `mat:<id>` finish, or null
  *  while it isn't built yet / the id is unknown (→ solid-colour fallback).
@@ -234,11 +236,52 @@ function remapBoxFaceGroups(geo: BoxGeometry): void {
   for (let i = 0; i < 6; i++) geo.addGroup(i * 6, 6, zone[i])
 }
 
+/** True when a part earns a procedural fabric wrinkle normal map (Stage 6e):
+ *  a plumped box/capsule cushion with a non-zero effective Wrinkles intensity.
+ *  Pure — mirrors the `plumpBoxGeometry`/`applyPlump` gate (box/capsule only). */
+function wrinkleActive(part: ShapePart): boolean {
+  if (part.kind !== 'box' && part.kind !== 'capsule') return false
+  return effectiveWrinkles(part.plump, part.wrinkles) > 0
+}
+
+/** Overlay a seeded fabric wrinkle normal map on a plumped cushion's material
+ *  IN PLACE (Stage 6e). No-op unless the part is a plumped box/capsule with a
+ *  non-zero effective Wrinkles intensity. **Interplay ruling:** if the material
+ *  already carries a `normalMap` (a textured `mat:<id>` finish clone brought its
+ *  own weave/relief), we SKIP the wrinkles rather than clobber the finish's map —
+ *  the inspector shows a matching hint. The map is seeded from the part id so a
+ *  cushion's wrinkles are stable across renders + save/reload; `normalScale`
+ *  follows the plump depth × intensity. */
+function applyWrinkleNormal(m: MeshStandardMaterial, part: ShapePart): void {
+  if (!wrinkleActive(part)) return
+  // A textured `mat:<id>` finish owns the surface (its clone carries the finish's
+  // own weave/relief normal map) — skip wrinkles rather than fight it, whether or
+  // not the finish material has finished building yet. Matches the inspector,
+  // which hides the Wrinkles slider + shows a hint while a finish is set.
+  if (part.finish) return
+  if (m.normalMap) return // defensive: never clobber an existing normal channel
+  const intensity = effectiveWrinkles(part.plump, part.wrinkles)
+  m.normalMap = wrinkleNormalTexture(part.id, intensity)
+  const s = wrinkleNormalScale(part.plump ?? 0, intensity)
+  m.normalScale = new Vector2(s, s)
+}
+
+/** True when a textured finish would suppress the wrinkle overlay (Stage 6e) —
+ *  the part is a plumped cushion asking for wrinkles AND carries a `mat:<id>`
+ *  finish (whose clone brings its own normal map). The inspector reads this to
+ *  show the "finish texture supersedes wrinkles" hint. Pure. */
+export function wrinklesSuppressedByFinish(part: ShapePart): boolean {
+  return wrinkleActive(part) && !!part.finish
+}
+
 /** The PBR material for a primitive part. Used by both the export
  *  (`buildEditedObject`) and the live preview so they never diverge. */
 export function partMaterial(part: ShapePart): MeshStandardMaterial {
   // A part with a baked gradient (Stage 2) renders its geometry's COLOR_0 tint.
-  return buildSurfaceMaterial({ ...part, vertexColors: !!part.gradient })
+  const m = buildSurfaceMaterial({ ...part, vertexColors: !!part.gradient })
+  // Stage 6e — a plumped cushion gains a seeded fabric wrinkle normal map.
+  applyWrinkleNormal(m, part)
+  return m
 }
 
 /**

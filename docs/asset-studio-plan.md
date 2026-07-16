@@ -465,10 +465,47 @@ subscriptions) so a change touches only the panels that read it. No action neede
   pivot + rotate keeps minY; scale from base keeps the floor). No persistence change (both features are
   ephemeral UI state, no spec/envelope field).
 
-### Stage 6e — Realism II
-- **Procedural fabric wrinkle normals** on plumped cushions (subtle noise normal map,
-  no bespoke art).
-- **Wood grain direction** control tied into 6c; grain continuity hint across parts.
+### Stage 6e — Realism II — ✅ SHIPPED (v0.21.2.46)
+- ✅ **Procedural fabric wrinkle normals** on plumped cushions
+  (`furniture/glbEdit/wrinkleTexture.ts`, pure height field + bounded texture cache, no
+  bespoke art). A plumped box/capsule gains a seeded procedural normal map — soft
+  low-frequency creases that **gather toward the pinned seam corners** (a `cornerness` mask
+  that peaks at the tile corners / zero at the crowned centre — where a stuffed cushion
+  actually creases) plus a **fine fabric nap** over the whole face (value-noise fbm, seeded
+  deterministically from the part id so the wrinkles are stable across renders + save/reload).
+  A **"Wrinkles (fabric)"** slider sits next to Plump in the inspector, **default ON at a
+  subtle level** (`DEFAULT_WRINKLES = 0.6`, the realism default) whenever `plump > 0`; an
+  explicit `0` disables it. Visible intensity is the material's `normalScale`, ≈ `0.15…0.4`
+  following the plump depth × the Wrinkles setting (`wrinkleNormalScale`). The map is a
+  `DataTexture` (baked straight from the RGBA buffer — no 2D canvas needed to generate it, so
+  the spec→material wiring is fully headless-testable), linear + repeat-wrapped + anisotropic;
+  `GLTFExporter` embeds it as a PNG on export — the `normalTexture` + `scale` survive the
+  round-trip (verified by reading the exported GLB's JSON chunk directly, since happy-dom has
+  no 2D canvas to encode/decode a real PNG — the same limitation the decal export test notes).
+- ✅ **Cache discipline**: baked maps go through a bounded dispose-on-evict `LruCache`
+  (max 48) keyed by a coarse `(seed, intensity-bucket)` — intensity bucketed to 0.1 steps —
+  mirroring `finishTextureVariant.ts` (AUD-002), so a Plump/Wrinkles slider **drag reuses a
+  handful of tiles instead of minting a GPU texture per frame** (unit-tested).
+- ✅ **Interplay**: wrinkles compose with the velvet/sheen finish presets (velvet + plump +
+  wrinkles = the sofa-cushion look). When a textured `mat:<id>` finish is applied the finish's
+  clone owns the normal channel, so wrinkles are **skipped** (`part.finish` present → skip,
+  never clobbering the finish map) and the inspector shows a one-line hint in place of the
+  slider — documented, no shader fight.
+- ⏭️ **AO extra (seam-line corner-pinch darkening) — NOT shipped, deliberately.** The plan's
+  optional extra was to bake subtle AO into `COLOR_0` vertex colours at the pinned corners of
+  `plumpBoxGeometry`. Skipped: a plumped part can already carry a two-tone **gradient** baked
+  into the SAME `COLOR_0` channel (Stage 2), so corner AO would fight the gradient's vertex
+  colours; the wrinkle normal + its `normalScale` already give the cushion its fabric read at
+  the corners without a channel conflict. Left as a future item if a gradient-free variant proves
+  worthwhile.
+- ✅ **Wood grain direction** — **already shipped in Stage 6c** (`parts[].finishRotation`
+  0/90°, grain Along X / Along Z, via `finishTextureVariant.ts`). No further work here; the
+  "grain continuity hint across parts" idea is not pursued (per-part grain control is the
+  shipped scope).
+- ✅ **Plumbing**: `parts[].wrinkles?` (0…1) on box/capsule; envelope **v9 → v10** additive
+  identity migration + strict validation (non-finite rejected); duplicate/mirror carry it
+  verbatim (a symmetric scalar). No new feature flag — like plump/faceFinishes it rides the
+  existing `glbDesigner` gate. Scenario `scripts/scenarios/glb-designer-stage6e.json`.
 
 ### Stage 6f — Performance
 - **Save-time GLB optimization**: route designer saves through the existing optimize

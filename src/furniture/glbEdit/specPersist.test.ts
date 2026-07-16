@@ -143,8 +143,43 @@ describe('specPersist', () => {
     expect(restored!.parts[1].role).toBe('hole')
   })
 
-  it('the current envelope is v9', () => {
-    expect(ASSET_SPEC_VERSION).toBe(9)
+  it('the current envelope is v10', () => {
+    expect(ASSET_SPEC_VERSION).toBe(10)
+  })
+
+  it('round-trips Stage-6e wrinkles and migrates a v9 blob identically', () => {
+    let s = addPart(createEmptySpec(), 'box')
+    s = { ...s, parts: s.parts.map((p) => ({ ...p, plump: 0.6, wrinkles: 0.4 })) }
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored?.parts[0].wrinkles).toBe(0.4)
+    // An explicit 0 (wrinkles disabled) round-trips distinctly from absent.
+    let off = addPart(createEmptySpec(), 'box')
+    off = { ...off, parts: off.parts.map((p) => ({ ...p, plump: 0.6, wrinkles: 0 })) }
+    expect(parseAssetSpec(serializeAssetSpec(off))?.parts[0].wrinkles).toBe(0)
+    // A v9-tagged blob (no wrinkles field) still parses (additive identity migration).
+    const legacyV9 = JSON.stringify({ kind: 'asset', v: 9, payload: createEmptySpec() })
+    expect(parseAssetSpec(legacyV9)).toEqual(createEmptySpec())
+  })
+
+  it('rejects a non-finite wrinkles value', () => {
+    const bad = JSON.stringify({
+      kind: 'asset',
+      v: ASSET_SPEC_VERSION,
+      payload: {
+        ...createEmptySpec(),
+        parts: [
+          {
+            id: 'a',
+            kind: 'box',
+            position: [0, 0, 0],
+            size: [1, 1, 1],
+            color: '#fff',
+            wrinkles: 'lots',
+          },
+        ],
+      },
+    })
+    expect(parseAssetSpec(bad)).toBeNull()
   })
 
   it('round-trips the exportedProductId (v5, stable make-configurable id)', () => {
@@ -251,10 +286,10 @@ describe('specPersist', () => {
     expect(restored!.combineGroups).toBeUndefined()
   })
 
-  it('migrateAssetSpec: every known version v1…v9 is the identity, unknown version → null', () => {
+  it('migrateAssetSpec: every known version v1…v10 is the identity, unknown version → null', () => {
     const spec = createEmptySpec()
     // Every bump so far is an additive superset, so migration is the identity for
-    // each recognised version through the current envelope (v9).
+    // each recognised version through the current envelope (v10).
     for (let v = 1; v <= ASSET_SPEC_VERSION; v++) {
       expect(migrateAssetSpec(spec, v)).toBe(spec)
     }

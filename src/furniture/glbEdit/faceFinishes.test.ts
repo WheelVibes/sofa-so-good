@@ -137,9 +137,9 @@ describe('specPersist v9 migration + validation', () => {
     expect(restored?.parts[0].finishRotation).toBe(90)
   })
 
-  it('serializes at envelope v9', () => {
+  it('serializes at the current envelope version', () => {
     const env = JSON.parse(serializeAssetSpec({ ...createEmptySpec(), parts: [sharpBox()] }))
-    expect(env.v).toBe(9)
+    expect(env.v).toBe(10)
     expect(env.kind).toBe('asset')
   })
 

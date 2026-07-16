@@ -20,6 +20,7 @@ import {
   type SweepPathKind,
   type SweepProfileKind,
 } from '../../furniture/glbEdit/shapeProfiles'
+import { DEFAULT_WRINKLES } from '../../furniture/glbEdit/wrinkleTexture'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Select } from '../controls/Select'
 import { SliderField } from '../controls/SliderField'
@@ -268,6 +269,32 @@ export function PartInspector() {
           format={(v) => v.toFixed(2)}
           onChange={(v) => onPatch({ plump: v || undefined })}
         />
+      ) : null}
+
+      {/* Fabric wrinkles (Stage 6e) — a seeded procedural normal map on a
+          plumped cushion so it reads as sewn upholstery. Shown only when the
+          part is plumped; default ON at a subtle level (the realism default), 0
+          disables. Suppressed by a textured finish (its own normal wins) → hint. */}
+      {plumpable && (part.plump ?? 0) > 0 ? (
+        part.finish ? (
+          <div
+            style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-2)' }}
+          >
+            Fabric wrinkles are off while a material finish is applied — the finish brings its own
+            surface texture. Clear the finish to add procedural wrinkles.
+          </div>
+        ) : (
+          <SliderField
+            label="Wrinkles (fabric)"
+            ariaLabel={`${part.kind} wrinkles`}
+            value={part.wrinkles ?? DEFAULT_WRINKLES}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(v) => (v > 0 ? v.toFixed(2) : 'Off')}
+            onChange={(v) => onPatch({ wrinkles: v })}
+          />
+        )
       ) : null}
 
       {/* Shell/hollow (Stage 6b) — box + extrude. > 0 opens a hollow carcass of

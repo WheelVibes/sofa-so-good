@@ -197,6 +197,12 @@ build one in the browser:
 - **Plump a cushion** — box and capsule shapes have a **Plump (cushion)** slider in their edit
   panel: raise it to bulge the shape like a stuffed cushion (the top crowns and the sides bow, while
   the corners stay pinned like a seam). 0 keeps it flat.
+- **Fabric wrinkles** — once a shape is plumped, a **Wrinkles (fabric)** slider appears just below
+  Plump. It adds a subtle procedural fabric texture — soft creases that gather toward the pinned
+  corners plus a fine cloth nap — so the cushion reads as sewn upholstery rather than a smooth
+  shell. It's **on by default** at a gentle level; drag it to **Off** to remove it, or up for a more
+  gathered look. (If you apply a **material finish** to the shape, its own surface texture takes over
+  and the wrinkles step aside — a short note replaces the slider.)
 - **Arrange (align, distribute, mirror, array)** — with shapes selected, an **Arrange**
   section appears. Pick an **axis** (X/Y/Z), then **Align min**, **Align centre** or **Align max**
   to line the selected shapes up on that axis (needs 2+ shapes), or **Distribute** to space 3+

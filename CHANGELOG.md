@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.46 — Asset Studio Iteration 2 · Stage 6e — realism II (procedural fabric wrinkle normals on plumped cushions)
+
+Plumped cushions in the GLB Asset Designer now read as sewn upholstery instead of a smooth shell, behind
+the existing `glbDesigner` pro flag (no new flag — like plump/faceFinishes it's a designer sub-control).
+Plan: `docs/asset-studio-plan.md` Stage 6e.
+
+- **Procedural fabric wrinkle normal map** (`furniture/glbEdit/wrinkleTexture.ts`, pure + unit-tested) —
+  a plumped box/capsule gains a seeded procedural normal map: soft low-frequency creases that **gather
+  toward the pinned seam corners** (a `cornerness` mask, peaking at the tile corners and zero at the
+  crowned centre — where a stuffed cushion actually creases) plus a **fine fabric nap** over the whole
+  face (value-noise fbm, seeded from the part id → stable across renders + save/reload; no bespoke art).
+  A **"Wrinkles (fabric)"** slider sits next to Plump, **default ON at a subtle level** (0.6) whenever
+  `plump > 0`; an explicit `0` disables it. Visible strength is the material's `normalScale`, ≈ 0.15…0.4
+  following plump depth × the Wrinkles setting. Baked as a `DataTexture` (no 2D canvas needed to
+  generate — headless-testable); `GLTFExporter` embeds it as a PNG on export (the `normalTexture` +
+  `scale` survive the round-trip, verified against the exported GLB's JSON chunk).
+- **Bounded cache** — baked maps go through a dispose-on-evict `LruCache` (max 48) keyed by a coarse
+  `(seed, intensity-bucket)` (0.1 steps), mirroring `finishTextureVariant.ts` (AUD-002): a Plump/Wrinkles
+  slider drag reuses a handful of tiles instead of leaking a GPU texture per frame (tested).
+- **Interplay with finishes** — a textured `mat:<id>` finish clone owns the normal channel, so wrinkles
+  are **skipped** when a finish is set (never clobbering the finish's map) and the inspector shows a
+  one-line hint in place of the slider. Velvet/sheen presets compose on top (velvet + plump + wrinkles =
+  the sofa-cushion look).
+- **Plumbing** — `parts[].wrinkles?` (0…1) on box/capsule; envelope **v9 → v10** additive identity
+  migration + strict validation (non-finite rejected); duplicate/mirror carry it verbatim. Wrinkles are
+  **material-only** — the plumped geometry is byte-identical with wrinkles on or off (tested). Scenario
+  `scripts/scenarios/glb-designer-stage6e.json`. **Wood-grain direction** (the other 6e line item) was
+  already shipped in Stage 6c (`finishRotation`); the optional corner-pinch **AO** extra was deliberately
+  skipped (it would fight the Stage-2 gradient's `COLOR_0` channel — see plan).
+
 ## v0.21.2.45 — Asset Studio Iteration 2 · Stage 6d — precision II (face-to-face snapping + pivot control)
 
 Two precision tools in the GLB Asset Designer, behind the existing `glbDesigner` pro flag. Both are

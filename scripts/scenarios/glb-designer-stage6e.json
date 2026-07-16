@@ -1,0 +1,97 @@
+{
+  "name": "glb-designer-stage6e",
+  "description": "Asset Studio Iteration 2 Stage 6e — realism II in the GLB Asset Designer (Pro, glbDesigner on). Two identical velvet (sheen) plumped cushions side by side: the LEFT one has fabric Wrinkles at 0.8, the RIGHT one has Wrinkles 0 (smooth). Close in front + 3/4 so the wrinkle relief breaks up the highlight/sheen on the left cushion while the right reads as a smooth bulged shell. Then Save and assert the persisted UserGltfDef's assetSpec (v10 envelope) embeds parts[].wrinkles — the realism layer round-trips as an editable spec. Run with SHOT_GPU=1 (sheen needs a real GPU).",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "css": ".glb-designer" },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-designer",
+      "wait": 800
+    },
+    {
+      "name": "build-wrinkle-scene",
+      "comment": "Two identical velvet-sheen plumped cushions. LEFT: wrinkles 0.8 (fabric). RIGHT: wrinkles 0 (smooth control). Same colour/plump/sheen so only the wrinkle normal map differs.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); const base = { kind: 'box', color: '#3f6389', size: [0.52, 0.22, 0.52], plump: 0.85, sheen: 1, sheenRoughness: 0.3, sheenColor: '#b9cbe0', roughness: 0.55, metalness: 0 }; s.parts = [ Object.assign({ id: 'cushion-wrinkled', name: 'Wrinkled', position: [-0.32, 0.16, 0], wrinkles: 0.8 }, base), Object.assign({ id: 'cushion-smooth', name: 'Smooth', position: [0.32, 0.16, 0], wrinkles: 0 }, base) ]; window.__glbDesigner.setSpec(s); })()"
+    },
+    {
+      "name": "wait-build",
+      "wait": 1500
+    },
+    {
+      "name": "assert-spec-fields",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const w = s.parts.find(p => p.id === 'cushion-wrinkled'); const sm = s.parts.find(p => p.id === 'cushion-smooth'); if (!w || !sm) throw new Error('cushions missing'); if (w.wrinkles !== 0.8) throw new Error('wrinkled cushion should be 0.8, got ' + w.wrinkles); if (sm.wrinkles !== 0) throw new Error('smooth cushion should be 0, got ' + sm.wrinkles); if ((w.plump ?? 0) <= 0 || (sm.plump ?? 0) <= 0) throw new Error('both must be plumped'); if (!w.sheen || !sm.sheen) throw new Error('both must be velvet (sheen)'); })()"
+    },
+    {
+      "name": "front-view",
+      "comment": "Head-on front: the crowned tops catch the directional highlight — the left cushion's creases break it up, the right stays a clean smooth bulge.",
+      "eval": "(function(){ const b = document.querySelector('.glb-designer button[aria-label=\"Front view\"]'); if (!b) throw new Error('Front view button not found'); b.click(); })()"
+    },
+    {
+      "name": "wait-front",
+      "wait": 1200
+    },
+    {
+      "name": "shot-front",
+      "screenshot": "01-wrinkled-vs-smooth-front"
+    },
+    {
+      "name": "home-view",
+      "comment": "3/4 iso (Home): the sheen at grazing angle on the sides + crown shows the fabric wrinkle response vs the smooth control.",
+      "eval": "(function(){ const b = document.querySelector('.glb-designer button[aria-label=\"Home view\"]'); if (!b) throw new Error('Home view button not found'); b.click(); })()"
+    },
+    {
+      "name": "wait-home",
+      "wait": 1200
+    },
+    {
+      "name": "shot-home",
+      "screenshot": "02-wrinkled-vs-smooth-iso"
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage6e Wrinkles'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-wrinkles",
+      "comment": "End-to-end proof: the saved assetSpec (v10 envelope) embeds parts[].wrinkles — 0.8 on the wrinkled cushion, 0 on the smooth control — so the Stage-6e realism layer round-trips as an editable spec.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage6e Wrinkles' && typeof d.assetSpec === 'string' && (() => { try { const env = JSON.parse(d.assetSpec); if (env.v !== 10) return false; const s = env.payload; const w = s.parts.find(p => p.id === 'cushion-wrinkled'); const sm = s.parts.find(p => p.id === 'cushion-smooth'); return w && w.wrinkles === 0.8 && sm && sm.wrinkles === 0; } catch { return false } })())"
+      },
+      "timeout": 60000,
+      "failMessage": "saved assetSpec should embed parts[].wrinkles (0.8 wrinkled, 0 smooth) at the v10 envelope"
+    },
+    {
+      "name": "shot-saved",
+      "screenshot": "03-saved-with-wrinkles"
+    }
+  ]
+}

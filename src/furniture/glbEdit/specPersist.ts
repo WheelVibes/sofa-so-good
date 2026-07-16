@@ -42,8 +42,14 @@ import type { AssetEditSpec } from './editSpec'
  *  - v9 (Materials II, Stage 6c): adds optional `parts[].faceFinishes` (per-face
  *    box finishes / edge banding) + `parts[].finishScale` (texture tile size) +
  *    `parts[].finishRotation` (grain direction). Additive superset → migration
- *    stays the identity. */
-export const ASSET_SPEC_VERSION = 9
+ *    stays the identity.
+ *  - v10 (Realism II, Stage 6e): adds optional `parts[].wrinkles` (fabric wrinkle
+ *    normal-map intensity on a plumped cushion). Material-only, additive superset
+ *    → migration stays the identity. (An older v9 plumped cushion has no
+ *    `wrinkles` field, so it renders with the subtle default-on wrinkles — the
+ *    stored spec data is unchanged; only the surface look gains the realism
+ *    default.) */
+export const ASSET_SPEC_VERSION = 10
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
  *  Every version bump so far has been an additive superset, so migration is the
@@ -59,7 +65,8 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
     case 6: // no decals/plump/sweepPoints — already a valid v7 spec.
     case 7: // no shell/loft/sweepPathPoints — already a valid v8 spec.
     case 8: // no faceFinishes/finishScale/finishRotation — already a valid v9 spec.
-    case 9:
+    case 9: // no wrinkles — already a valid v10 spec.
+    case 10:
       return spec
     default:
       return null
@@ -237,6 +244,12 @@ function partsValid(parts: unknown[]): boolean {
     if (rec.name !== undefined && typeof rec.name !== 'string') return false
     // v7: optional cushion plump + explicit sweep path points.
     if (rec.plump !== undefined && (typeof rec.plump !== 'number' || !Number.isFinite(rec.plump)))
+      return false
+    // v10: optional fabric wrinkle intensity (material-only).
+    if (
+      rec.wrinkles !== undefined &&
+      (typeof rec.wrinkles !== 'number' || !Number.isFinite(rec.wrinkles))
+    )
       return false
     if (rec.sweepPoints !== undefined) {
       if (!Array.isArray(rec.sweepPoints) || !rec.sweepPoints.every(isVec3)) return false
