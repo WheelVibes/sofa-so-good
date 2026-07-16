@@ -5,6 +5,10 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.69 — Asset Studio iteration 8 plan
+
+Stage 12 (face-choice tufting/plump — the showcase's recorded upright-backrest gap). Docs only.
+
 ## v0.21.2.68 — Asset Studio Stage 11b follow-up — actionable findings fixed
 
 The two ACTIONABLE findings from the Stage-11b showcase integration build (v0.21.2.67), fixed +

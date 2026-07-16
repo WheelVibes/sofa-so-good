@@ -976,3 +976,13 @@ The two ACTIONABLE Stage-11b findings, closed (the rest stay recorded — see be
   a chosen face" axis unlocks upright backs/arms) and *`Save asset` auto-closes the designer*
   (accepted UX — reopen for a same-session restore). The sheen-keyed recolour + room-centre overlap
   were scenario-tuning / general placement notes, not Asset-Studio source bugs.
+
+---
+
+## Iteration 8
+
+### Stage 12 — Face-choice tufting & plump
+The showcase's recorded gap: plump/tuft act on the top (+Y) face only. Add a face axis
+(top / front / back — the upright cases) so a backrest board can crown and carry the
+diamond lattice on its vertical face; stitches/buttons follow the chosen face's frame.
+Completes the chesterfield (tufted back + arms).
