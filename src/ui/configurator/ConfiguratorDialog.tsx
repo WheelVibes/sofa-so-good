@@ -10,7 +10,10 @@ import {
   offeredOptions,
   productLabel,
 } from '../../furniture/configurator/model'
-import { CONFIGURABLE_PRODUCTS } from '../../furniture/configurator/products'
+import {
+  CONFIGURABLE_PRODUCTS,
+  visibleConfigurableProducts,
+} from '../../furniture/configurator/products'
 import { saveConfiguredAsset } from '../../furniture/configurator/saveConfigured'
 import { canEditScene } from '../../state/editing'
 import { firstEditableRoomId } from '../../state/rooms'
@@ -33,10 +36,13 @@ export function ConfiguratorDialog() {
   const priceOn = useFeature('budget')
   const isMobile = useIsMobile()
   // Authored products + the user's own exported configurable products (Stage 3d).
+  // Pets products follow the catalog's `petFittings` gate — the configurator is a
+  // separate surface, so it must apply the same category gating itself.
+  const petsOn = useFeature('petFittings')
   const userProducts = useStore((s) => s.userConfigurableProducts)
   const allProducts = useMemo<ConfigurableProduct[]>(
-    () => [...CONFIGURABLE_PRODUCTS, ...userProducts],
-    [userProducts],
+    () => visibleConfigurableProducts([...CONFIGURABLE_PRODUCTS, ...userProducts], petsOn),
+    [userProducts, petsOn],
   )
   const resolveProduct = (id: string): ConfigurableProduct | null =>
     allProducts.find((p) => p.id === id) ?? null

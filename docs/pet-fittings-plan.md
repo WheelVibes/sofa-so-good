@@ -156,6 +156,32 @@ Pet-type keyword curation + catalog tab ordering; room-aware mapping (service ya
 balcony → pets surfaced); user docs page; showcase scenario (a pet-ready 4-room flat:
 meshed windows, gated kitchen, cat wall run, litter in service yard); stage-end review.
 
+**P5 SHIPPED** 2026-07-17 — presets, integration & polish (the final stage). **Keyword
+curation:** every `pets` def now carries ≥1 pet-type keyword (`dog`/`cat`/`bird`/`rabbit`/
+`guinea-pig`/`hamster`/`fish`/`small-pet`) plus functional descriptors; the compliance
+fittings match EVERY pet type they serve (the window mesh screen now keywords `cat`+`dog`+
+`bird` — CMF cat containment but also dog/bird fall-safety — and the playpen adds `rabbit`+
+`small-pet`), so a search for any served pet surfaces the compliance item. **Within-tab
+ordering:** `PETS_DEFS` is reordered so the catalog tab reads compliance/safety fittings first
+(mesh screen → gate → door insert → playpen), then per-pet clusters (dog set incl. the shared
+dog/cat pieces → cat set → birds → small pets → fish); the built-in catalog preserves object
+key order so the array order IS the tab order. **Room-aware mapping:** `roomAwareCategories.ts`
+surfaces `pets` prominently (2nd, after `outdoor`) for the `balcony` RoomKind — the classifier's
+bucket for BOTH balconies AND service/utility yards (no distinct service-yard RoomKind exists,
+and inventing one is forbidden, so the closest existing kind is mapped + the limitation noted in
+code). **User docs:** new `docs/user/pet-fittings.md` (SG compliance context — CMF meshing, ≤5 cm
+aperture, 31 Aug 2026 transition, HDB 1 dog/≤2 cats; how window mesh snaps to windows, gate/insert
+snap to doors; a per-pet-type tour), registered in the VitePress sidebar under "Designing".
+Tests: `defs/pets.test.ts` (keyword-coverage matrix — every def has a pet-type keyword, each
+pet-type search returns its expected set, functional litter/mesh/gate searches, cluster ordering)
++ `ui/catalog/roomAwareCategories.test.ts` (balcony/service-yard surfaces pets prominently, full
+ordering stays a duplicate-free permutation). Visual: `scripts/scenarios/pets-showcase.json` (a
+pet-ready 4-room flat: CMF mesh on every window, a mesh pet gate spanning the kitchen/service-yard
+doorway, a cat wall run + tree in the living room, a litter cabinet + covered box in the service
+yard, dog bed + raised feeder; frames — whole-flat orbit wide, living cat-run + tree, kitchen
+doorway gate, service-yard litter). No new module (docs page + scenario only); root/area docs
+unchanged (no new system).
+
 **Status:** planned 2026-07-17. **P1 SHIPPED** 2026-07-17 — `pets` category across all
 exhaustive Record sites + paw `CategoryIcon` + plan-cat colour; `petFittings` flag (simple
 tier, gates the tab via `useUnifiedCatalog`'s `includePets`); pet-bed migrated decor→pets (id

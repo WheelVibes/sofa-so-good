@@ -43,9 +43,12 @@ export function CatTree({ props }: { props: ParamProps }) {
   const plushMat = getFabricMaterial(plush, 0.95)
 
   // Layout: platform centres from just above the base to `height`, staggered.
+  // With the perch on, the top platform drops by the perch rim's rise so the
+  // whole tree (rim included) stays within the declared `height`/verticalSpan.
   const levels = useMemo(() => {
     const bottom = BASE_T + FIRST_CLEAR // first platform clears the base
-    const top = Math.max(bottom + 0.2, height - PLAT_T)
+    const perchRise = withPerch === 'yes' ? 0.08 : 0
+    const top = Math.max(bottom + 0.2, height - PLAT_T - perchRise)
     const out: { y: number; x: number; z: number }[] = []
     for (let i = 0; i < tiers; i++) {
       const f = tiers === 1 ? 0 : i / (tiers - 1)
@@ -57,7 +60,7 @@ export function CatTree({ props }: { props: ParamProps }) {
       out.push({ y, x, z })
     }
     return out
-  }, [tiers, height, stagger])
+  }, [tiers, height, stagger, withPerch])
 
   // One shared post material — sisal rope texture (tint rides the texture) or a
   // plain ribbed-cylinder look. Coil pitch keyed off the mean segment height so
@@ -127,9 +130,11 @@ export function CatTree({ props }: { props: ParamProps }) {
           args={[platW, PLAT_T, platW]}
         />
       ))}
-      {/* House cube on the second tier (if there is one). Five soft panels with
-          an open doorway front so a cat can step inside. */}
-      {withHouse === 'yes' && tiers >= 2
+      {/* House cube on the second tier — only when it's a MIDDLE tier (tiers ≥ 3):
+          at tiers=2 the second tier IS the top platform, where the house would
+          interpenetrate the top perch. Five soft panels with an open doorway
+          front so a cat can step inside. */}
+      {withHouse === 'yes' && tiers >= 3
         ? (() => {
             const lvl = levels[1]
             const hw = platW * 0.98

@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.77 — Pets P5: presets, room-aware surfacing, showcase + P2–P4 review fixes
+
+Program-closing stage. Keyword curation (compliance fittings match every pet type they
+serve; coverage-matrix test); pets tab ordered compliance-first then per-pet clusters;
+balcony room kind (the classifier's bucket for balconies AND service/utility yards)
+surfaces `pets` second in the room-aware catalog landing; new user docs page
+(`docs/user/pet-fittings.md`: CMF meshing/≤5 cm/31 Aug 2026, HDB 1 dog/≤2 cats, placement
+how-tos); showcase scenario `pets-showcase.json` (pet-ready 4-room flat: mesh screens on
+all windows, gated kitchen doorway, cat wall run + tree, litter in the service yard) —
+frames verified. P2–P4 adversarial review fixes: CatTunnel TubeGeometry disposed on param
+change/unmount (leak); configurator gates pets products on `petFittings`
+(`visibleConfigurableProducts`, tested both flag states); CatTree tiers=2 house/perch
+interpenetration fixed (house needs a middle tier) + perch kept within declared height;
+dog-crate/aquarium-stand footprints pinned to the largest enum size (enum dims can't feed
+footprintParams — conservative over-report, never under-report); cat-wall-steps footprint
+honest for the default run. Pet-fittings program (P1–P5) complete.
+
 ## v0.21.2.76 — Pets P4: birds, small pets, fish
 
 Six defs for the remaining pet types (pets category, keyworded by pet): bird cage

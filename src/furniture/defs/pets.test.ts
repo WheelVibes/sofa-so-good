@@ -179,8 +179,11 @@ describe('PETS_DEFS', () => {
       expect(dims[i].w).toBeGreaterThanOrEqual(dims[i - 1].w)
       expect(dims[i].h).toBeGreaterThanOrEqual(dims[i - 1].h)
     }
-    // The def's footprint matches the default (S) size.
-    expect(PETS_DEFS['dog-crate'].defaultFootprint.w).toBe(CRATE_SIZES.S.w)
+    // The def's footprint is pinned to the LARGEST (M) size — enums can't feed
+    // footprintParams, so collision must conservatively over-report, never
+    // under-report when the user picks a bigger crate.
+    expect(PETS_DEFS['dog-crate'].defaultFootprint.w).toBe(CRATE_SIZES.M.w)
+    expect(PETS_DEFS['dog-crate'].defaultFootprint.d).toBe(CRATE_SIZES.M.d)
   })
 
   it('the cooling mat is a flat noClip floor covering (like a rug), sized S/M', () => {
@@ -319,5 +322,140 @@ describe('PETS_DEFS', () => {
     expect(AQUARIUM_TANK_DIMS['1.2'].w).toBeGreaterThan(AQUARIUM_TANK_DIMS['0.6'].w)
     // Cabinet doors are toggleable.
     expect(aq.paramSchema.some((f) => f.key === 'doors')).toBe(true)
+  })
+
+  // ---- Stage P5 — pet-type keyword curation + catalog ordering ------------
+  // The pet-type keyword vocabulary the tab + search cluster around. Every def
+  // must carry at least one so it's reachable from a pet-type search.
+  const PET_TYPE_KEYWORDS = [
+    'dog',
+    'cat',
+    'bird',
+    'rabbit',
+    'guinea-pig',
+    'hamster',
+    'fish',
+    'small-pet',
+  ] as const
+
+  const hasKw = (id: string, kw: string) => (PETS_DEFS[id].keywords ?? []).includes(kw)
+  /** Ids whose keywords contain `kw`, in def order (mirrors an exact-keyword
+   *  catalog search — the substring case fuzzySearch always ranks first). */
+  const searchByKeyword = (kw: string) => Object.keys(PETS_DEFS).filter((id) => hasKw(id, kw))
+
+  it('every pets def carries at least one pet-type keyword', () => {
+    for (const [id, def] of Object.entries(PETS_DEFS)) {
+      const kws = def.keywords ?? []
+      const petTypes = PET_TYPE_KEYWORDS.filter((k) => kws.includes(k))
+      expect(petTypes.length, `${id} has no pet-type keyword`).toBeGreaterThanOrEqual(1)
+    }
+  })
+
+  it('every keyword listed is either a pet-type or a functional descriptor (no typos to empties)', () => {
+    for (const [id, def] of Object.entries(PETS_DEFS)) {
+      for (const kw of def.keywords ?? []) {
+        expect(typeof kw, `${id}`).toBe('string')
+        expect(kw.length, `${id} empty keyword`).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('searching each pet-type keyword returns exactly its expected set', () => {
+    // The compliance fittings (mesh screen / gate / insert / playpen) match
+    // EVERY pet type they serve, so they appear under multiple pet types.
+    const expected: Record<(typeof PET_TYPE_KEYWORDS)[number], string[]> = {
+      dog: [
+        'window-mesh-screen',
+        'pet-gate',
+        'pet-door-insert',
+        'pet-playpen',
+        'pet-bed',
+        'dog-crate',
+        'dog-bed-orthopedic',
+        'pet-feeding-station',
+        'dog-ramp',
+        'pet-cooling-mat',
+        'pet-toy-bin',
+      ],
+      cat: [
+        'window-mesh-screen',
+        'pet-gate',
+        'pet-door-insert',
+        'pet-playpen',
+        'pet-bed',
+        'pet-feeding-station',
+        'pet-cooling-mat',
+        'pet-toy-bin',
+        'cat-tree',
+        'cat-wall-shelf',
+        'cat-wall-steps',
+        'cat-wall-bridge',
+        'scratching-post',
+        'litter-box',
+        'litter-cabinet',
+        'cat-window-perch',
+        'cat-tunnel',
+      ],
+      bird: ['window-mesh-screen', 'bird-cage', 'bird-play-gym'],
+      rabbit: ['pet-playpen', 'rabbit-hutch', 'small-pet-pen'],
+      'guinea-pig': ['small-pet-pen'],
+      hamster: ['hamster-tank'],
+      fish: ['aquarium-stand'],
+      'small-pet': ['pet-playpen', 'rabbit-hutch', 'small-pet-pen', 'hamster-tank'],
+    }
+    for (const kw of PET_TYPE_KEYWORDS) {
+      expect(searchByKeyword(kw).sort()).toEqual([...expected[kw]].sort())
+    }
+  })
+
+  it('surfaces the functional compliance searches (litter / mesh / gate)', () => {
+    expect(searchByKeyword('litter').sort()).toEqual(['litter-box', 'litter-cabinet'])
+    expect(searchByKeyword('mesh')).toContain('window-mesh-screen')
+    expect(searchByKeyword('mesh')).toContain('pet-gate')
+    expect(searchByKeyword('gate')).toEqual(['pet-gate'])
+  })
+
+  it('orders the tab: compliance fittings first, then dog/cat/bird/small-pet/fish clusters', () => {
+    const ids = Object.keys(PETS_DEFS)
+    const idx = (id: string) => ids.indexOf(id)
+
+    const compliance = ['window-mesh-screen', 'pet-gate', 'pet-door-insert', 'pet-playpen']
+    const dog = [
+      'pet-bed',
+      'dog-crate',
+      'dog-bed-orthopedic',
+      'pet-feeding-station',
+      'dog-ramp',
+      'pet-cooling-mat',
+      'pet-toy-bin',
+    ]
+    const cat = [
+      'cat-tree',
+      'cat-wall-shelf',
+      'cat-wall-steps',
+      'cat-wall-bridge',
+      'scratching-post',
+      'litter-box',
+      'litter-cabinet',
+      'cat-window-perch',
+      'cat-tunnel',
+    ]
+    const bird = ['bird-cage', 'bird-play-gym']
+    const smallPet = ['rabbit-hutch', 'small-pet-pen', 'hamster-tank']
+    const fish = ['aquarium-stand']
+
+    // Every listed id exists and the array covers the whole line-up exactly.
+    const flat = [...compliance, ...dog, ...cat, ...bird, ...smallPet, ...fish]
+    expect(flat.sort()).toEqual([...ids].sort())
+
+    // The clusters appear in order: each cluster's max index < the next's min.
+    const clusters = [compliance, dog, cat, bird, smallPet, fish]
+    for (let i = 1; i < clusters.length; i++) {
+      const prevMax = Math.max(...clusters[i - 1].map(idx))
+      const nextMin = Math.min(...clusters[i].map(idx))
+      expect(prevMax).toBeLessThan(nextMin)
+    }
+    // Compliance fittings really are first.
+    expect(idx('window-mesh-screen')).toBe(0)
   })
 })

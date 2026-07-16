@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { CatmullRomCurve3, DoubleSide, Quaternion, TubeGeometry, Vector3 } from 'three'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
@@ -46,6 +46,8 @@ export function CatTunnel({ props }: { props: ParamProps }) {
     () => new TubeGeometry(curve, Math.max(24, radial * 2), radius, Math.max(10, radial), false),
     [curve, radius, radial],
   )
+  // R3F doesn't dispose userland geometry passed via the `geometry` prop.
+  useEffect(() => () => geom.dispose(), [geom])
 
   // Rib rings: sample the curve, orient each torus so its axis follows the
   // tangent, so the hoops sit square across the tube.

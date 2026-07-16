@@ -466,3 +466,16 @@ export const CONFIGURABLE_PRODUCTS: readonly ConfigurableProduct[] = [
 export function getConfigurableProduct(id: string): ConfigurableProduct | null {
   return CONFIGURABLE_PRODUCTS.find((p) => p.id === id) ?? null
 }
+
+/**
+ * Category-gate a product list for the configurator surface. The catalog hides
+ * the `pets` category when `petFittings` is off (`useUnifiedCatalog` includePets);
+ * the configurator is a separate surface, so it must apply the same gate itself
+ * or a pets product would leak past the flag.
+ */
+export function visibleConfigurableProducts(
+  products: readonly ConfigurableProduct[],
+  petsOn: boolean,
+): ConfigurableProduct[] {
+  return products.filter((p) => petsOn || p.category !== 'pets')
+}

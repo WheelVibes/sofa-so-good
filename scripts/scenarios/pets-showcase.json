@@ -1,0 +1,40 @@
+{
+  "name": "pets-showcase",
+  "description": "Pet program Stage P5 showcase — a pet-ready 4-room HDB flat. On top of the default furnished flat we add SG-compliance fittings + pet furniture: a CMF safety mesh screen snapped onto EVERY window (aperture-safe, internal mount), a pet gate spanning the kitchen/service-yard doorway, a cat wall run (shelf + steps + bridge) + a cat tree on a living-room wall, a litter cabinet in the service yard, and a dog bed + raised feeding station. Screenshots: living room with cat run + tree, the kitchen doorway with the gate, the service yard with the litter cabinet, and a whole-flat orbit wide.",
+  "url": "http://localhost:5233/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "wait-boot", "wait": 2500 },
+
+    {
+      "name": "inject-pet-fittings",
+      "eval": "(function(){\n  const st = window.__store.getState();\n  const fp = st.floorPlan;\n  const walls = fp.walls; const byId = new Map(walls.map(w => [w.id, w]));\n  const ext = fp.extent || [12.55, 9.25];\n  const cx = ext[0] / 2, cz = ext[1] / 2;\n  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));\n  const openingTransform = (op) => {\n    const wall = byId.get(op.wallId); if (!wall) return null;\n    const dx = wall.end[0] - wall.start[0], dz = wall.end[1] - wall.start[1];\n    const len = Math.hypot(dx, dz); if (len < 1e-6) return null;\n    const ux = dx / len, uz = dz / len;\n    const c = op.offset + op.width / 2;\n    const wx = wall.start[0] + ux * c, wz = wall.start[1] + uz * c;\n    let rotation = -Math.atan2(dz, dx);\n    const nx = -uz, nz = ux;\n    if ((cx - wx) * nx + (cz - wz) * nz < 0) rotation += Math.PI;\n    return { position: [wx, wz], rotation };\n  };\n  const items = st.items.slice();\n  // Nudge the default fridge east so it clears the SY/kitchen doorway (it ships\n  // flush to the kitchen SW corner, right at the pet-gate opening — occludes it).\n  const fridge = items.find(i => i.id === 'default-k-fridge');\n  if (fridge) fridge.position = [fridge.position[0] + 1.35, fridge.position[1]];\n  // 1. CMF mesh screen on EVERY window.\n  for (const op of fp.openings) {\n    if (op.kind !== 'window') continue;\n    const t = openingTransform(op); if (!t) continue;\n    items.push({ id: 'mesh-' + op.id, defId: 'window-mesh-screen', position: t.position, rotation: t.rotation, props: { width: clamp(op.width + 0.06, 0.4, 3.4), sillY: clamp(op.sill, 0, 2.4), topY: clamp(op.head, 0.3, 3.2), density: 'fine' } });\n  }\n  // 2. Pet gate on the kitchen / service-yard door.\n  const door = fp.openings.find(o => o.id === 'door-serviceYard') || fp.openings.find(o => o.kind === 'door');\n  if (door) {\n    const t = openingTransform(door);\n    if (t) { items.push({ id: 'gate-' + door.id, defId: 'pet-gate', position: t.position, rotation: t.rotation, props: { width: clamp(door.width, 0.6, 1.4), height: 1.0, style: 'mesh' } }); window.__gate = { pos: t.position }; }\n  }\n  // 3. Living/Dining: cat wall run (north wall) + cat tree + dog bed + feeder.\n  const rooms = new Map(fp.rooms.map(r => [r.id, r]));\n  const ld = rooms.get('livingDining');\n  if (ld) {\n    const ox = ld.origin[0], oz = ld.origin[1], W = ld.width, D = ld.depth;\n    const wz = oz + 0.14; // just inside the north wall\n    items.push({ id: 'cat-wall-shelf-show', defId: 'cat-wall-shelf', position: [ox + 0.9, wz], rotation: 0, props: { mountHeight: 1.0 } });\n    items.push({ id: 'cat-wall-steps-show', defId: 'cat-wall-steps', position: [ox + 2.0, wz], rotation: 0, props: { mountHeight: 0.8 } });\n    items.push({ id: 'cat-wall-bridge-show', defId: 'cat-wall-bridge', position: [ox + 3.2, wz], rotation: 0, props: { span: 1.2, mountHeight: 1.7 } });\n    items.push({ id: 'cat-tree-show', defId: 'cat-tree', position: [ox + 0.55, oz + 0.7], rotation: 0.6, props: { tiers: 4, height: 1.6 } });\n    items.push({ id: 'dog-bed-show', defId: 'pet-bed', position: [ox + 3.4, oz + 0.85], rotation: 3.14, props: { size: 0.8, shape: 'round' } });\n    items.push({ id: 'feeder-show', defId: 'pet-feeding-station', position: [ox + 3.5, oz + 1.7], rotation: 3.14, props: { bowls: '2' } });\n    window.__ld = { cx: ox + W * 0.35, cz: oz + 0.9 };\n  }\n  // 4. Service Yard: litter cabinet + dog cooling mat.\n  const sy = rooms.get('serviceYard');\n  if (sy) {\n    const ox = sy.origin[0], oz = sy.origin[1], W = sy.width, D = sy.depth;\n    items.push({ id: 'litter-cabinet-show', defId: 'litter-cabinet', position: [ox + 0.55, oz + D - 0.45], rotation: 0, props: { entrySide: 'right' } });\n    items.push({ id: 'litter-box-show', defId: 'litter-box', position: [ox + 1.6, oz + D - 0.4], rotation: 0, props: { style: 'covered' } });\n    window.__sy = { cx: ox + W * 0.4, cz: oz + D * 0.55 };\n  }\n  st.setItems(items);\n})()"
+    },
+    { "name": "wait-render", "wait": 2600 },
+    {
+      "name": "assert-placed",
+      "eval": "(function(){ const ids = window.__store.getState().items.map(i => i.id); const need = ['cat-tree-show','cat-wall-shelf-show','litter-cabinet-show','feeder-show']; for (const n of need) if (!ids.includes(n)) throw new Error('missing ' + n); const meshCount = ids.filter(i => i.startsWith('mesh-')).length; if (meshCount < 1) throw new Error('no mesh screens placed'); console.log('pet fittings placed: ' + meshCount + ' mesh screens, gate=' + ids.some(i => i.startsWith('gate-'))); })()"
+    },
+
+    { "name": "frame-flat-wide", "eval": "(function(){ const st = window.__store.getState(); const ext = st.floorPlan.extent || [12.55, 9.25]; st.requestFrameSelection?.({ center: [ext[0]/2, 0.6, ext[1]/2], radius: 7.4 }); })()" },
+    { "name": "wait-frame-flat", "wait": 2200 },
+    { "name": "shot-01-flat-orbit-wide", "screenshot": "01-flat-orbit-wide" },
+
+    { "name": "frame-living-catrun", "eval": "(function(){ const c = window.__ld; window.__store.getState().requestFrameSelection?.({ center: [c.cx, 1.0, c.cz], radius: 2.8 }); })()" },
+    { "name": "wait-frame-ld", "wait": 2000 },
+    { "name": "shot-02-living-cat-run-tree", "screenshot": "02-living-cat-run-tree" },
+
+    { "name": "frame-kitchen-gate", "eval": "(function(){ const g = window.__gate; window.__store.getState().requestFrameSelection?.({ center: [g.pos[0], 0.9, g.pos[1]], radius: 1.6 }); })()" },
+    { "name": "wait-frame-gate", "wait": 2000 },
+    { "name": "shot-03-kitchen-doorway-gate", "screenshot": "03-kitchen-doorway-gate" },
+
+    { "name": "frame-service-yard", "eval": "(function(){ const c = window.__sy; window.__store.getState().requestFrameSelection?.({ center: [c.cx, 0.6, c.cz], radius: 1.9 }); })()" },
+    { "name": "wait-frame-sy", "wait": 2000 },
+    { "name": "shot-04-service-yard-litter", "screenshot": "04-service-yard-litter" }
+  ]
+}

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { composeProduct, transformPart } from './compose'
 import { type ConfiguredPart, clampConfig, selectedOption } from './model'
-import { CONFIGURABLE_PRODUCTS, getConfigurableProduct } from './products'
+import {
+  CONFIGURABLE_PRODUCTS,
+  getConfigurableProduct,
+  visibleConfigurableProducts,
+} from './products'
 
 const mattress = getConfigurableProduct('mattress-frame')!
 const sofa = getConfigurableProduct('modular-sofa')!
@@ -211,5 +215,20 @@ describe('product registry', () => {
 
   it('the cat tree is categorised under pets', () => {
     expect(catTree.category).toBe('pets')
+  })
+})
+
+describe('visibleConfigurableProducts (pets gate)', () => {
+  it('hides pets products when petFittings is off, keeps the rest', () => {
+    const visible = visibleConfigurableProducts(CONFIGURABLE_PRODUCTS, false)
+    expect(visible.some((p) => p.category === 'pets')).toBe(false)
+    expect(visible.map((p) => p.id)).toContain('mattress-frame')
+    expect(visible.map((p) => p.id)).toContain('modular-sofa')
+  })
+
+  it('includes pets products when petFittings is on (default in both modes)', () => {
+    const visible = visibleConfigurableProducts(CONFIGURABLE_PRODUCTS, true)
+    expect(visible).toEqual([...CONFIGURABLE_PRODUCTS])
+    expect(visible.some((p) => p.category === 'pets')).toBe(true)
   })
 })

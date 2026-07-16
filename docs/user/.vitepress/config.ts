@@ -30,6 +30,7 @@ export default defineConfig({
         text: 'Designing',
         items: [
           { text: 'Placing & arranging furniture', link: '/placing-furniture' },
+          { text: 'Pet fittings & furniture', link: '/pet-fittings' },
           { text: 'Finishes & materials', link: '/finishes-and-materials' },
           { text: 'Lighting & time of day', link: '/lighting-and-time' },
           { text: 'Themes & appearance', link: '/themes-and-appearance' },

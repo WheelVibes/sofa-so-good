@@ -1,62 +1,42 @@
 import type { FurnitureDef } from '../types'
 
 /**
- * Pet fittings & furniture (Pet program, Stage P1). Part of the built-in catalog
+ * Pet fittings & furniture (Pet program). Part of the built-in catalog
  * (see ../builtinCatalog.ts), gated behind the `petFittings` feature flag.
  *
- * P1 ships the foundations + the Singapore-compliance fittings: the pet bed
- * (moved here from `decor`, id unchanged), the Cat-Management-Framework window /
- * balcony safety mesh screen (`windowBound`), the doorway pet gate + pet-door
- * insert (`doorBound`), and a freestanding playpen.
+ * Ordering (Stage P5 — catalog tab reads top-to-bottom in this order):
+ *   1. Compliance / safety fittings first (the SG-differentiating items):
+ *      window/balcony mesh screen, doorway pet gate, pet-door insert, playpen.
+ *   2. Per-pet-type clusters: dog set, cat set, birds, small pets, fish.
+ * The built-in catalog preserves this object's key order, so the tab grouping
+ * IS this array order (see defs/pets.test.ts `catalog ordering`).
  *
- * P2 ships the cat set: a parametric cat tree (sisal posts + plush platforms,
- * staggered tiers, optional house cube + top perch), mounted cat wall shelves /
- * steps / bridge (`mounted` + `mountHeight`), scratching posts, litter boxes +
- * a concealment cabinet, a sill-level window perch (`windowBound`), and a fabric
- * tunnel. All procedural, real-metre, structurally sound. The modular cat tree
- * also ships as a slot-configurator product (`configurator/products.ts`).
+ * Keyword curation (Stage P5): every def carries at least one pet-type keyword
+ * (`dog` | `cat` | `bird` | `rabbit` | `guinea-pig` | `hamster` | `fish` |
+ * `small-pet`) plus functional keywords (litter / mesh / gate / …) so catalog
+ * search surfaces the right items. Compliance fittings match EVERY pet type they
+ * serve — the mesh screen is the Cat-Management-Framework requirement (`cat`) but
+ * also prevents dog/bird falls, and the playpen contains dogs/cats/rabbits/small
+ * pets — so a search for any of those pets surfaces the compliance item too.
+ *
+ * All procedural, real-metre, structurally sound; every def is
+ * paramSchema-customizable. The modular cat tree also ships as a slot-
+ * configurator product (`configurator/products.ts`).
  */
 export const PETS_DEFS = {
-  'pet-bed': {
-    kind: 'parametric',
-    id: 'pet-bed',
-    name: 'Pet bed',
-    keywords: ['dog bed', 'cat bed', 'pet', 'basket', 'dog', 'cat'],
-    category: 'pets',
-    primitive: 'PetBed',
-    defaultFootprint: { w: 0.7, d: 0.7, h: 0.22 },
-    footprintParams: { w: 'size', d: 'size' },
-    paramSchema: [
-      {
-        kind: 'number',
-        key: 'size',
-        label: 'Size',
-        min: 0.45,
-        max: 1.1,
-        step: 0.05,
-        default: 0.7,
-        unit: 'm',
-      },
-      {
-        kind: 'enum',
-        key: 'shape',
-        label: 'Shape',
-        default: 'round',
-        options: [
-          { value: 'round', label: 'Round basket' },
-          { value: 'rect', label: 'Rectangular mat' },
-        ],
-      },
-      { kind: 'color', key: 'color', label: 'Bolster', default: '#9b6f52' },
-      { kind: 'color', key: 'cushion', label: 'Cushion', default: '#d8c9b0' },
-    ],
-  },
+  // ============================================================================
+  // 1. Compliance / safety fittings (SG Cat-Management-Framework + room safety)
+  // ============================================================================
   'window-mesh-screen': {
     kind: 'parametric',
     id: 'window-mesh-screen',
     name: 'Window mesh screen',
+    // Compliance fitting: the CMF cat-containment requirement (`cat`), but also
+    // prevents dog / bird falls & fly-outs — match every pet type it serves.
     keywords: [
       'cat',
+      'dog',
+      'bird',
       'mesh',
       'screen',
       'safety',
@@ -114,7 +94,7 @@ export const PETS_DEFS = {
     kind: 'parametric',
     id: 'pet-gate',
     name: 'Pet gate',
-    keywords: ['dog', 'cat', 'gate', 'barrier', 'doorway', 'safety', 'stair gate'],
+    keywords: ['dog', 'cat', 'gate', 'barrier', 'doorway', 'safety', 'stair gate', 'mesh'],
     category: 'pets',
     primitive: 'PetGate',
     defaultFootprint: { w: 0.85, d: 0.06, h: 0.75 },
@@ -194,7 +174,19 @@ export const PETS_DEFS = {
     kind: 'parametric',
     id: 'pet-playpen',
     name: 'Pet playpen',
-    keywords: ['dog', 'cat', 'puppy', 'playpen', 'pen', 'enclosure', 'crate', 'fence'],
+    // Contains puppies/cats AND rabbits/small pets — a shared compliance fitting.
+    keywords: [
+      'dog',
+      'cat',
+      'rabbit',
+      'small-pet',
+      'puppy',
+      'playpen',
+      'pen',
+      'enclosure',
+      'crate',
+      'fence',
+    ],
     category: 'pets',
     primitive: 'PetPlaypen',
     defaultFootprint: { w: 1.25, d: 1.25, h: 0.7 },
@@ -242,7 +234,336 @@ export const PETS_DEFS = {
       },
     ],
   },
-  // ---- Stage P2 — the cat set --------------------------------------------
+  // ============================================================================
+  // 2a. Dog set (+ the shared dog/cat freestanding pieces)
+  // ============================================================================
+  'pet-bed': {
+    kind: 'parametric',
+    id: 'pet-bed',
+    name: 'Pet bed',
+    keywords: ['dog bed', 'cat bed', 'pet', 'basket', 'dog', 'cat'],
+    category: 'pets',
+    primitive: 'PetBed',
+    defaultFootprint: { w: 0.7, d: 0.7, h: 0.22 },
+    footprintParams: { w: 'size', d: 'size' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'size',
+        label: 'Size',
+        min: 0.45,
+        max: 1.1,
+        step: 0.05,
+        default: 0.7,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'shape',
+        label: 'Shape',
+        default: 'round',
+        options: [
+          { value: 'round', label: 'Round basket' },
+          { value: 'rect', label: 'Rectangular mat' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Bolster', default: '#9b6f52' },
+      { kind: 'color', key: 'cushion', label: 'Cushion', default: '#d8c9b0' },
+    ],
+  },
+  'dog-crate': {
+    kind: 'parametric',
+    id: 'dog-crate',
+    name: 'Dog crate',
+    keywords: ['dog', 'crate', 'kennel', 'cage', 'wire', 'furniture', 'side table'],
+    category: 'pets',
+    primitive: 'DogCrate',
+    // The `size` enum drives the live dims in the primitive (XXS→M); enums can't
+    // feed `footprintParams`, so the footprint is pinned to the LARGEST size (M)
+    // — a conservative over-report for smaller crates, never an under-report
+    // that would let an M crate clip a wall.
+    defaultFootprint: { w: 0.61, d: 0.46, h: 0.51 },
+    frontClearance: 0.4,
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: 'S',
+        options: [
+          { value: 'XXS', label: 'XXS (41 cm)' },
+          { value: 'XS', label: 'XS (46 cm)' },
+          { value: 'S', label: 'S (51 cm)' },
+          { value: 'M', label: 'M (61 cm)' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'wire',
+        options: [
+          { value: 'wire', label: 'Wire crate' },
+          { value: 'furniture', label: 'Wood-top (side table)' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Wire', default: '#6b6f76' },
+      { kind: 'color', key: 'woodColor', label: 'Timber', default: '#9d7c54' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Wood finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+        ],
+      },
+    ],
+  },
+  'dog-bed-orthopedic': {
+    kind: 'parametric',
+    id: 'dog-bed-orthopedic',
+    name: 'Orthopedic dog bed',
+    keywords: ['dog', 'bed', 'orthopedic', 'memory foam', 'bolster', 'mattress'],
+    category: 'pets',
+    primitive: 'DogBedOrthopedic',
+    defaultFootprint: { w: 0.9, d: 0.65, h: 0.26 },
+    footprintParams: { w: 'width', d: 'depth' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.6,
+        max: 1.2,
+        step: 0.05,
+        default: 0.9,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'depth',
+        label: 'Depth',
+        min: 0.45,
+        max: 0.9,
+        step: 0.05,
+        default: 0.65,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'bolster_style',
+        label: 'Bolster',
+        default: 'headrest',
+        options: [
+          { value: 'headrest', label: 'Back headrest' },
+          { value: 'three-side', label: 'Three-side (U)' },
+        ],
+      },
+      { kind: 'color', key: 'mattress', label: 'Mattress', default: '#c3c9cf' },
+      { kind: 'color', key: 'bolster', label: 'Bolster', default: '#8a94a0' },
+    ],
+  },
+  'pet-feeding-station': {
+    kind: 'parametric',
+    id: 'pet-feeding-station',
+    name: 'Feeding station',
+    keywords: ['dog', 'cat', 'feeder', 'bowls', 'raised', 'elevated', 'food', 'water'],
+    category: 'pets',
+    primitive: 'FeedingStation',
+    defaultFootprint: { w: 0.56, d: 0.28, h: 0.2 },
+    frontClearance: 0.4,
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'bowls',
+        label: 'Bowls',
+        default: '2',
+        options: [
+          { value: '1', label: 'Single' },
+          { value: '2', label: 'Double' },
+        ],
+      },
+      {
+        kind: 'number',
+        key: 'standHeight',
+        label: 'Stand height',
+        min: 0.08,
+        max: 0.25,
+        step: 0.01,
+        default: 0.14,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'color', label: 'Timber', default: '#9d7c54' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+        ],
+      },
+      { kind: 'color', key: 'bowlColor', label: 'Bowls (steel)', default: '#c9ccd0' },
+    ],
+  },
+  'dog-ramp': {
+    kind: 'parametric',
+    id: 'dog-ramp',
+    name: 'Dog ramp',
+    keywords: ['dog', 'ramp', 'steps', 'stairs', 'sofa', 'bed', 'access', 'pet stairs'],
+    category: 'pets',
+    primitive: 'DogRamp',
+    defaultFootprint: { w: 0.4, d: 0.95, h: 0.45 },
+    footprintParams: { w: 'width', d: 'length' },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'ramp',
+        options: [
+          { value: 'ramp', label: 'Ramp' },
+          { value: 'steps', label: 'Steps' },
+        ],
+      },
+      {
+        kind: 'number',
+        key: 'height',
+        label: 'Height',
+        min: 0.4,
+        max: 0.7,
+        step: 0.05,
+        default: 0.45,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'length',
+        label: 'Run',
+        min: 0.6,
+        max: 1.4,
+        step: 0.05,
+        default: 0.95,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.3,
+        max: 0.6,
+        step: 0.05,
+        default: 0.4,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'rails',
+        label: 'Side rails',
+        default: 'no',
+        options: [
+          { value: 'no', label: 'None' },
+          { value: 'yes', label: 'Rails' },
+        ],
+      },
+      { kind: 'color', key: 'tread', label: 'Tread (carpet)', default: '#7d746a' },
+      { kind: 'color', key: 'frame', label: 'Frame', default: '#6b5947' },
+    ],
+  },
+  'pet-cooling-mat': {
+    kind: 'parametric',
+    id: 'pet-cooling-mat',
+    name: 'Cooling mat',
+    keywords: ['dog', 'cat', 'cooling', 'gel', 'mat', 'pad', 'summer'],
+    category: 'pets',
+    primitive: 'CoolingMat',
+    defaultFootprint: { w: 0.7, d: 0.5, h: 0.01 },
+    // A thin flat covering — never blocks floor placement (like a rug).
+    noClip: true,
+    verticalSpan: { base: 0, top: 0.012 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: 'M',
+        options: [
+          { value: 'S', label: 'Small (50 cm)' },
+          { value: 'M', label: 'Medium (70 cm)' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Gel', default: '#7fb2c9' },
+    ],
+  },
+  'pet-toy-bin': {
+    kind: 'parametric',
+    id: 'pet-toy-bin',
+    name: 'Pet toy bin',
+    keywords: ['dog', 'cat', 'toy', 'bin', 'basket', 'storage', 'woven'],
+    category: 'pets',
+    primitive: 'PetToyBin',
+    defaultFootprint: { w: 0.4, d: 0.4, h: 0.32 },
+    footprintParams: { w: 'width', d: 'depth' },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'shape',
+        label: 'Shape',
+        default: 'round',
+        options: [
+          { value: 'round', label: 'Round basket' },
+          { value: 'rect', label: 'Rectangular' },
+        ],
+      },
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.3,
+        max: 0.6,
+        step: 0.05,
+        default: 0.4,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'depth',
+        label: 'Depth',
+        min: 0.3,
+        max: 0.6,
+        step: 0.05,
+        default: 0.4,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'height',
+        label: 'Height',
+        min: 0.22,
+        max: 0.45,
+        step: 0.02,
+        default: 0.32,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'color', label: 'Weave', default: '#b8a382' },
+      {
+        kind: 'enum',
+        key: 'lid',
+        label: 'Lid',
+        default: 'no',
+        options: [
+          { value: 'no', label: 'Open' },
+          { value: 'yes', label: 'With lid' },
+        ],
+      },
+    ],
+  },
+  // ============================================================================
+  // 2b. Cat set
+  // ============================================================================
   'cat-tree': {
     kind: 'parametric',
     id: 'cat-tree',
@@ -372,7 +693,11 @@ export const PETS_DEFS = {
     keywords: ['cat', 'steps', 'stairs', 'climbing', 'wall', 'mounted', 'diagonal'],
     category: 'pets',
     primitive: 'CatWallSteps',
-    defaultFootprint: { w: 1.5, d: 0.26, h: 1.0 },
+    // True default extent: run·(count−1) + stepWidth = 0.4·3 + 0.34. The formula
+    // isn't expressible via `footprintParams` (1:1 numeric mapping only), so
+    // wider non-default runs aren't collision-tracked — acceptable for a
+    // wall-mounted fixture (mounted role, off the walkable floor).
+    defaultFootprint: { w: 1.54, d: 0.26, h: 1.0 },
     mounted: true,
     verticalSpan: { base: 0.85, top: 1.85 },
     paramSchema: [
@@ -692,296 +1017,9 @@ export const PETS_DEFS = {
       { kind: 'color', key: 'color', label: 'Fabric', default: '#7f8a94' },
     ],
   },
-  // ---- Stage P3 — the dog set --------------------------------------------
-  'dog-crate': {
-    kind: 'parametric',
-    id: 'dog-crate',
-    name: 'Dog crate',
-    keywords: ['dog', 'crate', 'kennel', 'cage', 'wire', 'furniture', 'side table'],
-    category: 'pets',
-    primitive: 'DogCrate',
-    // Footprint matches the default (S) size; the `size` enum drives the live
-    // dims in the primitive (XXS→M), like the litter box's style enum.
-    defaultFootprint: { w: 0.51, d: 0.36, h: 0.41 },
-    frontClearance: 0.4,
-    paramSchema: [
-      {
-        kind: 'enum',
-        key: 'size',
-        label: 'Size',
-        default: 'S',
-        options: [
-          { value: 'XXS', label: 'XXS (41 cm)' },
-          { value: 'XS', label: 'XS (46 cm)' },
-          { value: 'S', label: 'S (51 cm)' },
-          { value: 'M', label: 'M (61 cm)' },
-        ],
-      },
-      {
-        kind: 'enum',
-        key: 'style',
-        label: 'Style',
-        default: 'wire',
-        options: [
-          { value: 'wire', label: 'Wire crate' },
-          { value: 'furniture', label: 'Wood-top (side table)' },
-        ],
-      },
-      { kind: 'color', key: 'color', label: 'Wire', default: '#6b6f76' },
-      { kind: 'color', key: 'woodColor', label: 'Timber', default: '#9d7c54' },
-      {
-        kind: 'enum',
-        key: 'finish',
-        label: 'Wood finish',
-        default: 'wood',
-        options: [
-          { value: 'wood', label: 'Wood' },
-          { value: 'painted', label: 'Painted' },
-        ],
-      },
-    ],
-  },
-  'dog-bed-orthopedic': {
-    kind: 'parametric',
-    id: 'dog-bed-orthopedic',
-    name: 'Orthopedic dog bed',
-    keywords: ['dog', 'bed', 'orthopedic', 'memory foam', 'bolster', 'mattress'],
-    category: 'pets',
-    primitive: 'DogBedOrthopedic',
-    defaultFootprint: { w: 0.9, d: 0.65, h: 0.26 },
-    footprintParams: { w: 'width', d: 'depth' },
-    paramSchema: [
-      {
-        kind: 'number',
-        key: 'width',
-        label: 'Width',
-        min: 0.6,
-        max: 1.2,
-        step: 0.05,
-        default: 0.9,
-        unit: 'm',
-      },
-      {
-        kind: 'number',
-        key: 'depth',
-        label: 'Depth',
-        min: 0.45,
-        max: 0.9,
-        step: 0.05,
-        default: 0.65,
-        unit: 'm',
-      },
-      {
-        kind: 'enum',
-        key: 'bolster_style',
-        label: 'Bolster',
-        default: 'headrest',
-        options: [
-          { value: 'headrest', label: 'Back headrest' },
-          { value: 'three-side', label: 'Three-side (U)' },
-        ],
-      },
-      { kind: 'color', key: 'mattress', label: 'Mattress', default: '#c3c9cf' },
-      { kind: 'color', key: 'bolster', label: 'Bolster', default: '#8a94a0' },
-    ],
-  },
-  'pet-feeding-station': {
-    kind: 'parametric',
-    id: 'pet-feeding-station',
-    name: 'Feeding station',
-    keywords: ['dog', 'cat', 'feeder', 'bowls', 'raised', 'elevated', 'food', 'water'],
-    category: 'pets',
-    primitive: 'FeedingStation',
-    defaultFootprint: { w: 0.56, d: 0.28, h: 0.2 },
-    frontClearance: 0.4,
-    paramSchema: [
-      {
-        kind: 'enum',
-        key: 'bowls',
-        label: 'Bowls',
-        default: '2',
-        options: [
-          { value: '1', label: 'Single' },
-          { value: '2', label: 'Double' },
-        ],
-      },
-      {
-        kind: 'number',
-        key: 'standHeight',
-        label: 'Stand height',
-        min: 0.08,
-        max: 0.25,
-        step: 0.01,
-        default: 0.14,
-        unit: 'm',
-      },
-      { kind: 'color', key: 'color', label: 'Timber', default: '#9d7c54' },
-      {
-        kind: 'enum',
-        key: 'finish',
-        label: 'Finish',
-        default: 'wood',
-        options: [
-          { value: 'wood', label: 'Wood' },
-          { value: 'painted', label: 'Painted' },
-        ],
-      },
-      { kind: 'color', key: 'bowlColor', label: 'Bowls (steel)', default: '#c9ccd0' },
-    ],
-  },
-  'dog-ramp': {
-    kind: 'parametric',
-    id: 'dog-ramp',
-    name: 'Dog ramp',
-    keywords: ['dog', 'ramp', 'steps', 'stairs', 'sofa', 'bed', 'access', 'pet stairs'],
-    category: 'pets',
-    primitive: 'DogRamp',
-    defaultFootprint: { w: 0.4, d: 0.95, h: 0.45 },
-    footprintParams: { w: 'width', d: 'length' },
-    paramSchema: [
-      {
-        kind: 'enum',
-        key: 'style',
-        label: 'Style',
-        default: 'ramp',
-        options: [
-          { value: 'ramp', label: 'Ramp' },
-          { value: 'steps', label: 'Steps' },
-        ],
-      },
-      {
-        kind: 'number',
-        key: 'height',
-        label: 'Height',
-        min: 0.4,
-        max: 0.7,
-        step: 0.05,
-        default: 0.45,
-        unit: 'm',
-      },
-      {
-        kind: 'number',
-        key: 'length',
-        label: 'Run',
-        min: 0.6,
-        max: 1.4,
-        step: 0.05,
-        default: 0.95,
-        unit: 'm',
-      },
-      {
-        kind: 'number',
-        key: 'width',
-        label: 'Width',
-        min: 0.3,
-        max: 0.6,
-        step: 0.05,
-        default: 0.4,
-        unit: 'm',
-      },
-      {
-        kind: 'enum',
-        key: 'rails',
-        label: 'Side rails',
-        default: 'no',
-        options: [
-          { value: 'no', label: 'None' },
-          { value: 'yes', label: 'Rails' },
-        ],
-      },
-      { kind: 'color', key: 'tread', label: 'Tread (carpet)', default: '#7d746a' },
-      { kind: 'color', key: 'frame', label: 'Frame', default: '#6b5947' },
-    ],
-  },
-  'pet-cooling-mat': {
-    kind: 'parametric',
-    id: 'pet-cooling-mat',
-    name: 'Cooling mat',
-    keywords: ['dog', 'cat', 'cooling', 'gel', 'mat', 'pad', 'summer'],
-    category: 'pets',
-    primitive: 'CoolingMat',
-    defaultFootprint: { w: 0.7, d: 0.5, h: 0.01 },
-    // A thin flat covering — never blocks floor placement (like a rug).
-    noClip: true,
-    verticalSpan: { base: 0, top: 0.012 },
-    paramSchema: [
-      {
-        kind: 'enum',
-        key: 'size',
-        label: 'Size',
-        default: 'M',
-        options: [
-          { value: 'S', label: 'Small (50 cm)' },
-          { value: 'M', label: 'Medium (70 cm)' },
-        ],
-      },
-      { kind: 'color', key: 'color', label: 'Gel', default: '#7fb2c9' },
-    ],
-  },
-  'pet-toy-bin': {
-    kind: 'parametric',
-    id: 'pet-toy-bin',
-    name: 'Pet toy bin',
-    keywords: ['dog', 'cat', 'toy', 'bin', 'basket', 'storage', 'woven'],
-    category: 'pets',
-    primitive: 'PetToyBin',
-    defaultFootprint: { w: 0.4, d: 0.4, h: 0.32 },
-    footprintParams: { w: 'width', d: 'depth' },
-    paramSchema: [
-      {
-        kind: 'enum',
-        key: 'shape',
-        label: 'Shape',
-        default: 'round',
-        options: [
-          { value: 'round', label: 'Round basket' },
-          { value: 'rect', label: 'Rectangular' },
-        ],
-      },
-      {
-        kind: 'number',
-        key: 'width',
-        label: 'Width',
-        min: 0.3,
-        max: 0.6,
-        step: 0.05,
-        default: 0.4,
-        unit: 'm',
-      },
-      {
-        kind: 'number',
-        key: 'depth',
-        label: 'Depth',
-        min: 0.3,
-        max: 0.6,
-        step: 0.05,
-        default: 0.4,
-        unit: 'm',
-      },
-      {
-        kind: 'number',
-        key: 'height',
-        label: 'Height',
-        min: 0.22,
-        max: 0.45,
-        step: 0.02,
-        default: 0.32,
-        unit: 'm',
-      },
-      { kind: 'color', key: 'color', label: 'Weave', default: '#b8a382' },
-      {
-        kind: 'enum',
-        key: 'lid',
-        label: 'Lid',
-        default: 'no',
-        options: [
-          { value: 'no', label: 'Open' },
-          { value: 'yes', label: 'With lid' },
-        ],
-      },
-    ],
-  },
-  // ---- Stage P4 — other pets ----------------------------------------------
+  // ============================================================================
+  // 2c. Birds
+  // ============================================================================
   'bird-cage': {
     kind: 'parametric',
     id: 'bird-cage',
@@ -1040,6 +1078,9 @@ export const PETS_DEFS = {
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#3a3d42' },
     ],
   },
+  // ============================================================================
+  // 2d. Small pets (rabbits, guinea pigs, hamsters)
+  // ============================================================================
   'rabbit-hutch': {
     kind: 'parametric',
     id: 'rabbit-hutch',
@@ -1149,6 +1190,9 @@ export const PETS_DEFS = {
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#1b1b1e' },
     ],
   },
+  // ============================================================================
+  // 2e. Fish
+  // ============================================================================
   'aquarium-stand': {
     kind: 'parametric',
     id: 'aquarium-stand',
@@ -1156,8 +1200,11 @@ export const PETS_DEFS = {
     keywords: ['fish', 'aquarium', 'tank', 'stand', 'cabinet', 'fish tank', 'water'],
     category: 'pets',
     primitive: 'AquariumStand',
-    // Footprint matches the default (0.9 m) tank; `tankLength` drives live dims.
-    defaultFootprint: { w: 0.9, d: 0.4, h: 1.25 },
+    // `tankLength` (enum) drives live dims; enums can't feed `footprintParams`,
+    // so the footprint is pinned to the LARGEST (1.2 m) tank — conservative
+    // over-report for smaller tanks, never an under-report (a ~300 kg appliance
+    // must not clip walls/neighbours).
+    defaultFootprint: { w: 1.2, d: 0.5, h: 1.25 },
     verticalSpan: { base: 0, top: 1.3 },
     // Load rating surfaced descriptively (LP4): a filled tank is very heavy.
     description:

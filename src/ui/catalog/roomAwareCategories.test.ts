@@ -39,6 +39,25 @@ describe('relevantCategoriesForRoomKind', () => {
     expect(relevantCategoriesForRoomKind(null)).toEqual([])
   })
 
+  it('surfaces pets prominently for a balcony / service-yard (the pet-compliance space)', () => {
+    // `balcony` is the classifier bucket for balconies AND service/utility
+    // yards (no distinct service-yard RoomKind exists) — both are where SG
+    // pet compliance (window mesh, litter cabinet, feeding gear) belongs.
+    const cats = relevantCategoriesForRoomKind('balcony')
+    expect(cats).toContain('pets')
+    // Prominent: within the first two categories, ahead of storage/laundry.
+    expect(cats.indexOf('pets')).toBeLessThanOrEqual(1)
+    expect(cats.indexOf('pets')).toBeLessThan(cats.indexOf('storage'))
+  })
+
+  it('orders balcony/service-yard with pets ahead of the remaining categories', () => {
+    const order = orderCategoriesForRoomKind('balcony')
+    expect(order.slice(0, 4)).toEqual(['outdoor', 'pets', 'storage', 'laundry'])
+    // Still a complete, duplicate-free permutation of every category.
+    expect(order).toHaveLength(FURNITURE_CATEGORIES.length)
+    expect(new Set(order).size).toBe(FURNITURE_CATEGORIES.length)
+  })
+
   it('never lists a category outside the known FurnitureCategory vocabulary', () => {
     const kinds: RoomKind[] = ['living', 'dining', 'bedroom', 'kitchen', 'bath', 'study', 'balcony']
     for (const k of kinds) {
